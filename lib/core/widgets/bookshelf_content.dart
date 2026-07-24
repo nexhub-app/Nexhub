@@ -336,6 +336,7 @@ class _HistoryBookshelf extends StatelessWidget {
                 coverUrl: e.localCoverPath ?? e.coverUrl,
                 source: e.sourceId != null ? repo.getById(e.sourceId!) : null,
                 onTap: () => onItemTap?.call(e.toMediaItem()),
+                onDelete: () => manager.removeHistory(e.id, sourceType: sourceType),
               ))
           .toList(),
     );
@@ -494,6 +495,7 @@ class _BookshelfItem {
   final SourceType sourceType;
   final PluginConfig? source;
   final VoidCallback? onTap;
+  final VoidCallback? onDelete;
 
   const _BookshelfItem({
     required this.id,
@@ -503,6 +505,7 @@ class _BookshelfItem {
     this.author,
     this.source,
     this.onTap,
+    this.onDelete,
   });
 }
 
@@ -592,17 +595,48 @@ class _BookshelfGrid extends StatelessWidget {
             // 进度：异步计算后通过 FutureBuilder 传给 ContentCard
             return FutureBuilder<double?>(
               future: layout.showProgress ? _computeProgress(item) : Future<double?>.value(null),
-              builder: (ctx, snap) => ContentCard(
-                coverUrl: item.coverUrl,
-                title: item.title,
-                subtitle: (layout.showAuthor && item.author != null)
-                    ? item.author
-                    : null,
-                source: item.source,
-                onTap: item.onTap,
-                width: itemW,
-                progress: snap.data,
-              ),
+              builder: (ctx, snap) {
+                final Widget card = ContentCard(
+                  coverUrl: item.coverUrl,
+                  title: item.title,
+                  subtitle: (layout.showAuthor && item.author != null)
+                      ? item.author
+                      : null,
+                  source: item.source,
+                  onTap: item.onTap,
+                  width: itemW,
+                  progress: snap.data,
+                );
+                // 历史记录：右上角悬浮删除按钮（仅历史书架传入 onDelete）。
+                if (item.onDelete == null) return card;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    card,
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius:
+                              BorderRadius.circular(AppTokens.radiusFull),
+                          onTap: () => _confirmDelete(ctx, item),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.delete_outline,
+                                size: 18, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
@@ -669,29 +703,69 @@ class _BookshelfGrid extends StatelessWidget {
                           ?.copyWith(color: scheme.onSurfaceVariant),
                     )
                   : null,
-              trailing: layout.showProgress
-                  ? FutureBuilder<double?>(
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (layout.showProgress)
+                    FutureBuilder<double?>(
                       future: _computeProgress(item),
                       builder: (ctx, snap) {
                         final double? p = snap.data;
-                        if (p == null || p <= 0) return const SizedBox.shrink();
-                        return Text(
-                          '${(p * 100).round()}%',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+                        if (p == null || p <= 0) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding:
+                              const EdgeInsets.only(right: AppTokens.spaceSm),
+                          child: Text(
+                            '${(p * 100).round()}%',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color:
+                                      Theme.of(context).colorScheme.primary,
+                                ),
+                          ),
                         );
                       },
-                    )
-                  : null,
+                    ),
+                  if (item.onDelete != null)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: AppLocalizations.of(context).delete,
+                      onPressed: () => _confirmDelete(context, item),
+                    ),
+                ],
+              ),
             ),
           ),
         );
       },
     );
+  }
+
+  /// 删除前二次确认（避免误删历史记录）。
+  Future<void> _confirmDelete(BuildContext context, _BookshelfItem item) async {
+    final l10n = AppLocalizations.of(context);
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.deleteConfirmTitle),
+        content: Text(l10n.deleteConfirmContent(item.title)),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) item.onDelete?.call();
   }
 
   /// 根据布局设置计算文本区域高度（标题 + 可选作者），用于反推高宽比。

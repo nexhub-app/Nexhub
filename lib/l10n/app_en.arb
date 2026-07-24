@@ -2111,5 +2111,9 @@
   "readerGroupProgress": "Progress & Display",
   "readerGroupFlash": "Flash Effect",
   "readerCommonSettings": "Common",
+  "readerGroupPageTapDesc": "Basic reading controls: page mode, screen orientation, tap zones, and zoom.",
+  "readerGroupViewFilterDesc": "Adjust brightness, contrast, color temperature, grayscale, etc.",
+  "readerGroupProgressDesc": "Page numbers, progress bar, fullscreen, keep-screen-on, rotation, and more.",
+  "readerGroupFlashDesc": "Flash effect on page turn (simulated page-turn light).",
   "readerSearchSettings": "Search settings…"
 }

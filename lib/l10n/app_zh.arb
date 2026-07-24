@@ -2148,5 +2148,9 @@
   "readerGroupProgress": "进度与显示",
   "readerGroupFlash": "闪屏效果",
   "readerCommonSettings": "常用设置",
+  "readerGroupPageTapDesc": "调整翻页方式、屏幕方向、点击区域与缩放等基础阅读操作。",
+  "readerGroupViewFilterDesc": "调节亮度、对比度、色温与灰度等画面效果。",
+  "readerGroupProgressDesc": "控制页码、进度条、全屏、常亮与页面旋转等显示选项。",
+  "readerGroupFlashDesc": "设置翻页时的闪光提示效果（模拟翻页灯）。",
   "readerSearchSettings": "搜索设置…"
 }
