@@ -108,6 +108,14 @@ probe_*.bat
 run_*.cmd
 run_*.ps1
 run_*.bat
+run_*.sh
+
+# ===== 本地弹幕秘钥运行脚本（含个人 DandanPlay 凭据，严禁入库）=====
+# 用法：run_danmaku.bat run  /  run_danmaku.bat build windows
+# 凭据仅通过 --dart-define 在编译期注入本地构建，不进入任何源码文件。
+run_danmaku.bat
+run_danmaku.cmd
+run_danmaku.sh
 tmp_*.mjs
 
 # ===== 内部开发文档 / 重开发计划（不入库）=====

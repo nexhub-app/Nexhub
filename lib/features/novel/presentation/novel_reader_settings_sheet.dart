@@ -47,7 +47,8 @@ class _NovelSettingsSheetState extends State<_NovelSettingsSheet> {
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.7,
+        maxHeight:
+            MediaQuery.of(context).size.height * AppTokens.readerSettingsMaxHeightFactor,
       ),
       padding: const EdgeInsets.all(AppTokens.spaceLg),
       child: SingleChildScrollView(

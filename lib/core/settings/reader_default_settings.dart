@@ -138,7 +138,7 @@ class ReaderDefaultSettings {
   const ReaderDefaultSettings({
     this.readingMode = ReadingMode.singleLTR,
     this.background = ReaderDefaultBackground.white,
-    this.orientation = ReaderOrientation.horizontal,
+    this.orientation = ReaderOrientation.vertical,
     this.tapZoneEnabled = true,
     this.doubleTapZoom = true,
     this.orientationLock = false,
