@@ -13,6 +13,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../core/comic/comic_progress_manager.dart';
 import '../../../core/comic/models/reader_preferences.dart';
+import 'reader_settings_sheet.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/local/local_content_manager.dart';
@@ -30,7 +31,6 @@ import '../../../core/widgets/source_image.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import 'reader_image_actions.dart';
 import 'reader_image_filter.dart';
-import 'reader_settings_sheet.dart';
 import 'reader_tap_zones.dart';
 
 /// 漫画阅读器（Phase 4）。
@@ -117,12 +117,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   int _currentPage = 0;
   bool _uiVisible = false;
   bool _isFav = false;
+  bool _showInlineSettings = false;
 
   /// 每页旋转的 quarterTurns（0/1/2/3），仅在用户主动旋转时记录。
   final Map<int, int> _pageRotations = <int, int>{};
-
-  /// 内联设置面板可见性（右侧滑出）。
-  bool _settingsPanelVisible = false;
 
   /// 进度滑条本地拖动值（拖动中暂存，松手后跳页并清空）。
   double? _progressDragValue;
@@ -305,6 +303,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     } on Object {
       // 测试环境忽略。
     }
+    // 退出时兜底保存偏好，确保设置退出后仍保留。
+    unawaited(_store.save(widget.comicId, _prefs));
     super.dispose();
   }
 
@@ -668,18 +668,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       ..multiply(m);
   }
 
-  /// 打开右侧设置面板（承载 [ReaderSettingsBody]）。
+  /// 打开 / 关闭内联阅读设置面板。
   ///
-  /// 自动保存模式：面板内任何改动经由 [_applySettingsAuto] 即时生效并落盘，
-  /// 无需「确认」；关闭面板即结束，不会回滚。
-  void _showSettingsPanel() {
-    setState(() => _settingsPanelVisible = true);
+  /// 与小说阅读器对齐：桌面（宽度 ≥ [AppTokens.desktopBreakpoint]）面板停在
+  /// 右侧、移动端停在底部；改动通过 [onChanged] 即时预览并落盘（[_applySettingsAuto]），
+  /// 关闭时草稿已应用，无需额外提交。
+  void _openSettings() {
+    _toggleInlineSettings();
   }
 
-  /// 关闭设置面板（不回滚，改动已即时保存）。
-  void _hideSettingsPanel() {
-    if (!mounted) return;
-    setState(() => _settingsPanelVisible = false);
+  /// 切换内联设置面板的显隐。
+  void _toggleInlineSettings() {
+    setState(() => _showInlineSettings = !_showInlineSettings);
   }
 
   /// 设置面板内的改动：即时预览 + 自动保存。
@@ -844,6 +844,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               },
               onZoom: _toggleZoom,
               onZoomAt: (pos) => _toggleZoom(pos),
+              onTapIntercept: () {
+                if (_showInlineSettings) {
+                  _toggleInlineSettings();
+                  return true;
+                }
+                return false;
+              },
               onLongPress: (_images.isEmpty || !_prefs.showLongPressMenu)
                   ? null
                   : () => showReaderImageActions(
@@ -899,18 +906,43 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             ),
           if (_uiVisible && _prefs.progressBarOnRight && _images.isNotEmpty)
             _buildRightProgressBar(l10n),
-          if (_settingsPanelVisible) ...<Widget>[
-            // 内联面板背景遮罩：点击遮罩 = 关闭面板（改动已自动保存，不回滚）。
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _hideSettingsPanel,
-                child: const ColoredBox(color: Colors.black54),
-              ),
-            ),
-            _buildSettingsPanel(l10n),
-          ],
+          if (_showInlineSettings) _buildInlineSettings(l10n),
         ],
+      ),
+    );
+  }
+
+  // ─────────────────────── 内联设置面板 ───────────────────────
+
+  /// 与小说阅读器对齐的内联设置面板：桌面（宽 ≥ [AppTokens.desktopBreakpoint]）
+  /// 停靠右侧、移动端停靠底部。点阅读区任意处关闭（见 [ReaderTapZones.onTapIntercept]）。
+  Widget _buildInlineSettings(AppLocalizations l10n) {
+    final isDesktop =
+        MediaQuery.sizeOf(context).width >= AppTokens.desktopBreakpoint;
+
+    final panel = Material(
+      elevation: 4,
+      child: buildComicSettingsSheet(
+        initial: _prefs,
+        onChanged: _applySettingsAuto,
+        onClose: _toggleInlineSettings,
+      ),
+    );
+
+    if (isDesktop) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: panel,
+        ),
+      );
+    }
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: FractionallySizedBox(
+        heightFactor: 0.55,
+        child: panel,
       ),
     );
   }
@@ -1049,6 +1081,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         : 0.0;
     return ListView.separated(
       controller: sc,
+      physics: const PageScrollPhysics(),
       padding: EdgeInsets.zero,
       itemCount: _images.length,
       separatorBuilder: (_, __) => SizedBox(height: gap),
@@ -1118,7 +1151,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             IconButton(
               icon: const Icon(Icons.settings),
               tooltip: l10n.readerSettings,
-              onPressed: _showSettingsPanel,
+              onPressed: _openSettings,
             ),
             // 章节列表按钮：本地模式无章节概念，隐藏。
             if (!_isLocalMode)
@@ -1433,7 +1466,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         IconButton(
           icon: const Icon(Icons.tune),
           tooltip: l10n.readerSettings,
-          onPressed: _showSettingsPanel,
+          onPressed: _openSettings,
         ),
       ],
     );
@@ -1491,69 +1524,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         ReadingMode.webtoonWithGap => l10n.readerModeWebtoonWithGap,
       };
 
-  /// 右侧内联设置面板：承载 [ReaderSettingsBody]，自动保存模式。
-  ///
-  /// 宽度收窄并带左侧圆角，与小说阅读器设置面板形态保持一致，避免占据过大空间。
-  /// 顶部仅保留「关闭」按钮（改动即时生效并落盘，无需确认）。
-  Widget _buildSettingsPanel(AppLocalizations l10n) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    return Positioned(
-      top: 0,
-      right: 0,
-      bottom: 0,
-      child: Container(
-        width: screenWidth * 0.62 < 420 ? screenWidth * 0.62 : 420,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.horizontal(
-            left: Radius.circular(AppTokens.spaceLg),
-          ),
-          boxShadow: const <BoxShadow>[
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 16,
-              offset: Offset(-2, 0),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Column(
-            children: <Widget>[
-              // 顶部条：标题 / 关闭
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.only(left: AppTokens.spaceMd),
-                      child: Text(
-                        l10n.readerSettings,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    tooltip: MaterialLocalizations.of(context).closeButtonLabel,
-                    onPressed: _hideSettingsPanel,
-                  ),
-                ],
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ReaderSettingsBody(
-                  initial: _prefs,
-                  onChanged: _applySettingsAuto,
-                  showConfirmButton: false,
-                  showHeader: false,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// 居中的提示信息（错误 / 空）。

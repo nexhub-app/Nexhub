@@ -144,7 +144,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          flutter build apk --release --split-per-abi --verbose 2>&1 | tee apk_build.log || { echo "=== ANDROID BUILD FAILED ===" && tail -n 500 apk_build.log; exit 1; }
+          flutter build apk --release --split-per-abi --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} 2>&1 | tee apk_build.log || { echo "=== ANDROID BUILD FAILED ===" && tail -n 500 apk_build.log; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
@@ -176,7 +176,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          flutter build windows --release --verbose 2>&1 | tee win_build.log || { echo "=== WINDOWS BUILD FAILED ===" && tail -n 200 win_build.log; exit 1; }
+          flutter build windows --release --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} 2>&1 | tee win_build.log || { echo "=== WINDOWS BUILD FAILED ===" && tail -n 200 win_build.log; exit 1; }
       - name: 打包 Windows 安装文件
         run: Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "NexHub-windows-x64.zip"
       - uses: actions/upload-artifact@v4
@@ -256,7 +256,7 @@ jobs:
       - name: 编译 Linux (verbose + 日志)
         run: |
           set -o pipefail
-          flutter build linux --release --verbose 2>&1 | tee flutter_build.log || { tail -n 500 flutter_build.log; exit 1; }
+          flutter build linux --release --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} 2>&1 | tee flutter_build.log || { tail -n 500 flutter_build.log; exit 1; }
       - name: 上传构建日志 (始终，便于失败排查)
         if: always()
         uses: actions/upload-artifact@v4
@@ -298,7 +298,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          flutter build macos --release --verbose 2>&1 | tee macos_build.log || { echo "=== MACOS BUILD FAILED ===" && tail -n 500 macos_build.log; exit 1; }
+          flutter build macos --release --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} 2>&1 | tee macos_build.log || { echo "=== MACOS BUILD FAILED ===" && tail -n 500 macos_build.log; exit 1; }
       - name: 打包 macOS 安装文件
         run: |
           APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -n1)

@@ -56,8 +56,19 @@ class DanmakuConfig {
 }
 
 /// 弹幕配置持久化存储（键 `danmaku_config`）。
+///
+/// 凭据来源优先级：
+/// 1. 用户曾通过界面/脚本保存的 shared_preferences 值（最高优先）；
+/// 2. 编译期通过 `--dart-define=DANMAKU_APP_ID/DANMAKU_APP_SECRET` 注入的本地凭据
+///    （不写入仓库，仅存在于本地构建产物中）。首次读取到 env 凭据时会自动持久化，
+///    使后续普通运行（不带 --dart-define）也能使用。
 class DanmakuConfigStore {
   static const String _key = 'danmaku_config';
+
+  // 编译期注入的本地凭据（空字符串表示未注入）。这些值不会出现在仓库源码中。
+  static const String _envAppId = String.fromEnvironment('DANMAKU_APP_ID');
+  static const String _envSecret =
+      String.fromEnvironment('DANMAKU_APP_SECRET');
 
   final PrefsBackend _backend;
 
@@ -66,7 +77,20 @@ class DanmakuConfigStore {
 
   Future<DanmakuConfig> load() async {
     final raw = await _backend.get(_key);
-    if (raw == null || raw.isEmpty) return const DanmakuConfig.defaults();
+    if (raw == null || raw.isEmpty) {
+      // 回退：读取编译期注入的本地凭据。
+      if (_envAppId.isNotEmpty && _envSecret.isNotEmpty) {
+        final cfg = DanmakuConfig(
+          appId: _envAppId,
+          appSecret: _envSecret,
+          enabled: true,
+        );
+        // 持久化，使首次脚本化运行后普通运行也可用。
+        await save(cfg);
+        return cfg;
+      }
+      return const DanmakuConfig.defaults();
+    }
     try {
       return DanmakuConfig.fromJsonString(raw);
     } on Object {

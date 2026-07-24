@@ -47,6 +47,12 @@ class ReaderTapZones extends StatefulWidget {
   /// 长按回调（用于弹出图片「保存 / 分享」菜单等）。为 null 时不检测长按。
   final VoidCallback? onLongPress;
 
+  /// 单击拦截：每次命中热区的单击（含双击 / Shift+点击前的首次抬起）都会先调用，
+  /// 返回 true 则吞掉本次单击（不执行 prev/next/toggle、不触发缩放）。
+  /// 用于内联设置面板打开时「点阅读区任意处关闭面板」，与小说阅读器行为一致。
+  /// 为 null 时不拦截。
+  final bool Function()? onTapIntercept;
+
   /// 是否渲染点击区域预览（彩色块 + 标签）。用于设置页预览，开启时不响应手势。
   final bool showPreview;
 
@@ -64,6 +70,7 @@ class ReaderTapZones extends StatefulWidget {
     this.onZoom,
     this.onZoomAt,
     this.onLongPress,
+    this.onTapIntercept,
     this.showPreview = false,
     this.previewLabels,
   });
@@ -197,6 +204,9 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     // 移动过大或按住过久视为拖拽 / 长按，不处理。
     if (move > _tapSlop || dt > _tapTimeout) return;
 
+    // 内联设置面板打开时，任意单击都用来关闭面板（吞掉导航 / 缩放）。
+    if (widget.onTapIntercept?.call() ?? false) return;
+
     // 桌面 Shift+左键：在点击处缩放（兜底双击缩放），不触发导航 / 双击。
     // 此分支优先于区域命中，任意位置按下 Shift 均可定点缩放。
     if (shifted) {
@@ -322,10 +332,13 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
   @override
   Widget build(BuildContext context) {
     if (widget.showPreview) return _buildPreview();
-    // 覆盖层铺满父级 Stack；Listener(behavior: opaque) 保证其自身可被命中，
-    // 且 SizedBox.expand() 填满几何，单击 / 双击坐标按尺寸比例映射到热区。
+    // 覆盖层铺满父级 Stack；用 translucent（而非 opaque）让它在处理单击 / 双击
+    // 热区的同时，把【拖拽 / 滚动】事件透传给底层 PageView / ListView：
+    // - opaque 会独占命中，导致翻页滑动、条漫滚动等手势全部失效；
+    // - translucent 仍能接收指针（单击照常分发 prev/next/toggle、双击缩放），
+    //   同时底层可滚动内容照常响应拖拽。
     return Listener(
-      behavior: HitTestBehavior.opaque,
+      behavior: HitTestBehavior.translucent,
       onPointerDown: _onPointerDown,
       onPointerMove: _onPointerMove,
       onPointerUp: _onPointerUp,
