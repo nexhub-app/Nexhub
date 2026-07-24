@@ -268,6 +268,22 @@ class HistoryManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 删除单条历史记录（按内容 id 定位）。
+  ///
+  /// [sourceType] 显式指定所属模块时只在该模块内删除（更精确）；
+  /// 不传则在所有模块中删除匹配 id 的记录。删除后自动持久化并通知 UI。
+  Future<void> removeHistory(String contentId, {SourceType? sourceType}) async {
+    if (sourceType != null) {
+      _cache[sourceType]?.removeWhere((e) => e.id == contentId);
+    } else {
+      for (final list in _cache.values) {
+        list.removeWhere((e) => e.id == contentId);
+      }
+    }
+    await _persist();
+    notifyListeners();
+  }
+
   /// 清除全部历史。
   Future<void> clearAll() async {
     _cache.clear();
