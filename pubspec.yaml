@@ -66,6 +66,10 @@ dependencies:
   fvp: ^0.37.3
   # 投屏（Chromecast，纯 Dart 实现，无需 Google Cast SDK）
   cast: ^2.1.0
+  # bonsoir 是 cast 的传递依赖；cast 2.1.0 只声明 bonsoir: '>=3.0.0'（无上限），
+  # 导致 pub 拉取 6.x。bonsoir 6.0.0 是破坏性升级（ready→initialize()、事件 API 重写），
+  # 与 cast 2.1.0 不兼容。这里显式锁到 5.x 最新版，满足 cast 的 >=3.0.0 约束。
+  bonsoir: ^5.1.11
   # 画中画（Android 原生 PiP，iOS / 桌面优雅降级）
   floating: ^6.0.0
   # 弹幕（canvas_danmaku）

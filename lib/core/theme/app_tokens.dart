@@ -55,6 +55,9 @@ class AppTokens {
 
   // ─────────────────────── 组件固定尺寸 ───────────────────────
   static const double coverAspectRatio = 0.7; // 封面宽高比（漫画/小说）
+
+  /// 阅读器设置弹窗最大高度占屏比（小说 / 漫画共用，保证两处高度同步）。
+  static const double readerSettingsMaxHeightFactor = 0.85;
   static const double coverRadius = radiusMd;
   static const double iconButtonSize = 40;
   static const double tabBarHeight = 56;

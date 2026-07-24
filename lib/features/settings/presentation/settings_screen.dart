@@ -22,7 +22,6 @@ import '../../sources/presentation/source_manager_screen.dart';
 import './settings_download_screen.dart';
 import './settings_rsshub_screen.dart';
 import './settings_rss_notifications_screen.dart';
-import './settings_danmaku_screen.dart';
 import './settings_danmaku_display_screen.dart';
 import './settings_player_screen.dart';
 import './settings_novel_reader_screen.dart';
@@ -222,17 +221,6 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(l10n.layoutSettingsDesc),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => showLayoutPickerDialog(context),
-          ),
-          AppListTile(
-            leading: const Icon(Icons.comment),
-            title: Text(l10n.danmakuSettings),
-            subtitle: Text(l10n.danmakuSettingsDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const SettingsDanmakuScreen(),
-              ),
-            ),
           ),
           AppListTile(
             leading: const Icon(Icons.subtitles_outlined),
