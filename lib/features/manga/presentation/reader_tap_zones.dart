@@ -36,6 +36,11 @@ class ReaderTapZones extends StatefulWidget {
   final ReaderTapZoneLayout layout;
   final TapZoneInvert tapZoneInvert;
   final bool isVertical; // webtoon / 竖向：prev=上滚，next=下滚
+  final bool isWebtoon; // 条漫：拖拽交给原生 ListView 滚动，不在此翻页
+  final bool isRTL; // 翻页 RTL：拖拽方向反转
+  /// 拖拽（滑动）翻页回调：拖拽超过阈值时调用，[next]=true 下一页 / false 上一页。
+  /// 仅翻页模式生效；条漫不触发（交给原生连续滚动）。
+  final void Function(bool next)? onDragPage;
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final VoidCallback onToggleUi;
@@ -64,6 +69,9 @@ class ReaderTapZones extends StatefulWidget {
     required this.layout,
     this.tapZoneInvert = TapZoneInvert.none,
     required this.isVertical,
+    this.isWebtoon = false,
+    this.isRTL = false,
+    this.onDragPage,
     required this.onPrev,
     required this.onNext,
     required this.onToggleUi,
@@ -190,7 +198,8 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     if (_activePointer != e.pointer || _downPos == null || _downTime == null) {
       return;
     }
-    final move = (e.localPosition - _downPos!).distance;
+    final Offset downPos = _downPos!;
+    final move = (e.localPosition - downPos).distance;
     final dt = DateTime.now().difference(_downTime!);
     final fired = _longPressFired;
     _activePointer = null;
@@ -199,10 +208,35 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     _longPressFired = false;
     final bool shifted = _downShift;
     _downShift = false;
-    // 长按已触发则不再分发单击 / 双击。
     if (fired) return;
-    // 移动过大或按住过久视为拖拽 / 长按，不处理。
-    if (move > _tapSlop || dt > _tapTimeout) return;
+    // 拖拽（滑动）翻页优先判定：移动超过 tap slop 即视为拖拽，不触发单击导航 / 缩放。
+    // 条漫交给原生 ListView 连续滚动，不在此翻页。
+    if (move > _tapSlop) {
+      if (!widget.isWebtoon) {
+        final double dx = e.localPosition.dx - downPos.dx;
+        final double dy = e.localPosition.dy - downPos.dy;
+        final bool vertical = widget.isVertical;
+        bool next;
+        if (vertical) {
+          next = dy < 0; // 上滑 = 下一页
+          if (widget.tapZoneInvert == TapZoneInvert.upDown ||
+              widget.tapZoneInvert == TapZoneInvert.all) {
+            next = !next;
+          }
+        } else {
+          // 标准习惯（主流漫画 App）：左到右模式向左滑→下一页；右到左模式向右滑→下一页。
+          next = dx < 0;
+          if (widget.isRTL) next = !next; // RTL 反转（向右滑=下一页）
+          if (widget.tapZoneInvert == TapZoneInvert.leftRight ||
+              widget.tapZoneInvert == TapZoneInvert.all) {
+            next = !next; // 用户手动反转热区时同步反转拖拽方向
+          }
+        }
+        widget.onDragPage?.call(next);
+      }
+      return;
+    }
+    if (dt > _tapTimeout) return;
 
     // 内联设置面板打开时，任意单击都用来关闭面板（吞掉导航 / 缩放）。
     if (widget.onTapIntercept?.call() ?? false) return;
@@ -229,12 +263,13 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
         _lastTapPos != null &&
         (_lastTapPos! - e.localPosition).distance <= _doubleTapSlop;
     if (isDouble) {
-      // 双击：仅切换热区触发缩放。注意：不再抑制本次单击的导航/切换，
-      // 否则两次快速单击会被误判为双击而丢失一次切换（widget 测试中的两次
-      // 单击间隔仅约 80ms）。双击时 UI 会闪一下，但缩放功能正确。
+      // 双击：任意位置都触发缩放（双击放大 / 再双击还原），不再限定于中心
+      // 「切换」热区——否则条漫 / 触屏用户很难点到中心，会感觉「放缩没作用」。
+      // 仍不抑制本次单击的导航/切换：双击时先按首次单击的区域导航一次，再缩放，
+      // 与原有行为一致（widget 测试里两次单击间隔仅约 80ms，抑制会丢一次切换）。
       _lastTapTime = null;
       _lastTapPos = null;
-      if (action == _TapAction.toggle) widget.onZoom?.call();
+      widget.onZoom?.call();
     } else {
       _lastTapTime = now;
       _lastTapPos = e.localPosition;
