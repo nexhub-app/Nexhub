@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:dio/dio.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_list_tile.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// Project repository URL opened via url_launcher.
 const String _kProjectRepositoryUrl = 'https://github.com/nexhub-app/nexhub';
@@ -51,7 +52,7 @@ class _AboutScreenState extends State<AboutScreen> {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
+      builder: (_) => AppAlertDialog(
         content: Row(
           children: <Widget>[
             const CircularProgressIndicator(),
@@ -88,7 +89,7 @@ class _AboutScreenState extends State<AboutScreen> {
     if (newer) {
       await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => AppAlertDialog(
           title: Text(l10n.updateAvailable(latestTag!)),
           content: Text(l10n.updateAvailableHint),
           actions: <Widget>[

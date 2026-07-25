@@ -13,6 +13,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/layout_picker_dialog.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 下载状态筛选（项 11）。null = 全部。
 enum _DownloadStatusFilter { all, completed, inProgress, failed }
@@ -266,7 +267,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
   ) {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.deleteSelected),
         content: Text(l10n.deleteSelectedConfirm(_selectedKeys.length)),
         actions: <Widget>[
@@ -315,7 +316,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
   ) {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.clearAll),
         content: Text(l10n.clearAllConfirm),
         actions: <Widget>[
