@@ -17,6 +17,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../downloads/presentation/download_list_screen.dart';
 import '../../downloads/presentation/downloaded_content_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 下载管理主页面。
 class SettingsDownloadScreen extends StatelessWidget {
@@ -39,7 +40,7 @@ class SettingsDownloadScreen extends StatelessWidget {
             subtitle: Text(l10n.downloads),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const DownloadListScreen(),
               ),
             ),
@@ -49,7 +50,7 @@ class SettingsDownloadScreen extends StatelessWidget {
             title: Text(l10n.downloadedContent),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const DownloadedContentScreen(),
               ),
             ),

@@ -16,6 +16,7 @@ import '../../manga/presentation/comic_reader_screen.dart';
 import '../../novel/presentation/novel_reader_screen.dart';
 import '../../player/presentation/video_player_screen.dart';
 import 'local_media_viewer.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 本地文件筛选维度（区别于 SourceType，语义更贴合本地媒体）。
 enum _LocalFilter { all, novel, comic, video }
@@ -220,7 +221,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         // 仅 .cbz/.zip 走专用阅读器（可解压）；.cbr/.rar/单图/目录走兜底。
         if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {
           Navigator.of(context).push(
-            MaterialPageRoute<void>(
+            AppPageRoute<void>(
               builder: (_) => ComicReaderScreen(
                 comicId: 'local_${file.path.hashCode}',
                 title: file.name,
@@ -235,7 +236,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         _openLocalMediaViewer(file);
       case LocalMediaKind.video:
         Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => VideoPlayerScreen(
               title: file.name,
               episode: Episode(id: 'local', title: file.name, url: file.path),
@@ -249,7 +250,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         // 仅 .txt 走专用阅读器；.epub/.umd/.mobi/.fb2/.azw3 走兜底（不支持）。
         if (lower.endsWith('.txt')) {
           Navigator.of(context).push(
-            MaterialPageRoute<void>(
+            AppPageRoute<void>(
               builder: (_) => NovelReaderScreen(
                 novelId: 'local_${file.path.hashCode}',
                 title: file.name,
@@ -268,7 +269,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
   /// 兜底：打开 [LocalMediaViewer]（保持 O4.A 既有行为）。
   void _openLocalMediaViewer(_LocalFile file) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => LocalMediaViewer(
           title: file.name,
           kind: file.kind,

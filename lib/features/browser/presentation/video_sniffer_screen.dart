@@ -14,6 +14,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../player/presentation/video_player_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 视频串流扩展名集合（用于资源拦截过滤）。
 const Set<String> _videoExtensions = <String>{
@@ -135,7 +136,7 @@ class _VideoSnifferScreenState extends State<VideoSnifferScreen> {
         ? Uri.parse(url).pathSegments.last
         : url;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => VideoPlayerScreen(
           title: title,
           episode: Episode(id: url, title: title, url: url),

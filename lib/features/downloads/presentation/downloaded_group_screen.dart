@@ -12,6 +12,7 @@ import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../home/presentation/local_media_viewer.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 已下载内容分组详情（下载页 → 点击已完成项）。
 ///
@@ -181,7 +182,7 @@ class DownloadedGroupScreen extends StatelessWidget {
 
   void _open(BuildContext context, String path) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => LocalMediaViewer(
           title: task.title,
           kind: _kindFor(task.format),

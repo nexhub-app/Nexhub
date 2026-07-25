@@ -23,6 +23,7 @@ import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/scraper/verification_detector.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../browser/presentation/http_browser_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 验证结果。
 enum VerificationResult {
@@ -121,7 +122,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
   /// 返回 `true` 时直接以 [VerificationResult.done] 结束，触发上层重试。
   Future<void> _openInternalBrowser() async {
     final used = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
+      AppPageRoute<bool>(
         builder: (_) => HttpBrowserScreen(initialUrl: widget.verificationUrl),
       ),
     );
@@ -714,7 +715,7 @@ Future<bool> navigateToVerification(
   VerificationRequiredException? exception,
 }) async {
   final result = await Navigator.of(context).push<VerificationResult>(
-    MaterialPageRoute<VerificationResult>(
+    AppPageRoute<VerificationResult>(
       builder: (_) => WebViewVerificationScreen(
         verificationUrl: url,
         exception: exception,
@@ -735,7 +736,7 @@ Future<WebViewExtractionOutcome?> navigateToExtraction(
   required WebViewExtractionRequest request,
 }) async {
   return Navigator.of(context).push<WebViewExtractionOutcome>(
-    MaterialPageRoute<WebViewExtractionOutcome>(
+    AppPageRoute<WebViewExtractionOutcome>(
       builder: (_) => WebViewVerificationScreen(
         verificationUrl: request.url,
         exception: null,
@@ -755,7 +756,7 @@ Future<WebViewExtractionOutcome?> navigateToHtmlCapture(
   required WebViewHtmlRequest request,
 }) async {
   return Navigator.of(context).push<WebViewExtractionOutcome>(
-    MaterialPageRoute<WebViewExtractionOutcome>(
+    AppPageRoute<WebViewExtractionOutcome>(
       builder: (_) => WebViewVerificationScreen(
         verificationUrl: request.url,
         exception: null,
