@@ -1,7 +1,7 @@
 name: nexhub
 description: 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— Material 3 设计系统基础脚手架。
 publish_to: 'none'
-version: 0.2.9+11
+version: 0.2.10+12
 repository: https://github.com/nexhub-app/nexhub
 
 environment:
@@ -128,3 +128,4 @@ flutter_launcher_icons:
     generate: true
   adaptive_icon_background: "#0EA5E9" # 蓝青主色，作为自适应图标背景
   adaptive_icon_foreground: "assets/icon/icon.png"
+  adaptive_icon_monochrome: "assets/icon/icon_monochrome.png" # Android 13+ 主题图标（莫奈取色）单色图层：白"N"+四角色点

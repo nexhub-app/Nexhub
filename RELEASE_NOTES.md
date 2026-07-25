@@ -1,4 +1,4 @@
-# NexHub v0.2.9
+# NexHub v0.2.10
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -144,6 +144,23 @@
   与 `$destPath`（仍是**相对路径** `windows\installer\Output\...`）——两者格式不同，`-ieq` 永远不相等，
   于是照样去复制、照样自覆盖报错。改用 `[System.IO.Path]::GetFullPath` 把目标也转成绝对路径再比，
   相同就跳过；并补了 Source/Dest 路径日志和 `try/catch` 便于以后诊断。
+
+## 🎨 更新日志（v0.2.9 → v0.2.10）
+
+本版**新增一个用户可见的平台能力**：Android 13+ 的「主题图标(themed icon / 莫奈取色)」——桌面图标会**跟随壁纸颜色**而变色。
+
+### ✨ 新增
+- **App 图标莫奈取色（Android 13+ 主题图标）**：之前 `flutter_launcher_icons` 只配了
+  `adaptive_icon_background` 和 `adaptive_icon_foreground`，**缺一个 single-layer 的单色图层**，
+  所以系统在 Android 13+ 桌面要把图标染成壁纸色时染色层缺席，图标始终是固定的青底白 "N"。
+  本版新增 `assets/icon/icon_monochrome.png`（白"N" + 四角白色装饰点，透明背景，
+  由源图 luminance 阈值 175 自动生成：**保留 N+4 个装饰点的白色形状、自动剔除青底渐变**），
+  并在 `pubspec.yaml` 的 `flutter_launcher_icons` 块里挂上
+  `adaptive_icon_monochrome: "assets/icon/icon_monochrome.png"`。下次 CI 重新跑
+  `flutter_launcher_icons` 时，Android job 会一并产出 `ic_launcher_monochrome` 资源，
+  桌面图标就会按系统壁纸色取色（青底不变作为品牌色，"N"+ 装饰点跟随壁纸变色）。
+- 仅影响支持主题图标的 Android 13+ 设备；老设备、Android 其它版本以及
+  Windows/macOS/Linux 完全不受影响（图标显示行为照旧）。
 
 ## 📦 安装
 
