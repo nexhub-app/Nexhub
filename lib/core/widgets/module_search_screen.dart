@@ -6,6 +6,7 @@ import '../theme/app_tokens.dart';
 import 'app_icon_button.dart';
 import 'search_suggestions.dart';
 import 'layout_picker_button.dart';
+import 'app_search_field.dart';
 
 /// 搜索布局切换（网格 / 列表）。
 class SearchLayoutToggle extends StatelessWidget {
@@ -160,27 +161,22 @@ class _ModuleSearchScreenState extends State<ModuleSearchScreen> {
               horizontal: AppTokens.spaceLg,
               vertical: AppTokens.spaceSm,
             ),
-            child: TextField(
+            child: AppSearchField(
               controller: widget.searchController,
               focusNode: _focusNode,
               autofocus: widget.searchController.text.isEmpty,
-              decoration: InputDecoration(
-                hintText: widget.hint,
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: widget.searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          widget.searchController.clear();
-                          widget.onQueryChanged('');
-                        },
-                      )
-                    : null,
-                border: const OutlineInputBorder(),
-                filled: true,
-              ),
+              hint: widget.hint,
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: widget.searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        widget.searchController.clear();
+                        widget.onQueryChanged('');
+                      },
+                    )
+                  : null,
               onChanged: widget.onQueryChanged,
-              textInputAction: TextInputAction.search,
               onSubmitted: _onSubmitted,
             ),
           ),

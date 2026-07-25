@@ -15,7 +15,10 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../history/chapter_fetch_time_manager.dart';
 import '../models/episode.dart';
 import '../theme/app_tokens.dart';
+import 'app_animations.dart';
+import 'app_empty_state.dart';
 import 'app_loading_indicator.dart';
+import 'app_search_field.dart';
 import 'detail_list_filter.dart';
 
 /// 章节列表区。支持搜索过滤 + 筛选/排序/显示组合 + 可选的线路分组。
@@ -265,7 +268,10 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       }
       return Padding(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
-        child: Center(child: Text(l10n.emptyContent)),
+        child: AppEmptyState(
+          icon: Icons.video_library_outlined,
+          message: l10n.emptyContent,
+        ),
       );
     }
 
@@ -353,7 +359,10 @@ class _ChapterListSectionState extends State<ChapterListSection> {
         if (indices.isEmpty)
           Padding(
             padding: const EdgeInsets.all(AppTokens.spaceLg),
-            child: Center(child: Text(l10n.noChaptersFound)),
+            child: AppEmptyState(
+              icon: Icons.search_off_outlined,
+              message: l10n.noChaptersFound,
+            ),
           )
         else if (_isGridMode && widget.enableGridMode) ...<Widget>[
           _buildChapterGrid(context, l10n, scheme, headIndices),
@@ -395,16 +404,10 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       child: Row(
         children: <Widget>[
           Expanded(
-            child: TextField(
+            child: AppSearchField(
               controller: _searchCtrl,
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: l10n.searchChapter,
-                prefixIcon: const Icon(Icons.search, size: 20),
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceXs),
-              ),
+              hint: l10n.searchChapter,
+              prefixIcon: const Icon(Icons.search, size: 20),
               onChanged: (v) => setState(() => _query = v),
             ),
           ),
@@ -583,6 +586,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     List<int> indices,
   ) {
     final display = _filterQuery.display;
+    final String gridId = 'chapgrid-${widget.contentId ?? 'x'}';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
       child: GridView.builder(
@@ -655,9 +659,13 @@ class _ChapterListSectionState extends State<ChapterListSection> {
             ),
           );
 
-          return GestureDetector(
-            onTap: () => widget.onTapChapter(ep, i),
-            child: isRead ? Opacity(opacity: 0.5, child: card) : card,
+          return Entrance(
+            onceKey: '$gridId-$i',
+            delay: Duration(milliseconds: (gridIndex * 18).clamp(0, 240)),
+            child: GestureDetector(
+              onTap: () => widget.onTapChapter(ep, i),
+              child: isRead ? Opacity(opacity: 0.5, child: card) : card,
+            ),
           );
         },
       ),
@@ -671,7 +679,10 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     List<int> indices,
   ) {
     final display = _filterQuery.display;
-    return indices.map<Widget>((i) {
+    final String idKey = widget.contentId ?? 'chap';
+    final List<Widget> tiles = <Widget>[];
+    for (var pos = 0; pos < indices.length; pos++) {
+      final int i = indices[pos];
       final ep = widget.chapters[i];
       final bool isRead =
           widget.isChapterRead != null && widget.isChapterRead!(i);
@@ -767,9 +778,17 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       );
 
       // 已读条目降低不透明度
-      return isRead
+      final Widget row = isRead
           ? Opacity(opacity: 0.5, child: tile)
           : tile;
-    }).toList();
+      tiles.add(
+        Entrance(
+          onceKey: '$idKey-$i',
+          delay: Duration(milliseconds: (pos * 18).clamp(0, 240)),
+          child: row,
+        ),
+      );
+    }
+    return tiles;
   }
 }

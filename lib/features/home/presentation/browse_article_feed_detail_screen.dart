@@ -14,6 +14,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
+import '../../../core/widgets/app_refresh_indicator.dart';
 
 import 'browse_article_detail_screen.dart';
 
@@ -111,7 +112,7 @@ class _BrowseArticleFeedDetailScreenState
       );
     }
 
-    return RefreshIndicator(
+    return AppRefreshIndicator(
       onRefresh: _loadFeed,
       child: ListView.separated(
         // 弹性滚动：下拉刷新时有拉伸回弹手感。

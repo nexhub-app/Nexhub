@@ -6,6 +6,7 @@ import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
 import 'app_card.dart';
 import 'app_cover_image.dart';
+import 'app_refresh_indicator.dart';
 import 'detail_action_utils.dart';
 import 'source_image.dart';
 
@@ -488,9 +489,9 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
       ],
     );
 
-    // 下拉刷新
+    // 下拉刷新（弹性指示器）
     if (widget.onRefresh != null) {
-      return RefreshIndicator(
+      return AppRefreshIndicator(
         onRefresh: widget.onRefresh!,
         child: scrollView,
       );
