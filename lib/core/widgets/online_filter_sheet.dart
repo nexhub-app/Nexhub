@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/plugin_config.dart';
@@ -243,7 +244,8 @@ class _OnlineFilterSheetState extends State<_OnlineFilterSheet> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    return SafeArea(
+    return AppSheetBody(
+      child: SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
           left: AppTokens.spaceLg,
@@ -339,6 +341,7 @@ class _OnlineFilterSheetState extends State<_OnlineFilterSheet> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -627,7 +630,8 @@ class _DynamicFilterSheetState extends State<_DynamicFilterSheet> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    return SafeArea(
+    return AppSheetBody(
+      child: SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
           left: AppTokens.spaceLg,
@@ -688,6 +692,7 @@ class _DynamicFilterSheetState extends State<_DynamicFilterSheet> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

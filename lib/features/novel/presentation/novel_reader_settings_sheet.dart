@@ -5,6 +5,7 @@ import '../../../core/novel/novel_page_animation.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/reader_tokens.dart';
+import '../../../core/widgets/app_animations.dart';
 
 /// 显示小说阅读器设置面板（ModalBottomSheet）。
 ///
@@ -45,7 +46,8 @@ class _NovelSettingsSheetState extends State<_NovelSettingsSheet> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
 
-    return Container(
+    return AppSheetBody(
+      child: Container(
       constraints: BoxConstraints(
         maxHeight:
             MediaQuery.of(context).size.height * AppTokens.readerSettingsMaxHeightFactor,
@@ -190,6 +192,7 @@ class _NovelSettingsSheetState extends State<_NovelSettingsSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
