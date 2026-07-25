@@ -1,16 +1,30 @@
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
 
+/// 统一设计常量（仅本组件内部使用）。
+const double _kPillW = 36; // 选中胶囊宽度（只罩图标）
+const double _kPillH = 24; // 选中胶囊高度
+const double _kIconBox = 44; // 图标占位盒（留足缩放空间）
+const double _kLabelGap = 4; // 图标与文字间距
+const double _kLabelH = 12; // 文字估算高度（用于把胶囊对准图标中心）
+
+/// 图标中心相对「单元格」的纵向偏移：列整体居中，图标盒在上、文字在下，
+/// 故图标中心比单元格中心上移 (文字高 + 间距)/2。
+double _iconCenterOffset(double cellMain) =>
+    (cellMain - (_kIconBox + _kLabelGap + _kLabelH)) / 2 + _kIconBox / 2;
+
 /// 应用导航栏统一封装。
 ///
-/// 根据可用宽度自适应：
-/// - **移动端**（宽度 < [AppTokens.desktopBreakpoint]）：自定义底导，
-///   选中项图标使用 [AnimatedScale] 放大（1.15），背景使用 pill 形状
-///   （[AppTokens.radiusFull] 圆角 + `primaryContainer` 填充）。
-/// - **桌面端**（宽度 ≥ [AppTokens.desktopBreakpoint]）：使用 Material
-///   [NavigationRail]，竖向全高布局，标签始终显示。
+/// 宽屏（≥ [AppTokens.desktopBreakpoint]）与窄屏共用**同一套视觉与动效**：
+/// - 选中指示为图标背后的**小圆角胶囊**（[AppTokens.navRailWidth] 内居中），
+///   选中项切换时胶囊**平滑滑动跟随**（[AnimatedPositioned]）。
+/// - **所有项**都有按压反馈：选中项图标弹性放大 1.18，未选中项按下轻微回弹 0.9；
+///   点击带 Material 水波纹；文字颜色/字重平滑过渡。
+/// 胶囊与图标配色：
+/// - 选中：`colorScheme.primary` 14% 淡主题色胶囊（不鲜艳）/ 图标文字 `primary`。
+/// - 预点击（未选中项悬停/按下）：`onSurfaceVariant` 半透明灰色胶囊（仅小胶囊，无大背景）。
 ///
-/// API 保持与原 NavigationBar 封装一致：
+/// API 保持与 [NavigationBar] 一致：
 /// [selectedIndex] / [onDestinationSelected] / [destinations]。
 class AppNavBar extends StatelessWidget {
   const AppNavBar({
@@ -20,55 +34,89 @@ class AppNavBar extends StatelessWidget {
     required this.destinations,
   });
 
-  /// 当前选中项索引。
   final int selectedIndex;
-
-  /// 选中项变化回调。
   final ValueChanged<int> onDestinationSelected;
-
-  /// 导航目的地列表（与 [NavigationBar.destinations] 语义一致）。
   final List<NavigationDestination> destinations;
 
   @override
   Widget build(BuildContext context) {
     final double width = MediaQuery.sizeOf(context).width;
     if (width >= AppTokens.desktopBreakpoint) {
-      return _buildNavigationRail(context);
+      return _buildRail(context);
     }
-    return _buildMobileNavBar(context);
+    return _buildBar(context);
   }
 
-  /// 桌面端：竖向 [NavigationRail]，扩展到全高。
-  Widget _buildNavigationRail(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    return NavigationRail(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: onDestinationSelected,
-      backgroundColor: colorScheme.surface,
-      labelType: NavigationRailLabelType.all,
-      destinations: destinations
-          .map((NavigationDestination d) => NavigationRailDestination(
-                icon: d.icon,
-                selectedIcon: d.selectedIcon ?? d.icon,
-                label: Text(d.label),
-              ))
-          .toList(),
-    );
-  }
-
-  /// 移动端：自定义底导，含 pill + scale 动画。
-  Widget _buildMobileNavBar(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+  /// 窄屏：底部横向导航。
+  Widget _buildBar(BuildContext context) {
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final int n = destinations.length;
     return Material(
-      color: colorScheme.surface,
+      color: cs.surface,
       elevation: 2,
       child: SizedBox(
         height: AppTokens.bottomNavHeight,
         child: SafeArea(
           top: false,
-          child: Row(
-            children: List<Widget>.generate(destinations.length, (int i) {
-              return Expanded(
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints c) {
+              final double w = c.maxWidth;
+              final double h = c.maxHeight;
+              final double itemW = w / n;
+              final double iconCenterY = _iconCenterOffset(h);
+              final double pillLeft =
+                  selectedIndex * itemW + (itemW - _kPillW) / 2;
+              final double pillTop = iconCenterY - _kPillH / 2;
+              return _NavStack(
+                axis: Axis.horizontal,
+                cs: cs,
+                pillLeft: pillLeft,
+                pillTop: pillTop,
+                children: List<Widget>.generate(n, (int i) {
+                  return SizedBox(
+                    width: itemW,
+                    height: h,
+                    child: _AppNavItem(
+                      destination: destinations[i],
+                      selected: i == selectedIndex,
+                      onTap: () => onDestinationSelected(i),
+                    ),
+                  );
+                }),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+/// 宽屏：左侧竖向导航（同套视觉与动效），项固定高度、顶部集中排列，
+/// 避免整屏均分导致过散。
+Widget _buildRail(BuildContext context) {
+  final ColorScheme cs = Theme.of(context).colorScheme;
+  final int n = destinations.length;
+  const double itemH = AppTokens.navRailItemHeight;
+  return Material(
+    color: cs.surface,
+    child: SizedBox(
+      width: AppTokens.navRailWidth,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints c) {
+          final double w = c.maxWidth;
+          final double iconCenterYinCell = _iconCenterOffset(itemH);
+          final double pillTop =
+              selectedIndex * itemH + iconCenterYinCell - _kPillH / 2;
+          final double pillLeft = (w - _kPillW) / 2;
+          return _NavStack(
+            axis: Axis.vertical,
+            cs: cs,
+            pillLeft: pillLeft,
+            pillTop: pillTop,
+            children: List<Widget>.generate(n, (int i) {
+              return SizedBox(
+                width: w,
+                height: itemH,
                 child: _AppNavItem(
                   destination: destinations[i],
                   selected: i == selectedIndex,
@@ -76,15 +124,60 @@ class AppNavBar extends StatelessWidget {
                 ),
               );
             }),
-          ),
+          );
+        },
+      ),
+    ),
+  );
+}
+}
+
+/// 导航主体：底层是滑动胶囊，上层是可点击项。
+class _NavStack extends StatelessWidget {
+  const _NavStack({
+    required this.axis,
+    required this.cs,
+    required this.pillLeft,
+    required this.pillTop,
+    required this.children,
+  });
+
+  final Axis axis;
+  final ColorScheme cs;
+  final double pillLeft;
+  final double pillTop;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget pill = AnimatedPositioned(
+      duration: AppTokens.durBase,
+      curve: Curves.easeOutCubic,
+      left: pillLeft,
+      top: pillTop,
+      width: _kPillW,
+      height: _kPillH,
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.primary.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(_kPillH / 2),
         ),
       ),
+    );
+
+    return Stack(
+      children: <Widget>[
+        pill,
+        axis == Axis.horizontal
+            ? Row(children: children)
+            : Column(children: children),
+      ],
     );
   }
 }
 
-/// 单个导航项 —— 选中时图标 [AnimatedScale] 放大，背景显示 pill。
-class _AppNavItem extends StatelessWidget {
+/// 单个导航项：图标弹性缩放 + 按压回弹 + 水波纹 + 文字平滑过渡。
+class _AppNavItem extends StatefulWidget {
   const _AppNavItem({
     required this.destination,
     required this.selected,
@@ -96,58 +189,87 @@ class _AppNavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    final Widget icon = selected && destination.selectedIcon != null
-        ? destination.selectedIcon!
-        : destination.icon;
-    // 选中：onPrimaryContainer；未选中：onSurfaceVariant。
-    final Color iconColor = selected
-        ? colorScheme.onPrimaryContainer
-        : colorScheme.onSurfaceVariant;
-    final Color labelColor =
-        selected ? colorScheme.onSurface : colorScheme.onSurfaceVariant;
+  State<_AppNavItem> createState() => _AppNavItemState();
+}
 
-    return InkWell(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // pill 背景 + 图标（scale 动画）。
-          AnimatedContainer(
-            duration: AppTokens.durFast,
-            curve: Curves.easeInOut,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTokens.spaceLg,
-              vertical: AppTokens.spaceXs,
-            ),
-            decoration: BoxDecoration(
-              color: selected ? colorScheme.primaryContainer : Colors.transparent,
-              borderRadius:
-                  BorderRadius.circular(AppTokens.radiusFull),
-            ),
-            child: AnimatedScale(
-              scale: selected ? 1.15 : 1.0,
-              duration: AppTokens.durFast,
-              curve: Curves.easeInOut,
-              child: IconTheme.merge(
-                data: IconThemeData(color: iconColor, size: 24),
-                child: icon,
+class _AppNavItemState extends State<_AppNavItem> {
+  bool _pressed = false;
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    final Color active = cs.primary; // 选中：主题色（淡，不鲜艳）
+    final Color inactive = cs.onSurfaceVariant;
+    final Widget icon = widget.selected && widget.destination.selectedIcon != null
+        ? widget.destination.selectedIcon!
+        : widget.destination.icon;
+
+    // 选中放大、按下回弹、松开复位。
+    final double scale = widget.selected ? 1.18 : (_pressed ? 0.9 : 1.0);
+    // 预点击：未选中项被悬停/按下时显示带主题色调的浅灰胶囊。
+    final bool showGray = !widget.selected && (_pressed || _hovered);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: InkWell(
+        onTap: widget.onTap,
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTapCancel: () => setState(() => _pressed = false),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            SizedBox(
+              width: _kIconBox,
+              height: _kIconBox,
+              child: Stack(
+                alignment: Alignment.center,
+                children: <Widget>[
+                  // 预点击浅灰胶囊（非中性灰，带主题色调）。
+                  AnimatedOpacity(
+                    opacity: showGray ? 1.0 : 0.0,
+                    duration: AppTokens.durFast,
+                    child: Container(
+                      width: _kPillW,
+                      height: _kPillH,
+                      decoration: BoxDecoration(
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(_kPillH / 2),
+                      ),
+                    ),
+                  ),
+                  AnimatedScale(
+                    scale: scale,
+                    duration: AppTokens.durFast,
+                    curve: Curves.easeOutBack,
+                    child: IconTheme.merge(
+                      data: IconThemeData(
+                        color: widget.selected ? active : inactive,
+                        size: 24,
+                      ),
+                      child: icon,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: AppTokens.spaceXs),
-          AnimatedDefaultTextStyle(
-            duration: AppTokens.durFast,
-            style: TextStyle(
-              fontSize: 12,
-              color: labelColor,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            const SizedBox(height: _kLabelGap),
+            AnimatedDefaultTextStyle(
+              duration: AppTokens.durFast,
+              style: TextStyle(
+                fontSize: 12,
+                color: widget.selected ? active : inactive,
+                fontWeight:
+                    widget.selected ? FontWeight.w600 : FontWeight.w400,
+              ),
+              child: Text(widget.destination.label),
             ),
-            child: Text(destination.label),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
