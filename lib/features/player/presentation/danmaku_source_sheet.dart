@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/danmaku/danmaku_source.dart';
@@ -97,7 +98,8 @@ class _DanmakuSourceSheetState extends State<DanmakuSourceSheet> {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
-    return SafeArea(
+    return AppSheetBody(
+      child: SafeArea(
       child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
@@ -195,6 +197,7 @@ class _DanmakuSourceSheetState extends State<DanmakuSourceSheet> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

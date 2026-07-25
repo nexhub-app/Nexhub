@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../core/theme/app_tokens.dart';
@@ -130,7 +131,8 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
     final maxHeight = MediaQuery.of(context).size.height * 0.7;
     final visible = _visibleIndexes;
 
-    return SafeArea(
+    return AppSheetBody(
+      child: SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxHeight),
         child: Column(
@@ -199,6 +201,7 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
