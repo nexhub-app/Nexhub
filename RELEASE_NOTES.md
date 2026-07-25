@@ -1,4 +1,4 @@
-# NexHub v0.2.3
+# NexHub v0.2.4
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -71,6 +71,17 @@
   found`），导致 Windows 构建一开头就挂掉，连带 GitHub Release 也发不出来。现已改为
   **Chocolatey 安装 Inno Setup 后直接调用 `ISCC.exe`** 编译 `windows/installer/NexHub.iss`，
   不再依赖任何第三方 action 仓库，更稳、可维护。
+
+## 📝 更新日志（v0.2.3 → v0.2.4）
+
+本版相对 v0.2.3 **无应用功能变更**，仅修复 Windows 安装包（exe）的 Inno Setup 图标路径错误：
+
+### 🐛 修复
+- **Windows exe 安装包编译报错 `Error on line 29 ... The system cannot find the path specified`**：
+  上一版 `NexHub.iss` 里 `SourceDir=..\..` 已经回到仓库根目录，但 `SetupIconFile` 又多写了
+  一层 `..\..`，把路径推到了仓库外，Inno Setup 找不到图标文件直接编译失败。现改为相对
+  `SourceDir`（仓库根）的正确相对路径 `windows\runner\resources\app_icon.ico`，与下方
+  `[Files]` 的 `build\windows\x64\runner\Release\*` 基准保持一致。
 
 ## 📦 安装
 
