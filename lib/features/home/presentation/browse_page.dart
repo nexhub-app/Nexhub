@@ -177,7 +177,8 @@ class BrowsePage extends StatelessWidget {
           delay: Duration(milliseconds: 60 * index),
           offset: 14,
           fromScale: 0.96,
-          child: _BrowseGridCard(entry: entries[index]),
+          // 桌面端鼠标悬停时轻轻放大上浮（触摸屏不触发）。
+          child: AppHoverLift(child: _BrowseGridCard(entry: entries[index])),
         ),
       ),
     );
