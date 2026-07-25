@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
 import 'app_icon_button.dart';
+import 'app_animations.dart';
 
 /// 源列表项（源管理页专用）。统一布局：名称 + 地址 + 状态标签 + 操作按钮。
+///
+/// [entranceKey] 非空时，列表项首屏淡入上滑（灵动入场），相同 key 只播一次。
 class AppSourceListTile extends StatelessWidget {
   final String name;
   final String? url;
@@ -15,6 +18,7 @@ class AppSourceListTile extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onMirrorSettings;
   final ValueChanged<bool>? onToggle;
+  final String? entranceKey;
 
   const AppSourceListTile({
     super.key,
@@ -29,6 +33,7 @@ class AppSourceListTile extends StatelessWidget {
     this.onTap,
     this.onMirrorSettings,
     this.onToggle,
+    this.entranceKey,
   });
 
   @override
@@ -66,7 +71,7 @@ class AppSourceListTile extends StatelessWidget {
       );
     }
 
-    return ListTile(
+    final Widget tile = ListTile(
       leading: CircleAvatar(
         backgroundColor: scheme.primaryContainer,
         child: Text(
@@ -108,5 +113,7 @@ class AppSourceListTile extends StatelessWidget {
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
     );
+    if (entranceKey == null) return tile;
+    return Entrance(onceKey: entranceKey, child: tile);
   }
 }
