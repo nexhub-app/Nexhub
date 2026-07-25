@@ -177,10 +177,15 @@ class SettingsSliderTile extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-              Text(
-                display,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.primary),
+              // 数值变化时轻弹一下，给「正在调」的即时反馈。
+              AppValuePulse(
+                trigger: display,
+                from: 0.7,
+                child: Text(
+                  display,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.primary),
+                ),
               ),
             ],
           ),
@@ -214,12 +219,17 @@ class SettingsSwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      title: Text(title),
-      subtitle: subtitle != null ? Text(subtitle!) : null,
-      value: value,
-      onChanged: onChanged,
-      contentPadding: EdgeInsets.zero,
+    // 切换时整行轻微弹性脉冲（力度收敛，避免大面积晃动）。
+    return AppValuePulse(
+      trigger: value,
+      from: 0.985,
+      child: SwitchListTile(
+        title: Text(title),
+        subtitle: subtitle != null ? Text(subtitle!) : null,
+        value: value,
+        onChanged: onChanged,
+        contentPadding: EdgeInsets.zero,
+      ),
     );
   }
 }
@@ -250,10 +260,15 @@ class SettingsSegmentedTile<T extends Object> extends StatelessWidget {
       description: description,
       margin: margin,
       children: <Widget>[
-        SegmentedButton<T>(
-          selected: selected,
-          onSelectionChanged: onSelectionChanged,
-          segments: segments,
+        // 选项切换时轻微弹性脉冲。
+        AppValuePulse(
+          trigger: selected.isEmpty ? null : selected.first,
+          from: 0.97,
+          child: SegmentedButton<T>(
+            selected: selected,
+            onSelectionChanged: onSelectionChanged,
+            segments: segments,
+          ),
         ),
       ],
     );
@@ -291,10 +306,15 @@ class SettingsChoiceChips<T> extends StatelessWidget {
           runSpacing: AppTokens.spaceXs,
           children: <Widget>[
             for (final opt in options)
-              ChoiceChip(
-                label: Text(opt.label),
-                selected: opt.value == selected,
-                onSelected: (_) => onSelected(opt.value),
+              // 选中状态变化时该 Chip 弹一下（选中与取消都有反馈）。
+              AppValuePulse(
+                trigger: opt.value == selected,
+                from: 0.9,
+                child: ChoiceChip(
+                  label: Text(opt.label),
+                  selected: opt.value == selected,
+                  onSelected: (_) => onSelected(opt.value),
+                ),
               ),
           ],
         ),
