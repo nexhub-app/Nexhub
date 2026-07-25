@@ -91,14 +91,24 @@
 #       **不会在 `flutter build` 时自动重跑**，故更换源图后 CI 打出的仍是旧 res/ 图标。
 #       **修复**：Android job 在 gen-l10n 后新增 `flutter pub run flutter_launcher_icons`，
 #       每次构建都基于源图重新生成（含自适应图标，Android 12+ 莫奈取色随之生效）。
-#   v22（当前）：
+#   v22：
 #     - **APK 改为单架构分包（`--split-per-abi`）**：`flutter build apk` 增加
 #       `--split-per-abi`，为每个 ABI（arm64-v8a / armeabi-v7a / x86_64）各产出一个独立
 #       APK（不再有统一 fat APK）。artifact 上传与 release 文件清单改为通配
 #       `build/app/outputs/flutter-apk/*.apk`，避免旧路径 app-release.apk 缺失报错。
-#     - **Windows 直装包(zip/7z) + 安装包(exe) 留待下一版**：本版仅落地 APK 分包；
-#       Windows 的 zip/7z 便携包 + Inno Setup 生成的 exe 安装包已写入 build.yml 但
-#       单独提交、未重新打标签，故只会在用户下次打标签时（下一版）生效。
+#     - **更正（原 v22 注释有误）**：v22 当时称「Windows zip/7z 便携包 + Inno Setup exe
+#       已写入 build.yml」，实际**只落了 zip 便携包，Inno Setup exe 步骤当时并未写入**
+#       build.yml（仓库也无 .iss 脚本）。exe 安装包是到 v23 才真正补齐。
+#   v23（当前）：
+#     - **Windows 自定义图标落实**：Windows job 在 build 前新增
+#       `flutter pub run flutter_launcher_icons`，从 `assets/icon/icon.png` 重新生成
+#       `windows/runner/resources/app_icon.ico`，覆盖仓库里那份旧的 Flutter 默认 logo
+#       （原仅 Android job 跑该命令，Windows 一直用默认 logo）。
+#     - **Windows exe 安装包补齐**：新增 `windows/installer/NexHub.iss`（Inno Setup 脚本）
+#       + Windows job 用 `minissoftware/Inno-Setup-Action@v2` 编译出
+#       `NexHub-setup-<version>.exe`，单独上传 `windows-installer` artifact；Release 文件
+#       清单新增 `artifacts/windows-installer/NexHub-setup-*.exe`。安装包支持中英文、桌面
+#       快捷方式、非管理员安装（当前用户目录）。
 # =============================================================================
 
 name: Build & Release NexHub
@@ -172,6 +182,11 @@ jobs:
           echo "== generated l10n files =="
           ls -la lib/generated 2>&1 || true
           grep -n "class AppLocalizations" lib/generated/app_localizations.dart 2>&1 || true
+      - name: 重新生成启动图标 (flutter_launcher_icons)
+        # 源图：assets/icon/icon.png（含 adaptive_icon_background 蓝青主色 #0EA5E9）。
+        # 确保 Windows 也用上自定义图标（覆盖仓库里那份旧的 Flutter 默认 logo），
+        # 同时重新生成 Android 自适应图标资源。每次构建都基于源图重新生成。
+        run: flutter pub run flutter_launcher_icons 2>&1 || dart run flutter_launcher_icons 2>&1
       - name: 编译 Windows
         shell: bash
         run: |
@@ -183,6 +198,22 @@ jobs:
         with:
           name: windows-build
           path: NexHub-windows-x64.zip
+          if-no-files-found: error
+      - name: 计算版本号（去掉 v 前缀，供安装包使用）
+        id: ver
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: 打包 Windows 安装包 (Inno Setup -> exe)
+        # 脚本：windows/installer/NexHub.iss；MyAppVersion 由 /D 传入（已去 v）。
+        # 图标用上一步 flutter_launcher_icons 重新生成的自定义 app_icon.ico。
+        uses: minissoftware/Inno-Setup-Action@v2
+        with:
+          path: windows/installer/NexHub.iss
+          additional_arguments: /DMyAppVersion=${{ steps.ver.outputs.version }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: windows/installer/Output/*.exe
           if-no-files-found: error
 
   linux:
@@ -331,5 +362,6 @@ jobs:
           files: |
             artifacts/android-apk/*.apk
             artifacts/windows-build/NexHub-windows-x64.zip
+            artifacts/windows-installer/NexHub-setup-*.exe
             artifacts/linux-build/NexHub-linux-x64.tar.gz
             artifacts/macos-build/NexHub-macos.zip
