@@ -10,6 +10,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/widgets/bookshelf_content.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/library_shell.dart';
 import '../../../core/widgets/module_source_search_screen.dart';
 import '../../../core/widgets/online_source_browser_screen.dart';
@@ -133,10 +134,12 @@ class ComicHomeScreen extends StatelessWidget {
         filterType: SourceType.mangaSource,
         fabSuppressed: fabSuppressed,
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppTapScale(
+        child: FloatingActionButton.extended(
         onPressed: navigateToCollectApiImport,
         icon: const Icon(Icons.cloud_download),
         label: Text(l10n.collectApiImportTitle),
+      ),
       ),
       categoryProvider: (LibrarySubTab subTab) =>
           BookshelfContent.categoriesFor(

@@ -2,6 +2,7 @@ import 'dart:io' show File, FileSystemException;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/local/import_permission.dart';
@@ -293,7 +294,8 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppTapScale(
+        child: FloatingActionButton.extended(
         onPressed: _scanning ? null : _pickFiles,
         icon: _scanning
             ? const SizedBox(
@@ -303,6 +305,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
               )
             : const Icon(Icons.file_open_outlined),
         label: Text(l10n.browseLocalScan),
+      ),
       ),
       body: Column(
         children: <Widget>[
