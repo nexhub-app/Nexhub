@@ -136,12 +136,15 @@ class ContentCard extends StatelessWidget {
       ),
     );
 
+    // 桌面端悬停微抬：鼠标悬停时轻轻放大上浮（触摸屏无 hover，天然不触发）。
+    final Widget hoverable = AppHoverLift(child: body);
+
     // 「灵动」入场：同一 key（优先 entranceKey，回退 heroTag）只播一次，避免滚动重播。
     // 按 key 派生 0~300ms 错峰，首屏呈现自然的瀑布式入场。
     final String? key = entranceKey ?? heroTag;
     final Duration delay = key != null
         ? Duration(milliseconds: key.hashCode.abs() % 300)
         : Duration.zero;
-    return Entrance(onceKey: key, delay: delay, child: body);
+    return Entrance(onceKey: key, delay: delay, child: hoverable);
   }
 }
