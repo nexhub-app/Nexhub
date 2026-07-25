@@ -15,6 +15,7 @@ import '../../../core/platform/platform_service.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'video_sniffer_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 内置浏览器页面。
 ///
@@ -156,7 +157,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
   /// 地址，省去再次输入。
   void _openSniffer() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => VideoSnifferScreen(initialUrl: _currentUrl),
       ),
     );

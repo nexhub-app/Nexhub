@@ -19,6 +19,7 @@ import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_url_input_bar.dart';
 import 'collect_api_import_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 enum _ImportTab { url, file, json }
 
@@ -211,7 +212,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
             const SizedBox(height: AppTokens.spaceMd),
             FilledButton(
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
+                AppPageRoute<void>(
                   builder: (_) => const CollectApiImportScreen(),
                 ),
               ),

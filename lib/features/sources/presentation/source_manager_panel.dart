@@ -23,6 +23,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/unified_source_tile.dart';
 import 'source_mirror_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 本地导入预览项。
 class _ImportPreviewItem {
@@ -138,7 +139,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
       moreMenuTooltip: l10n.moreActions,
       onToggle: (bool value) => repo.setEnabled(s.id, value),
       onMirrorSettings: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => SourceMirrorScreen(source: s)),
+        AppPageRoute<void>(builder: (_) => SourceMirrorScreen(source: s)),
       ),
       onHide: () => repo.setHidden(s.id, !s.isHidden),
       onEdit: () => _showEditDialog(s),

@@ -15,6 +15,7 @@ import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/layout_picker_dialog.dart';
 import '../../../core/settings/layout_settings.dart';
 import 'downloaded_group_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 enum _DownloadedTab { all, novel, media, comic, archived }
 
@@ -256,7 +257,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
           });
         } else if (!isArchivedTab) {
           Navigator.of(context).push(
-            MaterialPageRoute<void>(
+            AppPageRoute<void>(
               builder: (_) => DownloadedGroupScreen(task: task),
             ),
           );
