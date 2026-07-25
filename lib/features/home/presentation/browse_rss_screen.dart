@@ -17,6 +17,7 @@ import '../../../core/widgets/app_empty_state.dart';
 import 'browse_add_article_feed_screen.dart';
 import 'browse_article_feed_detail_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 浏览页 RSS 订阅源列表，使用独立的 [BrowseArticleFeedManager]。
 class BrowseRssScreen extends StatelessWidget {
@@ -116,7 +117,7 @@ class BrowseRssScreen extends StatelessWidget {
 
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(l10n.deleteConfirmTitle),
         content: Text(l10n.deleteConfirmContent(feedTitle)),
         actions: <Widget>[

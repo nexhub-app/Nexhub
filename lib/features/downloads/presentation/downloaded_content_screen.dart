@@ -16,6 +16,7 @@ import '../../../core/widgets/layout_picker_dialog.dart';
 import '../../../core/settings/layout_settings.dart';
 import 'downloaded_group_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 enum _DownloadedTab { all, novel, media, comic, archived }
 
@@ -287,7 +288,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
   ) {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.delete),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -361,7 +362,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
   ) {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.deletePermanently),
         content: Text(l10n.deleteConfirm),
         actions: <Widget>[

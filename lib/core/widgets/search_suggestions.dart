@@ -12,6 +12,7 @@ import '../models/plugin_config.dart';
 import '../search/hot_search_keywords.dart';
 import '../search/search_history_store.dart';
 import '../theme/app_tokens.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// A focus-triggered suggestions panel with history + hot keywords.
 class SearchSuggestions extends StatefulWidget {
@@ -47,7 +48,7 @@ class _SearchSuggestionsState extends State<SearchSuggestions> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final bool? confirmed = await showDialog<bool>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         content: Text(l10n.clearSearchHistoryConfirm),
         actions: <Widget>[
           TextButton(

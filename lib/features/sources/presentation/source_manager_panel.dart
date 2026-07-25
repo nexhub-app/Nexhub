@@ -24,6 +24,7 @@ import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/unified_source_tile.dart';
 import 'source_mirror_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 本地导入预览项。
 class _ImportPreviewItem {
@@ -322,7 +323,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
 
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(l10n.sourceEdit),
         content: Form(
           key: formKey,
@@ -376,7 +377,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
     final l10n = AppLocalizations.of(context);
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(l10n.deleteConfirmTitle),
         content: Text(l10n.deleteConfirmContent(s.name)),
         actions: <Widget>[
