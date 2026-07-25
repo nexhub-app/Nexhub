@@ -1,4 +1,4 @@
-# NexHub v0.2.2
+# NexHub v0.2.3
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -60,6 +60,17 @@
   Linux 包也会带上 NexHub 自定义图标。
 - 顺手清理仓库里那个**无关的视频播放占位图** `linux/flutter/icons.png`（右下角带"图片由AI生成"水印，
   反正 CI 不使用它，删掉避免误导）。
+
+## 📝 更新日志（v0.2.2 → v0.2.3）
+
+本版相对 v0.2.2 **无应用功能变更**，仅修复 Windows 安装包（exe）在 CI 中无法生成的问题：
+
+### 🐛 修复
+- **Windows exe 安装包构建失败**：上一个版本 Windows job 用 `minissoftware/Inno-Setup-Action@v2`
+  这个第三方 action，但该仓库不存在（CI 直接报错 `Unable to resolve action ... repository not
+  found`），导致 Windows 构建一开头就挂掉，连带 GitHub Release 也发不出来。现已改为
+  **Chocolatey 安装 Inno Setup 后直接调用 `ISCC.exe`** 编译 `windows/installer/NexHub.iss`，
+  不再依赖任何第三方 action 仓库，更稳、可维护。
 
 ## 📦 安装
 
