@@ -11,6 +11,7 @@ import 'browse_local_screen.dart';
 import 'browse_network_screen.dart';
 import 'browse_rss_screen.dart';
 import 'browse_web_scrape_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 浏览页入口项数据模型。
 class _BrowseEntry {
@@ -115,7 +116,7 @@ class BrowsePage extends StatelessWidget {
         color: scheme.primaryContainer,
         iconColor: scheme.onPrimaryContainer,
         onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const BrowseLocalScreen(),
               ),
             ),
@@ -127,7 +128,7 @@ class BrowsePage extends StatelessWidget {
         color: scheme.secondaryContainer,
         iconColor: scheme.onSecondaryContainer,
         onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const BrowseNetworkScreen(),
               ),
             ),
@@ -139,7 +140,7 @@ class BrowsePage extends StatelessWidget {
         color: scheme.tertiaryContainer,
         iconColor: scheme.onTertiaryContainer,
         onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const BrowseWebScrapeScreen(),
               ),
             ),
@@ -151,7 +152,7 @@ class BrowsePage extends StatelessWidget {
         color: scheme.errorContainer,
         iconColor: scheme.onErrorContainer,
         onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const BrowseRssScreen(),
               ),
             ),

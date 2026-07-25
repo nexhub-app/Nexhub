@@ -42,6 +42,7 @@ import '../../../core/widgets/progress_card.dart';
 import '../../downloads/presentation/download_list_screen.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import 'comic_reader_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 漫画详情页。
 class ComicDetailScreen extends StatefulWidget {
@@ -195,7 +196,7 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
     final sid = widget.item.sourceId;
     if (sid == null) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => ComicReaderScreen(
           comicId: widget.item.id,
           title: widget.item.title,
@@ -260,7 +261,7 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
     final coverUrl = _fetchedDetail.coverUrl ?? widget.item.coverUrl;
     if (coverUrl == null || coverUrl.isEmpty) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => _CoverViewerScreen(
           coverUrl: coverUrl,
           title: widget.item.title,
@@ -551,7 +552,7 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
         _setAsShelfCover(l10n);
       case 'openDownloadManager':
         Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => const DownloadListScreen(),
           ),
         );
@@ -626,7 +627,7 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
     final String q = query.trim();
     final AppLocalizations l10n = AppLocalizations.of(context);
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => ModuleSourceSearchScreen(
           sourceType: SourceType.mangaSource,
           title: l10n.search,
@@ -634,7 +635,7 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
           searchField: field,
           extractedUrl: extractedUrl,
           onItemTap: (MediaItem tapped) => Navigator.of(context).push(
-            MaterialPageRoute<void>(
+            AppPageRoute<void>(
               builder: (_) => ComicDetailScreen(item: tapped),
             ),
           ),
@@ -650,13 +651,13 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
     final source = context.read<SourceRepository>().getById(widget.item.sourceId ?? '');
     if (source == null) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => SourceUrlBrowseScreen(
           source: source,
           title: title,
           seedUrl: seedUrl,
           onItemTap: (MediaItem tapped) => Navigator.of(context).push(
-            MaterialPageRoute<void>(
+            AppPageRoute<void>(
               builder: (_) => ComicDetailScreen(item: tapped),
             ),
           ),
@@ -1030,7 +1031,7 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
                       subtitle: m.author,
                       width: cardW,
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
+                        AppPageRoute<void>(
                           builder: (_) => ComicDetailScreen(item: m),
                         ),
                       ),

@@ -28,6 +28,7 @@ import '../../verification/presentation/webview_verification_screen.dart';
 import '../../manga/presentation/comic_reader_screen.dart';
 import '../../novel/presentation/novel_reader_screen.dart';
 import 'series_detail_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 通用内容详情页（动漫 / 影视 / 小说 / 漫画 共用）。
 ///
@@ -219,7 +220,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         context.read<MediaWatchedManager>().markWatched(widget.item.id, index);
       } catch (_) {}
       Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           builder: (_) => VideoPlayerScreen(
             title: widget.item.title,
             episode: ep,
@@ -235,7 +236,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       );
     } else if (widget.item.sourceType == SourceType.mangaSource && sid != null) {
       Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           builder: (_) => ComicReaderScreen(
             comicId: widget.item.id,
             title: widget.item.title,
@@ -250,7 +251,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       );
     } else if (widget.item.sourceType == SourceType.novelSource && sid != null) {
       Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           builder: (_) => NovelReaderScreen(
             novelId: widget.item.id,
             title: widget.item.title,
@@ -324,7 +325,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final coverUrl = _fetchedDetail.coverUrl ?? widget.item.coverUrl;
     if (coverUrl == null || coverUrl.isEmpty) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => _CoverViewerScreen(
           coverUrl: coverUrl,
           title: widget.item.title,
@@ -587,14 +588,14 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final SourceType type = item.sourceType ?? SourceType.animeSource;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => ModuleSourceSearchScreen(
           sourceType: type,
           title: l10n.search,
           initialQuery: q,
           searchField: field,
           onItemTap: (MediaItem tapped) => Navigator.of(context).push(
-            MaterialPageRoute<void>(
+            AppPageRoute<void>(
               builder: (_) => ContentDetailScreen(item: tapped),
             ),
           ),
@@ -886,7 +887,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                   _fetchedDetail.seasons!.isNotEmpty)
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
+                    AppPageRoute<void>(
                       builder: (_) =>
                           SeriesDetailScreen(series: _fetchedDetail),
                     ),
@@ -995,7 +996,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                       subtitle: m.author,
                       width: cardW,
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
+                        AppPageRoute<void>(
                           builder: (_) => ContentDetailScreen(item: m),
                         ),
                       ),

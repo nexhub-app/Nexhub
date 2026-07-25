@@ -20,6 +20,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import 'rss_feed_detail_screen.dart';
 import 'rss_add_subscription_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 class RssFeedListScreen extends StatefulWidget {
   /// 绑定的模块类型（null = 浏览页全局 RSS）。
@@ -90,7 +91,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                       checker.markRead(feed.id);
                     }
                     Navigator.of(context).push(
-                      MaterialPageRoute<void>(
+                      AppPageRoute<void>(
                         builder: (_) => RssFeedDetailScreen(feed: feed),
                       ),
                     );
@@ -222,7 +223,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
 
   void _navigateToAdd(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => RssAddSubscriptionScreen(
           moduleType: widget.moduleType,
         ),

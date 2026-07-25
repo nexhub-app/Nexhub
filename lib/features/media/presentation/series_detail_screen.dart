@@ -9,6 +9,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import 'season_detail_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 系列详情页：展示该系列下所有季的卡片网格，点击进入 [SeasonDetailScreen]。
 ///
@@ -66,7 +67,7 @@ class _SeasonCard extends StatelessWidget {
 
     return InkWell(
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           builder: (_) => SeasonDetailScreen(season: season, series: series),
         ),
       ),
