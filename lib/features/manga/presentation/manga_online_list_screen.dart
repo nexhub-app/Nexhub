@@ -57,9 +57,9 @@ class MangaOnlineListScreen extends StatelessWidget {
       fetchCategories: service.fetchCategories,
       resolveHomeSections: service.resolveHomeSections,
       resolveFilters: service.resolveFilterGroups,
-      onItemTap: (item) => Navigator.of(context).push(
-        AppPageRoute<void>(
-          builder: (_) => ComicDetailScreen(item: item),
+      onItemTap: (item, heroTag) => Navigator.of(context).push(
+        AppHeroPageRoute<void>(
+          builder: (_) => ComicDetailScreen(item: item, heroTag: heroTag),
         ),
       ),
       onSearch: () => Navigator.of(context).push(
@@ -67,9 +67,9 @@ class MangaOnlineListScreen extends StatelessWidget {
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.mangaSource,
             title: l10n.search,
-            onItemTap: (item) => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => ComicDetailScreen(item: item),
+            onItemTap: (item, heroTag) => Navigator.of(context).push(
+              AppHeroPageRoute<void>(
+                builder: (_) => ComicDetailScreen(item: item, heroTag: heroTag),
               ),
             ),
           ),

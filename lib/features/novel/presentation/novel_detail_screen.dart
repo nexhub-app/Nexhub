@@ -45,8 +45,9 @@ import 'package:nexhub/core/navigation/app_page_route.dart';
 /// 小说详情页。
 class NovelDetailScreen extends StatefulWidget {
   final MediaItem item;
+  final String? heroTag;
 
-  const NovelDetailScreen({super.key, required this.item});
+  const NovelDetailScreen({super.key, required this.item, this.heroTag});
 
   @override
   State<NovelDetailScreen> createState() => _NovelDetailScreenState();
@@ -614,9 +615,10 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
           title: l10n.search,
           initialQuery: q,
           searchField: field,
-          onItemTap: (MediaItem tapped) => Navigator.of(context).push(
-            AppPageRoute<void>(
-              builder: (_) => NovelDetailScreen(item: tapped),
+          onItemTap: (MediaItem tapped, String? heroTag) => Navigator.of(context).push(
+            AppHeroPageRoute<void>(
+              builder: (_) =>
+                  NovelDetailScreen(item: tapped, heroTag: heroTag),
             ),
           ),
         ),
@@ -902,6 +904,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
             child: ContentDetailShell(
         coverUrl: item.coverUrl,
         source: source,
+        heroTag: widget.heroTag,
         title: item.title,
         description: item.description ?? l10n.noDescription,
         updatedAt: item.updatedAt ?? latestEpisodeUpdatedAt(episodes),
@@ -1048,9 +1051,11 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
                       title: m.title,
                       subtitle: m.author,
                       width: cardW,
+                      heroTag: 'rel-${m.id}',
                       onTap: () => Navigator.of(context).push(
-                        AppPageRoute<void>(
-                          builder: (_) => NovelDetailScreen(item: m),
+                        AppHeroPageRoute<void>(
+                          builder: (_) =>
+                              NovelDetailScreen(item: m, heroTag: 'rel-${m.id}'),
                         ),
                       ),
                     );

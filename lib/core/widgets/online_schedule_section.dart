@@ -26,7 +26,7 @@ class OnlineScheduleSection extends StatefulWidget {
   final List<MediaItem> items;
 
   /// 点击卡片回调。
-  final void Function(MediaItem item) onItemTap;
+  final void Function(MediaItem item, String? heroTag) onItemTap;
 
   /// Hero 动画前缀。
   final String heroPrefix;
@@ -191,26 +191,29 @@ class _OnlineScheduleSectionState extends State<OnlineScheduleSection> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => widget.onItemTap(item),
+        onTap: () => widget.onItemTap(item, '${widget.heroPrefix}-${item.id}'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // 封面或占位
+            // 封面或占位（共享元素 Hero：与详情页封面同 tag 时飞行）。
             Expanded(
-              child: item.coverUrl != null && item.coverUrl!.isNotEmpty
-                  ? Image.network(
-                      item.coverUrl!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (_, __, ___) => Container(
+              child: Hero(
+                tag: '${widget.heroPrefix}-${item.id}',
+                child: item.coverUrl != null && item.coverUrl!.isNotEmpty
+                    ? Image.network(
+                        item.coverUrl!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: const Icon(Icons.movie, size: 32),
+                        ),
+                      )
+                    : Container(
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: const Icon(Icons.movie, size: 32),
                       ),
-                    )
-                  : Container(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      child: const Icon(Icons.movie, size: 32),
-                    ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(AppTokens.spaceXs),
