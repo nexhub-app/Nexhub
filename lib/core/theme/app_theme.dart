@@ -37,7 +37,13 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
       begin: Offset.zero,
       end: const Offset(-0.05, 0),
     ).animate(CurvedAnimation(parent: secondaryAnimation, curve: ease));
-    final exitFade = CurvedAnimation(parent: secondaryAnimation, curve: ease);
+    // 注意：secondaryAnimation 在页面「正常显示（未被覆盖）」时值为 0，
+    // 被新页覆盖过程中 0→1。因此淡出透明度必须是 1→0 的反向映射；
+    // 若直接把 CurvedAnimation 当 opacity 用，页面常态 opacity=0 → 整页隐形
+    // （曾导致 Windows 全局黑屏且无任何异常，见 2026-07-25 复盘）。
+    final exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: secondaryAnimation, curve: ease),
+    );
     return SlideTransition(
       position: enterSlide,
       child: FadeTransition(
