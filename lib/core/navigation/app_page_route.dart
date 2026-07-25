@@ -26,3 +26,38 @@ class AppPageRoute<T> extends MaterialPageRoute<T> {
   @override
   Duration get reverseTransitionDuration => Duration.zero;
 }
+
+/// 带共享元素（Hero）飞行的页面路由。
+///
+/// 与 [AppPageRoute] 的区别：保留约 320ms 的转场时长，让封面图能「飞」过去；
+/// 但 [buildTransitions] 直接返回 `child`（不叠加淡入/滑动），页面本体仍瞬时
+/// 呈现，只有 Hero 元素在飞。用于「列表卡片 → 详情页」这类带封面的跳转。
+///
+/// 非 Hero 路由（普通页面、底栏切换）继续用 [AppPageRoute]，保持零时长瞬切，
+/// 与「干脆瞬切」偏好一致，互不干扰。
+class AppHeroPageRoute<T> extends MaterialPageRoute<T> {
+  AppHeroPageRoute({
+    required super.builder,
+    super.settings,
+    super.maintainState = true,
+    super.fullscreenDialog = false,
+    super.allowSnapshotting = true,
+  });
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 320);
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 320);
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    // 页面本体瞬时呈现；Hero 共享元素自行沿路由动画飞行。
+    return child;
+  }
+}

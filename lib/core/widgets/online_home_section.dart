@@ -34,7 +34,7 @@ class OnlineHomeSection extends StatelessWidget {
   final List<MediaItem> items;
 
   /// 点击卡片回调。
-  final void Function(MediaItem item) onItemTap;
+  final void Function(MediaItem item, String? heroTag) onItemTap;
 
   /// 点击"查看全部"回调（跳到对应分类 Tab）。
   final VoidCallback? onViewAll;
@@ -102,7 +102,7 @@ class OnlineHomeSection extends StatelessWidget {
                   subtitle: item.status,
                   meta: item.year,
                   heroTag: '$heroPrefix-${item.id}',
-                  onTap: () => onItemTap(item),
+                  onTap: () => onItemTap(item, '$heroPrefix-${item.id}'),
                 ),
               );
             },

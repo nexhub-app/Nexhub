@@ -58,9 +58,9 @@ class MediaOnlineListScreen extends StatelessWidget {
       fetchCategories: service.fetchCategories,
       resolveHomeSections: service.resolveHomeSections,
       resolveFilters: service.resolveFilterGroups,
-      onItemTap: (item) => Navigator.of(context).push(
-        AppPageRoute<void>(
-          builder: (_) => ContentDetailScreen(item: item),
+      onItemTap: (item, heroTag) => Navigator.of(context).push(
+        AppHeroPageRoute<void>(
+          builder: (_) => ContentDetailScreen(item: item, heroTag: heroTag),
         ),
       ),
       onSearch: () => Navigator.of(context).push(
@@ -68,9 +68,9 @@ class MediaOnlineListScreen extends StatelessWidget {
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.animeSource,
             title: l10n.search,
-            onItemTap: (item) => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => ContentDetailScreen(item: item),
+            onItemTap: (item, heroTag) => Navigator.of(context).push(
+              AppHeroPageRoute<void>(
+                builder: (_) => ContentDetailScreen(item: item, heroTag: heroTag),
               ),
             ),
           ),
