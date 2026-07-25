@@ -44,6 +44,7 @@ import '../cast/cast_service.dart';
 import 'danmaku_settings_sheet.dart';
 import 'danmaku_source_sheet.dart';
 import 'subtitle_panel.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 视频手势坐标轴状态机：避免横滑（seek）与竖滑（亮度 / 音量）冲突。
 ///
@@ -1019,7 +1020,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final controller = TextEditingController();
     showDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.danmakuSend ?? '发送弹幕'),
         content: TextField(
           controller: controller,
@@ -1992,7 +1993,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final TextEditingController controller = TextEditingController();
     showDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.playerTimer),
         content: TextField(
           controller: controller,

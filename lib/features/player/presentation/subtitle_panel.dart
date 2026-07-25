@@ -7,6 +7,7 @@ import 'package:media_kit/media_kit.dart';
 
 import '../../../core/player/player_controller.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 字幕面板（底部抽屉）。
 ///
@@ -408,7 +409,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     ];
     final selected = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(isText ? l10n.subtitleTextColor : isBorder ? l10n.subtitleBorderColorLabel : l10n.subtitleShadowColorLabel),
         content: Wrap(
           spacing: 8,

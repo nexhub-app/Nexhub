@@ -11,6 +11,7 @@ import 'app_icon_button.dart';
 import 'app_segmented_tabs.dart';
 import 'bookshelf_filter_sheet.dart';
 import 'layout_picker_dialog.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// Unified library shell shared by the media / manga / novel modules.
 ///
@@ -196,7 +197,7 @@ class _LibraryShellState extends State<LibraryShell> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final bool? ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.clearHistory),
         content: Text(l10n.clearHistoryConfirm),
         actions: <Widget>[

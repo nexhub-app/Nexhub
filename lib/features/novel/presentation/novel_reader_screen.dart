@@ -38,6 +38,7 @@ import 'novel_in_book_search_sheet.dart';
 import 'novel_note_manager.dart';
 import 'novel_paginator.dart';
 import 'novel_tts_controller.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 小说阅读器（Phase 4 — Task 19/20）。
 ///
@@ -99,7 +100,7 @@ Future<int?> _pickSleepMinutes({
   final int? result = await showDialog<int>(
     context: context,
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx2, setDialogState) => AlertDialog(
+      builder: (ctx2, setDialogState) => AppAlertDialog(
         title: Text(l10n.ttsSleepTimer),
         content: SingleChildScrollView(
           child: Column(
@@ -607,7 +608,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) {
-        return AlertDialog(
+        return AppAlertDialog(
           title: Text(l10n.addBookmark),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1075,7 +1076,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       builder: (BuildContext ctx) {
         return StatefulBuilder(
           builder: (BuildContext ctx2, Function(void Function()) setDialogState) {
-            return AlertDialog(
+            return AppAlertDialog(
               title: Text(l10n.tapZonePreview),
               content: SizedBox(
                 width: 280,
@@ -2030,7 +2031,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final current = _prefs.pageAnimation;
     final picked = await showDialog<NovelPageAnimation>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.novelPageAnimation),
         content: SingleChildScrollView(
           child: Wrap(
@@ -3179,7 +3180,7 @@ class _NovelInlineSettings extends StatelessWidget {
                           final color = await showDialog<Color>(
                             context: context,
                             builder: (ctx) => StatefulBuilder(
-                              builder: (ctx2, setDialogState) => AlertDialog(
+                              builder: (ctx2, setDialogState) => AppAlertDialog(
                                 title: Text(l10n.customBgColor),
                                 content: SingleChildScrollView(
                                   child: ColorPicker(
@@ -3261,7 +3262,7 @@ class _NovelInlineSettings extends StatelessWidget {
                                 context: context,
                                 builder: (ctx) => StatefulBuilder(
                                   builder: (ctx2, setDialogState) =>
-                                      AlertDialog(
+                                      AppAlertDialog(
                                     title: Text(l10n.novelTextColor),
                                     content: SingleChildScrollView(
                                       child: ColorPicker(
@@ -3629,7 +3630,7 @@ class _NovelInlineSettings extends StatelessWidget {
                                       context: context,
                                       builder: (ctx) => StatefulBuilder(
                                         builder: (ctx2, setDialogState) =>
-                                            AlertDialog(
+                                            AppAlertDialog(
                                           title: Text(l10n.novelTitleColor),
                                           content: SingleChildScrollView(
                                             child: ColorPicker(
@@ -3826,7 +3827,7 @@ class _NovelInlineSettings extends StatelessWidget {
                                       context: context,
                                       builder: (ctx) => StatefulBuilder(
                                         builder: (ctx2, setDialogState) =>
-                                            AlertDialog(
+                                            AppAlertDialog(
                                           title: Text(l10n.novelShadowColor),
                                           content: SingleChildScrollView(
                                             child: ColorPicker(
@@ -4379,7 +4380,7 @@ class _NovelInlineSettings extends StatelessWidget {
                 context: context,
                 builder: (ctx) => StatefulBuilder(
                   builder: (BuildContext ctx2, StateSetter setDialogState) {
-                    return AlertDialog(
+                    return AppAlertDialog(
                       title: Text(title),
                       content: SingleChildScrollView(
                         child: ColorPicker(
@@ -4512,7 +4513,7 @@ class _NovelInlineSettings extends StatelessWidget {
       onTap: () async {
         final picked = await showDialog<NovelHeaderFooterContent>(
           context: context,
-          builder: (ctx) => AlertDialog(
+          builder: (ctx) => AppAlertDialog(
             title: Text(label),
             content: SingleChildScrollView(
               child: Column(

@@ -32,6 +32,7 @@ import 'app_empty_state.dart';
 import 'content_card.dart';
 import 'library_shell.dart';
 import '../theme/app_tokens.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 class BookshelfContent extends StatelessWidget {
   final SourceType sourceType;
@@ -750,7 +751,7 @@ class _BookshelfGrid extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final bool? confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.deleteConfirmTitle),
         content: Text(l10n.deleteConfirmContent(item.title)),
         actions: <Widget>[

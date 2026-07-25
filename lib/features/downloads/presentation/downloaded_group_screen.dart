@@ -13,6 +13,7 @@ import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../home/presentation/local_media_viewer.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 已下载内容分组详情（下载页 → 点击已完成项）。
 ///
@@ -196,7 +197,7 @@ class DownloadedGroupScreen extends StatelessWidget {
     final manager = context.read<DownloadManager>();
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.delete),
         content: Text(l10n.downloadedGroupDeleteConfirm),
         actions: <Widget>[
