@@ -136,8 +136,17 @@ class ContentCard extends StatelessWidget {
       ),
     );
 
+    // 移动端按压回弹：手指按下时卡片轻轻缩一下、松手弹性复位。
+    // 纯交互驱动（按下才有、松手即停），零空闲开销；与底栏图标按钮同手感。
+    // onTap 为空（如占位卡）时不缩放，避免静态卡无故晃动。
+    final Widget tappable = AppTapScale(
+      scale: 0.95,
+      enable: onTap != null,
+      child: body,
+    );
+
     // 桌面端悬停微抬：鼠标悬停时轻轻放大上浮（触摸屏无 hover，天然不触发）。
-    final Widget hoverable = AppHoverLift(child: body);
+    final Widget hoverable = AppHoverLift(child: tappable);
 
     // 「灵动」入场：同一 key（优先 entranceKey，回退 heroTag）只播一次，避免滚动重播。
     // 按 key 派生 0~300ms 错峰，首屏呈现自然的瀑布式入场。

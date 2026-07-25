@@ -17,6 +17,7 @@ import '../../../core/services/source_repository.dart';
 import '../../../core/settings/data_export_config.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_list_tile.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// Export scope selected from the three export entries.
 enum _ExportScope { all, subscription, plugins }
@@ -111,7 +112,7 @@ class _SettingsImportExportScreenState
     final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.importPreviewTitle(
             plugins.length + favorites.length + history.length)),
         content: Text(
