@@ -9,6 +9,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/bookshelf_filter.dart';
 import '../theme/app_tokens.dart';
+import 'app_animations.dart';
 
 /// 唤起书架筛选底部面板，返回用户确认后的筛选状态；取消则返回 null。
 Future<BookshelfFilter?> showBookshelfFilterSheet(
@@ -58,7 +59,8 @@ class _BookshelfFilterSheetState extends State<_BookshelfFilterSheet> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ThemeData theme = Theme.of(context);
 
-    return SafeArea(
+    return AppSheetBody(
+      child: SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           AppTokens.spaceMd,
@@ -185,6 +187,7 @@ class _BookshelfFilterSheetState extends State<_BookshelfFilterSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
