@@ -106,6 +106,10 @@ class _RssFeedDetailScreenState extends State<RssFeedDetailScreen> {
     return RefreshIndicator(
       onRefresh: _loadFeed,
       child: ListView.separated(
+        // 弹性滚动：下拉刷新时有拉伸回弹手感。
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         padding: const EdgeInsets.all(AppTokens.spaceMd),
         itemCount: items.length,
         separatorBuilder: (_, __) => const Divider(height: 1),

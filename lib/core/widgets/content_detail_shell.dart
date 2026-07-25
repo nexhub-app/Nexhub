@@ -292,7 +292,10 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
     );
 
     final scrollView = CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
+      // 弹性滚动：下拉/触底带拉伸回弹手感，配合下拉刷新更灵动。
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
       slivers: <Widget>[
         // ─── Hero SliverAppBar ───
         SliverAppBar(

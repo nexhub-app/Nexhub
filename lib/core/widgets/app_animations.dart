@@ -263,6 +263,77 @@ class AppValuePulse extends StatelessWidget {
   }
 }
 
+// ────────────────────── 顶栏标题滚动渐隐 ──────────────────────
+
+/// 顶栏标题滚动渐隐收缩：包裹 [Scaffold]，body 内任何垂直滚动 0→64px
+/// 时，AppBar 标题淡至 60% 并轻微缩小，回到顶部还原——页面更有层次感。
+///
+/// 用法：把原来的 `Scaffold(appBar: AppBar(title: ...), body: ...)` 换成
+/// `AppShrinkTitleScaffold(title: ..., body: ..., actions: ...)`。
+/// 仅重建标题本身（ValueNotifier 驱动），滚动零额外整页重建。
+class AppShrinkTitleScaffold extends StatefulWidget {
+  const AppShrinkTitleScaffold({
+    super.key,
+    required this.title,
+    required this.body,
+    this.actions,
+    this.leading,
+    this.centerTitle,
+    this.floatingActionButton,
+  });
+
+  final Widget title;
+  final Widget body;
+  final List<Widget>? actions;
+  final Widget? leading;
+  final bool? centerTitle;
+  final Widget? floatingActionButton;
+
+  @override
+  State<AppShrinkTitleScaffold> createState() => _AppShrinkTitleScaffoldState();
+}
+
+class _AppShrinkTitleScaffoldState extends State<AppShrinkTitleScaffold> {
+  final ValueNotifier<double> _shrink = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _shrink.dispose();
+    super.dispose();
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth == 0 && n.metrics.axis == Axis.vertical) {
+      _shrink.value = (n.metrics.pixels / 64).clamp(0.0, 1.0);
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: widget.leading,
+        centerTitle: widget.centerTitle,
+        actions: widget.actions,
+        title: ValueListenableBuilder<double>(
+          valueListenable: _shrink,
+          builder: (context, t, child) => Opacity(
+            opacity: 1.0 - 0.4 * t,
+            child: Transform.scale(scale: 1.0 - 0.08 * t, child: child),
+          ),
+          child: widget.title,
+        ),
+      ),
+      floatingActionButton: widget.floatingActionButton,
+      body: NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: widget.body,
+      ),
+    );
+  }
+}
+
 // ────────────────────── 弹窗 / 抽屉内容入场 ──────────────────────
 
 /// 弹窗 / 抽屉内容入场：配合 [showModalBottomSheet] 自带的上滑，额外叠加
