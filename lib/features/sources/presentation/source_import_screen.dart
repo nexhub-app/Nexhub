@@ -18,6 +18,8 @@ import '../../../core/widgets/app_form_field.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_url_input_bar.dart';
+import '../../shuyuan/shuyuan_adapter.dart';
+import '../../shuyuan/shuyuan_source_service.dart';
 import 'collect_api_import_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
@@ -67,6 +69,38 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
           _validationErrors = errors;
           _loading = false;
         });
+      }
+    } on PluginConfigException catch (pe) {
+      // Legado/阅读格式源（含 bookSourceName 等字段）缺少 "type" 字段。
+      // 尝试通过 ShuyuanSourceService + ShuyuanAdapter 转换。
+      try {
+        final shuyuanService = ShuyuanSourceService();
+        final shuyuanSources = shuyuanService.parseSources(text);
+        if (shuyuanSources.isNotEmpty) {
+          final config = ShuyuanAdapter.toPluginConfig(shuyuanSources.first);
+          final errors = config.validate();
+          if (mounted) {
+            setState(() {
+              _preview = config;
+              _validationErrors = errors;
+              _loading = false;
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _error = pe.toString();
+              _loading = false;
+            });
+          }
+        }
+      } on Object catch (re) {
+        if (mounted) {
+          setState(() {
+            _error = re.toString();
+            _loading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {

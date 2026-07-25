@@ -228,52 +228,40 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
             isValid: config.validate().isEmpty,
           );
         } on PluginConfigException catch (pe) {
-          // 旧格式源（Legado 书源等）缺少 "type" 字段或字段名不同。
-          // 回退到 ShuyuanSourceService 解析 Legado/阅读 格式，再通过
-          // ShuyuanAdapter 转为 PluginConfig。
-          if (widget.filterType != null) {
-            try {
-              final shuyuanService = ShuyuanSourceService();
-              final shuyuanSources = shuyuanService.parseSources(text);
-              if (shuyuanSources.isNotEmpty) {
-                final config = ShuyuanAdapter.toPluginConfig(
-                  shuyuanSources.first,
-                );
-                item = _ImportPreviewItem(
-                  path: path,
-                  fileName: p.basename(path),
-                  config: config,
-                  type: config.type,
-                  isValid: config.validate().isEmpty,
-                );
-              } else {
-                item = _ImportPreviewItem(
-                  path: path,
-                  fileName: p.basename(path),
-                  config: null,
-                  type: widget.filterType,
-                  isValid: false,
-                  error: '${AppLocalizations.of(context).shuyuanImportParseFailed}: ${pe.message}',
-                );
-              }
-            } on Object catch (re) {
+          // Legado/阅读格式源（bookSourceName 等）缺少 "type" 字段。
+          // 始终尝试通过 ShuyuanSourceService + ShuyuanAdapter 转换，不依赖 filterType。
+          try {
+            final shuyuanService = ShuyuanSourceService();
+            final shuyuanSources = shuyuanService.parseSources(text);
+            if (shuyuanSources.isNotEmpty) {
+              final config = ShuyuanAdapter.toPluginConfig(
+                shuyuanSources.first,
+              );
+              item = _ImportPreviewItem(
+                path: path,
+                fileName: p.basename(path),
+                config: config,
+                type: config.type,
+                isValid: config.validate().isEmpty,
+              );
+            } else {
               item = _ImportPreviewItem(
                 path: path,
                 fileName: p.basename(path),
                 config: null,
                 type: widget.filterType,
                 isValid: false,
-                error: re.toString(),
+                error: '${AppLocalizations.of(context).shuyuanImportParseFailed}: ${pe.message}',
               );
             }
-          } else {
+          } on Object catch (re) {
             item = _ImportPreviewItem(
               path: path,
               fileName: p.basename(path),
               config: null,
-              type: null,
+              type: widget.filterType,
               isValid: false,
-              error: pe.toString(),
+              error: re.toString(),
             );
           }
         } on Object catch (e) {
