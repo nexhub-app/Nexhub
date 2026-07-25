@@ -42,7 +42,7 @@ class ModuleSourceSearchScreen extends StatefulWidget {
   /// 直达地址：调用方已取得的真实页面链接（如详情页抓取到的作者/标签落地页），
   /// 非空时进入直达模式，直接用它检索并信任返回结果。
   final String? extractedUrl;
-  final void Function(MediaItem item) onItemTap;
+  final void Function(MediaItem item, String? heroTag) onItemTap;
 
   const ModuleSourceSearchScreen({
     super.key,
@@ -519,7 +519,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
             progress: snap.data,
             width: itemW,
             heroTag: 'search-${item.id}',
-            onTap: () => widget.onItemTap(item),
+            onTap: () => widget.onItemTap(item, 'search-${item.id}'),
           ),
         );
       },
@@ -538,7 +538,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
         final source =
             context.read<SourceRepository>().getById(item.sourceId ?? '');
         return AppCard(
-          onTap: () => widget.onItemTap(item),
+          onTap: () => widget.onItemTap(item, 'search-${item.id}-list'),
           padding: EdgeInsets.zero,
           child: ListTile(
             contentPadding: EdgeInsets.symmetric(
@@ -605,7 +605,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
                     },
                   )
                 : const Icon(Icons.chevron_right),
-            onTap: () => widget.onItemTap(item),
+            onTap: () => widget.onItemTap(item, 'search-${item.id}-list'),
           ),
         );
       },

@@ -53,9 +53,9 @@ class NovelHomeScreen extends StatelessWidget {
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.novelSource,
             title: l10n.search,
-            onItemTap: (MediaItem item) => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => NovelDetailScreen(item: item),
+            onItemTap: (MediaItem item, String? heroTag) => Navigator.of(context).push(
+              AppHeroPageRoute<void>(
+                builder: (_) => NovelDetailScreen(item: item, heroTag: heroTag),
               ),
             ),
           ),

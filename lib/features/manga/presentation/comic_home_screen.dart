@@ -53,9 +53,9 @@ class ComicHomeScreen extends StatelessWidget {
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.mangaSource,
             title: l10n.search,
-            onItemTap: (MediaItem item) => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => ComicDetailScreen(item: item),
+            onItemTap: (MediaItem item, String? heroTag) => Navigator.of(context).push(
+              AppHeroPageRoute<void>(
+                builder: (_) => ComicDetailScreen(item: item, heroTag: heroTag),
               ),
             ),
           ),
