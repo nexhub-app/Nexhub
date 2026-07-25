@@ -2115,5 +2115,10 @@
   "readerGroupViewFilterDesc": "Adjust brightness, contrast, color temperature, grayscale, etc.",
   "readerGroupProgressDesc": "Page numbers, progress bar, fullscreen, keep-screen-on, rotation, and more.",
   "readerGroupFlashDesc": "Flash effect on page turn (simulated page-turn light).",
-  "readerSearchSettings": "Search settings…"
+  "readerSearchSettings": "Search settings…",
+  "readerGroupMouseWheel": "Mouse Wheel",
+  "readerGroupMouseWheelDesc": "Configure what the mouse wheel does (zoom or turn pages) and its scroll direction.",
+  "readerWheelZoom": "Zoom",
+  "readerWheelPage": "Page",
+  "readerWheelAction": "Action"
 }
