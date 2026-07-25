@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_animations.dart';
 
 import 'browse_local_screen.dart';
 import 'browse_network_screen.dart';
@@ -170,8 +171,14 @@ class BrowsePage extends StatelessWidget {
           crossAxisSpacing: AppTokens.spaceSm,
         ),
         itemCount: entries.length,
-        itemBuilder: (context, index) =>
-            _BrowseGridCard(entry: entries[index]),
+        itemBuilder: (context, index) => Entrance(
+          // 四宫格依次错峰入场（每次 60ms），形成灵动瀑布感。
+          onceKey: entries[index].title,
+          delay: Duration(milliseconds: 60 * index),
+          offset: 14,
+          fromScale: 0.96,
+          child: _BrowseGridCard(entry: entries[index]),
+        ),
       ),
     );
   }
