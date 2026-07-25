@@ -1,4 +1,4 @@
-# NexHub v0.2.4
+# NexHub v0.2.5
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -82,6 +82,18 @@
   一层 `..\..`，把路径推到了仓库外，Inno Setup 找不到图标文件直接编译失败。现改为相对
   `SourceDir`（仓库根）的正确相对路径 `windows\runner\resources\app_icon.ico`，与下方
   `[Files]` 的 `build\windows\x64\runner\Release\*` 基准保持一致。
+
+## 📝 更新日志（v0.2.4 → v0.2.5）
+
+本版相对 v0.2.4 **无应用功能变更**，仅修复 Windows 安装包（exe）中文语言文件缺失导致的编译失败：
+
+### 🐛 修复
+- **Windows exe 安装包编译报错 `Couldn't open include file ... Languages\ChineseSimplified.isl`**：
+  上一版 `NexHub.iss` 的 `[Languages]` 用 `compiler:Languages\ChineseSimplified.isl` 引用 Inno Setup
+  **自带**的中文语言包，但 Chocolatey 装的 Inno Setup 在打包机上并没有这个文件，ISCC 直接 abort、
+  产不出 exe。现改为**把官方 `ChineseSimplified.isl` 随仓库提交**到
+  `windows/installer/Languages/`，并让 .iss 引用相对于脚本目录的本地路径
+  `Languages\ChineseSimplified.isl`——安装向导继续是中文，且不再依赖打包机上有没有该语言包。
 
 ## 📦 安装
 
