@@ -21,6 +21,7 @@ import '../../../core/widgets/app_empty_state.dart';
 import 'rss_feed_detail_screen.dart';
 import 'rss_add_subscription_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 class RssFeedListScreen extends StatefulWidget {
   /// 绑定的模块类型（null = 浏览页全局 RSS）。
@@ -241,7 +242,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
 
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(l10n.deleteConfirmTitle),
         content: Text(l10n.deleteConfirmContent(feedTitle)),
         actions: [
@@ -274,7 +275,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
 
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AppAlertDialog(
         title: Text(l10n.editRoute),
         content: Form(
           key: formKey,

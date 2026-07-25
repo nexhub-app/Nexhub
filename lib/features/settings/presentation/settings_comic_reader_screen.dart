@@ -10,6 +10,7 @@ import '../../../core/comic/models/reader_preferences.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'widgets/settings_widgets.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 漫画阅读器默认设置页面。
 class SettingsComicReaderScreen extends StatefulWidget {
@@ -511,7 +512,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
     final l10n = AppLocalizations.of(context);
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.restoreDefault),
         content: Text(l10n.comicResetConfirm),
         actions: <Widget>[

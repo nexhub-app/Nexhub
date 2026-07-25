@@ -25,6 +25,7 @@ import '../../shuyuan/shuyuan_source_service.dart';
 import 'collect_api_import_screen.dart';
 import 'source_mirror_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 enum _SourceTab { list, network, local }
 
@@ -1103,7 +1104,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     final urlCtl = TextEditingController(text: source.site.baseUrl);
     final saved = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.sourceEdit),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1157,7 +1158,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     }
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.deleteConfirmTitle),
         content: Text(l10n.deleteConfirmContent(source.name)),
         actions: <Widget>[
@@ -1189,7 +1190,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     final l10n = AppLocalizations.of(context);
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.sourceMigrate),
         content: Text(source.migrationMessage ?? l10n.sourceDeprecatedHint),
         actions: <Widget>[

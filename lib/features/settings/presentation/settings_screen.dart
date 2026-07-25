@@ -36,6 +36,7 @@ import '../../../core/services/source_repository.dart';
 import '../../../core/services/cloud_sync_service.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -45,7 +46,7 @@ class SettingsScreen extends StatelessWidget {
     Color pickerColor = c.seed;
     showDialog(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.customColor),
         content: SingleChildScrollView(
           child: ColorPicker(
