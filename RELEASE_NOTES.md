@@ -1,4 +1,4 @@
-# NexHub v0.2.8
+# NexHub v0.2.9
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -133,6 +133,17 @@
   PowerShell 报错并 exit 1。给复制加了守卫：源路径与目标路径相同（`-ieq`）就跳过复制、
   只打印提示，不再触发自覆盖错误。
 - 现在 `OutputDir` 直接产出 + 复制守卫双重保险，无论 ISCC 写到哪都能正常上传。
+
+## 📝 更新日志（v0.2.8 → v0.2.9）
+
+本版相对 v0.2.8 **无应用功能变更**，仅修正"复制守卫"因**相对/绝对路径比较**失效而再次自覆盖：
+
+### 🐛 修复
+- **Windows job 仍失败：`Cannot overwrite the item ... with itself`**：
+  v0.2.8 的守卫比较的是 `$out.FullName`（绝对路径，如 `D:\a\nexhub\nexhub\windows\installer\Output\...`）
+  与 `$destPath`（仍是**相对路径** `windows\installer\Output\...`）——两者格式不同，`-ieq` 永远不相等，
+  于是照样去复制、照样自覆盖报错。改用 `[System.IO.Path]::GetFullPath` 把目标也转成绝对路径再比，
+  相同就跳过；并补了 Source/Dest 路径日志和 `try/catch` 便于以后诊断。
 
 ## 📦 安装
 
