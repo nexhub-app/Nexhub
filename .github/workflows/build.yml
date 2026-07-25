@@ -105,7 +105,7 @@
 #       `windows/runner/resources/app_icon.ico`，覆盖仓库里那份旧的 Flutter 默认 logo
 #       （原仅 Android job 跑该命令，Windows 一直用默认 logo）。
 #     - **Windows exe 安装包补齐**：新增 `windows/installer/NexHub.iss`（Inno Setup 脚本）
-#       + Windows job 用 `minissoftware/Inno-Setup-Action@v2` 编译出
+#       + Windows job 用 Chocolatey 装 Inno Setup 后调 ISCC.exe 编译出
 #       `NexHub-setup-<version>.exe`，单独上传 `windows-installer` artifact；Release 文件
 #       清单新增 `artifacts/windows-installer/NexHub-setup-*.exe`。安装包支持中英文、桌面
 #       快捷方式、非管理员安装（当前用户目录）。
@@ -206,10 +206,26 @@ jobs:
       - name: 打包 Windows 安装包 (Inno Setup -> exe)
         # 脚本：windows/installer/NexHub.iss；MyAppVersion 由 /D 传入（已去 v）。
         # 图标用上一步 flutter_launcher_icons 重新生成的自定义 app_icon.ico。
-        uses: minissoftware/Inno-Setup-Action@v2
-        with:
-          path: windows/installer/NexHub.iss
-          additional_arguments: /DMyAppVersion=${{ steps.ver.outputs.version }}
+        # 用 Chocolatey 装 Inno Setup 后直接调 ISCC.exe（不依赖第三方 action 仓库，
+        # 避免 minissoftware/Inno-Setup-Action 仓库不存在导致 Windows 构建失败）。
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          choco install innosetup -y
+          New-Item -ItemType Directory -Force -Path windows/installer/Output | Out-Null
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) {
+            Write-Error "ISCC.exe not found at $iscc - Inno Setup 安装失败或路径不同"
+            exit 1
+          }
+          & $iscc "windows/installer/NexHub.iss" "/DMyAppVersion=$env:VERSION"
+          $out = Get-ChildItem -Path windows/installer/Output -Filter *.exe | Select-Object -First 1
+          if (-not $out) {
+            Write-Error "ISCC 未产出安装包 exe（windows/installer/Output 下无 *.exe）"
+            exit 1
+          }
+          Write-Host "已生成安装包: $($out.FullName)"
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
