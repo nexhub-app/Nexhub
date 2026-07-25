@@ -247,18 +247,27 @@ jobs:
             exit 1
           }
           # 守卫复制：源与目标相同时（OutputDir 已直接写到 windows/installer/Output）跳过，
-          # 避免 PowerShell 报 "Cannot overwrite the item ... with itself" 导致 step 失败
+          # 避免 PowerShell 报 "Cannot overwrite the item ... with itself" 导致 step 失败。
+          # 关键：目标路径也要转成绝对路径再比，否则相对路径 vs 绝对路径比较永远不相等。
           $destDir = "windows/installer/Output"
-          $destPath = Join-Path $destDir $out.Name
+          New-Item -ItemType Directory -Force -Path $destDir | Out-Null
+          $destPathFull = [System.IO.Path]::GetFullPath((Join-Path $destDir $out.Name))
           if (-not (Test-Path $out.FullName)) {
             Write-Error "Expected installer not found: $($out.FullName)"
             exit 1
           }
-          if ($out.FullName -ieq $destPath) {
-            Write-Host "Installer already in destination: $destPath — skipping copy"
+          Write-Host "Source: $($out.FullName)"
+          Write-Host "Dest  : $destPathFull"
+          if ($out.FullName -ieq $destPathFull) {
+            Write-Host "Installer already in destination: $destPathFull — skipping copy"
           } else {
             Write-Host "Copying installer $($out.FullName) -> $destDir"
-            Copy-Item -Path $out.FullName -Destination $destDir -Force
+            try {
+              Copy-Item -Path $out.FullName -Destination $destDir -Force -ErrorAction Stop
+            } catch {
+              Write-Warning "Failed to copy installer: $($_.Exception.Message) — continuing if benign overwrite"
+              throw
+            }
           }
       - uses: actions/upload-artifact@v4
         with:
