@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_tokens.dart';
 
 /// 顶部分段切换（M3 风格等宽分段按钮）。
 ///
@@ -35,39 +36,73 @@ class AppSegmentedTabs<T> extends StatelessWidget {
       );
     }
 
-    // 等宽模式：自定义实现，保证每个分段宽度一致
+    // 等宽模式：自定义实现，保证每个分段宽度一致。
+    // 选中项用「滑动胶囊」指示：切换时胶囊弹性滑动跟随（与底部导航栏同一套灵动语言）。
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final int n = segments.length;
+    final int selIdx =
+        segments.indexWhere((ButtonSegment<T> s) => selected.contains(s.value));
 
     return Container(
+      height: 40,
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        children: segments.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final seg = entry.value;
-              final value = seg.value;
-              final isSelected = selected.contains(value);
-              final isFirst = idx == 0;
-              final isLast = idx == segments.length - 1;
-
-              return Expanded(
-                child: _EqualSegment(
-                  label: seg.label,
-                  icon: seg.icon,
-                  selected: isSelected,
-                  isFirst: isFirst,
-                  isLast: isLast,
-                  onTap: () => onSelectionChanged(<T>{value}),
+      child: LayoutBuilder(
+        builder: (BuildContext ctx, BoxConstraints c) {
+          final double w = c.maxWidth;
+          final double segW = w / n;
+          final double pillLeft = selIdx < 0 ? -segW : selIdx * segW;
+          return Stack(
+            children: <Widget>[
+              AnimatedPositioned(
+                duration: AppTokens.durBase,
+                curve: Curves.easeOutBack,
+                left: pillLeft,
+                top: 4,
+                bottom: 4,
+                width: segW,
+                child: AnimatedOpacity(
+                  opacity: selIdx < 0 ? 0.0 : 1.0,
+                  duration: AppTokens.durFast,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: scheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
                 ),
-              );
-            }).toList(),
-          ),
-        );
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.max,
+                children: segments.asMap().entries.map((entry) {
+                  final int idx = entry.key;
+                  final ButtonSegment<T> seg = entry.value;
+                  final T value = seg.value;
+                  final bool isSelected = selected.contains(value);
+                  final bool isFirst = idx == 0;
+                  final bool isLast = idx == segments.length - 1;
+
+                  return Expanded(
+                    child: _EqualSegment(
+                      label: seg.label,
+                      icon: seg.icon,
+                      selected: isSelected,
+                      isFirst: isFirst,
+                      isLast: isLast,
+                      onTap: () => onSelectionChanged(<T>{value}),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -92,21 +127,14 @@ class _EqualSegment<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isSelected = selected;
+    final bool isSelected = selected;
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        height: 40,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? scheme.secondaryContainer : Colors.transparent,
-          borderRadius: BorderRadius.horizontal(
-            left: isFirst ? const Radius.circular(8) : Radius.zero,
-            right: isLast ? const Radius.circular(8) : Radius.zero,
-          ),
-        ),
+        // 背景由外层滑动胶囊提供，这里只负责文字/图标的颜色过渡。
         child: AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 200),
           style: Theme.of(context).textTheme.labelLarge!.copyWith(
