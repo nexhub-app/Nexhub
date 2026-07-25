@@ -178,6 +178,91 @@ class _EntranceState extends State<Entrance>
   }
 }
 
+// ────────────────────── 悬停微抬（桌面端） ──────────────────────
+
+/// 桌面端悬停微抬：鼠标悬停在卡片 / 按钮上时轻轻放大并上浮，移开平滑复位。
+///
+/// 仅在检测到鼠标指针时生效（触摸屏无 hover 事件，天然不触发），
+/// 用 [MouseRegion] 探测、不拦截子控件手势与涟漪。
+class AppHoverLift extends StatefulWidget {
+  const AppHoverLift({
+    super.key,
+    required this.child,
+    this.scale = 1.02,
+    this.lift = 3,
+    this.enable = true,
+  });
+
+  final Widget child;
+  final double scale; // 悬停时的放大比例（>1）
+  final double lift; // 悬停时的上浮像素
+  final bool enable;
+
+  @override
+  State<AppHoverLift> createState() => _AppHoverLiftState();
+}
+
+class _AppHoverLiftState extends State<AppHoverLift> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enable) return widget.child;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: AppTokens.durFast,
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.identity()
+          ..translate(0.0, _hovered ? -widget.lift : 0.0),
+        child: AnimatedScale(
+          scale: _hovered ? widget.scale : 1.0,
+          duration: AppTokens.durFast,
+          curve: Curves.easeOutCubic,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+// ────────────────────── 值变化弹性脉冲（开关 / 分段 / Chip） ──────────────────────
+
+/// 值变化弹性脉冲：当 [trigger] 变化时，让子控件从 0.94 弹性放大回 1.0，
+/// 形成「咚」一下的确认反馈。适合开关、分段选择、选择芯片等取值型控件。
+///
+/// 首次挂载也会播一次轻微脉冲（与卡片入场动画自然融合）；之后仅在值变化时播放。
+class AppValuePulse extends StatelessWidget {
+  const AppValuePulse({
+    super.key,
+    required this.trigger,
+    required this.child,
+    this.from = 0.94,
+  });
+
+  /// 触发脉冲的值：值变化 → 播放一次脉冲（用 [ValueKey] 驱动重建实现）。
+  final Object? trigger;
+  final Widget child;
+
+  /// 脉冲起始缩放（越小力度越大）。整行大控件建议 0.98，小徽标可 0.8。
+  final double from;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      // key 变化时 TweenAnimationBuilder 重建并从 begin 重新播放。
+      key: ValueKey<Object?>(trigger),
+      tween: Tween<double>(begin: from, end: 1.0),
+      duration: AppTokens.durSpring,
+      curve: AppCurves.spring,
+      child: child,
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
+    );
+  }
+}
+
 // ────────────────────── 弹窗 / 抽屉内容入场 ──────────────────────
 
 /// 弹窗 / 抽屉内容入场：配合 [showModalBottomSheet] 自带的上滑，额外叠加
