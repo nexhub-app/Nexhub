@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_animations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -117,10 +118,12 @@ class MediaHomeScreen extends StatelessWidget {
         filterType: SourceType.animeSource,
         fabSuppressed: fabSuppressed,
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppTapScale(
+        child: FloatingActionButton.extended(
         onPressed: navigateToCollectApiImport,
         icon: const Icon(Icons.cloud_download),
         label: Text(l10n.collectApiImportTitle),
+      ),
       ),
       categoryProvider: (LibrarySubTab subTab) =>
           BookshelfContent.categoriesFor(
