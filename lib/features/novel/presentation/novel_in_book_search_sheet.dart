@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/models/episode.dart';
@@ -134,7 +135,8 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Padding(
+    return AppSheetBody(
+      child: Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
@@ -221,6 +223,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
