@@ -246,8 +246,20 @@ jobs:
             if (Test-Path Output) { Get-ChildItem -Path Output -Recurse | ForEach-Object { Write-Host $_.FullName } }
             exit 1
           }
-          Copy-Item -Path $out.FullName -Destination "windows/installer/Output" -Force
-          Write-Host "已生成安装包: $($out.FullName) -> windows/installer/Output ($($out.Name))"
+          # 守卫复制：源与目标相同时（OutputDir 已直接写到 windows/installer/Output）跳过，
+          # 避免 PowerShell 报 "Cannot overwrite the item ... with itself" 导致 step 失败
+          $destDir = "windows/installer/Output"
+          $destPath = Join-Path $destDir $out.Name
+          if (-not (Test-Path $out.FullName)) {
+            Write-Error "Expected installer not found: $($out.FullName)"
+            exit 1
+          }
+          if ($out.FullName -ieq $destPath) {
+            Write-Host "Installer already in destination: $destPath — skipping copy"
+          } else {
+            Write-Host "Copying installer $($out.FullName) -> $destDir"
+            Copy-Item -Path $out.FullName -Destination $destDir -Force
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
