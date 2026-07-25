@@ -8,11 +8,12 @@ import 'app_tokens.dart';
 ///   可通过 `scheme` 注入莫奈动态色或自定义 seed 生成的 ColorScheme。
 /// - `app.dart` 中：`theme: AppTheme.light()`、`darkTheme: AppTheme.dark()`，
 ///   并删除任何内联 `ThemeData(colorSchemeSeed: ...)`。
-/// 全局页面切换「灵动」转场。
+/// 全局页面切换转场：干净淡入（Material 3 fade-through 风格）。
 ///
-/// 新页从右侧轻微滑入 + 淡入 + 回弹缩放（[Curves.easeOutCubic] 平滑 / [Curves.easeOutBack] 弹簧），
-/// 旧页被覆盖时轻微左移淡出。接入 [ThemeData.pageTransitionsTheme] 后，所有
-/// `Navigator.push` 的 `MaterialPageRoute` 与对话框统一获得该动效，与底栏/卡片同源。
+/// 新页轻微放大（0.94→1.0）+ 淡入出现；旧页被覆盖时快速淡出。
+/// 没有滑动、没有回弹——干净利落、不晃眼（应用户要求替换掉旧的
+/// 「滑入+回弹缩放」方案）。接入 [ThemeData.pageTransitionsTheme] 后，
+/// 所有 `Navigator.push` 的 `MaterialPageRoute` 与对话框统一生效。
 class AppPageTransitionsBuilder extends PageTransitionsBuilder {
   const AppPageTransitionsBuilder();
 
@@ -24,40 +25,31 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    // 与 AppCurves 保持一致（此处内联，避免主题层依赖 widget 层）：
-    // smooth = 平滑减速（末段极缓）；spring = 弹簧回弹（放大略过冲再回落）。
-    const Curve ease = Cubic(0.16, 1.0, 0.3, 1.0);
-    const Curve spring = Cubic(0.34, 1.7, 0.46, 1.0);
-    final enterSlide = Tween<Offset>(
-      begin: const Offset(0.08, 0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: animation, curve: ease));
-    final enterFade = CurvedAnimation(parent: animation, curve: ease);
-    final enterScale = Tween<double>(begin: 0.96, end: 1.0).animate(
-      CurvedAnimation(parent: animation, curve: spring),
+    // fade-through：入场淡入放在后 65%（先让旧页淡出，避免两页叠加发灰），
+    // 放大全程平滑减速；无过冲。
+    final enterFade = CurvedAnimation(
+      parent: animation,
+      curve: const Interval(0.35, 1.0, curve: Curves.easeOutCubic),
     );
-    final exitSlide = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(-0.05, 0),
-    ).animate(CurvedAnimation(parent: secondaryAnimation, curve: ease));
+    final enterScale = Tween<double>(begin: 0.94, end: 1.0).animate(
+      CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+    );
     // 注意：secondaryAnimation 在页面「正常显示（未被覆盖）」时值为 0，
     // 被新页覆盖过程中 0→1。因此淡出透明度必须是 1→0 的反向映射；
     // 若直接把 CurvedAnimation 当 opacity 用，页面常态 opacity=0 → 整页隐形
     // （曾导致 Windows 全局黑屏且无任何异常，见 2026-07-25 复盘）。
+    // 旧页在前 35% 内快速淡出，与入场淡入错开。
     final exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: secondaryAnimation, curve: ease),
+      CurvedAnimation(
+        parent: secondaryAnimation,
+        curve: const Interval(0.0, 0.35, curve: Curves.easeInCubic),
+      ),
     );
-    return SlideTransition(
-      position: enterSlide,
-      child: FadeTransition(
-        opacity: enterFade,
-        child: ScaleTransition(
-          scale: enterScale,
-          child: SlideTransition(
-            position: exitSlide,
-            child: FadeTransition(opacity: exitFade, child: child),
-          ),
-        ),
+    return FadeTransition(
+      opacity: enterFade,
+      child: ScaleTransition(
+        scale: enterScale,
+        child: FadeTransition(opacity: exitFade, child: child),
       ),
     );
   }
