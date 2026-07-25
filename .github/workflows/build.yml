@@ -228,12 +228,26 @@ jobs:
             exit 1
           }
           & $iscc "windows/installer/NexHub.iss" "/DMyAppVersion=$env:VERSION"
-          $out = Get-ChildItem -Path windows/installer/Output -Filter *.exe | Select-Object -First 1
+          # ISCC 可能把 exe 写到仓库根 Output/ 或 windows/installer/Output/（取决于 OutputDir 解析），
+          # 兜底：两个位置都找，找到就复制到 windows/installer/Output（上传步骤期望的位置）
+          $expectedDirs = @('windows\installer\Output', 'Output')
+          $out = $null
+          foreach ($d in $expectedDirs) {
+            if (Test-Path $d) {
+              $files = Get-ChildItem -Path $d -Filter *.exe -Recurse -ErrorAction SilentlyContinue
+              if ($files -and $files.Count -gt 0) { $out = $files[0]; break }
+            }
+          }
           if (-not $out) {
-            Write-Error "ISCC 未产出安装包 exe（windows/installer/Output 下无 *.exe）"
+            Write-Error "ISCC 未产出安装包 exe（windows/installer/Output 与 Output 下均未找到 *.exe）"
+            Write-Host "windows/installer 目录内容："
+            Get-ChildItem -Path windows/installer -Recurse | ForEach-Object { Write-Host $_.FullName }
+            Write-Host "根目录 Output 目录内容："
+            if (Test-Path Output) { Get-ChildItem -Path Output -Recurse | ForEach-Object { Write-Host $_.FullName } }
             exit 1
           }
-          Write-Host "已生成安装包: $($out.FullName)"
+          Copy-Item -Path $out.FullName -Destination "windows/installer/Output" -Force
+          Write-Host "已生成安装包: $($out.FullName) -> windows/installer/Output ($($out.Name))"
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
