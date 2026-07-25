@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/plugin_config.dart';
 import '../settings/layout_settings.dart';
 import '../theme/app_tokens.dart';
+import 'app_animations.dart';
 import 'app_cover_image.dart';
 
 /// 内容卡片（封面 + 标题 + 元信息 + 进度条/徽标）。
@@ -18,6 +19,10 @@ class ContentCard extends StatelessWidget {
   final VoidCallback? onTap;
   final String? heroTag;
   final double width;
+
+  /// 入场动画的去重 key：非空时同一 key 全局只入场一次（避免列表滚动回来重复播放）。
+  /// 缺省回退到 [heroTag]；两者皆空则该卡片每次挂载都播放。
+  final String? entranceKey;
   const ContentCard({
     super.key,
     this.coverUrl,
@@ -29,6 +34,7 @@ class ContentCard extends StatelessWidget {
     this.heroTag,
     this.source,
     this.width = 120,
+    this.entranceKey,
   });
 
   @override
@@ -38,7 +44,7 @@ class ContentCard extends StatelessWidget {
     final bool _showProg =
         layout.showProgress && progress != null && progress! > 0;
     final bool _asBar = layout.progressDisplay == ProgressDisplayMode.bar;
-    return SizedBox(
+    final Widget body = SizedBox(
       width: width,
       child: InkWell(
         onTap: onTap,
@@ -129,5 +135,13 @@ class ContentCard extends StatelessWidget {
         ),
       ),
     );
+
+    // 「灵动」入场：同一 key（优先 entranceKey，回退 heroTag）只播一次，避免滚动重播。
+    // 按 key 派生 0~300ms 错峰，首屏呈现自然的瀑布式入场。
+    final String? key = entranceKey ?? heroTag;
+    final Duration delay = key != null
+        ? Duration(milliseconds: key.hashCode.abs() % 300)
+        : Duration.zero;
+    return Entrance(onceKey: key, delay: delay, child: body);
   }
 }
