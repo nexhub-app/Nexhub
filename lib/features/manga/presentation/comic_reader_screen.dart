@@ -119,6 +119,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   bool _isFav = false;
   bool _showInlineSettings = false;
 
+  /// 整体是否处于放大状态（共享 [_zoomController] 的 scale > 1）。用于在放大时
+  /// 关闭底层 PageView / ListView 的滚动手势，避免「放大图片拖动平移」与「翻页 /
+  /// 滚动」在手势竞技场里互相抢手势、导致两种行为都失灵。未放大时恢复原生手势。
+  bool _zoomed = false;
+
   /// 每页旋转的 quarterTurns（0/1/2/3），仅在用户主动旋转时记录。
   final Map<int, int> _pageRotations = <int, int>{};
 
@@ -149,6 +154,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       vsync: this,
       duration: const Duration(milliseconds: 120),
     );
+    _zoomController.addListener(_onZoomChanged);
     _chapterIndex = widget.initialChapterIndex;
     _prefs = const ReaderPreferences();
     _init();
@@ -281,6 +287,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   @override
   void dispose() {
+    _zoomController.removeListener(_onZoomChanged);
     _pageController?.dispose();
     _scrollController?.dispose();
     _zoomController.dispose();
@@ -668,6 +675,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       ..multiply(m);
   }
 
+  /// 监听共享 [_zoomController]：放大状态变化时同步 [_zoomed]，使底层 PageView /
+  /// ListView 在放大时关闭滚动手势（避免与图片平移手势打架），未放大时恢复。
+  void _onZoomChanged() {
+    final zoomed = _zoomController.value.getMaxScaleOnAxis() > 1.001;
+    if (zoomed != _zoomed && mounted) setState(() => _zoomed = zoomed);
+  }
+
   /// 打开 / 关闭内联阅读设置面板。
   ///
   /// 与小说阅读器对齐：桌面（宽度 ≥ [AppTokens.desktopBreakpoint]）面板停在
@@ -827,8 +841,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final bg = _prefs.resolveBackgroundColor(isDark);
     final l10n = AppLocalizations.of(context);
 
-    return Scaffold(
-      backgroundColor: bg,
+    return ScrollConfiguration(
+      // 全局关闭滚动回弹（橡皮筋）与 overscroll 发光，覆盖 PageView / ListView /
+      // 设置面板滚动等所有内部滚动组件。
+      behavior: _NoOverscrollBehavior(),
+      child: Scaffold(
+        backgroundColor: bg,
       body: Stack(
         children: <Widget>[
           _buildContent(l10n),
@@ -836,9 +854,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             ReaderTapZones(
               layout: _prefs.tapZoneLayout,
               tapZoneInvert: _prefs.tapZoneInvert,
-              isVertical: _prefs.readingMode.isWebtoon,
+              isVertical: _prefs.readingMode.isWebtoon ||
+                  _prefs.readingMode == ReadingMode.singleVertical,
+              isWebtoon: _prefs.readingMode.isWebtoon,
+              isRTL: _prefs.readingMode == ReadingMode.singleRTL,
               onPrev: _goPrevPage,
               onNext: _goNextPage,
+              onDragPage: (next) => next ? _goNextPage() : _goPrevPage(),
               onToggleUi: () {
                 setState(() => _uiVisible = !_uiVisible);
               },
@@ -908,6 +930,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             _buildRightProgressBar(l10n),
           if (_showInlineSettings) _buildInlineSettings(l10n),
         ],
+      ),
       ),
     );
   }
@@ -999,6 +1022,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (pc == null) return const SizedBox.shrink();
     return PageView.builder(
       controller: pc,
+      // 拖拽翻页统一由覆盖层 ReaderTapZones 的 onDragPage 处理（桌面鼠标拖拽 /
+      // 触屏滑动都走这条），故此处禁用 PageView 原生拖拽，避免「两次翻页」冲突。
+      // 程序化翻页（_goNextPage / _pageController.animateToPage / 点按热区 / 滚轮）
+      // 不受影响。放大时同理禁用，交给图片自身平移。
+      physics: const NeverScrollableScrollPhysics(),
       scrollDirection: _prefs.readingMode == ReadingMode.singleVertical
           ? Axis.vertical
           : Axis.horizontal,
@@ -1013,6 +1041,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           source: _source,
           rotationQuarterTurns: _pageRotations[i] ?? 0,
           cropEdge: _prefs.cropEdge,
+          onWheelPage: (next) => next ? _goNextPage() : _goPrevPage(),
         ),
       ),
     );
@@ -1026,6 +1055,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final rtl = _prefs.readingMode == ReadingMode.singleRTL;
     return PageView.builder(
       controller: pc,
+      // 拖拽翻页统一由覆盖层处理，禁用 PageView 原生拖拽（避免两次翻页冲突）。
+      physics: const NeverScrollableScrollPhysics(),
       scrollDirection: Axis.horizontal,
       reverse: rtl,
       itemCount: _spreadCount,
@@ -1043,20 +1074,22 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               source: _source,
               rotationQuarterTurns: _pageRotations[a] ?? 0,
               cropEdge: _prefs.cropEdge,
+              onWheelPage: (next) => next ? _goNextPage() : _goPrevPage(),
             ),
           ),
         ];
         if (bImg != null) {
           rowChildren.add(
             Expanded(
-              child: MangaPageImage(
-                url: bImg,
-                prefs: _prefs,
-                zoomController: _zoomController,
-                source: _source,
-                rotationQuarterTurns: _pageRotations[b] ?? 0,
-                cropEdge: _prefs.cropEdge,
-              ),
+            child: MangaPageImage(
+              url: bImg,
+              prefs: _prefs,
+              zoomController: _zoomController,
+              source: _source,
+              rotationQuarterTurns: _pageRotations[b] ?? 0,
+              cropEdge: _prefs.cropEdge,
+              onWheelPage: (next) => next ? _goNextPage() : _goPrevPage(),
+            ),
             ),
           );
         }
@@ -1081,7 +1114,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         : 0.0;
     return ListView.separated(
       controller: sc,
-      physics: const PageScrollPhysics(),
+      // 连续滚动（条漫）：用 ClampingScrollPhysics 平滑滚动，边界夹紧、无回弹。
+      // 注意：不要用 PageScrollPhysics——它会按「每张图」吸附，导致可停顿在两页
+      // 之间、且首尾出现翻页式回弹，违背条漫的连续滚动体验。
+      // 放大时改为 NeverScrollable：把拖拽让给图片自身的平移手势，避免与滚动打架。
+      physics: _zoomed
+          ? const NeverScrollableScrollPhysics()
+          : const ClampingScrollPhysics(),
       padding: EdgeInsets.zero,
       itemCount: _images.length,
       separatorBuilder: (_, __) => SizedBox(height: gap),
@@ -1094,6 +1133,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           source: _source,
           rotationQuarterTurns: _pageRotations[i] ?? 0,
           cropEdge: _prefs.cropEdge,
+          onWheelPage: (next) => next ? _goNextPage() : _goPrevPage(),
         ),
       ),
     );
@@ -1577,6 +1617,10 @@ class MangaPageImage extends StatefulWidget {
   /// 是否裁边（true 时图片 fit 切换为 cover + 居中对齐，去除四周留白）。
   final bool cropEdge;
 
+  /// 滚轮翻页回调（参数为 true 表示下一页、false 表示上一页）；仅在
+  /// [ReaderPreferences.mouseWheelAction] 为 [MouseWheelAction.page] 时使用。
+  final void Function(bool next)? onWheelPage;
+
   const MangaPageImage({
     super.key,
     required this.url,
@@ -1585,6 +1629,7 @@ class MangaPageImage extends StatefulWidget {
     this.source,
     this.rotationQuarterTurns = 0,
     this.cropEdge = false,
+    this.onWheelPage,
   });
 
   @override
@@ -1595,8 +1640,35 @@ class _MangaPageImageState extends State<MangaPageImage> {
   final TransformationController _local = TransformationController();
   TransformationController get _tc => widget.zoomController ?? _local;
 
+  /// 当前是否处于放大状态（scale > 1）。仅放大时才在 build 里挂载 GestureDetector
+  /// 处理平移 / 捏合；未放大时把指针事件让给底层 PageView / ListView，使翻页 /
+  /// 滚动生效。
+  bool _zoomed = false;
+
+  /// pan / pinch 手势起点的初始矩阵（[_handleScaleStart] 时复制 [_tc.value]）。
+  Matrix4? _scaleStartMatrix;
+
+  /// pan / pinch 手势起点的局部焦点（用于单指 pan 的累计偏移计算）。
+  Offset? _scaleStartFocal;
+
+  @override
+  void initState() {
+    super.initState();
+    _tc.addListener(_onTransformChanged);
+    _syncZoomed();
+  }
+
+  void _onTransformChanged() {
+    final zoomed = _tc.value.getMaxScaleOnAxis() > 1.001;
+    if (zoomed != _zoomed && mounted) setState(() => _zoomed = zoomed);
+  }
+
+  void _syncZoomed() =>
+      _zoomed = _tc.value.getMaxScaleOnAxis() > 1.001;
+
   @override
   void dispose() {
+    _tc.removeListener(_onTransformChanged);
     _local.dispose();
     super.dispose();
   }
@@ -1641,21 +1713,59 @@ class _MangaPageImageState extends State<MangaPageImage> {
       quarterTurns: widget.rotationQuarterTurns,
       child: img,
     );
-    // 桌面滚轮缩放始终可用（雷区 12），双击/捏合缩放由 doubleTapZoom 控制
-    // （P8.3.1 §廿四 桌面滚轮缩放解耦 doubleTapZoom）。
-    return Listener(
-      onPointerSignal: (e) {
-        if (e is PointerScrollEvent) _onWheel(e);
-      },
-      child: InteractiveViewer(
-        transformationController: _tc,
-        minScale: widget.prefs.minScale,
-        maxScale: widget.prefs.maxScale,
-        // doubleTapZoom 关闭时禁用触摸缩放/平移，但桌面滚轮仍可用
-        panEnabled: widget.prefs.doubleTapZoom,
-        scaleEnabled: widget.prefs.doubleTapZoom,
-        child: rotated,
+    // 把 [_tc] 的矩阵应用到 rotated 上，得到「已缩放/已平移」的最终图像。
+    // 必须用 AnimatedBuilder 监听 [_tc]：滚轮 / 双击 / 捏合每次改值都会即时重建
+    // Transform，画面才「跟手」。否则只有 [_zoomed] 翻转那一瞬间才 setState，
+    // 连续捏合时画面完全不动，表现为「放缩不是实时更新」。
+    // [rotated] 作为 child 传入并缓存，避免每帧重建图片加载子树。
+    final transformed = AnimatedBuilder(
+      animation: _tc,
+      builder: (context, child) => Transform(
+        transform: _tc.value,
+        alignment: Alignment.center,
+        child: child,
       ),
+      child: rotated,
+    );
+    return Listener(
+      // 用 translucent：让外层 Listener 始终在命中路径中（即便内部 GestureDetector
+      // 是 opaque）。我们的 Listener 是路径里唯一的 wheel 处理者（替换掉原来的
+      // InteractiveViewer 后，不会再有更深的 Listener 与我们竞争 resolver），所
+      // 以滚轮缩放 / 翻页在「未放大」与「已放大」两种状态都生效。
+      behavior: HitTestBehavior.translucent,
+      onPointerSignal: (e) {
+        if (e is! PointerScrollEvent) return;
+        // 条漫（连续滚动）模式：未放大时滚轮交给原生 ListView 连续滚动（翻页），
+        // 已放大时由我们接管缩放。条漫下「作用」设置无意义，这里按上下文自动分派：
+        // 没放大=滚动，已放大=缩放；双击任意处可进入放大态。
+        if (widget.prefs.readingMode.isWebtoon) {
+          final bool isZoomed = _tc.value.getMaxScaleOnAxis() > 1.001;
+          if (!isZoomed) return; // 原生连续滚动（翻页）
+        }
+        // 通过 pointerSignalResolver 抢占滚轮事件：我们的 Listener 比底层 Scrollable
+        // 更深（先注册 → 胜出），从而阻止 Scrollable 同时翻页/滚动。由 [_onWheel] 决定缩放。
+        GestureBinding.instance.pointerSignalResolver
+            .register(e, (_) => _onWheel(e));
+      },
+      // 仅在「已放大」状态才把指针事件（包括单指 pan / 双指 pinch）交给
+      // GestureDetector 处理；未放大时不挂 GestureDetector，让单指 pan / 双指
+      // pinch 全部透传给底层 PageView / ListView，使翻页 / 滚动生效。
+      //
+      // 重要：不要在这里用 InteractiveViewer。它的内部 Listener
+      // （interactive_viewer.dart:1088 `_receivedPointerSignal`）始终在命中路径
+      // 中——比我们的外层 Listener 更深，会先于我们注册到 pointerSignalResolver
+      // 抢走滚轮事件；且即使 `scaleEnabled: false`，它也只是让 handler 静默返回，
+      // 事件依然被消费掉，导致「已放大后滚轮失效」（设置面板的「作用 / 方向」按
+      // 钮点击都看似无效）。这里自管 Transform + GestureDetector 是根治方案。
+      child: _zoomed
+          ? GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onScaleStart: _handleScaleStart,
+              onScaleUpdate: _handleScaleUpdate,
+              onScaleEnd: _handleScaleEnd,
+              child: transformed,
+            )
+          : transformed,
     );
   }
 
@@ -1678,7 +1788,25 @@ class _MangaPageImageState extends State<MangaPageImage> {
   }
 
   void _onWheel(PointerScrollEvent e) {
-    // scrollWheelInverted=true：反转滚轮方向（上滚缩小、下滚放大）。
+    // 条漫（连续滚动）模式：能进入此分支说明已放大（onPointerSignal 仅在已放大时
+    // 注册滚轮）。滚轮一律缩放（微调），方向（自然/反向）照常生效，配合单指/鼠标
+    // 拖动平移。未放大时滚轮走原生连续滚动（翻页），不经过此处。
+    if (widget.prefs.readingMode.isWebtoon) {
+      final double base = e.scrollDelta.dy < 0 ? 1.1 : 0.9;
+      final double factor =
+          widget.prefs.scrollWheelInverted ? (base == 1.1 ? 0.9 : 1.1) : base;
+      _zoomAround(e.localPosition, factor);
+      return;
+    }
+    // 翻页模式：按「作用」区分翻页 / 缩放。
+    if (widget.prefs.mouseWheelAction == MouseWheelAction.page) {
+      // 下滚=下一页，上滚=上一页；scrollWheelInverted 反转「下一/上一页」方向。
+      final bool down = e.scrollDelta.dy > 0;
+      final bool next = widget.prefs.scrollWheelInverted ? !down : down;
+      widget.onWheelPage?.call(next);
+      return;
+    }
+    // 滚轮缩放：scrollWheelInverted 反转方向（上滚放大、下滚缩小；反向则互换）。
     final double base = e.scrollDelta.dy < 0 ? 1.1 : 0.9;
     final double factor =
         widget.prefs.scrollWheelInverted ? (base == 1.1 ? 0.9 : 1.1) : base;
@@ -1698,4 +1826,63 @@ class _MangaPageImageState extends State<MangaPageImage> {
       ..scale(realFactor)
       ..multiply(m);
   }
+
+  // ──────────────────── 平移 / 捏合手势（仅 [_zoomed] = true 时挂载） ─────
+
+  /// 记录 pan / pinch 起点的初始矩阵与焦点。
+  void _handleScaleStart(ScaleStartDetails details) {
+    _scaleStartMatrix = Matrix4.copy(_tc.value);
+    _scaleStartFocal = details.localFocalPoint;
+  }
+
+  /// pan / pinch 更新：双指 → 捏合缩放（以起手时的矩阵为基准、累计 scale 应用）；
+  /// 单指 → 平移（以起手焦点为基准、累计 focal 偏移应用）。
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    if (_scaleStartMatrix == null || _scaleStartFocal == null) return;
+    if (details.pointerCount >= 2) {
+      // 捏合：以起手矩阵为基准，按累计 [details.scale] 缩放并夹紧到 [minScale, maxScale]。
+      final Matrix4 base = _scaleStartMatrix!;
+      final double startScale = base.getMaxScaleOnAxis();
+      final double target =
+          (startScale * details.scale)
+              .clamp(widget.prefs.minScale, widget.prefs.maxScale);
+      final double realFactor = startScale == 0 ? 1.0 : target / startScale;
+      final Offset focal = details.localFocalPoint;
+      final double dx = focal.dx * (1 - realFactor);
+      final double dy = focal.dy * (1 - realFactor);
+      _tc.value = Matrix4.identity()
+        ..translate(dx, dy)
+        ..scale(realFactor)
+        ..multiply(base);
+    } else {
+      // 单指 pan：把「当前焦点 − 起手焦点」左乘到起手矩阵上。
+      final Offset delta = details.localFocalPoint - _scaleStartFocal!;
+      final Matrix4 m = Matrix4.copy(_scaleStartMatrix!)
+        ..leftTranslate(delta.dx, delta.dy);
+      _tc.value = m;
+    }
+  }
+
+  void _handleScaleEnd(ScaleEndDetails details) {
+    _scaleStartMatrix = null;
+    _scaleStartFocal = null;
+  }
+}
+
+/// 关闭阅读器内所有滚动组件的「回弹」（橡皮筋）与 overscroll 发光指示器。
+///
+/// 配合各滚动组件显式声明的 `PageScrollPhysics().applyTo(ClampingScrollPhysics())`，
+/// 既保留条漫逐图吸附 / 翻页分页，又在边界夹紧、不再回弹。
+class _NoOverscrollBehavior extends ScrollBehavior {
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const ClampingScrollPhysics();
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) =>
+      child;
 }

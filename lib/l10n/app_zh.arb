@@ -180,8 +180,8 @@
   "readerModeSingleLTR": "单页（左→右）",
   "readerModeSingleRTL": "单页（右→左）",
   "readerModeSingleVertical": "单页（竖向）",
-  "readerModeWebtoon": "长条滚动",
-  "readerModeWebtoonWithGap": "长条（带间距）",
+  "readerModeWebtoon": "条漫",
+  "readerModeWebtoonWithGap": "条漫（带间距）",
   "readerOrientationDefault": "默认",
   "readerOrientationSystem": "跟随系统",
   "readerOrientationPortrait": "竖屏",
@@ -2152,5 +2152,10 @@
   "readerGroupViewFilterDesc": "调节亮度、对比度、色温与灰度等画面效果。",
   "readerGroupProgressDesc": "控制页码、进度条、全屏、常亮与页面旋转等显示选项。",
   "readerGroupFlashDesc": "设置翻页时的闪光提示效果（模拟翻页灯）。",
-  "readerSearchSettings": "搜索设置…"
+  "readerSearchSettings": "搜索设置…",
+  "readerGroupMouseWheel": "鼠标滚轮",
+  "readerGroupMouseWheelDesc": "设置滚轮的作用（缩放页面或翻页）以及滚动方向。",
+  "readerWheelZoom": "缩放",
+  "readerWheelPage": "翻页",
+  "readerWheelAction": "作用"
 }

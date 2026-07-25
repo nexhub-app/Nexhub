@@ -201,6 +201,35 @@ ReaderFlashColor _parseFlashColor(Object? raw) {
   return ReaderFlashColor.black;
 }
 
+/// 鼠标滚轮作用（漫画阅读器「鼠标滚轮」设置）。
+///
+/// - [zoom]：滚轮缩放页面（默认）。
+/// - [page]：滚轮翻页（条漫模式下滚轮始终滚动页面，不在此列）。
+enum MouseWheelAction {
+  /// 滚轮缩放页面。
+  zoom,
+
+  /// 滚轮翻页。
+  page;
+
+  /// 解析为 l10n key（容错：非法字符串回退 [zoom]）。
+  String l10nKey() => switch (this) {
+        MouseWheelAction.zoom => 'readerWheelZoom',
+        MouseWheelAction.page => 'readerWheelPage',
+      };
+}
+
+/// 解析滚轮作用（容错：非法字符串回退 zoom）。
+MouseWheelAction _parseMouseWheelAction(Object? raw) {
+  if (raw is String) {
+    return MouseWheelAction.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => MouseWheelAction.zoom,
+    );
+  }
+  return MouseWheelAction.zoom;
+}
+
 /// 阅读器偏好（按作品持久化）。
 class ReaderPreferences {
   final ReadingMode readingMode;
@@ -286,6 +315,12 @@ class ReaderPreferences {
   /// 滚轮缩放方向是否反转（false = 上滚放大；true = 上滚缩小，类天然反向滚动）。
   final bool scrollWheelInverted;
 
+  /// 鼠标滚轮作用：缩放页面（[MouseWheelAction.zoom]）或翻页
+  /// （[MouseWheelAction.page]）。**仅翻页模式生效**；条漫模式忽略此项，滚轮按
+  /// 上下文自动分派——未放大时滚轮连续滚动长图（翻页），已放大时滚轮缩放微调，
+  /// 双击任意处可进入/退出放大态，放大后单指/鼠标拖动平移。
+  final MouseWheelAction mouseWheelAction;
+
   const ReaderPreferences({
     this.readingMode = ReadingMode.singleLTR,
     this.doubleTapZoom = true,
@@ -320,6 +355,7 @@ class ReaderPreferences {
     this.showChapterTransition = false,
     this.doubleTapZoomScale = 2.0,
     this.scrollWheelInverted = false,
+    this.mouseWheelAction = MouseWheelAction.zoom,
   });
 
   /// 滤镜是否为默认值（各轴均为 0 且不反色/不灰度），用于跳过无谓的 ColorFiltered 图层。
@@ -405,6 +441,7 @@ class ReaderPreferences {
       doubleTapZoomScale:
           (json['doubleTapZoomScale'] as num?)?.toDouble() ?? 2.0,
       scrollWheelInverted: json['scrollWheelInverted'] as bool? ?? false,
+      mouseWheelAction: _parseMouseWheelAction(json['mouseWheelAction']),
     );
   }
 
@@ -442,6 +479,7 @@ class ReaderPreferences {
         'showChapterTransition': showChapterTransition,
         'doubleTapZoomScale': doubleTapZoomScale,
         'scrollWheelInverted': scrollWheelInverted,
+        'mouseWheelAction': mouseWheelAction.name,
       };
 
   ReaderPreferences copyWith({
@@ -478,6 +516,7 @@ class ReaderPreferences {
     bool? showChapterTransition,
     double? doubleTapZoomScale,
     bool? scrollWheelInverted,
+    MouseWheelAction? mouseWheelAction,
   }) =>
       ReaderPreferences(
         readingMode: readingMode ?? this.readingMode,
@@ -514,6 +553,7 @@ class ReaderPreferences {
             showChapterTransition ?? this.showChapterTransition,
         doubleTapZoomScale: doubleTapZoomScale ?? this.doubleTapZoomScale,
         scrollWheelInverted: scrollWheelInverted ?? this.scrollWheelInverted,
+        mouseWheelAction: mouseWheelAction ?? this.mouseWheelAction,
       );
 
   /// 以 [base] 为全局默认，仅用本对象中「用户自定义过的字段」覆盖。
@@ -620,6 +660,10 @@ class ReaderPreferences {
           identical(scrollWheelInverted, def.scrollWheelInverted)
               ? base.scrollWheelInverted
               : scrollWheelInverted,
+      mouseWheelAction:
+          identical(mouseWheelAction, def.mouseWheelAction)
+              ? base.mouseWheelAction
+              : mouseWheelAction,
     );
   }
 

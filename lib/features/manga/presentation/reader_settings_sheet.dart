@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
@@ -51,6 +52,7 @@ class _FlatSettingsSheet extends StatefulWidget {
 
 class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
   late ReaderPreferences _draft;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -58,9 +60,25 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     _draft = widget.initial;
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void _update(ReaderPreferences next) {
     setState(() => _draft = next);
     widget.onChanged?.call(next);
+  }
+
+  /// 是否显示「鼠标滚轮」设置分组：仅桌面平台（Windows / macOS / Linux）与
+  /// 桌面端 Web 显示；手机（Android / iOS）没有滚轮，隐藏该分组。
+  bool get _showMouseWheel {
+    final TargetPlatform p = defaultTargetPlatform;
+    return p == TargetPlatform.windows ||
+        p == TargetPlatform.macOS ||
+        p == TargetPlatform.linux ||
+        p == TargetPlatform.fuchsia;
   }
 
   // ──────────────────── 构建辅助 ────────────────────
@@ -75,36 +93,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
           Text(label, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppTokens.spaceSm),
           child,
-        ],
-      ),
-    );
-  }
-
-  /// 分组之间的次级标题（淡色，比主标题小），可选 [description] 在标题下方渲染说明。
-  Widget _groupHeading(BuildContext context, String label, {String? description}) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: AppTokens.spaceMd, bottom: AppTokens.spaceXs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            label,
-            style: textTheme.titleSmall?.copyWith(
-              color: scheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (description != null && description.isNotEmpty) ...<Widget>[
-            const SizedBox(height: AppTokens.spaceXs),
-            Text(
-              description,
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -184,6 +172,11 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         return l10n.readerFlashWhite;
       case 'readerFlashBlackWhite':
         return l10n.readerFlashBlackWhite;
+      // mouse wheel action
+      case 'readerWheelZoom':
+        return l10n.readerWheelZoom;
+      case 'readerWheelPage':
+        return l10n.readerWheelPage;
       // initial zoom
       case 'readerZoomFitWidth':
         return l10n.readerZoomFitWidth;
@@ -358,16 +351,139 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
+  Widget _buildMouseWheel() {
+    final l10n = AppLocalizations.of(context);
+    // 条漫（连续滚动）模式下滚轮按上下文自动分派（未放大=滚动、已放大=缩放），
+    // 「作用（缩放/翻页）」二选一设置无意义，仅在翻页模式显示；「方向（自然/反向）」
+    // 在条漫仍控制放大时的滚轮方向，始终显示。
+    final bool showAction = !_draft.readingMode.isWebtoon;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (showAction) ...<Widget>[
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+            child: Text(l10n.readerWheelAction,
+                style: Theme.of(context).textTheme.bodyMedium),
+          ),
+          Wrap(
+            spacing: AppTokens.spaceSm,
+            runSpacing: AppTokens.spaceSm,
+            children: MouseWheelAction.values.map((a) {
+              return ChoiceChip(
+                label: Text(_l(a.l10nKey())),
+                selected: _draft.mouseWheelAction == a,
+                onSelected: (_) => _update(_draft.copyWith(mouseWheelAction: a)),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: AppTokens.spaceMd),
+        ],
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+          child: Text(l10n.comicDefaultScrollWheel,
+              style: Theme.of(context).textTheme.bodyMedium),
+        ),
+        Wrap(
+          spacing: AppTokens.spaceSm,
+          runSpacing: AppTokens.spaceSm,
+          children: <Widget>[
+            ChoiceChip(
+              label: Text(l10n.comicWheelNatural),
+              selected: !_draft.scrollWheelInverted,
+              onSelected: (_) =>
+                  _update(_draft.copyWith(scrollWheelInverted: false)),
+            ),
+            ChoiceChip(
+              label: Text(l10n.comicWheelInverted),
+              selected: _draft.scrollWheelInverted,
+              onSelected: (_) =>
+                  _update(_draft.copyWith(scrollWheelInverted: true)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ──────────────────── 常用设置卡片 ────────────────────
+
+  /// 置顶的「常用设置」卡片：高频快捷项，搜索时隐藏（避免与过滤重叠）。
+  Widget _buildCommonCard(AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+      child: Card(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.22),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: theme.colorScheme.primary.withValues(alpha: 0.22),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.spaceMd),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(Icons.star_outline,
+                      size: 18, color: theme.colorScheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    l10n.readerCommonSettings,
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTokens.spaceSm),
+              _section(context, l10n.readerMode, _buildReadingMode()),
+              _section(context, l10n.readerBackground, _buildBackground()),
+              _section(context, l10n.readerOrientation, _buildOrientation()),
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+                child: _SliderRow(
+                  label: l10n.readerSideMargin,
+                  value: _draft.sideMargin,
+                  min: 0.0,
+                  max: 0.5,
+                  divisions: 50,
+                  displayValue: '${(_draft.sideMargin * 100).round()}%',
+                  onChanged: (v) => _update(_draft.copyWith(sideMargin: v)),
+                ),
+              ),
+              _switchTile(l10n.readerZoom, _draft.doubleTapZoom,
+                  (v) => _update(_draft.copyWith(doubleTapZoom: v))),
+              _switchTile(l10n.readerFullscreen, _draft.fullscreen,
+                  (v) => _update(_draft.copyWith(fullscreen: v))),
+              _switchTile(l10n.readerKeepScreenOn, _draft.keepScreenOn,
+                  (v) => _update(_draft.copyWith(keepScreenOn: v))),
+              _switchTile(l10n.readerProgressBarOnRight,
+                  _draft.progressBarOnRight,
+                  (v) => _update(_draft.copyWith(progressBarOnRight: v))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ──────────────────── 顶层构建 ────────────────────
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final q = _searchController.text.trim();
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight:
-            MediaQuery.of(context).size.height * AppTokens.readerSettingsMaxHeightFactor,
+        // 上下铺满：设置面板撑满整个视口高度（与小说阅读器弹窗一致）。
+        maxHeight: MediaQuery.of(context).size.height,
       ),
       padding: const EdgeInsets.fromLTRB(
         AppTokens.spaceLg,
@@ -392,113 +508,201 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
             ],
           ),
           const Divider(height: 1),
-          // 内容区（可滚动）
+          // 搜索框（固定，不随滚动消失）
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: l10n.readerSearchSettings,
+                prefixIcon: const Icon(Icons.search),
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+            ),
+          ),
+          // 可滚动内容
           Flexible(
             child: SingleChildScrollView(
               padding: EdgeInsets.zero,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
+                  // 常用置顶：最常改的快捷项（搜索时隐藏，避免与过滤重叠）
+                  if (q.isEmpty) _buildCommonCard(l10n),
+
                   // ── 翻页与点击 ────────────────────────────────
-                  _groupHeading(context, l10n.readerGroupPageTap,
-                      description: l10n.readerGroupPageTapDesc),
-                  _section(context, l10n.readerMode, _buildReadingMode()),
-                  _section(context, l10n.readerBackground, _buildBackground()),
-                  _section(context, l10n.readerOrientation, _buildOrientation()),
-                  _section(context, l10n.readerTapZone, _buildTapZone()),
-                  _section(context, l10n.readerTapInvert, _buildTapInvert()),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
-                    child: _SliderRow(
-                      label: l10n.readerSideMargin,
-                      value: _draft.sideMargin,
-                      min: 0.0,
-                      max: 0.5,
-                      divisions: 50,
-                      displayValue: '${(_draft.sideMargin * 100).round()}%',
-                      onChanged: (v) => _update(_draft.copyWith(sideMargin: v)),
-                    ),
+                  _buildSettingsGroup(
+                    context,
+                    l10n.readerGroupPageTap,
+                    description: l10n.readerGroupPageTapDesc,
+                    leading: Icons.swipe,
+                    initiallyExpanded: true,
+                    searchQuery: q,
+                    searchTerms: const <String>[
+                      '翻页', '点击', '阅读模式', '单页', '竖排', '长条', '条漫',
+                      '方向', '屏幕', '横屏', '竖屏', '背景', '侧边距', '缩放',
+                      '双击', '点按', '区域', 'tap', 'webtoon', '方向', 'page',
+                    ],
+                    children: <Widget>[
+                      _section(context, l10n.readerMode, _buildReadingMode()),
+                      _section(context, l10n.readerBackground, _buildBackground()),
+                      _section(context, l10n.readerOrientation, _buildOrientation()),
+                      _section(context, l10n.readerTapZone, _buildTapZone()),
+                      _section(context, l10n.readerTapInvert, _buildTapInvert()),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+                        child: _SliderRow(
+                          label: l10n.readerSideMargin,
+                          value: _draft.sideMargin,
+                          min: 0.0,
+                          max: 0.5,
+                          divisions: 50,
+                          displayValue: '${(_draft.sideMargin * 100).round()}%',
+                          onChanged: (v) => _update(_draft.copyWith(sideMargin: v)),
+                        ),
+                      ),
+                      _switchTile(l10n.readerZoom, _draft.doubleTapZoom,
+                          (v) => _update(_draft.copyWith(doubleTapZoom: v))),
+                      _section(context, l10n.readerInitialZoom, _buildInitialZoom()),
+                    ],
                   ),
-                  _switchTile(l10n.readerZoom, _draft.doubleTapZoom,
-                      (v) => _update(_draft.copyWith(doubleTapZoom: v))),
-                  _section(context, l10n.readerInitialZoom, _buildInitialZoom()),
 
                   // ── 画面与滤镜 ────────────────────────────────
-                  _groupHeading(context, l10n.readerGroupViewFilter,
-                      description: l10n.readerGroupViewFilterDesc),
-                  _buildImageFilter(),
+                  _buildSettingsGroup(
+                    context,
+                    l10n.readerGroupViewFilter,
+                    description: l10n.readerGroupViewFilterDesc,
+                    leading: Icons.tune,
+                    searchQuery: q,
+                    searchTerms: const <String>[
+                      '亮度', '对比度', '色温', '灰度', '反色', '滤镜', '画面',
+                      '颜色', '饱和', '色调', 'filter', 'brightness', 'contrast',
+                    ],
+                    children: <Widget>[
+                      _buildImageFilter(),
+                    ],
+                  ),
 
                   // ── 进度与显示 ────────────────────────────────
-                  _groupHeading(context, l10n.readerGroupProgress,
-                      description: l10n.readerGroupProgressDesc),
-                  _switchTile(l10n.readerCropEdge, _draft.cropEdge,
-                      (v) => _update(_draft.copyWith(cropEdge: v))),
-                  _switchTile(l10n.readerShowPageNumber, _draft.showPageNumber,
-                      (v) => _update(_draft.copyWith(showPageNumber: v))),
-                  _switchTile(l10n.readerProgressBarOnRight,
-                      _draft.progressBarOnRight,
-                      (v) => _update(_draft.copyWith(progressBarOnRight: v))),
-                  _switchTile(l10n.readerKeepScreenOn, _draft.keepScreenOn,
-                      (v) => _update(_draft.copyWith(keepScreenOn: v))),
-                  _switchTile(l10n.readerRotatePage, _draft.rotateLandscape,
-                      (v) => _update(_draft.copyWith(rotateLandscape: v))),
-                  _switchTile(
-                      l10n.readerSplitDoublePage, _draft.splitDoublePage, (v) {
-                    ReaderPreferences next = _draft.copyWith(splitDoublePage: v);
-                    if (v &&
-                        _draft.readingMode != ReadingMode.singleLTR &&
-                        _draft.readingMode != ReadingMode.singleRTL) {
-                      next = next.copyWith(readingMode: ReadingMode.singleLTR);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(l10n.readerSplitDoublePageHint),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                    _update(next);
-                  }),
-                  _switchTile(l10n.readerFullscreen, _draft.fullscreen,
-                      (v) => _update(_draft.copyWith(fullscreen: v))),
-                  _switchTile(l10n.readerLongPressMenu, _draft.showLongPressMenu,
-                      (v) => _update(_draft.copyWith(showLongPressMenu: v))),
-                  _switchTile(l10n.readerPreventShrink, _draft.preventShrink,
-                      (v) => _update(_draft.copyWith(preventShrink: v))),
-                  _switchTile(l10n.readerChapterTransition,
-                      _draft.showChapterTransition,
-                      (v) => _update(_draft.copyWith(showChapterTransition: v))),
+                  _buildSettingsGroup(
+                    context,
+                    l10n.readerGroupProgress,
+                    description: l10n.readerGroupProgressDesc,
+                    leading: Icons.timeline,
+                    searchQuery: q,
+                    searchTerms: const <String>[
+                      '页码', '进度', '进度条', '全屏', '常亮', '旋转', '双页',
+                      '分屏', '长按', '防缩', '章节', '过渡', '显示', 'page',
+                      'fullscreen', 'screen', '亮度',
+                    ],
+                    children: <Widget>[
+                      _switchTile(l10n.readerCropEdge, _draft.cropEdge,
+                          (v) => _update(_draft.copyWith(cropEdge: v))),
+                      _switchTile(l10n.readerShowPageNumber, _draft.showPageNumber,
+                          (v) => _update(_draft.copyWith(showPageNumber: v))),
+                      _switchTile(l10n.readerProgressBarOnRight,
+                          _draft.progressBarOnRight,
+                          (v) => _update(_draft.copyWith(progressBarOnRight: v))),
+                      _switchTile(l10n.readerKeepScreenOn, _draft.keepScreenOn,
+                          (v) => _update(_draft.copyWith(keepScreenOn: v))),
+                      _switchTile(l10n.readerRotatePage, _draft.rotateLandscape,
+                          (v) => _update(_draft.copyWith(rotateLandscape: v))),
+                      _switchTile(
+                          l10n.readerSplitDoublePage, _draft.splitDoublePage, (v) {
+                        ReaderPreferences next =
+                            _draft.copyWith(splitDoublePage: v);
+                        if (v &&
+                            _draft.readingMode != ReadingMode.singleLTR &&
+                            _draft.readingMode != ReadingMode.singleRTL) {
+                          next = next.copyWith(readingMode: ReadingMode.singleLTR);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(l10n.readerSplitDoublePageHint),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                        _update(next);
+                      }),
+                      _switchTile(l10n.readerFullscreen, _draft.fullscreen,
+                          (v) => _update(_draft.copyWith(fullscreen: v))),
+                      _switchTile(l10n.readerLongPressMenu, _draft.showLongPressMenu,
+                          (v) => _update(_draft.copyWith(showLongPressMenu: v))),
+                      _switchTile(l10n.readerPreventShrink, _draft.preventShrink,
+                          (v) => _update(_draft.copyWith(preventShrink: v))),
+                      _switchTile(l10n.readerChapterTransition,
+                          _draft.showChapterTransition,
+                          (v) => _update(_draft.copyWith(showChapterTransition: v))),
+                    ],
+                  ),
 
                   // ── 翻页闪光 ────────────────────────────────
-                  _groupHeading(context, l10n.readerGroupFlash,
-                      description: l10n.readerGroupFlashDesc),
-                  _switchTile(l10n.readerFlashEnabled, _draft.flashEnabled,
-                      (v) => _update(_draft.copyWith(flashEnabled: v))),
-                  if (_draft.flashEnabled) ...<Widget>[
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppTokens.spaceXs),
-                      child: _SliderRow(
-                        label: l10n.readerFlashTime,
-                        value: _draft.flashTime.toDouble(),
-                        min: 50,
-                        max: 600,
-                        divisions: 55,
-                        displayValue: '${_draft.flashTime} ms',
-                        onChanged: (v) =>
-                            _update(_draft.copyWith(flashTime: v.round())),
-                      ),
+                  _buildSettingsGroup(
+                    context,
+                    l10n.readerGroupFlash,
+                    description: l10n.readerGroupFlashDesc,
+                    leading: Icons.flash_on,
+                    searchQuery: q,
+                    searchTerms: const <String>[
+                      '闪光', '翻页灯', '闪屏', 'flash',
+                    ],
+                    children: <Widget>[
+                      _switchTile(l10n.readerFlashEnabled, _draft.flashEnabled,
+                          (v) => _update(_draft.copyWith(flashEnabled: v))),
+                      if (_draft.flashEnabled) ...<Widget>[
+                        Padding(
+                          padding: const EdgeInsets.only(top: AppTokens.spaceXs),
+                          child: _SliderRow(
+                            label: l10n.readerFlashTime,
+                            value: _draft.flashTime.toDouble(),
+                            min: 50,
+                            max: 600,
+                            divisions: 55,
+                            displayValue: '${_draft.flashTime} ms',
+                            onChanged: (v) =>
+                                _update(_draft.copyWith(flashTime: v.round())),
+                          ),
+                        ),
+                        _SliderRow(
+                          label: l10n.readerFlashInterval,
+                          value: _draft.flashInterval.toDouble(),
+                          min: 0,
+                          max: 600,
+                          divisions: 60,
+                          displayValue: '${_draft.flashInterval} ms',
+                          onChanged: (v) =>
+                              _update(_draft.copyWith(flashInterval: v.round())),
+                        ),
+                      ],
+                      _section(context, l10n.readerFlashColor, _buildFlashColor()),
+                    ],
+                  ),
+
+                  // ── 鼠标滚轮 ────────────────────────────────
+                  // 仅桌面平台显示（手机无滚轮，见 [_showMouseWheel]）。
+                  if (_showMouseWheel)
+                    _buildSettingsGroup(
+                      context,
+                      l10n.readerGroupMouseWheel,
+                      description: l10n.readerGroupMouseWheelDesc,
+                      leading: Icons.mouse,
+                      searchQuery: q,
+                      searchTerms: const <String>[
+                        '滚轮', '鼠标', '翻页', '缩放', '滚动', '方向',
+                        'wheel', 'zoom', 'page', 'mouse', 'scroll',
+                      ],
+                      children: <Widget>[
+                        _buildMouseWheel(),
+                      ],
                     ),
-                    _SliderRow(
-                      label: l10n.readerFlashInterval,
-                      value: _draft.flashInterval.toDouble(),
-                      min: 0,
-                      max: 600,
-                      divisions: 60,
-                      displayValue: '${_draft.flashInterval} ms',
-                      onChanged: (v) =>
-                          _update(_draft.copyWith(flashInterval: v.round())),
-                    ),
-                  ],
-                  _section(context, l10n.readerFlashColor, _buildFlashColor()),
                 ],
               ),
             ),
@@ -560,4 +764,89 @@ class _SliderRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 设置分组卡片（可折叠）。标题 + 可选说明 + 可选图标；搜索时按标题/说明/别名过滤。
+///
+/// 与小说阅读器 [_buildSettingsGroup] 行为一致：搜索词非空时，仅当组标题、说明或
+/// [searchTerms] 命中才显示本组，否则折叠为空白。
+Widget _buildSettingsGroup(
+  BuildContext context,
+  String title, {
+  String? description,
+  bool initiallyExpanded = false,
+  IconData? leading,
+  List<String> searchTerms = const <String>[],
+  String searchQuery = '',
+  required List<Widget> children,
+}) {
+  final q = searchQuery.trim().toLowerCase();
+  if (q.isNotEmpty) {
+    final hay = <String>[
+      title,
+      if (description != null) description,
+      ...searchTerms,
+    ].join(' ').toLowerCase();
+    if (!hay.contains(q)) return const SizedBox.shrink();
+  }
+  final theme = Theme.of(context);
+  return Padding(
+    padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+    child: Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: theme.dividerColor.withValues(alpha: 0.18),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(
+            horizontal: AppTokens.spaceMd,
+            vertical: AppTokens.spaceXs,
+          ),
+          leading: leading == null
+              ? null
+              : Icon(leading, size: 20, color: theme.colorScheme.primary),
+          childrenPadding: const EdgeInsets.fromLTRB(
+            AppTokens.spaceMd,
+            0,
+            AppTokens.spaceMd,
+            AppTokens.spaceMd,
+          ),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          initiallyExpanded: initiallyExpanded,
+          title: description == null || description.isEmpty
+              ? Text(
+                  title,
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+          children: children,
+        ),
+      ),
+    ),
+  );
 }
