@@ -102,6 +102,24 @@ class _LibraryShellState extends State<LibraryShell> {
   final Set<LibrarySubTab> _sub = <LibrarySubTab>{LibrarySubTab.local};
   BookshelfFilter _filter = const BookshelfFilter();
 
+  /// 顶栏标题滚动渐隐进度（0=顶部完整显示，1=已下滚收缩）。
+  /// 用 ValueNotifier 仅重建标题本身，避免每帧滚动 setState 整页。
+  final ValueNotifier<double> _titleShrink = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    _titleShrink.dispose();
+    super.dispose();
+  }
+
+  /// 监听 body 内滚动：0→64px 映射为标题 0→1 的渐隐收缩进度。
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth == 0 && n.metrics.axis == Axis.vertical) {
+      _titleShrink.value = (n.metrics.pixels / 64).clamp(0.0, 1.0);
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
@@ -112,7 +130,15 @@ class _LibraryShellState extends State<LibraryShell> {
       listenable: widget.fabSuppressedNotifier ?? const _NoopListenable(),
       builder: (context, _) => Scaffold(
       appBar: AppBar(
-        title: Text(_topTabLabel(l10n)),
+        title: ValueListenableBuilder<double>(
+          valueListenable: _titleShrink,
+          builder: (context, t, child) => Opacity(
+            // 下滚时标题淡至 60% 并轻微缩小，形成层次感；回到顶部还原。
+            opacity: 1.0 - 0.4 * t,
+            child: Transform.scale(scale: 1.0 - 0.08 * t, child: child),
+          ),
+          child: Text(_topTabLabel(l10n)),
+        ),
         centerTitle: true,
         leading: _currentTopTab == LibraryTopTab.library
             ? IconButton(
@@ -144,13 +170,16 @@ class _LibraryShellState extends State<LibraryShell> {
           ],
         ],
       ),
-      body: Column(
-        children: <Widget>[
-          _buildTopTabs(l10n, scheme),
-          if (_currentTopTab == LibraryTopTab.library && widget.showSubTabs)
-            _buildSubTabs(l10n),
-          Expanded(child: _buildBody()),
-        ],
+      body: NotificationListener<ScrollNotification>(
+        onNotification: _onScroll,
+        child: Column(
+          children: <Widget>[
+            _buildTopTabs(l10n, scheme),
+            if (_currentTopTab == LibraryTopTab.library && widget.showSubTabs)
+              _buildSubTabs(l10n),
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
       floatingActionButton: (_currentTopTab == LibraryTopTab.sources &&
               widget.floatingActionButton != null &&
@@ -302,6 +331,8 @@ class _LibraryShellState extends State<LibraryShell> {
       );
 
   void _selectTop(LibraryTopTab tab) {
+    // 切换顶部页签后新页从顶部开始 → 标题还原为完整状态。
+    _titleShrink.value = 0;
     setState(() => _currentTopTab = tab);
   }
 }

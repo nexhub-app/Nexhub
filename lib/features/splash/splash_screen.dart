@@ -26,6 +26,7 @@ import '../../core/history/media_playback_position_manager.dart';
 import '../../core/scraper/media_api_service.dart';
 import '../../core/services/cloud_sync_service.dart';
 import '../../core/settings/general_settings.dart';
+import '../../core/widgets/app_loading_indicator.dart';
 import '../../core/services/source_repository.dart';
 import '../../core/services/config_loader.dart';
 import '../../core/theme/theme_controller.dart';
@@ -307,9 +308,8 @@ class _SplashView extends StatelessWidget {
               height: 120,
             ),
             const SizedBox(height: 24),
-            CircularProgressIndicator(
-              color: theme.colorScheme.primary,
-            ),
+            // 灵动三点弹跳加载（替代转圈），与全应用加载动效统一。
+            AppBouncingDots(color: theme.colorScheme.primary),
           ],
         ),
       ),

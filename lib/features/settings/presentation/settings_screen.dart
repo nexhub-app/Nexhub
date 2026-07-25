@@ -14,6 +14,7 @@ import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/locale/locale_controller.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/layout_picker_dialog.dart';
@@ -34,7 +35,6 @@ import './widgets/settings_widgets.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/services/cloud_sync_service.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:intl/intl.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -93,8 +93,9 @@ class SettingsScreen extends StatelessWidget {
     final ThemeController controller = context.watch<ThemeController>();
     final LocaleController localeController = context.watch<LocaleController>();
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.settingsTitle)),
+    // 顶栏标题滚动渐隐收缩（下滚淡至 60% 并轻微缩小，回顶还原）。
+    return AppShrinkTitleScaffold(
+      title: Text(l10n.settingsTitle),
       body: ListView(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
         children: <Widget>[
