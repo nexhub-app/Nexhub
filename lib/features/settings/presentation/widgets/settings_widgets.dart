@@ -13,6 +13,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/app_animations.dart';
 
 /// 分组标题（不含卡片背景）。用于卡片外部的独立小标题。
 class SettingsSection extends StatelessWidget {
@@ -110,16 +111,23 @@ class SettingsCard extends StatelessWidget {
       ),
     );
 
-    return Container(
-      margin: margin ?? const EdgeInsets.only(bottom: AppTokens.spaceMd),
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
-      decoration: BoxDecoration(
-        color: backgroundColor ?? theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: body,
+    // 「灵动」入场：设置卡片淡入 + 轻微上滑。onceKey 用 title 或 widget.key，
+    // 保证同一卡片在生命周期内只播一次，避免滚动 / 重建时抖动重播。
+    final String? onceKey = title ?? key?.toString();
+    return Entrance(
+      onceKey: onceKey,
+      offset: 10,
+      child: Container(
+        margin: margin ?? const EdgeInsets.only(bottom: AppTokens.spaceMd),
+        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        decoration: BoxDecoration(
+          color: backgroundColor ?? theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: body,
+        ),
       ),
     );
   }
