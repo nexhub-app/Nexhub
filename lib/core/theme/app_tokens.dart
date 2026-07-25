@@ -61,7 +61,13 @@ class AppTokens {
   static const double coverRadius = radiusMd;
   static const double iconButtonSize = 40;
   static const double tabBarHeight = 56;
-  static const double bottomNavHeight = 80;
+  static const double bottomNavHeight = 68;
+
+  /// 侧边导航栏（Rail）每项固定高度，避免在宽屏把整屏均分导致过散。
+  static const double navRailItemHeight = 72;
+
+  /// 侧边导航栏（Rail）固定宽度（≥桌面断点时使用）。
+  static const double navRailWidth = 80;
 
   // ─────────────────────── 响应式断点 ───────────────────────
   /// 桌面布局断点（≥ 此宽度使用 NavigationRail）。
