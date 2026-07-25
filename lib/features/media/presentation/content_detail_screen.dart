@@ -42,7 +42,8 @@ import 'package:nexhub/core/navigation/app_page_route.dart';
 /// 已看标记 / 刷新元数据 / 下载快捷预设。
 class ContentDetailScreen extends StatefulWidget {
   final MediaItem item;
-  const ContentDetailScreen({super.key, required this.item});
+  final String? heroTag;
+  const ContentDetailScreen({super.key, required this.item, this.heroTag});
 
   @override
   State<ContentDetailScreen> createState() => _ContentDetailScreenState();
@@ -594,9 +595,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           title: l10n.search,
           initialQuery: q,
           searchField: field,
-          onItemTap: (MediaItem tapped) => Navigator.of(context).push(
-            AppPageRoute<void>(
-              builder: (_) => ContentDetailScreen(item: tapped),
+          onItemTap: (MediaItem tapped, String? heroTag) => Navigator.of(context).push(
+            AppHeroPageRoute<void>(
+              builder: (_) =>
+                  ContentDetailScreen(item: tapped, heroTag: heroTag),
             ),
           ),
         ),
@@ -810,6 +812,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           return ContentDetailShell(
             coverUrl: item.coverUrl,
             source: source,
+            heroTag: widget.heroTag,
             title: item.title,
             description: item.description ?? l10n.noDescription,
             updatedAt: item.updatedAt ?? latestEpisodeUpdatedAt(episodes),
@@ -995,9 +998,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                       title: m.title,
                       subtitle: m.author,
                       width: cardW,
+                      heroTag: 'rel-${m.id}',
                       onTap: () => Navigator.of(context).push(
-                        AppPageRoute<void>(
-                          builder: (_) => ContentDetailScreen(item: m),
+                        AppHeroPageRoute<void>(
+                          builder: (_) =>
+                              ContentDetailScreen(item: m, heroTag: 'rel-${m.id}'),
                         ),
                       ),
                     );

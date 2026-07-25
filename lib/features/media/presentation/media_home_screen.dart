@@ -51,9 +51,9 @@ class MediaHomeScreen extends StatelessWidget {
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.animeSource,
             title: l10n.search,
-            onItemTap: (MediaItem item) => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => ContentDetailScreen(item: item),
+            onItemTap: (MediaItem item, String? heroTag) => Navigator.of(context).push(
+              AppHeroPageRoute<void>(
+                builder: (_) => ContentDetailScreen(item: item, heroTag: heroTag),
               ),
             ),
           ),
