@@ -47,8 +47,9 @@ import 'package:nexhub/core/navigation/app_page_route.dart';
 /// 漫画详情页。
 class ComicDetailScreen extends StatefulWidget {
   final MediaItem item;
+  final String? heroTag;
 
-  const ComicDetailScreen({super.key, required this.item});
+  const ComicDetailScreen({super.key, required this.item, this.heroTag});
 
   @override
   State<ComicDetailScreen> createState() => _ComicDetailScreenState();
@@ -634,9 +635,10 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
           initialQuery: q,
           searchField: field,
           extractedUrl: extractedUrl,
-          onItemTap: (MediaItem tapped) => Navigator.of(context).push(
-            AppPageRoute<void>(
-              builder: (_) => ComicDetailScreen(item: tapped),
+          onItemTap: (MediaItem tapped, String? heroTag) => Navigator.of(context).push(
+            AppHeroPageRoute<void>(
+              builder: (_) =>
+                  ComicDetailScreen(item: tapped, heroTag: heroTag),
             ),
           ),
         ),
@@ -656,9 +658,10 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
           source: source,
           title: title,
           seedUrl: seedUrl,
-          onItemTap: (MediaItem tapped) => Navigator.of(context).push(
-            AppPageRoute<void>(
-              builder: (_) => ComicDetailScreen(item: tapped),
+          onItemTap: (MediaItem tapped, String? heroTag) => Navigator.of(context).push(
+            AppHeroPageRoute<void>(
+              builder: (_) =>
+                  ComicDetailScreen(item: tapped, heroTag: heroTag),
             ),
           ),
         ),
@@ -840,6 +843,7 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
           return ContentDetailShell(
             coverUrl: item.coverUrl,
             source: source,
+            heroTag: widget.heroTag,
             title: item.title,
             description: item.description ?? l10n.noDescription,
             updatedAt: item.updatedAt ?? latestEpisodeUpdatedAt(episodes),
@@ -1030,9 +1034,11 @@ class _ComicDetailScreenState extends State<ComicDetailScreen> {
                       title: m.title,
                       subtitle: m.author,
                       width: cardW,
+                      heroTag: 'rel-${m.id}',
                       onTap: () => Navigator.of(context).push(
-                        AppPageRoute<void>(
-                          builder: (_) => ComicDetailScreen(item: m),
+                        AppHeroPageRoute<void>(
+                          builder: (_) =>
+                              ComicDetailScreen(item: m, heroTag: 'rel-${m.id}'),
                         ),
                       ),
                     );

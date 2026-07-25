@@ -99,7 +99,7 @@ class OnlineContentListScreen extends StatefulWidget {
 
   /// 动态筛选分组解析（可选）；为 null 或返回空时分类页不显示筛选按钮。
   final ResolveFilters? resolveFilters;
-  final void Function(MediaItem item) onItemTap;
+  final void Function(MediaItem item, String? heroTag) onItemTap;
   final VoidCallback? onSearch;
   final VoidCallback? onAddSource;
   final VoidCallback? onEnableRecommended;
@@ -1205,7 +1205,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     final layout = _layoutStore.settings;
     final isCompact = layout.listStyle == ListLayoutStyle.compact;
     return AppCard(
-      onTap: () => widget.onItemTap(item),
+      onTap: () => widget.onItemTap(item, '${widget.title}-${item.id}-list'),
       padding: EdgeInsets.zero,
       child: ListTile(
         contentPadding: EdgeInsets.symmetric(
@@ -1292,7 +1292,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         width: itemW,
         heroTag: '${widget.title}-${item.id}',
         progress: snap.data,
-        onTap: () => widget.onItemTap(item),
+        onTap: () => widget.onItemTap(item, '${widget.title}-${item.id}'),
       ),
     );
   }
@@ -1373,7 +1373,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         final item = _rankItems[i];
         final rank = i + 1;
         return AppCard(
-          onTap: () => widget.onItemTap(item),
+          onTap: () => widget.onItemTap(item, null),
           child: Row(
             children: <Widget>[
               Container(

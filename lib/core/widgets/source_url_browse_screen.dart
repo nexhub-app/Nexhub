@@ -38,7 +38,7 @@ class SourceUrlBrowseScreen extends StatefulWidget {
   final PluginConfig source;
   final String title;
   final String seedUrl;
-  final void Function(MediaItem item) onItemTap;
+  final void Function(MediaItem item, String? heroTag) onItemTap;
 
   @override
   State<SourceUrlBrowseScreen> createState() => _SourceUrlBrowseScreenState();
@@ -240,7 +240,7 @@ class _SourceUrlBrowseScreenState extends State<SourceUrlBrowseScreen> {
                       subtitle: layout.showAuthor ? item.author : null,
                       width: itemW,
                       heroTag: '${widget.title}-${item.id}',
-                      onTap: () => widget.onItemTap(item),
+                      onTap: () => widget.onItemTap(item, '${widget.title}-${item.id}'),
                     );
                   },
                 );
