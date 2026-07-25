@@ -1,4 +1,4 @@
-# NexHub v0.2.7
+# NexHub v0.2.8
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -121,6 +121,18 @@
 - 把 `.iss` 的 `OutputDir` 改为 `windows\installer\Output`（相对仓库根的正确路径，与上传步骤一致）。
 - 同时给 CI 加了**兜底**：调 `ISCC.exe` 后同时搜索 `windows\installer\Output` 与仓库根 `Output`
   两个位置，找到 exe 就复制到 `windows/installer/Output`，以后无论 ISCC 写到哪都能上传成功。
+
+## 📝 更新日志（v0.2.7 → v0.2.8）
+
+本版相对 v0.2.7 **无应用功能变更**，仅修复上一版"复制兜底"把自己复制到自己身上的问题：
+
+### 🐛 修复
+- **Windows job 仍失败：`Cannot overwrite the item ... with itself`**：
+  v0.2.7 把 `OutputDir` 改成了 `windows\installer\Output`（ISCC 直接把 exe 写到正确位置），
+  但 CI 里的"复制兜底"又把这个**已经在目标位置的 exe** 再 `Copy-Item` 一次到自己身上，
+  PowerShell 报错并 exit 1。给复制加了守卫：源路径与目标路径相同（`-ieq`）就跳过复制、
+  只打印提示，不再触发自覆盖错误。
+- 现在 `OutputDir` 直接产出 + 复制守卫双重保险，无论 ISCC 写到哪都能正常上传。
 
 ## 📦 安装
 
