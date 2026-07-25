@@ -101,63 +101,17 @@ class _HomeScreenState extends State<HomeScreen> {
 /// 内部仍用 [IndexedStack] 保留全部 Tab 状态（不重建页面）；仅在
 /// `index` 变化时对新显示的内容整体播放一次「淡入 + 轻微上滑」动画。
 /// 首帧不播动画，避免启动闪烁。
-class _AnimatedTabView extends StatefulWidget {
+class _AnimatedTabView extends StatelessWidget {
   const _AnimatedTabView({required this.index, required this.children});
 
   final int index;
   final List<Widget> children;
 
   @override
-  State<_AnimatedTabView> createState() => _AnimatedTabViewState();
-}
-
-class _AnimatedTabViewState extends State<_AnimatedTabView>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _fade;
-  late final Animation<Offset> _slide;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: AppTokens.durBase,
-      // 首帧直接处于完成态：启动时不播切换动画。
-      value: 1.0,
-    );
-    final CurvedAnimation curved =
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
-    _fade = curved;
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.015),
-      end: Offset.zero,
-    ).animate(curved);
-  }
-
-  @override
-  void didUpdateWidget(covariant _AnimatedTabView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.index != widget.index) {
-      _ctrl.forward(from: 0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fade,
-      child: SlideTransition(
-        position: _slide,
-        child: IndexedStack(index: widget.index, children: widget.children),
-      ),
-    );
+    // 用户要求底部标签页切换「干脆瞬切、零延迟」。直接以终态呈现，
+    // 保留 IndexedStack 以避免切换时各页面状态（滚动位置/输入）被重建。
+    return IndexedStack(index: index, children: children);
   }
 }
 
