@@ -362,12 +362,19 @@ class _AppFloatyIconState extends State<AppFloatyIcon>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2000),
-  )..repeat(reverse: true);
+    duration: const Duration(milliseconds: 900),
+  );
   late final Animation<double> _y = Tween<double>(
     begin: -widget.amplitude,
-    end: widget.amplitude,
-  ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    end: 0.0,
+  ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+
+  @override
+  void initState() {
+    super.initState();
+    // 仅挂载时轻轻"落位"一次（带回弹），之后静止——不再无限循环占用渲染。
+    _ctrl.forward();
+  }
 
   @override
   void dispose() {
