@@ -334,6 +334,59 @@ class _AppShrinkTitleScaffoldState extends State<AppShrinkTitleScaffold> {
   }
 }
 
+// ────────────────────── 浮动图标（空 / 错状态） ──────────────────────
+
+/// 轻微上下浮动的图标：用于空状态 / 错误状态的图标，让占位不再死板。
+///
+/// 以缓入缓出在 ±[amplitude] 像素间无限循环浮动，幅度很小（默认 4px），
+/// 不会干扰阅读，只是让画面"活"一点。
+class AppFloatyIcon extends StatefulWidget {
+  const AppFloatyIcon({
+    super.key,
+    required this.icon,
+    this.size = 64,
+    this.color,
+    this.amplitude = 4,
+  });
+
+  final IconData icon;
+  final double size;
+  final Color? color;
+  final double amplitude;
+
+  @override
+  State<AppFloatyIcon> createState() => _AppFloatyIconState();
+}
+
+class _AppFloatyIconState extends State<AppFloatyIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2000),
+  )..repeat(reverse: true);
+  late final Animation<double> _y = Tween<double>(
+    begin: -widget.amplitude,
+    end: widget.amplitude,
+  ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) => Transform.translate(
+        offset: Offset(0, _y.value),
+        child: Icon(widget.icon, size: widget.size, color: widget.color),
+      ),
+    );
+  }
+}
+
 // ────────────────────── 弹窗 / 抽屉内容入场 ──────────────────────
 
 /// 弹窗 / 抽屉内容入场：配合 [showModalBottomSheet] 自带的上滑，额外叠加

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
+import 'app_animations.dart';
 
 /// 统一空状态。禁止在各 feature 内联 `Column + Icon + Text`。
 class AppEmptyState extends StatelessWidget {
@@ -25,31 +26,39 @@ class AppEmptyState extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppTokens.spaceXl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: 64, color: scheme.onSurfaceVariant.withValues(alpha: 0.5)),
-            const SizedBox(height: AppTokens.spaceLg),
-            Text(
-              message,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyLarge
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-            if (actionLabel != null && onAction != null) ...<Widget>[
-              const SizedBox(height: AppTokens.spaceLg),
-              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
-            ],
-            if (secondaryActionLabel != null && onSecondaryAction != null) ...<Widget>[
-              const SizedBox(height: AppTokens.spaceSm),
-              OutlinedButton(
-                onPressed: onSecondaryAction,
-                child: Text(secondaryActionLabel!),
+        // 入场弹入（每次挂载播一次），让空状态不再干巴巴地突然出现。
+        child: Entrance(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              // 图标轻微浮动，画面更"活"。
+              AppFloatyIcon(
+                icon: icon,
+                size: 64,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
               ),
+              const SizedBox(height: AppTokens.spaceLg),
+              Text(
+                message,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+                textAlign: TextAlign.center,
+              ),
+              if (actionLabel != null && onAction != null) ...<Widget>[
+                const SizedBox(height: AppTokens.spaceLg),
+                FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+              ],
+              if (secondaryActionLabel != null && onSecondaryAction != null) ...<Widget>[
+                const SizedBox(height: AppTokens.spaceSm),
+                OutlinedButton(
+                  onPressed: onSecondaryAction,
+                  child: Text(secondaryActionLabel!),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
