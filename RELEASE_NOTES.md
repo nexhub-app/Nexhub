@@ -1,4 +1,4 @@
-# NexHub v0.2.5
+# NexHub v0.2.6
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -94,6 +94,20 @@
   产不出 exe。现改为**把官方 `ChineseSimplified.isl` 随仓库提交**到
   `windows/installer/Languages/`，并让 .iss 引用相对于脚本目录的本地路径
   `Languages\ChineseSimplified.isl`——安装向导继续是中文，且不再依赖打包机上有没有该语言包。
+
+## 📝 更新日志（v0.2.5 → v0.2.6）
+
+本版相对 v0.2.5 **无应用功能变更**，仅修正上一版中文语言文件在 Inno Setup 里的**实际解析路径**：
+
+### 🐛 修复
+- **Windows exe 安装包仍编译报错 `Couldn't open include file ...\Languages\ChineseSimplified.isl`**：
+  v0.2.5 把 .isl 放进了 `windows/installer/Languages/`，但 `.iss` 里写的
+  `MessagesFile: "Languages\ChineseSimplified.isl"` 会被 Inno Setup 当成**相对仓库根（SourceDir）**
+  的路径，于是去找 `<仓库根>/Languages/...` 而找不到。现改为写相对仓库根的正确路径
+  `windows\installer\Languages\ChineseSimplified.isl`（与 `[Files]` 的 `SourceDir=..\..` 基准一致）。
+- CI 加固：Windows job 在调 `ISCC.exe` 之前**新增预校验**，确认
+  `windows\installer\Languages\ChineseSimplified.isl` 存在，缺失时直接 `exit 1` 并打印
+  `windows/installer` 目录树，方便以后快速定位，不再等 ISCC 编译到一半才 abort。
 
 ## 📦 安装
 
