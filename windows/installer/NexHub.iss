@@ -39,7 +39,9 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 Name: "english"; MessagesFile: "compiler:Default.isl"
 ; 中文语言文件随仓库自带（windows/installer/Languages/ChineseSimplified.isl），
 ; 不要用 compiler:Languages\...，因为打包机上不一定装了中文语言包。
-Name: "chinesesimplified"; MessagesFile: "Languages\ChineseSimplified.isl"
+; 注意：MessagesFile 的非 compiler: 路径相对【仓库根 / SourceDir】解析，
+; 所以必须写 windows\installer\Languages\ChineseSimplified.isl（不是 Languages\...）。
+Name: "chinesesimplified"; MessagesFile: "windows\installer\Languages\ChineseSimplified.isl"
 
 [Files]
 Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

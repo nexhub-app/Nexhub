@@ -219,6 +219,14 @@ jobs:
             Write-Error "ISCC.exe not found at $iscc - Inno Setup 安装失败或路径不同"
             exit 1
           }
+          # 提前校验中文语言文件存在，避免 ISCC 编译到一半才因缺文件 abort（报错难定位）
+          $isl = "windows\installer\Languages\ChineseSimplified.isl"
+          if (-not (Test-Path $isl)) {
+            Write-Error "缺少安装包中文语言文件: $isl"
+            Write-Host "windows/installer 目录内容："
+            Get-ChildItem -Path windows/installer -Recurse | ForEach-Object { Write-Host $_.FullName }
+            exit 1
+          }
           & $iscc "windows/installer/NexHub.iss" "/DMyAppVersion=$env:VERSION"
           $out = Get-ChildItem -Path windows/installer/Output -Filter *.exe | Select-Object -First 1
           if (-not $out) {
