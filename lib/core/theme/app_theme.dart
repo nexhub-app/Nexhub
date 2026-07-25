@@ -8,12 +8,13 @@ import 'app_tokens.dart';
 ///   可通过 `scheme` 注入莫奈动态色或自定义 seed 生成的 ColorScheme。
 /// - `app.dart` 中：`theme: AppTheme.light()`、`darkTheme: AppTheme.dark()`，
 ///   并删除任何内联 `ThemeData(colorSchemeSeed: ...)`。
-/// 全局页面切换转场：干净淡入（Material 3 fade-through 风格）。
+/// 全局页面切换转场：无动画瞬间切换。
 ///
-/// 新页轻微放大（0.94→1.0）+ 淡入出现；旧页被覆盖时快速淡出。
-/// 没有滑动、没有回弹——干净利落、不晃眼（应用户要求替换掉旧的
-/// 「滑入+回弹缩放」方案）。接入 [ThemeData.pageTransitionsTheme] 后，
-/// 所有 `Navigator.push` 的 `MaterialPageRoute` 与对话框统一生效。
+/// 历史：先后尝试「滑入+回弹缩放」与「M3 fade-through 干净淡入」，
+/// 用户均认为拖沓/难看，最终明确选择「干脆不要转场」（2026-07-25）。
+/// 直接返回 child = 零动画瞬切，最快最干脆。
+/// 注意：若未来恢复带透明度的转场，exitFade 必须是 1→0 的反向映射
+/// （secondaryAnimation 常态为 0，直接当 opacity 用会整页隐形→全局黑屏）。
 class AppPageTransitionsBuilder extends PageTransitionsBuilder {
   const AppPageTransitionsBuilder();
 
@@ -25,33 +26,7 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    // fade-through：入场淡入放在后 65%（先让旧页淡出，避免两页叠加发灰），
-    // 放大全程平滑减速；无过冲。
-    final enterFade = CurvedAnimation(
-      parent: animation,
-      curve: const Interval(0.35, 1.0, curve: Curves.easeOutCubic),
-    );
-    final enterScale = Tween<double>(begin: 0.94, end: 1.0).animate(
-      CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-    );
-    // 注意：secondaryAnimation 在页面「正常显示（未被覆盖）」时值为 0，
-    // 被新页覆盖过程中 0→1。因此淡出透明度必须是 1→0 的反向映射；
-    // 若直接把 CurvedAnimation 当 opacity 用，页面常态 opacity=0 → 整页隐形
-    // （曾导致 Windows 全局黑屏且无任何异常，见 2026-07-25 复盘）。
-    // 旧页在前 35% 内快速淡出，与入场淡入错开。
-    final exitFade = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: secondaryAnimation,
-        curve: const Interval(0.0, 0.35, curve: Curves.easeInCubic),
-      ),
-    );
-    return FadeTransition(
-      opacity: enterFade,
-      child: ScaleTransition(
-        scale: enterScale,
-        child: FadeTransition(opacity: exitFade, child: child),
-      ),
-    );
+    return child;
   }
 }
 
