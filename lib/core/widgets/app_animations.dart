@@ -4,14 +4,33 @@ import '../theme/app_tokens.dart';
 /// 应用统一「灵动」动效原语。
 ///
 /// 设计语言（与底部导航栏保持一致）：
-/// - 弹簧缓动用 [Curves.easeOutBack]，平滑滑动用 [Curves.easeOutCubic]。
-/// - 时长走 [AppTokens.durFast] (150ms) / [AppTokens.durBase] (250ms)。
-/// - 入场：淡入 + 轻微上滑（+ 可选回弹缩放），支持按 key「只播一次」避免滚动重播。
+/// - 弹簧回弹用 [AppCurves.spring]（比 [Curves.easeOutBack] 过冲更明显、更活泼），
+///   平滑滑动用 [AppCurves.smooth]（末段更缓、更顺滑）。
+/// - 时长走 [AppTokens.durFast] (150ms) / [AppTokens.durBase] (250ms) /
+///   [AppTokens.durSpring] (420ms，给弹簧回落留时间)。
+/// - 入场：淡入 + 上滑 + 轻微放大弹入，支持按 key「只播一次」避免滚动重播。
 ///
 /// 用法：
 /// - 按钮 / 图标按压回弹：[AppTapScale]
 /// - 列表 / 卡片入场：[Entrance]
 /// - 弹窗 / 抽屉内容弹出：[AppSheetBody]
+
+/// 统一「灵动」缓动曲线库。
+///
+/// 比 Flutter 内置曲线过冲更明显、末段更顺，是全应用弹簧手感的唯一来源。
+class AppCurves {
+  AppCurves._();
+
+  /// 弹簧回弹（过冲约 +18%，比 easeOutBack 的 +10% 更活泼）。
+  /// 用于缩放弹入、按压松手复位、入场卡片放大。
+  static const Cubic spring = Cubic(0.34, 1.7, 0.46, 1.0);
+
+  /// 更强弹簧（过冲更大），用于需要「弹一下」强调的场合（如 FAB、弹窗）。
+  static const Cubic springStrong = Cubic(0.22, 1.85, 0.36, 1.0);
+
+  /// 平滑减速（easeOutQuint 手感），末段极缓，用于淡入 / 位移，顺滑不生硬。
+  static const Cubic smooth = Cubic(0.16, 1.0, 0.3, 1.0);
+}
 
 // ────────────────────── 按压回弹（按钮 / 图标） ──────────────────────
 
@@ -23,7 +42,7 @@ class AppTapScale extends StatefulWidget {
   const AppTapScale({
     super.key,
     required this.child,
-    this.scale = 0.92,
+    this.scale = 0.90,
     this.duration,
     this.enable = true,
   });
@@ -49,8 +68,9 @@ class _AppTapScaleState extends State<AppTapScale> {
       onPointerCancel: (_) => setState(() => _pressed = false),
       child: AnimatedScale(
         scale: _pressed ? widget.scale : 1.0,
-        duration: widget.duration ?? AppTokens.durFast,
-        curve: Curves.easeOutBack,
+        // 松手复位走弹簧曲线，轻微过冲到 1.0 之上再回落，形成「弹一下」的手感。
+        duration: widget.duration ?? AppTokens.durBase,
+        curve: _pressed ? Curves.easeOutCubic : AppCurves.spring,
         child: widget.child,
       ),
     );
@@ -74,8 +94,8 @@ class Entrance extends StatefulWidget {
     required this.child,
     this.delay = Duration.zero,
     this.duration,
-    this.offset = 12, // 上滑像素
-    this.fromScale = 1.0, // 起始缩放（<1 表示从更小放大入场）
+    this.offset = 16, // 上滑像素
+    this.fromScale = 0.96, // 起始缩放（<1 表示从更小放大弹入，默认带轻微放大）
     this.onceKey,
   });
 
@@ -116,16 +136,19 @@ class _EntranceState extends State<Entrance>
 
     _ctrl = AnimationController(
       vsync: this,
-      duration: widget.duration ?? AppTokens.durBase,
+      duration: widget.duration ?? AppTokens.durSpring,
     );
-    final Curve curve = Curves.easeOutCubic;
-    _opacity = CurvedAnimation(parent: _ctrl, curve: curve);
+    // 淡入 + 上滑走平滑减速（末段极缓、顺滑）；缩放走弹簧（放大略过冲再回落）。
+    _opacity = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Interval(0.0, 0.6, curve: AppCurves.smooth),
+    );
     _slide = Tween<Offset>(
       begin: Offset(0, widget.offset / 100),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: curve));
+    ).animate(CurvedAnimation(parent: _ctrl, curve: AppCurves.smooth));
     _scale = Tween<double>(begin: widget.fromScale, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+        .animate(CurvedAnimation(parent: _ctrl, curve: AppCurves.spring));
 
     if (_play) {
       Future.delayed(widget.delay, () {
@@ -168,9 +191,9 @@ class AppSheetBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Entrance(
-      offset: 8,
-      fromScale: 0.97,
-      duration: AppTokens.durBase,
+      offset: 10,
+      fromScale: 0.95,
+      duration: AppTokens.durSpring,
       child: child,
     );
   }
