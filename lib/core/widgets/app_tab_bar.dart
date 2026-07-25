@@ -30,7 +30,9 @@ class AppTabBar extends StatelessWidget implements PreferredSizeWidget {
       labelColor: scheme.primary,
       unselectedLabelColor: scheme.onSurfaceVariant,
       indicator: UnderlineTabIndicator(
-        borderSide: BorderSide(color: scheme.primary, width: 2),
+        borderSide: BorderSide(color: scheme.primary, width: 3),
+        // 圆角处理，使下划线更像「灵动」小药丸。
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
         insets: const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
       ),
       tabs: items
