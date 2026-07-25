@@ -35,6 +35,7 @@ import './widgets/settings_widgets.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/services/cloud_sync_service.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -189,7 +190,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(l10n.playerSettingsDesc),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SettingsPlayerScreen(),
               ),
             ),
@@ -200,7 +201,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(l10n.novelReaderSettingsDesc),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SettingsNovelReaderScreen(),
               ),
             ),
@@ -211,7 +212,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(l10n.comicReaderSettingsDesc),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SettingsComicReaderScreen(),
               ),
             ),
@@ -229,7 +230,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(l10n.danmakuDisplaySettingsDesc),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SettingsDanmakuDisplayScreen(),
               ),
             ),
@@ -244,7 +245,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(l10n.subscriptionManagementDesc),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SourceManagerScreen(),
               ),
             ),
@@ -255,7 +256,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(l10n.webScrapeSettingSameAsBrowse),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const BrowseWebScrapeScreen(),
               ),
             ),
@@ -270,7 +271,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(l10n.rsshubInstanceDesc),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SettingsRssHubScreen(),
               ),
             ),
@@ -281,7 +282,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(l10n.rssNotificationsDesc),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SettingsRssNotificationsScreen(),
               ),
             ),
@@ -295,7 +296,7 @@ class SettingsScreen extends StatelessWidget {
             title: Text(l10n.downloadManagementTitle),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SettingsDownloadScreen(),
               ),
             ),
@@ -305,14 +306,14 @@ class SettingsScreen extends StatelessWidget {
             title: Text(l10n.dataImportExport),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SettingsImportExportScreen(),
               ),
             ),
           ),
           _CloudSyncTile(
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SettingsCloudSyncScreen(),
               ),
             ),
@@ -343,7 +344,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: Text(l10n.aboutDescription),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const AboutScreen(),
               ),
             ),

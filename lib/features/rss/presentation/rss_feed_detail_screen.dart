@@ -13,6 +13,7 @@ import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/app_refresh_indicator.dart';
 import '../../home/presentation/browse_article_detail_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 class RssFeedDetailScreen extends StatefulWidget {
   final RssFeed feed;
@@ -190,7 +191,7 @@ class _RssItemTile extends StatelessWidget {
       ),
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => BrowseArticleDetailScreen(item: item),
           ),
         );

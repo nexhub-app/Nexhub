@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../features/browser/presentation/http_browser_screen.dart';
 import '../models/episode.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 系统分享：弹出系统分享面板分享标题 + URL。
 ///
@@ -62,7 +63,7 @@ Future<void> openInExternalBrowser(
 void openInAppBrowser(BuildContext context, String url) {
   if (url.isEmpty || url.contains('{}')) return;
   Navigator.of(context).push(
-    MaterialPageRoute<void>(
+    AppPageRoute<void>(
       builder: (_) => HttpBrowserScreen(initialUrl: url),
     ),
   );

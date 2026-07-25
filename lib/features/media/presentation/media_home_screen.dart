@@ -20,6 +20,7 @@ import '../../sources/presentation/collect_api_import_screen.dart';
 import '../../sources/presentation/source_manager_screen.dart';
 import 'content_detail_screen.dart';
 import 'media_online_list_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// Media module home — 4-tab layout backed by [LibraryShell].
 ///
@@ -33,7 +34,7 @@ class MediaHomeScreen extends StatelessWidget {
     final AppLocalizations l10n = AppLocalizations.of(context);
 
     void navigateToCollectApiImport() {
-      Navigator.of(context).push(MaterialPageRoute<void>(
+      Navigator.of(context).push(AppPageRoute<void>(
         builder: (_) => const CollectApiImportScreen(),
       ));
     }
@@ -46,12 +47,12 @@ class MediaHomeScreen extends StatelessWidget {
       emptyIcon: Icons.movie,
       emptyMessage: l10n.emptyLocalMedia,
       onSearch: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.animeSource,
             title: l10n.search,
             onItemTap: (MediaItem item) => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => ContentDetailScreen(item: item),
               ),
             ),
@@ -66,7 +67,7 @@ class MediaHomeScreen extends StatelessWidget {
         emptyMessage: l10n.emptyLocalMedia,
         emptyActionLabel: l10n.emptyLocalMediaAction,
         onEmptyAction: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => const ImportMediaScreen(),
           ),
         ),
@@ -77,7 +78,7 @@ class MediaHomeScreen extends StatelessWidget {
           final localKind = extra == null ? null : extra['localKind'] as String?;
           if (localPath != null && localPath.isNotEmpty && localKind == 'video') {
             Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => VideoPlayerScreen(
                   title: item.title,
                   episode: Episode(id: 'local', title: item.title, url: localPath),
@@ -90,7 +91,7 @@ class MediaHomeScreen extends StatelessWidget {
             return;
           }
           Navigator.of(context).push(
-            MaterialPageRoute<void>(
+            AppPageRoute<void>(
               builder: (_) => ContentDetailScreen(item: item),
             ),
           );
@@ -102,7 +103,7 @@ class MediaHomeScreen extends StatelessWidget {
         onEnableRecommended:
             () => context.read<SourceRepository>().enableRecommendedSources(),
         onSourceTap: (PluginConfig source) => Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => MediaOnlineListScreen(
               initialSource: source,
               onAddSource: navigateToCollectApiImport,

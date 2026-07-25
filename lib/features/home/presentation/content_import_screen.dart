@@ -11,6 +11,7 @@ import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import 'local_media_viewer.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 统一内容导入（浏览页占位功能之一）。
 ///
@@ -149,7 +150,7 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
                     icon: Icons.open_in_new_outlined,
                     tooltip: l10n.contentImportOpened,
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
+                      AppPageRoute<void>(
                         builder: (_) => LocalMediaViewer(
                           title: e.title,
                           kind: e.kind,

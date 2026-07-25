@@ -17,6 +17,7 @@ import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/app_refresh_indicator.dart';
 
 import 'browse_article_detail_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 订阅源详情：展示某订阅源下的文章列表。
 class BrowseArticleFeedDetailScreen extends StatefulWidget {
@@ -199,7 +200,7 @@ class _ArticleItemTile extends StatelessWidget {
       ),
       onTap: () {
         Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => BrowseArticleDetailScreen(item: item),
           ),
         );

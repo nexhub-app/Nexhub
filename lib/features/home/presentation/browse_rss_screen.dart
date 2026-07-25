@@ -16,6 +16,7 @@ import '../../../core/widgets/app_empty_state.dart';
 
 import 'browse_add_article_feed_screen.dart';
 import 'browse_article_feed_detail_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 浏览页 RSS 订阅源列表，使用独立的 [BrowseArticleFeedManager]。
 class BrowseRssScreen extends StatelessWidget {
@@ -45,7 +46,7 @@ class BrowseRssScreen extends StatelessWidget {
                 return AppCard(
                   onTap: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute<void>(
+                      AppPageRoute<void>(
                         builder: (_) =>
                             BrowseArticleFeedDetailScreen(feed: feed),
                       ),
@@ -94,7 +95,7 @@ class BrowseRssScreen extends StatelessWidget {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const BrowseAddArticleFeedScreen(),
               ),
             ),

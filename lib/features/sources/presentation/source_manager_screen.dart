@@ -24,6 +24,7 @@ import '../../shuyuan/shuyuan_adapter.dart';
 import '../../shuyuan/shuyuan_source_service.dart';
 import 'collect_api_import_screen.dart';
 import 'source_mirror_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 enum _SourceTab { list, network, local }
 
@@ -482,7 +483,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     if (widget.filterType == SourceType.novelSource) {
       return FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => const ShuyuanImportScreen(),
           ),
         ),
@@ -494,7 +495,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
         widget.filterType == null) {
       return FloatingActionButton.extended(
         onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => const CollectApiImportScreen(),
           ),
         ),
@@ -610,7 +611,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                 onToggle: (bool value) =>
                     context.read<SourceRepository>().setEnabled(s.id, value),
                 onMirrorSettings: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
+                  AppPageRoute<void>(
                     builder: (_) => SourceMirrorScreen(source: s),
                   ),
                 ),
