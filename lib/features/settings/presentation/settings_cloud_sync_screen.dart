@@ -19,6 +19,7 @@ import '../../../core/services/cloud_sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import './settings_import_export_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 class SettingsCloudSyncScreen extends StatefulWidget {
   const SettingsCloudSyncScreen({super.key});
@@ -248,7 +249,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             title: Text(l10n.dataImportExport),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => const SettingsImportExportScreen(),
               ),
             ),

@@ -13,6 +13,7 @@ import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../player/presentation/video_player_screen.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 季详情页：展示某季的剧集网格，点击进入 [VideoPlayerScreen]。
 ///
@@ -103,7 +104,7 @@ class _SeasonDetailScreenState extends State<SeasonDetailScreen> {
     final sid = widget.season.sourceId ?? widget.series.sourceId;
     if (sid == null) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => VideoPlayerScreen(
           title: widget.series.title,
           episode: ep,

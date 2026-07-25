@@ -9,6 +9,7 @@ import '../../../core/widgets/module_source_search_screen.dart';
 import '../../../core/widgets/online_content_list_screen.dart';
 import '../../verification/presentation/verification_handler.dart';
 import 'novel_detail_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 小说在线浏览页（Phase 2）。
 ///
@@ -57,17 +58,17 @@ class NovelOnlineListScreen extends StatelessWidget {
       resolveHomeSections: service.resolveHomeSections,
       resolveFilters: service.resolveFilterGroups,
       onItemTap: (item) => Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           builder: (_) => NovelDetailScreen(item: item),
         ),
       ),
       onSearch: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.novelSource,
             title: l10n.search,
             onItemTap: (item) => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => NovelDetailScreen(item: item),
               ),
             ),

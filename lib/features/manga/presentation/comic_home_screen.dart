@@ -22,6 +22,7 @@ import '../../sources/presentation/source_manager_screen.dart';
 import 'comic_detail_screen.dart';
 import 'comic_reader_screen.dart';
 import 'manga_online_list_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// Comic module home — 4-tab layout backed by [LibraryShell].
 ///
@@ -35,7 +36,7 @@ class ComicHomeScreen extends StatelessWidget {
     final AppLocalizations l10n = AppLocalizations.of(context);
 
     void navigateToCollectApiImport() {
-      Navigator.of(context).push(MaterialPageRoute<void>(
+      Navigator.of(context).push(AppPageRoute<void>(
         builder: (_) => const CollectApiImportScreen(),
       ));
     }
@@ -48,12 +49,12 @@ class ComicHomeScreen extends StatelessWidget {
       emptyIcon: Icons.auto_stories,
       emptyMessage: l10n.emptyLocalComic,
       onSearch: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.mangaSource,
             title: l10n.search,
             onItemTap: (MediaItem item) => Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => ComicDetailScreen(item: item),
               ),
             ),
@@ -68,7 +69,7 @@ class ComicHomeScreen extends StatelessWidget {
         emptyMessage: l10n.emptyLocalComic,
         emptyActionLabel: l10n.emptyLocalComicAction,
         onEmptyAction: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => const ImportComicScreen(),
           ),
         ),
@@ -81,7 +82,7 @@ class ComicHomeScreen extends StatelessWidget {
             final lower = localPath.toLowerCase();
             if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {
               Navigator.of(context).push(
-                MaterialPageRoute<void>(
+                AppPageRoute<void>(
                   builder: (_) => ComicReaderScreen(
                     comicId: item.id,
                     title: item.title,
@@ -95,7 +96,7 @@ class ComicHomeScreen extends StatelessWidget {
             }
             // cbr/rar/单图/目录走兜底查看器。
             Navigator.of(context).push(
-              MaterialPageRoute<void>(
+              AppPageRoute<void>(
                 builder: (_) => LocalMediaViewer(
                   title: item.title,
                   kind: LocalMediaKind.images,
@@ -106,7 +107,7 @@ class ComicHomeScreen extends StatelessWidget {
             return;
           }
           Navigator.of(context).push(
-            MaterialPageRoute<void>(
+            AppPageRoute<void>(
               builder: (_) => ComicDetailScreen(item: item),
             ),
           );
@@ -118,7 +119,7 @@ class ComicHomeScreen extends StatelessWidget {
         onEnableRecommended:
             () => context.read<SourceRepository>().enableRecommendedSources(),
         onSourceTap: (PluginConfig source) => Navigator.of(context).push(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => MangaOnlineListScreen(
               initialSource: source,
               onAddSource: navigateToCollectApiImport,

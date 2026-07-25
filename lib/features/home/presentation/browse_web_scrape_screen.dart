@@ -16,6 +16,7 @@ import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_url_input_bar.dart';
 import '../../../features/verification/presentation/webview_verification_screen.dart';
 import 'local_media_viewer.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 网页爬取（浏览页占位功能之一）。
 ///
@@ -94,7 +95,7 @@ class _BrowseWebScrapeScreenState extends State<BrowseWebScrapeScreen> {
     await file.writeAsString(_result!.paragraphs.join('\n\n'));
     if (!mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => LocalMediaViewer(
           title: title,
           kind: LocalMediaKind.text,
@@ -107,7 +108,7 @@ class _BrowseWebScrapeScreenState extends State<BrowseWebScrapeScreen> {
   Future<void> _openImages(String title) async {
     if (_result == null || _result!.imageUrls.isEmpty) return;
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => LocalMediaViewer(
           title: title,
           kind: LocalMediaKind.images,
@@ -133,7 +134,7 @@ class _BrowseWebScrapeScreenState extends State<BrowseWebScrapeScreen> {
   Future<void> _openVideoInApp(String url, AppLocalizations l10n) async {
     try {
       await Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           builder: (_) => LocalMediaViewer(
             title: _result?.pageTitle ?? l10n.scrapeResultTitle,
             kind: LocalMediaKind.video,

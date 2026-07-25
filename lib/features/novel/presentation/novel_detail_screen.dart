@@ -40,6 +40,7 @@ import '../../../core/widgets/progress_card.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import 'novel_bookmark_manager.dart';
 import 'novel_reader_screen.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 小说详情页。
 class NovelDetailScreen extends StatefulWidget {
@@ -253,7 +254,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
     final sid = widget.item.sourceId;
     if (sid == null) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => NovelReaderScreen(
           novelId: widget.item.id,
           title: widget.item.title,
@@ -317,7 +318,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
     final coverUrl = _fetchedDetail.coverUrl ?? widget.item.coverUrl;
     if (coverUrl == null || coverUrl.isEmpty) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => _CoverViewerScreen(
           coverUrl: coverUrl,
           title: widget.item.title,
@@ -607,14 +608,14 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
     if (q.isEmpty) return;
     final AppLocalizations l10n = AppLocalizations.of(context);
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => ModuleSourceSearchScreen(
           sourceType: SourceType.novelSource,
           title: l10n.search,
           initialQuery: q,
           searchField: field,
           onItemTap: (MediaItem tapped) => Navigator.of(context).push(
-            MaterialPageRoute<void>(
+            AppPageRoute<void>(
               builder: (_) => NovelDetailScreen(item: tapped),
             ),
           ),
@@ -1048,7 +1049,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
                       subtitle: m.author,
                       width: cardW,
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
+                        AppPageRoute<void>(
                           builder: (_) => NovelDetailScreen(item: m),
                         ),
                       ),
