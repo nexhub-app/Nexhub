@@ -15,6 +15,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../history/chapter_fetch_time_manager.dart';
 import '../models/episode.dart';
 import '../theme/app_tokens.dart';
+import 'app_loading_indicator.dart';
 import 'detail_list_filter.dart';
 
 /// 章节列表区。支持搜索过滤 + 筛选/排序/显示组合 + 可选的线路分组。
@@ -259,7 +260,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       if (widget.loadingMore) {
         return const Padding(
           padding: EdgeInsets.all(AppTokens.spaceLg),
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(child: AppBouncingDots()),
         );
       }
       return Padding(
@@ -372,11 +373,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                const AppBouncingDots(dotSize: 5),
                 const SizedBox(width: AppTokens.spaceSm),
                 Text(l10n.loading,
                     style: Theme.of(context).textTheme.bodySmall),
