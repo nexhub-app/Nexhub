@@ -1,4 +1,4 @@
-# NexHub v0.2.1
+# NexHub v0.2.2
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -45,6 +45,21 @@
 ### 🐛 修复 / 补齐
 - **Windows 自定义启动图标**：此前打包用的仍是 Flutter 默认 Logo。现已在 CI 中先用 `flutter_launcher_icons` 重新生成图标，Windows 安装包 / 解压包均带 NexHub 官方图标。
 - **Windows exe 安装包**：在原有 zip 解压包基础上，新增 Inno Setup 生成的 `NexHub-setup-x.y.z.exe` 安装程序，支持「开始菜单 + 桌面快捷方式」一键安装与卸载。
+
+## 📝 更新日志（v0.2.1 → v0.2.2）
+
+本版相对 v0.2.1 **无应用功能变更**，仅补齐 macOS 与 Linux 桌面的应用图标：
+
+### 🐛 修复 / 补齐
+- **macOS 应用图标**：CI 现在会在 build 前调用 `flutter_launcher_icons` 从 `assets/icon/icon.png` 重新生成
+  `AppIcon.appiconset`，与 Android / Windows 保持一致（之前仓库里 commit 的旧图标虽然也是 NexHub
+  风格，但与源图不一致）。
+- **Linux 应用图标**：仓库里 `linux/` 目录被简化（没有 `runner/CMakeLists.txt`、`main.cc` 等），
+  CI 会用 `flutter create --platforms=linux .` 重新生成工程——而 `flutter create` 会放 Flutter 默认
+  Logo 当 Linux 应用图标。现已在 Linux job build 前调用 `flutter_launcher_icons` 覆盖，
+  Linux 包也会带上 NexHub 自定义图标。
+- 顺手清理仓库里那个**无关的视频播放占位图** `linux/flutter/icons.png`（右下角带"图片由AI生成"水印，
+  反正 CI 不使用它，删掉避免误导）。
 
 ## 📦 安装
 

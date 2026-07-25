@@ -256,6 +256,10 @@ jobs:
           fi
           echo "== linux/ 结构 =="
           ls -la linux
+      - name: 重新生成启动图标 (flutter_launcher_icons)
+        # 覆盖 flutter create 生成的默认 Logo（仓库里 linux/ 被简化、没有 runner/，
+        # flutter create 会放 Flutter 默认 Logo 当应用图标；这里用 NexHub 自定义图标覆盖）。
+        run: flutter pub run flutter_launcher_icons 2>&1 || dart run flutter_launcher_icons 2>&1
       - name: Flutter 环境与诊断 (debug)
         run: |
           echo "FLUTTER_ROOT: ${FLUTTER_ROOT:-<unset>}"
@@ -325,6 +329,10 @@ jobs:
           echo "== generated l10n files =="
           ls -la lib/generated 2>&1 || true
           grep -n "class AppLocalizations" lib/generated/app_localizations.dart 2>&1 || true
+      - name: 重新生成启动图标 (flutter_launcher_icons)
+        # 用 assets/icon/icon.png 重新生成 macOS AppIcon.appiconset，
+        # 避免仓库里 commit 的旧图标（与源图不一致）。
+        run: flutter pub run flutter_launcher_icons 2>&1 || dart run flutter_launcher_icons 2>&1
       - name: 编译 macOS
         shell: bash
         run: |
