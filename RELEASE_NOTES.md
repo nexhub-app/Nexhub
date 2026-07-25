@@ -1,4 +1,4 @@
-# NexHub v0.2.6
+# NexHub v0.2.7
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -108,6 +108,19 @@
 - CI 加固：Windows job 在调 `ISCC.exe` 之前**新增预校验**，确认
   `windows\installer\Languages\ChineseSimplified.isl` 存在，缺失时直接 `exit 1` 并打印
   `windows/installer` 目录树，方便以后快速定位，不再等 ISCC 编译到一半才 abort。
+
+## 📝 更新日志（v0.2.6 → v0.2.7）
+
+本版相对 v0.2.6 **无应用功能变更**，仅修正 Inno Setup 安装包 exe 的**输出目录**错位：
+
+### 🐛 修复
+- **Windows job 仍失败：`ISCC 未产出安装包 exe（windows/installer/Output 下无 *.exe）`**：
+  v0.2.6 编译已通过，但 ISCC 把 exe 写到了**仓库根 `Output/`**（`<仓库根>/Output/NexHub-setup-0.2.6.exe`），
+  而工作流只去 `windows/installer/Output/` 找，于是找不到报错。根因同样是 `OutputDir` 相对
+  **仓库根 / SourceDir** 解析——`OutputDir=Output` 被解析成 `<仓库根>/Output`。
+- 把 `.iss` 的 `OutputDir` 改为 `windows\installer\Output`（相对仓库根的正确路径，与上传步骤一致）。
+- 同时给 CI 加了**兜底**：调 `ISCC.exe` 后同时搜索 `windows\installer\Output` 与仓库根 `Output`
+  两个位置，找到 exe 就复制到 `windows/installer/Output`，以后无论 ISCC 写到哪都能上传成功。
 
 ## 📦 安装
 
