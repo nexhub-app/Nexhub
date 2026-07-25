@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/danmaku/danmaku_settings.dart';
@@ -89,7 +90,8 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
     final theme = Theme.of(context);
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-    return Padding(
+    return AppSheetBody(
+      child: Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -194,6 +196,7 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

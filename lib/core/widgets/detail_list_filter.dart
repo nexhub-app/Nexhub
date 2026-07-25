@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../theme/app_tokens.dart';
@@ -228,7 +229,8 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
 
-    return SafeArea(
+    return AppSheetBody(
+      child: SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -352,6 +354,7 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
