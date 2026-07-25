@@ -50,6 +50,8 @@ class AppTokens {
   // ─────────────────────── 时长（Durations） ───────────────────────
   static const Duration durFast = Duration(milliseconds: 150);
   static const Duration durBase = Duration(milliseconds: 250);
+  /// 弹簧入场时长：比 [durBase] 略长，给回弹过冲留出自然回落时间，更「灵动」。
+  static const Duration durSpring = Duration(milliseconds: 420);
   /// 翻页动画统一 450ms（见文档附录 C）。
   static const Duration durPageTurn = Duration(milliseconds: 450);
 

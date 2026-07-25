@@ -24,14 +24,17 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final Curve ease = Curves.easeOutCubic;
+    // 与 AppCurves 保持一致（此处内联，避免主题层依赖 widget 层）：
+    // smooth = 平滑减速（末段极缓）；spring = 弹簧回弹（放大略过冲再回落）。
+    const Curve ease = Cubic(0.16, 1.0, 0.3, 1.0);
+    const Curve spring = Cubic(0.34, 1.7, 0.46, 1.0);
     final enterSlide = Tween<Offset>(
-      begin: const Offset(0.06, 0),
+      begin: const Offset(0.08, 0),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: animation, curve: ease));
     final enterFade = CurvedAnimation(parent: animation, curve: ease);
-    final enterScale = Tween<double>(begin: 0.98, end: 1.0).animate(
-      CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+    final enterScale = Tween<double>(begin: 0.96, end: 1.0).animate(
+      CurvedAnimation(parent: animation, curve: spring),
     );
     final exitSlide = Tween<Offset>(
       begin: Offset.zero,
