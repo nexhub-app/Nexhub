@@ -39,11 +39,14 @@ android {
     // 固定签名 keystore（提交入库，保证每次 CI 构建签名一致，可覆盖安装）。
     // 警告：此 keystore 随公开仓库公开，仅用于测试分发，请勿用于 Google Play 正式上架。
     // 如需正式上架，请改用 GitHub Actions secret 注入私有 release keystore。
+    // 注意：storeFile 必须以 rootProject（android/）为基准并显式带 app/ 子目录，
+    // 不能用 file("upload-keystore.jks") —— 在 signingConfigs 嵌套作用域里它常被解析到
+    // 根工程目录 android/ 而非 android/app，导致 validateSigningRelease 找不到 keystore。
     signingConfigs {
         create("release") {
             keyAlias = "nexhub"
             keyPassword = "nexhub123"
-            storeFile = file("upload-keystore.jks")
+            storeFile = rootProject.file("app/upload-keystore.jks")
             storePassword = "nexhub123"
             storeType = "PKCS12"
         }
