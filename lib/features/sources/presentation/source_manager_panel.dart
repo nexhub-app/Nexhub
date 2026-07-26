@@ -62,6 +62,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
   List<_ImportPreviewItem> _previewItems = <_ImportPreviewItem>[];
   Set<int> _selectedPreviewIndices = <int>{};
   bool _previewMode = false;
+  int _skippedByTypeCount = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -91,6 +92,18 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
           ...sources.map((s) => _buildSourceTile(l10n, s)),
       ],
     );
+  }
+
+  /// 将 SourceType 映射为本地化分类标签。
+  String _typeLabel(SourceType type, AppLocalizations l10n) {
+    switch (type) {
+      case SourceType.novelSource:
+        return l10n.sourceCategoryNovel;
+      case SourceType.animeSource:
+        return l10n.sourceCategoryMedia;
+      case SourceType.mangaSource:
+        return l10n.sourceCategoryComic;
+    }
   }
 
   /// 顶部「本地导入」操作条（选择文件 / 选择文件夹）。
@@ -186,17 +199,35 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
 
   Future<void> _processPickedPaths(List<String> paths) async {
     final items = <_ImportPreviewItem>[];
+    int skippedByType = 0;
     for (final path in paths) {
       final fileName = p.basename(path);
       try {
         final raw = await File(path).readAsString();
-        final config = PluginConfig.fromJsonString(raw);
-        items.add(_ImportPreviewItem(
-          path: path,
-          fileName: fileName,
-          config: config,
-          isValid: true,
-        ));
+        // 统一批量解析：支持小说(Legado)源，且一个文件可含多个源。
+        final configs = SourceRepository.parseMixedSources(raw);
+        if (configs.isEmpty) {
+          items.add(_ImportPreviewItem(
+            path: path,
+            fileName: fileName,
+            isValid: false,
+            error: AppLocalizations.of(context).sourceUnrecognized,
+          ));
+        } else {
+          for (final c in configs) {
+            // 单模块面板：只导入本模块类型，其他类型直接忽略。
+            if (c.type != widget.filterType) {
+              skippedByType++;
+              continue;
+            }
+            items.add(_ImportPreviewItem(
+              path: path,
+              fileName: fileName,
+              config: c,
+              isValid: true,
+            ));
+          }
+        }
       } on Object catch (e) {
         items.add(_ImportPreviewItem(
           path: path,
@@ -207,6 +238,21 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
       }
     }
     if (!mounted) return;
+
+    // 过滤后没有任何可导入源（文件里全是其他类型）→ 提示并退出。
+    if (items.isEmpty && skippedByType > 0) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.importNoMatchingType(
+            _typeLabel(widget.filterType, l10n),
+            skippedByType,
+          )),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _previewItems = items;
       _selectedPreviewIndices = <int>{
@@ -214,6 +260,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
           if (items[i].isValid) i,
       };
       _previewMode = true;
+      _skippedByTypeCount = skippedByType;
     });
   }
 
@@ -232,6 +279,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
                 _previewMode = false;
                 _previewItems = <_ImportPreviewItem>[];
                 _selectedPreviewIndices = <int>{};
+                _skippedByTypeCount = 0;
               }),
             ),
             Expanded(
@@ -252,6 +300,35 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
           ],
         ),
         const SizedBox(height: AppTokens.spaceSm),
+        // 单模块面板：导入时自动忽略其他类型源，这里给出提示。
+        if (_skippedByTypeCount > 0)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTokens.spaceMd,
+              vertical: AppTokens.spaceSm,
+            ),
+            color: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withValues(alpha: 0.5),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.filter_alt_outlined, size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+                const SizedBox(width: AppTokens.spaceXs),
+                Expanded(
+                  child: Text(
+                    l10n.importTypeFiltered(_skippedByTypeCount),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         if (_previewItems.isEmpty)
           AppEmptyState(
             icon: Icons.folder_open_outlined,
@@ -307,6 +384,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
       _previewMode = false;
       _previewItems = <_ImportPreviewItem>[];
       _selectedPreviewIndices = <int>{};
+      _skippedByTypeCount = 0;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.sourceImportResult(success, total))),
