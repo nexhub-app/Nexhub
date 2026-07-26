@@ -611,6 +611,24 @@
     }
   },
 
+  "batchImportHint": "Recognized {count} sources. Select to batch import (includes novel / media / comic).",
+  "@batchImportHint": {
+    "description": "Batch import preview hint",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "sourceUnrecognized": "No valid source recognized (novel / media / comic).",
+  "@sourceUnrecognized": {
+    "description": "Shown when no valid source could be parsed"
+  },
+  "importDistributedHint": "Sources will be sorted into their modules automatically ({count} from other modules).",
+  "@importDistributedHint": {
+    "description": "Cross-module import banner",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "settingsGroupDownload": "Download Management",
   "settingsGroupTools": "Tools",
   "settingsGroupPlugins": "Plugins",
