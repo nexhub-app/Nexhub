@@ -76,6 +76,20 @@ class ShuyuanAdapter {
     // AnalyzeUrl 中由 getStrResponse 处理）。
     final antiHotlinking = AntiHotlinkingConfig(referer: baseUrl);
 
+    // 动态筛选：源声明的 `filters` 原样转为 PluginConfig.filters，
+    // MediaApiService.resolveFilterGroups 据此显示发现页筛选按钮。
+    final declaredFilters = source.filters;
+    final filterConfig = declaredFilters != null
+        ? SourceFilterConfig.fromJson(
+            Map<String, dynamic>.from(declaredFilters))
+        : const SourceFilterConfig();
+
+    final homeSections = source.homeSections
+            ?.map((e) => HomeSectionConfig.fromJson(
+                Map<String, dynamic>.from(e)))
+            .toList(growable: false) ??
+        const <HomeSectionConfig>[];
+
     return PluginConfig(
       id: 'xiaoshuo_${_urlToId(baseUrl)}',
       name: source.bookSourceName,
@@ -89,6 +103,8 @@ class ShuyuanAdapter {
       routes: routes,
       selectors: selectors,
       antiHotlinking: antiHotlinking,
+      filters: filterConfig,
+      homeSections: homeSections,
       enabled: source.enabled,
       enabledExplore: source.enabled,
     );
