@@ -606,6 +606,24 @@
     }
   },
 
+  "batchImportHint": "已识别 {count} 个源，勾选后批量导入（含小说 / 媒体 / 漫画）",
+  "@batchImportHint": {
+    "description": "批量导入预览提示",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "sourceUnrecognized": "无法识别为有效源（小说 / 媒体 / 漫画）",
+  "@sourceUnrecognized": {
+    "description": "解析不到任何有效源时提示"
+  },
+  "importDistributedHint": "将按类型自动归入对应模块（含 {count} 个其他模块源）",
+  "@importDistributedHint": {
+    "description": "跨模块导入提示横幅",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "settingsGroupDownload": "下载管理",
   "settingsGroupTools": "工具",
   "settingsGroupPlugins": "插件",

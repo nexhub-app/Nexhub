@@ -20,8 +20,6 @@ import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/unified_source_tile.dart';
 import '../../shuyuan/presentation/shuyuan_import_screen.dart';
-import '../../shuyuan/shuyuan_adapter.dart';
-import '../../shuyuan/shuyuan_source_service.dart';
 import 'collect_api_import_screen.dart';
 import 'source_mirror_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
@@ -124,6 +122,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       _networkError = null;
       _networkPreview = null;
       _validationErrors = <String>[];
+      _skippedByTypeCount = 0;
     });
 
     try {
@@ -134,14 +133,63 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       final text = await response.transform(utf8.decoder).join();
       httpClient.close();
 
-      final config = PluginConfig.fromJsonString(text);
-      final errors = config.validate();
+      // 统一批量解析：URL 返回合并 JSON（小说+媒体+漫画）也能一次导入。
+      final configs = SourceRepository.parseMixedSources(text);
 
-      if (mounted) {
+      if (!mounted) return;
+      if (configs.isEmpty) {
         setState(() {
-          _networkPreview = config;
-          _validationErrors = errors;
+          _networkError = AppLocalizations.of(context).sourceUnrecognized;
           _networkLoading = false;
+        });
+        return;
+      }
+
+      // 专属类型页：只保留匹配类型的源，其他类型直接忽略。
+      final matched = widget.filterType == null
+          ? configs
+          : configs.where((c) => c.type == widget.filterType).toList();
+      final skippedByType = configs.length - matched.length;
+
+      if (matched.isEmpty) {
+        final l10n = AppLocalizations.of(context);
+        setState(() {
+          _networkError = skippedByType > 0
+              ? l10n.importNoMatchingType(
+                  _typeLabel(widget.filterType!, l10n),
+                  skippedByType,
+                )
+              : l10n.sourceUnrecognized;
+          _networkLoading = false;
+        });
+        return;
+      }
+
+      if (matched.length == 1) {
+        setState(() {
+          _networkPreview = matched.first;
+          _validationErrors = const <String>[];
+          _networkLoading = false;
+          _skippedByTypeCount = skippedByType;
+        });
+      } else {
+        // 多源：复用本地导入的批量勾选预览
+        setState(() {
+          _previewItems = matched
+              .map((c) => _ImportPreviewItem(
+                    path: '',
+                    fileName: url,
+                    config: c,
+                    type: c.type,
+                    isValid: true,
+                  ))
+              .toList();
+          _selectedPreviewIndices = <int>{
+            for (int i = 0; i < matched.length; i++) i
+          };
+          _previewMode = true;
+          _networkLoading = false;
+          _skippedByTypeCount = skippedByType;
         });
       }
     } catch (e) {
@@ -213,72 +261,38 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
 
   /// 处理选中的文件路径列表：解析预览 → 弹出勾选对话框 → 导入选中项。
   Future<void> _processPickedPaths(List<String> paths) async {
-    var items = <_ImportPreviewItem>[];
+    final items = <_ImportPreviewItem>[];
     for (final path in paths) {
+      final fileName = p.basename(path);
       try {
         final text = await File(path).readAsString();
-        _ImportPreviewItem item;
-        try {
-          final config = PluginConfig.fromJsonString(text);
-          item = _ImportPreviewItem(
+        // 统一批量解析：单 PluginConfig / JSON 数组（小说+媒体+漫画混排）/
+        // Legado 书源 / XML 等，一个文件可解析出多个源。
+        final configs = SourceRepository.parseMixedSources(text);
+        if (configs.isEmpty) {
+          items.add(_ImportPreviewItem(
             path: path,
-            fileName: p.basename(path),
-            config: config,
-            type: config.type,
-            isValid: config.validate().isEmpty,
-          );
-        } on PluginConfigException catch (pe) {
-          // Legado/阅读格式源（bookSourceName 等）缺少 "type" 字段。
-          // 始终尝试通过 ShuyuanSourceService + ShuyuanAdapter 转换，不依赖 filterType。
-          try {
-            final shuyuanService = ShuyuanSourceService();
-            final shuyuanSources = shuyuanService.parseSources(text);
-            if (shuyuanSources.isNotEmpty) {
-              final config = ShuyuanAdapter.toPluginConfig(
-                shuyuanSources.first,
-              );
-              item = _ImportPreviewItem(
-                path: path,
-                fileName: p.basename(path),
-                config: config,
-                type: config.type,
-                isValid: config.validate().isEmpty,
-              );
-            } else {
-              item = _ImportPreviewItem(
-                path: path,
-                fileName: p.basename(path),
-                config: null,
-                type: widget.filterType,
-                isValid: false,
-                error: '${AppLocalizations.of(context).shuyuanImportParseFailed}: ${pe.message}',
-              );
-            }
-          } on Object catch (re) {
-            item = _ImportPreviewItem(
-              path: path,
-              fileName: p.basename(path),
-              config: null,
-              type: widget.filterType,
-              isValid: false,
-              error: re.toString(),
-            );
-          }
-        } on Object catch (e) {
-          item = _ImportPreviewItem(
-            path: path,
-            fileName: p.basename(path),
+            fileName: fileName,
             config: null,
-            type: null,
+            type: widget.filterType,
             isValid: false,
-            error: e.toString(),
-          );
+            error: AppLocalizations.of(context).sourceUnrecognized,
+          ));
+        } else {
+          for (final c in configs) {
+            items.add(_ImportPreviewItem(
+              path: path,
+              fileName: fileName,
+              config: c,
+              type: c.type,
+              isValid: true,
+            ));
+          }
         }
-        items.add(item);
       } on Object catch (e) {
         items.add(_ImportPreviewItem(
           path: path,
-          fileName: p.basename(path),
+          fileName: fileName,
           config: null,
           type: null,
           isValid: false,
@@ -287,42 +301,50 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       }
     }
 
-    // 自动按类型筛选：在「专属类型」源管理页（如小说源页）只保留该类型，
-    // 其他类型源被跳过（解析失败的文件仍保留以显示错误）。
+    // 专属类型页（filterType != null）：只保留该类型的源，其他类型直接忽略。
     int skippedByType = 0;
+    List<_ImportPreviewItem> shownItems = items;
     if (widget.filterType != null) {
-      final filtered = <_ImportPreviewItem>[];
+      final kept = <_ImportPreviewItem>[];
       for (final it in items) {
         if (it.config != null && it.type != widget.filterType) {
+          // 有效但类型不符 → 直接忽略，计入跳过数
           skippedByType++;
         } else {
-          filtered.add(it);
+          // 无效（解析失败，用于错误提示）或类型匹配 → 保留
+          kept.add(it);
         }
       }
-      items = filtered;
+      shownItems = kept;
     }
 
     if (!mounted) return;
 
-    // 专属类型页导入时，文件夹/文件中没有任何可导入的当前类型源。
-    if (items.isEmpty && widget.filterType != null) {
+    if (items.isEmpty) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.sourceUnrecognized)),
+      );
+      return;
+    }
+
+    // 专属类型页：过滤后没有任何可显示源（全部为其他类型）→ 提示并退出预览。
+    if (widget.filterType != null && shownItems.isEmpty && skippedByType > 0) {
       final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            l10n.importNoMatchingType(
-              _typeLabel(widget.filterType!, l10n),
-              skippedByType,
-            ),
-          ),
+          content: Text(l10n.importNoMatchingType(
+            _typeLabel(widget.filterType!, l10n),
+            skippedByType,
+          )),
         ),
       );
       return;
     }
 
     setState(() {
-      _previewItems = items;
-      _selectedPreviewIndices = items
+      _previewItems = shownItems;
+      _selectedPreviewIndices = shownItems
           .asMap()
           .entries
           .where((e) => e.value.isValid)
@@ -656,6 +678,10 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   // Tab 2: 网络导入
   // ═══════════════════════════════════════════════════════════════════════
   Widget _buildNetworkImportTab(AppLocalizations l10n, ColorScheme scheme) {
+    // 多源导入时复用本地导入的批量勾选预览
+    if (_previewMode && _previewItems.isNotEmpty) {
+      return _buildImportPreview(l10n, scheme);
+    }
     return ListView(
       padding: const EdgeInsets.all(AppTokens.spaceLg),
       children: <Widget>[
@@ -953,8 +979,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                 Expanded(
                   child: Text(
                     _skippedByTypeCount > 0
-                        ? '${l10n.importTypeOnly(_typeLabel(widget.filterType!, l10n))}  '
-                            '${l10n.importTypeFiltered(_skippedByTypeCount)}'
+                        ? l10n.importTypeFiltered(_skippedByTypeCount)
                         : l10n.importTypeOnly(_typeLabel(widget.filterType!, l10n)),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
