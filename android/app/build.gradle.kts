@@ -36,11 +36,22 @@ android {
         versionName = flutter.versionName
     }
 
+    // 固定签名 keystore（提交入库，保证每次 CI 构建签名一致，可覆盖安装）。
+    // 警告：此 keystore 随公开仓库公开，仅用于测试分发，请勿用于 Google Play 正式上架。
+    // 如需正式上架，请改用 GitHub Actions secret 注入私有 release keystore。
+    signingConfigs {
+        create("release") {
+            keyAlias = "nexhub"
+            keyPassword = "nexhub123"
+            storeFile = file("upload-keystore.jks")
+            storePassword = "nexhub123"
+            storeType = "PKCS12"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
