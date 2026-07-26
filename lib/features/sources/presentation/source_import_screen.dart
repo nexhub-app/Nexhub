@@ -18,8 +18,6 @@ import '../../../core/widgets/app_form_field.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_url_input_bar.dart';
-import '../../shuyuan/shuyuan_adapter.dart';
-import '../../shuyuan/shuyuan_source_service.dart';
 import 'collect_api_import_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
@@ -39,8 +37,12 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
   final TextEditingController _jsonController = TextEditingController();
   bool _loading = false;
   String? _error;
-  PluginConfig? _preview;
-  List<String> _validationErrors = const <String>[];
+  /// 解析出的待导入源（批量，可能含小说/媒体/漫画）。
+  List<PluginConfig> _previews = const <PluginConfig>[];
+
+  /// 批量模式下勾选导入的源下标集合。
+  Set<int> _selectedPreviewIndices = const <int>{};
+
   bool _collectApiDetected = false;
   String? _pickedFileName;
 
@@ -57,47 +59,25 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
     setState(() {
       _loading = true;
       _error = null;
-      _preview = null;
-      _validationErrors = const <String>[];
+      _previews = const <PluginConfig>[];
+      _selectedPreviewIndices = const <int>{};
     });
     try {
-      final config = PluginConfig.fromJsonString(text);
-      final errors = config.validate();
+      // 统一批量解析：支持单源 / JSON 数组（小说+媒体+漫画混排）/
+      // Legado 书源 / 包装对象 / NDJSON / XML，一次导入多种类型。
+      final list = SourceRepository.parseMixedSources(text);
       if (mounted) {
-        setState(() {
-          _preview = config;
-          _validationErrors = errors;
-          _loading = false;
-        });
-      }
-    } on PluginConfigException catch (pe) {
-      // Legado/阅读格式源（含 bookSourceName 等字段）缺少 "type" 字段。
-      // 尝试通过 ShuyuanSourceService + ShuyuanAdapter 转换。
-      try {
-        final shuyuanService = ShuyuanSourceService();
-        final shuyuanSources = shuyuanService.parseSources(text);
-        if (shuyuanSources.isNotEmpty) {
-          final config = ShuyuanAdapter.toPluginConfig(shuyuanSources.first);
-          final errors = config.validate();
-          if (mounted) {
-            setState(() {
-              _preview = config;
-              _validationErrors = errors;
-              _loading = false;
-            });
-          }
-        } else {
-          if (mounted) {
-            setState(() {
-              _error = pe.toString();
-              _loading = false;
-            });
-          }
-        }
-      } on Object catch (re) {
-        if (mounted) {
+        if (list.isEmpty) {
           setState(() {
-            _error = re.toString();
+            _error = AppLocalizations.of(context).sourceUnrecognized;
+            _loading = false;
+          });
+        } else {
+          setState(() {
+            _previews = list;
+            _selectedPreviewIndices = <int>{
+              for (int i = 0; i < list.length; i++) i
+            };
             _loading = false;
           });
         }
@@ -157,11 +137,24 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
   }
 
   void _save() {
-    if (_preview == null) return;
-    context.read<SourceRepository>().addSource(_preview!);
+    if (_previews.isEmpty) return;
+    final selected = _selectedPreviewIndices
+        .where((i) => i >= 0 && i < _previews.length)
+        .map((i) => _previews[i])
+        .toList();
+    if (selected.isEmpty) return;
+    final repo = context.read<SourceRepository>();
+    for (final c in selected) {
+      repo.addSource(c);
+    }
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context).sourceImportSaved)),
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(context)
+              .sourceImportResult(selected.length, _previews.length),
+        ),
+      ),
     );
   }
 
@@ -267,72 +260,105 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
         retryLabel: l10n.retry,
       );
     }
-    if (_preview == null) return const SizedBox.shrink();
-    final PluginConfig c = _preview!;
-    final bool valid = _validationErrors.isEmpty;
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(c.name, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppTokens.spaceXs),
-          Text(
-            c.site.baseUrl,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: AppTokens.spaceSm),
-          Chip(
-            label: Text(c.type.apiName),
-            visualDensity: VisualDensity.compact,
-          ),
-          const SizedBox(height: AppTokens.spaceSm),
-          if (valid)
+    if (_previews.isEmpty) return const SizedBox.shrink();
+
+    // 单源：沿用原卡片样式
+    if (_previews.length == 1) {
+      final c = _previews.first;
+      return AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(c.name, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: AppTokens.spaceXs),
+            Text(
+              c.site.baseUrl,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
+            Chip(
+              label: Text(_typeLabel(c.type, l10n)),
+              visualDensity: VisualDensity.compact,
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
             Row(
               children: <Widget>[
                 Icon(Icons.check_circle, color: scheme.primary, size: 18),
                 const SizedBox(width: AppTokens.spaceXs),
                 Text(l10n.sourceImportValid),
               ],
-            )
-          else ...<Widget>[
-            Row(
-              children: <Widget>[
-                Icon(Icons.error_outline, color: scheme.error, size: 18),
-                const SizedBox(width: AppTokens.spaceXs),
-                Text(l10n.sourceImportInvalid,
-                    style: TextStyle(color: scheme.error)),
-              ],
             ),
-            const SizedBox(height: AppTokens.spaceXs),
-            Text(l10n.sourceImportErrors,
-                style: Theme.of(context).textTheme.labelMedium),
-            ..._validationErrors.map(
-              (e) => Padding(
-                padding:
-                    const EdgeInsets.only(left: AppTokens.spaceMd, top: 2),
-                child: Text(
-                  '• $e',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
+            const SizedBox(height: AppTokens.spaceLg),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _save,
+                child: Text(l10n.save),
               ),
             ),
           ],
-          const SizedBox(height: AppTokens.spaceLg),
+        ),
+      );
+    }
+
+    // 批量：勾选列表 + 按类型导入
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            l10n.batchImportHint(_previews.length),
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
+          ..._previews.asMap().entries.map((e) {
+            final i = e.key;
+            final c = e.value;
+            return CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              value: _selectedPreviewIndices.contains(i),
+              onChanged: (v) => setState(() {
+                final set = <int>{..._selectedPreviewIndices};
+                if (v == true) {
+                  set.add(i);
+                } else {
+                  set.remove(i);
+                }
+                _selectedPreviewIndices = set;
+              }),
+              title: Text(c.name),
+              subtitle: Text(
+                '${c.site.baseUrl}  ·  ${_typeLabel(c.type, l10n)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              controlAffinity: ListTileControlAffinity.leading,
+            );
+          }),
+          const SizedBox(height: AppTokens.spaceMd),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: valid ? _save : null,
-              child: Text(l10n.save),
+              onPressed: _selectedPreviewIndices.isEmpty ? null : _save,
+              child: Text(
+                l10n.importSelectedCount(_selectedPreviewIndices.length),
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _typeLabel(SourceType type, AppLocalizations l10n) {
+    return switch (type) {
+      SourceType.novelSource => l10n.sourceTypeNovel,
+      SourceType.animeSource => l10n.sourceTypeAnime,
+      SourceType.mangaSource => l10n.sourceTypeManga,
+    };
   }
 }

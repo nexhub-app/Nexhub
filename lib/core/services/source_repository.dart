@@ -109,6 +109,156 @@ class SourceRepository extends ChangeNotifier {
     return null;
   }
 
+  /// 批量解析混合源文本，返回可导入的 [PluginConfig] 列表（仅含校验通过者）。
+  ///
+  /// 支持输入形态：
+  /// - 单个 PluginConfig（Map）
+  /// - JSON 数组（PluginConfig 与 Legado 书源可混排）
+  /// - 单个 Legado 书源对象（缺 `type` 字段）
+  /// - 包装对象 `{"bookSources":[...]}` / `{"data":[...]}` 等
+  /// - NDJSON（每行一个对象）
+  /// - XML（书源 `<source>` / `<bookSource>`）
+  ///
+  /// 无法识别 / 转换 / 校验失败的源被**静默跳过，不整体抛异常**，
+  /// 因此"一次导入小说 + 媒体 + 漫画"时个别坏源不会拖垮整批。
+  static List<PluginConfig> parseMixedSources(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return const <PluginConfig>[];
+    final service = ShuyuanSourceService();
+    try {
+      return _parseMixedWithService(text, service);
+    } finally {
+      service.close();
+    }
+  }
+
+  static List<PluginConfig> _parseMixedWithService(
+    String text,
+    ShuyuanSourceService service,
+  ) {
+    // 单对象（单个 PluginConfig 或单个书源）优先尝试
+    final single = _tryParseOneWithService(text, service);
+    if (single != null) return <PluginConfig>[single];
+
+    final out = <PluginConfig>[];
+
+    // JSON 数组（小说 + 媒体 + 漫画可混排）
+    if (text.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(text);
+        if (decoded is List) {
+          for (final e in decoded) {
+            if (e is Map<String, dynamic>) {
+              final c = _tryParseMapWithService(e, service);
+              if (c != null) out.add(c);
+            }
+          }
+        }
+      } on Object {
+        // 解析失败交给后续兜底
+      }
+    }
+
+    // 包装对象：{"bookSources":[...]} / {"data":[...]} 等
+    if (out.isEmpty && text.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(text);
+        if (decoded is Map<String, dynamic>) {
+          for (final key in const [
+            'bookSources',
+            'bookSource',
+            'data',
+            'sources',
+            'items',
+            'list',
+          ]) {
+            final arr = decoded[key];
+            if (arr is List) {
+              for (final e in arr) {
+                if (e is Map<String, dynamic>) {
+                  final c = _tryParseMapWithService(e, service);
+                  if (c != null) out.add(c);
+                }
+              }
+            }
+          }
+        }
+      } on Object {
+        // ignore
+      }
+    }
+
+    // XML 书源
+    if (out.isEmpty && text.startsWith('<')) {
+      final list = service.parseSources(text);
+      for (final s in list) {
+        try {
+          out.add(ShuyuanAdapter.toPluginConfig(s));
+        } on Object {
+          // skip
+        }
+      }
+    }
+
+    // NDJSON / 多对象拼接：按行尝试
+    if (out.isEmpty) {
+      for (final line in const LineSplitter().convert(text)) {
+        final t = line.trim();
+        if (t.isEmpty || !t.startsWith('{')) continue;
+        final c = _tryParseOneWithService(t, service);
+        if (c != null) out.add(c);
+      }
+    }
+
+    return out;
+  }
+
+  /// 解析单个源文本（单 PluginConfig 或单书源）。失败返回 null。
+  static PluginConfig? _tryParseOneWithService(
+    String text,
+    ShuyuanSourceService service,
+  ) {
+    final t = text.trim();
+    if (t.isEmpty) return null;
+    if (t.startsWith('<')) {
+      final list = service.parseSources(t);
+      if (list.isEmpty) return null;
+      try {
+        return ShuyuanAdapter.toPluginConfig(list.first);
+      } on Object {
+        return null;
+      }
+    }
+    try {
+      final json = jsonDecode(t) as Map<String, dynamic>;
+      return _tryParseMapWithService(json, service);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// 解析单个对象：Legado 书源（缺 type）→ 转 PluginConfig；
+  /// 否则按 PluginConfig 解析，校验失败返回 null。
+  static PluginConfig? _tryParseMapWithService(
+    Map<String, dynamic> json,
+    ShuyuanSourceService service,
+  ) {
+    if (json['bookSourceName'] != null && !json.containsKey('type')) {
+      try {
+        final shuyuan = ShuyuanSource.fromJson(json);
+        return ShuyuanAdapter.toPluginConfig(shuyuan);
+      } on Object {
+        return null;
+      }
+    }
+    try {
+      final config = PluginConfig.fromJson(json);
+      return config.validate().isEmpty ? config : null;
+    } on Object {
+      return null;
+    }
+  }
+
   /// 测试注入用。
   factory SourceRepository.fromJsonList(List<Map<String, dynamic>> list) {
     final configs = list.map(PluginConfig.fromJson).toList();
