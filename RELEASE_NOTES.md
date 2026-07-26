@@ -1,4 +1,4 @@
-# NexHub v0.2.10
+# NexHub v0.2.11
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -162,6 +162,16 @@
 - 仅影响支持主题图标的 Android 13+ 设备；老设备、Android 其它版本以及
   Windows/macOS/Linux 完全不受影响（图标显示行为照旧）。
 
+## 📝 更新日志（v0.2.10 → v0.2.11）
+
+本版相对 v0.2.10 **无应用功能变更**，仅为项目补充「致谢」说明：
+
+### 🙏 文档
+- **新增致谢章节**：在 README 与发布说明中正式感谢 [Legado](https://github.com/gedoor/legado)（及各类改版）与 [Mihon](https://github.com/mihonapp/mihon)（Tachiyomi 衍生版，及各类改版）。
+  - Legado 的「书源」规则系统为 NexHub「源即插件」的解析与共创理念提供了核心启发（尤其小说源的声明式 / 脚本式写法）；
+  - Mihon 的扩展源与漫画阅读器交互为 NexHub 的漫画解析与阅读体验提供了重要参考。
+- 仅更新文档与致谢，不涉及任何代码 / 构建产物变更；应用功能与 v0.2.10 完全一致。
+
 ## 📦 安装
 
 在下方 **Assets** 中下载对应你系统的安装包：
@@ -187,7 +197,7 @@ NexHub 是一款开源技术演示项目，本身**不提供、不存储、不�
 
 ## 🙏 致谢
 
-感谢 [Flutter](https://flutter.dev) / Dart 团队，以及 [flutter_js](https://pub.dev/packages/flutter_js)、[media_kit](https://pub.dev/packages/media_kit)、[canvas_danmaku](https://pub.dev/packages/canvas_danmaku) 等开源项目，和所有为「源即插件 · 共创社区」理念做出贡献的开发者与源作者。
+感谢 [Legado](https://github.com/gedoor/legado)（及各类改版）与 [Mihon](https://github.com/mihonapp/mihon)（Tachiyomi 衍生版，及各类改版）——前者「书源」规则系统启发了 NexHub「源即插件」的解析与共创理念，后者的扩展源与漫画阅读器交互为漫画解析与阅读体验提供了重要参考。也感谢 [Flutter](https://flutter.dev) / Dart 团队，以及 [flutter_js](https://pub.dev/packages/flutter_js)、[media_kit](https://pub.dev/packages/media_kit)、[canvas_danmaku](https://pub.dev/packages/canvas_danmaku) 等开源项目，和所有为「源即插件 · 共创社区」理念做出贡献的开发者与源作者。
 
 ## 📝 已知限制
 

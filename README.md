@@ -326,6 +326,8 @@ NexHub 的生命力来自社区共同维护的「源」。我们欢迎任何人�
 
 感谢以下项目与社区，NexHub 的建立离不开它们：
 
+- [Legado](https://github.com/gedoor/legado)（及其各类改版）的「书源」规则系统，为 NexHub「源即插件」的解析与共创理念提供了核心启发（尤其小说源的声明式 / 脚本式写法）；
+- [Mihon](https://github.com/mihonapp/mihon)（Tachiyomi 衍生版，及其各类改版）的扩展源与漫画阅读器交互，为 NexHub 的漫画解析与阅读体验提供了重要参考；
 - [Flutter](https://flutter.dev) 与 Dart 团队，提供优秀的跨平台框架；
 - [flutter_js](https://pub.dev/packages/flutter_js)（quickjs 内核），为源内嵌脚本提供安全的 JS 沙箱；
 - [xpath_selector](https://pub.dev/packages/xpath_selector) 与 [html](https://pub.dev/packages/html)，提供声明式抽取能力；
