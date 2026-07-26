@@ -1,13 +1,13 @@
-# NexHub v0.2.11
+# NexHub v0.2.12
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
-## ✨ 本次更新（v0.2.11）
+## ✨ 本次更新（v0.2.12）
 
-- **新增致谢说明（文档更新）**：正式感谢 [Legado](https://github.com/gedoor/legado)（及各类改版）与 [Mihon](https://github.com/mihonapp/mihon)（Tachiyomi 衍生版，及各类改版）。
-  - **Legado** 的「书源」规则系统为 NexHub「源即插件」的解析与共创理念提供了核心启发（尤其小说源的声明式 / 脚本式写法）；
-  - **Mihon** 的扩展源与漫画阅读器交互为 NexHub 的漫画解析与阅读体验提供了重要参考。
-- 本版**仅更新文档与致谢，无任何应用功能 / 构建产物变更**，与 v0.2.10 完全兼容。
+- **修复 Android 包无法覆盖安装**：此前 CI 每次构建都随机生成新的 debug keystore，导致每次发出的 APK 签名都不同，已安装旧包无法覆盖升级。
+  现已提交一份**固定签名 keystore**（`android/app/upload-keystore.jks`），并配置 release 构建统一使用它。从本版起，所有 Android 包的签名一致，**可正常覆盖安装**。
+  - ⚠️ 你手机上已安装的旧版（随机签名）仍需**先卸载一次**，再装本版；之后各版本之间即可无缝覆盖。
+  - 此 keystore 随公开仓库公开，仅用于测试分发；若将来要上架 Google Play，请改用私有 release keystore（GitHub Actions secret 注入）。
 
 ## 🔌 重要：先导入源
 
