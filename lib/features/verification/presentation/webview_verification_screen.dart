@@ -123,7 +123,10 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
   Future<void> _openInternalBrowser() async {
     final used = await Navigator.of(context).push<bool>(
       AppPageRoute<bool>(
-        builder: (_) => HttpBrowserScreen(initialUrl: widget.verificationUrl),
+        builder: (_) => HttpBrowserScreen(
+          initialUrl: widget.verificationUrl,
+          verifyMode: true,
+        ),
       ),
     );
     if (used == true && mounted) {
@@ -714,15 +717,17 @@ Future<bool> navigateToVerification(
   required String url,
   VerificationRequiredException? exception,
 }) async {
-  final result = await Navigator.of(context).push<VerificationResult>(
-    AppPageRoute<VerificationResult>(
-      builder: (_) => WebViewVerificationScreen(
-        verificationUrl: url,
-        exception: exception,
-      ),
+  // 需要验证时直接打开应用内浏览器（InAppWebView）过验证，省去先在提示页点
+  // 「打开内置浏览器」的手动步骤（用户诉求：自动打开验证页验证）。WebView 处于
+  // verifyMode：一旦页面加载到真实（非挑战）页，自动把会话 Cookie 同步回
+  // HttpFetcher 并关闭返回 true 触发重试；用户也可手动点菜单「用此页完成验证」。
+  // exception 仅 legacy 提示页曾用到，此处不再需要。
+  final used = await Navigator.of(context).push<bool>(
+    AppPageRoute<bool>(
+      builder: (_) => HttpBrowserScreen(initialUrl: url, verifyMode: true),
     ),
   );
-  return result == VerificationResult.done;
+  return used == true;
 }
 
 /// M2.4 便捷方法：导航到抽取页面并等待结果。

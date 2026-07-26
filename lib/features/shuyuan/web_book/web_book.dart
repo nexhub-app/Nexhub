@@ -6,6 +6,7 @@
 /// 直接基于 XiaoshuoHttp/AnalyzeUrl + 静态分析方法实现，便于在新项目架构下复用。
 library;
 
+import '../../../core/models/novel_block.dart';
 import '../analyze/analyze_rule.dart';
 import '../analyze/analyze_url.dart';
 import '../model/book_source.dart';
@@ -315,7 +316,7 @@ class WebBook {
       return BookContentResult(content: '', error: '正文为空');
     }
 
-    final buffer = StringBuffer();
+    final List<NovelBlock> blocks = <NovelBlock>[];
     final firstContent = BookContent.analyzeContent(
       bookSource: source,
       book: book,
@@ -324,7 +325,7 @@ class WebBook {
       redirectUrl: firstAnalyze.url,
       body: firstBody,
     );
-    buffer.write(firstContent);
+    blocks.addAll(firstContent);
 
     final nextRule = contentRule.nextContentUrl;
     if (nextRule != null && nextRule.isNotEmpty) {
@@ -358,48 +359,21 @@ class WebBook {
           redirectUrl: pageAnalyze.url,
           body: pageBody,
         );
-        if (pageContent.trim().isEmpty) break;
+        if (pageContent.isEmpty) break;
 
-        buffer.write('\n');
-        buffer.write(pageContent);
+        blocks.addAll(pageContent);
         currentUrl = pageAnalyze.url;
         currentBody = pageBody;
       }
     }
 
-    final content = buffer.toString();
-    if (content.trim().isEmpty) {
+    if (blocks.isEmpty) {
       return BookContentResult(content: '', error: '解析失败');
     }
 
-    // 最终统一格式化：确保多页拼接后的输出完全一致，消除"同章不同页排版不同"。
-    // 每页已独立做过缩进/清洗（analyzeContent 内），但各页 HTML 结构可能略有差异
-    // （如页1用<br>分段、页2用<p>分段），导致微小残留不一致。
-    // 此处做最终归一化：统一缩进、统一空行、统一行尾空白。
-    final normalized = _normalizeMultiPageContent(content);
-    return BookContentResult(content: normalized);
-  }
-
-  /// 多页正文最终归一化：拆行 → 去首尾空白 → 过滤纯空行 → 幂等去缩进 + 统一加缩进 → 重拼。
-  ///
-  /// 消除"同一章内翻页排版不一致"的最后一道防线：无论各子页原始 HTML 结构
-  /// 差异如何（<br> vs <p>、有无源码缩进、空行数量），最终输出均为：
-  /// 每非空行恰好一个全角缩进（　　）+ 纯文本内容，行间单换行分隔。
-  ///
-  /// **幂等保证**：先移除行首可能存在的全角/半角缩进（兼容子页已被
-  /// [book_content] 加过缩进的场景），再统一加一个全角空格，确保最终
-  /// 缩进恰好为 2 全角宽（　　），不会叠加。
-  static String _normalizeMultiPageContent(String raw) {
-    return raw
-        .split('\n')
-        .map((line) => line.trim())
-        .where((line) => line.isNotEmpty)
-        .map((line) {
-          // 幂等：先去掉已有的任何前导缩进（全角/半角空格/tab），再统一加
-          final stripped = line.replaceFirst(RegExp(r'^[　\s\t]+'), '');
-          return '　　$stripped';
-        })
-        .join('\n');
+    // 各子页已在 BookContent.analyzeContent 内完成清洗 / 缩进 / 去广告，
+    // 拼接后即为最终正文；此处不再二次归一化（避免重复缩进叠加）。
+    return BookContentResult(blocks: blocks);
   }
 
   /// 从当前页正文中提取"下一页"绝对 URL；无下一页时返回空串。

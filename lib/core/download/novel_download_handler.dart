@@ -6,6 +6,7 @@ library;
 import 'dart:typed_data';
 
 import '../models/episode.dart';
+import '../models/novel_block.dart';
 import '../models/plugin_config.dart';
 import '../scraper/media_api_service.dart';
 import 'download_file_system.dart';
@@ -48,13 +49,15 @@ class NovelDownloadHandler implements DownloadHandler {
     final idxList = [for (var i = 0; i < chapters.length; i++) i];
     await runPool(concurrency, idxList, (i) async {
       final ch = chapters[i];
-      final paragraphs = await service.fetchNovelContent(
+      final blocks = await service.fetchNovelContent(
         source,
         novelId: novelId,
         chapterUrl: ch.url,
       );
-      final content = paragraphs
-          .map((p) => '<p>${_escape(p)}</p>')
+      // 下载只取文本段（插图不嵌入 EPUB，保持正文可读）。
+      final content = blocks
+          .whereType<NovelTextBlock>()
+          .map((b) => '<p>${_escape(b.text)}</p>')
           .join('\n');
       epubChapters[i] = EpubChapter(title: ch.title, content: content);
     });

@@ -26,7 +26,12 @@ import 'package:nexhub/core/navigation/app_page_route.dart';
 class HttpBrowserScreen extends StatefulWidget {
   final String? initialUrl;
 
-  const HttpBrowserScreen({super.key, this.initialUrl});
+  /// 是否在「验证模式」下运行。此时一旦加载到真实（非验证挑战）页，自动把
+  /// Cookie 同步回 [HttpFetcher] 并关闭返回成功，省去手动点「用此页完成验证」。
+  /// 普通浏览（嗅探、复制链接等）保持 false，不受影响。
+  final bool verifyMode;
+
+  const HttpBrowserScreen({super.key, this.initialUrl, this.verifyMode = false});
 
   @override
   State<HttpBrowserScreen> createState() => _HttpBrowserScreenState();
@@ -41,6 +46,9 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
   bool _loading = false;
   bool _pageLoaded = false;
   String? _currentUrl;
+
+  /// 验证模式下是否已自动完成过一次验证回灌，避免重复 pop。
+  bool _autoVerified = false;
 
   /// 当前平台是否支持内置浏览器（[InAppWebView] 在 Web 不可用）。
   bool get _isAvailable => !PlatformService.instance.isWeb;
@@ -181,6 +189,31 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
       }
     } catch (_) {
       // Cookie 读取失败不影响主流程。
+    }
+  }
+
+  /// 判断当前 WebView 页面是否为「验证/反爬挑战页」。
+  ///
+  /// 通过 [InAppWebView] 执行 JS 读取页面 HTML，匹配常见挑战特征
+  /// （`_guard` 滑块、`系统安全验证`、geetest、turnstile、captcha 等）。
+  /// 无法判定（异常/空页面）时保守返回 false（不自动回灌，留手动兜底）。
+  Future<bool> _isChallengePage(InAppWebViewController controller) async {
+    try {
+      final result = await controller.evaluateJavascript(
+        source: '(() => {'
+            'var h = (document && document.documentElement && '
+            'document.documentElement.outerHTML) ? '
+            'document.documentElement.outerHTML.toLowerCase() : "";'
+            'return /_guard|系统安全验证|geetest|slider_html|turnstile|cf_chl|'
+            'captcha|verify you are human|人机|滑块|滑动|访问验证|安全验证|challenge/'
+            '.test(h);'
+            '})()',
+      );
+      if (result is bool) return result;
+      if (result is String) return result.toLowerCase() == 'true';
+      return false;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -354,6 +387,27 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
                   _loading = false;
                   _pageLoaded = true;
                 });
+              }
+              // 验证模式：一旦加载到真实（非挑战）页，自动回灌 Cookie 并返回成功，
+              // 省去手动点「用此页完成验证」。挑战页（含 _guard 等）不会触发。
+              if (widget.verifyMode &&
+                  !_autoVerified &&
+                  url != null &&
+                  url.toString().startsWith('http')) {
+                final isChallenge = await _isChallengePage(controller);
+                if (!isChallenge) {
+                  _autoVerified = true;
+                  await _syncCookiesToFetcher(url.toString());
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.browserUseAsVerificationDone),
+                      ),
+                    );
+                    await Future.delayed(const Duration(milliseconds: 700));
+                    if (mounted) Navigator.of(context).pop(true);
+                  }
+                }
               }
             },
             onUpdateVisitedHistory:

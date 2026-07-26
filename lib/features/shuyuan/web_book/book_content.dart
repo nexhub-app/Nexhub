@@ -4,6 +4,7 @@ library;
 
 import 'package:html/parser.dart' as html_parser;
 
+import '../../../core/models/novel_block.dart';
 import '../model/book_source.dart';
 import '../model/xiaoshuo_book.dart';
 import '../model/xiaoshuo_book_chapter.dart';
@@ -125,7 +126,7 @@ class BookContent {
     'main',
   ];
 
-  static String analyzeContent({
+  static List<NovelBlock> analyzeContent({
     required XiaoshuoBookSource bookSource,
     required XiaoshuoBook book,
     required XiaoshuoBookChapter bookChapter,
@@ -177,10 +178,15 @@ class BookContent {
       final parts = replaceRegex.split('##');
       final pattern = parts[0];
       final replacement = parts.length >= 2 ? parts.sublist(1).join('##') : '';
-      try {
-        // multiLine: true 让 ^...$ 锚点支持每行边界匹配，而非仅整个字符串首尾
-        content = content.replaceAll(RegExp(pattern, multiLine: true), replacement);
-      } catch (_) {}
+      // 防御：空 pattern（如 replaceRegex 误以 '##' 开头 → split 后首段为空）
+      // 会让 RegExp('') 在正文每个字符间插入 replacement，把正文撑成乱码。
+      // 空 pattern 对任何替换都无意义，直接跳过，避免静默损毁内容。
+      if (pattern.isNotEmpty) {
+        try {
+          // multiLine: true 让 ^...$ 锚点支持每行边界匹配，而非仅整个字符串首尾
+          content = content.replaceAll(RegExp(pattern, multiLine: true), replacement);
+        } catch (_) {}
+      }
     }
 
     if (contentRule.title != null && contentRule.title!.isNotEmpty) {
@@ -192,23 +198,23 @@ class BookContent {
       } catch (_) {}
     }
 
-    // 内容清洗：先 HTML 剥离 + 按段分行(_formatContent)，再按"段"去除广告行，
-    // 避免正文被当成一整块文本而整章误删（历史"内容不完整"根因）。
-    content = _formatContent(content);
-    content = _cleanContentAds(content);
+    // 内容清洗：块级剥离 HTML + 按段提取插图 + 按段去除广告行。
+    // 此前 _formatContent 会把 <img> 连同所有标签一起删掉，插图永远丢失；
+    // 现在 _formatToBlocks 在剥离标签的同时把 <img> 提取为插图块（插在其
+    // 相邻文本段之后），使阅读器能图文混排。图片块不参与广告行过滤。
+    var blocks = _formatToBlocks(content, baseUrl, redirectUrl ?? baseUrl);
+    blocks = _cleanContentAdsBlocks(blocks);
 
-    // 添加段落缩进（在 _formatContent 之后，避免被 trim 移除）。
-    // 幂等处理：先去掉行首可能存在的全角/半角缩进，再统一加一个全角空格，
-    // 避免源 HTML 已带首行缩进时与引擎缩进叠加，导致「同一章不同子页
-    // 缩进不一致 / 双倍缩进」的排版跳变（笔趣阁 #nr1@html 多页一致性修复）。
-    if (contentRule.replaceRegex != null && contentRule.replaceRegex!.isNotEmpty && content.isNotEmpty) {
-      content = content.split('\n').map((line) {
-        final stripped = line.replaceFirst(RegExp(r'^[　\s]+'), '');
-        return '　　$stripped';
-      }).join('\n');
+    // 添加段落缩进（仅对声明了 replaceRegex 的源，幂等处理）。
+    // 先去掉行首可能存在的全角/半角缩进，再统一加一个全角空格，避免源 HTML
+    // 已带首行缩进时与引擎缩进叠加（笔趣阁 #nr1@html 多页一致性修复）。
+    if (contentRule.replaceRegex != null &&
+        contentRule.replaceRegex!.isNotEmpty &&
+        blocks.isNotEmpty) {
+      blocks = _applyIndentBlocks(blocks);
     }
 
-    return content;
+    return blocks;
   }
 
   static String _getContent(AnalyzeRule analyzeRule, String contentRule) {
@@ -232,14 +238,17 @@ class BookContent {
     return '';
   }
 
-  /// 内容广告清理：按行匹配广告关键词与跳过模式
-  static String _cleanContentAds(String content) {
-    if (content.isEmpty) return content;
-
-    final lines = content.split('\n');
-    final cleaned = <String>[];
-    for (final line in lines) {
-      final trimmed = line.trim();
+  /// 内容广告清理（块级）：按文本段匹配广告关键词与跳过模式，删除广告文本块；
+  /// 插图块原样保留（插图不是广告行）。
+  static List<NovelBlock> _cleanContentAdsBlocks(List<NovelBlock> blocks) {
+    final out = <NovelBlock>[];
+    for (final b in blocks) {
+      if (b is NovelImageBlock) {
+        out.add(b);
+        continue;
+      }
+      if (b is! NovelTextBlock) continue;
+      final trimmed = b.text.trim();
       if (trimmed.isEmpty) continue;
 
       // 跳过导航 / 版权等整行模式（始终移除）。
@@ -263,9 +272,31 @@ class BookContent {
       }
       if (isAd) continue;
 
-      cleaned.add(trimmed);
+      out.add(b);
     }
-    return cleaned.join('\n');
+    return out;
+  }
+
+  /// 段落缩进（幂等）：仅作用于文本块，插图块原样保留。
+  ///
+  /// 先去掉行首已有的全角/半角缩进，再统一加一个全角空格，避免源 HTML
+  /// 已带首行缩进时与引擎缩进叠加（笔趣阁 #nr1@html 多页一致性修复）。
+  static List<NovelBlock> _applyIndentBlocks(List<NovelBlock> blocks) {
+    return [
+      for (final b in blocks)
+        if (b is NovelImageBlock)
+          b
+        else if (b is NovelTextBlock)
+          NovelTextBlock(_indentParagraph(b.text))
+        else
+          b,
+    ];
+  }
+
+  /// 幂等加首行缩进：去掉行首已有缩进后统一加一个全角空格。
+  static String _indentParagraph(String text) {
+    final stripped = text.replaceFirst(RegExp(r'^[　\s\t]+'), '');
+    return '　　$stripped';
   }
 
   /// 还原 CSS flex `order` 乱序反爬。
@@ -295,42 +326,126 @@ class BookContent {
     return items.map((e) => '<p>${e.value}</p>').join('\n');
   }
 
-  static String _formatContent(String content) {
-    if (content.isEmpty) return content;
+  /// HTML → 图文块：剥离标签得到文本段，同时把 `<img>` 提取为插图块。
+  ///
+  /// 逐块（按 <br>/<p> 边界切分）处理：每块先提取内部插图（src / data-src /
+  /// data-original 懒加载，拼 baseUrl 绝对化），再文本化（剥离标签 + 解码实体
+  /// + 规整空白）。插图块追加在所属文本段之后，保留图文混排位置。
+  /// 此前 _formatContent 用 [_htmlTagRegex] 把 <img> 连同所有标签一起删除，插图
+  /// 永远丢失 —— 这是"小说阅读器看不到插图"的根因。
+  static List<NovelBlock> _formatToBlocks(
+    String content,
+    String baseUrl,
+    String redirectUrl,
+  ) {
+    if (content.isEmpty) return const [];
 
-    // Convert <br> tags to newlines before stripping HTML
-    content = content.replaceAll(_brRegex, '\n');
-    content = content.replaceAll(_pOpenRegex, '\n');
-    content = content.replaceAll(_pCloseRegex, '\n');
-
-    // 剥离 HTML 标签
-    content = content.replaceAll(_htmlTagRegex, '');
-
-    // 解码 HTML 实体
+    // 先把残留的 <br>/<p> 边界规整成换行（与旧 _formatContent 一致）。
     content = content
+        .replaceAll(_brRegex, '\n')
+        .replaceAll(_pOpenRegex, '\n')
+        .replaceAll(_pCloseRegex, '\n');
+
+    final rawLines = content.split('\n');
+    final blocks = <NovelBlock>[];
+    for (final rawLine in rawLines) {
+      // 1) 提取本块内插图（懒加载属性优先，回退 src）。
+      final imgs = _extractImageUrls(rawLine, baseUrl, redirectUrl);
+      // 2) 文本化：剥离标签 + 解码实体 + 规整空白。
+      var text = rawLine.replaceAll(_htmlTagRegex, '');
+      text = _decodeEntities(text);
+      text = text
+          .replaceAll(_crlfRegex, '\n')
+          .replaceAll(_crRegex, '\n')
+          .replaceAll(_whitespaceRegex, ' ')
+          .trim();
+      if (text.isNotEmpty) {
+        blocks.add(NovelTextBlock(text));
+      }
+      for (final img in imgs) {
+        blocks.add(NovelImageBlock(img));
+      }
+    }
+    return blocks;
+  }
+
+  /// 从一段 HTML 中提取插图绝对 URL（按顺序）。
+  ///
+  /// 懒加载图常见写法 `<img src="占位.gif" data-src="真图.jpg">`，故优先取
+  /// data-original / data-src / data-lazy-src，回退 src。相对路径用最终页 URL
+  /// （redirectUrl）解析，避免拼到错误域名。
+  static List<String> _extractImageUrls(
+    String block,
+    String baseUrl,
+    String redirectUrl,
+  ) {
+    final imgTags =
+        RegExp(r'<img\b[^>]*>', caseSensitive: false).allMatches(block);
+    final urls = <String>[];
+    for (final im in imgTags) {
+      final tag = im.group(0) ?? '';
+      final src = _attr(tag, 'data-original') ??
+          _attr(tag, 'data-src') ??
+          _attr(tag, 'data-lazy-src') ??
+          _attr(tag, 'src');
+      if (src == null || src.isEmpty) continue;
+      final abs = _toAbsoluteUrl(src, baseUrl, redirectUrl);
+      if (_looksLikeImage(abs)) urls.add(abs);
+    }
+    return urls;
+  }
+
+  /// 读取单个 HTML 标签属性值。
+  static String? _attr(String tag, String name) {
+    final m = RegExp(
+      '$name=["\']([^"\']+)["\']',
+      caseSensitive: false,
+    ).firstMatch(tag);
+    return m?.group(1);
+  }
+
+  /// 相对路径转绝对 URL：优先用最终页地址（redirectUrl），回退 baseUrl。
+  static String _toAbsoluteUrl(String src, String baseUrl, String redirectUrl) {
+    if (src.startsWith('http://') ||
+        src.startsWith('https://') ||
+        src.startsWith('data:image')) {
+      return src;
+    }
+    final base = redirectUrl.isNotEmpty ? redirectUrl : baseUrl;
+    if (base.isEmpty) return src;
+    try {
+      return Uri.parse(base).resolve(src).toString();
+    } catch (_) {
+      return src;
+    }
+  }
+
+  /// 过滤明显非插图的占位图（1px 透明图、loading 动画、spacer 等）。
+  static bool _looksLikeImage(String url) {
+    if (url.startsWith('data:image')) return true;
+    final lower = url.toLowerCase();
+    if (lower.contains('1x1') ||
+        lower.contains('loading') ||
+        lower.contains('placeholder') ||
+        lower.contains('spacer') ||
+        lower.contains('pixel') ||
+        lower.contains('blank')) {
+      return false;
+    }
+    return RegExp(
+      r'\.(jpe?g|png|gif|webp|avif|bmp|svg)(\?|#|$)',
+    ).hasMatch(lower);
+  }
+
+  /// 解码常见 HTML 实体（与旧 _formatContent 行为一致）。
+  static String _decodeEntities(String text) {
+    return text
         .replaceAll('&amp;', '&')
         .replaceAll('&lt;', '<')
         .replaceAll('&gt;', '>')
         .replaceAll('&quot;', '"')
         .replaceAll('&#39;', "'")
         .replaceAll('&nbsp;', ' ');
-
-    // Normalize line endings: remove \r\n and \r
-    content = content.replaceAll(_crlfRegex, '\n').replaceAll(_crRegex, '\n');
-
-    // Normalize horizontal whitespace (tabs and multiple spaces -> single space)
-    content = content.replaceAll(_whitespaceRegex, ' ');
-
-    // Trim each line and drop empty lines
-    final lines = content.split('\n');
-    final cleanedLines = <String>[];
-    for (final line in lines) {
-      final trimmed = line.trim();
-      if (trimmed.isNotEmpty) {
-        cleanedLines.add(trimmed);
-      }
-    }
-    return cleanedLines.join('\n');
   }
 
   static String _extractGenericContent(String body) {

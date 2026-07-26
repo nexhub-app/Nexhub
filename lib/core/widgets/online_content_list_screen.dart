@@ -24,6 +24,7 @@ import 'online_filter_sheet.dart';
 import 'online_home_section.dart';
 import 'online_schedule_section.dart';
 import 'layout_picker_dialog.dart';
+import 'source_image.dart';
 
 /// 拉取某源在指定分类 / 页码下的内容列表。
 typedef FetchItems = Future<List<MediaItem>> Function(
@@ -1407,11 +1408,13 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                 child: item.coverUrl != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                        child: Image.network(
-                          item.coverUrl!,
+                        child: SourceImage(
+                          url: item.coverUrl,
+                          source: _source,
+                          width: 40,
+                          height: 56,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.movie, size: 20),
+                          placeholder: const Icon(Icons.movie, size: 20),
                         ),
                       )
                     : const Icon(Icons.movie, size: 20),
