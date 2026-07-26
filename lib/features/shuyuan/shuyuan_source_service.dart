@@ -41,6 +41,13 @@ class ShuyuanSource {
   final Map<String, dynamic>? ruleToc;
   final Map<String, dynamic>? ruleContent;
   final Map<String, dynamic>? ruleExplore;
+  /// 动态筛选分组（共创式：源自行声明 `filters`，驱动发现页筛选按钮与
+  /// PTCMS 分类 URL 拼装）。原样透传到 PluginConfig.filters。
+  final Map<String, dynamic>? filters;
+
+  /// 首页多板块配置（共创式：源自行声明 `homeSections`，驱动首页竖向堆叠
+  /// 渲染）。原样透传到 PluginConfig.homeSections。
+  final List<Map<String, dynamic>>? homeSections;
 
   const ShuyuanSource({
     required this.bookSourceName,
@@ -58,6 +65,8 @@ class ShuyuanSource {
     this.ruleToc,
     this.ruleContent,
     this.ruleExplore,
+    this.filters,
+    this.homeSections,
   });
 
   bool get isValid =>
@@ -127,6 +136,8 @@ class ShuyuanSource {
       ruleToc: _parseRuleDynamic(json['ruleToc']),
       ruleContent: _parseRuleDynamic(json['ruleContent']),
       ruleExplore: _parseRuleDynamic(json['ruleExplore']),
+      filters: _parseRuleDynamic(json['filters']),
+      homeSections: _parseHomeSections(json['homeSections']),
     );
   }
 
@@ -146,7 +157,25 @@ class ShuyuanSource {
         if (ruleToc != null) 'ruleToc': ruleToc,
         if (ruleContent != null) 'ruleContent': ruleContent,
         if (ruleExplore != null) 'ruleExplore': ruleExplore,
+        if (filters != null) 'filters': filters,
+        if (homeSections != null) 'homeSections': homeSections,
       };
+}
+
+List<Map<String, dynamic>>? _parseHomeSections(dynamic val) {
+  if (val == null) return null;
+  if (val is List) {
+    final result = <Map<String, dynamic>>[];
+    for (final item in val) {
+      if (item is Map<String, dynamic>) {
+        result.add(item);
+      } else if (item is Map) {
+        result.add(Map<String, dynamic>.from(item.cast<String, dynamic>()));
+      }
+    }
+    if (result.isNotEmpty) return result;
+  }
+  return null;
 }
 
 Map<String, dynamic>? _parseRuleDynamic(dynamic val) {

@@ -7,6 +7,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
+import '../scraper/http_fetcher.dart';
 
 /// 统一源图片 widget：按源配置注入防盗链 headers，带缓存、失败重试、圆角、Hero。
 ///
@@ -69,6 +70,27 @@ class SourceImage extends StatelessWidget {
     if (cookies != null && cookies.isNotEmpty) {
       m['Cookie'] = cookies;
     }
+    // 注入验证回灌的会话 Cookie：_guard 等反爬系统对图片同样校验会话，
+    // 缺 Cookie 时封面图请求会被拦（403/空）导致「没有封面」。HttpFetcher
+    // 在 WebView 过验证后已写入共享 jar，此处按域名取出回带。
+    final synced = HttpFetcher.instance.cookieHeaderForUrl(url);
+    if (synced != null && synced.isNotEmpty) {
+      final existing = m['Cookie'];
+      m['Cookie'] = (existing != null && existing.isNotEmpty)
+          ? '$existing; $synced'
+          : synced;
+    }
+    // 默认补同源 Referer：大量站（含幻梦ACG）防盗链要求，缺失即 403。
+    if (!m.containsKey('Referer')) {
+      final String? rawUrl = url;
+      if (rawUrl != null) {
+        try {
+          m['Referer'] = Uri.parse(rawUrl).origin;
+        } catch (_) {
+          // 非法 URL 忽略 Referer。
+        }
+      }
+    }
     return m;
   }
 
@@ -88,32 +110,42 @@ class SourceImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? u = url;
-    final Widget core;
-    if (u == null || u.isEmpty) {
-      core = placeholder ?? _defaultPlaceholder(context);
-    } else if (_isHttp) {
-      core = _RetryableNetworkImage(
-        url: u,
-        headers: _buildHeaders(),
-        width: width,
-        height: height,
-        fit: fit,
-        placeholder: placeholder ?? _defaultPlaceholder(context),
-        enableRetry: enableRetry,
-      );
-    } else {
-      core = Image.file(
-        File(u),
-        width: width,
-        height: height,
-        fit: fit,
-        errorBuilder: (c, e, s) => placeholder ?? _defaultPlaceholder(context),
-      );
-    }
-
     final double? r = radius;
-    final Widget clipped =
-        r == null ? core : ClipRRect(borderRadius: BorderRadius.circular(r), child: core);
+    // 监听 Cookie 版本流：验证回灌 Cookie 后立刻用含版本的新 cacheKey 重取
+    // 之前因缺 Cookie 而加载失败的封面（满足「回灌后自动刷新封面」）。
+    final Widget clipped = StreamBuilder<int>(
+      stream: HttpFetcher.instance.cookieVersionStream,
+      initialData: HttpFetcher.instance.cookieVersion,
+      builder: (ctx, snap) {
+        final int version = snap.data ?? HttpFetcher.instance.cookieVersion;
+        final Widget core;
+        if (u == null || u.isEmpty) {
+          core = placeholder ?? _defaultPlaceholder(context);
+        } else if (_isHttp) {
+          core = _RetryableNetworkImage(
+            url: u,
+            headers: _buildHeaders(),
+            cookieVersion: version,
+            width: width,
+            height: height,
+            fit: fit,
+            placeholder: placeholder ?? _defaultPlaceholder(context),
+            enableRetry: enableRetry,
+          );
+        } else {
+          core = Image.file(
+            File(u),
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (c, e, s) => placeholder ?? _defaultPlaceholder(context),
+          );
+        }
+        return r == null
+            ? core
+            : ClipRRect(borderRadius: BorderRadius.circular(r), child: core);
+      },
+    );
     return heroTag == null ? clipped : Hero(tag: heroTag!, child: clipped);
   }
 }
@@ -127,6 +159,7 @@ class _RetryableNetworkImage extends StatefulWidget {
   final BoxFit fit;
   final Widget placeholder;
   final bool enableRetry;
+  final int cookieVersion;
 
   const _RetryableNetworkImage({
     required this.url,
@@ -136,6 +169,7 @@ class _RetryableNetworkImage extends StatefulWidget {
     this.fit = BoxFit.cover,
     required this.placeholder,
     this.enableRetry = true,
+    this.cookieVersion = 0,
   });
 
   @override
@@ -177,9 +211,10 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
   @override
   Widget build(BuildContext context) {
     return CachedNetworkImage(
-      key: ValueKey<String>('${widget.url}-$_retryKey'),
+      key: ValueKey<String>('${widget.url}-$_retryKey-${widget.cookieVersion}'),
       imageUrl: widget.url,
       httpHeaders: widget.headers,
+      cacheKey: '${widget.url}#v${widget.cookieVersion}',
       width: widget.width,
       height: widget.height,
       fit: widget.fit,

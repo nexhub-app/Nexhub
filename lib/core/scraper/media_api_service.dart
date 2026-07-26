@@ -7,6 +7,7 @@ library;
 import '../models/category_entry.dart';
 import '../models/episode.dart';
 import '../models/media_item.dart';
+import '../models/novel_block.dart';
 import '../models/plugin_config.dart';
 import '../resolver/builtin_resolver.dart';
 import '../resolver/resolver_registry.dart';
@@ -555,10 +556,11 @@ class MediaApiService {
     return r as VideoResult;
   }
 
-  /// 小说章节正文（按 `content` 路由解析，返回段落列表）。
+  /// 小说章节正文（按 `content` 路由解析，返回图文块列表）。
   ///
   /// [novelId] 注入 `{id}`，[chapterUrl] 注入 `{chapter}`/`{url}`。
-  Future<List<String>> fetchNovelContent(
+  /// 返回 [List<NovelBlock>]：文本段与插图共存，供阅读器图文混排。
+  Future<List<NovelBlock>> fetchNovelContent(
     PluginConfig source, {
     required String novelId,
     required String chapterUrl,
@@ -575,7 +577,7 @@ class MediaApiService {
           'url': chapterUrl,
         },
       );
-      return _asStrings(r);
+      return _asBlocks(r);
     }
     final r = await registry.find(source, 'content').resolve(
           source,
@@ -586,7 +588,7 @@ class MediaApiService {
             'url': chapterUrl,
           },
         );
-    return _asStrings(r);
+    return _asBlocks(r);
   }
 
   List<MediaItem> _asItems(dynamic r) {
@@ -598,6 +600,21 @@ class MediaApiService {
   List<Episode> _asEpisodes(dynamic r) {
     if (r is List<Episode>) return r;
     if (r is List) return [for (final e in r) if (e is Episode) e];
+    return const [];
+  }
+
+  List<NovelBlock> _asBlocks(dynamic r) {
+    if (r is List<NovelBlock>) return r;
+    if (r is List<String>) return [for (final e in r) NovelTextBlock(e)];
+    if (r is List) {
+      return [
+        for (final e in r)
+          if (e is NovelBlock)
+            e
+          else if (e is String)
+            NovelTextBlock(e),
+      ];
+    }
     return const [];
   }
 

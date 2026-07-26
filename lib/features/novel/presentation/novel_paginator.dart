@@ -16,6 +16,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 
+import '../../../core/models/novel_block.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -71,8 +72,31 @@ class NovelLine {
   }
 }
 
-/// 单页数据：该页包含的视觉行列表。
-typedef NovelPage = List<NovelLine>;
+/// 单页中的一个项：文本行或插图。
+///
+/// 翻页模式下插图[NovelImageItem]独占一页（fit contain 居中显示），不与其
+/// 他文字挤在一页 —— 因为网络图片高度未知，混排会挤乱文字分页；独占成页
+/// 既保证排版稳定，又能完整看图。
+sealed class NovelPageItem {
+  const NovelPageItem();
+}
+
+/// 文本行项（包装[NovelLine]，与插图项统一类型，便于分页器/渲染器遍历）。
+class NovelTextLineItem extends NovelPageItem {
+  final NovelLine line;
+
+  const NovelTextLineItem(this.line);
+}
+
+/// 插图项：在翻页模式下独占一页显示。
+class NovelImageItem extends NovelPageItem {
+  final NovelImageBlock image;
+
+  const NovelImageItem(this.image);
+}
+
+/// 单页数据：该页包含的项列表（文本行 + 插图）。
+typedef NovelPage = List<NovelPageItem>;
 
 /// 分页结果。
 class NovelPaginationResult {
@@ -97,12 +121,12 @@ class NovelPaginator {
 
   /// 将章节正文分页。
   ///
-  /// [paragraphs] — 章节正文段落（每段首行已含 `　　` 缩进）。
+  /// [blocks] — 章节正文块（文本段与插图共存，每段首行已含 `　　` 缩进）。
   /// [constraints] — 可用绘图区域约束。
   /// [prefs] — 阅读器偏好（字号 / 行距 / 段距 / 边距）。
   /// [context] — BuildContext（用于获取文本方向 / MediaQuery）。
   static NovelPaginationResult paginate({
-    required List<String> paragraphs,
+    required List<NovelBlock> blocks,
     required BoxConstraints constraints,
     required NovelReaderPreferences prefs,
     required BuildContext context,
@@ -130,7 +154,7 @@ class NovelPaginator {
 
     final height = constraints.maxHeight - prefs.margin * 2 - chromeHeight;
 
-    if (width <= 0 || height <= 0 || paragraphs.isEmpty) {
+    if (width <= 0 || height <= 0 || blocks.isEmpty) {
       return const NovelPaginationResult(
         pages: <NovelPage>[],
         pageSize: Size.zero,
@@ -141,15 +165,31 @@ class NovelPaginator {
     final dir = Directionality.of(context);
     final scaler = MediaQuery.textScalerOf(context);
 
-    // 1) 把每个段落拆成视觉行（与正文渲染用同一 TextPainter 布局，
-    //    保证断行点与渲染一致；首行自带 `　　` 缩进，续行无缩进）。
-    final allLines = <NovelLine>[];
-    for (var pi = 0; pi < paragraphs.length; pi++) {
-      final para = paragraphs[pi];
-      if (para.isEmpty) continue;
-      allLines.addAll(_breakParagraph(para, pi, style, width, dir, scaler));
+    // 1) 把每个块拆成页项（文本行 or 插图项），保留原顺序。
+    //    文本块用与正文渲染同一 TextPainter 布局，保证断行点一致；
+    //    插图块转为 [NovelImageItem]，翻页时独占一页。
+    final allItems = <NovelPageItem>[];
+    var textBlockIndex = 0;
+    for (final block in blocks) {
+      if (block is NovelTextBlock) {
+        if (block.text.isEmpty) continue;
+        final lines = _breakParagraph(
+          block.text,
+          textBlockIndex,
+          style,
+          width,
+          dir,
+          scaler,
+        );
+        for (final l in lines) {
+          allItems.add(NovelTextLineItem(l));
+        }
+        textBlockIndex++;
+      } else if (block is NovelImageBlock) {
+        allItems.add(NovelImageItem(block));
+      }
     }
-    if (allLines.isEmpty) {
+    if (allItems.isEmpty) {
       return const NovelPaginationResult(
         pages: <NovelPage>[],
         pageSize: Size.zero,
@@ -214,21 +254,38 @@ class NovelPaginator {
     //    结果：每页顶到页底、各页行数一致、段落可跨页断行、无孤立寡行。
     const int minWidowLines = 3; // 下页同段至少保留此数行才允许在当前行后断页
     final pages = <NovelPage>[];
-    var current = <NovelLine>[];
+    var current = <NovelPageItem>[];
     var used = titleReserve;
-    for (var i = 0; i < allLines.length; i++) {
-      final line = allLines[i];
+    for (var i = 0; i < allItems.length; i++) {
+      final item = allItems[i];
+
+      // 插图独占一页：先 flush 当前文字页，再加一个仅含图片的页。
+      // 网络图片高度未知，混入文字页会挤乱分页；独占成页既排版稳定又能看图。
+      if (item is NovelImageItem) {
+        if (current.isNotEmpty) {
+          pages.add(current);
+          current = <NovelPageItem>[];
+          used = 0;
+        }
+        pages.add(<NovelPageItem>[item]);
+        continue;
+      }
+
+      final line = (item as NovelTextLineItem).line;
       final lineH = lineHeight + (line.isLastLine ? prefs.paragraphSpacing : 0);
 
       // 当前页已放不下且不是空页 → 考虑翻页
       if (used + lineH > height && current.isNotEmpty) {
         // ── 寡行检测 ──
         // 统计当前行所属段落在「即将推入新页的部分」中有多少行：
-        // 从 allLines[i] 开始往后数，直到遇到下一个段落的首行(isFirstLine)或结尾。
+        // 从 allItems[i] 开始往后数，直到遇到下一个段落的末行(isLastLine)
+        // 或插图项（插图不是同段文字，应终止计数）。
         int upcomingLinesOfSamePara = 0;
-        for (var j = i; j < allLines.length; j++) {
+        for (var j = i; j < allItems.length; j++) {
+          final it = allItems[j];
+          if (it is NovelImageItem) break;
           upcomingLinesOfSamePara++;
-          if (allLines[j].isLastLine) break; // 到了段落末尾
+          if ((it as NovelTextLineItem).line.isLastLine) break; // 到了段落末尾
         }
 
         // 若即将推入新页的同段行数不足阈值 → 会产生寡行！
@@ -238,18 +295,25 @@ class NovelPaginator {
             upcomingLinesOfSamePara > 0) {
           // 找到当前行所属段落 在 current 中的起始索引
           var paraStartInCurrent = current.length;
-          while (paraStartInCurrent > 0 &&
-              current[paraStartInCurrent - 1].paragraphIndex == line.paragraphIndex) {
-            paraStartInCurrent--;
+          while (paraStartInCurrent > 0) {
+            final prev = current[paraStartInCurrent - 1];
+            if (prev is NovelTextLineItem &&
+                prev.line.paragraphIndex == line.paragraphIndex) {
+              paraStartInCurrent--;
+            } else {
+              break;
+            }
           }
 
           // 把本段已装入 current 的行退出来（连同 used 高度一起扣回）
-          final deferred = <NovelLine>[];
+          final deferred = <NovelPageItem>[];
           while (current.length > paraStartInCurrent) {
             final removed = current.removeLast();
             deferred.insert(0, removed); // 保持顺序
-            used -= lineHeight +
-                (removed.isLastLine ? prefs.paragraphSpacing : 0);
+            final removedLineH = removed is NovelTextLineItem
+                ? lineHeight + (removed.line.isLastLine ? prefs.paragraphSpacing : 0)
+                : 0;
+            used -= removedLineH;
           }
 
           // 当前页到此结束（不含被回退的本段行）
@@ -262,12 +326,12 @@ class NovelPaginator {
         } else {
           // 无寡行风险 → 正常翻页
           pages.add(current);
-          current = <NovelLine>[];
+          current = <NovelPageItem>[];
           used = 0;
         }
       }
 
-      current.add(line);
+      current.add(item);
       used += lineH;
     }
     if (current.isNotEmpty) {
