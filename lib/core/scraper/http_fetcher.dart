@@ -2,6 +2,7 @@
 /// 全应用只应有一个 HttpFetcher 实例（spec：headless WebView 加载前把 Cookie 写入共享 CookieManager）。
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' show Random;
@@ -36,6 +37,15 @@ class HttpFetcher {
 
   late Dio _dio;
   final Map<String, String> _cookieJar = {};
+
+  /// 会话 Cookie 版本。每次 [syncCookies] 自增并广播，供封面图加载层
+  /// （[SourceImage]）在「验证回灌 Cookie」后立刻重取此前因缺 Cookie 而加载
+  /// 失败的封面（_guard 等反爬系统对图片同样校验会话，否则返回 403/空）。
+  int _cookieVersion = 0;
+  final StreamController<int> _cookieVersionController =
+      StreamController<int>.broadcast();
+  Stream<int> get cookieVersionStream => _cookieVersionController.stream;
+  int get cookieVersion => _cookieVersion;
 
   /// 每域名固定的浏览器指纹档案序号：保证同一站点每次请求用同一套 UA/指纹，
   /// 既轮换了不同站点之间的指纹，又不会在单次会话里自相矛盾。
@@ -160,6 +170,13 @@ class HttpFetcher {
     if (matched.isEmpty) return null;
     return matched.join('; ');
   }
+
+  /// 公开取 Cookie 头：供小说侧 [AnalyzeUrl] 等独立 Dio 复用共享 Cookie 存储。
+  ///
+  /// 验证系统在 WebView（内置浏览器）里被通过后，会话 Cookie 已通过
+  /// [syncCookies] 写入本 jar；直连重试时必须带上才能过验证，否则重试仍撞
+  /// 验证页（之前 幻梦ACG「系统安全验证」）返空列表。内部复用父域/子域匹配逻辑。
+  String? cookieHeaderForUrl(String? url) => _cookieHeaderFor(url);
 
   /// 将响应字节按字符集解码为字符串。
   ///
@@ -583,8 +600,15 @@ class HttpFetcher {
   }
 
   /// WebView 验证完成后把共享 Cookie 同步进 Fetcher（含父域子域匹配）。
+  ///
+  /// 同步后自增 [cookieVersion] 并广播，触发封面图加载层立即用新 Cookie 重取
+  /// 之前失败的封面（满足「回灌 Cookie 后自动刷新封面」诉求）。
   void syncCookies(String host, String cookieHeader) {
     _cookieJar[host] = cookieHeader;
+    _cookieVersion++;
+    if (!_cookieVersionController.isClosed) {
+      _cookieVersionController.add(_cookieVersion);
+    }
   }
 
   String? getCookieHeader(String host) => _cookieJar[host];

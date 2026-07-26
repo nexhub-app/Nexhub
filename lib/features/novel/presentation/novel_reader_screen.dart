@@ -16,6 +16,7 @@ import '../../../core/comic/models/reader_preferences.dart'
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/models/novel_block.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/download/download_manager.dart';
 import '../../../core/novel/novel_page_animation.dart';
@@ -31,6 +32,7 @@ import '../../../core/theme/reader_tokens.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/chapter_list_sheet.dart';
 import '../../../core/widgets/detail_action_utils.dart';
+import '../../../core/widgets/source_image.dart';
 import 'novel_animated_page_view.dart';
 import 'novel_bookmark_manager.dart';
 import 'novel_chinese_converter.dart';
@@ -168,10 +170,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   int _chapterIndex = 0;
   int _savedPage = 0;
 
-  /// 网络拉取的原始段落（未做繁简转换）。
-  List<String> _rawParagraphs = const <String>[];
-  /// 实际渲染的段落（应用繁简转换后）。
-  List<String> _paragraphs = const <String>[];
+  /// 网络拉取的原始图文块（未做繁简转换）。
+  List<NovelBlock> _rawParagraphs = const <NovelBlock>[];
+  /// 实际渲染的图文块（应用繁简转换后）。
+  List<NovelBlock> _paragraphs = const <NovelBlock>[];
+
+  /// 仅文本块列表（供 TTS 朗读，跳过插图；索引与排版段落序号一致）。
+  List<String> get _paragraphTexts =>
+      [for (final b in _paragraphs) if (b is NovelTextBlock) b.text];
   NovelPaginationResult? _pagination;
   /// 当前 [_pagination] 对应的章节下标。用于检测「跨章后分页是否需刷新」：
   /// 相邻两章页数可能相同，仅比较页数长度无法触发刷新（会残留上一章的分页）。
@@ -374,16 +380,18 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           .toList(growable: false);
       if (paragraphs.isEmpty) {
         setState(() {
-          _rawParagraphs = const <String>[];
-          _paragraphs = const <String>[];
+          _rawParagraphs = const <NovelBlock>[];
+          _paragraphs = const <NovelBlock>[];
           _loading = false;
           _error = AppLocalizations.of(context).localFileLoadFailed;
         });
         return;
       }
+      // 本地文本只有纯文本段，包成文本块（无插图）。
+      final blocks = paragraphs.map(NovelTextBlock.new).toList();
       setState(() {
-        _rawParagraphs = paragraphs;
-        _paragraphs = _applyConvert(paragraphs);
+        _rawParagraphs = blocks;
+        _paragraphs = _applyConvert(blocks);
         _loading = false;
         _error = null;
         _contentVersion++;
@@ -482,7 +490,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     } else {
       _tts.setBackground(_prefs.ttsBackground);
       await _tts.setRate(_prefs.ttsSpeechRate);
-      await _tts.speak(_paragraphs, sleepTimer: _prefs.ttsSleepTimer);
+      await _tts.speak(_paragraphTexts, sleepTimer: _prefs.ttsSleepTimer);
     }
     if (mounted) setState(() {});
   }
@@ -840,10 +848,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _chapterLoading = false;
   }
 
-  /// 按当前繁简转换模式转换段落列表。
-  List<String> _applyConvert(List<String> input) {
+  /// 按当前繁简转换模式转换图文块：仅文本块做转换，插图块原样保留。
+  List<NovelBlock> _applyConvert(List<NovelBlock> input) {
     final mode = ChineseConvertMode.fromString(_prefs.chineseConvert);
-    return convertChineseList(input, mode);
+    if (mode == ChineseConvertMode.none) return input;
+    return [
+      for (final b in input)
+        if (b is NovelTextBlock)
+          NovelTextBlock(convertChinese(b.text, mode))
+        else
+          b,
+    ];
   }
 
   /// 重新应用繁简转换（在 [NovelReaderPreferences.chineseConvert] 变更后调用）。
@@ -983,7 +998,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final pages = _pagination?.pages;
     if (pages != null) {
       for (int i = 0; i < pages.length; i++) {
-        if (pages[i].any((NovelLine l) => l.paragraphIndex == clamped)) {
+        if (pages[i].any((item) =>
+            item is NovelTextLineItem && item.line.paragraphIndex == clamped)) {
           if (i != _currentPage) {
             _pageKey.currentState?.jumpToPage(i);
           }
@@ -993,13 +1009,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
     // 从点击的段落重新开始 TTS 朗读。
     if (_tts.isPlaying || _tts.isPaused) {
-      _tts.speak(_paragraphs, startIndex: clamped,
+      _tts.speak(_paragraphTexts, startIndex: clamped,
           sleepTimer: _prefs.ttsSleepTimer);
     } else {
       // TTS 未启动时，直接从该段开始朗读。
       _tts.setBackground(_prefs.ttsBackground);
       _tts.setRate(_prefs.ttsSpeechRate);
-      _tts.speak(_paragraphs, startIndex: clamped,
+      _tts.speak(_paragraphTexts, startIndex: clamped,
           sleepTimer: _prefs.ttsSleepTimer);
     }
     setState(() {});
@@ -1346,7 +1362,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         final int prevChapterIndex = _paginationChapterIndex;
         if (_pagination == null || sigChanged) {
           _pagination = NovelPaginator.paginate(
-            paragraphs: _paragraphs,
+            blocks: _paragraphs,
             constraints: constraints,
             prefs: _prefs,
             context: context,
@@ -1427,6 +1443,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               ttsCurrentIndex: _tts.currentIndex,
               ttsActive: _tts.state != NovelTtsState.stopped,
               onParagraphTap: _onParagraphTapped,
+              onImageTap: (url, src) => _showImageViewer(url, src ?? _source),
+              source: _source,
             );
           },
           scrollBuilder: _prefs.pageAnimation.isScroll
@@ -1453,7 +1471,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         : widget.chapters[_chapterIndex].title;
     final bool showTitle = _prefs.showChapterTitleInBody &&
         scrollChapterTitle.isNotEmpty;
-    // 显示标题时列表首项为标题，其后为正文段落。
+    // 显示标题时列表首项为标题，其后为图文块。
     final int itemCount = _paragraphs.length + (showTitle ? 1 : 0);
 
     return ListView.builder(
@@ -1471,15 +1489,70 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             widget.title,
           );
         }
-        final int paraIdx = showTitle ? i - 1 : i;
+        final int idx = showTitle ? i - 1 : i;
+        final block = _paragraphs[idx];
+        // 插图块：滚动模式图文混排，固定比例缩略显示，点开看大图。
+        if (block is NovelImageBlock) {
+          final double bodyW =
+              MediaQuery.of(ctx).size.width - _prefs.margin * 2;
+          return Padding(
+            padding: EdgeInsets.only(bottom: _prefs.paragraphSpacing),
+            child: GestureDetector(
+              onTap: () =>
+                  _showImageViewer(block.url, block.source ?? _source),
+              child: SourceImage(
+                url: block.url,
+                source: block.source ?? _source,
+                width: bodyW,
+                height: bodyW * 0.5,
+                fit: BoxFit.cover,
+                radius: 8,
+              ),
+            ),
+          );
+        }
+        final String text =
+            block is NovelTextBlock ? block.text : '';
         return Padding(
           padding: EdgeInsets.only(bottom: _prefs.paragraphSpacing),
           child: Text(
-            _paragraphs[paraIdx],
+            text,
             style: _prefs.resolveBodyTextStyle(textColor),
           ),
         );
       },
+    );
+  }
+
+  /// 全屏查看插图：支持缩放/平移，防盗链 headers 由 [SourceImage] 注入。
+  void _showImageViewer(String url, PluginConfig? source) {
+    if (url.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext ctx) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            elevation: 0,
+          ),
+          body: LayoutBuilder(
+            builder: (BuildContext ctx, BoxConstraints c) => InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Center(
+                child: SourceImage(
+                  url: url,
+                  source: source,
+                  width: c.maxWidth,
+                  height: c.maxHeight,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -2538,7 +2611,7 @@ class _DashedUnderlinePainter extends CustomPainter {
 
 /// 单页小说内容（含页眉页脚）。
 class _NovelPageWidget extends StatelessWidget {
-  final List<NovelLine> lines;
+  final List<NovelPageItem> lines;
   final NovelReaderPreferences prefs;
   final Color bg;
   final Color textColor;
@@ -2562,9 +2635,15 @@ class _NovelPageWidget extends StatelessWidget {
   /// （TextColumn 精确字符坐标保留在 NovelLine.charLefts 中，
   /// 供未来长按选区等场景使用；tap 时默认命中段落首字符即可。）
   final void Function(int paragraphIndex)? onParagraphTap;
+  /// 插图点击回调：打开大图查看器（传入图片 URL 与书源）。
+  final void Function(String url, PluginConfig? source)? onImageTap;
+  /// 当前章节所属书源（插图块未携带 source 时，作为防盗链 headers 兜底）。
+  final PluginConfig? source;
 
   const _NovelPageWidget({
     required this.lines,
+    this.onImageTap,
+    this.source,
     required this.prefs,
     required this.bg,
     required this.textColor,
@@ -2625,27 +2704,60 @@ class _NovelPageWidget extends StatelessWidget {
           ),
           const SizedBox(height: AppTokens.spaceSm),
           Expanded(
-            child: SingleChildScrollView(
-              physics: const NeverScrollableScrollPhysics(),
-              clipBehavior: Clip.hardEdge,
-              padding: EdgeInsets.symmetric(horizontal: prefs.margin),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  // 章节大标题仅在第一页顶部渲染（#7，含对齐 / 分段模式）。
-                  if (pageIndex == 0) _buildChapterTitleWidget(
-                    prefs,
-                    chapterTitle,
-                    bookName,
+            // LayoutBuilder 作为 Expanded 的直接子节点，拿到的是「有界」的滚动区高度
+            // （由外层 Expanded 约束）。SingleChildScrollView 内部 Column 是无界高度，
+            // 因此插图绝不能用 Expanded（会抛 "RenderFlex unbounded" 并使整页崩溃）；
+            // 这里用具体高度的 SizedBox 承载插图，既填满滚动区又不触发 flex 崩溃。
+            child: LayoutBuilder(
+              builder: (BuildContext ctx, BoxConstraints scrollC) {
+                final double scrollH = scrollC.maxHeight;
+                final double imgW = scrollC.maxWidth - prefs.margin * 2;
+                return SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  clipBehavior: Clip.hardEdge,
+                  padding: EdgeInsets.symmetric(horizontal: prefs.margin),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      // 章节大标题仅在第一页顶部渲染（#7，含对齐 / 分段模式）。
+                      if (pageIndex == 0)
+                        _buildChapterTitleWidget(
+                          prefs,
+                          chapterTitle,
+                          bookName,
+                        ),
+                      for (final item in lines) ...<Widget>[
+                        if (item is NovelTextLineItem) ...[
+                          _buildLine(context, item.line, textStyle),
+                          // 段落间距（仅段末行后加）
+                          if (item.line.isLastLine)
+                            SizedBox(height: prefs.paragraphSpacing),
+                        ] else if (item is NovelImageItem) ...[
+                          // 翻页模式插图独占一页：占满可用高度居中显示，
+                          // 点按打开大图查看器（fit contain 不裁切）。
+                          SizedBox(
+                            width: imgW,
+                            height: scrollH,
+                            child: GestureDetector(
+                              onTap: () => onImageTap?.call(
+                                item.image.url,
+                                item.image.source,
+                              ),
+                            child: SourceImage(
+                              url: item.image.url,
+                              source: item.image.source ?? source,
+                              width: imgW,
+                              height: scrollH,
+                              fit: BoxFit.contain,
+                            ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ],
                   ),
-                  for (final line in lines) ...<Widget>[
-                    _buildLine(context, line, textStyle),
-                    // 段落间距（仅段末行后加）
-                    if (line.isLastLine)
-                      SizedBox(height: prefs.paragraphSpacing),
-                  ],
-                ],
-              ),
+                );
+              },
             ),
           ),
           const SizedBox(height: AppTokens.spaceSm),

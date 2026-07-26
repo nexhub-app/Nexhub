@@ -1,6 +1,7 @@
 /// WebBook 公共类型：发现分类、发现结果、正文结果、URL 条目，以及多级 URL 解析。
 library;
 
+import '../../../core/models/novel_block.dart';
 import '../analyze/js_engine.dart';
 import '../model/xiaoshuo_book.dart';
 
@@ -22,10 +23,19 @@ class ExploreResult {
 
 /// 章节正文结果。
 class BookContentResult {
+  /// 兼容字段：纯文本拼接（旧消费方可能仍读取）。新链路使用 [blocks]。
   final String content;
+
+  /// 图文块列表：文本段与插图按原顺序共存，供阅读器图文混排。
+  final List<NovelBlock> blocks;
+
   final String? error;
 
-  BookContentResult({required this.content, this.error});
+  BookContentResult({
+    this.content = '',
+    this.blocks = const [],
+    this.error,
+  });
 }
 
 /// URL 条目（名称 + URL）。

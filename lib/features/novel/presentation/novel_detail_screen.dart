@@ -200,6 +200,11 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
       }).catchError((Object error) {
         if (error is WebViewHtmlRequest && mounted) {
           setState(() => _htmlCaptureRequest = error);
+        } else if (error is VerificationRequiredException && mounted) {
+          // 详情页被 _guard 反爬拦截：记录验证异常，引导用户在验证页过滑块，
+          // 回灌 Cookie 后由 _retryAfterVerification → _load 重取详情
+          // （封面 / 标签 / 连载状态 / 更新时间 一并齐全）。
+          setState(() => _verificationError = error);
         }
       });
     }

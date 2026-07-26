@@ -15,6 +15,7 @@ library;
 
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/models/novel_block.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/resolver/source_resolver.dart';
 import '../../../core/resolver/resolver_registry.dart';
@@ -50,6 +51,11 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
       case 'search':
         return _handleSearch(source, bookSource, vars);
       case 'explore':
+        return _handleExplore(source, bookSource, vars);
+      case 'category':
+        // 动态筛选 Sheet 可能发 __route='category'（被 MediaApiService 剔除后
+        // 不影响源 URL）；本源 routes 不含 'category'，通常已被忽略并沿用原
+        // apiName。此处兜底，避免极端情况下抛 UnsupportedError。
         return _handleExplore(source, bookSource, vars);
       case 'latest':
         return _handleLatest(source, bookSource, vars);
@@ -88,6 +94,7 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
     switch (apiName) {
       case 'search':
       case 'explore':
+      case 'category':
       case 'latest':
         final isSearch = apiName == 'search';
         final books = BookList.analyzeBookList(
@@ -130,8 +137,41 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
     XiaoshuoBookSource bookSource,
     Map<String, String> vars,
   ) async {
-    final categoryUrl = vars['category'];
     final page = int.tryParse(vars['page'] ?? '1') ?? 1;
+
+    // PTCMS 动态筛选：源在 `filters` 中声明 文库(list)/题材(tags)/进度(finish)/
+    // 字数(size)/排序(order) 五个维度。任一被选中即按站点 URL 模板拼装分类页
+    // 并抓取；全空则回退到默认发现页（分类 Tab / 全量）。
+    //
+    // 关键：绝不能给未选维度塞默认值（否则会强制「连载 / 30万字以上 / 最新更新」
+    // 等，把用户想看的「全部」也限死）。未选维度直接省略对应路径段，站点即视为
+    // 不限定该维度；用户显式选「全部」(value=`all`/空) 也等同省略。
+    final list = (vars['list']?.trim()) ?? '';
+    final tags = (vars['tags']?.trim()) ?? '';
+    final finish = _ptcmsSeg(vars['finish']);
+    final size = _ptcmsSeg(vars['size']);
+    final order = _ptcmsSeg(vars['order']);
+    if (list.isNotEmpty ||
+        tags.isNotEmpty ||
+        finish != null ||
+        size != null ||
+        order != null) {
+      final buf = StringBuffer(
+          '${bookSource.bookSourceUrl}/index.php/book/category');
+      if (list.isNotEmpty) buf.write('/list/$list');
+      if (tags.isNotEmpty) buf.write('/tags/$tags');
+      if (finish != null) buf.write('/finish/$finish');
+      if (size != null) buf.write('/size/$size');
+      if (order != null) buf.write('/order/$order');
+      final books = await _webBook.exploreCategory(
+        source: bookSource,
+        categoryUrl: buf.toString(),
+        page: page,
+      );
+      return books.map((b) => _xiaoshuoBookToMediaItem(b, source.id)).toList();
+    }
+
+    final categoryUrl = vars['category'];
 
     if (categoryUrl != null && categoryUrl.isNotEmpty) {
       final books = await _webBook.exploreCategory(
@@ -145,6 +185,17 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
     // 没指定分类时，走全量发现页
     final books = await _webBook.exploreBook(source: bookSource, page: page);
     return books.map((b) => _xiaoshuoBookToMediaItem(b, source.id)).toList();
+  }
+
+  /// PTCMS 筛选段取值：
+  /// - 未选（null）/ 选「全部」(`all`/空) → 返回 null，省略该路径段（站点视为
+  ///   不限定该维度）；
+  /// - 其余 → 原值（如文库 id、题材 id、finish/1|2、size/1..5、order/addtime/shits）。
+  static String? _ptcmsSeg(String? raw) {
+    if (raw == null) return null;
+    final t = raw.trim();
+    if (t.isEmpty || t == 'all') return null;
+    return t;
   }
 
   // ── latest：等同 explore（发现页） ──
@@ -207,7 +258,7 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
   }
 
   // ── 正文 ──
-  Future<List<String>> _handleContent(
+  Future<List<NovelBlock>> _handleContent(
     PluginConfig source,
     XiaoshuoBookSource bookSource,
     Map<String, String> vars,
@@ -220,19 +271,16 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
       source: bookSource,
       chapterUrl: chapterUrl,
     );
-    if (result.error != null && result.content.isEmpty) {
+    if (result.error != null && result.blocks.isEmpty) {
       throw SourceResolveException(
         sourceId: source.id,
         apiName: 'content',
         message: result.error ?? 'resolve error',
       );
     }
-    // 段落列表：按换行切分，过滤空行
-    return result.content
-        .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
-        .toList();
+    // 图文块列表（文本段 + 插图），保留解析层给出的原始顺序，
+    // 供阅读器图文混排显示。
+    return result.blocks;
   }
 
   // ── 模型转换 ──
@@ -245,7 +293,11 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
       sourceId: sourceId,
       sourceType: SourceType.novelSource,
       author: sb.author.isNotEmpty ? sb.author : null,
-      tags: sb.kind?.split(',').where((s) => s.isNotEmpty).toList(),
+      tags: sb.kind
+          ?.split(RegExp(r'[,\s]+'))
+          .where((s) => s.trim().isNotEmpty)
+          .map((s) => s.trim())
+          .toList(),
     );
   }
 
@@ -266,7 +318,11 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
       author: book.author.isNotEmpty ? book.author : null,
       description: book.intro,
       status: book.bookStatus,
-      tags: book.kind?.split(',').where((s) => s.isNotEmpty).toList(),
+      tags: book.kind
+          ?.split(RegExp(r'[,\s]+'))
+          .where((s) => s.trim().isNotEmpty)
+          .map((s) => s.trim())
+          .toList(),
       updatedAt: parsedUpdatedAt,
       wordCount: book.wordCount,
     );
@@ -287,7 +343,8 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
     } catch (_) {}
 
     // 尝试常见中文格式：YYYY-MM-DD HH:mm:ss / YYYY/MM/DD HH:mm:ss
-    final isoLike = RegExp(r'^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$');
+    // 注意：不锚定开头/结尾，以容忍 "时间：2026-05-05 16:22" 这类带前缀的文本。
+    final isoLike = RegExp(r'(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?');
     final m = isoLike.firstMatch(trimmed);
     if (m != null) {
       try {
