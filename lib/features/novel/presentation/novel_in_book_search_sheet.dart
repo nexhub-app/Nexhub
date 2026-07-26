@@ -3,6 +3,7 @@ import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/models/episode.dart';
+import '../../../core/models/novel_block.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -108,8 +109,10 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
             novelId: widget.novelId,
             chapterUrl: chapter.url,
           );
-          final paragraphs = content;
-          for (final para in paragraphs) {
+          final blocks = content;
+          for (final block in blocks) {
+            if (block is! NovelTextBlock) continue;
+            final para = block.text;
             final idx = para.indexOf(keyword);
             if (idx >= 0) {
               final start = (idx - 20).clamp(0, para.length);

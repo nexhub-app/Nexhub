@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:nexhub/core/favorites/favorites_manager.dart';
 import 'package:nexhub/core/models/episode.dart';
+import 'package:nexhub/core/models/novel_block.dart';
 import 'package:nexhub/core/models/plugin_config.dart';
 import 'package:nexhub/core/resolver/resolver_registry.dart';
 import 'package:nexhub/core/scraper/media_api_service.dart';
@@ -21,20 +22,20 @@ class FakeNovelMediaApiService extends MediaApiService {
   FakeNovelMediaApiService() : super(ResolverRegistry.instance);
 
   @override
-  Future<List<String>> fetchNovelContent(
+  Future<List<NovelBlock>> fetchNovelContent(
     PluginConfig source, {
     required String novelId,
     required String chapterUrl,
     String? renderedHtml,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 20));
-    return const <String>[
-      '这是第一段文字，用于测试小说阅读器的文本分页功能。',
-      '第二段内容继续展开，描述着主角在异世界的冒险经历。',
-      '第三段描写了一场激烈的战斗场景，剑光闪烁，魔法飞舞。',
-      '第四段转入平静的日常，主角与伙伴们在酒馆中休息。',
-      '第五段是本章的高潮，主角终于面对了最终的敌人。',
-      '最后一段为结尾，留下悬念，引向下一章的故事发展。',
+    return const <NovelBlock>[
+      NovelTextBlock('这是第一段文字，用于测试小说阅读器的文本分页功能。'),
+      NovelTextBlock('第二段内容继续展开，描述着主角在异世界的冒险经历。'),
+      NovelTextBlock('第三段描写了一场激烈的战斗场景，剑光闪烁，魔法飞舞。'),
+      NovelTextBlock('第四段转入平静的日常，主角与伙伴们在酒馆中休息。'),
+      NovelTextBlock('第五段是本章的高潮，主角终于面对了最终的敌人。'),
+      NovelTextBlock('最后一段为结尾，留下悬念，引向下一章的故事发展。'),
     ];
   }
 }
