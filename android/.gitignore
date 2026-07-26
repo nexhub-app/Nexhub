@@ -12,3 +12,7 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# 例外：本仓库故意提交固定测试签名 keystore（android/app/upload-keystore.jks），
+# 仅用于测试分发、保证每次 CI 构建签名一致可覆盖安装；非私有正式签名，请勿用于上架商店。
+!android/app/upload-keystore.jks
