@@ -394,8 +394,11 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       final limited =
           sec.limit > 0 ? list.take(sec.limit).toList(growable: false) : list;
       items[sec.id] = limited;
-      // 周期表复用「最新更新」板块的数据（含 updatedAt 才能按天分组）。
-      if (sec.id == 'latest' ||
+      // 周期表数据源：
+      //   - 复用「最新更新」板块（含 updatedAt 才能按天分组）；
+      //   - 或源显式声明 style:'schedule' 的板块（如 week 路由，已按天注入 updatedAt）。
+      if (sec.style == 'schedule' ||
+          sec.id == 'latest' ||
           (sec.route.isEmpty ? 'latest' : sec.route) == 'latest') {
         schedule = limited;
       }
@@ -403,7 +406,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     return _HomeSectionsResult(
       sections: sections,
       items: items,
-      schedule: schedule.take(30).toList(growable: false),
+      schedule: schedule.take(300).toList(growable: false),
     );
   }
 
@@ -730,6 +733,11 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                     if (_hasRank) _loadRank();
                   },
                 ),
+                IconButton(
+                  icon: const Icon(Icons.view_module_outlined),
+                  tooltip: l10n.layoutOpenSettings,
+                  onPressed: () => showLayoutPickerDialog(context),
+                ),
               ],
       ),
       body: _source == null
@@ -881,14 +889,17 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       children: <Widget>[
         const SizedBox(height: AppTokens.spaceSm),
         for (final sec in _homeSections) ...<Widget>[
-          OnlineHomeSection(
-            title: _sectionTitle(l10n, sec),
-            items: _homeSectionItems[sec.id] ?? const <MediaItem>[],
-            onItemTap: widget.onItemTap,
-            onViewAll: _sectionViewAll(sec),
-            heroPrefix: 'home-${sec.id}',
-          ),
-          const SizedBox(height: AppTokens.spaceMd),
+          if (sec.style != 'schedule')
+            ...<Widget>[
+              OnlineHomeSection(
+                title: _sectionTitle(l10n, sec),
+                items: _homeSectionItems[sec.id] ?? const <MediaItem>[],
+                onItemTap: widget.onItemTap,
+                onViewAll: _sectionViewAll(sec),
+                heroPrefix: 'home-${sec.id}',
+              ),
+              const SizedBox(height: AppTokens.spaceMd),
+            ],
         ],
       ],
     );
@@ -908,6 +919,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
 
   /// 「查看全部」回调：板块若对应某分类分区则跳到该分类 Tab，否则跳到首个分类 Tab。
   VoidCallback? _sectionViewAll(HomeSectionConfig sec) {
+    if (sec.style == 'schedule') return null;
     if (_categories.isEmpty) return null;
     final catId = sec.params['category'];
     final idx = catId != null
@@ -930,6 +942,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     return SingleChildScrollView(
       child: OnlineScheduleSection(
         items: _scheduleItems,
+        source: _source,
         onItemTap: widget.onItemTap,
       ),
     );

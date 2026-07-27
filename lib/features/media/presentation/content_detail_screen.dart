@@ -187,6 +187,26 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 (detail.description != null && detail.description!.isNotEmpty)
                     ? detail.description
                     : widget.item.description,
+            // 列表 item 已具备的字段（导演/主演/年份/标签/状态/更新时间）兜底：
+            // detail 路由产物可能因选择器未覆盖或解析失败而缺失这些字段，若直接
+            // 用空值覆盖，会「列表有、详情反而丢」造成信息闪一下就消失。故当
+            // detail 同名字段为空时，回退到列表 item 的已知值。
+            director: (detail.director != null && detail.director!.isNotEmpty)
+                ? detail.director
+                : widget.item.director,
+            actors: (detail.actors != null && detail.actors!.isNotEmpty)
+                ? detail.actors
+                : widget.item.actors,
+            year: (detail.year != null && detail.year!.isNotEmpty)
+                ? detail.year
+                : widget.item.year,
+            tags: (detail.tags != null && detail.tags!.isNotEmpty)
+                ? detail.tags
+                : widget.item.tags,
+            status: (detail.status != null && detail.status!.isNotEmpty)
+                ? detail.status
+                : widget.item.status,
+            updatedAt: detail.updatedAt ?? widget.item.updatedAt,
           );
           setState(() => _fetchedDetail = safe);
         }
@@ -608,27 +628,16 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     );
   }
 
-  /// 构造元信息 chips：导演 / 演员 / 年份（影视无作者概念，状态改由 shell 徽标展示）。
+  /// 构造元信息 chips：导演 / 演员（名单过长时按分组折叠，点击仍走统一搜索）。
   List<Widget> _buildInfoChips(MediaItem item, AppLocalizations l10n) {
-    final chips = <Widget>[];
-    for (final name in splitMultiValue(item.director)) {
-      chips.add(ActionChip(
-        label: Text(name),
-        tooltip: l10n.searchByDirector,
-        onPressed: () => _openUnifiedSearch(item, name, field: 'director'),
-      ));
-    }
-    for (final name in splitMultiValue(item.actors)) {
-      chips.add(ActionChip(
-        label: Text(name),
-        tooltip: l10n.searchByActor,
-        onPressed: () => _openUnifiedSearch(item, name, field: 'actors'),
-      ));
-    }
-    if (item.year != null && item.year!.isNotEmpty) {
-      chips.add(Chip(label: Text(item.year!)));
-    }
-    return chips;
+    return <Widget>[
+      _InfoChipsSection(
+        item: item,
+        l10n: l10n,
+        onDirectorTap: (name) => _openUnifiedSearch(item, name, field: 'director'),
+        onActorTap: (name) => _openUnifiedSearch(item, name, field: 'actors'),
+      ),
+    ];
   }
 
   /// 构造题材标签 chips（点击走统一搜索）。
@@ -1068,6 +1077,138 @@ class _CoverViewerScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 详情头部「导演 / 主演」信息区：名单过多时按分组折叠。
+///
+/// - 导演、主演各自独立成行（带「导演」「主演」标签，复用 searchField*）。
+/// - 每组默认只显示前 [maxInitial] 个，超过则显示「展开 N 位」按钮；展开后显示「收起」。
+/// - 年份 chip 始终展示。
+class _InfoChipsSection extends StatefulWidget {
+  final MediaItem item;
+  final AppLocalizations l10n;
+  final void Function(String name) onDirectorTap;
+  final void Function(String name) onActorTap;
+
+  const _InfoChipsSection({
+    required this.item,
+    required this.l10n,
+    required this.onDirectorTap,
+    required this.onActorTap,
+  });
+
+  @override
+  State<_InfoChipsSection> createState() => _InfoChipsSectionState();
+}
+
+class _InfoChipsSectionState extends State<_InfoChipsSection> {
+  static const int maxInitial = 6;
+  bool _directorExpanded = false;
+  bool _actorsExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final directors = splitMultiValue(widget.item.director);
+    final actors = splitMultiValue(widget.item.actors);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (directors.isNotEmpty)
+          _buildGroup(
+            context,
+            label: widget.l10n.searchFieldDirector,
+            names: directors,
+            expanded: _directorExpanded,
+            onToggle: () => setState(() => _directorExpanded = !_directorExpanded),
+            onTap: widget.onDirectorTap,
+            searchTip: widget.l10n.searchByDirector,
+          ),
+        if (actors.isNotEmpty)
+          _buildGroup(
+            context,
+            label: widget.l10n.searchFieldActor,
+            names: actors,
+            expanded: _actorsExpanded,
+            onToggle: () => setState(() => _actorsExpanded = !_actorsExpanded),
+            onTap: widget.onActorTap,
+            searchTip: widget.l10n.searchByActor,
+          ),
+        if (widget.item.year != null && widget.item.year!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: AppTokens.spaceSm),
+            child: Chip(label: Text(widget.item.year!)),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildGroup(
+    BuildContext context, {
+    required String label,
+    required List<String> names,
+    required bool expanded,
+    required VoidCallback onToggle,
+    required void Function(String) onTap,
+    required String searchTip,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final shown = expanded ? names : names.take(maxInitial).toList();
+    final hiddenCount = names.length - shown.length;
+    final chips = <Widget>[
+      for (final name in shown)
+        ActionChip(
+          label: Text(name),
+          tooltip: searchTip,
+          onPressed: () => onTap(name),
+        ),
+    ];
+    if (hiddenCount > 0) {
+      chips.add(
+        TextButton(
+          onPressed: onToggle,
+          child: Text(
+            widget.l10n.expandCount(hiddenCount),
+            style: textTheme.labelMedium?.copyWith(color: scheme.primary),
+          ),
+        ),
+      );
+    } else if (expanded && names.length > maxInitial) {
+      chips.add(
+        TextButton(
+          onPressed: onToggle,
+          child: Text(
+            widget.l10n.collapse,
+            style: textTheme.labelMedium?.copyWith(color: scheme.primary),
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              label,
+              style: textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
+          const SizedBox(width: AppTokens.spaceSm),
+          Expanded(
+            child: Wrap(
+              spacing: AppTokens.spaceSm,
+              runSpacing: AppTokens.spaceSm,
+              children: chips,
+            ),
+          ),
+        ],
       ),
     );
   }

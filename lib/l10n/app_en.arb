@@ -1915,6 +1915,11 @@
 
   "expand": "Expand",
   "collapse": "Collapse",
+  "expandCount": "Show {count} more",
+  "@expandCount": {
+    "description": "Button: expand to show the remaining N director/cast names",
+    "placeholders": { "count": { "type": "int" } }
+  },
   "sortSectionTitle": "Sort",
   "displayTitle": "Display",
   "sortByIndex": "By {unitWord} index",
