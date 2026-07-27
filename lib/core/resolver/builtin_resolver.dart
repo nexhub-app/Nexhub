@@ -68,11 +68,30 @@ class BuiltinResolver implements SourceResolver {
     final ua = source.antiHotlinking.userAgent;
     final Map<String, String>? ahHeaders =
         (ua != null && ua.isNotEmpty) ? <String, String>{'User-Agent': ua} : null;
+    // 通用 POST 表单路由：源可声明 `method: "post"`，此时把已解析 URL 的查询串
+    // 拆成 application/x-www-form-urlencoded 表单体发 POST（如 MacCMS 模板的
+    // /ds_api/vod 接口只收 POST 表单）。机制对所有源通用，不写死任何站点。
+    final isPost =
+        (source.routes[apiName]?.method.toLowerCase() ?? 'get') == 'post';
     if (rt == 'json') {
       dynamic result;
       try {
-        final json = await HttpFetcher.instance
-            .getJson(url, referer: referer, headers: ahHeaders);
+        final dynamic json;
+        if (isPost) {
+          final split = _splitFormUrl(url);
+          json = await HttpFetcher.instance.postJson(
+            split.$1,
+            headers: <String, String>{
+              'Content-Type': 'application/x-www-form-urlencoded',
+              ...?ahHeaders,
+            },
+            data: split.$2,
+            referer: referer,
+          );
+        } else {
+          json = await HttpFetcher.instance
+              .getJson(url, referer: referer, headers: ahHeaders);
+        }
         result = _withDetailUrlFallback(
           _parseJson(source, apiName, json, url, baseUrl: baseUrl ?? url),
           apiName,
@@ -93,8 +112,19 @@ class BuiltinResolver implements SourceResolver {
           baseUrl: baseUrl ?? url, referer: referer);
       return _enrichDanmakuIfEpisodes(enhanced, vars);
     }
-    final html = await HttpFetcher.instance
-        .getHtml(url, referer: referer, headers: ahHeaders);
+    final String html;
+    if (isPost) {
+      final split = _splitFormUrl(url);
+      html = await HttpFetcher.instance.postForm(
+        split.$1,
+        data: split.$3,
+        referer: referer,
+        headers: ahHeaders,
+      );
+    } else {
+      html = await HttpFetcher.instance
+          .getHtml(url, referer: referer, headers: ahHeaders);
+    }
     final result = _withDetailUrlFallback(
       _parseHtml(source, apiName, html, baseUrl: baseUrl ?? url),
       apiName,
@@ -128,6 +158,41 @@ class BuiltinResolver implements SourceResolver {
       referer: source.antiHotlinking.referer ?? effectiveBase,
     );
     return _enrichDanmakuIfEpisodes(enhanced, vars);
+  }
+
+  /// 把「已解析的路由 URL」拆成 POST 表单请求三元组：
+  /// (基础地址, urlencoded 表单体, 表单键值对)。
+  ///
+  /// 源 JSON 里 POST 路由沿用与 GET 相同的 `?k={v}&...` 模板写法（复用
+  /// resolveRouteUrl 的占位符替换/清理），引擎在发请求前把查询串转为表单体。
+  /// 值统一 Uri.encodeComponent：兼容中文筛选值（如 area=中国）。
+  static (String, String, Map<String, String>) _splitFormUrl(String url) {
+    final i = url.indexOf('?');
+    if (i < 0) return (url, '', const <String, String>{});
+    final base = url.substring(0, i);
+    final form = <String, String>{};
+    for (final pair in url.substring(i + 1).split('&')) {
+      if (pair.isEmpty) continue;
+      final j = pair.indexOf('=');
+      final k = j < 0 ? pair : pair.substring(0, j);
+      final v = j < 0 ? '' : pair.substring(j + 1);
+      if (k.isEmpty) continue;
+      // 先尽力解码（keyword 等已被 resolveRouteUrl 编码过），失败按原文。
+      String dec(String s) {
+        try {
+          return Uri.decodeComponent(s);
+        } catch (_) {
+          return s;
+        }
+      }
+
+      form[dec(k)] = dec(v);
+    }
+    final body = form.entries
+        .map((e) =>
+            '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+    return (base, body, form);
   }
 
   /// 响应类型缺省值：声明式 HTML 源（xpath / css / html）按 HTML 解析，
@@ -573,6 +638,8 @@ class BuiltinResolver implements SourceResolver {
         return _imagesFromHtmlSelector(html, sub, baseUrl: baseUrl);
       case 'video':
         return _videoFromHtmlSelector(html, sub, baseUrl: baseUrl);
+      case 'week':
+        return _weekFromHtmlSelector(html, sub, source);
       default:
         return _itemsFromHtmlSelector(html, sub, source);
     }
@@ -588,6 +655,47 @@ class BuiltinResolver implements SourceResolver {
     return [
       for (final el in elements) _itemFromElement(el, sel, source),
     ];
+  }
+
+  /// 周更列表解析（「周期表」Tab 专用）。
+  ///
+  /// 站点 `/week` 页面含 7 个天块（如 `ul.week-content[data-key="N"]`，
+  /// N=0..6 对应周一..周日），每个天块内含若干 `<li>` 条目。逐块解析并把
+  /// 该块的星期几写入每项的 [MediaItem.updatedAt]，使 [OnlineScheduleSection]
+  /// 能按 `updatedAt.weekday` 正确分组到 周一..周日。日期的年月日无关紧要，
+  /// 仅星期几参与分组。
+  List<MediaItem> _weekFromHtmlSelector(
+    String html,
+    Map<String, dynamic> sel,
+    PluginConfig source,
+  ) {
+    final blocksSel = sel['dayBlocks'] as String? ?? 'ul.week-content';
+    final dayAttr = sel['dayIndexAttr'] as String? ?? 'data-key';
+    final itemSel = sel['item'] as String? ?? 'li';
+    final blocks = HtmlUtils.elements(html, blocksSel);
+    final items = <MediaItem>[];
+    for (final block in blocks) {
+      final dayIdx = int.tryParse(block.attributes[dayAttr] ?? '');
+      if (dayIdx == null || dayIdx < 0 || dayIdx > 6) continue;
+      final date = _dateForWeekday(dayIdx);
+      for (final el in block.querySelectorAll(itemSel)) {
+        final it = _itemFromElement(el, sel, source);
+        // updatedAt 由天块星期几注入（selectors.week 不声明 updatedAt）。
+        items.add(it.updatedAt == null ? it.copyWith(updatedAt: date) : it);
+      }
+    }
+    return items;
+  }
+
+  /// 星期索引(0=周一 … 6=周日) → 本周对应星期几的日期。
+  ///
+  /// 仅用于周期表分组，年份/月份不影响结果（[OnlineScheduleSection] 只看 weekday）。
+  DateTime _dateForWeekday(int dayIndex) {
+    final now = DateTime.now();
+    // 本周周一（DateTime.weekday=1）零点。
+    final monday = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - 1));
+    return monday.add(Duration(days: dayIndex));
   }
 
   MediaItem _itemFromHtmlSelector(
@@ -966,7 +1074,14 @@ class BuiltinResolver implements SourceResolver {
 
   List<String>? _tags(String s) {
     if (s.isEmpty) return null;
-    return s.split(RegExp(r'[,，/、|\s]+')).where((t) => t.isNotEmpty).toList();
+    // 去重保序：详情页同一组标签锚点常在页面出现多次（如打驴动漫详情页
+    // /vod/search/class/ 链接渲染两遍），pickJoined 会取齐全部节点导致
+    // 「动画,热门新番,动画,热门新番」标签翻倍。用 LinkedHashSet 语义去重。
+    final seen = <String>{};
+    return s
+        .split(RegExp(r'[,，/、|\s]+'))
+        .where((t) => t.isNotEmpty && seen.add(t))
+        .toList();
   }
 
   String _guessType(String url) {
