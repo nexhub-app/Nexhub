@@ -159,6 +159,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   StreamSubscription<bool>? _completedSub;
   StreamSubscription<void>? _stallSub;
 
+  /// 标记 widget 已进入 deactivate/dispose 流程。仅用 [mounted] 不够：
+  /// Flutter 在 deactivate() 阶段元素已「失活」但 [mounted] 仍为 true，此时
+  /// 访问依赖 InheritedWidget 的 [AppLocalizations.of]/[ScaffoldMessenger.of]
+  /// 会抛「Looking up a deactivated widget's ancestor is unsafe」。
+  /// 因此在 stall/position/completed 等异步回调入口用此标记二次兜底，
+  /// 彻底避免播放在后台/退场瞬间的崩溃。
+  bool _disposed = false;
+
   /// 下一集是否已预解析（进度>80% 时后台拉取地址写入 VideoSourceCache）。
   /// 切集时重置为 false。
   bool _nextEpisodePreloaded = false;
@@ -412,6 +420,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _onPositionChanged(Duration position) {
+    if (!mounted || _disposed) return;
     _position = position;
     if (_duration == Duration.zero) {
       _duration = _controller.duration;
@@ -460,6 +469,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _onCompleted(bool completed) {
+    if (!mounted || _disposed) return;
     if (!completed) return;
     // 播完清除该集播放位置，避免下次续播已看完的集
     try {
@@ -507,7 +517,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// Stall（卡顿）处理：弹 SnackBar 提示并自动重新 open 当前地址恢复播放。
   void _onStall() {
-    if (!mounted) return;
+    if (!mounted || _disposed) return;
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1340,6 +1350,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ],
       ),
     );
+  }
+
+  @override
+  void deactivate() {
+    // 关键：deactivate 阶段元素已失活但 mounted 仍为 true，必须在此切断
+    // stall/position/completed 流订阅并置位 _disposed，否则退场瞬间流回调
+    // 仍可能访问 context（InheritedWidget）触发「deactivated widget」崩溃。
+    _disposed = true;
+    _positionSub?.cancel();
+    _completedSub?.cancel();
+    _stallSub?.cancel();
+    super.deactivate();
   }
 
   @override
