@@ -150,7 +150,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       SourceType.novelSource =>
         service.fetchNovelChapters(source, id, renderedHtml: _renderedHtml),
       _ => service.fetchEpisodes(source, id,
-          title: widget.item.title, renderedHtml: _renderedHtml),
+          title: widget.item.title,
+          detailUrl: widget.item.detailUrl,
+          renderedHtml: _renderedHtml),
     };
     _episodesFuture = future;
     future.then((list) {
@@ -405,7 +407,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       builder: (BuildContext sheetCtx) {
         return StatefulBuilder(
           builder: (BuildContext ctx, void Function(void Function()) setSheetState) {
-            final total = _chapters.length;
+            final total = _maxLineEpisodeTotal(_chapters);
             void selectAll() => setSheetState(() {
                   selected
                     ..clear()
@@ -683,6 +685,25 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     );
   }
 
+  /// 计算「总集数」：影视源多为多线路（线路/路线）镜像（如天堂/精品/暴风/量子
+  /// 4 条线路实为同一批剧集的不同播放地址）。解析器按线路分组后，[episodes] 会
+  /// 包含每条线路的完整剧集副本，直接取长度会叠加（4×30=120），与真实总集数不符。
+  /// 这里按 [Episode.lineName] 分组、取**最大一组的集数**作为总集数
+  /// （需求：取路线的最大集数算入总集数）；单线路/无线路时只有一组，退化为列表长度。
+  int _maxLineEpisodeTotal(List<Episode> episodes) {
+    if (episodes.isEmpty) return 0;
+    final counts = <String, int>{};
+    for (final e in episodes) {
+      final key = e.lineName ?? '';
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    var max = 0;
+    for (final c in counts.values) {
+      if (c > max) max = c;
+    }
+    return max;
+  }
+
   Widget _buildProgressCard(
     BuildContext context,
     AppLocalizations l10n,
@@ -864,7 +885,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 _buildProgressCard(
                   context,
                   l10n,
-                  episodes.length,
+                  _maxLineEpisodeTotal(episodes),
                   readCount,
                 ),
               ],

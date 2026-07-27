@@ -436,7 +436,8 @@ class BuiltinResolver implements SourceResolver {
     String pick(String key) {
       final p = sel[key];
       if (p == null) return '';
-      final v = JsonPath.eval(p as String, item);
+      if (p is! String) return '';
+      final v = JsonPath.eval(p, item);
       return v?.toString() ?? '';
     }
 
