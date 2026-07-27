@@ -419,6 +419,7 @@ class MediaApiService {
     PluginConfig source,
     String id, {
     String? title,
+    String? detailUrl,
     String? renderedHtml,
   }) async {
     if (renderedHtml != null && renderedHtml.isNotEmpty) {
@@ -429,6 +430,7 @@ class MediaApiService {
         vars: <String, String>{
           'id': id,
           if (title != null) 'title': title,
+          if (detailUrl != null) 'detailUrl': detailUrl,
         },
       );
       return _asEpisodes(r);
@@ -439,6 +441,7 @@ class MediaApiService {
           vars: <String, String>{
             'id': id,
             if (title != null) 'title': title,
+            if (detailUrl != null) 'detailUrl': detailUrl,
           },
         );
     return _asEpisodes(r);
