@@ -518,13 +518,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// Stall（卡顿）处理：弹 SnackBar 提示并自动重新 open 当前地址恢复播放。
   void _onStall() {
     if (!mounted || _disposed) return;
-    final l10n = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.playerStallDetected),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // 异步 stall 回调可能在 widget 失活后到达：deactivate 虽已置 _disposed 并取消
+    // 订阅，但事件可能已排队；此时访问 context（AppLocalizations / ScaffoldMessenger）
+    // 会抛「deactivated widget」未捕获异常。用 try 兜底，避免崩溃。
+    try {
+      final l10n = AppLocalizations.of(context);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.playerStallDetected),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      // context 已失活，忽略。
+    }
     unawaited(_reconnect());
   }
 
@@ -1361,6 +1369,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _positionSub?.cancel();
     _completedSub?.cancel();
     _stallSub?.cancel();
+    // 关闭可能残留的 SnackBar：其退出动画的 AnimationController 在 widget 失活后
+    // 仍会 tick，并尝试访问已销毁的 Scaffold 祖先 → 抛「deactivated widget」
+    // （见用户日志 AnimationController#...for SnackBar）。deactivate 阶段 context
+    // 仍有效，用 maybeOf 安全隐藏（ScaffoldMessenger.of 会抛同一异常）。
+    // 必须在 super.deactivate() 前调用（之后 element 即从树中摘下）。
+    ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
     super.deactivate();
   }
 
@@ -1554,23 +1568,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
           // 控制层（未锁定时显示）
           if (!_controller.isLocked) ...<Widget>[
-            // 顶栏
-            if (_uiVisible)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: _buildTopBar(l10n),
-              ),
+            // 顶栏（_buildTopBar 自身已返回 Positioned，无需再包一层，否则嵌套
+            // Positioned 触发「Incorrect use of ParentDataWidget」并使视频区塌缩为 0）
+            if (_uiVisible) _buildTopBar(l10n),
 
             // 底栏
-            if (_uiVisible)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _buildBottomBar(l10n),
-              ),
+            if (_uiVisible) _buildBottomBar(l10n),
 
             // 中央播放/暂停按钮（仅暂停态显示）
             if (_uiVisible && !_isPlaying)

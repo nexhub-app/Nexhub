@@ -691,6 +691,16 @@ class PluginConfig {
       throw PluginConfigException('route not found: $apiName');
     }
     var url = route.url;
+    // video 路由通常为 `{url}` 直通：调用方已传入播放页绝对地址时直接返回，
+    // 否则会被 activeBaseUrl 前缀拼接成 `https://base/https://episode` 双 host 坏链，
+    // 导致播放页抓取失败、解析不到视频源。此修复对所有源通用，不针对特定站点。
+    if (apiName == 'video' && url.trim() == '{url}') {
+      final rawUrl = vars['url'];
+      if (rawUrl != null &&
+          (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+        return rawUrl;
+      }
+    }
     if (url.startsWith('http://') || url.startsWith('https://')) {
       // 绝对 URL：替换 host 指向新镜像（保留 path/query）
       url = _replaceHost(url, activeBaseUrl);
@@ -701,7 +711,13 @@ class PluginConfig {
       url = url.startsWith('/') ? '$base$url' : '$base/$url';
     }
     vars.forEach((k, v) {
-      url = url.replaceAll('{$k}', v);
+      // 用户搜索词等自由文本必须 URL 编码：否则中文关键词（如「海贼王」）原样
+      // 塞进查询串会导致 GET 请求非法 / 被服务器误解 → 搜索返回错乱或空
+      // （中文站「作品搜索内容不正确」「主演搜索不全」的根因）。仅编码 keyword
+      // （搜索输入恒走此占位符），其余占位符（category/id/page 等）多为 ASCII 标识。
+      // 用 encodeComponent（空格→%20）兼顾查询串与路径段两种落点。
+      final value = k == 'keyword' ? Uri.encodeComponent(v) : v;
+      url = url.replaceAll('{$k}', value);
     });
     // 兼容旧版「采集api」导出的源：详情/选集路由常用 {season_id}/{sid}/{avid}
     // 占位，而新解析器统一用 {id}。旧应用能正常解析正是靠这些别名映射。
