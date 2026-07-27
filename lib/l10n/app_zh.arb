@@ -1950,6 +1950,11 @@
 
   "expand": "展开",
   "collapse": "收起",
+  "expandCount": "展开 {count} 位",
+  "@expandCount": {
+    "description": "Button: expand to show the remaining N director/cast names",
+    "placeholders": { "count": { "type": "int" } }
+  },
   "sortSectionTitle": "排序",
   "displayTitle": "显示选项",
   "sortByIndex": "按{unitWord}顺序",
