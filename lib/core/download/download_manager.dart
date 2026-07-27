@@ -363,7 +363,8 @@ class DownloadManager extends ChangeNotifier {
       case SourceType.mangaSource:
         return service.fetchChapters(source, item.id);
       default:
-        return service.fetchEpisodes(source, item.id);
+        return service.fetchEpisodes(source, item.id,
+            detailUrl: item.detailUrl);
     }
   }
 
