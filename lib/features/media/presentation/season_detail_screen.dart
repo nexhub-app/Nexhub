@@ -71,7 +71,9 @@ class _SeasonDetailScreenState extends State<SeasonDetailScreen> {
       return;
     }
     final future = service.fetchEpisodes(source, id,
-        title: widget.season.title, renderedHtml: _renderedHtml);
+        title: widget.season.title,
+        detailUrl: widget.season.detailUrl,
+        renderedHtml: _renderedHtml);
     _episodesFuture = future;
     // 监听错误以捕获验证异常；通过 then 转为 Future<void> 避免 catchError
     // 返回类型不匹配的告警。原 future 仍由 FutureBuilder 消费。
