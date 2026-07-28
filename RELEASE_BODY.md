@@ -1,13 +1,31 @@
-# NexHub v0.2.12
+# NexHub v0.2.13
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
-## ✨ 本次更新（v0.2.12）
+## ✨ 本次更新（v0.2.13）
 
-- **修复 Android 包无法覆盖安装**：此前 CI 每次构建都随机生成新的 debug keystore，导致每次发出的 APK 签名都不同，已安装旧包无法覆盖升级。
-  现已提交一份**固定签名 keystore**（`android/app/upload-keystore.jks`），并配置 release 构建统一使用它。从本版起，所有 Android 包的签名一致，**可正常覆盖安装**。
-  - ⚠️ 你手机上已安装的旧版（随机签名）仍需**先卸载一次**，再装本版；之后各版本之间即可无缝覆盖。
-  - 此 keystore 随公开仓库公开，仅用于测试分发；若将来要上架 Google Play，请改用私有 release keystore（GitHub Actions secret 注入）。
+本版聚焦**影视模块**的解析与播放稳定性，并顺带纳入 v0.2.12 的 Android 固定签名（可覆盖安装）。
+
+### 🐛 修复 / 稳定性
+- **解析层重构**：重写 `http_fetcher`（重试 / 编码 / 超时更稳），修复 `builtin_resolver` / `webview_resolver` / `video_extractor` / `media_api_service` 多处解析失败与视频提取异常；WebView 渲染后回灌 HTML 再解析的路径更稳健。
+- **播放器退出崩溃修复**：`deactivate` 时切断 `stall/position/completed` 流订阅并置 `_disposed` 标记，修复「访问已 deactivated widget 的 ancestor」溢出崩溃；snackBar 退出动画 context 丢失兜底；修复嵌入 `Positioned` 自适应视频区填充。`webview_verification_screen` 验证 / 提取流程更稳定。
+- **总集数统计修正**：按线路分组取最大一组集数，避免多线路镜像集数被累加（如 4 线路 30 集误算 120 集）。
+- **选集精确解析**：`fetchEpisodes` 支持透传 `detailUrl`，按详情页地址精确解析选集。
+
+### ✨ 解析引擎增强（源即插件能力）
+- **POST 表单路由**：`builtin_resolver` 支持 `method:"post"`，自动拆表单体发送，适配 MacCMS 等「分类 / 列表由前端 JS POST 接口填充」的站点（如 `/ds_api/vod`），纯配置驱动，不写死站点。
+- **周期表（周更）解析**：新增 `week` 路由与周列表选择器，能从 `status` 解析开播星期并分组展示。
+- **分类筛选「各不相同」**：`SourceFilterConfig` 新增 `byCategory`（按分类 id 覆盖筛选组）与 `defaults`（分类默认参数，如 233 动漫 `sort=hits/year=2026`），全部由源 JSON 声明。
+- **坏链修复**：`video` 路由 `{url}` 直达绝对地址，避免被 base 前缀成双 host 坏链导致播放失败；相对地址做 base 规范化避免 `//` 双斜杠。
+- **中文搜索 / 筛选修复**：`keyword` 与含中文的筛选占位符自动 `encodeComponent`，修复中文关键词搜索错乱、MacCMS 中文筛选（如「奇幻」）无结果；`show` 路由第 1 页 `page` 段留空避免拼错导致 404。
+- **JsonPath 空值保护**：非字符串 selector 增加空值兜底，避免解析崩溃。
+
+### 🎨 UI / 布局
+- **周期表统一布局**：改用统一 `ContentCard`，跟随全局布局（网格列数 / 列表模式 / 圆角 / 标题 / 作者），`ListenableBuilder` 实时刷新；星期 Chip 全部可点（空日显示空态）。
+- **全局「布局」按钮**：浏览页 AppBar 新增「布局」按钮，首页 / 周期表 / 分类 / 排行榜 Tab 均可改布局。
+- **详情页主演可折叠**：主演信息块改为可折叠，每组默认显前 N 位，超长显示「展开 N 位 / 收起」，年份始终显示。
+- **首页 / 内容列表 / 源搜索 / 章节列表**等稳定性与布局修复。
+- 新增多语言文案（l10n）。
 
 ## 🔌 重要：先导入源
 
