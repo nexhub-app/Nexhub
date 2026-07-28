@@ -11,16 +11,21 @@ class DanmakuSettingsSheet extends StatefulWidget {
     super.key,
     required this.settings,
     required this.onChanged,
+    this.onMatch,
   });
 
   final DanmakuSettings settings;
   final ValueChanged<DanmakuSettings> onChanged;
+
+  /// 手动匹配弹幕回调（打开搜索/选集面板）。为 null 时不显示该入口。
+  final VoidCallback? onMatch;
 
   /// 以 modal bottom sheet 形式展示。
   static Future<void> show(
     BuildContext context, {
     required DanmakuSettings settings,
     required ValueChanged<DanmakuSettings> onChanged,
+    VoidCallback? onMatch,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -34,6 +39,7 @@ class DanmakuSettingsSheet extends StatefulWidget {
       builder: (BuildContext context) => DanmakuSettingsSheet(
         settings: settings,
         onChanged: onChanged,
+        onMatch: onMatch,
       ),
     );
   }
@@ -108,6 +114,16 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
                   vertical: AppTokens.spaceSm,
                 ),
                 children: <Widget>[
+                  if (widget.onMatch != null)
+                    ListTile(
+                      leading: const Icon(Icons.sync_alt_outlined),
+                      title: Text(l10n.danmakuMatchEpisode),
+                      subtitle: Text(l10n.danmakuSearchHint),
+                      onTap: () {
+                        Navigator.of(context).maybePop();
+                        widget.onMatch?.call();
+                      },
+                    ),
                   _keywordSection(l10n, theme),
                   _sliderSection(
                     label: l10n.danmakuTimeOffset,

@@ -43,6 +43,7 @@ import '../../../core/widgets/danmaku_overlay.dart';
 import '../cast/cast_service.dart';
 import 'danmaku_settings_sheet.dart';
 import 'danmaku_source_sheet.dart';
+import 'danmaku_match_sheet.dart';
 import 'subtitle_panel.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
@@ -144,6 +145,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// #6 A4-#6: SharedPreferences 中保存自定义 URL 的键。
   static const String _kDanmakuCustomUrlKey = 'danmaku_custom_url';
+
+  /// 每集手动 / 即时匹配得到的 dandanplay episodeId 覆盖（键 = 剧集 id）。
+  /// 用于自动匹配失败时的兜底，以及用户从「手动匹配」面板指定。
+  final Map<String, int> _dandanOverride = <String, int>{};
 
   /// Current playable URL (used for sharing).
   String? _playUrl;
@@ -475,6 +480,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  /// 解析当前集的 dandanplay episodeId。
+  ///
+  /// 优先级：剧集预填值 → 已缓存的手动/即时匹配结果 → 若源为 dandanplay 则按
+  /// 「番剧名 + 集名」即时 match 并缓存。返回 null 表示无法获得（如源为 bilibili）。
+  Future<int?> _resolveDandanId(Episode ep) async {
+    final pre = ep.dandanplayEpisodeId ?? _dandanOverride[ep.id];
+    if (pre != null) return pre;
+    if (_danmakuSource != DanmakuSourceType.dandanplay) return null;
+    if (_danmakuRepo == null) return null;
+    final id = await _danmakuRepo!.matchEpisode('${widget.title} ${ep.title}');
+    if (id != null) _dandanOverride[ep.id] = id;
+    return id;
+  }
+
   Future<void> _loadDanmaku() async {
     if (_danmakuRepo == null) return;
     // 关闭弹幕源：清空并跳过加载。
@@ -489,19 +508,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       return;
     }
     try {
+      final ep = widget.episode;
+      final dandanId = await _resolveDandanId(ep);
       final items = await _danmakuRepo!.getDanmaku(
         sourceId: widget.sourceId,
-        episodeId: widget.episode.id,
+        episodeId: ep.id,
         dandanplayEpisodeId: _danmakuSource == DanmakuSourceType.bilibili
             ? null
-            : widget.episode.dandanplayEpisodeId,
+            : dandanId,
         bilibiliCid: _danmakuSource == DanmakuSourceType.dandanplay
             ? null
-            : widget.episode.bilibiliCid,
-        bangumiId: widget.episode.bangumiId,
+            : ep.bilibiliCid,
+        bangumiId: ep.bangumiId,
         danmakuUrl: _danmakuSource == DanmakuSourceType.customUrl
             ? _customDanmakuUrl
-            : widget.episode.danmakuUrl,
+            : ep.danmakuUrl,
       );
       // 过滤并转换为 DanmakuItem
       final filtered = items
@@ -509,8 +530,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           .map((i) => i.toDanmakuItem())
           .toList();
       _danmakuController.setItems(filtered);
-    } on Object {
-      // 弹幕加载失败，静默忽略。
+    } on Object catch (e) {
+      // 凭据未配置时给出提示，其余错误静默忽略。
+      final msg = e.toString();
+      if (msg.contains('credentials not configured') && mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.danmakuLoadFailed),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -727,12 +758,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       return;
     }
     try {
+      final dandanId = await _resolveDandanId(ep);
       final items = await _danmakuRepo!.getDanmaku(
         sourceId: widget.sourceId,
         episodeId: ep.id,
         dandanplayEpisodeId: _danmakuSource == DanmakuSourceType.bilibili
             ? null
-            : ep.dandanplayEpisodeId,
+            : dandanId,
         bilibiliCid: _danmakuSource == DanmakuSourceType.dandanplay
             ? null
             : ep.bilibiliCid,
@@ -1026,7 +1058,25 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         setState(() => _danmakuSettings = next);
         _applyDanmakuOption();
       },
+      onMatch: _openDanmakuMatch,
     );
+  }
+
+  /// 打开「手动匹配弹幕」面板，用户搜索番剧并选定集数后应用到当前集。
+  Future<void> _openDanmakuMatch() async {
+    if (_danmakuRepo == null) return;
+    final id = await DanmakuMatchSheet.show(
+      context,
+      repo: _danmakuRepo!,
+      initialKeyword: widget.title,
+      currentEpisodeId: widget.episode.id,
+    );
+    if (id != null) {
+      _dandanOverride[widget.episode.id] = id;
+      _danmakuController.clear();
+      _danmakuController.reset();
+      _loadDanmaku();
+    }
   }
 
   void _openDanmakuSource() async {
