@@ -89,6 +89,9 @@ class VideoPlayerScreen extends StatefulWidget {
   /// 直链播放地址（视频嗅探器等场景）：非空时跳过在线源解析，直接播放该 URL。
   final String? directUrl;
 
+  /// 直链播放请求头（防盗链 Referer / UA 等；仅 [directUrl] 模式使用）。
+  final Map<String, String>? directHeaders;
+
   /// 详情页 URL（用于收藏时透传，避免历史/收藏详情灰屏）。
   final String? detailUrl;
 
@@ -107,6 +110,7 @@ class VideoPlayerScreen extends StatefulWidget {
     this.favoriteType,
     this.localUri,
     this.directUrl,
+    this.directHeaders,
     this.detailUrl,
     this.coverUrl,
   });
@@ -172,6 +176,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _nextEpisodePreloaded = false;
 
   Duration _position = Duration.zero;
+
+  /// 最近一次用户 seek 的时间戳。seek 后播放器会重新缓冲并可能触发 stall 事件，
+  /// 此时属正常重新缓冲，不应当作卡顿去重连（重连会从头开始）。stall 处理在此时段内忽略。
+  DateTime? _lastSeekAt;
   Duration _duration = Duration.zero;
   bool _isPlaying = false;
   bool _uiVisible = true;
@@ -252,20 +260,41 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return headers;
   }
 
-  /// 解析视频地址，自动处理 WebView 渲染后抽取（xgcartoon 等源）与
-  /// WebView JS 抽取（MacCMS 加密站，如打驴动漫 dalvdm 的 DL- token）。
+  /// 解析视频地址。
   ///
-  /// - 若源声明 webview-html，[fetchVideoUrl] 抛出 [WebViewHtmlRequest]，
-  ///   弹出内嵌 WebView 取回渲染 HTML 回填重试；
-  /// - 若源在 video 路由声明 `webview` + jsExtractor，抛出
-  ///   [WebViewExtractionRequest]，弹出内嵌 WebView 执行脚本抽到真实直链
-  ///   （含跳转到解析中转域解密），回传后直接作为可播放地址（补齐 Referer 头）。
+  /// 默认「自动嗅探优先」：直接加载剧集播放页，靠通用嗅探链路
+  /// （JS 钩子 fetch/XHR/HTMLMediaElement/MediaSource + 网络拦截 + DOM 扫描）
+  /// 捕获网站真实视频直链——不依赖源写死的 selectors/script，适配加密 player、
+  /// MacCMS 等手动解析失败的站点。捕获到 http 直链即作为解析结果返回。
+  ///
+  /// 嗅探未捕获到直链（超时/页面不自动播放等）时，回退到源声明的手动解析：
+  /// - webview-html：弹出内嵌 WebView 取回渲染 HTML 回填重试；
+  /// - video 路由 `webview` + jsExtractor：弹出 WebView 执行脚本抽到真实直链；
+  /// - 普通 selectors/script：离线解析。
   Future<VideoResult> _resolveVideoWithCapture(
     MediaApiService service,
     PluginConfig source,
     String episodeUrl, {
     String? renderedHtml,
   }) async {
+    // 1) 自动嗅探优先（网站视频通用捕获，与源无关）
+    final pageUrl = _absolutePageUrl(source, episodeUrl);
+    if (pageUrl != null) {
+      try {
+        final outcome = await navigateToSnifferCapture(
+          context,
+          url: pageUrl,
+          timeout: const Duration(seconds: 12),
+          autoPopOnTimeout: true,
+        );
+        if (outcome?.hasExtractedUrl == true && outcome!.extractedUrl != null) {
+          return _capturedVideoResult(source, outcome);
+        }
+      } on Object {
+        // 嗅探自身异常（如 WebView 不可用），落回手动解析
+      }
+    }
+    // 2) 嗅探未命中 → 回退源声明的手动解析
     try {
       return await service.fetchVideoUrl(source, episodeUrl,
           renderedHtml: renderedHtml);
@@ -280,22 +309,46 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           renderedHtml: outcome!.renderedHtml,
         );
       }
+      if (outcome?.hasExtractedUrl == true && outcome!.extractedUrl != null) {
+        return _capturedVideoResult(source, outcome);
+      }
       throw Exception('video capture cancelled');
     } on WebViewExtractionRequest catch (e) {
       if (!mounted) rethrow;
       final outcome = await navigateToExtraction(context, request: e);
       if (outcome?.hasExtractedUrl == true && outcome!.extractedUrl != null) {
-        final url = outcome.extractedUrl!;
-        final type = url.toLowerCase().contains('m3u8') ? 'm3u8' : null;
-        final headers = _videoHeadersFor(source);
-        return VideoResult(
-          url: url,
-          type: type,
-          headers: headers.isNotEmpty ? headers : null,
-        );
+        return _capturedVideoResult(source, outcome);
       }
       throw Exception('video extraction cancelled');
     }
+  }
+
+  /// 将 WebView 抽取 / 嗅探回传的裸直链包装为可播放结果（补齐防盗链头）。
+  ///
+  /// 头优先级：源 antiHotlinking 配置（含 site.baseUrl 兜底的 Referer）优先；
+  /// 仅当配置未产出 Referer 时，才用嗅探捕获时记录的 [WebViewExtractionOutcome.extractedReferer]。
+  VideoResult _capturedVideoResult(
+      PluginConfig source, WebViewExtractionOutcome outcome) {
+    final url = outcome.extractedUrl!;
+    final type = url.toLowerCase().contains('m3u8') ? 'm3u8' : null;
+    final headers = _videoHeadersFor(source);
+    final ref = outcome.extractedReferer;
+    if (!headers.containsKey('Referer') && ref != null && ref.isNotEmpty) {
+      headers['Referer'] = ref;
+    }
+    return VideoResult(
+      url: url,
+      type: type,
+      headers: headers.isNotEmpty ? headers : null,
+    );
+  }
+
+  /// 把剧集 URL 解析为绝对页面地址（相对路径按源 baseUrl 补全；无法补全返回 null）。
+  String? _absolutePageUrl(PluginConfig source, String url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    final base = source.site.baseUrl;
+    if (base == null || base.isEmpty) return null;
+    return Uri.tryParse(base)?.resolve(url).toString();
   }
 
   Future<void> _init() async {
@@ -317,9 +370,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     if (_isDirectMode) {
       // 本地 / 直链模式：跳过在线源解析，直接打开给定地址。
+      // 直链带防盗链请求头（嗅探到的 m3u8 常需 Referer，缺了会被 CDN 403）。
       final direct = widget.directUrl ?? widget.localUri!;
+      final headers =
+          (widget.directUrl != null && widget.directHeaders?.isNotEmpty == true)
+              ? widget.directHeaders
+              : null;
       _playUrl = direct;
-      await _controller.open(direct);
+      _playHeaders = headers;
+      await _controller.open(direct, headers: headers);
     } else {
       final repo = context.read<SourceRepository>();
       final service = context.read<MediaApiService>();
@@ -554,6 +613,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// Stall（卡顿）处理：弹 SnackBar 提示并自动重新 open 当前地址恢复播放。
   void _onStall() {
     if (!mounted || _disposed) return;
+    // seek 后播放器重新缓冲会触发 stall，属正常现象，忽略以免造成重连从头播放。
+    if (_lastSeekAt != null &&
+        DateTime.now().difference(_lastSeekAt!) < const Duration(seconds: 3)) {
+      return;
+    }
     // 异步 stall 回调可能在 widget 失活后到达：deactivate 虽已置 _disposed 并取消
     // 订阅，但事件可能已排队；此时访问 context（AppLocalizations / ScaffoldMessenger）
     // 会抛「deactivated widget」未捕获异常。用 try 兜底，避免崩溃。
@@ -576,8 +640,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Future<void> _reconnect() async {
     final url = _playUrl;
     if (url == null || url.isEmpty) return;
+    final resumeAt = _position;
     try {
       await _controller.open(url, headers: _playHeaders);
+      // 重连后回到断流前的位置，避免从头播放（seek 后的 stall 已被忽略，
+      // 这里主要兜真正的播放中卡顿）。
+      if (resumeAt > Duration.zero) {
+        await _controller.seek(resumeAt);
+      }
       await _controller.play();
     } on Object {
       // 重连失败，静默忽略。
@@ -941,6 +1011,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _onSeek(Duration position) async {
+    _lastSeekAt = DateTime.now();
     await _controller.seek(position);
     _danmakuController.clear();
     _danmakuController.reset();
@@ -1541,6 +1612,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 return;
               }
               if (_dragAxis == _GestureAxis.horizontal) {
+                _lastSeekAt = DateTime.now();
                 unawaited(_controller.seek(_seekPreview));
               }
               _dragAxis = _GestureAxis.none;

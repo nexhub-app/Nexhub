@@ -431,6 +431,18 @@
   "@snifferSizeUnknown": {
     "description": "Placeholder when media size is unknown"
   },
+  "snifferResolveTitle": "Sniff Resolve",
+  "@snifferResolveTitle": {
+    "description": "Title of the in-parse sniffer fallback screen"
+  },
+  "snifferResolving": "Sniffing the video address…",
+  "@snifferResolving": {
+    "description": "Status shown while the in-parse sniffer fallback is capturing a stream"
+  },
+  "snifferResolveTimeout": "No direct link captured yet. Keep waiting or cancel.",
+  "@snifferResolveTimeout": {
+    "description": "Status shown when the in-parse sniffer fallback times out without a direct link"
+  },
   "failed": "failed",
   "@failed": {
     "description": "Generic failure suffix"
