@@ -25,6 +25,36 @@ class _BrowserProfile {
   final String secChUaPlatform;
 }
 
+/// 简单的计数信号量：限制同时进行的任务数。
+///
+/// 用于 HttpFetcher 的请求闸门——同一时刻最多 [_maxConcurrent] 个请求真正发出，
+/// 其余排队，避免一次性并发打爆单站触发限流 / IP 封禁。
+class _Semaphore {
+  _Semaphore(this._max);
+  final int _max;
+  int _count = 0;
+  final List<Completer<void>> _waiters = <Completer<void>>[];
+
+  Future<void> acquire() {
+    if (_count < _max) {
+      _count++;
+      return Future<void>.value();
+    }
+    final completer = Completer<void>();
+    _waiters.add(completer);
+    return completer.future;
+  }
+
+  void release() {
+    if (_waiters.isNotEmpty) {
+      final completer = _waiters.removeAt(0);
+      completer.complete();
+    } else {
+      _count--;
+    }
+  }
+}
+
 class HttpFetcher {
   HttpFetcher._() {
     _buildDio();
@@ -117,6 +147,41 @@ class HttpFetcher {
     // 用 Random 而不是时间戳取模（后者可预测、固定间隔更可疑）。
     final ms = 300 + _random.nextInt(800);
     await Future.delayed(Duration(milliseconds: ms));
+  }
+
+  /// 并发闸门：限制全局同时发出的请求数，并在同一 host 上强制最小间隔，
+  /// 避免一次性并发请求触发站点限流 / IP 封禁（如批量下载、首页多板块并发抓取、
+  /// 详情页同时拉取详情+选集+推荐）。
+  ///
+  /// 流程：① 全局信号量排队（[release] 在请求方法末尾的 finally 中调用）→
+  /// ② 同 host 最小间隔（同一站点两次请求至少间隔 [_minHostGapMs]）→
+  /// ③ 隐身随机延迟（打散节拍）。
+  static const int _maxConcurrent = 3;
+  // 同 host 最小间隔：原 500ms，上调到 800ms 进一步降低「短时间内连续请求
+  // 同一站点」触发风控 / IP 封禁的概率（首页板块已在 OnlineContentListScreen
+  // 内串行化抓取，这里再加一层保险）。
+  static const int _minHostGapMs = 800;
+  final _Semaphore _requestSemaphore = _Semaphore(_maxConcurrent);
+  final Map<String, DateTime> _hostLastSent = <String, DateTime>{};
+
+  Future<void> _gateRequest(String url, bool stealth) async {
+    // 1) 全局并发上限：超过则在此排队，直至有空闲名额（在请求方法 finally 中释放）。
+    await _requestSemaphore.acquire();
+    // 2) 同 host 最小间隔：防止短时间内同一站点被打爆。
+    final host = Uri.tryParse(url)?.host;
+    if (host != null && host.isNotEmpty) {
+      final prev = _hostLastSent[host];
+      final now = DateTime.now();
+      if (prev != null) {
+        final gap = _minHostGapMs - now.difference(prev).inMilliseconds;
+        if (gap > 0) await Future.delayed(Duration(milliseconds: gap));
+      }
+      _hostLastSent[host] = DateTime.now();
+    }
+    // 3) 隐身随机延迟（打散节拍）。
+    if (ConfigLoader.instance.getStealthMode() && stealth) {
+      await _stealthDelay();
+    }
   }
 
   Map<String, String> _mergeHeaders(
@@ -257,18 +322,17 @@ class HttpFetcher {
     String? referer,
     bool stealth = true,
   }) async {
-    if (ConfigLoader.instance.getStealthMode() && stealth) {
-      await _stealthDelay();
-    }
-    final merged = _mergeHeaders(referer, headers, url);
-    final resp = await _dio.get<List<int>>(
-      url,
-      options: Options(
-        headers: merged,
-        responseType: ResponseType.bytes,
-        validateStatus: (_) => true,
-      ),
-    );
+    await _gateRequest(url, stealth);
+    try {
+      final merged = _mergeHeaders(referer, headers, url);
+      final resp = await _dio.get<List<int>>(
+        url,
+        options: Options(
+          headers: merged,
+          responseType: ResponseType.bytes,
+          validateStatus: (_) => true,
+        ),
+      );
     final bytes = resp.data ?? const <int>[];
     if (bytes.isEmpty) {
       if (VerificationDetector.isVerificationRequired(
@@ -303,6 +367,9 @@ class HttpFetcher {
     _checkNonVerificationError(url, resp.statusCode, body);
     _storeCookies(url, resp);
     return body;
+    } finally {
+      _requestSemaphore.release();
+    }
   }
 
   /// 取 JSON（自动解析）。
@@ -344,19 +411,18 @@ class HttpFetcher {
     String? referer,
     bool stealth = true,
   }) async {
-    if (ConfigLoader.instance.getStealthMode() && stealth) {
-      await _stealthDelay();
-    }
-    final merged = _mergeHeaders(referer, headers, url);
-    final resp = await _dio.post<List<int>>(
-      url,
-      data: data,
-      options: Options(
-        headers: merged,
-        responseType: ResponseType.bytes,
-        validateStatus: (_) => true,
-      ),
-    );
+    await _gateRequest(url, stealth);
+    try {
+      final merged = _mergeHeaders(referer, headers, url);
+      final resp = await _dio.post<List<int>>(
+        url,
+        data: data,
+        options: Options(
+          headers: merged,
+          responseType: ResponseType.bytes,
+          validateStatus: (_) => true,
+        ),
+      );
     final body = _decodeBody(resp.data ?? const <int>[], resp.headers.value('content-type'));
     if (VerificationDetector.isVerificationRequired(
       statusCode: resp.statusCode,
@@ -373,6 +439,9 @@ class HttpFetcher {
     _checkNonVerificationError(url, resp.statusCode, body);
     _storeCookies(url, resp);
     return body;
+    } finally {
+      _requestSemaphore.release();
+    }
   }
 
   /// PUT 请求，返回 HTML 文本（与 [post] 同构，method=PUT）。
@@ -384,19 +453,18 @@ class HttpFetcher {
     bool stealth = true,
   }) async {
     _validateScheme(url);
-    if (ConfigLoader.instance.getStealthMode() && stealth) {
-      await _stealthDelay();
-    }
-    final merged = _mergeHeaders(referer, headers, url);
-    final resp = await _dio.put<List<int>>(
-      url,
-      data: data,
-      options: Options(
-        headers: merged,
-        responseType: ResponseType.bytes,
-        validateStatus: (_) => true,
-      ),
-    );
+    await _gateRequest(url, stealth);
+    try {
+      final merged = _mergeHeaders(referer, headers, url);
+      final resp = await _dio.put<List<int>>(
+        url,
+        data: data,
+        options: Options(
+          headers: merged,
+          responseType: ResponseType.bytes,
+          validateStatus: (_) => true,
+        ),
+      );
     final body = _decodeBody(resp.data ?? const <int>[], resp.headers.value('content-type'));
     if (VerificationDetector.isVerificationRequired(
       statusCode: resp.statusCode,
@@ -413,6 +481,9 @@ class HttpFetcher {
     _checkNonVerificationError(url, resp.statusCode, body);
     _storeCookies(url, resp);
     return body;
+    } finally {
+      _requestSemaphore.release();
+    }
   }
 
   /// DELETE 请求，返回 HTML 文本。
@@ -423,18 +494,17 @@ class HttpFetcher {
     bool stealth = true,
   }) async {
     _validateScheme(url);
-    if (ConfigLoader.instance.getStealthMode() && stealth) {
-      await _stealthDelay();
-    }
-    final merged = _mergeHeaders(referer, headers, url);
-    final resp = await _dio.delete<List<int>>(
-      url,
-      options: Options(
-        headers: merged,
-        responseType: ResponseType.bytes,
-        validateStatus: (_) => true,
-      ),
-    );
+    await _gateRequest(url, stealth);
+    try {
+      final merged = _mergeHeaders(referer, headers, url);
+      final resp = await _dio.delete<List<int>>(
+        url,
+        options: Options(
+          headers: merged,
+          responseType: ResponseType.bytes,
+          validateStatus: (_) => true,
+        ),
+      );
     final body = _decodeBody(resp.data ?? const <int>[], resp.headers.value('content-type'));
     if (VerificationDetector.isVerificationRequired(
       statusCode: resp.statusCode,
@@ -451,6 +521,9 @@ class HttpFetcher {
     _checkNonVerificationError(url, resp.statusCode, body);
     _storeCookies(url, resp);
     return body;
+    } finally {
+      _requestSemaphore.release();
+    }
   }
 
   /// 表单（application/x-www-form-urlencoded）POST，返回 HTML 文本。
@@ -464,14 +537,13 @@ class HttpFetcher {
     bool stealth = true,
   }) async {
     _validateScheme(url);
-    if (ConfigLoader.instance.getStealthMode() && stealth) {
-      await _stealthDelay();
-    }
-    final body = (data ?? const <String, String>{})
-        .entries
-        .map((e) =>
-            '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
-        .join('&');
+    await _gateRequest(url, stealth);
+    try {
+      final body = (data ?? const <String, String>{})
+          .entries
+          .map((e) =>
+              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+          .join('&');
     final merged = _mergeHeaders(referer, <String, String>{
       'Content-Type': 'application/x-www-form-urlencoded',
       ...?headers,
@@ -501,6 +573,9 @@ class HttpFetcher {
     _checkNonVerificationError(url, resp.statusCode, respBody);
     _storeCookies(url, resp);
     return respBody;
+    } finally {
+      _requestSemaphore.release();
+    }
   }
 
   /// 通用 fetch：返回 `{status, headers, body}` 映射（JS 沙箱 http.fetch 桥）。
@@ -513,20 +588,19 @@ class HttpFetcher {
     bool stealth = true,
   }) async {
     _validateScheme(url);
-    if (ConfigLoader.instance.getStealthMode() && stealth) {
-      await _stealthDelay();
-    }
-    final merged = _mergeHeaders(referer, headers, url);
-    final resp = await _dio.request<List<int>>(
-      url,
-      data: body,
-      options: Options(
-        method: method,
-        headers: merged,
-        responseType: ResponseType.bytes,
-        validateStatus: (_) => true,
-      ),
-    );
+    await _gateRequest(url, stealth);
+    try {
+      final merged = _mergeHeaders(referer, headers, url);
+      final resp = await _dio.request<List<int>>(
+        url,
+        data: body,
+        options: Options(
+          method: method,
+          headers: merged,
+          responseType: ResponseType.bytes,
+          validateStatus: (_) => true,
+        ),
+      );
     final respBody = _decodeBody(resp.data ?? const <int>[], resp.headers.value('content-type'));
     if (VerificationDetector.isVerificationRequired(
       statusCode: resp.statusCode,
@@ -550,6 +624,9 @@ class HttpFetcher {
       'headers': respHeaders,
       'body': respBody,
     };
+    } finally {
+      _requestSemaphore.release();
+    }
   }
 
   /// 校验 URL scheme 仅允许 http/https（沙箱安全约束）。

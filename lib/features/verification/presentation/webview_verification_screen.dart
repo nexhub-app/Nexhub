@@ -12,6 +12,7 @@
 /// 脚本抽取真实地址回传给调用方；抽取失败时回退到 [url_launcher] 手动流程。
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -87,6 +88,11 @@ class WebViewVerificationScreen extends StatefulWidget {
 class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
   bool _browserOpened = false;
   InAppWebViewController? _webViewController;
+  /// 重定向加载完成哨兵：[_runExtraction] 跳转到外域播放器页后，用此 completer
+  /// 等待该页 `onLoadStop`，再执行抽取脚本。flutter_inappwebview v6 的
+  /// [InAppWebViewController] 无 `addOnLoadStopCallback`，故复用控件
+  /// `onLoadStop` 回调驱动（见下方 InAppWebView 构造处的 onLoadStop）。
+  Completer<void>? _loadStopCompleter;
   bool _pageLoaded = false;
   bool _extracting = false;
   String? _extractionError;
@@ -175,7 +181,13 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
   ///
   /// 兼容三种返回格式：原始 URL 字符串、JSON 对象（含 url/src/video 字段）、
   /// JSON 数组（取第一个有效 URL）。失败时返回 null 并设置 [_extractionError]。
-  Future<void> _runExtraction() async {
+  ///
+  /// 通用重定向能力：jsExtractor 可返回 `webview:<url>` 前缀的指令，表示真实
+  /// 地址需先在内嵌 WebView 中加载该 URL（例如 MacCMS 加密站需跳到解析中转
+  /// 域，才能由站点自带解密函数解出直链）。此时自动加载目标页并再次执行同一
+  /// jsExtractor（深度上限防呆），直到返回非前缀地址。向后兼容：无此前缀时
+  /// 行为不变。
+  Future<void> _runExtraction({int depth = 0, int attempt = 0}) async {
     final controller = _webViewController;
     final request = widget.extractionRequest;
     if (controller == null || request == null) return;
@@ -189,6 +201,30 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
       final raw = await controller.evaluateJavascript(
         source: request.jsExtractor,
       );
+      // 处理 `webview:` 前缀重定向（见 [_asRedirect]）。
+      final redirect = _asRedirect(raw);
+      if (redirect != null) {
+        if (depth >= 3) {
+          if (mounted) {
+            setState(() {
+              _extracting = false;
+              _extractionError = '抽取重定向次数过多，请检查源脚本';
+            });
+          }
+          return;
+        }
+        final completer = Completer<void>();
+        _loadStopCompleter = completer;
+        await controller.loadUrl(
+          urlRequest: URLRequest(url: WebUri(redirect)),
+        );
+        try {
+          await completer.future.timeout(const Duration(seconds: 20));
+        } finally {
+          _loadStopCompleter = null;
+        }
+        return _runExtraction(depth: depth + 1, attempt: 0);
+      }
       final extracted = _parseExtractedResult(raw);
       if (extracted != null && extracted.isNotEmpty) {
         if (mounted) {
@@ -200,6 +236,13 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
           );
         }
         return;
+      }
+      // 在解析中转域（已重定向，depth>=1）上，站点自带 decrypt() 可能尚未就绪
+      // （脚本异步加载 / 域名锁校验），稍后重试同一页，避免误报「抽取失败」。
+      if (depth >= 1 && attempt < 8) {
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        if (!mounted) return;
+        return _runExtraction(depth: depth, attempt: attempt + 1);
       }
       // 抽取脚本返回空值或无法识别的格式。
       if (mounted) {
@@ -219,6 +262,29 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
         });
       }
     }
+  }
+
+  /// 若 [raw] 是 `webview:<url>` 形式的重定向指令则返回目标 URL，否则 null。
+  ///
+  /// 同时兼容 evaluateJavascript 可能把字符串包成 JSON（带外层引号）的情况。
+  String? _asRedirect(dynamic raw) {
+    if (raw is! String) return null;
+    var s = raw.trim();
+    if (s.startsWith('"') && s.endsWith('"')) {
+      try {
+        final decoded = jsonDecode(s);
+        if (decoded is String) s = decoded;
+      } catch (_) {
+        // 保留原字符串继续判断。
+      }
+    }
+    if (s.startsWith('webview:')) {
+      final target = s.substring('webview:'.length).trim();
+      if (target.startsWith('http://') || target.startsWith('https://')) {
+        return target;
+      }
+    }
+    return null;
   }
 
   /// 解析 jsExtractor 返回值，兼容字符串/JSON 对象/JSON 数组三种格式。
@@ -330,6 +396,12 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                       }
                       // 页面加载完成后立即同步 Cookie，确保后续抽取与会话一致。
                       await _syncWebviewCookies();
+                      // 若正在等待重定向页加载（抽取多级跳转），用此 completer 放行。
+                      // v6 无 controller.addOnLoadStopCallback，复用本回调驱动。
+                      if (_loadStopCompleter != null &&
+                          !_loadStopCompleter!.isCompleted) {
+                        _loadStopCompleter!.complete();
+                      }
                     },
                   ),
                   if (!_pageLoaded)
