@@ -340,9 +340,6 @@ NexHub 的生命力来自社区共同维护的「源」。我们欢迎任何人�
 - [猫抓 cat-catch](https://github.com/xifangczy/cat-catch) 等开源嗅探项目（cat-catch / VBrowser-Android / VidDown / pup-sniffer）的「网络拦截 + DOM 检测 + API 钩子」嗅探方法论，为 NexHub 内置嗅探功能提供了重要参考（仅借鉴方法论，未引入其代码，应用以 Apache-2.0 协议开源）；
 - 所有为「源即插件 · 共创社区」理念做出贡献的开发者、源作者与用户。
 
-> 注：经知识产权合规核查，[HapeLee/legado-with-MD3](https://github.com/HapeLee/legado-with-MD3)（GPL-3.0）与 [Predidit/Kazumi](https://github.com/Predidit/Kazumi)（GPL-3.0）均**未被 NexHub 借鉴或引入**，故未列入署名；二者均为 GPL-3.0，NexHub 亦未包含任何 GPL-3.0 组件。
-
-
 ---
 
 ## 八、开源协议
