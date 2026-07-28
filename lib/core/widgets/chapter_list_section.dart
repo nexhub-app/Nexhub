@@ -179,10 +179,13 @@ class _ChapterListSectionState extends State<ChapterListSection> {
   List<int> _processIndices(List<Episode> source, List<int> indices) {
     var result = indices;
 
-    // 快捷选集区间过滤
+    // 快捷选集区间过滤。区间以「当前子集（整表或单线路）首集」为基准，
+    // 这样在按线路分组、且选中某条线路后，区间仍按该线路的集数序号生效，
+    // 而非用全局绝对索引（否则单线路子集的索引永远匹配不到区间）。
     if (_rangeStart != null) {
+      final base = result.isNotEmpty ? result.first : 0;
       result = result
-          .where((i) => i >= _rangeStart! && i < _rangeStart! + _rangeSize)
+          .where((i) => i >= base + _rangeStart! && i < base + _rangeStart! + _rangeSize)
           .toList();
     }
 
@@ -292,14 +295,10 @@ class _ChapterListSectionState extends State<ChapterListSection> {
               ? <String, List<int>>{_selectedLine!: lines[_selectedLine]!}
               : lines);
 
-      // 对每组的索引应用搜索 + 筛选 + 排序
-      final processedLines = <String, List<int>>{};
-      for (final entry in renderLines.entries) {
-        final processed = _processIndices(widget.chapters, entry.value);
-        if (processed.isNotEmpty) {
-          processedLines[entry.key] = processed;
-        }
-      }
+      // 当前可见集数（决定区间 chips 是否显示）：选中单线时按该线集数，否则按全集数。
+      final int viewCount = _selectedLine != null
+          ? (lines[_selectedLine]?.length ?? widget.chapters.length)
+          : widget.chapters.length;
 
       final List<Widget> children = <Widget>[
         _buildSearchBar(context, l10n, scheme),
@@ -307,7 +306,30 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       if (showChips) {
         children.add(_buildLineChips(context, l10n, scheme, lines.keys.toList()));
       }
-      for (final entry in processedLines.entries) {
+      // 区间 chips：线路与区间可共存（需求2）。
+      children.add(_buildRangeChips(context, l10n, scheme, viewCount));
+
+      for (final entry in renderLines.entries) {
+        final processed = _processIndices(widget.chapters, entry.value);
+        if (processed.isEmpty) continue;
+
+        // 组内折叠：仅"无搜索/无筛选/无区间/未手动展开"且本组超长时生效，
+        // 防止多线路 × 每线成百上千集一次性全量渲染导致详情页卡顿（需求1）。
+        final bool groupCollapse = !_chaptersExpanded &&
+            _rangeStart == null &&
+            _query.isEmpty &&
+            _filterQuery.filter.isEmpty &&
+            processed.length > _collapseHead + _collapseTail;
+        final head = groupCollapse
+            ? processed.sublist(0, _collapseHead)
+            : processed;
+        final tail = groupCollapse
+            ? processed.sublist(processed.length - _collapseTail)
+            : const <int>[];
+        final hidden = groupCollapse
+            ? processed.length - _collapseHead - _collapseTail
+            : 0;
+
         // 仅"全部线路"模式（且显示 chips 时）保留分组标题；选中单线路时由 chip 标明。
         if (showChips && _selectedLine == null) {
           children.add(
@@ -321,7 +343,11 @@ class _ChapterListSectionState extends State<ChapterListSection> {
             ),
           );
         }
-        children.addAll(_buildChapterTiles(context, l10n, scheme, entry.value));
+        children.addAll(_buildChapterTiles(context, l10n, scheme, head));
+        if (groupCollapse) {
+          children.add(_buildExpandButton(context, l10n, hidden));
+          children.addAll(_buildChapterTiles(context, l10n, scheme, tail));
+        }
       }
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,

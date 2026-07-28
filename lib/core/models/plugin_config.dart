@@ -421,14 +421,48 @@ class SourceFilterConfig {
   /// 各分组缺省驱动的路由名。
   final String route;
 
+  /// 全局筛选分组（站点的统一维度，或作为未声明分类覆盖时的兜底）。
   final List<FilterGroupConfig> groups;
+
+  /// 按分类 id 的筛选分组覆盖（如 dalvdm：热门新番无年份、动漫大全/电影有年份）。
+  /// key 为分类 [CategoryEntry.id]（如 "23"/"20"/"24"）。命中时优先用它，
+  /// 否则回退 [groups]。实现「每个分类筛选各不相同」而无需在 Dart 写死。
+  final Map<String, List<FilterGroupConfig>> byCategory;
+
+  /// 按分类 id 的默认筛选值（用户未选时由源声明补齐，用户选中值优先覆盖）。
+  /// 用于 MacCMS 等「show 路由第 1 页需带默认 sort/year」的站点：
+  /// 如 233动漫国漫(2) 真值链接恒带 sort=hits、year=2026，用户不手动选这些维度时，
+  /// 若不补齐会让 show 路由拼出空 sort/year 段，服务端重写规则不匹配 → 筛选无结果。
+  /// key 为分类 id（如 "2"）；value 为「占位符名→默认值」映射（如 {sort:hits,year:2026}）。
+  /// 仅作用于声明了的分类，其余分类返回空（不强行套用全局默认，避免破坏
+  /// 剧场/美漫/特摄等「sort/year 本就应为空」的分类）。
+  final Map<String, Map<String, String>> defaults;
 
   const SourceFilterConfig({
     this.route = 'category',
     this.groups = const <FilterGroupConfig>[],
+    this.byCategory = const <String, List<FilterGroupConfig>>{},
+    this.defaults = const <String, Map<String, String>>{},
   });
 
-  bool get isEmpty => groups.isEmpty;
+  /// 取某分类的筛选分组；声明了分类覆盖且命中则返回它，否则回退全局 [groups]。
+  List<FilterGroupConfig> groupsFor(String categoryId) {
+    if (categoryId.isNotEmpty && byCategory.containsKey(categoryId)) {
+      return byCategory[categoryId]!;
+    }
+    return groups;
+  }
+
+  /// 取某分类的默认筛选值（用户未选时由源声明补齐，如国漫 sort=hits/year=2026）。
+  /// 用户选中值优先于默认（合并在调用方 [_categoryPageVars] 处理）。
+  Map<String, String> defaultsFor(String categoryId) {
+    if (categoryId.isNotEmpty && defaults.containsKey(categoryId)) {
+      return Map<String, String>.from(defaults[categoryId]!);
+    }
+    return const <String, String>{};
+  }
+
+  bool get isEmpty => groups.isEmpty && byCategory.isEmpty;
 
   factory SourceFilterConfig.fromJson(Map<String, dynamic> json) =>
       SourceFilterConfig(
@@ -439,11 +473,35 @@ class SourceFilterConfig {
                     FilterGroupConfig.fromJson(Map<String, dynamic>.from(e)))
                 .toList(growable: false) ??
             const <FilterGroupConfig>[],
+        byCategory: (json['byCategory'] as Map<Object?, Object?>?)?.map(
+              (k, v) => MapEntry(
+                k.toString(),
+                (v as List<dynamic>)
+                    .whereType<Map>()
+                    .map((e) =>
+                        FilterGroupConfig.fromJson(Map<String, dynamic>.from(e)))
+                    .toList(growable: false),
+              ),
+            ) ??
+            const <String, List<FilterGroupConfig>>{},
+        defaults: (json['defaults'] as Map<Object?, Object?>?)?.map(
+              (k, v) => MapEntry(
+                k.toString(),
+                (v as Map<Object?, Object?>)
+                    .map((ik, iv) => MapEntry(ik.toString(), iv.toString())),
+              ),
+            ) ??
+            const <String, Map<String, String>>{},
       );
 
   Map<String, dynamic> toJson() => {
         'route': route,
         'groups': groups.map((e) => e.toJson()).toList(),
+        if (byCategory.isNotEmpty)
+          'byCategory': byCategory
+              .map((k, v) => MapEntry(k, v.map((e) => e.toJson()).toList())),
+        if (defaults.isNotEmpty)
+          'defaults': defaults.map((k, v) => MapEntry(k, Map<String, String>.from(v))),
       };
 }
 
@@ -696,9 +754,26 @@ class PluginConfig {
     // 导致播放页抓取失败、解析不到视频源。此修复对所有源通用，不针对特定站点。
     if (apiName == 'video' && url.trim() == '{url}') {
       final rawUrl = vars['url'];
-      if (rawUrl != null &&
-          (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
-        return rawUrl;
+      if (rawUrl != null && rawUrl.isNotEmpty) {
+        // 绝对地址（含 host）直接返回，避免被 activeBaseUrl 前缀成双 host 坏链
+        // （如 `https://base/https://episode`），导致播放页抓取失败、解析不到视频。
+        if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+          return rawUrl;
+        }
+        // 根相对地址（如 `/anime/.../play/1.html`，233 动漫播放页即此类）：
+        // base 先去掉尾斜杠再拼接，否则会出现 `https://host//anime/...` 双斜杠
+        // 坏链，播放器拿到错误地址 → 0×0 黑屏。对齐下方通用拼接逻辑但提前返回，
+        // 避免先拼成 `host/{url}` 再 replaceAll('{url}', '/anime/...') 产生双斜杠。
+        final base = activeBaseUrl.endsWith('/')
+            ? activeBaseUrl.substring(0, activeBaseUrl.length - 1)
+            : activeBaseUrl;
+        if (rawUrl.startsWith('/')) {
+          return '$base$rawUrl';
+        }
+        // 纯相对地址：基于 base 目录 resolve。
+        return Uri.parse(base.endsWith('/') ? base : '$base/')
+            .resolve(rawUrl)
+            .toString();
       }
     }
     if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -713,10 +788,31 @@ class PluginConfig {
     vars.forEach((k, v) {
       // 用户搜索词等自由文本必须 URL 编码：否则中文关键词（如「海贼王」）原样
       // 塞进查询串会导致 GET 请求非法 / 被服务器误解 → 搜索返回错乱或空
-      // （中文站「作品搜索内容不正确」「主演搜索不全」的根因）。仅编码 keyword
-      // （搜索输入恒走此占位符），其余占位符（category/id/page 等）多为 ASCII 标识。
+      // （中文站「作品搜索内容不正确」「主演搜索不全」的根因）。
+      // 此外，筛选值也可能是中文（如 MacCMS 站 genre=「奇幻」直接作为路径段
+      // `/show/2--hits-奇幻--...html`）：服务端期望 %E5%A5%87%E5%B9%BB 编码形式，
+      // 原样插入中文会导致匹配失败返回空列表（「筛选无结果」的通用根因）。
+      // 规则：keyword 恒编码；其余占位符仅当值含非 ASCII 字符且不是 URL/路径
+      // （不含 '/' 与 ':'）时编码——避免误编码 {url}/{detailUrl} 等整段地址。
       // 用 encodeComponent（空格→%20）兼顾查询串与路径段两种落点。
-      final value = k == 'keyword' ? Uri.encodeComponent(v) : v;
+      final String value;
+      if (apiName == 'show' &&
+          k == 'page' &&
+          (v == '1' || v == '0')) {
+        // MacCMS show 路由第 1 页段为空：真值形如 /show/2--hits-奇幻--------2026.html
+        // （page 段为空段，共 8 连字符）。若注入 "1" 会拼出 -----1---，服务端重写
+        // 规则不匹配 → 返回空/404，筛选无结果。仅作用于 show 路由，避免影响
+        // latest 等查询串分页（那些需保留 page=1）。第 2 页起 page>=2 正常保留。
+        value = '';
+      } else if (k == 'keyword') {
+        value = Uri.encodeComponent(v);
+      } else if (v.contains(RegExp(r'[^\x00-\x7F]')) &&
+          !v.contains('/') &&
+          !v.contains(':')) {
+        value = Uri.encodeComponent(v);
+      } else {
+        value = v;
+      }
       url = url.replaceAll('{$k}', value);
     });
     // 兼容旧版「采集api」导出的源：详情/选集路由常用 {season_id}/{sid}/{avid}

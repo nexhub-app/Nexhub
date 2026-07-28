@@ -29,19 +29,32 @@ import 'source_resolver.dart';
 class WebViewHtmlCache {
   WebViewHtmlCache._();
 
-  static final Map<String, String> _store = <String, String>{};
+  /// (源, 路由) → 该路由最近一次渲染的 HTML 及其来源 URL。
+  /// [url] 非空时用于区分同路由不同 URL 的渲染结果（如 `show` 各筛选条件、
+  /// `search` 各关键词），避免串味；[url] 为 null 时回退「每路由仅缓存一份」
+  /// 的旧行为（detail/episodes 等逐资源路由仍按旧逻辑，不影响）。
+  static final Map<String, _WebViewHtmlEntry> _store =
+      <String, _WebViewHtmlEntry>{};
 
   static String _key(String sourceId, String apiName) => '$sourceId::$apiName';
 
-  /// 写入某 (源, 路由) 的渲染 HTML。
-  static void set(String sourceId, String apiName, String html) {
+  /// 写入某 (源, 路由) 的渲染 HTML，并记录来源 [url]（可能为空，向后兼容）。
+  static void set(String sourceId, String apiName, String html,
+      {String? url}) {
     if (html.isEmpty) return;
-    _store[_key(sourceId, apiName)] = html;
+    _store[_key(sourceId, apiName)] = _WebViewHtmlEntry(url: url, html: html);
   }
 
-  /// 读取缓存的渲染 HTML（无则 null）。
-  static String? get(String sourceId, String apiName) =>
-      _store[_key(sourceId, apiName)];
+  /// 读取缓存的渲染 HTML。
+  /// - [url] 与缓存来源 URL 一致 → 命中返回；
+  /// - 缓存条目 [url] 为 null（旧路径 / 逐资源路由）→ 视为命中（向后兼容）；
+  /// - [url] 与缓存不一致（如切了筛选条件 / 换了搜索词）→ 视为未命中，需重新渲染。
+  static String? get(String sourceId, String apiName, String? url) {
+    final e = _store[_key(sourceId, apiName)];
+    if (e == null || e.html.isEmpty) return null;
+    if (e.url == null || url == null || e.url == url) return e.html;
+    return null;
+  }
 
   /// 清除某源的全部缓存（切源 / 主动刷新本源时调用，避免陈旧内容）。
   static void invalidateSource(String sourceId) {
@@ -50,6 +63,13 @@ class WebViewHtmlCache {
 
   /// 清空全部缓存（保留用于调试 / 强制重新验证）。
   static void clear() => _store.clear();
+}
+
+/// [WebViewHtmlCache] 单条缓存：渲染 HTML + 其来源 URL（用于同路由多 URL 区分）。
+class _WebViewHtmlEntry {
+  final String? url;
+  final String html;
+  const _WebViewHtmlEntry({this.url, required this.html});
 }
 
 /// 声明式解析器类型集合：[ParserConfig.type] 命中即视为「无脚本、靠选择器解析」。
@@ -129,10 +149,17 @@ class WebViewResolver implements SourceResolver {
   ///
   /// 仅当 `parser.type` 为 `webview` 或 `hybrid + override.type=webview` 时
   /// 才视为有效的抽取脚本；其他情况返回 null（走 [WebViewRequiredException] 兜底）。
-  String? _pickJsExtractor(PluginConfig source, String apiName) {    final parser = source.parser;
+  String? _pickJsExtractor(PluginConfig source, String apiName) {
+    final parser = source.parser;
+    final override = parser.overrides?[apiName];
+    // 显式 `webview` override 且带了脚本：直接作为抽取脚本（如 MacCMS 站需在
+    // 内嵌 WebView 里加载外域播放器页、用页面内 playData 解出真实 m3u8）。这
+    // 条优先级最高，避免被 useWebview 的「渲染后抽取」(webview-html) 分支抢占。
+    if (override?.type == 'webview' && override?.script?.isNotEmpty == true) {
+      return override!.script;
+    }
     // hybrid 模式下仅当该 API 显式声明 webview override 才走抽取。
     if (parser.type == 'hybrid') {
-      final override = parser.overrides?[apiName];
       if (override?.type != 'webview') return null;
       return override?.script?.isNotEmpty == true
           ? override!.script
@@ -140,7 +167,6 @@ class WebViewResolver implements SourceResolver {
     }
     if (parser.type == 'webview') {
       // 顶层 webview：优先 override 脚本，再回退 parser.script。
-      final override = parser.overrides?[apiName];
       if (override?.script?.isNotEmpty == true) return override!.script;
       return parser.script;
     }
@@ -161,6 +187,16 @@ class WebViewResolver implements SourceResolver {
     final lower = apiName.toLowerCase();
     final isVideoRoute =
         lower == 'video' || lower == 'episode' || lower.contains('video');
+
+    // 若某路由显式声明了 `webview` + 抽取脚本（jsExtractor），则优先走 JS 抽取
+    // 流程（见 [_pickJsExtractor]），不走「渲染后整页 HTML 回灌」。典型场景：
+    // MacCMS 站播放页把 token 放进 player_xxx，真实地址需加载外域播放器页用
+    // 页内 playData 解密——这类必须靠脚本在 WebView 上下文里完成，整页 HTML
+    // 回灌（选择器扫描）拿不到跨域 iframe 内的真实 m3u8，会误把 token 当地址。
+    final override = source.parser.overrides?[apiName];
+    if (override?.type == 'webview' && override?.script?.isNotEmpty == true) {
+      return false;
+    }
 
     // 声明式源 + useWebview + 视频路由：走 WebViewHtmlRequest（渲染后整页
     // HTML 回灌给 BuiltinResolver 用既有选择器解析视频）。非视频路由不进此
@@ -195,7 +231,6 @@ class WebViewResolver implements SourceResolver {
       }
       return true;
     }
-    final override = source.parser.overrides?[apiName];
     return override?.type == 'webview-html';
   }
 
@@ -212,9 +247,10 @@ class WebViewResolver implements SourceResolver {
     // webview-html 模式：不执行 JS 抽取脚本，而是渲染后取回整页 HTML，
     // 复用既有 CSS/XPath 选择器解析（见 [WebViewHtmlRequest]）。
     if (_isHtmlMode(source, apiName)) {
-      // 本会话已为该 (源, 路由) 捕获过渲染 HTML → 直接复用，避免反复弹验证页
-      // （修复「多个页面需要验证多次」）。首次捕获由验证回灌流程写入缓存。
-      final cached = WebViewHtmlCache.get(source.id, apiName);
+      // 本会话已为该 (源, 路由, URL) 捕获过渲染 HTML → 直接复用，避免反复弹验证页
+      // （修复「多个页面需要验证多次」）。仅当 URL 一致才命中，故 show 各筛选条件 /
+      // search 各关键词各自独立缓存、不会串味。首次捕获由验证回灌流程写入缓存。
+      final cached = WebViewHtmlCache.get(source.id, apiName, url);
       if (cached != null && cached.isNotEmpty) {
         return BuiltinResolver().resolveFromHtml(
           source,
