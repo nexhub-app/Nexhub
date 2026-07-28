@@ -1,4 +1,4 @@
-/// 浏览首页：图文宫格式布局，提供四大入口（本地文件、网络文件、网页爬取、RSS 订阅）。
+/// 浏览首页：图文宫格式布局，提供五大入口（本地文件、网络文件、网页爬取、嗅探、RSS 订阅）。
 library;
 
 import 'package:flutter/material.dart';
@@ -10,6 +10,7 @@ import '../../../core/widgets/app_animations.dart';
 import 'browse_local_screen.dart';
 import 'browse_network_screen.dart';
 import 'browse_rss_screen.dart';
+import 'browse_sniffer_screen.dart';
 import 'browse_web_scrape_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
@@ -154,6 +155,18 @@ class BrowsePage extends StatelessWidget {
         onTap: () => Navigator.of(context).push(
               AppPageRoute<void>(
                 builder: (_) => const BrowseRssScreen(),
+              ),
+            ),
+      ),
+      _BrowseEntry(
+        icon: Icons.cable_outlined,
+        title: l10n.browseSniff,
+        subtitle: l10n.browseSniffSubtitle,
+        color: scheme.primaryContainer,
+        iconColor: scheme.onPrimaryContainer,
+        onTap: () => Navigator.of(context).push(
+              AppPageRoute<void>(
+                builder: (_) => const BrowseSnifferScreen(),
               ),
             ),
       ),
