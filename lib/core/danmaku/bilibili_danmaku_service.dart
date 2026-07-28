@@ -34,7 +34,7 @@ class BilibiliDanmakuService implements DanmakuSource {
   }
 
   @override
-  Future<List<DanmakuEpisode>> getEpisodes(String animeId) {
+  Future<List<DanmakuEpisode>> getEpisodes(String animeTitle) {
     throw UnsupportedError(
         'Bilibili danmaku source does not support getEpisodes');
   }
