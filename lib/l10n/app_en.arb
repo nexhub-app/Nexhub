@@ -29,6 +29,8 @@
   "browseWebScrapeSubtitle": "Extract novels, comics, videos or articles from the web",
   "browseRss": "RSS Subscriptions",
   "browseRssSubtitle": "Manage and browse RSS feeds",
+  "browseSniff": "Sniffer",
+  "browseSniffSubtitle": "Sniff web videos and play them in-app",
 
   "subTabLocal": "Local",
   "subTabHistory": "History",
@@ -381,9 +383,57 @@
   "@snifferPlay": {
     "description": "Play a sniffed video URL with the built-in player"
   },
+  "snifferInPagePlaying": "Playing in page",
+  "@snifferInPagePlaying": {
+    "description": "Status shown when a blob/MSE stream is played inside the WebView instead of an external player"
+  },
+  "snifferInPageHint": "This stream is blob/MSE and cannot be opened in an external player; it is now playing inside the page.",
+  "@snifferInPageHint": {
+    "description": "Hint explaining why a blob/MSE stream can only be played inside the page"
+  },
+  "snifferCopyPageLink": "Copy page link",
+  "@snifferCopyPageLink": {
+    "description": "Copy the current page URL (for blob/MSE streams that play only in-page)"
+  },
   "snifferClear": "Clear list",
   "@snifferClear": {
     "description": "Clear the sniffed video URL list"
+  },
+  "snifferGo": "Go",
+  "@snifferGo": {
+    "description": "Submit button on the sniffer address bar"
+  },
+  "snifferDeep": "Deep sniff",
+  "@snifferDeep": {
+    "description": "Toggle label for deep DOM scanning in the sniffer"
+  },
+  "snifferSave": "Save",
+  "@snifferSave": {
+    "description": "Save a sniffed media URL to the download directory"
+  },
+  "snifferFilterAll": "All",
+  "@snifferFilterAll": {
+    "description": "Filter chip: all sniffed media"
+  },
+  "snifferFilterVideo": "Video",
+  "@snifferFilterVideo": {
+    "description": "Filter chip: video only"
+  },
+  "snifferFilterAudio": "Audio",
+  "@snifferFilterAudio": {
+    "description": "Filter chip: audio only"
+  },
+  "snifferFilterOther": "Other",
+  "@snifferFilterOther": {
+    "description": "Filter chip: other media"
+  },
+  "snifferSizeUnknown": "Size unknown",
+  "@snifferSizeUnknown": {
+    "description": "Placeholder when media size is unknown"
+  },
+  "failed": "failed",
+  "@failed": {
+    "description": "Generic failure suffix"
   },
   "share": "Share",
   "shareCopied": "Copied to clipboard",
@@ -1154,6 +1204,12 @@
   "aboutAppTitle": "About",
   "openSourceLicenses": "Open source licenses",
   "thirdPartyLibraries": "Third-party libraries",
+  "acknowledgements": "Acknowledgements",
+  "acknowledgementsLegado": "NexHub's novel paginator re-implements its ChapterProvider pagination algorithm as an independent Dart implementation (no source copied). The upstream repo ships no explicit open-source license; this credit is inspiration attribution only.",
+  "acknowledgementsMihon": "Its extension-source architecture and comic-reader interaction informed NexHub's manga parsing and reading experience. Licensed under Apache License 2.0 (© Mihon contributors).",
+  "acknowledgementsRssHub": "Powers the RSS aggregation behind NexHub's subscription feature. Licensed under AGPL-3.0 (© DIYgod); NexHub only calls it as a client and does not modify or redistribute its source.",
+  "acknowledgementsViewProject": "View project",
+  "acknowledgementsMoreLibs": "Other third-party libraries are listed under \"Open source licenses\".",
   "projectRepository": "Project repository",
   "checkUpdate": "Check for updates",
   "updateChecking": "Checking for updates…",

@@ -326,8 +326,9 @@ NexHub 的生命力来自社区共同维护的「源」。我们欢迎任何人�
 
 感谢以下项目与社区，NexHub 的建立离不开它们：
 
-- [Legado](https://github.com/gedoor/legado)（及其各类改版）的「书源」规则系统，为 NexHub「源即插件」的解析与共创理念提供了核心启发（尤其小说源的声明式 / 脚本式写法）；
-- [Mihon](https://github.com/mihonapp/mihon)（Tachiyomi 衍生版，及其各类改版）的扩展源与漫画阅读器交互，为 NexHub 的漫画解析与阅读体验提供了重要参考；
+- [Legado](https://github.com/gedoor/legado)（及其各类改版）的「书源」规则系统，为 NexHub「源即插件」的解析与共创理念提供了核心启发（尤其小说源的声明式 / 脚本式写法）。NexHub 小说分页器以独立 Dart 实现借鉴了 Legado `ChapterProvider` 的分页算法，未复制其源码；Legado 上游仓库未附带明确的开源许可证，本致谢仅作启发署名，不暗示任何许可授权。
+- [Mihon](https://github.com/mihonapp/mihon)（Tachiyomi 衍生版，及其各类改版）的扩展源架构与漫画阅读器交互，为 NexHub 的漫画解析与阅读体验提供了重要参考。Mihon 以 Apache License 2.0 发布（© Mihon contributors）。
+- [RSSHub](https://github.com/DIYgod/RSSHub) 的 RSS 聚合能力为 NexHub 的订阅功能提供了服务基础。RSSHub 以 AGPL-3.0 发布（© DIYgod），NexHub 仅作为客户端调用其实例，未修改或再分发其源码。
 - [Flutter](https://flutter.dev) 与 Dart 团队，提供优秀的跨平台框架；
 - [flutter_js](https://pub.dev/packages/flutter_js)（quickjs 内核），为源内嵌脚本提供安全的 JS 沙箱；
 - [xpath_selector](https://pub.dev/packages/xpath_selector) 与 [html](https://pub.dev/packages/html)，提供声明式抽取能力；
@@ -336,15 +337,19 @@ NexHub 的生命力来自社区共同维护的「源」。我们欢迎任何人�
 - [dynamic_color](https://pub.dev/packages/dynamic_color)，Material You 动态配色；
 - [media_kit](https://pub.dev/packages/media_kit) 与 `fvp`，影视播放能力；
 - [canvas_danmaku](https://pub.dev/packages/canvas_danmaku)，弹幕渲染；
+- [猫抓 cat-catch](https://github.com/xifangczy/cat-catch) 等开源嗅探项目（cat-catch / VBrowser-Android / VidDown / pup-sniffer）的「网络拦截 + DOM 检测 + API 钩子」嗅探方法论，为 NexHub 内置嗅探功能提供了重要参考（仅借鉴方法论，未引入其代码，应用以 Apache-2.0 协议开源）；
 - 所有为「源即插件 · 共创社区」理念做出贡献的开发者、源作者与用户。
+
+> 注：经知识产权合规核查，[HapeLee/legado-with-MD3](https://github.com/HapeLee/legado-with-MD3)（GPL-3.0）与 [Predidit/Kazumi](https://github.com/Predidit/Kazumi)（GPL-3.0）均**未被 NexHub 借鉴或引入**，故未列入署名；二者均为 GPL-3.0，NexHub 亦未包含任何 GPL-3.0 组件。
+
 
 ---
 
 ## 八、开源协议
 
-本项目以 **MIT 协议** 开源，详见仓库根目录的 [LICENSE](LICENSE) 文件。
+本项目以 **Apache License 2.0（Apache-2.0）** 协议开源，详见仓库根目录的 [LICENSE](LICENSE) 文件与 [NOTICE](NOTICE) 第三方署名文件。
 
-MIT 协议允许任何人免费使用、复制、修改、合并、发布、分发本软件，但须保留原版权声明与许可声明，**不提供任何担保**。如需在闭源或商业产品中集成，只需遵循 MIT 协议条款即可，无需额外授权。
+Apache-2.0 允许在任何项目中免费使用、复制、修改与分发本软件（含闭源或商业产品），但须：保留版权与许可声明、在修改文件中标注变更、若上游含 NOTICE 文件须随附其署名内容。**本软件按「原样」提供，不提供任何担保。** 如本项目包含第三方组件的衍生内容，其署名与许可见 [NOTICE](NOTICE)。
 
 ---
 

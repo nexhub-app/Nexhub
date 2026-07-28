@@ -10,6 +10,62 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
+/// 致谢条目数据模型（文件作用域）。
+class _AcknowledgementCredit {
+  final String name;
+  final String desc;
+  final String url;
+  const _AcknowledgementCredit({
+    required this.name,
+    required this.desc,
+    required this.url,
+  });
+}
+
+/// 致谢弹窗中的单条署名卡片。
+class _AcknowledgementCard extends StatelessWidget {
+  final _AcknowledgementCredit credit;
+  final AppLocalizations l10n;
+  const _AcknowledgementCard({
+    required this.credit,
+    required this.l10n,
+  });
+
+  Future<void> _open() async {
+    final Uri uri = Uri.parse(credit.url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            credit.name,
+            style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppTokens.spaceXs),
+          Text(credit.desc, style: textTheme.bodySmall),
+          const SizedBox(height: AppTokens.spaceXs),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _open,
+              child: Text(l10n.acknowledgementsViewProject),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Project repository URL opened via url_launcher.
 const String _kProjectRepositoryUrl = 'https://github.com/nexhub-app/nexhub';
 
@@ -245,9 +301,16 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
           ),
 
-          const SizedBox(height: AppTokens.spaceLg),
+        AppListTile(
+          leading: const Icon(Icons.favorite_outline),
+          title: Text(l10n.acknowledgements),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _showAcknowledgements(l10n),
+        ),
 
-          // ── Repository / update ──
+        const SizedBox(height: AppTokens.spaceLg),
+
+        // ── Repository / update ──
           AppListTile(
             leading: const Icon(Icons.code),
             title: Text(l10n.projectRepository),
@@ -259,6 +322,54 @@ class _AboutScreenState extends State<AboutScreen> {
             title: Text(l10n.checkUpdate),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _checkForUpdate(l10n),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAcknowledgements(AppLocalizations l10n) async {
+    final List<_AcknowledgementCredit> credits = <_AcknowledgementCredit>[
+      _AcknowledgementCredit(
+        name: 'Legado',
+        desc: l10n.acknowledgementsLegado,
+        url: 'https://github.com/gedoor/legado',
+      ),
+      _AcknowledgementCredit(
+        name: 'Mihon',
+        desc: l10n.acknowledgementsMihon,
+        url: 'https://github.com/mihonapp/mihon',
+      ),
+      _AcknowledgementCredit(
+        name: 'RSSHub',
+        desc: l10n.acknowledgementsRssHub,
+        url: 'https://github.com/DIYgod/RSSHub',
+      ),
+    ];
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(l10n.acknowledgements),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              ...credits.map(
+                (c) => _AcknowledgementCard(credit: c, l10n: l10n),
+              ),
+              const SizedBox(height: AppTokens.spaceMd),
+              Text(
+                l10n.acknowledgementsMoreLibs,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.cancel),
           ),
         ],
       ),
