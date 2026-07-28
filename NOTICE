@@ -1,0 +1,41 @@
+NexHub
+Copyright 2026 The NexHub Authors
+
+This product includes or is derived from third-party software, acknowledged
+below. Per Apache License 2.0 §4(d), this NOTICE is distributed with the work
+and surfaced within the application's "致谢 / Acknowledgements" screen.
+
+==============================================================================
+Legado (gedoor/legado, "阅读", and its various forks)
+------------------------------------------------------------------------------
+Relationship : NexHub's novel text paginator re-implements the pagination
+              algorithm of Legado's `ChapterProvider` as an independent Dart
+              implementation (Flutter TextPainter based), inspired by its
+              design. No Legado source code is copied.
+License      : The upstream gedoor/legado repository does not ship an explicit
+              open-source license (all rights reserved by default). This
+              acknowledgement is for attribution of inspiration only and does
+              not imply any license grant from the upstream authors.
+Source       : https://github.com/gedoor/legado
+
+==============================================================================
+Mihon (mihonapp/mihon, a Tachiyomi derivative, and its various forks)
+------------------------------------------------------------------------------
+Relationship : Reference for extension-source architecture and comic-reader
+              interaction in NexHub's manga module.
+License      : Apache License 2.0. Copyright Mihon contributors.
+Source       : https://github.com/mihonapp/mihon
+
+==============================================================================
+RSSHub (DIYgod/RSSHub)
+------------------------------------------------------------------------------
+Relationship : NexHub consumes RSSHub instances as an external feed service.
+              It does not modify or redistribute RSSHub source code.
+License      : GNU Affero General Public License v3.0 (AGPL-3.0).
+              Copyright DIYgod and RSSHub contributors.
+Source       : https://github.com/DIYgod/RSSHub
+
+==============================================================================
+The remaining third-party libraries used by NexHub (Flutter, dart, and the
+pub.dev dependencies) are listed by the application's "Open source licenses"
+screen, which is generated from pubspec.yaml metadata.
