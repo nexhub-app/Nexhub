@@ -1684,6 +1684,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               child: DanmakuOverlay(
                 key: _danmakuKey,
                 enabled: _danmakuOn,
+                controller: _danmakuController,
               ),
             ),
           ),
