@@ -10,18 +10,28 @@
 /// M2.4 增强：当传入 [WebViewExtractionRequest] 时切换为内嵌 [InAppWebView]
 /// 模式，加载页面让用户完成验证，再点击「用此页抽取」按钮执行 [jsExtractor]
 /// 脚本抽取真实地址回传给调用方；抽取失败时回退到 [url_launcher] 手动流程。
+///
+/// 嗅探兜底（源视频路由通用）：内嵌 WebView 在文档起始注入嗅探钩子
+/// （见 [SnifferBridge]），以「网络拦截 + DOM 检测 + API 钩子」捕获视频地址；
+/// 当 [jsExtractor] 主链路未解出地址时，自动回退到已捕获的首个可播放视频地址
+/// （仅作兜底，不改动既有解析主链路）。
 library;
 
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/scraper/verification_detector.dart';
+import '../../../core/sniffer/sniffer_bridge.dart' show SnifferBridge;
+import '../../../core/sniffer/sniffer_engine.dart' show SnifferEngine;
+import '../../../core/sniffer/sniffer_models.dart' show SniffFilter;
 import '../../../core/theme/app_tokens.dart';
 import '../../browser/presentation/http_browser_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
@@ -34,6 +44,11 @@ enum VerificationResult {
   cancelled,
 }
 
+/// 嗅探兜底解析出的最佳可播放目标（记录类型）。
+///
+/// [mode] 为 'http'（真实直链，可交给外部播放器）或 'webview'（仅 blob/mse，只能在页内播放）。
+typedef _SnifferPlay = ({String mode, String url, String ref});
+
 /// WebView 抽取/验证流程的最终结果。
 ///
 /// 调用方优先判断 [extractedUrl] 是否非空：非空则直接用作解析结果，
@@ -43,10 +58,14 @@ class WebViewExtractionOutcome {
   final String? extractedUrl;
   final String? renderedHtml;
 
+  /// 抽取地址配套的防盗链 Referer（嗅探捕获时记录；可空）。
+  final String? extractedReferer;
+
   const WebViewExtractionOutcome({
     required this.result,
     this.extractedUrl,
     this.renderedHtml,
+    this.extractedReferer,
   });
 
   /// 用户已完成验证并希望重试。
@@ -72,12 +91,32 @@ class WebViewVerificationScreen extends StatefulWidget {
   final WebViewExtractionRequest? extractionRequest;
   final WebViewHtmlRequest? htmlRequest;
 
+  /// 嗅探解析模式：加载 [verificationUrl]（剧集播放页），仅靠嗅探链路
+  /// （JS 钩子 + 网络拦截 + DOM 扫描）捕获真实视频地址，捕获到即自动回传。
+  /// 用于常规解析（selectors/script）失败后的通用兜底，与源无关。
+  final bool snifferMode;
+
+  /// 嗅探解析模式加载页面用的请求头（可空）。
+  final Map<String, String>? snifferHeaders;
+
+  /// 嗅探解析超时时长（默认 20s）。作为「首选」解析（[snifferAutoPopOnTimeout]=true）
+  /// 时建议调短，让未捕获到直链的源更快回退到手动解析。
+  final Duration? snifferTimeout;
+
+  /// 嗅探作为「首选」解析（而非最后兜底）时，超时后自动回传（不展示等待/取消界面），
+  /// 让上层回退到源声明的手动解析。默认 false（兜底模式展示等待界面）。
+  final bool snifferAutoPopOnTimeout;
+
   const WebViewVerificationScreen({
     super.key,
     required this.verificationUrl,
     this.exception,
     this.extractionRequest,
     this.htmlRequest,
+    this.snifferMode = false,
+    this.snifferHeaders,
+    this.snifferTimeout,
+    this.snifferAutoPopOnTimeout = false,
   });
 
   @override
@@ -97,11 +136,100 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
   bool _extracting = false;
   String? _extractionError;
 
+  /// 页内沉浸式播放模式：当嗅探仅捕获到 blob/mediasource（无法在 WebView 外播放）时，
+  /// 切换为「页面即播放器」——保持 WebView 可见，由页内 MSE 播放器直接播放。
+  bool _webviewPlayMode = false;
+
+  /// 嗅探兜底：文档起始注入的钩子脚本（加载完成后非空，失败为空字符串）。
+  String? _hookJs;
+
+  /// 嗅探引擎。抽取/HTML 模式用进程级共享实例（结果跨屏累积可复用）；
+  /// 嗅探解析模式用独立实例——共享实例可能残留其他站点的旧捕获，
+  /// 会导致「自动回传」拿到不属于本集的地址。
+  late final SnifferEngine _snifferEngine =
+      widget.snifferMode ? SnifferEngine() : SnifferEngine.shared;
+
+  /// 嗅探桥接器：注入 JS 钩子 + 注册 handler + onLoadResource 兜底。
+  late final SnifferBridge _snifferBridge = SnifferBridge(_snifferEngine);
+
+  /// 嗅探解析模式：是否已回传（防 onUpdate 多次触发重复 pop）。
+  bool _snifferPopped = false;
+
+  /// 当前页面地址（onLoadStop 同步维护；getUrl() 是 Future 不能同步用）。
+  String? _currentPageUrl;
+
+  /// 嗅探解析模式：超时提示计时器（超时仅提示，不强制退出）。
+  Timer? _snifferTimeout;
+
+  /// 嗅探解析模式：是否已超时（切换底栏文案，并放开 blob 页内播放兜底）。
+  bool _snifferTimedOut = false;
+
   /// 是否启用 M2.4 内嵌抽取流程。
   bool get _hasExtractionRequest => widget.extractionRequest != null;
 
   /// 是否启用「渲染后抽取」流程（取回整页渲染 HTML）。
   bool get _hasHtmlRequest => widget.htmlRequest != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHook();
+    if (widget.snifferMode) {
+      _snifferEngine.onUpdate = _onSnifferModeUpdate;
+      _snifferTimeout = Timer(widget.snifferTimeout ?? const Duration(seconds: 20),
+          () {
+        if (!mounted || _snifferPopped) return;
+        if (widget.snifferAutoPopOnTimeout) {
+          // 首选嗅探超时：自动回传，让上层回退到手动解析（不阻塞用户）。
+          _snifferPopped = true;
+          Navigator.of(context).pop(
+            WebViewExtractionOutcome(result: VerificationResult.cancelled),
+          );
+          return;
+        }
+        setState(() => _snifferTimedOut = true);
+        // 超时后若仅捕获到 blob/mse，退而求其次进入页内播放。
+        final target = _resolveSnifferPlay();
+        if (target != null && target.mode == 'webview') {
+          setState(() => _webviewPlayMode = true);
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _snifferTimeout?.cancel();
+    if (widget.snifferMode) _snifferEngine.onUpdate = null;
+    super.dispose();
+  }
+
+  /// 嗅探解析模式：每次捕获更新时检查是否已有真实直链，有则立即回传。
+  void _onSnifferModeUpdate() {
+    if (!mounted || _snifferPopped) return;
+    final target = _resolveSnifferPlay();
+    if (target == null || target.mode != 'http') return;
+    _snifferPopped = true;
+    Navigator.of(context).pop(
+      WebViewExtractionOutcome(
+        result: VerificationResult.done,
+        extractedUrl: target.url,
+        extractedReferer:
+            target.ref.isNotEmpty ? target.ref : widget.verificationUrl,
+      ),
+    );
+  }
+
+  /// 加载嗅探钩子脚本（本地 asset，近乎瞬时）。失败时置空字符串，
+  /// 此时仍保留 [onLoadResource] 被动兜底，不阻断主流程。
+  Future<void> _loadHook() async {
+    try {
+      final js = await rootBundle.loadString('assets/sniffer/sniffer_hook.js');
+      if (mounted) setState(() => _hookJs = js);
+    } catch (_) {
+      if (mounted) setState(() => _hookJs = '');
+    }
+  }
 
   Future<void> _openInBrowser() async {
     final uri = Uri.tryParse(widget.verificationUrl);
@@ -205,6 +333,8 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
       final redirect = _asRedirect(raw);
       if (redirect != null) {
         if (depth >= 3) {
+          // 重定向超限：先尝试嗅探兜底，再报错。
+          if (_trySnifferFallback()) return;
           if (mounted) {
             setState(() {
               _extracting = false;
@@ -244,7 +374,11 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
         if (!mounted) return;
         return _runExtraction(depth: depth, attempt: attempt + 1);
       }
-      // 抽取脚本返回空值或无法识别的格式。
+      // 嗅探兜底：jsExtractor 未抽到地址时，回退到钩子已捕获的首个视频地址
+      // （典型如 MacCMS 加密站——player 直接注入 <video>/blob 直链，脚本抽不到
+      // 但网络/DOM 层已拿到）。仅作兜底，不改动既有解析主链路。
+      if (_trySnifferFallback()) return;
+      // 抽取脚本返回空值或无法识别的格式，且嗅探也无收获。
       if (mounted) {
         setState(() {
           _extracting = false;
@@ -253,7 +387,8 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
         });
       }
     } catch (e) {
-      // best-effort：抽取失败时回退到手动验证流程。
+      // 抽取脚本抛异常：先尝试嗅探兜底，再回退到手动验证流程。
+      if (_trySnifferFallback()) return;
       if (mounted) {
         setState(() {
           _extracting = false;
@@ -328,9 +463,76 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
     return null;
   }
 
+  /// 解析当前捕获结果中的「最佳可播放目标」。
+  ///
+  /// 优先级：
+  /// 1. 真实 http(s) 直链（可在 WebView 外直接交给播放器）；
+  /// 2. 仅 blob:/mediasource:/mse（无直链，只能在当前 WebView 页内播放）。
+  /// 返回 null 表示无任何可播放目标。
+  _SnifferPlay? _resolveSnifferPlay() {
+    String? pageUrl;
+    final videos = _snifferEngine.filtered(SniffFilter.video);
+    for (final m in videos) {
+      final u = m.url;
+      if (u.startsWith('http://') || u.startsWith('https://')) {
+        // 真实直链优先：可直接交给外部播放器。
+        return (mode: 'http', url: u, ref: m.referer ?? '');
+      }
+      // blob:/mediasource:/mse —— 只能在当前页面内播放，记录页面地址备用。
+      // 注意 getUrl() 是 Future，不能同步 toString；用 onLoadStop 维护的地址。
+      pageUrl ??= _currentPageUrl ?? widget.verificationUrl;
+    }
+    if (pageUrl != null) {
+      return (mode: 'webview', url: pageUrl, ref: '');
+    }
+    return null;
+  }
+
+  /// 嗅探兜底统一入口：
+  /// - 捕获到真实 http(s) 直链 → 立即 pop 回传播放页；
+  /// - 仅捕获到 blob/mediasource → 进入页内沉浸式播放模式（不出错）；
+  /// - 无任何可播放目标 → 返回 false（由调用方显示抽取失败）。
+  ///
+  /// 集中处理 [_runExtraction] 的「脚本空 / 脚本异常 / 重定向超限」与 [_captureHtml]
+  /// 的「渲染 HTML 无 video」等全部源视频解析失败分支，使嗅探成为通用兜底。
+  bool _trySnifferFallback() {
+    final target = _resolveSnifferPlay();
+    if (target == null) return false;
+    if (target.mode == 'http') {
+      if (mounted) {
+        Navigator.of(context).pop(
+          WebViewExtractionOutcome(
+            result: VerificationResult.done,
+            extractedUrl: target.url,
+            extractedReferer:
+                target.ref.isNotEmpty ? target.ref : widget.verificationUrl,
+          ),
+        );
+      }
+      return true;
+    }
+    // webview 模式：保持 WebView 可见，由页内播放器直接播放（不弹错）。
+    if (mounted) {
+      setState(() => _webviewPlayMode = true);
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
+    // 嗅探兜底钩子加载中：先占位，确保 WebView 创建时钩子脚本已就位。
+    // 钩子为本地产 asset 读取，通常在一帧内完成。
+    if (_hookJs == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.verificationRequired)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    // 嗅探解析模式：常规解析失败后的通用兜底（优先级最高，独占使用）。
+    if (widget.snifferMode) {
+      return _buildSnifferScaffold(context, l10n);
+    }
     // 渲染后抽取：优先于 JS 抽取（二者不会同时出现）。
     if (_hasHtmlRequest) {
       return _buildHtmlCaptureScaffold(context, l10n);
@@ -340,6 +542,128 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
       return _buildExtractionScaffold(context, l10n);
     }
     return _buildLegacyScaffold(context, l10n);
+  }
+
+  /// 嗅探解析视图：加载剧集播放页，纯靠嗅探链路捕获视频地址，捕获到自动回传。
+  ///
+  /// 与抽取视图的区别：无 jsExtractor、无手动抽取按钮——页面正常播放视频的
+  /// 过程本身就会触发钩子/网络层捕获；捕获到 http 直链即 pop（见
+  /// [_onSnifferModeUpdate]），仅 blob/mse 且超时则转页内播放。
+  Widget _buildSnifferScaffold(BuildContext context, AppLocalizations l10n) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.snifferResolveTitle),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(
+            const WebViewExtractionOutcome(
+              result: VerificationResult.cancelled,
+            ),
+          ),
+        ),
+      ),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            child: Stack(
+              children: <Widget>[
+                InAppWebView(
+                  initialUrlRequest: URLRequest(
+                    url: WebUri(widget.verificationUrl),
+                    headers: widget.snifferHeaders,
+                  ),
+                  initialSettings: InAppWebViewSettings(
+                    javaScriptEnabled: true,
+                    mediaPlaybackRequiresUserGesture: false,
+                    useShouldOverrideUrlLoading: true,
+                    useShouldInterceptRequest: true,
+                    useOnLoadResource: true,
+                  ),
+                  initialUserScripts: _hookJs != null && _hookJs!.isNotEmpty
+                      ? UnmodifiableListView<UserScript>(
+                          <UserScript>[SnifferBridge.userScript(_hookJs!)],
+                        )
+                      : null,
+                  onWebViewCreated: (controller) {
+                    _webViewController = controller;
+                    _snifferBridge.attach(controller);
+                  },
+                  shouldOverrideUrlLoading:
+                      (controller, navigationAction) async {
+                    return NavigationActionPolicy.ALLOW;
+                  },
+                  onLoadResource: (controller, resource) =>
+                      _snifferBridge.onResource(resource.url?.toString()),
+                  shouldInterceptRequest: (controller, request) async {
+                    final h = request.headers;
+                    final ref =
+                        h == null ? null : (h['referer'] ?? h['Referer']);
+                    _snifferBridge.onRequest(request.url.toString(), ref);
+                    return null;
+                  },
+                  onLoadStop: (controller, url) async {
+                    if (url != null) _currentPageUrl = url.toString();
+                    if (!_pageLoaded && mounted) {
+                      setState(() => _pageLoaded = true);
+                    }
+                    await _snifferBridge.deepScan();
+                  },
+                ),
+                if (!_pageLoaded)
+                  const Center(child: CircularProgressIndicator()),
+              ],
+            ),
+          ),
+          _webviewPlayMode
+              ? _buildWebviewPlayBar(context, l10n, scheme)
+              : Container(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTokens.spaceMd,
+                    AppTokens.spaceSm,
+                    AppTokens.spaceMd,
+                    AppTokens.spaceMd,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    border: Border(
+                      top: BorderSide(
+                        color: scheme.outlineVariant.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      if (!_snifferTimedOut) ...<Widget>[
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: AppTokens.spaceSm),
+                      ],
+                      Expanded(
+                        child: Text(
+                          _snifferTimedOut
+                              ? l10n.snifferResolveTimeout
+                              : l10n.snifferResolving,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(
+                          const WebViewExtractionOutcome(
+                            result: VerificationResult.cancelled,
+                          ),
+                        ),
+                        child: Text(l10n.cancel),
+                      ),
+                    ],
+                  ),
+                ),
+        ],
+      ),
+    );
   }
 
   /// M2.4 内嵌抽取视图：InAppWebView 加载页面 + 底部「用此页抽取」操作栏。
@@ -383,14 +707,32 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                       javaScriptEnabled: true,
                       mediaPlaybackRequiresUserGesture: false,
                       useShouldOverrideUrlLoading: true,
+                      useShouldInterceptRequest: true,
+                      // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
+                      useOnLoadResource: true,
                     ),
+                    initialUserScripts: _hookJs != null && _hookJs!.isNotEmpty
+                        ? UnmodifiableListView<UserScript>(
+                            <UserScript>[SnifferBridge.userScript(_hookJs!)],
+                          )
+                        : null,
                     onWebViewCreated: (controller) {
                       _webViewController = controller;
+                      _snifferBridge.attach(controller);
                     },
                     shouldOverrideUrlLoading: (controller, navigationAction) async {
                       return NavigationActionPolicy.ALLOW;
                     },
+                    onLoadResource: (controller, resource) =>
+                        _snifferBridge.onResource(resource.url?.toString()),
+                    shouldInterceptRequest: (controller, request) async {
+                      final h = request.headers;
+                      final ref = h == null ? null : (h['referer'] ?? h['Referer']);
+                      _snifferBridge.onRequest(request.url.toString(), ref);
+                      return null;
+                    },
                     onLoadStop: (controller, url) async {
+                      if (url != null) _currentPageUrl = url.toString();
                       if (!_pageLoaded && mounted) {
                         setState(() => _pageLoaded = true);
                       }
@@ -402,6 +744,8 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                           !_loadStopCompleter!.isCompleted) {
                         _loadStopCompleter!.complete();
                       }
+                      // 嗅探兜底：DOM 深度扫描（<video>/<source>/player_ 全局）。
+                      await _snifferBridge.deepScan();
                     },
                   ),
                   if (!_pageLoaded)
@@ -409,8 +753,10 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                 ],
               ),
             ),
-            // 底部操作栏：状态提示 + 抽取按钮 + 手动回退按钮。
-            Container(
+            // 底部操作栏：抽取模式 or 页内沉浸式播放模式（blob/mse 兜底）。
+            _webviewPlayMode
+                ? _buildWebviewPlayBar(context, l10n, scheme)
+                : Container(
               padding: const EdgeInsets.fromLTRB(
                 AppTokens.spaceMd,
                 AppTokens.spaceSm,
@@ -492,6 +838,77 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
     );
   }
 
+  /// 页内沉浸式播放模式底部栏：当前 WebView 即播放器（blob/mse 无法在 WebView 外播放）。
+  Widget _buildWebviewPlayBar(
+      BuildContext context, AppLocalizations l10n, ColorScheme scheme) {
+    final pageUrl =
+        _webViewController?.getUrl()?.toString() ?? widget.verificationUrl;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.spaceMd,
+        AppTokens.spaceSm,
+        AppTokens.spaceMd,
+        AppTokens.spaceMd,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh,
+        border: Border(
+          top: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+            child: Text(
+              l10n.snifferInPagePlaying,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.primary,
+                  ),
+            ),
+          ),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.copy),
+                  label: Text(l10n.snifferCopyPageLink),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: pageUrl));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.snifferCopy)),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: AppTokens.spaceSm),
+              IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: l10n.close,
+                onPressed: () => Navigator.of(context).pop(
+                  const WebViewExtractionOutcome(
+                    result: VerificationResult.cancelled,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTokens.spaceXs),
+          Text(
+            l10n.snifferInPageHint,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 渲染后抽取视图：InAppWebView 加载页面 + 底部「抓取本页渲染内容」操作栏。
   ///
   /// 与 JS 抽取不同，这里不执行脚本，而是等页面 JS 渲染完成后调用
@@ -537,19 +954,39 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                       javaScriptEnabled: true,
                       mediaPlaybackRequiresUserGesture: false,
                       useShouldOverrideUrlLoading: true,
+                      useShouldInterceptRequest: true,
+                      // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
+                      useOnLoadResource: true,
                     ),
+                    initialUserScripts: _hookJs != null && _hookJs!.isNotEmpty
+                        ? UnmodifiableListView<UserScript>(
+                            <UserScript>[SnifferBridge.userScript(_hookJs!)],
+                          )
+                        : null,
                     onWebViewCreated: (controller) {
                       _webViewController = controller;
+                      _snifferBridge.attach(controller);
                     },
                     shouldOverrideUrlLoading: (controller, navigationAction) async {
                       return NavigationActionPolicy.ALLOW;
                     },
+                    onLoadResource: (controller, resource) =>
+                        _snifferBridge.onResource(resource.url?.toString()),
+                    shouldInterceptRequest: (controller, request) async {
+                      final h = request.headers;
+                      final ref = h == null ? null : (h['referer'] ?? h['Referer']);
+                      _snifferBridge.onRequest(request.url.toString(), ref);
+                      return null;
+                    },
                     onLoadStop: (controller, url) async {
+                      if (url != null) _currentPageUrl = url.toString();
                       if (!_pageLoaded && mounted) {
                         setState(() => _pageLoaded = true);
                       }
                       // 页面加载完成后立即同步 Cookie，确保后续解析与会话一致。
                       await _syncWebviewCookies();
+                      // 嗅探兜底：DOM 深度扫描（<video>/<source>/player_ 全局）。
+                      await _snifferBridge.deepScan();
                     },
                   ),
                   if (!_pageLoaded)
@@ -665,6 +1102,8 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
         }
         return;
       }
+      // 渲染 HTML 无 video 标签：尝试嗅探兜底（钩子已注入同一 WebView）。
+      if (_trySnifferFallback()) return;
       if (mounted) {
         setState(() {
           _extracting = false;
@@ -672,6 +1111,8 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
         });
       }
     } catch (e) {
+      // getHtml 抛异常：先尝试嗅探兜底，再回退到手动验证流程。
+      if (_trySnifferFallback()) return;
       if (mounted) {
         setState(() {
           _extracting = false;
@@ -818,6 +1259,32 @@ Future<WebViewExtractionOutcome?> navigateToExtraction(
         verificationUrl: request.url,
         exception: null,
         extractionRequest: request,
+      ),
+    ),
+  );
+}
+
+/// 嗅探解析便捷方法：加载剧集播放页，纯靠嗅探链路捕获真实视频地址。
+///
+/// 可作为「首选」解析（[autoPopOnTimeout]=true，[timeout] 调短）也可作「最后兜底」。
+/// 捕获到 http 直链自动回传（[WebViewExtractionOutcome.extractedUrl] +
+/// [WebViewExtractionOutcome.extractedReferer]）；返回 null 表示用户取消。
+Future<WebViewExtractionOutcome?> navigateToSnifferCapture(
+  BuildContext context, {
+  required String url,
+  Map<String, String>? headers,
+  Duration? timeout,
+  bool autoPopOnTimeout = false,
+}) async {
+  return Navigator.of(context).push<WebViewExtractionOutcome>(
+    AppPageRoute<WebViewExtractionOutcome>(
+      builder: (_) => WebViewVerificationScreen(
+        verificationUrl: url,
+        exception: null,
+        snifferMode: true,
+        snifferHeaders: headers,
+        snifferTimeout: timeout,
+        snifferAutoPopOnTimeout: autoPopOnTimeout,
       ),
     ),
   );

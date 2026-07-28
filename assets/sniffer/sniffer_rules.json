@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "comment": "Sniffer filter rules. Edit freely: captured URLs pass if they match an allow rule and are not blocked. Site-agnostic by design.",
+  "allowExtensions": [
+    "m3u8", "m3u", "mpd", "mp4", "ts", "m4s", "mov", "webm", "flv",
+    "mkv", "avi", "3gp", "mp3", "aac", "wav", "ogg", "m4a", "oga"
+  ],
+  "blockExtensions": [
+    "jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "css", "js",
+    "json", "woff", "woff2", "ttf", "eot", "ico", "html", "htm", "php"
+  ],
+  "allowKeywords": [
+    "m3u8", "mp4", "play", "video", "media", "source", "segment",
+    "chunk", "index", "playlist", "manifest", "blob:", "mediasource:"
+  ],
+  "allowMime": [
+    "video/",
+    "audio/",
+    "application/vnd.apple.mpegurl",
+    "application/x-mpegurl",
+    "application/dash+xml"
+  ],
+  "blockKeywords": [
+    "ad", "ads", "advert", "pixel", "beacon", "analytics", "tracker",
+    "stat", "count", "impression", "banner", "pop", "thumb", "thumbnail",
+    "preview", "avatar", "logo", "sprite", "emoji", "spinner", "loading",
+    "placeholder", "favicon", "cloudflare", "cdn-cgi"
+  ]
+}
