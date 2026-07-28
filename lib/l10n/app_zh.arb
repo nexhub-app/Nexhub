@@ -28,6 +28,8 @@
   "browseWebScrapeSubtitle": "从网页提取小说、漫画、视频或文章",
   "browseRss": "RSS 订阅",
   "browseRssSubtitle": "管理和浏览 RSS 订阅源",
+  "browseSniff": "嗅探",
+  "browseSniffSubtitle": "嗅探网页视频并在应用内播放",
 
   "subTabLocal": "本地",
   "subTabHistory": "历史记录",
@@ -376,9 +378,57 @@
   "@snifferPlay": {
     "description": "Play a sniffed video URL with the built-in player"
   },
+  "snifferInPagePlaying": "正在页内播放",
+  "@snifferInPagePlaying": {
+    "description": "Status shown when a blob/MSE stream is played inside the WebView instead of an external player"
+  },
+  "snifferInPageHint": "该串流为 blob/MSE 格式，无法在外部播放器打开，已在当前页面内播放。",
+  "@snifferInPageHint": {
+    "description": "Hint explaining why a blob/MSE stream can only be played inside the page"
+  },
+  "snifferCopyPageLink": "复制页面链接",
+  "@snifferCopyPageLink": {
+    "description": "Copy the current page URL (for blob/MSE streams that play only in-page)"
+  },
   "snifferClear": "清空列表",
   "@snifferClear": {
     "description": "Clear the sniffed video URL list"
+  },
+  "snifferGo": "前往",
+  "@snifferGo": {
+    "description": "Submit button on the sniffer address bar"
+  },
+  "snifferDeep": "深度嗅探",
+  "@snifferDeep": {
+    "description": "Toggle label for deep DOM scanning in the sniffer"
+  },
+  "snifferSave": "保存",
+  "@snifferSave": {
+    "description": "Save a sniffed media URL to the download directory"
+  },
+  "snifferFilterAll": "全部",
+  "@snifferFilterAll": {
+    "description": "Filter chip: all sniffed media"
+  },
+  "snifferFilterVideo": "视频",
+  "@snifferFilterVideo": {
+    "description": "Filter chip: video only"
+  },
+  "snifferFilterAudio": "音频",
+  "@snifferFilterAudio": {
+    "description": "Filter chip: audio only"
+  },
+  "snifferFilterOther": "其他",
+  "@snifferFilterOther": {
+    "description": "Filter chip: other media"
+  },
+  "snifferSizeUnknown": "大小未知",
+  "@snifferSizeUnknown": {
+    "description": "Placeholder when media size is unknown"
+  },
+  "failed": "失败",
+  "@failed": {
+    "description": "Generic failure suffix"
   },
   "share": "分享",
   "shareCopied": "已复制到剪贴板",
@@ -1193,6 +1243,12 @@
   "aboutAppTitle": "关于",
   "openSourceLicenses": "开源协议",
   "thirdPartyLibraries": "第三方库",
+  "acknowledgements": "致谢",
+  "acknowledgementsLegado": "NexHub 小说分页器以独立 Dart 实现借鉴了其 ChapterProvider 分页算法（未复制源码）。上游仓库未附带明确开源许可证，本致谢仅作启发署名。",
+  "acknowledgementsMihon": "扩展源架构与漫画阅读器交互为 NexHub 的漫画解析与阅读体验提供了重要参考。以 Apache License 2.0 发布（© Mihon contributors）。",
+  "acknowledgementsRssHub": "为 NexHub 的订阅功能提供 RSS 聚合服务。以 AGPL-3.0 发布（© DIYgod），NexHub 仅作客户端调用，未修改或再分发其源码。",
+  "acknowledgementsViewProject": "查看项目",
+  "acknowledgementsMoreLibs": "其余第三方库见「开源许可」列表。",
   "projectRepository": "项目仓库",
   "checkUpdate": "检查更新",
   "updateChecking": "正在检查更新…",
