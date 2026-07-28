@@ -905,7 +905,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 FilledButton.icon(
                   onPressed: () => _openContent(episodes[_continueIndex], _continueIndex),
                   icon: const Icon(Icons.play_arrow),
-                  label: Text(l10n.continueReading),
+                  label: Text(l10n.continueWatching),
                 )
               else
                 FilledButton.icon(

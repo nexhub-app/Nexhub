@@ -78,6 +78,13 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
   String? _searchField;
   /// 单源模式但未选源时的提示标记。
   bool _needSource = false;
+  /// 已加载页码（从 1 开始）。源路由声明了 `{page}` 时滚动触底自动翻页，
+  /// 修复「搜索不全（还有下一页）」——此前搜索恒定只取第 1 页。
+  int _page = 1;
+  /// 是否可能还有下一页（上一页非空即认为可能有）。
+  bool _hasMore = false;
+  /// 追加加载中标记（避免滚动回调重复触发）。
+  bool _loadingMore = false;
 
   @override
   void initState() {
@@ -143,18 +150,94 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
       setState(() {
         _loading = true;
         _needSource = false;
+        _page = 1;
+        _hasMore = false;
       });
 
       try {
-        final sourceRepo = context.read<SourceRepository>();
-        final mediaService = context.read<MediaApiService>();
-        var sources = sourceRepo.byType(widget.sourceType);
-        if (_scope == _SearchScope.single && _selectedSourceId != null) {
-          sources = sources.where((s) => s.id == _selectedSourceId).toList();
-        }
+        final allResults = await _fetchPage(trimmed, 1);
 
-        final allResults = <MediaItem>[];
+        if (mounted) {
+          setState(() {
+            _results = allResults;
+            _loading = false;
+            // 上一页非空才可能有下一页；具体是否声明 {page} 由 _fetchPage 判定。
+            _hasMore = allResults.isNotEmpty && _anySourcePaged();
+          });
+        }
+      } catch (_) {
+        if (mounted) setState(() => _loading = false);
+      }
+    });
+  }
+
+  /// 是否有参与搜索的源在其搜索路由 URL 中声明了 `{page}` 占位符。
+  /// 只有声明了才展示/触发「加载更多」，避免对无分页源重复拉同一页。
+  bool _anySourcePaged() {
+    final sourceRepo = context.read<SourceRepository>();
+    var sources = sourceRepo.byType(widget.sourceType);
+    if (_scope == _SearchScope.single && _selectedSourceId != null) {
+      sources = sources.where((s) => s.id == _selectedSourceId).toList();
+    }
+    for (final s in sources) {
+      for (final r in s.routes.entries) {
+        if (r.key.toLowerCase().contains('search') &&
+            r.value.url.contains('{page}')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// 滚动触底追加下一页（仅当源声明了 {page} 且上一页非空）。
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || _loading) return;
+    final trimmed = _controller.text.trim();
+    if (trimmed.isEmpty) return;
+    setState(() => _loadingMore = true);
+    try {
+      final next = _page + 1;
+      final items = await _fetchPage(trimmed, next);
+      if (!mounted) return;
+      setState(() {
+        if (items.isEmpty) {
+          _hasMore = false;
+        } else {
+          // 去重合并：不同页偶有重复条目（站点置顶/推荐位），按 id 去重。
+          final known = _results.map((e) => e.id).toSet();
+          _results = <MediaItem>[
+            ..._results,
+            ...items.where((it) => !known.contains(it.id)),
+          ];
+          _page = next;
+        }
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  /// 拉取第 [page] 页搜索结果（跨源循环）。供首搜(page=1)与翻页复用。
+  Future<List<MediaItem>> _fetchPage(String trimmed, int page) async {
+    final sourceRepo = context.read<SourceRepository>();
+    final mediaService = context.read<MediaApiService>();
+    var sources = sourceRepo.byType(widget.sourceType);
+    if (_scope == _SearchScope.single && _selectedSourceId != null) {
+      sources = sources.where((s) => s.id == _selectedSourceId).toList();
+    }
+
+    final allResults = <MediaItem>[];
+    {
         for (final source in sources) {
+          // 翻页请求：未声明 {page} 的源第 2 页起跳过（重复拉第 1 页毫无意义）。
+          if (page > 1) {
+            final paged = source.routes.entries.any((r) =>
+                r.key.toLowerCase().contains('search') &&
+                r.value.url.contains('{page}'));
+            if (!paged) continue;
+          }
           // 仅在调用方未提供直达地址时重置；否则保留 widget.extractedUrl 贯穿整个循环。
           if (widget.extractedUrl == null) _extractedUrl = null;
           String? renderedHtml;
@@ -199,7 +282,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
               renderedHtml: renderedHtml,
               vars: <String, String>{
                 'keyword': trimmed,
-                'page': '1',
+                'page': '$page',
               },
             );
             // 走了源端字段路由（如 authorSearch / tagSearch）时，服务端已按字段
@@ -218,7 +301,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
           } catch (e) {
             // 验证异常：跳验证后重试该源
             if (VerificationNavigator.isVerificationError(e)) {
-              if (!mounted) return;
+              if (!mounted) return allResults;
               final handled =
                   await VerificationNavigator.handleVerificationAndRetry(
                 context,
@@ -231,7 +314,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
                     renderedHtml: renderedHtml,
                     vars: <String, String>{
                       'keyword': trimmed,
-                      'page': '1',
+                      'page': '$page',
                     },
                   );
                   final List<MediaItem> retryEffective;
@@ -251,28 +334,19 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
                 onExtracted: (url) => _extractedUrl = url,
                 onRenderedHtml: (html) => renderedHtml = html,
               );
-              if (!handled && mounted) {
-                setState(() => _loading = false);
-                return;
+              if (!handled) {
+                // 验证未通过：跳过该源，不影响其他源。
+                continue;
               }
             }
             // 单个源失败不影响其他源
           }
         }
+    }
 
-        // 字段路由由源端完成匹配；回退 search 的源已在循环内做客户端字段收窄，
-        // 此处不再二次过滤，避免把"源端已正确匹配"的结果误清空。
-
-        if (mounted) {
-          setState(() {
-            _results = allResults;
-            _loading = false;
-          });
-        }
-      } catch (_) {
-        if (mounted) setState(() => _loading = false);
-      }
-    });
+    // 字段路由由源端完成匹配；回退 search 的源已在循环内做客户端字段收窄，
+    // 此处不再二次过滤，避免把"源端已正确匹配"的结果误清空。
+    return allResults;
   }
 
   /// 搜索字段 → 源端路由键映射。
@@ -463,10 +537,27 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
       return AppEmptyState(icon: Icons.search, message: l10n.emptySearch);
     }
 
-    if (_grid) {
-      return _buildGrid(context);
-    }
-    return _buildList(context);
+    // 滚动触底自动加载下一页（仅当有源声明 {page} 且上一页非空时生效），
+    // 修复「搜索不全（还有下一页）」。底部细进度条提示追加加载中。
+    final body = _grid ? _buildGrid(context) : _buildList(context);
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (_hasMore &&
+            !_loadingMore &&
+            n.metrics.extentAfter < 400 &&
+            n.metrics.maxScrollExtent > 0) {
+          _loadMore();
+        }
+        return false;
+      },
+      child: Column(
+        children: <Widget>[
+          Expanded(child: body),
+          if (_loadingMore)
+            const LinearProgressIndicator(minHeight: 2),
+        ],
+      ),
+    );
   }
 
   Widget _buildGrid(BuildContext context) {

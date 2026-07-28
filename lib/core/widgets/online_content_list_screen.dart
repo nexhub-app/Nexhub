@@ -51,7 +51,7 @@ typedef ResolveHomeSections = List<HomeSectionConfig> Function(
 /// 对接 [MediaApiService.resolveFilterGroups]，修复旧版「筛选写死年份/地区
 /// /排序/状态」——筛选维度改为由源声明或从分类/标签兜底生成。
 typedef ResolveFilters = Future<List<FilterGroupConfig>> Function(
-    PluginConfig source);
+    PluginConfig source, String categoryId);
 
 /// 通用「在线内容列表」页骨架（动态多 Tab 结构）。
 ///
@@ -150,8 +150,24 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   bool _homeLoading = false;
   String? _homeError;
 
-  // 周期表数据
+  // 周期表数据（进入周期表 Tab 时按需抓取，见 [_ensureScheduleData]）
   List<MediaItem> _scheduleItems = <MediaItem>[];
+  bool _scheduleLoading = false;
+
+  // 首页板块懒加载：每个板块的加载状态（未加载 / 加载中 / 已加载 / 失败）。
+  // 方案 A：只抓取进入视口的板块，其余滑到/点开才抓（配合 HttpFetcher 信号量限流）。
+  final Map<String, _SectionStatus> _sectionStatus =
+      <String, _SectionStatus>{};
+  // 各板块的 GlobalKey（用于滚动时计算是否在视口内）。
+  final Map<String, GlobalKey> _sectionKeys = <String, GlobalKey>{};
+  // 首页板块抓取串行链：保证同一首页内多个板块**顺序**抓取（一次一个），
+  // 而非并发突发。方案 A 下首屏可见板块可能不止一个，若不串行会短时间向
+  // 同一站点打出多个请求，触发风控 / IP 封禁（如幻梦ACG轻小说一打开就跳验证
+  // 被封）。串行后第一个板块若触发验证，用户处理完 cookie 同步，后续板块
+  // 带 cookie 不再触发验证，整源只需验证一次。
+  Future<void>? _sectionFetchChain;
+  // 首页 ListView 的 key（用于取视口尺寸/位置计算可见性）。
+  final GlobalKey _homeListKey = GlobalKey();
 
   // 排行数据
   List<MediaItem> _rankItems = <MediaItem>[];
@@ -220,12 +236,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   /// 源是否提供 `rank` route。
   bool get _hasRank => _source != null && _source!.routes.containsKey('rank');
 
-  /// 是否有可展示的周期表数据（源有 latest route 且至少 1 条 item 有 updatedAt）。
-  bool get _hasScheduleData {
-    if (_source == null || !_source!.routes.containsKey('latest')) return false;
-    if (_scheduleItems.isEmpty) return false;
-    return _scheduleItems.any((it) => it.updatedAt != null);
-  }
+  /// 源是否提供周期表能力（有 latest route 即认为可展示；数据由
+  /// [_ensureScheduleData] 在切到周期表 Tab 时按需抓取，不再依赖已抓数据）。
+  bool get _hasScheduleData =>
+      _source != null && _source!.routes.containsKey('latest');
 
   void _rebuildTabController() {
     final newCount = _tabCount;
@@ -250,7 +264,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       // 排行在最后一个
       final catStart = _hasScheduleData ? 2 : 1;
       final rankIdx = catStart + _categories.length;
-      if (idx == rankIdx && _hasRank && _rankItems.isEmpty) {
+      if (_hasScheduleData && idx == 1 && _scheduleItems.isEmpty && !_scheduleLoading) {
+        // 进入周期表 Tab：按需抓取周期表数据（懒加载）。
+        _ensureScheduleData();
+      } else if (idx == rankIdx && _hasRank && _rankItems.isEmpty) {
         _loadRank();
       } else if (idx >= catStart && idx < rankIdx) {
         final cat = _categories[idx - catStart];
@@ -316,10 +333,11 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       if (!mounted) return;
       setState(() {
         _homeSections = result.sections;
-        _homeSectionItems = result.items;
-        _scheduleItems = result.schedule;
         _homeLoading = false;
       });
+      // 首屏懒加载：布局完成后扫描进入视口的板块并触发抓取。
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _scanVisibleSections());
     } on Object catch (e) {
       if (!mounted) return;
       // 验证后重试若仍失败，必须把错误透出到 UI；否则 finally 只清掉
@@ -341,10 +359,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
           if (!mounted) return;
           setState(() {
             _homeSections = result.sections;
-            _homeSectionItems = result.items;
-            _scheduleItems = result.schedule;
             _homeLoading = false;
           });
+          WidgetsBinding.instance
+              .addPostFrameCallback((_) => _scanVisibleSections());
         },
         verifyHandler: widget.verificationHandler,
         onExtracted: (url) => extractedUrl = url,
@@ -378,36 +396,132 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     String? extractedUrl,
     String? renderedHtml,
   }) async {
+    // 懒加载：板块数据不再在此统一抓取，改为进入视口按需抓取（见 [_ensureSection]）。
+    // 周期表数据由 [_ensureScheduleData] 在进入周期表 Tab 时按需抓取。
     final sections = widget.resolveHomeSections?.call(source) ??
         const <HomeSectionConfig>[];
-    final items = <String, List<MediaItem>>{};
-    List<MediaItem> schedule = const <MediaItem>[];
-    for (final sec in sections) {
+    return _HomeSectionsResult(
+      sections: sections,
+      items: const <String, List<MediaItem>>{},
+      schedule: const <MediaItem>[],
+    );
+  }
+
+  /// 返回周期表数据源板块。
+  ///
+  /// 优先 `style == 'schedule'` 的专属板块（如 233动漫 的 `/week` 路由，
+  /// 服务端按天块渲染、解析器注入开播星期）；没有专属板块的源才回退
+  /// latest 板块（按 `updatedAt`/status 中的星期分组）。注意不能用单个
+  /// firstWhere 的 OR 条件——latest 常排在 homeSections 首位，会抢占
+  /// schedule 专属板块导致周期表抓错路由。
+  HomeSectionConfig _scheduleSourceSection() {
+    for (final s in _homeSections) {
+      if (s.style == 'schedule') return s;
+    }
+    return _homeSections.firstWhere(
+      (s) =>
+          s.id == 'latest' ||
+          (s.route.isEmpty ? 'latest' : s.route) == 'latest',
+      orElse: () =>
+          const HomeSectionConfig(id: 'latest', title: '', route: 'latest'),
+    );
+  }
+
+  /// 按需抓取单个首页板块（进入视口或重试时调用）。
+  ///
+  /// 已加载 / 加载中直接跳过；失败（error）允许重试。
+  /// 实际网络抓取通过 [_sectionFetchChain] **串行化**：下一个板块的抓取在前
+  /// 一个完成后才开始，彻底消除首屏并发突发（防 IP 封禁）。
+  void _ensureSection(HomeSectionConfig sec) {
+    final source = _source;
+    if (source == null) return;
+    final status = _sectionStatus[sec.id];
+    if (status == _SectionStatus.loading || status == _SectionStatus.loaded) {
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _sectionStatus[sec.id] = _SectionStatus.loading);
+    // 串行入队：后续板块在前一个完成（含网络耗时 + HttpFetcher 同站间隔）后
+    // 才开始，避免同一时刻向同一站点并发多个请求。
+    _sectionFetchChain =
+        (_sectionFetchChain ?? Future<void>.value()).then((_) => _fetchSection(source, sec));
+  }
+
+  /// 串行链中的单个板块抓取（由 [_ensureSection] 入队调用）。
+  Future<void> _fetchSection(PluginConfig source, HomeSectionConfig sec) async {
+    if (!mounted) return;
+    if (source != _source) return; // 已切换源，丢弃旧请求结果，避免污染新源状态。
+    try {
       final list = await widget.fetchItems(
         source,
         category: '',
         page: 1,
-        extractedUrl: extractedUrl,
-        renderedHtml: renderedHtml,
         vars: _homeSectionVars(source, sec),
       );
+      if (!mounted) return;
+      if (source != _source) return; // 完成前又切了源。
       final limited =
           sec.limit > 0 ? list.take(sec.limit).toList(growable: false) : list;
-      items[sec.id] = limited;
-      // 周期表数据源：
-      //   - 复用「最新更新」板块（含 updatedAt 才能按天分组）；
-      //   - 或源显式声明 style:'schedule' 的板块（如 week 路由，已按天注入 updatedAt）。
-      if (sec.style == 'schedule' ||
-          sec.id == 'latest' ||
-          (sec.route.isEmpty ? 'latest' : sec.route) == 'latest') {
-        schedule = limited;
-      }
+      setState(() {
+        _homeSectionItems[sec.id] = limited;
+        _sectionStatus[sec.id] = _SectionStatus.loaded;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      if (source != _source) return;
+      setState(() => _sectionStatus[sec.id] = _SectionStatus.error);
     }
-    return _HomeSectionsResult(
-      sections: sections,
-      items: items,
-      schedule: schedule.take(300).toList(growable: false),
-    );
+  }
+
+  /// 扫描首页可见板块：进入视口的未加载板块触发抓取（方案 A 核心）。
+  ///
+  /// 通过各板块 GlobalKey 相对 ListView 视口的位置判断是否可见；
+  /// 未布局（如被收缩）的板块跳过，待其出现后再捕获。
+  void _scanVisibleSections() {
+    final listCtx = _homeListKey.currentContext;
+    if (listCtx == null) return;
+    final listBox = listCtx.findRenderObject() as RenderBox?;
+    if (listBox == null) return;
+    final vpTop = listBox.localToGlobal(Offset.zero).dy;
+    final vpBottom = vpTop + listBox.size.height;
+    for (final sec in _homeSections) {
+      if (sec.style == 'schedule') continue; // 周期表数据由 _ensureScheduleData 单独抓
+      final status = _sectionStatus[sec.id];
+      if (status == _SectionStatus.loading || status == _SectionStatus.loaded) {
+        continue;
+      }
+      final key = _sectionKeys.putIfAbsent(sec.id, () => GlobalKey());
+      final sctx = key.currentContext;
+      if (sctx == null) continue; // 尚未布局（如被收缩）
+      final box = sctx.findRenderObject() as RenderBox;
+      final top = box.localToGlobal(Offset.zero).dy;
+      final bottom = top + box.size.height;
+      if (bottom >= vpTop && top <= vpBottom) _ensureSection(sec);
+    }
+  }
+
+  /// 进入周期表 Tab 时按需抓取周期表数据（最新更新 / schedule 风格板块）。
+  Future<void> _ensureScheduleData() async {
+    final source = _source;
+    if (source == null || !mounted) return;
+    if (_scheduleItems.isNotEmpty || _scheduleLoading) return;
+    setState(() => _scheduleLoading = true);
+    try {
+      final sec = _scheduleSourceSection();
+      final items = await widget.fetchItems(
+        source,
+        category: '',
+        page: 1,
+        vars: _homeSectionVars(source, sec),
+      );
+      if (!mounted) return;
+      setState(() {
+        _scheduleItems = items.take(300).toList(growable: false);
+        _scheduleLoading = false;
+      });
+    } on Object {
+      if (mounted) setState(() => _scheduleLoading = false);
+    }
   }
 
   /// 构造某首页板块的请求 `vars`。
@@ -507,6 +621,51 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     });
   }
 
+  /// 构造分类页请求 vars，并做安全兜底：
+  /// 当筛选把路由覆盖到需要 `{category}` 占位符的路由（如 233 动漫的 `show`
+  /// 排序路由 `/show/{category}--{sort}---.html`）而当前 Tab 又没有分类
+  /// （「全部」Tab 的 [categoryId] 为空）时，补入首个非空的静态分类 id，
+  /// 避免生成 `/show/--hits---.html` 这类空分类坏链（用户反馈「筛选的分类不对」）。
+  /// 真实分类 Tab（categoryId 非空）或筛选已显式选了分类时不干预，保持原行为。
+  Map<String, String> _categoryPageVars(
+      PluginConfig source, _CategoryTabState state) {
+    final filterVars = state.filter.toVars();
+    // 按分类默认筛选值（如国漫需 sort=hits、year=2026）：用户未选的占位由源声明补齐，
+    // 用户选中值优先覆盖默认，避免 show 路由拼出空 sort/year 段导致服务端不匹配、筛选无结果。
+    // source.filters 可能为 null（源未声明 filters 时走兜底生成），空 map 即不补默认。
+    final defaults =
+        source.filters?.defaultsFor(state.categoryId) ?? const <String, String>{};
+    final merged = <String, String>{
+      ...defaults,
+      ...filterVars, // 用户选中覆盖默认
+    };
+    final vars = <String, String>{
+      'page': '${state.page}',
+      if (state.categoryId.isNotEmpty) 'category': state.categoryId,
+      ...merged,
+    };
+    final routeOverride = merged['__route'];
+    if (routeOverride != null &&
+        routeOverride.isNotEmpty &&
+        !vars.containsKey('category')) {
+      final routeUrl = source.routes[routeOverride]?.url ?? '';
+      if (routeUrl.contains('{category}')) {
+        final defaultCat = _defaultCategoryId(source);
+        if (defaultCat != null) vars['category'] = defaultCat;
+      }
+    }
+    return vars;
+  }
+
+  /// 取源首个非空静态分类 id（兜底用，对齐 [_homeSectionVars] 的默认分类思路）。
+  String? _defaultCategoryId(PluginConfig source) {
+    for (final e in source.category.categoryEntries) {
+      final id = e['id'] ?? '';
+      if (id.isNotEmpty) return id;
+    }
+    return null;
+  }
+
   Future<void> _loadCategoryPage(
     _CategoryTabState state, {
     bool reset = false,
@@ -525,11 +684,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         category: state.categoryId,
         page: state.page,
         extractedUrl: state.extractedUrl,
-        vars: <String, String>{
-          'page': '${state.page}',
-          if (state.categoryId.isNotEmpty) 'category': state.categoryId,
-          ...state.filter.toVars(),
-        },
+        vars: _categoryPageVars(_source!, state),
       );
       if (reset) state.items.clear();
       state.items.addAll(list);
@@ -549,11 +704,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
             page: state.page,
             extractedUrl: state.extractedUrl,
             renderedHtml: state.renderedHtml,
-            vars: <String, String>{
-              'page': '${state.page}',
-              if (state.categoryId.isNotEmpty) 'category': state.categoryId,
-              ...state.filter.toVars(),
-            },
+            vars: _categoryPageVars(_source!, state),
           );
           if (reset) state.items.clear();
           state.items.addAll(list);
@@ -595,7 +746,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       _filterGroupsCache.remove(s.id);
       _homeSectionItems.clear();
       _homeSections = <HomeSectionConfig>[];
+      _sectionStatus.clear();
+      _sectionFetchChain = null; // 断开旧源的串行链，避免旧请求结果混入新源。
       _scheduleItems = <MediaItem>[];
+      _scheduleLoading = false;
       _rankItems = <MediaItem>[];
     });
     _loadCategories();
@@ -638,7 +792,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   Future<void> _showFilter(_CategoryTabState state) async {
     final source = _source;
     if (source == null) return;
-    final groups = await _resolveFilterGroups(source);
+    final groups = await _resolveFilterGroups(source, state.categoryId);
     if (groups.isEmpty || !mounted) return;
     await showDynamicFilterSheet(
       context,
@@ -653,26 +807,29 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     );
   }
 
-  /// 按源缓存的筛选分组（避免每次开筛选面板都重新拉分类）。
+  /// 按「源 + 当前分类」缓存筛选分组（不同分类筛选维度可能不同，故 key 含
+  /// categoryId；避免每次开筛选面板都重新解析）。
   Future<List<FilterGroupConfig>> _resolveFilterGroups(
-      PluginConfig source) async {
+      PluginConfig source, String categoryId) async {
     final resolver = widget.resolveFilters;
     if (resolver == null) return const <FilterGroupConfig>[];
-    final cached = _filterGroupsCache[source.id];
+    final cacheKey = '${source.id}:$categoryId';
+    final cached = _filterGroupsCache[cacheKey];
     if (cached != null) return cached;
-    final groups = await resolver(source);
-    _filterGroupsCache[source.id] = groups;
+    final groups = await resolver(source, categoryId);
+    _filterGroupsCache[cacheKey] = groups;
     return groups;
   }
 
-  /// 某源是否有可用的筛选分组（决定分类页是否显示筛选按钮）。
+  /// 某源（在指定分类下）是否有可用的筛选分组（决定分类页是否显示筛选按钮）。
   /// 首次为 null（未解析），触发异步解析后重建；解析完成缓存布尔结果。
-  bool _hasFilters(PluginConfig source) {
-    final cached = _filterGroupsCache[source.id];
+  bool _hasFilters(PluginConfig source, String categoryId) {
+    final cacheKey = '${source.id}:$categoryId';
+    final cached = _filterGroupsCache[cacheKey];
     if (cached != null) return cached.isNotEmpty;
     // 未解析：后台解析后刷新 UI（按钮随之出现/隐藏）。
     if (widget.resolveFilters != null) {
-      _resolveFilterGroups(source).then((_) {
+      _resolveFilterGroups(source, categoryId).then((_) {
         if (mounted) setState(() {});
       });
     }
@@ -885,23 +1042,37 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       );
     }
 
-    return ListView(
-      children: <Widget>[
-        const SizedBox(height: AppTokens.spaceSm),
-        for (final sec in _homeSections) ...<Widget>[
-          if (sec.style != 'schedule')
-            ...<Widget>[
-              OnlineHomeSection(
-                title: _sectionTitle(l10n, sec),
-                items: _homeSectionItems[sec.id] ?? const <MediaItem>[],
-                onItemTap: widget.onItemTap,
-                onViewAll: _sectionViewAll(sec),
-                heroPrefix: 'home-${sec.id}',
-              ),
-              const SizedBox(height: AppTokens.spaceMd),
-            ],
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification _) {
+        _scanVisibleSections();
+        return false;
+      },
+      child: ListView(
+        key: _homeListKey,
+        children: <Widget>[
+          const SizedBox(height: AppTokens.spaceSm),
+          for (final sec in _homeSections) ...<Widget>[
+            if (sec.style != 'schedule')
+              ...<Widget>[
+                OnlineHomeSection(
+                  key: _sectionKeys.putIfAbsent(sec.id, () => GlobalKey()),
+                  title: _sectionTitle(l10n, sec),
+                  items: _homeSectionItems[sec.id] ?? const <MediaItem>[],
+                  onItemTap: widget.onItemTap,
+                  onViewAll: _sectionViewAll(sec),
+                  heroPrefix: 'home-${sec.id}',
+                  loading: _sectionStatus[sec.id] != _SectionStatus.loaded &&
+                      _sectionStatus[sec.id] != _SectionStatus.error,
+                  errorMessage: _sectionStatus[sec.id] == _SectionStatus.error
+                      ? l10n.loadFailed
+                      : null,
+                  onRetry: () => _ensureSection(sec),
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+              ],
+          ],
         ],
-      ],
+      ),
     );
   }
 
@@ -933,6 +1104,9 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
 
   /// Tab 2: 周期表（7 天分组 + 当天列表）。
   Widget _buildScheduleTab(AppLocalizations l10n) {
+    if (_scheduleLoading) {
+      return const Center(child: AppLoadingIndicator());
+    }
     if (_scheduleItems.isEmpty) {
       return AppEmptyState(
         icon: Icons.calendar_today_outlined,
@@ -970,7 +1144,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                 tooltip: l10n.layoutOpenSettings,
                 onPressed: () => showLayoutPickerDialog(context),
               ),
-              if (_hasFilters(_source!))
+              if (_hasFilters(_source!, state.categoryId))
                 IconButton(
                   icon: const Icon(Icons.filter_list),
                   tooltip: l10n.filter,
@@ -1548,4 +1722,14 @@ class _HomeSectionsResult {
   final List<HomeSectionConfig> sections;
   final Map<String, List<MediaItem>> items;
   final List<MediaItem> schedule;
+}
+
+/// 首页板块懒加载状态（未加载以 Map 中不存在表示）。
+enum _SectionStatus {
+  /// 抓取中。
+  loading,
+  /// 已抓取成功。
+  loaded,
+  /// 抓取失败。
+  error,
 }
