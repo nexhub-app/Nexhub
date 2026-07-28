@@ -47,6 +47,19 @@ import 'danmaku_match_sheet.dart';
 import 'subtitle_panel.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
+/// 发送弹幕时可选择的预设颜色（与主流弹幕站一致）。
+const List<Color> _danmakuPresetColors = <Color>[
+  Colors.white,
+  Colors.red,
+  Colors.orange,
+  Colors.yellow,
+  Color(0xFF00E676), // 绿
+  Color(0xFF40C4FF), // 青
+  Colors.blue,
+  Colors.purple,
+  Color(0xFFFF4081), // 粉
+];
+
 /// 视频手势坐标轴状态机：避免横滑（seek）与竖滑（亮度 / 音量）冲突。
 ///
 /// 一旦 [onVerticalDragStart] / [onHorizontalDragStart] 判定方向，即锁定该轴
@@ -238,6 +251,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     super.initState();
     _controller = PlayerController();
     _controller.addListener(_onControllerChanged);
+    // 首帧后把默认弹幕设置（字号/不透明度/区域）同步到弹幕层，
+    // 否则覆盖层会沿用 canvas_danmaku 的默认值（区域=全屏、字号=16）。
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _applyDanmakuOption());
     _episodeIndex = widget.initialEpisodeIndex ?? 0;
     _initFuture = _init();
   }
@@ -1180,7 +1197,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _danmakuSettings.effectiveDuration(_controller.playbackSpeed);
     final option = cd.DanmakuOption(
       duration: effectiveDuration.round(),
-      fontSize: 16,
+      fontSize: _danmakuSettings.fontSize,
+      opacity: _danmakuSettings.opacity,
       area: _danmakuSettings.area,
       hideTop: _danmakuSettings.hideTop,
       hideBottom: _danmakuSettings.hideBottom,
@@ -1189,47 +1207,88 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _danmakuKey.currentState?.updateOption(option);
   }
 
-  /// 显示弹幕输入框（底部轻量对话框）。
+  /// 显示弹幕输入框（底部轻量对话框，支持选择弹幕颜色）。
   void _showDanmakuInput() {
     final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
+    Color selectedColor = Colors.white;
     showDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => AppAlertDialog(
-        title: Text(l10n.danmakuSend ?? '发送弹幕'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: l10n.danmakuSendHint ?? '输入弹幕内容',
-            border: const OutlineInputBorder(),
-          ),
-          maxLength: 50,
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              final text = controller.text.trim();
-              if (text.isNotEmpty) {
-                // 通过 DanmakuOverlay 注入一条本地弹幕（立即显示）
-                final item = DanmakuItem(
-                  text: text,
-                  time: _position +
-                      Duration(
-                          milliseconds:
-                              (_danmakuSettings.timeOffset * 1000).round()),
-                );
-                _danmakuKey.currentState?.addSingle(item);
-              }
-              Navigator.pop(ctx);
-            },
-            child: Text(l10n.ok),
-          ),
-        ],
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, void Function(VoidCallback) setDialogState) {
+          final theme = Theme.of(ctx);
+          return AppAlertDialog(
+            title: Text(l10n.danmakuSend ?? '发送弹幕'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: l10n.danmakuSendHint ?? '输入弹幕内容',
+                    border: const OutlineInputBorder(),
+                  ),
+                  maxLength: 50,
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                Text(l10n.presetColor,
+                    style: theme.textTheme.bodyMedium),
+                const SizedBox(height: AppTokens.spaceSm),
+                Wrap(
+                  spacing: AppTokens.spaceSm,
+                  runSpacing: AppTokens.spaceSm,
+                  children: <Widget>[
+                    for (final color in _danmakuPresetColors)
+                      GestureDetector(
+                        onTap: () => setDialogState(() => selectedColor = color),
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: selectedColor == color
+                                  ? theme.colorScheme.primary
+                                  : Colors.black38,
+                              width: selectedColor == color ? 3 : 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(l10n.cancel),
+              ),
+              TextButton(
+                onPressed: () {
+                  final text = controller.text.trim();
+                  if (text.isNotEmpty) {
+                    // 通过 DanmakuOverlay 注入一条本地弹幕（立即显示，带颜色）。
+                    final item = DanmakuItem(
+                      text: text,
+                      time: _position +
+                          Duration(
+                              milliseconds:
+                                  (_danmakuSettings.timeOffset * 1000).round()),
+                      color: selectedColor,
+                    );
+                    _danmakuKey.currentState?.addSingle(item);
+                  }
+                  Navigator.pop(ctx);
+                },
+                child: Text(l10n.ok),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
