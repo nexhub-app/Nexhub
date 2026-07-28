@@ -234,10 +234,32 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (mounted) setState(() {});
   }
 
-  /// 解析视频地址，自动处理 webview-html 渲染后抽取（xgcartoon 等源）。
+  /// 为视频结果附加播放所需请求头（Referer / UA 等），与源反盗链配置一致。
   ///
-  /// 若源声明 webview-html，[fetchVideoUrl] 会抛出 [WebViewHtmlRequest]，
-  /// 这里弹出内嵌 WebView 取回渲染 HTML 并回填重试，直至拿到真实可播放地址。
+  /// 直连解析的视频会由 [builtin_resolver] 的 [_withVideoHeaders] 自动附加头；
+  /// 但 WebView 抽取路径拿到的是裸直链，需在此补齐，否则 CDN 返回 403 黑屏。
+  Map<String, String> _videoHeadersFor(PluginConfig source) {
+    final ah = source.antiHotlinking;
+    final headers = <String, String>{};
+    if (ah.userAgent != null && ah.userAgent!.isNotEmpty) {
+      headers['User-Agent'] = ah.userAgent!;
+    }
+    final referer = ah.referer ?? source.site.baseUrl;
+    if (referer != null && referer.isNotEmpty) {
+      headers['Referer'] = referer;
+    }
+    if (ah.headers != null) headers.addAll(ah.headers!);
+    return headers;
+  }
+
+  /// 解析视频地址，自动处理 WebView 渲染后抽取（xgcartoon 等源）与
+  /// WebView JS 抽取（MacCMS 加密站，如打驴动漫 dalvdm 的 DL- token）。
+  ///
+  /// - 若源声明 webview-html，[fetchVideoUrl] 抛出 [WebViewHtmlRequest]，
+  ///   弹出内嵌 WebView 取回渲染 HTML 回填重试；
+  /// - 若源在 video 路由声明 `webview` + jsExtractor，抛出
+  ///   [WebViewExtractionRequest]，弹出内嵌 WebView 执行脚本抽到真实直链
+  ///   （含跳转到解析中转域解密），回传后直接作为可播放地址（补齐 Referer 头）。
   Future<VideoResult> _resolveVideoWithCapture(
     MediaApiService service,
     PluginConfig source,
@@ -259,6 +281,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         );
       }
       throw Exception('video capture cancelled');
+    } on WebViewExtractionRequest catch (e) {
+      if (!mounted) rethrow;
+      final outcome = await navigateToExtraction(context, request: e);
+      if (outcome?.hasExtractedUrl == true && outcome!.extractedUrl != null) {
+        final url = outcome.extractedUrl!;
+        final type = url.toLowerCase().contains('m3u8') ? 'm3u8' : null;
+        final headers = _videoHeadersFor(source);
+        return VideoResult(
+          url: url,
+          type: type,
+          headers: headers.isNotEmpty ? headers : null,
+        );
+      }
+      throw Exception('video extraction cancelled');
     }
   }
 
@@ -2250,10 +2286,10 @@ class _MarqueeText extends StatefulWidget {
 class _MarqueeTextState extends State<_MarqueeText>
     with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
-  late final AnimationController _animController = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 8),
-  )..addListener(_onAnimTick);
+  // 必须在 initState（context 仍有效）创建，禁止用 late final 懒初始化——
+  // 若文本从未滚动、dispose 时首次访问该字段会现场 createTicker 并读取已失活的
+  // TickerMode 祖先，抛「Looking up a deactivated widget's ancestor is unsafe」。
+  late AnimationController _animController;
 
   /// 文本是否需要滚动（测量后确定）。
   bool _scrollable = false;
@@ -2261,6 +2297,10 @@ class _MarqueeTextState extends State<_MarqueeText>
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..addListener(_onAnimTick);
     // 延迟一帧测量文本宽度，决定是否需要滚动。
     WidgetsBinding.instance.addPostFrameCallback(_measure);
   }
