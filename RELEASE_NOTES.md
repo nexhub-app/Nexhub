@@ -1,4 +1,4 @@
-# NexHub v0.2.12
+# NexHub v0.2.13
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -171,6 +171,41 @@
   - Legado 的「书源」规则系统为 NexHub「源即插件」的解析与共创理念提供了核心启发（尤其小说源的声明式 / 脚本式写法）；
   - Mihon 的扩展源与漫画阅读器交互为 NexHub 的漫画解析与阅读体验提供了重要参考。
 - 仅更新文档与致谢，不涉及任何代码 / 构建产物变更；应用功能与 v0.2.10 完全一致。
+
+## 📝 更新日志（v0.2.11 → v0.2.12）
+
+本版修复 Android 包因「每次 CI 随机生成签名」导致**无法覆盖安装**的问题：
+
+### 🐛 修复
+- **Android 无法覆盖安装**：此前 release 构建使用默认 debug 签名，而 CI 每次都是全新虚拟机、`~/.android/debug.keystore` 不存在，构建工具每次随机生成新 keystore，导致每个 APK 签名证书都不同、旧包无法覆盖。本版生成固定签名 `android/app/upload-keystore.jks`（别名 nexhub，PKCS12，RSA 2048，有效期至 2053 年）并提交入库，`build.gradle.kts` 的 release 构建改用它；并加 `.gitattributes` 把 `*.jks` 标为二进制，防止 Git 检出时换行符转换损坏 keystore。
+- ⚠️ **安装注意**：你手机上已装的随机签名旧包无法被换签覆盖，必须**先卸载一次**再装 v0.2.12；之后各版本均可直接覆盖升级。
+
+## 📝 更新日志（v0.2.12 → v0.2.13）
+
+本版聚焦影视模块的解析与播放稳定性，并顺带纳入 v0.2.12 的 Android 固定签名：
+
+### 🐛 修复 / 稳定性（影视模块）
+- **解析层重构与稳定**：重写 `http_fetcher`（重试 / 编码 / 超时更稳），并修复 `builtin_resolver` / `webview_resolver` / `video_extractor` / `media_api_service` 多处解析失败与视频提取异常；WebView 渲染后回灌 HTML 再解析的路径更稳健。
+- **播放器退出崩溃修复**：播放器在 `deactivate` 时切断 `stall/position/completed` 流订阅并置 `_disposed` 标记，修复「访问已 deactivated widget 的 ancestor」溢出崩溃；snackBar 退出动画 context 丢失兜底；修复嵌入 `Positioned` 自适应视频区填充。`webview_verification_screen` 验证 / 提取流程更稳定。
+- **总集数统计修正**：改为按线路（`Episode.lineName`）分组取最大一组集数，避免多线路镜像集数被累加（如 4 线路 30 集误算 120 集）。
+- **选集精确解析**：`fetchEpisodes` 支持透传 `detailUrl`，按详情页地址精确解析选集。
+
+### ✨ 解析引擎增强（源即插件能力）
+- **POST 表单路由**：`builtin_resolver` 支持 `routes.X.method:"post"`，自动把查询参数拆成表单体发送，适配 MacCMS 等「分类 / 列表由前端 JS POST 接口填充」的站点（如 `/ds_api/vod`）；纯配置驱动，不写死站点。
+- **周期表（周更）解析**：新增 `week` 路由与周列表选择器支持，能从 `status` 解析开播星期并分组展示。
+- **分类筛选「各不相同」**：`SourceFilterConfig` 新增 `byCategory`（按分类 id 覆盖筛选组）与 `defaults`（分类默认参数，如 233 动漫 `sort=hits/year=2026`），全部由源 JSON 声明，无需在 Dart 写死。
+- **坏链修复**：`video` 路由 `{url}` 直达绝对地址，避免被 base 前缀成双 host 坏链（`https://base/https://episode`）导致播放失败；相对地址也做了 base 规范化避免 `//` 双斜杠。
+- **中文搜索 / 筛选修复**：`keyword` 与含中文的筛选占位符自动 `encodeComponent`，修复中文关键词搜索错乱、MacCMS 中文筛选（如「奇幻」）无结果；MacCMS `show` 路由第 1 页 `page` 段留空，避免拼出错误段导致 404。
+- **JsonPath 空值保护**：非字符串 selector 增加空值兜底，避免解析崩溃。
+
+### 🎨 UI / 布局
+- **周期表统一布局**：改用统一 `ContentCard`，跟随全局布局（网格列数 / 列表模式 / 圆角 / 标题 / 作者），`ListenableBuilder` 实时刷新；星期 Chip 全部可点（空日显示空态）。
+- **全局「布局」按钮**：浏览页 AppBar 新增「布局」按钮，首页 / 周期表 / 分类 / 排行榜 Tab 均可改布局。
+- **详情页主演可折叠**：影视详情页主演信息块改为可折叠（`_InfoChipsSection`），每组默认显前 N 位，超长显示「展开 N 位 / 收起」，年份始终显示。
+- **首页 / 内容列表 / 源搜索 / 章节列表**等稳定性与布局修复（`online_content_list_screen` / `online_home_section` / `module_source_search_screen` / `chapter_list_section`）。
+- 新增多语言文案（l10n）。
+
+> 本版已包含 v0.2.12 的固定签名 keystore，Android 包可覆盖安装（更早的随机签名旧包需先卸载一次）。
 
 ## 📝 更新日志（v0.2.11 → v0.2.12）
 
