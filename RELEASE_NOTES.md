@@ -167,9 +167,10 @@
 本版相对 v0.2.10 **无应用功能变更**，仅为项目补充「致谢」说明：
 
 ### 🙏 文档
-- **新增致谢章节**：在 README 与发布说明中正式感谢 [Legado](https://github.com/gedoor/legado)（及各类改版）与 [Mihon](https://github.com/mihonapp/mihon)（Tachiyomi 衍生版，及各类改版）。
-  - Legado 的「书源」规则系统为 NexHub「源即插件」的解析与共创理念提供了核心启发（尤其小说源的声明式 / 脚本式写法）；
-  - Mihon 的扩展源与漫画阅读器交互为 NexHub 的漫画解析与阅读体验提供了重要参考。
+- **新增致谢章节**：在 README 与发布说明中正式感谢 [Legado](https://github.com/gedoor/legado)（及各类改版）、[Mihon](https://github.com/mihonapp/mihon)（Tachiyomi 衍生版，及各类改版）与 [RSSHub](https://github.com/DIYgod/RSSHub)。
+  - Legado 的「书源」规则系统为 NexHub「源即插件」的解析与共创理念提供了核心启发；NexHub 小说分页器以独立 Dart 实现借鉴其 `ChapterProvider` 分页算法（未复制源码），Legado 上游未附许可证，本致谢仅作启发署名。
+  - Mihon（Apache-2.0，© Mihon contributors）的扩展源与漫画阅读器交互为 NexHub 的漫画解析与阅读体验提供了重要参考。
+  - RSSHub（AGPL-3.0，© DIYgod）为 NexHub 的订阅功能提供 RSS 聚合服务，NexHub 仅作客户端调用，未修改或再分发其源码。
 - 仅更新文档与致谢，不涉及任何代码 / 构建产物变更；应用功能与 v0.2.10 完全一致。
 
 ## 📝 更新日志（v0.2.11 → v0.2.12）
