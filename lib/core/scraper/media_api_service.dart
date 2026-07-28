@@ -57,11 +57,20 @@ class MediaApiService {
     // hybrid + script override 源（如 manga_baozimh）需要把 HTML 喂给脚本
     // 而不是按 selectors 解析；其余声明式源沿用 BuiltinResolver。
     if (renderedHtml != null && renderedHtml.isNotEmpty) {
+      // 记录渲染来源 URL，使 WebViewHtmlCache 按「源+路由+URL」维度缓存，
+      // 避免 show 各筛选条件 / search 各关键词互相串味（复用同一份陈旧 HTML）。
+      final base = ConfigLoader.instance.getActiveMirror(source);
+      final renderedUrl = source.resolveRouteUrl(
+        effectiveApi,
+        activeBaseUrl: base,
+        vars: effectiveVars,
+      );
       final r = await _resolveFromRenderedHtml(
         source,
         effectiveApi,
         renderedHtml,
         vars: effectiveVars,
+        url: renderedUrl,
       );
       return _asItems(r);
     }
@@ -265,14 +274,19 @@ class MediaApiService {
   ///      param 从 tagSearch 路由占位符推断（缺省 `keyword`）。
   ///
   /// 兜底分组 `title` 留空，由 UI 按 `id` 映射到 l10n 文案（避免 Dart 硬编码中文）。
-  Future<List<FilterGroupConfig>> resolveFilterGroups(PluginConfig source) async {
+  Future<List<FilterGroupConfig>> resolveFilterGroups(
+    PluginConfig source,
+    String categoryId,
+  ) async {
     final declared = source.filters;
     if (declared != null && !declared.isEmpty) {
-      // 防御：分类已作为 Tab 栏显示（见 fetchCategories / 分类 Tab），若源误把
-      // 「分类」也声明成筛选组（旧版 goda 曾如此），这里剔除，避免筛选面板与
-      // Tab 栏重复——正是真机反馈的「筛选与分类栏一样」。源声明其它维度
-      // （地区/题材/排序/标签等）的筛选组不受影响。
-      return declared.groups.where((g) => g.id != 'category').toList();
+      // 按当前分类取筛选分组：声明了 byCategory 覆盖则用它（实现「每个分类
+      // 筛选各不相同」），否则用全局 groups。再防御性剔除 'category' 组——
+      // 分类已作为 Tab 栏显示，筛选面板再重复就多余（真机反馈 #19）。
+      return declared
+          .groupsFor(categoryId)
+          .where((g) => g.id != 'category')
+          .toList();
     }
 
     final groups = <FilterGroupConfig>[];
@@ -652,11 +666,14 @@ class MediaApiService {
     String apiName,
     String renderedHtml, {
     Map<String, String> vars = const {},
+    String? url,
   }) {
-    // 缓存本次验证回灌的渲染 HTML：同 (源, 路由) 后续请求（刷新 / 重新进入 /
+    // 缓存本次验证回灌的渲染 HTML：同 (源, 路由, URL) 后续请求（刷新 / 重新进入 /
     // 切选集）可直接复用，不再反复弹验证页（修复「多个页面需要验证多次」）。
-    // 缓存维度为 (source.id, apiName)，每个路由每会话仅捕获一次。
-    WebViewHtmlCache.set(source.id, apiName, renderedHtml);
+    // 缓存维度为 (source.id, apiName, url)：[url] 非空时不同 URL（如 show 各筛选
+    // 条件 / search 各关键词）各自独立缓存；[url] 为 null（detail/episodes 等
+    // 逐资源路由未透传）回退「每路由仅缓存一份」的旧行为，向后兼容。
+    WebViewHtmlCache.set(source.id, apiName, renderedHtml, url: url);
     // 书源（xiaoshuo）回灌：必须用其专属解析器（WebBook 静态分析器）解析渲染后
     // HTML，不能路由到 BuiltinResolver（书源无 selectors 形式规则，否则解析为空）。
     if (source.selectors?['xiaoshuo'] is Map<String, dynamic>) {

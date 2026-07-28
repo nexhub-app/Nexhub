@@ -78,16 +78,22 @@ class BuiltinResolver implements SourceResolver {
       try {
         final dynamic json;
         if (isPost) {
-          final split = _splitFormUrl(url);
-          json = await HttpFetcher.instance.postJson(
-            split.$1,
-            headers: <String, String>{
-              'Content-Type': 'application/x-www-form-urlencoded',
-              ...?ahHeaders,
-            },
-            data: split.$2,
-            referer: referer,
-          );
+          if (apiName == 'week') {
+            // 周更列表：ds_api/vod 单页仅 40 条，翻数页凑足一周各开播日的样本，
+            // 避免周期表某些星期因单页采样偏差长期为空。
+            json = await _fetchWeekJson(url, referer, ahHeaders);
+          } else {
+            final split = _splitFormUrl(url);
+            json = await HttpFetcher.instance.postJson(
+              split.$1,
+              headers: <String, String>{
+                'Content-Type': 'application/x-www-form-urlencoded',
+                ...?ahHeaders,
+              },
+              data: split.$2,
+              referer: referer,
+            );
+          }
         } else {
           json = await HttpFetcher.instance
               .getJson(url, referer: referer, headers: ahHeaders);
@@ -125,6 +131,14 @@ class BuiltinResolver implements SourceResolver {
       html = await HttpFetcher.instance
           .getHtml(url, referer: referer, headers: ahHeaders);
     }
+    // 诊断：筛选结果为空时，先看 URL 和 HTML 标题/长度
+    final titleMatch = RegExp(r'<title[^>]*>(.*?)</title>', caseSensitive: false)
+        .firstMatch(html);
+    debugPrint(
+      '[BuiltinResolver] apiName=$apiName url=$url '
+      'htmlLen=${html.length} '
+      'title=${titleMatch?.group(1)?.trim() ?? '(no title)'}',
+    );
     final result = _withDetailUrlFallback(
       _parseHtml(source, apiName, html, baseUrl: baseUrl ?? url),
       apiName,
@@ -193,6 +207,49 @@ class BuiltinResolver implements SourceResolver {
             '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
         .join('&');
     return (base, body, form);
+  }
+
+  /// 周更列表多页聚合：ds_api/vod 单页仅 40 条，翻数页凑足一周各开播日的样本，
+  /// 避免周期表某些星期因单页采样偏差长期为空。返回 `{ 'list': [...] }` 形状
+  /// 交给 [_parseJson] 的 week 分支统一解析（并注入开播日 updatedAt）。
+  Future<dynamic> _fetchWeekJson(
+    String url,
+    String referer,
+    Map<String, String>? ahHeaders,
+  ) async {
+    final split = _splitFormUrl(url);
+    final base = split.$1;
+    final headers = <String, String>{
+      'Content-Type': 'application/x-www-form-urlencoded',
+      ...?ahHeaders,
+    };
+    final all = <dynamic>[];
+    for (var p = 1; p <= 3; p++) {
+      final form = Map<String, String>.from(split.$3);
+      form['page'] = p.toString();
+      final body = form.entries
+          .map((e) =>
+              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+          .join('&');
+      try {
+        final j = await HttpFetcher.instance.postJson(
+          base,
+          headers: headers,
+          data: body,
+          referer: referer,
+        );
+        final list = j is Map ? j['list'] : null;
+        if (list is List && list.isNotEmpty) {
+          all.addAll(list);
+          if (list.length < 40) break; // 已到末页
+        } else {
+          break;
+        }
+      } catch (_) {
+        break; // 某页失败则停止翻页，已聚合部分仍可用
+      }
+    }
+    return <String, dynamic>{'list': all};
   }
 
   /// 响应类型缺省值：声明式 HTML 源（xpath / css / html）按 HTML 解析，
@@ -427,6 +484,14 @@ class BuiltinResolver implements SourceResolver {
         return _imagesFromJsonSelector(json, sel, baseUrl: baseUrl);
       case 'video':
         return _videoFromJsonSelector(json, sel);
+      case 'week':
+        // 周期表专用：列表项按真实开播星期（藏在 status 如 "45|周日" 中）注入
+        // updatedAt，使 OnlineScheduleSection 按开播日而非最后更新时间分组。
+        final items = _itemsFromJsonSelector(
+            json, _subSel(sel, 'week', sel), source);
+        return [
+          for (final it in items) it.copyWith(updatedAt: _airingDateFor(it)),
+        ];
       default:
         // 与 _parseHtml 保持一致：非 list 类 API（latest/explore/category/
         // search）也按 apiName 提取分组选择器（selectors.{apiName}.{list,...}），
@@ -652,6 +717,7 @@ class BuiltinResolver implements SourceResolver {
   ) {
     final listSel = sel['list'] as String? ?? 'div.item';
     final elements = HtmlUtils.elements(html, listSel);
+    debugPrint('[BuiltinResolver] listSel=$listSel elements=${elements.length}');
     return [
       for (final el in elements) _itemFromElement(el, sel, source),
     ];
@@ -696,6 +762,34 @@ class BuiltinResolver implements SourceResolver {
     final monday = DateTime(now.year, now.month, now.day)
         .subtract(Duration(days: now.weekday - 1));
     return monday.add(Duration(days: dayIndex));
+  }
+
+  /// 从条目的 [MediaItem.status]（如 "45|周日"）解析开播星期几，
+  /// 返回本周对应日期；无法解析时保留原 updatedAt。用于「周期表」按真实
+  /// 开播日分组（而非最后更新时间）。站点把开播星期写在集数后面，如
+  /// "12|周六21:15" → 周六。
+  DateTime? _airingDateFor(MediaItem it) {
+    final wd = _parseCnWeekday(it.status);
+    if (wd == null) return it.updatedAt;
+    return _dateForWeekday(wd);
+  }
+
+  /// 解析中文星期（周一…周日）为索引 0…6（0=周一），与 [_dateForWeekday] 对齐。
+  static int? _parseCnWeekday(String? s) {
+    if (s == null || s.isEmpty) return null;
+    const map = <String, int>{
+      '周一': 0,
+      '周二': 1,
+      '周三': 2,
+      '周四': 3,
+      '周五': 4,
+      '周六': 5,
+      '周日': 6,
+    };
+    for (final e in map.entries) {
+      if (s.contains(e.key)) return e.value;
+    }
+    return null;
   }
 
   MediaItem _itemFromHtmlSelector(
