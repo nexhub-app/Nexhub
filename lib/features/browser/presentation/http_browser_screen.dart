@@ -14,7 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/platform/platform_service.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/theme/app_tokens.dart';
-import 'video_sniffer_screen.dart';
+import '../../home/presentation/browse_sniffer_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 内置浏览器页面。
@@ -166,7 +166,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
   void _openSniffer() {
     Navigator.of(context).push(
       AppPageRoute<void>(
-        builder: (_) => VideoSnifferScreen(initialUrl: _currentUrl),
+        builder: (_) => BrowseSnifferScreen(initialUrl: _currentUrl),
       ),
     );
   }

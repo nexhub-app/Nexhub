@@ -426,6 +426,18 @@
   "@snifferSizeUnknown": {
     "description": "Placeholder when media size is unknown"
   },
+  "snifferResolveTitle": "嗅探解析",
+  "@snifferResolveTitle": {
+    "description": "Title of the in-parse sniffer fallback screen"
+  },
+  "snifferResolving": "正在嗅探视频地址…",
+  "@snifferResolving": {
+    "description": "Status shown while the in-parse sniffer fallback is capturing a stream"
+  },
+  "snifferResolveTimeout": "未捕获到直链，可继续等待或取消",
+  "@snifferResolveTimeout": {
+    "description": "Status shown when the in-parse sniffer fallback times out without a direct link"
+  },
   "failed": "失败",
   "@failed": {
     "description": "Generic failure suffix"
