@@ -94,6 +94,6 @@ abstract class DanmakuSource {
   String get name;
   bool get isAvailable;
   Future<List<DanmakuSearchResult>> search(String keyword);
-  Future<List<DanmakuEpisode>> getEpisodes(String animeId);
+  Future<List<DanmakuEpisode>> getEpisodes(String animeTitle);
   Future<List<ParsedDanmakuItem>> getComments(String episodeId);
 }
