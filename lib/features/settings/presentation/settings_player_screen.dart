@@ -217,16 +217,21 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       ],
                     ),
                     SettingsSwitchTile(
-                      title: l10n.playerDoubleTapPlayPause,
-                      value: _settings.doubleTapPlayPause,
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(doubleTapPlayPause: v)),
-                    ),
-                    SettingsSwitchTile(
                       title: l10n.playerLongPressSpeedUp,
                       value: _settings.longPressSpeedUp,
                       onChanged: (v) =>
                           _update(_settings.copyWith(longPressSpeedUp: v)),
+                    ),
+                    SettingsSliderTile(
+                      label: l10n.playerLongPressSpeed,
+                      value: _settings.longPressSpeed,
+                      min: 1.0,
+                      max: 3.0,
+                      divisions: 8,
+                      display:
+                          '${_settings.longPressSpeed.toStringAsFixed(1)}x',
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(longPressSpeed: v)),
                     ),
                   ],
                 ),

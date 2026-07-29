@@ -40,10 +40,6 @@ class PlayerController extends ChangeNotifier {
   /// 自动连播回调，由外部（剧集管理器）注入。
   VoidCallback? onAutoPlayNext;
 
-  /// 解析进度：null 表示 indeterminate（不确定）。
-  final ValueNotifier<double?> resolveProgress =
-      ValueNotifier<double?>(null);
-
   /// 播放器锁定状态，锁定后禁用手势与控制栏交互。
   bool isLocked = false;
 
@@ -256,6 +252,9 @@ class PlayerController extends ChangeNotifier {
   /// 播放完成流。
   Stream<bool> get completedStream => _backend.player.stream.completed;
 
+  /// 缓冲状态流（true=正在缓冲/加载中）。用于 UI 显示加载动画。
+  Stream<bool> get bufferingStream => _backend.player.stream.buffering;
+
   // ─────────────────────── 瞬时状态 ───────────────────────
 
   /// 当前播放位置。
@@ -269,6 +268,9 @@ class PlayerController extends ChangeNotifier {
 
   /// 是否播放完成。
   bool get isCompleted => _backend.player.state.completed;
+
+  /// 是否正在缓冲（加载中）。
+  bool get isBuffering => _backend.player.state.buffering;
 
   // ─────────────────────── 锁定 ───────────────────────
 
@@ -480,7 +482,6 @@ class PlayerController extends ChangeNotifier {
     _stallPositionSub?.cancel();
     _stallPlayingSub?.cancel();
     _stallController.close();
-    resolveProgress.dispose();
     // 退出时若仍处于全屏，还原方向与系统 UI（P8.3.4 §廿四）
     if (_isFullscreen) {
       try {
