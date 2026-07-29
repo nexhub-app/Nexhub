@@ -112,11 +112,25 @@ class PlayerController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Seek 宽限期：seek 后该时长内不触发 stall（卡顿）检测。
-  final Duration _seekGracePeriod = const Duration(seconds: 5);
+  /// Seek 宽限期：seek（或重连后的 seek）后该时长内不触发 stall（卡顿）检测，
+  /// 也不视为需要重连。取较大值以覆盖慢速 CDN 的 seek 重新缓冲——m3u8 重新拉取
+  /// 分片可能耗时数秒到十几秒，宽限期过短会误判卡顿、触发重连并导致进度清零。
+  /// 此常量是 seek 宽限的「唯一标准」，UI 侧 (_onStall) 通过 [isWithinSeekGrace] 复用，
+  /// 避免两侧窗口不一致造成「慢速 seek 缓冲」时仍被误判。
+  /// 取值偏长（60s）：慢速 CDN 跳到较远进度点后，m3u8 重新拉取该处分片可能耗时十几到几十秒，
+  /// 浏览器对同一链接 seek 能正常缓冲即佐证服务端无问题；宽限期过短会在缓冲未完成时误判卡顿
+  /// 并触发重连，反而打断缓冲、形成「重连→缓冲→再重连」死循环。
+  static const Duration seekGracePeriod = Duration(seconds: 60);
 
   /// Stall 超时：播放中位置超过该时长未推进则判定为卡顿。
   final Duration _stallTimeout = const Duration(seconds: 10);
+
+  /// 是否仍处于 seek 宽限期内（seek / 重连 seek 后的重新缓冲期间，不应触发重连）。
+  /// 供 UI 侧复用以保持与 [_checkStall] 同一判定标准。
+  bool get isWithinSeekGrace {
+    final now = DateTime.now();
+    return now.difference(_lastSeekAt) < seekGracePeriod;
+  }
 
   // ─────────────────────── Stall 检测（P4.1.4） ───────────────────────
   StreamSubscription<Duration>? _stallPositionSub;
@@ -130,7 +144,7 @@ class PlayerController extends ChangeNotifier {
       StreamController<void>.broadcast();
 
   /// Stall（卡顿）事件流：播放中位置超时未推进（超过 [_stallTimeout]）
-  /// 且已过 seek 宽限期（[_seekGracePeriod]）时触发一次，UI 可据此提示
+  /// 且已过 seek 宽限期（[seekGracePeriod]）时触发一次，UI 可据此提示
   /// 并自动重连。
   Stream<void> get stallStream => _stallController.stream;
 
@@ -156,8 +170,8 @@ class PlayerController extends ChangeNotifier {
   void _checkStall() {
     if (!_isPlayingForStall || _stallController.isClosed) return;
     final now = DateTime.now();
-    // seek 宽限期内不检测
-    if (now.difference(_lastSeekAt) < _seekGracePeriod) return;
+    // seek 宽限期内不检测（覆盖慢速 CDN 的重新缓冲）
+    if (now.difference(_lastSeekAt) < seekGracePeriod) return;
     // 位置未推进超过 stallTimeout → 触发 stall
     if (now.difference(_lastPositionAdvancedAt) >= _stallTimeout) {
       _stallController.add(null);
