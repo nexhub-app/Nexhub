@@ -72,8 +72,12 @@ dependencies:
   bonsoir: ^5.1.11
   # 画中画（Android 原生 PiP，iOS / 桌面优雅降级）
   floating: ^6.0.0
-  # 弹幕（canvas_danmaku）
-  canvas_danmaku: ^0.2.7
+  # 弹幕（canvas_danmaku）。
+  # 本地 vendored 副本：third_party/canvas_danmaku（基于 0.3.1，已打补丁：
+  # 本人发送弹幕由绿色矩形改为「白色胶囊描边」）。如需回到上游官方版，
+  # 改回 `canvas_danmaku: ^0.3.1` 并删除此 path 覆盖即可。
+  canvas_danmaku:
+    path: third_party/canvas_danmaku
   # 屏幕亮度控制（阅读器亮度手势）
   screen_brightness: ^0.2.2
   # 屏幕常亮（漫画阅读器 keepScreenOn 开关）
