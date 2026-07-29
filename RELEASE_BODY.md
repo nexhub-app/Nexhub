@@ -1,31 +1,43 @@
-# NexHub v0.2.13
+# NexHub v0.3.0
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
-## ✨ 本次更新（v0.2.13）
+## ✨ 本次更新（v0.3.0）
 
-本版聚焦**影视模块**的解析与播放稳定性，并顺带纳入 v0.2.12 的 Android 固定签名（可覆盖安装）。
+本版是一次较大的**播放器与弹幕体验升级**，并新增**视频嗅探引擎**、统一许可证为 **Apache-2.0**。相对 v0.2.13 共合并 **16 个提交**，涉及 40+ 文件。
 
-### 🐛 修复 / 稳定性
-- **解析层重构**：重写 `http_fetcher`（重试 / 编码 / 超时更稳），修复 `builtin_resolver` / `webview_resolver` / `video_extractor` / `media_api_service` 多处解析失败与视频提取异常；WebView 渲染后回灌 HTML 再解析的路径更稳健。
-- **播放器退出崩溃修复**：`deactivate` 时切断 `stall/position/completed` 流订阅并置 `_disposed` 标记，修复「访问已 deactivated widget 的 ancestor」溢出崩溃；snackBar 退出动画 context 丢失兜底；修复嵌入 `Positioned` 自适应视频区填充。`webview_verification_screen` 验证 / 提取流程更稳定。
-- **总集数统计修正**：按线路分组取最大一组集数，避免多线路镜像集数被累加（如 4 线路 30 集误算 120 集）。
-- **选集精确解析**：`fetchEpisodes` 支持透传 `detailUrl`，按详情页地址精确解析选集。
+### ⚖️ 许可证与合规
+- 仓库许可证统一规范为 **Apache-2.0**，新增 `NOTICE` 文件并完善第三方致谢署名（canvas_danmaku MIT、Legado、Mihon、RSSHub 等）。
+- 致谢章节移除未实际借鉴的 GPL-3.0 仓库脚注，避免许可混淆。
+- 「关于」页（about_screen）新增第三方许可 / 致谢展示与 NOTICE 入口。
 
-### ✨ 解析引擎增强（源即插件能力）
-- **POST 表单路由**：`builtin_resolver` 支持 `method:"post"`，自动拆表单体发送，适配 MacCMS 等「分类 / 列表由前端 JS POST 接口填充」的站点（如 `/ds_api/vod`），纯配置驱动，不写死站点。
-- **周期表（周更）解析**：新增 `week` 路由与周列表选择器，能从 `status` 解析开播星期并分组展示。
-- **分类筛选「各不相同」**：`SourceFilterConfig` 新增 `byCategory`（按分类 id 覆盖筛选组）与 `defaults`（分类默认参数，如 233 动漫 `sort=hits/year=2026`），全部由源 JSON 声明。
-- **坏链修复**：`video` 路由 `{url}` 直达绝对地址，避免被 base 前缀成双 host 坏链导致播放失败；相对地址做 base 规范化避免 `//` 双斜杠。
-- **中文搜索 / 筛选修复**：`keyword` 与含中文的筛选占位符自动 `encodeComponent`，修复中文关键词搜索错乱、MacCMS 中文筛选（如「奇幻」）无结果；`show` 路由第 1 页 `page` 段留空避免拼错导致 404。
-- **JsonPath 空值保护**：非字符串 selector 增加空值兜底，避免解析崩溃。
+### 🔎 新增：视频嗅探引擎
+- 新增独立**视频嗅探引擎**（`lib/core/sniffer/*`：sniffer_engine / sniffer_bridge / sniffer_models / sniffer_rules）+ 规则文件 `assets/sniffer/sniffer_rules.json`。
+- 嗅探页（`browse_sniffer_screen`，626 行）替换旧的 `video_sniffer_screen`：通过 WebView 注入 JS 捕获页面内 m3u8 / 视频直链（含 `URL.createObjectURL`），经桥接回传 Dart；规则自动过滤广告 / 缩略图 / beacon。
+- 视频解析改为**嗅探优先**：优先用嗅探结果定位真实播放地址，并修复「拖动进度后重连从头播放」的问题。
+- 嗅探结果支持复制到剪贴板 / 保存到 `NexHub/sniffer` 目录，自动带 Referer 避免 403。
 
-### 🎨 UI / 布局
-- **周期表统一布局**：改用统一 `ContentCard`，跟随全局布局（网格列数 / 列表模式 / 圆角 / 标题 / 作者），`ListenableBuilder` 实时刷新；星期 Chip 全部可点（空日显示空态）。
-- **全局「布局」按钮**：浏览页 AppBar 新增「布局」按钮，首页 / 周期表 / 分类 / 排行榜 Tab 均可改布局。
-- **详情页主演可折叠**：主演信息块改为可折叠，每组默认显前 N 位，超长显示「展开 N 位 / 收起」，年份始终显示。
-- **首页 / 内容列表 / 源搜索 / 章节列表**等稳定性与布局修复。
-- 新增多语言文案（l10n）。
+### 💬 弹幕系统重构
+- **本地化弹幕渲染引擎**：将 canvas_danmaku 引擎 vendor 到 `third_party/canvas_danmaku`（保留 MIT 许可），支持定制渲染。
+- **本人发送弹幕改为白色胶囊描边**（原引擎硬编码绿色矩形）：补丁支持圆角胶囊 + 白色描边，区分自己与他人的弹幕。
+- 统一**播放器弹幕设置**与**全局弹幕页设置**为单一数据源，避免两套设置互相覆盖；并加双重保险 apply。
+- 弹幕设置持久化改为**以文件为主**，退出重进仍保持；修复加载时序导致的「退出重进不保持」。
+- 弹幕设置生效修复：字号 / 不透明度 / 自定义颜色实际生效。
+- 弹幕设置面板改为**页面内悬浮面板**，修复 Windows 上点开即崩溃。
+- 新增**弹幕匹配面板**（`danmaku_match_sheet`）：手动 / 自动匹配弹幕库（DandanPlay）。
+- 修复连续打开视频闪退、弹幕设置套用时序、`onReady` 残留、屏幕亮度异步未捕获异常等。
+
+### 🎬 播放器手势与稳定性
+- **手势系统重构**（`video_player_screen`，+992 行）：
+  - 单击：显隐控制栏。
+  - 双击分区：中=播放/暂停，左=快退 10s，右=快进 10s（锁定态忽略）。
+  - 长按：切到自定义倍速，松手恢复（受 `longPressSpeedUp` 开关控制，可在「更多」菜单选倍速值）。
+  - 左竖滑亮度 / 右竖滑音量 / 横滑 seek 预览 + 中央手势指示器浮层。
+  - 键盘：空格播放/暂停，左右 seek ±10s，F 全屏，M 静音。
+- **设置生效地基**：全局播放器默认设置（解码 / 音频 / 比例 / 倍速 / 音量 / 连播 / 方向锁定 / seek 倍率 / 字幕样式）加载与应用打通，使「设置页」字段真正即时生效。
+- 修复 **HLS 原生崩溃**：退出重进时正确释放 VideoController。
+- 修复**视频重连循环**：同实例 re-open 自愈 + seek 宽限期放宽至 60s。
+- 修复连续打开视频闪退、弹幕设置套用时序、屏幕亮度异步未捕获异常、`final` 局部变量 speed 延迟赋值编译错误等。
 
 ## 🔌 重要：先导入源
 
