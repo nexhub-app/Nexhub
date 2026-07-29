@@ -12,10 +12,14 @@ import 'danmaku.dart';
 /// 控制器创建时，会自动与之绑定（调用 [DanmakuController.attach]），
 /// 使 [DanmakuController.tick] 注入的弹幕能送达本覆盖层。
 class DanmakuOverlay extends StatefulWidget {
-  const DanmakuOverlay({super.key, this.enabled = true, this.controller});
+  const DanmakuOverlay(
+      {super.key, this.enabled = true, this.controller, this.onReady});
 
   final bool enabled;
   final DanmakuController? controller;
+
+  /// canvas 控制器创建完成后的回调（此时 apply 一定有效，作为帧回调之外的双保险）。
+  final VoidCallback? onReady;
 
   @override
   State<DanmakuOverlay> createState() => DanmakuOverlayState();
@@ -73,6 +77,8 @@ class DanmakuOverlayState extends State<DanmakuOverlay> {
         _cdController = controller;
         // 将 canvas 控制器绑定到播放器的弹幕包装器，打通数据链路。
         widget.controller?.attach(controller);
+        // 控制器就绪即刻应用一次已加载的设置（双保险，不依赖帧回调时机）。
+        widget.onReady?.call();
       },
     );
   }
