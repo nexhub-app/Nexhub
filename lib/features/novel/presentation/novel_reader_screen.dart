@@ -552,7 +552,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _autoPageTimer?.cancel();
     _scrollController?.dispose();
     _brightnessSub?.cancel();
-    _brightnessPlugin.resetScreenBrightness();
+    // 异步方法，异常在后续微任务抛出，同步 try/catch 抓不到；用 .catchError 兜底，
+    // 避免「Uncaught zone error」在 release 下升级为进程崩溃。
+    _brightnessPlugin.resetScreenBrightness().catchError((Object _) {});
     _tts.dispose();
     _settingsSearchController.dispose();
     super.dispose();
