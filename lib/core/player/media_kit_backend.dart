@@ -72,6 +72,10 @@ class MediaKitBackend extends VideoPlayerBackend {
     await _setProperty('demuxer-readahead-secs', '120');
     await _setProperty('network-timeout', '60');
     await _setProperty('force-seekable', 'yes');
+    // 注：mpv / FFmpeg lavf 的网络自动重连选项（reconnect 等）本可在此追加以减少
+    // 应用层重连，但 `stream-lavf-o` 须用逗号分隔且不同源兼容性不一，易在 open() 阶段
+    // 引发解码失败（黑屏）。应用层重连已改为同一实例 re-open 自愈，故此处不启用，
+    // 待后续单独验证后再按需加入。
   }
 
   @override

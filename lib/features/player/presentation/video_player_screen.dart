@@ -205,9 +205,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Duration _position = Duration.zero;
 
-  /// 最近一次用户 seek 的时间戳。seek 后播放器会重新缓冲并可能触发 stall 事件，
-  /// 此时属正常重新缓冲，不应当作卡顿去重连（重连会从头开始）。stall 处理在此时段内忽略。
-  DateTime? _lastSeekAt;
+  /// 可信的「最近一次非零播放位置」。用于重连时恢复到断流前的进度，
+  /// 避免 open() 重置后若 [_position] 被瞬时的 0 位置事件覆盖而从头播放。
+  Duration _lastGoodPosition = Duration.zero;
+
+  /// 重连（stall 恢复）进行中标记，防止 stall 事件重入导致多次重连叠加。
+  bool _reconnecting = false;
+
+  /// 自动重连次数上限。超过后不再自动重连，改为提示用户手动重试，
+  /// 避免「重连失败→又卡顿→又重连」的死循环。
+  static const int _kMaxReconnectAttempts = 3;
+
+  /// 已尝试的自动重连次数。达到上限后置位 [_reconnectExhausted]。
+  int _reconnectAttempts = 0;
+
+  /// 自动重连已耗尽：置位后由 UI 展示「视频链接已失效，点击重试」，用户手动触发
+  /// 重新解析并重新打开播放器（拿到未过期的新直链）。
+  bool _reconnectExhausted = false;
+
   Duration _duration = Duration.zero;
   bool _isPlaying = false;
   bool _uiVisible = true;
@@ -673,6 +688,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void _onPositionChanged(Duration position) {
     if (!mounted || _disposed) return;
     _position = position;
+    // 记录可信的非零进度：open() 重置或缓冲瞬间可能产生 0 位置事件，
+    // 不能据此把恢复点清零（避免重连后从头播放）。
+    if (position > Duration.zero) _lastGoodPosition = position;
     if (_duration == Duration.zero) {
       _duration = _controller.duration;
     }
@@ -769,11 +787,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// Stall（卡顿）处理：弹 SnackBar 提示并自动重新 open 当前地址恢复播放。
   void _onStall() {
     if (!mounted || _disposed) return;
-    // seek 后播放器重新缓冲会触发 stall，属正常现象，忽略以免造成重连从头播放。
-    if (_lastSeekAt != null &&
-        DateTime.now().difference(_lastSeekAt!) < const Duration(seconds: 3)) {
-      return;
-    }
+    // 重连进行中或已耗尽：不再重复发起重连（避免重复提示 / 死循环）。
+    if (_reconnecting || _reconnectExhausted) return;
+    // seek / 重连 seek 后的重新缓冲属正常现象，宽限期内忽略，避免误判卡顿触发
+    // 重连（重连会从头播放）。统一用 PlayerController 的 seekGracePeriod 作为唯一标准，
+    // 否则两侧窗口不一致会导致「慢速 seek 缓冲 >3s 但 <15s」时仍被误判。
+    if (_controller.isWithinSeekGrace) return;
     // 异步 stall 回调可能在 widget 失活后到达：deactivate 虽已置 _disposed 并取消
     // 订阅，但事件可能已排队；此时访问 context（AppLocalizations / ScaffoldMessenger）
     // 会抛「deactivated widget」未捕获异常。用 try 兜底，避免崩溃。
@@ -793,21 +812,136 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   /// 重新 open 当前播放地址恢复播放。
+  ///
+  /// 关键点：
+  /// 1) 重连前用 [_lastGoodPosition]（可信非零进度）作为恢复点；open() 会把播放器重置到
+  ///    起点且短暂的 position 事件可能为 0，若直接用 [_position] 可能被瞬间的 0 覆盖而从头播放。
+  /// 2) open 后 m3u8 元数据可能尚未就绪，立即 seek 会落空；故先 [_waitUntilReady] 等元数据，
+  ///    再采用「seek + 短暂等待 + 校验，接近 0 则重试」的稳健策略。
+  /// 3) 重连的 seek 经 [PlayerController.seek] 更新 lastSeekAt，使重连后的重新缓冲处于 seek
+  ///    宽限期内，避免「重连→卡顿→再重连」的死循环。
+  /// 自动重连（stall 恢复）。
+  ///
+  /// 关键修复（修正前一轮）：前一轮改为"中途重建播放器"反而必现黑屏（进度对但无画面），
+  /// 且浏览器对同一链接 seek 正常，说明问题在播放器实例需 re-open 自愈而非重建；故改为
+  /// 同实例 stop() + open() + 稳健 seek 恢复。
+  ///
+  /// 为防止无限循环，限制自动重连次数 [_kMaxReconnectAttempts]；耗尽后不再自动重连，
+  /// 由 UI 展示「视频链接已失效，点击重试」，用户手动触发（会重新解析拿到未过期的新直链）。
   Future<void> _reconnect() async {
-    final url = _playUrl;
-    if (url == null || url.isEmpty) return;
-    final resumeAt = _position;
+    if (_reconnecting || _reconnectExhausted || _disposed) return;
+    _reconnecting = true;
+    _reconnectAttempts++;
     try {
-      await _controller.open(url, headers: _playHeaders);
-      // 重连后回到断流前的位置，避免从头播放（seek 后的 stall 已被忽略，
-      // 这里主要兜真正的播放中卡顿）。
-      if (resumeAt > Duration.zero) {
-        await _controller.seek(resumeAt);
-      }
-      await _controller.play();
+      final url = _playUrl;
+      final headers = _playHeaders;
+      if (url == null || url.isEmpty) return;
+      await _reopenAndResume(url, headers, _lastGoodPosition);
     } on Object {
-      // 重连失败，静默忽略。
+      // 重开失败，受 max attempts 限制，不会无限循环。
+    } finally {
+      _reconnecting = false;
+      if (_reconnectAttempts >= _kMaxReconnectAttempts && !_reconnectExhausted) {
+        _reconnectExhausted = true;
+        if (mounted) setState(() {});
+      }
     }
+  }
+
+  /// 在同一 Player 实例上重新打开并恢复到 [resumeAt]。
+  ///
+  /// 不走"中途 dispose/recreate 播放器"：实测重建 VideoController 会导致黑屏
+  /// （进度对但无画面），且浏览器对同一链接 seek 正常，说明问题不在 URL/服务端，
+  /// 而在播放器实例需通过 re-open 自愈。故先 stop() 清空可能卡死的播放状态，
+  /// 再 open + 等元数据就绪 + 稳健 seek 回断流点并播放。流订阅与 stall 检测沿用同一
+  /// 实例，无需重新绑定；倍速/解码/比例等 player 级属性也自然保留。
+  Future<void> _reopenAndResume(
+    String url,
+    Map<String, String>? headers,
+    Duration resumeAt,
+  ) async {
+    // 清空可能卡死的播放状态，避免 open() 在异常态下无法重新拉流。
+    try {
+      await _controller.player.stop();
+    } on Object {
+      // stop 失败忽略，open 仍会重建当前媒体。
+    }
+    await _controller.open(url, headers: headers);
+    await _waitUntilReady(const Duration(seconds: 8));
+    // 稳健 seek：open 后首帧/分片可能未到位，校验位置，接近 0 则重试。
+    for (var attempt = 0; attempt < 6; attempt++) {
+      await _controller.seek(resumeAt);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (resumeAt <= Duration.zero) break;
+      final cur = _controller.position;
+      if (cur > Duration.zero && cur >= resumeAt - const Duration(seconds: 3)) {
+        break;
+      }
+    }
+    await _controller.play();
+  }
+
+  /// 用户手动重试：重新解析拿到未过期的新直链，再重新打开播放器恢复播放。
+  ///
+  /// 自动重连耗尽（[_kMaxReconnectAttempts]）后，旧签名直链多半已失效，必须重新解析；
+  /// 解析可能弹出 WebView 验证，故仅由用户主动触发，不自动进行。
+  Future<void> _manualRetry() async {
+    if (_disposed) return;
+    _reconnectExhausted = false;
+    _reconnectAttempts = 0;
+    if (mounted) setState(() {});
+    String? url = _playUrl;
+    Map<String, String>? headers = _playHeaders;
+    if (!_isDirectMode) {
+      try {
+        final repo = context.read<SourceRepository>();
+        final service = context.read<MediaApiService>();
+        final source = repo.getById(widget.sourceId);
+        if (source != null) {
+          final video = await _resolveVideoWithCapture(
+              service, source, widget.episode.url);
+          if (video.url.isNotEmpty) {
+            url = video.url;
+            headers = video.headers;
+            _playUrl = video.url;
+            _playHeaders = video.headers;
+          }
+        }
+      } on Object {
+        // 重新解析失败（如需要人工验证），沿用旧地址继续尝试。
+      }
+    }
+    if (url == null || url.isEmpty) return;
+    _reconnecting = true;
+    try {
+      await _reopenAndResume(url, headers, _lastGoodPosition);
+    } on Object {
+      // 重开失败，静默忽略。
+    } finally {
+      _reconnecting = false;
+    }
+  }
+
+  /// 等待播放器元数据就绪（duration 变为正数），超时返回 false。
+  ///
+  /// open() 之后 m3u8 需要重新拉取 playlist 与首段分片，元数据就绪前 seek 会失效，
+  /// 因此重连恢复前先等到 duration 已知（或超时兜底）。
+  Future<bool> _waitUntilReady(Duration timeout) async {
+    if (_controller.duration > Duration.zero) return true;
+    final completer = Completer<bool>();
+    late final StreamSubscription<Duration> sub;
+    final timer = Timer(timeout, () {
+      if (!completer.isCompleted) completer.complete(false);
+    });
+    sub = _controller.durationStream.listen((d) {
+      if (d > Duration.zero && !completer.isCompleted) {
+        completer.complete(true);
+      }
+    });
+    final result = await completer.future;
+    timer.cancel();
+    await sub.cancel();
+    return result;
   }
 
   void _goPrevEpisode() {
@@ -828,6 +962,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _position = Duration.zero;
       _nextEpisodePreloaded = false;
       _lastPositionSaveAt = DateTime.fromMillisecondsSinceEpoch(0);
+      // 切集重置重连状态：上一集的重连耗尽不应影响本集。
+      _reconnectExhausted = false;
+      _reconnectAttempts = 0;
     });
 
     final ep = widget.episodes![index];
@@ -1168,7 +1305,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _onSeek(Duration position) async {
-    _lastSeekAt = DateTime.now();
     await _controller.seek(position);
     _danmakuController.clear();
     _danmakuController.reset();
@@ -1805,6 +1941,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Widget _buildPlayer(AppLocalizations l10n) {
+    // 自动重连耗尽：展示「视频链接已失效，点击重试」覆盖层，由用户手动触发
+    // 重新解析 + 重新打开播放器（拿到未过期的新直链）。
+    if (_reconnectExhausted) {
+      return AppErrorState(
+        message: l10n.playerVideoExpired,
+        onRetry: _manualRetry,
+      );
+    }
     // 包裹 Focus 以响应键盘快捷键（P8.3.4 §廿四）。
     return Focus(
       focusNode: _focusNode,
@@ -1880,7 +2024,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 return;
               }
               if (_dragAxis == _GestureAxis.horizontal) {
-                _lastSeekAt = DateTime.now();
                 unawaited(_controller.seek(_seekPreview));
               }
               _dragAxis = _GestureAxis.none;
