@@ -12,6 +12,7 @@ class DanmakuSettingsSheet extends StatefulWidget {
     required this.settings,
     required this.onChanged,
     this.onMatch,
+    this.onClose,
   });
 
   final DanmakuSettings settings;
@@ -19,6 +20,11 @@ class DanmakuSettingsSheet extends StatefulWidget {
 
   /// 手动匹配弹幕回调（打开搜索/选集面板）。为 null 时不显示该入口。
   final VoidCallback? onMatch;
+
+  /// 关闭面板的回调。
+  /// - 通过 [show]（模态 bottom sheet）使用时为 null，由 `Navigator.pop` 关闭；
+  /// - 通过播放器「页面内悬浮面板」直接挂载时传入关闭逻辑，避免误关整个播放页。
+  final VoidCallback? onClose;
 
   /// 以 modal bottom sheet 形式展示。
   static Future<void> show(
@@ -40,6 +46,7 @@ class DanmakuSettingsSheet extends StatefulWidget {
         settings: settings,
         onChanged: onChanged,
         onMatch: onMatch,
+        onClose: null, // 模态场景仍由 Navigator.pop 关闭。
       ),
     );
   }
@@ -120,7 +127,7 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
                       title: Text(l10n.danmakuMatchEpisode),
                       subtitle: Text(l10n.danmakuSearchHint),
                       onTap: () {
-                        Navigator.of(context).maybePop();
+                        widget.onClose?.call();
                         widget.onMatch?.call();
                       },
                     ),
@@ -236,7 +243,13 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
           ),
           IconButton(
             icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).maybePop(),
+            onPressed: () {
+              if (widget.onClose != null) {
+                widget.onClose!.call();
+              } else {
+                Navigator.of(context).maybePop();
+              }
+            },
             tooltip: l10n.close,
           ),
         ],
