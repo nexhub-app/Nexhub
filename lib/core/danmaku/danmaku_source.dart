@@ -1,3 +1,4 @@
+import 'package:canvas_danmaku/canvas_danmaku.dart' as cd;
 import 'package:flutter/material.dart';
 
 import '../widgets/danmaku.dart';
@@ -80,11 +81,19 @@ class ParsedDanmakuItem {
       );
 
   /// 转换为 [DanmakuItem]（canvas_danmaku 数据模型）。
+  ///
+  /// [mode]（滚动/顶部/底部）映射为渲染层类型，保证顶部/底部弹幕
+  /// 以固定样式呈现，且「隐藏顶部/底部」开关能真实过滤。
   DanmakuItem toDanmakuItem() => DanmakuItem(
         text: text,
         time: Duration(milliseconds: (time * 1000).round()),
         color: color,
         fontSize: fontSize,
+        type: switch (mode) {
+          DanmakuMode.scroll => cd.DanmakuItemType.scroll,
+          DanmakuMode.top => cd.DanmakuItemType.top,
+          DanmakuMode.bottom => cd.DanmakuItemType.bottom,
+        },
       );
 }
 

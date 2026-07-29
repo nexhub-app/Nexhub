@@ -123,6 +123,10 @@
   "danmaku": "弹幕",
   "danmakuSend": "发送弹幕",
   "danmakuSendHint": "输入弹幕内容",
+  "danmakuStyle": "弹幕样式",
+  "danmakuStyleScroll": "滚动",
+  "danmakuStyleTop": "顶部",
+  "danmakuStyleBottom": "底部",
 
   "themeLight": "浅色",
   "themeDark": "深色",
