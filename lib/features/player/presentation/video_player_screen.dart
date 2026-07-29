@@ -1283,11 +1283,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (!mounted || _disposed) return;
     // _controller 在 initState 同步创建，正常非空；但为防止极端时序下
     // playbackSpeed 读取抛异常（release 下未捕获即崩进程），此处做兜底。
-    final double speed;
+    double speed = 1.0;
     try {
       speed = _controller.playbackSpeed;
     } on Object {
-      speed = 1.0;
+      // 读取失败则回退到 1.0（speed 已初始化为此值）。
     }
     final effectiveDuration = _danmakuSettings.effectiveDuration(speed);
     final option = cd.DanmakuOption(
