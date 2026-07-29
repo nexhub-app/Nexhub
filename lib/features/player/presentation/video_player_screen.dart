@@ -146,6 +146,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   DanmakuRepository? _danmakuRepo;
   bool _danmakuOn = true;
 
+  /// 弹幕设置是否以「页面内悬浮面板」形式展开（不新建路由，避免 modal 弹窗
+  /// 在 Windows 上重新合成 media_kit 原生视频层导致崩溃）。
+  bool _danmakuSettingsOpen = false;
+
   /// 是否为本地文件 / 直链模式（跳过在线源解析，直接打开给定地址）。
   bool get _isDirectMode => widget.localUri != null || widget.directUrl != null;
 
@@ -1153,16 +1157,70 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     setState(() => _position = position);
   }
 
-  Future<void> _openDanmakuSettings() async {
-    await DanmakuSettingsSheet.show(
-      context,
-      settings: _danmakuSettings,
-      onChanged: (next) {
-        setState(() => _danmakuSettings = next);
-        _applyDanmakuOption();
-        unawaited(_saveDanmakuSettings());
-      },
-      onMatch: _openDanmakuMatch,
+  /// 切换「弹幕设置」页面内悬浮面板的显隐。
+  ///
+  /// 用页面内悬浮面板（同一 Stack，不新建路由）取代 showModalBottomSheet，
+  /// 避免 modal 弹窗在 Windows 上重新合成 media_kit 原生视频层导致进程崩溃。
+  void _toggleDanmakuSettings() {
+    if (!mounted || _disposed) return;
+    setState(() => _danmakuSettingsOpen = !_danmakuSettingsOpen);
+  }
+
+  /// 悬浮面板内滑块/开关改动回调。
+  ///
+  /// 注意：**不调用 setState 重建播放器**，仅更新字段 + 实时套用 + 持久化。
+  /// 面板自身持有 _settings 副本并通过自身 setState 刷新滑块 UI，故拖动滑块
+  /// 不会触发整个播放器（含原生视频层）重建，进一步避免原生层竞态。
+  void _onDanmakuSettingsChanged(DanmakuSettings next) {
+    _danmakuSettings = next;
+    _applyDanmakuOption();
+    unawaited(_saveDanmakuSettings());
+  }
+
+  /// 弹幕设置「页面内悬浮面板」：直接挂在播放器 Stack 内（不新建路由），
+  /// 避免 showModalBottomSheet 在 Windows 上重新合成 media_kit 原生视频层导致崩溃。
+  ///
+  /// - 点遮罩关闭；面板内点击不穿透到遮罩。
+  /// - 面板内容复用 [DanmakuSettingsSheet]（其自带入场动画与内部 setState），
+  ///   滑块改动经 [_onDanmakuSettingsChanged] 实时套用并持久化，不重建播放器。
+  Widget _buildDanmakuSettingsOverlay(AppLocalizations l10n) {
+    final surface = Theme.of(context).colorScheme.surface;
+    return Stack(
+      children: <Widget>[
+        // 遮罩：点击任意空白区域关闭面板。
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: _toggleDanmakuSettings,
+            child: Container(color: Colors.black54),
+          ),
+        ),
+        // 底部面板（不穿透点击）。
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: GestureDetector(
+            onTap: () {}, // 吞掉面板内点击，避免穿透到遮罩触发关闭。
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+              ),
+              decoration: BoxDecoration(
+                color: surface,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppTokens.radiusLg),
+                ),
+              ),
+              child: DanmakuSettingsSheet(
+                settings: _danmakuSettings,
+                onChanged: _onDanmakuSettingsChanged,
+                onMatch: _openDanmakuMatch,
+                onClose: _toggleDanmakuSettings,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1930,6 +1988,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
           ],
+          // 弹幕设置：页面内悬浮面板（不新建路由，避免 modal 在 Windows 上崩原生视频层）
+          if (_danmakuSettingsOpen) _buildDanmakuSettingsOverlay(l10n),
         ],
       ),
     );
@@ -2120,7 +2180,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   l10n: l10n,
                   onToggle: _toggleDanmaku,
                   onSend: _showDanmakuInput,
-                  onSettings: _openDanmakuSettings,
+                  onSettings: _toggleDanmakuSettings,
                   onLongPressSettings: _openDanmakuSource,
                 ),
                 const Spacer(),
