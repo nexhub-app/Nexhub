@@ -451,13 +451,22 @@ class PlayerController extends ChangeNotifier {
   String get currentAspectRatio => _backend.currentAspectRatio;
 
   @override
+  /// 串行化用：上一次 [Player.dispose()] 的 Future。播放器页面创建新 [VideoController]
+  /// 前会 await 它，确保旧原生 VideoOutput（fvp 纹理）释放完成，避免退出重进时
+  /// 新旧 surface 冲突（Lost connection to device）。
+  static Future<void>? _pendingDisposal;
+
+  /// 供播放器页面 await：若上一次播放器仍在异步释放，则等待其完成；否则立即返回。
+  static Future<void> get pendingDisposal =>
+      _pendingDisposal ?? Future<void>.value();
+
+  @override
   void dispose() {
     _stallCheckTimer?.cancel();
     _stallPositionSub?.cancel();
     _stallPlayingSub?.cancel();
     _stallController.close();
     resolveProgress.dispose();
-    _backend.player.dispose();
     // 退出时若仍处于全屏，还原方向与系统 UI（P8.3.4 §廿四）
     if (_isFullscreen) {
       try {
@@ -468,5 +477,8 @@ class PlayerController extends ChangeNotifier {
       }
     }
     super.dispose();
+    // 触发底层 Player.dispose()（含原生 VideoOutput 释放）并记下其 Future，
+    // 供下一次进入播放器时 await，避免新旧 surface 冲突。
+    _pendingDisposal = _backend.player.dispose();
   }
 }
