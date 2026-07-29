@@ -8,6 +8,8 @@ class DanmakuItem {
     required this.time,
     Color? color,
     this.fontSize = 16,
+    this.type = cd.DanmakuItemType.scroll,
+    this.selfSend = false,
   }) : color = color ?? Colors.white;
 
   final String text;
@@ -16,6 +18,12 @@ class DanmakuItem {
   final Duration time;
   final Color color;
   final double fontSize;
+
+  /// 弹幕类型（滚动 / 顶部固定 / 底部固定）。
+  final cd.DanmakuItemType type;
+
+  /// 是否本人发送（渲染时高亮描边）。
+  final bool selfSend;
 }
 
 /// 弹幕控制器（基于 canvas_danmaku）。
@@ -55,6 +63,7 @@ class DanmakuController {
         cd.DanmakuContentItem(
           item.text,
           color: item.color,
+          type: item.type,
         ),
       );
     }

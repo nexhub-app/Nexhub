@@ -32,6 +32,7 @@ class DanmakuOverlayState extends State<DanmakuOverlay> {
       cd.DanmakuContentItem(
         item.text,
         color: item.color,
+        type: item.type,
       ),
     );
   }
@@ -43,6 +44,8 @@ class DanmakuOverlayState extends State<DanmakuOverlay> {
       cd.DanmakuContentItem(
         item.text,
         color: item.color,
+        type: item.type,
+        selfSend: item.selfSend,
       ),
     );
   }

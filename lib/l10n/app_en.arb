@@ -128,6 +128,10 @@
   "danmaku": "Danmaku",
   "danmakuSend": "Send danmaku",
   "danmakuSendHint": "Enter danmaku text",
+  "danmakuStyle": "Danmaku style",
+  "danmakuStyleScroll": "Scroll",
+  "danmakuStyleTop": "Top",
+  "danmakuStyleBottom": "Bottom",
 
   "themeLight": "Light",
   "themeDark": "Dark",

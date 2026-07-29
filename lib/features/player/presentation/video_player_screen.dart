@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:canvas_danmaku/canvas_danmaku.dart' as cd;
 import 'package:flutter/material.dart';
@@ -158,6 +159,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// #6 A4-#6: SharedPreferences 中保存自定义 URL 的键。
   static const String _kDanmakuCustomUrlKey = 'danmaku_custom_url';
+
+  /// SharedPreferences 中保存弹幕显示设置（JSON）的键。
+  static const String _kDanmakuSettingsKey = 'danmaku_settings';
 
   /// 每集手动 / 即时匹配得到的 dandanplay episodeId 覆盖（键 = 剧集 id）。
   /// 用于自动匹配失败时的兜底，以及用户从「手动匹配」面板指定。
@@ -374,6 +378,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _init() async {
+    // 优先恢复弹幕相关持久化设置（源选择 / 显示设置 / 自定义 URL）。
+    // 必须放在视频打开之前：一旦视频解析或打开抛异常，_init 后续代码不会执行，
+    // 设置就会永远停留在默认值，表现为「退出重进无法保持」。
+    await _loadDanmakuSourcePref();
+
     // 创建 VideoController 并打开媒体
     _videoController = VideoController(_controller.player);
 
@@ -438,11 +447,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 监听 stall（卡顿）事件：提示并自动重连
     _stallSub = _controller.stallStream.listen((_) => _onStall());
 
-    // 初始化弹幕仓库
+    // 初始化弹幕仓库（弹幕源选择已在 _init 开头恢复）
     _initDanmakuRepository();
-
-    // 读取用户上次选择的弹幕源
-    await _loadDanmakuSourcePref();
 
     // 读取自定义截图保存目录
     try {
@@ -477,8 +483,29 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       }
       // #6 A4-#6: 同步加载自定义 URL。
       _customDanmakuUrl = prefs.getString(_kDanmakuCustomUrlKey) ?? '';
+      // 恢复弹幕显示设置（区域/行高/字号/不透明度/开关等）。
+      final settingsJson = prefs.getString(_kDanmakuSettingsKey);
+      if (settingsJson != null && settingsJson.isNotEmpty) {
+        final decoded = jsonDecode(settingsJson);
+        if (decoded is Map<String, dynamic>) {
+          _danmakuSettings = DanmakuSettings.fromJson(decoded);
+          // 恢复后立即同步到弹幕渲染层（若覆盖层已就绪）。
+          if (mounted) _applyDanmakuOption();
+        }
+      }
     } on Object {
       // 读取失败，沿用默认值。
+    }
+  }
+
+  /// 持久化弹幕显示设置（JSON 存入 SharedPreferences）。
+  Future<void> _saveDanmakuSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _kDanmakuSettingsKey, jsonEncode(_danmakuSettings.toJson()));
+    } on Object {
+      // 写入失败静默忽略。
     }
   }
 
@@ -1074,6 +1101,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       onChanged: (next) {
         setState(() => _danmakuSettings = next);
         _applyDanmakuOption();
+        unawaited(_saveDanmakuSettings());
       },
       onMatch: _openDanmakuMatch,
     );
@@ -1196,10 +1224,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final effectiveDuration =
         _danmakuSettings.effectiveDuration(_controller.playbackSpeed);
     final option = cd.DanmakuOption(
-      duration: effectiveDuration.round(),
+      duration: effectiveDuration,
       fontSize: _danmakuSettings.fontSize,
       opacity: _danmakuSettings.opacity,
       area: _danmakuSettings.area,
+      lineHeight: _danmakuSettings.lineHeight,
       hideTop: _danmakuSettings.hideTop,
       hideBottom: _danmakuSettings.hideBottom,
       hideScroll: _danmakuSettings.hideScroll,
@@ -1207,11 +1236,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _danmakuKey.currentState?.updateOption(option);
   }
 
-  /// 显示弹幕输入框（底部轻量对话框，支持选择弹幕颜色）。
+  /// 显示弹幕输入框（底部轻量对话框，支持选择弹幕颜色与样式）。
   void _showDanmakuInput() {
     final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     Color selectedColor = Colors.white;
+    cd.DanmakuItemType selectedType = cd.DanmakuItemType.scroll;
     showDialog<void>(
       context: context,
       builder: (BuildContext ctx) => StatefulBuilder(
@@ -1231,6 +1261,25 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     border: const OutlineInputBorder(),
                   ),
                   maxLength: 50,
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                Text(l10n.danmakuStyle, style: theme.textTheme.bodyMedium),
+                const SizedBox(height: AppTokens.spaceSm),
+                Wrap(
+                  spacing: AppTokens.spaceSm,
+                  children: <Widget>[
+                    for (final (type, label) in <(cd.DanmakuItemType, String)>[
+                      (cd.DanmakuItemType.scroll, l10n.danmakuStyleScroll),
+                      (cd.DanmakuItemType.top, l10n.danmakuStyleTop),
+                      (cd.DanmakuItemType.bottom, l10n.danmakuStyleBottom),
+                    ])
+                      ChoiceChip(
+                        label: Text(label),
+                        selected: selectedType == type,
+                        onSelected: (_) =>
+                            setDialogState(() => selectedType = type),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
                 Text(l10n.presetColor,
@@ -1271,7 +1320,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 onPressed: () {
                   final text = controller.text.trim();
                   if (text.isNotEmpty) {
-                    // 通过 DanmakuOverlay 注入一条本地弹幕（立即显示，带颜色）。
+                    // 通过 DanmakuOverlay 注入一条本地弹幕（立即显示，带颜色/样式，
+                    // selfSend 使引擎以高亮描边呈现且滚动弹幕优先占轨）。
                     final item = DanmakuItem(
                       text: text,
                       time: _position +
@@ -1279,6 +1329,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               milliseconds:
                                   (_danmakuSettings.timeOffset * 1000).round()),
                       color: selectedColor,
+                      type: selectedType,
+                      selfSend: true,
                     );
                     _danmakuKey.currentState?.addSingle(item);
                   }
