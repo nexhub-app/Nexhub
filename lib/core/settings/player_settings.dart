@@ -34,8 +34,9 @@ class PlayerSettings {
   final bool subtitleOutline;
   final PlayerLockOrientation lockOrientation;
   final SeekMultiplier seekMultiplier;
-  final bool doubleTapPlayPause;
   final bool longPressSpeedUp;
+  /// 长按加速时切换到的自定义倍速（默认 2.0x）。
+  final double longPressSpeed;
   final double subtitleBottomMargin;
   final double defaultVolume;
 
@@ -49,8 +50,8 @@ class PlayerSettings {
     this.subtitleOutline = true,
     this.lockOrientation = PlayerLockOrientation.auto,
     this.seekMultiplier = SeekMultiplier.normal,
-    this.doubleTapPlayPause = true,
     this.longPressSpeedUp = true,
+    this.longPressSpeed = 2.0,
     this.subtitleBottomMargin = 0.0,
     this.defaultVolume = 100.0,
   });
@@ -65,8 +66,8 @@ class PlayerSettings {
     bool? subtitleOutline,
     PlayerLockOrientation? lockOrientation,
     SeekMultiplier? seekMultiplier,
-    bool? doubleTapPlayPause,
     bool? longPressSpeedUp,
+    double? longPressSpeed,
     double? subtitleBottomMargin,
     double? defaultVolume,
   }) =>
@@ -80,8 +81,8 @@ class PlayerSettings {
         subtitleOutline: subtitleOutline ?? this.subtitleOutline,
         lockOrientation: lockOrientation ?? this.lockOrientation,
         seekMultiplier: seekMultiplier ?? this.seekMultiplier,
-        doubleTapPlayPause: doubleTapPlayPause ?? this.doubleTapPlayPause,
         longPressSpeedUp: longPressSpeedUp ?? this.longPressSpeedUp,
+        longPressSpeed: longPressSpeed ?? this.longPressSpeed,
         subtitleBottomMargin:
             subtitleBottomMargin ?? this.subtitleBottomMargin,
         defaultVolume: defaultVolume ?? this.defaultVolume,
@@ -97,8 +98,8 @@ class PlayerSettings {
         'subtitleOutline': subtitleOutline,
         'lockOrientation': lockOrientation.name,
         'seekMultiplier': seekMultiplier.name,
-        'doubleTapPlayPause': doubleTapPlayPause,
         'longPressSpeedUp': longPressSpeedUp,
+        'longPressSpeed': longPressSpeed,
         'subtitleBottomMargin': subtitleBottomMargin,
         'defaultVolume': defaultVolume,
       };
@@ -150,9 +151,9 @@ class PlayerSettings {
       subtitleOutline: json['subtitleOutline'] as bool? ?? true,
       lockOrientation: lockOrientation,
       seekMultiplier: seekMultiplier,
-      doubleTapPlayPause:
-          json['doubleTapPlayPause'] as bool? ?? true,
       longPressSpeedUp: json['longPressSpeedUp'] as bool? ?? true,
+      longPressSpeed:
+          (json['longPressSpeed'] as num?)?.toDouble() ?? 2.0,
       subtitleBottomMargin:
           (json['subtitleBottomMargin'] as num?)?.toDouble() ?? 0.0,
       defaultVolume:

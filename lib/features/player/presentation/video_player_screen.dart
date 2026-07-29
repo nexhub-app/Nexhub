@@ -22,6 +22,7 @@ import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/player/player_controller.dart';
+import '../../../core/settings/player_settings.dart';
 import '../../../core/player/widgets/seek_bar.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/media_api_service.dart';
@@ -228,6 +229,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _uiVisible = true;
   bool _isFav = false;
 
+  // ─────────────────────── 播放器设置（PlayerSettings 消费） ───────────────────────
+  /// 全局播放器默认设置。_init 中从 PlayerSettingsStore 加载并应用到底层播放器。
+  PlayerSettings _playerSettings = const PlayerSettings();
+
+  /// 横滑 seek 倍率（来自 PlayerSettings.seekMultiplier，0.5/1.0/2.0）。
+  double _seekMultiplierFactor = 1.0;
+
+  // ─────────────────────── 解析进度条（功能3） ───────────────────────
+  /// 解析进度 notifier（null=隐藏）。放 State 而非 PlayerController：_initFuture
+  /// 转圈帧时 _controller 尚未创建，State 级 notifier 可安全在加载态渲染。
+  final ValueNotifier<double?> _resolveProgress =
+      ValueNotifier<double?>(null);
+
+  // ─────────────────────── 缓冲加载动画（功能2） ───────────────────────
+  bool _isBuffering = false;
+  StreamSubscription<bool>? _bufferingSub;
+
+  // ─────────────────────── 长按倍速（功能4） ───────────────────────
+  /// 长按加速前的原倍速，松手恢复。
+  double _speedBeforeLongPress = 1.0;
+
   // ─────────────────────── 手势 / 亮度 / 音量（P8.3.4 §廿四 + 视频还原） ───────────────────────
 
   /// 当前手势轴（横滑 / 左竖滑 / 右竖滑），锁定后直到 onEnd 才重置。
@@ -324,6 +346,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     String episodeUrl, {
     String? renderedHtml,
   }) async {
+    // 解析进度条（功能3）：仅最外层调用写入进度，递归（renderedHtml 非空）不重复写。
+    final isOuter = renderedHtml == null;
+    if (isOuter) _resolveProgress.value = 0.05;
+    try {
     // 1) 自动嗅探优先（网站视频通用捕获，与源无关）
     final pageUrl = _absolutePageUrl(source, episodeUrl);
     if (pageUrl != null) {
@@ -341,6 +367,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         // 嗅探自身异常（如 WebView 不可用），落回手动解析
       }
     }
+    if (isOuter) _resolveProgress.value = 0.5;
     // 2) 嗅探未命中 → 回退源声明的手动解析
     try {
       return await service.fetchVideoUrl(source, episodeUrl,
@@ -367,6 +394,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         return _capturedVideoResult(source, outcome);
       }
       throw Exception('video extraction cancelled');
+    }
+    } finally {
+      if (isOuter) _resolveProgress.value = null;
     }
   }
 
@@ -404,6 +434,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 设置就会永远停留在默认值，表现为「退出重进无法保持」。
     await _loadDanmakuSourcePref();
 
+    // 加载全局播放器默认设置（解码/音频/比例/倍速/音量/方向/手势等）。
+    // 在创建 Player 之前加载，创建后立即应用到底层播放器。
+    await _loadPlayerSettings();
+
     // 创建 Player + VideoController 并打开媒体。
     // 关键：先等待上一次播放器的原生 VideoOutput 释放完成（见 PlayerController.pendingDisposal），
     // 再把「新 Player」创建出来。Player 的 mpv 上下文与原生视频纹理是崩溃高发点，
@@ -428,6 +462,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } on Object {
       // 取底层音量失败，沿用默认 50。
     }
+
+    // 应用全局播放器默认设置（解码/音频/比例/倍速/音量/方向/手势/字幕样式）。
+    // 这是让 PlayerSettings 13 个字段真正生效的「地基」调用。
+    await _applyPlayerSettings();
 
     if (_isDirectMode) {
       // 本地 / 直链模式：跳过在线源解析，直接打开给定地址。
@@ -476,6 +514,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _completedSub = _controller.completedStream.listen(_onCompleted);
     // 监听 stall（卡顿）事件：提示并自动重连
     _stallSub = _controller.stallStream.listen((_) => _onStall());
+    // 监听缓冲状态：缓冲中显示加载动画（功能2）
+    _bufferingSub = _controller.bufferingStream.listen((b) {
+      if (_disposed || !mounted) return;
+      setState(() => _isBuffering = b);
+    });
 
     // 初始化弹幕仓库（弹幕源选择已在 _init 开头恢复）
     _initDanmakuRepository();
@@ -507,6 +550,154 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _applyDanmakuOption());
     }
+  }
+
+  /// 加载全局播放器默认设置（PlayerSettings）。
+  Future<void> _loadPlayerSettings() async {
+    try {
+      _playerSettings = await PlayerSettingsStore().load();
+    } on Object {
+      _playerSettings = const PlayerSettings();
+    }
+  }
+
+  /// 把 [PlayerSettings] 应用到底层播放器与 UI 状态。
+  ///
+  /// 这是让"播放器设置页"字段真正生效的地基调用：解码/音频/比例/倍速/音量/
+  /// 连播/方向锁定/seek 倍率/字幕样式。长按倍速与双击行为开关在对应手势处读取。
+  Future<void> _applyPlayerSettings() async {
+    final s = _playerSettings;
+    try {
+      await _controller.setHwdec(_decodeModeToMpv(s.decodeMode));
+      await _controller.setAudioChannel(_audioChannelToMpv(s.audioChannel));
+      await _controller.setAspectRatio(_aspectRatioToMpv(s.aspectRatio));
+      if (s.defaultVolume >= 0 && s.defaultVolume <= 100) {
+        await _controller.setVolume(s.defaultVolume);
+        _dragStartVolume = _controller.volume;
+      }
+      _controller.autoPlayNext = s.autoPlayNext;
+      if (s.playbackSpeed > 0) {
+        await _controller.setPlaybackSpeed(s.playbackSpeed);
+      }
+      // 字幕样式（字号 / 描边；底部边距因 mpv sub-pos 语义复杂，暂按默认底部位置）
+      await _controller.setSubtitleFontSize(s.subtitleFontSize);
+      await _controller.setSubtitleBorderSize(s.subtitleOutline ? 2.0 : 0.0);
+      await _applyLockOrientation(s.lockOrientation);
+      _seekMultiplierFactor = _seekMultiplierToFactor(s.seekMultiplier);
+    } on Object {
+      // 部分属性设置失败（如平台不支持）不影响播放，忽略。
+    }
+  }
+
+  Future<void> _applyLockOrientation(PlayerLockOrientation o) async {
+    try {
+      switch (o) {
+        case PlayerLockOrientation.portrait:
+          await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+            DeviceOrientation.portraitUp,
+          ]);
+          break;
+        case PlayerLockOrientation.landscape:
+          await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]);
+          break;
+        case PlayerLockOrientation.auto:
+          await SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
+          break;
+      }
+    } on Object {
+      // 平台不支持，忽略。
+    }
+  }
+
+  static String _decodeModeToMpv(DecodeMode m) {
+    switch (m) {
+      case DecodeMode.auto:
+        return 'auto';
+      case DecodeMode.sw:
+        return 'sw';
+      case DecodeMode.hw:
+        return 'hw';
+      case DecodeMode.hwPlus:
+        return 'hw+';
+    }
+  }
+
+  static String _audioChannelToMpv(AudioChannel c) {
+    switch (c) {
+      case AudioChannel.auto:
+        return 'auto';
+      case AudioChannel.stereo:
+        return 'stereo';
+      case AudioChannel.mono:
+        return 'mono';
+    }
+  }
+
+  static String _aspectRatioToMpv(PlayerAspectRatio a) {
+    switch (a) {
+      case PlayerAspectRatio.defaultRatio:
+        return 'default';
+      case PlayerAspectRatio.ratio43:
+        return '4:3';
+      case PlayerAspectRatio.ratio169:
+        return '16:9';
+      case PlayerAspectRatio.fill:
+        return 'fill';
+    }
+  }
+
+  static double _seekMultiplierToFactor(SeekMultiplier m) {
+    switch (m) {
+      case SeekMultiplier.half:
+        return 0.5;
+      case SeekMultiplier.normal:
+        return 1.0;
+      case SeekMultiplier.double:
+        return 2.0;
+    }
+  }
+
+  /// 双击中央：切换播放/暂停（功能1）。
+  void _togglePlayPause() {
+    if (_controller.isLocked) return;
+    if (_controller.isPlaying) {
+      unawaited(_controller.pause());
+      if (mounted) setState(() => _isPlaying = false);
+    } else {
+      unawaited(_controller.play());
+      if (mounted) setState(() => _isPlaying = true);
+    }
+  }
+
+  /// 长按开始：切到自定义倍速（功能4，受 longPressSpeedUp 开关控制）。
+  void _onLongPressSpeedStart() {
+    if (_controller.isLocked) return;
+    if (!_playerSettings.longPressSpeedUp) return;
+    _speedBeforeLongPress = _controller.playbackSpeed;
+    final target = _playerSettings.longPressSpeed;
+    if (target > 0 && target != _speedBeforeLongPress) {
+      unawaited(_controller.setPlaybackSpeed(target));
+      _showGestureIndicator('${target}x');
+    }
+  }
+
+  /// 长按结束：恢复原倍速。
+  void _onLongPressSpeedEnd() {
+    if (!_playerSettings.longPressSpeedUp) return;
+    if (_controller.playbackSpeed != _speedBeforeLongPress) {
+      unawaited(_controller.setPlaybackSpeed(_speedBeforeLongPress));
+    }
+  }
+
+  /// 更新播放器设置（更多菜单内调用）：写回 [_playerSettings] 并持久化，
+  /// 部分项立即生效。
+  Future<void> _updatePlayerSettings(PlayerSettings next) async {
+    _playerSettings = next;
+    setState(() {});
+    unawaited(PlayerSettingsStore().save(next));
   }
 
   /// 从 SharedPreferences 读取弹幕源选择。
@@ -1054,6 +1245,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     setState(() => _uiVisible = !_uiVisible);
   }
 
+  // 单击显隐控制栏统一由 GestureDetector.onTap → _toggleUi 处理；
+  // 双击分区（中=播放/暂停·左=快退·右=快进）见 onDoubleTapDown。
+
   void _toggleLock() {
     _controller.toggleLock();
     // 延迟 setState 到当前事件帧结束后，避免在手势回调栈中
@@ -1438,6 +1632,34 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
+  /// 功能5：选择长按自定义倍速值（更多菜单入口）。
+  Future<void> _pickLongPressSpeed(BuildContext ctx) async {
+    const options = <double>[1.5, 2.0, 2.5, 3.0];
+    final selected = await showModalBottomSheet<double>(
+      context: ctx,
+      builder: (BuildContext sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ...options.map((s) => ListTile(
+                  dense: true,
+                  title: Center(child: Text('${s}x')),
+                  tileColor: s == _playerSettings.longPressSpeed
+                      ? Theme.of(sheetCtx).colorScheme.primaryContainer
+                      : null,
+                  onTap: () => Navigator.pop(sheetCtx, s),
+                )),
+            const SizedBox(height: AppTokens.spaceSm),
+          ],
+        ),
+      ),
+    );
+    if (selected != null) {
+      await _updatePlayerSettings(
+          _playerSettings.copyWith(longPressSpeed: selected));
+    }
+  }
+
   void _applyDanmakuOption() {
     if (!mounted || _disposed) return;
     // _controller 在 initState 同步创建，正常非空；但为防止极端时序下
@@ -1602,6 +1824,32 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   activeColor: Theme.of(ctx).colorScheme.primary,
                 ),
               ),
+            // 功能5：长按手势设置（开关 + 自定义倍速值）
+            ListTile(
+              leading: Icon(_playerSettings.longPressSpeedUp
+                  ? Icons.fast_forward
+                  : Icons.fast_forward_outlined),
+              title: Text(l10n.playerLongPressSpeedUp),
+              trailing: Switch(
+                value: _playerSettings.longPressSpeedUp,
+                onChanged: (v) {
+                  unawaited(_updatePlayerSettings(
+                      _playerSettings.copyWith(longPressSpeedUp: v)));
+                  Navigator.pop(ctx);
+                },
+                activeColor: Theme.of(ctx).colorScheme.primary,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.speed),
+              title: Text(l10n.playerLongPressSpeed),
+              subtitle: Text('${_playerSettings.longPressSpeed}x'),
+              enabled: _playerSettings.longPressSpeedUp,
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_pickLongPressSpeed(context));
+              },
+            ),
             // 画中画（从顶栏移入更多菜单）
             ListTile(
               leading: const Icon(Icons.picture_in_picture),
@@ -1867,6 +2115,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _positionSub?.cancel();
     _completedSub?.cancel();
     _stallSub?.cancel();
+    _bufferingSub?.cancel();
     // 关闭可能残留的 SnackBar：其退出动画的 AnimationController 在 widget 失活后
     // 仍会 tick，并尝试访问已销毁的 Scaffold 祖先 → 抛「deactivated widget」
     // （见用户日志 AnimationController#...for SnackBar）。deactivate 阶段 context
@@ -1887,6 +2136,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _positionSub?.cancel();
     _completedSub?.cancel();
     _stallSub?.cancel();
+    _bufferingSub?.cancel();
+    _resolveProgress.dispose();
     unawaited(_castService.disconnect());
     _focusNode.dispose();
     // _controller 可能未创建（如 _init 在创建前就抛异常退出），需判空避免
@@ -1920,7 +2171,30 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         future: _initFuture,
         builder: (BuildContext c, AsyncSnapshot<void> snap) {
           if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            // 初始化转圈期间叠加解析进度条（功能3），让用户看到"找视频地址"的进度。
+            return Stack(
+              children: <Widget>[
+                const Center(child: CircularProgressIndicator()),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: ValueListenableBuilder<double?>(
+                    valueListenable: _resolveProgress,
+                    builder: (BuildContext _, double? v, Widget? __) {
+                      if (v == null) return const SizedBox.shrink();
+                      return LinearProgressIndicator(
+                        value: v >= 0 ? v : null,
+                        minHeight: 3,
+                        backgroundColor: Colors.white24,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.white),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
           }
           if (snap.hasError || _videoController == null) {
             return AppErrorState(
@@ -1956,22 +2230,30 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       onKeyEvent: _handleKeyEvent,
       child: Stack(
         children: <Widget>[
-          // 视频画面 + 手势系统（双击 ±10s / 左竖滑亮度 / 右竖滑音量 / 横滑 seek 预览）
+          // 视频画面 + 手势系统（双击 中=播放/暂停·左=快退·右=快进 / 左竖滑亮度 / 右竖滑音量 / 横滑 seek 预览）
           GestureDetector(
             behavior: HitTestBehavior.opaque,
+            // 功能1：单击显隐控制栏。
             onTap: _toggleUi,
+            // 功能4：长按切自定义倍速，松手恢复（受 longPressSpeedUp 开关控制）。
+            onLongPressStart: (_) => _onLongPressSpeedStart(),
+            onLongPressEnd: (_) => _onLongPressSpeedEnd(),
+            // 双击：左=快退 10s；中=播放/暂停；右=快进 10s（锁定态忽略）。
             onDoubleTapDown: (TapDownDetails d) {
               if (_controller.isLocked) return;
               final width = context.size?.width ?? 0;
-              final half = width / 2;
-              if (d.localPosition.dx < half) {
-                // 左半屏双击：快退 10s
+              final dx = d.localPosition.dx;
+              if (dx < width / 3) {
+                // 左三分之一：快退 10s
                 unawaited(_seekBy(const Duration(seconds: -10)));
                 _showGestureIndicator(l10n.seekBackward10);
-              } else {
-                // 右半屏双击：快进 10s
+              } else if (dx > width * 2 / 3) {
+                // 右三分之一：快进 10s
                 unawaited(_seekBy(const Duration(seconds: 10)));
                 _showGestureIndicator(l10n.seekForward10);
+              } else {
+                // 中间三分之一：播放/暂停
+                _togglePlayPause();
               }
             },
             onVerticalDragStart: (DragStartDetails d) {
@@ -2011,7 +2293,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               final delta = -d.delta.dx / width;
               final next = _seekPreview +
                   Duration(
-                      seconds: (delta * _duration.inSeconds).round());
+                      seconds: (delta *
+                              _duration.inSeconds *
+                              _seekMultiplierFactor)
+                          .round());
               _seekPreview = next < Duration.zero
                   ? Duration.zero
                   : (next > _duration ? _duration : next);
@@ -2052,6 +2337,39 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
           // 中央手势指示器（锁定态不显示）
           if (!_controller.isLocked) _buildGestureIndicator(),
+
+          // 功能2：缓冲加载动画（播放中缓冲时显示中央转圈）。
+          if (_isBuffering && !_controller.isLocked)
+            const Center(
+              child: SizedBox(
+                width: 56,
+                height: 56,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                ),
+              ),
+            ),
+
+          // 功能3：解析进度条（顶部细进度条，类似网站加载条）。
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: ValueListenableBuilder<double?>(
+              valueListenable: _resolveProgress,
+              builder: (BuildContext _, double? v, Widget? __) {
+                if (v == null) return const SizedBox.shrink();
+                return LinearProgressIndicator(
+                  value: v >= 0 ? v : null,
+                  minHeight: 3,
+                  backgroundColor: Colors.white24,
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(Colors.white),
+                );
+              },
+            ),
+          ),
 
           // 左边缘常驻锁定按钮（垂直居中；锁定时仍可见，作解锁入口）
           Positioned(
@@ -2220,9 +2538,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            // 解析二级进度（加载态可见，复用 PlayerController.resolveProgress）
+            // 解析二级进度（加载态可见，复用 State 级 _resolveProgress）
             ValueListenableBuilder<double?>(
-              valueListenable: _controller.resolveProgress,
+              valueListenable: _resolveProgress,
               builder: (BuildContext _, double? v, Widget? __) {
                 if (v == null) return const SizedBox.shrink();
                 return Padding(
