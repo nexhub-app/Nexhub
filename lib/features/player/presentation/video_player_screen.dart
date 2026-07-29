@@ -389,7 +389,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 设置就会永远停留在默认值，表现为「退出重进无法保持」。
     await _loadDanmakuSourcePref();
 
-    // 创建 VideoController 并打开媒体
+    // 创建 VideoController 并打开媒体。
+    // 若因重试再次进入 _init，先释放上一次的 VideoController，避免原生 surface
+    // 泄漏 / 与旧实例冲突（Lost connection to device）。
+    await _videoController?.dispose();
     _videoController = VideoController(_controller.player);
 
     // 同步当前系统亮度（手势起点基准）与播放器音量（PlayerController.volume）。
@@ -1789,6 +1792,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     unawaited(_castService.disconnect());
     _focusNode.dispose();
     _controller.removeListener(_onControllerChanged);
+    // 释放视频渲染层：VideoController 持有原生 VideoOutput（ANGLE/Direct3D 纹理），
+    // 必须显式 dispose，否则原生 surface 泄漏。退出重进时新建的 VideoController
+    // 会与泄漏的旧 surface 冲突，在 fvp 后端 HLS 重播时直接杀进程
+    // （Lost connection to device）。须在释放底层 Player 之前执行。
+    if (_videoController != null) {
+      debugPrint('[video_player] 释放 VideoController（避免原生 surface 泄漏）');
+    }
+    unawaited(_videoController?.dispose());
     _controller.dispose();
     // 还原系统亮度（避免退出后保留手势调节值）。
     // 注意：resetScreenBrightness 是异步方法，其 PlatformException 在后续微任务抛出，
