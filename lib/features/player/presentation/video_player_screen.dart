@@ -1281,8 +1281,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   void _applyDanmakuOption() {
     if (!mounted || _disposed) return;
-    final effectiveDuration =
-        _danmakuSettings.effectiveDuration(_controller.playbackSpeed);
+    // _controller 在 initState 同步创建，正常非空；但为防止极端时序下
+    // playbackSpeed 读取抛异常（release 下未捕获即崩进程），此处做兜底。
+    final double speed;
+    try {
+      speed = _controller.playbackSpeed;
+    } on Object {
+      speed = 1.0;
+    }
+    final effectiveDuration = _danmakuSettings.effectiveDuration(speed);
     final option = cd.DanmakuOption(
       duration: effectiveDuration,
       fontSize: _danmakuSettings.fontSize,
@@ -1293,7 +1300,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       hideBottom: _danmakuSettings.hideBottom,
       hideScroll: _danmakuSettings.hideScroll,
     );
-    _danmakuKey.currentState?.updateOption(option);
+    try {
+      _danmakuKey.currentState?.updateOption(option);
+    } on Object catch (e, st) {
+      debugPrint('[_applyDanmakuOption] updateOption 失败（已忽略）: $e\n$st');
+    }
   }
 
   /// 显示弹幕输入框（底部轻量对话框，支持选择弹幕颜色与样式）。
@@ -1722,11 +1733,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _controller.removeListener(_onControllerChanged);
     _controller.dispose();
     // 还原系统亮度（避免退出后保留手势调节值）。
-    try {
-      _brightnessPlugin.resetScreenBrightness();
-    } on Object {
-      // 平台不支持时静默忽略。
-    }
+    // 注意：resetScreenBrightness 是异步方法，其 PlatformException 在后续微任务抛出，
+    // 同步 try/catch 捕获不到，会形成「Uncaught zone error」；故用 .catchError 兜底。
+    _brightnessPlugin.resetScreenBrightness().catchError((Object _) {});
     super.dispose();
   }
 
@@ -1858,7 +1867,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 key: _danmakuKey,
                 enabled: _danmakuOn,
                 controller: _danmakuController,
-                onReady: _applyDanmakuOption,
               ),
             ),
           ),
