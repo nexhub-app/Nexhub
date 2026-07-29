@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/danmaku/bilibili_danmaku_service.dart';
 import '../../../core/danmaku/danmaku_repository.dart';
 import '../../../core/danmaku/danmaku_settings.dart';
+import '../../../core/danmaku/danmaku_settings_store.dart';
 import '../../../core/danmaku/danmaku_source.dart';
 import '../../../core/danmaku/dandanplay_service.dart';
 import '../../../core/favorites/favorites_manager.dart';
@@ -160,8 +161,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// #6 A4-#6: SharedPreferences 中保存自定义 URL 的键。
   static const String _kDanmakuCustomUrlKey = 'danmaku_custom_url';
 
-  /// SharedPreferences 中保存弹幕显示设置（JSON）的键。
-  static const String _kDanmakuSettingsKey = 'danmaku_settings';
+  /// 旧方案遗留键（文件 + SharedPreferencesAsync）。仅用于一次性迁移，
+  /// 迁移后播放器统一写入与全局页共用的 `danmaku_display_settings_v1`。
+  static const String _kLegacyDanmakuSettingsKey = 'danmaku_settings';
 
   /// 每集手动 / 即时匹配得到的 dandanplay episodeId 覆盖（键 = 剧集 id）。
   /// 用于自动匹配失败时的兜底，以及用户从「手动匹配」面板指定。
@@ -483,60 +485,86 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       }
       // #6 A4-#6: 同步加载自定义 URL。
       _customDanmakuUrl = prefs.getString(_kDanmakuCustomUrlKey) ?? '';
-      // 恢复弹幕显示设置（优先文件，回退 SharedPreferences）。
-      final settingsJson = await _readDanmakuSettingsJson();
-      if (settingsJson != null && settingsJson.isNotEmpty) {
-        final decoded = jsonDecode(settingsJson);
-        if (decoded is Map<String, dynamic>) {
-          _danmakuSettings = DanmakuSettings.fromJson(decoded);
-          // 恢复后立即同步到弹幕渲染层（若覆盖层已就绪）。
-          if (mounted) _applyDanmakuOption();
-        }
+      // 恢复弹幕显示设置：与全局「弹幕显示设置」页共用同一存储（单一数据源）。
+      _danmakuSettings = await _loadDanmakuSettings();
+      debugPrint(
+          '[_loadDanmakuSourcePref] 已恢复弹幕显示设置: '
+          'area=${_danmakuSettings.area} fontSize=${_danmakuSettings.fontSize} '
+          'opacity=${_danmakuSettings.opacity} lineHeight=${_danmakuSettings.lineHeight} '
+          'duration=${_danmakuSettings.duration}');
+      // 覆盖层在首帧才会挂载，而 _init 此刻尚未结束、_danmakuKey.currentState
+      // 仍为空，直接调用 apply 会被 `?.` 短路成空操作。改为延到下一帧
+      // （覆盖层必然已挂载）再同步到渲染层，彻底解决「退出重进无法保持」。
+      if (mounted) {
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _applyDanmakuOption());
       }
     } on Object catch (e, st) {
       debugPrint('[_loadDanmakuSourcePref] 读取弹幕设置失败: $e\n$st');
     }
   }
 
-  /// 弹幕显示设置的本地文件（位于应用支持目录）。
-  /// 用文件持久化为主，规避 Windows 桌面端 SharedPreferences 偶发未落盘、
-  /// 导致「退出重进无法保持」的问题；SharedPreferences 仅作兼容回退。
-  Future<File> _danmakuSettingsFile() async {
-    final dir = await getApplicationSupportDirectory();
-    return File('${dir.path}/danmaku_settings.json');
+  /// 弹幕显示设置存储：与全局「弹幕显示设置」页共用同一实例，单一数据源。
+  /// 底层走 [DanmakuDisplaySettingsStore] → SharedPreferences.getInstance()，稳定可靠。
+  final DanmakuDisplaySettingsStore _danmakuSettingsStore =
+      DanmakuDisplaySettingsStore();
+
+  /// 加载弹幕显示设置：优先读取与全局页共用的存储；若该存储为空，
+  /// 尝试从旧方案（文件 / SharedPreferencesAsync）一次性迁移，避免历史设置丢失。
+  Future<DanmakuSettings> _loadDanmakuSettings() async {
+    if (await _danmakuSettingsStore.hasData()) {
+      return _danmakuSettingsStore.load();
+    }
+    final legacy = await _readLegacyDanmakuSettings();
+    if (legacy != null) {
+      await _danmakuSettingsStore.save(legacy);
+      return legacy;
+    }
+    return _danmakuSettingsStore.load();
   }
 
-  /// 读取已保存的弹幕设置 JSON：优先文件，回退 SharedPreferences。
-  Future<String?> _readDanmakuSettingsJson() async {
+  /// 读取旧方案保存的弹幕设置（仅用于一次性迁移，迁移后清理文件）。
+  Future<DanmakuSettings?> _readLegacyDanmakuSettings() async {
+    // 旧方案主写文件 danmaku_settings.json。
     try {
-      final file = await _danmakuSettingsFile();
-      if (await file.exists()) return await file.readAsString();
+      final file = File(
+          '${(await getApplicationSupportDirectory()).path}/danmaku_settings.json');
+      if (await file.exists()) {
+        final decoded =
+            jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+        final s = DanmakuSettings.fromJson(decoded);
+        await file.delete().catchError((Object _) {});
+        return s;
+      }
     } on Object catch (e, st) {
-      debugPrint('[_readDanmakuSettingsJson] 读文件失败: $e\n$st');
+      debugPrint('[_readLegacyDanmakuSettings] 读旧文件失败: $e\n$st');
     }
+    // 旧方案兼容副本：SharedPreferencesAsync 键 danmaku_settings。
     try {
-      final prefs = SharedPreferencesAsync();
-      return await prefs.getString(_kDanmakuSettingsKey);
+      final raw = await SharedPreferencesAsync()
+          .getString(_kLegacyDanmakuSettingsKey);
+      if (raw != null && raw.isNotEmpty) {
+        return DanmakuSettings.fromJson(
+            jsonDecode(raw) as Map<String, dynamic>);
+      }
     } on Object catch (e, st) {
-      debugPrint('[_readDanmakuSettingsJson] 读 SharedPreferences 失败: $e\n$st');
+      debugPrint(
+          '[_readLegacyDanmakuSettings] 读旧 SharedPreferences 失败: $e\n$st');
     }
     return null;
   }
 
-  /// 持久化弹幕显示设置（JSON 写入文件为主，SharedPreferences 兼容）。
+  /// 持久化弹幕显示设置：写入与全局「弹幕显示设置」页共用的存储
+  /// （key `danmaku_display_settings_v1`，SharedPreferences.getInstance()）。
   Future<void> _saveDanmakuSettings() async {
-    final json = jsonEncode(_danmakuSettings.toJson());
     try {
-      final file = await _danmakuSettingsFile();
-      await file.writeAsString(json);
+      await _danmakuSettingsStore.save(_danmakuSettings);
+      debugPrint('[_saveDanmakuSettings] 已保存弹幕显示设置: '
+          'area=${_danmakuSettings.area} fontSize=${_danmakuSettings.fontSize} '
+          'opacity=${_danmakuSettings.opacity} lineHeight=${_danmakuSettings.lineHeight} '
+          'duration=${_danmakuSettings.duration}');
     } on Object catch (e, st) {
-      debugPrint('[_saveDanmakuSettings] 写文件失败: $e\n$st');
-    }
-    try {
-      final prefs = SharedPreferencesAsync();
-      await prefs.setString(_kDanmakuSettingsKey, json);
-    } on Object catch (e, st) {
-      debugPrint('[_saveDanmakuSettings] 写 SharedPreferences 失败: $e\n$st');
+      debugPrint('[_saveDanmakuSettings] 保存失败: $e\n$st');
     }
   }
 
@@ -1252,6 +1280,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _applyDanmakuOption() {
+    if (!mounted || _disposed) return;
     final effectiveDuration =
         _danmakuSettings.effectiveDuration(_controller.playbackSpeed);
     final option = cd.DanmakuOption(
@@ -1829,6 +1858,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 key: _danmakuKey,
                 enabled: _danmakuOn,
                 controller: _danmakuController,
+                onReady: _applyDanmakuOption,
               ),
             ),
           ),

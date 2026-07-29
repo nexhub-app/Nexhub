@@ -1,46 +1,17 @@
-/// 弹幕显示设置子页 —— 全局弹幕显示参数（独立于播放器内临时面板）。
+/// 弹幕显示设置子页 —— 与播放器内设置面板**共用同一份数据**
+/// （[DanmakuDisplaySettingsStore]，key: `danmaku_display_settings_v1`）。
 ///
-/// 持久化到 SharedPreferences（key: `danmaku_display_settings_v1`），
-/// 复用 [DanmakuSettings] 模型，作为播放器外全局默认值。
+/// 在本页修改的任何弹幕显示参数（区域/行高/字号/不透明度/时长/显隐开关等）
+/// 都会立即写回该存储；进入播放器时播放器读取的也是同一份，因此两处始终一致。
 library;
-
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
-import '../../../core/comic/models/reader_preferences.dart';
 import '../../../core/danmaku/danmaku_settings.dart';
+import '../../../core/danmaku/danmaku_settings_store.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'widgets/settings_widgets.dart';
-
-/// 弹幕显示设置持久化存储（key: `danmaku_display_settings_v1`）。
-///
-/// 仿 [DanmakuConfigStore] 模式，复用 [PrefsBackend] 抽象以便测试注入。
-class DanmakuDisplaySettingsStore {
-  static const String _key = 'danmaku_display_settings_v1';
-
-  final PrefsBackend _backend;
-
-  DanmakuDisplaySettingsStore({PrefsBackend? backend})
-      : _backend = backend ?? const SharedPrefsBackend();
-
-  Future<DanmakuSettings> load() async {
-    final raw = await _backend.get(_key);
-    if (raw == null || raw.isEmpty) return const DanmakuSettings();
-    try {
-      return DanmakuSettings.fromJson(
-        jsonDecode(raw) as Map<String, dynamic>,
-      );
-    } on Object {
-      return const DanmakuSettings();
-    }
-  }
-
-  Future<void> save(DanmakuSettings settings) async {
-    await _backend.set(_key, jsonEncode(settings.toJson()));
-  }
-}
 
 /// 弹幕显示设置页面（Scaffold 全页）。
 class SettingsDanmakuDisplayScreen extends StatefulWidget {
