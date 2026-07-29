@@ -136,7 +136,11 @@ class VideoPlayerScreen extends StatefulWidget {
 }
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+  // 注意：_controller 不在 initState 同步创建，而是在 _init() 中、等上一次播放器
+  // 原生释放完成后再创建。否则新 Player 的 mpv 上下文会与尚未释放的旧 surface
+  // 重叠，连续多次打开会在第三次冲突杀进程（Lost connection to device）。
   late final PlayerController _controller;
+  bool _controllerCreated = false;
   VideoController? _videoController;
 
   final DanmakuController _danmakuController = DanmakuController();
@@ -145,10 +149,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   DanmakuSettings _danmakuSettings = const DanmakuSettings();
   DanmakuRepository? _danmakuRepo;
   bool _danmakuOn = true;
-
-  /// 弹幕设置是否以「页面内悬浮面板」形式展开（不新建路由，避免 modal 弹窗
-  /// 在 Windows 上重新合成 media_kit 原生视频层导致崩溃）。
-  bool _danmakuSettingsOpen = false;
 
   /// 是否为本地文件 / 直链模式（跳过在线源解析，直接打开给定地址）。
   bool get _isDirectMode => widget.localUri != null || widget.directUrl != null;
@@ -259,10 +259,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = PlayerController();
-    _controller.addListener(_onControllerChanged);
     // 首帧后把默认弹幕设置（字号/不透明度/区域）同步到弹幕层，
     // 否则覆盖层会沿用 canvas_danmaku 的默认值（区域=全屏、字号=16）。
+    // 注意：此时 _controller 尚未创建（在 _init 中等旧播放器释放后才建），
+    // _applyDanmakuOption 内部读取 _controller.playbackSpeed 已用 try/catch 兜底。
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _applyDanmakuOption());
     _episodeIndex = widget.initialEpisodeIndex ?? 0;
@@ -389,10 +389,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 设置就会永远停留在默认值，表现为「退出重进无法保持」。
     await _loadDanmakuSourcePref();
 
-    // 创建 VideoController 并打开媒体。
-    // 若因重试再次进入 _init，先释放上一次的 VideoController，避免原生 surface
-    // 泄漏 / 与旧实例冲突（Lost connection to device）。
-    await _videoController?.dispose();
+    // 创建 Player + VideoController 并打开媒体。
+    // 关键：先等待上一次播放器的原生 VideoOutput 释放完成（见 PlayerController.pendingDisposal），
+    // 再把「新 Player」创建出来。Player 的 mpv 上下文与原生视频纹理是崩溃高发点，
+    // 必须保证「旧播放器完全销毁」先于「新播放器创建」，否则连续多次打开会在
+    // 第三次冲突杀进程（Lost connection to device）。
+    await PlayerController.pendingDisposal;
+    if (_disposed) return;
+    _controller = PlayerController();
+    _controller.addListener(_onControllerChanged);
+    _controllerCreated = true;
     _videoController = VideoController(_controller.player);
 
     // 同步当前系统亮度（手势起点基准）与播放器音量（PlayerController.volume）。
@@ -477,6 +483,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _refreshFavorite();
 
     if (mounted) setState(() {});
+    // 关键：_initFuture 完成后 FutureBuilder 才会渲染播放器 UI（含弹幕覆盖层），
+    // 覆盖层此刻才真正挂载。用 postFrameCallback 把「套用弹幕显示设置」延到这一帧之后，
+    // 确保 _danmakuKey.currentState 非空、保存的字号/不透明度/区域真正生效。
+    // 否则（如 _init 开头调度的 apply）会在转圈帧触发、覆盖层尚未挂载而被 `?.` 短路，
+    // 导致重进时弹幕用默认设置（表现为「设置不对」）。
+    if (mounted) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _applyDanmakuOption());
+    }
   }
 
   /// 从 SharedPreferences 读取弹幕源选择。
@@ -1160,70 +1175,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     setState(() => _position = position);
   }
 
-  /// 切换「弹幕设置」页面内悬浮面板的显隐。
-  ///
-  /// 用页面内悬浮面板（同一 Stack，不新建路由）取代 showModalBottomSheet，
-  /// 避免 modal 弹窗在 Windows 上重新合成 media_kit 原生视频层导致进程崩溃。
-  void _toggleDanmakuSettings() {
-    if (!mounted || _disposed) return;
-    setState(() => _danmakuSettingsOpen = !_danmakuSettingsOpen);
-  }
-
-  /// 悬浮面板内滑块/开关改动回调。
-  ///
-  /// 注意：**不调用 setState 重建播放器**，仅更新字段 + 实时套用 + 持久化。
-  /// 面板自身持有 _settings 副本并通过自身 setState 刷新滑块 UI，故拖动滑块
-  /// 不会触发整个播放器（含原生视频层）重建，进一步避免原生层竞态。
-  void _onDanmakuSettingsChanged(DanmakuSettings next) {
-    _danmakuSettings = next;
-    _applyDanmakuOption();
-    unawaited(_saveDanmakuSettings());
-  }
-
-  /// 弹幕设置「页面内悬浮面板」：直接挂在播放器 Stack 内（不新建路由），
-  /// 避免 showModalBottomSheet 在 Windows 上重新合成 media_kit 原生视频层导致崩溃。
-  ///
-  /// - 点遮罩关闭；面板内点击不穿透到遮罩。
-  /// - 面板内容复用 [DanmakuSettingsSheet]（其自带入场动画与内部 setState），
-  ///   滑块改动经 [_onDanmakuSettingsChanged] 实时套用并持久化，不重建播放器。
-  Widget _buildDanmakuSettingsOverlay(AppLocalizations l10n) {
-    final surface = Theme.of(context).colorScheme.surface;
-    return Stack(
-      children: <Widget>[
-        // 遮罩：点击任意空白区域关闭面板。
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: _toggleDanmakuSettings,
-            child: Container(color: Colors.black54),
-          ),
-        ),
-        // 底部面板（不穿透点击）。
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: GestureDetector(
-            onTap: () {}, // 吞掉面板内点击，避免穿透到遮罩触发关闭。
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.8,
-              ),
-              decoration: BoxDecoration(
-                color: surface,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppTokens.radiusLg),
-                ),
-              ),
-              child: DanmakuSettingsSheet(
-                settings: _danmakuSettings,
-                onChanged: _onDanmakuSettingsChanged,
-                onMatch: _openDanmakuMatch,
-                onClose: _toggleDanmakuSettings,
-              ),
-            ),
-          ),
-        ),
-      ],
+  /// 打开弹幕设置面板（底部 modal bottom sheet）。
+  Future<void> _openDanmakuSettings() async {
+    await DanmakuSettingsSheet.show(
+      context,
+      settings: _danmakuSettings,
+      onChanged: (next) {
+        setState(() => _danmakuSettings = next);
+        _applyDanmakuOption();
+        unawaited(_saveDanmakuSettings());
+      },
+      onMatch: _openDanmakuMatch,
     );
   }
 
@@ -1791,16 +1753,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _stallSub?.cancel();
     unawaited(_castService.disconnect());
     _focusNode.dispose();
-    _controller.removeListener(_onControllerChanged);
-    // 释放视频渲染层：VideoController 持有原生 VideoOutput（ANGLE/Direct3D 纹理），
-    // 必须显式 dispose，否则原生 surface 泄漏。退出重进时新建的 VideoController
-    // 会与泄漏的旧 surface 冲突，在 fvp 后端 HLS 重播时直接杀进程
-    // （Lost connection to device）。须在释放底层 Player 之前执行。
-    if (_videoController != null) {
-      debugPrint('[video_player] 释放 VideoController（避免原生 surface 泄漏）');
+    // _controller 可能未创建（如 _init 在创建前就抛异常退出），需判空避免
+    // LateInitializationError。正常情况下 _init 成功后 _controllerCreated 为 true。
+    if (_controllerCreated) {
+      _controller.removeListener(_onControllerChanged);
     }
-    unawaited(_videoController?.dispose());
-    _controller.dispose();
+    // 关键：释放视频渲染层。VideoController 在 media_kit_video 2.0.1 没有 dispose()
+    // 方法——它的原生 VideoOutput（fvp 纹理）由底层 Player.dispose() 通过 release
+    // 回调统一释放。PlayerController.dispose() 会把该释放的 Future 记入静态
+    // PlayerController._pendingDisposal；下一次进入播放器时 _init 会 await
+    // PlayerController.pendingDisposal，确保「旧播放器销毁」先于「新播放器创建」，
+    // 避免退出重进时新旧 surface 冲突（Lost connection to device）。
+    _videoController = null;
+    if (_controllerCreated) {
+      _controller.dispose();
+    }
     // 还原系统亮度（避免退出后保留手势调节值）。
     // 注意：resetScreenBrightness 是异步方法，其 PlatformException 在后续微任务抛出，
     // 同步 try/catch 捕获不到，会形成「Uncaught zone error」；故用 .catchError 兜底。
@@ -1999,8 +1966,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
           ],
-          // 弹幕设置：页面内悬浮面板（不新建路由，避免 modal 在 Windows 上崩原生视频层）
-          if (_danmakuSettingsOpen) _buildDanmakuSettingsOverlay(l10n),
         ],
       ),
     );
@@ -2191,7 +2156,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   l10n: l10n,
                   onToggle: _toggleDanmaku,
                   onSend: _showDanmakuInput,
-                  onSettings: _toggleDanmakuSettings,
+                  onSettings: _openDanmakuSettings,
                   onLongPressSettings: _openDanmakuSource,
                 ),
                 const Spacer(),
