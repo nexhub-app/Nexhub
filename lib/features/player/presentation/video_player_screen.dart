@@ -483,8 +483,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       }
       // #6 A4-#6: 同步加载自定义 URL。
       _customDanmakuUrl = prefs.getString(_kDanmakuCustomUrlKey) ?? '';
-      // 恢复弹幕显示设置（区域/行高/字号/不透明度/开关等）。
-      final settingsJson = prefs.getString(_kDanmakuSettingsKey);
+      // 恢复弹幕显示设置（优先文件，回退 SharedPreferences）。
+      final settingsJson = await _readDanmakuSettingsJson();
       if (settingsJson != null && settingsJson.isNotEmpty) {
         final decoded = jsonDecode(settingsJson);
         if (decoded is Map<String, dynamic>) {
@@ -493,19 +493,50 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           if (mounted) _applyDanmakuOption();
         }
       }
-    } on Object {
-      // 读取失败，沿用默认值。
+    } on Object catch (e, st) {
+      debugPrint('[_loadDanmakuSourcePref] 读取弹幕设置失败: $e\n$st');
     }
   }
 
-  /// 持久化弹幕显示设置（JSON 存入 SharedPreferences）。
-  Future<void> _saveDanmakuSettings() async {
+  /// 弹幕显示设置的本地文件（位于应用支持目录）。
+  /// 用文件持久化为主，规避 Windows 桌面端 SharedPreferences 偶发未落盘、
+  /// 导致「退出重进无法保持」的问题；SharedPreferences 仅作兼容回退。
+  Future<File> _danmakuSettingsFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File('${dir.path}/danmaku_settings.json');
+  }
+
+  /// 读取已保存的弹幕设置 JSON：优先文件，回退 SharedPreferences。
+  Future<String?> _readDanmakuSettingsJson() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-          _kDanmakuSettingsKey, jsonEncode(_danmakuSettings.toJson()));
-    } on Object {
-      // 写入失败静默忽略。
+      final file = await _danmakuSettingsFile();
+      if (await file.exists()) return await file.readAsString();
+    } on Object catch (e, st) {
+      debugPrint('[_readDanmakuSettingsJson] 读文件失败: $e\n$st');
+    }
+    try {
+      final prefs = SharedPreferencesAsync();
+      return await prefs.getString(_kDanmakuSettingsKey);
+    } on Object catch (e, st) {
+      debugPrint('[_readDanmakuSettingsJson] 读 SharedPreferences 失败: $e\n$st');
+    }
+    return null;
+  }
+
+  /// 持久化弹幕显示设置（JSON 写入文件为主，SharedPreferences 兼容）。
+  Future<void> _saveDanmakuSettings() async {
+    final json = jsonEncode(_danmakuSettings.toJson());
+    try {
+      final file = await _danmakuSettingsFile();
+      await file.writeAsString(json);
+    } on Object catch (e, st) {
+      debugPrint('[_saveDanmakuSettings] 写文件失败: $e\n$st');
+    }
+    try {
+      final prefs = SharedPreferencesAsync();
+      await prefs.setString(_kDanmakuSettingsKey, json);
+    } on Object catch (e, st) {
+      debugPrint('[_saveDanmakuSettings] 写 SharedPreferences 失败: $e\n$st');
     }
   }
 
@@ -1650,6 +1681,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void dispose() {
     // 退出时保存最后播放位置
     _saveCurrentPosition();
+    // 兜底保存弹幕显示设置（滑块即时保存之外，确保离开页面必定落盘）。
+    unawaited(_saveDanmakuSettings());
     _sleepTimer?.cancel();
     _gestureIndicatorTimer?.cancel();
     _positionSub?.cancel();
