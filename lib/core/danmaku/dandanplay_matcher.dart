@@ -43,12 +43,18 @@ class DandanplayMatcher {
       final map = <int, int>{};
 
       // 1) match 文件识别：逐集构造文件名。
+      // 候选仅在服务端精确匹配（isMatched）或作品标题相似时采纳，
+      // 避免弹弹play 对无对应作品的查询返回无关候选造成跨标题误匹配。
       for (int i = 0; i < episodes.length; i++) {
         final fileName = _buildFileName(title, episodes[i].title);
         final matches = await _dandanplay.matchFile(fileName: fileName);
         if (matches.isNotEmpty) {
-          final id = int.tryParse(matches.first.episodeId);
-          if (id != null) map[i] = id;
+          final candidate = matches.first;
+          if (candidate.isMatched ||
+              isTitleSimilar(candidate.animeTitle, title)) {
+            final id = int.tryParse(candidate.episodeId);
+            if (id != null) map[i] = id;
+          }
         }
       }
       if (map.isNotEmpty) return map;
@@ -60,27 +66,70 @@ class DandanplayMatcher {
     }
   }
 
-  /// 单集即时匹配（播放器兜底用）：用标题做 match，返回首个候选 episodeId。
-  Future<int?> matchSingle(String title) async {
+  /// 单集即时匹配（播放器兜底用）。
+  ///
+  /// [title] 为完整查询标题（可含集数信息）；[animeTitle] 为分离出的
+  /// 作品标题（可选），用于相似度校验，未提供时退化为用 [title] 校验。
+  ///
+  /// 候选仅在服务端精确匹配（isMatched）或作品标题相似时采纳；
+  /// 搜索回退同样要求作品标题相似，且选集按集数匹配而非盲取首集。
+  /// 无法确认对应关系时返回 null（不显示弹幕）。
+  ///
+  /// 凭据未配置（[StateError]）时向上抛出，由调用方提示用户；
+  /// 其余异常静默返回 null。
+  Future<int?> matchSingle(String title, {String? animeTitle}) async {
     if (title.isEmpty) return null;
     try {
       await _dandanplay.refreshAvailability();
+      final verifyTitle = (animeTitle != null && animeTitle.isNotEmpty)
+          ? animeTitle
+          : title;
       final matches = await _dandanplay.matchFile(fileName: _cleanTitle(title));
       if (matches.isNotEmpty) {
-        return int.tryParse(matches.first.episodeId);
+        final candidate = matches.first;
+        if (candidate.isMatched ||
+            isTitleSimilar(candidate.animeTitle, verifyTitle)) {
+          return int.tryParse(candidate.episodeId);
+        }
       }
-      // match 无果时，搜索后取首集。
-      final results = await _dandanplay.search(_cleanTitle(title));
-      if (results.isEmpty) return null;
-      final eps = await _dandanplay.getEpisodes(results.first.title);
+      // match 无果或候选不可信：搜索回退（仅采纳标题相似的作品）。
+      final cleaned = _cleanTitle(title);
+      final results = await _dandanplay.search(cleaned);
+      DanmakuSearchResult? similar;
+      for (final r in results) {
+        if (isTitleSimilar(r.title, cleaned) ||
+            isTitleSimilar(r.title, _cleanTitle(verifyTitle))) {
+          similar = r;
+          break;
+        }
+      }
+      if (similar == null) return null;
+      final eps = await _dandanplay.getEpisodes(similar.title);
       if (eps.isEmpty) return null;
-      return int.tryParse(eps.first.episodeId);
+      // 选集：按标题中的集数匹配，而非盲取首集。
+      final epNum = extractEpisodeNumber(title);
+      if (epNum != null) {
+        for (final e in eps) {
+          if (e.episodeNumber == epNum) return int.tryParse(e.episodeId);
+        }
+        return null;
+      }
+      // 无集数信息：仅当剧集列表恰好只有 1 集（剧场版/电影）才取首集。
+      if (eps.length == 1) return int.tryParse(eps.first.episodeId);
+      return null;
+    } on StateError {
+      // 凭据未配置等致命错误，向上抛出。
+      rethrow;
     } on Object {
       return null;
     }
   }
 
-  /// 标题搜索兜底：用番剧名搜索 → 拉剧集列表 → 按集数/标题映射。
+  /// 标题搜索兜底：用番剧名搜索 → 校验作品标题相似 → 拉剧集列表 →
+  /// 按集数/标题映射。
+  ///
+  /// 无标题相似的搜索结果时返回空 map（不显示弹幕），
+  /// 不再盲取首个搜索结果，避免跨标题误匹配。
   Future<Map<int, int>> _fallbackBySearch(
     String title,
     List<Episode> episodes,
@@ -89,10 +138,40 @@ class DandanplayMatcher {
     final results = await _dandanplay.search(cleaned);
     if (results.isEmpty) return const <int, int>{};
 
-    final dandanEps = await _dandanplay.getEpisodes(results.first.title);
+    DanmakuSearchResult? similar;
+    for (final r in results) {
+      if (isTitleSimilar(r.title, cleaned)) {
+        similar = r;
+        break;
+      }
+    }
+    if (similar == null) return const <int, int>{};
+
+    final dandanEps = await _dandanplay.getEpisodes(similar.title);
     if (dandanEps.isEmpty) return const <int, int>{};
 
     return _buildMapping(episodes, dandanEps);
+  }
+
+  /// 判断两个作品标题是否相似。
+  ///
+  /// 两侧经归一化（小写、去括号内容、去画质标签、去空白与标点）后，
+  /// 相等或互相包含判为相似；任一侧归一化后为空返回 false。
+  static bool isTitleSimilar(String a, String b) {
+    final na = _normalizeForCompare(a);
+    final nb = _normalizeForCompare(b);
+    if (na.isEmpty || nb.isEmpty) return false;
+    return na == nb || na.contains(nb) || nb.contains(na);
+  }
+
+  /// 标题相似度比较用的归一化：清洗 + 小写 + 去空白与标点。
+  static String _normalizeForCompare(String title) {
+    var t = _cleanTitle(title).toLowerCase();
+    t = t.replaceAll(
+      RegExp(r'''[\s\-_·•.,:;!?~/\\|+*#@&%$^()\[\]{}<>'"，。：；！？、～·…—「」『』《》〈〉“”‘’]'''),
+      '',
+    );
+    return t;
   }
 
   /// 构造用于 match 的文件名：番剧名 + 集标题。
@@ -136,7 +215,7 @@ class DandanplayMatcher {
 
     // 1) 按集数。
     for (int i = 0; i < sourceEps.length; i++) {
-      final epNum = _extractEpisodeNumber(sourceEps[i].title);
+      final epNum = extractEpisodeNumber(sourceEps[i].title);
       if (epNum != null && byNumber.containsKey(epNum)) {
         map[i] = byNumber[epNum]!;
       }
@@ -183,10 +262,10 @@ class DandanplayMatcher {
     return t;
   }
 
-  /// 从剧集标题中提取集数。
+  /// 从剧集标题中提取集数（公开供 [DanmakuRepository] 等复用）。
   ///
   /// 支持格式：`第3集` / `第3话` / `第3回` / `EP12` / `E12` / `12`。
-  static int? _extractEpisodeNumber(String title) {
+  static int? extractEpisodeNumber(String title) {
     final patterns = <RegExp>[
       RegExp(r'\u7B2C\s*(\d+)\s*[\u96C6\u8BDD\u56DE\u8A71]'),
       RegExp(r'[Ee][Pp]?\.?\s*(\d+)'),
