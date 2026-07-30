@@ -12,7 +12,7 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
-import '../../../core/widgets/layout_picker_dialog.dart';
+import '../../../core/widgets/layout_picker_button.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 下载状态筛选（项 11）。null = 全部。
@@ -73,12 +73,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
                     l10n.statusFailed, ctx),
               ],
             ),
-            // 布局快选：底部弹窗，与设置页布局设置双向同步。
-            IconButton(
-              icon: const Icon(Icons.view_module),
-              tooltip: l10n.layoutOpenSettings,
-              onPressed: () => showLayoutPickerDialog(context),
-            ),
+            const LayoutPickerButton(),
             if (filteredTasks.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.delete_sweep_outlined),
