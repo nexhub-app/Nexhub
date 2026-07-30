@@ -21,6 +21,7 @@ class _FakeDandanplay extends DandanplayService {
     this.episodes = const <DanmakuEpisode>[],
     this.comments = const <ParsedDanmakuItem>[],
     this.throwOnComments = false,
+    this.matchResults = const <DandanplayMatchEpisode>[],
   }) : super(configStore: DanmakuConfigStore());
 
   final bool available;
@@ -28,6 +29,7 @@ class _FakeDandanplay extends DandanplayService {
   final List<DanmakuEpisode> episodes;
   final List<ParsedDanmakuItem> comments;
   final bool throwOnComments;
+  final List<DandanplayMatchEpisode> matchResults;
 
   @override
   bool get isAvailable => available;
@@ -41,6 +43,15 @@ class _FakeDandanplay extends DandanplayService {
 
   @override
   Future<List<DanmakuEpisode>> getEpisodes(String animeId) async => episodes;
+
+  @override
+  Future<List<DandanplayMatchEpisode>> matchFile({
+    String? fileName,
+    String? fileHash,
+    int? fileSize,
+    int? videoDuration,
+  }) async =>
+      matchResults;
 
   @override
   Future<List<ParsedDanmakuItem>> getComments(String episodeId) async {
@@ -540,6 +551,247 @@ void main() {
       expect(map.length, 2);
       expect(map[0], 201);
       expect(map[1], 202);
+    });
+  });
+
+  // ===== 跨标题误匹配防护 =====
+  group('DandanplayMatcher cross-title guard', () {
+    const dissimilarCandidate = DandanplayMatchEpisode(
+      episodeId: '999',
+      animeId: '9',
+      animeTitle: 'Totally Different Show',
+      episodeTitle: 'Ep1',
+      isMatched: false,
+    );
+
+    test('rejects matchFile candidate with dissimilar title (isMatched=false)',
+        () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        matchResults: const [dissimilarCandidate],
+        searchResults: const [], // 回退搜索也无结果
+      );
+      final matcher = DandanplayMatcher(dandanplay: dandan);
+      final map = await matcher.matchEpisodes('Test Anime', [
+        const Episode(id: 'a', title: '第1集', url: 'u'),
+      ]);
+      expect(map, isEmpty);
+    });
+
+    test('accepts matchFile candidate when isMatched=true', () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        matchResults: const [
+          DandanplayMatchEpisode(
+            episodeId: '555',
+            animeId: '9',
+            animeTitle: 'Server Confirmed Title',
+            episodeTitle: 'Ep1',
+            isMatched: true,
+          ),
+        ],
+      );
+      final matcher = DandanplayMatcher(dandanplay: dandan);
+      final map = await matcher.matchEpisodes('Test Anime', [
+        const Episode(id: 'a', title: '第1集', url: 'u'),
+      ]);
+      expect(map[0], 555);
+    });
+
+    test('accepts matchFile candidate with similar anime title', () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        matchResults: const [
+          DandanplayMatchEpisode(
+            episodeId: '556',
+            animeId: '1',
+            animeTitle: 'Test Anime（2024）',
+            episodeTitle: 'Ep1',
+            isMatched: false,
+          ),
+        ],
+      );
+      final matcher = DandanplayMatcher(dandanplay: dandan);
+      final map = await matcher.matchEpisodes('Test Anime', [
+        const Episode(id: 'a', title: '第1集', url: 'u'),
+      ]);
+      expect(map[0], 556);
+    });
+
+    test('search fallback returns empty when results dissimilar', () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        searchResults: const [
+          DanmakuSearchResult(animeId: '9', title: 'Unrelated Work'),
+        ],
+        episodes: const [
+          DanmakuEpisode(episodeId: '301', title: '第1话', episodeNumber: 1),
+        ],
+      );
+      final matcher = DandanplayMatcher(dandanplay: dandan);
+      final map = await matcher.matchEpisodes('Test Anime', [
+        const Episode(id: 'a', title: '第1集', url: 'u'),
+      ]);
+      expect(map, isEmpty);
+    });
+
+    test('isTitleSimilar basic behavior', () {
+      expect(DandanplayMatcher.isTitleSimilar('Test Anime', 'test anime'),
+          isTrue);
+      expect(
+          DandanplayMatcher.isTitleSimilar('Test Anime（第二季）', 'Test Anime'),
+          isTrue);
+      expect(DandanplayMatcher.isTitleSimilar('Test Anime', 'Other Show'),
+          isFalse);
+      expect(DandanplayMatcher.isTitleSimilar('', 'Test'), isFalse);
+      expect(DandanplayMatcher.isTitleSimilar('Test', ''), isFalse);
+    });
+  });
+
+  // ===== matchSingle =====
+  group('DandanplayMatcher matchSingle', () {
+    const testEpisodes = [
+      DanmakuEpisode(episodeId: '101', title: '第1话', episodeNumber: 1),
+      DanmakuEpisode(episodeId: '102', title: '第2话', episodeNumber: 2),
+      DanmakuEpisode(episodeId: '103', title: '第3话', episodeNumber: 3),
+    ];
+
+    test('returns null when search results dissimilar', () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        searchResults: const [
+          DanmakuSearchResult(animeId: '9', title: 'Some Other Anime'),
+        ],
+        episodes: testEpisodes,
+      );
+      final matcher = DandanplayMatcher(dandanplay: dandan);
+      final id = await matcher.matchSingle(
+        'Nonexistent Show 第1集',
+        animeTitle: 'Nonexistent Show',
+      );
+      expect(id, isNull);
+    });
+
+    test('returns matching episodeId when similar and number matches',
+        () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        searchResults: const [
+          DanmakuSearchResult(animeId: '1', title: 'Test Anime'),
+        ],
+        episodes: testEpisodes,
+      );
+      final matcher = DandanplayMatcher(dandanplay: dandan);
+      final id = await matcher.matchSingle(
+        'Test Anime 第2集',
+        animeTitle: 'Test Anime',
+      );
+      expect(id, 102);
+    });
+
+    test('returns null when similar but no episode number and multiple eps',
+        () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        searchResults: const [
+          DanmakuSearchResult(animeId: '1', title: 'Test Anime'),
+        ],
+        episodes: testEpisodes,
+      );
+      final matcher = DandanplayMatcher(dandanplay: dandan);
+      final id = await matcher.matchSingle('Test Anime');
+      expect(id, isNull);
+    });
+
+    test('returns first episode when similar, no number, single-ep (movie)',
+        () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        searchResults: const [
+          DanmakuSearchResult(animeId: '1', title: 'Test Anime Movie'),
+        ],
+        episodes: const [
+          DanmakuEpisode(episodeId: '501', title: '剧场版'),
+        ],
+      );
+      final matcher = DandanplayMatcher(dandanplay: dandan);
+      final id = await matcher.matchSingle('Test Anime Movie');
+      expect(id, 501);
+    });
+
+    test('rejects dissimilar matchFile candidate then falls to search',
+        () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        matchResults: const [
+          DandanplayMatchEpisode(
+            episodeId: '999',
+            animeId: '9',
+            animeTitle: 'Wrong Show',
+            episodeTitle: 'Ep1',
+            isMatched: false,
+          ),
+        ],
+        searchResults: const [
+          DanmakuSearchResult(animeId: '1', title: 'Test Anime'),
+        ],
+        episodes: testEpisodes,
+      );
+      final matcher = DandanplayMatcher(dandanplay: dandan);
+      final id = await matcher.matchSingle(
+        'Test Anime 第3集',
+        animeTitle: 'Test Anime',
+      );
+      expect(id, 103);
+    });
+  });
+
+  // ===== DanmakuRepository.matchEpisode 委托校验 =====
+  group('DanmakuRepository matchEpisode', () {
+    test('returns null for dissimilar results (no blind fallback)', () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        searchResults: const [
+          DanmakuSearchResult(animeId: '9', title: 'Some Other Anime'),
+        ],
+        episodes: const [
+          DanmakuEpisode(episodeId: '101', title: '第1话', episodeNumber: 1),
+        ],
+      );
+      final repo = DanmakuRepository(
+        dandanplay: dandan,
+        bilibili: _FakeBilibili(),
+        cacheBox: _FakeBox(),
+      );
+      final id = await repo.matchEpisode(
+        'Nonexistent Show 第1集',
+        animeTitle: 'Nonexistent Show',
+      );
+      expect(id, isNull);
+    });
+
+    test('returns episodeId for similar result with matching number',
+        () async {
+      final dandan = _FakeDandanplay(
+        available: true,
+        searchResults: const [
+          DanmakuSearchResult(animeId: '1', title: 'Test Anime'),
+        ],
+        episodes: const [
+          DanmakuEpisode(episodeId: '101', title: '第1话', episodeNumber: 1),
+          DanmakuEpisode(episodeId: '102', title: '第2话', episodeNumber: 2),
+        ],
+      );
+      final repo = DanmakuRepository(
+        dandanplay: dandan,
+        bilibili: _FakeBilibili(),
+        cacheBox: _FakeBox(),
+      );
+      final id = await repo.matchEpisode(
+        'Test Anime 第1集',
+        animeTitle: 'Test Anime',
+      );
+      expect(id, 101);
     });
   });
 }
