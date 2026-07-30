@@ -1,8 +1,20 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// 签名信息从 android/key.properties 读取（该文件已 gitignore，不入库）。
+// 本地打包：在 android/key.properties 中填写密码（模板见 key.properties.example）。
+// CI 打包：workflow 在构建前从 GitHub Secrets 生成该文件与 keystore。
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 // 让产出的 APK 文件名前缀为软件名（NexHub-arm64-v8a-release.apk 而非 app-*.apk）。
@@ -36,25 +48,32 @@ android {
         versionName = flutter.versionName
     }
 
-    // 固定签名 keystore（提交入库，保证每次 CI 构建签名一致，可覆盖安装）。
-    // 警告：此 keystore 随公开仓库公开，仅用于测试分发，请勿用于 Google Play 正式上架。
-    // 如需正式上架，请改用 GitHub Actions secret 注入私有 release keystore。
-    // 注意：storeFile 必须以 rootProject（android/）为基准并显式带 app/ 子目录，
+    // 签名 keystore：文件与密码均不入库（keystore 被 gitignore，密码在 key.properties）。
+    // 本地/CI 均通过 key.properties 提供凭据；缺失时回落 debug 签名（仅供本地调试，
+    // 产出的 release 包无法覆盖安装正式签名版本）。
+    // 注意：storeFile 必须以 rootProject（android/）为基准解析相对路径，
     // 不能用 file("upload-keystore.jks") —— 在 signingConfigs 嵌套作用域里它常被解析到
     // 根工程目录 android/ 而非 android/app，导致 validateSigningRelease 找不到 keystore。
     signingConfigs {
         create("release") {
-            keyAlias = "nexhub"
-            keyPassword = "***REMOVED***"
-            storeFile = rootProject.file("app/upload-keystore.jks")
-            storePassword = "***REMOVED***"
+            keyAlias = keystoreProperties["keyAlias"] as String?
+            keyPassword = keystoreProperties["keyPassword"] as String?
+            storeFile = (keystoreProperties["storeFile"] as String?)?.let {
+                rootProject.file(it)
+            }
+            storePassword = keystoreProperties["storePassword"] as String?
             storeType = "PKCS12"
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                // 无签名凭据（如 fork 的 PR 构建）：回落 debug 签名，保证可编译。
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
