@@ -112,21 +112,26 @@ class DandanplayService implements DanmakuSource {
   /// [fileHash] / [fileSize] 为真实本地文件信息，流视频无法获取时留空，
   /// 本方法会自动填入占位值以满足接口校验。
   ///
-  /// 返回候选匹配（含 episodeId / animeId）。匹配失败 / 网络错误均返回空列表，
-  /// 不影响主流程。
+  /// 无真实 fileHash 时使用 `fileNameOnly` 匹配模式，避免占位 hash
+  /// 在服务端产生错误的 hash 命中；仅当持有真实 hash 时才用
+  /// `hashAndFileName`。
+  ///
+  /// 返回候选匹配（含 episodeId / animeId / isMatched 精确匹配标志）。
+  /// 匹配失败 / 网络错误均返回空列表，不影响主流程。
   Future<List<DandanplayMatchEpisode>> matchFile({
     String? fileName,
     String? fileHash,
     int? fileSize,
     int? videoDuration,
   }) async {
+    final hasRealHash = fileHash != null && fileHash.isNotEmpty;
     final body = <String, dynamic>{
-      'fileHash': fileHash?.isNotEmpty == true ? fileHash : _placeholderFileHash,
+      'fileHash': hasRealHash ? fileHash : _placeholderFileHash,
       'fileSize': fileSize ?? 0,
       if (fileName != null && fileName.isNotEmpty) 'fileName': fileName,
       if (videoDuration != null && videoDuration > 0)
         'videoDuration': videoDuration,
-      'matchMode': 'hashAndFileName',
+      'matchMode': hasRealHash ? 'hashAndFileName' : 'fileNameOnly',
     };
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -212,6 +217,7 @@ class DandanplayMatchEpisode {
     required this.animeId,
     required this.animeTitle,
     required this.episodeTitle,
+    this.isMatched = false,
   });
 
   final String episodeId;
@@ -219,9 +225,16 @@ class DandanplayMatchEpisode {
   final String animeTitle;
   final String episodeTitle;
 
+  /// 服务端返回的精确匹配标志（响应顶层 `isMatched`）。
+  ///
+  /// 为 true 时表示服务器确信该候选与文件精确对应；为 false 时仅为
+  /// 模糊候选，调用方须自行校验作品标题相似度后再采纳。
+  final bool isMatched;
+
   static List<DandanplayMatchEpisode> parseList(Map<String, dynamic> json) {
     final matches = json['matches'];
     if (matches is! List) return const <DandanplayMatchEpisode>[];
+    final isMatched = json['isMatched'] == true;
     return matches
         .whereType<Map<String, dynamic>>()
         .map((m) => DandanplayMatchEpisode(
@@ -229,6 +242,7 @@ class DandanplayMatchEpisode {
               animeId: _asString(m['animeId']),
               animeTitle: _asString(m['animeTitle']),
               episodeTitle: _asString(m['episodeTitle']),
+              isMatched: isMatched,
             ))
         .where((e) => e.episodeId.isNotEmpty)
         .toList(growable: false);

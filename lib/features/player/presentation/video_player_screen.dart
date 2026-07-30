@@ -820,7 +820,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (pre != null) return pre;
     if (_danmakuSource != DanmakuSourceType.dandanplay) return null;
     if (_danmakuRepo == null) return null;
-    final id = await _danmakuRepo!.matchEpisode('${widget.title} ${ep.title}');
+    final id = await _danmakuRepo!.matchEpisode(
+      '${widget.title} ${ep.title}',
+      animeTitle: widget.title,
+    );
     if (id != null) _dandanOverride[ep.id] = id;
     return id;
   }

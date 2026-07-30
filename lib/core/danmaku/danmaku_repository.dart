@@ -6,6 +6,7 @@ import 'package:hive/hive.dart';
 import 'package:xml/xml.dart';
 
 import 'danmaku_source.dart';
+import 'dandanplay_matcher.dart';
 import 'dandanplay_service.dart';
 import 'bilibili_danmaku_service.dart';
 
@@ -44,31 +45,21 @@ class DanmakuRepository {
     return _dandanplay.getEpisodes(animeTitle);
   }
 
-  /// 即时匹配单集弹幕：用标题做 match，返回首个候选 episodeId。
+  /// 即时匹配单集弹幕：委托 [DandanplayMatcher.matchSingle]。
   ///
-  /// 供播放器在预填的 dandanplayEpisodeId 为空时兜底使用。匹配失败返回 null；
-  /// 凭据未配置时抛出异常，由播放器提示用户。
-  Future<int?> matchEpisode(String title) async {
+  /// [title] 为完整查询标题（可含集数），[animeTitle] 为分离的作品标题
+  ///（用于相似度校验）。仅在能确认对应关系时返回 episodeId，
+  /// 无法确认时返回 null（不显示弹幕），避免跨标题误匹配。
+  ///
+  /// 供播放器在预填的 dandanplayEpisodeId 为空时兜底使用。
+  /// 凭据未配置时抛出 [StateError]，由播放器提示用户。
+  Future<int?> matchEpisode(String title, {String? animeTitle}) async {
     if (title.isEmpty) return null;
-    try {
-      await _dandanplay.refreshAvailability();
-      final matches = await _dandanplay.matchFile(fileName: title);
-      if (matches.isNotEmpty) {
-        return int.tryParse(matches.first.episodeId);
-      }
-      // match 无果：搜索作品 → 取首作品首集。
-      final results = await _dandanplay.search(title);
-      if (results.isEmpty) return null;
-      final eps = await _dandanplay.getEpisodes(results.first.title);
-      if (eps.isEmpty) return null;
-      return int.tryParse(eps.first.episodeId);
-    } on StateError {
-      // 凭据未配置等致命错误，向上抛出。
-      rethrow;
-    } on Object {
-      return null;
-    }
+    final matcher = _matcher ??= DandanplayMatcher(dandanplay: _dandanplay);
+    return matcher.matchSingle(title, animeTitle: animeTitle);
   }
+
+  DandanplayMatcher? _matcher;
 
   /// 获取弹幕，按优先级回退：danmakuUrl → 弹弹play → Bilibili → 缓存。
   ///
@@ -102,8 +93,10 @@ class DanmakuRepository {
 
     await _dandanplay.refreshAvailability();
 
-    // 1. 弹弹play（需凭据签名）
-    if (result.isEmpty && dandanplayEpisodeId != null) {
+    // 1. 弹弹play（需凭据签名；不可用/未启用时跳过）
+    if (result.isEmpty &&
+        dandanplayEpisodeId != null &&
+        _dandanplay.isAvailable) {
       try {
         result = await _dandanplay.getComments(dandanplayEpisodeId.toString());
       } on Object {
