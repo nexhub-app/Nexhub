@@ -1,0 +1,7 @@
+# 签名配置模板：复制为 android/key.properties 并填入真实值。
+# key.properties 与 keystore 文件均已 gitignore，严禁提交入库。
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=YOUR_KEY_ALIAS
+# 相对 android/ 目录的路径
+storeFile=app/upload-keystore.jks
