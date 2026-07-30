@@ -51,6 +51,32 @@ class AppTheme {
     return _build(colorScheme);
   }
 
+  /// 玄色专属主题：近黑背景 + 一抹"赤"强调色（黑中扬赤）。
+  /// 选中玄色时由 [ThemeController] 调用，覆盖默认的 `fromSeed` 灰阶结果，
+  /// 使玄色在浅色 / 深色模式下都呈现清晰可辨的墨黑主题。
+  static ThemeData xuanSe() {
+    final ColorScheme base = ColorScheme.fromSeed(
+      seedColor: AppTokens.seedXuanSeAccent,
+      brightness: Brightness.dark,
+    );
+    final ColorScheme scheme = base.copyWith(
+      surface: AppTokens.xuanSeInk,
+      onSurface: const Color(0xFFEDE6E2),
+      surfaceContainerLowest: const Color(0xFF000000),
+      surfaceContainerLow: AppTokens.xuanSeInk,
+      surfaceContainer: const Color(0xFF161616),
+      surfaceContainerHigh: const Color(0xFF1F1F1F),
+      surfaceContainerHighest: const Color(0xFF272727),
+      surfaceVariant: const Color(0xFF272727),
+      onSurfaceVariant: const Color(0xFFC9C2BE),
+      outline: const Color(0xFF3A3A3A),
+      outlineVariant: const Color(0xFF2A2A2A),
+      surfaceTint: Colors.transparent,
+      shadow: const Color(0xFF000000),
+    );
+    return _build(scheme);
+  }
+
   static ThemeData _build(ColorScheme colorScheme) {
     final bool isDark = colorScheme.brightness == Brightness.dark;
     return ThemeData(
