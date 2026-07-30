@@ -140,3 +140,5 @@ android/key.properties
 *.jks
 *.keystore
 _keystore_base64.txt
+_new_keystore_pw.txt
+*.jks.OLD.bak
