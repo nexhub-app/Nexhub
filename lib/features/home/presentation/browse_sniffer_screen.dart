@@ -451,17 +451,16 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                       AppTokens.spaceMd,
                       AppTokens.spaceXs,
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            l10n.snifferHint,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                          ),
+                        Text(
+                          l10n.snifferHint,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
                         ),
-                        const SizedBox(width: AppTokens.spaceSm),
+                        const SizedBox(height: AppTokens.spaceXs),
                         _buildFilterChips(l10n, scheme),
                       ],
                     ),
