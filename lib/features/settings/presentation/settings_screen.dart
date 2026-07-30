@@ -132,16 +132,21 @@ class SettingsScreen extends StatelessWidget {
           _SettingsGroupHeader(label: l10n.presetColor),
           Wrap(
             spacing: AppTokens.spaceSm,
-            children: AppTokens.presetSeeds.map((Color color) {
+            children: AppTokens.presetSeeds.map((preset) {
+              final Color color = preset.$1;
+              final String name = preset.$2;
               final bool selected =
                   !controller.useMonet && controller.seed == color;
-              return ChoiceChip(
-                label: const SizedBox.shrink(),
-                avatar:
-                    CircleAvatar(backgroundColor: color, radius: 12),
-                selected: selected,
-                onSelected: (_) => controller.setSeed(color),
-                visualDensity: VisualDensity.compact,
+              return Tooltip(
+                message: name,
+                child: ChoiceChip(
+                  label: const SizedBox.shrink(),
+                  avatar:
+                      CircleAvatar(backgroundColor: color, radius: 12),
+                  selected: selected,
+                  onSelected: (_) => controller.setSeed(color),
+                  visualDensity: VisualDensity.compact,
+                ),
               );
             }).toList(),
           ),
