@@ -11,6 +11,7 @@
 /// 结果可复制 / 内置播放器播放 / 保存到下载目录。
 library;
 
+import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
@@ -63,12 +64,22 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
   final Map<String, int> _sizes = <String, int>{};
   bool _probing = false;
 
+  /// 嗅探结果刷新节流：重资源页面短时间内会上报成百条 URL，
+  /// 每条都 setState 会把 UI 线程打满（与 WebView 加载互相拖慢），
+  /// 故合并为最多每 200ms 刷一次。
+  Timer? _updateThrottle;
+
+  void _onEngineUpdate() {
+    if (_updateThrottle?.isActive == true) return;
+    _updateThrottle = Timer(const Duration(milliseconds: 200), () {
+      if (mounted) setState(() {});
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    _engine.onUpdate = () {
-      if (mounted) setState(() {});
-    };
+    _engine.onUpdate = _onEngineUpdate;
     if (widget.initialUrl != null) {
       _addressController.text = widget.initialUrl!;
     }
@@ -77,6 +88,8 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
 
   @override
   void dispose() {
+    _updateThrottle?.cancel();
+    if (_engine.onUpdate == _onEngineUpdate) _engine.onUpdate = null;
     _addressController.dispose();
     _addressFocus.dispose();
     super.dispose();
@@ -345,10 +358,14 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                   initialSettings: InAppWebViewSettings(
                     javaScriptEnabled: true,
                     mediaPlaybackRequiresUserGesture: false,
-                    useShouldOverrideUrlLoading: true,
-                    useShouldInterceptRequest: true,
                     // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
                     useOnLoadResource: true,
+                    // 不开 useShouldInterceptRequest：Android 端该回调是「同步阻塞」
+                    // 的桥接调用（网络线程逐个请求等待 Dart 往返），重资源页面会被
+                    // 拖到近乎卡死（表现为一直加载）。被动捕获靠 JS 钩子 +
+                    // onLoadResource 已足够；Referer 播放时用页面地址兜底。
+                    // https 页面里的 http 串流不拦（嗅探工具需要最大召回）。
+                    mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
                   ),
                   initialUserScripts: UnmodifiableListView<UserScript>(
                     <UserScript>[SnifferBridge.userScript(_hookJs!)],
@@ -357,14 +374,31 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                     _controller = controller;
                     _bridge.attach(controller);
                   },
-                  shouldOverrideUrlLoading: (controller, navigationAction) async {
-                    return NavigationActionPolicy.ALLOW;
-                  },
                   onLoadStart: (controller, url) {
                     if (mounted) {
                       setState(() {
                         _loading = true;
                         if (url != null) _pageUrl = url.toString();
+                      });
+                    }
+                  },
+                  // onLoadStop 在部分重定向 / SPA 页面上可能迟迟不触发，
+                  // 用加载进度到 100 兜底清掉加载态，避免转圈卡死。
+                  onProgressChanged: (controller, progress) {
+                    if (progress >= 100 && mounted && (_loading || !_pageLoaded)) {
+                      setState(() {
+                        _loading = false;
+                        _pageLoaded = true;
+                      });
+                      _scheduleProbe();
+                    }
+                  },
+                  // 主文档加载失败（DNS/SSL/超时等）也要清掉加载态。
+                  onReceivedError: (controller, request, error) {
+                    if (request.isForMainFrame == true && mounted) {
+                      setState(() {
+                        _loading = false;
+                        _pageLoaded = true;
                       });
                     }
                   },
@@ -382,12 +416,6 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                   },
                   onLoadResource: (controller, resource) {
                     _bridge.onResource(resource.url?.toString());
-                  },
-                  shouldInterceptRequest: (controller, request) async {
-                    final h = request.headers;
-                    final ref = h == null ? null : (h['referer'] ?? h['Referer']);
-                    _bridge.onRequest(request.url.toString(), ref);
-                    return null;
                   },
                 ),
                 if (_loading)

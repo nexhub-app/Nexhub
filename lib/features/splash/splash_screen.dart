@@ -29,6 +29,8 @@ import '../../core/settings/general_settings.dart';
 import '../../core/widgets/app_loading_indicator.dart';
 import '../../core/services/source_repository.dart';
 import '../../core/services/config_loader.dart';
+import '../../core/scraper/cookie_store.dart';
+import '../../core/scraper/http_fetcher.dart';
 import '../../core/theme/theme_controller.dart';
 import '../shuyuan/presentation/shuyuan_novel_resolver.dart';
 
@@ -139,6 +141,10 @@ class _SplashScreenState extends State<SplashScreen> {
     await sourceRepo.loadImported();
     // 加载持久化的镜像选择（P8.2.2 §廿二）
     await ConfigLoader.instance.init();
+    // 持久化 Cookie 回填：冷启动后从本地 Hive 读取已验证站点的会话 Cookie，
+    // 避免每次冷启动都重新过验证（「反复验证 → 高频请求 → IP 被封」首要根因）。
+    await CookieStore.init();
+    await HttpFetcher.instance.loadPersistedCookies();
     final registry = ResolverRegistry.instance;
     // 注入书源解析器（ShuyuanNovelResolver），避免 core 反向依赖 feature 层。
     // 必须在 registry 被使用前注册；ShuyuanNovelResolver 内部自建 WebBook/XiaoshuoHttp。

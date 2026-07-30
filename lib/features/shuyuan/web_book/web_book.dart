@@ -251,12 +251,20 @@ class WebBook {
         if (nextUrl.isEmpty || visited.contains(nextUrl)) break;
         visited.add(nextUrl);
 
-        final pageAnalyze = AnalyzeUrl(
-          url: nextUrl,
-          baseUrl: source.bookSourceUrl,
-          source: source,
-        );
-        final pageBody = await pageAnalyze.getStrResponse();
+        // 分页抓取失败时仅停止翻页，保留已解析的首页/前几页章节，
+        // 不让单页异常拖垮整个目录。
+        final String pageBody;
+        final AnalyzeUrl pageAnalyze;
+        try {
+          pageAnalyze = AnalyzeUrl(
+            url: nextUrl,
+            baseUrl: source.bookSourceUrl,
+            source: source,
+          );
+          pageBody = await pageAnalyze.getStrResponse();
+        } catch (_) {
+          break;
+        }
         if (pageBody.isEmpty) break;
 
         final pageChapters = BookChapterList.analyzeChapterList(
@@ -403,6 +411,12 @@ class WebBook {
         ..setRedirectUrl(baseUrl);
       final url = analyzeRule.getString(rule, isUrl: true).trim();
       if (url.isEmpty || url == baseUrl) return '';
+      // 目录只有一页时，"下一页"常是占位链接（javascript:void(0)、#、空锚点），
+      // 必须过滤，否则会被当成合法分页 URL 抓取而抛 "Invalid URL"。
+      final lower = url.toLowerCase();
+      if (!lower.startsWith('http://') && !lower.startsWith('https://')) {
+        return '';
+      }
       return url;
     } catch (_) {
       return '';

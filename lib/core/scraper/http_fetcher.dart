@@ -10,6 +10,8 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:fast_gbk/fast_gbk.dart';
 import '../services/config_loader.dart';
+import 'package:flutter/foundation.dart';
+import 'cookie_store.dart';
 import 'verification_detector.dart';
 
 /// 浏览器指纹档案：UA 与 `Sec-Ch-Ua` 品牌必须配套，否则会自爆（WAF 一秒识破）。
@@ -67,6 +69,18 @@ class HttpFetcher {
 
   late Dio _dio;
   final Map<String, String> _cookieJar = {};
+
+  /// 验证冷却：命中验证的 host 在冷却期内，[_throttleHost] 会延长最小间隔，
+  /// 避免「验证期间继续高频打站」触发更严苛的限流 / IP 封禁。
+  final Map<String, DateTime> _verifyCooldown = {};
+
+  /// 验证冷却时长：抛出 [VerificationRequiredException] 时给该 host 记入
+  /// 「此刻 + 该时长」的冷却，期间后续请求被节流。
+  static const Duration _verifyCooldownDuration = Duration(seconds: 20);
+
+  /// 可选代理（如 `127.0.0.1:7890`）。非空时所有 Dio 请求经此代理；
+  /// 为 null 时沿用系统/环境代理，保持默认行为。
+  static String? proxy;
 
   /// 会话 Cookie 版本。每次 [syncCookies] 自增并广播，供封面图加载层
   /// （[SourceImage]）在「验证回灌 Cookie」后立刻重取此前因缺 Cookie 而加载
@@ -129,6 +143,9 @@ class HttpFetcher {
         client.badCertificateCallback = (cert, host, port) => true;
         if (forceDirect) {
           client.findProxy = (_) => 'DIRECT';
+        } else if (proxy != null && proxy!.isNotEmpty) {
+          // 可选代理：所有请求经此代理（与 forceDirect 互斥，优先直连）。
+          client.findProxy = (_) => 'PROXY $proxy';
         }
         return client;
       },
@@ -140,6 +157,82 @@ class HttpFetcher {
   static void setForceDirect(bool value) {
     forceDirect = value;
     instance._buildDio();
+  }
+
+  /// 运行时切换代理（会重建 Dio 实例）。
+  static void setProxy(String? value) {
+    proxy = value;
+    instance._buildDio();
+  }
+
+  /// 返回某 URL 实际使用的 UA（经 [_profileIndexFor] 选定的指纹档案）。
+  ///
+  /// 全应用唯一真源：WebView 验证、AnalyzeUrl 直连、源 JSON 的 UA 都应调用本
+  /// 方法取得，确保「过验证的 UA」与「后续 HTTP 重试的 UA」完全一致，避免 UA
+  /// 漂移导致 Cookie 失效 → 验证死循环（幻梦ACG _guard 滑块反复弹的核心根因）。
+  String userAgentForUrl(String url) => _uaForHost(Uri.tryParse(url)?.host ?? '');
+
+  String _uaForHost(String host) => _profiles[_profileIndexFor(host)].ua;
+
+  /// 启动时从 [CookieStore] 回填内存 Cookie jar，避免每次冷启动都重新过验证
+  /// （冷启动即丢 Cookie 是「反复验证 → 高频请求 → IP 被封」的首要根因）。
+  Future<void> loadPersistedCookies() async {
+    try {
+      final persisted = await CookieStore.load();
+      _cookieJar.addAll(persisted);
+    } catch (e, st) {
+      debugPrint('loadPersistedCookies failed: $e\n$st');
+    }
+  }
+
+  /// 记录该 host 进入验证冷却（见 [_verifyCooldown] 与 [_throttleHost]）。
+  void _markVerification(String url) {
+    final host = Uri.tryParse(url)?.host;
+    if (host != null && host.isNotEmpty) {
+      _verifyCooldown[host] = DateTime.now().add(_verifyCooldownDuration);
+    }
+  }
+
+  /// 记录验证冷却并抛出 [VerificationRequiredException]（统一入口）。
+  Never _recordAndThrowVerify(
+    String url,
+    Map<String, String>? headers,
+    String? body,
+    int? statusCode,
+  ) {
+    _markVerification(url);
+    throw VerificationRequiredException(
+      url: url,
+      headers: headers,
+      body: body,
+      statusCode: statusCode,
+    );
+  }
+
+  /// 同 host 最小间隔 + 验证冷却：保证短时间内同一站点不会被高频打爆，
+  /// 避免触发限流 / IP 封禁。
+  Future<void> _throttleHost(String url) async {
+    final host = Uri.tryParse(url)?.host;
+    if (host == null || host.isEmpty) return;
+    final now = DateTime.now();
+    var earliest =
+        _hostLastSent[host]?.add(Duration(milliseconds: _minHostGapMs)) ?? now;
+    final cd = _verifyCooldown[host];
+    if (cd != null && cd.isAfter(earliest)) earliest = cd;
+    final gap = earliest.difference(now).inMilliseconds;
+    if (gap > 0) await Future.delayed(Duration(milliseconds: gap));
+    _hostLastSent[host] = DateTime.now();
+    // 冷却到期即清理，避免无限堆积。
+    if (cd != null && now.isAfter(cd)) _verifyCooldown.remove(host);
+  }
+
+  /// 测试可见：仅执行同 host 节流 + 冷却等待（不含并发信号量/隐身延迟），
+  /// 便于单测断言验证冷却行为。
+  Future<void> runGate(String url) => _throttleHost(url);
+
+  /// 测试可见：手动写入某 host 的验证冷却（生产代码由验证异常自动写入）。
+  void setVerifyCooldown(String host, DateTime until) {
+    _verifyCooldown[host] = until;
   }
 
   Future<void> _stealthDelay() async {
@@ -167,17 +260,8 @@ class HttpFetcher {
   Future<void> _gateRequest(String url, bool stealth) async {
     // 1) 全局并发上限：超过则在此排队，直至有空闲名额（在请求方法 finally 中释放）。
     await _requestSemaphore.acquire();
-    // 2) 同 host 最小间隔：防止短时间内同一站点被打爆。
-    final host = Uri.tryParse(url)?.host;
-    if (host != null && host.isNotEmpty) {
-      final prev = _hostLastSent[host];
-      final now = DateTime.now();
-      if (prev != null) {
-        final gap = _minHostGapMs - now.difference(prev).inMilliseconds;
-        if (gap > 0) await Future.delayed(Duration(milliseconds: gap));
-      }
-      _hostLastSent[host] = DateTime.now();
-    }
+    // 2) 同 host 最小间隔 + 验证冷却：防止短时间内同一站点被打爆。
+    await _throttleHost(url);
     // 3) 隐身随机延迟（打散节拍）。
     if (ConfigLoader.instance.getStealthMode() && stealth) {
       await _stealthDelay();
@@ -340,12 +424,7 @@ class HttpFetcher {
         body: '',
         headers: _responseHeaders(resp),
       )) {
-        throw VerificationRequiredException(
-          url: url,
-          headers: merged,
-          body: '',
-          statusCode: resp.statusCode,
-        );
+      _recordAndThrowVerify(url, merged, '', resp.statusCode);
       }
       _checkNonVerificationError(url, resp.statusCode, '');
       _storeCookies(url, resp);
@@ -357,12 +436,7 @@ class HttpFetcher {
       body: body,
       headers: _responseHeaders(resp),
     )) {
-      throw VerificationRequiredException(
-        url: url,
-        headers: merged,
-        body: body,
-        statusCode: resp.statusCode,
-      );
+      _recordAndThrowVerify(url, merged, body, resp.statusCode);
     }
     _checkNonVerificationError(url, resp.statusCode, body);
     _storeCookies(url, resp);
@@ -429,12 +503,7 @@ class HttpFetcher {
       body: body,
       headers: _responseHeaders(resp),
     )) {
-      throw VerificationRequiredException(
-        url: url,
-        headers: merged,
-        body: body,
-        statusCode: resp.statusCode,
-      );
+      _recordAndThrowVerify(url, merged, body, resp.statusCode);
     }
     _checkNonVerificationError(url, resp.statusCode, body);
     _storeCookies(url, resp);
@@ -471,12 +540,7 @@ class HttpFetcher {
       body: body,
       headers: _responseHeaders(resp),
     )) {
-      throw VerificationRequiredException(
-        url: url,
-        headers: merged,
-        body: body,
-        statusCode: resp.statusCode,
-      );
+      _recordAndThrowVerify(url, merged, body, resp.statusCode);
     }
     _checkNonVerificationError(url, resp.statusCode, body);
     _storeCookies(url, resp);
@@ -511,12 +575,7 @@ class HttpFetcher {
       body: body,
       headers: _responseHeaders(resp),
     )) {
-      throw VerificationRequiredException(
-        url: url,
-        headers: merged,
-        body: body,
-        statusCode: resp.statusCode,
-      );
+      _recordAndThrowVerify(url, merged, body, resp.statusCode);
     }
     _checkNonVerificationError(url, resp.statusCode, body);
     _storeCookies(url, resp);
@@ -563,12 +622,7 @@ class HttpFetcher {
       body: respBody,
       headers: _responseHeaders(resp),
     )) {
-      throw VerificationRequiredException(
-        url: url,
-        headers: merged,
-        body: respBody,
-        statusCode: resp.statusCode,
-      );
+      _recordAndThrowVerify(url, merged, respBody, resp.statusCode);
     }
     _checkNonVerificationError(url, resp.statusCode, respBody);
     _storeCookies(url, resp);
@@ -607,12 +661,7 @@ class HttpFetcher {
       body: respBody,
       headers: _responseHeaders(resp),
     )) {
-      throw VerificationRequiredException(
-        url: url,
-        headers: merged,
-        body: respBody,
-        statusCode: resp.statusCode,
-      );
+      _recordAndThrowVerify(url, merged, respBody, resp.statusCode);
     }
     _storeCookies(url, resp);
     final respHeaders = <String, String>{};
@@ -686,6 +735,8 @@ class HttpFetcher {
     if (!_cookieVersionController.isClosed) {
       _cookieVersionController.add(_cookieVersion);
     }
+    // 落盘持久化（TTL 7 天），避免重启后重新验证。UA 一并存，回灌时配套校验。
+    unawaited(CookieStore.save(host, cookieHeader, _uaForHost(host)));
   }
 
   String? getCookieHeader(String host) => _cookieJar[host];
@@ -693,6 +744,7 @@ class HttpFetcher {
   /// 清除所有 Cookie（缓存清除）。
   void clearCookies() {
     _cookieJar.clear();
+    unawaited(CookieStore.clear());
   }
 
   void _storeCookies(String url, Response<dynamic> resp) {
@@ -700,7 +752,10 @@ class HttpFetcher {
     if (setCookie == null || setCookie.isEmpty) return;
     final host = Uri.tryParse(url)?.host;
     if (host == null) return;
-    _cookieJar[host] = setCookie.map((c) => c.split(';').first).join('; ');
+    final cookieHeader = setCookie.map((c) => c.split(';').first).join('; ');
+    _cookieJar[host] = cookieHeader;
+    // 落盘持久化（TTL 7 天），避免重启后重新验证。UA 一并存，回灌时配套校验。
+    unawaited(CookieStore.save(host, cookieHeader, _uaForHost(host)));
   }
 
   dynamic _decodeJson(String text) {

@@ -579,6 +579,9 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                     useShouldOverrideUrlLoading: true,
                     useShouldInterceptRequest: true,
                     useOnLoadResource: true,
+                    // 过验证的 UA 必须与后续 HttpFetcher 重试的 UA 完全一致，
+                    // 否则反爬把 Cookie 绑定到 UA+IP，UA 漂移→Cookie 失效→验证死循环。
+                    userAgent: HttpFetcher.instance.userAgentForUrl(widget.verificationUrl),
                   ),
                   initialUserScripts: _hookJs != null && _hookJs!.isNotEmpty
                       ? UnmodifiableListView<UserScript>(
@@ -704,13 +707,16 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                       headers: widget.extractionRequest?.headers,
                     ),
                     initialSettings: InAppWebViewSettings(
-                      javaScriptEnabled: true,
-                      mediaPlaybackRequiresUserGesture: false,
-                      useShouldOverrideUrlLoading: true,
-                      useShouldInterceptRequest: true,
-                      // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
-                      useOnLoadResource: true,
-                    ),
+                    javaScriptEnabled: true,
+                    mediaPlaybackRequiresUserGesture: false,
+                    useShouldOverrideUrlLoading: true,
+                    useShouldInterceptRequest: true,
+                    // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
+                    useOnLoadResource: true,
+                    // 过验证的 UA 必须与后续 HttpFetcher 重试的 UA 完全一致，
+                    // 否则反爬把 Cookie 绑定到 UA+IP，UA 漂移→Cookie 失效→验证死循环。
+                    userAgent: HttpFetcher.instance.userAgentForUrl(widget.verificationUrl),
+                  ),
                     initialUserScripts: _hookJs != null && _hookJs!.isNotEmpty
                         ? UnmodifiableListView<UserScript>(
                             <UserScript>[SnifferBridge.userScript(_hookJs!)],
@@ -951,13 +957,16 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                       headers: widget.htmlRequest?.headers,
                     ),
                     initialSettings: InAppWebViewSettings(
-                      javaScriptEnabled: true,
-                      mediaPlaybackRequiresUserGesture: false,
-                      useShouldOverrideUrlLoading: true,
-                      useShouldInterceptRequest: true,
-                      // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
-                      useOnLoadResource: true,
-                    ),
+                    javaScriptEnabled: true,
+                    mediaPlaybackRequiresUserGesture: false,
+                    useShouldOverrideUrlLoading: true,
+                    useShouldInterceptRequest: true,
+                    // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
+                    useOnLoadResource: true,
+                    // 过验证的 UA 必须与后续 HttpFetcher 重试的 UA 完全一致，
+                    // 否则反爬把 Cookie 绑定到 UA+IP，UA 漂移→Cookie 失效→验证死循环。
+                    userAgent: HttpFetcher.instance.userAgentForUrl(widget.verificationUrl),
+                  ),
                     initialUserScripts: _hookJs != null && _hookJs!.isNotEmpty
                         ? UnmodifiableListView<UserScript>(
                             <UserScript>[SnifferBridge.userScript(_hookJs!)],

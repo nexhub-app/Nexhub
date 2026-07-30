@@ -46,6 +46,43 @@ void main() {
       );
     });
 
+    // ---- 笔趣阁（Cloudflare 反代）回归：正常页含被动标记不得误判 ----
+
+    test(
+        'biquge-style normal page (passive CF marker + full of chapter links, '
+        '>8KB) must NOT require verification', () {
+      // 实测 m.biqubu3.com 正常页（首页 17KB / 书页 8.3KB / 章节页 12.8KB）均含
+      // challenge-platform 被动标记；体积超过挑战壳长度闸门（8192）→ 必须
+      // 放行，否则从历史进入详情页会被误判进验证循环。
+      final links = StringBuffer();
+      for (var i = 1; i <= 200; i++) {
+        links.writeln('<a href="/book_18093/$i.html">第$i章 章节标题占位内容</a>');
+      }
+      final body = '<html><head>'
+          '<script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js">'
+          '</script></head><body><div class="chapterlist">$links</div>'
+          '</body></html>';
+      // 前置断言：构造页体量与实测正常页一致（超过挑战壳长度闸门）。
+      expect(body.trim().length, greaterThan(8192));
+      expect(
+        VerificationDetector.isVerificationRequired(statusCode: 200, body: body),
+        isFalse,
+      );
+    });
+
+    test('200 short challenge shell with passive CF marker requires '
+        'verification', () {
+      // 真正的 CF 临时挑战壳：只有几 KB 的等待/重定向壳 + 被动标记 → 判验证。
+      const body = '<html><head>'
+          '<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/jsch/v1">'
+          '</script></head><body>please wait while we check your browser'
+          '</body></html>';
+      expect(
+        VerificationDetector.isVerificationRequired(statusCode: 200, body: body),
+        isTrue,
+      );
+    });
+
     test('503 without challenge feature does not require verification', () {
       const body = '<html><body>service unavailable</body></html>';
       expect(

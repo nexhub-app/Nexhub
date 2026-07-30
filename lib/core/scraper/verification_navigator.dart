@@ -73,6 +73,10 @@ class VerificationNavigator {
     void Function(String errorText)? onErrorText,
     void Function(String extractedUrl)? onExtracted,
     void Function(String renderedHtml)? onRenderedHtml,
+    /// 重试前固定退避延迟，给「验证回灌 Cookie → 服务端会话建立」留出时间，
+    /// 避免验证刚过就立刻高频重试触发更严苛的限流 / IP 封禁（幻梦ACG _guard
+    /// 滑块反复弹的核心诱因之一）。生产默认 1500ms；单元测试可传 0 关闭。
+    Duration backoff = const Duration(milliseconds: 1500),
   }) async {
     if (!isVerificationError(error) || verifyHandler == null) {
       return false;
@@ -90,6 +94,8 @@ class VerificationNavigator {
       if (!verified) {
         return false;
       }
+      // 退避：避免「验证一过立刻冲」导致会话未稳又被风控。
+      await Future.delayed(backoff);
       await retry();
       return true;
     } on Object catch (e) {

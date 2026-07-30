@@ -24,6 +24,7 @@ import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/novel/novel_progress_manager.dart';
+import '../../../core/novel/novel_toc_cache.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
 import '../../../core/resolver/webview_resolver.dart';
@@ -74,6 +75,10 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
 
   final NovelProgressManager _progress = NovelProgressManager();
   final NovelBookmarkManager _bookmarks = NovelBookmarkManager();
+  final NovelTocCache _tocCache = NovelTocCache();
+
+  /// 当前 [_chapters] 是否来自 TOC 缓存兜底（当次抓取失败时回填的旧目录）。
+  bool _chaptersFromCache = false;
 
   @override
   void initState() {
@@ -161,6 +166,7 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
     // 渐进加载状态（独立于 FutureBuilder，仅做叠加层）。
     _chaptersLoading = true;
     _chapters = const <Episode>[];
+    _chaptersFromCache = false;
 
     // 直接用 fetchNovelChapters 的返回值作为 _chaptersFuture（与旧版一致），
     // 保证 FutureBuilder 的 waiting/hasError/data 行为完全不变（无回归风险）。
@@ -178,7 +184,11 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
       setState(() {
         _chapters = list;
         _chaptersLoading = false;
+        _chaptersFromCache = false;
       });
+      // fire-and-forget 写入 TOC 缓存（失败静默）：下次抓取被验证/网络拦截时
+      // 直接回填上次成功目录，避免"从历史进入必撞验证门"。
+      unawaited(_tocCache.write(sid, id, list));
     }).catchError((Object error) {
       if (!mounted) return;
       setState(() => _chaptersLoading = false);
@@ -186,6 +196,11 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
         setState(() => _htmlCaptureRequest = error);
       } else if (error is VerificationRequiredException) {
         setState(() => _verificationError = error);
+      }
+      // 当次抓取失败且渐进批次也没抓到任何章节 → 异步读 TOC 缓存兜底回填，
+      // 使详情页仍可渲染上次目录（配合警告条提供"去验证/重试"入口）。
+      if (_chapters.isEmpty) {
+        unawaited(_backfillFromTocCache(sid, id));
       }
       // 注：普通错误不在此处理——由 FutureBuilder 的 hasError 分支统一展示
       // （与旧版行为一致），避免重复错误 UI 或掩盖验证/HTML 捕获类错误。
@@ -213,6 +228,18 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
   void _retryAfterVerification() {
     setState(() => _verificationError = null);
     _load();
+  }
+
+  /// TOC 缓存兜底：当次目录抓取失败且无渐进数据时，回填上次成功的章节列表。
+  /// 读取失败或期间已有新数据则静默放弃。
+  Future<void> _backfillFromTocCache(String sourceId, String novelId) async {
+    final cached = await _tocCache.read(sourceId, novelId);
+    if (!mounted || cached == null || cached.isEmpty) return;
+    if (_chapters.isNotEmpty) return; // 期间渐进批次/重试已有数据，勿覆盖。
+    setState(() {
+      _chapters = cached;
+      _chaptersFromCache = true;
+    });
   }
 
   /// 节流渐进批次回调：超长书目录（如诡秘之主 1416 章 / 71 页）每页都触发一次
@@ -756,8 +783,10 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
       );
     }
 
-    // 验证异常 → 显示验证引导。
-    if (_verificationError != null) {
+    // 验证异常 → 仅在完全无章节可展示时才弹全屏验证门；已有章节（渐进批次
+    // 或 TOC 缓存回填）时继续渲染详情主体，由警告条提供"去验证"入口，
+    // 避免 CF 临时挑战遮蔽可用目录形成"从历史进入必撞验证循环"。
+    if (_verificationError != null && _chapters.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: Text(item.title)),
         body: AppErrorState(
@@ -814,7 +843,8 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
                 partialError: snap.error,
               );
             }
-            // 加载完成但有数据 → 直接展示最终结果（不显示警告）
+            // 加载完成但有数据 → 展示已有章节；若失败原因是验证拦截或数据
+            // 来自 TOC 缓存兜底，则附警告条提示"目录可能不完整 + 去验证/重试"。
             // 完全无数据 → 全屏错误
             if (_chapters.isNotEmpty) {
               return _buildDetailBody(
@@ -822,6 +852,8 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
                 episodes: _chapters,
                 watchedMgr: watchedMgr,
                 isFav: isFav, isDl: isDl,
+                partialError: _verificationError ??
+                    (_chaptersFromCache ? snap.error : null),
               );
             }
             // 完全无数据 → 全屏错误
@@ -849,6 +881,9 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
             episodes: episodes,
             watchedMgr: watchedMgr,
             isFav: isFav, isDl: isDl,
+            // 章节已就绪但详情拓展（fetchDetail）撞验证 → 不弹全屏门，
+            // 用警告条提供"去验证"入口（封面/标签等元数据可稍后补全）。
+            partialError: _verificationError,
           );
         },
       ),
@@ -873,7 +908,11 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
     final hasContinue = _continueIndex >= 0 && _continueIndex < episodes.length;
     final readCount = watchedMgr.watchedCount(item.id);
 
-    // 渐进加载中途失败的警告条：告知用户当前仅显示部分章节。
+    // 渐进加载中途失败 / 验证拦截 / 缓存兜底的警告条：告知当前仅显示
+    // 部分（或旧）章节。验证类错误的动作改走验证页（复用 openInBrowser
+    // 文案），其余仍为重试重新拉取。
+    final bool bannerNeedsVerify =
+        partialError != null && _verificationError != null;
     final warningBanner = partialError != null
         ? Material(
             color: Colors.orange.shade50,
@@ -892,8 +931,20 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () => setState(_load),
-                    child: Text(l10n.retry, style: const TextStyle(fontSize: 13)),
+                    onPressed: bannerNeedsVerify
+                        ? () async {
+                            final shouldRetry = await navigateToVerification(
+                              context,
+                              url: _verificationError!.url,
+                              exception: _verificationError,
+                            );
+                            if (shouldRetry) _retryAfterVerification();
+                          }
+                        : () => setState(_load),
+                    child: Text(
+                      bannerNeedsVerify ? l10n.openInBrowser : l10n.retry,
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ),
                 ],
               ),
