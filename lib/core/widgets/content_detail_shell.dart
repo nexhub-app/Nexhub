@@ -276,21 +276,181 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
     );
   }
 
+  /// 封面缩略图（信息行用）。紧凑档缩至 100dp 宽，减少行高失衡。
+  Widget _buildSmallCover({required bool isCompact}) {
+    final double width = isCompact ? 100 : 110;
+    final Widget cover = AppCoverImage(
+      coverUrl: widget.coverUrl,
+      source: widget.source,
+      title: widget.title,
+      width: width,
+      height: width / AppTokens.coverAspectRatio,
+      heroTag: widget.heroTag,
+    );
+    if (widget.onCoverTap != null) {
+      return GestureDetector(onTap: widget.onCoverTap, child: cover);
+    }
+    return cover;
+  }
+
+  /// 标题块（标题 + 状态徽标 + 来源行 + 更新时间；宽屏档追加 chips 与操作按钮）。
+  ///
+  /// 紧凑档标题降为 [TextTheme.titleLarge]，避免大字号在窄列频繁换行占高；
+  /// chips / 操作按钮由 [_buildHeaderSection] 移到封面行下方全宽渲染。
+  Widget _buildTitleBlock(
+    BuildContext context,
+    AppLocalizations l10n, {
+    required bool isCompact,
+  }) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          widget.title,
+          style: (isCompact ? textTheme.titleLarge : textTheme.headlineSmall)
+              ?.copyWith(fontWeight: FontWeight.w600),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        // 连载状态徽标（图标随状态切换）
+        if (widget.statusText != null &&
+            widget.statusText!.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AppTokens.spaceSm),
+          _buildStatusBadge(scheme, textTheme, widget.statusText!),
+        ],
+        // 来源
+        if (widget.sourceName != null &&
+            widget.sourceName!.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AppTokens.spaceSm),
+          Row(
+            children: <Widget>[
+              Icon(Icons.source_outlined,
+                  size: 14, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  '${l10n.sourceLabel}: ${widget.sourceName}',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (isCompact) ...<Widget>[
+          // 紧凑档：右列只保留基础信息，chips / 按钮下移全宽渲染。
+          if (widget.updatedAt != null) ...<Widget>[
+            const SizedBox(height: AppTokens.spaceSm),
+            Text(
+              '${l10n.updatedAtLabel} ${_formatDateTime(widget.updatedAt!)}',
+              style: textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ] else ...<Widget>[
+          const SizedBox(height: AppTokens.spaceMd),
+          if (widget.infoChips.isNotEmpty)
+            Wrap(
+              spacing: AppTokens.spaceSm,
+              runSpacing: AppTokens.spaceSm,
+              children: widget.infoChips,
+            ),
+          if (widget.updatedAt != null) ...<Widget>[
+            const SizedBox(height: AppTokens.spaceSm),
+            Text(
+              '${l10n.updatedAtLabel} ${_formatDateTime(widget.updatedAt!)}',
+              style: textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+          ..._buildActionButtons(context, l10n),
+        ],
+      ],
+    );
+  }
+
+  /// 封面行整体。紧凑档为「封面行 + 全宽 chips + 全宽操作按钮」的 Column；
+  /// 宽屏档为原有的单行 Row（chips / 按钮仍在右列）。
+  Widget _buildHeaderSection(
+    BuildContext context,
+    AppLocalizations l10n, {
+    required bool isCompact,
+  }) {
+    final Widget coverRow = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _buildSmallCover(isCompact: isCompact),
+        const SizedBox(width: AppTokens.spaceLg),
+        Expanded(
+          child: _buildTitleBlock(context, l10n, isCompact: isCompact),
+        ),
+      ],
+    );
+
+    if (!isCompact) {
+      return Padding(
+        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        child: coverRow,
+      );
+    }
+
+    final List<Widget> actionButtons = _buildActionButtons(context, l10n);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        // 紧凑档收紧 Hero 图与头部信息的衔接（顶部 spaceMd、底部 0）。
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.spaceLg,
+            AppTokens.spaceMd,
+            AppTokens.spaceLg,
+            0,
+          ),
+          child: coverRow,
+        ),
+        // chips 全宽渲染：Wrap 拥有整屏宽度，正常横排换行。
+        if (widget.infoChips.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.spaceLg,
+              AppTokens.spaceMd,
+              AppTokens.spaceLg,
+              0,
+            ),
+            child: Wrap(
+              spacing: AppTokens.spaceSm,
+              runSpacing: AppTokens.spaceSm,
+              children: widget.infoChips,
+            ),
+          ),
+        // 操作按钮全宽渲染：Wrap 有整屏宽度后按钮可自然并排。
+        if (actionButtons.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTokens.spaceLg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: actionButtons,
+            ),
+          ),
+        const SizedBox(height: AppTokens.spaceLg),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final AppLocalizations l10n = AppLocalizations.of(context);
     final TextTheme textTheme = Theme.of(context).textTheme;
-
-    // 封面缩略图（信息行用）
-    final Widget smallCover = AppCoverImage(
-      coverUrl: widget.coverUrl,
-      source: widget.source,
-      title: widget.title,
-      width: 110,
-      height: 110 / AppTokens.coverAspectRatio,
-      heroTag: widget.heroTag,
-    );
 
     final scrollView = CustomScrollView(
       // 弹性滚动：下拉/触底带拉伸回弹手感，配合下拉刷新更灵动。
@@ -306,15 +466,23 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
           backgroundColor: scheme.surface,
           surfaceTintColor: Colors.transparent,
           flexibleSpace: FlexibleSpaceBar(
-            titlePadding: const EdgeInsetsDirectional.only(
+            // end 按右侧操作按钮数量预留（每个 IconButton 约 48dp），
+            // 防止收起态标题滑入 AppBar 图标底下（窄屏 4-5 个图标时尤甚）。
+            titlePadding: EdgeInsetsDirectional.only(
               start: AppTokens.spaceMd,
               bottom: AppTokens.spaceMd,
+              end: AppTokens.spaceLg +
+                  48.0 * (widget.appBarActions?.length ?? 0),
             ),
             title: Text(
               widget.title,
               style: textTheme.titleLarge?.copyWith(
                 color: scheme.onSurface,
                 fontWeight: FontWeight.w600,
+                // 渐变遮罩上的可读性保护：封面复杂时标题依然清晰。
+                shadows: <Shadow>[
+                  Shadow(blurRadius: 8, color: scheme.surface),
+                ],
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -324,80 +492,16 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
         ),
 
         // ─── 封面行（小封面 + 标题 + chips + 操作按钮）───
+        // 按可用宽度分档：紧凑档（< compactBreakpoint）chips 与操作按钮
+        // 移出右列、在封面行下方全宽渲染，避免窄列内竖排堆叠；
+        // 宽屏档保持原有右列结构不变。
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(AppTokens.spaceLg),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                if (widget.onCoverTap != null)
-                  GestureDetector(onTap: widget.onCoverTap, child: smallCover)
-                else
-                  smallCover,
-                const SizedBox(width: AppTokens.spaceLg),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        widget.title,
-                        style: textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      // 连载状态徽标（图标随状态切换）
-                      if (widget.statusText != null &&
-                          widget.statusText!.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: AppTokens.spaceSm),
-                        _buildStatusBadge(
-                            scheme, textTheme, widget.statusText!),
-                      ],
-                      // 来源
-                      if (widget.sourceName != null &&
-                          widget.sourceName!.isNotEmpty) ...<Widget>[
-                        const SizedBox(height: AppTokens.spaceSm),
-                        Row(
-                          children: <Widget>[
-                            Icon(Icons.source_outlined,
-                                size: 14, color: scheme.onSurfaceVariant),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                '${l10n.sourceLabel}: ${widget.sourceName}',
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: AppTokens.spaceMd),
-                      if (widget.infoChips.isNotEmpty)
-                        Wrap(
-                          spacing: AppTokens.spaceSm,
-                          runSpacing: AppTokens.spaceSm,
-                          children: widget.infoChips,
-                        ),
-                      if (widget.updatedAt != null) ...<Widget>[
-                        const SizedBox(height: AppTokens.spaceSm),
-                        Text(
-                          '${l10n.updatedAtLabel} ${_formatDateTime(widget.updatedAt!)}',
-                          style: textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
-                        ),
-                      ],
-                      ..._buildActionButtons(context, l10n),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final bool isCompact =
+                  constraints.maxWidth < AppTokens.compactBreakpoint;
+              return _buildHeaderSection(context, l10n, isCompact: isCompact);
+            },
           ),
         ),
 
@@ -424,10 +528,13 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
                             ? TextOverflow.visible
                             : TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: AppTokens.spaceSm),
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
+                          // 紧凑密度：减少窄屏纵向空间浪费。
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                          ),
                           onPressed: () => setState(
                             () => _descriptionExpanded =
                                 !_descriptionExpanded,

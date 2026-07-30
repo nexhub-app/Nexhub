@@ -74,6 +74,10 @@ class AppTokens {
   // ─────────────────────── 响应式断点 ───────────────────────
   /// 桌面布局断点（≥ 此宽度使用 NavigationRail）。
   static const double desktopBreakpoint = 840;
+
+  /// 紧凑布局断点（Material 3 compact/medium 分界）。
+  /// 宽度 < 此值时详情页头部改用「chips / 按钮下移全宽」的窄屏布局。
+  static const double compactBreakpoint = 600;
 }
 
 /// 阴影 Token（随 ColorScheme 自适应，禁止写死颜色）。
