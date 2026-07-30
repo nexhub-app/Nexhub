@@ -12,6 +12,22 @@ import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/verification_detector.dart';
 import 'webview_verification_screen.dart';
 
+/// 按 host 去重的验证单飞：同一 host 已有验证在进行时，后续请求直接 `await`
+/// 同一个 Future，不再重复打开 WebView（避免 9 个 homeSections 各弹一次验证、
+/// 连开多个浏览器导致高频请求 → IP 被封）。验证完成后回灌的 Cookie 对同 host
+/// 后续重试同样有效。
+final Map<String, Future<bool>> _inFlightVerification = {};
+
+/// 单飞包装：同一 [url] 的 host 并发验证只开一个 WebView；其余并发请求复用其结果。
+Future<bool> _singleFlight(String url, Future<bool> Function() action) {
+  final host = Uri.tryParse(url)?.host ?? url;
+  final existing = _inFlightVerification[host];
+  if (existing != null) return existing;
+  final future = action().whenComplete(() => _inFlightVerification.remove(host));
+  _inFlightVerification[host] = future;
+  return future;
+}
+
 /// Routes a verification exception to the proper verification screen.
 ///
 /// - [WebViewExtractionRequest]: opens the embedded JS extraction view. When
@@ -55,14 +71,20 @@ Future<bool> handleVerificationRequest(
     return outcome.shouldRetry || outcome.hasExtractedUrl;
   }
   if (error is VerificationRequiredException) {
-    return navigateToVerification(
-      context,
-      url: error.url,
-      exception: error,
+    return _singleFlight(
+      error.url,
+      () => navigateToVerification(
+        context,
+        url: error.url,
+        exception: error,
+      ),
     );
   }
   if (error is WebViewRequiredException) {
-    return navigateToVerification(context, url: error.url);
+    return _singleFlight(
+      error.url,
+      () => navigateToVerification(context, url: error.url),
+    );
   }
   return false;
 }

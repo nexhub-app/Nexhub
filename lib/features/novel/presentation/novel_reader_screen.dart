@@ -33,6 +33,7 @@ import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/chapter_list_sheet.dart';
 import '../../../core/widgets/detail_action_utils.dart';
 import '../../../core/widgets/source_image.dart';
+import '../../verification/presentation/webview_verification_screen.dart';
 import 'novel_animated_page_view.dart';
 import 'novel_bookmark_manager.dart';
 import 'novel_chinese_converter.dart';
@@ -194,6 +195,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   bool _loading = true;
   String? _error;
   bool _isResolveError = false;
+
+  /// 正文抓取撞验证（如 Cloudflare 临时挑战）时记录异常：错误视图的重试
+  /// 按钮改走验证页（回灌 Cookie 后重载本章），而非死错误无验证入口。
+  VerificationRequiredException? _verificationError;
 
   /// 是否为本地文件模式（Task O4.B.3）。
   bool get _isLocalMode => widget.localTextPath != null;
@@ -823,6 +828,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _paragraphs = _applyConvert(paragraphs);
         _loading = false;
         _error = null;
+        _verificationError = null;
         _contentVersion++;
       });
       _setupControllers(restorePage: restorePage);
@@ -830,10 +836,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       // 合法的页码会在 _buildReader 哨兵校正后，由后续翻页/渲染自动保存；
       // 若 restorePage ≥ 0 则正常记录进度。
       if (restorePage >= 0) _saveProgress(restorePage);
+    } on VerificationRequiredException catch (e) {
+      // 验证拦截：记录异常供错误视图提供"去验证"入口，修复"验证完成后
+      // 正文仍无法显示"的阅读器侧断链（此前落入通用分支成死错误）。
+      if (mounted) {
+        setState(() {
+          _isResolveError = false;
+          _verificationError = e;
+          _error = e.toString();
+          _loading = false;
+        });
+      }
     } on SourceResolveException catch (e) {
       if (mounted) {
         setState(() {
           _isResolveError = true;
+          _verificationError = null;
           _error = e.message;
           _loading = false;
         });
@@ -842,6 +860,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       if (mounted) {
         setState(() {
           _isResolveError = false;
+          _verificationError = null;
           _error = e.toString();
           _loading = false;
         });
@@ -1327,6 +1346,24 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       return const Center(child: AppLoadingIndicator());
     }
     if (_error != null) {
+      // 验证拦截态：重试按钮改走验证页，完成后重载本章（Cookie 已回灌）。
+      final verifyError = _verificationError;
+      if (verifyError != null && !_isLocalMode) {
+        return _CenterMessage(
+          icon: Icons.error_outline,
+          message: l10n.errorVerification,
+          onRetry: () async {
+            final shouldRetry = await navigateToVerification(
+              context,
+              url: verifyError.url,
+              exception: verifyError,
+            );
+            if (!mounted || !shouldRetry) return;
+            setState(() => _verificationError = null);
+            await _loadChapter(_chapterIndex, restorePage: _currentPage);
+          },
+        );
+      }
       return _CenterMessage(
         icon: Icons.error_outline,
         message: _isLocalMode
@@ -2689,6 +2726,10 @@ class _NovelPageWidget extends StatelessWidget {
       // [prefs.margin]，互不干扰（#8）。
       padding: EdgeInsets.symmetric(vertical: prefs.margin),
       child: Column(
+        // stretch：强制正文滚动区占满整页宽度。否则 Column 默认 center 会让
+        // SingleChildScrollView 收缩包裹到内容宽度并被水平居中，实际左右留白
+        // 变成 margin + 剩余空间的一半，随每页最长行宽漂移（边距不守设定值）。
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Padding(
             padding: EdgeInsets.symmetric(horizontal: headerFooterMargin),

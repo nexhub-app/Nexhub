@@ -122,6 +122,13 @@ void main() {
     // 验证小说内容已加载（页面中应包含段落文字）。
     expect(find.textContaining('第一段文字'), findsOneWidget);
 
+    // 边距回归（漂移修复）：正文首行左边缘必须精确等于设定 margin=24，
+    // 不得因 SingleChildScrollView 收缩包裹 + Column 居中而随内容宽度漂移。
+    expect(tester.getTopLeft(find.textContaining('第一段文字')).dx, 24.0);
+
+    // 正文滚动区必须占满视口宽度（800），验证不再随内容收缩包裹。
+    expect(tester.getSize(find.byType(SingleChildScrollView)).width, 800.0);
+
     // 点击中心切换阅读器控件显隐。
     await tester.tapAt(const Offset(400, 600));
     await tester.pumpAndSettle();

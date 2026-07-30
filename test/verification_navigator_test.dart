@@ -116,13 +116,16 @@ void main() {
       final context = await pumpContext(tester);
       var retryCalls = 0;
 
-      final result = await VerificationNavigator.handleVerificationAndRetry(
-        context,
-        const VerificationRequiredException(url: 'https://example.com'),
-        () async {
-          retryCalls++;
-        },
-        verifyHandler: (ctx, err, {onExtracted, onRenderedHtml}) async => true,
+      final result = await tester.runAsync(
+        () => VerificationNavigator.handleVerificationAndRetry(
+          context,
+          const VerificationRequiredException(url: 'https://example.com'),
+          () async {
+            retryCalls++;
+          },
+          verifyHandler: (ctx, err, {onExtracted, onRenderedHtml}) async => true,
+          backoff: Duration.zero,
+        ),
       );
 
       expect(result, isTrue);
@@ -135,16 +138,19 @@ void main() {
       final context = await pumpContext(tester);
       String? capturedError;
 
-      final result = await VerificationNavigator.handleVerificationAndRetry(
-        context,
-        const VerificationRequiredException(url: 'https://example.com'),
-        () async {
-          throw Exception('retry boom');
-        },
-        verifyHandler: (ctx, err, {onExtracted, onRenderedHtml}) async => true,
-        onErrorText: (text) {
-          capturedError = text;
-        },
+      final result = await tester.runAsync(
+        () => VerificationNavigator.handleVerificationAndRetry(
+          context,
+          const VerificationRequiredException(url: 'https://example.com'),
+          () async {
+            throw Exception('retry boom');
+          },
+          verifyHandler: (ctx, err, {onExtracted, onRenderedHtml}) async => true,
+          backoff: Duration.zero,
+          onErrorText: (text) {
+            capturedError = text;
+          },
+        ),
       );
 
       expect(result, isTrue);
@@ -164,6 +170,7 @@ void main() {
           retryCalls++;
         },
         verifyHandler: (ctx, err, {onExtracted, onRenderedHtml}) async => false,
+        backoff: Duration.zero,
       );
 
       expect(result, isFalse);
@@ -186,6 +193,7 @@ void main() {
         verifyHandler: (ctx, err, {onExtracted, onRenderedHtml}) async {
           throw StateError('verify failed');
         },
+        backoff: Duration.zero,
         onErrorText: (text) {
           capturedError = text;
         },
@@ -197,6 +205,30 @@ void main() {
       expect(retryCalls, 0);
       expect(capturedError, isNotNull);
       expect(capturedError, contains('verify failed'));
+    });
+
+    testWidgets('applies the backoff delay before retrying', (tester) async {
+      final context = await pumpContext(tester);
+      var retryCalls = 0;
+      final stopwatch = Stopwatch()..start();
+
+      final result = await tester.runAsync(
+        () => VerificationNavigator.handleVerificationAndRetry(
+          context,
+          const VerificationRequiredException(url: 'https://example.com'),
+          () async {
+            retryCalls++;
+          },
+          verifyHandler: (ctx, err, {onExtracted, onRenderedHtml}) async => true,
+          backoff: const Duration(milliseconds: 200),
+        ),
+      );
+
+      stopwatch.stop();
+      expect(result, isTrue);
+      expect(retryCalls, 1);
+      // 退避在 retry 之前发生，故总耗时不应明显短于 backoff。
+      expect(stopwatch.elapsedMilliseconds, greaterThanOrEqualTo(180));
     });
   });
 }

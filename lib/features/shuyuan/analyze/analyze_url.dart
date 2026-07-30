@@ -4,11 +4,14 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:fast_gbk/fast_gbk.dart';
 import 'analyze_rule.dart';
+import '../../../core/scraper/browser_faithful_adapter.dart';
 import '../../../core/scraper/verification_detector.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../model/xiaoshuo_book.dart';
@@ -43,7 +46,12 @@ class AnalyzeUrl {
   static final Dio _dio = Dio()
     ..options.connectTimeout = const Duration(seconds: 15)
     ..options.receiveTimeout = const Duration(seconds: 30)
-    ..options.validateStatus = (status) => status != null && status >= 200 && status < 300;
+    ..options.validateStatus =
+        ((status) => status != null && status >= 200 && status < 300)
+    // 书源直连链路改用浏览器一致的原始请求（Host 首行 + Title-Case
+    // 头名）：部分 Cloudflare 站（如笔趣阁）会按 Dart HttpClient 固定的「小写
+    // 头名 + Host 排末行」机器指纹直接返回 403 挑战壳，使验证无法通过。
+    ..httpClientAdapter = BrowserFaithfulHttpClientAdapter();
 
   AnalyzeUrl({
     required this.url,
@@ -220,9 +228,10 @@ class AnalyzeUrl {
       throw Exception('Invalid URL: $url');
     }
 
+    // 全应用统一 UA（中心真源）：过验证的 UA 与后续 HttpFetcher 重试的 UA 必须一致，
+    // 否则反爬把 Cookie 绑定到 UA+IP，UA 漂移 → Cookie 失效 → 验证死循环。
     final requestHeaders = <String, String>{
-      'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'User-Agent': HttpFetcher.instance.userAgentForUrl(url),
       'Accept':
           'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -232,6 +241,9 @@ class AnalyzeUrl {
     if (source?.header != null && source!.header!.isNotEmpty) {
       try {
         final headerMap = _parseHeader(source!.header!);
+        // 源 header 的 User-Agent 若覆盖中心 UA，会破坏「验证 UA==重试 UA」一致
+        // 性，故跳过其 UA，仅保留 Referer 等其他字段。
+        headerMap.remove('User-Agent');
         requestHeaders.addAll(headerMap);
       } catch (_) {}
     }
@@ -255,6 +267,24 @@ class AnalyzeUrl {
 
     String body;
     try {
+      // 同 host 节流 + 验证冷却（复用 HttpFetcher 闸门）：书源链路用独立 Dio，
+      // 若不过闸门，目录分页/详情/推荐背靠背连发会触发 Cloudflare 临时挑战
+      // （笔趣阁反代即因此循环弹验证）。长目录变慢由渐进批次保障首屏体验。
+      await HttpFetcher.instance.runGate(url);
+
+      // 代理：源声明的 proxy 字段此前解析但未使用；此处落地——非空时改用带
+      // IOHttpClientAdapter(findProxy) 的临时 Dio 发起本次请求，不影响全局默认 Dio。
+      final Dio dio = proxy != null && proxy!.isNotEmpty
+          ? (Dio()
+            ..httpClientAdapter = IOHttpClientAdapter(
+              createHttpClient: () {
+                final client = HttpClient();
+                client.findProxy = (_) => 'PROXY $proxy';
+                return client;
+              },
+            ))
+          : _dio;
+
       final options = Options(
         headers: requestHeaders,
         responseType: ResponseType.bytes,
@@ -263,13 +293,13 @@ class AnalyzeUrl {
 
       final Response<List<int>> response;
       if (method?.toUpperCase() == 'POST') {
-        response = await _dio.post<List<int>>(
+        response = await dio.post<List<int>>(
           url,
           data: this.body,
           options: options,
         );
       } else {
-        response = await _dio.get<List<int>>(
+        response = await dio.get<List<int>>(
           url,
           options: options,
         );
@@ -318,6 +348,16 @@ class AnalyzeUrl {
             statusCode: status,
           );
         }
+      }
+      // 状态码 401/403 一律按验证处理（与 VerificationDetector 语义对齐）：
+      // CF 临时挑战可能返回短壳/空体 403，不命中挑战特征也必须进验证流程，
+      // 否则从历史/浏览任一入口撞 403 都成死错误（无验证入口、一直加载）。
+      if (status == 401 || status == 403) {
+        throw VerificationRequiredException(
+          url: url,
+          body: '',
+          statusCode: status,
+        );
       }
       throw Exception('网络请求失败[$status]：$url，${e.message}');
     } catch (e) {
