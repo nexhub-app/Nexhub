@@ -54,13 +54,22 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  ThemeData lightTheme([ColorScheme? systemScheme]) =>
-      _useMonet && systemScheme != null
-          ? AppTheme.light(scheme: systemScheme)
-          : AppTheme.light(seed: _seed);
+  /// 当前是否选中「玄色」专属主题（近黑底 + 赤强调色）。
+  bool get isXuanSe => _seed == AppTokens.seedXuanSe;
 
-  ThemeData darkTheme([ColorScheme? systemScheme]) =>
-      _useMonet && systemScheme != null
-          ? AppTheme.dark(scheme: systemScheme)
-          : AppTheme.dark(seed: _seed);
+  ThemeData lightTheme([ColorScheme? systemScheme]) {
+    if (_useMonet && systemScheme != null) {
+      return AppTheme.light(scheme: systemScheme);
+    }
+    if (isXuanSe) return AppTheme.xuanSe();
+    return AppTheme.light(seed: _seed);
+  }
+
+  ThemeData darkTheme([ColorScheme? systemScheme]) {
+    if (_useMonet && systemScheme != null) {
+      return AppTheme.dark(scheme: systemScheme);
+    }
+    if (isXuanSe) return AppTheme.xuanSe();
+    return AppTheme.dark(seed: _seed);
+  }
 }
