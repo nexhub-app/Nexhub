@@ -50,7 +50,7 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
   bool get _isNetwork =>
       widget.uri.startsWith('http://') || widget.uri.startsWith('https://');
 
-  // 视频（media_kit + fvp）
+  // 视频（media_kit）
   Player? _player;
   VideoController? _videoController;
 

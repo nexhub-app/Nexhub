@@ -855,6 +855,30 @@
   "playerDecodeSw": "Software",
   "playerDecodeHw": "Hardware",
   "playerDecodeHwPlus": "Hardware+",
+  "playerDecodeHwPlusHint": "Recommended for screen artifacts",
+  "playerDecodeFallback": "Decoding issue detected, switched to {mode}",
+  "@playerDecodeFallback": {
+    "description": "SnackBar shown when decode mode is auto-downgraded after a hardware decoding failure",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "playerStats": "Playback stats",
+  "@playerStats": {
+    "description": "Player more menu item to show playback statistics panel"
+  },
+  "playerStatsDecoder": "Decoder",
+  "playerStatsHardware": "Hardware decoding",
+  "playerStatsSoftware": "Software decoding",
+  "playerStatsVideoCodec": "Video codec",
+  "playerStatsPixelFormat": "Pixel format",
+  "playerStatsResolution": "Resolution",
+  "playerStatsDroppedFrames": "Dropped frames (render / decode)",
+  "playerStatsBitrate": "Video bitrate",
+  "playerStatsBuffering": "Cache buffering",
+  "playerStatsUnavailable": "Playback stats unavailable",
   "playerAudioChannel": "Audio channel",
   "playerAudioStereo": "Stereo",
   "playerAudioMono": "Mono",

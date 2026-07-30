@@ -850,6 +850,30 @@
   "playerDecodeSw": "软件解码",
   "playerDecodeHw": "硬件解码",
   "playerDecodeHwPlus": "硬件解码+",
+  "playerDecodeHwPlusHint": "花屏时推荐",
+  "playerDecodeFallback": "检测到解码异常，已切换为{mode}",
+  "@playerDecodeFallback": {
+    "description": "SnackBar shown when decode mode is auto-downgraded after a hardware decoding failure",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "playerStats": "播放统计",
+  "@playerStats": {
+    "description": "Player more menu item to show playback statistics panel"
+  },
+  "playerStatsDecoder": "解码器",
+  "playerStatsHardware": "硬件解码",
+  "playerStatsSoftware": "软件解码",
+  "playerStatsVideoCodec": "视频编码",
+  "playerStatsPixelFormat": "像素格式",
+  "playerStatsResolution": "分辨率",
+  "playerStatsDroppedFrames": "掉帧（渲染 / 解码）",
+  "playerStatsBitrate": "视频码率",
+  "playerStatsBuffering": "缓冲进度",
+  "playerStatsUnavailable": "当前无法获取播放统计",
   "playerAudioChannel": "音频通道",
   "playerAudioStereo": "立体声",
   "playerAudioMono": "单声道",
