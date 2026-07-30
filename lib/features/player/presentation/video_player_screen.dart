@@ -191,6 +191,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<bool>? _completedSub;
   StreamSubscription<void>? _stallSub;
+  StreamSubscription<String>? _decodeFallbackSub;
 
   /// 标记 widget 已进入 deactivate/dispose 流程。仅用 [mounted] 不够：
   /// Flutter 在 deactivate() 阶段元素已「失活」但 [mounted] 仍为 true，此时
@@ -514,6 +515,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _completedSub = _controller.completedStream.listen(_onCompleted);
     // 监听 stall（卡顿）事件：提示并自动重连
     _stallSub = _controller.stallStream.listen((_) => _onStall());
+    // 监听解码自动降级（花屏 / 硬解失败自愈）：提示并 re-open 生效
+    _decodeFallbackSub =
+        _controller.decodeFallbackStream.listen(_onDecodeFallback);
     // 监听缓冲状态：缓冲中显示加载动画（功能2）
     _bufferingSub = _controller.bufferingStream.listen((b) {
       if (_disposed || !mounted) return;
@@ -1003,6 +1007,61 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       // context 已失活，忽略。
     }
     unawaited(_reconnect());
+  }
+
+  /// 解码自动降级回调（PlayerController 检测到硬解异常后已切换 hwdec）：
+  /// 提示用户并 re-open 当前地址——mpv 的 hwdec 属性对已在播的解码器
+  /// 不一定即时生效，重新 open 才能确保新解码路径落地。
+  void _onDecodeFallback(String mode) {
+    if (!mounted || _disposed) return;
+    try {
+      final l10n = AppLocalizations.of(context);
+      final String label = switch (mode) {
+        'hw+' => l10n.playerDecodeHwPlus,
+        'sw' => l10n.playerDecodeSw,
+        _ => mode,
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.playerDecodeFallback(label)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (_) {
+      // context 已失活，忽略提示。
+    }
+    // 降级仅对本次会话生效，不写回全局 PlayerSettings。
+    final url = _playUrl;
+    if (url == null || url.isEmpty || _reconnecting) return;
+    _reconnecting = true;
+    unawaited(() async {
+      try {
+        await _reopenAndResume(url, _playHeaders, _lastGoodPosition);
+      } on Object {
+        // 重开失败静默忽略，stall 检测会接管后续恢复。
+      } finally {
+        _reconnecting = false;
+      }
+    }());
+  }
+
+  /// 手动切换解码模式：设置 hwdec 后 re-open 当前地址。
+  ///
+  /// 与 [_onDecodeFallback] 同理——mpv 的 hwdec 属性对已在播的解码器
+  /// 不一定即时生效，不 re-open 的话用户手动切“软解”形同虚设。
+  Future<void> _applyHwdecAndReopen(String mode) async {
+    if (_disposed || mode == _controller.currentHwdec) return;
+    await _controller.setHwdec(mode);
+    final url = _playUrl;
+    if (url == null || url.isEmpty || _reconnecting) return;
+    _reconnecting = true;
+    try {
+      await _reopenAndResume(url, _playHeaders, _lastGoodPosition);
+    } on Object {
+      // 重开失败静默忽略，stall 检测会接管后续恢复。
+    } finally {
+      _reconnecting = false;
+    }
   }
 
   /// 重新 open 当前播放地址恢复播放。
@@ -1867,6 +1926,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               title: Text(l10n.playerDecodeMode),
               trailing: DropdownButton<String>(
                 value: _controller.currentHwdec,
+                // 收起时只显短名，避免 hw+ 的提示后缀撑爆 trailing 宽度。
+                selectedItemBuilder: (BuildContext _) => <Widget>[
+                  Text(l10n.playerDecodeAuto),
+                  Text(l10n.playerDecodeSw),
+                  Text(l10n.playerDecodeHw),
+                  Text(l10n.playerDecodeHwPlus),
+                ],
                 items: <DropdownMenuItem<String>>[
                   DropdownMenuItem<String>(
                       value: 'auto', child: Text(l10n.playerDecodeAuto)),
@@ -1874,12 +1940,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       value: 'sw', child: Text(l10n.playerDecodeSw)),
                   DropdownMenuItem<String>(
                       value: 'hw', child: Text(l10n.playerDecodeHw)),
+                  // hw+（auto-copy）绕开硬解直通纹理路径，是花屏设备的首选。
                   DropdownMenuItem<String>(
-                      value: 'hw+', child: Text(l10n.playerDecodeHwPlus)),
+                      value: 'hw+',
+                      child: Text(
+                          '${l10n.playerDecodeHwPlus} · ${l10n.playerDecodeHwPlusHint}')),
                 ],
                 onChanged: (String? v) {
-                  if (v != null) _controller.setHwdec(v);
                   Navigator.pop(ctx);
+                  // 与自动降级一致：设完 hwdec 后必须 re-open，否则对已在播的
+                  // 解码器不生效（用户切“软解”看不到任何变化）。
+                  if (v != null) unawaited(_applyHwdecAndReopen(v));
                 },
               ),
             ),
@@ -1921,6 +1992,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               onTap: () {
                 Navigator.pop(ctx);
                 _showMediaInfo(l10n);
+              },
+            ),
+            // 播放统计（实际软/硬解状态、编码、掉帧等，1s 刷新）
+            ListTile(
+              leading: const Icon(Icons.query_stats),
+              title: Text(l10n.playerStats),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showPlaybackStats(l10n);
               },
             ),
             // #4 A4-#4: 外部播放
@@ -2118,6 +2198,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _positionSub?.cancel();
     _completedSub?.cancel();
     _stallSub?.cancel();
+    _decodeFallbackSub?.cancel();
     _bufferingSub?.cancel();
     // 关闭可能残留的 SnackBar：其退出动画的 AnimationController 在 widget 失活后
     // 仍会 tick，并尝试访问已销毁的 Scaffold 祖先 → 抛「deactivated widget」
@@ -2139,6 +2220,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _positionSub?.cancel();
     _completedSub?.cancel();
     _stallSub?.cancel();
+    _decodeFallbackSub?.cancel();
     _bufferingSub?.cancel();
     _resolveProgress.dispose();
     unawaited(_castService.disconnect());
@@ -2149,7 +2231,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _controller.removeListener(_onControllerChanged);
     }
     // 关键：释放视频渲染层。VideoController 在 media_kit_video 2.0.1 没有 dispose()
-    // 方法——它的原生 VideoOutput（fvp 纹理）由底层 Player.dispose() 通过 release
+    // 方法——它的原生 VideoOutput（media_kit 纹理）由底层 Player.dispose() 通过 release
     // 回调统一释放。PlayerController.dispose() 会把该释放的 Future 记入静态
     // PlayerController._pendingDisposal；下一次进入播放器时 _init 会 await
     // PlayerController.pendingDisposal，确保「旧播放器销毁」先于「新播放器创建」，
@@ -2932,6 +3014,121 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// 播放统计面板：读 mpv 只读属性展示实际软/硬解状态、编码、分辨率、
+  /// 掉帧与码率，1s 定时刷新。软/硬解状态醒目标注，用于诊断
+  /// 「hwdec=auto 实际落在哪条解码路径」与花屏问题排查。
+  void _showPlaybackStats(AppLocalizations l10n) {
+    Timer? refreshTimer;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext ctx) => SafeArea(
+        child: StatefulBuilder(
+          builder: (BuildContext sbCtx, StateSetter setSheetState) {
+            // 首次 build 时启动 1s 周期刷新；面板关闭后由 whenComplete 取消。
+            refreshTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+              if (sbCtx.mounted) setSheetState(() {});
+            });
+            return FutureBuilder<PlayerStats>(
+              future: _controller.queryStats(),
+              builder: (BuildContext _, AsyncSnapshot<PlayerStats> snap) {
+                final PlayerStats? stats = snap.data;
+                final theme = Theme.of(ctx);
+                Widget body;
+                if (stats == null || stats.isEmpty) {
+                  body = Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AppTokens.spaceMd),
+                    child: Text(l10n.playerStatsUnavailable),
+                  );
+                } else {
+                  final bool isHw = stats.isHardwareDecoding;
+                  // 解码状态醒目标注：硬解绿 / 软解橙，附带 hwdec-current 原值。
+                  final String decodeText = isHw
+                      ? '${l10n.playerStatsHardware} (${stats.hwdecCurrent})'
+                      : l10n.playerStatsSoftware;
+                  final Color decodeColor = isHw
+                      ? Colors.lightGreenAccent.shade400
+                      : Colors.orangeAccent;
+                  String orDash(String? v) =>
+                      (v == null || v.isEmpty) ? '—' : v;
+                  final String resolution =
+                      (stats.width != null && stats.height != null)
+                          ? '${stats.width}×${stats.height}'
+                          : '—';
+                  final String drops =
+                      '${stats.frameDropCount ?? 0} / ${stats.decoderFrameDropCount ?? 0}';
+                  final String bitrate = stats.videoBitrate == null
+                      ? '—'
+                      : '${(stats.videoBitrate! / 1000000).toStringAsFixed(2)} Mbps';
+                  final String buffering = stats.cacheBufferingState == null
+                      ? '—'
+                      : '${stats.cacheBufferingState}%';
+                  body = Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      _statsRow(
+                        l10n.playerStatsDecoder,
+                        decodeText,
+                        valueStyle: theme.textTheme.bodyMedium?.copyWith(
+                          color: decodeColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      _statsRow(
+                          l10n.playerStatsVideoCodec, orDash(stats.videoCodec)),
+                      _statsRow(l10n.playerStatsPixelFormat,
+                          orDash(stats.videoFormat)),
+                      _statsRow(l10n.playerStatsResolution, resolution),
+                      _statsRow(l10n.playerStatsDroppedFrames, drops),
+                      _statsRow(l10n.playerStatsBitrate, bitrate),
+                      _statsRow(l10n.playerStatsBuffering, buffering),
+                    ],
+                  );
+                }
+                return Padding(
+                  padding: const EdgeInsets.all(AppTokens.spaceMd),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(l10n.playerStats,
+                          style: theme.textTheme.titleMedium),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      body,
+                      const SizedBox(height: AppTokens.spaceMd),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(l10n.close),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    ).whenComplete(() => refreshTimer?.cancel());
+  }
+
+  /// 播放统计面板的单行「标签: 值」。
+  Widget _statsRow(String label, String value, {TextStyle? valueStyle}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(width: 140, child: Text(label)),
+          Expanded(child: Text(value, style: valueStyle)),
+        ],
       ),
     );
   }

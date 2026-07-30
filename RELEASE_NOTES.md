@@ -1,4 +1,4 @@
-# NexHub v0.3.0
+# NexHub v0.3.1
 
 > 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— 源即插件 · 共创社区。
 
@@ -244,6 +244,43 @@
 - 修复 **HLS 原生崩溃**：退出重进时正确释放 VideoController。
 - 修复**视频重连循环**：同实例 re-open 自愈 + seek 宽限期放宽至 60s。
 - 修复连续打开视频闪退、弹幕设置套用时序、屏幕亮度异步未捕获异常、`final` 局部变量 speed 延迟赋值编译错误等。
+
+## 📝 更新日志（v0.3.0 → v0.3.1）
+
+本版聚焦**视频播放内核与解码健壮性**，并补充**中国传统色主题**；同时提升 Android 在部分机型与国内网络下的构建 / 渲染稳定性。
+
+### 🎞️ 视频后端简化
+- 移除 `fvp` 视频后端依赖，统一为 **media_kit + media_kit_libs_video（libmpv）** 单一内核路径；清理 fvp 注册与注释（splash / main / platform_service）。
+
+### 📊 新增：播放统计面板
+- 新增 `PlayerStats` 模型，读取 mpv 只读属性（实际解码器 `hwdec-current`、编码、像素格式、分辨率、渲染 / 解码掉帧、码率、缓冲进度）。
+- `VideoPlayerBackend` 增加 `getProperty`，`MediaKitBackend` 实现读取 mpv 属性。
+- 播放器「更多」菜单新增「播放统计」项，展示当前解码方式（软 / 硬解）、编码、像素格式、分辨率、掉帧、码率与缓存缓冲。
+
+### 🛡️ 解码异常自动降级与自愈
+- 硬件解码失败（花屏）时，`PlayerController` 自动降级为软件解码并广播 `decodeFallbackStream`；播放页弹出提示并 **re-open 当前地址** 使新解码路径真正生效（mpv 的 hwdec 对已在播解码器不即时生效）。
+- 手动切换解码模式同样 re-open 生效；新增「硬件解码+」选项提示「花屏时推荐」。
+
+### 🤖 Android 渲染修复（花屏）
+- `AndroidManifest.xml` 增加 `io.flutter.embedding.android.EnableImpeller=false`，回退 **Skia** 渲染，修复部分旧 GPU / 驱动（Mali、旧 Adreno）在 Impeller OpenGL 后端下视频外纹理**闪烁 / 花屏**的问题（与解码方式无关，软解亦如此）。
+
+### 🔧 Android 构建可靠性（国内网络）
+- `build.gradle.kts` / `settings.gradle.kts` 增加阿里云 maven 镜像（google / central）优先、官方源兜底，缓解 `dl.google.com` 直连断流假死。
+- `gradle.properties` 增加 Gradle HTTP 连接 / 套接字超时（60s）与最大重试（3 次），避免下载超时无限假死。
+
+### 🎨 主题：6 套中国传统色预设
+- `app_tokens.dart` 新增 **茶红 / 桃夭 / 天水碧 / 朱殷 / 群青 / 玄色** 种子色（含中文名，权威值取自 zhongguose.com 与郭浩《中国传统色》）。
+- 修复**玄色渲染**：选中玄色时走专属「墨黑 + 赤」主题，修复近黑种子色经 `fromSeed` 生成灰阶导致「无效果」的问题。
+- 预设色块**长按 Tooltip 显示中文色名**。
+
+### 🖥️ 界面
+- 详情页窄屏响应式布局优化。
+- 在线浏览页「布局」按钮重复显示修复，统一布局入口。
+
+### 🧪 测试
+- `test/player_screen_test.dart` 新增约 138 行，覆盖播放统计与解码降级 / 手势相关逻辑。
+
+> 本版**沿用 v0.3.0 同一 APK 签名密钥**，从 v0.3.0 覆盖安装即可（无需卸载）；若你仍停留在更早的随机签名旧包，则需先卸载一次。
 
 ## 📦 安装
 

@@ -1,5 +1,8 @@
 allprojects {
     repositories {
+        // 国内镜像优先（dl.google.com 直连易断流假死），原仓库兜底。
+        maven { setUrl("https://maven.aliyun.com/repository/google") }
+        maven { setUrl("https://maven.aliyun.com/repository/central") }
         google()
         mavenCentral()
     }

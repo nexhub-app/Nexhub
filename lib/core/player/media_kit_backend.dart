@@ -84,6 +84,23 @@ class MediaKitBackend extends VideoPlayerBackend {
     await _setProperty('hwdec', _hwdecToMpv(mode));
   }
 
+  /// 读取 mpv 只读属性（如 `hwdec-current` / `video-codec`）。
+  ///
+  /// 平台不支持（如 Web）、属性不存在或尚无值时返回 null。
+  @override
+  Future<String?> getProperty(String name) async {
+    try {
+      final platform = _player.platform;
+      if (platform is NativePlayer) {
+        final value = await platform.getProperty(name);
+        return value.isEmpty ? null : value;
+      }
+    } catch (_) {
+      // 当前平台不支持 mpv 属性查询或属性名无效，忽略。
+    }
+    return null;
+  }
+
   @override
   Future<void> setAudioChannel(String channel) async {
     _currentAudioChannel = channel;
