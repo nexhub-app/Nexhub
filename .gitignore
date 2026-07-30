@@ -134,3 +134,9 @@ tmp_dump.html
 
 # 独立网站代码（勿提交）
 website/
+
+# 签名密钥与凭据（严禁入库）
+android/key.properties
+*.jks
+*.keystore
+_keystore_base64.txt

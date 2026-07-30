@@ -154,6 +154,29 @@ jobs:
         # flutter_launcher_icons 不会在 `flutter build` 时自动重跑，故这里显式生成，
         # 保证每次构建都基于源图产出最新图标（含自适应图标，Android 12+ 莫奈取色生效）。
         run: flutter pub run flutter_launcher_icons 2>&1 || dart run flutter_launcher_icons 2>&1
+      - name: 还原签名 keystore（从 Secrets）
+        # keystore 与签名密码已不入库：ANDROID_KEYSTORE_BASE64 为 jks 文件的 base64，
+        # 其余三项为签名凭据。Secrets 缺失（如 fork PR）时跳过，
+        # build.gradle.kts 会自动回落 debug 签名，保证仍可编译。
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 secret 未配置，跳过（将回落 debug 签名）"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+          {
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyPassword=$KEY_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "storeFile=app/upload-keystore.jks"
+          } > android/key.properties
+          echo "keystore 与 key.properties 已还原"
       - name: 编译 APK
         shell: bash
         run: |
