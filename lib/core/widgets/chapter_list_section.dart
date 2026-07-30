@@ -486,6 +486,36 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     );
   }
 
+  /// 可横向滚动的 chip 行（区间 chips / 线路 chips 共用）。
+  ///
+  /// 直接占满父级宽度（修复原先用 [MediaQuery] 屏宽减 padding 手动计算在
+  /// 桌面 NavigationRail 下宽度错误的问题），并用 [ShaderMask] 在右缘做
+  /// 渐隐淡出，提示被裁切的 chip 可横向滚动，消除「硬切断」的破碎感。
+  Widget _buildScrollableChipRow({
+    ScrollController? controller,
+    required List<Widget> children,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceLg, vertical: AppTokens.spaceXs),
+      child: SizedBox(
+        width: double.infinity,
+        child: ShaderMask(
+          shaderCallback: (Rect bounds) => const LinearGradient(
+            colors: <Color>[Colors.white, Colors.white, Colors.transparent],
+            stops: <double>[0.0, 0.96, 1.0],
+          ).createShader(bounds),
+          blendMode: BlendMode.dstIn,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: controller,
+            child: Row(children: children),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 快捷选集区间 chips（章节数 > 2 × rangeSize 时显示）。
   Widget _buildRangeChips(
     BuildContext context,
@@ -498,41 +528,31 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     for (int i = 0; i < totalCount; i += _rangeSize) {
       ranges.add(i);
     }
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceLg, vertical: AppTokens.spaceXs),
-      child: SizedBox(
-        width: MediaQuery.of(context).size.width - AppTokens.spaceLg * 2,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          controller: _chipScrollCtrl,
-          child: Row(
-            children: <Widget>[
-              FilterChip(
-                label: Text(l10n.all),
-                selected: _rangeStart == null,
-                onSelected: (_) {
-                  setState(() => _rangeStart = null);
-                  _scrollChipToCenter(0);
-                },
-              ),
-              const SizedBox(width: AppTokens.spaceSm),
-              for (final start in ranges) ...<Widget>[
-                FilterChip(
-                  label: Text(
-                      '${start + 1}-${start + _rangeSize > totalCount ? totalCount : start + _rangeSize}'),
-                  selected: _rangeStart == start,
-                  onSelected: (_) {
-                    setState(() => _rangeStart = start);
-                    _scrollChipToCenter(ranges.indexOf(start) + 1);
-                  },
-                ),
-                const SizedBox(width: AppTokens.spaceSm),
-              ],
-            ],
-          ),
+    return _buildScrollableChipRow(
+      controller: _chipScrollCtrl,
+      children: <Widget>[
+        FilterChip(
+          label: Text(l10n.all),
+          selected: _rangeStart == null,
+          onSelected: (_) {
+            setState(() => _rangeStart = null);
+            _scrollChipToCenter(0);
+          },
         ),
-      ),
+        const SizedBox(width: AppTokens.spaceSm),
+        for (final start in ranges) ...<Widget>[
+          FilterChip(
+            label: Text(
+                '${start + 1}-${start + _rangeSize > totalCount ? totalCount : start + _rangeSize}'),
+            selected: _rangeStart == start,
+            onSelected: (_) {
+              setState(() => _rangeStart = start);
+              _scrollChipToCenter(ranges.indexOf(start) + 1);
+            },
+          ),
+          const SizedBox(width: AppTokens.spaceSm),
+        ],
+      ],
     );
   }
 
@@ -558,33 +578,23 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     ColorScheme scheme,
     List<String> lineNames,
   ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceLg, vertical: AppTokens.spaceXs),
-      child: SizedBox(
-        width: MediaQuery.of(context).size.width - AppTokens.spaceLg * 2,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: <Widget>[
-              ChoiceChip(
-                label: Text(l10n.all),
-                selected: _selectedLine == null,
-                onSelected: (_) => setState(() => _selectedLine = null),
-              ),
-              const SizedBox(width: AppTokens.spaceSm),
-              for (final line in lineNames) ...<Widget>[
-                ChoiceChip(
-                  label: Text(line),
-                  selected: _selectedLine == line,
-                  onSelected: (_) => setState(() => _selectedLine = line),
-                ),
-                const SizedBox(width: AppTokens.spaceSm),
-              ],
-            ],
-          ),
+    return _buildScrollableChipRow(
+      children: <Widget>[
+        ChoiceChip(
+          label: Text(l10n.all),
+          selected: _selectedLine == null,
+          onSelected: (_) => setState(() => _selectedLine = null),
         ),
-      ),
+        const SizedBox(width: AppTokens.spaceSm),
+        for (final line in lineNames) ...<Widget>[
+          ChoiceChip(
+            label: Text(line),
+            selected: _selectedLine == line,
+            onSelected: (_) => setState(() => _selectedLine = line),
+          ),
+          const SizedBox(width: AppTokens.spaceSm),
+        ],
+      ],
     );
   }
 
