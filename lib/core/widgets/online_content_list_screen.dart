@@ -23,7 +23,7 @@ import 'detail_action_utils.dart';
 import 'online_filter_sheet.dart';
 import 'online_home_section.dart';
 import 'online_schedule_section.dart';
-import 'layout_picker_dialog.dart';
+import 'layout_picker_button.dart';
 import 'source_image.dart';
 
 /// 拉取某源在指定分类 / 页码下的内容列表。
@@ -890,11 +890,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                     if (_hasRank) _loadRank();
                   },
                 ),
-                IconButton(
-                  icon: const Icon(Icons.view_module_outlined),
-                  tooltip: l10n.layoutOpenSettings,
-                  onPressed: () => showLayoutPickerDialog(context),
-                ),
+                const LayoutPickerButton(),
               ],
       ),
       body: _source == null
@@ -917,6 +913,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
 
   /// 分类 TabBar（源选择栏下方的第二行）。与 TabBarView 共用同一 [_tabController]，
   /// 并在顶部加细分隔线以区分层级（源栏 / 分类栏）。
+  ///
+  /// 筛选按钮内嵌 TabBar 行右端：仅当当前 Tab 落在「分类区间」
+  /// （首页 / 周期表 / 排行 之外）且该分类存在筛选分组时显示；已应用筛选条件时
+  /// 图标着色为 [scheme.primary] 提示当前处于筛选态。随 [_tabController] 切换自动重建。
   Widget _buildCategoryTabBar(AppLocalizations l10n) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
@@ -926,18 +926,49 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
           bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
         ),
       ),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicator: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-          color: scheme.primaryContainer,
-        ),
-        labelColor: scheme.onPrimaryContainer,
-        unselectedLabelColor: scheme.onSurfaceVariant,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-        tabs: _buildTabs(l10n),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicator: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppTokens.radiusFull),
+                color: scheme.primaryContainer,
+              ),
+              labelColor: scheme.onPrimaryContainer,
+              unselectedLabelColor: scheme.onSurfaceVariant,
+              labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+              tabs: _buildTabs(l10n),
+            ),
+          ),
+          AnimatedBuilder(
+            animation: _tabController,
+            builder: (context, _) {
+              final catStart = _hasScheduleData ? 2 : 1;
+              final idx = _tabController.index;
+              // 仅「分类区间」(idx ∈ [catStart, catStart + _categories.length)) 显示筛选按钮。
+              if (idx < catStart || idx >= catStart + _categories.length) {
+                return const SizedBox.shrink();
+              }
+              final cat = _categories[idx - catStart];
+              final state = _ensureTabState(cat.id);
+              if (!_hasFilters(_source!, cat.id)) {
+                return const SizedBox.shrink();
+              }
+              final applied = state.filter.toVars().isNotEmpty;
+              return IconButton(
+                icon: Icon(
+                  Icons.filter_list,
+                  color: applied ? scheme.primary : null,
+                ),
+                tooltip: l10n.filter,
+                onPressed: () => _showFilter(state),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -1122,40 +1153,16 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     );
   }
 
-  /// Tab 3-N: 动态分类（ChoiceChip + 筛选按钮 + 网格列表 + 分页）。
+  /// Tab 3-N: 动态分类（网格列表 + 分页）。
+  ///
+  /// 布局按钮保留在 AppBar（与其他页面惯例一致），筛选入口已内嵌到
+  /// [_buildCategoryTabBar] 行右端 —— 此处直接返回分类主体，消除重复按钮与空白占位。
   Widget _buildCategoryTab(
     AppLocalizations l10n,
     _CategoryTabState state,
     String categoryTitle,
   ) {
-    return Column(
-      children: <Widget>[
-        // 筛选按钮栏
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppTokens.spaceLg,
-            vertical: AppTokens.spaceXs,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: <Widget>[
-              IconButton(
-                icon: const Icon(Icons.view_module),
-                tooltip: l10n.layoutOpenSettings,
-                onPressed: () => showLayoutPickerDialog(context),
-              ),
-              if (_hasFilters(_source!, state.categoryId))
-                IconButton(
-                  icon: const Icon(Icons.filter_list),
-                  tooltip: l10n.filter,
-                  onPressed: () => _showFilter(state),
-                ),
-            ],
-          ),
-        ),
-        Expanded(child: _buildCategoryBody(l10n, state)),
-      ],
-    );
+    return _buildCategoryBody(l10n, state);
   }
 
   Widget _buildCategoryBody(AppLocalizations l10n, _CategoryTabState state) {

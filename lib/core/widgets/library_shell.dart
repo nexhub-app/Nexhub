@@ -10,7 +10,7 @@ import 'app_empty_state.dart';
 import 'app_icon_button.dart';
 import 'app_segmented_tabs.dart';
 import 'bookshelf_filter_sheet.dart';
-import 'layout_picker_dialog.dart';
+import 'layout_picker_button.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// Unified library shell shared by the media / manga / novel modules.
@@ -163,11 +163,7 @@ class _LibraryShellState extends State<LibraryShell> {
               onPressed: _openFilterSheet,
               color: _filter.isDefault ? null : scheme.primary,
             ),
-            IconButton(
-              icon: const Icon(Icons.view_module),
-              tooltip: l10n.layoutOpenSettings,
-              onPressed: () => showLayoutPickerDialog(context),
-            ),
+            const LayoutPickerButton(),
           ],
         ],
       ),

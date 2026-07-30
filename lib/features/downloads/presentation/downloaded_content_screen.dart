@@ -12,7 +12,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
-import '../../../core/widgets/layout_picker_dialog.dart';
+import '../../../core/widgets/layout_picker_button.dart';
 import '../../../core/settings/layout_settings.dart';
 import 'downloaded_group_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
@@ -70,12 +70,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
             : l10n.downloadedContent),
         actions: <Widget>[
           if (!_selectMode) ...<Widget>[
-            // 布局快选：底部弹窗，与设置页布局设置双向同步（项 11）。
-            IconButton(
-              icon: const Icon(Icons.view_module),
-              tooltip: l10n.layoutOpenSettings,
-              onPressed: () => showLayoutPickerDialog(context),
-            ),
+            const LayoutPickerButton(),
             // 筛选：与顶部类型 Tab 联动的弹窗式快速筛选（底部弹窗风格）。
             IconButton(
               icon: const Icon(Icons.filter_list),
