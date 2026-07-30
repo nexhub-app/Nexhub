@@ -21,6 +21,85 @@ class VideoLine {
   final Map<String, String>? headers;
 }
 
+/// 播放统计快照（mpv 只读属性），供「播放统计」面板与软/硬解诊断使用。
+class PlayerStats {
+  const PlayerStats({
+    this.hwdecCurrent,
+    this.videoCodec,
+    this.videoFormat,
+    this.width,
+    this.height,
+    this.frameDropCount,
+    this.decoderFrameDropCount,
+    this.videoBitrate,
+    this.cacheBufferingState,
+  });
+
+  /// 实际生效的解码器（mpv `hwdec-current`）：
+  /// `no`=软解，`mediacodec`/`mediacodec-copy`/`d3d11va` 等=硬解，null=未知。
+  final String? hwdecCurrent;
+
+  /// 视频编码描述（mpv `video-codec`）。
+  final String? videoCodec;
+
+  /// 像素格式（mpv `video-format`）。
+  final String? videoFormat;
+
+  /// 视频宽度（mpv `width`）。
+  final int? width;
+
+  /// 视频高度（mpv `height`）。
+  final int? height;
+
+  /// 渲染层掉帧数（mpv `frame-drop-count`）。
+  final int? frameDropCount;
+
+  /// 解码层掉帧数（mpv `decoder-frame-drop-count`）。
+  final int? decoderFrameDropCount;
+
+  /// 视频码率 bps（mpv `video-bitrate`）。
+  final int? videoBitrate;
+
+  /// 缓冲进度 0–100（mpv `cache-buffering-state`）。
+  final int? cacheBufferingState;
+
+  /// 是否硬件解码中（`hwdec-current` 非空且非 `no`）。
+  bool get isHardwareDecoding =>
+      hwdecCurrent != null && hwdecCurrent != 'no' && hwdecCurrent!.isNotEmpty;
+
+  /// 是否软件解码中（`hwdec-current` 明确为 `no`）。
+  bool get isSoftwareDecoding => hwdecCurrent == 'no';
+
+  /// 是否一项数据都没拿到（平台不支持或尚未开始解码）。
+  bool get isEmpty =>
+      hwdecCurrent == null &&
+      videoCodec == null &&
+      videoFormat == null &&
+      width == null &&
+      height == null;
+
+  /// 从 mpv 属性名→原始字符串的映射构造（解析失败的字段置 null）。
+  factory PlayerStats.fromProperties(Map<String, String?> props) {
+    int? parseInt(String? raw) =>
+        raw == null ? null : int.tryParse(raw.trim());
+    // video-bitrate 可能带小数（bps），先按 double 解再取整。
+    int? parseNum(String? raw) => raw == null
+        ? null
+        : double.tryParse(raw.trim())?.round();
+    return PlayerStats(
+      hwdecCurrent: props['hwdec-current'],
+      videoCodec: props['video-codec'],
+      videoFormat: props['video-format'],
+      width: parseInt(props['width']),
+      height: parseInt(props['height']),
+      frameDropCount: parseInt(props['frame-drop-count']),
+      decoderFrameDropCount: parseInt(props['decoder-frame-drop-count']),
+      videoBitrate: parseNum(props['video-bitrate']),
+      cacheBufferingState: parseNum(props['cache-buffering-state']),
+    );
+  }
+}
+
 /// 视频播放器控制器。
 ///
 /// 封装 [MediaKitBackend]（持有底层 [Player]），对外暴露播放控制、状态流、
@@ -30,6 +109,7 @@ class PlayerController extends ChangeNotifier {
   PlayerController({Player? player})
       : _backend = MediaKitBackend(player ?? Player()) {
     _initStallDetection();
+    _initDecodeFallbackDetection();
   }
 
   final MediaKitBackend _backend;
@@ -174,6 +254,109 @@ class PlayerController extends ChangeNotifier {
       // 重置基准，避免连续重复触发；待位置再次推进后重新计时
       _lastPositionAdvancedAt = now;
     }
+  }
+
+  // ────────── 解码异常自动降级（花屏 / 硬解初始化失败自愈） ──────────
+
+  StreamSubscription<PlayerLog>? _decodeLogSub;
+  final StreamController<String> _decodeFallbackController =
+      StreamController<String>.broadcast();
+
+  /// 解码自动降级事件流：发生降级时推送新的应用层解码模式（'hw+' / 'sw'）。
+  /// UI 据此提示用户并 re-open 当前地址使新 hwdec 对已在播的解码器生效。
+  Stream<String> get decodeFallbackStream => _decodeFallbackController.stream;
+
+  /// 本会话内是否已发生过自动降级（auto → hw+ 后置位，允许继续降到 sw；
+  /// 用户手动切换解码模式时重置，手动选择不参与自动降级链）。
+  bool _autoDowngraded = false;
+
+  /// 上次自动降级时刻；冷却期内忽略后续触发，避免同一批错误日志连续降两级。
+  DateTime _lastDecodeFallbackAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// 降级冷却期：re-open 后旧解码器的残留错误日志不应立即再触发下一级。
+  static const Duration decodeFallbackCooldown = Duration(seconds: 30);
+
+  void _initDecodeFallbackDetection() {
+    try {
+      _decodeLogSub = _backend.player.stream.log.listen((PlayerLog log) {
+        if (isHwdecFailureLog(log.level, log.text)) {
+          unawaited(_maybeAutoDowngrade());
+        }
+      });
+    } catch (_) {
+      // 当前平台无 mpv 日志流（如 Web），自动降级不可用，忽略。
+    }
+  }
+
+  /// 判定一条 mpv 日志是否属于硬解失败 / 解码异常（自动降级触发条件）。
+  ///
+  /// 纯函数，便于单测覆盖（构造 PlayerController 需要原生 libmpv）。
+  @visibleForTesting
+  static bool isHwdecFailureLog(String level, String text) {
+    final t = text.toLowerCase();
+    if (t.contains('could not initialize hardware decoding')) return true;
+    if (t.contains('failed to initialize decoder')) return true;
+    final lv = level.toLowerCase();
+    if ((lv == 'error' || lv == 'fatal') && t.contains('hwdec')) return true;
+    return false;
+  }
+
+  /// 自动降级链：auto → hw+（auto-copy，绕开 mediacodec 直通纹理，修花屏首选）
+  /// → sw（纯软解兜底）。仅对默认 auto 模式自动降级；用户手动选定的
+  /// hw / hw+ / sw 是明确意图，不自动改动。返回 null 表示不降级。
+  @visibleForTesting
+  static String? nextFallbackHwdec(String current, {required bool autoDowngraded}) {
+    switch (current) {
+      case 'auto':
+        return 'hw+';
+      case 'hw+':
+        // 仅当 hw+ 是上一步自动降级的结果时才继续降到 sw。
+        return autoDowngraded ? 'sw' : null;
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _maybeAutoDowngrade() async {
+    final now = DateTime.now();
+    if (now.difference(_lastDecodeFallbackAt) < decodeFallbackCooldown) return;
+    final next =
+        nextFallbackHwdec(currentHwdec, autoDowngraded: _autoDowngraded);
+    if (next == null) return;
+    _lastDecodeFallbackAt = now;
+    _autoDowngraded = true;
+    // 直接走后端，不走公开 setHwdec（那会被视作手动切换而重置降级链）。
+    await _backend.setHwdec(next);
+    if (!_decodeFallbackController.isClosed) {
+      _decodeFallbackController.add(next);
+    }
+    notifyListeners();
+  }
+
+  // ────────── 播放统计（软/硬解诊断） ──────────
+
+  /// 「播放统计」面板读取的 mpv 只读属性清单。
+  static const List<String> statsProperties = <String>[
+    'hwdec-current',
+    'video-codec',
+    'video-format',
+    'width',
+    'height',
+    'frame-drop-count',
+    'decoder-frame-drop-count',
+    'video-bitrate',
+    'cache-buffering-state',
+  ];
+
+  /// 查询当前播放统计快照（实际软/硬解状态、编码、分辨率、掉帧等）。
+  ///
+  /// 平台不支持或尚未开始解码时各字段为 null（[PlayerStats.isEmpty]）。
+  Future<PlayerStats> queryStats() async {
+    final props = <String, String?>{};
+    for (final name in statsProperties) {
+      props[name] = await _backend.getProperty(name);
+    }
+    return PlayerStats.fromProperties(props);
   }
 
   /// 暴露底层后端（供 Video 控件获取 [Player]）。
@@ -439,8 +622,10 @@ class PlayerController extends ChangeNotifier {
 
   // ─────────────────────── 后端能力委托 ───────────────────────
 
-  /// 设置硬件解码模式（委托后端）。
+  /// 设置硬件解码模式（委托后端）。手动切换会重置自动降级链：
+  /// 用户重新选 auto 后若再次检测到解码异常，降级链从头开始。
   Future<void> setHwdec(String mode) async {
+    _autoDowngraded = false;
     await _backend.setHwdec(mode);
     notifyListeners();
   }
@@ -468,7 +653,7 @@ class PlayerController extends ChangeNotifier {
 
   @override
   /// 串行化用：上一次 [Player.dispose()] 的 Future。播放器页面创建新 [VideoController]
-  /// 前会 await 它，确保旧原生 VideoOutput（fvp 纹理）释放完成，避免退出重进时
+  /// 前会 await 它，确保旧原生 VideoOutput（media_kit 纹理）释放完成，避免退出重进时
   /// 新旧 surface 冲突（Lost connection to device）。
   static Future<void>? _pendingDisposal;
 
@@ -482,6 +667,8 @@ class PlayerController extends ChangeNotifier {
     _stallPositionSub?.cancel();
     _stallPlayingSub?.cancel();
     _stallController.close();
+    _decodeLogSub?.cancel();
+    _decodeFallbackController.close();
     // 退出时若仍处于全屏，还原方向与系统 UI（P8.3.4 §廿四）
     if (_isFullscreen) {
       try {

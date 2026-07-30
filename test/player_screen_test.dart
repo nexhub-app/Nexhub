@@ -7,6 +7,7 @@
 // 3. updateLastRead 写入 lastRead 时间戳（P8.1.3）
 // 4. autoPlayNext 默认值 true（PlayerController.autoPlayNext 字段，源码层验证）
 // 5. 稳定 Key 常量存在于源码（引用 VideoPlayerScreen 类确保编译期存在）
+// 6. 播放统计 PlayerStats 解析与花屏自动降级纯函数（无需构造 Player）
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,7 @@ import 'package:nexhub/core/favorites/favorites_manager.dart';
 import 'package:nexhub/core/models/episode.dart';
 import 'package:nexhub/core/models/media_item.dart';
 import 'package:nexhub/core/models/plugin_config.dart';
+import 'package:nexhub/core/player/player_controller.dart';
 import 'package:nexhub/features/player/presentation/video_player_screen.dart';
 
 void main() {
@@ -129,6 +131,142 @@ void main() {
       // 此处引用 VideoPlayerScreen 确保类编译期存在，防止误删。
       test('VideoPlayerScreen class is importable', () {
         expect(VideoPlayerScreen, isNotNull);
+      });
+    });
+  });
+
+  group('PlayerStats.fromProperties', () {
+    test('parses full mpv property map', () {
+      final stats = PlayerStats.fromProperties(<String, String?>{
+        'hwdec-current': 'mediacodec',
+        'video-codec': 'h264 (High)',
+        'video-format': 'nv12',
+        'width': '1920',
+        'height': '1080',
+        'frame-drop-count': '3',
+        'decoder-frame-drop-count': '0',
+        'video-bitrate': '2500000.500000',
+        'cache-buffering-state': '100',
+      });
+      expect(stats.hwdecCurrent, 'mediacodec');
+      expect(stats.videoCodec, 'h264 (High)');
+      expect(stats.videoFormat, 'nv12');
+      expect(stats.width, 1920);
+      expect(stats.height, 1080);
+      expect(stats.frameDropCount, 3);
+      expect(stats.decoderFrameDropCount, 0);
+      // video-bitrate 带小数时四舍五入取整
+      expect(stats.videoBitrate, 2500001);
+      expect(stats.cacheBufferingState, 100);
+      expect(stats.isHardwareDecoding, true);
+      expect(stats.isSoftwareDecoding, false);
+      expect(stats.isEmpty, false);
+    });
+
+    test('hwdec-current "no" means software decoding', () {
+      final stats = PlayerStats.fromProperties(<String, String?>{
+        'hwdec-current': 'no',
+        'video-codec': 'hevc',
+      });
+      expect(stats.isSoftwareDecoding, true);
+      expect(stats.isHardwareDecoding, false);
+    });
+
+    test('null / malformed values degrade to null fields and isEmpty', () {
+      final stats = PlayerStats.fromProperties(<String, String?>{
+        'hwdec-current': null,
+        'width': 'not-a-number',
+        'video-bitrate': null,
+      });
+      expect(stats.hwdecCurrent, isNull);
+      expect(stats.width, isNull);
+      expect(stats.videoBitrate, isNull);
+      expect(stats.isEmpty, true);
+      expect(stats.isHardwareDecoding, false);
+      expect(stats.isSoftwareDecoding, false);
+    });
+  });
+
+  group('decode fallback pure functions', () {
+    group('PlayerController.isHwdecFailureLog', () {
+      test('matches known hwdec failure messages regardless of level', () {
+        expect(
+          PlayerController.isHwdecFailureLog(
+              'warn', 'Could not initialize hardware decoding'),
+          true,
+        );
+        expect(
+          PlayerController.isHwdecFailureLog(
+              'error', 'Failed to initialize decoder'),
+          true,
+        );
+      });
+
+      test('matches error/fatal level logs mentioning hwdec', () {
+        expect(
+          PlayerController.isHwdecFailureLog(
+              'error', 'hwdec: mediacodec init failed'),
+          true,
+        );
+        expect(
+          PlayerController.isHwdecFailureLog(
+              'fatal', 'cannot create hwdec surface'),
+          true,
+        );
+      });
+
+      test('ignores benign logs', () {
+        // info 级提及 hwdec 不触发
+        expect(
+          PlayerController.isHwdecFailureLog(
+              'info', 'Using hardware decoding (mediacodec).'),
+          false,
+        );
+        expect(
+          PlayerController.isHwdecFailureLog('v', 'hwdec-current=mediacodec'),
+          false,
+        );
+        // error 级但与 hwdec 无关不触发
+        expect(
+          PlayerController.isHwdecFailureLog('error', 'network timeout'),
+          false,
+        );
+      });
+    });
+
+    group('PlayerController.nextFallbackHwdec', () {
+      test('auto downgrades to hw+', () {
+        expect(
+          PlayerController.nextFallbackHwdec('auto', autoDowngraded: false),
+          'hw+',
+        );
+        expect(
+          PlayerController.nextFallbackHwdec('auto', autoDowngraded: true),
+          'hw+',
+        );
+      });
+
+      test('hw+ downgrades to sw only when reached via auto-downgrade', () {
+        expect(
+          PlayerController.nextFallbackHwdec('hw+', autoDowngraded: true),
+          'sw',
+        );
+        // 用户手动选的 hw+ 不自动续降
+        expect(
+          PlayerController.nextFallbackHwdec('hw+', autoDowngraded: false),
+          isNull,
+        );
+      });
+
+      test('sw / hw are terminal states', () {
+        expect(
+          PlayerController.nextFallbackHwdec('sw', autoDowngraded: true),
+          isNull,
+        );
+        expect(
+          PlayerController.nextFallbackHwdec('hw', autoDowngraded: true),
+          isNull,
+        );
       });
     });
   });

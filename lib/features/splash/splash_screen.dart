@@ -1,4 +1,3 @@
-import 'package:fvp/fvp.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -16,7 +15,6 @@ import '../../core/history/history_manager.dart';
 import '../../core/local/local_content_manager.dart';
 import '../../core/locale/locale_controller.dart';
 import '../../core/models/hive_adapters.dart';
-import '../../core/platform/platform_service.dart';
 import '../../core/resolver/resolver_registry.dart';
 import '../../core/rss/browse_article_feed_manager.dart';
 import '../../core/rss/rss_manager.dart';
@@ -90,20 +88,10 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   /// Runs the full initialization pipeline previously hosted in [main].
-  /// Order matches the original main() exactly: fvp registration, Hive init,
+  /// Order matches the original main() exactly: Hive init,
   /// adapter registration, box opening, source loading, resolver/media setup,
   /// download manager, then favorites/history/rss/article-feed managers.
   Future<InitResult> _initialize() async {
-    // Windows desktop: register fvp video backend.
-    if (PlatformService.instance.isWindows) {
-      // fvp provides hardware-accelerated decoding; Windows desktop only.
-      try {
-        registerWith();
-      } catch (_) {
-        // Ignore in test or non-Windows desktop environments.
-      }
-    }
-
     final appDir = await getApplicationDocumentsDirectory();
     await Hive.initFlutter(appDir.path);
 

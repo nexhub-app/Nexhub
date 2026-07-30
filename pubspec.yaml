@@ -1,7 +1,7 @@
 name: nexhub
 description: 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— Material 3 设计系统基础脚手架。
 publish_to: 'none'
-version: 0.3.0+16
+version: 0.3.1+17
 repository: https://github.com/nexhub-app/nexhub
 
 environment:
@@ -59,11 +59,10 @@ dependencies:
   fast_gbk: ^1.0.0
   # WebView（验证流程 / WebView 视频提取 / WebViewResolver）
   flutter_inappwebview: ^6.0.0
-  # 视频播放器内核（media_kit + fvp）
+  # 视频播放器内核（media_kit / libmpv）
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
-  fvp: ^0.37.3
   # 投屏（Chromecast，纯 Dart 实现，无需 Google Cast SDK）
   cast: ^2.1.0
   # bonsoir 是 cast 的传递依赖；cast 2.1.0 只声明 bonsoir: '>=3.0.0'（无上限），

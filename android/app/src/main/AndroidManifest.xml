@@ -13,6 +13,12 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
+        <!-- 视频外接纹理在部分旧 GPU/驱动（Mali、旧 Adreno）上经 Impeller 渲染会
+             闪烁+花屏（无 Vulkan 设备落在成熟度更差的 Impeller OpenGL 后端），
+             且与解码方式无关——软解也救不了。回退 Skia 渲染。 -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
         <!-- super_clipboard：向系统剪贴板写入图片二进制所需的 ContentProvider -->
         <provider
             android:name="com.superlist.super_native_extensions.DataProvider"

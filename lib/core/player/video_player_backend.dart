@@ -24,6 +24,11 @@ abstract class VideoPlayerBackend {
     throw UnsupportedError('setAspectRatio is not supported by this backend');
   }
 
+  /// 读取后端只读属性（如 mpv 的 `hwdec-current`）。
+  ///
+  /// 默认实现返回 null（不支持查询），子类按需覆写。
+  Future<String?> getProperty(String name) async => null;
+
   /// 当前解码模式。
   String get currentHwdec;
 

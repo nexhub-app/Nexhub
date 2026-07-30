@@ -33,7 +33,7 @@ class PlatformService {
   /// 是否为 Web（[Platform] 不可用）。
   bool get isWeb => kIsWeb;
 
-  /// 是否为 Windows 桌面（fvp 视频后端仅此平台注册）。
+  /// 是否为 Windows 桌面。
   bool get isWindows => !kIsWeb && Platform.isWindows;
 
   /// 是否为 Android。
