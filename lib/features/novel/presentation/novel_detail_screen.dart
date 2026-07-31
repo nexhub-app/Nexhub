@@ -309,27 +309,20 @@ class _NovelDetailScreenState extends State<NovelDetailScreen> {
     final fav = context.read<FavoritesManager>();
     final wasFavorite = fav.isFavorite(widget.item.id, SourceType.novelSource);
     await fav.toggleFavorite(widget.item);
-    if (mounted) {
+    if (!mounted) return;
+    if (wasFavorite) {
+      // 再次点击 = 取消收藏，仅提示。
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(wasFavorite ? l10n.favoriteRemoved : l10n.favoriteAdded),
-          // 刚收藏成功：附「设分组」action，直达分组指定面板。
-          action: wasFavorite
-              ? null
-              : SnackBarAction(
-                  label: l10n.setGroups,
-                  onPressed: () {
-                    if (!mounted) return;
-                    showFavoriteGroupAssignSheet(
-                      context,
-                      contentId: widget.item.id,
-                      sourceType: SourceType.novelSource,
-                    );
-                  },
-                ),
-        ),
+        SnackBar(content: Text(l10n.favoriteRemoved)),
       );
+      return;
     }
+    // 新增收藏：立即弹出多选分类面板（可直接关闭，留在「未分组」）。
+    await showFavoriteGroupAssignSheet(
+      context,
+      contentId: widget.item.id,
+      sourceType: SourceType.novelSource,
+    );
   }
 
   Future<void> _removeFromFavorites() async {

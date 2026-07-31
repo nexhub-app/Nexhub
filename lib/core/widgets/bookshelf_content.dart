@@ -372,7 +372,12 @@ class _FavoriteBookshelf extends StatelessWidget {
     // favoritesFor() 返回 List.unmodifiable（只读）；同 _HistoryBookshelf，
     // 需先复制成可变列表，否则无筛选时 _sortFavoriteEntries 原地排序会抛
     // UnsupportedError → release 下整屏灰。
-    var entries = manager.favoritesFor(sourceType).toList();
+    // 基础列表：指定分组时取完整收藏（隐藏分类虽不可从 UI 选中，但兼容此前
+    // 已选定的过滤）；「全部」视图取排除「仅属隐藏分类」的可见收藏。
+    final List<FavoriteEntry> base = filter.groupIds.isEmpty
+        ? manager.visibleFavoritesFor(sourceType)
+        : manager.favoritesFor(sourceType);
+    var entries = base.toList();
 
     // 分类筛选。
     if (filter.category != null) {
@@ -385,6 +390,7 @@ class _FavoriteBookshelf extends StatelessWidget {
     }
 
     // 分组筛选（多选并集：命中任一分组即显示；哨兵 kUngroupedId = 未分组）。
+    // 「全部」视图已在取数阶段排除仅属隐藏分类的收藏，此处不再处理。
     if (filter.groupIds.isNotEmpty) {
       entries = entries.where((e) =>
           (filter.groupIds.contains(kUngroupedId) && e.groupIds.isEmpty) ||

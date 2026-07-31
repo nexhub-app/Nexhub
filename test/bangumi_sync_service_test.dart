@@ -531,7 +531,8 @@ void main() {
         entries: [_entry('m1', SourceType.mangaSource, lastRead: 123)]);
     await ctx.service.setTagsEnabled(true);
     await ctx.linkStore.put('m1', const SubjectLink(subjectId: 10));
-    final group = await ctx.favorites.createGroup('MyGroup');
+    final group = await ctx.favorites
+        .createGroup('MyGroup', type: SourceType.mangaSource);
     await ctx.favorites
         .setEntryGroups('m1', SourceType.mangaSource, [group!.id]);
     ctx.client.remoteCollections[10] = const BangumiUserCollection(
@@ -552,7 +553,8 @@ void main() {
         entries: [_entry('m1', SourceType.mangaSource, lastRead: 123)]);
     await ctx.service.setTagsEnabled(true);
     await ctx.linkStore.put('m1', const SubjectLink(subjectId: 10));
-    final group = await ctx.favorites.createGroup('MyGroup');
+    final group = await ctx.favorites
+        .createGroup('MyGroup', type: SourceType.mangaSource);
     await ctx.favorites
         .setEntryGroups('m1', SourceType.mangaSource, [group!.id]);
     ctx.client.remoteCollections[10] = const BangumiUserCollection(

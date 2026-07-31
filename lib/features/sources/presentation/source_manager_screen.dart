@@ -22,6 +22,7 @@ import '../../../core/widgets/unified_source_tile.dart';
 import '../../shuyuan/presentation/shuyuan_import_screen.dart';
 import 'collect_api_import_screen.dart';
 import 'source_mirror_screen.dart';
+import 'source_network_override_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
@@ -616,6 +617,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                 editTooltip: l10n.sourceEdit,
                 deleteTooltip: l10n.sourceDelete,
                 migrateTooltip: l10n.sourceMigrate,
+                networkOverrideTooltip: l10n.sourceNetworkOverride,
                 // 源管理页：操作收进「更多」菜单，更清爽
                 useMoreMenu: true,
                 moreMenuTooltip: l10n.moreActions,
@@ -624,6 +626,11 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                 onMirrorSettings: () => Navigator.of(context).push(
                   AppPageRoute<void>(
                     builder: (_) => SourceMirrorScreen(source: s),
+                  ),
+                ),
+                onNetworkOverride: () => Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    builder: (_) => SourceNetworkOverrideScreen(source: s),
                   ),
                 ),
                 onHide: () =>

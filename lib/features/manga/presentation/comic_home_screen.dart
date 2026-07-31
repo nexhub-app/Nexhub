@@ -146,6 +146,7 @@ class ComicHomeScreen extends StatelessWidget {
           BookshelfContent.categoriesFor(
               context, SourceType.mangaSource, subTab),
       historySourceType: SourceType.mangaSource,
+      favoriteSourceType: SourceType.mangaSource,
       fabSuppressedNotifier: fabSuppressed,
     );
   }

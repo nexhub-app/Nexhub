@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
+import '../favorites/favorite_group.dart';
 import '../models/bookshelf_filter.dart';
 import '../theme/app_tokens.dart';
 import 'app_animations.dart';
@@ -16,6 +17,7 @@ Future<BookshelfFilter?> showBookshelfFilterSheet(
   BuildContext context, {
   required BookshelfFilter initialFilter,
   required List<String> categories,
+  List<FavoriteGroup> groups = const <FavoriteGroup>[],
 }) {
   return showModalBottomSheet<BookshelfFilter>(
     context: context,
@@ -28,6 +30,7 @@ Future<BookshelfFilter?> showBookshelfFilterSheet(
     builder: (BuildContext ctx) => _BookshelfFilterSheet(
       initialFilter: initialFilter,
       categories: categories,
+      groups: groups,
     ),
   );
 }
@@ -35,10 +38,12 @@ Future<BookshelfFilter?> showBookshelfFilterSheet(
 class _BookshelfFilterSheet extends StatefulWidget {
   final BookshelfFilter initialFilter;
   final List<String> categories;
+  final List<FavoriteGroup> groups;
 
   const _BookshelfFilterSheet({
     required this.initialFilter,
     required this.categories,
+    required this.groups,
   });
 
   @override
@@ -52,6 +57,13 @@ class _BookshelfFilterSheetState extends State<_BookshelfFilterSheet> {
   void initState() {
     super.initState();
     _filter = widget.initialFilter;
+  }
+
+  /// 切换分组 id 的选中态（多选并集语义，与分组栏共享同一状态）。
+  void _toggleGroup(String id) {
+    final Set<String> next = Set<String>.of(_filter.groupIds);
+    if (!next.remove(id)) next.add(id);
+    setState(() => _filter = _filter.copyWith(groupIds: next));
   }
 
   @override
@@ -137,6 +149,30 @@ class _BookshelfFilterSheetState extends State<_BookshelfFilterSheet> {
                         ),
                       ),
                     ]),
+                    if (widget.groups.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: AppTokens.spaceMd),
+                      _Section(label: l10n.filterByGroup, children: <Widget>[
+                        _ChoiceChip(
+                          label: l10n.groupAll,
+                          selected: _filter.groupIds.isEmpty,
+                          onSelected: (_) => setState(() => _filter = _filter
+                              .copyWith(groupIds: const <String>{})),
+                        ),
+                        _ChoiceChip(
+                          label: l10n.groupUngrouped,
+                          selected:
+                              _filter.groupIds.contains(kUngroupedId),
+                          onSelected: (_) => _toggleGroup(kUngroupedId),
+                        ),
+                        ...widget.groups.map(
+                          (FavoriteGroup g) => _ChoiceChip(
+                            label: g.name,
+                            selected: _filter.groupIds.contains(g.id),
+                            onSelected: (_) => _toggleGroup(g.id),
+                          ),
+                        ),
+                      ]),
+                    ],
                     const SizedBox(height: AppTokens.spaceMd),
                     _Section(label: l10n.filterByProgress, children: <Widget>[
                       _ChoiceChip(

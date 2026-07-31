@@ -146,6 +146,7 @@ class NovelHomeScreen extends StatelessWidget {
           BookshelfContent.categoriesFor(
               context, SourceType.novelSource, subTab),
       historySourceType: SourceType.novelSource,
+      favoriteSourceType: SourceType.novelSource,
       fabSuppressedNotifier: fabSuppressed,
     );
   }
