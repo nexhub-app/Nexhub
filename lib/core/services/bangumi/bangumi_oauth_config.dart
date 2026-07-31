@@ -24,11 +24,11 @@ abstract final class BangumiOAuthConfig {
   /// 通过 `--dart-define=BANGUMI_CLIENT_ID=...` 注入；未注入时为空，
   /// [configured] 为 false，UI 会提示先配置。
   static const String clientId =
-      String.fromEnvironment('BANGUMI_CLIENT_ID', default: '');
+      String.fromEnvironment('BANGUMI_CLIENT_ID', defaultValue: '');
 
   /// 在 bgm.tv/dev 注册应用后获得的 Client Secret。
   static const String clientSecret =
-      String.fromEnvironment('BANGUMI_CLIENT_SECRET', default: '');
+      String.fromEnvironment('BANGUMI_CLIENT_SECRET', defaultValue: '');
 
   /// 回调地址：必须与 bgm.tv/dev 后台填写的 Redirect URI 完全一致，
   /// 且已在本机 AndroidManifest / iOS Info.plist 注册为深链。

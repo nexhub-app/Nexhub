@@ -3,7 +3,7 @@
 /// 展示该内容的阅读/观看总览：总章节/集数、已读/已看、进度百分比 + 进度条，
 /// 以及最近一次阅读/观看的时间与条目。
 ///
-/// 供 [ContentDetailScreen] / [ComicDetailScreen] / [NovelDetailScreen] 复用。
+/// 供唯一详情页 [ContentDetailScreen] 复用。
 library;
 
 import 'package:flutter/material.dart';
@@ -61,6 +61,9 @@ class ProgressCard extends StatelessWidget {
 
   double get _percent => total <= 0 ? 0.0 : (read / total).clamp(0.0, 1.0);
 
+  /// 是否已全部读完/看完（用于完结态高亮）。
+  bool get _completed => total > 0 && read >= total;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -70,12 +73,22 @@ class ProgressCard extends StatelessWidget {
     final String title = isReading ? l10n.readingProgress : l10n.watchingProgress;
     final String totalLabel = isReading ? l10n.totalChapters : l10n.totalEpisodes;
     final String readLabel = isReading ? l10n.chaptersRead : l10n.episodesWatched;
-    final String percentText = '${(_percent * 100).toStringAsFixed(1)}%';
 
-    final Widget card = Container(
+    // 完结态：底色转为 primaryContainer 淡染 + 细描边，无需新增文案键。
+    final Widget card = AnimatedContainer(
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        color: _completed
+            ? scheme.primaryContainer.withValues(alpha: 0.38)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        border: _completed
+            ? Border.all(
+                color: scheme.primary.withValues(alpha: 0.45),
+                width: 1,
+              )
+            : null,
       ),
       padding: const EdgeInsets.symmetric(
         horizontal: AppTokens.spaceLg,
@@ -85,50 +98,78 @@ class ProgressCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           // 标题行
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: scheme.onSurface,
-                  fontWeight: FontWeight.w600,
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
+              ),
+              // 完结态徽标：仅图标，避免引入新的本地化文案键。
+              AnimatedScale(
+                scale: _completed ? 1 : 0,
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeOutBack,
+                child: Icon(
+                  Icons.verified_rounded,
+                  size: 18,
+                  color: scheme.primary,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppTokens.spaceMd),
-          // 三列统计
+          // 三列统计（数字滚动增长）
           Row(
             children: <Widget>[
               Expanded(
                 child: _StatColumn(
                   icon: Icons.menu_book_outlined,
-                  value: '$total',
+                  value: total.toDouble(),
+                  format: (double v) => v.round().toString(),
                   label: totalLabel,
                 ),
               ),
               Expanded(
                 child: _StatColumn(
-                  icon: Icons.check_circle_outline,
-                  value: '$read',
+                  icon: _completed
+                      ? Icons.check_circle
+                      : Icons.check_circle_outline,
+                  value: read.toDouble(),
+                  format: (double v) => v.round().toString(),
                   label: readLabel,
                 ),
               ),
               Expanded(
                 child: _StatColumn(
                   icon: Icons.percent,
-                  value: percentText,
+                  value: _percent * 100,
+                  format: (double v) => '${v.toStringAsFixed(1)}%',
                   label: l10n.progressLabel,
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppTokens.spaceMd),
-          // 进度条
+          // 进度条（数值变化时平滑推进，而非瞬跳）
           ClipRRect(
             borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-            child: LinearProgressIndicator(
-              value: total <= 0 ? null : _percent,
-              minHeight: 6,
-              backgroundColor:
-                  scheme.surfaceContainerHighest.withValues(alpha: 0.8),
-              valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: _percent),
+              duration: const Duration(milliseconds: 700),
+              curve: Curves.easeOutCubic,
+              builder: (BuildContext context, double v, Widget? child) =>
+                  LinearProgressIndicator(
+                value: total <= 0 ? null : v,
+                minHeight: 6,
+                backgroundColor:
+                    scheme.surfaceContainerHighest.withValues(alpha: 0.8),
+                valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+              ),
             ),
           ),
           // 最近阅读/观看
@@ -174,15 +215,20 @@ class ProgressCard extends StatelessWidget {
   }
 }
 
-/// 三列统计中的单列：图标 + 数字 + 标签。
+/// 三列统计中的单列：图标 + 滚动数字 + 标签。
+///
+/// 数字通过 [TweenAnimationBuilder] 从 0（首次）或上一值补间到 [value]，
+/// 让「已读 +1」这类变化可被感知，而非瞬间跳变。
 class _StatColumn extends StatelessWidget {
   final IconData icon;
-  final String value;
+  final double value;
+  final String Function(double) format;
   final String label;
 
   const _StatColumn({
     required this.icon,
     required this.value,
+    required this.format,
     required this.label,
   });
 
@@ -193,12 +239,17 @@ class _StatColumn extends StatelessWidget {
       children: <Widget>[
         Icon(icon, size: 18, color: scheme.primary),
         const SizedBox(height: 2),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: scheme.onSurface,
-              ),
+        TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0, end: value),
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeOutCubic,
+          builder: (BuildContext context, double v, Widget? child) => Text(
+            format(v),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurface,
+                ),
+          ),
         ),
         const SizedBox(height: 2),
         Text(

@@ -19,7 +19,7 @@ import '../../home/presentation/local_media_viewer.dart';
 import '../../rss/presentation/rss_feed_list_screen.dart';
 import '../../sources/presentation/collect_api_import_screen.dart';
 import '../../sources/presentation/source_manager_screen.dart';
-import 'novel_detail_screen.dart';
+import '../../media/presentation/content_detail_screen.dart';
 import 'novel_online_list_screen.dart';
 import 'novel_reader_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
@@ -55,7 +55,7 @@ class NovelHomeScreen extends StatelessWidget {
             title: l10n.search,
             onItemTap: (MediaItem item, String? heroTag) => Navigator.of(context).push(
               AppHeroPageRoute<void>(
-                builder: (_) => NovelDetailScreen(item: item, heroTag: heroTag),
+                builder: (_) => ContentDetailScreen(item: item, heroTag: heroTag),
               ),
             ),
           ),
@@ -108,7 +108,7 @@ class NovelHomeScreen extends StatelessWidget {
           }
           Navigator.of(context).push(
             AppPageRoute<void>(
-              builder: (_) => NovelDetailScreen(item: item),
+              builder: (_) => ContentDetailScreen(item: item),
             ),
           );
         },

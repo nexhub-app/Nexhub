@@ -20,16 +20,15 @@ import '../services/bangumi/bangumi_sync_service.dart';
 import '../services/bangumi/subject_link_store.dart';
 import '../theme/app_tokens.dart';
 
-/// 唤起 Bangumi 绑定与评分底部面板。条目未收藏时静默不弹。
+/// 唤起 Bangumi 绑定与评分底部面板。
+///
+/// 不再要求本地收藏：未收藏条目也可手动搜索绑定（详情页卡片解耦收藏流程后，
+/// 用户可能在未收藏时就需要绑定 / 同步 Bangumi 条目）。
 Future<void> showBangumiBindSheet(
   BuildContext context, {
   required String contentId,
   required SourceType sourceType,
 }) {
-  final FavoritesManager manager = context.read<FavoritesManager>();
-  final bool favorited =
-      manager.favoritesFor(sourceType).any((e) => e.id == contentId);
-  if (!favorited) return Future<void>.value();
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,

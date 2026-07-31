@@ -1,8 +1,7 @@
 /// 详情页共享章节列表组件（M16.5 筛选/排序/显示全面增强）。
 ///
 /// 提供"搜索框 + 筛选/排序/显示组合按钮 + 章节 ListTile + 行尾操作按钮"的
-/// 统一布局，供 [ContentDetailScreen] / [ComicDetailScreen] /
-/// [NovelDetailScreen] 复用。
+/// 统一布局，供唯一详情页 [ContentDetailScreen]（动漫/影视/漫画/小说）复用。
 ///
 /// 行尾三按钮（下载单章 / 书签 / 已读）通过回调按需启用：传入 null 则不渲染。
 /// 已读条目自动降低不透明度（[Opacity(0.5)]）。
@@ -343,10 +342,21 @@ class _ChapterListSectionState extends State<ChapterListSection> {
             ),
           );
         }
-        children.addAll(_buildChapterTiles(context, l10n, scheme, head));
+        // 网格/列表切换：groupByLine 分支此前只渲染列表，导致影视（groupByLine
+        // + enableGridMode 同时为 true）下网格按钮点击无反应。这里与下方非分组
+        // 路径保持一致，按 _isGridMode 选择网格或列表。
+        if (_isGridMode && widget.enableGridMode) {
+          children.add(_buildChapterGrid(context, l10n, scheme, head));
+        } else {
+          children.addAll(_buildChapterTiles(context, l10n, scheme, head));
+        }
         if (groupCollapse) {
           children.add(_buildExpandButton(context, l10n, hidden));
-          children.addAll(_buildChapterTiles(context, l10n, scheme, tail));
+          if (_isGridMode && widget.enableGridMode) {
+            children.add(_buildChapterGrid(context, l10n, scheme, tail));
+          } else {
+            children.addAll(_buildChapterTiles(context, l10n, scheme, tail));
+          }
         }
       }
       return Column(
@@ -695,15 +705,73 @@ class _ChapterListSectionState extends State<ChapterListSection> {
             ),
           );
 
+          final bool hasGridActions = widget.onToggleRead != null ||
+              widget.onToggleBookmark != null ||
+              widget.onDownloadChapter != null;
           return Entrance(
             onceKey: '$gridId-$i',
             delay: Duration(milliseconds: (gridIndex * 18).clamp(0, 240)),
-            child: GestureDetector(
+            child: _GridChapterCell(
+              isRead: isRead,
+              card: card,
               onTap: () => widget.onTapChapter(ep, i),
-              child: isRead ? Opacity(opacity: 0.5, child: card) : card,
+              onLongPress: hasGridActions
+                  ? () => _showGridChapterMenu(context, ep, i, isRead)
+                  : null,
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// 网格卡片长按菜单：已读 / 书签 / 下载单章（按需启用，回调为 null 则不显示对应项）。
+  void _showGridChapterMenu(
+    BuildContext context,
+    Episode ep,
+    int i,
+    bool isRead,
+  ) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final List<Widget> items = <Widget>[
+      if (widget.onToggleRead != null)
+        ListTile(
+          leading: Icon(
+            isRead ? Icons.check_circle : Icons.radio_button_unchecked,
+          ),
+          title: Text(l10n.chapterRead),
+          onTap: () {
+            Navigator.of(context).pop();
+            widget.onToggleRead!.call(ep, i);
+          },
+        ),
+      if (widget.onToggleBookmark != null)
+        ListTile(
+          leading: const Icon(Icons.bookmark),
+          title: Text(l10n.chapterBookmark),
+          onTap: () {
+            Navigator.of(context).pop();
+            widget.onToggleBookmark!.call(ep, i);
+          },
+        ),
+      if (widget.onDownloadChapter != null)
+        ListTile(
+          leading: const Icon(Icons.download),
+          title: Text(l10n.downloadSingleChapter),
+          onTap: () {
+            Navigator.of(context).pop();
+            widget.onDownloadChapter!.call(ep, i);
+          },
+        ),
+    ];
+    if (items.isEmpty) return;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: items,
+        ),
       ),
     );
   }
@@ -826,5 +894,46 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       );
     }
     return tiles;
+  }
+}
+
+/// 网格章节卡片：点击进入详情；长按弹出操作菜单；按下带轻微缩放反馈（灵动感）。
+class _GridChapterCell extends StatefulWidget {
+  final bool isRead;
+  final Widget card;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  const _GridChapterCell({
+    required this.isRead,
+    required this.card,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  @override
+  State<_GridChapterCell> createState() => _GridChapterCellState();
+}
+
+class _GridChapterCellState extends State<_GridChapterCell> {
+  double _scale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _scale = 0.94),
+      onTapUp: (_) => setState(() => _scale = 1.0),
+      onTapCancel: () => setState(() => _scale = 1.0),
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: widget.isRead
+            ? Opacity(opacity: 0.5, child: widget.card)
+            : widget.card,
+      ),
+    );
   }
 }
