@@ -11,6 +11,8 @@ import '../danmaku/dandanplay_matcher.dart';
 import '../models/episode.dart';
 import '../models/media_item.dart';
 import '../models/plugin_config.dart';
+import '../network/model/effective_network_profile.dart';
+import '../network/network_config_service.dart';
 import '../scraper/collect_api_parser.dart';
 import '../scraper/http_fetcher.dart';
 import '../services/config_loader.dart';
@@ -63,6 +65,8 @@ class BuiltinResolver implements SourceResolver {
     // xpath 源在「直连 HTTP 解析」（关掉 useWebview 走 BuiltinResolver）时把
     // HTML 当 JSON 解析、列表永远为空。
     final rt = source.responseTypeFor(apiName) ?? _defaultResponseType(source);
+    // 源级网络覆盖：计算一次有效档案，显式沿调用链下传（无 Zone）。
+    final net = NetworkConfigService.instance.effectiveFor(source);
     final referer = source.antiHotlinking.referer ?? (baseUrl ?? url);
     // C1：反盗链指定 UA（pms_fsdm / pms_xifanacg 等 xpath 源）。
     final ua = source.antiHotlinking.userAgent;
@@ -81,7 +85,7 @@ class BuiltinResolver implements SourceResolver {
           if (apiName == 'week') {
             // 周更列表：ds_api/vod 单页仅 40 条，翻数页凑足一周各开播日的样本，
             // 避免周期表某些星期因单页采样偏差长期为空。
-            json = await _fetchWeekJson(url, referer, ahHeaders);
+            json = await _fetchWeekJson(url, referer, ahHeaders, net: net);
           } else {
             final split = _splitFormUrl(url);
             json = await HttpFetcher.instance.postJson(
@@ -92,11 +96,12 @@ class BuiltinResolver implements SourceResolver {
               },
               data: split.$2,
               referer: referer,
+              net: net,
             );
           }
         } else {
           json = await HttpFetcher.instance
-              .getJson(url, referer: referer, headers: ahHeaders);
+              .getJson(url, referer: referer, headers: ahHeaders, net: net);
         }
         result = _withDetailUrlFallback(
           _parseJson(source, apiName, json, url, baseUrl: baseUrl ?? url),
@@ -115,7 +120,7 @@ class BuiltinResolver implements SourceResolver {
         }
       }
       final enhanced = await _maybeEnhanceVideo(apiName, result, source,
-          baseUrl: baseUrl ?? url, referer: referer);
+          baseUrl: baseUrl ?? url, referer: referer, net: net);
       return _enrichDanmakuIfEpisodes(enhanced, vars);
     }
     final String html;
@@ -126,10 +131,11 @@ class BuiltinResolver implements SourceResolver {
         data: split.$3,
         referer: referer,
         headers: ahHeaders,
+        net: net,
       );
     } else {
       html = await HttpFetcher.instance
-          .getHtml(url, referer: referer, headers: ahHeaders);
+          .getHtml(url, referer: referer, headers: ahHeaders, net: net);
     }
     // 诊断：筛选结果为空时，先看 URL 和 HTML 标题/长度
     final titleMatch = RegExp(r'<title[^>]*>(.*?)</title>', caseSensitive: false)
@@ -145,7 +151,7 @@ class BuiltinResolver implements SourceResolver {
       url,
     );
     final enhanced = await _maybeEnhanceVideo(apiName, result, source,
-        baseUrl: baseUrl ?? url, referer: referer);
+        baseUrl: baseUrl ?? url, referer: referer, net: net);
     return _enrichDanmakuIfEpisodes(enhanced, vars);
   }
 
@@ -163,6 +169,7 @@ class BuiltinResolver implements SourceResolver {
     String? baseUrl,
   }) async {
     final effectiveBase = baseUrl ?? source.site.baseUrl;
+    final net = NetworkConfigService.instance.effectiveFor(source);
     final result = _parseHtml(source, apiName, html, baseUrl: effectiveBase);
     final enhanced = await _maybeEnhanceVideo(
       apiName,
@@ -170,6 +177,7 @@ class BuiltinResolver implements SourceResolver {
       source,
       baseUrl: effectiveBase,
       referer: source.antiHotlinking.referer ?? effectiveBase,
+      net: net,
     );
     return _enrichDanmakuIfEpisodes(enhanced, vars);
   }
@@ -215,8 +223,9 @@ class BuiltinResolver implements SourceResolver {
   Future<dynamic> _fetchWeekJson(
     String url,
     String referer,
-    Map<String, String>? ahHeaders,
-  ) async {
+    Map<String, String>? ahHeaders, {
+    EffectiveNetworkProfile? net,
+  }) async {
     final split = _splitFormUrl(url);
     final base = split.$1;
     final headers = <String, String>{
@@ -237,6 +246,7 @@ class BuiltinResolver implements SourceResolver {
           headers: headers,
           data: body,
           referer: referer,
+          net: net,
         );
         final list = j is Map ? j['list'] : null;
         if (list is List && list.isNotEmpty) {
@@ -327,10 +337,11 @@ class BuiltinResolver implements SourceResolver {
     PluginConfig source, {
     required String baseUrl,
     required String? referer,
+    EffectiveNetworkProfile? net,
   }) async {
     if (apiName != 'video' || result is! VideoResult) return result;
     return _enhanceVideoResult(result, source,
-        baseUrl: baseUrl, referer: referer);
+        baseUrl: baseUrl, referer: referer, net: net);
   }
 
   /// 对单个 [VideoResult] 做 m3u8 广告过滤与缓存。
@@ -339,6 +350,7 @@ class BuiltinResolver implements SourceResolver {
     PluginConfig source, {
     required String baseUrl,
     required String? referer,
+    EffectiveNetworkProfile? net,
   }) async {
     final cacheKey = '${source.id}:${raw.url}';
     // 重解析前批量清理过期项，防止过期项堆积。
@@ -350,7 +362,7 @@ class BuiltinResolver implements SourceResolver {
     final type = raw.type ?? _guessType(raw.url);
     if (type == 'm3u8' && _isHttpUrl(raw.url)) {
       try {
-        enhanced = await _resolveM3u8(raw, referer: referer);
+        enhanced = await _resolveM3u8(raw, referer: referer, net: net);
       } catch (_) {
         // m3u8 抓取/解析失败时回退原始 URL，保证可播放。
         enhanced = raw;
@@ -395,9 +407,10 @@ class BuiltinResolver implements SourceResolver {
   Future<VideoResult> _resolveM3u8(
     VideoResult raw, {
     required String? referer,
+    EffectiveNetworkProfile? net,
   }) async {
     final content =
-        await HttpFetcher.instance.getHtml(raw.url, referer: referer);
+        await HttpFetcher.instance.getHtml(raw.url, referer: referer, net: net);
     final parsed = M3u8Parser.parse(content, baseUrl: raw.url);
 
     // Master playlist：选最高带宽变体 URL 返回（缓存与播放器后续处理）。

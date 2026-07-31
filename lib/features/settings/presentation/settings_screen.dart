@@ -21,6 +21,7 @@ import '../../../core/widgets/layout_picker_dialog.dart';
 import '../../home/presentation/browse_web_scrape_screen.dart';
 import '../../sources/presentation/source_manager_screen.dart';
 import './settings_download_screen.dart';
+import './settings_network_screen.dart';
 import './settings_rsshub_screen.dart';
 import './settings_rss_notifications_screen.dart';
 import './settings_danmaku_display_screen.dart';
@@ -29,11 +30,13 @@ import './settings_novel_reader_screen.dart';
 import './settings_comic_reader_screen.dart';
 import './settings_import_export_screen.dart';
 import './settings_cloud_sync_screen.dart';
+import './settings_bangumi_screen.dart';
 import './about_screen.dart';
 import '../../../core/settings/general_settings.dart';
 import './widgets/settings_widgets.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/services/cloud_sync_service.dart';
+import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
@@ -268,6 +271,21 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
 
+          // ── 网络 ──
+          const SizedBox(height: AppTokens.spaceXl),
+          _SettingsGroupHeader(label: l10n.settingsGroupNetwork),
+          AppListTile(
+            leading: const Icon(Icons.lan_outlined),
+            title: Text(l10n.networkSettingsTitle),
+            subtitle: Text(l10n.networkSettingsDesc),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              AppPageRoute<void>(
+                builder: (_) => const SettingsNetworkScreen(),
+              ),
+            ),
+          ),
+
           // ── 订阅与通知 ──
           const SizedBox(height: AppTokens.spaceXl),
           _SettingsGroupHeader(label: l10n.settingsGroupSubscriptions),
@@ -321,6 +339,13 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               AppPageRoute<void>(
                 builder: (_) => const SettingsCloudSyncScreen(),
+              ),
+            ),
+          ),
+          _BangumiTile(
+            onTap: () => Navigator.of(context).push(
+              AppPageRoute<void>(
+                builder: (_) => const SettingsBangumiScreen(),
               ),
             ),
           ),
@@ -423,6 +448,55 @@ class _CloudSyncTile extends StatelessWidget {
             return AppListTile(
               leading: const Icon(Icons.cloud_sync),
               title: Text(l10n.cloudSync),
+              subtitle: Text(subtitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onTap,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Bangumi 同步列表项 —— 订阅 [BangumiSyncService] 动态显示上次同步状态。
+///
+/// 显示规则：
+/// - 未登录：显示功能描述
+/// - 已登录但从未同步：显示「尚未同步」
+/// - 已同步：显示「上次同步：{时间}」
+class _BangumiTile extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _BangumiTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Consumer<BangumiSyncService>(
+      builder: (context, service, _) {
+        return AnimatedBuilder(
+          animation: GeneralSettingsStore.instance,
+          builder: (_, __) {
+            String subtitle;
+            if (!service.auth.isLoggedIn) {
+              subtitle = l10n.bangumiSettingsSubtitle;
+            } else if (service.lastSyncAt == null) {
+              subtitle = l10n.bangumiNeverSynced;
+            } else {
+              final dt = DateTime.fromMillisecondsSinceEpoch(
+                service.lastSyncAt!,
+              );
+              final formatted =
+                  GeneralSettingsStore.instance.settings.dateFormat.format(
+                dt,
+                withTime: true,
+              );
+              subtitle = l10n.bangumiLastSync(formatted);
+            }
+            return AppListTile(
+              leading: const Icon(Icons.live_tv),
+              title: Text(l10n.bangumiSettings),
               subtitle: Text(subtitle),
               trailing: const Icon(Icons.chevron_right),
               onTap: onTap,

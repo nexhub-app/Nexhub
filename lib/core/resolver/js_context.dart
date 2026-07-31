@@ -10,6 +10,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_js/flutter_js.dart';
 
 import '../models/plugin_config.dart';
+import '../network/model/effective_network_profile.dart';
+import '../network/network_config_service.dart';
 import '../scraper/http_fetcher.dart';
 import '../utils/crypto_utils.dart';
 import '../utils/html_utils.dart';
@@ -858,6 +860,11 @@ class DartJsHostBridge implements JsHostBridge {
   String get _referer =>
       source.antiHotlinking.referer ?? ConfigLoader.instance.getActiveMirror(source);
 
+  /// 源级网络覆盖档案：每次拓取显式传给 HttpFetcher，使该源的
+  /// JS 能力调用走专属代理/DNS 档案（无 Zone）。
+  EffectiveNetworkProfile get _net =>
+      NetworkConfigService.instance.effectiveFor(source);
+
   /// 反盗链指定 UA（C1）：golden 源 pms_fsdm / pms_cycani 等通过
   /// `antiHotlinking.userAgent` 要求携带特定 UA 才能绕开防盗链。
   /// 注入到请求头后会覆盖 HttpFetcher 默认指纹 UA（extra 在 _mergeHeaders
@@ -877,12 +884,12 @@ class DartJsHostBridge implements JsHostBridge {
   @override
   Future<String> httpGet(String url, {Map<String, String>? headers}) =>
       HttpFetcher.instance.getHtml(url,
-          referer: _referer, headers: _withUa(headers));
+          referer: _referer, headers: _withUa(headers), net: _net);
 
   @override
   Future<dynamic> httpGetJson(String url, {Map<String, String>? headers}) =>
       HttpFetcher.instance.getJson(url,
-          referer: _referer, headers: _withUa(headers));
+          referer: _referer, headers: _withUa(headers), net: _net);
 
   @override
   Future<String> httpPost(String url, String body,
@@ -890,7 +897,8 @@ class DartJsHostBridge implements JsHostBridge {
       HttpFetcher.instance.post(url,
           data: body,
           referer: _referer,
-          headers: _withUa(headers));
+          headers: _withUa(headers),
+          net: _net);
 
   @override
   String? queryHtml(String html, String selector) =>
@@ -905,7 +913,8 @@ class DartJsHostBridge implements JsHostBridge {
       HttpFetcher.instance.postForm(url,
           data: params,
           referer: _referer,
-          headers: _withUa(headers));
+          headers: _withUa(headers),
+          net: _net);
 
   @override
   String? query(String html, String selector) => HtmlUtils.query(html, selector);
@@ -1102,12 +1111,13 @@ class DartJsHostBridge implements JsHostBridge {
       HttpFetcher.instance.put(url,
           data: <String, dynamic>{'body': body},
           referer: _referer,
-          headers: _withUa(headers));
+          headers: _withUa(headers),
+          net: _net);
 
   @override
   Future<String> httpDelete(String url, {Map<String, String>? headers}) =>
       HttpFetcher.instance.delete(url,
-          referer: _referer, headers: _withUa(headers));
+          referer: _referer, headers: _withUa(headers), net: _net);
 
   @override
   Future<Map<String, dynamic>> httpFetch(String url,
@@ -1118,7 +1128,8 @@ class DartJsHostBridge implements JsHostBridge {
           method: method,
           headers: _withUa(headers),
           body: body,
-          referer: _referer);
+          referer: _referer,
+          net: _net);
 
   // ---- utils ----
 

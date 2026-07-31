@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
+import 'core/network/runtime/nexhub_http_overrides.dart';
 import 'features/splash/splash_screen.dart';
 
 /// Entry point: defers all initialization to [SplashScreen] so the user sees
@@ -12,6 +14,11 @@ void main() {
   // 却无任何提示。渲染错误时不再是纯黑，而是给出可读的错误详情，便于定位根因。
   runZonedGuarded<void>(() {
     WidgetsFlutterBinding.ensureInitialized();
+
+    // 全局网络覆盖：接管所有 dart:io HttpClient 派生流量（散落的独立
+    // Dio/HttpClient、cached_network_image、下载器、云同步等）。此时用默认
+    // 网络档案，真实配置在 splash 加载 NetworkConfigService 后即时生效。
+    HttpOverrides.global = NexHubHttpOverrides();
 
     // 构建期异常可视化：任何 widget build 抛错时，展示错误文本而非黑屏。
     ErrorWidget.builder = (FlutterErrorDetails details) {
