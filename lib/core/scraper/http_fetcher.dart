@@ -9,6 +9,9 @@ import 'dart:math' show Random;
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:fast_gbk/fast_gbk.dart';
+import '../network/model/effective_network_profile.dart';
+import '../network/network_config_service.dart';
+import '../network/runtime/network_client_builder.dart';
 import '../services/config_loader.dart';
 import 'package:flutter/foundation.dart';
 import 'cookie_store.dart';
@@ -67,7 +70,11 @@ class HttpFetcher {
   /// 调试/特殊网络环境下强制直连（绕过系统代理）。默认 false，不影响正常行为。
   static bool forceDirect = false;
 
+  /// 默认档案 Dio（对应全局有效档案 / `net == null`）。
   late Dio _dio;
+
+  /// 按有效档案签名隔离的 Dio 缓存（源级覆盖用）。
+  final Map<String, Dio> _dioByProfile = <String, Dio>{};
   final Map<String, String> _cookieJar = {};
 
   /// 验证冷却：命中验证的 host 在冷却期内，[_throttleHost] 会延长最小间隔，
@@ -125,44 +132,85 @@ class HttpFetcher {
   final Random _random = Random();
 
   void _buildDio() {
-    _dio = Dio();
+    _dio = _createDio(null);
+  }
+
+  /// 按有效档案创建一个配置好的 Dio。
+  ///
+  /// [profile] 为 null 表示默认档案（运行时用全局有效档案）；否则用该档案。
+  /// 客户端构建统一走 [NetworkClientBuilder]，与全局 HttpOverrides 同一路径。
+  Dio _createDio(EffectiveNetworkProfile? profile) {
+    final dio = Dio();
     // 对齐旧版（AI 修改前可正常解析的版本）：补全浏览器标准请求头。
     // 缺少 Accept / Accept-Language 头时，大量国内站（小说/动漫/漫画）会直接返回 400 空响应。
-    _dio.options.connectTimeout = const Duration(seconds: 15);
-    _dio.options.receiveTimeout = const Duration(seconds: 30);
-    _dio.options.headers.addAll({
+    dio.options.connectTimeout = const Duration(seconds: 15);
+    dio.options.receiveTimeout = const Duration(seconds: 30);
+    dio.options.headers.addAll({
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
     });
 
-    final adapter = IOHttpClientAdapter(
+    dio.httpClientAdapter = IOHttpClientAdapter(
       createHttpClient: () {
-        final client = HttpClient();
-        // 允许自签证书（部分源使用非标准 SSL 配置）
-        client.badCertificateCallback = (cert, host, port) => true;
-        if (forceDirect) {
-          client.findProxy = (_) => 'DIRECT';
-        } else if (proxy != null && proxy!.isNotEmpty) {
-          // 可选代理：所有请求经此代理（与 forceDirect 互斥，优先直连）。
-          client.findProxy = (_) => 'PROXY $proxy';
+        try {
+          final service = NetworkConfigService.instance;
+          final effective = profile ?? service.globalProfile;
+          final client = NetworkClientBuilder.buildHttpClient(
+            effective,
+            proxyPassword: service.proxyPassword,
+          );
+          // 向后兼容：静态 forceDirect / proxy 覆盖（仅对默认档案生效）。
+          if (profile == null) {
+            if (forceDirect) {
+              client.findProxy = (_) => 'DIRECT';
+            } else if (proxy != null && proxy!.isNotEmpty) {
+              client.findProxy = (_) => 'PROXY $proxy';
+            }
+          }
+          return client;
+        } on Object catch (e, st) {
+          // 构建档案失败：回退裸客户端（保留自签容忍），保证该源仍可系统直连。
+          debugPrint('HttpFetcher._createDio fallback: $e\n$st');
+          final client = HttpClient();
+          client.badCertificateCallback = (cert, host, port) => true;
+          return client;
         }
-        return client;
       },
     );
-    _dio.httpClientAdapter = adapter;
+    return dio;
   }
 
-  /// 运行时切换直连模式（会重建 Dio 实例）。
+  /// 按有效档案取/建 Dio：
+  /// - `p == null` 或与全局档案同签名 → 复用默认 Dio；
+  /// - 否则按签名隔离缓存一个源级 Dio。
+  Dio _dioFor(EffectiveNetworkProfile? p) {
+    if (p == null) return _dio;
+    final globalSig = NetworkConfigService.instance.globalProfile.signature;
+    if (p.signature == globalSig) return _dio;
+    return _dioByProfile.putIfAbsent(p.signature, () => _createDio(p));
+  }
+
+  /// 重建所有 Dio（全局配置变更时调用）：丢弃旧连接池，新配置即时生效。
+  void rebuildAll() {
+    for (final d in _dioByProfile.values) {
+      d.close(force: true);
+    }
+    _dioByProfile.clear();
+    _dio.close(force: true);
+    _buildDio();
+  }
+
+  /// 运行时切换直连模式（重建全部 Dio 实例）。
   static void setForceDirect(bool value) {
     forceDirect = value;
-    instance._buildDio();
+    instance.rebuildAll();
   }
 
-  /// 运行时切换代理（会重建 Dio 实例）。
+  /// 运行时切换代理（重建全部 Dio 实例）。
   static void setProxy(String? value) {
     proxy = value;
-    instance._buildDio();
+    instance.rebuildAll();
   }
 
   /// 返回某 URL 实际使用的 UA（经 [_profileIndexFor] 选定的指纹档案）。
@@ -405,11 +453,12 @@ class HttpFetcher {
     Map<String, String>? headers,
     String? referer,
     bool stealth = true,
+    EffectiveNetworkProfile? net,
   }) async {
     await _gateRequest(url, stealth);
     try {
       final merged = _mergeHeaders(referer, headers, url);
-      final resp = await _dio.get<List<int>>(
+      final resp = await _dioFor(net).get<List<int>>(
         url,
         options: Options(
           headers: merged,
@@ -452,9 +501,10 @@ class HttpFetcher {
     Map<String, String>? headers,
     String? referer,
     bool stealth = true,
+    EffectiveNetworkProfile? net,
   }) async {
     final text =
-        await getHtml(url, headers: headers, referer: referer, stealth: stealth);
+        await getHtml(url, headers: headers, referer: referer, stealth: stealth, net: net);
     return _decodeJson(text);
   }
 
@@ -466,6 +516,7 @@ class HttpFetcher {
     Object? data,
     String? referer,
     bool stealth = true,
+    EffectiveNetworkProfile? net,
   }) async {
     final text = await post(
       url,
@@ -473,6 +524,7 @@ class HttpFetcher {
       data: data,
       referer: referer,
       stealth: stealth,
+      net: net,
     );
     return _decodeJson(text);
   }
@@ -484,11 +536,12 @@ class HttpFetcher {
     Object? data,
     String? referer,
     bool stealth = true,
+    EffectiveNetworkProfile? net,
   }) async {
     await _gateRequest(url, stealth);
     try {
       final merged = _mergeHeaders(referer, headers, url);
-      final resp = await _dio.post<List<int>>(
+      final resp = await _dioFor(net).post<List<int>>(
         url,
         data: data,
         options: Options(
@@ -520,12 +573,13 @@ class HttpFetcher {
     Map<String, dynamic>? data,
     String? referer,
     bool stealth = true,
+    EffectiveNetworkProfile? net,
   }) async {
     _validateScheme(url);
     await _gateRequest(url, stealth);
     try {
       final merged = _mergeHeaders(referer, headers, url);
-      final resp = await _dio.put<List<int>>(
+      final resp = await _dioFor(net).put<List<int>>(
         url,
         data: data,
         options: Options(
@@ -556,12 +610,13 @@ class HttpFetcher {
     Map<String, String>? headers,
     String? referer,
     bool stealth = true,
+    EffectiveNetworkProfile? net,
   }) async {
     _validateScheme(url);
     await _gateRequest(url, stealth);
     try {
       final merged = _mergeHeaders(referer, headers, url);
-      final resp = await _dio.delete<List<int>>(
+      final resp = await _dioFor(net).delete<List<int>>(
         url,
         options: Options(
           headers: merged,
@@ -594,6 +649,7 @@ class HttpFetcher {
     Map<String, String>? data,
     String? referer,
     bool stealth = true,
+    EffectiveNetworkProfile? net,
   }) async {
     _validateScheme(url);
     await _gateRequest(url, stealth);
@@ -607,7 +663,7 @@ class HttpFetcher {
       'Content-Type': 'application/x-www-form-urlencoded',
       ...?headers,
     }, url);
-    final resp = await _dio.post<List<int>>(
+    final resp = await _dioFor(net).post<List<int>>(
       url,
       data: body,
       options: Options(
@@ -640,12 +696,13 @@ class HttpFetcher {
     String? body,
     String? referer,
     bool stealth = true,
+    EffectiveNetworkProfile? net,
   }) async {
     _validateScheme(url);
     await _gateRequest(url, stealth);
     try {
       final merged = _mergeHeaders(referer, headers, url);
-      final resp = await _dio.request<List<int>>(
+      final resp = await _dioFor(net).request<List<int>>(
         url,
         data: body,
         options: Options(
@@ -713,8 +770,9 @@ class HttpFetcher {
   }
 
   /// 取二进制（视频/图片）。
-  Future<List<int>> getBytes(String url, {Map<String, String>? headers}) async {
-    final resp = await _dio.get<List<int>>(
+  Future<List<int>> getBytes(String url,
+      {Map<String, String>? headers, EffectiveNetworkProfile? net}) async {
+    final resp = await _dioFor(net).get<List<int>>(
       url,
       options: Options(
         headers: _mergeHeaders(null, headers, url),
@@ -745,6 +803,17 @@ class HttpFetcher {
   void clearCookies() {
     _cookieJar.clear();
     unawaited(CookieStore.clear());
+  }
+
+  /// 清除单个 host 的 Cookie（源登出）：内存 jar 与持久化记录一并删除，
+  /// 并自增 [cookieVersion] 广播，通知登录态缓存（SourceAuthManager）重新评估。
+  void clearCookiesFor(String host) {
+    _cookieJar.remove(host);
+    _cookieVersion++;
+    if (!_cookieVersionController.isClosed) {
+      _cookieVersionController.add(_cookieVersion);
+    }
+    unawaited(CookieStore.delete(host));
   }
 
   void _storeCookies(String url, Response<dynamic> resp) {

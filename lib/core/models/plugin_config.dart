@@ -7,6 +7,8 @@ library;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
+import '../network/model/source_network_config.dart';
+
 /// 源内容类型，决定解析/浏览/详情/播放的统一语义。
 enum SourceType {
   animeSource,
@@ -538,6 +540,103 @@ class WebviewConfig {
       );
 }
 
+/// 评论登录配置（comments.login 段）。
+///
+/// - [url]：WebView 登录页地址。
+/// - [checkCookie]：Cookie 中出现该键名即视为已登录（快速判断）。
+/// - [checkUrl] + [loggedInSelector]：可选的探测端点二次确认
+///   （GET checkUrl，选择器命中非空即登录有效）。
+class CommentsLoginConfig {
+  final String? url;
+  final String? checkCookie;
+  final String? checkUrl;
+  final String? loggedInSelector;
+
+  const CommentsLoginConfig({
+    this.url,
+    this.checkCookie,
+    this.checkUrl,
+    this.loggedInSelector,
+  });
+
+  factory CommentsLoginConfig.fromJson(Map<String, dynamic> json) =>
+      CommentsLoginConfig(
+        url: json['url'] as String?,
+        checkCookie: json['checkCookie'] as String?,
+        checkUrl: json['checkUrl'] as String?,
+        loggedInSelector: json['loggedInSelector'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (url != null) 'url': url,
+        if (checkCookie != null) 'checkCookie': checkCookie,
+        if (checkUrl != null) 'checkUrl': checkUrl,
+        if (loggedInSelector != null) 'loggedInSelector': loggedInSelector,
+      };
+}
+
+/// 评论配置（可选 comments 段）——源声明评论路由与登录方式。
+///
+/// - [routes]：复用 [RouteConfig]，仅 `list` 必需；`replies` / `post` /
+///   `reply` / `like` / `report` 均可选——未声明的操作对应按钮不渲染。
+/// - [selectors]：声明式选择器（JSONPath / CSS / XPath，与顶层 selectors
+///   同引擎）：items / commentId / author / avatar / content / time /
+///   likeCount / replyCount / success 等。
+/// - [login]：登录方式声明，缺省表示源不支持登录（只读评论）。
+/// - [provider]：预留扩展点，默认 `source`；`bangumi` 本期仅解析不实现。
+///
+/// 源未声明该段（[PluginConfig.comments] 为 null）时，详情页完全不渲染
+/// 任何评论 UI 元素；旧源 JSON 无需修改，零破坏向后兼容。
+class CommentsConfig {
+  final String provider; // source | bangumi（预留）
+  final Map<String, RouteConfig> routes;
+  final Map<String, dynamic>? selectors;
+  final CommentsLoginConfig? login;
+
+  const CommentsConfig({
+    this.provider = 'source',
+    this.routes = const {},
+    this.selectors,
+    this.login,
+  });
+
+  factory CommentsConfig.fromJson(Map<String, dynamic> json) {
+    final routesMap = <String, RouteConfig>{};
+    final rawRoutes = json['routes'] as Map?;
+    if (rawRoutes != null) {
+      rawRoutes.forEach((k, v) {
+        routesMap[k.toString()] = RouteConfig.fromJson(v);
+      });
+    }
+    return CommentsConfig(
+      provider: json['provider'] as String? ?? 'source',
+      routes: routesMap,
+      selectors: json['selectors'] as Map<String, dynamic>?,
+      login: json['login'] is Map
+          ? CommentsLoginConfig.fromJson(
+              Map<String, dynamic>.from(json['login'] as Map))
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'provider': provider,
+        'routes': routes.map((k, v) => MapEntry(k, v.toJson())),
+        if (selectors != null) 'selectors': selectors,
+        if (login != null) 'login': login!.toJson(),
+      };
+
+  /// 是否声明了必需的列表路由（未声明则评论功能不可用）。
+  bool get hasList => routes.containsKey('list');
+
+  /// 某操作路由是否已声明（未声明 → 对应按钮不渲染）。
+  bool hasRoute(String name) => routes.containsKey(name);
+
+  /// 是否支持登录（声明了 login.url 或 checkCookie）。
+  bool get supportsLogin =>
+      login != null && (login!.url != null || login!.checkCookie != null);
+}
+
 /// 将源 JSON 里的 version 规范为 int（缺省 1）。
 /// 支持 int / 数字 / "12" / "1.3.0"（取首段），方便源作者用简单递增整数版本号。
 int _coerceVersion(dynamic v) {
@@ -569,12 +668,16 @@ class PluginConfig {
   final bool stealthMode;
   final AntiHotlinkingConfig antiHotlinking;
   final WebviewConfig webviewConfig;
+  /// 评论配置（可选）。为 null → 详情页不渲染任何评论 UI。
+  final CommentsConfig? comments;
   final bool deprecated;
   final bool enabled;
   final bool enabledExplore;
   final bool isHidden;
   final String? migrationMessage;
   final String? engine; // 保留字段，校验器不消费
+  /// 源级网络覆盖（可选 `network` 块）。为 null → 该源完全继承全局网络配置。
+  final SourceNetworkConfig? network;
   /// 源版本号（整数，缺省 1）。导入时 **≥ 已安装版本** 才覆盖（高版本升级 /
   /// 同版本刷新），**< 已安装版本** 不覆盖（防止误装旧版冲掉新源）。
   final int version;
@@ -595,12 +698,14 @@ class PluginConfig {
     this.stealthMode = true,
     this.antiHotlinking = const AntiHotlinkingConfig(),
     this.webviewConfig = const WebviewConfig(),
+    this.comments,
     this.deprecated = false,
     this.enabled = true,
     this.enabledExplore = true,
     this.isHidden = false,
     this.migrationMessage,
     this.engine,
+    this.network,
     this.version = 1,
   });
 
@@ -641,12 +746,20 @@ class PluginConfig {
       antiHotlinking:
           AntiHotlinkingConfig.fromJson(json['antiHotlinking'] as Map<String, dynamic>?),
       webviewConfig: WebviewConfig.fromJson(json['webviewConfig'] as Map<String, dynamic>?),
+      comments: json['comments'] is Map
+          ? CommentsConfig.fromJson(
+              Map<String, dynamic>.from(json['comments'] as Map))
+          : null,
       deprecated: json['deprecated'] as bool? ?? false,
       enabled: json['enabled'] as bool? ?? true,
       enabledExplore: json['enabledExplore'] as bool? ?? true,
       isHidden: json['isHidden'] as bool? ?? false,
       migrationMessage: json['migrationMessage'] as String?,
       engine: json['engine'] as String?,
+      network: json['network'] is Map
+          ? SourceNetworkConfig.fromJson(
+              Map<String, dynamic>.from(json['network'] as Map))
+          : null,
       version: _coerceVersion(json['version']),
     );
   }
@@ -680,11 +793,13 @@ class PluginConfig {
           'adblock': webviewConfig.adblock,
           'timeoutSeconds': webviewConfig.timeoutSeconds,
         },
+        if (comments != null) 'comments': comments!.toJson(),
         'deprecated': deprecated,
         'enabled': enabled,
         'enabledExplore': enabledExplore,
         'isHidden': isHidden,
         if (migrationMessage != null) 'migrationMessage': migrationMessage,
+        if (network != null) 'network': network!.toJson(),
       };
 
   bool get isDeprecated => deprecated;
@@ -697,6 +812,7 @@ class PluginConfig {
     bool? isHidden,
     bool? deprecated,
     String? migrationMessage,
+    SourceNetworkConfig? network,
     int? version,
   }) =>
       PluginConfig(
@@ -715,12 +831,14 @@ class PluginConfig {
         stealthMode: stealthMode,
         antiHotlinking: antiHotlinking,
         webviewConfig: webviewConfig,
+        comments: comments,
         deprecated: deprecated ?? this.deprecated,
         enabled: enabled ?? this.enabled,
         enabledExplore: enabledExplore ?? this.enabledExplore,
         isHidden: isHidden ?? this.isHidden,
         migrationMessage: migrationMessage ?? this.migrationMessage,
         engine: engine,
+        network: network ?? this.network,
         version: version ?? this.version,
       );
 
@@ -733,6 +851,13 @@ class PluginConfig {
     if (type == SourceType.animeSource && !routes.containsKey('latest')) {
       errors.add('animeSource requires route "latest"');
     }
+    // 源级 network 块校验（作为警告汇总，不阻断启用）。
+    final net = network;
+    if (net != null) {
+      for (final key in net.validate()) {
+        errors.add('network: $key');
+      }
+    }
     return errors;
   }
 
@@ -744,7 +869,9 @@ class PluginConfig {
     required String activeBaseUrl,
     Map<String, String> vars = const {},
   }) {
-    final route = routes[apiName];
+    // 评论路由命名空间：`comments.list` / `comments.post` 等查找
+    // comments.routes，占位符替换 / 镜像切换 / 相对路径补全全部复用。
+    final route = _routeFor(apiName);
     if (route == null) {
       throw PluginConfigException('route not found: $apiName');
     }
@@ -893,9 +1020,18 @@ class PluginConfig {
     }
   }
 
+  /// 路由查找：`comments.` 前缀指向 [comments] 段声明的评论路由，
+  /// 其余走主 [routes] 表。
+  RouteConfig? _routeFor(String apiName) {
+    if (apiName.startsWith('comments.')) {
+      return comments?.routes[apiName.substring('comments.'.length)];
+    }
+    return routes[apiName];
+  }
+
   /// 路由级声明的 responseType，缺省回退到顶层。
   String? responseTypeFor(String apiName) =>
-      routes[apiName]?.responseType ?? responseType;
+      _routeFor(apiName)?.responseType ?? responseType;
 }
 
 /// 源配置解析异常（校验/路由缺失）。

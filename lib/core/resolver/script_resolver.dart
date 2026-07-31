@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import '../models/episode.dart';
 import '../models/media_item.dart';
 import '../models/plugin_config.dart';
+import '../network/network_config_service.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/verification_detector.dart';
 import '../services/config_loader.dart';
@@ -236,20 +237,24 @@ class ScriptResolver implements SourceResolver {
 
           if (processor.isNotEmpty) {
             try {
-              // Step 2: Dart 侧预取（使用源的防盗链/UA 配置）
+              // Step 2: Dart 侧预取（使用源的防盗链/UA 配置 + 源级网络覆盖）
               final referer =
                   source.antiHotlinking.referer ??
                       ConfigLoader.instance.getActiveMirror(source);
+              final net =
+                  NetworkConfigService.instance.effectiveFor(source);
               final apiJson = fetchMethod == 'post'
                   ? await HttpFetcher.instance.postJson(
                       fetchUrl,
                       data: fetchBody,
                       headers: fetchHeaders.isNotEmpty ? fetchHeaders : null,
                       referer: referer,
+                      net: net,
                     )
                   : await HttpFetcher.instance.getJson(
                       fetchUrl,
                       referer: referer,
+                      net: net,
                     );
               debugPrint(
                   '[ScriptResolver] 预取成功: ${fetchUrl}, dataKeys=${(apiJson as Map?)?.keys}');

@@ -16,6 +16,8 @@ import '../../core/history/history_manager.dart';
 import '../../core/local/local_content_manager.dart';
 import '../../core/locale/locale_controller.dart';
 import '../../core/models/hive_adapters.dart';
+import '../../core/network/network_config_service.dart';
+import '../../core/network/source_network_override_store.dart';
 import '../../core/resolver/resolver_registry.dart';
 import '../../core/rss/browse_article_feed_manager.dart';
 import '../../core/rss/rss_manager.dart';
@@ -56,6 +58,7 @@ class InitResult {
   final LocalContentManager localContentManager;
   final CloudSyncService cloudSyncService;
   final BangumiSyncService bangumiSyncService;
+  final NetworkConfigService networkConfigService;
 
   const InitResult({
     required this.sourceRepo,
@@ -72,6 +75,7 @@ class InitResult {
     required this.localContentManager,
     required this.cloudSyncService,
     required this.bangumiSyncService,
+    required this.networkConfigService,
   });
 }
 
@@ -141,6 +145,10 @@ class _SplashScreenState extends State<SplashScreen> {
     // 避免每次冷启动都重新过验证（「反复验证 → 高频请求 → IP 被封」首要根因）。
     await CookieStore.init();
     await HttpFetcher.instance.loadPersistedCookies();
+    // 网络配置：全局档案 + 源级用户覆盖，须在任何网络使用前就绪，
+    // 使 splash 之后的抓取/下载/同步即时走真实代理/DNS 档案。
+    await SourceNetworkOverrideStore.instance.init();
+    await NetworkConfigService.instance.load();
     final registry = ResolverRegistry.instance;
     // 注入书源解析器（ShuyuanNovelResolver），避免 core 反向依赖 feature 层。
     // 必须在 registry 被使用前注册；ShuyuanNovelResolver 内部自建 WebBook/XiaoshuoHttp。
@@ -217,6 +225,7 @@ class _SplashScreenState extends State<SplashScreen> {
       localContentManager: localContentManager,
       cloudSyncService: cloudSyncService,
       bangumiSyncService: bangumiSyncService,
+      networkConfigService: NetworkConfigService.instance,
     );
   }
 
@@ -266,6 +275,8 @@ class _SplashScreenState extends State<SplashScreen> {
                   value: result.cloudSyncService),
               ChangeNotifierProvider<BangumiSyncService>.value(
                   value: result.bangumiSyncService),
+              ChangeNotifierProvider<NetworkConfigService>.value(
+                  value: result.networkConfigService),
               ChangeNotifierProvider<ArticleReadingPreferencesNotifier>(
                 create: (_) => ArticleReadingPreferencesNotifier(),
               ),
