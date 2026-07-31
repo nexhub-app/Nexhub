@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 
 import '../download/download_manager.dart';
 import '../download/download_task.dart';
+import '../favorites/favorite_group.dart';
 import '../favorites/favorites_manager.dart';
 import '../history/history_manager.dart';
 import '../local/local_content_manager.dart';
@@ -29,7 +30,9 @@ import '../comic/comic_progress_manager.dart';
 import 'app_card.dart';
 import 'app_cover_image.dart';
 import 'app_empty_state.dart';
+import 'bangumi_bind_sheet.dart';
 import 'content_card.dart';
+import 'favorite_group_assign_sheet.dart';
 import 'library_shell.dart';
 import '../theme/app_tokens.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
@@ -381,6 +384,13 @@ class _FavoriteBookshelf extends StatelessWidget {
       entries = entries.where((e) => e.status == filter.status).toList();
     }
 
+    // 分组筛选（多选并集：命中任一分组即显示；哨兵 kUngroupedId = 未分组）。
+    if (filter.groupIds.isNotEmpty) {
+      entries = entries.where((e) =>
+          (filter.groupIds.contains(kUngroupedId) && e.groupIds.isEmpty) ||
+          e.groupIds.any(filter.groupIds.contains)).toList();
+    }
+
     // 进度筛选：cross-ref 历史记录。
     final Set<String> historyIds = historyManager
         .historyFor(sourceType)
@@ -419,10 +429,64 @@ class _FavoriteBookshelf extends StatelessWidget {
                 source: e.sourceId != null ? repo.getById(e.sourceId!) : null,
                 author: e.author,
                 onTap: () => onItemTap?.call(e.toMediaItem()),
+                // 长按弹出操作菜单（分组指定 / Bangumi 绑定，仅收藏书架）。
+                onLongPress: () => _showFavoriteActionsMenu(
+                  context,
+                  contentId: e.id,
+                  sourceType: sourceType,
+                ),
               ))
           .toList(),
     );
   }
+}
+
+/// 收藏卡片长按操作菜单：分组指定 / Bangumi 绑定与评分 / Bangumi 收藏状态。
+void _showFavoriteActionsMenu(
+  BuildContext context, {
+  required String contentId,
+  required SourceType sourceType,
+}) {
+  final l10n = AppLocalizations.of(context);
+  showModalBottomSheet<void>(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(AppTokens.radiusLg),
+      ),
+    ),
+    builder: (BuildContext ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.folder_outlined),
+            title: Text(l10n.setGroups),
+            onTap: () {
+              Navigator.of(ctx).pop();
+              showFavoriteGroupAssignSheet(
+                context,
+                contentId: contentId,
+                sourceType: sourceType,
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.live_tv_outlined),
+            title: Text(l10n.bangumiBindAndRate),
+            onTap: () {
+              Navigator.of(ctx).pop();
+              showBangumiBindSheet(
+                context,
+                contentId: contentId,
+                sourceType: sourceType,
+              );
+            },
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 // ── 排序辅助 ────────────────────────────────────────────
@@ -498,6 +562,9 @@ class _BookshelfItem {
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
 
+  /// 长按回调（仅收藏书架传入，弹出分组指定面板）。
+  final VoidCallback? onLongPress;
+
   const _BookshelfItem({
     required this.id,
     required this.title,
@@ -507,6 +574,7 @@ class _BookshelfItem {
     this.source,
     this.onTap,
     this.onDelete,
+    this.onLongPress,
   });
 }
 
@@ -597,7 +665,7 @@ class _BookshelfGrid extends StatelessWidget {
             return FutureBuilder<double?>(
               future: layout.showProgress ? _computeProgress(item) : Future<double?>.value(null),
               builder: (ctx, snap) {
-                final Widget card = ContentCard(
+                Widget card = ContentCard(
                   coverUrl: item.coverUrl,
                   title: item.title,
                   subtitle: (layout.showAuthor && item.author != null)
@@ -608,6 +676,13 @@ class _BookshelfGrid extends StatelessWidget {
                   width: itemW,
                   progress: snap.data,
                 );
+                // 长按入口（ContentCard 未暴露 onLongPress，外层手势兼容 InkWell）。
+                if (item.onLongPress != null) {
+                  card = GestureDetector(
+                    onLongPress: item.onLongPress,
+                    child: card,
+                  );
+                }
                 // 历史记录：右上角悬浮删除按钮（仅历史书架传入 onDelete）。
                 if (item.onDelete == null) return card;
                 return Stack(
@@ -654,9 +729,7 @@ class _BookshelfGrid extends StatelessWidget {
       itemBuilder: (context, i) {
         final item = items[i];
         final ColorScheme scheme = Theme.of(context).colorScheme;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-          child: AppCard(
+        Widget card = AppCard(
             onTap: item.onTap,
             padding: EdgeInsets.zero,
             child: ListTile(
@@ -740,7 +813,17 @@ class _BookshelfGrid extends StatelessWidget {
                 ],
               ),
             ),
-          ),
+          );
+        // 长按入口（仅收藏书架传入 onLongPress）。
+        if (item.onLongPress != null) {
+          card = GestureDetector(
+            onLongPress: item.onLongPress,
+            child: card,
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+          child: card,
         );
       },
     );

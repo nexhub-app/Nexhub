@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import '../../app.dart';
 import '../../core/article/article_reading_preferences.dart';
+import '../../core/auth/source_auth_manager.dart';
 import '../../core/download/download_file_system.dart';
 import '../../core/download/download_manager.dart';
 import '../../core/download/download_settings.dart';
@@ -22,6 +23,10 @@ import '../../core/rss/rss_update_checker.dart';
 import '../../core/history/media_watched_manager.dart';
 import '../../core/history/media_playback_position_manager.dart';
 import '../../core/scraper/media_api_service.dart';
+import '../../core/services/bangumi/bangumi_auth.dart';
+import '../../core/services/bangumi/bangumi_client.dart';
+import '../../core/services/bangumi/bangumi_sync_service.dart';
+import '../../core/services/bangumi/subject_link_store.dart';
 import '../../core/services/cloud_sync_service.dart';
 import '../../core/settings/general_settings.dart';
 import '../../core/widgets/app_loading_indicator.dart';
@@ -50,6 +55,7 @@ class InitResult {
   final MediaPlaybackPositionManager mediaPlaybackPositionManager;
   final LocalContentManager localContentManager;
   final CloudSyncService cloudSyncService;
+  final BangumiSyncService bangumiSyncService;
 
   const InitResult({
     required this.sourceRepo,
@@ -65,6 +71,7 @@ class InitResult {
     required this.mediaPlaybackPositionManager,
     required this.localContentManager,
     required this.cloudSyncService,
+    required this.bangumiSyncService,
   });
 }
 
@@ -123,6 +130,7 @@ class _SplashScreenState extends State<SplashScreen> {
       Hive.openBox('media_playback_position'),
       Hive.openBox('source_mirrors'),
       Hive.openBox('chapter_fetch_times'),
+      Hive.openBox(SubjectLinkStore.boxName),
     ]);
 
     final sourceRepo = await SourceRepository.loadBuiltins();
@@ -178,6 +186,19 @@ class _SplashScreenState extends State<SplashScreen> {
 
     final cloudSyncService = CloudSyncService();
     await cloudSyncService.init();
+    // Bangumi 同步：client → auth → linkStore → syncService（详见 core/services/bangumi）。
+    final bangumiClient = BangumiClient();
+    final bangumiAuth = BangumiAuth(client: bangumiClient);
+    await bangumiAuth.init();
+    final subjectLinkStore = SubjectLinkStore(client: bangumiClient);
+    final bangumiSyncService = BangumiSyncService(
+      client: bangumiClient,
+      auth: bangumiAuth,
+      linkStore: subjectLinkStore,
+      favorites: favoritesManager,
+      watched: mediaWatchedManager,
+    );
+    await bangumiSyncService.init();
     // 通用设置（启动界面 / 日期格式）需在首页构建前就绪。
     await GeneralSettingsStore.instance.load();
 
@@ -195,6 +216,7 @@ class _SplashScreenState extends State<SplashScreen> {
       mediaPlaybackPositionManager: mediaPlaybackPositionManager,
       localContentManager: localContentManager,
       cloudSyncService: cloudSyncService,
+      bangumiSyncService: bangumiSyncService,
     );
   }
 
@@ -242,8 +264,13 @@ class _SplashScreenState extends State<SplashScreen> {
                   value: result.localContentManager),
               ChangeNotifierProvider<CloudSyncService>.value(
                   value: result.cloudSyncService),
+              ChangeNotifierProvider<BangumiSyncService>.value(
+                  value: result.bangumiSyncService),
               ChangeNotifierProvider<ArticleReadingPreferencesNotifier>(
                 create: (_) => ArticleReadingPreferencesNotifier(),
+              ),
+              ChangeNotifierProvider<SourceAuthManager>(
+                create: (_) => SourceAuthManager(),
               ),
               ChangeNotifierProvider<LocaleController>(
                 create: (_) => LocaleController()..load(),
