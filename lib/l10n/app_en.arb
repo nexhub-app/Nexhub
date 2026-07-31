@@ -2240,5 +2240,172 @@
   "readerGroupMouseWheelDesc": "Configure what the mouse wheel does (zoom or turn pages) and its scroll direction.",
   "readerWheelZoom": "Zoom",
   "readerWheelPage": "Page",
-  "readerWheelAction": "Action"
+  "readerWheelAction": "Action",
+
+  "favoriteGroups": "Groups",
+  "noGroups": "No groups yet. Create one below.",
+  "groupAll": "All",
+  "groupUngrouped": "Ungrouped",
+  "manageGroups": "Manage groups",
+  "newGroup": "New group",
+  "renameGroup": "Rename",
+  "groupName": "Group name",
+  "groupNameEmpty": "Name cannot be empty",
+  "groupNameDuplicate": "A group with this name already exists",
+  "deleteGroup": "Delete group",
+  "deleteGroupConfirm": "Delete group \"{name}\"? Items are only unlinked from it and stay in your favorites.",
+  "@deleteGroupConfirm": {
+    "description": "Group delete confirmation dialog content",
+    "placeholders": { "name": {} }
+  },
+  "setGroups": "Set groups",
+  "filterByGroup": "Group",
+  "groupItemCount": "{n} items",
+  "@groupItemCount": {
+    "description": "Item count shown next to a favorite group",
+    "placeholders": { "n": {} }
+  },
+
+  "comments": "Comments",
+  "commentsCount": "Comments ({n})",
+  "@commentsCount": {
+    "description": "Comment section header with count",
+    "placeholders": { "n": {} }
+  },
+  "writeComment": "Write a comment",
+  "replyComment": "Reply",
+  "viewAllComments": "View all comments",
+  "allCommentsTitle": "All comments",
+  "emptyComments": "No comments yet",
+  "beFirstToComment": "Be the first to comment",
+  "commentPublish": "Publish",
+  "commentHint": "Share your thoughts…",
+  "commentPublishSuccess": "Comment published",
+  "commentPublishFailed": "Failed to publish",
+  "likeAction": "Like",
+  "likeFailed": "Failed to like",
+  "reportAction": "Report",
+  "reportSuccess": "Reported",
+  "reportFailed": "Failed to report",
+  "viewMoreReplies": "More replies",
+  "commentsLoadFailed": "Failed to load comments",
+
+  "loginToComment": "Log in to comment",
+  "loginRequired": "Login required for this action",
+  "sourceLogin": "Source login",
+  "webLogin": "Web login",
+  "webLoginDesc": "Log in on the site page; the session is captured automatically",
+  "pasteCookie": "Paste Cookie",
+  "pasteCookieDesc": "Manually paste the Cookie header from your browser",
+  "cookieHint": "e.g. token=abc; session=xyz",
+  "loginSuccess": "Logged in",
+  "loginExpired": "Session expired, please log in again",
+  "logoutAction": "Log out",
+  "loggedInState": "Logged in",
+  "loginDone": "Done",
+  "webviewLoginUnsupported": "In-app web login is unavailable on this platform. Use \"Paste Cookie\" instead.",
+
+  "bangumiSettings": "Bangumi sync",
+  "bangumiSettingsSubtitle": "Push favorites and progress to bgm.tv",
+  "bangumiRatingSync": "Bangumi rating & sync",
+  "bangumiAccount": "Account",
+  "bangumiTokenHint": "Paste your personal access token",
+  "bangumiTokenVerify": "Verify and save",
+  "bangumiGetToken": "Get a token",
+  "bangumiLoggedInAs": "Logged in as {name}",
+  "@bangumiLoggedInAs": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "bangumiTokenSaved": "Token verified",
+  "bangumiTokenInvalid": "Invalid token, please check and retry",
+  "bangumiNotLoggedIn": "Not logged in",
+  "bangumiSyncNow": "Sync now",
+  "bangumiSyncDone": "Sync finished",
+  "bangumiSyncFailed": "Sync failed",
+  "bangumiLastSync": "Last sync: {time}",
+  "@bangumiLastSync": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "bangumiNeverSynced": "Never synced",
+  "bangumiSyncTypes": "Sync types",
+  "bangumiSyncTypeAnime": "Anime & video",
+  "bangumiSyncTypeManga": "Manga",
+  "bangumiSyncTypeNovel": "Novels",
+  "bangumiSyncLog": "Sync log",
+  "bangumiLogSuccess": "Synced",
+  "bangumiLogSkipped": "Skipped (no change)",
+  "bangumiLogFailed": "Failed",
+  "bangumiPendingBind": "Pending manual bind",
+  "bangumiBindAndRate": "Bangumi bind & rating",
+  "bangumiBindSubject": "Bind Bangumi subject",
+  "bangumiSearchHint": "Search Bangumi subjects",
+  "bangumiNoResults": "No matching subjects",
+  "bangumiBoundTo": "Bound subject #{id}",
+  "@bangumiBoundTo": {
+    "placeholders": {
+      "id": { "type": "int" }
+    }
+  },
+  "bangumiUnbind": "Unbind",
+  "bangumiMarkCollected": "Mark as collected",
+  "bangumiMyRating": "My rating",
+  "bangumiRatingNone": "Not rated",
+  "bangumiMyComment": "My comment",
+  "bangumiCommentHint": "Short comment (synced to Bangumi)",
+  "bangumiSaved": "Saved",
+  "bangumiSyncOptions": "Sync options",
+  "bangumiPrivateCollection": "Create collections as private",
+  "bangumiPrivateCollectionHint": "Only affects newly created collections; existing ones stay unchanged",
+  "bangumiTagsSync": "Push favorite groups as tags",
+  "bangumiTagsSyncHint": "Merged with remote tags; tags added on Bangumi are kept",
+  "bangumiImport": "Import from Bangumi",
+  "bangumiImportDone": "Import finished: {count} bound",
+  "@bangumiImportDone": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "bangumiForcedState": "Sync status override",
+  "bangumiStateAuto": "Auto detect",
+  "bangumiStateWish": "Wish",
+  "bangumiStateDoing": "Watching",
+  "bangumiStateCollect": "Collected",
+  "bangumiStateOnHold": "On hold",
+  "bangumiStateDropped": "Dropped",
+  "bangumiPullFromRemote": "Pull from Bangumi",
+  "bangumiPullDone": "Pulled remote rating and comment",
+  "bangumiPullEmpty": "No remote collection for this subject",
+  "bangumiSyncThis": "Sync to Bangumi",
+  "bangumiFavoriteFirst": "Add to favorites to rate and comment",
+  "bangumiCollectionStatus": "Bangumi collection status",
+  "bangumiBindFirst": "Bind a Bangumi subject first",
+  "bangumiSiteRating": "Bangumi rating",
+  "bangumiSyncSettings": "Sync settings",
+  "bangumiBindToViewRating": "Bind a subject to view its Bangumi rating and reviews",
+  "bangumiRatingUsers": "{count} ratings",
+  "@bangumiRatingUsers": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "bangumiRank": "Rank #{rank}",
+  "@bangumiRank": {
+    "placeholders": {
+      "rank": { "type": "int" }
+    }
+  },
+  "bangumiSummary": "Summary",
+  "bangumiTags": "Tags",
+  "bangumiNoRating": "No rating yet",
+  "bangumiLoadFailed": "Failed to load",
+  "bangumiViewOnWeb": "Open on Bangumi",
+  "bangumiBrowseCollection": "Browse Bangumi collection",
+  "bangumiCollectionEmpty": "No items in this state",
+  "bangumiSubjectTypeAnime": "Anime",
+  "bangumiSubjectTypeBook": "Book",
+  "bangumiSubjectTypeReal": "Real"
 }

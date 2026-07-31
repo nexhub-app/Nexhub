@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
+import 'app_animations.dart';
 import 'app_card.dart';
 import 'app_cover_image.dart';
 import 'app_refresh_indicator.dart';
@@ -25,6 +26,10 @@ class ContentDetailShell extends StatefulWidget {
   final List<Widget> actions;
   final String? description;
   final Widget chaptersList;
+
+  /// 选集 / 章节入口行标题（如「选集（24）」「章节目录（120）」）。
+  /// 为空时回退 [AppLocalizations.chapterList]。
+  final String? chaptersTitle;
   final Widget? recommendations;
   final String? heroTag;
 
@@ -54,6 +59,13 @@ class ContentDetailShell extends StatefulWidget {
   /// 进度卡，渲染在标签区之后、章节列表之前。
   final Widget? progressSection;
 
+  /// Bangumi 评分/短评/同步卡。以入口行呈现，点击在底部弹窗中展开。
+  final Widget? bangumiSection;
+
+  /// 评论区（源驱动，M-comments）。以入口行呈现，点击在底部弹窗中展开。
+  /// 源未声明 comments 配置段时传 null，不渲染评论入口。
+  final Widget? commentsSection;
+
   // ─── 新增参数（M16.5）───
 
   /// SliverAppBar 右侧操作按钮（收藏 / 下载 / 分享 / 刷新 / 删除等）。
@@ -73,6 +85,7 @@ class ContentDetailShell extends StatefulWidget {
     this.actions = const <Widget>[],
     this.description,
     required this.chaptersList,
+    this.chaptersTitle,
     this.recommendations,
     this.heroTag,
     this.source,
@@ -83,6 +96,8 @@ class ContentDetailShell extends StatefulWidget {
     this.tags,
     this.onCoverTap,
     this.progressSection,
+    this.bangumiSection,
+    this.commentsSection,
     this.appBarActions,
     this.onRefresh,
     this.fallbackIcon = Icons.movie_outlined,
@@ -446,6 +461,90 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
     );
   }
 
+  /// 内容模块入口卡：把「选集/章节、Bangumi 评分与同步、评论、相关推荐」
+  /// 折叠为 [AppCard] 内的入口行，点击后在底部弹窗中展开对应模块，避免
+  /// 主页长滚动把选集推到底部。
+  Widget _buildSectionEntries(BuildContext context, AppLocalizations l10n) {
+    final List<Widget> tiles = <Widget>[
+      _sectionEntry(
+        context,
+        icon: Icons.format_list_numbered,
+        title: widget.chaptersTitle ?? l10n.chapterList,
+        sheetChild: widget.chaptersList,
+      ),
+    ];
+    if (widget.bangumiSection != null) {
+      tiles.add(_sectionEntry(
+        context,
+        icon: Icons.star_outline,
+        title: l10n.bangumiRatingSync,
+        sheetChild: widget.bangumiSection!,
+      ));
+    }
+    if (widget.commentsSection != null) {
+      tiles.add(_sectionEntry(
+        context,
+        icon: Icons.mode_comment_outlined,
+        title: l10n.comments,
+        sheetChild: widget.commentsSection!,
+      ));
+    }
+    if (widget.recommendations != null) {
+      tiles.add(_sectionEntry(
+        context,
+        icon: Icons.recommend_outlined,
+        title: l10n.recommendations,
+        sheetChild: widget.recommendations!,
+      ));
+    }
+    final List<Widget> children = <Widget>[];
+    for (int i = 0; i < tiles.length; i++) {
+      if (i > 0) children.add(const Divider(height: 1, indent: 56));
+      children.add(tiles[i]);
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.spaceLg,
+        AppTokens.spaceSm,
+        AppTokens.spaceLg,
+        0,
+      ),
+      child: AppCard(
+        child: Column(mainAxisSize: MainAxisSize.min, children: children),
+      ),
+    );
+  }
+
+  /// 单个入口行：图标 + 标题 + 右箭头，点击唤起底部弹窗。
+  Widget _sectionEntry(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required Widget sheetChild,
+  }) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      leading: Icon(icon, color: scheme.primary),
+      title: Text(title),
+      trailing: Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+      onTap: () => _openSectionSheet(context, sheetChild),
+    );
+  }
+
+  /// 底部弹窗：可拖拽、可滚动，承载入口对应的模块内容。
+  void _openSectionSheet(BuildContext context, Widget child) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
+      ),
+      builder: (_) => _DetailSectionSheet(child: child),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -585,14 +684,10 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
             ),
           ),
 
-        const SliverToBoxAdapter(child: SizedBox(height: AppTokens.spaceMd)),
-
-        // ─── 章节/剧集列表 ───
-        SliverToBoxAdapter(child: widget.chaptersList),
-
-        // ─── 相关推荐 ───
-        if (widget.recommendations != null)
-          SliverToBoxAdapter(child: widget.recommendations!),
+        // ─── 内容模块入口（选集 / Bangumi / 评论 / 相关推荐 → 弹窗分流）───
+        SliverToBoxAdapter(child: _buildSectionEntries(context, l10n)),
+        const SliverToBoxAdapter(
+            child: SizedBox(height: AppTokens.spaceLg)),
       ],
     );
 
@@ -604,5 +699,69 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
       );
     }
     return scrollView;
+  }
+}
+
+/// 内容模块底部弹窗容器。不自带标题（各模块 widget 已含内部
+/// 标题，避免双标题），仅提供拖拽把手 + 关闭按钮，内容区可滚动。
+class _DetailSectionSheet extends StatelessWidget {
+  final Widget child;
+  const _DetailSectionSheet({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final double maxHeight = MediaQuery.of(context).size.height * 0.85;
+    return AppSheetBody(
+      child: SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              SizedBox(
+                height: 40,
+                child: Stack(
+                  children: <Widget>[
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.only(top: AppTokens.spaceSm),
+                        child: Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        icon: const Icon(Icons.close),
+                        iconSize: 20,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.only(bottom: AppTokens.spaceLg),
+                  child: child,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

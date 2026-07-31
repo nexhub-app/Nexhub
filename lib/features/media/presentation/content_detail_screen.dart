@@ -16,11 +16,14 @@ import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_error_state.dart';
+import '../../../core/widgets/bangumi_detail_card.dart';
 import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/chapter_list_section.dart';
 import '../../../core/widgets/content_card.dart';
 import '../../../core/widgets/content_detail_shell.dart';
 import '../../../core/widgets/detail_action_utils.dart';
+import '../../../core/widgets/comment_section.dart';
+import '../../../core/widgets/favorite_group_assign_sheet.dart';
 import '../../../core/widgets/module_source_search_screen.dart';
 import '../../../core/widgets/progress_card.dart';
 import '../../player/presentation/video_player_screen.dart';
@@ -303,6 +306,20 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(wasFavorite ? l10n.favoriteRemoved : l10n.favoriteAdded),
+          // 刚收藏成功：附「设分组」action，直达分组指定面板。
+          action: wasFavorite
+              ? null
+              : SnackBarAction(
+                  label: l10n.setGroups,
+                  onPressed: () {
+                    if (!mounted) return;
+                    showFavoriteGroupAssignSheet(
+                      context,
+                      contentId: widget.item.id,
+                      sourceType: type,
+                    );
+                  },
+                ),
         ),
       );
     }
@@ -899,6 +916,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 ),
               ],
             ),
+            bangumiSection: BangumiDetailCard(
+              contentId: item.id,
+              sourceType: type,
+            ),
             actions: <Widget>[
               // 续看 / 从头开始。
               if (hasContinue)
@@ -929,6 +950,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                   label: Text(l10n.seriesTitle),
                 ),
             ],
+            chaptersTitle: isChapterBased
+                ? l10n.chapterListWithCount(episodes.length)
+                : l10n.episodeListWithCount(episodes.length),
             chaptersList: isChapterBased
                 ? ChapterListSection(
                     chapters: episodes,
@@ -957,7 +981,13 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                         .read<MediaPlaybackPositionManager>()
                         .getPosition(item.id, i),
                   ),
-            recommendations: _buildRecommendations(context, l10n),
+            // 源未声明 comments 配置段 → 不渲染任何评论 UI 元素。
+            commentsSection: source?.comments != null
+                ? CommentSection(source: source!, contentId: item.id)
+                : null,
+            recommendations: _recommendationsFuture == null
+                ? null
+                : _buildRecommendations(context, l10n),
           );
         },
       ),
