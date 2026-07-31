@@ -93,6 +93,8 @@ dependencies:
   flutter_tts: ^4.2.0
   # 安全存储敏感凭据（WebDAV 密码）
   flutter_secure_storage: ^9.0.0
+  # 深链回调捕获（OAuth 登录：nexhub://oauth/callback）
+  app_links: ^6.3.0
   # 网络状态检测（仅 WiFi 下载模式：判断是否连接 WiFi）
   connectivity_plus: ^6.1.0
 

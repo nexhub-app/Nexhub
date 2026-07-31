@@ -45,5 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Bangumi OAuth 回调深链：bgm.tv 授权后跳回 nexhub://oauth/callback -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.nexhub.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>nexhub</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

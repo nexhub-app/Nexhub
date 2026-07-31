@@ -12,6 +12,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/services/bangumi/bangumi_oauth_config.dart';
 import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/bangumi_collection_browser.dart';
@@ -26,6 +27,7 @@ class SettingsBangumiScreen extends StatefulWidget {
 class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
   final TextEditingController _tokenController = TextEditingController();
   bool _verifying = false;
+  bool _oauthing = false;
 
   @override
   void dispose() {
@@ -52,6 +54,34 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
       );
     } finally {
       if (mounted) setState(() => _verifying = false);
+    }
+  }
+
+  /// OAuth 2.0 授权码登录：打开浏览器 → 深链回调 → 保存 token。
+  Future<void> _loginWithOAuth(AppLocalizations l10n) async {
+    setState(() => _oauthing = true);
+    try {
+      final service = context.read<BangumiSyncService>();
+      await service.auth.loginWithOAuth();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.loginSuccess)),
+      );
+    } on StateError catch (e) {
+      if (!mounted) return;
+      final msg = e.message == 'bangumi oauth not configured'
+          ? l10n.bangumiOauthNotConfigured
+          : l10n.bangumiOauthFailed;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.bangumiOauthFailed)),
+      );
+    } finally {
+      if (mounted) setState(() => _oauthing = false);
     }
   }
 
@@ -84,6 +114,32 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
               ),
             ),
           ] else ...<Widget>[
+            // ── OAuth 2.0 授权登录（推荐）──
+            FilledButton.icon(
+              onPressed: _oauthing ? null : () => _loginWithOAuth(l10n),
+              icon: _oauthing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.login),
+              label: Text(l10n.bangumiLoginWithOAuth),
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
+            Text(
+              BangumiOAuthConfig.configured
+                  ? l10n.bangumiOauthHint
+                  : l10n.bangumiOauthNotConfigured,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: BangumiOAuthConfig.configured
+                    ? null
+                    : theme.colorScheme.error,
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceLg),
+            const Divider(),
+            const SizedBox(height: AppTokens.spaceMd),
             TextField(
               controller: _tokenController,
               decoration: InputDecoration(

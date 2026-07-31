@@ -2413,6 +2413,10 @@
   "bangumiSubjectTypeAnime": "Anime",
   "bangumiSubjectTypeBook": "Book",
   "bangumiSubjectTypeReal": "Real",
+  "bangumiLoginWithOAuth": "Sign in with Bangumi",
+  "bangumiOauthHint": "Safer: authorize in your browser and return to the app automatically.",
+  "bangumiOauthNotConfigured": "OAuth not configured: create an app on the Bangumi developer console and fill in Client ID / Secret.",
+  "bangumiOauthFailed": "Bangumi authorization failed. Please try again.",
 
   "networkSettingsTitle": "Network Settings",
   "networkSettingsDesc": "Proxy, DNS, DoH/DoT, SNI, ECH and Hosts",

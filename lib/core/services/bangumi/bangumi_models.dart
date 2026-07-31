@@ -372,6 +372,26 @@ class CollectionPayload {
 /// 同步日志条目状态。
 enum SyncLogStatus { success, skipped, failed, pendingBind }
 
+/// OAuth 令牌（授权码换取 / 刷新）。
+///
+/// [accessToken] 即后续 API 请求用的 Bearer token；
+/// [refreshToken] 用于 [BangumiClient.refreshToken] 续期（Bangumi 返回 7 天有效）；
+/// [expiresIn] 为有效期秒数（本地据此计算过期时刻）；
+/// [scope] 为实际授予的权限范围。
+class BangumiToken {
+  final String accessToken;
+  final String? refreshToken;
+  final int? expiresIn;
+  final String? scope;
+
+  const BangumiToken({
+    required this.accessToken,
+    this.refreshToken,
+    this.expiresIn,
+    this.scope,
+  });
+}
+
 /// 单条同步日志。
 class SyncLogItem {
   final String title;
