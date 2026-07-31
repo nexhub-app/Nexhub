@@ -103,7 +103,7 @@
 #     - **更正（原 v22 注释有误）**：v22 当时称「Windows zip/7z 便携包 + Inno Setup exe
 #       已写入 build.yml」，实际**只落了 zip 便携包，Inno Setup exe 步骤当时并未写入**
 #       build.yml（仓库也无 .iss 脚本）。exe 安装包是到 v23 才真正补齐。
-#   v23（当前）：
+#   v23：
 #     - **Windows 自定义图标落实**：Windows job 在 build 前新增
 #       `flutter pub run flutter_launcher_icons`，从 `assets/icon/icon.png` 重新生成
 #       `windows/runner/resources/app_icon.ico`，覆盖仓库里那份旧的 Flutter 默认 logo
@@ -113,6 +113,18 @@
 #       `NexHub-setup-<version>.exe`，单独上传 `windows-installer` artifact；Release 文件
 #       清单新增 `artifacts/windows-installer/NexHub-setup-*.exe`。安装包支持中英文、桌面
 #       快捷方式、非管理员安装（当前用户目录）。
+#   v24（当前，v0.4.0）：
+#     - **Bangumi OAuth 凭据注入补齐**：v0.4.0 新增 Bangumi OAuth 2.0 授权登录，
+#       `BangumiOAuthConfig` 的 clientId / clientSecret 走 `String.fromEnvironment`
+#       编译期注入（源码不存凭据）。原四个平台的 build 命令只注入了 DANMAKU_*，
+#       **未注入 BANGUMI_***，导致 CI 产物里 `configured == false`、OAuth 登录按钮
+#       直接不可用（用户只能手填 Access Token）。
+#     - **修复**：Android / Windows / Linux / macOS 四个 build 命令统一追加
+#       `--dart-define=BANGUMI_CLIENT_ID` 与 `--dart-define=BANGUMI_CLIENT_SECRET`，
+#       取值来自仓库 Secrets。
+#     - **需要新增的仓库 Secrets（缺失时不会报错，只是 OAuth 不可用）**：
+#       `BANGUMI_CLIENT_ID` / `BANGUMI_CLIENT_SECRET`，在 https://bgm.tv/dev/app/create
+#       注册应用获得，回调地址必须填 `nexhub://oauth/callback`。
 # =============================================================================
 
 name: Build & Release NexHub
@@ -181,7 +193,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          flutter build apk --release --split-per-abi --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} 2>&1 | tee apk_build.log || { echo "=== ANDROID BUILD FAILED ===" && tail -n 500 apk_build.log; exit 1; }
+          flutter build apk --release --split-per-abi --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} --dart-define=BANGUMI_CLIENT_ID=${{ secrets.BANGUMI_CLIENT_ID }} --dart-define=BANGUMI_CLIENT_SECRET=${{ secrets.BANGUMI_CLIENT_SECRET }} 2>&1 | tee apk_build.log || { echo "=== ANDROID BUILD FAILED ===" && tail -n 500 apk_build.log; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
@@ -218,7 +230,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          flutter build windows --release --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} 2>&1 | tee win_build.log || { echo "=== WINDOWS BUILD FAILED ===" && tail -n 200 win_build.log; exit 1; }
+          flutter build windows --release --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} --dart-define=BANGUMI_CLIENT_ID=${{ secrets.BANGUMI_CLIENT_ID }} --dart-define=BANGUMI_CLIENT_SECRET=${{ secrets.BANGUMI_CLIENT_SECRET }} 2>&1 | tee win_build.log || { echo "=== WINDOWS BUILD FAILED ===" && tail -n 200 win_build.log; exit 1; }
       - name: 打包 Windows 安装文件
         run: Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "NexHub-windows-x64.zip"
       - uses: actions/upload-artifact@v4
@@ -377,7 +389,7 @@ jobs:
       - name: 编译 Linux (verbose + 日志)
         run: |
           set -o pipefail
-          flutter build linux --release --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} 2>&1 | tee flutter_build.log || { tail -n 500 flutter_build.log; exit 1; }
+          flutter build linux --release --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} --dart-define=BANGUMI_CLIENT_ID=${{ secrets.BANGUMI_CLIENT_ID }} --dart-define=BANGUMI_CLIENT_SECRET=${{ secrets.BANGUMI_CLIENT_SECRET }} 2>&1 | tee flutter_build.log || { tail -n 500 flutter_build.log; exit 1; }
       - name: 上传构建日志 (始终，便于失败排查)
         if: always()
         uses: actions/upload-artifact@v4
@@ -423,7 +435,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          flutter build macos --release --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} 2>&1 | tee macos_build.log || { echo "=== MACOS BUILD FAILED ===" && tail -n 500 macos_build.log; exit 1; }
+          flutter build macos --release --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} --dart-define=BANGUMI_CLIENT_ID=${{ secrets.BANGUMI_CLIENT_ID }} --dart-define=BANGUMI_CLIENT_SECRET=${{ secrets.BANGUMI_CLIENT_SECRET }} 2>&1 | tee macos_build.log || { echo "=== MACOS BUILD FAILED ===" && tail -n 500 macos_build.log; exit 1; }
       - name: 打包 macOS 安装文件
         run: |
           APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -n1)
