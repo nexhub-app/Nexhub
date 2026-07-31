@@ -1,7 +1,7 @@
 /// 详情页共享操作工具（M16.2-16.4 详情页对账）。
 ///
 /// 提供"系统分享 / 外部浏览器打开 / 应用内浏览"三个共享操作的统一实现，
-/// 供 [ContentDetailScreen] / [ComicDetailScreen] / [NovelDetailScreen] 复用，
+/// 供唯一详情页 [ContentDetailScreen] 复用，
 /// 避免三处重复实现。
 library;
 

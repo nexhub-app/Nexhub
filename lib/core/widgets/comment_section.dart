@@ -23,6 +23,7 @@ import '../navigation/app_page_route.dart';
 import '../theme/app_tokens.dart';
 import 'app_animations.dart';
 import 'app_card.dart';
+import 'app_shimmer.dart';
 import 'comment_list_screen.dart';
 import 'source_login_sheet.dart';
 
@@ -226,49 +227,54 @@ class _CommentSectionState extends State<CommentSection> {
   }
 }
 
-/// 加载态骨架：3 个灰块占位卡。
+/// 加载态骨架：3 张微光占位卡。
+///
+/// 每张卡按索引错开 [AppShimmer.phase]（0 / 0.15 / 0.30），形成自上而下
+/// 的呼吸波，替代此前静态灰块的僵硬观感。
 class _CommentSkeleton extends StatelessWidget {
   const _CommentSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    final Color block = Theme.of(context)
-        .colorScheme
-        .onSurfaceVariant
-        .withValues(alpha: 0.12);
-    Widget bar(double width) => Container(
-          width: width,
-          height: 12,
-          decoration: BoxDecoration(
-            color: block,
-            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-          ),
-        );
     return Column(
-      children: List<Widget>.generate(
-        3,
-        (int i) => Padding(
+      children: List<Widget>.generate(3, (int i) {
+        final double phase = i * 0.15;
+        return Padding(
           padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
           child: AppCard(
             child: Row(
               children: <Widget>[
-                CircleAvatar(radius: 16, backgroundColor: block),
+                AppShimmer(
+                  width: 32,
+                  height: 32,
+                  shape: BoxShape.circle,
+                  phase: phase,
+                ),
                 const SizedBox(width: AppTokens.spaceSm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      bar(96),
+                      AppShimmer(
+                        width: 96,
+                        height: 12,
+                        borderRadius: AppTokens.radiusSm,
+                        phase: phase,
+                      ),
                       const SizedBox(height: AppTokens.spaceXs),
-                      bar(double.infinity),
+                      AppShimmer(
+                        height: 12,
+                        borderRadius: AppTokens.radiusSm,
+                        phase: phase + 0.05,
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }

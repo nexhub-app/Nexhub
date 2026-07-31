@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/services/bangumi/bangumi_oauth_config.dart';
+import '../../../core/services/bangumi/bangumi_proxy_config.dart';
 import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/bangumi_collection_browser.dart';
@@ -29,10 +30,44 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
   bool _verifying = false;
   bool _oauthing = false;
 
+  // ── 代理 / 镜像配置 ──
+  final TextEditingController _mainSiteController = TextEditingController();
+  final TextEditingController _apiController = TextEditingController();
+  final TextEditingController _imageController = TextEditingController();
+  BangumiProxyMode _proxyMode = BangumiProxyMode.direct;
+
+  @override
+  void initState() {
+    super.initState();
+    final cfg = BangumiProxyConfig.instance;
+    _proxyMode = cfg.mode;
+    _mainSiteController.text = cfg.mainSite;
+    _apiController.text = cfg.api;
+    _imageController.text = cfg.image;
+  }
+
   @override
   void dispose() {
     _tokenController.dispose();
+    _mainSiteController.dispose();
+    _apiController.dispose();
+    _imageController.dispose();
     super.dispose();
+  }
+
+  /// 保存代理 / 镜像设置到本地存储并同步全局实例。
+  Future<void> _saveProxy(AppLocalizations l10n) async {
+    final cfg = BangumiProxyConfig(
+      mode: _proxyMode,
+      mainSite: _mainSiteController.text.trim(),
+      api: _apiController.text.trim(),
+      image: _imageController.text.trim(),
+    );
+    await cfg.save();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.bangumiProxySaved)),
+    );
   }
 
   Future<void> _verifyToken(AppLocalizations l10n) async {
@@ -171,6 +206,68 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
               label: Text(l10n.bangumiGetToken),
             ),
           ],
+          // ───── 代理 / 镜像设置 ─────
+          const SizedBox(height: AppTokens.spaceXl),
+          const Divider(),
+          const SizedBox(height: AppTokens.spaceMd),
+          Text(l10n.bangumiProxyTitle, style: theme.textTheme.titleMedium),
+          const SizedBox(height: AppTokens.spaceMd),
+          SegmentedButton<BangumiProxyMode>(
+            segments: <ButtonSegment<BangumiProxyMode>>[
+              ButtonSegment<BangumiProxyMode>(
+                value: BangumiProxyMode.direct,
+                label: Text(l10n.bangumiProxyDirect),
+                icon: const Icon(Icons.lan),
+              ),
+              ButtonSegment<BangumiProxyMode>(
+                value: BangumiProxyMode.mirror,
+                label: Text(l10n.bangumiProxyMirror),
+                icon: const Icon(Icons.dns),
+              ),
+            ],
+            selected: <BangumiProxyMode>{_proxyMode},
+            onSelectionChanged: (s) => setState(() => _proxyMode = s.first),
+          ),
+          if (_proxyMode == BangumiProxyMode.mirror) ...<Widget>[
+            const SizedBox(height: AppTokens.spaceMd),
+            Text(l10n.bangumiProxyHint, style: theme.textTheme.bodySmall),
+            const SizedBox(height: AppTokens.spaceMd),
+            TextField(
+              controller: _mainSiteController,
+              decoration: InputDecoration(
+                labelText: l10n.bangumiProxyMainSite,
+                hintText: 'next.bgm.tv',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.home_outlined),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+            TextField(
+              controller: _apiController,
+              decoration: InputDecoration(
+                labelText: l10n.bangumiProxyApi,
+                hintText: 'api.bgm.tv',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.cloud_outlined),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+            TextField(
+              controller: _imageController,
+              decoration: InputDecoration(
+                labelText: l10n.bangumiProxyImage,
+                hintText: 'lain.bgm.tv',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.image_outlined),
+              ),
+            ),
+          ],
+          const SizedBox(height: AppTokens.spaceMd),
+          FilledButton.icon(
+            onPressed: () => _saveProxy(l10n),
+            icon: const Icon(Icons.save),
+            label: Text(l10n.save),
+          ),
           // ───── 浏览 Bangumi 收藏（登录后可用）─────
           if (auth.isLoggedIn) ...<Widget>[
             const SizedBox(height: AppTokens.spaceXl),

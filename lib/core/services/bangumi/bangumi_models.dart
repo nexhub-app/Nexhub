@@ -144,9 +144,39 @@ class BangumiSubjectRating {
   }
 }
 
+/// Bangumi 条目收藏统计（v0 API subject.collection 字段）。
+class BangumiCollectionStat {
+  final int wish;    // 想做/想看
+  final int collect; // 做过/看过
+  final int doing;   // 在做/在看
+  final int onHold;  // 搁置
+  final int dropped; // 抛弃
+
+  const BangumiCollectionStat({
+    this.wish = 0,
+    this.collect = 0,
+    this.doing = 0,
+    this.onHold = 0,
+    this.dropped = 0,
+  });
+
+  /// 总收藏人数。
+  int get total => wish + collect + doing + onHold + dropped;
+
+  factory BangumiCollectionStat.fromJson(Map<String, dynamic> json) =>
+      BangumiCollectionStat(
+        wish: (json['wish'] as num?)?.toInt() ?? 0,
+        collect: (json['collect'] as num?)?.toInt() ?? 0,
+        doing: (json['doing'] as num?)?.toInt() ?? 0,
+        onHold: (json['on_hold'] as num?)?.toInt() ?? 0,
+        dropped: (json['dropped'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// Bangumi 条目详情（GET /v0/subjects/{id}），供详情页展示站点评分与评价。
 ///
 /// 仅保留展示需要的字段：评分、简介、标签（用户标签即站点「评价」侧写）。
+/// v0 API 同时返回 rank / collection / eps / air_date 等元数据。
 class BangumiSubjectDetail {
   final int id;
   final String name;
@@ -159,6 +189,18 @@ class BangumiSubjectDetail {
   /// 用户标签（按热度降序），最多保留前若干项供展示。
   final List<String> tags;
 
+  /// 条目排名（0 = 未上榜）。
+  final int rank;
+
+  /// 话数（动画类）或卷数；非剧集类可能为 0。
+  final int eps;
+
+  /// 放送开始日期（如 "2026-07-01"）。
+  final String? airDate;
+
+  /// 收藏统计（想看/在看/看过等各状态人数）。
+  final BangumiCollectionStat collection;
+
   const BangumiSubjectDetail({
     required this.id,
     required this.name,
@@ -168,6 +210,10 @@ class BangumiSubjectDetail {
     this.image,
     this.rating = const BangumiSubjectRating(),
     this.tags = const <String>[],
+    this.rank = 0,
+    this.eps = 0,
+    this.airDate,
+    this.collection = const BangumiCollectionStat(),
   });
 
   /// 优先中文名，缺省回退原名。
@@ -194,6 +240,7 @@ class BangumiSubjectDetail {
       }
     }
     final rawRating = json['rating'];
+    final rawCollection = json['collection'];
     return BangumiSubjectDetail(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name'] as String? ?? '',
@@ -205,6 +252,13 @@ class BangumiSubjectDetail {
           ? BangumiSubjectRating.fromJson(rawRating)
           : const BangumiSubjectRating(),
       tags: tags,
+      rank: (json['rank'] as num?)?.toInt() ?? 0,
+      eps: (json['eps'] as num?)?.toInt() ??
+          (json['eps_count'] as num?)?.toInt() ?? 0,
+      airDate: json['air_date'] as String?,
+      collection: rawCollection is Map<String, dynamic>
+          ? BangumiCollectionStat.fromJson(rawCollection)
+          : const BangumiCollectionStat(),
     );
   }
 }
@@ -405,4 +459,198 @@ class SyncLogItem {
     required this.status,
     this.detail = '',
   });
+}
+
+/// Bangumi 条目吐槽（GET /v0/subjects/{subject_id}/comments）。
+///
+/// 公开接口无需鉴权；用于详情页「Bangumi 吐槽」标签页只读展示。
+class BangumiComment {
+  final int id;
+  final String comment;
+  final int rating;
+
+  /// 用户登录名（API 路径用）。
+  final String username;
+
+  /// 展示昵称。
+  final String nickname;
+
+  /// 头像（images.large / medium / small 任一）。
+  final String? avatar;
+
+  /// ISO 时间字符串（如 2021-08-01T12:00:00.000+00:00）。
+  final String createdAt;
+
+  const BangumiComment({
+    required this.id,
+    required this.comment,
+    this.rating = 0,
+    this.username = '',
+    this.nickname = '',
+    this.avatar,
+    this.createdAt = '',
+  });
+
+  /// 展示名：优先昵称，缺省回退登录名。
+  String get displayName =>
+      nickname.isNotEmpty ? nickname : (username.isNotEmpty ? username : '#$id');
+
+  factory BangumiComment.fromJson(Map<String, dynamic> json) {
+    final user = json['user'];
+    final userMap =
+        user is Map<String, dynamic> ? user : const <String, dynamic>{};
+    String? avatar;
+    final images = userMap['avatar'];
+    if (images is Map<String, dynamic>) {
+      avatar = (images['large'] ?? images['medium'] ?? images['small']) as String?;
+    } else if (userMap['avatar'] is String) {
+      avatar = userMap['avatar'] as String;
+    }
+    return BangumiComment(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      comment: json['comment'] as String? ?? '',
+      rating: (json['rating'] as num?)?.toInt() ?? 0,
+      username: userMap['username'] as String? ?? '',
+      nickname: userMap['nickname'] as String? ?? '',
+      avatar: avatar,
+      createdAt: json['created_at'] as String? ?? '',
+    );
+  }
+}
+
+/// Bangumi 角色（GET /v0/subjects/{id}/characters）。
+class BangumiCharacter {
+  final int id;
+  final String name;
+  final String nameCn;
+  final String? image;
+  /// 角色类型：1=主角 2=配角 等（API 未固定，部分条目有 role 字段）。
+  final String? role;
+  /// 关联人物信息。
+  final BangumiPersonSummary? actor;
+  const BangumiCharacter({
+    required this.id,
+    required this.name,
+    this.nameCn = '',
+    this.image,
+    this.role,
+    this.actor,
+  });
+  String get displayName => nameCn.isNotEmpty ? nameCn : name;
+  factory BangumiCharacter.fromJson(Map<String, dynamic> json) {
+    String? image;
+    final images = json['images'];
+    if (images is Map<String, dynamic>) {
+      image = (images['grid'] ?? images['medium'] ?? images['small']) as String?;
+    }
+    final actors = json['actors'];
+    BangumiPersonSummary? actor;
+    if (actors is List && actors.isNotEmpty) {
+      final a = actors.first;
+      if (a is Map<String, dynamic>) {
+        actor = BangumiPersonSummary.fromJson(a);
+      }
+    }
+    return BangumiCharacter(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      nameCn: json['name_cn'] as String? ?? '',
+      image: image,
+      role: json['role'] as String?,
+      actor: actor,
+    );
+  }
+}
+
+/// 人物摘要（嵌在角色/制作人员中）。
+class BangumiPersonSummary {
+  final int id;
+  final String name;
+  final String nameCn;
+  final String? image;
+  const BangumiPersonSummary({
+    required this.id,
+    required this.name,
+    this.nameCn = '',
+    this.image,
+  });
+  String get displayName => nameCn.isNotEmpty ? nameCn : name;
+  factory BangumiPersonSummary.fromJson(Map<String, dynamic> json) {
+    String? image;
+    final images = json['images'];
+    if (images is Map<String, dynamic>) {
+      image = (images['grid'] ?? images['medium'] ?? images['small']) as String?;
+    }
+    return BangumiPersonSummary(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      nameCn: json['name_cn'] as String? ?? '',
+      image: image,
+    );
+  }
+}
+
+/// 关联条目（GET /v0/subjects/{id}/subjects）。
+class BangumiRelatedSubject {
+  final int id;
+  final String name;
+  final String nameCn;
+  final int type;
+  final String? image;
+  final double? score;
+  /// 关联关系描述（如 "前传"、"续集"）。
+  final String? relation;
+
+  const BangumiRelatedSubject({
+    required this.id,
+    required this.name,
+    this.nameCn = '',
+    required this.type,
+    this.image,
+    this.score,
+    this.relation,
+  });
+  String get displayName => nameCn.isNotEmpty ? nameCn : name;
+  factory BangumiRelatedSubject.fromJson(Map<String, dynamic> json) {
+    String? image;
+    // v0 API subjects 接口返回的图片在 images 字段或直接 image
+    final rawImg = json['image'];
+    if (rawImg is String) image = rawImg;
+    final images = json['images'];
+    if (images is Map<String, dynamic>) {
+      image = (image ?? images['grid'] ?? images['medium'] ?? images['common'])
+          as String?;
+    }
+
+    final subject = json['subject'];
+    if (subject is Map<String, dynamic>) {
+      // p1 风格：数据嵌套在 subject 下
+      final sImages = subject['images'];
+      if (sImages is Map<String, dynamic>) {
+        image = (image ?? sImages['grid'] ?? sImages['medium']) as String?;
+      }
+      return BangumiRelatedSubject(
+        id: (subject['id'] as num?)?.toInt() ?? (json['id'] as num?)?.toInt() ?? 0,
+        name: subject['name'] as String? ?? json['name'] as String? ?? '',
+        nameCn: subject['name_cn'] as String? ?? json['name_cn'] as String? ?? '',
+        type: (subject['type'] as num?)?.toInt() ??
+            (json['type'] as num?)?.toInt() ?? 0,
+        image: image,
+        score: (subject['rating']?['score'] as num?)?.toDouble() ??
+            (subject['score'] as num?)?.toDouble(),
+        relation: json['relation'] as String?,
+      );
+    }
+
+    return BangumiRelatedSubject(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      nameCn: json['name_cn'] as String? ?? '',
+      type: (json['type'] as num?)?.toInt() ?? 0,
+      image: image,
+      score: (json['rating']?['score'] as num?)?.toDouble() ??
+          (json['score'] as num?)?.toDouble(),
+      relation: json['relation'] as String?,
+    );
+  }
 }
