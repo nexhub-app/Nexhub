@@ -1,8 +1,9 @@
 {
   "@@locale": "en",
   "appTitle": "NexHub",
-  "@appTitle": { "description": "Application title" },
-
+  "@appTitle": {
+    "description": "Application title"
+  },
   "navBrowse": "Browse",
   "navNovel": "Novel",
   "navMedia": "Media",
@@ -15,12 +16,10 @@
   "downloadManagementTitle": "Download Management",
   "aboutTitle": "About",
   "themeTitle": "Appearance",
-
   "tabLibrary": "Library",
   "tabOnline": "Online",
   "tabSubscribe": "Subscribe",
   "tabSources": "Sources",
-
   "browseLocalFiles": "Local Files",
   "browseLocalFilesSubtitle": "Browse local novels, videos and comics",
   "browseNetworkFiles": "Network Files",
@@ -31,11 +30,9 @@
   "browseRssSubtitle": "Manage and browse RSS feeds",
   "browseSniff": "Sniffer",
   "browseSniffSubtitle": "Sniff web videos and play them in-app",
-
   "subTabLocal": "Local",
   "subTabHistory": "History",
   "subTabFavorite": "Favorites",
-
   "filter": "Filter",
   "filterTitle": "Filter",
   "sortBy": "Sort by",
@@ -54,13 +51,17 @@
   "episodesWithLine": "Episodes · {line}",
   "@episodesWithLine": {
     "description": "Episode list header with selected line",
-    "placeholders": { "line": {} }
+    "placeholders": {
+      "line": {}
+    }
   },
   "recommendations": "You may also like",
   "episodeN": "Episode {n}",
   "@episodeN": {
     "description": "Episode number label",
-    "placeholders": { "n": {} }
+    "placeholders": {
+      "n": {}
+    }
   },
   "cancel": "Cancel",
   "confirm": "Confirm",
@@ -74,7 +75,6 @@
   "ok": "OK",
   "next": "Next",
   "previous": "Previous",
-
   "emptyLibrary": "Your library is empty",
   "emptySearch": "No results found",
   "emptyDownloads": "No downloads yet",
@@ -98,7 +98,9 @@
   "updatedAt": "Updated {time}",
   "@updatedAt": {
     "description": "Last updated time label",
-    "placeholders": { "time": {} }
+    "placeholders": {
+      "time": {}
+    }
   },
   "statusOngoing": "Ongoing",
   "statusCompleted": "Completed",
@@ -111,14 +113,12 @@
   "all": "All",
   "emptyCategory": "No content in this category",
   "emptyContent": "No content yet",
-  "loadFailed": "Failed to load",
   "contentExpired": "Content expired, please search again",
   "sourceNotFound": "Source unavailable, please switch source or search again",
   "onlineBrowse": "Online Browse",
   "refreshList": "Refresh list",
   "goToVerification": "Verify now",
   "openSourceWebsite": "Open source site",
-
   "errorGeneric": "Something went wrong",
   "errorNetwork": "Network error, please try again",
   "errorParse": "Failed to parse content",
@@ -132,23 +132,24 @@
   "danmakuStyleScroll": "Scroll",
   "danmakuStyleTop": "Top",
   "danmakuStyleBottom": "Bottom",
-
   "themeLight": "Light",
   "themeDark": "Dark",
   "themeSystem": "System",
   "useMonet": "Use dynamic color (Monet)",
   "customColor": "Custom theme color",
   "presetColor": "Preset colors",
-
   "deleteConfirmTitle": "Delete confirmation",
   "deleteConfirmContent": "Delete \"{name}\"? This cannot be undone.",
   "@deleteConfirmContent": {
     "description": "Delete confirmation dialog content",
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "deleteRecordOnly": "Delete record only",
   "deleteRecordAndFile": "Delete record and files",
-
   "addSource": "Add source",
   "importSource": "Import source",
   "exportSource": "Export source",
@@ -163,24 +164,34 @@
   "resolveFailed": "Resolve failed: {message}",
   "@resolveFailed": {
     "description": "Source resolve failure message",
-    "placeholders": { "message": {} }
+    "placeholders": {
+      "message": {}
+    }
   },
   "categories": "Categories",
-
   "chapterN": "Ch. {n}",
   "@chapterN": {
     "description": "Chapter number label for manga",
-    "placeholders": { "n": {} }
+    "placeholders": {
+      "n": {}
+    }
   },
   "pageIndicator": "Page {cur} / {total}",
   "@pageIndicator": {
     "description": "Reader page indicator",
-    "placeholders": { "cur": {}, "total": {} }
+    "placeholders": {
+      "cur": {},
+      "total": {}
+    }
   },
   "readerDoublePageIndicator": "{first}-{last} / {total}",
   "@readerDoublePageIndicator": {
     "description": "Reader double-page spread indicator",
-    "placeholders": { "first": {}, "last": {}, "total": {} }
+    "placeholders": {
+      "first": {},
+      "last": {},
+      "total": {}
+    }
   },
   "prevChapter": "Prev chapter",
   "nextChapter": "Next chapter",
@@ -242,17 +253,15 @@
   "filterInverted": "Invert",
   "favorite": "Favorite",
   "moreActions": "More",
-
   "demoNormal": "Default view",
   "demoEmpty": "Show empty state",
   "demoError": "Show error state",
-
   "noContent": "No content in this chapter",
   "novelFontSize": "Font size",
   "novelLineHeight": "Line height",
-  "novelParagraphSpacing": "Paragraph spacing",
+  "novelParagraphSpacing": "Paragraph Spacing",
   "novelMargin": "Margin",
-  "novelPageAnimation": "Page animation",
+  "novelPageAnimation": "Page Animation",
   "novelTextShadow": "Text shadow",
   "novelAnimNone": "None",
   "novelAnimSlide": "Slide",
@@ -270,9 +279,10 @@
   "novelChapterN": "Chapter {n}",
   "@novelChapterN": {
     "description": "Novel chapter number label",
-    "placeholders": { "n": {} }
+    "placeholders": {
+      "n": {}
+    }
   },
-
   "download": "Download",
   "downloads": "Downloads",
   "downloadListTitle": "Downloads",
@@ -298,7 +308,6 @@
   "statusPaused": "Paused",
   "statusFailed": "Failed",
   "statusWaitingForWifi": "Waiting for Wi-Fi",
-  "statusCompleted": "Completed",
   "statusCancelled": "Cancelled",
   "downloadWifiOnly": "Wi-Fi only downloads",
   "downloadWifiOnlyHint": "Start downloads only when connected to Wi-Fi",
@@ -312,7 +321,6 @@
   "formatEpubSubtitle": "Standard eBook format with table of contents",
   "formatTxt": "TXT Plain Text",
   "formatTxtSubtitle": "Plain text format, widest compatibility",
-
   "emptyHistory": "No browsing history",
   "emptyFavorites": "No favorites yet",
   "emptyRssFeeds": "No RSS feeds",
@@ -321,10 +329,9 @@
   "rssFeedTitle": "Title",
   "rssFeedTitleHint": "Custom title (optional)",
   "opening": "Opening",
-
   "verificationRequired": "Verification Required",
   "verificationHint": "This content requires web verification. Tap the button below to complete verification in your browser, then return and retry.",
-  "openInBrowser": "Open in external browser",
+  "openInBrowser": "Open externally",
   "verificationDone": "Verification Done, Retry",
   "webViewNotAvailable": "In-app browser is not available on this platform. Please use an external browser to complete verification.",
   "extractFromPage": "Extract from this page",
@@ -489,7 +496,10 @@
   "selectedCount": "Selected {selected}/{total}",
   "@selectedCount": {
     "description": "Selected episode count",
-    "placeholders": { "selected": {}, "total": {} }
+    "placeholders": {
+      "selected": {},
+      "total": {}
+    }
   },
   "rangeStart": "Start",
   "rangeEnd": "End",
@@ -503,7 +513,6 @@
   "cacheCleared": "Cache cleared",
   "privacySettings": "Privacy Settings",
   "stealthSettings": "Stealth Settings",
-
   "browseLocalTitle": "Local Files",
   "browseLocalEmpty": "No readable local files found",
   "browseLocalScan": "Scan Files",
@@ -561,7 +570,9 @@
   "mirrorTestResultMs": "{ms} ms",
   "@mirrorTestResultMs": {
     "description": "Mirror speed test result (ms)",
-    "placeholders": { "ms": {} }
+    "placeholders": {
+      "ms": {}
+    }
   },
   "mirrorTestFailed": "Failed",
   "mirrorCurrent": "Current",
@@ -609,7 +620,6 @@
   "downloadedGroupOpen": "Open",
   "downloadedGroupFileMissing": "File not found",
   "downloadedGroupDeleteConfirm": "Delete this download?",
-
   "browsePageTitle": "Browse",
   "rssSubscribeTitle": "RSS Subscriptions",
   "emptyRssSubscribe": "No RSS subscriptions yet",
@@ -618,12 +628,10 @@
   "rsshubRoutesTitle": "RSSHub Routes",
   "rsshubRouteRecommend": "RSSHub Route Recommendations",
   "rsshubRouteHint": "Tap a route to auto-fill with RSSHub instance URL",
-
   "novelLibraryName": "Novel Library",
   "mediaLibraryName": "Media Library",
   "comicLibraryName": "Comic Library",
   "emptySubscribe": "No subscriptions",
-
   "sourceListTab": "Source List",
   "networkImportTab": "Network Import",
   "localImportTab": "Local Import",
@@ -639,49 +647,66 @@
   "importPreviewTitle": "{count} files found",
   "@importPreviewTitle": {
     "description": "Import preview title showing number of scanned files",
-    "placeholders": { "count": {} }
+    "placeholders": {
+      "count": {}
+    }
   },
-  "confirmImport": "Confirm Import",
+  "confirmImport": "Confirm import",
   "@confirmImport": {
     "description": "Button to confirm importing selected sources"
   },
   "importSelectedCount": "{count} selected",
   "@importSelectedCount": {
     "description": "Label showing count of selected items for import",
-    "placeholders": { "count": {} }
+    "placeholders": {
+      "count": {}
+    }
   },
   "importTypeOnly": "Only {type} sources will be imported",
   "@importTypeOnly": {
     "description": "Banner in local import preview when importing on a type-specific source page",
-    "placeholders": { "type": {} }
+    "placeholders": {
+      "type": {}
+    }
   },
   "importTypeFiltered": "{count} other-type source(s) skipped",
   "@importTypeFiltered": {
     "description": "Suffix in local import preview banner showing how many other-type sources were skipped",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "importNoMatchingType": "No {type} sources found in the selection ({count} other-type source(s) skipped)",
   "@importNoMatchingType": {
     "description": "Snackbar when a type-specific import found no matching-type sources",
     "placeholders": {
       "type": {},
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "sourceImportResult": "Imported {success}/{total} sources",
   "@sourceImportResult": {
     "description": "Snackbar after batch import showing success/total count",
     "placeholders": {
-      "success": { "type": "int" },
-      "total": { "type": "int" }
+      "success": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
-
   "batchImportHint": "Recognized {count} sources. Select to batch import (includes novel / media / comic).",
   "@batchImportHint": {
     "description": "Batch import preview hint",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "sourceUnrecognized": "No valid source recognized (novel / media / comic).",
@@ -692,7 +717,9 @@
   "@importDistributedHint": {
     "description": "Cross-module import banner",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "settingsGroupDownload": "Download Management",
@@ -793,7 +820,6 @@
   "downloadedTabsComic": "Comic",
   "downloadedTabsArchived": "Archived",
   "noDownloads": "No downloads",
-
   "downloadPause": "Pause",
   "downloadResume": "Resume",
   "sourceCategoryNovel": "Novel",
@@ -802,12 +828,16 @@
   "sourceCategoryEmpty": "No {category} sources",
   "@sourceCategoryEmpty": {
     "description": "Empty state message for a source category tab",
-    "placeholders": { "category": {} }
+    "placeholders": {
+      "category": {}
+    }
   },
   "rsshubLatencyMs": "{ms}ms",
   "@rsshubLatencyMs": {
     "description": "RSSHub instance latency in milliseconds",
-    "placeholders": { "ms": {} }
+    "placeholders": {
+      "ms": {}
+    }
   },
   "rsshubLatencyFailed": "Failed",
   "downloaderSelectTitle": "Downloader Selection",
@@ -818,7 +848,6 @@
   "novelFormatSelectTitle": "Novel Format",
   "novelFormatTxt": "TXT",
   "novelFormatEpub": "EPUB",
-
   "rsshubRouteBilibiliBangumi": "Bilibili Bangumi",
   "rsshubRouteBilibiliBangumiPath": "/bilibili/bangumi/media/:mediaid",
   "rsshubRouteBilibiliMangaUpdate": "Bilibili Manga Update",
@@ -832,7 +861,6 @@
   "rsshubRouteTwitterUser": "Twitter User",
   "rsshubRouteLinovelib": "Linovelib",
   "rsshubRouteSfacg": "SFACG",
-
   "importMediaTitle": "Import Media",
   "importMediaFormatsHint": "Supports mp4, mkv, avi, mov and common video formats",
   "importMediaPickFile": "Select Video File",
@@ -845,9 +873,7 @@
   "importComicFormatsHint": "Supports cbz, cbr, cbt and common comic archive formats",
   "importComicPickFile": "Select Comic File",
   "importComicPickFolder": "Select Comic Folder",
-
   "novelBrightness": "Brightness",
-
   "playerLock": "Lock",
   "playerUnlock": "Unlock",
   "playerAutoPlayNext": "Auto-play next",
@@ -906,7 +932,6 @@
   "playerNextEpisode": "Next episode",
   "playerPreviousEpisode": "Previous episode",
   "playerShare": "Share",
-
   "danmakuFilterKeywords": "Filter keywords",
   "danmakuTimeOffset": "Time offset (s)",
   "danmakuArea": "Display area",
@@ -925,7 +950,6 @@
   "danmakuLoadFailed": "Failed to load danmaku",
   "danmakuLoaded": "Danmaku loaded",
   "danmakuCacheHit": "Danmaku cached",
-
   "danmakuSourceTitle": "Danmaku Source",
   "@danmakuSourceTitle": {
     "description": "Danmaku source selection sheet title"
@@ -958,7 +982,6 @@
   "@danmakuSourceOffDesc": {
     "description": "Disabled danmaku source description"
   },
-
   "danmakuDisplaySettingsTitle": "Danmaku Display Settings",
   "@danmakuDisplaySettingsTitle": {
     "description": "Danmaku display settings entry title"
@@ -1040,7 +1063,9 @@
   "subtitleTrackN": "Track {n}",
   "@subtitleTrackN": {
     "description": "Fallback subtitle track label using its id",
-    "placeholders": { "n": {} }
+    "placeholders": {
+      "n": {}
+    }
   },
   "readerSettingsTitle": "Reader Settings",
   "@readerSettingsTitle": {
@@ -1074,11 +1099,9 @@
   "@novelTypographyGroup": {
     "description": "Novel default: typography"
   },
-  "novelParagraphSpacing": "Paragraph Spacing",
   "@novelParagraphSpacing": {
     "description": "Novel paragraph spacing"
   },
-  "novelMargin": "Margin",
   "@novelMargin": {
     "description": "Novel margin"
   },
@@ -1090,7 +1113,6 @@
   "@novelBackgroundPreset": {
     "description": "Novel background preset"
   },
-  "novelPageAnimation": "Page Animation",
   "@novelPageAnimation": {
     "description": "Novel page turn animation"
   },
@@ -1235,14 +1257,16 @@
   "playerTimerMinutes": "{minutes} minutes",
   "@playerTimerMinutes": {
     "description": "Sleep timer duration in minutes",
-    "placeholders": { "minutes": { "type": "int" } }
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
   },
   "playerTimerCustom": "Custom",
   "playerTimerCanceled": "Sleep timer canceled",
   "playerTimerFired": "Sleep timer fired, playback paused",
-
   "noDescription": "No description available",
-
   "aboutAppTitle": "About",
   "openSourceLicenses": "Open source licenses",
   "thirdPartyLibraries": "Third-party libraries",
@@ -1260,19 +1284,15 @@
   "updateAvailableHint": "Open the releases page to download?",
   "updateGoToDownload": "Go to download",
   "updateCheckFailed": "Failed to check for updates. Try again later.",
-
   "settingsGroupLanguage": "Language",
   "languageTitle": "Interface language",
   "languageFollowSystem": "Follow system",
   "languageChinese": "简体中文",
   "languageEnglish": "English",
-
   "chapterList": "Chapter list",
   "currentChapter": "Current chapter",
-
   "searchByAuthor": "Search by author",
   "noRecommendation": "No recommendations",
-
   "restore": "Restore",
   "archive": "Archive",
   "archivedEmpty": "No archived content",
@@ -1280,14 +1300,12 @@
   "deletePermanently": "Delete permanently",
   "restoreSuccess": "Restored",
   "statusArchived": "Archived",
-
   "searchHistoryTitle": "Search history",
   "clearSearchHistory": "Clear history",
   "clearSearchHistoryConfirm": "Clear all search history?",
   "noSearchHistory": "No search history",
   "hotSearch": "Hot search",
   "noHotSearch": "No hot search",
-
   "importDataParsing": "Parsing…",
   "importDataSuccess": "Import successful",
   "importDataFailed": "Import failed",
@@ -1295,13 +1313,17 @@
   "importDataSummary": "Imported {plugins} plugins / {favorites} favorites / {history} history",
   "@importDataSummary": {
     "placeholders": {
-      "plugins": { "type": "int" },
-      "favorites": { "type": "int" },
-      "history": { "type": "int" }
+      "plugins": {
+        "type": "int"
+      },
+      "favorites": {
+        "type": "int"
+      },
+      "history": {
+        "type": "int"
+      }
     }
   },
-  "confirmImport": "Confirm import",
-
   "exportFolderDefault": "Default path (Documents)",
   "exportDataSuccess": "Export successful",
   "exportDataFailed": "Export failed",
@@ -1309,35 +1331,38 @@
   "exportDataFileSaved": "Saved to {path}",
   "@exportDataFileSaved": {
     "placeholders": {
-      "path": { "type": "String" }
+      "path": {
+        "type": "String"
+      }
     }
   },
   "exportNothingToExport": "Nothing to export",
-
   "notImplemented": "Not implemented yet",
-
   "cast": "Cast",
   "castNotSupportedYet": "Cast is not supported yet",
   "cloudSync": "Cloud sync",
   "cloudSyncNotSupportedYet": "Coming soon",
-
   "cloudSyncNotConfigured": "Not configured, tap to set up",
   "cloudSyncFeatureWebdav": "WebDAV backup",
   "cloudSyncFeatureSync": "Sync favorites and progress across devices",
-
   "enableRecommendedSources": "Enable Recommended Sources",
   "enableRecommendedSourcesHint": "Enable all available recommended sources at once",
   "recommendedSourcesEnabled": "Enabled {count} recommended sources",
   "@recommendedSourcesEnabled": {
     "description": "Toast after enabling recommended sources",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
-
   "castToDevice": "Cast to device",
   "castingTo": "Casting to {device}",
   "@castingTo": {
     "description": "Casting to a device name",
-    "placeholders": { "device": {} }
+    "placeholders": {
+      "device": {}
+    }
   },
   "castNoDevices": "No cast devices found",
   "castNotSupportedOnDevice": "Casting is not supported on this device",
@@ -1349,9 +1374,7 @@
   "screenshotFailed": "Screenshot failed",
   "screenshotPathSetting": "Screenshot save path",
   "screenshotPathDefault": "Default (Documents/screenshots)",
-
   "imageLoadFailed": "Image load failed",
-
   "seriesTitle": "Series",
   "@seriesTitle": {
     "description": "Series entry button label and series detail screen title"
@@ -1363,14 +1386,21 @@
   "episodeCount": "{count} episodes",
   "@episodeCount": {
     "description": "Episode count badge on season card",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "seasonCount": "{count} seasons",
   "@seasonCount": {
     "description": "Season count label",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
-
   "imageFilter": "Image Filter",
   "brightness": "Brightness",
   "contrast": "Contrast",
@@ -1383,11 +1413,14 @@
   "imageSavedTo": "Image saved to {path}",
   "@imageSavedTo": {
     "description": "Toast after saving a reader image",
-    "placeholders": { "path": { "type": "String" } }
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
   },
   "imageSaveFailed": "Failed to save image",
   "imagePathCopied": "Image path copied to clipboard",
-
   "chineseConverter": "Chinese Conversion",
   "noConvert": "No Conversion",
   "traditionalToSimplified": "Traditional to Simplified",
@@ -1409,8 +1442,12 @@
   "novelChapterProgress": "Ch. {current} / {total}",
   "@novelChapterProgress": {
     "placeholders": {
-      "current": { "type": "int" },
-      "total": { "type": "int" }
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "novelLetterSpacing": "Letter spacing",
@@ -1422,7 +1459,6 @@
   "novelTextColorFollowBg": "Auto (follow background)",
   "novelShadowColor": "Shadow color",
   "novelShadowColorAuto": "Auto (text color, translucent)",
-
   "novelSectionText": "Text",
   "novelSectionTitle": "Chapter title",
   "novelSectionColor": "Colors & background",
@@ -1433,7 +1469,6 @@
   "novelTitleBold": "Bold title",
   "novelTitleColor": "Title color",
   "novelTitleColorAuto": "Follow accent color",
-
   "importShuyuan": "Import Book Source",
   "shuyuanImportTitle": "Import Book Source",
   "shuyuanImportHint": "Supports book source rules (@css/@xpath/@json/@js + ## regex)",
@@ -1449,7 +1484,9 @@
   "shuyuanImportPreview": "Preview ({count})",
   "@shuyuanImportPreview": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "shuyuanImportSaveAll": "Import All",
@@ -1459,14 +1496,18 @@
   "shuyuanImportSuccess": "Imported {count} book sources",
   "@shuyuanImportSuccess": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "shuyuanImportSelected": "Import {count} selected",
   "@shuyuanImportSelected": {
     "description": "Bottom button label showing count of selected sources to import",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "shuyuanImportFailed": "Import failed",
@@ -1491,7 +1532,7 @@
   "continueReading": "Continue reading",
   "continueWatching": "Continue watching",
   "startFromBeginning": "Start from beginning",
-  "openInAppBrowser": "Open in app browser",
+  "openInAppBrowser": "Open in app",
   "refreshMetadata": "Refresh metadata",
   "removeFromFavorites": "Remove from favorites",
   "coverViewer": "Cover",
@@ -1502,7 +1543,6 @@
   "downloadFavorited": "Download favorited",
   "tagLabel": "Tags",
   "sourceLabel": "Source",
-
   "reloadChapter": "Reload chapter",
   "clearReadingProgress": "Clear reading progress",
   "readingProgressCleared": "Reading progress cleared",
@@ -1526,11 +1566,9 @@
   "stopReading": "Stop reading",
   "noteList": "Notes",
   "noNotes": "No notes yet",
-
   "add": "Add",
   "testConnection": "Test connection",
   "noCustomInstances": "No custom instances",
-
   "searchByDirector": "Search by director",
   "searchByActor": "Search by actor",
   "searchByTag": "Search by tag",
@@ -1542,53 +1580,72 @@
   "searchFieldDirector": "Director",
   "searchFieldActor": "Cast",
   "searchFieldWork": "Title",
-
   "rsshubRouteQidian": "Qidian",
   "rsshubRouteJjwxc": "JJWXC",
   "rsshubRouteDoubanBooks": "Douban Books",
   "rsshubRouteDmzj": "DMZJ",
   "rsshubRouteJmcomic": "JM Comic",
-
   "browseNetworkSelectedCount": "Selected {count}",
   "@browseNetworkSelectedCount": {
     "description": "AppBar title in multi-select mode showing selected count",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "browseNetworkOpenSelected": "Open",
   "browseNetworkDownloadSelected": "Download",
   "browseNetworkDownloadStarted": "Started downloading {count} files",
   "@browseNetworkDownloadStarted": {
     "description": "Snackbar shown when batch download starts",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "browseNetworkDownloadDone": "Downloaded {count} items",
   "@browseNetworkDownloadDone": {
     "description": "Snackbar shown when batch download completes",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "browseNetworkDownloadFailed": "Download failed",
   "browseNetworkDownloadPathMissing": "Download path unavailable",
-
   "unknown": "Unknown",
-
   "rssFeedListTitle": "RSS subscriptions",
   "rssTestAllSpeed": "Test all speeds",
   "rssSpeedFailed": "Speed test failed",
   "rssSpeedMs": "{ms}ms",
   "@rssSpeedMs": {
     "description": "RSS feed speed test result in milliseconds",
-    "placeholders": { "ms": { "type": "int" } }
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
   },
-
   "unrecognizedFile": "Unrecognized file: {fileName}",
   "@unrecognizedFile": {
     "description": "Snackbar shown when a picked file extension is not recognized",
-    "placeholders": { "fileName": { "type": "String" } }
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
   },
   "importFailed": "Import failed: {reason}",
   "@importFailed": {
     "description": "Snackbar shown when an import/pick operation throws",
-    "placeholders": { "reason": { "type": "String" } }
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
   },
   "folderScanFailed": "Folder scan failed, please check permissions or path",
   "@folderScanFailed": {
@@ -1798,7 +1855,6 @@
   "@localFileLoadFailed": {
     "description": "Error message shown when a local file fails to load in specialized readers"
   },
-
   "playerDefaultOrientation": "Lock Orientation",
   "playerOrientationAuto": "Follow System",
   "playerOrientationPortrait": "Portrait",
@@ -1822,7 +1878,6 @@
   "@playerGestureGroup": {
     "description": "Player settings group: gesture and control"
   },
-
   "novelDefaultGroupTitle": "Novel Defaults",
   "novelDefaultPageTurnAnimation": "Page Turn Animation",
   "novelDefaultFontSize": "Font Size",
@@ -1834,7 +1889,6 @@
   "novelBgCream": "Cream",
   "novelBgDarkGray": "Dark Gray",
   "novelBgBlack": "Black",
-
   "comicDefaultGroupTitle": "Comic Defaults",
   "comicDefaultReadingDirection": "Reading Direction",
   "comicDefaultTapZoneLayout": "Tap Zone Layout",
@@ -1859,7 +1913,6 @@
   "comicDirVertical": "Vertical",
   "comicDirWebtoon": "Webtoon",
   "comicDirWebtoonGap": "Webtoon (gap)",
-
   "danmakuDisplayFontSize": "Font Size",
   "danmakuDisplayOpacity": "Opacity",
   "danmakuDisplayScrollSpeed": "Scroll Speed",
@@ -1899,7 +1952,6 @@
   "@danmakuDisplayGroupSpeed": {
     "description": "Danmaku display group: speed"
   },
-
   "layoutTypeLabel": "Layout Type",
   "layoutGridLarge": "Large Grid",
   "layoutGridMedium": "Medium Grid",
@@ -1931,9 +1983,7 @@
   "@layoutDisplayGroup": {
     "description": "Layout settings group: display options"
   },
-
   "downloadStatusInProgress": "In Progress",
-
   "cloudSyncWebdavUrl": "WebDAV URL",
   "cloudSyncWebdavUsername": "Username",
   "cloudSyncWebdavPassword": "Password",
@@ -1952,15 +2002,18 @@
   "cloudSyncSaveConfig": "Save Config",
   "@cloudSyncConnectionSuccess": {
     "placeholders": {
-      "ms": { "type": "int" }
+      "ms": {
+        "type": "int"
+      }
     }
   },
   "@cloudSyncLastSyncTime": {
     "placeholders": {
-      "time": { "type": "String" }
+      "time": {
+        "type": "String"
+      }
     }
   },
-
   "readingProgress": "Reading progress",
   "watchingProgress": "Watching progress",
   "totalChapters": "Total chapters",
@@ -1976,57 +2029,92 @@
   "episodeList": "Episodes",
   "chapterListWithCount": "Chapter list ({count})",
   "@chapterListWithCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "episodeListWithCount": "Episodes ({count})",
   "@episodeListWithCount": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "lastReadInfo": "Last read: {time} · {chapter}",
   "@lastReadInfo": {
     "placeholders": {
-      "time": { "type": "String" },
-      "chapter": { "type": "String" }
+      "time": {
+        "type": "String"
+      },
+      "chapter": {
+        "type": "String"
+      }
     }
   },
   "lastWatchedInfo": "Last watched: {time} · {episode}",
   "@lastWatchedInfo": {
     "placeholders": {
-      "time": { "type": "String" },
-      "episode": { "type": "String" }
+      "time": {
+        "type": "String"
+      },
+      "episode": {
+        "type": "String"
+      }
     }
   },
   "notStartedYet": "Not started yet",
   "timeJustNow": "Just now",
   "timeMinutesAgo": "{n} minutes ago",
   "@timeMinutesAgo": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "timeHoursAgo": "{n} hours ago",
   "@timeHoursAgo": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
   "timeDaysAgo": "{n} days ago",
   "@timeDaysAgo": {
-    "placeholders": { "n": { "type": "int" } }
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   },
-
   "expand": "Expand",
   "collapse": "Collapse",
   "expandCount": "Show {count} more",
   "@expandCount": {
     "description": "Button: expand to show the remaining N director/cast names",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "sortSectionTitle": "Sort",
   "displayTitle": "Display",
   "sortByIndex": "By {unitWord} index",
   "@sortByIndex": {
-    "placeholders": { "unitWord": {} }
+    "placeholders": {
+      "unitWord": {}
+    }
   },
   "sortByName": "By {unitWord} name",
   "@sortByName": {
-    "placeholders": { "unitWord": {} }
+    "placeholders": {
+      "unitWord": {}
+    }
   },
   "sortBySource": "By source",
   "sortByUploadDate": "By upload date",
@@ -2038,14 +2126,18 @@
   "displaySourceTitle": "Source title",
   "displayNumber": "{unitWord} number",
   "@displayNumber": {
-    "placeholders": { "unitWord": {} }
+    "placeholders": {
+      "unitWord": {}
+    }
   },
   "resetButton": "Reset",
   "doneButton": "Done",
   "wordCount": "Word count",
   "updatedTo": "Updated to {n}",
   "@updatedTo": {
-    "placeholders": { "n": {} }
+    "placeholders": {
+      "n": {}
+    }
   },
   "unitWordChapter": "chapter",
   "unitWordComicChapter": "chapter",
@@ -2097,7 +2189,9 @@
   "chapterTransitionCard": "Chapter: {title}",
   "@chapterTransitionCard": {
     "description": "Chapter transition title card",
-    "placeholders": { "title": {} }
+    "placeholders": {
+      "title": {}
+    }
   },
   "readerProgress": "Progress",
   "regexSearch": "Regex",
@@ -2105,7 +2199,6 @@
   "scrollToTop": "Top",
   "scrollToBottom": "Bottom",
   "bookmarkedHint": "Bookmarked",
-
   "playerFullscreen": "Fullscreen",
   "playerExitFullscreen": "Exit fullscreen",
   "playerScreenshot": "Screenshot",
@@ -2120,12 +2213,10 @@
   "playerMore": "More",
   "seekForward10": "Forward 10s",
   "seekBackward10": "Backward 10s",
-
   "novelTitleAlignLeft": "Left",
   "novelTitleAlignCenter": "Center",
   "novelTitleAlignRight": "Right",
   "novelTitleAlignHidden": "Hidden",
-
   "novelSectionTts": "Read aloud (TTS)",
   "ttsRate": "Speech rate",
   "ttsSleepTimer": "Sleep timer",
@@ -2136,8 +2227,12 @@
   "@ttsSleepRemaining": {
     "description": "TTS sleep timer remaining time",
     "placeholders": {
-      "min": { "type": "int" },
-      "sec": { "type": "int" }
+      "min": {
+        "type": "int"
+      },
+      "sec": {
+        "type": "int"
+      }
     }
   },
   "ttsPrevSentence": "Previous sentence",
@@ -2147,9 +2242,12 @@
   "minuteUnit": "{minutes} min",
   "@minuteUnit": {
     "description": "Minute count suffix for sleep timer options",
-    "placeholders": { "minutes": { "type": "int" } }
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
   },
-
   "novelFontFileGroup": "Font file & emphasis color",
   "novelChooseFontFile": "Body font file",
   "novelTitleFontFile": "Title font file",
@@ -2159,12 +2257,15 @@
   "novelFontFileCurrent": "Selected: {name}",
   "@novelFontFileCurrent": {
     "description": "Current custom font file name",
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "novelClearFontFile": "Clear font file",
   "novelEmphasisColor": "Emphasis color",
   "novelEmphasisColorAuto": "Auto (title color)",
-
   "novelSectionShadowUnderline": "Shadow & underline",
   "novelShadowBlur": "Shadow blur radius",
   "novelShadowOffsetX": "Shadow X offset",
@@ -2175,7 +2276,6 @@
   "novelUnderlineThickness": "Underline thickness",
   "novelUnderlineDashLength": "Dash segment length",
   "novelUnderlineDashGap": "Dash gap length",
-
   "novelTitlePosition": "Title position",
   "novelTitleSegmentMode": "Title segment mode",
   "novelTitleSubScale": "Sub-line scale",
@@ -2183,7 +2283,6 @@
   "novelTitleSubLineSpacing": "Sub-line line spacing",
   "novelTitleTopMargin": "Title top margin",
   "novelTitleBottomMargin": "Title bottom margin",
-
   "novelSectionHeaderFooter": "Header & footer",
   "novelHeaderLeft": "Header left",
   "novelHeaderCenter": "Header center",
@@ -2193,10 +2292,8 @@
   "novelFooterRight": "Footer right",
   "novelHeaderFooterColor": "Header & footer color",
   "novelHeaderFooterMargin": "Header & footer margin",
-
   "novelHfPageAndProgress": "Page & progress",
   "novelHfTimeAndBattery": "Time & battery",
-
   "layoutDetailGroup": "Layout Details",
   "layoutProgressDisplay": "Progress Display",
   "progressBar": "Progress Bar",
@@ -2242,7 +2339,6 @@
   "readerWheelZoom": "Zoom",
   "readerWheelPage": "Page",
   "readerWheelAction": "Action",
-
   "favoriteGroups": "Groups",
   "noGroups": "No groups yet. Create one below.",
   "groupAll": "All",
@@ -2257,7 +2353,9 @@
   "deleteGroupConfirm": "Delete group \"{name}\"? Items are only unlinked from it and stay in your favorites.",
   "@deleteGroupConfirm": {
     "description": "Group delete confirmation dialog content",
-    "placeholders": { "name": {} }
+    "placeholders": {
+      "name": {}
+    }
   },
   "setGroups": "Set groups",
   "filterByGroup": "Group",
@@ -2268,14 +2366,17 @@
   "noGroupsHint": "No categories yet — tap \"New group\" to create one",
   "@groupItemCount": {
     "description": "Item count shown next to a favorite group",
-    "placeholders": { "n": {} }
+    "placeholders": {
+      "n": {}
+    }
   },
-
   "comments": "Comments",
   "commentsCount": "Comments ({n})",
   "@commentsCount": {
     "description": "Comment section header with count",
-    "placeholders": { "n": {} }
+    "placeholders": {
+      "n": {}
+    }
   },
   "writeComment": "Write a comment",
   "replyComment": "Reply",
@@ -2294,7 +2395,6 @@
   "reportFailed": "Failed to report",
   "viewMoreReplies": "More replies",
   "commentsLoadFailed": "Failed to load comments",
-
   "loginToComment": "Log in to comment",
   "loginRequired": "Login required for this action",
   "sourceLogin": "Source login",
@@ -2309,7 +2409,6 @@
   "loggedInState": "Logged in",
   "loginDone": "Done",
   "webviewLoginUnsupported": "In-app web login is unavailable on this platform. Use \"Paste Cookie\" instead.",
-
   "bangumiSettings": "Bangumi sync",
   "bangumiSettingsSubtitle": "Push favorites and progress to bgm.tv",
   "bangumiRatingSync": "Bangumi rating & sync",
@@ -2320,7 +2419,9 @@
   "bangumiLoggedInAs": "Logged in as {name}",
   "@bangumiLoggedInAs": {
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
   "bangumiTokenSaved": "Token verified",
@@ -2332,7 +2433,9 @@
   "bangumiLastSync": "Last sync: {time}",
   "@bangumiLastSync": {
     "placeholders": {
-      "time": { "type": "String" }
+      "time": {
+        "type": "String"
+      }
     }
   },
   "bangumiNeverSynced": "Never synced",
@@ -2352,7 +2455,9 @@
   "bangumiBoundTo": "Bound subject #{id}",
   "@bangumiBoundTo": {
     "placeholders": {
-      "id": { "type": "int" }
+      "id": {
+        "type": "int"
+      }
     }
   },
   "bangumiUnbind": "Unbind",
@@ -2371,7 +2476,9 @@
   "bangumiImportDone": "Import finished: {count} bound",
   "@bangumiImportDone": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "bangumiForcedState": "Sync status override",
@@ -2394,13 +2501,17 @@
   "bangumiRatingUsers": "{count} ratings",
   "@bangumiRatingUsers": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "bangumiRank": "Rank #{rank}",
   "@bangumiRank": {
     "placeholders": {
-      "rank": { "type": "int" }
+      "rank": {
+        "type": "int"
+      }
     }
   },
   "bangumiSummary": "Summary",
@@ -2417,7 +2528,6 @@
   "bangumiOauthHint": "Safer: authorize in your browser and return to the app automatically.",
   "bangumiOauthNotConfigured": "OAuth not configured: create an app on the Bangumi developer console and fill in Client ID / Secret.",
   "bangumiOauthFailed": "Bangumi authorization failed. Please try again.",
-
   "networkSettingsTitle": "Network Settings",
   "networkSettingsDesc": "Proxy, DNS, DoH/DoT, SNI, ECH and Hosts",
   "networkInfoTitle": "About network settings",
@@ -2438,7 +2548,11 @@
   "networkTestSuccess": "OK ({ms} ms)",
   "@networkTestSuccess": {
     "description": "Network test success with latency",
-    "placeholders": { "ms": { "type": "int" } }
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
   },
   "networkTestFailed": "Test failed",
   "networkDnsTitle": "DNS",
@@ -2453,7 +2567,11 @@
   "networkDnsCacheStatus": "Cached entries: {count}",
   "@networkDnsCacheStatus": {
     "description": "DNS cache entry count",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "networkClearCache": "Clear cache",
   "networkTestDns": "Test DNS resolution",
@@ -2461,7 +2579,12 @@
   "networkDnsTestResult": "{ips} ({ms} ms)",
   "@networkDnsTestResult": {
     "description": "DNS resolution result with IPs and latency",
-    "placeholders": { "ips": {}, "ms": { "type": "int" } }
+    "placeholders": {
+      "ips": {},
+      "ms": {
+        "type": "int"
+      }
+    }
   },
   "networkDohTitle": "DNS over HTTPS (DoH)",
   "networkDohPreset": "Preset",
@@ -2499,5 +2622,49 @@
   "sourceNetworkSaved": "Source network override saved",
   "sourceNetworkClear": "Clear override",
   "sourceNetworkClearConfirm": "Remove this source's network override and inherit global settings?",
-  "sourceNetworkCleared": "Source network override cleared"
+  "sourceNetworkCleared": "Source network override cleared",
+  "bangumiNoMatch": "No matching Bangumi subject found",
+  "bangumiManualBind": "Search & bind manually",
+  "bangumiConfirmBind": "Confirm binding to one of these",
+  "bangumiFromBangumi": "Data from Bangumi",
+  "bangumiHideCollection": "Hide collection",
+  "bangumiProgress": "Progress (episodes/chapters watched)",
+  "bangumiSaveSync": "Save & sync",
+  "bangumiSavedLocal": "Not signed in: saved locally",
+  "websiteComments": "Site comments",
+  "bangumiComments": "Bangumi comments",
+  "bangumiCommentsEmpty": "No comments yet",
+  "bangumiCommentsLoadFailed": "Failed to load comments",
+  "bangumiGuessMatch": "Best-guess match: {name}",
+  "bangumiEps": "{count} eps",
+  "@bangumiEps": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "bangumiAirDate": "Aired: {date}",
+  "@bangumiAirDate": {
+    "placeholders": {"date": {"type": "String"}}
+  },
+  "bangumiCollectionWish": "{count} wish",
+  "@bangumiCollectionWish": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "bangumiCollectionDoing": "{count} watching",
+  "@bangumiCollectionDoing": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "bangumiCollectionCollect": "{count} watched",
+  "@bangumiCollectionCollect": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "bangumiCharacters": "Characters",
+  "bangumiRelated": "Related",
+  "bangumiCollectionStat": "Collection Stats",
+  "bangumiProxyTitle": "Proxy / Mirror",
+  "bangumiProxyDirect": "Direct",
+  "bangumiProxyMirror": "Mirror / Reverse Proxy",
+  "bangumiProxyMainSite": "Main site domain",
+  "bangumiProxyApi": "API domain",
+  "bangumiProxyImage": "Image domain",
+  "bangumiProxyHint": "In mirror/reverse-proxy mode, enter your self-hosted domain (no path). Leave blank to use Bangumi's default domain for that category.",
+  "bangumiProxySaved": "Proxy settings saved"
 }

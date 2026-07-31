@@ -27,6 +27,7 @@ import '../../core/history/media_playback_position_manager.dart';
 import '../../core/scraper/media_api_service.dart';
 import '../../core/services/bangumi/bangumi_auth.dart';
 import '../../core/services/bangumi/bangumi_client.dart';
+import '../../core/services/bangumi/bangumi_proxy_config.dart';
 import '../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../core/services/bangumi/subject_link_store.dart';
 import '../../core/services/cloud_sync_service.dart';
@@ -196,6 +197,7 @@ class _SplashScreenState extends State<SplashScreen> {
     await cloudSyncService.init();
     // Bangumi 同步：client → auth → linkStore → syncService（详见 core/services/bangumi）。
     final bangumiClient = BangumiClient();
+    await BangumiProxyConfig.load();
     final bangumiAuth = BangumiAuth(client: bangumiClient);
     await bangumiAuth.init();
     final subjectLinkStore = SubjectLinkStore(client: bangumiClient);

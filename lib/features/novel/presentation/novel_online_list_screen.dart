@@ -8,7 +8,7 @@ import '../../../core/services/source_repository.dart';
 import '../../../core/widgets/module_source_search_screen.dart';
 import '../../../core/widgets/online_content_list_screen.dart';
 import '../../verification/presentation/verification_handler.dart';
-import 'novel_detail_screen.dart';
+import '../../media/presentation/content_detail_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 小说在线浏览页（Phase 2）。
@@ -59,7 +59,7 @@ class NovelOnlineListScreen extends StatelessWidget {
       resolveFilters: service.resolveFilterGroups,
       onItemTap: (item, heroTag) => Navigator.of(context).push(
         AppHeroPageRoute<void>(
-          builder: (_) => NovelDetailScreen(item: item, heroTag: heroTag),
+          builder: (_) => ContentDetailScreen(item: item, heroTag: heroTag),
         ),
       ),
       onSearch: () => Navigator.of(context).push(
@@ -69,7 +69,7 @@ class NovelOnlineListScreen extends StatelessWidget {
             title: l10n.search,
             onItemTap: (item, heroTag) => Navigator.of(context).push(
               AppHeroPageRoute<void>(
-                builder: (_) => NovelDetailScreen(item: item, heroTag: heroTag),
+                builder: (_) => ContentDetailScreen(item: item, heroTag: heroTag),
               ),
             ),
           ),

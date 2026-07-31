@@ -10,6 +10,7 @@ library;
 import 'package:dio/dio.dart';
 
 import 'bangumi_models.dart';
+import 'bangumi_proxy_config.dart';
 
 /// Bangumi API 错误。
 class BangumiApiException implements Exception {
@@ -82,8 +83,13 @@ class BangumiClient {
           await Future<void>.delayed(Duration(seconds: 1 << (attempt - 1)));
         }
         try {
+          // 相对路径（/v0/...）按代理配置拼接 API 基址；绝对 URL（吐槽 p1）
+          // 原样使用，由调用方自行套用代理配置。
+          final target = path.startsWith('http')
+              ? path
+              : '${BangumiProxyConfig.instance.apiBaseUrl}$path';
           response = await _dio.request<dynamic>(
-            path,
+            target,
             queryParameters: query,
             data: body,
             options: Options(
@@ -136,12 +142,10 @@ class BangumiClient {
     return BangumiMe.fromJson(data);
   }
 
-  /// OAuth 端点基址（与 API 基址 [baseUrl] 不同）。
-  static const String oauthBaseUrl = 'https://bgm.tv';
-
-  /// 用授权码换取 access_token（POST /oauth/access_token，grant_type=authorization_code）。
+  /// OAuth 端点基址（与 API 基址 [baseUrl] 不同），镜像模式下走配置的主站域名
+  /// （见 [BangumiProxyConfig.oauthBaseUrl]）。
   ///
-  /// 该端点走 [oauthBaseUrl]，与 API 端点隔离，不携带 Bearer，使用表单编码。
+  /// 该端点走 [BangumiProxyConfig.oauthBaseUrl]，与 API 端点隔离，不携带 Bearer，使用表单编码。
   /// 成功返回 [BangumiToken]；响应缺少 `access_token` 时按授权失败抛
   /// [BangumiApiException]（附 `error_description`）。
   Future<BangumiToken> exchangeCodeForToken({
@@ -151,7 +155,7 @@ class BangumiClient {
     required String redirectUri,
   }) async {
     final res = await _dio.post<Map<String, dynamic>>(
-      '$oauthBaseUrl/oauth/access_token',
+      '${BangumiProxyConfig.instance.oauthBaseUrl}/oauth/access_token',
       data: <String, String>{
         'grant_type': 'authorization_code',
         'client_id': clientId,
@@ -193,7 +197,7 @@ class BangumiClient {
     required String redirectUri,
   }) async {
     final res = await _dio.post<Map<String, dynamic>>(
-      '$oauthBaseUrl/oauth/access_token',
+      '${BangumiProxyConfig.instance.oauthBaseUrl}/oauth/access_token',
       data: <String, String>{
         'grant_type': 'refresh_token',
         'client_id': clientId,
@@ -300,6 +304,60 @@ class BangumiClient {
     final data = res.data;
     if (data is! Map<String, dynamic>) return null;
     return BangumiUserCollection.fromJson(data);
+  }
+
+  /// 拉取条目吐槽（GET /p1/subjects/{subject_id}/comments）。
+  ///
+  /// 使用 **Next API**（next.bgm.tv，镜像模式下为配置的主站域名），
+  /// 非 v0 公开 API。v0 无 comments 端点；吐槽数据仅通过 p1 接口提供。
+  /// 公开接口无需鉴权；分页取前 [limit] 条。
+  Future<List<BangumiComment>> fetchSubjectComments(
+    int subjectId, {
+    int limit = 20,
+  }) async {
+    final res = await _request(
+      'GET',
+      '${BangumiProxyConfig.instance.nextBaseUrl}/p1/subjects/$subjectId/comments',
+      query: <String, dynamic>{'limit': limit},
+    );
+    final data = res.data;
+    if (data is! Map<String, dynamic>) return const <BangumiComment>[];
+    final list = data['data'];
+    if (list is! List) return const <BangumiComment>[];
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(BangumiComment.fromJson)
+        .toList();
+  }
+
+  /// 拉取角色列表（GET /v0/subjects/{subject_id}/characters）。
+  Future<List<BangumiCharacter>> fetchCharacters(int subjectId) async {
+    final res = await _request('GET', '/v0/subjects/$subjectId/characters');
+    final data = res.data;
+    if (data is! Map<String, dynamic>) return const <BangumiCharacter>[];
+    final list = data['data'];
+    if (list is! List) return const <BangumiCharacter>[];
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(BangumiCharacter.fromJson)
+        .toList();
+  }
+
+  /// 拉取关联条目（GET /v0/subjects/{subject_id}/subjects）。
+  ///
+  /// 返回前传 / 续集 / 同系列等关联条目。
+  Future<List<BangumiRelatedSubject>> fetchRelatedSubjects(
+      int subjectId) async {
+    final res =
+        await _request('GET', '/v0/subjects/$subjectId/subjects');
+    final data = res.data;
+    if (data is! Map<String, dynamic>) return const <BangumiRelatedSubject>[];
+    final list = data['data'];
+    if (list is! List) return const <BangumiRelatedSubject>[];
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(BangumiRelatedSubject.fromJson)
+        .toList();
   }
 
   /// 新建 / 修改收藏（POST /v0/users/-/collections/{subject_id}）。
