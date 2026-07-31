@@ -136,6 +136,95 @@ class BangumiClient {
     return BangumiMe.fromJson(data);
   }
 
+  /// OAuth 端点基址（与 API 基址 [baseUrl] 不同）。
+  static const String oauthBaseUrl = 'https://bgm.tv';
+
+  /// 用授权码换取 access_token（POST /oauth/access_token，grant_type=authorization_code）。
+  ///
+  /// 该端点走 [oauthBaseUrl]，与 API 端点隔离，不携带 Bearer，使用表单编码。
+  /// 成功返回 [BangumiToken]；响应缺少 `access_token` 时按授权失败抛
+  /// [BangumiApiException]（附 `error_description`）。
+  Future<BangumiToken> exchangeCodeForToken({
+    required String clientId,
+    required String clientSecret,
+    required String code,
+    required String redirectUri,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '$oauthBaseUrl/oauth/access_token',
+      data: <String, String>{
+        'grant_type': 'authorization_code',
+        'client_id': clientId,
+        'client_secret': clientSecret,
+        'code': code,
+        'redirect_uri': redirectUri,
+      },
+      options: Options(
+        headers: <String, dynamic>{'User-Agent': userAgent},
+        contentType: Headers.formUrlEncodedContentType,
+      ),
+    );
+    final data = res.data;
+    if (data is! Map<String, dynamic>) {
+      throw const BangumiApiException(null, 'unexpected token response');
+    }
+    final accessToken = data['access_token'] as String?;
+    if (accessToken == null || accessToken.isEmpty) {
+      throw BangumiApiException(
+        res.statusCode,
+        (data['error_description'] as String?) ?? 'missing access_token',
+      );
+    }
+    return BangumiToken(
+      accessToken: accessToken,
+      refreshToken: data['refresh_token'] as String?,
+      expiresIn: (data['expires_in'] as num?)?.toInt(),
+      scope: data['scope'] as String?,
+    );
+  }
+
+  /// 用 refresh_token 续期（POST /oauth/access_token，grant_type=refresh_token）。
+  ///
+  /// 返回的 refresh_token 会与请求值不同（Bangumi 轮换），方法已回退到原值。
+  Future<BangumiToken> refreshToken({
+    required String clientId,
+    required String clientSecret,
+    required String refreshToken,
+    required String redirectUri,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '$oauthBaseUrl/oauth/access_token',
+      data: <String, String>{
+        'grant_type': 'refresh_token',
+        'client_id': clientId,
+        'client_secret': clientSecret,
+        'refresh_token': refreshToken,
+        'redirect_uri': redirectUri,
+      },
+      options: Options(
+        headers: <String, dynamic>{'User-Agent': userAgent},
+        contentType: Headers.formUrlEncodedContentType,
+      ),
+    );
+    final data = res.data;
+    if (data is! Map<String, dynamic>) {
+      throw const BangumiApiException(null, 'unexpected token response');
+    }
+    final accessToken = data['access_token'] as String?;
+    if (accessToken == null || accessToken.isEmpty) {
+      throw BangumiApiException(
+        res.statusCode,
+        (data['error_description'] as String?) ?? 'missing access_token',
+      );
+    }
+    return BangumiToken(
+      accessToken: accessToken,
+      refreshToken: (data['refresh_token'] as String?) ?? refreshToken,
+      expiresIn: (data['expires_in'] as num?)?.toInt(),
+      scope: data['scope'] as String?,
+    );
+  }
+
   /// 按关键字搜索条目（POST /v0/search/subjects），限定条目类型。
   Future<List<BangumiSubject>> searchSubjects(
     String keyword, {

@@ -2435,6 +2435,10 @@
   "bangumiSubjectTypeAnime": "动画",
   "bangumiSubjectTypeBook": "书籍",
   "bangumiSubjectTypeReal": "三次元",
+  "bangumiLoginWithOAuth": "使用 Bangumi 登录",
+  "bangumiOauthHint": "更安全的授权方式：在浏览器中完成 Bangumi 授权后自动返回应用。",
+  "bangumiOauthNotConfigured": "尚未配置 OAuth：请在 Bangumi 开放平台创建应用并填入 Client ID / Secret。",
+  "bangumiOauthFailed": "Bangumi 授权失败，请重试。",
 
   "networkSettingsTitle": "网络设置",
   "networkSettingsDesc": "代理、DNS、DoH/DoT、SNI、ECH 与 Hosts",
