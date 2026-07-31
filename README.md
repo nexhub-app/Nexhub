@@ -100,7 +100,7 @@ NexHub 与同类工具最大的不同，在于它把「解析能力」彻底从�
 
 ### 2.6 影视播放器（含弹幕）
 
-- 基于 `media_kit` + `fvp` 提供跨平台硬解播放能力；
+- 基于 `media_kit`（libmpv 内核）提供跨平台硬解播放能力，并内置解码异常自动降级与播放统计面板；
 - 配合 `canvas_danmaku` 做**弹幕渲染**，营造「一起看」的氛围；
 - 针对「播放线路选择、集数去重、播放界面交互」做过专项优化，减少「选了播不了 / 集数重复 / 切集卡顿」等糟心问题。
 
@@ -119,27 +119,65 @@ NexHub 与同类工具最大的不同，在于它把「解析能力」彻底从�
 
 支持内容离线下载、下载设置与任务管理，方便在无网络（地铁、飞机、流量贵）环境下继续阅读 / 观看。
 
-### 2.8 云同步（占位）
+### 2.8 Bangumi 同步（v0.4.0 新增）
 
-设置中已预留「云同步」入口，当前为占位实现，后续可由社区或官方接入具体同步方案（如 WebDAV、自建同步服务等）。
+把本地的追番 / 追漫 / 追书进度同步到 [Bangumi 番组计划](https://bgm.tv)：
 
-### 2.9 RSS 订阅
+- **两种登录**：OAuth 2.0 授权登录（浏览器授权后回跳应用，自动续期）或手填个人 Access Token；凭据存放在系统安全存储中；
+- **同步内容**：收藏状态（想看 / 在看 / 看过）、动漫已看集数、漫画 / 小说阅读进度、本地评分与短评；
+- **策略保守**：以本地推送为主，状态只进不退、进度只增不减，不覆盖你在 Bangumi 上的「搁置 / 抛弃」；只有本地空缺时才回拉评分 / 短评；
+- **条目绑定**：本地条目与 Bangumi 条目按标题相似度自动匹配（阈值 ≥0.85），否则给出候选列表手选，可随时解绑；
+- **详情页 Bangumi 标签页**：评分、收藏统计、简介、集数与放送日期、标签、角色、关联作品与吐槽；
+- **代理 / 镜像**：可分别指定主站、API、图片域名，应对官方域名直连不畅。
+
+> OAuth 应用凭据通过**编译期注入**、不写入源码。官方发布包已注入；自行构建时未注入则 OAuth 按钮不可用，请改用 Access Token，或到 [bgm.tv/dev/app/create](https://bgm.tv/dev/app/create) 注册应用（回调地址填 `nexhub://oauth/callback`）后用 `--dart-define=BANGUMI_CLIENT_ID=... --dart-define=BANGUMI_CLIENT_SECRET=...` 构建。
+
+> 通用「云同步」（WebDAV / 自建服务）入口仍为占位实现，欢迎社区接入。
+
+### 2.9 网络配置：全局 + 源级覆盖（v0.4.0 新增）
+
+把「连不上、解析被污染、要走代理」这类问题交回给用户自己解决，而不是等源作者改源：
+
+- **全局设置**：代理（直连 / 跟随系统 / 手动，支持 HTTP 与 SOCKS5 及账号密码）、DNS（系统 / 自定义 UDP / **DoH** / **DoT**，内置 Cloudflare、Google、Quad9 预设，可开缓存）、自定义 Hosts、SNI、ECH；
+- **源级覆盖**：每个源都能对「代理 / DNS / SNI / ECH / Hosts」逐项选择「继承全局」或「单独覆盖」；
+- **生效优先级**：用户覆盖 > 源 JSON 的 `network` 块 > 全局设置 > 默认值；
+- **作用范围**：全局配置覆盖整个应用的网络请求（含封面图加载、下载器），DNS 带 TTL 缓存并优先命中自定义 Hosts；**改完即时生效，无需重启**；
+- **内置测试**：代理测试、DNS 测试、DoH 测试。
+
+> ⚠️ 诚实的限制：**SNI** 受 Dart TLS 栈能力限制仅尽力生效；**ECH** 界面已完整但**运行时暂未接通**。
+
+### 2.10 收藏分组、本地评分与评论（v0.4.0 新增）
+
+- **多分组**：一个条目可同时属于多个分组（标签式），与源站题材分类互不干扰；分组**按模块隔离**（动漫 / 漫画 / 小说各自独立），可**隐藏**、可拖拽重排、可重命名；删除分组只解除关联，不删条目；
+- **多选筛选**：分组栏支持同时选中多个分组做并集筛选；书架筛选新增「分组」维度（含「未分组」）；
+- **本地评分与短评**：0–10 分 + 一句短评，可作为 Bangumi 同步内容一并推送；
+- **评论**：详情页「评论」标签分「网站评论」（来自源站，支持发表 / 回复 / 点赞 / 举报，具体取决于源声明了哪些路由）与「Bangumi 吐槽」（只读，无需登录）。
+
+### 2.11 源登录鉴权（v0.4.0 新增）
+
+对需要登录才能看内容的源：
+
+- **网页登录**：内嵌 WebView 打开站点登录页，成功后自动捕获会话 Cookie；
+- **手动粘贴 Cookie**：桌面端等无 WebView 场景的降级方式；
+- 登录态自动识别与刷新，支持**退出登录**（只清该站点会话，不影响其他源）。
+
+### 2.12 RSS 订阅
 
 内置可配置的 RSS 路由，可订阅如动漫资讯等公开 RSS 源，在应用内直接阅读更新。
 
-### 2.10 历史与更新追踪
+### 2.13 历史与更新追踪
 
 记录浏览历史，并追踪章节更新时间（针对部分不返回更新时间的源做了兜底，避免「永远显示未更新」）。
 
-### 2.11 Material 3 设计 + 动态配色
+### 2.14 Material 3 设计 + 动态配色
 
 基于 Material 3 设计系统，支持亮 / 暗主题、自定义主色，并在支持的系统中启用 Material You 动态取色（自动跟随壁纸色调）。
 
-### 2.12 多语言
+### 2.15 多语言
 
 内置中文 / 英文语言包（基于 Flutter 官方 `gen-l10n`），**所有用户可见文案都走国际化**，方便全球社区协作与本地化。
 
-### 2.13 跨平台
+### 2.16 跨平台
 
 基于 Flutter，具备编译到 **Android / iOS / Windows / macOS / Linux / Web** 的跨平台能力（具体平台支持以各版本构建为准）。
 
@@ -283,6 +321,23 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 | `homeSections` | array | 可选；自定义首页板块。未声明则按分类自动生成 |
 | `filters.groups` | array | 可选；自定义筛选组。`category` 维度的筛选会被自动剔除（分类已是 Tab） |
 | `tagSearch` | object | 可选；标签检索路由，配合 `selectors.category.tags` 生成标签筛选；`value` 用站点真实 slug |
+| `network` | object | 可选（v0.4.0 新增）；源级网络覆盖，子键 `proxy` / `dns` / `hosts` / `sni` / `ech`。缺省即继承全局设置；非法值只告警、不会导致源无法启用 |
+| `comments` | object | 可选（v0.4.0 新增）；声明该源的评论能力，见下表 |
+
+**`comments` 子字段（v0.4.0 新增，全部可选）**：
+
+| 字段 | 说明 |
+| --- | --- |
+| `comments.provider` | 默认 `source`（评论来自源站）。`bangumi` 目前**仅解析、未实现** |
+| `comments.routes.list` | **必需**（声明 `comments` 时）；评论列表路由 |
+| `comments.routes.replies` / `post` / `reply` / `like` / `report` | 可选；分别对应加载回复、发表、回复、点赞、举报。**未声明则对应按钮不渲染** |
+| `comments.selectors` | `items` / `commentId` / `author` / `avatar` / `content` / `time` / `likeCount` / `replyCount` / `hasMore` / `success` 等；与顶层 `selectors` 使用同一套引擎（JSONPath / CSS / XPath） |
+| `comments.login.url` | 需要登录时的 WebView 登录页地址 |
+| `comments.login.checkCookie` | Cookie 中出现该键名即视为已登录 |
+| `comments.login.checkUrl` + `comments.login.loggedInSelector` | 可选的二次探测，用于确认登录确实有效 |
+
+> 评论路由支持 `comments.` 命名空间，占位符替换、镜像切换、相对路径补全的规则与主路由完全一致。
+> **旧源无需改动**：`network` 与 `comments` 缺省时行为与 v0.3.x 完全一致，不需要重新导出或重新导入。
 
 **关于 `version` 的导入规则（务必注意）**：
 - 源作者发新版，只需把 JSON 里的 `version` 调大；
@@ -346,7 +401,8 @@ NexHub 的生命力来自社区共同维护的「源」。我们欢迎任何人�
 - [dio](https://pub.dev/packages/dio)，统一的网络请求与 Cookie 管理；
 - [provider](https://pub.dev/packages/provider)，状态管理；
 - [dynamic_color](https://pub.dev/packages/dynamic_color)，Material You 动态配色；
-- [media_kit](https://pub.dev/packages/media_kit) 与 `fvp`，影视播放能力；
+- [media_kit](https://pub.dev/packages/media_kit)（libmpv 内核），影视播放能力；
+- [Bangumi 番组计划](https://bgm.tv) 提供开放 API，使 NexHub 的收藏 / 进度 / 评分同步与条目资料展示成为可能（NexHub 仅作为第三方客户端调用其公开接口）；
 - [canvas_danmaku](https://pub.dev/packages/canvas_danmaku)，弹幕渲染；
 - [猫抓 cat-catch](https://github.com/xifangczy/cat-catch) 等开源嗅探项目（cat-catch / VBrowser-Android / VidDown / pup-sniffer）的「网络拦截 + DOM 检测 + API 钩子」嗅探方法论，为 NexHub 内置嗅探功能提供了重要参考（仅借鉴方法论，未引入其代码，应用以 Apache-2.0 协议开源）；
 - 所有为「源即插件 · 共创社区」理念做出贡献的开发者、源作者与用户。
