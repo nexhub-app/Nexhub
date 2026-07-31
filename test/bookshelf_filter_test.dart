@@ -18,6 +18,7 @@ void main() {
       expect(filter.status, isNull);
       expect(filter.category, isNull);
       expect(filter.progress, isNull);
+      expect(filter.groupIds, isEmpty);
       expect(filter.isDefault, isTrue);
     });
 
@@ -39,6 +40,11 @@ void main() {
     test('isDefault false when progress set', () {
       const filter =
           BookshelfFilter(progress: BookshelfProgress.reading);
+      expect(filter.isDefault, isFalse);
+    });
+
+    test('isDefault false when groupIds set', () {
+      const filter = BookshelfFilter(groupIds: <String>{'g1'});
       expect(filter.isDefault, isFalse);
     });
 
@@ -71,12 +77,27 @@ void main() {
       expect(updated.progress, isNull);
     });
 
+    test('copyWith groupIds replaces set, empty set clears', () {
+      const original = BookshelfFilter(groupIds: <String>{'g1'});
+      final updated = original.copyWith(groupIds: <String>{'g2', 'g3'});
+      expect(updated.groupIds, <String>{'g2', 'g3'});
+      final cleared = updated.copyWith(groupIds: const <String>{});
+      expect(cleared.groupIds, isEmpty);
+    });
+
+    test('copyWith without groupIds keeps existing set', () {
+      const original = BookshelfFilter(groupIds: <String>{'g1'});
+      final updated = original.copyWith(sort: BookshelfSort.title);
+      expect(updated.groupIds, <String>{'g1'});
+    });
+
     test('copyWith with no args returns equivalent copy', () {
       const original = BookshelfFilter(
         sort: BookshelfSort.title,
         status: '已完结',
         category: '漫画',
         progress: BookshelfProgress.notStarted,
+        groupIds: <String>{'g1'},
       );
       final copy = original.copyWith();
       expect(copy, original);
@@ -88,6 +109,7 @@ void main() {
         status: '已完结',
         category: '漫画',
         progress: BookshelfProgress.notStarted,
+        groupIds: <String>{'g1'},
       );
       final reset = original.reset();
       expect(reset.isDefault, isTrue);
@@ -113,6 +135,15 @@ void main() {
       const a = BookshelfFilter(status: '连载中');
       const b = BookshelfFilter(status: '已完结');
       expect(a == b, isFalse);
+    });
+
+    test('equality uses set semantics for groupIds', () {
+      const a = BookshelfFilter(groupIds: <String>{'g1', 'g2'});
+      const b = BookshelfFilter(groupIds: <String>{'g2', 'g1'});
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+      const c = BookshelfFilter(groupIds: <String>{'g1'});
+      expect(a == c, isFalse);
     });
   });
 

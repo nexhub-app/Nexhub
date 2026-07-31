@@ -75,6 +75,12 @@ class CookieStore {
     return null;
   }
 
+  /// 删除单个 host 的持久化记录（源登出时仅清该域会话，不影响其他站点）。
+  static Future<void> delete(String host) async {
+    await _ensureOpen();
+    await _box!.delete(host);
+  }
+
   static Future<void> clear() async {
     await _ensureOpen();
     await _box!.clear();

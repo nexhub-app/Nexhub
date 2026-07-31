@@ -228,10 +228,40 @@ class FavoritesManager extends ChangeNotifier {
     if (rawGroups != null) {
       try {
         final list = jsonDecode(rawGroups) as List<dynamic>;
+        final maps = list.cast<Map<String, dynamic>>();
+        // 统计每个分组在各模块下的条目数，用于旧数据（无 sourceType）的智能归类。
+        final Map<String, Map<SourceType, int>> groupTypeCounts =
+            <String, Map<SourceType, int>>{};
+        for (final entries in _cache.values) {
+          for (final entry in entries) {
+            for (final gid in entry.groupIds) {
+              (groupTypeCounts[gid] ??= <SourceType, int>{})
+                  .update(entry.sourceType, (c) => c + 1, ifAbsent: () => 1);
+            }
+          }
+        }
         _groups
           ..clear()
-          ..addAll(list.map(
-              (e) => FavoriteGroup.fromJson(e as Map<String, dynamic>)));
+          ..addAll(maps.map((Map<String, dynamic> m) {
+            final FavoriteGroup g = FavoriteGroup.fromJson(m);
+            // 旧分组数据无 sourceType：按条目归属智能判定所属模块。
+            // 跨模块共享的分组归到条目最多的模块；无条目归属则默认影视。
+            if (!m.containsKey('sourceType')) {
+              final Map<SourceType, int>? counts = groupTypeCounts[g.id];
+              SourceType resolved = SourceType.animeSource;
+              int best = -1;
+              if (counts != null) {
+                for (final MapEntry<SourceType, int> e in counts.entries) {
+                  if (e.value > best) {
+                    best = e.value;
+                    resolved = e.key;
+                  }
+                }
+              }
+              return g.copyWith(sourceType: resolved);
+            }
+            return g;
+          }));
         _groups.sortByOrder();
       } catch (_) {
         // 损坏数据忽略
@@ -243,6 +273,21 @@ class FavoritesManager extends ChangeNotifier {
   /// 获取某模块的收藏列表（按收藏时间倒序）。
   List<FavoriteEntry> favoritesFor(SourceType type) =>
       List.unmodifiable(_cache[type]?.reversed.toList() ?? const <FavoriteEntry>[]);
+
+  /// 获取某模块的收藏列表（按收藏时间倒序），并排除「仅属于隐藏分类」的条目。
+  ///
+  /// 用于收藏书架的「全部」视图：隐藏分类既不在分类栏也不在筛选中可见，
+  /// 因此「全部」应等价于「所有可见分类 + 未分组」的并集。
+  ///
+  /// 注意：Bangumi 同步、分组指派、绑定面板等场景仍需完整列表，请用
+  /// [favoritesFor] 而非本方法。
+  List<FavoriteEntry> visibleFavoritesFor(SourceType type) {
+    final visibleGroupIds = groupsFor(type).map((g) => g.id).toSet();
+    return favoritesFor(type)
+        .where((e) =>
+            e.groupIds.isEmpty || e.groupIds.any(visibleGroupIds.contains))
+        .toList();
+  }
 
   /// 是否已收藏。
   bool isFavorite(String contentId, SourceType type) =>
@@ -370,8 +415,16 @@ class FavoritesManager extends ChangeNotifier {
 
   // ────────────────────── 分组 API ──────────────────────
 
-  /// 全部分组（按 sortOrder 升序，不可变视图）。
-  List<FavoriteGroup> get groups => List.unmodifiable(_groups);
+  /// 某模块下的分组（按 sortOrder 升序，不可变视图）。
+  /// [includeHidden] 为 true 时一并返回隐藏分组（用于「分类管理」面板）。
+  List<FavoriteGroup> groupsFor(SourceType type,
+      {bool includeHidden = false}) {
+    final List<FavoriteGroup> result = _groups
+        .where((g) => g.sourceType == type && (includeHidden || !g.hidden))
+        .toList()
+      ..sortByOrder();
+    return List.unmodifiable(result);
+  }
 
   /// 按 id 查分组（不存在返回 null）。
   FavoriteGroup? groupById(String id) {
@@ -381,24 +434,26 @@ class FavoritesManager extends ChangeNotifier {
     return null;
   }
 
-  /// 某分组下的收藏条目总数（跨三模块）。
-  int entryCountInGroup(String groupId) {
-    int count = 0;
-    for (final list in _cache.values) {
-      count += list.where((e) => e.groupIds.contains(groupId)).length;
-    }
-    return count;
+  /// 某分组下的收藏条目总数（仅统计同模块）。
+  int entryCountInGroup(String groupId, {required SourceType type}) {
+    final list = _cache[type];
+    if (list == null) return 0;
+    return list.where((e) => e.groupIds.contains(groupId)).length;
   }
 
-  /// 创建分组。重名（trim 后）拒绝并返回 null，成功返回新分组。
-  Future<FavoriteGroup?> createGroup(String name) async {
+  /// 创建分组（限定模块内重名校验）。重名（trim 后）拒绝并返回 null。
+  Future<FavoriteGroup?> createGroup(String name,
+      {required SourceType type}) async {
     final String trimmed = name.trim();
     if (trimmed.isEmpty) return null;
-    if (_groups.any((g) => g.name == trimmed)) return null;
+    if (_groups.any((g) => g.sourceType == type && g.name == trimmed)) {
+      return null;
+    }
     final group = FavoriteGroup(
       id: FavoriteGroup.newId(),
       name: trimmed,
-      sortOrder: _groups.isEmpty ? 0 : _groups.last.sortOrder + 1,
+      sourceType: type,
+      sortOrder: _nextSortOrder(type),
       createdAt: DateTime.now().millisecondsSinceEpoch,
     );
     _groups.add(group);
@@ -407,26 +462,42 @@ class FavoritesManager extends ChangeNotifier {
     return group;
   }
 
+  /// 模块内下一个排序序号（同模块现有最大 sortOrder + 1，空则 0）。
+  int _nextSortOrder(SourceType type) {
+    int max = -1;
+    for (final g in _groups) {
+      if (g.sourceType == type && g.sortOrder > max) max = g.sortOrder;
+    }
+    return max + 1;
+  }
+
   /// 重命名分组。重名 / 空名 / 分组不存在时返回 false。
+  /// 重名校验限定在同模块内进行。
   Future<bool> renameGroup(String id, String name) async {
     final String trimmed = name.trim();
     if (trimmed.isEmpty) return false;
     final int idx = _groups.indexWhere((g) => g.id == id);
     if (idx < 0) return false;
-    if (_groups.any((g) => g.id != id && g.name == trimmed)) return false;
+    final SourceType type = _groups[idx].sourceType;
+    if (_groups.any(
+        (g) => g.id != id && g.sourceType == type && g.name == trimmed)) {
+      return false;
+    }
     _groups[idx] = _groups[idx].copyWith(name: trimmed);
     await _persistGroups();
     notifyListeners();
     return true;
   }
 
-  /// 删除分组：级联从所有条目的 groupIds 中移除该 id，条目本身保留。
+  /// 删除分组：级联从同模块条目的 groupIds 中移除该 id，条目本身保留。
   Future<void> deleteGroup(String id) async {
-    final int before = _groups.length;
-    _groups.removeWhere((g) => g.id == id);
-    if (_groups.length == before) return;
+    final int idx = _groups.indexWhere((g) => g.id == id);
+    if (idx < 0) return;
+    final SourceType type = _groups[idx].sourceType;
+    _groups.removeAt(idx);
     bool entriesChanged = false;
-    for (final list in _cache.values) {
+    final list = _cache[type];
+    if (list != null) {
       for (int i = 0; i < list.length; i++) {
         if (list[i].groupIds.contains(id)) {
           list[i] = list[i].withGroupIds(
@@ -440,21 +511,38 @@ class FavoritesManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 按给定 id 顺序重排分组（未出现的 id 保持相对顺序排在末尾）。
-  Future<void> reorderGroups(List<String> orderedIds) async {
+  /// 按给定 id 顺序重排分组（仅作用于同模块；未出现的同模块 id 排在末尾）。
+  Future<void> reorderGroups(List<String> orderedIds,
+      {required SourceType type}) async {
     final Map<String, int> order = <String, int>{
       for (int i = 0; i < orderedIds.length; i++) orderedIds[i]: i,
     };
-    for (int i = 0; i < _groups.length; i++) {
-      final int? pos = order[_groups[i].id];
-      _groups[i] = _groups[i]
-          .copyWith(sortOrder: pos ?? (orderedIds.length + i));
+    for (final g in _groups.where((x) => x.sourceType == type)) {
+      final int? pos = order[g.id];
+      if (pos != null) {
+        final int idx = _groups.indexWhere((x) => x.id == g.id);
+        _groups[idx] = g.copyWith(sortOrder: pos);
+      }
     }
-    _groups.sortByOrder();
-    // 归一化 sortOrder 为连续序号
-    for (int i = 0; i < _groups.length; i++) {
-      _groups[i] = _groups[i].copyWith(sortOrder: i);
+    // 归一化同模块 sortOrder 为连续序号
+    final List<FavoriteGroup> ordered = _groups
+        .where((g) => g.sourceType == type)
+        .toList()
+      ..sortByOrder();
+    for (int i = 0; i < ordered.length; i++) {
+      final int idx = _groups.indexWhere((x) => x.id == ordered[i].id);
+      _groups[idx] = ordered[i].copyWith(sortOrder: i);
     }
+    await _persistGroups();
+    notifyListeners();
+  }
+
+  /// 切换分组的隐藏状态。隐藏后不显示在分类栏 / 筛选，
+  /// 但「分类管理」面板中仍可见并可恢复。
+  Future<void> setGroupHidden(String id, bool hidden) async {
+    final int idx = _groups.indexWhere((g) => g.id == id);
+    if (idx < 0) return;
+    _groups[idx] = _groups[idx].copyWith(hidden: hidden);
     await _persistGroups();
     notifyListeners();
   }
@@ -469,7 +557,10 @@ class FavoritesManager extends ChangeNotifier {
     if (list == null) return false;
     final int idx = list.indexWhere((e) => e.id == contentId);
     if (idx < 0) return false;
-    final Set<String> valid = _groups.map((g) => g.id).toSet();
+    final Set<String> valid = _groups
+        .where((g) => g.sourceType == type)
+        .map((g) => g.id)
+        .toSet();
     list[idx] = list[idx]
         .withGroupIds(groupIds.where(valid.contains).toList());
     await _persist();
@@ -492,7 +583,9 @@ class FavoritesManager extends ChangeNotifier {
       if (item is! Map<String, dynamic>) continue;
       final group = FavoriteGroup.fromJson(item);
       if (group.id.isEmpty || group.name.isEmpty) continue;
-      if (_groups.any((g) => g.id == group.id || g.name == group.name)) {
+      if (_groups.any((g) =>
+          g.id == group.id ||
+          (g.name == group.name && g.sourceType == group.sourceType))) {
         continue;
       }
       _groups.add(group);

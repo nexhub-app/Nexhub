@@ -1,8 +1,10 @@
 /// 书架筛选状态（文档 §10.2 + 雷区 18）。
 ///
-/// 三模块书架共用，描述"排序 + 分类 + 状态 + 进度"四段筛选。
+/// 三模块书架共用，描述"排序 + 分类 + 状态 + 进度 + 分组"筛选。
 /// 不可变值对象，通过 [copyWith] 修改；[isDefault] 用于判断是否显示"已筛选"角标。
 library;
+
+import 'package:flutter/foundation.dart';
 
 /// 排序方式。
 enum BookshelfSort {
@@ -38,11 +40,16 @@ class BookshelfFilter {
   /// 仅对收藏/本地子段有意义，历史子段自动全过。
   final BookshelfProgress? progress;
 
+  /// 分组筛选：空集 = 不过滤；多选为并集语义（命中任一分组即显示）。
+  /// 可包含哨兵 [kUngroupedId] 表示筛选未分组条目。仅收藏子段有意义。
+  final Set<String> groupIds;
+
   const BookshelfFilter({
     this.sort = BookshelfSort.recent,
     this.status,
     this.category,
     this.progress,
+    this.groupIds = const <String>{},
   });
 
   /// 是否为默认状态（无任何筛选/排序覆盖）。
@@ -50,13 +57,15 @@ class BookshelfFilter {
       sort == BookshelfSort.recent &&
       status == null &&
       category == null &&
-      progress == null;
+      progress == null &&
+      groupIds.isEmpty;
 
   BookshelfFilter copyWith({
     BookshelfSort? sort,
     Object? status = _sentinel,
     Object? category = _sentinel,
     Object? progress = _sentinel,
+    Set<String>? groupIds,
   }) =>
       BookshelfFilter(
         sort: sort ?? this.sort,
@@ -69,6 +78,7 @@ class BookshelfFilter {
         progress: identical(progress, _sentinel)
             ? this.progress
             : progress as BookshelfProgress?,
+        groupIds: groupIds ?? this.groupIds,
       );
 
   /// 重置为默认状态。
@@ -81,10 +91,12 @@ class BookshelfFilter {
           other.sort == sort &&
           other.status == status &&
           other.category == category &&
-          other.progress == progress);
+          other.progress == progress &&
+          setEquals(other.groupIds, groupIds));
 
   @override
-  int get hashCode => Object.hash(sort, status, category, progress);
+  int get hashCode =>
+      Object.hash(sort, status, category, progress, Object.hashAllUnordered(groupIds));
 }
 
 /// 用于区分"未传参"与"显式传 null"的哨兵对象。

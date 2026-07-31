@@ -18,12 +18,14 @@ class UnifiedSourceTile extends StatelessWidget {
   final String editTooltip; // 来自 l10n
   final String deleteTooltip; // 来自 l10n
   final String migrateTooltip; // 来自 l10n
+  final String networkOverrideTooltip; // 来自 l10n（「网络覆盖」）
   final VoidCallback? onTap;
   final VoidCallback? onMirrorSettings;
   final VoidCallback? onHide;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onMigrate;
+  final VoidCallback? onNetworkOverride;
   final ValueChanged<bool>? onToggle;
   const UnifiedSourceTile({
     super.key,
@@ -41,12 +43,14 @@ class UnifiedSourceTile extends StatelessWidget {
     this.editTooltip = '',
     this.deleteTooltip = '',
     this.migrateTooltip = '',
+    this.networkOverrideTooltip = '',
     this.onTap,
     this.onMirrorSettings,
     this.onHide,
     this.onEdit,
     this.onDelete,
     this.onMigrate,
+    this.onNetworkOverride,
     this.onToggle,
   });
 
@@ -107,7 +111,8 @@ class UnifiedSourceTile extends StatelessWidget {
       onEdit != null ||
       onDelete != null ||
       onHide != null ||
-      onMigrate != null;
+      onMigrate != null ||
+      onNetworkOverride != null;
 
   PopupMenuEntry<String> _menuItem(
     String value,
@@ -129,6 +134,8 @@ class UnifiedSourceTile extends StatelessWidget {
       <PopupMenuEntry<String>>[
         if (onMirrorSettings != null)
           _menuItem('mirror', Icons.settings_ethernet, mirrorSettingsTooltip),
+        if (onNetworkOverride != null)
+          _menuItem('network', Icons.lan_outlined, networkOverrideTooltip),
         if (onEdit != null) _menuItem('edit', Icons.edit_outlined, editTooltip),
         if (onDelete != null)
           _menuItem('delete', Icons.delete_outline, deleteTooltip),
@@ -143,6 +150,9 @@ class UnifiedSourceTile extends StatelessWidget {
     switch (value) {
       case 'mirror':
         onMirrorSettings?.call();
+        break;
+      case 'network':
+        onNetworkOverride?.call();
         break;
       case 'edit':
         onEdit?.call();

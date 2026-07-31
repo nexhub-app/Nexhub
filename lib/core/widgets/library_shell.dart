@@ -3,13 +3,16 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../history/history_manager.dart';
+import '../favorites/favorites_manager.dart';
 import '../models/bookshelf_filter.dart';
 import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
+import 'app_animations.dart';
 import 'app_empty_state.dart';
 import 'app_icon_button.dart';
 import 'app_segmented_tabs.dart';
 import 'bookshelf_filter_sheet.dart';
+import 'favorite_group_bar.dart';
 import 'layout_picker_button.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
@@ -71,6 +74,13 @@ class LibraryShell extends StatefulWidget {
   /// via [HistoryManager.clearHistory]. When null, no clear action is shown.
   final SourceType? historySourceType;
 
+  /// 收藏分类夹所属模块类型。动漫 / 漫画 / 小说三端分类夹互相隔离，
+  /// 分组栏与筛选面板都只展示本类型的分组。
+  ///
+  /// 未显式提供时回落到 [historySourceType]（各模块内两者同值），
+  /// 再回落到 [SourceType.animeSource]。
+  final SourceType? favoriteSourceType;
+
   const LibraryShell({
     super.key,
     required this.title,
@@ -88,6 +98,7 @@ class LibraryShell extends StatefulWidget {
     this.categoryProvider,
     this.showSubTabs = true,
     this.historySourceType,
+    this.favoriteSourceType,
   });
 
   @override
@@ -102,6 +113,12 @@ class _LibraryShellState extends State<LibraryShell> {
   LibraryTopTab _currentTopTab = LibraryTopTab.library;
   final Set<LibrarySubTab> _sub = <LibrarySubTab>{LibrarySubTab.local};
   BookshelfFilter _filter = const BookshelfFilter();
+
+  /// 当前模块的收藏分类夹类型（三端隔离的判别依据）。
+  SourceType get _favType =>
+      widget.favoriteSourceType ??
+      widget.historySourceType ??
+      SourceType.animeSource;
 
   /// 顶栏标题滚动渐隐进度（0=顶部完整显示，1=已下滚收缩）。
   /// 用 ValueNotifier 仅重建标题本身，避免每帧滚动 setState 整页。
@@ -174,6 +191,22 @@ class _LibraryShellState extends State<LibraryShell> {
             _buildTopTabs(l10n, scheme),
             if (_currentTopTab == LibraryTopTab.library && widget.showSubTabs)
               _buildSubTabs(l10n),
+            // 分组栏（仅收藏子段）：显隐用 AnimatedSize 平滑过渡。
+            AnimatedSize(
+              duration: AppTokens.durBase,
+              curve: AppCurves.smooth,
+              alignment: Alignment.topCenter,
+              child: (_currentTopTab == LibraryTopTab.library &&
+                      widget.showSubTabs &&
+                      _sub.first == LibrarySubTab.favorite)
+                  ? FavoriteGroupBar(
+                      sourceType: _favType,
+                      selectedGroupIds: _filter.groupIds,
+                      onChanged: (Set<String> ids) => setState(
+                          () => _filter = _filter.copyWith(groupIds: ids)),
+                    )
+                  : const SizedBox.shrink(),
+            ),
             Expanded(child: _buildBody()),
           ],
         ),
@@ -223,6 +256,10 @@ class _LibraryShellState extends State<LibraryShell> {
       context,
       initialFilter: _filter,
       categories: categories,
+      // 分组段仅收藏子段有意义，其余子段不展示。
+      groups: _sub.first == LibrarySubTab.favorite
+          ? context.read<FavoritesManager>().groupsFor(_favType)
+          : const [],
     );
     if (result != null && mounted) {
       setState(() => _filter = result);
@@ -245,8 +282,28 @@ class _LibraryShellState extends State<LibraryShell> {
   Widget _buildBody() {
     switch (_currentTopTab) {
       case LibraryTopTab.library:
-        return widget.libraryBodyBuilder?.call(_sub.first, _filter) ??
-            _buildEmptyState();
+        // 筛选结果切换动效：fade + 轻微上滑（key 随筛选状态变化）。
+        return AnimatedSwitcher(
+          duration: AppTokens.durBase,
+          switchInCurve: AppCurves.smooth,
+          switchOutCurve: AppCurves.smooth,
+          transitionBuilder: (Widget child, Animation<double> anim) =>
+              FadeTransition(
+            opacity: anim,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(anim),
+              child: child,
+            ),
+          ),
+          child: KeyedSubtree(
+            key: ValueKey<Object>((_sub.first, _filter)),
+            child: widget.libraryBodyBuilder?.call(_sub.first, _filter) ??
+                _buildEmptyState(),
+          ),
+        );
       case LibraryTopTab.online:
         return widget.onlineBody ?? _buildEmptyState();
       case LibraryTopTab.subscribe:

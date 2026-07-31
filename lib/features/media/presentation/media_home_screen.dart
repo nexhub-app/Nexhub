@@ -130,6 +130,7 @@ class MediaHomeScreen extends StatelessWidget {
           BookshelfContent.categoriesFor(
               context, SourceType.animeSource, subTab),
       historySourceType: SourceType.animeSource,
+      favoriteSourceType: SourceType.animeSource,
       fabSuppressedNotifier: fabSuppressed,
     );
   }

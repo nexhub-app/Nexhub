@@ -2262,6 +2262,10 @@
   "setGroups": "Set groups",
   "filterByGroup": "Group",
   "groupItemCount": "{n} items",
+  "hideCategory": "Hide",
+  "showCategory": "Show",
+  "categoryHidden": "Hidden",
+  "noGroupsHint": "No categories yet — tap \"New group\" to create one",
   "@groupItemCount": {
     "description": "Item count shown next to a favorite group",
     "placeholders": { "n": {} }
