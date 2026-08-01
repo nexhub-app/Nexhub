@@ -14,6 +14,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 import '../../../core/comic/models/reader_preferences.dart'
     show ReaderTapZoneLayout, TapZoneInvert;
 import '../../../core/favorites/favorites_manager.dart';
+import '../../../core/history/media_watched_manager.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/novel_block.dart';
@@ -23,6 +24,7 @@ import '../../../core/novel/novel_page_animation.dart';
 import '../../../core/novel/novel_progress_manager.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/reader/tap_zone_resolver.dart';
+import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
@@ -965,6 +967,29 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           );
     } catch (_) {
       // FavoritesManager 不可用时静默忽略。
+    }
+    // 章节阅读进度达到「已看」阈值时标记该章已读（每章仅标记一次）。
+    _maybeMarkChapterWatched(page);
+  }
+
+  /// 章节阅读进度达到「已看」阈值时标记当前章已读。
+  ///
+  /// 阈值取自 [GeneralSettingsStore.watchedThresholdPercent]（默认 90）。
+  /// 已读章节由 [MediaWatchedManager] 统一记录（与详情页 isRead 共用），
+  /// `markWatched` 本身幂等，此处额外用 `isWatched` 跳过已读章节。
+  void _maybeMarkChapterWatched(int page) {
+    if (_isLocalMode) return; // 本地模式只有单「章」，不标记已读。
+    final total = _pagination?.pages.length ?? 0;
+    if (total <= 0) return;
+    final ratio = (page + 1) / total;
+    final threshold = GeneralSettingsStore.instance.watchedThresholdPercent;
+    if (!progressReachesWatchedThreshold(ratio, threshold)) return;
+    try {
+      final watched = context.read<MediaWatchedManager>();
+      if (watched.isWatched(widget.novelId, _chapterIndex)) return;
+      unawaited(watched.markWatched(widget.novelId, _chapterIndex));
+    } catch (_) {
+      // Manager 不可用时静默忽略。
     }
   }
 

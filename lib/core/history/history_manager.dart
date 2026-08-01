@@ -17,6 +17,7 @@ import '../comic/models/reader_preferences.dart';
 import '../models/media_item.dart';
 import '../models/plugin_config.dart';
 import '../scraper/http_fetcher.dart';
+import '../services/config_loader.dart';
 
 /// 历史条目——记录最近浏览的内容。
 class HistoryEntry {
@@ -191,6 +192,13 @@ class HistoryManager extends ChangeNotifier {
     String? lastChapter,
     SourceType? sourceType,
   }) async {
+    // 无痕模式：该源已开启无痕则不记录浏览历史（进度记忆不受影响）。
+    final sid = item.sourceId;
+    if (sid != null &&
+        sid.isNotEmpty &&
+        ConfigLoader.instance.isIncognitoBySourceId(sid)) {
+      return;
+    }
     final type = sourceType ?? item.sourceType ?? SourceType.animeSource;
     final list = _cache.putIfAbsent(type, () => <HistoryEntry>[]);
 

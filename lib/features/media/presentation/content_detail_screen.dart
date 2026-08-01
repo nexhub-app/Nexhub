@@ -45,6 +45,7 @@ import '../../../core/navigation/app_page_route.dart';
 import '../../../core/novel/novel_toc_cache.dart';
 import '../../../core/progress/unified_progress_repository.dart';
 import '../../../core/resolver/webview_resolver.dart';
+import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
 import '../../../core/services/source_repository.dart';
@@ -130,6 +131,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   /// 章节书签仓库；影视源为 null（无章节书签概念）。
   UnifiedBookmarkRepository? _bookmarkRepo;
 
+  /// Bangumi subjectId 上抛（详情页 Bangumi 标签页解析成功后写入），
+  /// 供底栏「同步」按钮按需出现。
+  ValueNotifier<int?>? _bangumiSubjectId;
+
   bool get _isAnime => _sourceType == SourceType.animeSource;
   bool get _isManga => _sourceType == SourceType.mangaSource;
   bool get _isNovel => _sourceType == SourceType.novelSource;
@@ -145,6 +150,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     super.initState();
     _fetchedDetail = widget.item;
     _resolveTypes();
+    _bangumiSubjectId = ValueNotifier<int?>(null);
+    _resolveBangumiForSync();
     _progressRepo = UnifiedProgressRepository.of(context, _sourceType);
     _bookmarkRepo = UnifiedBookmarkRepository.forType(_sourceType);
     _load();
@@ -157,7 +164,26 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   void dispose() {
     _chapterThrottleTimer?.cancel();
     _chapterThrottleTimer = null;
+    _bangumiSubjectId?.dispose();
     super.dispose();
+  }
+
+  /// 在上抛 Bangumi subjectId 给底栏「同步」按钮（独立于 Bangumi 标签页，
+  /// 保证未访问 Bangumi 标签时按钮也可见）。
+  Future<void> _resolveBangumiForSync() async {
+    try {
+      final svc = Provider.of<BangumiSyncService>(context, listen: false);
+      final res = await svc.linkStore.resolve(
+        widget.item.id,
+        widget.item.title,
+        _favType,
+      );
+      if (mounted && res.link != null) {
+        _bangumiSubjectId?.value = res.link!.subjectId;
+      }
+    } catch (_) {
+      // 解析失败不影响主流程；标签页内会再次尝试。
+    }
   }
 
   /// 解析源类型与收藏归属类型。
@@ -422,8 +448,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
 
     switch (_sourceType) {
       case SourceType.animeSource:
-        // 进入播放即标记已看（与重构前一致）。
-        unawaited(_progressRepo.markRead(widget.item.id, index));
+        // 「已看」由播放器在进度达到阈值时自动标记（见 VideoPlayerScreen），
+        // 此处不再进入即标记，避免看几秒便记为已看。
         Navigator.of(context).push(
           AppPageRoute<void>(
             builder: (_) => VideoPlayerScreen(
@@ -1104,6 +1130,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         contentId: item.id,
         title: item.title,
         sourceType: _favType,
+        subjectIdNotifier: _bangumiSubjectId,
       ),
       actions: <Widget>[
         if (hasContinue)
@@ -1179,6 +1206,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       recommendations: _recommendationsFuture == null
           ? null
           : _RecommendationList(future: _recommendationsFuture!),
+      bangumiSubjectId: _bangumiSubjectId,
+      bangumiContentId: item.id,
+      bangumiSourceType: _favType,
     );
   }
 }

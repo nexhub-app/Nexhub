@@ -14,8 +14,10 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../core/comic/comic_progress_manager.dart';
 import '../../../core/comic/models/reader_preferences.dart';
 import 'reader_settings_sheet.dart';
+import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/favorites/favorites_manager.dart';
+import '../../../core/history/media_watched_manager.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
@@ -516,6 +518,28 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           );
     } catch (_) {
       // FavoritesManager 不可用时静默忽略。
+    }
+    // 章节阅读进度达到「已看」阈值时标记该章已读（每章仅标记一次）。
+    _maybeMarkChapterWatched(page);
+  }
+
+  /// 章节阅读进度达到「已看」阈值时标记当前章已读。
+  ///
+  /// 阈值取自 [GeneralSettingsStore.watchedThresholdPercent]（默认 90）。
+  /// 已读章节由 [MediaWatchedManager] 统一记录（与详情页 isRead 共用），
+  /// `markWatched` 本身幂等，此处额外用 `isWatched` 跳过已读章节。
+  void _maybeMarkChapterWatched(int page) {
+    final total = _images.length;
+    if (total <= 0) return;
+    final ratio = (page + 1) / total;
+    final threshold = GeneralSettingsStore.instance.watchedThresholdPercent;
+    if (!progressReachesWatchedThreshold(ratio, threshold)) return;
+    try {
+      final watched = context.read<MediaWatchedManager>();
+      if (watched.isWatched(widget.comicId, _chapterIndex)) return;
+      unawaited(watched.markWatched(widget.comicId, _chapterIndex));
+    } catch (_) {
+      // Manager 不可用时静默忽略。
     }
   }
 

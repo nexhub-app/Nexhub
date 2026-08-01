@@ -18,10 +18,12 @@ import '../../../core/danmaku/danmaku_source.dart';
 import '../../../core/danmaku/dandanplay_service.dart';
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/history/media_playback_position_manager.dart';
+import '../../../core/history/media_watched_manager.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/player/player_controller.dart';
+import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/player_settings.dart';
 import '../../../core/player/widgets/seek_bar.dart';
 import '../../../core/resolver/webview_resolver.dart';
@@ -204,6 +206,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 下一集是否已预解析（进度>80% 时后台拉取地址写入 VideoSourceCache）。
   /// 切集时重置为 false。
   bool _nextEpisodePreloaded = false;
+
+  /// 本次会话内已自动标记「已看」的剧集索引，避免对同一集重复触发
+  /// `MediaWatchedManager.markWatched`（每集仅标记一次）。
+  final Set<int> _watchedMarkedEpisodes = <int>{};
 
   Duration _position = Duration.zero;
 
@@ -904,6 +910,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _maybePreloadNextEpisode();
     // 节流保存播放位置（每 5 秒）
     _maybeSavePosition();
+    // 达到「已看」阈值时自动标记当前集
+    _maybeMarkWatched();
     if (mounted) setState(() {});
   }
 
@@ -916,6 +924,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       final mgr = context.read<MediaPlaybackPositionManager>();
       unawaited(mgr.savePosition(
           widget.itemId, _episodeIndex, _position.inMilliseconds));
+    } on Object {
+      // Manager 不可用时静默忽略。
+    }
+  }
+
+  /// 播放进度达到「已看」阈值时自动标记当前集已看（每集仅标记一次）。
+  ///
+  /// 阈值取自 [GeneralSettingsStore.watchedThresholdPercent]（默认 90）。
+  /// 用本地 [_watchedMarkedEpisodes] 集合避免每帧读取 Manager / 重复标记。
+  void _maybeMarkWatched() {
+    final durationMs = _duration.inMilliseconds;
+    if (durationMs <= 0) return;
+    if (_watchedMarkedEpisodes.contains(_episodeIndex)) return;
+    final ratio = _position.inMilliseconds / durationMs;
+    final threshold = GeneralSettingsStore.instance.watchedThresholdPercent;
+    if (!progressReachesWatchedThreshold(ratio, threshold)) return;
+    _watchedMarkedEpisodes.add(_episodeIndex);
+    try {
+      final watched = context.read<MediaWatchedManager>();
+      unawaited(watched.markWatched(widget.itemId, _episodeIndex));
     } on Object {
       // Manager 不可用时静默忽略。
     }
