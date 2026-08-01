@@ -31,6 +31,7 @@ import '../../core/services/bangumi/bangumi_proxy_config.dart';
 import '../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../core/services/bangumi/subject_link_store.dart';
 import '../../core/services/cloud_sync_service.dart';
+import '../../core/services/source_library_bookmarks.dart';
 import '../../core/settings/general_settings.dart';
 import '../../core/widgets/app_loading_indicator.dart';
 import '../../core/services/source_repository.dart';
@@ -136,6 +137,7 @@ class _SplashScreenState extends State<SplashScreen> {
       Hive.openBox('source_mirrors'),
       Hive.openBox('chapter_fetch_times'),
       Hive.openBox(SubjectLinkStore.boxName),
+      Hive.openBox(SourceLibraryBookmarks.boxName),
     ]);
 
     final sourceRepo = await SourceRepository.loadBuiltins();
@@ -284,6 +286,9 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               ChangeNotifierProvider<SourceAuthManager>(
                 create: (_) => SourceAuthManager(),
+              ),
+              ChangeNotifierProvider<SourceLibraryBookmarks>(
+                create: (_) => SourceLibraryBookmarks()..load(),
               ),
               ChangeNotifierProvider<LocaleController>(
                 create: (_) => LocaleController()..load(),

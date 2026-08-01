@@ -13,6 +13,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/plugin_config.dart';
+import '../../../core/services/config_loader.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
@@ -621,6 +622,12 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                 // 源管理页：操作收进「更多」菜单，更清爽
                 useMoreMenu: true,
                 moreMenuTooltip: l10n.moreActions,
+                isIncognito: ConfigLoader.instance.isIncognito(s),
+                incognitoTooltip: l10n.incognitoMode,
+                onIncognitoToggle: (bool value) async {
+                  await ConfigLoader.instance.setIncognito(s.id, value);
+                  if (mounted) setState(() {});
+                },
                 onToggle: (bool value) =>
                     context.read<SourceRepository>().setEnabled(s.id, value),
                 onMirrorSettings: () => Navigator.of(context).push(

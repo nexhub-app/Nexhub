@@ -57,6 +57,12 @@ class ModuleSearchScreen extends StatefulWidget {
   /// 传入时优先于内置的 [SearchLayoutToggle]，保证各入口布局按钮一致。
   final Widget? layoutButton;
 
+  /// 是否记录本次搜索到历史的判定回调（返回 false 则跳过）。
+  ///
+  /// 用于按源无痕模式：单源搜索且该源已开启无痕时，调用方返回 false 以跳过
+  /// [SearchHistoryStore.add]。为 null 时恒记录（聚合搜索等场景）。
+  final bool Function()? shouldRecordSearch;
+
   const ModuleSearchScreen({
     super.key,
     required this.searchController,
@@ -73,6 +79,7 @@ class ModuleSearchScreen extends StatefulWidget {
     required this.sourceType,
     this.header,
     this.layoutButton,
+    this.shouldRecordSearch,
   });
 
   @override
@@ -116,7 +123,10 @@ class _ModuleSearchScreenState extends State<ModuleSearchScreen> {
     final String trimmed = query.trim();
     if (trimmed.isNotEmpty) {
       // Record only on submit (enter key), per spec.
-      _historyStore.add(trimmed);
+      // 无痕模式：单源搜索且该源无痕时跳过记录（由调用方判定）。
+      if (widget.shouldRecordSearch?.call() ?? true) {
+        _historyStore.add(trimmed);
+      }
     }
     widget.onQueryChanged(query);
   }

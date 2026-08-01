@@ -58,23 +58,45 @@ class _CommentsTabbedSectionState extends State<CommentsTabbedSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTokens.spaceLg,
-            AppTokens.spaceMd,
-            AppTokens.spaceLg,
-            0,
-          ),
-          child: SegmentedButton<int>(
-            segments: segments,
-            selected: <int>{_tab},
-            onSelectionChanged: (Set<int> selected) =>
-                setState(() => _tab = selected.first),
-            style: SegmentedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
+        if (segments.length > 1)
+          // 两个子页 → 分段按钮切换。
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.spaceLg,
+              AppTokens.spaceMd,
+              AppTokens.spaceLg,
+              0,
+            ),
+            child: SegmentedButton<int>(
+              segments: segments,
+              selected: <int>{_tab},
+              onSelectionChanged: (Set<int> selected) =>
+                  setState(() => _tab = selected.first),
+              style: SegmentedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          )
+        else
+          // 仅一个子页 → 紧凑标签（避免全宽胶囊）。
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.spaceLg,
+              AppTokens.spaceSm,
+              AppTokens.spaceLg,
+              0,
+            ),
+            child: Text(
+              l10n.bangumiComments,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: Theme.of(context).colorScheme.primary),
             ),
           ),
-        ),
         const SizedBox(height: AppTokens.spaceSm),
         if (_tab == 0 && _hasWebsite)
           CommentSection(

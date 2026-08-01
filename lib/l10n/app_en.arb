@@ -2666,5 +2666,50 @@
   "bangumiProxyApi": "API domain",
   "bangumiProxyImage": "Image domain",
   "bangumiProxyHint": "In mirror/reverse-proxy mode, enter your self-hosted domain (no path). Leave blank to use Bangumi's default domain for that category.",
-  "bangumiProxySaved": "Proxy settings saved"
+  "bangumiProxySaved": "Proxy settings saved",
+  "bangumiDetail": "Details",
+  "bangumiStaff": "Staff",
+  "bangumiTapToExpand": "Tap to expand",
+  "bangumiSyncRating": "Rating",
+  "bangumiSyncComment": "Comment",
+  "bangumiSync": "Sync",
+  "bangumiPublic": "Public",
+  "bangumiPrivate": "Private",
+  "bangumiSyncLoginHint": "Sign in to Bangumi in Settings first",
+  "bangumiSyncSaved": "Saved",
+  "bangumiRatingValue": "{count} / 10",
+  "clear": "Clear",
+  "@bangumiRatingValue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mirrorAddCustom": "Add custom mirror",
+  "mirrorName": "Mirror name",
+  "mirrorDomain": "Domain",
+  "mirrorBaseUrl": "Base URL",
+  "mirrorCustom": "Custom",
+  "mirrorDelete": "Delete",
+  "mirrorExtractFromPublish": "Extract mirrors from publish page",
+  "mirrorExtracting": "Extracting…",
+  "mirrorNoMirrorsExtracted": "No mirrors found",
+  "mirrorImportSelected": "Import selected",
+  "mirrorExtractFailed": "Extraction failed",
+  "mirrorAddInvalid": "Base URL must start with http:// or https://",
+  "importLibraryTab": "Library import",
+  "libraryUrlHint": "Enter source library URL",
+  "fetchLibrary": "Fetch",
+  "saveLibrary": "Save bookmark",
+  "libraryBookmarks": "Library bookmarks",
+  "libraryEmpty": "No saved library URLs",
+  "loginStatusLoggedIn": "Logged in",
+  "loginStatusLoggedOut": "Logged out",
+  "cookieInputHint": "Paste the cookie string for this source",
+  "incognitoMode": "Incognito mode",
+  "incognitoModeHint": "Don't record history or search for this source",
+  "watchedThreshold": "Watched threshold",
+  "watchedThresholdHint": "Progress reaching this percentage is considered watched",
+  "watchedThresholdUnit": "%"
 }

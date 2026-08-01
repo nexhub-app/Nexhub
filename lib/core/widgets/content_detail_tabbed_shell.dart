@@ -33,6 +33,7 @@ import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
 import 'app_animations.dart';
 import 'app_card.dart';
+import 'bangumi_sync_dialog.dart';
 import 'app_cover_image.dart';
 import 'app_refresh_indicator.dart';
 import 'detail_action_utils.dart';
@@ -97,6 +98,13 @@ class ContentDetailTabbedShell extends StatefulWidget {
   /// 「评论」标签内容；null 时不渲染该标签（源未声明 comments 即不渲染）。
   final Widget? commentsSection;
 
+  /// 已解析的 Bangumi subjectId（由 Bangumi 标签页上抛）；非空时底栏显示「同步」按钮。
+  final ValueNotifier<int?>? bangumiSubjectId;
+
+  /// 同步弹窗所需的内容标识（与 [bangumiSubjectId] 配套）。
+  final String? bangumiContentId;
+  final SourceType? bangumiSourceType;
+
   /// AppBar 右侧操作按钮（收藏 / 下载 / 分享 / 刷新 / 删除等）。
   final List<Widget>? appBarActions;
 
@@ -134,6 +142,9 @@ class ContentDetailTabbedShell extends StatefulWidget {
     this.progressSection,
     this.bangumiSection,
     this.commentsSection,
+    this.bangumiSubjectId,
+    this.bangumiContentId,
+    this.bangumiSourceType,
     this.appBarActions,
     this.onRefresh,
     this.fallbackIcon = Icons.movie_outlined,
@@ -382,6 +393,35 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
     final String? url = widget.detailUrl;
     final bool hasUrl = url != null && url.isNotEmpty && !url.contains('{}');
 
+    // Bangumi 同步按钮（样式与播放主操作一致：FilledButton.icon），
+    // 与主操作（播放/阅读）置于同一行、紧邻其右侧。
+    final bool syncReady = widget.bangumiSubjectId != null &&
+        widget.bangumiContentId != null &&
+        widget.bangumiSourceType != null;
+    final Widget? syncButton = syncReady
+        ? ValueListenableBuilder<int?>(
+            valueListenable: widget.bangumiSubjectId!,
+            builder: (BuildContext ctx, int? sid, _) => sid == null
+                ? const SizedBox.shrink()
+                : FilledButton.icon(
+                    onPressed: () => showBangumiSyncDialog(
+                      context,
+                      subjectId: sid,
+                      title: widget.title,
+                      contentId: widget.bangumiContentId!,
+                      sourceType: widget.bangumiSourceType!,
+                    ),
+                    icon: const Icon(Icons.sync, size: 18),
+                    label: Text(l10n.bangumiSync),
+                  ),
+          )
+        : null;
+
+    final List<Widget> actions = <Widget>[
+      ...widget.actions,
+      if (syncButton != null) syncButton,
+    ];
+
     final List<Widget> right = <Widget>[
       if (hasUrl)
         _CircleIconButton(
@@ -406,16 +446,16 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
         ),
         child: Row(
           children: <Widget>[
-            if (widget.actions.isNotEmpty)
+            if (actions.isNotEmpty)
               Expanded(
                 child: Wrap(
                   spacing: AppTokens.spaceSm,
                   runSpacing: AppTokens.spaceXs,
                   crossAxisAlignment: WrapCrossAlignment.center,
-                  children: widget.actions,
+                  children: actions,
                 ),
               ),
-            if (widget.actions.isNotEmpty)
+            if (actions.isNotEmpty)
               const SizedBox(width: AppTokens.spaceSm),
             ...right,
           ],
@@ -754,9 +794,12 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
     final TabController controller = _tabController!;
 
     final double topPadding = MediaQuery.of(context).padding.top;
-    // 完全收起时的高度：状态栏 + 工具栏 + TabBar。
-    final double collapsedHeight =
-        topPadding + kToolbarHeight + _kTabBarHeight;
+    // flexibleSpace 的高度范围（不含 TabBar）：
+    // 收起时 = topPadding + toolbarHeight，展开时 = expandedHeight - tabBarHeight。
+    final double flexibleMinHeight = topPadding + kToolbarHeight;
+    const double flexibleMaxHeight = _kHeroExpandedHeight - _kTabBarHeight;
+    final double flexibleRange =
+        (flexibleMaxHeight - flexibleMinHeight).clamp(1.0, 1e6);
 
     final Widget nested = NestedScrollView(
       headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
@@ -766,7 +809,9 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
             sliver: SliverAppBar(
               pinned: true,
               expandedHeight: _kHeroExpandedHeight,
-              title: Text(widget.title),
+              // 标题完全由 FlexibleSpaceBar background 接管：
+              // 展开态 → 自定义 Positioned 标题（Hero 内下部）
+              // 收起态 → 自定义 Positioned 标题（toolbar 内居中）
               actions: widget.appBarActions,
               backgroundColor: scheme.surface,
               surfaceTintColor: Colors.transparent,
@@ -774,48 +819,89 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
               flexibleSpace: LayoutBuilder(
                 builder: (BuildContext ctx, BoxConstraints c) {
                   // 展开度 t：1 = 完全展开，0 = 完全收起。
-                  final double range =
-                      (_kHeroExpandedHeight - collapsedHeight).clamp(1.0, 1e6);
                   final double t =
-                      ((c.maxHeight - collapsedHeight) / range).clamp(0.0, 1.0);
+                      ((c.maxHeight - flexibleMinHeight) / flexibleRange)
+                          .clamp(0.0, 1.0);
+
+                  // ── 展开态标题（Hero 背景层）──
+                  // t > 0.5 时显示，随折叠上移 + 淡出；t ≤ 0.5 完全隐藏。
+                  final double expandOpacity =
+                      ((t - 0.50) / 0.35).clamp(0.0, 1.0);
+                  final bool showExpandTitle = expandOpacity > 0.01;
+
+                  // ── 收起态标题（toolbar 内）──
+                  // t < 0.4 时显示，随收起渐显。
+                  final double collapseOpacity =
+                      ((0.40 - t) / 0.40).clamp(0.0, 1.0);
+                  final bool showCollapseTitle = collapseOpacity > 0.01;
+
                   return FlexibleSpaceBar(
-                    // 标题不使用 FlexibleSpaceBar.title（它固定在底部），
-                    // 而是放入背景 Stack 以精确控制位置（左下区域，留出回退键空间）。
-                    titlePadding: EdgeInsets.zero,
+                    // 不再使用 FlexibleSpaceBar.title，改用 background Stack
+                    // 中的自定义 Positioned，避免被 safeBottom 下推。
+                    title: null,
                     background: Stack(
                       fit: StackFit.expand,
                       children: <Widget>[
                         _buildHeroParallax(context, t),
-                        // 展开态标题：定位在 Hero 区域中下部（非贴底），
-                        // 收起后由 SliverAppBar 的 toolbar 显示标题。
-                        if (t > 0.3)
+                        // 展开态自定义标题：定位在 Hero 区域下部，
+                        // 收起过程中上移并淡出；完全收起后(t≤0.5)隐藏。
+                        if (showExpandTitle)
                           Positioned(
-                            left: AppTokens.spaceMd + 56.0,
-                            right: AppTokens.spaceLg +
-                                48.0 *
+                            // 左侧回退键(56)减去部分内缩；右侧紧凑留白。
+                            left: 52.0,
+                            right: 12.0 +
+                                24.0 *
                                     (widget.appBarActions?.length ?? 0),
-                            // 展开态(t=1)：bottom≈90dp，标题在 Hero 中下部；
-                            // 收起过程中 bottom 渐增，标题随折叠上移；
-                            // t≤0.3 后隐藏，由 SliverAppBar.title 接管。
-                            bottom: _kHeroExpandedHeight * (0.28 + 0.22 * (1 - t)),
-                            child: Text(
-                              widget.title,
-                              style: textTheme.headlineSmall?.copyWith(
-                                color: scheme.onSurface,
-                                fontWeight: FontWeight.w700,
-                                shadows: <Shadow>[
-                                  Shadow(
-                                    blurRadius: 12,
-                                    color: scheme.surface.withValues(alpha: 0.7),
-                                  ),
-                                  Shadow(
-                                    blurRadius: 4,
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                  ),
-                                ],
+                            // 展开态(t=1)：bottom≈52dp，贴近内容区；
+                            // 收起过程 bottom 渐增（跟随收缩上移）；
+                            // 同时 opacity 渐隐。
+                            bottom: _kHeroExpandedHeight *
+                                    (0.163 + 0.28 * (1 - t)),
+                            child: Opacity(
+                              opacity: expandOpacity,
+                              child: Text(
+                                widget.title,
+                                style: textTheme.headlineSmall?.copyWith(
+                                  color: scheme.onSurface,
+                                  fontWeight: FontWeight.w700,
+                                  shadows: <Shadow>[
+                                    Shadow(
+                                      blurRadius: 14,
+                                      color: scheme.surface
+                                          .withValues(alpha: 0.75),
+                                    ),
+                                    Shadow(
+                                      blurRadius: 5,
+                                      color: Colors.black
+                                          .withValues(alpha: 0.25),
+                                    ),
+                                  ],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        // 收起态标题：固定在 toolbar 区域内，与返回键同行。
+                        if (showCollapseTitle)
+                          Positioned(
+                            left: 56.0,
+                            right: 48.0,
+                            top: topPadding,
+                            bottom: 0.0,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Opacity(
+                                opacity: collapseOpacity,
+                                child: Text(
+                                  widget.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                       ],

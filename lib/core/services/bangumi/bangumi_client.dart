@@ -330,30 +330,83 @@ class BangumiClient {
         .toList();
   }
 
-  /// 拉取角色列表（GET /v0/subjects/{subject_id}/characters）。
-  Future<List<BangumiCharacter>> fetchCharacters(int subjectId) async {
-    final res = await _request('GET', '/v0/subjects/$subjectId/characters');
-    final data = res.data;
-    if (data is! Map<String, dynamic>) return const <BangumiCharacter>[];
-    final list = data['data'];
-    if (list is! List) return const <BangumiCharacter>[];
-    return list
-        .whereType<Map<String, dynamic>>()
-        .map(BangumiCharacter.fromJson)
-        .toList();
+  /// 拉取角色与制作人员。
+  ///
+  /// 制作人员来源分两种环境，均兼容：
+  /// - 真实 API：角色在 `/v0/subjects/{id}/characters`（返回 `{data:[...]}`），制作人员
+  ///   在独立端点 `/v0/subjects/{id}/persons`（返回裸数组，条目带 `career` 职业字段，
+  ///   `relation` 为该作职位）；
+  /// - 合并代理：部分反代把制作人员混入 `/characters` 响应，同样以 `career` 字段识别
+  ///   （真实 API 的角色不含 `career`）。
+  ///
+  /// 两端点分别兜底（任一侧失败不影响另一侧），`/persons` 结果强制判为制作人员，
+  /// 按 id 去重合并，避免重复请求与限流。
+  Future<({List<BangumiCharacter> characters, List<BangumiStaff> staff})>
+      fetchCharactersAndStaff(int subjectId) async {
+    final characters = <BangumiCharacter>[];
+    final staffMap = <int, BangumiStaff>{};
+
+    /// 从响应体中提取列表（兼容 `{data:[...]}` 包裹和裸数组两种格式）。
+    List<dynamic>? extractList(dynamic raw) {
+      if (raw is List) return raw;
+      if (raw is Map<String, dynamic>) {
+        final d = raw['data'];
+        if (d is List) return d;
+      }
+      return null;
+    }
+
+    Future<void> ingest(dynamic raw, {bool forceStaff = false}) async {
+      final list = extractList(raw);
+      if (list == null) return;
+      for (final item in list.whereType<Map<String, dynamic>>()) {
+        // 带 career 职业字段（或明确来自 /persons）的条目视为制作人员，其余为角色。
+        // 注意：Bangumi v0 API 字段名为 `career`（单数），非 `careers`。
+        final isPerson = forceStaff || item['career'] is List;
+        if (isPerson) {
+          final s = BangumiStaff.fromJson(item);
+          staffMap[s.id] = s;
+        } else {
+          characters.add(BangumiCharacter.fromJson(item));
+        }
+      }
+    }
+
+    // 角色（真实 API 仅角色；合并代理可能含 career 的制作人员）。
+    try {
+      final res = await _request('GET', '/v0/subjects/$subjectId/characters');
+      await ingest(res.data);
+    } catch (_) {
+      /* 角色非核心，失败不阻断 */
+    }
+
+    // 制作人员（真实 API 独立端点，结果强制判为制作人员）。
+    try {
+      final res = await _request('GET', '/v0/subjects/$subjectId/persons');
+      await ingest(res.data, forceStaff: true);
+    } catch (_) {
+      /* 制作人员非核心，失败不阻断 */
+    }
+
+    return (characters: characters, staff: staffMap.values.toList());
   }
 
   /// 拉取关联条目（GET /v0/subjects/{subject_id}/subjects）。
   ///
-  /// 返回前传 / 续集 / 同系列等关联条目。
+  /// 返回前传 / 续集 / 同系列等关联条目。响应可能是
+  /// `{data:[...]}` 包裹结构或直接的数组，二者都兼容。
   Future<List<BangumiRelatedSubject>> fetchRelatedSubjects(
       int subjectId) async {
-    final res =
-        await _request('GET', '/v0/subjects/$subjectId/subjects');
+    final res = await _request('GET', '/v0/subjects/$subjectId/subjects');
     final data = res.data;
-    if (data is! Map<String, dynamic>) return const <BangumiRelatedSubject>[];
-    final list = data['data'];
-    if (list is! List) return const <BangumiRelatedSubject>[];
+    List<dynamic>? list;
+    if (data is Map<String, dynamic>) {
+      final d = data['data'];
+      if (d is List) list = d;
+    } else if (data is List) {
+      list = data;
+    }
+    if (list == null) return const <BangumiRelatedSubject>[];
     return list
         .whereType<Map<String, dynamic>>()
         .map(BangumiRelatedSubject.fromJson)

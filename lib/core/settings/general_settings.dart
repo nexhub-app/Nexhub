@@ -71,23 +71,31 @@ class GeneralSettings {
   final LaunchTab launchTab;
   final AppDateFormat dateFormat;
 
+  /// 「已看」阈值百分比（50–100）。播放/阅读进度达到该比例视为已看。
+  final int watchedThresholdPercent;
+
   const GeneralSettings({
     this.launchTab = LaunchTab.browse,
     this.dateFormat = AppDateFormat.defaultFormat,
+    this.watchedThresholdPercent = 90,
   });
 
   GeneralSettings copyWith({
     LaunchTab? launchTab,
     AppDateFormat? dateFormat,
+    int? watchedThresholdPercent,
   }) =>
       GeneralSettings(
         launchTab: launchTab ?? this.launchTab,
         dateFormat: dateFormat ?? this.dateFormat,
+        watchedThresholdPercent:
+            watchedThresholdPercent ?? this.watchedThresholdPercent,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'launchTab': launchTab.name,
         'dateFormat': dateFormat.name,
+        'watchedThresholdPercent': watchedThresholdPercent,
       };
 
   factory GeneralSettings.fromJson(Map<String, dynamic> json) {
@@ -105,8 +113,33 @@ class GeneralSettings {
         orElse: () => AppDateFormat.defaultFormat,
       );
     }
-    return GeneralSettings(launchTab: tab, dateFormat: fmt);
+    return GeneralSettings(
+      launchTab: tab,
+      dateFormat: fmt,
+      watchedThresholdPercent: _clampThreshold(
+        (json['watchedThresholdPercent'] as num?)?.toInt() ?? 90,
+      ),
+    );
   }
+}
+
+/// 「已看」阈值百分比合法范围。
+const int kWatchedThresholdMin = 50;
+const int kWatchedThresholdMax = 100;
+
+/// 将阈值百分比裁剪到合法范围 [kWatchedThresholdMin, kWatchedThresholdMax]。
+int _clampThreshold(int value) =>
+    value.clamp(kWatchedThresholdMin, kWatchedThresholdMax);
+
+/// 判断进度比例是否达到「已看」阈值。
+///
+/// [progressRatio] 为 0.0–1.0 的进度比例（如 positionMs/durationMs 或
+/// (currentPage+1)/totalPages）；[thresholdPercent] 为 50–100 的百分比阈值。
+/// 达到或超过阈值返回 true，用于触发 `MediaWatchedManager.markWatched`。
+bool progressReachesWatchedThreshold(double progressRatio, int thresholdPercent) {
+  if (thresholdPercent <= 0) return progressRatio >= 0;
+  final clamped = thresholdPercent.clamp(kWatchedThresholdMin, kWatchedThresholdMax);
+  return progressRatio >= clamped / 100;
 }
 
 /// 通用设置持久化存储 + 变更广播（key: `general_settings_v1`）。
@@ -132,6 +165,16 @@ class GeneralSettingsStore extends ChangeNotifier {
 
   GeneralSettings get settings => _settings;
   bool get loaded => _loaded;
+
+  /// 「已看」阈值百分比（已裁剪到 50–100）。
+  int get watchedThresholdPercent => _settings.watchedThresholdPercent;
+
+  /// 设置「已看」阈值百分比（自动裁剪到 50–100 并持久化、广播）。
+  Future<void> setWatchedThresholdPercent(int value) async {
+    final clamped = _clampThreshold(value);
+    if (clamped == _settings.watchedThresholdPercent) return;
+    await save(_settings.copyWith(watchedThresholdPercent: clamped));
+  }
 
   Future<GeneralSettings> load() async {
     // 幂等：已加载（或被 save 抢先标记为已加载）时直接返回当前值，
