@@ -35,6 +35,7 @@ import './about_screen.dart';
 import '../../../core/settings/general_settings.dart';
 import './widgets/settings_widgets.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/services/config_loader.dart';
 import '../../../core/services/cloud_sync_service.dart';
 import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -614,6 +615,22 @@ class _GeneralSettingsCardState extends State<_GeneralSettingsCard> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
               ),
+            ),
+            const Divider(height: AppTokens.spaceLg),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.globalIncognito),
+              subtitle: Text(
+                l10n.globalIncognitoHint,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              value: ConfigLoader.instance.isGlobalIncognito,
+              onChanged: (v) async {
+                await ConfigLoader.instance.setGlobalIncognito(v);
+                if (mounted) setState(() {});
+              },
             ),
           ],
         ),

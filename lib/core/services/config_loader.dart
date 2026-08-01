@@ -47,6 +47,10 @@ class ConfigLoader {
   /// 全局请求隐身延迟开关（HttpFetcher 用）。默认 true，可被 [setStealthMode] 关闭。
   bool _globalStealthDelay = true;
 
+  /// 全局无痕浏览开关：开启后所有源都不记录浏览历史与搜索记录
+  /// （per-source 覆盖仍生效，[isIncognito] 恒返回 true）。
+  bool _globalIncognito = false;
+
   /// Hive box 名。
   static const String boxName = 'source_mirrors';
 
@@ -55,6 +59,9 @@ class ConfigLoader {
 
   /// 按源无痕 Hive box 名。
   static const String sourceStealthBoxName = 'source_stealth';
+
+  /// 全局无痕开关在 [boxName] 中的保留键（不与任何 sourceId 冲突）。
+  static const String globalIncognitoKey = '__global_incognito__';
 
   /// 从 Hive 加载持久化的镜像选择（P8.2.2 §廿二）。
   Future<void> init() async {
@@ -76,6 +83,8 @@ class ConfigLoader {
         _incognitoCache[key] = val;
       }
     }
+    final g = _box?.get(globalIncognitoKey);
+    if (g is bool) _globalIncognito = g;
     _loaded = true;
   }
 
@@ -87,14 +96,27 @@ class ConfigLoader {
     _globalStealthDelay = value;
   }
 
+  // --- 全局无痕浏览（总开关） ---
+
+  /// 全局无痕浏览是否开启。开启后所有源都视为无痕，不记录浏览历史与搜索记录。
+  /// per-source 覆盖值仍被保留，仅在该总开关关闭时生效。
+  bool get isGlobalIncognito => _globalIncognito;
+
+  /// 设置全局无痕浏览总开关并持久化到 Hive box（保留键 [globalIncognitoKey]）。
+  Future<void> setGlobalIncognito(bool value) async {
+    _globalIncognito = value;
+    await _box?.put(globalIncognitoKey, value);
+  }
+
   // --- 按源无痕模式（per-source incognito） ---
 
   /// 某源是否处于无痕模式。
   ///
-  /// 优先返回运行时覆盖（用户在源管理页切换的值）；无覆盖时回退到
-  /// `source.stealthMode`（缺省 false）。开启后该源的浏览历史与单源搜索记录
-  /// 不写入；进度记忆不受影响。
+  /// 全局无痕总开关开启时恒返回 true（所有源无痕）。否则优先返回运行时覆盖
+  /// （用户在源管理页切换的值）；无覆盖时回退到 `source.stealthMode`（缺省 false）。
+  /// 开启后该源的浏览历史与单源搜索记录不写入；进度记忆不受影响。
   bool isIncognito(PluginConfig source) {
+    if (_globalIncognito) return true;
     final override = _incognitoCache[source.id];
     if (override != null) return override;
     return source.stealthMode;
@@ -102,9 +124,10 @@ class ConfigLoader {
 
   /// 仅按 [sourceId] 判断无痕（无 PluginConfig 时用，如 HistoryManager）。
   ///
-  /// 有运行时覆盖则用之，否则返回 false（与 [isIncognito] 在 stealthMode
-  /// 缺省 false 时的行为一致）。sourceId 为空时返回 false。
+  /// 全局总开关开启时恒返回 true。否则有运行时覆盖则用之，否则返回 false。
+  /// sourceId 为空时返回 false。
   bool isIncognitoBySourceId(String? sourceId) {
+    if (_globalIncognito) return true;
     if (sourceId == null || sourceId.isEmpty) return false;
     return _incognitoCache[sourceId] ?? false;
   }
@@ -127,6 +150,20 @@ class ConfigLoader {
     _activeMirror[sourceId] = baseUrl;
     // fire-and-forget 持久化
     _box?.put(sourceId, baseUrl);
+  }
+
+  /// 编辑源主域名时，若当前激活镜像仍是旧主域名（用户未手动切到自定义镜像），
+  /// 则把激活镜像重定向到新主域名，使编辑立即生效；若已选自定义镜像则保持不变。
+  void retargetActiveMirrorIfDefault(
+    String sourceId,
+    String oldBaseUrl,
+    String newBaseUrl,
+  ) {
+    final cur = _activeMirror[sourceId];
+    if (cur == null || cur == oldBaseUrl) {
+      _activeMirror[sourceId] = newBaseUrl;
+      _box?.put(sourceId, newBaseUrl);
+    }
   }
 
   void setCookies(String host, String cookieHeader) {
