@@ -449,7 +449,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
               Navigator.of(dialogContext).pop();
               if (!ok && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.sourceCannotEdit)),
+                  SnackBar(content: Text(l10n.sourceEditFailed)),
                 );
               }
             },
@@ -479,7 +479,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
               Navigator.of(dialogContext).pop();
               if (!ok && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.sourceCannotDelete)),
+                  SnackBar(content: Text(l10n.sourceDeleteFailed)),
                 );
               }
             },

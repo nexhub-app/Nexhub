@@ -32,6 +32,7 @@ import '../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../core/services/bangumi/subject_link_store.dart';
 import '../../core/services/cloud_sync_service.dart';
 import '../../core/services/source_library_bookmarks.dart';
+import '../../core/services/source_library_subscription.dart';
 import '../../core/settings/general_settings.dart';
 import '../../core/widgets/app_loading_indicator.dart';
 import '../../core/services/source_repository.dart';
@@ -138,9 +139,12 @@ class _SplashScreenState extends State<SplashScreen> {
       Hive.openBox('chapter_fetch_times'),
       Hive.openBox(SubjectLinkStore.boxName),
       Hive.openBox(SourceLibraryBookmarks.boxName),
+      Hive.openBox(SourceLibrarySubscription.boxName),
     ]);
 
-    final sourceRepo = await SourceRepository.loadBuiltins();
+    // 加载内置源（资源包）+ 用户导入源。
+    final sourceRepo = SourceRepository();
+    await sourceRepo.loadBuiltins();
     await sourceRepo.loadImported();
     // 加载持久化的镜像选择（P8.2.2 §廿二）
     await ConfigLoader.instance.init();
@@ -289,6 +293,9 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               ChangeNotifierProvider<SourceLibraryBookmarks>(
                 create: (_) => SourceLibraryBookmarks()..load(),
+              ),
+              ChangeNotifierProvider<SourceLibrarySubscription>(
+                create: (_) => SourceLibrarySubscription()..load(),
               ),
               ChangeNotifierProvider<LocaleController>(
                 create: (_) => LocaleController()..load(),

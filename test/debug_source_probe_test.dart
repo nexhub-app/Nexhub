@@ -69,12 +69,13 @@ Future<void> runProbe() async {
     log('[网络] 沿用系统代理设置（与 App 一致）');
   }
 
-  // 1) 加载真实源（内置 + 用户导入，含「采集api生成」产出的源）。
-  final repo = await SourceRepository.loadBuiltins();
+  // 1) 加载真实源（内置源资源包 + 用户导入源）。
+  final repo = SourceRepository();
   try {
+    await repo.loadBuiltins();
     await repo.loadImported();
   } on Object catch (e) {
-    log('[warn] 加载导入源失败（SharedPreferences 不可用？）: $e');
+    log('[warn] 加载源失败（SharedPreferences 不可用？）: $e');
   }
 
   // 单源文件模式：用于探针「采集api生成」产出的真实源。

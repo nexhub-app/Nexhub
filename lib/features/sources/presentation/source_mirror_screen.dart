@@ -36,11 +36,23 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
   final Map<String, int> _speeds = <String, int>{};
   final Set<String> _testing = <String>{};
   final Set<String> _failed = <String>{};
+  bool _extracting = false;
 
   @override
   void initState() {
     super.initState();
     _activeBaseUrl = ConfigLoader.instance.getActiveMirror(widget.source);
+    final hasPublishPage =
+        widget.source.site.publishPageUrl?.trim().isNotEmpty ?? false;
+    final hasCustom =
+        ConfigLoader.instance.getCustomMirrors(widget.source.id).isNotEmpty;
+    // 发布页提取改为自动：进入镜像页即自动抓取发布页镜像并设为可用镜像，
+    // 无需手动点击。仅当该源有发布页且尚未提取过镜像时自动执行一次。
+    if (hasPublishPage && !hasCustom) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _autoExtractFromPublish();
+      });
+    }
   }
 
   Future<void> _testSpeed(String baseUrl) async {
@@ -155,26 +167,38 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _extractFromPublish() async {
+  /// 自动从发布页抓取镜像并直接设为可用镜像（无需手动勾选）。
+  ///
+  /// [manual] 为 true 时（点按云下载按钮）展示加载弹窗；首次进入页面的自动抓取
+  /// 静默进行，仅在抓取完成后用 Snackbar 提示新增数量。[addCustomMirror] 内部
+  /// 已按 baseUrl 去重，重复的声明/自定义镜像不会重复写入。
+  Future<void> _autoExtractFromPublish({bool manual = false}) async {
     final l10n = AppLocalizations.of(context);
     final publishPageUrl = widget.source.site.publishPageUrl;
     if (publishPageUrl == null || publishPageUrl.trim().isEmpty) return;
+    if (_extracting) return;
+    _extracting = true;
 
-    // 展示加载态。
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AppAlertDialog(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const CircularProgressIndicator(),
-            const SizedBox(width: AppTokens.spaceMd),
-            Text(l10n.mirrorExtracting),
-          ],
-        ),
-      ),
-    );
+    BuildContext? dialogCtx;
+    if (manual) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          dialogCtx = ctx;
+          return AppAlertDialog(
+            content: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const CircularProgressIndicator(),
+                const SizedBox(width: AppTokens.spaceMd),
+                Text(l10n.mirrorExtracting),
+              ],
+            ),
+          );
+        },
+      );
+    }
 
     List<MirrorConfig> candidates;
     try {
@@ -184,10 +208,12 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
       );
     } catch (_) {
       candidates = const <MirrorConfig>[];
+    } finally {
+      _extracting = false;
+      if (dialogCtx != null && mounted) Navigator.of(dialogCtx!).pop();
     }
 
     if (!mounted) return;
-    Navigator.of(context).pop(); // 关闭加载态
 
     if (candidates.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -196,85 +222,25 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
       return;
     }
 
-    // 去重：剔除已存在的声明镜像与自定义镜像（按 baseUrl）。
-    final existing = <String>{};
-    existing.addAll(widget.source.site.mirrors.map((m) => m.baseUrl));
-    existing.addAll(
-        ConfigLoader.instance.getCustomMirrors(widget.source.id).map((m) => m.baseUrl));
-    final selectable =
-        candidates.where((m) => !existing.contains(m.baseUrl)).toList();
-    if (selectable.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.mirrorNoMirrorsExtracted)),
-      );
-      return;
-    }
-
-    await _showExtractMultiSelect(selectable);
-  }
-
-  Future<void> _showExtractMultiSelect(List<MirrorConfig> candidates) async {
-    final l10n = AppLocalizations.of(context);
-    final selected = <String>{
-      ...candidates.map((m) => m.baseUrl),
+    // 去重并自动添加为镜像（无需确认）。
+    final existing = <String>{
+      ...widget.source.site.mirrors.map((m) => m.baseUrl),
+      ...ConfigLoader.instance
+          .getCustomMirrors(widget.source.id)
+          .map((m) => m.baseUrl),
     };
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AppAlertDialog(
-          title: Text(l10n.mirrorExtractFromPublish),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: candidates.length,
-              itemBuilder: (ctx, i) {
-                final m = candidates[i];
-                final checked = selected.contains(m.baseUrl);
-                return CheckboxListTile(
-                  value: checked,
-                  title: Text(m.name),
-                  subtitle: Text(m.baseUrl),
-                  onChanged: (v) {
-                    setDialogState(() {
-                      if (v == true) {
-                        selected.add(m.baseUrl);
-                      } else {
-                        selected.remove(m.baseUrl);
-                      }
-                    });
-                  },
-                );
-              },
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: selected.isEmpty
-                  ? null
-                  : () => Navigator.of(ctx).pop(true),
-              child: Text(l10n.mirrorImportSelected),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (confirmed != true) return;
-    if (!mounted) return;
-
+    var added = 0;
     for (final m in candidates) {
-      if (selected.contains(m.baseUrl)) {
-        await ConfigLoader.instance.addCustomMirror(widget.source.id, m);
-      }
+      if (existing.contains(m.baseUrl)) continue;
+      await ConfigLoader.instance.addCustomMirror(widget.source.id, m);
+      added++;
     }
     if (mounted) setState(() {});
+    if (added > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.mirrorAutoAdded(added))),
+      );
+    }
   }
 
   Widget _buildTile(MirrorConfig m, {required bool isCustom}) {
@@ -397,7 +363,7 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
             AppIconButton(
               icon: Icons.cloud_download_outlined,
               tooltip: l10n.mirrorExtractFromPublish,
-              onPressed: _extractFromPublish,
+              onPressed: () => _autoExtractFromPublish(manual: true),
             ),
           AppIconButton(
             icon: Icons.add,

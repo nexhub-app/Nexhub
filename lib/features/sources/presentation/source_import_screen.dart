@@ -1,16 +1,18 @@
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/plugin_config.dart';
 import '../../../core/scraper/collect_api_parser.dart';
 import '../../../core/scraper/http_fetcher.dart';
-import '../../../core/services/source_library_bookmarks.dart';
+import '../../../core/services/source_library_subscription.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
@@ -37,6 +39,8 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _jsonController = TextEditingController();
   final TextEditingController _libraryUrlController = TextEditingController();
+  final TextEditingController _addLibraryNameController =
+      TextEditingController();
   bool _loading = false;
   String? _error;
   /// 解析出的待导入源（批量，可能含小说/媒体/漫画）。
@@ -53,6 +57,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
     _urlController.dispose();
     _jsonController.dispose();
     _libraryUrlController.dispose();
+    _addLibraryNameController.dispose();
     super.dispose();
   }
 
@@ -116,14 +121,76 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
     }
   }
 
-  /// 库导入：拉取源库订阅地址内容，复用与 URL 导入相同的解析与预览流程。
-  Future<void> _fetchLibrary() async {
-    final url = _libraryUrlController.text.trim();
-    if (url.isEmpty) return;
-    setState(() => _loading = true);
+  /// 库导入：拉取源库清单（manifest），解析其中每个源的 rawUrl 并逐个下载，
+  /// 复用与 URL 导入相同的预览 / 勾选 / 保存流程。
+  ///
+  /// 兼容两种清单形态：
+  /// - 官方库 `index.json`：`{"sources":[{id,name,rawUrl,...}]}`，逐条 fetch `rawUrl`；
+  /// - 扁平源列表 / 单个源对象：无 `rawUrl` 时直接解析条目本身。
+  Future<void> _importLibrary(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return;
+    final l10n = AppLocalizations.of(context);
+    setState(() {
+      _loading = true;
+      _error = null;
+      _previews = const <PluginConfig>[];
+      _selectedPreviewIndices = const <int>{};
+    });
     try {
-      final text = await HttpFetcher.instance.getHtml(url);
-      await _tryParse(text);
+      final text = await HttpFetcher.instance.getHtml(trimmed);
+      final dynamic decoded = jsonDecode(text);
+      final List<Map<String, dynamic>> entries;
+      if (decoded is Map<String, dynamic> &&
+          decoded['sources'] is List) {
+        entries = (decoded['sources'] as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      } else if (decoded is List) {
+        entries = decoded
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      } else {
+        entries = const <Map<String, dynamic>>[];
+      }
+
+      final List<PluginConfig> out = <PluginConfig>[];
+      await Future.wait(entries.map((e) async {
+        final rawUrl = e['rawUrl'] as String?;
+        if (rawUrl != null && rawUrl.isNotEmpty) {
+          try {
+            final t = await HttpFetcher.instance.getHtml(rawUrl);
+            out.addAll(SourceRepository.parseMixedSources(t));
+          } on Object {
+            // 单源下载失败不影响其余源
+          }
+          return;
+        }
+        // 无 rawUrl：条目本身即一份源配置
+        try {
+          out.addAll(SourceRepository.parseMixedSources(jsonEncode(e)));
+        } on Object {
+          // 跳过无法解析的条目
+        }
+      }));
+
+      if (!mounted) return;
+      if (out.isEmpty) {
+        setState(() {
+          _error = l10n.sourceUnrecognized;
+          _loading = false;
+        });
+        return;
+      }
+      setState(() {
+        _previews = out;
+        _selectedPreviewIndices = <int>{
+          for (int i = 0; i < out.length; i++) i
+        };
+        _loading = false;
+      });
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -131,6 +198,39 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
           _loading = false;
         });
       }
+    }
+  }
+
+  /// 订阅一个新源库（按 url 去重），并立即拉取导入其源。
+  Future<void> _subscribeLibrary() async {
+    final url = _libraryUrlController.text.trim();
+    if (url.isEmpty) return;
+    final name = _addLibraryNameController.text.trim().isNotEmpty
+        ? _addLibraryNameController.text.trim()
+        : _deriveNameFromUrl(url);
+    final lib = SourceLibrary(
+      id: url,
+      name: name,
+      url: url,
+      addedAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    await context.read<SourceLibrarySubscription>().add(lib);
+    _libraryUrlController.clear();
+    _addLibraryNameController.clear();
+    await _importLibrary(url);
+  }
+
+  /// 从订阅地址推导默认名称（取 host，去掉 www.）。
+  String _deriveNameFromUrl(String url) {
+    final host = Uri.tryParse(url)?.host ?? url;
+    return host.startsWith('www.') ? host.substring(4) : host;
+  }
+
+  /// 外链打开源库主页（如 GitHub 仓库）。
+  Future<void> _openHomepage(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -151,7 +251,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
     if (_tab == _ImportTab.url) {
       _importFromUrl();
     } else if (_tab == _ImportTab.library) {
-      _fetchLibrary();
+      _importLibrary(_libraryUrlController.text);
     } else if (_tab == _ImportTab.json) {
       _tryParse(_jsonController.text);
     } else {
@@ -248,31 +348,10 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
               label: Text(l10n.sourceImportValidate),
             ),
           ] else ...<Widget>[
-            // 库导入：拉取源库订阅地址 + 常用书签
-            AppUrlInputBar(
-              controller: _libraryUrlController,
-              hintText: l10n.libraryUrlHint,
-              submitLabel: l10n.fetchLibrary,
-              isLoading: _loading && _tab == _ImportTab.library,
-              onSubmit: (_) => _fetchLibrary(),
-            ),
-            const SizedBox(height: AppTokens.spaceSm),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _loading
-                    ? null
-                    : () {
-                        final url = _libraryUrlController.text.trim();
-                        if (url.isEmpty) return;
-                        context.read<SourceLibraryBookmarks>().add(url);
-                      },
-                icon: const Icon(Icons.bookmark_add_outlined, size: 20),
-                label: Text(l10n.saveLibrary),
-              ),
-            ),
-            const SizedBox(height: AppTokens.spaceMd),
-            _buildLibraryBookmarks(l10n, scheme),
+            // 源库订阅（库导入 / 库收藏）：已订阅列表 + 新增订阅
+            _buildSubscribedLibraries(l10n, scheme),
+            const SizedBox(height: AppTokens.spaceLg),
+            _buildAddLibraryCard(l10n, scheme),
           ],
           const SizedBox(height: AppTokens.spaceLg),
           _buildPreview(l10n, scheme),
@@ -300,10 +379,10 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
         ),
       );
 
-  /// 库导入书签列表：点击填入地址并拉取，长按或删除图标移除。
-  Widget _buildLibraryBookmarks(AppLocalizations l10n, ColorScheme scheme) {
-    final bookmarks = context.watch<SourceLibraryBookmarks>();
-    final urls = bookmarks.all();
+  /// 已订阅源库列表（库收藏）：展示每个源库并支持更新导入 / 打开主页 / 取消订阅。
+  Widget _buildSubscribedLibraries(AppLocalizations l10n, ColorScheme scheme) {
+    final subs = context.watch<SourceLibrarySubscription>();
+    final libs = subs.all();
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,7 +390,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
           Text(l10n.libraryBookmarks,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppTokens.spaceSm),
-          if (urls.isEmpty)
+          if (libs.isEmpty)
             Text(
               l10n.libraryEmpty,
               style: Theme.of(context)
@@ -320,27 +399,104 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
                   ?.copyWith(color: scheme.onSurfaceVariant),
             )
           else
-            ...urls.map((u) => ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    u,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium,
+            ...libs.map((lib) => _buildLibraryCard(lib, l10n, scheme)),
+        ],
+      ),
+    );
+  }
+
+  /// 单个源库卡片。
+  Widget _buildLibraryCard(
+    SourceLibrary lib,
+    AppLocalizations l10n,
+    ColorScheme scheme,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+      child: AppCard(
+        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(lib.name,
+                      style: Theme.of(context).textTheme.titleSmall),
+                ),
+                if (lib.isOfficial)
+                  Chip(
+                    label: Text(l10n.official),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  leading: Icon(Icons.book_outlined,
-                      size: 20, color: scheme.onSurfaceVariant),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    tooltip: l10n.delete,
-                    onPressed: () => bookmarks.remove(u),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              lib.url,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
+            Wrap(
+              spacing: AppTokens.spaceSm,
+              runSpacing: AppTokens.spaceXs,
+              children: <Widget>[
+                FilledButton.icon(
+                  onPressed: _loading ? null : () => _importLibrary(lib.url),
+                  icon: const Icon(Icons.download_outlined, size: 18),
+                  label: Text(l10n.fetchLibraryAndImport),
+                ),
+                if (lib.homepage != null)
+                  OutlinedButton.icon(
+                    onPressed: () => _openHomepage(lib.homepage!),
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    label: Text(l10n.openHomepage),
                   ),
-                  onTap: () {
-                    _libraryUrlController.text = u;
-                    _fetchLibrary();
-                  },
-                )),
+                if (!lib.isOfficial)
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        context.read<SourceLibrarySubscription>().remove(lib.id),
+                    icon: const Icon(Icons.bookmark_remove_outlined, size: 18),
+                    label: Text(l10n.unsubscribeLibrary),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 新增源库订阅卡片：填写名称（可选）与订阅地址，订阅后立即拉取导入。
+  Widget _buildAddLibraryCard(AppLocalizations l10n, ColorScheme scheme) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(l10n.addLibraryTitle,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppTokens.spaceSm),
+          TextField(
+            controller: _addLibraryNameController,
+            decoration: InputDecoration(
+              labelText: l10n.libraryNameHint,
+              hintText: l10n.libraryNameHint,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
+          AppUrlInputBar(
+            controller: _libraryUrlController,
+            hintText: l10n.libraryUrlHint,
+            submitLabel: l10n.subscribeLibrary,
+            isLoading: false,
+            onSubmit: (_) => _subscribeLibrary(),
+          ),
         ],
       ),
     );

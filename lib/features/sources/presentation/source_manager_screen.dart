@@ -1,6 +1,7 @@
-/// 源管理页 —— 新版设计：Tab 式布局（源列表 / 网络导入 / 本地导入）。
+/// 源管理页 —— 新版设计：Tab 式布局（源列表 / 源库 / 网络导入 / 本地导入）。
 ///
 /// 支持按类型过滤，不同模块的源管理不互通。
+/// 「源库」Tab 负责订阅第三方源仓库（index.json），并可进入库内挑选单个源导入。
 library;
 
 import 'dart:io';
@@ -14,20 +15,27 @@ import 'package:provider/provider.dart';
 
 import '../../../core/models/plugin_config.dart';
 import '../../../core/services/config_loader.dart';
+import '../../../core/services/source_library_subscription.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../../../core/widgets/app_url_input_bar.dart';
 import '../../../core/widgets/unified_source_tile.dart';
+import '../../../core/widgets/source_announcement_banner.dart';
 import '../../shuyuan/presentation/shuyuan_import_screen.dart';
 import 'collect_api_import_screen.dart';
 import 'source_mirror_screen.dart';
 import 'source_network_override_screen.dart';
+import 'source_login_screen.dart';
+import 'source_edit_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
+import 'library_sources_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-enum _SourceTab { list, network, local }
+enum _SourceTab { list, library, network, local }
 
 /// 源管理主页面。
 class SourceManagerScreen extends StatefulWidget {
@@ -75,9 +83,19 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   // 类型筛选时被跳过的其他类型源数量（用于预览提示横幅）
   int _skippedByTypeCount = 0;
 
+  // 本会话内已关闭的源公告（sourceId 集合），避免重复打扰。
+  final Set<String> _dismissedAnnouncements = <String>{};
+
+  // 库（library）tab 状态
+  final TextEditingController _libraryUrlController = TextEditingController();
+  final TextEditingController _libraryNameController = TextEditingController();
+  bool _librarySubscribing = false;
+
   @override
   void dispose() {
     _urlController.dispose();
+    _libraryUrlController.dispose();
+    _libraryNameController.dispose();
     super.dispose();
   }
 
@@ -460,6 +478,11 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                   label: Text(l10n.sourceListTab),
                 ),
                 ButtonSegment<_SourceTab>(
+                  value: _SourceTab.library,
+                  icon: const Icon(Icons.cloud_outlined),
+                  label: Text(l10n.libraryBookmarks),
+                ),
+                ButtonSegment<_SourceTab>(
                   value: _SourceTab.network,
                   icon: const Icon(Icons.cloud_download_outlined),
                   label: Text(l10n.networkImportTab),
@@ -479,6 +502,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           Expanded(
             child: <Widget>[
               _buildListTab(l10n, filteredSources, scheme),
+              _buildLibraryTab(l10n, scheme),
               _buildNetworkImportTab(l10n, scheme),
               _buildLocalImportTab(l10n, scheme),
             ][_tab.index],
@@ -539,7 +563,11 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           onSecondaryAction: () => _enableRecommended(l10n),
         );
       }
-      return _buildSourceListView(l10n, sources);
+      return Column(
+        children: <Widget>[
+          Expanded(child: _buildSourceListView(l10n, sources)),
+        ],
+      );
     }
 
     // filterType == null（设置页总入口）：3 分类 Tab（项 7）。
@@ -597,9 +625,21 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     AppLocalizations l10n,
     List<PluginConfig> sources,
   ) {
+    // 顶部聚合展示各源公告（声明了 announcement 且未被本会话关闭的源）。
+    final banners = sources
+        .where((s) =>
+            s.announcement != null && !_dismissedAnnouncements.contains(s.id))
+        .map(
+          (s) => SourceAnnouncementBanner(
+            source: s,
+            onDismiss: () => setState(() => _dismissedAnnouncements.add(s.id)),
+          ),
+        )
+        .toList();
     return ListView(
       padding: const EdgeInsets.all(AppTokens.spaceMd),
       children: <Widget>[
+        ...banners,
         ...sources.map(
           (s) => Padding(
             padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
@@ -619,6 +659,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                 deleteTooltip: l10n.sourceDelete,
                 migrateTooltip: l10n.sourceMigrate,
                 networkOverrideTooltip: l10n.sourceNetworkOverride,
+                loginTooltip: l10n.sourceLogin,
                 // 源管理页：操作收进「更多」菜单，更清爽
                 useMoreMenu: true,
                 moreMenuTooltip: l10n.moreActions,
@@ -640,6 +681,11 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                     builder: (_) => SourceNetworkOverrideScreen(source: s),
                   ),
                 ),
+                onLogin: () => Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    builder: (_) => SourceLoginScreen(source: s),
+                  ),
+                ),
                 onHide: () =>
                     context.read<SourceRepository>().setHidden(s.id, !s.isHidden),
                 onEdit: () => _showEditDialog(s),
@@ -648,6 +694,233 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                     ? () => _showMigrateDialog(s)
                     : null,
               ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Tab 4: 库（源库订阅 + 查看库内源 + 自定义导入）
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// 从 URL 推导默认名称（取 host，去掉 www.）。
+  String _deriveNameFromUrl(String url) {
+    final host = Uri.tryParse(url)?.host ?? url;
+    return host.startsWith('www.') ? host.substring(4) : host;
+  }
+
+  /// 订阅一个新源库（按 url 去重），订阅后立即打开「查看源」让用户选择要导入的源。
+  Future<void> _subscribeLibrary() async {
+    final url = _libraryUrlController.text.trim();
+    if (url.isEmpty) return;
+    final name = _libraryNameController.text.trim().isNotEmpty
+        ? _libraryNameController.text.trim()
+        : _deriveNameFromUrl(url);
+    final lib = SourceLibrary(
+      id: url,
+      name: name,
+      url: url,
+      addedAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    setState(() => _librarySubscribing = true);
+    try {
+      await context.read<SourceLibrarySubscription>().add(lib);
+      _libraryUrlController.clear();
+      _libraryNameController.clear();
+      if (!mounted) return;
+      // 订阅成功后自动跳转到「查看源」页，方便用户立即选源导入。
+      await Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => LibrarySourcesScreen(library: lib),
+        ),
+      );
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context).librarySubscribeFailed),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _librarySubscribing = false);
+    }
+  }
+
+  /// 外链打开源库主页（如 GitHub 仓库）。失败时弹出可复制的 URL 对话框。
+  Future<void> _openLibraryHomepage(String? url) async {
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.scheme.startsWith('http')) return;
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AppAlertDialog(
+          title: Text(uri.host),
+          content: SelectableText(url),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(AppLocalizations.of(ctx).ok),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  /// 取消订阅（非官方库）。
+  Future<void> _unsubscribeLibrary(SourceLibrary lib) async {
+    final l10n = AppLocalizations.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AppAlertDialog(
+        title: Text(l10n.unsubscribeLibrary),
+        content: Text(l10n.unsubscribeLibraryConfirm(lib.name)),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.unsubscribeLibrary),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await context.read<SourceLibrarySubscription>().remove(lib.id);
+    }
+  }
+
+  Widget _buildLibraryTab(AppLocalizations l10n, ColorScheme scheme) {
+    final subs = context.watch<SourceLibrarySubscription>();
+    final libs = subs.all();
+    return ListView(
+      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      children: <Widget>[
+        // 已订阅源库列表
+        Text(l10n.libraryBookmarks,
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppTokens.spaceSm),
+        if (libs.isEmpty)
+          AppCard(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTokens.spaceMd),
+              child: Text(
+                l10n.libraryEmpty,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ),
+          )
+        else
+          ...libs.map((lib) => Padding(
+                padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+                child: AppCard(
+                  padding: const EdgeInsets.all(AppTokens.spaceMd),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(lib.name,
+                                style: Theme.of(context).textTheme.titleSmall),
+                          ),
+                          if (lib.isOfficial)
+                            Chip(
+                              label: Text(l10n.official),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        lib.url,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceXs,
+                        children: <Widget>[
+                          // 主要操作：查看源 → 进入自定义导入页（可勾选）
+                          FilledButton.icon(
+                            onPressed: () => Navigator.of(context).push(
+                              AppPageRoute<void>(
+                                builder: (_) =>
+                                    LibrarySourcesScreen(library: lib),
+                              ),
+                            ),
+                            icon: const Icon(Icons.list_alt, size: 18),
+                            label: Text(l10n.viewLibrarySources),
+                          ),
+                          if (lib.homepage != null)
+                            OutlinedButton.icon(
+                              onPressed: () =>
+                                  _openLibraryHomepage(lib.homepage),
+                              icon: const Icon(Icons.open_in_new, size: 18),
+                              label: Text(l10n.openHomepage),
+                            ),
+                          if (!lib.isOfficial)
+                            OutlinedButton.icon(
+                              onPressed: () => _unsubscribeLibrary(lib),
+                              icon: const Icon(
+                                Icons.bookmark_remove_outlined,
+                                size: 18,
+                              ),
+                              label: Text(l10n.unsubscribeLibrary),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+        const SizedBox(height: AppTokens.spaceLg),
+
+        // 添加新源库订阅
+        AppCard(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTokens.spaceMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(l10n.addLibraryTitle,
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: AppTokens.spaceSm),
+                TextField(
+                  controller: _libraryNameController,
+                  decoration: InputDecoration(
+                    labelText: l10n.libraryNameHint,
+                    hintText: l10n.libraryNameHint,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                AppUrlInputBar(
+                  controller: _libraryUrlController,
+                  hintText: l10n.libraryUrlHint,
+                  submitLabel: l10n.subscribeLibrary,
+                  isLoading: _librarySubscribing,
+                  onSubmit: (_) => _subscribeLibrary(),
+                ),
+              ],
             ),
           ),
         ),
@@ -935,7 +1208,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                   });
                   widget.onPreviewModeChanged?.call(false);
                 },
-                tooltip: l10n.cancel ?? 'Cancel',
+                tooltip: l10n.cancel,
               ),
               Expanded(
                 child: Text(
@@ -959,7 +1232,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                               .toSet();
                         });
                       },
-                      child: Text(l10n.selectAll ?? 'Select All'),
+                      child: Text(l10n.selectAll),
                     ),
                     TextButton(
                       onPressed: () {
@@ -968,7 +1241,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                           _selectedPreviewIndices = <int>{};
                         });
                       },
-                      child: Text(l10n.deselectAll ?? 'Deselect All'),
+                      child: Text(l10n.deselectAll),
                     ),
                   ],
                 ),
@@ -1105,7 +1378,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                     ? _confirmImport
                     : null,
                 icon: const Icon(Icons.file_download_outlined, size: 18),
-                label: Text(l10n.confirmImport ?? 'Confirm Import'),
+                label: Text(l10n.confirmImport),
               ),
             ],
           ),
@@ -1114,75 +1387,22 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     );
   }
 
-  // ─────────────────────── 编辑/删除/迁移对话框（P6.1.1/P6.1.2） ───────────────────────
+  // ─────────────────────── 编辑/删除/迁移（P6.1.1/P6.1.2） ───────────────────────
 
-  /// 编辑源对话框（仅导入源可编辑）。
+  /// 编辑源：打开独立的全字段编辑页（JSON 编辑，可设置所有模块的所有字段）。
   Future<void> _showEditDialog(PluginConfig source) async {
-    final l10n = AppLocalizations.of(context);
-    final repo = context.read<SourceRepository>();
-    final isImported = repo.importedSources.any((c) => c.id == source.id);
-    if (!isImported) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.sourceEditBuiltinNotAllowed)),
-      );
-      return;
-    }
-    final nameCtl = TextEditingController(text: source.name);
-    final urlCtl = TextEditingController(text: source.site.baseUrl);
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AppAlertDialog(
-        title: Text(l10n.sourceEdit),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            TextField(
-              controller: nameCtl,
-              decoration: InputDecoration(labelText: l10n.sourceNameLabel),
-            ),
-            const SizedBox(height: AppTokens.spaceSm),
-            TextField(
-              controller: urlCtl,
-              decoration: InputDecoration(labelText: l10n.sourceUrlLabel),
-            ),
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l10n.save),
-          ),
-        ],
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      AppPageRoute<void>(
+        builder: (_) => SourceEditScreen(source: source),
       ),
     );
-    if (saved != true) return;
-    final ok = repo.updateSource(
-      source.id,
-      name: nameCtl.text.trim(),
-      baseUrl: urlCtl.text.trim(),
-    );
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ok ? l10n.sourceEditSaved : l10n.sourceEditFailed)),
-      );
-    }
   }
 
-  /// 删除源确认对话框（仅导入源可删除）。
+  /// 删除源确认对话框。
   Future<void> _showDeleteConfirm(PluginConfig source) async {
     final l10n = AppLocalizations.of(context);
     final repo = context.read<SourceRepository>();
-    final isImported = repo.importedSources.any((c) => c.id == source.id);
-    if (!isImported) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.sourceDeleteBuiltinNotAllowed)),
-      );
-      return;
-    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AppAlertDialog(

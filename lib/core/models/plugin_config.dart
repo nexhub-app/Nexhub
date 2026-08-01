@@ -650,6 +650,40 @@ class CommentsConfig {
       login != null && (login!.url != null || login!.checkCookie != null);
 }
 
+/// 源公告（可选 announcement 段）。
+///
+/// 源作者可在 JSON 里声明一段公告（如「本站已换域名」「近期维护」），应用在
+/// 该源的相关页面以横幅展示。为 null 时该源无公告。契合「源即插件」理念——
+/// 公告完全由源自行声明，app 不写死任何站点文案。
+class AnnouncementConfig {
+  final String title;
+  final String? body;
+  final String? url;
+  final int? updatedAt; // Unix 秒
+
+  const AnnouncementConfig({
+    required this.title,
+    this.body,
+    this.url,
+    this.updatedAt,
+  });
+
+  factory AnnouncementConfig.fromJson(Map<String, dynamic> json) =>
+      AnnouncementConfig(
+        title: json['title'] as String? ?? '',
+        body: json['body'] as String?,
+        url: json['url'] as String?,
+        updatedAt: (json['updatedAt'] as num?)?.toInt(),
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'title': title,
+        if (body != null) 'body': body,
+        if (url != null) 'url': url,
+        if (updatedAt != null) 'updatedAt': updatedAt,
+      };
+}
+
 /// 将源 JSON 里的 version 规范为 int（缺省 1）。
 /// 支持 int / 数字 / "12" / "1.3.0"（取首段），方便源作者用简单递增整数版本号。
 int _coerceVersion(dynamic v) {
@@ -691,6 +725,8 @@ class PluginConfig {
   final String? engine; // 保留字段，校验器不消费
   /// 源级网络覆盖（可选 `network` 块）。为 null → 该源完全继承全局网络配置。
   final SourceNetworkConfig? network;
+  /// 源公告（可选 `announcement` 段）。为 null → 该源无公告。
+  final AnnouncementConfig? announcement;
   /// 源版本号（整数，缺省 1）。导入时 **≥ 已安装版本** 才覆盖（高版本升级 /
   /// 同版本刷新），**< 已安装版本** 不覆盖（防止误装旧版冲掉新源）。
   final int version;
@@ -717,10 +753,11 @@ class PluginConfig {
     this.enabledExplore = true,
     this.isHidden = false,
     this.migrationMessage,
-    this.engine,
-    this.network,
-    this.version = 1,
-  });
+        this.engine,
+        this.network,
+        this.announcement,
+        this.version = 1,
+      });
 
   factory PluginConfig.fromJson(Map<String, dynamic> json) {
     final type = SourceType.parse(json['type'] as String?);
@@ -773,6 +810,10 @@ class PluginConfig {
           ? SourceNetworkConfig.fromJson(
               Map<String, dynamic>.from(json['network'] as Map))
           : null,
+      announcement: json['announcement'] is Map
+          ? AnnouncementConfig.fromJson(
+              Map<String, dynamic>.from(json['announcement'] as Map))
+          : null,
       version: _coerceVersion(json['version']),
     );
   }
@@ -813,28 +854,32 @@ class PluginConfig {
         'isHidden': isHidden,
         if (migrationMessage != null) 'migrationMessage': migrationMessage,
         if (network != null) 'network': network!.toJson(),
+        if (announcement != null) 'announcement': announcement!.toJson(),
       };
 
   bool get isDeprecated => deprecated;
   bool get isEnabled => enabled;
 
-  /// 复制并修改部分字段（用于启用/禁用/隐藏等状态变更）。
+  /// 复制并修改部分字段（用于启用/禁用/隐藏等状态变更，以及编辑内置源提升）。
   PluginConfig copyWith({
+    String? name,
+    SiteConfig? site,
     bool? enabled,
     bool? enabledExplore,
     bool? isHidden,
     bool? deprecated,
     String? migrationMessage,
     SourceNetworkConfig? network,
+    AnnouncementConfig? announcement,
     int? version,
   }) =>
       PluginConfig(
         id: id,
-        name: name,
+        name: name ?? this.name,
         type: type,
         responseType: responseType,
         useWebview: useWebview,
-        site: site,
+        site: site ?? this.site,
         parser: parser,
         routes: routes,
         selectors: selectors,
@@ -852,6 +897,7 @@ class PluginConfig {
         migrationMessage: migrationMessage ?? this.migrationMessage,
         engine: engine,
         network: network ?? this.network,
+        announcement: announcement ?? this.announcement,
         version: version ?? this.version,
       );
 
