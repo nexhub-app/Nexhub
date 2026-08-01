@@ -270,11 +270,11 @@ nexhub/
 
 NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件，描述如何从一个站点抓取内容。其结构与字段见下方 **[4.5 源 JSON 字段规范](#45-源-json-字段规范)**。
 
-- **标识与站点**：包含 `id`、`name`、站点 `baseUrl`、`version` 等元信息；
+- **标识与站点**：包含 `id`、`name`、`type`（如 `mangaSource` / `animeSource` / `novelSource` / `videoSource`）、`version`，以及必填的 `site` 对象（`domain` / `baseUrl` / `mirrors` 等元信息）；
 - **解析规则**：
   - 声明式：通过 `selectors`（CSS / JSONPath / XPath）描述列表、详情、章节、内容等的抽取位置；
-  - 脚本式：通过 `parser.overrides` 内嵌 JavaScript（在 `flutter_js` 沙箱中执行），处理动态渲染、登录态、加密参数等复杂场景；
-- **解析器类型**：`parser.type` 决定用哪种引擎——`builtin / xpath / jsonpath / css`（声明式）、`script`（内嵌 JS）或 `hybrid`（按路由混合）；
+  - 脚本式：通过 `parser.overrides.<api>.script` 内嵌 JavaScript（在 `flutter_js` 沙箱中执行），处理动态渲染、登录态、加密参数等复杂场景；
+- **解析器类型**：`parser.type` 决定整源默认引擎——只取 `builtin` / `hybrid` / `script` 三值；其中 `hybrid` 最常用，再在每个 API 的 `parser.overrides.<api>.type` 指定实际解析方式（`builtin` / `xpath` / `jsonpath` / `css` / `script` / `webview` / `webview-html`）；
 - **首页与筛选**：可声明 `homeSections`（首页板块）与 `filters`（筛选组），否则由应用按分类自动生成（详见 2.3）。
 
 **最小示例（声明式漫画源）**：
@@ -282,9 +282,22 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 {
   "id": "demo_manga",
   "name": "示例漫画源",
+  "type": "mangaSource",
   "version": 1,
-  "baseUrl": "https://example.com",
-  "parser": { "type": "xpath" },
+  "site": {
+    "domain": "example.com",
+    "baseUrl": "https://example.com",
+    "mirrors": [
+      { "name": "主站", "domain": "example.com", "baseUrl": "https://example.com" }
+    ]
+  },
+  "parser": {
+    "type": "hybrid",
+    "overrides": {
+      "list": { "type": "xpath" },
+      "detail": { "type": "xpath" }
+    }
+  },
   "selectors": {
     "category": {
       "categories": [{ "id": "hot", "name": "热门" }]
@@ -294,6 +307,7 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
   }
 }
 ```
+
 
 **贡献方式**：
 1. 在自己的分支编写源 JSON，导入应用验证抓取是否正确；
@@ -311,13 +325,13 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 | `id` | string | 源的唯一标识（同名导入时按 `version` 决策覆盖 / 跳过） |
 | `name` | string | 源的展示名称 |
 | `version` | int | 版本号；导入同名源时：`>=` 已安装版本则替换（含同版本重导入以应用编辑），`<` 已安装版本则跳过 |
-| `baseUrl` | string | 站点根地址 |
-| `parser.type` | string | 解析引擎：`builtin` / `xpath` / `jsonpath` / `css` / `script` / `webview` / `hybrid` |
-| `selectors` | object | 声明式抽取规则（按 `parser.type` 选用 CSS / JSONPath / XPath 语法） |
+| `site` | object | 站点信息（**必填**）：`{ domain, baseUrl, mirrors:[{name,domain,baseUrl}], userAgent?, cookies?, headers? }`。`baseUrl` 即站点根地址，用于拼接相对链接。注意：源模型**不读取**顶层 `baseUrl` / `author` / `lang` / `builtin` 这些键，写进文件会被忽略。 |
+| `parser.type` | string | **顶层**解析引擎，只取 `builtin` / `hybrid` / `script` 三值。`hybrid` 最常用，再在每个 API 的 `parser.overrides.<api>.type` 指定实际解析方式：`builtin` / `xpath` / `jsonpath` / `css` / `script` / `webview` / `webview-html`（其中 `webview` / `webview-html` 仅作 overrides 类型，用于 m3u8 提取与反爬渲染）。 |
+| `selectors` | object | 声明式抽取规则（按各 API 的 `parser.overrides.<api>.type` 选用 CSS / JSONPath / XPath 语法） |
 | `selectors.category.categories` | array | 分类列表，每项 `{ "id": "...", "name": "..." }`；用于自动生成首页板块 |
 | `selectors.list` | object | 列表页规则：`items` / `title` / `cover` / `link` 等子选择器 |
 | `selectors.detail` | object | 详情页规则：`title` / `chapters` / `cover` 等 |
-| `parser.overrides` | string(JS) | 脚本式解析逻辑（JS 源码字符串），在 `flutter_js` 沙箱执行 |
+| `parser.overrides` | object | 按 API 分组的解析覆盖（`hybrid` / `script` 源常用）。每项 `<api>` 形如 `{ type, script?, function? }`：`type` 取上表各值；`script` 为内嵌 JS 源码字符串（在 `flutter_js` 沙箱执行，须**同步返回**结果）；`function` 为入口函数名，与 `script` 中定义的函数对应。 |
 | `homeSections` | array | 可选；自定义首页板块。未声明则按分类自动生成 |
 | `filters.groups` | array | 可选；自定义筛选组。`category` 维度的筛选会被自动剔除（分类已是 Tab） |
 | `tagSearch` | object | 可选；标签检索路由，配合 `selectors.category.tags` 生成标签筛选；`value` 用站点真实 slug |
