@@ -69,6 +69,28 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
   /// 故合并为最多每 200ms 刷一次。
   Timer? _updateThrottle;
 
+  /// 加载看门狗：个别 WebView 版本 / 持续缓冲的视频页在 release 包下可能永不触发
+  /// onLoadStop / onProgressChanged(>=100)，导致 [_loading] 永久为 true（顶部一直转圈、
+  /// 结果区空）。超时后强制解除加载态并收尾嗅探，保证功能可用。
+  Timer? _loadWatchdog;
+
+  void _startLoadWatchdog() {
+    _loadWatchdog?.cancel();
+    _loadWatchdog = Timer(const Duration(seconds: 12), () {
+      if (mounted && _loading) {
+        setState(() {
+          _loading = false;
+          _pageLoaded = true;
+        });
+        // 加载态兜底解除后，仍补做深度扫描与文件大小探测，确保结果完整。
+        _bridge.deepScan();
+        _scheduleProbe();
+      }
+    });
+  }
+
+  void _stopLoadWatchdog() => _loadWatchdog?.cancel();
+
   void _onEngineUpdate() {
     if (_updateThrottle?.isActive == true) return;
     _updateThrottle = Timer(const Duration(milliseconds: 200), () {
@@ -89,6 +111,7 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
   @override
   void dispose() {
     _updateThrottle?.cancel();
+    _stopLoadWatchdog();
     if (_engine.onUpdate == _onEngineUpdate) _engine.onUpdate = null;
     _addressController.dispose();
     _addressFocus.dispose();
@@ -100,8 +123,8 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
       final js = await rootBundle.loadString('assets/sniffer/sniffer_hook.js');
       if (mounted) setState(() => _hookJs = js);
     } catch (_) {
-      // 钩子加载失败也不阻断：仍有 onLoadResource 被动兜底。
-      if (mounted) setState(() {});
+      // 钩子加载失败也不阻断：仍有 onLoadResource 被动兜底；置空哨兵避免永久转圈。
+      if (mounted) setState(() => _hookJs = '');
     }
   }
 
@@ -368,7 +391,9 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                     mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
                   ),
                   initialUserScripts: UnmodifiableListView<UserScript>(
-                    <UserScript>[SnifferBridge.userScript(_hookJs!)],
+                    _hookJs != null && _hookJs!.isNotEmpty
+                        ? <UserScript>[SnifferBridge.userScript(_hookJs!)]
+                        : const <UserScript>[],
                   ),
                   onWebViewCreated: (controller) {
                     _controller = controller;
@@ -380,12 +405,14 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                         _loading = true;
                         if (url != null) _pageUrl = url.toString();
                       });
+                      _startLoadWatchdog();
                     }
                   },
                   // onLoadStop 在部分重定向 / SPA 页面上可能迟迟不触发，
                   // 用加载进度到 100 兜底清掉加载态，避免转圈卡死。
                   onProgressChanged: (controller, progress) {
                     if (progress >= 100 && mounted && (_loading || !_pageLoaded)) {
+                      _stopLoadWatchdog();
                       setState(() {
                         _loading = false;
                         _pageLoaded = true;
@@ -396,6 +423,7 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                   // 主文档加载失败（DNS/SSL/超时等）也要清掉加载态。
                   onReceivedError: (controller, request, error) {
                     if (request.isForMainFrame == true && mounted) {
+                      _stopLoadWatchdog();
                       setState(() {
                         _loading = false;
                         _pageLoaded = true;
@@ -404,6 +432,7 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                   },
                   onLoadStop: (controller, url) async {
                     if (mounted) {
+                      _stopLoadWatchdog();
                       setState(() {
                         _loading = false;
                         _pageLoaded = true;
