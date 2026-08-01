@@ -1,10 +1,10 @@
 allprojects {
     repositories {
-        // 国内镜像优先（dl.google.com 直连易断流假死），原仓库兜底。
-        maven { setUrl("https://maven.aliyun.com/repository/google") }
-        maven { setUrl("https://maven.aliyun.com/repository/central") }
+        // 官方仓库优先（CI runner 直连 Google/Maven Central 稳定），阿里云镜像作为兜底。
         google()
         mavenCentral()
+        maven { setUrl("https://maven.aliyun.com/repository/google") }
+        maven { setUrl("https://maven.aliyun.com/repository/central") }
     }
 }
 
