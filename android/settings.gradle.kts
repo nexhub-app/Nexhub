@@ -10,13 +10,13 @@ pluginManagement {
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
-        // 国内镜像优先（dl.google.com 直连易断流假死），原仓库兜底。
-        maven { setUrl("https://maven.aliyun.com/repository/google") }
-        maven { setUrl("https://maven.aliyun.com/repository/central") }
-        maven { setUrl("https://maven.aliyun.com/repository/gradle-plugin") }
+        // 官方仓库优先（CI runner 直连 Google/Maven Central 稳定），阿里云镜像作为兜底。
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven { setUrl("https://maven.aliyun.com/repository/google") }
+        maven { setUrl("https://maven.aliyun.com/repository/central") }
+        maven { setUrl("https://maven.aliyun.com/repository/gradle-plugin") }
     }
 }
 
