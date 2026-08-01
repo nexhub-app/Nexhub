@@ -2,12 +2,12 @@
 ///
 /// 复用 [SourceAuthManager] 的登录态判定与 [WebViewLoginScreen] 的网页登录，
 /// 提供三种操作：
-/// - 「网页登录」：push [WebViewLoginScreen]，完成后刷新登录态；
-/// - 「粘贴 Cookie」：[AppAlertDialog] + 多行输入，确认后对源相关 host
+/// - 「网页登录」：仅移动端可见，push [WebViewLoginScreen]，完成后刷新登录态；
+/// - 「粘贴 Cookie」：自定义 [Dialog] + 紧凑 [Column]，确认后对源相关 host
 ///   调 [HttpFetcher.syncCookies] 手动回灌；
 /// - 「退出登录」：已登录时可见，经 [SourceAuthManager.logout] 清除 Cookie。
 ///
-/// 桌面端（WebView 不可用）「网页登录」仅提示，需改用「粘贴 Cookie」。
+/// 桌面端（WebView 不可用）直接隐藏「网页登录」入口，无需改用其他方式。
 library;
 
 import 'package:flutter/material.dart';
@@ -20,9 +20,7 @@ import '../../../core/navigation/app_page_route.dart';
 import '../../../core/platform/platform_service.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/app_form_field.dart';
 import '../../verification/presentation/webview_login_screen.dart';
 
 /// 源登录全屏页。接收一个 [PluginConfig source]，展示登录态与登录操作。
@@ -83,6 +81,9 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
   }
 
   /// 粘贴 Cookie：多行输入对话框，确认后对源相关 host 手动回灌。
+  ///
+  /// 桌面/Web 端布局说明：自定义 [Dialog] + 紧凑 [Column]，避免 [AppAlertDialog]
+  /// 在大屏上默认拉伸到 ~80% 屏高的"上下贴边、留白巨大"问题。
   Future<void> _pasteCookie() async {
     final l10n = AppLocalizations.of(context);
     final auth = context.read<SourceAuthManager>();
@@ -90,24 +91,58 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
     final controller = TextEditingController();
     final text = await showDialog<String>(
       context: context,
-      builder: (BuildContext ctx) => AppAlertDialog(
-        title: Text(l10n.pasteCookie),
-        content: AppFormField(
-          label: l10n.cookieInputHint,
-          hint: l10n.cookieHint,
-          controller: controller,
-          maxLines: 4,
+      builder: (BuildContext ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceLg,
+          vertical: AppTokens.spaceXl,
         ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l10n.cancel),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Padding(
+            padding: const EdgeInsets.all(AppTokens.spaceLg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(
+                  l10n.pasteCookie,
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  minLines: 3,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    labelText: l10n.cookieInputHint,
+                    hintText: l10n.cookieHint,
+                    border: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppTokens.radiusMd),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppTokens.spaceLg),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget>[
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(l10n.cancel),
+                    ),
+                    const SizedBox(width: AppTokens.spaceSm),
+                    FilledButton(
+                      onPressed: () =>
+                          Navigator.of(ctx).pop(controller.text.trim()),
+                      child: Text(l10n.confirm),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: Text(l10n.confirm),
-          ),
-        ],
+        ),
       ),
     );
     controller.dispose();
@@ -132,6 +167,10 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
     final ColorScheme scheme = theme.colorScheme;
     final bool loggedIn =
         context.watch<SourceAuthManager>().isLoggedIn(widget.source);
+    // WebView 仅在移动端可用；桌面/Web 直接隐藏「网页登录」入口，
+    // 避免用户点了再弹"不支持"，体验上更明确。
+    final bool webLoginSupported = PlatformService.instance.isAndroid ||
+        PlatformService.instance.isIOS;
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.source.name)),
@@ -165,13 +204,15 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
             ),
           ),
           const SizedBox(height: AppTokens.spaceMd),
-          _LoginOptionCard(
-            icon: Icons.public,
-            title: l10n.webLogin,
-            subtitle: l10n.webLoginDesc,
-            onTap: _webLogin,
-          ),
-          const SizedBox(height: AppTokens.spaceSm),
+          if (webLoginSupported) ...<Widget>[
+            _LoginOptionCard(
+              icon: Icons.public,
+              title: l10n.webLogin,
+              subtitle: l10n.webLoginDesc,
+              onTap: _webLogin,
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
+          ],
           _LoginOptionCard(
             icon: Icons.cookie_outlined,
             title: l10n.pasteCookie,

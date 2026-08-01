@@ -115,8 +115,8 @@ flutter:
   assets:
     - assets/icon/
     - assets/builtin/
-    - assets/sniffer/
     - plugins/builtin/
+    - assets/sniffer/
 
 # ===== 启动图标生成配置（源图：assets/icon/icon.png）=====
 flutter_launcher_icons:

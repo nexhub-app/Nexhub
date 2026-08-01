@@ -4,26 +4,72 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/plugin_config.dart';
+import 'config_loader.dart';
 import '../../features/shuyuan/shuyuan_adapter.dart';
 import '../../features/shuyuan/shuyuan_source_service.dart';
 
-/// 已加载的源仓库（内存级，持久化到 Hive 在 Phase 6 实现）。
+/// 已加载的源仓库（内存级，持久化到 SharedPreferences）。
 ///
 /// 负责：
-/// - 从 assets 加载内置源 JSON
 /// - 按类型过滤
 /// - 向上层提供 activeSources / getById
 /// - 作为单一真源被 MediaApiService / 各模块浏览页消费
 ///
+/// 应用同时运行「内置源」（打包资源 assets/plugins/builtin）与「用户导入的源」。
+/// 内置源在启动时由 [loadBuiltins] 从资源包加载，用户导入/编辑/屏蔽状态持久化，
+/// 二者按 id 合并（用户导入的版本优先，可覆盖同名内置源）。
+///
 /// 继承 [ChangeNotifier]：启用/禁用/隐藏等状态变更后通知 UI 刷新。
 class SourceRepository extends ChangeNotifier {
-  final List<PluginConfig> _configs;
-  final List<PluginConfig> _imported = <PluginConfig>[];
+  final List<PluginConfig> _imported;
 
-  SourceRepository(this._configs);
+  /// 内置源（启动时由 [loadBuiltins] 从资源包加载）。
+  final List<PluginConfig> _configs = <PluginConfig>[];
 
-  List<PluginConfig> get all =>
-      <PluginConfig>[..._configs, ..._imported];
+  /// 被用户屏蔽（删除/隐藏）的内置源 id 集合（持久化）。
+  final Set<String> _suppressedBuiltins = <String>{};
+
+  /// 内置源资源文件名清单（assets/plugins/builtin/<name>.json）。
+  /// 缺失的文件在 [loadBuiltins] 中静默跳过，补回文件后下次启动自动加载。
+  static const List<String> _builtinAssetNames = <String>[
+    'manga_baozimh',
+    'manga_goda',
+    'pms_dalvdm',
+    'pms_girigirilove',
+    'pms_m233',
+    'novel_yamibo',
+    'novel_biquge',
+    'novel_linovelib',
+    'novel_huanmengacg',
+  ];
+
+  static const String _builtinOverrideKey = 'source_builtin_overrides_v1';
+
+  /// 可选初始源列表（测试注入用）。
+  SourceRepository([List<PluginConfig> initial = const <PluginConfig>[]])
+      : _imported = List<PluginConfig>.from(initial);
+
+  /// 全部源 = 未屏蔽的内置源（套用状态覆盖）+ 用户导入源（同名优先）。
+  List<PluginConfig> get all {
+    final map = <String, PluginConfig>{};
+    for (final c in _configs) {
+      if (_suppressedBuiltins.contains(c.id)) continue;
+      var cfg = c;
+      final ov = _stateOverrides[c.id];
+      if (ov != null) {
+        cfg = cfg.copyWith(
+          enabled: ov['enabled'] as bool?,
+          isHidden: ov['isHidden'] as bool?,
+        );
+      }
+      map[c.id] = cfg;
+    }
+    // 用户导入/编辑过的版本覆盖同名内置源
+    for (final c in _imported) {
+      map[c.id] = c;
+    }
+    return List<PluginConfig>.unmodifiable(map.values);
+  }
 
   List<PluginConfig> get importedSources =>
       List<PluginConfig>.unmodifiable(_imported);
@@ -39,73 +85,6 @@ class SourceRepository extends ChangeNotifier {
     for (final c in all) {
       if (c.id == id) return c;
     }
-    return null;
-  }
-
-  /// 从 assets 加载 `plugins/builtin/` 下所有 .json 源。
-  static Future<SourceRepository> loadBuiltins() async {
-    const manifestKey = 'AssetManifest.json';
-    final manifest = await rootBundle.loadString(manifestKey);
-    final Map<String, dynamic> map =
-        jsonDecode(manifest) as Map<String, dynamic>;
-    final paths = map.keys
-        .where((p) => p.startsWith('plugins/builtin/') && p.endsWith('.json'))
-        .toList();
-    debugPrint('[SourceRepository] discovered ${paths.length} builtin source '
-        'assets: $paths');
-
-    final configs = <PluginConfig>[];
-    for (final path in paths) {
-      try {
-        final rawRaw = await rootBundle.loadString(path);
-        // B6: 去除 UTF-8 BOM。rootBundle.loadString 内部用 utf8.decode，不会自动
-        // 剥离 BOM，带 BOM 的源会被解析成 "\uFEFF{...}" 而导致 JSON 解析失败。
-        // 这是旧版「源损坏」的根因之一，这里加一道熔丝，带 BOM 也能正常加载。
-        final raw =
-            rawRaw.startsWith('\uFEFF') ? rawRaw.substring(1) : rawRaw;
-        final config = _parseSource(raw, path);
-        if (config != null) configs.add(config);
-      } on Object catch (e) {
-        // 单个源损坏不影响整体启动；记录日志便于排查。
-        debugPrint('[SourceRepository] $path failed to load: $e');
-      }
-    }
-    debugPrint('[SourceRepository] loaded ${configs.length} builtin sources '
-        '(${configs.where((c) => c.isEnabled).length} enabled)');
-    return SourceRepository(configs);
-  }
-
-  /// 解析单个源 JSON 为 [PluginConfig]，返回 null 表示应跳过。
-  ///
-  /// - 含 `bookSourceName` 且缺 `type` → 视为 Legado 书源，转 [PluginConfig]
-  ///   （B7：golden 小说源即 Legado 格式，旧版直接 `PluginConfig.fromJson`
-  ///   会因缺 type 抛异常被丢弃，导致小说源全部失效）。
-  /// - 否则按 [PluginConfig] 解析；`validate()` 失败则跳过并记录。
-  static PluginConfig? _parseSource(String raw, String path) {
-    final Map<String, dynamic> json;
-    try {
-      json = jsonDecode(raw) as Map<String, dynamic>;
-    } on Object {
-      debugPrint('[SourceRepository] $path is not valid JSON, skipped');
-      return null;
-    }
-    // B7: Legado 书源识别。
-    if (json['bookSourceName'] != null && !json.containsKey('type')) {
-      try {
-        final shuyuan = ShuyuanSource.fromJson(json);
-        final config = ShuyuanAdapter.toPluginConfig(shuyuan);
-        debugPrint('[SourceRepository] $path loaded as Legado book source: '
-            '${config.name}');
-        return config;
-      } on Object catch (e) {
-        debugPrint('[SourceRepository] $path Legado parse failed: $e');
-        return null;
-      }
-    }
-    final config = PluginConfig.fromJsonString(raw);
-    final errors = config.validate();
-    if (errors.isEmpty) return config;
-    debugPrint('[SourceRepository] $path validation failed: $errors');
     return null;
   }
 
@@ -261,8 +240,7 @@ class SourceRepository extends ChangeNotifier {
 
   /// 测试注入用。
   factory SourceRepository.fromJsonList(List<Map<String, dynamic>> list) {
-    final configs = list.map(PluginConfig.fromJson).toList();
-    return SourceRepository(configs);
+    return SourceRepository(list.map(PluginConfig.fromJson).toList());
   }
 
   static const String _importedKey = 'imported_sources_v1';
@@ -278,11 +256,12 @@ class SourceRepository extends ChangeNotifier {
   /// - 同名（id 相同）导入源按 `version` 决策：
   ///   - 新版本 **≥** 已安装版本 → 替换（高版本升级 / 同版本重新导入以应用编辑）；
   ///   - 新版本 **<** 已安装版本 → 跳过，**不覆盖**（防止误装旧版把新源冲掉）。
-  /// - 内置源（_configs）不可被导入覆盖。
   /// 源作者发新版只需把 JSON 里的 `version` 调大，用户重新导入即自动升级。
   void addSource(PluginConfig config) {
-    if (_configs.any((c) => c.id == config.id)) {
-      return; // 内置源不可被导入覆盖
+    // 重新导入一个「曾被屏蔽的内置源」时，取消屏蔽使其重新出现。
+    if (_configs.any((c) => c.id == config.id) &&
+        _suppressedBuiltins.contains(config.id)) {
+      _unsuppressBuiltin(config.id);
     }
     final idx = _imported.indexWhere((c) => c.id == config.id);
     if (idx >= 0) {
@@ -309,61 +288,100 @@ class SourceRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Export user-imported sources as a JSON-serializable list.
-  List<Map<String, dynamic>> exportToJson() =>
-      _imported.map((c) => c.toJson()).toList();
-
-  /// 更新已导入源的 name/baseUrl 字段（编辑对话框入口）。
-  /// 内置源不可编辑（返回 false）；仅更新 _imported 中的条目并持久化。
-  bool updateSource(String id, {String? name, String? baseUrl}) {
-    final idx = _imported.indexWhere((c) => c.id == id);
-    if (idx < 0) return false;
-    final old = _imported[idx];
-    final newSite = SiteConfig(
-      domain: old.site.domain,
-      baseUrl: baseUrl ?? old.site.baseUrl,
-      userAgent: old.site.userAgent,
-      cookies: old.site.cookies,
-      headers: old.site.headers,
-      mirrors: old.site.mirrors,
-    );
-    _imported[idx] = PluginConfig(
-      id: old.id,
-      name: name ?? old.name,
-      type: old.type,
-      responseType: old.responseType,
-      useWebview: old.useWebview,
-      site: newSite,
-      parser: old.parser,
-      routes: old.routes,
-      selectors: old.selectors,
-      category: old.category,
-      stealthMode: old.stealthMode,
-      antiHotlinking: old.antiHotlinking,
-      webviewConfig: old.webviewConfig,
-      deprecated: old.deprecated,
-      enabled: old.enabled,
-      enabledExplore: old.enabledExplore,
-      isHidden: old.isHidden,
-      migrationMessage: old.migrationMessage,
-      engine: old.engine,
-      version: old.version,
-    );
+  /// 用一份完整的新配置替换同名源（源编辑页保存入口）。
+  ///
+  /// 找不到同名 id 时直接追加（等同导入一个新源）。返回是否命中并替换了已有源。
+  bool replaceSource(PluginConfig newConfig) {
+    final idx = _imported.indexWhere((c) => c.id == newConfig.id);
+    if (idx < 0) {
+      _imported.add(newConfig);
+    } else {
+      _imported[idx] = newConfig;
+    }
+    // 编辑的是内置源 → 屏蔽原内置，使其被编辑后的版本取代（用户导入优先）。
+    if (_configs.any((c) => c.id == newConfig.id)) {
+      _suppressBuiltin(newConfig.id);
+    }
     _persistImported();
     notifyListeners();
     return true;
   }
 
-  /// 删除已导入的源（删除确认入口）。内置源不可删除（返回 false）。
-  bool removeSource(String id) {
+  /// Export user-imported sources as a JSON-serializable list.
+  List<Map<String, dynamic>> exportToJson() =>
+      _imported.map((c) => c.toJson()).toList();
+
+  /// 更新源的 name/baseUrl 字段（兼容旧编辑入口）。
+  ///
+  /// 已导入源：直接更新 `_imported` 条目并持久化。
+  bool updateSource(String id, {String? name, String? baseUrl}) {
     final idx = _imported.indexWhere((c) => c.id == id);
-    if (idx < 0) return false;
-    _imported.removeAt(idx);
+    if (idx < 0) {
+      // 可能是内置源：提升为导入源（保留完整配置），并屏蔽原内置，使编辑生效。
+      PluginConfig? builtin;
+      for (final c in _configs) {
+        if (c.id == id) {
+          builtin = c;
+          break;
+        }
+      }
+      if (builtin != null) {
+        final newSite = _newSite(builtin.site, baseUrl);
+        final promoted = builtin.copyWith(
+          name: name ?? builtin.name,
+          site: newSite,
+        );
+        _imported.add(promoted);
+        ConfigLoader.instance.retargetActiveMirrorIfDefault(
+          builtin.id,
+          builtin.site.baseUrl,
+          newSite.baseUrl,
+        );
+        _suppressBuiltin(builtin.id);
+        _persistImported();
+        notifyListeners();
+        return true;
+      }
+      return false;
+    }
+    final old = _imported[idx];
+    final newSite = _newSite(old.site, baseUrl);
+    _imported[idx] = old.copyWith(name: name ?? old.name, site: newSite);
+    // 编辑主域名时，若当前激活镜像仍是旧主域名（用户未手动切到自定义镜像），
+    // 则重定向到新主域名，使编辑立即生效；若已选自定义镜像则保持不变。
+    ConfigLoader.instance
+        .retargetActiveMirrorIfDefault(old.id, old.site.baseUrl, newSite.baseUrl);
+    _persistImported();
+    notifyListeners();
+    return true;
+  }
+
+  /// 基于旧 [SiteConfig] 构造编辑后的站点配置，保留发布页/镜像等必要字段。
+  SiteConfig _newSite(SiteConfig site, String? baseUrl) => SiteConfig(
+        domain: site.domain,
+        baseUrl: baseUrl ?? site.baseUrl,
+        userAgent: site.userAgent,
+        cookies: site.cookies,
+        headers: site.headers,
+        mirrors: site.mirrors,
+        // 必须保留发布页配置，否则编辑后「从发布页提取镜像」失效
+        publishPageUrl: site.publishPageUrl,
+        publishMirrorSelector: site.publishMirrorSelector,
+      );
+
+  /// 删除源（删除确认入口）。返回是否实际删除了内容。
+  bool removeSource(String id) {
+    final had = _imported.any((c) => c.id == id);
+    _imported.removeWhere((c) => c.id == id);
+    // 移除的是内置源（无论是否已提升为导入源）→ 屏蔽它，使其彻底消失。
+    if (_configs.any((c) => c.id == id)) {
+      _suppressBuiltin(id);
+    }
     _stateOverrides.remove(id);
     _persistImported();
     _persistStateOverrides();
     notifyListeners();
-    return true;
+    return had;
   }
 
   /// Import sources from a parsed JSON list (merge, dedup by id via addSource).
@@ -405,7 +423,62 @@ class SourceRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 将状态覆盖应用到内存中的源（替换 _configs / _imported 中的条目）。
+  /// 启动时从资源包加载内置源（assets/plugins/builtin/<name>.json）。
+  ///
+  /// 缺失或解析失败的文件（如尚未补回的内置源）将被静默跳过，
+  /// 补回文件后下次启动会自动加载。已屏蔽的内置源不会出现在 [all] 中。
+  Future<void> loadBuiltins() async {
+    // 先加载屏蔽集合（持久化于 SharedPreferences）。
+    final prefs = await SharedPreferences.getInstance();
+    final suppressedRaw = prefs.getString(_builtinOverrideKey);
+    if (suppressedRaw != null) {
+      try {
+        final list = jsonDecode(suppressedRaw) as List<dynamic>;
+        _suppressedBuiltins.clear();
+        for (final e in list) {
+          if (e is String) _suppressedBuiltins.add(e);
+        }
+      } catch (_) {
+        // 损坏数据忽略
+      }
+    }
+
+    _configs.clear();
+    for (final name in _builtinAssetNames) {
+      try {
+        final raw = await rootBundle.loadString('plugins/builtin/$name.json');
+        final parsed = SourceRepository.parseMixedSources(raw);
+        if (parsed.isEmpty) {
+          debugPrint('[SourceRepository] 内置源 $name 解析为空（格式不支持）');
+          continue;
+        }
+        _configs.addAll(parsed);
+      } on Object {
+        debugPrint('[SourceRepository] 内置源 $name 跳过（缺失或解析失败）');
+      }
+    }
+    notifyListeners();
+  }
+
+  void _suppressBuiltin(String id) {
+    _suppressedBuiltins.add(id);
+    _persistSuppressed();
+  }
+
+  void _unsuppressBuiltin(String id) {
+    _suppressedBuiltins.remove(id);
+    _persistSuppressed();
+  }
+
+  Future<void> _persistSuppressed() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _builtinOverrideKey,
+      jsonEncode(_suppressedBuiltins.toList()),
+    );
+  }
+
+  /// 将状态覆盖应用到内存中的源（替换 _imported 中的条目）。
   void _applyStateOverrides() {
     for (final entry in _stateOverrides.entries) {
       final id = entry.key;
@@ -421,20 +494,15 @@ class SourceRepository extends ChangeNotifier {
     bool? enabled,
     bool? isHidden,
   }) {
-    void replaceIn(List<PluginConfig> list) {
-      for (var i = 0; i < list.length; i++) {
-        if (list[i].id == id) {
-          list[i] = list[i].copyWith(
-            enabled: enabled,
-            isHidden: isHidden,
-          );
-          break;
-        }
+    for (var i = 0; i < _imported.length; i++) {
+      if (_imported[i].id == id) {
+        _imported[i] = _imported[i].copyWith(
+          enabled: enabled,
+          isHidden: isHidden,
+        );
+        break;
       }
     }
-
-    replaceIn(_configs);
-    replaceIn(_imported);
   }
 
   /// 设置源的启用/禁用状态。
@@ -459,28 +527,17 @@ class SourceRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 一键启用推荐源：启用所有未弃用、非演示的内置源，返回本次新启用的数量。
-  ///
-  /// 推荐源 = 内置源中未标记 deprecated 且 id 不含 `example` 的源。
-  /// 已启用的保持启用；覆盖写入持久化并通知 UI 刷新。
+  /// 一键启用所有源（内置 + 导入）：启用未弃用、非演示的源，返回本次新启用的数量。
   Future<int> enableRecommendedSources() async {
-    final targets = _configs.where(
+    final targets = all.where(
       (c) => !c.isDeprecated && !c.id.toLowerCase().contains('example'),
     );
     var enabledCount = 0;
     for (final c in targets) {
       if (!c.isEnabled) {
-        _applyOverride(c.id, enabled: true);
+        await setEnabled(c.id, true);
         enabledCount++;
       }
-      _stateOverrides[c.id] = <String, dynamic>{
-        ..._stateOverrides[c.id] ?? <String, dynamic>{},
-        'enabled': true,
-      };
-    }
-    if (enabledCount > 0) {
-      await _persistStateOverrides();
-      notifyListeners();
     }
     return enabledCount;
   }

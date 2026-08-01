@@ -141,6 +141,9 @@ class _SourceLoginSheet extends StatelessWidget {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ThemeData theme = Theme.of(context);
     final bool loggedIn = context.watch<SourceAuthManager>().isLoggedIn(source);
+    // WebView 仅在移动端可用；桌面/Web 直接隐藏「网页登录」入口。
+    final bool webLoginSupported = PlatformService.instance.isAndroid ||
+        PlatformService.instance.isIOS;
 
     return AppSheetBody(
       child: SafeArea(
@@ -193,13 +196,15 @@ class _SourceLoginSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTokens.spaceSm),
               ],
-              _LoginOptionCard(
-                icon: Icons.public,
-                title: l10n.webLogin,
-                subtitle: l10n.webLoginDesc,
-                onTap: () => _webLogin(context),
-              ),
-              const SizedBox(height: AppTokens.spaceSm),
+              if (webLoginSupported) ...<Widget>[
+                _LoginOptionCard(
+                  icon: Icons.public,
+                  title: l10n.webLogin,
+                  subtitle: l10n.webLoginDesc,
+                  onTap: () => _webLogin(context),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+              ],
               _LoginOptionCard(
                 icon: Icons.cookie_outlined,
                 title: l10n.pasteCookie,

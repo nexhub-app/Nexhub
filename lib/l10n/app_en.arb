@@ -1238,10 +1238,12 @@
   },
   "sourceEdit": "Edit Source",
   "sourceDelete": "Delete Source",
-  "sourceMigrate": "Migrate Source",
+  "sourceMigrate": "View migration note",
   "sourceEditBuiltinNotAllowed": "Built-in sources cannot be edited",
   "sourceEditSaved": "Source updated",
   "sourceEditFailed": "Failed to update source",
+  "sourceEditJsonHint": "Edit all fields of this source here (JSON). Saving overwrites the original config; ensure the format is valid.",
+  "sourceEditInvalidJson": "JSON format or field validation failed. Please fix and retry.",
   "sourceDeleteBuiltinNotAllowed": "Built-in sources cannot be deleted",
   "sourceDeleted": "Source deleted",
   "sourceDeleteFailed": "Failed to delete source",
@@ -2704,11 +2706,41 @@
   "saveLibrary": "Save bookmark",
   "libraryBookmarks": "Library bookmarks",
   "libraryEmpty": "No saved library URLs",
+  "addLibraryTitle": "Add source library",
+  "libraryNameHint": "Name (optional)",
+  "subscribeLibrary": "Subscribe",
+  "fetchLibraryAndImport": "Update & Import",
+  "openHomepage": "Open homepage",
+  "unsubscribeLibrary": "Unsubscribe",
+  "unsubscribeLibraryConfirm": "Unsubscribe from \"{name}\"?",
+  "@unsubscribeLibraryConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "viewLibrarySources": "View sources",
+  "librarySubscribeFailed": "Subscribe failed. Please check the URL.",
+  "libraryImportResult": "Imported {success}/{total} sources ({failed} failed)",
+  "@libraryImportResult": {
+    "placeholders": {
+      "success": {"type": "int"},
+      "total": {"type": "int"},
+      "failed": {"type": "int"}
+    }
+  },
+  "sourceTypeOther": "Other",
+  "official": "Official",
   "loginStatusLoggedIn": "Logged in",
   "loginStatusLoggedOut": "Logged out",
   "cookieInputHint": "Paste the cookie string for this source",
   "incognitoMode": "Incognito mode",
   "incognitoModeHint": "Don't record history or search for this source",
+  "globalIncognito": "Global incognito",
+  "globalIncognitoHint": "When on, no source records history or search. Per-source toggle in source management still overrides individually.",
+  "mirrorAutoAdded": "Auto-added {count} mirror(s) from the publish page",
+  "sourceAnnouncementView": "View details",
   "watchedThreshold": "Watched threshold",
   "watchedThresholdHint": "Progress reaching this percentage is considered watched",
   "watchedThresholdUnit": "%"

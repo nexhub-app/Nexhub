@@ -162,8 +162,8 @@ class BrowsePage extends StatelessWidget {
         icon: Icons.cable_outlined,
         title: l10n.browseSniff,
         subtitle: l10n.browseSniffSubtitle,
-        color: scheme.primaryContainer,
-        iconColor: scheme.onPrimaryContainer,
+        color: scheme.surfaceContainerHighest,
+        iconColor: scheme.onSurfaceVariant,
         onTap: () => Navigator.of(context).push(
               AppPageRoute<void>(
                 builder: (_) => const BrowseSnifferScreen(),

@@ -1217,10 +1217,12 @@
   },
   "sourceEdit": "编辑源",
   "sourceDelete": "删除源",
-  "sourceMigrate": "迁移源",
+  "sourceMigrate": "查看迁移说明",
   "sourceEditBuiltinNotAllowed": "内置源不可编辑",
   "sourceEditSaved": "源已更新",
   "sourceEditFailed": "源更新失败",
+  "sourceEditJsonHint": "在此编辑该源的全部字段（JSON）。保存后将覆盖原配置，请确认格式正确。",
+  "sourceEditInvalidJson": "JSON 格式或字段校验未通过，请检查后重试。",
   "sourceDeleteBuiltinNotAllowed": "内置源不可删除",
   "sourceDeleted": "源已删除",
   "sourceDeleteFailed": "源删除失败",
@@ -2660,6 +2662,32 @@
   "saveLibrary": "保存常用",
   "libraryBookmarks": "常用库地址",
   "libraryEmpty": "暂无常用库地址",
+  "addLibraryTitle": "添加源库",
+  "libraryNameHint": "名称（可选）",
+  "subscribeLibrary": "订阅",
+  "fetchLibraryAndImport": "更新并导入",
+  "openHomepage": "打开主页",
+  "unsubscribeLibrary": "取消订阅",
+  "unsubscribeLibraryConfirm": "确定要取消订阅「{name}」吗？",
+  "@unsubscribeLibraryConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "viewLibrarySources": "查看源",
+  "librarySubscribeFailed": "订阅失败，请检查 URL",
+  "libraryImportResult": "已导入 {success}/{total} 个源（{failed} 失败）",
+  "@libraryImportResult": {
+    "placeholders": {
+      "success": {"type": "int"},
+      "total": {"type": "int"},
+      "failed": {"type": "int"}
+    }
+  },
+  "sourceTypeOther": "其他",
+  "official": "官方",
   "loginStatusLoggedIn": "已登录",
   "loginStatusLoggedOut": "未登录",
   "cookieInputHint": "粘贴该源的 Cookie 字符串",
@@ -2667,5 +2695,9 @@
   "watchedThresholdHint": "播放/阅读进度达到该百分比视为已看",
   "watchedThresholdUnit": "%",
   "incognitoMode": "无痕模式",
-  "incognitoModeHint": "开启后不记录该源的浏览历史与搜索记录"
+  "incognitoModeHint": "开启后不记录该源的浏览历史与搜索记录",
+  "globalIncognito": "全局无痕浏览",
+  "globalIncognitoHint": "开启后所有源都不记录浏览历史与搜索记录（各源仍可单独在源管理中覆盖）",
+  "mirrorAutoAdded": "已从发布页自动添加 {count} 个镜像",
+  "sourceAnnouncementView": "查看详情"
 }
