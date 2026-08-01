@@ -506,14 +506,33 @@ class BangumiComment {
     } else if (userMap['avatar'] is String) {
       avatar = userMap['avatar'] as String;
     }
+
+    // p1 API 使用 "rate"（数字），v0 API 用 "rating"；兼容两者。
+    final int rating = (json['rate'] ?? json['rating'] ?? 0) is num
+        ? ((json['rate'] ?? json['rating']) as num).toInt()
+        : 0;
+
+    // p1 API 返回 "updatedAt"（Unix 秒级时间戳，int）；
+    // 也可能有 "createdAt" 或 v0 的 "created_at"（ISO 字符串）。
+    String createdAt = '';
+    final dynamic rawTime =
+        json['createdAt'] ?? json['updatedAt'] ?? json['created_at'];
+    if (rawTime is int && rawTime > 0) {
+      // Unix 时间戳 → ISO 字符串，供 _formatTime 解析。
+      createdAt = DateTime.fromMillisecondsSinceEpoch(rawTime * 1000, isUtc: true)
+          .toIso8601String();
+    } else if (rawTime is String && rawTime.isNotEmpty) {
+      createdAt = rawTime;
+    }
+
     return BangumiComment(
       id: (json['id'] as num?)?.toInt() ?? 0,
       comment: json['comment'] as String? ?? '',
-      rating: (json['rating'] as num?)?.toInt() ?? 0,
+      rating: rating,
       username: userMap['username'] as String? ?? '',
       nickname: userMap['nickname'] as String? ?? '',
       avatar: avatar,
-      createdAt: json['created_at'] as String? ?? '',
+      createdAt: createdAt,
     );
   }
 }
@@ -558,6 +577,49 @@ class BangumiCharacter {
       image: image,
       role: json['role'] as String?,
       actor: actor,
+    );
+  }
+}
+
+/// Bangumi 制作人员（GET /v0/subjects/{id}/persons）。
+///
+/// 独立端点返回裸数组（非 `{data:[...]}` 包裹），每条目含 `career` 职业列表
+/// （如 ["导演","脚本"]）与 `relation`（该作职位，如 "系列构成"）。
+/// 也可通过 `/characters` 响应中含 `career` 字段的条目识别（合并代理场景）。
+class BangumiStaff {
+  final int id;
+  final String name;
+  final String nameCn;
+  final String? image;
+
+  /// 职位（导演 / 脚本 / 原作 / 动画制作 等）。
+  final String? relation;
+
+  const BangumiStaff({
+    required this.id,
+    required this.name,
+    this.nameCn = '',
+    this.image,
+    this.relation,
+  });
+
+  /// 优先中文名，缺省回退原名。
+  String get displayName => nameCn.isNotEmpty ? nameCn : name;
+
+  factory BangumiStaff.fromJson(Map<String, dynamic> json) {
+    String? image;
+    final images = json['images'];
+    if (images is Map<String, dynamic>) {
+      image = (images['grid'] ?? images['medium'] ?? images['small']) as String?;
+    } else if (json['image'] is String) {
+      image = json['image'] as String;
+    }
+    return BangumiStaff(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
+      nameCn: json['name_cn'] as String? ?? '',
+      image: image,
+      relation: json['relation'] as String?,
     );
   }
 }

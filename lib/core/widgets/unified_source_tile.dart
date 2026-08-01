@@ -19,6 +19,9 @@ class UnifiedSourceTile extends StatelessWidget {
   final String deleteTooltip; // 来自 l10n
   final String migrateTooltip; // 来自 l10n
   final String networkOverrideTooltip; // 来自 l10n（「网络覆盖」）
+  final String loginTooltip; // 来自 l10n（「源登录」）
+  final String incognitoTooltip; // 来自 l10n（「无痕模式」）
+  final bool isIncognito; // 该源是否已开启无痕
   final VoidCallback? onTap;
   final VoidCallback? onMirrorSettings;
   final VoidCallback? onHide;
@@ -26,6 +29,8 @@ class UnifiedSourceTile extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onMigrate;
   final VoidCallback? onNetworkOverride;
+  final VoidCallback? onLogin;
+  final ValueChanged<bool>? onIncognitoToggle; // 切换无痕模式
   final ValueChanged<bool>? onToggle;
   const UnifiedSourceTile({
     super.key,
@@ -44,6 +49,9 @@ class UnifiedSourceTile extends StatelessWidget {
     this.deleteTooltip = '',
     this.migrateTooltip = '',
     this.networkOverrideTooltip = '',
+    this.loginTooltip = '',
+    this.incognitoTooltip = '',
+    this.isIncognito = false,
     this.onTap,
     this.onMirrorSettings,
     this.onHide,
@@ -51,6 +59,8 @@ class UnifiedSourceTile extends StatelessWidget {
     this.onDelete,
     this.onMigrate,
     this.onNetworkOverride,
+    this.onLogin,
+    this.onIncognitoToggle,
     this.onToggle,
   });
 
@@ -112,7 +122,9 @@ class UnifiedSourceTile extends StatelessWidget {
       onDelete != null ||
       onHide != null ||
       onMigrate != null ||
-      onNetworkOverride != null;
+      onNetworkOverride != null ||
+      onLogin != null ||
+      onIncognitoToggle != null;
 
   PopupMenuEntry<String> _menuItem(
     String value,
@@ -136,6 +148,13 @@ class UnifiedSourceTile extends StatelessWidget {
           _menuItem('mirror', Icons.settings_ethernet, mirrorSettingsTooltip),
         if (onNetworkOverride != null)
           _menuItem('network', Icons.lan_outlined, networkOverrideTooltip),
+        if (onLogin != null)
+          _menuItem('login', Icons.login_outlined, loginTooltip),
+        if (onIncognitoToggle != null)
+          _menuItem(
+              'incognito',
+              isIncognito ? Icons.privacy_tip : Icons.privacy_tip_outlined,
+              incognitoTooltip),
         if (onEdit != null) _menuItem('edit', Icons.edit_outlined, editTooltip),
         if (onDelete != null)
           _menuItem('delete', Icons.delete_outline, deleteTooltip),
@@ -153,6 +172,12 @@ class UnifiedSourceTile extends StatelessWidget {
         break;
       case 'network':
         onNetworkOverride?.call();
+        break;
+      case 'login':
+        onLogin?.call();
+        break;
+      case 'incognito':
+        onIncognitoToggle?.call(!isIncognito);
         break;
       case 'edit':
         onEdit?.call();

@@ -2622,5 +2622,50 @@
   "bangumiProxyApi": "API 域名",
   "bangumiProxyImage": "图片域名",
   "bangumiProxyHint": "镜像 / 反代模式下填写你的自建域名（不含路径）。留空则该类别仍走官方默认域名。",
-  "bangumiProxySaved": "代理设置已保存"
+  "bangumiProxySaved": "代理设置已保存",
+  "bangumiDetail": "详情",
+  "bangumiStaff": "制作人员",
+  "bangumiTapToExpand": "点击展开",
+  "bangumiSyncRating": "评分",
+  "bangumiSyncComment": "吐槽",
+  "bangumiSync": "同步",
+  "bangumiPublic": "公开",
+  "bangumiPrivate": "私密",
+  "bangumiSyncLoginHint": "请先在设置中登录 Bangumi",
+  "bangumiSyncSaved": "已保存",
+  "bangumiRatingValue": "{count} 分",
+  "clear": "清除",
+  "@bangumiRatingValue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mirrorAddCustom": "添加自定义镜像",
+  "mirrorName": "镜像名称",
+  "mirrorDomain": "域名",
+  "mirrorBaseUrl": "基址",
+  "mirrorCustom": "自定义",
+  "mirrorDelete": "删除",
+  "mirrorExtractFromPublish": "从发布页提取镜像",
+  "mirrorExtracting": "正在提取…",
+  "mirrorNoMirrorsExtracted": "未提取到可用镜像",
+  "mirrorImportSelected": "导入选中镜像",
+  "mirrorExtractFailed": "提取失败",
+  "mirrorAddInvalid": "基址必须以 http:// 或 https:// 开头",
+  "importLibraryTab": "库导入",
+  "libraryUrlHint": "输入源库订阅地址",
+  "fetchLibrary": "拉取",
+  "saveLibrary": "保存常用",
+  "libraryBookmarks": "常用库地址",
+  "libraryEmpty": "暂无常用库地址",
+  "loginStatusLoggedIn": "已登录",
+  "loginStatusLoggedOut": "未登录",
+  "cookieInputHint": "粘贴该源的 Cookie 字符串",
+  "watchedThreshold": "已看阈值",
+  "watchedThresholdHint": "播放/阅读进度达到该百分比视为已看",
+  "watchedThresholdUnit": "%",
+  "incognitoMode": "无痕模式",
+  "incognitoModeHint": "开启后不记录该源的浏览历史与搜索记录"
 }

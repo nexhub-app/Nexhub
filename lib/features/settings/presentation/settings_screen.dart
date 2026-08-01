@@ -560,31 +560,62 @@ class _GeneralSettingsCardState extends State<_GeneralSettingsCard> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return SettingsCard(
-      title: null,
-      backgroundColor: Colors.transparent,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        SettingsChoiceChips<LaunchTab>(
-          title: l10n.launchScreenTitle,
-          selected: _s.launchTab,
-          onSelected: (v) => _update(_s.copyWith(launchTab: v)),
-          options: LaunchTab.values
-              .map((t) => SettingsChoiceChipData<LaunchTab>(
-                    value: t,
-                    label: _launchLabel(l10n, t),
-                  ))
-              .toList(),
+        SettingsCard(
+          title: null,
+          backgroundColor: Colors.transparent,
+          children: <Widget>[
+            SettingsChoiceChips<LaunchTab>(
+              title: l10n.launchScreenTitle,
+              selected: _s.launchTab,
+              onSelected: (v) => _update(_s.copyWith(launchTab: v)),
+              options: LaunchTab.values
+                  .map((t) => SettingsChoiceChipData<LaunchTab>(
+                        value: t,
+                        label: _launchLabel(l10n, t),
+                      ))
+                  .toList(),
+            ),
+            SettingsChoiceChips<AppDateFormat>(
+              title: l10n.dateFormatTitle,
+              selected: _s.dateFormat,
+              onSelected: (v) => _update(_s.copyWith(dateFormat: v)),
+              options: AppDateFormat.values
+                  .map((d) => SettingsChoiceChipData<AppDateFormat>(
+                        value: d,
+                        label: _dateFormatLabel(l10n, d),
+                      ))
+                  .toList(),
+            ),
+          ],
         ),
-        SettingsChoiceChips<AppDateFormat>(
-          title: l10n.dateFormatTitle,
-          selected: _s.dateFormat,
-          onSelected: (v) => _update(_s.copyWith(dateFormat: v)),
-          options: AppDateFormat.values
-              .map((d) => SettingsChoiceChipData<AppDateFormat>(
-                    value: d,
-                    label: _dateFormatLabel(l10n, d),
-                  ))
-              .toList(),
+        SettingsCard(
+          title: null,
+          backgroundColor: Colors.transparent,
+          children: <Widget>[
+            SettingsSliderTile(
+              label: l10n.watchedThreshold,
+              value: _s.watchedThresholdPercent.toDouble(),
+              min: 50,
+              max: 100,
+              divisions: 50,
+              display:
+                  '${_s.watchedThresholdPercent}${l10n.watchedThresholdUnit}',
+              onChanged: (v) => _update(
+                  _s.copyWith(watchedThresholdPercent: v.round())),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: AppTokens.spaceXs),
+              child: Text(
+                l10n.watchedThresholdHint,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ),
+          ],
         ),
       ],
     );

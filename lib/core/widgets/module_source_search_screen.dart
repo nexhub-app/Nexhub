@@ -15,6 +15,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_navigator.dart';
+import '../../../core/services/config_loader.dart';
 import '../../../core/settings/layout_settings.dart';
 import '../../../core/widgets/layout_picker_button.dart';
 import '../../../core/services/source_repository.dart';
@@ -392,6 +393,18 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
       results: _buildResults(context, l10n),
       sourceType: widget.sourceType,
       header: _buildHeader(context, l10n),
+      // 无痕模式：单源搜索且该源已开启无痕时跳过搜索历史记录；
+      // 聚合（全部源）搜索恒记录。
+      shouldRecordSearch: () {
+        if (_scope == _SearchScope.single && _selectedSourceId != null) {
+          final src =
+              context.read<SourceRepository>().getById(_selectedSourceId!);
+          if (src != null && ConfigLoader.instance.isIncognito(src)) {
+            return false;
+          }
+        }
+        return true;
+      },
     );
   }
 

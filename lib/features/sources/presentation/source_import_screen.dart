@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/scraper/collect_api_parser.dart';
 import '../../../core/scraper/http_fetcher.dart';
+import '../../../core/services/source_library_bookmarks.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
@@ -21,7 +22,7 @@ import '../../../core/widgets/app_url_input_bar.dart';
 import 'collect_api_import_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
-enum _ImportTab { url, file, json }
+enum _ImportTab { url, file, json, library }
 
 /// 源导入页：支持 URL / 本地文件 / 手动 JSON 三种方式，校验后保存。
 class SourceImportScreen extends StatefulWidget {
@@ -35,6 +36,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
   _ImportTab _tab = _ImportTab.url;
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _jsonController = TextEditingController();
+  final TextEditingController _libraryUrlController = TextEditingController();
   bool _loading = false;
   String? _error;
   /// 解析出的待导入源（批量，可能含小说/媒体/漫画）。
@@ -50,6 +52,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
   void dispose() {
     _urlController.dispose();
     _jsonController.dispose();
+    _libraryUrlController.dispose();
     super.dispose();
   }
 
@@ -113,6 +116,24 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
     }
   }
 
+  /// 库导入：拉取源库订阅地址内容，复用与 URL 导入相同的解析与预览流程。
+  Future<void> _fetchLibrary() async {
+    final url = _libraryUrlController.text.trim();
+    if (url.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      final text = await HttpFetcher.instance.getHtml(url);
+      await _tryParse(text);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -129,6 +150,8 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
   void _retry() {
     if (_tab == _ImportTab.url) {
       _importFromUrl();
+    } else if (_tab == _ImportTab.library) {
+      _fetchLibrary();
     } else if (_tab == _ImportTab.json) {
       _tryParse(_jsonController.text);
     } else {
@@ -178,6 +201,8 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
                   value: _ImportTab.file, label: Text(l10n.sourceImportFromFile)),
               ButtonSegment<_ImportTab>(
                   value: _ImportTab.json, label: Text(l10n.sourceImportFromJson)),
+              ButtonSegment<_ImportTab>(
+                  value: _ImportTab.library, label: Text(l10n.importLibraryTab)),
             ],
           ),
           const SizedBox(height: AppTokens.spaceLg),
@@ -209,7 +234,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
                     ?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ],
-          ] else ...<Widget>[
+          ] else if (_tab == _ImportTab.json) ...<Widget>[
             AppFormField(
               label: l10n.sourceImportJsonHint,
               hint: l10n.sourceImportJsonHint,
@@ -222,6 +247,32 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
               icon: const Icon(Icons.check_circle_outline),
               label: Text(l10n.sourceImportValidate),
             ),
+          ] else ...<Widget>[
+            // 库导入：拉取源库订阅地址 + 常用书签
+            AppUrlInputBar(
+              controller: _libraryUrlController,
+              hintText: l10n.libraryUrlHint,
+              submitLabel: l10n.fetchLibrary,
+              isLoading: _loading && _tab == _ImportTab.library,
+              onSubmit: (_) => _fetchLibrary(),
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _loading
+                    ? null
+                    : () {
+                        final url = _libraryUrlController.text.trim();
+                        if (url.isEmpty) return;
+                        context.read<SourceLibraryBookmarks>().add(url);
+                      },
+                icon: const Icon(Icons.bookmark_add_outlined, size: 20),
+                label: Text(l10n.saveLibrary),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+            _buildLibraryBookmarks(l10n, scheme),
           ],
           const SizedBox(height: AppTokens.spaceLg),
           _buildPreview(l10n, scheme),
@@ -248,6 +299,52 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
           ],
         ),
       );
+
+  /// 库导入书签列表：点击填入地址并拉取，长按或删除图标移除。
+  Widget _buildLibraryBookmarks(AppLocalizations l10n, ColorScheme scheme) {
+    final bookmarks = context.watch<SourceLibraryBookmarks>();
+    final urls = bookmarks.all();
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(l10n.libraryBookmarks,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppTokens.spaceSm),
+          if (urls.isEmpty)
+            Text(
+              l10n.libraryEmpty,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            )
+          else
+            ...urls.map((u) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    u,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  leading: Icon(Icons.book_outlined,
+                      size: 20, color: scheme.onSurfaceVariant),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 20),
+                    tooltip: l10n.delete,
+                    onPressed: () => bookmarks.remove(u),
+                  ),
+                  onTap: () {
+                    _libraryUrlController.text = u;
+                    _fetchLibrary();
+                  },
+                )),
+        ],
+      ),
+    );
+  }
 
   Widget _buildPreview(AppLocalizations l10n, ColorScheme scheme) {
     if (_loading) {

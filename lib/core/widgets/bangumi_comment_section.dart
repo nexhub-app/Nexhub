@@ -17,7 +17,6 @@ import '../services/bangumi/bangumi_proxy_config.dart';
 import '../services/bangumi/bangumi_sync_service.dart';
 import '../services/bangumi/subject_link_store.dart';
 import '../theme/app_tokens.dart';
-import 'app_card.dart';
 
 /// Bangumi 吐槽区（根据官方 v0 评论接口增加，只读）。
 class BangumiCommentSection extends StatefulWidget {
@@ -71,7 +70,6 @@ class _BangumiCommentSectionState extends State<BangumiCommentSection> {
       if (result.link != null) {
         subjectId = result.link!.subjectId;
       } else if (result.candidates.isNotEmpty) {
-        // 无高置信匹配时，取与标题最相似者作为兜底，避免「无匹配」死路。
         BangumiSubject? best;
         double bestScore = -1;
         for (final BangumiSubject c in result.candidates) {
@@ -91,26 +89,16 @@ class _BangumiCommentSectionState extends State<BangumiCommentSection> {
       }
 
       if (subjectId == null) {
-        setState(() {
-          _loading = false;
-          _noSubject = true;
-        });
+        setState(() { _loading = false; _noSubject = true; });
         return;
       }
 
       final comments = await service.client.fetchSubjectComments(subjectId);
       if (!mounted) return;
-      setState(() {
-        _comments = comments;
-        _loading = false;
-      });
+      setState(() { _comments = comments; _loading = false; });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _failed = true;
-        _errorMessage = e.toString();
-      });
+      setState(() { _loading = false; _failed = true; _errorMessage = e.toString(); });
     }
   }
 
@@ -123,95 +111,53 @@ class _BangumiCommentSectionState extends State<BangumiCommentSection> {
     if (_loading) {
       return const Padding(
         padding: EdgeInsets.all(AppTokens.spaceLg),
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
+        child: Center(child: SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2))),
       );
     }
     if (_noSubject) {
       return Padding(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              l10n.bangumiNoMatch,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: AppTokens.spaceSm),
-            OutlinedButton(onPressed: _load, child: Text(l10n.retry)),
-          ],
-        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(l10n.bangumiNoMatch, style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+          const SizedBox(height: AppTokens.spaceSm),
+          OutlinedButton(onPressed: _load, child: Text(l10n.retry)),
+        ]),
       );
     }
     if (_failed) {
       return Padding(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              l10n.bangumiCommentsLoadFailed,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(top: AppTokens.spaceXs),
-                child: Text(
-                  _errorMessage!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            const SizedBox(height: AppTokens.spaceSm),
-            OutlinedButton(onPressed: _load, child: Text(l10n.retry)),
-          ],
-        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(l10n.bangumiCommentsLoadFailed, style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+          if (_errorMessage != null)
+            Padding(padding: const EdgeInsets.only(top: AppTokens.spaceXs), child:
+              Text(_errorMessage!, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant), maxLines:3, overflow:TextOverflow.ellipsis)),
+          const SizedBox(height: AppTokens.spaceSm),
+          OutlinedButton(onPressed: _load, child: Text(l10n.retry)),
+        ]),
       );
     }
     if (_comments.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
-        child: Text(
-          l10n.bangumiCommentsEmpty,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: scheme.onSurfaceVariant,
-          ),
-        ),
+        child: Text(l10n.bangumiCommentsEmpty, style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
       );
     }
+    // 紧凑布局：减小外边距让评论更紧凑
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTokens.spaceLg,
-        vertical: AppTokens.spaceSm,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd, vertical: AppTokens.spaceXs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           if (_guessedName != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-              child: Text(
-                l10n.bangumiGuessMatch(_guessedName!),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
+              padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
+              child: Text(l10n.bangumiGuessMatch(_guessedName!),
+                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
             ),
           for (final c in _comments)
             Padding(
-              padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+              padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
               child: _BangumiCommentTile(comment: c),
             ),
         ],
@@ -220,73 +166,145 @@ class _BangumiCommentSectionState extends State<BangumiCommentSection> {
   }
 }
 
+// ═══════════════════════════ 单条吐槽卡片（紧凑版） ═══════════════════════════
+
 class _BangumiCommentTile extends StatelessWidget {
   final BangumiComment comment;
-
   const _BangumiCommentTile({required this.comment});
+
+  /// ISO 时间 → 相对时间。
+  static String _formatTime(String isoStr) {
+    if (isoStr.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(isoStr);
+      final diff = DateTime.now().difference(dt);
+      if (diff.inDays > 365) return '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
+      if (diff.inDays > 30) return '${diff.inDays ~/ 30}个月前';
+      if (diff.inDays > 0) return '${diff.inDays}天前';
+      if (diff.inHours > 0) return '${diff.inHours}小时前';
+      if (diff.inMinutes > 0) return '${diff.inMinutes}分钟前';
+      return '刚刚';
+    } catch (_) {
+      final idx = isoStr.indexOf('T');
+      return idx > 0 ? isoStr.substring(0, idx) : isoStr;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme scheme = theme.colorScheme;
-    final String? avatar = comment.avatar;
-    return AppCard(
+    return _BangumiCommentTileBody(
+      comment: comment,
+      avatar: comment.avatar,
+      timeStr: _formatTime(comment.createdAt),
+    );
+  }
+}
+
+/// 吐槽卡片体 — 紧凑布局，长评可折叠。
+class _BangumiCommentTileBody extends StatefulWidget {
+  final BangumiComment comment;
+  final String? avatar;
+  final String timeStr;
+  const _BangumiCommentTileBody({required this.comment, this.avatar, required this.timeStr});
+  @override State<_BangumiCommentTileBody> createState() => _BangumiCommentTileBodyState();
+}
+
+class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
+  bool _expanded = false;
+  static const int _kFoldThreshold = 80;
+  bool get _needsFold => widget.comment.comment.length > _kFoldThreshold;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final text = widget.comment.comment;
+    final needsFold = _needsFold;
+    final hasRating = widget.comment.rating > 0;
+    final hasTime = widget.timeStr.isNotEmpty;
+
+    // 用 Container 做紧凑卡片背景（替代 AppCard 减少内边距）
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+      ),
+      // 紧凑内边距：上下左右都缩小
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
+          // ── 第一行：小头像 + 用户名 + 评分 ──
           Row(
             children: <Widget>[
-              if (avatar != null && avatar.startsWith('http'))
+              // 更小的头像
+              if (widget.avatar != null && widget.avatar!.startsWith('http'))
                 CircleAvatar(
-                  radius: 16,
+                  radius: 11,
                   backgroundImage: CachedNetworkImageProvider(
-                    BangumiProxyConfig.instance.resolveImageUrl(avatar),
+                    BangumiProxyConfig.instance.resolveImageUrl(widget.avatar!),
                   ),
                 )
               else
                 CircleAvatar(
-                  radius: 16,
+                  radius: 11,
                   backgroundColor: scheme.primaryContainer,
-                  child: Icon(
-                    Icons.person,
-                    size: 18,
-                    color: scheme.onPrimaryContainer,
-                  ),
+                  child: Icon(Icons.person, size: 13, color: scheme.onPrimaryContainer),
                 ),
-              const SizedBox(width: AppTokens.spaceSm),
+              const SizedBox(width: 6),
               Expanded(
-                child: Text(
-                  comment.displayName,
-                  style: theme.textTheme.labelLarge,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: Text(widget.comment.displayName,
+                  style: theme.textTheme.labelSmall,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
-              if (comment.rating > 0)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(Icons.star, size: 14, color: scheme.primary),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${comment.rating}',
-                      style: theme.textTheme.labelSmall,
-                    ),
-                  ],
-                ),
+              // 评分星标
+              if (hasRating)
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.star, size: 12, color: scheme.primary),
+                  const SizedBox(width: 2),
+                  Text('${widget.comment.rating}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.primary, fontWeight: FontWeight.bold)),
+                ]),
             ],
           ),
-          const SizedBox(height: AppTokens.spaceSm),
-          Text(comment.comment, style: theme.textTheme.bodyMedium),
-          if (comment.createdAt.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: AppTokens.spaceXs),
-              child: Text(
-                comment.createdAt,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+
+          // ── 第二行：正文（可折叠）──
+          const SizedBox(height: 4),
+          if (needsFold)
+            AnimatedCrossFade(
+              firstChild: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
+              secondChild: Text(text, style: theme.textTheme.bodySmall),
+              crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
+            )
+          else
+            Text(text, style: theme.textTheme.bodySmall),
+
+          // 展开/收起
+          if (needsFold)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => setState(() => _expanded = !_expanded),
+                style: TextButton.styleFrom(visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(horizontal: 4)),
+                child: Text(_expanded ? l10n.collapse : l10n.expand,
+                  style: theme.textTheme.labelSmall?.copyWith(color: scheme.primary)),
               ),
+            ),
+
+          // ── 第三行：时间戳 ──
+          if (hasTime)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(widget.timeStr,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant, fontSize: 11)),
             ),
         ],
       ),

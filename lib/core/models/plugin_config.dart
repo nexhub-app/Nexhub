@@ -67,6 +67,12 @@ class SiteConfig {
   final Map<String, String>? headers;
   final List<MirrorConfig> mirrors;
 
+  /// 发布页地址（站点主域失效时的导航页，可从中提取备用镜像）。
+  final String? publishPageUrl;
+
+  /// 发布页镜像提取规则：正则字符串或 CSS 选择器（nullable）。
+  final String? publishMirrorSelector;
+
   const SiteConfig({
     required this.domain,
     required this.baseUrl,
@@ -74,6 +80,8 @@ class SiteConfig {
     this.cookies,
     this.headers,
     this.mirrors = const [],
+    this.publishPageUrl,
+    this.publishMirrorSelector,
   });
 
   factory SiteConfig.fromJson(Map<String, dynamic> json) => SiteConfig(
@@ -89,6 +97,8 @@ class SiteConfig {
                 .map((e) => MirrorConfig.fromJson(e))
                 .toList() ??
             const [],
+        publishPageUrl: json['publishPageUrl'] as String?,
+        publishMirrorSelector: json['publishMirrorSelector'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -98,6 +108,9 @@ class SiteConfig {
         if (cookies != null) 'cookies': cookies,
         if (headers != null) 'headers': headers,
         'mirrors': mirrors.map((e) => e.toJson()).toList(),
+        if (publishPageUrl != null) 'publishPageUrl': publishPageUrl,
+        if (publishMirrorSelector != null)
+          'publishMirrorSelector': publishMirrorSelector,
       };
 }
 
@@ -695,7 +708,7 @@ class PluginConfig {
     this.category = const CategoryConfig(),
     this.homeSections = const <HomeSectionConfig>[],
     this.filters,
-    this.stealthMode = true,
+    this.stealthMode = false,
     this.antiHotlinking = const AntiHotlinkingConfig(),
     this.webviewConfig = const WebviewConfig(),
     this.comments,
@@ -742,7 +755,7 @@ class PluginConfig {
           ? SourceFilterConfig.fromJson(
               Map<String, dynamic>.from(json['filters'] as Map))
           : null,
-      stealthMode: json['stealthMode'] as bool? ?? true,
+      stealthMode: json['stealthMode'] as bool? ?? false,
       antiHotlinking:
           AntiHotlinkingConfig.fromJson(json['antiHotlinking'] as Map<String, dynamic>?),
       webviewConfig: WebviewConfig.fromJson(json['webviewConfig'] as Map<String, dynamic>?),
