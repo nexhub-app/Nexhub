@@ -6,6 +6,8 @@
 /// 在不支持 [InAppWebView] 的平台（如 Web）显示提示并回退到外部浏览器。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -47,6 +49,24 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
   bool _pageLoaded = false;
   String? _currentUrl;
 
+  /// 加载看门狗：release 包下个别 WebView 版本可能不触发 onLoadStop，
+  /// 导致 [_loading] 永久为 true（一直转圈）。超时后强制解除加载态。
+  Timer? _loadWatchdog;
+
+  void _startLoadWatchdog() {
+    _loadWatchdog?.cancel();
+    _loadWatchdog = Timer(const Duration(seconds: 12), () {
+      if (mounted && _loading) {
+        setState(() {
+          _loading = false;
+          _pageLoaded = true;
+        });
+      }
+    });
+  }
+
+  void _stopLoadWatchdog() => _loadWatchdog?.cancel();
+
   /// 验证模式下是否已自动完成过一次验证回灌，避免重复 pop。
   bool _autoVerified = false;
 
@@ -64,6 +84,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
 
   @override
   void dispose() {
+    _loadWatchdog?.cancel();
     _addressController.dispose();
     _addressFocus.dispose();
     super.dispose();
@@ -376,12 +397,14 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
             },
             onLoadStart: (controller, url) {
               if (mounted) setState(() => _loading = true);
+              _startLoadWatchdog();
               _syncAddress(url?.toString());
             },
             onLoadStop: (controller, url) async {
               _canGoBack = await controller.canGoBack();
               _canGoForward = await controller.canGoForward();
               _syncAddress(url?.toString());
+              _stopLoadWatchdog();
               if (mounted) {
                 setState(() {
                   _loading = false;
