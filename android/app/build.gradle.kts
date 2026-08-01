@@ -68,6 +68,10 @@ android {
 
     buildTypes {
         release {
+            // 显式关闭 R8/资源压缩：避免任何混淆或裁切影响 flutter_inappwebview
+            // 等插件的运行时行为（也确保 assets/sniffer/* 等资源不被误删）。
+            isMinifyEnabled = false
+            isShrinkResources = false
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
