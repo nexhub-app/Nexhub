@@ -18,6 +18,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../models/plugin_config.dart';
+import '../services/bangumi/bangumi_air_schedule.dart';
 import '../services/bangumi/bangumi_client.dart';
 import '../services/bangumi/bangumi_models.dart';
 import '../services/bangumi/bangumi_sync_service.dart';
@@ -99,6 +100,10 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   static const int _epPageSize = 30;
   int _epPage = 0;
 
+  /// 放送时间（周 / 时 / 分）。优先级：用户手动覆盖 > 条目 infobox 自动解析。
+  BangumiAirSchedule _airSchedule = BangumiAirSchedule.empty;
+  static const BangumiAirScheduleStore _airStore = BangumiAirScheduleStore();
+
   /// 当前条目是否为动漫（走 episode 级标记）。
   bool get _isAnime => widget.sourceType == SourceType.animeSource;
 
@@ -133,8 +138,12 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
       if (!mounted) return;
       final detail = results[0] as BangumiSubjectDetail?;
       final remote = results[1] as BangumiUserCollection?;
+      // 手动覆盖优先；没有覆盖值时从 infobox / air_date 自动推断。
+      final airOverride = await _airStore.load(widget.subjectId);
+      if (!mounted) return;
       setState(() {
         _detail = detail;
+        _airSchedule = airOverride ?? BangumiAirSchedule.parse(detail);
         if (remote != null) {
           _rate = remote.rate;
           _comment = remote.comment;
@@ -769,36 +778,76 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
     ]);
   }
 
-  /// 周 / 时 / 分 放送信息条（周从 air_date 推算，时/分无数据时为 —）。
+  /// 周 / 时 / 分 放送信息条。
+  ///
+  /// 值来自 [_airSchedule]（手动覆盖优先，否则由 infobox / air_date 自动解析）；
+  /// 整条可点击，弹出编辑器手动设置，解决「三格永远是 —、无法设置」的问题。
   Widget _buildScheduleBar(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
-    const weekdays = <String>['一', '二', '三', '四', '五', '六', '日'];
-    String weekday = '—';
-    final air = _detail?.airDate;
-    if (air != null && air.isNotEmpty) {
-      final dt = DateTime.tryParse(air);
-      if (dt != null) weekday = '周${weekdays[dt.weekday - 1]}';
-    }
+    const String dash = '—';
+    final List<String> narrow = MaterialLocalizations.of(context).narrowWeekdays;
+    final BangumiAirSchedule s = _airSchedule;
+    // narrowWeekdays 以周日为首（index 0），ISO 周一=1…周日=7 → weekday % 7。
+    final String week = s.weekday != null ? narrow[s.weekday! % 7] : dash;
+    final String hour =
+        s.hour != null ? s.hour!.toString().padLeft(2, '0') : dash;
+    final String minute = s.hour != null || s.minute != null
+        ? (s.minute ?? 0).toString().padLeft(2, '0')
+        : dash;
     final items = <(String, String)>[
-      (l10n.bangumiSyncScheduleWeek, weekday),
-      (l10n.bangumiSyncScheduleHour, '—'),
-      (l10n.bangumiSyncScheduleMinute, '—'),
+      (l10n.bangumiSyncScheduleWeek, week),
+      (l10n.bangumiSyncScheduleHour, hour),
+      (l10n.bangumiSyncScheduleMinute, minute),
     ];
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceXs),
-      decoration: BoxDecoration(
+    return Semantics(
+      button: true,
+      label: l10n.bangumiSyncScheduleTitle,
+      child: Material(
         color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: _editSchedule,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceXs),
+            child: Row(children: <Widget>[
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: <Widget>[
+                    for (final e in items)
+                      Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
+                        Text(e.$1,
+                            style: theme.textTheme.labelSmall
+                                ?.copyWith(color: scheme.onSurfaceVariant)),
+                        const SizedBox(height: 2),
+                        Text(e.$2,
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600)),
+                      ]),
+                  ],
+                ),
+              ),
+              Icon(Icons.edit_outlined, size: 16, color: scheme.onSurfaceVariant),
+            ]),
+          ),
+        ),
       ),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: <Widget>[
-        for (final e in items)
-          Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
-            Text(e.$1, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
-            const SizedBox(height: 2),
-            Text(e.$2, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-          ]),
-      ]),
     );
+  }
+
+  /// 手动设置放送时间（覆盖自动解析值）；「清除」则恢复自动解析。
+  Future<void> _editSchedule() async {
+    final BangumiAirSchedule? result = await showDialog<BangumiAirSchedule>(
+      context: context,
+      builder: (BuildContext ctx) => _AirScheduleEditor(initial: _airSchedule),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _airSchedule =
+          result.isEmpty ? BangumiAirSchedule.parse(_detail) : result;
+    });
+    await _airStore.save(widget.subjectId, result);
   }
 
   /// 进度条 + 文本百分比。
@@ -815,5 +864,106 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
         ),
       ),
     ]);
+  }
+}
+
+/// 放送时间编辑器：选择星期 + 时:分。
+///
+/// pop 值语义：
+/// - `null`：取消，不改动；
+/// - [BangumiAirSchedule.empty]：清除手动覆盖（调用方恢复自动解析）；
+/// - 其他：用户设定的值。
+class _AirScheduleEditor extends StatefulWidget {
+  final BangumiAirSchedule initial;
+
+  const _AirScheduleEditor({required this.initial});
+
+  @override
+  State<_AirScheduleEditor> createState() => _AirScheduleEditorState();
+}
+
+class _AirScheduleEditorState extends State<_AirScheduleEditor> {
+  late int? _weekday = widget.initial.weekday;
+  late int? _hour = widget.initial.hour;
+  late int? _minute = widget.initial.minute;
+
+  Future<void> _pickTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: _hour ?? 0, minute: _minute ?? 0),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _hour = picked.hour;
+      _minute = picked.minute;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final material = MaterialLocalizations.of(context);
+    final theme = Theme.of(context);
+    final narrow = material.narrowWeekdays;
+    final String timeText = _hour != null
+        ? material.formatTimeOfDay(
+            TimeOfDay(hour: _hour!, minute: _minute ?? 0))
+        : '—';
+    return AlertDialog(
+      title: Text(l10n.bangumiSyncScheduleTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(l10n.bangumiSyncScheduleWeek,
+              style: theme.textTheme.labelMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: AppTokens.spaceXs),
+          Wrap(
+            spacing: AppTokens.spaceXs,
+            runSpacing: AppTokens.spaceXs,
+            children: <Widget>[
+              for (int w = 1; w <= 7; w++)
+                ChoiceChip(
+                  label: Text(narrow[w % 7]),
+                  selected: _weekday == w,
+                  onSelected: (bool sel) =>
+                      setState(() => _weekday = sel ? w : null),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.schedule),
+            title: Text(
+                '${l10n.bangumiSyncScheduleHour} / ${l10n.bangumiSyncScheduleMinute}'),
+            trailing: Text(timeText,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            onTap: _pickTime,
+          ),
+        ],
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () =>
+              Navigator.of(context).pop(BangumiAirSchedule.empty),
+          child: Text(l10n.clear),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(BangumiAirSchedule(
+            weekday: _weekday,
+            hour: _hour,
+            minute: _minute,
+          )),
+          child: Text(l10n.ok),
+        ),
+      ],
+    );
   }
 }
