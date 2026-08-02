@@ -13,6 +13,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../history/chapter_fetch_time_manager.dart';
 import '../models/episode.dart';
+import '../settings/general_settings.dart';
 import '../theme/app_tokens.dart';
 import 'app_animations.dart';
 import 'app_empty_state.dart';
@@ -134,11 +135,19 @@ class _ChapterListSectionState extends State<ChapterListSection> {
   @override
   void initState() {
     super.initState();
+    // 监听全局日期格式变更，使选集/章节日期即时跟随设置页修改。
+    GeneralSettingsStore.instance.addListener(_onSettingsChanged);
     _loadLocalFetchTimes();
+  }
+
+  /// 全局设置（含日期格式）变更时刷新列表，让行内日期即时生效。
+  void _onSettingsChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    GeneralSettingsStore.instance.removeListener(_onSettingsChanged);
     _searchCtrl.dispose();
     _chipScrollCtrl.dispose();
     super.dispose();
@@ -174,14 +183,16 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     return null;
   }
 
-  /// 格式化每章更新时间。当天显示 HH:mm，否则显示 YYYY-MM-DD。
+  /// 格式化每章更新时间。当天显示 HH:mm（时间显示不受日期格式设置影响）；
+  /// 其余日期跟随全局「日期格式」设置，设置页修改后即时生效。
   String _formatChapterDate(DateTime dt) {
-    String two(int n) => n.toString().padLeft(2, '0');
     final now = DateTime.now();
     if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
-      return '${two(dt.hour)}:${two(dt.minute)}';
+      final hh = dt.hour.toString().padLeft(2, '0');
+      final mm = dt.minute.toString().padLeft(2, '0');
+      return '$hh:$mm';
     }
-    return '${dt.year}-${two(dt.month)}-${two(dt.day)}';
+    return GeneralSettingsStore.instance.settings.dateFormat.format(dt);
   }
 
   /// 对原始索引列表应用搜索 + 筛选 + 排序 + 区间过滤。
