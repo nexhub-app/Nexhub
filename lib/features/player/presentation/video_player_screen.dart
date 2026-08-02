@@ -253,6 +253,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isBuffering = false;
   StreamSubscription<bool>? _bufferingSub;
 
+  /// 播放状态订阅（P8.3.x §加载指示器）：订阅底层 playing 流同步 [_isPlaying]，
+  /// 避免「视频已开始播放但中央大播放按钮仍显示」「缓冲转圈不消失」等 UI 滞后。
+  StreamSubscription<bool>? _playingSub;
+
   // ─────────────────────── 长按倍速（功能4） ───────────────────────
   /// 长按加速前的原倍速，松手恢复。
   double _speedBeforeLongPress = 1.0;
@@ -536,6 +540,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _bufferingSub = _controller.bufferingStream.listen((b) {
       if (_disposed || !mounted) return;
       setState(() => _isBuffering = b);
+    });
+    // 播放状态同步：底层播放/暂停时同步 [_isPlaying]，驱动中央大播放按钮、
+    // 底栏播放图标、缓冲指示器收敛。修复「视频已自动播放但 UI 仍显示暂停态」
+    // 及「_togglePlayPause 首次点击行为反了」的问题。
+    _playingSub = _controller.playingStream.listen((p) {
+      if (_disposed || !mounted) return;
+      setState(() => _isPlaying = p);
     });
 
     // 初始化弹幕仓库（弹幕源选择已在 _init 开头恢复）
@@ -1342,9 +1353,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _playUrl = video.url;
       _playHeaders = video.headers;
       _selectedLine = newLineName;
-      // 找到 _controller.lines 中对应 lineName 的索引（按排序顺序稳定）。
-      final sortedLines = byLine.keys.toList()..sort();
-      final newIndex = sortedLines.indexOf(newLineName);
+      // 用 _controller.lines 实际索引（非字母排序索引）填回 currentLineIndex，
+      // 修复「切线路后再次打开选集面板，底部线路 Radio 高亮选错」的 desync。
+      // 之前 sortedLines.indexOf(name) 在源给的 lines 顺序与排序一致时碰巧对，
+      // 一旦 _controller.lines 与字母排序不同（_buildLines 顺序可能受源数据影响），
+      // 面板重开后 highline 与实际 currentLine 错位。
+      final int newIndex =
+          _controller.lines.indexWhere((l) => l.name == newLineName);
       if (newIndex < 0) return;
       // 用已解析的 VideoLine 注入（替代占位），并切到该索引触发 _openCurrentLine。
       _controller.setPendingLine(VideoLine(
@@ -2370,6 +2385,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _stallSub?.cancel();
     _decodeFallbackSub?.cancel();
     _bufferingSub?.cancel();
+    _playingSub?.cancel();
     // 关闭可能残留的 SnackBar：其退出动画的 AnimationController 在 widget 失活后
     // 仍会 tick，并尝试访问已销毁的 Scaffold 祖先 → 抛「deactivated widget」
     // （见用户日志 AnimationController#...for SnackBar）。deactivate 阶段 context
@@ -2392,6 +2408,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _stallSub?.cancel();
     _decodeFallbackSub?.cancel();
     _bufferingSub?.cancel();
+    _playingSub?.cancel();
     _resolveProgress.dispose();
     unawaited(_castService.disconnect());
     _focusNode.dispose();

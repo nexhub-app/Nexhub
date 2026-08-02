@@ -2794,6 +2794,54 @@
   "@bangumiSyncAdvancedHint": {
     "description": "Subtitle hint of the advanced options expansion tile"
   },
+  "bangumiSyncChapLabel": "Chap.",
+  "@bangumiSyncChapLabel": {
+    "description": "Chapter label in the book (manga/novel) sync dialog matching the source website UI"
+  },
+  "bangumiSyncVolLabel": "Vol.",
+  "@bangumiSyncVolLabel": {
+    "description": "Volume label in the book (manga/novel) sync dialog matching the source website UI"
+  },
+  "bangumiSyncIncrement": "+",
+  "@bangumiSyncIncrement": {
+    "description": "Increment-by-one button next to the Chap./Vol. input in the book sync dialog"
+  },
+  "bangumiSyncAnimeGridTitle": "Episodes",
+  "@bangumiSyncAnimeGridTitle": {
+    "description": "Section title above the episode grid in the anime sync dialog (matches source website '章节' heading)"
+  },
+  "bangumiSyncAnimeGridHint": "Tap a cell to toggle watched / unwatched",
+  "@bangumiSyncAnimeGridHint": {
+    "description": "Hint text under the episode grid explaining tap-to-toggle behavior"
+  },
+  "bangumiSyncScheduleWeek": "W",
+  "@bangumiSyncScheduleWeek": {
+    "description": "Schedule label 'week' on the bottom bar of the anime sync dialog (informational placeholder, matches source website UI)"
+  },
+  "bangumiSyncScheduleHour": "H",
+  "@bangumiSyncScheduleHour": {
+    "description": "Schedule label 'hour' on the bottom bar of the anime sync dialog (informational placeholder)"
+  },
+  "bangumiSyncScheduleMinute": "M",
+  "@bangumiSyncScheduleMinute": {
+    "description": "Schedule label 'minute' on the bottom bar of the anime sync dialog (informational placeholder)"
+  },
+  "bangumiSyncPageOf": "Page {current} / {total}",
+  "@bangumiSyncPageOf": {
+    "description": "Page indicator text under the paginated episode grid (e.g. '●○')",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "bangumiSyncUnknown": "??",
+  "@bangumiSyncUnknown": {
+    "description": "Placeholder for unknown total in 'N / ?? ' progress display, matching source website UI"
+  },
   "bangumiRatingValue": "{count} / 10",
   "clear": "Clear",
   "@bangumiRatingValue": {

@@ -17,6 +17,7 @@ import 'reader_settings_sheet.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/favorites/favorites_manager.dart';
+import '../../../core/history/history_manager.dart';
 import '../../../core/history/media_watched_manager.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/models/episode.dart';
@@ -518,6 +519,27 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           );
     } catch (_) {
       // FavoritesManager 不可用时静默忽略。
+    }
+    // 写浏览历史：仅在详情页 initState 写一次时「lastChapter」恒为 null，
+    // 书架历史 Tab 与「继续阅读」入口都看不到进度；这里每次翻页都更新
+    // 最近章节标题，让历史 Tab 排序与续读定位都生效。
+    try {
+      final history = context.read<HistoryManager>();
+      final item = MediaItem(
+        id: widget.comicId,
+        title: widget.title,
+        sourceId: widget.sourceId,
+        sourceType: SourceType.mangaSource,
+        coverUrl: widget.coverUrl,
+        detailUrl: widget.detailUrl,
+      );
+      unawaited(history.addHistory(
+        item,
+        lastChapter: chapter.title,
+        sourceType: SourceType.mangaSource,
+      ));
+    } catch (_) {
+      // HistoryManager 不可用时静默忽略。
     }
     // 章节阅读进度达到「已看」阈值时标记该章已读（每章仅标记一次）。
     _maybeMarkChapterWatched(page);
