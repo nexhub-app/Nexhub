@@ -2684,6 +2684,9 @@
   "bangumiPrivate": "私密",
   "bangumiSyncLoginHint": "请先在设置中登录 Bangumi",
   "bangumiSyncSaved": "已保存",
+  "bangumiSyncWatchedEpisodes": "已看集数",
+  "bangumiSyncWatchedChapters": "已读章节",
+  "bangumiSyncProgressHint": "留空则自动同步本地进度",
   "bangumiRatingValue": "{count} 分",
   "clear": "清除",
   "@bangumiRatingValue": {
