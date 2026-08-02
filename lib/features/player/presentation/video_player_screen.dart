@@ -2933,7 +2933,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   // ─────────────────────── 选集 / 线路面板（FR-3.4） ───────────────────────
 
-  /// 弹出选集 + 线路 sheet：上半剧集列表（点击跳集），下半线路切换（点击 selectLine）。
+  /// 弹出选集 + 线路 sheet：上半剧集列表（按当前 [_selectedLine] 过滤，只显示
+  /// 当前线路的剧集），下半线路切换（点击 [PlayerController.selectLine] /
+  /// 跨线路重解析 [_changeLine]）。
   ///
   /// 本地 / 直链模式 [_isDirectMode] 不应触发（调用方已隐藏入口）；
   /// 若 [_controller.lines] 为空（解析失败），线路分组仍渲染但提示无可用线路。
@@ -2942,8 +2944,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       context: context,
       isScrollControlled: true,
       builder: (BuildContext ctx) {
-        final episodes = widget.episodes ?? <Episode>[];
+        final allEpisodes = widget.episodes ?? <Episode>[];
         final lines = _controller.lines;
+        // 按当前选中线路过滤剧集：让"选集"面板只显示当前线路的集，
+        // 切换线路后列表自动刷新为新线路的剧集，"播放路线与集不对应"问题修复。
+        final currentLine = _selectedLine ?? widget.episode.lineName ?? '';
+        final filteredIndices = <int>[];
+        for (var i = 0; i < allEpisodes.length; i++) {
+          if ((allEpisodes[i].lineName ?? '') == currentLine) {
+            filteredIndices.add(i);
+          }
+        }
+        // 过滤后当前位置（1 起，仅用于 header 提示）
+        final currentPosInLine = filteredIndices.contains(_episodeIndex)
+            ? filteredIndices.indexOf(_episodeIndex) + 1
+            : 0;
         return SafeArea(
           child: SizedBox(
             height: MediaQuery.of(ctx).size.height * 0.6,
@@ -2951,43 +2966,79 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               children: <Widget>[
                 Padding(
                   padding: const EdgeInsets.all(AppTokens.spaceMd),
-                  child: Text(
-                    l10n.playerEpisodes,
-                    style: Theme.of(ctx).textTheme.titleMedium,
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          l10n.playerEpisodes,
+                          style: Theme.of(ctx).textTheme.titleMedium,
+                        ),
+                      ),
+                      if (currentLine.isNotEmpty && filteredIndices.isNotEmpty)
+                        Text(
+                          l10n.playerLineEpisodesProgress(
+                            currentPosInLine, filteredIndices.length),
+                          style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                    ],
                   ),
                 ),
                 const Divider(height: 1),
-                // 上半：剧集列表
+                // 上半：当前线路的剧集列表（仅显示过滤后的集）。
                 Expanded(
                   flex: 3,
-                  child: ListView.builder(
-                    itemCount: episodes.length,
-                    itemBuilder: (BuildContext _, int i) {
-                      final ep = episodes[i];
-                      final selected = i == _episodeIndex;
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: selected
-                              ? Theme.of(ctx).colorScheme.primary
-                              : null,
-                          child: Text('${i + 1}'),
+                  child: filteredIndices.isEmpty
+                      ? _buildLineHint(
+                          ctx,
+                          icon: Icons.error_outline,
+                          text: l10n.playerLineEmpty,
+                        )
+                      : ListView.builder(
+                          itemCount: filteredIndices.length,
+                          itemBuilder: (BuildContext _, int j) {
+                            final globalIdx = filteredIndices[j];
+                            final ep = allEpisodes[globalIdx];
+                            final selected = globalIdx == _episodeIndex;
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: selected
+                                    ? Theme.of(ctx).colorScheme.primary
+                                    : null,
+                                child: Text('${j + 1}'),
+                              ),
+                              title: Text(
+                                ep.title,
+                                style: selected
+                                    ? TextStyle(
+                                        color: Theme.of(ctx).colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                      )
+                                    : null,
+                              ),
+                              subtitle: currentLine.isNotEmpty
+                                  ? Text(
+                                      currentLine,
+                                      style: Theme.of(ctx)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: Theme.of(ctx)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                    )
+                                  : null,
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                if (globalIdx != _episodeIndex) {
+                                  _changeEpisode(globalIdx);
+                                }
+                              },
+                            );
+                          },
                         ),
-                        title: Text(
-                          ep.title,
-                          style: selected
-                              ? TextStyle(
-                                  color: Theme.of(ctx).colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                )
-                              : null,
-                        ),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          if (i != _episodeIndex) _changeEpisode(i);
-                        },
-                      );
-                    },
-                  ),
                 ),
                 const Divider(height: 1),
                 // 下半：播放线路分组
@@ -3025,6 +3076,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                     : null,
                               ),
                               title: Text(line.name),
+                              trailing: selected
+                                  ? Icon(Icons.play_arrow,
+                                      color: Theme.of(ctx).colorScheme.primary)
+                                  : null,
                               onTap: () {
                                 Navigator.pop(ctx);
                                 if (i == _controller.currentLineIndex) return;
