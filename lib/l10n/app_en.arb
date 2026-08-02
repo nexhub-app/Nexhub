@@ -2826,6 +2826,10 @@
   "@bangumiSyncScheduleMinute": {
     "description": "Schedule label 'minute' on the bottom bar of the anime sync dialog (informational placeholder)"
   },
+  "bangumiSyncScheduleTitle": "Air time",
+  "@bangumiSyncScheduleTitle": {
+    "description": "Title of the picker dialog for editing the air schedule (weekday / hour / minute)"
+  },
   "bangumiSyncPageOf": "Page {current} / {total}",
   "@bangumiSyncPageOf": {
     "description": "Page indicator text under the paginated episode grid (e.g. '●○')",

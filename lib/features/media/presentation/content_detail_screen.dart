@@ -540,15 +540,18 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   Future<void> _startDownload() async {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final DownloadManager dl = context.read<DownloadManager>();
-    if (dl.isItemDownloaded(widget.item.id)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.alreadyDownloaded)),
-      );
-      return;
-    }
     if (_chapters.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.emptyContent)),
+      );
+      return;
+    }
+    // 仅当「所有章节都已下载」才拦截；下过部分章节时应能继续挑选剩余章节。
+    final Set<String> downloadedTitles =
+        dl.downloadedChapterTitles(widget.item.id);
+    if (_chapters.every((Episode e) => downloadedTitles.contains(e.title))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.alreadyDownloaded)),
       );
       return;
     }
@@ -557,6 +560,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       chapters: _chapters,
       contentId: widget.item.id,
       progress: _progressRepo,
+      downloadedTitles: downloadedTitles,
     );
     if (selected == null || selected.isEmpty || !mounted) return;
     await dl.addTask(
@@ -1035,7 +1039,13 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     context.watch<MediaWatchedManager>();
 
     final bool isFav = favorites.isFavorite(item.id, _favType);
-    final bool isDl = downloadMgr.isItemDownloaded(item.id);
+    // 逐章判断下载状态：只有「全部章节都已下载」才算整部下载完成。
+    // 此前用 isItemDownloaded（只要下过一集就为 true）禁用下载按钮，
+    // 导致下过部分集后剩余集永远无法继续下载。
+    final Set<String> downloadedTitles =
+        downloadMgr.downloadedChapterTitles(item.id);
+    final bool isDl = episodes.isNotEmpty &&
+        episodes.every((Episode e) => downloadedTitles.contains(e.title));
     final int readCount = _progressRepo.readCount(item.id);
     final int total = computeTotalEpisodes(episodes);
     final bool hasContinue =
@@ -1076,7 +1086,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         IconButton(
           icon: Icon(isDl ? Icons.download_done : Icons.download_outlined),
           tooltip: l10n.download,
-          onPressed: isDl ? null : _startDownload,
+          // 始终可点：未全部下载时继续挑选剩余章节，已全部下载时
+          // 由 _startDownload 给出「已下载」提示。
+          onPressed: _startDownload,
         ),
         IconButton(
           icon: const Icon(Icons.share_outlined),
@@ -1187,6 +1199,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         loadingMore: _chaptersLoading,
         onTapChapter: _openContent,
         onDownloadChapter: _pickLineAndDownload,
+        // 已下载的集 / 章节改用「已下载」图标（此前未传该回调，图标恒为未下载态）。
+        isChapterDownloaded: (int i) => i >= 0 &&
+            i < episodes.length &&
+            downloadedTitles.contains(episodes[i].title),
         // 书签：漫画 / 小说独有。
         onToggleBookmark: _bookmarkRepo == null ? null : _toggleBookmark,
         isChapterBookmarked: _bookmarkRepo == null

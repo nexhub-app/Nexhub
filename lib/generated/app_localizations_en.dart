@@ -5326,7 +5326,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bangumiSyncAnimeGridTitle => 'Episodes';
 
   @override
-  String get bangumiSyncAnimeGridHint => 'Tap a cell to toggle watched / unwatched';
+  String get bangumiSyncAnimeGridHint =>
+      'Tap a cell to toggle watched / unwatched';
 
   @override
   String get bangumiSyncScheduleWeek => 'W';
@@ -5336,6 +5337,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bangumiSyncScheduleMinute => 'M';
+
+  @override
+  String get bangumiSyncScheduleTitle => 'Air time';
 
   @override
   String bangumiSyncPageOf(int current, int total) {

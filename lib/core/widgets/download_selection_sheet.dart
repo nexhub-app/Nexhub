@@ -29,11 +29,14 @@ import 'app_animations.dart';
 ///
 /// [progress] 用于「仅未读/未看」预设；为 null 时该预设按「全选」处理
 /// （无已读信息即视作全部未读）。
+/// [downloadedTitles] 为已下载完成的章节标题集合：这些项会标注「已下载」，
+/// 且不参与「全选 / 最新 N 话 / 仅未读」等批量预设（仍可手动勾选以重新下载）。
 Future<List<int>?> showDownloadSelectionSheet({
   required BuildContext context,
   required List<Episode> chapters,
   required String contentId,
   UnifiedProgressRepository? progress,
+  Set<String> downloadedTitles = const <String>{},
 }) {
   return showModalBottomSheet<List<int>>(
     context: context,
@@ -42,6 +45,7 @@ Future<List<int>?> showDownloadSelectionSheet({
       chapters: chapters,
       contentId: contentId,
       progress: progress,
+      downloadedTitles: downloadedTitles,
     ),
   );
 }
@@ -51,11 +55,15 @@ class _DownloadSelectionSheet extends StatefulWidget {
     required this.chapters,
     required this.contentId,
     this.progress,
+    this.downloadedTitles = const <String>{},
   });
 
   final List<Episode> chapters;
   final String contentId;
   final UnifiedProgressRepository? progress;
+
+  /// 已下载完成的章节标题集合。
+  final Set<String> downloadedTitles;
 
   @override
   State<_DownloadSelectionSheet> createState() =>
@@ -105,10 +113,19 @@ class _DownloadSelectionSheetState extends State<_DownloadSelectionSheet> {
     super.dispose();
   }
 
+  /// 该原始索引对应的章节是否已下载完成。
+  bool _isDownloaded(int i) =>
+      widget.downloadedTitles.isNotEmpty &&
+      widget.downloadedTitles.contains(widget.chapters[i].title);
+
+  /// 当前视图内尚未下载的候选（批量预设只作用于这些项）。
+  List<int> get _selectableIndices =>
+      _displayIndices.where((int i) => !_isDownloaded(i)).toList();
+
   void _selectAll() => setState(() {
         _selected
           ..clear()
-          ..addAll(_displayIndices);
+          ..addAll(_selectableIndices);
       });
 
   void _deselectAll() => setState(_selected.clear);
@@ -129,25 +146,23 @@ class _DownloadSelectionSheetState extends State<_DownloadSelectionSheet> {
     });
   }
 
-  /// 「最新 N 话」：从末尾往前取 N 个（基于当前筛选视图）。
+  /// 「最新 N 话」：从末尾往前取 N 个尚未下载的（基于当前筛选视图）。
   void _presetLatest(int n) => setState(() {
-        final displayTotal = _displayIndices.length;
+        final List<int> pool = _selectableIndices;
+        final int take = n > pool.length ? pool.length : n;
         _selected
           ..clear()
-          ..addAll(List<int>.generate(
-            n > displayTotal ? displayTotal : n,
-            (i) => _displayIndices[displayTotal - 1 - i],
-          ));
+          ..addAll(List<int>.generate(take, (i) => pool[pool.length - 1 - i]));
       });
 
-  /// 「仅未读/未看」：当前筛选视图内全集减去已读集合。
+  /// 「仅未读/未看」：当前筛选视图内未下载项减去已读集合。
   void _presetUnread() {
     final read = widget.progress?.readIndices(widget.contentId).toSet() ??
         const <int>{};
     setState(() {
       _selected
         ..clear()
-        ..addAll(_displayIndices.where((i) => !read.contains(i)));
+        ..addAll(_selectableIndices.where((i) => !read.contains(i)));
     });
   }
 
@@ -186,7 +201,8 @@ class _DownloadSelectionSheetState extends State<_DownloadSelectionSheet> {
                       ),
                     ),
                     TextButton(
-                      onPressed: _total > 0 ? _selectAll : null,
+                      onPressed:
+                          _selectableIndices.isEmpty ? null : _selectAll,
                       child: Text(l10n.selectAll),
                     ),
                     TextButton(
@@ -315,6 +331,7 @@ class _DownloadSelectionSheetState extends State<_DownloadSelectionSheet> {
                     final i = _displayIndices[pos];
                     final ep = widget.chapters[i];
                     final line = ep.lineName;
+                    final bool downloaded = _isDownloaded(i);
                     return CheckboxListTile(
                       value: _selected.contains(i),
                       onChanged: (bool? v) => setState(() {
@@ -327,6 +344,13 @@ class _DownloadSelectionSheetState extends State<_DownloadSelectionSheet> {
                       title: Text(ep.title),
                       subtitle:
                           (line != null && line.isNotEmpty) ? Text(line) : null,
+                      secondary: downloaded
+                          ? Tooltip(
+                              message: l10n.alreadyDownloaded,
+                              child: Icon(Icons.download_done,
+                                  size: 20, color: scheme.primary),
+                            )
+                          : null,
                     );
                   },
                 ),

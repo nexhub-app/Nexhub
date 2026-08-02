@@ -220,6 +220,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// scroll 模式下当前滚动比例（0..1），用于同步底部进度滑条。
   double _scrollFraction = 0;
 
+  /// 是否正在把视图恢复到保存的页码（滚动模式）。
+  ///
+  /// 恢复期间的滚动位置是过渡值（通常为 0），照常写盘会把上次的阅读位置
+  /// 冲成第一页 —— 这是「记住阅读进度没作用」的根因之一。
+  bool _restoringPage = false;
+
   // ─────────────────────── 亮度手势 ───────────────────────
   double _brightness = 0.5;
   double? _brightnessDragStart;
@@ -922,25 +928,86 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (_prefs.pageAnimation.isScroll) {
       _scrollController = ScrollController();
       _scrollController!.addListener(_onScrollChanged);
+      // 滚动模式此前只把 _currentPage 赋成 restorePage，却从未把滚动位置挪
+      // 过去，视图始终停在开头。这里按「等效页码 ↔ 滚动比例」恢复位置，
+      // 与 [_onScrollChanged] 的保存逻辑严格对称。
+      _restoreScrollPosition(restorePage);
     }
     // paged 模式由 NovelAnimatedPageView 内部管理页状态；
     // _contentVersion 变更会触发 widget 重建并使用 initialPage。
     if (mounted) setState(() {});
   }
 
-  /// scroll 模式滚动监听：更新 [_scrollFraction] 以同步底部进度滑条。
+  /// scroll 模式滚动监听：记录阅读位置 + 更新 [_scrollFraction] 同步底部滑条。
   /// 仅在 UI 可见时刷新（隐藏时无需重绘）。
   void _onScrollChanged() {
+    // 恢复进度期间的过渡位置不回写，避免冲掉存档。
+    if (_restoringPage) return;
     final sc = _scrollController;
     if (sc == null || !sc.hasClients) return;
     final max = sc.position.maxScrollExtent;
     final frac = max > 0 ? (sc.offset / max).clamp(0.0, 1.0) : 0.0;
+    // 滚动模式此前完全不保存阅读位置（只有分页模式的 _onPageChanged 会存），
+    // 退出重进永远回到第一页。这里把滚动比例换算成与分页模式同语义的
+    // 「等效页码」后写盘，两种模式互相切换也不会错位。
+    final int total = _pagination?.pages.length ?? 0;
+    if (total > 1) {
+      final int idx = (frac * (total - 1)).round().clamp(0, total - 1);
+      if (idx != _currentPage) {
+        _currentPage = idx;
+        _saveProgress(idx);
+      }
+    }
     if ((frac - _scrollFraction).abs() < 0.005) return;
     _scrollFraction = frac;
     if (mounted && _uiVisible) setState(() {});
   }
 
+  /// scroll 模式恢复滚动位置到「等效页码」[page]。
+  ///
+  /// 分页结果 [_pagination] 由 `LayoutBuilder` 在 layout 阶段才算出，
+  /// ListView 的 `maxScrollExtent` 也要等首屏布局完成，所以这里带重试
+  /// （最多约 2.4 秒）；超时放弃并解除写盘封锁，不影响正常阅读。
+  /// [page] 为负表示哨兵「本章最后一页」，直接滚到底。
+  void _restoreScrollPosition(int page) {
+    if (page == 0) return;
+    _restoringPage = true;
+    int attempts = 0;
+    void tryJump() {
+      if (!mounted) {
+        _restoringPage = false;
+        return;
+      }
+      final ScrollController? sc = _scrollController;
+      final int total = _pagination?.pages.length ?? 0;
+      final bool ready = sc != null &&
+          sc.hasClients &&
+          sc.position.maxScrollExtent > 0 &&
+          (page < 0 || total > 1);
+      if (!ready) {
+        if (attempts++ >= 20) {
+          _restoringPage = false;
+          return;
+        }
+        Future<void>.delayed(const Duration(milliseconds: 120), tryJump);
+        return;
+      }
+      final double max = sc.position.maxScrollExtent;
+      final double target =
+          page < 0 ? max : (page / (total - 1)) * max;
+      sc.jumpTo(target.clamp(0.0, max));
+      if (page >= 0) _currentPage = page;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _restoringPage = false;
+      });
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => tryJump());
+  }
+
   void _onPageChanged(int idx) {
+    // 恢复进度期间的过渡页码不回写，避免冲掉存档。
+    if (_restoringPage) return;
     // 防御：page view 在极端时序下可能回调负数（如拖拽越界），
     // 直接丢弃非法值，避免 _currentPage 被污染为 -1/-2/-3。
     if (idx < 0) return;
@@ -2152,7 +2219,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       return;
     }
     final dl = context.read<DownloadManager>();
-    if (dl.isItemDownloaded(widget.novelId)) {
+    // 逐章比对：只缓存尚未下载的章节；全部下载完成才提示「已下载」。
+    // 旧实现用 isItemDownloaded（下过任意一章即为 true）整体拦截，
+    // 导致部分缓存后无法补齐剩余章节。
+    final Set<String> downloadedTitles =
+        dl.downloadedChapterTitles(widget.novelId);
+    final indices = <int>[
+      for (int i = 0; i < widget.chapters.length; i++)
+        if (!downloadedTitles.contains(widget.chapters[i].title)) i
+    ];
+    if (indices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.alreadyDownloaded)),
       );
@@ -2166,9 +2242,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       coverUrl: widget.coverUrl,
       detailUrl: widget.detailUrl,
     );
-    final indices = <int>[
-      for (int i = 0; i < widget.chapters.length; i++) i
-    ];
     await dl.addTask(
       item: item,
       chapters: widget.chapters,

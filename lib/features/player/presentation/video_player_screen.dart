@@ -236,6 +236,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _uiVisible = true;
   bool _isFav = false;
 
+  /// 控制层（顶栏 / 底栏 / 中央按钮）自动隐藏计时器。
+  ///
+  /// 修复「视频已开始播放但暂停键 / 控制条一直挂在画面上」：播放中若约
+  /// [_kUiAutoHide] 无任何交互，则自动隐藏控制层；暂停 / 锁定 / 用户点击时
+  /// 重新显示并重置计时。
+  Timer? _uiHideTimer;
+
+  /// 控制层自动隐藏延时。
+  static const Duration _kUiAutoHide = Duration(seconds: 4);
+
   // ─────────────────────── 播放器设置（PlayerSettings 消费） ───────────────────────
   /// 全局播放器默认设置。_init 中从 PlayerSettingsStore 加载并应用到底层播放器。
   PlayerSettings _playerSettings = const PlayerSettings();
@@ -290,14 +300,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 上次自动保存播放位置的时间（节流，每 5 秒存一次）。
   DateTime _lastPositionSaveAt = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// 当前集「续播位置恢复」是否已完成（成功 seek / 无记录 / 放弃）。
+  ///
+  /// 修复「记住播放进度没作用」：媒体刚 open 时会立刻推送 position=0 的事件，
+  /// 若此时就允许写盘，上一次的存档会被 0 覆盖，之后再怎么恢复也拿不到值。
+  /// 因此恢复完成前一律不保存位置。切集时重置为 false。
+  bool _positionRestoreDone = false;
+
   /// 当前剧集索引（若有全集列表）。
   late int _episodeIndex;
 
   /// 当前选中的播放线路名（来自 [Episode.lineName]）。由 [widget.episode]
-  /// 初始化，切换剧集时跟随新 ep 同步，切换线路时由 [_changeLine] 更新。
+  /// 初始化，切换剧集时跟随新 ep 同步。
   /// 详情页 chips（全部/天堂/精品/暴风/量子）选中后，`_openContent` 传入的
   /// `ep.lineName` 就是该选择，本字段在播放器内跟踪并驱动"播放线路"面板
-  /// 的选中态。
+  /// 的选中态；线路面板里点线路只切换要显示的集分组，不立即解析。
   String? _selectedLine;
 
   late Future<void> _initFuture;
@@ -525,8 +542,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _controller.play();
     }
 
-    // 恢复上次播放位置（P8.1.2 §廿一 续读进度跨章节恢复）
-    await _restoreSavedPosition();
+    // 恢复上次播放位置（P8.1.2 §廿一 续读进度跨章节恢复）。
+    // 不 await：[_seekWhenReady] 需要等底层 duration 就绪（可能 1~10 秒），
+    // 阻塞 _init 会让整页一直转圈。恢复完成前 [_positionRestoreDone] 为 false，
+    // 位置写盘被挡住，不存在「被 0 覆盖」的竞态。
+    unawaited(_restoreSavedPosition());
 
     // 监听播放状态
     _positionSub = _controller.positionStream.listen(_onPositionChanged);
@@ -546,8 +566,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 及「_togglePlayPause 首次点击行为反了」的问题。
     _playingSub = _controller.playingStream.listen((p) {
       if (_disposed || !mounted) return;
-      setState(() => _isPlaying = p);
+      setState(() {
+        _isPlaying = p;
+        // 暂停时控制层常显（用户需要看到播放键 / 进度条）。
+        if (!p) _uiVisible = true;
+      });
+      // 播放 → 启动自动隐藏倒计时；暂停 → 取消倒计时保持常显。
+      if (p) {
+        _scheduleUiHide();
+      } else {
+        _uiHideTimer?.cancel();
+      }
     });
+    // 兜底同步一次当前播放态：playingStream 是广播流，若在 open()/play() 之后
+    // 才订阅，可能错过已发出的 true，导致「实际在播放但 UI 停在暂停态」。
+    if (mounted && _controller.isPlaying != _isPlaying) {
+      setState(() => _isPlaying = _controller.isPlaying);
+      if (_isPlaying) _scheduleUiHide();
+    }
 
     // 初始化弹幕仓库（弹幕源选择已在 _init 开头恢复）
     _initDanmakuRepository();
@@ -694,10 +730,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (_controller.isLocked) return;
     if (_controller.isPlaying) {
       unawaited(_controller.pause());
-      if (mounted) setState(() => _isPlaying = false);
+      // 暂停：取消自动隐藏并让控制层常显，用户能立刻看到播放键。
+      _uiHideTimer?.cancel();
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _uiVisible = true;
+        });
+      }
     } else {
       unawaited(_controller.play());
       if (mounted) setState(() => _isPlaying = true);
+      _scheduleUiHide();
     }
   }
 
@@ -936,6 +980,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// 节流保存播放位置：每 5 秒写一次到 MediaPlaybackPositionManager。
   void _maybeSavePosition() {
+    // 续播恢复完成前禁止写盘，避免刚 open 时的 position=0 覆盖旧存档。
+    if (!_positionRestoreDone) return;
     final now = DateTime.now();
     if (now.difference(_lastPositionSaveAt) < const Duration(seconds: 5)) return;
     _lastPositionSaveAt = now;
@@ -969,16 +1015,53 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   /// 恢复上次播放位置：从 MediaPlaybackPositionManager 读取并 seek。
+  ///
+  /// 完成（含「无记录」「恢复失败」）后置位 [_positionRestoreDone]，此后才允许
+  /// 自动保存位置。
   Future<void> _restoreSavedPosition() async {
     try {
       final mgr = context.read<MediaPlaybackPositionManager>();
       final savedMs = mgr.getPosition(widget.itemId, _episodeIndex);
       if (savedMs > 5000) {
         // 超过 5 秒才恢复，避免片头闪现
-        await _controller.seek(Duration(milliseconds: savedMs));
+        await _seekWhenReady(Duration(milliseconds: savedMs));
       }
     } on Object {
       // Manager 不可用时静默忽略。
+    } finally {
+      _positionRestoreDone = true;
+      _lastPositionSaveAt = DateTime.now();
+    }
+  }
+
+  /// 等媒体真正就绪后再 seek，并校验一次实际落点。
+  ///
+  /// 根因：`player.open()` 返回时底层往往还没完成 demux（`duration` 仍为 0），
+  /// 此刻调用 `seek` 会被 mpv 静默丢弃——表现为「记住的播放进度没有作用」。
+  /// 这里先等 `durationStream` 给出非零时长（最多 10 秒），再 seek；随后延迟
+  /// 校验实际位置，偏差超过 3 秒说明首次 seek 被吞，补发一次。
+  Future<void> _seekWhenReady(Duration target) async {
+    if (_controller.duration <= Duration.zero) {
+      try {
+        await _controller.durationStream
+            .firstWhere((Duration d) => d > Duration.zero)
+            .timeout(const Duration(seconds: 10));
+      } on Object {
+        // 超时或流异常：仍尝试 seek 一次，失败也不影响正常播放。
+      }
+    }
+    if (_disposed || !mounted) return;
+    final Duration dur = _controller.duration;
+    // 目标越界（换源后时长变短 / 已接近片尾）则放弃恢复，避免直接跳到结尾。
+    if (dur > Duration.zero && target >= dur - const Duration(seconds: 5)) {
+      return;
+    }
+    await _controller.seek(target);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (_disposed || !mounted) return;
+    final Duration diff = _controller.position - target;
+    if (diff.abs() > const Duration(seconds: 3)) {
+      await _controller.seek(target);
     }
   }
 
@@ -1257,6 +1340,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _sleepTimer = null;
     // 保存当前集播放位置（P8.1.2）
     _saveCurrentPosition();
+    // 新一集的续播恢复尚未开始：先关闸，防止新媒体 open 时的 position=0
+    // 覆盖这一集原有的存档。
+    _positionRestoreDone = false;
     setState(() {
       _episodeIndex = index;
       _position = Duration.zero;
@@ -1297,87 +1383,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       // 恢复新剧集的上次播放位置
       await _restoreSavedPosition();
     } on Object {
-      // 切集失败，静默忽略。
+      // 切集失败，静默忽略；但要开闸，否则该集永远不再保存进度。
+      _positionRestoreDone = true;
     }
   }
 
   /// 保存当前集播放位置到 MediaPlaybackPositionManager。
   void _saveCurrentPosition() {
+    // 与 [_maybeSavePosition] 同理：恢复未完成时（如加载中就退出）不写盘，
+    // 否则会把上次的续播点抹成 0。
+    if (!_positionRestoreDone) return;
     try {
       final mgr = context.read<MediaPlaybackPositionManager>();
       unawaited(mgr.savePosition(
           widget.itemId, _episodeIndex, _position.inMilliseconds));
     } on Object {
       // Manager 不可用时静默忽略。
-    }
-  }
-
-  /// 切换播放线路（详情页 chips 等价语义：仅换 lineName，保留 _episodeIndex）。
-  ///
-  /// 流程：在全集里找出当前 ep 所在 lineName 组中的 position → 在新 lineName
-  /// 组取同 position 的 ep → 重新解析其 URL → 注入到 [PlayerController] 的
-  /// `_openCurrentLine` 链路上并 open。位置/弹幕/已看集保持当前 _episodeIndex，
-  /// 不切集；弹幕按当前集 ID 重拉（线路与剧集内容相同，仅源不同）。
-  Future<void> _changeLine(String newLineName) async {
-    if (widget.episodes == null || widget.episodes!.isEmpty) return;
-    if (newLineName == _selectedLine) return;
-    final episodes = widget.episodes!;
-
-    // 全集按 lineName 分组（同 [_buildLines] 内的算法）。
-    final byLine = <String, List<int>>{};
-    for (var i = 0; i < episodes.length; i++) {
-      final ln = episodes[i].lineName ?? '';
-      byLine.putIfAbsent(ln, () => <int>[]).add(i);
-    }
-    if (!byLine.containsKey(newLineName)) return;
-    final currentLine = _selectedLine ?? widget.episode.lineName ?? '';
-    final currentGroup = byLine[currentLine] ?? <int>[];
-    if (!currentGroup.contains(_episodeIndex)) return;
-    final int currentPos = currentGroup.indexOf(_episodeIndex);
-    final newGroup = byLine[newLineName]!;
-    if (currentPos >= newGroup.length) return;
-    final Episode newEp = episodes[newGroup[currentPos]];
-
-    final repo = context.read<SourceRepository>();
-    final service = context.read<MediaApiService>();
-    final source = repo.getById(widget.sourceId);
-    if (source == null) return;
-
-    setState(() {
-      // UI 立即反馈：线路切换中（可在此处显示 progress；为简洁仅用 snackbar）。
-    });
-
-    try {
-      final video = await _resolveVideoWithCapture(service, source, newEp.url);
-      if (!mounted) return;
-      _playUrl = video.url;
-      _playHeaders = video.headers;
-      _selectedLine = newLineName;
-      // 用 _controller.lines 实际索引（非字母排序索引）填回 currentLineIndex，
-      // 修复「切线路后再次打开选集面板，底部线路 Radio 高亮选错」的 desync。
-      // 之前 sortedLines.indexOf(name) 在源给的 lines 顺序与排序一致时碰巧对，
-      // 一旦 _controller.lines 与字母排序不同（_buildLines 顺序可能受源数据影响），
-      // 面板重开后 highline 与实际 currentLine 错位。
-      final int newIndex =
-          _controller.lines.indexWhere((l) => l.name == newLineName);
-      if (newIndex < 0) return;
-      // 用已解析的 VideoLine 注入（替代占位），并切到该索引触发 _openCurrentLine。
-      _controller.setPendingLine(VideoLine(
-        name: newLineName,
-        url: video.url,
-        headers: video.headers,
-      ));
-      _controller.currentLineIndex = newIndex;
-      await _controller.selectLine(newIndex);
-      _controller.play();
-      if (mounted) {
-        setState(() {});
-      }
-    } on Object {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('线路切换失败，请重试')),
-      );
     }
   }
 
@@ -1421,6 +1442,36 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   void _toggleUi() {
     setState(() => _uiVisible = !_uiVisible);
+    if (_uiVisible) {
+      _scheduleUiHide();
+    } else {
+      _uiHideTimer?.cancel();
+    }
+  }
+
+  /// 启动 / 重启控制层自动隐藏倒计时。
+  ///
+  /// 仅在「正在播放」时生效：暂停、锁定态或已隐藏时不安排隐藏，避免用户
+  /// 暂停后找不到播放键。
+  void _scheduleUiHide() {
+    _uiHideTimer?.cancel();
+    if (_disposed || !mounted) return;
+    if (!_isPlaying) return;
+    _uiHideTimer = Timer(_kUiAutoHide, () {
+      if (_disposed || !mounted) return;
+      // 二次校验：倒计时期间可能已暂停 / 已手动隐藏。
+      if (!_isPlaying || !_uiVisible) return;
+      setState(() => _uiVisible = false);
+    });
+  }
+
+  /// 任意指针按下时延长控制层停留时间（不改变可见性，仅重置倒计时）。
+  ///
+  /// 挂在播放器最外层 [Listener] 上：即便点击被底栏按钮消费，祖先 Listener
+  /// 仍会收到 pointer down，从而实现「操作中控制条不消失」。
+  void _bumpUiHideTimer() {
+    if (!_uiVisible) return;
+    _scheduleUiHide();
   }
 
   // 单击显隐控制栏统一由 GestureDetector.onTap → _toggleUi 处理；
@@ -1452,8 +1503,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 分组，每组取当前 `_episodeIndex` 在该组里的同 position 副本：
   /// - 当前选中 lineName：用 [video] 的已解析 URL 直接 open；
   /// - 其他 lineName：暂用对应 ep.url 占位（剧集页 URL，未解析），
-  ///   切到时由 [_changeLine] 重新解析并通过 [PlayerController.setPendingLine]
-  ///   注入；不可用则 url 为空，open 时 [PlayerController._openCurrentLine]
+  ///   切到时由 [_changeEpisode] 重新解析（点该线路的某集才解析）；
+  ///   不可用则 url 为空，open 时 [PlayerController._openCurrentLine]
   ///   会静默忽略。
   ///
   /// 单 line / 无 lineName 时按旧行为兜底为单条 "线路 1"，保持向后兼容。
@@ -1713,7 +1764,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       } else {
         _controller.play();
       }
-      setState(() => _isPlaying = !_isPlaying);
+      setState(() {
+        _isPlaying = !_isPlaying;
+        // 暂停时控制层常显，播放时重启自动隐藏倒计时。
+        if (!_isPlaying) _uiVisible = true;
+      });
+      if (_isPlaying) {
+        _scheduleUiHide();
+      } else {
+        _uiHideTimer?.cancel();
+      }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowLeft) {
@@ -2403,6 +2463,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     unawaited(_saveDanmakuSettings());
     _sleepTimer?.cancel();
     _gestureIndicatorTimer?.cancel();
+    _uiHideTimer?.cancel();
     _positionSub?.cancel();
     _completedSub?.cancel();
     _stallSub?.cancel();
@@ -2500,7 +2561,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       focusNode: _focusNode,
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
-      child: Stack(
+      // 最外层 Listener：任何指针按下（含被底栏按钮消费的点击）都会经过祖先
+      // 命中路径，用来重置控制层自动隐藏倒计时，保证「操作过程中控制条不消失」。
+      child: Listener(
+        onPointerDown: (_) => _bumpUiHideTimer(),
+        child: Stack(
         children: <Widget>[
           // 视频画面 + 手势系统（双击 中=播放/暂停·左=快退·右=快进 / 左竖滑亮度 / 右竖滑音量 / 横滑 seek 预览）
           GestureDetector(
@@ -2700,6 +2765,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               ),
           ],
         ],
+        ),
       ),
     );
   }
@@ -2950,168 +3016,194 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   // ─────────────────────── 选集 / 线路面板（FR-3.4） ───────────────────────
 
-  /// 弹出选集 + 线路 sheet：上半剧集列表（按当前 [_selectedLine] 过滤，只显示
-  /// 当前线路的剧集），下半线路切换（点击 [PlayerController.selectLine] /
-  /// 跨线路重解析 [_changeLine]）。
+  /// 弹出选集 + 线路 sheet（FR-3.4）。
   ///
-  /// 本地 / 直链模式 [_isDirectMode] 不应触发（调用方已隐藏入口）；
-  /// 若 [_controller.lines] 为空（解析失败），线路分组仍渲染但提示无可用线路。
+  /// 行为（Bug F 修复）：
+  /// - 上半：剧集列表，只显示**当前选中线路**的集。
+  /// - 下半：播放线路分组。点击线路**只切换上方要显示的集分组**——
+  ///   面板不关闭、也**不立即解析**；只有点完某一集，才由 [_changeEpisode]
+  ///   走视频嗅探解析并播放。
+  ///
+  /// 线路分组键使用全集各 `Episode.lineName` 的**原始值**（而非
+  /// [_controller.lines] 里被 canonicalize 过的名字），这样与上方剧集过滤
+  /// 用的是同一把钥匙，空串线路名也能正确对上。
+  ///
+  /// 本地 / 直链模式 [_isDirectMode] 不应触发（调用方已隐藏入口）。
   void _showLineSheet(AppLocalizations l10n) {
+    final allEpisodes = widget.episodes ?? <Episode>[];
+    // 全集按 lineName 分组（保留原始值作为分组键）。
+    final byLine = <String, List<int>>{};
+    for (var i = 0; i < allEpisodes.length; i++) {
+      final ln = allEpisodes[i].lineName ?? '';
+      byLine.putIfAbsent(ln, () => <int>[]).add(i);
+    }
+    final distinctLines = byLine.keys.toList()..sort();
+
+    // 当前选中线路（面板内的局部可变状态）：初始为正在播放的那条。
+    String selectedLine = _selectedLine ?? widget.episode.lineName ?? '';
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (BuildContext ctx) {
-        final allEpisodes = widget.episodes ?? <Episode>[];
-        final lines = _controller.lines;
-        // 按当前选中线路过滤剧集：让"选集"面板只显示当前线路的集，
-        // 切换线路后列表自动刷新为新线路的剧集，"播放路线与集不对应"问题修复。
-        final currentLine = _selectedLine ?? widget.episode.lineName ?? '';
-        final filteredIndices = <int>[];
-        for (var i = 0; i < allEpisodes.length; i++) {
-          if ((allEpisodes[i].lineName ?? '') == currentLine) {
-            filteredIndices.add(i);
-          }
-        }
-        // 过滤后当前位置（1 起，仅用于 header 提示）
-        final currentPosInLine = filteredIndices.contains(_episodeIndex)
-            ? filteredIndices.indexOf(_episodeIndex) + 1
-            : 0;
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.of(ctx).size.height * 0.6,
-            child: Column(
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(AppTokens.spaceMd),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          l10n.playerEpisodes,
-                          style: Theme.of(ctx).textTheme.titleMedium,
-                        ),
+        return StatefulBuilder(
+          builder: (BuildContext ctx, StateSetter setStateSheet) {
+            final filteredIndices = byLine[selectedLine] ?? <int>[];
+            // 过滤后当前位置（1 起，仅用于 header 提示）
+            final currentPosInLine = filteredIndices.contains(_episodeIndex)
+                ? filteredIndices.indexOf(_episodeIndex) + 1
+                : 0;
+            return SafeArea(
+              child: SizedBox(
+                height: MediaQuery.of(ctx).size.height * 0.6,
+                child: Column(
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.all(AppTokens.spaceMd),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              l10n.playerEpisodes,
+                              style: Theme.of(ctx).textTheme.titleMedium,
+                            ),
+                          ),
+                          if (selectedLine.isNotEmpty &&
+                              filteredIndices.isNotEmpty)
+                            Text(
+                              l10n.playerLineEpisodesProgress(
+                                currentPosInLine, filteredIndices.length),
+                              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(ctx)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                            ),
+                        ],
                       ),
-                      if (currentLine.isNotEmpty && filteredIndices.isNotEmpty)
-                        Text(
-                          l10n.playerLineEpisodesProgress(
-                            currentPosInLine, filteredIndices.length),
-                          style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                              ),
-                        ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                // 上半：当前线路的剧集列表（仅显示过滤后的集）。
-                Expanded(
-                  flex: 3,
-                  child: filteredIndices.isEmpty
-                      ? _buildLineHint(
-                          ctx,
-                          icon: Icons.error_outline,
-                          text: l10n.playerLineEmpty,
-                        )
-                      : ListView.builder(
-                          itemCount: filteredIndices.length,
-                          itemBuilder: (BuildContext _, int j) {
-                            final globalIdx = filteredIndices[j];
-                            final ep = allEpisodes[globalIdx];
-                            final selected = globalIdx == _episodeIndex;
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: selected
-                                    ? Theme.of(ctx).colorScheme.primary
-                                    : null,
-                                child: Text('${j + 1}'),
-                              ),
-                              title: Text(
-                                ep.title,
-                                style: selected
-                                    ? TextStyle(
-                                        color: Theme.of(ctx).colorScheme.primary,
-                                        fontWeight: FontWeight.bold,
-                                      )
-                                    : null,
-                              ),
-                              subtitle: currentLine.isNotEmpty
-                                  ? Text(
-                                      currentLine,
-                                      style: Theme.of(ctx)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
+                    ),
+                    const Divider(height: 1),
+                    // 上半：当前线路的剧集列表（仅显示过滤后的集）。
+                    Expanded(
+                      flex: 3,
+                      child: filteredIndices.isEmpty
+                          ? _buildLineHint(
+                              ctx,
+                              icon: Icons.error_outline,
+                              text: l10n.playerLineEmpty,
+                            )
+                          : ListView.builder(
+                              itemCount: filteredIndices.length,
+                              itemBuilder: (BuildContext _, int j) {
+                                final globalIdx = filteredIndices[j];
+                                final ep = allEpisodes[globalIdx];
+                                final selected = globalIdx == _episodeIndex;
+                                final lineLabel = selectedLine.isEmpty
+                                    ? _lineName(0)
+                                    : selectedLine;
+                                return ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: selected
+                                        ? Theme.of(ctx).colorScheme.primary
+                                        : null,
+                                    child: Text('${j + 1}'),
+                                  ),
+                                  title: Text(
+                                    ep.title,
+                                    style: selected
+                                        ? TextStyle(
                                             color: Theme.of(ctx)
                                                 .colorScheme
-                                                .onSurfaceVariant,
-                                          ),
-                                    )
-                                  : null,
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                if (globalIdx != _episodeIndex) {
-                                  _changeEpisode(globalIdx);
-                                }
+                                                .primary,
+                                            fontWeight: FontWeight.bold,
+                                          )
+                                        : null,
+                                  ),
+                                  subtitle: selectedLine.isNotEmpty
+                                      ? Text(
+                                          lineLabel,
+                                          style: Theme.of(ctx)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: Theme.of(ctx)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                        )
+                                      : null,
+                                  onTap: () {
+                                    // 点集才关闭面板并解析播放。
+                                    Navigator.pop(ctx);
+                                    if (globalIdx != _episodeIndex) {
+                                      _changeEpisode(globalIdx);
+                                    }
+                                  },
+                                );
                               },
-                            );
-                          },
-                        ),
-                ),
-                const Divider(height: 1),
-                // 下半：播放线路分组
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                      AppTokens.spaceMd, AppTokens.spaceSm, AppTokens.spaceMd, 0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      l10n.playerLine,
-                      style: Theme.of(ctx).textTheme.titleSmall,
+                            ),
                     ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: lines.isEmpty
-                      ? _buildLineHint(
-                          ctx,
-                          icon: Icons.error_outline,
-                          text: l10n.playerLineEmpty,
-                        )
-                      : ListView.builder(
-                          itemCount: lines.length,
-                          itemBuilder: (BuildContext _, int i) {
-                            final line = lines[i];
-                            final selected = i == _controller.currentLineIndex;
-                            return ListTile(
-                              leading: Icon(
-                                selected
-                                    ? Icons.radio_button_checked
-                                    : Icons.radio_button_unchecked,
-                                color: selected
-                                    ? Theme.of(ctx).colorScheme.primary
-                                    : null,
-                              ),
-                              title: Text(line.name),
-                              trailing: selected
-                                  ? Icon(Icons.play_arrow,
-                                      color: Theme.of(ctx).colorScheme.primary)
-                                  : null,
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                if (i == _controller.currentLineIndex) return;
-                                // 当前 lineName（详情页 chips 选中的）就是该
-                                // line.name；由 [_changeLine] 在全集里取同
-                                // position 副本并重新解析后注入。
-                                unawaited(_changeLine(line.name));
-                              },
-                            );
-                          },
+                    const Divider(height: 1),
+                    // 下半：播放线路分组（仅用于切换上方要显示的集）
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(AppTokens.spaceMd,
+                          AppTokens.spaceSm, AppTokens.spaceMd, 0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          l10n.playerLine,
+                          style: Theme.of(ctx).textTheme.titleSmall,
                         ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: distinctLines.isEmpty
+                          ? _buildLineHint(
+                              ctx,
+                              icon: Icons.error_outline,
+                              text: l10n.playerLineEmpty,
+                            )
+                          : ListView.builder(
+                              itemCount: distinctLines.length,
+                              itemBuilder: (BuildContext _, int i) {
+                                final rawLine = distinctLines[i];
+                                final displayName =
+                                    rawLine.isEmpty ? _lineName(i) : rawLine;
+                                final selected = rawLine == selectedLine;
+                                return ListTile(
+                                  leading: Icon(
+                                    selected
+                                        ? Icons.radio_button_checked
+                                        : Icons.radio_button_unchecked,
+                                    color: selected
+                                        ? Theme.of(ctx).colorScheme.primary
+                                        : null,
+                                  ),
+                                  title: Text(displayName),
+                                  trailing: selected
+                                      ? Icon(Icons.play_arrow,
+                                          color: Theme.of(ctx)
+                                              .colorScheme
+                                              .primary)
+                                      : null,
+                                  onTap: () {
+                                    // 只切换上方要显示的集分组：不关闭面板、
+                                    // 不立即解析。点完集才由 [_changeEpisode] 解析。
+                                    if (rawLine == selectedLine) return;
+                                    setStateSheet(() {
+                                      selectedLine = rawLine;
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

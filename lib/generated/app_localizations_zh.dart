@@ -5262,6 +5262,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bangumiSyncScheduleMinute => '分';
 
   @override
+  String get bangumiSyncScheduleTitle => '放送时间';
+
+  @override
   String bangumiSyncPageOf(int current, int total) {
     return '$current / $total 页';
   }

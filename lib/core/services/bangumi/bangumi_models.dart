@@ -198,6 +198,12 @@ class BangumiSubjectDetail {
   /// 放送开始日期（如 "2026-07-01"）。
   final String? airDate;
 
+  /// 条目 infobox（`/v0/subjects/{id}` 的 `infobox` 数组扁平化为 key→value）。
+  ///
+  /// 常用键：`放送星期`（如 "星期日"）、`放送开始`（如 "2026年7月1日 23:00"）。
+  /// 多值项（value 为数组）取首个条目的 `v` 字段；解析失败时为空 Map。
+  final Map<String, String> infobox;
+
   /// 收藏统计（想看/在看/看过等各状态人数）。
   final BangumiCollectionStat collection;
 
@@ -213,6 +219,7 @@ class BangumiSubjectDetail {
     this.rank = 0,
     this.eps = 0,
     this.airDate,
+    this.infobox = const <String, String>{},
     this.collection = const BangumiCollectionStat(),
   });
 
@@ -241,6 +248,27 @@ class BangumiSubjectDetail {
     }
     final rawRating = json['rating'];
     final rawCollection = json['collection'];
+    // infobox: [{key: '放送星期', value: '星期日'}, {key: '别名', value: [{v: '...'}]}]
+    final infobox = <String, String>{};
+    final rawInfobox = json['infobox'];
+    if (rawInfobox is List) {
+      for (final entry in rawInfobox) {
+        if (entry is! Map) continue;
+        final k = entry['key'];
+        if (k is! String || k.isEmpty) continue;
+        final v = entry['value'];
+        if (v is String) {
+          infobox[k] = v;
+        } else if (v is List && v.isNotEmpty) {
+          final first = v.first;
+          if (first is Map && first['v'] is String) {
+            infobox[k] = first['v'] as String;
+          } else if (first is String) {
+            infobox[k] = first;
+          }
+        }
+      }
+    }
     return BangumiSubjectDetail(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name'] as String? ?? '',
@@ -255,7 +283,8 @@ class BangumiSubjectDetail {
       rank: (json['rank'] as num?)?.toInt() ?? 0,
       eps: (json['eps'] as num?)?.toInt() ??
           (json['eps_count'] as num?)?.toInt() ?? 0,
-      airDate: json['air_date'] as String?,
+      airDate: json['air_date'] as String? ?? json['date'] as String?,
+      infobox: infobox,
       collection: rawCollection is Map<String, dynamic>
           ? BangumiCollectionStat.fromJson(rawCollection)
           : const BangumiCollectionStat(),

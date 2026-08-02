@@ -97,6 +97,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   int _chapterIndex = 0;
   int _savedPage = 0;
 
+  /// 是否正在把视图恢复到保存的页码。
+  ///
+  /// 恢复期间滚动回调产生的页码是「过渡值」（通常是 0），若照常写盘会把
+  /// 上次的阅读位置冲掉 —— 这是「记住阅读进度没作用」的根因之一。
+  bool _restoringPage = false;
+
   List<String> _images = const <String>[];
   bool _loading = true;
   String? _error;
@@ -416,12 +422,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       // 停留在旧页，导致「进度条/页码正确（_currentPage 已更新）但图片停在旧页」。
       // 因此在布局完成后强制跳转到目标页，确保切换后图片与进度一致。
       if (initial != 0) {
+        _restoringPage = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _pageController?.jumpToPage(initial);
+          _restoringPage = false;
         });
       }
     } else {
       _scrollController = ScrollController()..addListener(_onWebtoonScroll);
+      // 条漫（纵向滚动）模式此前只把 _currentPage 赋成了 restorePage，却从未
+      // 真的把滚动位置挪过去 —— 视图停在第一页，用户随手一滑就把进度覆盖成
+      // 0。这里按 [_onWebtoonScroll] 的反函数（页码 ↔ 滚动比例）恢复位置，
+      // 与保存逻辑严格对称。
+      _restoreWebtoonScroll(restorePage);
     }
     if (mounted) setState(() {});
     if (oldPageController != null || oldScrollController != null) {
@@ -432,7 +445,51 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
+  /// 条漫模式恢复滚动位置到 [page]。
+  ///
+  /// 图片高度不定、且是懒加载的，无法直接换算像素偏移；这里等 ScrollView
+  /// 拿到 clients 且 `maxScrollExtent > 0` 后，按「页码占比 × 可滚动长度」
+  /// 落点，与 [_onWebtoonScroll] 的「滚动占比 → 页码」互为反函数。
+  /// 最多重试约 2.4 秒（图片首屏加载慢时），超时则放弃并解除写盘封锁。
+  void _restoreWebtoonScroll(int page) {
+    if (page <= 0) return;
+    final int total = _images.length;
+    if (total <= 1) return;
+    _restoringPage = true;
+    int attempts = 0;
+    void tryJump() {
+      if (!mounted) {
+        _restoringPage = false;
+        return;
+      }
+      final ScrollController? sc = _scrollController;
+      final bool ready = sc != null &&
+          sc.hasClients &&
+          sc.position.maxScrollExtent > 0;
+      if (!ready) {
+        if (attempts++ >= 20) {
+          _restoringPage = false;
+          return;
+        }
+        Future<void>.delayed(const Duration(milliseconds: 120), tryJump);
+        return;
+      }
+      final double target =
+          (page / (total - 1)) * sc.position.maxScrollExtent;
+      sc.jumpTo(target.clamp(0.0, sc.position.maxScrollExtent));
+      _currentPage = page;
+      // 跳转产生的滚动通知在本帧末派发，下一帧再解除封锁。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _restoringPage = false;
+      });
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => tryJump());
+  }
+
   void _onPagedScroll() {
+    // 恢复进度期间的过渡页码不回写，避免冲掉存档。
+    if (_restoringPage) return;
     final p = _pageController?.page;
     if (p == null) return;
     if (_controllerPageCount == 0) return;
@@ -453,6 +510,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   void _onWebtoonScroll() {
+    // 恢复进度期间的过渡位置不回写，避免冲掉存档。
+    if (_restoringPage) return;
     final sc = _scrollController;
     if (sc == null || !sc.hasClients) return;
     final max = sc.position.maxScrollExtent;

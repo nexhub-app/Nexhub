@@ -10202,6 +10202,12 @@ abstract class AppLocalizations {
   /// **'M'**
   String get bangumiSyncScheduleMinute;
 
+  /// Title of the picker dialog for editing the air schedule (weekday / hour / minute)
+  ///
+  /// In en, this message translates to:
+  /// **'Air time'**
+  String get bangumiSyncScheduleTitle;
+
   /// Page indicator text under the paginated episode grid (e.g. '●○')
   ///
   /// In en, this message translates to:
