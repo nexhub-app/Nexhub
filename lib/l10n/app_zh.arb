@@ -2687,6 +2687,41 @@
   "bangumiSyncWatchedEpisodes": "已看集数",
   "bangumiSyncWatchedChapters": "已读章节",
   "bangumiSyncProgressHint": "留空则自动同步本地进度",
+  "bangumiSyncExpandList": "选择具体集 / 章节",
+  "bangumiSyncCollapseList": "收起",
+  "bangumiSyncChaptersTotal": "共 {count} {unit}",
+  "@bangumiSyncChaptersTotal": {
+    "description": "Total count with unit (集/话/章) for the multi-select list",
+    "placeholders": {
+      "count": {},
+      "unit": {}
+    }
+  },
+  "bangumiSyncChaptersLoadedHint": "已加载 {count} {unit}，可单独勾选",
+  "@bangumiSyncChaptersLoadedHint": {
+    "description": "Hint after Bangumi episode list is loaded",
+    "placeholders": {
+      "count": {},
+      "unit": {}
+    }
+  },
+  "bangumiSyncNoEpisodeList": "Bangumi 未返回该条目的剧集列表（{eps}），无法逐集勾选",
+  "@bangumiSyncNoEpisodeList": {
+    "description": "Shown when subject has no episode metadata",
+    "placeholders": {
+      "eps": {}
+    }
+  },
+  "bangumiSyncLoadEpisodesFailed": "加载剧集列表失败：{error}",
+  "@bangumiSyncLoadEpisodesFailed": {
+    "description": "Failed to fetch Bangumi episode list",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "bangumiSyncUnitEp": "集",
+  "bangumiSyncUnitVolume": "话",
+  "bangumiSyncUnitChapter": "章",
   "bangumiRatingValue": "{count} 分",
   "clear": "清除",
   "@bangumiRatingValue": {

@@ -289,6 +289,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 当前剧集索引（若有全集列表）。
   late int _episodeIndex;
 
+  /// 当前选中的播放线路名（来自 [Episode.lineName]）。由 [widget.episode]
+  /// 初始化，切换剧集时跟随新 ep 同步，切换线路时由 [_changeLine] 更新。
+  /// 详情页 chips（全部/天堂/精品/暴风/量子）选中后，`_openContent` 传入的
+  /// `ep.lineName` 就是该选择，本字段在播放器内跟踪并驱动"播放线路"面板
+  /// 的选中态。
+  String? _selectedLine;
+
   late Future<void> _initFuture;
 
   final CastService _castService = CastService();
@@ -310,6 +317,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _applyDanmakuOption());
     _episodeIndex = widget.initialEpisodeIndex ?? 0;
+    // 详情页 chips 选中的线路名会透传到 widget.episode.lineName（chips
+    // 过滤后的 ep 副本），未提供时退化为 null 表示"未分组 / 全部"。
+    _selectedLine = widget.episode.lineName;
     _initFuture = _init();
   }
 
@@ -1248,6 +1258,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     final ep = widget.episodes![index];
     widget.onEpisodeChange?.call(ep);
+    // 跟随新 ep 的 lineName 同步（详情页 chips 选定后保持同一线路）。
+    _selectedLine = ep.lineName;
 
     final repo = context.read<SourceRepository>();
     final service = context.read<MediaApiService>();
@@ -1286,6 +1298,71 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           widget.itemId, _episodeIndex, _position.inMilliseconds));
     } on Object {
       // Manager 不可用时静默忽略。
+    }
+  }
+
+  /// 切换播放线路（详情页 chips 等价语义：仅换 lineName，保留 _episodeIndex）。
+  ///
+  /// 流程：在全集里找出当前 ep 所在 lineName 组中的 position → 在新 lineName
+  /// 组取同 position 的 ep → 重新解析其 URL → 注入到 [PlayerController] 的
+  /// `_openCurrentLine` 链路上并 open。位置/弹幕/已看集保持当前 _episodeIndex，
+  /// 不切集；弹幕按当前集 ID 重拉（线路与剧集内容相同，仅源不同）。
+  Future<void> _changeLine(String newLineName) async {
+    if (widget.episodes == null || widget.episodes!.isEmpty) return;
+    if (newLineName == _selectedLine) return;
+    final episodes = widget.episodes!;
+
+    // 全集按 lineName 分组（同 [_buildLines] 内的算法）。
+    final byLine = <String, List<int>>{};
+    for (var i = 0; i < episodes.length; i++) {
+      final ln = episodes[i].lineName ?? '';
+      byLine.putIfAbsent(ln, () => <int>[]).add(i);
+    }
+    if (!byLine.containsKey(newLineName)) return;
+    final currentLine = _selectedLine ?? widget.episode.lineName ?? '';
+    final currentGroup = byLine[currentLine] ?? <int>[];
+    if (!currentGroup.contains(_episodeIndex)) return;
+    final int currentPos = currentGroup.indexOf(_episodeIndex);
+    final newGroup = byLine[newLineName]!;
+    if (currentPos >= newGroup.length) return;
+    final Episode newEp = episodes[newGroup[currentPos]];
+
+    final repo = context.read<SourceRepository>();
+    final service = context.read<MediaApiService>();
+    final source = repo.getById(widget.sourceId);
+    if (source == null) return;
+
+    setState(() {
+      // UI 立即反馈：线路切换中（可在此处显示 progress；为简洁仅用 snackbar）。
+    });
+
+    try {
+      final video = await _resolveVideoWithCapture(service, source, newEp.url);
+      if (!mounted) return;
+      _playUrl = video.url;
+      _playHeaders = video.headers;
+      _selectedLine = newLineName;
+      // 找到 _controller.lines 中对应 lineName 的索引（按排序顺序稳定）。
+      final sortedLines = byLine.keys.toList()..sort();
+      final newIndex = sortedLines.indexOf(newLineName);
+      if (newIndex < 0) return;
+      // 用已解析的 VideoLine 注入（替代占位），并切到该索引触发 _openCurrentLine。
+      _controller.setPendingLine(VideoLine(
+        name: newLineName,
+        url: video.url,
+        headers: video.headers,
+      ));
+      _controller.currentLineIndex = newIndex;
+      await _controller.selectLine(newIndex);
+      _controller.play();
+      if (mounted) {
+        setState(() {});
+      }
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('线路切换失败，请重试')),
+      );
     }
   }
 
@@ -1355,13 +1432,71 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// 由解析结果构造播放线路列表。
   ///
-  /// 源提供多线路（[VideoResult.lines] 非空）时直接使用，使播放页
-  /// 「选集 / 线路」面板可切换；否则以单线路 [VideoResult.url] 兜底为「线路 1」。
+  /// 详情页 chips（天堂/精品/暴风/量子 等）选中后，`widget.episodes` 全集
+  /// 里同名 [Episode.lineName] 字段反映该选择。本方法从全集按 lineName
+  /// 分组，每组取当前 `_episodeIndex` 在该组里的同 position 副本：
+  /// - 当前选中 lineName：用 [video] 的已解析 URL 直接 open；
+  /// - 其他 lineName：暂用对应 ep.url 占位（剧集页 URL，未解析），
+  ///   切到时由 [_changeLine] 重新解析并通过 [PlayerController.setPendingLine]
+  ///   注入；不可用则 url 为空，open 时 [PlayerController._openCurrentLine]
+  ///   会静默忽略。
+  ///
+  /// 单 line / 无 lineName 时按旧行为兜底为单条 "线路 1"，保持向后兼容。
   List<VideoLine> _buildLines(VideoResult video) {
-    if (video.lines.isNotEmpty) return video.lines;
+    final episodes = widget.episodes;
+    if (episodes == null || episodes.isEmpty) {
+      return <VideoLine>[
+        VideoLine(name: _lineName(0), url: video.url, headers: video.headers),
+      ];
+    }
+
+    // 全集按 lineName 分组（保留原始顺序以便稳定映射 position）。
+    final byLine = <String, List<int>>{};
+    for (var i = 0; i < episodes.length; i++) {
+      final ln = episodes[i].lineName ?? '';
+      byLine.putIfAbsent(ln, () => <int>[]).add(i);
+    }
+    if (byLine.isEmpty) {
+      return <VideoLine>[
+        VideoLine(name: _lineName(0), url: video.url, headers: video.headers),
+      ];
+    }
+
+    final String currentLine = _selectedLine ?? widget.episode.lineName ?? '';
+    final List<int> currentGroup = byLine[currentLine] ?? <int>[];
+    final int currentPos = currentGroup.contains(_episodeIndex)
+        ? currentGroup.indexOf(_episodeIndex)
+        : 0;
+
+    // 按 lineName 排序保证 UI 顺序稳定。
+    final sortedLines = byLine.keys.toList()..sort();
     return <VideoLine>[
-      VideoLine(name: _lineName(0), url: video.url, headers: video.headers),
+      for (final ln in sortedLines)
+        if (ln == currentLine)
+          VideoLine(
+            name: ln.isEmpty ? _lineName(0) : ln,
+            url: video.url,
+            headers: video.headers,
+          )
+        else
+          VideoLine(
+            name: ln.isEmpty ? '线路' : ln,
+            url: _episodeUrlAt(byLine, episodes, ln, currentPos),
+            headers: const <String, String>{},
+          ),
     ];
+  }
+
+  /// 取出指定 lineName 组里第 [pos] 个全集 ep 的剧集页 URL；越界返回空串。
+  String _episodeUrlAt(
+    Map<String, List<int>> byLine,
+    List<Episode> episodes,
+    String line,
+    int pos,
+  ) {
+    final group = byLine[line];
+    if (group == null || pos < 0 || pos >= group.length) return '';
+    return episodes[group[pos]].url;
   }
 
   /// 相对当前播放位置 seek 指定偏移（负值快退，正值快进），自动 clamp 到 [0, _duration]。
@@ -2879,8 +3014,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           itemCount: lines.length,
                           itemBuilder: (BuildContext _, int i) {
                             final line = lines[i];
-                            final selected =
-                                i == _controller.currentLineIndex;
+                            final selected = i == _controller.currentLineIndex;
                             return ListTile(
                               leading: Icon(
                                 selected
@@ -2893,9 +3027,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               title: Text(line.name),
                               onTap: () {
                                 Navigator.pop(ctx);
-                                if (i != _controller.currentLineIndex) {
-                                  unawaited(_controller.selectLine(i));
-                                }
+                                if (i == _controller.currentLineIndex) return;
+                                // 当前 lineName（详情页 chips 选中的）就是该
+                                // line.name；由 [_changeLine] 在全集里取同
+                                // position 副本并重新解析后注入。
+                                unawaited(_changeLine(line.name));
                               },
                             );
                           },

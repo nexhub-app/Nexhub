@@ -123,6 +123,14 @@ class PlayerController extends ChangeNotifier {
   /// 当前选中的播放线路索引（FR-3.4）。
   int currentLineIndex = 0;
 
+  /// 切换线路时由调用方注入的新线路（已解析）。仅一次 selectLine 生效，
+  /// 用于解决"全集 N 条线路切换需各自重新解析"：调用方先 resolve 新 ep.url
+  /// 并包装为 [VideoLine] 传入，避免在 PlayerController 内持有源/服务依赖。
+  VideoLine? _pendingLine;
+  void setPendingLine(VideoLine line) {
+    _pendingLine = line;
+  }
+
   // ─────────────────────── 静音 / 全屏（P8.3.4 §廿四） ───────────────────────
 
   /// 是否静音。
@@ -392,17 +400,30 @@ class PlayerController extends ChangeNotifier {
   ///
   /// 更新 [currentLineIndex] 并通过 [_openCurrentLine] 重新打开对应 URL；
   /// 越界索引静默忽略。本地 / 直链模式 [lines] 为空，调用方不应触发。
+  ///
+  /// 切换前可调用 [setPendingLine] 注入已解析的新线路（用于跨线路重新解析
+  /// 场景，如详情页 chips 切换多 lineName），[_openCurrentLine] 会优先使用
+  /// 注入的线路而忽略该索引处的旧值。
   Future<void> selectLine(int index) async {
     if (index < 0 || index >= lines.length) return;
-    if (index == currentLineIndex) return;
     currentLineIndex = index;
     notifyListeners();
     await _openCurrentLine();
   }
 
   /// 重新打开当前选中线路的 URL（复用现有 `_player.open(Media(url))` 入口）。
+  ///
+  /// 若已通过 [setPendingLine] 注入新线路，则用注入的 line 替换 [lines]
+  /// 中当前索引的项并清除注入标记（仅一次生效），用于"切换线路前已重新解析
+  /// 完成"的场景；否则按 [lines] 中现有 URL 打开（兜底，常见于初次解析已
+  /// 通过 [VideoResult.lines] 提供全部线路的情况）。
   Future<void> _openCurrentLine() async {
     if (lines.isEmpty) return;
+    final pending = _pendingLine;
+    if (pending != null) {
+      _pendingLine = null;
+      lines[currentLineIndex] = pending;
+    }
     final line = lines[currentLineIndex];
     if (line.url.isEmpty) return;
     await _backend.player.open(Media(line.url, httpHeaders: line.headers));
