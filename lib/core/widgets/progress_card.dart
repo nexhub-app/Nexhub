@@ -9,6 +9,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
+import '../settings/general_settings.dart';
 import '../theme/app_tokens.dart';
 
 /// 进度卡上方的相对时间（用于"上次阅读/观看"提示）。
@@ -273,11 +274,7 @@ String formatRelativeTime(AppLocalizations l10n, DateTime time) {
   if (diff.inMinutes < 60) return l10n.timeMinutesAgo(diff.inMinutes);
   if (diff.inHours < 24) return l10n.timeHoursAgo(diff.inHours);
   if (diff.inDays < 30) return l10n.timeDaysAgo(diff.inDays);
-  // 30 天以上按"X 月前"近似（30 天 = 1 月）
-  final months = (diff.inDays / 30).floor();
-  if (months < 12) {
-    // 复用 days 字段做"X 月前"过于牵强；这里退回到 N 天前，避免引入新键。
-    return l10n.timeDaysAgo(diff.inDays);
-  }
-  return l10n.timeDaysAgo(diff.inDays);
+  // 30 天以上改用全局「日期格式」展示绝对日期，避免"730 天前"这类无意义文案，
+  // 同时让设置页的日期格式在进度卡/历史列表等处也生效。
+  return GeneralSettingsStore.instance.settings.dateFormat.format(time);
 }

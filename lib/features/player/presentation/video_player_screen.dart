@@ -553,8 +553,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 不 await：[_seekWhenReady] 需要等底层 duration 就绪（可能 1~10 秒），
     // 阻塞 _init 会让整页一直转圈。恢复完成前 [_positionRestoreDone] 为 false，
     // 位置写盘被挡住，不存在「被 0 覆盖」的竞态。
-    // 关闭「记住播放/阅读位置」时不再恢复上次进度，直接从头播放。
-    if (widget.restoreProgress) unawaited(_restoreSavedPosition());
+    // 关闭「记住播放/阅读位置」时不再恢复上次进度，直接从头播放；
+    // 但仍置位 [_positionRestoreDone]，允许本集继续保存进度（仅不跳转）。
+    if (widget.restoreProgress) {
+      unawaited(_restoreSavedPosition());
+    } else {
+      _positionRestoreDone = true;
+      _lastPositionSaveAt = DateTime.now();
+    }
 
     // 监听播放状态
     _positionSub = _controller.positionStream.listen(_onPositionChanged);
