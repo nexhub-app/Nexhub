@@ -323,7 +323,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             onPressed: () => launchUrl(
-              Uri.parse('https://github.com/'),
+              Uri.parse('https://nexhub-app.github.io/website/docs.html'),
               mode: LaunchMode.externalApplication,
             ),
             icon: const Icon(Icons.help_outline, size: 18),

@@ -2186,6 +2186,8 @@
   "playerSuperRes": "超分辨率",
   "playerLine": "播放线路",
   "playerSelectLine": "选择线路",
+  "playerLineEmpty": "暂无播放线路（解析失败或源未提供视频地址）",
+  "playerLineSingleHint": "当前源只返回了 1 条线路，无法切换。\n如需多线路切换，请联系源作者在视频解析 API 中返回 urls 数组。",
   "playerEpisodes": "选集",
   "playerPip": "画中画",
   "playerCast": "投屏",
