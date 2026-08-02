@@ -5476,6 +5476,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'When on, no source records history or search. Per-source toggle in source management still overrides individually.';
 
   @override
+  String get rememberPosition => 'Remember playback/reading position';
+
+  @override
+  String get rememberPositionHint =>
+      'When on, reopening anime/comic/novel resumes from the last position; when off, always starts from the beginning';
+
+  @override
   String mirrorAutoAdded(Object count) {
     return 'Auto-added $count mirror(s) from the publish page';
   }

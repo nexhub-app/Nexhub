@@ -74,28 +74,38 @@ class GeneralSettings {
   /// 「已看」阈值百分比（50–100）。播放/阅读进度达到该比例视为已看。
   final int watchedThresholdPercent;
 
+  /// 是否记住播放/阅读位置（默认开启）。
+  ///
+  /// 关闭后，重新打开动漫/漫画/小说不再恢复上次进度，统一从开头开始。
+  /// 仅门控「恢复」行为；明确点选某章节进入时本就从头开始，不受此影响。
+  final bool rememberPosition;
+
   const GeneralSettings({
     this.launchTab = LaunchTab.browse,
     this.dateFormat = AppDateFormat.defaultFormat,
     this.watchedThresholdPercent = 90,
+    this.rememberPosition = true,
   });
 
   GeneralSettings copyWith({
     LaunchTab? launchTab,
     AppDateFormat? dateFormat,
     int? watchedThresholdPercent,
+    bool? rememberPosition,
   }) =>
       GeneralSettings(
         launchTab: launchTab ?? this.launchTab,
         dateFormat: dateFormat ?? this.dateFormat,
         watchedThresholdPercent:
             watchedThresholdPercent ?? this.watchedThresholdPercent,
+        rememberPosition: rememberPosition ?? this.rememberPosition,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'launchTab': launchTab.name,
         'dateFormat': dateFormat.name,
         'watchedThresholdPercent': watchedThresholdPercent,
+        'rememberPosition': rememberPosition,
       };
 
   factory GeneralSettings.fromJson(Map<String, dynamic> json) {
@@ -119,6 +129,7 @@ class GeneralSettings {
       watchedThresholdPercent: _clampThreshold(
         (json['watchedThresholdPercent'] as num?)?.toInt() ?? 90,
       ),
+      rememberPosition: (json['rememberPosition'] as bool?) ?? true,
     );
   }
 }

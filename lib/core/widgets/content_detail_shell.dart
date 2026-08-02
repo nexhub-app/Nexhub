@@ -9,6 +9,7 @@ import 'app_card.dart';
 import 'app_cover_image.dart';
 import 'app_refresh_indicator.dart';
 import 'detail_action_utils.dart';
+import '../settings/general_settings.dart';
 import 'source_image.dart';
 
 /// 详情页统一骨架：Hero 大图 SliverAppBar + 元信息 chips + 操作行 +
@@ -111,8 +112,11 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
   bool _descriptionExpanded = false;
 
   String _formatDateTime(DateTime dt) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${dt.year}-${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}';
+    // 走全局「日期格式」设置，使设置页的日期格式修改对所有详情页生效。
+    return GeneralSettingsStore.instance.settings.dateFormat.format(
+      dt,
+      withTime: true,
+    );
   }
 
   /// 连载状态 → 图标映射。已完结类走 [Icons.check_circle]，连载中类走
@@ -361,10 +365,13 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
           // 紧凑档：右列只保留基础信息，chips / 按钮下移全宽渲染。
           if (widget.updatedAt != null) ...<Widget>[
             const SizedBox(height: AppTokens.spaceSm),
-            Text(
-              '${l10n.updatedAtLabel} ${_formatDateTime(widget.updatedAt!)}',
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+            ListenableBuilder(
+              listenable: GeneralSettingsStore.instance,
+              builder: (BuildContext ctx, _) => Text(
+                '${l10n.updatedAtLabel} ${_formatDateTime(widget.updatedAt!)}',
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -378,10 +385,13 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
             ),
           if (widget.updatedAt != null) ...<Widget>[
             const SizedBox(height: AppTokens.spaceSm),
-            Text(
-              '${l10n.updatedAtLabel} ${_formatDateTime(widget.updatedAt!)}',
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+            ListenableBuilder(
+              listenable: GeneralSettingsStore.instance,
+              builder: (BuildContext ctx, _) => Text(
+                '${l10n.updatedAtLabel} ${_formatDateTime(widget.updatedAt!)}',
+                style: textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],

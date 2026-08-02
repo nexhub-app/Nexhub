@@ -6,6 +6,7 @@ import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/local/import_permission.dart';
+import '../../../core/settings/general_settings.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -228,6 +229,8 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
                 sourceId: '',
                 chapters: const <Episode>[],
                 localCbzPath: file.path,
+                restoreProgress:
+                    GeneralSettingsStore.instance.settings.rememberPosition,
               ),
             ),
           );
@@ -243,6 +246,8 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
               sourceId: '',
               itemId: 'local_${file.path.hashCode}',
               localUri: file.path,
+              restoreProgress:
+                  GeneralSettingsStore.instance.settings.rememberPosition,
             ),
           ),
         );
@@ -257,6 +262,8 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
                 sourceId: '',
                 chapters: const <Episode>[],
                 localTextPath: file.path,
+                restoreProgress:
+                    GeneralSettingsStore.instance.settings.rememberPosition,
               ),
             ),
           );

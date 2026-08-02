@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/settings/general_settings.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/models/bookshelf_filter.dart';
 import '../../../core/models/episode.dart';
@@ -89,6 +90,8 @@ class ComicHomeScreen extends StatelessWidget {
                     sourceId: item.sourceId ?? '',
                     chapters: const <Episode>[],
                     localCbzPath: localPath,
+                    restoreProgress:
+                        GeneralSettingsStore.instance.settings.rememberPosition,
                   ),
                 ),
               );

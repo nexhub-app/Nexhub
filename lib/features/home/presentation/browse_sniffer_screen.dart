@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:nexhub/core/models/episode.dart';
+import 'package:nexhub/core/settings/general_settings.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/sniffer/sniffer_bridge.dart' show SnifferBridge;
 import 'package:nexhub/core/sniffer/sniffer_engine.dart' show SnifferEngine;
@@ -183,6 +184,8 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
           itemId: url,
           directUrl: url,
           directHeaders: headers,
+          restoreProgress:
+              GeneralSettingsStore.instance.settings.rememberPosition,
         ),
       ),
     );

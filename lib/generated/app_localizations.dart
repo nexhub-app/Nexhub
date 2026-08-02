@@ -10454,6 +10454,18 @@ abstract class AppLocalizations {
   /// **'When on, no source records history or search. Per-source toggle in source management still overrides individually.'**
   String get globalIncognitoHint;
 
+  /// No description provided for @rememberPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember playback/reading position'**
+  String get rememberPosition;
+
+  /// No description provided for @rememberPositionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When on, reopening anime/comic/novel resumes from the last position; when off, always starts from the beginning'**
+  String get rememberPositionHint;
+
   /// No description provided for @mirrorAutoAdded.
   ///
   /// In en, this message translates to:
