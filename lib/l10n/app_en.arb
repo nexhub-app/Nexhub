@@ -2906,6 +2906,8 @@
   "incognitoModeHint": "Don't record history or search for this source",
   "globalIncognito": "Global incognito",
   "globalIncognitoHint": "When on, no source records history or search. Per-source toggle in source management still overrides individually.",
+  "rememberPosition": "Remember playback/reading position",
+  "rememberPositionHint": "When on, reopening anime/comic/novel resumes from the last position; when off, always starts from the beginning",
   "mirrorAutoAdded": "Auto-added {count} mirror(s) from the publish page",
   "sourceAnnouncementView": "View details",
   "watchedThreshold": "Watched threshold",
