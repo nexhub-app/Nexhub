@@ -1,8 +1,12 @@
 /// Bangumi 收藏同步弹窗（详情页底栏「同步」按钮唤起）。
 ///
-/// 自上而下：条目标题 → 打星（1-10）→ 吐槽（短评）→ 五状态
-/// （想看 / 看过 / 在看 / 搁置 / 抛弃）→ 底部「公开/私密」切换 + 「同步」按钮。
-/// 提交即 PATCH /v0/users/-/collections/{subject_id}（未收藏时 client 自动回退 POST）。
+/// 按源网站原版 UI 风格重设计：顶部「我的完成度」进度条 + 数字输入 +
+/// 更新按钮作为主操作区（参考 manga/novel 源站常见的「节奏稍快 / 我的完成度」面板）；
+/// 评分 / 吐槽 / 五状态 / 公开私密 等扩展项收纳到「高级选项」ExpansionTile 默认收起。
+/// 外层 [SingleChildScrollView] 兜底，避免内容过长溢出（窄屏 + 长吐槽 + 千集列表）。
+///
+/// 提交逻辑：底部「同步到 Bangumi」整体 PATCH /v0/users/-/collections/{subject_id}
+/// （未收藏时 client 自动回退 POST）；点击「更新」仅把进度推送到 Bangumi。
 library;
 
 import 'package:flutter/material.dart';
@@ -504,81 +508,135 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
       (BangumiCollectionType.dropped, l10n.bangumiStateDropped),
     ];
 
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
-        left: AppTokens.spaceMd, right: AppTokens.spaceMd, top: AppTokens.spaceMd,
+        left: AppTokens.spaceMd,
+        right: AppTokens.spaceMd,
+        top: AppTokens.spaceMd,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppTokens.spaceLg,
       ),
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
-        // 顶部标题
-        Row(children: <Widget>[
-          Expanded(child: Text(titleText, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            maxLines: 2, overflow: TextOverflow.ellipsis)),
-          if (!_loading)
-            IconButton(icon: const Icon(Icons.close), visualDensity: VisualDensity.compact,
-              onPressed: () => Navigator.of(context).pop()),
-        ]),
-        const Divider(),
-        if (_loading)
-          const Center(child: Padding(padding: EdgeInsets.all(AppTokens.spaceLg),
-            child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5))))
-        else ...<Widget>[
-          // 打星
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // 顶部标题 + 关闭按钮
           Row(children: <Widget>[
-            Icon(Icons.star_outline, size: 18, color: scheme.primary),
-            const SizedBox(width: AppTokens.spaceXs),
-            Text(l10n.bangumiSyncRating, style: theme.textTheme.titleSmall),
-            const Spacer(),
-            if (_rate > 0) TextButton.icon(onPressed: () => setState(() => _rate = 0),
-              icon: const Icon(Icons.clear, size: 16), label: Text(l10n.clear)),
-          ]),
-          const SizedBox(height: AppTokens.spaceXs),
-          _buildStarRating(theme, scheme, l10n),
-          const SizedBox(height: AppTokens.spaceMd),
-
-          // 吐槽
-          TextField(
-            controller: _commentCtrl,
-            onChanged: (v) => _comment = v,
-            maxLines: 4,
-            minLines: 2,
-            decoration: InputDecoration(
-              labelText: l10n.bangumiSyncComment,
-              alignLabelWithHint: true,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
-            ),
-          ),
-          const SizedBox(height: AppTokens.spaceMd),
-
-          // 五状态
-          Text(l10n.bangumiCollectionStatus, style: theme.textTheme.titleSmall),
-          const SizedBox(height: AppTokens.spaceXs),
-          Wrap(spacing: AppTokens.spaceXs, runSpacing: AppTokens.spaceXs, children: <Widget>[
-            for (final e in states)
-              ChoiceChip(label: Text(e.$2), selected: _type == e.$1,
-                onSelected: (_) => setState(() => _type = e.$1)),
-          ]),
-          const SizedBox(height: AppTokens.spaceMd),
-
-          // 已看集数 / 已读章节（动漫走 episode 标记，书籍走 ep_status）
-          if (_isAnime || _isBook) ...<Widget>[
-            TextField(
-              controller: _progressCtrl,
-              keyboardType: TextInputType.number,
-              onChanged: _onProgressChanged,
-              decoration: InputDecoration(
-                labelText: _isAnime
-                    ? l10n.bangumiSyncWatchedEpisodes
-                    : l10n.bangumiSyncWatchedChapters,
-                helperText: l10n.bangumiSyncProgressHint,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceSm),
+            Expanded(
+              child: Text(
+                titleText,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (!_loading)
+              IconButton(
+                icon: const Icon(Icons.close),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+          ]),
+          const Divider(height: 1),
+
+          if (_loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppTokens.spaceLg),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                ),
+              ),
+            )
+          else ...<Widget>[
+            // ───────── 主区：「我的完成度」按网站样式 ─────────
+            // 标题行：左侧 label，右侧当前进度
+            Row(children: <Widget>[
+              Icon(Icons.bookmark_outline, size: 18, color: scheme.primary),
+              const SizedBox(width: AppTokens.spaceXs),
+              Text(
+                l10n.bangumiSyncMyCompletion,
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              if (_isAnime || _isBook)
+                Text(
+                  _progressLabelText(l10n),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+            ]),
+            const SizedBox(height: AppTokens.spaceSm),
+
+            // 进度条（网站原版样式：高亮当前比例 + 剩余灰色）
+            _buildProgressBar(theme, scheme, l10n),
+            const SizedBox(height: AppTokens.spaceMd),
+
+            // 数字输入 + / total + 更新按钮（参考网站 UI）
+            if (_isAnime || _isBook)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Expanded(
+                    child: TextField(
+                      controller: _progressCtrl,
+                      keyboardType: TextInputType.number,
+                      onChanged: _onProgressChanged,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: AppTokens.spaceSm,
+                            vertical: AppTokens.spaceSm),
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppTokens.radiusMd),
+                          borderSide: BorderSide(color: scheme.outline),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppTokens.radiusMd),
+                          borderSide:
+                              BorderSide(color: scheme.primary, width: 2),
+                        ),
+                      ),
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppTokens.spaceSm),
+                    child: Text(
+                      '/ ${_totalLabel(l10n)}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _saving ? null : _save,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: scheme.primaryContainer,
+                      foregroundColor: scheme.onPrimaryContainer,
+                    ),
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh, size: 18),
+                    label: Text(l10n.bangumiSyncUpdate),
+                  ),
+                ],
+              ),
             const SizedBox(height: AppTokens.spaceXs),
-            // 展开/收起：选择具体集/章节
+
+            // 展开「选择具体集/章节」
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -594,28 +652,190 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                     : l10n.bangumiSyncExpandList),
               ),
             ),
-            if (_showEpCheckboxes) _buildEpCheckboxList(l10n),
-            const SizedBox(height: AppTokens.spaceLg),
-          ],
+            if (_showEpCheckboxes)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+                child: _buildEpCheckboxList(l10n),
+              ),
 
-          // 底部：公开/私密 + 同步
-          Row(children: <Widget>[
-            OutlinedButton.icon(
-              onPressed: () => setState(() => _private = !_private),
-              icon: Icon(_private ? Icons.lock : Icons.public, size: 18),
-              label: Text(_private ? l10n.bangumiPrivate : l10n.bangumiPublic),
+            const Divider(height: AppTokens.spaceLg),
+
+            // ───────── 高级选项（评分 / 吐槽 / 状态 / 公开私密） ─────────
+            Theme(
+              data: theme.copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: const EdgeInsets.only(
+                    bottom: AppTokens.spaceMd),
+                leading: Icon(Icons.tune, size: 20, color: scheme.primary),
+                title: Text(
+                  l10n.bangumiSyncAdvancedOptions,
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  l10n.bangumiSyncAdvancedHint,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                children: <Widget>[
+                  // 打星
+                  Row(children: <Widget>[
+                    Icon(Icons.star_outline, size: 18, color: scheme.primary),
+                    const SizedBox(width: AppTokens.spaceXs),
+                    Text(l10n.bangumiSyncRating,
+                        style: theme.textTheme.titleSmall),
+                    const Spacer(),
+                    if (_rate > 0)
+                      TextButton.icon(
+                        onPressed: () => setState(() => _rate = 0),
+                        icon: const Icon(Icons.clear, size: 16),
+                        label: Text(l10n.clear),
+                      ),
+                  ]),
+                  const SizedBox(height: AppTokens.spaceXs),
+                  _buildStarRating(theme, scheme, l10n),
+                  const SizedBox(height: AppTokens.spaceMd),
+
+                  // 吐槽
+                  TextField(
+                    controller: _commentCtrl,
+                    onChanged: (v) => _comment = v,
+                    maxLines: 4,
+                    minLines: 2,
+                    decoration: InputDecoration(
+                      labelText: l10n.bangumiSyncComment,
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppTokens.radiusMd)),
+                    ),
+                  ),
+                  const SizedBox(height: AppTokens.spaceMd),
+
+                  // 五状态
+                  Text(l10n.bangumiCollectionStatus,
+                      style: theme.textTheme.titleSmall),
+                  const SizedBox(height: AppTokens.spaceXs),
+                  Wrap(
+                    spacing: AppTokens.spaceXs,
+                    runSpacing: AppTokens.spaceXs,
+                    children: <Widget>[
+                      for (final e in states)
+                        ChoiceChip(
+                          label: Text(e.$2),
+                          selected: _type == e.$1,
+                          onSelected: (_) =>
+                              setState(() => _type = e.$1),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTokens.spaceMd),
+
+                  // 公开/私密
+                  Row(children: <Widget>[
+                    Icon(_private ? Icons.lock : Icons.public,
+                        size: 18, color: scheme.primary),
+                    const SizedBox(width: AppTokens.spaceXs),
+                    Text(
+                      _private ? l10n.bangumiPrivate : l10n.bangumiPublic,
+                      style: theme.textTheme.titleSmall,
+                    ),
+                    const Spacer(),
+                    Switch(
+                      value: _private,
+                      onChanged: (v) => setState(() => _private = v),
+                    ),
+                  ]),
+                ],
+              ),
             ),
-            const SizedBox(width: AppTokens.spaceSm),
-            Expanded(child: FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving ? const SizedBox(width: 16, height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.sync, size: 18),
-              label: Text(l10n.bangumiSync),
-            )),
-          ]),
+
+            const SizedBox(height: AppTokens.spaceMd),
+
+            // ───────── 底部：同步到 Bangumi（主操作） ─────────
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: AppTokens.spaceMd),
+                ),
+                icon: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.sync, size: 18),
+                label: Text(
+                  l10n.bangumiSync,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
         ],
-      ]),
+      ),
     );
+  }
+
+  /// 进度条 + 文本百分比（按 _progressCtrl 数字 vs 总数比例）。
+  Widget _buildProgressBar(
+      ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+    final n = int.tryParse(_progressCtrl.text.trim()) ?? 0;
+    final total = _totalCount();
+    final ratio = total > 0 ? (n / total).clamp(0.0, 1.0) : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+          child: LinearProgressIndicator(
+            value: ratio,
+            minHeight: 8,
+            backgroundColor: scheme.surfaceContainerHighest,
+            valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+          ),
+        ),
+        const SizedBox(height: AppTokens.spaceXs),
+        Text(
+          total > 0
+              ? '$n / $total'
+              : (n > 0 ? '$n' : '0'),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 进度数字旁的提示文本（动漫/漫画/小说单位不同）。
+  String _progressLabelText(AppLocalizations l10n) {
+    final total = _totalCount();
+    if (total > 0) return '${_unitWord(l10n)}: $total';
+    return '';
+  }
+
+  /// 总数：动漫= Bangumi 返回的 eps（按 _episodes.length 优先），书籍 = _detail.eps 兜底 24。
+  int _totalCount() {
+    if (_isAnime) {
+      if (_episodes != null && _episodes!.isNotEmpty) return _episodes!.length;
+      if ((_detail?.eps ?? 0) > 0) return _detail!.eps;
+    } else if (_isBook) {
+      if ((_detail?.eps ?? 0) > 0) return _detail!.eps;
+      return 24;
+    }
+    return 0;
+  }
+
+  /// 显示在 input 旁的 "X / Y" 中的 Y 部分。
+  String _totalLabel(AppLocalizations l10n) {
+    final total = _totalCount();
+    return total > 0 ? '$total' : '?';
   }
 }
