@@ -439,7 +439,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   // ───────────────────────── 打开内容 ─────────────────────────
 
   /// 打开播放器 / 阅读器。
-  void _openContent(Episode ep, int index) {
+  ///
+  /// [restoreProgress]：true 时阅读器恢复上次保存的页/章位置（用于「继续阅读」
+  /// 入口）。详情页章节列表点击时为 false（用户明确选择章节，应从该章开始
+  /// 翻阅）。漫画之前硬编码 false 导致「继续阅读」永远从章节首页开始，已修复。
+  void _openContent(Episode ep, int index, {bool restoreProgress = false}) {
     final String? sid = widget.item.sourceId;
     if (sid == null || sid.isEmpty) return;
     final String? detailUrl =
@@ -474,7 +478,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               sourceId: sid,
               chapters: _chapters,
               initialChapterIndex: index,
-              restoreProgress: false,
+              restoreProgress: restoreProgress,
               detailUrl: detailUrl,
               coverUrl: coverUrl,
             ),
@@ -489,6 +493,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               sourceId: sid,
               chapters: _chapters,
               initialChapterIndex: index,
+              restoreProgress: restoreProgress,
               detailUrl: detailUrl,
               coverUrl: coverUrl,
             ),
@@ -1135,8 +1140,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       actions: <Widget>[
         if (hasContinue)
           FilledButton.icon(
-            onPressed: () =>
-                _openContent(episodes[_continueIndex], _continueIndex),
+            onPressed: () => _openContent(
+                episodes[_continueIndex], _continueIndex,
+                restoreProgress: true),
             icon: Icon(_isChapterBased
                 ? Icons.auto_stories_outlined
                 : Icons.play_arrow),

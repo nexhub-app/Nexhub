@@ -5238,6 +5238,38 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bangumiSyncAdvancedHint => '评分 / 吐槽 / 状态 / 公开私密';
 
   @override
+  String get bangumiSyncChapLabel => 'Chap.';
+
+  @override
+  String get bangumiSyncVolLabel => 'Vol.';
+
+  @override
+  String get bangumiSyncIncrement => '+';
+
+  @override
+  String get bangumiSyncAnimeGridTitle => '章节';
+
+  @override
+  String get bangumiSyncAnimeGridHint => '点击格子标记已看 / 取消';
+
+  @override
+  String get bangumiSyncScheduleWeek => '周';
+
+  @override
+  String get bangumiSyncScheduleHour => '时';
+
+  @override
+  String get bangumiSyncScheduleMinute => '分';
+
+  @override
+  String bangumiSyncPageOf(int current, int total) {
+    return '$current / $total 页';
+  }
+
+  @override
+  String get bangumiSyncUnknown => '??';
+
+  @override
   String bangumiRatingValue(int count) {
     return '$count 分';
   }

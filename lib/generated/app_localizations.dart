@@ -10154,6 +10154,66 @@ abstract class AppLocalizations {
   /// **'Rating / Comment / Status / Privacy'**
   String get bangumiSyncAdvancedHint;
 
+  /// Chapter label in the book (manga/novel) sync dialog matching the source website UI
+  ///
+  /// In en, this message translates to:
+  /// **'Chap.'**
+  String get bangumiSyncChapLabel;
+
+  /// Volume label in the book (manga/novel) sync dialog matching the source website UI
+  ///
+  /// In en, this message translates to:
+  /// **'Vol.'**
+  String get bangumiSyncVolLabel;
+
+  /// Increment-by-one button next to the Chap./Vol. input in the book sync dialog
+  ///
+  /// In en, this message translates to:
+  /// **'+'**
+  String get bangumiSyncIncrement;
+
+  /// Section title above the episode grid in the anime sync dialog (matches source website '章节' heading)
+  ///
+  /// In en, this message translates to:
+  /// **'Episodes'**
+  String get bangumiSyncAnimeGridTitle;
+
+  /// Hint text under the episode grid explaining tap-to-toggle behavior
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a cell to toggle watched / unwatched'**
+  String get bangumiSyncAnimeGridHint;
+
+  /// Schedule label 'week' on the bottom bar of the anime sync dialog (informational placeholder, matches source website UI)
+  ///
+  /// In en, this message translates to:
+  /// **'W'**
+  String get bangumiSyncScheduleWeek;
+
+  /// Schedule label 'hour' on the bottom bar of the anime sync dialog (informational placeholder)
+  ///
+  /// In en, this message translates to:
+  /// **'H'**
+  String get bangumiSyncScheduleHour;
+
+  /// Schedule label 'minute' on the bottom bar of the anime sync dialog (informational placeholder)
+  ///
+  /// In en, this message translates to:
+  /// **'M'**
+  String get bangumiSyncScheduleMinute;
+
+  /// Page indicator text under the paginated episode grid (e.g. '●○')
+  ///
+  /// In en, this message translates to:
+  /// **'Page {current} / {total}'**
+  String bangumiSyncPageOf(int current, int total);
+
+  /// Placeholder for unknown total in 'N / ?? ' progress display, matching source website UI
+  ///
+  /// In en, this message translates to:
+  /// **'??'**
+  String get bangumiSyncUnknown;
+
   /// No description provided for @bangumiRatingValue.
   ///
   /// In en, this message translates to:

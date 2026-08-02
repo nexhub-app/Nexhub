@@ -398,6 +398,11 @@ class CollectionPayload {
   /// 已看集 / 已读章节数（仅书籍类条目可写），null 表示不携带。
   final int? epStatus;
 
+  /// 已读卷数（仅书籍类条目可写），null 表示不携带。
+  /// Bangumi API 字段为 `vol_status`，网站书籍收藏编辑页的「Vol.」即对应此值。
+  /// 旧实现遗漏该字段，导致漫画 / 小说的卷进度永远无法同步到 Bangumi。
+  final int? volStatus;
+
   /// 标签全量替换，null 表示不变更（空数组为清空）。
   final List<String>? tags;
 
@@ -409,6 +414,7 @@ class CollectionPayload {
     this.rate = 0,
     this.comment,
     this.epStatus,
+    this.volStatus,
     this.tags,
     this.private,
   });
@@ -418,6 +424,7 @@ class CollectionPayload {
         if (rate > 0) 'rate': rate,
         if (comment != null && comment!.isNotEmpty) 'comment': comment,
         if (epStatus != null) 'ep_status': epStatus,
+        if (volStatus != null) 'vol_status': volStatus,
         if (tags != null) 'tags': tags,
         if (private != null) 'private': private,
       };

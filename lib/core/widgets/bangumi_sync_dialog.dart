@@ -1,12 +1,16 @@
 /// Bangumi 收藏同步弹窗（详情页底栏「同步」按钮唤起）。
 ///
-/// 按源网站原版 UI 风格重设计：顶部「我的完成度」进度条 + 数字输入 +
-/// 更新按钮作为主操作区（参考 manga/novel 源站常见的「节奏稍快 / 我的完成度」面板）；
-/// 评分 / 吐槽 / 五状态 / 公开私密 等扩展项收纳到「高级选项」ExpansionTile 默认收起。
-/// 外层 [SingleChildScrollView] 兜底，避免内容过长溢出（窄屏 + 长吐槽 + 千集列表）。
+/// 按源站（com.czy0729.bangumi）原版 UI 重设计，分两套布局：
+/// - 书籍（漫画 / 小说）：`Chap.` + `Vol.` 数字步进 + `+` 按钮 + 更新（对应网站
+///   书籍收藏编辑页的章节 / 卷进度）；保存时同时 PATCH `ep_status` 与 `vol_status`。
+/// - 动漫（影视）：可点击的数字网格（逐集标记已看 / 取消）+ 分页（如 166-197，
+///   `第 4 / 46 页`）+ 周 / 时 / 分 放送信息条 + 更新。
+///
+/// 评分 / 吐槽 / 五状态 / 公开私密 收纳到「高级选项」ExpansionTile（默认收起），
+/// 点击「更新」或底部「同步到 Bangumi」统一提交（含进度 + 高级项）。
 ///
 /// 提交逻辑：底部「同步到 Bangumi」整体 PATCH /v0/users/-/collections/{subject_id}
-/// （未收藏时 client 自动回退 POST）；点击「更新」仅把进度推送到 Bangumi。
+/// （未收藏时 client 自动回退 POST）；动漫逐集用 markEpisodesWatched 标记差集。
 library;
 
 import 'package:flutter/material.dart';
@@ -71,42 +75,36 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   int _rate = 0;
   String _comment = '';
   int _type = BangumiCollectionType.wish;
+  /// 用户是否手动改过收藏状态（手动优先于自动判定）。
+  bool _typeTouched = false;
   bool _private = false;
   bool _saving = false;
 
   final TextEditingController _commentCtrl = TextEditingController();
-  final TextEditingController _progressCtrl = TextEditingController();
+  // 书籍：章节数（Chap.）/ 卷数（Vol.）。
+  final TextEditingController _chapCtrl = TextEditingController();
+  final TextEditingController _volCtrl = TextEditingController();
+  // 动漫：快速「标记前 N 集已看」。
+  final TextEditingController _quickCtrl = TextEditingController();
 
-  /// 用户手动选中的集/章节序号（1 起）。与数字框强镜像：
-  /// - 数字框 N 变化 → 勾选 1..N 全选；
-  /// - 勾选区变化 → 数字框 = max(已选序号)，空集时清空数字框。
-  /// 保存时：动漫用勾选对应的 Bangumi episode id 调 markEpisodesWatched；
-  /// 书籍（ep_status 字段）= max(已选序号)。
-  Set<int> _selectedIndexes = <int>{};
+  /// 动漫：已选（看过）的 Bangumi 剧集 id 集合（直接存 id，避免 sort 取整映射误差）。
+  Set<int> _selectedEpisodeIds = <int>{};
 
-  /// 是否展开逐集/章节勾选区（默认收起，避免上千集时弹窗过长）。
-  bool _showEpCheckboxes = false;
-
-  /// 展开时拉取的 Bangumi episode 列表（用于勾选 → id 的映射）。
+  /// 动漫剧集列表（_load 中拉取）。
   List<BangumiEpisode>? _episodes;
   bool _loadingEpisodes = false;
   String? _episodesLoadError;
 
+  /// 动漫剧集网格分页。
+  static const int _epPageSize = 30;
+  int _epPage = 0;
+
   /// 当前条目是否为动漫（走 episode 级标记）。
   bool get _isAnime => widget.sourceType == SourceType.animeSource;
 
-  /// 当前条目是否为书籍（漫画/小说，走 ep_status）。
+  /// 当前条目是否为书籍（漫画 / 小说，走 ep_status + vol_status）。
   bool get _isBook => widget.sourceType == SourceType.mangaSource ||
       widget.sourceType == SourceType.novelSource;
-
-  /// 多选列表的"集/话/章"单位：动漫=集、漫画=话、小说=章。用于总数标题。
-  String _unitWord(AppLocalizations l10n) {
-    if (_isAnime) return l10n.bangumiSyncUnitEp;
-    if (widget.sourceType == SourceType.mangaSource) {
-      return l10n.bangumiSyncUnitVolume;
-    }
-    return l10n.bangumiSyncUnitChapter;
-  }
 
   BangumiSyncService get _service => context.read<BangumiSyncService>();
 
@@ -120,7 +118,9 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   @override
   void dispose() {
     _commentCtrl.dispose();
-    _progressCtrl.dispose();
+    _chapCtrl.dispose();
+    _volCtrl.dispose();
+    _quickCtrl.dispose();
     super.dispose();
   }
 
@@ -140,12 +140,13 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
           _comment = remote.comment;
           _type = remote.type;
           _private = remote.isPrivate;
-          // 书籍预填远端 ep_status（1 起计数，0 表示未开始）。
-          if (_isBook && remote.epStatus > 0) {
-            _progressCtrl.text = '${remote.epStatus}';
-            _selectedIndexes = <int>{
-              for (int i = 1; i <= remote.epStatus; i++) i,
-            };
+        }
+        if (_isBook) {
+          if (remote != null && remote.epStatus > 0) {
+            _chapCtrl.text = '${remote.epStatus}';
+          }
+          if (remote != null && remote.volStatus > 0) {
+            _volCtrl.text = '${remote.volStatus}';
           }
         }
         _loading = false;
@@ -153,63 +154,59 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
     } catch (_) {
       if (!mounted) return;
       // 拉取失败仍允许手动设置（可能未收藏）。
-      setState(() {
-        _loading = false;
-      });
-    }
-  }
-
-  /// 数字框变化 → 同步勾选 1..N（Bangumi API 的"标记前 N 集已看"语义）。
-  /// 取消所有勾选：数字框清空。
-  void _onProgressChanged(String v) {
-    final n = int.tryParse(v.trim());
-    if (n == null || n <= 0) {
-      setState(() => _selectedIndexes = <int>{});
+      setState(() => _loading = false);
       return;
     }
-    setState(() {
-      _selectedIndexes = <int>{for (int i = 1; i <= n; i++) i};
-    });
+    if (_isAnime) _loadEpisodes();
   }
 
-  /// 勾选某项（idx 1 起）→ 数字框 = max(已选)；取消 → 数字框 = max(剩余已选)。
-  void _toggleIndex(int idx, bool? v) {
+  /// 动漫：拉取剧集列表并预填已看集（远端 collected 中 type==2 的）。
+  Future<void> _loadEpisodes() async {
+    if (!mounted) return;
     setState(() {
-      final next = <int>{..._selectedIndexes};
-      if (v == true) {
-        next.add(idx);
-      } else {
-        next.remove(idx);
-      }
-      _selectedIndexes = next;
-      final maxN = next.isEmpty ? 0 : next.reduce((a, b) => a > b ? a : b);
-      _progressCtrl.text = maxN == 0 ? '' : '$maxN';
+      _loadingEpisodes = true;
+      _episodesLoadError = null;
     });
-  }
-
-  /// 切换"选择具体集/章节"展开状态：首次展开时拉取 Bangumi episode 列表。
-  Future<void> _toggleShowList() async {
-    setState(() => _showEpCheckboxes = !_showEpCheckboxes);
-    if (_showEpCheckboxes && _episodes == null && !_loadingEpisodes) {
-      setState(() {
-        _loadingEpisodes = true;
-        _episodesLoadError = null;
-      });
+    try {
+      final eps = await widget.client.fetchEpisodes(widget.subjectId);
+      if (!mounted) return;
+      setState(() => _episodes = eps);
       try {
-        final eps = await widget.client.fetchEpisodes(widget.subjectId);
+        final remoteEps =
+            await widget.client.fetchCollectedEpisodes(widget.subjectId);
         if (!mounted) return;
-        setState(() {
-          _episodes = eps;
-          _loadingEpisodes = false;
-        });
-      } on Object catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _episodesLoadError = e.toString();
-          _loadingEpisodes = false;
-        });
+        final sel = <int>{
+          for (final ep in eps)
+            if ((remoteEps[ep.id] ?? 0) == 2) ep.id,
+        };
+        setState(() => _selectedEpisodeIds = sel);
+      } catch (_) {
+        /* 预填失败不阻断 */
       }
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _episodesLoadError = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingEpisodes = false);
     }
+  }
+
+  int _int(TextEditingController c) => int.tryParse(c.text.trim()) ?? 0;
+
+  void _increment(TextEditingController c) {
+    final n = _int(c);
+    c.text = '${n + 1}';
+    setState(() {});
+  }
+
+  /// 进度 (已读, 总数)，用于进度条与标题计数。
+  (int, int) _progress() {
+    if (_isBook) {
+      final total = (_detail?.eps ?? 0) > 0 ? _detail!.eps : 0;
+      return (_int(_chapCtrl), total);
+    }
+    final total = _episodes?.length ?? 0;
+    return (_selectedEpisodeIds.length, total);
   }
 
   Future<void> _save() async {
@@ -223,52 +220,63 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      // 数字框是"快捷主操作"；勾选区强镜像（max(已选) = 数字框值）。
-      // 这里直接读数字框作为最终进度输入——勾选区只是可视化与细调。
-      final progressText = _progressCtrl.text.trim();
-      final int? progress = progressText.isEmpty ? null : int.tryParse(progressText);
-
-      // 书籍：ep_status 直接随 PATCH 一起提交。
-      final int? bookEpStatus = (_isBook && progress != null && progress >= 0)
-          ? progress
-          : null;
-
-      // 1. PATCH 收藏（评分 / 吐槽 / 状态 / 公开私密 / 书籍进度）。
-      await widget.client.patchCollection(
-        widget.subjectId,
-        CollectionPayload(
-          type: _type,
-          rate: _rate,
-          comment: _comment.trim().isNotEmpty ? _comment.trim() : null,
-          private: _private,
-          epStatus: bookEpStatus,
-        ),
-      );
-
-      // 2. 动漫：用勾选区构造 episode id 集合并标记差集。
-      // 数字框 = max(已选) 时，勾选区 = {1..max}；若用户取消中间某项，
-      // 勾选区是"非连续子集"，Bangumi 仍能逐集标记。
-      if (_isAnime && _selectedIndexes.isNotEmpty) {
-        if (_episodes == null || _episodes!.isEmpty) {
-          // 列表未加载（用户未展开多选）时回退到"前 N 集"语义，
-          // 拉一次 episode 列表。
-          final episodes = await widget.client.fetchEpisodes(widget.subjectId);
-          if (!mounted) return;
-          _episodes = episodes;
+      if (_isBook) {
+        final chap = _int(_chapCtrl);
+        final vol = _int(_volCtrl);
+        final total = (_detail?.eps ?? 0) > 0 ? _detail!.eps : 0;
+        final desired = _typeTouched
+            ? _type
+            : (total > 0 && chap >= total
+                ? BangumiCollectionType.collect
+                : (chap > 0
+                    ? BangumiCollectionType.doing
+                    : BangumiCollectionType.wish));
+        await widget.client.patchCollection(
+          widget.subjectId,
+          CollectionPayload(
+            type: desired,
+            rate: _rate,
+            comment: _comment.trim().isNotEmpty ? _comment.trim() : null,
+            private: _private,
+            epStatus: chap,
+            volStatus: vol,
+          ),
+        );
+      } else {
+        final eps = _episodes ?? <BangumiEpisode>[];
+        final selected = <int>{..._selectedEpisodeIds};
+        final quick = _int(_quickCtrl);
+        if (quick > 0 && eps.isNotEmpty) {
+          final sorted = [...eps]
+            ..sort((a, b) => a.sort.compareTo(b.sort));
+          for (int i = 0; i < quick && i < sorted.length; i++) {
+            selected.add(sorted[i].id);
+          }
         }
-        final episodes = _episodes!;
-        final episodeIds = <int>[
-          for (final idx in _selectedIndexes)
-            for (final ep in episodes)
-              if (ep.sort.round() == idx) ep.id,
-        ];
-        if (episodeIds.isNotEmpty) {
-          // 增量标集：只标记远端尚未「看过」的差集（避免重复 PATCH）。
+        final desired = _typeTouched
+            ? _type
+            : (eps.isNotEmpty && selected.length >= eps.length
+                ? BangumiCollectionType.collect
+                : (selected.isNotEmpty
+                    ? BangumiCollectionType.doing
+                    : BangumiCollectionType.wish));
+        // 1) 先确保收藏存在并写入评分 / 吐槽 / 状态 / 隐私。
+        await widget.client.patchCollection(
+          widget.subjectId,
+          CollectionPayload(
+            type: desired,
+            rate: _rate,
+            comment: _comment.trim().isNotEmpty ? _comment.trim() : null,
+            private: _private,
+          ),
+        );
+        // 2) 增量标记已看集（仅差集）。
+        if (selected.isNotEmpty) {
           final remoteEps =
               await widget.client.fetchCollectedEpisodes(widget.subjectId);
           final diff = <int>[
-            for (final id in episodeIds)
-              if (remoteEps[id] != 2) id,
+            for (final id in selected)
+              if ((remoteEps[id] ?? 0) != 2) id,
           ];
           if (diff.isNotEmpty) {
             await widget.client.markEpisodesWatched(widget.subjectId, diff);
@@ -296,7 +304,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
     }
   }
 
-  /// 打星行（1-10）+ 当前分提示，点击星位设置/取消评分。
+  /// 打星行（1-10）+ 当前分提示。
   Widget _buildStarRating(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
       Row(children: <Widget>[
@@ -322,174 +330,6 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
           child: Text(l10n.bangumiRatingValue(_rate),
             style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
         ),
-    ]);
-  }
-
-  /// 逐集/章节勾选区（可滚动）。已选集合 [_selectedIndexes] 与数字框强镜像。
-  /// 动漫：episode 列表来自 Bangumi（按 sort 升序），每行按 sort 序号对应。
-  /// 书籍：Bangumi 没有 episode 概念，使用 _detail.eps（已知时）回退到本地序号。
-  Widget _buildEpCheckboxList(AppLocalizations l10n) {
-    final scheme = Theme.of(context).colorScheme;
-    final unit = _unitWord(l10n);
-    if (_loadingEpisodes) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
-        child: Row(children: <Widget>[
-          const SizedBox(
-            width: 16, height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: AppTokens.spaceSm),
-          Text(l10n.loading, style: TextStyle(color: scheme.onSurfaceVariant)),
-        ]),
-      );
-    }
-    if (_episodesLoadError != null) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
-        child: Text(
-          l10n.bangumiSyncLoadEpisodesFailed(_episodesLoadError!),
-          style: TextStyle(color: scheme.error, fontSize: 12),
-        ),
-      );
-    }
-    final eps = _episodes;
-    if (_isAnime) {
-      if (eps == null || eps.isEmpty) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
-          child: Text(
-            l10n.bangumiSyncNoEpisodeList(_detail?.eps ?? 0),
-            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
-          ),
-        );
-      }
-      return _buildAnimeCheckboxList(l10n, eps, unit);
-    }
-    // 书籍：直接用序号 1.._detail.eps（或 1..24 兜底）。
-    final total = (_detail?.eps ?? 0) > 0 ? _detail!.eps : 24;
-    return _buildBookCheckboxList(l10n, total, unit);
-  }
-
-  Widget _buildAnimeCheckboxList(
-    AppLocalizations l10n,
-    List<BangumiEpisode> eps,
-    String unit,
-  ) {
-    final selected = <int>{..._selectedIndexes};
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
-      // 顶部：全选/全不选 + 总数提示
-      Row(children: <Widget>[
-        TextButton.icon(
-          onPressed: () => setState(() {
-            _selectedIndexes = <int>{
-              for (int i = 1; i <= eps.length; i++) i,
-            };
-            _progressCtrl.text = '${eps.length}';
-          }),
-          icon: const Icon(Icons.check_box_outlined, size: 16),
-          label: Text(l10n.selectAll),
-        ),
-        TextButton.icon(
-          onPressed: () => setState(() {
-            _selectedIndexes = <int>{};
-            _progressCtrl.text = '';
-          }),
-          icon: const Icon(Icons.check_box_outline_blank, size: 16),
-          label: Text(l10n.deselectAll),
-        ),
-        const Spacer(),
-        Text(
-          l10n.bangumiSyncChaptersLoadedHint(eps.length, unit),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-      ]),
-      const SizedBox(height: AppTokens.spaceXs),
-      ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 240),
-        child: Scrollbar(
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: eps.length,
-            itemBuilder: (BuildContext ctx, int i) {
-              final ep = eps[i];
-              final idx = ep.sort.round();
-              if (idx < 1) return const SizedBox.shrink();
-              return CheckboxListTile(
-                value: selected.contains(idx),
-                onChanged: (v) {
-                  _toggleIndex(idx, v);
-                  // 强制 setState 触发 ListView 刷新（_toggleIndex 已 setState）。
-                },
-                title: Text(l10n.episodeN(idx)),
-                controlAffinity: ListTileControlAffinity.leading,
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-              );
-            },
-          ),
-        ),
-      ),
-    ]);
-  }
-
-  Widget _buildBookCheckboxList(
-    AppLocalizations l10n,
-    int total,
-    String unit,
-  ) {
-    final selected = <int>{..._selectedIndexes};
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
-      Row(children: <Widget>[
-        TextButton.icon(
-          onPressed: () => setState(() {
-            _selectedIndexes = <int>{for (int i = 1; i <= total; i++) i};
-            _progressCtrl.text = '$total';
-          }),
-          icon: const Icon(Icons.check_box_outlined, size: 16),
-          label: Text(l10n.selectAll),
-        ),
-        TextButton.icon(
-          onPressed: () => setState(() {
-            _selectedIndexes = <int>{};
-            _progressCtrl.text = '';
-          }),
-          icon: const Icon(Icons.check_box_outline_blank, size: 16),
-          label: Text(l10n.deselectAll),
-        ),
-        const Spacer(),
-        Text(
-          l10n.bangumiSyncChaptersTotal(total, unit),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-      ]),
-      const SizedBox(height: AppTokens.spaceXs),
-      ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 240),
-        child: Scrollbar(
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: total,
-            itemBuilder: (BuildContext ctx, int i) {
-              final idx = i + 1;
-              return CheckboxListTile(
-                value: selected.contains(idx),
-                onChanged: (v) => _toggleIndex(idx, v),
-                title: Text(_isBook && widget.sourceType == SourceType.mangaSource
-                    ? l10n.chapterN(idx)
-                    : l10n.novelChapterN(idx)),
-                controlAffinity: ListTileControlAffinity.leading,
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-              );
-            },
-          ),
-        ),
-      ),
     ]);
   }
 
@@ -519,13 +359,12 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // 顶部标题 + 关闭按钮
+          // 顶部标题 + 关闭
           Row(children: <Widget>[
             Expanded(
               child: Text(
                 titleText,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -551,141 +390,32 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
               ),
             )
           else ...<Widget>[
-            // ───────── 主区：「我的完成度」按网站样式 ─────────
-            // 标题行：左侧 label，右侧当前进度
-            Row(children: <Widget>[
-              Icon(Icons.bookmark_outline, size: 18, color: scheme.primary),
-              const SizedBox(width: AppTokens.spaceXs),
-              Text(
-                l10n.bangumiSyncMyCompletion,
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              const Spacer(),
-              if (_isAnime || _isBook)
-                Text(
-                  _progressLabelText(l10n),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-            ]),
-            const SizedBox(height: AppTokens.spaceSm),
-
-            // 进度条（网站原版样式：高亮当前比例 + 剩余灰色）
-            _buildProgressBar(theme, scheme, l10n),
             const SizedBox(height: AppTokens.spaceMd),
-
-            // 数字输入 + / total + 更新按钮（参考网站 UI）
-            if (_isAnime || _isBook)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  Expanded(
-                    child: TextField(
-                      controller: _progressCtrl,
-                      keyboardType: TextInputType.number,
-                      onChanged: _onProgressChanged,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: AppTokens.spaceSm,
-                            vertical: AppTokens.spaceSm),
-                        border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTokens.radiusMd),
-                          borderSide: BorderSide(color: scheme.outline),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTokens.radiusMd),
-                          borderSide:
-                              BorderSide(color: scheme.primary, width: 2),
-                        ),
-                      ),
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: AppTokens.spaceSm),
-                    child: Text(
-                      '/ ${_totalLabel(l10n)}',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                    ),
-                  ),
-                  FilledButton.icon(
-                    onPressed: _saving ? null : _save,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: scheme.primaryContainer,
-                      foregroundColor: scheme.onPrimaryContainer,
-                    ),
-                    icon: _saving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh, size: 18),
-                    label: Text(l10n.bangumiSyncUpdate),
-                  ),
-                ],
-              ),
-            const SizedBox(height: AppTokens.spaceXs),
-
-            // 展开「选择具体集/章节」
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _toggleShowList,
-                icon: Icon(
-                  _showEpCheckboxes
-                      ? Icons.expand_less
-                      : Icons.expand_more,
-                  size: 18,
-                ),
-                label: Text(_showEpCheckboxes
-                    ? l10n.bangumiSyncCollapseList
-                    : l10n.bangumiSyncExpandList),
-              ),
-            ),
-            if (_showEpCheckboxes)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
-                child: _buildEpCheckboxList(l10n),
-              ),
-
+            if (_isAnime) _buildAnimeSection(theme, scheme, l10n)
+            else _buildBookSection(theme, scheme, l10n),
             const Divider(height: AppTokens.spaceLg),
 
-            // ───────── 高级选项（评分 / 吐槽 / 状态 / 公开私密） ─────────
+            // 高级选项（评分 / 吐槽 / 状态 / 公开私密）
             Theme(
               data: theme.copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
                 tilePadding: EdgeInsets.zero,
-                childrenPadding: const EdgeInsets.only(
-                    bottom: AppTokens.spaceMd),
+                childrenPadding:
+                    const EdgeInsets.only(bottom: AppTokens.spaceMd),
                 leading: Icon(Icons.tune, size: 20, color: scheme.primary),
                 title: Text(
                   l10n.bangumiSyncAdvancedOptions,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
                   l10n.bangumiSyncAdvancedHint,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                 ),
                 children: <Widget>[
-                  // 打星
                   Row(children: <Widget>[
                     Icon(Icons.star_outline, size: 18, color: scheme.primary),
                     const SizedBox(width: AppTokens.spaceXs),
-                    Text(l10n.bangumiSyncRating,
-                        style: theme.textTheme.titleSmall),
+                    Text(l10n.bangumiSyncRating, style: theme.textTheme.titleSmall),
                     const Spacer(),
                     if (_rate > 0)
                       TextButton.icon(
@@ -697,8 +427,6 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                   const SizedBox(height: AppTokens.spaceXs),
                   _buildStarRating(theme, scheme, l10n),
                   const SizedBox(height: AppTokens.spaceMd),
-
-                  // 吐槽
                   TextField(
                     controller: _commentCtrl,
                     onChanged: (v) => _comment = v,
@@ -708,15 +436,11 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                       labelText: l10n.bangumiSyncComment,
                       alignLabelWithHint: true,
                       border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTokens.radiusMd)),
+                          borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
                     ),
                   ),
                   const SizedBox(height: AppTokens.spaceMd),
-
-                  // 五状态
-                  Text(l10n.bangumiCollectionStatus,
-                      style: theme.textTheme.titleSmall),
+                  Text(l10n.bangumiCollectionStatus, style: theme.textTheme.titleSmall),
                   const SizedBox(height: AppTokens.spaceXs),
                   Wrap(
                     spacing: AppTokens.spaceXs,
@@ -726,14 +450,14 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                         ChoiceChip(
                           label: Text(e.$2),
                           selected: _type == e.$1,
-                          onSelected: (_) =>
-                              setState(() => _type = e.$1),
+                          onSelected: (_) => setState(() {
+                            _type = e.$1;
+                            _typeTouched = true;
+                          }),
                         ),
                     ],
                   ),
                   const SizedBox(height: AppTokens.spaceMd),
-
-                  // 公开/私密
                   Row(children: <Widget>[
                     Icon(_private ? Icons.lock : Icons.public,
                         size: 18, color: scheme.primary),
@@ -751,24 +475,21 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                 ],
               ),
             ),
-
             const SizedBox(height: AppTokens.spaceMd),
 
-            // ───────── 底部：同步到 Bangumi（主操作） ─────────
+            // 底部主操作：同步到 Bangumi（含进度 + 高级项）
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: _saving ? null : _save,
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: AppTokens.spaceMd),
+                  padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceMd),
                 ),
                 icon: _saving
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.sync, size: 18),
                 label: Text(
@@ -783,59 +504,316 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
     );
   }
 
-  /// 进度条 + 文本百分比（按 _progressCtrl 数字 vs 总数比例）。
-  Widget _buildProgressBar(
-      ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
-    final n = int.tryParse(_progressCtrl.text.trim()) ?? 0;
-    final total = _totalCount();
-    final ratio = total > 0 ? (n / total).clamp(0.0, 1.0) : 0.0;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-          child: LinearProgressIndicator(
-            value: ratio,
-            minHeight: 8,
-            backgroundColor: scheme.surfaceContainerHighest,
-            valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
-          ),
-        ),
-        const SizedBox(height: AppTokens.spaceXs),
+  /// 书籍（漫画 / 小说）：Chap. + Vol. 步进 + 更新。
+  Widget _buildBookSection(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+    final (done, total) = _progress();
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
+      Row(children: <Widget>[
+        Icon(Icons.bookmark_outline, size: 18, color: scheme.primary),
+        const SizedBox(width: AppTokens.spaceXs),
+        Text(l10n.bangumiSyncMyCompletion,
+          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        const Spacer(),
         Text(
-          total > 0
-              ? '$n / $total'
-              : (n > 0 ? '$n' : '0'),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: scheme.onSurfaceVariant,
+          total > 0 ? '$done / $total' : '$done / ${l10n.bangumiSyncUnknown}',
+          style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+      ]),
+      const SizedBox(height: AppTokens.spaceSm),
+      _buildProgressBar(theme, scheme, done, total),
+      const SizedBox(height: AppTokens.spaceMd),
+      Row(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
+        _buildStepper(theme, scheme, l10n.bangumiSyncChapLabel, _chapCtrl),
+        const SizedBox(width: AppTokens.spaceMd),
+        _buildStepper(theme, scheme, l10n.bangumiSyncVolLabel, _volCtrl),
+        const SizedBox(width: AppTokens.spaceMd),
+        FilledButton.icon(
+          onPressed: _saving ? null : _save,
+          style: FilledButton.styleFrom(
+            backgroundColor: scheme.primaryContainer,
+            foregroundColor: scheme.onPrimaryContainer,
+          ),
+          icon: _saving
+              ? const SizedBox(
+                  width: 16, height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh, size: 18),
+          label: Text(l10n.bangumiSyncUpdate),
+        ),
+      ]),
+    ]);
+  }
+
+  /// 单个 Chap./Vol. 步进控件：标签 + 数字输入 + `+` 按钮。
+  Widget _buildStepper(
+    ThemeData theme,
+    ColorScheme scheme,
+    String label,
+    TextEditingController ctrl,
+  ) {
+    return Expanded(
+      child: Row(children: <Widget>[
+        SizedBox(
+          width: 46,
+          child: Text(label,
+            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        ),
+        Expanded(
+          child: TextField(
+            controller: ctrl,
+            keyboardType: TextInputType.number,
+            onChanged: (_) => setState(() {}),
+            textAlign: TextAlign.center,
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceSm),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                borderSide: BorderSide(color: scheme.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                borderSide: BorderSide(color: scheme.primary, width: 2),
+              ),
+            ),
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
-      ],
+        IconButton(
+          onPressed: () => _increment(ctrl),
+          icon: const Icon(Icons.add),
+          tooltip: AppLocalizations.of(context).bangumiSyncIncrement,
+          visualDensity: VisualDensity.compact,
+        ),
+      ]),
     );
   }
 
-  /// 进度数字旁的提示文本（动漫/漫画/小说单位不同）。
-  String _progressLabelText(AppLocalizations l10n) {
-    final total = _totalCount();
-    if (total > 0) return '${_unitWord(l10n)}: $total';
-    return '';
+  /// 动漫：数字网格 + 分页 + 周/时/分 + 更新。
+  Widget _buildAnimeSection(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+    final (done, total) = _progress();
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
+      Row(children: <Widget>[
+        Icon(Icons.playlist_play, size: 18, color: scheme.primary),
+        const SizedBox(width: AppTokens.spaceXs),
+        Text(l10n.bangumiSyncAnimeGridTitle,
+          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        const Spacer(),
+        Text(
+          total > 0 ? '$done / $total' : '$done / ${l10n.bangumiSyncUnknown}',
+          style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+      ]),
+      const SizedBox(height: AppTokens.spaceXs),
+      Text(l10n.bangumiSyncAnimeGridHint,
+        style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+      const SizedBox(height: AppTokens.spaceSm),
+      _buildEpisodeGrid(theme, scheme, l10n),
+      const SizedBox(height: AppTokens.spaceSm),
+      _buildPageNav(theme, scheme, l10n),
+      const SizedBox(height: AppTokens.spaceMd),
+      // 快速「标记前 N 集已看」+ 更新
+      Row(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
+        Expanded(
+          child: TextField(
+            controller: _quickCtrl,
+            keyboardType: TextInputType.number,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              isDense: true,
+              labelText: l10n.bangumiSyncWatchedEpisodes,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceSm),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                borderSide: BorderSide(color: scheme.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                borderSide: BorderSide(color: scheme.primary, width: 2),
+              ),
+            ),
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(width: AppTokens.spaceMd),
+        FilledButton.icon(
+          onPressed: _saving ? null : _save,
+          style: FilledButton.styleFrom(
+            backgroundColor: scheme.primaryContainer,
+            foregroundColor: scheme.onPrimaryContainer,
+          ),
+          icon: _saving
+              ? const SizedBox(
+                  width: 16, height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh, size: 18),
+          label: Text(l10n.bangumiSyncUpdate),
+        ),
+      ]),
+      const SizedBox(height: AppTokens.spaceMd),
+      _buildScheduleBar(theme, scheme, l10n),
+    ]);
   }
 
-  /// 总数：动漫= Bangumi 返回的 eps（按 _episodes.length 优先），书籍 = _detail.eps 兜底 24。
-  int _totalCount() {
-    if (_isAnime) {
-      if (_episodes != null && _episodes!.isNotEmpty) return _episodes!.length;
-      if ((_detail?.eps ?? 0) > 0) return _detail!.eps;
-    } else if (_isBook) {
-      if ((_detail?.eps ?? 0) > 0) return _detail!.eps;
-      return 24;
+  Widget _buildEpisodeGrid(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+    final eps = _episodes;
+    if (eps == null) {
+      if (_loadingEpisodes) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
+          child: Row(children: <Widget>[
+            const SizedBox(width: 16, height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(width: AppTokens.spaceSm),
+            Text(l10n.loading, style: TextStyle(color: scheme.onSurfaceVariant)),
+          ]),
+        );
+      }
+      if (_episodesLoadError != null) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
+          child: Text(l10n.bangumiSyncLoadEpisodesFailed(_episodesLoadError!),
+            style: TextStyle(color: scheme.error, fontSize: 12)),
+        );
+      }
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
+        child: Text(l10n.bangumiSyncNoEpisodeList(_detail?.eps ?? 0),
+          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+      );
     }
-    return 0;
+    if (eps.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
+        child: Text(l10n.bangumiSyncNoEpisodeList(_detail?.eps ?? 0),
+          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+      );
+    }
+    final totalPages = (eps.length / _epPageSize).ceil();
+    if (_epPage >= totalPages) _epPage = totalPages - 1;
+    final start = _epPage * _epPageSize;
+    final end = (start + _epPageSize).clamp(0, eps.length);
+    final pageEps = eps.sublist(start, end);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 300),
+      child: SingleChildScrollView(
+        child: Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: <Widget>[
+            for (final ep in pageEps) _buildEpCell(theme, scheme, ep),
+          ],
+        ),
+      ),
+    );
   }
 
-  /// 显示在 input 旁的 "X / Y" 中的 Y 部分。
-  String _totalLabel(AppLocalizations l10n) {
-    final total = _totalCount();
-    return total > 0 ? '$total' : '?';
+  Widget _buildEpCell(ThemeData theme, ColorScheme scheme, BangumiEpisode ep) {
+    final selected = _selectedEpisodeIds.contains(ep.id);
+    return InkWell(
+      onTap: () => setState(() {
+        if (selected) {
+          _selectedEpisodeIds.remove(ep.id);
+        } else {
+          _selectedEpisodeIds.add(ep.id);
+        }
+      }),
+      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+      child: Container(
+        width: 40,
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? scheme.primary : scheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+          border: Border.all(
+            color: selected ? scheme.primary : scheme.outline,
+          ),
+        ),
+        child: Text('${ep.sort.round()}',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          )),
+      ),
+    );
+  }
+
+  Widget _buildPageNav(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+    final eps = _episodes;
+    if (eps == null || eps.isEmpty) return const SizedBox.shrink();
+    final totalPages = (eps.length / _epPageSize).ceil();
+    final start = _epPage * _epPageSize + 1;
+    final end = (_epPage * _epPageSize + _epPageSize).clamp(0, eps.length);
+    return Row(mainAxisAlignment: MainAxisAlignment.center, children: <Widget>[
+      IconButton(
+        onPressed: _epPage > 0 ? () => setState(() => _epPage--) : null,
+        icon: const Icon(Icons.navigate_before),
+        visualDensity: VisualDensity.compact,
+      ),
+      Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
+        Text('$start–$end',
+          style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+        Text(l10n.bangumiSyncPageOf(_epPage + 1, totalPages),
+          style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+      ]),
+      IconButton(
+        onPressed: _epPage < totalPages - 1 ? () => setState(() => _epPage++) : null,
+        icon: const Icon(Icons.navigate_next),
+        visualDensity: VisualDensity.compact,
+      ),
+    ]);
+  }
+
+  /// 周 / 时 / 分 放送信息条（周从 air_date 推算，时/分无数据时为 —）。
+  Widget _buildScheduleBar(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+    const weekdays = <String>['一', '二', '三', '四', '五', '六', '日'];
+    String weekday = '—';
+    final air = _detail?.airDate;
+    if (air != null && air.isNotEmpty) {
+      final dt = DateTime.tryParse(air);
+      if (dt != null) weekday = '周${weekdays[dt.weekday - 1]}';
+    }
+    final items = <(String, String)>[
+      (l10n.bangumiSyncScheduleWeek, weekday),
+      (l10n.bangumiSyncScheduleHour, '—'),
+      (l10n.bangumiSyncScheduleMinute, '—'),
+    ];
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceXs),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: <Widget>[
+        for (final e in items)
+          Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
+            Text(e.$1, style: theme.textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 2),
+            Text(e.$2, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+          ]),
+      ]),
+    );
+  }
+
+  /// 进度条 + 文本百分比。
+  Widget _buildProgressBar(ThemeData theme, ColorScheme scheme, int done, int total) {
+    final ratio = total > 0 ? (done / total).clamp(0.0, 1.0) : 0.0;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
+      ClipRRect(
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        child: LinearProgressIndicator(
+          value: ratio,
+          minHeight: 8,
+          backgroundColor: scheme.surfaceContainerHighest,
+          valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+        ),
+      ),
+    ]);
   }
 }

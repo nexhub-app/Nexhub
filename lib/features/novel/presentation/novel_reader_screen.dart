@@ -14,6 +14,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 import '../../../core/comic/models/reader_preferences.dart'
     show ReaderTapZoneLayout, TapZoneInvert;
 import '../../../core/favorites/favorites_manager.dart';
+import '../../../core/history/history_manager.dart';
 import '../../../core/history/media_watched_manager.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
@@ -73,6 +74,11 @@ class NovelReaderScreen extends StatefulWidget {
   /// 封面 URL（用于收藏时透传，避免收藏书架缺封面）。
   final String? coverUrl;
 
+  /// 是否恢复上次阅读进度：true 时从 [NovelProgressManager] 加载保存的
+  /// chapterIndex / currentPage；false 时使用 [initialChapterIndex]（详情页
+  /// 章节列表点击场景）。默认 true（与本地模式等场景保持原行为兼容）。
+  final bool restoreProgress;
+
   const NovelReaderScreen({
     super.key,
     required this.novelId,
@@ -83,6 +89,7 @@ class NovelReaderScreen extends StatefulWidget {
     this.localTextPath,
     this.detailUrl,
     this.coverUrl,
+    this.restoreProgress = true,
   });
 
   @override
@@ -341,7 +348,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final saved = await _progress.get(widget.novelId);
     // 本地模式只有单「章」（整个文件），saved.chapterIndex 恒为 0；
     // 在线模式需校验 chapterIndex 落在 chapters 范围内。
-    if (saved != null &&
+    // restoreProgress=false 时（详情页章节列表明确点选）忽略保存值。
+    if (widget.restoreProgress &&
+        saved != null &&
         (_isLocalMode || saved.chapterIndex < widget.chapters.length)) {
       _chapterIndex = saved.chapterIndex;
       _savedPage = saved.currentPage;
@@ -946,11 +955,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   void _saveProgress(int page) {
     // 本地模式无 chapters，用占位 chapterId 保存进度。
     final String chapterId;
+    String? chapterTitle;
     if (_isLocalMode) {
       chapterId = 'local';
     } else {
       if (widget.chapters.isEmpty) return;
       chapterId = widget.chapters[_chapterIndex].id;
+      chapterTitle = widget.chapters[_chapterIndex].title;
     }
     _progress.save(
       widget.novelId,
@@ -967,6 +978,26 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           );
     } catch (_) {
       // FavoritesManager 不可用时静默忽略。
+    }
+    // 写浏览历史：让「历史」Tab 看到最近读到的章节标题，
+    // 续读/继续阅读入口可基于 lastChapter 精确定位。
+    try {
+      final history = context.read<HistoryManager>();
+      final item = MediaItem(
+        id: widget.novelId,
+        title: widget.title,
+        sourceId: widget.sourceId,
+        sourceType: SourceType.novelSource,
+        coverUrl: widget.coverUrl,
+        detailUrl: widget.detailUrl,
+      );
+      unawaited(history.addHistory(
+        item,
+        lastChapter: chapterTitle,
+        sourceType: SourceType.novelSource,
+      ));
+    } catch (_) {
+      // HistoryManager 不可用时静默忽略。
     }
     // 章节阅读进度达到「已看」阈值时标记该章已读（每章仅标记一次）。
     _maybeMarkChapterWatched(page);

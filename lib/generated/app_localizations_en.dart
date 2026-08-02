@@ -5314,6 +5314,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bangumiSyncAdvancedHint => 'Rating / Comment / Status / Privacy';
 
   @override
+  String get bangumiSyncChapLabel => 'Chap.';
+
+  @override
+  String get bangumiSyncVolLabel => 'Vol.';
+
+  @override
+  String get bangumiSyncIncrement => '+';
+
+  @override
+  String get bangumiSyncAnimeGridTitle => 'Episodes';
+
+  @override
+  String get bangumiSyncAnimeGridHint => 'Tap a cell to toggle watched / unwatched';
+
+  @override
+  String get bangumiSyncScheduleWeek => 'W';
+
+  @override
+  String get bangumiSyncScheduleHour => 'H';
+
+  @override
+  String get bangumiSyncScheduleMinute => 'M';
+
+  @override
+  String bangumiSyncPageOf(int current, int total) {
+    return 'Page $current / $total';
+  }
+
+  @override
+  String get bangumiSyncUnknown => '??';
+
+  @override
   String bangumiRatingValue(int count) {
     return '$count / 10';
   }

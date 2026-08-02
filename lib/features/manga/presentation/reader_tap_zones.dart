@@ -93,6 +93,13 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
   DateTime? _downTime;
   bool _downShift = false;
 
+  /// 覆盖层实际尺寸（Listener 的父级 LayoutBuilder 测得）。热区命中判定必须用
+  /// 此尺寸而非屏幕尺寸 [MediaQuery.sizeOf]：阅读区下方有 AppBar / BottomBar /
+  /// 状态栏占位时，屏幕高度 > 阅读区高度，热区按比例算出后整体下移，底部热区
+  /// 落在可视区之外，用户点不到。非全屏时尤其明显；全屏沉浸时两尺寸恰好相等
+  /// 故 bug 被掩盖。
+  Size? _currentSize;
+
   // 双击检测：记录上一次「已分发的单击」时间与位置。
   DateTime? _lastTapTime;
   Offset? _lastTapPos;
@@ -253,7 +260,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
       return;
     }
 
-    final size = MediaQuery.sizeOf(context);
+    final size = _currentSize ?? MediaQuery.sizeOf(context);
     final action = _actionAt(e.localPosition, size.width, size.height);
     if (action == null) return;
 
@@ -372,12 +379,26 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     // - opaque 会独占命中，导致翻页滑动、条漫滚动等手势全部失效；
     // - translucent 仍能接收指针（单击照常分发 prev/next/toggle、双击缩放），
     //   同时底层可滚动内容照常响应拖拽。
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: _onPointerDown,
-      onPointerMove: _onPointerMove,
-      onPointerUp: _onPointerUp,
-      child: const SizedBox.expand(),
+    //
+    // LayoutBuilder 记录自身尺寸到 state，让热区命中使用「覆盖层几何」而非
+    // 屏幕尺寸（修复 AppBar/BottomBar 占用高度时点击位置偏移、点不到的问题）。
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final size = constraints.biggest.isFinite
+            ? constraints.biggest
+            : MediaQuery.sizeOf(ctx);
+        // 同尺寸多次 build 时不触发 setState，避免 PointerUp 期间出现 build。
+        if (_currentSize != size) {
+          _currentSize = size;
+        }
+        return Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _onPointerDown,
+          onPointerMove: _onPointerMove,
+          onPointerUp: _onPointerUp,
+          child: const SizedBox.expand(),
+        );
+      },
     );
   }
 }
