@@ -1,26 +1,23 @@
-/// Data import / export screen — supports custom export folder (persisted)
-/// and real JSON bundle round-trip (D4 import / D5 export).
+/// 数据导入 / 导出屏幕 —— 基于统一备份归档模块 [backup_archive]。
+///
+/// 与云同步共用同一 bundle 结构，支持：
+/// - 导出时按分类勾选（源与订阅 / 收藏书签 / 进度历史 / 设置偏好 / 下载 / 弹幕缓存）；
+/// - 导入时预览数据条数，并选择「合并（保留本地）」或「覆盖（以备份为准）」。
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:provider/provider.dart';
 
-import '../../../core/favorites/favorites_manager.dart';
-import '../../../core/history/history_manager.dart';
-import '../../../core/services/source_repository.dart';
+import '../../../core/services/backup_archive.dart';
 import '../../../core/settings/data_export_config.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/widgets/app_list_tile.dart';
-import 'package:nexhub/core/widgets/app_alert_dialog.dart';
-
-/// Export scope selected from the three export entries.
-enum _ExportScope { all, subscription, plugins }
+import '../../../core/widgets/backup_category_selector.dart';
 
 class SettingsImportExportScreen extends StatefulWidget {
   const SettingsImportExportScreen({super.key});
@@ -34,6 +31,14 @@ class _SettingsImportExportScreenState
     extends State<SettingsImportExportScreen> {
   String _exportFolder = '';
   final DataExportConfigStore _store = DataExportConfigStore();
+  Set<BackupCategory> _selected = <BackupCategory>{
+    BackupCategory.source,
+    BackupCategory.bookmark,
+    BackupCategory.progress,
+    BackupCategory.settings,
+    BackupCategory.download,
+    BackupCategory.danmaku,
+  };
 
   @override
   void initState() {
@@ -55,7 +60,7 @@ class _SettingsImportExportScreenState
     return null;
   }
 
-  // ── D4: Import ──────────────────────────────────────────────────────────────
+  // ── 导入 ───────────────────────────────────────────────────────────────
 
   Future<void> _pickImportFile() async {
     final l10n = AppLocalizations.of(context);
@@ -74,109 +79,109 @@ class _SettingsImportExportScreenState
     _snack(l10n.importDataParsing);
     try {
       final text = await File(filePath).readAsString();
-      final data = jsonDecode(text);
-      if (data is! Map<String, dynamic>) {
-        throw const FormatException('Invalid bundle structure');
-      }
-      final plugins = data['plugins'];
-      final favorites = data['favorites'];
-      final history = data['history'];
-      if ((plugins != null && plugins is! List) ||
-          (favorites != null && favorites is! List) ||
-          (history != null && history is! List)) {
-        throw const FormatException('Invalid bundle structure');
-      }
+      final bundle = decodeBackupBundle(text);
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      await _showImportPreview(
-        plugins: plugins as List<dynamic>? ?? const <dynamic>[],
-        favorites: favorites as List<dynamic>? ?? const <dynamic>[],
-        history: history as List<dynamic>? ?? const <dynamic>[],
-      );
-    } on FormatException {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      _snack(l10n.importDataInvalidFormat);
-    } catch (_) {
+      if (bundle == null || !isValidBackupBundle(bundle)) {
+        _snack(l10n.importDataInvalidFormat);
+        return;
+      }
+      await _showImportPreview(bundle);
+    } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       _snack(l10n.importDataFailed);
     }
   }
 
-  Future<void> _showImportPreview({
-    required List<dynamic> plugins,
-    required List<dynamic> favorites,
-    required List<dynamic> history,
-  }) async {
+  Future<void> _showImportPreview(Map<String, dynamic> bundle) async {
     final l10n = AppLocalizations.of(context);
+    final count = countBundleEntries(bundle);
+    var merge = true; // 默认合并（更安全）
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AppAlertDialog(
-        title: Text(l10n.importPreviewTitle(
-            plugins.length + favorites.length + history.length)),
-        content: Text(
-          l10n.importDataSummary(
-            plugins.length,
-            favorites.length,
-            history.length,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setInner) => AppAlertDialog(
+          title: Text(l10n.backupPreviewTitle(count)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(l10n.backupImportMode),
+              const SizedBox(height: AppTokens.spaceSm),
+              SegmentedButton<bool>(
+                segments: <ButtonSegment<bool>>[
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text(l10n.backupMerge),
+                  ),
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text(l10n.backupReplace),
+                  ),
+                ],
+                selected: <bool>{merge},
+                onSelectionChanged: (sel) => setInner(() => merge = sel.first),
+              ),
+              const SizedBox(height: AppTokens.spaceXs),
+              Text(
+                merge ? l10n.backupMergeDesc : l10n.backupReplaceDesc,
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+            ],
           ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.confirmImport),
+            ),
+          ],
         ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.confirmImport),
-          ),
-        ],
       ),
     );
 
     if (confirmed != true || !mounted) return;
-
-    final repo = context.read<SourceRepository>();
-    final fav = context.read<FavoritesManager>();
-    final hist = context.read<HistoryManager>();
     try {
-      repo.importFromList(plugins);
-      await fav.importFromList(favorites);
-      await hist.importFromList(history);
+      await applyBackupBundle(bundle, merge: merge);
       if (!mounted) return;
-      _snack(
-        l10n.importDataSummary(
-          plugins.length,
-          favorites.length,
-          history.length,
-        ),
-      );
-    } catch (_) {
+      _snack(l10n.importDataSuccess);
+    } on Object {
       if (!mounted) return;
       _snack(l10n.importDataFailed);
     }
   }
 
-  // ── D5: Export ─────────────────────────────────────────────────────────────
+  // ── 导出 ───────────────────────────────────────────────────────────────
 
-  void _showExportFolderPicker(BuildContext context,
-      {required _ExportScope scope}) {
+  Future<void> _showExportSheet() async {
     final l10n = AppLocalizations.of(context);
-    showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(AppTokens.radiusXl),
         ),
       ),
-      builder: (ctx) {
-        return Padding(
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        expand: false,
+        builder: (sheetCtx, _) => Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: AppTokens.spaceLg,
+            right: AppTokens.spaceLg,
+            top: AppTokens.spaceMd,
+            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppTokens.spaceLg,
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Center(
                 child: Container(
@@ -184,7 +189,7 @@ class _SettingsImportExportScreenState
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Theme.of(ctx)
+                    color: Theme.of(sheetCtx)
                         .colorScheme
                         .onSurfaceVariant
                         .withValues(alpha: 0.3),
@@ -192,84 +197,148 @@ class _SettingsImportExportScreenState
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(AppTokens.spaceLg),
-                child: Text(
-                  l10n.selectExportFolder,
-                  style: Theme.of(ctx).textTheme.titleMedium,
-                ),
+              const SizedBox(height: AppTokens.spaceMd),
+              BackupCategorySelector(
+                selected: _selected,
+                onChanged: (next) => setState(() => _selected = next),
               ),
+              const SizedBox(height: AppTokens.spaceMd),
+              FilledButton.icon(
+                onPressed: _selected.isEmpty
+                    ? null
+                    : () {
+                        Navigator.pop(sheetCtx);
+                        _showFolderThenExport();
+                      },
+                icon: const Icon(Icons.file_upload_outlined),
+                label: Text(l10n.exportData),
+              ),
+              if (_selected.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppTokens.spaceSm),
+                  child: Text(
+                    l10n.backupScopeNone,
+                    style: Theme.of(sheetCtx)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(
+                          color: Theme.of(sheetCtx).colorScheme.error,
+                        ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showFolderThenExport() async {
+    final l10n = AppLocalizations.of(context);
+    String? folder = _exportFolder.isNotEmpty ? _exportFolder : null;
+    if (folder == null) {
+      // 未设置自定义目录：询问默认 or 自定义
+      final choice = await showModalBottomSheet<String>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppTokens.radiusXl),
+          ),
+        ),
+        builder: (ctx) => Padding(
+          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
               ListTile(
                 leading: const Icon(Icons.folder_special),
                 title: Text(l10n.exportFolderDefault),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final dir = await getApplicationDocumentsDirectory();
-                  final exportDir = Directory('${dir.path}/NexHub/Exports');
-                  if (!exportDir.existsSync()) {
-                    exportDir.createSync(recursive: true);
-                  }
-                  if (!mounted) return;
-                  await _doExport(exportDir.path, scope);
-                },
+                onTap: () => Navigator.pop(ctx, 'default'),
               ),
               ListTile(
                 leading: const Icon(Icons.save_outlined),
                 title: Text(l10n.exportFolderCustom),
-                subtitle:
-                    _exportFolder.isNotEmpty ? Text(_exportFolder) : null,
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final folder = await _pickExportFolder();
-                  if (folder != null && mounted) {
-                    await _doExport(folder, scope);
-                  }
-                },
+                onTap: () => Navigator.pop(ctx, 'custom'),
               ),
-              const SizedBox(height: AppTokens.spaceXl),
             ],
           ),
-        );
-      },
-    );
+        ),
+      );
+      if (choice == 'default') {
+        final dir = await getApplicationDocumentsDirectory();
+        final exportDir = Directory('${dir.path}/NexHub/Exports');
+        if (!exportDir.existsSync()) exportDir.createSync(recursive: true);
+        folder = exportDir.path;
+      } else if (choice == 'custom') {
+        folder = await _pickExportFolder();
+      }
+    } else {
+      // 已设置自定义目录：直接询问是否改用默认
+      final choice = await showModalBottomSheet<String>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppTokens.radiusXl),
+          ),
+        ),
+        builder: (ctx) => Padding(
+          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.folder_special),
+                title: Text(l10n.exportFolderDefault),
+                subtitle: _exportFolder.isNotEmpty ? Text(_exportFolder) : null,
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.pop(ctx, 'default'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.save_outlined),
+                title: Text(l10n.exportFolderCustom),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.pop(ctx, 'custom'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (choice == 'default') {
+        final dir = await getApplicationDocumentsDirectory();
+        final exportDir = Directory('${dir.path}/NexHub/Exports');
+        if (!exportDir.existsSync()) exportDir.createSync(recursive: true);
+        folder = exportDir.path;
+      } else if (choice == 'custom') {
+        folder = await _pickExportFolder();
+      }
+    }
+    if (folder == null || !mounted) return;
+    await _doExport(folder);
   }
 
-  Future<void> _doExport(String folder, _ExportScope scope) async {
+  Future<void> _doExport(String folder) async {
     final l10n = AppLocalizations.of(context);
-    final repo = context.read<SourceRepository>();
-    final fav = context.read<FavoritesManager>();
-    final hist = context.read<HistoryManager>();
-
-    final bundle = <String, dynamic>{};
-    if (scope == _ExportScope.all || scope == _ExportScope.plugins) {
-      bundle['plugins'] = repo.exportToJson();
-    }
-    if (scope == _ExportScope.all || scope == _ExportScope.subscription) {
-      bundle['favorites'] = fav.exportToJson();
-      bundle['history'] = hist.exportToJson();
-    }
-
-    final isEmpty = bundle.values.every((v) => v is List && v.isEmpty);
-    if (isEmpty) {
-      _snack(l10n.exportNothingToExport);
+    if (_selected.isEmpty) {
+      _snack(l10n.backupScopeNone);
       return;
     }
-
     _snack(l10n.exportDataInProgress);
     try {
+      final bundle = await buildBackupBundle(categories: _selected);
+      final count = countBundleEntries(bundle);
       final stamp = DateTime.now()
           .toIso8601String()
           .replaceAll(':', '-')
           .replaceAll('.', '-');
-      final filePath = '$folder/nexhub_export_$stamp.json';
-      final json = const JsonEncoder.withIndent('  ').convert(bundle);
+      final filePath = '$folder/nexhub_backup_$stamp.json';
+      final json = encodeBackupBundle(bundle);
       await File(filePath).writeAsString(json);
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      _snack(l10n.exportDataFileSaved(filePath));
-    } catch (_) {
+      _snack(l10n.backupExported(count));
+    } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       _snack(l10n.exportDataFailed);
@@ -292,7 +361,6 @@ class _SettingsImportExportScreenState
       body: ListView(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
         children: <Widget>[
-          // ── Import ──
           _ImportExportGroupHeader(label: l10n.importData),
           AppListTile(
             leading: const Icon(Icons.file_open_outlined),
@@ -301,47 +369,25 @@ class _SettingsImportExportScreenState
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _pickImportFile(),
           ),
-
-          // ── Export ──
           const SizedBox(height: AppTokens.spaceXl),
           _ImportExportGroupHeader(label: l10n.exportData),
-
           AppListTile(
             leading: const Icon(Icons.download_outlined),
             title: Text(l10n.exportData),
             subtitle: Text(l10n.exportDataDesc),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () =>
-                _showExportFolderPicker(context, scope: _ExportScope.all),
+            onTap: () => _showExportSheet(),
           ),
-
-          AppListTile(
-            leading: const Icon(Icons.rss_feed_outlined),
-            title: Text(l10n.exportSubscription),
-            subtitle: Text(l10n.exportSubscriptionDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showExportFolderPicker(
-                context, scope: _ExportScope.subscription),
-          ),
-
-          AppListTile(
-            leading: const Icon(Icons.extension_outlined),
-            title: Text(l10n.exportPlugins),
-            subtitle: Text(l10n.exportPluginsDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () =>
-                _showExportFolderPicker(context, scope: _ExportScope.plugins),
-          ),
-
-          // ── Custom export folder hint ──
           const SizedBox(height: AppTokens.spaceXl),
           Padding(
             padding: const EdgeInsets.all(AppTokens.spaceMd),
             child: Container(
               padding: const EdgeInsets.all(AppTokens.spaceMd),
               decoration: BoxDecoration(
-                color:
-                    Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                 border: Border.all(
                   color: Theme.of(context)
@@ -362,7 +408,8 @@ class _SettingsImportExportScreenState
                     child: Text(
                       l10n.selectExportFolder,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                     ),
                   ),
