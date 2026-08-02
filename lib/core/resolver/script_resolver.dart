@@ -406,9 +406,40 @@ class ScriptResolver implements SourceResolver {
 
   VideoResult _toVideo(dynamic result) {
     if (result is Map) {
-      return VideoResult(url: _str(result['url']), type: _strOrNull(result['type']));
+      final url = _str(result['url']);
+      // 源可返回多条线路（key 为 `urls` 或 `lines`，元素可为字符串或
+      // {url,name,headers} 对象）；非空时播放器「线路」面板即可切换。
+      final lines = _toVideoLines(result['urls'] ?? result['lines']);
+      return VideoResult(
+        url: url,
+        type: _strOrNull(result['type']),
+        lines: lines,
+      );
     }
     return VideoResult(url: _str(result));
+  }
+
+  /// 将脚本返回的 `urls` / `lines` 数组解析为 [VideoLine] 列表（无效项跳过）。
+  List<VideoLine> _toVideoLines(dynamic value) {
+    if (value is! List) return const <VideoLine>[];
+    final out = <VideoLine>[];
+    for (final e in value) {
+      if (e is String) {
+        final u = e.trim();
+        if (u.isNotEmpty) {
+          out.add(VideoLine(name: '线路 ${out.length + 1}', url: u));
+        }
+      } else if (e is Map) {
+        final u = _str(e['url']).trim();
+        if (u.isNotEmpty) {
+          final name = _str(e['name']).isNotEmpty
+              ? _str(e['name'])
+              : '线路 ${out.length + 1}';
+          out.add(VideoLine(name: name, url: u));
+        }
+      }
+    }
+    return out;
   }
 
   /// 漫画图片列表（脚本可返回 `['url', ...]` 或 `[{ url }, ...]`）。

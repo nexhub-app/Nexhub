@@ -371,8 +371,16 @@ class BuiltinResolver implements SourceResolver {
     // 附加播放所需请求头（Referer / UA 等），让 mpv 拉分片时与
     // 抓取 m3u8 文本时带同样的头，避免 CDN 403 导致黑屏。
     final out = _withVideoHeaders(enhanced, source, referer);
-    _videoCache.set(cacheKey, out);
-    return out;
+    // 多线路（raw.lines）与单线路地址同属一次解析结果，必须原样带回，
+    // 否则 m3u8 解析分支重建 VideoResult 时会把 lines 丢掉，导致「线路」面板失效。
+    final withLines = VideoResult(
+      url: out.url,
+      type: out.type,
+      headers: out.headers,
+      lines: raw.lines,
+    );
+    _videoCache.set(cacheKey, withLines);
+    return withLines;
   }
 
   /// 为 [VideoResult] 附加播放所需 HTTP 请求头。
@@ -400,6 +408,7 @@ class BuiltinResolver implements SourceResolver {
       url: result.url,
       type: result.type,
       headers: headers,
+      lines: result.lines,
     );
   }
 

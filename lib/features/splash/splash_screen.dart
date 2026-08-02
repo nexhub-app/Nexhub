@@ -34,6 +34,7 @@ import '../../core/services/cloud_sync_service.dart';
 import '../../core/services/source_library_bookmarks.dart';
 import '../../core/services/source_library_subscription.dart';
 import '../../core/settings/general_settings.dart';
+import '../../core/storage/storage_boxes.dart';
 import '../../core/widgets/app_loading_indicator.dart';
 import '../../core/services/source_repository.dart';
 import '../../core/services/config_loader.dart';
@@ -60,6 +61,7 @@ class InitResult {
   final MediaPlaybackPositionManager mediaPlaybackPositionManager;
   final LocalContentManager localContentManager;
   final CloudSyncService cloudSyncService;
+  final BangumiAuth bangumiAuth;
   final BangumiSyncService bangumiSyncService;
   final NetworkConfigService networkConfigService;
 
@@ -77,6 +79,7 @@ class InitResult {
     required this.mediaPlaybackPositionManager,
     required this.localContentManager,
     required this.cloudSyncService,
+    required this.bangumiAuth,
     required this.bangumiSyncService,
     required this.networkConfigService,
   });
@@ -119,27 +122,8 @@ class _SplashScreenState extends State<SplashScreen> {
     Hive.registerAdapter(HiveRssFeedAdapter());
     Hive.registerAdapter(HiveSettingsAdapter());
 
-    await Future.wait([
-      Hive.openBox('sources'),
-      Hive.openBox('favorites'),
-      Hive.openBox('media_progress'),
-      Hive.openBox('comic_progress'),
-      Hive.openBox('novel_progress'),
-      Hive.openBox('download_tasks'),
-      Hive.openBox('danmaku_cache'),
-      Hive.openBox('book_sources'),
-      Hive.openBox('rss_feeds'),
-      Hive.openBox('article_feeds'),
-      Hive.openBox('settings'),
-      Hive.openBox('novel_bookmarks'),
-      Hive.openBox('comic_bookmarks'),
-      Hive.openBox('media_watched'),
-      Hive.openBox('media_playback_position'),
-      Hive.openBox('source_mirrors'),
-      Hive.openBox('chapter_fetch_times'),
-      Hive.openBox(SubjectLinkStore.boxName),
-      Hive.openBox(SourceLibraryBookmarks.boxName),
-      Hive.openBox(SourceLibrarySubscription.boxName),
+    await Future.wait(<Future<dynamic>>[
+      for (final name in kStorageBoxNames) Hive.openBox(name),
     ]);
 
     // 加载内置源（资源包）+ 用户导入源。
@@ -232,6 +216,7 @@ class _SplashScreenState extends State<SplashScreen> {
       mediaPlaybackPositionManager: mediaPlaybackPositionManager,
       localContentManager: localContentManager,
       cloudSyncService: cloudSyncService,
+      bangumiAuth: bangumiAuth,
       bangumiSyncService: bangumiSyncService,
       networkConfigService: NetworkConfigService.instance,
     );
@@ -281,6 +266,8 @@ class _SplashScreenState extends State<SplashScreen> {
                   value: result.localContentManager),
               ChangeNotifierProvider<CloudSyncService>.value(
                   value: result.cloudSyncService),
+              ChangeNotifierProvider<BangumiAuth>.value(
+                  value: result.bangumiAuth),
               ChangeNotifierProvider<BangumiSyncService>.value(
                   value: result.bangumiSyncService),
               ChangeNotifierProvider<NetworkConfigService>.value(

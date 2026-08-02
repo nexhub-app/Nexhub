@@ -1,10 +1,18 @@
 /// 云同步服务 —— WebDAV 备份与多端同步。
 ///
 /// 数据范围（spec J.2）：
-/// 1. 书源/媒体源/订阅源：book_sources / rss_feeds / article_feeds Hive box
-/// 2. 书签/收藏/书架：favorites / comic_bookmarks / novel_bookmarks Hive box
-/// 3. 阅读/播放历史与进度：media_watched / media_playback_position / comic_progress / novel_progress / media_progress Hive box
-/// 4. 阅读器/播放器偏好：PlayerSettings / ReaderDefaultSettings / LayoutSettings / DanmakuSettings 持久化的 SharedPreferences
+/// 1. 书源/媒体源/订阅源：book_sources / rss_feeds / article_feeds / sources
+///    / source_mirrors / chapter_fetch_times / source_library_* Hive box
+/// 2. 书签/收藏/书架：favorites / comic_bookmarks / novel_bookmarks /
+///    bangumi_subject_links Hive box
+/// 3. 阅读/播放历史与进度：media_watched / media_playback_position /
+///    comic_progress / novel_progress / media_progress Hive box
+/// 4. 其它：download_tasks / danmaku_cache / settings Hive box
+/// 5. 阅读器/播放器偏好：PlayerSettings / ReaderDefaultSettings / LayoutSettings
+///    / DanmakuSettings 持久化的 SharedPreferences
+///
+/// ⚠️ 备份白名单统一从 [kStorageBoxNames] 读取（单一事实源），与 splash
+/// 启动时打开的 box 严格 1:1 —— 任何 box 增删只需改 storage_boxes.dart。
 library;
 
 import 'dart:convert';
@@ -17,6 +25,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xml/xml.dart';
+
+import '../storage/storage_boxes.dart';
 
 /// 同步频率
 enum SyncFrequency { manual, daily, weekly }
@@ -453,15 +463,10 @@ class CloudSyncService extends ChangeNotifier {
 
   Future<Archive> _exportToArchive() async {
     final archive = Archive();
-    // 1. Hive boxes → JSON
-    const hiveBoxNames = <String>[
-      'book_sources', 'rss_feeds', 'article_feeds',
-      'favorites', 'comic_bookmarks', 'novel_bookmarks',
-      'media_watched', 'media_playback_position',
-      'comic_progress', 'novel_progress', 'media_progress',
-    ];
+    // 1. Hive boxes → JSON。白名单取自单一事实源 kStorageBoxNames，与 splash
+    //    启动时打开的 box 严格一致；缺哪个用户备份就丢哪个（曾漏 9 个 box）。
     final hiveData = <String, dynamic>{};
-    for (final name in hiveBoxNames) {
+    for (final name in kStorageBoxNames) {
       if (Hive.isBoxOpen(name)) {
         final box = Hive.box(name);
         hiveData[name] = box

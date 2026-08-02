@@ -2209,6 +2209,8 @@
   "playerSuperRes": "Super resolution",
   "playerLine": "Playback line",
   "playerSelectLine": "Select line",
+  "playerLineEmpty": "No playback lines (parse failed or source did not provide a video URL).",
+  "playerLineSingleHint": "This source returned only 1 line; no switch available.\nTo enable line switching, ask the source author to return a `urls` array in the video parser.",
   "playerEpisodes": "Episodes",
   "playerPip": "Picture in picture",
   "playerCast": "Cast",

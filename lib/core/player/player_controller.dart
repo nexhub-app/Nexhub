@@ -4,22 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../models/episode.dart';
 import 'media_kit_backend.dart';
 import 'video_player_backend.dart';
-
-/// 播放线路（FR-3.4）：一条可播放 URL 与其展示名（线路 1 / 线路 2 …）。
-class VideoLine {
-  const VideoLine({required this.name, required this.url, this.headers});
-
-  /// 展示名（如「线路 1」、「备线」等）。
-  final String name;
-
-  /// 该线路对应的可播放地址。
-  final String url;
-
-  /// 打开该线路所需 HTTP 请求头（反盗链 Referer / UA 等）。
-  final Map<String, String>? headers;
-}
 
 /// 播放统计快照（mpv 只读属性），供「播放统计」面板与软/硬解诊断使用。
 class PlayerStats {

@@ -40,7 +40,18 @@ class BangumiSyncService extends ChangeNotifier {
         _watched = watched,
         _comicProgress = comicProgress ?? ComicProgressManager(),
         _novelProgress = novelProgress ?? NovelProgressManager(),
-        _backend = backend ?? const SharedPrefsBackend();
+        _backend = backend ?? const SharedPrefsBackend() {
+    // 桥接：让 UI 订阅 SyncService 也能感知到 Auth 登录/登出。
+    // 之前订阅 SyncService 的页面（如 settings_bangumi_screen）只读 auth 字段
+    // 而不订阅 Auth 本身，logout 后 UI 不刷新——通过 addListener 转发即可。
+    _auth.addListener(notifyListeners);
+  }
+
+  @override
+  void dispose() {
+    _auth.removeListener(notifyListeners);
+    super.dispose();
+  }
 
   static const String _lastSyncKey = 'bangumi_last_sync';
   static const String _syncAnimeKey = 'bangumi_sync_anime';

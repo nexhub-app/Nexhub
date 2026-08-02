@@ -12,6 +12,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/services/bangumi/bangumi_auth.dart';
 import '../../../core/services/bangumi/bangumi_oauth_config.dart';
 import '../../../core/services/bangumi/bangumi_proxy_config.dart';
 import '../../../core/services/bangumi/bangumi_sync_service.dart';
@@ -71,12 +72,12 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
   }
 
   Future<void> _verifyToken(AppLocalizations l10n) async {
-    final service = context.read<BangumiSyncService>();
+    final auth = context.read<BangumiAuth>();
     final token = _tokenController.text.trim();
     if (token.isEmpty) return;
     setState(() => _verifying = true);
     try {
-      await service.auth.saveToken(token);
+      await auth.saveToken(token);
       _tokenController.clear();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -96,8 +97,8 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
   Future<void> _loginWithOAuth(AppLocalizations l10n) async {
     setState(() => _oauthing = true);
     try {
-      final service = context.read<BangumiSyncService>();
-      await service.auth.loginWithOAuth();
+      final auth = context.read<BangumiAuth>();
+      await auth.loginWithOAuth();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.loginSuccess)),
@@ -124,8 +125,10 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final service = context.watch<BangumiSyncService>();
-    final auth = service.auth;
+    // 订阅 BangumiAuth 直接响应 login/logout（之前订阅 SyncService 取 auth
+    // 字段是不会重建的，导致 logout 后 UI 不刷新）。SyncService 仅在「同步中」
+    // 状态需要，用 read 拿即可。
+    final auth = context.watch<BangumiAuth>();
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.bangumiSettings)),

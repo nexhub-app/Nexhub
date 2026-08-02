@@ -499,12 +499,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _playUrl = video.url;
       _playHeaders = video.headers;
 
-      // 当前沿解析管线仅返回单线路 URL；将其填充为唯一线路，供线路面板展示。
-      // 后续若解析器扩展为返回多线路，可在 VideoResult 增加 lines 字段并在此合并。
+      // 由解析结果构造播放线路：源提供多线路（video.lines）时使用，
+      // 否则以单线路 url 兜底为「线路 1」。播放页「选集 / 线路」面板据此切换。
       if (video.url.isNotEmpty) {
-        _controller.lines = <VideoLine>[
-          VideoLine(name: _lineName(0), url: video.url, headers: video.headers),
-        ];
+        _controller.lines = _buildLines(video);
         _controller.currentLineIndex = 0;
       }
 
@@ -1261,11 +1259,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           await _resolveVideoWithCapture(service, source, ep.url);
       _playUrl = video.url;
       _playHeaders = video.headers;
-      // 切集后刷新线路列表（当前仅单线路）。
+      // 切集后刷新线路列表（源提供多线路时直接使用 video.lines）。
       if (video.url.isNotEmpty) {
-        _controller.lines = <VideoLine>[
-          VideoLine(name: _lineName(0), url: video.url, headers: video.headers),
-        ];
+        _controller.lines = _buildLines(video);
         _controller.currentLineIndex = 0;
       }
       await _controller.open(video.url, headers: video.headers);
@@ -1355,6 +1351,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   String _lineName(int index) {
     final l10n = AppLocalizations.of(context);
     return '${l10n.playerLine} ${index + 1}';
+  }
+
+  /// 由解析结果构造播放线路列表。
+  ///
+  /// 源提供多线路（[VideoResult.lines] 非空）时直接使用，使播放页
+  /// 「选集 / 线路」面板可切换；否则以单线路 [VideoResult.url] 兜底为「线路 1」。
+  List<VideoLine> _buildLines(VideoResult video) {
+    if (video.lines.isNotEmpty) return video.lines;
+    return <VideoLine>[
+      VideoLine(name: _lineName(0), url: video.url, headers: video.headers),
+    ];
   }
 
   /// 相对当前播放位置 seek 指定偏移（负值快退，正值快进），自动 clamp 到 [0, _duration]。
@@ -2863,37 +2870,82 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 Expanded(
                   flex: 2,
                   child: lines.isEmpty
-                      ? Center(child: Text(l10n.playerSelectLine))
-                      : ListView.builder(
-                          itemCount: lines.length,
-                          itemBuilder: (BuildContext _, int i) {
-                            final line = lines[i];
-                            final selected = i == _controller.currentLineIndex;
-                            return ListTile(
-                              leading: Icon(
-                                selected
-                                    ? Icons.radio_button_checked
-                                    : Icons.radio_button_unchecked,
-                                color: selected
-                                    ? Theme.of(ctx).colorScheme.primary
-                                    : null,
-                              ),
-                              title: Text(line.name),
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                if (i != _controller.currentLineIndex) {
-                                  unawaited(_controller.selectLine(i));
-                                }
+                      ? _buildLineHint(
+                          ctx,
+                          icon: Icons.error_outline,
+                          text: l10n.playerLineEmpty,
+                        )
+                      : lines.length == 1
+                          ? _buildLineHint(
+                              ctx,
+                              icon: Icons.info_outline,
+                              text: l10n.playerLineSingleHint,
+                            )
+                          : ListView.builder(
+                              itemCount: lines.length,
+                              itemBuilder: (BuildContext _, int i) {
+                                final line = lines[i];
+                                final selected =
+                                    i == _controller.currentLineIndex;
+                                return ListTile(
+                                  leading: Icon(
+                                    selected
+                                        ? Icons.radio_button_checked
+                                        : Icons.radio_button_unchecked,
+                                    color: selected
+                                        ? Theme.of(ctx).colorScheme.primary
+                                        : null,
+                                  ),
+                                  title: Text(line.name),
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    if (i != _controller.currentLineIndex) {
+                                      unawaited(_controller.selectLine(i));
+                                    }
+                                  },
+                                );
                               },
-                            );
-                          },
-                        ),
+                            ),
                 ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  /// 线路 ≤1 条时的提示占位（图标 + 文案 + 居中）。
+  ///
+  /// 源共创式架构下，源作者写 `urls` 数组才会出现多线路。`lines.isEmpty`
+  /// 多为源未声明/解析失败；`lines.length == 1` 则源只返回了 1 条 URL，
+  /// 提示用户可让源作者补 urls 数组。
+  Widget _buildLineHint(
+    BuildContext ctx, {
+    required IconData icon,
+    required String text,
+  }) {
+    final theme = Theme.of(ctx);
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTokens.spaceLg,
+        vertical: AppTokens.spaceMd,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(icon, color: theme.colorScheme.outline, size: 20),
+          const SizedBox(width: AppTokens.spaceSm),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3211,6 +3263,7 @@ class _DanmakuToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     if (!isOn) {
       // 关闭态：仅显示空心开关按钮，紧凑尺寸
       return IconButton(
@@ -3228,16 +3281,16 @@ class _DanmakuToggle extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 2),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.cyan.withOpacity(0.25),
+        color: theme.colorScheme.primary.withOpacity(0.25),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.cyan.withOpacity(0.5)),
+        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.6)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           // 弹幕开关（开启态，实心图标）
           IconButton(
-            icon: const Icon(Icons.comment, color: Colors.cyan, size: 20),
+            icon: Icon(Icons.comment, color: theme.colorScheme.primary, size: 20),
             tooltip: l10n.danmaku,
             onPressed: onToggle,
             constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
