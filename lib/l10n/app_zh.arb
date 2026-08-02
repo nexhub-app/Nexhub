@@ -2188,6 +2188,18 @@
   "playerSelectLine": "选择线路",
   "playerLineEmpty": "暂无播放线路（解析失败或源未提供视频地址）",
   "playerLineSingleHint": "当前源只返回了 1 条线路，无法切换。\n如需多线路切换，请联系源作者在视频解析 API 中返回 urls 数组。",
+  "playerLineEpisodesProgress": "第 {current} / {total} 集",
+  "@playerLineEpisodesProgress": {
+    "description": "Episode progress indicator inside the player line sheet header (filtered by current line)",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "playerEpisodes": "选集",
   "playerPip": "画中画",
   "playerCast": "投屏",
@@ -2722,6 +2734,22 @@
   "bangumiSyncUnitEp": "集",
   "bangumiSyncUnitVolume": "话",
   "bangumiSyncUnitChapter": "章",
+  "bangumiSyncMyCompletion": "我的完成度",
+  "@bangumiSyncMyCompletion": {
+    "description": "Bangumi sync dialog progress section title (matches source website UI style)"
+  },
+  "bangumiSyncUpdate": "更新",
+  "@bangumiSyncUpdate": {
+    "description": "Inline update button inside the progress section of the Bangumi sync dialog"
+  },
+  "bangumiSyncAdvancedOptions": "高级选项",
+  "@bangumiSyncAdvancedOptions": {
+    "description": "ExpansionTile title in the Bangumi sync dialog containing rating / comment / state / privacy"
+  },
+  "bangumiSyncAdvancedHint": "评分 / 吐槽 / 状态 / 公开私密",
+  "@bangumiSyncAdvancedHint": {
+    "description": "Subtitle hint of the advanced options expansion tile"
+  },
   "bangumiRatingValue": "{count} 分",
   "clear": "清除",
   "@bangumiRatingValue": {
