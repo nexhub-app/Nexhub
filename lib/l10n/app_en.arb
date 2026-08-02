@@ -2496,6 +2496,8 @@
   "bangumiPullDone": "Pulled remote rating and comment",
   "bangumiPullEmpty": "No remote collection for this subject",
   "bangumiSyncThis": "Sync to Bangumi",
+  "syncWorking": "Syncing to Bangumi…",
+  "syncBusy": "Sync in progress, please wait",
   "bangumiFavoriteFirst": "Add to favorites to rate and comment",
   "bangumiCollectionStatus": "Bangumi collection status",
   "bangumiBindFirst": "Bind a Bangumi subject first",

@@ -45,6 +45,7 @@ import '../../../core/navigation/app_page_route.dart';
 import '../../../core/novel/novel_toc_cache.dart';
 import '../../../core/progress/unified_progress_repository.dart';
 import '../../../core/resolver/webview_resolver.dart';
+import '../../../core/services/bangumi/bangumi_models.dart';
 import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
@@ -675,6 +676,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         Navigator.of(context).push(
           AppPageRoute<void>(builder: (_) => const DownloadListScreen()),
         );
+      case 'syncToBangumi':
+        unawaited(_syncToBangumi(l10n));
     }
   }
 
@@ -688,6 +691,55 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(ok ? l10n.coverUpdated : l10n.coverUpdateFailed)),
+    );
+  }
+
+  /// 一键将当前条目同步到 Bangumi（精确到集 / 章节）。
+  ///
+  /// 复用 [BangumiSyncService.syncOne]：未登录 / 未绑定 / 失败均由服务封装为
+  /// [SyncLogItem] 返回，这里仅做提示文案映射，不重复网络逻辑。
+  Future<void> _syncToBangumi(AppLocalizations l10n) async {
+    final sync = context.read<BangumiSyncService>();
+    if (!sync.auth.isLoggedIn) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.bangumiSyncLoginHint)),
+      );
+      return;
+    }
+    if (sync.isSyncing) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.syncBusy)),
+      );
+      return;
+    }
+    // 先给即时反馈，避免网络耗时期间界面无响应感。
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.syncWorking)),
+    );
+    final SyncLogItem? result = await sync.syncOne(_fetchedDetail.id, _favType);
+    if (!mounted) return;
+    if (result == null) {
+      // 理论上收藏态菜单项已过滤，这里仅作兜底（多为同步进行中被并发触发）。
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.syncBusy)),
+      );
+      return;
+    }
+    final String message = switch (result.status) {
+      SyncLogStatus.success =>
+        '${result.title}：${l10n.bangumiLogSuccess}',
+      SyncLogStatus.skipped =>
+        '${result.title}：${l10n.bangumiLogSkipped}',
+      SyncLogStatus.pendingBind =>
+        '${result.title}：${l10n.bangumiPendingBind}',
+      SyncLogStatus.failed =>
+        '${result.title}：${l10n.bangumiLogFailed}'
+        '${result.detail.isNotEmpty ? '：${result.detail}' : ''}',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -1114,6 +1166,17 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 ],
               ),
             ),
+            if (isFav)
+              PopupMenuItem<String>(
+                value: 'syncToBangumi',
+                child: Row(
+                  children: <Widget>[
+                    const Icon(Icons.sync),
+                    const SizedBox(width: AppTokens.spaceSm),
+                    Text(l10n.bangumiSyncThis),
+                  ],
+                ),
+              ),
           ],
         ),
       ],
