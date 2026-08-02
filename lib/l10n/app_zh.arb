@@ -2452,6 +2452,8 @@
   "bangumiPullDone": "已拉取远端评分与短评",
   "bangumiPullEmpty": "远端暂无该条目收藏",
   "bangumiSyncThis": "同步到 Bangumi",
+  "syncWorking": "正在同步到 Bangumi…",
+  "syncBusy": "正在同步中，请稍候",
   "bangumiFavoriteFirst": "收藏后即可评分与短评",
   "bangumiCollectionStatus": "Bangumi 收藏状态",
   "bangumiBindFirst": "请先绑定 Bangumi 条目",
