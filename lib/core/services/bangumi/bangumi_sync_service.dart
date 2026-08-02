@@ -191,7 +191,17 @@ class BangumiSyncService extends ChangeNotifier {
   ///
   /// 未登录抛 [StateError]；条目未收藏或正在同步中返回 null；
   /// 失败不抛出，统一封装为 [SyncLogStatus.failed] 日志项。
-  Future<SyncLogItem?> syncOne(String contentId, SourceType sourceType) async {
+  ///
+  /// [watchedEpisodes]（动漫，1 起）：手动指定已看集数，覆盖本地观看记录；
+  /// 传 null 时回退到 [_watched] 本地集合自动计算。
+  /// [watchedChapters]（书籍，1 起）：手动指定已读章节数（Bangumi ep_status）；
+  /// 传 null 时回退到 [_bookProgress] 自动计算。
+  Future<SyncLogItem?> syncOne(
+    String contentId,
+    SourceType sourceType, {
+    int? watchedEpisodes,
+    int? watchedChapters,
+  }) async {
     if (!_auth.isLoggedIn) {
       throw StateError('not logged in');
     }
@@ -205,7 +215,11 @@ class BangumiSyncService extends ChangeNotifier {
     notifyListeners();
     SyncLogItem item;
     try {
-      item = await _syncEntry(entry);
+      item = await _syncEntry(
+        entry,
+        watchedEpisodes: watchedEpisodes,
+        watchedChapters: watchedChapters,
+      );
     } on BangumiApiException catch (e) {
       item = SyncLogItem(
         title: entry.title,
@@ -226,7 +240,16 @@ class BangumiSyncService extends ChangeNotifier {
   }
 
   /// 同步单个收藏条目。
-  Future<SyncLogItem> _syncEntry(FavoriteEntry entry) async {
+  ///
+  /// [watchedEpisodes]（动漫，1 起）：手动指定已看集数，覆盖本地观看记录；
+  /// 传 null 时回退到 [_watched] 本地集合自动计算。
+  /// [watchedChapters]（书籍，1 起）：手动指定已读章节数（Bangumi ep_status）；
+  /// 传 null 时回退到 [_bookProgress] 自动计算。
+  Future<SyncLogItem> _syncEntry(
+    FavoriteEntry entry, {
+    int? watchedEpisodes,
+    int? watchedChapters,
+  }) async {
     final result =
         await _linkStore.resolve(entry.id, entry.title, entry.sourceType);
     final link = result.link;
@@ -246,7 +269,10 @@ class BangumiSyncService extends ChangeNotifier {
     int desiredType;
     int? epStatus;
     if (entry.sourceType == SourceType.animeSource) {
-      final watchedIndexes = _watched.watchedList(entry.id);
+      // 手动指定已看集数时生成 0..N-1 索引列表，否则回退本地观看记录。
+      final watchedIndexes = (watchedEpisodes != null && watchedEpisodes > 0)
+          ? List.generate(watchedEpisodes, (i) => i)
+          : _watched.watchedList(entry.id);
       if (watchedIndexes.isEmpty) {
         desiredType = BangumiCollectionType.wish;
       } else {
@@ -279,17 +305,29 @@ class BangumiSyncService extends ChangeNotifier {
     } else {
       // 漫画 / 小说：阅读进度 → ep_status（书籍类条目可写完成度）；
       // 读到末章（总章数已知）则判定为读过。
-      final progress = await _bookProgress(entry);
-      if (progress == null) {
-        desiredType = entry.lastRead > 0
-            ? BangumiCollectionType.doing
-            : BangumiCollectionType.wish;
-      } else {
-        epStatus = progress.$1;
-        final total = progress.$2;
+      if (watchedChapters != null && watchedChapters >= 0) {
+        // 手动指定已读章节数（0 表示尚未开始阅读）。
+        epStatus = watchedChapters;
+        final progress = await _bookProgress(entry);
+        final total = progress?.$2;
         desiredType = (total != null && total > 0 && epStatus >= total)
             ? BangumiCollectionType.collect
-            : BangumiCollectionType.doing;
+            : (epStatus > 0
+                ? BangumiCollectionType.doing
+                : BangumiCollectionType.wish);
+      } else {
+        final progress = await _bookProgress(entry);
+        if (progress == null) {
+          desiredType = entry.lastRead > 0
+              ? BangumiCollectionType.doing
+              : BangumiCollectionType.wish;
+        } else {
+          epStatus = progress.$1;
+          final total = progress.$2;
+          desiredType = (total != null && total > 0 && epStatus >= total)
+              ? BangumiCollectionType.collect
+              : BangumiCollectionType.doing;
+        }
       }
     }
     final pushed =
