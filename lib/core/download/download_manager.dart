@@ -102,9 +102,47 @@ class DownloadManager extends ChangeNotifier {
   List<DownloadTask> get archivedTasks =>
       _tasks.where((t) => t.archived).toList();
 
-  /// 是否已下载（详情页按钮状态）。
+  /// 该内容是否存在任何已完成的下载任务。
+  ///
+  /// 注意：这是「整部内容层面」的粗粒度判断，**不能**用来禁用下载入口——
+  /// 用户下过其中几集后它就恒为 true，会导致剩余集永远无法下载。
+  /// 判断「是否还有可下载的章节」请用 [downloadedChapterTitles] 逐章比对。
   bool isItemDownloaded(String contentId) =>
       _tasks.any((t) => t.contentId == contentId && t.isCompleted);
+
+  /// 指定内容中已下载完成的章节标题集合（跨多个任务合并）。
+  ///
+  /// - `completed` 任务：其 [DownloadTask.chapterTitles] 全部计入；
+  /// - 进行中 / 暂停任务：按 [DownloadTask.downloadedChapters] 计入已完成的前 N 个
+  ///   （handler 按选中顺序串行下载）；
+  /// - `cancelled` 任务不计入。
+  ///
+  /// 归档（archived）任务的文件仍在磁盘上，因此同样计入。
+  Set<String> downloadedChapterTitles(String contentId) {
+    final Set<String> titles = <String>{};
+    for (final DownloadTask t in _tasks) {
+      if (t.contentId != contentId) continue;
+      if (t.status == DownloadStatus.cancelled) continue;
+      if (t.isCompleted) {
+        titles.addAll(t.chapterTitles);
+      } else if (t.downloadedChapters > 0) {
+        titles.addAll(t.chapterTitles.take(t.downloadedChapters));
+      }
+    }
+    return titles;
+  }
+
+  /// 指定内容中已排入下载队列（含进行中 / 等待中）但尚未完成的章节标题集合。
+  ///
+  /// 用于选择弹窗避免重复排队同一章。
+  Set<String> queuedChapterTitles(String contentId) {
+    final Set<String> titles = <String>{};
+    for (final DownloadTask t in _tasks) {
+      if (t.contentId != contentId || !t.isActive) continue;
+      titles.addAll(t.chapterTitles.skip(t.downloadedChapters));
+    }
+    return titles;
+  }
 
   /// 初始化：从存储加载 + 恢复孤立记录。
   Future<void> init() async {

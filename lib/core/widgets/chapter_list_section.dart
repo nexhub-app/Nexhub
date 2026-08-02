@@ -117,6 +117,16 @@ class _ChapterListSectionState extends State<ChapterListSection> {
   /// 区间 chips 横向滚动控制器（选中后自动居中）。
   final ScrollController _chipScrollCtrl = ScrollController();
 
+  /// 区间 chips 的定位锚点：key = chip 序号（0 = 「全部」，1..n = 各区间）。
+  ///
+  /// 用真实布局对象定位（[Scrollable.ensureVisible]），取代此前按固定 80px
+  /// 估算偏移的做法——chip 宽度随文字（如 `1-12` / `109-120`）变化且还有
+  /// 8px 间距，估算值越往后偏差越大，导致选中项不居中、末尾几项滚不到。
+  final Map<int, GlobalKey> _chipKeys = <int, GlobalKey>{};
+
+  GlobalKey _chipKey(int index) =>
+      _chipKeys.putIfAbsent(index, () => GlobalKey());
+
   /// 本地首次获取时间（毫秒），key = 章节 [Episode.id]。
   /// 当源未提供 [Episode.updatedAt] 时用作兜底展示，且只在首次加载时记录。
   final Map<String, int> _localFetchTimes = <String, int>{};
@@ -519,6 +529,9 @@ class _ChapterListSectionState extends State<ChapterListSection> {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             controller: controller,
+            // 末尾留出与渐隐区等宽的滚动余量，避免最后一个 chip 永远压在
+            // 淡出边缘下、看起来点不到。
+            padding: const EdgeInsetsDirectional.only(end: AppTokens.spaceLg),
             child: Row(children: children),
           ),
         ),
@@ -542,6 +555,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       controller: _chipScrollCtrl,
       children: <Widget>[
         FilterChip(
+          key: _chipKey(0),
           label: Text(l10n.all),
           selected: _rangeStart == null,
           onSelected: (_) {
@@ -550,14 +564,15 @@ class _ChapterListSectionState extends State<ChapterListSection> {
           },
         ),
         const SizedBox(width: AppTokens.spaceSm),
-        for (final start in ranges) ...<Widget>[
+        for (int i = 0; i < ranges.length; i++) ...<Widget>[
           FilterChip(
+            key: _chipKey(i + 1),
             label: Text(
-                '${start + 1}-${start + _rangeSize > totalCount ? totalCount : start + _rangeSize}'),
-            selected: _rangeStart == start,
+                '${ranges[i] + 1}-${ranges[i] + _rangeSize > totalCount ? totalCount : ranges[i] + _rangeSize}'),
+            selected: _rangeStart == ranges[i],
             onSelected: (_) {
-              setState(() => _rangeStart = start);
-              _scrollChipToCenter(ranges.indexOf(start) + 1);
+              setState(() => _rangeStart = ranges[i]);
+              _scrollChipToCenter(i + 1);
             },
           ),
           const SizedBox(width: AppTokens.spaceSm),
@@ -567,14 +582,17 @@ class _ChapterListSectionState extends State<ChapterListSection> {
   }
 
   /// 将区间 chips 滚动到选中项居中显示。
+  ///
+  /// 用选中 chip 的真实 RenderBox 定位（[Scrollable.ensureVisible] +
+  /// `alignment: 0.5`），首尾项会被框架自动钳制到可滚动边界，因此既能精确
+  /// 居中，也不会出现末尾项滚不到、点不着的情况。
   void _scrollChipToCenter(int index) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_chipScrollCtrl.hasClients) return;
-      const chipExtent = 80.0;
-      final targetOffset =
-          index * chipExtent - (_chipScrollCtrl.position.viewportDimension / 2) + (chipExtent / 2);
-      _chipScrollCtrl.animateTo(
-        targetOffset.clamp(0.0, _chipScrollCtrl.position.maxScrollExtent),
+      final BuildContext? ctx = _chipKeys[index]?.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.5,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
       );
@@ -845,17 +863,21 @@ class _ChapterListSectionState extends State<ChapterListSection> {
                 ),
               ),
             if (widget.onDownloadChapter != null)
-              IconButton(
-                icon: Icon(
-                  widget.isChapterDownloaded != null &&
-                          widget.isChapterDownloaded!(i)
-                      ? Icons.download_done
-                      : Icons.download_outlined,
-                  size: 20,
-                ),
-                tooltip: l10n.downloadSingleChapter,
-                onPressed: () => widget.onDownloadChapter!(ep, i),
-              ),
+              Builder(builder: (BuildContext _) {
+                final bool downloaded =
+                    widget.isChapterDownloaded?.call(i) ?? false;
+                return IconButton(
+                  icon: Icon(
+                    downloaded ? Icons.download_done : Icons.download_outlined,
+                    size: 20,
+                    color: downloaded ? scheme.primary : null,
+                  ),
+                  tooltip: downloaded
+                      ? l10n.alreadyDownloaded
+                      : l10n.downloadSingleChapter,
+                  onPressed: () => widget.onDownloadChapter!(ep, i),
+                );
+              }),
             if (widget.onToggleBookmark != null)
               IconButton(
                 icon: Icon(
