@@ -2875,37 +2875,31 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           icon: Icons.error_outline,
                           text: l10n.playerLineEmpty,
                         )
-                      : lines.length == 1
-                          ? _buildLineHint(
-                              ctx,
-                              icon: Icons.info_outline,
-                              text: l10n.playerLineSingleHint,
-                            )
-                          : ListView.builder(
-                              itemCount: lines.length,
-                              itemBuilder: (BuildContext _, int i) {
-                                final line = lines[i];
-                                final selected =
-                                    i == _controller.currentLineIndex;
-                                return ListTile(
-                                  leading: Icon(
-                                    selected
-                                        ? Icons.radio_button_checked
-                                        : Icons.radio_button_unchecked,
-                                    color: selected
-                                        ? Theme.of(ctx).colorScheme.primary
-                                        : null,
-                                  ),
-                                  title: Text(line.name),
-                                  onTap: () {
-                                    Navigator.pop(ctx);
-                                    if (i != _controller.currentLineIndex) {
-                                      unawaited(_controller.selectLine(i));
-                                    }
-                                  },
-                                );
+                      : ListView.builder(
+                          itemCount: lines.length,
+                          itemBuilder: (BuildContext _, int i) {
+                            final line = lines[i];
+                            final selected =
+                                i == _controller.currentLineIndex;
+                            return ListTile(
+                              leading: Icon(
+                                selected
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_unchecked,
+                                color: selected
+                                    ? Theme.of(ctx).colorScheme.primary
+                                    : null,
+                              ),
+                              title: Text(line.name),
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                if (i != _controller.currentLineIndex) {
+                                  unawaited(_controller.selectLine(i));
+                                }
                               },
-                            ),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),

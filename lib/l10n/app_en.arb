@@ -2728,6 +2728,9 @@
   "bangumiPrivate": "Private",
   "bangumiSyncLoginHint": "Sign in to Bangumi in Settings first",
   "bangumiSyncSaved": "Saved",
+  "bangumiSyncWatchedEpisodes": "Watched episodes",
+  "bangumiSyncWatchedChapters": "Read chapters",
+  "bangumiSyncProgressHint": "Leave empty to auto-sync local progress",
   "bangumiRatingValue": "{count} / 10",
   "clear": "Clear",
   "@bangumiRatingValue": {

@@ -71,6 +71,14 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   bool _saving = false;
 
   final TextEditingController _commentCtrl = TextEditingController();
+  final TextEditingController _progressCtrl = TextEditingController();
+
+  /// 当前条目是否为动漫（走 episode 级标记）。
+  bool get _isAnime => widget.sourceType == SourceType.animeSource;
+
+  /// 当前条目是否为书籍（漫画/小说，走 ep_status）。
+  bool get _isBook => widget.sourceType == SourceType.mangaSource ||
+      widget.sourceType == SourceType.novelSource;
 
   BangumiSyncService get _service => context.read<BangumiSyncService>();
 
@@ -84,6 +92,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   @override
   void dispose() {
     _commentCtrl.dispose();
+    _progressCtrl.dispose();
     super.dispose();
   }
 
@@ -103,6 +112,10 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
           _comment = remote.comment;
           _type = remote.type;
           _private = remote.isPrivate;
+          // 书籍预填远端 ep_status（1 起计数，0 表示未开始）。
+          if (_isBook && remote.epStatus > 0) {
+            _progressCtrl.text = '${remote.epStatus}';
+          }
         }
         _loading = false;
       });
@@ -126,6 +139,16 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
     if (_saving) return;
     setState(() => _saving = true);
     try {
+      // 解析手动输入的进度（空 = 不修改进度）。
+      final progressText = _progressCtrl.text.trim();
+      final int? progress = progressText.isEmpty ? null : int.tryParse(progressText);
+
+      // 书籍：ep_status 直接随 PATCH 一起提交。
+      final int? bookEpStatus = (_isBook && progress != null && progress >= 0)
+          ? progress
+          : null;
+
+      // 1. PATCH 收藏（评分 / 吐槽 / 状态 / 公开私密 / 书籍进度）。
       await widget.client.patchCollection(
         widget.subjectId,
         CollectionPayload(
@@ -133,8 +156,31 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
           rate: _rate,
           comment: _comment.trim().isNotEmpty ? _comment.trim() : null,
           private: _private,
+          epStatus: bookEpStatus,
         ),
       );
+
+      // 2. 动漫：手动指定已看集数时，拉取 episode 列表并标记差集。
+      if (_isAnime && progress != null && progress > 0) {
+        final episodes = await widget.client.fetchEpisodes(widget.subjectId);
+        final episodeIds = <int>[
+          for (int i = 0; i < progress && i < episodes.length; i++)
+            episodes[i].id,
+        ];
+        if (episodeIds.isNotEmpty) {
+          // 增量标集：只标记远端尚未「看过」的差集。
+          final remoteEps =
+              await widget.client.fetchCollectedEpisodes(widget.subjectId);
+          final diff = <int>[
+            for (final id in episodeIds)
+              if (remoteEps[id] != 2) id,
+          ];
+          if (diff.isNotEmpty) {
+            await widget.client.markEpisodesWatched(widget.subjectId, diff);
+          }
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context).bangumiSyncSaved)));
@@ -253,7 +299,26 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
               ChoiceChip(label: Text(e.$2), selected: _type == e.$1,
                 onSelected: (_) => setState(() => _type = e.$1)),
           ]),
-          const SizedBox(height: AppTokens.spaceLg),
+          const SizedBox(height: AppTokens.spaceMd),
+
+          // 已看集数 / 已读章节（动漫走 episode 标记，书籍走 ep_status）
+          if (_isAnime || _isBook) ...<Widget>[
+            TextField(
+              controller: _progressCtrl,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: _isAnime
+                    ? l10n.bangumiSyncWatchedEpisodes
+                    : l10n.bangumiSyncWatchedChapters,
+                helperText: l10n.bangumiSyncProgressHint,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceSm),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceLg),
+          ],
 
           // 底部：公开/私密 + 同步
           Row(children: <Widget>[
