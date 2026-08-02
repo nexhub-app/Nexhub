@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/settings/general_settings.dart';
 import '../../../core/models/bookshelf_filter.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
@@ -85,6 +86,8 @@ class MediaHomeScreen extends StatelessWidget {
                   sourceId: item.sourceId ?? '',
                   itemId: item.id,
                   localUri: localPath,
+                  restoreProgress:
+                      GeneralSettingsStore.instance.settings.rememberPosition,
                 ),
               ),
             );

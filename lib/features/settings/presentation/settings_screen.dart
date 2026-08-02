@@ -632,6 +632,18 @@ class _GeneralSettingsCardState extends State<_GeneralSettingsCard> {
                 if (mounted) setState(() {});
               },
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.rememberPosition),
+              subtitle: Text(
+                l10n.rememberPositionHint,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              value: _s.rememberPosition,
+              onChanged: (v) => _update(_s.copyWith(rememberPosition: v)),
+            ),
           ],
         ),
       ],

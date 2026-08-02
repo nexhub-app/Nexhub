@@ -3,6 +3,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/episode.dart';
+import '../../../core/settings/general_settings.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/media_api_service.dart';
@@ -112,6 +113,8 @@ class _SeasonDetailScreenState extends State<SeasonDetailScreen> {
           episode: ep,
           sourceId: sid,
           itemId: widget.season.id,
+          restoreProgress:
+              GeneralSettingsStore.instance.settings.rememberPosition,
         ),
       ),
     );

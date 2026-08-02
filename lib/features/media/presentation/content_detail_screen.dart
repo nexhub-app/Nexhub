@@ -45,6 +45,7 @@ import '../../../core/navigation/app_page_route.dart';
 import '../../../core/novel/novel_toc_cache.dart';
 import '../../../core/progress/unified_progress_repository.dart';
 import '../../../core/resolver/webview_resolver.dart';
+import '../../../core/settings/general_settings.dart';
 import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
@@ -450,6 +451,13 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         _fetchedDetail.detailUrl ?? widget.item.detailUrl;
     final String? coverUrl = _fetchedDetail.coverUrl ?? widget.item.coverUrl;
 
+    // 全局「记住播放/阅读位置」总开关：关闭时即便从「继续阅读」入口进入也
+    // 不恢复进度（从头开始）；明确点选某章节进入时 restoreProgress 本就是
+    // false，与全局开关取与后仍为 false，行为不变。
+    final bool remember =
+        GeneralSettingsStore.instance.settings.rememberPosition;
+    final bool effectiveRestore = restoreProgress && remember;
+
     switch (_sourceType) {
       case SourceType.animeSource:
         // 「已看」由播放器在进度达到阈值时自动标记（见 VideoPlayerScreen），
@@ -466,6 +474,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               favoriteType: _favType,
               detailUrl: detailUrl,
               coverUrl: coverUrl,
+              restoreProgress: remember,
             ),
           ),
         );
@@ -478,7 +487,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               sourceId: sid,
               chapters: _chapters,
               initialChapterIndex: index,
-              restoreProgress: restoreProgress,
+              restoreProgress: effectiveRestore,
               detailUrl: detailUrl,
               coverUrl: coverUrl,
             ),
@@ -493,7 +502,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               sourceId: sid,
               chapters: _chapters,
               initialChapterIndex: index,
-              restoreProgress: restoreProgress,
+              restoreProgress: effectiveRestore,
               detailUrl: detailUrl,
               coverUrl: coverUrl,
             ),

@@ -5396,6 +5396,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get globalIncognitoHint => '开启后所有源都不记录浏览历史与搜索记录（各源仍可单独在源管理中覆盖）';
 
   @override
+  String get rememberPosition => '记住播放/阅读位置';
+
+  @override
+  String get rememberPositionHint => '开启后，重新打开动漫/漫画/小说会自动跳到上次观看的进度；关闭则每次从开头开始';
+
+  @override
   String mirrorAutoAdded(Object count) {
     return '已从发布页自动添加 $count 个镜像';
   }

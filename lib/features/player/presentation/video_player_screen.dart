@@ -112,7 +112,13 @@ class VideoPlayerScreen extends StatefulWidget {
   final Map<String, String>? directHeaders;
 
   /// 详情页 URL（用于收藏时透传，避免历史/收藏详情灰屏）。
-  final String? detailUrl;
+    final String? detailUrl;
+
+  /// 是否恢复上次播放位置（默认 true）。
+  ///
+  /// 由全局「记住播放/阅读位置」开关门控：关闭时打开即从头播放，
+  /// 不跳到上次进度。
+  final bool restoreProgress;
 
   /// 封面 URL（用于收藏时透传，避免收藏书架缺封面）。
   final String? coverUrl;
@@ -132,6 +138,7 @@ class VideoPlayerScreen extends StatefulWidget {
     this.directHeaders,
     this.detailUrl,
     this.coverUrl,
+    this.restoreProgress = true,
   });
 
   @override
@@ -546,7 +553,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 不 await：[_seekWhenReady] 需要等底层 duration 就绪（可能 1~10 秒），
     // 阻塞 _init 会让整页一直转圈。恢复完成前 [_positionRestoreDone] 为 false，
     // 位置写盘被挡住，不存在「被 0 覆盖」的竞态。
-    unawaited(_restoreSavedPosition());
+    // 关闭「记住播放/阅读位置」时不再恢复上次进度，直接从头播放。
+    if (widget.restoreProgress) unawaited(_restoreSavedPosition());
 
     // 监听播放状态
     _positionSub = _controller.positionStream.listen(_onPositionChanged);
@@ -1380,8 +1388,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _danmakuController.reset();
       // 重新加载弹幕（使用新剧集 ID）
       _loadDanmakuForEpisode(ep);
-      // 恢复新剧集的上次播放位置
-      await _restoreSavedPosition();
+      // 恢复新剧集的上次播放位置（关闭记住位置时跳过，但需开闸以允许本集保存进度）
+      if (widget.restoreProgress) {
+        await _restoreSavedPosition();
+      } else {
+        _positionRestoreDone = true;
+        _lastPositionSaveAt = DateTime.now();
+      }
     } on Object {
       // 切集失败，静默忽略；但要开闸，否则该集永远不再保存进度。
       _positionRestoreDone = true;
