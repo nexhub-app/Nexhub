@@ -13,12 +13,18 @@
 ///
 /// ⚠️ 备份白名单统一从 [kStorageBoxNames] 读取（单一事实源），与 splash
 /// 启动时打开的 box 严格 1:1 —— 任何 box 增删只需改 storage_boxes.dart。
+///
+/// Round 2（完整重设计）能力：
+/// - 增量同步：记录每 box 内容 sha256，仅上传变化的 box / 偏好。
+/// - 冲突解决：拉取前预览本地与云端冲突项，按 box 选择保留云端或本地。
+/// - 状态明细：记录上次备份 / 恢复的时间、成功与否、数据条数、范围。
 library;
 
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -32,6 +38,72 @@ import 'backup_archive.dart';
 /// 同步频率
 enum SyncFrequency { manual, daily, weekly }
 
+/// 一次同步（备份或恢复）的结果明细，用于「状态明细」展示。
+class SyncStatusEntry {
+  /// 时间戳（毫秒）；null 表示从未执行。
+  final int? timestamp;
+  /// 是否成功；null 表示从未执行。
+  final bool? success;
+  /// 涉及的数据条数（0 表示「无变化」或失败未统计）。
+  final int itemCount;
+  /// 涉及的 box 名列表（空表示全部 / 无）。
+  final List<String> scope;
+  /// 是否为「无变化，无需同步」。
+  final bool noChanges;
+
+  const SyncStatusEntry({
+    this.timestamp,
+    this.success,
+    this.itemCount = 0,
+    this.scope = const <String>[],
+    this.noChanges = false,
+  });
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        if (timestamp != null) 'timestamp': timestamp,
+        if (success != null) 'success': success,
+        'itemCount': itemCount,
+        'scope': scope,
+        'noChanges': noChanges,
+      };
+
+  factory SyncStatusEntry.fromJson(Map<String, dynamic> json) => SyncStatusEntry(
+        timestamp: json['timestamp'] as int?,
+        success: json['success'] as bool?,
+        itemCount: (json['itemCount'] as int?) ?? 0,
+        scope: (json['scope'] as List?)?.map((e) => e as String).toList() ??
+            const <String>[],
+        noChanges: (json['noChanges'] as bool?) ?? false,
+      );
+}
+
+/// 单个冲突项（同一 key 在本地与云端取值不同）。
+class SyncConflict {
+  final String boxName;
+  final BackupCategory category;
+  final String key;
+  final String localPreview;
+  final String remotePreview;
+
+  const SyncConflict({
+    required this.boxName,
+    required this.category,
+    required this.key,
+    required this.localPreview,
+    required this.remotePreview,
+  });
+}
+
+/// 冲突预览报告：按 box 归组的冲突列表 + 总数。
+class SyncConflictReport {
+  final Map<String, List<SyncConflict>> byBox;
+
+  SyncConflictReport({required this.byBox});
+
+  int get total =>
+      byBox.values.fold(0, (sum, list) => sum + list.length);
+}
+
 /// WebDAV 配置（URL/用户名/密码除外，密码用 secure storage）
 class CloudSyncConfig {
   final String url;
@@ -40,13 +112,38 @@ class CloudSyncConfig {
   final SyncFrequency frequency;
   final int? lastSyncTimestamp; // null = never synced
 
+  /// 上次备份（上传）明细。
+  final SyncStatusEntry? lastUpload;
+
+  /// 上次恢复（下载）明细。
+  final SyncStatusEntry? lastRestore;
+
+  /// 各 box（及 `__prefs__`）的内容 sha256，用于增量同步。
+  final Map<String, String>? boxHashes;
+
   const CloudSyncConfig({
     this.url = '',
     this.username = '',
     this.autoSync = false,
     this.frequency = SyncFrequency.manual,
     this.lastSyncTimestamp,
+    this.lastUpload,
+    this.lastRestore,
+    this.boxHashes,
   });
+
+  /// 下次自动同步时间戳（毫秒）；不满足自动同步条件时返回 null。
+  int? get nextSyncTimestamp {
+    if (!autoSync ||
+        frequency == SyncFrequency.manual ||
+        lastUpload?.timestamp == null) {
+      return null;
+    }
+    final delta = frequency == SyncFrequency.daily
+        ? const Duration(days: 1)
+        : const Duration(days: 7);
+    return lastUpload!.timestamp! + delta.inMilliseconds;
+  }
 
   CloudSyncConfig copyWith({
     String? url,
@@ -54,6 +151,9 @@ class CloudSyncConfig {
     bool? autoSync,
     SyncFrequency? frequency,
     int? lastSyncTimestamp,
+    SyncStatusEntry? lastUpload,
+    SyncStatusEntry? lastRestore,
+    Map<String, String>? boxHashes,
   }) {
     return CloudSyncConfig(
       url: url ?? this.url,
@@ -61,6 +161,9 @@ class CloudSyncConfig {
       autoSync: autoSync ?? this.autoSync,
       frequency: frequency ?? this.frequency,
       lastSyncTimestamp: lastSyncTimestamp ?? this.lastSyncTimestamp,
+      lastUpload: lastUpload ?? this.lastUpload,
+      lastRestore: lastRestore ?? this.lastRestore,
+      boxHashes: boxHashes ?? this.boxHashes,
     );
   }
 
@@ -71,6 +174,9 @@ class CloudSyncConfig {
         'frequency': frequency.name,
         if (lastSyncTimestamp != null)
           'lastSyncTimestamp': lastSyncTimestamp,
+        if (lastUpload != null) 'lastUpload': lastUpload!.toJson(),
+        if (lastRestore != null) 'lastRestore': lastRestore!.toJson(),
+        if (boxHashes != null) 'boxHashes': boxHashes,
       };
 
   factory CloudSyncConfig.fromJson(Map<String, dynamic> json) {
@@ -86,12 +192,23 @@ class CloudSyncConfig {
       }
     }
 
+    SyncStatusEntry? parseStatus(dynamic raw) =>
+        raw is Map<String, dynamic> ? SyncStatusEntry.fromJson(raw) : null;
+
+    Map<String, String>? parseHashes(dynamic raw) {
+      if (raw is! Map) return null;
+      return raw.map((k, v) => MapEntry(k as String, v as String));
+    }
+
     return CloudSyncConfig(
       url: (json['url'] as String?) ?? '',
       username: (json['username'] as String?) ?? '',
       autoSync: (json['autoSync'] as bool?) ?? false,
       frequency: parseFrequency(json['frequency'] as String?),
       lastSyncTimestamp: json['lastSyncTimestamp'] as int?,
+      lastUpload: parseStatus(json['lastUpload']),
+      lastRestore: parseStatus(json['lastRestore']),
+      boxHashes: parseHashes(json['boxHashes']),
     );
   }
 }
@@ -141,14 +258,23 @@ class _RemoteFile {
   const _RemoteFile({required this.name, required this.isCollection});
 }
 
+/// 导入结果：写入条数 + 被应用的 box 远程哈希（用于更新增量基线）。
+class _ImportResult {
+  final int appliedItems;
+  final Map<String, String> remoteHashes;
+
+  const _ImportResult({this.appliedItems = 0, this.remoteHashes = const {}});
+}
+
 /// 云同步服务 —— 基于 WebDAV 的备份与多端同步。
 ///
 /// 使用 dio 手写 WebDAV 操作（MKCOL/PUT/GET/PROPFIND/DELETE），不引入额外的
 /// webdav 包。密码使用 [FlutterSecureStorage] 安全存储，配置仅持久化非敏感
-/// 字段（URL / 用户名 / 自动同步开关 / 频率 / 上次同步时间）。
+/// 字段（URL / 用户名 / 自动同步开关 / 频率 / 状态明细 / 增量哈希）。
 class CloudSyncService extends ChangeNotifier {
   static const String _remoteDir = '/nexhub';
   static const int _maxBackups = 5;
+  static const String _prefsHashKey = '__prefs__';
 
   CloudSyncConfig _config = const CloudSyncConfig();
   String? _password;
@@ -176,7 +302,7 @@ class CloudSyncService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 构造 Basic Auth header value（不含 "Basic " 前缀）。
+  /// 构造 Basic Auth header value（含 "Basic " 前缀）。
   String _basicAuth(String username, String password) {
     final creds = base64Encode(utf8.encode('$username:$password'));
     return 'Basic $creds';
@@ -248,10 +374,51 @@ class CloudSyncService extends ChangeNotifier {
     }
   }
 
+  /// 内容哈希（sha256 hex），用于增量同步基线比对。
+  String _sha256(String s) =>
+      crypto.sha256.convert(utf8.encode(s)).toString();
+
+  /// 深度相等：对两端 encode 后的结构做 JSON 字符串比对（可靠且无需额外依赖）。
+  bool _valuesEqual(dynamic a, dynamic b) => jsonEncode(a) == jsonEncode(b);
+
+  /// 把任意值压成一行预览文本（用于冲突界面展示）。
+  String _preview(dynamic v) {
+    final s = v is String ? v : jsonEncode(v);
+    return s.length > 60 ? '${s.substring(0, 60)}…' : s;
+  }
+
+  /// 计算给定 box（及偏好）的当前内容哈希。
+  Future<Map<String, String>> _computeHashes(
+    Set<String> boxNames,
+    bool includePrefs,
+  ) async {
+    final hashes = <String, String>{};
+    for (final name in boxNames) {
+      if (Hive.isBoxOpen(name)) {
+        final box = Hive.box(name);
+        final data = box
+            .toMap()
+            .map((k, v) => MapEntry(k.toString(), _encodeHiveValue(v)));
+        hashes[name] = _sha256(jsonEncode(data));
+      }
+    }
+    if (includePrefs) {
+      final prefs = await SharedPreferences.getInstance();
+      final prefsData = <String, dynamic>{};
+      for (final key in prefs.getKeys()) {
+        final v = prefs.get(key);
+        if (v != null) prefsData[key] = v;
+      }
+      hashes[_prefsHashKey] = _sha256(jsonEncode(prefsData));
+    }
+    return hashes;
+  }
+
   /// 立即同步：导出本地 → 打包 ZIP → 上传到 WebDAV。
   ///
   /// [scope] 为 null 时导出全部；否则只导出选中分类对应的 box（含「设置与偏好」
   /// 时才包含 SharedPreferences）。
+  /// 增量：仅上传相对上次同步发生变化的 box / 偏好；无变化则直接成功（标记无变化）。
   Future<bool> syncNow({Set<BackupCategory>? scope}) async {
     if (_syncing) return false;
     if (_config.url.isEmpty || _password == null) {
@@ -261,8 +428,44 @@ class CloudSyncService extends ChangeNotifier {
     _syncing = true;
     _lastError = null;
     notifyListeners();
+    final resolvedBoxes =
+        scope == null ? kStorageBoxNames.toSet() : resolveBoxNames(scope);
+    final includePrefs =
+        scope == null || scope.contains(BackupCategory.settings);
     try {
-      final archive = await _exportToArchive(scope: scope);
+      final prevHashes = _config.boxHashes ?? const <String, String>{};
+      final currentHashes = await _computeHashes(resolvedBoxes, includePrefs);
+
+      final changedBoxes = <String>{};
+      for (final name in resolvedBoxes) {
+        if (prevHashes[name] != currentHashes[name]) changedBoxes.add(name);
+      }
+      final prefsChanged = includePrefs &&
+          prevHashes[_prefsHashKey] != currentHashes[_prefsHashKey];
+
+      if (changedBoxes.isEmpty && !prefsChanged) {
+        // 无变化：记录「无变化」状态，保留既有哈希基线。
+        final ts = DateTime.now().millisecondsSinceEpoch;
+        _config = _config.copyWith(
+          lastSyncTimestamp: ts,
+          lastUpload: SyncStatusEntry(
+            timestamp: ts,
+            success: true,
+            itemCount: 0,
+            scope: resolvedBoxes.toList(),
+            noChanges: true,
+          ),
+        );
+        await CloudSyncConfigStore().save(_config);
+        _syncing = false;
+        notifyListeners();
+        return true;
+      }
+
+      final archive = await _exportToArchive(
+        boxNames: changedBoxes,
+        includePrefs: prefsChanged,
+      );
       final zipBytes = ZipEncoder().encode(archive);
       if (zipBytes == null) {
         _lastError = 'encode_failed';
@@ -294,13 +497,48 @@ class CloudSyncService extends ChangeNotifier {
       // 清理旧备份（保留最近 5 份）
       await _cleanupOldBackups(dio);
 
-      // 更新上次同步时间
-      _config = _config.copyWith(lastSyncTimestamp: timestamp);
+      // 统计上传条数 + 更新哈希基线
+      var itemCount = 0;
+      for (final name in changedBoxes) {
+        if (Hive.isBoxOpen(name)) itemCount += Hive.box(name).length;
+      }
+      if (prefsChanged) {
+        final prefs = await SharedPreferences.getInstance();
+        itemCount += prefs.getKeys().length;
+      }
+      final newHashes = <String, String>{...prevHashes};
+      for (final name in changedBoxes) {
+        newHashes[name] = currentHashes[name]!;
+      }
+      if (prefsChanged) {
+        newHashes[_prefsHashKey] = currentHashes[_prefsHashKey]!;
+      }
+
+      _config = _config.copyWith(
+        lastSyncTimestamp: timestamp,
+        lastUpload: SyncStatusEntry(
+          timestamp: timestamp,
+          success: true,
+          itemCount: itemCount,
+          scope: changedBoxes.toList(),
+        ),
+        boxHashes: newHashes,
+      );
       await CloudSyncConfigStore().save(_config);
       _syncing = false;
       notifyListeners();
       return true;
     } catch (e) {
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      _config = _config.copyWith(
+        lastSyncTimestamp: ts,
+        lastUpload: SyncStatusEntry(
+          timestamp: ts,
+          success: false,
+          scope: resolvedBoxes.toList(),
+        ),
+      );
+      await CloudSyncConfigStore().save(_config);
       _lastError = e is DioException ? 'network' : 'unknown:$e';
       _syncing = false;
       notifyListeners();
@@ -308,12 +546,95 @@ class CloudSyncService extends ChangeNotifier {
     }
   }
 
+  /// 预览本地与云端最新备份之间的冲突项（按 box 归组）。
+  ///
+  /// 返回 null 表示未配置 / 无远程备份 / 出错（详见 [lastError]）。
+  Future<SyncConflictReport?> previewConflicts(
+      {Set<BackupCategory>? scope}) async {
+    if (_config.url.isEmpty || _password == null) {
+      _lastError = 'no_config';
+      return null;
+    }
+    try {
+      final dio = _buildDio(
+        username: _config.username,
+        password: _password!,
+      );
+      final files = await _listRemoteBackups(dio);
+      if (files.isEmpty) {
+        _lastError = 'no_remote_backup';
+        return null;
+      }
+      files.sort((a, b) => b.name.compareTo(a.name));
+      final latest = files.first;
+      final resp = await dio.get<List<int>>(
+        _buildUrl('$_remoteDir/${latest.name}'),
+        options: Options(
+          responseType: ResponseType.bytes,
+          validateStatus: (s) => s != null && s >= 200 && s < 300,
+        ),
+      );
+      final bytes = Uint8List.fromList(resp.data ?? <int>[]);
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final hiveFile = archive.findFile('hive_boxes.json');
+      if (hiveFile == null) return SyncConflictReport(byBox: const {});
+      final remoteRaw =
+          jsonDecode(utf8.decode(hiveFile.content as List<int>))
+              as Map<String, dynamic>;
+      final allowedBoxes =
+          scope == null ? null : resolveBoxNames(scope);
+      final reverseCat = <String, BackupCategory>{};
+      for (final e in kBackupCategoryBoxes.entries) {
+        for (final b in e.value) {
+          reverseCat[b] = e.key;
+        }
+      }
+      final byBox = <String, List<SyncConflict>>{};
+      for (final entry in remoteRaw.entries) {
+        final name = entry.key;
+        if (allowedBoxes != null && !allowedBoxes.contains(name)) continue;
+        final data = entry.value;
+        if (data is! Map) continue;
+        if (!Hive.isBoxOpen(name)) continue;
+        final box = Hive.box(name);
+        final remoteData = data.map(
+          (k, v) => MapEntry(k.toString(), _encodeHiveValue(v)),
+        );
+        for (final rk in remoteData.keys) {
+          if (!box.containsKey(rk)) continue; // 云端独有，非冲突
+          final localEnc = _encodeHiveValue(box.get(rk));
+          final remoteEnc = remoteData[rk];
+          if (!_valuesEqual(localEnc, remoteEnc)) {
+            byBox.putIfAbsent(name, () => <SyncConflict>[]).add(SyncConflict(
+              boxName: name,
+              category: reverseCat[name] ?? BackupCategory.other,
+              key: rk,
+              localPreview: _preview(localEnc),
+              remotePreview: _preview(remoteEnc),
+            ));
+          }
+        }
+      }
+      return SyncConflictReport(byBox: byBox);
+    } catch (e) {
+      _lastError = e is DioException ? 'network' : 'unknown:$e';
+      return null;
+    }
+  }
+
   /// 从 WebDAV 拉最新 ZIP 并恢复到本地。
   ///
   /// [merge] = true 合并（保留本地其它键）；false 覆盖（先清空目标 box 再写入）。
   /// [scope] 非空时只恢复这些分类对应的 box。
-  Future<bool> pullRemote(
-      {bool merge = true, Set<BackupCategory>? scope}) async {
+  /// [conflictChoices] 非空（冲突解决模式）：键为 box 名，值为「是否采用云端」。
+  ///   - true：该 box 整体以云端为准（清空后写入云端数据）。
+  ///   - false：跳过该 box（保留本地）。
+  ///   - 未列出：按 [merge] 合并（云端键覆盖本地同键，保留本地独有键）。
+  Future<bool> pullRemote({
+    bool merge = true,
+    Set<BackupCategory>? scope,
+    Map<String, bool>? conflictChoices,
+  }) async {
     if (_syncing) return false;
     if (_config.url.isEmpty || _password == null) {
       _lastError = 'no_config';
@@ -322,6 +643,8 @@ class CloudSyncService extends ChangeNotifier {
     _syncing = true;
     _lastError = null;
     notifyListeners();
+    final resolvedBoxes =
+        scope == null ? kStorageBoxNames.toSet() : resolveBoxNames(scope);
     try {
       final dio = _buildDio(
         username: _config.username,
@@ -346,12 +669,42 @@ class CloudSyncService extends ChangeNotifier {
       );
       final bytes = Uint8List.fromList(resp.data ?? <int>[]);
       final archive = ZipDecoder().decodeBytes(bytes);
-      await _importFromArchive(archive, merge: merge, categories: scope);
+      final result = await _importFromArchive(
+        archive,
+        merge: merge,
+        categories: scope,
+        conflictChoices: conflictChoices,
+      );
 
+      // 更新上次恢复状态 + 增量哈希基线
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final newHashes = <String, String>{...?_config.boxHashes};
+      newHashes.addAll(result.remoteHashes);
+      _config = _config.copyWith(
+        lastSyncTimestamp: ts,
+        lastRestore: SyncStatusEntry(
+          timestamp: ts,
+          success: true,
+          itemCount: result.appliedItems,
+          scope: resolvedBoxes.toList(),
+        ),
+        boxHashes: newHashes,
+      );
+      await CloudSyncConfigStore().save(_config);
       _syncing = false;
       notifyListeners();
       return true;
     } catch (e) {
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      _config = _config.copyWith(
+        lastSyncTimestamp: ts,
+        lastRestore: SyncStatusEntry(
+          timestamp: ts,
+          success: false,
+          scope: resolvedBoxes.toList(),
+        ),
+      );
+      await CloudSyncConfigStore().save(_config);
       _lastError = e is DioException ? 'network' : 'unknown:$e';
       _syncing = false;
       notifyListeners();
@@ -417,11 +770,6 @@ class CloudSyncService extends ChangeNotifier {
         final decoded = Uri.decodeFull(href);
         String name = decoded;
         if (decoded.endsWith('/')) {
-          // 是目录本身（如 /nexhub/），跳过根目录
-          if (decoded.endsWith('$_remoteDir/') ||
-              decoded.endsWith('${_remoteDir.replaceAll('/', '')}/')) {
-            // 保留目录标记以便后续过滤
-          }
           continue;
         }
         final lastSlash = decoded.lastIndexOf('/');
@@ -469,14 +817,12 @@ class CloudSyncService extends ChangeNotifier {
     }
   }
 
-  Future<Archive> _exportToArchive({Set<BackupCategory>? scope}) async {
+  /// 导出指定 box 为 ZIP 归档（hive_boxes.json + 可选 preferences.json）。
+  Future<Archive> _exportToArchive({
+    required Set<String> boxNames,
+    required bool includePrefs,
+  }) async {
     final archive = Archive();
-    // 1. Hive boxes → JSON。白名单取自单一事实源 kStorageBoxNames（scope 为 null）
-    //    或选中分类对应的 box；与 splash 启动时打开的 box 严格一致。
-    final boxNames =
-        scope == null ? kStorageBoxNames : resolveBoxNames(scope);
-    final includePrefs =
-        scope == null || scope.contains(BackupCategory.settings);
     final hiveData = <String, dynamic>{};
     for (final name in boxNames) {
       if (Hive.isBoxOpen(name)) {
@@ -492,7 +838,7 @@ class CloudSyncService extends ChangeNotifier {
       hiveBytes.length,
       hiveBytes,
     ));
-    // 2. SharedPreferences → JSON（仅当选中「设置与偏好」时包含）
+    // 2. SharedPreferences → JSON（仅当 includePrefs 时包含）
     if (includePrefs) {
       final prefs = await SharedPreferences.getInstance();
       final prefsData = <String, dynamic>{};
@@ -525,11 +871,17 @@ class CloudSyncService extends ChangeNotifier {
     return v.toString();
   }
 
-  Future<void> _importFromArchive(
+  /// 从 ZIP 归档恢复到本地。
+  ///
+  /// 返回写入条数与被应用 box 的远程哈希（用于更新增量基线）。
+  Future<_ImportResult> _importFromArchive(
     Archive archive, {
     required bool merge,
     Set<BackupCategory>? categories,
+    Map<String, bool>? conflictChoices,
   }) async {
+    var appliedItems = 0;
+    final remoteHashes = <String, String>{};
     final allowedBoxes =
         categories == null ? null : resolveBoxNames(categories);
     // 1. 合并 / 覆盖 Hive boxes
@@ -542,30 +894,52 @@ class CloudSyncService extends ChangeNotifier {
         if (allowedBoxes != null && !allowedBoxes.contains(name)) continue;
         final data = entry.value;
         if (data is! Map) continue;
-        if (Hive.isBoxOpen(name)) {
-          final box = Hive.box(name);
-          if (!merge) {
-            try {
-              await box.clear();
-            } on Object {
-              // 忽略清空失败
-            }
-          }
+        if (!Hive.isBoxOpen(name)) continue;
+        final choice = conflictChoices?[name];
+        final box = Hive.box(name);
+        if (choice == false) continue; // 采用本地：跳过该 box
+        if (choice == true) {
+          // 采用云端：整体以远程覆盖（清空后写入）
+          try {
+            await box.clear();
+          } on Object {}
           for (final kv in data.entries) {
             try {
               await box.put(kv.key, _decodeHiveValue(kv.value));
-            } on Object {
-              // 跳过无法写入的项
-            }
+              appliedItems++;
+            } on Object {}
+          }
+        } else if (!merge) {
+          // 覆盖模式：先清空再写入
+          try {
+            await box.clear();
+          } on Object {}
+          for (final kv in data.entries) {
+            try {
+              await box.put(kv.key, _decodeHiveValue(kv.value));
+              appliedItems++;
+            } on Object {}
+          }
+        } else {
+          // 合并模式：逐键写入（云端键覆盖本地同键）
+          for (final kv in data.entries) {
+            try {
+              await box.put(kv.key, _decodeHiveValue(kv.value));
+              appliedItems++;
+            } on Object {}
           }
         }
+        // 记录该 box 远程哈希（无论采用哪侧，恢复后本地与远程一致）
+        remoteHashes[name] = _sha256(jsonEncode(data));
       }
     }
     // 2. 合并 / 覆盖 SharedPreferences
     final prefsFile = archive.findFile('preferences.json');
     if (prefsFile != null) {
-      if (categories != null && !categories.contains(BackupCategory.settings)) {
-        return;
+      if (categories != null &&
+          !categories.contains(BackupCategory.settings)) {
+        return _ImportResult(
+            appliedItems: appliedItems, remoteHashes: remoteHashes);
       }
       final content = prefsFile.content as List<int>;
       final raw = jsonDecode(utf8.decode(content)) as Map<String, dynamic>;
@@ -575,21 +949,29 @@ class CloudSyncService extends ChangeNotifier {
         try {
           if (v is String) {
             await prefs.setString(entry.key, v);
+            appliedItems++;
           } else if (v is int) {
             await prefs.setInt(entry.key, v);
+            appliedItems++;
           } else if (v is double) {
             await prefs.setDouble(entry.key, v);
+            appliedItems++;
           } else if (v is bool) {
             await prefs.setBool(entry.key, v);
+            appliedItems++;
           } else if (v is List) {
             await prefs.setStringList(
                 entry.key, v.map((e) => e.toString()).toList());
+            appliedItems++;
           }
         } on Object {
           // 跳过无法写入的项
         }
       }
+      remoteHashes[_prefsHashKey] = _sha256(jsonEncode(raw));
     }
+    return _ImportResult(
+        appliedItems: appliedItems, remoteHashes: remoteHashes);
   }
 
   dynamic _decodeHiveValue(dynamic v) {

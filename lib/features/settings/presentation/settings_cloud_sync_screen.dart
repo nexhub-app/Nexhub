@@ -39,6 +39,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
   bool _saving = false;
   bool _syncing = false;
   bool _pulling = false;
+  bool _resolving = false;
   Set<BackupCategory> _selected = <BackupCategory>{
     BackupCategory.source,
     BackupCategory.bookmark,
@@ -233,6 +234,166 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     }
   }
 
+  /// 拉取前预览冲突，并在底部弹窗中按 box 选择保留云端/本地/合并，再恢复。
+  Future<void> _resolveConflicts(AppLocalizations l10n) async {
+    final service = context.read<CloudSyncService>();
+    if (_selected.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.backupScopeNone)),
+      );
+      return;
+    }
+    setState(() => _resolving = true);
+    final report = await service.previewConflicts(scope: _selected);
+    if (!mounted) return;
+    setState(() => _resolving = false);
+    if (report == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            service.lastError != null
+                ? _errorText(l10n, service.lastError)
+                : l10n.cloudSyncSyncFailed,
+          ),
+        ),
+      );
+      return;
+    }
+    if (report.total == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.cloudSyncConflictNone)),
+      );
+      return;
+    }
+    final choices = await showModalBottomSheet<Map<String, bool>?>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _ConflictResolveSheet(report: report),
+    );
+    if (choices == null || !mounted) return;
+    setState(() => _pulling = true);
+    final ok = await service.pullRemote(
+      merge: true,
+      scope: _selected,
+      conflictChoices: choices,
+    );
+    if (!mounted) return;
+    setState(() => _pulling = false);
+    final messenger = ScaffoldMessenger.of(context);
+    if (ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.cloudSyncSyncSuccess)),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            service.lastError != null
+                ? _errorText(l10n, service.lastError)
+                : l10n.cloudSyncSyncFailed,
+          ),
+        ),
+      );
+    }
+  }
+
+  String _formatTime(int ts) => GeneralSettingsStore.instance.settings.dateFormat
+      .format(DateTime.fromMillisecondsSinceEpoch(ts), withTime: true);
+
+  /// 同步状态明细卡片：展示上次备份 / 恢复的时间、成功与否、数据条数、范围。
+  Widget _buildStatusCard(CloudSyncConfig config, AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(Icons.insights,
+                    size: 18, color: theme.colorScheme.primary),
+                const SizedBox(width: AppTokens.spaceSm),
+                Text(l10n.cloudSyncStatusSection,
+                    style: theme.textTheme.titleSmall),
+              ],
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
+            _statusRow(l10n, l10n.cloudSyncStatusUpload, config.lastUpload, theme),
+            const SizedBox(height: AppTokens.spaceXs),
+            _statusRow(l10n, l10n.cloudSyncStatusRestore, config.lastRestore, theme),
+            if (config.nextSyncTimestamp != null) ...<Widget>[
+              const SizedBox(height: AppTokens.spaceXs),
+              Row(
+                children: <Widget>[
+                  Icon(Icons.schedule, size: 16, color: theme.hintColor),
+                  const SizedBox(width: AppTokens.spaceSm),
+                  Expanded(
+                    child: Text(
+                      l10n.cloudSyncNextSync(
+                          _formatTime(config.nextSyncTimestamp!)),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusRow(
+    AppLocalizations l10n,
+    String title,
+    SyncStatusEntry? e,
+    ThemeData theme,
+  ) {
+    if (e == null) {
+      return Row(
+        children: <Widget>[
+          Expanded(child: Text(title, style: theme.textTheme.bodyMedium)),
+          Text(
+            l10n.cloudSyncStatusNotRun,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.hintColor),
+          ),
+        ],
+      );
+    }
+    final bool ok = e.success == true;
+    final String statusText = e.noChanges
+        ? l10n.cloudSyncStatusNoChanges
+        : (ok ? l10n.cloudSyncStatusSuccess : l10n.cloudSyncStatusFailed);
+    final Color statusColor = ok ? Colors.green : Colors.red;
+    final IconData statusIcon = e.noChanges
+        ? Icons.check_circle_outline
+        : (ok ? Icons.check_circle : Icons.error);
+    final String timeText =
+        e.timestamp != null ? _formatTime(e.timestamp!) : '';
+    return Row(
+      children: <Widget>[
+        Expanded(child: Text(title, style: theme.textTheme.bodyMedium)),
+        Icon(statusIcon, size: 16, color: statusColor),
+        const SizedBox(width: AppTokens.spaceXs),
+        Text(statusText,
+            style: theme.textTheme.bodySmall?.copyWith(color: statusColor)),
+        if (e.itemCount > 0) ...<Widget>[
+          const SizedBox(width: AppTokens.spaceXs),
+          Text('· ${l10n.cloudSyncStatusItems(e.itemCount)}',
+              style: theme.textTheme.bodySmall),
+        ],
+        if (timeText.isNotEmpty) ...<Widget>[
+          const SizedBox(width: AppTokens.spaceXs),
+          Text(timeText,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.hintColor)),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
@@ -358,7 +519,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             label: Text(l10n.cloudSyncSyncNow),
           ),
           const SizedBox(height: AppTokens.spaceMd),
-          _LastSyncText(config: config),
+          _buildStatusCard(config, l10n),
 
           const SizedBox(height: AppTokens.spaceLg),
           const Divider(),
@@ -398,6 +559,20 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
                   )
                 : const Icon(Icons.cloud_download_outlined),
             label: Text(l10n.pullNow),
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
+          OutlinedButton.icon(
+            onPressed: (_resolving || service.isSyncing)
+                ? null
+                : () => _resolveConflicts(l10n),
+            icon: (_resolving || service.isSyncing)
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.merge_type),
+            label: Text(l10n.cloudSyncResolveConflicts),
           ),
 
           // ── 错误横幅 ──
@@ -452,40 +627,185 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
   }
 }
 
-class _LastSyncText extends StatelessWidget {
-  final CloudSyncConfig config;
+class _ConflictResolveSheet extends StatefulWidget {
+  final SyncConflictReport report;
 
-  const _LastSyncText({required this.config});
+  const _ConflictResolveSheet({required this.report});
+
+  @override
+  State<_ConflictResolveSheet> createState() => _ConflictResolveSheetState();
+}
+
+class _ConflictResolveSheetState extends State<_ConflictResolveSheet> {
+  late final Map<String, _Choice> _choices;
+
+  @override
+  void initState() {
+    super.initState();
+    _choices = <String, _Choice>{};
+    for (final box in widget.report.byBox.keys) {
+      _choices[box] = _Choice.merge;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    return AnimatedBuilder(
-      animation: GeneralSettingsStore.instance,
-      builder: (context, _) {
-        String text;
-        if (config.lastSyncTimestamp == null) {
-          text = l10n.cloudSyncNeverSynced;
-        } else {
-          final dt = DateTime.fromMillisecondsSinceEpoch(
-            config.lastSyncTimestamp!,
-          );
-          final formatted =
-              GeneralSettingsStore.instance.settings.dateFormat.format(
-            dt,
-            withTime: true,
-          );
-          text = l10n.cloudSyncLastSyncTime(formatted);
-        }
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm),
-          child: Text(
-            text,
-            style: theme.textTheme.bodyMedium,
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      maxChildSize: 0.92,
+      minChildSize: 0.4,
+      expand: false,
+      builder: (ctx, scroll) => Column(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(AppTokens.spaceMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(l10n.cloudSyncConflictTitle,
+                    style: theme.textTheme.titleMedium),
+                const SizedBox(height: AppTokens.spaceXs),
+                Text(l10n.cloudSyncConflictIntro,
+                    style: theme.textTheme.bodySmall),
+              ],
+            ),
           ),
-        );
-      },
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              controller: scroll,
+              padding: const EdgeInsets.all(AppTokens.spaceMd),
+              children: <Widget>[
+                for (final entry in widget.report.byBox.entries)
+                  ..._boxCard(entry.key, entry.value, l10n, theme),
+              ],
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTokens.spaceMd),
+              child: FilledButton(
+                onPressed: () {
+                  final map = <String, bool>{};
+                  for (final e in _choices.entries) {
+                    if (e.value == _Choice.remote) {
+                      map[e.key] = true;
+                    } else if (e.value == _Choice.local) {
+                      map[e.key] = false;
+                    }
+                  }
+                  Navigator.pop(context, map);
+                },
+                child: Text(l10n.cloudSyncConflictApply),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _boxCard(
+    String box,
+    List<SyncConflict> conflicts,
+    AppLocalizations l10n,
+    ThemeData theme,
+  ) {
+    final category = conflicts.first.category;
+    final choice = _choices[box] ?? _Choice.merge;
+    return <Widget>[
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.spaceMd),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(backupCategoryLabel(l10n, category),
+                        style: theme.textTheme.titleSmall),
+                  ),
+                  Text(
+                    l10n.cloudSyncConflictCount(conflicts.length),
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.hintColor),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTokens.spaceSm),
+              SegmentedButton<_Choice>(
+                segments: <ButtonSegment<_Choice>>[
+                  ButtonSegment<_Choice>(
+                    value: _Choice.remote,
+                    label: Text(l10n.cloudSyncConflictUseRemote),
+                  ),
+                  ButtonSegment<_Choice>(
+                    value: _Choice.local,
+                    label: Text(l10n.cloudSyncConflictKeepLocal),
+                  ),
+                  ButtonSegment<_Choice>(
+                    value: _Choice.merge,
+                    label: Text(l10n.cloudSyncConflictMerge),
+                  ),
+                ],
+                selected: <_Choice>{choice},
+                onSelectionChanged: (sel) =>
+                    setState(() => _choices[box] = sel.first),
+              ),
+              const SizedBox(height: AppTokens.spaceSm),
+              for (final c in conflicts.take(3)) _sampleRow(c, l10n, theme),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: AppTokens.spaceMd),
+    ];
+  }
+
+  Widget _sampleRow(
+    SyncConflict c,
+    AppLocalizations l10n,
+    ThemeData theme,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(c.key,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          Row(
+            children: <Widget>[
+              Icon(Icons.phone_android, size: 12, color: theme.hintColor),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '${l10n.cloudSyncConflictLocal}：${c.localPreview}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: <Widget>[
+              Icon(Icons.cloud, size: 12, color: theme.hintColor),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '${l10n.cloudSyncConflictRemote}：${c.remotePreview}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
+
+enum _Choice { remote, local, merge }
