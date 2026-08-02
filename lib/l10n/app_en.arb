@@ -2731,6 +2731,41 @@
   "bangumiSyncWatchedEpisodes": "Watched episodes",
   "bangumiSyncWatchedChapters": "Read chapters",
   "bangumiSyncProgressHint": "Leave empty to auto-sync local progress",
+  "bangumiSyncExpandList": "Pick specific episodes / chapters",
+  "bangumiSyncCollapseList": "Collapse",
+  "bangumiSyncChaptersTotal": "{count} {unit} total",
+  "@bangumiSyncChaptersTotal": {
+    "description": "Total count with unit (episodes/volumes/chapters) for the multi-select list",
+    "placeholders": {
+      "count": {},
+      "unit": {}
+    }
+  },
+  "bangumiSyncChaptersLoadedHint": "{count} {unit} loaded — pick individually",
+  "@bangumiSyncChaptersLoadedHint": {
+    "description": "Hint after Bangumi episode list is loaded",
+    "placeholders": {
+      "count": {},
+      "unit": {}
+    }
+  },
+  "bangumiSyncNoEpisodeList": "Bangumi has no episode list for this subject ({eps}), cannot pick individually",
+  "@bangumiSyncNoEpisodeList": {
+    "description": "Shown when subject has no episode metadata",
+    "placeholders": {
+      "eps": {}
+    }
+  },
+  "bangumiSyncLoadEpisodesFailed": "Failed to load episode list: {error}",
+  "@bangumiSyncLoadEpisodesFailed": {
+    "description": "Failed to fetch Bangumi episode list",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "bangumiSyncUnitEp": "ep",
+  "bangumiSyncUnitVolume": "vol",
+  "bangumiSyncUnitChapter": "ch",
   "bangumiRatingValue": "{count} / 10",
   "clear": "Clear",
   "@bangumiRatingValue": {
