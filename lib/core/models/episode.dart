@@ -107,6 +107,29 @@ class Episode {
   int get hashCode => Object.hash(id, url, lineName);
 }
 
+/// 单条可播放线路（同一剧集可能有多条 CDN / 镜像地址，供播放器「线路」切换）。
+class VideoLine {
+  final String name;
+  final String url;
+  final Map<String, String>? headers;
+
+  const VideoLine({required this.name, required this.url, this.headers});
+
+  factory VideoLine.fromJson(Map<String, dynamic> json) => VideoLine(
+        name: json['name'] as String? ?? '',
+        url: json['url'] as String,
+        headers: (json['headers'] as Map?)?.map(
+          (k, v) => MapEntry(k.toString(), v.toString()),
+        ),
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'name': name,
+        'url': url,
+        if (headers != null) 'headers': headers,
+      };
+}
+
 /// 视频解析结果（直链 MP4/M3U8 / DASH 等）。
 class VideoResult {
   final String url;
@@ -117,7 +140,17 @@ class VideoResult {
   /// 同样必须带上，否则 CDN（如 v5.lbv*.com）返回 403，解不出任何帧 → 黑屏。
   final Map<String, String>? headers;
 
-  const VideoResult({required this.url, this.type, this.headers});
+  /// 同源多线路（不同 CDN / 镜像地址）。非空时播放器以此填充「线路」列表，
+  /// 用户在播放页「选集 / 线路」面板中切换；为空则回退到单一 [url]。
+  /// 由解析器在源提供多地址时填充（共创式：不针对单个源写死）。
+  final List<VideoLine> lines;
+
+  const VideoResult({
+    required this.url,
+    this.type,
+    this.headers,
+    this.lines = const <VideoLine>[],
+  });
 
   factory VideoResult.fromJson(Map<String, dynamic> json) => VideoResult(
         url: json['url'] as String,
@@ -125,11 +158,17 @@ class VideoResult {
         headers: (json['headers'] as Map?)?.map(
           (k, v) => MapEntry(k.toString(), v.toString()),
         ),
+        lines: (json['lines'] as List?)
+                ?.map((e) => VideoLine.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const <VideoLine>[],
       );
 
   Map<String, dynamic> toJson() => {
         'url': url,
         if (type != null) 'type': type,
         if (headers != null) 'headers': headers,
+        if (lines.isNotEmpty)
+          'lines': lines.map((l) => l.toJson()).toList(),
       };
 }

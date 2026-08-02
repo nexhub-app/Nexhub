@@ -9,12 +9,11 @@ library;
 import 'dart:async';
 import 'dart:math';
 
-import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'bangumi_client.dart';
+import 'bangumi_oauth_browser.dart';
 import 'bangumi_oauth_config.dart';
 
 /// Bangumi 认证管理器——全应用单例（Provider 注入）。
@@ -60,10 +59,6 @@ class BangumiAuth extends ChangeNotifier {
   bool get isExpired =>
       _expiresAt != null &&
       DateTime.now().millisecondsSinceEpoch >= _expiresAt!;
-
-  /// 深链回调监听（懒加载，避免无 OAuth 时也初始化）。
-  AppLinks? _appLinksInstance;
-  AppLinks get _appLinks => _appLinksInstance ??= AppLinks();
 
   /// 冷启动恢复已存 token（注入 client 后通知 UI）。
   Future<void> init() async {
@@ -130,18 +125,36 @@ class BangumiAuth extends ChangeNotifier {
 
   /// OAuth 2.0 授权码登录（发布形态）。
   ///
-  /// 流程：在系统浏览器打开 `https://bgm.tv/oauth/authorize` →
-  /// 用户授权后 Bangumi 通过深链 `nexhub://oauth/callback?code=...` 回调 →
-  /// 用 code 换 access_token，再走与 [saveToken] 相同的存储路径（并额外存
-  /// refresh_token 与过期时间）。
+  /// 流程：用内置浏览器（[InAppBrowser]）打开 `https://bgm.tv/oauth/authorize`
+  /// → 用户授权后 Bangumi 回跳 `nexhub://oauth/callback?code=...`，由内置浏览器
+  /// 直接截获（不再依赖外部浏览器 + 深链回调，避免返回应用时深链不触发导致界面
+  /// 一直转圈）→ 用 code 换 access_token，再走与 [saveToken] 相同的存储路径
+  /// （并额外存 refresh_token 与过期时间）。
   ///
   /// 前置条件：已在 [BangumiOAuthConfig] 填入 Client ID / Secret，否则抛
-  /// [StateError]。用户超时未授权（10 分钟）抛 [StateError]。
+  /// [StateError]。用户取消授权 / 关闭浏览器返回 null 时抛 [StateError]。
   Future<void> loginWithOAuth() async {
     if (!BangumiOAuthConfig.configured) {
       throw StateError('bangumi oauth not configured');
     }
-    final code = await _authorizeAndWaitCode();
+    final state = _randomState();
+    final authorizeUrl = Uri.https('bgm.tv', '/oauth/authorize', <String, String>{
+      'client_id': BangumiOAuthConfig.clientId,
+      'response_type': 'code',
+      'redirect_uri': BangumiOAuthConfig.redirectUri,
+      if (BangumiOAuthConfig.scopes.isNotEmpty)
+        'scope': BangumiOAuthConfig.scopes.join(' '),
+      'state': state,
+    }).toString();
+
+    final code = await openBangumiOAuthBrowser(
+      authorizeUrl: authorizeUrl,
+      redirectScheme: BangumiOAuthConfig.redirectUri,
+    );
+    // 用户取消 / 关闭浏览器：code 为空，按失败处理（由调用方捕获并提示）。
+    if (code == null || code.isEmpty) {
+      throw StateError('bangumi oauth cancelled');
+    }
     final token = await _client.exchangeCodeForToken(
       clientId: BangumiOAuthConfig.clientId,
       clientSecret: BangumiOAuthConfig.clientSecret,
@@ -161,48 +174,6 @@ class BangumiAuth extends ChangeNotifier {
       await _storage.write(key: _expiresAtKey, value: _expiresAt!.toString());
     }
     notifyListeners();
-  }
-
-  /// 打开浏览器授权页并等待深链回调带回的授权码。
-  Future<String> _authorizeAndWaitCode() async {
-    final state = _randomState();
-    final uri = Uri.https('bgm.tv', '/oauth/authorize', <String, String>{
-      'client_id': BangumiOAuthConfig.clientId,
-      'response_type': 'code',
-      'redirect_uri': BangumiOAuthConfig.redirectUri,
-      if (BangumiOAuthConfig.scopes.isNotEmpty)
-        'scope': BangumiOAuthConfig.scopes.join(' '),
-      'state': state,
-    });
-
-    final completer = Completer<String>();
-    late final StreamSubscription<Uri> sub;
-    var handled = false;
-
-    Future<void> handle(Uri? u) async {
-      if (u == null || handled) return;
-      if (u.scheme == 'nexhub' && u.host == 'oauth' && u.path == '/callback') {
-        final code = u.queryParameters['code'];
-        final ret = u.queryParameters['state'];
-        // 校验 state 防 CSRF（bgm.tv 原样回传）。
-        if (code != null && (ret == null || ret == state)) {
-          handled = true;
-          await sub.cancel();
-          if (!completer.isCompleted) completer.complete(code);
-        }
-      }
-    }
-
-    sub = _appLinks.uriLinkStream.listen(handle);
-    // 冷启动经深链进入时，首链可能已是回调。
-    await handle(await _appLinks.getInitialLink());
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-    try {
-      return await completer.future.timeout(const Duration(minutes: 10));
-    } on TimeoutException {
-      await sub.cancel();
-      throw StateError('bangumi oauth timed out');
-    }
   }
 
   /// 用 refresh_token 续期 access_token（OAuth 登录且未过期时调用）。
