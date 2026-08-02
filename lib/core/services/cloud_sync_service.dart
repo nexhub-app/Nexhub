@@ -27,6 +27,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xml/xml.dart';
 
 import '../storage/storage_boxes.dart';
+import 'backup_archive.dart';
 
 /// 同步频率
 enum SyncFrequency { manual, daily, weekly }
@@ -248,7 +249,10 @@ class CloudSyncService extends ChangeNotifier {
   }
 
   /// 立即同步：导出本地 → 打包 ZIP → 上传到 WebDAV。
-  Future<bool> syncNow() async {
+  ///
+  /// [scope] 为 null 时导出全部；否则只导出选中分类对应的 box（含「设置与偏好」
+  /// 时才包含 SharedPreferences）。
+  Future<bool> syncNow({Set<BackupCategory>? scope}) async {
     if (_syncing) return false;
     if (_config.url.isEmpty || _password == null) {
       _lastError = 'no_config';
@@ -258,7 +262,7 @@ class CloudSyncService extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
     try {
-      final archive = await _exportToArchive();
+      final archive = await _exportToArchive(scope: scope);
       final zipBytes = ZipEncoder().encode(archive);
       if (zipBytes == null) {
         _lastError = 'encode_failed';
@@ -297,15 +301,19 @@ class CloudSyncService extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _lastError = e.toString();
+      _lastError = e is DioException ? 'network' : 'unknown:$e';
       _syncing = false;
       notifyListeners();
       return false;
     }
   }
 
-  /// 从 WebDAV 拉最新 ZIP 并合并到本地（last-write-wins with timestamp）。
-  Future<bool> pullRemote() async {
+  /// 从 WebDAV 拉最新 ZIP 并恢复到本地。
+  ///
+  /// [merge] = true 合并（保留本地其它键）；false 覆盖（先清空目标 box 再写入）。
+  /// [scope] 非空时只恢复这些分类对应的 box。
+  Future<bool> pullRemote(
+      {bool merge = true, Set<BackupCategory>? scope}) async {
     if (_syncing) return false;
     if (_config.url.isEmpty || _password == null) {
       _lastError = 'no_config';
@@ -338,13 +346,13 @@ class CloudSyncService extends ChangeNotifier {
       );
       final bytes = Uint8List.fromList(resp.data ?? <int>[]);
       final archive = ZipDecoder().decodeBytes(bytes);
-      await _importFromArchive(archive);
+      await _importFromArchive(archive, merge: merge, categories: scope);
 
       _syncing = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _lastError = e.toString();
+      _lastError = e is DioException ? 'network' : 'unknown:$e';
       _syncing = false;
       notifyListeners();
       return false;
@@ -461,12 +469,16 @@ class CloudSyncService extends ChangeNotifier {
     }
   }
 
-  Future<Archive> _exportToArchive() async {
+  Future<Archive> _exportToArchive({Set<BackupCategory>? scope}) async {
     final archive = Archive();
-    // 1. Hive boxes → JSON。白名单取自单一事实源 kStorageBoxNames，与 splash
-    //    启动时打开的 box 严格一致；缺哪个用户备份就丢哪个（曾漏 9 个 box）。
+    // 1. Hive boxes → JSON。白名单取自单一事实源 kStorageBoxNames（scope 为 null）
+    //    或选中分类对应的 box；与 splash 启动时打开的 box 严格一致。
+    final boxNames =
+        scope == null ? kStorageBoxNames : resolveBoxNames(scope);
+    final includePrefs =
+        scope == null || scope.contains(BackupCategory.settings);
     final hiveData = <String, dynamic>{};
-    for (final name in kStorageBoxNames) {
+    for (final name in boxNames) {
       if (Hive.isBoxOpen(name)) {
         final box = Hive.box(name);
         hiveData[name] = box
@@ -480,19 +492,21 @@ class CloudSyncService extends ChangeNotifier {
       hiveBytes.length,
       hiveBytes,
     ));
-    // 2. SharedPreferences → JSON（仅取本应用相关 key）
-    final prefs = await SharedPreferences.getInstance();
-    final prefsData = <String, dynamic>{};
-    for (final key in prefs.getKeys()) {
-      final v = prefs.get(key);
-      if (v != null) prefsData[key] = v;
+    // 2. SharedPreferences → JSON（仅当选中「设置与偏好」时包含）
+    if (includePrefs) {
+      final prefs = await SharedPreferences.getInstance();
+      final prefsData = <String, dynamic>{};
+      for (final key in prefs.getKeys()) {
+        final v = prefs.get(key);
+        if (v != null) prefsData[key] = v;
+      }
+      final prefsBytes = Uint8List.fromList(utf8.encode(jsonEncode(prefsData)));
+      archive.addFile(ArchiveFile(
+        'preferences.json',
+        prefsBytes.length,
+        prefsBytes,
+      ));
     }
-    final prefsBytes = Uint8List.fromList(utf8.encode(jsonEncode(prefsData)));
-    archive.addFile(ArchiveFile(
-      'preferences.json',
-      prefsBytes.length,
-      prefsBytes,
-    ));
     return archive;
   }
 
@@ -511,33 +525,48 @@ class CloudSyncService extends ChangeNotifier {
     return v.toString();
   }
 
-  Future<void> _importFromArchive(Archive archive) async {
-    // 1. 合并 Hive boxes
+  Future<void> _importFromArchive(
+    Archive archive, {
+    required bool merge,
+    Set<BackupCategory>? categories,
+  }) async {
+    final allowedBoxes =
+        categories == null ? null : resolveBoxNames(categories);
+    // 1. 合并 / 覆盖 Hive boxes
     final hiveFile = archive.findFile('hive_boxes.json');
     if (hiveFile != null) {
       final content = hiveFile.content as List<int>;
       final raw = jsonDecode(utf8.decode(content)) as Map<String, dynamic>;
       for (final entry in raw.entries) {
         final name = entry.key;
+        if (allowedBoxes != null && !allowedBoxes.contains(name)) continue;
         final data = entry.value;
         if (data is! Map) continue;
         if (Hive.isBoxOpen(name)) {
           final box = Hive.box(name);
-          for (final kv in data.entries) {
-            final key = kv.key;
-            // 仅写入简单值，复杂对象保留原样（last-write-wins）
+          if (!merge) {
             try {
-              await box.put(key, _decodeHiveValue(kv.value));
-            } catch (_) {
+              await box.clear();
+            } on Object {
+              // 忽略清空失败
+            }
+          }
+          for (final kv in data.entries) {
+            try {
+              await box.put(kv.key, _decodeHiveValue(kv.value));
+            } on Object {
               // 跳过无法写入的项
             }
           }
         }
       }
     }
-    // 2. 合并 SharedPreferences
+    // 2. 合并 / 覆盖 SharedPreferences
     final prefsFile = archive.findFile('preferences.json');
     if (prefsFile != null) {
+      if (categories != null && !categories.contains(BackupCategory.settings)) {
+        return;
+      }
       final content = prefsFile.content as List<int>;
       final raw = jsonDecode(utf8.decode(content)) as Map<String, dynamic>;
       final prefs = await SharedPreferences.getInstance();
@@ -556,7 +585,7 @@ class CloudSyncService extends ChangeNotifier {
             await prefs.setStringList(
                 entry.key, v.map((e) => e.toString()).toList());
           }
-        } catch (_) {
+        } on Object {
           // 跳过无法写入的项
         }
       }

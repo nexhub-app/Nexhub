@@ -2,22 +2,24 @@
 ///
 /// 提供以下功能：
 /// 1. WebDAV URL / 用户名 / 密码配置（密码用 secure storage 安全存储）
-/// 2. 测试连接（显示延迟，按颜色分级：绿 <300ms / 橙 300-800ms / 红 >800ms）
-/// 3. 自动同步开关与频率选择（手动 / 每日 / 每周）
-/// 4. 立即同步按钮
-/// 5. 显示上次同步时间
-/// 6. 保留本地导入/导出入口作为兜底
+/// 2. 测试连接（显示延迟，按颜色分级）
+/// 3. 自动同步开关与频率选择
+/// 4. 同步范围（分类勾选）+ 立即同步（上传选中分类）
+/// 5. 从云端恢复：先选「合并 / 覆盖」模式与范围，再拉取恢复
+/// 6. 明确的中文错误提示（按语义码映射）
 library;
 
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:intl/intl.dart';
-import '../../../core/settings/general_settings.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/backup_archive.dart';
 import '../../../core/services/cloud_sync_service.dart';
+import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_list_tile.dart';
+import '../../../core/widgets/backup_category_selector.dart';
+import '../../../core/widgets/app_alert_dialog.dart';
 import './settings_import_export_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
@@ -36,6 +38,16 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
   bool _testing = false;
   bool _saving = false;
   bool _syncing = false;
+  bool _pulling = false;
+  Set<BackupCategory> _selected = <BackupCategory>{
+    BackupCategory.source,
+    BackupCategory.bookmark,
+    BackupCategory.progress,
+    BackupCategory.settings,
+    BackupCategory.download,
+    BackupCategory.danmaku,
+  };
+  bool _pullMerge = true;
 
   @override
   void initState() {
@@ -59,12 +71,24 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     return Colors.red;
   }
 
+  /// 语义错误码 → 中文提示。
+  String _errorText(AppLocalizations l10n, String? code) {
+    if (code == null) return '';
+    if (code == 'no_config') return l10n.cloudSyncErrorNoConfig;
+    if (code == 'no_remote_backup') return l10n.cloudSyncErrorNoRemote;
+    if (code == 'encode_failed') return l10n.cloudSyncErrorEncode;
+    if (code == 'network') return l10n.cloudSyncErrorNetwork;
+    if (code.startsWith('unknown:')) {
+      return l10n.cloudSyncErrorUnknown(code.substring('unknown:'.length));
+    }
+    return l10n.cloudSyncErrorUnknown(code);
+  }
+
   Future<void> _testConnection(AppLocalizations l10n) async {
     final service = context.read<CloudSyncService>();
     final url = _urlController.text.trim();
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
-    // 若用户未输入新密码，使用已存储的密码
     final effectivePassword = password.isNotEmpty
         ? password
         : (await CloudSyncConfigStore().loadPassword()) ?? '';
@@ -111,7 +135,6 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
       url: url,
       username: username,
     );
-    // 密码为空则不更新密码
     await service.updateConfig(newConfig, password.isNotEmpty ? password : null);
     _passwordController.clear();
     if (!mounted) return;
@@ -123,13 +146,91 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
 
   Future<void> _syncNow(AppLocalizations l10n) async {
     final service = context.read<CloudSyncService>();
+    if (_selected.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.backupScopeNone)),
+      );
+      return;
+    }
     setState(() => _syncing = true);
-    final ok = await service.syncNow();
+    final ok = await service.syncNow(scope: _selected);
     if (!mounted) return;
     setState(() => _syncing = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? l10n.cloudSyncSyncSuccess : l10n.cloudSyncSyncFailed)),
+    final messenger = ScaffoldMessenger.of(context);
+    if (ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.cloudSyncSyncSuccess)),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            service.lastError != null
+                ? _errorText(l10n, service.lastError)
+                : l10n.cloudSyncSyncFailed,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pullRemote(AppLocalizations l10n) async {
+    final service = context.read<CloudSyncService>();
+    if (_selected.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.backupScopeNone)),
+      );
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AppAlertDialog(
+        title: Text(l10n.pullNow),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text(_pullMerge ? l10n.backupMergeDesc : l10n.backupReplaceDesc),
+            const SizedBox(height: AppTokens.spaceSm),
+            Text(
+              '${l10n.backupSelectScope}：${_selected.map((c) => backupCategoryLabel(l10n, c)).join('、')}',
+              style: Theme.of(ctx).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.confirmImport),
+          ),
+        ],
+      ),
     );
+    if (confirmed != true || !mounted) return;
+    setState(() => _pulling = true);
+    final ok = await service.pullRemote(merge: _pullMerge, scope: _selected);
+    if (!mounted) return;
+    setState(() => _pulling = false);
+    final messenger = ScaffoldMessenger.of(context);
+    if (ok) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.cloudSyncSyncSuccess)),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            service.lastError != null
+                ? _errorText(l10n, service.lastError)
+                : l10n.cloudSyncSyncFailed,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -137,6 +238,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final service = context.watch<CloudSyncService>();
     final config = service.config;
+    final hasError = service.lastError != null;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.cloudSync)),
@@ -228,6 +330,20 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
                 : null,
           ),
           const SizedBox(height: AppTokens.spaceLg),
+
+          // ── 同步范围（分类勾选） ──
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTokens.spaceMd),
+              child: BackupCategorySelector(
+                selected: _selected,
+                onChanged: (next) => setState(() => _selected = next),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTokens.spaceMd),
+
+          // ── 立即同步（上传） ──
           FilledButton.icon(
             onPressed: (_syncing || service.isSyncing)
                 ? null
@@ -243,6 +359,82 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
           ),
           const SizedBox(height: AppTokens.spaceMd),
           _LastSyncText(config: config),
+
+          const SizedBox(height: AppTokens.spaceLg),
+          const Divider(),
+          const SizedBox(height: AppTokens.spaceMd),
+
+          // ── 从云端恢复 ──
+          Text(
+            l10n.cloudSyncPullMode,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
+          SegmentedButton<bool>(
+            segments: <ButtonSegment<bool>>[
+              ButtonSegment<bool>(
+                value: true,
+                label: Text(l10n.backupMerge),
+              ),
+              ButtonSegment<bool>(
+                value: false,
+                label: Text(l10n.backupReplace),
+              ),
+            ],
+            selected: <bool>{_pullMerge},
+            onSelectionChanged: (sel) =>
+                setState(() => _pullMerge = sel.first),
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
+          OutlinedButton.icon(
+            onPressed: (_pulling || service.isSyncing)
+                ? null
+                : () => _pullRemote(l10n),
+            icon: (_pulling || service.isSyncing)
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.cloud_download_outlined),
+            label: Text(l10n.pullNow),
+          ),
+
+          // ── 错误横幅 ──
+          if (hasError) ...<Widget>[
+            const SizedBox(height: AppTokens.spaceLg),
+            Container(
+              padding: const EdgeInsets.all(AppTokens.spaceMd),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .errorContainer
+                    .withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    Icons.error_outline,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(width: AppTokens.spaceSm),
+                  Expanded(
+                    child: Text(
+                      _errorText(l10n, service.lastError),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onErrorContainer,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: AppTokens.spaceXl),
           AppListTile(
             leading: const Icon(Icons.swap_vert),
