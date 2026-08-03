@@ -9,6 +9,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../core/comic/comic_progress_manager.dart';
@@ -109,7 +110,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   String? _error;
   PluginConfig? _source;
 
-  bool _loadingChapter = false;
+  /// 章节加载令牌：每次发起加载自增，仅最新请求的加载结果会被应用，
+  /// 避免快速翻章时旧章节覆盖新章节（竞态导致「显示的章节与 _chapterIndex 不一致」）。
+  int _loadToken = 0;
   final Map<int, List<String>> _preload = <int, List<String>>{};
   /// 正在预加载的章节下标集合（防止同一章重复发起请求）。
   final Set<int> _preloading = <int>{};
@@ -123,7 +126,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   final Map<int, String> _renderedHtmlByChapter = <int, String>{};
 
   PageController? _pageController;
-  ScrollController? _scrollController;
+  ItemScrollController? _itemScrollController;
+  ItemPositionsListener? _itemPositionsListener;
+  /// 条漫模式待恢复的页码（_setupControllers 设置，_buildWebtoon 首次渲染后清除）。
+  int? _pendingWebtoonRestore;
   int _currentPage = 0;
   bool _uiVisible = false;
   bool _isFav = false;
@@ -137,8 +143,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 每页旋转的 quarterTurns（0/1/2/3），仅在用户主动旋转时记录。
   final Map<int, int> _pageRotations = <int, int>{};
 
-  /// 进度滑条本地拖动值（拖动中暂存，松手后跳页并清空）。
-  double? _progressDragValue;
+  /// 进度保存防抖定时器，合并频繁翻页产生的写入。
+  Timer? _saveProgressDebounce;
 
   /// 翻页闪光动画控制器与覆盖层状态。
   late final AnimationController _flashController;
@@ -323,10 +329,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void dispose() {
     _zoomController.removeListener(_onZoomChanged);
     _pageController?.dispose();
-    _scrollController?.dispose();
+    _itemPositionsListener?.itemPositions.removeListener(_onWebtoonScroll);
     _zoomController.dispose();
     _flashController.dispose();
     _transitionTimer?.cancel();
+    _saveProgressDebounce?.cancel();
     try {
       SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
     } on Object {
@@ -353,8 +360,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   Future<void> _loadChapter(int index,
       {int restorePage = 0, bool restoreToLast = false}) async {
-    if (_loadingChapter) return;
-    _loadingChapter = true;
+    final int token = ++_loadToken;
     if (mounted) setState(() => _loading = true);
     try {
       final source = _repo.getById(widget.sourceId);
@@ -368,7 +374,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             chapterId: chapter.id,
             renderedHtml: _renderedHtmlByChapter[index],
           );
-      if (!mounted) return;
+      // 期间若又发起了更新的加载（快速翻章），丢弃本次过期结果，
+      // 避免旧章节的图片覆盖到新 _chapterIndex 上导致显示错乱。
+      if (token != _loadToken || !mounted) return;
       // 回到上一话末页时 restoreToLast=true，落点为该章最后一页。
       final int rp = restoreToLast
           ? (imgs.isEmpty ? 0 : imgs.length - 1)
@@ -384,6 +392,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       // useWebview 脚本源（manga_goda / manga_baozimh 等）需在内嵌 WebView
       // 加载章节页、等待 JS 渲染后取回整页 HTML，再回灌给脚本解析图片。
       // 捕获请求后展示「抓取本页渲染内容」引导，用户触发回填并重试。
+      if (token != _loadToken || !mounted) return;
       if (mounted) {
         setState(() {
           _htmlCaptureRequest = req;
@@ -392,14 +401,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         });
       }
     } on Object catch (e) {
+      if (token != _loadToken || !mounted) return;
       if (mounted) {
         setState(() {
           _error = e.toString();
           _loading = false;
         });
       }
-    } finally {
-      _loadingChapter = false;
     }
   }
 
@@ -425,91 +433,85 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  void _setupControllers({int restorePage = 0}) {
+  void _setupControllers({int restorePage = 0, bool wasDoublePage = false}) {
     // 旧控制器延迟到下一帧释放：避免旧 PageView 在 dispose→setState 之间
     // 访问已释放控制器导致崩溃/白屏，从而进度条/页码没有更新。
     final PageController? oldPageController = _pageController;
-    final ScrollController? oldScrollController = _scrollController;
     _pageController = null;
-    _scrollController = null;
-    _currentPage = restorePage;
+    _itemScrollController = null;
+    _itemPositionsListener = null;
+    // 双页→单页修正：双页模式下 _currentPage 指向跨页左页（如 20 页的第 18 页），
+    // 切回单页后 PageView 实际显示左页（18），但用户感知在右页（19，末页）。
+    // 将 restorePage 修正为右页，确保末页点击「下一张」能正确跳下一章。
+    if (wasDoublePage && !_isDoublePage && _images.isNotEmpty) {
+      final lastLeftPage = ((_images.length - 1) ~/ 2) * 2;
+      if (restorePage >= lastLeftPage && restorePage < _images.length) {
+        restorePage = _images.length - 1;
+      }
+    }
+
     if (_prefs.readingMode.isPaged) {
       // 越界保护：initialPage 必须在 [0, itemCount-1]，否则 PageView 抛异常
       // 导致双页/单页切换后白屏（隐藏崩溃防护）。
       final int maxInitial = (_controllerPageCount - 1).clamp(0, 1 << 30);
-      final initial = _isDoublePage
+      final int initial = _isDoublePage
           ? (restorePage ~/ 2).clamp(0, maxInitial)
           : restorePage.clamp(0, maxInitial);
+      // 逻辑页码：双页模式取当前跨页左页，与 _onPagedScroll 保持一致，
+      // 保证进度条 / 保存值与可见跨页对齐。
+      final int logicalPage = _isDoublePage
+          ? (initial * 2).clamp(0, _images.length - 1)
+          : initial;
+
+      // 每章使用独立 Key（见 _buildPaged / _buildPagedSpread），PageView 会创建
+      // 全新的 ScrollPosition，initialPage 必定生效，不再依赖 jumpToPage 强跳。
+      // 这彻底消除了「切章后图片停在旧页 / 回上一话末页却回弹到倒数几页」两类问题
+      // —— 它们都源于复用旧 ScrollPosition 时 initialPage 被忽略。
       _pageController = PageController(initialPage: initial)
         ..addListener(_onPagedScroll);
-      // 关键修复：PageView 在 controller 被替换（双页↔单页切换）时会复用同一个
-      // ScrollPosition，新 PageController 的 initialPage 不会被重新应用，position
-      // 停留在旧页，导致「进度条/页码正确（_currentPage 已更新）但图片停在旧页」。
-      // 因此在布局完成后强制跳转到目标页，确保切换后图片与进度一致。
-      if (initial != 0) {
-        _restoringPage = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _pageController?.jumpToPage(initial);
-          _restoringPage = false;
-        });
-      }
+
+      _currentPage = logicalPage;
+      // 首帧布局期间（旧控制器残留通知 / 新 position 初始化）屏蔽进度写盘，
+      // 防止脏页码冲掉存档。首帧后即可恢复。
+      _restoringPage = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // 兜底纠偏：每章已用独立 Key 重建全新 ScrollPosition，initialPage 必定生效，
+        // 此处仅在极端布局时序下 position 未停在目标页时，以「瞬时」jumpToPage 纠正。
+        // jumpToPage 为瞬时跳转（不经动画），不会产生回弹；且下方 _restoringPage
+        // 解除前的通知已被 _onPagedScroll 忽略，不会污染 _currentPage / 存档。
+        if (_pageController != null && _pageController!.hasClients) {
+          final cur = _pageController!.page?.round() ?? -1;
+          if (cur != initial) _pageController!.jumpToPage(initial);
+        }
+        // 先解除屏蔽再释放旧控制器：确保即便 dispose 抛异常，_restoringPage
+        // 也一定复位，否则会永久冻结进度保存与进度条同步。
+        _restoringPage = false;
+        oldPageController?.dispose();
+        if (mounted) setState(() {});
+      });
     } else {
-      _scrollController = ScrollController()..addListener(_onWebtoonScroll);
-      // 条漫（纵向滚动）模式此前只把 _currentPage 赋成了 restorePage，却从未
-      // 真的把滚动位置挪过去 —— 视图停在第一页，用户随手一滑就把进度覆盖成
-      // 0。这里按 [_onWebtoonScroll] 的反函数（页码 ↔ 滚动比例）恢复位置，
-      // 与保存逻辑严格对称。
-      _restoreWebtoonScroll(restorePage);
+      // 条漫模式：使用 ScrollablePositionedList，通过 initialScrollIndex
+      // 直接定位到目标页，不再依赖滚动比例估算。
+      // 先摘除旧监听器并断开旧列表引用：旧列表在卸载/重布局时会把「上一章页码」
+      // 经 _onWebtoonScroll 推过来，而此时 _images 已是新章，旧页码被截断后落到
+      // 新章末页，导致进度条显示在末页（实际需要显示首页）。这是进度条错乱的根因。
+      _itemPositionsListener?.itemPositions.removeListener(_onWebtoonScroll);
+      _itemScrollController = null;
+      _itemPositionsListener = null;
+      // 切章/恢复期间屏蔽进度回写：直到 _buildWebtoon 首帧后由 _restoringPage=false
+      // 解除。期间任何滚动通知（旧列表残留或初始布局）都不会污染 _currentPage/存档。
+      _restoringPage = true;
+      _itemScrollController = ItemScrollController();
+      final listener = ItemPositionsListener.create();
+      _itemPositionsListener = listener;
+      // 立即注册监听：_restoringPage 期间 _onWebtoonScroll 会早退，初始布局不会污染。
+      listener.itemPositions.addListener(_onWebtoonScroll);
+      // 用完整值（含 0）作为一次性恢复标记，确保首帧后无论恢复到第几页都解除屏蔽。
+      _pendingWebtoonRestore = restorePage;
+      _currentPage = restorePage.clamp(0, _images.length - 1);
+      oldPageController?.dispose();
     }
     if (mounted) setState(() {});
-    if (oldPageController != null || oldScrollController != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        oldPageController?.dispose();
-        oldScrollController?.dispose();
-      });
-    }
-  }
-
-  /// 条漫模式恢复滚动位置到 [page]。
-  ///
-  /// 图片高度不定、且是懒加载的，无法直接换算像素偏移；这里等 ScrollView
-  /// 拿到 clients 且 `maxScrollExtent > 0` 后，按「页码占比 × 可滚动长度」
-  /// 落点，与 [_onWebtoonScroll] 的「滚动占比 → 页码」互为反函数。
-  /// 最多重试约 2.4 秒（图片首屏加载慢时），超时则放弃并解除写盘封锁。
-  void _restoreWebtoonScroll(int page) {
-    if (page <= 0) return;
-    final int total = _images.length;
-    if (total <= 1) return;
-    _restoringPage = true;
-    int attempts = 0;
-    void tryJump() {
-      if (!mounted) {
-        _restoringPage = false;
-        return;
-      }
-      final ScrollController? sc = _scrollController;
-      final bool ready = sc != null &&
-          sc.hasClients &&
-          sc.position.maxScrollExtent > 0;
-      if (!ready) {
-        if (attempts++ >= 20) {
-          _restoringPage = false;
-          return;
-        }
-        Future<void>.delayed(const Duration(milliseconds: 120), tryJump);
-        return;
-      }
-      final double target =
-          (page / (total - 1)) * sc.position.maxScrollExtent;
-      sc.jumpTo(target.clamp(0.0, sc.position.maxScrollExtent));
-      _currentPage = page;
-      // 跳转产生的滚动通知在本帧末派发，下一帧再解除封锁。
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _restoringPage = false;
-      });
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) => tryJump());
   }
 
   void _onPagedScroll() {
@@ -527,7 +529,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         : spreadIdx;
     if (idx != _currentPage) {
       _currentPage = idx;
-      _saveProgress(idx);
+      _scheduleProgressSave(idx);
       // 索引变化时刷新进度条（页码/滑条），否则点按翻页后进度条不更新。
       if (mounted) setState(() {});
     }
@@ -537,21 +539,39 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void _onWebtoonScroll() {
     // 恢复进度期间的过渡位置不回写，避免冲掉存档。
     if (_restoringPage) return;
-    final sc = _scrollController;
-    if (sc == null || !sc.hasClients) return;
-    final max = sc.position.maxScrollExtent;
-    final frac = max > 0 ? sc.position.pixels / max : 0;
-    final total = _images.length;
-    final idx = total <= 1
-        ? 0
-        : (frac * (total - 1)).round().clamp(0, total - 1);
+    final listener = _itemPositionsListener;
+    if (listener == null) return;
+    final positions = listener.itemPositions.value;
+    if (positions.isEmpty) return;
+    // 仅保留真正在视口内的 item（leadingEdge<1 未完全滚出底部，trailingEdge>0 未完全滚出顶部）。
+    final visible = positions
+        .where((p) => p.itemLeadingEdge < 1 && p.itemTrailingEdge > 0)
+        .toList();
+    if (visible.isEmpty) return;
+    // 当前页 = 视口内【最顶部】可见项：你正在读的是贴在视口顶部的那一页。
+    // 这是连续滚动阅读器的通用模型：读倒数第二页时顶部项是 N-2，进度条不会提前满格；
+    // 落回上一话末页时末页贴底、其顶边仍在视口内，顶部项=末页，进度精确显示末页；
+    // 连续滚动时顶部项随滚动单调变化，不会乱跳页。恢复期间由 _restoringPage 屏蔽，
+    // 故切章/恢复时不会污染 _currentPage。
+    final idx = visible
+        .map((p) => p.index)
+        .reduce((a, b) => a < b ? a : b)
+        .clamp(0, _images.length - 1);
     if (idx != _currentPage) {
       _currentPage = idx;
-      _saveProgress(idx);
-      // 索引变化时刷新进度条（页码/滑条），否则翻页后进度条不更新。
+      _scheduleProgressSave(idx);
       if (mounted) setState(() {});
     }
     _maybePreload(idx);
+  }
+
+  /// 防抖进度保存：合并频繁翻页产生的写入，避免高频 IO。
+  /// 滚动回调中使用；_jumpToPage / _setupControllers 中仍直接调用 _saveProgress。
+  void _scheduleProgressSave(int page) {
+    _saveProgressDebounce?.cancel();
+    _saveProgressDebounce = Timer(const Duration(seconds: 1), () {
+      _saveProgress(page);
+    });
   }
 
   void _maybePreload(int idx) {
@@ -654,10 +674,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void _goNextPage() {
     _triggerFlash();
     if (_prefs.readingMode.isWebtoon) {
-      final sc = _scrollController;
-      if (sc == null || !sc.hasClients) return;
-      // 滚动到底部（保留 2px 容差）时翻下一张 = 进入下一章。
-      if (sc.offset >= sc.position.maxScrollExtent - 2) {
+      if (_currentPage >= _images.length - 1) {
         _goNextChapter();
       } else {
         _scrollByPage(1);
@@ -671,24 +688,22 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _goNextChapter();
       return;
     }
-    // page 可能为 null（未 layout 时），用当前逻辑页/跨页兜底。
-    final current = _isDoublePage ? (_currentPage ~/ 2) : _currentPage;
-    final page = pc.page ?? current.toDouble();
-    // 必须离最后一页/跨页足够近（<0.5）才进下一章，避免浮点误差或回弹导致误判。
-    if (page < total - 1 - 0.5) {
-      pc.nextPage(duration: AppTokens.durFast, curve: Curves.easeInOut);
-    } else {
+    // 用 _currentPage 做边界判断，避免 pc.page 在控制器重建/恢复期间不稳定。
+    // 双页模式下 _currentPage 指向跨页左页，末页判断：左页 >= 倒数第二个跨页左页。
+    final int lastLeftPage = _isDoublePage
+        ? ((_images.length - 1) ~/ 2) * 2
+        : _images.length - 1;
+    if (_currentPage >= lastLeftPage) {
       _goNextChapter();
+    } else {
+      pc.nextPage(duration: AppTokens.durFast, curve: Curves.easeInOut);
     }
   }
 
   void _goPrevPage() {
     _triggerFlash();
     if (_prefs.readingMode.isWebtoon) {
-      final sc = _scrollController;
-      if (sc == null || !sc.hasClients) return;
-      // 滚动到顶部时翻上一张 = 回到上一章最后一页。
-      if (sc.offset <= sc.position.minScrollExtent + 2) {
+      if (_currentPage <= 0) {
         _goPrevChapter();
       } else {
         _scrollByPage(-1);
@@ -697,23 +712,31 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     final pc = _pageController;
     if (pc == null || !pc.hasClients) return;
-    final current = _isDoublePage ? (_currentPage ~/ 2) : _currentPage;
-    final page = pc.page ?? current.toDouble();
-    if (page > 0.5) {
-      pc.previousPage(duration: AppTokens.durFast, curve: Curves.easeInOut);
-    } else {
+    // 用 _currentPage 做边界判断，避免 pc.page 在控制器重建/恢复期间不稳定。
+    if (_currentPage <= 0) {
       _goPrevChapter();
+    } else {
+      pc.previousPage(duration: AppTokens.durFast, curve: Curves.easeInOut);
     }
   }
 
   void _scrollByPage(int dir) {
-    final sc = _scrollController;
-    if (sc == null || !sc.hasClients) return;
-    final h = sc.position.viewportDimension;
-    final target = (sc.offset + dir * h)
-        .clamp(0.0, sc.position.maxScrollExtent)
-        .toDouble();
-    sc.animateTo(target, duration: AppTokens.durFast, curve: Curves.easeInOut);
+    if (_prefs.readingMode.isWebtoon) {
+      final target = (_currentPage + dir).clamp(0, _images.length - 1);
+      _itemScrollController?.scrollTo(
+        index: target,
+        duration: AppTokens.durFast,
+        curve: Curves.easeInOut,
+      );
+      return;
+    }
+    final pc = _pageController;
+    if (pc == null || !pc.hasClients) return;
+    if (dir > 0) {
+      pc.nextPage(duration: AppTokens.durFast, curve: Curves.easeInOut);
+    } else {
+      pc.previousPage(duration: AppTokens.durFast, curve: Curves.easeInOut);
+    }
   }
 
   /// 翻页闪光：仅在 [ReaderPreferences.flashEnabled] 时触发，延迟
@@ -846,7 +869,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (prev.readingMode != next.readingMode ||
         prev.splitDoublePage != next.splitDoublePage) {
       if (_images.isNotEmpty) {
-        _setupControllers(restorePage: _currentPage);
+        _setupControllers(
+          restorePage: _currentPage,
+          wasDoublePage: prev.splitDoublePage && prev.readingMode.isPaged,
+        );
         return;
       }
     }
@@ -857,13 +883,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 同样避免「新 prefs + 旧控制器」的中间帧。
   Future<void> _onPrefsChanged(ReaderPreferences next) async {
     if (!mounted) return;
+    final bool wasDouble =
+        _prefs.splitDoublePage && _prefs.readingMode.isPaged;
     _prefs = next;
     await _store.save(widget.comicId, next);
     _applyOrientation();
     _applyWakelock();
     _applyFullscreen();
     if (_images.isNotEmpty) {
-      _setupControllers(restorePage: _currentPage);
+      _setupControllers(
+        restorePage: _currentPage,
+        wasDoublePage: wasDouble,
+      );
     } else {
       if (mounted) setState(() {});
     }
@@ -921,20 +952,23 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 章内跳页：paged 用 PageController，webtoon 按比例跳到对应滚动位置。
+  /// 章内跳页：paged 用 PageController，webtoon 用 ItemScrollController。
   void _jumpToPage(int target) {
     final total = _images.length;
     if (total == 0) return;
     final t = target.clamp(0, total - 1);
     if (_prefs.readingMode.isWebtoon) {
-      final sc = _scrollController;
-      if (sc == null || !sc.hasClients) return;
-      final max = sc.position.maxScrollExtent;
-      final ratio = total > 1 ? t / (total - 1) : 0.0;
-      sc.jumpTo((ratio * max).clamp(0.0, max));
+      _itemScrollController?.scrollTo(
+        index: t,
+        duration: const Duration(milliseconds: 1),
+      );
     } else {
       _pageController?.jumpToPage(_isDoublePage ? (t ~/ 2) : t);
     }
+    _currentPage = t;
+    _saveProgress(t);
+    _maybePreload(t);
+    if (mounted) setState(() {});
   }
 
   void _applyOrientation() {
@@ -1151,6 +1185,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final pc = _pageController;
     if (pc == null) return const SizedBox.shrink();
     return PageView.builder(
+      // 每章独立 Key：确保切章时 PageView 重建为全新 ScrollPosition，
+      // 使 PageController 的 initialPage 必定生效，避免图片停在旧页 / 回弹。
+      key: ValueKey<int>(_chapterIndex),
       controller: pc,
       // 拖拽翻页统一由覆盖层 ReaderTapZones 的 onDragPage 处理（桌面鼠标拖拽 /
       // 触屏滑动都走这条），故此处禁用 PageView 原生拖拽，避免「两次翻页」冲突。
@@ -1184,6 +1221,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (pc == null) return const SizedBox.shrink();
     final rtl = _prefs.readingMode == ReadingMode.singleRTL;
     return PageView.builder(
+      // 每章独立 Key：双页模式同样需要确保切章时 PageView 重建为全新 ScrollPosition。
+      key: ValueKey<String>('spread-$_chapterIndex'),
       controller: pc,
       // 拖拽翻页统一由覆盖层处理，禁用 PageView 原生拖拽（避免两次翻页冲突）。
       physics: const NeverScrollableScrollPhysics(),
@@ -1237,16 +1276,37 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   Widget _buildWebtoon() {
-    final sc = _scrollController;
-    if (sc == null) return const SizedBox.shrink();
+    final isc = _itemScrollController;
+    final ipl = _itemPositionsListener;
+    if (isc == null || ipl == null) return const SizedBox.shrink();
     final gap = _prefs.readingMode == ReadingMode.webtoonWithGap
         ? AppTokens.spaceMd
         : 0.0;
-    return ListView.separated(
-      controller: sc,
+    // 恢复标记消费后回退到 _currentPage（二者在进入本章首帧时一致），避免后续
+    // 重建时把 initialScrollIndex 误置 0；didUpdateWidget 虽不重应用该值，仍保持稳健。
+    final restoreIndex = _pendingWebtoonRestore ?? _currentPage;
+    // 一次性恢复：仅在本章首次渲染时（_pendingWebtoonRestore 非空）锁定当前页并解除
+    // 写盘屏蔽。监听器已在 _setupControllers 注册，此处不再重复添加（避免每次
+    // setState 重注册导致重复回调）。恢复标记在此消费，后续重建不再触发。
+    if (_pendingWebtoonRestore != null) {
+      final target = _pendingWebtoonRestore!;
+      _pendingWebtoonRestore = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // initialScrollIndex 已在首帧把目标页顶边对齐到视口顶部（末页则夹到最大滚动、
+        // 即底部对齐，属标准章末行为），无需再 scrollTo（避免引入额外动画/回弹）。
+        // 此处仅同步进度变量并解除屏蔽，此后滚动通知才是用户真实翻页。
+        _currentPage = target.clamp(0, _images.length - 1);
+        // 解除进度回写/存档屏蔽：从此滚动通知才是用户真实翻页。
+        _restoringPage = false;
+        if (mounted) setState(() {});
+      });
+    }
+    return ScrollablePositionedList.separated(
+      key: ValueKey('webtoon-$_chapterIndex'),
+      itemScrollController: isc,
+      itemPositionsListener: ipl,
+      initialScrollIndex: restoreIndex,
       // 连续滚动（条漫）：用 ClampingScrollPhysics 平滑滚动，边界夹紧、无回弹。
-      // 注意：不要用 PageScrollPhysics——它会按「每张图」吸附，导致可停顿在两页
-      // 之间、且首尾出现翻页式回弹，违背条漫的连续滚动体验。
       // 放大时改为 NeverScrollable：把拖拽让给图片自身的平移手势，避免与滚动打架。
       physics: _zoomed
           ? const NeverScrollableScrollPhysics()
@@ -1444,7 +1504,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final int currentIndex =
         doubleMode ? (_currentPage ~/ 2) : _currentPage;
     final double base = total > 1 ? currentIndex / (total - 1) : 0.0;
-    final double value = (_progressDragValue ?? base).clamp(0.0, 1.0);
+    final double value = base.clamp(0.0, 1.0);
     return Semantics(
       label: l10n.readerProgress,
       child: Directionality(
@@ -1463,18 +1523,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               child: Slider(
                 value: value,
                 onChanged: total > 1
-                    ? (v) => setState(() => _progressDragValue = v)
-                    : null,
-                onChangeEnd: total > 1
                     ? (v) {
-                        setState(() => _progressDragValue = null);
-                        if (doubleMode) {
-                          final spread = (v * (total - 1)).round();
-                          _jumpToPage(spread * 2);
-                        } else {
-                          final target = (v * (total - 1)).round();
-                          _jumpToPage(target);
-                        }
+                        final target = doubleMode
+                            ? (v * (total - 1)).round() * 2
+                            : (v * (total - 1)).round();
+                        _jumpToPage(target);
                       }
                     : null,
               ),
@@ -1532,7 +1585,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final int currentIndex =
         doubleMode ? (_currentPage ~/ 2) : _currentPage;
     final double base = total > 1 ? currentIndex / (total - 1) : 0.0;
-    final double value = (_progressDragValue ?? base).clamp(0.0, 1.0);
+    final double value = base.clamp(0.0, 1.0);
     final bool showNum = _prefs.showPageNumber;
     return Positioned(
       right: AppTokens.spaceXs,
@@ -1570,18 +1623,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     child: Slider(
                       value: value,
                       onChanged: total > 1
-                          ? (v) => setState(() => _progressDragValue = v)
-                          : null,
-                      onChangeEnd: total > 1
                           ? (v) {
-                              setState(() => _progressDragValue = null);
-                              if (doubleMode) {
-                                final spread = (v * (total - 1)).round();
-                                _jumpToPage(spread * 2);
-                              } else {
-                                final target = (v * (total - 1)).round();
-                                _jumpToPage(target);
-                              }
+                              final target = doubleMode
+                                  ? (v * (total - 1)).round() * 2
+                                  : (v * (total - 1)).round();
+                              _jumpToPage(target);
                             }
                           : null,
                     ),
