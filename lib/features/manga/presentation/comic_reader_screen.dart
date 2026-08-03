@@ -558,10 +558,24 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 落回上一话末页时末页贴底、其顶边仍在视口内，顶部项=末页，进度精确显示末页；
     // 连续滚动时顶部项随滚动单调变化，不会乱跳页。恢复期间由 _restoringPage 屏蔽，
     // 故切章/恢复时不会污染 _currentPage。
-    final idx = visible
+    int idx = visible
         .map((p) => p.index)
         .reduce((a, b) => a < b ? a : b)
         .clamp(0, _images.length - 1);
+    // 到底修正：最后一项的底边 == 列表内容末端，一旦它不在视口下方（trailingEdge<=1）
+    // 就说明已经滚到底、再也滚不动了，当前页必然是末页。窄屏（或末页为短图）时一屏能
+    // 容下多张，顶部项会停在 N-2/N-3，仅靠顶部模型永远到不了末页 —— 这里补齐该边界。
+    // 未到底时最后一项底边仍在视口下方（trailingEdge>1），不触发，故进度不会提前满格。
+    final int lastIndex = _images.length - 1;
+    if (lastIndex >= 0) {
+      for (final p in positions) {
+        // 容差 2e-3 覆盖 itemTrailingEdge 的像素取整误差（约 0.5px / 视口高）。
+        if (p.index == lastIndex && p.itemTrailingEdge <= 1.0 + 2e-3) {
+          idx = lastIndex;
+          break;
+        }
+      }
+    }
     if (idx != _currentPage) {
       _currentPage = idx;
       _scheduleProgressSave(idx);
