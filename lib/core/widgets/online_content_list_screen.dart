@@ -154,6 +154,11 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   List<MediaItem> _scheduleItems = <MediaItem>[];
   bool _scheduleLoading = false;
 
+  // 网络收藏数据（源站书架；进入该 Tab 时按需抓取，见 [_loadWebFavorite]）
+  List<MediaItem> _webFavoriteItems = <MediaItem>[];
+  bool _webFavoriteLoading = false;
+  String? _webFavoriteError;
+
   // 首页板块懒加载：每个板块的加载状态（未加载 / 加载中 / 已加载 / 失败）。
   // 方案 A：只抓取进入视口的板块，其余滑到/点开才抓（配合 HttpFetcher 信号量限流）。
   final Map<String, _SectionStatus> _sectionStatus =
@@ -222,10 +227,11 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
 
   /// 根据当前源能力决定 Tab 总数。
   ///
-  /// Tab 顺序：首页 / [周期表?] / [动态分类...] / [排行?]
+  /// Tab 顺序：首页 / [周期表?] / [网络收藏?] / [动态分类...] / [排行?]
   int get _tabCount {
     int count = 1; // 首页
     if (_hasScheduleData) count += 1; // 周期表（条件显示）
+    if (_hasWebFavorite) count += 1; // 网络收藏（条件显示）
     count += _categories.length; // 动态分类
     if (_source != null && _source!.routes.containsKey('rank')) {
       count += 1; // 排行
@@ -240,6 +246,20 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   /// [_ensureScheduleData] 在切到周期表 Tab 时按需抓取，不再依赖已抓数据）。
   bool get _hasScheduleData =>
       _source != null && _source!.routes.containsKey('latest');
+
+  /// 源是否声明了网络收藏（`webFavorite` 段）。未声明 → 不显示该 Tab。
+  bool get _hasWebFavorite => _source?.hasWebFavoriteBrowse ?? false;
+
+  /// 网络收藏 Tab 索引（紧随周期表之后；不显示时为 -1）。
+  int get _webFavoriteTabIndex =>
+      _hasWebFavorite ? (_hasScheduleData ? 2 : 1) : -1;
+
+  /// 动态分类 Tab 的起始索引（首页 + 可选周期表 + 可选网络收藏之后）。
+  ///
+  /// **所有涉及 Tab 索引偏移的地方都必须走这个 getter**，否则新增/删除
+  /// 条件 Tab 时极易漏改造成错位。
+  int get _catStart =>
+      1 + (_hasScheduleData ? 1 : 0) + (_hasWebFavorite ? 1 : 0);
 
   void _rebuildTabController() {
     final newCount = _tabCount;
@@ -259,14 +279,15 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     if (!_tabController.indexIsChanging) {
       final idx = _tabController.index;
       // idx 0 = 首页（已加载）
-      // if hasSchedule: idx 1 = 周期表（已加载），分类从 2 开始
-      // else: 分类从 1 开始
-      // 排行在最后一个
-      final catStart = _hasScheduleData ? 2 : 1;
+      // 可选 Tab 依次为：周期表 → 网络收藏，之后才是动态分类，排行在最后。
+      final catStart = _catStart;
       final rankIdx = catStart + _categories.length;
       if (_hasScheduleData && idx == 1 && _scheduleItems.isEmpty && !_scheduleLoading) {
         // 进入周期表 Tab：按需抓取周期表数据（懒加载）。
         _ensureScheduleData();
+      } else if (idx == _webFavoriteTabIndex) {
+        // 进入网络收藏 Tab：按需抓取源站书架（懒加载）。
+        _loadWebFavorite();
       } else if (idx == rankIdx && _hasRank && _rankItems.isEmpty) {
         _loadRank();
       } else if (idx >= catStart && idx < rankIdx) {
@@ -750,6 +771,9 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       _sectionFetchChain = null; // 断开旧源的串行链，避免旧请求结果混入新源。
       _scheduleItems = <MediaItem>[];
       _scheduleLoading = false;
+      _webFavoriteItems = <MediaItem>[];
+      _webFavoriteLoading = false;
+      _webFavoriteError = null;
       _rankItems = <MediaItem>[];
     });
     _loadCategories();
@@ -946,7 +970,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
           AnimatedBuilder(
             animation: _tabController,
             builder: (context, _) {
-              final catStart = _hasScheduleData ? 2 : 1;
+              final catStart = _catStart;
               final idx = _tabController.index;
               // 仅「分类区间」(idx ∈ [catStart, catStart + _categories.length)) 显示筛选按钮。
               if (idx < catStart || idx >= catStart + _categories.length) {
@@ -980,6 +1004,9 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     if (_hasScheduleData) {
       tabs.add(Tab(text: l10n.onlineTabSchedule));
     }
+    if (_hasWebFavorite) {
+      tabs.add(Tab(text: l10n.onlineTabWebFavorite));
+    }
     for (final c in _categories) {
       tabs.add(Tab(text: c.title));
     }
@@ -995,6 +1022,9 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     ];
     if (_hasScheduleData) {
       views.add(_buildScheduleTab(l10n));
+    }
+    if (_hasWebFavorite) {
+      views.add(_buildWebFavoriteTab(l10n));
     }
     for (final c in _categories) {
       final state = _ensureTabState(c.id);
@@ -1128,7 +1158,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         ? _categories.indexWhere((c) => c.id == catId)
         : -1;
     return () {
-      final catStart = _hasScheduleData ? 2 : 1;
+      final catStart = _catStart;
       _tabController.animateTo(catStart + (idx >= 0 ? idx : 0));
     };
   }
@@ -1151,6 +1181,155 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         onItemTap: widget.onItemTap,
       ),
     );
+  }
+
+  /// Tab 2.5: 网络收藏（源站书架 / 收藏夹）。
+  ///
+  /// 两种形态：
+  /// - 源声明了列表 `route` → 进入 Tab 时懒加载（[_loadWebFavorite]），网格展示；
+  /// - 仅声明网页 `url`（无 route）→ Tab 内提供「在浏览器打开」按钮，
+  ///   不在此拉取列表（列表数据在源站内，app 无法结构化获取）。
+  Widget _buildWebFavoriteTab(AppLocalizations l10n) {
+    final source = _source;
+    if (source == null) return const SizedBox.shrink();
+    final wf = source.webFavorite;
+    final scheme = Theme.of(context).colorScheme;
+
+    // 纯网页入口（无 route）：提供「在浏览器打开」按钮。
+    final isUrlOnly = wf != null &&
+        (wf.route == null || !source.routes.containsKey(wf.route)) &&
+        (wf.url ?? '').isNotEmpty;
+    if (isUrlOnly) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.bookmark_outline, size: 48, color: scheme.onSurfaceVariant),
+              const SizedBox(height: AppTokens.spaceMd),
+              Text(
+                wf!.title ?? l10n.onlineTabWebFavorite,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppTokens.spaceSm),
+              FilledButton.icon(
+                icon: const Icon(Icons.open_in_browser),
+                label: Text(l10n.openInBrowser),
+                onPressed: () => openInAppBrowser(
+                  context,
+                  _resolveWebFavoriteUrl(source, wf.url!),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // route 列表：懒加载 + 网格/列表展示。
+    if (_webFavoriteLoading) {
+      return const Center(child: AppLoadingIndicator());
+    }
+    if (_webFavoriteError != null) {
+      return AppErrorState(
+        message: _webFavoriteError!,
+        onRetry: () => _loadWebFavorite(),
+        retryLabel: l10n.retry,
+      );
+    }
+    if (_webFavoriteItems.isEmpty) {
+      return AppEmptyState(
+        icon: Icons.bookmark_outline,
+        message: l10n.emptyContent,
+      );
+    }
+    return _buildMediaItemGrid(l10n, _webFavoriteItems);
+  }
+
+  /// 网络收藏（route 列表）懒加载：进入该 Tab 时按需抓取源站书架。
+  ///
+  /// 与 [_ensureScheduleData] 同理走 `__route` 路由覆盖钩子；纯网页入口
+  /// 不走此路径（由 Tab 内按钮打开浏览器）。
+  Future<void> _loadWebFavorite() async {
+    final source = _source;
+    if (source == null || !mounted) return;
+    final wf = source.webFavorite;
+    if (wf == null || !wf.enabled) return;
+    // 纯网页入口不拉列表。
+    if ((wf.route == null || !source.routes.containsKey(wf.route)) &&
+        (wf.url ?? '').isNotEmpty) {
+      return;
+    }
+    if (_webFavoriteItems.isNotEmpty || _webFavoriteLoading) return;
+    setState(() => _webFavoriteLoading = true);
+    try {
+      final items = await widget.fetchItems(
+        source,
+        category: '',
+        page: 1,
+        vars: <String, String>{
+          'page': '1',
+          if (wf.route != null) '__route': wf.route!,
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _webFavoriteItems = items.take(200).toList(growable: false);
+        _webFavoriteLoading = false;
+      });
+    } on Object {
+      if (mounted) setState(() => _webFavoriteLoading = false);
+    }
+  }
+
+  /// 通用 MediaItem 网格/列表渲染（网络收藏列表复用，避免与分类 Tab 的
+  /// 分页状态耦合）。无分页（源站书架为有限集合）。
+  Widget _buildMediaItemGrid(AppLocalizations l10n, List<MediaItem> items) {
+    final layout = _layoutStore.settings;
+    final cross =
+        layout.layoutMode == LayoutMode.list ? 1 : layout.gridColumns;
+    final spacing = layout.gridSpacing;
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints c) {
+        final width = c.maxWidth;
+        final itemW = layout.layoutMode == LayoutMode.list
+            ? width - AppTokens.spaceLg * 2
+            : (width - AppTokens.spaceLg * 2 - spacing * (cross - 1)) / cross;
+        if (layout.layoutMode == LayoutMode.list) {
+          return ListView.builder(
+            padding: const EdgeInsets.all(AppTokens.spaceLg),
+            itemCount: items.length,
+            itemBuilder: (BuildContext c, int i) =>
+                _buildListItem(l10n, items[i]),
+          );
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cross,
+            mainAxisSpacing: spacing,
+            crossAxisSpacing: spacing,
+            childAspectRatio: itemW /
+                (itemW / AppTokens.coverAspectRatio + _textAreaHeight(layout)),
+          ),
+          itemCount: items.length,
+          itemBuilder: (BuildContext c, int i) =>
+              _buildContentCard(l10n, items[i], itemW),
+        );
+      },
+    );
+  }
+
+  /// 将源声明的相对 URL 解析为绝对地址（相对基址直接拼接，绝对地址原样返回）。
+  String _resolveWebFavoriteUrl(PluginConfig source, String url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    final base = source.site.baseUrl;
+    if (base.endsWith('/') && url.startsWith('/')) {
+      return '${base.substring(0, base.length - 1)}$url';
+    }
+    if (!base.endsWith('/') && !url.startsWith('/')) return '$base/$url';
+    return '$base$url';
   }
 
   /// Tab 3-N: 动态分类（网格列表 + 分页）。

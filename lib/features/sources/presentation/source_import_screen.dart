@@ -52,6 +52,9 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
   bool _collectApiDetected = false;
   String? _pickedFileName;
 
+  /// 因年龄限制被拦截（未进入导入预览）的 18+ 源数量。
+  int _ageBlockedCount = 0;
+
   @override
   void dispose() {
     _urlController.dispose();
@@ -74,17 +77,22 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
       // 统一批量解析：支持单源 / JSON 数组（小说+媒体+漫画混排）/
       // Legado 书源 / 包装对象 / NDJSON / XML，一次导入多种类型。
       final list = SourceRepository.parseMixedSources(text);
+      final repo = context.read<SourceRepository>();
+      final filtered = list.where((c) => !repo.isAgeBlocked(c)).toList();
+      _ageBlockedCount = list.length - filtered.length;
       if (mounted) {
-        if (list.isEmpty) {
+        if (filtered.isEmpty) {
           setState(() {
-            _error = AppLocalizations.of(context).sourceUnrecognized;
+            _error = _ageBlockedCount > 0
+                ? AppLocalizations.of(context).ageRestrictionImportMatureBlocked
+                : AppLocalizations.of(context).sourceUnrecognized;
             _loading = false;
           });
         } else {
           setState(() {
-            _previews = list;
+            _previews = filtered;
             _selectedPreviewIndices = <int>{
-              for (int i = 0; i < list.length; i++) i
+              for (int i = 0; i < filtered.length; i++) i
             };
             _loading = false;
           });
@@ -177,17 +185,22 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
       }));
 
       if (!mounted) return;
-      if (out.isEmpty) {
+      final repo = context.read<SourceRepository>();
+      final filtered = out.where((c) => !repo.isAgeBlocked(c)).toList();
+      _ageBlockedCount = out.length - filtered.length;
+      if (filtered.isEmpty) {
         setState(() {
-          _error = l10n.sourceUnrecognized;
+          _error = _ageBlockedCount > 0
+              ? l10n.ageRestrictionImportMatureBlocked
+              : l10n.sourceUnrecognized;
           _loading = false;
         });
         return;
       }
       setState(() {
-        _previews = out;
+        _previews = filtered;
         _selectedPreviewIndices = <int>{
-          for (int i = 0; i < out.length; i++) i
+          for (int i = 0; i < filtered.length; i++) i
         };
         _loading = false;
       });
@@ -267,7 +280,15 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
         .toList();
     if (selected.isEmpty) return;
     final repo = context.read<SourceRepository>();
-    for (final c in selected) {
+    // 防御：年龄限制开启时，跳过 18+ 源（理论上已在前置预览中过滤）。
+    final importable = selected.where((c) => !repo.isAgeBlocked(c)).toList();
+    if (importable.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).ageRestrictionImportMatureBlocked)),
+      );
+      return;
+    }
+    for (final c in importable) {
       repo.addSource(c);
     }
     Navigator.of(context).pop();
@@ -354,6 +375,35 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
             _buildAddLibraryCard(l10n, scheme),
           ],
           const SizedBox(height: AppTokens.spaceLg),
+          if (_ageBlockedCount > 0)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTokens.spaceMd,
+                vertical: AppTokens.spaceSm,
+              ),
+              decoration: BoxDecoration(
+                color: scheme.errorContainer.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(Icons.lock_outline,
+                      size: 16, color: scheme.onErrorContainer),
+                  const SizedBox(width: AppTokens.spaceXs),
+                  Expanded(
+                    child: Text(
+                      l10n.ageBlockedImportHint(_ageBlockedCount),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: scheme.onErrorContainer),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           _buildPreview(l10n, scheme),
         ],
       ),

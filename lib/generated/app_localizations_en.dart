@@ -5499,4 +5499,80 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get watchedThresholdUnit => '%';
+
+  @override
+  String get onlineTabWebFavorite => 'Web favorites';
+
+  @override
+  String get favoriteLocal => 'Local favorite';
+
+  @override
+  String get favoriteLocalHint => 'Save to this device';
+
+  @override
+  String get favoriteWeb => 'Add to web favorites';
+
+  @override
+  String get favoriteWebHint =>
+      'Save to your source-site account (needs network)';
+
+  @override
+  String get favoriteWebRequiresLogin => 'Requires source-site login first';
+
+  @override
+  String get ageRatingGeneral => 'General';
+
+  @override
+  String get ageRatingTeen => 'Teen (16+)';
+
+  @override
+  String get ageRatingMature => 'Mature (18+)';
+
+  @override
+  String get ageRatingLabel => 'Age rating';
+
+  @override
+  String get ageRestrictionImportMatureBlocked =>
+      'Age restriction is on; 18+ sources cannot be imported (turn it off in settings)';
+
+  @override
+  String ageBlockedManageHint(int count) {
+    return 'Hid $count 18+ source(s) (visible after turning off age restriction)';
+  }
+
+  @override
+  String ageBlockedImportHint(int count) {
+    return 'Due to age restriction, $count 18+ source(s) were not imported';
+  }
+
+  @override
+  String get ageRestriction => 'Age restriction';
+
+  @override
+  String get ageRestrictionHint => 'When on, hides sources rated Mature (18+)';
+
+  @override
+  String get ageRestrictionDisclaimerTitle => 'Disclaimer';
+
+  @override
+  String get ageRestrictionDisclaimerBody =>
+      'By disabling age restriction you acknowledge that this app may display content rated Mature (18+), including explicit adult material. You confirm that you are of legal age in your jurisdiction to view such content, and you accept full responsibility for any content accessed. The developer is not responsible for any content provided by third-party sources. Please comply with local laws and regulations.';
+
+  @override
+  String get ageRestrictionDisclaimerConfirm =>
+      'I have read and understand, continue';
+
+  @override
+  String get ageRestrictionDisclaimerScrollHint =>
+      'Scroll to the bottom to read the full disclaimer before confirming';
+
+  @override
+  String ageRestrictionDisclaimerCounting(Object seconds) {
+    return 'Wait ${seconds}s to confirm';
+  }
+
+  @override
+  String ageRestrictionDisclaimerWait(Object seconds) {
+    return 'Confirm (wait ${seconds}s)';
+  }
 }

@@ -2868,5 +2868,95 @@
   "rememberPosition": "记住播放/阅读位置",
   "rememberPositionHint": "开启后，重新打开动漫/漫画/小说会自动跳到上次观看的进度；关闭则每次从开头开始",
   "mirrorAutoAdded": "已从发布页自动添加 {count} 个镜像",
-  "sourceAnnouncementView": "查看详情"
+  "sourceAnnouncementView": "查看详情",
+  "onlineTabWebFavorite": "网络收藏",
+  "@onlineTabWebFavorite": {
+    "description": "Tab label for source-site web favorites (bookshelf)"
+  },
+  "favoriteLocal": "本地收藏",
+  "@favoriteLocal": {
+    "description": "Option to add to local device favorites"
+  },
+  "favoriteLocalHint": "保存到本机",
+  "@favoriteLocalHint": {
+    "description": "Hint for local favorite option"
+  },
+  "favoriteWeb": "加入网络收藏",
+  "@favoriteWeb": {
+    "description": "Option to add to source-site web favorites"
+  },
+  "favoriteWebHint": "收藏到源站账号（需联网）",
+  "@favoriteWebHint": {
+    "description": "Hint for web favorite option"
+  },
+  "favoriteWebRequiresLogin": "需先登录源站",
+  "@favoriteWebRequiresLogin": {
+    "description": "Note shown when web favorite requires login"
+  },
+  "ageRatingGeneral": "全年龄",
+  "@ageRatingGeneral": {
+    "description": "Age rating badge: all ages"
+  },
+  "ageRatingTeen": "青少年 (16+)",
+  "@ageRatingTeen": {
+    "description": "Age rating badge: teen"
+  },
+  "ageRatingMature": "成人 (18+)",
+  "@ageRatingMature": {
+    "description": "Age rating badge: mature/restricted"
+  },
+  "ageRatingLabel": "年龄分级",
+  "@ageRatingLabel": {
+    "description": "Label for selecting source age rating"
+  },
+  "ageRestrictionImportMatureBlocked": "年龄限制已开启，无法导入成人（18+）源（请在设置中关闭年龄限制）",
+  "@ageRestrictionImportMatureBlocked": {
+    "description": "Shown when user tries to import a 18+ source while age restriction is on"
+  },
+  "ageBlockedManageHint": "已隐藏 {count} 个成人（18+）源（关闭年龄限制后可见）",
+  "@ageBlockedManageHint": {
+    "description": "Banner in source management when age restriction hides mature sources",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "ageBlockedImportHint": "因年龄限制，{count} 个成人（18+）源未导入",
+  "@ageBlockedImportHint": {
+    "description": "Banner in import preview when age restriction hides mature sources",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "ageRestriction": "年龄限制",
+  "@ageRestriction": {
+    "description": "Settings toggle to hide mature (18+) sources"
+  },
+  "ageRestrictionHint": "开启后隐藏成人（18+）分级的源",
+  "@ageRestrictionHint": {
+    "description": "Hint for age restriction toggle"
+  },
+  "ageRestrictionDisclaimerTitle": "免责声明",
+  "@ageRestrictionDisclaimerTitle": {
+    "description": "Title of forced-reading disclaimer when disabling age restriction"
+  },
+  "ageRestrictionDisclaimerBody": "关闭年龄限制即表示你已知晓：本应用可能会展示成人（18+）分级内容，包含明确的成人素材。你确认你已达到所在司法辖区法律规定的可观看此类内容的法定年龄，并自愿承担由此产生的全部后果。开发者不对第三方源提供的任何内容负责。请务必遵守当地法律法规。",
+  "@ageRestrictionDisclaimerBody": {
+    "description": "Body text of the forced-reading age restriction disclaimer"
+  },
+  "ageRestrictionDisclaimerConfirm": "我已知晓并继续",
+  "@ageRestrictionDisclaimerConfirm": {
+    "description": "Confirm button of the forced-reading disclaimer"
+  },
+  "ageRestrictionDisclaimerScrollHint": "请滚动阅读完全部免责内容后再确认",
+  "@ageRestrictionDisclaimerScrollHint": {
+    "description": "Hint shown when user hasn't scrolled to bottom of disclaimer"
+  },
+  "ageRestrictionDisclaimerCounting": "还需等待 {seconds} 秒",
+  "@ageRestrictionDisclaimerCounting": {
+    "description": "Countdown hint while waiting for the forced-reading timer"
+  },
+  "ageRestrictionDisclaimerWait": "确认（还需 {seconds} 秒）",
+  "@ageRestrictionDisclaimerWait": {
+    "description": "Confirm button label while counting down"
+  }
 }

@@ -29,6 +29,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/chapter_list_sheet.dart';
 import '../../../core/widgets/detail_action_utils.dart';
+import '../../../core/widgets/web_favorite_action.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/widgets/source_image.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
@@ -292,6 +293,30 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         ),
       );
     }
+  }
+
+  /// 收藏按钮入口：源声明网络收藏时弹「本地/网络」双选项，否则直接本地收藏。
+  Future<void> _onFavoritePressed() async {
+    final MediaItem item = MediaItem(
+      id: widget.comicId,
+      title: widget.title,
+      sourceId: widget.sourceId,
+      sourceType: SourceType.mangaSource,
+      detailUrl: widget.detailUrl,
+      coverUrl: widget.coverUrl,
+    );
+    final PluginConfig? source =
+        context.read<SourceRepository>().getById(widget.sourceId);
+    if (source == null) {
+      await _toggleFavorite();
+      return;
+    }
+    await showFavoriteSheet(
+      context: context,
+      source: source,
+      item: item,
+      toggleLocalFavorite: _toggleFavorite,
+    );
   }
 
   @override
@@ -1291,7 +1316,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             IconButton(
               icon: Icon(_isFav ? Icons.favorite : Icons.favorite_border),
               tooltip: l10n.favorite,
-              onPressed: _toggleFavorite,
+              onPressed: _onFavoritePressed,
             ),
             IconButton(
               icon: const Icon(Icons.settings),

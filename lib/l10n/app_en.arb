@@ -2912,5 +2912,95 @@
   "sourceAnnouncementView": "View details",
   "watchedThreshold": "Watched threshold",
   "watchedThresholdHint": "Progress reaching this percentage is considered watched",
-  "watchedThresholdUnit": "%"
+  "watchedThresholdUnit": "%",
+  "onlineTabWebFavorite": "Web favorites",
+  "@onlineTabWebFavorite": {
+    "description": "Tab label for source-site web favorites (bookshelf)"
+  },
+  "favoriteLocal": "Local favorite",
+  "@favoriteLocal": {
+    "description": "Option to add to local device favorites"
+  },
+  "favoriteLocalHint": "Save to this device",
+  "@favoriteLocalHint": {
+    "description": "Hint for local favorite option"
+  },
+  "favoriteWeb": "Add to web favorites",
+  "@favoriteWeb": {
+    "description": "Option to add to source-site web favorites"
+  },
+  "favoriteWebHint": "Save to your source-site account (needs network)",
+  "@favoriteWebHint": {
+    "description": "Hint for web favorite option"
+  },
+  "favoriteWebRequiresLogin": "Requires source-site login first",
+  "@favoriteWebRequiresLogin": {
+    "description": "Note shown when web favorite requires login"
+  },
+  "ageRatingGeneral": "General",
+  "@ageRatingGeneral": {
+    "description": "Age rating badge: all ages"
+  },
+  "ageRatingTeen": "Teen (16+)",
+  "@ageRatingTeen": {
+    "description": "Age rating badge: teen"
+  },
+  "ageRatingMature": "Mature (18+)",
+  "@ageRatingMature": {
+    "description": "Age rating badge: mature/restricted"
+  },
+  "ageRatingLabel": "Age rating",
+  "@ageRatingLabel": {
+    "description": "Label for selecting source age rating"
+  },
+  "ageRestrictionImportMatureBlocked": "Age restriction is on; 18+ sources cannot be imported (turn it off in settings)",
+  "@ageRestrictionImportMatureBlocked": {
+    "description": "Shown when user tries to import a 18+ source while age restriction is on"
+  },
+  "ageBlockedManageHint": "Hid {count} 18+ source(s) (visible after turning off age restriction)",
+  "@ageBlockedManageHint": {
+    "description": "Banner in source management when age restriction hides mature sources",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "ageBlockedImportHint": "Due to age restriction, {count} 18+ source(s) were not imported",
+  "@ageBlockedImportHint": {
+    "description": "Banner in import preview when age restriction hides mature sources",
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "ageRestriction": "Age restriction",
+  "@ageRestriction": {
+    "description": "Settings toggle to hide mature (18+) sources"
+  },
+  "ageRestrictionHint": "When on, hides sources rated Mature (18+)",
+  "@ageRestrictionHint": {
+    "description": "Hint for age restriction toggle"
+  },
+  "ageRestrictionDisclaimerTitle": "Disclaimer",
+  "@ageRestrictionDisclaimerTitle": {
+    "description": "Title of forced-reading disclaimer when disabling age restriction"
+  },
+  "ageRestrictionDisclaimerBody": "By disabling age restriction you acknowledge that this app may display content rated Mature (18+), including explicit adult material. You confirm that you are of legal age in your jurisdiction to view such content, and you accept full responsibility for any content accessed. The developer is not responsible for any content provided by third-party sources. Please comply with local laws and regulations.",
+  "@ageRestrictionDisclaimerBody": {
+    "description": "Body text of the forced-reading age restriction disclaimer"
+  },
+  "ageRestrictionDisclaimerConfirm": "I have read and understand, continue",
+  "@ageRestrictionDisclaimerConfirm": {
+    "description": "Confirm button of the forced-reading disclaimer"
+  },
+  "ageRestrictionDisclaimerScrollHint": "Scroll to the bottom to read the full disclaimer before confirming",
+  "@ageRestrictionDisclaimerScrollHint": {
+    "description": "Hint shown when user hasn't scrolled to bottom of disclaimer"
+  },
+  "ageRestrictionDisclaimerCounting": "Wait {seconds}s to confirm",
+  "@ageRestrictionDisclaimerCounting": {
+    "description": "Countdown hint while waiting for the forced-reading timer"
+  },
+  "ageRestrictionDisclaimerWait": "Confirm (wait {seconds}s)",
+  "@ageRestrictionDisclaimerWait": {
+    "description": "Confirm button label while counting down"
+  }
 }
