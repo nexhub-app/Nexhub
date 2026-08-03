@@ -1,3 +1,5 @@
+**[简体中文](./features.md)** | [English](./features.en.md)
+
 # 📖 核心特色详解
 
 > 本文档详解 NexHub 的几项**最具特色、也最容易让人误解**的能力。想了解安装使用，见 [用户使用指南](user-guide.md)；想编写源，见 [开发者指南](developer-guide.md)。

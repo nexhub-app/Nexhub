@@ -1,3 +1,5 @@
+**[简体中文](./developer-guide.md)** | [English](./developer-guide.en.md)
+
 # 🛠️ 开发者指南
 
 > 面向贡献者与源作者。环境准备、项目结构、以及最重要的——**源编写分级教程**（基础 / 中级 / 高级）与完整示例。
@@ -57,7 +59,7 @@ nexhub/
 
 - `plugins/builtin/*.json`（任何内置 / 预备源）
 - `reference/`（源的本地备份与参考样例）
-- `docs/` 下仅白名单公开文档入库（`features.md` / `user-guide.md` / `developer-guide.md` / `GITHUB_ISSUE_TEMPLATE.md`）；其余内部开发文档、重开发提示词与计划、测试数据扫描脚本等均不入库
+- `docs/` 下仅白名单公开文档入库（`features.md` / `user-guide.md` / `developer-guide.md` / `GITHUB_ISSUE_TEMPLATE.md` 及其 `.en.md` 英文版）；其余内部开发文档、重开发提示词与计划、测试数据扫描脚本等均不入库
 - `build/`、`sdk/`（构建产物与 Flutter SDK，体积巨大）
 - `.workbuddy/`、`.trae/`、`.qoder/`、`.probe_tmp/`（本地工具与探针临时产物）
 - 根目录的临时脚本（如 `tmp_*.mjs`、`run_probe.*`、`net_check.*`）

@@ -120,11 +120,14 @@ tmp_*.mjs
 
 # ===== 内部开发文档 / 重开发计划（不入库）=====
 # 这些是私有开发过程产物（含旧项目 PlexHub 引用与重开发提示词），
-# 不进入公开仓库。docs/ 根下仅白名单公开文档入库，其余子目录均排除。
+# 不进入公开仓库。docs/ 根下仅白名单公开文档（含英文版）入库，其余子目录均排除。
 docs/*
 !docs/features.md
+!docs/features.en.md
 !docs/user-guide.md
+!docs/user-guide.en.md
 !docs/developer-guide.md
+!docs/developer-guide.en.md
 !docs/GITHUB_ISSUE_TEMPLATE.md
 
 # 内部源扫描脚本
