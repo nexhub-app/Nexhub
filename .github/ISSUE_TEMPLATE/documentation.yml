@@ -1,0 +1,33 @@
+name: 文档补充 / Documentation
+description: 报告文档错误、缺失或提出文档改进建议
+title: "[Docs] "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        欢迎指出文档问题！请说明具体位置与改进方向。
+  - type: textarea
+    id: location
+    attributes:
+      label: 文档位置 (Location) *
+      description: 哪个文件、页面或章节？例如 README、docs/redevelopment/00_xxx.md
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题或缺失 (Problem) *
+      description: 文档哪里不清楚、有错误、或缺少内容？
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 改进建议 (Suggestion)
+      description: 你希望怎么改？可以直接给出修改后的文字
+  - type: textarea
+    id: context
+    attributes:
+      label: 补充说明 (Additional context)
+      description: 截图、参考链接等
