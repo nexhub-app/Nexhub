@@ -1,0 +1,38 @@
+name: 功能建议 / Feature Request
+description: 提出新功能点子或对现有功能的改进建议
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        欢迎提建议！说明越清楚，我们越容易评估与实现。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 相关痛点 (Problem) *
+      description: 这个功能要解决什么问题？现有方案有什么不足？
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望方案 (Proposed solution) *
+      description: 你希望怎么实现？越具体越好
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 备选方案 (Alternatives)
+      description: 是否考虑过其他做法？为什么倾向上面的方案？
+  - type: textarea
+    id: scope
+    attributes:
+      label: 影响范围 (Scope)
+      description: 涉及哪个模块？例如 动漫/漫画/小说/影视/弹幕/源管理/设置/播放器
+  - type: textarea
+    id: context
+    attributes:
+      label: 补充说明 (Additional context)
+      description: 截图、参考链接、使用场景等
