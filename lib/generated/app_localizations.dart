@@ -1163,7 +1163,7 @@ abstract class AppLocalizations {
   /// No description provided for @readerTapInvert.
   ///
   /// In en, this message translates to:
-  /// **'Tap invert'**
+  /// **'Tap flip'**
   String get readerTapInvert;
 
   /// No description provided for @readerTapInvertNone.
