@@ -563,7 +563,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerTapOff => 'Off';
 
   @override
-  String get readerTapInvert => 'Tap invert';
+  String get readerTapInvert => 'Tap flip';
 
   @override
   String get readerTapInvertNone => 'None';

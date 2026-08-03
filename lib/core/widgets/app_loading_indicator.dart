@@ -72,7 +72,15 @@ class _AppBouncingDotsState extends State<AppBouncingDots>
 
   @override
   Widget build(BuildContext context) {
-    final Color color = widget.color ?? Theme.of(context).colorScheme.primary;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool isDark = scheme.brightness == Brightness.dark;
+    final Color rawColor = widget.color ?? scheme.primary;
+    // 暗色模式：改用低对比的中性灰（outline），并大幅压低透明度。
+    // 亮色 primary 在黑底上满透明度（1.0）会刺眼；这里峰值降到约 0.45，
+    // 圆点呈柔和灰、近乎「半透明呼吸」，不再夺目。
+    final Color color = isDark ? scheme.outline : rawColor;
+    final double baseAlpha = isDark ? 0.22 : 0.55;
+    final double liftAlpha = isDark ? 0.23 : 0.45;
     final double size = widget.dotSize;
     // 弹跳高度约 1.1 倍点径，视觉轻快不夸张。
     final double bounce = size * 1.1;
@@ -106,7 +114,7 @@ class _AppBouncingDotsState extends State<AppBouncingDots>
                       width: size,
                       height: size,
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.55 + 0.45 * lift),
+                        color: color.withValues(alpha: baseAlpha + liftAlpha * lift),
                         shape: BoxShape.circle,
                       ),
                     ),

@@ -668,11 +668,24 @@ class ReaderPreferences {
   }
 
   /// 背景实际颜色（结合深浅色：auto 在浅色主题用白、深色用黑）。
+  /// 暗色模式下对所选预设向黑色压暗 [ReaderTokens.nightDarkenFactor]，
+  /// 避免白/护眼浅底色在黑夜里刺眼，同时保留各预设间的视觉差异。
   Color resolveBackgroundColor(bool isDark) {
+    final Color base;
     if (background == ReaderBackgroundColor.auto) {
-      return isDark ? ReaderTokens.bgPresets[0] : ReaderTokens.bgPresets[2];
+      base = isDark ? ReaderTokens.bgPresets[0] : ReaderTokens.bgPresets[2];
+    } else {
+      base = ReaderTokens.bgPresets[background.toPresetIndex()];
     }
-    return ReaderTokens.bgPresets[background.toPresetIndex()];
+    if (isDark) {
+      return Color.lerp(
+            base,
+            Colors.black,
+            ReaderTokens.nightDarkenFactor,
+          ) ??
+          base;
+    }
+    return base;
   }
 }
 

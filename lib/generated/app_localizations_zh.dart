@@ -558,7 +558,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerTapOff => '关闭';
 
   @override
-  String get readerTapInvert => '点击反色';
+  String get readerTapInvert => '点击翻转';
 
   @override
   String get readerTapInvertNone => '不反转';
