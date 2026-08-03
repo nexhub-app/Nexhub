@@ -384,25 +384,38 @@
 
 ### 🌸 Bangumi 同步增强
 - **详情页一键同步**：条目详情页直接「同步到 Bangumi」，可精确到某一集 / 某一章。
-- **手动集 / 章同步**：支持对单集、单章手动触发同步。
-- **播放器单线路可选 + 同步弹窗多选**：剧集按当前线路过滤；同步弹窗按网站样式重做，可一次勾选多集 / 多章批量同步。
-- **增量同步 + 冲突解决**：云同步改为增量传输，新增冲突检测与状态明细。
+- **手动集 / 章同步**：支持对单集、单章手动触发同步，不再只能全量。
+- **播放器单线路可选 + 清理菜单**：剧集按当前线路过滤；播放器新增「清理」菜单（清除观看记录 / 进度等）；同步弹窗按网站样式重做，可一次勾选多集 / 多章批量同步。
+- **选线路 → 展示全部线路**：详情页选线路后，播放器展示该源全部线路，批量勾选更顺手。
+- **增量同步 + 冲突解决**：云同步改为增量传输，新增冲突检测与状态明细（哪里同步了、哪里冲突了看得清）。
 - **统一备份归档**：本地导入 / 导出与云同步重设计，备份包结构统一、可渐进恢复；补齐「记住播放 / 阅读位置」开关。
+- **数据安全修正（重要）**：修复云同步 / 本地备份白名单漏掉多个存储盒的问题，避免备份与同步时丢失数据；并补齐 Bangumi 登出后 UI 实时刷新、线路面板无线路时的友好提示、帮助文档链接。
+- **阅读 / 进度 / 播放修复（Issues 1-5）**：修复若干阅读进度、播放进度与同步弹窗的体验问题。
 
 ### 🧩 源管理重构
 - 源库**订阅 / 挑选导入**，不再只能手动粘贴 JSON；源 JSON **全字段可视化编辑**；修复部分源在源管理页的登录态识别与刷新。
 
 ### 🔞 年龄限制体系
-- 完善的年龄限制策略；**18+ 源默认自动隐藏**（可手动开启）；新增**网络收藏**。
+- 完善的年龄限制策略；**18+ 源默认自动隐藏**（可手动开启）；新增**网络收藏**与**源公告（announcement）**能力。
 
 ### 📚 阅读 / 漫画体验
 - 漫画阅读器：修复翻页与进度条不同步。
-- 暗色模式阅读体验修复（背景与预览）；详情页选集 / 章节目录日期跟随全局日期格式；收起态标题定位修复；Bangumi 评论文档整合。
+- 暗色模式阅读体验修复（背景与预览）；阅读器文案 / 预览调整；详情页选集 / 章节目录日期跟随全局日期格式；收起态标题定位修复；Bangumi 评论文档整合。
+- **6 项体验问题修复** + 补齐此前轮次未提交的改动。
 
 ### 🔧 其他
 - 视频嗅探页 release 包一直加载的兜底修复。
 - 新增 GitHub Issue 模板（bug / feature / docs）。
-- **CI 构建修复**：Android Gradle 仓库改 `google()` / `mavenCentral()` 优先、阿里云兜底，解决海外 runner 拉不到 Google 构件导致构建失败。
+- 补齐遗漏文件（content_detail_tabbed_shell 等），确保远端 master 与工作树一致。
+- 同步源 JSON 字段规范文档更新至 v0.4.0（新增 `network` / `comments` / `login` / `webFavorite` / `ageRating` 等字段说明）。
+- **CI 构建修复**：Android Gradle 仓库改 `google()` / `mavenCentral()` 优先、阿里云兜底，解决海外 runner 拉不到 Google 构件（如 flatbuffers-java）导致构建失败。
+
+### 🔞 年龄限制与免责说明
+NexHub 默认开启**年龄限制保护**：标记为 **18+（成人 / mature）** 的源在默认设置下**自动隐藏**，不会出现在浏览、搜索与源列表中；如需访问，须在「设置 → 内容分级」中手动开启「显示限制级内容」并确认已年满法定成年年龄。
+
+- **源作者责任**：请在源 JSON 中如实填写 `ageRating` 字段（`general` 全年龄 / `teen` 青少年 16+ / `mature` 成人 18+，支持 `all`/`16`/`r18`/`nsfw` 等别名，缺省 `general`）。应用仅依据该字段自动分级与隐藏，**最终的内容合规性与年龄适宜性由源的提供方与使用方负责**。
+- **内容责任**：NexHub 为开源技术演示项目，本身**不提供、不存储、不中转任何内容**，所有内容均来自用户自行导入的源；对于源所提供内容的版权、合法性及适宜性，NexHub 不做任何形式的担保或背书。
+- **合规提示**：若你所在地区法律禁止访问此类内容，或你未满法定成年年龄，请勿开启限制级内容显示。使用本软件即表示你已阅读、理解并同意仓库内完整的《免责声明》（依据中华人民共和国相关法律法规拟定）。
 
 ### 🔭 路线规划（规划中 · 欢迎参与）
 以下功能**尚未实现**，是后续版本重点方向，设计取舍欢迎到 [Discussions](https://github.com/nexhub-app/Nexhub/discussions) 提意见：
@@ -411,6 +424,23 @@
 3. **漫画翻译（MTL）**：漫画图片机翻嵌字 / 气泡替换。
 4. **视频实时翻译**：影视字幕 / 实时字幕翻译，支持外挂与内嵌字幕语言切换。
 5. **增加其他同步方式**：在 Bangumi 之外接入 AniList / MyAnimeList / Trakt / SIMKL / MDList 等，并支持跨后端双向同步与可配置冲突策略。
+
+### 📑 源编写字段（速查）
+本版源 JSON 的关键字段如下（完整说明见网站文档「源编写教程 · 源字段完整参考」一节，或仓库 `lib/core/models/plugin_config.dart`）：
+
+| 字段 | 说明 |
+| --- | --- |
+| `id` / `name` / `version` / `type` | 必填：唯一标识 / 显示名 / 整数版本（≥ 已装才覆盖）/ 媒体类型（animeSource·mangaSource·novelSource） |
+| `site` | 站点信息：`domain` / `baseUrl` / `userAgent` / `cookies` / `headers` / `mirrors[]` / `publishPageUrl` |
+| `parser` | 解析配置：`type`（builtin·hybrid·script）+ `overrides.<api>`（builtin·xpath·jsonpath·css·script·webview·webview-html）+ `script` |
+| `routes.<name>` | 各接口地址，支持 `{keyword}`/`{page}`/`{id}`/`{url}` 占位符 |
+| `selectors` / `category` / `homeSections` / `filters` | 声明式选择器 / 分类 / 首页板块 / 动态筛选 |
+| `comments` | 评论：`provider`(source/bangumi) / `routes`(list 必需) / `selectors` / `login`(WebView 登录页 + checkCookie/checkUrl) |
+| `network` | 源级网络覆盖：`proxy` / `dns` / `hosts` / `sni` / `ech`（缺省继承全局） |
+| `webFavorite` | 网络收藏：`enabled` / `route` / `url` / `addRoute` / `addUrl` / `requireLogin` |
+| `announcement` | 源公告：`title` / `body?` / `url?` / `updatedAt?` |
+| `ageRating` | 年龄分级：`general`(全年龄) / `teen`(青少年16+) / `mature`(成人18+)，缺省 `general`；`mature` 默认隐藏 |
+| `deprecated` / `enabled` / `enabledExplore` / `isHidden` | 弃用标记与可见性开关 |
 
 ## 📦 安装
 
