@@ -163,13 +163,15 @@ class HivePluginConfigAdapter extends TypeAdapter<HivePluginConfig> {
       enabledExplore: fields[15] as bool,
       migrationMessage: fields[16] as String?,
       engine: fields[17] as String?,
+      webFavorite: (fields[18] as Map?)?.cast<String, dynamic>(),
+      ageRating: fields[19] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, HivePluginConfig obj) {
     writer
-      ..writeByte(18)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -205,7 +207,11 @@ class HivePluginConfigAdapter extends TypeAdapter<HivePluginConfig> {
       ..writeByte(16)
       ..write(obj.migrationMessage)
       ..writeByte(17)
-      ..write(obj.engine);
+      ..write(obj.engine)
+      ..writeByte(18)
+      ..write(obj.webFavorite)
+      ..writeByte(19)
+      ..write(obj.ageRating);
   }
 
   @override

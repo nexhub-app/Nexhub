@@ -33,6 +33,125 @@ enum SourceType {
   }
 }
 
+/// 源年龄分级（三档）。源 JSON 通过顶层 `ageRating` 字段自行声明；
+/// 未声明时按 [general] 处理（最宽松，不受年龄限制开关影响）。
+///
+/// ```json
+/// { "ageRating": "mature" }
+/// ```
+enum SourceAgeRating {
+  /// 全年龄：任何用户均可浏览。
+  general,
+
+  /// 青少年（13+）：可能含轻度暴力 / 擦边内容。
+  teen,
+
+  /// 成人（18+）：明确的成人 / 限制级内容，年龄限制开启时会被隐藏。
+  mature;
+
+  /// 解析源 JSON 中的取值，兼容常见别名写法；无法识别时回退 [general]。
+  static SourceAgeRating parse(dynamic raw) {
+    if (raw is SourceAgeRating) return raw;
+    if (raw == null) return SourceAgeRating.general;
+    final String v = raw.toString().trim().toLowerCase();
+    if (v.isEmpty) return SourceAgeRating.general;
+    return switch (v) {
+      'general' || 'all' || 'g' || 'everyone' || 'allages' || '0' || 'safe' =>
+        SourceAgeRating.general,
+      'teen' || 't' || '13' || '13+' || 'pg13' || 'pg-13' || 'youth' ||
+      '16' || '16+' || '1' =>
+        SourceAgeRating.teen,
+      'mature' || 'm' || 'adult' || '18' || '18+' || 'r18' || 'r-18' ||
+      'nsfw' || 'restricted' || '2' =>
+        SourceAgeRating.mature,
+      _ => SourceAgeRating.general,
+    };
+  }
+
+  String get apiName {
+    return switch (this) {
+      SourceAgeRating.general => 'general',
+      SourceAgeRating.teen => 'teen',
+      SourceAgeRating.mature => 'mature',
+    };
+  }
+
+  /// 是否属于「年龄限制」内容（开启年龄限制时应被隐藏）。
+  bool get isRestricted => this == SourceAgeRating.mature;
+}
+
+/// 网络收藏配置（可选 `webFavorite` 段）——源站自有的书架 / 收藏夹。
+///
+/// 与应用内本地收藏相互独立：本地收藏存在设备上，网络收藏存在源站账号下。
+/// 全部为声明式配置，应用不内置任何站点逻辑：
+///
+/// ```json
+/// "webFavorite": {
+///   "title": "我的书架",
+///   "route": "webFavorite",
+///   "url": "/user/bookshelf",
+///   "addUrl": "/user/favorite/add?id={id}",
+///   "requireLogin": true
+/// }
+/// ```
+///
+/// - [route] / [addRoute] 指向 `routes` 中的键，由解析器按常规管线抓取；
+/// - [url] / [addUrl] 为网页入口，未提供 route 时以内置浏览器打开，
+///   支持 `{id}` `{detailUrl}` `{title}` 占位符。
+class WebFavoriteConfig {
+  /// 总开关。声明了该段即默认启用；置 false 可临时停用而不删配置。
+  final bool enabled;
+
+  /// 入口标题；为空时使用本地化默认文案「网络收藏」。
+  final String? title;
+
+  /// 收藏列表 route 键（在 `routes` 中定义）。
+  final String? route;
+
+  /// 收藏页网页地址（无 [route] 时使用，内置浏览器打开）。
+  final String? url;
+
+  /// 「加入收藏」route 键。
+  final String? addRoute;
+
+  /// 「加入收藏」网页地址模板（无 [addRoute] 时使用）。
+  final String? addUrl;
+
+  /// 是否需要先登录源站（仅用于提示，不阻断操作）。
+  final bool requireLogin;
+
+  const WebFavoriteConfig({
+    this.enabled = true,
+    this.title,
+    this.route,
+    this.url,
+    this.addRoute,
+    this.addUrl,
+    this.requireLogin = false,
+  });
+
+  factory WebFavoriteConfig.fromJson(Map<String, dynamic> json) =>
+      WebFavoriteConfig(
+        enabled: json['enabled'] as bool? ?? true,
+        title: json['title'] as String?,
+        route: json['route'] as String?,
+        url: json['url'] as String?,
+        addRoute: json['addRoute'] as String?,
+        addUrl: json['addUrl'] as String?,
+        requireLogin: json['requireLogin'] as bool? ?? false,
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'enabled': enabled,
+        if (title != null) 'title': title,
+        if (route != null) 'route': route,
+        if (url != null) 'url': url,
+        if (addRoute != null) 'addRoute': addRoute,
+        if (addUrl != null) 'addUrl': addUrl,
+        'requireLogin': requireLogin,
+      };
+}
+
 /// 镜像配置（站点主域失效时切换）。
 class MirrorConfig {
   final String name;
@@ -727,6 +846,11 @@ class PluginConfig {
   final SourceNetworkConfig? network;
   /// 源公告（可选 `announcement` 段）。为 null → 该源无公告。
   final AnnouncementConfig? announcement;
+  /// 网络收藏（可选 `webFavorite` 段）。为 null → 该源不提供源站收藏入口，
+  /// 在线浏览不显示「网络收藏」Tab，收藏按钮也不显示网络收藏选项。
+  final WebFavoriteConfig? webFavorite;
+  /// 源年龄分级（可选 `ageRating` 字段，缺省 [SourceAgeRating.general]）。
+  final SourceAgeRating ageRating;
   /// 源版本号（整数，缺省 1）。导入时 **≥ 已安装版本** 才覆盖（高版本升级 /
   /// 同版本刷新），**< 已安装版本** 不覆盖（防止误装旧版冲掉新源）。
   final int version;
@@ -756,6 +880,8 @@ class PluginConfig {
         this.engine,
         this.network,
         this.announcement,
+        this.webFavorite,
+        this.ageRating = SourceAgeRating.general,
         this.version = 1,
       });
 
@@ -814,6 +940,11 @@ class PluginConfig {
           ? AnnouncementConfig.fromJson(
               Map<String, dynamic>.from(json['announcement'] as Map))
           : null,
+      webFavorite: json['webFavorite'] is Map
+          ? WebFavoriteConfig.fromJson(
+              Map<String, dynamic>.from(json['webFavorite'] as Map))
+          : null,
+      ageRating: SourceAgeRating.parse(json['ageRating']),
       version: _coerceVersion(json['version']),
     );
   }
@@ -855,10 +986,32 @@ class PluginConfig {
         if (migrationMessage != null) 'migrationMessage': migrationMessage,
         if (network != null) 'network': network!.toJson(),
         if (announcement != null) 'announcement': announcement!.toJson(),
+        if (webFavorite != null) 'webFavorite': webFavorite!.toJson(),
+        'ageRating': ageRating.apiName,
       };
 
   bool get isDeprecated => deprecated;
   bool get isEnabled => enabled;
+
+  /// 是否可在「在线浏览」展示网络收藏入口（列表 route 或网页 URL 至少有一个）。
+  bool get hasWebFavoriteBrowse {
+    final WebFavoriteConfig? wf = webFavorite;
+    if (wf == null || !wf.enabled) return false;
+    final String? r = wf.route;
+    if (r != null && r.isNotEmpty && routes.containsKey(r)) return true;
+    return (wf.url ?? '').isNotEmpty;
+  }
+
+  /// 是否可在详情页 / 阅读器 / 播放器提供「加入网络收藏」选项。
+  bool get hasWebFavoriteAdd {
+    final WebFavoriteConfig? wf = webFavorite;
+    if (wf == null || !wf.enabled) return false;
+    final String? r = wf.addRoute;
+    if (r != null && r.isNotEmpty && routes.containsKey(r)) return true;
+    if ((wf.addUrl ?? '').isNotEmpty) return true;
+    // 未单独声明「加入」入口时，退化为打开收藏页让用户自行操作。
+    return hasWebFavoriteBrowse;
+  }
 
   /// 复制并修改部分字段（用于启用/禁用/隐藏等状态变更，以及编辑内置源提升）。
   PluginConfig copyWith({
@@ -871,6 +1024,8 @@ class PluginConfig {
     String? migrationMessage,
     SourceNetworkConfig? network,
     AnnouncementConfig? announcement,
+    WebFavoriteConfig? webFavorite,
+    SourceAgeRating? ageRating,
     int? version,
   }) =>
       PluginConfig(
@@ -898,6 +1053,8 @@ class PluginConfig {
         engine: engine,
         network: network ?? this.network,
         announcement: announcement ?? this.announcement,
+        webFavorite: webFavorite ?? this.webFavorite,
+        ageRating: ageRating ?? this.ageRating,
         version: version ?? this.version,
       );
 

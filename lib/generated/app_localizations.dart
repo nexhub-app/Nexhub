@@ -10495,6 +10495,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'%'**
   String get watchedThresholdUnit;
+
+  /// Tab label for source-site web favorites (bookshelf)
+  ///
+  /// In en, this message translates to:
+  /// **'Web favorites'**
+  String get onlineTabWebFavorite;
+
+  /// Option to add to local device favorites
+  ///
+  /// In en, this message translates to:
+  /// **'Local favorite'**
+  String get favoriteLocal;
+
+  /// Hint for local favorite option
+  ///
+  /// In en, this message translates to:
+  /// **'Save to this device'**
+  String get favoriteLocalHint;
+
+  /// Option to add to source-site web favorites
+  ///
+  /// In en, this message translates to:
+  /// **'Add to web favorites'**
+  String get favoriteWeb;
+
+  /// Hint for web favorite option
+  ///
+  /// In en, this message translates to:
+  /// **'Save to your source-site account (needs network)'**
+  String get favoriteWebHint;
+
+  /// Note shown when web favorite requires login
+  ///
+  /// In en, this message translates to:
+  /// **'Requires source-site login first'**
+  String get favoriteWebRequiresLogin;
+
+  /// Age rating badge: all ages
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get ageRatingGeneral;
+
+  /// Age rating badge: teen
+  ///
+  /// In en, this message translates to:
+  /// **'Teen (16+)'**
+  String get ageRatingTeen;
+
+  /// Age rating badge: mature/restricted
+  ///
+  /// In en, this message translates to:
+  /// **'Mature (18+)'**
+  String get ageRatingMature;
+
+  /// Label for selecting source age rating
+  ///
+  /// In en, this message translates to:
+  /// **'Age rating'**
+  String get ageRatingLabel;
+
+  /// Shown when user tries to import a 18+ source while age restriction is on
+  ///
+  /// In en, this message translates to:
+  /// **'Age restriction is on; 18+ sources cannot be imported (turn it off in settings)'**
+  String get ageRestrictionImportMatureBlocked;
+
+  /// Banner in source management when age restriction hides mature sources
+  ///
+  /// In en, this message translates to:
+  /// **'Hid {count} 18+ source(s) (visible after turning off age restriction)'**
+  String ageBlockedManageHint(int count);
+
+  /// Banner in import preview when age restriction hides mature sources
+  ///
+  /// In en, this message translates to:
+  /// **'Due to age restriction, {count} 18+ source(s) were not imported'**
+  String ageBlockedImportHint(int count);
+
+  /// Settings toggle to hide mature (18+) sources
+  ///
+  /// In en, this message translates to:
+  /// **'Age restriction'**
+  String get ageRestriction;
+
+  /// Hint for age restriction toggle
+  ///
+  /// In en, this message translates to:
+  /// **'When on, hides sources rated Mature (18+)'**
+  String get ageRestrictionHint;
+
+  /// Title of forced-reading disclaimer when disabling age restriction
+  ///
+  /// In en, this message translates to:
+  /// **'Disclaimer'**
+  String get ageRestrictionDisclaimerTitle;
+
+  /// Body text of the forced-reading age restriction disclaimer
+  ///
+  /// In en, this message translates to:
+  /// **'By disabling age restriction you acknowledge that this app may display content rated Mature (18+), including explicit adult material. You confirm that you are of legal age in your jurisdiction to view such content, and you accept full responsibility for any content accessed. The developer is not responsible for any content provided by third-party sources. Please comply with local laws and regulations.'**
+  String get ageRestrictionDisclaimerBody;
+
+  /// Confirm button of the forced-reading disclaimer
+  ///
+  /// In en, this message translates to:
+  /// **'I have read and understand, continue'**
+  String get ageRestrictionDisclaimerConfirm;
+
+  /// Hint shown when user hasn't scrolled to bottom of disclaimer
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll to the bottom to read the full disclaimer before confirming'**
+  String get ageRestrictionDisclaimerScrollHint;
+
+  /// Countdown hint while waiting for the forced-reading timer
+  ///
+  /// In en, this message translates to:
+  /// **'Wait {seconds}s to confirm'**
+  String ageRestrictionDisclaimerCounting(Object seconds);
+
+  /// Confirm button label while counting down
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm (wait {seconds}s)'**
+  String ageRestrictionDisclaimerWait(Object seconds);
 }
 
 class _AppLocalizationsDelegate

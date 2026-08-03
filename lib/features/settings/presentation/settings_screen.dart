@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:provider/provider.dart';
 import '../../../core/scraper/http_fetcher.dart';
@@ -644,7 +645,163 @@ class _GeneralSettingsCardState extends State<_GeneralSettingsCard> {
               value: _s.rememberPosition,
               onChanged: (v) => _update(_s.copyWith(rememberPosition: v)),
             ),
+            const Divider(height: AppTokens.spaceLg),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.ageRestriction),
+              subtitle: Text(
+                l10n.ageRestrictionHint,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              value: _s.ageRestrictionEnabled,
+              onChanged: (bool v) async {
+                // 关闭年龄限制：强制阅读免责声明，阅读到底 + 倒计时后才可确认。
+                if (!v) {
+                  final agreed = await _showAgeRestrictionDisclaimer(l10n);
+                  if (!agreed) return;
+                }
+                _update(_s.copyWith(ageRestrictionEnabled: v));
+                // 即时生效：同步到源仓库，避免重启才隐藏/显示受限源。
+                if (mounted) {
+                  context
+                      .read<SourceRepository>()
+                      .setAgeRestrictionEnabled(v);
+                }
+              },
+            ),
           ],
+        ),
+      ],
+    );
+  }
+
+  /// 关闭年龄限制前的强制阅读免责声明。
+  ///
+  /// 必须滚动到正文底部（证明已读）且等待 10 秒倒计时，才允许点「我已知晓并继续」。
+  /// 弹窗实时显示剩余秒数。返回 true 表示用户已确认关闭，false 表示取消（保持开启）。
+  Future<bool> _showAgeRestrictionDisclaimer(AppLocalizations l10n) async {
+    final bool? agreed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext ctx) => _AgeRestrictionDisclaimerDialog(l10n: l10n),
+    );
+    return agreed ?? false;
+  }
+}
+
+/// 关闭年龄限制前的强制阅读免责声明弹窗。
+///
+/// 必须滚动到正文底部（证明已读）且等待 10 秒倒计时，才允许点「我已知晓并继续」。
+class _AgeRestrictionDisclaimerDialog extends StatefulWidget {
+  final AppLocalizations l10n;
+
+  const _AgeRestrictionDisclaimerDialog({required this.l10n});
+
+  @override
+  State<_AgeRestrictionDisclaimerDialog> createState() =>
+      _AgeRestrictionDisclaimerDialogState();
+}
+
+class _AgeRestrictionDisclaimerDialogState
+    extends State<_AgeRestrictionDisclaimerDialog> {
+  bool _reachedBottom = false;
+  int _remaining = 10; // 倒计时总时长（秒）
+  Timer? _countdown;
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+    _countdown = Timer.periodic(const Duration(seconds: 1), (Timer t) {
+      setState(() {
+        if (_remaining <= 1) {
+          t.cancel();
+          _remaining = 0;
+        } else {
+          _remaining -= 1;
+        }
+      });
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients && _scroll.position.maxScrollExtent <= 0) {
+        setState(() => _reachedBottom = true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdown?.cancel();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_reachedBottom &&
+        _scroll.position.pixels >= _scroll.position.maxScrollExtent - 8) {
+      setState(() => _reachedBottom = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = widget.l10n;
+    final bool canConfirm = _reachedBottom && _remaining <= 0;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final String hint = !_reachedBottom
+        ? l10n.ageRestrictionDisclaimerScrollHint
+        : _remaining > 0
+            ? l10n.ageRestrictionDisclaimerCounting(_remaining)
+            : '';
+    return AlertDialog(
+      // 弹窗离屏幕边缘留呼吸空间。
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppTokens.spaceLg,
+        vertical: AppTokens.spaceLg,
+      ),
+      // 收紧 M3 默认的三段式大 padding，让弹窗整体更紧凑。
+      titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      title: Text(l10n.ageRestrictionDisclaimerTitle),
+      // 限制最大宽度（平板不横跨）与最大高度（正文再长也只占半屏内滚动）。
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 420,
+          maxHeight: MediaQuery.of(context).size.height * 0.55,
+        ),
+        child: SingleChildScrollView(
+          controller: _scroll,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(l10n.ageRestrictionDisclaimerBody),
+              const SizedBox(height: AppTokens.spaceSm),
+              if (hint.isNotEmpty)
+                Text(
+                  hint,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: canConfirm ? () => Navigator.of(context).pop(true) : null,
+          child: Text(canConfirm
+              ? l10n.ageRestrictionDisclaimerConfirm
+              : l10n.ageRestrictionDisclaimerWait(_remaining)),
         ),
       ],
     );

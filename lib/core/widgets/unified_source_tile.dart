@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:nexhub/generated/app_localizations.dart';
+import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
 import 'app_icon_button.dart';
 
@@ -22,6 +24,7 @@ class UnifiedSourceTile extends StatelessWidget {
   final String loginTooltip; // 来自 l10n（「源登录」）
   final String incognitoTooltip; // 来自 l10n（「无痕模式」）
   final bool isIncognito; // 该源是否已开启无痕
+  final SourceAgeRating? ageRating; // 年龄分级（null/未声明不显示）
   final VoidCallback? onTap;
   final VoidCallback? onMirrorSettings;
   final VoidCallback? onHide;
@@ -52,6 +55,7 @@ class UnifiedSourceTile extends StatelessWidget {
     this.loginTooltip = '',
     this.incognitoTooltip = '',
     this.isIncognito = false,
+    this.ageRating,
     this.onTap,
     this.onMirrorSettings,
     this.onHide,
@@ -67,11 +71,21 @@ class UnifiedSourceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final Widget titleWidget = Text(
-      name,
-      style: isHidden
-          ? TextStyle(color: scheme.onSurfaceVariant)
-          : null,
+    final Widget titleWidget = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Flexible(
+          child: Text(
+            name,
+            style: isHidden ? TextStyle(color: scheme.onSurfaceVariant) : null,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (ageRating != null) ...<Widget>[
+          const SizedBox(width: AppTokens.spaceSm),
+          _ageChip(context, scheme),
+        ],
+      ],
     );
     return ListTile(
       leading: CircleAvatar(
@@ -98,6 +112,36 @@ class UnifiedSourceTile extends StatelessWidget {
       onTap: onTap,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
+    );
+  }
+
+  /// 年龄分级徽章：general=中性灰 / teen=琥珀 / mature=红（与设置页一致）。
+  Widget _ageChip(BuildContext context, ColorScheme scheme) {
+    final l10n = AppLocalizations.of(context);
+    final (Color bg, Color fg, String label) = switch (ageRating!) {
+      SourceAgeRating.general => (
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+        l10n.ageRatingGeneral,
+      ),
+      SourceAgeRating.teen => (
+        scheme.tertiaryContainer,
+        scheme.onTertiaryContainer,
+        l10n.ageRatingTeen,
+      ),
+      SourceAgeRating.mature => (
+        scheme.errorContainer,
+        scheme.onErrorContainer,
+        l10n.ageRatingMature,
+      ),
+    };
+    return Chip(
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      backgroundColor: bg,
+      labelStyle: TextStyle(color: fg, fontSize: 11),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      side: BorderSide.none,
     );
   }
 

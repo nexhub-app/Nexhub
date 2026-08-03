@@ -29,6 +29,7 @@ import '../../../core/player/widgets/seek_bar.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/widgets/web_favorite_action.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import '../../../core/settings/danmaku_config.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -1768,6 +1769,35 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  /// 收藏按钮入口：源声明网络收藏时弹「本地/网络」双选项，否则直接本地收藏。
+  Future<void> _onFavoritePressed() async {
+    final type = widget.favoriteType;
+    if (type == null) {
+      await _toggleFavorite();
+      return;
+    }
+    final MediaItem item = MediaItem(
+      id: widget.itemId,
+      title: widget.title,
+      sourceId: widget.sourceId,
+      sourceType: type,
+      detailUrl: widget.detailUrl,
+      coverUrl: widget.coverUrl,
+    );
+    final PluginConfig? source =
+        context.read<SourceRepository>().getById(widget.sourceId);
+    if (source == null) {
+      await _toggleFavorite();
+      return;
+    }
+    await showFavoriteSheet(
+      context: context,
+      source: source,
+      item: item,
+      toggleLocalFavorite: _toggleFavorite,
+    );
+  }
+
   // ─────────────────────── 键盘快捷键（P8.3.4 §廿四） ───────────────────────
 
   /// 处理键盘事件：空格=播放/暂停，左右=seek ±10s，F=全屏，M=静音。
@@ -2854,7 +2884,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   color: _isFav ? Colors.redAccent : Colors.white,
                 ),
                 tooltip: l10n.favorite,
-                onPressed: _toggleFavorite,
+                onPressed: _onFavoritePressed,
               ),
             // 更多（已瘦身：解码 / 音频 / 媒体信息 / 外部播放 / 定时关闭 / 分享 / PiP / 连播）
             IconButton(

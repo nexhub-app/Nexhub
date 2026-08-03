@@ -181,6 +181,10 @@ class HivePluginConfig {
   final String? migrationMessage;
   @HiveField(17)
   final String? engine;
+  @HiveField(18)
+  final Map<String, dynamic>? webFavorite;
+  @HiveField(19)
+  final String? ageRating;
 
   HivePluginConfig({
     required this.id,
@@ -201,6 +205,8 @@ class HivePluginConfig {
     this.enabledExplore = true,
     this.migrationMessage,
     this.engine,
+    this.webFavorite,
+    this.ageRating,
   });
 
   factory HivePluginConfig.fromPluginConfig(PluginConfig config) => HivePluginConfig(
@@ -225,6 +231,8 @@ class HivePluginConfig {
         enabledExplore: config.enabledExplore,
         migrationMessage: config.migrationMessage,
         engine: config.engine,
+        webFavorite: config.webFavorite?.toJson(),
+        ageRating: config.ageRating.apiName,
       );
 
   PluginConfig toPluginConfig() => PluginConfig.fromJson({
@@ -246,6 +254,8 @@ class HivePluginConfig {
         'enabledExplore': enabledExplore,
         'migrationMessage': migrationMessage,
         'engine': engine,
+        if (webFavorite != null) 'webFavorite': webFavorite,
+        if (ageRating != null) 'ageRating': ageRating,
       });
 }
 

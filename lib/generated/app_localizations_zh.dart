@@ -5417,4 +5417,77 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get watchedThresholdUnit => '%';
+
+  @override
+  String get onlineTabWebFavorite => '网络收藏';
+
+  @override
+  String get favoriteLocal => '本地收藏';
+
+  @override
+  String get favoriteLocalHint => '保存到本机';
+
+  @override
+  String get favoriteWeb => '加入网络收藏';
+
+  @override
+  String get favoriteWebHint => '收藏到源站账号（需联网）';
+
+  @override
+  String get favoriteWebRequiresLogin => '需先登录源站';
+
+  @override
+  String get ageRatingGeneral => '全年龄';
+
+  @override
+  String get ageRatingTeen => '青少年 (16+)';
+
+  @override
+  String get ageRatingMature => '成人 (18+)';
+
+  @override
+  String get ageRatingLabel => '年龄分级';
+
+  @override
+  String get ageRestrictionImportMatureBlocked =>
+      '年龄限制已开启，无法导入成人（18+）源（请在设置中关闭年龄限制）';
+
+  @override
+  String ageBlockedManageHint(int count) {
+    return '已隐藏 $count 个成人（18+）源（关闭年龄限制后可见）';
+  }
+
+  @override
+  String ageBlockedImportHint(int count) {
+    return '因年龄限制，$count 个成人（18+）源未导入';
+  }
+
+  @override
+  String get ageRestriction => '年龄限制';
+
+  @override
+  String get ageRestrictionHint => '开启后隐藏成人（18+）分级的源';
+
+  @override
+  String get ageRestrictionDisclaimerTitle => '免责声明';
+
+  @override
+  String get ageRestrictionDisclaimerBody =>
+      '关闭年龄限制即表示你已知晓：本应用可能会展示成人（18+）分级内容，包含明确的成人素材。你确认你已达到所在司法辖区法律规定的可观看此类内容的法定年龄，并自愿承担由此产生的全部后果。开发者不对第三方源提供的任何内容负责。请务必遵守当地法律法规。';
+
+  @override
+  String get ageRestrictionDisclaimerConfirm => '我已知晓并继续';
+
+  @override
+  String get ageRestrictionDisclaimerScrollHint => '请滚动阅读完全部免责内容后再确认';
+
+  @override
+  String ageRestrictionDisclaimerCounting(Object seconds) {
+    return '还需等待 $seconds 秒';
+  }
+
+  @override
+  String ageRestrictionDisclaimerWait(Object seconds) {
+    return '确认（还需 $seconds 秒）';
+  }
 }
