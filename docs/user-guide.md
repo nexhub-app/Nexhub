@@ -1,3 +1,5 @@
+**[简体中文](./user-guide.md)** | [English](./user-guide.en.md)
+
 # 🧭 用户使用指南
 
 > 本指南面向普通用户：如何安装、导入源、日常使用与常见问题。想了解特色能力见 [核心特色详解](features.md)；想编写源见 [开发者指南](developer-guide.md)。
