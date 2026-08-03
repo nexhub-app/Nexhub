@@ -130,6 +130,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   ItemPositionsListener? _itemPositionsListener;
   /// 条漫模式待恢复的页码（_setupControllers 设置，_buildWebtoon 首次渲染后清除）。
   int? _pendingWebtoonRestore;
+
+  /// 条漫「向后翻页」正在等待滚动结果：防止动画未结束时连点造成重复换章。
+  bool _webtoonAdvanceBusy = false;
   int _currentPage = 0;
   bool _uiVisible = false;
   bool _isFav = false;
@@ -498,6 +501,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _itemPositionsListener?.itemPositions.removeListener(_onWebtoonScroll);
       _itemScrollController = null;
       _itemPositionsListener = null;
+      // 换章后重置向后翻页的等待标志，避免旧列表的未决滚动把它永久锁住。
+      _webtoonAdvanceBusy = false;
       // 切章/恢复期间屏蔽进度回写：直到 _buildWebtoon 首帧后由 _restoringPage=false
       // 解除。期间任何滚动通知（旧列表残留或初始布局）都不会污染 _currentPage/存档。
       _restoringPage = true;
@@ -720,14 +725,52 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
+  /// 条漫当前滚动位置的锚点：视口内最靠前一项的索引 + 其顶边偏移（视口高度归一化）。
+  /// 用于比对一次滚动请求前后画面是否真的移动过。
+  ({int index, double edge})? _webtoonScrollAnchor() {
+    final positions = _itemPositionsListener?.itemPositions.value;
+    if (positions == null || positions.isEmpty) return null;
+    final first = positions.reduce((a, b) => a.index <= b.index ? a : b);
+    return (index: first.index, edge: first.itemLeadingEdge);
+  }
+
   void _scrollByPage(int dir) {
     if (_prefs.readingMode.isWebtoon) {
+      final isc = _itemScrollController;
+      if (isc == null || !isc.isAttached) return;
       final target = (_currentPage + dir).clamp(0, _images.length - 1);
-      _itemScrollController?.scrollTo(
-        index: target,
-        duration: AppTokens.durFast,
-        curve: Curves.easeInOut,
-      );
+      if (dir <= 0) {
+        isc.scrollTo(
+          index: target,
+          duration: AppTokens.durFast,
+          curve: Curves.easeInOut,
+        );
+        return;
+      }
+      // 向后翻页兜底：列表已到底时滚动会被夹紧、画面纹丝不动。此时不再空转，
+      // 直接切下一话，避免因「当前页」判定未到达末页而卡在本章尾部翻不过去。
+      if (_webtoonAdvanceBusy) return;
+      _webtoonAdvanceBusy = true;
+      final before = _webtoonScrollAnchor();
+      final int token = _loadToken;
+      isc
+          .scrollTo(
+            index: target,
+            duration: AppTokens.durFast,
+            curve: Curves.easeInOut,
+          )
+          .whenComplete(() {
+        _webtoonAdvanceBusy = false;
+        // 章节已切换 / 页面已销毁则放弃本次判定，避免误触发换章。
+        if (!mounted || token != _loadToken) return;
+        final after = _webtoonScrollAnchor();
+        if (before == null || after == null) return;
+        // 锚点未变 = 滚动被夹紧（已到底），此时才换章。比较的是整段动画前后的
+        // 位置差，故即便读到的是上一帧布局也不影响结论。
+        final stalled = before.index == after.index &&
+            (before.edge - after.edge).abs() < 0.002;
+        if (stalled) _goNextChapter();
+      });
       return;
     }
     final pc = _pageController;
