@@ -1345,13 +1345,16 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         ? '${widget.title} · ${l10n.localFileLabel}'
         : '${widget.title} · ${l10n.chapterN(_chapterIndex + 1)}'
             '${chapter != null && chapter.title.isNotEmpty ? ' · ${chapter.title}' : ''}';
+    // 控制栏底色跟随应用主题（暗色即深色），而非读者背景色：
+    // 这样无论读者背景设为黑/白/护眼绿，图标文字都始终与底色形成对比，夜色模式不会看不清。
+    final Color scrim = Theme.of(context).colorScheme.surface;
     return SafeArea(
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: <Color>[bg.withValues(alpha: 0.95), bg.withValues(alpha: 0)],
+            colors: <Color>[scrim.withValues(alpha: 0.95), scrim.withValues(alpha: 0)],
           ),
         ),
         padding: const EdgeInsets.symmetric(
@@ -1460,9 +1463,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   Widget _buildBottomBar(AppLocalizations l10n) {
-    final Color barColor = _prefs.resolveBackgroundColor(
-      Theme.of(context).brightness == Brightness.dark,
-    );
+    // 控制栏底色跟随应用主题（暗色即深色），保证图标文字对比度（见 _buildTopBar）。
+    final Color scrim = Theme.of(context).colorScheme.surface;
     return SafeArea(
       top: false,
       child: Container(
@@ -1471,8 +1473,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
             colors: <Color>[
-              barColor.withValues(alpha: 0.95),
-              barColor.withValues(alpha: 0),
+              scrim.withValues(alpha: 0.95),
+              scrim.withValues(alpha: 0),
             ],
           ),
         ),

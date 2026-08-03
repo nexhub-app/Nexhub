@@ -216,7 +216,7 @@
   "readerTapKindle": "Kindle",
   "readerTapBothSides": "两侧",
   "readerTapOff": "关闭",
-  "readerTapInvert": "点击反色",
+  "readerTapInvert": "点击翻转",
   "readerTapInvertNone": "不反转",
   "readerTapInvertLeftRight": "左右反转",
   "readerTapInvertUpDown": "上下反转",

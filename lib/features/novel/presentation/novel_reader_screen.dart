@@ -1263,9 +1263,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           builder: (BuildContext ctx2, Function(void Function()) setDialogState) {
             return AppAlertDialog(
               title: Text(l10n.tapZonePreview),
-              content: SizedBox(
-                width: 280,
-                height: 420,
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 280, maxHeight: 420),
                 child: _TapZonePreviewOverlay(
                   layout: layout,
                   invert: invert,
@@ -3153,56 +3152,65 @@ class _TapZonePreviewOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 使用与 TapZoneResolver 相同的区域定义。
-    final regions = _resolvedRegions();
-    return ClipRect(
-      child: Stack(
-        children: <Widget>[
-          // 背景网格（模拟阅读页面）
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          // 各区域色块 + 标签
-          for (final entry in regions)
-            Positioned.fromRect(
-              rect: entry.key,
-              child: Container(
+    // 跟随容器自适应：窄屏下对话框宽度不足 280 时按实际宽度缩放，避免预览被截断。
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final double w =
+            constraints.maxWidth.isFinite ? constraints.maxWidth : 280;
+        final double h =
+            constraints.maxHeight.isFinite ? constraints.maxHeight : 420;
+        final regions = _resolvedRegions(w, h);
+        return ClipRect(
+          child: Stack(
+            children: <Widget>[
+              // 背景网格（模拟阅读页面）
+              Container(
                 decoration: BoxDecoration(
-                  color: _colorFor(entry.value),
-                  border: Border.all(
-                    color: _colorFor(entry.value).withValues(alpha: 0.6),
-                    width: 1.5,
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  _labelFor(entry.value),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _colorFor(entry.value).withValues(alpha: 1.0),
-                    shadows: <Shadow>[
-                      Shadow(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        blurRadius: 4,
-                      ),
-                    ],
-                  ),
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-            ),
-        ],
-      ),
+              // 各区域色块 + 标签
+              for (final entry in regions)
+                Positioned.fromRect(
+                  rect: entry.key,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: _colorFor(entry.value),
+                      border: Border.all(
+                        color: _colorFor(entry.value).withValues(alpha: 0.6),
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _labelFor(entry.value),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _colorFor(entry.value).withValues(alpha: 1.0),
+                        shadows: <Shadow>[
+                          Shadow(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   /// 解析当前设置下的有效区域（考虑反转），返回 [Rect → Action] 映射。
-  List<MapEntry<Rect, TapZoneAction>> _resolvedRegions() {
+  /// [w] / [h] 为预览区域实际尺寸（随容器自适应，避免窄屏下被截断）。
+  List<MapEntry<Rect, TapZoneAction>> _resolvedRegions(double w, double h) {
     // 原始区域定义（来自 TapZoneResolver._regions 的逻辑副本）。
     final raw = _rawRegions(layout);
     final result = <MapEntry<Rect, TapZoneAction>>[];
@@ -3215,7 +3223,7 @@ class _TapZonePreviewOverlay extends StatelessWidget {
         size: const Size(1, 1),
       );
       result.add(MapEntry(
-        Rect.fromLTWH(r.left * 280, r.top * 420, r.width * 280, r.height * 420),
+        Rect.fromLTWH(r.left * w, r.top * h, r.width * w, r.height * h),
         action,
       ));
     }

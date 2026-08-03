@@ -233,7 +233,7 @@
   "readerTapKindle": "Kindle",
   "readerTapBothSides": "Both sides",
   "readerTapOff": "Off",
-  "readerTapInvert": "Tap invert",
+  "readerTapInvert": "Tap flip",
   "readerTapInvertNone": "None",
   "readerTapInvertLeftRight": "Left/Right",
   "readerTapInvertUpDown": "Up/Down",
