@@ -120,8 +120,12 @@ tmp_*.mjs
 
 # ===== 内部开发文档 / 重开发计划（不入库）=====
 # 这些是私有开发过程产物（含旧项目 PlexHub 引用与重开发提示词），
-# 不进入公开仓库。整个 docs/ 目录均不入库。
-docs/
+# 不进入公开仓库。docs/ 根下仅白名单公开文档入库，其余子目录均排除。
+docs/*
+!docs/features.md
+!docs/user-guide.md
+!docs/developer-guide.md
+!docs/GITHUB_ISSUE_TEMPLATE.md
 
 # 内部源扫描脚本
 tools/scan_golden_sources.py
