@@ -1,0 +1,120 @@
+**English** | [简体中文](./README.md)
+
+> This project is in early development. Contributions and ideas are welcome via Pull Requests / issues.
+
+# NexHub
+
+> **All-in-one media aggregator (Anime / Manga / Novel / Video) — an open-source reading & watching tool based on the "Source-as-Plugin · Co-created Community" model.**
+
+NexHub is a cross-platform media aggregator built with [Flutter](https://flutter.dev). It unifies four content types — **Anime, Manga, Novel, and Video** — into one app for browsing, searching, reading, and watching.
+
+---
+
+## 📚 Documentation
+
+| Doc | Description |
+| --- | --- |
+| 📖 [Core Features](docs/features.en.md) | Source-as-Plugin, readers / player, Bangumi sync, network config, and other highlights |
+| 🧭 [User Guide](docs/user-guide.en.md) | Install, import sources, daily usage, FAQ |
+| 🛠️ [Developer Guide (incl. Source Authoring)](docs/developer-guide.en.md) | Environment setup, project structure, tiered source-authoring tutorial (Basic / Intermediate / Advanced), field reference, full examples |
+| 📜 [Release Notes](RELEASE_NOTES.md) | Full changelog per version (Chinese) |
+
+---
+
+## 1. Introduction
+
+**NexHub** is built around the **"Source-as-Plugin · Co-created Community"** philosophy:
+
+- **The app only provides the "engine"** — generic capabilities such as UI, readers, player, networking, and parsing dispatch;
+- **"Where content comes from" is decided by "sources."** Each source is an importable JSON config file (which may contain declarative selectors or embedded JavaScript scripts) describing how to scrape lists, details, chapters, and content from a specific site;
+- **The app ships with no bundled or pre-packaged sources.** All sources are imported by users or shared within the community. Anyone can write a source JSON, import it, and parse that site's content — **without changing any application code**.
+
+Benefits of this design:
+
+1. **Legality & safety**: the public repository contains no "built-in sources" pointing to specific sites, reducing copyright and compliance risk;
+2. **Sustainability & openness**: parsing capability is maintained by the community — when a site changes, only its source file needs updating, while the app itself stays stable.
+
+> ⚠️ Because it ships with no sources, a freshly installed NexHub is "empty" — you need to import at least one source before seeing content. Think of it as buying a bookshelf: you still have to put books on it yourself.
+
+---
+
+## 🗺️ Roadmap (TODO · planned · community input welcome)
+
+The following features are **not yet implemented** and are priorities for upcoming versions. Design trade-offs are welcome in GitHub Discussions / Issues:
+
+1. **AI integration**: AI-assisted source discovery, content summaries, anime/book companions, natural-language search, etc.;
+2. **Novel translation**: machine-translation pipeline with original/translation side-by-side, on-demand paragraph translation and caching;
+3. **Manga translation (MTL)**: machine-translation text embedding / speech-bubble replacement for manga images to lower the barrier for cross-language manga reading;
+4. **Real-time video translation**: subtitle / real-time subtitle translation for video, with language switching for both external and embedded subtitles;
+5. **More sync backends**: in addition to Bangumi sync, integrate AniList, MyAnimeList, Trakt, SIMKL, MDList, etc., with cross-backend two-way sync and configurable conflict strategies.
+
+---
+
+## 2. Source-as-Plugin · Co-created Community
+
+NexHub's vitality comes from community-maintained "sources." Everyone is welcome to participate:
+
+- **Users**: import community-shared sources and organize content as you like;
+- **Creators**: write your own source JSON describing how to parse a site, and share it with others;
+- **Contributors**: improve the engine, readers, player, or docs, or file Issues / PRs.
+
+> The app only provides the engine; parsing capability comes from the community. When a site changes, only its source file needs updating, while the app itself stays stable — that is the value of "Source-as-Plugin · Co-created Community."
+
+---
+
+## 3. Disclaimer
+
+> This disclaimer is drafted in accordance with the laws and regulations of the People's Republic of China (including, without limitation, the Cybersecurity Law, the Copyright Law, the Regulations on the Protection of the Right of Communication through Information Networks, and the Protection of Minors Law) and general international practice. By using this software you acknowledge that you have read, understood, and agreed to all of the following.
+
+1. **Technical demonstration nature**: NexHub is an open-source "aggregator / reading tool" technical demonstration project. It itself **does not provide, store, or relay any copyright-protected content**, and **ships with no built-in content sources** pointing to specific sites.
+
+2. **"Sources" are the user's responsibility**: all content in this software comes from **sources imported by users themselves**. The content on the sites a source points to, its legality, accuracy, and completeness, as well as the compliance and copyright status of the source itself, are **entirely the responsibility of the source provider and the user**, and are unrelated to the authors and contributors of this software.
+
+3. **Comply with laws and regulations**: users must strictly comply with applicable local laws and regulations, including but not limited to cybersecurity, copyright, and information-network-transmission protections. You may use this software only for **personal study, technical research, and non-commercial purposes**. You must not use it to infringe others' copyrights, privacy, trade secrets, or other lawful rights, nor for any commercial or illegal distribution.
+
+4. **Copyright and infringement handling**: if a source you import involves copyright-protected content, use it only within the scope authorized by the rights holder; if a rights holder believes a source or content infringes their lawful rights, please contact the source provider to remove it, and the authors of this software will cooperate as necessary.
+
+5. **Provided "AS IS"**: this software is provided on an "AS IS" basis, without any express or implied warranty (including but not limited to fitness, reliability, virus-free, and error-free warranties). The authors and contributors **assume no liability** for any direct, indirect, incidental, special, or consequential damages arising from the use or inability to use this software.
+
+6. **Protection of minors**: if the user is a minor, please use this software under the guidance of a guardian and comply with the Protection of Minors Law and other applicable regulations, avoiding exposure to inappropriate content.
+
+7. **Age rating and content classification**: NexHub has a built-in **age rating (ageRating) system** — source authors should truthfully declare `ageRating` in the source JSON (`general` / `teen` (16+) / `mature` (18+)). **`mature` (18+) sources are automatically hidden by default**; users must actively enable restricted content in Settings before it appears. The app only **filters display** according to the rating rules and does **not review, endorse, or guarantee any source's actual content**; whether a site permits its content to be accessed, scraped, and distributed is for the source author and user to determine and bear responsibility for. Do not import or distribute sources or content that violate local laws or infringe the rights of others.
+
+8. **Territorial compliance**: if the laws of your country or region prohibit or restrict the use of this software, stop using it immediately. The legality of this software in different jurisdictions is for the user to determine and bear.
+
+9. **Account and privacy**: data generated while using this software (browsing history, imported sources, etc.) is **stored locally on your device by default**; if you enable any cloud sync or third-party service, please understand and accept that service's privacy policy and data processing practices. The public code in this repository **contains no personal privacy, keys, or credentials**.
+
+10. **Scope of disclaimer**: this disclaimer constitutes the complete understanding between you and the authors/contributors of this software regarding its use. If any provision is held invalid, the remaining provisions remain in effect.
+
+---
+
+## 4. Acknowledgments
+
+NexHub would not exist without the following projects and communities:
+
+- [Legado](https://github.com/gedoor/legado) (and its various forks): the "book source" rule system provided core inspiration for NexHub's "Source-as-Plugin" parsing and co-creation philosophy (especially the declarative / scripted approach for novel sources). NexHub's novel paginator independently implements a pagination algorithm inspired by Legado's `ChapterProvider` without copying its source code; the upstream Legado repository does not carry an explicit open-source license, so this acknowledgment is for inspiration only and implies no license grant.
+- [Mihon](https://github.com/mihonapp/mihon) (a Tachiyomi derivative, and its various forks): the extension-source architecture and manga-reader interactions provided important references for NexHub's manga parsing and reading experience. Mihon is released under the Apache License 2.0 (© Mihon contributors).
+- [RSSHub](https://github.com/DIYgod/RSSHub): its RSS aggregation capability provides the service foundation for NexHub's subscription feature. RSSHub is released under AGPL-3.0 (© DIYgod); NexHub only calls its instances as a client and does not modify or redistribute its source.
+- [Flutter](https://flutter.dev) and the Dart team, for the excellent cross-platform framework;
+- [flutter_js](https://pub.dev/packages/flutter_js) (QuickJS engine), for the safe JS sandbox for embedded source scripts;
+- [xpath_selector](https://pub.dev/packages/xpath_selector) and [html](https://pub.dev/packages/html), for declarative extraction;
+- [dio](https://pub.dev/packages/dio), for unified networking and cookie management;
+- [provider](https://pub.dev/packages/provider), for state management;
+- [dynamic_color](https://pub.dev/packages/dynamic_color), for Material You dynamic color;
+- [media_kit](https://pub.dev/packages/media_kit) (libmpv engine), for video playback;
+- [Bangumi](https://bgm.tv) for its open API, which makes NexHub's collection / progress / rating sync and entry details possible (NexHub only calls its public endpoints as a third-party client);
+- [canvas_danmaku](https://pub.dev/packages/canvas_danmaku), for danmaku (bullet-comment) rendering;
+- [cat-catch](https://github.com/xifangczy/cat-catch) and other open-source sniffer projects (cat-catch / VBrowser-Android / VidDown / pup-sniffer): their "network interception + DOM detection + API hooking" methodology provided an important reference for NexHub's built-in video sniffer (methodology only; no code introduced; the app is open-sourced under Apache-2.0);
+- All developers, source authors, and users who have contributed to the "Source-as-Plugin · Co-created Community" philosophy.
+
+---
+
+## 5. Open-source License
+
+This project is open-sourced under the **Apache License 2.0 (Apache-2.0)** — see the [LICENSE](LICENSE) file and the [NOTICE](NOTICE) third-party attribution file in the repository root.
+
+Apache-2.0 allows free use, copying, modification, and distribution of this software in any project (including closed-source or commercial products), provided that: copyright and license notices are retained, changes to modified files are marked, and if the upstream contains a NOTICE file, its attribution content must be included. **This software is provided "as is", without any warranty.** If this project contains derivative content from third-party components, see [NOTICE](NOTICE) for attribution and licenses.
+
+---
+
+<p align="center">NexHub · Source-as-Plugin · Co-created Community</p>
