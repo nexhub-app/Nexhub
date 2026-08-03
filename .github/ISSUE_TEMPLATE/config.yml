@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用交流 / 使用问题
+    url: https://github.com/nexhub-app/Nexhub
+    about: 不确定是不是缺陷，或想先讨论？先看看 README 与已有 issue

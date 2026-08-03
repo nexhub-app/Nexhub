@@ -1,0 +1,89 @@
+name: Bug 反馈 / Bug Report
+description: 报告应用中的缺陷、崩溃或异常行为
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量填写完整，方便我们快速定位问题。带 `*` 的为必填项。
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索现有 issue，确认不是重复提交
+          required: true
+        - label: 我已使用最新版本，或在下方注明所用版本
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本 (App Version) *
+      description: 设置 → 关于 中显示的版本号，例如 v0.4.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 运行平台 (Platform) *
+      options:
+        - Android
+        - iOS
+        - Windows
+        - macOS
+        - Linux
+        - Web
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: 系统版本 (OS Version)
+      description: 例如 Android 14 / iOS 17 / Windows 11 23H2 / macOS 14
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 问题描述 (Describe the bug) *
+      description: 清晰、简洁地描述出现了什么异常
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤 (Steps to reproduce) *
+      description: 一步步描述如何触发该问题
+      placeholder: |
+        1. 打开 ……
+        2. 点击 ……
+        3. 看到 ……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为 (Expected behavior) *
+      description: 正常情况下应该发生什么
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为 (Actual behavior)
+      description: 和期望相比，实际多/少了什么、错在哪里
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志 / 截图 (Logs / Screenshots)
+      description: 粘贴相关日志（可用 ``` 折叠）或上传截图。敏感信息（账号、密钥）请打码
+      render: shell
+  - type: input
+    id: source
+    attributes:
+      label: 相关源 / 插件 (Source/Plugin)
+      description: 若与某个内置源或导入的源有关，填写源名称，例如 pms_m233、dalvdm、或自定义源
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充说明 (Additional context)
+      description: 其他你认为有用的信息
