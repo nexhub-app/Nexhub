@@ -97,6 +97,8 @@ dependencies:
   app_links: ^6.3.0
   # 网络状态检测（仅 WiFi 下载模式：判断是否连接 WiFi）
   connectivity_plus: ^6.1.0
+  # 条漫模式离散 item 追踪（精确页码定位，不依赖滚动比例）
+  scrollable_positioned_list: ^0.3.8
 
 dev_dependencies:
   flutter_test:
