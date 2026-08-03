@@ -98,10 +98,22 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   Future<InitResult>? _initFuture;
 
+  /// 主题状态。在初始化管线**之前**就恢复持久化偏好，使加载页 / 错误页
+  /// 与主界面同色——否则深色偏好下加载页会先闪一段白底。
+  /// 初始化完成后同一实例注入 Provider，避免主题被重置。
+  final ThemeController _themeController = ThemeController();
+
   @override
   void initState() {
     super.initState();
+    _themeController.load();
     _initFuture = _initialize();
+  }
+
+  @override
+  void dispose() {
+    _themeController.dispose();
+    super.dispose();
   }
 
   /// Runs the full initialization pipeline previously hosted in [main].
@@ -199,8 +211,12 @@ class _SplashScreenState extends State<SplashScreen> {
       watched: mediaWatchedManager,
     );
     await bangumiSyncService.init();
-    // 通用设置（启动界面 / 日期格式）需在首页构建前就绪。
+    // 通用设置（启动界面 / 日期格式 / 年龄限制）需在首页构建前就绪。
     await GeneralSettingsStore.instance.load();
+    // 年龄限制开关注入源仓库：开启时成人分级源不参与任何内容入口。
+    sourceRepo.setAgeRestrictionEnabled(
+      GeneralSettingsStore.instance.settings.ageRestrictionEnabled,
+    );
 
     return InitResult(
       sourceRepo: sourceRepo,
@@ -240,7 +256,7 @@ class _SplashScreenState extends State<SplashScreen> {
           return MultiProvider(
             providers: [
               ChangeNotifierProvider<ThemeController>.value(
-                value: ThemeController(),
+                value: _themeController,
               ),
               ChangeNotifierProvider<SourceRepository>.value(
                   value: result.sourceRepo),
@@ -294,27 +310,34 @@ class _SplashScreenState extends State<SplashScreen> {
 
         // Loading or error: wrap in a minimal MaterialApp so that
         // Theme.of(context) and AppLocalizations.of(context) resolve.
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData.light(),
-          darkTheme: ThemeData.dark(),
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: const [
-            Locale('zh'),
-            Locale('en'),
-          ],
-          home: snapshot.connectionState == ConnectionState.done &&
-                  snapshot.hasError
-              ? _ErrorView(
-                  error: snapshot.error,
-                  onRetry: _retry,
-                )
-              : const _SplashView(),
+        // 主题取自 [_themeController]（已恢复持久化偏好）而非
+        // ThemeData.light/dark，且显式传 themeMode——否则用户选了深色但
+        // 系统为浅色时，这段加载期会渲染成白底。
+        return ListenableBuilder(
+          listenable: _themeController,
+          builder: (BuildContext context, Widget? _) => MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: _themeController.lightTheme(),
+            darkTheme: _themeController.darkTheme(),
+            themeMode: _themeController.mode,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('zh'),
+              Locale('en'),
+            ],
+            home: snapshot.connectionState == ConnectionState.done &&
+                    snapshot.hasError
+                ? _ErrorView(
+                    error: snapshot.error,
+                    onRetry: _retry,
+                  )
+                : const _SplashView(),
+          ),
         );
       },
     );

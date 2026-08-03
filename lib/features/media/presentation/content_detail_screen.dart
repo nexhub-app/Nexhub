@@ -64,6 +64,7 @@ import '../../../core/widgets/favorite_group_assign_sheet.dart';
 import '../../../core/widgets/module_source_search_screen.dart';
 import '../../../core/widgets/progress_card.dart';
 import '../../../core/widgets/source_url_browse_screen.dart';
+import '../../../core/widgets/web_favorite_action.dart';
 import '../../downloads/presentation/download_list_screen.dart';
 import '../../manga/presentation/comic_reader_screen.dart';
 import '../../novel/presentation/novel_reader_screen.dart';
@@ -530,6 +531,22 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       context,
       contentId: widget.item.id,
       sourceType: _favType,
+    );
+  }
+
+  /// 收藏按钮入口：源声明网络收藏时弹「本地/网络」双选项，否则直接本地收藏。
+  Future<void> _onFavoritePressed() async {
+    final PluginConfig? source =
+        context.read<SourceRepository>().getById(widget.item.sourceId ?? '');
+    if (source == null) {
+      await _toggleFavorite();
+      return;
+    }
+    await showFavoriteSheet(
+      context: context,
+      source: source,
+      item: widget.item,
+      toggleLocalFavorite: _toggleFavorite,
     );
   }
 
@@ -1090,7 +1107,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         IconButton(
           icon: Icon(isFav ? Icons.bookmark : Icons.bookmark_border),
           tooltip: l10n.subTabFavorite,
-          onPressed: _toggleFavorite,
+          onPressed: _onFavoritePressed,
         ),
         IconButton(
           icon: Icon(isDl ? Icons.download_done : Icons.download_outlined),

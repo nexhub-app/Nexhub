@@ -78,9 +78,35 @@ class SourceRepository extends ChangeNotifier {
   List<PluginConfig> get importedSources =>
       List<PluginConfig>.unmodifiable(_imported);
 
-  /// 活跃源（已启用 + 未弃用 + 未隐藏）。
-  List<PluginConfig> get activeSources =>
-      all.where((c) => c.isEnabled && !c.isDeprecated && !c.isHidden).toList();
+  /// 年龄限制开关（true = 隐藏 [SourceAgeRating.mature] 源）。**默认开启**。
+  ///
+  /// 由 splash 从 `GeneralSettings.ageRestrictionEnabled` 注入、设置页切换时
+  /// 调用 [setAgeRestrictionEnabled] 同步。此处不直接依赖设置单例，避免测试
+  /// 环境触发 SharedPreferences 插件。
+  bool _ageRestrictionEnabled = true;
+
+  bool get ageRestrictionEnabled => _ageRestrictionEnabled;
+
+  /// 更新年龄限制开关并广播（值未变化时空操作）。
+  void setAgeRestrictionEnabled(bool value) {
+    if (_ageRestrictionEnabled == value) return;
+    _ageRestrictionEnabled = value;
+    notifyListeners();
+  }
+
+  /// 该源当前是否因年龄限制被拦截。
+  bool isAgeBlocked(PluginConfig config) =>
+      _ageRestrictionEnabled && config.ageRating.isRestricted;
+
+  /// 因年龄限制被隐藏的源（用于在源管理页提示数量）。
+  List<PluginConfig> get ageBlockedSources =>
+      all.where(isAgeBlocked).toList(growable: false);
+
+  /// 活跃源（已启用 + 未弃用 + 未隐藏 + 未被年龄限制拦截）。
+  List<PluginConfig> get activeSources => all
+      .where((c) =>
+          c.isEnabled && !c.isDeprecated && !c.isHidden && !isAgeBlocked(c))
+      .toList();
 
   List<PluginConfig> byType(SourceType type) =>
       activeSources.where((c) => c.type == type).toList();

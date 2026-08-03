@@ -68,7 +68,7 @@ class _PluginManagementScreenState extends State<PluginManagementScreen> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final repo = context.watch<SourceRepository>();
-    final all = repo.all;
+    final all = repo.all.where((c) => !repo.isAgeBlocked(c)).toList();
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.pluginManagement)),
@@ -115,6 +115,7 @@ class _PluginManagementScreenState extends State<PluginManagementScreen> {
                         url: s.site.baseUrl,
                         enabled: s.isEnabled,
                         deprecated: s.isDeprecated,
+                        ageRating: s.ageRating,
                         deprecatedLabel: l10n.deprecated,
                         mirrorSettingsTooltip: l10n.mirrorSettings,
                         onMirrorSettings: () => Navigator.of(context).push(

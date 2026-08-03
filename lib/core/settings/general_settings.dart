@@ -80,11 +80,18 @@ class GeneralSettings {
   /// 仅门控「恢复」行为；明确点选某章节进入时本就从头开始，不受此影响。
   final bool rememberPosition;
 
+  /// 是否开启年龄限制（默认开启）。
+  ///
+  /// 开启时，声明为成人分级（`ageRating: "mature"`）的源不会出现在浏览 /
+  /// 搜索 / 首页等任何内容入口。关闭需要用户强制阅读并确认免责声明。
+  final bool ageRestrictionEnabled;
+
   const GeneralSettings({
     this.launchTab = LaunchTab.browse,
     this.dateFormat = AppDateFormat.defaultFormat,
     this.watchedThresholdPercent = 90,
     this.rememberPosition = true,
+    this.ageRestrictionEnabled = true,
   });
 
   GeneralSettings copyWith({
@@ -92,6 +99,7 @@ class GeneralSettings {
     AppDateFormat? dateFormat,
     int? watchedThresholdPercent,
     bool? rememberPosition,
+    bool? ageRestrictionEnabled,
   }) =>
       GeneralSettings(
         launchTab: launchTab ?? this.launchTab,
@@ -99,6 +107,8 @@ class GeneralSettings {
         watchedThresholdPercent:
             watchedThresholdPercent ?? this.watchedThresholdPercent,
         rememberPosition: rememberPosition ?? this.rememberPosition,
+        ageRestrictionEnabled:
+            ageRestrictionEnabled ?? this.ageRestrictionEnabled,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -106,6 +116,7 @@ class GeneralSettings {
         'dateFormat': dateFormat.name,
         'watchedThresholdPercent': watchedThresholdPercent,
         'rememberPosition': rememberPosition,
+        'ageRestrictionEnabled': ageRestrictionEnabled,
       };
 
   factory GeneralSettings.fromJson(Map<String, dynamic> json) {
@@ -130,6 +141,9 @@ class GeneralSettings {
         (json['watchedThresholdPercent'] as num?)?.toInt() ?? 90,
       ),
       rememberPosition: (json['rememberPosition'] as bool?) ?? true,
+      // 缺省 / 脏数据一律回落到「开启年龄限制」这一安全侧。
+      ageRestrictionEnabled:
+          (json['ageRestrictionEnabled'] as bool?) ?? true,
     );
   }
 }

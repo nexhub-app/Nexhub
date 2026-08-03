@@ -38,6 +38,9 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
   List<CategoryEntry> _categories = const <CategoryEntry>[];
   SourceType _sourceType = SourceType.animeSource;
 
+  /// 采集 API 导入时设置的分级（默认全年龄）。
+  SourceAgeRating _ageRating = SourceAgeRating.general;
+
   @override
   void dispose() {
     _urlController.dispose();
@@ -108,6 +111,7 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
             ? _baseUrl
             : _nameController.text.trim(),
         type: _sourceType,
+        ageRating: _ageRating,
         site: SiteConfig(
           domain: Uri.tryParse(_baseUrl)?.host ?? _baseUrl,
           baseUrl: _baseUrl,
@@ -127,7 +131,17 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
       );
 
   void _save() {
-    context.read<SourceRepository>().addSource(_buildConfig());
+    final repo = context.read<SourceRepository>();
+    // 年龄限制开启时，禁止导入 18+ 源
+    if (_ageRating == SourceAgeRating.mature && repo.ageRestrictionEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context).ageRestrictionImportMatureBlocked),
+        ),
+      );
+      return;
+    }
+    repo.addSource(_buildConfig());
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(AppLocalizations.of(context).collectApiSaved)),
@@ -238,6 +252,30 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
               selected: <SourceType>{_sourceType},
               onSelectionChanged: (Set<SourceType> selection) {
                 setState(() => _sourceType = selection.first);
+              },
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+            Text(l10n.ageRatingLabel,
+                style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: AppTokens.spaceSm),
+            SegmentedButton<SourceAgeRating>(
+              segments: <ButtonSegment<SourceAgeRating>>[
+                ButtonSegment<SourceAgeRating>(
+                  value: SourceAgeRating.general,
+                  label: Text(l10n.ageRatingGeneral),
+                ),
+                ButtonSegment<SourceAgeRating>(
+                  value: SourceAgeRating.teen,
+                  label: Text(l10n.ageRatingTeen),
+                ),
+                ButtonSegment<SourceAgeRating>(
+                  value: SourceAgeRating.mature,
+                  label: Text(l10n.ageRatingMature),
+                ),
+              ],
+              selected: <SourceAgeRating>{_ageRating},
+              onSelectionChanged: (Set<SourceAgeRating> selection) {
+                setState(() => _ageRating = selection.first);
               },
             ),
             const SizedBox(height: AppTokens.spaceMd),

@@ -65,6 +65,9 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
   bool _previewMode = false;
   int _skippedByTypeCount = 0;
 
+  /// 因年龄限制被拦截（未进入本地导入预览）的 18+ 源数量。
+  int _ageBlockedCount = 0;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -73,11 +76,17 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
     final SourceRepository repo = context.watch<SourceRepository>();
     final List<PluginConfig> sources = repo.all
         .where((PluginConfig c) => c.type == widget.filterType)
+        .where((c) => !repo.isAgeBlocked(c))
         .toList();
+
+    final ageBanner = repo.ageBlockedSources.isNotEmpty
+        ? _ageBlockedBanner(l10n, repo, context)
+        : const SizedBox.shrink();
 
     return ListView(
       padding: const EdgeInsets.all(AppTokens.spaceMd),
       children: <Widget>[
+        ageBanner,
         _buildImportBar(l10n),
         const SizedBox(height: AppTokens.spaceMd),
         if (sources.isEmpty)
@@ -105,6 +114,45 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
       case SourceType.mangaSource:
         return l10n.sourceCategoryComic;
     }
+  }
+
+  /// 年龄限制已开启时，提示「N 个 18+ 源已隐藏」。
+  Widget _ageBlockedBanner(
+    AppLocalizations l10n,
+    SourceRepository repo,
+    BuildContext context,
+  ) {
+    final count = repo.ageBlockedSources.length;
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceMd,
+          vertical: AppTokens.spaceSm,
+        ),
+        decoration: BoxDecoration(
+          color: scheme.errorContainer.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(Icons.lock_outline, size: 16, color: scheme.onErrorContainer),
+            const SizedBox(width: AppTokens.spaceXs),
+            Expanded(
+              child: Text(
+                l10n.ageBlockedManageHint(count),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: scheme.onErrorContainer),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// 顶部「本地导入」操作条（选择文件 / 选择文件夹）。
@@ -143,6 +191,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
       url: s.site.baseUrl,
       enabled: s.isEnabled,
       deprecated: s.isDeprecated,
+      ageRating: s.ageRating,
       isHidden: s.isHidden,
       deprecatedLabel: l10n.deprecated,
       mirrorSettingsTooltip: l10n.mirrorSettings,
@@ -207,8 +256,10 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
   }
 
   Future<void> _processPickedPaths(List<String> paths) async {
+    final repo = context.read<SourceRepository>();
     final items = <_ImportPreviewItem>[];
     int skippedByType = 0;
+    _ageBlockedCount = 0;
     for (final path in paths) {
       final fileName = p.basename(path);
       try {
@@ -227,6 +278,11 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
             // 单模块面板：只导入本模块类型，其他类型直接忽略。
             if (c.type != widget.filterType) {
               skippedByType++;
+              continue;
+            }
+            // 年龄限制开启时，18+ 源不可导入
+            if (repo.isAgeBlocked(c)) {
+              _ageBlockedCount++;
               continue;
             }
             items.add(_ImportPreviewItem(
@@ -276,9 +332,38 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
   // ── 本地导入：预览 + 确认 ─────────────────────────────────────────
 
   Widget _buildImportPreview(AppLocalizations l10n) {
+    final scheme = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.all(AppTokens.spaceMd),
       children: <Widget>[
+        if (_ageBlockedCount > 0)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTokens.spaceMd,
+              vertical: AppTokens.spaceSm,
+            ),
+            decoration: BoxDecoration(
+              color: scheme.errorContainer.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.lock_outline, size: 16, color: scheme.onErrorContainer),
+                const SizedBox(width: AppTokens.spaceXs),
+                Expanded(
+                  child: Text(
+                    l10n.ageBlockedImportHint(_ageBlockedCount),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: scheme.onErrorContainer),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Row(
           children: <Widget>[
             IconButton(

@@ -35,6 +35,7 @@ import '../../../core/theme/reader_tokens.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/chapter_list_sheet.dart';
 import '../../../core/widgets/detail_action_utils.dart';
+import '../../../core/widgets/web_favorite_action.dart';
 import '../../../core/widgets/source_image.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import 'novel_animated_page_view.dart';
@@ -475,6 +476,30 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         ),
       );
     }
+  }
+
+  /// 收藏按钮入口：源声明网络收藏时弹「本地/网络」双选项，否则直接本地收藏。
+  Future<void> _onFavoritePressed() async {
+    final MediaItem item = MediaItem(
+      id: widget.novelId,
+      title: widget.title,
+      sourceId: widget.sourceId,
+      sourceType: SourceType.novelSource,
+      detailUrl: widget.detailUrl,
+      coverUrl: widget.coverUrl,
+    );
+    final PluginConfig? source =
+        context.read<SourceRepository>().getById(widget.sourceId);
+    if (source == null) {
+      await _toggleFavorite();
+      return;
+    }
+    await showFavoriteSheet(
+      context: context,
+      source: source,
+      item: item,
+      toggleLocalFavorite: _toggleFavorite,
+    );
   }
 
   /// 清除当前小说的阅读进度（三点菜单入口）。
@@ -1815,7 +1840,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             IconButton(
               icon: Icon(_isFav ? Icons.favorite : Icons.favorite_border),
               tooltip: l10n.favorite,
-              onPressed: _toggleFavorite,
+              onPressed: _onFavoritePressed,
             ),
             // 重载本章（在线重载当前章节；本地重新读取文本）
             IconButton(
