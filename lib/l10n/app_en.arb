@@ -195,6 +195,8 @@
   },
   "prevChapter": "Prev chapter",
   "nextChapter": "Next chapter",
+  "readerLastChapterReached": "Already at the last chapter",
+  "readerFirstChapterReached": "Already at the first chapter",
   "readerSettings": "Reader settings",
   "readerMode": "Reading mode",
   "readerBackground": "Background",

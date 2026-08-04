@@ -932,6 +932,18 @@ abstract class AppLocalizations {
   /// **'Next chapter'**
   String get nextChapter;
 
+  /// No description provided for @readerLastChapterReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Already at the last chapter'**
+  String get readerLastChapterReached;
+
+  /// No description provided for @readerFirstChapterReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Already at the first chapter'**
+  String get readerFirstChapterReached;
+
   /// No description provided for @readerSettings.
   ///
   /// In en, this message translates to:
