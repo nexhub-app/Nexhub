@@ -1622,27 +1622,22 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// _restoringPage 保持为 true，收尾时才把当前页赋成末页并解除屏蔽，避免回弹。
   void _scrollToWebtoonLast(int last, int token) {
     final isc = _itemScrollController;
-    final soc = _webtoonOffsetController;
-    if (isc == null || soc == null || !isc.isAttached) {
+    if (isc == null || !isc.isAttached) {
       // 列表已卸载：直接收尾，不滚动（极端竞态下不会卡死）。
       _finishWebtoonRestore(last, token);
       return;
     }
-    // 落点分两步，原因是按项对齐的 API 语义有限：alignment 指定的是目标项**顶边**
-    // 落在视口的比例位置（列表内部以「视口锚点 + 居中 sliver」实现，跳转会把内部
-    // 偏移归零）。因此 alignment:1.0 的含义是「末页顶边贴视口底」——整页被推到屏幕
-    // 之外，画面显示的反而是它前面那一页，这正是此前始终落在倒数第二页的根因；
-    // 而「末页底边贴视口底」所需的 alignment = 1 − 末页高/视口高，可能为负，
-    // 超出该 API 的合法取值范围，无法直接表达。
-    //   步骤 1：alignment:0.0 把锚点钉在末页顶边（合法且不越界，不触发边界修正抖动）。
-    //   步骤 2：读末页实测的 itemTrailingEdge 换算成像素差，用相对像素滚动补到底。
-    //           相对滚动直接驱动列表内部的原始滚动控制器，不重算按项锚点，落点精确。
-    // 补差按实测值迭代，故视口高度即使有偏差也会逐次收敛；连续两次测量不再变化
-    // （已被边界夹住）或 1.5s 总超时都会强制收尾，任何情况都不卡死。
+    // 落点方案：用「按项对齐 + 直接计算对齐系数」一次性精确落末页，不做像素级动画。
+    // 列表内部以「视口锚点 anchor + 居中 sliver」实现跳转：jumpTo(index, A) 会把
+    // index 项的**顶边**放在视口 A 比例处（A=0 视口顶、A=1 视口底）。此前 alignment:1.0
+    // 把末页顶边推到视口底、整页被推到屏外，才出现「倒数第二页」；而「末页底贴视口底」
+    // 需要 A = 1 − 末页高/视口高——长条漫下 A 为负，但 UnboundedCustomScrollView
+    // 支持无界 anchor，负值即把末页顶边推到视口上方、底贴底，是合法的章末终态。
+    // 用 jumpTo 而非 animateScroll：jumpTo 是确定性瞬移（无动画、无帧回调排队），
+    // 彻底避免「恢复未完成用户就滚动」时活跃动画与拖拽打架产生的回弹。
     isc.jumpTo(index: last, alignment: 0.0);
     _webtoonRestoreTimer?.cancel();
     int corrections = 0;
-    double? prevTrailing;
     _webtoonRestoreTimer = Timer.periodic(const Duration(milliseconds: 80), (
       timer,
     ) {
@@ -1651,47 +1646,40 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         _webtoonRestoreTimer = null;
         return;
       }
-      double? trailing;
+      double? leading, trailing;
       final positions = _itemPositionsListener?.itemPositions.value;
       if (positions != null) {
         for (final p in positions) {
           if (p.index == last) {
+            leading = p.itemLeadingEdge;
             trailing = p.itemTrailingEdge;
             break;
           }
         }
       }
-      // 视口高度优先用滚动通知实测值，缺失时退回本组件尺寸（迭代会吸收其误差）。
+      // 视口高度优先用滚动通知实测值，缺失时退回本组件尺寸。
       final double viewport =
           _webtoonViewport ?? (context.size?.height ?? 0.0);
-      if (trailing != null && viewport > 0) {
-        // itemTrailingEdge 是末页**底边**在视口中的比例位置，1.0 即正好贴底。
-        // 距底部还差的像素 = (trailing − 1) × 视口高：正数需向下滚，负数需向上滚。
-        final double delta = (trailing - 1.0) * viewport;
-        // prevTrailing 在本闭包内会被重新赋值，Dart 不会对其做可空提升，
-        // 故用临时只读副本 prev 承接，才能安全地参与减法与比较。
-        final double? prev = prevTrailing;
-        final bool settled = prev != null && (trailing - prev).abs() < 1e-4;
-        if (delta.abs() <= 1.0 || (settled && corrections > 0)) {
-          // 已贴底，或已被边界夹住无法再靠近（章末内容不足时的合法终态）：收尾。
+      if (leading != null && trailing != null && viewport > 0) {
+        // itemTrailingEdge 是末页**底边**在视口中的比例，≤1+容差即已贴底：收尾。
+        if (trailing <= 1.0 + 2e-3) {
           timer.cancel();
           _webtoonRestoreTimer = null;
           _finishWebtoonRestore(last, token);
           return;
         }
-        prevTrailing = trailing;
+        // 末页高 = (trailing − leading) × 视口高；使末页底贴底的 alignment：
+        //   A = 1 − 末页高/视口高 = 1 − (trailing − leading)
+        // 长条漫下 A 为负（合法），把末页顶边推到视口上方、底贴底。跳定是瞬移，
+        // 不排队动画，故不会在用户紧随其后的滚动中造成回弹。
         if (corrections < 6) {
           corrections += 1;
-          // 1ms 即瞬时跳转（等价 jumpTo），不产生可见动画。
-          unawaited(
-            soc.animateScroll(
-              offset: delta,
-              duration: const Duration(milliseconds: 1),
-            ),
-          );
+          final double a = 1.0 - (trailing - leading);
+          isc.jumpTo(index: last, alignment: a);
         }
       }
       if (timer.tick >= 18) {
+        // 1.5s 兜底：章末内容不足或极端布局下强制收尾，绝不卡死。
         timer.cancel();
         _webtoonRestoreTimer = null;
         _finishWebtoonRestore(last, token);
@@ -1704,9 +1692,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _webtoonRestoreTimer = null;
     if (!mounted || token != _loadToken) return;
     _currentPage = last;
-    _restoringPage = false;
-    _saveProgress(last);
-    setState(() {});
+    // 延后一帧再解除 _restoringPage：本方法常由最后一跳 jumpTo 所在帧直接调用，
+    // 等本帧布局/绘制结束后再放行，避免用户紧跟其后的滚动与收尾瞬移产生竞态回弹。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || token != _loadToken) return;
+      _restoringPage = false;
+      _saveProgress(last);
+      setState(() {});
+    });
   }
 
   /// 条漫列表的边界拖拽换章判定。返回 false 让通知继续向上冒泡。
