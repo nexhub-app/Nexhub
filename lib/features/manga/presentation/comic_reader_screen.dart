@@ -145,6 +145,16 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 条漫「先落首页 → 加载完成后滚动到底」的收尾定时器（回到上一话时使用）。
   Timer? _webtoonRestoreTimer;
 
+  /// 「回到上一话末页」的尺寸稳定轮询定时器：回到上一话首帧后启动，
+  /// 每 ~80ms 检查末页项尺寸是否已稳定，稳定后再滚动到底。
+  Timer? _webtoonLastPageTimer;
+
+  /// 轮询超时兜底定时器：3s 内末页尺寸仍未稳定也强制滚动收尾，避免卡死。
+  Timer? _webtoonLastPageTimeout;
+
+  /// 轮询期间最近一次读到的末页项 trailingEdge，用于两两比对判稳定。
+  double? _lastPageLastEdge;
+
   /// 条漫模式待执行的「滚动到本章末页」标记：回到上一话时置位，
   /// 由 [_buildWebtoon] 首帧后消费。
   bool _pendingWebtoonScrollToLast = false;
@@ -362,6 +372,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _saveProgressDebounce?.cancel();
     _webtoonStepTimer?.cancel();
     _webtoonRestoreTimer?.cancel();
+    _webtoonLastPageTimer?.cancel();
+    _webtoonLastPageTimeout?.cancel();
     try {
       SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
     } on Object {
@@ -542,6 +554,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _webtoonStepTimer = null;
       _webtoonRestoreTimer?.cancel();
       _webtoonRestoreTimer = null;
+      _webtoonLastPageTimer?.cancel();
+      _webtoonLastPageTimer = null;
+      _webtoonLastPageTimeout?.cancel();
+      _webtoonLastPageTimeout = null;
+      _lastPageLastEdge = null;
       _pendingWebtoonScrollToLast = false;
       _overscrollAccum = 0;
       // 切章/恢复期间屏蔽进度回写：直到 _buildWebtoon 首帧后由 _restoringPage=false
@@ -1459,26 +1476,62 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         if (!mounted || token != _loadToken) return;
         final int last = _images.isEmpty ? 0 : _images.length - 1;
         if (toLast && last > 0 && isc.isAttached) {
-          // 「回到上一话末页」的两段式落点：首帧先停在首页（此时图片高度已可测量），
-          // 再主动滚动到底，收尾时直接把当前页赋成末页。整个过程 _restoringPage
-          // 保持为 true，中途因图片陆续加载引起的位置抖动一律不回写，故不会回弹。
-          isc.scrollTo(
-            index: last,
-            duration: AppTokens.durFast,
-            curve: Curves.easeOut,
-          );
-          _webtoonRestoreTimer?.cancel();
-          _webtoonRestoreTimer = Timer(
-            AppTokens.durFast + const Duration(milliseconds: 150),
-            () {
-              _webtoonRestoreTimer = null;
-              if (!mounted || token != _loadToken) return;
-              _currentPage = last;
-              _restoringPage = false;
-              _saveProgress(last);
-              setState(() {});
+          // 「回到上一话末页」的两段式落点：首帧先停在上一话首页，等图片陆续加载、
+          // 末页项尺寸稳定后，再主动滚动到底。整个过程 _restoringPage 保持为 true，
+          // 中途因图片加载引起的位置抖动一律不回写，故不会回弹。
+          //
+          // 关键：ScrollablePositionedList.scrollTo 是按「当前（占位）高度」换算像素
+          // 距离后滚动，图片未加载时占位高度≈0，若立即滚动会停在开头附近。因此这里
+          // 改为轮询等待末页项（index==last）的 itemTrailingEdge 连续两次读数一致
+          // （尺寸已稳定），再 scrollTo(alignment: 1.0) 把末页底边对齐视口底（真正的
+          // 「到底」）。同时加 3s 超时兜底，慢网/图片加载失败时也不会卡死。
+          final lastIdx = last;
+          _lastPageLastEdge = null;
+          _webtoonLastPageTimer?.cancel();
+          _webtoonLastPageTimer = Timer.periodic(
+            const Duration(milliseconds: 80),
+            (timer) {
+              if (!mounted || token != _loadToken) {
+                timer.cancel();
+                _webtoonLastPageTimer = null;
+                _webtoonLastPageTimeout?.cancel();
+                _webtoonLastPageTimeout = null;
+                return;
+              }
+              final positions = ipl.itemPositions.value;
+              double? trailing;
+              for (final p in positions) {
+                if (p.index == lastIdx) {
+                  trailing = p.itemTrailingEdge;
+                  break;
+                }
+              }
+              if (trailing == null) return; // 末页项尚未进入布局，继续等。
+              if (_lastPageLastEdge != null &&
+                  (trailing - _lastPageLastEdge!).abs() < 1e-3) {
+                // 尺寸已稳定：取消轮询与超时，滚动到底并走收尾。
+                timer.cancel();
+                _webtoonLastPageTimer = null;
+                _webtoonLastPageTimeout?.cancel();
+                _webtoonLastPageTimeout = null;
+                _lastPageLastEdge = null;
+                _scrollToWebtoonLast(lastIdx, token);
+              } else {
+                _lastPageLastEdge = trailing;
+              }
             },
           );
+          // 超时兜底：3s 内未稳定也强制滚动收尾，绝不卡死。
+          _webtoonLastPageTimeout?.cancel();
+          _webtoonLastPageTimeout = Timer(const Duration(seconds: 3), () {
+            _webtoonLastPageTimeout = null;
+            if (!mounted || token != _loadToken) return;
+            if (_webtoonLastPageTimer == null) return; // 已稳定并滚动，无需兜底。
+            _webtoonLastPageTimer?.cancel();
+            _webtoonLastPageTimer = null;
+            _lastPageLastEdge = null;
+            _scrollToWebtoonLast(lastIdx, token);
+          });
           return;
         }
         // initialScrollIndex 已在首帧把目标页顶边对齐到视口顶部（末页则夹到最大滚动、
@@ -1499,9 +1552,55 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
   }
 
+  /// 回到上一话末页时，把条漫列表滚动到底（末页底边对齐视口底）并收尾。
+  /// [last] 为末页下标，[token] 为本次加载令牌，用于竞态时放弃。整个过程
+  /// _restoringPage 保持为 true，收尾时才把当前页赋成末页并解除屏蔽，避免回弹。
+  void _scrollToWebtoonLast(int last, int token) {
+    final isc = _itemScrollController;
+    if (isc == null || !isc.isAttached) {
+      // 列表已卸载：直接收尾，不滚动（极端竞态下不会卡死）。
+      _finishWebtoonRestore(last, token);
+      return;
+    }
+    isc.scrollTo(
+      index: last,
+      alignment: 1.0,
+      duration: AppTokens.durFast,
+      curve: Curves.easeOut,
+    );
+    _webtoonRestoreTimer?.cancel();
+    _webtoonRestoreTimer = Timer(
+      AppTokens.durFast + const Duration(milliseconds: 150),
+      () => _finishWebtoonRestore(last, token),
+    );
+  }
+
+  /// 回到上一话末页的收尾：把当前页赋成末页、解除屏蔽、写盘。
+  void _finishWebtoonRestore(int last, int token) {
+    _webtoonRestoreTimer = null;
+    if (!mounted || token != _loadToken) return;
+    _currentPage = last;
+    _restoringPage = false;
+    _saveProgress(last);
+    setState(() {});
+  }
+
   /// 条漫列表的边界拖拽换章判定。返回 false 让通知继续向上冒泡。
   bool _handleWebtoonScrollNotification(ScrollNotification n) {
     if (n is ScrollStartNotification || n is ScrollEndNotification) {
+      // 回到上一话末页的自动滚动过程中，用户主动拖动则放弃自动滚到底（已接管）。
+      // 程序滚动动画的 dragDetails 为 null，不会误触发。
+      if (n is ScrollStartNotification &&
+          n.dragDetails != null &&
+          _restoringPage &&
+          _webtoonLastPageTimer != null) {
+        _webtoonLastPageTimer?.cancel();
+        _webtoonLastPageTimer = null;
+        _webtoonLastPageTimeout?.cancel();
+        _webtoonLastPageTimeout = null;
+        _lastPageLastEdge = null;
+        _restoringPage = false;
+      }
       _overscrollAccum = 0;
       return false;
     }
