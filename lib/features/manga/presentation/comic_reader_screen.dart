@@ -2232,25 +2232,39 @@ class _MangaPageImageState extends State<MangaPageImage> {
     // cropEdge 优先：用 BoxFit.cover 居中裁切，去掉页面四周留白（按文档简单版实现）。
     // 非裁边时按 initialZoom 选择适配方式。
     final (BoxFit fit, double? width) = _resolveFit();
-    final Widget raw = widget.cropEdge
-        ? SizedBox.expand(
-            child: SourceImage(
-              url: widget.url,
-              source: widget.source,
-              fit: BoxFit.cover,
-              placeholder: const Center(child: AppLoadingIndicator()),
+    // 条漫 + fitWidth 且非裁边：图片加载完成前 SourceImage 仅含占位符高度（约转圈
+    // 图标大小）。ScrollablePositionedList 据此用占位高度估算 maxScrollExtent；当
+    // 回滚到某话底部时，视口外的长条图项尚未构建、不加载，任何「高度稳定」判据都会
+    // 误以为已稳定，导致 scrollTo 按错误高度计算像素偏移、停在开头而非末页。
+    // 对策：给未加载 item 预留接近真实图高的占位高度（屏宽 × 1.5，长条漫经验值），
+    // 让列表从一开始估算就准确，回上一话即可一次定位到末页。
+    final bool reserveWebtoonHeight =
+        widget.prefs.readingMode.isWebtoon &&
+        widget.prefs.initialZoom == ReaderInitialZoom.fitWidth &&
+        !widget.cropEdge;
+
+    final Widget imgSource = SourceImage(
+      url: widget.url,
+      source: widget.source,
+      fit: fit,
+      width: width,
+      placeholder: const Center(child: AppLoadingIndicator()),
+    );
+
+    final Widget content = reserveWebtoonHeight
+        ? LayoutBuilder(
+            builder: (context, constraints) => ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxWidth * 1.5,
+              ),
+              child: imgSource,
             ),
           )
-        : Align(
-            alignment: Alignment.center,
-            child: SourceImage(
-              url: widget.url,
-              source: widget.source,
-              fit: fit,
-              width: width,
-              placeholder: const Center(child: AppLoadingIndicator()),
-            ),
-          );
+        : imgSource;
+
+    final Widget raw = widget.cropEdge
+        ? SizedBox.expand(child: content)
+        : Align(alignment: Alignment.center, child: content);
     final img = ReaderImageFiltered(
       brightness: widget.prefs.filterBrightness,
       contrast: widget.prefs.filterContrast,
