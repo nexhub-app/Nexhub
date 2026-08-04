@@ -178,6 +178,8 @@
   },
   "prevChapter": "上一章",
   "nextChapter": "下一章",
+  "readerLastChapterReached": "已经是最后一章了",
+  "readerFirstChapterReached": "已经是第一章了",
   "readerSettings": "阅读设置",
   "readerMode": "阅读模式",
   "readerBackground": "背景",

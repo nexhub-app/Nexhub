@@ -444,6 +444,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nextChapter => '下一章';
 
   @override
+  String get readerLastChapterReached => '已经是最后一章了';
+
+  @override
+  String get readerFirstChapterReached => '已经是第一章了';
+
+  @override
   String get readerSettings => '阅读设置';
 
   @override

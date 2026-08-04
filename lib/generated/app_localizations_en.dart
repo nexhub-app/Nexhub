@@ -449,6 +449,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nextChapter => 'Next chapter';
 
   @override
+  String get readerLastChapterReached => 'Already at the last chapter';
+
+  @override
+  String get readerFirstChapterReached => 'Already at the first chapter';
+
+  @override
   String get readerSettings => 'Reader settings';
 
   @override
