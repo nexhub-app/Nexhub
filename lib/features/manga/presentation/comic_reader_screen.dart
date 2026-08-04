@@ -152,8 +152,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 轮询超时兜底定时器：3s 内末页尺寸仍未稳定也强制滚动收尾，避免卡死。
   Timer? _webtoonLastPageTimeout;
 
-  /// 轮询期间最近一次读到的末页项 trailingEdge，用于两两比对判稳定。
-  double? _lastPageLastEdge;
+  /// 轮询期间最近一次读到的「最深构建项」trailingEdge，用于两两比对判稳定。
+  /// 末页通常超出缓存区未被构建，故以当前已构建的最深项作为尺寸稳定的代表。
+  double? _webtoonStableEdge;
 
   /// 条漫模式待执行的「滚动到本章末页」标记：回到上一话时置位，
   /// 由 [_buildWebtoon] 首帧后消费。
@@ -165,6 +166,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 边界拖拽换章阈值（像素）。
   static const double _kChapterOverscroll = 160;
+
+  /// 判定「item 已按真实图片尺寸布局」的最小高度（视口高度归一化）。
+  /// 图片未加载时每条 item 仅是占位小高度（约几十像素 ≈ 0.05 视口），而真实漫画页
+  /// 在 fitWidth/fitHeight/cropEdge 下通常 ≥ 0.5 视口。用于区分占位期与真实布局，
+  /// 避免在整章「缩成一屏」的占位状态下误判到底 / 误判尺寸已稳定。
+  static const double _kMinRealItemHeight = 0.3;
 
   int _currentPage = 0;
   bool _uiVisible = false;
@@ -558,7 +565,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _webtoonLastPageTimer = null;
       _webtoonLastPageTimeout?.cancel();
       _webtoonLastPageTimeout = null;
-      _lastPageLastEdge = null;
+      _webtoonStableEdge = null;
       _pendingWebtoonScrollToLast = false;
       _overscrollAccum = 0;
       // 切章/恢复期间屏蔽进度回写：直到 _buildWebtoon 首帧后由 _restoringPage=false
@@ -599,6 +606,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _maybePreload(idx);
   }
 
+  /// 列表中是否存在已按真实图片尺寸布局的项（高度明显大于占位）。
+  /// 图片未加载时所有项都是占位小高度（≈0.05 视口），此值为 false；
+  /// 一旦任一真实漫画页加载完成（高度 ≥ [_kMinRealItemHeight] 视口），即为 true。
+  /// 用于在占位期禁用「到底修正 / 尺寸稳定判据」，避免把「整章缩成一屏」的占位
+  /// 布局误当成已滚到底或尺寸已稳定。
+  bool _hasRealSizedItem(Iterable<ItemPosition> positions) {
+    for (final p in positions) {
+      final double h = p.itemTrailingEdge - p.itemLeadingEdge;
+      if (h > _kMinRealItemHeight) return true;
+    }
+    return false;
+  }
+
   void _onWebtoonScroll() {
     // 恢复进度期间的过渡位置不回写，避免冲掉存档。
     if (_restoringPage) return;
@@ -625,7 +645,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 容下多张，顶部项会停在 N-2/N-3，仅靠顶部模型永远到不了末页 —— 这里补齐该边界。
     // 未到底时最后一项底边仍在视口下方（trailingEdge>1），不触发，故进度不会提前满格。
     final int lastIndex = _images.length - 1;
-    if (lastIndex >= 0) {
+    if (lastIndex >= 0 && _hasRealSizedItem(positions)) {
       for (final p in positions) {
         // 容差 2e-3 覆盖 itemTrailingEdge 的像素取整误差（约 0.5px / 视口高）。
         if (p.index == lastIndex && p.itemTrailingEdge <= 1.0 + 2e-3) {
@@ -1482,11 +1502,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           //
           // 关键：ScrollablePositionedList.scrollTo 是按「当前（占位）高度」换算像素
           // 距离后滚动，图片未加载时占位高度≈0，若立即滚动会停在开头附近。因此这里
-          // 改为轮询等待末页项（index==last）的 itemTrailingEdge 连续两次读数一致
-          // （尺寸已稳定），再 scrollTo(alignment: 1.0) 把末页底边对齐视口底（真正的
-          // 「到底」）。同时加 3s 超时兜底，慢网/图片加载失败时也不会卡死。
+          // 改为轮询：先等列表里出现真实尺寸的图（图片开始加载），再等「已构建的最深
+          // 项」的 itemTrailingEdge 连续两次读数一致（整章高度已稳定），才 scrollTo
+          // (alignment: 1.0) 把末页底边对齐视口底（真正的「到底」）。末页通常超出缓存
+          // 区未被构建，故以最深已构建项作为稳定的代表，缓存命中的章节可秒稳、不必干等。
+          // 同时加 3s 超时兜底，慢网/图片加载失败时也不会卡死。
           final lastIdx = last;
-          _lastPageLastEdge = null;
+          _webtoonStableEdge = null;
           _webtoonLastPageTimer?.cancel();
           _webtoonLastPageTimer = Timer.periodic(
             const Duration(milliseconds: 80),
@@ -1499,25 +1521,33 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 return;
               }
               final positions = ipl.itemPositions.value;
+              // 占位期（图片未加载，全是占位小高度）不判稳：避免把「缩成一屏」的
+              // 假稳定当成尺寸已稳定而提前滚动。继续等图片开始加载。
+              if (!_hasRealSizedItem(positions)) {
+                _webtoonStableEdge = null;
+                return;
+              }
+              // 取当前已构建的最深项（index 最大）的 trailingEdge 作为稳定的代表。
               double? trailing;
+              int deepest = -1;
               for (final p in positions) {
-                if (p.index == lastIdx) {
+                if (p.index > deepest) {
+                  deepest = p.index;
                   trailing = p.itemTrailingEdge;
-                  break;
                 }
               }
-              if (trailing == null) return; // 末页项尚未进入布局，继续等。
-              if (_lastPageLastEdge != null &&
-                  (trailing - _lastPageLastEdge!).abs() < 1e-3) {
+              if (trailing == null) return;
+              if (_webtoonStableEdge != null &&
+                  (trailing - _webtoonStableEdge!).abs() < 1e-3) {
                 // 尺寸已稳定：取消轮询与超时，滚动到底并走收尾。
                 timer.cancel();
                 _webtoonLastPageTimer = null;
                 _webtoonLastPageTimeout?.cancel();
                 _webtoonLastPageTimeout = null;
-                _lastPageLastEdge = null;
+                _webtoonStableEdge = null;
                 _scrollToWebtoonLast(lastIdx, token);
               } else {
-                _lastPageLastEdge = trailing;
+                _webtoonStableEdge = trailing;
               }
             },
           );
@@ -1529,7 +1559,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             if (_webtoonLastPageTimer == null) return; // 已稳定并滚动，无需兜底。
             _webtoonLastPageTimer?.cancel();
             _webtoonLastPageTimer = null;
-            _lastPageLastEdge = null;
+            _webtoonStableEdge = null;
             _scrollToWebtoonLast(lastIdx, token);
           });
           return;
@@ -1598,7 +1628,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         _webtoonLastPageTimer = null;
         _webtoonLastPageTimeout?.cancel();
         _webtoonLastPageTimeout = null;
-        _lastPageLastEdge = null;
+        _webtoonStableEdge = null;
         _restoringPage = false;
       }
       _overscrollAccum = 0;
