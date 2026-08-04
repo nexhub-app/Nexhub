@@ -58,6 +58,11 @@ class ReaderTapZones extends StatefulWidget {
   /// 为 null 时不拦截。
   final bool Function()? onTapIntercept;
 
+  /// 控制栏区域判定：返回 true 表示该坐标落在顶部/底部控制栏上，此次指针不参与
+  /// 热区翻页，交给控制栏自身的按钮处理。避免控制栏展开时点按钮误触发翻页。
+  /// 为 null 时不做保护（例如控制栏隐藏的沉浸阅读状态）。
+  final bool Function(Offset)? isToolbarRegion;
+
   /// 是否渲染点击区域预览（彩色块 + 标签）。用于设置页预览，开启时不响应手势。
   final bool showPreview;
 
@@ -77,10 +82,11 @@ class ReaderTapZones extends StatefulWidget {
     required this.onToggleUi,
     this.onZoom,
     this.onZoomAt,
-    this.onLongPress,
-    this.onTapIntercept,
-    this.showPreview = false,
-    this.previewLabels,
+      this.onLongPress,
+      this.onTapIntercept,
+      this.isToolbarRegion,
+      this.showPreview = false,
+      this.previewLabels,
   });
 
   @override
@@ -247,6 +253,9 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
 
     // 内联设置面板打开时，任意单击都用来关闭面板（吞掉导航 / 缩放）。
     if (widget.onTapIntercept?.call() ?? false) return;
+
+    // 控制栏区域：交给控制栏自身按钮处理，不参与热区翻页，避免点按钮误触发翻页。
+    if (widget.isToolbarRegion?.call(e.localPosition) ?? false) return;
 
     // 桌面 Shift+左键：在点击处缩放（兜底双击缩放），不触发导航 / 双击。
     // 此分支优先于区域命中，任意位置按下 Shift 均可定点缩放。

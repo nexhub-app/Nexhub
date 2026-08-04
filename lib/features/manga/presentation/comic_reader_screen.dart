@@ -95,6 +95,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   final ComicProgressManager _progress = ComicProgressManager();
   final TransformationController _zoomController = TransformationController();
 
+  /// 顶部 / 底部控制栏与点击热区覆盖层的全局键：用于 [ReaderTapZones.isToolbarRegion]
+  /// 回调里把指针坐标换算到全局，判定是否落在控制栏上（点在按钮上不触发翻页）。
+  final GlobalKey _topBarKey = GlobalKey();
+  final GlobalKey _bottomBarKey = GlobalKey();
+  final GlobalKey _tapZonesKey = GlobalKey();
+
   late ReaderPreferences _prefs;
   int _chapterIndex = 0;
   int _savedPage = 0;
@@ -131,8 +137,25 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 条漫模式待恢复的页码（_setupControllers 设置，_buildWebtoon 首次渲染后清除）。
   int? _pendingWebtoonRestore;
 
-  /// 条漫「向后翻页」正在等待滚动结果：防止动画未结束时连点造成重复换章。
-  bool _webtoonAdvanceBusy = false;
+  /// 条漫单步翻页的滚动结果检查定时器：滚动动画结束后比对位置，
+  /// 若画面未移动（已被边界夹紧）则换章。用定时器而非滚动 Future，
+  /// 因为列表在切章/重建期间可能不再调度新帧，使 Future 永不完成而永久哑火。
+  Timer? _webtoonStepTimer;
+
+  /// 条漫「先落首页 → 加载完成后滚动到底」的收尾定时器（回到上一话时使用）。
+  Timer? _webtoonRestoreTimer;
+
+  /// 条漫模式待执行的「滚动到本章末页」标记：回到上一话时置位，
+  /// 由 [_buildWebtoon] 首帧后消费。
+  bool _pendingWebtoonScrollToLast = false;
+
+  /// 条漫边界拖拽累计位移（像素）：正=持续拖出底部，负=持续拖出顶部。
+  /// 超过 [_kChapterOverscroll] 即换章，松手或重新开始滚动时清零。
+  double _overscrollAccum = 0;
+
+  /// 边界拖拽换章阈值（像素）。
+  static const double _kChapterOverscroll = 160;
+
   int _currentPage = 0;
   bool _uiVisible = false;
   bool _isFav = false;
@@ -337,6 +360,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _flashController.dispose();
     _transitionTimer?.cancel();
     _saveProgressDebounce?.cancel();
+    _webtoonStepTimer?.cancel();
+    _webtoonRestoreTimer?.cancel();
     try {
       SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
     } on Object {
@@ -380,17 +405,27 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       // 期间若又发起了更新的加载（快速翻章），丢弃本次过期结果，
       // 避免旧章节的图片覆盖到新 _chapterIndex 上导致显示错乱。
       if (token != _loadToken || !mounted) return;
-      // 回到上一话末页时 restoreToLast=true，落点为该章最后一页。
-      final int rp = restoreToLast
-          ? (imgs.isEmpty ? 0 : imgs.length - 1)
-          : restorePage;
+      // 回到上一话末页时 restoreToLast=true。
+      // 翻页模式直接把落点设为末页（PageView 首帧即定位，无中间态）。
+      // 条漫模式则先落首页、待首帧布局完成后再主动滚动到底：切章瞬间图片尚未
+      // 完成布局，此时若直接以末页作为初始索引，后续图片加载引起的高度变化会
+      // 让「当前页」的测量回退到倒数几页（表现为进度回弹）。改为加载后主动滚动，
+      // 结束时直接赋值末页，不依赖任何测量结果。
+      final bool lastPage = restoreToLast && imgs.isNotEmpty;
+      final bool deferToLast = lastPage && _prefs.readingMode.isWebtoon;
+      final int rp = lastPage && !deferToLast ? imgs.length - 1 : restorePage;
       setState(() {
         _images = imgs;
         _loading = false;
         _error = null;
       });
-      _setupControllers(restorePage: rp);
-      _saveProgress(rp);
+      _setupControllers(restorePage: deferToLast ? 0 : rp);
+      if (deferToLast) {
+        // 首帧后由 _buildWebtoon 消费：滚动到底并在收尾时写入末页进度。
+        _pendingWebtoonScrollToLast = true;
+      } else {
+        _saveProgress(rp);
+      }
     } on WebViewHtmlRequest catch (req) {
       // useWebview 脚本源（manga_goda / manga_baozimh 等）需在内嵌 WebView
       // 加载章节页、等待 JS 渲染后取回整页 HTML，再回灌给脚本解析图片。
@@ -501,8 +536,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _itemPositionsListener?.itemPositions.removeListener(_onWebtoonScroll);
       _itemScrollController = null;
       _itemPositionsListener = null;
-      // 换章后重置向后翻页的等待标志，避免旧列表的未决滚动把它永久锁住。
-      _webtoonAdvanceBusy = false;
+      // 换章后取消上一章遗留的翻页/恢复定时器与边界拖拽累计，
+      // 避免旧列表的未决判定误触发换章。
+      _webtoonStepTimer?.cancel();
+      _webtoonStepTimer = null;
+      _webtoonRestoreTimer?.cancel();
+      _webtoonRestoreTimer = null;
+      _pendingWebtoonScrollToLast = false;
+      _overscrollAccum = 0;
       // 切章/恢复期间屏蔽进度回写：直到 _buildWebtoon 首帧后由 _restoringPage=false
       // 解除。期间任何滚动通知（旧列表残留或初始布局）都不会污染 _currentPage/存档。
       _restoringPage = true;
@@ -693,11 +734,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void _goNextPage() {
     _triggerFlash();
     if (_prefs.readingMode.isWebtoon) {
-      if (_currentPage >= _images.length - 1) {
-        _goNextChapter();
-      } else {
-        _scrollByPage(1);
-      }
+      _webtoonStep(1);
       return;
     }
     final pc = _pageController;
@@ -722,11 +759,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void _goPrevPage() {
     _triggerFlash();
     if (_prefs.readingMode.isWebtoon) {
-      if (_currentPage <= 0) {
-        _goPrevChapter();
-      } else {
-        _scrollByPage(-1);
-      }
+      _webtoonStep(-1);
       return;
     }
     final pc = _pageController;
@@ -748,43 +781,62 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     return (index: first.index, edge: first.itemLeadingEdge);
   }
 
-  void _scrollByPage(int dir) {
-    if (_prefs.readingMode.isWebtoon) {
-      final isc = _itemScrollController;
-      if (isc == null || !isc.isAttached) return;
-      final target = (_currentPage + dir).clamp(0, _images.length - 1);
-      if (dir <= 0) {
-        isc.scrollTo(
-          index: target,
-          duration: AppTokens.durFast,
-          curve: Curves.easeInOut,
-        );
-        return;
-      }
-      // 向后翻页兜底：列表已到底时滚动会被夹紧、画面纹丝不动。此时不再空转，
-      // 直接切下一话，避免因「当前页」判定未到达末页而卡在本章尾部翻不过去。
-      if (_webtoonAdvanceBusy) return;
-      _webtoonAdvanceBusy = true;
-      final before = _webtoonScrollAnchor();
-      final int token = _loadToken;
-      isc
-          .scrollTo(
-            index: target,
-            duration: AppTokens.durFast,
-            curve: Curves.easeInOut,
-          )
-          .whenComplete(() {
-        _webtoonAdvanceBusy = false;
+  /// 条漫单步翻页（[dir] = +1 下一页 / -1 上一页）。
+  ///
+  /// 采用「意图驱动」而非「测量驱动」：先算出想去的目标页，目标越界就直接换章，
+  /// 不再要求「当前页」的测量值必须精确等于末页/首页。旧实现把换章闸门绑在测量
+  /// 值上，而窄屏（一屏可容纳多张短图）时视口顶部项永远停在倒数几页，闸门就再也
+  /// 打不开，表现为末页点击完全没反应。
+  ///
+  /// 目标未越界时正常滚动，并在动画结束后比对画面是否真的移动过：没动即说明已被
+  /// 边界夹紧（内容不足以再滚一页），同样兜底换章。该检查用定时器驱动，必定执行。
+  void _webtoonStep(int dir) {
+    if (_images.isEmpty) return;
+    final int last = _images.length - 1;
+    final isc = _itemScrollController;
+    // 列表尚未挂载（切章/重建中）时不再静默吞掉操作，直接按方向换章。
+    if (isc == null || !isc.isAttached) {
+      dir > 0 ? _goNextChapter() : _goPrevChapter();
+      return;
+    }
+    final int target = _currentPage + dir;
+    if (target > last) {
+      _goNextChapter();
+      return;
+    }
+    if (target < 0) {
+      _goPrevChapter();
+      return;
+    }
+    final before = _webtoonScrollAnchor();
+    final int token = _loadToken;
+    isc.scrollTo(
+      index: target.clamp(0, last),
+      duration: AppTokens.durFast,
+      curve: Curves.easeInOut,
+    );
+    _webtoonStepTimer?.cancel();
+    _webtoonStepTimer = Timer(
+      AppTokens.durFast + const Duration(milliseconds: 120),
+      () {
+        _webtoonStepTimer = null;
         // 章节已切换 / 页面已销毁则放弃本次判定，避免误触发换章。
         if (!mounted || token != _loadToken) return;
         final after = _webtoonScrollAnchor();
         if (before == null || after == null) return;
-        // 锚点未变 = 滚动被夹紧（已到底），此时才换章。比较的是整段动画前后的
+        // 锚点未变 = 滚动被夹紧（已到边界），此时才换章。比较的是整段动画前后的
         // 位置差，故即便读到的是上一帧布局也不影响结论。
-        final stalled = before.index == after.index &&
+        final bool stalled = before.index == after.index &&
             (before.edge - after.edge).abs() < 0.002;
-        if (stalled) _goNextChapter();
-      });
+        if (!stalled) return;
+        dir > 0 ? _goNextChapter() : _goPrevChapter();
+      },
+    );
+  }
+
+  void _scrollByPage(int dir) {
+    if (_prefs.readingMode.isWebtoon) {
+      _webtoonStep(dir);
       return;
     }
     final pc = _pageController;
@@ -838,7 +890,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _triggerChapterTransition(widget.chapters[next].title);
       _chapterIndex = next;
       _loadChapter(_chapterIndex);
+      return;
     }
+    // 已无下一话：给出提示而不是静默无响应，否则用户会误以为按钮失灵。
+    _showBoundaryHint(AppLocalizations.of(context).readerLastChapterReached);
   }
 
   void _goPrevChapter() {
@@ -848,7 +903,53 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _chapterIndex = prev;
       // 回到上一话的【最后一页】，保证「首页翻上一张」连贯。
       _loadChapter(_chapterIndex, restoreToLast: true);
+      return;
     }
+    _showBoundaryHint(AppLocalizations.of(context).readerFirstChapterReached);
+  }
+
+  /// 章节边界提示（已是第一话 / 最后一话）。短暂 SnackBar，避免遮挡阅读区。
+  void _showBoundaryHint(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(milliseconds: 1400),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+  }
+
+  /// 判断指针（热区覆盖层局部坐标）是否落在顶部 / 底部控制栏区域内。
+  ///
+  /// 控制栏展开时，点在按钮上应交给按钮自身处理，不应再触发上一页 / 下一页；
+  /// 沉浸阅读（控制栏隐藏）时返回 false，交还全部区域给热区翻页。
+  ///
+  /// 实现：把指针坐标换算到全局空间，再与各控制栏 Container 的全局包围盒比对
+  /// （自动涵盖 SafeArea 内边距，无需手动计算状态栏 / 底部安全区高度）。
+  bool _isInToolbarRegion(Offset localPos) {
+    if (!_uiVisible) return false;
+    final overlayBox = _tapZonesKey.currentContext?.findRenderObject();
+    if (overlayBox is! RenderBox) return false;
+    final Offset global = overlayBox.localToGlobal(localPos);
+    for (final key in <GlobalKey>[_topBarKey, _bottomBarKey]) {
+      final box = key.currentContext?.findRenderObject();
+      if (box is RenderBox) {
+        final Offset topLeft = box.localToGlobal(Offset.zero);
+        final rect = Rect.fromLTWH(
+          topLeft.dx,
+          topLeft.dy,
+          box.size.width,
+          box.size.height,
+        );
+        if (rect.contains(global)) return true;
+      }
+    }
+    return false;
   }
 
   /// 章节切换过渡标题卡：若开启 [ReaderPreferences.showChapterTransition]，
@@ -1073,6 +1174,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           _buildContent(l10n),
           if (!_loading && _error == null && _images.isNotEmpty)
             ReaderTapZones(
+              key: _tapZonesKey,
               layout: _prefs.tapZoneLayout,
               tapZoneInvert: _prefs.tapZoneInvert,
               isVertical: _prefs.readingMode.isWebtoon ||
@@ -1103,6 +1205,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                         comicId: widget.comicId,
                         sourceType: SourceType.mangaSource,
                       ),
+              // 控制栏区域保护：点在顶部/底部控制栏上时交给按钮自身处理，不触发翻页。
+              isToolbarRegion: (pos) => _isInToolbarRegion(pos),
             ),
           if (_prefs.flashEnabled)
             Positioned.fill(
@@ -1347,17 +1451,80 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // setState 重注册导致重复回调）。恢复标记在此消费，后续重建不再触发。
     if (_pendingWebtoonRestore != null) {
       final target = _pendingWebtoonRestore!;
+      final bool toLast = _pendingWebtoonScrollToLast;
       _pendingWebtoonRestore = null;
+      _pendingWebtoonScrollToLast = false;
+      final int token = _loadToken;
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || token != _loadToken) return;
+        final int last = _images.isEmpty ? 0 : _images.length - 1;
+        if (toLast && last > 0 && isc.isAttached) {
+          // 「回到上一话末页」的两段式落点：首帧先停在首页（此时图片高度已可测量），
+          // 再主动滚动到底，收尾时直接把当前页赋成末页。整个过程 _restoringPage
+          // 保持为 true，中途因图片陆续加载引起的位置抖动一律不回写，故不会回弹。
+          isc.scrollTo(
+            index: last,
+            duration: AppTokens.durFast,
+            curve: Curves.easeOut,
+          );
+          _webtoonRestoreTimer?.cancel();
+          _webtoonRestoreTimer = Timer(
+            AppTokens.durFast + const Duration(milliseconds: 150),
+            () {
+              _webtoonRestoreTimer = null;
+              if (!mounted || token != _loadToken) return;
+              _currentPage = last;
+              _restoringPage = false;
+              _saveProgress(last);
+              setState(() {});
+            },
+          );
+          return;
+        }
         // initialScrollIndex 已在首帧把目标页顶边对齐到视口顶部（末页则夹到最大滚动、
         // 即底部对齐，属标准章末行为），无需再 scrollTo（避免引入额外动画/回弹）。
         // 此处仅同步进度变量并解除屏蔽，此后滚动通知才是用户真实翻页。
-        _currentPage = target.clamp(0, _images.length - 1);
+        _currentPage = (toLast ? last : target).clamp(0, last);
         // 解除进度回写/存档屏蔽：从此滚动通知才是用户真实翻页。
         _restoringPage = false;
-        if (mounted) setState(() {});
+        setState(() {});
       });
     }
+    return NotificationListener<ScrollNotification>(
+      // 边界拖拽换章：手指在列表顶端/末端继续拖动时，滚动位置被夹紧，多余位移会
+      // 以 overscroll 上报。累计超过阈值即换章 —— 这是连续滚动阅读的标准手势，
+      // 让换章彻底摆脱对「当前页」测量值的依赖。
+      onNotification: _handleWebtoonScrollNotification,
+      child: _buildWebtoonList(isc, ipl, restoreIndex, gap),
+    );
+  }
+
+  /// 条漫列表的边界拖拽换章判定。返回 false 让通知继续向上冒泡。
+  bool _handleWebtoonScrollNotification(ScrollNotification n) {
+    if (n is ScrollStartNotification || n is ScrollEndNotification) {
+      _overscrollAccum = 0;
+      return false;
+    }
+    if (n is! OverscrollNotification) return false;
+    // 仅响应手指拖拽产生的越界，忽略惯性滑动的余量，避免快速甩动误换章。
+    if (n.dragDetails == null) return false;
+    _overscrollAccum += n.overscroll;
+    if (_overscrollAccum >= _kChapterOverscroll) {
+      _overscrollAccum = 0;
+      _goNextChapter();
+    } else if (_overscrollAccum <= -_kChapterOverscroll) {
+      _overscrollAccum = 0;
+      _goPrevChapter();
+    }
+    return false;
+  }
+
+  Widget _buildWebtoonList(
+    ItemScrollController isc,
+    ItemPositionsListener ipl,
+    int restoreIndex,
+    double gap,
+  ) {
     return ScrollablePositionedList.separated(
       key: ValueKey('webtoon-$_chapterIndex'),
       itemScrollController: isc,
@@ -1407,6 +1574,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final Color scrim = Theme.of(context).colorScheme.surface;
     return SafeArea(
       child: Container(
+        key: _topBarKey,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -1525,6 +1693,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     return SafeArea(
       top: false,
       child: Container(
+        key: _bottomBarKey,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
@@ -1982,9 +2151,10 @@ class _MangaPageImageState extends State<MangaPageImage> {
         GestureBinding.instance.pointerSignalResolver
             .register(e, (_) => _onWheel(e));
       },
-      // 仅在「已放大」状态才把指针事件（包括单指 pan / 双指 pinch）交给
-      // GestureDetector 处理；未放大时不挂 GestureDetector，让单指 pan / 双指
-      // pinch 全部透传给底层 PageView / ListView，使翻页 / 滚动生效。
+      // 放缩手势常驻：翻页模式下一律挂载 GestureDetector（translucent），使「未放大时
+      // 双指捏合也能直接放大」；条漫模式为避免与列表原生竖向滚动抢手势，仅在已放大时
+      // 挂载（未放大时用双击缩放进入放大态、再捏合微调）。单指平移仅在已放大时生效，
+      // 未放大的单指交给底层 PageView / ListView 翻页或滚动，避免误吞原生手势。
       //
       // 重要：不要在这里用 InteractiveViewer。它的内部 Listener
       // （interactive_viewer.dart:1088 `_receivedPointerSignal`）始终在命中路径
@@ -1992,9 +2162,9 @@ class _MangaPageImageState extends State<MangaPageImage> {
       // 抢走滚轮事件；且即使 `scaleEnabled: false`，它也只是让 handler 静默返回，
       // 事件依然被消费掉，导致「已放大后滚轮失效」（设置面板的「作用 / 方向」按
       // 钮点击都看似无效）。这里自管 Transform + GestureDetector 是根治方案。
-      child: _zoomed
+      child: (!widget.prefs.readingMode.isWebtoon || _zoomed)
           ? GestureDetector(
-              behavior: HitTestBehavior.opaque,
+              behavior: HitTestBehavior.translucent,
               onScaleStart: _handleScaleStart,
               onScaleUpdate: _handleScaleUpdate,
               onScaleEnd: _handleScaleEnd,
@@ -2065,17 +2235,27 @@ class _MangaPageImageState extends State<MangaPageImage> {
   // ──────────────────── 平移 / 捏合手势（仅 [_zoomed] = true 时挂载） ─────
 
   /// 记录 pan / pinch 起点的初始矩阵与焦点。
+  ///
+  /// 未放大且为单指时不接管手势（交给底层翻页 / 滚动），不记录基准矩阵；
+  /// 双指捏合即便从未放大也立即接管，实现「未放大即可直接捏合放大」。
   void _handleScaleStart(ScaleStartDetails details) {
+    if (!_zoomed && details.pointerCount < 2) {
+      _scaleStartMatrix = null;
+      _scaleStartFocal = null;
+      return;
+    }
     _scaleStartMatrix = Matrix4.copy(_tc.value);
     _scaleStartFocal = details.localFocalPoint;
   }
 
-  /// pan / pinch 更新：双指 → 捏合缩放（以起手时的矩阵为基准、累计 scale 应用）；
-  /// 单指 → 平移（以起手焦点为基准、累计 focal 偏移应用）。
+  /// pan / pinch 更新：双指 → 捏合缩放（以起手时的矩阵为基准、累计 scale 应用，
+  /// 常驻生效，未放大也能直接放大）；单指 → 仅在已放大时平移（以起手焦点为基准、
+  /// 累计 focal 偏移应用），未放大时单指交还底层滚动 / 翻页。
   void _handleScaleUpdate(ScaleUpdateDetails details) {
     if (_scaleStartMatrix == null || _scaleStartFocal == null) return;
     if (details.pointerCount >= 2) {
       // 捏合：以起手矩阵为基准，按累计 [details.scale] 缩放并夹紧到 [minScale, maxScale]。
+      // 此分支常驻生效，即便当前 scale == 1（未放大）也能直接放大。
       final Matrix4 base = _scaleStartMatrix!;
       final double startScale = base.getMaxScaleOnAxis();
       final double target =
@@ -2090,7 +2270,8 @@ class _MangaPageImageState extends State<MangaPageImage> {
         ..scale(realFactor)
         ..multiply(base);
     } else {
-      // 单指 pan：把「当前焦点 − 起手焦点」左乘到起手矩阵上。
+      // 单指 pan：仅在已放大时平移；未放大时不处理，由底层 PageView / ListView 接管。
+      if (!_zoomed) return;
       final Offset delta = details.localFocalPoint - _scaleStartFocal!;
       final Matrix4 m = Matrix4.copy(_scaleStartMatrix!)
         ..leftTranslate(delta.dx, delta.dy);
