@@ -1505,6 +1505,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _pendingWebtoonRestore = null;
       _pendingWebtoonScrollToLast = false;
       final int token = _loadToken;
+      // 进度条即时对齐「即将到达的页」：回到上一话时目标是末页，若沿用 target(=0)
+      // 会让整个恢复期（等图加载 + 滚动收尾，约 1~3s）的页码停在第一页，收尾时才
+      // 突然跳到末页。此处在 build 期内直接赋值（同帧生效，不触发额外重建），
+      // restoreIndex 已于上方取值，不受影响。
+      final int expectPage = _images.isEmpty ? 0 : _images.length - 1;
+      _currentPage = (toLast ? expectPage : target).clamp(0, expectPage);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || token != _loadToken) return;
         final int last = _images.isEmpty ? 0 : _images.length - 1;
@@ -1557,7 +1563,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 isc.jumpTo(index: lastIdx, alignment: 1.0);
               }
               _webtoonPrevExtent = ext;
-              if (_webtoonExtentStableCount >= 3) {
+              // 需连续 8 次（约 640ms）不变才认定稳定：图片是分批解码的，批与批之间
+              // 常有 300~800ms 空隙，阈值过小会落在空隙里「假稳」而提前收尾。
+              if (_webtoonExtentStableCount >= 8) {
                 // 整章已稳定：取消轮询与超时，精确滚到底并收尾。
                 timer.cancel();
                 _webtoonLastPageTimer = null;
@@ -1607,6 +1615,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _finishWebtoonRestore(last, token);
       return;
     }
+    // 先用带动画的 scrollTo 把末页带入视口（同时进入缓存区并按真实高度构建），但
+    // 不再盲等固定时长收尾：图片仍在解码时列表会继续变高，动画的目标像素随之漂移，
+    // 盲等常停在倒数第二页且把进度写成末页（画面与页码不一致）。改为轮询校验落点：
+    //   · 末页底边已贴到视口底 → 立即收尾，保证写入的进度与画面一致；
+    //   · 尚未贴底 → 每 400ms 用 jumpTo 按「当前真实布局」重锚一次（最多 2 次）。
+    //     此时末页已构建，jumpTo 不经过未构建项的高度外推，落点精确；
+    //   · 1.5s 总超时 → 强制收尾，任何情况都不卡死。
     isc.scrollTo(
       index: last,
       alignment: 1.0,
@@ -1614,10 +1629,43 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       curve: Curves.easeOut,
     );
     _webtoonRestoreTimer?.cancel();
-    _webtoonRestoreTimer = Timer(
-      AppTokens.durFast + const Duration(milliseconds: 150),
-      () => _finishWebtoonRestore(last, token),
-    );
+    int anchorCount = 0;
+    _webtoonRestoreTimer = Timer.periodic(const Duration(milliseconds: 80), (
+      timer,
+    ) {
+      if (!mounted || token != _loadToken) {
+        timer.cancel();
+        _webtoonRestoreTimer = null;
+        return;
+      }
+      double? trailing;
+      final positions = _itemPositionsListener?.itemPositions.value;
+      if (positions != null) {
+        for (final p in positions) {
+          if (p.index == last) {
+            trailing = p.itemTrailingEdge;
+            break;
+          }
+        }
+      }
+      // itemTrailingEdge <= 1.0 表示末页底边已到达视口底（内容不足一屏时会更小，
+      // 同属已到底的合法终态）；大于 1.0 说明末页底边仍在视口下方，尚未滚到底。
+      if (trailing != null && trailing <= 1.0 + 2e-3) {
+        timer.cancel();
+        _webtoonRestoreTimer = null;
+        _finishWebtoonRestore(last, token);
+        return;
+      }
+      if (timer.tick % 5 == 0 && anchorCount < 2 && isc.isAttached) {
+        anchorCount += 1;
+        isc.jumpTo(index: last, alignment: 1.0);
+      }
+      if (timer.tick >= 18) {
+        timer.cancel();
+        _webtoonRestoreTimer = null;
+        _finishWebtoonRestore(last, token);
+      }
+    });
   }
 
   /// 回到上一话末页的收尾：把当前页赋成末页、解除屏蔽、写盘。
@@ -1637,14 +1685,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (n is ScrollStartNotification || n is ScrollEndNotification) {
       // 回到上一话末页的自动滚动过程中，用户主动拖动则放弃自动滚到底（已接管）。
       // 程序滚动动画的 dragDetails 为 null，不会误触发。
+      // 收尾阶段的校验轮询（_webtoonRestoreTimer）同样要能被打断，否则用户已接管
+      // 拖走后，轮询仍可能把进度强写成末页。
       if (n is ScrollStartNotification &&
           n.dragDetails != null &&
           _restoringPage &&
-          _webtoonLastPageTimer != null) {
+          (_webtoonLastPageTimer != null || _webtoonRestoreTimer != null)) {
         _webtoonLastPageTimer?.cancel();
         _webtoonLastPageTimer = null;
         _webtoonLastPageTimeout?.cancel();
         _webtoonLastPageTimeout = null;
+        _webtoonRestoreTimer?.cancel();
+        _webtoonRestoreTimer = null;
         _webtoonPhaseJumped = false;
         _webtoonMaxExtent = null;
         _webtoonPrevExtent = null;
