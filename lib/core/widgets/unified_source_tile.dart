@@ -25,6 +25,7 @@ class UnifiedSourceTile extends StatelessWidget {
   final String incognitoTooltip; // 来自 l10n（「无痕模式」）
   final bool isIncognito; // 该源是否已开启无痕
   final SourceAgeRating? ageRating; // 年龄分级（null/未声明不显示）
+  final bool showNotLoggedIn; // 源需登录但尚未登录（显示「未登录」徽章）
   final VoidCallback? onTap;
   final VoidCallback? onMirrorSettings;
   final VoidCallback? onHide;
@@ -56,6 +57,7 @@ class UnifiedSourceTile extends StatelessWidget {
     this.incognitoTooltip = '',
     this.isIncognito = false,
     this.ageRating,
+    this.showNotLoggedIn = false,
     this.onTap,
     this.onMirrorSettings,
     this.onHide,
@@ -84,6 +86,10 @@ class UnifiedSourceTile extends StatelessWidget {
         if (ageRating != null) ...<Widget>[
           const SizedBox(width: AppTokens.spaceSm),
           _ageChip(context, scheme),
+        ],
+        if (showNotLoggedIn) ...<Widget>[
+          const SizedBox(width: AppTokens.spaceSm),
+          _notLoggedInChip(context, scheme),
         ],
       ],
     );
@@ -139,6 +145,19 @@ class UnifiedSourceTile extends StatelessWidget {
       label: Text(label, style: const TextStyle(fontSize: 11)),
       backgroundColor: bg,
       labelStyle: TextStyle(color: fg, fontSize: 11),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      side: BorderSide.none,
+    );
+  }
+
+  /// 未登录徽章（项 2）：源声明了登录入口但当前未登录时显示。
+  Widget _notLoggedInChip(BuildContext context, ColorScheme scheme) {
+    final l10n = AppLocalizations.of(context);
+    return Chip(
+      label: Text(l10n.sourceNotLoggedIn,
+          style: TextStyle(color: scheme.onErrorContainer, fontSize: 11)),
+      backgroundColor: scheme.errorContainer,
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       side: BorderSide.none,

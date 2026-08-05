@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/network/runtime/nexhub_http_overrides.dart';
@@ -15,6 +16,11 @@ void main() {
   // 却无任何提示。渲染错误时不再是纯黑，而是给出可读的错误详情，便于定位根因。
   runZonedGuarded<void>(() async {
     WidgetsFlutterBinding.ensureInitialized();
+
+    // 全局统一 edge-to-edge（手势条区域透明）：与阅读器 / 播放器退出全屏后的
+    // 还原状态保持一致，修复「退出全屏后底栏被系统手势条遮挡」。Android 15+
+    // 强制 edge-to-edge，此处提前统一，避免进出全屏时系统 UI 模式跳变。
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
     // 全局网络覆盖：接管所有 dart:io HttpClient 派生流量（散落的独立
     // Dio/HttpClient、cached_network_image、下载器、云同步等）。此时用默认

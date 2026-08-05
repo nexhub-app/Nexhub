@@ -55,6 +55,9 @@ class AppSegmentedTabs<T> extends StatelessWidget {
         builder: (BuildContext ctx, BoxConstraints c) {
           final double w = c.maxWidth;
           final double segW = w / n;
+          // 窄屏降级：每段可用宽度过窄时隐去图标、仅留文字（带省略号），
+          // 避免图标+长文案挤在一起重叠（项 1A）。
+          final bool compact = segW < 104;
           final double pillLeft = selIdx < 0 ? -segW : selIdx * segW;
           return Stack(
             children: <Widget>[
@@ -93,6 +96,7 @@ class AppSegmentedTabs<T> extends StatelessWidget {
                       selected: isSelected,
                       isFirst: isFirst,
                       isLast: isLast,
+                      compact: compact,
                       onTap: () => onSelectionChanged(<T>{value}),
                     ),
                   );
@@ -113,6 +117,7 @@ class _EqualSegment<T> extends StatelessWidget {
   final bool selected;
   final bool isFirst;
   final bool isLast;
+  final bool compact;
   final VoidCallback onTap;
 
   const _EqualSegment({
@@ -121,6 +126,7 @@ class _EqualSegment<T> extends StatelessWidget {
     required this.selected,
     this.isFirst = false,
     this.isLast = false,
+    this.compact = false,
     required this.onTap,
   });
 
@@ -128,6 +134,42 @@ class _EqualSegment<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final bool isSelected = selected;
+
+    // 窄屏降级：隐图标、仅文字并加省略号，防重叠（项 1A）。
+    Widget content;
+    if (compact) {
+      if (label is Text) {
+        final Text t = label as Text;
+        content = Text(
+          t.data ?? '',
+          style: t.style,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+          softWrap: false,
+        );
+      } else {
+        content = label ?? const SizedBox.shrink();
+      }
+    } else if (icon != null && label != null) {
+      content = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconTheme(
+            data: IconThemeData(
+              size: 18,
+              color: isSelected
+                  ? scheme.onSecondaryContainer
+                  : scheme.onSurfaceVariant,
+            ),
+            child: icon!,
+          ),
+          const SizedBox(width: 4),
+          label!,
+        ],
+      );
+    } else {
+      content = label ?? icon ?? const SizedBox.shrink();
+    }
 
     return GestureDetector(
       onTap: onTap,
@@ -143,24 +185,7 @@ class _EqualSegment<T> extends StatelessWidget {
                     : scheme.onSurfaceVariant,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
-          child: icon != null && label != null
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconTheme(
-                      data: IconThemeData(
-                        size: 18,
-                        color: isSelected
-                            ? scheme.onSecondaryContainer
-                            : scheme.onSurfaceVariant,
-                      ),
-                      child: icon!,
-                    ),
-                    const SizedBox(width: 4),
-                    label!,
-                  ],
-                )
-              : label ?? icon ?? const SizedBox.shrink(),
+          child: content,
         ),
       ),
     );

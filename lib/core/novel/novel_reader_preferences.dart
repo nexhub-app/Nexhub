@@ -105,6 +105,21 @@ enum NovelTitleAlign {
       };
 }
 
+/// 小说阅读器夜间模式跟随策略（项 6）：跟随应用 / 始终夜间 / 始终日间。
+enum NovelThemeFollow {
+  followApp,
+  alwaysDark,
+  alwaysLight;
+
+  static NovelThemeFollow fromString(String? raw) {
+    return switch (raw) {
+      'alwaysDark' => alwaysDark,
+      'alwaysLight' => alwaysLight,
+      _ => followApp,
+    };
+  }
+}
+
 /// 底部工具栏可选工具项（小说阅读器，最多展示 6 个）。
 enum NovelBottomTool {
   toc,
@@ -259,9 +274,9 @@ class NovelReaderPreferences {
   /// 点击分区布局（FR-4.2，5 布局；与漫画共用 [ReaderTapZoneLayout]）。
   final ReaderTapZoneLayout tapZoneLayout;
 
-  /// 夜间快捷开关：true 时强制使用深灰背景预设（idx=1）+ 浅色文字，
-  /// 不影响 [bgPresetIndex] / [customBgColor] 的持久值，切回日间即恢复。
-  final bool nightMode;
+  /// 夜间模式跟随策略（项 6）：跟随应用 / 始终夜间 / 始终日间。
+  /// 不影响 [bgPresetIndex] / [customBgColor] 的持久值，切回「跟随应用」即恢复。
+  final NovelThemeFollow themeFollow;
 
   /// 底部工具栏槽位（有序，最多 6 个；超出截断）。
   final List<NovelBottomTool> bottomToolbarSlots;
@@ -375,7 +390,7 @@ class NovelReaderPreferences {
     this.fontFamily,
     this.tapZoneInvert = TapZoneInvert.none,
     this.tapZoneLayout = ReaderTapZoneLayout.lShape,
-    this.nightMode = false,
+    this.themeFollow = NovelThemeFollow.followApp,
     this.bottomToolbarSlots = NovelBottomTool.defaults,
     // #5 朗读
     this.ttsSpeechRate = 1.0,
@@ -437,7 +452,7 @@ class NovelReaderPreferences {
     Object? fontFamily = _kNovelPrefsFontFamilySentinel,
     TapZoneInvert? tapZoneInvert,
     ReaderTapZoneLayout? tapZoneLayout,
-    bool? nightMode,
+    NovelThemeFollow? themeFollow,
     List<NovelBottomTool>? bottomToolbarSlots,
     // #5 朗读
     double? ttsSpeechRate,
@@ -512,7 +527,7 @@ class NovelReaderPreferences {
           : fontFamily as String?,
       tapZoneInvert: tapZoneInvert ?? this.tapZoneInvert,
       tapZoneLayout: tapZoneLayout ?? this.tapZoneLayout,
-      nightMode: nightMode ?? this.nightMode,
+      themeFollow: themeFollow ?? this.themeFollow,
       bottomToolbarSlots:
           bottomToolbarSlots ?? this.bottomToolbarSlots,
       // #5 朗读
@@ -632,9 +647,9 @@ class NovelReaderPreferences {
       tapZoneLayout: identical(tapZoneLayout, def.tapZoneLayout)
           ? base.tapZoneLayout
           : tapZoneLayout,
-      nightMode: identical(nightMode, def.nightMode)
-          ? base.nightMode
-          : nightMode,
+      themeFollow: identical(themeFollow, def.themeFollow)
+          ? base.themeFollow
+          : themeFollow,
       bottomToolbarSlots:
           listEquals(bottomToolbarSlots, def.bottomToolbarSlots)
               ? base.bottomToolbarSlots
@@ -732,7 +747,18 @@ class NovelReaderPreferences {
     final Color base = customBgColor != null
         ? Color(customBgColor!)
         : ReaderTokens.bgPresets[bgPresetIndex.clamp(0, ReaderTokens.bgPresets.length - 1)];
-    if (nightMode) {
+    // 项 6：夜间跟随策略。followApp 时按应用主题明暗决定；alwaysDark/alwaysLight
+    // 强制昼夜；背景预设索引 / 自定义背景的持久值不受影响。
+    final bool dark;
+    switch (themeFollow) {
+      case NovelThemeFollow.followApp:
+        dark = isDark;
+      case NovelThemeFollow.alwaysDark:
+        dark = true;
+      case NovelThemeFollow.alwaysLight:
+        dark = false;
+    }
+    if (dark) {
       return Color.lerp(base, Colors.black, ReaderTokens.nightDarkenFactor) ?? base;
     }
     return base;
@@ -859,7 +885,7 @@ class NovelReaderPreferences {
         if (fontFamily != null) 'fontFamily': fontFamily,
         'tapZoneInvert': tapZoneInvert.name,
         'tapZoneLayout': tapZoneLayout.name,
-        'nightMode': nightMode,
+        'themeFollow': themeFollow.name,
         'bottomToolbarSlots':
             bottomToolbarSlots.map((NovelBottomTool t) => t.name).toList(),
         // #5 朗读
@@ -932,7 +958,7 @@ class NovelReaderPreferences {
       fontFamily: json['fontFamily'] as String?,
       tapZoneInvert: _parseTapZoneInvert(json['tapZoneInvert']),
       tapZoneLayout: _parseTapZoneLayout(json['tapZoneLayout']),
-      nightMode: json['nightMode'] as bool? ?? false,
+      themeFollow: NovelThemeFollow.fromString(json['themeFollow'] as String?),
       bottomToolbarSlots: _parseBottomToolbarSlots(
           json['bottomToolbarSlots']),
       // #5 朗读

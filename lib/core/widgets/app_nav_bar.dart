@@ -54,10 +54,12 @@ class AppNavBar extends StatelessWidget {
     return Material(
       color: cs.surface,
       elevation: 2,
-      child: SizedBox(
-        height: AppTokens.bottomNavHeight,
-        child: SafeArea(
-          top: false,
+      // 安全区移到固定高度之外：底部导航栏总高 = 固定高 + 系统手势条，
+      // 内容始终位于手势条上方，不再被遮挡（修复退出全屏后底栏被挡）。
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: AppTokens.bottomNavHeight,
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints c) {
               final double w = c.maxWidth;

@@ -670,23 +670,25 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _applyLockOrientation(PlayerLockOrientation o) async {
+    // 桌面端（短边 ≥ 600）不强制方向，窗口自由调整（项 3：仅手机自动横屏）。
+    final bool isPhone = MediaQuery.of(context).size.shortestSide < 600;
+    final List<DeviceOrientation> orients;
+    switch (o) {
+      case PlayerLockOrientation.portrait:
+        orients = const <DeviceOrientation>[DeviceOrientation.portraitUp];
+      case PlayerLockOrientation.landscape:
+        orients = const <DeviceOrientation>[
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ];
+      case PlayerLockOrientation.auto:
+        orients = const <DeviceOrientation>[];
+    }
+    // 记录退出全屏后要恢复的方向（全屏按钮临时强制横屏，退出回到此处）。
+    _controller.setBaseOrientations(isPhone ? orients : const <DeviceOrientation>[]);
+    if (!isPhone) return;
     try {
-      switch (o) {
-        case PlayerLockOrientation.portrait:
-          await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-            DeviceOrientation.portraitUp,
-          ]);
-          break;
-        case PlayerLockOrientation.landscape:
-          await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-            DeviceOrientation.landscapeLeft,
-            DeviceOrientation.landscapeRight,
-          ]);
-          break;
-        case PlayerLockOrientation.auto:
-          await SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
-          break;
-      }
+      await SystemChrome.setPreferredOrientations(orients);
     } on Object {
       // 平台不支持，忽略。
     }
@@ -1939,52 +1941,64 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     showModalBottomSheet<void>(
       context: context,
-      builder: (BuildContext ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(AppTokens.spaceMd),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      l10n.playerPlaybackSpeed,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
+      isScrollControlled: true,
+      builder: (BuildContext ctx) {
+        final mq = MediaQuery.of(ctx);
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: mq.size.height * 0.85),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.all(AppTokens.spaceMd),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          l10n.playerPlaybackSpeed,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                      Text(
+                        '${current}x',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: AppTokens.spaceSm),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
                   ),
-                  Text(
-                    '${current}x',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: speeds.map((s) => ListTile(
+                      dense: true,
+                      title: Center(child: Text('${s}x')),
+                      tileColor: (s == current)
+                          ? Theme.of(ctx).colorScheme.primaryContainer
+                          : null,
+                      onTap: () {
+                        unawaited(_controller.setPlaybackSpeed(s));
+                        _applyDanmakuOption();
+                        Navigator.pop(ctx);
+                      },
+                    )).toList(),
                   ),
-                  const SizedBox(width: AppTokens.spaceSm),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+              ],
             ),
-            const Divider(height: 1),
-            ...speeds.map((s) => ListTile(
-              dense: true,
-              title: Center(child: Text('${s}x')),
-              tileColor: (s == current)
-                  ? Theme.of(ctx).colorScheme.primaryContainer
-                  : null,
-              onTap: () {
-                unawaited(_controller.setPlaybackSpeed(s));
-                _applyDanmakuOption();
-                Navigator.pop(ctx);
-              },
-            )),
-            const SizedBox(height: AppTokens.spaceSm),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -1993,20 +2007,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     const options = <double>[1.5, 2.0, 2.5, 3.0];
     final selected = await showModalBottomSheet<double>(
       context: ctx,
+      isScrollControlled: true,
       builder: (BuildContext sheetCtx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ...options.map((s) => ListTile(
-                  dense: true,
-                  title: Center(child: Text('${s}x')),
-                  tileColor: s == _playerSettings.longPressSpeed
-                      ? Theme.of(sheetCtx).colorScheme.primaryContainer
-                      : null,
-                  onTap: () => Navigator.pop(sheetCtx, s),
-                )),
-            const SizedBox(height: AppTokens.spaceSm),
-          ],
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(sheetCtx).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ...options.map((s) => ListTile(
+                      dense: true,
+                      title: Center(child: Text('${s}x')),
+                      tileColor: s == _playerSettings.longPressSpeed
+                          ? Theme.of(sheetCtx).colorScheme.primaryContainer
+                          : null,
+                      onTap: () => Navigator.pop(sheetCtx, s),
+                    )),
+                const SizedBox(height: AppTokens.spaceSm),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -2044,124 +2065,175 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
-  /// 显示弹幕输入框（底部轻量对话框，支持选择弹幕颜色与样式）。
+  /// 显示弹幕输入框（支持选择弹幕颜色与样式）。
+  /// 横屏：底部弹层（项 4a）；竖屏：可滚动对话框，避免小屏显示不全。
   void _showDanmakuInput() {
     final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     Color selectedColor = Colors.white;
     cd.DanmakuItemType selectedType = cd.DanmakuItemType.scroll;
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext ctx) => StatefulBuilder(
-        builder: (BuildContext ctx, void Function(VoidCallback) setDialogState) {
-          final theme = Theme.of(ctx);
-          return AppAlertDialog(
-            title: Text(l10n.danmakuSend ?? '发送弹幕'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: l10n.danmakuSendHint ?? '输入弹幕内容',
-                    border: const OutlineInputBorder(),
-                  ),
-                  maxLength: 50,
-                ),
-                const SizedBox(height: AppTokens.spaceMd),
-                Text(l10n.danmakuStyle, style: theme.textTheme.bodyMedium),
-                const SizedBox(height: AppTokens.spaceSm),
-                Wrap(
-                  spacing: AppTokens.spaceSm,
-                  children: <Widget>[
-                    for (final (type, label) in <(cd.DanmakuItemType, String)>[
-                      (cd.DanmakuItemType.scroll, l10n.danmakuStyleScroll),
-                      (cd.DanmakuItemType.top, l10n.danmakuStyleTop),
-                      (cd.DanmakuItemType.bottom, l10n.danmakuStyleBottom),
-                    ])
-                      ChoiceChip(
-                        label: Text(label),
-                        selected: selectedType == type,
-                        onSelected: (_) =>
-                            setDialogState(() => selectedType = type),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: AppTokens.spaceMd),
-                Text(l10n.presetColor,
-                    style: theme.textTheme.bodyMedium),
-                const SizedBox(height: AppTokens.spaceSm),
-                Wrap(
-                  spacing: AppTokens.spaceSm,
-                  runSpacing: AppTokens.spaceSm,
-                  children: <Widget>[
-                    for (final color in _danmakuPresetColors)
-                      GestureDetector(
-                        onTap: () => setDialogState(() => selectedColor = color),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: selectedColor == color
-                                  ? theme.colorScheme.primary
-                                  : Colors.black38,
-                              width: selectedColor == color ? 3 : 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+    final bool landscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    // 内容区（输入框 + 样式 + 颜色），横竖屏共用，由 setSt 驱动重建。
+    Widget buildContent(
+      BuildContext ctx,
+      void Function(VoidCallback) setSt,
+    ) {
+      final theme = Theme.of(ctx);
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: l10n.danmakuSendHint ?? '输入弹幕内容',
+              border: const OutlineInputBorder(),
             ),
+            maxLength: 50,
+          ),
+          const SizedBox(height: AppTokens.spaceMd),
+          Text(l10n.danmakuStyle, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: AppTokens.spaceSm),
+          Wrap(
+            spacing: AppTokens.spaceSm,
+            children: <Widget>[
+              for (final (type, label) in <(cd.DanmakuItemType, String)>[
+                (cd.DanmakuItemType.scroll, l10n.danmakuStyleScroll),
+                (cd.DanmakuItemType.top, l10n.danmakuStyleTop),
+                (cd.DanmakuItemType.bottom, l10n.danmakuStyleBottom),
+              ])
+                ChoiceChip(
+                  label: Text(label),
+                  selected: selectedType == type,
+                  onSelected: (_) => setSt(() => selectedType = type),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppTokens.spaceMd),
+          Text(l10n.presetColor, style: theme.textTheme.bodyMedium),
+          const SizedBox(height: AppTokens.spaceSm),
+          Wrap(
+            spacing: AppTokens.spaceSm,
+            runSpacing: AppTokens.spaceSm,
+            children: <Widget>[
+              for (final color in _danmakuPresetColors)
+                GestureDetector(
+                  onTap: () => setSt(() => selectedColor = color),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selectedColor == color
+                            ? theme.colorScheme.primary
+                            : Colors.black38,
+                        width: selectedColor == color ? 3 : 1,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    // 发送逻辑（横竖屏共用）。
+    void send(BuildContext ctx) {
+      final text = controller.text.trim();
+      if (text.isNotEmpty) {
+        final item = DanmakuItem(
+          text: text,
+          time: _position +
+              Duration(milliseconds: (_danmakuSettings.timeOffset * 1000).round()),
+          color: selectedColor,
+          type: selectedType,
+          selfSend: true,
+        );
+        _danmakuKey.currentState?.addSingle(item);
+      }
+      Navigator.pop(ctx);
+    }
+
+    if (landscape) {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (BuildContext ctx) => SafeArea(
+          child: ConstrainedBox(
+            constraints:
+                BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTokens.spaceMd),
+              child: StatefulBuilder(
+                builder: (BuildContext ctx, void Function(VoidCallback) setSt) =>
+                    Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    buildContent(ctx, setSt),
+                    const SizedBox(height: AppTokens.spaceMd),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: <Widget>[
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(l10n.cancel),
+                        ),
+                        TextButton(
+                          onPressed: () => send(ctx),
+                          child: Text(l10n.ok),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      showDialog<void>(
+        context: context,
+        builder: (BuildContext ctx) => StatefulBuilder(
+          builder: (BuildContext ctx, void Function(VoidCallback) setSt) =>
+              AppAlertDialog(
+            title: Text(l10n.danmakuSend ?? '发送弹幕'),
+            content: SingleChildScrollView(child: buildContent(ctx, setSt)),
             actions: <Widget>[
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: Text(l10n.cancel),
               ),
               TextButton(
-                onPressed: () {
-                  final text = controller.text.trim();
-                  if (text.isNotEmpty) {
-                    // 通过 DanmakuOverlay 注入一条本地弹幕（立即显示，带颜色/样式，
-                    // selfSend 使引擎以高亮描边呈现且滚动弹幕优先占轨）。
-                    final item = DanmakuItem(
-                      text: text,
-                      time: _position +
-                          Duration(
-                              milliseconds:
-                                  (_danmakuSettings.timeOffset * 1000).round()),
-                      color: selectedColor,
-                      type: selectedType,
-                      selfSend: true,
-                    );
-                    _danmakuKey.currentState?.addSingle(item);
-                  }
-                  Navigator.pop(ctx);
-                },
+                onPressed: () => send(ctx),
                 child: Text(l10n.ok),
               ),
             ],
-          );
-        },
-      ),
-    );
+          ),
+        ),
+      );
+    }
   }
 
   void _showMoreMenu(AppLocalizations l10n) {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext ctx) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              _menuHeader(l10n),
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                _menuHeader(l10n),
             // 自动连播（本地 / 直链模式无下一集，隐藏）
             if (!_isDirectMode)
               ListTile(
@@ -2330,17 +2402,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ),
             const SizedBox(height: AppTokens.spaceSm),
           ],
-          ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   void _showCastSheet(AppLocalizations l10n) {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext ctx) => SafeArea(
-        child: FutureBuilder<List<CastDevice>>(
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: FutureBuilder<List<CastDevice>>(
           future: _castService.discover(),
           builder: (BuildContext _, AsyncSnapshot<List<CastDevice>> snap) {
             if (snap.connectionState != ConnectionState.done) {
@@ -2392,6 +2470,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               ],
             );
           },
+        ),
+        ),
         ),
       ),
     );
@@ -3305,8 +3385,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void _showSleepTimerPicker(AppLocalizations l10n) {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext ctx) => SafeArea(
-        child: Column(
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
@@ -3342,7 +3427,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   void _setSleepTimer(int minutes, AppLocalizations l10n) {
@@ -3408,36 +3495,55 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         '${dur ~/ 60}:${(dur % 60).toString().padLeft(2, '0')}';
     showModalBottomSheet<void>(
       context: context,
-      builder: (BuildContext ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTokens.spaceMd),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(l10n.mediaInfo,
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: AppTokens.spaceSm),
-              Text('${l10n.browseLocalFileTypeVideo}: ${widget.title}'),
-              Text(_episodeTitle),
-              if (_isDirectMode)
-                Text('${l10n.localFileLabel}: ${widget.directUrl ?? widget.localUri}')
-              else
-                Text('${l10n.videoSourceLine}: ${widget.sourceId}'),
-              Text('URL: $url'),
-              Text('${l10n.novelHfProgressPercent}: $posStr / $durStr'),
-              const SizedBox(height: AppTokens.spaceMd),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text(l10n.close),
-                ),
+      isScrollControlled: true,
+      builder: (BuildContext ctx) {
+        final mq = MediaQuery.of(ctx);
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: mq.size.height * 0.85),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTokens.spaceMd),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(l10n.mediaInfo,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: AppTokens.spaceSm),
+                  Text('${l10n.browseLocalFileTypeVideo}: ${widget.title}'),
+                  Text(_episodeTitle),
+                  if (_isDirectMode)
+                    Text('${l10n.localFileLabel}: ${widget.directUrl ?? widget.localUri}')
+                  else
+                    Text('${l10n.videoSourceLine}: ${widget.sourceId}'),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text('URL: '),
+                      Expanded(child: Text(url, softWrap: true)),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 18),
+                        tooltip: l10n.snifferCopy,
+                        onPressed: () =>
+                            unawaited(Clipboard.setData(ClipboardData(text: url))),
+                      ),
+                    ],
+                  ),
+                  Text('${l10n.novelHfProgressPercent}: $posStr / $durStr'),
+                  const SizedBox(height: AppTokens.spaceMd),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(l10n.close),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -3448,109 +3554,118 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     Timer? refreshTimer;
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext ctx) => SafeArea(
-        child: StatefulBuilder(
-          builder: (BuildContext sbCtx, StateSetter setSheetState) {
-            // 首次 build 时启动 1s 周期刷新；面板关闭后由 whenComplete 取消。
-            refreshTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
-              if (sbCtx.mounted) setSheetState(() {});
-            });
-            return FutureBuilder<PlayerStats>(
-              future: _controller.queryStats(),
-              builder: (BuildContext _, AsyncSnapshot<PlayerStats> snap) {
-                final PlayerStats? stats = snap.data;
-                final theme = Theme.of(ctx);
-                Widget body;
-                if (stats == null || stats.isEmpty) {
-                  body = Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: AppTokens.spaceMd),
-                    child: Text(l10n.playerStatsUnavailable),
-                  );
-                } else {
-                  final bool isHw = stats.isHardwareDecoding;
-                  // 解码状态醒目标注：硬解绿 / 软解橙，附带 hwdec-current 原值。
-                  final String decodeText = isHw
-                      ? '${l10n.playerStatsHardware} (${stats.hwdecCurrent})'
-                      : l10n.playerStatsSoftware;
-                  final Color decodeColor = isHw
-                      ? Colors.lightGreenAccent.shade400
-                      : Colors.orangeAccent;
-                  String orDash(String? v) =>
-                      (v == null || v.isEmpty) ? '—' : v;
-                  final String resolution =
-                      (stats.width != null && stats.height != null)
-                          ? '${stats.width}×${stats.height}'
-                          : '—';
-                  final String drops =
-                      '${stats.frameDropCount ?? 0} / ${stats.decoderFrameDropCount ?? 0}';
-                  final String bitrate = stats.videoBitrate == null
-                      ? '—'
-                      : '${(stats.videoBitrate! / 1000000).toStringAsFixed(2)} Mbps';
-                  final String buffering = stats.cacheBufferingState == null
-                      ? '—'
-                      : '${stats.cacheBufferingState}%';
-                  body = Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      _statsRow(
-                        l10n.playerStatsDecoder,
-                        decodeText,
-                        valueStyle: theme.textTheme.bodyMedium?.copyWith(
-                          color: decodeColor,
-                          fontWeight: FontWeight.bold,
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppTokens.spaceMd),
+            child: StatefulBuilder(
+              builder: (BuildContext sbCtx, StateSetter setSheetState) {
+                // 首次 build 时启动 1s 周期刷新；面板关闭后由 whenComplete 取消。
+                refreshTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+                  if (sbCtx.mounted) setSheetState(() {});
+                });
+                return FutureBuilder<PlayerStats>(
+                  future: _controller.queryStats(),
+                  builder: (BuildContext _, AsyncSnapshot<PlayerStats> snap) {
+                    final PlayerStats? stats = snap.data;
+                    final theme = Theme.of(ctx);
+                    Widget body;
+                    if (stats == null || stats.isEmpty) {
+                      body = Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: AppTokens.spaceMd),
+                        child: Text(l10n.playerStatsUnavailable),
+                      );
+                    } else {
+                      final bool isHw = stats.isHardwareDecoding;
+                      // 解码状态醒目标注：硬解绿 / 软解橙，附带 hwdec-current 原值。
+                      final String decodeText = isHw
+                          ? '${l10n.playerStatsHardware} (${stats.hwdecCurrent})'
+                          : l10n.playerStatsSoftware;
+                      final Color decodeColor = isHw
+                          ? Colors.lightGreenAccent.shade400
+                          : Colors.orangeAccent;
+                      String orDash(String? v) =>
+                          (v == null || v.isEmpty) ? '—' : v;
+                      final String resolution =
+                          (stats.width != null && stats.height != null)
+                              ? '${stats.width}×${stats.height}'
+                              : '—';
+                      final String drops =
+                          '${stats.frameDropCount ?? 0} / ${stats.decoderFrameDropCount ?? 0}';
+                      final String bitrate = stats.videoBitrate == null
+                          ? '—'
+                          : '${(stats.videoBitrate! / 1000000).toStringAsFixed(2)} Mbps';
+                      final String buffering = stats.cacheBufferingState == null
+                          ? '—'
+                          : '${stats.cacheBufferingState}%';
+                      body = Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          _statsRow(
+                            l10n.playerStatsDecoder,
+                            decodeText,
+                            valueStyle: theme.textTheme.bodyMedium?.copyWith(
+                              color: decodeColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          _statsRow(l10n.playerStatsVideoCodec,
+                              orDash(stats.videoCodec)),
+                          _statsRow(l10n.playerStatsPixelFormat,
+                              orDash(stats.videoFormat)),
+                          _statsRow(l10n.playerStatsResolution, resolution),
+                          _statsRow(l10n.playerStatsDroppedFrames, drops),
+                          _statsRow(l10n.playerStatsBitrate, bitrate),
+                          _statsRow(l10n.playerStatsBuffering, buffering),
+                        ],
+                      );
+                    }
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(l10n.playerStats,
+                            style: theme.textTheme.titleMedium),
+                        const SizedBox(height: AppTokens.spaceSm),
+                        body,
+                        const SizedBox(height: AppTokens.spaceMd),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text(l10n.close),
+                          ),
                         ),
-                      ),
-                      _statsRow(
-                          l10n.playerStatsVideoCodec, orDash(stats.videoCodec)),
-                      _statsRow(l10n.playerStatsPixelFormat,
-                          orDash(stats.videoFormat)),
-                      _statsRow(l10n.playerStatsResolution, resolution),
-                      _statsRow(l10n.playerStatsDroppedFrames, drops),
-                      _statsRow(l10n.playerStatsBitrate, bitrate),
-                      _statsRow(l10n.playerStatsBuffering, buffering),
-                    ],
-                  );
-                }
-                return Padding(
-                  padding: const EdgeInsets.all(AppTokens.spaceMd),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(l10n.playerStats,
-                          style: theme.textTheme.titleMedium),
-                      const SizedBox(height: AppTokens.spaceSm),
-                      body,
-                      const SizedBox(height: AppTokens.spaceMd),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text(l10n.close),
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    );
+                  },
                 );
               },
-            );
-          },
+            ),
+          ),
         ),
       ),
     ).whenComplete(() => refreshTimer?.cancel());
   }
 
-  /// 播放统计面板的单行「标签: 值」。
+  /// 播放统计面板的单行「标签: 值」。标签列上限 140（窄屏自动让位，值换行）。
   Widget _statsRow(String label, String value, {TextStyle? valueStyle}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          SizedBox(width: 140, child: Text(label)),
-          Expanded(child: Text(value, style: valueStyle)),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 140),
+            child: Text(label),
+          ),
+          const SizedBox(width: AppTokens.spaceSm),
+          Expanded(child: Text(value, style: valueStyle, softWrap: true)),
         ],
       ),
     );
