@@ -1471,7 +1471,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                   ),
                   trailing: Icon(
                     item.isValid ? Icons.check_circle : Icons.error_outline,
-                    color: item.isValid ? Colors.green : scheme.error,
+                    color: item.isValid
+                        ? AppStatusColors.ok(scheme)
+                        : scheme.error,
                     size: 20,
                   ),
                 ),

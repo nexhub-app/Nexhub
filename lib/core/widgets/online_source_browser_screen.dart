@@ -135,9 +135,11 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
         padding: EdgeInsets.zero,
       );
     }
+    final Color healthy = AppStatusColors.ok(scheme);
     return Chip(
-      label: Text(l10n.sourceHealthy, style: const TextStyle(fontSize: 11, color: Colors.green)),
-      backgroundColor: Colors.green.withValues(alpha: 0.1),
+      label: Text(l10n.sourceHealthy,
+          style: TextStyle(fontSize: 11, color: healthy)),
+      backgroundColor: AppStatusColors.containerOf(healthy),
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       padding: EdgeInsets.zero,

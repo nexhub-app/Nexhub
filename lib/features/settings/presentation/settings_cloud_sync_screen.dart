@@ -66,10 +66,11 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     super.dispose();
   }
 
-  Color _latencyColor(int ms) {
-    if (ms < 300) return Colors.green;
-    if (ms < 800) return Colors.orange;
-    return Colors.red;
+  /// 延迟档位色。仅用于 SnackBar（反色表面），故取 onInverseSurface 档。
+  Color _latencyColor(ColorScheme scheme, int ms) {
+    if (ms < 300) return AppStatusColors.ok(scheme, onInverseSurface: true);
+    if (ms < 800) return AppStatusColors.warn(scheme, onInverseSurface: true);
+    return AppStatusColors.fail(scheme, onInverseSurface: true);
   }
 
   /// 语义错误码 → 中文提示。
@@ -115,7 +116,9 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
         SnackBar(
           content: Text(
             l10n.cloudSyncConnectionSuccess(ms),
-            style: TextStyle(color: _latencyColor(ms)),
+            style: TextStyle(
+              color: _latencyColor(Theme.of(context).colorScheme, ms),
+            ),
           ),
         ),
       );
@@ -366,7 +369,9 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     final String statusText = e.noChanges
         ? l10n.cloudSyncStatusNoChanges
         : (ok ? l10n.cloudSyncStatusSuccess : l10n.cloudSyncStatusFailed);
-    final Color statusColor = ok ? Colors.green : Colors.red;
+    final Color statusColor = ok
+        ? AppStatusColors.ok(theme.colorScheme)
+        : AppStatusColors.fail(theme.colorScheme);
     final IconData statusIcon = e.noChanges
         ? Icons.check_circle_outline
         : (ok ? Icons.check_circle : Icons.error);

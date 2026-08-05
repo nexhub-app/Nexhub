@@ -50,61 +50,69 @@ class BrowseArticleDetailScreen extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (BuildContext ctx) {
         return Consumer<ArticleReadingPreferencesNotifier>(
           builder: (BuildContext ctx, ArticleReadingPreferencesNotifier notifier, _) {
             final prefs = notifier.prefs;
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppTokens.spaceLg,
-                AppTokens.spaceSm,
-                AppTokens.spaceLg,
-                AppTokens.spaceLg,
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.85,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    l10n.articleReadingSettings,
-                    style: Theme.of(ctx).textTheme.titleMedium,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTokens.spaceLg,
+                    AppTokens.spaceSm,
+                    AppTokens.spaceLg,
+                    AppTokens.spaceLg,
                   ),
-                  const SizedBox(height: AppTokens.spaceMd),
-                  Text(l10n.articleFontSize),
-                  Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      const Text('A'),
-                      Expanded(
-                        child: Slider(
-                          min: 12,
-                          max: 24,
-                          divisions: 12,
-                          value: prefs.fontSize,
-                          label: prefs.fontSize.toStringAsFixed(0),
-                          onChanged: notifier.setFontSize,
-                        ),
+                      Text(
+                        l10n.articleReadingSettings,
+                        style: Theme.of(ctx).textTheme.titleMedium,
                       ),
-                      const Text('A',
-                          style: TextStyle(fontSize: 22)),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      Text(l10n.articleFontSize),
+                      Row(
+                        children: <Widget>[
+                          const Text('A'),
+                          Expanded(
+                            child: Slider(
+                              min: 12,
+                              max: 24,
+                              divisions: 12,
+                              value: prefs.fontSize,
+                              label: prefs.fontSize.toStringAsFixed(0),
+                              onChanged: notifier.setFontSize,
+                            ),
+                          ),
+                          const Text('A',
+                              style: TextStyle(fontSize: 22)),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      Text(l10n.articleLineHeight),
+                      Slider(
+                        min: 1.0,
+                        max: 2.5,
+                        divisions: 15,
+                        value: prefs.lineHeight,
+                        label: prefs.lineHeight.toStringAsFixed(1),
+                        onChanged: notifier.setLineHeight,
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.articleNightMode),
+                        value: prefs.isNightMode,
+                        onChanged: (_) => notifier.toggleNightMode(),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: AppTokens.spaceSm),
-                  Text(l10n.articleLineHeight),
-                  Slider(
-                    min: 1.0,
-                    max: 2.5,
-                    divisions: 15,
-                    value: prefs.lineHeight,
-                    label: prefs.lineHeight.toStringAsFixed(1),
-                    onChanged: notifier.setLineHeight,
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(l10n.articleNightMode),
-                    value: prefs.isNightMode,
-                    onChanged: (_) => notifier.toggleNightMode(),
-                  ),
-                ],
+                ),
               ),
             );
           },

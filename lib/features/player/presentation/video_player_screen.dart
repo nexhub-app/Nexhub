@@ -2547,7 +2547,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ),
           // 投屏入口（打开设备选择面板）。
           IconButton(
-            icon: Icon(Icons.cast, color: _isCasting ? Colors.amber : null),
+            icon: Icon(Icons.cast,
+                color: _isCasting
+                    ? Theme.of(context).colorScheme.primary
+                    : null),
             tooltip: l10n.cast,
             onPressed: () {
               Navigator.pop(context);
@@ -3585,9 +3588,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       final String decodeText = isHw
                           ? '${l10n.playerStatsHardware} (${stats.hwdecCurrent})'
                           : l10n.playerStatsSoftware;
+                      final ColorScheme scheme = Theme.of(ctx).colorScheme;
                       final Color decodeColor = isHw
-                          ? Colors.lightGreenAccent.shade400
-                          : Colors.orangeAccent;
+                          ? AppStatusColors.ok(scheme)
+                          : AppStatusColors.warn(scheme);
                       String orDash(String? v) =>
                           (v == null || v.isEmpty) ? '—' : v;
                       final String resolution =

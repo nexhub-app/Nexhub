@@ -796,10 +796,17 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     if (items.isEmpty) return;
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: items,
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: items,
+            ),
+          ),
         ),
       ),
     );

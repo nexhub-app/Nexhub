@@ -37,49 +37,56 @@ Future<void> showReaderImageActions({
 
   await showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
     builder: (BuildContext ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          ListTile(
-            leading: Icon(Icons.image_outlined, color: scheme.primary),
-            title: Text(l10n.setAsCover),
-            onTap: () {
-              Navigator.of(ctx).pop();
-              unawaited(_setAsCover(context, url, comicId, sourceType));
-            },
+      child: ConstrainedBox(
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.image_outlined, color: scheme.primary),
+                title: Text(l10n.setAsCover),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  unawaited(_setAsCover(context, url, comicId, sourceType));
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.copy_outlined, color: scheme.primary),
+                title: Text(l10n.copyImage),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  unawaited(_copyImage(context, url, source));
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.download_outlined, color: scheme.primary),
+                title: Text(l10n.saveImage),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  unawaited(_saveImage(context, url, source));
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.share_outlined, color: scheme.primary),
+                title: Text(l10n.shareImage),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  unawaited(_shareImage(context, url, source));
+                },
+              ),
+              ListTile(
+                leading:
+                    Icon(Icons.close, color: scheme.onSurfaceVariant),
+                title: Text(l10n.cancel),
+                onTap: () => Navigator.of(ctx).pop(),
+              ),
+            ],
           ),
-          ListTile(
-            leading: Icon(Icons.copy_outlined, color: scheme.primary),
-            title: Text(l10n.copyImage),
-            onTap: () {
-              Navigator.of(ctx).pop();
-              unawaited(_copyImage(context, url, source));
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.download_outlined, color: scheme.primary),
-            title: Text(l10n.saveImage),
-            onTap: () {
-              Navigator.of(ctx).pop();
-              unawaited(_saveImage(context, url, source));
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.share_outlined, color: scheme.primary),
-            title: Text(l10n.shareImage),
-            onTap: () {
-              Navigator.of(ctx).pop();
-              unawaited(_shareImage(context, url, source));
-            },
-          ),
-          ListTile(
-            leading:
-                Icon(Icons.close, color: scheme.onSurfaceVariant),
-            title: Text(l10n.cancel),
-            onTap: () => Navigator.of(ctx).pop(),
-          ),
-        ],
+        ),
       ),
     ),
   );

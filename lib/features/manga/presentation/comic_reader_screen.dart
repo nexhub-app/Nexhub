@@ -2723,31 +2723,38 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void _showReadingModePicker(AppLocalizations l10n) {
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(l10n.readerMode,
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: AppTokens.spaceMd),
-              Wrap(
-                spacing: AppTokens.spaceSm,
-                runSpacing: AppTokens.spaceSm,
-                children: ReadingMode.values.map((m) {
-                  return ChoiceChip(
-                    label: Text(_readingModeLabel(l10n, m)),
-                    selected: _prefs.readingMode == m,
-                    onSelected: (_) {
-                      _onPrefsChanged(_prefs.copyWith(readingMode: m));
-                      Navigator.of(ctx).pop();
-                    },
-                  );
-                }).toList(),
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTokens.spaceLg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(l10n.readerMode,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: AppTokens.spaceMd),
+                  Wrap(
+                    spacing: AppTokens.spaceSm,
+                    runSpacing: AppTokens.spaceSm,
+                    children: ReadingMode.values.map((m) {
+                      return ChoiceChip(
+                        label: Text(_readingModeLabel(l10n, m)),
+                        selected: _prefs.readingMode == m,
+                        onSelected: (_) {
+                          _onPrefsChanged(_prefs.copyWith(readingMode: m));
+                          Navigator.of(ctx).pop();
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

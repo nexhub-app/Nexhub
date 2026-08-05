@@ -472,23 +472,30 @@ class _ComicFormatSetting extends StatelessWidget {
 
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(AppTokens.spaceMd),
-              child: Text(
-                l10n.comicFormatSelectTitle,
-                style: Theme.of(ctx).textTheme.titleMedium,
-              ),
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.all(AppTokens.spaceMd),
+                  child: Text(
+                    l10n.comicFormatSelectTitle,
+                    style: Theme.of(ctx).textTheme.titleMedium,
+                  ),
+                ),
+                const Divider(height: 1),
+                option(DownloadFormat.jpg, l10n.comicFormatJpg, Icons.image),
+                option(DownloadFormat.png, l10n.comicFormatPng, Icons.photo),
+                option(DownloadFormat.cbz, l10n.comicFormatCbz, Icons.archive),
+                const SizedBox(height: AppTokens.spaceSm),
+              ],
             ),
-            const Divider(height: 1),
-            option(DownloadFormat.jpg, l10n.comicFormatJpg, Icons.image),
-            option(DownloadFormat.png, l10n.comicFormatPng, Icons.photo),
-            option(DownloadFormat.cbz, l10n.comicFormatCbz, Icons.archive),
-            const SizedBox(height: AppTokens.spaceSm),
-          ],
+          ),
         ),
       ),
     );
@@ -550,22 +557,29 @@ class _NovelFormatSetting extends StatelessWidget {
 
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(AppTokens.spaceMd),
-              child: Text(
-                l10n.novelFormatSelectTitle,
-                style: Theme.of(ctx).textTheme.titleMedium,
-              ),
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.all(AppTokens.spaceMd),
+                  child: Text(
+                    l10n.novelFormatSelectTitle,
+                    style: Theme.of(ctx).textTheme.titleMedium,
+                  ),
+                ),
+                const Divider(height: 1),
+                option(DownloadFormat.txt, l10n.novelFormatTxt, Icons.description),
+                option(DownloadFormat.epub, l10n.novelFormatEpub, Icons.book),
+                const SizedBox(height: AppTokens.spaceSm),
+              ],
             ),
-            const Divider(height: 1),
-            option(DownloadFormat.txt, l10n.novelFormatTxt, Icons.description),
-            option(DownloadFormat.epub, l10n.novelFormatEpub, Icons.book),
-            const SizedBox(height: AppTokens.spaceSm),
-          ],
+          ),
         ),
       ),
     );

@@ -640,6 +640,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final String? chosen = await showModalBottomSheet<String?>(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext ctx) {
         final List<Widget> tiles = <Widget>[
           Padding(
@@ -661,7 +662,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             ),
         ];
         return SafeArea(
-          child: ListView(shrinkWrap: true, children: tiles),
+          child: ConstrainedBox(
+            constraints:
+                BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+            child: ListView(shrinkWrap: true, children: tiles),
+          ),
         );
       },
     );
