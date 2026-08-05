@@ -295,7 +295,7 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Icon(_statusIcon(status), size: 14, color: color),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppTokens.spaceXs),
           Text(
             status,
             style: textTheme.labelSmall?.copyWith(
@@ -511,7 +511,7 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
             children: <Widget>[
               Icon(Icons.source_outlined,
                   size: 14, color: scheme.onSurfaceVariant),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppTokens.spaceXs),
               Flexible(
                 child: Text(
                   '${l10n.sourceLabel}: ${widget.sourceName}',

@@ -169,7 +169,7 @@ class UnifiedSourceTile extends StatelessWidget {
         padding: const EdgeInsets.only(right: AppTokens.spaceSm),
         child: InkWell(
           onTap: onMigrate,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
           child: Chip(
             label: Text(deprecatedLabel,
                 style: TextStyle(color: scheme.onErrorContainer, fontSize: 11)),

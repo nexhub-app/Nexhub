@@ -1532,7 +1532,7 @@ class _InfoChipsSectionState extends State<_InfoChipsSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.only(top: AppTokens.spaceSm),
             child: Text(
               label,
               style:

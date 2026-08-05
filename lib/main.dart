@@ -8,6 +8,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/network/runtime/nexhub_http_overrides.dart';
 import 'features/splash/splash_screen.dart';
+import 'core/theme/app_tokens.dart';
 
 /// Entry point: defers all initialization to [SplashScreen] so the user sees
 /// a branded splash while Hive boxes, sources, and managers come online.
@@ -35,7 +36,7 @@ void main() {
         child: Container(
           color: const Color(0xFF141414),
           alignment: Alignment.center,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppTokens.spaceXl),
           child: SingleChildScrollView(
             child: Text(
               'UI 构建出错，请把下面这段发我：\n\n'

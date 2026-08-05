@@ -139,7 +139,7 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg, vertical: AppTokens.spaceMd),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -208,7 +208,7 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
 
   Widget _buildToolbar(AppLocalizations l10n) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(AppTokens.spaceLg, AppTokens.spaceSm, AppTokens.spaceLg, AppTokens.spaceXs),
       child: Column(
         children: <Widget>[
           if (widget.enableSearch)
@@ -226,7 +226,7 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
                         vertical: 8,
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                       ),
                     ),
                     onChanged: (v) => setState(() => _query = v),
@@ -241,7 +241,7 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
                 ),
               ],
             ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTokens.spaceXs),
           Wrap(
             spacing: 8,
             runSpacing: 4,

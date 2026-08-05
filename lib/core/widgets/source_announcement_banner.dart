@@ -41,7 +41,7 @@ class SourceAnnouncementBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.only(top: AppTokens.spaceXxs),
             child: Icon(
               Icons.campaign_outlined,
               size: 20,

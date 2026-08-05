@@ -323,7 +323,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
               onTap: () => setState(() => _rate = (_rate == i ? 0 : i)),
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
                 child: Icon(
                   i <= _rate ? Icons.star : Icons.star_border,
                   size: 22,
@@ -335,7 +335,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
       ]),
       if (_rate > 0)
         Padding(
-          padding: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.only(top: AppTokens.spaceXxs),
           child: Text(l10n.bangumiRatingValue(_rate),
             style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
         ),
@@ -820,7 +820,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                         Text(e.$1,
                             style: theme.textTheme.labelSmall
                                 ?.copyWith(color: scheme.onSurfaceVariant)),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: AppTokens.spaceXxs),
                         Text(e.$2,
                             style: theme.textTheme.titleSmall
                                 ?.copyWith(fontWeight: FontWeight.w600)),

@@ -184,7 +184,7 @@ class _SourceUrlBrowseScreenState extends State<SourceUrlBrowseScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         Text(l10n.loadFailed),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppTokens.spaceMd),
                         ElevatedButton(
                           onPressed: () {
                             _error = null;
@@ -227,7 +227,7 @@ class _SourceUrlBrowseScreenState extends State<SourceUrlBrowseScreen> {
                       }
                       return Center(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(AppTokens.spaceLg),
                           child: Text(l10n.noMoreResults),
                         ),
                       );

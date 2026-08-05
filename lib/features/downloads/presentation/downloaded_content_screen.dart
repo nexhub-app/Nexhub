@@ -434,7 +434,7 @@ class _DownloadedCard extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: scheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(AppTokens.radiusXs),
                           ),
                           child: Text(
                             l10n.statusArchived,
@@ -450,7 +450,7 @@ class _DownloadedCard extends StatelessWidget {
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(AppTokens.spaceSm),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
@@ -496,7 +496,7 @@ class _DownloadedCard extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: scheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(AppTokens.radiusXs),
                           ),
                           child: Text(
                             l10n.statusArchived,

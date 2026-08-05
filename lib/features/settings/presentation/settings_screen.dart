@@ -764,8 +764,8 @@ class _AgeRestrictionDisclaimerDialogState
       ),
       // 收紧 M3 默认的三段式大 padding，让弹窗整体更紧凑。
       titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      contentPadding: const EdgeInsets.fromLTRB(AppTokens.spaceXl, AppTokens.spaceMd, AppTokens.spaceXl, AppTokens.spaceLg),
+      actionsPadding: const EdgeInsets.fromLTRB(AppTokens.spaceLg, AppTokens.spaceNone, AppTokens.spaceLg, AppTokens.spaceMd),
       title: Text(l10n.ageRestrictionDisclaimerTitle),
       // 限制最大宽度（平板不横跨）与最大高度（正文再长也只占半屏内滚动）。
       content: ConstrainedBox(

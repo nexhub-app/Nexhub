@@ -99,7 +99,7 @@ class ContentCard extends StatelessWidget {
                         fontSize: layout.titleFontSize,
                       )),
             if (subtitle != null && layout.showAuthor) ...<Widget>[
-              const SizedBox(height: 2),
+              const SizedBox(height: AppTokens.spaceXxs),
               Text(subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -109,7 +109,7 @@ class ContentCard extends StatelessWidget {
                       ?.copyWith(color: scheme.onSurfaceVariant)),
             ],
             if (meta != null) ...<Widget>[
-              const SizedBox(height: 2),
+              const SizedBox(height: AppTokens.spaceXxs),
               Text(meta!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

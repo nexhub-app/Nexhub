@@ -239,7 +239,7 @@ class _StatColumn extends StatelessWidget {
     return Column(
       children: <Widget>[
         Icon(icon, size: 18, color: scheme.primary),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppTokens.spaceXxs),
         TweenAnimationBuilder<double>(
           tween: Tween<double>(begin: 0, end: value),
           duration: const Duration(milliseconds: 700),
@@ -252,7 +252,7 @@ class _StatColumn extends StatelessWidget {
                 ),
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppTokens.spaceXxs),
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
