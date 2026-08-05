@@ -90,9 +90,8 @@ sdk/
 plugins/builtin/*.json
 reference/
 
-# 本地重要数据（体积大，不入库）
+# 本地资料目录（体积大，不入库）
 ku/
-# 旧位置残留副本（被系统锁定，待手动删除，不入库）
 _refs_reader/
 
 # ===== 开发/探针/AI 工具产生的临时产物（不入库）=====
@@ -123,9 +122,8 @@ run_danmaku.cmd
 run_danmaku.sh
 tmp_*.mjs
 
-# ===== 内部开发文档 / 重开发计划（不入库）=====
-# 这些是私有开发过程产物（含旧项目 PlexHub 引用与重开发提示词），
-# 不进入公开仓库。docs/ 根下仅白名单公开文档（含英文版）入库，其余子目录均排除。
+# ===== 文档（仅公开文档入库）=====
+# docs/ 下先全部排除，再按白名单放行对外公开的文档。
 docs/*
 !docs/features.md
 !docs/features.en.md
@@ -135,10 +133,11 @@ docs/*
 !docs/developer-guide.en.md
 !docs/GITHUB_ISSUE_TEMPLATE.md
 !docs/UI_BASELINE.md
-# 架构基线（含"不泄露对标来源"硬约束，内部基线，不入库）
+# 以下为本地开发笔记，不入库
 docs/ARCHITECTURE_BASELINE.md
-# 漫画阅读器对标分析 TODO（内部，含参考仓库名，不入库）
 docs/TODO_comic_reader.md
+docs/TODO_novel_reader.md
+docs/UI_优化方案_2026-08-05.md
 
 # 内部源扫描脚本
 tools/scan_golden_sources.py

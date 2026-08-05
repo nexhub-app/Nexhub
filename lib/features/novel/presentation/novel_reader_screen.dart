@@ -1490,7 +1490,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   Widget _buildContent(AppLocalizations l10n, Color bg, Color textColor) {
     if (_loading) {
-      return const Center(child: AppLoadingIndicator());
+      // 加载态底色用当前背景色，避免深色模式下白色底板刺眼（项 7 双保险）。
+      return Container(color: bg, child: const Center(child: AppLoadingIndicator()));
     }
     if (_error != null) {
       // 验证拦截态：重试按钮改走验证页，完成后重载本章（Cookie 已回灌）。
@@ -2144,7 +2145,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   }
 
   IconData _toolIcon(NovelBottomTool tool) {
-    final isNight = _prefs.nightMode;
+    final isNight = _prefs.themeFollow == NovelThemeFollow.alwaysDark;
     switch (tool) {
       case NovelBottomTool.toc:
         return Icons.toc;
@@ -2227,9 +2228,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// 夜间快捷切换：写回 [NovelReaderPreferences.nightMode]，背景预设不变。
+  /// 夜间快捷切换：在「跟随应用」与「始终夜间」间切换（项 6）。
+  /// 背景预设不变；其余（始终日间）由设置面板三选一控制。
   void _toggleNightMode() {
-    _onPrefsChanged(_prefs.copyWith(nightMode: !_prefs.nightMode));
+    final next = _prefs.themeFollow == NovelThemeFollow.alwaysDark
+        ? NovelThemeFollow.followApp
+        : NovelThemeFollow.alwaysDark;
+    _onPrefsChanged(_prefs.copyWith(themeFollow: next));
   }
 
   /// 缓存本书到本地（离线阅读）：复用全局 [DownloadManager] 提交整本下载任务。
@@ -3432,14 +3437,8 @@ class _NovelInlineSettings extends StatelessWidget {
                       onChanged: onBrightnessChanged,
                     ),
                     const SizedBox(height: AppTokens.spaceMd),
-                    // 夜间快捷开关
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(l10n.nightMode),
-                      value: prefs.nightMode,
-                      onChanged: (v) =>
-                          onChanged(prefs.copyWith(nightMode: v)),
-                    ),
+                    // 夜间模式跟随策略（项 6）：三选一
+                    _buildThemeFollowSelector(context, l10n, prefs, onChanged),
                     const SizedBox(height: AppTokens.spaceMd),
                     // 背景预设
                     Text(l10n.readerBackground,
@@ -4630,13 +4629,7 @@ class _NovelInlineSettings extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppTokens.spaceSm),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10n.nightMode),
-                value: prefs.nightMode,
-                onChanged: (v) =>
-                    onChanged(prefs.copyWith(nightMode: v)),
-              ),
+              _buildThemeFollowSelector(context, l10n, prefs, onChanged),
               const SizedBox(height: AppTokens.spaceSm),
               Text(l10n.novelPageAnimation, style: theme.textTheme.bodyMedium),
               const SizedBox(height: AppTokens.spaceXs),
@@ -4664,9 +4657,44 @@ class _NovelInlineSettings extends StatelessWidget {
   /// 预览色块：夜间模式下在原始色基础上压暗，与 [NovelReaderPreferences
   /// .resolveBackgroundColor] 的夜间处理保持一致，做到「所见即所得」。
   Color _swatchColor(Color c) {
-    if (!prefs.nightMode) return c;
+    if (prefs.themeFollow != NovelThemeFollow.alwaysDark) return c;
     return Color.lerp(c, Colors.black, ReaderTokens.nightDarkenFactor) ?? c;
   }
+
+  /// 夜间模式跟随策略三选一（项 6）：跟随应用 / 始终夜间 / 始终日间。
+  Widget _buildThemeFollowSelector(
+    BuildContext context,
+    AppLocalizations l10n,
+    NovelReaderPreferences prefs,
+    void Function(NovelReaderPreferences) onChanged,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(l10n.nightMode, style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: AppTokens.spaceXs),
+        Wrap(
+          spacing: AppTokens.spaceSm,
+          runSpacing: AppTokens.spaceSm,
+          children: <Widget>[
+            for (final f in NovelThemeFollow.values)
+              ChoiceChip(
+                label: Text(_themeFollowLabel(f, l10n)),
+                selected: prefs.themeFollow == f,
+                onSelected: (_) => onChanged(prefs.copyWith(themeFollow: f)),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _themeFollowLabel(NovelThemeFollow f, AppLocalizations l10n) =>
+      switch (f) {
+        NovelThemeFollow.followApp => l10n.novelThemeFollowApp,
+        NovelThemeFollow.alwaysDark => l10n.novelThemeFollowDark,
+        NovelThemeFollow.alwaysLight => l10n.novelThemeFollowLight,
+      };
 
   Widget _colorTile({
     required BuildContext context,

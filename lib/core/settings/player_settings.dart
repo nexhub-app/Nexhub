@@ -48,7 +48,7 @@ class PlayerSettings {
     this.autoPlayNext = true,
     this.subtitleFontSize = 16.0,
     this.subtitleOutline = true,
-    this.lockOrientation = PlayerLockOrientation.auto,
+    this.lockOrientation = PlayerLockOrientation.landscape,
     this.seekMultiplier = SeekMultiplier.normal,
     this.longPressSpeedUp = true,
     this.longPressSpeed = 2.0,
