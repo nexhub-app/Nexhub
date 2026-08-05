@@ -548,12 +548,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (!mounted) return;
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) {
         final l10n = AppLocalizations.of(ctx);
         return SafeArea(
-          child: notes.isEmpty
-              ? Center(child: Text(l10n.noNotes))
-              : ListView.builder(
+          child: ConstrainedBox(
+            constraints:
+                BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+            child: notes.isEmpty
+                ? Center(child: Text(l10n.noNotes))
+                : ListView.builder(
+                  shrinkWrap: true,
                   itemCount: notes.length,
                   itemBuilder: (_, i) {
                     final n = notes[i];
@@ -586,6 +591,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     );
                   },
                 ),
+          ),
         );
       },
     );

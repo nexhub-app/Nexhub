@@ -240,29 +240,36 @@ class _SettingsImportExportScreenState
       // 未设置自定义目录：询问默认 or 自定义
       final choice = await showModalBottomSheet<String>(
         context: context,
+        isScrollControlled: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppTokens.radiusXl),
           ),
         ),
-        builder: (ctx) => Padding(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.folder_special),
-                title: Text(l10n.exportFolderDefault),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.pop(ctx, 'default'),
+        builder: (ctx) => ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTokens.spaceLg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  ListTile(
+                    leading: const Icon(Icons.folder_special),
+                    title: Text(l10n.exportFolderDefault),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pop(ctx, 'default'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.save_outlined),
+                    title: Text(l10n.exportFolderCustom),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pop(ctx, 'custom'),
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.save_outlined),
-                title: Text(l10n.exportFolderCustom),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.pop(ctx, 'custom'),
-              ),
-            ],
+            ),
           ),
         ),
       );
@@ -278,30 +285,38 @@ class _SettingsImportExportScreenState
       // 已设置自定义目录：直接询问是否改用默认
       final choice = await showModalBottomSheet<String>(
         context: context,
+        isScrollControlled: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppTokens.radiusXl),
           ),
         ),
-        builder: (ctx) => Padding(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.folder_special),
-                title: Text(l10n.exportFolderDefault),
-                subtitle: _exportFolder.isNotEmpty ? Text(_exportFolder) : null,
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.pop(ctx, 'default'),
+        builder: (ctx) => ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTokens.spaceLg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  ListTile(
+                    leading: const Icon(Icons.folder_special),
+                    title: Text(l10n.exportFolderDefault),
+                    subtitle:
+                        _exportFolder.isNotEmpty ? Text(_exportFolder) : null,
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pop(ctx, 'default'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.save_outlined),
+                    title: Text(l10n.exportFolderCustom),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pop(ctx, 'custom'),
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.save_outlined),
-                title: Text(l10n.exportFolderCustom),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.pop(ctx, 'custom'),
-              ),
-            ],
+            ),
           ),
         ),
       );

@@ -425,10 +425,10 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
     Widget? latencyWidget;
     if (status is int) {
       final latencyColor = status < 300
-          ? Colors.green
+          ? AppStatusColors.ok(scheme)
           : status <= 800
-              ? Colors.orange
-              : Colors.red;
+              ? AppStatusColors.warn(scheme)
+              : AppStatusColors.fail(scheme);
       latencyWidget = Text(
         l10n.rsshubLatencyMs(status),
         style: TextStyle(
@@ -456,7 +456,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
                 : Icons.wifi_find_outlined,
         size: 20,
         color: status is int
-            ? Colors.green
+            ? AppStatusColors.ok(scheme)
             : status == false
                 ? scheme.error
                 : scheme.onSurfaceVariant,

@@ -456,40 +456,47 @@ void _showFavoriteActionsMenu(
   final l10n = AppLocalizations.of(context);
   showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(AppTokens.radiusLg),
       ),
     ),
     builder: (BuildContext ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.folder_outlined),
-            title: Text(l10n.setGroups),
-            onTap: () {
-              Navigator.of(ctx).pop();
-              showFavoriteGroupAssignSheet(
-                context,
-                contentId: contentId,
-                sourceType: sourceType,
-              );
-            },
+      child: ConstrainedBox(
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.folder_outlined),
+                title: Text(l10n.setGroups),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  showFavoriteGroupAssignSheet(
+                    context,
+                    contentId: contentId,
+                    sourceType: sourceType,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.live_tv_outlined),
+                title: Text(l10n.bangumiBindAndRate),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  showBangumiBindSheet(
+                    context,
+                    contentId: contentId,
+                    sourceType: sourceType,
+                  );
+                },
+              ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.live_tv_outlined),
-            title: Text(l10n.bangumiBindAndRate),
-            onTap: () {
-              Navigator.of(ctx).pop();
-              showBangumiBindSheet(
-                context,
-                contentId: contentId,
-                sourceType: sourceType,
-              );
-            },
-          ),
-        ],
+        ),
       ),
     ),
   );

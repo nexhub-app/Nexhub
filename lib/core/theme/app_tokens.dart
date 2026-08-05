@@ -131,6 +131,50 @@ class AppShadows {
       ];
 }
 
+/// 语义状态色 Token（成功 / 警告 / 失败）。
+///
+/// Material 3 的 `ColorScheme` 只有 `error`，没有 success / warning 槽位，
+/// 因此这三档在此统一定义；feature 代码禁止直接写 `Colors.green` 等。
+/// 深浅色各取一档，保证在对应背景上的可读对比度。
+class AppStatusColors {
+  AppStatusColors._();
+
+  // 每档两个色值：深背景用亮色，浅背景用深色，保证对比度。
+  static const Color _okOnLight = Color(0xFF1B873F);
+  static const Color _okOnDark = Color(0xFF6EE7A8);
+  static const Color _warnOnLight = Color(0xFFB26A00);
+  static const Color _warnOnDark = Color(0xFFF6C560);
+  static const Color _failOnLight = Color(0xFFB3261E);
+  static const Color _failOnDark = Color(0xFFF2B8B5);
+
+  /// 判断目标背景是否为深色。
+  ///
+  /// [onInverseSurface] 为 true 时表示绘制在 `scheme.inverseSurface` 上
+  /// （SnackBar 等反色容器），亮度与应用主题相反。
+  static bool _darkBackground(ColorScheme scheme, bool onInverseSurface) {
+    final bool appIsDark = scheme.brightness == Brightness.dark;
+    return onInverseSurface ? !appIsDark : appIsDark;
+  }
+
+  /// 成功 / 健康 / 可用。
+  static Color ok(ColorScheme scheme, {bool onInverseSurface = false}) =>
+      _darkBackground(scheme, onInverseSurface) ? _okOnDark : _okOnLight;
+
+  /// 警告 / 一般 / 需注意。
+  static Color warn(ColorScheme scheme, {bool onInverseSurface = false}) =>
+      _darkBackground(scheme, onInverseSurface) ? _warnOnDark : _warnOnLight;
+
+  /// 失败 / 不可用。普通表面复用主题 `error`，与其他错误态保持一致。
+  static Color fail(ColorScheme scheme, {bool onInverseSurface = false}) {
+    if (!onInverseSurface) return scheme.error;
+    return _darkBackground(scheme, true) ? _failOnDark : _failOnLight;
+  }
+
+  /// 状态徽章底色：对应状态色的低透明度填充。
+  static Color containerOf(Color statusColor) =>
+      statusColor.withValues(alpha: 0.12);
+}
+
 /// 渐变 Token（随 ColorScheme 自适应）。
 class AppGradients {
   AppGradients._();

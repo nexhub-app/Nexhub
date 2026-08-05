@@ -86,10 +86,11 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
     super.dispose();
   }
 
-  Color _latencyColor(int ms) {
-    if (ms < 300) return Colors.green;
-    if (ms < 800) return Colors.orange;
-    return Colors.red;
+  /// 延迟档位色。仅用于 SnackBar（反色表面），故取 onInverseSurface 档。
+  Color _latencyColor(ColorScheme scheme, int ms) {
+    if (ms < 300) return AppStatusColors.ok(scheme, onInverseSurface: true);
+    if (ms < 800) return AppStatusColors.warn(scheme, onInverseSurface: true);
+    return AppStatusColors.fail(scheme, onInverseSurface: true);
   }
 
   /// 把校验器返回的 key 映射为本地化文案。
@@ -221,7 +222,10 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       SnackBar(
         content: Text(
           ok ? l10n.networkTestSuccess(ms) : l10n.networkTestFailed,
-          style: ok ? TextStyle(color: _latencyColor(ms)) : null,
+          style: ok
+              ? TextStyle(
+                  color: _latencyColor(Theme.of(context).colorScheme, ms))
+              : null,
         ),
       ),
     );
@@ -242,7 +246,10 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           ips.isEmpty
               ? l10n.networkTestFailed
               : l10n.networkDnsTestResult(ips.join(', '), ms),
-          style: ips.isEmpty ? null : TextStyle(color: _latencyColor(ms)),
+          style: ips.isEmpty
+              ? null
+              : TextStyle(
+                  color: _latencyColor(Theme.of(context).colorScheme, ms)),
         ),
       ),
     );
@@ -264,7 +271,10 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       SnackBar(
         content: Text(
           ok ? l10n.networkTestSuccess(ms) : l10n.networkTestFailed,
-          style: ok ? TextStyle(color: _latencyColor(ms)) : null,
+          style: ok
+              ? TextStyle(
+                  color: _latencyColor(Theme.of(context).colorScheme, ms))
+              : null,
         ),
       ),
     );
