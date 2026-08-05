@@ -61,10 +61,11 @@ class AppSourceListTile extends StatelessWidget {
           padding: EdgeInsets.zero,
         );
       }
+      final Color healthy = AppStatusColors.ok(scheme);
       return Chip(
-        label: Text(healthyLabel,
-            style: TextStyle(color: Colors.green, fontSize: 11)),
-        backgroundColor: Colors.green.withValues(alpha: 0.1),
+        label:
+            Text(healthyLabel, style: TextStyle(color: healthy, fontSize: 11)),
+        backgroundColor: AppStatusColors.containerOf(healthy),
         visualDensity: VisualDensity.compact,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         padding: EdgeInsets.zero,

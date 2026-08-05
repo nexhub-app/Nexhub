@@ -34,25 +34,32 @@ Future<void> showFavoriteSheet({
   final scheme = Theme.of(context).colorScheme;
   final choice = await showModalBottomSheet<String>(
     context: context,
+    isScrollControlled: true,
     builder: (BuildContext ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          ListTile(
-            leading: Icon(Icons.favorite, color: scheme.primary),
-            title: Text(l10n.favoriteLocal),
-            subtitle: Text(l10n.favoriteLocalHint),
-            onTap: () => Navigator.of(ctx).pop('local'),
+      child: ConstrainedBox(
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.favorite, color: scheme.primary),
+                title: Text(l10n.favoriteLocal),
+                subtitle: Text(l10n.favoriteLocalHint),
+                onTap: () => Navigator.of(ctx).pop('local'),
+              ),
+              ListTile(
+                leading: Icon(Icons.cloud_done_outlined, color: scheme.primary),
+                title: Text(l10n.favoriteWeb),
+                subtitle: source.webFavorite?.requireLogin == true
+                    ? Text(l10n.favoriteWebRequiresLogin)
+                    : Text(l10n.favoriteWebHint),
+                onTap: () => Navigator.of(ctx).pop('web'),
+              ),
+            ],
           ),
-          ListTile(
-            leading: Icon(Icons.cloud_done_outlined, color: scheme.primary),
-            title: Text(l10n.favoriteWeb),
-            subtitle: source.webFavorite?.requireLogin == true
-                ? Text(l10n.favoriteWebRequiresLogin)
-                : Text(l10n.favoriteWebHint),
-            onTap: () => Navigator.of(ctx).pop('web'),
-          ),
-        ],
+        ),
       ),
     ),
   );
