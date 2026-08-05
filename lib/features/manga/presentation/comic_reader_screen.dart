@@ -5,6 +5,8 @@ import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -90,7 +92,7 @@ class ComicReaderScreen extends StatefulWidget {
 }
 
 class _ComicReaderScreenState extends State<ComicReaderScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final ReaderPreferencesStore _store = ReaderPreferencesStore();
   final ComicProgressManager _progress = ComicProgressManager();
   final TransformationController _zoomController = TransformationController();
@@ -207,6 +209,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 进度保存防抖定时器，合并频繁翻页产生的写入。
   Timer? _saveProgressDebounce;
 
+  /// 防抖窗口内待落盘的页码：dispose 时若仍有 pending 写入未执行，立即 flush，
+  /// 避免「翻页后 1s 内退出」导致进度未落盘、下次回退（P0 数据丢失 bug）。
+  int? _pendingSavePage;
+
+  /// 阅读器键盘焦点节点：用于捕获桌面键盘快捷键（方向键翻页 / F11 全屏等，P0）。
+  final FocusNode _readerFocus = FocusNode();
+
   /// 翻页闪光动画控制器与覆盖层状态。
   late final AnimationController _flashController;
   double _flashOpacity = 0.0;
@@ -224,9 +233,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   bool get _isLocalMode =>
       widget.localImages != null || widget.localCbzPath != null;
 
+  /// 桌面平台（Windows / Linux / macOS，非 Web）：启用 window_manager 真实全屏与
+  /// 键盘快捷键（P0）。移动端走 SystemChrome。
+  bool get _isDesktop =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+
   @override
   void initState() {
     super.initState();
+    // 监听窗口尺寸变化（全屏切换 / 拖动窗口边角）：视口尺寸变化后，缩放矩阵的
+    // 平移夹取上界随之改变，若不重算，已放大/已平移的图片在进出全屏时会出现位置
+    // 偏移（验收 B3）。didChangeMetrics 里重夹矩阵修复之。
+    WidgetsBinding.instance.addObserver(this);
     _flashController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 120),
@@ -234,6 +252,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _zoomController.addListener(_onZoomChanged);
     _chapterIndex = widget.initialChapterIndex;
     _prefs = const ReaderPreferences();
+    // 全局键盘监听（F11 / Esc / 方向键等）——不依赖 Focus 焦点，按钮/面板/对话框
+    // 抢焦点后快捷键依然有效（F11、Esc 失效的根治）。
+    HardwareKeyboard.instance.addHandler(_onGlobalKey);
     _init();
   }
 
@@ -241,11 +262,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final defaults = await ReaderDefaultSettingsStore().load();
     _prefs = (await _store.get(widget.comicId))
         .mergedWith(defaults.toReaderPreferences());
-    // 从详情页明确选择某话时，不要覆盖成「继续阅读」的进度。
-    if (widget.restoreProgress) {
-      final saved = await _progress.get(widget.comicId);
-      if (saved != null && saved.chapterIndex < widget.chapters.length) {
+    // 进度恢复分两种情形：
+    // - restoreProgress=true（「继续阅读」入口）：章 + 页都恢复。
+    // - restoreProgress=false（详情页明确点选某话）：不改章，但**若点选的正是上次
+    //   在读的那一话，仍恢复页码**。否则「读到第 5 页 → 退出 → 点同一话进来」永远
+    //   从第 1 页开始，用户会认为进度根本没保存（P0 数据丢失的实际观感来源）。
+    //   受全局「记住阅读位置」开关约束，关闭时不恢复。
+    final saved = await _progress.get(widget.comicId);
+    if (saved != null && saved.chapterIndex < widget.chapters.length) {
+      if (widget.restoreProgress) {
         _chapterIndex = saved.chapterIndex;
+        _savedPage = saved.currentPage;
+      } else if (saved.chapterIndex == _chapterIndex &&
+          GeneralSettingsStore.instance.settings.rememberPosition) {
         _savedPage = saved.currentPage;
       }
     }
@@ -255,13 +284,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (_isLocalMode) _uiVisible = true;
     if (mounted) setState(() {});
     _applyOrientation();
-    _applyFullscreen();
+    // 注意：window_manager 的 ensureInitialized 已在 main() 的 runApp 之前完成
+    // （运行期再调会冻结渲染管道），此处只管应用状态，不再初始化。
     _applyWakelock();
     if (_isLocalMode) {
       await _loadLocalImages(restorePage: _savedPage);
     } else {
       await _loadChapter(_chapterIndex, restorePage: _savedPage);
     }
+    // 进入阅读器「不自动全屏」：验收 D1 要求进入时不强制 OS 全屏（也避免
+    // window_manager 的 setFullScreen 在初始化期同步调用卡死渲染管道）。全屏只在
+    // 用户按 F11 / 设置面板开关时切换（见 [_handleKeyEvent] / [didUpdateWidget]）。
   }
 
   /// 本地模式加载图片：优先使用 [widget.localImages]，否则解压 [widget.localCbzPath]。
@@ -393,8 +426,29 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _itemPositionsListener?.itemPositions.removeListener(_onWebtoonScroll);
     _zoomController.dispose();
     _flashController.dispose();
+    _readerFocus.dispose();
     _transitionTimer?.cancel();
-    _saveProgressDebounce?.cancel();
+    // 移除全局键盘监听（必须在 dispose 里，否则离页后快捷键仍会触发本页翻页）。
+    HardwareKeyboard.instance.removeHandler(_onGlobalKey);
+    // P0 数据丢失修复：防抖窗口内若有 pending 写入，先立即落盘再取消定时器——否则
+    // 「翻页后 1s 内退出」会丢失本次进度，下次回退到旧页。
+    if (_saveProgressDebounce?.isActive ?? false) {
+      final page = _pendingSavePage ?? _currentPage;
+      _saveProgressDebounce?.cancel();
+      _flushPendingProgress(page);
+      _pendingSavePage = null;
+    } else {
+      _saveProgressDebounce?.cancel();
+      // 兜底：无 pending 写入的正常退出，无条件把「当前页」再存一次（绝不丢进度）。
+      // 不再检查 _restoringPage：恢复期间 _currentPage 保持进入时设定的恢复目标页
+      // （滚动/翻页回写已被 _restoringPage 屏蔽，_setupControllers 已赋值），保存它
+      // 不会污染存档；而跳过保存会在「退全屏/切屏重锚（_restoringPage 短暂为 true）
+      // 后立刻退出」时丢掉全部进度（B1/B2/B4「阅读位置全部丢失」的直接根因）。
+      // 仅 _images 为空（章节还没加载完成）时不存，保留旧存档。
+      if (_images.isNotEmpty) {
+        _flushPendingProgress(_currentPage);
+      }
+    }
     _webtoonStepTimer?.cancel();
     _webtoonRestoreTimer?.cancel();
     _webtoonLastPageTimer?.cancel();
@@ -410,6 +464,23 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     } on Object {
       // 测试环境忽略。
     }
+    // 桌面端：退出阅读器时离开 OS 全屏，恢复普通窗口。
+    // 用 Future.delayed(zero) 推迟到 dispose / 本帧 teardown 完全结束后的下一个
+    // 事件循环轮次再执行——在 dispose 调用栈内直接切窗口会与正在拆除的渲染树
+    // 抢占平台线程，是此前「退出阅读器画面冻住」的诱因之一。
+    if (_isDesktop) {
+      Future<void>.delayed(Duration.zero, () async {
+        try {
+          // 仅在确实处于 OS 全屏时才退出——否则 setFullScreen(false) 也会做无谓的
+          // 窗口样式重建（SetWindowLongPtr + SetWindowPos），可能触发冻结（A2/A4）。
+          if (await WindowManager.instance.isFullScreen()) {
+            await _requestOsFullscreen(false);
+          }
+        } on Object {
+          // 无头 / 测试环境忽略。
+        }
+      });
+    }
     try {
       // 退出阅读器：关闭屏幕常亮。
       WakelockPlus.disable();
@@ -418,7 +489,55 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     // 退出时兜底保存偏好，确保设置退出后仍保留。
     unawaited(_store.save(widget.comicId, _prefs));
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// 窗口尺寸变化（全屏切换 / resize）：缩放矩阵平移夹取上界随视口尺寸而变，
+  /// 旧矩阵在新视口下会偏移或越界。下一帧重夹一次，修复进出全屏时的位置偏移（B3）。
+  /// 缩放矩阵是「中心原点」坐标系（见 [MangaPageImage] 的 Transform alignment），
+  /// 重夹逻辑与 [MangaPageImageState._clampMatrix] 共用 [_clampZoomMatrix]。
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    if (!mounted) return;
+    // 同步置位（必须在 postFrame 之前）：视口尺寸变化时，布局 / 滚动阶段的
+    // onPageChanged 会先于帧回调触发并污染 _currentPage（页宽变了，像素偏移对应
+    // 到别的页），若等帧回调才屏蔽就来不及了（B3 进度条跳页）。
+    final bool wasRestoring = _restoringPage;
+    _restoringPage = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final Size vp = MediaQuery.of(context).size;
+      final m = _zoomController.value;
+      _zoomController.value = _prefs.readingMode.isWebtoon
+          ? _clampWebtoonZoomMatrix(Matrix4.copy(m), vp)
+          : _clampZoomMatrix(Matrix4.copy(m), vp);
+      // 视口尺寸变化（全屏切换 / 拖窗口边角）后，PageView 的像素偏移对应页索引会
+      // 漂移（页宽变了），进度条会跳到别的页（B3）。重新把当前页锚回视口。
+      if (_images.isNotEmpty) {
+        _anchorCurrentPage(_currentPage);
+      }
+      _restoringPage = wasRestoring;
+    });
+  }
+
+  /// 退出时的最小化进度落盘：仅写核心进度，避免依赖 context 的衍生写
+  /// （收藏 lastRead / 浏览历史 / 已读标记）在 widget 已销毁时抛异常。
+  void _flushPendingProgress(int page) {
+    if (widget.chapters.isEmpty) return;
+    try {
+      final chapter = widget.chapters[_chapterIndex];
+      _progress.save(
+        widget.comicId,
+        chapter.id,
+        page,
+        _chapterIndex,
+        totalChapters: widget.chapters.length,
+      );
+    } on Object {
+      // 极端情况下静默忽略，不阻塞退出。
+    }
   }
 
   // ─────────────────────── 数据加载 ───────────────────────
@@ -456,6 +575,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         _loading = false;
         _error = null;
       });
+      // 切章时重置缩放/平移，避免上一话的缩放状态残留到新章（P0 手势 bug）。
+      _resetZoom();
       _setupControllers(restorePage: deferToLast ? 0 : rp);
       if (deferToLast) {
         // 首帧后由 _buildWebtoon 消费：滚动到底并在收尾时写入末页进度。
@@ -689,9 +810,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 防抖进度保存：合并频繁翻页产生的写入，避免高频 IO。
   /// 滚动回调中使用；_jumpToPage / _setupControllers 中仍直接调用 _saveProgress。
   void _scheduleProgressSave(int page) {
+    // 记录 pending 页码，dispose 时若有未触发的写入可立即 flush（P0 数据丢失修复）。
+    _pendingSavePage = page;
     _saveProgressDebounce?.cancel();
     _saveProgressDebounce = Timer(const Duration(seconds: 1), () {
       _saveProgress(page);
+      _pendingSavePage = null;
     });
   }
 
@@ -792,7 +916,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   // ─────────────────────── 导航 ───────────────────────
 
+  /// 翻页时重置共享缩放控制器：所有 MangaPageImage 共用同一个 [_zoomController]，
+  /// 若不重置，上一页的缩放 + 平移会原样带到下一页，表现为「位置错乱」（P0 手势 bug）。
+  /// 同时清空捏合起手矩阵基准 [_pinchBaseMatrix]——否则放大 → 翻页 → 再捏合时，
+  /// 基准残留放大矩阵，`realFactor` 恒为 1 导致捏合无效果。
+  void _resetZoom() {
+    _pinchBaseMatrix = null;
+    _zoomController.value = Matrix4.identity();
+  }
+
   void _goNextPage() {
+    // 翻页模式翻页清除缩放：下一页 1 倍居中（验收 C1）；条漫模式保持缩放——
+    // 放大后滚动浏览其他页是连续阅读的常态（参考 Mihon/Venera：条漫缩放不因翻页重置）。
+    if (!_prefs.readingMode.isWebtoon) _resetZoom();
     _triggerFlash();
     if (_prefs.readingMode.isWebtoon) {
       _webtoonStep(1);
@@ -818,6 +954,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   void _goPrevPage() {
+    // 同 [_goNextPage]：仅翻页模式翻页清除缩放，条漫保持。
+    if (!_prefs.readingMode.isWebtoon) _resetZoom();
     _triggerFlash();
     if (_prefs.readingMode.isWebtoon) {
       _webtoonStep(-1);
@@ -1027,24 +1165,40 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     });
   }
 
-  /// 双击缩放：在「适配宽下限」与 [ReaderPreferences.doubleTapZoomScale] 之间切换。
-  /// 以 [focal]（视口坐标）或视口中心为锚点；preventShrink 时下限锁定为 1.0（适配宽）。
-  /// [focal] 为 null 时使用中心（双击兜底），非空时用于桌面 Shift+左键定点缩放。
+  /// 双击缩放：三态循环（用户需求，参考 photo_view 的 scaleState 循环思想）——
+  /// 原样(1x) → 缩小(0.5x) → 放大([ReaderPreferences.doubleTapZoomScale]) →
+  /// 恢复原样(1x) → …。preventShrink 打开时跳过缩小态（1x ↔ 放大两态）。
+  /// 以 [focal]（视口坐标）或视口中心为锚点；[focal] 为 null 时使用中心。
+  ///
+  /// 实现要点：
+  /// - 每次双击【绝对设置】目标矩阵（不乘旧矩阵），直接到达目标态——避免
+  ///   「乘旧矩阵」的浮点累积导致第三次「恢复原样」scale 漂移（如 0.99999x
+  ///   被误判为缩小态、循环错乱）。
+  /// - Transform/AnimatedBuilder 以「视口中心」为原点（等价 alignment: center），
+  ///   而 focal 是「左上原点」坐标；[_toTransformAnchor] 负责换算。
   void _toggleZoom([Offset? focal]) {
     final m = _zoomController.value;
     final cur = m.getMaxScaleOnAxis();
-    final double floor = _prefs.preventShrink ? 1.0 : 0.5;
-    final target = cur > floor * 1.01 ? floor : _prefs.doubleTapZoomScale;
-    final Offset anchor = focal ??
-        Offset(
-          MediaQuery.of(context).size.width / 2,
-          MediaQuery.of(context).size.height / 2,
-        );
-    final realFactor = target / cur;
+    final Size vp = MediaQuery.of(context).size;
+    final Offset anchor = focal == null
+        ? Offset.zero
+        : _toTransformAnchor(focal, vp);
+    final double target;
+    if (cur > 1.001) {
+      target = 1.0; // 放大态 → 恢复原样
+    } else if (_prefs.preventShrink) {
+      target = _prefs.doubleTapZoomScale; // 防缩小时 1x ↔ 放大两态
+    } else if (cur < 0.999) {
+      target = _prefs.doubleTapZoomScale; // 缩小态 → 放大
+    } else {
+      target = 0.5; // 原样 → 缩小（第一次双击；minScale 默认 1.0，故用固定 0.5）
+    }
+    // 绝对设置：translate(anchor*(1-target)) · scale(target)。
+    // 推导：中心系坐标 c 变换为 c' = c*t + T；焦点保持不动需 c' = c →
+    // T = anchor*(1-target)。webtoon 的 anchor 纵向为 0（纵向滚动交还列表）。
     _zoomController.value = Matrix4.identity()
-      ..translate(anchor.dx * (1 - realFactor), anchor.dy * (1 - realFactor))
-      ..scale(realFactor)
-      ..multiply(m);
+      ..translate(anchor.dx * (1 - target), anchor.dy * (1 - target))
+      ..scale(target);
   }
 
   /// 监听共享 [_zoomController]：放大状态变化时同步 [_zoomed]，使底层 PageView /
@@ -1160,15 +1314,372 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 沉浸全屏：进入阅读器时切到 immersiveSticky；dispose 时恢复 edgeToEdge。
   /// 与 [_applyOrientation] 协同：orientation 改 preferredOrientations，不动 system UI mode。
+  ///
+  /// 桌面端（Windows / Linux / macOS）[SystemChrome] 的 system UI mode 是 no-op，
+  /// 永不进入 OS 全屏；故桌面改用 [window_manager] 直接控制窗口全屏（P0 桌面 bug）。
+  /// 桌面端设置 OS 全屏的统一入口。
+  ///
+  /// window_manager 0.3.9 在 Windows 上的 [SetFullScreen] 内部用**阻塞式**
+  /// `::SendMessage(mainWindow, WM_SYSCOMMAND, SC_MAXIMIZE, 0)`（退出走 `PostMessage`，
+  /// 异步）实现。若在 UI 线程 / 构建帧内**同步**调用，会卡死渲染管道——表现为
+  /// 「画面冻住、只能 resize 恢复」（验收 A / D 的冻结根因）。统一用 [Future.delayed]
+  /// 推迟到当前事件循环轮次之后执行，彻底避开帧内阻塞调用。
+  Future<void> _requestOsFullscreen(bool on) async {
+    await Future.delayed(Duration.zero);
+    try {
+      await WindowManager.instance.setFullScreen(on);
+    } on Object {
+      // 测试 / headless 环境忽略。
+    }
+  }
+
   void _applyFullscreen() {
     try {
-      // 按 [ReaderPreferences.fullscreen] 决定：开启=沉浸全屏，关闭=恢复系统栏。
-      SystemChrome.setEnabledSystemUIMode(
-        _prefs.fullscreen ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
-      );
+      if (_isDesktop) {
+        // 桌面：真实 OS 全屏（隐藏标题栏 / 任务栏）。调用点：① 设置面板改 fullscreen
+        // 开关（[didUpdateWidget]）；② F11 手动触发（[_toggleFullscreen]）。进入阅读器
+        // 不再自动全屏（验收 D1），故 [_init] 不调用本方法，避免 window_manager 的
+        // setFullScreen 在初始化期同步调用卡死渲染管道。退阅读器时 [dispose] 延迟离开
+        // OS 全屏（setFullScreen 与渲染管道竞争，故用 Future.delayed(zero) 推迟到
+        // teardown 之后，避开冻结窗口）。
+        //
+        // 仅在「目标状态 ≠ 当前状态」时才调用 setFullScreen——window_manager 0.3.9
+        // 的退出分支无条件做 SetWindowLongPtr + SetWindowPos 窗口样式重建，无谓调用
+        // 会触发冻结（A/D）。
+        unawaited(_applyDesktopFullscreen(_prefs.fullscreen));
+      } else {
+        // 移动端：沉浸全屏（隐藏系统栏）/ 恢复系统栏。
+        SystemChrome.setEnabledSystemUIMode(
+          _prefs.fullscreen
+              ? SystemUiMode.immersiveSticky
+              : SystemUiMode.edgeToEdge,
+        );
+      }
+    } on Object {
+      // 测试环境 / window_manager 不可用时忽略。
+    }
+  }
+
+  /// 桌面端按需切换 OS 全屏：目标状态与当前一致时不调用 setFullScreen
+  /// （避免 window_manager 0.3.9 无谓的窗口样式重建触发冻结）。
+  Future<void> _applyDesktopFullscreen(bool want) async {
+    try {
+      final bool isFs = await WindowManager.instance.isFullScreen();
+      if (isFs != want) {
+        await _requestOsFullscreen(want);
+      }
     } on Object {
       // 测试环境忽略。
     }
+  }
+
+  /// 键盘快捷键（P0）：方向键 / PageUp·Down 翻页，F11·F 全屏，Esc 关菜单 / 退出全屏，
+  /// 空格切换 UI，+/- 缩放，N·P 切换上一话 / 下一话。
+  ///
+  /// 不依赖 [Focus] 焦点链：通过 [_onGlobalKey] 用 [HardwareKeyboard] 全局监听，
+  /// 无论焦点落在按钮 / 设置面板 / 对话框上，快捷键都始终有效（F11/Esc 失效的根治）。
+  /// 仅当焦点在文本输入框内时放行（见 [_onGlobalKey] 的 EditableText 豁免）。
+  KeyEventResult _handleKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    // Esc：优先关闭内联设置面板，否则桌面退出 OS 全屏。
+    if (key == LogicalKeyboardKey.escape) {
+      if (_showInlineSettings) {
+        _toggleInlineSettings();
+        return KeyEventResult.handled;
+      }
+      if (_isDesktop) {
+        // 仅在确实处于 OS 全屏时才退全屏：未全屏时调用 setFullScreen(false) 也会
+        // 做窗口样式重建（SetWindowLongPtr + SetWindowPos，同步），可能触发冻结
+        // （A/D 验收「按 Esc 后画面冻住、只能 resize 恢复」的直接根因之一）。
+        unawaited(() async {
+          try {
+            if (await WindowManager.instance.isFullScreen()) {
+              await _requestOsFullscreen(false);
+            }
+          } on Object {
+            // 测试环境忽略。
+          }
+        }());
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    if (key == LogicalKeyboardKey.f11 || key == LogicalKeyboardKey.keyF) {
+      _toggleFullscreen();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.space) {
+      setState(() => _uiVisible = !_uiVisible);
+      return KeyEventResult.handled;
+    }
+    // 方向键 / PageUp·Down 翻页（条漫模式下走单步滚动）。
+    if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.pageUp) {
+      _goPrevPage();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.pageDown) {
+      _goNextPage();
+      return KeyEventResult.handled;
+    }
+    // N / P 切换下一话 / 上一话。
+    if (key == LogicalKeyboardKey.keyN) {
+      _goNextChapter();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyP) {
+      _goPrevChapter();
+      return KeyEventResult.handled;
+    }
+    // +/- 缩放（以视口中心为锚点，下限 1x）。
+    if (key == LogicalKeyboardKey.equal ||
+        key == LogicalKeyboardKey.numpadAdd) {
+      _zoomBy(1.25);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.minus ||
+        key == LogicalKeyboardKey.numpadSubtract) {
+      _zoomBy(0.8);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  /// [HardwareKeyboard] 全局键盘回调（initState 注册 / dispose 移除）。
+  ///
+  /// 返回 true = 已消费。唯一豁免：当前焦点在文本输入框（[EditableText]）内时不
+  /// 拦截，保证内联设置面板里的数值输入仍能用方向键/空格正常编辑。
+  bool _onGlobalKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return false;
+    // Esc 始终由阅读器处理（关面板 / 退出全屏），不做输入框豁免——设置面板开着时按
+    // Esc 关闭是明确预期；豁免只针对翻页 / 缩放等导航键，避免干扰输入框的方向键 / 空格编辑。
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      // 栈顶有模态层（章节列表 / 对话框 / 右键菜单等 push 的 route）时，Esc 交还
+      // Navigator / Shortcuts 关闭模态层——否则本处把 Esc 吞掉（误触发退全屏），
+      // 模态层收不到 Esc 关不掉（D3），且未全屏时误触发窗口样式重建（冻结）。
+      final Route<dynamic>? route = ModalRoute.of(context);
+      if (route != null && !route.isCurrent) {
+        return false;
+      }
+      return _handleKeyEvent(event) == KeyEventResult.handled;
+    }
+    final FocusNode? focus = FocusManager.instance.primaryFocus;
+    if (focus != null && focus.context != null &&
+        focus.context!.findAncestorStateOfType<EditableTextState>() != null) {
+      return false;
+    }
+    return _handleKeyEvent(event) == KeyEventResult.handled;
+  }
+
+  /// 切换桌面 OS 全屏（F11 / F 触发）。移动端无 window_manager，忽略。
+  ///
+  /// B3：切换前固定当前页，切换期间用 [_restoringPage] 屏蔽滚动 / 翻页回写
+  /// （onPageChanged 在视口变宽时会把像素偏移对应到别的页，污染 [_currentPage]
+  /// 与存档），切换完成、窗口布局稳定后再把视口重锚回该页——进度条不跳页。
+  Future<void> _toggleFullscreen() async {
+    if (!_isDesktop) return;
+    try {
+      final isFs = await WindowManager.instance.isFullScreen();
+      final int savedPage = _currentPage;
+      final bool wasRestoring = _restoringPage;
+      _restoringPage = true;
+      await _requestOsFullscreen(!isFs);
+      if (!mounted) return;
+      // 等窗口 resize → 引擎布局稳定后再重锚（SetWindowPos 返回后布局可能未完成）。
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      if (!mounted) return;
+      _restoringPage = wasRestoring;
+      _anchorCurrentPage(savedPage);
+    } on Object {
+      // 测试环境忽略。
+    }
+  }
+
+  /// 把视口重锚到第 [page] 页：PageView 用 jumpToPage（翻页模式，含双页 ÷2）、
+  /// 条漫用 itemScrollController.jumpTo(index, alignment: 0.0)（页顶钉视口顶，
+  /// 确定性瞬移，不排队动画，不会回弹）。无布局客户端时静默跳过。
+  void _anchorCurrentPage(int page) {
+    if (_images.isEmpty) return;
+    final int target = page.clamp(0, _images.length - 1);
+    if (_prefs.readingMode.isWebtoon) {
+      final isc = _itemScrollController;
+      if (isc != null && isc.isAttached) {
+        isc.jumpTo(index: target, alignment: 0.0);
+      }
+    } else {
+      final pc = _pageController;
+      if (pc != null && pc.hasClients) {
+        pc.jumpToPage(_isDoublePage ? target ~/ 2 : target);
+      }
+    }
+  }
+
+  /// 以视口中心为锚点的相对缩放（键盘 +/- 使用）。下限 minScale，上限 maxScale。
+  void _zoomBy(double factor) {
+    final m = _zoomController.value;
+    final double cur = m.getMaxScaleOnAxis();
+    final double newScale =
+        (cur * factor).clamp(_prefs.minScale, _prefs.maxScale);
+    final double realFactor = newScale / cur;
+    if (realFactor == 1.0) return;
+    // 键盘锚点取屏幕中心：左上原点输入换算到中心原点（Transform 系）即 (0,0)。
+    _zoomController.value = Matrix4.identity()
+      ..scale(realFactor)
+      ..multiply(m);
+  }
+
+  /// 双指捏合（屏幕级，[ReaderTapZones.onPinchUpdate] 回调）。以起手矩阵为基准、
+  /// 双指中点为锚点，按累计比例 [scaleFactor] 缩放并夹紧到 [minScale, maxScale]。
+  /// C2 根治：手势在覆盖层统一跟踪（不依赖每页 GestureDetector），条漫模式下
+  /// 双指落在不同页也能识别缩放。
+  Matrix4? _pinchBaseMatrix;
+
+  void _onPinchUpdate(double scaleFactor, Offset focal) {
+    _pinchBaseMatrix ??= Matrix4.copy(_zoomController.value);
+    final Matrix4 m = _pinchBaseMatrix!;
+    final double cur = m.getMaxScaleOnAxis();
+    final double target =
+        (cur * scaleFactor).clamp(_prefs.minScale, _prefs.maxScale);
+    final double realFactor = cur == 0 ? 1.0 : target / cur;
+    if (realFactor == 1.0) return;
+    final Size vp = MediaQuery.of(context).size;
+    // focal 是左上原点（覆盖层 localPosition），换算到中心原点（Transform 系）。
+    final Offset c = _toTransformAnchor(focal, vp);
+    final double dx = c.dx * (1 - realFactor);
+    final double dy = c.dy * (1 - realFactor);
+    _zoomController.value = Matrix4.identity()
+      ..translate(dx, dy)
+      ..scale(realFactor)
+      ..multiply(m);
+  }
+
+  void _onPinchEnd() {
+    _pinchBaseMatrix = null;
+  }
+
+  /// 触控板捏合（C2 桌面）：Windows precision touchpad 的捏合手势走
+  /// [PointerPanZoomUpdateEvent]（[ReaderTapZones.onTrackpadZoom] 透传），
+  /// [scale] 为累计比例、[focal] 为手势焦点——语义与触摸双指捏合完全一致，
+  /// 直接复用 [_onPinchUpdate]（以起手矩阵为基准、锚点换算同一套）。
+  void _onTrackpadZoom(double scale, Offset focal) {
+    _onPinchUpdate(scale, focal);
+  }
+
+  /// 触控板双指平移（放大态下平移图片）：增量语义与单指拖动一致，复用 [_onPanUpdate]。
+  void _onTrackpadPan(Offset delta) {
+    _onPanUpdate(delta);
+  }
+
+  /// 放大态单指拖动（屏幕级，[ReaderTapZones.onPanUpdate] 回调）。
+  /// 翻页模式：dx/dy 全转矩阵平移（图片在视口内移动）。
+  /// 条漫（外层整体 Transform 渲染级缩放）：dx/dy 全转矩阵平移——放大后拖动
+  /// 图片上下左右都能动（pan 语义，用户核心诉求）。放大后的滚动浏览由滚轮
+  /// 手动滚动承担（见 [_onPointerScroll]）；列表拖动滚动已被放大态 physics
+  /// （NeverScrollableScrollPhysics）禁用，故矩阵平移与列表滚动不会同时发生。
+  void _onPanUpdate(Offset delta) {
+    if (_zoomController.value.getMaxScaleOnAxis() <= 1.001) return;
+    if (delta == Offset.zero) return;
+    final Matrix4 m = Matrix4.copy(_zoomController.value)
+      ..leftTranslate(delta.dx, delta.dy);
+    final Size vp = MediaQuery.of(context).size;
+    _zoomController.value = _prefs.readingMode.isWebtoon
+        ? _clampWebtoonZoomMatrix(m, vp)
+        : _clampZoomMatrix(m, vp);
+  }
+
+  /// 滚轮 / 触控板滚动（屏幕级，[ReaderTapZones.onPointerSignal] 透传）。
+  /// 条漫（webtoon）：滚轮【始终】交还底层 Scrollable 连续滚动——未放大时滚动
+  /// 翻页，放大后滚动浏览全部放大图片（验收诉求「从上到下看完整列」）。缩放
+  /// 微调由 Ctrl+滚轮 / 双指捏合 / 双击承担。翻页模式按「鼠标滚轮作用」设置
+  /// 缩放或翻页。
+  void _onPointerScroll(PointerScrollEvent e) {
+    // Ctrl+滚轮 = 缩放：Windows 触控板驱动把「捏合缩放手势」映射为 Ctrl+滚轮
+    // （系统设置 → 触控板 → 缩放），非 precision 触控板捏合的通用兼容路径（C2 桌面）。
+    if (HardwareKeyboard.instance.isControlPressed) {
+      // 消费信号：阻止事件继续传给底层 Scrollable（否则缩放的同时列表也滚动）。
+      GestureBinding.instance.pointerSignalResolver.register(e, (_) {});
+      final double base = e.scrollDelta.dy < 0 ? 1.1 : 0.9;
+      final double factor =
+          _prefs.scrollWheelInverted ? (base == 1.1 ? 0.9 : 1.1) : base;
+      _zoomAroundScreen(e.localPosition, factor);
+      return;
+    }
+    // 条漫（webtoon）：
+    // - 未放大：交还底层 Scrollable 连续滚动（不 register、不拦截，事件继续传给
+    //   ScrollablePositionedList 正常滚动翻页）。
+    // - 放大态：列表拖动滚动已被 physics（NeverScrollableScrollPhysics）禁用，
+    //   而 Scrollable 收到滚轮信号也会因 shouldAcceptUserOffset=false 直接丢弃
+    //   （flutter scrollable.dart:955）→ 滚轮必须【手动】滚动列表：
+    //   ScrollOffsetController.animateScroll(offset, Duration.zero) 即相对像素瞬移
+    //   （底层 scrollController.animateTo；滚轮时无拖拽竞争，0 时长动画=瞬移）。
+    if (_prefs.readingMode.isWebtoon) {
+      final bool isZoomed = _zoomController.value.getMaxScaleOnAxis() > 1.001;
+      if (isZoomed) {
+        final double dy = e.scrollDelta.dy;
+        if (dy != 0.0) {
+          // ⚠️ duration 必须 > Duration.zero：Flutter 的 DrivenScrollActivity 断言
+          // `duration > Duration.zero`，传 zero 会抛 Uncaught zone error（实测崩溃）。
+          // 1ms 满足断言且视觉上≈瞬移；放大态列表拖动已禁（NeverScrollable），
+          // 滚轮滚动无拖拽竞争，1ms 动画安全（不回弹）。
+          // 异常用 catchError 兜底（unawaited 时 try-catch 捕不到 async 阶段的错误）。
+          final ScrollOffsetController? soc = _webtoonOffsetController;
+          if (soc != null) {
+            unawaited(soc
+                .animateScroll(
+                  offset: dy,
+                  duration: const Duration(milliseconds: 1),
+                )
+                .catchError((Object _) {}));
+          }
+        }
+      }
+      return;
+    }
+    // 翻页模式：消费信号阻止底层滚动，按「鼠标滚轮作用」设置缩放或翻页。
+    GestureBinding.instance.pointerSignalResolver.register(e, (_) {});
+    if (_prefs.mouseWheelAction == MouseWheelAction.page) {
+      final bool down = e.scrollDelta.dy > 0;
+      final bool next = _prefs.scrollWheelInverted ? !down : down;
+      next ? _goNextPage() : _goPrevPage();
+      return;
+    }
+    final double base = e.scrollDelta.dy < 0 ? 1.1 : 0.9;
+    final double factor =
+        _prefs.scrollWheelInverted ? (base == 1.1 ? 0.9 : 1.1) : base;
+    _zoomAroundScreen(e.localPosition, factor);
+  }
+
+  /// 以屏幕坐标 [focal]（左上原点）为锚点的相对缩放（滚轮使用）。
+  void _zoomAroundScreen(Offset focal, double factor) {
+    final m = _zoomController.value;
+    final double cur = m.getMaxScaleOnAxis();
+    final double newScale =
+        (cur * factor).clamp(_prefs.minScale, _prefs.maxScale);
+    final double realFactor = newScale / cur;
+    if (realFactor == 1.0) return;
+    final Size vp = MediaQuery.of(context).size;
+    final Offset c = _toTransformAnchor(focal, vp);
+    final double dx = c.dx * (1 - realFactor);
+    final double dy = c.dy * (1 - realFactor);
+    _zoomController.value = Matrix4.identity()
+      ..translate(dx, dy)
+      ..scale(realFactor)
+      ..multiply(m);
+  }
+
+  /// 左上原点坐标 → 中心原点坐标（Transform alignment:center 坐标系）。
+  /// 翻页模式 item ≈ 视口，换算用半视口。
+  /// 条漫：纵向平移归零（浏览交给列表滚动，参考 Mihon/Venera 交互模型），
+  /// 锚点 y 取 0 即不产生纵向位移，仅横向以手势 x 为锚。
+  Offset _toTransformAnchor(Offset focal, Size vp) {
+    if (_prefs.readingMode.isWebtoon) {
+      return Offset(focal.dx - vp.width / 2, 0);
+    }
+    return Offset(focal.dx - vp.width / 2, focal.dy - vp.height / 2);
   }
 
   /// 章内跳页：paged 用 PageController，webtoon 用 ItemScrollController。
@@ -1230,7 +1741,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       behavior: _NoOverscrollBehavior(),
       child: Scaffold(
         backgroundColor: bg,
-      body: Stack(
+      body: Focus(
+        // 键盘快捷键由 HardwareKeyboard 全局监听（见 initState），不再依赖本节点焦点，
+        // 故不设 autofocus / onKeyEvent，避免抢焦点干扰设置面板内的输入控件。
+        focusNode: _readerFocus,
+        child: Stack(
         children: <Widget>[
           _buildContent(l10n),
           if (!_loading && _error == null && _images.isNotEmpty)
@@ -1250,6 +1765,28 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               },
               onZoom: _toggleZoom,
               onZoomAt: (pos) => _toggleZoom(pos),
+              // 缩放感知：放大态单指单击不触发翻页/导航（P0 手势 bug）。
+              isZoomed: () => _zoomController.value.getMaxScaleOnAxis() > 1.001,
+              // 屏幕级捏合（C2 根治）：覆盖层统一跟踪双指，条漫跨页也生效。
+              onPinchUpdate: _onPinchUpdate,
+              onPinchEnd: _onPinchEnd,
+              // 放大态单指平移。
+              onPanUpdate: _onPanUpdate,
+              // 滚轮 / 触控板滚动（缩放或翻页）。
+              onPointerSignal: _onPointerScroll,
+              // 触控板捏合 / 双指平移（C2 桌面：precision touchpad 独立事件流）。
+              onTrackpadZoom: _onTrackpadZoom,
+              onTrackpadPan: _onTrackpadPan,
+              // 桌面右键：弹出图片操作菜单（保存 / 分享 / 设封面），与长按同款。
+              onSecondaryTap: (_images.isEmpty)
+                  ? null
+                  : () => showReaderImageActions(
+                        context: context,
+                        url: _images[_currentPage.clamp(0, _images.length - 1)],
+                        source: _source,
+                        comicId: widget.comicId,
+                        sourceType: SourceType.mangaSource,
+                      ),
               onTapIntercept: () {
                 if (_showInlineSettings) {
                   _toggleInlineSettings();
@@ -1316,6 +1853,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             _buildRightProgressBar(l10n),
           if (_showInlineSettings) _buildInlineSettings(l10n),
         ],
+      ),
       ),
       ),
     );
@@ -1430,7 +1968,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           source: _source,
           rotationQuarterTurns: _pageRotations[i] ?? 0,
           cropEdge: _prefs.cropEdge,
-          onWheelPage: (next) => next ? _goNextPage() : _goPrevPage(),
         ),
       ),
     );
@@ -1465,8 +2002,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               source: _source,
               rotationQuarterTurns: _pageRotations[a] ?? 0,
               cropEdge: _prefs.cropEdge,
-              onWheelPage: (next) => next ? _goNextPage() : _goPrevPage(),
-            ),
+                ),
           ),
         ];
         if (bImg != null) {
@@ -1479,8 +2015,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               source: _source,
               rotationQuarterTurns: _pageRotations[b] ?? 0,
               cropEdge: _prefs.cropEdge,
-              onWheelPage: (next) => next ? _goNextPage() : _goPrevPage(),
-            ),
+                ),
             ),
           );
         }
@@ -1752,15 +2287,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     int restoreIndex,
     double gap,
   ) {
-    return ScrollablePositionedList.separated(
+    final Widget list = ScrollablePositionedList.separated(
       key: ValueKey('webtoon-$_chapterIndex'),
       itemScrollController: isc,
       // 相对像素滚动：供「回到上一话末页」收尾时把末页底边精确补到视口底。
       scrollOffsetController: _webtoonOffsetController,
       itemPositionsListener: ipl,
       initialScrollIndex: restoreIndex,
-      // 连续滚动（条漫）：用 ClampingScrollPhysics 平滑滚动，边界夹紧、无回弹。
-      // 放大时改为 NeverScrollable：把拖拽让给图片自身的平移手势，避免与滚动打架。
+      // 连续滚动（条漫）：未放大 ClampingScrollPhysics 平滑滚动、边界夹紧无回弹；
+      // 放大态（_zoomed）切 NeverScrollableScrollPhysics：禁【拖动】滚动（拖动
+      // 交给外层矩阵平移 = 上下左右都能拖图），滚轮改由 [_onPointerScroll] 手动
+      // animateScroll(0 时长瞬移) 滚动列表（Scrollable 因 physics 不再处理滚轮信号）。
+      // 注意：physics 必须用 _zoomed（_onZoomChanged 在放大态切换时 setState），
+      // 不能直接读 _zoomController.value（list 在 AnimatedBuilder 外构建，不随缩放重建）。
       physics: _zoomed
           ? const NeverScrollableScrollPhysics()
           : const ClampingScrollPhysics(),
@@ -1772,11 +2311,37 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         child: MangaPageImage(
           url: _images[i],
           prefs: _prefs,
-          zoomController: _zoomController,
           source: _source,
           rotationQuarterTurns: _pageRotations[i] ?? 0,
           cropEdge: _prefs.cropEdge,
-          onWheelPage: (next) => next ? _goNextPage() : _goPrevPage(),
+          // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
+          // 每页一起放大、间距等比，天然不重叠（C2 复测「每张照片放大导致重叠」）。
+          zoomEnabled: () => false,
+        ),
+      ),
+    );
+    // 条漫整体缩放：把 [_zoomController] 矩阵应用到【整个列表】（参考 Venera
+    // PhotoView.customChild(childSize: 视口尺寸) + SizedBox(视口) 结构）。
+    //
+    // 结构：ClipRect（视口裁剪）→ Transform（缩放矩阵）→ SizedBox.expand（显式
+    // 视口尺寸，= Venera 的 childSize）→ ScrollablePositionedList（内部滚动）。
+    // 列表滚动发生在视口内部：滚动把不同图片送进视口，视口整体被 Transform 放大 →
+    // 滚动时看到的每一张图都是放大后的版本，可从上到下浏览全部图片。
+    //
+    // 【为什么不用 InteractiveViewer / 裸 Transform】：
+    // - 裸 Transform + AnimatedBuilder：缩放矩阵变化必然 rebuild，画面跟手；
+    //   Stack 默认 Clip.hardEdge 裁剪视口外溢出（等效下方 ClipRect），属正常视口。
+    // - InteractiveViewer：内部 GestureDetector(HitTestBehavior.opaque) 的
+    //   ScaleGestureRecognizer 会参与手势竞技场、抢走单指拖动 → 放大后列表滚不动
+    //   （"显示区域只在放大的区域"）；且该版本无 _onTransformationControllerChange，
+    //   外部改矩阵后 1x↔0.5x 不触发 rebuild → 缩放画面不刷新、三态循环错乱。
+    return AnimatedBuilder(
+      animation: _zoomController,
+      builder: (context, _) => ClipRect(
+        child: Transform(
+          transform: _zoomController.value,
+          alignment: Alignment.center,
+          child: SizedBox.expand(child: list),
         ),
       ),
     );
@@ -2250,9 +2815,10 @@ class MangaPageImage extends StatefulWidget {
   /// 是否裁边（true 时图片 fit 切换为 cover + 居中对齐，去除四周留白）。
   final bool cropEdge;
 
-  /// 滚轮翻页回调（参数为 true 表示下一页、false 表示上一页）；仅在
-  /// [ReaderPreferences.mouseWheelAction] 为 [MouseWheelAction.page] 时使用。
-  final void Function(bool next)? onWheelPage;
+  /// 是否应用缩放矩阵（默认恒 true）。条漫模式下**只有当前页放大**（其余页恒等）：
+  /// item 高度不随缩放变化，若每页各自放大，相邻页的放大内容会互相重叠
+  /// （C2 复测 bug「每张照片放大导致照片重叠」）。返回 false 的 item 用恒等矩阵。
+  final bool Function()? zoomEnabled;
 
   const MangaPageImage({
     super.key,
@@ -2262,7 +2828,7 @@ class MangaPageImage extends StatefulWidget {
     this.source,
     this.rotationQuarterTurns = 0,
     this.cropEdge = false,
-    this.onWheelPage,
+    this.zoomEnabled,
   });
 
   @override
@@ -2273,35 +2839,11 @@ class _MangaPageImageState extends State<MangaPageImage> {
   final TransformationController _local = TransformationController();
   TransformationController get _tc => widget.zoomController ?? _local;
 
-  /// 当前是否处于放大状态（scale > 1）。仅放大时才在 build 里挂载 GestureDetector
-  /// 处理平移 / 捏合；未放大时把指针事件让给底层 PageView / ListView，使翻页 /
-  /// 滚动生效。
-  bool _zoomed = false;
-
-  /// pan / pinch 手势起点的初始矩阵（[_handleScaleStart] 时复制 [_tc.value]）。
-  Matrix4? _scaleStartMatrix;
-
-  /// pan / pinch 手势起点的局部焦点（用于单指 pan 的累计偏移计算）。
-  Offset? _scaleStartFocal;
-
-  @override
-  void initState() {
-    super.initState();
-    _tc.addListener(_onTransformChanged);
-    _syncZoomed();
-  }
-
-  void _onTransformChanged() {
-    final zoomed = _tc.value.getMaxScaleOnAxis() > 1.001;
-    if (zoomed != _zoomed && mounted) setState(() => _zoomed = zoomed);
-  }
-
-  void _syncZoomed() =>
-      _zoomed = _tc.value.getMaxScaleOnAxis() > 1.001;
+  // 手势（捏合 / 平移 / 滚轮）已全部上提到阅读器屏幕级（ReaderTapZones），
+  // 本组件只负责渲染，不再持有缩放手势状态。
 
   @override
   void dispose() {
-    _tc.removeListener(_onTransformChanged);
     _local.dispose();
     super.dispose();
   }
@@ -2361,59 +2903,31 @@ class _MangaPageImageState extends State<MangaPageImage> {
       child: img,
     );
     // 把 [_tc] 的矩阵应用到 rotated 上，得到「已缩放/已平移」的最终图像。
-    // 必须用 AnimatedBuilder 监听 [_tc]：滚轮 / 双击 / 捏合每次改值都会即时重建
-    // Transform，画面才「跟手」。否则只有 [_zoomed] 翻转那一瞬间才 setState，
-    // 连续捏合时画面完全不动，表现为「放缩不是实时更新」。
+    // 必须用 AnimatedBuilder 监听 [_tc]：屏幕级滚轮 / 双击 / 捏合每次改值都会即时
+    // 重建 Transform，画面才「跟手」。
     // [rotated] 作为 child 传入并缓存，避免每帧重建图片加载子树。
-    final transformed = AnimatedBuilder(
+    //
+    // 注意：捏合 / 平移 / 滚轮等手势已全部上提到阅读器屏幕级（ReaderTapZones 覆盖层
+    // 统一跟踪，见 ComicReaderScreenState._onPinchUpdate/_onPanUpdate/_onPointerScroll），
+    // 本组件只负责渲染——条漫模式下双指落在不同页也能识别缩放（C2 根治），且不再有
+    // 每页 GestureDetector 与覆盖层/滚动的手势竞争。
+    return AnimatedBuilder(
       animation: _tc,
-      builder: (context, child) => Transform(
-        transform: _tc.value,
-        alignment: Alignment.center,
-        child: child,
-      ),
-      child: rotated,
-    );
-    return Listener(
-      // 用 translucent：让外层 Listener 始终在命中路径中（即便内部 GestureDetector
-      // 是 opaque）。我们的 Listener 是路径里唯一的 wheel 处理者（替换掉原来的
-      // InteractiveViewer 后，不会再有更深的 Listener 与我们竞争 resolver），所
-      // 以滚轮缩放 / 翻页在「未放大」与「已放大」两种状态都生效。
-      behavior: HitTestBehavior.translucent,
-      onPointerSignal: (e) {
-        if (e is! PointerScrollEvent) return;
-        // 条漫（连续滚动）模式：未放大时滚轮交给原生 ListView 连续滚动（翻页），
-        // 已放大时由我们接管缩放。条漫下「作用」设置无意义，这里按上下文自动分派：
-        // 没放大=滚动，已放大=缩放；双击任意处可进入放大态。
-        if (widget.prefs.readingMode.isWebtoon) {
-          final bool isZoomed = _tc.value.getMaxScaleOnAxis() > 1.001;
-          if (!isZoomed) return; // 原生连续滚动（翻页）
-        }
-        // 通过 pointerSignalResolver 抢占滚轮事件：我们的 Listener 比底层 Scrollable
-        // 更深（先注册 → 胜出），从而阻止 Scrollable 同时翻页/滚动。由 [_onWheel] 决定缩放。
-        GestureBinding.instance.pointerSignalResolver
-            .register(e, (_) => _onWheel(e));
+      builder: (context, child) {
+        // 条漫仅当前页放大（[widget.zoomEnabled] 为 false 的 item 用恒等矩阵），
+        // 否则每页各自放大、item 高度不变 → 相邻页内容重叠。
+        final bool active = widget.zoomEnabled?.call() ?? true;
+        // ClipRect：item 高度不变，放大页内容溢出 item 框时裁剪；放大细节通过
+        // 矩阵平移（tx/ty）在框内查看（放大态滚动已禁用，拖拽走 [_onPanUpdate]）。
+        return ClipRect(
+          child: Transform(
+            transform: active ? _tc.value : Matrix4.identity(),
+            alignment: Alignment.center,
+            child: child,
+          ),
+        );
       },
-      // 放缩手势常驻：翻页模式下一律挂载 GestureDetector（translucent），使「未放大时
-      // 双指捏合也能直接放大」；条漫模式为避免与列表原生竖向滚动抢手势，仅在已放大时
-      // 挂载（未放大时用双击缩放进入放大态、再捏合微调）。单指平移仅在已放大时生效，
-      // 未放大的单指交给底层 PageView / ListView 翻页或滚动，避免误吞原生手势。
-      //
-      // 重要：不要在这里用 InteractiveViewer。它的内部 Listener
-      // （interactive_viewer.dart:1088 `_receivedPointerSignal`）始终在命中路径
-      // 中——比我们的外层 Listener 更深，会先于我们注册到 pointerSignalResolver
-      // 抢走滚轮事件；且即使 `scaleEnabled: false`，它也只是让 handler 静默返回，
-      // 事件依然被消费掉，导致「已放大后滚轮失效」（设置面板的「作用 / 方向」按
-      // 钮点击都看似无效）。这里自管 Transform + GestureDetector 是根治方案。
-      child: (!widget.prefs.readingMode.isWebtoon || _zoomed)
-          ? GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onScaleStart: _handleScaleStart,
-              onScaleUpdate: _handleScaleUpdate,
-              onScaleEnd: _handleScaleEnd,
-              child: transformed,
-            )
-          : transformed,
+      child: rotated,
     );
   }
 
@@ -2434,98 +2948,49 @@ class _MangaPageImageState extends State<MangaPageImage> {
         return (BoxFit.none, null);
     }
   }
+}
 
-  void _onWheel(PointerScrollEvent e) {
-    // 条漫（连续滚动）模式：能进入此分支说明已放大（onPointerSignal 仅在已放大时
-    // 注册滚轮）。滚轮一律缩放（微调），方向（自然/反向）照常生效，配合单指/鼠标
-    // 拖动平移。未放大时滚轮走原生连续滚动（翻页），不经过此处。
-    if (widget.prefs.readingMode.isWebtoon) {
-      final double base = e.scrollDelta.dy < 0 ? 1.1 : 0.9;
-      final double factor =
-          widget.prefs.scrollWheelInverted ? (base == 1.1 ? 0.9 : 1.1) : base;
-      _zoomAround(e.localPosition, factor);
-      return;
-    }
-    // 翻页模式：按「作用」区分翻页 / 缩放。
-    if (widget.prefs.mouseWheelAction == MouseWheelAction.page) {
-      // 下滚=下一页，上滚=上一页；scrollWheelInverted 反转「下一/上一页」方向。
-      final bool down = e.scrollDelta.dy > 0;
-      final bool next = widget.prefs.scrollWheelInverted ? !down : down;
-      widget.onWheelPage?.call(next);
-      return;
-    }
-    // 滚轮缩放：scrollWheelInverted 反转方向（上滚放大、下滚缩小；反向则互换）。
-    final double base = e.scrollDelta.dy < 0 ? 1.1 : 0.9;
-    final double factor =
-        widget.prefs.scrollWheelInverted ? (base == 1.1 ? 0.9 : 1.1) : base;
-    _zoomAround(e.localPosition, factor);
+/// 缩放矩阵的平移夹取（中心原点坐标系，配合 [MangaPageImage] 的
+/// `Transform(alignment: Alignment.center)`）。屏幕侧 [didChangeMetrics] 与
+/// [MangaPageImageState] 手势共用，避免两处逻辑漂移。
+///
+/// - scale ≤ ~1.001：平移清零，图片居中（缩回 1x 不残留起手平移）。
+/// - scale > 1：平移夹紧到「图片至少贴合视口」，避免放大后拖出屏幕。
+/// 上界以视口尺寸为准（fitWidth / fitHeight 下图片宽高 ≈ 视口），足矣阻止出屏。
+Matrix4 _clampZoomMatrix(Matrix4 m, Size vp) {
+  final double s = m.getMaxScaleOnAxis();
+  if (s <= 1.001) {
+    m.setTranslationRaw(0, 0, 0);
+    return m;
   }
+  final double maxX = (s - 1) * vp.width / 2;
+  final double maxY = (s - 1) * vp.height / 2;
+  double tx = m.getTranslation().x;
+  double ty = m.getTranslation().y;
+  tx = tx.clamp(-maxX, maxX);
+  ty = ty.clamp(-maxY, maxY);
+  m.setTranslationRaw(tx, ty, 0);
+  return m;
+}
 
-  void _zoomAround(Offset focal, double factor) {
-    final m = _tc.value;
-    final cur = m.getMaxScaleOnAxis();
-    final newScale =
-        (cur * factor).clamp(widget.prefs.minScale, widget.prefs.maxScale);
-    final realFactor = newScale / cur;
-    final dx = focal.dx * (1 - realFactor);
-    final dy = focal.dy * (1 - realFactor);
-    _tc.value = Matrix4.identity()
-      ..translate(dx, dy)
-      ..scale(realFactor)
-      ..multiply(m);
+/// 条漫缩放矩阵平移夹取（外层 Transform 围绕视口中心放大整条列表）：
+/// 横向按图片宽度（≈ 视口宽 × s）精确夹取、贴边即停；纵向在列表滚动到边界时
+/// 转矩阵平移（放大内容的屏幕外部分），精确上界需列表总高，用「视口高 × 缩放
+/// 余量」大值兜底——保证放大后能拖到长条图的任意纵向位置。
+Matrix4 _clampWebtoonZoomMatrix(Matrix4 m, Size vp) {
+  final double s = m.getMaxScaleOnAxis();
+  if (s <= 1.001) {
+    m.setTranslationRaw(0, 0, 0);
+    return m;
   }
-
-  // ──────────────────── 平移 / 捏合手势（仅 [_zoomed] = true 时挂载） ─────
-
-  /// 记录 pan / pinch 起点的初始矩阵与焦点。
-  ///
-  /// 未放大且为单指时不接管手势（交给底层翻页 / 滚动），不记录基准矩阵；
-  /// 双指捏合即便从未放大也立即接管，实现「未放大即可直接捏合放大」。
-  void _handleScaleStart(ScaleStartDetails details) {
-    if (!_zoomed && details.pointerCount < 2) {
-      _scaleStartMatrix = null;
-      _scaleStartFocal = null;
-      return;
-    }
-    _scaleStartMatrix = Matrix4.copy(_tc.value);
-    _scaleStartFocal = details.localFocalPoint;
-  }
-
-  /// pan / pinch 更新：双指 → 捏合缩放（以起手时的矩阵为基准、累计 scale 应用，
-  /// 常驻生效，未放大也能直接放大）；单指 → 仅在已放大时平移（以起手焦点为基准、
-  /// 累计 focal 偏移应用），未放大时单指交还底层滚动 / 翻页。
-  void _handleScaleUpdate(ScaleUpdateDetails details) {
-    if (_scaleStartMatrix == null || _scaleStartFocal == null) return;
-    if (details.pointerCount >= 2) {
-      // 捏合：以起手矩阵为基准，按累计 [details.scale] 缩放并夹紧到 [minScale, maxScale]。
-      // 此分支常驻生效，即便当前 scale == 1（未放大）也能直接放大。
-      final Matrix4 base = _scaleStartMatrix!;
-      final double startScale = base.getMaxScaleOnAxis();
-      final double target =
-          (startScale * details.scale)
-              .clamp(widget.prefs.minScale, widget.prefs.maxScale);
-      final double realFactor = startScale == 0 ? 1.0 : target / startScale;
-      final Offset focal = details.localFocalPoint;
-      final double dx = focal.dx * (1 - realFactor);
-      final double dy = focal.dy * (1 - realFactor);
-      _tc.value = Matrix4.identity()
-        ..translate(dx, dy)
-        ..scale(realFactor)
-        ..multiply(base);
-    } else {
-      // 单指 pan：仅在已放大时平移；未放大时不处理，由底层 PageView / ListView 接管。
-      if (!_zoomed) return;
-      final Offset delta = details.localFocalPoint - _scaleStartFocal!;
-      final Matrix4 m = Matrix4.copy(_scaleStartMatrix!)
-        ..leftTranslate(delta.dx, delta.dy);
-      _tc.value = m;
-    }
-  }
-
-  void _handleScaleEnd(ScaleEndDetails details) {
-    _scaleStartMatrix = null;
-    _scaleStartFocal = null;
-  }
+  final double maxX = (s - 1) * vp.width / 2;
+  final double maxY = (s - 1) * vp.height * 8;
+  double tx = m.getTranslation().x;
+  double ty = m.getTranslation().y;
+  tx = tx.clamp(-maxX, maxX);
+  ty = ty.clamp(-maxY, maxY);
+  m.setTranslationRaw(tx, ty, 0);
+  return m;
 }
 
 /// 关闭阅读器内所有滚动组件的「回弹」（橡皮筋）与 overscroll 发光指示器。
