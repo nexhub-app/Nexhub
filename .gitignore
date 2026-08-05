@@ -90,8 +90,8 @@ sdk/
 plugins/builtin/*.json
 reference/
 
-# 参考仓库镜像（5 大对标仓库的本地副本，含第三方源码，体积大且非本项目源码，不入库）
-_refs_reader/
+# 本地重要数据（体积大，不入库）
+ku/
 
 # ===== 开发/探针/AI 工具产生的临时产物（不入库）=====
 .probe_tmp/
