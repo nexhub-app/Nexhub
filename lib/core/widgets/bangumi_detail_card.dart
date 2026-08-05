@@ -838,7 +838,7 @@ class _StatChip extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Icon(icon, size: 14, color: scheme.onSurfaceVariant),
-        const SizedBox(width: 2),
+        const SizedBox(width: AppTokens.spaceXxs),
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(

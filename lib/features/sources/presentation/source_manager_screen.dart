@@ -141,7 +141,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
         ),
         decoration: BoxDecoration(
           color: scheme.errorContainer.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         ),
         child: Row(
           children: <Widget>[
@@ -931,7 +931,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: AppTokens.spaceXxs),
                       Text(
                         lib.url,
                         maxLines: 1,
@@ -1295,7 +1295,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               ),
               decoration: BoxDecoration(
                 color: scheme.errorContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               ),
               child: Row(
                 children: <Widget>[

@@ -48,7 +48,7 @@ class AppSegmentedTabs<T> extends StatelessWidget {
       height: 40,
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
       ),
       clipBehavior: Clip.antiAlias,
       child: LayoutBuilder(
@@ -163,7 +163,7 @@ class _EqualSegment<T> extends StatelessWidget {
             ),
             child: icon!,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppTokens.spaceXs),
           label!,
         ],
       );

@@ -712,7 +712,7 @@ class _BookshelfGrid extends StatelessWidget {
                               BorderRadius.circular(AppTokens.radiusFull),
                           onTap: () => _confirmDelete(ctx, item),
                           child: Container(
-                            padding: const EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(AppTokens.spaceXs),
                             decoration: const BoxDecoration(
                               color: Colors.black54,
                               shape: BoxShape.circle,

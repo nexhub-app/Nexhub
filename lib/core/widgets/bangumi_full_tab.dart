@@ -475,7 +475,7 @@ class _BangumiHeaderCard extends StatelessWidget {
                 if (rating.hasScore)
                   Row(children: [
                     Icon(Icons.star, color: scheme.primary, size: 18),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppTokens.spaceXs),
                     Text(rating.score.toStringAsFixed(1),
                       style: theme.textTheme.titleSmall?.copyWith(
                         color: scheme.primary, fontWeight: FontWeight.bold)),
@@ -495,7 +495,7 @@ class _BangumiHeaderCard extends StatelessWidget {
                 else
                   Text(l10n.bangumiNoRating,
                     style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTokens.spaceXxs),
                 Text('数据来自 Bangumi',
                   style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
               ],
@@ -591,7 +591,7 @@ class _DetailBodyState extends State<_DetailBody> {
           const SizedBox(width: AppTokens.spaceMd),
           if (widget.rating.rank > 0) ...<Widget>[
             Icon(Icons.emoji_events_outlined, size: 16, color: scheme.tertiary),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppTokens.spaceXs),
             Text(l10n.bangumiRank(widget.rating.rank),
               style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
             const SizedBox(width: AppTokens.spaceMd),
@@ -687,7 +687,7 @@ class _CollectionChip extends StatelessWidget {
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: <Widget>[
         Icon(icon, size: 16, color: color),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppTokens.spaceXs),
         Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: <Widget>[
           Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color)),
           Text('$count', style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -715,7 +715,7 @@ class _CharacterTile extends StatelessWidget {
         ) : Container(color: theme.colorScheme.surfaceContainerHighest,
           child: const Center(child: Icon(Icons.person_outline))),
       )),
-      const SizedBox(height: 4),
+      const SizedBox(height: AppTokens.spaceXs),
       Text(char.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelSmall),
       if (char.actor != null) Text(char.actor!.displayName, maxLines: 1, overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
@@ -741,7 +741,7 @@ class _StaffTile extends StatelessWidget {
         ) : Container(color: scheme.surfaceContainerHighest,
           child: const Center(child: Icon(Icons.person_outline))),
       )),
-      const SizedBox(height: 4),
+      const SizedBox(height: AppTokens.spaceXs),
       Text(staff.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelSmall),
       if (staff.relation != null) Text(staff.relation!, maxLines: 1, overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodySmall?.copyWith(color: scheme.primary)),

@@ -158,7 +158,7 @@ class _BangumiBindSheetState extends State<_BangumiBindSheet> {
                   border: const OutlineInputBorder(),
                   suffixIcon: _searching
                       ? const Padding(
-                          padding: EdgeInsets.all(12),
+                          padding: EdgeInsets.all(AppTokens.spaceMd),
                           child: SizedBox(
                             width: 16,
                             height: 16,

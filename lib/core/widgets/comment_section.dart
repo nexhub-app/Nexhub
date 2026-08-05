@@ -529,7 +529,7 @@ class _CommentTileState extends State<CommentTile> {
                     ),
                   ),
                   if (_likeCount != null) ...<Widget>[
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppTokens.spaceXs),
                     Text(
                       '$_likeCount',
                       style: theme.textTheme.labelSmall

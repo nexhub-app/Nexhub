@@ -359,7 +359,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           showSelectedIcon: false,
           style: ButtonStyle(
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 8)),
+            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm)),
             visualDensity: VisualDensity.compact,
           ),
         ),
