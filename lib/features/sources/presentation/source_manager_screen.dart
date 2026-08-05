@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/auth/source_auth_manager.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/services/config_loader.dart';
 import '../../../core/services/source_library_subscription.dart';
@@ -656,6 +657,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           Material(
             color: scheme.surface,
             child: TabBar(
+              // 窄屏可滚动，避免图标+文案被挤压重叠（项 1 一并改内层分类栏）。
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               tabs: <Widget>[
                 Tab(icon: const Icon(Icons.book), text: l10n.sourceCategoryNovel),
                 Tab(icon: const Icon(Icons.movie), text: l10n.sourceCategoryMedia),
@@ -703,6 +707,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     List<PluginConfig> sources,
   ) {
     // 顶部聚合展示各源公告（声明了 announcement 且未被本会话关闭的源）。
+    // 监听登录态：源登录/登出后列表实时刷新「未登录」徽章（项 2）。
+    final SourceAuthManager auth = context.watch<SourceAuthManager>();
     final banners = sources
         .where((s) =>
             s.announcement != null && !_dismissedAnnouncements.contains(s.id))
@@ -729,6 +735,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                 deprecated: s.isDeprecated,
                 ageRating: s.ageRating,
                 isHidden: s.isHidden,
+                // 项 2：仅对声明了登录入口、且当前未登录的源显示「未登录」。
+                showNotLoggedIn:
+                    s.comments?.supportsLogin == true && !auth.isLoggedIn(s),
                 deprecatedLabel: l10n.deprecated,
                 mirrorSettingsTooltip: l10n.mirrorSettings,
                 hideTooltip: l10n.sourceHide,
