@@ -266,7 +266,7 @@ class _LoginOptionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(title, style: theme.textTheme.labelLarge),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppTokens.spaceXxs),
                 Text(
                   subtitle,
                   style: theme.textTheme.bodySmall?.copyWith(

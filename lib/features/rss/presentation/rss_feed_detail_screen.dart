@@ -161,7 +161,7 @@ class _RssItemTile extends StatelessWidget {
               if (item.author != null) ...[
                 Icon(Icons.person_outline,
                     size: 12, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 2),
+                const SizedBox(width: AppTokens.spaceXxs),
                 Flexible(
                   child: Text(
                     item.author!,
@@ -177,7 +177,7 @@ class _RssItemTile extends StatelessWidget {
               if (item.publishedAt != null) ...[
                 Icon(Icons.schedule,
                     size: 12, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 2),
+                const SizedBox(width: AppTokens.spaceXxs),
                 Text(
                   _formatDate(item.publishedAt!),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(

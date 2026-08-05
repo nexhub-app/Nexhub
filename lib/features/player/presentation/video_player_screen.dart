@@ -3660,7 +3660,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 播放统计面板的单行「标签: 值」。标签列上限 140（窄屏自动让位，值换行）。
   Widget _statsRow(String label, String value, {TextStyle? valueStyle}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXxs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -3734,17 +3734,17 @@ class _DanmakuToggle extends StatelessWidget {
         tooltip: l10n.danmaku,
         onPressed: onToggle,
         constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(AppTokens.spaceXs),
       );
     }
 
     // 开启态：高亮背景 + 实心图标 + 发送 + 设置
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 2),
+      margin: const EdgeInsets.symmetric(horizontal: AppTokens.spaceXxs),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withOpacity(0.25),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
         border: Border.all(color: theme.colorScheme.primary.withOpacity(0.6)),
       ),
       child: Row(
@@ -3901,7 +3901,7 @@ class _MarqueeTextState extends State<_MarqueeText>
       controller: _scrollController,
       physics: const NeverScrollableScrollPhysics(),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm),
         child: Text(widget.text, style: widget.style),
       ),
     );

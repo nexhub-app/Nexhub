@@ -786,7 +786,7 @@ class _ConflictResolveSheetState extends State<_ConflictResolveSheet> {
           Row(
             children: <Widget>[
               Icon(Icons.phone_android, size: 12, color: theme.hintColor),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppTokens.spaceXs),
               Expanded(
                 child: Text(
                   '${l10n.cloudSyncConflictLocal}：${c.localPreview}',
@@ -798,7 +798,7 @@ class _ConflictResolveSheetState extends State<_ConflictResolveSheet> {
           Row(
             children: <Widget>[
               Icon(Icons.cloud, size: 12, color: theme.hintColor),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppTokens.spaceXs),
               Expanded(
                 child: Text(
                   '${l10n.cloudSyncConflictRemote}：${c.remotePreview}',

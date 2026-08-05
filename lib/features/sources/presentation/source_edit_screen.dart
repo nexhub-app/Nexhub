@@ -115,7 +115,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.all(12),
+                  contentPadding: EdgeInsets.all(AppTokens.spaceMd),
                 ),
               ),
             ),
@@ -123,7 +123,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
               const SizedBox(height: AppTokens.spaceSm),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppTokens.spaceMd),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.errorContainer,
                   borderRadius: BorderRadius.circular(AppTokens.radiusSm),

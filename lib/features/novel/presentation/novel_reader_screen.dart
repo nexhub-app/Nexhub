@@ -135,7 +135,7 @@ Future<int?> _pickSleepMinutes({
               ),
               if (customActive)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8, left: 12, right: 12),
+                  padding: const EdgeInsets.only(top: AppTokens.spaceSm, left: AppTokens.spaceMd, right: AppTokens.spaceMd),
                   child: TextField(
                     autofocus: true,
                     keyboardType: TextInputType.number,
@@ -1386,7 +1386,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               tooltip: l10n.ttsPrevSentence,
               visualDensity: VisualDensity.compact,
               onPressed: () => _tts.prev(),
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppTokens.spaceXs),
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
@@ -1400,7 +1400,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   _tts.resume();
                 }
               },
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppTokens.spaceXs),
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
@@ -1408,7 +1408,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               tooltip: l10n.ttsExit,
               visualDensity: VisualDensity.compact,
               onPressed: () => _tts.stop(),
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppTokens.spaceXs),
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
@@ -1416,7 +1416,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               tooltip: l10n.ttsNextSentence,
               visualDensity: VisualDensity.compact,
               onPressed: () => _tts.next(),
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppTokens.spaceXs),
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
@@ -1424,7 +1424,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               tooltip: l10n.ttsSleepTimer,
               visualDensity: VisualDensity.compact,
               onPressed: _showSleepTimerPicker,
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppTokens.spaceXs),
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
@@ -1436,7 +1436,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 _tts.setBackground(next);
                 _onPrefsChanged(_prefs.copyWith(ttsBackground: next));
               },
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(AppTokens.spaceXs),
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
           ],
@@ -1466,7 +1466,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         ),
         if (remaining != null)
           Padding(
-            padding: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.only(top: AppTokens.spaceXxs),
             child: Text(
               l10n.ttsSleepRemaining(
                 remaining.inMinutes,
@@ -3017,7 +3017,7 @@ class _NovelPageWidget extends StatelessWidget {
         ? Container(
             decoration: BoxDecoration(
               color: prefs.resolveTextColor(bg).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(AppTokens.radiusXs),
             ),
             padding: const EdgeInsets.symmetric(
                 horizontal: 4, vertical: 2),
@@ -3179,7 +3179,7 @@ class _TapZonePreviewOverlay extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
                   border: Border.all(color: Theme.of(context).dividerColor),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                 ),
               ),
               // 各区域色块 + 标签
@@ -3193,7 +3193,7 @@ class _TapZonePreviewOverlay extends StatelessWidget {
                         color: _colorFor(entry.value).withValues(alpha: 0.6),
                         width: 1.5,
                       ),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(AppTokens.radiusXs),
                     ),
                     alignment: Alignment.center,
                     child: Text(
@@ -3549,7 +3549,7 @@ class _NovelInlineSettings extends StatelessWidget {
                             border: Border.all(
                               color: Theme.of(context).colorScheme.outline,
                             ),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                           ),
                         ),
                       ),
@@ -3628,7 +3628,7 @@ class _NovelInlineSettings extends StatelessWidget {
                                 border: Border.all(
                                   color: Theme.of(context).colorScheme.outline,
                                 ),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                               ),
                             ),
                           ),
@@ -3999,7 +3999,7 @@ class _NovelInlineSettings extends StatelessWidget {
                                             .colorScheme
                                             .outline,
                                       ),
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                                     ),
                                   ),
                                 ),
@@ -4195,7 +4195,7 @@ class _NovelInlineSettings extends StatelessWidget {
                                         color:
                                             Theme.of(context).colorScheme.outline,
                                       ),
-                                      borderRadius: BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                                     ),
                                   ),
                                 ),
@@ -4768,7 +4768,7 @@ class _NovelInlineSettings extends StatelessWidget {
                 border: Border.all(
                   color: Theme.of(context).colorScheme.outline,
                 ),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppTokens.radiusSm),
               ),
             ),
           ),

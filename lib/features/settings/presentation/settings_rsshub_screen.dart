@@ -346,7 +346,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
                   horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(AppTokens.radiusXs),
               ),
               child: Text(
                 l10n.presetInstanceOfficial,
@@ -415,7 +415,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
         width: 20,
         height: 20,
         child: Padding(
-          padding: EdgeInsets.all(2),
+          padding: EdgeInsets.all(AppTokens.spaceXxs),
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       );

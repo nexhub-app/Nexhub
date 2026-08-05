@@ -42,6 +42,7 @@ import '../../core/scraper/cookie_store.dart';
 import '../../core/scraper/http_fetcher.dart';
 import '../../core/theme/theme_controller.dart';
 import '../shuyuan/presentation/shuyuan_novel_resolver.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// Holds all artifacts produced during app initialization.
 ///
@@ -363,7 +364,7 @@ class _SplashView extends StatelessWidget {
               width: 120,
               height: 120,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppTokens.spaceXl),
             // 灵动三点弹跳加载（替代转圈），与全应用加载动效统一。
             AppBouncingDots(color: theme.colorScheme.primary),
           ],
@@ -392,7 +393,7 @@ class _ErrorView extends StatelessWidget {
       backgroundColor: theme.colorScheme.surface,
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(AppTokens.space2xl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -401,13 +402,13 @@ class _ErrorView extends StatelessWidget {
                 size: 64,
                 color: theme.colorScheme.error,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppTokens.spaceLg),
               Text(
                 l10n.loadFailed,
                 style: theme.textTheme.titleMedium,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppTokens.spaceXl),
               FilledButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),

@@ -424,7 +424,7 @@ class _TopTabItem extends StatelessWidget {
               size: 22,
               color: selected ? scheme.primary : scheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: AppTokens.spaceXxs),
             Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(

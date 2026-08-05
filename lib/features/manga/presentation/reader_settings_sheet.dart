@@ -835,7 +835,7 @@ Widget _buildSettingsGroup(
                       style: theme.textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w600),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: AppTokens.spaceXxs),
                     Text(
                       description,
                       style: theme.textTheme.bodySmall?.copyWith(

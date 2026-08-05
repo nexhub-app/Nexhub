@@ -264,7 +264,7 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
               if (hasRating)
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.star, size: 12, color: scheme.primary),
-                  const SizedBox(width: 2),
+                  const SizedBox(width: AppTokens.spaceXxs),
                   Text('${widget.comment.rating}',
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: scheme.primary, fontWeight: FontWeight.bold)),
@@ -273,7 +273,7 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
           ),
 
           // ── 第二行：正文（可折叠）──
-          const SizedBox(height: 4),
+          const SizedBox(height: AppTokens.spaceXs),
           if (needsFold)
             AnimatedCrossFade(
               firstChild: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
@@ -292,7 +292,7 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
                 onPressed: () => setState(() => _expanded = !_expanded),
                 style: TextButton.styleFrom(visualDensity: VisualDensity.compact,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  padding: const EdgeInsets.symmetric(horizontal: 4)),
+                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceXs)),
                 child: Text(_expanded ? l10n.collapse : l10n.expand,
                   style: theme.textTheme.labelSmall?.copyWith(color: scheme.primary)),
               ),

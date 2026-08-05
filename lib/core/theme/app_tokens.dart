@@ -50,6 +50,9 @@ class AppTokens {
 
   // ─────────────────────── 间距（Spacing） ───────────────────────
   static const double spaceNone = 0;
+
+  /// 微间距：徽章内衬、密排文本行间距等 2px 级微调（小于 [spaceXs]）。
+  static const double spaceXxs = 2;
   static const double spaceXs = 4;
   static const double spaceSm = 8;
   static const double spaceMd = 12;
@@ -60,6 +63,9 @@ class AppTokens {
 
   // ─────────────────────── 圆角（Radius） ───────────────────────
   static const double radiusNone = 0;
+
+  /// 超小圆角：进度条、微型徽章等 4px 级圆角（小于 [radiusSm]）。
+  static const double radiusXs = 4;
   static const double radiusSm = 8;
   static const double radiusMd = 12;
   static const double radiusLg = 16;

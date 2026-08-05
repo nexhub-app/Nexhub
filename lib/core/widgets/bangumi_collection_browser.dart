@@ -258,7 +258,7 @@ class _CollectionTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Icon(Icons.star, size: 16, color: theme.colorScheme.primary),
-                const SizedBox(width: 2),
+                const SizedBox(width: AppTokens.spaceXxs),
                 Text('${collection.rate}', style: theme.textTheme.bodyMedium),
               ],
             )

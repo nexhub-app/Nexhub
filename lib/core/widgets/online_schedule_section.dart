@@ -259,7 +259,7 @@ class _OnlineScheduleSectionState extends State<OnlineScheduleSection> {
                     item.author!.isNotEmpty &&
                     layout.showAuthor)
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.only(top: AppTokens.spaceXxs),
                     child: Text(
                       item.author!,
                       maxLines: 1,

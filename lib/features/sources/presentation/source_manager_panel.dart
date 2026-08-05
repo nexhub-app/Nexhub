@@ -134,7 +134,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
         ),
         decoration: BoxDecoration(
           color: scheme.errorContainer.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         ),
         child: Row(
           children: <Widget>[
@@ -346,7 +346,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
             ),
             decoration: BoxDecoration(
               color: scheme.errorContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
             ),
             child: Row(
               children: <Widget>[

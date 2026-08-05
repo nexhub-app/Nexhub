@@ -145,7 +145,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
                     color: Theme.of(context).colorScheme.primary,
                   )
                 else
-                  const SizedBox(width: 24),
+                  const SizedBox(width: AppTokens.spaceXl),
                 const SizedBox(width: AppTokens.spaceSm),
                 Text(_intervalLabel(l10n, i)),
               ],
