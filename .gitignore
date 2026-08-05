@@ -90,6 +90,9 @@ sdk/
 plugins/builtin/*.json
 reference/
 
+# 参考仓库镜像（5 大对标仓库的本地副本，含第三方源码，体积大且非本项目源码，不入库）
+_refs_reader/
+
 # ===== 开发/探针/AI 工具产生的临时产物（不入库）=====
 .probe_tmp/
 .qoder/
@@ -129,6 +132,11 @@ docs/*
 !docs/developer-guide.md
 !docs/developer-guide.en.md
 !docs/GITHUB_ISSUE_TEMPLATE.md
+!docs/UI_BASELINE.md
+# 架构基线（含"不泄露对标来源"硬约束，内部基线，不入库）
+docs/ARCHITECTURE_BASELINE.md
+# 漫画阅读器对标分析 TODO（内部，含参考仓库名，不入库）
+docs/TODO_comic_reader.md
 
 # 内部源扫描脚本
 tools/scan_golden_sources.py

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:window_manager/window_manager.dart';
 import 'core/network/runtime/nexhub_http_overrides.dart';
 import 'features/splash/splash_screen.dart';
 
@@ -12,7 +13,7 @@ import 'features/splash/splash_screen.dart';
 void main() {
   // 全局兜底：把「构建期 / 异步」未捕获异常显示到屏幕上，避免 release 下整屏黑屏
   // 却无任何提示。渲染错误时不再是纯黑，而是给出可读的错误详情，便于定位根因。
-  runZonedGuarded<void>(() {
+  runZonedGuarded<void>(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
     // 全局网络覆盖：接管所有 dart:io HttpClient 派生流量（散落的独立
@@ -54,6 +55,19 @@ void main() {
       MediaKit.ensureInitialized();
     } catch (e, st) {
       debugPrint('MediaKit.ensureInitialized failed: $e\n$st');
+    }
+
+    // 桌面端窗口控制（全屏 / F11）必须在 runApp 之前完成初始化——这是
+    // window_manager 的硬性要求。若改到运行期（如阅读器 initState）再调
+    // ensureInitialized，其原生侧会在已运行的消息循环中重挂窗口钩子，与 Flutter
+    // 渲染管道相互等待，表现为「进入 / 退出阅读器画面完全冻结，只有手动 resize
+    // 窗口才能恢复」，且此后 setFullScreen / isFullScreen 全部失效（F11、Esc 无反应）。
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      try {
+        await windowManager.ensureInitialized();
+      } catch (e, st) {
+        debugPrint('windowManager.ensureInitialized failed: $e\n$st');
+      }
     }
 
     runApp(const SplashScreen());

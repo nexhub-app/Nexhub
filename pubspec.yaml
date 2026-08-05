@@ -99,6 +99,10 @@ dependencies:
   connectivity_plus: ^6.1.0
   # 条漫模式离散 item 追踪（精确页码定位，不依赖滚动比例）
   scrollable_positioned_list: ^0.3.8
+  # 桌面端真实 OS 全屏（F11 切换 / Esc 退出），移动端仍用 SystemChrome。
+  # 0.5.x 重写了 Windows 线程处理，修复 0.3.x 的 setFullScreen 阻塞死锁
+  # （参考 Venera-Next/VeneraX/Breeze 三个桌面项目均用 0.5.x 且无冻结问题）。
+  window_manager: ^0.5.2
 
 dev_dependencies:
   flutter_test:
