@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 
 import '../../../core/comic/models/reader_preferences.dart';
 
@@ -49,6 +50,37 @@ class ReaderTapZones extends StatefulWidget {
   /// 在指定位置缩放（桌面 Shift+左键 兜底双击缩放）。为 null 时由调用方回退到 [onZoom]。
   final void Function(Offset)? onZoomAt;
 
+  /// 缩放状态读取：放大态（scale > 1）时单指单击不触发翻页 / 导航（P0 手势 bug #4）。
+  /// 为 null 时按未放大处理。
+  final bool Function()? isZoomed;
+
+  /// 双指捏合更新回调：以双指中点为焦点、以起始距离为基准的累计比例 [scaleFactor]
+  /// （0 表示尚未达到 2 指，不会回调）。屏幕级手动跟踪指针实现，不依赖每页的
+  /// GestureDetector——条漫模式双指落在不同页时依然生效（C2 根治）。
+  final void Function(double scaleFactor, Offset focal)? onPinchUpdate;
+
+  /// 双指捏合结束回调（任一指抬起 / 全部抬起时触发一次）。
+  final VoidCallback? onPinchEnd;
+
+  /// 放大态单指拖动回调（图片平移）。未放大时不回调（交给底层滚动 / 翻页）。
+  final void Function(Offset delta)? onPanUpdate;
+
+  /// 滚轮 / 触控板滚动回调（屏幕级 PointerScrollEvent）。为 null 时不处理，
+  /// 事件透传给底层（如条漫未放大时交给 Scrollable 连续滚动）。
+  final void Function(PointerScrollEvent event)? onPointerSignal;
+
+  /// 触控板（precision touchpad）捏合更新回调：trackpad 手势是独立事件流
+  /// （[PointerPanZoomUpdateEvent]，kind=trackpad），不产生触摸 PointerDown 事件，
+  /// 必须走 [Listener.onPointerPanZoomUpdate] 才能收到（C2 桌面触摸板捏合）。
+  /// [scale] 为累计缩放比例（相对手势开始）、[focal] 为手势焦点（左上原点局部坐标）。
+  final void Function(double scale, Offset focal)? onTrackpadZoom;
+
+  /// 触控板双指平移回调（放大态下平移图片）。[delta] 为自上次事件的增量。
+  final void Function(Offset delta)? onTrackpadPan;
+
+  /// 桌面右键回调（弹出图片操作菜单，与长按同款）。为 null 时不响应右键。
+  final VoidCallback? onSecondaryTap;
+
   /// 长按回调（用于弹出图片「保存 / 分享」菜单等）。为 null 时不检测长按。
   final VoidCallback? onLongPress;
 
@@ -82,6 +114,14 @@ class ReaderTapZones extends StatefulWidget {
     required this.onToggleUi,
     this.onZoom,
     this.onZoomAt,
+    this.isZoomed,
+    this.onPinchUpdate,
+    this.onPinchEnd,
+    this.onPanUpdate,
+    this.onPointerSignal,
+    this.onTrackpadZoom,
+    this.onTrackpadPan,
+    this.onSecondaryTap,
       this.onLongPress,
       this.onTapIntercept,
       this.isToolbarRegion,
@@ -99,6 +139,22 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
   DateTime? _downTime;
   bool _downShift = false;
 
+  /// 当前按下的所有指针（用于识别双指等多指手势）。首根落下的指针记为 [_activePointer]
+  /// 用于单击/双击/拖拽判定；后续落下的指针把 [_multiTouch] 置真，覆盖层不再派发翻页，
+  /// 把缩放手势完全交给底层图片自身的 scale 识别器（修复 C2「捏合被误判为翻页」）。
+  final Set<int> _activePointers = <int>{};
+  bool _multiTouch = false;
+
+  /// 双指捏合跟踪（屏幕级，不依赖每页 GestureDetector）：记录每根指针当前位置、
+  /// 起始双指距离与中点。≥2 指时按「当前距离 / 起始距离」回调 [widget.onPinchUpdate]。
+  final Map<int, Offset> _pinchPoints = <int, Offset>{};
+  double? _pinchStartDist;
+  Offset? _pinchStartFocal;
+  bool _pinching = false;
+
+  /// 放大态单指平移：记录上一帧指针位置，计算增量回调 [widget.onPanUpdate]。
+  Offset? _lastPanPos;
+
   /// 覆盖层实际尺寸（Listener 的父级 LayoutBuilder 测得）。热区命中判定必须用
   /// 此尺寸而非屏幕尺寸 [MediaQuery.sizeOf]：阅读区下方有 AppBar / BottomBar /
   /// 状态栏占位时，屏幕高度 > 阅读区高度，热区按比例算出后整体下移，底部热区
@@ -114,6 +170,10 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
   Timer? _longPressTimer;
   bool _longPressFired = false;
 
+  // 单击派发延迟定时器：单击命中后延迟一个双击窗口再派发，若期间出现双击则取消，
+  // 从而「双击仅缩放、不触发导航」（P0 手势 bug #5）。为 null 表示无待派发单击。
+  Timer? _tapTimer;
+
   static const double _tapSlop = 18.0; // 移动超过此值不算 tap
   static const Duration _tapTimeout = Duration(milliseconds: 400);
   static const Duration _doubleTapTimeout = Duration(milliseconds: 300);
@@ -123,6 +183,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
   @override
   void dispose() {
     _longPressTimer?.cancel();
+    _tapTimer?.cancel();
     super.dispose();
   }
 
@@ -195,19 +256,124 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
   }
 
   void _onPointerDown(PointerDownEvent e) {
-    _activePointer = e.pointer;
-    _downPos = e.localPosition;
-    _downTime = DateTime.now();
-    _downShift = HardwareKeyboard.instance.isShiftPressed;
-    _startLongPressTimer(e.pointer);
+    // 桌面右键：直接弹出图片操作菜单（保存 / 分享 / 设封面），长按的桌面等价入口（P0 #10）。
+    // 不进入单击 / 双击 / 长按流程，避免误触发翻页。
+    if (e.kind == PointerDeviceKind.mouse &&
+        e.buttons == kSecondaryMouseButton) {
+      widget.onSecondaryTap?.call();
+      return;
+    }
+    // 先记录指针位置：第二根手指落下时必须能从 [_pinchPoints] 拿到两根的位置，
+    // 才能算出双指起始距离（起始距离用于捏合比例基准）。
+    _pinchPoints[e.pointer] = e.localPosition;
+    if (_activePointers.isEmpty) {
+      // 首根手指：记录用于单击 / 双击 / 拖拽判定的基准数据。
+      _activePointer = e.pointer;
+      _downPos = e.localPosition;
+      _downTime = DateTime.now();
+      _downShift = HardwareKeyboard.instance.isShiftPressed;
+      _multiTouch = false;
+      _longPressFired = false;
+      _startLongPressTimer(e.pointer);
+    } else {
+      // 第二根及以上手指落下：标记多指手势（如双指捏合），取消长按判定。
+      _multiTouch = true;
+      _longPressTimer?.cancel();
+      // 屏幕级捏合开始：记录双指起始距离与中点（C2 根治——不依赖每页 GestureDetector，
+      // 条漫模式下双指落在不同页也能识别）。
+      _pinching = true;
+      final List<Offset> pts = _pinchPoints.values.toList();
+      if (pts.length >= 2) {
+        _pinchStartDist = (pts[0] - pts[1]).distance;
+        _pinchStartFocal = (pts[0] + pts[1]) / 2;
+      }
+    }
+    _activePointers.add(e.pointer);
   }
 
   void _onPointerMove(PointerMoveEvent e) {
+    if (_activePointers.isEmpty) return;
+    if (!_pinchPoints.containsKey(e.pointer)) return;
+    _pinchPoints[e.pointer] = e.localPosition;
+    // 双指捏合：以起始距离为基准，回调「当前距离 / 起始距离」累计比例与双指中点
+    // （屏幕级坐标，条漫跨页也生效）。
+    if (_pinching && _pinchPoints.length >= 2) {
+      _longPressTimer?.cancel();
+      final List<Offset> pts = _pinchPoints.values.toList();
+      final double? start = _pinchStartDist;
+      final double dist = (pts[0] - pts[1]).distance;
+      if (start != null && start > 0 && _pinchStartFocal != null) {
+        final Offset focal = (pts[0] + pts[1]) / 2;
+        widget.onPinchUpdate?.call(dist / start, focal);
+      }
+      return;
+    }
+    if (_multiTouch) {
+      _longPressTimer?.cancel();
+      return;
+    }
+    // 单指：放大态 → 图片平移（增量回调）；未放大 → 交给底层滚动 / 翻页，仅取消长按判定。
+    final bool zoomed = widget.isZoomed?.call() ?? false;
+    if (zoomed) {
+      final Offset pos = e.localPosition;
+      final Offset? last = _lastPanPos;
+      if (last != null) widget.onPanUpdate?.call(pos - last);
+      _lastPanPos = pos;
+      // 放大态拖动同样取消长按：移动超过 slop 即按「拖动」处理，不弹长按菜单，
+      // 否则长按定时器（500ms）到点会与拖动「打仗」——拖到一半弹菜单。
+      _maybeCancelLongPress(pos);
+      return;
+    }
+    _lastPanPos = null;
     _maybeCancelLongPress(e.localPosition);
+  }
+
+  void _onPointerCancel(PointerCancelEvent e) {
+    _longPressTimer?.cancel();
+    _activePointers.remove(e.pointer);
+    _pinchPoints.remove(e.pointer);
+    _lastPanPos = null;
+    if (_pinching && _activePointers.length < 2) {
+      _pinching = false;
+      _pinchStartDist = null;
+      _pinchStartFocal = null;
+      widget.onPinchEnd?.call();
+    }
+    if (_activePointers.isEmpty) {
+      _multiTouch = false;
+      _activePointer = null;
+      _downPos = null;
+      _downTime = null;
+      _downShift = false;
+      _longPressFired = false;
+    }
   }
 
   void _onPointerUp(PointerUpEvent e) {
     _longPressTimer?.cancel();
+    _activePointers.remove(e.pointer);
+    _pinchPoints.remove(e.pointer);
+    _lastPanPos = null;
+    // 双指捏合中：任一指抬起 → 捏合结束（回调一次）。
+    if (_pinching && _activePointers.length < 2) {
+      _pinching = false;
+      _pinchStartDist = null;
+      _pinchStartFocal = null;
+      widget.onPinchEnd?.call();
+    }
+    // 多指手势（如双指捏合缩放）：覆盖层不派发翻页 / 导航。
+    // 只要本次手势曾出现第二根手指，无论抬起哪一根都不触发单击 / 双击 / 拖拽动作。
+    if (_multiTouch) {
+      if (_activePointers.isEmpty) {
+        _multiTouch = false;
+        _activePointer = null;
+        _downPos = null;
+        _downTime = null;
+        _downShift = false;
+        _longPressFired = false;
+      }
+      return;
+    }
     if (_activePointer != e.pointer || _downPos == null || _downTime == null) {
       return;
     }
@@ -221,11 +387,17 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     _longPressFired = false;
     final bool shifted = _downShift;
     _downShift = false;
-    if (fired) return;
-    // 拖拽（滑动）翻页优先判定：移动超过 tap slop 即视为拖拽，不触发单击导航 / 缩放。
-    // 条漫交给原生 ListView 连续滚动，不在此翻页。
+    if (fired) {
+      // 长按已弹出菜单：取消可能 pending 的单击派发，避免长按后误翻页。
+      _tapTimer?.cancel();
+      return;
+    }
+    // 缩放状态：放大态单指手势交由图片自身的平移 / 捏合处理，覆盖层不再派发翻页 / 导航。
+    final bool zoomed = widget.isZoomed?.call() ?? false;
+    // 拖拽（滑动）优先：移动超过 slop 视为拖拽，不触发单击导航 / 缩放。
+    // 放大态下拖拽由图片平移处理，覆盖层不翻页（P0 手势 bug #4）。
     if (move > _tapSlop) {
-      if (!widget.isWebtoon) {
+      if (!zoomed && !widget.isWebtoon) {
         final double dx = e.localPosition.dx - downPos.dx;
         final double dy = e.localPosition.dy - downPos.dy;
         final bool vertical = widget.isVertical;
@@ -252,13 +424,15 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     if (dt > _tapTimeout) return;
 
     // 内联设置面板打开时，任意单击都用来关闭面板（吞掉导航 / 缩放）。
-    if (widget.onTapIntercept?.call() ?? false) return;
+    if (widget.onTapIntercept?.call() ?? false) {
+      _tapTimer?.cancel();
+      return;
+    }
 
     // 控制栏区域：交给控制栏自身按钮处理，不参与热区翻页，避免点按钮误触发翻页。
     if (widget.isToolbarRegion?.call(e.localPosition) ?? false) return;
 
     // 桌面 Shift+左键：在点击处缩放（兜底双击缩放），不触发导航 / 双击。
-    // 此分支优先于区域命中，任意位置按下 Shift 均可定点缩放。
     if (shifted) {
       final at = widget.onZoomAt;
       if (at != null) {
@@ -270,27 +444,73 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     }
 
     final size = _currentSize ?? MediaQuery.sizeOf(context);
-    final action = _actionAt(e.localPosition, size.width, size.height);
-    if (action == null) return;
 
+    // 双击检测优先于热区：双击【任意处】仅缩放、不翻页（验收 C4），不要求命中
+    // 热区——否则双击图片中央等热区外位置会无反应（桌面用户反馈「双击缩放没有作用」）。
     final now = DateTime.now();
     final isDouble = _lastTapTime != null &&
         now.difference(_lastTapTime!) <= _doubleTapTimeout &&
         _lastTapPos != null &&
         (_lastTapPos! - e.localPosition).distance <= _doubleTapSlop;
     if (isDouble) {
-      // 双击：任意位置都触发缩放（双击放大 / 再双击还原），不再限定于中心
-      // 「切换」热区——否则条漫 / 触屏用户很难点到中心，会感觉「放缩没作用」。
-      // 仍不抑制本次单击的导航/切换：双击时先按首次单击的区域导航一次，再缩放，
-      // 与原有行为一致（widget 测试里两次单击间隔仅约 80ms，抑制会丢一次切换）。
+      // 双击：仅缩放、抑制本次导航（P0 手势 bug #5）。用点击点作锚定（P0 #6），
+      // 与 Shift+左键定点缩放一致；取消可能 pending 的首次单击派发。
+      _tapTimer?.cancel();
+      _tapTimer = null;
       _lastTapTime = null;
       _lastTapPos = null;
-      widget.onZoom?.call();
-    } else {
+      final at = widget.onZoomAt;
+      if (at != null) {
+        at(e.localPosition);
+      } else {
+        widget.onZoom?.call();
+      }
+      return;
+    }
+
+    final action = _actionAt(e.localPosition, size.width, size.height);
+    if (action == null) return;
+
+    // 内联设置面板打开时，任意单击都用来关闭面板（吞掉导航 / 缩放）。
+    if (widget.onTapIntercept?.call() ?? false) {
+      _tapTimer?.cancel();
+      return;
+    }
+
+    // 控制栏区域：交给控制栏自身按钮处理，不参与热区翻页，避免点按钮误触发翻页。
+    if (widget.isToolbarRegion?.call(e.localPosition) ?? false) return;
+
+    // 桌面 Shift+左键：在点击处缩放（兜底双击缩放），不触发导航 / 双击。
+    if (shifted) {
+      final at = widget.onZoomAt;
+      if (at != null) {
+        at(e.localPosition);
+      } else {
+        widget.onZoom?.call();
+      }
+      return;
+    }
+
+    // 放大态：单指单击不导航（也不 toggle UI），避免与图片平移 / 双击缩放打架（P0 #4）。
+    // 但【必须记录本次点击】时间与位置：否则放大态下第 1 击直接 return、不记录，
+    // 第 2 击永远构不成双击 → 放大态双击缩放（如「第三次双击恢复原样」）失效。
+    if (zoomed) {
       _lastTapTime = now;
       _lastTapPos = e.localPosition;
+      return;
     }
-    _dispatch(action);
+
+    // 非双击：桌面鼠标与触摸统一走双击窗口延迟派发（单击延迟 300ms 换取双击缩放，
+    // 参考 Venera 的 photo_view 桌面双击缩放行为）。期间若出现第二次点击，则被上面
+    // isDouble 分支取消本次派发，从而「双击只缩放、不翻页」。
+    _lastTapTime = now;
+    _lastTapPos = e.localPosition;
+    _tapTimer?.cancel();
+    final _TapAction pending = action;
+    _tapTimer = Timer(_doubleTapTimeout, () {
+      _tapTimer = null;
+      if (mounted) _dispatch(pending);
+    });
   }
 
   void _dispatch(_TapAction a) {
@@ -405,6 +625,34 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
           onPointerDown: _onPointerDown,
           onPointerMove: _onPointerMove,
           onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
+          onPointerSignal: widget.onPointerSignal == null
+              ? null
+              : (PointerSignalEvent e) {
+                  if (e is PointerScrollEvent) {
+                    widget.onPointerSignal!(e);
+                  }
+                },
+          onPointerPanZoomUpdate:
+              (widget.onTrackpadZoom == null &&
+                      widget.onTrackpadPan == null)
+                  ? null
+                  : (PointerPanZoomUpdateEvent e) {
+                      // 触控板捏合：scale 为累计比例（1.0=原始大小）。
+                      final double s = e.scale;
+                      if ((s - 1.0).abs() > 0.001 &&
+                          widget.onTrackpadZoom != null) {
+                        widget.onTrackpadZoom!(s, e.localPosition);
+                      }
+                      // 触控板双指平移：增量回调（放大态平移图片）。
+                      if (e.panDelta != Offset.zero &&
+                          widget.onTrackpadPan != null) {
+                        widget.onTrackpadPan!(e.panDelta);
+                      }
+                    },
+          onPointerPanZoomEnd: widget.onPinchEnd == null
+              ? null
+              : (_) => widget.onPinchEnd!(),
           child: const SizedBox.expand(),
         );
       },
