@@ -1331,7 +1331,7 @@ abstract class AppLocalizations {
   /// Novel paragraph spacing
   ///
   /// In en, this message translates to:
-  /// **'Paragraph Spacing'**
+  /// **'Paragraph spacing'**
   String get novelParagraphSpacing;
 
   /// Novel margin
@@ -1343,7 +1343,7 @@ abstract class AppLocalizations {
   /// Novel page turn animation
   ///
   /// In en, this message translates to:
-  /// **'Page Animation'**
+  /// **'Page animation'**
   String get novelPageAnimation;
 
   /// No description provided for @novelTextShadow.
@@ -4385,7 +4385,7 @@ abstract class AppLocalizations {
   /// Novel reader default settings description
   ///
   /// In en, this message translates to:
-  /// **'Font size, line height, spacing, margin, background'**
+  /// **'Global novel reader defaults'**
   String get novelReaderSettingsDesc;
 
   /// Comic reader default settings title
@@ -4409,19 +4409,19 @@ abstract class AppLocalizations {
   /// Novel text shadow
   ///
   /// In en, this message translates to:
-  /// **'Text Shadow'**
+  /// **'Shadow toggle'**
   String get novelShadow;
 
   /// Novel background preset
   ///
   /// In en, this message translates to:
-  /// **'Background Preset'**
+  /// **'Background preset'**
   String get novelBackgroundPreset;
 
   /// Novel tap zone invert
   ///
   /// In en, this message translates to:
-  /// **'Tap Zone Invert'**
+  /// **'Tap zone invert'**
   String get novelTapZoneInvert;
 
   /// Comic default: image filter
@@ -5459,25 +5459,25 @@ abstract class AppLocalizations {
   /// No description provided for @novelSectionText.
   ///
   /// In en, this message translates to:
-  /// **'Text'**
+  /// **'Reading basics'**
   String get novelSectionText;
 
   /// No description provided for @novelSectionTitle.
   ///
   /// In en, this message translates to:
-  /// **'Chapter title'**
+  /// **'Chapter Title'**
   String get novelSectionTitle;
 
   /// No description provided for @novelSectionColor.
   ///
   /// In en, this message translates to:
-  /// **'Colors & background'**
+  /// **'Color & Background'**
   String get novelSectionColor;
 
   /// No description provided for @novelSectionPage.
   ///
   /// In en, this message translates to:
-  /// **'Paging & interaction'**
+  /// **'Page & Gesture'**
   String get novelSectionPage;
 
   /// No description provided for @novelSectionMisc.
@@ -5501,7 +5501,7 @@ abstract class AppLocalizations {
   /// No description provided for @novelTitleBold.
   ///
   /// In en, this message translates to:
-  /// **'Bold title'**
+  /// **'Title bold'**
   String get novelTitleBold;
 
   /// No description provided for @novelTitleColor.
@@ -6533,13 +6533,13 @@ abstract class AppLocalizations {
   /// No description provided for @novelDefaultFontSize.
   ///
   /// In en, this message translates to:
-  /// **'Font Size'**
+  /// **'Default font size'**
   String get novelDefaultFontSize;
 
   /// No description provided for @novelDefaultLineHeight.
   ///
   /// In en, this message translates to:
-  /// **'Line Height'**
+  /// **'Default line height'**
   String get novelDefaultLineHeight;
 
   /// No description provided for @novelDefaultBackground.
@@ -7808,10 +7808,16 @@ abstract class AppLocalizations {
   /// **'Hidden'**
   String get novelTitleAlignHidden;
 
+  /// No description provided for @novelSectionToolbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom toolbar'**
+  String get novelSectionToolbar;
+
   /// No description provided for @novelSectionTts.
   ///
   /// In en, this message translates to:
-  /// **'Read aloud (TTS)'**
+  /// **'TTS Settings'**
   String get novelSectionTts;
 
   /// No description provided for @ttsRate.
@@ -7955,13 +7961,13 @@ abstract class AppLocalizations {
   /// No description provided for @novelShadowOffsetX.
   ///
   /// In en, this message translates to:
-  /// **'Shadow X offset'**
+  /// **'Shadow horizontal offset'**
   String get novelShadowOffsetX;
 
   /// No description provided for @novelShadowOffsetY.
   ///
   /// In en, this message translates to:
-  /// **'Shadow Y offset'**
+  /// **'Shadow vertical offset'**
   String get novelShadowOffsetY;
 
   /// No description provided for @novelUnderlineColor.
@@ -7991,13 +7997,13 @@ abstract class AppLocalizations {
   /// No description provided for @novelUnderlineDashLength.
   ///
   /// In en, this message translates to:
-  /// **'Dash segment length'**
+  /// **'Dash length'**
   String get novelUnderlineDashLength;
 
   /// No description provided for @novelUnderlineDashGap.
   ///
   /// In en, this message translates to:
-  /// **'Dash gap length'**
+  /// **'Dash gap'**
   String get novelUnderlineDashGap;
 
   /// No description provided for @novelTitlePosition.
@@ -8015,19 +8021,19 @@ abstract class AppLocalizations {
   /// No description provided for @novelTitleSubScale.
   ///
   /// In en, this message translates to:
-  /// **'Sub-line scale'**
+  /// **'Sub line font scale'**
   String get novelTitleSubScale;
 
   /// No description provided for @novelTitleSegmentSpacing.
   ///
   /// In en, this message translates to:
-  /// **'Title–subline spacing'**
+  /// **'Segment spacing'**
   String get novelTitleSegmentSpacing;
 
   /// No description provided for @novelTitleSubLineSpacing.
   ///
   /// In en, this message translates to:
-  /// **'Sub-line line spacing'**
+  /// **'Sub line height'**
   String get novelTitleSubLineSpacing;
 
   /// No description provided for @novelTitleTopMargin.
@@ -8045,7 +8051,7 @@ abstract class AppLocalizations {
   /// No description provided for @novelSectionHeaderFooter.
   ///
   /// In en, this message translates to:
-  /// **'Header & footer'**
+  /// **'Header & Footer'**
   String get novelSectionHeaderFooter;
 
   /// No description provided for @novelHeaderLeft.
@@ -8087,13 +8093,13 @@ abstract class AppLocalizations {
   /// No description provided for @novelHeaderFooterColor.
   ///
   /// In en, this message translates to:
-  /// **'Header & footer color'**
+  /// **'Header & Footer color'**
   String get novelHeaderFooterColor;
 
   /// No description provided for @novelHeaderFooterMargin.
   ///
   /// In en, this message translates to:
-  /// **'Header & footer margin'**
+  /// **'Header & Footer margin'**
   String get novelHeaderFooterMargin;
 
   /// No description provided for @novelHfPageAndProgress.

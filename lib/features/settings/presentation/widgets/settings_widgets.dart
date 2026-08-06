@@ -62,12 +62,24 @@ class SettingsSection extends StatelessWidget {
 }
 
 /// 带标题的卡片容器。把所有同类设置项收进一个 [AppCard]，视觉分组更清晰。
-class SettingsCard extends StatelessWidget {
+///
+/// 支持可展开/折叠：传 [expandable] = true（默认）时，标题栏可点击切换
+/// 内容区的显示/隐藏，使用 [AnimatedSize] 实现平滑过渡动画。
+class SettingsCard extends StatefulWidget {
   final String? title;
   final String? description;
   final List<Widget> children;
   final EdgeInsetsGeometry? margin;
   final Color? backgroundColor;
+
+  /// 是否可展开/折叠（默认 true）。无标题时强制不展开。
+  final bool expandable;
+
+  /// 初始状态是否展开（默认 true）。仅在 [expandable] = true 时生效。
+  final bool initiallyExpanded;
+
+  /// 交错入场序列索引。传此值后卡片按 index*80ms 延迟入场。
+  final int? index;
 
   const SettingsCard({
     super.key,
@@ -76,57 +88,133 @@ class SettingsCard extends StatelessWidget {
     required this.children,
     this.margin,
     this.backgroundColor,
+    this.expandable = true,
+    this.initiallyExpanded = true,
+    this.index,
   });
+
+  @override
+  State<SettingsCard> createState() => _SettingsCardState();
+}
+
+class _SettingsCardState extends State<SettingsCard> {
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final List<Widget> body = <Widget>[];
-    if (title != null) {
-      body.add(
-        Text(
-          title!,
-          style: theme.textTheme.titleSmall?.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.w600,
+    final hasTitle = widget.title != null;
+    final canExpand = widget.expandable && hasTitle;
+
+    // 标题栏（可点击展开/折叠）
+    final List<Widget> columnChildren = <Widget>[];
+    if (hasTitle) {
+      columnChildren.add(
+        InkWell(
+          onTap: canExpand ? () => setState(() => _expanded = !_expanded) : null,
+          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        widget.title!,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (widget.description != null) ...<Widget>[
+                        const SizedBox(height: AppTokens.spaceXs),
+                        Text(
+                          widget.description!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (canExpand)
+                  // 折叠箭头随展开状态平滑旋转（180°），点标题时有「翻开」的灵动感。
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0.0,
+                    duration: AppTokens.durBase,
+                    curve: AppCurves.smooth,
+                    child: Icon(
+                      Icons.expand_more,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       );
-      if (description != null) {
-        body.add(const SizedBox(height: AppTokens.spaceXs));
-        body.add(
-          Text(
-            description!,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+      if (canExpand) {
+        columnChildren.add(
+          AnimatedSize(
+            duration: AppTokens.durBase,
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child: _expanded
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const SizedBox(height: AppTokens.spaceMd),
+                      ..._spaced(widget.children, AppTokens.spaceMd),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+        );
+      } else {
+        columnChildren.add(const SizedBox(height: AppTokens.spaceMd));
+        columnChildren.add(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _spaced(widget.children, AppTokens.spaceMd),
           ),
         );
       }
-      body.add(const SizedBox(height: AppTokens.spaceMd));
+    } else {
+      // 无标题：直接显示内容，不可展开
+      columnChildren.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: _spaced(widget.children, AppTokens.spaceMd),
+        ),
+      );
     }
-    body.add(
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: _spaced(children, AppTokens.spaceMd),
-      ),
-    );
 
     // 「灵动」入场：设置卡片淡入 + 轻微上滑。onceKey 用 title 或 widget.key，
     // 保证同一卡片在生命周期内只播一次，避免滚动 / 重建时抖动重播。
-    final String? onceKey = title ?? key?.toString();
+    final String? onceKey = widget.title ?? widget.key?.toString();
     return Entrance(
       onceKey: onceKey,
+      index: widget.index,
       offset: 10,
       child: Container(
-        margin: margin ?? const EdgeInsets.only(bottom: AppTokens.spaceMd),
+        margin: widget.margin ?? const EdgeInsets.only(bottom: AppTokens.spaceMd),
         padding: const EdgeInsets.all(AppTokens.spaceMd),
         decoration: BoxDecoration(
-          color: backgroundColor ?? theme.colorScheme.surfaceContainerLow,
+          color: widget.backgroundColor ?? theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: body,
+          children: columnChildren,
         ),
       ),
     );
@@ -328,4 +416,61 @@ class SettingsChoiceChipData<T> {
   final T value;
   final String label;
   const SettingsChoiceChipData({required this.value, required this.label});
+}
+
+/// 条件展开区域：依赖开关/选项显隐的子设置项组。
+///
+/// 包住「开启某开关后才会出现」的一组设置项，[visible] 变化时高度平滑
+/// 过渡（[AnimatedSize]）+ 内容淡入上滑（[AnimatedSwitcher]），避免生硬
+/// 地"啪"一下出现/消失，与卡片折叠手感一致。
+class SettingsExpand extends StatelessWidget {
+  final bool visible;
+  final Widget child;
+
+  /// 展开时内容区顶部留白（与卡片内其它项拉开距离）。
+  final EdgeInsetsGeometry? padding;
+
+  const SettingsExpand({
+    super.key,
+    required this.visible,
+    required this.child,
+    this.padding,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: AppTokens.durBase,
+      curve: AppCurves.smooth,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: AppTokens.durBase,
+        switchInCurve: AppCurves.smooth,
+        switchOutCurve: Curves.easeOutCubic,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, -0.04),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          );
+        },
+        child: visible
+            ? Padding(
+                key: const ValueKey<String>('settings-expand-open'),
+                padding:
+                    padding ?? const EdgeInsets.only(top: AppTokens.spaceMd),
+                child: child,
+              )
+            : const SizedBox(
+                key: ValueKey<String>('settings-expand-closed'),
+                width: double.infinity,
+              ),
+      ),
+    );
+  }
 }

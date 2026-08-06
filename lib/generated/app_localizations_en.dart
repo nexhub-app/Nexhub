@@ -647,13 +647,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelLineHeight => 'Line height';
 
   @override
-  String get novelParagraphSpacing => 'Paragraph Spacing';
+  String get novelParagraphSpacing => 'Paragraph spacing';
 
   @override
   String get novelMargin => 'Margin';
 
   @override
-  String get novelPageAnimation => 'Page Animation';
+  String get novelPageAnimation => 'Page animation';
 
   @override
   String get novelTextShadow => 'Text shadow';
@@ -2242,8 +2242,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelReaderSettingsTitle => 'Novel Reader Settings';
 
   @override
-  String get novelReaderSettingsDesc =>
-      'Font size, line height, spacing, margin, background';
+  String get novelReaderSettingsDesc => 'Global novel reader defaults';
 
   @override
   String get comicReaderSettingsTitle => 'Comic Reader Settings';
@@ -2256,13 +2255,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelTypographyGroup => 'Novel Typography';
 
   @override
-  String get novelShadow => 'Text Shadow';
+  String get novelShadow => 'Shadow toggle';
 
   @override
-  String get novelBackgroundPreset => 'Background Preset';
+  String get novelBackgroundPreset => 'Background preset';
 
   @override
-  String get novelTapZoneInvert => 'Tap Zone Invert';
+  String get novelTapZoneInvert => 'Tap zone invert';
 
   @override
   String get comicFilterGroup => 'Image Filter';
@@ -2815,16 +2814,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelShadowColorAuto => 'Auto (text color, translucent)';
 
   @override
-  String get novelSectionText => 'Text';
+  String get novelSectionText => 'Reading basics';
 
   @override
-  String get novelSectionTitle => 'Chapter title';
+  String get novelSectionTitle => 'Chapter Title';
 
   @override
-  String get novelSectionColor => 'Colors & background';
+  String get novelSectionColor => 'Color & Background';
 
   @override
-  String get novelSectionPage => 'Paging & interaction';
+  String get novelSectionPage => 'Page & Gesture';
 
   @override
   String get novelSectionMisc => 'Other';
@@ -2836,7 +2835,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelTitleFontScale => 'Title font scale';
 
   @override
-  String get novelTitleBold => 'Bold title';
+  String get novelTitleBold => 'Title bold';
 
   @override
   String get novelTitleColor => 'Title color';
@@ -3380,10 +3379,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelDefaultPageTurnAnimation => 'Page Turn Animation';
 
   @override
-  String get novelDefaultFontSize => 'Font Size';
+  String get novelDefaultFontSize => 'Default font size';
 
   @override
-  String get novelDefaultLineHeight => 'Line Height';
+  String get novelDefaultLineHeight => 'Default line height';
 
   @override
   String get novelDefaultBackground => 'Background';
@@ -4054,7 +4053,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelTitleAlignHidden => 'Hidden';
 
   @override
-  String get novelSectionTts => 'Read aloud (TTS)';
+  String get novelSectionToolbar => 'Bottom toolbar';
+
+  @override
+  String get novelSectionTts => 'TTS Settings';
 
   @override
   String get ttsRate => 'Speech rate';
@@ -4132,10 +4134,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelShadowBlur => 'Shadow blur radius';
 
   @override
-  String get novelShadowOffsetX => 'Shadow X offset';
+  String get novelShadowOffsetX => 'Shadow horizontal offset';
 
   @override
-  String get novelShadowOffsetY => 'Shadow Y offset';
+  String get novelShadowOffsetY => 'Shadow vertical offset';
 
   @override
   String get novelUnderlineColor => 'Underline color';
@@ -4150,10 +4152,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelUnderlineThickness => 'Underline thickness';
 
   @override
-  String get novelUnderlineDashLength => 'Dash segment length';
+  String get novelUnderlineDashLength => 'Dash length';
 
   @override
-  String get novelUnderlineDashGap => 'Dash gap length';
+  String get novelUnderlineDashGap => 'Dash gap';
 
   @override
   String get novelTitlePosition => 'Title position';
@@ -4162,13 +4164,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelTitleSegmentMode => 'Title segment mode';
 
   @override
-  String get novelTitleSubScale => 'Sub-line scale';
+  String get novelTitleSubScale => 'Sub line font scale';
 
   @override
-  String get novelTitleSegmentSpacing => 'Title–subline spacing';
+  String get novelTitleSegmentSpacing => 'Segment spacing';
 
   @override
-  String get novelTitleSubLineSpacing => 'Sub-line line spacing';
+  String get novelTitleSubLineSpacing => 'Sub line height';
 
   @override
   String get novelTitleTopMargin => 'Title top margin';
@@ -4177,7 +4179,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelTitleBottomMargin => 'Title bottom margin';
 
   @override
-  String get novelSectionHeaderFooter => 'Header & footer';
+  String get novelSectionHeaderFooter => 'Header & Footer';
 
   @override
   String get novelHeaderLeft => 'Header left';
@@ -4198,10 +4200,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelFooterRight => 'Footer right';
 
   @override
-  String get novelHeaderFooterColor => 'Header & footer color';
+  String get novelHeaderFooterColor => 'Header & Footer color';
 
   @override
-  String get novelHeaderFooterMargin => 'Header & footer margin';
+  String get novelHeaderFooterMargin => 'Header & Footer margin';
 
   @override
   String get novelHfPageAndProgress => 'Page & progress';

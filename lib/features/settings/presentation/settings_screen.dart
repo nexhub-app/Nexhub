@@ -82,18 +82,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  // ignore: unused_element
-  Future<void> _enableRecommended(
-      BuildContext context, AppLocalizations l10n) async {
-    final count =
-        await context.read<SourceRepository>().enableRecommendedSources();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.recommendedSourcesEnabled(count))),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
