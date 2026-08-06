@@ -38,8 +38,10 @@ def gen_windows(im):
     sizes = [16, 32, 48, 64, 128, 256]
     out = os.path.join(ROOT, "windows", "runner", "resources")
     os.makedirs(out, exist_ok=True)
-    imgs = [im.resize((s, s), Image.LANCZOS) for s in sizes]
-    imgs[0].save(os.path.join(out, "app_icon.ico"),
+    # 从最大尺寸帧开始保存（Pillow 依据 sizes 自动向下缩放生成全部尺寸）
+    largest = im.resize((max(sizes), max(sizes)), Image.LANCZOS)
+    largest.save(os.path.join(out, "app_icon.ico"),
+                 format="ICO",
                  sizes=[(s, s) for s in sizes])
     print("wrote windows/runner/resources/app_icon.ico")
 
