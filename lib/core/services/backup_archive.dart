@@ -90,6 +90,49 @@ const Map<BackupCategory, List<String>> kBackupCategoryBoxes =
   ],
 };
 
+/// 各分类包含的「SharedPreferences 键」（精确名或 `prefix*` 通配）。
+///
+/// 历史包袱：进度/收藏/下载任务等数据实际写在了 `SharedPreferences` 而非 Hive，
+/// 而旧版 [kBackupCategoryBoxes] 仅按 Hive box 归类，导致「收藏/进度历史」勾选后
+/// 几乎什么都没有打包。本表把这些 prefs 键显式分桶，与 box 路径并存互补——
+/// 备份 bundle 里以「prefs_by_category」子段承载，恢复时各分类按各自键写入。
+///
+/// 末位的 `*` 为通配，把所有以此前缀开头的键一起打包（如 `comic_progress_*`）。
+const Map<BackupCategory, List<String>> kBackupExtraPrefsKeys =
+    <BackupCategory, List<String>>{
+  BackupCategory.source: <String>[
+    'source_builtin_overrides_v1', // 内置源用户修改
+    'browse_article_feeds_v1', // 文章型源
+    'rss_feeds_v1', // RSS 订阅（与 box rss_feeds 分开存的旧式数据）
+  ],
+  BackupCategory.bookmark: <String>[
+    'favorites_v1', // 用户收藏（旧 SharedPreferences 实现）
+  ],
+  BackupCategory.progress: <String>[
+    'history_v1', // 浏览历史
+    'media_progress_*', // 影视进度主键
+    'comic_progress_*', // 漫画进度主键
+    'novel_progress_*', // 小说进度主键
+  ],
+  BackupCategory.download: <String>[
+    'download_tasks', // 下载任务
+  ],
+  BackupCategory.danmaku: <String>[
+    // 弹幕缓存目前全在 danmaku_cache box；此处保留空表便于未来扩展。
+  ],
+  BackupCategory.settings: <String>[
+    // 全量 SharedPreferences 由 `preferences` 字段承载，本分类不再额外打包。
+  ],
+  BackupCategory.other: <String>[
+    // 兜底：备份一些懒加载的重要 prefs（cookie / 网络覆盖 / 镜像 / 无痕开关），
+    // 即使勾选「其它」也能保存登录状态与个性化配置。
+    'http_cookies',
+    'source_network_overrides',
+    'source_custom_mirrors',
+    'source_stealth',
+  ],
+};
+
 /// bundle 结构标识。
 const String kBackupFormat = 'nexhub-backup';
 const int kBackupVersion = 1;
@@ -133,9 +176,79 @@ dynamic _decodeHiveValue(dynamic v) {
   return v;
 }
 
+/// 把任意 SharedPreferences 值打包/恢复。`List<dynamic>` 全部以 StringList 处理
+/// （与本地历史实现一致：未来如需支持更多类型只需在此扩展）。
+Future<void> _setSharedPrefValue(SharedPreferences prefs, String key, dynamic v) async {
+  try {
+    if (v == null) return;
+    if (v is String) {
+      await prefs.setString(key, v);
+    } else if (v is int) {
+      await prefs.setInt(key, v);
+    } else if (v is double) {
+      await prefs.setDouble(key, v);
+    } else if (v is bool) {
+      await prefs.setBool(key, v);
+    } else if (v is List) {
+      await prefs.setStringList(
+        key,
+        v.map((e) => e.toString()).toList(),
+      );
+    }
+  } on Object {
+    // 跳过无法写入的条目
+  }
+}
+
+/// 把当前 SharedPreferences 按分类打包为子 Map。
+///
+/// 命中规则：[kBackupExtraPrefsKeys] 中精确字符串原样匹配；末尾为 `*` 则视为
+/// 前缀通配（匹配所有 `startsWith(prefix)` 的键）。
+Future<Map<String, Map<String, dynamic>>> _collectPrefsByCategory(
+  Set<BackupCategory> categories,
+  SharedPreferences prefs,
+) async {
+  final out = <String, Map<String, dynamic>>{};
+  for (final cat in categories) {
+    final keys = kBackupExtraPrefsKeys[cat];
+    if (keys == null || keys.isEmpty) continue;
+    final part = <String, dynamic>{};
+    for (final key in keys) {
+      if (key.endsWith('*')) {
+        final prefix = key.substring(0, key.length - 1);
+        for (final k in prefs.getKeys()) {
+          if (!k.startsWith(prefix)) continue;
+          final v = prefs.get(k);
+          if (v != null) part[k] = v;
+        }
+      } else {
+        final v = prefs.get(key);
+        if (v != null) part[key] = v;
+      }
+    }
+    if (part.isNotEmpty) out[cat.name] = part;
+  }
+  return out;
+}
+
 /// 构建备份 bundle（仅含选中分类的 box；选中设置时含 SharedPreferences）。
 ///
 /// [categories] 为空集合时返回空 bundle（调用方应先校验非空）。
+///
+/// bundle 结构：
+/// ```json
+/// {
+///   "format": "nexhub-backup",
+///   "version": 1,
+///   "createdAt": ...,
+///   "boxes": { "<boxName>": { ... }, ... },
+///   "preferences": { ... },              // 仅 settings 分类
+///   "prefs_by_category": {                // 每分类下的额外 prefs 键
+///     "<category>": { "<prefKey>": <value>, ... },
+///     ...
+///   }
+/// }
+/// ```
 Future<Map<String, dynamic>> buildBackupBundle({
   required Set<BackupCategory> categories,
 }) async {
@@ -148,6 +261,7 @@ Future<Map<String, dynamic>> buildBackupBundle({
         .toMap()
         .map((k, v) => MapEntry(k.toString(), _encodeHiveValue(v)));
   }
+  final prefs = await SharedPreferences.getInstance();
   final bundle = <String, dynamic>{
     'format': kBackupFormat,
     'version': kBackupVersion,
@@ -155,7 +269,6 @@ Future<Map<String, dynamic>> buildBackupBundle({
     'boxes': hiveData,
   };
   if (_includesPreferences(categories)) {
-    final prefs = await SharedPreferences.getInstance();
     final prefsData = <String, dynamic>{};
     for (final key in prefs.getKeys()) {
       final v = prefs.get(key);
@@ -163,6 +276,8 @@ Future<Map<String, dynamic>> buildBackupBundle({
     }
     bundle['preferences'] = prefsData;
   }
+  bundle['prefs_by_category'] =
+      await _collectPrefsByCategory(categories, prefs);
   return bundle;
 }
 
@@ -244,6 +359,28 @@ Future<void> applyBackupBundle(
         }
       } on Object {
         // 跳过无法写入的条目
+      }
+    }
+  }
+
+  final prefsByCatRaw = bundle['prefs_by_category'];
+  if (prefsByCatRaw is Map<String, dynamic>) {
+    for (final entry in prefsByCatRaw.entries) {
+      final catName = entry.key;
+      BackupCategory? cat;
+      for (final c in BackupCategory.values) {
+        if (c.name == catName) {
+          cat = c;
+          break;
+        }
+      }
+      if (cat == null) continue;
+      if (categories != null && !categories.contains(cat)) continue;
+      final data = entry.value;
+      if (data is! Map) continue;
+      final prefs = await SharedPreferences.getInstance();
+      for (final kv in data.entries) {
+        await _setSharedPrefValue(prefs, kv.key.toString(), kv.value);
       }
     }
   }
