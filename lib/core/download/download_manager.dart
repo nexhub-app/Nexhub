@@ -324,6 +324,52 @@ class DownloadManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 删除某内容（contentId）的全部已完成下载任务（「读后自动删除」用）。
+  ///
+  /// [deleteFiles] = true 同时删除磁盘文件 + meta.json。
+  /// 仅删除 completed 任务；进行中 / 已归档任务不动。
+  Future<void> removeItemDownloads(
+    String contentId, {
+    bool deleteFiles = true,
+  }) async {
+    final ids = _tasks
+        .where((t) => t.contentId == contentId && t.isCompleted)
+        .map((t) => t.id)
+        .toList();
+    for (final id in ids) {
+      await removeCompleted(id, deleteFiles: deleteFiles);
+    }
+  }
+
+  /// 预下载「当前剧集之后」尚未下载的连续 [count] 集（「预下载后续剧集」用）。
+  ///
+  /// 从 [fromIndex] 下一集开始向后扫描：已下载 / 已在队列的跳过，
+  /// 直到找到 [count] 个未下载的剧集或章节耗尽为止。受
+  /// [DownloadSettings.maxConcurrent] 队列限制，不会打断已有下载。
+  Future<int> preDownloadNextEpisodes({
+    required MediaItem item,
+    required List<Episode> chapters,
+    required int fromIndex,
+    required int count,
+  }) async {
+    if (count <= 0 || chapters.isEmpty) return 0;
+    final downloaded = downloadedChapterTitles(item.id);
+    final queued = queuedChapterTitles(item.id);
+    final indices = <int>[];
+    for (var i = fromIndex + 1; i < chapters.length; i++) {
+      if (indices.length >= count) break;
+      final title = chapters[i].title;
+      if (downloaded.contains(title) || queued.contains(title)) continue;
+      indices.add(i);
+    }
+    if (indices.isEmpty) return 0;
+    // 逐段添加：addTask 内部按 maxConcurrent 调度，不会全部立刻并发。
+    for (final i in indices) {
+      await addTask(item: item, chapters: chapters, chapterIndices: <int>[i]);
+    }
+    return indices.length;
+  }
+
   /// 重命名已完成下载任务的显示标题（仅改记录中的 title，不动磁盘文件）。
   Future<void> renameCompleted(String taskId, String newTitle) async {
     final idx = _tasks.indexWhere((t) => t.id == taskId);

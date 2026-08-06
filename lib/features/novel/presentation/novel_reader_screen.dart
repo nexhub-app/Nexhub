@@ -176,6 +176,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     with WidgetsBindingObserver {
   final NovelReaderPreferencesStore _store = NovelReaderPreferencesStore();
   final NovelProgressManager _progress = NovelProgressManager();
+
+  /// 下载管理器（initState 缓存引用，dispose 阶段 context 已不可用）。
+  DownloadManager? _downloadManager;
+  /// 收藏管理器（dispose 阶段查排除分类用）。
+  FavoritesManager? _favorites;
   final NovelBookmarkManager _bookmarks = NovelBookmarkManager();
   final ScreenBrightness _brightnessPlugin = ScreenBrightness();
   final GlobalKey<NovelAnimatedPageViewState> _pageKey =
@@ -278,6 +283,18 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     WidgetsBinding.instance.addObserver(this);
     _chapterIndex = widget.initialChapterIndex;
     _prefs = const NovelReaderPreferences();
+    // 读后自动删除：dispose 阶段判定「读完」用（context 已不可用，先缓存引用）。
+    try {
+      _downloadManager = context.read<DownloadManager>();
+    } on Object {
+      _downloadManager = null;
+    }
+    // 排除分类判定同样在 dispose 阶段使用，缓存引用。
+    try {
+      _favorites = context.read<FavoritesManager>();
+    } on Object {
+      _favorites = null;
+    }
     _initBrightness();
     _initTimeAndBattery();
     _init();
@@ -632,6 +649,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         source: SessionSource.novelReader,
       ));
     }
+    // 读后自动删除：读完（进度到最后一章）时清理该内容已下载文件。
+    unawaited(_maybeAutoDeleteDownloaded());
     WidgetsBinding.instance.removeObserver(this);
     _timeTimer.cancel();
     _batterySubscription?.cancel();
@@ -644,6 +663,26 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _tts.dispose();
     _settingsSearchController.dispose();
     super.dispose();
+  }
+
+  /// 读完自动删除（小说版）：最后一章已读且设置开启时清理下载。
+  Future<void> _maybeAutoDeleteDownloaded() async {
+    try {
+      final dm = _downloadManager;
+      if (dm == null || !dm.settings.autoDeleteAfterRead) return;
+      final groupIds = _favorites?.groupIdsOf(
+            widget.novelId,
+            SourceType.novelSource,
+          ) ??
+          const <String>[];
+      if (dm.settings.isExcludedFromAutoDeleteGroups(groupIds)) return;
+      final p = await _progress.get(widget.novelId);
+      if (p == null || p.totalChapters == null) return;
+      if (p.chapterIndex + 1 < p.totalChapters!) return;
+      await dm.removeItemDownloads(widget.novelId, deleteFiles: true);
+    } on Object {
+      // best-effort。
+    }
   }
 
   // ─────────────────────── 自动翻页（M3.5.2） ───────────────────────

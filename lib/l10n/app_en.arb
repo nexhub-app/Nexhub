@@ -11,12 +11,14 @@
   "navSettings": "Settings",
   "homeTitle": "Browse",
   "settingsTitle": "Settings",
+  "settingsTagline": "Craft your personal media space",
   "sourceManagementTitle": "Source Management",
   "downloadSettingsTitle": "Download",
   "downloadManagementTitle": "Download Management",
   "aboutTitle": "About",
   "themeTitle": "Appearance",
   "tabLibrary": "Library",
+  "tabMediaLibrary": "Media Library",
   "tabOnline": "Online",
   "tabSubscribe": "Subscribe",
   "tabSources": "Sources",
@@ -138,6 +140,17 @@
   "useMonet": "Use dynamic color (Monet)",
   "customColor": "Custom theme color",
   "presetColor": "Preset colors",
+  "appearanceThemeSection": "Theme",
+  "appearanceColorsSection": "Colors",
+  "appearanceStartupSection": "Launch & Display",
+  "heroSettingsTitle": "Hero Images",
+  "appearanceHeroSection": "Background",
+  "heroEmptyHint": "Add a few images to cycle at the top of Settings",
+  "heroAddFromUrl": "Add from URL",
+  "heroAddFromDevice": "Pick from device",
+  "heroUrlDialogTitle": "Add image URL",
+  "heroUrlFieldHint": "Image address (https://... or file://...)",
+  "heroRemoveTooltip": "Remove",
   "deleteConfirmTitle": "Delete confirmation",
   "deleteConfirmContent": "Delete \"{name}\"? This cannot be undone.",
   "@deleteConfirmContent": {
@@ -2338,6 +2351,20 @@
   "comicVisualZoomGroup": "Display & Zoom",
   "comicPageProgressGroup": "Page & Progress",
   "generalSettingsGroup": "General",
+  "playbackProgressGroup": "Playback Progress",
+  "playbackModulesSection": "Module Settings",
+  "settingsCatAppearance": "Appearance & Language",
+  "settingsCatAppearanceDesc": "Theme, colors, dark mode & language",
+  "settingsCatPlayback": "Playback & Reading",
+  "settingsCatPlaybackDesc": "Player, comic, novel & danmaku display",
+  "settingsCatContent": "Content & Sources",
+  "settingsCatContentDesc": "Source management, scraping & network",
+  "settingsCatData": "Data & Accounts",
+  "settingsCatDataDesc": "Stats, backup, cloud sync & Bangumi",
+  "settingsCatPrivacy": "Privacy & Security",
+  "settingsCatPrivacyDesc": "Privacy, advanced settings & cache",
+  "settingsCatAbout": "About",
+  "settingsCatAboutDesc": "Version, license & acknowledgements",
   "launchScreenTitle": "Launch Screen",
   "dateFormatTitle": "Date Format",
   "dateFormatDefault": "Default (yyyy/mm/dd)",
@@ -3213,5 +3240,198 @@
   "heatmapStreak": "Current streak",
   "@heatmapStreak": {
     "description": "Heatmap top summary: current consecutive active days"
+  },
+  "downloadAutoDelete": "Auto-delete after finishing",
+  "@downloadAutoDelete": {
+    "description": "Download settings: auto-delete downloaded files after finishing"
+  },
+  "downloadAutoDeleteHint": "Remove downloaded files once you finish this item",
+  "@downloadAutoDeleteHint": {
+    "description": "Auto-delete subtitle hint"
+  },
+  "downloadAutoDeleteExclude": "Excluded categories",
+  "@downloadAutoDeleteExclude": {
+    "description": "Auto-delete excluded categories entry"
+  },
+  "downloadAutoDeleteExcludeNone": "Auto-delete all categories",
+  "@downloadAutoDeleteExcludeNone": {
+    "description": "Subtitle when no category is excluded"
+  },
+  "downloadPreDownload": "Pre-download next content",
+  "@downloadPreDownload": {
+    "description": "Auto pre-download upcoming content while watching/reading"
+  },
+  "downloadPreDownloadOff": "Off",
+  "@downloadPreDownloadOff": {
+    "description": "Pre-download count is 0 (disabled)"
+  },
+  "downloadEpisodesCount": "{count} items",
+  "@downloadEpisodesCount": {
+    "description": "Pre-download content count unit",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "categoriesManageTitle": "Categories",
+  "@categoriesManageTitle": {
+    "description": "Settings categories management entry title"
+  },
+  "categoriesManageDesc": "Manage collection categories for anime, comics and novels",
+  "@categoriesManageDesc": {
+    "description": "Settings categories management entry subtitle"
+  },
+  "settingsGroupPrivacy": "Privacy",
+  "@settingsGroupPrivacy": {
+    "description": "Settings home privacy group title"
+  },
+  "privacySettingsTitle": "Privacy Settings",
+  "@privacySettingsTitle": {
+    "description": "Privacy settings page title"
+  },
+  "privacySettingsDesc": "Notification masking and incognito options",
+  "@privacySettingsDesc": {
+    "description": "Settings home privacy entry subtitle"
+  },
+  "privacyNotificationsGroup": "Notifications",
+  "@privacyNotificationsGroup": {
+    "description": "Privacy page notifications group title"
+  },
+  "hideNotificationContent": "Hide Notification Content",
+  "@hideNotificationContent": {
+    "description": "Privacy page hide notification content switch"
+  },
+  "hideNotificationContentHint": "When on, notifications only show \"New content\" without specific counts, preventing shoulder surfing",
+  "@hideNotificationContentHint": {
+    "description": "Hide notification content switch description"
+  },
+  "privacyNetworkGroup": "Network",
+  "@privacyNetworkGroup": {
+    "description": "Privacy page network group title"
+  },
+  "privacyPageHint": "Global incognito randomizes request delays and rotates browser fingerprints to reduce the chance of being detected as a script",
+  "@privacyPageHint": {
+    "description": "Privacy page bottom hint"
+  },
+  "settingsGroupAdvanced": "Advanced & Cache",
+  "@settingsGroupAdvanced": {
+    "description": "Settings home advanced group title"
+  },
+  "advancedSettingsTitle": "Advanced Settings",
+  "@advancedSettingsTitle": {
+    "description": "Advanced settings page title"
+  },
+  "advancedSettingsDesc": "Crash logs, detailed logs, data cleanup and request fingerprint",
+  "@advancedSettingsDesc": {
+    "description": "Settings home advanced entry subtitle"
+  },
+  "advancedLogGroup": "Logs",
+  "@advancedLogGroup": {
+    "description": "Advanced page logs group title"
+  },
+  "detailedLogging": "Detailed Logging",
+  "@detailedLogging": {
+    "description": "Advanced page detailed logging switch"
+  },
+  "detailedLoggingHint": "Log each network request and response to help debug scraping issues",
+  "@detailedLoggingHint": {
+    "description": "Detailed logging switch description"
+  },
+  "crashLog": "Crash Log",
+  "@crashLog": {
+    "description": "Advanced page crash log entry title"
+  },
+  "crashLogDesc": "View runtime errors and uncaught exceptions",
+  "@crashLogDesc": {
+    "description": "Crash log entry subtitle"
+  },
+  "crashLogTitle": "Crash Log",
+  "@crashLogTitle": {
+    "description": "Crash log page title"
+  },
+  "crashLogEmpty": "No crash records yet. If you hit a problem, reproduce it and check back",
+  "@crashLogEmpty": {
+    "description": "Crash log page empty state"
+  },
+  "crashLogCopied": "Copied to clipboard",
+  "@crashLogCopied": {
+    "description": "Crash log copied toast"
+  },
+  "crashLogClear": "Clear Crash Log",
+  "@crashLogClear": {
+    "description": "Crash log clear button"
+  },
+  "crashLogCleared": "Cleared",
+  "@crashLogCleared": {
+    "description": "Crash log cleared toast"
+  },
+  "crashLogCopyAll": "Copy All",
+  "@crashLogCopyAll": {
+    "description": "Crash log copy all button"
+  },
+  "advancedCleanGroup": "Data Cleanup",
+  "@advancedCleanGroup": {
+    "description": "Advanced page data cleanup group title"
+  },
+  "clearCookies": "Clear Cookies",
+  "@clearCookies": {
+    "description": "Advanced page clear cookies entry"
+  },
+  "clearCookiesDesc": "Clear session cookies of crawler and WebView",
+  "@clearCookiesDesc": {
+    "description": "Clear cookies subtitle"
+  },
+  "cookiesCleared": "Cookies cleared",
+  "@cookiesCleared": {
+    "description": "Cookies cleared toast"
+  },
+  "clearWebviewData": "Clear WebView Data",
+  "@clearWebviewData": {
+    "description": "Advanced page clear WebView data entry"
+  },
+  "clearWebviewDataDesc": "Clear embedded browser cache and local storage",
+  "@clearWebviewDataDesc": {
+    "description": "Clear WebView data subtitle"
+  },
+  "webviewDataCleared": "WebView data cleared",
+  "@webviewDataCleared": {
+    "description": "WebView data cleared toast"
+  },
+  "confirmActionHint": "This action cannot be undone. Continue?",
+  "@confirmActionHint": {
+    "description": "Dangerous action confirmation hint"
+  },
+  "advancedRequestGroup": "Request Fingerprint",
+  "@advancedRequestGroup": {
+    "description": "Advanced page request fingerprint group title"
+  },
+  "defaultUserAgent": "Default User-Agent",
+  "@defaultUserAgent": {
+    "description": "Advanced page default UA setting"
+  },
+  "userAgentAuto": "Auto (built-in fingerprint rotation)",
+  "@userAgentAuto": {
+    "description": "UA auto option"
+  },
+  "userAgentAutoHint": "Different sites automatically use different browser fingerprints",
+  "@userAgentAutoHint": {
+    "description": "UA auto option description"
+  },
+  "userAgentCustom": "Custom User-Agent",
+  "@userAgentCustom": {
+    "description": "UA custom input label"
+  },
+  "advancedPageHint": "The default UA takes effect immediately; some sites may be more sensitive to a fixed fingerprint",
+  "@advancedPageHint": {
+    "description": "Advanced page bottom hint"
+  },
+  "refresh": "Refresh",
+  "@refresh": {
+    "description": "Generic refresh button"
+  },
+  "rssNewContentGeneric": "New content available",
+  "@rssNewContentGeneric": {
+    "description": "Generic text shown when notification content is hidden"
   }
 }

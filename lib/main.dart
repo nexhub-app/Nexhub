@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/network/runtime/nexhub_http_overrides.dart';
+import 'core/debug/crash_log.dart';
 import 'features/splash/splash_screen.dart';
 import 'core/theme/app_tokens.dart';
 
@@ -27,6 +28,17 @@ void main() {
     // Dio/HttpClient、cached_network_image、下载器、云同步等）。此时用默认
     // 网络档案，真实配置在 splash 加载 NetworkConfigService 后即时生效。
     HttpOverrides.global = NexHubHttpOverrides();
+
+    // 全局异常落盘：Flutter 框架错误（构建 / 布局 / 断言）写入崩溃日志，
+    // 供「设置 → 高级 → 崩溃日志」查看。presentError 保留默认控制台输出。
+    FlutterError.onError = (FlutterErrorDetails details) {
+      unawaited(CrashLog.record(
+        'Flutter 错误',
+        details.exceptionAsString(),
+        stack: details.stack,
+      ));
+      FlutterError.presentError(details);
+    };
 
     // 构建期异常可视化：任何 widget build 抛错时，展示错误文本而非黑屏。
     ErrorWidget.builder = (FlutterErrorDetails details) {
@@ -79,6 +91,7 @@ void main() {
 
     runApp(const SplashScreen());
   }, (Object error, StackTrace stack) {
+    unawaited(CrashLog.record('未捕获异常', error.toString(), stack: stack));
     debugPrint('Uncaught zone error: $error\n$stack');
   });
 }

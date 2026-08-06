@@ -8,12 +8,14 @@
   "navSettings": "设置",
   "homeTitle": "浏览",
   "settingsTitle": "设置",
+  "settingsTagline": "打造专属你的媒体空间",
   "sourceManagementTitle": "源管理",
   "downloadSettingsTitle": "下载",
   "downloadManagementTitle": "下载管理",
   "aboutTitle": "关于",
   "themeTitle": "外观",
   "tabLibrary": "书架",
+  "tabMediaLibrary": "媒体库",
   "tabOnline": "在线",
   "tabSubscribe": "订阅",
   "tabSources": "源管理",
@@ -129,6 +131,17 @@
   "useMonet": "使用动态取色（莫奈）",
   "customColor": "自定义主题色",
   "presetColor": "预设颜色",
+  "appearanceThemeSection": "主题",
+  "appearanceColorsSection": "配色",
+  "appearanceStartupSection": "启动与显示",
+  "heroSettingsTitle": "Hero 图片设置",
+  "appearanceHeroSection": "背景图",
+  "heroEmptyHint": "添加几张图片，在设置主页顶部循环展示",
+  "heroAddFromUrl": "从网络添加",
+  "heroAddFromDevice": "从本机选择",
+  "heroUrlDialogTitle": "添加图片 URL",
+  "heroUrlFieldHint": "图片地址（https://... 或 file://...）",
+  "heroRemoveTooltip": "删除",
   "deleteConfirmTitle": "删除确认",
   "deleteConfirmContent": "确定删除「{name}」吗？此操作不可撤销。",
   "deleteRecordOnly": "仅删除记录",
@@ -2315,6 +2328,20 @@
   "comicVisualZoomGroup": "画面与缩放",
   "comicPageProgressGroup": "页面与进度",
   "generalSettingsGroup": "通用",
+  "playbackProgressGroup": "播放进度",
+  "playbackModulesSection": "各模块设置",
+  "settingsCatAppearance": "外观与语言",
+  "settingsCatAppearanceDesc": "主题、配色、深浅模式与语言",
+  "settingsCatPlayback": "播放与阅读",
+  "settingsCatPlaybackDesc": "播放器、漫画、小说与弹幕显示",
+  "settingsCatContent": "内容与源",
+  "settingsCatContentDesc": "源管理、网页爬取与网络设置",
+  "settingsCatData": "数据与账户",
+  "settingsCatDataDesc": "统计、备份、云同步与 Bangumi",
+  "settingsCatPrivacy": "隐私与安全",
+  "settingsCatPrivacyDesc": "隐私、高级设置与缓存清理",
+  "settingsCatAbout": "关于",
+  "settingsCatAboutDesc": "版本、许可与致谢",
   "launchScreenTitle": "启动界面",
   "dateFormatTitle": "日期格式",
   "dateFormatDefault": "默认（yyyy/mm/dd）",
@@ -3169,5 +3196,198 @@
   "heatmapStreak": "当前连续",
   "@heatmapStreak": {
     "description": "热力图顶部汇总：当前连续活跃天数"
+  },
+  "downloadAutoDelete": "读后自动删除",
+  "@downloadAutoDelete": {
+    "description": "下载设置：看完/读完自动删除已下载文件"
+  },
+  "downloadAutoDeleteHint": "看完/读完该内容后自动删除已下载的文件",
+  "@downloadAutoDeleteHint": {
+    "description": "读后自动删除的副标题说明"
+  },
+  "downloadAutoDeleteExclude": "排除分类",
+  "@downloadAutoDeleteExclude": {
+    "description": "自动删除的排除分类入口"
+  },
+  "downloadAutoDeleteExcludeNone": "全部执行自动删除",
+  "@downloadAutoDeleteExcludeNone": {
+    "description": "排除分类为空时的副标题"
+  },
+  "downloadPreDownload": "预下载后续内容",
+  "@downloadPreDownload": {
+    "description": "播放/阅读时自动预下载后续内容"
+  },
+  "downloadPreDownloadOff": "关闭",
+  "@downloadPreDownloadOff": {
+    "description": "预下载数量为 0（关闭）时的副标题"
+  },
+  "downloadEpisodesCount": "{count} 个",
+  "@downloadEpisodesCount": {
+    "description": "预下载内容数单位",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "categoriesManageTitle": "分类管理",
+  "@categoriesManageTitle": {
+    "description": "设置页分类管理入口标题"
+  },
+  "categoriesManageDesc": "管理动漫、漫画、小说的收藏分类",
+  "@categoriesManageDesc": {
+    "description": "设置页分类管理入口副标题"
+  },
+  "settingsGroupPrivacy": "隐私",
+  "@settingsGroupPrivacy": {
+    "description": "设置主页隐私分组标题"
+  },
+  "privacySettingsTitle": "隐私设置",
+  "@privacySettingsTitle": {
+    "description": "隐私设置页标题"
+  },
+  "privacySettingsDesc": "通知打码与隐身选项",
+  "@privacySettingsDesc": {
+    "description": "设置主页隐私入口副标题"
+  },
+  "privacyNotificationsGroup": "通知",
+  "@privacyNotificationsGroup": {
+    "description": "隐私页通知分组标题"
+  },
+  "hideNotificationContent": "隐藏通知内容",
+  "@hideNotificationContent": {
+    "description": "隐私页隐藏通知内容开关"
+  },
+  "hideNotificationContentHint": "开启后通知只显示「新内容」，不显示具体条数，防旁人窥屏",
+  "@hideNotificationContentHint": {
+    "description": "隐藏通知内容开关说明"
+  },
+  "privacyNetworkGroup": "网络",
+  "@privacyNetworkGroup": {
+    "description": "隐私页网络分组标题"
+  },
+  "privacyPageHint": "全局隐身会随机延迟请求并轮换浏览器指纹，降低被站点识别为脚本的风险",
+  "@privacyPageHint": {
+    "description": "隐私页底部说明"
+  },
+  "settingsGroupAdvanced": "高级与缓存",
+  "@settingsGroupAdvanced": {
+    "description": "设置主页高级与缓存分组标题"
+  },
+  "advancedSettingsTitle": "高级设置",
+  "@advancedSettingsTitle": {
+    "description": "高级设置页标题"
+  },
+  "advancedSettingsDesc": "崩溃日志、详细日志、数据清理与请求指纹",
+  "@advancedSettingsDesc": {
+    "description": "设置主页高级设置入口副标题"
+  },
+  "advancedLogGroup": "日志",
+  "@advancedLogGroup": {
+    "description": "高级页日志分组标题"
+  },
+  "detailedLogging": "详细日志",
+  "@detailedLogging": {
+    "description": "高级页详细日志开关"
+  },
+  "detailedLoggingHint": "记录每个网络请求与响应，便于排查抓取问题",
+  "@detailedLoggingHint": {
+    "description": "详细日志开关说明"
+  },
+  "crashLog": "崩溃日志",
+  "@crashLog": {
+    "description": "高级页崩溃日志入口标题"
+  },
+  "crashLogDesc": "查看应用运行期错误与未捕获异常",
+  "@crashLogDesc": {
+    "description": "崩溃日志入口副标题"
+  },
+  "crashLogTitle": "崩溃日志",
+  "@crashLogTitle": {
+    "description": "崩溃日志页标题"
+  },
+  "crashLogEmpty": "暂无崩溃记录。若遇到问题，复现一次后再回来查看",
+  "@crashLogEmpty": {
+    "description": "崩溃日志页空态提示"
+  },
+  "crashLogCopied": "已复制到剪贴板",
+  "@crashLogCopied": {
+    "description": "崩溃日志复制成功提示"
+  },
+  "crashLogClear": "清空崩溃日志",
+  "@crashLogClear": {
+    "description": "崩溃日志清空按钮"
+  },
+  "crashLogCleared": "已清空",
+  "@crashLogCleared": {
+    "description": "崩溃日志清空完成提示"
+  },
+  "crashLogCopyAll": "复制全部",
+  "@crashLogCopyAll": {
+    "description": "崩溃日志复制全部按钮"
+  },
+  "advancedCleanGroup": "数据清理",
+  "@advancedCleanGroup": {
+    "description": "高级页数据清理分组标题"
+  },
+  "clearCookies": "清除 Cookie",
+  "@clearCookies": {
+    "description": "高级页清除 Cookie 入口"
+  },
+  "clearCookiesDesc": "清除爬取与 WebView 的会话 Cookie",
+  "@clearCookiesDesc": {
+    "description": "清除 Cookie 副标题"
+  },
+  "cookiesCleared": "Cookie 已清除",
+  "@cookiesCleared": {
+    "description": "Cookie 清除完成提示"
+  },
+  "clearWebviewData": "清除 WebView 数据",
+  "@clearWebviewData": {
+    "description": "高级页清除 WebView 数据入口"
+  },
+  "clearWebviewDataDesc": "清除内嵌浏览器缓存与本地存储",
+  "@clearWebviewDataDesc": {
+    "description": "清除 WebView 数据副标题"
+  },
+  "webviewDataCleared": "WebView 数据已清除",
+  "@webviewDataCleared": {
+    "description": "WebView 数据清除完成提示"
+  },
+  "confirmActionHint": "该操作不可撤销，确定继续？",
+  "@confirmActionHint": {
+    "description": "危险操作二次确认提示"
+  },
+  "advancedRequestGroup": "请求指纹",
+  "@advancedRequestGroup": {
+    "description": "高级页请求指纹分组标题"
+  },
+  "defaultUserAgent": "默认 UA",
+  "@defaultUserAgent": {
+    "description": "高级页默认 UA 设置"
+  },
+  "userAgentAuto": "自动（内置指纹轮换）",
+  "@userAgentAuto": {
+    "description": "UA 自动选项"
+  },
+  "userAgentAutoHint": "不同站点自动使用不同浏览器指纹",
+  "@userAgentAutoHint": {
+    "description": "UA 自动选项说明"
+  },
+  "userAgentCustom": "自定义 UA",
+  "@userAgentCustom": {
+    "description": "UA 自定义输入框标签"
+  },
+  "advancedPageHint": "修改默认 UA 后立即生效；部分站点对固定指纹可能更敏感",
+  "@advancedPageHint": {
+    "description": "高级页底部说明"
+  },
+  "refresh": "刷新",
+  "@refresh": {
+    "description": "通用刷新按钮"
+  },
+  "rssNewContentGeneric": "有新内容",
+  "@rssNewContentGeneric": {
+    "description": "隐藏通知内容时显示的通用文案"
   }
 }
