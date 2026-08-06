@@ -324,7 +324,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   Future<void> _initBrightness() async {
     try {
-      _brightness = await _brightnessPlugin.current;
+      final defaults = await ReaderDefaultSettingsStore().load();
+      _brightness = defaults.novelBrightness.clamp(0.0, 1.0);
+      await _brightnessPlugin.setScreenBrightness(_brightness);
     } on Object {
       _brightness = 0.5;
     }

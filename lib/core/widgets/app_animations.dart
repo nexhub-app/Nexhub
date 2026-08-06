@@ -88,6 +88,9 @@ final Set<String> _entrancePlayed = <String>{};
 /// [onceKey] 非空时，相同 key 在应用生命周期内只播放一次；
 /// 之后该卡片 / 项再次进入视口（如列表滚动回来）将直接以终态显示，不再重播，
 /// 避免滚动抖动。key 为空则每次挂载都播放（适合数量少、不滚动复用的场景）。
+///
+/// 传 [index] 可让多个卡片按顺序交错入场：每个卡片相对于前一个延迟 80ms
+/// 出现（Interval 驱动），形成「灵动」序列。
 class Entrance extends StatefulWidget {
   const Entrance({
     super.key,
@@ -97,6 +100,7 @@ class Entrance extends StatefulWidget {
     this.offset = 16, // 上滑像素
     this.fromScale = 0.96, // 起始缩放（<1 表示从更小放大弹入，默认带轻微放大）
     this.onceKey,
+    this.index, // 交错序列索引：传此值后卡片按 index*80ms 延迟入场
   });
 
   final Widget child;
@@ -105,6 +109,7 @@ class Entrance extends StatefulWidget {
   final double offset;
   final double fromScale;
   final String? onceKey;
+  final int? index;
 
   @override
   State<Entrance> createState() => _EntranceState();
@@ -134,21 +139,37 @@ class _EntranceState extends State<Entrance>
       _play = true;
     }
 
+    // 交错的卡片需要更长总时长：基础时长 + 最后一个卡片的延迟
+    final staggerMs = (widget.index ?? 0) * 80;
+    final baseDuration = widget.duration ?? AppTokens.durSpring;
     _ctrl = AnimationController(
       vsync: this,
-      duration: widget.duration ?? AppTokens.durSpring,
+      duration: baseDuration + Duration(milliseconds: staggerMs),
     );
+
+    // 交错偏移量：当前卡片在整个动画时间轴上的起始位置比例
+    final staggerOffset = (widget.index ?? 0) * 0.08;
+    // 每个卡片动画占 60% 的总时长，从 staggerOffset 位置开始
+    final animStart = staggerOffset;
+    final animEnd = (staggerOffset + 0.6).clamp(0.0, 1.0);
+
     // 淡入 + 上滑走平滑减速（末段极缓、顺滑）；缩放走弹簧（放大略过冲再回落）。
     _opacity = CurvedAnimation(
       parent: _ctrl,
-      curve: const Interval(0.0, 0.6, curve: AppCurves.smooth),
+      curve: Interval(animStart, animEnd, curve: AppCurves.smooth),
     );
     _slide = Tween<Offset>(
       begin: Offset(0, widget.offset / 100),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _ctrl, curve: AppCurves.smooth));
+    ).animate(CurvedAnimation(
+      parent: _ctrl,
+      curve: Interval(animStart, animEnd, curve: AppCurves.smooth),
+    ));
     _scale = Tween<double>(begin: widget.fromScale, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: AppCurves.spring));
+        .animate(CurvedAnimation(
+      parent: _ctrl,
+      curve: Interval(animStart, animEnd, curve: AppCurves.spring),
+    ));
 
     if (_play) {
       Future.delayed(widget.delay, () {
@@ -229,37 +250,97 @@ class _AppHoverLiftState extends State<AppHoverLift> {
 
 // ────────────────────── 值变化弹性脉冲（开关 / 分段 / Chip） ──────────────────────
 
-/// 值变化弹性脉冲：当 [trigger] 变化时，让子控件从 0.94 弹性放大回 1.0，
+/// 值变化弹性脉冲：当 [trigger] 变化时，让子控件从 [from] 弹性放大回 1.0，
 /// 形成「咚」一下的确认反馈。适合开关、分段选择、选择芯片等取值型控件。
 ///
+/// 底层使用 [AnimationController] + spring 曲线，比 [TweenAnimationBuilder]
+/// 更精确地控制脉冲时机（变化时立即触发，不等待 rebuild 调度）。
+///
 /// 首次挂载也会播一次轻微脉冲（与卡片入场动画自然融合）；之后仅在值变化时播放。
-class AppValuePulse extends StatelessWidget {
+/// 传 [color] 时，子控件背景色会在颜色变化时渐变过渡（配合 [AnimatedContainer]）。
+class AppValuePulse extends StatefulWidget {
   const AppValuePulse({
     super.key,
     required this.trigger,
     required this.child,
     this.from = 0.94,
+    this.color,
   });
 
-  /// 触发脉冲的值：值变化 → 播放一次脉冲（用 [ValueKey] 驱动重建实现）。
+  /// 触发脉冲的值：值变化 → 播放一次脉冲。
   final Object? trigger;
   final Widget child;
 
   /// 脉冲起始缩放（越小力度越大）。整行大控件建议 0.98，小徽标可 0.8。
   final double from;
 
+  /// 可选颜色值：变化时渐变过渡，配合开关/分段选中态的颜色切换。
+  final Color? color;
+
+  @override
+  State<AppValuePulse> createState() => _AppValuePulseState();
+}
+
+class _AppValuePulseState extends State<AppValuePulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: AppTokens.durSpring,
+    );
+    _scale = CurvedAnimation(
+      parent: _controller,
+      curve: AppCurves.spring,
+    );
+    // 首次挂载播一次脉冲
+    _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(AppValuePulse old) {
+    super.didUpdateWidget(old);
+    // trigger 变化时重新播放脉冲
+    if (widget.trigger != old.trigger) {
+      _controller.forward(from: widget.from);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      // key 变化时 TweenAnimationBuilder 重建并从 begin 重新播放。
-      key: ValueKey<Object?>(trigger),
-      tween: Tween<double>(begin: from, end: 1.0),
-      duration: AppTokens.durSpring,
-      curve: AppCurves.spring,
-      child: child,
-      builder: (context, scale, child) =>
-          Transform.scale(scale: scale, child: child),
+    Widget result = AnimatedBuilder(
+      animation: _scale,
+      builder: (context, child) => Transform.scale(
+        scale: widget.from + (1.0 - widget.from) * _scale.value,
+        child: child,
+      ),
+      child: widget.child,
     );
+
+    // 颜色变化时渐变过渡
+    if (widget.color != null) {
+      result = AnimatedContainer(
+        duration: AppTokens.durBase,
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          color: widget.color,
+          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        ),
+        child: result,
+      );
+    }
+
+    return result;
   }
 }
 

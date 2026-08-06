@@ -2212,7 +2212,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelReaderSettingsTitle => '小说阅读器设置';
 
   @override
-  String get novelReaderSettingsDesc => '字号、行距、段距、边距、背景等';
+  String get novelReaderSettingsDesc => '小说阅读全局默认设置';
 
   @override
   String get comicReaderSettingsTitle => '漫画阅读器设置';
@@ -2224,13 +2224,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelTypographyGroup => '小说排版';
 
   @override
-  String get novelShadow => '文字阴影';
+  String get novelShadow => '阴影开关';
 
   @override
   String get novelBackgroundPreset => '背景预设';
 
   @override
-  String get novelTapZoneInvert => '点击区反转';
+  String get novelTapZoneInvert => '点击区域翻转';
 
   @override
   String get comicFilterGroup => '图片滤镜';
@@ -2772,7 +2772,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelShadowColorAuto => '自动（正文色半透明）';
 
   @override
-  String get novelSectionText => '文字';
+  String get novelSectionText => '阅读基础';
 
   @override
   String get novelSectionTitle => '章节标题';
@@ -2781,7 +2781,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelSectionColor => '颜色与背景';
 
   @override
-  String get novelSectionPage => '翻页与交互';
+  String get novelSectionPage => '翻页与手势';
 
   @override
   String get novelSectionMisc => '其他';
@@ -3330,10 +3330,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelDefaultPageTurnAnimation => '翻页动画';
 
   @override
-  String get novelDefaultFontSize => '字号';
+  String get novelDefaultFontSize => '默认字号';
 
   @override
-  String get novelDefaultLineHeight => '行距';
+  String get novelDefaultLineHeight => '默认行距';
 
   @override
   String get novelDefaultBackground => '背景色';
@@ -4002,7 +4002,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelTitleAlignHidden => '隐藏';
 
   @override
-  String get novelSectionTts => '朗读（TTS）';
+  String get novelSectionToolbar => '底部工具栏';
+
+  @override
+  String get novelSectionTts => '朗读设置';
 
   @override
   String get ttsRate => '朗读语速';
@@ -4095,13 +4098,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelUnderlineDashed => '虚线下划线';
 
   @override
-  String get novelUnderlineThickness => '下划线粗细';
+  String get novelUnderlineThickness => '下划线线宽';
 
   @override
-  String get novelUnderlineDashLength => '虚线实线段长';
+  String get novelUnderlineDashLength => '实线段长';
 
   @override
-  String get novelUnderlineDashGap => '虚线间隙长度';
+  String get novelUnderlineDashGap => '间隙比例';
 
   @override
   String get novelTitlePosition => '标题显示位置';
@@ -4110,10 +4113,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelTitleSegmentMode => '标题分段模式';
 
   @override
-  String get novelTitleSubScale => '次行字号缩放';
+  String get novelTitleSubScale => '次行字号倍率';
 
   @override
-  String get novelTitleSegmentSpacing => '标题与次行间距';
+  String get novelTitleSegmentSpacing => '主次行间距';
 
   @override
   String get novelTitleSubLineSpacing => '次行行距';
@@ -4125,25 +4128,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelTitleBottomMargin => '标题下边距';
 
   @override
-  String get novelSectionHeaderFooter => '页眉与页脚';
+  String get novelSectionHeaderFooter => '页眉页脚';
 
   @override
-  String get novelHeaderLeft => '页眉左';
+  String get novelHeaderLeft => '页眉左侧';
 
   @override
-  String get novelHeaderCenter => '页眉中';
+  String get novelHeaderCenter => '页眉中间';
 
   @override
-  String get novelHeaderRight => '页眉右';
+  String get novelHeaderRight => '页眉右侧';
 
   @override
-  String get novelFooterLeft => '页脚左';
+  String get novelFooterLeft => '页脚左侧';
 
   @override
-  String get novelFooterCenter => '页脚中';
+  String get novelFooterCenter => '页脚中间';
 
   @override
-  String get novelFooterRight => '页脚右';
+  String get novelFooterRight => '页脚右侧';
 
   @override
   String get novelHeaderFooterColor => '页眉页脚颜色';

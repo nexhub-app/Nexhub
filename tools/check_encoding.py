@@ -57,6 +57,10 @@ def walk_files():
             continue
         for p in base.rglob("*"):
             if p.is_file() and p.suffix in TEXT_EXTS:
+                # 跳过生成文件（l10n 自动生成的 .dart 文件含有效中文翻译）
+                rel = str(p.relative_to(ROOT)).replace("\\", "/")
+                if "generated/" in rel:
+                    continue
                 yield p
 
 

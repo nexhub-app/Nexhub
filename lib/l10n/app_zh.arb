@@ -1063,7 +1063,7 @@
   "@novelReaderSettingsTitle": {
     "description": "Novel reader default settings title"
   },
-  "novelReaderSettingsDesc": "字号、行距、段距、边距、背景等",
+  "novelReaderSettingsDesc": "小说阅读全局默认设置",
   "@novelReaderSettingsDesc": {
     "description": "Novel reader default settings description"
   },
@@ -1085,7 +1085,7 @@
   "@novelMargin": {
     "description": "Novel margin"
   },
-  "novelShadow": "文字阴影",
+  "novelShadow": "阴影开关",
   "@novelShadow": {
     "description": "Novel text shadow"
   },
@@ -1096,7 +1096,7 @@
   "@novelPageAnimation": {
     "description": "Novel page turn animation"
   },
-  "novelTapZoneInvert": "点击区反转",
+  "novelTapZoneInvert": "点击区域翻转",
   "@novelTapZoneInvert": {
     "description": "Novel tap zone invert"
   },
@@ -1445,10 +1445,10 @@
   "novelTextColorFollowBg": "跟随背景自动配色",
   "novelShadowColor": "阴影颜色",
   "novelShadowColorAuto": "自动（正文色半透明）",
-  "novelSectionText": "文字",
+  "novelSectionText": "阅读基础",
   "novelSectionTitle": "章节标题",
   "novelSectionColor": "颜色与背景",
-  "novelSectionPage": "翻页与交互",
+  "novelSectionPage": "翻页与手势",
   "novelSectionMisc": "其他",
   "novelShowChapterTitle": "正文显示章节标题",
   "novelTitleFontScale": "标题字号倍数",
@@ -1862,8 +1862,8 @@
   },
   "novelDefaultGroupTitle": "小说默认",
   "novelDefaultPageTurnAnimation": "翻页动画",
-  "novelDefaultFontSize": "字号",
-  "novelDefaultLineHeight": "行距",
+  "novelDefaultFontSize": "默认字号",
+  "novelDefaultLineHeight": "默认行距",
   "novelDefaultBackground": "背景色",
   "novelDefaultTtsRate": "朗读语速",
   "novelDefaultChineseConversion": "简繁转换",
@@ -2215,7 +2215,8 @@
   "novelTitleAlignCenter": "居中",
   "novelTitleAlignRight": "右对齐",
   "novelTitleAlignHidden": "隐藏",
-  "novelSectionTts": "朗读（TTS）",
+  "novelSectionToolbar": "底部工具栏",
+  "novelSectionTts": "朗读设置",
   "ttsRate": "朗读语速",
   "ttsSleepTimer": "睡眠定时",
   "ttsSleepOff": "关闭",
@@ -2271,23 +2272,23 @@
   "novelUnderlineColor": "下划线颜色",
   "novelUnderlineColorAuto": "自动（正文色）",
   "novelUnderlineDashed": "虚线下划线",
-  "novelUnderlineThickness": "下划线粗细",
-  "novelUnderlineDashLength": "虚线实线段长",
-  "novelUnderlineDashGap": "虚线间隙长度",
+  "novelUnderlineThickness": "下划线线宽",
+  "novelUnderlineDashLength": "实线段长",
+  "novelUnderlineDashGap": "间隙比例",
   "novelTitlePosition": "标题显示位置",
   "novelTitleSegmentMode": "标题分段模式",
-  "novelTitleSubScale": "次行字号缩放",
-  "novelTitleSegmentSpacing": "标题与次行间距",
+  "novelTitleSubScale": "次行字号倍率",
+  "novelTitleSegmentSpacing": "主次行间距",
   "novelTitleSubLineSpacing": "次行行距",
   "novelTitleTopMargin": "标题上边距",
   "novelTitleBottomMargin": "标题下边距",
-  "novelSectionHeaderFooter": "页眉与页脚",
-  "novelHeaderLeft": "页眉左",
-  "novelHeaderCenter": "页眉中",
-  "novelHeaderRight": "页眉右",
-  "novelFooterLeft": "页脚左",
-  "novelFooterCenter": "页脚中",
-  "novelFooterRight": "页脚右",
+  "novelSectionHeaderFooter": "页眉页脚",
+  "novelHeaderLeft": "页眉左侧",
+  "novelHeaderCenter": "页眉中间",
+  "novelHeaderRight": "页眉右侧",
+  "novelFooterLeft": "页脚左侧",
+  "novelFooterCenter": "页脚中间",
+  "novelFooterRight": "页脚右侧",
   "novelHeaderFooterColor": "页眉页脚颜色",
   "novelHeaderFooterMargin": "页眉页脚边距",
   "novelHfPageAndProgress": "页码及进度",
