@@ -4,6 +4,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/danmaku/danmaku_settings.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../settings/presentation/widgets/settings_widgets.dart';
 
 /// 弹幕设置面板（底部弹出 Sheet）。
 class DanmakuSettingsSheet extends StatefulWidget {
@@ -125,7 +126,8 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
                       },
                     ),
                   _keywordSection(l10n, theme),
-                  _sliderSection(
+                  // 以下滑块 / 开关复用设置页统一组件（灵动脉冲 + 统一手感）。
+                  SettingsSliderTile(
                     label: l10n.danmakuTimeOffset,
                     value: _settings.timeOffset,
                     min: -10,
@@ -135,7 +137,7 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
                     onChanged: (v) =>
                         _update(_settings.copyWith(timeOffset: v)),
                   ),
-                  _sliderSection(
+                  SettingsSliderTile(
                     label: l10n.danmakuArea,
                     value: _settings.area,
                     min: 0.1,
@@ -144,7 +146,7 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
                     display: _settings.area.toStringAsFixed(1),
                     onChanged: (v) => _update(_settings.copyWith(area: v)),
                   ),
-                  _sliderSection(
+                  SettingsSliderTile(
                     label: l10n.danmakuDuration,
                     value: _settings.duration,
                     min: 3,
@@ -153,7 +155,7 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
                     display: _settings.duration.toStringAsFixed(0),
                     onChanged: (v) => _update(_settings.copyWith(duration: v)),
                   ),
-                  _sliderSection(
+                  SettingsSliderTile(
                     label: l10n.danmakuLineHeight,
                     value: _settings.lineHeight,
                     min: 1.0,
@@ -162,7 +164,7 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
                     display: _settings.lineHeight.toStringAsFixed(1),
                     onChanged: (v) => _update(_settings.copyWith(lineHeight: v)),
                   ),
-                  _sliderSection(
+                  SettingsSliderTile(
                     label: l10n.danmakuFontSize,
                     value: _settings.fontSize,
                     min: 12,
@@ -172,7 +174,7 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
                     onChanged: (v) =>
                         _update(_settings.copyWith(fontSize: v)),
                   ),
-                  _sliderSection(
+                  SettingsSliderTile(
                     label: l10n.danmakuOpacity,
                     value: _settings.opacity,
                     min: 0.1,
@@ -182,26 +184,26 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
                     onChanged: (v) =>
                         _update(_settings.copyWith(opacity: v)),
                   ),
-                  _switchSection(
-                    label: l10n.danmakuHideTop,
+                  SettingsSwitchTile(
+                    title: l10n.danmakuHideTop,
                     value: _settings.hideTop,
                     onChanged: (v) =>
                         _update(_settings.copyWith(hideTop: v)),
                   ),
-                  _switchSection(
-                    label: l10n.danmakuHideBottom,
+                  SettingsSwitchTile(
+                    title: l10n.danmakuHideBottom,
                     value: _settings.hideBottom,
                     onChanged: (v) =>
                         _update(_settings.copyWith(hideBottom: v)),
                   ),
-                  _switchSection(
-                    label: l10n.danmakuHideScroll,
+                  SettingsSwitchTile(
+                    title: l10n.danmakuHideScroll,
                     value: _settings.hideScroll,
                     onChanged: (v) =>
                         _update(_settings.copyWith(hideScroll: v)),
                   ),
-                  _switchSection(
-                    label: l10n.danmakuFollowSpeed,
+                  SettingsSwitchTile(
+                    title: l10n.danmakuFollowSpeed,
                     value: _settings.followPlaybackSpeed,
                     onChanged: (v) => _update(
                         _settings.copyWith(followPlaybackSpeed: v)),
@@ -290,58 +292,6 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
             ),
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _sliderSection({
-    required String label,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required String display,
-    required ValueChanged<double> onChanged,
-  }) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Text(label, style: theme.textTheme.bodyMedium),
-              Text(display,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.primary)),
-            ],
-          ),
-          Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: divisions,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _switchSection({
-    required String label,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
-      child: SwitchListTile(
-        title: Text(label),
-        value: value,
-        onChanged: onChanged,
-        contentPadding: EdgeInsets.zero,
       ),
     );
   }

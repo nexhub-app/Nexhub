@@ -1871,8 +1871,9 @@
   "playerSeekNormal": "1x",
   "playerSeekDouble": "2x",
   "playerLongPressSpeedUp": "Long Press Speed Boost",
-  "playerSubtitleBottomMargin": "Subtitle Bottom Margin",
   "playerDefaultVolume": "Default Volume",
+  "playerResetEpisodeSettings": "Reset This Video Settings",
+  "playerResetEpisodeSettingsDone": "Restored this video to global defaults",
   "playerCoreGroup": "Playback Core",
   "@playerCoreGroup": {
     "description": "Player settings group: core playback"
@@ -1884,6 +1885,10 @@
   "playerGestureGroup": "Gesture & Control",
   "@playerGestureGroup": {
     "description": "Player settings group: gesture and control"
+  },
+  "playerScreenshotGroup": "Screenshot",
+  "@playerScreenshotGroup": {
+    "description": "Player settings group: screenshot"
   },
   "novelDefaultGroupTitle": "Novel Defaults",
   "novelDefaultPageTurnAnimation": "Page Turn Animation",
@@ -1925,11 +1930,6 @@
   "danmakuDisplayScrollSpeed": "Scroll Speed",
   "danmakuDisplayArea": "Display Area",
   "danmakuDisplayMaxOnScreen": "Max On Screen",
-  "danmakuDisplayShowTop": "Show Top",
-  "danmakuDisplayShowBottom": "Show Bottom",
-  "danmakuDisplayShowFull": "Show Full",
-  "danmakuDisplayBlockedKeywords": "Blocked Keywords",
-  "danmakuDisplayBlockedKeywordsHint": "One keyword per line",
   "danmakuSizeSmall": "Small",
   "danmakuSizeMedium": "Medium",
   "danmakuSizeLarge": "Large",
@@ -1950,6 +1950,10 @@
   "danmakuDisplayGroupAppearance": "Appearance",
   "@danmakuDisplayGroupAppearance": {
     "description": "Danmaku display group: appearance"
+  },
+  "danmakuDisplayGroupDisplay": "Display",
+  "@danmakuDisplayGroupDisplay": {
+    "description": "Danmaku display group: display"
   },
   "danmakuDisplayGroupDisplayRange": "Display Range",
   "@danmakuDisplayGroupDisplayRange": {

@@ -3358,10 +3358,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerLongPressSpeedUp => 'Long Press Speed Boost';
 
   @override
-  String get playerSubtitleBottomMargin => 'Subtitle Bottom Margin';
+  String get playerDefaultVolume => 'Default Volume';
 
   @override
-  String get playerDefaultVolume => 'Default Volume';
+  String get playerResetEpisodeSettings => 'Reset This Video Settings';
+
+  @override
+  String get playerResetEpisodeSettingsDone =>
+      'Restored this video to global defaults';
 
   @override
   String get playerCoreGroup => 'Playback Core';
@@ -3371,6 +3375,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get playerGestureGroup => 'Gesture & Control';
+
+  @override
+  String get playerScreenshotGroup => 'Screenshot';
 
   @override
   String get novelDefaultGroupTitle => 'Novel Defaults';
@@ -3493,21 +3500,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get danmakuDisplayMaxOnScreen => 'Max On Screen';
 
   @override
-  String get danmakuDisplayShowTop => 'Show Top';
-
-  @override
-  String get danmakuDisplayShowBottom => 'Show Bottom';
-
-  @override
-  String get danmakuDisplayShowFull => 'Show Full';
-
-  @override
-  String get danmakuDisplayBlockedKeywords => 'Blocked Keywords';
-
-  @override
-  String get danmakuDisplayBlockedKeywordsHint => 'One keyword per line';
-
-  @override
   String get danmakuSizeSmall => 'Small';
 
   @override
@@ -3551,6 +3543,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get danmakuDisplayGroupAppearance => 'Appearance';
+
+  @override
+  String get danmakuDisplayGroupDisplay => 'Display';
 
   @override
   String get danmakuDisplayGroupDisplayRange => 'Display Range';

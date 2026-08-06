@@ -1846,8 +1846,9 @@
   "playerSeekNormal": "1x",
   "playerSeekDouble": "2x",
   "playerLongPressSpeedUp": "长按加速",
-  "playerSubtitleBottomMargin": "字幕底部边距",
   "playerDefaultVolume": "默认音量",
+  "playerResetEpisodeSettings": "重置该视频设置",
+  "playerResetEpisodeSettingsDone": "已恢复该视频的全局默认设置",
   "playerCoreGroup": "播放核心",
   "@playerCoreGroup": {
     "description": "Player settings group: core playback"
@@ -1859,6 +1860,10 @@
   "playerGestureGroup": "手势与控制",
   "@playerGestureGroup": {
     "description": "Player settings group: gesture and control"
+  },
+  "playerScreenshotGroup": "截图",
+  "@playerScreenshotGroup": {
+    "description": "Player settings group: screenshot"
   },
   "novelDefaultGroupTitle": "小说默认",
   "novelDefaultPageTurnAnimation": "翻页动画",
@@ -1900,11 +1905,6 @@
   "danmakuDisplayScrollSpeed": "滚动速度",
   "danmakuDisplayArea": "显示区域",
   "danmakuDisplayMaxOnScreen": "同屏上限",
-  "danmakuDisplayShowTop": "顶部显示",
-  "danmakuDisplayShowBottom": "底部显示",
-  "danmakuDisplayShowFull": "全屏显示",
-  "danmakuDisplayBlockedKeywords": "屏蔽关键词",
-  "danmakuDisplayBlockedKeywordsHint": "每行一个关键词",
   "danmakuSizeSmall": "小",
   "danmakuSizeMedium": "中",
   "danmakuSizeLarge": "大",
@@ -1925,6 +1925,10 @@
   "danmakuDisplayGroupAppearance": "外观",
   "@danmakuDisplayGroupAppearance": {
     "description": "Danmaku display group: appearance"
+  },
+  "danmakuDisplayGroupDisplay": "显示",
+  "@danmakuDisplayGroupDisplay": {
+    "description": "Danmaku display group: display"
   },
   "danmakuDisplayGroupDisplayRange": "显示范围",
   "@danmakuDisplayGroupDisplayRange": {
