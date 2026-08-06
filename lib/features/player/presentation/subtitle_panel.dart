@@ -6,6 +6,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 
 import '../../../core/player/player_controller.dart';
+import '../../../core/settings/player_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
@@ -14,14 +15,22 @@ import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 /// 展示可用字幕轨道列表、字幕偏移滑块（-5s~+5s）与显示开关，
 /// 通过 [PlayerController] 实时切换 / 调整字幕，变更立即生效。
 class SubtitlePanel extends StatefulWidget {
-  const SubtitlePanel({super.key, required this.controller});
+  const SubtitlePanel({
+    super.key,
+    required this.controller,
+    this.defaults,
+  });
 
   final PlayerController controller;
+
+  /// 全局播放器默认设置：面板样式项的初始值来源（打通设置页默认值）。
+  final PlayerSettings? defaults;
 
   /// 以 modal bottom sheet 形式展示字幕面板。
   static Future<void> show(
     BuildContext context, {
     required PlayerController controller,
+    PlayerSettings? defaults,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -33,7 +42,7 @@ class SubtitlePanel extends StatefulWidget {
         ),
       ),
       builder: (BuildContext context) =>
-          SubtitlePanel(controller: controller),
+          SubtitlePanel(controller: controller, defaults: defaults),
     );
   }
 
@@ -48,19 +57,30 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   StreamSubscription<Tracks>? _tracksSub;
 
   // ── 字幕样式状态（本地 UI 状态，onChangeEnd 时写入 mpv） ──
-  double _subFontSize = 28.0;
-  double _subScale = 1.0;
-  double _subBorderSize = 1.5;
-  double _subShadowOffset = 2.0;
-  String _subColor = 'FFFFFF';
-  String _subBorderColor = '000000';
-  String _subShadowColor = '000000';
-  String _subPosition = 'bottom';
-  String _subAssMode = 'yes';
+  // 初始值取自全局播放器默认设置（widget.defaults），与设置页打通。
+  late double _subFontSize;
+  late double _subScale;
+  late double _subBorderSize;
+  late double _subShadowOffset;
+  late String _subColor;
+  late String _subBorderColor;
+  late String _subShadowColor;
+  late String _subPosition;
+  late String _subAssMode;
 
   @override
   void initState() {
     super.initState();
+    final d = widget.defaults;
+    _subFontSize = d?.subtitleFontSize ?? 28.0;
+    _subScale = d?.subtitleScale ?? 1.0;
+    _subBorderSize = d?.subtitleBorderSize ?? 1.5;
+    _subShadowOffset = d?.subtitleShadowOffset ?? 2.0;
+    _subColor = d?.subtitleColor ?? 'FFFFFF';
+    _subBorderColor = d?.subtitleBorderColor ?? '000000';
+    _subShadowColor = d?.subtitleShadowColor ?? '000000';
+    _subPosition = d?.subtitlePosition ?? 'bottom';
+    _subAssMode = d?.subtitleAssMode ?? 'yes';
     _refreshTracks(widget.controller.subtitleTracks);
     _tracksSub = widget.controller.tracksStream.listen((Tracks t) {
       _refreshTracks(t.subtitle);

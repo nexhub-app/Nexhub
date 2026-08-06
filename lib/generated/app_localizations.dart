@@ -6488,17 +6488,23 @@ abstract class AppLocalizations {
   /// **'Long Press Speed Boost'**
   String get playerLongPressSpeedUp;
 
-  /// No description provided for @playerSubtitleBottomMargin.
-  ///
-  /// In en, this message translates to:
-  /// **'Subtitle Bottom Margin'**
-  String get playerSubtitleBottomMargin;
-
   /// No description provided for @playerDefaultVolume.
   ///
   /// In en, this message translates to:
   /// **'Default Volume'**
   String get playerDefaultVolume;
+
+  /// No description provided for @playerResetEpisodeSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset This Video Settings'**
+  String get playerResetEpisodeSettings;
+
+  /// No description provided for @playerResetEpisodeSettingsDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored this video to global defaults'**
+  String get playerResetEpisodeSettingsDone;
 
   /// Player settings group: core playback
   ///
@@ -6517,6 +6523,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Gesture & Control'**
   String get playerGestureGroup;
+
+  /// Player settings group: screenshot
+  ///
+  /// In en, this message translates to:
+  /// **'Screenshot'**
+  String get playerScreenshotGroup;
 
   /// No description provided for @novelDefaultGroupTitle.
   ///
@@ -6758,36 +6770,6 @@ abstract class AppLocalizations {
   /// **'Max On Screen'**
   String get danmakuDisplayMaxOnScreen;
 
-  /// No description provided for @danmakuDisplayShowTop.
-  ///
-  /// In en, this message translates to:
-  /// **'Show Top'**
-  String get danmakuDisplayShowTop;
-
-  /// No description provided for @danmakuDisplayShowBottom.
-  ///
-  /// In en, this message translates to:
-  /// **'Show Bottom'**
-  String get danmakuDisplayShowBottom;
-
-  /// No description provided for @danmakuDisplayShowFull.
-  ///
-  /// In en, this message translates to:
-  /// **'Show Full'**
-  String get danmakuDisplayShowFull;
-
-  /// No description provided for @danmakuDisplayBlockedKeywords.
-  ///
-  /// In en, this message translates to:
-  /// **'Blocked Keywords'**
-  String get danmakuDisplayBlockedKeywords;
-
-  /// No description provided for @danmakuDisplayBlockedKeywordsHint.
-  ///
-  /// In en, this message translates to:
-  /// **'One keyword per line'**
-  String get danmakuDisplayBlockedKeywordsHint;
-
   /// No description provided for @danmakuSizeSmall.
   ///
   /// In en, this message translates to:
@@ -6877,6 +6859,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Appearance'**
   String get danmakuDisplayGroupAppearance;
+
+  /// Danmaku display group: display
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get danmakuDisplayGroupDisplay;
 
   /// Danmaku display group: display range
   ///
