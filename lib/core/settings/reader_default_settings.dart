@@ -28,12 +28,6 @@ enum ReaderOrientation { horizontal, vertical }
 /// 阅读器默认背景色。
 enum ReaderDefaultBackground { white, beige, dark }
 
-/// 小说默认翻页动画（项 2）。
-enum NovelPageTurnAnimation { fade, cover, slide, simulation, scroll, none }
-
-/// 小说默认背景色（项 2）。
-enum NovelBackground { white, cream, darkGray, black }
-
 /// 小说默认简繁转换（项 2）。
 enum NovelChineseConversion {
   none,
@@ -64,10 +58,8 @@ class ReaderDefaultSettings {
   final bool tapZoneEnabled;
   final bool doubleTapZoom;
   final bool orientationLock;
-  final NovelPageTurnAnimation novelPageTurnAnimation;
   final double novelFontSize;
   final double novelLineHeight;
-  final NovelBackground novelBackground;
   final double novelTtsSpeechRate;
   final NovelChineseConversion novelChineseConversion;
   final ComicReadingDirection comicReadingDirection;
@@ -103,6 +95,54 @@ class ReaderDefaultSettings {
   final int novelBgPresetIndex;
   final TapZoneInvert novelTapZoneInvert;
   final NovelPageAnimation novelPageAnimation;
+
+  // ── 小说补充 v2（与 NovelReaderPreferences 对齐）──
+  final double novelBrightness;
+  final int? novelCustomBgColor;
+  final int? novelCustomTextColor;
+  final int? novelEmphasisColor;
+  final double novelLetterSpacing;
+  final bool novelFontBold;
+  final bool novelFontItalic;
+  final bool novelFontUnderline;
+  final String? novelFontFamily;
+  final String? novelCustomFontPath;
+  final List<String> novelBottomToolbarSlots;
+  final String novelTapZoneLayout;
+  final int novelAutoPageInterval;
+  final String novelThemeFollow;
+  final int? novelShadowColor;
+  final double novelShadowBlur;
+  final double novelShadowOffsetX;
+  final double novelShadowOffsetY;
+  final int? novelUnderlineColor;
+  final bool novelUnderlineDashed;
+  final double novelUnderlineThickness;
+  final double novelUnderlineDashLength;
+  final double novelUnderlineDashGap;
+  final bool novelShowChapterTitleInBody;
+  final String novelTitleAlign;
+  final double novelTitleFontScale;
+  final bool novelTitleBold;
+  final String? novelTitleFontFamily;
+  final String? novelTitleCustomFontPath;
+  final bool novelTitleSegmentMode;
+  final double novelTitleSubScale;
+  final double novelTitleSegmentSpacing;
+  final double novelTitleSubLineSpacing;
+  final double novelTitleTopMargin;
+  final double novelTitleBottomMargin;
+  final int? novelTitleColor;
+  final String novelHeaderLeft;
+  final String novelHeaderRight;
+  final String novelHeaderCenter;
+  final String novelFooterLeft;
+  final String novelFooterRight;
+  final String novelFooterCenter;
+  final int? novelHeaderFooterColor;
+  final double novelHeaderFooterMargin;
+  final bool novelTtsBackground;
+  final int novelTtsSleepTimer;
 
   // ── 漫画补充（来自漫画阅读面板，项 1）──
   final double comicFilterBrightness;
@@ -142,10 +182,8 @@ class ReaderDefaultSettings {
     this.tapZoneEnabled = true,
     this.doubleTapZoom = true,
     this.orientationLock = false,
-    this.novelPageTurnAnimation = NovelPageTurnAnimation.fade,
     this.novelFontSize = 18.0,
-    this.novelLineHeight = 1.5,
-    this.novelBackground = NovelBackground.white,
+    this.novelLineHeight = 1.8,
     this.novelTtsSpeechRate = 1.0,
     this.novelChineseConversion = NovelChineseConversion.none,
     this.comicReadingDirection = ComicReadingDirection.ltr,
@@ -169,6 +207,52 @@ class ReaderDefaultSettings {
     this.novelBgPresetIndex = 2,
     this.novelTapZoneInvert = TapZoneInvert.none,
     this.novelPageAnimation = NovelPageAnimation.slide,
+    this.novelBrightness = 0.5,
+    this.novelCustomBgColor,
+    this.novelCustomTextColor,
+    this.novelEmphasisColor,
+    this.novelLetterSpacing = 0.0,
+    this.novelFontBold = false,
+    this.novelFontItalic = false,
+    this.novelFontUnderline = false,
+    this.novelFontFamily,
+    this.novelCustomFontPath,
+    this.novelBottomToolbarSlots = const <String>['toc', 'prevChapter', 'nightMode', 'autoPage', 'settings', 'bookmark'],
+    this.novelTapZoneLayout = 'lShape',
+    this.novelAutoPageInterval = 0,
+    this.novelThemeFollow = 'followApp',
+    this.novelShadowColor,
+    this.novelShadowBlur = 0.5,
+    this.novelShadowOffsetX = 0.5,
+    this.novelShadowOffsetY = 0.5,
+    this.novelUnderlineColor,
+    this.novelUnderlineDashed = false,
+    this.novelUnderlineThickness = 1.0,
+    this.novelUnderlineDashLength = 4.0,
+    this.novelUnderlineDashGap = 2.0,
+    this.novelShowChapterTitleInBody = true,
+    this.novelTitleAlign = 'left',
+    this.novelTitleFontScale = 1.5,
+    this.novelTitleBold = true,
+    this.novelTitleFontFamily,
+    this.novelTitleCustomFontPath,
+    this.novelTitleSegmentMode = false,
+    this.novelTitleSubScale = 0.8,
+    this.novelTitleSegmentSpacing = 8.0,
+    this.novelTitleSubLineSpacing = 1.3,
+    this.novelTitleTopMargin = 0.0,
+    this.novelTitleBottomMargin = 0.0,
+    this.novelTitleColor,
+    this.novelHeaderLeft = 'bookName',
+    this.novelHeaderRight = 'time',
+    this.novelHeaderCenter = 'none',
+    this.novelFooterLeft = 'chapterTitle',
+    this.novelFooterRight = 'pageNumber',
+    this.novelFooterCenter = 'none',
+    this.novelHeaderFooterColor,
+    this.novelHeaderFooterMargin = 12.0,
+    this.novelTtsBackground = false,
+    this.novelTtsSleepTimer = 0,
     this.comicFilterBrightness = 0.0,
     this.comicFilterContrast = 0.0,
     this.comicFilterColorTemp = 0.0,
@@ -191,10 +275,8 @@ class ReaderDefaultSettings {
     bool? tapZoneEnabled,
     bool? doubleTapZoom,
     bool? orientationLock,
-    NovelPageTurnAnimation? novelPageTurnAnimation,
     double? novelFontSize,
     double? novelLineHeight,
-    NovelBackground? novelBackground,
     double? novelTtsSpeechRate,
     NovelChineseConversion? novelChineseConversion,
     ComicReadingDirection? comicReadingDirection,
@@ -218,6 +300,52 @@ class ReaderDefaultSettings {
     int? novelBgPresetIndex,
     TapZoneInvert? novelTapZoneInvert,
     NovelPageAnimation? novelPageAnimation,
+    double? novelBrightness,
+    int? novelCustomBgColor,
+    int? novelCustomTextColor,
+    int? novelEmphasisColor,
+    double? novelLetterSpacing,
+    bool? novelFontBold,
+    bool? novelFontItalic,
+    bool? novelFontUnderline,
+    String? novelFontFamily,
+    String? novelCustomFontPath,
+    List<String>? novelBottomToolbarSlots,
+    String? novelTapZoneLayout,
+    int? novelAutoPageInterval,
+    String? novelThemeFollow,
+    int? novelShadowColor,
+    double? novelShadowBlur,
+    double? novelShadowOffsetX,
+    double? novelShadowOffsetY,
+    int? novelUnderlineColor,
+    bool? novelUnderlineDashed,
+    double? novelUnderlineThickness,
+    double? novelUnderlineDashLength,
+    double? novelUnderlineDashGap,
+    bool? novelShowChapterTitleInBody,
+    String? novelTitleAlign,
+    double? novelTitleFontScale,
+    bool? novelTitleBold,
+    String? novelTitleFontFamily,
+    String? novelTitleCustomFontPath,
+    bool? novelTitleSegmentMode,
+    double? novelTitleSubScale,
+    double? novelTitleSegmentSpacing,
+    double? novelTitleSubLineSpacing,
+    double? novelTitleTopMargin,
+    double? novelTitleBottomMargin,
+    int? novelTitleColor,
+    String? novelHeaderLeft,
+    String? novelHeaderRight,
+    String? novelHeaderCenter,
+    String? novelFooterLeft,
+    String? novelFooterRight,
+    String? novelFooterCenter,
+    int? novelHeaderFooterColor,
+    double? novelHeaderFooterMargin,
+    bool? novelTtsBackground,
+    int? novelTtsSleepTimer,
     double? comicFilterBrightness,
     double? comicFilterContrast,
     double? comicFilterColorTemp,
@@ -239,12 +367,10 @@ class ReaderDefaultSettings {
         tapZoneEnabled: tapZoneEnabled ?? this.tapZoneEnabled,
         doubleTapZoom: doubleTapZoom ?? this.doubleTapZoom,
         orientationLock: orientationLock ?? this.orientationLock,
-        novelPageTurnAnimation:
-            novelPageTurnAnimation ?? this.novelPageTurnAnimation,
         novelFontSize: novelFontSize ?? this.novelFontSize,
         novelLineHeight: novelLineHeight ?? this.novelLineHeight,
-        novelBackground: novelBackground ?? this.novelBackground,
-        novelTtsSpeechRate: novelTtsSpeechRate ?? this.novelTtsSpeechRate,
+        novelTtsSpeechRate:
+            novelTtsSpeechRate ?? this.novelTtsSpeechRate,
         novelChineseConversion:
             novelChineseConversion ?? this.novelChineseConversion,
         comicReadingDirection:
@@ -274,6 +400,70 @@ class ReaderDefaultSettings {
         novelTapZoneInvert:
             novelTapZoneInvert ?? this.novelTapZoneInvert,
         novelPageAnimation: novelPageAnimation ?? this.novelPageAnimation,
+        novelBrightness: novelBrightness ?? this.novelBrightness,
+        novelCustomBgColor: novelCustomBgColor ?? this.novelCustomBgColor,
+        novelCustomTextColor: novelCustomTextColor ?? this.novelCustomTextColor,
+        novelEmphasisColor: novelEmphasisColor ?? this.novelEmphasisColor,
+        novelLetterSpacing: novelLetterSpacing ?? this.novelLetterSpacing,
+        novelFontBold: novelFontBold ?? this.novelFontBold,
+        novelFontItalic: novelFontItalic ?? this.novelFontItalic,
+        novelFontUnderline: novelFontUnderline ?? this.novelFontUnderline,
+        novelFontFamily: novelFontFamily ?? this.novelFontFamily,
+        novelCustomFontPath: novelCustomFontPath ?? this.novelCustomFontPath,
+        novelBottomToolbarSlots:
+            novelBottomToolbarSlots ?? this.novelBottomToolbarSlots,
+        novelTapZoneLayout: novelTapZoneLayout ?? this.novelTapZoneLayout,
+        novelAutoPageInterval:
+            novelAutoPageInterval ?? this.novelAutoPageInterval,
+        novelThemeFollow: novelThemeFollow ?? this.novelThemeFollow,
+        novelShadowColor: novelShadowColor ?? this.novelShadowColor,
+        novelShadowBlur: novelShadowBlur ?? this.novelShadowBlur,
+        novelShadowOffsetX: novelShadowOffsetX ?? this.novelShadowOffsetX,
+        novelShadowOffsetY: novelShadowOffsetY ?? this.novelShadowOffsetY,
+        novelUnderlineColor:
+            novelUnderlineColor ?? this.novelUnderlineColor,
+        novelUnderlineDashed:
+            novelUnderlineDashed ?? this.novelUnderlineDashed,
+        novelUnderlineThickness:
+            novelUnderlineThickness ?? this.novelUnderlineThickness,
+        novelUnderlineDashLength:
+            novelUnderlineDashLength ?? this.novelUnderlineDashLength,
+        novelUnderlineDashGap:
+            novelUnderlineDashGap ?? this.novelUnderlineDashGap,
+        novelShowChapterTitleInBody:
+            novelShowChapterTitleInBody ?? this.novelShowChapterTitleInBody,
+        novelTitleAlign: novelTitleAlign ?? this.novelTitleAlign,
+        novelTitleFontScale:
+            novelTitleFontScale ?? this.novelTitleFontScale,
+        novelTitleBold: novelTitleBold ?? this.novelTitleBold,
+        novelTitleFontFamily:
+            novelTitleFontFamily ?? this.novelTitleFontFamily,
+        novelTitleCustomFontPath:
+            novelTitleCustomFontPath ?? this.novelTitleCustomFontPath,
+        novelTitleSegmentMode:
+            novelTitleSegmentMode ?? this.novelTitleSegmentMode,
+        novelTitleSubScale: novelTitleSubScale ?? this.novelTitleSubScale,
+        novelTitleSegmentSpacing:
+            novelTitleSegmentSpacing ?? this.novelTitleSegmentSpacing,
+        novelTitleSubLineSpacing:
+            novelTitleSubLineSpacing ?? this.novelTitleSubLineSpacing,
+        novelTitleTopMargin:
+            novelTitleTopMargin ?? this.novelTitleTopMargin,
+        novelTitleBottomMargin:
+            novelTitleBottomMargin ?? this.novelTitleBottomMargin,
+        novelTitleColor: novelTitleColor ?? this.novelTitleColor,
+        novelHeaderLeft: novelHeaderLeft ?? this.novelHeaderLeft,
+        novelHeaderRight: novelHeaderRight ?? this.novelHeaderRight,
+        novelHeaderCenter: novelHeaderCenter ?? this.novelHeaderCenter,
+        novelFooterLeft: novelFooterLeft ?? this.novelFooterLeft,
+        novelFooterRight: novelFooterRight ?? this.novelFooterRight,
+        novelFooterCenter: novelFooterCenter ?? this.novelFooterCenter,
+        novelHeaderFooterColor:
+            novelHeaderFooterColor ?? this.novelHeaderFooterColor,
+        novelHeaderFooterMargin:
+            novelHeaderFooterMargin ?? this.novelHeaderFooterMargin,
+        novelTtsBackground: novelTtsBackground ?? this.novelTtsBackground,
+        novelTtsSleepTimer: novelTtsSleepTimer ?? this.novelTtsSleepTimer,
         comicFilterBrightness:
             comicFilterBrightness ?? this.comicFilterBrightness,
         comicFilterContrast:
@@ -305,10 +495,8 @@ class ReaderDefaultSettings {
         'tapZoneEnabled': tapZoneEnabled,
         'doubleTapZoom': doubleTapZoom,
         'orientationLock': orientationLock,
-        'novelPageTurnAnimation': novelPageTurnAnimation.name,
         'novelFontSize': novelFontSize,
         'novelLineHeight': novelLineHeight,
-        'novelBackground': novelBackground.name,
         'novelTtsSpeechRate': novelTtsSpeechRate,
         'novelChineseConversion': novelChineseConversion.name,
         'comicReadingDirection': comicReadingDirection.name,
@@ -332,6 +520,52 @@ class ReaderDefaultSettings {
         'novelBgPresetIndex': novelBgPresetIndex,
         'novelTapZoneInvert': novelTapZoneInvert.name,
         'novelPageAnimation': novelPageAnimation.name,
+        'novelBrightness': novelBrightness,
+        if (novelCustomBgColor != null) 'novelCustomBgColor': novelCustomBgColor,
+        if (novelCustomTextColor != null) 'novelCustomTextColor': novelCustomTextColor,
+        if (novelEmphasisColor != null) 'novelEmphasisColor': novelEmphasisColor,
+        'novelLetterSpacing': novelLetterSpacing,
+        'novelFontBold': novelFontBold,
+        'novelFontItalic': novelFontItalic,
+        'novelFontUnderline': novelFontUnderline,
+        if (novelCustomFontPath != null) 'novelCustomFontPath': novelCustomFontPath,
+        if (novelFontFamily != null) 'novelFontFamily': novelFontFamily,
+        'novelBottomToolbarSlots': novelBottomToolbarSlots,
+        'novelTapZoneLayout': novelTapZoneLayout,
+        'novelAutoPageInterval': novelAutoPageInterval,
+        'novelThemeFollow': novelThemeFollow,
+        if (novelShadowColor != null) 'novelShadowColor': novelShadowColor,
+        'novelShadowBlur': novelShadowBlur,
+        'novelShadowOffsetX': novelShadowOffsetX,
+        'novelShadowOffsetY': novelShadowOffsetY,
+        if (novelUnderlineColor != null) 'novelUnderlineColor': novelUnderlineColor,
+        'novelUnderlineDashed': novelUnderlineDashed,
+        'novelUnderlineThickness': novelUnderlineThickness,
+        'novelUnderlineDashLength': novelUnderlineDashLength,
+        'novelUnderlineDashGap': novelUnderlineDashGap,
+        'novelShowChapterTitleInBody': novelShowChapterTitleInBody,
+        'novelTitleAlign': novelTitleAlign,
+        'novelTitleFontScale': novelTitleFontScale,
+        'novelTitleBold': novelTitleBold,
+        if (novelTitleFontFamily != null) 'novelTitleFontFamily': novelTitleFontFamily,
+        if (novelTitleCustomFontPath != null) 'novelTitleCustomFontPath': novelTitleCustomFontPath,
+        'novelTitleSegmentMode': novelTitleSegmentMode,
+        'novelTitleSubScale': novelTitleSubScale,
+        'novelTitleSegmentSpacing': novelTitleSegmentSpacing,
+        'novelTitleSubLineSpacing': novelTitleSubLineSpacing,
+        'novelTitleTopMargin': novelTitleTopMargin,
+        'novelTitleBottomMargin': novelTitleBottomMargin,
+        if (novelTitleColor != null) 'novelTitleColor': novelTitleColor,
+        'novelHeaderLeft': novelHeaderLeft,
+        'novelHeaderRight': novelHeaderRight,
+        'novelHeaderCenter': novelHeaderCenter,
+        'novelFooterLeft': novelFooterLeft,
+        'novelFooterRight': novelFooterRight,
+        'novelFooterCenter': novelFooterCenter,
+        if (novelHeaderFooterColor != null) 'novelHeaderFooterColor': novelHeaderFooterColor,
+        'novelHeaderFooterMargin': novelHeaderFooterMargin,
+        'novelTtsBackground': novelTtsBackground,
+        'novelTtsSleepTimer': novelTtsSleepTimer,
         'comicFilterBrightness': comicFilterBrightness,
         'comicFilterContrast': comicFilterContrast,
         'comicFilterColorTemp': comicFilterColorTemp,
@@ -367,20 +601,6 @@ class ReaderDefaultSettings {
       orient = ReaderOrientation.values.firstWhere(
         (e) => e.name == json['orientation'],
         orElse: () => ReaderOrientation.horizontal,
-      );
-    }
-    NovelPageTurnAnimation pageTurn = NovelPageTurnAnimation.fade;
-    if (json['novelPageTurnAnimation'] is String) {
-      pageTurn = NovelPageTurnAnimation.values.firstWhere(
-        (e) => e.name == json['novelPageTurnAnimation'],
-        orElse: () => NovelPageTurnAnimation.fade,
-      );
-    }
-    NovelBackground novelBg = NovelBackground.white;
-    if (json['novelBackground'] is String) {
-      novelBg = NovelBackground.values.firstWhere(
-        (e) => e.name == json['novelBackground'],
-        orElse: () => NovelBackground.white,
       );
     }
     NovelChineseConversion chineseConv = NovelChineseConversion.none;
@@ -453,12 +673,10 @@ class ReaderDefaultSettings {
       tapZoneEnabled: json['tapZoneEnabled'] as bool? ?? true,
       doubleTapZoom: json['doubleTapZoom'] as bool? ?? true,
       orientationLock: json['orientationLock'] as bool? ?? false,
-      novelPageTurnAnimation: pageTurn,
       novelFontSize:
           (json['novelFontSize'] as num?)?.toDouble() ?? 18.0,
       novelLineHeight:
-          (json['novelLineHeight'] as num?)?.toDouble() ?? 1.5,
-      novelBackground: novelBg,
+          (json['novelLineHeight'] as num?)?.toDouble() ?? 1.8,
       novelTtsSpeechRate:
           (json['novelTtsSpeechRate'] as num?)?.toDouble() ?? 1.0,
       novelChineseConversion: chineseConv,
@@ -486,6 +704,85 @@ class ReaderDefaultSettings {
       novelBgPresetIndex: json['novelBgPresetIndex'] as int? ?? 2,
       novelTapZoneInvert: novelInvert,
       novelPageAnimation: novelAnim,
+      novelBrightness:
+          (json['novelBrightness'] as num?)?.toDouble() ?? 0.5,
+      novelCustomBgColor: json['novelCustomBgColor'] as int?,
+      novelCustomTextColor: json['novelCustomTextColor'] as int?,
+      novelEmphasisColor: json['novelEmphasisColor'] as int?,
+      novelLetterSpacing:
+          (json['novelLetterSpacing'] as num?)?.toDouble() ?? 0.0,
+      novelFontBold: json['novelFontBold'] as bool? ?? false,
+      novelFontItalic: json['novelFontItalic'] as bool? ?? false,
+      novelFontUnderline: json['novelFontUnderline'] as bool? ?? false,
+      novelCustomFontPath: json['novelCustomFontPath'] as String?,
+      novelFontFamily: json['novelFontFamily'] as String?,
+      novelBottomToolbarSlots:
+          (json['novelBottomToolbarSlots'] as List?)?.cast<String>() ??
+              <String>['toc', 'prevChapter', 'nightMode', 'autoPage', 'settings', 'bookmark'],
+      novelTapZoneLayout:
+          json['novelTapZoneLayout'] as String? ?? 'lShape',
+      novelAutoPageInterval:
+          (json['novelAutoPageInterval'] as num?)?.toInt() ?? 0,
+      novelThemeFollow:
+          json['novelThemeFollow'] as String? ?? 'followApp',
+      novelShadowColor: json['novelShadowColor'] as int?,
+      novelShadowBlur:
+          (json['novelShadowBlur'] as num?)?.toDouble() ?? 0.5,
+      novelShadowOffsetX:
+          (json['novelShadowOffsetX'] as num?)?.toDouble() ?? 0.5,
+      novelShadowOffsetY:
+          (json['novelShadowOffsetY'] as num?)?.toDouble() ?? 0.5,
+      novelUnderlineColor: json['novelUnderlineColor'] as int?,
+      novelUnderlineDashed:
+          json['novelUnderlineDashed'] as bool? ?? false,
+      novelUnderlineThickness:
+          (json['novelUnderlineThickness'] as num?)?.toDouble() ?? 1.0,
+      novelUnderlineDashLength:
+          (json['novelUnderlineDashLength'] as num?)?.toDouble() ?? 4.0,
+      novelUnderlineDashGap:
+          (json['novelUnderlineDashGap'] as num?)?.toDouble() ?? 2.0,
+      novelShowChapterTitleInBody:
+          json['novelShowChapterTitleInBody'] as bool? ?? true,
+      novelTitleAlign:
+          json['novelTitleAlign'] as String? ?? 'left',
+      novelTitleFontScale:
+          (json['novelTitleFontScale'] as num?)?.toDouble() ?? 1.5,
+      novelTitleBold: json['novelTitleBold'] as bool? ?? true,
+      novelTitleFontFamily: json['novelTitleFontFamily'] as String?,
+      novelTitleCustomFontPath:
+          json['novelTitleCustomFontPath'] as String?,
+      novelTitleSegmentMode:
+          json['novelTitleSegmentMode'] as bool? ?? false,
+      novelTitleSubScale:
+          (json['novelTitleSubScale'] as num?)?.toDouble() ?? 0.8,
+      novelTitleSegmentSpacing:
+          (json['novelTitleSegmentSpacing'] as num?)?.toDouble() ?? 8.0,
+      novelTitleSubLineSpacing:
+          (json['novelTitleSubLineSpacing'] as num?)?.toDouble() ?? 1.3,
+      novelTitleTopMargin:
+          (json['novelTitleTopMargin'] as num?)?.toDouble() ?? 0.0,
+      novelTitleBottomMargin:
+          (json['novelTitleBottomMargin'] as num?)?.toDouble() ?? 0.0,
+      novelTitleColor: json['novelTitleColor'] as int?,
+      novelHeaderLeft:
+          json['novelHeaderLeft'] as String? ?? 'bookName',
+      novelHeaderRight:
+          json['novelHeaderRight'] as String? ?? 'time',
+      novelHeaderCenter:
+          json['novelHeaderCenter'] as String? ?? 'none',
+      novelFooterLeft:
+          json['novelFooterLeft'] as String? ?? 'chapterTitle',
+      novelFooterRight:
+          json['novelFooterRight'] as String? ?? 'pageNumber',
+      novelFooterCenter:
+          json['novelFooterCenter'] as String? ?? 'none',
+      novelHeaderFooterColor: json['novelHeaderFooterColor'] as int?,
+      novelHeaderFooterMargin:
+          (json['novelHeaderFooterMargin'] as num?)?.toDouble() ?? 12.0,
+      novelTtsBackground:
+          json['novelTtsBackground'] as bool? ?? false,
+      novelTtsSleepTimer:
+          (json['novelTtsSleepTimer'] as num?)?.toInt() ?? 0,
       comicFilterBrightness:
           (json['comicFilterBrightness'] as num?)?.toDouble() ?? 0.0,
       comicFilterContrast:
@@ -594,10 +891,87 @@ class ReaderDefaultSettings {
       paragraphSpacing: novelParagraphSpacing,
       margin: novelMargin,
       bgPresetIndex: novelBgPresetIndex,
+      customBgColor: novelCustomBgColor,
+      customTextColor: novelCustomTextColor,
+      emphasisColor: novelEmphasisColor,
+      letterSpacing: novelLetterSpacing,
+      fontBold: novelFontBold,
+      fontItalic: novelFontItalic,
+      fontUnderline: novelFontUnderline,
+      fontFamily: novelFontFamily,
+      customFontPath: novelCustomFontPath,
       shadow: novelShadow,
+      shadowColor: novelShadowColor,
+      shadowBlur: novelShadowBlur,
+      shadowOffsetX: novelShadowOffsetX,
+      shadowOffsetY: novelShadowOffsetY,
       pageAnimation: novelPageAnimation,
       chineseConvert: novelChineseConversion.name,
       tapZoneInvert: novelTapZoneInvert,
+      tapZoneLayout: ReaderTapZoneLayout.values.firstWhere(
+        (e) => e.name == novelTapZoneLayout,
+        orElse: () => ReaderTapZoneLayout.lShape,
+      ),
+      themeFollow: NovelThemeFollow.values.firstWhere(
+        (e) => e.name == novelThemeFollow,
+        orElse: () => NovelThemeFollow.followApp,
+      ),
+      bottomToolbarSlots: novelBottomToolbarSlots.map((s) => NovelBottomTool.fromString(s) ?? NovelBottomTool.toc).toList(),
+      autoPageInterval: novelAutoPageInterval,
+      // 下划线
+      underlineColor: novelUnderlineColor,
+      underlineDashed: novelUnderlineDashed,
+      underlineThickness: novelUnderlineThickness,
+      underlineDashLength: novelUnderlineDashLength,
+      underlineDashGap: novelUnderlineDashGap,
+      // 标题
+      showChapterTitleInBody: novelShowChapterTitleInBody,
+      titleAlign: NovelTitleAlign.values.firstWhere(
+        (e) => e.name == novelTitleAlign,
+        orElse: () => NovelTitleAlign.left,
+      ),
+      titleFontScale: novelTitleFontScale,
+      titleBold: novelTitleBold,
+      titleFontFamily: novelTitleFontFamily,
+      titleCustomFontPath: novelTitleCustomFontPath,
+      titleSegmentMode: novelTitleSegmentMode,
+      titleSubScale: novelTitleSubScale,
+      titleSegmentSpacing: novelTitleSegmentSpacing,
+      titleSubLineSpacing: novelTitleSubLineSpacing,
+      titleTopMargin: novelTitleTopMargin,
+      titleBottomMargin: novelTitleBottomMargin,
+      titleColor: novelTitleColor,
+      // 页眉页脚
+      headerLeft: NovelHeaderFooterContent.values.firstWhere(
+        (e) => e.name == novelHeaderLeft,
+        orElse: () => NovelHeaderFooterContent.bookName,
+      ),
+      headerRight: NovelHeaderFooterContent.values.firstWhere(
+        (e) => e.name == novelHeaderRight,
+        orElse: () => NovelHeaderFooterContent.time,
+      ),
+      headerCenter: NovelHeaderFooterContent.values.firstWhere(
+        (e) => e.name == novelHeaderCenter,
+        orElse: () => NovelHeaderFooterContent.none,
+      ),
+      footerLeft: NovelHeaderFooterContent.values.firstWhere(
+        (e) => e.name == novelFooterLeft,
+        orElse: () => NovelHeaderFooterContent.chapterTitle,
+      ),
+      footerRight: NovelHeaderFooterContent.values.firstWhere(
+        (e) => e.name == novelFooterRight,
+        orElse: () => NovelHeaderFooterContent.pageNumber,
+      ),
+      footerCenter: NovelHeaderFooterContent.values.firstWhere(
+        (e) => e.name == novelFooterCenter,
+        orElse: () => NovelHeaderFooterContent.none,
+      ),
+      headerFooterColor: novelHeaderFooterColor,
+      headerFooterMargin: novelHeaderFooterMargin,
+      // TTS
+      ttsSpeechRate: novelTtsSpeechRate,
+      ttsBackground: novelTtsBackground,
+      ttsSleepTimer: novelTtsSleepTimer,
     );
   }
 }
