@@ -38,6 +38,7 @@ import '../../../core/widgets/detail_action_utils.dart';
 import '../../../core/widgets/web_favorite_action.dart';
 import '../../../core/widgets/source_image.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
+import '../../../core/novel/novel_toc_store.dart';
 import 'novel_animated_page_view.dart';
 import 'novel_bookmark_manager.dart';
 import 'novel_chinese_converter.dart';
@@ -2334,9 +2335,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   Future<void> _showChapterList() async {
     final bookmarks = await _bookmarks.listFor(widget.novelId);
     final bookmarkedChapters = bookmarks.map((b) => b.chapterIndex).toSet();
+    // 与详情页共享目录源：把当前快照写回（保留更长），再读取「更完整」的那份，
+    // 这样阅读器目录能实时反映详情页渐进加载出的完整目录。
+    final tocStore = context.read<NovelTocStore>();
+    tocStore.setChapters(widget.sourceId, widget.novelId, widget.chapters);
+    final chapters = tocStore.chaptersFor(widget.sourceId, widget.novelId);
     final index = await showChapterList(
       context,
-      widget.chapters,
+      chapters,
       _chapterIndex,
       bookmarkedIndices: bookmarkedChapters,
     );
@@ -2349,9 +2355,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 打开书内搜索（顶栏与底部工具栏共用；本地模式不可用）。
   Future<void> _showInBookSearch() async {
     if (_isLocalMode) return;
+    final tocStore = context.read<NovelTocStore>();
+    tocStore.setChapters(widget.sourceId, widget.novelId, widget.chapters);
+    final chapters = tocStore.chaptersFor(widget.sourceId, widget.novelId);
     final result = await showNovelInBookSearchSheet(
       context: context,
-      chapters: widget.chapters,
+      chapters: chapters,
       currentChapterIndex: _chapterIndex,
       service: _service,
       source: _source,

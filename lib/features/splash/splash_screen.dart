@@ -18,6 +18,7 @@ import '../../core/locale/locale_controller.dart';
 import '../../core/models/hive_adapters.dart';
 import '../../core/network/network_config_service.dart';
 import '../../core/network/source_network_override_store.dart';
+import '../../core/novel/novel_toc_store.dart';
 import '../../core/resolver/resolver_registry.dart';
 import '../../core/rss/browse_article_feed_manager.dart';
 import '../../core/rss/rss_manager.dart';
@@ -303,6 +304,9 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               ChangeNotifierProvider<LocaleController>(
                 create: (_) => LocaleController()..load(),
+              ),
+              ChangeNotifierProvider<NovelTocStore>(
+                create: (_) => NovelTocStore(),
               ),
             ],
             child: const App(),

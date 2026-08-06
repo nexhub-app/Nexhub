@@ -55,7 +55,7 @@ class DownloadManager extends ChangeNotifier {
         _settings = settings ?? const DownloadSettings.defaults();
 
   final DownloadStorage storage;
-  final DownloadFileSystem fs;
+  DownloadFileSystem fs;
   final MediaApiService service;
   final SourceRepository sourceRepo;
   DownloadFormatPreferences _formatPrefs;
@@ -193,6 +193,20 @@ class DownloadManager extends ChangeNotifier {
     }
   }
 
+  /// 更新下载路径并立即生效（无需重启）。
+  ///
+  /// 持久化到 [DownloadSettingsStore]，并在生产环境（[PathProviderFileSystem]）
+  /// 下重建文件系统根路径，使后续下载直接落到新目录。SAF 的 `content://` 路径
+  /// 无法用 dart:io 操作，仅持久化不重建 fs。
+  Future<void> setDownloadBasePath(String path) async {
+    _settings = _settings.copyWith(downloadPath: path);
+    await DownloadSettingsStore().save(_settings);
+    if (fs is PathProviderFileSystem && !path.startsWith('content://')) {
+      fs = PathProviderFileSystem(path);
+    }
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _connectivitySub?.cancel();
@@ -290,6 +304,31 @@ class DownloadManager extends ChangeNotifier {
     if (!task.isCompleted) {
       _tasks.removeAt(idx);
     }
+    await _persist();
+    notifyListeners();
+  }
+
+  /// 删除一条已完成下载任务（书架「本地」长按菜单用）。
+  ///
+  /// [deleteFiles] = true 同时删除磁盘文件 + meta.json；false 仅删记录
+  /// （下次 [recoverOrphanedDownloads] 可能从 meta.json 恢复）。
+  Future<void> removeCompleted(String taskId, {bool deleteFiles = false}) async {
+    final idx = _tasks.indexWhere((t) => t.id == taskId);
+    if (idx < 0) return;
+    final task = _tasks[idx];
+    if (deleteFiles) {
+      await _deleteTaskFiles(task);
+    }
+    _tasks.removeAt(idx);
+    await _persist();
+    notifyListeners();
+  }
+
+  /// 重命名已完成下载任务的显示标题（仅改记录中的 title，不动磁盘文件）。
+  Future<void> renameCompleted(String taskId, String newTitle) async {
+    final idx = _tasks.indexWhere((t) => t.id == taskId);
+    if (idx < 0) return;
+    _tasks[idx] = _tasks[idx].copyWith(title: newTitle);
     await _persist();
     notifyListeners();
   }

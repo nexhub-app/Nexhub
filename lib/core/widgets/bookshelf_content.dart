@@ -19,6 +19,7 @@ import '../favorites/favorite_group.dart';
 import '../favorites/favorites_manager.dart';
 import '../history/history_manager.dart';
 import '../local/local_content_manager.dart';
+import '../local/local_content_actions.dart';
 import '../models/bookshelf_filter.dart';
 import '../models/media_item.dart';
 import '../models/plugin_config.dart';
@@ -236,24 +237,31 @@ class _LocalBookshelf extends StatelessWidget {
     final List<_BookshelfItem> items = <_BookshelfItem>[];
 
     // 已下载内容（来自在线源下载）。
+    MediaItem itemForTask(DownloadTask t) => MediaItem(
+          id: t.contentId,
+          title: t.title,
+          coverUrl: t.localCoverPath ?? t.coverUrl,
+          sourceId: t.sourceId,
+          sourceType: sourceType,
+          extra: <String, dynamic>{
+            if (t.localPath != null && t.localPath!.isNotEmpty)
+              'localPath': t.localPath,
+            'localKind': _kindForFormat(t.format)?.name,
+          },
+        );
     items.addAll(tasks.map((t) => _BookshelfItem(
           id: t.contentId,
           title: t.title,
           sourceType: sourceType,
           coverUrl: t.localCoverPath ?? t.coverUrl,
           source: t.sourceId != null ? repo.getById(t.sourceId!) : null,
-          onTap: () => onItemTap?.call(MediaItem(
-            id: t.contentId,
-            title: t.title,
-            coverUrl: t.localCoverPath ?? t.coverUrl,
-            sourceId: t.sourceId,
-            sourceType: sourceType,
-            extra: <String, dynamic>{
-              if (t.localPath != null && t.localPath!.isNotEmpty)
-                'localPath': t.localPath,
-              'localKind': _kindForFormat(t.format)?.name,
-            },
-          )),
+          onTap: () => onItemTap?.call(itemForTask(t)),
+          // 长按/右键弹出「打开 / 删除」操作菜单（与本地导入项一致）。
+          onLongPress: () => showDownloadedEntryActions(
+            context,
+            t,
+            onOpen: () => onItemTap?.call(itemForTask(t)),
+          ),
         )));
 
     // 导入的本地内容（R3 修复：书架入口补 path 字段）。
@@ -272,6 +280,8 @@ class _LocalBookshelf extends StatelessWidget {
               'localKind': e.kind.name,
             },
           )),
+          // 长按弹出「打开 / 重命名 / 删除」操作菜单（与导入历史列表一致）。
+          onLongPress: () => showLocalEntryActions(context, e),
         )));
 
     return _BookshelfGrid(items: items);
@@ -689,10 +699,12 @@ class _BookshelfGrid extends StatelessWidget {
                   width: itemW,
                   progress: snap.data,
                 );
-                // 长按入口（ContentCard 未暴露 onLongPress，外层手势兼容 InkWell）。
+                // 长按/右键入口（ContentCard 未暴露 onLongPress，外层手势兼容 InkWell）。
                 if (item.onLongPress != null) {
                   card = GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onLongPress: item.onLongPress,
+                    onSecondaryTap: item.onLongPress,
                     child: card,
                   );
                 }
@@ -827,10 +839,12 @@ class _BookshelfGrid extends StatelessWidget {
               ),
             ),
           );
-        // 长按入口（仅收藏书架传入 onLongPress）。
+        // 长按/右键入口（AppCard 未暴露 onLongPress，外层手势兼容）。
         if (item.onLongPress != null) {
           card = GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onLongPress: item.onLongPress,
+            onSecondaryTap: item.onLongPress,
             child: card,
           );
         }
