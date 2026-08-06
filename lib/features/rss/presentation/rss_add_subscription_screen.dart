@@ -7,6 +7,7 @@
 /// - RSSHub 路由推荐列表（按 [moduleType] 显示不同类型的专有路由）
 library;
 
+import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -29,6 +30,7 @@ class RssAddSubscriptionScreen extends StatefulWidget {
 class _RssAddSubscriptionScreenState extends State<RssAddSubscriptionScreen> {
   final TextEditingController _urlController = TextEditingController();
   String _rssHubBase = 'https://rsshub.app';
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -45,26 +47,29 @@ class _RssAddSubscriptionScreenState extends State<RssAddSubscriptionScreen> {
   }
 
   Future<void> _submit(RssManager manager) async {
+    final l10n = AppLocalizations.of(context);
     final url = _urlController.text.trim();
-    if (url.isEmpty) return;
-
+    if (url.isEmpty || _submitting) return;
+    // 标记提交中：禁用按钮并显示进度，避免重复点击与「卡死」错觉。
+    setState(() => _submitting = true);
     try {
-      final parsed = await manager.discoverFeed(url);
-      await manager.addFeed(
-        url: url,
-        title: parsed.title,
-        description: parsed.description,
-        moduleType: widget.moduleType,
-      );
-    } catch (_) {
-      await manager.addFeed(
+      // 先即时入库并退出，避免抓取 / 解析阻塞主线程导致「停顿很久才能添加」。
+      final feed = await manager.addFeed(
         url: url,
         title: url,
         moduleType: widget.moduleType,
       );
+      if (!mounted) return;
+      Navigator.of(context).pop(); // 返回并自动刷新列表
+      // 后台异步补全标题 / 描述，不阻塞 UI。
+      unawaited(manager.discoverAndUpdate(feed));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.importFailed(e.toString()))),
+      );
     }
-
-    if (mounted) Navigator.of(context).pop(); // 返回并自动刷新列表
   }
 
   void _useRoute(String basePath, RssManager manager) {
@@ -108,8 +113,14 @@ class _RssAddSubscriptionScreenState extends State<RssAddSubscriptionScreen> {
 
           // 添加按钮（全宽）
           FilledButton(
-            onPressed: () => _submit(manager),
-            child: Text(l10n.addSubscription),
+            onPressed: _submitting ? null : () => _submit(manager),
+            child: _submitting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(l10n.addSubscription),
           ),
 
           // ── RSSHub 路由推荐 ──

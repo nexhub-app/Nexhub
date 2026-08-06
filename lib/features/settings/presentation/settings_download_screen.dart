@@ -4,7 +4,13 @@
 /// 项 12/13：下载器选择 / 漫画格式 / 小说格式改为弹窗选择，移除子页入口。
 library;
 
-import 'package:file_picker/file_picker.dart';
+import 'dart:io' show Directory;
+import 'dart:isolate' show Isolate;
+// 用于在后台 isolate 里手动初始化 FilePicker.platform（late static 是
+// isolate-private，主 isolate 的初始化不会传到新 isolate）。
+// web 目标不构建本文件，可不加 if 分支。
+import 'package:file_picker/file_picker.dart' hide FilePickerWindows;
+import 'package:file_picker/src/windows/file_picker_windows.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -243,13 +249,49 @@ class _DownloadPathSettingState extends State<_DownloadPathSetting> {
   }
 
   Future<void> _pickPath() async {
-    final result = await FilePicker.platform.getDirectoryPath(
-      initialDirectory: _path,
-    );
-    if (result != null && mounted) {
-      setState(() => _path = result);
-      final current = await _store.load();
-      await _store.save(current.copyWith(downloadPath: result));
+    final l10n = AppLocalizations.of(context);
+    // 仅当当前路径真实存在时才作为初始目录；Windows 上路径分隔符也要用 \。
+    String? initialDir;
+    if (_path.isNotEmpty) {
+      final d = Directory(_path);
+      if (d.existsSync()) initialDir = d.absolute.path;
+    }
+    // file_picker 在 Windows 上是主线程同步弹 COM 对话框，会卡死 UI；
+    // 放到后台 isolate 跑，UI 保持响应。
+    String? result;
+    try {
+      result = await Isolate.run<String?>(() {
+        // FilePicker._instance 是 isolate-private late，主 isolate 初始化不
+        // 会同步到新 isolate —— 必须在这里显式赋值。
+        FilePicker.platform = FilePickerWindows();
+        return FilePicker.platform.getDirectoryPath(
+          initialDirectory: initialDir,
+        );
+      });
+    } catch (_) {
+      // file_picker_windows 对 initialDirectory 的解析较脆弱（例如
+      // SHCreateItemFromParsingName 报 E_INVALIDARG）。退回不带初始目录再试。
+      result = await Isolate.run<String?>(() {
+        FilePicker.platform = FilePickerWindows();
+        return FilePicker.platform.getDirectoryPath();
+      });
+    }
+    if (result == null || !mounted) return;
+    final String picked = result;
+    try {
+      setState(() => _path = picked);
+      // 持久化并通过 DownloadManager 立即生效（无需重启）。
+      await context.read<DownloadManager>().setDownloadBasePath(picked);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.downloadPathSet)),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.importFailed(e.toString()))),
+      );
     }
   }
 

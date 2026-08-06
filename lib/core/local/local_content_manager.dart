@@ -227,6 +227,24 @@ class LocalContentEntry {
         addedAt: json['addedAt'] as int? ?? 0,
         coverUrl: json['coverUrl'] as String?,
       );
+
+  /// 浅拷贝并覆盖部分字段（用于重命名等）。
+  LocalContentEntry copyWith({
+    String? id,
+    String? title,
+    String? path,
+    LocalMediaKind? kind,
+    int? addedAt,
+    String? coverUrl,
+  }) =>
+      LocalContentEntry(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        path: path ?? this.path,
+        kind: kind ?? this.kind,
+        addedAt: addedAt ?? this.addedAt,
+        coverUrl: coverUrl ?? this.coverUrl,
+      );
 }
 
 /// 本地导入历史管理（SharedPreferences 持久化）。
@@ -336,11 +354,50 @@ class LocalContentManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 移除一条记录。
-  Future<void> remove(String id) async {
-    _items.removeWhere((e) => e.id == id);
+  /// 重命名一条记录（仅改显示标题，不改原始文件路径）。
+  Future<void> rename(String id, String newTitle) async {
+    final idx = _items.indexWhere((e) => e.id == id);
+    if (idx < 0) return;
+    final trimmed = newTitle.trim();
+    if (trimmed.isEmpty) return;
+    _items[idx] = _items[idx].copyWith(title: trimmed);
     await _persist();
     notifyListeners();
+  }
+
+  /// 移除一条记录。
+  ///
+  /// [deleteFile] 为 true 时同时删除磁盘上的文件 / 目录（Android SAF 的
+  /// `content://` 路径无法用 dart:io 删除，自动跳过仅删记录）。
+  Future<void> remove(String id, {bool deleteFile = false}) async {
+    final entry = _items.cast<LocalContentEntry?>().firstWhere(
+          (e) => e?.id == id,
+          orElse: () => null,
+        );
+    _items.removeWhere((e) => e.id == id);
+    if (deleteFile && entry != null) {
+      await _deleteFileAt(entry.path);
+    }
+    await _persist();
+    notifyListeners();
+  }
+
+  /// 删除磁盘上的本地文件 / 目录；SAF 路径或删除失败均静默忽略（记录已移除）。
+  Future<void> _deleteFileAt(String path) async {
+    if (isAndroidSafUri(path)) return;
+    try {
+      final f = File(path);
+      if (await f.exists()) {
+        await f.delete();
+        return;
+      }
+      final d = Directory(path);
+      if (await d.exists()) {
+        await d.delete(recursive: true);
+      }
+    } on Object {
+      // 删除失败不影响记录移除结果。
+    }
   }
 
   Future<void> _persist() async {

@@ -107,34 +107,35 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
       );
       return;
     }
-    // 递归扫描目录，按扩展名识别漫画文件（修复「选择目录却导入不了」）。
+    // 递归校验目录内是否含图片（漫画按图片目录导入），但整目录视为「一部漫画」。
     setState(() => _picking = true);
     try {
       final dirObj = Directory(dir);
-      final files = dirObj
+      final hasImages = dirObj
           .listSync(recursive: true, followLinks: false)
           .whereType<File>()
-          .where((f) => classifyByPath(f.path) == LocalMediaKind.images)
-          .toList();
-      if (files.isEmpty) {
+          .any((f) => classifyByPath(f.path) == LocalMediaKind.images);
+      if (!hasImages) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context).emptyFolder)),
         );
         return;
       }
-      for (final f in files) {
-        await context.read<LocalContentManager>().add(LocalContentEntry(
-          id: f.path,
-          title: p.basename(f.path),
-          path: f.path,
-          kind: LocalMediaKind.images,
-          addedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
-      }
+      // 整目录作为「一部漫画」导入：阅读器会按文件名顺序依次读取目录内图片。
+      final kind = classifyFolderByContent(dir) ?? LocalMediaKind.images;
+      await context.read<LocalContentManager>().add(LocalContentEntry(
+        id: dir,
+        title: p.basename(dir),
+        path: dir,
+        kind: kind,
+        addedAt: DateTime.now().millisecondsSinceEpoch,
+      ));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${files.length} ${AppLocalizations.of(context).contentImportOpened}')),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).comicDirImported(p.basename(dir))),
+          ),
         );
       }
     } on FileSystemException catch (_) {
