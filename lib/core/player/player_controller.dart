@@ -682,14 +682,14 @@ class PlayerController extends ChangeNotifier {
     _stallController.close();
     _decodeLogSub?.cancel();
     _decodeFallbackController.close();
-    // 退出时若仍处于全屏，还原方向与系统 UI（P8.3.4 §廿四）
-    if (_isFullscreen) {
-      try {
-        SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      } on Object {
-        // 测试环境忽略。
-      }
+    // 退出时始终还原方向与系统 UI（P8.3.4 §廿四）。
+    // 无论是否经过全屏切换，进入播放页时 _applyLockOrientation 可能已锁定方向
+    // （默认 lockOrientation=landscape），必须在此无条件解除。
+    try {
+      SystemChrome.setPreferredOrientations(<DeviceOrientation>[]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    } on Object {
+      // 测试环境忽略。
     }
     super.dispose();
     // 触发底层 Player.dispose()（含原生 VideoOutput 释放）并记下其 Future，

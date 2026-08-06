@@ -2846,6 +2846,20 @@ class _MangaPageImageState extends State<MangaPageImage> {
   final TransformationController _local = TransformationController();
   TransformationController get _tc => widget.zoomController ?? _local;
 
+  // 条漫占位状态：未加载时 ConstrainedBox 用经验高度占位（保证回上一话滚动估算
+  // 准确）；加载完成后置 true，移除占位约束让图片按真实高度显示（消除空白带）。
+  bool _imageLoaded = false;
+
+  @override
+  void didUpdateWidget(covariant MangaPageImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // item 复用时 url 变化（ScrollablePositionedList 回收复用），重置占位状态，
+    // 避免沿用旧图高度或错把新图当已加载。
+    if (oldWidget.url != widget.url) {
+      _imageLoaded = false;
+    }
+  }
+
   // 手势（捏合 / 平移 / 滚轮）已全部上提到阅读器屏幕级（ReaderTapZones），
   // 本组件只负责渲染，不再持有缩放手势状态。
 
@@ -2867,6 +2881,10 @@ class _MangaPageImageState extends State<MangaPageImage> {
     // 误以为已稳定，导致 scrollTo 按错误高度计算像素偏移、停在开头而非末页。
     // 对策：给未加载 item 预留接近真实图高的占位高度（屏宽 × 1.5，长条漫经验值），
     // 让列表从一开始估算就准确，回上一话即可一次定位到末页。
+    // 图片加载完成（[_imageLoaded]）后**移除**占位约束，按真实图高显示——
+    // 这是消除空白带（割裂感）的关键：若保留 ConstrainedBox(minHeight)，当真实图高
+    // 偏小（中等长度图）时图片下方会残留 minHeight 空白（参照 Mihon webtoon holder：
+    // 加载完成后 progressContainer 隐藏，frame 按 WRAP_CONTENT 真实高度显示）。
     final bool reserveWebtoonHeight =
         widget.prefs.readingMode.isWebtoon &&
         widget.prefs.initialZoom == ReaderInitialZoom.fitWidth &&
@@ -2878,9 +2896,13 @@ class _MangaPageImageState extends State<MangaPageImage> {
       fit: fit,
       width: width,
       placeholder: const Center(child: AppLoadingIndicator()),
+      onLoadComplete: () {
+        if (mounted) setState(() => _imageLoaded = true);
+      },
     );
 
-    final Widget content = reserveWebtoonHeight
+    // 仅未加载时占位：加载完成后直接用真实图高，不再受 minHeight 约束。
+    final Widget content = (reserveWebtoonHeight && !_imageLoaded)
         ? LayoutBuilder(
             builder: (context, constraints) => ConstrainedBox(
               constraints: BoxConstraints(
@@ -2891,9 +2913,13 @@ class _MangaPageImageState extends State<MangaPageImage> {
           )
         : imgSource;
 
+    // 条漫模式（未加载占位时）用顶部对齐，避免实际图高 < minHeight 时图片垂直居中
+    // 产生空白。加载完成后 content 已是真实图高，Align 无额外空间、无影响。
     final Widget raw = widget.cropEdge
         ? SizedBox.expand(child: content)
-        : Align(alignment: Alignment.center, child: content);
+        : (reserveWebtoonHeight && !_imageLoaded
+            ? Align(alignment: Alignment.topCenter, child: content)
+            : Align(alignment: Alignment.center, child: content));
     final img = ReaderImageFiltered(
       brightness: widget.prefs.filterBrightness,
       contrast: widget.prefs.filterContrast,
