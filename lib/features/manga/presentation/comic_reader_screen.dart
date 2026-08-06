@@ -2306,18 +2306,15 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       padding: EdgeInsets.zero,
       itemCount: _images.length,
       separatorBuilder: (_, __) => SizedBox(height: gap),
-      itemBuilder: (ctx, i) => Padding(
-        padding: EdgeInsets.symmetric(horizontal: _sideMarginPx),
-        child: MangaPageImage(
-          url: _images[i],
-          prefs: _prefs,
-          source: _source,
-          rotationQuarterTurns: _pageRotations[i] ?? 0,
-          cropEdge: _prefs.cropEdge,
-          // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
-          // 每页一起放大、间距等比，天然不重叠（C2 复测「每张照片放大导致重叠」）。
-          zoomEnabled: () => false,
-        ),
+      itemBuilder: (ctx, i) => MangaPageImage(
+        url: _images[i],
+        prefs: _prefs,
+        source: _source,
+        rotationQuarterTurns: _pageRotations[i] ?? 0,
+        cropEdge: _prefs.cropEdge,
+        // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
+        // 每页一起放大、间距等比，天然不重叠（C2 复测「每张照片放大导致重叠」）。
+        zoomEnabled: () => false,
       ),
     );
     // 条漫整体缩放：把 [_zoomController] 矩阵应用到【整个列表】（参考 Venera
@@ -2341,7 +2338,23 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         child: Transform(
           transform: _zoomController.value,
           alignment: Alignment.center,
-          child: SizedBox.expand(child: list),
+          child: SizedBox.expand(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: _sideMarginPx),
+              // 条漫图片区域黑底：相邻图片的子像素缝隙 / 加载跳变瞬间透出黑色
+              // 而非用户浅色 bg，消除「细白条」（参照 Mihon webtoon holder：图片间
+              // 缝隙背景为深色，白条不可见）。左右留白由外层 Padding 透出 bg。
+              child: Container(
+                // gap=0（默认条漫）：缝隙黑底消除白条；gap>0（带间距模式）：
+                // 间距透出用户 bg，保持设置不被改黑。
+                color: gap > 0
+                    ? _prefs.resolveBackgroundColor(
+                        Theme.of(context).brightness == Brightness.dark)
+                    : Colors.black,
+                child: list,
+              ),
+            ),
+          ),
         ),
       ),
     );
