@@ -7904,6 +7904,12 @@ abstract class AppLocalizations {
   /// **'Title font file'**
   String get novelTitleFontFile;
 
+  /// No description provided for @novelResetConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all novel reader settings to default? This cannot be undone.'**
+  String get novelResetConfirm;
+
   /// No description provided for @novelSettingsSearch.
   ///
   /// In en, this message translates to:
@@ -10687,6 +10693,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Confirm (wait {seconds}s)'**
   String ageRestrictionDisclaimerWait(Object seconds);
+
+  /// Comic reader settings - Page Turning & Tap section title
+  ///
+  /// In en, this message translates to:
+  /// **'Page Turning & Tap'**
+  String get comicSectionTapPage;
+
+  /// Comic reader settings - Visual & Filters section title
+  ///
+  /// In en, this message translates to:
+  /// **'Visual & Filters'**
+  String get comicSectionVisualFilter;
+
+  /// Comic reader settings - Progress & Display section title
+  ///
+  /// In en, this message translates to:
+  /// **'Progress & Display'**
+  String get comicSectionProgress;
+
+  /// Comic reader settings - Flash Effects section title
+  ///
+  /// In en, this message translates to:
+  /// **'Flash Effects'**
+  String get comicSectionFlash;
+
+  /// Comic reader settings - Mouse Wheel section title
+  ///
+  /// In en, this message translates to:
+  /// **'Mouse Wheel'**
+  String get comicSectionMouseWheel;
 }
 
 class _AppLocalizationsDelegate
