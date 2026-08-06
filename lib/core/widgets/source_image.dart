@@ -25,6 +25,10 @@ class SourceImage extends StatelessWidget {
   final Widget? placeholder;
   final bool enableRetry;
 
+  /// 图片成功解码后回调（一次）。条漫阅读器借此在图片加载完成后移除占位高度，
+  /// 避免 ConstrainedBox(minHeight) 在真实图高偏小时残留空白带（割裂感）。
+  final VoidCallback? onLoadComplete;
+
   const SourceImage({
     super.key,
     required this.url,
@@ -36,6 +40,7 @@ class SourceImage extends StatelessWidget {
     this.radius,
     this.placeholder,
     this.enableRetry = true,
+    this.onLoadComplete,
   });
 
   bool get _isHttp =>
@@ -131,6 +136,7 @@ class SourceImage extends StatelessWidget {
             fit: fit,
             placeholder: placeholder ?? _defaultPlaceholder(context),
             enableRetry: enableRetry,
+            onLoadComplete: onLoadComplete,
           );
         } else {
           core = Image.file(
@@ -160,6 +166,7 @@ class _RetryableNetworkImage extends StatefulWidget {
   final Widget placeholder;
   final bool enableRetry;
   final int cookieVersion;
+  final VoidCallback? onLoadComplete;
 
   const _RetryableNetworkImage({
     required this.url,
@@ -170,6 +177,7 @@ class _RetryableNetworkImage extends StatefulWidget {
     required this.placeholder,
     this.enableRetry = true,
     this.cookieVersion = 0,
+    this.onLoadComplete,
   });
 
   @override
@@ -188,6 +196,7 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
   int _retryCount = 0;
   bool _retrying = false;
   Timer? _timer;
+  bool _notified = false;
 
   @override
   void dispose() {
@@ -208,6 +217,13 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
     });
   }
 
+  // 图片成功解码后通知一次（帧后触发，避免在 build 期 setState）。
+  void _notifyLoaded() {
+    if (_notified) return;
+    _notified = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoadComplete?.call());
+  }
+
   @override
   Widget build(BuildContext context) {
     return CachedNetworkImage(
@@ -219,7 +235,19 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
       height: widget.height,
       fit: widget.fit,
       placeholder: (c, u) => widget.placeholder,
-      errorWidget: (c, u, e) => _buildError(context),
+      errorWidget: (c, u, e) {
+        _notifyLoaded();
+        return _buildError(context);
+      },
+      imageBuilder: (ctx, provider) {
+        _notifyLoaded();
+        return Image(
+          image: provider,
+          width: widget.width,
+          height: widget.height,
+          fit: widget.fit,
+        );
+      },
     );
   }
 

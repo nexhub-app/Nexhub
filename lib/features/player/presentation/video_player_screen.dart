@@ -3186,8 +3186,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ? filteredIndices.indexOf(_episodeIndex) + 1
                 : 0;
             return SafeArea(
-              child: SizedBox(
-                height: MediaQuery.of(ctx).size.height * 0.6,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+                ),
                 child: Column(
                   children: <Widget>[
                     Padding(
@@ -3217,7 +3219,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     const Divider(height: 1),
                     // 上半：当前线路的剧集列表（仅显示过滤后的集）。
                     Expanded(
-                      flex: 3,
                       child: filteredIndices.isEmpty
                           ? _buildLineHint(
                               ctx,
@@ -3234,6 +3235,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                     ? _lineName(0)
                                     : selectedLine;
                                 return ListTile(
+                                  dense: true,
                                   leading: CircleAvatar(
                                     backgroundColor: selected
                                         ? Theme.of(ctx).colorScheme.primary
@@ -3276,61 +3278,69 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             ),
                     ),
                     const Divider(height: 1),
-                    // 下半：播放线路分组（仅用于切换上方要显示的集）
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(AppTokens.spaceMd,
-                          AppTokens.spaceSm, AppTokens.spaceMd, 0),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          l10n.playerLine,
-                          style: Theme.of(ctx).textTheme.titleSmall,
+                    // 播放线路：横向 Chip 行（节省垂直空间，集数区可显示更多）。
+                    if (distinctLines.length > 1)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            AppTokens.spaceMd,
+                            AppTokens.spaceSm,
+                            AppTokens.spaceMd,
+                            AppTokens.spaceSm),
+                        child: SizedBox(
+                          height: 40,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: distinctLines.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: AppTokens.spaceSm),
+                            itemBuilder: (BuildContext _, int i) {
+                              final rawLine = distinctLines[i];
+                              final displayName = rawLine.isEmpty
+                                  ? _lineName(i)
+                                  : rawLine;
+                              final selected = rawLine == selectedLine;
+                              return ChoiceChip(
+                                label: Text(displayName),
+                                selected: selected,
+                                onSelected: (bool selected) {
+                                  if (!selected) return;
+                                  setStateSheet(() {
+                                    selectedLine = rawLine;
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      )
+                    else if (distinctLines.length == 1)
+                      // 单线路时仅显示标签名（不可点击），保持布局一致。
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            AppTokens.spaceMd,
+                            AppTokens.spaceSm,
+                            AppTokens.spaceMd,
+                            AppTokens.spaceSm),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Icon(Icons.radio_button_checked,
+                                  size: 16,
+                                  color:
+                                      Theme.of(ctx).colorScheme.primary),
+                              const SizedBox(width: AppTokens.spaceXs),
+                              Text(
+                                distinctLines.first.isEmpty
+                                    ? _lineName(0)
+                                    : distinctLines.first,
+                                style: Theme.of(ctx).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: distinctLines.isEmpty
-                          ? _buildLineHint(
-                              ctx,
-                              icon: Icons.error_outline,
-                              text: l10n.playerLineEmpty,
-                            )
-                          : ListView.builder(
-                              itemCount: distinctLines.length,
-                              itemBuilder: (BuildContext _, int i) {
-                                final rawLine = distinctLines[i];
-                                final displayName =
-                                    rawLine.isEmpty ? _lineName(i) : rawLine;
-                                final selected = rawLine == selectedLine;
-                                return ListTile(
-                                  leading: Icon(
-                                    selected
-                                        ? Icons.radio_button_checked
-                                        : Icons.radio_button_unchecked,
-                                    color: selected
-                                        ? Theme.of(ctx).colorScheme.primary
-                                        : null,
-                                  ),
-                                  title: Text(displayName),
-                                  trailing: selected
-                                      ? Icon(Icons.play_arrow,
-                                          color: Theme.of(ctx)
-                                              .colorScheme
-                                              .primary)
-                                      : null,
-                                  onTap: () {
-                                    // 只切换上方要显示的集分组：不关闭面板、
-                                    // 不立即解析。点完集才由 [_changeEpisode] 解析。
-                                    if (rawLine == selectedLine) return;
-                                    setStateSheet(() {
-                                      selectedLine = rawLine;
-                                    });
-                                  },
-                                );
-                              },
-                            ),
-                    ),
                   ],
                 ),
               ),
