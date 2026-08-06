@@ -167,6 +167,7 @@ _*.mjs
 _*.html
 _*.json
 _pc_now/
+.pc_now/
 _backup_before_revert/
 _dl_tmp/
 _safety/
