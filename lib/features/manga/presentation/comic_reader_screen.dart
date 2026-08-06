@@ -28,6 +28,9 @@ import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/stats/reading_session_recorder.dart';
+import '../../../core/stats/stats_models.dart';
+import '../../../core/stats/stats_repository.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/chapter_list_sheet.dart';
@@ -256,6 +259,22 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 抢焦点后快捷键依然有效（F11、Esc 失效的根治）。
     HardwareKeyboard.instance.addHandler(_onGlobalKey);
     _init();
+    // 阅读时长统计：进入阅读器即开始，dispose 时一次性结算。
+    if (widget.sourceId.isNotEmpty) {
+      final initialTitle = widget.chapters.isNotEmpty &&
+              widget.initialChapterIndex >= 0 &&
+              widget.initialChapterIndex < widget.chapters.length
+          ? widget.chapters[widget.initialChapterIndex].title
+          : null;
+      unawaited(ReadingSessionRecorder.instance.begin(
+        workId: widget.comicId,
+        sourceId: widget.sourceId,
+        type: StatsMediaType.comic,
+        title: widget.title,
+        coverUrl: widget.coverUrl,
+        lastChapterTitle: initialTitle,
+      ));
+    }
   }
 
   Future<void> _init() async {
@@ -421,6 +440,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   @override
   void dispose() {
+    // 退出时一次性结算本次阅读会话（commit 内部 best-effort）。
+    if (widget.sourceId.isNotEmpty) {
+      unawaited(ReadingSessionRecorder.instance.commit(
+        workId: widget.comicId,
+        sourceId: widget.sourceId,
+        type: StatsMediaType.comic,
+        title: widget.title,
+        coverUrl: widget.coverUrl,
+        source: SessionSource.comicReader,
+      ));
+    }
     _zoomController.removeListener(_onZoomChanged);
     _pageController?.dispose();
     _itemPositionsListener?.itemPositions.removeListener(_onWebtoonScroll);

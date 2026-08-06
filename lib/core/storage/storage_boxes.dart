@@ -13,6 +13,7 @@ library;
 import '../services/bangumi/subject_link_store.dart';
 import '../services/source_library_bookmarks.dart';
 import '../services/source_library_subscription.dart';
+import '../stats/stats_box.dart';
 
 /// 应用冷启动时打开的全部 Hive box 名称（与 [SplashScreen._initialize]
 /// 的 `Future.wait([Hive.openBox(...)])` 一一对应）。
@@ -39,5 +40,8 @@ const List<String> kStorageBoxNames = <String>[
   // 命名常量由对应类的 boxName 静态字段提供（保持类型安全，避免硬编码漂移）。
   SubjectLinkStore.boxName, // 'bangumi_subject_links'
   SourceLibraryBookmarks.boxName, // 'source_library_bookmarks'
-  SourceLibrarySubscription.boxName, // 'source_library_subs'
+  SourceLibrarySubscription.boxName, // 'source_library_subs',
+  // 阅读/观看统计（按作品聚合 + 按天聚合）
+  kReadingStatsBoxName, // 'reading_stats_v1'
+  kReadingDailyBoxName, // 'reading_daily_v1'
 ];

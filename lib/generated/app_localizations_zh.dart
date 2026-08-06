@@ -5537,4 +5537,118 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get comicSectionMouseWheel => '鼠标滚轮';
+
+  @override
+  String get statsOverviewTitle => '统计';
+
+  @override
+  String get statsSearchHint => '搜索记录';
+
+  @override
+  String get statsHeatmap => '热力图';
+
+  @override
+  String get statsTotalDuration => '总时长';
+
+  @override
+  String get statsWorkCount => '作品数';
+
+  @override
+  String get statsSessionCount => '会话次数';
+
+  @override
+  String get statsLastRead => '最后阅读';
+
+  @override
+  String get statsNoRecords => '暂无记录，去读点什么吧';
+
+  @override
+  String statsDurSec(int s) {
+    return '$s 秒';
+  }
+
+  @override
+  String statsDurHours(int h) {
+    return '$h 小时';
+  }
+
+  @override
+  String statsDurHm(int h, int m) {
+    return '$h 时 $m 分';
+  }
+
+  @override
+  String statsDurMs(int m, int s) {
+    return '$m 分 $s 秒';
+  }
+
+  @override
+  String get statsClearTitle => '清除统计';
+
+  @override
+  String statsClearBody(String name) {
+    return '确定清除「$name」的全部统计记录？';
+  }
+
+  @override
+  String get statsClearConfirm => '清除';
+
+  @override
+  String get statsPrevMonth => '上一月';
+
+  @override
+  String get statsNextMonth => '下一月';
+
+  @override
+  String statsHeatmapMonthYear(String y, String m) {
+    return '$y 年 $m 月';
+  }
+
+  @override
+  String get statsAll => '全部';
+
+  @override
+  String get statsHeatmapLess => '少';
+
+  @override
+  String get statsHeatmapMore => '多';
+
+  @override
+  String get statsHeatmapTotal => '本月合计';
+
+  @override
+  String get stats7dActive => '近 7 天活跃';
+
+  @override
+  String get stats30dActive => '近 30 天活跃';
+
+  @override
+  String get statsActiveDays => '活跃天数';
+
+  @override
+  String get statsAvgSession => '平均会话时长';
+
+  @override
+  String get statsMaxDaily => '最长单日';
+
+  @override
+  String get statsStreak => '当前连续';
+
+  @override
+  String get statsSectionOverview => '总览';
+
+  @override
+  String get statsSectionActivity => '活跃';
+
+  @override
+  String get statsSectionPace => '节奏';
+
+  @override
+  String get heatmapActiveDays => '活跃天数';
+
+  @override
+  String get heatmapMaxDaily => '最长单日';
+
+  @override
+  String get heatmapStreak => '当前连续';
 }

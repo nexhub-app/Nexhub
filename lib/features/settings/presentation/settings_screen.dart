@@ -21,6 +21,7 @@ import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/layout_picker_dialog.dart';
 import '../../home/presentation/browse_web_scrape_screen.dart';
 import '../../sources/presentation/source_manager_screen.dart';
+import '../../stats/presentation/stats_overview_screen.dart';
 import './settings_download_screen.dart';
 import './settings_network_screen.dart';
 import './settings_rsshub_screen.dart';
@@ -305,6 +306,16 @@ class SettingsScreen extends StatelessWidget {
           // ── 下载与数据 ──
           const SizedBox(height: AppTokens.spaceXl),
           _SettingsGroupHeader(label: l10n.settingsGroupDownloadsData),
+          AppListTile(
+            leading: const Icon(Icons.bar_chart),
+            title: Text(l10n.statsOverviewTitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              AppPageRoute<void>(
+                builder: (_) => const StatsOverviewScreen(),
+              ),
+            ),
+          ),
           AppListTile(
             leading: const Icon(Icons.download),
             title: Text(l10n.downloadManagementTitle),
