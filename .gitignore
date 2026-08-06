@@ -158,3 +158,23 @@ android/key.properties
 _keystore_base64.txt
 _new_keystore_pw.txt
 *.jks.OLD.bak
+
+# ===== 调试残留与临时产物（严禁入库，仅保留代码）=====
+# 根目录调试扫描产物（AI 会话/本地脚本生成）
+_*.txt
+_*.py
+_*.mjs
+_*.html
+_*.json
+_pc_now/
+_backup_before_revert/
+_dl_tmp/
+_safety/
+_safe*
+ku/
+bairi.html
+detail.html
+latest.json
+t2.html
+flutter_version.txt
+flutter_version_err.txt
