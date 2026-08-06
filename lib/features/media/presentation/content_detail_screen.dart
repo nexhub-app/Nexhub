@@ -43,6 +43,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/novel/novel_toc_cache.dart';
+import '../../../core/novel/novel_toc_store.dart';
 import '../../../core/progress/unified_progress_repository.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/settings/general_settings.dart';
@@ -116,6 +117,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
 
   /// 已加书签的章节索引集合（漫画 / 小说）。
   final Set<int> _bookmarkedIndices = <int>{};
+
+  /// 当前详情页对应的小说 sourceId / novelId，用于与 [NovelTocStore] 同步目录。
+  String? _tocSourceId;
+  String? _tocNovelId;
 
   // ───────────────────────── 抽象与开关 ─────────────────────────
 
@@ -255,6 +260,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           Future<List<Episode>>.error(Exception('item missing source id'));
       return;
     }
+    // 记录当前小说的身份，供下方目录更新时写回共享目录源（NovelTocStore）。
+    _tocSourceId = sid;
+    _tocNovelId = id;
     final PluginConfig? source = repo.getById(sid);
     if (source == null) {
       _episodesFuture =
@@ -304,9 +312,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         _chaptersLoading = false;
         _chaptersFromCache = false;
       });
-      // 小说：写入 TOC 缓存（fire-and-forget），供下次被验证拦截时兜底。
+      // 小说：写入 TOC 缓存（fire-and-forget），供下次被验证拦截时兜底；
+      // 同时写回共享目录源，使阅读器与详情页目录保持一致。
       if (_isNovel) {
         unawaited(_tocCache.write(sid, id, list));
+        _publishToc();
       }
     }).catchError((Object error) {
       if (!mounted) return;
@@ -382,6 +392,32 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       _chapters = cached;
       _chaptersFromCache = true;
     });
+    _publishToc();
+  }
+
+  /// 将当前目录写回共享目录源 [NovelTocStore]，供阅读器侧目录实时同步。
+  void _publishToc() {
+    if (!mounted) return;
+    if (_tocSourceId == null || _tocNovelId == null) return;
+    if (!_isNovel) return;
+    context.read<NovelTocStore>().setChapters(
+      _tocSourceId!,
+      _tocNovelId!,
+      _chapters,
+    );
+  }
+
+  /// 从共享目录源取回「更完整」的目录，覆盖当前详情页目录（阅读器侧刷新后回流）。
+  void _syncChaptersFromStore() {
+    if (!mounted) return;
+    if (_tocSourceId == null || _tocNovelId == null) return;
+    if (!_isNovel) return;
+    final stored = context
+        .read<NovelTocStore>()
+        .chaptersFor(_tocSourceId!, _tocNovelId!);
+    if (stored.length > _chapters.length && mounted) {
+      setState(() => _chapters = stored);
+    }
   }
 
   /// 渐进批次节流（仅小说）。
@@ -405,6 +441,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         }
         _chapters = map.values.toList();
       });
+      _publishToc();
     });
   }
 
@@ -445,7 +482,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   /// [restoreProgress]：true 时阅读器恢复上次保存的页/章位置（用于「继续阅读」
   /// 入口）。详情页章节列表点击时为 false（用户明确选择章节，应从该章开始
   /// 翻阅）。漫画之前硬编码 false 导致「继续阅读」永远从章节首页开始，已修复。
-  void _openContent(Episode ep, int index, {bool restoreProgress = false}) {
+  Future<void> _openContent(Episode ep, int index,
+      {bool restoreProgress = false}) async {
     final String? sid = widget.item.sourceId;
     if (sid == null || sid.isEmpty) return;
     final String? detailUrl =
@@ -463,7 +501,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       case SourceType.animeSource:
         // 「已看」由播放器在进度达到阈值时自动标记（见 VideoPlayerScreen），
         // 此处不再进入即标记，避免看几秒便记为已看。
-        Navigator.of(context).push(
+        await Navigator.of(context).push(
           AppPageRoute<void>(
             builder: (_) => VideoPlayerScreen(
               title: widget.item.title,
@@ -480,7 +518,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           ),
         );
       case SourceType.mangaSource:
-        Navigator.of(context).push(
+        await Navigator.of(context).push(
           AppPageRoute<void>(
             builder: (_) => ComicReaderScreen(
               comicId: widget.item.id,
@@ -495,7 +533,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           ),
         );
       case SourceType.novelSource:
-        Navigator.of(context).push(
+        await Navigator.of(context).push(
           AppPageRoute<void>(
             builder: (_) => NovelReaderScreen(
               novelId: widget.item.id,
@@ -510,6 +548,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           ),
         );
     }
+    // 从阅读器返回后，用共享目录源回流的最新目录刷新详情页（实时同步）。
+    if (mounted) _syncChaptersFromStore();
   }
 
   // ───────────────────────── 收藏 / 下载 / 分享 ─────────────────────────

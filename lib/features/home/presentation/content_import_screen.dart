@@ -10,8 +10,8 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_list_tile.dart';
-import 'local_media_viewer.dart';
-import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'dart:async' show unawaited;
+import 'package:nexhub/core/local/local_content_actions.dart';
 
 /// 统一内容导入（浏览页占位功能之一）。
 ///
@@ -146,18 +146,45 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
                   leading: Icon(_iconFor(e.kind), color: scheme.primary),
                   title: Text(e.title),
                   subtitle: Text(e.path, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  trailing: AppIconButton(
-                    icon: Icons.open_in_new_outlined,
-                    tooltip: l10n.contentImportOpened,
-                    onPressed: () => Navigator.of(context).push(
-                      AppPageRoute<void>(
-                        builder: (_) => LocalMediaViewer(
-                          title: e.title,
-                          kind: e.kind,
-                          uri: e.path,
+                  trailing: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_outlined),
+                    tooltip: l10n.contentImportActions,
+                    onSelected: (action) {
+                      switch (action) {
+                        case 'open':
+                          openLocalEntry(context, e);
+                        case 'rename':
+                          unawaited(renameLocalEntry(context, e));
+                        case 'delete':
+                          unawaited(deleteLocalEntry(context, e));
+                      }
+                    },
+                    itemBuilder: (ctx) => <PopupMenuEntry<String>>[
+                      PopupMenuItem<String>(
+                        value: 'open',
+                        child: ListTile(
+                          leading: const Icon(Icons.open_in_new_outlined),
+                          title: Text(l10n.contentImportOpened),
+                          contentPadding: EdgeInsets.zero,
                         ),
                       ),
-                    ),
+                      PopupMenuItem<String>(
+                        value: 'rename',
+                        child: ListTile(
+                          leading: const Icon(Icons.edit_outlined),
+                          title: Text(l10n.renameGroup),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'delete',
+                        child: ListTile(
+                          leading: const Icon(Icons.delete_outline),
+                          title: Text(l10n.delete),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
                   ),
                 )),
         ],

@@ -113,6 +113,21 @@ class RssManager extends ChangeNotifier {
     return RssParser.parse(xmlText);
   }
 
+  /// 后台补全订阅源元信息（标题 / 描述）：抓取解析后回填，失败静默保留原记录。
+  ///
+  /// 用于「先入库后校验」流程，使添加订阅即时返回、不阻塞主线程。
+  Future<void> discoverAndUpdate(RssFeed feed) async {
+    try {
+      final parsed = await discoverFeed(feed.url);
+      await updateFeed(feed.copyWith(
+        title: parsed.title,
+        description: parsed.description,
+      ));
+    } on Object {
+      // 后台补全失败不影响已添加的订阅。
+    }
+  }
+
   /// 测速单个订阅源，返回延迟（毫秒）；失败返回 -1（P8.2.3 §廿二 RSS 一键测速）。
   Future<int> testFeedSpeed(RssFeed feed) async {
     final sw = Stopwatch()..start();
