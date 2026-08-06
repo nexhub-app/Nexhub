@@ -33,6 +33,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTitle => '设置';
 
   @override
+  String get settingsTagline => '打造专属你的媒体空间';
+
+  @override
   String get sourceManagementTitle => '源管理';
 
   @override
@@ -49,6 +52,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tabLibrary => '书架';
+
+  @override
+  String get tabMediaLibrary => '媒体库';
 
   @override
   String get tabOnline => '在线';
@@ -366,6 +372,39 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get presetColor => '预设颜色';
+
+  @override
+  String get appearanceThemeSection => '主题';
+
+  @override
+  String get appearanceColorsSection => '配色';
+
+  @override
+  String get appearanceStartupSection => '启动与显示';
+
+  @override
+  String get heroSettingsTitle => 'Hero 图片设置';
+
+  @override
+  String get appearanceHeroSection => '背景图';
+
+  @override
+  String get heroEmptyHint => '添加几张图片，在设置主页顶部循环展示';
+
+  @override
+  String get heroAddFromUrl => '从网络添加';
+
+  @override
+  String get heroAddFromDevice => '从本机选择';
+
+  @override
+  String get heroUrlDialogTitle => '添加图片 URL';
+
+  @override
+  String get heroUrlFieldHint => '图片地址（https://... 或 file://...）';
+
+  @override
+  String get heroRemoveTooltip => '删除';
 
   @override
   String get deleteConfirmTitle => '删除确认';
@@ -4209,6 +4248,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generalSettingsGroup => '通用';
 
   @override
+  String get playbackProgressGroup => '播放进度';
+
+  @override
+  String get playbackModulesSection => '各模块设置';
+
+  @override
+  String get settingsCatAppearance => '外观与语言';
+
+  @override
+  String get settingsCatAppearanceDesc => '主题、配色、深浅模式与语言';
+
+  @override
+  String get settingsCatPlayback => '播放与阅读';
+
+  @override
+  String get settingsCatPlaybackDesc => '播放器、漫画、小说与弹幕显示';
+
+  @override
+  String get settingsCatContent => '内容与源';
+
+  @override
+  String get settingsCatContentDesc => '源管理、网页爬取与网络设置';
+
+  @override
+  String get settingsCatData => '数据与账户';
+
+  @override
+  String get settingsCatDataDesc => '统计、备份、云同步与 Bangumi';
+
+  @override
+  String get settingsCatPrivacy => '隐私与安全';
+
+  @override
+  String get settingsCatPrivacyDesc => '隐私、高级设置与缓存清理';
+
+  @override
+  String get settingsCatAbout => '关于';
+
+  @override
+  String get settingsCatAboutDesc => '版本、许可与致谢';
+
+  @override
   String get launchScreenTitle => '启动界面';
 
   @override
@@ -5651,4 +5732,147 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get heatmapStreak => '当前连续';
+
+  @override
+  String get downloadAutoDelete => '读后自动删除';
+
+  @override
+  String get downloadAutoDeleteHint => '看完/读完该内容后自动删除已下载的文件';
+
+  @override
+  String get downloadAutoDeleteExclude => '排除分类';
+
+  @override
+  String get downloadAutoDeleteExcludeNone => '全部执行自动删除';
+
+  @override
+  String get downloadPreDownload => '预下载后续内容';
+
+  @override
+  String get downloadPreDownloadOff => '关闭';
+
+  @override
+  String downloadEpisodesCount(int count) {
+    return '$count 个';
+  }
+
+  @override
+  String get categoriesManageTitle => '分类管理';
+
+  @override
+  String get categoriesManageDesc => '管理动漫、漫画、小说的收藏分类';
+
+  @override
+  String get settingsGroupPrivacy => '隐私';
+
+  @override
+  String get privacySettingsTitle => '隐私设置';
+
+  @override
+  String get privacySettingsDesc => '通知打码与隐身选项';
+
+  @override
+  String get privacyNotificationsGroup => '通知';
+
+  @override
+  String get hideNotificationContent => '隐藏通知内容';
+
+  @override
+  String get hideNotificationContentHint => '开启后通知只显示「新内容」，不显示具体条数，防旁人窥屏';
+
+  @override
+  String get privacyNetworkGroup => '网络';
+
+  @override
+  String get privacyPageHint => '全局隐身会随机延迟请求并轮换浏览器指纹，降低被站点识别为脚本的风险';
+
+  @override
+  String get settingsGroupAdvanced => '高级与缓存';
+
+  @override
+  String get advancedSettingsTitle => '高级设置';
+
+  @override
+  String get advancedSettingsDesc => '崩溃日志、详细日志、数据清理与请求指纹';
+
+  @override
+  String get advancedLogGroup => '日志';
+
+  @override
+  String get detailedLogging => '详细日志';
+
+  @override
+  String get detailedLoggingHint => '记录每个网络请求与响应，便于排查抓取问题';
+
+  @override
+  String get crashLog => '崩溃日志';
+
+  @override
+  String get crashLogDesc => '查看应用运行期错误与未捕获异常';
+
+  @override
+  String get crashLogTitle => '崩溃日志';
+
+  @override
+  String get crashLogEmpty => '暂无崩溃记录。若遇到问题，复现一次后再回来查看';
+
+  @override
+  String get crashLogCopied => '已复制到剪贴板';
+
+  @override
+  String get crashLogClear => '清空崩溃日志';
+
+  @override
+  String get crashLogCleared => '已清空';
+
+  @override
+  String get crashLogCopyAll => '复制全部';
+
+  @override
+  String get advancedCleanGroup => '数据清理';
+
+  @override
+  String get clearCookies => '清除 Cookie';
+
+  @override
+  String get clearCookiesDesc => '清除爬取与 WebView 的会话 Cookie';
+
+  @override
+  String get cookiesCleared => 'Cookie 已清除';
+
+  @override
+  String get clearWebviewData => '清除 WebView 数据';
+
+  @override
+  String get clearWebviewDataDesc => '清除内嵌浏览器缓存与本地存储';
+
+  @override
+  String get webviewDataCleared => 'WebView 数据已清除';
+
+  @override
+  String get confirmActionHint => '该操作不可撤销，确定继续？';
+
+  @override
+  String get advancedRequestGroup => '请求指纹';
+
+  @override
+  String get defaultUserAgent => '默认 UA';
+
+  @override
+  String get userAgentAuto => '自动（内置指纹轮换）';
+
+  @override
+  String get userAgentAutoHint => '不同站点自动使用不同浏览器指纹';
+
+  @override
+  String get userAgentCustom => '自定义 UA';
+
+  @override
+  String get advancedPageHint => '修改默认 UA 后立即生效；部分站点对固定指纹可能更敏感';
+
+  @override
+  String get refresh => '刷新';
+
+  @override
+  String get rssNewContentGeneric => '有新内容';
 }

@@ -1,4 +1,4 @@
-/// 下载设置（最大同时下载数 / 线程数 / 路径 / 下载器类型）。
+/// 下载设置（最大同时下载数 / 线程数 / 路径 / 下载器类型 / 读后自动删 / 预下载）。
 ///
 /// 持久化到 shared_preferences，遵循 [PrefsBackend] 抽象（可注入内存后端测试）。
 library;
@@ -27,12 +27,24 @@ class DownloadSettings {
   /// 仅 WiFi 下载：开启后未连接 WiFi 时不启动下载，挂起等待。
   final bool wifiOnly;
 
+  /// 读后自动删除：看完/读完该内容后删除其已下载文件。
+  final bool autoDeleteAfterRead;
+
+  /// 自动删除的排除分类（收藏分组 id 列表）：命中其中任一分类的内容不删。
+  final List<String> autoDeleteExcludeGroupIds;
+
+  /// 预下载后续内容数（0 = 关闭）。
+  final int preDownloadCount;
+
   const DownloadSettings({
     this.maxConcurrent = 3,
     this.threadCount = 4,
     this.downloadPath = 'D:/Downloads',
     this.downloaderType = DownloaderType.internal,
     this.wifiOnly = false,
+    this.autoDeleteAfterRead = false,
+    this.autoDeleteExcludeGroupIds = const <String>[],
+    this.preDownloadCount = 0,
   });
 
   const DownloadSettings.defaults()
@@ -40,7 +52,15 @@ class DownloadSettings {
         threadCount = 4,
         downloadPath = 'D:/Downloads',
         downloaderType = DownloaderType.internal,
-        wifiOnly = false;
+        wifiOnly = false,
+        autoDeleteAfterRead = false,
+        autoDeleteExcludeGroupIds = const <String>[],
+        preDownloadCount = 0;
+
+  /// 内容（以其所属的收藏分组 id 列表表示）是否命中排除分类。
+  /// 未收藏 / 无分组（列表为空）时不受排除。
+  bool isExcludedFromAutoDeleteGroups(Iterable<String> groupIds) =>
+      groupIds.any(autoDeleteExcludeGroupIds.contains);
 
   DownloadSettings copyWith({
     int? maxConcurrent,
@@ -48,6 +68,9 @@ class DownloadSettings {
     String? downloadPath,
     DownloaderType? downloaderType,
     bool? wifiOnly,
+    bool? autoDeleteAfterRead,
+    List<String>? autoDeleteExcludeGroupIds,
+    int? preDownloadCount,
   }) =>
       DownloadSettings(
         maxConcurrent: maxConcurrent ?? this.maxConcurrent,
@@ -55,6 +78,11 @@ class DownloadSettings {
         downloadPath: downloadPath ?? this.downloadPath,
         downloaderType: downloaderType ?? this.downloaderType,
         wifiOnly: wifiOnly ?? this.wifiOnly,
+        autoDeleteAfterRead:
+            autoDeleteAfterRead ?? this.autoDeleteAfterRead,
+        autoDeleteExcludeGroupIds:
+            autoDeleteExcludeGroupIds ?? this.autoDeleteExcludeGroupIds,
+        preDownloadCount: preDownloadCount ?? this.preDownloadCount,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -63,6 +91,9 @@ class DownloadSettings {
         'downloadPath': downloadPath,
         'downloaderType': downloaderType.name,
         'wifiOnly': wifiOnly,
+        'autoDeleteAfterRead': autoDeleteAfterRead,
+        'autoDeleteExcludeGroupIds': autoDeleteExcludeGroupIds,
+        'preDownloadCount': preDownloadCount,
       };
 
   factory DownloadSettings.fromJson(Map<String, dynamic> json) =>
@@ -75,6 +106,13 @@ class DownloadSettings {
           (e) => e.name == json['downloaderType'],
           orElse: () => DownloaderType.internal,
         ),
+        autoDeleteAfterRead: json['autoDeleteAfterRead'] as bool? ?? false,
+        autoDeleteExcludeGroupIds: (json['autoDeleteExcludeGroupIds']
+                    as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            const <String>[],
+        preDownloadCount: json['preDownloadCount'] as int? ?? 0,
       );
 
   String toJsonString() => jsonEncode(toJson());

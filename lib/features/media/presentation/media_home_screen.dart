@@ -45,6 +45,7 @@ class MediaHomeScreen extends StatelessWidget {
 
     return LibraryShell(
       title: l10n.tabLibrary,
+      libraryTabLabel: l10n.tabMediaLibrary,
       emptyIcon: Icons.movie,
       emptyMessage: l10n.emptyLocalMedia,
       onSearch: () => Navigator.of(context).push(

@@ -12,6 +12,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/rss/rss_update_checker.dart';
+import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_list_tile.dart';
@@ -74,8 +75,14 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text(l10n.rssCheckNow),
+                // 隐私「隐藏通知内容」开启时只显示中性文案，不暴露具体数量。
                 subtitle: Text(
-                  l10n.rssTotalNewCount(checker.totalNewCount),
+                  GeneralSettingsStore
+                          .instance
+                          .settings
+                          .hideNotificationContent
+                      ? l10n.rssNewContentGeneric
+                      : l10n.rssTotalNewCount(checker.totalNewCount),
                 ),
                 onTap: () async {
                   await checker.checkAllFeeds();

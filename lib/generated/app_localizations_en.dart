@@ -33,6 +33,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
+  String get settingsTagline => 'Craft your personal media space';
+
+  @override
   String get sourceManagementTitle => 'Source Management';
 
   @override
@@ -49,6 +52,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tabLibrary => 'Library';
+
+  @override
+  String get tabMediaLibrary => 'Media Library';
 
   @override
   String get tabOnline => 'Online';
@@ -370,6 +376,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get presetColor => 'Preset colors';
+
+  @override
+  String get appearanceThemeSection => 'Theme';
+
+  @override
+  String get appearanceColorsSection => 'Colors';
+
+  @override
+  String get appearanceStartupSection => 'Launch & Display';
+
+  @override
+  String get heroSettingsTitle => 'Hero Images';
+
+  @override
+  String get appearanceHeroSection => 'Background';
+
+  @override
+  String get heroEmptyHint =>
+      'Add a few images to cycle at the top of Settings';
+
+  @override
+  String get heroAddFromUrl => 'Add from URL';
+
+  @override
+  String get heroAddFromDevice => 'Pick from device';
+
+  @override
+  String get heroUrlDialogTitle => 'Add image URL';
+
+  @override
+  String get heroUrlFieldHint => 'Image address (https://... or file://...)';
+
+  @override
+  String get heroRemoveTooltip => 'Remove';
 
   @override
   String get deleteConfirmTitle => 'Delete confirmation';
@@ -4262,6 +4302,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generalSettingsGroup => 'General';
 
   @override
+  String get playbackProgressGroup => 'Playback Progress';
+
+  @override
+  String get playbackModulesSection => 'Module Settings';
+
+  @override
+  String get settingsCatAppearance => 'Appearance & Language';
+
+  @override
+  String get settingsCatAppearanceDesc => 'Theme, colors, dark mode & language';
+
+  @override
+  String get settingsCatPlayback => 'Playback & Reading';
+
+  @override
+  String get settingsCatPlaybackDesc =>
+      'Player, comic, novel & danmaku display';
+
+  @override
+  String get settingsCatContent => 'Content & Sources';
+
+  @override
+  String get settingsCatContentDesc => 'Source management, scraping & network';
+
+  @override
+  String get settingsCatData => 'Data & Accounts';
+
+  @override
+  String get settingsCatDataDesc => 'Stats, backup, cloud sync & Bangumi';
+
+  @override
+  String get settingsCatPrivacy => 'Privacy & Security';
+
+  @override
+  String get settingsCatPrivacyDesc => 'Privacy, advanced settings & cache';
+
+  @override
+  String get settingsCatAbout => 'About';
+
+  @override
+  String get settingsCatAboutDesc => 'Version, license & acknowledgements';
+
+  @override
   String get launchScreenTitle => 'Launch Screen';
 
   @override
@@ -5737,4 +5820,158 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get heatmapStreak => 'Current streak';
+
+  @override
+  String get downloadAutoDelete => 'Auto-delete after finishing';
+
+  @override
+  String get downloadAutoDeleteHint =>
+      'Remove downloaded files once you finish this item';
+
+  @override
+  String get downloadAutoDeleteExclude => 'Excluded categories';
+
+  @override
+  String get downloadAutoDeleteExcludeNone => 'Auto-delete all categories';
+
+  @override
+  String get downloadPreDownload => 'Pre-download next content';
+
+  @override
+  String get downloadPreDownloadOff => 'Off';
+
+  @override
+  String downloadEpisodesCount(int count) {
+    return '$count items';
+  }
+
+  @override
+  String get categoriesManageTitle => 'Categories';
+
+  @override
+  String get categoriesManageDesc =>
+      'Manage collection categories for anime, comics and novels';
+
+  @override
+  String get settingsGroupPrivacy => 'Privacy';
+
+  @override
+  String get privacySettingsTitle => 'Privacy Settings';
+
+  @override
+  String get privacySettingsDesc =>
+      'Notification masking and incognito options';
+
+  @override
+  String get privacyNotificationsGroup => 'Notifications';
+
+  @override
+  String get hideNotificationContent => 'Hide Notification Content';
+
+  @override
+  String get hideNotificationContentHint =>
+      'When on, notifications only show \"New content\" without specific counts, preventing shoulder surfing';
+
+  @override
+  String get privacyNetworkGroup => 'Network';
+
+  @override
+  String get privacyPageHint =>
+      'Global incognito randomizes request delays and rotates browser fingerprints to reduce the chance of being detected as a script';
+
+  @override
+  String get settingsGroupAdvanced => 'Advanced & Cache';
+
+  @override
+  String get advancedSettingsTitle => 'Advanced Settings';
+
+  @override
+  String get advancedSettingsDesc =>
+      'Crash logs, detailed logs, data cleanup and request fingerprint';
+
+  @override
+  String get advancedLogGroup => 'Logs';
+
+  @override
+  String get detailedLogging => 'Detailed Logging';
+
+  @override
+  String get detailedLoggingHint =>
+      'Log each network request and response to help debug scraping issues';
+
+  @override
+  String get crashLog => 'Crash Log';
+
+  @override
+  String get crashLogDesc => 'View runtime errors and uncaught exceptions';
+
+  @override
+  String get crashLogTitle => 'Crash Log';
+
+  @override
+  String get crashLogEmpty =>
+      'No crash records yet. If you hit a problem, reproduce it and check back';
+
+  @override
+  String get crashLogCopied => 'Copied to clipboard';
+
+  @override
+  String get crashLogClear => 'Clear Crash Log';
+
+  @override
+  String get crashLogCleared => 'Cleared';
+
+  @override
+  String get crashLogCopyAll => 'Copy All';
+
+  @override
+  String get advancedCleanGroup => 'Data Cleanup';
+
+  @override
+  String get clearCookies => 'Clear Cookies';
+
+  @override
+  String get clearCookiesDesc => 'Clear session cookies of crawler and WebView';
+
+  @override
+  String get cookiesCleared => 'Cookies cleared';
+
+  @override
+  String get clearWebviewData => 'Clear WebView Data';
+
+  @override
+  String get clearWebviewDataDesc =>
+      'Clear embedded browser cache and local storage';
+
+  @override
+  String get webviewDataCleared => 'WebView data cleared';
+
+  @override
+  String get confirmActionHint => 'This action cannot be undone. Continue?';
+
+  @override
+  String get advancedRequestGroup => 'Request Fingerprint';
+
+  @override
+  String get defaultUserAgent => 'Default User-Agent';
+
+  @override
+  String get userAgentAuto => 'Auto (built-in fingerprint rotation)';
+
+  @override
+  String get userAgentAutoHint =>
+      'Different sites automatically use different browser fingerprints';
+
+  @override
+  String get userAgentCustom => 'Custom User-Agent';
+
+  @override
+  String get advancedPageHint =>
+      'The default UA takes effect immediately; some sites may be more sensitive to a fixed fingerprint';
+
+  @override
+  String get refresh => 'Refresh';
+
+  @override
+  String get rssNewContentGeneric => 'New content available';
 }

@@ -350,16 +350,16 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
                       label: Text(l10n.statsAll),
                     ),
                     ButtonSegment<StatsMediaType?>(
+                      value: StatsMediaType.novel,
+                      label: Text(l10n.navNovel),
+                    ),
+                    ButtonSegment<StatsMediaType?>(
                       value: StatsMediaType.media,
                       label: Text(l10n.navMedia),
                     ),
                     ButtonSegment<StatsMediaType?>(
                       value: StatsMediaType.comic,
                       label: Text(l10n.navComic),
-                    ),
-                    ButtonSegment<StatsMediaType?>(
-                      value: StatsMediaType.novel,
-                      label: Text(l10n.navNovel),
                     ),
                   ],
                 ),

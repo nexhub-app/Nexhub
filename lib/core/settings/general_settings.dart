@@ -66,6 +66,13 @@ enum AppDateFormat {
   }
 }
 
+/// 默认 Hero 轮播图（用户首次启动时填充，可在 Hero 设置页替换为任意 URL/本地图）。
+const List<String> kDefaultHeroImageUrls = <String>[
+  'https://picsum.photos/seed/nexhub-hero-1/800/400',
+  'https://picsum.photos/seed/nexhub-hero-2/800/400',
+  'https://picsum.photos/seed/nexhub-hero-3/800/400',
+];
+
 /// 通用应用设置。
 class GeneralSettings {
   final LaunchTab launchTab;
@@ -86,12 +93,23 @@ class GeneralSettings {
   /// 搜索 / 首页等任何内容入口。关闭需要用户强制阅读并确认免责声明。
   final bool ageRestrictionEnabled;
 
+  /// 是否隐藏通知内容（默认关闭）。
+  ///
+  /// 开启后，应用内通知（如 RSS 更新通知的未读数）不再显示具体数字，
+  /// 只显示中性的「新内容」提示，避免旁人窥屏时泄露订阅内容多少。
+  final bool hideNotificationContent;
+
+  /// Hero 轮播背景图 URL 列表（默认二次元图，可自定本地/网络）。
+  final List<String> heroImageUrls;
+
   const GeneralSettings({
     this.launchTab = LaunchTab.browse,
     this.dateFormat = AppDateFormat.defaultFormat,
     this.watchedThresholdPercent = 90,
     this.rememberPosition = true,
     this.ageRestrictionEnabled = true,
+    this.hideNotificationContent = false,
+    this.heroImageUrls = kDefaultHeroImageUrls,
   });
 
   GeneralSettings copyWith({
@@ -100,6 +118,8 @@ class GeneralSettings {
     int? watchedThresholdPercent,
     bool? rememberPosition,
     bool? ageRestrictionEnabled,
+    bool? hideNotificationContent,
+    List<String>? heroImageUrls,
   }) =>
       GeneralSettings(
         launchTab: launchTab ?? this.launchTab,
@@ -109,6 +129,9 @@ class GeneralSettings {
         rememberPosition: rememberPosition ?? this.rememberPosition,
         ageRestrictionEnabled:
             ageRestrictionEnabled ?? this.ageRestrictionEnabled,
+        hideNotificationContent:
+            hideNotificationContent ?? this.hideNotificationContent,
+        heroImageUrls: heroImageUrls ?? this.heroImageUrls,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -117,6 +140,8 @@ class GeneralSettings {
         'watchedThresholdPercent': watchedThresholdPercent,
         'rememberPosition': rememberPosition,
         'ageRestrictionEnabled': ageRestrictionEnabled,
+        'hideNotificationContent': hideNotificationContent,
+        'heroImageUrls': heroImageUrls,
       };
 
   factory GeneralSettings.fromJson(Map<String, dynamic> json) {
@@ -144,6 +169,12 @@ class GeneralSettings {
       // 缺省 / 脏数据一律回落到「开启年龄限制」这一安全侧。
       ageRestrictionEnabled:
           (json['ageRestrictionEnabled'] as bool?) ?? true,
+      hideNotificationContent:
+          (json['hideNotificationContent'] as bool?) ?? false,
+      heroImageUrls: (json['heroImageUrls'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const <String>[],
     );
   }
 }

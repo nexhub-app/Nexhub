@@ -36,7 +36,7 @@ class StatsOverviewScreen extends StatefulWidget {
 }
 
 class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
-  StatsMediaType _type = StatsMediaType.media;
+  StatsMediaType _type = StatsMediaType.novel;
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
   bool _searching = false;
@@ -435,6 +435,11 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
                 },
                 segments: <ButtonSegment<StatsMediaType>>[
                   ButtonSegment(
+                    value: StatsMediaType.novel,
+                    label: Text(l10n.navNovel),
+                    icon: const Icon(Icons.menu_book),
+                  ),
+                  ButtonSegment(
                     value: StatsMediaType.media,
                     label: Text(l10n.navMedia),
                     icon: const Icon(Icons.movie),
@@ -443,11 +448,6 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
                     value: StatsMediaType.comic,
                     label: Text(l10n.navComic),
                     icon: const Icon(Icons.auto_stories),
-                  ),
-                  ButtonSegment(
-                    value: StatsMediaType.novel,
-                    label: Text(l10n.navNovel),
-                    icon: const Icon(Icons.menu_book),
                   ),
                 ],
               ),

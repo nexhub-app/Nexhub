@@ -16,6 +16,7 @@ import '../../../core/danmaku/danmaku_settings.dart';
 import '../../../core/danmaku/danmaku_settings_store.dart';
 import '../../../core/danmaku/danmaku_source.dart';
 import '../../../core/danmaku/dandanplay_service.dart';
+import '../../../core/download/download_manager.dart';
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/history/media_playback_position_manager.dart';
 import '../../../core/history/media_watched_manager.dart';
@@ -1078,8 +1079,33 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       final watched = context.read<MediaWatchedManager>();
       unawaited(watched.markWatched(widget.itemId, _episodeIndex));
+      // 读后自动删除：已到最后一集且整部已看集数达到总集数。
+      if (widget.episodes != null &&
+          _episodeIndex == widget.episodes!.length - 1) {
+        unawaited(_maybeAutoDeleteDownloads(watched));
+      }
     } on Object {
       // Manager 不可用时静默忽略。
+    }
+  }
+
+  /// 读后自动删除：看完整个作品后清理其已下载文件（受排除分类限制）。
+  Future<void> _maybeAutoDeleteDownloads(MediaWatchedManager watched) async {
+    try {
+      final dm = context.read<DownloadManager>();
+      final s = dm.settings;
+      if (!s.autoDeleteAfterRead) return;
+      final type = widget.favoriteType ?? SourceType.animeSource;
+      // 排除按「收藏分类」判断：作品所属收藏分组命中排除列表则不删。
+      final groupIds =
+          context.read<FavoritesManager>().groupIdsOf(widget.itemId, type);
+      if (s.isExcludedFromAutoDeleteGroups(groupIds)) return;
+      final episodes = widget.episodes;
+      if (episodes == null || episodes.isEmpty) return;
+      if (watched.watchedCount(widget.itemId) < episodes.length) return;
+      await dm.removeItemDownloads(widget.itemId, deleteFiles: true);
+    } on Object {
+      // 下载管理器不可用时静默忽略。
     }
   }
 
@@ -1179,6 +1205,34 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       service.fetchVideoUrl(source, nextEp.url).catchError((_) =>
           const VideoResult(url: '', type: 'unknown')),
     );
+    // 预下载后续剧集：设置开启（>0）且进度跨过 80% 时，自动排队
+    // 尚未下载的后续 N 集（不打断已有下载队列）。
+    try {
+      final dm = context.read<DownloadManager>();
+      final count = dm.settings.preDownloadCount;
+      final type = widget.favoriteType;
+      if (count > 0 && type != null) {
+        final episodes = widget.episodes;
+        if (episodes != null && _episodeIndex < episodes.length - 1) {
+          final item = MediaItem(
+            id: widget.itemId,
+            title: widget.title,
+            sourceId: widget.sourceId,
+            sourceType: type,
+            detailUrl: widget.detailUrl,
+            coverUrl: widget.coverUrl,
+          );
+          unawaited(dm.preDownloadNextEpisodes(
+            item: item,
+            chapters: episodes,
+            fromIndex: _episodeIndex,
+            count: count,
+          ));
+        }
+      }
+    } on Object {
+      // 下载管理器不可用时静默忽略。
+    }
   }
 
   /// Stall（卡顿）处理：弹 SnackBar 提示并自动重新 open 当前地址恢复播放。
