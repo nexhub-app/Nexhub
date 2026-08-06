@@ -632,10 +632,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
-  /// 加载全局播放器默认设置（PlayerSettings）。
+  /// 加载播放器设置：全局默认 + 该剧集单独覆盖（覆盖字段优先）。
   Future<void> _loadPlayerSettings() async {
     try {
-      _playerSettings = await PlayerSettingsStore().load();
+      final global = await PlayerSettingsStore().load();
+      _playerSettings =
+          await EpisodePlayerSettingsStore().loadMerged(global, widget.itemId);
     } on Object {
       _playerSettings = const PlayerSettings();
     }
@@ -659,9 +661,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       if (s.playbackSpeed > 0) {
         await _controller.setPlaybackSpeed(s.playbackSpeed);
       }
-      // 字幕样式（字号 / 描边；底部边距因 mpv sub-pos 语义复杂，暂按默认底部位置）
+      // 字幕样式全局默认打通：字号/边框/阴影/颜色/位置/ASS/偏移/显隐
+      // 全部应用到底层播放器，使设置页「字幕」组的默认值真正生效。
       await _controller.setSubtitleFontSize(s.subtitleFontSize);
-      await _controller.setSubtitleBorderSize(s.subtitleOutline ? 2.0 : 0.0);
+      await _controller.setSubtitleBorderSize(s.subtitleBorderSize);
+      await _controller.setSubtitleScale(s.subtitleScale);
+      await _controller.setSubtitleShadowOffset(s.subtitleShadowOffset);
+      await _controller.setSubtitleColor(s.subtitleColor);
+      await _controller.setSubtitleBorderColor(s.subtitleBorderColor);
+      await _controller.setSubtitleShadowColor(s.subtitleShadowColor);
+      await _controller.setSubtitlePosition(s.subtitlePosition);
+      await _controller.setSubtitleAssOverride(s.subtitleAssMode);
+      await _controller.setSubtitleDelay(
+        Duration(milliseconds: s.subtitleDelayMs),
+      );
+      await _controller.setSubtitleVisible(s.subtitleVisible);
       await _applyLockOrientation(s.lockOrientation);
       _seekMultiplierFactor = _seekMultiplierToFactor(s.seekMultiplier);
     } on Object {
@@ -782,12 +796,36 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
-  /// 更新播放器设置（更多菜单内调用）：写回 [_playerSettings] 并持久化，
-  /// 部分项立即生效。
-  Future<void> _updatePlayerSettings(PlayerSettings next) async {
-    _playerSettings = next;
-    setState(() {});
-    unawaited(PlayerSettingsStore().save(next));
+  /// 写入该剧集的单独设置覆盖字段（播放器内弹窗/快捷行修改的音画参数）。
+  ///
+  /// 只记录用户实际改过的字段；未改过的项继续跟随全局默认。
+  /// 持久化失败不影响本次播放。
+  Future<void> _saveEpisodeSetting(String field, Object? value) async {
+    try {
+      await EpisodePlayerSettingsStore().setField(widget.itemId, field, value);
+    } on Object {
+      // 忽略持久化异常。
+    }
+  }
+
+  /// 清除该剧集的单独设置，恢复跟随全局默认。
+  Future<void> _resetEpisodeSettings() async {
+    try {
+      await EpisodePlayerSettingsStore().clearOverrides(widget.itemId);
+      _playerSettings = await PlayerSettingsStore().load();
+    } on Object {
+      _playerSettings = const PlayerSettings();
+    }
+    if (mounted) setState(() {});
+    await _applyPlayerSettings();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text(AppLocalizations.of(context).playerResetEpisodeSettingsDone),
+        ),
+      );
+    }
   }
 
   /// 从 SharedPreferences 读取弹幕源选择。
@@ -1987,6 +2025,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           : null,
                       onTap: () {
                         unawaited(_controller.setPlaybackSpeed(s));
+                        _playerSettings =
+                            _playerSettings.copyWith(playbackSpeed: s);
+                        unawaited(_saveEpisodeSetting('playbackSpeed', s));
                         _applyDanmakuOption();
                         Navigator.pop(ctx);
                       },
@@ -2032,8 +2073,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       ),
     );
     if (selected != null) {
-      await _updatePlayerSettings(
-          _playerSettings.copyWith(longPressSpeed: selected));
+      setState(() {
+        _playerSettings = _playerSettings.copyWith(longPressSpeed: selected);
+      });
+      await _saveEpisodeSetting('longPressSpeed', selected);
     }
   }
 
@@ -2246,7 +2289,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 trailing: Switch(
                   value: _controller.autoPlayNext,
                   onChanged: (v) {
-                    setState(() => _controller.autoPlayNext = v);
+                    setState(() {
+                      _controller.autoPlayNext = v;
+                      _playerSettings =
+                          _playerSettings.copyWith(autoPlayNext: v);
+                    });
+                    unawaited(_saveEpisodeSetting('autoPlayNext', v));
                     Navigator.pop(ctx);
                   },
                   activeColor: Theme.of(ctx).colorScheme.primary,
@@ -2261,8 +2309,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               trailing: Switch(
                 value: _playerSettings.longPressSpeedUp,
                 onChanged: (v) {
-                  unawaited(_updatePlayerSettings(
-                      _playerSettings.copyWith(longPressSpeedUp: v)));
+                  setState(() {
+                    _playerSettings =
+                        _playerSettings.copyWith(longPressSpeedUp: v);
+                  });
+                  unawaited(_saveEpisodeSetting('longPressSpeedUp', v));
                   Navigator.pop(ctx);
                 },
                 activeColor: Theme.of(ctx).colorScheme.primary,
@@ -2316,7 +2367,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   Navigator.pop(ctx);
                   // 与自动降级一致：设完 hwdec 后必须 re-open，否则对已在播的
                   // 解码器不生效（用户切“软解”看不到任何变化）。
-                  if (v != null) unawaited(_applyHwdecAndReopen(v));
+                  if (v == null) return;
+                  unawaited(_applyHwdecAndReopen(v));
+                  _playerSettings = _playerSettings.copyWith(
+                    decodeMode: DecodeMode.values.firstWhere(
+                      (e) => e.name == v || (e.name == 'hwPlus' && v == 'hw+'),
+                      orElse: () => DecodeMode.auto,
+                    ),
+                  );
+                  unawaited(_saveEpisodeSetting(
+                    'decodeMode',
+                    _playerSettings.decodeMode.name,
+                  ));
                 },
               ),
             ),
@@ -2338,8 +2400,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       value: 'reverse-stereo', child: Text(l10n.playerAudioReverseStereo)),
                 ],
                 onChanged: (String? v) {
-                  if (v != null) _controller.setAudioChannel(v);
                   Navigator.pop(ctx);
+                  if (v == null) return;
+                  unawaited(_controller.setAudioChannel(v));
+                  _playerSettings = _playerSettings.copyWith(
+                    audioChannel: AudioChannel.values.firstWhere(
+                      (e) => e.name == v,
+                      orElse: () => AudioChannel.auto,
+                    ),
+                  );
+                  unawaited(_saveEpisodeSetting(
+                    'audioChannel',
+                    _playerSettings.audioChannel.name,
+                  ));
                 },
               ),
             ),
@@ -2398,6 +2471,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               onTap: () {
                 Navigator.pop(ctx);
                 _pickScreenshotDirectory(l10n);
+              },
+            ),
+            // 重置该视频的单独设置（恢复跟随全局默认）
+            ListTile(
+              leading: const Icon(Icons.settings_backup_restore),
+              title: Text(l10n.playerResetEpisodeSettings),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_resetEpisodeSettings());
               },
             ),
             const SizedBox(height: AppTokens.spaceSm),
@@ -2956,7 +3038,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 color: Colors.white,
               ),
               tooltip: l10n.playerSubtitle,
-              onPressed: () => SubtitlePanel.show(context, controller: _controller),
+              onPressed: () => SubtitlePanel.show(
+                context,
+                controller: _controller,
+                defaults: _playerSettings,
+              ),
             ),
             // 收藏按钮（P9.1.7 §16.1 顶栏收藏，仅 favoriteType 提供时显示）
             if (widget.favoriteType != null)
@@ -3109,6 +3195,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     final idx = ratios.indexOf(cur);
                     final next = ratios[(idx + 1) % ratios.length];
                     unawaited(_controller.setAspectRatio(next));
+                    _playerSettings = _playerSettings.copyWith(
+                      aspectRatio: PlayerAspectRatio.values.firstWhere(
+                        (e) => _aspectRatioToMpv(e) == next,
+                        orElse: () => PlayerAspectRatio.defaultRatio,
+                      ),
+                    );
+                    unawaited(_saveEpisodeSetting(
+                      'aspectRatio',
+                      _playerSettings.aspectRatio.name,
+                    ));
                   },
                 ),
                 // 选集（本地 / 直链模式隐藏）

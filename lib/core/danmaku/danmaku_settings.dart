@@ -28,10 +28,6 @@ class DanmakuSettings {
     this.scrollSpeed = DanmakuScrollSpeed.medium,
     this.displayArea = DanmakuDisplayArea.full,
     this.maxOnScreen = DanmakuMaxOnScreen.fifty,
-    this.showOnTop = true,
-    this.showOnBottom = true,
-    this.showFull = true,
-    this.blockedKeywords = '',
   });
 
   /// 关键词过滤（支持正则）。
@@ -79,18 +75,6 @@ class DanmakuSettings {
   /// 同屏数量上限预设（项 6）。
   final DanmakuMaxOnScreen maxOnScreen;
 
-  /// 顶部显示开关（项 6，默认 true）。
-  final bool showOnTop;
-
-  /// 底部显示开关（项 6，默认 true）。
-  final bool showOnBottom;
-
-  /// 全屏显示开关（项 6，默认 true）。
-  final bool showFull;
-
-  /// 屏蔽关键词多行文本（项 6）。
-  final String blockedKeywords;
-
   DanmakuSettings copyWith({
     List<String>? filterKeywords,
     double? timeOffset,
@@ -107,10 +91,6 @@ class DanmakuSettings {
     DanmakuScrollSpeed? scrollSpeed,
     DanmakuDisplayArea? displayArea,
     DanmakuMaxOnScreen? maxOnScreen,
-    bool? showOnTop,
-    bool? showOnBottom,
-    bool? showFull,
-    String? blockedKeywords,
   }) =>
       DanmakuSettings(
         filterKeywords: filterKeywords ?? this.filterKeywords,
@@ -128,10 +108,6 @@ class DanmakuSettings {
         scrollSpeed: scrollSpeed ?? this.scrollSpeed,
         displayArea: displayArea ?? this.displayArea,
         maxOnScreen: maxOnScreen ?? this.maxOnScreen,
-        showOnTop: showOnTop ?? this.showOnTop,
-        showOnBottom: showOnBottom ?? this.showOnBottom,
-        showFull: showFull ?? this.showFull,
-        blockedKeywords: blockedKeywords ?? this.blockedKeywords,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -150,10 +126,6 @@ class DanmakuSettings {
         'scrollSpeed': scrollSpeed.name,
         'displayArea': displayArea.name,
         'maxOnScreen': maxOnScreen.name,
-        'showOnTop': showOnTop,
-        'showOnBottom': showOnBottom,
-        'showFull': showFull,
-        'blockedKeywords': blockedKeywords,
       };
 
   static DanmakuSettings fromJson(Map<String, dynamic> json) {
@@ -204,10 +176,6 @@ class DanmakuSettings {
       scrollSpeed: scrollSpeed,
       displayArea: displayArea,
       maxOnScreen: maxOnScreen,
-      showOnTop: json['showOnTop'] as bool? ?? true,
-      showOnBottom: json['showOnBottom'] as bool? ?? true,
-      showFull: json['showFull'] as bool? ?? true,
-      blockedKeywords: json['blockedKeywords'] as String? ?? '',
     );
   }
 

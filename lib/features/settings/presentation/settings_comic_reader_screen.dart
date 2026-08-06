@@ -165,6 +165,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                 // ── 常用设置（置顶快捷项，与阅读器内联面板对齐）──
                 SettingsCard(
                   title: l10n.readerCommonSettings,
+                  index: 0,
                   expandable: false,
                   backgroundColor:
                       Theme.of(context).colorScheme.primaryContainer
@@ -254,7 +255,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                 SettingsCard(
                   title: l10n.comicSectionTapPage,
                   description: l10n.readerGroupPageTapDesc,
-                  index: 0,
+                  index: 1,
                   children: <Widget>[
                     // 阅读模式（5 选项 ChoiceChip）
                     _chipSection(
@@ -403,7 +404,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                 SettingsCard(
                   title: l10n.comicSectionVisualFilter,
                   description: l10n.readerGroupViewFilterDesc,
-                  index: 1,
+                  index: 2,
                   children: <Widget>[
                     ReaderImageFilterPanel(
                       brightness: _settings.comicFilterBrightness,
@@ -434,7 +435,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                 SettingsCard(
                   title: l10n.comicSectionProgress,
                   description: l10n.readerGroupProgressDesc,
-                  index: 2,
+                  index: 3,
                   children: <Widget>[
                     SettingsSwitchTile(
                       title: l10n.readerCropEdge,
@@ -517,7 +518,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                 SettingsCard(
                   title: l10n.comicSectionFlash,
                   description: l10n.readerGroupFlashDesc,
-                  index: 3,
+                  index: 4,
                   children: <Widget>[
                     SettingsSwitchTile(
                       title: l10n.readerFlashEnabled,
@@ -574,7 +575,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                   SettingsCard(
                     title: l10n.comicSectionMouseWheel,
                     description: l10n.readerGroupMouseWheelDesc,
-                    index: 4,
+                    index: 5,
                     children: <Widget>[
                       // 滚轮作用：条漫（连续滚动）模式下按上下文自动分派，
                       // 「缩放/翻页」二选一无意义，仅在翻页模式显示。

@@ -3,6 +3,10 @@
 ///
 /// 在本页修改的任何弹幕显示参数（区域/行高/字号/不透明度/时长/显隐开关等）
 /// 都会立即写回该存储；进入播放器时播放器读取的也是同一份，因此两处始终一致。
+///
+/// 注：早期版本曾包含「显示区域 / 字体大小」的分段按钮并存与各自独立的
+/// 滑块、「同屏上限」「滚动速度」分段按钮，但分段选择从未被 canvas_danmaku
+/// 渲染层读取（`DanmakuSettings` 中对应 enum 字段仍保留以做向后兼容）。
 library;
 
 import 'package:flutter/material.dart';
@@ -25,8 +29,6 @@ class SettingsDanmakuDisplayScreen extends StatefulWidget {
 class _SettingsDanmakuDisplayScreenState
     extends State<SettingsDanmakuDisplayScreen> {
   final TextEditingController _keywordController = TextEditingController();
-  final TextEditingController _blockedKeywordsController =
-      TextEditingController();
   final DanmakuDisplaySettingsStore _store = DanmakuDisplaySettingsStore();
   late DanmakuSettings _settings;
   bool _loaded = false;
@@ -40,7 +42,6 @@ class _SettingsDanmakuDisplayScreenState
         setState(() {
           _settings = s;
           _loaded = true;
-          _blockedKeywordsController.text = s.blockedKeywords;
         });
       }
     });
@@ -49,7 +50,6 @@ class _SettingsDanmakuDisplayScreenState
   @override
   void dispose() {
     _keywordController.dispose();
-    _blockedKeywordsController.dispose();
     super.dispose();
   }
 
@@ -93,6 +93,7 @@ class _SettingsDanmakuDisplayScreenState
               children: <Widget>[
                 // ── 过滤与屏蔽 ──
                 SettingsCard(
+                  index: 0,
                   title: l10n.danmakuDisplayGroupFilter,
                   children: <Widget>[
                     _keywordSection(l10n),
@@ -124,35 +125,18 @@ class _SettingsDanmakuDisplayScreenState
                       onChanged: (v) =>
                           _update(_settings.copyWith(hideScroll: v)),
                     ),
-                    _labeled(l10n.danmakuDisplayBlockedKeywords,
-                        TextField(
-                      controller: _blockedKeywordsController,
-                      decoration: InputDecoration(
-                        hintText: l10n.danmakuDisplayBlockedKeywordsHint,
-                        isDense: true,
-                        border: const OutlineInputBorder(),
-                      ),
-                      maxLines: 4,
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(blockedKeywords: v)),
-                    )),
                   ],
                 ),
 
                 // ── 外观 ──
+                // 注：「字体大小」原为分段按钮（小/中/大 → `fontSizePreset`），
+                // canvas_danmaku 渲染层只读取 `fontSize`（double），分段选择从未生效。
+                // 现统一使用下方 12-28 滑块（更细自定义）。
+                // 模型与 enum `DanmakuFontSize` 字段保留，旧 JSON 仍可被 fromJson 解析。
                 SettingsCard(
+                  index: 1,
                   title: l10n.danmakuDisplayGroupAppearance,
                   children: <Widget>[
-                    SettingsSliderTile(
-                      label: l10n.danmakuFontSize,
-                      value: _settings.fontSize,
-                      min: 12,
-                      max: 28,
-                      divisions: 16,
-                      display: _settings.fontSize.toStringAsFixed(0),
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(fontSize: v)),
-                    ),
                     SettingsSliderTile(
                       label: l10n.danmakuOpacity,
                       value: _settings.opacity,
@@ -163,6 +147,30 @@ class _SettingsDanmakuDisplayScreenState
                       onChanged: (v) =>
                           _update(_settings.copyWith(opacity: v)),
                     ),
+                    SettingsSliderTile(
+                      label: l10n.danmakuFontSize,
+                      value: _settings.fontSize,
+                      min: 12,
+                      max: 28,
+                      divisions: 16,
+                      display: _settings.fontSize.toStringAsFixed(0),
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(fontSize: v)),
+                    ),
+                  ],
+                ),
+
+                // ── 显示 ──
+                // 注：本组曾有三个分段按钮与一个滑块并存，其中：
+                //   - 显示区域（1/4 半屏 全屏 → `displayArea`）从未被渲染层读取；
+                //   - 同屏上限（10/20/50/100 → `maxOnScreen`）未被引擎支持（无此字段）；
+                //   - 滚动速度（慢/中/快 → `scrollSpeed`）未被引擎读取。
+                // 现移除以上 3 个分段按钮，仅保留生效滑块。
+                // 模型与对应 enum 字段保留，旧 JSON 仍可被 fromJson 解析（向后兼容）。
+                SettingsCard(
+                  index: 2,
+                  title: l10n.danmakuDisplayGroupDisplay,
+                  children: <Widget>[
                     SettingsSliderTile(
                       label: l10n.danmakuArea,
                       value: _settings.area,
@@ -175,9 +183,9 @@ class _SettingsDanmakuDisplayScreenState
                     SettingsSliderTile(
                       label: l10n.danmakuDuration,
                       value: _settings.duration,
-                      min: 4,
-                      max: 20,
-                      divisions: 16,
+                      min: 3,
+                      max: 15,
+                      divisions: 12,
                       display: _settings.duration.toStringAsFixed(0),
                       onChanged: (v) => _update(_settings.copyWith(duration: v)),
                     ),
@@ -185,115 +193,10 @@ class _SettingsDanmakuDisplayScreenState
                       label: l10n.danmakuLineHeight,
                       value: _settings.lineHeight,
                       min: 1.0,
-                      max: 3.0,
-                      divisions: 20,
+                      max: 2.0,
+                      divisions: 10,
                       display: _settings.lineHeight.toStringAsFixed(1),
                       onChanged: (v) => _update(_settings.copyWith(lineHeight: v)),
-                    ),
-                  ],
-                ),
-
-                // ── 显示范围 ──
-                SettingsCard(
-                  title: l10n.danmakuDisplayGroupDisplayRange,
-                  children: <Widget>[
-                    SettingsSwitchTile(
-                      title: l10n.danmakuDisplayShowTop,
-                      value: _settings.showOnTop,
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(showOnTop: v)),
-                    ),
-                    SettingsSwitchTile(
-                      title: l10n.danmakuDisplayShowBottom,
-                      value: _settings.showOnBottom,
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(showOnBottom: v)),
-                    ),
-                    SettingsSwitchTile(
-                      title: l10n.danmakuDisplayShowFull,
-                      value: _settings.showFull,
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(showFull: v)),
-                    ),
-                  ],
-                ),
-
-                // ── 速度 ──
-                SettingsCard(
-                  title: l10n.danmakuDisplayGroupSpeed,
-                  children: <Widget>[
-                    SettingsSegmentedTile<DanmakuFontSize>(
-                      title: l10n.danmakuDisplayFontSize,
-                      selected: <DanmakuFontSize>{
-                        _settings.fontSizePreset
-                      },
-                      onSelectionChanged: (Set<DanmakuFontSize> s) => _update(
-                          _settings.copyWith(fontSizePreset: s.first)),
-                      segments: <ButtonSegment<DanmakuFontSize>>[
-                        ButtonSegment<DanmakuFontSize>(
-                            value: DanmakuFontSize.small,
-                            label: Text(l10n.danmakuSizeSmall)),
-                        ButtonSegment<DanmakuFontSize>(
-                            value: DanmakuFontSize.medium,
-                            label: Text(l10n.danmakuSizeMedium)),
-                        ButtonSegment<DanmakuFontSize>(
-                            value: DanmakuFontSize.large,
-                            label: Text(l10n.danmakuSizeLarge)),
-                      ],
-                    ),
-                    SettingsSegmentedTile<DanmakuScrollSpeed>(
-                      title: l10n.danmakuDisplayScrollSpeed,
-                      selected: <DanmakuScrollSpeed>{_settings.scrollSpeed},
-                      onSelectionChanged: (Set<DanmakuScrollSpeed> s) =>
-                          _update(_settings.copyWith(scrollSpeed: s.first)),
-                      segments: <ButtonSegment<DanmakuScrollSpeed>>[
-                        ButtonSegment<DanmakuScrollSpeed>(
-                            value: DanmakuScrollSpeed.slow,
-                            label: Text(l10n.danmakuSpeedSlow)),
-                        ButtonSegment<DanmakuScrollSpeed>(
-                            value: DanmakuScrollSpeed.medium,
-                            label: Text(l10n.danmakuSpeedMedium)),
-                        ButtonSegment<DanmakuScrollSpeed>(
-                            value: DanmakuScrollSpeed.fast,
-                            label: Text(l10n.danmakuSpeedFast)),
-                      ],
-                    ),
-                    SettingsSegmentedTile<DanmakuDisplayArea>(
-                      title: l10n.danmakuDisplayArea,
-                      selected: <DanmakuDisplayArea>{_settings.displayArea},
-                      onSelectionChanged: (Set<DanmakuDisplayArea> s) =>
-                          _update(_settings.copyWith(displayArea: s.first)),
-                      segments: <ButtonSegment<DanmakuDisplayArea>>[
-                        ButtonSegment<DanmakuDisplayArea>(
-                            value: DanmakuDisplayArea.quarter,
-                            label: Text(l10n.danmakuAreaQuarter)),
-                        ButtonSegment<DanmakuDisplayArea>(
-                            value: DanmakuDisplayArea.half,
-                            label: Text(l10n.danmakuAreaHalf)),
-                        ButtonSegment<DanmakuDisplayArea>(
-                            value: DanmakuDisplayArea.full,
-                            label: Text(l10n.danmakuAreaFull)),
-                      ],
-                    ),
-                    SettingsSegmentedTile<DanmakuMaxOnScreen>(
-                      title: l10n.danmakuDisplayMaxOnScreen,
-                      selected: <DanmakuMaxOnScreen>{_settings.maxOnScreen},
-                      onSelectionChanged: (Set<DanmakuMaxOnScreen> s) =>
-                          _update(_settings.copyWith(maxOnScreen: s.first)),
-                      segments: <ButtonSegment<DanmakuMaxOnScreen>>[
-                        ButtonSegment<DanmakuMaxOnScreen>(
-                            value: DanmakuMaxOnScreen.ten,
-                            label: Text(l10n.danmakuMaxTen)),
-                        ButtonSegment<DanmakuMaxOnScreen>(
-                            value: DanmakuMaxOnScreen.twenty,
-                            label: Text(l10n.danmakuMaxTwenty)),
-                        ButtonSegment<DanmakuMaxOnScreen>(
-                            value: DanmakuMaxOnScreen.fifty,
-                            label: Text(l10n.danmakuMaxFifty)),
-                        ButtonSegment<DanmakuMaxOnScreen>(
-                            value: DanmakuMaxOnScreen.hundred,
-                            label: Text(l10n.danmakuMaxHundred)),
-                      ],
                     ),
                     SettingsSwitchTile(
                       title: l10n.danmakuFollowSpeed,
@@ -355,24 +258,6 @@ class _SettingsDanmakuDisplayScreenState
               ],
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _labeled(String label, Widget child) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(label,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w500)),
-          const SizedBox(height: AppTokens.spaceXs),
-          child,
         ],
       ),
     );

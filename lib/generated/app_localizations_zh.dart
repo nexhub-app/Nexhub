@@ -3309,10 +3309,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerLongPressSpeedUp => '长按加速';
 
   @override
-  String get playerSubtitleBottomMargin => '字幕底部边距';
+  String get playerDefaultVolume => '默认音量';
 
   @override
-  String get playerDefaultVolume => '默认音量';
+  String get playerResetEpisodeSettings => '重置该视频设置';
+
+  @override
+  String get playerResetEpisodeSettingsDone => '已恢复该视频的全局默认设置';
 
   @override
   String get playerCoreGroup => '播放核心';
@@ -3322,6 +3325,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get playerGestureGroup => '手势与控制';
+
+  @override
+  String get playerScreenshotGroup => '截图';
 
   @override
   String get novelDefaultGroupTitle => '小说默认';
@@ -3444,21 +3450,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get danmakuDisplayMaxOnScreen => '同屏上限';
 
   @override
-  String get danmakuDisplayShowTop => '顶部显示';
-
-  @override
-  String get danmakuDisplayShowBottom => '底部显示';
-
-  @override
-  String get danmakuDisplayShowFull => '全屏显示';
-
-  @override
-  String get danmakuDisplayBlockedKeywords => '屏蔽关键词';
-
-  @override
-  String get danmakuDisplayBlockedKeywordsHint => '每行一个关键词';
-
-  @override
   String get danmakuSizeSmall => '小';
 
   @override
@@ -3502,6 +3493,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get danmakuDisplayGroupAppearance => '外观';
+
+  @override
+  String get danmakuDisplayGroupDisplay => '显示';
 
   @override
   String get danmakuDisplayGroupDisplayRange => '显示范围';
