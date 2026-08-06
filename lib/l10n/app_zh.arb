@@ -2250,6 +2250,7 @@
   "novelFontFileGroup": "字体文件与强调色",
   "novelChooseFontFile": "正文字体文件",
   "novelTitleFontFile": "标题字体文件",
+  "novelResetConfirm": "确定要将所有小说阅读设置恢复为默认吗？此操作不可恢复。",
   "novelSettingsSearch": "搜索设置",
   "novelSettingsCommon": "常用",
   "novelSettingsNoResult": "无匹配的设置项",
@@ -2969,5 +2970,25 @@
   "ageRestrictionDisclaimerWait": "确认（还需 {seconds} 秒）",
   "@ageRestrictionDisclaimerWait": {
     "description": "Confirm button label while counting down"
+  },
+  "comicSectionTapPage": "翻页与点击",
+  "@comicSectionTapPage": {
+    "description": "漫画阅读器设置 - 翻页与点击分组标题"
+  },
+  "comicSectionVisualFilter": "画面与滤镜",
+  "@comicSectionVisualFilter": {
+    "description": "漫画阅读器设置 - 画面与滤镜分组标题"
+  },
+  "comicSectionProgress": "进度与显示",
+  "@comicSectionProgress": {
+    "description": "漫画阅读器设置 - 进度与显示分组标题"
+  },
+  "comicSectionFlash": "闪屏效果",
+  "@comicSectionFlash": {
+    "description": "漫画阅读器设置 - 闪屏效果分组标题"
+  },
+  "comicSectionMouseWheel": "鼠标滚轮",
+  "@comicSectionMouseWheel": {
+    "description": "漫画阅读器设置 - 鼠标滚轮分组标题"
   }
 }

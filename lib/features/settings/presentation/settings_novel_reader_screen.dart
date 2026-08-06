@@ -18,6 +18,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/reader_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/widgets/app_animations.dart';
+import '../../manga/presentation/reader_tap_zones.dart';
 import 'widgets/settings_widgets.dart';
 
 /// 小说阅读器默认设置页面。
@@ -357,6 +358,146 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
           ? ListView(
               padding: const EdgeInsets.all(AppTokens.spaceLg),
               children: <Widget>[
+                // ── 常用设置（置顶快捷项，与阅读器内联面板对齐）──
+                SettingsCard(
+                  title: l10n.novelSettingsCommon,
+                  expandable: false,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.primaryContainer
+                          .withValues(alpha: 0.22),
+                  children: <Widget>[
+                    // 字号
+                    SettingsSliderTile(
+                      label: l10n.novelFontSize,
+                      value: _settings.novelFontSize,
+                      min: 12,
+                      max: 32,
+                      divisions: 20,
+                      display: '${_settings.novelFontSize.toStringAsFixed(0)} sp',
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(novelFontSize: v)),
+                    ),
+                    // 亮度
+                    SettingsSliderTile(
+                      label: l10n.novelBrightness,
+                      value: _settings.novelBrightness,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 20,
+                      display:
+                          '${(_settings.novelBrightness * 100).round()}%',
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(novelBrightness: v)),
+                    ),
+                    // 背景预设
+                    Text(l10n.readerBackground,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        for (int i = 0; i < ReaderTokens.bgPresets.length; i++)
+                          AppValuePulse(
+                            trigger: _settings.novelBgPresetIndex == i &&
+                                _settings.novelCustomBgColor == null,
+                            from: 0.9,
+                            child: ChoiceChip(
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: ReaderTokens.bgPresets[i],
+                                      border: Border.all(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .outline
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(_bgPresetLabel(l10n, i)),
+                                ],
+                              ),
+                              selected: _settings.novelBgPresetIndex == i &&
+                                  _settings.novelCustomBgColor == null,
+                              onSelected: (_) => _update(
+                                _settings.copyWith(
+                                  novelBgPresetIndex: i,
+                                  novelCustomBgColor: null,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    // 夜间模式跟随
+                    Text(l10n.nightMode,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        for (final f in NovelThemeFollow.values)
+                          AppValuePulse(
+                            trigger: NovelThemeFollow.values.firstWhere(
+                                  (e) => e.name == _settings.novelThemeFollow,
+                                  orElse: () => NovelThemeFollow.followApp,
+                                ) ==
+                                f,
+                            from: 0.9,
+                            child: ChoiceChip(
+                              label: Text(_themeFollowLabel(l10n, f)),
+                              selected: NovelThemeFollow.values.firstWhere(
+                                    (e) => e.name == _settings.novelThemeFollow,
+                                    orElse: () => NovelThemeFollow.followApp,
+                                  ) ==
+                                  f,
+                              onSelected: (_) => _update(
+                                  _settings.copyWith(novelThemeFollow: f.name)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    // 翻页动画
+                    Text(l10n.novelPageAnimation,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        for (final anim in NovelPageAnimation.values)
+                          AppValuePulse(
+                            trigger: _settings.novelPageAnimation == anim,
+                            from: 0.9,
+                            child: ChoiceChip(
+                              label: Text(_pageAnimLabel(l10n, anim)),
+                              selected: _settings.novelPageAnimation == anim,
+                              onSelected: (_) => _update(
+                                  _settings.copyWith(novelPageAnimation: anim)),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+
                 // ── 1. 阅读基础 ──
                 SettingsCard(
                   index: 0,
@@ -1068,9 +1209,25 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                       ),
                     ),
                     // 点击分区布局
-                    _labeled(
-                      l10n.readerTapZone,
-                      DropdownButton<ReaderTapZoneLayout>(
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: AppTokens.spaceXs),
+                      child: Row(
+                        children: <Widget>[
+                          Text(l10n.readerTapZone,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(fontWeight: FontWeight.w500)),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () => _showTapZonePreview(context, l10n),
+                            child: Text(l10n.tapZonePreview),
+                          ),
+                        ],
+                      ),
+                    ),
+                    DropdownButton<ReaderTapZoneLayout>(
                         value: ReaderTapZoneLayout.values.firstWhere(
                           (e) => e.name == _settings.novelTapZoneLayout,
                           orElse: () => ReaderTapZoneLayout.lShape,
@@ -1089,7 +1246,6 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                           }
                         },
                       ),
-                    ),
                     // 点击区域翻转
                     SettingsChoiceChips<TapZoneInvert>(
                       title: l10n.readerTapInvert,
@@ -1131,7 +1287,6 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                 SettingsCard(
                   index: 7,
                   title: l10n.novelSectionToolbar,
-                  description: l10n.restoreDefault,
                   children: <Widget>[
                     Wrap(
                       spacing: AppTokens.spaceSm,
@@ -1306,13 +1461,44 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
     );
   }
 
+  /// 点击分区布局实时预览弹窗（复用漫画侧 [ReaderTapZones] 可视化组件）。
+  void _showTapZonePreview(BuildContext context, AppLocalizations l10n) {
+    final layout = ReaderTapZoneLayout.values.firstWhere(
+      (e) => e.name == _settings.novelTapZoneLayout,
+      orElse: () => ReaderTapZoneLayout.lShape,
+    );
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AppAlertDialog(
+        title: Text(l10n.tapZonePreview),
+        content: SizedBox(
+          height: 240,
+          child: ReaderTapZones(
+            showPreview: true,
+            layout: layout,
+            tapZoneInvert: _settings.novelTapZoneInvert,
+            isVertical: false,
+            previewLabels: <String, String>{
+              'prev': l10n.tapPreviewPrev,
+              'next': l10n.tapPreviewNext,
+              'toggle': l10n.tapPreviewToggle,
+            },
+            onPrev: () {},
+            onNext: () {},
+            onToggleUi: () {},
+          ),
+        ),
+      ),
+    );
+  }
+
   void _confirmReset() {
     final l10n = AppLocalizations.of(context);
     showDialog<void>(
       context: context,
       builder: (ctx) => AppAlertDialog(
         title: Text(l10n.restoreDefault),
-        content: Text(l10n.restoreDefault),
+        content: Text(l10n.novelResetConfirm),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),

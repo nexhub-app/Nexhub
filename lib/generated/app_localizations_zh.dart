@@ -4054,6 +4054,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelTitleFontFile => '标题字体文件';
 
   @override
+  String get novelResetConfirm => '确定要将所有小说阅读设置恢复为默认吗？此操作不可恢复。';
+
+  @override
   String get novelSettingsSearch => '搜索设置';
 
   @override
@@ -5525,4 +5528,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String ageRestrictionDisclaimerWait(Object seconds) {
     return '确认（还需 $seconds 秒）';
   }
+
+  @override
+  String get comicSectionTapPage => '翻页与点击';
+
+  @override
+  String get comicSectionVisualFilter => '画面与滤镜';
+
+  @override
+  String get comicSectionProgress => '进度与显示';
+
+  @override
+  String get comicSectionFlash => '闪屏效果';
+
+  @override
+  String get comicSectionMouseWheel => '鼠标滚轮';
 }

@@ -2273,6 +2273,7 @@
   "novelFontFileGroup": "Font file & emphasis color",
   "novelChooseFontFile": "Body font file",
   "novelTitleFontFile": "Title font file",
+  "novelResetConfirm": "Reset all novel reader settings to default? This cannot be undone.",
   "novelSettingsSearch": "Search settings",
   "novelSettingsCommon": "Common",
   "novelSettingsNoResult": "No matching settings",
@@ -3013,5 +3014,25 @@
   "ageRestrictionDisclaimerWait": "Confirm (wait {seconds}s)",
   "@ageRestrictionDisclaimerWait": {
     "description": "Confirm button label while counting down"
+  },
+  "comicSectionTapPage": "Page Turning & Tap",
+  "@comicSectionTapPage": {
+    "description": "Comic reader settings - Page Turning & Tap section title"
+  },
+  "comicSectionVisualFilter": "Visual & Filters",
+  "@comicSectionVisualFilter": {
+    "description": "Comic reader settings - Visual & Filters section title"
+  },
+  "comicSectionProgress": "Progress & Display",
+  "@comicSectionProgress": {
+    "description": "Comic reader settings - Progress & Display section title"
+  },
+  "comicSectionFlash": "Flash Effects",
+  "@comicSectionFlash": {
+    "description": "Comic reader settings - Flash Effects section title"
+  },
+  "comicSectionMouseWheel": "Mouse Wheel",
+  "@comicSectionMouseWheel": {
+    "description": "Comic reader settings - Mouse Wheel section title"
   }
 }
