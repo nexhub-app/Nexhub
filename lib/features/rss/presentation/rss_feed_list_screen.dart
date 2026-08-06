@@ -15,6 +15,7 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/rss/rss_feed.dart';
 import '../../../core/rss/rss_manager.dart';
 import '../../../core/rss/rss_update_checker.dart';
+import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -131,24 +132,38 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         if (newCount > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: scheme.primary,
-                              borderRadius: BorderRadius.circular(
-                                  AppTokens.radiusFull),
-                            ),
-                            child: Text(
-                              '$newCount',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(color: scheme.onPrimary),
-                            ),
-                          )
+                          // 隐私设置「隐藏通知内容」：只显示中性圆点，
+                          // 不暴露未读具体数量，防旁人窥屏。
+                          GeneralSettingsStore
+                                  .instance
+                                  .settings
+                                  .hideNotificationContent
+                              ? Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    color: scheme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                )
+                              : Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: scheme.primary,
+                                    borderRadius: BorderRadius.circular(
+                                        AppTokens.radiusFull),
+                                  ),
+                                  child: Text(
+                                    '$newCount',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(color: scheme.onPrimary),
+                                  ),
+                                )
                         else
                           const SizedBox.shrink(),
                         // 测速指示器

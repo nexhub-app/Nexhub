@@ -146,6 +146,12 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settingsTitle;
 
+  /// No description provided for @settingsTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Craft your personal media space'**
+  String get settingsTagline;
+
   /// No description provided for @sourceManagementTitle.
   ///
   /// In en, this message translates to:
@@ -181,6 +187,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Library'**
   String get tabLibrary;
+
+  /// No description provided for @tabMediaLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Media Library'**
+  String get tabMediaLibrary;
 
   /// No description provided for @tabOnline.
   ///
@@ -799,6 +811,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Preset colors'**
   String get presetColor;
+
+  /// No description provided for @appearanceThemeSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get appearanceThemeSection;
+
+  /// No description provided for @appearanceColorsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Colors'**
+  String get appearanceColorsSection;
+
+  /// No description provided for @appearanceStartupSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Launch & Display'**
+  String get appearanceStartupSection;
+
+  /// No description provided for @heroSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hero Images'**
+  String get heroSettingsTitle;
+
+  /// No description provided for @appearanceHeroSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Background'**
+  String get appearanceHeroSection;
+
+  /// No description provided for @heroEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a few images to cycle at the top of Settings'**
+  String get heroEmptyHint;
+
+  /// No description provided for @heroAddFromUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Add from URL'**
+  String get heroAddFromUrl;
+
+  /// No description provided for @heroAddFromDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick from device'**
+  String get heroAddFromDevice;
+
+  /// No description provided for @heroUrlDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add image URL'**
+  String get heroUrlDialogTitle;
+
+  /// No description provided for @heroUrlFieldHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Image address (https://... or file://...)'**
+  String get heroUrlFieldHint;
+
+  /// No description provided for @heroRemoveTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get heroRemoveTooltip;
 
   /// No description provided for @deleteConfirmTitle.
   ///
@@ -8210,6 +8288,90 @@ abstract class AppLocalizations {
   /// **'General'**
   String get generalSettingsGroup;
 
+  /// No description provided for @playbackProgressGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback Progress'**
+  String get playbackProgressGroup;
+
+  /// No description provided for @playbackModulesSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Module Settings'**
+  String get playbackModulesSection;
+
+  /// No description provided for @settingsCatAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance & Language'**
+  String get settingsCatAppearance;
+
+  /// No description provided for @settingsCatAppearanceDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme, colors, dark mode & language'**
+  String get settingsCatAppearanceDesc;
+
+  /// No description provided for @settingsCatPlayback.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback & Reading'**
+  String get settingsCatPlayback;
+
+  /// No description provided for @settingsCatPlaybackDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Player, comic, novel & danmaku display'**
+  String get settingsCatPlaybackDesc;
+
+  /// No description provided for @settingsCatContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Content & Sources'**
+  String get settingsCatContent;
+
+  /// No description provided for @settingsCatContentDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Source management, scraping & network'**
+  String get settingsCatContentDesc;
+
+  /// No description provided for @settingsCatData.
+  ///
+  /// In en, this message translates to:
+  /// **'Data & Accounts'**
+  String get settingsCatData;
+
+  /// No description provided for @settingsCatDataDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Stats, backup, cloud sync & Bangumi'**
+  String get settingsCatDataDesc;
+
+  /// No description provided for @settingsCatPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy & Security'**
+  String get settingsCatPrivacy;
+
+  /// No description provided for @settingsCatPrivacyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy, advanced settings & cache'**
+  String get settingsCatPrivacyDesc;
+
+  /// No description provided for @settingsCatAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get settingsCatAbout;
+
+  /// No description provided for @settingsCatAboutDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Version, license & acknowledgements'**
+  String get settingsCatAboutDesc;
+
   /// No description provided for @launchScreenTitle.
   ///
   /// In en, this message translates to:
@@ -10915,6 +11077,288 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Current streak'**
   String get heatmapStreak;
+
+  /// Download settings: auto-delete downloaded files after finishing
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-delete after finishing'**
+  String get downloadAutoDelete;
+
+  /// Auto-delete subtitle hint
+  ///
+  /// In en, this message translates to:
+  /// **'Remove downloaded files once you finish this item'**
+  String get downloadAutoDeleteHint;
+
+  /// Auto-delete excluded categories entry
+  ///
+  /// In en, this message translates to:
+  /// **'Excluded categories'**
+  String get downloadAutoDeleteExclude;
+
+  /// Subtitle when no category is excluded
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-delete all categories'**
+  String get downloadAutoDeleteExcludeNone;
+
+  /// Auto pre-download upcoming content while watching/reading
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-download next content'**
+  String get downloadPreDownload;
+
+  /// Pre-download count is 0 (disabled)
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get downloadPreDownloadOff;
+
+  /// Pre-download content count unit
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String downloadEpisodesCount(int count);
+
+  /// Settings categories management entry title
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get categoriesManageTitle;
+
+  /// Settings categories management entry subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Manage collection categories for anime, comics and novels'**
+  String get categoriesManageDesc;
+
+  /// Settings home privacy group title
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get settingsGroupPrivacy;
+
+  /// Privacy settings page title
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Settings'**
+  String get privacySettingsTitle;
+
+  /// Settings home privacy entry subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Notification masking and incognito options'**
+  String get privacySettingsDesc;
+
+  /// Privacy page notifications group title
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get privacyNotificationsGroup;
+
+  /// Privacy page hide notification content switch
+  ///
+  /// In en, this message translates to:
+  /// **'Hide Notification Content'**
+  String get hideNotificationContent;
+
+  /// Hide notification content switch description
+  ///
+  /// In en, this message translates to:
+  /// **'When on, notifications only show \"New content\" without specific counts, preventing shoulder surfing'**
+  String get hideNotificationContentHint;
+
+  /// Privacy page network group title
+  ///
+  /// In en, this message translates to:
+  /// **'Network'**
+  String get privacyNetworkGroup;
+
+  /// Privacy page bottom hint
+  ///
+  /// In en, this message translates to:
+  /// **'Global incognito randomizes request delays and rotates browser fingerprints to reduce the chance of being detected as a script'**
+  String get privacyPageHint;
+
+  /// Settings home advanced group title
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced & Cache'**
+  String get settingsGroupAdvanced;
+
+  /// Advanced settings page title
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced Settings'**
+  String get advancedSettingsTitle;
+
+  /// Settings home advanced entry subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Crash logs, detailed logs, data cleanup and request fingerprint'**
+  String get advancedSettingsDesc;
+
+  /// Advanced page logs group title
+  ///
+  /// In en, this message translates to:
+  /// **'Logs'**
+  String get advancedLogGroup;
+
+  /// Advanced page detailed logging switch
+  ///
+  /// In en, this message translates to:
+  /// **'Detailed Logging'**
+  String get detailedLogging;
+
+  /// Detailed logging switch description
+  ///
+  /// In en, this message translates to:
+  /// **'Log each network request and response to help debug scraping issues'**
+  String get detailedLoggingHint;
+
+  /// Advanced page crash log entry title
+  ///
+  /// In en, this message translates to:
+  /// **'Crash Log'**
+  String get crashLog;
+
+  /// Crash log entry subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'View runtime errors and uncaught exceptions'**
+  String get crashLogDesc;
+
+  /// Crash log page title
+  ///
+  /// In en, this message translates to:
+  /// **'Crash Log'**
+  String get crashLogTitle;
+
+  /// Crash log page empty state
+  ///
+  /// In en, this message translates to:
+  /// **'No crash records yet. If you hit a problem, reproduce it and check back'**
+  String get crashLogEmpty;
+
+  /// Crash log copied toast
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to clipboard'**
+  String get crashLogCopied;
+
+  /// Crash log clear button
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Crash Log'**
+  String get crashLogClear;
+
+  /// Crash log cleared toast
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared'**
+  String get crashLogCleared;
+
+  /// Crash log copy all button
+  ///
+  /// In en, this message translates to:
+  /// **'Copy All'**
+  String get crashLogCopyAll;
+
+  /// Advanced page data cleanup group title
+  ///
+  /// In en, this message translates to:
+  /// **'Data Cleanup'**
+  String get advancedCleanGroup;
+
+  /// Advanced page clear cookies entry
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Cookies'**
+  String get clearCookies;
+
+  /// Clear cookies subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Clear session cookies of crawler and WebView'**
+  String get clearCookiesDesc;
+
+  /// Cookies cleared toast
+  ///
+  /// In en, this message translates to:
+  /// **'Cookies cleared'**
+  String get cookiesCleared;
+
+  /// Advanced page clear WebView data entry
+  ///
+  /// In en, this message translates to:
+  /// **'Clear WebView Data'**
+  String get clearWebviewData;
+
+  /// Clear WebView data subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Clear embedded browser cache and local storage'**
+  String get clearWebviewDataDesc;
+
+  /// WebView data cleared toast
+  ///
+  /// In en, this message translates to:
+  /// **'WebView data cleared'**
+  String get webviewDataCleared;
+
+  /// Dangerous action confirmation hint
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be undone. Continue?'**
+  String get confirmActionHint;
+
+  /// Advanced page request fingerprint group title
+  ///
+  /// In en, this message translates to:
+  /// **'Request Fingerprint'**
+  String get advancedRequestGroup;
+
+  /// Advanced page default UA setting
+  ///
+  /// In en, this message translates to:
+  /// **'Default User-Agent'**
+  String get defaultUserAgent;
+
+  /// UA auto option
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (built-in fingerprint rotation)'**
+  String get userAgentAuto;
+
+  /// UA auto option description
+  ///
+  /// In en, this message translates to:
+  /// **'Different sites automatically use different browser fingerprints'**
+  String get userAgentAutoHint;
+
+  /// UA custom input label
+  ///
+  /// In en, this message translates to:
+  /// **'Custom User-Agent'**
+  String get userAgentCustom;
+
+  /// Advanced page bottom hint
+  ///
+  /// In en, this message translates to:
+  /// **'The default UA takes effect immediately; some sites may be more sensitive to a fixed fingerprint'**
+  String get advancedPageHint;
+
+  /// Generic refresh button
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refresh;
+
+  /// Generic text shown when notification content is hidden
+  ///
+  /// In en, this message translates to:
+  /// **'New content available'**
+  String get rssNewContentGeneric;
 }
 
 class _AppLocalizationsDelegate

@@ -27,6 +27,11 @@ import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 /// Implemented once here and reused by the three modules. No copy-pasting.
 class LibraryShell extends StatefulWidget {
   final String title;
+
+  /// 可覆盖顶栏「书架」Tab 文案（默认 [AppLocalizations.tabLibrary]）。
+  /// 仅影视模块传「媒体库」，漫画 / 小说仍用「书架」。
+  final String? libraryTabLabel;
+
   final IconData emptyIcon;
   final String emptyMessage;
   final String? emptyActionLabel;
@@ -84,6 +89,7 @@ class LibraryShell extends StatefulWidget {
   const LibraryShell({
     super.key,
     required this.title,
+    this.libraryTabLabel,
     required this.emptyIcon,
     required this.emptyMessage,
     required this.onSearch,
@@ -269,7 +275,7 @@ class _LibraryShellState extends State<LibraryShell> {
   String _topTabLabel(AppLocalizations l10n) {
     switch (_currentTopTab) {
       case LibraryTopTab.library:
-        return l10n.tabLibrary;
+        return widget.libraryTabLabel ?? l10n.tabLibrary;
       case LibraryTopTab.online:
         return l10n.tabOnline;
       case LibraryTopTab.subscribe:
@@ -324,7 +330,7 @@ class _LibraryShellState extends State<LibraryShell> {
         children: <Widget>[
           _TopTabItem(
             icon: Icons.menu_book_outlined,
-            label: l10n.tabLibrary,
+            label: widget.libraryTabLabel ?? l10n.tabLibrary,
             selected: _currentTopTab == LibraryTopTab.library,
             onTap: () => _selectTop(LibraryTopTab.library),
             scheme: scheme,

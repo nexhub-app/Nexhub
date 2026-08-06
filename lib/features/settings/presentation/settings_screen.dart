@@ -1,808 +1,307 @@
-/// 设置页面 —— 新版分组列表样式。
+/// 设置主页 —— 分类入口（动态取色 / 编辑式版面）。
 ///
-/// 分组：
-/// - 下载管理
-/// - 工具（网页爬取 / 订阅管理 / RSSHub Instance / 弹弹play 弹幕）
-/// - 插件
-/// - 数据（导入/导出）
+/// 设计取向：色彩随用户选择的种子色（Monet / 预设 / 自定义）实时变化，
+/// 不使用任何固定色值。顶部品牌头（monogram + 色板圆点）打破纯列表的单调感，
+/// 下方 6 张分类卡用 primaryContainer 图标瓦 + outlineVariant 发丝边，
+/// 克制而统一。整体风格取自 Linear / Vercel 的编辑式留白美学。
 library;
 
 import 'package:flutter/material.dart';
-import 'dart:async';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-import 'package:provider/provider.dart';
-import '../../../core/scraper/http_fetcher.dart';
-import '../../../core/locale/locale_controller.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/theme/theme_controller.dart';
 import '../../../core/widgets/app_animations.dart';
-import '../../../core/widgets/app_list_tile.dart';
-import '../../../core/widgets/app_segmented_tabs.dart';
-import '../../../core/widgets/layout_picker_dialog.dart';
-import '../../home/presentation/browse_web_scrape_screen.dart';
-import '../../sources/presentation/source_manager_screen.dart';
-import '../../stats/presentation/stats_overview_screen.dart';
-import './settings_download_screen.dart';
-import './settings_network_screen.dart';
-import './settings_rsshub_screen.dart';
-import './settings_rss_notifications_screen.dart';
-import './settings_danmaku_display_screen.dart';
-import './settings_player_screen.dart';
-import './settings_novel_reader_screen.dart';
-import './settings_comic_reader_screen.dart';
-import './settings_import_export_screen.dart';
-import './settings_cloud_sync_screen.dart';
-import './settings_bangumi_screen.dart';
-import './about_screen.dart';
-import '../../../core/settings/general_settings.dart';
-import './widgets/settings_widgets.dart';
-import '../../../core/services/source_repository.dart';
-import '../../../core/services/config_loader.dart';
-import '../../../core/services/cloud_sync_service.dart';
-import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
-import 'package:nexhub/core/widgets/app_alert_dialog.dart';
+import '../../../core/settings/general_settings.dart';
+import './widgets/hero_carousel.dart';
+import './settings_hero_screen.dart';
+import './settings_appearance_screen.dart';
+import './settings_playback_screen.dart';
+import './settings_content_screen.dart';
+import './settings_data_screen.dart';
+import './settings_privacy_security_screen.dart';
+import './about_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-  void _openColorPicker(
-      BuildContext context, ThemeController c, AppLocalizations l10n) {
-    Color pickerColor = c.seed;
-    showDialog(
-      context: context,
-      builder: (BuildContext ctx) => AppAlertDialog(
-        title: Text(l10n.customColor),
-        content: SingleChildScrollView(
-          child: ColorPicker(
-            pickerColor: pickerColor,
-            onColorChanged: (Color color) => pickerColor = color,
-            enableAlpha: false,
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
-          OutlinedButton(
-            onPressed: () {
-              c.setSeed(AppTokens.seedYouthfulPrimary);
-              Navigator.pop(ctx);
-            },
-            child: Text(l10n.restoreDefault),
-          ),
-          FilledButton(
-            onPressed: () {
-              c.setSeed(pickerColor);
-              Navigator.pop(ctx);
-            },
-            child: Text(l10n.confirm),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    final ThemeController controller = context.watch<ThemeController>();
-    final LocaleController localeController = context.watch<LocaleController>();
 
-    // 顶栏标题滚动渐隐收缩（下滚淡至 60% 并轻微缩小，回顶还原）。
+    final List<_Category> categories = <_Category>[
+      _Category(
+        icon: Icons.palette_outlined,
+        title: l10n.settingsCatAppearance,
+        desc: l10n.settingsCatAppearanceDesc,
+        builder: () => const SettingsAppearanceScreen(),
+      ),
+      _Category(
+        icon: Icons.play_circle_outline,
+        title: l10n.settingsCatPlayback,
+        desc: l10n.settingsCatPlaybackDesc,
+        builder: () => const SettingsPlaybackScreen(),
+      ),
+      _Category(
+        icon: Icons.rss_feed,
+        title: l10n.settingsCatContent,
+        desc: l10n.settingsCatContentDesc,
+        builder: () => const SettingsContentScreen(),
+      ),
+      _Category(
+        icon: Icons.storage_outlined,
+        title: l10n.settingsCatData,
+        desc: l10n.settingsCatDataDesc,
+        builder: () => const SettingsDataScreen(),
+      ),
+      _Category(
+        icon: Icons.shield_outlined,
+        title: l10n.settingsCatPrivacy,
+        desc: l10n.settingsCatPrivacyDesc,
+        builder: () => const SettingsPrivacySecurityScreen(),
+      ),
+      _Category(
+        icon: Icons.info_outline,
+        title: l10n.settingsCatAbout,
+        desc: l10n.settingsCatAboutDesc,
+        builder: () => const AboutScreen(),
+      ),
+    ];
+
     return AppShrinkTitleScaffold(
       title: Text(l10n.settingsTitle),
-      body: ListView(
+      body: ListView.separated(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
-        children: <Widget>[
-          // ── 外观 ──
-          _SettingsGroupHeader(label: l10n.themeTitle),
-          AppSegmentedTabs<ThemeMode>(
-            selected: <ThemeMode>{controller.mode},
-            onSelectionChanged: (Set<ThemeMode> s) =>
-                controller.setMode(s.first),
-            segments: <ButtonSegment<ThemeMode>>[
-              ButtonSegment<ThemeMode>(
-                  value: ThemeMode.light, label: Text(l10n.themeLight),
-                  icon: const Icon(Icons.light_mode)),
-              ButtonSegment<ThemeMode>(
-                  value: ThemeMode.dark, label: Text(l10n.themeDark),
-                  icon: const Icon(Icons.dark_mode)),
-              ButtonSegment<ThemeMode>(
-                  value: ThemeMode.system, label: Text(l10n.themeSystem),
-                  icon: const Icon(Icons.brightness_auto)),
-            ],
-          ),
-          const SizedBox(height: AppTokens.spaceMd),
-          AppListTile(
-            leading: const Icon(Icons.auto_awesome),
-            title: Text(l10n.useMonet),
-            trailing: Switch(
-              value: controller.useMonet,
-              onChanged: (_) => controller.setUseMonet(!controller.useMonet),
-            ),
-          ),
-          const SizedBox(height: AppTokens.spaceMd),
-          _SettingsGroupHeader(label: l10n.presetColor),
-          Wrap(
-            spacing: AppTokens.spaceSm,
-            children: AppTokens.presetSeeds.map((preset) {
-              final Color color = preset.$1;
-              final String name = preset.$2;
-              final bool selected =
-                  !controller.useMonet && controller.seed == color;
-              return Tooltip(
-                message: name,
-                child: ChoiceChip(
-                  label: const SizedBox.shrink(),
-                  avatar:
-                      CircleAvatar(backgroundColor: color, radius: 12),
-                  selected: selected,
-                  onSelected: (_) => controller.setSeed(color),
-                  visualDensity: VisualDensity.compact,
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: AppTokens.spaceMd),
-          AppListTile(
-            leading: const Icon(Icons.color_lens),
-            title: Text(l10n.customColor),
-            trailing:
-                CircleAvatar(backgroundColor: controller.seed, radius: 14),
-            onTap: () => _openColorPicker(context, controller, l10n),
-          ),
-
-          // ── 语言 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          _SettingsGroupHeader(label: l10n.settingsGroupLanguage),
-          AppSegmentedTabs<LocaleOption>(
-            selected: <LocaleOption>{localeController.option},
-            onSelectionChanged: (Set<LocaleOption> s) =>
-                localeController.setOption(s.first),
-            segments: <ButtonSegment<LocaleOption>>[
-              ButtonSegment<LocaleOption>(
-                  value: LocaleOption.system,
-                  label: Text(l10n.languageFollowSystem),
-                  icon: const Icon(Icons.brightness_auto)),
-              ButtonSegment<LocaleOption>(
-                  value: LocaleOption.chinese,
-                  label: Text(l10n.languageChinese),
-                  icon: const Icon(Icons.translate)),
-              ButtonSegment<LocaleOption>(
-                  value: LocaleOption.english,
-                  label: Text(l10n.languageEnglish),
-                  icon: const Icon(Icons.language)),
-            ],
-          ),
-
-          // ── 通用 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          _SettingsGroupHeader(label: l10n.generalSettingsGroup),
-          const _GeneralSettingsCard(),
-
-          // ── 播放与阅读 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          _SettingsGroupHeader(label: l10n.settingsGroupPlayback),
-          AppListTile(
-            leading: const Icon(Icons.play_circle_outline),
-            title: Text(l10n.playerSettingsTitle),
-            subtitle: Text(l10n.playerSettingsDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsPlayerScreen(),
-              ),
-            ),
-          ),
-          AppListTile(
-            leading: const Icon(Icons.menu_book_outlined),
-            title: Text(l10n.novelReaderSettingsTitle),
-            subtitle: Text(l10n.novelReaderSettingsDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsNovelReaderScreen(),
-              ),
-            ),
-          ),
-          AppListTile(
-            leading: const Icon(Icons.auto_stories_outlined),
-            title: Text(l10n.comicReaderSettingsTitle),
-            subtitle: Text(l10n.comicReaderSettingsDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsComicReaderScreen(),
-              ),
-            ),
-          ),
-          AppListTile(
-            leading: const Icon(Icons.view_quilt_outlined),
-            title: Text(l10n.layoutSettings),
-            subtitle: Text(l10n.layoutSettingsDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => showLayoutPickerDialog(context),
-          ),
-          AppListTile(
-            leading: const Icon(Icons.subtitles_outlined),
-            title: Text(l10n.danmakuDisplaySettingsTitle),
-            subtitle: Text(l10n.danmakuDisplaySettingsDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsDanmakuDisplayScreen(),
-              ),
-            ),
-          ),
-
-          // ── 内容源 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          _SettingsGroupHeader(label: l10n.settingsGroupContentSources),
-          AppListTile(
-            leading: const Icon(Icons.rss_feed),
-            title: Text(l10n.sourceManagementTitle),
-            subtitle: Text(l10n.subscriptionManagementDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SourceManagerScreen(),
-              ),
-            ),
-          ),
-          AppListTile(
-            leading: const Icon(Icons.travel_explore),
-            title: Text(l10n.webScrapeSetting),
-            subtitle: Text(l10n.webScrapeSettingSameAsBrowse),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const BrowseWebScrapeScreen(),
-              ),
-            ),
-          ),
-
-          // ── 网络 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          _SettingsGroupHeader(label: l10n.settingsGroupNetwork),
-          AppListTile(
-            leading: const Icon(Icons.lan_outlined),
-            title: Text(l10n.networkSettingsTitle),
-            subtitle: Text(l10n.networkSettingsDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsNetworkScreen(),
-              ),
-            ),
-          ),
-
-          // ── 订阅与通知 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          _SettingsGroupHeader(label: l10n.settingsGroupSubscriptions),
-          AppListTile(
-            leading: const Icon(Icons.rss_feed_outlined),
-            title: Text(l10n.rsshubInstance),
-            subtitle: Text(l10n.rsshubInstanceDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsRssHubScreen(),
-              ),
-            ),
-          ),
-          AppListTile(
-            leading: const Icon(Icons.notifications_outlined),
-            title: Text(l10n.rssNotifications),
-            subtitle: Text(l10n.rssNotificationsDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsRssNotificationsScreen(),
-              ),
-            ),
-          ),
-
-          // ── 下载与数据 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          _SettingsGroupHeader(label: l10n.settingsGroupDownloadsData),
-          AppListTile(
-            leading: const Icon(Icons.bar_chart),
-            title: Text(l10n.statsOverviewTitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const StatsOverviewScreen(),
-              ),
-            ),
-          ),
-          AppListTile(
-            leading: const Icon(Icons.download),
-            title: Text(l10n.downloadManagementTitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsDownloadScreen(),
-              ),
-            ),
-          ),
-          AppListTile(
-            leading: const Icon(Icons.swap_vert),
-            title: Text(l10n.dataImportExport),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsImportExportScreen(),
-              ),
-            ),
-          ),
-          _CloudSyncTile(
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsCloudSyncScreen(),
-              ),
-            ),
-          ),
-          _BangumiTile(
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsBangumiScreen(),
-              ),
-            ),
-          ),
-
-          // ── 关于 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          _SettingsGroupHeader(label: l10n.aboutAppTitle),
-
-          const SizedBox(height: AppTokens.spaceLg),
-          AppListTile(
-            leading: const Icon(Icons.cleaning_services_outlined),
-            title: Text(l10n.clearCache),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              HttpFetcher.instance.clearCookies();
-              PaintingBinding.instance.imageCache.clear();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.cacheCleared)),
-              );
-            },
-          ),
-
-          const SizedBox(height: AppTokens.spaceLg),
-          AppListTile(
-            leading: const Icon(Icons.info_outline),
-            title: Text(l10n.aboutApp),
-            subtitle: Text(l10n.aboutDescription),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const AboutScreen(),
-              ),
-            ),
-          ),
-        ],
+        itemCount: categories.length + 1,
+        separatorBuilder: (_, __) =>
+            const SizedBox(height: AppTokens.spaceMd),
+        itemBuilder: (BuildContext context, int i) {
+          if (i == 0) {
+            return const _HeroSection();
+          }
+          final c = categories[i - 1];
+          return _CategoryCard(category: c, index: i);
+        },
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 可复用组件：设置分组标题 —— 禁止复制粘贴重复实现
-// ─────────────────────────────────────────────────────────────────────────────
+class _Category {
+  final IconData icon;
+  final String title;
+  final String desc;
+  final Widget Function() builder;
 
-class _SettingsGroupHeader extends StatelessWidget {
-  final String label;
-  const _SettingsGroupHeader({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
+  const _Category({
+    required this.icon,
+    required this.title,
+    required this.desc,
+    required this.builder,
+  });
 }
 
-/// 云同步列表项 —— 订阅 [CloudSyncService] 动态显示上次同步状态。
+/// 顶部 Hero 区：可左右滑动的自定义背景图轮播 + 品牌字 + 编辑入口。
 ///
-/// 显示规则：
-/// - 未配置 WebDAV URL：显示「未配置，点击设置」
-/// - 已配置但从未同步：显示「尚未同步」
-/// - 已同步：显示「上次同步：{时间}」(yyyy-MM-dd HH:mm)
-class _CloudSyncTile extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _CloudSyncTile({required this.onTap});
+/// 背景图来自 [GeneralSettingsStore] 的 `heroImageUrls`（默认二次元图，
+/// 可在 Hero 设置页替换为任意网络/本地图）。右上角按钮跳转配置页；
+/// 左上品牌字叠加暗化底纹保证在任意图片上可读。
+class _HeroSection extends StatelessWidget {
+  const _HeroSection();
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Consumer<CloudSyncService>(
-      builder: (context, service, _) {
-        final config = service.config;
-        return AnimatedBuilder(
-          animation: GeneralSettingsStore.instance,
-          builder: (_, __) {
-            String subtitle;
-            if (config.url.isEmpty) {
-              subtitle = l10n.cloudSyncNotConfigured;
-            } else if (config.lastSyncTimestamp == null) {
-              subtitle = l10n.cloudSyncNeverSynced;
-            } else {
-              final dt = DateTime.fromMillisecondsSinceEpoch(
-                config.lastSyncTimestamp!,
-              );
-              final formatted =
-                  GeneralSettingsStore.instance.settings.dateFormat.format(
-                dt,
-                withTime: true,
-              );
-              subtitle = l10n.cloudSyncLastSyncTime(formatted);
-            }
-            return AppListTile(
-              leading: const Icon(Icons.cloud_sync),
-              title: Text(l10n.cloudSync),
-              subtitle: Text(subtitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: onTap,
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-/// Bangumi 同步列表项 —— 订阅 [BangumiSyncService] 动态显示上次同步状态。
-///
-/// 显示规则：
-/// - 未登录：显示功能描述
-/// - 已登录但从未同步：显示「尚未同步」
-/// - 已同步：显示「上次同步：{时间}」
-class _BangumiTile extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _BangumiTile({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Consumer<BangumiSyncService>(
-      builder: (context, service, _) {
-        return AnimatedBuilder(
-          animation: GeneralSettingsStore.instance,
-          builder: (_, __) {
-            String subtitle;
-            if (!service.auth.isLoggedIn) {
-              subtitle = l10n.bangumiSettingsSubtitle;
-            } else if (service.lastSyncAt == null) {
-              subtitle = l10n.bangumiNeverSynced;
-            } else {
-              final dt = DateTime.fromMillisecondsSinceEpoch(
-                service.lastSyncAt!,
-              );
-              final formatted =
-                  GeneralSettingsStore.instance.settings.dateFormat.format(
-                dt,
-                withTime: true,
-              );
-              subtitle = l10n.bangumiLastSync(formatted);
-            }
-            return AppListTile(
-              leading: const Icon(Icons.live_tv),
-              title: Text(l10n.bangumiSettings),
-              subtitle: Text(subtitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: onTap,
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-/// 通用设置卡：启动界面 + 日期格式。
-class _GeneralSettingsCard extends StatefulWidget {
-  const _GeneralSettingsCard();
-
-  @override
-  State<_GeneralSettingsCard> createState() => _GeneralSettingsCardState();
-}
-
-class _GeneralSettingsCardState extends State<_GeneralSettingsCard> {
-  late GeneralSettings _s;
-
-  @override
-  void initState() {
-    super.initState();
     final store = GeneralSettingsStore.instance;
-    _s = store.settings;
-    // 若单例尚未完成首次加载，加载完成后用已存储值刷新选中态，
-    // 避免初始读取到默认值导致选中项显示错位。
-    if (!store.loaded) {
-      store.load().then((s) {
-        if (mounted) setState(() => _s = s);
-      });
-    }
-  }
 
-  void _update(GeneralSettings next) {
-    setState(() => _s = next);
-    GeneralSettingsStore.instance.save(next);
-  }
-
-  String _launchLabel(AppLocalizations l10n, LaunchTab t) => switch (t) {
-        LaunchTab.browse => l10n.navBrowse,
-        LaunchTab.novel => l10n.navNovel,
-        LaunchTab.media => l10n.navMedia,
-        LaunchTab.comic => l10n.navComic,
-        LaunchTab.settings => l10n.navSettings,
-      };
-
-  String _dateFormatLabel(AppLocalizations l10n, AppDateFormat d) =>
-      switch (d) {
-        AppDateFormat.defaultFormat => l10n.dateFormatDefault,
-        AppDateFormat.mmddyy => l10n.dateFormatMmDdYy,
-        AppDateFormat.ddmmyy => l10n.dateFormatDdMmYy,
-        AppDateFormat.yyyymmdd => l10n.dateFormatYyyyMmDd,
-        AppDateFormat.ddmmmyyyy => l10n.dateFormatDdMmmYyyy,
-        AppDateFormat.mmmdd => l10n.dateFormatMmmDd,
-        AppDateFormat.yyyyOnly => l10n.dateFormatYyyy,
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        SettingsCard(
-          title: null,
-          backgroundColor: Colors.transparent,
+    return AnimatedBuilder(
+      animation: store,
+      builder: (BuildContext context, _) {
+        return Stack(
           children: <Widget>[
-            SettingsChoiceChips<LaunchTab>(
-              title: l10n.launchScreenTitle,
-              selected: _s.launchTab,
-              onSelected: (v) => _update(_s.copyWith(launchTab: v)),
-              options: LaunchTab.values
-                  .map((t) => SettingsChoiceChipData<LaunchTab>(
-                        value: t,
-                        label: _launchLabel(l10n, t),
-                      ))
-                  .toList(),
+            HeroCarousel(imageUrls: store.settings.heroImageUrls),
+            Positioned(
+              top: AppTokens.spaceSm,
+              right: AppTokens.spaceSm,
+              child: _HeroEditButton(
+                tooltip: l10n.heroSettingsTitle,
+                onTap: () {
+                  Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsHeroScreen(),
+                    ),
+                  );
+                },
+              ),
             ),
-            SettingsChoiceChips<AppDateFormat>(
-              title: l10n.dateFormatTitle,
-              selected: _s.dateFormat,
-              onSelected: (v) => _update(_s.copyWith(dateFormat: v)),
-              options: AppDateFormat.values
-                  .map((d) => SettingsChoiceChipData<AppDateFormat>(
-                        value: d,
-                        label: _dateFormatLabel(l10n, d),
-                      ))
-                  .toList(),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.all(AppTokens.spaceLg),
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(AppTokens.radiusLg),
+                    bottomRight: Radius.circular(AppTokens.radiusLg),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[
+                      Colors.black.withValues(alpha: 0.0),
+                      Colors.black.withValues(alpha: 0.55),
+                    ],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'NexHub',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.settingsTagline,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.85),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
-        ),
-        SettingsCard(
-          title: null,
-          backgroundColor: Colors.transparent,
-          children: <Widget>[
-            SettingsSliderTile(
-              label: l10n.watchedThreshold,
-              value: _s.watchedThresholdPercent.toDouble(),
-              min: 50,
-              max: 100,
-              divisions: 50,
-              display:
-                  '${_s.watchedThresholdPercent}${l10n.watchedThresholdUnit}',
-              onChanged: (v) => _update(
-                  _s.copyWith(watchedThresholdPercent: v.round())),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: AppTokens.spaceXs),
-              child: Text(
-                l10n.watchedThresholdHint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-            ),
-            const Divider(height: AppTokens.spaceLg),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(l10n.globalIncognito),
-              subtitle: Text(
-                l10n.globalIncognitoHint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              value: ConfigLoader.instance.isGlobalIncognito,
-              onChanged: (v) async {
-                await ConfigLoader.instance.setGlobalIncognito(v);
-                if (mounted) setState(() {});
-              },
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(l10n.rememberPosition),
-              subtitle: Text(
-                l10n.rememberPositionHint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              value: _s.rememberPosition,
-              onChanged: (v) => _update(_s.copyWith(rememberPosition: v)),
-            ),
-            const Divider(height: AppTokens.spaceLg),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(l10n.ageRestriction),
-              subtitle: Text(
-                l10n.ageRestrictionHint,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              value: _s.ageRestrictionEnabled,
-              onChanged: (bool v) async {
-                // 关闭年龄限制：强制阅读免责声明，阅读到底 + 倒计时后才可确认。
-                if (!v) {
-                  final agreed = await _showAgeRestrictionDisclaimer(l10n);
-                  if (!agreed) return;
-                }
-                _update(_s.copyWith(ageRestrictionEnabled: v));
-                // 即时生效：同步到源仓库，避免重启才隐藏/显示受限源。
-                if (mounted) {
-                  context
-                      .read<SourceRepository>()
-                      .setAgeRestrictionEnabled(v);
-                }
-              },
-            ),
-          ],
-        ),
-      ],
+        );
+      },
     );
-  }
-
-  /// 关闭年龄限制前的强制阅读免责声明。
-  ///
-  /// 必须滚动到正文底部（证明已读）且等待 10 秒倒计时，才允许点「我已知晓并继续」。
-  /// 弹窗实时显示剩余秒数。返回 true 表示用户已确认关闭，false 表示取消（保持开启）。
-  Future<bool> _showAgeRestrictionDisclaimer(AppLocalizations l10n) async {
-    final bool? agreed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext ctx) => _AgeRestrictionDisclaimerDialog(l10n: l10n),
-    );
-    return agreed ?? false;
   }
 }
 
-/// 关闭年龄限制前的强制阅读免责声明弹窗。
-///
-/// 必须滚动到正文底部（证明已读）且等待 10 秒倒计时，才允许点「我已知晓并继续」。
-class _AgeRestrictionDisclaimerDialog extends StatefulWidget {
-  final AppLocalizations l10n;
+/// Hero 区右上角的「自定义」按钮（半透明圆形）。
+class _HeroEditButton extends StatelessWidget {
+  final String tooltip;
+  final VoidCallback onTap;
 
-  const _AgeRestrictionDisclaimerDialog({required this.l10n});
-
-  @override
-  State<_AgeRestrictionDisclaimerDialog> createState() =>
-      _AgeRestrictionDisclaimerDialogState();
-}
-
-class _AgeRestrictionDisclaimerDialogState
-    extends State<_AgeRestrictionDisclaimerDialog> {
-  bool _reachedBottom = false;
-  int _remaining = 10; // 倒计时总时长（秒）
-  Timer? _countdown;
-  final ScrollController _scroll = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _scroll.addListener(_onScroll);
-    _countdown = Timer.periodic(const Duration(seconds: 1), (Timer t) {
-      setState(() {
-        if (_remaining <= 1) {
-          t.cancel();
-          _remaining = 0;
-        } else {
-          _remaining -= 1;
-        }
-      });
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients && _scroll.position.maxScrollExtent <= 0) {
-        setState(() => _reachedBottom = true);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _countdown?.cancel();
-    _scroll.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_reachedBottom &&
-        _scroll.position.pixels >= _scroll.position.maxScrollExtent - 8) {
-      setState(() => _reachedBottom = true);
-    }
-  }
+  const _HeroEditButton({
+    required this.tooltip,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final AppLocalizations l10n = widget.l10n;
-    final bool canConfirm = _reachedBottom && _remaining <= 0;
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final String hint = !_reachedBottom
-        ? l10n.ageRestrictionDisclaimerScrollHint
-        : _remaining > 0
-            ? l10n.ageRestrictionDisclaimerCounting(_remaining)
-            : '';
-    return AlertDialog(
-      // 弹窗离屏幕边缘留呼吸空间。
-      insetPadding: const EdgeInsets.symmetric(
-        horizontal: AppTokens.spaceLg,
-        vertical: AppTokens.spaceLg,
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.4),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: const Padding(
+            padding: EdgeInsets.all(AppTokens.spaceSm),
+            child: Icon(Icons.tune, color: Colors.white, size: 20),
+          ),
+        ),
       ),
-      // 收紧 M3 默认的三段式大 padding，让弹窗整体更紧凑。
-      titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      contentPadding: const EdgeInsets.fromLTRB(AppTokens.spaceXl, AppTokens.spaceMd, AppTokens.spaceXl, AppTokens.spaceLg),
-      actionsPadding: const EdgeInsets.fromLTRB(AppTokens.spaceLg, AppTokens.spaceNone, AppTokens.spaceLg, AppTokens.spaceMd),
-      title: Text(l10n.ageRestrictionDisclaimerTitle),
-      // 限制最大宽度（平板不横跨）与最大高度（正文再长也只占半屏内滚动）。
-      content: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 420,
-          maxHeight: MediaQuery.of(context).size.height * 0.55,
+    );
+  }
+}
+
+/// 单张分类卡（动态取色版）。
+///
+/// - 图标瓦：`primaryContainer` 底 + `onPrimaryContainer` 图标，随种子色变化。
+/// - 发丝边：`outlineVariant`（主题感知），不喧宾夺主。
+/// - [AppTapScale] 按压回弹；[Entrance] 按 index 轻交错淡入。
+class _CategoryCard extends StatelessWidget {
+  final _Category category;
+  final int index;
+
+  const _CategoryCard({required this.category, required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final c = category;
+    final TextTheme text = Theme.of(context).textTheme;
+
+    final Widget card = Material(
+      color: scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+        side: BorderSide(
+          color: scheme.outlineVariant,
+          width: 1,
         ),
-        child: SingleChildScrollView(
-          controller: _scroll,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+        onTap: () => Navigator.of(context).push(
+          AppPageRoute<void>(builder: (_) => c.builder()),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          child: Row(
             children: <Widget>[
-              Text(l10n.ageRestrictionDisclaimerBody),
-              const SizedBox(height: AppTokens.spaceSm),
-              if (hint.isNotEmpty)
-                Text(
-                  hint,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                ),
+                child: Icon(c.icon, color: scheme.onPrimaryContainer, size: 24),
+              ),
+              const SizedBox(width: AppTokens.spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      c.title,
+                      style: text.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      c.desc,
+                      style: text.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
+                    ),
+                  ],
                 ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: scheme.onSurfaceVariant,
+                size: 20,
+              ),
             ],
           ),
         ),
       ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(l10n.cancel),
-        ),
-        FilledButton(
-          onPressed: canConfirm ? () => Navigator.of(context).pop(true) : null,
-          child: Text(canConfirm
-              ? l10n.ageRestrictionDisclaimerConfirm
-              : l10n.ageRestrictionDisclaimerWait(_remaining)),
-        ),
-      ],
+    );
+
+    return Entrance(
+      index: index,
+      onceKey: 'settings_cat_$index',
+      offset: 10,
+      fromScale: 0.985,
+      duration: AppTokens.durBase,
+      child: AppTapScale(
+        scale: 0.975,
+        child: card,
+      ),
     );
   }
 }

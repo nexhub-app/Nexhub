@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:dio/dio.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_list_tile.dart';
+import './widgets/settings_widgets.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 致谢条目数据模型（文件作用域）。
@@ -264,7 +265,7 @@ class _AboutScreenState extends State<AboutScreen> {
 
           // ── Description ──
           AppListTile(
-            leading: const Icon(Icons.info_outline),
+            leading: const SettingsLeadingIcon(icon:Icons.info_outline),
             title: Text(l10n.aboutApp),
             subtitle: Text(l10n.aboutDescription),
           ),
@@ -273,7 +274,7 @@ class _AboutScreenState extends State<AboutScreen> {
 
           // ── Licenses / libraries ──
           AppListTile(
-            leading: const Icon(Icons.description_outlined),
+            leading: const SettingsLeadingIcon(icon:Icons.description_outlined),
             title: Text(l10n.openSourceLicenses),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => showLicensePage(
@@ -291,7 +292,7 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
           ),
           AppListTile(
-            leading: const Icon(Icons.inventory_2_outlined),
+            leading: const SettingsLeadingIcon(icon:Icons.inventory_2_outlined),
             title: Text(l10n.thirdPartyLibraries),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => showLicensePage(
@@ -302,7 +303,7 @@ class _AboutScreenState extends State<AboutScreen> {
           ),
 
         AppListTile(
-          leading: const Icon(Icons.favorite_outline),
+          leading: const SettingsLeadingIcon(icon:Icons.favorite_outline),
           title: Text(l10n.acknowledgements),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => _showAcknowledgements(l10n),
@@ -312,13 +313,13 @@ class _AboutScreenState extends State<AboutScreen> {
 
         // ── Repository / update ──
           AppListTile(
-            leading: const Icon(Icons.code),
+            leading: const SettingsLeadingIcon(icon:Icons.code),
             title: Text(l10n.projectRepository),
             trailing: const Icon(Icons.chevron_right),
             onTap: _openRepository,
           ),
           AppListTile(
-            leading: const Icon(Icons.system_update_alt),
+            leading: const SettingsLeadingIcon(icon:Icons.system_update_alt),
             title: Text(l10n.checkUpdate),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _checkForUpdate(l10n),

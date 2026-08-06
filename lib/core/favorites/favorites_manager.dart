@@ -441,6 +441,16 @@ class FavoritesManager extends ChangeNotifier {
     return list.where((e) => e.groupIds.contains(groupId)).length;
   }
 
+  /// 某收藏条目所属的分组 id 列表（多分组标签；未收藏返回空列表）。
+  /// 用于「读后自动删除」按收藏分类判断是否排除。
+  List<String> groupIdsOf(String contentId, SourceType type) {
+    final list = _cache[type];
+    if (list == null) return const <String>[];
+    final int idx = list.indexWhere((e) => e.id == contentId);
+    if (idx < 0) return const <String>[];
+    return list[idx].groupIds;
+  }
+
   /// 创建分组（限定模块内重名校验）。重名（trim 后）拒绝并返回 null。
   Future<FavoriteGroup?> createGroup(String name,
       {required SourceType type}) async {

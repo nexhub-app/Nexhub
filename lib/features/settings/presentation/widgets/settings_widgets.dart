@@ -1,7 +1,8 @@
 /// 设置子页公共组件。
 ///
 /// 把散落在播放器 / 阅读器 / 布局 / 弹幕等设置页里重复的
-/// “分组标题 + 滑块 + 开关 + 分段单选”代码收敛到一处，统一风格：
+/// "分组标题 + 滑块 + 开关 + 分段单选"代码收敛到一处，统一风格：
+/// - [SettingsLeadingIcon]：动态主色图标瓦（入口行 leading）；
 /// - [SettingsSection]：分组标题 + 可选说明；
 /// - [SettingsCard]：带标题的卡片容器（圆角 + 阴影 + 统一内边距）；
 /// - [SettingsSliderTile]：带当前值的滑块；
@@ -14,6 +15,37 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/widgets/app_animations.dart';
+
+/// 动态主色图标瓦：用于设置子页入口行的 leading。
+///
+/// 背景取 `primaryContainer`、图标取 `onPrimaryContainer`，随用户选择的
+/// 种子色（Monet / 预设 / 自定义）实时变化，实现全设置层级色彩统一。
+class SettingsLeadingIcon extends StatelessWidget {
+  final IconData icon;
+  final double iconSize;
+  final double containerSize;
+
+  const SettingsLeadingIcon({
+    super.key,
+    required this.icon,
+    this.iconSize = 20,
+    this.containerSize = 40,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: containerSize,
+      height: containerSize,
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+      ),
+      child: Icon(icon, color: scheme.onPrimaryContainer, size: iconSize),
+    );
+  }
+}
 
 /// 分组标题（不含卡片背景）。用于卡片外部的独立小标题。
 class SettingsSection extends StatelessWidget {

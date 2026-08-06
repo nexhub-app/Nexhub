@@ -13,6 +13,7 @@ import '../network/model/effective_network_profile.dart';
 import '../network/network_config_service.dart';
 import '../network/runtime/network_client_builder.dart';
 import '../services/config_loader.dart';
+import '../settings/advanced_settings.dart';
 import 'package:flutter/foundation.dart';
 import 'cookie_store.dart';
 import 'verification_detector.dart';
@@ -146,10 +147,36 @@ class HttpFetcher {
     dio.options.connectTimeout = const Duration(seconds: 15);
     dio.options.receiveTimeout = const Duration(seconds: 30);
     dio.options.headers.addAll({
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'User-Agent': _defaultUa(),
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
     });
+
+    // 详细日志（高级设置开关）：逐个打印请求 / 响应 / 异常，便于定位抓取问题。
+    if (AdvancedSettingsStore.instance.detailedLogging) {
+      dio.interceptors.add(InterceptorsWrapper(
+        onRequest: (options, handler) {
+          debugPrint('[HTTP] ${options.method} ${options.uri}');
+          handler.next(options);
+        },
+        onResponse: (response, handler) {
+          final body = response.data;
+          final bodyDesc = body is String
+              ? '${body.length} chars'
+              : body == null
+                  ? 'empty'
+                  : '${body.runtimeType}';
+          debugPrint('[HTTP] ${response.statusCode} '
+              '${response.requestOptions.uri} -> $bodyDesc');
+          handler.next(response);
+        },
+        onError: (DioException e, handler) {
+          debugPrint('[HTTP!] ${e.requestOptions.method} '
+              '${e.requestOptions.uri} -> ${e.type} ${e.message}');
+          handler.next(e);
+        },
+      ));
+    }
 
     dio.httpClientAdapter = IOHttpClientAdapter(
       createHttpClient: () {
@@ -220,7 +247,24 @@ class HttpFetcher {
   /// 漂移导致 Cookie 失效 → 验证死循环（幻梦ACG _guard 滑块反复弹的核心根因）。
   String userAgentForUrl(String url) => _uaForHost(Uri.tryParse(url)?.host ?? '');
 
-  String _uaForHost(String host) => _profiles[_profileIndexFor(host)].ua;
+  /// 高级设置「默认 UA」：非空时全局固定使用该 UA（覆盖指纹档案轮换）。
+  String _customUa() => AdvancedSettingsStore.instance.defaultUserAgent;
+
+  /// Dio 基础头的默认 UA（非 gated 请求 / 缺头兜底路径）。
+  String _defaultUa() {
+    final custom = _customUa();
+    return custom.isNotEmpty ? custom : _defaultBuiltinUa;
+  }
+
+  static const String _defaultBuiltinUa =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+  String _uaForHost(String host) {
+    final custom = _customUa();
+    if (custom.isNotEmpty) return custom;
+    return _profiles[_profileIndexFor(host)].ua;
+  }
 
   /// 启动时从 [CookieStore] 回填内存 Cookie jar，避免每次冷启动都重新过验证
   /// （冷启动即丢 Cookie 是「反复验证 → 高频请求 → IP 被封」的首要根因）。
@@ -326,9 +370,12 @@ class HttpFetcher {
     // 注意：此处若不写全，会被请求级 Options(headers) 整体覆盖，基础配置的头不生效。
     final host = Uri.tryParse(url ?? '')?.host;
     final profile = _profiles[_profileIndexFor(host)];
+    final customUa = _customUa();
     final merged = <String, String>{
       // 浏览器指纹：UA 与 Sec-Ch-Ua 品牌配套，避免自爆。
-      'User-Agent': profile.ua,
+      // 「默认 UA」非空时用户指定固定 UA，指纹档案的 Sec-Ch-Ua 仍保留
+      // （作为配套品牌声明，尽力避免因缺头被 WAF 拦截）。
+      'User-Agent': customUa.isNotEmpty ? customUa : profile.ua,
       'Sec-Ch-Ua': profile.secChUa,
       'Sec-Ch-Ua-Mobile': profile.secChUaMobile,
       'Sec-Ch-Ua-Platform': profile.secChUaPlatform,

@@ -26,6 +26,7 @@ import '../../../core/local/local_content_manager.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
+import '../../../core/download/download_manager.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/stats/reading_session_recorder.dart';
@@ -98,6 +99,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final ReaderPreferencesStore _store = ReaderPreferencesStore();
   final ComicProgressManager _progress = ComicProgressManager();
+
+  /// 下载管理器（initState 缓存引用，dispose 阶段 context 已不可用）。
+  DownloadManager? _downloadManager;
+  FavoritesManager? _favorites;
   final TransformationController _zoomController = TransformationController();
 
   /// 顶部 / 底部控制栏与点击热区覆盖层的全局键：用于 [ReaderTapZones.isToolbarRegion]
@@ -175,6 +180,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 按项对齐的 API 只能指定目标项「顶边」落在视口的哪个比例位置，无法表达
   /// 「末页底边贴视口底」；故先按项建立锚点，再用像素级补差收尾。
   ScrollOffsetController? _webtoonOffsetController;
+
+  /// 本话内已加载完成的图片 URL 集合（阅读器级，跨 item 回收重建存活）。
+  /// SPL 懒加载会在 item 滚出 cacheExtent 后销毁其 State；反向滚回重建时
+  /// `MangaPageImage._imageLoaded`（State 局部）已丢失，若图片真实高度 ≠ 占位
+  /// 高度（屏宽×1.5），已缓存图片会重新走「占位→真实」的高度突变，偏移错位
+  /// 即表现为反向翻页回弹/闪烁。这里按 URL 记录加载状态，重建 item 直接按
+  /// 真实高度渲染，彻底消除方向反转时的高度突变。切章（_setupControllers）清空。
+  final Set<String> _webtoonLoadedUrls = <String>{};
 
   /// 由滚动通知实时捕获的视口高度，用于把 itemTrailingEdge（比例）换算成像素差。
   double? _webtoonViewport;
@@ -255,6 +268,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _zoomController.addListener(_onZoomChanged);
     _chapterIndex = widget.initialChapterIndex;
     _prefs = const ReaderPreferences();
+    // 读后自动删除：dispose 阶段判定「读完」用（context 已不可用，先缓存引用）。
+    try {
+      _downloadManager = context.read<DownloadManager>();
+    } on Object {
+      _downloadManager = null;
+    }
+    // 排除分类判定同样在 dispose 阶段使用，缓存引用。
+    try {
+      _favorites = context.read<FavoritesManager>();
+    } on Object {
+      _favorites = null;
+    }
     // 全局键盘监听（F11 / Esc / 方向键等）——不依赖 Focus 焦点，按钮/面板/对话框
     // 抢焦点后快捷键依然有效（F11、Esc 失效的根治）。
     HardwareKeyboard.instance.addHandler(_onGlobalKey);
@@ -451,6 +476,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         source: SessionSource.comicReader,
       ));
     }
+    // 读后自动删除：读完（进度到最后一章）时清理该内容已下载文件。
+    unawaited(_maybeAutoDeleteDownloaded());
     _zoomController.removeListener(_onZoomChanged);
     _pageController?.dispose();
     _itemPositionsListener?.itemPositions.removeListener(_onWebtoonScroll);
@@ -521,6 +548,26 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     unawaited(_store.save(widget.comicId, _prefs));
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// 读完自动删除（漫画版）：最后一章已读且设置开启时清理下载。
+  Future<void> _maybeAutoDeleteDownloaded() async {
+    try {
+      final dm = _downloadManager;
+      if (dm == null || !dm.settings.autoDeleteAfterRead) return;
+      final groupIds = _favorites?.groupIdsOf(
+            widget.comicId,
+            SourceType.mangaSource,
+          ) ??
+          const <String>[];
+      if (dm.settings.isExcludedFromAutoDeleteGroups(groupIds)) return;
+      final p = await _progress.get(widget.comicId);
+      if (p == null || p.totalChapters == null) return;
+      if (p.chapterIndex + 1 < p.totalChapters!) return;
+      await dm.removeItemDownloads(widget.comicId, deleteFiles: true);
+    } on Object {
+      // best-effort。
+    }
   }
 
   /// 窗口尺寸变化（全屏切换 / resize）：缩放矩阵平移夹取上界随视口尺寸而变，
@@ -742,6 +789,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _webtoonExtentStableCount = 0;
       _pendingWebtoonScrollToLast = false;
       _overscrollAccum = 0;
+      // 新话图片 URL 全换，清空加载标记，避免旧话 URL 误判为已加载。
+      _webtoonLoadedUrls.clear();
       // 切章/恢复期间屏蔽进度回写：直到 _buildWebtoon 首帧后由 _restoringPage=false
       // 解除。期间任何滚动通知（旧列表残留或初始布局）都不会污染 _currentPage/存档。
       _restoringPage = true;
@@ -1039,10 +1088,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     final before = _webtoonScrollAnchor();
     final int token = _loadToken;
-    isc.scrollTo(
+    // 条漫单步翻页用 jumpTo 确定性瞬移：scrollTo 反向连续调用时 SPL 0.3.8 会因
+    // 内部 _scrollOffset 未即时更新产生「回弹/抽搐」（铁律③）。jumpTo 不排队动画、
+    // 不与拖拽/上一动画争用 scroll activity，彻底消除反向翻页回弹。
+    isc.jumpTo(
       index: target.clamp(0, last),
-      duration: AppTokens.durFast,
-      curve: Curves.easeInOut,
+      alignment: 0.0,
     );
     _webtoonStepTimer?.cancel();
     _webtoonStepTimer = Timer(
@@ -1718,9 +1769,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (total == 0) return;
     final t = target.clamp(0, total - 1);
     if (_prefs.readingMode.isWebtoon) {
-      _itemScrollController?.scrollTo(
+      _itemScrollController?.jumpTo(
         index: t,
-        duration: const Duration(milliseconds: 1),
+        alignment: 0.0,
       );
     } else {
       _pageController?.jumpToPage(_isDoublePage ? (t ~/ 2) : t);
@@ -2317,9 +2368,21 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     int restoreIndex,
     double gap,
   ) {
-    final Widget list = ScrollablePositionedList.separated(
-      key: ValueKey('webtoon-$_chapterIndex'),
-      itemScrollController: isc,
+    final Widget list = PageStorage(
+      // 按章节隔离 SPL 的滚动位置存储：SPL 的 _updatePositions 每帧把当前可见项
+      // 写入 PageStorage，切章重建（key 变化）时其 initState 优先读 PageStorage
+      // 而非 initialScrollIndex → 新章首帧显示旧章位置、随后再被修正，表现为
+      // 「先退回再前进」的回弹/抽搐。包一层带章节 key 的 PageStorage 后读写都
+      // 隔离在本章内：切章后存储为空，initialScrollIndex（restoreIndex）真正
+      // 生效，首帧落点正确，来回换章不再串位。
+      key: PageStorageKey('webtoon-$_chapterIndex'),
+      // build 内直接 new bucket：PageStorage State 仅在首次 build 时取用
+      // （_bucket ??= widget.bucket），key 变化 → 新 State → 取到新实例，
+      // 章节间天然隔离；同章 rebuild 复用同一实例，滚动位置仍可安全恢复。
+      bucket: PageStorageBucket(),
+      child: ScrollablePositionedList.separated(
+        key: ValueKey('webtoon-$_chapterIndex'),
+        itemScrollController: isc,
       // 相对像素滚动：供「回到上一话末页」收尾时把末页底边精确补到视口底。
       scrollOffsetController: _webtoonOffsetController,
       itemPositionsListener: ipl,
@@ -2345,6 +2408,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
         // 每页一起放大、间距等比，天然不重叠（C2 复测「每张照片放大导致重叠」）。
         zoomEnabled: () => false,
+        // 阅读器级加载记录：item 被 SPL 回收重建后仍按真实高度渲染，
+        // 消除「占位→真实」高度突变导致的反向翻页回弹/闪烁。
+        urlLoaded: (url) => _webtoonLoadedUrls.contains(url),
+        onUrlLoaded: (url) => _webtoonLoadedUrls.add(url),
+      ),
       ),
     );
     // 条漫整体缩放：把 [_zoomController] 矩阵应用到【整个列表】（参考 Venera
@@ -2870,6 +2938,15 @@ class MangaPageImage extends StatefulWidget {
   /// （C2 复测 bug「每张照片放大导致照片重叠」）。返回 false 的 item 用恒等矩阵。
   final bool Function()? zoomEnabled;
 
+  /// 查询某 URL 是否已在本话内加载完成（阅读器级记录，跨 item 回收重建存活）。
+  /// SPL 懒加载回收 item 后重建时 `_imageLoaded` 局部状态丢失，若已加载过仍显示
+  /// 占位高度会触发「占位→真实」高度突变（反向翻页回弹的根因）。为 null 时仅凭
+  /// 局部 `_imageLoaded` 判断（翻页模式等无回收重建场景）。
+  final bool Function(String url)? urlLoaded;
+
+  /// 图片加载完成时上报 URL（阅读器据此写入 [_webtoonLoadedUrls]）。
+  final void Function(String url)? onUrlLoaded;
+
   const MangaPageImage({
     super.key,
     required this.url,
@@ -2879,6 +2956,8 @@ class MangaPageImage extends StatefulWidget {
     this.rotationQuarterTurns = 0,
     this.cropEdge = false,
     this.zoomEnabled,
+    this.urlLoaded,
+    this.onUrlLoaded,
   });
 
   @override
@@ -2933,6 +3012,12 @@ class _MangaPageImageState extends State<MangaPageImage> {
         widget.prefs.initialZoom == ReaderInitialZoom.fitWidth &&
         !widget.cropEdge;
 
+    // 加载完成标记合并局部状态与阅读器级记录：SPL 回收 item 后重建时局部
+    // _imageLoaded 已丢失，但 URL 级记录仍在——直接按真实高度渲染，避免
+    // 已缓存图片重新走「占位→真实」高度突变导致的反向翻页回弹/闪烁。
+    final bool showRealHeight =
+        (widget.urlLoaded?.call(widget.url) ?? false) || _imageLoaded;
+
     final Widget imgSource = SourceImage(
       url: widget.url,
       source: widget.source,
@@ -2940,12 +3025,14 @@ class _MangaPageImageState extends State<MangaPageImage> {
       width: width,
       placeholder: const Center(child: AppLoadingIndicator()),
       onLoadComplete: () {
+        // 先上报阅读器级记录（同帧生效），再更新局部状态。
+        widget.onUrlLoaded?.call(widget.url);
         if (mounted) setState(() => _imageLoaded = true);
       },
     );
 
     // 仅未加载时占位：加载完成后直接用真实图高，不再受 minHeight 约束。
-    final Widget content = (reserveWebtoonHeight && !_imageLoaded)
+    final Widget content = (reserveWebtoonHeight && !showRealHeight)
         ? LayoutBuilder(
             builder: (context, constraints) => ConstrainedBox(
               constraints: BoxConstraints(
@@ -2960,7 +3047,7 @@ class _MangaPageImageState extends State<MangaPageImage> {
     // 产生空白。加载完成后 content 已是真实图高，Align 无额外空间、无影响。
     final Widget raw = widget.cropEdge
         ? SizedBox.expand(child: content)
-        : (reserveWebtoonHeight && !_imageLoaded
+        : (reserveWebtoonHeight && !showRealHeight
             ? Align(alignment: Alignment.topCenter, child: content)
             : Align(alignment: Alignment.center, child: content));
     final img = ReaderImageFiltered(
