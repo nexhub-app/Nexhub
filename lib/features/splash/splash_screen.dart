@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -31,6 +33,7 @@ import '../../core/services/bangumi/bangumi_client.dart';
 import '../../core/services/bangumi/bangumi_proxy_config.dart';
 import '../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../core/services/bangumi/subject_link_store.dart';
+import '../../core/services/auto_sync_scheduler.dart';
 import '../../core/services/cloud_sync_service.dart';
 import '../../core/services/source_library_bookmarks.dart';
 import '../../core/services/source_library_subscription.dart';
@@ -199,6 +202,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
     final cloudSyncService = CloudSyncService();
     await cloudSyncService.init();
+    // 启动自动云同步后台调度器：用户在云同步页配的 autoSync/频率真正生效。
+    unawaited(AutoSyncScheduler.instance.start(cloudSyncService));
     // Bangumi 同步：client → auth → linkStore → syncService（详见 core/services/bangumi）。
     final bangumiClient = BangumiClient();
     await BangumiProxyConfig.load();

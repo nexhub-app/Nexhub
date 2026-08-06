@@ -30,6 +30,9 @@ import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/stats/reading_session_recorder.dart';
+import '../../../core/stats/stats_models.dart';
+import '../../../core/stats/stats_repository.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/reader_tokens.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
@@ -278,6 +281,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _initBrightness();
     _initTimeAndBattery();
     _init();
+    // 阅读时长统计：进入阅读器即开始，dispose 时一次性结算。
+    if (widget.sourceId.isNotEmpty) {
+      final initialTitle = widget.chapters.isNotEmpty &&
+              widget.initialChapterIndex >= 0 &&
+              widget.initialChapterIndex < widget.chapters.length
+          ? widget.chapters[widget.initialChapterIndex].title
+          : null;
+      unawaited(ReadingSessionRecorder.instance.begin(
+        workId: widget.novelId,
+        sourceId: widget.sourceId,
+        type: StatsMediaType.novel,
+        title: widget.title,
+        coverUrl: widget.coverUrl,
+        lastChapterTitle: initialTitle,
+      ));
+    }
   }
 
   @override
@@ -602,6 +621,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   @override
   void dispose() {
+    // 退出时一次性结算本次阅读会话（commit 内部 best-effort）。
+    if (widget.sourceId.isNotEmpty) {
+      unawaited(ReadingSessionRecorder.instance.commit(
+        workId: widget.novelId,
+        sourceId: widget.sourceId,
+        type: StatsMediaType.novel,
+        title: widget.title,
+        coverUrl: widget.coverUrl,
+        source: SessionSource.novelReader,
+      ));
+    }
     WidgetsBinding.instance.removeObserver(this);
     _timeTimer.cancel();
     _batterySubscription?.cancel();

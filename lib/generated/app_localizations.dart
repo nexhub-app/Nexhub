@@ -10711,6 +10711,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mouse Wheel'**
   String get comicSectionMouseWheel;
+
+  /// Statistics page title
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get statsOverviewTitle;
+
+  /// Statistics page search field hint
+  ///
+  /// In en, this message translates to:
+  /// **'Search records'**
+  String get statsSearchHint;
+
+  /// Heatmap sheet title
+  ///
+  /// In en, this message translates to:
+  /// **'Heatmap'**
+  String get statsHeatmap;
+
+  /// Summary metric: total duration
+  ///
+  /// In en, this message translates to:
+  /// **'Total duration'**
+  String get statsTotalDuration;
+
+  /// Summary metric: number of works
+  ///
+  /// In en, this message translates to:
+  /// **'Works'**
+  String get statsWorkCount;
+
+  /// Summary metric: session count
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get statsSessionCount;
+
+  /// List item subtitle prefix: last read time
+  ///
+  /// In en, this message translates to:
+  /// **'Last read'**
+  String get statsLastRead;
+
+  /// Empty state text on statistics page
+  ///
+  /// In en, this message translates to:
+  /// **'No records yet, go read something'**
+  String get statsNoRecords;
+
+  /// Duration format: seconds only
+  ///
+  /// In en, this message translates to:
+  /// **'{s} s'**
+  String statsDurSec(int s);
+
+  /// Duration format: whole hours
+  ///
+  /// In en, this message translates to:
+  /// **'{h} hours'**
+  String statsDurHours(int h);
+
+  /// Duration format: hours + minutes
+  ///
+  /// In en, this message translates to:
+  /// **'{h} h {m} m'**
+  String statsDurHm(int h, int m);
+
+  /// Duration format: minutes + seconds
+  ///
+  /// In en, this message translates to:
+  /// **'{m} m {s} s'**
+  String statsDurMs(int m, int s);
+
+  /// Dialog title for clearing a single work's stats
+  ///
+  /// In en, this message translates to:
+  /// **'Clear stats'**
+  String get statsClearTitle;
+
+  /// Confirmation text for clearing a single work's stats
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all stats for \"{name}\"?'**
+  String statsClearBody(String name);
+
+  /// Clear confirmation button
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get statsClearConfirm;
+
+  /// Heatmap month navigation: previous
+  ///
+  /// In en, this message translates to:
+  /// **'Previous month'**
+  String get statsPrevMonth;
+
+  /// Heatmap month navigation: next
+  ///
+  /// In en, this message translates to:
+  /// **'Next month'**
+  String get statsNextMonth;
+
+  /// Heatmap current month title
+  ///
+  /// In en, this message translates to:
+  /// **'{y}/{m}'**
+  String statsHeatmapMonthYear(String y, String m);
+
+  /// Heatmap type switch: all
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get statsAll;
+
+  /// Heatmap legend: less
+  ///
+  /// In en, this message translates to:
+  /// **'Less'**
+  String get statsHeatmapLess;
+
+  /// Heatmap legend: more
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get statsHeatmapMore;
+
+  /// Heatmap footer total label
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get statsHeatmapTotal;
+
+  /// Stats activity section: works read within 7 days
+  ///
+  /// In en, this message translates to:
+  /// **'Active (7d)'**
+  String get stats7dActive;
+
+  /// Stats activity section: works read within 30 days
+  ///
+  /// In en, this message translates to:
+  /// **'Active (30d)'**
+  String get stats30dActive;
+
+  /// Stats activity section: total active days for current tab
+  ///
+  /// In en, this message translates to:
+  /// **'Active days'**
+  String get statsActiveDays;
+
+  /// Stats pace section: total duration / session count
+  ///
+  /// In en, this message translates to:
+  /// **'Avg per session'**
+  String get statsAvgSession;
+
+  /// Stats pace section: longest single-day duration
+  ///
+  /// In en, this message translates to:
+  /// **'Best day'**
+  String get statsMaxDaily;
+
+  /// Stats pace section: consecutive active days from today
+  ///
+  /// In en, this message translates to:
+  /// **'Current streak'**
+  String get statsStreak;
+
+  /// Stats section title: total/works/sessions
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get statsSectionOverview;
+
+  /// Stats section title: 7d/30d/active days
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get statsSectionActivity;
+
+  /// Stats section title: avg/best/streak
+  ///
+  /// In en, this message translates to:
+  /// **'Pace'**
+  String get statsSectionPace;
+
+  /// Heatmap top summary: active days this month
+  ///
+  /// In en, this message translates to:
+  /// **'Active days'**
+  String get heatmapActiveDays;
+
+  /// Heatmap top summary: longest day this month
+  ///
+  /// In en, this message translates to:
+  /// **'Best day'**
+  String get heatmapMaxDaily;
+
+  /// Heatmap top summary: current consecutive active days
+  ///
+  /// In en, this message translates to:
+  /// **'Current streak'**
+  String get heatmapStreak;
 }
 
 class _AppLocalizationsDelegate

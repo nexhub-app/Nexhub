@@ -5623,4 +5623,118 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get comicSectionMouseWheel => 'Mouse Wheel';
+
+  @override
+  String get statsOverviewTitle => 'Statistics';
+
+  @override
+  String get statsSearchHint => 'Search records';
+
+  @override
+  String get statsHeatmap => 'Heatmap';
+
+  @override
+  String get statsTotalDuration => 'Total duration';
+
+  @override
+  String get statsWorkCount => 'Works';
+
+  @override
+  String get statsSessionCount => 'Sessions';
+
+  @override
+  String get statsLastRead => 'Last read';
+
+  @override
+  String get statsNoRecords => 'No records yet, go read something';
+
+  @override
+  String statsDurSec(int s) {
+    return '$s s';
+  }
+
+  @override
+  String statsDurHours(int h) {
+    return '$h hours';
+  }
+
+  @override
+  String statsDurHm(int h, int m) {
+    return '$h h $m m';
+  }
+
+  @override
+  String statsDurMs(int m, int s) {
+    return '$m m $s s';
+  }
+
+  @override
+  String get statsClearTitle => 'Clear stats';
+
+  @override
+  String statsClearBody(String name) {
+    return 'Clear all stats for \"$name\"?';
+  }
+
+  @override
+  String get statsClearConfirm => 'Clear';
+
+  @override
+  String get statsPrevMonth => 'Previous month';
+
+  @override
+  String get statsNextMonth => 'Next month';
+
+  @override
+  String statsHeatmapMonthYear(String y, String m) {
+    return '$y/$m';
+  }
+
+  @override
+  String get statsAll => 'All';
+
+  @override
+  String get statsHeatmapLess => 'Less';
+
+  @override
+  String get statsHeatmapMore => 'More';
+
+  @override
+  String get statsHeatmapTotal => 'This month';
+
+  @override
+  String get stats7dActive => 'Active (7d)';
+
+  @override
+  String get stats30dActive => 'Active (30d)';
+
+  @override
+  String get statsActiveDays => 'Active days';
+
+  @override
+  String get statsAvgSession => 'Avg per session';
+
+  @override
+  String get statsMaxDaily => 'Best day';
+
+  @override
+  String get statsStreak => 'Current streak';
+
+  @override
+  String get statsSectionOverview => 'Overview';
+
+  @override
+  String get statsSectionActivity => 'Activity';
+
+  @override
+  String get statsSectionPace => 'Pace';
+
+  @override
+  String get heatmapActiveDays => 'Active days';
+
+  @override
+  String get heatmapMaxDaily => 'Best day';
+
+  @override
+  String get heatmapStreak => 'Current streak';
 }

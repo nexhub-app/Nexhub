@@ -29,6 +29,9 @@ import '../../../core/player/widgets/seek_bar.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/stats/reading_session_recorder.dart';
+import '../../../core/stats/stats_models.dart';
+import '../../../core/stats/stats_repository.dart';
 import '../../../core/widgets/web_favorite_action.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import '../../../core/settings/danmaku_config.dart';
@@ -350,6 +353,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 过滤后的 ep 副本），未提供时退化为 null 表示"未分组 / 全部"。
     _selectedLine = widget.episode.lineName;
     _initFuture = _init();
+    // 阅读/观看时长统计 —— 仅在有效 sourceId 时启用（本地模式不计入跨源时长）。
+    if (widget.sourceId.isNotEmpty) {
+      unawaited(ReadingSessionRecorder.instance.begin(
+        workId: widget.itemId,
+        sourceId: widget.sourceId,
+        type: StatsMediaType.media,
+        title: widget.title,
+        coverUrl: widget.coverUrl,
+        lastChapterTitle: widget.episode.id,
+      ));
+    }
   }
 
   /// PlayerController 状态变更（字幕显隐 / 全屏 / 音量 / 线路）触发 UI 重建。
@@ -2673,6 +2687,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void dispose() {
     // 退出时保存最后播放位置
     _saveCurrentPosition();
+    // 退出时一次性结算本次会话的观看时长（commit 内部 best-effort）。
+    if (widget.sourceId.isNotEmpty) {
+      unawaited(ReadingSessionRecorder.instance.commit(
+        workId: widget.itemId,
+        sourceId: widget.sourceId,
+        type: StatsMediaType.media,
+        title: widget.title,
+        coverUrl: widget.coverUrl,
+        lastChapterTitle: widget.episode.id,
+        source: SessionSource.mediaPlayer,
+      ));
+    }
     // 兜底保存弹幕显示设置（滑块即时保存之外，确保离开页面必定落盘）。
     unawaited(_saveDanmakuSettings());
     _sleepTimer?.cancel();

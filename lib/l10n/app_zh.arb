@@ -2994,5 +2994,180 @@
   "comicSectionMouseWheel": "鼠标滚轮",
   "@comicSectionMouseWheel": {
     "description": "漫画阅读器设置 - 鼠标滚轮分组标题"
+  },
+  "statsOverviewTitle": "统计",
+  "@statsOverviewTitle": {
+    "description": "统计页标题"
+  },
+  "statsSearchHint": "搜索记录",
+  "@statsSearchHint": {
+    "description": "统计页搜索框提示"
+  },
+  "statsHeatmap": "热力图",
+  "@statsHeatmap": {
+    "description": "热力图弹窗标题"
+  },
+  "statsTotalDuration": "总时长",
+  "@statsTotalDuration": {
+    "description": "汇总卡指标：总时长"
+  },
+  "statsWorkCount": "作品数",
+  "@statsWorkCount": {
+    "description": "汇总卡指标：作品数"
+  },
+  "statsSessionCount": "会话次数",
+  "@statsSessionCount": {
+    "description": "汇总卡指标：会话次数"
+  },
+  "statsLastRead": "最后阅读",
+  "@statsLastRead": {
+    "description": "作品列表副标题前缀：最后阅读"
+  },
+  "statsNoRecords": "暂无记录，去读点什么吧",
+  "@statsNoRecords": {
+    "description": "统计页空态文案"
+  },
+  "statsDurSec": "{s} 秒",
+  "@statsDurSec": {
+    "description": "时长格式化：秒",
+    "placeholders": {
+      "s": {
+        "type": "int"
+      }
+    }
+  },
+  "statsDurHours": "{h} 小时",
+  "@statsDurHours": {
+    "description": "时长格式化：整小时",
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
+  },
+  "statsDurHm": "{h} 时 {m} 分",
+  "@statsDurHm": {
+    "description": "时长格式化：小时+分钟",
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      }
+    }
+  },
+  "statsDurMs": "{m} 分 {s} 秒",
+  "@statsDurMs": {
+    "description": "时长格式化：分钟+秒",
+    "placeholders": {
+      "m": {
+        "type": "int"
+      },
+      "s": {
+        "type": "int"
+      }
+    }
+  },
+  "statsClearTitle": "清除统计",
+  "@statsClearTitle": {
+    "description": "清除单作品统计的对话框标题"
+  },
+  "statsClearBody": "确定清除「{name}」的全部统计记录？",
+  "@statsClearBody": {
+    "description": "清除单作品统计的确认文案",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "statsClearConfirm": "清除",
+  "@statsClearConfirm": {
+    "description": "清除确认按钮"
+  },
+  "statsPrevMonth": "上一月",
+  "@statsPrevMonth": {
+    "description": "热力图月份切换：上一月"
+  },
+  "statsNextMonth": "下一月",
+  "@statsNextMonth": {
+    "description": "热力图月份切换：下一月"
+  },
+  "statsHeatmapMonthYear": "{y} 年 {m} 月",
+  "@statsHeatmapMonthYear": {
+    "description": "热力图当前月份标题",
+    "placeholders": {
+      "y": {
+        "type": "String"
+      },
+      "m": {
+        "type": "String"
+      }
+    }
+  },
+  "statsAll": "全部",
+  "@statsAll": {
+    "description": "热力图类型切换：全部"
+  },
+  "statsHeatmapLess": "少",
+  "@statsHeatmapLess": {
+    "description": "热力图图例：少"
+  },
+  "statsHeatmapMore": "多",
+  "@statsHeatmapMore": {
+    "description": "热力图图例：多"
+  },
+  "statsHeatmapTotal": "本月合计",
+  "@statsHeatmapTotal": {
+    "description": "热力图底部合计标签"
+  },
+  "stats7dActive": "近 7 天活跃",
+  "@stats7dActive": {
+    "description": "统计页活跃段：近 7 天有过阅读的作品数"
+  },
+  "stats30dActive": "近 30 天活跃",
+  "@stats30dActive": {
+    "description": "统计页活跃段：近 30 天有过阅读的作品数"
+  },
+  "statsActiveDays": "活跃天数",
+  "@statsActiveDays": {
+    "description": "统计页活跃段：当前 Tab 内总活跃天数"
+  },
+  "statsAvgSession": "平均会话时长",
+  "@statsAvgSession": {
+    "description": "统计页节奏段：总时长 ÷ 会话次数"
+  },
+  "statsMaxDaily": "最长单日",
+  "@statsMaxDaily": {
+    "description": "统计页节奏段：单日最长累计时长"
+  },
+  "statsStreak": "当前连续",
+  "@statsStreak": {
+    "description": "统计页节奏段：从今天往前累计的连续活跃天数"
+  },
+  "statsSectionOverview": "总览",
+  "@statsSectionOverview": {
+    "description": "统计页分段标题：总时长/作品数/会话数"
+  },
+  "statsSectionActivity": "活跃",
+  "@statsSectionActivity": {
+    "description": "统计页分段标题：7天/30天活跃/活跃天数"
+  },
+  "statsSectionPace": "节奏",
+  "@statsSectionPace": {
+    "description": "统计页分段标题：平均/最长/连续"
+  },
+  "heatmapActiveDays": "活跃天数",
+  "@heatmapActiveDays": {
+    "description": "热力图顶部汇总：当月活跃天数"
+  },
+  "heatmapMaxDaily": "最长单日",
+  "@heatmapMaxDaily": {
+    "description": "热力图顶部汇总：当月最长单日时长"
+  },
+  "heatmapStreak": "当前连续",
+  "@heatmapStreak": {
+    "description": "热力图顶部汇总：当前连续活跃天数"
   }
 }

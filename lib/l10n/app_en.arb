@@ -3038,5 +3038,180 @@
   "comicSectionMouseWheel": "Mouse Wheel",
   "@comicSectionMouseWheel": {
     "description": "Comic reader settings - Mouse Wheel section title"
+  },
+  "statsOverviewTitle": "Statistics",
+  "@statsOverviewTitle": {
+    "description": "Statistics page title"
+  },
+  "statsSearchHint": "Search records",
+  "@statsSearchHint": {
+    "description": "Statistics page search field hint"
+  },
+  "statsHeatmap": "Heatmap",
+  "@statsHeatmap": {
+    "description": "Heatmap sheet title"
+  },
+  "statsTotalDuration": "Total duration",
+  "@statsTotalDuration": {
+    "description": "Summary metric: total duration"
+  },
+  "statsWorkCount": "Works",
+  "@statsWorkCount": {
+    "description": "Summary metric: number of works"
+  },
+  "statsSessionCount": "Sessions",
+  "@statsSessionCount": {
+    "description": "Summary metric: session count"
+  },
+  "statsLastRead": "Last read",
+  "@statsLastRead": {
+    "description": "List item subtitle prefix: last read time"
+  },
+  "statsNoRecords": "No records yet, go read something",
+  "@statsNoRecords": {
+    "description": "Empty state text on statistics page"
+  },
+  "statsDurSec": "{s} s",
+  "@statsDurSec": {
+    "description": "Duration format: seconds only",
+    "placeholders": {
+      "s": {
+        "type": "int"
+      }
+    }
+  },
+  "statsDurHours": "{h} hours",
+  "@statsDurHours": {
+    "description": "Duration format: whole hours",
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
+  },
+  "statsDurHm": "{h} h {m} m",
+  "@statsDurHm": {
+    "description": "Duration format: hours + minutes",
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      }
+    }
+  },
+  "statsDurMs": "{m} m {s} s",
+  "@statsDurMs": {
+    "description": "Duration format: minutes + seconds",
+    "placeholders": {
+      "m": {
+        "type": "int"
+      },
+      "s": {
+        "type": "int"
+      }
+    }
+  },
+  "statsClearTitle": "Clear stats",
+  "@statsClearTitle": {
+    "description": "Dialog title for clearing a single work's stats"
+  },
+  "statsClearBody": "Clear all stats for \"{name}\"?",
+  "@statsClearBody": {
+    "description": "Confirmation text for clearing a single work's stats",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "statsClearConfirm": "Clear",
+  "@statsClearConfirm": {
+    "description": "Clear confirmation button"
+  },
+  "statsPrevMonth": "Previous month",
+  "@statsPrevMonth": {
+    "description": "Heatmap month navigation: previous"
+  },
+  "statsNextMonth": "Next month",
+  "@statsNextMonth": {
+    "description": "Heatmap month navigation: next"
+  },
+  "statsHeatmapMonthYear": "{y}/{m}",
+  "@statsHeatmapMonthYear": {
+    "description": "Heatmap current month title",
+    "placeholders": {
+      "y": {
+        "type": "String"
+      },
+      "m": {
+        "type": "String"
+      }
+    }
+  },
+  "statsAll": "All",
+  "@statsAll": {
+    "description": "Heatmap type switch: all"
+  },
+  "statsHeatmapLess": "Less",
+  "@statsHeatmapLess": {
+    "description": "Heatmap legend: less"
+  },
+  "statsHeatmapMore": "More",
+  "@statsHeatmapMore": {
+    "description": "Heatmap legend: more"
+  },
+  "statsHeatmapTotal": "This month",
+  "@statsHeatmapTotal": {
+    "description": "Heatmap footer total label"
+  },
+  "stats7dActive": "Active (7d)",
+  "@stats7dActive": {
+    "description": "Stats activity section: works read within 7 days"
+  },
+  "stats30dActive": "Active (30d)",
+  "@stats30dActive": {
+    "description": "Stats activity section: works read within 30 days"
+  },
+  "statsActiveDays": "Active days",
+  "@statsActiveDays": {
+    "description": "Stats activity section: total active days for current tab"
+  },
+  "statsAvgSession": "Avg per session",
+  "@statsAvgSession": {
+    "description": "Stats pace section: total duration / session count"
+  },
+  "statsMaxDaily": "Best day",
+  "@statsMaxDaily": {
+    "description": "Stats pace section: longest single-day duration"
+  },
+  "statsStreak": "Current streak",
+  "@statsStreak": {
+    "description": "Stats pace section: consecutive active days from today"
+  },
+  "statsSectionOverview": "Overview",
+  "@statsSectionOverview": {
+    "description": "Stats section title: total/works/sessions"
+  },
+  "statsSectionActivity": "Activity",
+  "@statsSectionActivity": {
+    "description": "Stats section title: 7d/30d/active days"
+  },
+  "statsSectionPace": "Pace",
+  "@statsSectionPace": {
+    "description": "Stats section title: avg/best/streak"
+  },
+  "heatmapActiveDays": "Active days",
+  "@heatmapActiveDays": {
+    "description": "Heatmap top summary: active days this month"
+  },
+  "heatmapMaxDaily": "Best day",
+  "@heatmapMaxDaily": {
+    "description": "Heatmap top summary: longest day this month"
+  },
+  "heatmapStreak": "Current streak",
+  "@heatmapStreak": {
+    "description": "Heatmap top summary: current consecutive active days"
   }
 }
