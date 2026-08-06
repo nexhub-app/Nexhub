@@ -22,24 +22,12 @@ ReaderFlashColor _parseFlashColor(Object? raw) {
   return ReaderFlashColor.black;
 }
 
-/// 阅读器默认方向。
-enum ReaderOrientation { horizontal, vertical }
-
-/// 阅读器默认背景色。
-enum ReaderDefaultBackground { white, beige, dark }
-
 /// 小说默认简繁转换（项 2）。
 enum NovelChineseConversion {
   none,
   traditionalToSimplified,
   simplifiedToTraditional
 }
-
-/// 漫画默认阅读方向（项 2）。
-enum ComicReadingDirection { ltr, rtl, vertical, webtoon, webtoonWithGap }
-
-/// 漫画默认点击区域布局（项 2，5 选 1）。
-enum ComicTapZoneLayout { layout1, layout2, layout3, layout4, layout5 }
 
 /// 漫画默认初始缩放（项 2）。
 enum ComicInitialZoom { fitWidth, fitHeight, original }
@@ -53,17 +41,14 @@ enum ComicScrollWheel { natural, inverted }
 /// 阅读器默认设置。
 class ReaderDefaultSettings {
   final ReadingMode readingMode;
-  final ReaderDefaultBackground background;
-  final ReaderOrientation orientation;
-  final bool tapZoneEnabled;
   final bool doubleTapZoom;
-  final bool orientationLock;
   final double novelFontSize;
   final double novelLineHeight;
   final double novelTtsSpeechRate;
   final NovelChineseConversion novelChineseConversion;
-  final ComicReadingDirection comicReadingDirection;
-  final ComicTapZoneLayout comicTapZoneLayout;
+  final ReaderTapZoneLayout comicTapZoneLayout;
+  final ReaderBackgroundColor comicBackground;
+  final ScreenOrientation comicOrientation;
   final double comicSideMargin;
   final bool comicFlashEnabled;
   final int comicFlashTime;
@@ -72,6 +57,9 @@ class ReaderDefaultSettings {
   final ComicInitialZoom comicInitialZoom;
   final ComicDoubleTapZoom comicDoubleTapZoom;
   final ComicScrollWheel comicScrollWheel;
+
+  /// 漫画：鼠标滚轮作用（缩放页面或翻页），仅翻页模式生效；条漫模式忽略。
+  final MouseWheelAction comicMouseWheelAction;
 
   /// 漫画：打开阅读器时是否自动进入全屏。
   final bool comicFullscreen;
@@ -177,17 +165,14 @@ class ReaderDefaultSettings {
 
   const ReaderDefaultSettings({
     this.readingMode = ReadingMode.singleLTR,
-    this.background = ReaderDefaultBackground.white,
-    this.orientation = ReaderOrientation.vertical,
-    this.tapZoneEnabled = true,
     this.doubleTapZoom = true,
-    this.orientationLock = false,
     this.novelFontSize = 18.0,
     this.novelLineHeight = 1.8,
     this.novelTtsSpeechRate = 1.0,
     this.novelChineseConversion = NovelChineseConversion.none,
-    this.comicReadingDirection = ComicReadingDirection.ltr,
-    this.comicTapZoneLayout = ComicTapZoneLayout.layout1,
+    this.comicTapZoneLayout = ReaderTapZoneLayout.lShape,
+    this.comicBackground = ReaderBackgroundColor.black,
+    this.comicOrientation = ScreenOrientation.defaultMode,
     this.comicSideMargin = 0.0,
     this.comicFlashEnabled = false,
     this.comicFlashTime = 120,
@@ -196,6 +181,7 @@ class ReaderDefaultSettings {
     this.comicInitialZoom = ComicInitialZoom.fitWidth,
     this.comicDoubleTapZoom = ComicDoubleTapZoom.x2,
     this.comicScrollWheel = ComicScrollWheel.natural,
+    this.comicMouseWheelAction = MouseWheelAction.zoom,
     this.comicFullscreen = true,
     this.comicShowLongPressMenu = true,
     this.comicGrayscale = false,
@@ -270,17 +256,14 @@ class ReaderDefaultSettings {
 
   ReaderDefaultSettings copyWith({
     ReadingMode? readingMode,
-    ReaderDefaultBackground? background,
-    ReaderOrientation? orientation,
-    bool? tapZoneEnabled,
     bool? doubleTapZoom,
-    bool? orientationLock,
     double? novelFontSize,
     double? novelLineHeight,
     double? novelTtsSpeechRate,
     NovelChineseConversion? novelChineseConversion,
-    ComicReadingDirection? comicReadingDirection,
-    ComicTapZoneLayout? comicTapZoneLayout,
+    ReaderTapZoneLayout? comicTapZoneLayout,
+    ReaderBackgroundColor? comicBackground,
+    ScreenOrientation? comicOrientation,
     double? comicSideMargin,
     bool? comicFlashEnabled,
     int? comicFlashTime,
@@ -289,6 +272,7 @@ class ReaderDefaultSettings {
     ComicInitialZoom? comicInitialZoom,
     ComicDoubleTapZoom? comicDoubleTapZoom,
     ComicScrollWheel? comicScrollWheel,
+    MouseWheelAction? comicMouseWheelAction,
     bool? comicFullscreen,
     bool? comicShowLongPressMenu,
     bool? comicGrayscale,
@@ -362,20 +346,16 @@ class ReaderDefaultSettings {
   }) =>
       ReaderDefaultSettings(
         readingMode: readingMode ?? this.readingMode,
-        background: background ?? this.background,
-        orientation: orientation ?? this.orientation,
-        tapZoneEnabled: tapZoneEnabled ?? this.tapZoneEnabled,
         doubleTapZoom: doubleTapZoom ?? this.doubleTapZoom,
-        orientationLock: orientationLock ?? this.orientationLock,
         novelFontSize: novelFontSize ?? this.novelFontSize,
         novelLineHeight: novelLineHeight ?? this.novelLineHeight,
         novelTtsSpeechRate:
             novelTtsSpeechRate ?? this.novelTtsSpeechRate,
         novelChineseConversion:
             novelChineseConversion ?? this.novelChineseConversion,
-        comicReadingDirection:
-            comicReadingDirection ?? this.comicReadingDirection,
         comicTapZoneLayout: comicTapZoneLayout ?? this.comicTapZoneLayout,
+        comicBackground: comicBackground ?? this.comicBackground,
+        comicOrientation: comicOrientation ?? this.comicOrientation,
         comicSideMargin: comicSideMargin ?? this.comicSideMargin,
         comicFlashEnabled: comicFlashEnabled ?? this.comicFlashEnabled,
         comicFlashTime: comicFlashTime ?? this.comicFlashTime,
@@ -384,6 +364,8 @@ class ReaderDefaultSettings {
         comicInitialZoom: comicInitialZoom ?? this.comicInitialZoom,
         comicDoubleTapZoom: comicDoubleTapZoom ?? this.comicDoubleTapZoom,
         comicScrollWheel: comicScrollWheel ?? this.comicScrollWheel,
+        comicMouseWheelAction:
+            comicMouseWheelAction ?? this.comicMouseWheelAction,
         comicFullscreen: comicFullscreen ?? this.comicFullscreen,
         comicShowLongPressMenu:
             comicShowLongPressMenu ?? this.comicShowLongPressMenu,
@@ -490,17 +472,14 @@ class ReaderDefaultSettings {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'readingMode': readingMode.name,
-        'background': background.name,
-        'orientation': orientation.name,
-        'tapZoneEnabled': tapZoneEnabled,
         'doubleTapZoom': doubleTapZoom,
-        'orientationLock': orientationLock,
         'novelFontSize': novelFontSize,
         'novelLineHeight': novelLineHeight,
         'novelTtsSpeechRate': novelTtsSpeechRate,
         'novelChineseConversion': novelChineseConversion.name,
-        'comicReadingDirection': comicReadingDirection.name,
         'comicTapZoneLayout': comicTapZoneLayout.name,
+        'comicBackground': comicBackground.name,
+        'comicOrientation': comicOrientation.name,
         'comicSideMargin': comicSideMargin,
         'comicFlashEnabled': comicFlashEnabled,
         'comicFlashTime': comicFlashTime,
@@ -509,6 +488,7 @@ class ReaderDefaultSettings {
         'comicInitialZoom': comicInitialZoom.name,
         'comicDoubleTapZoom': comicDoubleTapZoom.name,
         'comicScrollWheel': comicScrollWheel.name,
+        'comicMouseWheelAction': comicMouseWheelAction.name,
         'comicFullscreen': comicFullscreen,
         'comicShowLongPressMenu': comicShowLongPressMenu,
         'comicGrayscale': comicGrayscale,
@@ -589,20 +569,6 @@ class ReaderDefaultSettings {
         orElse: () => ReadingMode.singleLTR,
       );
     }
-    ReaderDefaultBackground bg = ReaderDefaultBackground.white;
-    if (json['background'] is String) {
-      bg = ReaderDefaultBackground.values.firstWhere(
-        (e) => e.name == json['background'],
-        orElse: () => ReaderDefaultBackground.white,
-      );
-    }
-    ReaderOrientation orient = ReaderOrientation.horizontal;
-    if (json['orientation'] is String) {
-      orient = ReaderOrientation.values.firstWhere(
-        (e) => e.name == json['orientation'],
-        orElse: () => ReaderOrientation.horizontal,
-      );
-    }
     NovelChineseConversion chineseConv = NovelChineseConversion.none;
     if (json['novelChineseConversion'] is String) {
       chineseConv = NovelChineseConversion.values.firstWhere(
@@ -610,18 +576,25 @@ class ReaderDefaultSettings {
         orElse: () => NovelChineseConversion.none,
       );
     }
-    ComicReadingDirection comicDir = ComicReadingDirection.ltr;
-    if (json['comicReadingDirection'] is String) {
-      comicDir = ComicReadingDirection.values.firstWhere(
-        (e) => e.name == json['comicReadingDirection'],
-        orElse: () => ComicReadingDirection.ltr,
+    ReaderTapZoneLayout comicTap = ReaderTapZoneLayout.lShape;
+    if (json['comicTapZoneLayout'] is String) {
+      comicTap = ReaderTapZoneLayout.values.firstWhere(
+        (e) => e.name == json['comicTapZoneLayout'],
+        orElse: () => ReaderTapZoneLayout.lShape,
       );
     }
-    ComicTapZoneLayout comicTap = ComicTapZoneLayout.layout1;
-    if (json['comicTapZoneLayout'] is String) {
-      comicTap = ComicTapZoneLayout.values.firstWhere(
-        (e) => e.name == json['comicTapZoneLayout'],
-        orElse: () => ComicTapZoneLayout.layout1,
+    ReaderBackgroundColor comicBg = ReaderBackgroundColor.black;
+    if (json['comicBackground'] is String) {
+      comicBg = ReaderBackgroundColor.values.firstWhere(
+        (e) => e.name == json['comicBackground'],
+        orElse: () => ReaderBackgroundColor.black,
+      );
+    }
+    ScreenOrientation comicOrient = ScreenOrientation.defaultMode;
+    if (json['comicOrientation'] is String) {
+      comicOrient = ScreenOrientation.values.firstWhere(
+        (e) => e.name == json['comicOrientation'],
+        orElse: () => ScreenOrientation.defaultMode,
       );
     }
     ComicInitialZoom comicZoom = ComicInitialZoom.fitWidth;
@@ -666,13 +639,16 @@ class ReaderDefaultSettings {
         orElse: () => TapZoneInvert.none,
       );
     }
+    MouseWheelAction comicWheelAction = MouseWheelAction.zoom;
+    if (json['comicMouseWheelAction'] is String) {
+      comicWheelAction = MouseWheelAction.values.firstWhere(
+        (e) => e.name == json['comicMouseWheelAction'],
+        orElse: () => MouseWheelAction.zoom,
+      );
+    }
     return ReaderDefaultSettings(
       readingMode: mode,
-      background: bg,
-      orientation: orient,
-      tapZoneEnabled: json['tapZoneEnabled'] as bool? ?? true,
       doubleTapZoom: json['doubleTapZoom'] as bool? ?? true,
-      orientationLock: json['orientationLock'] as bool? ?? false,
       novelFontSize:
           (json['novelFontSize'] as num?)?.toDouble() ?? 18.0,
       novelLineHeight:
@@ -680,8 +656,9 @@ class ReaderDefaultSettings {
       novelTtsSpeechRate:
           (json['novelTtsSpeechRate'] as num?)?.toDouble() ?? 1.0,
       novelChineseConversion: chineseConv,
-      comicReadingDirection: comicDir,
       comicTapZoneLayout: comicTap,
+      comicBackground: comicBg,
+      comicOrientation: comicOrient,
       comicSideMargin: (json['comicSideMargin'] as num?)?.toDouble() ?? 0.0,
       comicFlashEnabled: json['comicFlashEnabled'] as bool? ?? false,
       comicFlashTime: (json['comicFlashTime'] as num?)?.toInt() ?? 120,
@@ -690,6 +667,7 @@ class ReaderDefaultSettings {
       comicInitialZoom: comicZoom,
       comicDoubleTapZoom: comicDoubleTap,
       comicScrollWheel: comicWheel,
+      comicMouseWheelAction: comicWheelAction,
       comicFullscreen: json['comicFullscreen'] as bool? ?? true,
       comicShowLongPressMenu:
           json['comicShowLongPressMenu'] as bool? ?? true,
@@ -805,24 +783,6 @@ class ReaderDefaultSettings {
   }
 
   // ── 桥接：把全局默认映射为漫画运行时偏好（让设置页默认值在打开漫画时生效）──
-  // 5 个 ComicTapZoneLayout 与 5 个 ReaderTapZoneLayout 一一对应
-  // （历史上 layout1 曾对应已废弃的 defaultLayout，现已并入 lShape）。
-  static const Map<ComicTapZoneLayout, ReaderTapZoneLayout>
-      _comicTapZoneMap = <ComicTapZoneLayout, ReaderTapZoneLayout>{
-    ComicTapZoneLayout.layout1: ReaderTapZoneLayout.lShape,
-    ComicTapZoneLayout.layout2: ReaderTapZoneLayout.leftRight,
-    ComicTapZoneLayout.layout3: ReaderTapZoneLayout.kindle,
-    ComicTapZoneLayout.layout4: ReaderTapZoneLayout.bothSides,
-    ComicTapZoneLayout.layout5: ReaderTapZoneLayout.off,
-  };
-
-  static const Map<ReaderDefaultBackground, ReaderBackgroundColor>
-      _bgMap = <ReaderDefaultBackground, ReaderBackgroundColor>{
-    ReaderDefaultBackground.white: ReaderBackgroundColor.white,
-    ReaderDefaultBackground.beige: ReaderBackgroundColor.gray,
-    ReaderDefaultBackground.dark: ReaderBackgroundColor.black,
-  };
-
   static const Map<ComicInitialZoom, ReaderInitialZoom> _comicZoomMap =
       <ComicInitialZoom, ReaderInitialZoom>{
     ComicInitialZoom.fitWidth: ReaderInitialZoom.fitWidth,
@@ -846,12 +806,9 @@ class ReaderDefaultSettings {
     return ReaderPreferences(
       readingMode: readingMode,
       doubleTapZoom: doubleTapZoom,
-      orientation: orientation == ReaderOrientation.vertical
-          ? ScreenOrientation.portrait
-          : ScreenOrientation.landscape,
-      background: _bgMap[background] ?? ReaderBackgroundColor.black,
-      tapZoneLayout: _comicTapZoneMap[comicTapZoneLayout] ??
-          ReaderTapZoneLayout.lShape,
+      orientation: comicOrientation,
+      background: comicBackground,
+      tapZoneLayout: comicTapZoneLayout,
       tapZoneInvert: comicTapZoneInvert,
       minScale: 1.0,
       maxScale: 4.0,
@@ -867,6 +824,7 @@ class ReaderDefaultSettings {
       initialZoom: _comicZoomMap[comicInitialZoom] ?? ReaderInitialZoom.fitWidth,
       doubleTapZoomScale: _comicDoubleTapMap[comicDoubleTapZoom] ?? 2.0,
       scrollWheelInverted: _comicWheelMap[comicScrollWheel] ?? false,
+      mouseWheelAction: comicMouseWheelAction,
       fullscreen: comicFullscreen,
       showLongPressMenu: comicShowLongPressMenu,
       filterGrayscale: comicGrayscale,

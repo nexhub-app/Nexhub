@@ -4105,6 +4105,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelTitleFontFile => 'Title font file';
 
   @override
+  String get novelResetConfirm =>
+      'Reset all novel reader settings to default? This cannot be undone.';
+
+  @override
   String get novelSettingsSearch => 'Search settings';
 
   @override
@@ -5609,4 +5613,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String ageRestrictionDisclaimerWait(Object seconds) {
     return 'Confirm (wait ${seconds}s)';
   }
+
+  @override
+  String get comicSectionTapPage => 'Page Turning & Tap';
+
+  @override
+  String get comicSectionVisualFilter => 'Visual & Filters';
+
+  @override
+  String get comicSectionProgress => 'Progress & Display';
+
+  @override
+  String get comicSectionFlash => 'Flash Effects';
+
+  @override
+  String get comicSectionMouseWheel => 'Mouse Wheel';
 }

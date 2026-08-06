@@ -7,43 +7,25 @@ import '../../../core/theme/app_tokens.dart';
 import 'reader_image_filter.dart';
 import 'reader_tap_zones.dart';
 
-/// 以 ModalBottomSheet 弹出漫画阅读设置（模态变体）。
-///
-/// 注意：漫画阅读器的「实时」设置入口是阅读器内的**内联面板**（桌面端右侧、
-/// 移动端底部，与小说阅读器行为一致），由 [buildComicSettingsSheet] 承载内容、
-/// 阅读器自行定位。本函数仅作为「模态底部弹窗」备用入口保留。
-Future<void> showReaderSettings(
-  BuildContext context,
-  ReaderPreferences current, {
-  void Function(ReaderPreferences)? onChanged,
-}) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    builder: (_) => _FlatSettingsSheet(initial: current, onChanged: onChanged),
-  );
-}
-
 /// 漫画设置面板内容（[ReaderPreferences] 驱动），供阅读器以「内联面板」形式
-/// 直接嵌入阅读界面（桌面端右侧 / 移动端底部），或用于 [showReaderSettings] 模态弹窗。
+/// 直接嵌入阅读界面（桌面端右侧 / 移动端底部）。
 ///
-/// [onClose] 非空时，关闭图标调用它（内联场景用它关闭面板）；为 null 时走
-/// `Navigator.pop`（模态场景）。
+/// [onClose] 为关闭图标回调（内联场景用它关闭面板）。
 Widget buildComicSettingsSheet({
   required ReaderPreferences initial,
   void Function(ReaderPreferences)? onChanged,
-  VoidCallback? onClose,
+  required VoidCallback onClose,
 }) =>
     _FlatSettingsSheet(initial: initial, onChanged: onChanged, onClose: onClose);
 
 class _FlatSettingsSheet extends StatefulWidget {
   final ReaderPreferences initial;
   final void Function(ReaderPreferences)? onChanged;
-  final VoidCallback? onClose;
+  final VoidCallback onClose;
   const _FlatSettingsSheet({
     required this.initial,
     required this.onChanged,
-    this.onClose,
+    required this.onClose,
   });
 
   @override
@@ -503,7 +485,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                   style: Theme.of(context).textTheme.titleLarge),
               IconButton(
                 icon: const Icon(Icons.close),
-                onPressed: widget.onClose ?? () => Navigator.of(context).pop(),
+                onPressed: widget.onClose,
               ),
             ],
           ),
