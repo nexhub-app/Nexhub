@@ -221,7 +221,9 @@ class ScriptResolver implements SourceResolver {
           //   __fetchMethod  : 'get'(默认) | 'post'
           //   __fetchBody    : POST body 字符串（通常为 JSON.stringify(query)）
           //   __fetchHeaders : 请求头 Map（如 {'Content-Type':'application/json'}）
-          // 用于需要 POST 的源（如 komiic 的 GraphQL）。GET 源（goda/bun）不受影响。
+          //   __fetchResponseType : 'json'(默认) | 'text' —— 预取返回原始文本而非 JSON
+          // 用于需要 POST 的源（如 komiic 的 GraphQL），以及需要抓取非 JSON 文本
+          // （如加密域名文件）的源。GET 源（goda/bun）不受影响。
           final fetchMethod =
               (meta['__fetchMethod'] as String? ?? 'get').toLowerCase();
           final fetchBody = meta['__fetchBody'] as String?;
@@ -243,21 +245,50 @@ class ScriptResolver implements SourceResolver {
                       ConfigLoader.instance.getActiveMirror(source);
               final net =
                   NetworkConfigService.instance.effectiveFor(source);
+              // 通用扩展：源可通过 __fetchResponseType 指定预取返回原始文本
+              // （默认 "json"）。用于需要抓取非 JSON 文本（如加密配置/域名文件）
+              // 的源，避免把站点逻辑写死进 Dart。镜像页自动获取 JM 域名即其一例。
+              final fetchResponseType =
+                  (meta['__fetchResponseType'] as String? ?? 'json').toLowerCase();
               final apiJson = fetchMethod == 'post'
-                  ? await HttpFetcher.instance.postJson(
-                      fetchUrl,
-                      data: fetchBody,
-                      headers: fetchHeaders.isNotEmpty ? fetchHeaders : null,
-                      referer: referer,
-                      net: net,
-                    )
-                  : await HttpFetcher.instance.getJson(
-                      fetchUrl,
-                      referer: referer,
-                      net: net,
-                    );
-              debugPrint(
-                  '[ScriptResolver] 预取成功: ${fetchUrl}, dataKeys=${(apiJson as Map?)?.keys}');
+                  ? (fetchResponseType == 'text'
+                      ? await HttpFetcher.instance.post(
+                          fetchUrl,
+                          data: fetchBody,
+                          headers:
+                              fetchHeaders.isNotEmpty ? fetchHeaders : null,
+                          referer: referer,
+                          net: net,
+                        )
+                      : await HttpFetcher.instance.postJson(
+                          fetchUrl,
+                          data: fetchBody,
+                          headers:
+                              fetchHeaders.isNotEmpty ? fetchHeaders : null,
+                          referer: referer,
+                          net: net,
+                        ))
+                  : (fetchResponseType == 'text'
+                      ? await HttpFetcher.instance.getHtml(
+                          fetchUrl,
+                          headers:
+                              fetchHeaders.isNotEmpty ? fetchHeaders : null,
+                          referer: referer,
+                          net: net,
+                        )
+                      : await HttpFetcher.instance.getJson(
+                          fetchUrl,
+                          referer: referer,
+                          headers:
+                              fetchHeaders.isNotEmpty ? fetchHeaders : null,
+                          net: net,
+                        ));
+              final payloadInfo = apiJson is Map
+                  ? 'keys=${(apiJson as Map).keys}'
+                  : (apiJson is String
+                      ? 'text len=${apiJson.length}'
+                      : apiJson.runtimeType.toString());
+              debugPrint('[ScriptResolver] 预取成功: $fetchUrl, $payloadInfo');
               ParseDiagnostics.log(source.id, '✅ 预取成功: $fetchUrl');
 
               // Step 3: 调用 JS 处理函数（纯同步，传入预取数据）
@@ -348,9 +379,19 @@ class ScriptResolver implements SourceResolver {
         return _toImages(result);
       case 'video':
         return _toVideo(result);
+      case 'mirrors':
+        // 源自建的「镜像列表」路由：返回 [{name,domain,baseUrl}] 原样透传，
+        // 供镜像页自动获取，不做 MediaItem 强转（源即插件，不写死站点逻辑）。
+        return _toRawList(result);
       default:
         return _toItems(result, sourceId: sourceId);
     }
+  }
+
+  /// 把脚本返回的镜像列表原样透传（元素为含 name/domain/baseUrl 的 Map）。
+  List<dynamic> _toRawList(dynamic result) {
+    if (result is! List) return const [];
+    return result.whereType<Map<dynamic, dynamic>>().toList();
   }
 
   List<MediaItem> _toItems(dynamic result, {String? sourceId}) {
