@@ -16,6 +16,7 @@ import '../scraper/verification_detector.dart';
 import '../services/config_loader.dart';
 import '../utils/html_utils.dart';
 import '../utils/json_path.dart';
+import 'package:intl/intl.dart';
 
 /// 单条评论（含内联回复）。字段均按源 selectors 声明解析，缺失为 null。
 class SourceComment {
@@ -335,7 +336,15 @@ class CommentApiService {
     final sel = cfg.selectors ?? const <String, dynamic>{};
     final itemsPath = sel['items'];
     final raw = itemsPath is String ? JsonPath.eval(itemsPath, json) : null;
-    final list = raw is List ? raw : const <dynamic>[];
+    final List<dynamic> list;
+    if (raw is List) {
+      list = raw;
+    } else if (raw is Map) {
+      // 兼容接口以 id 为键返回对象（如再漫画 commentList）：取值为数组。
+      list = raw.values.where((e) => e != null).toList();
+    } else {
+      list = const <dynamic>[];
+    }
     final comments = <SourceComment>[
       for (final item in list) _jsonComment(sel, item),
     ];
@@ -352,7 +361,7 @@ class CommentApiService {
       author: _jsonText(sel['author'], item) ?? '',
       avatarUrl: _jsonText(sel['avatar'], item),
       content: _jsonText(sel['content'], item) ?? '',
-      timeText: _jsonText(sel['time'], item),
+      timeText: _formatTimeText(_jsonValue(sel['time'], item)),
       likeCount: _jsonInt(sel['likeCount'], item),
       replyCount: _jsonInt(sel['replyCount'], item),
       replies: rawReplies is List
@@ -381,6 +390,23 @@ class CommentApiService {
     if (v is num) return v.toInt();
     if (v is String) return int.tryParse(v.trim());
     return null;
+  }
+
+  /// 评论时间：优先原样展示站点文本；若源返回 Unix 秒/毫秒时间戳（接口常见），
+  /// 则格式化为绝对时间串（UI 不做二次转换，避免显示原始数字时间戳）。
+  String? _formatTimeText(dynamic value) {
+    if (value == null) return null;
+    if (value is num) {
+      final ms = value < 1000000000000 ? (value * 1000).toInt() : value.toInt();
+      final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+      try {
+        return DateFormat('yyyy-MM-dd HH:mm').format(dt);
+      } catch (_) {
+        return value.toString();
+      }
+    }
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
   }
 
   bool _hasMoreJson(
