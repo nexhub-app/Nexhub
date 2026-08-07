@@ -7,6 +7,7 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/scraper/publish_page_mirror_extractor.dart';
+import '../../../core/resolver/script_resolver.dart';
 import '../../../core/services/config_loader.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
@@ -51,6 +52,14 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
     if (hasPublishPage && !hasCustom) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _autoExtractFromPublish();
+      });
+    }
+    // 源自带 mirrors 路由：进入即自动获取镜像并设为可用，无需手动。
+    // 该路由为纯 JS（不经网络预取），主域失效也能返回内置备用域名，
+    // 因此「域名挂了也能给出可切换镜像」。仅当尚未添加过自定义镜像时执行一次。
+    if (!hasCustom && widget.source.routes.containsKey('mirrors')) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _autoFetchFromRoute();
       });
     }
   }
@@ -240,6 +249,63 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.mirrorAutoAdded(added))),
       );
+    }
+  }
+
+  /// 自动从源自带的 `mirrors` 路由获取镜像并添加为可用镜像（无需手动）。
+  ///
+  /// 与发布页提取类似，仅在尚未添加过自定义镜像时自动执行一次。该路由为纯 JS
+  /// （[ScriptResolver.resolveFromHtml] 不经网络预取），即使主域失效也能返回内置
+  /// 备用域名列表，因此「域名挂了也能给出可切换的镜像」。返回格式由源声明：
+  /// `[{name, domain, baseUrl}]`，[addCustomMirror] 内部已按 baseUrl 去重。
+  Future<void> _autoFetchFromRoute() async {
+    if (!widget.source.routes.containsKey('mirrors')) return;
+    if (_extracting) return;
+    _extracting = true;
+    try {
+      final result = await ScriptResolver().resolveFromHtml(
+        widget.source,
+        'mirrors',
+        '',
+      );
+      if (result is! List) return;
+      final existing = <String>{
+        ...widget.source.site.mirrors.map((m) => m.baseUrl),
+        ...ConfigLoader.instance
+            .getCustomMirrors(widget.source.id)
+            .map((m) => m.baseUrl),
+      };
+      var added = 0;
+      for (final e in result) {
+        if (e is! Map) continue;
+        final baseUrl = (e['baseUrl'] ?? '').toString().trim();
+        if (baseUrl.isEmpty) continue;
+        if (existing.contains(baseUrl)) continue;
+        final uri = Uri.tryParse(baseUrl);
+        final host = uri?.host ?? '';
+        await ConfigLoader.instance.addCustomMirror(
+          widget.source.id,
+          MirrorConfig(
+            name: (e['name'] ?? host).toString(),
+            domain: (e['domain'] ?? host).toString(),
+            baseUrl: baseUrl,
+          ),
+        );
+        existing.add(baseUrl);
+        added++;
+      }
+      if (mounted) setState(() {});
+      if (added > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context).mirrorAutoAdded(added)),
+          ),
+        );
+      }
+    } catch (_) {
+      // 静默失败，不影响镜像页其余功能
+    } finally {
+      _extracting = false;
     }
   }
 
