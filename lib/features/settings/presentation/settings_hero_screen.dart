@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show lerpDouble;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -84,14 +85,6 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
     _save(next);
   }
 
-  void _move(int from, int to) {
-    if (to < 0 || to >= _urls.length) return;
-    final next = List<String>.from(_urls);
-    final String item = next.removeAt(from);
-    next.insert(to, item);
-    _save(next);
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -108,21 +101,94 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
             Expanded(
               child: _urls.isEmpty
                   ? _Empty(scheme: scheme, hint: l10n.heroEmptyHint)
-                  : ListView.separated(
-                        padding: const EdgeInsets.all(AppTokens.spaceLg),
-                        itemCount: _urls.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: AppTokens.spaceSm),
-                        itemBuilder: (context, i) {
-                          final String url = _urls[i];
-                          return _HeroItem(
-                            url: url,
-                            onRemove: () => _remove(i),
-                            onMoveUp: i > 0 ? () => _move(i, i - 1) : null,
-                            onMoveDown:
-                                i < _urls.length - 1 ? () => _move(i, i + 1) : null,
-                          );
+: ReorderableListView(
+                      padding: const EdgeInsets.all(AppTokens.spaceLg),
+                      buildDefaultDragHandles: false,
+                      // 美化拖动动画：缓出曲线 + 上浮 + 主色描边 + 双层阴影
+                      // 与源管理页保持一致风格。
+                      proxyDecorator:
+                          (Widget child, int index, Animation<double> animation) {
+                        return AnimatedBuilder(
+                          animation: animation,
+                          builder: (context, _) {
+                            final double t = Curves.easeOut.transform(animation.value);
+                            final double scale = lerpDouble(1.0, 1.04, t)!;
+                            final ColorScheme scheme = Theme.of(context).colorScheme;
+                            return Transform.translate(
+                              offset: Offset(0, -3 * t),
+                              child: Transform.scale(
+                                scale: scale,
+                                child: Opacity(
+                                  opacity: lerpDouble(1.0, 0.97, t)!,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(
+                                          AppTokens.radiusMd),
+                                      border: Border.all(
+                                        color: scheme.primary
+                                            .withValues(alpha: 0.3 * t),
+                                      ),
+                                      boxShadow: <BoxShadow>[
+                                        BoxShadow(
+                                          color: scheme.shadow
+                                              .withValues(alpha: 0.26 * t),
+                                          blurRadius: 16 * t + 4,
+                                          offset: Offset(0, 7 * t + 2),
+                                        ),
+                                        BoxShadow(
+                                          color: scheme.primary
+                                              .withValues(alpha: 0.12 * t),
+                                          blurRadius: 28 * t,
+                                          offset: Offset(0, 3 * t),
+                                        ),
+                                      ],
+                                    ),
+                                    child: child,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      onReorder: (int oldIndex, int newIndex) {
+                          if (newIndex > oldIndex) newIndex--;
+                          final next = List<String>.from(_urls);
+                          final item = next.removeAt(oldIndex);
+                          next.insert(newIndex, item);
+                          _save(next);
                         },
+                        children: <Widget>[
+                          for (int i = 0; i < _urls.length; i++)
+                            Padding(
+                              key: ValueKey<String>(_urls[i]),
+                              padding:
+                                  const EdgeInsets.only(bottom: AppTokens.spaceSm),
+                              child: Row(
+                                children: <Widget>[
+                                  ReorderableDragStartListener(
+                                    index: i,
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsets.only(right: AppTokens.spaceXs),
+                                      child: Icon(
+                                        Icons.drag_indicator,
+                                        color: scheme.onSurfaceVariant
+                                            .withValues(alpha: 0.5),
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: _HeroItem(
+                                      url: _urls[i],
+                                      onRemove: () => _remove(i),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
             ),
             SafeArea(
@@ -166,14 +232,10 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
 class _HeroItem extends StatelessWidget {
   final String url;
   final VoidCallback onRemove;
-  final VoidCallback? onMoveUp;
-  final VoidCallback? onMoveDown;
 
   const _HeroItem({
     required this.url,
     required this.onRemove,
-    required this.onMoveUp,
-    required this.onMoveDown,
   });
 
   bool _isLocal(String s) =>
@@ -226,22 +288,6 @@ class _HeroItem extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
-          ),
-          Column(
-            children: <Widget>[
-              IconButton(
-                onPressed: onMoveUp,
-                icon: const Icon(Icons.keyboard_arrow_up),
-                tooltip: '↑',
-                visualDensity: VisualDensity.compact,
-              ),
-              IconButton(
-                onPressed: onMoveDown,
-                icon: const Icon(Icons.keyboard_arrow_down),
-                tooltip: '↓',
-                visualDensity: VisualDensity.compact,
-              ),
-            ],
           ),
           IconButton(
             onPressed: onRemove,

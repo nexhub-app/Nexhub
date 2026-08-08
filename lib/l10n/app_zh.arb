@@ -2896,6 +2896,24 @@
       "failed": {"type": "int"}
     }
   },
+  "libraryVersion": "库 v{lib} · 已装 v{installed}",
+  "@libraryVersion": {
+    "placeholders": {
+      "lib": {"type": "int"},
+      "installed": {"type": "int"}
+    }
+  },
+  "libraryNotInstalled": "未安装",
+  "libraryUpdate": "更新",
+  "libraryUpdateAll": "一键更新",
+  "libraryUpdateAvailable": "可更新",
+  "libraryUpdating": "更新中…",
+  "libraryUpdated": "已更新",
+  "libraryUpdateFailed": "更新失败",
+  "libraryAllUpToDate": "全部已是最新",
+  "sourcePin": "置顶",
+  "sourceUnpin": "取消置顶",
+  "mirrorTestAll": "测速全部",
   "sourceTypeOther": "其他",
   "official": "官方",
   "loginStatusLoggedIn": "已登录",
@@ -2912,6 +2930,7 @@
   "rememberPositionHint": "开启后，重新打开动漫/漫画/小说会自动跳到上次观看的进度；关闭则每次从开头开始",
   "mirrorAutoAdded": "已从发布页自动添加 {count} 个镜像",
   "sourceAnnouncementView": "查看详情",
+  "announcementDontShowAgain": "以后再不显示",
   "onlineTabWebFavorite": "网络收藏",
   "@onlineTabWebFavorite": {
     "description": "Tab label for source-site web favorites (bookshelf)"
