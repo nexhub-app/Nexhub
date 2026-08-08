@@ -6,6 +6,7 @@ library;
 
 import 'dart:io';
 import 'dart:convert';
+import 'dart:ui' show lerpDouble;
 
 import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
@@ -24,9 +25,6 @@ import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_url_input_bar.dart';
 import '../../../core/widgets/unified_source_tile.dart';
-import '../../../core/widgets/source_announcement_banner.dart';
-import '../../shuyuan/presentation/shuyuan_import_screen.dart';
-import 'collect_api_import_screen.dart';
 import 'source_mirror_screen.dart';
 import 'source_network_override_screen.dart';
 import 'source_login_screen.dart';
@@ -86,9 +84,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
 
   // 类型筛选时被跳过的其他类型源数量（用于预览提示横幅）
   int _skippedByTypeCount = 0;
-
-  // 本会话内已关闭的源公告（sourceId 集合），避免重复打扰。
-  final Set<String> _dismissedAnnouncements = <String>{};
 
   // 库（library）tab 状态
   final TextEditingController _libraryUrlController = TextEditingController();
@@ -590,31 +585,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   // - animeSource/null：采集 API 导入（MacCMS）
   // - novelSource：书源导入（@css/@xpath/@json/@js + ## 正则）
   // 仅在「源列表」Tab 且非预览模式显示，避免遮挡网络/本地导入内容。
+  // 注意：源列表 Tab 已有「更多」菜单提供导入入口，FAB 容易挡住最后一个条目的
+  // 更多按钮（尤其桌面端/公告横幅弹出后），故此处统一隐藏 FAB（项 8）。
   Widget? _buildFab(AppLocalizations l10n) {
-    if (_tab != _SourceTab.list || _previewMode) return null;
-    if (widget.filterType == SourceType.novelSource) {
-      return FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          AppPageRoute<void>(
-            builder: (_) => const ShuyuanImportScreen(),
-          ),
-        ),
-        icon: const Icon(Icons.menu_book),
-        label: Text(l10n.importShuyuan),
-      );
-    }
-    if (widget.filterType == SourceType.animeSource ||
-        widget.filterType == null) {
-      return FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          AppPageRoute<void>(
-            builder: (_) => const CollectApiImportScreen(),
-          ),
-        ),
-        icon: const Icon(Icons.cloud_download),
-        label: Text(l10n.collectApiImportTitle),
-      );
-    }
     return null;
   }
 
@@ -702,33 +675,94 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   }
 
   /// 构建源列表 ListView（复用于单列表与分类 Tab）。
+  /// 支持长按拖动排序；拖拽指示器在左侧，更多按钮在右侧（避免挤在一起）。
   Widget _buildSourceListView(
     AppLocalizations l10n,
     List<PluginConfig> sources,
   ) {
-    // 顶部聚合展示各源公告（声明了 announcement 且未被本会话关闭的源）。
     // 监听登录态：源登录/登出后列表实时刷新「未登录」徽章（项 2）。
     final SourceAuthManager auth = context.watch<SourceAuthManager>();
-    final banners = sources
-        .where((s) =>
-            s.announcement != null && !_dismissedAnnouncements.contains(s.id))
-        .map(
-          (s) => SourceAnnouncementBanner(
-            source: s,
-            onDismiss: () => setState(() => _dismissedAnnouncements.add(s.id)),
-          ),
-        )
-        .toList();
-    return ListView(
+    final SourceRepository repo = context.watch<SourceRepository>();
+    return ReorderableListView(
       padding: const EdgeInsets.all(AppTokens.spaceMd),
+      header: const SizedBox.shrink(),
+      // 禁用默认右侧拖动手柄，改用左侧自定义拖拽指示器（项 3）
+      buildDefaultDragHandles: false,
+      // 美化拖动动画：缓出曲线 + 上浮 + 主色描边 + 双层阴影（项 4）
+      proxyDecorator: (Widget child, int index, Animation<double> animation) {
+        return AnimatedBuilder(
+          animation: animation,
+          builder: (context, _) {
+            // easeOut 曲线让缩放/阴影随拖拽进度先快后缓，更有弹性感。
+            final double t = Curves.easeOut.transform(animation.value);
+            final double scale = lerpDouble(1.0, 1.04, t)!;
+            final ColorScheme scheme = Theme.of(context).colorScheme;
+            return Transform.translate(
+              // 轻微上浮：拖起时像被"拎"起来，松手回落。
+              offset: Offset(0, -3 * t),
+              child: Transform.scale(
+                scale: scale,
+                child: Opacity(
+                  opacity: lerpDouble(1.0, 0.97, t)!,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                      border: Border.all(
+                        color: scheme.primary.withValues(alpha: 0.3 * t),
+                      ),
+                      boxShadow: <BoxShadow>[
+                        // 主阴影：随拖拽加深、扩散、下移。
+                        BoxShadow(
+                          color: scheme.shadow.withValues(alpha: 0.26 * t),
+                          blurRadius: 16 * t + 4,
+                          offset: Offset(0, 7 * t + 2),
+                        ),
+                        // 次级辉光：主色光晕，增强"浮起"感。
+                        BoxShadow(
+                          color: scheme.primary.withValues(alpha: 0.12 * t),
+                          blurRadius: 28 * t,
+                          offset: Offset(0, 3 * t),
+                        ),
+                      ],
+                    ),
+                    child: child,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      onReorder: (int oldIndex, int newIndex) {
+        final ids = sources.map((s) => s.id).toList();
+        if (newIndex > oldIndex) newIndex--;
+        final moved = ids.removeAt(oldIndex);
+        ids.insert(newIndex, moved);
+        repo.setSourceOrder(ids);
+      },
       children: <Widget>[
-        ...banners,
-        ...sources.map(
-          (s) => Padding(
+        for (final s in sources)
+          Padding(
+            key: Key(s.id),
             padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-            child: AppCard(
-              padding: EdgeInsets.zero,
-              child: UnifiedSourceTile(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                // 左侧拖拽手柄：ReorderableDragStartListener 包裹图标（项 1+3+4）
+                ReorderableDragStartListener(
+                  index: sources.indexOf(s),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: AppTokens.spaceXs),
+                    child: Icon(Icons.drag_indicator,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.45),
+                        size: 20),
+                  ),
+                ),
+                Expanded(
+                  child: AppCard(
+                    padding: EdgeInsets.zero,
+                    child: UnifiedSourceTile(
                 name: s.name,
                 url: s.site.baseUrl,
                 enabled: s.isEnabled,
@@ -782,8 +816,10 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                     : null,
               ),
             ),
-          ),
-        ),
+                  ),
+                ],
+              ),
+            ),
       ],
     );
   }

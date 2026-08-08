@@ -10622,6 +10622,78 @@ abstract class AppLocalizations {
   /// **'Imported {success}/{total} sources ({failed} failed)'**
   String libraryImportResult(int success, int total, int failed);
 
+  /// No description provided for @libraryVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Lib v{lib} · Installed v{installed}'**
+  String libraryVersion(int lib, int installed);
+
+  /// No description provided for @libraryNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get libraryNotInstalled;
+
+  /// No description provided for @libraryUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get libraryUpdate;
+
+  /// No description provided for @libraryUpdateAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Update all'**
+  String get libraryUpdateAll;
+
+  /// No description provided for @libraryUpdateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get libraryUpdateAvailable;
+
+  /// No description provided for @libraryUpdating.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating…'**
+  String get libraryUpdating;
+
+  /// No description provided for @libraryUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated'**
+  String get libraryUpdated;
+
+  /// No description provided for @libraryUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Update failed'**
+  String get libraryUpdateFailed;
+
+  /// No description provided for @libraryAllUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'All up to date'**
+  String get libraryAllUpToDate;
+
+  /// No description provided for @sourcePin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get sourcePin;
+
+  /// No description provided for @sourceUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get sourceUnpin;
+
+  /// No description provided for @mirrorTestAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Test all'**
+  String get mirrorTestAll;
+
   /// No description provided for @sourceTypeOther.
   ///
   /// In en, this message translates to:
@@ -10699,6 +10771,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'View details'**
   String get sourceAnnouncementView;
+
+  /// No description provided for @announcementDontShowAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t show again'**
+  String get announcementDontShowAgain;
 
   /// No description provided for @watchedThreshold.
   ///

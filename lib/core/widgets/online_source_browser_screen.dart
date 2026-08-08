@@ -102,7 +102,13 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: AppTokens.spaceXs),
-                  _buildStatusChip(source, scheme, l10n),
+                  Row(
+                    children: <Widget>[
+                      _buildStatusChip(source, scheme, l10n),
+                      const SizedBox(width: AppTokens.spaceXs),
+                      _buildAgeChip(source, scheme, l10n),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -148,6 +154,36 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
 
   void _openSource(BuildContext context, PluginConfig source) {
     onSourceTap(source);
+  }
+
+  /// 年龄分级徽章（item 10）：general=中性灰 / teen=琥珀 / mature=红，与设置页一致。
+  Widget _buildAgeChip(PluginConfig source, ColorScheme scheme, AppLocalizations l10n) {
+    final (Color bg, Color fg, String label) = switch (source.ageRating) {
+      SourceAgeRating.general => (
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+        l10n.ageRatingGeneral,
+      ),
+      SourceAgeRating.teen => (
+        scheme.tertiaryContainer,
+        scheme.onTertiaryContainer,
+        l10n.ageRatingTeen,
+      ),
+      SourceAgeRating.mature => (
+        scheme.errorContainer,
+        scheme.onErrorContainer,
+        l10n.ageRatingMature,
+      ),
+    };
+    return Chip(
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      backgroundColor: bg,
+      labelStyle: TextStyle(color: fg, fontSize: 11),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      side: BorderSide.none,
+      padding: EdgeInsets.zero,
+    );
   }
 
   static Color _sourceColor(SourceType type, ColorScheme scheme) {

@@ -5563,6 +5563,44 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String libraryVersion(int lib, int installed) {
+    return 'Lib v$lib · Installed v$installed';
+  }
+
+  @override
+  String get libraryNotInstalled => 'Not installed';
+
+  @override
+  String get libraryUpdate => 'Update';
+
+  @override
+  String get libraryUpdateAll => 'Update all';
+
+  @override
+  String get libraryUpdateAvailable => 'Update available';
+
+  @override
+  String get libraryUpdating => 'Updating…';
+
+  @override
+  String get libraryUpdated => 'Updated';
+
+  @override
+  String get libraryUpdateFailed => 'Update failed';
+
+  @override
+  String get libraryAllUpToDate => 'All up to date';
+
+  @override
+  String get sourcePin => 'Pin';
+
+  @override
+  String get sourceUnpin => 'Unpin';
+
+  @override
+  String get mirrorTestAll => 'Test all';
+
+  @override
   String get sourceTypeOther => 'Other';
 
   @override
@@ -5605,6 +5643,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sourceAnnouncementView => 'View details';
+
+  @override
+  String get announcementDontShowAgain => 'Don\'t show again';
 
   @override
   String get watchedThreshold => 'Watched threshold';

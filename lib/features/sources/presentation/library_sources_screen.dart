@@ -42,6 +42,16 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
   /// 选中的条目下标集合。
   Set<int> _selectedIndices = const <int>{};
 
+  /// 已安装版本映射（id → 已装 version）；缺失即未安装。用于「源库」展示
+  /// 当前版本、标记可更新（库版本 > 已装版本）。
+  Map<String, int> _installedVersions = const <String, int>{};
+
+  /// 是否存在「库版本 > 已装版本」的可更新源（控制 AppBar「一键更新」显示）。
+  bool get _hasUpdatable => _entries.any((e) {
+        final ins = _installedVersions[e.id];
+        return ins != null && ins < e.version;
+      });
+
   @override
   void initState() {
     super.initState();
@@ -77,11 +87,41 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
       for (final e in raw) {
         entries.add(_LibEntry.fromManifest(e, base: widget.library.url));
       }
+      // 比对已安装版本，标记可更新；默认只勾选「未安装」或「可更新」的条目，
+      // 已是最新的源不预勾选，避免误触「导入选中」重复写库。
+      //
+      // ⚠️ id 归一化：不同源库的 manifest 写法不一致——
+      //   有的用「类型/名称」（如 novel/novel_linovelb），有的只用名称
+      //   （如 novel_linovelib），有的用 bookSourceUrl（完整 URL）。
+      //   PluginConfig.id 取的是源 JSON 本身的 id 字段（通常无类型前缀）。
+      //   因此比对时需依次尝试：精确匹配 → 去前缀 → 按名称兜底。
+      final repo = context.read<SourceRepository>();
+      final installed = <String, int>{};
+      final selected = <int>{};
+      for (int i = 0; i < entries.length; i++) {
+        final e = entries[i];
+        // 1) 精确匹配
+        var cfg = repo.getById(e.id);
+        // 2) 去类型前缀（novel/novel_xxx → novel_xxx）
+        if (cfg == null && e.id.contains('/')) {
+          cfg = repo.getById(e.id.substring(e.id.lastIndexOf('/') + 1));
+        }
+        // 3) 按名称兜底（manifest 的 name 与 PluginConfig.name 一致时）
+        if (cfg == null && e.name.isNotEmpty) {
+          cfg = repo.all.where((c) => c.name == e.name).firstOrNull;
+        }
+        if (cfg != null) {
+          installed[e.id] = cfg.version;
+          if (cfg.version < e.version) selected.add(i); // 可更新
+        } else {
+          selected.add(i); // 未安装 → 默认勾选导入
+        }
+      }
       if (!mounted) return;
       setState(() {
         _entries = entries;
-        // 默认全选
-        _selectedIndices = <int>{for (int i = 0; i < entries.length; i++) i};
+        _installedVersions = installed;
+        _selectedIndices = selected;
         _loading = false;
       });
     } catch (e) {
@@ -147,6 +187,19 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     }
   }
 
+  /// 一键更新全部可更新的源：只勾选「库版本 > 已装版本」的条目并立即导入。
+  Future<void> _updateAll() async {
+    final updatable = <int>{};
+    for (int i = 0; i < _entries.length; i++) {
+      final e = _entries[i];
+      final ins = _installedVersions[e.id];
+      if (ins != null && ins < e.version) updatable.add(i);
+    }
+    if (updatable.isEmpty) return;
+    setState(() => _selectedIndices = updatable);
+    await _importSelected();
+  }
+
   /// 外链打开 rawUrl（备用，方便用户手动复制）。
   Future<void> _openRawUrl(String url) async {
     final uri = Uri.tryParse(url);
@@ -163,6 +216,12 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
       appBar: AppBar(
         title: Text(widget.library.name),
         actions: <Widget>[
+          if (_hasUpdatable)
+            IconButton(
+              tooltip: l10n.libraryUpdateAll,
+              icon: const Icon(Icons.system_update_alt),
+              onPressed: _loading || _importing ? null : _updateAll,
+            ),
           IconButton(
             tooltip: l10n.retry,
             icon: const Icon(Icons.refresh),
@@ -274,6 +333,11 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
   Widget _buildRow(int index, AppLocalizations l10n, ColorScheme scheme) {
     final entry = _entries[index];
     final selected = _selectedIndices.contains(index);
+    final installed = _installedVersions[entry.id];
+    final updateAvailable = installed != null && installed < entry.version;
+    final versionText = installed == null
+        ? '库 v${entry.version} · ${l10n.libraryNotInstalled}'
+        : l10n.libraryVersion(entry.version, installed);
     return CheckboxListTile(
       value: selected,
       onChanged: (v) => setState(() {
@@ -286,19 +350,54 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
         _selectedIndices = s;
       }),
       controlAffinity: ListTileControlAffinity.leading,
+      secondary: updateAvailable
+          ? Chip(
+              label: Text(
+                l10n.libraryUpdateAvailable,
+                style: TextStyle(
+                  color: scheme.onPrimaryContainer,
+                  fontSize: 11,
+                ),
+              ),
+              backgroundColor: scheme.primaryContainer,
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              side: BorderSide.none,
+            )
+          : null,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppTokens.spaceSm,
         vertical: AppTokens.spaceXs,
       ),
-      title: Text(
-        entry.name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.bodyLarge,
+      title: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              entry.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ),
+          const SizedBox(width: AppTokens.spaceXs),
+          _ageChip(context, scheme, entry.ageRating),
+        ],
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          Text(
+            versionText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: updateAvailable
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant,
+                  fontWeight:
+                      updateAvailable ? FontWeight.w600 : FontWeight.normal,
+                ),
+          ),
           if (entry.rawUrl != null && entry.rawUrl!.isNotEmpty)
             InkWell(
               onTap: () => _openRawUrl(entry.rawUrl!),
@@ -322,6 +421,36 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// 年龄分级徽章：general=中性灰 / teen=琥珀 / mature=红（与设置页一致）。
+  Widget _ageChip(BuildContext context, ColorScheme scheme, SourceAgeRating rating) {
+    final l10n = AppLocalizations.of(context);
+    final (Color bg, Color fg, String label) = switch (rating) {
+      SourceAgeRating.general => (
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+        l10n.ageRatingGeneral,
+      ),
+      SourceAgeRating.teen => (
+        scheme.tertiaryContainer,
+        scheme.onTertiaryContainer,
+        l10n.ageRatingTeen,
+      ),
+      SourceAgeRating.mature => (
+        scheme.errorContainer,
+        scheme.onErrorContainer,
+        l10n.ageRatingMature,
+      ),
+    };
+    return Chip(
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      backgroundColor: bg,
+      labelStyle: TextStyle(color: fg, fontSize: 11),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      side: BorderSide.none,
     );
   }
 
@@ -371,6 +500,8 @@ class _LibEntry {
   final String name;
   final String? rawUrl;
   final String? type;
+  final int version;
+  final SourceAgeRating ageRating;
   final Map<String, dynamic> raw;
 
   _LibEntry({
@@ -378,14 +509,29 @@ class _LibEntry {
     required this.name,
     required this.rawUrl,
     required this.type,
+    this.version = 1,
+    this.ageRating = SourceAgeRating.general,
     required this.raw,
   });
+
+  /// 把 manifest 里的 version 规范为 int（缺省 1）。兼容 int / 数字 / "12" /
+  /// "1.3.0"（取首段）。
+  static int _coerceVersion(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) {
+      final first = v.split('.').first;
+      return int.tryParse(first) ?? 1;
+    }
+    return 1;
+  }
 
   /// 从 manifest 条目构造。
   ///
   /// 字段名尽量宽容：不同社区库的清单写法不一致，除官方的 `rawUrl` 外，
   /// 还兼容 `url` / `file` / `path` / `download`；相对路径按 [base]（index.json
-  /// 自身地址）解析成绝对地址，否则按需抓取时会 404。
+  /// 自身地址）解析成绝对地址，否则按需抓取时会 404。同时解析 `version` 与
+  /// `ageRating`，供「源库」展示等级与版本、以及一键更新判断。
   factory _LibEntry.fromManifest(Map<String, dynamic> m, {String? base}) {
     final id = (m['id'] ?? m['bookSourceUrl'] ?? '').toString();
     final name = (m['name'] ?? m['bookSourceName'] ?? id).toString();
@@ -396,6 +542,8 @@ class _LibEntry {
       name: name,
       rawUrl: rawUrl,
       type: type,
+      version: _coerceVersion(m['version']),
+      ageRating: SourceAgeRating.parse(m['ageRating']),
       raw: m,
     );
   }

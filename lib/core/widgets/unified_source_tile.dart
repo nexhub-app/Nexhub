@@ -93,31 +93,34 @@ class UnifiedSourceTile extends StatelessWidget {
         ],
       ],
     );
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: isHidden
-            ? scheme.surfaceContainerHighest
-            : scheme.primaryContainer,
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : '?',
-          style: TextStyle(
-            color: isHidden
-                ? scheme.onSurfaceVariant
-                : scheme.onPrimaryContainer,
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: isHidden
+              ? scheme.surfaceContainerHighest
+              : scheme.primaryContainer,
+          child: Text(
+            name.isNotEmpty ? name[0].toUpperCase() : '?',
+            style: TextStyle(
+              color: isHidden
+                  ? scheme.onSurfaceVariant
+                  : scheme.onPrimaryContainer,
+            ),
           ),
         ),
+        title: titleWidget,
+        subtitle: url != null
+            ? Text(url!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: scheme.onSurfaceVariant))
+            : null,
+        trailing: _buildTrailing(scheme),
+        onTap: onTap,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
       ),
-      title: titleWidget,
-      subtitle: url != null
-          ? Text(url!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: scheme.onSurfaceVariant))
-          : null,
-      trailing: _buildTrailing(scheme),
-      onTap: onTap,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
     );
   }
 

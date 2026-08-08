@@ -5482,6 +5482,44 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String libraryVersion(int lib, int installed) {
+    return '库 v$lib · 已装 v$installed';
+  }
+
+  @override
+  String get libraryNotInstalled => '未安装';
+
+  @override
+  String get libraryUpdate => '更新';
+
+  @override
+  String get libraryUpdateAll => '一键更新';
+
+  @override
+  String get libraryUpdateAvailable => '可更新';
+
+  @override
+  String get libraryUpdating => '更新中…';
+
+  @override
+  String get libraryUpdated => '已更新';
+
+  @override
+  String get libraryUpdateFailed => '更新失败';
+
+  @override
+  String get libraryAllUpToDate => '全部已是最新';
+
+  @override
+  String get sourcePin => '置顶';
+
+  @override
+  String get sourceUnpin => '取消置顶';
+
+  @override
+  String get mirrorTestAll => '测速全部';
+
+  @override
   String get sourceTypeOther => '其他';
 
   @override
@@ -5521,6 +5559,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get sourceAnnouncementView => '查看详情';
+
+  @override
+  String get announcementDontShowAgain => '以后再不显示';
 
   @override
   String get watchedThreshold => '已看阈值';

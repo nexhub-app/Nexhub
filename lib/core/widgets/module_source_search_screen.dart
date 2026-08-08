@@ -7,6 +7,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -43,6 +44,10 @@ class ModuleSourceSearchScreen extends StatefulWidget {
   /// 直达地址：调用方已取得的真实页面链接（如详情页抓取到的作者/标签落地页），
   /// 非空时进入直达模式，直接用它检索并信任返回结果。
   final String? extractedUrl;
+  /// 进入时默认以单源模式打开（如从详情页跳转搜索，默认只搜当前这个源）。
+  final bool startSingle;
+  /// 单源模式预选中的源 id（配合 [startSingle] 使用）。
+  final String? initialSourceId;
   final void Function(MediaItem item, String? heroTag) onItemTap;
 
   const ModuleSourceSearchScreen({
@@ -52,6 +57,8 @@ class ModuleSourceSearchScreen extends StatefulWidget {
     this.initialQuery,
     this.searchField,
     this.extractedUrl,
+    this.startSingle = false,
+    this.initialSourceId,
     required this.onItemTap,
   });
 
@@ -67,6 +74,10 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
   List<MediaItem> _results = const <MediaItem>[];
   String? _extractedUrl;
   Timer? _debounce;
+  /// 源选择条（单源模式）滚动控制器，用于把预选源 chip 滚入可视区域（项 6）。
+  final ScrollController _sourceScrollController = ScrollController();
+  /// 预选源 chip 的 key，供 [Scrollable.ensureVisible] 定位。
+  final GlobalKey _selectedSourceKey = GlobalKey();
 
   /// 搜索范围：聚合全部源 / 单源。
   _SearchScope _scope = _SearchScope.aggregate;
@@ -97,6 +108,28 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
     // 直达模式：调用方已提供真实页面地址（如详情页抓取到的作者/标签落地页），
     // 直接带入搜索，跳过关键词输入与客户端收窄（服务端已按该页过滤）。
     _extractedUrl = widget.extractedUrl;
+    // 详情页跳转搜索：默认以单源模式打开并预选当前源（item 5）。
+    if (widget.startSingle) {
+      _scope = _SearchScope.single;
+      _selectedSourceId = widget.initialSourceId;
+    }
+    // 从详情页进入单源搜索：预选源 chip 自动滚入可视区域（项 6）。
+    if (widget.startSingle && widget.initialSourceId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final srcs = context.read<SourceRepository>().byType(widget.sourceType);
+        final idx = srcs.indexWhere((s) => s.id == widget.initialSourceId);
+        if (idx < 0) return;
+        final ctx = _selectedSourceKey.currentContext;
+        if (ctx != null) {
+          Scrollable.ensureVisible(
+            ctx,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 250),
+          );
+        }
+      });
+    }
     final String? q = widget.initialQuery;
     if (q != null && q.isNotEmpty) {
       _controller.text = q;
@@ -118,6 +151,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
     LayoutSettingsStore.instance.removeListener(_onLayoutStoreChanged);
     _debounce?.cancel();
     _controller.dispose();
+    _sourceScrollController.dispose();
     super.dispose();
   }
 
@@ -450,28 +484,59 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
           // ── 第3行：（仅单源时）源选择条 ──
           if (_scope == _SearchScope.single) ...<Widget>[
             const SizedBox(height: AppTokens.spaceSm),
-            SizedBox(
-              height: 40,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: sources.length,
-                separatorBuilder: (_, __) =>
-                    const SizedBox(width: AppTokens.spaceXs),
-                itemBuilder: (_, i) {
-                  final s = sources[i];
-                  final selected = _selectedSourceId == s.id;
-                  return ChoiceChip(
-                    label: Text(s.name),
-                    selected: selected,
-                    onSelected: (_) {
-                      setState(() => _selectedSourceId =
-                          selected ? null : s.id);
-                      _doSearch(_controller.text);
+            // 桌面端鼠标滚轮可左右滚动（项 2）
+            Listener(
+              onPointerSignal: (signal) {
+                if (signal is PointerScrollEvent &&
+                    _sourceScrollController.hasClients) {
+                  final offset = signal.scrollDelta.dx;
+                  if (offset != 0) {
+                    _sourceScrollController.jumpTo(
+                      (_sourceScrollController.offset - offset).clamp(
+                        0,
+                        _sourceScrollController.position.maxScrollExtent,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: SizedBox(
+                height: 40,
+                // 桌面端支持鼠标左键拖动横向滚动（项 3）：默认 ScrollBehavior
+                // 不允许鼠标拖动（仅触控），这里显式加入 mouse/trackpad/stylus。
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: <PointerDeviceKind>{
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.trackpad,
+                      PointerDeviceKind.stylus,
                     },
-                  );
-                },
+                  ),
+                  child: ListView.separated(
+                    controller: _sourceScrollController,
+                    scrollDirection: Axis.horizontal,
+                    itemCount: sources.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(width: AppTokens.spaceXs),
+                    itemBuilder: (_, i) {
+                      final s = sources[i];
+                      final selected = _selectedSourceId == s.id;
+                      return ChoiceChip(
+                        key: selected ? _selectedSourceKey : null,
+                        label: Text(s.name),
+                        selected: selected,
+                        onSelected: (_) {
+                          setState(() => _selectedSourceId =
+                              selected ? null : s.id);
+                          _doSearch(_controller.text);
+                        },
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
+              ),
           ],
 
           // ── 第4行：字段筛选胶囊（按模块类型显示对应字段）──

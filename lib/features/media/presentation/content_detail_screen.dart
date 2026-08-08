@@ -791,10 +791,15 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   // ───────────────────────── 跳转搜索 / 浏览 ─────────────────────────
 
   /// 统一搜索：标签 / 作者 / 导演 / 主演 / 作品名 走同一入口。
+  ///
+  /// 默认以单源模式打开并预选当前源（item 5：详情页跳转搜索默认只搜该源），
+  /// 用户仍可手动切回聚合全部源。
   void _openUnifiedSearch(String query, {String? field, String? extractedUrl}) {
     final String q = query.trim();
     if (q.isEmpty) return;
     final AppLocalizations l10n = AppLocalizations.of(context);
+    final String? sid = widget.item.sourceId;
+    final bool startSingle = sid != null && sid.isNotEmpty;
     Navigator.of(context).push(
       AppPageRoute<void>(
         builder: (_) => ModuleSourceSearchScreen(
@@ -803,6 +808,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           initialQuery: q,
           searchField: field,
           extractedUrl: extractedUrl,
+          startSingle: startSingle,
+          initialSourceId: sid,
           onItemTap: (MediaItem tapped, String? heroTag) =>
               Navigator.of(context).push(
             AppHeroPageRoute<void>(
