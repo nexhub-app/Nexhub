@@ -38,6 +38,7 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
   final Set<String> _testing = <String>{};
   final Set<String> _failed = <String>{};
   bool _extracting = false;
+  bool _testingAll = false;
 
   @override
   void initState() {
@@ -79,6 +80,24 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
     } finally {
       stopwatch.stop();
       if (mounted) setState(() => _testing.remove(baseUrl));
+    }
+  }
+
+  /// 一键测速全部镜像（item 8）：并发测速所有声明/自定义镜像，
+  /// 每条结果回显在各自 tile 上。
+  Future<void> _testAll() async {
+    if (_testingAll) return;
+    setState(() => _testingAll = true);
+    final all = <String>[
+      ...widget.source.site.mirrors.map((m) => m.baseUrl),
+      ...ConfigLoader.instance
+          .getCustomMirrors(widget.source.id)
+          .map((m) => m.baseUrl),
+    ];
+    try {
+      await Future.wait(all.map((u) => _testSpeed(u)));
+    } finally {
+      if (mounted) setState(() => _testingAll = false);
     }
   }
 
@@ -431,6 +450,11 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
               tooltip: l10n.mirrorExtractFromPublish,
               onPressed: () => _autoExtractFromPublish(manual: true),
             ),
+          AppIconButton(
+            icon: Icons.speed,
+            tooltip: l10n.mirrorTestAll,
+            onPressed: _testingAll ? null : _testAll,
+          ),
           AppIconButton(
             icon: Icons.add,
             tooltip: l10n.mirrorAddCustom,

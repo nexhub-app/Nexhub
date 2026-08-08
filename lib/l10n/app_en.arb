@@ -2940,6 +2940,24 @@
       "failed": {"type": "int"}
     }
   },
+  "libraryVersion": "Lib v{lib} · Installed v{installed}",
+  "@libraryVersion": {
+    "placeholders": {
+      "lib": {"type": "int"},
+      "installed": {"type": "int"}
+    }
+  },
+  "libraryNotInstalled": "Not installed",
+  "libraryUpdate": "Update",
+  "libraryUpdateAll": "Update all",
+  "libraryUpdateAvailable": "Update available",
+  "libraryUpdating": "Updating…",
+  "libraryUpdated": "Updated",
+  "libraryUpdateFailed": "Update failed",
+  "libraryAllUpToDate": "All up to date",
+  "sourcePin": "Pin",
+  "sourceUnpin": "Unpin",
+  "mirrorTestAll": "Test all",
   "sourceTypeOther": "Other",
   "official": "Official",
   "loginStatusLoggedIn": "Logged in",
@@ -2953,6 +2971,7 @@
   "rememberPositionHint": "When on, reopening anime/comic/novel resumes from the last position; when off, always starts from the beginning",
   "mirrorAutoAdded": "Auto-added {count} mirror(s) from the publish page",
   "sourceAnnouncementView": "View details",
+  "announcementDontShowAgain": "Don't show again",
   "watchedThreshold": "Watched threshold",
   "watchedThresholdHint": "Progress reaching this percentage is considered watched",
   "watchedThresholdUnit": "%",

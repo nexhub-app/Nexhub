@@ -164,6 +164,7 @@ class _ModuleSearchScreenState extends State<ModuleSearchScreen> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           // 搜索栏放在 body 顶部，避免 AppBar.bottom 导致的视觉异常
           Padding(

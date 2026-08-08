@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/category_entry.dart';
 import '../models/media_item.dart';
@@ -13,6 +14,7 @@ import '../settings/layout_settings.dart';
 import '../novel/novel_progress_manager.dart';
 import '../comic/comic_progress_manager.dart';
 import '../theme/app_tokens.dart';
+import 'app_alert_dialog.dart';
 import 'app_card.dart';
 import 'app_cover_image.dart';
 import 'app_empty_state.dart';
@@ -115,6 +117,12 @@ class OnlineContentListScreen extends StatefulWidget {
 class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     with TickerProviderStateMixin {
   PluginConfig? _source;
+  /// 本页已弹过公告的源 id 集合（避免同一源反复弹窗）。
+  final Set<String> _announcedIds = <String>{};
+  /// 用户选择「以后再不显示」的公告（按 源id@更新时间 去重），跨会话持久化；
+  /// 源作者发布新公告（updatedAt 变化）时 key 不同，仍会弹出。
+  final Set<String> _dismissedAnnouncements = <String>{};
+  static const String _kDismissedAnnouncements = 'announcement_dismissed_v1';
   late TabController _tabController;
   final List<CategoryEntry> _categories = <CategoryEntry>[];
 
@@ -185,6 +193,13 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   @override
   void initState() {
     super.initState();
+    // 载入「以后再不显示」的公告集合（跨会话）。
+    SharedPreferences.getInstance().then((prefs) {
+      final list = prefs.getStringList(_kDismissedAnnouncements);
+      if (list != null && mounted) {
+        setState(() => _dismissedAnnouncements.addAll(list));
+      }
+    });
     _tabController = TabController(length: 3, vsync: this);
     // 监听布局设置变化，切换预设/列数/间距后即时刷新网格
     _layoutStore.addListener(_onLayoutChanged);
@@ -196,6 +211,12 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     }
     _loadCategories();
     _loadHome();
+    // 进入浏览页时把预选源滚动到可视区域（源很多时选中项可能在屏外，item 9），
+    // 并在首帧后弹出该源公告（item 7）。
+    if (_source != null) {
+      _scrollSelectedSourceIntoView();
+      _maybeShowAnnouncement(_source!);
+    }
   }
 
   @override
@@ -779,6 +800,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     _loadCategories();
     _loadHome();
     _scrollSelectedSourceIntoView();
+    _maybeShowAnnouncement(s);
   }
 
   /// 切换源后把选中的源 chip 平滑滚入可视区域（横向源栏项多时选中项可能在屏外）。
@@ -798,6 +820,112 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         curve: Curves.easeOut,
       );
     });
+  }
+
+  /// 进入/切换到某源时，若该源声明了公告、本页未弹过、且用户未选择「以后再不显示」，
+  /// 则弹窗展示（item 7）。
+  void _maybeShowAnnouncement(PluginConfig source) {
+    final ann = source.announcement;
+    if (ann == null || ann.title.isEmpty) return;
+    if (_announcedIds.contains(source.id)) return; // 同会话不重复弹
+    final key = _announcementKey(source.id, ann);
+    if (_dismissedAnnouncements.contains(key)) return; // 用户选过「以后再不显示」
+    _announcedIds.add(source.id);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showAnnouncementDialog(ann, key);
+    });
+  }
+
+  /// 公告去重 key：源 id + 更新时间（无更新时间则取标题）。源作者发新公告即 key 变化，
+  /// 即便用户此前对该源选过「以后再不显示」，新公告仍会弹出。
+  String _announcementKey(String sourceId, AnnouncementConfig ann) =>
+      '$sourceId@${ann.updatedAt?.toString() ?? ann.title}';
+
+  /// 记录用户对某公告选择「以后再不显示」并持久化。
+  void _dismissAnnouncement(String key) {
+    _dismissedAnnouncements.add(key);
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setStringList(
+          _kDismissedAnnouncements, _dismissedAnnouncements.toList());
+    });
+  }
+
+  /// 源公告弹窗：展示标题 / 正文 / 更新时间 / 外链；主按钮「以后再不显示」
+  /// 关闭并持久跳过该公告（除非作者发布新公告），另提供「关闭」仅本次关闭。
+  Future<void> _showAnnouncementDialog(
+      AnnouncementConfig ann, String dismissKey) async {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AppAlertDialog(
+        title: Row(
+          children: <Widget>[
+            Icon(Icons.campaign_outlined, color: scheme.primary),
+            const SizedBox(width: AppTokens.spaceSm),
+            Expanded(child: Text(ann.title)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (ann.body != null && ann.body!.isNotEmpty) Text(ann.body!),
+              if (ann.updatedAt != null) ...<Widget>[
+                const SizedBox(height: AppTokens.spaceSm),
+                Text(
+                  l10n.updatedAt(_formatAnnouncementTime(ann.updatedAt!)),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+              if (ann.url != null && ann.url!.isNotEmpty) ...<Widget>[
+                const SizedBox(height: AppTokens.spaceSm),
+                InkWell(
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    openInAppBrowser(context, ann.url!);
+                  },
+                  child: Text(
+                    l10n.sourceAnnouncementView,
+                    style: TextStyle(
+                      color: scheme.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              _dismissAnnouncement(dismissKey);
+              Navigator.of(ctx).pop();
+            },
+            child: Text(l10n.announcementDontShowAgain),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 把公告的 Unix 秒时间戳格式化为「YYYY-MM-DD HH:MM」（本地时区）。
+  String _formatAnnouncementTime(int seconds) {
+    final dt = DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+    final y = dt.year;
+    final m = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '$y-$m-$d $hh:$mm';
   }
 
   void _onCategoryScroll(_CategoryTabState state) {

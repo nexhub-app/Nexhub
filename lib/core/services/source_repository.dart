@@ -72,7 +72,41 @@ class SourceRepository extends ChangeNotifier {
     for (final c in _imported) {
       map[c.id] = c;
     }
-    return List<PluginConfig>.unmodifiable(map.values);
+    return List<PluginConfig>.unmodifiable(_applyOrder(map.values.toList()));
+  }
+
+  /// 应用「自定义排序」：按 [_customOrder] 顺序，未记录的源按原始顺序追加在末尾。
+  List<PluginConfig> _applyOrder(List<PluginConfig> list) {
+    if (_customOrder.isEmpty) return list;
+    final byId = <String, PluginConfig>{for (final c in list) c.id: c};
+    final ordered = <PluginConfig>[];
+    for (final id in _customOrder) {
+      final c = byId[id];
+      if (c != null) ordered.add(c);
+    }
+    for (final c in list) {
+      if (!ordered.contains(c)) ordered.add(c);
+    }
+    return ordered;
+  }
+
+  /// 应用一次拖动排序结果（传入可见源的新 id 顺序）。
+  Future<void> setSourceOrder(List<String> ids) async {
+    _customOrder
+      ..clear()
+      ..addAll(ids);
+    await _persistOrder();
+    notifyListeners();
+  }
+
+  Future<void> _persistOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _orderKey,
+      jsonEncode(<String, dynamic>{
+        'order': _customOrder,
+      }),
+    );
   }
 
   List<PluginConfig> get importedSources =>
@@ -275,10 +309,15 @@ class SourceRepository extends ChangeNotifier {
 
   static const String _importedKey = 'imported_sources_v1';
   static const String _stateOverridesKey = 'source_state_overrides_v1';
+  static const String _orderKey = 'source_order_v1';
 
   /// 源状态覆盖（启用/隐藏），持久化到 SharedPreferences。
   /// key = sourceId, value = {enabled: bool, isHidden: bool}
   final Map<String, Map<String, dynamic>> _stateOverrides = {};
+
+  /// 用户自定义的源排序（完整 id 顺序）。
+  /// 仅记录出现在该列表里的 id；未记录的源按原始顺序追加在末尾。
+  final List<String> _customOrder = <String>[];
 
   /// 添加用户导入的源。
   ///
@@ -408,6 +447,7 @@ class SourceRepository extends ChangeNotifier {
       _suppressBuiltin(id);
     }
     _stateOverrides.remove(id);
+    _customOrder.remove(id);
     _persistImported();
     _persistStateOverrides();
     notifyListeners();
@@ -446,6 +486,23 @@ class SourceRepository extends ChangeNotifier {
           map.map((k, v) => MapEntry(k, v as Map<String, dynamic>)),
         );
         _applyStateOverrides();
+      } catch (_) {
+        // 损坏数据忽略
+      }
+    }
+
+    // 加载源排序 / 置顶
+    final orderRaw = prefs.getString(_orderKey);
+    if (orderRaw != null) {
+      try {
+        final m = jsonDecode(orderRaw) as Map<String, dynamic>;
+        _customOrder
+          ..clear()
+          ..addAll(
+            ((m['order'] as List?) ?? <dynamic>[])
+                .map((e) => e.toString())
+                .toList(),
+          );
       } catch (_) {
         // 损坏数据忽略
       }
