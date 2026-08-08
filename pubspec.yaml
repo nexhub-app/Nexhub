@@ -14,7 +14,9 @@ dependencies:
     sdk: flutter
   intl: ^0.20.2
   # 莫奈取色（Material You 系统动态色 / 从壁纸提取的和谐调色板）
-  dynamic_color: ^1.7.0
+  # 钉死 1.8.1：1.9.0 的 android/build.gradle.kts 改用 kotlin { compilerOptions { jvmTarget } }
+  # 写法，与本项目 Gradle/Kotlin 配置不兼容（构建期 "Unresolved reference: compilerOptions"）。
+  dynamic_color: 1.8.1
   # 运行时主题状态（亮/暗/跟随 + 自定义主色 + 莫奈开关）
   provider: ^6.1.2
   # 自定义主题色选择器
