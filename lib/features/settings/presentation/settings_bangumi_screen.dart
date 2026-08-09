@@ -98,7 +98,7 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
     setState(() => _oauthing = true);
     try {
       final auth = context.read<BangumiAuth>();
-      await auth.loginWithOAuth();
+      await auth.loginWithOAuth(context);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.loginSuccess)),

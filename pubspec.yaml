@@ -125,6 +125,7 @@ flutter:
     - assets/builtin/
     - plugins/builtin/
     - assets/sniffer/
+    - assets/announcements.json
 
 # ===== 启动图标生成配置（源图：assets/icon/icon.png）=====
 flutter_launcher_icons:

@@ -10,6 +10,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'bangumi_client.dart';
@@ -125,15 +126,15 @@ class BangumiAuth extends ChangeNotifier {
 
   /// OAuth 2.0 授权码登录（发布形态）。
   ///
-  /// 流程：用内置浏览器（[InAppBrowser]）打开 `https://bgm.tv/oauth/authorize`
-  /// → 用户授权后 Bangumi 回跳 `nexhub://oauth/callback?code=...`，由内置浏览器
-  /// 直接截获（不再依赖外部浏览器 + 深链回调，避免返回应用时深链不触发导致界面
-  /// 一直转圈）→ 用 code 换 access_token，再走与 [saveToken] 相同的存储路径
+  /// 流程：用嵌入式 [InAppWebView] Dialog 打开 `https://bgm.tv/oauth/authorize`
+  /// → 用户授权后 Bangumi 回跳 `nexhub://oauth/callback?code=...`，由 WebView
+  /// 直接截获（对话框由应用完全掌控生命周期，不会因系统/浏览器窗口返回手势导致
+  /// 界面一直转圈）→ 用 code 换 access_token，再走与 [saveToken] 相同的存储路径
   /// （并额外存 refresh_token 与过期时间）。
   ///
   /// 前置条件：已在 [BangumiOAuthConfig] 填入 Client ID / Secret，否则抛
   /// [StateError]。用户取消授权 / 关闭浏览器返回 null 时抛 [StateError]。
-  Future<void> loginWithOAuth() async {
+  Future<void> loginWithOAuth(BuildContext context) async {
     if (!BangumiOAuthConfig.configured) {
       throw StateError('bangumi oauth not configured');
     }
@@ -148,6 +149,7 @@ class BangumiAuth extends ChangeNotifier {
     }).toString();
 
     final code = await openBangumiOAuthBrowser(
+      context: context,
       authorizeUrl: authorizeUrl,
       redirectScheme: BangumiOAuthConfig.redirectUri,
     );

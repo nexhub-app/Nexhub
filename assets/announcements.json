@@ -1,0 +1,24 @@
+[
+  {
+    "id": "v0.5.1-announce",
+    "date": "2026-08-09",
+    "title": "NexHub 0.5.1 发布",
+    "titleEn": "NexHub 0.5.1 released",
+    "body": "本次更新：软件公告与首次启动引导、Bangumi 登录改用内置浏览器、语言默认跟随系统。应用不内置任何站点，内容来自你导入的源。",
+    "bodyEn": "This update: in-app announcements and first-launch onboarding, Bangumi sign-in now uses an embedded browser, and language defaults to following the system. The app ships no built-in sites; content comes from the sources you import.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
+    "id": "welcome-2026",
+    "date": "2026-01-01",
+    "title": "欢迎使用 NexHub",
+    "titleEn": "Welcome to NexHub",
+    "body": "NexHub 是四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）。它不内置任何站点，解析能力全部来自可导入的「源」。导入社区维护的源后即可开始浏览。",
+    "bodyEn": "NexHub is an all-in-one media client (anime / manga / novel / video). It ships no built-in sites; all parsing comes from importable 'sources'. Import a community-maintained source to start browsing.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  }
+]

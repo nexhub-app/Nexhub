@@ -5648,6 +5648,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get announcementDontShowAgain => 'Don\'t show again';
 
   @override
+  String get appAnnouncement => 'App announcement';
+
+  @override
+  String get appAnnouncementGotIt => 'Got it';
+
+  @override
   String get watchedThreshold => 'Watched threshold';
 
   @override
@@ -5895,6 +5901,76 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsGroupPrivacy => 'Privacy';
+
+  @override
+  String get onboardingWelcomeTitle => 'Welcome to NexHub';
+
+  @override
+  String get onboardingWelcomeBody =>
+      'An all-in-one media client: anime, manga, novel, and video. The app ships no built-in sites; content comes from the sources you import.';
+
+  @override
+  String get onboardingSourcesTitle => 'Add your sources';
+
+  @override
+  String get onboardingSourcesBody =>
+      'Go to Source Management and import community-maintained sources to start browsing and searching.';
+
+  @override
+  String get onboardingBangumiTitle => 'Connect Bangumi';
+
+  @override
+  String get onboardingBangumiBody =>
+      'Sign in to sync your \'watching / want-to-watch\' to Bangumi and view ratings and comments on detail pages.';
+
+  @override
+  String get onboardingBangumiLogin => 'Sign in now';
+
+  @override
+  String get onboardingPrivacyTitle => 'Privacy & compliance';
+
+  @override
+  String get onboardingPrivacyBody =>
+      'Your sources, credentials, and browsing history are stored only on this device and never uploaded. The app hardcodes no secrets.';
+
+  @override
+  String get onboardingSkip => 'Skip';
+
+  @override
+  String get onboardingNext => 'Next';
+
+  @override
+  String get onboardingGetStarted => 'Get started';
+
+  @override
+  String get onboardingSettingsTitle => 'Basic settings';
+
+  @override
+  String get onboardingSettingsBody =>
+      'Choose your theme and interface language. You can change these later in Settings.';
+
+  @override
+  String get onboardingThemeLabel => 'Theme';
+
+  @override
+  String get onboardingLanguageLabel => 'Language';
+
+  @override
+  String get onboardingPermissionTitle => 'Grant permissions';
+
+  @override
+  String get onboardingPermissionBody =>
+      'To import local files, save downloads and screenshots, we recommend granting these permissions. You can also do it later in Settings.';
+
+  @override
+  String get onboardingGrantPermission => 'Grant permissions';
+
+  @override
+  String get onboardingPermissionGranted => 'Required permissions granted';
+
+  @override
+  String get onboardingPermissionNotNeeded =>
+      'No runtime permission needed on this platform';
 
   @override
   String get privacySettingsTitle => 'Privacy Settings';

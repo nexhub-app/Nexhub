@@ -102,6 +102,9 @@ class GeneralSettings {
   /// Hero 轮播背景图 URL 列表（默认二次元图，可自定本地/网络）。
   final List<String> heroImageUrls;
 
+  /// 首次启动引导是否已完成（项 9）。全新安装为 false，走完引导页后置 true。
+  final bool onboardingCompleted;
+
   const GeneralSettings({
     this.launchTab = LaunchTab.browse,
     this.dateFormat = AppDateFormat.defaultFormat,
@@ -110,6 +113,7 @@ class GeneralSettings {
     this.ageRestrictionEnabled = true,
     this.hideNotificationContent = false,
     this.heroImageUrls = kDefaultHeroImageUrls,
+    this.onboardingCompleted = false,
   });
 
   GeneralSettings copyWith({
@@ -120,6 +124,7 @@ class GeneralSettings {
     bool? ageRestrictionEnabled,
     bool? hideNotificationContent,
     List<String>? heroImageUrls,
+    bool? onboardingCompleted,
   }) =>
       GeneralSettings(
         launchTab: launchTab ?? this.launchTab,
@@ -132,6 +137,7 @@ class GeneralSettings {
         hideNotificationContent:
             hideNotificationContent ?? this.hideNotificationContent,
         heroImageUrls: heroImageUrls ?? this.heroImageUrls,
+        onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -142,6 +148,7 @@ class GeneralSettings {
         'ageRestrictionEnabled': ageRestrictionEnabled,
         'hideNotificationContent': hideNotificationContent,
         'heroImageUrls': heroImageUrls,
+        'onboardingCompleted': onboardingCompleted,
       };
 
   factory GeneralSettings.fromJson(Map<String, dynamic> json) {
@@ -175,6 +182,8 @@ class GeneralSettings {
               ?.map((e) => e.toString())
               .toList() ??
           const <String>[],
+      // 缺省（老用户升级/脏数据）回落 false：首次启动仍走引导，走完即置 true。
+      onboardingCompleted: (json['onboardingCompleted'] as bool?) ?? false,
     );
   }
 }

@@ -289,6 +289,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
   }
 
   Widget _buildBrowserScaffold(BuildContext context, AppLocalizations l10n) {
+    final bool isCompact = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       appBar: AppBar(
         titleSpacing: AppTokens.spaceSm,
@@ -298,85 +299,152 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
           onPressed: () => Navigator.of(context).pop(false),
         ),
         title: _buildAddressField(context, l10n),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            tooltip: l10n.browserBack,
-            onPressed: _canGoBack ? _goBack : null,
-          ),
-          IconButton(
-            icon: const Icon(Icons.arrow_forward),
-            tooltip: l10n.browserForward,
-            onPressed: _canGoForward ? _goForward : null,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: l10n.browserRefresh,
-            onPressed: _refresh,
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            tooltip: l10n.browserTitle,
-            onSelected: (String value) {
-              switch (value) {
-                case 'copy':
-                  _copyLink();
-                  break;
-                case 'share':
-                  _shareLink();
-                  break;
-                case 'verify':
-                  _useAsVerification();
-                  break;
-                case 'sniffer':
-                  _openSniffer();
-                  break;
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              PopupMenuItem<String>(
-                value: 'copy',
-                child: Row(
-                  children: <Widget>[
-                    const Icon(Icons.link_outlined, size: 20),
-                    const SizedBox(width: AppTokens.spaceMd),
-                    Text(l10n.browserCopyLink),
+        actions: isCompact
+            ? <Widget>[
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  tooltip: l10n.browserTitle,
+                  onSelected: (String value) {
+                    switch (value) {
+                      case 'copy':
+                        _copyLink();
+                        break;
+                      case 'share':
+                        _shareLink();
+                        break;
+                      case 'verify':
+                        _useAsVerification();
+                        break;
+                      case 'sniffer':
+                        _openSniffer();
+                        break;
+                    }
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<String>>[
+                    PopupMenuItem<String>(
+                      value: 'copy',
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.link_outlined, size: 20),
+                          const SizedBox(width: AppTokens.spaceMd),
+                          Text(l10n.browserCopyLink),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'share',
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.share_outlined, size: 20),
+                          const SizedBox(width: AppTokens.spaceMd),
+                          Text(l10n.browserShare),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'verify',
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.verified_user_outlined, size: 20),
+                          const SizedBox(width: AppTokens.spaceMd),
+                          Text(l10n.browserUseAsVerification),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'sniffer',
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.cable_outlined, size: 20),
+                          const SizedBox(width: AppTokens.spaceMd),
+                          Text(l10n.browserOpenSniffer),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              PopupMenuItem<String>(
-                value: 'share',
-                child: Row(
-                  children: <Widget>[
-                    const Icon(Icons.share_outlined, size: 20),
-                    const SizedBox(width: AppTokens.spaceMd),
-                    Text(l10n.browserShare),
+              ]
+            : <Widget>[
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  tooltip: l10n.browserBack,
+                  onPressed: _canGoBack ? _goBack : null,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward),
+                  tooltip: l10n.browserForward,
+                  onPressed: _canGoForward ? _goForward : null,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: l10n.browserRefresh,
+                  onPressed: _refresh,
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  tooltip: l10n.browserTitle,
+                  onSelected: (String value) {
+                    switch (value) {
+                      case 'copy':
+                        _copyLink();
+                        break;
+                      case 'share':
+                        _shareLink();
+                        break;
+                      case 'verify':
+                        _useAsVerification();
+                        break;
+                      case 'sniffer':
+                        _openSniffer();
+                        break;
+                    }
+                  },
+                  itemBuilder: (BuildContext context) =>
+                      <PopupMenuEntry<String>>[
+                    PopupMenuItem<String>(
+                      value: 'copy',
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.link_outlined, size: 20),
+                          const SizedBox(width: AppTokens.spaceMd),
+                          Text(l10n.browserCopyLink),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'share',
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.share_outlined, size: 20),
+                          const SizedBox(width: AppTokens.spaceMd),
+                          Text(l10n.browserShare),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'verify',
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.verified_user_outlined, size: 20),
+                          const SizedBox(width: AppTokens.spaceMd),
+                          Text(l10n.browserUseAsVerification),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'sniffer',
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.cable_outlined, size: 20),
+                          const SizedBox(width: AppTokens.spaceMd),
+                          Text(l10n.browserOpenSniffer),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              PopupMenuItem<String>(
-                value: 'verify',
-                child: Row(
-                  children: <Widget>[
-                    const Icon(Icons.verified_user_outlined, size: 20),
-                    const SizedBox(width: AppTokens.spaceMd),
-                    Text(l10n.browserUseAsVerification),
-                  ],
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'sniffer',
-                child: Row(
-                  children: <Widget>[
-                    const Icon(Icons.cable_outlined, size: 20),
-                    const SizedBox(width: AppTokens.spaceMd),
-                    Text(l10n.browserOpenSniffer),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+              ],
       ),
       body: Stack(
         children: <Widget>[
@@ -452,6 +520,71 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
             const Center(child: CircularProgressIndicator()),
         ],
       ),
+      bottomNavigationBar: isCompact
+          ? _buildBottomBar(context, l10n)
+          : null,
+    );
+  }
+
+  /// 窄屏底栏：后退 / 刷新 / 用此页完成验证 / 嗅探 / 前进。
+  /// 用纯 Container 而非 BottomAppBar，避免 SafeArea/默认 padding 干扰，高度完全由 SizedBox 决定。
+  Widget _buildBottomBar(BuildContext context, AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        border: Border(
+          top: BorderSide(color: theme.dividerColor, width: 1),
+        ),
+      ),
+      child: SizedBox(
+        height: 40,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: <Widget>[
+            IconButton(
+              icon: const Icon(Icons.arrow_back, size: 16),
+              iconSize: 16,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 20),
+              padding: EdgeInsets.zero,
+              tooltip: l10n.browserBack,
+              onPressed: _canGoBack ? _goBack : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 16),
+              iconSize: 16,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 20),
+              padding: EdgeInsets.zero,
+              tooltip: l10n.browserRefresh,
+              onPressed: _refresh,
+            ),
+            IconButton(
+              icon: const Icon(Icons.verified_user_outlined, size: 16),
+              iconSize: 16,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 20),
+              padding: EdgeInsets.zero,
+              tooltip: l10n.browserUseAsVerification,
+              onPressed: _useAsVerification,
+            ),
+            IconButton(
+              icon: const Icon(Icons.cable_outlined, size: 16),
+              iconSize: 16,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 20),
+              padding: EdgeInsets.zero,
+              tooltip: l10n.browserOpenSniffer,
+              onPressed: _openSniffer,
+            ),
+            IconButton(
+              icon: const Icon(Icons.arrow_forward, size: 16),
+              iconSize: 16,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 20),
+              padding: EdgeInsets.zero,
+              tooltip: l10n.browserForward,
+              onPressed: _canGoForward ? _goForward : null,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -464,17 +597,17 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
       textInputAction: TextInputAction.go,
       decoration: InputDecoration(
         hintText: l10n.browserAddressHint,
-        isDense: true,
-        prefixIcon: const Icon(Icons.search, size: 18),
+        prefixIcon: const Icon(Icons.search, size: 20),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTokens.radiusFull),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppTokens.spaceMd,
-          vertical: AppTokens.spaceSm,
+          vertical: AppTokens.spaceMd,
         ),
       ),
       onSubmitted: _navigate,
     );
   }
+
 }

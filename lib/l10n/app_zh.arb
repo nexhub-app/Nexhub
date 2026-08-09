@@ -2931,6 +2931,8 @@
   "mirrorAutoAdded": "已从发布页自动添加 {count} 个镜像",
   "sourceAnnouncementView": "查看详情",
   "announcementDontShowAgain": "以后再不显示",
+  "appAnnouncement": "软件公告",
+  "appAnnouncementGotIt": "知道了",
   "onlineTabWebFavorite": "网络收藏",
   "@onlineTabWebFavorite": {
     "description": "Tab label for source-site web favorites (bookshelf)"
@@ -3261,6 +3263,27 @@
   "@settingsGroupPrivacy": {
     "description": "设置主页隐私分组标题"
   },
+  "onboardingWelcomeTitle": "欢迎使用 NexHub",
+  "onboardingWelcomeBody": "四合一媒体聚合客户端：动漫、漫画、小说、影视。应用不内置任何站点，内容来自你导入的源。",
+  "onboardingSourcesTitle": "添加你的源",
+  "onboardingSourcesBody": "前往「源管理」导入社区维护的源，即可开始浏览与搜索。",
+  "onboardingBangumiTitle": "关联 Bangumi",
+  "onboardingBangumiBody": "登录后可同步「在看 / 想看」到 Bangumi，并在详情页查看评分与吐槽。",
+  "onboardingBangumiLogin": "立即登录",
+  "onboardingPrivacyTitle": "隐私与合规",
+  "onboardingPrivacyBody": "你的源、凭据与浏览记录只保存在本机，不上传任何服务器。应用不写死任何密钥。",
+  "onboardingSkip": "跳过",
+  "onboardingNext": "下一步",
+  "onboardingGetStarted": "开始使用",
+  "onboardingSettingsTitle": "基础设置",
+  "onboardingSettingsBody": "选择外观主题与界面语言，之后也能在「设置」中随时更改。",
+  "onboardingThemeLabel": "外观主题",
+  "onboardingLanguageLabel": "界面语言",
+  "onboardingPermissionTitle": "授予权限",
+  "onboardingPermissionBody": "为了正常导入本地文件、保存下载与截图，建议授予以下权限；稍后也能在「设置」中处理。",
+  "onboardingGrantPermission": "授予权限",
+  "onboardingPermissionGranted": "已授予必要权限",
+  "onboardingPermissionNotNeeded": "当前平台无需运行时权限",
   "privacySettingsTitle": "隐私设置",
   "@privacySettingsTitle": {
     "description": "隐私设置页标题"
