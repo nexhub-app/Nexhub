@@ -1,7 +1,18 @@
 [
   {
-    "id": "v0.5.1-announce",
+    "id": "v1.0.0-announce",
     "date": "2026-08-09",
+    "title": "NexHub 1.0.0 发布说明",
+    "titleEn": "NexHub 1.0.0 released",
+    "body": "作者将在3 天后对底层框架做一次较大升级；升级期间可能较长时间不发布新版本。3 天内（框架升级前）反馈的 bug 会及时修复——发现问题请尽快到 Issues 反馈。框架升级完成后将恢复正常迭代；数据格式保持兼容，可随时覆盖升级。",
+    "bodyEn": "The author will make a major upgrade to the underlying framework in 3 days; there might not be new releases for a while during the upgrade. Bugs reported within the next 3 days (before the framework upgrade) will be fixed promptly—please report any issues on Issues as soon as possible. After the framework upgrade is complete, normal iteration will resume; the data format will remain compatible, so you can overwrite the upgrade at any time.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
+    "id": "v0.5.1-announce",
+    "date": "2026-08-08",
     "title": "NexHub 0.5.1 发布",
     "titleEn": "NexHub 0.5.1 released",
     "body": "本次更新：软件公告与首次启动引导、Bangumi 登录改用内置浏览器、语言默认跟随系统。应用不内置任何站点，内容来自你导入的源。",
