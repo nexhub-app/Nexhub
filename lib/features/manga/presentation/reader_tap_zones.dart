@@ -501,7 +501,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     }
 
     // 非双击：桌面鼠标与触摸统一走双击窗口延迟派发（单击延迟 300ms 换取双击缩放，
-    // 参考 Venera 的 photo_view 桌面双击缩放行为）。期间若出现第二次点击，则被上面
+    // 双击缩放行为参考常见图片查看器的桌面交互）。期间若出现第二次点击，则被上面
     // isDouble 分支取消本次派发，从而「双击只缩放、不翻页」。
     _lastTapTime = now;
     _lastTapPos = e.localPosition;
