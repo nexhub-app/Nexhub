@@ -73,23 +73,26 @@ class UnifiedSourceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final Widget titleWidget = Row(
-      mainAxisSize: MainAxisSize.min,
+    // 标题独占一行（窄屏不再被 age/未登录 徽章挤压而截断）；徽章换行到标题下方。
+    final Widget titleWidget = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Flexible(
-          child: Text(
-            name,
-            style: isHidden ? TextStyle(color: scheme.onSurfaceVariant) : null,
-            overflow: TextOverflow.ellipsis,
-          ),
+        Text(
+          name,
+          style: isHidden ? TextStyle(color: scheme.onSurfaceVariant) : null,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
-        if (ageRating != null) ...<Widget>[
-          const SizedBox(width: AppTokens.spaceSm),
-          _ageChip(context, scheme),
-        ],
-        if (showNotLoggedIn) ...<Widget>[
-          const SizedBox(width: AppTokens.spaceSm),
-          _notLoggedInChip(context, scheme),
+        if (ageRating != null || showNotLoggedIn) ...<Widget>[
+          const SizedBox(height: AppTokens.spaceXxs),
+          Wrap(
+            spacing: AppTokens.spaceXs,
+            runSpacing: AppTokens.spaceXxs,
+            children: <Widget>[
+              if (ageRating != null) _ageChip(context, scheme),
+              if (showNotLoggedIn) _notLoggedInChip(context, scheme),
+            ],
+          ),
         ],
       ],
     );

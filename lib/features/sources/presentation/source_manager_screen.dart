@@ -32,6 +32,7 @@ import 'source_edit_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import 'library_sources_screen.dart';
+import 'collect_api_import_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 enum _SourceTab { list, library, network, local }
@@ -72,6 +73,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   String? _networkError;
   PluginConfig? _networkPreview;
   List<String> _validationErrors = <String>[];
+  final TextEditingController _collectApiUrlController =
+      TextEditingController();
 
   // 因年龄限制被拦截（未进入导入预览）的 18+ 源数量，用于提示横幅。
   int _importAgeBlockedCount = 0;
@@ -95,6 +98,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     _urlController.dispose();
     _libraryUrlController.dispose();
     _libraryNameController.dispose();
+    _collectApiUrlController.dispose();
     super.dispose();
   }
 
@@ -274,6 +278,17 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
         });
       }
     }
+  }
+
+  void _openCollectApiImport() {
+    final url = _collectApiUrlController.text.trim();
+    Navigator.of(context).push(
+      AppPageRoute<void>(
+        builder: (_) => CollectApiImportScreen(
+          initialUrl: url.isEmpty ? null : url,
+        ),
+      ),
+    );
   }
 
   void _saveNetworkSource() {
@@ -519,8 +534,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       ),
       body: _buildBody(l10n, scheme, filteredSources),
 
-      // 媒体类型的采集 API 导入 FAB；小说类型的书源导入 FAB（仅非嵌入模式）
-      floatingActionButton: widget.embedded ? null : _buildFab(l10n),
     );
   }
 
@@ -579,16 +592,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           ),
         ],
     );
-  }
-
-  // 根据 filterType 选择对应的导入入口 FAB：
-  // - animeSource/null：采集 API 导入（MacCMS）
-  // - novelSource：书源导入（@css/@xpath/@json/@js + ## 正则）
-  // 仅在「源列表」Tab 且非预览模式显示，避免遮挡网络/本地导入内容。
-  // 注意：源列表 Tab 已有「更多」菜单提供导入入口，FAB 容易挡住最后一个条目的
-  // 更多按钮（尤其桌面端/公告横幅弹出后），故此处统一隐藏 FAB（项 8）。
-  Widget? _buildFab(AppLocalizations l10n) {
-    return null;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -1047,6 +1050,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
             ),
           ),
         ),
+
       ],
     );
   }
@@ -1123,6 +1127,31 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           ),
           keyboardType: TextInputType.url,
           onSubmitted: (_) => _fetchFromUrl(),
+        ),
+
+        const SizedBox(height: AppTokens.spaceLg),
+        Text(
+          l10n.collectApiImportTitle,
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: AppTokens.spaceMd),
+        TextField(
+          controller: _collectApiUrlController,
+          decoration: InputDecoration(
+            hintText: l10n.collectApiUrlHint,
+            prefixIcon: const Icon(Icons.cloud_upload_outlined),
+            border: const OutlineInputBorder(),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.arrow_forward),
+              tooltip: l10n.collectApiImportTitle,
+              onPressed: _openCollectApiImport,
+            ),
+          ),
+          keyboardType: TextInputType.url,
+          onSubmitted: (_) => _openCollectApiImport(),
         ),
 
         // 预览区域
