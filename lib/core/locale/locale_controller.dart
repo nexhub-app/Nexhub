@@ -20,10 +20,10 @@ class LocaleController extends ChangeNotifier {
     _load();
   }
 
-  // 默认中文：应用面向中文用户，且「跟随系统」在英文区域（如英文 Windows）
-  // 会回落到英文，导致界面“未汉化”。默认中文可保证首屏即中文，
-  // 用户仍可在 设置→语言 切换为 英文 / 跟随系统。
-  LocaleOption _option = LocaleOption.chinese;
+  // 默认跟随系统：尊重用户系统语言设置。中文系统在中文首屏即中文，
+  // 英文系统回落英文。用户仍可在 设置→语言 显式切换为 中文 / 英文。
+  // 已持久化（zh/en/system）的用户不受影响，仅影响全新安装。
+  LocaleOption _option = LocaleOption.system;
 
   LocaleOption get option => _option;
 

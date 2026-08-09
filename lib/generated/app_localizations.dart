@@ -10778,6 +10778,18 @@ abstract class AppLocalizations {
   /// **'Don\'t show again'**
   String get announcementDontShowAgain;
 
+  /// No description provided for @appAnnouncement.
+  ///
+  /// In en, this message translates to:
+  /// **'App announcement'**
+  String get appAnnouncement;
+
+  /// No description provided for @appAnnouncementGotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get appAnnouncementGotIt;
+
   /// No description provided for @watchedThreshold.
   ///
   /// In en, this message translates to:
@@ -11215,6 +11227,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Privacy'**
   String get settingsGroupPrivacy;
+
+  /// No description provided for @onboardingWelcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to NexHub'**
+  String get onboardingWelcomeTitle;
+
+  /// No description provided for @onboardingWelcomeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'An all-in-one media client: anime, manga, novel, and video. The app ships no built-in sites; content comes from the sources you import.'**
+  String get onboardingWelcomeBody;
+
+  /// No description provided for @onboardingSourcesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your sources'**
+  String get onboardingSourcesTitle;
+
+  /// No description provided for @onboardingSourcesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Source Management and import community-maintained sources to start browsing and searching.'**
+  String get onboardingSourcesBody;
+
+  /// No description provided for @onboardingBangumiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Bangumi'**
+  String get onboardingBangumiTitle;
+
+  /// No description provided for @onboardingBangumiBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to sync your \'watching / want-to-watch\' to Bangumi and view ratings and comments on detail pages.'**
+  String get onboardingBangumiBody;
+
+  /// No description provided for @onboardingBangumiLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in now'**
+  String get onboardingBangumiLogin;
+
+  /// No description provided for @onboardingPrivacyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy & compliance'**
+  String get onboardingPrivacyTitle;
+
+  /// No description provided for @onboardingPrivacyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sources, credentials, and browsing history are stored only on this device and never uploaded. The app hardcodes no secrets.'**
+  String get onboardingPrivacyBody;
+
+  /// No description provided for @onboardingSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get onboardingSkip;
+
+  /// No description provided for @onboardingNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get onboardingNext;
+
+  /// No description provided for @onboardingGetStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started'**
+  String get onboardingGetStarted;
+
+  /// No description provided for @onboardingSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Basic settings'**
+  String get onboardingSettingsTitle;
+
+  /// No description provided for @onboardingSettingsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your theme and interface language. You can change these later in Settings.'**
+  String get onboardingSettingsBody;
+
+  /// No description provided for @onboardingThemeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get onboardingThemeLabel;
+
+  /// No description provided for @onboardingLanguageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get onboardingLanguageLabel;
+
+  /// No description provided for @onboardingPermissionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Grant permissions'**
+  String get onboardingPermissionTitle;
+
+  /// No description provided for @onboardingPermissionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'To import local files, save downloads and screenshots, we recommend granting these permissions. You can also do it later in Settings.'**
+  String get onboardingPermissionBody;
+
+  /// No description provided for @onboardingGrantPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Grant permissions'**
+  String get onboardingGrantPermission;
+
+  /// No description provided for @onboardingPermissionGranted.
+  ///
+  /// In en, this message translates to:
+  /// **'Required permissions granted'**
+  String get onboardingPermissionGranted;
+
+  /// No description provided for @onboardingPermissionNotNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'No runtime permission needed on this platform'**
+  String get onboardingPermissionNotNeeded;
 
   /// Privacy settings page title
   ///

@@ -5564,6 +5564,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get announcementDontShowAgain => '以后再不显示';
 
   @override
+  String get appAnnouncement => '软件公告';
+
+  @override
+  String get appAnnouncementGotIt => '知道了';
+
+  @override
   String get watchedThreshold => '已看阈值';
 
   @override
@@ -5805,6 +5811,71 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsGroupPrivacy => '隐私';
+
+  @override
+  String get onboardingWelcomeTitle => '欢迎使用 NexHub';
+
+  @override
+  String get onboardingWelcomeBody =>
+      '四合一媒体聚合客户端：动漫、漫画、小说、影视。应用不内置任何站点，内容来自你导入的源。';
+
+  @override
+  String get onboardingSourcesTitle => '添加你的源';
+
+  @override
+  String get onboardingSourcesBody => '前往「源管理」导入社区维护的源，即可开始浏览与搜索。';
+
+  @override
+  String get onboardingBangumiTitle => '关联 Bangumi';
+
+  @override
+  String get onboardingBangumiBody => '登录后可同步「在看 / 想看」到 Bangumi，并在详情页查看评分与吐槽。';
+
+  @override
+  String get onboardingBangumiLogin => '立即登录';
+
+  @override
+  String get onboardingPrivacyTitle => '隐私与合规';
+
+  @override
+  String get onboardingPrivacyBody => '你的源、凭据与浏览记录只保存在本机，不上传任何服务器。应用不写死任何密钥。';
+
+  @override
+  String get onboardingSkip => '跳过';
+
+  @override
+  String get onboardingNext => '下一步';
+
+  @override
+  String get onboardingGetStarted => '开始使用';
+
+  @override
+  String get onboardingSettingsTitle => '基础设置';
+
+  @override
+  String get onboardingSettingsBody => '选择外观主题与界面语言，之后也能在「设置」中随时更改。';
+
+  @override
+  String get onboardingThemeLabel => '外观主题';
+
+  @override
+  String get onboardingLanguageLabel => '界面语言';
+
+  @override
+  String get onboardingPermissionTitle => '授予权限';
+
+  @override
+  String get onboardingPermissionBody =>
+      '为了正常导入本地文件、保存下载与截图，建议授予以下权限；稍后也能在「设置」中处理。';
+
+  @override
+  String get onboardingGrantPermission => '授予权限';
+
+  @override
+  String get onboardingPermissionGranted => '已授予必要权限';
+
+  @override
+  String get onboardingPermissionNotNeeded => '当前平台无需运行时权限';
 
   @override
   String get privacySettingsTitle => '隐私设置';

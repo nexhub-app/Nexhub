@@ -20,7 +20,10 @@ import '../../../core/widgets/content_card.dart';
 
 /// 采集 API 导入页：识别 MacCMS 类采集接口，预览内容并生成源配置。
 class CollectApiImportScreen extends StatefulWidget {
-  const CollectApiImportScreen({super.key});
+  /// 可选的预填采集接口地址（从源管理网络导入 Tab 带入）。
+  final String? initialUrl;
+
+  const CollectApiImportScreen({super.key, this.initialUrl});
 
   @override
   State<CollectApiImportScreen> createState() => _CollectApiImportScreenState();
@@ -40,6 +43,15 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
 
   /// 采集 API 导入时设置的分级（默认全年龄）。
   SourceAgeRating _ageRating = SourceAgeRating.general;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialUrl;
+    if (initial != null && initial.isNotEmpty) {
+      _urlController.text = initial;
+    }
+  }
 
   @override
   void dispose() {

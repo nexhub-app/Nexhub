@@ -47,12 +47,10 @@ class _ImportPreviewItem {
 /// 单模块源管理面板。
 class SourceManagerPanel extends StatefulWidget {
   final SourceType filterType;
-  final VoidCallback? onImportFromCollectApi;
 
   const SourceManagerPanel({
     super.key,
     required this.filterType,
-    this.onImportFromCollectApi,
   });
 
   @override
@@ -95,8 +93,6 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
             message: l10n.sourceListEmpty,
             actionLabel: l10n.selectFolder,
             onAction: _pickLocalFolder,
-            secondaryActionLabel: l10n.collectApiImportTitle,
-            onSecondaryAction: widget.onImportFromCollectApi,
           )
         else
           ...sources.map((s) => _buildSourceTile(l10n, s)),
