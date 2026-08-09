@@ -1006,7 +1006,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   void _goNextPage() {
     // 翻页模式翻页清除缩放：下一页 1 倍居中（验收 C1）；条漫模式保持缩放——
-    // 放大后滚动浏览其他页是连续阅读的常态（参考 Mihon/Venera：条漫缩放不因翻页重置）。
+    // 放大后滚动浏览其他页是连续阅读的常态（条漫缩放不因翻页重置，符合连续滚动阅读习惯）。
     if (!_prefs.readingMode.isWebtoon) _resetZoom();
     _triggerFlash();
     if (_prefs.readingMode.isWebtoon) {
@@ -1754,7 +1754,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 左上原点坐标 → 中心原点坐标（Transform alignment:center 坐标系）。
   /// 翻页模式 item ≈ 视口，换算用半视口。
-  /// 条漫：纵向平移归零（浏览交给列表滚动，参考 Mihon/Venera 交互模型），
+  /// 条漫：纵向平移归零（浏览交给列表滚动，缩放仅以手势焦点为横向锚），
   /// 锚点 y 取 0 即不产生纵向位移，仅横向以手势 x 为锚。
   Offset _toTransformAnchor(Offset focal, Size vp) {
     if (_prefs.readingMode.isWebtoon) {
@@ -2415,11 +2415,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       ),
       ),
     );
-    // 条漫整体缩放：把 [_zoomController] 矩阵应用到【整个列表】（参考 Venera
-    // PhotoView.customChild(childSize: 视口尺寸) + SizedBox(视口) 结构）。
+    // 条漫整体缩放：把 [_zoomController] 矩阵应用到【整个列表】（缩放作用于整个
+    // 滚动列表，结构为「视口裁剪 + 缩放变换 + 显式视口尺寸 + 内部滚动」）。
     //
     // 结构：ClipRect（视口裁剪）→ Transform（缩放矩阵）→ SizedBox.expand（显式
-    // 视口尺寸，= Venera 的 childSize）→ ScrollablePositionedList（内部滚动）。
+    // 视口尺寸）→ ScrollablePositionedList（内部滚动）。
     // 列表滚动发生在视口内部：滚动把不同图片送进视口，视口整体被 Transform 放大 →
     // 滚动时看到的每一张图都是放大后的版本，可从上到下浏览全部图片。
     //
@@ -2440,8 +2440,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: _sideMarginPx),
               // 条漫图片区域黑底：相邻图片的子像素缝隙 / 加载跳变瞬间透出黑色
-              // 而非用户浅色 bg，消除「细白条」（参照 Mihon webtoon holder：图片间
-              // 缝隙背景为深色，白条不可见）。左右留白由外层 Padding 透出 bg。
+              // 而非用户浅色 bg，消除「细白条」（图片间缝隙背景统一为深色，白条不可见）。
+              // 左右留白由外层 Padding 透出 bg。
               child: Container(
                 // gap=0（默认条漫）：缝隙黑底消除白条；gap>0（带间距模式）：
                 // 间距透出用户 bg，保持设置不被改黑。
@@ -3005,8 +3005,8 @@ class _MangaPageImageState extends State<MangaPageImage> {
     // 让列表从一开始估算就准确，回上一话即可一次定位到末页。
     // 图片加载完成（[_imageLoaded]）后**移除**占位约束，按真实图高显示——
     // 这是消除空白带（割裂感）的关键：若保留 ConstrainedBox(minHeight)，当真实图高
-    // 偏小（中等长度图）时图片下方会残留 minHeight 空白（参照 Mihon webtoon holder：
-    // 加载完成后 progressContainer 隐藏，frame 按 WRAP_CONTENT 真实高度显示）。
+    // 偏小（中等长度图）时图片下方会残留 minHeight 空白（加载完成后占位约束移除，
+    // 图片按真实高度显示，不残留空白带）。
     final bool reserveWebtoonHeight =
         widget.prefs.readingMode.isWebtoon &&
         widget.prefs.initialZoom == ReaderInitialZoom.fitWidth &&

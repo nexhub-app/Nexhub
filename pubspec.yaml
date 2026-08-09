@@ -1,7 +1,7 @@
 name: nexhub
 description: 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— Material 3 设计系统基础脚手架。
 publish_to: 'none'
-version: 0.5.1+25
+version: 1.0.0+26
 repository: https://github.com/nexhub-app/nexhub
 
 environment:
@@ -103,7 +103,7 @@ dependencies:
   scrollable_positioned_list: ^0.3.8
   # 桌面端真实 OS 全屏（F11 切换 / Esc 退出），移动端仍用 SystemChrome。
   # 0.5.x 重写了 Windows 线程处理，修复 0.3.x 的 setFullScreen 阻塞死锁
-  # （参考 Venera-Next/VeneraX/Breeze 三个桌面项目均用 0.5.x 且无冻结问题）。
+  # （该版本线程处理已验证稳定，无冻结问题）。
   window_manager: ^0.5.2
 
 dev_dependencies:
