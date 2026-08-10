@@ -48,6 +48,12 @@ class ComicHomeScreen extends StatelessWidget {
       title: l10n.tabLibrary,
       emptyIcon: Icons.auto_stories,
       emptyMessage: l10n.emptyLocalComic,
+      emptyActionLabel: l10n.emptyLocalComicAction,
+      onEmptyAction: () => Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => const ImportComicScreen(),
+        ),
+      ),
       onSearch: () => Navigator.of(context).push(
         AppPageRoute<void>(
           builder: (_) => ModuleSourceSearchScreen(
@@ -78,6 +84,23 @@ class ComicHomeScreen extends StatelessWidget {
           final extra = item.extra;
           final localPath = extra == null ? null : extra['localPath'] as String?;
           final localKind = extra == null ? null : extra['localKind'] as String?;
+          if (localPath != null && localPath.isNotEmpty && localKind == 'pdf') {
+            // PDF 本地漫画：逐页渲染成图片后进入漫画阅读器看图。
+            Navigator.of(context).push(
+              AppPageRoute<void>(
+                builder: (_) => ComicReaderScreen(
+                  comicId: item.id,
+                  title: item.title,
+                  sourceId: item.sourceId ?? '',
+                  chapters: const <Episode>[],
+                  localPdfPath: localPath,
+                  restoreProgress:
+                      GeneralSettingsStore.instance.settings.rememberPosition,
+                ),
+              ),
+            );
+            return;
+          }
           if (localPath != null && localPath.isNotEmpty && localKind == 'images') {
             final lower = localPath.toLowerCase();
             if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {

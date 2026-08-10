@@ -47,6 +47,12 @@ class MediaHomeScreen extends StatelessWidget {
       libraryTabLabel: l10n.tabMediaLibrary,
       emptyIcon: Icons.movie,
       emptyMessage: l10n.emptyLocalMedia,
+      emptyActionLabel: l10n.emptyLocalMediaAction,
+      onEmptyAction: () => Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => const ImportMediaScreen(),
+        ),
+      ),
       onSearch: () => Navigator.of(context).push(
         AppPageRoute<void>(
           builder: (_) => ModuleSourceSearchScreen(

@@ -39,6 +39,7 @@ import '../../../core/widgets/detail_action_utils.dart';
 import '../../../core/widgets/web_favorite_action.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/widgets/source_image.dart';
+import '../../../core/local/pdf_util.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import 'reader_image_actions.dart';
 import 'reader_image_filter.dart';
@@ -66,6 +67,9 @@ class ComicReaderScreen extends StatefulWidget {
   /// 本地模式：传入本地 CBZ/ZIP 文件路径，阅读器内部解压取图。
   final String? localCbzPath;
 
+  /// 本地模式：传入本地 PDF 文件路径，阅读器内部逐页渲染成图片。
+  final String? localPdfPath;
+
   /// 是否用已保存的阅读进度恢复章节/页码。
   /// - true（默认）：从书架/历史「继续阅读」进入时恢复上次进度；
   /// - false：从详情页明确选择某话进入时，以 [initialChapterIndex] 为准。
@@ -86,6 +90,7 @@ class ComicReaderScreen extends StatefulWidget {
     this.initialChapterIndex = 0,
     this.localImages,
     this.localCbzPath,
+    this.localPdfPath,
     this.restoreProgress = true,
     this.detailUrl,
     this.coverUrl,
@@ -247,7 +252,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 是否为本地文件模式（Task O4.B.1）。
   bool get _isLocalMode =>
-      widget.localImages != null || widget.localCbzPath != null;
+      widget.localImages != null ||
+      widget.localCbzPath != null ||
+      widget.localPdfPath != null;
+
+  /// PDF 临时渲染缓存目录（逐页 JPEG）。退出阅读器时清理。
+  String? _pdfCacheDir;
 
   /// 桌面平台（Windows / Linux / macOS，非 Web）：启用 window_manager 真实全屏与
   /// 键盘快捷键（P0）。移动端走 SystemChrome。
@@ -348,6 +358,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       List<String> imgs;
       if (widget.localImages != null && widget.localImages!.isNotEmpty) {
         imgs = List<String>.unmodifiable(widget.localImages!);
+      } else if (widget.localPdfPath != null) {
+        // PDF：逐页渲染成图片后复用现有看图管线。
+        imgs = await extractPdfPages(widget.localPdfPath!);
+        if (imgs.isNotEmpty) _pdfCacheDir = File(imgs.first).parent.path;
       } else if (widget.localCbzPath != null) {
         imgs = await _extractCbz(widget.localCbzPath!);
       } else {
@@ -546,6 +560,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     // 退出时兜底保存偏好，确保设置退出后仍保留。
     unawaited(_store.save(widget.comicId, _prefs));
+    // 退出时清理 PDF 临时渲染缓存（逐页 JPEG），避免占用磁盘。
+    if (_pdfCacheDir != null) {
+      unawaited(
+        Future<void>(() async {
+          try {
+            await Directory(_pdfCacheDir!).delete(recursive: true);
+          } on Object {
+            // 缓存清理失败不影响退出。
+          }
+        }),
+      );
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

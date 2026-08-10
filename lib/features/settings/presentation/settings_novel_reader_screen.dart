@@ -20,6 +20,7 @@ import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../manga/presentation/reader_tap_zones.dart';
 import 'widgets/settings_widgets.dart';
+import 'widgets/settings_search_target.dart';
 
 /// 小说阅读器默认设置页面。
 class SettingsNovelReaderScreen extends StatefulWidget {
@@ -355,11 +356,13 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
         ],
       ),
       body: _loaded
-          ? ListView(
+          ? SettingsAutoScroll(
+              child: ListView(
               padding: const EdgeInsets.all(AppTokens.spaceLg),
               children: <Widget>[
                 // ── 常用设置（置顶快捷项，与阅读器内联面板对齐）──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.common'),
                   title: l10n.novelSettingsCommon,
                   expandable: false,
                   backgroundColor:
@@ -500,6 +503,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
 
                 // ── 1. 阅读基础 ──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.text'),
                   index: 0,
                   title: l10n.novelSectionText,
                   children: <Widget>[
@@ -560,6 +564,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
 
                 // ── 2. 字体样式 ──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.font'),
                   index: 1,
                   title: l10n.novelSectionFont,
                   children: <Widget>[
@@ -648,6 +653,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
 
                 // ── 3. 颜色与背景 ──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.color'),
                   index: 2,
                   title: l10n.novelSectionColor,
                   children: <Widget>[
@@ -774,6 +780,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
 
                 // ── 4. 阴影与下划线 ──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.shadowUnderline'),
                   index: 3,
                   title: l10n.novelSectionShadowUnderline,
                   children: <Widget>[
@@ -915,6 +922,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
 
                 // ── 5. 章节标题 ──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.title'),
                   index: 4,
                   title: l10n.novelSectionTitle,
                   children: <Widget>[
@@ -1069,6 +1077,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
 
                 // ── 6. 页眉页脚 ──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.headerFooter'),
                   index: 5,
                   title: l10n.novelSectionHeaderFooter,
                   children: <Widget>[
@@ -1173,6 +1182,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
 
                 // ── 7. 翻页与手势 ──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.page'),
                   index: 6,
                   title: l10n.novelSectionPage,
                   children: <Widget>[
@@ -1285,6 +1295,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
 
                 // ── 8. 底部工具栏 ──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.toolbar'),
                   index: 7,
                   title: l10n.novelSectionToolbar,
                   children: <Widget>[
@@ -1329,6 +1340,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
 
                 // ── 9. 朗读设置 ──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.tts'),
                   index: 8,
                   title: l10n.novelSectionTts,
                   children: <Widget>[
@@ -1376,6 +1388,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
 
                 // ── 10. 其他 ──
                 SettingsCard(
+                  key: const ValueKey<String>('novel.misc'),
                   index: 9,
                   title: l10n.novelSectionMisc,
                   children: <Widget>[
@@ -1438,6 +1451,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   ],
                 ),
               ],
+              ),
             )
           : const Center(child: CircularProgressIndicator()),
     );
