@@ -1847,10 +1847,10 @@ class _SettingsSearchSheetState extends State<_SettingsSearchSheet> {
                             ),
                             onTap: () {
                               final scrollKeyId = e.scrollKeyId;
-                              Navigator.of(ctx).pop();
                               if (scrollKeyId != null) {
                                 requestSettingsScroll(scrollKeyId);
                               }
+                              Navigator.of(ctx).pop();
                               Navigator.of(context).push(
                                 AppPageRoute<void>(
                                   builder: e.builder,
