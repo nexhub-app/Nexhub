@@ -1297,6 +1297,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "0.28.0"
+  saf:
+    dependency: "direct main"
+    description:
+      name: saf
+      sha256: "1c376243f5166c64b06a934384c1808a7d310ebc64b9f1afb5e267432f5dbe95"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.1.0"
   safe_local_storage:
     dependency: transitive
     description:

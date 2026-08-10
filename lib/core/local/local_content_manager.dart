@@ -95,6 +95,14 @@ LocalMediaKind? classifyByPath(String path) {
 /// 给出明确提示而非静默失败——这是「选择目录却导入不了」的深层根因。
 bool isAndroidSafUri(String path) => path.startsWith('content://');
 
+/// SAF content:// 条目的封面计算由 [saf_bridge] 注入（避免与 local_content_manager
+/// 形成循环依赖）。[computeLocalCover] 遇到 SAF URI 时转发给此函数，未注入则回退 null。
+Future<String?> Function(String, LocalMediaKind)? _safCoverResolver;
+
+void registerSafCoverResolver(Future<String?> Function(String, LocalMediaKind) fn) {
+  _safCoverResolver = fn;
+}
+
 /// 递归扫描目录，按里面真实文件的多数扩展名决定 [LocalMediaKind]。
 ///
 /// 实现 spec F2.D：不再一刀切标 images。混合目录按多数决定；空目录或全未识别
@@ -139,7 +147,7 @@ const List<String> _kComicArchiveExts = <String>[
   '.cb7',
 ];
 
-bool _isComicArchive(String lowerPath) =>
+bool isComicArchive(String lowerPath) =>
     _kComicArchiveExts.any((e) => lowerPath.endsWith(e));
 
 /// 自然排序比较器：把字符串切成「数字段 / 非数字段」交替序列，数字段按数值比较
@@ -233,6 +241,12 @@ List<String> listFolderFilesByKind(String dir, LocalMediaKind kind) {
 /// - 视频 / 文本（非 images）：无封面，返回 null。
 /// 任何异常均返回 null（封面回退占位图），不阻断导入流程。
 Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
+  // SAF content:// URI 无法用 dart:io 处理，转发给 saf_bridge 的 SAF 枚举/解析版。
+  if (isAndroidSafUri(path)) {
+    final resolver = _safCoverResolver;
+    if (resolver != null) return await resolver(path, kind);
+    return null;
+  }
   // PDF 封面：渲染首页为图片（失败回退占位）。
   if (kind == LocalMediaKind.pdf) {
     return await extractPdfCover(path);
@@ -240,7 +254,7 @@ Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
   if (kind != LocalMediaKind.images) return null;
   try {
     final lower = path.toLowerCase();
-    if (_isComicArchive(lower)) {
+    if (isComicArchive(lower)) {
       return await _extractFirstImageFromArchive(path);
     }
     final f = File(path);
@@ -260,7 +274,7 @@ Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
       final archives = dir
           .listSync()
           .whereType<File>()
-          .where((x) => _isComicArchive(x.path.toLowerCase()))
+          .where((x) => isComicArchive(x.path.toLowerCase()))
           .map((x) => x.path)
           .toList()
         ..sort();
