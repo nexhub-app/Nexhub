@@ -46,7 +46,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
         type: isAndroid ? FileType.any : FileType.custom,
         allowedExtensions: isAndroid
             ? null
-            : const <String>['cbz', 'cbr', 'cbt', 'zip', 'rar'],
+            : const <String>['cbz', 'cbr', 'cbt', 'zip', 'rar', 'pdf'],
       );
       if (result == null || !mounted) return;
       for (final f in result.files) {
@@ -57,8 +57,10 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
           );
           continue;
         }
-        // Android 走 FileType.any，需校验是否为漫画（图片）类型。
-        if (classifyByPath(f.path!) != LocalMediaKind.images) {
+        // Android 走 FileType.any，需校验是否为漫画（图片）或 PDF 类型。
+        final kind = classifyByPath(f.path!);
+        if (kind == null ||
+            (kind != LocalMediaKind.images && kind != LocalMediaKind.pdf)) {
           if (!mounted) continue;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(AppLocalizations.of(context).unrecognizedFile(f.name))),
@@ -69,7 +71,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
           id: f.path!,
           title: f.name,
           path: f.path!,
-          kind: LocalMediaKind.images,
+          kind: kind,
           addedAt: DateTime.now().millisecondsSinceEpoch,
         ));
       }

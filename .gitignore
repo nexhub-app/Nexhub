@@ -179,3 +179,10 @@ latest.json
 t2.html
 flutter_version.txt
 flutter_version_err.txt
+
+# ── 本地临时/验证/依赖（不入库）──
+node_modules/
+package.json
+package-lock.json
+_tmp_index
+task8_validate.ps1

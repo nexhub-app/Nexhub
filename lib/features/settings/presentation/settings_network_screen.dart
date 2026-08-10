@@ -20,6 +20,7 @@ import '../../../core/network/runtime/dns_resolver.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import 'widgets/settings_widgets.dart';
+import 'widgets/settings_search_target.dart';
 
 /// DoH 预设端点。
 const Map<String, String> _dohPresets = <String, String>{
@@ -285,7 +286,8 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.networkSettingsTitle)),
-      body: ListView(
+      body: SettingsAutoScroll(
+        child: ListView(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
         children: <Widget>[
           _buildInfoCard(l10n),
@@ -315,6 +317,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           ),
           const SizedBox(height: AppTokens.spaceXl),
         ],
+        ),
       ),
     );
   }
@@ -322,6 +325,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
   Widget _buildInfoCard(AppLocalizations l10n) {
     final theme = Theme.of(context);
     return SettingsCard(
+      key: const ValueKey<String>('network.info'),
       title: l10n.networkInfoTitle,
       children: <Widget>[
         Text(
@@ -346,6 +350,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
 
   Widget _buildProxyCard(AppLocalizations l10n) {
     return SettingsCard(
+      key: const ValueKey<String>('network.proxy'),
       title: l10n.networkProxyTitle,
       children: <Widget>[
         SegmentedButton<ProxyMode>(
@@ -398,6 +403,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
 
   Widget _buildDnsCard(AppLocalizations l10n) {
     return SettingsCard(
+      key: const ValueKey<String>('network.dns'),
       title: l10n.networkDnsTitle,
       children: <Widget>[
         SegmentedButton<DnsMode>(
@@ -466,6 +472,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
             orElse: () => const MapEntry('', ''))
         .key;
     return SettingsCard(
+      key: const ValueKey<String>('network.doh'),
       title: l10n.networkDohTitle,
       children: <Widget>[
         DropdownButtonFormField<String>(
@@ -492,6 +499,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
 
   Widget _buildDotCard(AppLocalizations l10n) {
     return SettingsCard(
+      key: const ValueKey<String>('network.dot'),
       title: l10n.networkDotTitle,
       children: <Widget>[
         _field(_dotHostCtrl, l10n.networkDotHost, Icons.dns_outlined),
@@ -503,6 +511,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
 
   Widget _buildHostsCard(AppLocalizations l10n) {
     return SettingsCard(
+      key: const ValueKey<String>('network.hosts'),
       title: l10n.networkHostsTitle,
       children: <Widget>[
         if (_draft.hosts.isEmpty)
@@ -612,6 +621,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
   Widget _buildSniCard(AppLocalizations l10n) {
     final theme = Theme.of(context);
     return SettingsCard(
+      key: const ValueKey<String>('network.sni'),
       title: l10n.networkSniTitle,
       children: <Widget>[
         Text(l10n.networkExperimentalNote,
@@ -633,6 +643,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
   Widget _buildEchCard(AppLocalizations l10n) {
     final theme = Theme.of(context);
     return SettingsCard(
+      key: const ValueKey<String>('network.ech'),
       title: l10n.networkEchTitle,
       children: <Widget>[
         Text(l10n.networkExperimentalNote,

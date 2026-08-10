@@ -14,6 +14,7 @@ import '../../../core/services/config_loader.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
 import 'widgets/settings_widgets.dart';
+import 'widgets/settings_search_target.dart';
 
 class SettingsPrivacyScreen extends StatefulWidget {
   const SettingsPrivacyScreen({super.key});
@@ -46,14 +47,17 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
     final l10n = AppLocalizations.of(context);
     return AppShrinkTitleScaffold(
       title: Text(l10n.privacySettingsTitle),
-      body: ListView(
+      body: SettingsAutoScroll(
+        child: ListView(
         padding: const EdgeInsets.all(AppTokens.spaceMd),
         children: <Widget>[
           SettingsCard(
+            key: const ValueKey<String>('privacy.notifications'),
             title: l10n.privacyNotificationsGroup,
             index: 0,
             children: <Widget>[
               SettingsSwitchTile(
+                key: const ValueKey<String>('privacy.hideNotification'),
                 title: l10n.hideNotificationContent,
                 subtitle: l10n.hideNotificationContentHint,
                 value: _s.hideNotificationContent,
@@ -64,10 +68,12 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
             ],
           ),
           SettingsCard(
+            key: const ValueKey<String>('privacy.network'),
             title: l10n.privacyNetworkGroup,
             index: 1,
             children: <Widget>[
               SettingsSwitchTile(
+                key: const ValueKey<String>('privacy.incognito'),
                 title: l10n.globalIncognito,
                 subtitle: l10n.globalIncognitoHint,
                 value: ConfigLoader.instance.isGlobalIncognito,
@@ -88,6 +94,7 @@ class _SettingsPrivacyScreenState extends State<SettingsPrivacyScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

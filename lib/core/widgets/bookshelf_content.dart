@@ -113,12 +113,10 @@ class BookshelfContent extends StatelessWidget {
             .where((t) => t.sourceType == sourceType)
             .map((t) => t.format.label)
             .toSet();
-        final importedKind = _kindForSourceType(sourceType);
-        if (importedKind != null) {
-          for (final e in localManager.items) {
-            if (e.kind == importedKind) {
-              categories.add(e.kind.name);
-            }
+        final importedKinds = _kindsForSourceType(sourceType);
+        for (final e in localManager.items) {
+          if (importedKinds.contains(e.kind)) {
+            categories.add(e.kind.name);
           }
         }
         final sorted = categories.toList()..sort();
@@ -205,11 +203,14 @@ class _LocalBookshelf extends StatelessWidget {
     _sortTasks(tasks, filter.sort);
 
     // 导入的本地内容（R3 修复）：按 sourceType 映射 LocalMediaKind 后过滤。
-    final importedKind = _kindForSourceType(sourceType);
-    var imported = importedKind == null
+    // 漫画源同时接受 images 与 pdf。
+    final importedKinds = _kindsForSourceType(sourceType);
+    var imported = importedKinds.isEmpty
         ? const <LocalContentEntry>[]
-        : localManager.items.where((e) => e.kind == importedKind).toList();
-    if (filter.category != null && importedKind != null) {
+        : localManager.items
+            .where((e) => importedKinds.contains(e.kind))
+            .toList();
+    if (filter.category != null && importedKinds.isNotEmpty) {
       imported = imported.where((e) => e.kind.name == filter.category).toList();
     }
     imported = imported.where((e) {
@@ -533,12 +534,14 @@ void _sortLocalEntries(List<LocalContentEntry> entries, BookshelfSort sort) {
   }
 }
 
-/// 按 [SourceType] 映射到导入内容的 [LocalMediaKind]（漫画→images，小说→text，
-/// 影视→video）。返回 null 表示该 sourceType 无对应导入类型。
-LocalMediaKind? _kindForSourceType(SourceType type) => switch (type) {
-      SourceType.mangaSource => LocalMediaKind.images,
-      SourceType.novelSource => LocalMediaKind.text,
-      SourceType.animeSource => LocalMediaKind.video,
+/// 按 [SourceType] 映射到导入内容的 [LocalMediaKind]（可能多个）。
+///
+/// 漫画源同时接受 `images`（CBZ/图片目录）与 `pdf`（PDF 漫画），小说源接受
+/// `text`，影视源接受 `video`。返回空列表表示该 sourceType 无对应导入类型。
+List<LocalMediaKind> _kindsForSourceType(SourceType type) => switch (type) {
+      SourceType.mangaSource => [LocalMediaKind.images, LocalMediaKind.pdf],
+      SourceType.novelSource => [LocalMediaKind.text],
+      SourceType.animeSource => [LocalMediaKind.video],
     };
 
 /// 按 [DownloadFormat] 映射到 [LocalMediaKind]，用于下载内容点击时透传给

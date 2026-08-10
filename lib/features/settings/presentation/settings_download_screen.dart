@@ -27,6 +27,7 @@ import '../../../core/widgets/app_list_tile.dart';
 import '../../downloads/presentation/download_list_screen.dart';
 import '../../downloads/presentation/downloaded_content_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'widgets/settings_search_target.dart';
 
 /// 下载管理主页面。
 class SettingsDownloadScreen extends StatelessWidget {
@@ -38,12 +39,14 @@ class SettingsDownloadScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.downloadManagementTitle)),
-      body: ListView(
+      body: SettingsAutoScroll(
+        child: ListView(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
         children: <Widget>[
           // ── 下载列表 ──
           _DownloadSectionHeader(label: l10n.downloadListTab),
           AppListTile(
+            key: const ValueKey<String>('download.list'),
             leading: const Icon(Icons.download),
             title: Text(l10n.downloadListTitle),
             subtitle: Text(l10n.downloads),
@@ -55,6 +58,7 @@ class SettingsDownloadScreen extends StatelessWidget {
             ),
           ),
           AppListTile(
+            key: const ValueKey<String>('download.downloaded'),
             leading: const Icon(Icons.download_done_outlined),
             title: Text(l10n.downloadedContent),
             trailing: const Icon(Icons.chevron_right),
@@ -70,35 +74,66 @@ class SettingsDownloadScreen extends StatelessWidget {
           _DownloadSectionHeader(label: l10n.downloadSettingsTitle),
 
           // 最大同时下载数
-          _MaxConcurrentSetting(),
+          KeyedSubtree(
+            key: const ValueKey<String>('download.concurrent'),
+            child: _MaxConcurrentSetting(),
+          ),
 
           // 线程数
-          _ThreadCountSetting(),
+          KeyedSubtree(
+            key: const ValueKey<String>('download.thread'),
+            child: _ThreadCountSetting(),
+          ),
 
           // 下载路径
-          _DownloadPathSetting(),
+          KeyedSubtree(
+            key: const ValueKey<String>('download.path'),
+            child: _DownloadPathSetting(),
+          ),
 
           // 下载器类型（项 12：弹窗选择）
-          _DownloaderTypeSetting(),
+          KeyedSubtree(
+            key: const ValueKey<String>('download.downloaderType'),
+            child: _DownloaderTypeSetting(),
+          ),
 
           // 仅 WiFi 下载（需求 4：开关）
-          _WifiOnlySetting(),
+          KeyedSubtree(
+            key: const ValueKey<String>('download.wifiOnly'),
+            child: _WifiOnlySetting(),
+          ),
 
           // 读后自动删除（开关）
-          _AutoDeleteSetting(),
+          KeyedSubtree(
+            key: const ValueKey<String>('download.autoDelete'),
+            child: _AutoDeleteSetting(),
+          ),
 
           // 自动删除排除分类（多选）
-          _AutoDeleteExcludeSetting(),
+          KeyedSubtree(
+            key: const ValueKey<String>('download.autoDeleteExclude'),
+            child: _AutoDeleteExcludeSetting(),
+          ),
 
           // 预下载后续剧集（0-5）
-          _PreDownloadSetting(),
+          KeyedSubtree(
+            key: const ValueKey<String>('download.preDownload'),
+            child: _PreDownloadSetting(),
+          ),
 
           // 漫画格式（项 13：弹窗选择）
-          _ComicFormatSetting(),
+          KeyedSubtree(
+            key: const ValueKey<String>('download.comicFormat'),
+            child: _ComicFormatSetting(),
+          ),
 
           // 小说格式（项 13：弹窗选择）
-          _NovelFormatSetting(),
+          KeyedSubtree(
+            key: const ValueKey<String>('download.novelFormat'),
+            child: _NovelFormatSetting(),
+          ),
         ],
+        ),
       ),
     );
   }

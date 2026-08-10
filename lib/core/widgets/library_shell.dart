@@ -173,6 +173,14 @@ class _LibraryShellState extends State<LibraryShell> {
             : null,
         actions: <Widget>[
           if (_currentTopTab == LibraryTopTab.library) ...[
+            // 本地子段始终保留导入入口（顶栏图标，避免嵌套 Scaffold 时 FAB 被底栏遮挡看不到）。
+            if (widget.onEmptyAction != null &&
+                _sub.first == LibrarySubTab.local)
+              IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: widget.emptyActionLabel ?? l10n.import,
+                onPressed: widget.onEmptyAction,
+              ),
             if (widget.historySourceType != null &&
                 _sub.first == LibrarySubTab.history)
               IconButton(
@@ -217,13 +225,19 @@ class _LibraryShellState extends State<LibraryShell> {
           ],
         ),
       ),
-      floatingActionButton: (_currentTopTab == LibraryTopTab.sources &&
-              widget.floatingActionButton != null &&
-              !(widget.fabSuppressedNotifier?.value ?? false))
-          ? widget.floatingActionButton
-          : null,
+      floatingActionButton: _buildFab(l10n),
     ),
     );
+  }
+
+  Widget? _buildFab(AppLocalizations l10n) {
+    // 仅源管理 top tab 显示 FAB（collect API 导入）；本地导入入口改由顶栏图标提供。
+    if (_currentTopTab == LibraryTopTab.sources &&
+        widget.floatingActionButton != null &&
+        !(widget.fabSuppressedNotifier?.value ?? false)) {
+      return widget.floatingActionButton;
+    }
+    return null;
   }
 
   Future<void> _confirmClearHistory() async {
