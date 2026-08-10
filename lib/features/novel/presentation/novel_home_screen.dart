@@ -102,7 +102,23 @@ class NovelHomeScreen extends StatelessWidget {
               );
               return;
             }
-            // epub/umd/mobi 等走兜底查看器。
+            if (lower.endsWith('.epub')) {
+              Navigator.of(context).push(
+                AppPageRoute<void>(
+                  builder: (_) => NovelReaderScreen(
+                    novelId: item.id,
+                    title: item.title,
+                    sourceId: item.sourceId ?? '',
+                    chapters: const <Episode>[],
+                    localEpubPath: localPath,
+                    restoreProgress:
+                        GeneralSettingsStore.instance.settings.rememberPosition,
+                  ),
+                ),
+              );
+              return;
+            }
+            // umd/mobi 等走兜底查看器。
             Navigator.of(context).push(
               AppPageRoute<void>(
                 builder: (_) => LocalMediaViewer(
