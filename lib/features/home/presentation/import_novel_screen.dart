@@ -9,6 +9,7 @@ import 'dart:io' show FileSystemException;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:nexhub/core/local/saf_bridge.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
@@ -98,18 +99,16 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
     }
     final dir = await FilePicker.platform.getDirectoryPath();
     if (dir == null || !mounted) return;
-    // Android SAF 返回 content:// tree URI，dart:io 无法列举，直接给出明确提示。
-    if (isAndroidSafUri(dir)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).folderPickUnsupportedSaf)),
-      );
-      return;
-    }
+    // Android 上 file_picker 返回 content:// SAF tree URI，由 saf_bridge 枚举/读取
+    // （C 阶段）；桌面/其它平台为真实路径，走 dart:io。
+    final saf = isAndroidSafUri(dir);
+    final folderTitle = saf ? await safFolderName(dir) : p.basename(dir);
     // 递归扫描目录，识别小说文件（修复「选择目录却导入不了」）。
     setState(() => _picking = true);
     try {
-      final files = listFolderFilesByKind(dir, LocalMediaKind.text);
+      final files = saf
+          ? await listFolderFilesByKindSaf(dir, LocalMediaKind.text)
+          : listFolderFilesByKind(dir, LocalMediaKind.text);
       if (files.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -121,7 +120,7 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
       if (files.length > 1) {
         final mode = await showFolderImportChoiceDialog(
           context,
-          folderName: p.basename(dir),
+          folderName: folderTitle,
           typeLabel: AppLocalizations.of(context).importNovelTitle,
         );
         if (!mounted) return;
@@ -129,7 +128,7 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
         if (mode == FolderImportMode.merge) {
           await context.read<LocalContentManager>().add(LocalContentEntry(
             id: dir,
-            title: p.basename(dir),
+            title: folderTitle,
             path: dir,
             kind: LocalMediaKind.text,
             addedAt: DateTime.now().millisecondsSinceEpoch,
@@ -139,7 +138,7 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(AppLocalizations.of(context)
-                    .comicDirImported(p.basename(dir))),
+                    .comicDirImported(folderTitle)),
               ),
             );
           }
@@ -150,7 +149,7 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
       for (final f in files) {
         await context.read<LocalContentManager>().add(LocalContentEntry(
           id: f,
-          title: p.basename(f),
+          title: safBaseName(f),
           path: f,
           kind: LocalMediaKind.text,
           addedAt: DateTime.now().millisecondsSinceEpoch,

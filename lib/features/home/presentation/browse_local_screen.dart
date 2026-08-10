@@ -1,4 +1,4 @@
-import 'dart:io' show File, FileSystemException;
+import 'dart:io' show File;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +11,7 @@ import '../../../core/local/import_permission.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/local/local_content_actions.dart';
+import '../../../core/local/saf_bridge.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -123,17 +124,14 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
     }
     final dir = await FilePicker.platform.getDirectoryPath();
     if (dir == null || !mounted) return;
-    // Android SAF 返回 content:// tree URI，dart:io 无法列举，直接给出明确提示。
-    if (isAndroidSafUri(dir)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).folderPickUnsupportedSaf)),
-      );
-      return;
-    }
+    // Android 上 file_picker 返回 content:// SAF tree URI，由 saf_bridge 枚举/读取
+    // （C 阶段）；桌面/其它平台为真实路径，走 dart:io。
+    final saf = isAndroidSafUri(dir);
     setState(() => _scanning = true);
     try {
-      final kind = classifyFolderByContent(dir);
+      final kind = saf
+          ? await classifyFolderByContentSaf(dir)
+          : classifyFolderByContent(dir);
       if (kind == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -141,10 +139,14 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         );
         return;
       }
-      final folderName = dir.split(RegExp(r'[/\\]')).last;
+      final folderName = saf
+          ? await safFolderName(dir)
+          : dir.split(RegExp(r'[/\\]')).last;
       // 文本文件夹：每个文件=一章，可聚合（B 阶段第 4 点）。
       if (kind == LocalMediaKind.text) {
-        final files = listFolderFilesByKind(dir, LocalMediaKind.text);
+        final files = saf
+            ? await listFolderFilesByKindSaf(dir, LocalMediaKind.text)
+            : listFolderFilesByKind(dir, LocalMediaKind.text);
         if (files.isEmpty) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -184,7 +186,9 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
       }
       // 漫画文件夹：含归档则每归档=一话（可聚合，第 5 点）；否则整部散图。
       if (kind == LocalMediaKind.images) {
-        final scanned = scanComicFolder(dir);
+        final scanned = saf
+            ? await scanComicFolderSaf(dir)
+            : scanComicFolder(dir);
         if (scanned.archives.isNotEmpty) {
           if (scanned.archives.length > 1) {
             final mode = await showFolderImportChoiceDialog(
@@ -227,7 +231,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
       // 视频 / 其它：单条导入（当前行为）。
       _addFile(_LocalFile(path: dir, name: folderName, kind: kind));
       setState(() {});
-    } on FileSystemException catch (_) {
+    } on Object catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context).folderScanFailed)),

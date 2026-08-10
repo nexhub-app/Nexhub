@@ -9,7 +9,7 @@ import 'dart:io' show Directory, File, FileSystemException;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:path/path.dart' as p;
+import 'package:nexhub/core/local/saf_bridge.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/local/import_permission.dart';
@@ -99,23 +99,20 @@ class _ImportMediaScreenState extends State<ImportMediaScreen> {
     }
     final dir = await FilePicker.platform.getDirectoryPath();
     if (dir == null || !mounted) return;
-    // Android SAF 返回 content:// tree URI，dart:io 无法列举，直接给出明确提示。
-    if (isAndroidSafUri(dir)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).folderPickUnsupportedSaf)),
-      );
-      return;
-    }
+    // Android 上 file_picker 返回 content:// SAF tree URI，由 saf_bridge 枚举/读取
+    // （C 阶段）；桌面/其它平台为真实路径，走 dart:io。
+    final saf = isAndroidSafUri(dir);
     // 递归扫描目录，按扩展名识别视频文件（修复「选择目录却导入不了」）。
     setState(() => _picking = true);
     try {
-      final dirObj = Directory(dir);
-      final files = dirObj
-          .listSync(recursive: true, followLinks: false)
-          .whereType<File>()
-          .where((f) => classifyByPath(f.path) == LocalMediaKind.video)
-          .toList();
+      final List<String> files = saf
+          ? await listFolderFilesByKindSaf(dir, LocalMediaKind.video)
+          : Directory(dir)
+              .listSync(recursive: true, followLinks: false)
+              .whereType<File>()
+              .where((f) => classifyByPath(f.path) == LocalMediaKind.video)
+              .map((f) => f.path)
+              .toList();
       if (files.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -125,9 +122,9 @@ class _ImportMediaScreenState extends State<ImportMediaScreen> {
       }
       for (final f in files) {
         await context.read<LocalContentManager>().add(LocalContentEntry(
-          id: f.path,
-          title: p.basename(f.path),
-          path: f.path,
+          id: f,
+          title: safBaseName(f),
+          path: f,
           kind: LocalMediaKind.video,
           addedAt: DateTime.now().millisecondsSinceEpoch,
         ));

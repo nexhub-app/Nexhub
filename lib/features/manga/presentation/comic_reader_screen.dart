@@ -2,14 +2,13 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:nexhub/core/local/archive_extractor.dart';
+import 'package:nexhub/core/local/saf_bridge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -22,7 +21,6 @@ import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/history/history_manager.dart';
 import '../../../core/history/media_watched_manager.dart';
-import '../../../core/local/local_content_manager.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
@@ -374,7 +372,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       // 聚合本地模式：按当前话索引取对应归档解压（PDF 走逐页渲染）。
       if (widget.localArchivePaths != null &&
           widget.localArchivePaths!.isNotEmpty) {
-        final archive = widget.localArchivePaths![_chapterIndex];
+        final archive =
+            await resolveSafUri(widget.localArchivePaths![_chapterIndex]);
         if (archive.toLowerCase().endsWith('.pdf')) {
           imgs = await extractPdfPages(archive);
           if (imgs.isNotEmpty) _pdfCacheDir = File(imgs.first).parent.path;
@@ -385,7 +384,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         imgs = List<String>.unmodifiable(widget.localImages!);
       } else if (widget.localPdfPath != null) {
         // PDF：逐页渲染成图片后复用现有看图管线。
-        imgs = await extractPdfPages(widget.localPdfPath!);
+        final local = await resolveSafUri(widget.localPdfPath!);
+        imgs = await extractPdfPages(local);
         if (imgs.isNotEmpty) _pdfCacheDir = File(imgs.first).parent.path;
       } else if (widget.localCbzPath != null) {
         imgs = await _extractCbz(widget.localCbzPath!);
@@ -422,17 +422,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 委托 [extractArchiveImages]（基于 [koni_archive]，纯 Dart 无需原生库），
   /// 使 .cbr/.rar/.7z 等原 [ZipDecoder] 无法处理的格式真正可用。保留自然排序，
   /// 保证页码顺序正确。
-  /// R3 修复：若 [path] 为 Android SAF URI（`content://`），`File(path)` 无法
-  /// 读取，抛出明确异常由上层 `_loadLocalImages` 的 catch 转为 `localFileLoadFailed`
-  /// 错误态展示给用户，而非静默吞异常导致空白页。
+  /// SAF 感知：若 [path] 为 Android content:// URI，先经 [resolveSafUri] 落到应用
+  /// 缓存再解压（C 阶段：手机端 SAF 文件夹导入）；
   Future<List<String>> _extractCbz(String path) async {
-    if (isAndroidSafUri(path)) {
-      throw FileSystemException(
-        'Android SAF URI cannot be read via dart:io File',
-        path,
-      );
-    }
-    return extractArchiveImages(path);
+    final local = await resolveSafUri(path);
+    return extractArchiveImages(local);
   }
 
   /// 刷新收藏状态（init 与切换收藏后调用）。
