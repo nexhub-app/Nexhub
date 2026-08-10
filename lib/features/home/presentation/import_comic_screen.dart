@@ -4,7 +4,7 @@
 /// 提供单文件选取和目录批量导入两种方式。
 library;
 
-import 'dart:io' show Directory, File, FileSystemException;
+import 'dart:io' show FileSystemException;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +12,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../../core/local/folder_import_dialog.dart';
 import '../../../core/local/import_permission.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/platform/platform_service.dart';
@@ -109,28 +110,88 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
       );
       return;
     }
-    // 递归校验目录内是否含图片（漫画按图片目录导入），但整目录视为「一部漫画」。
+    // 区分「散图」与「漫画归档」，决定整部散图还是多话聚合。
     setState(() => _picking = true);
     try {
-      final dirObj = Directory(dir);
-      final hasImages = dirObj
-          .listSync(recursive: true, followLinks: false)
-          .whereType<File>()
-          .any((f) => classifyByPath(f.path) == LocalMediaKind.images);
-      if (!hasImages) {
+      final scanned = scanComicFolder(dir);
+      if (scanned.archives.isEmpty && scanned.rawImages.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context).emptyFolder)),
         );
         return;
       }
-      // 整目录作为「一部漫画」导入：阅读器会按文件名顺序依次读取目录内图片。
-      final kind = classifyFolderByContent(dir) ?? LocalMediaKind.images;
+      // 含漫画归档（含 PDF）：每个归档 = 一话，可聚合为多话漫画（B 阶段第 5 点）。
+      if (scanned.archives.isNotEmpty) {
+        if (scanned.archives.length > 1) {
+          final mode = await showFolderImportChoiceDialog(
+            context,
+            folderName: p.basename(dir),
+            typeLabel: AppLocalizations.of(context).importComicTitle,
+          );
+          if (!mounted) return;
+          if (mode == null) return; // 用户取消
+          if (mode == FolderImportMode.merge) {
+            await context.read<LocalContentManager>().add(LocalContentEntry(
+              id: dir,
+              title: p.basename(dir),
+              path: dir,
+              kind: LocalMediaKind.images,
+              addedAt: DateTime.now().millisecondsSinceEpoch,
+              filePaths: scanned.archives,
+            ));
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(AppLocalizations.of(context)
+                      .comicDirImported(p.basename(dir))),
+                ),
+              );
+            }
+            return;
+          }
+          // 逐文件：每个归档一条记录。
+          for (final f in scanned.archives) {
+            await context.read<LocalContentManager>().add(LocalContentEntry(
+              id: f,
+              title: p.basename(f),
+              path: f,
+              kind: LocalMediaKind.images,
+              addedAt: DateTime.now().millisecondsSinceEpoch,
+            ));
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${scanned.archives.length} ${AppLocalizations.of(context).contentImportOpened}')),
+            );
+          }
+          return;
+        }
+        // 单个归档：直接作为聚合条目（filePaths 单元素），阅读器可正确加载。
+        await context.read<LocalContentManager>().add(LocalContentEntry(
+          id: dir,
+          title: p.basename(dir),
+          path: dir,
+          kind: LocalMediaKind.images,
+          addedAt: DateTime.now().millisecondsSinceEpoch,
+          filePaths: scanned.archives,
+        ));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)
+                  .comicDirImported(p.basename(dir))),
+            ),
+          );
+        }
+        return;
+      }
+      // 仅散图：整目录作为「一部漫画」，阅读器按文件名顺序读取目录内图片。
       await context.read<LocalContentManager>().add(LocalContentEntry(
         id: dir,
         title: p.basename(dir),
         path: dir,
-        kind: kind,
+        kind: LocalMediaKind.images,
         addedAt: DateTime.now().millisecondsSinceEpoch,
       ));
       if (mounted) {

@@ -65,6 +65,10 @@ import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 /// WebView / 书内搜索等在线专属 UI，保留翻页动画、TTS、书签笔记（用
 /// [novelId] = `'local_${file.path.hashCode}'`）。调用方需将 [novelId] 设为
 /// `'local_${file.path.hashCode}'`，[chapters] 传空列表。
+///
+/// 聚合本地模式（B 阶段）：传入 [localChapterPaths]（多文件绝对路径列表，每个文件 =
+/// 一章）时同样进入本地模式，但保留目录/上下章导航；[chapters] 为对应的合成章节列表
+/// （每文件一章），按索引读取对应文件。与单文件本地模式的区别仅在于支持多章节切换。
 class NovelReaderScreen extends StatefulWidget {
   final String novelId;
   final String title;
@@ -77,6 +81,11 @@ class NovelReaderScreen extends StatefulWidget {
 
   /// 本地模式：本地 EPUB 文件路径（经 [LocalNovelParser] 解析为章节后渲染）。
   final String? localEpubPath;
+
+  /// 本地聚合模式（B 阶段）：文件夹导入，多文件合成一整本，每个文件 = 一章。
+  /// 传文件绝对路径列表；[chapters] 为对应的合成章节（每文件一章）。
+  /// 与 [localTextPath]/[localEpubPath] 互斥，优先于单文件本地模式。
+  final List<String>? localChapterPaths;
 
   /// 详情页 URL（用于收藏时透传，避免历史/收藏详情灰屏）。
   final String? detailUrl;
@@ -98,6 +107,7 @@ class NovelReaderScreen extends StatefulWidget {
     this.initialChapterIndex = 0,
     this.localTextPath,
     this.localEpubPath,
+    this.localChapterPaths,
     this.detailUrl,
     this.coverUrl,
     this.restoreProgress = true,
@@ -227,7 +237,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   /// 是否为本地文件模式（Task O4.B.3）。
   bool get _isLocalMode =>
-      widget.localTextPath != null || widget.localEpubPath != null;
+      widget.localTextPath != null ||
+      widget.localEpubPath != null ||
+      widget.localChapterPaths != null;
+
+  /// 本地聚合模式（B 阶段）：多个文本/EPUB 文件合成一整本，每个文件 = 一章。
+  bool get _isAggregatedLocal =>
+      widget.localChapterPaths != null && widget.localChapterPaths!.isNotEmpty;
 
   ScrollController? _scrollController;
   int _currentPage = 0;
@@ -402,11 +418,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 本地模式只有单「章」（整个文件），saved.chapterIndex 恒为 0；
     // 在线模式需校验 chapterIndex 落在 chapters 范围内。
     // restoreProgress=false 时（详情页章节列表明确点选）忽略保存值。
-    if (widget.restoreProgress &&
-        saved != null &&
-        (_isLocalMode || saved.chapterIndex < widget.chapters.length)) {
-      _chapterIndex = saved.chapterIndex;
-      _savedPage = saved.currentPage;
+    if (widget.restoreProgress && saved != null) {
+      final within = _isAggregatedLocal
+          ? saved.chapterIndex < widget.chapters.length
+          : (_isLocalMode || saved.chapterIndex < widget.chapters.length);
+      if (within) {
+        _chapterIndex = saved.chapterIndex;
+        _savedPage = saved.currentPage;
+      }
     }
     _refreshFavorite();
     await _notes.init();
@@ -445,8 +464,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _stopAutoPage();
     try {
       final List<NovelBlock> blocks;
-      if (widget.localEpubPath != null) {
-        final book = await LocalNovelParser.parseEpub(widget.localEpubPath!);
+      // 聚合本地模式：按当前章节索引取对应文件；其余本地模式取固定文件。
+      String? localPath;
+      var isEpub = false;
+      if (widget.localChapterPaths != null &&
+          widget.localChapterPaths!.isNotEmpty) {
+        localPath = widget.localChapterPaths![_chapterIndex];
+        isEpub = localPath.toLowerCase().endsWith('.epub');
+      } else if (widget.localEpubPath != null) {
+        localPath = widget.localEpubPath;
+        isEpub = true;
+      } else {
+        localPath = widget.localTextPath;
+      }
+      if (localPath == null) return;
+      if (isEpub) {
+        final book = await LocalNovelParser.parseEpub(localPath);
         if (!mounted) return;
         if (book.chapters.isEmpty) {
           setState(() {
@@ -465,7 +498,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           }
         }
       } else {
-        final text = await _readTextFile(widget.localTextPath!);
+        final text = await _readTextFile(localPath);
         if (!mounted) return;
         // 按换行分Paragraphs，过滤纯空行（保留含空格的段落）。
         final paragraphs = text
@@ -1159,7 +1192,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 本地模式无 chapters，用占位 chapterId 保存进度。
     final String chapterId;
     String? chapterTitle;
-    if (_isLocalMode) {
+    if (_isLocalMode && !_isAggregatedLocal) {
       chapterId = 'local';
     } else {
       if (widget.chapters.isEmpty) return;
@@ -1171,7 +1204,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       chapterId,
       page,
       _chapterIndex,
-      totalChapters: _isLocalMode ? null : widget.chapters.length,
+      totalChapters: (!_isLocalMode || _isAggregatedLocal)
+          ? widget.chapters.length
+          : null,
     );
     // 更新收藏条目的 lastRead 时间戳（P8.1.3 §廿一 收藏切换不丢 lastRead）
     try {
@@ -1259,14 +1294,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   void _goNextChapter() {
     if (_chapterIndex < widget.chapters.length - 1) {
       _chapterIndex++;
-      _loadChapter(_chapterIndex);
+      if (_isAggregatedLocal) {
+        _loadLocalText();
+      } else {
+        _loadChapter(_chapterIndex);
+      }
     }
   }
 
   void _goPrevChapter({bool toLastPage = false}) {
     if (_chapterIndex > 0) {
       _chapterIndex--;
-      _loadChapter(_chapterIndex, restorePage: toLastPage ? -1 : 0);
+      if (_isAggregatedLocal) {
+        _loadLocalText(restorePage: toLastPage ? -1 : 0);
+      } else {
+        _loadChapter(_chapterIndex, restorePage: toLastPage ? -1 : 0);
+      }
     }
   }
 
@@ -2227,7 +2270,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final slots = _prefs.bottomToolbarSlots.take(6).where((tool) {
       if (tool == NovelBottomTool.bookmarkList) return false;
       // 本地模式无章节导航，隐藏 toc / prevChapter / nextChapter。
-      if (_isLocalMode) {
+      // 聚合本地模式（多文件合成一整本）保留章节导航。
+      if (_isLocalMode && !_isAggregatedLocal) {
         return tool != NovelBottomTool.toc &&
             tool != NovelBottomTool.prevChapter &&
             tool != NovelBottomTool.nextChapter;
@@ -2452,7 +2496,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
     if (index != null && index != _chapterIndex && mounted) {
       _chapterIndex = index;
-      _loadChapter(_chapterIndex);
+      if (_isAggregatedLocal) {
+        await _loadLocalText();
+      } else {
+        _loadChapter(_chapterIndex);
+      }
     }
   }
 
