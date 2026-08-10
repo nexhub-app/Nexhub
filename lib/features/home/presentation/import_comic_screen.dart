@@ -9,6 +9,7 @@ import 'dart:io' show FileSystemException;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:nexhub/core/local/saf_bridge.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
@@ -102,18 +103,16 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
     }
     final dir = await FilePicker.platform.getDirectoryPath();
     if (dir == null || !mounted) return;
-    // Android SAF 返回 content:// tree URI，dart:io 无法列举，直接给出明确提示。
-    if (isAndroidSafUri(dir)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).folderPickUnsupportedSaf)),
-      );
-      return;
-    }
+    // Android 上 file_picker 返回 content:// SAF tree URI，由 saf_bridge 枚举/读取
+    // （C 阶段）；桌面/其它平台为真实路径，走 dart:io。
+    final saf = isAndroidSafUri(dir);
+    final folderTitle = saf ? await safFolderName(dir) : p.basename(dir);
     // 区分「散图」与「漫画归档」，决定整部散图还是多话聚合。
     setState(() => _picking = true);
     try {
-      final scanned = scanComicFolder(dir);
+      final scanned = saf
+          ? await scanComicFolderSaf(dir)
+          : scanComicFolder(dir);
       if (scanned.archives.isEmpty && scanned.rawImages.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -126,7 +125,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
         if (scanned.archives.length > 1) {
           final mode = await showFolderImportChoiceDialog(
             context,
-            folderName: p.basename(dir),
+            folderName: folderTitle,
             typeLabel: AppLocalizations.of(context).importComicTitle,
           );
           if (!mounted) return;
@@ -134,7 +133,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
           if (mode == FolderImportMode.merge) {
             await context.read<LocalContentManager>().add(LocalContentEntry(
               id: dir,
-              title: p.basename(dir),
+              title: folderTitle,
               path: dir,
               kind: LocalMediaKind.images,
               addedAt: DateTime.now().millisecondsSinceEpoch,
@@ -144,7 +143,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(AppLocalizations.of(context)
-                      .comicDirImported(p.basename(dir))),
+                      .comicDirImported(folderTitle)),
                 ),
               );
             }
@@ -154,7 +153,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
           for (final f in scanned.archives) {
             await context.read<LocalContentManager>().add(LocalContentEntry(
               id: f,
-              title: p.basename(f),
+              title: safBaseName(f),
               path: f,
               kind: LocalMediaKind.images,
               addedAt: DateTime.now().millisecondsSinceEpoch,
@@ -170,7 +169,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
         // 单个归档：直接作为聚合条目（filePaths 单元素），阅读器可正确加载。
         await context.read<LocalContentManager>().add(LocalContentEntry(
           id: dir,
-          title: p.basename(dir),
+          title: folderTitle,
           path: dir,
           kind: LocalMediaKind.images,
           addedAt: DateTime.now().millisecondsSinceEpoch,
@@ -180,7 +179,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(AppLocalizations.of(context)
-                  .comicDirImported(p.basename(dir))),
+                  .comicDirImported(folderTitle)),
             ),
           );
         }
@@ -189,7 +188,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
       // 仅散图：整目录作为「一部漫画」，阅读器按文件名顺序读取目录内图片。
       await context.read<LocalContentManager>().add(LocalContentEntry(
         id: dir,
-        title: p.basename(dir),
+        title: folderTitle,
         path: dir,
         kind: LocalMediaKind.images,
         addedAt: DateTime.now().millisecondsSinceEpoch,
@@ -197,7 +196,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context).comicDirImported(p.basename(dir))),
+            content: Text(AppLocalizations.of(context).comicDirImported(folderTitle)),
           ),
         );
       }

@@ -6,6 +6,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:nexhub/core/local/saf_bridge.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -477,6 +478,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       } else {
         localPath = widget.localTextPath;
       }
+      // SAF 感知（C 阶段）：content:// URI 落到应用缓存再读。
+      localPath = await resolveSafUri(localPath!);
       if (localPath == null) return;
       if (isEpub) {
         final book = await LocalNovelParser.parseEpub(localPath);

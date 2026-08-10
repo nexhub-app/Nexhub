@@ -3,12 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:nexhub/core/local/archive_extractor.dart';
+import 'package:nexhub/core/local/saf_bridge.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -175,15 +174,10 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
   /// 解压漫画归档取图片路径（多格式：ZIP/CBZ、TAR/CBT、7z/CB7、RAR/CBR 含 RAR5）。
   ///
   /// 委托 [extractArchiveImages]（基于 [koni_archive]，纯 Dart 无需原生库）。
-  /// SAF URI（`content://`）由调用方拦截，此处只处理真实文件路径。
+  /// SAF 感知：content:// URI 先经 [resolveSafUri] 落缓存再解压（C 阶段）。
   Future<List<String>> _extractCbz(String path) async {
-    if (isAndroidSafUri(path)) {
-      throw FileSystemException(
-        'Android SAF URI cannot be read via dart:io File',
-        path,
-      );
-    }
-    return extractArchiveImages(path);
+    final local = await resolveSafUri(path);
+    return extractArchiveImages(local);
   }
 
   @override

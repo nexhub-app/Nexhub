@@ -57,6 +57,9 @@ dependencies:
   package_info_plus: ^8.0.0
   # 本地/文件选择（导入本地文件、源 JSON 文件）
   file_picker: ^8.0.0
+  # Android 分区存储：SAF 目录树选择 + 子文档枚举 + content:// 读字节/落盘桥接。
+  # file_picker.getDirectoryPath 在 Android 返回 content:// tree URI，本包负责列举与读取。
+  saf: ^2.1.0
   # 运行时权限申请（F2.C：本地导入前申请 READ_MEDIA_* / READ_EXTERNAL_STORAGE）
   permission_handler: ^11.3.1
   # Hive 持久化（源/收藏/进度/下载任务/danmaku 缓存）
