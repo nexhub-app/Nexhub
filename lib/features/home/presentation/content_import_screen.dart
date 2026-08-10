@@ -82,6 +82,7 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
         LocalMediaKind.video => Icons.movie_outlined,
         LocalMediaKind.images => Icons.auto_stories_outlined,
         LocalMediaKind.text => Icons.menu_book_outlined,
+        LocalMediaKind.pdf => Icons.picture_as_pdf_outlined,
       };
 
   @override

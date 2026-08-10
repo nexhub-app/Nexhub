@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io' show Directory, File, FileSystemException;
 
 import 'package:archive/archive.dart';
+import 'package:nexhub/core/local/pdf_util.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -17,7 +18,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 enum LocalMediaKind {
   video,
   images,
-  text;
+  text,
+  pdf;
 
   String get apiName => name;
 
@@ -65,6 +67,9 @@ LocalMediaKind? classifyByPath(String path) {
     '.rmvb',
   ].contains(ext)) {
     return LocalMediaKind.video;
+  }
+  if (<String>['.pdf'].contains(ext)) {
+    return LocalMediaKind.pdf;
   }
   if (<String>[
     '.jpg',
@@ -128,6 +133,10 @@ bool isImageFile(String path) =>
 /// - 视频 / 文本（非 images）：无封面，返回 null。
 /// 任何异常均返回 null（封面回退占位图），不阻断导入流程。
 Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
+  // PDF 封面：渲染首页为图片（失败回退占位）。
+  if (kind == LocalMediaKind.pdf) {
+    return await extractPdfCover(path);
+  }
   if (kind != LocalMediaKind.images) return null;
   try {
     final lower = path.toLowerCase();

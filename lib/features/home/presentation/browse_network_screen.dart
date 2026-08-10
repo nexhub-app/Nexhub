@@ -152,7 +152,10 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
   void _tapSegment(int k) => _load(_urlUpTo(k));
 
   Future<void> _openFile(_NetEntry e) async {
-    if (e.kind == null || e.kind == LocalMediaKind.text) {
+    // 纯文本 / PDF 这类无法直接流进本地看图书管线的类型，交由外部应用打开。
+    if (e.kind == null ||
+        e.kind == LocalMediaKind.text ||
+        e.kind == LocalMediaKind.pdf) {
       await _launch(e.url);
       return;
     }
@@ -187,6 +190,7 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
       LocalMediaKind.video => Icons.movie_outlined,
       LocalMediaKind.images => Icons.image_outlined,
       LocalMediaKind.text => Icons.description_outlined,
+      LocalMediaKind.pdf => Icons.picture_as_pdf_outlined,
       null => Icons.insert_drive_file_outlined,
     };
   }

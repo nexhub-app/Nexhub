@@ -11,6 +11,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../../core/settings/player_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'widgets/settings_widgets.dart';
+import 'widgets/settings_search_target.dart';
 
 /// 播放器设置页面。
 class SettingsPlayerScreen extends StatefulWidget {
@@ -132,15 +133,18 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.playerSettingsTitle)),
       body: _loaded
-          ? ListView(
+          ? SettingsAutoScroll(
+              child: ListView(
               padding: const EdgeInsets.all(AppTokens.spaceLg),
               children: <Widget>[
                 // ── 播放核心 ──
                 SettingsCard(
+                  key: const ValueKey<String>('player.core'),
                   index: 0,
                   title: l10n.playerCoreGroup,
                   children: <Widget>[
                     SettingsSegmentedTile<DecodeMode>(
+                      key: const ValueKey<String>('player.decodeMode'),
                       title: l10n.playerDefaultDecodeMode,
                       selected: <DecodeMode>{_settings.decodeMode},
                       onSelectionChanged: (s) =>
@@ -161,6 +165,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       ],
                     ),
                     SettingsSegmentedTile<AudioChannel>(
+                      key: const ValueKey<String>('player.audioChannel'),
                       title: l10n.playerDefaultAudioChannel,
                       selected: <AudioChannel>{_settings.audioChannel},
                       onSelectionChanged: (s) =>
@@ -178,6 +183,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       ],
                     ),
                     SettingsSegmentedTile<PlayerAspectRatio>(
+                      key: const ValueKey<String>('player.aspectRatio'),
                       title: l10n.playerDefaultAspectRatio,
                       selected: <PlayerAspectRatio>{_settings.aspectRatio},
                       onSelectionChanged: (s) =>
@@ -208,6 +214,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                           _update(_settings.copyWith(playbackSpeed: v)),
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('player.autoplay'),
                       title: l10n.playerDefaultAutoPlay,
                       value: _settings.autoPlayNext,
                       onChanged: (v) =>
@@ -228,6 +235,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
 
                 // ── 字幕 ──
                 SettingsCard(
+                  key: const ValueKey<String>('player.subtitle'),
                   index: 1,
                   title: l10n.playerSubtitleGroup,
                   children: <Widget>[
@@ -393,6 +401,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
 
                 // ── 截图 ──
                 SettingsCard(
+                  key: const ValueKey<String>('player.screenshot'),
                   index: 2,
                   title: l10n.playerScreenshotGroup,
                   children: <Widget>[
@@ -441,10 +450,12 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
 
                 // ── 手势与控制 ──
                 SettingsCard(
+                  key: const ValueKey<String>('player.gesture'),
                   index: 3,
                   title: l10n.playerGestureGroup,
                   children: <Widget>[
                     SettingsSegmentedTile<PlayerLockOrientation>(
+                      key: const ValueKey<String>('player.orientation'),
                       title: l10n.playerDefaultOrientation,
                       selected: <PlayerLockOrientation>{
                         _settings.lockOrientation
@@ -464,6 +475,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       ],
                     ),
                     SettingsSegmentedTile<SeekMultiplier>(
+                      key: const ValueKey<String>('player.gestureSeek'),
                       title: l10n.playerGestureSeekMultiplier,
                       selected: <SeekMultiplier>{_settings.seekMultiplier},
                       onSelectionChanged: (s) =>
@@ -481,6 +493,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       ],
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('player.longPressSpeed'),
                       title: l10n.playerLongPressSpeedUp,
                       value: _settings.longPressSpeedUp,
                       onChanged: (v) =>
@@ -500,6 +513,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                   ],
                 ),
               ],
+              ),
             )
           : const Center(child: CircularProgressIndicator()),
     );

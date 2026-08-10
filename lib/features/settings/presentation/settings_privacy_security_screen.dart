@@ -12,6 +12,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import './settings_privacy_screen.dart';
 import './settings_advanced_screen.dart';
+import './widgets/settings_search_target.dart';
 
 /// 隐私与安全汇总页：隐私设置 / 高级设置入口 + 内联清除缓存 + 年龄限制。
 class SettingsPrivacySecurityScreen extends StatelessWidget {
@@ -22,49 +23,59 @@ class SettingsPrivacySecurityScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return AppShrinkTitleScaffold(
       title: Text(l10n.settingsCatPrivacy),
-      body: Entrance(
-        offset: 10,
-        fromScale: 0.985,
-        duration: AppTokens.durBase,
-        child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
-          children: <Widget>[
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.privacy_tip_outlined),
-              title: Text(l10n.privacySettingsTitle),
-              subtitle: Text(l10n.privacySettingsDesc),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsPrivacyScreen(),
+      body: SettingsAutoScroll(
+        child: Entrance(
+          offset: 10,
+          fromScale: 0.985,
+          duration: AppTokens.durBase,
+          child: ListView(
+            padding: const EdgeInsets.all(AppTokens.spaceLg),
+            children: <Widget>[
+              AppListTile(
+                key: const ValueKey<String>('privacy.settings'),
+                leading:
+                    const SettingsLeadingIcon(icon: Icons.privacy_tip_outlined),
+                title: Text(l10n.privacySettingsTitle),
+                subtitle: Text(l10n.privacySettingsDesc),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    builder: (_) => const SettingsPrivacyScreen(),
+                  ),
                 ),
               ),
-            ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.tune),
-              title: Text(l10n.advancedSettingsTitle),
-              subtitle: Text(l10n.advancedSettingsDesc),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsAdvancedScreen(),
+              AppListTile(
+                key: const ValueKey<String>('privacy.advanced'),
+                leading: const SettingsLeadingIcon(icon: Icons.tune),
+                title: Text(l10n.advancedSettingsTitle),
+                subtitle: Text(l10n.advancedSettingsDesc),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    builder: (_) => const SettingsAdvancedScreen(),
+                  ),
                 ),
               ),
-            ),
-            const _AgeRestrictionSection(),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.cleaning_services_outlined),
-              title: Text(l10n.clearCache),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                HttpFetcher.instance.clearCookies();
-                PaintingBinding.instance.imageCache.clear();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.cacheCleared)),
-                );
-              },
-            ),
-          ],
+              KeyedSubtree(
+                key: const ValueKey<String>('privacy.ageRestriction'),
+                child: const _AgeRestrictionSection(),
+              ),
+              AppListTile(
+                key: const ValueKey<String>('privacy.clearCache'),
+                leading: const SettingsLeadingIcon(
+                    icon: Icons.cleaning_services_outlined),
+                title: Text(l10n.clearCache),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  HttpFetcher.instance.clearCookies();
+                  PaintingBinding.instance.imageCache.clear();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l10n.cacheCleared)),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

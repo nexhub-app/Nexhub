@@ -18,6 +18,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
 import 'crash_log_screen.dart';
 import 'widgets/settings_widgets.dart';
+import 'widgets/settings_search_target.dart';
 
 /// 内置 UA 预设：与 [HttpFetcher] 指纹档案 / 旧默认头保持一致。
 class _UaPreset {
@@ -214,21 +215,25 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
         : _s.defaultUserAgent;
     return AppShrinkTitleScaffold(
       title: Text(l10n.advancedSettingsTitle),
-      body: ListView(
+      body: SettingsAutoScroll(
+        child: ListView(
         padding: const EdgeInsets.all(AppTokens.spaceMd),
         children: <Widget>[
           // ── 日志 ──
           SettingsCard(
+            key: const ValueKey<String>('advanced.log'),
             title: l10n.advancedLogGroup,
             index: 0,
             children: <Widget>[
               SettingsSwitchTile(
+                key: const ValueKey<String>('advanced.detailedLogging'),
                 title: l10n.detailedLogging,
                 subtitle: l10n.detailedLoggingHint,
                 value: _s.detailedLogging,
                 onChanged: _setDetailedLogging,
               ),
               ListTile(
+                key: const ValueKey<String>('advanced.crashLog'),
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
                   Icons.bug_report_outlined,
@@ -247,10 +252,12 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
           ),
           // ── 数据清理 ──
           SettingsCard(
+            key: const ValueKey<String>('advanced.clean'),
             title: l10n.advancedCleanGroup,
             index: 1,
             children: <Widget>[
               ListTile(
+                key: const ValueKey<String>('advanced.clearCookies'),
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
                   Icons.cookie_outlined,
@@ -262,6 +269,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                 onTap: () => _clearCookies(context, l10n),
               ),
               ListTile(
+                key: const ValueKey<String>('advanced.clearWebview'),
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
                   Icons.cleaning_services_outlined,
@@ -276,10 +284,12 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
           ),
           // ── 请求指纹 ──
           SettingsCard(
+            key: const ValueKey<String>('advanced.request'),
             title: l10n.advancedRequestGroup,
             index: 2,
             children: <Widget>[
               ListTile(
+                key: const ValueKey<String>('advanced.userAgent'),
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
                   Icons.person_pin_circle_outlined,
@@ -306,6 +316,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

@@ -16,6 +16,7 @@ import '../../../core/danmaku/danmaku_settings.dart';
 import '../../../core/danmaku/danmaku_settings_store.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'widgets/settings_widgets.dart';
+import 'widgets/settings_search_target.dart';
 
 /// 弹幕显示设置页面（Scaffold 全页）。
 class SettingsDanmakuDisplayScreen extends StatefulWidget {
@@ -85,7 +86,8 @@ class _SettingsDanmakuDisplayScreenState
     return Scaffold(
       appBar: AppBar(title: Text(l10n.danmakuDisplaySettingsTitle)),
       body: _loaded
-          ? ListView(
+          ? SettingsAutoScroll(
+              child: ListView(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppTokens.spaceLg,
                 vertical: AppTokens.spaceSm,
@@ -93,6 +95,7 @@ class _SettingsDanmakuDisplayScreenState
               children: <Widget>[
                 // ── 过滤与屏蔽 ──
                 SettingsCard(
+                  key: const ValueKey<String>('danmaku.filter'),
                   index: 0,
                   title: l10n.danmakuDisplayGroupFilter,
                   children: <Widget>[
@@ -134,6 +137,7 @@ class _SettingsDanmakuDisplayScreenState
                 // 现统一使用下方 12-28 滑块（更细自定义）。
                 // 模型与 enum `DanmakuFontSize` 字段保留，旧 JSON 仍可被 fromJson 解析。
                 SettingsCard(
+                  key: const ValueKey<String>('danmaku.appearance'),
                   index: 1,
                   title: l10n.danmakuDisplayGroupAppearance,
                   children: <Widget>[
@@ -168,6 +172,7 @@ class _SettingsDanmakuDisplayScreenState
                 // 现移除以上 3 个分段按钮，仅保留生效滑块。
                 // 模型与对应 enum 字段保留，旧 JSON 仍可被 fromJson 解析（向后兼容）。
                 SettingsCard(
+                  key: const ValueKey<String>('danmaku.display'),
                   index: 2,
                   title: l10n.danmakuDisplayGroupDisplay,
                   children: <Widget>[
@@ -207,6 +212,7 @@ class _SettingsDanmakuDisplayScreenState
                   ],
                 ),
               ],
+              ),
             )
           : const Center(child: CircularProgressIndicator()),
     );

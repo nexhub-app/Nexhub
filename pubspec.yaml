@@ -44,6 +44,8 @@ dependencies:
   shared_preferences: ^2.2.2
   # CBZ / EPUB 打包（下载管理器，纯 Dart ZIP 实现）
   archive: ^3.6.1
+  # PDF 漫画解析：把 PDF 每页渲染成图片供漫画阅读器复用（本地文件，Android/iOS/桌面）
+  pdfx: ^2.9.2
   # 下载基路径（平台文档目录）
   path_provider: ^2.1.3
   # 在系统浏览器中打开 URL（验证流程 / 外部链接）

@@ -43,13 +43,20 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
 
   List<_LocalFile> get _filtered {
     if (_filter == _LocalFilter.all) return _files;
-    final target = switch (_filter) {
-      _LocalFilter.novel => LocalMediaKind.text,
-      _LocalFilter.comic => LocalMediaKind.images,
-      _LocalFilter.video => LocalMediaKind.video,
-      _LocalFilter.all => LocalMediaKind.text,
-    };
-    return _files.where((f) => f.kind == target).toList();
+    return _files.where((f) {
+      switch (_filter) {
+        case _LocalFilter.novel:
+          return f.kind == LocalMediaKind.text;
+        case _LocalFilter.comic:
+          // 漫画分类同时包含图片集与 PDF（PDF 走漫画阅读器渲染看图）。
+          return f.kind == LocalMediaKind.images ||
+              f.kind == LocalMediaKind.pdf;
+        case _LocalFilter.video:
+          return f.kind == LocalMediaKind.video;
+        case _LocalFilter.all:
+          return true;
+      }
+    }).toList();
   }
 
   Future<void> _pickFiles() async {
@@ -206,6 +213,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         LocalMediaKind.video => Icons.movie_outlined,
         LocalMediaKind.images => Icons.auto_stories_outlined,
         LocalMediaKind.text => Icons.menu_book_outlined,
+        LocalMediaKind.pdf => Icons.picture_as_pdf_outlined,
       };
 
   /// 按 [file.kind] 与扩展名分流到专用阅读器或兜底 [LocalMediaViewer]（Task O4.B.4）。
@@ -218,6 +226,22 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
   void _openFile(_LocalFile file) {
     final lower = file.path.toLowerCase();
     switch (file.kind) {
+      case LocalMediaKind.pdf:
+        // PDF：逐页渲染成图片后进入漫画阅读器看图。
+        Navigator.of(context).push(
+          AppPageRoute<void>(
+            builder: (_) => ComicReaderScreen(
+              comicId: 'local_${file.path.hashCode}',
+              title: file.name,
+              sourceId: '',
+              chapters: const <Episode>[],
+              localPdfPath: file.path,
+              restoreProgress:
+                  GeneralSettingsStore.instance.settings.rememberPosition,
+            ),
+          ),
+        );
+        return;
       case LocalMediaKind.images:
         // 仅 .cbz/.zip 走专用阅读器（可解压）；.cbr/.rar/单图/目录走兜底。
         if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {

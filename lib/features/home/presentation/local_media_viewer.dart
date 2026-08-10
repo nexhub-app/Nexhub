@@ -101,6 +101,9 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
           }
           _text = await _readTextFile(widget.uri);
           break;
+        case LocalMediaKind.pdf:
+          // PDF 由漫画阅读器处理，此处不承接（仅作兜底，避免穷尽性报错）。
+          break;
       }
       if (mounted) setState(() => _loading = false);
     } catch (e) {
@@ -287,6 +290,9 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
             style: Theme.of(context).textTheme.bodyLarge,
           ),
         );
+      case LocalMediaKind.pdf:
+        // PDF 不走通用查看器（由漫画阅读器渲染看图），此处仅兜底提示。
+        return AppErrorState(message: l10n.unsupportedFormat);
     }
   }
 }

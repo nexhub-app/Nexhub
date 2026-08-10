@@ -48,6 +48,12 @@ class NovelHomeScreen extends StatelessWidget {
       title: l10n.tabLibrary,
       emptyIcon: Icons.menu_book,
       emptyMessage: l10n.emptyLocalNovel,
+      emptyActionLabel: l10n.emptyLocalNovelAction,
+      onEmptyAction: () => Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => const ImportNovelScreen(),
+        ),
+      ),
       onSearch: () => Navigator.of(context).push(
         AppPageRoute<void>(
           builder: (_) => ModuleSourceSearchScreen(

@@ -11,12 +11,33 @@ import 'package:provider/provider.dart';
 import 'package:nexhub/core/download/download_manager.dart';
 import 'package:nexhub/core/download/download_task.dart';
 import 'package:nexhub/core/local/local_content_manager.dart';
+import 'package:nexhub/core/models/episode.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'package:nexhub/core/settings/general_settings.dart';
 import 'package:nexhub/features/home/presentation/local_media_viewer.dart';
+import 'package:nexhub/features/manga/presentation/comic_reader_screen.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
-/// 打开本地导入内容到 [LocalMediaViewer]。
+/// 打开本地导入内容。
+///
+/// PDF 走漫画阅读器（逐页渲染成图片后看图）；其余类型走通用 [LocalMediaViewer]。
 void openLocalEntry(BuildContext context, LocalContentEntry e) {
+  if (e.kind == LocalMediaKind.pdf) {
+    Navigator.of(context).push(
+      AppPageRoute<void>(
+        builder: (_) => ComicReaderScreen(
+          comicId: e.id,
+          title: e.title,
+          sourceId: '',
+          chapters: const <Episode>[],
+          localPdfPath: e.path,
+          restoreProgress:
+              GeneralSettingsStore.instance.settings.rememberPosition,
+        ),
+      ),
+    );
+    return;
+  }
   Navigator.of(context).push(
     AppPageRoute<void>(
       builder: (_) => LocalMediaViewer(

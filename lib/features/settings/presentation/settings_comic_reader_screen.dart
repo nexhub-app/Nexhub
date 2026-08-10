@@ -14,6 +14,7 @@ import '../../../core/widgets/app_alert_dialog.dart';
 import '../../manga/presentation/reader_image_filter.dart';
 import '../../manga/presentation/reader_tap_zones.dart';
 import 'widgets/settings_widgets.dart';
+import 'widgets/settings_search_target.dart';
 
 /// 漫画阅读器默认设置页面。
 class SettingsComicReaderScreen extends StatefulWidget {
@@ -159,11 +160,13 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
         ],
       ),
       body: _loaded
-          ? ListView(
+          ? SettingsAutoScroll(
+              child: ListView(
               padding: const EdgeInsets.all(AppTokens.spaceLg),
               children: <Widget>[
                 // ── 常用设置（置顶快捷项，与阅读器内联面板对齐）──
                 SettingsCard(
+                  key: const ValueKey<String>('comic.common'),
                   title: l10n.readerCommonSettings,
                   index: 0,
                   expandable: false,
@@ -253,6 +256,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
 
                 // ── 翻页与点击 ──
                 SettingsCard(
+                  key: const ValueKey<String>('comic.tapPage'),
                   title: l10n.comicSectionTapPage,
                   description: l10n.readerGroupPageTapDesc,
                   index: 1,
@@ -402,6 +406,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
 
                 // ── 画面与滤镜（复用 ReaderImageFilterPanel）──
                 SettingsCard(
+                  key: const ValueKey<String>('comic.visualFilter'),
                   title: l10n.comicSectionVisualFilter,
                   description: l10n.readerGroupViewFilterDesc,
                   index: 2,
@@ -516,6 +521,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
 
                 // ── 闪屏效果 ──
                 SettingsCard(
+                  key: const ValueKey<String>('comic.flash'),
                   title: l10n.comicSectionFlash,
                   description: l10n.readerGroupFlashDesc,
                   index: 4,
@@ -573,6 +579,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                 // ── 鼠标滚轮（仅桌面平台）──
                 if (_showMouseWheel)
                   SettingsCard(
+                    key: const ValueKey<String>('comic.mouseWheel'),
                     title: l10n.comicSectionMouseWheel,
                     description: l10n.readerGroupMouseWheelDesc,
                     index: 5,
@@ -622,6 +629,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     ],
                   ),
               ],
+              ),
             )
           : const Center(child: CircularProgressIndicator()),
     );
