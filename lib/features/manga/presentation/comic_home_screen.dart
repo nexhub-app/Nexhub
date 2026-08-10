@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/settings/general_settings.dart';
 import '../../../core/local/local_content_manager.dart';
+import '../../../core/local/local_content_actions.dart';
 import '../../../core/models/bookshelf_filter.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
@@ -84,6 +85,22 @@ class ComicHomeScreen extends StatelessWidget {
           final extra = item.extra;
           final localPath = extra == null ? null : extra['localPath'] as String?;
           final localKind = extra == null ? null : extra['localKind'] as String?;
+          final filePaths =
+              extra == null ? null : extra['filePaths'] as List<String>?;
+          // B 阶段：聚合文件夹（多文件=多话），复用统一路由进入阅读器（目录/上下话可用）。
+          if (filePaths != null && filePaths.isNotEmpty) {
+            final kind = parseLocalMediaKind(localKind);
+            if (kind != null) {
+              openLocalAggregatedEntry(
+                context,
+                id: item.id,
+                title: item.title,
+                kind: kind,
+                filePaths: filePaths,
+              );
+              return;
+            }
+          }
           if (localPath != null && localPath.isNotEmpty && localKind == 'pdf') {
             // PDF 本地漫画：逐页渲染成图片后进入漫画阅读器看图。
             Navigator.of(context).push(

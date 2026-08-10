@@ -8,6 +8,7 @@ import 'dart:async' show unawaited;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:nexhub/core/download/download_manager.dart';
 import 'package:nexhub/core/download/download_task.dart';
@@ -38,26 +39,83 @@ List<String> gatherLocalComicImages(String path) {
   return const <String>[];
 }
 
+/// 由聚合文件夹的子文件列表构造合成章节列表（每文件 = 一章/一话）。
+///
+/// 标题取文件名（去扩展名），id 用文件路径，url 留空（本地），
+/// number 为 1-based。供本地聚合条目（`LocalContentEntry.filePaths` /
+/// 浏览本地聚合文件）传给阅读器，复用其在线章节导航（目录/上下章）。
+List<Episode> buildLocalChapterList(List<String> paths) {
+  final List<Episode> chapters = <Episode>[];
+  for (int i = 0; i < paths.length; i++) {
+    final path = paths[i];
+    final title = p.basenameWithoutExtension(path);
+    chapters.add(Episode(
+      id: path,
+      title: title.isEmpty ? path : title,
+      url: '',
+      number: i + 1,
+    ));
+  }
+  return chapters;
+}
+
 /// 打开本地导入内容。
 ///
 /// 路由规则（与浏览本地 [BrowseLocalScreen._openFile] 保持一致）：
 /// - PDF → 漫画阅读器（逐页渲染成图）。
-/// - 漫画图片（文件夹散图 / 单图 / .cbz/.zip）→ 漫画阅读器；.cbr/.rar 等不支持
-///   格式走通用 [LocalMediaViewer]。
+/// - 漫画图片（文件夹散图 / 单图 / .cbz/.cbr/.cbt/.zip/.rar/.7z/.cb7）→ 漫画阅读器
+///   （多格式解压，[extractArchiveImages] 支持 RAR 系与 7z）；目录走 [LocalMediaViewer]。
 /// - 小说 .txt → 小说阅读器；.epub → 小说阅读器（解析章节）；其余文本格式走通用查看器。
 /// - 其它 → 通用 [LocalMediaViewer]。
 void openLocalEntry(BuildContext context, LocalContentEntry e) {
   final bool remember = GeneralSettingsStore.instance.settings.rememberPosition;
+  // 聚合文件夹：每个文件=一章/一话，传合成章节列表给阅读器（B 阶段）。
+  if (e.filePaths != null && e.filePaths!.isNotEmpty) {
+    final chapters = buildLocalChapterList(e.filePaths!);
+    if (e.kind == LocalMediaKind.text) {
+      Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => NovelReaderScreen(
+            novelId: e.id,
+            title: e.title,
+            sourceId: '',
+            chapters: chapters,
+            localChapterPaths: e.filePaths,
+            restoreProgress: remember,
+          ),
+        ),
+      );
+      return;
+    }
+    if (e.kind == LocalMediaKind.images) {
+      _pushComicReader(
+        context,
+        e,
+        remember,
+        localArchivePaths: e.filePaths,
+        chapters: chapters,
+      );
+      return;
+    }
+  }
   if (e.kind == LocalMediaKind.pdf) {
     _pushComicReader(context, e, remember, localPdfPath: e.path);
     return;
   }
   if (e.kind == LocalMediaKind.images) {
     final lower = e.path.toLowerCase();
-    if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {
+    // 漫画归档（cbz/cbr/cbt/zip/rar/7z/cb7）全部交给阅读器多格式解压，不再把
+    // .cbr/.rar 当「不支持」甩给兜底查看器。
+    if (const <String>[
+      '.cbz',
+      '.cbr',
+      '.cbt',
+      '.zip',
+      '.rar',
+      '.7z',
+      '.cb7',
+    ].any((ext) => lower.endsWith(ext))) {
       _pushComicReader(context, e, remember, localCbzPath: e.path);
-    } else if (lower.endsWith('.cbr') || lower.endsWith('.rar')) {
-      _pushLocalMediaViewer(context, e);
     } else {
       final imgs = gatherLocalComicImages(e.path);
       if (imgs.isNotEmpty) {
@@ -104,6 +162,72 @@ void openLocalEntry(BuildContext context, LocalContentEntry e) {
   _pushLocalMediaViewer(context, e);
 }
 
+/// 将书架透传的 kind 名（[LocalMediaKind.name]）解析回枚举；无效返回 null。
+LocalMediaKind? parseLocalMediaKind(String? name) {
+  if (name == null) return null;
+  for (final k in LocalMediaKind.values) {
+    if (k.name == name) return k;
+  }
+  return null;
+}
+
+/// 打开聚合本地条目（B 阶段：文件夹导入，多文件 = 多章/多话）。
+///
+/// 供首页各模块书架 onItemTap 复用，避免在每个 home 屏重复路由。
+void openLocalAggregatedEntry(
+  BuildContext context, {
+  required String id,
+  required String title,
+  required LocalMediaKind kind,
+  required List<String> filePaths,
+}) {
+  final remember = GeneralSettingsStore.instance.settings.rememberPosition;
+  final chapters = buildLocalChapterList(filePaths);
+  if (kind == LocalMediaKind.text) {
+    Navigator.of(context).push(
+      AppPageRoute<void>(
+        builder: (_) => NovelReaderScreen(
+          novelId: id,
+          title: title,
+          sourceId: '',
+          chapters: chapters,
+          localChapterPaths: filePaths,
+          restoreProgress: remember,
+        ),
+      ),
+    );
+    return;
+  }
+  if (kind == LocalMediaKind.images || kind == LocalMediaKind.pdf) {
+    _pushComicReader(
+      context,
+      LocalContentEntry(
+        id: id,
+        title: title,
+        path: filePaths.first,
+        kind: kind,
+        addedAt: DateTime.now().millisecondsSinceEpoch,
+        filePaths: filePaths,
+      ),
+      remember,
+      localArchivePaths: filePaths,
+      chapters: chapters,
+    );
+    return;
+  }
+  _pushLocalMediaViewer(
+    context,
+    LocalContentEntry(
+      id: id,
+      title: title,
+      path: filePaths.first,
+      kind: kind,
+      addedAt: DateTime.now().millisecondsSinceEpoch,
+      filePaths: filePaths,
+    ),
+  );
+}
+
 void _pushComicReader(
   BuildContext context,
   LocalContentEntry e,
@@ -111,6 +235,8 @@ void _pushComicReader(
   List<String>? localImages,
   String? localCbzPath,
   String? localPdfPath,
+  List<String>? localArchivePaths,
+  List<Episode> chapters = const <Episode>[],
 }) {
   Navigator.of(context).push(
     AppPageRoute<void>(
@@ -118,10 +244,11 @@ void _pushComicReader(
         comicId: e.id,
         title: e.title,
         sourceId: '',
-        chapters: const <Episode>[],
+        chapters: chapters,
         localImages: localImages,
         localCbzPath: localCbzPath,
         localPdfPath: localPdfPath,
+        localArchivePaths: localArchivePaths,
         restoreProgress: remember,
       ),
     ),

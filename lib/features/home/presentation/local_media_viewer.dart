@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:archive/archive.dart';
+import 'package:nexhub/core/local/archive_extractor.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
@@ -144,11 +144,16 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
 
   Future<List<String>> _gatherLocalImages(String path) async {
     final lower = path.toLowerCase();
-    if (lower.endsWith('.cbr') || lower.endsWith('.rar')) {
-      _unsupportedFormat = _UnsupportedFormat.rar;
-      return const <String>[];
-    }
-    if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {
+    // 漫画归档（cbz/cbr/cbt/zip/rar/7z/cb7）全部走多格式解压，不再标记 RAR 不支持。
+    if (const <String>[
+      '.cbz',
+      '.cbr',
+      '.cbt',
+      '.zip',
+      '.rar',
+      '.7z',
+      '.cb7',
+    ].any((e) => lower.endsWith(e))) {
       return _extractCbz(path);
     }
     final f = File(path);
@@ -167,24 +172,18 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
     return const <String>[];
   }
 
+  /// 解压漫画归档取图片路径（多格式：ZIP/CBZ、TAR/CBT、7z/CB7、RAR/CBR 含 RAR5）。
+  ///
+  /// 委托 [extractArchiveImages]（基于 [koni_archive]，纯 Dart 无需原生库）。
+  /// SAF URI（`content://`）由调用方拦截，此处只处理真实文件路径。
   Future<List<String>> _extractCbz(String path) async {
-    final bytes = await File(path).readAsBytes();
-    final archive = ZipDecoder().decodeBytes(bytes);
-    final tempDir = await getTemporaryDirectory();
-    final out = <String>[];
-    for (final file in archive) {
-      if (file.isFile && isImageFile(file.name)) {
-        final content = file.content;
-        if (content == null) continue;
-        final target = File(
-          p.join(tempDir.path, '${file.name.hashCode}_${p.basename(file.name)}'),
-        );
-        await target.writeAsBytes(content as List<int>);
-        out.add(target.path);
-      }
+    if (isAndroidSafUri(path)) {
+      throw FileSystemException(
+        'Android SAF URI cannot be read via dart:io File',
+        path,
+      );
     }
-    out.sort();
-    return out;
+    return extractArchiveImages(path);
   }
 
   @override
