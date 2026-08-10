@@ -1,6 +1,6 @@
 **[简体中文](./README.md)** | [English](./README.en.md)
 
-> 该项目正处于初期开发阶段，欢迎通过 Pull Request / issues 贡献代码和想法
+> 项目持续迭代中，欢迎通过 Pull Request / issues 贡献代码和想法
 
 # NexHub
 

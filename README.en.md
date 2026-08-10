@@ -1,6 +1,6 @@
 **English** | [简体中文](./README.md)
 
-> This project is in early development. Contributions and ideas are welcome via Pull Requests / issues.
+> The project is under continuous development. Contributions and ideas are welcome via Pull Requests / issues.
 
 # NexHub
 

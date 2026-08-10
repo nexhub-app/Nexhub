@@ -1,11 +1,22 @@
 [
   {
+    "id": "v1.1.0-announce",
+    "date": "2026-08-10",
+    "title": "NexHub 1.1.0 发布说明",
+    "titleEn": "NexHub 1.1.0 released",
+    "body": "本次更新：新增本地内容导入体系——小说支持 TXT / EPUB，漫画支持 PDF / CBR / RAR / 7Z 等归档与整文件夹导入（Android 支持 SAF 文件夹）；设置搜索升级为 226 项全覆盖、直达具体设置项。无破坏性数据变更，旧数据与源 JSON 无需重新导入，可直接覆盖升级。",
+    "bodyEn": "This update adds a full local content import pipeline: novels in TXT / EPUB, manga from PDF, CBR, RAR, 7Z archives or whole folders (Android SAF supported), plus a settings search that covers all 226 entries and jumps straight to the exact setting. No breaking data changes — your data and source JSON need no re-import; just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v1.0.0-announce",
     "date": "2026-08-09",
     "title": "NexHub 1.0.0 发布说明",
     "titleEn": "NexHub 1.0.0 released",
-    "body": "作者将在3 天后对底层框架做一次较大升级；升级期间可能较长时间不发布新版本。3 天内（框架升级前）反馈的 bug 会及时修复——发现问题请尽快到 Issues 反馈。框架升级完成后将恢复正常迭代；数据格式保持兼容，可随时覆盖升级。",
-    "bodyEn": "The author will make a major upgrade to the underlying framework in 3 days; there might not be new releases for a while during the upgrade. Bugs reported within the next 3 days (before the framework upgrade) will be fixed promptly—please report any issues on Issues as soon as possible. After the framework upgrade is complete, normal iteration will resume; the data format will remain compatible, so you can overwrite the upgrade at any time.",
+    "body": "本次更新：首次启动 6 步新手引导、软件公告系统、Bangumi OAuth 登录重写修复（授权返回不再卡死转圈）。基础功能已完成，数据格式保持兼容，可放心升级。应用不内置任何站点，内容来自你导入的源。",
+    "bodyEn": "This update: a 6-step onboarding guide, an in-app announcement system, and a rewritten Bangumi OAuth login (no more stuck spinner on return). Core features are complete and data stays compatible — safe to upgrade. The app ships no built-in sites; content comes from the sources you import.",
     "url": "",
     "urlText": "",
     "urlTextEn": ""
