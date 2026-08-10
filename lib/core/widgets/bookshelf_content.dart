@@ -279,6 +279,7 @@ class _LocalBookshelf extends StatelessWidget {
             extra: <String, dynamic>{
               'localPath': e.path,
               'localKind': e.kind.name,
+              'filePaths': e.filePaths,
             },
           )),
           // 长按弹出「打开 / 重命名 / 删除」操作菜单（与导入历史列表一致）。

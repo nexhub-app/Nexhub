@@ -3228,6 +3228,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Folder selection is not supported on this system (Android SAF). Please use \"Select File\" to add files one by one';
 
   @override
+  String folderImportChoiceTitle(Object name) {
+    return 'Import folder \"$name\"';
+  }
+
+  @override
+  String folderImportChoiceHint(Object type) {
+    return 'Multiple $type files detected. Merge to treat the whole folder as one work (each file = a chapter/volume), or import each file separately.';
+  }
+
+  @override
+  String get folderImportChoiceMerge => 'Merge into one work';
+
+  @override
+  String get folderImportChoicePerFile => 'Import files separately';
+
+  @override
   String get setAsShelfCover => 'Set as shelf cover';
 
   @override

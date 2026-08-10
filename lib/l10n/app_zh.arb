@@ -1662,6 +1662,22 @@
   "@folderPickUnsupportedSaf": {
     "description": "Snackbar shown when folder picker returns an Android SAF content URI that dart:io cannot list"
   },
+  "folderImportChoiceTitle": "导入文件夹「{name}」",
+  "@folderImportChoiceTitle": {
+    "description": "Title of the folder-import choice dialog"
+  },
+  "folderImportChoiceHint": "检测到多个{type}文件。合并后整个文件夹作为一部作品，内部每个文件是一章/一话；或每个文件单独导入。",
+  "@folderImportChoiceHint": {
+    "description": "Hint text explaining folder-import merge vs per-file"
+  },
+  "folderImportChoiceMerge": "合并为整本/整部",
+  "@folderImportChoiceMerge": {
+    "description": "Button: merge folder files into one work"
+  },
+  "folderImportChoicePerFile": "逐文件分别导入",
+  "@folderImportChoicePerFile": {
+    "description": "Button: import each file separately"
+  },
   "setAsShelfCover": "设为书架封面",
   "@setAsShelfCover": {
     "description": "Popup menu item to set current comic cover as shelf cover"

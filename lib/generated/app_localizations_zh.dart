@@ -3180,6 +3180,22 @@ class AppLocalizationsZh extends AppLocalizations {
       '当前系统不支持选择文件夹导入（Android SAF 限制），请改用「选择文件」逐个添加';
 
   @override
+  String folderImportChoiceTitle(Object name) {
+    return '导入文件夹「$name」';
+  }
+
+  @override
+  String folderImportChoiceHint(Object type) {
+    return '检测到多个$type文件。合并后整个文件夹作为一部作品，内部每个文件是一章/一话；或每个文件单独导入。';
+  }
+
+  @override
+  String get folderImportChoiceMerge => '合并为整本/整部';
+
+  @override
+  String get folderImportChoicePerFile => '逐文件分别导入';
+
+  @override
   String get setAsShelfCover => '设为书架封面';
 
   @override

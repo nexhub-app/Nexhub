@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/settings/general_settings.dart';
 import '../../../core/local/local_content_manager.dart';
+import '../../../core/local/local_content_actions.dart';
 import '../../../core/models/bookshelf_filter.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
@@ -84,6 +85,22 @@ class NovelHomeScreen extends StatelessWidget {
           final extra = item.extra;
           final localPath = extra == null ? null : extra['localPath'] as String?;
           final localKind = extra == null ? null : extra['localKind'] as String?;
+          final filePaths =
+              extra == null ? null : extra['filePaths'] as List<String>?;
+          // B 阶段：聚合文件夹（多文件=多章），复用统一路由进入阅读器（目录/上下章可用）。
+          if (filePaths != null && filePaths.isNotEmpty) {
+            final kind = parseLocalMediaKind(localKind);
+            if (kind != null) {
+              openLocalAggregatedEntry(
+                context,
+                id: item.id,
+                title: item.title,
+                kind: kind,
+                filePaths: filePaths,
+              );
+              return;
+            }
+          }
           if (localPath != null && localPath.isNotEmpty && localKind == 'text') {
             final lower = localPath.toLowerCase();
             if (lower.endsWith('.txt')) {

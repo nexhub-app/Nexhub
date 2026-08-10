@@ -44,6 +44,9 @@ dependencies:
   shared_preferences: ^2.2.2
   # CBZ / EPUB 打包（下载管理器，纯 Dart ZIP 实现）
   archive: ^3.6.1
+  # 多格式漫画归档解压（B 阶段扩展）：纯 Dart，支持 ZIP/CBZ、TAR/CBT、7z/CB7、
+  # RAR/CBR（含 RAR5），无需原生库，桌面+安卓通用。覆盖 .cbr/.rar/.7z 等。
+  koni_archive: ^0.9.0
   # PDF 漫画解析：把 PDF 每页渲染成图片供漫画阅读器复用（本地文件，Android/iOS/桌面）
   pdfx: ^2.9.2
   # 下载基路径（平台文档目录）

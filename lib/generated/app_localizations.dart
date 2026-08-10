@@ -6230,6 +6230,30 @@ abstract class AppLocalizations {
   /// **'Folder selection is not supported on this system (Android SAF). Please use \"Select File\" to add files one by one'**
   String get folderPickUnsupportedSaf;
 
+  /// Title of the folder-import choice dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Import folder \"{name}\"'**
+  String folderImportChoiceTitle(Object name);
+
+  /// Hint text explaining folder-import merge vs per-file
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple {type} files detected. Merge to treat the whole folder as one work (each file = a chapter/volume), or import each file separately.'**
+  String folderImportChoiceHint(Object type);
+
+  /// Button: merge folder files into one work
+  ///
+  /// In en, this message translates to:
+  /// **'Merge into one work'**
+  String get folderImportChoiceMerge;
+
+  /// Button: import each file separately
+  ///
+  /// In en, this message translates to:
+  /// **'Import files separately'**
+  String get folderImportChoicePerFile;
+
   /// Popup menu item to set current comic cover as shelf cover
   ///
   /// In en, this message translates to:

@@ -4,7 +4,7 @@
 /// 提供单文件选取和目录批量导入两种方式。
 library;
 
-import 'dart:io' show Directory, File, FileSystemException;
+import 'dart:io' show FileSystemException;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +12,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../../core/local/folder_import_dialog.dart';
 import '../../../core/local/import_permission.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/platform/platform_service.dart';
@@ -105,15 +106,10 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
       );
       return;
     }
-    // 递归扫描目录，按扩展名识别小说文件（修复「选择目录却导入不了」）。
+    // 递归扫描目录，识别小说文件（修复「选择目录却导入不了」）。
     setState(() => _picking = true);
     try {
-      final dirObj = Directory(dir);
-      final files = dirObj
-          .listSync(recursive: true, followLinks: false)
-          .whereType<File>()
-          .where((f) => classifyByPath(f.path) == LocalMediaKind.text)
-          .toList();
+      final files = listFolderFilesByKind(dir, LocalMediaKind.text);
       if (files.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -121,11 +117,41 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
         );
         return;
       }
+      // 多个文件时询问「合并为整本」还是「逐文件导入」（B 阶段第 4 点）。
+      if (files.length > 1) {
+        final mode = await showFolderImportChoiceDialog(
+          context,
+          folderName: p.basename(dir),
+          typeLabel: AppLocalizations.of(context).importNovelTitle,
+        );
+        if (!mounted) return;
+        if (mode == null) return; // 用户取消
+        if (mode == FolderImportMode.merge) {
+          await context.read<LocalContentManager>().add(LocalContentEntry(
+            id: dir,
+            title: p.basename(dir),
+            path: dir,
+            kind: LocalMediaKind.text,
+            addedAt: DateTime.now().millisecondsSinceEpoch,
+            filePaths: files,
+          ));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(AppLocalizations.of(context)
+                    .comicDirImported(p.basename(dir))),
+              ),
+            );
+          }
+          return;
+        }
+        // 逐文件：每个文件一条记录（下方循环）。
+      }
       for (final f in files) {
         await context.read<LocalContentManager>().add(LocalContentEntry(
-          id: f.path,
-          title: p.basename(f.path),
-          path: f.path,
+          id: f,
+          title: p.basename(f),
+          path: f,
           kind: LocalMediaKind.text,
           addedAt: DateTime.now().millisecondsSinceEpoch,
         ));

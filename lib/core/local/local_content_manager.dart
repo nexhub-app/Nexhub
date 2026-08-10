@@ -7,7 +7,7 @@ library;
 import 'dart:convert';
 import 'dart:io' show Directory, File, FileSystemException;
 
-import 'package:archive/archive.dart';
+import 'package:nexhub/core/local/archive_extractor.dart';
 import 'package:nexhub/core/local/pdf_util.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:path/path.dart' as p;
@@ -34,7 +34,7 @@ enum LocalMediaKind {
 
 /// 按扩展名识别本地文件媒体类型（目录交给 [classifyFolderByContent]）。
 ///
-/// 白名单覆盖 spec F2.A 并扩展示例常见格式：漫画 cbz/cbr/cbt/zip/rar、
+/// 白名单覆盖 spec F2.A 并扩展示例常见格式：漫画 cbz/cbr/cbt/zip/rar/7z/cb7、
 /// 小说 txt/epub/umd/mobi/fb2/md/azw3、视频 mp4/mkv/mov/webm/avi/flv/m4v/ts/
 /// wmv/mpg/mpeg/rmvb、图片 jpg/jpeg/png/webp/gif/bmp。扩展名匹配大小写不敏感。
 LocalMediaKind? classifyByPath(String path) {
@@ -49,6 +49,8 @@ LocalMediaKind? classifyByPath(String path) {
     '.cbt',
     '.zip',
     '.rar',
+    '.7z',
+    '.cb7',
   ].contains(ext)) {
     return LocalMediaKind.images;
   }
@@ -123,6 +125,104 @@ LocalMediaKind? classifyFolderByContent(String dirPath) {
 bool isImageFile(String path) =>
     classifyByPath(path) == LocalMediaKind.images;
 
+/// 漫画归档扩展名（进入阅读器 / 取封面首图）：ZIP/CBZ、TAR/CBT、7z/CB7、RAR/CBR。
+///
+/// 覆盖 .cbr/.rar/.7z 等原 [archive] 包 [ZipDecoder] 不支持的格式；这些格式现由
+/// [extractArchiveImages]（基于 [koni_archive] 纯 Dart）解压。
+const List<String> _kComicArchiveExts = <String>[
+  '.cbz',
+  '.cbr',
+  '.cbt',
+  '.zip',
+  '.rar',
+  '.7z',
+  '.cb7',
+];
+
+bool _isComicArchive(String lowerPath) =>
+    _kComicArchiveExts.any((e) => lowerPath.endsWith(e));
+
+/// 自然排序比较器：把字符串切成「数字段 / 非数字段」交替序列，数字段按数值比较
+/// （"第2章" < "第10章"），非数字段按字典序。用于文件夹聚合时维持
+/// 章节 / 话的文件顺序，避免纯字典序把 10 排到 2 前面。
+int naturalCompare(String a, String b) {
+  final List<String> ap = _splitNatural(a);
+  final List<String> bp = _splitNatural(b);
+  final int n = ap.length < bp.length ? ap.length : bp.length;
+  for (int i = 0; i < n; i++) {
+    final int? ax = int.tryParse(ap[i]);
+    final int? bx = int.tryParse(bp[i]);
+    final int c;
+    if (ax != null && bx != null) {
+      c = ax.compareTo(bx);
+    } else {
+      c = ap[i].compareTo(bp[i]);
+    }
+    if (c != 0) return c;
+  }
+  return ap.length.compareTo(bp.length);
+}
+
+List<String> _splitNatural(String s) {
+  final List<String> parts = <String>[];
+  final re = RegExp(r'(\d+|\D+)');
+  for (final m in re.allMatches(s)) {
+    parts.add(m.group(0)!);
+  }
+  return parts;
+}
+
+/// 递归扫描文件夹，收集指定媒体类型的真实文件路径，并按 [naturalCompare] 排序。
+///
+/// 目录不可读（如 Android SAF URI，`dart:io` 无法列举）会抛 [FileSystemException]，
+/// 由调用方走 l10n 提示。桌面端真实路径可正常枚举；手机端文件夹聚合随下载那一期
+/// （SAF 目录列举）一起支持。
+List<String> listFolderFilesByKind(String dir, LocalMediaKind kind) {
+  final dirObj = Directory(dir);
+  final List<String> files = dirObj
+      .listSync(recursive: true, followLinks: false)
+      .whereType<File>()
+      .where((f) => classifyByPath(f.path) == kind)
+      .map((f) => f.path)
+      .toList();
+  files.sort(naturalCompare);
+  return files;
+}
+
+/// 扫描漫画文件夹，区分「散图」与「漫画归档（含 PDF）」，分别自然排序返回。
+///
+/// - 散图（jpg/png/webp/gif/bmp）：整部漫画的一页页，导入为单条（路径=文件夹）。
+/// - 归档（cbz/cbr/cbt/zip/rar/7z/cb7/pdf）：每个文件 = 一话，导入为聚合条目
+///   （[LocalContentEntry.filePaths]），对应 B 阶段第 5 点。
+/// 目录不可读抛 [FileSystemException]，由调用方走 l10n 提示。
+({List<String> rawImages, List<String> archives}) scanComicFolder(String dir) {
+  final dirObj = Directory(dir);
+  final List<String> raw = <String>[];
+  final List<String> arch = <String>[];
+  for (final entity in dirObj.listSync(recursive: true, followLinks: false)) {
+    if (entity is! File) continue;
+    final ext = p.extension(entity.path).toLowerCase();
+    if (<String>['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp']
+        .contains(ext)) {
+      raw.add(entity.path);
+    } else if (<String>[
+          '.cbz',
+          '.cbr',
+          '.cbt',
+          '.zip',
+          '.rar',
+          '.7z',
+          '.cb7',
+          '.pdf',
+        ].contains(ext)) {
+      arch.add(entity.path);
+    }
+  }
+  raw.sort(naturalCompare);
+  arch.sort(naturalCompare);
+  return (rawImages: raw, archives: arch);
+}
+
 /// 计算本地内容的封面路径：取「第一张图片」作为封面（用户建议）。
 ///
 /// - 单图文件：直接返回其路径。
@@ -140,7 +240,7 @@ Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
   if (kind != LocalMediaKind.images) return null;
   try {
     final lower = path.toLowerCase();
-    if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {
+    if (_isComicArchive(lower)) {
       return await _extractFirstImageFromArchive(path);
     }
     final f = File(path);
@@ -156,14 +256,11 @@ Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
           .toList()
         ..sort();
       if (loose.isNotEmpty) return loose.first;
-      // 否则取目录内第一个 cbz/zip，解压其首图作为封面。
+      // 否则取目录内第一个漫画归档，解压其首图作为封面（多格式）。
       final archives = dir
           .listSync()
           .whereType<File>()
-          .where((x) {
-            final l = x.path.toLowerCase();
-            return l.endsWith('.cbz') || l.endsWith('.zip');
-          })
+          .where((x) => _isComicArchive(x.path.toLowerCase()))
           .map((x) => x.path)
           .toList()
         ..sort();
@@ -177,25 +274,24 @@ Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
   return null;
 }
 
-/// 仅解压压缩包内排序第一张图片到 `local_covers/` 缓存目录，返回其路径。
+/// 仅解压漫画归档内自然排序第一张图片到 `local_covers/` 缓存目录，返回其路径。
+///
+/// 委托 [extractFirstArchiveImage]（基于 [koni_archive]，纯 Dart 支持
+/// ZIP/CBZ、TAR/CBT、7z/CB7、RAR/CBR 含 RAR5），使 .cbr/.rar/.7z 的封面也能
+/// 正常生成。任何异常返回 null（封面回退占位图），不阻断导入流程。
 Future<String?> _extractFirstImageFromArchive(String path) async {
-  final bytes = await File(path).readAsBytes();
-  final archive = ZipDecoder().decodeBytes(bytes);
-  final images = archive
-      .where((fl) => fl.isFile && isImageFile(fl.name))
-      .toList()
-    ..sort((a, b) => a.name.compareTo(b.name));
-  if (images.isEmpty) return null;
-  final first = images.first;
-  final content = first.content;
-  if (content == null) return null;
-  final dir = await getApplicationDocumentsDirectory();
-  final coverDir = Directory(p.join(dir.path, 'local_covers'));
-  await coverDir.create(recursive: true);
-  final ext = p.extension(first.name).isEmpty ? '.jpg' : p.extension(first.name);
-  final target = File(p.join(coverDir.path, '${path.hashCode}_cover$ext'));
-  await target.writeAsBytes(content as List<int>);
-  return target.path;
+  try {
+    final tmp = await extractFirstArchiveImage(path);
+    final dir = await getApplicationDocumentsDirectory();
+    final coverDir = Directory(p.join(dir.path, 'local_covers'));
+    await coverDir.create(recursive: true);
+    final ext = p.extension(tmp).isEmpty ? '.jpg' : p.extension(tmp);
+    final target = File(p.join(coverDir.path, '${path.hashCode}_cover$ext'));
+    await File(tmp).copy(target.path);
+    return target.path;
+  } on Object {
+    return null;
+  }
 }
 
 /// 单条本地导入记录。
@@ -210,6 +306,13 @@ class LocalContentEntry {
   /// 无封面（视频/文本/无图）为 null，由 UI 回退占位图。
   final String? coverUrl;
 
+  /// 聚合文件夹导入时的子文件列表（按文件名字自然排序）。
+  ///
+  /// 非空表示此条目是「一本书 / 一部漫画」：文件夹内每个文件 = 一章 / 一话，
+  /// 阅读器据此展示目录并可点选跳转。单文件导入或散图文件夹导入为 null
+  /// （散图文件夹由阅读器实时扫描目录内图片，无需预存列表）。
+  final List<String>? filePaths;
+
   const LocalContentEntry({
     required this.id,
     required this.title,
@@ -217,6 +320,7 @@ class LocalContentEntry {
     required this.kind,
     required this.addedAt,
     this.coverUrl,
+    this.filePaths,
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -226,6 +330,7 @@ class LocalContentEntry {
         'kind': kind.apiName,
         'addedAt': addedAt,
         'coverUrl': coverUrl,
+        'filePaths': filePaths,
       };
 
   factory LocalContentEntry.fromJson(Map<String, dynamic> json) => LocalContentEntry(
@@ -235,6 +340,9 @@ class LocalContentEntry {
         kind: LocalMediaKind.parse(json['kind'] as String?) ?? LocalMediaKind.text,
         addedAt: json['addedAt'] as int? ?? 0,
         coverUrl: json['coverUrl'] as String?,
+        filePaths: (json['filePaths'] as List?)
+            ?.map((e) => e as String)
+            .toList(),
       );
 
   /// 浅拷贝并覆盖部分字段（用于重命名等）。
@@ -245,6 +353,7 @@ class LocalContentEntry {
     LocalMediaKind? kind,
     int? addedAt,
     String? coverUrl,
+    List<String>? filePaths,
   }) =>
       LocalContentEntry(
         id: id ?? this.id,
@@ -253,6 +362,7 @@ class LocalContentEntry {
         kind: kind ?? this.kind,
         addedAt: addedAt ?? this.addedAt,
         coverUrl: coverUrl ?? this.coverUrl,
+        filePaths: filePaths ?? this.filePaths,
       );
 }
 

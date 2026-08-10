@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 
-import 'package:archive/archive.dart';
+import 'package:nexhub/core/local/archive_extractor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -54,6 +54,10 @@ import 'reader_tap_zones.dart';
 /// 跳过在线源解析，直接渲染本地图片。本地模式下隐藏章节列表 / WebView / 分享等
 /// 在线专属 UI，保留书签、进度、点击区域、图像滤镜。调用方需将 [comicId] 设为
 /// `'local_${file.path.hashCode}'` 以隔离本地与在线进度。
+///
+/// 聚合本地模式（B 阶段）：传入 [localArchivePaths]（多归档文件列表，每个文件 =
+/// 一话）时进入本地模式但保留章节列表/上下话导航；阅读器按 [chapterIndex] 解压对应
+/// 归档取图。与单文件本地模式区别仅在于支持多话切换。
 class ComicReaderScreen extends StatefulWidget {
   final String comicId;
   final String title;
@@ -69,6 +73,11 @@ class ComicReaderScreen extends StatefulWidget {
 
   /// 本地模式：传入本地 PDF 文件路径，阅读器内部逐页渲染成图片。
   final String? localPdfPath;
+
+  /// 本地聚合模式（B 阶段）：文件夹导入，多归档文件合成一整部，每个文件 = 一话。
+  /// 传归档文件绝对路径列表（cbz/zip/pdf）；[chapters] 为对应合成章节（每文件一话）。
+  /// 阅读器按 [chapterIndex] 解压对应归档取图。与 [localImages]/[localCbzPath] 互斥。
+  final List<String>? localArchivePaths;
 
   /// 是否用已保存的阅读进度恢复章节/页码。
   /// - true（默认）：从书架/历史「继续阅读」进入时恢复上次进度；
@@ -91,6 +100,7 @@ class ComicReaderScreen extends StatefulWidget {
     this.localImages,
     this.localCbzPath,
     this.localPdfPath,
+    this.localArchivePaths,
     this.restoreProgress = true,
     this.detailUrl,
     this.coverUrl,
@@ -254,7 +264,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   bool get _isLocalMode =>
       widget.localImages != null ||
       widget.localCbzPath != null ||
-      widget.localPdfPath != null;
+      widget.localPdfPath != null ||
+      widget.localArchivePaths != null;
+
+  /// 本地聚合模式（B 阶段）：多归档文件合成一整部，每个文件 = 一话。
+  bool get _isAggregatedLocal =>
+      widget.localArchivePaths != null && widget.localArchivePaths!.isNotEmpty;
 
   /// PDF 临时渲染缓存目录（逐页 JPEG）。退出阅读器时清理。
   String? _pdfCacheDir;
@@ -356,7 +371,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (mounted) setState(() => _loading = true);
     try {
       List<String> imgs;
-      if (widget.localImages != null && widget.localImages!.isNotEmpty) {
+      // 聚合本地模式：按当前话索引取对应归档解压（PDF 走逐页渲染）。
+      if (widget.localArchivePaths != null &&
+          widget.localArchivePaths!.isNotEmpty) {
+        final archive = widget.localArchivePaths![_chapterIndex];
+        if (archive.toLowerCase().endsWith('.pdf')) {
+          imgs = await extractPdfPages(archive);
+          if (imgs.isNotEmpty) _pdfCacheDir = File(imgs.first).parent.path;
+        } else {
+          imgs = await _extractCbz(archive);
+        }
+      } else if (widget.localImages != null && widget.localImages!.isNotEmpty) {
         imgs = List<String>.unmodifiable(widget.localImages!);
       } else if (widget.localPdfPath != null) {
         // PDF：逐页渲染成图片后复用现有看图管线。
@@ -392,8 +417,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 解压 CBZ/ZIP 文件取图片路径（参考 local_media_viewer._extractCbz）。
+  /// 解压漫画归档取图片路径（多格式：ZIP/CBZ、TAR/CBT、7z/CB7、RAR/CBR 含 RAR5）。
   ///
+  /// 委托 [extractArchiveImages]（基于 [koni_archive]，纯 Dart 无需原生库），
+  /// 使 .cbr/.rar/.7z 等原 [ZipDecoder] 无法处理的格式真正可用。保留自然排序，
+  /// 保证页码顺序正确。
   /// R3 修复：若 [path] 为 Android SAF URI（`content://`），`File(path)` 无法
   /// 读取，抛出明确异常由上层 `_loadLocalImages` 的 catch 转为 `localFileLoadFailed`
   /// 错误态展示给用户，而非静默吞异常导致空白页。
@@ -404,23 +432,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         path,
       );
     }
-    final bytes = await File(path).readAsBytes();
-    final archive = ZipDecoder().decodeBytes(bytes);
-    final tempDir = await getTemporaryDirectory();
-    final out = <String>[];
-    for (final file in archive) {
-      if (file.isFile && isImageFile(file.name)) {
-        final content = file.content;
-        if (content == null) continue;
-        final target = File(
-          p.join(tempDir.path, '${file.name.hashCode}_${p.basename(file.name)}'),
-        );
-        await target.writeAsBytes(content as List<int>);
-        out.add(target.path);
-      }
-    }
-    out.sort();
-    return out;
+    return extractArchiveImages(path);
   }
 
   /// 刷新收藏状态（init 与切换收藏后调用）。
@@ -1195,7 +1207,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       final next = _chapterIndex + 1;
       _triggerChapterTransition(widget.chapters[next].title);
       _chapterIndex = next;
-      _loadChapter(_chapterIndex);
+      if (_isAggregatedLocal) {
+        _loadLocalImages();
+      } else {
+        _loadChapter(_chapterIndex);
+      }
       return;
     }
     // 已无下一话：给出提示而不是静默无响应，否则用户会误以为按钮失灵。
@@ -1208,7 +1224,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _triggerChapterTransition(widget.chapters[prev].title);
       _chapterIndex = prev;
       // 回到上一话的【最后一页】，保证「首页翻上一张」连贯。
-      _loadChapter(_chapterIndex, restoreToLast: true);
+      if (_isAggregatedLocal) {
+        _loadLocalImages(restorePage: -1);
+      } else {
+        _loadChapter(_chapterIndex, restoreToLast: true);
+      }
       return;
     }
     _showBoundaryHint(AppLocalizations.of(context).readerFirstChapterReached);
@@ -2542,8 +2562,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               tooltip: l10n.readerSettings,
               onPressed: _openSettings,
             ),
-            // 章节列表按钮：本地模式无章节概念，隐藏。
-            if (!_isLocalMode)
+            // 章节列表按钮：本地单文件模式无章节概念，隐藏；聚合本地模式保留。
+            if (!_isLocalMode || _isAggregatedLocal)
               IconButton(
                 icon: const Icon(Icons.toc),
                 tooltip: l10n.chapterList,
@@ -2555,7 +2575,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   );
                   if (index != null && index != _chapterIndex && mounted) {
                     _chapterIndex = index;
-                    _loadChapter(_chapterIndex);
+                    if (_isAggregatedLocal) {
+                      _loadLocalImages();
+                    } else {
+                      _loadChapter(_chapterIndex);
+                    }
                   }
                 },
               ),
