@@ -8,6 +8,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../../../core/local/import_permission.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/local/local_content_manager.dart';
+import '../../../core/local/local_content_actions.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -221,8 +222,8 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
   /// - 漫画 .cbz/.zip → [ComicReaderScreen]（本地模式，解压取图）
   /// - 漫画 .cbr/.rar / 单图 / 目录 → [LocalMediaViewer]（O4.A 已处理不支持提示）
   /// - 视频 → [VideoPlayerScreen]（本地模式，直接打开）
-  /// - 小说 .txt → [NovelReaderScreen]（本地模式，读取文本）
-  /// - 小说 .epub/.umd/.mobi/.fb2/.azw3 → [LocalMediaViewer]（O4.A 已处理不支持提示）
+  /// - 小说 .txt/.epub → [NovelReaderScreen]（本地模式，读取文本 / 解析 EPUB）
+  /// - 小说 .umd/.mobi/.fb2/.azw3 → [LocalMediaViewer]（暂不支持提示）
   void _openFile(_LocalFile file) {
     final lower = file.path.toLowerCase();
     switch (file.kind) {
@@ -243,7 +244,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         );
         return;
       case LocalMediaKind.images:
-        // 仅 .cbz/.zip 走专用阅读器（可解压）；.cbr/.rar/单图/目录走兜底。
+        // .cbz/.zip：交给阅读器内部解压。
         if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {
           Navigator.of(context).push(
             AppPageRoute<void>(
@@ -253,6 +254,29 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
                 sourceId: '',
                 chapters: const <Episode>[],
                 localCbzPath: file.path,
+                restoreProgress:
+                    GeneralSettingsStore.instance.settings.rememberPosition,
+              ),
+            ),
+          );
+          return;
+        }
+        // .cbr/.rar 等 RAR 系压缩不支持，走兜底查看器。
+        if (lower.endsWith('.cbr') || lower.endsWith('.rar')) {
+          _openLocalMediaViewer(file);
+          return;
+        }
+        // 目录（散图）或单图：收集图片列表交给漫画阅读器（支持缩放/翻页/进度）。
+        final imgs = gatherLocalComicImages(file.path);
+        if (imgs.isNotEmpty) {
+          Navigator.of(context).push(
+            AppPageRoute<void>(
+              builder: (_) => ComicReaderScreen(
+                comicId: 'local_${file.path.hashCode}',
+                title: file.name,
+                sourceId: '',
+                chapters: const <Episode>[],
+                localImages: imgs,
                 restoreProgress:
                     GeneralSettingsStore.instance.settings.rememberPosition,
               ),
@@ -276,7 +300,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
           ),
         );
       case LocalMediaKind.text:
-        // 仅 .txt 走专用阅读器；.epub/.umd/.mobi/.fb2/.azw3 走兜底（不支持）。
+        // .txt 走纯文本阅读器；.epub 走 EPUB 解析阅读器。
         if (lower.endsWith('.txt')) {
           Navigator.of(context).push(
             AppPageRoute<void>(
@@ -286,6 +310,22 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
                 sourceId: '',
                 chapters: const <Episode>[],
                 localTextPath: file.path,
+                restoreProgress:
+                    GeneralSettingsStore.instance.settings.rememberPosition,
+              ),
+            ),
+          );
+          return;
+        }
+        if (lower.endsWith('.epub')) {
+          Navigator.of(context).push(
+            AppPageRoute<void>(
+              builder: (_) => NovelReaderScreen(
+                novelId: 'local_${file.path.hashCode}',
+                title: file.name,
+                sourceId: '',
+                chapters: const <Episode>[],
+                localEpubPath: file.path,
                 restoreProgress:
                     GeneralSettingsStore.instance.settings.rememberPosition,
               ),

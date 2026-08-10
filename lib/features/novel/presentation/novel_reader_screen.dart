@@ -41,6 +41,7 @@ import '../../../core/widgets/detail_action_utils.dart';
 import '../../../core/widgets/web_favorite_action.dart';
 import '../../../core/widgets/source_image.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
+import '../../../core/local/local_novel_parser.dart';
 import '../../../core/novel/novel_toc_store.dart';
 import 'novel_animated_page_view.dart';
 import 'novel_bookmark_manager.dart';
@@ -58,9 +59,10 @@ import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 /// 左侧 1/3 竖向拖拽亮度调节、内联设置面板（桌面右侧 ~360px / 移动底部 ~55%）、
 /// 章节导航、进度自动保存。
 ///
-/// 本地模式（Task O4.B.3）：传入 [localTextPath] 时进入本地模式，跳过在线源解析，
-/// 直接读取本地文本文件（兼容 UTF-8 BOM / UTF-8 / latin1）。本地模式下隐藏切换章节 /
-/// 切换源 / WebView / 书内搜索等在线专属 UI，保留翻页动画、TTS、书签笔记（用
+/// 本地模式（Task O4.B.3）：传入 [localTextPath]（TXT）或 [localEpubPath]（EPUB）
+/// 时进入本地模式，跳过在线源解析，直接读取本地文本文件（兼容 UTF-8 BOM / UTF-8 /
+/// latin1；EPUB 经 [LocalNovelParser] 解析章节）。本地模式下隐藏切换章节 / 切换源 /
+/// WebView / 书内搜索等在线专属 UI，保留翻页动画、TTS、书签笔记（用
 /// [novelId] = `'local_${file.path.hashCode}'`）。调用方需将 [novelId] 设为
 /// `'local_${file.path.hashCode}'`，[chapters] 传空列表。
 class NovelReaderScreen extends StatefulWidget {
@@ -70,8 +72,11 @@ class NovelReaderScreen extends StatefulWidget {
   final List<Episode> chapters;
   final int initialChapterIndex;
 
-  /// 本地模式：本地文本文件路径（跳过在线源解析，直接读取）。
+  /// 本地模式：本地 TXT 文件路径（跳过在线源解析，直接读取）。
   final String? localTextPath;
+
+  /// 本地模式：本地 EPUB 文件路径（经 [LocalNovelParser] 解析为章节后渲染）。
+  final String? localEpubPath;
 
   /// 详情页 URL（用于收藏时透传，避免历史/收藏详情灰屏）。
   final String? detailUrl;
@@ -92,6 +97,7 @@ class NovelReaderScreen extends StatefulWidget {
     required this.chapters,
     this.initialChapterIndex = 0,
     this.localTextPath,
+    this.localEpubPath,
     this.detailUrl,
     this.coverUrl,
     this.restoreProgress = true,
@@ -220,7 +226,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   VerificationRequiredException? _verificationError;
 
   /// 是否为本地文件模式（Task O4.B.3）。
-  bool get _isLocalMode => widget.localTextPath != null;
+  bool get _isLocalMode =>
+      widget.localTextPath != null || widget.localEpubPath != null;
 
   ScrollController? _scrollController;
   int _currentPage = 0;
@@ -428,29 +435,55 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// 本地模式读取文本文件并分页（参考 local_media_viewer._readTextFile）。
+  /// 本地模式读取文件并分页（参考 local_media_viewer._readTextFile）。
+  ///
+  /// - TXT（[localTextPath]）：整文件作为扁平段落列表。
+  /// - EPUB（[localEpubPath]）：经 [LocalNovelParser.parseEpub] 解析为章节，
+  ///   章节标题与正文段落统一展平为 [NovelTextBlock]，复用同一套分页/渲染路径。
   Future<void> _loadLocalText({int restorePage = 0}) async {
     if (mounted) setState(() => _loading = true);
     _stopAutoPage();
     try {
-      final text = await _readTextFile(widget.localTextPath!);
-      if (!mounted) return;
-      // 按换行分Paragraphs，过滤纯空行（保留含空格的段落）。
-      final paragraphs = text
-          .split(RegExp(r'\r?\n'))
-          .where((s) => s.trim().isNotEmpty)
-          .toList(growable: false);
-      if (paragraphs.isEmpty) {
-        setState(() {
-          _rawParagraphs = const <NovelBlock>[];
-          _paragraphs = const <NovelBlock>[];
-          _loading = false;
-          _error = AppLocalizations.of(context).localFileLoadFailed;
-        });
-        return;
+      final List<NovelBlock> blocks;
+      if (widget.localEpubPath != null) {
+        final book = await LocalNovelParser.parseEpub(widget.localEpubPath!);
+        if (!mounted) return;
+        if (book.chapters.isEmpty) {
+          setState(() {
+            _rawParagraphs = const <NovelBlock>[];
+            _paragraphs = const <NovelBlock>[];
+            _loading = false;
+            _error = AppLocalizations.of(context).localFileLoadFailed;
+          });
+          return;
+        }
+        blocks = <NovelBlock>[];
+        for (final ch in book.chapters) {
+          if (ch.title.isNotEmpty) blocks.add(NovelTextBlock(ch.title));
+          for (final p in ch.content) {
+            if (p.trim().isNotEmpty) blocks.add(NovelTextBlock(p));
+          }
+        }
+      } else {
+        final text = await _readTextFile(widget.localTextPath!);
+        if (!mounted) return;
+        // 按换行分Paragraphs，过滤纯空行（保留含空格的段落）。
+        final paragraphs = text
+            .split(RegExp(r'\r?\n'))
+            .where((s) => s.trim().isNotEmpty)
+            .toList(growable: false);
+        if (paragraphs.isEmpty) {
+          setState(() {
+            _rawParagraphs = const <NovelBlock>[];
+            _paragraphs = const <NovelBlock>[];
+            _loading = false;
+            _error = AppLocalizations.of(context).localFileLoadFailed;
+          });
+          return;
+        }
+        // 本地文本只有纯文本段，包成文本块（无插图）。
+        blocks = paragraphs.map(NovelTextBlock.new).toList();
       }
-      // 本地文本只有纯文本段，包成文本块（无插图）。
-      final blocks = paragraphs.map(NovelTextBlock.new).toList();
       setState(() {
         _rawParagraphs = blocks;
         _paragraphs = _applyConvert(blocks);

@@ -5,6 +5,7 @@
 library;
 
 import 'dart:async' show unawaited;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,28 +17,118 @@ import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/settings/general_settings.dart';
 import 'package:nexhub/features/home/presentation/local_media_viewer.dart';
 import 'package:nexhub/features/manga/presentation/comic_reader_screen.dart';
+import 'package:nexhub/features/novel/presentation/novel_reader_screen.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+
+/// 收集本地漫画图片路径：目录→按名排序的图片列表；单图文件→单元素列表。
+/// 不含 cbz/zip（交给漫画阅读器内部解压）。无图片返回空列表。
+List<String> gatherLocalComicImages(String path) {
+  final f = File(path);
+  if (f.existsSync()) return <String>[path];
+  final dir = Directory(path);
+  if (dir.existsSync()) {
+    return dir
+        .listSync()
+        .whereType<File>()
+        .where((x) => isImageFile(x.path))
+        .map((x) => x.path)
+        .toList()
+      ..sort();
+  }
+  return const <String>[];
+}
 
 /// 打开本地导入内容。
 ///
-/// PDF 走漫画阅读器（逐页渲染成图片后看图）；其余类型走通用 [LocalMediaViewer]。
+/// 路由规则（与浏览本地 [BrowseLocalScreen._openFile] 保持一致）：
+/// - PDF → 漫画阅读器（逐页渲染成图）。
+/// - 漫画图片（文件夹散图 / 单图 / .cbz/.zip）→ 漫画阅读器；.cbr/.rar 等不支持
+///   格式走通用 [LocalMediaViewer]。
+/// - 小说 .txt → 小说阅读器；.epub → 小说阅读器（解析章节）；其余文本格式走通用查看器。
+/// - 其它 → 通用 [LocalMediaViewer]。
 void openLocalEntry(BuildContext context, LocalContentEntry e) {
+  final bool remember = GeneralSettingsStore.instance.settings.rememberPosition;
   if (e.kind == LocalMediaKind.pdf) {
-    Navigator.of(context).push(
-      AppPageRoute<void>(
-        builder: (_) => ComicReaderScreen(
-          comicId: e.id,
-          title: e.title,
-          sourceId: '',
-          chapters: const <Episode>[],
-          localPdfPath: e.path,
-          restoreProgress:
-              GeneralSettingsStore.instance.settings.rememberPosition,
-        ),
-      ),
-    );
+    _pushComicReader(context, e, remember, localPdfPath: e.path);
     return;
   }
+  if (e.kind == LocalMediaKind.images) {
+    final lower = e.path.toLowerCase();
+    if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {
+      _pushComicReader(context, e, remember, localCbzPath: e.path);
+    } else if (lower.endsWith('.cbr') || lower.endsWith('.rar')) {
+      _pushLocalMediaViewer(context, e);
+    } else {
+      final imgs = gatherLocalComicImages(e.path);
+      if (imgs.isNotEmpty) {
+        _pushComicReader(context, e, remember, localImages: imgs);
+      } else {
+        _pushLocalMediaViewer(context, e);
+      }
+    }
+    return;
+  }
+  if (e.kind == LocalMediaKind.text) {
+    final lower = e.path.toLowerCase();
+    if (lower.endsWith('.txt')) {
+      Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => NovelReaderScreen(
+            novelId: e.id,
+            title: e.title,
+            sourceId: '',
+            chapters: const <Episode>[],
+            localTextPath: e.path,
+            restoreProgress: remember,
+          ),
+        ),
+      );
+      return;
+    }
+    if (lower.endsWith('.epub')) {
+      Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => NovelReaderScreen(
+            novelId: e.id,
+            title: e.title,
+            sourceId: '',
+            chapters: const <Episode>[],
+            localEpubPath: e.path,
+            restoreProgress: remember,
+          ),
+        ),
+      );
+      return;
+    }
+  }
+  _pushLocalMediaViewer(context, e);
+}
+
+void _pushComicReader(
+  BuildContext context,
+  LocalContentEntry e,
+  bool remember, {
+  List<String>? localImages,
+  String? localCbzPath,
+  String? localPdfPath,
+}) {
+  Navigator.of(context).push(
+    AppPageRoute<void>(
+      builder: (_) => ComicReaderScreen(
+        comicId: e.id,
+        title: e.title,
+        sourceId: '',
+        chapters: const <Episode>[],
+        localImages: localImages,
+        localCbzPath: localCbzPath,
+        localPdfPath: localPdfPath,
+        restoreProgress: remember,
+      ),
+    ),
+  );
+}
+
+void _pushLocalMediaViewer(BuildContext context, LocalContentEntry e) {
   Navigator.of(context).push(
     AppPageRoute<void>(
       builder: (_) => LocalMediaViewer(
