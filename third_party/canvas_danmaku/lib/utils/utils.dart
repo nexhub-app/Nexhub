@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui';
 import 'dart:ui' as ui;
 
 import 'package:canvas_danmaku/models/danmaku_content_item.dart';

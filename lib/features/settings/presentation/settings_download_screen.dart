@@ -4,13 +4,14 @@
 /// 项 12/13：下载器选择 / 漫画格式 / 小说格式改为弹窗选择，移除子页入口。
 library;
 
-import 'dart:io' show Directory;
+import 'dart:io' show Directory, Platform;
 import 'dart:isolate' show Isolate;
 // 用于在后台 isolate 里手动初始化 FilePicker.platform（late static 是
 // isolate-private，主 isolate 的初始化不会传到新 isolate）。
 // web 目标不构建本文件，可不加 if 分支。
 import 'package:file_picker/file_picker.dart' hide FilePickerWindows;
 import 'package:file_picker/src/windows/file_picker_windows.dart';
+import 'package:saf/saf.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -285,21 +286,56 @@ class _DownloadPathSetting extends StatefulWidget {
 
 class _DownloadPathSettingState extends State<_DownloadPathSetting> {
   String _path = 'D:/Downloads';
+  String _displayName = '';
   final DownloadSettingsStore _store = DownloadSettingsStore();
+  final Saf _saf = Saf();
 
   @override
   void initState() {
     super.initState();
     _store.load().then((s) {
-      if (mounted) setState(() => _path = s.downloadPath);
+      if (!mounted) return;
+      setState(() => _path = s.downloadPath);
+      // content:// 树 URI 显示系统文件夹名而非裸 URI。
+      if (s.downloadPath.startsWith('content://')) {
+        _saf.stat(s.downloadPath).then((doc) {
+          if (mounted && doc != null) setState(() => _displayName = doc.name);
+        });
+      }
     });
   }
 
   Future<void> _pickPath() async {
     final l10n = AppLocalizations.of(context);
+
+    // Android：file_picker 没有可用的目录选择器，改用系统 SAF 目录选择器
+    // （ACTION_OPEN_DOCUMENT_TREE），返回 content:// 树 URI，权限默认持久化。
+    if (Platform.isAndroid) {
+      final SafDocumentFile? picked = await _saf.pickDirectory();
+      if (picked == null || !mounted) return;
+      try {
+        setState(() {
+          _path = picked.uri;
+          _displayName = picked.name;
+        });
+        await context.read<DownloadManager>().setDownloadBasePath(picked.uri);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.downloadPathSet)),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.importFailed(e.toString()))),
+        );
+      }
+      return;
+    }
+
     // 仅当当前路径真实存在时才作为初始目录；Windows 上路径分隔符也要用 \。
     String? initialDir;
-    if (_path.isNotEmpty) {
+    if (_path.isNotEmpty && !_path.startsWith('content://')) {
       final d = Directory(_path);
       if (d.existsSync()) initialDir = d.absolute.path;
     }
@@ -326,7 +362,10 @@ class _DownloadPathSettingState extends State<_DownloadPathSetting> {
     if (result == null || !mounted) return;
     final String picked = result;
     try {
-      setState(() => _path = picked);
+      setState(() {
+        _path = picked;
+        _displayName = '';
+      });
       // 持久化并通过 DownloadManager 立即生效（无需重启）。
       await context.read<DownloadManager>().setDownloadBasePath(picked);
       if (mounted) {
@@ -345,10 +384,12 @@ class _DownloadPathSettingState extends State<_DownloadPathSetting> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final String subtitle =
+        _displayName.isNotEmpty ? _displayName : _path;
     return AppListTile(
       leading: const Icon(Icons.folder_outlined),
       title: Text(l10n.downloadPath),
-      subtitle: Text(_path),
+      subtitle: Text(subtitle),
       trailing: const Icon(Icons.chevron_right),
       onTap: _pickPath,
     );

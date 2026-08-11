@@ -7,11 +7,13 @@ import 'package:provider/provider.dart';
 import '../../../core/download/download_manager.dart';
 import '../../../core/download/download_task.dart';
 import '../../../core/local/local_content_manager.dart';
+import '../../../core/models/episode.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../home/presentation/local_media_viewer.dart';
+import '../../novel/presentation/novel_reader_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
@@ -39,12 +41,19 @@ class DownloadedGroupScreen extends StatelessWidget {
   /// 扫描 `localPath` 目录下首个视频文件作为回退（避免单集路径变化导致打不开）。
   String _pathForChapter(DownloadTask task, int index) {
     if (task.format == DownloadFormat.video && task.localPath != null) {
+      final localPath = task.localPath!;
+      // SAF 下载路径（content:// 编码 `<treeUri>␟<rel>`）无法用 dart:io 直读，
+      // 直接构造按集命名的编码子路径，由 LocalMediaViewer 经 resolveSafUri 落缓存后播放。
+      if (isAndroidSafUri(localPath)) {
+        final padded = (index + 1).toString().padLeft(3, '0');
+        return '$localPath/$padded.mp4';
+      }
       final padded = (index + 1).toString().padLeft(3, '0');
-      final expected = '${task.localPath}/$padded.mp4';
+      final expected = '$localPath/$padded.mp4';
       final f = File(expected);
       if (f.existsSync()) return expected;
       // 回退：扫描目录下首个视频文件
-      final fallback = _findVideoFile(task.localPath!);
+      final fallback = _findVideoFile(localPath);
       if (fallback != null) return fallback;
     }
     return task.localPath!;
@@ -182,11 +191,31 @@ class DownloadedGroupScreen extends StatelessWidget {
   }
 
   void _open(BuildContext context, String path) {
+    final LocalMediaKind kind = _kindFor(task.format);
+    // 小说下载（epub/txt 为整本单文件）走小说阅读器：可解析章节、目录、朗读与进度，
+    // 且内部已用 resolveSafUri 兼容 SAF 编码路径（修复下载后小说打不开）。
+    if (kind == LocalMediaKind.text) {
+      final String lower = path.toLowerCase();
+      Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => NovelReaderScreen(
+            novelId: task.contentId,
+            title: task.title,
+            sourceId: '',
+            chapters: const <Episode>[],
+            localTextPath: lower.endsWith('.txt') ? path : null,
+            localEpubPath: lower.endsWith('.epub') ? path : null,
+            restoreProgress: true,
+          ),
+        ),
+      );
+      return;
+    }
     Navigator.of(context).push(
       AppPageRoute<void>(
         builder: (_) => LocalMediaViewer(
           title: task.title,
-          kind: _kindFor(task.format),
+          kind: kind,
           uri: path,
         ),
       ),

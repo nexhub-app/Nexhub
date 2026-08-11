@@ -1372,6 +1372,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String novelDirImported(String name, int count) {
+    return '已导入小说：$name（共 $count 章）';
+  }
+
+  @override
   String get contentImportNovelFormats => '.txt, .epub';
 
   @override
@@ -5955,6 +5960,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get crashLogCopyAll => '复制全部';
+
+  @override
+  String get runtimeLog => '运行日志';
+
+  @override
+  String get runtimeLogDesc => '本次运行期的网络请求、响应与错误记录（详细日志开关控制记录程度）';
+
+  @override
+  String get logEmpty => '暂无日志。开启「详细日志」后复现问题，再回来查看';
+
+  @override
+  String get logCopied => '日志已复制到剪贴板';
 
   @override
   String get advancedCleanGroup => '数据清理';

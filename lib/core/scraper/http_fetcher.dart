@@ -14,6 +14,7 @@ import '../network/network_config_service.dart';
 import '../network/runtime/network_client_builder.dart';
 import '../services/config_loader.dart';
 import '../settings/advanced_settings.dart';
+import '../utils/app_log.dart';
 import 'package:flutter/foundation.dart';
 import 'cookie_store.dart';
 import 'verification_detector.dart';
@@ -152,31 +153,49 @@ class HttpFetcher {
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
     });
 
-    // 详细日志（高级设置开关）：逐个打印请求 / 响应 / 异常，便于定位抓取问题。
-    if (AdvancedSettingsStore.instance.detailedLogging) {
-      dio.interceptors.add(InterceptorsWrapper(
-        onRequest: (options, handler) {
-          debugPrint('[HTTP] ${options.method} ${options.uri}');
-          handler.next(options);
-        },
-        onResponse: (response, handler) {
-          final body = response.data;
-          final bodyDesc = body is String
-              ? '${body.length} chars'
-              : body == null
-                  ? 'empty'
-                  : '${body.runtimeType}';
-          debugPrint('[HTTP] ${response.statusCode} '
-              '${response.requestOptions.uri} -> $bodyDesc');
-          handler.next(response);
-        },
-        onError: (DioException e, handler) {
-          debugPrint('[HTTP!] ${e.requestOptions.method} '
-              '${e.requestOptions.uri} -> ${e.type} ${e.message}');
-          handler.next(e);
-        },
-      ));
-    }
+    // 网络日志拦截器（无条件挂载）：请求 / 响应明细走调试级（受「详细日志」
+    // 开关控制，避免刷屏）；**异常与错误响应（4xx/5xx/拦截页）走错误级，总是
+    // 记录**——这样即使没开详细日志，抓取失败/下载失败也会在运行日志里留痕。
+    dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        AppLog.instance.d('[HTTP] ${options.method} ${options.uri}');
+        handler.next(options);
+      },
+      onResponse: (response, handler) {
+        final body = response.data;
+        final String bodyDesc;
+        if (body is String) {
+          bodyDesc = '${body.length} chars';
+        } else if (body is List<int>) {
+          final b = body;
+          // 二进制响应记首 4 字节 hex：一眼区分真图(FFD8/8950/RIFF)与
+          // 拦截页/占位图(3C21=<!、7B22={" 等)——定位"下载到 5.8KB 拦截图"。
+          final head = b.length >= 4
+              ? b.take(4).map((x) => x.toRadixString(16).padLeft(2, '0')).join()
+              : (b.isEmpty ? 'empty' : 'short');
+          bodyDesc = '${b.length} bytes[0x$head]';
+        } else {
+          bodyDesc = body == null ? 'empty' : '${body.runtimeType}';
+        }
+        final int code = response.statusCode ?? 0;
+        final String line = '[HTTP] $code '
+            '${response.requestOptions.uri} -> $bodyDesc';
+        // 4xx/5xx = 请求失败，总是记录（错误级）；2xx/3xx 走调试级。
+        if (code >= 400) {
+          AppLog.instance.e(line);
+        } else {
+          AppLog.instance.d(line);
+        }
+        handler.next(response);
+      },
+      onError: (DioException e, handler) {
+        final String line = '[HTTP!] ${e.requestOptions.method} '
+            '${e.requestOptions.uri} -> ${e.type} ${e.message}';
+        // 网络异常总是记录（错误级）——不依赖详细日志开关。
+        AppLog.instance.e(line);
+        handler.next(e);
+      },
+    ));
 
     dio.httpClientAdapter = IOHttpClientAdapter(
       createHttpClient: () {
@@ -342,6 +361,8 @@ class HttpFetcher {
   /// ② 同 host 最小间隔（同一站点两次请求至少间隔 [_minHostGapMs]）→
   /// ③ 隐身随机延迟（打散节拍）。
   static const int _maxConcurrent = 3;
+  // 手动跟随重定向的最大跳数（防重定向循环打爆）。
+  static const int kMaxRedirects = 5;
   // 同 host 最小间隔：原 500ms，上调到 800ms 进一步降低「短时间内连续请求
   // 同一站点」触发风控 / IP 封禁的概率（首页板块已在 OnlineContentListScreen
   // 内串行化抓取，这里再加一层保险）。
@@ -817,16 +838,62 @@ class HttpFetcher {
   }
 
   /// 取二进制（视频/图片）。
+  ///
+  /// [fetchDest]：二进制资产请求的 `Sec-Fetch-Dest`（image/video）。必须显式声明
+  /// 为资产而非文档：[_mergeHeaders] 默认的 `Sec-Fetch-Dest: document`（页面导航
+  /// 头）会令 WAF 判定「伪装的图片请求」→ 统一返回占位图（如 goda 的 5.8KB
+  /// 拦截图）。在线取图走缓存管理器不发这些头，故正常。
+  ///
+  /// 重定向处理：关掉 Dio 自动跟随，改为**手动解析 3xx 的 Location 直连**。
+  /// 实测部分 CDN（如 goda 的 `t40-*.g-mh.online` → `c-nd3-1.6wm.top`）在 Dio
+  /// 自动跟随重定向时会返回 403 拦截页（自动跟随的请求头/指纹被 WAF 判定异常），
+  /// 而手动解析 Location 后用同一套头直连最终地址可正常取到图片（200）。
   Future<List<int>> getBytes(String url,
-      {Map<String, String>? headers, EffectiveNetworkProfile? net}) async {
+      {Map<String, String>? headers,
+      EffectiveNetworkProfile? net,
+      String? fetchDest = 'image'}) {
+    return _getBytesFollow(url, headers, net, fetchDest, 0);
+  }
+
+  /// [getBytes] 的实际实现：手动跟随重定向（最多 [kMaxRedirects] 跳防循环）。
+  Future<List<int>> _getBytesFollow(
+    String url,
+    Map<String, String>? headers,
+    EffectiveNetworkProfile? net,
+    String? fetchDest,
+    int depth,
+  ) async {
+    final Map<String, String> merged = _mergeHeaders(null, <String, String>{
+      ...?headers,
+      if (fetchDest != null) 'Sec-Fetch-Dest': fetchDest,
+      if (fetchDest != null) 'Sec-Fetch-Mode': 'no-cors',
+    }, url);
+    // 资产请求移除「导航专用头」：浏览器加载图片/视频时不发送这些，留着会被
+    // WAF 判定为伪装的图片请求 → 统一返回占位图（goda 5.8KB 拦截图）。
+    merged.remove('Sec-Fetch-User');
+    merged.remove('Sec-Fetch-Site');
+    merged.remove('Upgrade-Insecure-Requests');
     final resp = await _dioFor(net).get<List<int>>(
       url,
       options: Options(
-        headers: _mergeHeaders(null, headers, url),
+        headers: merged,
         responseType: ResponseType.bytes,
         validateStatus: (_) => true,
+        followRedirects: false,
       ),
     );
+    final int code = resp.statusCode ?? 0;
+    if (code >= 300 && code < 400 && depth < kMaxRedirects) {
+      final String? loc =
+          resp.headers.value('location') ?? resp.headers.value('Location');
+      if (loc != null && loc.isNotEmpty) {
+        final Uri next = Uri.parse(loc).isAbsolute
+            ? Uri.parse(loc)
+            : Uri.parse(url).resolve(loc);
+        return _getBytesFollow(next.toString(), headers, net, fetchDest,
+            depth + 1);
+      }
+    }
     return resp.data ?? const [];
   }
 

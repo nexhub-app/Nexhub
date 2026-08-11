@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/local/saf_bridge.dart';
@@ -20,6 +21,7 @@ import '../../../core/history/media_watched_manager.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/novel_block.dart';
+import '../../../core/utils/app_log.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/download/download_manager.dart';
 import '../../../core/novel/novel_page_animation.dart';
@@ -189,6 +191,43 @@ Future<int?> _pickSleepMinutes({
   return result;
 }
 
+/// 在独立 isolate 解析 EPUB（bug 116）：返回可序列化扁平结构，主线程再重组为
+/// [LocalNovelBook]（[compute] 不支持自定义类的跨 isolate 传输）。
+Future<List<dynamic>> _parseEpubIsolate(String path) async {
+  final book = await LocalNovelParser.parseEpub(path);
+  return <dynamic>[
+    book.title,
+    book.author,
+    book.coverPath,
+    <List<dynamic>>[
+      for (final c in book.chapters) <dynamic>[c.title, c.content],
+    ],
+  ];
+}
+
+/// 在独立 isolate 解析 TXT（Task 6）：读取 + 解码 + 分段，避免大文件阻塞主线程。
+/// 返回段落字符串列表（可被 [compute] 序列化），主线程再包成 [NovelTextBlock]。
+Future<List<String>> _parseTxtIsolate(String path) async {
+  final bytes = await File(path).readAsBytes();
+  String text;
+  if (bytes.length >= 3 &&
+      bytes[0] == 0xEF &&
+      bytes[1] == 0xBB &&
+      bytes[2] == 0xBF) {
+    text = utf8.decode(bytes.sublist(3));
+  } else {
+    try {
+      text = utf8.decode(bytes, allowMalformed: false);
+    } on FormatException {
+      text = latin1.decode(bytes);
+    }
+  }
+  return text
+      .split(RegExp(r'\r?\n'))
+      .where((s) => s.trim().isNotEmpty)
+      .toList(growable: false);
+}
+
 class _NovelReaderScreenState extends State<NovelReaderScreen>
     with WidgetsBindingObserver {
   final NovelReaderPreferencesStore _store = NovelReaderPreferencesStore();
@@ -236,6 +275,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 按钮改走验证页（回灌 Cookie 后重载本章），而非死错误无验证入口。
   VerificationRequiredException? _verificationError;
 
+  /// 单 EPUB 章节映射（bug 115）：章节下标 → 该章首块在排版段落中的下标，
+  /// 以及对应的章节列表，供目录跳转。
+  List<int>? _epubChapterBlockIndices;
+  List<Episode>? _epubChapters;
+
   /// 是否为本地文件模式（Task O4.B.3）。
   bool get _isLocalMode =>
       widget.localTextPath != null ||
@@ -245,6 +289,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 本地聚合模式（B 阶段）：多个文本/EPUB 文件合成一整本，每个文件 = 一章。
   bool get _isAggregatedLocal =>
       widget.localChapterPaths != null && widget.localChapterPaths!.isNotEmpty;
+
+  /// 实际可用的章节列表：单 EPUB 用解析出的章节，其余用传入的 [widget.chapters]。
+  List<Episode> get _effectiveChapters =>
+      widget.chapters.isNotEmpty ? widget.chapters : (_epubChapters ?? const <Episode>[]);
 
   ScrollController? _scrollController;
   int _currentPage = 0;
@@ -482,7 +530,20 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       localPath = await resolveSafUri(localPath!);
       if (localPath == null) return;
       if (isEpub) {
-        final book = await LocalNovelParser.parseEpub(localPath);
+        // 大文件解析放到独立 isolate，避免阻塞 UI 线程（bug 116）。
+        final raw = await compute(_parseEpubIsolate, localPath);
+        final book = LocalNovelBook(
+          title: raw[0] as String,
+          author: raw[1] as String?,
+          coverPath: raw[2] as String?,
+          chapters: <LocalNovelChapter>[
+            for (final c in raw[3] as List)
+              LocalNovelChapter(
+                title: c[0] as String,
+                content: List<String>.from(c[1] as List),
+              ),
+          ],
+        );
         if (!mounted) return;
         if (book.chapters.isEmpty) {
           setState(() {
@@ -494,20 +555,29 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           return;
         }
         blocks = <NovelBlock>[];
-        for (final ch in book.chapters) {
+        final blockIndices = <int>[];
+        final epChapters = <Episode>[];
+        for (var ci = 0; ci < book.chapters.length; ci++) {
+          final ch = book.chapters[ci];
+          // 记录该章首块下标（供目录跳转定位页面）。
+          blockIndices.add(blocks.length);
+          epChapters.add(Episode(
+            id: '$ci',
+            title: ch.title,
+            url: '',
+            number: ci + 1,
+          ));
           if (ch.title.isNotEmpty) blocks.add(NovelTextBlock(ch.title));
           for (final p in ch.content) {
             if (p.trim().isNotEmpty) blocks.add(NovelTextBlock(p));
           }
         }
+        _epubChapterBlockIndices = blockIndices;
+        _epubChapters = epChapters;
       } else {
-        final text = await _readTextFile(localPath);
+        // 大 TXT 放到独立 isolate 解析，避免阻塞主线程（Task 6）。
+        final paragraphs = await compute(_parseTxtIsolate, localPath);
         if (!mounted) return;
-        // 按换行分Paragraphs，过滤纯空行（保留含空格的段落）。
-        final paragraphs = text
-            .split(RegExp(r'\r?\n'))
-            .where((s) => s.trim().isNotEmpty)
-            .toList(growable: false);
         if (paragraphs.isEmpty) {
           setState(() {
             _rawParagraphs = const <NovelBlock>[];
@@ -529,6 +599,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       });
       _setupControllers(restorePage: restorePage);
     } on Object catch (e) {
+      AppLog.instance.eWithStack(
+          '[小说加载失败] ${widget.title} (epub=${widget.localEpubPath != null}, '
+          'txt=${widget.localTextPath != null})',
+          e);
       if (mounted) {
         setState(() {
           _isResolveError = false;
@@ -536,22 +610,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           _loading = false;
         });
       }
-    }
-  }
-
-  /// 读取文本文件，兼容 UTF-8 BOM / UTF-8 / latin1（GBK 等双字节可能为乱码）。
-  Future<String> _readTextFile(String path) async {
-    final bytes = await File(path).readAsBytes();
-    if (bytes.length >= 3 &&
-        bytes[0] == 0xEF &&
-        bytes[1] == 0xBB &&
-        bytes[2] == 0xBF) {
-      return utf8.decode(bytes.sublist(3));
-    }
-    try {
-      return utf8.decode(bytes, allowMalformed: false);
-    } on FormatException {
-      return latin1.decode(bytes);
     }
   }
 
@@ -2489,8 +2547,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 与详情页共享目录源：把当前快照写回（保留更长），再读取「更完整」的那份，
     // 这样阅读器目录能实时反映详情页渐进加载出的完整目录。
     final tocStore = context.read<NovelTocStore>();
-    tocStore.setChapters(widget.sourceId, widget.novelId, widget.chapters);
-    final chapters = tocStore.chaptersFor(widget.sourceId, widget.novelId);
+    final chapters = _effectiveChapters;
+    tocStore.setChapters(widget.sourceId, widget.novelId, chapters);
     final index = await showChapterList(
       context,
       chapters,
@@ -2501,10 +2559,34 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       _chapterIndex = index;
       if (_isAggregatedLocal) {
         await _loadLocalText();
+      } else if (_epubChapters != null) {
+        _jumpToEpubChapter(index);
       } else {
         _loadChapter(_chapterIndex);
       }
     }
+  }
+
+  /// EPUB 本地书：整本已分页到 [_pagination]，目录选中某章后定位到该章起始页。
+  ///
+  /// 用分页时记录的块下标（[_epubChapterBlockIndices]）经
+  /// [NovelPaginationResult.pageIndexForBlock] 反查页码；翻页动画依赖重建后
+  /// 的最新分页，故在 post-frame 回调里再跳一次，确保落点准确。
+  void _jumpToEpubChapter(int index) {
+    final pagination = _pagination;
+    final indices = _epubChapterBlockIndices;
+    if (pagination == null || indices == null || indices.isEmpty) return;
+    final clamped = index.clamp(0, indices.length - 1);
+    _chapterIndex = clamped;
+    if (!mounted) return;
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final p = _pagination;
+      final idxs = _epubChapterBlockIndices;
+      if (!mounted || p == null || idxs == null) return;
+      final target = p.pageIndexForBlock(idxs[clamped]);
+      _pageKey.currentState?.jumpToPage(target);
+    });
   }
 
   /// 打开书内搜索（顶栏与底部工具栏共用；本地模式不可用）。

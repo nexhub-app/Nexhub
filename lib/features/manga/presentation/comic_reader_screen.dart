@@ -15,6 +15,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../core/comic/comic_progress_manager.dart';
 import '../../../core/comic/models/reader_preferences.dart';
+import '../../../core/utils/app_log.dart';
 import 'reader_settings_sheet.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/reader_default_settings.dart';
@@ -388,12 +389,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         imgs = await extractPdfPages(local);
         if (imgs.isNotEmpty) _pdfCacheDir = File(imgs.first).parent.path;
       } else if (widget.localCbzPath != null) {
-        imgs = await _extractCbz(widget.localCbzPath!);
+        // SAF 编码路径（content://…␟…）须先落缓存（其余分支同理），否则
+        // 解压器 dart:io 直读失败 → "本地文件读取失败"。
+        imgs = await _extractCbz(await resolveSafUri(widget.localCbzPath!));
       } else {
         imgs = const <String>[];
       }
       if (!mounted) return;
       if (imgs.isEmpty) {
+        AppLog.instance.w('[漫画加载失败] ${widget.title}: 本地图片为空 '
+            '(cbz=${widget.localCbzPath != null}, '
+            'pdf=${widget.localPdfPath != null}, '
+            'dir=${widget.localImages?.length ?? 0}张)');
         setState(() {
           _images = const <String>[];
           _loading = false;
@@ -408,6 +415,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       });
       _setupControllers(restorePage: restorePage);
     } on Object catch (e) {
+      AppLog.instance.eWithStack(
+          '[漫画加载异常] ${widget.title} (cbz=${widget.localCbzPath != null}, '
+          'pdf=${widget.localPdfPath != null})',
+          e);
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -2439,19 +2450,24 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       padding: EdgeInsets.zero,
       itemCount: _images.length,
       separatorBuilder: (_, __) => SizedBox(height: gap),
-      itemBuilder: (ctx, i) => MangaPageImage(
-        url: _images[i],
-        prefs: _prefs,
-        source: _source,
-        rotationQuarterTurns: _pageRotations[i] ?? 0,
-        cropEdge: _prefs.cropEdge,
-        // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
-        // 每页一起放大、间距等比，天然不重叠（C2 复测「每张照片放大导致重叠」）。
-        zoomEnabled: () => false,
-        // 阅读器级加载记录：item 被 SPL 回收重建后仍按真实高度渲染，
-        // 消除「占位→真实」高度突变导致的反向翻页回弹/闪烁。
-        urlLoaded: (url) => _webtoonLoadedUrls.contains(url),
-        onUrlLoaded: (url) => _webtoonLoadedUrls.add(url),
+      itemBuilder: (ctx, i) => Container(
+        // 条漫（gap==0）相邻图之间常有子像素接缝（"细白条"）：每张图向下重叠 1px
+        // 彻底闭合接缝，深浅主题下都不会露出底色线条。带间距模式（gap>0）保持原样。
+        margin: gap == 0 ? const EdgeInsets.only(bottom: -1) : null,
+        child: MangaPageImage(
+          url: _images[i],
+          prefs: _prefs,
+          source: _source,
+          rotationQuarterTurns: _pageRotations[i] ?? 0,
+          cropEdge: _prefs.cropEdge,
+          // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
+          // 每页一起放大、间距等比，天然不重叠（C2 复测「每张照片放大导致重叠」）。
+          zoomEnabled: () => false,
+          // 阅读器级加载记录：item 被 SPL 回收重建后仍按真实高度渲染，
+          // 消除「占位→真实」高度突变导致的反向翻页回弹/闪烁。
+          urlLoaded: (url) => _webtoonLoadedUrls.contains(url),
+          onUrlLoaded: (url) => _webtoonLoadedUrls.add(url),
+        ),
       ),
       ),
     );

@@ -628,6 +628,18 @@
   "contentImportEmpty": "No imports yet",
   "contentImportOpened": "Opened",
   "comicDirImported": "Imported comic: {name}",
+  "novelDirImported": "Imported novel: {name} ({count} chapters)",
+  "@novelDirImported": {
+    "description": "Novel folder import result toast",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "contentImportNovelFormats": ".txt, .epub",
   "contentImportComicFormats": ".cbz, image folder",
   "contentImportMediaFormats": ".mp4, .mkv, .avi",
@@ -3427,6 +3439,22 @@
   "crashLogCopyAll": "Copy All",
   "@crashLogCopyAll": {
     "description": "Crash log copy all button"
+  },
+  "runtimeLog": "Runtime Log",
+  "@runtimeLog": {
+    "description": "Runtime log screen title"
+  },
+  "runtimeLogDesc": "In-memory log of this session's network requests, responses and errors (detailed logging toggle controls verbosity)",
+  "@runtimeLogDesc": {
+    "description": "Runtime log empty state / hint"
+  },
+  "logEmpty": "No logs yet. Enable \"Detailed Logging\", reproduce the issue, then come back.",
+  "@logEmpty": {
+    "description": "Runtime log empty state"
+  },
+  "logCopied": "Log copied to clipboard",
+  "@logCopied": {
+    "description": "Runtime log copy done toast"
   },
   "advancedCleanGroup": "Data Cleanup",
   "@advancedCleanGroup": {
