@@ -13,6 +13,7 @@ import '../../../core/local/local_content_manager.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_error_state.dart';
+import '../../../core/utils/app_log.dart';
 
 /// 本地媒体查看器无法处理的打开格式类型。
 enum _UnsupportedFormat { rar, epub, other }
@@ -77,7 +78,10 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
         case LocalMediaKind.video:
           _player = Player();
           _videoController = VideoController(_player!);
-          await _player!.open(Media(widget.uri));
+          // SAF 下载/导入路径（content:// 或 `<treeUri>␟<rel>`）需先落缓存再播放，
+          // media_kit 无法直读 content://。普通路径原样返回。
+          final resolved = await resolveSafUri(widget.uri);
+          await _player!.open(Media(resolved));
           break;
         case LocalMediaKind.images:
           _images = await _resolveImages();
@@ -98,7 +102,7 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
             _unsupportedFormat = _UnsupportedFormat.other;
             break;
           }
-          _text = await _readTextFile(widget.uri);
+          _text = await _readTextFile(await resolveSafUri(widget.uri));
           break;
         case LocalMediaKind.pdf:
           // PDF 由漫画阅读器处理，此处不承接（仅作兜底，避免穷尽性报错）。
@@ -106,6 +110,8 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
       }
       if (mounted) setState(() => _loading = false);
     } catch (e) {
+      AppLog.instance.eWithStack(
+          '[本地文件打开失败] ${widget.title} uri=${widget.uri}', e);
       if (mounted) {
         setState(() {
           _loading = false;
@@ -154,6 +160,11 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
       '.cb7',
     ].any((e) => lower.endsWith(e))) {
       return _extractCbz(path);
+    }
+    // SAF 路径（本地导入 content:// 树，或下载编码 `<treeUri>␟<rel>`）：dart:io
+    // 无法直接列举/读取，走 SAF 管线逐图落缓存（修复 Android 下载后图片打不开）。
+    if (isAndroidSafUri(path)) {
+      return gatherSafImages(path);
     }
     final f = File(path);
     if (await f.exists()) return <String>[path];

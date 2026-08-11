@@ -9,6 +9,7 @@ import '../models/episode.dart';
 import '../models/novel_block.dart';
 import '../models/plugin_config.dart';
 import '../scraper/media_api_service.dart';
+import '../utils/app_log.dart';
 import 'download_file_system.dart';
 import 'download_handler.dart';
 import 'download_task.dart';
@@ -64,6 +65,16 @@ class NovelDownloadHandler implements DownloadHandler {
 
     final finalChapters = epubChapters.whereType<EpubChapter>().toList();
     onProgress?.call(chapters.length, chapters.length);
+
+    // 全部章节正文都为空（源正文抓取失败/被反盗链拦截）→ 明确报错，
+    // 否则产出的 EPUB 只有标题没有正文 → 打开报「本地文件读取失败」且无从排查。
+    if (finalChapters.isEmpty ||
+        finalChapters.every((c) => c.content.trim().isEmpty)) {
+      AppLog.instance.e('[小说下载失败] ${task.title}: 未获取到任何章节内容 '
+          '(${chapters.length} 章全部为空)');
+      throw Exception(
+          '未能获取到任何章节内容，可能被源拦截或章节地址已失效');
+    }
 
     final metadata = EpubMetadata(
       title: bookTitle.isNotEmpty ? bookTitle : task.title,

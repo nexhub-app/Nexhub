@@ -12,6 +12,7 @@ import '../../../core/settings/general_settings.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/local/local_content_actions.dart';
 import '../../../core/local/saf_bridge.dart';
+import '../../../core/utils/app_log.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -104,6 +105,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         setState(() {});
       }
     } catch (e) {
+      AppLog.instance.eWithStack('[本地导入失败] 单文件选择', e);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context).importFailed(e.toString()))),
@@ -133,6 +135,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
           ? await classifyFolderByContentSaf(dir)
           : classifyFolderByContent(dir);
       if (kind == null) {
+        AppLog.instance.w('[本地导入] 文件夹无法识别类型/为空: $dir');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context).emptyFolder)),
@@ -189,8 +192,11 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         final scanned = saf
             ? await scanComicFolderSaf(dir)
             : scanComicFolder(dir);
-        if (scanned.archives.isNotEmpty) {
-          if (scanned.archives.length > 1) {
+        // 章节文件 = 已知漫画归档 + 其它非图片文件，每个文件 = 一话（bug 113）。
+        final chapterFiles =
+            <String>[...scanned.archives, ...scanned.others];
+        if (chapterFiles.isNotEmpty) {
+          if (chapterFiles.length > 1) {
             final mode = await showFolderImportChoiceDialog(
               context,
               folderName: folderName,
@@ -203,12 +209,12 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
                 path: dir,
                 name: folderName,
                 kind: kind,
-                filePaths: scanned.archives,
+                filePaths: chapterFiles,
               ));
               setState(() {});
               return;
             }
-            for (final f in scanned.archives) {
+            for (final f in chapterFiles) {
               _addFile(_LocalFile(path: f, name: p.basename(f), kind: kind));
             }
             setState(() {});
@@ -218,7 +224,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
             path: dir,
             name: folderName,
             kind: kind,
-            filePaths: scanned.archives,
+            filePaths: chapterFiles,
           ));
           setState(() {});
           return;

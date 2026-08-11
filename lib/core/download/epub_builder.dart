@@ -10,9 +10,14 @@
 /// 使用 `archive` 纯 Dart 包，无平台依赖。
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+
+/// 字符串 → UTF-8 字节。**严禁用 `s.codeUnits`**：中文 code unit > 255，
+/// `Uint8List.fromList` 会截断成低字节 → 整本中文乱码/打不开。
+Uint8List _u8(String s) => Uint8List.fromList(utf8.encode(s));
 
 /// EPUB 章节数据。
 class EpubChapter {
@@ -47,27 +52,27 @@ class EpubBuilder {
     final archive = Archive();
 
     // 1. mimetype（不压缩，必须是第一条且无额外字段）
-    final mimetypeData = Uint8List.fromList('application/epub+zip'.codeUnits);
+    final mimetypeData = _u8('application/epub+zip');
     final mimetypeFile = ArchiveFile('mimetype', mimetypeData.length, mimetypeData);
     mimetypeFile.compress = false;
     archive.addFile(mimetypeFile);
 
     // 2. META-INF/container.xml
-    final containerData = Uint8List.fromList(_containerXml().codeUnits);
+    final containerData = _u8(_containerXml());
     archive.addFile(ArchiveFile('META-INF/container.xml', containerData.length, containerData));
 
     // 3. OEBPS/content.opf
-    final opfData = Uint8List.fromList(_contentOpf(metadata, chapters).codeUnits);
+    final opfData = _u8(_contentOpf(metadata, chapters));
     archive.addFile(ArchiveFile('OEBPS/content.opf', opfData.length, opfData));
 
     // 4. OEBPS/toc.ncx
-    final ncxData = Uint8List.fromList(_tocNcx(metadata, chapters).codeUnits);
+    final ncxData = _u8(_tocNcx(metadata, chapters));
     archive.addFile(ArchiveFile('OEBPS/toc.ncx', ncxData.length, ncxData));
 
     // 5. 章节正文
     for (var i = 0; i < chapters.length; i++) {
       final ch = chapters[i];
-      final chData = Uint8List.fromList(_chapterXhtml(ch).codeUnits);
+      final chData = _u8(_chapterXhtml(ch));
       archive.addFile(ArchiveFile('OEBPS/chapter-${i + 1}.xhtml', chData.length, chData));
     }
 
@@ -95,7 +100,7 @@ class EpubBuilder {
       buffer.writeln();
     }
 
-    return Uint8List.fromList(buffer.toString().codeUnits);
+    return _u8(buffer.toString());
   }
 
   static String _containerXml() => '''<?xml version="1.0" encoding="UTF-8"?>

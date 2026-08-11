@@ -530,6 +530,8 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
   /// 用纯 Container 而非 BottomAppBar，避免 SafeArea/默认 padding 干扰，高度完全由 SizedBox 决定。
   Widget _buildBottomBar(BuildContext context, AppLocalizations l10n) {
     final theme = Theme.of(context);
+    // 抬高内容，避免被 Android 系统导航条/手势指示条遮挡。
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainer,
@@ -537,6 +539,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
           top: BorderSide(color: theme.dividerColor, width: 1),
         ),
       ),
+      padding: EdgeInsets.only(bottom: bottomInset),
       child: SizedBox(
         height: 50,
         child: Row(

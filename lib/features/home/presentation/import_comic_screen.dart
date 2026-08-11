@@ -113,16 +113,20 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
       final scanned = saf
           ? await scanComicFolderSaf(dir)
           : scanComicFolder(dir);
-      if (scanned.archives.isEmpty && scanned.rawImages.isEmpty) {
+      // 章节文件 = 已知漫画归档 + 其它非图片文件（如非常规归档/文档），
+      // 每个文件 = 一话，可在目录中选择（bug 113）。
+      final chapterFiles =
+          <String>[...scanned.archives, ...scanned.others];
+      if (chapterFiles.isEmpty && scanned.rawImages.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context).emptyFolder)),
         );
         return;
       }
-      // 含漫画归档（含 PDF）：每个归档 = 一话，可聚合为多话漫画（B 阶段第 5 点）。
-      if (scanned.archives.isNotEmpty) {
-        if (scanned.archives.length > 1) {
+      // 含可分页文件（漫画归档/其它文件）：每个文件 = 一话，聚合为多话漫画。
+      if (chapterFiles.isNotEmpty) {
+        if (chapterFiles.length > 1) {
           final mode = await showFolderImportChoiceDialog(
             context,
             folderName: folderTitle,
@@ -137,7 +141,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
               path: dir,
               kind: LocalMediaKind.images,
               addedAt: DateTime.now().millisecondsSinceEpoch,
-              filePaths: scanned.archives,
+              filePaths: chapterFiles,
             ));
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -149,8 +153,8 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
             }
             return;
           }
-          // 逐文件：每个归档一条记录。
-          for (final f in scanned.archives) {
+          // 逐文件：每个文件一条记录。
+          for (final f in chapterFiles) {
             await context.read<LocalContentManager>().add(LocalContentEntry(
               id: f,
               title: safBaseName(f),
@@ -161,19 +165,19 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
           }
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${scanned.archives.length} ${AppLocalizations.of(context).contentImportOpened}')),
+              SnackBar(content: Text('${chapterFiles.length} ${AppLocalizations.of(context).contentImportOpened}')),
             );
           }
           return;
         }
-        // 单个归档：直接作为聚合条目（filePaths 单元素），阅读器可正确加载。
+        // 单个文件：直接作为聚合条目（filePaths 单元素），阅读器可正确加载。
         await context.read<LocalContentManager>().add(LocalContentEntry(
           id: dir,
           title: folderTitle,
           path: dir,
           kind: LocalMediaKind.images,
           addedAt: DateTime.now().millisecondsSinceEpoch,
-          filePaths: scanned.archives,
+          filePaths: chapterFiles,
         ));
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

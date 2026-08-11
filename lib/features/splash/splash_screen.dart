@@ -11,6 +11,8 @@ import '../../core/article/article_reading_preferences.dart';
 import '../../core/auth/source_auth_manager.dart';
 import '../../core/download/download_file_system.dart';
 import '../../core/download/download_manager.dart';
+import '../../core/download/saf_download_file_system.dart';
+import '../../core/local/saf_bridge.dart' show normalizeSafTreeUri;
 import '../../core/download/download_settings.dart';
 import '../../core/download/download_storage.dart';
 import '../../core/favorites/favorites_manager.dart';
@@ -163,17 +165,34 @@ class _SplashScreenState extends State<SplashScreen> {
     registerShuyuanResolver(ShuyuanNovelResolver.new);
     final mediaService = MediaApiService(registry);
 
-    // Download base path: prefer the user-configured path from Download
-    // Manager; fall back to <app docs>/downloads when unset.
+    // Download base path: 优先用用户配置的路径；未配置（或仍是桌面默认
+    // `D:/Downloads`，在 Android 上无效）时回退到平台相关默认目录。
+    // `content://` 树 URI（Android SAF 用户目录）走 SafFileSystem。
     final downloadSettings = await DownloadSettingsStore().load();
-    final String downloadBasePath;
-    if (downloadSettings.downloadPath.isNotEmpty) {
-      downloadBasePath = downloadSettings.downloadPath;
-    } else {
-      downloadBasePath =
-          '${appDir.path}${appDir.path.endsWith('/') ? '' : '/'}downloads';
+    String configured = downloadSettings.downloadPath;
+    // 启动自修复：历史版本曾把 tree id 的 `%3A` 错误解码成 `:` 并持久化
+    // （写盘用未编码 root，读取纠正为已编码 → 定位不一致 → 下载后打不开）。
+    // 检测到 content:// 路径被污染则立即写回规范化值，一次性永久修复。
+    if (configured.startsWith('content://')) {
+      final String normalized = normalizeSafTreeUri(configured);
+      if (normalized != configured) {
+        configured = normalized;
+        await DownloadSettingsStore()
+            .save(downloadSettings.copyWith(downloadPath: normalized));
+      }
     }
-    final downloadFs = PathProviderFileSystem(downloadBasePath);
+    final DownloadFileSystem downloadFs;
+    if (configured.startsWith('content://')) {
+      downloadFs = SafFileSystem(configured);
+    } else {
+      final String downloadBasePath;
+      if (configured.isNotEmpty && configured != 'D:/Downloads') {
+        downloadBasePath = configured;
+      } else {
+        downloadBasePath = await defaultDownloadPath();
+      }
+      downloadFs = PathProviderFileSystem(downloadBasePath);
+    }
     final downloadManager = DownloadManager(
       storage: DownloadStorage(),
       fs: downloadFs,

@@ -1392,6 +1392,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String novelDirImported(String name, int count) {
+    return 'Imported novel: $name ($count chapters)';
+  }
+
+  @override
   String get contentImportNovelFormats => '.txt, .epub';
 
   @override
@@ -6056,6 +6061,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get crashLogCopyAll => 'Copy All';
+
+  @override
+  String get runtimeLog => 'Runtime Log';
+
+  @override
+  String get runtimeLogDesc =>
+      'In-memory log of this session\'s network requests, responses and errors (detailed logging toggle controls verbosity)';
+
+  @override
+  String get logEmpty =>
+      'No logs yet. Enable \"Detailed Logging\", reproduce the issue, then come back.';
+
+  @override
+  String get logCopied => 'Log copied to clipboard';
 
   @override
   String get advancedCleanGroup => 'Data Cleanup';

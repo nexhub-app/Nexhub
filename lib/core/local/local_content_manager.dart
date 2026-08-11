@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io' show Directory, File, FileSystemException;
 
 import 'package:nexhub/core/local/archive_extractor.dart';
+import 'package:nexhub/core/local/local_novel_parser.dart';
 import 'package:nexhub/core/local/pdf_util.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:path/path.dart' as p;
@@ -203,10 +204,12 @@ List<String> listFolderFilesByKind(String dir, LocalMediaKind kind) {
 /// - 归档（cbz/cbr/cbt/zip/rar/7z/cb7/pdf）：每个文件 = 一话，导入为聚合条目
 ///   （[LocalContentEntry.filePaths]），对应 B 阶段第 5 点。
 /// 目录不可读抛 [FileSystemException]，由调用方走 l10n 提示。
-({List<String> rawImages, List<String> archives}) scanComicFolder(String dir) {
+({List<String> rawImages, List<String> archives, List<String> others})
+    scanComicFolder(String dir) {
   final dirObj = Directory(dir);
   final List<String> raw = <String>[];
   final List<String> arch = <String>[];
+  final List<String> other = <String>[];
   for (final entity in dirObj.listSync(recursive: true, followLinks: false)) {
     if (entity is! File) continue;
     final ext = p.extension(entity.path).toLowerCase();
@@ -224,11 +227,15 @@ List<String> listFolderFilesByKind(String dir, LocalMediaKind kind) {
           '.pdf',
         ].contains(ext)) {
       arch.add(entity.path);
+    } else {
+      // 非图片、非已知归档的其它文件（如非常规归档/文档），也作为独立一话。
+      other.add(entity.path);
     }
   }
   raw.sort(naturalCompare);
   arch.sort(naturalCompare);
-  return (rawImages: raw, archives: arch);
+  other.sort(naturalCompare);
+  return (rawImages: raw, archives: arch, others: other);
 }
 
 /// 计算本地内容的封面路径：取「第一张图片」作为封面（用户建议）。
@@ -250,6 +257,12 @@ Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
   // PDF 封面：渲染首页为图片（失败回退占位）。
   if (kind == LocalMediaKind.pdf) {
     return await extractPdfCover(path);
+  }
+  // EPUB 封面：从压缩包提取封面图（bug 115）。
+  if (kind == LocalMediaKind.text &&
+      path.toLowerCase().endsWith('.epub')) {
+    final cover = await LocalNovelParser.extractCover(path);
+    if (cover != null) return cover;
   }
   if (kind != LocalMediaKind.images) return null;
   try {

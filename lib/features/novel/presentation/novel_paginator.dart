@@ -85,14 +85,20 @@ sealed class NovelPageItem {
 class NovelTextLineItem extends NovelPageItem {
   final NovelLine line;
 
-  const NovelTextLineItem(this.line);
+  /// 该行文本所属块在 [blocks] 中的下标（用于目录跳转定位页码）。
+  final int blockIndex;
+
+  const NovelTextLineItem(this.line, {this.blockIndex = 0});
 }
 
 /// 插图项：在翻页模式下独占一页显示。
 class NovelImageItem extends NovelPageItem {
   final NovelImageBlock image;
 
-  const NovelImageItem(this.image);
+  /// 该插图所属块在 [blocks] 中的下标（用于目录跳转定位页码）。
+  final int blockIndex;
+
+  const NovelImageItem(this.image, {this.blockIndex = 0});
 }
 
 /// 单页数据：该页包含的项列表（文本行 + 插图）。
@@ -113,6 +119,27 @@ class NovelPaginationResult {
 
   /// 是否为空（无内容）。
   bool get isEmpty => pages.isEmpty;
+
+  /// 找到包含指定块（[blockIndex]）的**第一页**页码（供目录跳转）。
+  ///
+  /// 遍历每页的每一项，返回首个块下标 ≥ [blockIndex] 的项所在页；
+  /// 找不到则返回最后一页（块下标越界时回落到书末）。
+  int pageIndexForBlock(int blockIndex) {
+    for (var p = 0; p < pages.length; p++) {
+      for (final item in pages[p]) {
+        final int bi;
+        if (item is NovelTextLineItem) {
+          bi = item.blockIndex;
+        } else if (item is NovelImageItem) {
+          bi = item.blockIndex;
+        } else {
+          continue;
+        }
+        if (bi >= blockIndex) return p;
+      }
+    }
+    return pages.isEmpty ? 0 : pages.length - 1;
+  }
 }
 
 /// 文本分页器。
@@ -170,7 +197,8 @@ class NovelPaginator {
     //    插图块转为 [NovelImageItem]，翻页时独占一页。
     final allItems = <NovelPageItem>[];
     var textBlockIndex = 0;
-    for (final block in blocks) {
+    for (var bi = 0; bi < blocks.length; bi++) {
+      final block = blocks[bi];
       if (block is NovelTextBlock) {
         if (block.text.isEmpty) continue;
         final lines = _breakParagraph(
@@ -182,11 +210,11 @@ class NovelPaginator {
           scaler,
         );
         for (final l in lines) {
-          allItems.add(NovelTextLineItem(l));
+          allItems.add(NovelTextLineItem(l, blockIndex: bi));
         }
         textBlockIndex++;
       } else if (block is NovelImageBlock) {
-        allItems.add(NovelImageItem(block));
+        allItems.add(NovelImageItem(block, blockIndex: bi));
       }
     }
     if (allItems.isEmpty) {
@@ -355,10 +383,11 @@ class NovelPaginator {
   ///   [TextPainter.computeLineMetrics] 得到每行的高度，再用
   ///   [TextPainter.getPositionForOffset] 在每行垂直中心、左边缘探测起始字符
   ///   偏移，从而切出整行文本（与渲染断行点完全一致）。
-  /// - **逐字符列(TextColumn)定位**：对每行用 [TextPainter.getBoxesForSelection]
-  ///   复用同一个段落级 [TextPainter] 一次取出该行所有字符的 [TextBox]，记录每个
-  ///   字符左边缘 x 到 [NovelLine.charLefts]，等价 legado `TextColumn` 的逐字符
-  ///   坐标，供点击精确命中（点哪读哪）。
+  /// - **逐字符列(charLefts) 延迟计算**：`charLefts` 仅用于「点哪读哪」精确
+  ///   命中，而该能力当前未启用；若在分页阶段对每一行调用
+  ///   [TextPainter.getBoxesForSelection] 预取，会在大章节（数万行）上造成
+  ///   明显卡顿（项 116）。故分页阶段不再预取，[NovelLine.charLefts] 保持
+  ///   空，待将来按需（点击时）再计算，移除分页热路径上的重量级调用。
   static List<NovelLine> _breakParagraph(
     String para,
     int paraIndex,
@@ -394,20 +423,11 @@ class NovelPaginator {
       final e = i + 1 < metrics.length ? starts[i + 1] : para.length;
       if (s >= e) continue;
 
-      // 逐字符列(TextColumn)定位：复用本段落 tp 取该行字符 box，记录每个
-      // 字符左边缘相对行首的 x（legado TextColumn 逐字符坐标）。
-      final boxes = tp.getBoxesForSelection(TextSelection(
-        baseOffset: s,
-        extentOffset: e,
-      ));
-      final charLefts = <double>[for (final b in boxes) b.left];
-
       lines.add(NovelLine(
         text: para.substring(s, e),
         paragraphIndex: paraIndex,
         isFirstLine: i == 0,
         isLastLine: i == metrics.length - 1,
-        charLefts: charLefts,
       ));
     }
     tp.dispose();

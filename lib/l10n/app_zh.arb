@@ -615,6 +615,18 @@
   "contentImportEmpty": "暂无导入记录",
   "contentImportOpened": "已打开",
   "comicDirImported": "已导入漫画：{name}",
+  "novelDirImported": "已导入小说：{name}（共 {count} 章）",
+  "@novelDirImported": {
+    "description": "小说文件夹导入完成提示",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "contentImportNovelFormats": ".txt, .epub",
   "contentImportComicFormats": ".cbz, 图片文件夹",
   "contentImportMediaFormats": ".mp4, .mkv, .avi",
@@ -3383,6 +3395,22 @@
   "crashLogCopyAll": "复制全部",
   "@crashLogCopyAll": {
     "description": "崩溃日志复制全部按钮"
+  },
+  "runtimeLog": "运行日志",
+  "@runtimeLog": {
+    "description": "运行日志页标题"
+  },
+  "runtimeLogDesc": "本次运行期的网络请求、响应与错误记录（详细日志开关控制记录程度）",
+  "@runtimeLogDesc": {
+    "description": "运行日志页空态/说明文案"
+  },
+  "logEmpty": "暂无日志。开启「详细日志」后复现问题，再回来查看",
+  "@logEmpty": {
+    "description": "运行日志为空时提示"
+  },
+  "logCopied": "日志已复制到剪贴板",
+  "@logCopied": {
+    "description": "运行日志复制完成提示"
   },
   "advancedCleanGroup": "数据清理",
   "@advancedCleanGroup": {

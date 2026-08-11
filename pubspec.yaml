@@ -126,7 +126,12 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # 启用 l10n 代码生成（配合 l10n.yaml）
+  # l10n 代码生成必须开启：flutter build 的 gen_localizations 步骤强制要求
+  # flutter: generate: true，否则直接报 "Attempted to generate localizations
+  # code without having the flutter: generate flag turned on" 并退出。
+  # （之前误以为 gen-l10n 本机卡死才关成 false —— 实为沙箱拦截 flutter 的假象；
+  #  本机 flutter gen-l10n 可正常运行。）开启后 lib/generated/app_localizations*.dart
+  # 由 gen-l10n 自动生成（覆盖旧的手写副本），arb 为唯一真相源，新增键只需改 arb。
   generate: true
   assets:
     - assets/icon/

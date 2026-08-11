@@ -24,8 +24,11 @@ project.setProperty("archivesBaseName", "NexHub")
 
 android {
     namespace = "com.nexhub.app"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // 覆盖 Flutter 默认（35 / 26.3）：flutter_tts、media_kit_* 等多个插件要求
+    // compileSdk 36 + ndk 27（flutter build 已明确告警）。需本机已安装
+    // Android SDK Platform 36 与 NDK 27.0.12077973（SDK Manager 安装）。
+    compileSdk = 36
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

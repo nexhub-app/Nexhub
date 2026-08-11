@@ -9,6 +9,7 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 /// 本地小说单章。
 class LocalNovelChapter {
@@ -171,13 +172,25 @@ class LocalNovelParser {
 
     // 3. 解析 manifest：id → href（属性顺序不固定，整标签内提取）
     final manifest = <String, String>{};
+    final navIds = <String>{};
     final itemTagRegex = RegExp(r'<item\b[^>]*/?>');
     for (final m in itemTagRegex.allMatches(opfXml)) {
       final tag = m.group(0)!;
       final idM = RegExp(r'\bid="([^"]+)"').firstMatch(tag);
       final hrefM = RegExp(r'\bhref="([^"]+)"').firstMatch(tag);
       if (idM != null && hrefM != null) {
-        manifest[idM.group(1)!] = hrefM.group(1)!.split('#').first;
+        final href = hrefM.group(1)!.split('#').first;
+        manifest[idM.group(1)!] = href;
+        // 导航文档（目录）不计入正文，避免「目录列表」混入阅读内容：
+        // - EPUB3：`properties="nav"`；
+        // - EPUB2：`toc.ncx`（NCX 导航文件，可能被不规范地放进 spine）。
+        final propsM = RegExp(r'\bproperties="([^"]+)"', caseSensitive: false)
+            .firstMatch(tag);
+        if ((propsM != null &&
+                propsM.group(1)!.toLowerCase().contains('nav')) ||
+            href.toLowerCase().endsWith('.ncx')) {
+          navIds.add(idM.group(1)!);
+        }
       }
     }
 
@@ -204,17 +217,23 @@ class LocalNovelParser {
       if (href == null) return;
       final html = readText(resolvePath(href));
       if (html.isEmpty) return;
-      final parsed = _parseEpubHtml(html);
-      // 无正文的条目（封面 / 导航页）跳过
-      if (parsed.$2.isEmpty) return;
-      chapters.add(LocalNovelChapter(
-        title: parsed.$1.isEmpty ? '第${chapters.length + 1}章' : parsed.$1,
-        content: parsed.$2,
-      ));
+      // 一个 spine 文件可能包含多章，按标题进一步切分；
+      // 返回空列表表示该文件无正文（封面 / 导航页），跳过。
+      final subs = _parseEpubHtml(html);
+      for (final sub in subs) {
+        // 标题与正文都空才跳过；有标题的章节即使正文空也保留（见
+        // [_parseEpubHtml]：整章空正文仍占一个章节，避免整本 0 章）。
+        if (sub.$2.isEmpty && sub.$1.isEmpty) continue;
+        chapters.add(LocalNovelChapter(
+          title: sub.$1.isEmpty ? '第${chapters.length + 1}章' : sub.$1,
+          content: sub.$2,
+        ));
+      }
     }
 
-    // 按 spine 顺序加载章节
+    // 按 spine 顺序加载章节（跳过导航文档）
     for (final idref in spineOrder) {
+      if (navIds.contains(idref)) continue;
       loadChapter(idref);
     }
 
@@ -238,48 +257,179 @@ class LocalNovelParser {
     );
   }
 
-  /// 解析单章 XHTML/HTML：提取标题与正文段落。
-  static (String, List<String>) _parseEpubHtml(String html) {
-    // 标题：优先 <h1>，其次 <title>
-    var title = '';
-    final h1 = RegExp(r'<h1[^>]*>([\s\S]*?)</h1>', caseSensitive: false)
-        .firstMatch(html);
-    if (h1 != null) title = _stripTags(h1.group(1)!).trim();
-    if (title.isEmpty) {
-      final t = RegExp(r'<title[^>]*>([\s\S]*?)</title>', caseSensitive: false)
-          .firstMatch(html);
-      if (t != null) title = _stripTags(t.group(1)!).trim();
-    }
+  /// 从 EPUB 压缩包提取封面图（bug 115），返回落盘缓存路径；失败返回 null。
+  ///
+  /// 优先级：OPF `<meta name="cover" content="ID"/>` 指向的 manifest 图片 →
+  /// manifest 中名称含 `cover` 的图片 → 压缩包内第一张图片。
+  static Future<String?> extractCover(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!file.existsSync()) return null;
+      final bytes = await file.readAsBytes();
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final fileMap = <String, ArchiveFile>{};
+      for (final f in archive) {
+        if (f.isFile) fileMap[f.name] = f;
+      }
+      String readText(String name) {
+        final f = fileMap[name];
+        if (f == null) return '';
+        final data = f.content;
+        if (data is! List<int>) return '';
+        return utf8.decode(data, allowMalformed: true);
+      }
 
+      final containerXml = readText('META-INF/container.xml');
+      final opfMatch =
+          RegExp(r'full-path="([^"]+\.opf)"').firstMatch(containerXml);
+      final opfPath = (opfMatch?.group(1) ?? '').isNotEmpty
+          ? opfMatch!.group(1)!
+          : 'OEBPS/content.opf';
+      final opfXml = readText(opfPath);
+      final opfDir = p.dirname(opfPath);
+
+      String? coverId;
+      final metaTag = RegExp(r'<meta\b[^>]*name="cover"[^>]*/?>',
+              caseSensitive: false)
+          .firstMatch(opfXml);
+      if (metaTag != null) {
+        final c = RegExp(r'content="([^"]+)"', caseSensitive: false)
+            .firstMatch(metaTag.group(0)!);
+        if (c != null) coverId = c.group(1);
+      }
+
+      final manifest = <String, String>{};
+      for (final m in RegExp(r'<item\b[^>]*/?>').allMatches(opfXml)) {
+        final tag = m.group(0)!;
+        final idM = RegExp(r'\bid="([^"]+)"').firstMatch(tag);
+        final hrefM = RegExp(r'\bhref="([^"]+)"').firstMatch(tag);
+        if (idM != null && hrefM != null) {
+          manifest[idM.group(1)!] = hrefM.group(1)!.split('#').first;
+        }
+      }
+
+      String? coverHref;
+      if (coverId != null && manifest.containsKey(coverId)) {
+        coverHref = manifest[coverId];
+      } else {
+        for (final entry in manifest.entries) {
+          final href = entry.value.toLowerCase();
+          if (href.contains('cover') &&
+              RegExp(r'\.(jpe?g|png|gif|webp|bmp)$').hasMatch(href)) {
+            coverHref = entry.value;
+            break;
+          }
+        }
+      }
+      if (coverHref == null) {
+        for (final f in archive.files) {
+          if (!f.isFile) continue;
+          final lower = f.name.toLowerCase();
+          if (RegExp(r'\.(jpe?g|png|gif|webp|bmp)$').hasMatch(lower) &&
+              !lower.contains('icon')) {
+            coverHref = f.name;
+            break;
+          }
+        }
+      }
+      if (coverHref == null) return null;
+
+      String resolvePath(String href) {
+        if (opfDir.isEmpty || opfDir == '.') return href;
+        return '$opfDir/$href';
+      }
+
+      final coverFile = fileMap[resolvePath(coverHref)];
+      if (coverFile == null || coverFile.content is! List<int>) return null;
+      final data = coverFile.content as List<int>;
+      final ext = p.extension(coverHref).toLowerCase();
+      final tmp = await getTemporaryDirectory();
+      final dir = Directory(p.join(tmp.path, 'nexhub_epub_covers'));
+      await dir.create(recursive: true);
+      final out = File(p.join(dir.path, '${filePath.hashCode}$ext'));
+      await out.writeAsBytes(data);
+      return out.path;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 解析单章 XHTML/HTML：按标题（h1-h6）切分为若干子章节。
+  ///
+  /// 返回 [(标题, 段落列表)]。标题文本从 `<h1>-<h6>` 提取并作为切分点，
+  /// 标题本身不再重复进入正文；无标题则返回单元素（标题为空）。
+  /// 正文去标签 / 解码实体 / 按空行分段。
+  static List<(String, List<String>)> _parseEpubHtml(String html) {
+    // 移除 head / script / style（这些不是正文）。
     var body = html;
-    // 移除 head / script / style 与各级标题（标题已单独提取，避免重复入正文）
     body = body.replaceAll(
         RegExp(r'<head\b[\s\S]*?</head>', caseSensitive: false), '');
     body = body.replaceAll(
         RegExp(r'<script\b[\s\S]*?</script>', caseSensitive: false), '');
     body = body.replaceAll(
         RegExp(r'<style\b[\s\S]*?</style>', caseSensitive: false), '');
-    body = body.replaceAll(
-        RegExp(r'<h[1-6][^>]*>[\s\S]*?</h[1-6]>', caseSensitive: false), '');
 
-    // 块级闭合标签 → 双换行，便于段落分割；<br> → 单换行
+    // 将每个标题替换为位置标记并记下标题文本，之后用于切分正文。
+    final headingTexts = <String>[];
+    body = body.replaceAllMapped(
+      RegExp(r'<h([1-6])[^>]*>([\s\S]*?)</h\1>', caseSensitive: false),
+      (m) {
+        final t = _stripTags(m.group(2)!).trim();
+        headingTexts.add(t);
+        return '\u0001${headingTexts.length - 1}\u0002';
+      },
+    );
+    // 兜底：识别 class 含 chapter/part 的 <p>/<div> 作为章节标题（网络小说 EPUB
+    // 常用 `<p class="chapter_title">` 等非标题标签承载章节名）；空标题不切分。
+    body = body.replaceAllMapped(
+      RegExp(
+        r'<(p|div)\b[^>]*\s+class\s*=\s*[\x22\x27][^>]*?(?:chapter|part)[^>]*?[\x22\x27][^>]*>([\s\S]*?)</\1>',
+        caseSensitive: false,
+      ),
+      (m) {
+        final t = _stripTags(m.group(2)!).trim();
+        if (t.isEmpty) return m.group(0)!;
+        headingTexts.add(t);
+        return '\u0001${headingTexts.length - 1}\u0002';
+      },
+    );
+
+    // 块级闭合标签 → 双换行，<br> → 单换行，便于段落分割。
     body = body.replaceAll(
         RegExp(r'</(p|div|section|article|li|blockquote)\s*>',
             caseSensitive: false),
         '\n\n');
     body = body.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
 
-    // 去标签 + 解码实体
+    // 去标签 + 解码实体。
     body = _decodeEntities(_stripTags(body));
 
-    // 按空行分段，段内换行合并
-    final paras = body
+    final result = <(String, List<String>)>[];
+    final marker = RegExp(r'\u0001(\d+)\u0002');
+    final parts = body.split(marker);
+    for (var i = 0; i < parts.length; i++) {
+      final paras = _splitParas(parts[i]);
+      if (i == 0) {
+        // 首个标题之前的前言段：有内容则作为无标题章节。
+        if (paras.isNotEmpty) result.add(('', paras));
+      } else {
+        final title = headingTexts[i - 1];
+        if (paras.isEmpty && title.isEmpty) continue; // 标题与正文都空才跳过
+        // 有标题但正文为空（源正文抓取失败/被拦时整章空）也保留章节：
+        // 否则整本 0 章 → 阅读器误报「本地文件读取失败」，用户无从排查。
+        result.add((title, paras));
+      }
+    }
+    return result;
+  }
+
+  /// 将一段正文按空行分段、段内换行合并、去空白。
+  static List<String> _splitParas(String body) {
+    return body
         .split(RegExp(r'\n\s*\n'))
         .map((s) => s.replaceAll(RegExp(r'[\r\n]+'), '').trim())
         .where((s) => s.isNotEmpty)
         .toList();
-
-    return (title, paras);
   }
 
   /// 去除所有 HTML 标签。

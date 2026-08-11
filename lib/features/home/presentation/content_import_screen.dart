@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/local/folder_import_dialog.dart';
 import '../../../core/local/import_permission.dart';
 import '../../../core/local/local_content_manager.dart';
+import '../../../core/local/saf_bridge.dart';
+import 'package:path/path.dart' as p;
 import '../../../core/models/plugin_config.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -78,6 +83,107 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
     }
   }
 
+  /// 选择文件夹导入（bug 117）：小说文件夹聚合为一本书、每文件=一章；
+  /// 图片文件夹作为整部漫画（目录）导入；其余提示空文件夹。
+  Future<void> _pickFolder() async {
+    final granted = await requestLocalImportPermission();
+    if (!granted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).storagePermissionDenied)),
+      );
+      return;
+    }
+    final dir = await FilePicker.platform.getDirectoryPath();
+    if (dir == null || !mounted) return;
+    final saf = isAndroidSafUri(dir);
+    final folderTitle = saf ? await safFolderName(dir) : p.basename(dir);
+    setState(() => _picking = true);
+    try {
+      // 小说（txt/epub）文件夹：聚合为一本书，每文件=一章（bug 117 / 112）。
+      final textFiles = saf
+          ? await listFolderFilesByKindSaf(dir, LocalMediaKind.text)
+          : listFolderFilesByKind(dir, LocalMediaKind.text);
+      if (textFiles.isNotEmpty) {
+        if (textFiles.length > 1) {
+          final mode = await showFolderImportChoiceDialog(
+            context,
+            folderName: folderTitle,
+            typeLabel: AppLocalizations.of(context).importNovelTitle,
+          );
+          if (!mounted) return;
+          if (mode == null) return;
+          if (mode == FolderImportMode.merge) {
+            await context.read<LocalContentManager>().add(LocalContentEntry(
+              id: dir,
+              title: folderTitle,
+              path: dir,
+              kind: LocalMediaKind.text,
+              addedAt: DateTime.now().millisecondsSinceEpoch,
+              filePaths: textFiles,
+            ));
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(AppLocalizations.of(context).novelDirImported(folderTitle, textFiles.length))),
+              );
+            }
+            return;
+          }
+        }
+        for (final f in textFiles) {
+          await context.read<LocalContentManager>().add(LocalContentEntry(
+            id: f,
+            title: safBaseName(f),
+            path: f,
+            kind: LocalMediaKind.text,
+            addedAt: DateTime.now().millisecondsSinceEpoch,
+          ));
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${textFiles.length} ${AppLocalizations.of(context).contentImportOpened}')),
+          );
+        }
+        return;
+      }
+      // 图片文件夹：作为整部漫画（目录）导入，阅读器按文件名读取。
+      final imageFiles = saf
+          ? await listFolderFilesByKindSaf(dir, LocalMediaKind.images)
+          : listFolderFilesByKind(dir, LocalMediaKind.images);
+      if (imageFiles.isNotEmpty) {
+        await context.read<LocalContentManager>().add(LocalContentEntry(
+          id: dir,
+          title: folderTitle,
+          path: dir,
+          kind: LocalMediaKind.images,
+          addedAt: DateTime.now().millisecondsSinceEpoch,
+        ));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(context).comicDirImported(folderTitle))),
+          );
+        }
+        return;
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).emptyFolder)),
+      );
+    } on FileSystemException catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).folderScanFailed)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).importFailed(e.toString()))),
+      );
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
+
   IconData _iconFor(LocalMediaKind kind) => switch (kind) {
         LocalMediaKind.video => Icons.movie_outlined,
         LocalMediaKind.images => Icons.auto_stories_outlined,
@@ -105,16 +211,28 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _picking ? null : _pick,
-        icon: _picking
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.file_open_outlined),
-        label: Text(l10n.contentImportSelectFile),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          FloatingActionButton.extended(
+            onPressed: _picking ? null : _pickFolder,
+            icon: const Icon(Icons.folder_outlined),
+            label: Text(l10n.importNovelPickFolder),
+          ),
+          const SizedBox(height: AppTokens.spaceMd),
+          FloatingActionButton.extended(
+            onPressed: _picking ? null : _pick,
+            icon: _picking
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.file_open_outlined),
+            label: Text(l10n.contentImportSelectFile),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppTokens.spaceLg),

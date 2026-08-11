@@ -36,12 +36,14 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final manager = context.watch<DownloadManager>();
-    final allActiveTasks = manager.activeTasks;
+    // 基础列表 = 全部未归档任务（含失败/已完成）：此前只取 activeTasks，
+    // 失败任务永远不出现 → 下载错误完全看不见。
+    final allTasks = manager.tasks.where((t) => !t.archived).toList();
 
     // 按类型 + 状态筛选
     List<DownloadTask> filteredTasks = _typeFilter == null
-        ? allActiveTasks
-        : allActiveTasks.where((t) => t.sourceType == _typeFilter).toList();
+        ? allTasks
+        : allTasks.where((t) => t.sourceType == _typeFilter).toList();
     if (_statusFilter != _DownloadStatusFilter.all) {
       filteredTasks = filteredTasks.where(_matchesStatus).toList();
     }

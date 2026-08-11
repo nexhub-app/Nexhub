@@ -7,6 +7,23 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:path_provider/path_provider.dart';
+
+/// 平台相关的默认下载基路径。
+///
+/// - Android：应用私有外部存储 `<pkg>/files/Download`，可被 dart:io 直接写入
+///   （修复 108：旧默认 `D:/Downloads` 在 Android 上不存在，导致下载无法进行）。
+/// - 其它平台：沿用桌面默认 `D:/Downloads`。
+Future<String> defaultDownloadPath() async {
+  if (Platform.isAndroid) {
+    final Directory? dir = await getExternalStorageDirectory();
+    if (dir != null) {
+      return '${dir.path}${dir.path.endsWith('/') ? '' : '/'}Download';
+    }
+  }
+  return 'D:/Downloads';
+}
+
 /// 文件系统后端接口。
 abstract class DownloadFileSystem {
   /// 获取下载基路径。

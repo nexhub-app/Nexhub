@@ -23,11 +23,14 @@ import '../models/plugin_config.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/media_api_service.dart';
 import '../services/source_repository.dart';
+import '../utils/app_log.dart';
+import '../local/saf_bridge.dart' show normalizeSafTreeUri;
 import 'comic_download_handler.dart';
 import 'download_file_system.dart';
 import 'download_format_preferences.dart';
 import 'download_handler.dart';
 import 'download_settings.dart';
+import 'saf_download_file_system.dart';
 import 'download_storage.dart';
 import 'download_task.dart';
 import 'media_download_handler.dart';
@@ -195,14 +198,22 @@ class DownloadManager extends ChangeNotifier {
 
   /// 更新下载路径并立即生效（无需重启）。
   ///
-  /// 持久化到 [DownloadSettingsStore]，并在生产环境（[PathProviderFileSystem]）
-  /// 下重建文件系统根路径，使后续下载直接落到新目录。SAF 的 `content://` 路径
-  /// 无法用 dart:io 操作，仅持久化不重建 fs。
+  /// 持久化到 [DownloadSettingsStore]，并按路径形态重建文件系统根：
+  /// - `content://` 树 URI（Android SAF 用户目录）→ 用 [SafFileSystem] 写入，
+  ///   使下载真正落到用户指定的系统文件夹（修复 107/108）；
+  /// - 普通文件路径 → 用 [PathProviderFileSystem] 重建根路径。
   Future<void> setDownloadBasePath(String path) async {
-    _settings = _settings.copyWith(downloadPath: path);
+    // pickDirectory 返回规范化 `tree/<id>/document/<id>`（4 段），saf 包的
+    // stat/child 对纯 tree（2 段）最稳；统一归一化后持久化，全链路一致。
+    final String normalized = path.startsWith('content://')
+        ? normalizeSafTreeUri(path)
+        : path;
+    _settings = _settings.copyWith(downloadPath: normalized);
     await DownloadSettingsStore().save(_settings);
-    if (fs is PathProviderFileSystem && !path.startsWith('content://')) {
-      fs = PathProviderFileSystem(path);
+    if (normalized.startsWith('content://')) {
+      fs = SafFileSystem(normalized);
+    } else if (fs is PathProviderFileSystem) {
+      fs = PathProviderFileSystem(normalized);
     }
     notifyListeners();
   }
@@ -255,8 +266,11 @@ class DownloadManager extends ChangeNotifier {
         : chapterIndices.map((i) => chapters[i]).toList();
 
     final now = DateTime.now().millisecondsSinceEpoch;
+    // task.id 会用作下载文件名（`${task.id}.cbz/.epub/.jpg`）。item.id 对部分源
+    // 是完整 URL（含 `/`、`:`），直接拼进来会被 SAF 路径拆成多级目录，导致
+    // 写入/读取路径错乱（下载后打不开）。统一清洗为文件名安全字符。
     final task = DownloadTask(
-      id: '${item.sourceId ?? 'local'}_${item.id}_$now',
+      id: '${item.sourceId ?? 'local'}_${_safeTaskId(item.id)}_$now',
       title: item.title,
       coverUrl: item.coverUrl,
       sourceType: sourceType,
@@ -471,6 +485,7 @@ class DownloadManager extends ChangeNotifier {
     } catch (e) {
       _updateTask(taskId,
           status: DownloadStatus.failed, error: e.toString());
+      AppLog.instance.e('[重试失败] ${task.title} (${task.id}): $e');
     }
   }
 
@@ -681,6 +696,19 @@ class DownloadManager extends ChangeNotifier {
     return dot > 0 ? filename.substring(0, dot) : filename;
   }
 
+  /// 把任意内容 id 清洗为文件名安全字符（task.id 会拼进下载文件名）。
+  ///
+  /// URL（`https://m.biqubu3.com/book_4656/`）含 `/`、`:`、`?` 等非法文件名字符，
+  /// 直接使用会被 SAF 路径按 `/` 拆成多级目录 → 写入/读取错乱。替换规则与
+  /// [ComicDownloadHandler._sanitize] 一致；空结果回退 `item`。
+  String _safeTaskId(String id) {
+    final String clean = id
+        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+        .replaceAll(RegExp(r'\s+'), '_')
+        .trim();
+    return clean.isEmpty ? 'item' : clean;
+  }
+
   /// 从文件名推断 task ID（取扩展名前的部分）。
   String _inferTaskId(String filename) => _stripExt(filename);
 
@@ -786,6 +814,9 @@ class DownloadManager extends ChangeNotifier {
       final handler = _createHandler(task, source, item.title, item.author,
           chapters);
 
+      AppLog.instance.i('[下载开始] ${item.title} (${task.id}, '
+          '${chapters.length} 章, 格式 ${task.format.label})');
+
       final localPath = await handler.download(
         task,
         onProgress: (downloaded, total) {
@@ -832,8 +863,19 @@ class DownloadManager extends ChangeNotifier {
       await _persist();
       notifyListeners();
     } catch (e) {
+      // 失败即清理半成品（空文件夹 / 0 字节封面），避免"只有空文件夹"残留
+      // 且没有报错入口（任务错误文本只在下载管理-失败里可见）。
+      try {
+        final String partial = fs.join(fs.basePath, task.id);
+        if (await fs.exists(partial)) await fs.delete(partial);
+        final String partialCover = fs.join(fs.basePath, '${task.id}.jpg');
+        if (await fs.exists(partialCover)) await fs.delete(partialCover);
+      } catch (_) {
+        // 清理失败不影响失败状态记录。
+      }
       _updateTask(task.id,
           status: DownloadStatus.failed, error: e.toString());
+      AppLog.instance.e('[下载失败] ${task.title} (${task.id}): $e');
     }
   }
 

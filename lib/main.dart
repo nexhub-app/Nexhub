@@ -8,6 +8,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/network/runtime/nexhub_http_overrides.dart';
 import 'core/debug/crash_log.dart';
+import 'core/utils/app_log.dart';
 import 'features/splash/splash_screen.dart';
 import 'core/theme/app_tokens.dart';
 
@@ -37,6 +38,8 @@ void main() {
         details.exceptionAsString(),
         stack: details.stack,
       ));
+      // 同步进运行日志缓冲（设置 → 高级 → 运行日志 可看）。
+      AppLog.instance.e('Flutter 错误: ${details.exceptionAsString()}');
       FlutterError.presentError(details);
     };
 
@@ -92,6 +95,9 @@ void main() {
     runApp(const SplashScreen());
   }, (Object error, StackTrace stack) {
     unawaited(CrashLog.record('未捕获异常', error.toString(), stack: stack));
+    // 同步进运行日志（设置 → 高级 → 运行日志），避免该异常只在崩溃日志里、
+    // 用户从运行日志排查时看不到。
+    AppLog.instance.eWithStack('未捕获异常', error, stack);
     debugPrint('Uncaught zone error: $error\n$stack');
   });
 }

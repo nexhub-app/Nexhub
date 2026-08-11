@@ -2768,6 +2768,12 @@ abstract class AppLocalizations {
   /// **'Imported comic: {name}'**
   String comicDirImported(Object name);
 
+  /// Novel folder import result toast
+  ///
+  /// In en, this message translates to:
+  /// **'Imported novel: {name} ({count} chapters)'**
+  String novelDirImported(String name, int count);
+
   /// No description provided for @contentImportNovelFormats.
   ///
   /// In en, this message translates to:
@@ -11503,6 +11509,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy All'**
   String get crashLogCopyAll;
+
+  /// Runtime log screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime Log'**
+  String get runtimeLog;
+
+  /// Runtime log empty state / hint
+  ///
+  /// In en, this message translates to:
+  /// **'In-memory log of this session\'s network requests, responses and errors (detailed logging toggle controls verbosity)'**
+  String get runtimeLogDesc;
+
+  /// Runtime log empty state
+  ///
+  /// In en, this message translates to:
+  /// **'No logs yet. Enable \"Detailed Logging\", reproduce the issue, then come back.'**
+  String get logEmpty;
+
+  /// Runtime log copy done toast
+  ///
+  /// In en, this message translates to:
+  /// **'Log copied to clipboard'**
+  String get logCopied;
 
   /// Advanced page data cleanup group title
   ///

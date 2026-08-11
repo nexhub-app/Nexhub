@@ -32,6 +32,19 @@ import 'package:nexhub/features/player/presentation/video_player_screen.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
 
+/// 黑夜模式下注入网页的暗色样式（反向滤镜 + 媒体二次反转发回原色）。
+///
+/// 仅在 App 处于深色主题时注入，浅色模式与嗅探逻辑完全不受影响。
+/// 对已是深色的站点会被反转为浅色（已知局限），但视频站多为浅色，收益明显。
+const String _kDarkModeCss = '''
+(function(){
+  var s = document.getElementById('nexhub_dark_css');
+  if(!s){ s=document.createElement('style'); s.id='nexhub_dark_css'; (document.head||document.documentElement).appendChild(s); }
+  s.textContent='html{filter:invert(1) hue-rotate(180deg) !important;background:#0b0b0b !important;}'
+    + 'img,picture,video,canvas,iframe,embed,object{filter:invert(1) hue-rotate(180deg) !important;}';
+})();
+''';
+
 /// 嗅探页。
 class BrowseSnifferScreen extends StatefulWidget {
   final String? initialUrl;
@@ -313,6 +326,7 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool isDark = scheme.brightness == Brightness.dark;
 
     // 钩子就绪前先占位，确保 initialUserScripts 在 WebView 创建时已就位。
     if (_hookJs == null) {
@@ -392,11 +406,20 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                     // onLoadResource 已足够；Referer 播放时用页面地址兜底。
                     // https 页面里的 http 串流不拦（嗅探工具需要最大召回）。
                     mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                    // 暗色主题下让 WebView 背景透明，避免初始化/页面底色为白块
+                    // （与已注入的 _kDarkModeCss 配合，露出 App 的暗色 surface）。
+                    transparentBackground: true,
                   ),
                   initialUserScripts: UnmodifiableListView<UserScript>(
-                    _hookJs != null && _hookJs!.isNotEmpty
-                        ? <UserScript>[SnifferBridge.userScript(_hookJs!)]
-                        : const <UserScript>[],
+                    <UserScript>[
+                      if (_hookJs != null && _hookJs!.isNotEmpty)
+                        SnifferBridge.userScript(_hookJs!),
+                      if (isDark)
+                        UserScript(
+                          source: _kDarkModeCss,
+                          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_END,
+                        ),
+                    ],
                   ),
                   onWebViewCreated: (controller) {
                     _controller = controller;
@@ -434,6 +457,8 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                     }
                   },
                   onLoadStop: (controller, url) async {
+                    final bool dark =
+                        Theme.of(context).brightness == Brightness.dark;
                     if (mounted) {
                       _stopLoadWatchdog();
                       setState(() {
@@ -441,6 +466,12 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                         _pageLoaded = true;
                         if (url != null) _pageUrl = url.toString();
                       });
+                    }
+                    // 深色主题下，页面加载完成后补注入暗色样式（覆盖主题切换 /
+                    // SPA 路由等 initialUserScripts 之外的场景）。
+                    if (dark) {
+                      await controller.evaluateJavascript(
+                          source: _kDarkModeCss);
                     }
                     await _bridge.deepScan();
                     // 页面加载完成后探测已捕获媒体的文件大小（带防抖）。
