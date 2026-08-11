@@ -159,14 +159,31 @@ Future<String> _copySafToLocal(String docUri, String cacheKey) async {
       File(cached).lengthSync() > 0) {
     return cached;
   }
-  final Directory dir = await getTemporaryDirectory();
-  final File target = File(
-      p.join(dir.path, 'saf_${cacheKey.hashCode}${_safExt(docUri)}'));
+  final Directory dir = await _localCacheDir();
+  // 扩展名优先取 cacheKey（视频场景是带 .ts/.mp4 的编码路径，含真扩展名）；
+  // docUri 为不透明 SAF 文档 URI，通常无扩展名，仅作兜底。
+  final String ext = _safExt(cacheKey).isNotEmpty
+      ? _safExt(cacheKey)
+      : _safExt(docUri);
+  final File target = File(p.join(dir.path, 'saf_${cacheKey.hashCode}$ext'));
   if (await target.exists() && target.lengthSync() > 0) {
     _resolvedCache[cacheKey] = target.path;
     return target.path;
   }
   // 重新拷贝（覆盖可能残留的 0 字节旧文件）。
+  // 目录守卫：SAF 目录文档不能当文件拷贝（会失败或拷出空/垃圾内容）。
+  // 出现该情况说明上层把"文件夹路径"当"文件路径"解析了（如书架直传任务文件夹）。
+  try {
+    final SafDocumentFile? doc = await saf.stat(docUri);
+    if (doc != null && doc.isDir) {
+      AppLog.instance.e('[SAF 拷贝失败] $docUri 是目录，不是文件');
+      throw FileSystemException('该路径是一个文件夹（请选择具体视频文件）', docUri);
+    }
+  } on FileSystemException {
+    rethrow;
+  } on Object catch (e) {
+    AppLog.instance.e('[SAF stat 异常] $docUri: $e');
+  }
   await saf.copyToLocalFile(docUri, target.path);
   if (!(await target.exists()) || target.lengthSync() == 0) {
     AppLog.instance.e('[SAF 拷贝失败] $docUri -> $target 为空或不存在');
@@ -174,6 +191,22 @@ Future<String> _copySafToLocal(String docUri, String cacheKey) async {
   }
   _resolvedCache[cacheKey] = target.path;
   return target.path;
+}
+
+/// 本地缓存落盘目录：优先 app-specific 外部存储（`Android/data/<pkg>/files`），
+/// 该目录媒体_kit/mpv 在 Android 上读取最稳（裸绝对路径 + 应用自身可访问）；
+/// 退回应用私有 temp 目录兜底（iOS / 极少数取不到外部目录的设备）。
+Future<Directory> _localCacheDir() async {
+  try {
+    final Directory? ext = await getExternalStorageDirectory();
+    if (ext != null) {
+      await ext.create(recursive: true);
+      return ext;
+    }
+  } on Object {
+    // 取外部目录失败，退回 temp。
+  }
+  return getTemporaryDirectory();
 }
 
 /// 列举 SAF 路径下的图片并逐张落缓存，返回可阅读的本地文件路径（自然排序）。
@@ -223,6 +256,126 @@ Future<List<String>> gatherSafImages(String uriOrPath) async {
   }
   images.sort((a, b) => naturalCompare(a.$1, b.$1));
   return images.map((e) => e.$2).toList();
+}
+
+/// 列举 SAF 文件夹下的子文件名（不落缓存）。
+///
+/// 用于「按集命名、扩展名未知」的视频定位：HLS 下载写出 `.ts`、直链写出 `.mp4`，
+/// 但打开时只能拿到按集序号，需枚举目录按 `NNN.<videoExt>` 精确命中真实文件。
+/// 支持下载编码 `<treeUri>␟<rel>` 与纯 content:// 树 URI；rel 为文件夹相对路径
+/// （可空/空 → root）。返回非目录子文件的文件名列表。
+Future<List<String>> listSafChildNames(String folderUriOrPath) async {
+  _ensureRegistered();
+  final int idx = folderUriOrPath.indexOf(_kSafSep);
+  final String dirUri;
+  if (idx >= 0) {
+    final String root = normalizeSafTreeUri(folderUriOrPath.substring(0, idx));
+    final String rel = folderUriOrPath.substring(idx + _kSafSep.length);
+    final List<String> baseSegs =
+        rel.split('/').where((s) => s.isNotEmpty).toList();
+    if (baseSegs.isEmpty) {
+      dirUri = root;
+    } else {
+      // 逐级定位（而非一次性 saf.child(root, 多级)）：部分 provider 对多段 child
+      // 直接返回 null，但单级 child / list 正常。任一级失败时用 list 按名兜底。
+      String cur = root;
+      SafDocumentFile? dirDoc;
+      for (final seg in baseSegs) {
+        dirDoc = await saf.child(cur, <String>[seg]);
+        if (dirDoc == null) {
+          try {
+            final list = await saf.list(cur);
+            dirDoc = list.where((c) => c.isDir && c.name == seg).firstOrNull ??
+                list.where((c) => c.name == seg).firstOrNull;
+          } on Object {
+            dirDoc = null;
+          }
+        }
+        if (dirDoc == null) return const <String>[];
+        cur = dirDoc.uri;
+      }
+      dirUri = dirDoc!.uri;
+    }
+  } else {
+    dirUri = normalizeSafTreeUri(folderUriOrPath);
+  }
+  final SafDocumentFile? stat = await saf.stat(dirUri);
+  if (stat != null && !stat.isDir) return <String>[stat.name];
+  final List<SafDocumentFile> children = await saf.list(dirUri);
+  return children.where((c) => !c.isDir).map((c) => c.name).toList();
+}
+
+/// 解析「本地视频任务 / 书架」的 SAF 路径为可播放的真实视频文件。
+///
+/// 输入可能是：
+/// - 纯 content:// 单文件 → 直接 [resolveSafUri] 落盘；
+/// - 编码路径 `<treeUri>␟<folder>/001.mp4`（章节文件）→ 按 `NNN.<videoExt>`
+///   在目录内精确/兜底匹配（HLS 产物 `.ts`、直链 `.mp4`）；
+/// - 编码路径 `<treeUri>␟<folder>`（**任务文件夹**，书架/列表直传）→ 枚举目录
+///   取首个视频文件。
+/// 任一情况都返回 [resolveSafUri] 落盘后的真实文件路径；找不到则回退对原路径
+/// [resolveSafUri]（目录场景会由 [_copySafToLocal] 的目录守卫报明确错误，
+/// 绝不把 content:// 交给 media_kit 静默"打开成功"）。
+Future<String> resolveSafVideoFile(String uriOrPath) async {
+  if (!isAndroidSafUri(uriOrPath)) return uriOrPath;
+  const videoExts = <String>[
+    '.ts', '.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v', '.flv',
+  ];
+  final int idx = uriOrPath.indexOf(_kSafSep);
+  if (idx < 0) return resolveSafUri(uriOrPath); // 纯 content:// 单文件
+  final String rootPart = uriOrPath.substring(0, idx);
+  final List<String> segs = uriOrPath
+      .substring(idx + _kSafSep.length)
+      .split('/')
+      .where((s) => s.isNotEmpty)
+      .toList();
+  if (segs.isEmpty) return resolveSafUri(uriOrPath);
+  final String last = segs.last;
+  final bool lastIsFile = videoExts.any(last.toLowerCase().endsWith);
+  // 目录编码路径（不含文件名部分）：文件形态去掉最后一节，文件夹形态就是本身。
+  final List<String> dirSegs =
+      lastIsFile ? segs.sublist(0, segs.length - 1) : segs;
+  final String folderEncoded = dirSegs.isEmpty
+      ? rootPart
+      : '$rootPart$_kSafSep${dirSegs.join('/')}';
+
+  final List<String> names = await listSafChildNames(folderEncoded);
+  String? found;
+  if (lastIsFile) {
+    // 章节文件：优先 `NNN.<videoExt>` 精确前缀命中，其次目录内任意视频文件。
+    final String prefix =
+        last.contains('.') ? last.substring(0, last.lastIndexOf('.')) : last;
+    for (final name in names) {
+      final String lower = name.toLowerCase();
+      if (lower.startsWith('$prefix.') &&
+          videoExts.any((ext) => lower.endsWith(ext))) {
+        found = name;
+        break;
+      }
+    }
+    if (found == null) {
+      for (final name in names) {
+        if (videoExts.any((ext) => name.toLowerCase().endsWith(ext))) {
+          found = name;
+          break;
+        }
+      }
+    }
+  } else {
+    // 任务文件夹：取目录下首个视频文件（自然排序，一般 001 在前）。
+    final List<String> sorted = List<String>.from(names)..sort();
+    for (final name in sorted) {
+      if (videoExts.any((ext) => name.toLowerCase().endsWith(ext))) {
+        found = name;
+        break;
+      }
+    }
+  }
+  if (found != null && found.isNotEmpty) {
+    return resolveSafUri('$folderEncoded/$found');
+  }
+  // 找不到：回退对原路径落盘（文件场景直接可读；目录场景由目录守卫报错）。
+  return resolveSafUri(uriOrPath);
 }
 
 /// 从 content:// URI 末尾尽量还原扩展名（缓存文件需保留扩展名供格式识别）。
