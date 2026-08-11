@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../local/local_content_manager.dart' show isAndroidSafUri;
+import '../local/saf_bridge.dart' show resolveSafUri;
 import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
 import 'source_image.dart';
@@ -66,13 +68,36 @@ class AppCoverImage extends StatelessWidget {
     if (coverUrl == null || coverUrl!.isEmpty) {
       image = _letterPlaceholder(context);
     } else if (_isFile) {
-      image = Image.file(
-        File(coverUrl!),
-        width: width,
-        height: height,
-        fit: fit,
-        frameBuilder: _frame(placeholder),
-      );
+      final String path = coverUrl!;
+      // SAF 编码路径（content://…␟…）无法被 dart:io 直读，须先 resolveSafUri
+      // 落缓存再显示（否则 FileImage 抛 PathNotFoundException 崩溃）。
+      if (isAndroidSafUri(path) || path.contains('␟')) {
+        image = FutureBuilder<String>(
+          future: resolveSafUri(path),
+          builder: (context, snap) {
+            final String? p = snap.data;
+            if (snap.hasError || p == null || p.isEmpty) {
+              // 解析失败/源为空：显示占位而非崩溃。
+              return placeholder;
+            }
+            return Image.file(
+              File(p),
+              width: width,
+              height: height,
+              fit: fit,
+              frameBuilder: _frame(placeholder),
+            );
+          },
+        );
+      } else {
+        image = Image.file(
+          File(path),
+          width: width,
+          height: height,
+          fit: fit,
+          frameBuilder: _frame(placeholder),
+        );
+      }
     } else {
       // 无源配置的远程图：用 SourceImage 但不传 radius/hero（由外层 AppCoverImage 装饰）。
       image = SourceImage(

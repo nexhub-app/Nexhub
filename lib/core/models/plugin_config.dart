@@ -885,6 +885,40 @@ class PluginConfig {
         this.version = 1,
       });
 
+  /// 构造与阅读器在线取图一致的防盗链 headers（Referer / 指定 UA / Cookie），
+  /// 供下载路径复用（防盗链源在缺头时返回 HTML 错误页或 ~5KB 占位图）。
+  ///
+  /// 与 [SourceImage] 的在线头保持同一套规则，关键差异点：
+  /// **源未配置显式 Referer 时默认补同源 Referer**（图片 URL 自己的 origin），
+  /// 大量 CDN 靠同源 Referer 防跨站盗链，缺失即被拦（下载曾因此拿到全同的
+  /// 5.8KB 占位图）。[url] 用于计算该兜底 Referer。
+  Map<String, String>? fetchHeadersFor(String url) {
+    final AntiHotlinkingConfig ah = antiHotlinking;
+    final SiteConfig siteCfg = site;
+    final Map<String, String>? ahHeaders = ah.headers;
+    final Map<String, String>? siteHeaders = siteCfg.headers;
+    final String? referer = ah.referer;
+    final String? ua = siteCfg.userAgent;
+    final String? cookies = siteCfg.cookies;
+    final Map<String, String> m = <String, String>{};
+    if (ahHeaders != null) m.addAll(ahHeaders);
+    if (siteHeaders != null) m.addAll(siteHeaders);
+    if (referer != null && referer.isNotEmpty) m['Referer'] = referer;
+    if (ua != null && ua.isNotEmpty) m['User-Agent'] = ua;
+    if (cookies != null && cookies.isNotEmpty) m['Cookie'] = cookies;
+    // 默认补同源 Referer（与在线 SourceImage 一致）：源未配显式 referer 时，
+    // 防盗链 CDN 仍校验 Referer 同源，缺失即 403/占位图。
+    if (!m.containsKey('Referer')) {
+      try {
+        m['Referer'] = Uri.parse(url).origin;
+      } catch (_) {
+        // 非法 URL 忽略 Referer。
+      }
+    }
+    if (m.isEmpty) return null;
+    return m;
+  }
+
   factory PluginConfig.fromJson(Map<String, dynamic> json) {
     final type = SourceType.parse(json['type'] as String?);
     if (type == null) {

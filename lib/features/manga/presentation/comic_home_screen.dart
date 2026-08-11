@@ -120,7 +120,17 @@ class ComicHomeScreen extends StatelessWidget {
           }
           if (localPath != null && localPath.isNotEmpty && localKind == 'images') {
             final lower = localPath.toLowerCase();
-            if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {
+            // 漫画归档（cbz/cbr/cbt/zip/rar/7z/cb7）交给阅读器内部多格式解压。
+            // 不再把 .cbr/.rar 当「不支持」甩给兜底查看器——解压已支持 RAR 系与 7z。
+            if (const <String>[
+              '.cbz',
+              '.cbr',
+              '.cbt',
+              '.zip',
+              '.rar',
+              '.7z',
+              '.cb7',
+            ].any((ext) => lower.endsWith(ext))) {
               Navigator.of(context).push(
                 AppPageRoute<void>(
                   builder: (_) => ComicReaderScreen(
@@ -136,7 +146,25 @@ class ComicHomeScreen extends StatelessWidget {
               );
               return;
             }
-            // cbr/rar/单图/目录走兜底查看器。
+            // 目录（散图）或单图：收集图片列表交给漫画阅读器（支持缩放/翻页/进度）。
+            final imgs = gatherLocalComicImages(localPath);
+            if (imgs.isNotEmpty) {
+              Navigator.of(context).push(
+                AppPageRoute<void>(
+                  builder: (_) => ComicReaderScreen(
+                    comicId: item.id,
+                    title: item.title,
+                    sourceId: item.sourceId ?? '',
+                    chapters: const <Episode>[],
+                    localImages: imgs,
+                    restoreProgress:
+                        GeneralSettingsStore.instance.settings.rememberPosition,
+                  ),
+                ),
+              );
+              return;
+            }
+            // 实在没有图片（如损坏目录）才走兜底查看器。
             Navigator.of(context).push(
               AppPageRoute<void>(
                 builder: (_) => LocalMediaViewer(

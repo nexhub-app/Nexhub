@@ -138,7 +138,7 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(AppLocalizations.of(context)
-                    .comicDirImported(folderTitle)),
+                    .novelDirImported(folderTitle, files.length)),
               ),
             );
           }

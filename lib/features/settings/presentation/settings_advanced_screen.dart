@@ -17,6 +17,7 @@ import '../../../core/settings/advanced_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
 import 'crash_log_screen.dart';
+import 'log_viewer_screen.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
 
@@ -245,6 +246,22 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const CrashLogScreen(),
+                  ),
+                ),
+              ),
+              ListTile(
+                key: const ValueKey<String>('advanced.runtimeLog'),
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  Icons.article_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: Text(l10n.runtimeLog),
+                subtitle: Text(l10n.runtimeLogDesc),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const LogViewerScreen(),
                   ),
                 ),
               ),
