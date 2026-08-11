@@ -372,7 +372,27 @@ class PlayerController extends ChangeNotifier {
   /// [headers] 透传给 mpv 的 HTTP 请求头（反盗链 Referer / UA 等），
   /// 必须与抓取 m3u8 文本时一致，否则 CDN 返回 403、解不出帧。
   Future<void> open(String url, {Map<String, String>? headers}) async {
-    await _backend.player.open(Media(url, httpHeaders: headers));
+    // 本地裸文件绝对路径（非 http / 非 file:// / 非 content://）补 `file://`
+    /// 前缀：media_kit 底层 mpv 在某些 Android 构建下会把裸绝对路径当相对路径
+    /// 或未知协议处理，导致 `player.open` 既不报错也不完成（UI 无限转圈）。
+    /// 网络地址 / 已带 scheme 的地址保持原样。
+    final openUrl = _normalizeOpenUrl(url);
+    await _backend.player.open(Media(openUrl, httpHeaders: headers));
+  }
+
+  /// 把本地裸路径归一化为 `file://` URI，便于 media_kit/mpv 稳定打开。
+  static String _normalizeOpenUrl(String url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('file://')) return url;
+    if (url.startsWith('content://')) {
+      // 到这一步还拿到 content:// 说明上层 SAF 解析漏了（书架/下载直传），
+      // 绝不能把它交给 media_kit——mpv 读不了 content://，会"瞬间打开成功"
+      // 但实际什么都没加载（UI 无限转圈且无任何错误）。直接抛明确错误。
+      throw ArgumentError(
+        'content:// 不能直接交给 media_kit：请先经 SAF 解析为真实文件',
+      );
+    }
+    return 'file://$url';
   }
 
   /// 继续播放。
@@ -431,7 +451,8 @@ class PlayerController extends ChangeNotifier {
     }
     final line = lines[currentLineIndex];
     if (line.url.isEmpty) return;
-    await _backend.player.open(Media(line.url, httpHeaders: line.headers));
+    final openUrl = _normalizeOpenUrl(line.url);
+    await _backend.player.open(Media(openUrl, httpHeaders: line.headers));
   }
 
   // ─────────────────────── 状态流 ───────────────────────

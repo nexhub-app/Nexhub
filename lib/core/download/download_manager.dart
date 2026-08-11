@@ -473,7 +473,8 @@ class DownloadManager extends ChangeNotifier {
 
     try {
       final item = await service.fetchDetail(source, task.contentId!);
-      final chapters = await _fetchChaptersForRetry(source, item, task.sourceType);
+      final chapters = await _fetchChaptersForRetry(
+        source, item, task.sourceType, idFallback: task.contentId);
       _tasks[idx] = task.copyWith(
         status: DownloadStatus.pending,
         error: null,
@@ -490,19 +491,24 @@ class DownloadManager extends ChangeNotifier {
   }
 
   /// 按任务类型拉取章节列表（重试专用）。
+  ///
+  /// [idFallback]：部分源的 `fetchDetail` 返回的 [MediaItem.id] 为空（解析器未回填
+  /// id）。若直接拿它拼章节列表 URL 会得到空 id（如 `vod/detail/id/.html`）→ 404，
+  /// 重试必然失败且报错误导。此时回退到原始 [DownloadTask.contentId] 保证 URL 正确。
   Future<List<Episode>> _fetchChaptersForRetry(
     PluginConfig source,
     MediaItem item,
-    SourceType sourceType,
-  ) async {
+    SourceType sourceType, {
+    String? idFallback,
+  }) async {
+    final String id = item.id.isNotEmpty ? item.id : (idFallback ?? item.id);
     switch (sourceType) {
       case SourceType.novelSource:
-        return service.fetchNovelChapters(source, item.id);
+        return service.fetchNovelChapters(source, id);
       case SourceType.mangaSource:
-        return service.fetchChapters(source, item.id);
+        return service.fetchChapters(source, id);
       default:
-        return service.fetchEpisodes(source, item.id,
-            detailUrl: item.detailUrl);
+        return service.fetchEpisodes(source, id, detailUrl: item.detailUrl);
     }
   }
 
@@ -684,7 +690,8 @@ class DownloadManager extends ChangeNotifier {
     if (lower.endsWith('.mp4') ||
         lower.endsWith('.mkv') ||
         lower.endsWith('.avi') ||
-        lower.endsWith('.mov')) {
+        lower.endsWith('.mov') ||
+        lower.endsWith('.ts')) {
       return (SourceType.animeSource, _stripExt(filename), DownloadFormat.video);
     }
     return null;

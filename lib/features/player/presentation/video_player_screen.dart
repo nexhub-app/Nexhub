@@ -37,6 +37,10 @@ import '../../../core/widgets/web_favorite_action.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import '../../../core/settings/danmaku_config.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_log.dart';
+import '../../../core/local/local_content_manager.dart'
+    show isAndroidSafUri;
+import '../../../core/local/saf_bridge.dart' show resolveSafVideoFile;
 import '../../../core/widgets/app_error_state.dart';
 import 'dart:io';
 
@@ -531,14 +535,41 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (_isDirectMode) {
       // 本地 / 直链模式：跳过在线源解析，直接打开给定地址。
       // 直链带防盗链请求头（嗅探到的 m3u8 常需 Referer，缺了会被 CDN 403）。
-      final direct = widget.directUrl ?? widget.localUri!;
+      String direct = widget.directUrl ?? widget.localUri!;
+      // SAF / content:// 文档 URI 不能直接交给 media_kit（mpv 读不了 content://，
+      // 会既不报错也不完成 → UI 无限转圈）。统一在此落为应用私有真实文件再打开，
+      // 这样「下载页」（编码 SAF 路径）与「浏览页」（file_picker 的 content://）
+      // 走同一可靠路径。
+      if (isAndroidSafUri(direct)) {
+        try {
+          direct = await resolveSafVideoFile(direct);
+          AppLog.instance.i('[本地视频打开] SAF/content 已解析为真实文件：$direct');
+        } on Object catch (e) {
+          AppLog.instance.eWithStack('[本地视频打开] SAF 解析失败：$direct', e);
+          throw Exception('无法读取该文件（SAF 解析失败，可能下载未完成或目录权限失效）');
+        }
+      }
       final headers =
           (widget.directUrl != null && widget.directHeaders?.isNotEmpty == true)
               ? widget.directHeaders
               : null;
       _playUrl = direct;
       _playHeaders = headers;
-      await _controller.open(direct, headers: headers);
+      // 本地文件：media_kit 打开裸绝对路径偶尔会既不报错也不完成（UI 无限转圈）。
+      // 加超时兜底，把"卡死"变成明确错误，让用户能看到原因而非一直转圈。
+      final stopwatch = Stopwatch()..start();
+      AppLog.instance.i('[本地视频打开] 调用 media_kit.open：$direct');
+      try {
+        await _controller
+            .open(direct, headers: headers)
+            .timeout(const Duration(seconds: 30));
+      } on TimeoutException {
+        AppLog.instance.e('[本地视频打开超时] 30s 内 media_kit 未载入：$direct');
+        throw Exception('本地视频打开超时（media_kit 未能在 30 秒内载入，'
+            '可能是文件位置 media_kit 无法读取）');
+      }
+      AppLog.instance.i('[本地视频打开] media_kit.open 完成，'
+          '耗时 ${stopwatch.elapsedMilliseconds}ms');
     } else {
       final repo = context.read<SourceRepository>();
       final service = context.read<MediaApiService>();
@@ -2824,8 +2855,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             );
           }
           if (snap.hasError || _videoController == null) {
+            // 本地 / 直链模式直接打开失败（如 media_kit 打开超时、文件不可读）
+            // 时，展示具体错误而非"视频已失效"，让用户能看懂原因并重试。
+            final String msg = (_isDirectMode && snap.error != null)
+                ? snap.error.toString()
+                : l10n.playerVideoExpired;
             return AppErrorState(
-              message: l10n.playerVideoExpired,
+              message: msg,
               // 注意：setState 的回调必须是 void，不能写 `() => _initFuture = _init()`
               // （赋值表达式会返回 _init() 这个 Future，触发「setState callback returned a Future」崩溃）。
               onRetry: () {
