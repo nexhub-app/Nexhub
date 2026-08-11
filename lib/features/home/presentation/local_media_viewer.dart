@@ -4,9 +4,9 @@ import 'dart:io';
 
 import 'package:nexhub/core/local/archive_extractor.dart';
 import 'package:nexhub/core/local/saf_bridge.dart';
+import 'package:nexhub/core/player/player_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../core/local/local_content_manager.dart';
@@ -51,8 +51,9 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
       widget.uri.startsWith('http://') || widget.uri.startsWith('https://');
 
   // 视频（media_kit）
-  Player? _player;
+  PlayerController? _controller;
   VideoController? _videoController;
+  bool _disposed = false;
 
   // 图片
   List<String> _images = const <String>[];
@@ -76,12 +77,30 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
     try {
       switch (widget.kind) {
         case LocalMediaKind.video:
-          _player = Player();
-          _videoController = VideoController(_player!);
-          // SAF 下载/导入路径（content:// 或 `<treeUri>␟<rel>`）需先落缓存再播放，
-          // media_kit 无法直读 content://。普通路径原样返回。
+          // 复用与在线播放一致的 PlayerController（含默认 mpv 属性与安全的原生
+          // surface 释放顺序）。裸 Player() 打开本地 / SAF 缓存文件时曾出现「无限加载」，
+          // 统一走 PlayerController 修复。
+          await PlayerController.pendingDisposal;
+          if (_disposed) break;
+          _controller = PlayerController();
+          _videoController = VideoController(_controller!.player);
+          // media_kit 无法直读 content://，SAF 编码路径先落缓存再播放；普通路径原样返回。
           final resolved = await resolveSafUri(widget.uri);
-          await _player!.open(Media(resolved));
+          // 文件校验 + 诊断：空文件 / 0 字节 / 非视频（如被源拦截的 HTML）无法播放，
+          // 明确报错而非卡在缓冲；同时记日志便于排查。
+          final file = File(resolved);
+          if (!await file.exists()) {
+            throw Exception('本地视频文件不存在：$resolved');
+          }
+          final size = await file.length();
+          final head = await file.openRead(0, 16).first;
+          AppLog.instance.i('[本地视频打开] $resolved 大小=${size}B '
+              '首字节=0x${head.map((v) => v.toRadixString(16).padLeft(2, '0')).join('')}');
+          if (size == 0) {
+            throw Exception('本地视频文件为空（0 字节），可能下载未完成或被源拦截：$resolved');
+          }
+          await _controller!.open(resolved);
+          await _controller!.play();
           break;
         case LocalMediaKind.images:
           _images = await _resolveImages();
@@ -193,7 +212,8 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
 
   @override
   void dispose() {
-    _player?.dispose();
+    _disposed = true;
+    _controller?.dispose();
     super.dispose();
   }
 
