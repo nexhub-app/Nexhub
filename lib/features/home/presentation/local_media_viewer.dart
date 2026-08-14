@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:nexhub/core/local/archive_extractor.dart';
 import 'package:nexhub/core/local/saf_bridge.dart';
+import 'package:nexhub/core/local/text_encoding.dart';
 import 'package:nexhub/core/player/player_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -140,24 +140,12 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
     }
   }
 
-  /// 读取文本文件，兼容 UTF-8 / GBK 等常见编码。
+  /// 读取文本文件，自动嗅探编码（UTF-8 / GBK / UTF-16）。
   ///
-  /// 先识别 UTF-8 BOM；再尝试 UTF-8 严格解码；失败时回退 latin1（保证能打开，
-  /// GBK 等双字节编码可能显示为乱码，但不会再崩溃）。完整中文编码识别可后续
-  /// 引入 charset 检测包。
+  /// 不再回退 latin1：GBK 等双字节编码的中文 txt 也能正确显示（此前会乱码）。
   Future<String> _readTextFile(String path) async {
     final bytes = await File(path).readAsBytes();
-    if (bytes.length >= 3 &&
-        bytes[0] == 0xEF &&
-        bytes[1] == 0xBB &&
-        bytes[2] == 0xBF) {
-      return utf8.decode(bytes.sublist(3));
-    }
-    try {
-      return utf8.decode(bytes, allowMalformed: false);
-    } on FormatException {
-      return latin1.decode(bytes);
-    }
+    return decodeTextBytes(bytes);
   }
 
   Future<List<String>> _resolveImages() async {
