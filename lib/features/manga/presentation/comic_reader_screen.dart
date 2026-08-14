@@ -2492,7 +2492,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       itemBuilder: (ctx, i) => Container(
         // 条漫（gap==0）相邻图之间常有子像素接缝（"细白条"）：每张图向下重叠 1px
         // 彻底闭合接缝，深浅主题下都不会露出底色线条。带间距模式（gap>0）保持原样。
-        margin: gap == 0 ? const EdgeInsets.only(bottom: -1) : null,
+        // 注意：3.47+ Container.margin 断言拒绝负值（isNonNegative），改用 Transform
+        // 位移实现同样效果，避免断言崩溃。
+        transform: gap == 0
+            ? Matrix4.translationValues(0, 1, 0)
+            : null,
         child: MangaPageImage(
           url: _images[i],
           prefs: _prefs,
