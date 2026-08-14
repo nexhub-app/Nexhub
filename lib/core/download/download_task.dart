@@ -102,7 +102,18 @@ class DownloadTask {
   final String? error;
 
   /// 本地产物路径（completed 时有值）。
+  ///
+  /// - 视频：作品目录（`${workDir}`），内部 `NNN.mp4`/`.ts` 为每集文件；
+  /// - 漫画 cbz：作品目录（`${workDir}`），内部 `NNN.cbz` 为每话归档；
+  /// - 漫画 folder：作品目录（`${workDir}`），内部 `NNN/` 为每话图片子目录；
+  /// - 小说：整本单文件 `title.epub`/`.txt`（沿用原 localPath 语义）。
   final String? localPath;
+
+  /// 逐章/逐集文件绝对路径列表（与 [chapterTitles] 一一对应）。
+  ///
+  /// 供阅读器按"话/章/集"打开与切集，是「能在阅读器内翻话/切集」的关键数据。
+  /// 旧数据（无此字段）从 [localPath] 推导（见 [DownloadManager] 恢复逻辑）。
+  final List<String>? chapterFilePaths;
 
   /// 创建时间戳（毫秒）。
   final int createdAt;
@@ -112,6 +123,13 @@ class DownloadTask {
 
   /// 封面本地路径（持久化后，coverUrl 可能为本地文件路径）。
   final String? localCoverPath;
+
+  /// 封面合并键：同「源 + 内容」的作品共用同一张封面，避免重复下载。
+  ///
+  /// 取值规则见 [DownloadManager._computeCoverKey]，形如 `src1|content123`。
+  /// 封面文件统一以 `${coverKey}.jpg` 落盘；同键后续批次下载时直接复用该文件，
+  /// 不再重复拉取网络封面。null 表示旧数据（无此字段）或合并键无法计算。
+  final String? coverKey;
 
   /// Whether this task has been archived (file kept on disk, hidden from main list).
   final bool archived;
@@ -133,9 +151,11 @@ class DownloadTask {
     this.status = DownloadStatus.pending,
     this.error,
     this.localPath,
+    this.chapterFilePaths,
     required this.createdAt,
     this.completedAt,
     this.localCoverPath,
+    this.coverKey,
     this.archived = false,
     this.archivedAt,
   });
@@ -165,8 +185,10 @@ class DownloadTask {
     int? totalChapters,
     String? error,
     String? localPath,
+    List<String>? chapterFilePaths,
     int? completedAt,
     String? localCoverPath,
+    String? coverKey,
     List<String>? chapterTitles,
     bool? archived,
     int? archivedAt,
@@ -185,9 +207,11 @@ class DownloadTask {
         status: status ?? this.status,
         error: error ?? this.error,
         localPath: localPath ?? this.localPath,
+        chapterFilePaths: chapterFilePaths ?? this.chapterFilePaths,
         createdAt: createdAt,
         completedAt: completedAt ?? this.completedAt,
         localCoverPath: localCoverPath ?? this.localCoverPath,
+        coverKey: coverKey ?? this.coverKey,
         archived: archived ?? this.archived,
         archivedAt: archivedAt ?? this.archivedAt,
       );
@@ -206,9 +230,11 @@ class DownloadTask {
         'status': status.label,
         'error': error,
         'localPath': localPath,
+        'chapterFilePaths': chapterFilePaths,
         'createdAt': createdAt,
         'completedAt': completedAt,
         'localCoverPath': localCoverPath,
+        'coverKey': coverKey,
         'archived': archived,
         'archivedAt': archivedAt,
       };
@@ -232,9 +258,13 @@ class DownloadTask {
         status: DownloadStatus.fromString(json['status'] as String?),
         error: json['error'] as String?,
         localPath: json['localPath'] as String?,
+        chapterFilePaths: (json['chapterFilePaths'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList(),
         createdAt: json['createdAt'] as int? ?? 0,
         completedAt: json['completedAt'] as int?,
         localCoverPath: json['localCoverPath'] as String?,
+        coverKey: json['coverKey'] as String?,
         archived: json['archived'] as bool? ?? false,
         archivedAt: json['archivedAt'] as int?,
       );

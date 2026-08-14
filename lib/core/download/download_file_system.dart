@@ -32,6 +32,12 @@ abstract class DownloadFileSystem {
   /// 写入文件（字节），自动创建父目录。
   Future<void> writeBytes(String path, Uint8List bytes);
 
+  /// 流式写入文件（分块），自动创建父目录。
+  ///
+  /// 用于大文件（视频/长音频）：避免整块读入内存导致 OOM 卡退。各实现保证
+  /// 逐块落盘，内存占用恒定（SAF 走 writeFileStream 分块通道，与写 cbz 一致）。
+  Future<void> writeStream(String path, Stream<List<int>> chunks);
+
   /// 写入文件（文本），自动创建父目录。
   Future<void> writeString(String path, String content);
 
@@ -71,6 +77,21 @@ class PathProviderFileSystem implements DownloadFileSystem {
     final file = File(path);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes);
+  }
+
+  @override
+  Future<void> writeStream(String path, Stream<List<int>> chunks) async {
+    final file = File(path);
+    await file.parent.create(recursive: true);
+    final IOSink sink = file.openWrite();
+    try {
+      await for (final chunk in chunks) {
+        sink.add(chunk is Uint8List ? chunk : Uint8List.fromList(chunk));
+      }
+      await sink.flush();
+    } finally {
+      await sink.close();
+    }
   }
 
   @override
@@ -139,6 +160,15 @@ class InMemoryFileSystem implements DownloadFileSystem {
   }
 
   @override
+  Future<void> writeStream(String path, Stream<List<int>> chunks) async {
+    final BytesBuilder builder = BytesBuilder(copy: false);
+    await for (final chunk in chunks) {
+      builder.add(chunk is Uint8List ? chunk : Uint8List.fromList(chunk));
+    }
+    _files[path] = builder.takeBytes();
+  }
+
+  @override
   Future<void> writeString(String path, String content) async {
     _files[path] = Uint8List.fromList(content.codeUnits);
   }
@@ -158,7 +188,13 @@ class InMemoryFileSystem implements DownloadFileSystem {
   }
 
   @override
-  Future<bool> exists(String path) async => _files.containsKey(path);
+  Future<bool> exists(String path) async {
+    if (_files.containsKey(path)) return true;
+    // 目录模拟：某路径下若存在子文件（前缀 `$path/`），视为该目录存在。
+    // 真实文件系统（PathProviderFileSystem）对目录的 exists 同理返回 true。
+    final prefix = '$path/';
+    return _files.keys.any((k) => k.startsWith(prefix));
+  }
 
   @override
   Future<void> delete(String path) async {

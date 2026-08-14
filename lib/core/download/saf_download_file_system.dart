@@ -43,22 +43,146 @@ class SafFileSystem implements DownloadFileSystem {
     return (root, segs);
   }
 
+  /// 宽松名匹配：真实名 == 目标，或任一侧解码后相等（部分 provider 返回的
+  /// DISPLAY_NAME 是百分号编码形式，如 `%E5%B0%8F%E8%AF%B4` vs `小说`；
+  /// 也可能是调用方传的段被编码过）。
+  bool _nameMatches(String actual, String target) {
+    if (actual == target) return true;
+    bool decoded(String a, String b) {
+      if (!a.contains('%') && !b.contains('%')) return false;
+      try {
+        return Uri.decodeComponent(a) == Uri.decodeComponent(b);
+      } on Object {
+        return false;
+      }
+    }
+
+    return decoded(actual, target) || decoded(target, actual);
+  }
+
   /// 解析（必要时创建）相对段对应的目录，返回其 document URI。
+  ///
+  /// **逐级解析**（而非一次性 [Saf.child] 多段匹配）：部分 Android provider /
+  /// ROM 对多段 child 直接返回 null、或对中文段 DISPLAY_NAME 匹配不可靠
+  /// （原始中文 vs 编码形式不一致），导致「父目录不是目录」/ 建出奇怪结构。
+  /// 每级：单段 child → 失败用 list 按名（含解码）兜底 → 再失败才 createDir
+  /// 单级，并用返回的 document URI 作为下一级的父。
+  ///
+  /// **关键**：[Saf.child] 按名匹配**不区分目录/文件**——同名文件被前次失败
+  /// 下载建出后（mkdirp 多段 bug 把目录名建成文件），child 会命中文件并把
+  /// 文件当目录用 → createDocument 报 "Parent document isn't a directory"。
+  /// 因此 child/list 命中后必须校验 [SafDocumentFile.isDir]，非目录视为脏
+  /// 数据删除重建。
   Future<String> _resolveDir(String rootUri, List<String> segs) async {
     if (segs.isEmpty) return rootUri;
-    final SafDocumentFile? existing = await _saf.child(rootUri, segs);
-    if (existing != null) return existing.uri;
-    final SafDocumentFile created = await _saf.mkdirp(rootUri, segs);
-    return created.uri;
+    String cur = rootUri;
+    for (final seg in segs) {
+      // 1) child 命中：必须真的是目录，否则丢弃（可能是同名文件脏数据）。
+      SafDocumentFile? dirDoc = await _saf.child(cur, <String>[seg]);
+      if (dirDoc != null && !dirDoc.isDir) {
+        AppLog.instance.w('[SAF 目录重建] "$seg" child 命中同名文件，删除重建');
+        try {
+          await _saf.delete(dirDoc.uri);
+        } on Object catch (e) {
+          AppLog.instance.w('[SAF 删除同名文件失败] $seg: $e');
+        }
+        dirDoc = null;
+      }
+      if (dirDoc == null) {
+        try {
+          final List<SafDocumentFile> list = await _saf.list(cur);
+          // 只接受「目录」命中；同名文件视为脏数据/路径错乱（上次写入把
+          // 目录名建成文件），不能当目录用（会触发 "Parent document isn't
+          // a directory"）。命中同名文件时删除重建目录。
+          dirDoc = list
+              .where((c) => c.isDir && _nameMatches(c.name, seg))
+              .firstOrNull;
+          if (dirDoc == null) {
+            final SafDocumentFile? file = list
+                .where((c) => !c.isDir && _nameMatches(c.name, seg))
+                .firstOrNull;
+            if (file != null) {
+              AppLog.instance.w('[SAF 目录重建] "$seg" 已存在同名文件，删除重建');
+              try {
+                await _saf.delete(file.uri);
+              } on Object catch (e) {
+                AppLog.instance.w('[SAF 删除同名文件失败] $seg: $e');
+              }
+            }
+          }
+        } on Object {
+          dirDoc = null;
+        }
+      }
+      if (dirDoc == null) {
+        // 目录不存在 → 单级创建（mkdirp 对单段同样可靠）。
+        final SafDocumentFile created = await _saf.mkdirp(cur, <String>[seg]);
+        dirDoc = created;
+      }
+      // 最终校验：必须是目录，且可 stat（部分 provider 创建后需刷新/stat
+      // 确认；stat 失败或非目录 → 重建一次，仍失败则抛明确错误）。
+      if (!dirDoc.isDir) {
+        AppLog.instance.w('[SAF 目录异常] "$seg" 非目录，删除重建');
+        try {
+          await _saf.delete(dirDoc.uri);
+        } on Object catch (e) {
+          AppLog.instance.w('[SAF 删除异常目录失败] $seg: $e');
+        }
+        final SafDocumentFile created = await _saf.mkdirp(cur, <String>[seg]);
+        dirDoc = created;
+      }
+      final SafDocumentFile? reStat = await _safeStatOrNull(dirDoc.uri);
+      if (reStat != null && !reStat.isDir) {
+        throw FileSystemException(
+            'SAF 目录 "$seg" 无法以目录方式访问（provider 返回非目录）',
+            dirDoc.uri);
+      }
+      cur = dirDoc.uri;
+    }
+    return cur;
+  }
+
+  /// 安全 stat：失败返回 null（不抛）。
+  Future<SafDocumentFile?> _safeStatOrNull(String uri) async {
+    try {
+      return await _saf.stat(uri);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// 解析相对段对应的文档；不存在返回 null（不抛错）。
+  Future<SafDocumentFile?> _resolveDocOrNull(
+      String rootUri, List<String> segs) async {
+    if (segs.isEmpty) return null;
+    SafDocumentFile? doc;
+    String cur = rootUri;
+    for (final seg in segs) {
+      doc = await _saf.child(cur, <String>[seg]);
+      if (doc == null) {
+        try {
+          final List<SafDocumentFile> list = await _saf.list(cur);
+          doc = list.where((c) => _nameMatches(c.name, seg)).firstOrNull;
+        } on Object {
+          doc = null;
+        }
+      }
+      if (doc == null) return null;
+      cur = doc.uri;
+    }
+    return doc;
   }
 
   /// 解析相对段对应的文档；不存在则抛 [FileSystemException]。
+  ///
+  /// 逐级定位（与 [_resolveDir] 同策略）：多段 child 在部分 provider 上返回
+  /// null / 中文匹配不可靠，改为每级单段 child + list 按名兜底。
   Future<SafDocumentFile> _resolveDoc(
       String rootUri, List<String> segs, String path) async {
     if (segs.isEmpty) {
       throw FileSystemException('Cannot operate on root as a file', path);
     }
-    final SafDocumentFile? doc = await _saf.child(rootUri, segs);
+    final SafDocumentFile? doc = await _resolveDocOrNull(rootUri, segs);
     if (doc == null) throw FileSystemException('Not found', path);
     return doc;
   }
@@ -95,6 +219,24 @@ class SafFileSystem implements DownloadFileSystem {
     if (bytes.isEmpty) {
       throw FileSystemException('拒绝写入空内容（源未返回数据）', path);
     }
+    await _writeStreamInternal(path, _chunked(bytes),
+        expectedLen: bytes.length);
+  }
+
+  @override
+  Future<void> writeStream(String path, Stream<List<int>> chunks) async {
+    await _writeStreamInternal(path, chunks, expectedLen: null);
+  }
+
+  /// 流式写入的统一实现：目录解析 → 删旧 → 清残留 → 分块写 → 校验/改名/回读。
+  ///
+  /// [expectedLen] 非空时校验写入字节数（writeBytes 用）；为 null（流式，总长
+  /// 未知）时跳过大小校验，但仍做改名修正与回读验证。
+  Future<void> _writeStreamInternal(
+    String path,
+    Stream<List<int>> chunks, {
+    int? expectedLen,
+  }) async {
     final (String rootUri, List<String> segs) = _split(path);
     if (segs.isEmpty) {
       throw FileSystemException('Cannot write to root', path);
@@ -102,9 +244,27 @@ class SafFileSystem implements DownloadFileSystem {
     final List<String> dirSegs = segs.sublist(0, segs.length - 1);
     final String name = segs.last;
     final String dirUri = await _resolveDir(rootUri, dirSegs);
+    // 诊断日志：解析出的目录 URI 若与预期不符（如尾段是文件名而非目录名），
+    // 极可能是 provider 的 DISPLAY_NAME/child 行为异常，直接暴露而非等到
+    // 写入时抛 "Parent document isn't a directory"。
+    final SafDocumentFile? dirStat = await _safeStatOrNull(dirUri);
+    AppLog.instance.d('[SAF 写入定位] root=$rootUri dirSegs=$dirSegs '
+        'name=$name → dirUri=$dirUri stat=${dirStat?.isDir}');
+    if (dirStat != null && !dirStat.isDir) {
+      throw FileSystemException(
+        'SAF 目标目录解析失败：$dirUri 不是目录（provider 目录定位异常）',
+        path,
+      );
+    }
+    if (dirUri.endsWith(name)) {
+      throw FileSystemException(
+        'SAF 目标目录解析错乱：目录 URI 与文件名相同（$dirUri）',
+        path,
+      );
+    }
     // 覆盖写前先删旧文档：部分 SAF provider 的 overwrite 不保证截断
     // （新内容短于旧文件时旧尾部残留 → 文件损坏），删后重建保证干净写入。
-    final SafDocumentFile? existing = await _saf.child(rootUri, segs);
+    final SafDocumentFile? existing = await _resolveDocOrNull(rootUri, segs);
     if (existing != null) {
       try {
         await _saf.delete(existing.uri);
@@ -118,13 +278,13 @@ class SafFileSystem implements DownloadFileSystem {
     // 大文件（CBZ/视频/epub）整块 writeFileBytes 一次性过方法通道会被
     // binder 截断（下载内容损坏根因），改为流式分块写入（每块 ≤1 MiB）。
     final SafDocumentFile written = await _saf.writeFileStream(
-        dirUri, name, _mimeFor(name), _chunked(bytes),
+        dirUri, name, _mimeFor(name), chunks,
         overwrite: true);
     // 写入后校验：大小不一致说明写入被截断/丢失 → 显式报错，避免静默产出
     // 空/半截文件（"下载完成但内容为空/打不开"）。
-    if (written.length != bytes.length) {
+    if (expectedLen != null && written.length != expectedLen) {
       throw FileSystemException(
-        '写入校验失败: 期望 ${bytes.length} 字节, 实际 ${written.length}',
+        '写入校验失败: 期望 $expectedLen 字节, 实际 ${written.length}',
         path,
       );
     }
@@ -230,14 +390,14 @@ class SafFileSystem implements DownloadFileSystem {
   Future<bool> exists(String path) async {
     final (String rootUri, List<String> segs) = _split(path);
     if (segs.isEmpty) return true;
-    return (await _saf.child(rootUri, segs)) != null;
+    return (await _resolveDocOrNull(rootUri, segs)) != null;
   }
 
   @override
   Future<void> delete(String path) async {
     final (String rootUri, List<String> segs) = _split(path);
     if (segs.isEmpty) return; // 不删除根目录树
-    final SafDocumentFile? doc = await _saf.child(rootUri, segs);
+    final SafDocumentFile? doc = await _resolveDocOrNull(rootUri, segs);
     if (doc != null) await _saf.delete(doc.uri);
   }
 
@@ -253,7 +413,7 @@ class SafFileSystem implements DownloadFileSystem {
   Future<void> createDir(String path) async {
     final (String rootUri, List<String> segs) = _split(path);
     if (segs.isEmpty) return;
-    await _saf.mkdirp(rootUri, segs);
+    await _resolveDir(rootUri, segs);
   }
 
   @override
