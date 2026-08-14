@@ -89,11 +89,12 @@ LocalMediaKind? classifyByPath(String path) {
 
 /// 判断路径是否为 Android SAF URI（content://）。
 ///
-/// file_picker 的 `getDirectoryPath` 在 Android 返回 SAF tree URI
-/// （`content://com.android.externalstorage.documents/tree/...`），这类 URI 无法
-/// 用 dart:io 的 [Directory]/[File] 直接访问（`Directory.list` 会抛
-/// [FileSystemException]），需通过 ContentResolver 或专门插件读取。调用方应据此
-/// 给出明确提示而非静默失败——这是「选择目录却导入不了」的深层根因。
+/// 安卓分区存储下，文件夹导入应统一走 [pickFolderPath]（内部 `saf.pickDirectory`）
+/// 拿到 content:// tree URI；这类 URI 无法用 dart:io 的 [Directory]/[File] 直接
+/// 访问（`Directory.list` 在真实路径下会"exists 成功却列不出文件"或抛
+/// [FileSystemException]），需通过 SAF 插件读取。注意 `file_picker.getDirectoryPath`
+/// 在部分设备返回的是真实路径（非 content://），拿到后必须据此分支处理，不能假设
+/// 一定是 SAF。调用方应给出明确提示而非静默失败——这是「选择目录却导入不了」的深层根因。
 bool isAndroidSafUri(String path) => path.startsWith('content://');
 
 /// SAF content:// 条目的封面计算由 [saf_bridge] 注入（避免与 local_content_manager
@@ -150,6 +151,26 @@ const List<String> _kComicArchiveExts = <String>[
 
 bool isComicArchive(String lowerPath) =>
     _kComicArchiveExts.any((e) => lowerPath.endsWith(e));
+
+/// 漫画扫描时忽略的非媒体扩展名：这些文件（配置/元数据/文档/字幕/音视频等）出现于
+/// 漫画文件夹内不应被当作「独立一话」。漫画页只可能是图片或归档，`.json`/`.txt`/
+/// `.xml`/`.ts` 等显然不是漫画内容，误识别会导致阅读器尝试把文本/视频当图片打开而失败。
+const List<String> kComicIgnoreExts = <String>[
+  // 文本 / 文档 / 配置 / 元数据
+  '.json', '.xml', '.txt', '.md', '.nfo', '.ini', '.cfg', '.conf',
+  '.log', '.bak', '.tmp', '.part', '.db', '.sqlite', '.torrent',
+  // 字幕
+  '.srt', '.ass', '.ssa', '.vtt', '.sub', '.smi',
+  // 音频
+  '.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.wma',
+  // 视频（绝不可能是漫画页）
+  '.mp4', '.mkv', '.mov', '.webm', '.avi', '.flv', '.m4v', '.ts',
+  '.wmv', '.mpg', '.mpeg', '.rmvb',
+];
+
+/// 判断文件是否应被漫画扫描忽略（扩展名命中 [kComicIgnoreExts]）。
+bool isComicIgnored(String lowerPath) =>
+    kComicIgnoreExts.any((e) => lowerPath.endsWith(e));
 
 /// 自然排序比较器：把字符串切成「数字段 / 非数字段」交替序列，数字段按数值比较
 /// （"第2章" < "第10章"），非数字段按字典序。用于文件夹聚合时维持
@@ -216,7 +237,7 @@ List<String> listFolderFilesByKind(String dir, LocalMediaKind kind) {
     if (<String>['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp']
         .contains(ext)) {
       raw.add(entity.path);
-    } else if (<String>[
+    } else     if (<String>[
           '.cbz',
           '.cbr',
           '.cbt',
@@ -227,6 +248,8 @@ List<String> listFolderFilesByKind(String dir, LocalMediaKind kind) {
           '.pdf',
         ].contains(ext)) {
       arch.add(entity.path);
+    } else if (isComicIgnored(ext)) {
+      // 忽略配置/元数据/文档/音视频等非漫画文件，不当作漫画章节。
     } else {
       // 非图片、非已知归档的其它文件（如非常规归档/文档），也作为独立一话。
       other.add(entity.path);
@@ -445,6 +468,8 @@ class LocalContentManager extends ChangeNotifier {
         kind: e.kind,
         addedAt: e.addedAt,
         coverUrl: cover,
+        // 补封面时保留聚合文件列表，避免把「一本书/一部漫画」降级成单文件。
+        filePaths: e.filePaths,
       );
       dirty = true;
     }
@@ -462,31 +487,33 @@ class LocalContentManager extends ChangeNotifier {
   Future<void> add(LocalContentEntry entry) async {
     final existingIndex = _items.indexWhere((e) => e.path == entry.path);
     if (existingIndex >= 0) {
-      // 已存在同路径：不重复添加，但若旧记录缺封面则借这次重新导入补全，
-      // 兑现「重新导入时补全封面」的承诺（否则用户再导一次也修不好封面）。
+      // 已存在同路径：不重复添加，但若旧记录缺封面（图片类）或缺聚合文件列表
+      // （早期版本 add 丢弃 filePaths 的历史缺陷），借这次重新导入补全，兑现
+      // 「重新导入时修复旧记录」的承诺。
       final existing = _items[existingIndex];
-      if (existing.coverUrl == null &&
-          existing.kind == LocalMediaKind.images) {
-        final cover = await computeLocalCover(existing.path, existing.kind);
-        if (cover != null) {
-          _items[existingIndex] = LocalContentEntry(
-            id: existing.id,
-            title: existing.title,
-            path: existing.path,
-            kind: existing.kind,
-            addedAt: existing.addedAt,
-            coverUrl: cover,
-          );
-          await _persist();
-          notifyListeners();
-        }
+      final bool needFilePaths =
+          entry.filePaths != null && entry.filePaths!.isNotEmpty;
+      final bool needCover = existing.coverUrl == null &&
+          existing.kind == LocalMediaKind.images;
+      if (needFilePaths || needCover) {
+        final String? coverUrl = existing.coverUrl ??
+            await computeLocalCover(existing.path, existing.kind);
+        _items[existingIndex] = LocalContentEntry(
+          id: existing.id,
+          title: entry.title.isEmpty ? existing.title : entry.title,
+          path: existing.path,
+          kind: entry.kind,
+          addedAt: existing.addedAt,
+          coverUrl: coverUrl,
+          filePaths: needFilePaths ? entry.filePaths : existing.filePaths,
+        );
+        await _persist();
+        notifyListeners();
       }
       return;
     }
-    String? coverUrl = entry.coverUrl;
-    if (coverUrl == null) {
-      coverUrl = await computeLocalCover(entry.path, entry.kind);
-    }
+    final String? coverUrl = entry.coverUrl ??
+        await computeLocalCover(entry.path, entry.kind);
     final covered = LocalContentEntry(
       id: entry.id,
       title: entry.title,
@@ -494,6 +521,9 @@ class LocalContentManager extends ChangeNotifier {
       kind: entry.kind,
       addedAt: entry.addedAt,
       coverUrl: coverUrl,
+      // 聚合导入（文件夹=一本书/一部漫画）必须保留子文件列表，否则打开时
+      // 被当作单文件，SAF 目录 URI 会报「该路径是一个文件夹」。
+      filePaths: entry.filePaths,
     );
     _items.insert(0, covered);
     await _persist();

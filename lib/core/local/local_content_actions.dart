@@ -7,27 +7,42 @@ library;
 import 'dart:async' show unawaited;
 import 'dart:io';
 
+import 'package:nexhub/core/utils/app_log.dart';
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:nexhub/core/download/download_manager.dart';
 import 'package:nexhub/core/download/download_task.dart';
 import 'package:nexhub/core/local/local_content_manager.dart';
+import 'package:nexhub/core/local/saf_bridge.dart'
+    show
+        safBaseName,
+        gatherSafImages,
+        listFolderFilesByKindSaf,
+        scanComicFolderSaf;
 import 'package:nexhub/core/models/episode.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/settings/general_settings.dart';
 import 'package:nexhub/features/home/presentation/local_media_viewer.dart';
 import 'package:nexhub/features/manga/presentation/comic_reader_screen.dart';
 import 'package:nexhub/features/novel/presentation/novel_reader_screen.dart';
+import 'package:nexhub/features/player/presentation/video_player_screen.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 /// 收集本地漫画图片路径：目录→按名排序的图片列表；单图文件→单元素列表。
 /// 不含 cbz/zip（交给漫画阅读器内部解压）。无图片返回空列表。
-List<String> gatherLocalComicImages(String path) {
+///
+/// 返回的**是 SAF content:// 文档 URI（或真实文件路径），不是已落缓存的本地路径**。
+/// [gatherSafImages] 只收集 URI、不预先拷贝，真正的落缓存（[resolveSafUri]）由
+/// 阅读器逐张显示时按需进行（见 [SourceImage]），从而打开含大量图片的文件夹时
+/// 不再因整本逐张拷贝而卡 1~2s。
+Future<List<String>> gatherLocalComicImages(String path) async {
+  if (isAndroidSafUri(path)) return gatherSafImages(path);
   final f = File(path);
-  if (f.existsSync()) return <String>[path];
+  if (await f.exists()) return <String>[path];
   final dir = Directory(path);
-  if (dir.existsSync()) {
+  if (await dir.exists()) {
     return dir
         .listSync()
         .whereType<File>()
@@ -48,7 +63,11 @@ List<Episode> buildLocalChapterList(List<String> paths) {
   final List<Episode> chapters = <Episode>[];
   for (int i = 0; i < paths.length; i++) {
     final path = paths[i];
-    final title = p.basenameWithoutExtension(path);
+    // SAF content:// 文件 URI 的 basename 是 URL 编码的 document id（形如
+    // primary%3ADownload%2Ftxt%2F第1章.txt），直接用 p.basenameWithoutExtension
+    // 会得到编码串；先经 safBaseName 还原真实文件名再取标题。
+    final rawName = isAndroidSafUri(path) ? safBaseName(path) : path;
+    final title = p.basenameWithoutExtension(rawName);
     chapters.add(Episode(
       id: path,
       title: title.isEmpty ? path : title,
@@ -67,7 +86,7 @@ List<Episode> buildLocalChapterList(List<String> paths) {
 ///   （多格式解压，[extractArchiveImages] 支持 RAR 系与 7z）；目录走 [LocalMediaViewer]。
 /// - 小说 .txt → 小说阅读器；.epub → 小说阅读器（解析章节）；其余文本格式走通用查看器。
 /// - 其它 → 通用 [LocalMediaViewer]。
-void openLocalEntry(BuildContext context, LocalContentEntry e) {
+Future<void> openLocalEntry(BuildContext context, LocalContentEntry e) async {
   final bool remember = GeneralSettingsStore.instance.settings.rememberPosition;
   // 聚合文件夹：每个文件=一章/一话，传合成章节列表给阅读器（B 阶段）。
   if (e.filePaths != null && e.filePaths!.isNotEmpty) {
@@ -117,7 +136,15 @@ void openLocalEntry(BuildContext context, LocalContentEntry e) {
     ].any((ext) => lower.endsWith(ext))) {
       _pushComicReader(context, e, remember, localCbzPath: e.path);
     } else {
-      final imgs = gatherLocalComicImages(e.path);
+      // try/catch 兜底：任何残留异常都记日志，避免「点开无反应 + 运行日志为空」。
+      List<String> imgs;
+      try {
+        imgs = await gatherLocalComicImages(e.path);
+      } on Object catch (err) {
+        AppLog.instance.eWithStack('[本地漫画图片收集失败] path=${e.path}', err);
+        imgs = const <String>[];
+      }
+      if (!context.mounted) return;
       if (imgs.isNotEmpty) {
         _pushComicReader(context, e, remember, localImages: imgs);
       } else {
@@ -160,6 +187,199 @@ void openLocalEntry(BuildContext context, LocalContentEntry e) {
     }
   }
   _pushLocalMediaViewer(context, e);
+}
+
+/// 打开「已下载作品」：直接扫描作品文件夹（与「导入目录」同一套扫描函数），
+/// 把磁盘上实际存在的文件全部解析出来，聚合进阅读器/播放器。
+///
+/// 分批下载、旧数据、下载记录缺失都不影响——扫到什么就能看什么、切什么，
+/// 打开行为与「导入目录文件」完全一致。
+///
+/// - 视频：扫描 .mp4/.ts/… 构建完整集列表进播放器（可上下集切换）。
+/// - 小说：扫描 .txt/.epub 按章聚合进阅读器（可切章；epub 内部章节自动展开）。
+/// - 漫画：扫描归档按话聚合；folder 模式取子目录为话；散图整目录交给阅读器收集。
+/// [initialIndex] 为点选的章节/集/话下标（0 起），打开后定位到该项。
+Future<void> openDownloadedWorkFolder(
+  BuildContext context, {
+  required String id,
+  required String title,
+  required String sourceId,
+  required String workDir,
+  required LocalMediaKind kind,
+  int initialIndex = 0,
+}) async {
+  final bool remember = GeneralSettingsStore.instance.settings.rememberPosition;
+
+  // 视频：本地内容机制不处理视频，单独走播放器（完整集列表，连播/上下集切换）。
+  if (kind == LocalMediaKind.video) {
+    List<String> files = const <String>[];
+    try {
+      files = isAndroidSafUri(workDir)
+          ? await listFolderFilesByKindSaf(workDir, LocalMediaKind.video)
+          : listFolderFilesByKind(workDir, LocalMediaKind.video);
+    } on Object {
+      // 目录不可读（如单文件路径）：保持空列表，走单文件播放回退。
+    }
+    if (!context.mounted) return;
+    // 扫描不到（单文件导入 / 空目录）：回退为单文件播放，不弹失败。
+    if (files.isEmpty) {
+      Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => VideoPlayerScreen(
+            title: title,
+            episode: Episode(id: 'local', title: title, url: workDir),
+            sourceId: sourceId,
+            itemId: id,
+            localUri: workDir,
+            restoreProgress: remember,
+          ),
+        ),
+      );
+      return;
+    }
+    final List<Episode> eps = <Episode>[
+      for (var i = 0; i < files.length; i++)
+        Episode(
+          id: 'local_$i',
+          title: safBaseName(files[i]),
+          url: files[i],
+          number: i + 1,
+        ),
+    ];
+    final int start = initialIndex.clamp(0, eps.length - 1);
+    Navigator.of(context).push(
+      AppPageRoute<void>(
+        builder: (_) => VideoPlayerScreen(
+          title: title,
+          episode: eps[start],
+          sourceId: sourceId,
+          itemId: id,
+          episodes: eps,
+          initialEpisodeIndex: start,
+          localUri: eps[start].url,
+          restoreProgress: remember,
+        ),
+      ),
+    );
+    return;
+  }
+
+  // 小说/漫画：扫描作品文件夹。
+  List<String> filePaths = const <String>[];
+  try {
+    filePaths = await _scanWorkDirFiles(workDir, kind);
+  } on Object {
+    // 扫描失败（单文件路径等）：保持空列表，走单文件/散图回退。
+  }
+  if (!context.mounted) return;
+
+  // 聚合模式（每文件一章/一话）：直接构造阅读器，支持从点选章节进入。
+  if (filePaths.isNotEmpty) {
+    final List<Episode> chapters = buildLocalChapterList(filePaths);
+    final int start = initialIndex.clamp(0, chapters.length - 1);
+    if (kind == LocalMediaKind.text) {
+      Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => NovelReaderScreen(
+            novelId: id,
+            title: title,
+            sourceId: sourceId,
+            chapters: chapters,
+            localChapterPaths: filePaths,
+            initialChapterIndex: start,
+            restoreProgress: remember,
+          ),
+        ),
+      );
+      return;
+    }
+    if (kind == LocalMediaKind.images || kind == LocalMediaKind.pdf) {
+      // folder 模式：每话一个子目录（非归档文件）；否则每话一个归档文件。
+      final bool isDirs = filePaths.every((p) {
+        final dir = Directory(p);
+        try {
+          if (dir.existsSync()) return true;
+        } on Object {/* SAF URI 不抛 */}
+        final lower = p.toLowerCase();
+        return !const <String>[
+          '.cbz', '.cbr', '.cbt', '.zip', '.rar', '.7z', '.cb7', '.pdf',
+        ].any((ext) => lower.endsWith(ext));
+      });
+      Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => ComicReaderScreen(
+            comicId: id,
+            title: title,
+            sourceId: sourceId,
+            chapters: chapters,
+            localChapterDirs: isDirs ? filePaths : null,
+            localArchivePaths: isDirs ? null : filePaths,
+            initialChapterIndex: start,
+            restoreProgress: remember,
+          ),
+        ),
+      );
+      return;
+    }
+  }
+
+  // 无聚合文件（扫描失败 / 空目录 / 单文件导入）：
+  // - SAF 作品文件夹：扫描不到内容说明真没有可读取文件。此时 [workDir] 是**文件夹**
+  //   URI（tree 根），若再走 openLocalEntry 会把文件夹当文件去 resolveSafUri，
+  //   报 "该路径是一个文件夹，请选择具体文件"。所以直接提示，绝不打开文件夹当文件。
+  // - 真实路径：保留原 openLocalEntry 单文件/散图回退（兼容单文件导入）。
+  if (!isAndroidSafUri(workDir)) {
+    await openLocalEntry(
+      context,
+      LocalContentEntry(
+        id: id,
+        title: title,
+        path: workDir,
+        kind: kind,
+        addedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+  } else if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('未在该文件夹中找到可读取的内容')),
+    );
+  }
+}
+
+/// 扫描作品文件夹内容（与「导入目录」完全同一套扫描函数）：
+/// 小说 → .txt/.epub；漫画 → 归档 + 其它（每文件一话），无归档时取一级子目录
+/// （folder 散图模式，每子目录一话）；纯散图返回空（交由 [openLocalEntry] 收集）。
+Future<List<String>> _scanWorkDirFiles(
+  String workDir,
+  LocalMediaKind kind,
+) async {
+  if (kind == LocalMediaKind.text) {
+    return isAndroidSafUri(workDir)
+        ? await listFolderFilesByKindSaf(workDir, LocalMediaKind.text)
+        : listFolderFilesByKind(workDir, LocalMediaKind.text);
+  }
+  if (kind == LocalMediaKind.images || kind == LocalMediaKind.pdf) {
+    if (isAndroidSafUri(workDir)) {
+      final r = await scanComicFolderSaf(workDir);
+      if (r.archives.isNotEmpty || r.others.isNotEmpty) {
+        return <String>[...r.archives, ...r.others];
+      }
+      return <String>[]; // SAF 下 folder 子目录模式暂不支持（归档模式正常）。
+    }
+    final r = scanComicFolder(workDir);
+    if (r.archives.isNotEmpty || r.others.isNotEmpty) {
+      return <String>[...r.archives, ...r.others];
+    }
+    final dir = Directory(workDir);
+    if (!dir.existsSync()) return <String>[];
+    return dir
+        .listSync()
+        .whereType<Directory>()
+        .map((d) => d.path)
+        .toList()
+      ..sort();
+  }
+  return <String>[];
 }
 
 /// 将书架透传的 kind 名（[LocalMediaKind.name]）解析回枚举；无效返回 null。
@@ -298,10 +518,10 @@ Future<void> renameLocalEntry(BuildContext context, LocalContentEntry e) async {
   }
 }
 
-/// 删除本地导入条目：仅删记录，或连同磁盘文件一起删。
+/// 删除本地导入条目：仅删记录，或连同磁盘文件（整个文件夹）一起删。
 Future<void> deleteLocalEntry(BuildContext context, LocalContentEntry e) async {
   final l10n = AppLocalizations.of(context);
-  final choice = await showDialog<bool?>(
+  final bool? choice = await showDialog<bool?>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(l10n.deleteConfirmTitle),
@@ -448,9 +668,11 @@ Future<void> renameDownloadedEntry(BuildContext context, DownloadTask t) async {
 }
 
 /// 删除已下载任务前的二次确认（仅删记录 / 记录+文件）。
+///
+/// 「删除记录与文件」会连记录带整个作品文件夹（递归）一起删。
 Future<void> confirmDeleteDownloaded(BuildContext context, DownloadTask t) async {
   final l10n = AppLocalizations.of(context);
-  final choice = await showDialog<bool?>(
+  final bool? choice = await showDialog<bool?>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(l10n.deleteConfirmTitle),
