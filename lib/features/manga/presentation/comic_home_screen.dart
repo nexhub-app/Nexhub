@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/settings/general_settings.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/local/local_content_actions.dart';
 import '../../../core/models/bookshelf_filter.dart';
-import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/services/source_repository.dart';
@@ -16,12 +13,10 @@ import '../../../core/widgets/library_shell.dart';
 import '../../../core/widgets/module_source_search_screen.dart';
 import '../../../core/widgets/online_source_browser_screen.dart';
 import '../../home/presentation/import_comic_screen.dart';
-import '../../home/presentation/local_media_viewer.dart';
 import '../../media/presentation/content_detail_screen.dart';
 import '../../rss/presentation/rss_feed_list_screen.dart';
 import '../../sources/presentation/collect_api_import_screen.dart';
 import '../../sources/presentation/source_manager_screen.dart';
-import 'comic_reader_screen.dart';
 import 'manga_online_list_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
@@ -80,7 +75,7 @@ class ComicHomeScreen extends StatelessWidget {
             builder: (_) => const ImportComicScreen(),
           ),
         ),
-        onItemTap: (MediaItem item) {
+        onItemTap: (MediaItem item) async {
           // R3 修复：本地导入/下载的漫画优先走阅读器本地模式，不再误跳在线详情页。
           final extra = item.extra;
           final localPath = extra == null ? null : extra['localPath'] as String?;
@@ -101,80 +96,22 @@ class ComicHomeScreen extends StatelessWidget {
               return;
             }
           }
-          if (localPath != null && localPath.isNotEmpty && localKind == 'pdf') {
-            // PDF 本地漫画：逐页渲染成图片后进入漫画阅读器看图。
-            Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => ComicReaderScreen(
-                  comicId: item.id,
-                  title: item.title,
-                  sourceId: item.sourceId ?? '',
-                  chapters: const <Episode>[],
-                  localPdfPath: localPath,
-                  restoreProgress:
-                      GeneralSettingsStore.instance.settings.rememberPosition,
-                ),
-              ),
-            );
-            return;
-          }
-          if (localPath != null && localPath.isNotEmpty && localKind == 'images') {
-            final lower = localPath.toLowerCase();
-            // 漫画归档（cbz/cbr/cbt/zip/rar/7z/cb7）交给阅读器内部多格式解压。
-            // 不再把 .cbr/.rar 当「不支持」甩给兜底查看器——解压已支持 RAR 系与 7z。
-            if (const <String>[
-              '.cbz',
-              '.cbr',
-              '.cbt',
-              '.zip',
-              '.rar',
-              '.7z',
-              '.cb7',
-            ].any((ext) => lower.endsWith(ext))) {
-              Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => ComicReaderScreen(
-                    comicId: item.id,
-                    title: item.title,
-                    sourceId: item.sourceId ?? '',
-                    chapters: const <Episode>[],
-                    localCbzPath: localPath,
-                    restoreProgress:
-                        GeneralSettingsStore.instance.settings.rememberPosition,
-                  ),
-                ),
+          // 已下载漫画 / 本地漫画目录：直接扫描作品文件夹（与导入目录同一套扫描），
+          // 多话归档 / 散图都能解析全部内容、可切换话；也覆盖本地单文件导入。
+          if (localPath != null && localPath.isNotEmpty) {
+            final LocalMediaKind? kind = parseLocalMediaKind(localKind);
+            if (kind == LocalMediaKind.images ||
+                kind == LocalMediaKind.pdf) {
+              await openDownloadedWorkFolder(
+                context,
+                id: item.id,
+                title: item.title,
+                sourceId: item.sourceId ?? '',
+                workDir: localPath,
+                kind: kind!,
               );
               return;
             }
-            // 目录（散图）或单图：收集图片列表交给漫画阅读器（支持缩放/翻页/进度）。
-            final imgs = gatherLocalComicImages(localPath);
-            if (imgs.isNotEmpty) {
-              Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => ComicReaderScreen(
-                    comicId: item.id,
-                    title: item.title,
-                    sourceId: item.sourceId ?? '',
-                    chapters: const <Episode>[],
-                    localImages: imgs,
-                    restoreProgress:
-                        GeneralSettingsStore.instance.settings.rememberPosition,
-                  ),
-                ),
-              );
-              return;
-            }
-            // 实在没有图片（如损坏目录）才走兜底查看器。
-            Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => LocalMediaViewer(
-                  title: item.title,
-                  kind: LocalMediaKind.images,
-                  uri: localPath,
-                ),
-              ),
-            );
-            return;
           }
           Navigator.of(context).push(
             AppPageRoute<void>(
