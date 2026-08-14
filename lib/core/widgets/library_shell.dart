@@ -339,36 +339,45 @@ class _LibraryShellState extends State<LibraryShell> {
         horizontal: AppTokens.spaceMd,
         vertical: AppTokens.spaceXs,
       ),
+      // 每个页签用 Expanded 均分宽度：窄屏下 4 个页签（含长文案如英文
+      // "Subscribe"/"Sources"）也不会横向溢出（修复 130：页面不适配部分手机）。
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
-          _TopTabItem(
-            icon: Icons.menu_book_outlined,
-            label: widget.libraryTabLabel ?? l10n.tabLibrary,
-            selected: _currentTopTab == LibraryTopTab.library,
-            onTap: () => _selectTop(LibraryTopTab.library),
-            scheme: scheme,
+          Expanded(
+            child: _TopTabItem(
+              icon: Icons.menu_book_outlined,
+              label: widget.libraryTabLabel ?? l10n.tabLibrary,
+              selected: _currentTopTab == LibraryTopTab.library,
+              onTap: () => _selectTop(LibraryTopTab.library),
+              scheme: scheme,
+            ),
           ),
-          _TopTabItem(
-            icon: Icons.language_outlined,
-            label: l10n.tabOnline,
-            selected: _currentTopTab == LibraryTopTab.online,
-            onTap: () => _selectTop(LibraryTopTab.online),
-            scheme: scheme,
+          Expanded(
+            child: _TopTabItem(
+              icon: Icons.language_outlined,
+              label: l10n.tabOnline,
+              selected: _currentTopTab == LibraryTopTab.online,
+              onTap: () => _selectTop(LibraryTopTab.online),
+              scheme: scheme,
+            ),
           ),
-          _TopTabItem(
-            icon: Icons.rss_feed_outlined,
-            label: l10n.tabSubscribe,
-            selected: _currentTopTab == LibraryTopTab.subscribe,
-            onTap: () => _selectTop(LibraryTopTab.subscribe),
-            scheme: scheme,
+          Expanded(
+            child: _TopTabItem(
+              icon: Icons.rss_feed_outlined,
+              label: l10n.tabSubscribe,
+              selected: _currentTopTab == LibraryTopTab.subscribe,
+              onTap: () => _selectTop(LibraryTopTab.subscribe),
+              scheme: scheme,
+            ),
           ),
-          _TopTabItem(
-            icon: Icons.extension_outlined,
-            label: l10n.tabSources,
-            selected: _currentTopTab == LibraryTopTab.sources,
-            onTap: () => _selectTop(LibraryTopTab.sources),
-            scheme: scheme,
+          Expanded(
+            child: _TopTabItem(
+              icon: Icons.extension_outlined,
+              label: l10n.tabSources,
+              selected: _currentTopTab == LibraryTopTab.sources,
+              onTap: () => _selectTop(LibraryTopTab.sources),
+              scheme: scheme,
+            ),
           ),
         ],
       ),
@@ -447,6 +456,9 @@ class _TopTabItem extends StatelessWidget {
             const SizedBox(height: AppTokens.spaceXxs),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: selected ? scheme.primary : scheme.onSurfaceVariant,
                     fontWeight:

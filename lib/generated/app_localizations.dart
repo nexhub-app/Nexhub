@@ -2822,6 +2822,18 @@ abstract class AppLocalizations {
   /// **'Delete this download?'**
   String get downloadedGroupDeleteConfirm;
 
+  /// No description provided for @downloadBatches.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} batches'**
+  String downloadBatches(Object count);
+
+  /// No description provided for @downloadBatchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch {index}'**
+  String downloadBatchLabel(Object index);
+
   /// No description provided for @browsePageTitle.
   ///
   /// In en, this message translates to:
@@ -5786,6 +5798,30 @@ abstract class AppLocalizations {
   /// **'Read mark'**
   String get chapterRead;
 
+  /// No description provided for @chapterSortMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter sort'**
+  String get chapterSortMode;
+
+  /// No description provided for @aggModeFileExpanded.
+  ///
+  /// In en, this message translates to:
+  /// **'By file order (EPUB chapters expanded in place)'**
+  String get aggModeFileExpanded;
+
+  /// No description provided for @aggModeEpubLast.
+  ///
+  /// In en, this message translates to:
+  /// **'EPUB chapters at the end'**
+  String get aggModeEpubLast;
+
+  /// No description provided for @aggModeCollapsed.
+  ///
+  /// In en, this message translates to:
+  /// **'One chapter per file (EPUB not expanded)'**
+  String get aggModeCollapsed;
+
   /// No description provided for @continueReading.
   ///
   /// In en, this message translates to:
@@ -6259,6 +6295,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Import files separately'**
   String get folderImportChoicePerFile;
+
+  /// Title of the folder file multi-select sheet for comic import
+  ///
+  /// In en, this message translates to:
+  /// **'Select comic files to import'**
+  String get folderFileSelectTitle;
+
+  /// Hint text explaining multi-select of folder comic files
+  ///
+  /// In en, this message translates to:
+  /// **'Found {count} files in the folder (each is one chapter). Check the files you want to import.'**
+  String folderFileSelectHint(Object count);
+
+  /// Button to select all files in the multi-select sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get folderFileSelectAll;
+
+  /// Button to deselect all files in the multi-select sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Select none'**
+  String get folderFileSelectNone;
+
+  /// Toggle: merge selected files into one comic, each file a chapter
+  ///
+  /// In en, this message translates to:
+  /// **'Merge into one'**
+  String get folderFileSelectMerge;
+
+  /// Toggle: each selected file becomes a separate comic entry
+  ///
+  /// In en, this message translates to:
+  /// **'Separate entries'**
+  String get folderFileSelectSeparate;
+
+  /// Confirm button showing selected count
+  ///
+  /// In en, this message translates to:
+  /// **'Import selected ({count})'**
+  String folderFileSelectConfirm(Object count);
 
   /// Popup menu item to set current comic cover as shelf cover
   ///
@@ -10705,6 +10783,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All up to date'**
   String get libraryAllUpToDate;
+
+  /// No description provided for @libraryAlreadyLatestCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} already latest'**
+  String libraryAlreadyLatestCount(int count);
 
   /// No description provided for @sourcePin.
   ///

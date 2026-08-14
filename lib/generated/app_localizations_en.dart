@@ -1421,6 +1421,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadedGroupDeleteConfirm => 'Delete this download?';
 
   @override
+  String downloadBatches(Object count) {
+    return '$count batches';
+  }
+
+  @override
+  String downloadBatchLabel(Object index) {
+    return 'Batch $index';
+  }
+
+  @override
   String get browsePageTitle => 'Browse';
 
   @override
@@ -2992,6 +3002,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chapterRead => 'Read mark';
 
   @override
+  String get chapterSortMode => 'Chapter sort';
+
+  @override
+  String get aggModeFileExpanded =>
+      'By file order (EPUB chapters expanded in place)';
+
+  @override
+  String get aggModeEpubLast => 'EPUB chapters at the end';
+
+  @override
+  String get aggModeCollapsed => 'One chapter per file (EPUB not expanded)';
+
+  @override
   String get continueReading => 'Continue reading';
 
   @override
@@ -3247,6 +3270,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get folderImportChoicePerFile => 'Import files separately';
+
+  @override
+  String get folderFileSelectTitle => 'Select comic files to import';
+
+  @override
+  String folderFileSelectHint(Object count) {
+    return 'Found $count files in the folder (each is one chapter). Check the files you want to import.';
+  }
+
+  @override
+  String get folderFileSelectAll => 'Select all';
+
+  @override
+  String get folderFileSelectNone => 'Select none';
+
+  @override
+  String get folderFileSelectMerge => 'Merge into one';
+
+  @override
+  String get folderFileSelectSeparate => 'Separate entries';
+
+  @override
+  String folderFileSelectConfirm(Object count) {
+    return 'Import selected ($count)';
+  }
 
   @override
   String get setAsShelfCover => 'Set as shelf cover';
@@ -5611,6 +5659,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get libraryAllUpToDate => 'All up to date';
+
+  @override
+  String libraryAlreadyLatestCount(int count) {
+    return '$count already latest';
+  }
 
   @override
   String get sourcePin => 'Pin';
