@@ -1523,7 +1523,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(AppTokens.spaceSm),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
             ),
             child: Text(
@@ -1542,10 +1542,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(AppTokens.spaceMd),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.15),
+              color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               border: Border.all(
-                color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
               ),
             ),
             child: Column(
@@ -1596,10 +1596,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(AppTokens.spaceMd),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.15),
+              color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               border: Border.all(
-                color: Theme.of(context).colorScheme.error.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
               ),
             ),
             child: Column(

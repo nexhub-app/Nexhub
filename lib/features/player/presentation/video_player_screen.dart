@@ -4005,9 +4005,9 @@ class _DanmakuToggle extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: AppTokens.spaceXxs),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withOpacity(0.25),
+        color: theme.colorScheme.primary.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.6)),
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.6)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

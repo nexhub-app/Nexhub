@@ -76,13 +76,13 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
 
   Color _cellColor(ColorScheme scheme, int sec, int maxSec) {
     if (sec <= 0) {
-      return scheme.surfaceContainerHighest.withOpacity(0.55);
+      return scheme.surfaceContainerHighest.withValues(alpha: 0.55);
     }
     final t = maxSec > 0
         ? ((sec / maxSec).clamp(0.25, 1.0)).toDouble()
         : 0.35;
     return Color.alphaBlend(
-      scheme.primary.withOpacity(0.22 + 0.78 * t),
+      scheme.primary.withValues(alpha: 0.22 + 0.78 * t),
       scheme.surface,
     );
   }
@@ -178,10 +178,10 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
       final hasRecord = sec > 0;
       final bg = hasRecord
           ? _cellColor(scheme, sec, maxSec)
-          : scheme.surfaceContainerHighest.withOpacity(0.45);
+          : scheme.surfaceContainerHighest.withValues(alpha: 0.45);
       final fg = hasRecord
           ? Colors.white
-          : scheme.onSurfaceVariant.withOpacity(0.75);
+          : scheme.onSurfaceVariant.withValues(alpha: 0.75);
       return Tooltip(
         message: tooltip,
         child: AnimatedContainer(
@@ -383,9 +383,9 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
                         decoration: BoxDecoration(
                           color: t <= 0
                               ? scheme.surfaceContainerHighest
-                                  .withOpacity(0.55)
+                                  .withValues(alpha: 0.55)
                               : Color.alphaBlend(
-                                  scheme.primary.withOpacity(
+                                  scheme.primary.withValues(alpha: 
                                       0.22 + 0.78 * t),
                                   scheme.surface,
                                 ),

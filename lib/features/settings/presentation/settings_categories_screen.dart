@@ -249,7 +249,7 @@ class _EmptyState extends StatelessWidget {
             Icon(
               Icons.folder_open_outlined,
               size: 56,
-              color: scheme.onSurfaceVariant.withOpacity(0.5),
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
             const SizedBox(height: AppTokens.spaceMd),
             Text(
