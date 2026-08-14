@@ -16,17 +16,26 @@ abstract class NovelBlock {
 }
 
 /// 文本段（对应原 `List<String>` 中的一个段落，首行已含 `　　` 缩进）。
+///
+/// [isHeading] 标记该段为「章节标题」，渲染层会用更大的字号/居中/加粗
+/// 区分于正文段落。本地 EPUB（`localEpubPath`）的章节标题就是用这个标志
+/// 插入正文的，否则 55 章的内容连成一片、滚动时看不到章节分界。
 class NovelTextBlock extends NovelBlock {
   final String text;
 
-  const NovelTextBlock(this.text);
+  /// 是否为章节标题块（用更大字号 + 居中 + 加粗渲染）。
+  final bool isHeading;
+
+  const NovelTextBlock(this.text, {this.isHeading = false});
 
   @override
   bool operator ==(Object other) =>
-      other is NovelTextBlock && other.text == text;
+      other is NovelTextBlock &&
+      other.text == text &&
+      other.isHeading == isHeading;
 
   @override
-  int get hashCode => text.hashCode;
+  int get hashCode => Object.hash(text, isHeading);
 }
 
 /// 插图块：章节正文中的一张图片。
