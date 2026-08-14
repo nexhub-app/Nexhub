@@ -24,8 +24,8 @@ class DandanplayService implements DanmakuSource {
         _dio = dio ??
             Dio(BaseOptions(
               baseUrl: _baseUrl,
-              connectTimeout: const Duration(seconds: 15),
-              receiveTimeout: const Duration(seconds: 20),
+              connectTimeout: const Duration(seconds: 8),
+              receiveTimeout: const Duration(seconds: 12),
               followRedirects: true,
             ));
 
