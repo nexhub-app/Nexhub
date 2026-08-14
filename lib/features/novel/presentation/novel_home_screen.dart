@@ -3,11 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/settings/general_settings.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/local/local_content_actions.dart';
 import '../../../core/models/bookshelf_filter.dart';
-import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/services/source_repository.dart';
@@ -16,13 +14,11 @@ import '../../../core/widgets/library_shell.dart';
 import '../../../core/widgets/module_source_search_screen.dart';
 import '../../../core/widgets/online_source_browser_screen.dart';
 import '../../home/presentation/import_novel_screen.dart';
-import '../../home/presentation/local_media_viewer.dart';
 import '../../rss/presentation/rss_feed_list_screen.dart';
 import '../../sources/presentation/collect_api_import_screen.dart';
 import '../../sources/presentation/source_manager_screen.dart';
 import '../../media/presentation/content_detail_screen.dart';
 import 'novel_online_list_screen.dart';
-import 'novel_reader_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// Novel module home — 4-tab layout backed by [LibraryShell].
@@ -80,7 +76,7 @@ class NovelHomeScreen extends StatelessWidget {
             builder: (_) => const ImportNovelScreen(),
           ),
         ),
-        onItemTap: (MediaItem item) {
+        onItemTap: (MediaItem item) async {
           // R3 修复（小说段）：本地导入/下载的小说优先走本地阅读，不跳在线详情页。
           final extra = item.extra;
           final localPath = extra == null ? null : extra['localPath'] as String?;
@@ -101,49 +97,16 @@ class NovelHomeScreen extends StatelessWidget {
               return;
             }
           }
+          // 已下载小说：作品文件夹即内容，直接扫描文件夹（与导入目录同一套扫描），
+          // 逐章 .txt / 整本 epub 都能解析全部内容、可切换章节；也覆盖本地单文件导入。
           if (localPath != null && localPath.isNotEmpty && localKind == 'text') {
-            final lower = localPath.toLowerCase();
-            if (lower.endsWith('.txt')) {
-              Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => NovelReaderScreen(
-                    novelId: item.id,
-                    title: item.title,
-                    sourceId: item.sourceId ?? '',
-                    chapters: const <Episode>[],
-                    localTextPath: localPath,
-                    restoreProgress:
-                        GeneralSettingsStore.instance.settings.rememberPosition,
-                  ),
-                ),
-              );
-              return;
-            }
-            if (lower.endsWith('.epub')) {
-              Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => NovelReaderScreen(
-                    novelId: item.id,
-                    title: item.title,
-                    sourceId: item.sourceId ?? '',
-                    chapters: const <Episode>[],
-                    localEpubPath: localPath,
-                    restoreProgress:
-                        GeneralSettingsStore.instance.settings.rememberPosition,
-                  ),
-                ),
-              );
-              return;
-            }
-            // umd/mobi 等走兜底查看器。
-            Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => LocalMediaViewer(
-                  title: item.title,
-                  kind: LocalMediaKind.text,
-                  uri: localPath,
-                ),
-              ),
+            await openDownloadedWorkFolder(
+              context,
+              id: item.id,
+              title: item.title,
+              sourceId: item.sourceId ?? '',
+              workDir: localPath,
+              kind: LocalMediaKind.text,
             );
             return;
           }
