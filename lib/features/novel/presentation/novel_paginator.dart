@@ -48,12 +48,18 @@ class NovelLine {
   /// 默认空列表（极少数空行未携带，命中回退到段首）。
   final List<double> charLefts;
 
+  /// 是否为章节标题行（来自 [NovelTextBlock.isHeading]）。渲染层据此
+  /// 用更大字号 + 居中 + 加粗区分于正文行，让读者在翻页时也能立刻
+  /// 看到「第N章」等章节分界。
+  final bool isHeading;
+
   const NovelLine({
     required this.text,
     required this.paragraphIndex,
     this.isFirstLine = false,
     this.isLastLine = false,
     this.charLefts = const <double>[],
+    this.isHeading = false,
   });
 
   /// 把行内某点的水平坐标 [dx]（相对行首左边缘）映射到精确字符下标。
@@ -201,6 +207,10 @@ class NovelPaginator {
       final block = blocks[bi];
       if (block is NovelTextBlock) {
         if (block.text.isEmpty) continue;
+        // 章节标题块用更大的标题样式折行，与正文等高规则不同：
+        // 这里直接复用正文样式做宽度测算，最终渲染时再换成 heading 样式，
+        // 避免分页器为 heading 行另算高度造成页内排版错位（heading 行高度
+        // 由渲染层自然撑开，预留高度已在 titleReserve 与块前后段距中处理）。
         final lines = _breakParagraph(
           block.text,
           textBlockIndex,
@@ -208,6 +218,7 @@ class NovelPaginator {
           width,
           dir,
           scaler,
+          isHeading: block.isHeading,
         );
         for (final l in lines) {
           allItems.add(NovelTextLineItem(l, blockIndex: bi));
@@ -394,8 +405,9 @@ class NovelPaginator {
     TextStyle style,
     double width,
     TextDirection dir,
-    TextScaler scaler,
-  ) {
+    TextScaler scaler, {
+    bool isHeading = false,
+  }) {
     final tp = TextPainter(
       text: TextSpan(text: para, style: style),
       textDirection: dir,
@@ -428,6 +440,7 @@ class NovelPaginator {
         paragraphIndex: paraIndex,
         isFirstLine: i == 0,
         isLastLine: i == metrics.length - 1,
+        isHeading: isHeading,
       ));
     }
     tp.dispose();
