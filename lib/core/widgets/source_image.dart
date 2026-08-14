@@ -8,6 +8,8 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
 import '../scraper/http_fetcher.dart';
+import '../local/local_content_manager.dart' show isAndroidSafUri;
+import '../local/saf_bridge.dart' show resolveSafUri;
 
 /// 统一源图片 widget：按源配置注入防盗链 headers，带缓存、失败重试、圆角、Hero。
 ///
@@ -55,7 +57,13 @@ class SourceImage extends StatelessWidget {
     final ahHeaders = ah?.headers;
     final siteHeaders = site?.headers;
     final referer = ah?.referer;
-    final ua = site?.userAgent;
+    // UA 兜底：部分 CDN（如 baozimh 家族 6wm.top）无 UA 直接 403，而部分源
+    // 的 site.userAgent 未配置。此时回退到 HttpFetcher 的浏览器 UA，保证
+    // 图片请求与页面/API 请求的指纹一致（不写死任何站点）。
+    final String? siteUa = site?.userAgent;
+    final ua = (siteUa != null && siteUa.isNotEmpty)
+        ? siteUa
+        : HttpFetcher.instance.userAgentForUrl(url ?? '');
     final cookies = site?.cookies;
     final hasFields = (siteHeaders != null && siteHeaders.isNotEmpty) ||
         (ahHeaders != null && ahHeaders.isNotEmpty) ||
@@ -139,12 +147,13 @@ class SourceImage extends StatelessWidget {
             onLoadComplete: onLoadComplete,
           );
         } else {
-          core = Image.file(
-            File(u),
+          core = _SafOrLocalImage(
+            uriOrPath: u,
             width: width,
             height: height,
             fit: fit,
-            errorBuilder: (c, e, s) => placeholder ?? _defaultPlaceholder(context),
+            placeholder: placeholder ?? _defaultPlaceholder(context),
+            onLoadComplete: onLoadComplete,
           );
         }
         return r == null
@@ -287,6 +296,133 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 本地文件图片：补齐与网络图一致的「解码完成通知（onLoadComplete）」。
+///
+/// 原因：条漫阅读器对未加载 item 预留 `ConstrainedBox(minHeight: 屏宽×1.5)` 占位，
+/// 必须在图片真正解码后移除该约束（令 showRealHeight=true），否则真实图高偏小时
+/// 图片下方残留空白带（图片之间的缝隙）。网络图走 [_RetryableNetworkImage] 在
+/// imageBuilder 内已通知；本地图此前走裸 `Image.file` 漏掉了通知，导致本地条漫
+/// 永久保留占位 → 出现缝隙。此处用 loadingBuilder 在加载完成时（loadingProgress
+/// 变 null）触发一次通知，与网络图行为对齐。
+class _LocalFileImage extends StatefulWidget {
+  final File file;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final Widget placeholder;
+  final VoidCallback? onLoadComplete;
+
+  const _LocalFileImage({
+    required this.file,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    required this.placeholder,
+    this.onLoadComplete,
+  });
+
+  @override
+  State<_LocalFileImage> createState() => _LocalFileImageState();
+}
+
+class _LocalFileImageState extends State<_LocalFileImage> {
+  bool _notified = false;
+
+  void _notifyLoaded() {
+    if (_notified) return;
+    _notified = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoadComplete?.call());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.file(
+      widget.file,
+      width: widget.width,
+      height: widget.height,
+      fit: widget.fit,
+      errorBuilder: (c, e, s) => widget.placeholder,
+      frameBuilder: (c, child, frame, wasSynchronouslyLoaded) {
+        if (frame != null || wasSynchronouslyLoaded) {
+          _notifyLoaded();
+          return child;
+        }
+        return widget.placeholder;
+      },
+    );
+  }
+}
+
+/// 本地/SAF 图片：先把 URI 解析为可读的本地文件路径，再交给 [_LocalFileImage]。
+///
+/// 为什么需要它：本地图片有两种来源——
+/// - 真实文件路径（桌面 / 非 SAF）：[Image.file] 直接可读；
+/// - Android SAF content://（或下载编码 `<treeUri>␟<rel>`）：[Image.file] 读不了，
+///   必须先经 [resolveSafUri] 落到应用私有缓存。
+///
+/// 此前 [gatherSafImages] 在「打开漫画」时把整本图片逐张拷贝到缓存，图片多则卡
+/// 1~2s。改为**此处逐张懒解析**：只有真正要显示的图片（阅读器当前可见的几张）才
+/// 触发拷贝，进入阅读器即刻可见，整本图片数不再影响打开速度。非 SAF 路径直接透传。
+class _SafOrLocalImage extends StatefulWidget {
+  final String uriOrPath;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final Widget placeholder;
+  final VoidCallback? onLoadComplete;
+
+  const _SafOrLocalImage({
+    required this.uriOrPath,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    required this.placeholder,
+    this.onLoadComplete,
+  });
+
+  @override
+  State<_SafOrLocalImage> createState() => _SafOrLocalImageState();
+}
+
+class _SafOrLocalImageState extends State<_SafOrLocalImage> {
+  String? _resolved;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  Future<void> _resolve() async {
+    // 非 SAF 路径（真实文件路径）直接可用，无需异步拷贝。
+    if (!isAndroidSafUri(widget.uriOrPath)) {
+      if (mounted) setState(() => _resolved = widget.uriOrPath);
+      return;
+    }
+    try {
+      final String r = await resolveSafUri(widget.uriOrPath);
+      if (mounted) setState(() => _resolved = r);
+    } on Object catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_failed) return widget.placeholder;
+    if (_resolved == null) return widget.placeholder;
+    return _LocalFileImage(
+      file: File(_resolved!),
+      width: widget.width,
+      height: widget.height,
+      fit: widget.fit,
+      placeholder: widget.placeholder,
+      onLoadComplete: widget.onLoadComplete,
     );
   }
 }

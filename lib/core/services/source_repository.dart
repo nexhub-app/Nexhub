@@ -53,11 +53,37 @@ class SourceRepository extends ChangeNotifier {
   SourceRepository([List<PluginConfig> initial = const <PluginConfig>[]])
       : _imported = List<PluginConfig>.from(initial);
 
+  /// 测试注入内置源（避免测试依赖资源包与书源解析器）。
+  @visibleForTesting
+  void seedBuiltinsForTest(List<PluginConfig> builtins) {
+    _configs
+      ..clear()
+      ..addAll(builtins);
+  }
+
   /// 全部源 = 未屏蔽的内置源（套用状态覆盖）+ 用户导入源（同名优先）。
+  ///
+  /// **内置源自动升级**：同名内置源 version 高于用户导入/编辑的副本时，
+  /// 以内置新版为准（导入副本视为过期，不参与展示）。这样 App 内置源发新版
+  /// （改 JSON + 提 version）后，用户无需手动删源重导即可生效；用户手动
+  /// 导入的更新版本（version ≥ 内置）仍优先，尊重用户自定义。
   List<PluginConfig> get all {
+    // 预计算过期的导入副本：内置 version > 导入 version 的 id 集合。
+    final staleImports = <String>{};
+    for (final c in _imported) {
+      for (final b in _configs) {
+        if (b.id == c.id && b.version > c.version) {
+          staleImports.add(c.id);
+          break;
+        }
+      }
+    }
     final map = <String, PluginConfig>{};
     for (final c in _configs) {
-      if (_suppressedBuiltins.contains(c.id)) continue;
+      // 被屏蔽的内置（用户曾编辑/导入过）：内置新版时解除屏蔽恢复展示。
+      if (_suppressedBuiltins.contains(c.id) && !staleImports.contains(c.id)) {
+        continue;
+      }
       var cfg = c;
       final ov = _stateOverrides[c.id];
       if (ov != null) {
@@ -68,8 +94,9 @@ class SourceRepository extends ChangeNotifier {
       }
       map[c.id] = cfg;
     }
-    // 用户导入/编辑过的版本覆盖同名内置源
+    // 用户导入/编辑过的版本覆盖同名内置源（内置新版胜出的过期副本除外）。
     for (final c in _imported) {
+      if (staleImports.contains(c.id)) continue;
       map[c.id] = c;
     }
     return List<PluginConfig>.unmodifiable(_applyOrder(map.values.toList()));
