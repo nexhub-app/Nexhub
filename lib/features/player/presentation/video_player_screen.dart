@@ -325,6 +325,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// 当前剧集索引（若有全集列表）。
   late int _episodeIndex;
+  /// 切集代次守卫：快速连播 / 手动切集并发时，丢弃过期切换，
+  /// 避免较慢的解析/打开覆盖已切换的集（表现为「切集还是同一集」）。
+  int _loadToken = 0;
 
   /// 当前选中的播放线路名（来自 [Episode.lineName]）。由 [widget.episode]
   /// 初始化，切换剧集时跟随新 ep 同步。
@@ -1490,6 +1493,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (widget.episodes == null || index < 0 || index >= widget.episodes!.length) {
       return;
     }
+    // 代次守卫：快速连播 / 手动切集并发时，丢弃过期切换，避免旧集覆盖新集。
+    final int token = ++_loadToken;
     _sleepTimer?.cancel();
     _sleepTimer = null;
     // 保存当前集播放位置（P8.1.2）
@@ -1512,6 +1517,39 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 跟随新 ep 的 lineName 同步（详情页 chips 选定后保持同一线路）。
     _selectedLine = ep.lineName;
 
+    // 本地 / 直链多集模式：直接打开该集本地文件，跳过在线源解析与换源。
+    // 合并为一部的本地视频（folderPaths 每文件=一集）依赖此分支实现上下集切换。
+    if (_isDirectMode) {
+      String direct = ep.url;
+      if (isAndroidSafUri(direct)) {
+        try {
+          direct = await resolveSafVideoFile(direct);
+          AppLog.instance
+              .i('[本地视频切集] SAF/content 已解析为真实文件：$direct');
+        } on Object catch (e) {
+          AppLog.instance
+              .eWithStack('[本地视频切集] SAF 解析失败：$direct', e);
+        }
+      }
+      _playUrl = direct;
+      _playHeaders = null;
+      if (token != _loadToken) return;
+      await _controller.open(direct);
+      _controller.play();
+      _danmakuController.clear();
+      _danmakuController.reset();
+      // 重新加载弹幕（使用新剧集 ID）
+      _loadDanmakuForEpisode(ep);
+      // 恢复新剧集的上次播放位置（关闭记住位置时跳过，但需开闸以允许本集保存进度）
+      if (widget.restoreProgress) {
+        await _restoreSavedPosition();
+      } else {
+        _positionRestoreDone = true;
+        _lastPositionSaveAt = DateTime.now();
+      }
+      return;
+    }
+
     final repo = context.read<SourceRepository>();
     final service = context.read<MediaApiService>();
     final source = repo.getById(widget.sourceId);
@@ -1527,6 +1565,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _controller.lines = _buildLines(video);
         _controller.currentLineIndex = 0;
       }
+      if (token != _loadToken) return;
       await _controller.open(video.url, headers: video.headers);
       // 切集后自动播放
       _controller.play();
@@ -3323,8 +3362,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     ));
                   },
                 ),
-                // 选集（本地 / 直链模式隐藏）
-                if (!_isDirectMode)
+                // 选集：本地合并多集（每文件=一集）也显示；单集 / 无全集列表时隐藏。
+                if (widget.episodes != null && widget.episodes!.length > 1)
                   _ControlButton(
                     key: const Key('player_quick_episodes'),
                     icon: Icons.video_library,
@@ -3372,7 +3411,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// [_controller.lines] 里被 canonicalize 过的名字），这样与上方剧集过滤
   /// 用的是同一把钥匙，空串线路名也能正确对上。
   ///
-  /// 本地 / 直链模式 [_isDirectMode] 不应触发（调用方已隐藏入口）。
+  /// 本地合并多集（[_isDirectMode] 且 [widget.episodes] 非空）也走此面板切换集；
+  /// 单集 / 无全集列表时调用方（控件区）已隐藏入口，不会触发。
   void _showLineSheet(AppLocalizations l10n) {
     final allEpisodes = widget.episodes ?? <Episode>[];
     // 全集按 lineName 分组（保留原始值作为分组键）。
