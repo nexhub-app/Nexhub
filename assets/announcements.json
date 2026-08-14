@@ -1,5 +1,16 @@
 [
   {
+    "id": "v1.2.0-announce",
+    "date": "2026-08-14",
+    "title": "NexHub 1.2.0 发布说明",
+    "titleEn": "NexHub 1.2.0 released",
+    "body": "本次更新：重点修复本地内容（下载 / 导入）稳定性——Android SAF 下载写入、本地下载视频 / 漫画 / 小说打开、下载落盘丢失章节等问题；三大阅读器体验增强（小说大文件加载提速、EPUB 章节解析更准）；新增「运行日志」（设置 → 高级）便于反馈排障。无破坏性数据变更，可直接覆盖升级。",
+    "bodyEn": "This update focuses on local content (download / import) stability: Android SAF write, opening locally downloaded video / manga / novel, and lost chapters on download are fixed; the three readers are improved (faster large-file loading, more accurate EPUB chapter splitting); a new Run Log (Settings → Advanced) makes bug reports easier. No breaking data changes — just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v1.1.0-announce",
     "date": "2026-08-10",
     "title": "NexHub 1.1.0 发布说明",
