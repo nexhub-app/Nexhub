@@ -132,10 +132,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: <Widget>[
-          Expanded(
-            child: PageView.builder(
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              child: PageView.builder(
               controller: _pageController,
               itemCount: pages.length,
               onPageChanged: (i) => setState(() => _page = i),
@@ -173,6 +176,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -299,14 +303,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     AppLocalizations l10n,
   ) {
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTokens.spaceXl,
-        vertical: AppTokens.spaceLg,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTokens.spaceXl,
+                vertical: AppTokens.spaceLg,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
           Container(
             width: 96,
             height: 96,
@@ -350,7 +359,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             data.action!(context, l10n),
           ],
         ],
-      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
