@@ -81,7 +81,8 @@ class DanmakuRepository {
 
     List<ParsedDanmakuItem> result = const <ParsedDanmakuItem>[];
 
-    // 0. danmakuUrl 直链（最高优先级）
+    // 0. danmakuUrl 直链（最高优先级，用户显式配置）：串行先试，成功即返回。
+    //    直链通常就是 CDN/静态文件，比后续源更快，无需并行竞争。
     if (danmakuUrl != null && danmakuUrl.isNotEmpty) {
       try {
         final body = await _urlFetcher(danmakuUrl);
@@ -91,25 +92,44 @@ class DanmakuRepository {
       }
     }
 
-    await _dandanplay.refreshAvailability();
-
-    // 1. 弹弹play（需凭据签名；不可用/未启用时跳过）
-    if (result.isEmpty &&
-        dandanplayEpisodeId != null &&
-        _dandanplay.isAvailable) {
-      try {
-        result = await _dandanplay.getComments(dandanplayEpisodeId.toString());
-      } on Object {
-        result = const <ParsedDanmakuItem>[];
-      }
-    }
-
-    // 2. Bilibili fallback
-    if (result.isEmpty && bilibiliCid != null) {
-      try {
-        result = await _bilibili.getComments(bilibiliCid.toString());
-      } on Object {
-        result = const <ParsedDanmakuItem>[];
+    // 1+2. 弹弹play 与 Bilibili 并行竞争：两者任一成功即用，互不等待。
+    //     旧实现串行回退——弹弹play 服务器慢时（连接/超时可达 15-20s）
+    //     要等它彻底失败才轮到 Bilibili，表现为「弹幕过一会才出现」。
+    //     并行后整体耗时 = 最快成功的源；配合下方缩短的超时，最坏 ~10s。
+    if (result.isEmpty) {
+      final bool canDandan =
+          dandanplayEpisodeId != null && _dandanplay.isAvailable;
+      final bool canBili = bilibiliCid != null;
+      if (canDandan && canBili) {
+        final results = await Future.wait<Object?>(
+          <Future<Object?>>[
+            _dandanplay
+                .getComments(dandanplayEpisodeId.toString())
+                .catchError((Object e) => const <ParsedDanmakuItem>[]),
+            _bilibili
+                .getComments(bilibiliCid.toString())
+                .catchError((Object e) => const <ParsedDanmakuItem>[]),
+          ],
+        );
+        for (final r in results) {
+          if (r is List<ParsedDanmakuItem> && r.isNotEmpty) {
+            result = r;
+            break;
+          }
+        }
+      } else if (canDandan) {
+        try {
+          result =
+              await _dandanplay.getComments(dandanplayEpisodeId.toString());
+        } on Object {
+          result = const <ParsedDanmakuItem>[];
+        }
+      } else if (canBili) {
+        try {
+          result = await _bilibili.getComments(bilibiliCid.toString());
+        } on Object {
+          result = const <ParsedDanmakuItem>[];
+        }
       }
     }
 
@@ -227,8 +247,10 @@ class DanmakuRepository {
   /// 默认 danmakuUrl 拉取器（best-effort，失败抛出由调用方捕获）。
   static Future<String> _defaultUrlFetcher(String url) async {
     final dio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 20),
+      // 弹幕是辅助功能，不值得长时间等待：直链拉取 8s/10s 上限，
+      // 失败快速交给并行源或缓存兜底。
+      connectTimeout: const Duration(seconds: 8),
+      receiveTimeout: const Duration(seconds: 10),
       responseType: ResponseType.plain,
     ));
     final response = await dio.get<String>(
