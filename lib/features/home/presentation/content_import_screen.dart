@@ -94,7 +94,7 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
       );
       return;
     }
-    final dir = await FilePicker.platform.getDirectoryPath();
+    final dir = await pickFolderPath();
     if (dir == null || !mounted) return;
     final saf = isAndroidSafUri(dir);
     final folderTitle = saf ? await safFolderName(dir) : p.basename(dir);
