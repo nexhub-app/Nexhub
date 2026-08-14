@@ -906,17 +906,34 @@ class PluginConfig {
     if (referer != null && referer.isNotEmpty) m['Referer'] = referer;
     if (ua != null && ua.isNotEmpty) m['User-Agent'] = ua;
     if (cookies != null && cookies.isNotEmpty) m['Cookie'] = cookies;
-    // 默认补同源 Referer（与在线 SourceImage 一致）：源未配显式 referer 时，
-    // 防盗链 CDN 仍校验 Referer 同源，缺失即 403/占位图。
+    // 默认补 Referer：优先源站 origin（goda 的图 CDN 要求 godamh.com 同源，
+    // 否则间歇性 403），源站取不到再回退图片 URL 自身 origin。
     if (!m.containsKey('Referer')) {
-      try {
-        m['Referer'] = Uri.parse(url).origin;
-      } catch (_) {
-        // 非法 URL 忽略 Referer。
-      }
+      final String? origin = _fallbackRefererOrigin(url);
+      if (origin != null) m['Referer'] = origin;
     }
     if (m.isEmpty) return null;
     return m;
+  }
+
+  /// 计算兜底 Referer 的 origin：优先源站 [SiteConfig.baseUrl] 的 origin
+  /// （大部分防盗链 CDN 只认源站同源），取不到再回退图片 URL 自身 origin。
+  String? _fallbackRefererOrigin(String url) {
+    String? fromSite;
+    try {
+      final siteOrigin = Uri.tryParse(site.baseUrl)?.origin;
+      if (siteOrigin != null && siteOrigin.isNotEmpty) {
+        fromSite = siteOrigin;
+      }
+    } catch (_) {
+      fromSite = null;
+    }
+    if (fromSite != null) return fromSite;
+    try {
+      return Uri.parse(url).origin;
+    } catch (_) {
+      return null;
+    }
   }
 
   factory PluginConfig.fromJson(Map<String, dynamic> json) {
@@ -1049,6 +1066,7 @@ class PluginConfig {
 
   /// 复制并修改部分字段（用于启用/禁用/隐藏等状态变更，以及编辑内置源提升）。
   PluginConfig copyWith({
+    String? id,
     String? name,
     SiteConfig? site,
     bool? enabled,
@@ -1063,7 +1081,7 @@ class PluginConfig {
     int? version,
   }) =>
       PluginConfig(
-        id: id,
+        id: id ?? this.id,
         name: name ?? this.name,
         type: type,
         responseType: responseType,

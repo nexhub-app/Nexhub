@@ -648,6 +648,8 @@
   "downloadedGroupOpen": "Open",
   "downloadedGroupFileMissing": "File not found",
   "downloadedGroupDeleteConfirm": "Delete this download?",
+  "downloadBatches": "{count} batches",
+  "downloadBatchLabel": "Batch {index}",
   "browsePageTitle": "Browse",
   "rssSubscribeTitle": "RSS Subscriptions",
   "emptyRssSubscribe": "No RSS subscriptions yet",
@@ -1561,6 +1563,10 @@
   "downloadSingleChapter": "Download chapter",
   "chapterBookmark": "Chapter bookmark",
   "chapterRead": "Read mark",
+  "chapterSortMode": "Chapter sort",
+  "aggModeFileExpanded": "By file order (EPUB chapters expanded in place)",
+  "aggModeEpubLast": "EPUB chapters at the end",
+  "aggModeCollapsed": "One chapter per file (EPUB not expanded)",
   "continueReading": "Continue reading",
   "continueWatching": "Continue watching",
   "startFromBeginning": "Start from beginning",
@@ -1714,6 +1720,34 @@
   "folderImportChoicePerFile": "Import files separately",
   "@folderImportChoicePerFile": {
     "description": "Button: import each file separately"
+  },
+  "folderFileSelectTitle": "Select comic files to import",
+  "@folderFileSelectTitle": {
+    "description": "Title of the folder file multi-select sheet for comic import"
+  },
+  "folderFileSelectHint": "Found {count} files in the folder (each is one chapter). Check the files you want to import.",
+  "@folderFileSelectHint": {
+    "description": "Hint text explaining multi-select of folder comic files"
+  },
+  "folderFileSelectAll": "Select all",
+  "@folderFileSelectAll": {
+    "description": "Button to select all files in the multi-select sheet"
+  },
+  "folderFileSelectNone": "Select none",
+  "@folderFileSelectNone": {
+    "description": "Button to deselect all files in the multi-select sheet"
+  },
+  "folderFileSelectMerge": "Merge into one",
+  "@folderFileSelectMerge": {
+    "description": "Toggle: merge selected files into one comic, each file a chapter"
+  },
+  "folderFileSelectSeparate": "Separate entries",
+  "@folderFileSelectSeparate": {
+    "description": "Toggle: each selected file becomes a separate comic entry"
+  },
+  "folderFileSelectConfirm": "Import selected ({count})",
+  "@folderFileSelectConfirm": {
+    "description": "Confirm button showing selected count"
   },
   "setAsShelfCover": "Set as shelf cover",
   "@setAsShelfCover": {
@@ -2983,6 +3017,12 @@
   "libraryUpdated": "Updated",
   "libraryUpdateFailed": "Update failed",
   "libraryAllUpToDate": "All up to date",
+  "libraryAlreadyLatestCount": "{count} already latest",
+  "@libraryAlreadyLatestCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "sourcePin": "Pin",
   "sourceUnpin": "Unpin",
   "mirrorTestAll": "Test all",

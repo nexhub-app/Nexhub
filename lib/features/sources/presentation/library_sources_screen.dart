@@ -134,6 +134,12 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
   }
 
   /// 把选中的条目按需拉取 rawUrl，解析为 [PluginConfig] 后批量入库。
+  ///
+  /// **更新语义（修复 129）**：网站源文件（rawUrl）发新版后，必须**替换**
+  /// 已安装的同源条目，而不是新增一个重复条目。manifest 的 `id` 写法可能与
+  /// 源文件实际 `id` 不一致（如 `novel/novel_x` vs `novel_x`），因此导入前
+  /// 先用与 [_load] 相同的归一化规则（精确 id → 去前缀 → 按名称）匹配
+  /// 已安装源，命中则把解析出的配置 **re-key 到已安装 id** 再入库。
   Future<void> _importSelected() async {
     if (_selectedIndices.isEmpty) return;
     final selected = _selectedIndices
@@ -144,6 +150,7 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     final repo = context.read<SourceRepository>();
     int success = 0;
     int failed = 0;
+    int alreadyLatest = 0;
     for (final entry in selected) {
       try {
         List<PluginConfig> parsed = const <PluginConfig>[];
@@ -165,26 +172,79 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
         }
         // 单个源文件里可能打包了多个源，全部入库。
         for (final cfg in parsed) {
-          repo.addSource(cfg);
+          final applied = _applySourceUpdate(repo, entry, cfg);
+          if (applied == _ApplyResult.updated) {
+            success++;
+          } else if (applied == _ApplyResult.latest) {
+            alreadyLatest++;
+          } else {
+            failed++;
+          }
         }
-        success++;
       } on Object {
         failed++;
       }
     }
     if (!mounted) return;
     setState(() => _importing = false);
+    // 导入后立即重新拉取 manifest 并比对已装版本（修复 128：源库在应用里
+    // 实时更新）——版本徽标/「可更新」标记不再停留在上一次打开的旧状态。
+    await _load();
     final l10n = AppLocalizations.of(context);
+    final int total = success + failed + alreadyLatest;
+    final String msg;
+    if (alreadyLatest > 0 && success == 0 && failed == 0) {
+      msg = l10n.libraryAllUpToDate;
+    } else if (alreadyLatest > 0) {
+      msg = l10n.libraryImportResult(success, total, failed) +
+          ' · ${l10n.libraryAlreadyLatestCount(alreadyLatest)}';
+    } else {
+      msg = l10n.libraryImportResult(success, total, failed);
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          l10n.libraryImportResult(success, selected.length, failed),
-        ),
-      ),
+      SnackBar(content: Text(msg)),
     );
     if (success > 0) {
       Navigator.of(context).pop();
     }
+  }
+
+  /// 入库结果：成功更新 / 已是最新（未变更） / 失败。
+  // 注：_ApplyResult 定义为库级私有枚举（见文件底部），Dart 不允许
+  // enum 声明在类体内（analyzer 报 enum_in_class）。
+
+  /// 用 [cfg] 更新源库：按与 [_load] 相同的归一化规则匹配已安装源，
+  /// 命中则 re-key 到已安装 id 后调用 [SourceRepository.addSource]
+  /// （同 id 才能触发「替换」而不是新增重复源）。
+  ///
+  /// 版本处理：源文件版本 **≥** 已安装版本 → 更新；**<** 已安装版本 →
+  /// 视为「已是最新」（manifest 版本可能领先源文件实际版本，直接跳过）。
+  _ApplyResult _applySourceUpdate(
+    SourceRepository repo,
+    _LibEntry entry,
+    PluginConfig cfg,
+  ) {
+    // 1) 精确匹配（含 manifest id 与 cfg.id 相同的常见情况）
+    PluginConfig? installed = repo.getById(cfg.id);
+    // 2) 去类型前缀：manifest id（novel/novel_x）匹配源文件 id（novel_x）
+    if (installed == null && cfg.id.contains('/')) {
+      installed = repo.getById(cfg.id.substring(cfg.id.lastIndexOf('/') + 1));
+    }
+    // 3) 按名称兜底：manifest 条目名称与已安装源名称一致
+    if (installed == null && entry.name.isNotEmpty) {
+      installed = repo.all.where((c) => c.name == entry.name).firstOrNull;
+    }
+    if (installed != null && cfg.version < installed.version) {
+      return _ApplyResult.latest; // 已装版本更高，无需降级
+    }
+    // re-key：确保与已安装源同 id，替换而非新增（修复 129）。
+    final String effectiveId = installed?.id ?? cfg.id;
+    final PluginConfig normalized = installed != null && cfg.id != effectiveId
+        ? cfg.copyWith(id: effectiveId)
+        : cfg;
+    repo.addSource(normalized);
+    return _ApplyResult.updated;
   }
 
   /// 一键更新全部可更新的源：只勾选「库版本 > 已装版本」的条目并立即导入。
@@ -493,6 +553,9 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     }
   }
 }
+
+/// 入库结果：成功更新 / 已是最新（未变更） / 失败。
+enum _ApplyResult { updated, latest, failed }
 
 /// 单条库条目（解析 manifest 后，未抓 rawUrl）。
 class _LibEntry {

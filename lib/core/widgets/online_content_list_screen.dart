@@ -1421,9 +1421,12 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints c) {
         final width = c.maxWidth;
-        final itemW = layout.layoutMode == LayoutMode.list
+        var itemW = layout.layoutMode == LayoutMode.list
             ? width - AppTokens.spaceLg * 2
             : (width - AppTokens.spaceLg * 2 - spacing * (cross - 1)) / cross;
+        // 极端窄屏 + 高列数时 itemW 可能非正（负的 childAspectRatio 会直接
+        // 抛布局断言崩溃）。下限保护：至少一列能放下 96px 封面（修复 130）。
+        if (itemW < 96) itemW = 96;
         if (layout.layoutMode == LayoutMode.list) {
           return ListView.builder(
             padding: const EdgeInsets.all(AppTokens.spaceLg),
@@ -1636,9 +1639,12 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       builder: (BuildContext context, BoxConstraints c) {
         final width = c.maxWidth;
         // 列表模式：单列全宽；网格模式：按列数均分
-        final itemW = layout.layoutMode == LayoutMode.list
+        var itemW = layout.layoutMode == LayoutMode.list
             ? width - AppTokens.spaceLg * 2
             : (width - AppTokens.spaceLg * 2 - spacing * (cross - 1)) / cross;
+        // 极端窄屏 + 高列数时 itemW 可能非正（负的 childAspectRatio 会直接
+        // 抛布局断言崩溃）。下限保护：至少一列能放下 96px 封面（修复 130）。
+        if (itemW < 96) itemW = 96;
 
         // 列表模式直接返回 ListView
         if (layout.layoutMode == LayoutMode.list) {

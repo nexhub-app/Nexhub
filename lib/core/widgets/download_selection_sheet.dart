@@ -245,7 +245,13 @@ class _DownloadSelectionSheetState extends State<_DownloadSelectionSheet> {
                     const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
                 child: Row(
                   children: <Widget>[
-                    Text(l10n.episodeRange),
+                    Flexible(
+                      child: Text(
+                        l10n.episodeRange,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     const SizedBox(width: AppTokens.spaceSm),
                     SizedBox(
                       width: 56,

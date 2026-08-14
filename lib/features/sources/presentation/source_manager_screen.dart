@@ -19,6 +19,11 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/services/config_loader.dart';
 import '../../../core/services/source_library_subscription.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/local/local_content_manager.dart'
+    show isAndroidSafUri;
+import '../../../core/local/saf_bridge.dart'
+    show listFolderSourceFilesSaf, pickFolderPath, readSourceText, safBaseName;
+import '../../../core/utils/app_log.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
@@ -319,24 +324,68 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
 
   /// 选择文件夹导入。
   Future<void> _pickLocalFolder() async {
-    final dirPath = await FilePicker.platform.getDirectoryPath();
-    if (dirPath == null) return;
+    // 安卓必须用 pickFolderPath()（内部走 saf.pickDirectory 拿 content:// tree URI）；
+    // 直接 getDirectoryPath 在分区存储下返回真实路径，dart:io 列不出文件 → 误报空。
+    final dirPath = await pickFolderPath();
+    if (dirPath == null) {
+      AppLog.instance.i('[源导入] 未选择文件夹（picker 返回 null）');
+      return;
+    }
+    // 记录原始路径前缀 + 是否 SAF，便于在「运行日志」定位（之前日志为空的根因：
+    // 空结果分支从未打日志，导致静默误报「未找到源文件」）。
+    AppLog.instance.i('[源导入] 选目录 raw='
+        '${dirPath.length > 90 ? '${dirPath.substring(0, 90)}…' : dirPath} '
+        'isSaf=${isAndroidSafUri(dirPath)}');
 
-    final dir = Directory(dirPath);
-    if (!await dir.exists()) return;
-
-    // 扫描目录下的所有支持的源文件
-    final files = <String>[];
-    await for (final entity in dir.list(recursive: true, followLinks: false)) {
-      if (entity is File) {
-        final ext = p.extension(entity.path).toLowerCase().replaceFirst('.', '');
-        if (const ['json', 'txt', 'xml'].contains(ext)) {
-          files.add(entity.path);
+    // 扫描目录下的所有支持的源文件。
+    // Android 上 getDirectoryPath 返回 content:// SAF tree URI，dart:io 的
+    // Directory 无法列举/读取，必须走 SAF 枚举；桌面则走真实文件系统。
+    List<String> files;
+    try {
+      if (isAndroidSafUri(dirPath)) {
+        files = await listFolderSourceFilesSaf(dirPath);
+        AppLog.instance.i('[源导入] SAF 枚举得到 ${files.length} 个源文件');
+      } else {
+        final dir = Directory(dirPath);
+        final exists = await dir.exists();
+        AppLog.instance.i('[源导入] 文件系统模式 dir.exists=$exists');
+        if (!exists) {
+          // 目录不存在/不可访问（安卓分区存储下真实路径常读不到）→ 如实上报，
+          // 不再静默 return 造成「未找到源文件」误报。
+          AppLog.instance.e('[源导入] 目录不存在或不可访问: $dirPath');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(AppLocalizations.of(context).folderScanFailed)),
+            );
+          }
+          return;
         }
+        files = <String>[];
+        await for (final entity in dir.list(recursive: true, followLinks: false)) {
+          if (entity is File) {
+            final ext = p.extension(entity.path).toLowerCase().replaceFirst('.', '');
+            if (const ['json', 'txt', 'xml'].contains(ext)) {
+              files.add(entity.path);
+            }
+          }
+        }
+        AppLog.instance.i('[源导入] 文件系统枚举得到 ${files.length} 个源文件');
       }
+    } on Object catch (e, st) {
+      // SAF 列举失败（权限不足 / URI 无效 / SecurityException）必须如实上报，
+      // 不能静默当作「未找到源文件」。
+      AppLog.instance.eWithStack('[源导入] 文件夹扫描失败 $dirPath', e, st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).folderScanFailed)),
+        );
+      }
+      return;
     }
 
     if (files.isEmpty) {
+      AppLog.instance.w('[源导入] 扫描结果为空（未找到源文件）dirPath='
+          '${dirPath.length > 90 ? '${dirPath.substring(0, 90)}…' : dirPath}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context).noLocalSource)),
@@ -354,9 +403,10 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     final items = <_ImportPreviewItem>[];
     _importAgeBlockedCount = 0;
     for (final path in paths) {
-      final fileName = p.basename(path);
+      final fileName =
+          isAndroidSafUri(path) ? safBaseName(path) : p.basename(path);
       try {
-        final text = await File(path).readAsString();
+        final text = await readSourceText(path);
         // 统一批量解析：单 PluginConfig / JSON 数组（小说+媒体+漫画混排）/
         // Legado 书源 / XML 等，一个文件可解析出多个源。
         final configs = SourceRepository.parseMixedSources(text);
@@ -386,6 +436,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           }
         }
       } on Object catch (e) {
+        AppLog.instance.e('[源导入] 读取/解析失败 $fileName: $e');
         items.add(_ImportPreviewItem(
           path: path,
           fileName: fileName,
@@ -1296,16 +1347,19 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
             ),
             const SizedBox(height: AppTokens.spaceLg),
 
-            // 导入方式：单文件 / 多文件 / 文件夹
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            // 导入方式：单文件 / 多文件 / 文件夹。
+            // 窄屏兜底：两按钮 + 文案在部分手机（小屏/大字体）会横向溢出，
+            // 改用 Wrap + Flexible 自动换行，不再固定 Row 单行（修复 130）。
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: AppTokens.spaceMd,
+              runSpacing: AppTokens.spaceSm,
               children: <Widget>[
                 FilledButton.icon(
                   onPressed: _pickLocalFile,
                   icon: const Icon(Icons.file_open, size: 18),
                   label: Text(l10n.selectFile),
                 ),
-                const SizedBox(width: AppTokens.spaceMd),
                 OutlinedButton.icon(
                   onPressed: _pickLocalFolder,
                   icon: const Icon(Icons.folder_outlined, size: 18),
