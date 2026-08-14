@@ -1,6 +1,6 @@
 **English** | [简体中文](./README.md)
 
-> The project is under continuous development. Contributions and ideas are welcome via Pull Requests / issues.
+> Current stable release: **v1.2.0** (major stability fixes for local download / import + reader experience improvements). The project is under continuous development. Contributions and ideas are welcome via Pull Requests / issues. See [RELEASE_NOTES](./RELEASE_NOTES.md) for the full changelog.
 
 # NexHub
 
