@@ -13,6 +13,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -45,6 +46,100 @@ class _QueuedDownload {
   _QueuedDownload(this.task, this.item, this.chapters);
 }
 
+/// 已下载作品分组（同一部书 / 漫画 / 剧集的多次分批下载合并为一）。
+///
+/// 由 [DownloadManager.groupedDownloaded] / [groupedArchived] 产出，
+/// 供「已下载」页与书架「本地」段按作品展示单卡片，避免重复条目。
+///
+/// 封面 / 标题取各批次中最新值；章节标题为各批次并集（保持插入顺序、去重）；
+/// 总章节数为各批次之和；`batches` 保留逐批明细供详情页展开。
+class DownloadGroup {
+  const DownloadGroup({
+    required this.contentId,
+    required this.sourceId,
+    required this.title,
+    required this.coverUrl,
+    required this.sourceType,
+    required this.format,
+    required this.totalChapters,
+    required this.batches,
+    this.completedAt,
+  });
+
+  /// 内容 ID（MediaItem.id）。
+  final String contentId;
+
+  /// 源 ID；null 表示本地导入 / 无源。
+  final String? sourceId;
+
+  /// 展示标题（取最新批次标题）。
+  final String title;
+
+  /// 封面（优先各批次本地封面；均无则回退远程封面 URL）。
+  final String? coverUrl;
+
+  /// 源类型（决定默认阅读器分流）。
+  final SourceType sourceType;
+
+  /// 下载格式（取最新批次；同一作品分批格式一致）。
+  final DownloadFormat format;
+
+  /// 各批次章节总数之和。
+  final int totalChapters;
+
+  /// 合并完成时间（取最新批次）。
+  final int? completedAt;
+
+  /// 逐批下载任务明细（按创建时间升序）。
+  final List<DownloadTask> batches;
+
+  /// 各批次章节标题的并集（去重、保持顺序）。
+  List<String> get chapterTitles {
+    final List<String> all = <String>[];
+    final Set<String> seen = <String>{};
+    for (final DownloadTask t in batches) {
+      for (final String c in t.chapterTitles) {
+        if (seen.add(c)) all.add(c);
+      }
+    }
+    return all;
+  }
+
+  /// 以单条任务为首项，构造分组。
+  factory DownloadGroup.fromLeadTask(DownloadTask lead) => DownloadGroup(
+        contentId: lead.contentId,
+        sourceId: lead.sourceId,
+        title: lead.title,
+        coverUrl: lead.localCoverPath ?? lead.coverUrl,
+        sourceType: lead.sourceType,
+        format: lead.format,
+        totalChapters: lead.totalChapters,
+        completedAt: lead.completedAt,
+        batches: <DownloadTask>[lead],
+      );
+
+  /// 加入一个同作品批次，返回更新后的分组（标题 / 封面 / 总数取最新或求和）。
+  DownloadGroup addTask(DownloadTask t) {
+    final List<DownloadTask> next = List<DownloadTask>.from(batches)
+      ..add(t);
+    // 最新创建时间对应的批次优先作为展示来源。
+    final DownloadTask newest = next.reduce(
+      (a, b) => a.createdAt >= b.createdAt ? a : b,
+    );
+    return DownloadGroup(
+      contentId: contentId,
+      sourceId: sourceId,
+      title: newest.title,
+      coverUrl: newest.localCoverPath ?? newest.coverUrl ?? coverUrl,
+      sourceType: sourceType,
+      format: newest.format,
+      totalChapters: next.fold(0, (s, e) => s + e.totalChapters),
+      completedAt: newest.completedAt,
+      batches: next,
+    );
+  }
+}
+
 /// 下载管理器——全应用单例（Provider 注入）。
 class DownloadManager extends ChangeNotifier {
   DownloadManager({
@@ -71,6 +166,17 @@ class DownloadManager extends ChangeNotifier {
   /// 当前生效的下载设置。
   DownloadSettings get settings => _settings;
 
+  /// 是否需要引导用户选择公开下载目录。
+  ///
+  /// 仅 Android：若下载路径仍是出厂默认（`D:/Downloads`，在 Android 上会被
+  /// 回退为应用私有外部存储 `Android/data/<pkg>/files/Download`），普通文件
+  /// 管理器看不到下载内容。此时应引导用户用 SAF 选一个公开文件夹，使下载
+  /// 对文件管理器可见。用户一旦主动设置过（路径变为 `content://` 或真实
+  /// 路径）即不再触发。
+  bool get needsPublicDownloadDir =>
+      Platform.isAndroid &&
+      _settings.downloadPath == DownloadSettings.defaults().downloadPath;
+
   /// 正在执行中的下载数量（受 maxConcurrent 约束）。
   int _running = 0;
 
@@ -84,6 +190,14 @@ class DownloadManager extends ChangeNotifier {
   /// [_executeDownload] 完成时会检查此集合，若任务被暂停则保持 paused 状态。
   final Map<String, bool> _pauseTokens = <String, bool>{};
 
+  /// 取消令牌：记录用户点击取消的**进行中**任务 ID。
+  ///
+  /// `cancel()` 只移除记录，无法终止在途的网络/写盘 Future；处理器通过
+  /// [DownloadCancelledCheck] 在每章/每集开始前检查此集合，命中即抛
+  /// [DownloadCancelledException] 中止，随后 [_executeDownload] 清理半成品
+  /// 且不写 meta.json（修复 132：取消后不再继续下载、重启后不再复活）。
+  final Set<String> _cancelledTaskIds = <String>{};
+
   /// 网络变化订阅（仅 WiFi 模式下监听，用于恢复挂起任务）。
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
@@ -92,6 +206,13 @@ class DownloadManager extends ChangeNotifier {
 
   /// 全部任务（只读视图）。
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
+
+  /// 直接注入一条已构造的下载任务（不触发下载调度）。
+  /// 用于内部从存储恢复，以及单元测试构造聚合场景；正式下载请走 [addTask]。
+  void injectTask(DownloadTask task) {
+    _tasks.add(task);
+    notifyListeners();
+  }
 
   /// 活跃任务（下载列表页使用，排除 completed）。
   List<DownloadTask> get activeTasks =>
@@ -104,6 +225,115 @@ class DownloadManager extends ChangeNotifier {
   /// 已归档任务（归档 Tab 使用）。
   List<DownloadTask> get archivedTasks =>
       _tasks.where((t) => t.archived).toList();
+
+  /// 作品合并键：同「源 + 内容」视为同一部作品，用于把多次分批下载合并展示。
+  ///
+  /// 与 [DownloadTask.coverKey] 同源设计，但允许 sourceId 为空时按 contentId 兜底，
+  /// 保证「不同源但 contentId 恰好相同」不会误并（各自带 sourceId 时键不同）。
+  static String groupKeyFor(DownloadTask t) => '${t.sourceId ?? ''}|${t.contentId}';
+
+  /// 将已完成（未归档）任务按作品合并为一组，供「已下载」页卡片展示。
+  ///
+  /// 同一部作品（同源同 contentId）跨多次分批下载只显示一张卡片，
+  /// 封面 / 标题取最新值，章节数为各批次并集，总章节数为各批次之和。
+  List<DownloadGroup> groupedDownloaded() => _groupTasks(
+        _tasks.where((t) => t.isCompleted && !t.archived).toList(),
+      );
+
+  /// 将已归档任务按作品合并为一组，供「已删除下载」页卡片展示。
+  List<DownloadGroup> groupedArchived() =>
+      _groupTasks(_tasks.where((t) => t.archived).toList());
+
+  /// 内部：按 [groupKeyFor] 聚合任务为 [DownloadGroup]，保持稳定顺序。
+  List<DownloadGroup> _groupTasks(List<DownloadTask> tasks) {
+    final List<DownloadGroup> groups = <DownloadGroup>[];
+    final Map<String, int> keyToIndex = <String, int>{};
+    for (final DownloadTask t in tasks) {
+      final String key = groupKeyFor(t);
+      final int idx = keyToIndex[key] ?? -1;
+      if (idx < 0) {
+        groups.add(DownloadGroup.fromLeadTask(t));
+        keyToIndex[key] = groups.length - 1;
+      } else {
+        groups[idx] = groups[idx].addTask(t);
+      }
+    }
+    return groups;
+  }
+
+  /// 取某作品（同源同 contentId）的全部批次任务，供分组详情页逐批展示。
+  ///
+  /// [includeArchived] 为 false 时仅返回未归档批次（「已下载」页进入）；
+  /// 为 true 时含已归档批次（「已删除下载」页进入）。
+  List<DownloadTask> tasksForContent(
+    String contentId,
+    String? sourceId, {
+    bool includeArchived = false,
+  }) {
+    final List<DownloadTask> result = _tasks.where((t) {
+      if (t.contentId != contentId) return false;
+      if (t.sourceId != sourceId) return false;
+      if (t.archived) return includeArchived;
+      return true;
+    }).toList();
+    result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return result;
+  }
+
+  /// 归档某作品的全部批次（「读后自动删除」/ 选择批量归档用）。
+  ///
+  /// 仅影响 status==completed 的批次；其余状态（下载中/失败）不动。
+  Future<void> archiveContent(String contentId) async {
+    var changed = false;
+    for (var i = 0; i < _tasks.length; i++) {
+      final t = _tasks[i];
+      if (t.contentId != contentId || t.status != DownloadStatus.completed) {
+        continue;
+      }
+      _tasks[i] = t.copyWith(
+        archived: true,
+        archivedAt: DateTime.now().millisecondsSinceEpoch,
+      );
+      changed = true;
+    }
+    if (changed) {
+      await _persist();
+      notifyListeners();
+    }
+  }
+
+  /// 删除某作品的全部批次（含文件 + meta.json + 共享封面）。
+  ///
+  /// [deleteFiles] 为 true 才删磁盘文件；false 仅删记录（可被恢复）。
+  /// 共享封面在所有被删批次均无引用时才清除（见 [_deleteTaskFiles]）。
+  Future<void> cancelContent(String contentId, {bool deleteFiles = true}) async {
+    final ids = _tasks
+        .where((t) => t.contentId == contentId)
+        .map((t) => t.id)
+        .toList();
+    for (final id in ids) {
+      await cancel(id, deleteFiles: deleteFiles);
+    }
+  }
+
+  /// 恢复某作品的全部已归档批次（归档页「恢复」用）。
+  Future<void> unarchiveContent(String contentId) async {
+    var changed = false;
+    for (var i = 0; i < _tasks.length; i++) {
+      final t = _tasks[i];
+      if (t.contentId != contentId || !t.archived) continue;
+      _tasks[i] = t.copyWith(
+        archived: false,
+        archivedAt: null,
+        status: DownloadStatus.completed,
+      );
+      changed = true;
+    }
+    if (changed) {
+      await _persist();
+      notifyListeners();
+    }
+  }
 
   /// 该内容是否存在任何已完成的下载任务。
   ///
@@ -259,16 +489,45 @@ class DownloadManager extends ChangeNotifier {
     required List<Episode> chapters,
     List<int>? chapterIndices,
   }) async {
-    final sourceType = item.sourceType ?? SourceType.animeSource;
+    // 以「源的真实 type」为准派发下载处理器，避免漫画/小说从影视入口进入时
+    // item.sourceType 缺失或被错配成 anime，导致被当成视频去嗅探
+    // （route not found → 全部下载失败）。sourceId 能查到源时强制采用源的 type；
+    // 查不到（如本地导入）才回退到 item.sourceType 或 animeSource。
+    final SourceType sourceType = (item.sourceId != null
+            ? sourceRepo.getById(item.sourceId!)?.type
+            : null) ??
+        item.sourceType ??
+        SourceType.animeSource;
     final format = _resolveFormat(sourceType);
+    // 规范化章节序号：下载文件名用「全局序号」（整本连续、跨批次稳定）命名，
+    // 保证分批「单独下载」时各批不会用本地 1..N 互相覆盖（否则第二次下载会
+    // 覆盖第一次的文件 → 只能打开一章/一集、内容在管理器里对不上）。
+    // number 为 null 的源在此统一补全局序号。
     final selectedChapters = chapterIndices == null
-        ? chapters
-        : chapterIndices.map((i) => chapters[i]).toList();
+        ? <Episode>[
+            for (var i = 0; i < chapters.length; i++)
+              chapters[i].copyWith(number: i + 1),
+          ]
+        : <Episode>[
+            for (final gi in chapterIndices)
+              chapters[gi].copyWith(number: gi + 1),
+          ];
 
     final now = DateTime.now().millisecondsSinceEpoch;
     // task.id 会用作下载文件名（`${task.id}.cbz/.epub/.jpg`）。item.id 对部分源
     // 是完整 URL（含 `/`、`:`），直接拼进来会被 SAF 路径拆成多级目录，导致
     // 写入/读取路径错乱（下载后打不开）。统一清洗为文件名安全字符。
+    // coverKey：同「源 + 内容」的作品共用一张封面（${coverKey}.jpg），
+    // 后续批次下载时直接复用，避免重复拉取网络封面（见 [DownloadManager._saveCoverImage]）。
+    final coverKey = _computeCoverKey(item);
+    // 稳定作品目录：同「源 + 内容」的作品落到同一目录（每部作品一个目录），
+    // 多批下载各话/集独立落盘，便于管理与阅读器按序打开。目录层级为
+    // `<根>/<类型>/<作品名>`（类型=小说/漫画/媒体，作品名取清洗后的标题），
+    // 让用户在文件管理器能直接识别。文件名安全化避免标题含 `/`、`:` 等被
+    // 拆成多级目录（见 [_safeTitle] / [_typeDirName]）。
+    final String typeDir = _typeDirName(sourceType);
+    final String safeTitle = _safeTitle(item.title, item.id);
+    final String workDir = fs.join(fs.join(fs.basePath, typeDir), safeTitle);
     final task = DownloadTask(
       id: '${item.sourceId ?? 'local'}_${_safeTaskId(item.id)}_$now',
       title: item.title,
@@ -282,6 +541,9 @@ class DownloadManager extends ChangeNotifier {
       downloadedChapters: 0,
       status: DownloadStatus.pending,
       createdAt: now,
+      coverKey: coverKey,
+      // localPath 约定为"作品目录"，供各 handler 在其下按章/集落盘。
+      localPath: workDir,
     );
 
     _tasks.add(task);
@@ -301,13 +563,24 @@ class DownloadManager extends ChangeNotifier {
   /// [deleteFiles] = true 同时删除磁盘文件 + meta.json；
   /// false 仅从存储移除，保留 meta.json（可恢复）。
   Future<void> cancel(String taskId, {bool deleteFiles = false}) async {
+    // 记录是否仍排在等待队列（尚未真正开始执行）——仅排队任务无需取消令牌。
+    final bool wasQueued = _pending.any((q) => q.task.id == taskId) ||
+        _waitingForWifi.any((q) => q.task.id == taskId);
     // 同时从等待队列移除（若尚未开始执行）
     _pending.removeWhere((q) => q.task.id == taskId);
+    _waitingForWifi.removeWhere((q) => q.task.id == taskId);
 
     final idx = _tasks.indexWhere((t) => t.id == taskId);
     if (idx < 0) return;
 
     final task = _tasks[idx];
+    // 记录取消令牌：在途下载（handler 正在跑）会据此在下一章/集中止，
+    // 否则取消后网络与写盘仍在继续（修复 132）。
+    // 仅排队/未开始的任务无需令牌（从队列移除即不会再启动）。
+    if (!wasQueued &&
+        (task.isActive || task.status == DownloadStatus.downloading)) {
+      _cancelledTaskIds.add(taskId);
+    }
     _tasks[idx] = task.copyWith(status: DownloadStatus.cancelled);
 
     if (deleteFiles) {
@@ -453,6 +726,10 @@ class DownloadManager extends ChangeNotifier {
   /// 重新从源拉取详情与章节，重置为 pending 并重新调度下载。
   /// 仅对 status == failed 的任务生效；其余状态（含 paused）不处理。
   /// 网络/源异常时仍标记回 failed 并记录错误，不做破坏性操作。
+  ///
+  /// **只重试原任务选中的章节**：若原任务是「单话/单集」下载，重试时按
+  /// [DownloadTask.chapterTitles] 过滤回选中的章节，而不是全量下载
+  /// （修复 131：单话下载失败后重试 → 不再下载全内容）。
   Future<void> retryTask(String taskId) async {
     final idx = _tasks.indexWhere((t) => t.id == taskId);
     if (idx < 0) return;
@@ -475,6 +752,9 @@ class DownloadManager extends ChangeNotifier {
       final item = await service.fetchDetail(source, task.contentId!);
       final chapters = await _fetchChaptersForRetry(
         source, item, task.sourceType, idFallback: task.contentId);
+      // 过滤回原任务选中的章节（保留全局序号），标题不匹配时兜底全量。
+      final List<Episode> retryChapters =
+          _selectRetryChapters(chapters, task);
       _tasks[idx] = task.copyWith(
         status: DownloadStatus.pending,
         error: null,
@@ -482,12 +762,33 @@ class DownloadManager extends ChangeNotifier {
       );
       await _persist();
       notifyListeners();
-      _scheduleDownload(_tasks[idx], item, chapters);
+      _scheduleDownload(_tasks[idx], item, retryChapters);
     } catch (e) {
       _updateTask(taskId,
           status: DownloadStatus.failed, error: e.toString());
       AppLog.instance.e('[重试失败] ${task.title} (${task.id}): $e');
     }
+  }
+
+  /// 从重试抓取到的完整章节列表中，挑选原任务选中的章节。
+  ///
+  /// 原任务 [DownloadTask.chapterTitles] 记录了选中的章节标题（含「单话/单集」）。
+  /// 按标题匹配回选中的章节；一个都匹配不上（站点章节标题已变更）时
+  /// 退回全量列表，保证至少能继续下载。
+  List<Episode> _selectRetryChapters(
+      List<Episode> chapters, DownloadTask task) {
+    if (chapters.isEmpty || task.chapterTitles.isEmpty) return chapters;
+    final wanted = task.chapterTitles.toSet();
+    final List<Episode> matched = <Episode>[];
+    for (var i = 0; i < chapters.length; i++) {
+      final ch = chapters[i];
+      if (wanted.contains(ch.title)) {
+        // 保留全局序号（原 addTask 按选中下标 gi+1 编号，这里同样按
+        // 完整列表下标编号，保证重试落盘文件名与原批次一致）。
+        matched.add(ch.copyWith(number: i + 1));
+      }
+    }
+    return matched.isNotEmpty ? matched : chapters;
   }
 
   /// 按任务类型拉取章节列表（重试专用）。
@@ -570,14 +871,11 @@ class DownloadManager extends ChangeNotifier {
 
   /// 从 `.meta.json` 恢复孤立下载记录。
   ///
-  /// 扫描下载目录下所有 `*.meta.json` 文件，
-  /// 验证 `localPath` 文件存在 → 标记为 completed 重建到任务列表。
+  /// 扫描下载根目录及其作品子目录（新布局 `根/类型/作品名/*.meta.json`）下的
+  /// 所有 `*.meta.json`，验证 `localPath` 文件存在 → 标记为 completed 重建到任务列表。
   Future<void> recoverOrphanedDownloads() async {
-    final files = await fs.listFiles(fs.basePath);
-    for (final filename in files) {
-      if (!filename.endsWith('.meta.json')) continue;
-
-      final metaPath = fs.join(fs.basePath, filename);
+    final List<String> metaPaths = await _findMetaJsonPaths();
+    for (final metaPath in metaPaths) {
       try {
         final raw = await fs.readString(metaPath);
         final task = DownloadTask.fromJsonString(raw);
@@ -585,10 +883,18 @@ class DownloadManager extends ChangeNotifier {
         // 避免重复添加
         if (_tasks.any((t) => t.id == task.id)) continue;
 
-        // 验证产物文件是否存在
+        // 验证产物文件/目录是否存在
         if (task.localPath != null && await fs.exists(task.localPath!)) {
+          // 旧数据 meta.json 可能无 chapterFilePaths：按类型从 localPath
+          // 推导逐章/集路径，保证阅读器可翻话/切集；新数据直接采用持久化值。
+          final List<String>? chapterFiles = task.chapterFilePaths ??
+              await _deriveChapterFilePaths(task);
           _tasks.add(task.copyWith(
             status: DownloadStatus.completed,
+            // 旧数据可能无 coverKey：按 sourceId+contentId 补算，使其并入
+            // 同作品分组并正确复用共享封面。
+            coverKey: task.coverKey ?? _coverKeyFromTask(task),
+            chapterFilePaths: chapterFiles,
             completedAt: task.completedAt ??
                 DateTime.now().millisecondsSinceEpoch,
           ));
@@ -597,6 +903,36 @@ class DownloadManager extends ChangeNotifier {
         // 损坏的 meta.json 跳过
       }
     }
+  }
+
+  /// 收集下载根目录与作品子目录下的全部 `*.meta.json` 路径。
+  ///
+  /// - 根目录：旧布局 `<taskId>.meta.json`（兼容历史数据）；
+  /// - 子目录：新布局 `根/类型/作品名/<taskId>.meta.json`。作品目录只下探两层
+  ///   （类型 → 作品名），避免扫到作品目录内章节产物目录。
+  Future<List<String>> _findMetaJsonPaths() async {
+    final List<String> out = <String>[];
+    final rootEntries = await fs.listFiles(fs.basePath);
+    for (final name in rootEntries) {
+      if (name.endsWith('.meta.json')) {
+        out.add(fs.join(fs.basePath, name));
+        continue;
+      }
+      // 类型子目录（小说/漫画/媒体）下的作品目录。
+      final String typeDir = fs.join(fs.basePath, name);
+      if (!await fs.exists(typeDir)) continue;
+      final List<String> workDirs = await fs.listFiles(typeDir);
+      for (final workName in workDirs) {
+        final workDir = fs.join(typeDir, workName);
+        final List<String> metas = await fs.listFiles(workDir);
+        for (final metaName in metas) {
+          if (metaName.endsWith('.meta.json')) {
+            out.add(fs.join(workDir, metaName));
+          }
+        }
+      }
+    }
+    return out;
   }
 
   /// 恢复遗留孤立文件夹/文件（无 .meta.json 的旧数据）。
@@ -613,6 +949,13 @@ class DownloadManager extends ChangeNotifier {
       // 跳过 meta.json 和封面图片
       if (filename.endsWith('.meta.json')) continue;
       if (filename.endsWith('.jpg') || filename.endsWith('.png')) continue;
+      // 跳过类型分类目录（小说/漫画/媒体）：其内容已在
+      // [_findMetaJsonPaths] / 作品目录内 meta.json 中处理，避免误当孤立产物。
+      if (_typeDirName(SourceType.novelSource) == filename ||
+          _typeDirName(SourceType.mangaSource) == filename ||
+          _typeDirName(SourceType.animeSource) == filename) {
+        continue;
+      }
 
       final filePath = fs.join(fs.basePath, filename);
 
@@ -650,6 +993,9 @@ class DownloadManager extends ChangeNotifier {
 
       // 创建恢复任务
       final now = DateTime.now().millisecondsSinceEpoch;
+      // 遗留数据无 sourceId，contentId 取文件名（taskId），封面文件即 `${taskId}.jpg`
+      // —— 故 coverKey = taskId，与 [_saveCoverImage] 落盘命名一致，合并/复用生效。
+      final String? coverKey = coverUrl != null ? taskId : null;
       final task = DownloadTask(
         id: taskId,
         title: cleanTitle,
@@ -664,6 +1010,7 @@ class DownloadManager extends ChangeNotifier {
         localPath: filePath,
         coverUrl: coverUrl,
         localCoverPath: coverUrl,
+        coverKey: coverKey,
       );
 
       _tasks.add(task);
@@ -714,6 +1061,37 @@ class DownloadManager extends ChangeNotifier {
         .replaceAll(RegExp(r'\s+'), '_')
         .trim();
     return clean.isEmpty ? 'item' : clean;
+  }
+
+  /// 按媒体类型返回下载分类目录名（中文，便于用户在文件管理器识别）。
+  ///
+  /// 与「每部作品一个目录」配合，形成 `下载根/类型/作品名/逐话文件` 的层级
+  /// （参考通用离线阅读器的目录组织方式，不依赖具体对标实现）。
+  static String _typeDirName(SourceType type) => switch (type) {
+        SourceType.novelSource => '小说',
+        SourceType.mangaSource => '漫画',
+        SourceType.animeSource => '媒体',
+      };
+
+  /// 清洗作品名为安全文件名：仅剔除文件系统非法字符，保留中文与可读性；
+  /// 过长截断（≤60 字符），为空时回退到 contentId（同样清洗），仍为空给默认名。
+  ///
+  /// 与 [_safeTaskId]（用于 task.id/coverKey，倾向全 ASCII 安全）不同，此处
+  /// 保留标题中的中文，让用户在文件管理器能直接认出作品。`%` 必须清洗：
+  /// Dart `Uri.parse`/`Uri.decodeComponent` 对含裸 `%`（非合法转义）的字符串
+  /// 会抛 `Illegal percent encoding in URI`（下载后打开小说/漫画时报错的来源）。
+  String _safeTitle(String title, String contentId) {
+    final String base = title.isNotEmpty ? title : contentId;
+    String clean = base
+        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
+        .replaceAll('%', '_')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (clean.isEmpty) clean = _safeTaskId(contentId);
+    if (clean.length > 60) clean = clean.substring(0, 60).trim();
+    // 折叠连续空格并整体转下划线尾，避免首尾空格被文件系统吞掉。
+    clean = clean.replaceAll(RegExp(r' +'), '_');
+    return clean.isEmpty ? '未命名作品' : clean;
   }
 
   /// 从文件名推断 task ID（取扩展名前的部分）。
@@ -824,18 +1202,48 @@ class DownloadManager extends ChangeNotifier {
       AppLog.instance.i('[下载开始] ${item.title} (${task.id}, '
           '${chapters.length} 章, 格式 ${task.format.label})');
 
-      final localPath = await handler.download(
-        task,
-        onProgress: (downloaded, total) {
-          _updateTask(task.id,
-              downloadedChapters: downloaded, totalChapters: total);
-        },
-      );
+      // 取消检查：开始前命中 → 直接中止（不写盘、不写 meta）。
+      if (_cancelledTaskIds.contains(task.id)) {
+        await _cleanupCancelledTask(task);
+        return;
+      }
 
-      // 保存封面
+      final DownloadResult result;
+      try {
+        result = await handler.download(
+          task,
+          onProgress: (downloaded, total) {
+            _updateTask(task.id,
+                downloadedChapters: downloaded, totalChapters: total);
+          },
+          isCancelled: () => _cancelledTaskIds.contains(task.id),
+        );
+      } on DownloadCancelledException {
+        // 用户取消：清理半成品，不标记失败/完成，不写 meta.json（修复 132）。
+        AppLog.instance.i('[下载取消] ${item.title} (${task.id})');
+        await _cleanupCancelledTask(task);
+        return;
+      }
+      final localPath = result.workPath;
+      final chapterFiles = result.chapterFilePaths;
+
+      // 下载完成瞬间又被取消（最后章节与取消竞态）→ 同样按取消处理。
+      if (_cancelledTaskIds.contains(task.id)) {
+        AppLog.instance.i('[下载取消] ${item.title} (${task.id}) 完成前命中取消');
+        await _cleanupCancelledTask(task);
+        return;
+      }
+
+      // 保存封面（同作品复用已有封面，避免重复下载；落盘于作品目录内 cover.jpg）
       String? localCoverPath;
       if (item.coverUrl != null && item.coverUrl!.startsWith('http')) {
-        localCoverPath = await _saveCoverImage(task.id, item.coverUrl!);
+        localCoverPath = await _saveCoverImage(
+          task.id,
+          task.coverKey,
+          item.coverUrl!,
+          source: source,
+          workDir: task.localPath,
+        );
       }
 
       // 暂停检查：若用户在下载过程中暂停，保留已下载文件但状态保持 paused。
@@ -845,6 +1253,7 @@ class DownloadManager extends ChangeNotifier {
           status: DownloadStatus.paused,
           downloadedChapters: task.totalChapters,
           localPath: localPath,
+          chapterFilePaths: chapterFiles,
           completedAt: DateTime.now().millisecondsSinceEpoch,
           localCoverPath: localCoverPath,
           coverUrl: localCoverPath ?? item.coverUrl,
@@ -860,23 +1269,33 @@ class DownloadManager extends ChangeNotifier {
         status: DownloadStatus.completed,
         downloadedChapters: task.totalChapters,
         localPath: localPath,
+        chapterFilePaths: chapterFiles,
         completedAt: DateTime.now().millisecondsSinceEpoch,
         localCoverPath: localCoverPath,
         coverUrl: localCoverPath ?? item.coverUrl,
       );
+
+      // 封面保存期间又被取消（取消竞态最后一帧）→ 按取消处理，
+      // 不写 meta.json，避免重启后孤儿恢复成 completed（修复 132）。
+      if (_cancelledTaskIds.contains(task.id)) {
+        AppLog.instance.i('[下载取消] ${item.title} (${task.id}) 封面前命中取消');
+        await _cleanupCancelledTask(task);
+        return;
+      }
 
       _updateTaskRaw(completed);
       await _writeMetaJson(completed);
       await _persist();
       notifyListeners();
     } catch (e) {
-      // 失败即清理半成品（空文件夹 / 0 字节封面），避免"只有空文件夹"残留
+      // 失败即清理半成品（作品目录 / 0 字节封面），避免"只有空文件夹"残留
       // 且没有报错入口（任务错误文本只在下载管理-失败里可见）。
+      //
+      // ⚠️ 只清理「本次任务」写入的文件，绝不整体删除作品目录：
+      // 同一作品多次分批下载共享同一目录，整体删除会把已下载的其他批次
+      // 一并清掉 → 文件管理器里"下载的内容消失"（修复 133）。
       try {
-        final String partial = fs.join(fs.basePath, task.id);
-        if (await fs.exists(partial)) await fs.delete(partial);
-        final String partialCover = fs.join(fs.basePath, '${task.id}.jpg');
-        if (await fs.exists(partialCover)) await fs.delete(partialCover);
+        await _deleteTaskPartialOutput(task);
       } catch (_) {
         // 清理失败不影响失败状态记录。
       }
@@ -884,6 +1303,49 @@ class DownloadManager extends ChangeNotifier {
           status: DownloadStatus.failed, error: e.toString());
       AppLog.instance.e('[下载失败] ${task.title} (${task.id}): $e');
     }
+  }
+
+  /// 取消后的清理：删除本次任务写入的作品目录（含 meta.json）。
+  ///
+  /// 注意：[cancel(deleteFiles:false)] 语义是「仅删记录、保留文件可恢复」，
+  /// 但**在途任务**的产物是半成品，必须清掉，否则重启后
+  /// [recoverOrphanedDownloads] 会把它当 completed 复活（"取消后下载不止"）。
+  Future<void> _cleanupCancelledTask(DownloadTask task) async {
+    _cancelledTaskIds.remove(task.id);
+    await _deleteTaskPartialOutput(task);
+    // 保留任务记录为 cancelled 状态（供历史查看），不写 meta.json。
+    await _persist();
+    notifyListeners();
+  }
+
+  /// 删除某任务在作品目录内写入的文件（不含其它批次的共享文件）。
+  ///
+  /// - 视频/漫画：作品目录（`task.localPath`）内 `NNN.mp4`/`NNN.cbz`/子目录；
+  /// - 小说 TXT：`NNNNN_章.txt` + `images/`；EPUB：整本单文件。
+  ///
+  /// 通过「删除前快照作品目录 → 删除后对比」的思路无法精确区分批次，
+  /// 这里按任务元数据删除本次写入产物：封面、meta.json，以及
+  /// 视频/漫画作品目录（仅当该目录无其他已完成批次引用时才删整目录）。
+  Future<void> _deleteTaskPartialOutput(DownloadTask task) async {
+    final String? workDir = task.localPath;
+    if (workDir == null || workDir.isEmpty) return;
+
+    // 作品目录仍被其它已完成批次引用 → 只清本任务 meta.json，保留目录。
+    if (_workDirStillReferenced(workDir, task.id)) {
+      final String metaInWork = fs.join(workDir, '${task.id}.meta.json');
+      if (await fs.exists(metaInWork)) await fs.delete(metaInWork);
+      return;
+    }
+
+    // 无其它批次引用 → 删除整个作品目录（含本次写入的全部文件 + meta.json）。
+    if (await fs.exists(workDir)) {
+      await fs.delete(workDir);
+    }
+    // 遗留兜底：个别旧数据仍按 task.id 命名（极少），一并清理避免残留。
+    final String partial = fs.join(fs.basePath, task.id);
+    if (await fs.exists(partial)) await fs.delete(partial);
+    final String partialCover = fs.join(fs.basePath, '${task.id}.jpg');
+    if (await fs.exists(partialCover)) await fs.delete(partialCover);
   }
 
   DownloadHandler _createHandler(
@@ -928,13 +1390,128 @@ class DownloadManager extends ChangeNotifier {
     }
   }
 
-  Future<String?> _saveCoverImage(String taskId, String url) async {
+  /// 计算封面合并键：同「源 + 内容」的作品共用同一张封面文件。
+  ///
+  /// 形如 `sourceId|contentId`，文件名安全（不带入 `/`、`:` 等）。
+  /// 任一为空时回退为 null（该任务封面退化为按 taskId 单独存，互不影响）。
+  /// 注意：仅用于封面去重判断，不作为「作品合并」的唯一键（合并键在 UI 层由
+  /// [groupKeyFor] 计算，且允许 sourceId 为 null 时按 contentId 兜底）。
+  String? _computeCoverKey(MediaItem item) {
+    final String source = item.sourceId ?? '';
+    final String content = _safeTaskId(item.id);
+    if (content.isEmpty || content == 'item') return null;
+    final safeSource = source.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    return '$safeSource|$content';
+  }
+
+  /// 从旧数据（无 [DownloadTask.chapterFilePaths]）按类型推导逐章/集路径。
+  ///
+  /// 用于 [recoverOrphanedDownloads] 兼容旧版 meta.json。新数据已持久化列表，不走此。
+  /// - 视频：扫描作品目录内 `NNN.mp4`/`.ts` 并排序；
+  /// - 漫画 cbz：单文件则作为整本（[localPath] 即单章），多话旧结构罕见；
+  /// - 漫画 folder：作品目录内按序命名的子目录（话）；
+  /// - 小说：整本单文件（[localPath]）。
+  Future<List<String>> _deriveChapterFilePaths(DownloadTask task) async {
+    final String? root = task.localPath;
+    if (root == null || root.isEmpty) return const <String>[];
+    switch (task.sourceType) {
+      case SourceType.animeSource:
+        if (!await fs.exists(root)) return const <String>[];
+        final files = await fs.listFiles(root);
+        final sorted = files
+            .where((f) =>
+                f.toLowerCase().endsWith('.mp4') ||
+                f.toLowerCase().endsWith('.ts'))
+            .toList()
+          ..sort();
+        return sorted.map((f) => fs.join(root, f)).toList();
+      case SourceType.mangaSource:
+        // 单 cbz 文件（旧整本）：作为"一话"处理。
+        if (root.toLowerCase().endsWith('.cbz')) return <String>[root];
+        // 作品目录：内含 NNN.cbz（新逐话）或按序命名的子目录（旧逐话散图）。
+        if (!await fs.exists(root)) return const <String>[];
+        final entries = await fs.listFiles(root);
+        final cbz = entries
+            .where((f) => f.toLowerCase().endsWith('.cbz'))
+            .toList()
+          ..sort();
+        if (cbz.isNotEmpty) {
+          return cbz.map((f) => fs.join(root, f)).toList();
+        }
+        final dirs = entries
+            .where((f) =>
+                !f.toLowerCase().endsWith('.jpg') &&
+                !f.toLowerCase().endsWith('.png') &&
+                !f.toLowerCase().endsWith('.meta.json'))
+            .toList()
+          ..sort();
+        return dirs.map((f) => fs.join(root, f)).toList();
+      case SourceType.novelSource:
+        // 新布局：localPath 是作品目录，目录内 `<书名>.epub|.txt` 是产物。
+        // 旧布局：localPath 直接是文件（整本单文件）。
+        if (root.toLowerCase().endsWith('.epub') ||
+            root.toLowerCase().endsWith('.txt')) {
+          return <String>[root];
+        }
+        if (!await fs.exists(root)) return const <String>[];
+        final novelFiles = await fs.listFiles(root);
+        final novel = novelFiles
+            .where((f) =>
+                f.toLowerCase().endsWith('.epub') ||
+                f.toLowerCase().endsWith('.txt'))
+            .toList()
+          ..sort();
+        return novel.map((f) => fs.join(root, f)).toList();
+    }
+  }
+
+  /// 由已有任务反推封面合并键（旧数据 / 恢复场景补算 coverKey 用）。
+  ///
+  /// 与 [_computeCoverKey] 规则一致，但输入为 [DownloadTask] 的 sourceId/contentId。
+  String? _coverKeyFromTask(DownloadTask t) {
+    final String source = t.sourceId ?? '';
+    final String content = _safeTaskId(t.contentId);
+    if (content.isEmpty || content == 'item') return null;
+    final safeSource = source.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    return '$safeSource|$content';
+  }
+
+  /// 保存封面：先查同作品已有封面文件，命中则直接复用（不重复下载）。
+  ///
+  /// [taskId] 用于回退：当 [coverKey] 为空（旧数据 / 无法计算）时仍按原
+  /// `${taskId}.jpg` 落盘，保持旧行为。命中共享封面时返回其路径，供
+  /// [DownloadTask.localCoverPath] / [DownloadTask.coverUrl] 引用。
+  ///
+  /// 封面落盘位置：优先 [workDir]（作品目录，下载完成后在 `cover.jpg`，
+  /// 同作品多批次共享该目录 → 天然复用去重）；[workDir] 为空（下载前 /
+  /// 旧兼容）回退根目录 `${coverKey}.jpg`。
+  Future<String?> _saveCoverImage(
+    String taskId,
+    String? coverKey,
+    String url, {
+    PluginConfig? source,
+    String? workDir,
+  }) async {
+    final String fileName =
+        workDir != null && workDir.isNotEmpty ? 'cover.jpg' : '$coverKey.jpg';
+    final String dir = workDir != null && workDir.isNotEmpty
+        ? workDir
+        : fs.basePath;
+    final String existing = fs.join(dir, fileName);
     try {
-      final bytes = await HttpFetcher.instance.getBytes(url);
+      // 同作品已有封面：直接复用，不再拉取网络（省流量、避免重复下载）。
+      if (await fs.exists(existing)) {
+        return existing;
+      }
+      // 封面与在线 / 章节图同防盗链策略：缺失 Referer 时源 CDN 间歇性 403。
+      final Map<String, String> headers = <String, String>{
+        ...?source?.fetchHeadersFor(url),
+        'Accept': 'image/jpeg,image/png,image/webp,image/gif,*/*;q=0.8',
+      };
+      final bytes = await HttpFetcher.instance.getBytes(url, headers: headers);
       if (bytes.isEmpty) return null;
-      final coverPath = fs.join(fs.basePath, '$taskId.jpg');
-      await fs.writeBytes(coverPath, Uint8List.fromList(bytes));
-      return coverPath;
+      await fs.writeBytes(existing, Uint8List.fromList(bytes));
+      return existing;
     } catch (_) {
       return null;
     }
@@ -970,29 +1547,80 @@ class DownloadManager extends ChangeNotifier {
   }
 
   Future<void> _writeMetaJson(DownloadTask task) async {
-    final metaPath = fs.join(fs.basePath, '${task.id}.meta.json');
+    // meta.json 放作品目录内（`<localPath>/<task.id>.meta.json`），随作品走，
+    // 便于用户整理/迁移整个作品文件夹；无 localPath（下载前）回退下载根目录。
+    final String dir = (task.localPath != null && task.localPath!.isNotEmpty)
+        ? task.localPath!
+        : fs.basePath;
+    final metaPath = fs.join(dir, '${task.id}.meta.json');
     await fs.writeString(metaPath, task.toJsonString());
   }
 
+  /// 计算某任务封面文件落盘路径（与 [_saveCoverImage] 一致）。
+  ///
+  /// 有作品目录（[DownloadTask.localPath]）时封面在 `<localPath>/cover.jpg`；
+  /// 否则按旧行为退化为 `${task.id}.jpg` / 共享 `${coverKey}.jpg` 于下载根目录。
+  /// 供删除时判断是否存在共享引用。
+  String _coverFilePath(DownloadTask t) {
+    if (t.localPath != null && t.localPath!.isNotEmpty) {
+      return fs.join(t.localPath!, 'cover.jpg');
+    }
+    final String name = t.coverKey != null ? '${t.coverKey}.jpg' : '${t.id}.jpg';
+    return fs.join(fs.basePath, name);
+  }
+
+  /// 某封面路径是否仍被其它任务引用（避免删共享封面时误删别的批次封面）。
+  bool _coverStillReferenced(String path, String selfId) => _tasks.any(
+        (t) =>
+            t.id != selfId &&
+            (t.localCoverPath == path ||
+                (t.coverKey != null && _coverFilePath(t) == path)),
+      );
+
   Future<void> _deleteTaskFiles(DownloadTask task) async {
-    // 删除 meta.json
+    // 删除 meta.json：优先作品目录内（新布局），回退根目录（旧布局）。
+    if (task.localPath != null && task.localPath!.isNotEmpty) {
+      final inWork = fs.join(task.localPath!, '${task.id}.meta.json');
+      if (await fs.exists(inWork)) {
+        await fs.delete(inWork);
+      }
+    }
     final metaPath = fs.join(fs.basePath, '${task.id}.meta.json');
     if (await fs.exists(metaPath)) {
       await fs.delete(metaPath);
     }
-    // 删除产物文件
-    if (task.localPath != null && await fs.exists(task.localPath!)) {
-      await fs.delete(task.localPath!);
+    // 删除作品目录（task.localPath 约定为作品目录：视频/漫画目录，或小说文件）。
+    // 仅当无任何其它同作品批次引用该目录时才删，保护"多批下载共享作品目录"。
+    if (task.localPath != null &&
+        task.localPath!.isNotEmpty &&
+        await fs.exists(task.localPath!)) {
+      if (!_workDirStillReferenced(task.localPath!, task.id)) {
+        await fs.delete(task.localPath!);
+      }
     }
-    // 删除封面
-    if (task.localCoverPath != null &&
-        await fs.exists(task.localCoverPath!)) {
-      await fs.delete(task.localCoverPath!);
-    }
-    // 删除任务目录（散图模式）
+    // 遗留兜底：旧数据可能无 localPath 或按 task.id 命名目录。
     final taskDir = fs.join(fs.basePath, task.id);
     if (await fs.exists(taskDir)) {
       await fs.delete(taskDir);
     }
+    // 删除封面（仅当无任何其它批次引用该封面文件时才删，保护共享封面）。
+    final String coverPath = _coverFilePath(task);
+    if (await fs.exists(coverPath) && !_coverStillReferenced(coverPath, task.id)) {
+      await fs.delete(coverPath);
+    }
+    // 遗留兜底：旧布局封面在根目录（coverKey.jpg / taskId.jpg）。
+    final String legacyCover =
+        fs.join(fs.basePath, '${task.coverKey ?? task.id}.jpg');
+    if (legacyCover != coverPath && await fs.exists(legacyCover)) {
+      await fs.delete(legacyCover);
+    }
   }
+
+  /// 某作品目录是否仍被其它同作品批次引用（避免删共享作品目录时误删别的批次文件）。
+  bool _workDirStillReferenced(String path, String selfId) => _tasks.any(
+        (t) =>
+            t.id != selfId &&
+            t.localPath == path &&
+            t.status == DownloadStatus.completed,
+      );
 }

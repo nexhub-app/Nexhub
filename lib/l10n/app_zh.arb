@@ -635,6 +635,8 @@
   "downloadedGroupOpen": "打开",
   "downloadedGroupFileMissing": "文件不存在",
   "downloadedGroupDeleteConfirm": "确定删除此下载项吗？",
+  "downloadBatches": "{count} 个批次",
+  "downloadBatchLabel": "第 {index} 批",
   "browsePageTitle": "浏览",
   "rssSubscribeTitle": "RSS 订阅",
   "emptyRssSubscribe": "还没有 RSS 订阅",
@@ -1540,6 +1542,10 @@
   "downloadSingleChapter": "下载单章",
   "chapterBookmark": "章节书签",
   "chapterRead": "已读标记",
+  "chapterSortMode": "章节排序",
+  "aggModeFileExpanded": "按文件顺序（EPUB 章节就地展开）",
+  "aggModeEpubLast": "EPUB 章节排在最后",
+  "aggModeCollapsed": "每文件一章（不展开 EPUB）",
   "continueReading": "继续阅读",
   "continueWatching": "继续观看",
   "startFromBeginning": "从头开始",
@@ -1689,6 +1695,34 @@
   "folderImportChoicePerFile": "逐文件分别导入",
   "@folderImportChoicePerFile": {
     "description": "Button: import each file separately"
+  },
+  "folderFileSelectTitle": "选择要导入的漫画文件",
+  "@folderFileSelectTitle": {
+    "description": "Title of the folder file multi-select sheet for comic import"
+  },
+  "folderFileSelectHint": "文件夹内共 {count} 个文件（每个为一话），勾选需要导入的文件。",
+  "@folderFileSelectHint": {
+    "description": "Hint text explaining multi-select of folder comic files"
+  },
+  "folderFileSelectAll": "全选",
+  "@folderFileSelectAll": {
+    "description": "Button to select all files in the multi-select sheet"
+  },
+  "folderFileSelectNone": "全不选",
+  "@folderFileSelectNone": {
+    "description": "Button to deselect all files in the multi-select sheet"
+  },
+  "folderFileSelectMerge": "合并为一部",
+  "@folderFileSelectMerge": {
+    "description": "Toggle: merge selected files into one comic, each file a chapter"
+  },
+  "folderFileSelectSeparate": "逐个分开",
+  "@folderFileSelectSeparate": {
+    "description": "Toggle: each selected file becomes a separate comic entry"
+  },
+  "folderFileSelectConfirm": "导入所选（{count}）",
+  "@folderFileSelectConfirm": {
+    "description": "Confirm button showing selected count"
   },
   "setAsShelfCover": "设为书架封面",
   "@setAsShelfCover": {
@@ -2939,6 +2973,12 @@
   "libraryUpdated": "已更新",
   "libraryUpdateFailed": "更新失败",
   "libraryAllUpToDate": "全部已是最新",
+  "libraryAlreadyLatestCount": "{count} 个已是最新",
+  "@libraryAlreadyLatestCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "sourcePin": "置顶",
   "sourceUnpin": "取消置顶",
   "mirrorTestAll": "测速全部",

@@ -38,22 +38,30 @@ class ComicDownloadHandler implements DownloadHandler {
   final int concurrency;
 
   @override
-  Future<String> download(
+  Future<DownloadResult> download(
     DownloadTask task, {
     DownloadProgressCallback? onProgress,
+    DownloadCancelledCheck? isCancelled,
   }) async {
-    final basePath = fs.join(fs.basePath, task.id);
+    // 作品目录（由 DownloadManager 在 task.localPath 约定为该目录）。
+    final basePath = task.localPath!;
     await fs.createDir(basePath);
 
-    // 单页散图模式（folder / jpg / png）：每章一个子文件夹，章内图片按线程数并行下载。
+    // 逐话文件/目录路径：下标对齐 chapters（缺则为空串，供上层跳过未下载话）。
+    final List<String> chapterPaths = List<String>.filled(chapters.length, '');
+
+    // 单页散图模式（folder / jpg / png）：每话一个子目录，话内图片按线程数并行下载。
     if (format == DownloadFormat.folder ||
         format == DownloadFormat.jpg ||
         format == DownloadFormat.png) {
       final ext = format == DownloadFormat.png ? 'png' : 'jpg';
       var writtenTotal = 0;
       for (var i = 0; i < chapters.length; i++) {
+        _throwIfCancelled(isCancelled);
         final ch = chapters[i];
-        final chDir = fs.join(basePath, _sanitize(ch.title, i));
+        // 话目录按「全局序号」命名（与视频一致，保证分批单独下载不互相覆盖）。
+        final seq = ch.number ?? (i + 1);
+        final chDir = fs.join(basePath, _pad(seq));
         await fs.createDir(chDir);
         final images = await service.fetchImages(
           source,
@@ -61,6 +69,7 @@ class ComicDownloadHandler implements DownloadHandler {
           chapterId: ch.id,
         );
         final idxList = [for (var j = 0; j < images.length; j++) j];
+        var writtenThis = 0;
         await runPool(concurrency, idxList, (j) async {
           final bytes = await _fetchImageBytes(images[j]);
           if (bytes != null) {
@@ -68,9 +77,13 @@ class ComicDownloadHandler implements DownloadHandler {
               fs.join(chDir, '${_pad(j + 1)}.$ext'),
               bytes,
             );
-            writtenTotal++;
+            writtenThis++;
           }
         });
+        if (writtenThis > 0) {
+          chapterPaths[i] = chDir;
+          writtenTotal += writtenThis;
+        }
         onProgress?.call(i + 1, chapters.length);
       }
       // 一张都没写进 → 明确报错，避免"只有空文件夹"的假完成。
@@ -78,13 +91,18 @@ class ComicDownloadHandler implements DownloadHandler {
         AppLog.instance.e('[漫画下载失败] ${task.title}: 0 张图写入');
         throw Exception('未能获取到任何图片，可能被源反盗链拦截或图片地址已失效');
       }
-      return basePath;
+      return DownloadResult(workPath: basePath, chapterFilePaths: chapterPaths);
     }
 
-    // CBZ 模式：所有章节图片打包为单个 .cbz，章内图片按线程数并行下载。
-    final allPages = <CbzPage>[];
+    // CBZ 模式：每话单独打包为一个 .cbz（按序 NNN.cbz），话内图片按线程数并行下载。
+    // 取代原先"整本单 cbz"，使同部作品多批下载各话独立、阅读器可逐话打开与切换。
+    var wroteChapters = 0;
     for (var i = 0; i < chapters.length; i++) {
+      _throwIfCancelled(isCancelled);
       final ch = chapters[i];
+      // 话序号取「全局序号」：单话/分批下载时文件名与整本下载一致，
+      // 避免第二批下载用本地 1..N 覆盖第一批文件（内容在管理器里对不上）。
+      final seq = ch.number ?? (i + 1);
       final images = await service.fetchImages(
         source,
         comicId: comicId,
@@ -95,47 +113,60 @@ class ComicDownloadHandler implements DownloadHandler {
       await runPool(concurrency, idxList, (j) async {
         pageBytes[j] = await _fetchImageBytes(images[j]);
       });
+      final List<CbzPage> chPages = <CbzPage>[];
       for (var j = 0; j < pageBytes.length; j++) {
         final bytes = pageBytes[j];
         if (bytes != null) {
-          allPages.add(CbzPage(
-            filename: '${_pad(allPages.length + 1)}.jpg',
+          chPages.add(CbzPage(
+            filename: '${_pad(chPages.length + 1)}.jpg',
             bytes: bytes,
           ));
         }
       }
+      // 该话无图 → 跳过（不入 chapterPaths），避免"空 cbz"或假完成。
+      if (chPages.isEmpty) {
+        onProgress?.call(i + 1, chapters.length);
+        continue;
+      }
+      // 拦截图检测（沿用原整本逻辑，改为按话）：全部页平均 <20KB 基本可判定
+      // 源统一返回了占位图/错误页（如 goda 曾出现的 ~5.8KB 拦截图）。
+      final int total =
+          chPages.map((p) => p.bytes.length).fold(0, (a, b) => a + b);
+      final double avg = total / chPages.length;
+      if (avg < 20 * 1024) {
+        final Uint8List first = chPages.first.bytes;
+        final String head = first.length >= 4
+            ? first
+                .take(4)
+                .map((x) => x.toRadixString(16).padLeft(2, '0'))
+                .join()
+            : 'short';
+        AppLog.instance.e('[漫画下载失败] ${task.title} 第${i + 1}话: '
+            '图片疑似被源拦截 (平均 ${(avg ~/ 1024)}KB/张, 首字节 0x$head)');
+        onProgress?.call(i + 1, chapters.length);
+        continue;
+      }
+      final cbzBytes = CbzBuilder.build(pages: chPages);
+      final cbzPath = fs.join(basePath, '${_pad(seq)}.cbz');
+      await fs.writeBytes(cbzPath, cbzBytes);
+      chapterPaths[i] = cbzPath;
+      wroteChapters++;
       onProgress?.call(i + 1, chapters.length);
     }
 
-    final cbzBytes = CbzBuilder.build(pages: allPages);
-    if (allPages.isEmpty) {
-      AppLog.instance.e('[漫画下载失败] ${task.title}: 未获取到任何图片');
-      throw Exception('未能获取到任何图片，可能被源反盗链拦截或图片地址已失效');
+    if (wroteChapters == 0) {
+      AppLog.instance.e('[漫画下载失败] ${task.title}: 未获取到任何话');
+      throw Exception('未能获取到任何章节，可能被源拦截或章节地址已失效');
     }
-    // 拦截图检测：真实漫画单页通常 ≥50KB；全部页平均 <20KB 基本可判定
-    // 服务器统一返回了占位图/错误页（如 goda 曾出现的 ~5.8KB 拦截图）。
-    // 直接抛到任务错误里展示（无需 logcat），首字节 hex 区分 HTML(3c21)/
-    // WebP(5249)/JPEG(ffd8)。
-    final int total =
-        allPages.map((p) => p.bytes.length).fold(0, (a, b) => a + b);
-    final double avg = total / allPages.length;
-    if (avg < 20 * 1024) {
-      final Uint8List first = allPages.first.bytes;
-      final String head = first.length >= 4
-          ? first.take(4).map((x) => x.toRadixString(16).padLeft(2, '0')).join()
-          : 'short';
-      AppLog.instance.e('[漫画下载失败] ${task.title}: 图片疑似被源拦截 '
-          '(平均 ${(avg ~/ 1024)}KB/张, 首字节 0x$head)');
-      throw Exception('图片疑似被源拦截（平均 ${(avg ~/ 1024)}KB/张，首字节 0x$head）。'
-          '可能是防盗链/会话问题，请开启「高级设置-详细日志」重试并反馈该源。');
+    return DownloadResult(workPath: basePath, chapterFilePaths: chapterPaths);
+  }
+
+  /// 取消检查：命中用户取消时抛出 [DownloadCancelledException] 中止下载。
+  /// 在每话开始前调用，避免取消后仍在拉取/写盘（修复 132）。
+  void _throwIfCancelled(DownloadCancelledCheck? isCancelled) {
+    if (isCancelled?.call() ?? false) {
+      throw const DownloadCancelledException();
     }
-    final cbzPath = fs.join(fs.basePath, '${task.id}.cbz');
-    await fs.writeBytes(cbzPath, cbzBytes);
-
-    // 清理临时目录
-    await fs.delete(basePath);
-
-    return cbzPath;
   }
 
   Future<Uint8List?> _fetchImageBytes(String url) async {
@@ -174,11 +205,6 @@ class ComicDownloadHandler implements DownloadHandler {
         head.startsWith('<HTML') ||
         head.startsWith('<HEAD') ||
         head.startsWith('<BODY');
-  }
-
-  static String _sanitize(String s, int fallback) {
-    final clean = s.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
-    return clean.isEmpty ? 'chapter_${fallback + 1}' : clean;
   }
 
   static String _pad(int n, [int width = 4]) =>

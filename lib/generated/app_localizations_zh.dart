@@ -1401,6 +1401,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get downloadedGroupDeleteConfirm => '确定删除此下载项吗？';
 
   @override
+  String downloadBatches(Object count) {
+    return '$count 个批次';
+  }
+
+  @override
+  String downloadBatchLabel(Object index) {
+    return '第 $index 批';
+  }
+
+  @override
   String get browsePageTitle => '浏览';
 
   @override
@@ -2947,6 +2957,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chapterRead => '已读标记';
 
   @override
+  String get chapterSortMode => '章节排序';
+
+  @override
+  String get aggModeFileExpanded => '按文件顺序（EPUB 章节就地展开）';
+
+  @override
+  String get aggModeEpubLast => 'EPUB 章节排在最后';
+
+  @override
+  String get aggModeCollapsed => '每文件一章（不展开 EPUB）';
+
+  @override
   String get continueReading => '继续阅读';
 
   @override
@@ -3199,6 +3221,31 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get folderImportChoicePerFile => '逐文件分别导入';
+
+  @override
+  String get folderFileSelectTitle => '选择要导入的漫画文件';
+
+  @override
+  String folderFileSelectHint(Object count) {
+    return '文件夹内共 $count 个文件（每个为一话），勾选需要导入的文件。';
+  }
+
+  @override
+  String get folderFileSelectAll => '全选';
+
+  @override
+  String get folderFileSelectNone => '全不选';
+
+  @override
+  String get folderFileSelectMerge => '合并为一部';
+
+  @override
+  String get folderFileSelectSeparate => '逐个分开';
+
+  @override
+  String folderFileSelectConfirm(Object count) {
+    return '导入所选（$count）';
+  }
 
   @override
   String get setAsShelfCover => '设为书架封面';
@@ -5530,6 +5577,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get libraryAllUpToDate => '全部已是最新';
+
+  @override
+  String libraryAlreadyLatestCount(int count) {
+    return '$count 个已是最新';
+  }
 
   @override
   String get sourcePin => '置顶';
