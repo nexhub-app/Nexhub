@@ -1,3 +1,6 @@
+# 文本文件统一使用 LF 换行符，避免 Windows(autocrlf) 与仓库 LF 不一致导致的大量伪改动。
+* text=auto eol=lf
+
 # 二进制文件不要做换行符（CRLF/LF）转换，否则会损坏文件。
 # 尤其 keystore：一旦被转换换行符，签名校验会失败（validateSigningRelease 报错）。
 *.jks binary
