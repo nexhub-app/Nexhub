@@ -55,7 +55,7 @@ class AppSourceListTile extends StatelessWidget {
         return Chip(
           label: Text(disabledLabel,
               style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
-          backgroundColor: scheme.surfaceVariant,
+          backgroundColor: scheme.surfaceContainerHighest,
           visualDensity: VisualDensity.compact,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           padding: EdgeInsets.zero,

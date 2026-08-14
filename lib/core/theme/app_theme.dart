@@ -67,7 +67,6 @@ class AppTheme {
       surfaceContainer: const Color(0xFF161616),
       surfaceContainerHigh: const Color(0xFF1F1F1F),
       surfaceContainerHighest: const Color(0xFF272727),
-      surfaceVariant: const Color(0xFF272727),
       onSurfaceVariant: const Color(0xFFC9C2BE),
       outline: const Color(0xFF3A3A3A),
       outlineVariant: const Color(0xFF2A2A2A),
