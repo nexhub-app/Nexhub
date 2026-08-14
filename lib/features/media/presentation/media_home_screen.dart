@@ -3,18 +3,19 @@ import 'package:flutter/foundation.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/settings/general_settings.dart';
 import '../../../core/models/bookshelf_filter.dart';
-import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/widgets/bookshelf_content.dart';
+import '../../../core/local/local_content_actions.dart'
+    show openDownloadedWorkFolder;
+import '../../../core/local/local_content_manager.dart'
+    show LocalMediaKind;
 import '../../../core/widgets/library_shell.dart';
 import '../../../core/widgets/module_source_search_screen.dart';
 import '../../../core/widgets/online_source_browser_screen.dart';
 import '../../home/presentation/import_media_screen.dart';
-import '../../player/presentation/video_player_screen.dart';
 import '../../rss/presentation/rss_feed_list_screen.dart';
 import '../../sources/presentation/collect_api_import_screen.dart';
 import '../../sources/presentation/source_manager_screen.dart';
@@ -78,24 +79,21 @@ class MediaHomeScreen extends StatelessWidget {
             builder: (_) => const ImportMediaScreen(),
           ),
         ),
-        onItemTap: (MediaItem item) {
+        onItemTap: (MediaItem item) async {
           // R3 修复（影视段）：本地导入/下载的视频优先走本地播放，不跳在线详情页。
           final extra = item.extra;
           final localPath = extra == null ? null : extra['localPath'] as String?;
           final localKind = extra == null ? null : extra['localKind'] as String?;
+          // 已下载视频 / 本地视频目录：直接扫描作品文件夹（与导入目录同一套扫描），
+          // 多集都能解析全部内容、可上下集切换；单文件导入回退单集播放。
           if (localPath != null && localPath.isNotEmpty && localKind == 'video') {
-            Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => VideoPlayerScreen(
-                  title: item.title,
-                  episode: Episode(id: 'local', title: item.title, url: localPath),
-                  sourceId: item.sourceId ?? '',
-                  itemId: item.id,
-                  localUri: localPath,
-                  restoreProgress:
-                      GeneralSettingsStore.instance.settings.rememberPosition,
-                ),
-              ),
+            await openDownloadedWorkFolder(
+              context,
+              id: item.id,
+              title: item.title,
+              sourceId: item.sourceId ?? '',
+              workDir: localPath,
+              kind: LocalMediaKind.video,
             );
             return;
           }
