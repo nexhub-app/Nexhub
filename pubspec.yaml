@@ -58,7 +58,10 @@ dependencies:
   # 本地/文件选择（导入本地文件、源 JSON 文件）
   file_picker: ^8.0.0
   # Android 分区存储：SAF 目录树选择 + 子文档枚举 + content:// 读字节/落盘桥接。
-  # file_picker.getDirectoryPath 在 Android 返回 content:// tree URI，本包负责列举与读取。
+  # 注意：file_picker.getDirectoryPath 在部分安卓设备/版本返回"真实路径"
+  # （如 /storage/emulated/0/Download/xxx），dart:io 能 exists() 却 list() 不出文件
+  # （静默空扫）。文件夹导入必须用 saf.pickDirectory()（saf_bridge.pickFolderPath）
+  # 拿 content:// tree URI，本包负责列举与读取。
   saf: ^2.1.0
   # 运行时权限申请（F2.C：本地导入前申请 READ_MEDIA_* / READ_EXTERNAL_STORAGE）
   permission_handler: ^11.3.1
