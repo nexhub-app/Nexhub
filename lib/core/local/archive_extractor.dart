@@ -35,8 +35,15 @@ Future<List<String>> extractArchiveImages(String path) async {
     final out = <String>[];
     for (final entry in entries) {
       final bytes = await archive.readBytes(entry, maxSize: _kMaxImageBytes);
+      // 临时文件名必须带上「源归档标识」：不同章节归档若内部图片名相同
+      // （如都叫 001.jpg），否则会写出到同一临时路径互相覆盖；切话后
+      // Image.file 以路径为缓存键复用旧解码图 → 表现为「切换话还是同一话」。
       final target = File(
-        p.join(tempDir.path, '${entry.path.hashCode}_${p.basename(entry.path)}'),
+        p.join(
+          tempDir.path,
+          '${p.basename(path)}_${path.hashCode}_'
+          '${entry.path.hashCode}_${p.basename(entry.path)}',
+        ),
       );
       await target.writeAsBytes(bytes);
       out.add(target.path);
@@ -83,8 +90,13 @@ Future<String> extractFirstArchiveImage(String path) async {
     if (entry.isEmpty) throw StateError('archive contains no image: $path');
     final bytes = await archive.readBytes(entry.first, maxSize: _kMaxImageBytes);
     final tempDir = await getTemporaryDirectory();
+    // 同步带源归档标识，避免不同归档首图同名覆盖（见 [extractArchiveImages]）。
     final target = File(
-      p.join(tempDir.path, '${path.hashCode}_${p.basename(entry.first.path)}'),
+      p.join(
+        tempDir.path,
+        '${p.basename(path)}_${path.hashCode}_'
+        'first_${p.basename(entry.first.path)}',
+      ),
     );
     await target.writeAsBytes(bytes);
     return target.path;

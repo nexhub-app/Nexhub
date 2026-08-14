@@ -1,7 +1,10 @@
 /// Android 分区存储（SAF）桥接层。
 ///
-/// 背景：file_picker 的 `getDirectoryPath` 在 Android 返回 `content://` tree URI，
-/// dart:io 无法列举/读取。本层用 `saf` 包完成三件事：
+/// 背景：安卓分区存储下，file_picker 的 `getDirectoryPath` 在部分设备/版本返回
+/// **真实文件系统路径**（如 `/storage/emulated/0/Download/xxx`），dart:io 能
+/// `exists()` 却 `list()` 不出任何文件（静默空扫）——无法用于导入。因此安卓选
+/// 文件夹必须走 `saf.pickDirectory()`（ACTION_OPEN_DOCUMENT_TREE + 持久授权），
+/// 拿到 `content://` tree URI 后本层用 `saf` 包完成三件事：
 ///  1. 枚举选中的目录树（递归列举子文档，得到 content:// URI 列表）；
 ///  2. 把 content:// URI 解析为应用私有缓存里的真实文件路径（记忆化），从而复用
 ///     B 阶段全部读取管线（koni_archive 解压、File/epub 解析等）零改动；
@@ -12,6 +15,7 @@ library;
 
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:saf/saf.dart';
@@ -24,6 +28,7 @@ import 'local_content_manager.dart'
         isImageFile,
         naturalCompare,
         isComicArchive,
+        isComicIgnored,
         registerSafCoverResolver;
 import 'archive_extractor.dart' show extractFirstArchiveImage;
 import '../local/pdf_util.dart' show extractPdfCover;
@@ -31,6 +36,21 @@ import '../utils/app_log.dart';
 
 /// 单例 SAF 桥接。
 final Saf saf = Saf();
+
+/// 跨平台选文件夹，统一返回「可被枚举的路径」：
+/// - 安卓：`saf.pickDirectory()` → `content://` tree URI（带持久授权，[saf.list] 可枚举）；
+/// - 非安卓：`file_picker.getDirectoryPath()` → 真实路径。
+///
+/// **不要用 `getDirectoryPath()` 直接在安卓选文件夹**：分区存储下它可能返回真实路径，
+/// dart:io 会 `exists()=true` 但 `list()` 静默空扫，导致导入误报「未找到文件」。
+/// 返回 null 表示用户取消。
+Future<String?> pickFolderPath() async {
+  if (Platform.isAndroid) {
+    final SafDocumentFile? dir = await saf.pickDirectory();
+    return dir?.uri;
+  }
+  return FilePicker.platform.getDirectoryPath();
+}
 
 /// 路径分隔符：treeUri 与相对路径段之间的分隔（content URI 中不会出现）。
 /// 与 [SafFileSystem] 保持一致——下载产物用 `<treeUri>␟<rel>` 编码本地路径。
@@ -83,11 +103,81 @@ String normalizeSafTreeUri(String uri) {
   return '$prefix$idEncoded';
 }
 
+/// 把 SAF 路径（普通 tree URI 或下载编码路径 `<treeUri>␟<rel>`）解析为实际
+/// 目标文件夹的 content:// 文档 URI，供 [_walkSaf] 枚举其下后代文档。
+///
+/// 下载产物的 [workDir] 形如 `<treeUri>␟小说/诡秘之主`（带 `␟` 相对段）。若直接
+/// 把整串喂给 [normalizeSafTreeUri]，会把 `␟rel` 误当成 tree id 的一部分拼进
+/// 根 URI，导致 [saf.list] 在错误的 URI 上枚举为空，进而上层把**文件夹**当文件
+/// 读 → "该路径是一个文件夹"。本函数拆出 tree 根后逐级定位到真正的作品文件夹
+/// （单级 child 失败时用 list 按名兜底，兼容部分 provider）。本地导入的纯 tree
+/// URI（无 `␟`）则直接返回规范化树根；非 SAF 路径原样返回。
+Future<String> resolveSafDirUri(String uriOrPath) async {
+  if (!isAndroidSafUri(uriOrPath)) return uriOrPath;
+  final int idx = uriOrPath.indexOf(_kSafSep);
+  if (idx < 0) return normalizeSafTreeUri(uriOrPath);
+  final String root = normalizeSafTreeUri(uriOrPath.substring(0, idx));
+  final List<String> segs = uriOrPath
+      .substring(idx + _kSafSep.length)
+      .split('/')
+      .where((s) => s.isNotEmpty)
+      .map((s) => s.contains('%') ? _tryDecodeComponent(s) : s)
+      .toList();
+  if (segs.isEmpty) return root;
+  String cur = root;
+  SafDocumentFile? dirDoc;
+  for (final seg in segs) {
+    dirDoc = await saf.child(cur, <String>[seg]);
+    if (dirDoc == null) {
+      // 部分 provider 对单级 child 返回 null，但 list 正常：按名兜底定位。
+      try {
+        final list = await saf.list(cur);
+        dirDoc = list.where((c) => c.isDir && c.name == seg).firstOrNull ??
+            list.where((c) => c.name == seg).firstOrNull;
+      } on Object {
+        dirDoc = null;
+      }
+    }
+    if (dirDoc == null) {
+      throw FileSystemException(
+          'SAF 文件夹定位失败（中间段缺失）: $seg', uriOrPath);
+    }
+    cur = dirDoc.uri;
+  }
+  return dirDoc!.uri;
+}
+
+/// 规范化 SAF **文档** URI 的编码（保留 `/document/<id>` 后缀），供读取具体文件/子目录。
+///
+/// 与 [normalizeSafTreeUri] 的区别：后者把 `tree/<id>/document/<id>` 归一化为树根
+/// （供 [saf.list]/[docUriOf] 枚举目录用）；本函数只重编码 tree id 段，**保留**完整
+/// document 路径——`saf.list` 返回的子文档 URI 是 `tree/<id>/document/<childId>`，
+/// 若拿去当树根剥掉 document，就会把文件 URI 变成目录 URI，读取时报"该路径是一个
+/// 文件夹"。两步处理同样不经过 Uri.replace（避免 `%3A` 被解码成 `:`）。
+String _normalizeSafDocUri(String uri) {
+  final int treeIdx = uri.indexOf('/tree/');
+  if (treeIdx < 0) return uri;
+  final String prefix = uri.substring(0, treeIdx + 6); // 含 /tree/
+  final String rest = uri.substring(treeIdx + 6);
+  final int docIdx = rest.indexOf('/document/');
+  final String treeIdRaw = docIdx >= 0 ? rest.substring(0, docIdx) : rest;
+  final String tail = docIdx >= 0 ? rest.substring(docIdx) : '';
+  final String treeIdDecoded;
+  try {
+    treeIdDecoded = Uri.decodeComponent(treeIdRaw);
+  } on Object {
+    return uri;
+  }
+  final String treeIdEncoded = Uri.encodeComponent(treeIdDecoded);
+  return '$prefix$treeIdEncoded$tail';
+}
+
 /// content:// SAF URI（或下载编码路径 `<treeUri>␟<rel>`）→ 应用私有缓存里的
 /// 真实文件路径（记忆化）。
 ///
 /// - 普通路径：原样返回（[isAndroidSafUri] 为假）。
-/// - 纯 content:// 文档 URI（本地导入）：直接落缓存。
+/// - 纯 content:// 文档 URI（本地导入）：直接落缓存。**必须是文件 URI**
+///   （含 `/document/<childId>`）；若是树根目录 URI，[saf.stat] 会判为目录而报错。
 /// - 下载编码路径 `<treeUri>␟<rel>`（Android SAF 分区存储下的下载产物）：先按
 ///   路径段定位真实文档 URI，再落缓存（修复 107/108 下载后打不开）。
 Future<String> resolveSafUri(String uriOrPath) async {
@@ -95,7 +185,7 @@ Future<String> resolveSafUri(String uriOrPath) async {
   if (!isAndroidSafUri(uriOrPath)) return uriOrPath;
   final String docUri = uriOrPath.contains(_kSafSep)
       ? await _safEncodedToDocUri(uriOrPath)
-      : normalizeSafTreeUri(uriOrPath);
+      : _normalizeSafDocUri(uriOrPath);
   return _copySafToLocal(docUri, uriOrPath);
 }
 
@@ -109,7 +199,15 @@ Future<String> _safEncodedToDocUri(String encoded) async {
   if (idx < 0) return encoded;
   final String root = normalizeSafTreeUri(encoded.substring(0, idx));
   final String rel = encoded.substring(idx + _kSafSep.length);
-  final List<String> segs = rel.split('/').where((s) => s.isNotEmpty).toList();
+  // 段级兜底：下载目录名可能含 `%`（旧数据未清洗），`%` 在 content://
+  // 路径里是合法转义前缀，但 Android provider 的 DISPLAY_NAME 是未编码真实名，
+  // 直接带 `%` 匹配会失败。每段**仅当含 `%`** 时尝试解码（decode 对中文等
+  // 非 ASCII 段会抛 "Illegal percent encoding in URI"，必须避免）。
+  final List<String> segs = rel
+      .split('/')
+      .where((s) => s.isNotEmpty)
+      .map((s) => s.contains('%') ? _tryDecodeComponent(s) : s)
+      .toList();
   if (segs.isEmpty) return root;
   SafDocumentFile? doc = await saf.child(root, segs);
   if (doc == null && segs.length == 1) {
@@ -177,7 +275,7 @@ Future<String> _copySafToLocal(String docUri, String cacheKey) async {
     final SafDocumentFile? doc = await saf.stat(docUri);
     if (doc != null && doc.isDir) {
       AppLog.instance.e('[SAF 拷贝失败] $docUri 是目录，不是文件');
-      throw FileSystemException('该路径是一个文件夹（请选择具体视频文件）', docUri);
+      throw FileSystemException('该路径是一个文件夹，请选择具体文件', docUri);
     }
   } on FileSystemException {
     rethrow;
@@ -209,13 +307,27 @@ Future<Directory> _localCacheDir() async {
   return getTemporaryDirectory();
 }
 
-/// 列举 SAF 路径下的图片并逐张落缓存，返回可阅读的本地文件路径（自然排序）。
+/// 列举 SAF 路径下的图片并**返回 SAF content:// 文档 URI（不预先落缓存）**，自然排序。
 ///
 /// 支持两种 SAF 路径：
 /// - 纯 content:// 树 URI（本地导入的文件夹 / 单图）；
 /// - 下载编码路径 `<treeUri>␟<rel>`（下载产物目录 / 单图）。
 ///
-/// 单文件直接落缓存返回；目录则列举子文档中的图片。
+/// **懒解析**：此处只收集 URI，不在打开时把整本图片逐张拷贝到应用缓存——否则
+/// 图片多时（数百张）打开漫画要等 1~2s（且首次才发生、后台清缓存后复现）。真正的
+/// 落缓存（[resolveSafUri]）交给阅读器逐张显示时按需进行（见 [SourceImage]），
+/// 进入阅读器即刻可见，只拷当前可见的几张。单文件同理返回 URI。
+/// 安全的 [saf.stat]：树根目录 URI 调 [saf.stat] 会「判为目录」报错（见
+/// [resolveSafUri] 注释），这里捕获异常当作「无法判定」返回 null，交由调用方
+/// 按目录处理（走 [saf.list] 列举），避免打开图片文件夹时直接崩溃。
+Future<SafDocumentFile?> _safeStat(String uri) async {
+  try {
+    return await saf.stat(uri);
+  } on Object {
+    return null;
+  }
+}
+
 Future<List<String>> gatherSafImages(String uriOrPath) async {
   _ensureRegistered();
   // 解析目录文档 URI：编码路径先拆 treeUri + 相对段定位；纯 content:// 树直接用。
@@ -234,14 +346,32 @@ Future<List<String>> gatherSafImages(String uriOrPath) async {
       dirUri = dirDoc.uri;
     }
   } else {
+    // 纯 content://：输入可能是文件夹（树 URI）或单图（文件 URI）。先按
+    // 「保留 document」形态 stat——单图文件直接落缓存；是目录才转树根去列举，
+    // 避免把文件 URI 剥成树根目录导致「单图变整目录」。
+    final SafDocumentFile? st =
+        await _safeStat(_normalizeSafDocUri(uriOrPath));
+    if (st != null && !st.isDir) {
+      // 单图文件：返回 SAF URI，由阅读器懒解析落缓存。
+      return <String>[uriOrPath];
+    }
     dirUri = normalizeSafTreeUri(uriOrPath);
   }
-  final SafDocumentFile? stat = await saf.stat(dirUri);
+  final SafDocumentFile? stat = await _safeStat(dirUri);
   if (stat != null && !stat.isDir) {
-    // 单文件（纯 content:// 或编码单图），直接落缓存。
-    return <String>[await resolveSafUri(uriOrPath)];
+    // 单文件（纯 content:// 或编码单图），返回 SAF URI，由阅读器懒解析落缓存。
+    return <String>[uriOrPath];
   }
-  final List<SafDocumentFile> children = await saf.list(dirUri);
+  final List<SafDocumentFile> children;
+  try {
+    children = await saf.list(dirUri);
+  } on Object catch (e) {
+    // 列举失败（权限/URI 失效/provider 异常）不得抛出——否则异步 await 抛异常
+    // 不会进 AppLog，表现为「点开无反应 + 运行日志为空」。降级返回空列表，
+    // 由调用方走兜底查看器并记日志。
+    AppLog.instance.eWithStack('[SAF 图片列举失败] dirUri=$dirUri', e);
+    return const <String>[];
+  }
   final List<(String, String)> images = <(String, String)>[];
   for (final c in children) {
     if (c.isDir) continue;
@@ -250,11 +380,14 @@ Future<List<String>> gatherSafImages(String uriOrPath) async {
         (p.extension(c.name).isEmpty &&
             (c.mimeType ?? '').toLowerCase().startsWith('image/'));
     if (!isImg) continue;
-    final SafDocumentFile? doc = await saf.child(dirUri, <String>[c.name]);
-    if (doc == null) continue;
-    images.add((c.name, await resolveSafUri(doc.uri)));
+    // 直接用 saf.list 返回的子文档 URI（已含 document 段，与 _walkSaf 一致），
+    // 不再经 saf.child(dirUri,[name])，避免对树根父目录解析出错。
+    // 仅收集 URI，不在此落缓存（避免整本图片打开时逐张拷贝的 1~2s 卡顿）；
+    // 真正落缓存交给阅读器逐张显示时按需进行（见 [SourceImage]）。
+    images.add((c.name, c.uri));
   }
   images.sort((a, b) => naturalCompare(a.$1, b.$1));
+  AppLog.instance.i('[SAF 图片收集] dirUri=$dirUri 命中 ${images.length} 张');
   return images.map((e) => e.$2).toList();
 }
 
@@ -299,7 +432,7 @@ Future<List<String>> listSafChildNames(String folderUriOrPath) async {
   } else {
     dirUri = normalizeSafTreeUri(folderUriOrPath);
   }
-  final SafDocumentFile? stat = await saf.stat(dirUri);
+  final SafDocumentFile? stat = await _safeStat(dirUri);
   if (stat != null && !stat.isDir) return <String>[stat.name];
   final List<SafDocumentFile> children = await saf.list(dirUri);
   return children.where((c) => !c.isDir).map((c) => c.name).toList();
@@ -380,7 +513,8 @@ Future<String> resolveSafVideoFile(String uriOrPath) async {
 
 /// 从 content:// URI 末尾尽量还原扩展名（缓存文件需保留扩展名供格式识别）。
 String _safExt(String uri) {
-  final last = Uri.decodeComponent(uri.split('/').last);
+  final lastRaw = uri.split('/').last;
+  final last = lastRaw.contains('%') ? _tryDecodeComponent(lastRaw) : lastRaw;
   final dot = last.lastIndexOf('.');
   if (dot > 0 && dot < last.length - 1) {
     final ext = last.substring(dot).toLowerCase();
@@ -395,15 +529,26 @@ String _safExt(String uri) {
 /// 扫描抛错被上层当作「导入失败」；否则全部成功返回。
 Future<List<SafDocumentFile>> _walkSaf(String treeUri) async {
   final out = <SafDocumentFile>[];
-  final List<SafDocumentFile> children;
+  // 根目录列举失败（权限不足 / URI 无效 / SecurityException）必须向上抛出，
+  // 让上层区分「扫描失败（权限/路径问题）」与「真的为空」，避免被误判成
+  // 「文件夹为空或无可用文件」。子目录列举失败仍仅跳过、不中断整次扫描。
+  List<SafDocumentFile> children;
   try {
     children = await saf.list(treeUri);
-  } on Object {
-    return out;
+  } on Object catch (e) {
+    throw FileSystemException(
+      'SAF 列举目录失败（可能是 Android 文件夹访问权限不足）: $e',
+      treeUri,
+    );
   }
   for (final c in children) {
     if (c.isDir) {
-      out.addAll(await _walkSaf(c.uri));
+      // 子目录列举失败（权限受限的系统子目录）仅跳过该目录继续。
+      try {
+        out.addAll(await _walkSaf(c.uri));
+      } on Object {
+        continue;
+      }
     } else {
       out.add(c);
     }
@@ -444,7 +589,7 @@ LocalMediaKind? _mimeKind(String? mimeType) {
 /// content:// URI 列表（镜像 [scanComicFolder]）。
 Future<({List<String> rawImages, List<String> archives, List<String> others})>
     scanComicFolderSaf(String treeUri) async {
-  final docs = await _walkSaf(normalizeSafTreeUri(treeUri));
+  final docs = await _walkSaf(await resolveSafDirUri(treeUri));
   final raw = <SafDocumentFile>[];
   final arch = <SafDocumentFile>[];
   final other = <SafDocumentFile>[];
@@ -456,6 +601,8 @@ Future<({List<String> rawImages, List<String> archives, List<String> others})>
       raw.add(d);
     } else if (isComicArchive(lower) || lower.endsWith('.pdf')) {
       arch.add(d);
+    } else if (isComicIgnored(lower)) {
+      // 忽略配置/元数据/文档/音视频等非漫画文件，不当作漫画章节。
     } else {
       // 扩展名缺失/未知：按 MIME 兜底归类（部分 provider 不返回扩展名）。
       final mime = (d.mimeType ?? '').toLowerCase();
@@ -489,7 +636,7 @@ Future<({List<String> rawImages, List<String> archives, List<String> others})>
 /// （镜像 [listFolderFilesByKind]）。
 Future<List<String>> listFolderFilesByKindSaf(
     String treeUri, LocalMediaKind kind) async {
-  final docs = await _walkSaf(normalizeSafTreeUri(treeUri));
+  final docs = await _walkSaf(await resolveSafDirUri(treeUri));
   final files = docs
       .where((d) => _classifySafDoc(d) == kind)
       .map((d) => d.uri)
@@ -502,12 +649,64 @@ Future<List<String>> listFolderFilesByKindSaf(
   return files;
 }
 
-String _walkName(String uri) =>
-    Uri.decodeComponent(uri.split('/').last);
+String _walkName(String uri) {
+  final last = uri.split('/').last;
+  // 仅对含 `%` 的段解码（中文等非 ASCII 段直接调用 decodeComponent 会抛
+  // "Illegal percent encoding in URI"——非 ASCII 未编码字符不是合法转义）。
+  if (!last.contains('%')) return last;
+  try {
+    return Uri.decodeComponent(last);
+  } on Object {
+    // 含非法 % 编码的段：decode 失败时原样返回，避免拖垮整个列表操作。
+    return last;
+  }
+}
+
+/// 枚举 SAF 文件夹下的「源文件」（.json/.txt/.xml），自然排序返回 content:// URI。
+///
+/// 源扩展名不在媒体类型白名单内（[classifyByPath] 只看 txt/epub 等），
+/// 因此不能用 [listFolderFilesByKindSaf]。本函数按「扩展名优先 + MIME 兜底」筛选，
+/// 供插件源文件夹导入使用。部分 Android provider 的 SAF 文档 DISPLAY_NAME
+/// 不带扩展名（[SafDocumentFile.name] 只有 id），此时退化用 [mimeType] 判定，
+/// 避免「文件夹里有 .json/.txt/.xml 却扫描为空」。根目录列举失败由 [_walkSaf]
+/// 抛出 [FileSystemException]，便于上层区分「扫描失败」与「真的没有源文件」。
+Future<List<String>> listFolderSourceFilesSaf(String treeUri) async {
+  final docs = await _walkSaf(normalizeSafTreeUri(treeUri));
+  final files = docs
+      .where((d) {
+        final ext = p.extension(d.name).toLowerCase().replaceFirst('.', '');
+        if (const <String>['json', 'txt', 'xml'].contains(ext)) return true;
+        // 扩展名缺失/未知：用 MIME 兜底（覆盖 DISPLAY_NAME 无扩展名的 provider）。
+        if (ext.isEmpty) {
+          final mime = (d.mimeType ?? '').toLowerCase();
+          return mime.startsWith('text/') ||
+              mime == 'application/json' ||
+              mime.contains('xml');
+        }
+        return false;
+      })
+      .map((d) => d.uri)
+      .toList();
+  files.sort((a, b) => naturalCompare(_walkName(a), _walkName(b)));
+  return files;
+}
+
+/// 读取文本类文件（源 / 配置）内容，自动处理 Android SAF content:// URI：
+/// 先 [resolveSafUri] 落缓存再读；普通真实路径直接读。用于源文件 / 文件夹导入，
+/// 避免在 Android 上对 content:// 直接 `File().readAsString()` 抛错。
+Future<String> readSourceText(String pathOrUri) async {
+  final String local;
+  if (isAndroidSafUri(pathOrUri)) {
+    local = await resolveSafUri(pathOrUri);
+  } else {
+    local = pathOrUri;
+  }
+  return File(local).readAsString();
+}
 
 /// 按 SAF 文件夹内真实文件的多数扩展名决定媒体类型（镜像 [classifyFolderByContent]）。
 Future<LocalMediaKind?> classifyFolderByContentSaf(String treeUri) async {
-  final docs = await _walkSaf(normalizeSafTreeUri(treeUri));
+  final docs = await _walkSaf(await resolveSafDirUri(treeUri));
   final counts = <LocalMediaKind, int>{};
   for (final d in docs) {
     final k = _classifySafDoc(d);
@@ -534,9 +733,24 @@ Future<String> safFolderName(String treeUri) async {
 /// 从 content:// URI 或真实路径提取展示文件名（去掉 SAF 文档 id 前缀）。
 /// 对真实文件路径同样返回正确文件名，可统一替换 [p.basename]。
 String safBaseName(String uriOrPath) {
-  final decoded = Uri.decodeComponent(uriOrPath.split('/').last);
-  final parts = decoded.split(RegExp(r'[:/]')).where((s) => s.isNotEmpty);
+  final String lastRaw = uriOrPath.split('/').last;
+  // 仅对含 `%` 的段解码：中文等非 ASCII 段直接 decodeComponent 会抛
+  // "Illegal percent encoding in URI"（这是下载后打开小说/漫画报错的根源）。
+  // 含非法 % 编码时原样返回，避免异常抛给上层（打不开/崩溃的来源）。
+  final String last = lastRaw.contains('%')
+      ? _tryDecodeComponent(lastRaw)
+      : lastRaw;
+  final parts = last.split(RegExp(r'[:/]')).where((s) => s.isNotEmpty);
   return parts.isEmpty ? '文件' : parts.last;
+}
+
+/// 安全解码单段 URI 组件：失败（非法 % 编码）时原样返回。
+String _tryDecodeComponent(String s) {
+  try {
+    return Uri.decodeComponent(s);
+  } on Object {
+    return s;
+  }
 }
 
 /// SAF 条目封面：取首图 / PDF 首页并落盘（注入到 [computeLocalCover]）。
