@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/models/plugin_config.dart';
+import '../../../core/scraper/http_fetcher.dart';
 
 /// 长按漫画图片时弹出的「设为封面 / 保存 / 分享」菜单。
 ///
@@ -155,13 +156,18 @@ Future<void> _copyImage(
 }
 
 /// 构造与 [SourceImage] 一致的防盗链 headers。
-Map<String, String>? _buildHeaders(PluginConfig? source) {
+Map<String, String>? _buildHeaders(PluginConfig? source, String? url) {
   final AntiHotlinkingConfig? ah = source?.antiHotlinking;
   final SiteConfig? site = source?.site;
   final Map<String, String>? ahHeaders = ah?.headers;
   final Map<String, String>? siteHeaders = site?.headers;
   final String? referer = ah?.referer;
-  final String? ua = site?.userAgent;
+  // UA 兜底：与 [SourceImage] 一致——CDN（如 baozimh 家族 6wm.top）无 UA
+  // 直接 403，源未配 site.userAgent 时回退到 HttpFetcher 的浏览器 UA。
+  final String? siteUa = site?.userAgent;
+  final ua = (siteUa != null && siteUa.isNotEmpty)
+      ? siteUa
+      : HttpFetcher.instance.userAgentForUrl(url ?? '');
   final String? cookies = site?.cookies;
   final bool hasFields = (siteHeaders != null && siteHeaders.isNotEmpty) ||
       (ahHeaders != null && ahHeaders.isNotEmpty) ||
@@ -189,7 +195,7 @@ Future<File?> _resolveImageFile(String url, PluginConfig? source) async {
   if (url.startsWith('http://') || url.startsWith('https://')) {
     try {
       return await DefaultCacheManager()
-          .getSingleFile(url, headers: _buildHeaders(source));
+          .getSingleFile(url, headers: _buildHeaders(source, url));
     } on Object {
       return null;
     }
