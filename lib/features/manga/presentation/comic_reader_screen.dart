@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:nexhub/core/local/archive_extractor.dart';
+import 'package:nexhub/core/local/local_content_manager.dart'
+    show isAndroidSafUri, isImageFile;
 import 'package:nexhub/core/local/saf_bridge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
@@ -78,6 +80,12 @@ class ComicReaderScreen extends StatefulWidget {
   /// 阅读器按 [chapterIndex] 解压对应归档取图。与 [localImages]/[localCbzPath] 互斥。
   final List<String>? localArchivePaths;
 
+  /// 本地下载聚合模式：每部作品一个目录（Mihon 式布局），每话一个图片子目录
+  /// （folder/jpg/png 下载格式产物）。传子目录路径列表，下标对齐 [chapters]
+  /// （每目录 = 一话）。阅读器按 [chapterIndex] 收集对应目录内图片。与
+  /// [localImages]/[localCbzPath]/[localArchivePaths] 互斥。
+  final List<String>? localChapterDirs;
+
   /// 是否用已保存的阅读进度恢复章节/页码。
   /// - true（默认）：从书架/历史「继续阅读」进入时恢复上次进度；
   /// - false：从详情页明确选择某话进入时，以 [initialChapterIndex] 为准。
@@ -100,6 +108,7 @@ class ComicReaderScreen extends StatefulWidget {
     this.localCbzPath,
     this.localPdfPath,
     this.localArchivePaths,
+    this.localChapterDirs,
     this.restoreProgress = true,
     this.detailUrl,
     this.coverUrl,
@@ -264,7 +273,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       widget.localImages != null ||
       widget.localCbzPath != null ||
       widget.localPdfPath != null ||
-      widget.localArchivePaths != null;
+      widget.localArchivePaths != null ||
+      widget.localChapterDirs != null;
 
   /// 本地聚合模式（B 阶段）：多归档文件合成一整部，每个文件 = 一话。
   bool get _isAggregatedLocal =>
@@ -367,6 +377,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 本地模式加载图片：优先使用 [widget.localImages]，否则解压 [widget.localCbzPath]。
   Future<void> _loadLocalImages({int restorePage = 0}) async {
+    // 聚合本地模式同样需要「代次守卫」：初始加载与快速翻话可能并发，
+    // 若不丢弃过期结果，较慢的初始解压会覆盖已切换的话（表现为「切换话还是同一话」）。
+    final int token = ++_loadToken;
     if (mounted) setState(() => _loading = true);
     try {
       List<String> imgs;
@@ -381,6 +394,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         } else {
           imgs = await _extractCbz(archive);
         }
+      } else if (widget.localChapterDirs != null &&
+          widget.localChapterDirs!.isNotEmpty) {
+        // 本地下载聚合：按当前话索引取对应图片子目录，收集排序后的图片路径。
+        final dirPath =
+            await resolveSafUri(widget.localChapterDirs![_chapterIndex]);
+        imgs = await _gatherDirImages(dirPath);
       } else if (widget.localImages != null && widget.localImages!.isNotEmpty) {
         imgs = List<String>.unmodifiable(widget.localImages!);
       } else if (widget.localPdfPath != null) {
@@ -395,7 +414,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       } else {
         imgs = const <String>[];
       }
-      if (!mounted) return;
+      // 期间若又发起了更新的加载（快速翻话 / 初始与切换并发），丢弃本次过期结果。
+      if (!mounted || token != _loadToken) return;
       if (imgs.isEmpty) {
         AppLog.instance.w('[漫画加载失败] ${widget.title}: 本地图片为空 '
             '(cbz=${widget.localCbzPath != null}, '
@@ -419,12 +439,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           '[漫画加载异常] ${widget.title} (cbz=${widget.localCbzPath != null}, '
           'pdf=${widget.localPdfPath != null})',
           e);
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _loading = false;
-        });
-      }
+      if (token != _loadToken || !mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -438,6 +457,26 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   Future<List<String>> _extractCbz(String path) async {
     final local = await resolveSafUri(path);
     return extractArchiveImages(local);
+  }
+
+  /// 收集本地图片子目录内、按文件名排序的图片路径列表（每话一目录的下载产物）。
+  ///
+  /// SAF content:// 目录 URI 用 [gatherSafImages]；真实路径目录用 dart:io 列目录。
+  /// 返回空列表表示该话目录无可读图片（避免「空目录」假完成）。
+  Future<List<String>> _gatherDirImages(String dirPath) async {
+    if (isAndroidSafUri(dirPath)) {
+      final list = await gatherSafImages(dirPath);
+      return list..sort();
+    }
+    final dir = Directory(dirPath);
+    if (!dir.existsSync()) return const <String>[];
+    return dir
+        .listSync()
+        .whereType<File>()
+        .where((f) => isImageFile(f.path))
+        .map((f) => f.path)
+        .toList()
+      ..sort();
   }
 
   /// 刷新收藏状态（init 与切换收藏后调用）。
