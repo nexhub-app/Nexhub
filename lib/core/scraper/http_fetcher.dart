@@ -897,6 +897,64 @@ class HttpFetcher {
     return resp.data ?? const [];
   }
 
+  /// 流式下载字节（分块），用于大文件（视频等）避免整块读入内存 OOM。
+  ///
+  /// 与 [getBytes] 同策略（手动跟随重定向 / 合并防盗链头 / Cookie 注入），
+  /// 但返回逐块 `Stream<Uint8List>`（dio `ResponseType.stream`），调用方边收
+  /// 边写盘，内存占用恒定。返回的流**已抛错包装**：网络失败会在流中抛出。
+  Stream<Uint8List> getBytesStream(
+    String url, {
+    Map<String, String>? headers,
+    EffectiveNetworkProfile? net,
+    String? fetchDest = 'video',
+  }) {
+    return _getBytesStreamFollow(url, headers, net, fetchDest, 0);
+  }
+
+  Stream<Uint8List> _getBytesStreamFollow(
+    String url,
+    Map<String, String>? headers,
+    EffectiveNetworkProfile? net,
+    String? fetchDest,
+    int depth,
+  ) async* {
+    final Map<String, String> merged = _mergeHeaders(null, <String, String>{
+      ...?headers,
+      if (fetchDest != null) 'Sec-Fetch-Dest': fetchDest,
+      if (fetchDest != null) 'Sec-Fetch-Mode': 'no-cors',
+    }, url);
+    // 资产请求移除「导航专用头」（同 [getBytes]）。
+    merged.remove('Sec-Fetch-User');
+    merged.remove('Sec-Fetch-Site');
+    merged.remove('Upgrade-Insecure-Requests');
+    final resp = await _dioFor(net).get<ResponseBody>(
+      url,
+      options: Options(
+        headers: merged,
+        responseType: ResponseType.stream,
+        validateStatus: (_) => true,
+        followRedirects: false,
+      ),
+    );
+    final int code = resp.statusCode ?? 0;
+    if (code >= 300 && code < 400 && depth < kMaxRedirects) {
+      final String? loc =
+          resp.headers.value('location') ?? resp.headers.value('Location');
+      if (loc != null && loc.isNotEmpty) {
+        final Uri next = Uri.parse(loc).isAbsolute
+            ? Uri.parse(loc)
+            : Uri.parse(url).resolve(loc);
+        yield* _getBytesStreamFollow(
+            next.toString(), headers, net, fetchDest, depth + 1);
+        return;
+      }
+    }
+    if (resp.data == null) return;
+    await for (final chunk in resp.data!.stream) {
+      yield Uint8List.fromList(chunk);
+    }
+  }
+
   /// WebView 验证完成后把共享 Cookie 同步进 Fetcher（含父域子域匹配）。
   ///
   /// 同步后自增 [cookieVersion] 并广播，触发封面图加载层立即用新 Cookie 重取
