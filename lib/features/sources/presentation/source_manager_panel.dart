@@ -26,6 +26,10 @@ import 'source_login_screen.dart';
 import 'source_mirror_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
+import '../../../core/local/local_content_manager.dart' show isAndroidSafUri;
+import '../../../core/local/saf_bridge.dart'
+    show listFolderSourceFilesSaf, pickFolderPath, readSourceText, safBaseName;
+import '../../../core/utils/app_log.dart';
 
 /// 本地导入预览项。
 class _ImportPreviewItem {
@@ -230,24 +234,45 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
   }
 
   Future<void> _pickLocalFolder() async {
-    final dirPath = await FilePicker.platform.getDirectoryPath();
+    // 安卓必须用 pickFolderPath()（内部走 saf.pickDirectory 拿 content:// tree URI）；
+    // 直接 getDirectoryPath 在分区存储下返回真实路径，dart:io 列不出文件 → 误报空。
+    final dirPath = await pickFolderPath();
     if (dirPath == null || dirPath.isEmpty) return;
-    final files = <String>[];
+    List<String> files;
     try {
-      final dir = Directory(dirPath);
-      await for (final entity
-          in dir.list(recursive: true, followLinks: false)) {
-        if (entity is File) {
-          final ext = p.extension(entity.path).toLowerCase();
-          if (ext == '.json' || ext == '.txt' || ext == '.xml') {
-            files.add(entity.path);
+      if (isAndroidSafUri(dirPath)) {
+        files = await listFolderSourceFilesSaf(dirPath);
+      } else {
+        files = <String>[];
+        final dir = Directory(dirPath);
+        await for (final entity
+            in dir.list(recursive: true, followLinks: false)) {
+          if (entity is File) {
+            final ext = p.extension(entity.path).toLowerCase();
+            if (ext == '.json' || ext == '.txt' || ext == '.xml') {
+              files.add(entity.path);
+            }
           }
         }
       }
-    } on Object {
-      // 目录读取失败忽略
+    } on Object catch (e, st) {
+      AppLog.instance.eWithStack('[源面板导入] 文件夹扫描失败 $dirPath', e, st);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).folderScanFailed)),
+        );
+      }
+      return;
     }
-    if (files.isEmpty) return;
+    if (files.isEmpty) {
+      AppLog.instance.w('[源面板导入] 扫描为空 dirPath=$dirPath');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context).noLocalSource)),
+        );
+      }
+      return;
+    }
     _processPickedPaths(files);
   }
 
@@ -257,9 +282,10 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
     int skippedByType = 0;
     _ageBlockedCount = 0;
     for (final path in paths) {
-      final fileName = p.basename(path);
+      final fileName =
+          isAndroidSafUri(path) ? safBaseName(path) : p.basename(path);
       try {
-        final raw = await File(path).readAsString();
+        final raw = await readSourceText(path);
         // 统一批量解析：支持小说(Legado)源，且一个文件可含多个源。
         final configs = SourceRepository.parseMixedSources(raw);
         if (configs.isEmpty) {
@@ -290,6 +316,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
           }
         }
       } on Object catch (e) {
+        AppLog.instance.e('[源面板导入] 读取/解析失败 $fileName: $e');
         items.add(_ImportPreviewItem(
           path: path,
           fileName: fileName,
