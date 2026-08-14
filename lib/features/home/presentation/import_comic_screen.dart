@@ -101,10 +101,10 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
       );
       return;
     }
-    final dir = await FilePicker.platform.getDirectoryPath();
+    final dir = await pickFolderPath();
     if (dir == null || !mounted) return;
-    // Android 上 file_picker 返回 content:// SAF tree URI，由 saf_bridge 枚举/读取
-    // （C 阶段）；桌面/其它平台为真实路径，走 dart:io。
+    // 安卓走 saf.pickDirectory 拿 content:// tree URI（getDirectoryPath 在分区存储下
+    // 返回真实路径，dart:io 列不出文件）；桌面/其它平台为真实路径，走 dart:io。
     final saf = isAndroidSafUri(dir);
     final folderTitle = saf ? await safFolderName(dir) : p.basename(dir);
     // 区分「散图」与「漫画归档」，决定整部散图还是多话聚合。
@@ -127,21 +127,24 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
       // 含可分页文件（漫画归档/其它文件）：每个文件 = 一话，聚合为多话漫画。
       if (chapterFiles.isNotEmpty) {
         if (chapterFiles.length > 1) {
-          final mode = await showFolderImportChoiceDialog(
+          // 弹出勾选列表：在目录里选择要导入的文件，并决定合并为一部还是逐个分开。
+          final result = await showFolderFileSelectSheet(
             context,
             folderName: folderTitle,
-            typeLabel: AppLocalizations.of(context).importComicTitle,
+            files: chapterFiles,
+            isSaf: saf,
           );
           if (!mounted) return;
-          if (mode == null) return; // 用户取消
-          if (mode == FolderImportMode.merge) {
+          if (result == null || result.selectedFiles.isEmpty) return; // 用户取消
+          if (result.mode == FolderImportMode.merge) {
+            // 合并为一部：所选文件 = 多话，单个聚合条目（每文件 = 一话）。
             await context.read<LocalContentManager>().add(LocalContentEntry(
               id: dir,
               title: folderTitle,
               path: dir,
               kind: LocalMediaKind.images,
               addedAt: DateTime.now().millisecondsSinceEpoch,
-              filePaths: chapterFiles,
+              filePaths: result.selectedFiles,
             ));
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -153,8 +156,8 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
             }
             return;
           }
-          // 逐文件：每个文件一条记录。
-          for (final f in chapterFiles) {
+          // 逐个分开：每个所选文件一条记录（不同文件 = 不同漫画）。
+          for (final f in result.selectedFiles) {
             await context.read<LocalContentManager>().add(LocalContentEntry(
               id: f,
               title: safBaseName(f),
@@ -165,7 +168,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
           }
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${chapterFiles.length} ${AppLocalizations.of(context).contentImportOpened}')),
+              SnackBar(content: Text('${result.selectedFiles.length} ${AppLocalizations.of(context).contentImportOpened}')),
             );
           }
           return;

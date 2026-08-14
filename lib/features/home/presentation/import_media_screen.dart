@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import '../../../core/local/import_permission.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/platform/platform_service.dart';
+import '../../../core/local/folder_import_dialog.dart';
 import '../../../core/theme/app_tokens.dart';
 
 class ImportMediaScreen extends StatefulWidget {
@@ -46,7 +47,7 @@ class _ImportMediaScreenState extends State<ImportMediaScreen> {
         type: isAndroid ? FileType.any : FileType.custom,
         allowedExtensions: isAndroid
             ? null
-            : const <String>['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv'],
+            : const <String>['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'ts'],
       );
       if (result == null || !mounted) return;
       for (final f in result.files) {
@@ -97,10 +98,10 @@ class _ImportMediaScreenState extends State<ImportMediaScreen> {
       );
       return;
     }
-    final dir = await FilePicker.platform.getDirectoryPath();
+    final dir = await pickFolderPath();
     if (dir == null || !mounted) return;
-    // Android 上 file_picker 返回 content:// SAF tree URI，由 saf_bridge 枚举/读取
-    // （C 阶段）；桌面/其它平台为真实路径，走 dart:io。
+    // 安卓走 saf.pickDirectory 拿 content:// tree URI（getDirectoryPath 在分区存储下
+    // 返回真实路径，dart:io 列不出文件）；桌面/其它平台为真实路径，走 dart:io。
     final saf = isAndroidSafUri(dir);
     // 递归扫描目录，按扩展名识别视频文件（修复「选择目录却导入不了」）。
     setState(() => _picking = true);
@@ -120,7 +121,46 @@ class _ImportMediaScreenState extends State<ImportMediaScreen> {
         );
         return;
       }
-      for (final f in files) {
+      List<String> targetFiles = files;
+      if (files.length > 1) {
+        // 弹勾选列表：在目录里选择要导入的视频，并决定合并为一部（每文件=一集）
+        // 还是逐个分开导入。
+        final folderName = saf
+            ? await safFolderName(dir)
+            : dir.split(RegExp(r'[/\\]')).last;
+        final result = await showFolderFileSelectSheet(
+          context,
+          folderName: folderName,
+          files: files,
+          isSaf: saf,
+        );
+        if (!mounted) return;
+        if (result == null || result.selectedFiles.isEmpty) return;
+        if (result.mode == FolderImportMode.merge) {
+          // 合并为一部：文件夹作为一个视频条目，内部每个文件 = 一集。
+          await context.read<LocalContentManager>().add(LocalContentEntry(
+            id: dir,
+            title: folderName,
+            path: dir,
+            kind: LocalMediaKind.video,
+            filePaths: result.selectedFiles,
+            addedAt: DateTime.now().millisecondsSinceEpoch,
+          ));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '${result.selectedFiles.length} ${AppLocalizations.of(context).contentImportOpened}',
+                ),
+              ),
+            );
+          }
+          return;
+        }
+        // 逐个分开：只导入所选文件。
+        targetFiles = result.selectedFiles;
+      }
+      for (final f in targetFiles) {
         await context.read<LocalContentManager>().add(LocalContentEntry(
           id: f,
           title: safBaseName(f),
@@ -131,7 +171,7 @@ class _ImportMediaScreenState extends State<ImportMediaScreen> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${files.length} ${AppLocalizations.of(context).contentImportOpened}')),
+          SnackBar(content: Text('${targetFiles.length} ${AppLocalizations.of(context).contentImportOpened}')),
         );
       }
     } on FileSystemException catch (_) {

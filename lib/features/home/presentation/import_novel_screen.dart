@@ -97,10 +97,10 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
       );
       return;
     }
-    final dir = await FilePicker.platform.getDirectoryPath();
+    final dir = await pickFolderPath();
     if (dir == null || !mounted) return;
-    // Android 上 file_picker 返回 content:// SAF tree URI，由 saf_bridge 枚举/读取
-    // （C 阶段）；桌面/其它平台为真实路径，走 dart:io。
+    // 安卓走 saf.pickDirectory 拿 content:// tree URI（getDirectoryPath 在分区存储下
+    // 返回真实路径，dart:io 列不出文件）；桌面/其它平台为真实路径，走 dart:io。
     final saf = isAndroidSafUri(dir);
     final folderTitle = saf ? await safFolderName(dir) : p.basename(dir);
     // 递归扫描目录，识别小说文件（修复「选择目录却导入不了」）。
@@ -116,37 +116,41 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
         );
         return;
       }
-      // 多个文件时询问「合并为整本」还是「逐文件导入」（B 阶段第 4 点）。
+      // 多个文件：弹勾选列表，在目录里选择要导入的文件，并决定合并为一本书还是逐个分开。
+      List<String> targetFiles = files;
       if (files.length > 1) {
-        final mode = await showFolderImportChoiceDialog(
+        final result = await showFolderFileSelectSheet(
           context,
           folderName: folderTitle,
-          typeLabel: AppLocalizations.of(context).importNovelTitle,
+          files: files,
+          isSaf: saf,
         );
         if (!mounted) return;
-        if (mode == null) return; // 用户取消
-        if (mode == FolderImportMode.merge) {
+        if (result == null || result.selectedFiles.isEmpty) return; // 用户取消
+        if (result.mode == FolderImportMode.merge) {
+          // 合并为一本书：所选文件 = 多章，单个聚合条目（每文件 = 一章）。
           await context.read<LocalContentManager>().add(LocalContentEntry(
             id: dir,
             title: folderTitle,
             path: dir,
             kind: LocalMediaKind.text,
             addedAt: DateTime.now().millisecondsSinceEpoch,
-            filePaths: files,
+            filePaths: result.selectedFiles,
           ));
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(AppLocalizations.of(context)
-                    .novelDirImported(folderTitle, files.length)),
+                    .novelDirImported(folderTitle, result.selectedFiles.length)),
               ),
             );
           }
           return;
         }
-        // 逐文件：每个文件一条记录（下方循环）。
+        // 逐个分开：只导入所选文件（下方循环）。
+        targetFiles = result.selectedFiles;
       }
-      for (final f in files) {
+      for (final f in targetFiles) {
         await context.read<LocalContentManager>().add(LocalContentEntry(
           id: f,
           title: safBaseName(f),

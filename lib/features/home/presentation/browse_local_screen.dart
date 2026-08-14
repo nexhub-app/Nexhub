@@ -124,10 +124,10 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
       );
       return;
     }
-    final dir = await FilePicker.platform.getDirectoryPath();
+    final dir = await pickFolderPath();
     if (dir == null || !mounted) return;
-    // Android 上 file_picker 返回 content:// SAF tree URI，由 saf_bridge 枚举/读取
-    // （C 阶段）；桌面/其它平台为真实路径，走 dart:io。
+    // 安卓走 saf.pickDirectory 拿 content:// tree URI（getDirectoryPath 在分区存储下
+    // 返回真实路径，dart:io 列不出文件）；桌面/其它平台为真实路径，走 dart:io。
     final saf = isAndroidSafUri(dir);
     setState(() => _scanning = true);
     try {
@@ -157,32 +157,45 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
           );
           return;
         }
+        List<String> targetFiles = files;
         if (files.length > 1) {
-          final mode = await showFolderImportChoiceDialog(
+          // 弹勾选列表：在目录里选择要导入的文件，并决定合并为一本书还是逐个分开。
+          final result = await showFolderFileSelectSheet(
             context,
             folderName: folderName,
-            typeLabel: AppLocalizations.of(context).importNovelTitle,
+            files: files,
+            isSaf: saf,
           );
           if (!mounted) return;
-          if (mode == null) return; // 用户取消
-          if (mode == FolderImportMode.merge) {
+          if (result == null || result.selectedFiles.isEmpty) return;
+          if (result.mode == FolderImportMode.merge) {
             _addFile(_LocalFile(
               path: dir,
               name: folderName,
               kind: kind,
-              filePaths: files,
+              filePaths: result.selectedFiles,
             ));
             setState(() {});
             return;
           }
+          // 逐个分开：只导入所选文件。
+          targetFiles = result.selectedFiles;
         } else {
-          _addFile(_LocalFile(path: files.first, name: p.basename(files.first), kind: kind));
+          _addFile(_LocalFile(
+            path: files.first,
+            name: saf ? safBaseName(files.first) : p.basename(files.first),
+            kind: kind,
+          ));
           setState(() {});
           return;
         }
         // 逐文件导入。
-        for (final f in files) {
-          _addFile(_LocalFile(path: f, name: p.basename(f), kind: kind));
+        for (final f in targetFiles) {
+          _addFile(_LocalFile(
+            path: f,
+            name: saf ? safBaseName(f) : p.basename(f),
+            kind: kind,
+          ));
         }
         setState(() {});
         return;
@@ -197,25 +210,31 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
             <String>[...scanned.archives, ...scanned.others];
         if (chapterFiles.isNotEmpty) {
           if (chapterFiles.length > 1) {
-            final mode = await showFolderImportChoiceDialog(
+            // 弹出勾选列表：在目录里选择要导入的文件，并决定合并为一部还是逐个分开。
+            final result = await showFolderFileSelectSheet(
               context,
               folderName: folderName,
-              typeLabel: AppLocalizations.of(context).importComicTitle,
+              files: chapterFiles,
+              isSaf: saf,
             );
             if (!mounted) return;
-            if (mode == null) return;
-            if (mode == FolderImportMode.merge) {
+            if (result == null || result.selectedFiles.isEmpty) return;
+            if (result.mode == FolderImportMode.merge) {
               _addFile(_LocalFile(
                 path: dir,
                 name: folderName,
                 kind: kind,
-                filePaths: chapterFiles,
+                filePaths: result.selectedFiles,
               ));
               setState(() {});
               return;
             }
-            for (final f in chapterFiles) {
-              _addFile(_LocalFile(path: f, name: p.basename(f), kind: kind));
+            for (final f in result.selectedFiles) {
+              _addFile(_LocalFile(
+                path: f,
+                name: saf ? safBaseName(f) : p.basename(f),
+                kind: kind,
+              ));
             }
             setState(() {});
             return;
@@ -234,7 +253,57 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         setState(() {});
         return;
       }
-      // 视频 / 其它：单条导入（当前行为）。
+      // 视频文件夹：每个文件 = 一集，可聚合（合并为一部 / 逐个分开）。
+      if (kind == LocalMediaKind.video) {
+        final files = saf
+            ? await listFolderFilesByKindSaf(dir, LocalMediaKind.video)
+            : listFolderFilesByKind(dir, LocalMediaKind.video);
+        if (files.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(context).emptyFolder)),
+          );
+          return;
+        }
+        if (files.length > 1) {
+          // 弹勾选列表：在目录里选择要导入的视频，并决定合并为一部还是逐个分开。
+          final result = await showFolderFileSelectSheet(
+            context,
+            folderName: folderName,
+            files: files,
+            isSaf: saf,
+          );
+          if (!mounted) return;
+          if (result == null || result.selectedFiles.isEmpty) return;
+          if (result.mode == FolderImportMode.merge) {
+            _addFile(_LocalFile(
+              path: dir,
+              name: folderName,
+              kind: kind,
+              filePaths: result.selectedFiles,
+            ));
+            setState(() {});
+            return;
+          }
+          for (final f in result.selectedFiles) {
+            _addFile(_LocalFile(
+              path: f,
+              name: saf ? safBaseName(f) : p.basename(f),
+              kind: kind,
+            ));
+          }
+          setState(() {});
+          return;
+        }
+        _addFile(_LocalFile(
+          path: files.first,
+          name: saf ? safBaseName(files.first) : p.basename(files.first),
+          kind: kind,
+        ));
+        setState(() {});
+        return;
+      }
+      // 其它：单条导入（当前行为）。
       _addFile(_LocalFile(path: dir, name: folderName, kind: kind));
       setState(() {});
     } on Object catch (_) {
@@ -316,7 +385,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
   /// - 视频 → [VideoPlayerScreen]（本地模式，直接打开）
   /// - 小说 .txt/.epub → [NovelReaderScreen]（本地模式，读取文本 / 解析 EPUB）
   /// - 小说 .umd/.mobi/.fb2/.azw3 → [LocalMediaViewer]（暂不支持提示）
-  void _openFile(_LocalFile file) {
+  Future<void> _openFile(_LocalFile file) async {
     final lower = file.path.toLowerCase();
     // 聚合文件夹：每个文件=一章/一话，传合成章节列表给阅读器（B 阶段）。
     if (file.filePaths != null && file.filePaths!.isNotEmpty) {
@@ -346,6 +415,32 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
               sourceId: '',
               chapters: chapters,
               localArchivePaths: file.filePaths,
+              restoreProgress:
+                  GeneralSettingsStore.instance.settings.rememberPosition,
+            ),
+          ),
+        );
+        return;
+      }
+      if (file.kind == LocalMediaKind.video) {
+        // 合并为一部的视频：每个文件 = 一集，传全集 episodes 给播放器连播/上下集切换。
+        final eps = file.filePaths!
+            .map((p) => Episode(
+                  id: 'local_${p.hashCode}',
+                  title: safBaseName(p),
+                  url: p,
+                ))
+            .toList();
+        Navigator.of(context).push(
+          AppPageRoute<void>(
+            builder: (_) => VideoPlayerScreen(
+              title: file.name,
+              episode: eps.first,
+              sourceId: '',
+              itemId: 'local_${file.path.hashCode}',
+              episodes: eps,
+              initialEpisodeIndex: 0,
+              localUri: file.filePaths!.first,
               restoreProgress:
                   GeneralSettingsStore.instance.settings.rememberPosition,
             ),
@@ -400,7 +495,15 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
           return;
         }
         // 目录（散图）或单图：收集图片列表交给漫画阅读器（支持缩放/翻页/进度）。
-        final imgs = gatherLocalComicImages(file.path);
+        // try/catch 兜底：任何残留异常都记日志，避免「点开无反应 + 运行日志为空」。
+        List<String> imgs;
+        try {
+          imgs = await gatherLocalComicImages(file.path);
+        } on Object catch (e) {
+          AppLog.instance.eWithStack('[本地漫画图片收集失败] path=${file.path}', e);
+          imgs = const <String>[];
+        }
+        if (!mounted) return;
         if (imgs.isNotEmpty) {
           Navigator.of(context).push(
             AppPageRoute<void>(
