@@ -237,7 +237,8 @@ class _LocalBookshelf extends StatelessWidget {
 
     final List<_BookshelfItem> items = <_BookshelfItem>[];
 
-    // 已下载内容（来自在线源下载）。
+    // 已下载内容（来自在线源下载）。按作品（同源 + contentId）合并展示单卡片，
+    // 与「已下载」页统一：封面 / 标题取最新批次，章节为各批次并集。
     MediaItem itemForTask(DownloadTask t) => MediaItem(
           id: t.contentId,
           title: t.title,
@@ -248,22 +249,38 @@ class _LocalBookshelf extends StatelessWidget {
             if (t.localPath != null && t.localPath!.isNotEmpty)
               'localPath': t.localPath,
             'localKind': _kindForFormat(t.format)?.name,
+            // 逐章/集路径：供阅读器按话/集打开与切换（修复"翻话/切集不过去"）。
+            if (t.chapterFilePaths != null &&
+                t.chapterFilePaths!.isNotEmpty)
+              'chapterFilePaths': t.chapterFilePaths!,
           },
         );
-    items.addAll(tasks.map((t) => _BookshelfItem(
-          id: t.contentId,
-          title: t.title,
-          sourceType: sourceType,
-          coverUrl: t.localCoverPath ?? t.coverUrl,
-          source: t.sourceId != null ? repo.getById(t.sourceId!) : null,
-          onTap: () => onItemTap?.call(itemForTask(t)),
-          // 长按/右键弹出「打开 / 删除」操作菜单（与本地导入项一致）。
-          onLongPress: () => showDownloadedEntryActions(
-            context,
-            t,
-            onOpen: () => onItemTap?.call(itemForTask(t)),
-          ),
-        )));
+    final Map<String, List<DownloadTask>> byContent = <String, List<DownloadTask>>{};
+    for (final t in tasks) {
+      final key = '${t.sourceId ?? ''}|${t.contentId}';
+      (byContent[key] ??= <DownloadTask>[]).add(t);
+    }
+    for (final entry in byContent.entries) {
+      final group = entry.value
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final lead = group.reduce((a, b) => a.createdAt >= b.createdAt ? a : b);
+      final chapterCount = group.fold(0, (s, e) => s + e.chapterTitles.length);
+      items.add(_BookshelfItem(
+        id: lead.contentId,
+        title: lead.title,
+        sourceType: sourceType,
+        coverUrl: lead.localCoverPath ?? lead.coverUrl,
+        source: lead.sourceId != null ? repo.getById(lead.sourceId!) : null,
+        onTap: () => onItemTap?.call(itemForTask(lead)),
+        // 长按/右键弹出「打开 / 删除」操作菜单（与本地导入项一致）。
+        onLongPress: () => showDownloadedEntryActions(
+          context,
+          lead,
+          onOpen: () => onItemTap?.call(itemForTask(lead)),
+        ),
+        chapterCount: chapterCount,
+      ));
+    }
 
     // 导入的本地内容（R3 修复：书架入口补 path 字段）。
     items.addAll(imported.map((e) => _BookshelfItem(
@@ -592,6 +609,8 @@ class _BookshelfItem {
   /// 长按回调（仅收藏书架传入，弹出分组指定面板）。
   final VoidCallback? onLongPress;
 
+  final int chapterCount;
+
   const _BookshelfItem({
     required this.id,
     required this.title,
@@ -602,6 +621,7 @@ class _BookshelfItem {
     this.onTap,
     this.onDelete,
     this.onLongPress,
+    this.chapterCount = 0,
   });
 }
 
@@ -713,32 +733,32 @@ class _BookshelfGrid extends StatelessWidget {
                   );
                 }
                 // 历史记录：右上角悬浮删除按钮（仅历史书架传入 onDelete）。
-                if (item.onDelete == null) return card;
                 return Stack(
                   clipBehavior: Clip.none,
                   children: <Widget>[
                     card,
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius:
-                              BorderRadius.circular(AppTokens.radiusFull),
-                          onTap: () => _confirmDelete(ctx, item),
-                          child: Container(
-                            padding: const EdgeInsets.all(AppTokens.spaceXs),
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
+                    if (item.onDelete != null)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius:
+                                BorderRadius.circular(AppTokens.radiusFull),
+                            onTap: () => _confirmDelete(ctx, item),
+                            child: Container(
+                              padding: const EdgeInsets.all(AppTokens.spaceXs),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.delete_outline,
+                                  size: 18, color: Colors.white),
                             ),
-                            child: const Icon(Icons.delete_outline,
-                                size: 18, color: Colors.white),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 );
               },
