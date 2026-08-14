@@ -174,7 +174,7 @@ class _OAuthDialogBar extends StatelessWidget {
         color: scheme.primaryContainer,
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: scheme.shadow.withOpacity(0.15),
+            color: scheme.shadow.withValues(alpha: 0.15),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -200,7 +200,7 @@ class _OAuthDialogBar extends StatelessWidget {
             tooltip: closeTooltip,
             color: scheme.onPrimaryContainer,
             style: IconButton.styleFrom(
-              backgroundColor: scheme.onPrimaryContainer.withOpacity(0.12),
+              backgroundColor: scheme.onPrimaryContainer.withValues(alpha: 0.12),
             ),
             onPressed: onClose,
           ),

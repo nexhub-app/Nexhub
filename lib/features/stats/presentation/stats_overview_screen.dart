@@ -519,7 +519,7 @@ class _StatMetric extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppTokens.spaceXs),
-          Icon(icon, size: 20, color: color.withOpacity(0.85)),
+          Icon(icon, size: 20, color: color.withValues(alpha: 0.85)),
           const SizedBox(height: AppTokens.spaceXs),
           Text(
             label,
