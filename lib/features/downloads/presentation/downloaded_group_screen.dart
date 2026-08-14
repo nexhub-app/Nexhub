@@ -1,32 +1,122 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/download/download_manager.dart';
 import '../../../core/download/download_task.dart';
-import '../../../core/local/local_content_manager.dart';
-import '../../../core/local/saf_bridge.dart' show resolveSafVideoFile;
-import '../../../core/models/episode.dart';
+import '../../../core/local/local_content_actions.dart'
+    show openDownloadedWorkFolder;
+import '../../../core/local/local_content_manager.dart'
+    show
+        LocalMediaKind,
+        isAndroidSafUri,
+        listFolderFilesByKind,
+        scanComicFolder;
+import '../../../core/local/saf_bridge.dart'
+    show safBaseName, listFolderFilesByKindSaf, scanComicFolderSaf;
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/utils/app_log.dart';
 import '../../../core/widgets/app_cover_image.dart';
+import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../home/presentation/local_media_viewer.dart';
-import '../../novel/presentation/novel_reader_screen.dart';
-import '../../player/presentation/video_player_screen.dart';
-import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
-/// 已下载内容分组详情（下载页 → 点击已完成项）。
+/// 已下载内容分组详情（下载页 → 点击合并作品）。
 ///
-/// 展示封面与元信息，逐章列出并可打开本地产物。根据 [DownloadFormat]
-/// 映射到 [LocalMediaKind] 复用 [LocalMediaViewer]，避免重复造轮子。
-class DownloadedGroupScreen extends StatelessWidget {
-  final DownloadTask task;
-  const DownloadedGroupScreen({super.key, required this.task});
+/// 同一部作品可能分多批下载，本页按 [contentId] + [sourceId] 聚合全部批次，
+/// 头部展示合并信息（封面 / 标题 / 总章节数 / 批次数量），下方逐批列出各批次
+/// 章节并可打开对应本地产物。根据 [DownloadFormat] 映射到 [LocalMediaKind]
+/// 复用 [LocalMediaViewer]，避免重复造轮子。
+class DownloadedGroupScreen extends StatefulWidget {
+  final String contentId;
+  final String? sourceId;
+  const DownloadedGroupScreen({
+    super.key,
+    required this.contentId,
+    this.sourceId,
+  });
+
+  @override
+  State<DownloadedGroupScreen> createState() => _DownloadedGroupScreenState();
+}
+
+class _DownloadedGroupScreenState extends State<DownloadedGroupScreen> {
+  String get contentId => widget.contentId;
+  String? get sourceId => widget.sourceId;
+
+  /// 扫描作品文件夹得到的实际内容文件（按文件名排序，每个文件 = 一章/一话/一集）。
+  /// 不依赖下载记录（[DownloadTask.chapterFilePaths]），直接以磁盘为事实来源，
+  /// 分批下载的所有内容都会出现在这里。
+  List<String> _scanFiles = const <String>[];
+  bool _scanning = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final manager = context.read<DownloadManager>();
+    final batches = manager.tasksForContent(
+      contentId,
+      sourceId,
+      includeArchived: false,
+    );
+    if (batches.isEmpty) return;
+    final DownloadTask lead = batches.last;
+    final LocalMediaKind kind = _kindFor(lead.format);
+    final List<String> files = await _scanWorkDir(lead.localPath ?? '', kind);
+    if (!mounted) return;
+    setState(() {
+      _scanFiles = files;
+      _scanning = false;
+    });
+  }
+
+  /// 扫描作品目录，按媒体类型过滤并排序（与「导入目录」用同一套扫描函数：
+  /// [listFolderFilesByKind] / [listFolderFilesByKindSaf] 递归扫描，
+  /// [scanComicFolder] / [scanComicFolderSaf] 区分散图/归档）。
+  Future<List<String>> _scanWorkDir(String workDir, LocalMediaKind kind) async {
+    if (workDir.isEmpty) return <String>[];
+    switch (kind) {
+      case LocalMediaKind.text:
+        return isAndroidSafUri(workDir)
+            ? await listFolderFilesByKindSaf(workDir, LocalMediaKind.text)
+            : listFolderFilesByKind(workDir, LocalMediaKind.text);
+      case LocalMediaKind.video:
+        return isAndroidSafUri(workDir)
+            ? await listFolderFilesByKindSaf(workDir, LocalMediaKind.video)
+            : listFolderFilesByKind(workDir, LocalMediaKind.video);
+      case LocalMediaKind.images:
+      case LocalMediaKind.pdf:
+        return _scanComic(workDir);
+    }
+  }
+
+  /// 漫画：归档 + 其它非图片文件 = 每话一个（与导入目录一致）；仅散图时整个
+  /// 文件夹作为一个条目（交给阅读器实时收集图片）。
+  Future<List<String>> _scanComic(String workDir) async {
+    if (isAndroidSafUri(workDir)) {
+      final r = await scanComicFolderSaf(workDir);
+      final chapterFiles = <String>[...r.archives, ...r.others];
+      if (chapterFiles.isNotEmpty) return chapterFiles;
+      return <String>[workDir];
+    }
+    final r = scanComicFolder(workDir);
+    final chapterFiles = <String>[...r.archives, ...r.others];
+    if (chapterFiles.isNotEmpty) return chapterFiles;
+    return <String>[workDir];
+  }
+
+  /// 章节显示名：SAF 编码路径还原真实文件名后去扩展名。
+  String _titleFor(String path) {
+    final rawName = isAndroidSafUri(path) ? safBaseName(path) : path;
+    final dot = rawName.lastIndexOf('.');
+    final t = dot > 0 ? rawName.substring(0, dot) : rawName;
+    return t.isEmpty ? path : t;
+  }
 
   LocalMediaKind _kindFor(DownloadFormat f) => switch (f) {
         DownloadFormat.cbz => LocalMediaKind.images,
@@ -38,72 +128,39 @@ class DownloadedGroupScreen extends StatelessWidget {
         DownloadFormat.video => LocalMediaKind.video,
       };
 
-  /// 视频格式按集命名（直链 001.mp4 / HLS 拼接 001.ts …），其他格式直接用产物路径。
-  ///
-  /// SAF 分支返回 `NNN.mp4` 占位（扩展名未知），由 [resolveSafVideoFile] 在打开时
-  /// 枚举目录按 `NNN.<videoExt>` 命中真实文件；非 SAF 分支若 `NNN.mp4` 不存在则扫描
-  /// 目录下首个视频文件回退（含 .ts，避免单集路径变化/扩展名差异导致打不开）。
-  String _pathForChapter(DownloadTask task, int index) {
-    if (task.format == DownloadFormat.video && task.localPath != null) {
-      final localPath = task.localPath!;
-      // SAF 下载路径（content:// 编码 `<treeUri>␟<rel>`）无法用 dart:io 直读，
-      // 直接构造按集命名的编码子路径，由 LocalMediaViewer 经 resolveSafUri 落缓存后播放。
-      if (isAndroidSafUri(localPath)) {
-        final padded = (index + 1).toString().padLeft(3, '0');
-        return '$localPath/$padded.mp4';
-      }
-      final padded = (index + 1).toString().padLeft(3, '0');
-      final expected = '$localPath/$padded.mp4';
-      final f = File(expected);
-      if (f.existsSync()) return expected;
-      // 回退：扫描目录下首个视频文件
-      final fallback = _findVideoFile(localPath);
-      if (fallback != null) return fallback;
-    }
-    return task.localPath!;
-  }
-
-  /// 扫描目录下首个视频文件（按文件名排序），无则返回 null。
-  String? _findVideoFile(String dirPath) {
-    final dir = Directory(dirPath);
-    if (!dir.existsSync()) return null;
-    const videoExts = <String>[
-      '.ts', '.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v', '.flv',
-    ];
-    try {
-      final files = dir
-          .listSync()
-          .whereType<File>()
-          .where((f) {
-            final lower = f.path.toLowerCase();
-            return videoExts.any((ext) => lower.endsWith(ext));
-          })
-          .toList()
-        ..sort((a, b) => a.path.compareTo(b.path));
-      return files.isEmpty ? null : files.first.path;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  String _pathForFirstChapter(DownloadTask task) => _pathForChapter(task, 0);
-
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final manager = context.watch<DownloadManager>();
+    final List<DownloadTask> batches = manager.tasksForContent(
+      contentId,
+      sourceId,
+      includeArchived: false,
+    );
 
-    final chapters = task.chapterTitles;
-    final hasFile = task.localPath != null && task.localPath!.isNotEmpty;
+    if (batches.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.downloadedContent)),
+        body: const AppEmptyState(
+          icon: Icons.download_done_outlined,
+          message: '',
+        ),
+      );
+    }
+
+    // 合并信息：取最新批次的标题/封面/格式；章节数 = 扫描到的实际文件数。
+    final DownloadTask lead = batches.last;
+    final int totalChapters = _scanFiles.length;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(task.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(lead.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: <Widget>[
           AppIconButton(
             icon: Icons.delete_outline,
             tooltip: l10n.delete,
-            onPressed: () => _confirmDelete(context, l10n),
+            onPressed: () => _confirmDelete(context, manager, l10n),
           ),
         ],
       ),
@@ -117,34 +174,38 @@ class DownloadedGroupScreen extends StatelessWidget {
                 children: <Widget>[
                   SizedBox(
                     width: 110,
-                    child: AppCoverImage(coverUrl: task.coverUrl, fit: BoxFit.cover),
+                    child: AppCoverImage(
+                      coverUrl: lead.localCoverPath ?? lead.coverUrl,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   const SizedBox(width: AppTokens.spaceMd),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text(task.title, style: Theme.of(context).textTheme.titleMedium),
+                        Text(lead.title,
+                            style: Theme.of(context).textTheme.titleMedium),
                         const SizedBox(height: AppTokens.spaceSm),
                         Text(
-                          '${l10n.downloadedGroupChapters}：${chapters.length}',
+                          '${l10n.downloadedGroupChapters}：$totalChapters',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),
                         ),
                         const SizedBox(height: AppTokens.spaceXs),
                         Text(
-                          '${l10n.downloadedGroupFormat}：${task.format.label}',
+                          '${l10n.downloadedGroupFormat}：${lead.format.label}',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: scheme.onSurfaceVariant,
                               ),
                         ),
-                        if (!hasFile) ...<Widget>[
+                        if (batches.length > 1) ...<Widget>[
                           const SizedBox(height: AppTokens.spaceXs),
                           Text(
-                            l10n.downloadedGroupFileMissing,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: scheme.error,
+                            l10n.downloadBatches(batches.length),
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
                                 ),
                           ),
                         ],
@@ -155,82 +216,69 @@ class DownloadedGroupScreen extends StatelessWidget {
               ),
             ),
           ),
-          if (hasFile)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
-                child: FilledButton.icon(
-                  onPressed: () => _open(context, _pathForFirstChapter(task)),
-                  icon: const Icon(Icons.play_arrow_outlined),
-                  label: Text(l10n.downloadedGroupOpen),
+          // 扫描作品文件夹得到的实际文件列表（每个文件 = 一章/一话/一集）。
+          if (_scanning)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_scanFiles.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Text(
+                  l10n.localFileLoadFailed,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
                 ),
               ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final path = _scanFiles[i];
+                  return AppListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: scheme.primaryContainer,
+                      foregroundColor: scheme.primary,
+                      child: Text('${i + 1}'),
+                    ),
+                    title: Text(_titleFor(path),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    trailing: AppIconButton(
+                      icon: Icons.open_in_new_outlined,
+                      tooltip: l10n.downloadedGroupOpen,
+                      onPressed: () => _open(context, lead, i),
+                    ),
+                  );
+                },
+                childCount: _scanFiles.length,
+              ),
             ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (ctx, i) {
-                final title = chapters[i];
-                return AppListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: scheme.primaryContainer,
-                    foregroundColor: scheme.primary,
-                    child: Text('${i + 1}'),
-                  ),
-                  title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  trailing: hasFile
-                      ? AppIconButton(
-                          icon: Icons.open_in_new_outlined,
-                          tooltip: l10n.downloadedGroupOpen,
-                          onPressed: () => _open(context, _pathForChapter(task, i)),
-                        )
-                      : null,
-                );
-              },
-              childCount: chapters.length,
-            ),
-          ),
         ],
       ),
     );
   }
 
-  void _open(BuildContext context, String path) {
+  /// 打开扫描出的某个内容文件（index 对齐 [_scanFiles]）。
+  ///
+  /// 不依赖下载记录（[DownloadTask.chapterFilePaths]），直接把作品文件夹交给
+  /// [openDownloadedWorkFolder]：扫描磁盘实际文件构建完整章节/集/话列表，
+  /// 保证分批下载 / 旧数据都能解析到全部内容并切换。
+  Future<void> _open(BuildContext context, DownloadTask task, int index) async {
     final LocalMediaKind kind = _kindFor(task.format);
-    // 小说下载（epub/txt 为整本单文件）走小说阅读器：可解析章节、目录、朗读与进度，
-    // 且内部已用 resolveSafUri 兼容 SAF 编码路径（修复下载后小说打不开）。
-    if (kind == LocalMediaKind.text) {
-      final String lower = path.toLowerCase();
-      Navigator.of(context).push(
-        AppPageRoute<void>(
-          builder: (_) => NovelReaderScreen(
-            novelId: task.contentId,
-            title: task.title,
-            sourceId: '',
-            chapters: const <Episode>[],
-            localTextPath: lower.endsWith('.txt') ? path : null,
-            localEpubPath: lower.endsWith('.epub') ? path : null,
-            restoreProgress: true,
-          ),
-        ),
-      );
-      return;
-    }
-    // 视频：路由到已验证可用的全功能播放器（VideoPlayerScreen 本地模式），
-    // 它内部使用与在线播放一致的 PlayerController，能稳定播放本地 / SAF 缓存文件。
-    // 早期 LocalMediaViewer 自带的裸 Player() 在打开 SAF 解析出的缓存文件时
-    // 会出现「无限加载」，故此统一走 VideoPlayerScreen。
-    if (kind == LocalMediaKind.video) {
-      _openVideo(context, path);
-      return;
-    }
-    Navigator.of(context).push(
-      AppPageRoute<void>(
-        builder: (_) => LocalMediaViewer(
-          title: task.title,
-          kind: kind,
-          uri: path,
-        ),
-      ),
+    final String workDir = task.localPath ?? '';
+    if (workDir.isEmpty || !context.mounted) return;
+    await openDownloadedWorkFolder(
+      context,
+      id: task.contentId,
+      title: task.title,
+      sourceId: task.sourceId ?? '',
+      workDir: workDir,
+      kind: kind,
+      initialIndex: index,
     );
   }
 
@@ -242,89 +290,11 @@ class DownloadedGroupScreen extends StatelessWidget {
   ///
   /// 任何一步失败（解析不到 / 文件为空 / 不是有效视频）都**明确报错并弹提示**，
   /// 不再「点开无反应 / 无限缓冲」让用户摸不着头脑。
-  Future<void> _openVideo(BuildContext context, String path) async {
-    try {
-      final String localPath;
-      if (isAndroidSafUri(path)) {
-        // 目录感知解析：`NNN.<videoExt>` 命中真实文件（HLS `.ts` / 直链 `.mp4`），
-        // 任务文件夹形态则取目录内首个视频文件，再落盘为可播放的真实路径。
-        localPath = await resolveSafVideoFile(path);
-      } else {
-        localPath = path;
-      }
-      // 校验：文件存在 + 大小 + 视频魔数，给出明确错误而非进入播放器后无限缓冲。
-      final file = File(localPath);
-      if (!await file.exists()) {
-        throw Exception('下载的视频文件读取失败（不存在）：$localPath');
-      }
-      final size = await file.length();
-      final head = await file.openRead(0, 16).first;
-      AppLog.instance.i('[本地视频打开] $localPath 大小=${size}B '
-          '首字节=0x${_hex(head)}');
-      if (size == 0) {
-        throw Exception('下载的视频文件为空（0 字节），可能下载未完成或被源拦截');
-      }
-      if (!_looksLikeVideo(head)) {
-        throw Exception('下载的文件不是有效视频（大小 ${size}B，开头 '
-            '0x${_hex(head)}），可能被源拦截成了网页/错误页');
-      }
-      if (!context.mounted) return;
-      Navigator.of(context).push(
-        AppPageRoute<void>(
-          builder: (_) => VideoPlayerScreen(
-            title: task.title,
-            episode: Episode(id: 'local', title: task.title, url: localPath),
-            sourceId: '',
-            itemId: 'local_${localPath.hashCode}',
-            localUri: localPath,
-          ),
-        ),
-      );
-    } catch (e) {
-      AppLog.instance.eWithStack('[下载视频打开失败] $path', e);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('无法播放：${e.toString()}')),
-        );
-      }
-    }
-  }
-
-  /// 首字节转 16 进制（用于日志/报错展示视频魔数）。
-  static String _hex(List<int> b) =>
-      b.map((v) => v.toRadixString(16).padLeft(2, '0')).join('');
-
-  /// 粗判首字节是否为常见视频封装魔数（避免把 HTML/错误页当视频送进播放器）。
-  static bool _looksLikeVideo(List<int> h) {
-    if (h.length < 4) return false;
-    // TS（MPEG-2 TS）：首字节 0x47
-    if (h[0] == 0x47) return true;
-    // MP4 / MOV / M4V：'ftyp' (0x66 74 79 70)
-    if (h[0] == 0x66 && h[1] == 0x74 && h[2] == 0x79 && h[3] == 0x70) {
-      return true;
-    }
-    // MKV / WebM（EBML）：0x1A 45 DF A3
-    if (h.length >= 4 &&
-        h[0] == 0x1A && h[1] == 0x45 && h[2] == 0xDF && h[3] == 0xA3) {
-      return true;
-    }
-    // AVI：'RIFF' (0x52 49 46 46)
-    if (h[0] == 0x52 && h[1] == 0x49 && h[2] == 0x46 && h[3] == 0x46) {
-      return true;
-    }
-    // FLV：'FLV' (0x46 4C 56)
-    if (h[0] == 0x46 && h[1] == 0x4C && h[2] == 0x56) return true;
-    // MPEG-PS：00 00 01 BA / 00 00 01 B3
-    if (h.length >= 4 &&
-        h[0] == 0x00 && h[1] == 0x00 && h[2] == 0x01 &&
-        (h[3] == 0xBA || h[3] == 0xB3)) {
-      return true;
-    }
-    return false;
-  }
-
-  Future<void> _confirmDelete(BuildContext context, AppLocalizations l10n) async {
-    final manager = context.read<DownloadManager>();
+  Future<void> _confirmDelete(
+    BuildContext context,
+    DownloadManager manager,
+    AppLocalizations l10n,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AppAlertDialog(
@@ -343,7 +313,7 @@ class DownloadedGroupScreen extends StatelessWidget {
       ),
     );
     if (confirmed == true && context.mounted) {
-      await manager.cancel(task.id, deleteFiles: true);
+      await manager.cancelContent(contentId, deleteFiles: true);
       if (context.mounted) Navigator.of(context).pop();
     }
   }

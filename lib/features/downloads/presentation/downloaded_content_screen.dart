@@ -56,17 +56,31 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
     }
   }
 
+  /// 把已下载/已归档任务按作品（同源同 contentId）合并为分组，供卡片展示。
+  List<DownloadGroup> _getGroupedTasks(DownloadManager manager) {
+    final List<DownloadTask> filtered = _getFilteredTasks(manager);
+    // 已合并分组已在 DownloadManager 内按可见状态聚合；这里统一走分组入口。
+    return _tab == _DownloadedTab.archived
+        ? manager.groupedArchived()
+        : manager.groupedDownloaded()
+            .where((g) => filtered.any((t) => t.contentId == g.contentId &&
+                t.sourceId == g.sourceId))
+            .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final manager = context.watch<DownloadManager>();
-    final filteredTasks = _getFilteredTasks(manager);
+    final groups = _getGroupedTasks(manager);
     final isArchivedTab = _tab == _DownloadedTab.archived;
+    // 选择模式以「作品分组」为单位（一个 contentId+sourceId 一选），更贴合合并展示。
+    final int selectTotal = groups.length;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(_selectMode
-            ? '${_selectedKeys.length} / ${filteredTasks.length}'
+            ? '${_selectedKeys.length} / $selectTotal'
             : l10n.downloadedContent),
         actions: <Widget>[
           if (!_selectMode) ...<Widget>[
@@ -91,8 +105,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
               icon: const Icon(Icons.select_all),
               tooltip: l10n.selectAll,
               onPressed: () => setState(() {
-                _selectedKeys
-                    .addAll(filteredTasks.map((t) => t.id).toSet());
+                _selectedKeys.addAll(groups.map((g) => g.contentId).toSet());
               }),
             ),
             IconButton(
@@ -110,7 +123,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
                 _selectedKeys.clear();
               }),
             ),
-          ] else if (filteredTasks.isNotEmpty &&
+          ] else if (groups.isNotEmpty &&
               !isArchivedTab) ...<Widget>[
             // Archived tab uses per-card action buttons instead of select mode.
             IconButton(
@@ -160,7 +173,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
 
           // 内容区（随布局设置实时变化：网格列数/间距 ↔ 列表模式）
           Expanded(
-            child: filteredTasks.isEmpty
+            child: groups.isEmpty
                 ? AppEmptyState(
                     icon: isArchivedTab
                         ? Icons.archive_outlined
@@ -177,11 +190,11 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
                         // 列表模式：横向卡片
                         return ListView.separated(
                           padding: const EdgeInsets.all(AppTokens.spaceMd),
-                          itemCount: filteredTasks.length,
+                          itemCount: groups.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: AppTokens.spaceSm),
                           itemBuilder: (context, i) => _buildCard(
-                            filteredTasks[i],
+                            groups[i],
                             isArchivedTab,
                             manager,
                             l10n,
@@ -199,9 +212,9 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
                           crossAxisSpacing: layout.gridSpacing,
                           mainAxisSpacing: layout.gridSpacing,
                         ),
-                        itemCount: filteredTasks.length,
+                        itemCount: groups.length,
                         itemBuilder: (context, i) => _buildCard(
-                          filteredTasks[i],
+                          groups[i],
                           isArchivedTab,
                           manager,
                           l10n,
@@ -228,16 +241,18 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
   /// 已下载页筛选已改为文件底部的 [showDownloadedFilterSheet]（底部弹窗）。
 
   /// 根据当前选择状态构建已下载卡片（列表/网格模式共用）。
+  ///
+  /// [group] 为同一部作品的合并分组；选择模式以 contentId 为单位。
   Widget _buildCard(
-    DownloadTask task,
+    DownloadGroup group,
     bool isArchivedTab,
     DownloadManager manager,
     AppLocalizations l10n, {
     required bool listMode,
   }) {
-    final bool isSelected = _selectedKeys.contains(task.id);
+    final bool isSelected = _selectedKeys.contains(group.contentId);
     return _DownloadedCard(
-      task: task,
+      group: group,
       listMode: listMode,
       selectMode: _selectMode,
       isSelected: isSelected,
@@ -246,15 +261,18 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
         if (_selectMode) {
           setState(() {
             if (isSelected) {
-              _selectedKeys.remove(task.id);
+              _selectedKeys.remove(group.contentId);
             } else {
-              _selectedKeys.add(task.id);
+              _selectedKeys.add(group.contentId);
             }
           });
         } else if (!isArchivedTab) {
           Navigator.of(context).push(
             AppPageRoute<void>(
-              builder: (_) => DownloadedGroupScreen(task: task),
+              builder: (_) => DownloadedGroupScreen(
+                contentId: group.contentId,
+                sourceId: group.sourceId,
+              ),
             ),
           );
         }
@@ -263,15 +281,15 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
         if (!_selectMode && !isArchivedTab) {
           setState(() {
             _selectMode = true;
-            _selectedKeys.add(task.id);
+            _selectedKeys.add(group.contentId);
           });
         }
       },
       onRestore: isArchivedTab
-          ? () => _restoreTask(context, manager, l10n, task.id)
+          ? () => _restoreTask(context, manager, l10n, group.contentId)
           : null,
       onDeletePermanently: isArchivedTab
-          ? () => _confirmDeletePermanently(context, manager, l10n, task.id)
+          ? () => _confirmDeletePermanently(context, manager, l10n, group.contentId)
           : null,
     );
   }
@@ -307,7 +325,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
           TextButton(
             onPressed: () {
               for (final id in _selectedKeys) {
-                manager.archive(id);
+                manager.archiveContent(id);
               }
               setState(() {
                 _selectMode = false;
@@ -320,7 +338,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
           FilledButton(
             onPressed: () {
               for (final id in _selectedKeys) {
-                manager.cancel(id, deleteFiles: true);
+                manager.cancelContent(id, deleteFiles: true);
               }
               setState(() {
                 _selectMode = false;
@@ -335,25 +353,25 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
     );
   }
 
-  /// Restore a single archived task and show a SnackBar confirmation.
+  /// Restore a single archived work (all its batches) and show a SnackBar confirmation.
   void _restoreTask(
     BuildContext context,
     DownloadManager manager,
     AppLocalizations l10n,
-    String taskId,
+    String contentId,
   ) {
-    manager.unarchive(taskId);
+    manager.unarchiveContent(contentId);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.restoreSuccess)),
     );
   }
 
-  /// Permanently delete a single archived task with confirmation dialog.
+  /// Permanently delete a single archived work (all its batches) with confirmation dialog.
   void _confirmDeletePermanently(
     BuildContext context,
     DownloadManager manager,
     AppLocalizations l10n,
-    String taskId,
+    String contentId,
   ) {
     showDialog<void>(
       context: context,
@@ -367,7 +385,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
           ),
           FilledButton(
             onPressed: () {
-              manager.cancel(taskId, deleteFiles: true);
+              manager.cancelContent(contentId, deleteFiles: true);
               Navigator.pop(ctx);
             },
             child: Text(l10n.deletePermanently),
@@ -379,18 +397,18 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
 }
 
 class _DownloadedCard extends StatelessWidget {
-  final DownloadTask task;
   final bool selectMode;
   final bool isSelected;
   final bool isArchived;
   final bool listMode;
+  final DownloadGroup group;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final VoidCallback? onRestore;
   final VoidCallback? onDeletePermanently;
 
   const _DownloadedCard({
-    required this.task,
+    required this.group,
     required this.selectMode,
     required this.isSelected,
     required this.onTap,
@@ -419,7 +437,7 @@ class _DownloadedCard extends StatelessWidget {
                   fit: StackFit.expand,
                   children: <Widget>[
                     AppCoverImage(
-                      coverUrl: task.coverUrl,
+                      coverUrl: group.coverUrl,
                       fit: BoxFit.cover,
                       radius: radius,
                     ),
@@ -456,7 +474,7 @@ class _DownloadedCard extends StatelessWidget {
                     children: <Widget>[
                       if (layout.showTitle)
                         Text(
-                          task.title,
+                          group.title,
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
@@ -481,7 +499,7 @@ class _DownloadedCard extends StatelessWidget {
                   fit: StackFit.expand,
                   children: <Widget>[
                     AppCoverImage(
-                      coverUrl: task.coverUrl,
+                      coverUrl: group.coverUrl,
                       fit: BoxFit.cover,
                       radius: radius,
                     ),
@@ -519,7 +537,7 @@ class _DownloadedCard extends StatelessWidget {
                     children: <Widget>[
                       if (layout.showTitle)
                         Text(
-                          task.title,
+                          group.title,
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
@@ -563,7 +581,8 @@ class _DownloadedCard extends StatelessWidget {
     );
   }
 
-  /// 底部元信息行：归档态显示「恢复 / 彻底删除」操作，普通态显示章节数。
+  /// 底部元信息行：归档态显示「恢复 / 彻底删除」操作，普通态显示合并章节数。
+  /// 同作品跨多批下载时，额外提示批次数量。
   /// [layout] 用于判断是否显示作者/章节数信息（showAuthor）。
   Widget _metaRow(BuildContext context, ColorScheme scheme, AppLocalizations l10n, [LayoutSettings? layout]) {
     if (isArchived && onRestore != null && onDeletePermanently != null) {
@@ -591,12 +610,17 @@ class _DownloadedCard extends StatelessWidget {
     }
     // showAuthor 关闭时隐藏章节数/作者信息
     if (layout != null && !layout.showAuthor) return const SizedBox.shrink();
+    final int chapters = group.chapterTitles.length;
+    final String base = group.sourceType == SourceType.mangaSource
+        ? l10n.chapterN(chapters)
+        : group.sourceType == SourceType.novelSource
+            ? l10n.novelChapterN(chapters)
+            : l10n.episodeN(chapters);
+    final String suffix = group.batches.length > 1
+        ? ' · ${l10n.downloadBatches(group.batches.length)}'
+        : '';
     return Text(
-      task.sourceType == SourceType.mangaSource
-          ? l10n.chapterN(task.totalChapters)
-          : task.sourceType == SourceType.novelSource
-              ? l10n.novelChapterN(task.totalChapters)
-              : l10n.episodeN(task.totalChapters),
+      '$base$suffix',
       style: Theme.of(context)
           .textTheme
           .labelSmall

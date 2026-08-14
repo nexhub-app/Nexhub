@@ -14,17 +14,17 @@ class DownloadFormatPreferences {
   /// 漫画格式：cbz（默认）或 folder（散图）。
   final DownloadFormat comicFormat;
 
-  /// 小说格式：epub（默认）或 txt。
+  /// 小说格式：txt（默认，逐章落盘）或 epub（legacy 整本单文件）。
   final DownloadFormat novelFormat;
 
   const DownloadFormatPreferences({
     this.comicFormat = DownloadFormat.cbz,
-    this.novelFormat = DownloadFormat.epub,
+    this.novelFormat = DownloadFormat.txt,
   });
 
   const DownloadFormatPreferences.defaults()
       : comicFormat = DownloadFormat.cbz,
-        novelFormat = DownloadFormat.epub;
+        novelFormat = DownloadFormat.txt;
 
   DownloadFormatPreferences copyWith({
     DownloadFormat? comicFormat,
