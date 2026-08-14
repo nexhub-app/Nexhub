@@ -40,9 +40,15 @@ Future<void> showSoftwareAnnouncements(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(sheetContext).size.height * 0.85,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: SafeArea(
+              top: false,
+              bottom: true,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
             // 顶部拖拽指示（仅装饰，enableDrag=false 不响应拖拽关闭）。
             Padding(
               padding: const EdgeInsets.only(top: AppTokens.spaceSm),
@@ -148,6 +154,9 @@ Future<void> showSoftwareAnnouncements(
             ),
           ],
         ),
+      ),
+    ),
+  ),
       );
     },
   );
