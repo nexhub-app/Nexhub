@@ -1290,6 +1290,15 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                           ),
                       ],
                     ),
+                    const Divider(height: 1),
+                    const SizedBox(height: AppTokens.spaceSm),
+                    // 鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）
+                    SettingsSwitchTile(
+                      title: l10n.novelWheelInverted,
+                      value: _settings.novelScrollWheelInverted,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(novelScrollWheelInverted: v)),
+                    ),
                   ],
                 ),
 

@@ -1,15 +1,15 @@
 /// 小说文本分页器（文档 8.2）。
 ///
-/// 完全采用 legado `ChapterProvider` 的渲染算法（用户指定三步，**不含**
+/// 文字级分页渲染算法（用户指定三步，**不含**
 /// `textBottomJustify` 底部对齐，末页保留自然排版）：
 ///
 /// 1. **StaticLayout 按宽度折行（重要）**：用 [TextPainter]（等价 Android
 ///    `StaticLayout`）以 `maxWidth` 为约束把段落拆成适配宽度的视觉行
 ///    （[TextPainter.computeLineMetrics]），**不是按段落整段装箱**——这是排版
-///    与 legado 一致的关键：各页顶到页底、行数一致、段落可跨页断行。
+///    关键：各页顶到页底、行数一致、段落可跨页断行。
 /// 2. **逐字符列(TextColumn)定位**：每行记录每个字符的 x 坐标
 ///    （[NovelLine.charLefts]，由 [TextPainter.getBoxesForSelection] 复用段落级
-///    [TextPainter] 一次算出），等价 legado 的 `TextColumn` 逐字符定位，
+///    [TextPainter] 一次算出），逐字符定位（列式记录每个字符 x 坐标），
 ///    供「点哪读哪」精确命中。
 /// 3. **可见高度填满 → 翻页**：逐行贪心装入页面，填满 [height] 才翻页。
 library;
@@ -20,9 +20,9 @@ import '../../../core/models/novel_block.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/theme/app_tokens.dart';
 
-/// 单页中的一行文本（legado 式按行分页）。
+/// 单页中的一行文本（按行分页）。
 ///
-/// 等价 legado `ChapterProvider` 的 **TextColumn**：每个字符的 x 坐标被
+/// 逐字符列（TextColumn）定位：每个字符的 x 坐标被
 /// 记录下来（[charLefts]），供精确点击命中（点哪读到哪）与未来选区使用。
 class NovelLine {
   /// 该行文本（首行已含 `　　` 缩进，续行无缩进）。
@@ -40,8 +40,8 @@ class NovelLine {
   /// 逐字符列（TextColumn）定位：本行每个字符**左边缘**相对行首的 x 坐标。
   ///
   /// 由 [NovelPaginator._breakParagraph] 用 [TextPainter.getBoxesForSelection]
-  /// 复用段落级 [TextPainter] 一次算出（无需额外 layout），与 legado 用
-  /// `TextColumn` 记录每个字符位置完全对应。命中测试 [hitTestCharOffset]
+/// 复用段落级 [TextPainter] 一次算出（无需额外 layout），与
+/// 逐字符位置记录完全对应。命中测试 [hitTestCharOffset]
   /// 据此把点击 x 映射到精确字符下标。
   ///
   /// 长度一般为字符数；合字/组合字符可能合并为一个 box（不影响中文命中精度）。
@@ -64,7 +64,7 @@ class NovelLine {
 
   /// 把行内某点的水平坐标 [dx]（相对行首左边缘）映射到精确字符下标。
   ///
-  /// 等价 legado `TextColumn.getChar(dx)`：取命中字符中心点最近的字符。
+  /// 等价于逐字符列命中测试：取命中字符中心点最近的字符。
   /// 用于「点哪读哪」——点击行内任意位置得到应跳转/朗读的字符位置。
   int hitTestCharOffset(double dx) {
     if (charLefts.isEmpty) return 0;
@@ -235,7 +235,7 @@ class NovelPaginator {
       );
     }
 
-    // 2) 精确行高（legado 用 Paint.fontMetrics，我们用 TextPainter.height）。
+    // 2) 精确行高（底层用 Paint.fontMetrics 度量，我们用 TextPainter.height）。
     //    对中文文本，TextPainter.height 已包含 ascent + descent + 行间距因子，
     //    与渲染引擎实际绘制高度一致。所有正文行等高。
     final measureTp = TextPainter(
@@ -282,7 +282,7 @@ class NovelPaginator {
       titleReserve = titleHeight + prefs.paragraphSpacing * 1.5;
     }
 
-    // 4) 逐行贪心装箱 + 寡行控制（legado 式：填满一页才翻页）。
+    // 4) 逐行贪心装箱 + 寡行控制（填满一页才翻页）。
     //
     //    核心逻辑：每行高度统一为 lineHeight；段落末行额外加段距。
     //    当一行装不下当前页时，检查把它推到下一页是否会产生「寡行」
@@ -387,9 +387,9 @@ class NovelPaginator {
   ///
   /// 返回每行一个 [NovelLine]；首行标记 [NovelLine.isFirstLine]，末行标记
   /// [NovelLine.isLastLine]，便于渲染时加段距。段首 `　　` 已含在文本中，
-  /// 因此只有首行带缩进，续行无缩进（与 legado 一致）。
+  /// 因此只有首行带缩进，续行无缩进（与文字级分页的通用做法一致）。
   ///
-  /// 实现（对应 legado `ChapterProvider`）：
+  /// 实现：
   /// - **StaticLayout 按宽度折行**：[TextPainter] 以 `maxWidth` 布局，用
   ///   [TextPainter.computeLineMetrics] 得到每行的高度，再用
   ///   [TextPainter.getPositionForOffset] 在每行垂直中心、左边缘探测起始字符

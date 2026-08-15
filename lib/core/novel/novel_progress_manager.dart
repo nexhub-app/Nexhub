@@ -12,12 +12,14 @@ import '../comic/models/reader_preferences.dart' show PrefsBackend, SharedPrefsB
 class NovelReadingProgress {
   final String chapterId;
   final int currentPage;
+  final int? charOffset;
   final int chapterIndex;
   final int? totalChapters;
 
   const NovelReadingProgress({
     required this.chapterId,
     required this.currentPage,
+    this.charOffset,
     required this.chapterIndex,
     this.totalChapters,
   });
@@ -26,6 +28,7 @@ class NovelReadingProgress {
       NovelReadingProgress(
         chapterId: json['chapterId'] as String? ?? '',
         currentPage: json['currentPage'] as int? ?? 0,
+        charOffset: json['charOffset'] as int?,
         chapterIndex: json['chapterIndex'] as int? ?? 0,
         totalChapters: json['totalChapters'] as int?,
       );
@@ -33,6 +36,7 @@ class NovelReadingProgress {
   Map<String, dynamic> toJson() => <String, dynamic>{
         'chapterId': chapterId,
         'currentPage': currentPage,
+        'charOffset': charOffset,
         'chapterIndex': chapterIndex,
         'totalChapters': totalChapters,
       };
@@ -68,11 +72,13 @@ class NovelProgressManager {
     String chapterId,
     int currentPage,
     int chapterIndex, {
+    int? charOffset,
     int? totalChapters,
   }) async {
     final p = NovelReadingProgress(
       chapterId: chapterId,
       currentPage: currentPage,
+      charOffset: charOffset,
       chapterIndex: chapterIndex,
       // 未显式传入时使用已缓存的总章数，避免章节切换时清掉总数。
       totalChapters: totalChapters ?? _cache[novelId]?.totalChapters,

@@ -132,6 +132,9 @@ class ReaderDefaultSettings {
   final bool novelTtsBackground;
   final int novelTtsSleepTimer;
 
+  /// 小说：鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）。
+  final bool novelScrollWheelInverted;
+
   // ── 漫画补充（来自漫画阅读面板，项 1）──
   final double comicFilterBrightness;
   final double comicFilterContrast;
@@ -239,6 +242,7 @@ class ReaderDefaultSettings {
     this.novelHeaderFooterMargin = 12.0,
     this.novelTtsBackground = false,
     this.novelTtsSleepTimer = 0,
+    this.novelScrollWheelInverted = false,
     this.comicFilterBrightness = 0.0,
     this.comicFilterContrast = 0.0,
     this.comicFilterColorTemp = 0.0,
@@ -330,6 +334,7 @@ class ReaderDefaultSettings {
     double? novelHeaderFooterMargin,
     bool? novelTtsBackground,
     int? novelTtsSleepTimer,
+    bool? novelScrollWheelInverted,
     double? comicFilterBrightness,
     double? comicFilterContrast,
     double? comicFilterColorTemp,
@@ -446,6 +451,8 @@ class ReaderDefaultSettings {
             novelHeaderFooterMargin ?? this.novelHeaderFooterMargin,
         novelTtsBackground: novelTtsBackground ?? this.novelTtsBackground,
         novelTtsSleepTimer: novelTtsSleepTimer ?? this.novelTtsSleepTimer,
+        novelScrollWheelInverted:
+            novelScrollWheelInverted ?? this.novelScrollWheelInverted,
         comicFilterBrightness:
             comicFilterBrightness ?? this.comicFilterBrightness,
         comicFilterContrast:
@@ -546,6 +553,7 @@ class ReaderDefaultSettings {
         'novelHeaderFooterMargin': novelHeaderFooterMargin,
         'novelTtsBackground': novelTtsBackground,
         'novelTtsSleepTimer': novelTtsSleepTimer,
+        'novelScrollWheelInverted': novelScrollWheelInverted,
         'comicFilterBrightness': comicFilterBrightness,
         'comicFilterContrast': comicFilterContrast,
         'comicFilterColorTemp': comicFilterColorTemp,
@@ -761,6 +769,8 @@ class ReaderDefaultSettings {
           json['novelTtsBackground'] as bool? ?? false,
       novelTtsSleepTimer:
           (json['novelTtsSleepTimer'] as num?)?.toInt() ?? 0,
+      novelScrollWheelInverted:
+          json['novelScrollWheelInverted'] as bool? ?? false,
       comicFilterBrightness:
           (json['comicFilterBrightness'] as num?)?.toDouble() ?? 0.0,
       comicFilterContrast:
@@ -930,6 +940,7 @@ class ReaderDefaultSettings {
       ttsSpeechRate: novelTtsSpeechRate,
       ttsBackground: novelTtsBackground,
       ttsSleepTimer: novelTtsSleepTimer,
+      scrollWheelInverted: novelScrollWheelInverted,
     );
   }
 }
