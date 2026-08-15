@@ -254,6 +254,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   int _loadToken = 0;
   int _savedPage = 0;
 
+  /// 待恢复的「章内字符偏移」（P0-2）。
+  ///
+  /// 进入阅读器时若存档带有字符偏移，则优先用偏移恢复阅读位置，
+  /// 而非页码——因为页码随字号/边距/排版变化而漂移，字符偏移恒定。
+  /// 该值在 [_buildReader] 分页就绪后消费一次并清 null；为 null 时回退页码。
+  int? _savedCharOffset;
+
   /// 网络拉取的原始图文块（未做繁简转换）。
   List<NovelBlock> _rawParagraphs = const <NovelBlock>[];
   /// 实际渲染的图文块（应用繁简转换后）。
@@ -391,6 +398,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _tts.addListener(_onTtsChanged);
     _chapterIndex = widget.initialChapterIndex;
     _prefs = const NovelReaderPreferences();
     // 读后自动删除：dispose 阶段判定「读完」用（context 已不可用，先缓存引用）。
@@ -511,11 +519,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       if (_isLocalMode && widget.localEpubPath != null) {
         _restoreEpubChapterIndex = saved.chapterIndex;
         _savedPage = saved.currentPage;
+        _savedCharOffset = saved.charOffset;
       } else {
         final within = saved.chapterIndex < _effectiveChapters.length;
         if (within) {
           _chapterIndex = saved.chapterIndex;
           _savedPage = saved.currentPage;
+          _savedCharOffset = saved.charOffset;
         }
       }
     }
@@ -523,9 +533,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     await _notes.init();
     if (mounted) setState(() {});
     if (_isLocalMode) {
-      await _loadLocalText(restorePage: _savedPage);
+      await _loadLocalText(
+          restorePage: _savedCharOffset != null ? 0 : _savedPage);
     } else {
-      await _loadChapter(_chapterIndex, restorePage: _savedPage);
+      await _loadChapter(
+        _chapterIndex,
+        restorePage: _savedCharOffset != null ? 0 : _savedPage,
+      );
     }
   }
 
@@ -1040,6 +1054,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 异步方法，异常在后续微任务抛出，同步 try/catch 抓不到；用 .catchError 兜底，
     // 避免「Uncaught zone error」在 release 下升级为进程崩溃。
     _brightnessPlugin.resetScreenBrightness().catchError((Object _) {});
+    _tts.removeListener(_onTtsChanged);
     _tts.dispose();
     _settingsSearchController.dispose();
     super.dispose();
@@ -1504,6 +1519,57 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (mounted) setState(() {});
   }
 
+  /// 计算某页在章内的「起始字符偏移」（累计文本行长度，忽略插图）。
+  ///
+  /// 与 [_pageForCharOffset] 互为逆运算：保存时把当前页映射成偏移，
+  /// 恢复时把偏移映射回页码。仅统计文本行长度，因为分页器的行文本并集
+  /// 等于章内文本流，偏移对字号/边距/排版变化恒定（P0-2）。
+  int _charOffsetForPage(int pageIndex) {
+    final pages = _pagination?.pages;
+    if (pages == null || pages.isEmpty) return 0;
+    final p = pageIndex.clamp(0, pages.length - 1);
+    var offset = 0;
+    for (var i = 0; i < p; i++) {
+      for (final item in pages[i]) {
+        if (item is NovelTextLineItem) {
+          offset += item.line.text.length;
+        }
+      }
+    }
+    return offset;
+  }
+
+  /// 把章内字符偏移映射回页码（二分查找，O(页数) 预计算 + O(log 页数)）。
+  ///
+  /// 返回首个「起始字符偏移 ≤ [offset]」的页；[offset] ≤ 0 回退首页，
+  /// 越界回退末页。与 [_charOffsetForPage] 对称，保证换排版后回到同一处文字。
+  int _pageForCharOffset(int offset) {
+    final pages = _pagination?.pages;
+    if (pages == null || pages.isEmpty) return 0;
+    if (offset <= 0) return 0;
+    // 预计算每页起始偏移（最后一页用 0 占位，循环不越界）。
+    final starts = <int>[0];
+    var acc = 0;
+    for (var i = 0; i < pages.length - 1; i++) {
+      for (final item in pages[i]) {
+        if (item is NovelTextLineItem) acc += item.line.text.length;
+      }
+      starts.add(acc);
+    }
+    // 二分找最后一个 starts[k] ≤ offset。
+    var lo = 0;
+    var hi = starts.length - 1;
+    while (lo < hi) {
+      final mid = (lo + hi + 1) ~/ 2;
+      if (starts[mid] <= offset) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return lo;
+  }
+
   void _saveProgress(int page) {
     // 本地模式无 chapters，用占位 chapterId 保存进度。
     // 单 EPUB（已解析出章节）按真实章节保存，重开后能恢复到原章节原页。
@@ -1523,6 +1589,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       chapterId,
       page,
       _chapterIndex,
+      // P0-2：附带章内字符偏移，使进度在字号/边距/排版变化时仍回到同一处文字。
+      charOffset: _pagination != null ? _charOffsetForPage(page) : null,
       totalChapters: (!_isLocalMode || _isAggregatedLocal || _epubChapters != null)
           ? _effectiveChapters.length
           : null,
@@ -1631,6 +1699,37 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _loadChapter(_chapterIndex, restorePage: toLastPage ? -1 : 0);
       }
     }
+  }
+
+  /// TTS 状态变化回调（currentIndex / state 变化）。
+  ///
+  /// - 高亮：build 直接读取 `_tts.currentIndex`，随本回调的 [setState] 自动刷新。
+  /// - 自动定位：翻页模式下，朗读进度推进到某段落时，自动把页面翻到该段落所在页
+  ///   （"自动定位到朗读的页面"）；滚动模式段落连续排版，交给高亮与用户手势。
+  void _onTtsChanged() {
+    if (!mounted) return;
+    if (_tts.state == NovelTtsState.stopped) return;
+    final int idx = _tts.currentIndex;
+    final pages = _pagination?.pages;
+    if (pages == null || pages.isEmpty) return;
+    if (_prefs.pageAnimation.isScroll) {
+      // 滚动模式：仅刷新高亮，不抢翻页面。
+      setState(() {});
+      return;
+    }
+    int? target;
+    for (int i = 0; i < pages.length; i++) {
+      if (pages[i].any((item) =>
+          item is NovelTextLineItem && item.line.paragraphIndex == idx)) {
+        target = i;
+        break;
+      }
+    }
+    if (target != null && target != _currentPage) {
+      _pageKey.currentState?.jumpToPage(target);
+    }
+    // 高亮随 currentIndex 变化刷新（即使未翻页也要重绘选中段）。
+    setState(() {});
   }
 
   /// TTS 模式下点击某一段落：跳转到该段落开始朗读。
@@ -2037,6 +2136,19 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           _paginationChapterIndex = _chapterIndex;
         }
 
+        // P0-2：章内字符偏移恢复（抗字号/边距/排版变化）。
+        // 仅在有待恢复偏移且分页已就绪时执行一次；用偏移把阅读位置
+        // 重新映射成当前分页下的页码（或滚动模式的等效页），而非旧的页码。
+        // 消费后立即清 null，避免后续 build（如旋转屏幕）重复跳页。
+        if (_savedCharOffset != null) {
+          final resolved = _pageForCharOffset(_savedCharOffset!);
+          _currentPage = resolved;
+          if (_prefs.pageAnimation.isScroll) {
+            _restoreScrollPosition(resolved);
+          }
+          _savedCharOffset = null;
+        }
+
         // 检测分页结果是否变化（跨章/改偏好/旋转屏幕时变化）。
         // _pagination 可能在本帧的 layout 阶段才被 LayoutBuilder 赋值，
         // 而 _buildProgressSlider 已在 build 阶段读取了旧值。需要 schedule 一帧
@@ -2122,6 +2234,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           onVerticalDragStart: _onBrightnessDragStart,
           onVerticalDragUpdate: _onBrightnessDragUpdate,
           onVerticalDragEnd: _onBrightnessDragEnd,
+          scrollWheelInverted: _prefs.scrollWheelInverted,
         );
       },
     );
@@ -3571,7 +3684,7 @@ class _NovelPageWidget extends StatelessWidget {
     );
   }
 
-  /// 构建单行文本（legado 式按行渲染）：TTS 高亮 + 点击跳转。
+  /// 构建单行文本（按行渲染）：TTS 高亮 + 点击跳转。
   ///
   /// 每行已是适配宽度的视觉行，首行自带 `　　` 缩进；段距由上层在
   /// [isLastLine] 后统一添加，这里只负责单行的文字与高亮。
@@ -3591,7 +3704,7 @@ class _NovelPageWidget extends StatelessWidget {
             line.text,
             style: textStyle,
             // 每行已是按宽度精确测量出的单行文本，禁止再次折行/省略，
-            // 保证渲染与分页器测量一致（legado 式按行排版）。
+            // 保证渲染与分页器测量一致（按行排版）。
             softWrap: false,
             maxLines: 1,
             overflow: TextOverflow.clip,
@@ -3609,24 +3722,25 @@ class _NovelPageWidget extends StatelessWidget {
           )
         : textWidget;
 
-    // TTS 激活时允许点按任意行跳转朗读位置（按所属段落）；否则不拦截点击
-    // （让外层 GestureDetector 处理翻页/切换 UI）。
+    // TTS 激活时，点按任意行即跳转到该段落开始朗读（按所属段落）。
+    // 仅 TTS 激活才包裹手势：非朗读态下点按文本照常由外层翻页。
     //
-    // ⚠️ 内层段落交互必须用 onLongPress（长按），绝不能用 onTap/onTapUp。
-    // 原因：外层 _wrapGestures 用 onTapUp 接收翻页/切换 UI 指令，而 Flutter 中
-    // onTap 与 onTapUp 同属 TapGestureRecognizer（是同一类手势）。若内层用 onTap，
-    // 嵌套竞技场里内层会赢、外层 onTapUp 被吞→点文本时翻页指令丢失，页面变成「瞬跳
-    // 无动画」或「误触发 TTS 跳转」，即用户反馈的「翻页动画消失」。
+    // 用 onTap（而非 onLongPress）：朗读场景下「点哪读哪」是主交互，用户期望
+    // 轻点段落即跳转；长按反而难发现。内层 TapGestureRecognizer 与外层 onTapUp
+    // 同在嵌套竞技场中，内层命中即胜出、外层 onTapUp 不再触发——因此点文本不会
+    // 翻页、也不会切换 UI，只跳转朗读位置；点边距/留白仍走外层翻页。该包裹仅在
+    // ttsActive 时存在，故非朗读态点击文本照常播放翻页动画（旧「翻页动画消失」问题
+    // 不复现）。
     //
-    // onLongPress 属于 LongPressGestureRecognizer（与 Tap 是不同的识别器家族），
-    // 不会抢占单击手势：轻点文本→外层 onTapUp 正常翻页并播放动画；长按文本→
-    // 内层跳转到该段落朗读。两种交互互不干扰，翻页动画始终可见。
-    // TextColumn 精确字符坐标（charLefts / hitTestCharOffset）保留在模型中，
-    // 供未来长按选区等需要精确坐标的场景使用。
+    // excludeFromSemantics:true —— 不为每行生成无障碍语义节点。朗读时文本由 TTS
+    // 引擎直接发声，逐行语义节点既冗余，又会在每段切换时随整页重建被反复创建/销毁，
+    // 导致无障碍树（AXTree）节点堆积，触发 "will not be in the tree" 刷屏；排除后
+    // 该问题消除，且不影响朗读与手势响应。
     if (ttsActive && onParagraphTap != null) {
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onLongPress: () => onParagraphTap!.call(line.paragraphIndex),
+        excludeFromSemantics: true,
+        onTap: () => onParagraphTap!.call(line.paragraphIndex),
         child: content,
       );
     }
@@ -4974,6 +5088,15 @@ class _NovelInlineSettings extends StatelessWidget {
                                 prefs.copyWith(autoPageInterval: v)),
                           ),
                       ],
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+                    // 鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(l10n.novelWheelInverted),
+                      value: prefs.scrollWheelInverted,
+                      onChanged: (v) => onChanged(
+                          prefs.copyWith(scrollWheelInverted: v)),
                     ),
                       ],
                     ),

@@ -511,6 +511,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 再把「新 Player」创建出来。Player 的 mpv 上下文与原生视频纹理是崩溃高发点，
     // 必须保证「旧播放器完全销毁」先于「新播放器创建」，否则连续多次打开会在
     // 第三次冲突杀进程（Lost connection to device）。
+    // 重试路径：上一次 _init 已创建播放器但中途失败（如 open 超时），旧实例
+    // 尚未释放。先释放旧实例（写入 pendingDisposal），再等其原生释放完成后再建新实例，
+    // 避免旧 Player 泄漏、及「新建 surface 与旧 surface 冲突」崩溃（P0 B-3）。
+    if (_controllerCreated) {
+      _controller.removeListener(_onControllerChanged);
+      _controller.dispose();
+      _controllerCreated = false;
+      _videoController = null;
+    }
     await PlayerController.pendingDisposal;
     if (_disposed) return;
     _controller = PlayerController();
@@ -571,6 +580,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         throw Exception('本地视频打开超时（media_kit 未能在 30 秒内载入，'
             '可能是文件位置 media_kit 无法读取）');
       }
+      // 直链 / 本地模式打开后自动播放（与在线分支对齐，修复「打开即暂停」，P0 B-1）。
+      _controller.play();
       AppLog.instance.i('[本地视频打开] media_kit.open 完成，'
           '耗时 ${stopwatch.elapsedMilliseconds}ms');
     } else {
@@ -598,6 +609,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       // 解析成功后自动开始播放
       _controller.play();
     }
+
+    // 退页守卫：open() 期间可能已退场，后续订阅 / 弹幕加载 / setState 须在
+    // _disposed 复查后执行，避免对失活元素调用 setState（P0 B-5）。
+    if (_disposed || !mounted) return;
 
     // 恢复上次播放位置（P8.1.2 §廿一 续读进度跨章节恢复）。
     // 不 await：[_seekWhenReady] 需要等底层 duration 就绪（可能 1~10 秒），
@@ -659,6 +674,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } on Object {
       // 读取失败，使用默认路径
     }
+    // 退页守卫：await SharedPreferences 期间可能已退场（P0 B-5）。
+    if (_disposed || !mounted) return;
 
     // 尝试加载弹幕（本地 / 直链模式无剧集元数据，跳过自动匹配；
     // 用户仍可通过弹幕源面板切换到自定义 URL 手动加载）。
@@ -1502,6 +1519,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 新一集的续播恢复尚未开始：先关闸，防止新媒体 open 时的 position=0
     // 覆盖这一集原有的存档。
     _positionRestoreDone = false;
+    // 记录切集前的索引，切集失败时回滚，避免界面停在「新集」但画面仍是旧集。
+    final int oldIndex = _episodeIndex;
     setState(() {
       _episodeIndex = index;
       _position = Duration.zero;
@@ -1580,8 +1599,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _positionRestoreDone = true;
         _lastPositionSaveAt = DateTime.now();
       }
-    } on Object {
-      // 切集失败，静默忽略；但要开闸，否则该集永远不再保存进度。
+    } on Object catch (e) {
+      // 切集失败：界面若停在「新集」但画面仍是旧集，须回滚索引并提示，
+      // 避免用户误以为已切换成功（P0 B-4）。
+      AppLog.instance.eWithStack('[切集失败] index=$index', e);
+      if (token != _loadToken) return;
+      if (mounted) {
+        setState(() => _episodeIndex = oldIndex);
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.playerEpisodeSwitchFailed)),
+        );
+      }
+      // 切集失败也需开闸，否则该集永远不再保存进度。
       _positionRestoreDone = true;
     }
   }
@@ -2996,7 +3025,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               if (_controller.isLocked) return;
               if (_dragAxis != _GestureAxis.horizontal) return;
               final width = context.size?.width ?? 1;
-              final delta = -d.delta.dx / width;
+              final delta = d.delta.dx / width;
               final next = _seekPreview +
                   Duration(
                       seconds: (delta *

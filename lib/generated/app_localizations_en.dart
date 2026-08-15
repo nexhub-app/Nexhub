@@ -2103,6 +2103,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerVideoExpired => 'Video link expired, please retry';
 
   @override
+  String get playerEpisodeSwitchFailed =>
+      'Failed to switch episode, please retry';
+
+  @override
   String get playerStallDetected => 'Playback stalled, reconnecting…';
 
   @override
@@ -2879,6 +2883,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get novelSectionPage => 'Page & Gesture';
+
+  @override
+  String get novelWheelInverted => 'Invert mouse wheel page direction';
 
   @override
   String get novelSectionMisc => 'Other';

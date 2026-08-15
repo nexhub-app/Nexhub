@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 
 import '../../../core/novel/novel_page_animation.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -64,6 +65,11 @@ class NovelAnimatedPageView extends StatefulWidget {
   /// 竖向拖拽结束回调（用于左侧 1/3 亮度手势）。
   final void Function(DragEndDetails)? onVerticalDragEnd;
 
+  /// 鼠标滚轮翻页方向反转（仅翻页模式生效）。向下滚默认 = 下一页；
+  /// 为 true 时翻转（向上滚 = 下一页）。滚动模式由底层 Scrollable 接管滚轮，
+  /// 此参数不参与。
+  final bool scrollWheelInverted;
+
   const NovelAnimatedPageView({
     super.key,
     required this.animation,
@@ -80,6 +86,7 @@ class NovelAnimatedPageView extends StatefulWidget {
     this.onVerticalDragStart,
     this.onVerticalDragUpdate,
     this.onVerticalDragEnd,
+    this.scrollWheelInverted = false,
   });
 
   @override
@@ -414,24 +421,43 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
           widget.onTapUp?.call(d, context.size ?? MediaQuery.sizeOf(context)),
       child: child,
     );
-    if (!brightnessEnabled) return base;
-    return Stack(
-      children: <Widget>[
-        base,
-        Align(
-          alignment: Alignment.centerLeft,
-          child: FractionallySizedBox(
-            widthFactor: 1 / 3,
-            heightFactor: 1,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragStart: widget.onVerticalDragStart,
-              onVerticalDragUpdate: widget.onVerticalDragUpdate,
-              onVerticalDragEnd: widget.onVerticalDragEnd,
-            ),
-          ),
-        ),
-      ],
+    final Widget inner = brightnessEnabled
+        ? Stack(
+            children: <Widget>[
+              base,
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: 1 / 3,
+                  heightFactor: 1,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onVerticalDragStart: widget.onVerticalDragStart,
+                    onVerticalDragUpdate: widget.onVerticalDragUpdate,
+                    onVerticalDragEnd: widget.onVerticalDragEnd,
+                  ),
+                ),
+              ),
+            ],
+          )
+        : base;
+    // 翻页模式：拦截鼠标滚轮翻页。scroll 模式不拦截（底层 Scrollable 接管滚轮）。
+    return Listener(
+      onPointerSignal: (signal) {
+        if (_isScroll) return;
+        if (signal is PointerScrollEvent) {
+          // 消费信号，避免继续透传给不存在的底层滚动视图（paged 模式无 Scrollable）。
+          GestureBinding.instance.pointerSignalResolver.register(signal, (_) {});
+          final bool down = signal.scrollDelta.dy > 0;
+          final bool next = widget.scrollWheelInverted ? !down : down;
+          if (next) {
+            nextPage();
+          } else {
+            previousPage();
+          }
+        }
+      },
+      child: inner,
     );
   }
 }

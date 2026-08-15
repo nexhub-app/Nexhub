@@ -2075,6 +2075,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerVideoExpired => '视频链接已失效，请重试';
 
   @override
+  String get playerEpisodeSwitchFailed => '切换该剧集失败，请重试';
+
+  @override
   String get playerStallDetected => '播放卡顿，正在重连…';
 
   @override
@@ -2836,6 +2839,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get novelSectionPage => '翻页与手势';
+
+  @override
+  String get novelWheelInverted => '鼠标滚轮翻页方向反转';
 
   @override
   String get novelSectionMisc => '其他';

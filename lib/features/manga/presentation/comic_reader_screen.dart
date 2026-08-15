@@ -80,7 +80,7 @@ class ComicReaderScreen extends StatefulWidget {
   /// 阅读器按 [chapterIndex] 解压对应归档取图。与 [localImages]/[localCbzPath] 互斥。
   final List<String>? localArchivePaths;
 
-  /// 本地下载聚合模式：每部作品一个目录（Mihon 式布局），每话一个图片子目录
+  /// 本地下载聚合模式：每部作品一个目录（聚合式布局），每话一个图片子目录
   /// （folder/jpg/png 下载格式产物）。传子目录路径列表，下标对齐 [chapters]
   /// （每目录 = 一话）。阅读器按 [chapterIndex] 收集对应目录内图片。与
   /// [localImages]/[localCbzPath]/[localArchivePaths] 互斥。
@@ -376,7 +376,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   /// 本地模式加载图片：优先使用 [widget.localImages]，否则解压 [widget.localCbzPath]。
-  Future<void> _loadLocalImages({int restorePage = 0}) async {
+  Future<void> _loadLocalImages(
+      {int restorePage = 0, bool restoreToLast = false}) async {
     // 聚合本地模式同样需要「代次守卫」：初始加载与快速翻话可能并发，
     // 若不丢弃过期结果，较慢的初始解压会覆盖已切换的话（表现为「切换话还是同一话」）。
     final int token = ++_loadToken;
@@ -433,7 +434,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         _loading = false;
         _error = null;
       });
-      _setupControllers(restorePage: restorePage);
+      // 回到上一话末页时 restoreToLast=true（与在线 [_loadChapter] 对齐）：
+      // 翻页模式直接落末页，条漫模式先落首页、首帧后再滚动到底（见 [_loadChapter]）。
+      final bool lastPage = restoreToLast && imgs.isNotEmpty;
+      final bool deferToLast = lastPage && _prefs.readingMode.isWebtoon;
+      final int rp = lastPage && !deferToLast ? imgs.length - 1 : restorePage;
+      _setupControllers(restorePage: deferToLast ? 0 : rp);
+      if (deferToLast) {
+        _pendingWebtoonScrollToLast = true;
+      } else {
+        _saveProgress(rp);
+      }
     } on Object catch (e) {
       AppLog.instance.eWithStack(
           '[漫画加载异常] ${widget.title} (cbz=${widget.localCbzPath != null}, '
@@ -1269,7 +1280,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _chapterIndex = prev;
       // 回到上一话的【最后一页】，保证「首页翻上一张」连贯。
       if (_isAggregatedLocal) {
-        _loadLocalImages(restorePage: -1);
+        _loadLocalImages(restorePage: -1, restoreToLast: true);
       } else {
         _loadChapter(_chapterIndex, restoreToLast: true);
       }
@@ -1348,6 +1359,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// - Transform/AnimatedBuilder 以「视口中心」为原点（等价 alignment: center），
   ///   而 focal 是「左上原点」坐标；[_toTransformAnchor] 负责换算。
   void _toggleZoom([Offset? focal]) {
+    // 双击缩放开关：关闭时任何触发路径（双击 / 定点双击 / Shift+左键兜底）均不缩放。
+    if (!_prefs.doubleTapZoom) return;
     final m = _zoomController.value;
     final cur = m.getMaxScaleOnAxis();
     final Size vp = MediaQuery.of(context).size;

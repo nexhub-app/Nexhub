@@ -29,19 +29,26 @@ class AppListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final Widget tile = ListTile(
-      leading: leading,
-      title: title,
-      subtitle: subtitle,
-      trailing: trailing,
-      onTap: onTap,
-      onLongPress: onLongPress,
-      selected: selected,
-      selectedColor: scheme.primary,
-      selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.3),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
-      minLeadingWidth: AppTokens.spaceLg,
+    // 包一层真正的 Material：外部若用 DecoratedBox（如分区卡片的圆角背景）包裹
+    // 本 tile，Flutter 会因「ListTile 的最近 Material 祖先是 DecoratedBox」而断言
+    // 背景色/水波纹不可见。这里提供自身 Material 祖先，既保留分区卡片背景透出，
+    // 又消除该断言与水波纹被吞的问题（全应用统一修复入口）。
+    final Widget tile = Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        leading: leading,
+        title: title,
+        subtitle: subtitle,
+        trailing: trailing,
+        onTap: onTap,
+        onLongPress: onLongPress,
+        selected: selected,
+        selectedColor: scheme.primary,
+        selectedTileColor: scheme.primaryContainer.withValues(alpha: 0.3),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
+        minLeadingWidth: AppTokens.spaceLg,
+      ),
     );
     if (entranceKey == null) return tile;
     return Entrance(onceKey: entranceKey, child: tile);

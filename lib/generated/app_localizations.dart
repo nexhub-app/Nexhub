@@ -4100,6 +4100,12 @@ abstract class AppLocalizations {
   /// **'Video link expired, please retry'**
   String get playerVideoExpired;
 
+  /// No description provided for @playerEpisodeSwitchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to switch episode, please retry'**
+  String get playerEpisodeSwitchFailed;
+
   /// No description provided for @playerStallDetected.
   ///
   /// In en, this message translates to:
@@ -5575,6 +5581,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Page & Gesture'**
   String get novelSectionPage;
+
+  /// No description provided for @novelWheelInverted.
+  ///
+  /// In en, this message translates to:
+  /// **'Invert mouse wheel page direction'**
+  String get novelWheelInverted;
 
   /// No description provided for @novelSectionMisc.
   ///

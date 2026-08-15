@@ -29,6 +29,11 @@ class NovelTtsController extends ChangeNotifier {
   Duration? _sleepRemaining;
   bool _backgroundMode = false;
 
+  /// 引擎当前是否正在朗读某一句。用于"点按切换段落"时先 [FlutterTts.stop]
+  /// 打断旧句、再朗读新句（flutter_tts 4.2.5 无 setQueueMode，用 stop+speak
+  /// 模拟 QUEUE_FLUSH，避免旧句播完才接新句——"仍朗读之前的句子"）。
+  bool _isSpeaking = false;
+
   NovelTtsState get state => _state;
   int get currentIndex => _currentIndex;
   bool get isPlaying => _state == NovelTtsState.playing;
@@ -50,9 +55,12 @@ class NovelTtsController extends ChangeNotifier {
   Future<void> _ensureTts() async {
     if (_tts != null) return;
     _tts = FlutterTts();
+    // 先挂完成回调，确保初始化任何一步失败也不会漏掉（此前 setQueueMode
+    // 在 4.2.5 无原生实现会抛 MissingPluginException，导致回调从未注册、
+    // 读完一句即停）。
+    _tts!.setCompletionHandler(_onComplete);
     await _tts!.setLanguage('zh-CN');
     await _tts!.setSpeechRate(_rate);
-    _tts!.setCompletionHandler(_onComplete);
   }
 
   /// 开始朗读段落列表，从指定索引开始。
@@ -63,7 +71,7 @@ class NovelTtsController extends ChangeNotifier {
       {int startIndex = 0, int sleepTimer = 0}) async {
     await _ensureTts();
     _paragraphs = paragraphs;
-    _currentIndex = startIndex;
+    _currentIndex = startIndex.clamp(0, _paragraphs.length - 1);
     _state = NovelTtsState.playing;
     notifyListeners();
     await _setAwake(true);
@@ -74,14 +82,26 @@ class NovelTtsController extends ChangeNotifier {
   }
 
   /// 朗读当前段落。
+  ///
+  /// 若已在朗读（点按切换 / 上一段下一段），先 [FlutterTts.stop] 打断旧句
+  /// 再朗读新句，使切换立即生效（替代不可用 setQueueMode 的 QUEUE_FLUSH）。
   Future<void> _speakCurrent() async {
     if (_tts == null ||
         _currentIndex < 0 ||
         _currentIndex >= _paragraphs.length) {
       _state = NovelTtsState.stopped;
+      _isSpeaking = false;
       notifyListeners();
       return;
     }
+    if (_isSpeaking) {
+      try {
+        await _tts!.stop();
+      } on Object {
+        // 部分平台 stop 可能抛错，忽略后继续朗读新句。
+      }
+    }
+    _isSpeaking = true;
     await _tts!.speak(_paragraphs[_currentIndex]);
   }
 
@@ -90,6 +110,7 @@ class NovelTtsController extends ChangeNotifier {
     if (_tts == null || _state != NovelTtsState.playing) return;
     await _tts!.pause();
     _state = NovelTtsState.paused;
+    _isSpeaking = false;
     notifyListeners();
   }
 
@@ -107,6 +128,7 @@ class NovelTtsController extends ChangeNotifier {
     if (_tts == null) return;
     await _tts!.stop();
     _state = NovelTtsState.stopped;
+    _isSpeaking = false;
     _cancelSleepTimer();
     _sleepRemaining = null;
     await _setAwake(false);
@@ -192,13 +214,18 @@ class NovelTtsController extends ChangeNotifier {
 
   /// 当前段落朗读完毕回调：自动朗读下一段。
   void _onComplete() {
-    if (_state == NovelTtsState.playing &&
-        _currentIndex < _paragraphs.length - 1) {
+    if (_state != NovelTtsState.playing) return;
+    if (_currentIndex < _paragraphs.length - 1) {
       _currentIndex++;
+      _isSpeaking = false;
       notifyListeners();
-      _speakCurrent();
+      // 完成事件可能由原生在非平台线程回调，延后到事件循环再朗读下一段，
+      // 规避 flutter_tts 通道线程告警（shell.cc: The ... channel sent a
+      // message ... on a non-platform thread）。
+      Future.microtask(() => _speakCurrent());
     } else {
       _state = NovelTtsState.stopped;
+      _isSpeaking = false;
       notifyListeners();
     }
   }
