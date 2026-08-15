@@ -97,9 +97,15 @@ class PlayerController extends ChangeNotifier {
       : _backend = MediaKitBackend(player ?? Player()) {
     _initStallDetection();
     _initDecodeFallbackDetection();
+    // 登记为「当前活跃实例」，供下一次创建新 Player 前强制释放（见 releaseActive）。
+    _activeInstance = this;
   }
 
   final MediaKitBackend _backend;
+
+  /// 底层 Player 是否已触发过释放（幂等标记，避免 dispose 与 releaseActive
+  /// 各触发一次 player.dispose()）。
+  bool _released = false;
 
   /// 自动连播开关。
   bool autoPlayNext = true;
@@ -685,15 +691,39 @@ class PlayerController extends ChangeNotifier {
   /// 当前画面比例。
   String get currentAspectRatio => _backend.currentAspectRatio;
 
-  @override
+  /// 当前仍活跃的播放器实例（构造时登记，dispose / 被 [releaseActive] 释放时清空）。
+  static PlayerController? _activeInstance;
+
   /// 串行化用：上一次 [Player.dispose()] 的 Future。播放器页面创建新 [VideoController]
-  /// 前会 await 它，确保旧原生 VideoOutput（media_kit 纹理）释放完成，避免退出重进时
+  /// 前会等待它，确保旧原生 VideoOutput（media_kit 纹理）释放完成，避免退出重进时
   /// 新旧 surface 冲突（Lost connection to device）。
   static Future<void>? _pendingDisposal;
 
   /// 供播放器页面 await：若上一次播放器仍在异步释放，则等待其完成；否则立即返回。
   static Future<void> get pendingDisposal =>
       _pendingDisposal ?? Future<void>.value();
+
+  /// 释放仍活跃的旧播放器并等待其底层 [Player] 完全销毁后返回。
+  ///
+  /// 退出播放器时旧页面进入退场动画，其 `dispose()`（触发 [_pendingDisposal]）
+  /// 要等动画结束才执行；若此时用户快速重进，新页面创建 [Player] 会与尚未销毁
+  /// 的旧 mpv 实例并发，引发原生 surface 冲突（Lost connection to device）。
+  /// 因此在创建新 [Player] 前调用本方法：无论旧页 dispose 是否已执行，都强制
+  /// 释放活跃旧实例并等待其销毁完成，再返回。
+  static Future<void> releaseActive() async {
+    final active = _activeInstance;
+    if (active != null && !active._released) {
+      active._released = true;
+      _activeInstance = null;
+      final disposeFuture = active._backend.player.dispose();
+      _pendingDisposal = disposeFuture;
+      await disposeFuture;
+    }
+    final pending = _pendingDisposal;
+    if (pending != null) {
+      await pending;
+    }
+  }
 
   @override
   void dispose() {
@@ -713,8 +743,12 @@ class PlayerController extends ChangeNotifier {
       // 测试环境忽略。
     }
     super.dispose();
-    // 触发底层 Player.dispose()（含原生 VideoOutput 释放）并记下其 Future，
-    // 供下一次进入播放器时 await，避免新旧 surface 冲突。
-    _pendingDisposal = _backend.player.dispose();
+    if (identical(_activeInstance, this)) _activeInstance = null;
+    if (!_released) {
+      _released = true;
+      // 触发底层 Player.dispose()（含原生 VideoOutput 释放）并记下其 Future，
+      // 供下一次进入播放器时 await，避免新旧 surface 冲突。
+      _pendingDisposal = _backend.player.dispose();
+    }
   }
 }

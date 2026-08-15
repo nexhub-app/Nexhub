@@ -10,7 +10,6 @@ import 'core/network/runtime/nexhub_http_overrides.dart';
 import 'core/debug/crash_log.dart';
 import 'core/utils/app_log.dart';
 import 'features/splash/splash_screen.dart';
-import 'core/player/audio_playback_service.dart';
 import 'core/theme/app_tokens.dart';
 
 /// Entry point: defers all initialization to [SplashScreen] so the user sees
@@ -91,15 +90,6 @@ void main() {
       } catch (e, st) {
         debugPrint('windowManager.ensureInitialized failed: $e\n$st');
       }
-    }
-
-    // F-25：后台播放 + 系统媒体通知（audio_service / audio_session）。
-    // 幂等初始化：注册平台媒体会话与音频打断/拔耳机处理。失败不影响前台播放，
-    // 仅无后台通知栏。必须在 runApp 之前完成平台侧注册。
-    try {
-      await AudioPlaybackService.instance.initialize();
-    } on Object catch (e, st) {
-      debugPrint('AudioPlaybackService.initialize failed: $e\n$st');
     }
 
     runApp(const SplashScreen());

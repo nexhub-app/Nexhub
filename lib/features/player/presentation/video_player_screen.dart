@@ -514,13 +514,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 重试路径：上一次 _init 已创建播放器但中途失败（如 open 超时），旧实例
     // 尚未释放。先释放旧实例（写入 pendingDisposal），再等其原生释放完成后再建新实例，
     // 避免旧 Player 泄漏、及「新建 surface 与旧 surface 冲突」崩溃（P0 B-3）。
+    // 关键：先等待上一次播放器的原生 VideoOutput 释放完成，再把「新 Player」
+    // 创建出来。Player 的 mpv 上下文与原生视频纹理是崩溃高发点，必须保证
+    // 「旧播放器完全销毁」先于「新播放器创建」，否则连续多次打开会在第三次
+    // 冲突杀进程（Lost connection to device）。
+    // releaseActive 相比原 pendingDisposal 更强：退场动画期间旧页 dispose()
+    // 可能尚未执行（_pendingDisposal 未就绪），此时仍会强制释放活跃旧实例并
+    // 等待其销毁完成，杜绝「退出后快速重进」时新旧 surface 并发冲突。
     if (_controllerCreated) {
       _controller.removeListener(_onControllerChanged);
       _controller.dispose();
       _controllerCreated = false;
       _videoController = null;
     }
-    await PlayerController.pendingDisposal;
+    await PlayerController.releaseActive();
     if (_disposed) return;
     _controller = PlayerController();
     _controller.addListener(_onControllerChanged);
@@ -1057,11 +1064,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           .where((i) => !_danmakuSettings.shouldFilter(i.text))
           .map((i) => i.toDanmakuItem())
           .toList();
+      // 退页守卫：await 网络期间可能已退出（deactivate 置 _disposed 后
+      // mounted 仍为 true，不能仅凭 mounted 判断），退出后不再写弹幕层。
+      if (_disposed || !mounted) return;
       _danmakuController.setItems(filtered);
     } on Object catch (e) {
       // 凭据未配置时给出提示，其余错误静默忽略。
       final msg = e.toString();
-      if (msg.contains('credentials not configured') && mounted) {
+      if (msg.contains('credentials not configured') &&
+          mounted &&
+          !_disposed) {
         final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1654,6 +1666,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           .where((i) => !_danmakuSettings.shouldFilter(i.text))
           .map((i) => i.toDanmakuItem())
           .toList();
+      // 退页守卫：await 期间可能已退出（deactivate 置 _disposed 后 mounted
+      // 仍为 true），退出后不再写弹幕层。
+      if (_disposed || !mounted) return;
       _danmakuController.setItems(filtered);
     } on Object {
       // 静默忽略。

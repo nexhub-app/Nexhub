@@ -436,6 +436,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 应用进入后台/被回收时立即落盘当前阅读位置，避免进度丢失
+    // （尤其翻章后那次落盘尚未完成即被切后台的场景）。
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _persistProgressNow();
+    }
     // TTS 后台朗读开关：关闭时应用进入后台即暂停朗读；
     // 开启时保持朗读（wakelock_plus 已持有唤醒锁）。
     if (state == AppLifecycleState.paused &&
@@ -1032,6 +1038,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   @override
   void dispose() {
+    // 退出阅读器前兜底落盘当前阅读位置（不依赖 context，见 _persistProgressNow）。
+    // 进度此前仅在阅读中写入，若翻章后的那次落盘尚未完成即被 pop，重进会
+    // 回放上一章末页；此处保证最后所在页/章被持久化。
+    _persistProgressNow();
     // 退出时一次性结算本次阅读会话（commit 内部 best-effort）。
     if (widget.sourceId.isNotEmpty) {
       unawaited(ReadingSessionRecorder.instance.commit(
@@ -1547,15 +1557,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final pages = _pagination?.pages;
     if (pages == null || pages.isEmpty) return 0;
     if (offset <= 0) return 0;
-    // 预计算每页起始偏移（最后一页用 0 占位，循环不越界）。
+    // 预计算每页起始偏移：starts[k] = 第 k 页首字符在章内文本流中的累计偏移。
+    // 必须覆盖到末页（k = length-1），否则末页偏移在二分时只能命中倒数第二页。
     final starts = <int>[0];
     var acc = 0;
     for (var i = 0; i < pages.length - 1; i++) {
       for (final item in pages[i]) {
         if (item is NovelTextLineItem) acc += item.line.text.length;
       }
-      starts.add(acc);
+      starts.add(acc); // starts[i+1] = 第 i+1 页起始偏移
     }
+    starts.add(acc); // 末页起始偏移，使二分可命中末页本身
     // 二分找最后一个 starts[k] ≤ offset。
     var lo = 0;
     var hi = starts.length - 1;
@@ -1567,7 +1579,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         hi = mid - 1;
       }
     }
-    return lo;
+    return lo.clamp(0, pages.length - 1);
   }
 
   void _saveProgress(int page) {
@@ -1628,6 +1640,34 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _maybeMarkChapterWatched(page);
   }
 
+  /// 退出/切后台时立即落盘当前阅读位置（不依赖 [context]）。
+  ///
+  /// 普通 [_saveProgress] 会读写 FavoritesManager/HistoryManager，dispose 后
+  /// context 已失效会抛错；本方法只写 [NovelProgressManager]，避免该问题。
+  /// 用于修复「翻到某章首页退出重进却回到上一章末页」：进度此前仅在阅读中
+  /// 写入，翻章后的那次异步落盘若未及时完成（或被 mounted 守卫丢弃），
+  /// 重进会回放上次会话的旧位置。
+  void _persistProgressNow() {
+    // 内容尚未就绪（加载失败/初次进入未完成）时不写盘，避免用空状态覆盖
+    // 已有的有效进度。
+    if (_paragraphs.isEmpty) return;
+    final chapters = _effectiveChapters;
+    if (chapters.isEmpty) return;
+    final idx = _chapterIndex.clamp(0, chapters.length - 1);
+    final total = _pagination?.pages.length ?? 0;
+    final page = (_currentPage < 0 && total > 0)
+        ? total - 1
+        : _currentPage.clamp(0, total > 0 ? total - 1 : 0);
+    unawaited(_progress.save(
+      widget.novelId,
+      chapters[idx].id,
+      page,
+      idx,
+      charOffset: _pagination != null ? _charOffsetForPage(page) : null,
+      totalChapters: _effectiveChapters.length,
+    ));
+  }
+
   /// 章节阅读进度达到「已看」阈值时标记当前章已读。
   ///
   /// 阈值取自 [GeneralSettingsStore.watchedThresholdPercent]（默认 90）。
@@ -1682,6 +1722,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final total = _effectiveChapters.length;
     if (_chapterIndex < total - 1) {
       _chapterIndex++;
+      // 翻到下一章即同步落盘「新章节 · 首页」，不等章节内容异步加载完成。
+      // 否则若此时退出（route pop），那次依赖 fetched/mounted 的落盘可能
+      // 未执行，重进会回放上一章末页（见 _persistProgressNow）。
+      _currentPage = 0;
+      _saveProgress(0);
       if (_isLocalMode) {
         _loadLocalText();
       } else {
@@ -1693,6 +1738,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   void _goPrevChapter({bool toLastPage = false}) {
     if (_chapterIndex > 0) {
       _chapterIndex--;
+      // 同步把目标页写进内存：上一章首页(0) 或上一章末页(哨兵 -1，由
+      // _buildReader 的哨兵校正落盘)，保证翻章过程中状态一致、退出能正确回放。
+      _currentPage = toLastPage ? -1 : 0;
       if (_isLocalMode) {
         _loadLocalText(restorePage: toLastPage ? -1 : 0);
       } else {
@@ -2146,6 +2194,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           if (_prefs.pageAnimation.isScroll) {
             _restoreScrollPosition(resolved);
           }
+          // 用当前分页（已就绪）与当前章节，把恢复出的位置重新落盘。
+          // 否则若本次进入未触发任何翻页事件（initial page / 纯恢复），
+          // 持久化进度会停留在上次会话的旧值，退出重进会回放旧位置
+          //（表现为「翻到首页 → 重进却落到上一章末页」）。
+          _saveProgress(resolved);
           _savedCharOffset = null;
         }
 
@@ -2171,6 +2224,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         // 哨兵值：restorePage=-1 表示「恢复到本章最后一页」（上一页越界时）。
         if (_currentPage < 0 && pages.isNotEmpty) {
           _currentPage = pages.length - 1;
+          // 上一章末页（回上一话）也要落盘，否则退出后该位置丢失，
+          // 重进会回放更早的存档（表现为「回到上一章末页」失效）。
+          _saveProgress(_currentPage);
         }
         // 同步校正：如果当前页超出范围（比如跨章后 page view 通过
         // didUpdateWidget 重置了 internal index 但未回调 onPageChanged），
