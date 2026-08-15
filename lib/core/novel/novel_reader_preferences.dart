@@ -361,6 +361,12 @@ class NovelReaderPreferences {
   /// 页眉页脚左右边距（像素）。
   final double headerFooterMargin;
 
+  // ─────────────── #9 滚轮翻页 ───────────────
+  /// 鼠标滚轮翻页方向反转：true 时「向上滚 = 下一页」（自然滚动习惯），
+  /// false 时「向下滚 = 下一页」（默认，与翻页按钮 / 点击分区一致）。
+  /// 仅作用于翻页模式（paged）；滚动模式由底层 Scrollable 接管滚轮。
+  final bool scrollWheelInverted;
+
   const NovelReaderPreferences({
     this.fontSize = 18.0,
     this.lineHeight = 1.8,
@@ -421,6 +427,7 @@ class NovelReaderPreferences {
     this.footerCenter = NovelHeaderFooterContent.none,
     this.headerFooterColor,
     this.headerFooterMargin = 12.0,
+    this.scrollWheelInverted = false,
   });
 
   NovelReaderPreferences copyWith({
@@ -483,6 +490,7 @@ class NovelReaderPreferences {
     NovelHeaderFooterContent? footerCenter,
     Object? headerFooterColor = _kNovelPrefsColorUnset,
     double? headerFooterMargin,
+    bool? scrollWheelInverted,
   }) {
     return NovelReaderPreferences(
       fontSize: fontSize ?? this.fontSize,
@@ -570,6 +578,7 @@ class NovelReaderPreferences {
           ? this.headerFooterColor
           : headerFooterColor as int?,
       headerFooterMargin: headerFooterMargin ?? this.headerFooterMargin,
+      scrollWheelInverted: scrollWheelInverted ?? this.scrollWheelInverted,
     );
   }
 
@@ -731,6 +740,9 @@ class NovelReaderPreferences {
       headerFooterMargin: identical(headerFooterMargin, def.headerFooterMargin)
           ? base.headerFooterMargin
           : headerFooterMargin,
+      scrollWheelInverted: identical(scrollWheelInverted, def.scrollWheelInverted)
+          ? base.scrollWheelInverted
+          : scrollWheelInverted,
     );
   }
 
@@ -918,6 +930,7 @@ class NovelReaderPreferences {
         'footerCenter': footerCenter.name,
         if (headerFooterColor != null) 'headerFooterColor': headerFooterColor,
         'headerFooterMargin': headerFooterMargin,
+        'scrollWheelInverted': scrollWheelInverted,
       };
 
   /// 从 JSON 反序列化。
@@ -998,6 +1011,7 @@ class NovelReaderPreferences {
       headerFooterColor: json['headerFooterColor'] as int?,
       headerFooterMargin:
           (json['headerFooterMargin'] as num?)?.toDouble() ?? 12.0,
+      scrollWheelInverted: json['scrollWheelInverted'] as bool? ?? false,
     );
   }
 }

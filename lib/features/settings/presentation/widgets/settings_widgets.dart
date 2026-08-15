@@ -233,20 +233,26 @@ class _SettingsCardState extends State<SettingsCard> {
     // 「灵动」入场：设置卡片淡入 + 轻微上滑。onceKey 用 title 或 widget.key，
     // 保证同一卡片在生命周期内只播一次，避免滚动 / 重建时抖动重播。
     final String? onceKey = widget.title ?? widget.key?.toString();
+    // 用 Material 而非 Container+DecoratedBox 承载背景色：内部 ListTile /
+    // SwitchListTile 的最近 Material 祖先即本卡片，不会因「DecoratedBox 与
+    // 最近 Material 之间夹了带色 DecoratedBox」而触发
+    // "background color or ink splashes may be invisible" 断言（设置页洪水）。
     return Entrance(
       onceKey: onceKey,
       index: widget.index,
       offset: 10,
       child: Container(
         margin: widget.margin ?? const EdgeInsets.only(bottom: AppTokens.spaceMd),
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
-        decoration: BoxDecoration(
+        child: Material(
           color: widget.backgroundColor ?? theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: columnChildren,
+          child: Padding(
+            padding: const EdgeInsets.all(AppTokens.spaceMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: columnChildren,
+            ),
+          ),
         ),
       ),
     );
