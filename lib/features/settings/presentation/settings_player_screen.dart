@@ -220,6 +220,26 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       onChanged: (v) =>
                           _update(_settings.copyWith(autoPlayNext: v)),
                     ),
+                    // F-8：自动连播倒计时（播完弹「N 秒后播放下一集」可取消）。
+                    if (_settings.autoPlayNext)
+                      SettingsChoiceChips<int>(
+                        title: l10n.playerAutoPlayCountdown,
+                        selected: _settings.autoPlayCountdownSeconds,
+                        onSelected: (v) => _update(
+                            _settings.copyWith(autoPlayCountdownSeconds: v)),
+                        options: <SettingsChoiceChipData<int>>[
+                          SettingsChoiceChipData<int>(
+                              value: 0, label: l10n.playerCountdownImmediate),
+                          const SettingsChoiceChipData<int>(
+                              value: 3, label: '3s'),
+                          const SettingsChoiceChipData<int>(
+                              value: 5, label: '5s'),
+                          const SettingsChoiceChipData<int>(
+                              value: 10, label: '10s'),
+                          const SettingsChoiceChipData<int>(
+                              value: 15, label: '15s'),
+                        ],
+                      ),
                     SettingsSliderTile(
                       label: l10n.playerDefaultVolume,
                       value: _settings.defaultVolume,

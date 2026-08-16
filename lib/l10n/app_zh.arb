@@ -2411,6 +2411,15 @@
   "seekForward10": "快进 10 秒",
   "seekBackward10": "快退 10 秒",
   "playerSeekCancel": "已取消快进",
+  "playerAutoPlayCountdown": "自动连播倒计时",
+  "@playerAutoPlayCountdown": {},
+  "playerCountdownImmediate": "立即",
+  "playerAutoNextCountdown": "{left} 秒后播放下一集",
+  "@playerAutoNextCountdown": {
+    "placeholders": {
+      "left": {"type": "int"}
+    }
+  },
   "novelTitleAlignLeft": "左对齐",
   "novelTitleAlignCenter": "居中",
   "novelTitleAlignRight": "右对齐",

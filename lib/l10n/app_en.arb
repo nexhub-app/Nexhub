@@ -2434,6 +2434,15 @@
   "seekForward10": "Forward 10s",
   "seekBackward10": "Backward 10s",
   "playerSeekCancel": "Seek canceled",
+  "playerAutoPlayCountdown": "Auto-play next countdown",
+  "@playerAutoPlayCountdown": {},
+  "playerCountdownImmediate": "Immediate",
+  "playerAutoNextCountdown": "Next episode in {left}s",
+  "@playerAutoNextCountdown": {
+    "placeholders": {
+      "left": {"type": "int"}
+    }
+  },
   "novelTitleAlignLeft": "Left",
   "novelTitleAlignCenter": "Center",
   "novelTitleAlignRight": "Right",
