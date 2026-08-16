@@ -45,21 +45,44 @@ class LocalNovelBook {
 class LocalNovelParser {
   LocalNovelParser();
 
-  // 章节标题正则：第X章/节/回/卷、卷X、Chapter N、序章/楔子 等
+  // 章节标题正则（行首匹配）：中文「第X章/节/回/卷/部/篇/集」「卷X」、
+  // 英文「Chapter N」（阿拉伯数字 / 罗马数字 / 英文拼写数字）、序章等固定名。
+  // 行长上限与相邻标题间隔校验见 [splitTxtChapters]，用于过滤正文中
+  // 「恰好以章节样式开头」的误判行。
   static final RegExp _chapterTitleRegex = RegExp(
     r'^\s*('
-    r'第[一二三四五六七八九十百千万零〇\d]+[章节回卷部篇集]'
-    r'|卷[一二三四五六七八九十百千万零〇\d]+'
-    r'|chapter\s+[\divxlcdm]+'
-    r'|序章|序言|楔子|引子|尾声|后记|番外'
+    r'第[一二三四五六七八九十百千万零〇两\d]+[章节回卷部篇集]'
+    r'|卷[一二三四五六七八九十百千万零〇两\d]+'
+    r'|chapter\s+(\d+|[ivxlcdm]+|one|two|three|four|five|six|seven|eight|nine'
+    r'|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen'
+    r'|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)'
+    r'|prologue|epilogue|preface'
+    r'|序章|序言|楔子|引子|尾声|后记|番外|前言|终章|结语'
     r')',
     caseSensitive: false,
   );
 
+  /// 标题行长度上限（字符）：超过视为正文，章节名极少长于此。
+  static const int _kMaxHeadingLength = 40;
+
+  /// 相邻章节标题的最小字符间隔：过滤正文中以章节样式开头的误判行
+  /// （真章节之间通常有数千字符正文；间隔过小的命中并入前一章）。
+  static const int _kMinChapterGapChars = 500;
+
+  /// 开头无标题正文独立成「前言」章的最小长度：过短视为书名/杂项忽略。
+  static const int _kPrefaceMinChars = 500;
+
+  /// 全书无任何章节标题命中时的兜底切分块大小（字符），在段落边界切。
+  static const int _kHardSplitChars = 10 * 1024;
+
+  /// 单章最大长度（字符）：超过时按段落边界二次切分并加「(N)」序号，
+  /// 防止超长章拖垮分页与渲染。
+  static const int _kMaxChapterChars = 100 * 1024;
+
   /// 解析 TXT 文件。
   ///
-  /// 自动嗅探编码（UTF-8 / GBK / UTF-16）读取，按双换行分段；命中章节标题
-  /// 正则的段落开启新章节；若全书无任何章节标题匹配，则整本书作为单章返回。
+  /// 自动嗅探编码（UTF-8 / GBK / UTF-16）读取；章节切分见
+  /// [splitTxtChapters]（逐行扫描，不依赖空行分段）。
   static Future<LocalNovelBook> parseTxt(String filePath) async {
     final file = File(filePath);
     final bytes = await file.readAsBytes();
@@ -71,60 +94,146 @@ class LocalNovelParser {
 
     final bookTitle = p.basenameWithoutExtension(filePath);
 
-    // 按双换行（含多个连续空行）分段
-    final blocks = text.split(RegExp(r'\n\n+'));
-
-    final chapters = <LocalNovelChapter>[];
-    final paras = <String>[];
-    var title = '';
-    var started = false;
-
-    void flush() {
-      if (started) {
-        chapters.add(LocalNovelChapter(
-          title: title.isEmpty ? '未命名章节' : title,
-          content: List<String>.from(paras),
-        ));
-      }
-      paras.clear();
-    }
-
-    for (final block in blocks) {
-      final trimmed = block.trim();
-      if (trimmed.isEmpty) continue;
-      final firstLine = trimmed.split('\n').first.trim();
-      if (_chapterTitleRegex.hasMatch(firstLine) && firstLine.length <= 40) {
-        // 命中章节标题 → 结算上一章并开启新章
-        flush();
-        started = true;
-        title = firstLine;
-        // 同段中标题行之后的内容作为首批段落
-        final lines = trimmed.split('\n');
-        for (var i = 1; i < lines.length; i++) {
-          final l = lines[i].trim();
-          if (l.isNotEmpty) paras.add(l);
-        }
-      } else {
-        paras.add(trimmed);
-      }
-    }
-    flush();
-
-    // 没有任何章节标题匹配 → 整本书作为单章
-    if (chapters.isEmpty) {
-      final all = blocks
-          .map((b) => b.trim())
-          .where((b) => b.isNotEmpty)
-          .toList();
-      chapters.add(LocalNovelChapter(title: bookTitle, content: all));
-    }
-
     return LocalNovelBook(
       title: bookTitle,
       author: null,
-      chapters: chapters,
+      chapters: splitTxtChapters(text, fallbackTitle: bookTitle),
     );
   }
+
+  /// TXT 章节切分（纯函数，输入须已统一换行符为 `\n`）。
+  ///
+  /// 逐行扫描而非按空行分段：段落间仅以单个换行分隔的文件（网页抓取
+  /// TXT 常见）也能正确分章，不会整本塌成一章。标题行须同时满足：
+  /// 非空、长度 ≤ [_kMaxHeadingLength]、命中 [_chapterTitleRegex]、
+  /// 与上一个标题间隔 ≥ [_kMinChapterGapChars]。
+  ///
+  /// - 首个标题前的正文 ≥ [_kPrefaceMinChars] 时独立为「前言」章；
+  /// - 全书零标题命中 → 按 [_kHardSplitChars] 在段落边界兜底硬切
+  ///   （总量不足两块时保持整本单章，标题用 [fallbackTitle]）；
+  /// - 超过 [_kMaxChapterChars] 的章按段落边界二次切分，命名「标题(N)」。
+  static List<LocalNovelChapter> splitTxtChapters(
+    String text, {
+    required String fallbackTitle,
+  }) {
+    final lines = text.split('\n');
+
+    // 第一遍：收集通过全部校验的标题行（行号 + 字符偏移）。
+    final headingLine = <int>[];
+    final headingOffset = <int>[];
+    var offset = 0;
+    for (var i = 0; i < lines.length; i++) {
+      final raw = lines[i];
+      final t = raw.trim();
+      if (t.isNotEmpty &&
+          t.length <= _kMaxHeadingLength &&
+          _chapterTitleRegex.hasMatch(t) &&
+          (headingOffset.isEmpty ||
+              offset - headingOffset.last >= _kMinChapterGapChars)) {
+        headingLine.add(i);
+        headingOffset.add(offset);
+      }
+      offset += raw.length + 1;
+    }
+
+    final chapters = <LocalNovelChapter>[];
+
+    if (headingLine.isEmpty) {
+      // 兜底硬切：无任何标题 → 按固定粒度在段落（行）边界切分。
+      final paras = _parasInRange(lines, 0, lines.length);
+      if (paras.isEmpty) {
+        return <LocalNovelChapter>[
+          LocalNovelChapter(title: fallbackTitle, content: const <String>['']),
+        ];
+      }
+      if (_totalLen(paras) <= _kHardSplitChars * 2) {
+        // 总量过小保持整本单章（与旧行为一致，避免短文被无意义拆碎）。
+        return <LocalNovelChapter>[
+          LocalNovelChapter(title: fallbackTitle, content: paras),
+        ];
+      }
+      var seq = 0;
+      var buf = <String>[];
+      var bufLen = 0;
+      for (final para in paras) {
+        buf.add(para);
+        bufLen += para.length;
+        if (bufLen >= _kHardSplitChars) {
+          seq++;
+          chapters.add(LocalNovelChapter(
+              title: '第 $seq 部分', content: List<String>.from(buf)));
+          buf = <String>[];
+          bufLen = 0;
+        }
+      }
+      if (buf.isNotEmpty) {
+        seq++;
+        chapters.add(LocalNovelChapter(
+            title: '第 $seq 部分', content: List<String>.from(buf)));
+      }
+      return chapters;
+    }
+
+    // 第二遍：按标题行切分章节。
+    // 首个标题前的开头内容：足够长则独立为「前言」，过短（书名/空行）忽略。
+    final lead = _parasInRange(lines, 0, headingLine.first);
+    if (_totalLen(lead) >= _kPrefaceMinChars) {
+      chapters.add(LocalNovelChapter(title: '前言', content: lead));
+    }
+    for (var k = 0; k < headingLine.length; k++) {
+      final start = headingLine[k] + 1;
+      final end = k + 1 < headingLine.length
+          ? headingLine[k + 1]
+          : lines.length;
+      final paras = _parasInRange(lines, start, end);
+      chapters.add(LocalNovelChapter(
+        title: lines[headingLine[k]].trim(),
+        content: paras.isEmpty ? const <String>[''] : paras,
+      ));
+    }
+
+    // 超长章节二次切分：按段落边界切成 ~[_kMaxChapterChars]/2 块，「标题(N)」。
+    final result = <LocalNovelChapter>[];
+    for (final ch in chapters) {
+      if (_totalLen(ch.content) <= _kMaxChapterChars) {
+        result.add(ch);
+        continue;
+      }
+      final target = _kMaxChapterChars ~/ 2;
+      var part = 0;
+      var buf = <String>[];
+      var bufLen = 0;
+      for (final para in ch.content) {
+        buf.add(para);
+        bufLen += para.length;
+        if (bufLen >= target) {
+          part++;
+          result.add(LocalNovelChapter(
+              title: '${ch.title}($part)',
+              content: List<String>.from(buf)));
+          buf = <String>[];
+          bufLen = 0;
+        }
+      }
+      if (buf.isNotEmpty) {
+        part++;
+        result.add(LocalNovelChapter(
+            title: '${ch.title}($part)', content: List<String>.from(buf)));
+      }
+    }
+    return result;
+  }
+
+  /// 取行区间 [start, end) 内的非空行作为段落（每行一段）。
+  static List<String> _parasInRange(List<String> lines, int start, int end) {
+    return <String>[
+      for (var i = start; i < end; i++)
+        if (lines[i].trim().isNotEmpty) lines[i].trim(),
+    ];
+  }
+
+  static int _totalLen(List<String> paras) =>
+      paras.fold<int>(0, (sum, p) => sum + p.length);
 
   /// 解析 EPUB 文件。
   ///
