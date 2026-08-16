@@ -8426,6 +8426,24 @@ abstract class AppLocalizations {
   /// **'Seek canceled'**
   String get playerSeekCancel;
 
+  /// No description provided for @playerAutoPlayCountdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-play next countdown'**
+  String get playerAutoPlayCountdown;
+
+  /// No description provided for @playerCountdownImmediate.
+  ///
+  /// In en, this message translates to:
+  /// **'Immediate'**
+  String get playerCountdownImmediate;
+
+  /// No description provided for @playerAutoNextCountdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Next episode in {left}s'**
+  String playerAutoNextCountdown(int left);
+
   /// No description provided for @novelTitleAlignLeft.
   ///
   /// In en, this message translates to:

@@ -4334,6 +4334,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerSeekCancel => '已取消快进';
 
   @override
+  String get playerAutoPlayCountdown => '自动连播倒计时';
+
+  @override
+  String get playerCountdownImmediate => '立即';
+
+  @override
+  String playerAutoNextCountdown(int left) {
+    return '$left 秒后播放下一集';
+  }
+
+  @override
   String get novelTitleAlignLeft => '左对齐';
 
   @override
