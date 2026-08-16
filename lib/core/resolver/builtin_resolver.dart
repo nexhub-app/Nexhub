@@ -28,6 +28,13 @@ import 'video_source_cache.dart';
 /// video 路由解析结果 TTL 缓存（避免对同一 m3u8 重复抓取/过滤）。
 final VideoSourceCache _videoCache = VideoSourceCache();
 
+/// 清空已解析视频地址缓存（F-10）。
+///
+/// 播放器「视频链接已失效」重试时调用：缓存里可能存着已过期的签名直链，
+/// 不清缓存会反复拿到旧 URL 而「假死」。清空后重试会重新解析拿到新链接。
+/// 该缓存 TTL 仅 5 分钟且为内存态，全量清空影响可忽略。
+void clearResolvedVideoCache() => _videoCache.clear();
+
 class BuiltinResolver implements SourceResolver {
   /// 可选弹幕匹配器：episodes 路由阶段按番剧名自动填充 dandanplayEpisodeId。
   /// 为 null 时使用 [DandanplayMatcher.defaultInstance]（懒加载）。
