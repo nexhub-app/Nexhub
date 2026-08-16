@@ -306,6 +306,7 @@
   "clearAll": "清除全部",
   "clearAllConfirm": "确定清除全部下载记录吗？已下载的文件不会被删除。",
   "clearHistory": "清除历史",
+  "recentSearches": "最近搜索",
   "clearHistoryConfirm": "确定清除本模块的全部浏览历史吗？阅读进度将保留，重新进入该作品后自动恢复。",
   "historyCleared": "历史已清除",
   "batchPause": "批量暂停",

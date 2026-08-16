@@ -3910,6 +3910,20 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               // 控制栏区域保护：点在顶部/底部控制栏上时交给按钮自身处理，不触发翻页。
               isToolbarRegion: (pos) => _isInToolbarRegion(pos),
             ),
+          // P2：缩放比例指示（放大 >1.001 时顶部居中显示当前倍数，1.2s 后淡出）。
+          // 自包含监听 [_zoomController]（ValueListenableBuilder 只重建徽标本体，
+          // 不触发整屏 setState）。
+          if (_images.isNotEmpty)
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + AppTokens.spaceLg,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Center(
+                  child: _ZoomFactorBadge(controller: _zoomController),
+                ),
+              ),
+            ),
           if (_prefs.flashEnabled)
             Positioned.fill(
               child: IgnorePointer(
@@ -5696,6 +5710,78 @@ class _MangaPageImageState extends State<MangaPageImage> {
       case ReaderInitialZoom.original:
         return (BoxFit.none, null);
     }
+  }
+}
+
+/// 缩放比例指示徽标（P2）：监听共享 [TransformationController]，放大
+/// （>1.001）时显示「2.3×」，停止缩放 1.2s 后淡出；回到 1x 立即隐藏。
+/// 经 ValueListenableBuilder 只重建徽标本体，捏合逐帧变化不触发整屏重建。
+class _ZoomFactorBadge extends StatefulWidget {
+  const _ZoomFactorBadge({required this.controller});
+
+  final TransformationController controller;
+
+  @override
+  State<_ZoomFactorBadge> createState() => _ZoomFactorBadgeState();
+}
+
+class _ZoomFactorBadgeState extends State<_ZoomFactorBadge> {
+  Timer? _hideTimer;
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onZoomMatrixChanged);
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    widget.controller.removeListener(_onZoomMatrixChanged);
+    super.dispose();
+  }
+
+  void _onZoomMatrixChanged() {
+    final zoomed = widget.controller.value.getMaxScaleOnAxis() > 1.001;
+    if (!zoomed) {
+      _hideTimer?.cancel();
+      if (_visible && mounted) setState(() => _visible = false);
+      return;
+    }
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (mounted) setState(() => _visible = false);
+    });
+    if (!_visible && mounted) setState(() => _visible = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_visible) return const SizedBox.shrink();
+    final factor = widget.controller.value.getMaxScaleOnAxis();
+    if (factor <= 1.001) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return AnimatedOpacity(
+      opacity: _visible ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 200),
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          '${factor.toStringAsFixed(1)}×',
+          style: TextStyle(
+            color: scheme.onPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
   }
 }
 

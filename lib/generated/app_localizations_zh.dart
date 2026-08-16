@@ -775,6 +775,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get clearHistory => '清除历史';
 
   @override
+  String get recentSearches => '最近搜索';
+
+  @override
   String get clearHistoryConfirm => '确定清除本模块的全部浏览历史吗？阅读进度将保留，重新进入该作品后自动恢复。';
 
   @override
