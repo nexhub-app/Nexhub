@@ -489,6 +489,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerFirstChapterReached => '已经是第一章了';
 
   @override
+  String readerNextChapterSkipped(Object title) {
+    return '下一章：$title';
+  }
+
+  @override
+  String get readerNextChapterSkippedHint => '点击立即跳转';
+
+  @override
   String get readerSettings => '阅读设置';
 
   @override

@@ -525,9 +525,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
           onChanged: (v) =>
               _update(_draft.copyWith(readerPageSpacing: v.round())),
         ),
-        _switchTile(l10n.readerShowSingleImageOnFirstPage,
-            _draft.showSingleImageOnFirstPage,
-            (v) => _update(_draft.copyWith(showSingleImageOnFirstPage: v))),
         _SliderRow(
           label: l10n.readerScreenPicNumberPortrait,
           value: _draft.readerScreenPicNumberForPortrait.toDouble(),
@@ -808,7 +805,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       '翻页', '点击', '阅读模式', '单页', '竖排', '长条', '条漫',
                       '方向', '屏幕', '横屏', '竖屏', '背景', '侧边距', '缩放',
                       '双击', '点按', '区域', 'tap', 'webtoon', '方向', 'page',
-                      '锚点', '长按缩放', '翻页动画', '自动翻页', '音量键', '音量',
+                      '锚点', '长按缩放', '翻页动画', '音量键', '音量',
                       'zoom', 'anchor', 'fade', 'volume', 'auto',
                     ],
                     children: <Widget>[
@@ -860,8 +857,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                               _draft.copyWith(doubleTapAnimSpeed: v.round())),
                         ),
                       ),
-                      // 自动翻页（REQ-B9，paged 模式）
-                      _buildAutoPageTurning(),
                       // 音量键翻页（REQ-B8，仅 Android）
                       if (_showVolumeKey) _buildVolumeKey(),
                     ],
@@ -909,7 +904,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       '页码', '进度', '进度条', '全屏', '常亮', '旋转', '双页',
                       '分屏', '长按', '防缩', '章节', '过渡', '显示', 'page',
                       'fullscreen', 'screen', '亮度', '自动滚动', '滚动速度',
-                      'auto scroll', 'scroll speed', '滚轮',
+                      'auto scroll', 'scroll speed', '滚轮', '自动翻页',
+                      '翻页间隔', '首屏单图', '单图', 'auto page turn',
                     ],
                     children: <Widget>[
                       _switchTile(l10n.readerCropEdge, _draft.cropEdge,
@@ -940,6 +936,11 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                         }
                         _update(next);
                       }),
+                      // 首屏单图（REQ-C13）：双页模式第一章首页单独显示，其后恢复双页。
+                      _switchTile(l10n.readerShowSingleImageOnFirstPage,
+                          _draft.showSingleImageOnFirstPage,
+                          (v) => _update(
+                              _draft.copyWith(showSingleImageOnFirstPage: v))),
                       _switchTile(l10n.readerFullscreen, _draft.fullscreen,
                           (v) => _update(_draft.copyWith(fullscreen: v))),
                       _switchTile(l10n.readerLongPressMenu, _draft.showLongPressMenu,
@@ -967,6 +968,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                           _draft.showChapterSeparator,
                           (v) => _update(
                               _draft.copyWith(showChapterSeparator: v))),
+                      // 自动翻页（REQ-B9，paged）：开关 + 间隔。
+                      _buildAutoPageTurning(),
                       // 自动滚动（REQ-B10，条漫）：开关 + 滚动速度。
                       _buildAutoScroll(),
                     ],
@@ -1013,7 +1016,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     leading: Icons.grid_view,
                     searchQuery: q,
                     searchTerms: const <String>[
-                      '多图', '间距', '首屏', '单图', '竖屏', '横屏', '每屏',
+                      '多图', '间距', '竖屏', '横屏', '每屏',
                       'multi', 'spacing', 'page', 'single', 'image',
                       'portrait', 'landscape', 'screen',
                     ],

@@ -193,6 +193,17 @@
   "nextChapter": "下一章",
   "readerLastChapterReached": "已经是最后一章了",
   "readerFirstChapterReached": "已经是第一章了",
+  "readerNextChapterSkipped": "下一章：{title}",
+  "@readerNextChapterSkipped": {
+    "description": "条漫跳章过渡提示横幅标题：跳过已读/被筛选/重复章节时显示的目标章标题",
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "readerNextChapterSkippedHint": "点击立即跳转",
+  "@readerNextChapterSkippedHint": {
+    "description": "条漫跳章过渡提示横幅副文本：提示点击可立即跳转"
+  },
   "readerSettings": "阅读设置",
   "readerMode": "阅读模式",
   "readerBackground": "背景",
