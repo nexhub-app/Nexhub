@@ -2434,6 +2434,52 @@
   "seekForward10": "Forward 10s",
   "seekBackward10": "Backward 10s",
   "playerSeekCancel": "Seek canceled",
+  "novelReadingSummary": "Reading summary",
+  "novelSummaryProgress": "Progress: chapter {read} of {total}",
+  "@novelSummaryProgress": {
+    "placeholders": {
+      "read": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "novelSummaryTotalRead": "Total reading time",
+  "novelSummaryToday": "Today",
+  "novelSummarySessionsValue": "{count} sessions",
+  "@novelSummarySessionsValue": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "novelSummaryRemaining": "Est. time to finish: {duration}",
+  "@novelSummaryRemaining": {
+    "placeholders": {"duration": {"type": "String"}}
+  },
+  "novelSummaryCurrentChars": "{count} chars in this chapter",
+  "@novelSummaryCurrentChars": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "novelDurationHourMin": "{h}h {m}m",
+  "@novelDurationHourMin": {
+    "placeholders": {
+      "h": {"type": "int"},
+      "m": {"type": "int"}
+    }
+  },
+  "novelDurationHour": "{h}h",
+  "@novelDurationHour": {
+    "placeholders": {"h": {"type": "int"}}
+  },
+  "novelDurationMin": "{m} min",
+  "@novelDurationMin": {
+    "placeholders": {"m": {"type": "int"}}
+  },
+  "novelSummaryNoStats": "No reading stats yet",
+  "novelSummaryPosition": "Now: {chapter} · page {page}/{pages}",
+  "@novelSummaryPosition": {
+    "placeholders": {
+      "chapter": {"type": "String"},
+      "page": {"type": "int"},
+      "pages": {"type": "int"}
+    }
+  },
   "playerAutoPlayCountdown": "Auto-play next countdown",
   "@playerAutoPlayCountdown": {},
   "playerCountdownImmediate": "Immediate",

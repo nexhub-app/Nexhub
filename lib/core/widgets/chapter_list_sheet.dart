@@ -11,6 +11,8 @@ import '../models/episode.dart';
 /// - [enableSearch]：章节标题搜索，支持正则（[regexSearch] 切换）。
 /// - [bookmarkedIndices]：若提供，则在对应章节显示书签标记，并提供"仅看书签"过滤
 ///   （书签的"增/删"在小说阅读器底栏完成，此处负责查看/筛选/跳转）。
+/// - [sectionOf]：章节 → 分节名（如「第一卷」）。提供时在分节切换处渲染
+///   分节头（本地 TXT 智能分卷分组用）；返回 null 表示该章不归属任何分节。
 /// - 定位当前 / 置顶 / 置底 快捷按钮。
 Future<int?> showChapterList(
   BuildContext context,
@@ -18,6 +20,7 @@ Future<int?> showChapterList(
   int currentIndex, {
   bool enableSearch = true,
   Set<int>? bookmarkedIndices,
+  String? Function(int chapterIndex)? sectionOf,
 }) =>
     showModalBottomSheet<int>(
       context: context,
@@ -27,6 +30,7 @@ Future<int?> showChapterList(
         currentIndex: currentIndex,
         enableSearch: enableSearch,
         bookmarkedIndices: bookmarkedIndices,
+        sectionOf: sectionOf,
       ),
     );
 
@@ -35,12 +39,14 @@ class _ChapterListBody extends StatefulWidget {
   final int currentIndex;
   final bool enableSearch;
   final Set<int>? bookmarkedIndices;
+  final String? Function(int chapterIndex)? sectionOf;
 
   const _ChapterListBody({
     required this.chapters,
     required this.currentIndex,
     this.enableSearch = true,
     this.bookmarkedIndices,
+    this.sectionOf,
   });
 
   @override
@@ -164,7 +170,18 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
                         final isCurrent = idx == widget.currentIndex;
                         final isBookmarked =
                             widget.bookmarkedIndices?.contains(idx) ?? false;
-                        return ListTile(
+                        // 分节头：该章分节名与前一个可见章不同（或为首项）
+                        // 时渲染。null 分节（未归属任何卷）不渲染头。
+                        final sectionOf = widget.sectionOf;
+                        String? header;
+                        if (sectionOf != null) {
+                          final cur = sectionOf(idx);
+                          if (cur != null &&
+                              (i == 0 || sectionOf(visible[i - 1]) != cur)) {
+                            header = cur;
+                          }
+                        }
+                        final tile = ListTile(
                         leading: isCurrent
                             ? Icon(
                                 Icons.play_arrow,
@@ -195,6 +212,28 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
                               : null,
                           selected: isCurrent,
                           onTap: () => Navigator.of(context).pop(idx),
+                        );
+                        if (header == null) return tile;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppTokens.spaceLg,
+                                AppTokens.spaceMd,
+                                AppTokens.spaceLg,
+                                AppTokens.spaceXs,
+                              ),
+                              child: Text(
+                                header,
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            tile,
+                          ],
                         );
                       },
                     ),
