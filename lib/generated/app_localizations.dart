@@ -6026,6 +6026,12 @@ abstract class AppLocalizations {
   /// **'No results'**
   String get noSearchResults;
 
+  /// No description provided for @searchProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Searched {searched}/{total} chapters'**
+  String searchProgress(int searched, int total);
+
   /// No description provided for @customBgColor.
   ///
   /// In en, this message translates to:
