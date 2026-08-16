@@ -1586,6 +1586,12 @@ abstract class AppLocalizations {
   /// **'Clear History'**
   String get clearHistory;
 
+  /// No description provided for @recentSearches.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent searches'**
+  String get recentSearches;
+
   /// No description provided for @clearHistoryConfirm.
   ///
   /// In en, this message translates to:

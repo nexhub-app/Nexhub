@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
@@ -137,6 +140,54 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
   /// 搜索代号：发起新搜索时自增，旧搜索的异步回调据此中止。
   int _generation = 0;
 
+  /// 最近搜索关键词（H5，最新在前，全局共享，最多 10 条）。
+  static const String _kHistoryPrefKey = 'novel_inbook_search_history';
+  static const int _kHistoryMax = 10;
+  List<String> _history = const <String>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_kHistoryPrefKey);
+      if (list != null && list.isNotEmpty && mounted) {
+        setState(() => _history = list.take(_kHistoryMax).toList());
+      }
+    } on Object {
+      // 历史读取失败不影响搜索。
+    }
+  }
+
+  /// 记录一次搜索关键词（去重置顶，超限截尾）并持久化。
+  Future<void> _pushHistory(String keyword) async {
+    final next = <String>[
+      keyword,
+      ..._history.where((k) => k != keyword),
+    ].take(_kHistoryMax).toList();
+    if (mounted) setState(() => _history = next);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_kHistoryPrefKey, next);
+    } on Object {
+      // 持久化失败只影响下次进入的历史展示。
+    }
+  }
+
+  Future<void> _clearHistory() async {
+    setState(() => _history = const <String>[]);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_kHistoryPrefKey, const <String>[]);
+    } on Object {
+      // 忽略。
+    }
+  }
+
   @override
   void dispose() {
     _generation++; // 让进行中的搜索在下一个 await 点退出。
@@ -150,6 +201,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
     final int gen = ++_generation;
     // 关键字按阅读器转换模式同步转换：正文转换后匹配，关键字不转则搜不到。
     final keyword = convertChinese(keywordSrc, widget.convertMode);
+    unawaited(_pushHistory(keywordSrc));
     setState(() {
       _searching = true;
       _results = const <InBookSearchResult>[];
@@ -300,6 +352,45 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                       ),
                     ],
                   ),
+                  // H5：最近搜索关键词（输入为空且非搜索中时展示，点击即搜）。
+                  if (!_searching &&
+                      _controller.text.isEmpty &&
+                      _history.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: AppTokens.spaceSm),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            l10n.recentSearches,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.clear_all, size: 18),
+                          tooltip: l10n.clearHistory,
+                          onPressed: _clearHistory,
+                        ),
+                      ],
+                    ),
+                    Wrap(
+                      spacing: AppTokens.spaceXs,
+                      runSpacing: AppTokens.spaceXs,
+                      children: <Widget>[
+                        for (final kw in _history)
+                          InputChip(
+                            label: Text(
+                              kw,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onPressed: () {
+                              _controller.text = kw;
+                              _search();
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

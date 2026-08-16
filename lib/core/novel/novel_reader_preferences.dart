@@ -265,6 +265,10 @@ class NovelReaderPreferences {
   /// 自动翻页间隔（秒；0 = 关闭，常用值 3/5/10/15）。
   final int autoPageInterval;
 
+  /// 音量键翻页（仅 Android）：音量上 = 上一页、音量下 = 下一页；
+  /// 滚动模式按视口 80% 滚动。默认关闭。
+  final bool volumeKeyPageTurn;
+
   /// 自定义字体 fontFamily（null = 系统默认，'serif' / 'monospace' 等）。
   final String? fontFamily;
 
@@ -393,6 +397,7 @@ class NovelReaderPreferences {
     this.footerRight = NovelHeaderFooterContent.pageNumber,
     this.chineseConvert = 'none',
     this.autoPageInterval = 0,
+    this.volumeKeyPageTurn = false,
     this.fontFamily,
     this.tapZoneInvert = TapZoneInvert.none,
     this.tapZoneLayout = ReaderTapZoneLayout.lShape,
@@ -456,6 +461,7 @@ class NovelReaderPreferences {
     NovelHeaderFooterContent? footerRight,
     String? chineseConvert,
     int? autoPageInterval,
+    bool? volumeKeyPageTurn,
     Object? fontFamily = _kNovelPrefsFontFamilySentinel,
     TapZoneInvert? tapZoneInvert,
     ReaderTapZoneLayout? tapZoneLayout,
@@ -529,6 +535,7 @@ class NovelReaderPreferences {
       footerRight: footerRight ?? this.footerRight,
       chineseConvert: chineseConvert ?? this.chineseConvert,
       autoPageInterval: autoPageInterval ?? this.autoPageInterval,
+      volumeKeyPageTurn: volumeKeyPageTurn ?? this.volumeKeyPageTurn,
       // 用哨兵区分「未传入」与「显式传入 null」。
       fontFamily: identical(fontFamily, _kNovelPrefsFontFamilySentinel)
           ? this.fontFamily
@@ -894,6 +901,7 @@ class NovelReaderPreferences {
         'footerRight': footerRight.name,
         'chineseConvert': chineseConvert,
         'autoPageInterval': autoPageInterval,
+        'volumeKeyPageTurn': volumeKeyPageTurn,
         if (fontFamily != null) 'fontFamily': fontFamily,
         'tapZoneInvert': tapZoneInvert.name,
         'tapZoneLayout': tapZoneLayout.name,
@@ -968,6 +976,7 @@ class NovelReaderPreferences {
           json['footerRight'] as String?),
       chineseConvert: json['chineseConvert'] as String? ?? 'none',
       autoPageInterval: (json['autoPageInterval'] as num?)?.toInt() ?? 0,
+      volumeKeyPageTurn: json['volumeKeyPageTurn'] as bool? ?? false,
       fontFamily: json['fontFamily'] as String?,
       tapZoneInvert: _parseTapZoneInvert(json['tapZoneInvert']),
       tapZoneLayout: _parseTapZoneLayout(json['tapZoneLayout']),
