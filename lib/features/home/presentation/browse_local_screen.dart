@@ -520,6 +520,10 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
           );
           return;
         }
+        // 收集不到图片（空目录 / 目录不存在 / 无可识别图片）：回退通用查看器前
+        // 记警告日志，避免「文件夹打不开 + 日志为空」难以排查。
+        AppLog.instance
+            .w('[本地漫画图片收集] 未收集到图片，回退通用查看器: ${file.path}');
         _openLocalMediaViewer(file);
       case LocalMediaKind.video:
         Navigator.of(context).push(

@@ -43,14 +43,21 @@ Future<List<String>> gatherLocalComicImages(String path) async {
   if (await f.exists()) return <String>[path];
   final dir = Directory(path);
   if (await dir.exists()) {
-    return dir
+    final imgs = dir
         .listSync(recursive: true)
         .whereType<File>()
         .where((x) => isImageFile(x.path))
         .map((x) => x.path)
         .toList()
       ..sort();
+    if (imgs.isEmpty) {
+      // 目录存在但没扫到任何图片：记警告日志，避免「点开无反应 + 日志为空」。
+      AppLog.instance.w('[本地漫画图片收集] 目录存在但未发现任何图片: $path');
+    }
+    return imgs;
   }
+  // 路径既不是文件也不是目录：记错误日志，便于排查「文件夹打不开」。
+  AppLog.instance.e('[本地漫画图片收集] 路径不存在（既非文件也非目录）: $path');
   return const <String>[];
 }
 
