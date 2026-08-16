@@ -7,6 +7,19 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    - _backup_before_revert/**
+    - _dl_tmp/**
+    - _safety/**
+    - _refs_reader/**
+    - _refs_player/**
+    - .pc_now/**
+    - .probe_tmp/**
+    - .qoder/**
+    - .r20_official/**
+    - ku/**
+    - node_modules/**
+    - reference/**
+    - scripts_tmp/**
 include: package:flutter_lints/flutter.yaml
 
 # 设计系统治理规则见 docs/DESIGN_SYSTEM.md。

@@ -12,6 +12,7 @@ void main() {
       doubleTapZoom: false,
       minScale: 1.5,
       maxScale: 5.0,
+      preloadImageCount: 8,
     );
     final back = ReaderPreferences.fromJson(prefs.toJson());
     expect(back.readingMode, ReadingMode.webtoonWithGap);
@@ -21,6 +22,62 @@ void main() {
     expect(back.doubleTapZoom, false);
     expect(back.minScale, 1.5);
     expect(back.maxScale, 5.0);
+    expect(back.preloadImageCount, 8);
+  });
+
+  test('preloadImageCount defaults to 4 and is clamped to 1..16', () {
+    expect(const ReaderPreferences().preloadImageCount, 4);
+    final low = ReaderPreferences.fromJson(
+        <String, dynamic>{'preloadImageCount': 0});
+    expect(low.preloadImageCount, 1);
+    final high = ReaderPreferences.fromJson(
+        <String, dynamic>{'preloadImageCount': 99});
+    expect(high.preloadImageCount, 16);
+    final missing = ReaderPreferences.fromJson(<String, dynamic>{});
+    expect(missing.preloadImageCount, 4);
+  });
+
+  test('seamlessReading and showChapterSeparator default to true and round-trip',
+      () {
+    const def = ReaderPreferences();
+    expect(def.seamlessReading, true);
+    expect(def.showChapterSeparator, true);
+    // 显式关闭可经 JSON 往返保留。
+    const custom = ReaderPreferences(
+        seamlessReading: false, showChapterSeparator: false);
+    final back = ReaderPreferences.fromJson(custom.toJson());
+    expect(back.seamlessReading, false);
+    expect(back.showChapterSeparator, false);
+    // 缺省键回落默认 true。
+    final missing = ReaderPreferences.fromJson(<String, dynamic>{});
+    expect(missing.seamlessReading, true);
+    expect(missing.showChapterSeparator, true);
+  });
+
+  test('seamlessReading and showChapterSeparator copyWith and mergedWith', () {
+    const custom = ReaderPreferences(
+        seamlessReading: false, showChapterSeparator: false);
+    expect(custom.copyWith().seamlessReading, false);
+    expect(custom.copyWith().showChapterSeparator, false);
+    expect(custom.copyWith(seamlessReading: true).seamlessReading, true);
+    expect(custom.copyWith(showChapterSeparator: true).showChapterSeparator,
+        true);
+
+    // 未自定义时回落全局默认，自定义时覆盖。
+    const base = ReaderPreferences(seamlessReading: false);
+    expect(const ReaderPreferences().mergedWith(base).seamlessReading, false);
+    expect(custom.mergedWith(base).seamlessReading, false);
+  });
+
+  test('preloadImageCount copyWith and mergedWith', () {
+    const custom = ReaderPreferences(preloadImageCount: 12);
+    expect(custom.copyWith().preloadImageCount, 12);
+    expect(custom.copyWith(preloadImageCount: 3).preloadImageCount, 3);
+
+    // 未自定义时回落全局默认，自定义时覆盖。
+    const base = ReaderPreferences(preloadImageCount: 10);
+    expect(const ReaderPreferences().mergedWith(base).preloadImageCount, 10);
+    expect(custom.mergedWith(base).preloadImageCount, 12);
   });
 
   test('defaults applied for unknown / missing values', () {
@@ -49,5 +106,107 @@ void main() {
     expect(ReadingMode.webtoonWithGap.isWebtoon, true);
     expect(ReadingMode.singleLTR.isPaged, true);
     expect(ReadingMode.singleVertical.isPaged, true);
+  });
+
+  test('Phase C fields default and round-trip', () {
+    const def = ReaderPreferences();
+    expect(def.readerPageSpacing, 0);
+    expect(def.showSingleImageOnFirstPage, false);
+    expect(def.showClockBattery, false);
+    expect(def.clockBatteryPosition, ClockBatteryPosition.top);
+    expect(def.readerBrightness, 0.0);
+    expect(def.autoDownloadChapters, false);
+    expect(def.skipReadChapters, false);
+    expect(def.skipFilteredChapters, false);
+    expect(def.skipDuplicateChapters, false);
+    expect(def.readerScreenPicNumberForPortrait, 1);
+    expect(def.readerScreenPicNumberForLandscape, 1);
+
+    const custom = ReaderPreferences(
+      readerPageSpacing: 20,
+      showSingleImageOnFirstPage: true,
+      showClockBattery: true,
+      clockBatteryPosition: ClockBatteryPosition.bottom,
+      clockBatteryMargin: 12,
+      clockBatteryOpacity: 0.5,
+      clockBatteryFontSize: 16,
+      readerBrightness: -0.5,
+      autoDownloadChapters: true,
+      skipReadChapters: true,
+      skipFilteredChapters: true,
+      skipDuplicateChapters: true,
+      readerScreenPicNumberForPortrait: 3,
+      readerScreenPicNumberForLandscape: 4,
+    );
+    final back = ReaderPreferences.fromJson(custom.toJson());
+    expect(back.readerPageSpacing, 20);
+    expect(back.showSingleImageOnFirstPage, true);
+    expect(back.showClockBattery, true);
+    expect(back.clockBatteryPosition, ClockBatteryPosition.bottom);
+    expect(back.clockBatteryMargin, 12);
+    expect(back.clockBatteryOpacity, 0.5);
+    expect(back.clockBatteryFontSize, 16);
+    expect(back.readerBrightness, -0.5);
+    expect(back.autoDownloadChapters, true);
+    expect(back.skipReadChapters, true);
+    expect(back.skipFilteredChapters, true);
+    expect(back.skipDuplicateChapters, true);
+    expect(back.readerScreenPicNumberForPortrait, 3);
+    expect(back.readerScreenPicNumberForLandscape, 4);
+  });
+
+  test('Phase C fields clamp on parse', () {
+    final prefs = ReaderPreferences.fromJson(<String, dynamic>{
+      'readerPageSpacing': 999,
+      'readerBrightness': 5.0,
+      'clockBatteryOpacity': 0.05,
+      'readerScreenPicNumberForPortrait': 9,
+      'readerScreenPicNumberForLandscape': 0,
+    });
+    expect(prefs.readerPageSpacing, 50);
+    expect(prefs.readerBrightness, 1.0);
+    expect(prefs.clockBatteryOpacity, 0.1);
+    expect(prefs.readerScreenPicNumberForPortrait, 5);
+    expect(prefs.readerScreenPicNumberForLandscape, 1);
+  });
+
+  test('Phase C fields copyWith and mergedWith', () {
+    const custom = ReaderPreferences(
+      readerBrightness: 0.4,
+      showClockBattery: true,
+      skipDuplicateChapters: true,
+      readerScreenPicNumberForPortrait: 2,
+    );
+    expect(custom.copyWith().readerBrightness, 0.4);
+    expect(custom.copyWith(readerBrightness: -0.2).readerBrightness, -0.2);
+    expect(custom.copyWith(showClockBattery: false).showClockBattery, false);
+
+    const base = ReaderPreferences(readerBrightness: 0.7);
+    // 未自定义时回落全局默认，自定义时覆盖。
+    expect(const ReaderPreferences().mergedWith(base).readerBrightness, 0.7);
+    expect(custom.mergedWith(base).readerBrightness, 0.4);
+    expect(custom.mergedWith(base).showClockBattery, true);
+    expect(custom.mergedWith(base).skipDuplicateChapters, true);
+    expect(custom.mergedWith(base).readerScreenPicNumberForPortrait, 2);
+  });
+
+  test('getReaderSetting resolves three tiers (REQ-C9)', () {
+    const work = ReaderPreferences(background: ReaderBackgroundColor.white);
+    const device = ReaderPreferences(background: ReaderBackgroundColor.gray);
+    // device 层未设置 → 取作品层。
+    expect(
+      getReaderSetting(work, null, (p) => p.background),
+      ReaderBackgroundColor.white,
+    );
+    // device 层设置后 → 取设备层。
+    expect(
+      getReaderSetting(work, device, (p) => p.background),
+      ReaderBackgroundColor.gray,
+    );
+    // 非冲突字段互不影响。
+    expect(
+      getReaderSetting(work, device, (p) => p.readingMode),
+      work.readingMode,
+    );
   });
 }

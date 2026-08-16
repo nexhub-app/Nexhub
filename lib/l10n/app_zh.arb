@@ -295,7 +295,7 @@
   "clearAll": "清除全部",
   "clearAllConfirm": "确定清除全部下载记录吗？已下载的文件不会被删除。",
   "clearHistory": "清除历史",
-  "clearHistoryConfirm": "确定清除本模块的全部浏览历史吗？此操作不可恢复。",
+  "clearHistoryConfirm": "确定清除本模块的全部浏览历史吗？阅读进度将保留，重新进入该作品后自动恢复。",
   "historyCleared": "历史已清除",
   "batchPause": "批量暂停",
   "batchResume": "批量继续",
@@ -1389,6 +1389,22 @@
   "screenshotPathSetting": "截图保存路径",
   "screenshotPathDefault": "默认路径（Documents/screenshots）",
   "imageLoadFailed": "图片加载失败",
+  "imageFavoriteGalleryTitle": "图片收藏",
+  "@imageFavoriteGalleryTitle": {
+    "description": "Gallery screen title for favorited comic images"
+  },
+  "imageFavoriteEmpty": "暂无收藏图片",
+  "@imageFavoriteEmpty": {
+    "description": "Empty state shown when no images have been favorited"
+  },
+  "imageFavoriteDeleteConfirm": "确定删除这张收藏图片吗？",
+  "@imageFavoriteDeleteConfirm": {
+    "description": "Confirmation dialog before removing a favorited image"
+  },
+  "imageFavoriteDeleted": "已删除收藏图片",
+  "@imageFavoriteDeleted": {
+    "description": "Snackbar shown after a favorited image is removed"
+  },
   "seriesTitle": "系列",
   "@seriesTitle": {
     "description": "Series entry button label and series detail screen title"
@@ -2243,6 +2259,79 @@
   "readerGrayscale": "灰度",
   "readerPreventShrink": "防止缩小",
   "readerChapterTransition": "章节过渡",
+  "readerPreloadCount": "预加载数量",
+  "readerPreloadCountDesc": "距章末 / 章首多少页时开始预载相邻章节（越大越流畅，占用更多流量）",
+  "readerSeamlessReading": "跨章无缝续读",
+  "readerSeamlessReadingDesc": "章末 / 章首直接续读相邻章（复用预载缓存），不重建章节、无白屏",
+  "readerChapterSeparator": "章分割过渡",
+  "readerChapterSeparatorDesc": "条漫连续模式下，章节之间插入章节标题卡",
+  "readerScrollSpeed": "滚动速度",
+  "readerScrollSpeedDesc": "鼠标滚轮在条漫模式下的滚动增量倍率（0.5x–3x）",
+  "readerVolumeKeyPageTurn": "音量键翻页",
+  "readerVolumeKeyPageTurnDesc": "Android 拦截音量上/下翻页（翻页模式：翻页；条漫模式：按距离滚动）",
+  "readerVolumeKeyDistance": "音量键滚动距离",
+  "readerVolumeKeyDistanceDesc": "条漫模式下音量键每次滚动的距离（占视口高度百分比）",
+  "readerLongPressZoom": "长按缩放",
+  "readerLongPressZoomDesc": "长按进入 1.75x 缩放（再长按/松手退出）；关闭时保持长按弹菜单",
+  "readerLongPressAtPress": "按触点",
+  "readerLongPressAtCenter": "屏幕中心",
+  "readerLongPressZoomPosition": "长按缩放锚点",
+  "readerZoomStart": "缩放锚点",
+  "readerZoomStartLeft": "左侧",
+  "readerZoomStartCenter": "中心",
+  "readerZoomStartRight": "右侧",
+  "readerAutoPageTurning": "自动翻页",
+  "readerAutoPageTurningDesc": "翻页模式按固定间隔自动翻页（0=关闭）",
+  "readerAutoPageInterval": "自动翻页间隔（秒）",
+  "readerAutoScroll": "自动滚动",
+  "readerAutoScrollDesc": "条漫模式下按上方滚动速度平滑自动滚动",
+  "readerPageAnimation": "翻页过渡动画",
+  "readerPageAnimNone": "无动画",
+  "readerPageAnimSlide": "滑入",
+  "readerPageAnimFade": "淡入淡出",
+  "readerDoubleTapAnimSpeed": "双击缩放动画",
+  "readerDoubleTapAnimSpeedDesc": "双击缩放动画时长（毫秒，随系统减弱动态效果按比例缩放）",
+  "readerPageSpacing": "页间距",
+  "readerPageSpacingDesc": "条漫相邻页间距（像素）",
+  "readerShowSingleImageOnFirstPage": "首屏单图",
+  "readerShowSingleImageOnFirstPageDesc": "双页模式第一章第一页单独显示，其后恢复双页",
+  "readerClockBattery": "时间 / 电量浮层",
+  "readerClockBatteryDesc": "在阅读器显示当前时间与电量，随控制栏显隐",
+  "readerClockPosition": "浮层位置",
+  "readerClockPosTop": "顶部",
+  "readerClockPosBottom": "底部",
+  "readerClockMargin": "边距",
+  "readerClockOpacity": "透明度",
+  "readerClockFontSize": "字号",
+  "readerBrightness": "阅读亮度",
+  "readerBrightnessDesc": "正值写入系统亮度；负值压暗系统亮度并叠加黑色遮罩",
+  "readerAutoDownload": "自动下载后续章节",
+  "readerAutoDownloadDesc": "读到当前章 25% 后后台下载后续章节（失败静默）",
+  "readerSkipReadChapters": "跳过已读章节",
+  "readerSkipReadChaptersDesc": "下/上一章时跳过已读章节",
+  "readerSkipFilteredChapters": "跳过被筛选章节",
+  "readerSkipFilteredChaptersDesc": "下/上一章时跳过被筛选的章节",
+  "readerSkipDuplicateChapters": "跳过重复章节",
+  "readerSkipDuplicateChaptersDesc": "下/上一章时跳过标题重复的章节",
+  "readerScreenPicNumberPortrait": "竖屏每屏图片数",
+  "readerScreenPicNumberLandscape": "横屏每屏图片数",
+  "readerScreenPicNumberDesc": "一屏纵向堆叠多张图片（1–5）",
+  "readerChapterBookmark": "收藏此章",
+  "readerChapterBookmarked": "已收藏该章",
+  "readerChapterBookmarkRemoved": "已取消收藏该章",
+  "readerImageFavorite": "图片收藏",
+  "readerFavoriteImage": "收藏此图",
+  "imageFavoriteAdded": "已收藏此图",
+  "imageFavoriteRemoved": "已取消收藏此图",
+  "readerClockBatteryPercent": "{percent}%",
+  "@readerClockBatteryPercent": {
+    "description": "Battery percentage in clock/battery overlay",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "comicDefaultFullscreen": "全屏",
   "comicDefaultLongPressMenu": "长按菜单",
   "comicDefaultGrayscale": "灰度",
@@ -2423,6 +2512,12 @@
   "readerGroupViewFilter": "画面与滤镜",
   "readerGroupProgress": "进度与显示",
   "readerGroupFlash": "闪屏效果",
+  "readerGroupAuto": "自动（下载/跳章过滤）",
+  "readerGroupAutoDesc": "阅读中自动下载后续章节，以及下/上一章时跳过已读、被筛选或重复章节。",
+  "readerGroupOverlay": "浮层（时间/电量）",
+  "readerGroupOverlayDesc": "在阅读器显示当前时间与电量，并调节其位置、边距、透明度与字号。",
+  "readerGroupMulti": "多图与间距",
+  "readerGroupMultiDesc": "每屏多图、首屏单图与条漫页间距设置。",
   "readerCommonSettings": "常用设置",
   "readerGroupPageTapDesc": "调整翻页方式、屏幕方向、点击区域与缩放等基础阅读操作。",
   "readerGroupViewFilterDesc": "调节亮度、对比度、色温与灰度等画面效果。",
@@ -3112,6 +3207,18 @@
   "comicSectionMouseWheel": "鼠标滚轮",
   "@comicSectionMouseWheel": {
     "description": "漫画阅读器设置 - 鼠标滚轮分组标题"
+  },
+  "comicReaderAutoSection": "自动（下载 / 跳章过滤）",
+  "@comicReaderAutoSection": {
+    "description": "漫画阅读器设置 - 自动下载与跳章过滤分组标题"
+  },
+  "comicReaderOverlaySection": "浮层（时间 / 电量）",
+  "@comicReaderOverlaySection": {
+    "description": "漫画阅读器设置 - 时间/电量浮层分组标题"
+  },
+  "comicReaderMultiImageSection": "多图 / 间距",
+  "@comicReaderMultiImageSection": {
+    "description": "漫画阅读器设置 - 多图与间距分组标题"
   },
   "statsOverviewTitle": "统计",
   "@statsOverviewTitle": {

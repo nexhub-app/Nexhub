@@ -115,4 +115,30 @@ class ComicBookmarkManager {
     final list = await listFor(comicId);
     return list.any((b) => b.chapterIndex == chapterIndex);
   }
+
+  /// 删除指定章节的全部书签（按 comicId + chapterIndex，用于顶栏 toggle）。
+  Future<void> removeForChapter(String comicId, int chapterIndex) async {
+    final box = await _openBox();
+    final list = await listFor(comicId);
+    for (final bm in list.where((b) => b.chapterIndex == chapterIndex)) {
+      await box.delete(bm.key);
+    }
+  }
+
+  /// 顶栏书签 toggle：已书签则取消，否则添加当前章书签。
+  Future<bool> toggleChapter(String comicId, int chapterIndex,
+      {required String chapterId, required String chapterTitle}) async {
+    if (await hasBookmark(comicId, chapterIndex)) {
+      await removeForChapter(comicId, chapterIndex);
+      return false;
+    }
+    await add(ComicBookmark(
+      comicId: comicId,
+      chapterIndex: chapterIndex,
+      chapterId: chapterId,
+      chapterTitle: chapterTitle,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    ));
+    return true;
+  }
 }

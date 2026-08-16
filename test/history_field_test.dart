@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:nexhub/core/comic/models/reader_preferences.dart';
 import 'package:nexhub/core/history/history_manager.dart';
 import 'package:nexhub/core/models/media_item.dart';
 import 'package:nexhub/core/models/plugin_config.dart';
@@ -202,6 +203,173 @@ void main() {
       expect(restored.lastChapter, isNull);
       expect(restored.category, isNull);
       expect(restored.status, isNull);
+    });
+  });
+
+  group('HistoryEntry.hidden round-trip', () {
+    test('toJson/fromJson 保留 hidden=true', () {
+      const entry = HistoryEntry(
+        id: 'hid-1',
+        title: 'Hidden',
+        sourceType: SourceType.mangaSource,
+        viewedAt: 1,
+        hidden: true,
+      );
+      final restored = HistoryEntry.fromJson(entry.toJson());
+
+      expect(restored.hidden, isTrue);
+    });
+
+    test('toJson 默认输出 hidden=false', () {
+      const entry = HistoryEntry(
+        id: 'hid-0',
+        title: 'Visible',
+        sourceType: SourceType.mangaSource,
+        viewedAt: 2,
+      );
+      final json = entry.toJson();
+
+      expect(json['hidden'], isFalse);
+    });
+
+    test('旧数据缺 hidden 字段按 false 解析（向后兼容）', () {
+      final entry = HistoryEntry.fromJson(const <String, dynamic>{
+        'id': 'old-hidden',
+        'title': 'Old',
+        'sourceType': 'mangaSource',
+        'viewedAt': 3,
+      });
+
+      expect(entry.hidden, isFalse);
+    });
+
+    test('copyWith 可翻转 hidden', () {
+      const entry = HistoryEntry(
+        id: 'cw-1',
+        title: 'CW',
+        sourceType: SourceType.animeSource,
+        viewedAt: 4,
+      );
+      expect(entry.hidden, isFalse);
+
+      final hidden = entry.copyWith(hidden: true);
+      expect(hidden.hidden, isTrue);
+
+      final restored = hidden.copyWith(hidden: false);
+      expect(restored.hidden, isFalse);
+
+      // 未指定 hidden 时保留原值。
+      final unchanged = hidden.copyWith();
+      expect(unchanged.hidden, isTrue);
+    });
+  });
+
+  group('HistoryManager hidden（REQ-C8 软删除）', () {
+    HistoryManager newManager() => HistoryManager(backend: InMemoryBackend());
+
+    Future<void> add(
+      HistoryManager m,
+      String id,
+      String title,
+      SourceType type,
+    ) =>
+        m.addHistory(
+          MediaItem(id: id, title: title, sourceType: type),
+          sourceType: type,
+        );
+
+    test('hideAll 后 historyFor 过滤 hidden，但条目仍保留（可 findById）', () async {
+      final m = newManager();
+      await add(m, 'h-1', 'Hidden One', SourceType.mangaSource);
+      await add(m, 'h-2', 'Visible Two', SourceType.mangaSource);
+      expect(m.historyFor(SourceType.mangaSource), hasLength(2));
+
+      await m.hideAll(SourceType.mangaSource);
+
+      // 列表不再显示已隐藏条目。
+      expect(m.historyFor(SourceType.mangaSource), isEmpty);
+      // 条目本身与进度仍保留（内部缓存未被物理删除）。
+      final HistoryEntry? kept = m.findById('h-1');
+      expect(kept, isNotNull);
+      expect(kept!.hidden, isTrue);
+      expect(kept.title, 'Hidden One');
+    });
+
+    test('clearHistory 同为软删除（保留条目）', () async {
+      final m = newManager();
+      await add(m, 'c-1', 'Cleared', SourceType.novelSource);
+
+      await m.clearHistory(SourceType.novelSource);
+
+      expect(m.historyFor(SourceType.novelSource), isEmpty);
+      final HistoryEntry? kept = m.findById('c-1');
+      expect(kept, isNotNull);
+      expect(kept!.hidden, isTrue);
+    });
+
+    test('restore 复原 hidden=false，条目重新出现在列表', () async {
+      final m = newManager();
+      await add(m, 'r-1', 'Restored', SourceType.animeSource);
+      await m.hideAll(SourceType.animeSource);
+      expect(m.historyFor(SourceType.animeSource), isEmpty);
+
+      await m.restore('r-1', sourceType: SourceType.animeSource);
+
+      final list = m.historyFor(SourceType.animeSource);
+      expect(list, hasLength(1));
+      expect(list.single.id, 'r-1');
+      expect(list.single.hidden, isFalse);
+    });
+
+    test('markHidden 单条软删除，不影响其他条目', () async {
+      final m = newManager();
+      await add(m, 's-1', 'Single Hidden', SourceType.mangaSource);
+      await add(m, 's-2', 'Kept', SourceType.mangaSource);
+
+      await m.markHidden('s-1', sourceType: SourceType.mangaSource);
+
+      final list = m.historyFor(SourceType.mangaSource);
+      expect(list, hasLength(1));
+      expect(list.single.id, 's-2');
+      expect(m.findById('s-1')!.hidden, isTrue);
+    });
+
+    test('addHistory 重读自动复原（hidden 条目重新进入后可见）', () async {
+      final m = newManager();
+      await add(m, 'a-1', 'Auto Restore', SourceType.mangaSource);
+      await m.hideAll(SourceType.mangaSource);
+      expect(m.historyFor(SourceType.mangaSource), isEmpty);
+
+      // 模拟用户重新进入该作品：详情/阅读器调用 addHistory 记录浏览。
+      await add(m, 'a-1', 'Auto Restore', SourceType.mangaSource);
+
+      final list = m.historyFor(SourceType.mangaSource);
+      expect(list, hasLength(1));
+      expect(list.single.id, 'a-1');
+      expect(list.single.hidden, isFalse);
+    });
+
+    test('removeHistory 仍为物理删除（findById 不可再取到）', () async {
+      final m = newManager();
+      await add(m, 'd-1', 'Physical Delete', SourceType.mangaSource);
+
+      await m.removeHistory('d-1', sourceType: SourceType.mangaSource);
+
+      expect(m.findById('d-1'), isNull);
+      expect(m.historyFor(SourceType.mangaSource), isEmpty);
+    });
+
+    test('clearAll 为物理清空（全部条目移除）', () async {
+      final m = newManager();
+      await add(m, 'p-1', 'Purge One', SourceType.mangaSource);
+      await add(m, 'p-2', 'Purge Two', SourceType.novelSource);
+
+      await m.clearAll();
+
+      expect(m.findById('p-1'), isNull);
+      expect(m.findById('p-2'), isNull);
+      expect(m.historyFor(SourceType.mangaSource), isEmpty);
+      expect(m.historyFor(SourceType.novelSource), isEmpty);
     });
   });
 }

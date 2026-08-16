@@ -10,6 +10,7 @@
 /// 新增 box 时**只在这一个常量里加一行**，splash 启动与云同步自动覆盖。
 library;
 
+import '../comic/image_favorite_manager.dart';
 import '../services/bangumi/subject_link_store.dart';
 import '../services/source_library_bookmarks.dart';
 import '../services/source_library_subscription.dart';
@@ -33,6 +34,8 @@ const List<String> kStorageBoxNames = <String>[
   'settings',
   'novel_bookmarks',
   'comic_bookmarks',
+  // 漫画阅读器收藏的图片（图库页数据，REQ-C2）
+  ImageFavoriteManager.boxName, // 'image_favorites'
   'media_watched',
   'media_playback_position',
   'source_mirrors',

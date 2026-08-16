@@ -219,6 +219,67 @@ enum MouseWheelAction {
       };
 }
 
+/// 缩放锚点（双击 / 长按缩放的锚点来源，REQ-B11）。
+enum ZoomStart {
+  /// 屏幕左侧（左右 1/4 处）。
+  left,
+
+  /// 屏幕中心（默认）。
+  center,
+
+  /// 屏幕右侧（左右 3/4 处）。
+  right;
+
+  String l10nKey() => switch (this) {
+        ZoomStart.left => 'readerZoomStartLeft',
+        ZoomStart.center => 'readerZoomStartCenter',
+        ZoomStart.right => 'readerZoomStartRight',
+      };
+}
+
+/// 长按缩放锚点（REQ-B2）。
+enum LongPressZoomPosition {
+  /// 按触点放大（默认）。
+  press,
+
+  /// 按屏幕中心放大。
+  center;
+
+  String l10nKey() => switch (this) {
+        LongPressZoomPosition.press => 'readerLongPressAtPress',
+        LongPressZoomPosition.center => 'readerLongPressAtCenter',
+      };
+}
+
+/// 翻页过渡动画（REQ-B7）：paged 模式翻页时的视觉过渡。
+enum ReaderPageAnimation {
+  /// 无动画（瞬切）。
+  none,
+
+  /// 滑入（默认）。
+  slide,
+
+  /// 淡入淡出。
+  fade;
+
+  String l10nKey() => switch (this) {
+        ReaderPageAnimation.none => 'readerPageAnimNone',
+        ReaderPageAnimation.slide => 'readerPageAnimSlide',
+        ReaderPageAnimation.fade => 'readerPageAnimFade',
+      };
+}
+
+/// 时间/电量浮层位置（REQ-C5）：顶部 / 底部。
+enum ClockBatteryPosition {
+  top,
+  bottom;
+
+  String l10nKey() => switch (this) {
+        ClockBatteryPosition.top => 'readerClockPosTop',
+        ClockBatteryPosition.bottom => 'readerClockPosBottom',
+      };
+}
+
 /// 解析滚轮作用（容错：非法字符串回退 zoom）。
 MouseWheelAction _parseMouseWheelAction(Object? raw) {
   if (raw is String) {
@@ -228,6 +289,50 @@ MouseWheelAction _parseMouseWheelAction(Object? raw) {
     );
   }
   return MouseWheelAction.zoom;
+}
+
+/// 解析缩放锚点（容错：非法字符串回退 center）。
+ZoomStart _parseZoomStart(Object? raw) {
+  if (raw is String) {
+    return ZoomStart.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => ZoomStart.center,
+    );
+  }
+  return ZoomStart.center;
+}
+
+/// 解析长按缩放锚点（容错：非法字符串回退 press）。
+LongPressZoomPosition _parseLongPressZoomPosition(Object? raw) {
+  if (raw is String) {
+    return LongPressZoomPosition.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => LongPressZoomPosition.press,
+    );
+  }
+  return LongPressZoomPosition.press;
+}
+
+/// 解析翻页过渡动画（容错：非法字符串回退 slide）。
+ReaderPageAnimation _parsePageAnimation(Object? raw) {
+  if (raw is String) {
+    return ReaderPageAnimation.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => ReaderPageAnimation.slide,
+    );
+  }
+  return ReaderPageAnimation.slide;
+}
+
+/// 解析时间/电量浮层位置（容错：非法字符串回退 top）。
+ClockBatteryPosition _parseClockBatteryPosition(Object? raw) {
+  if (raw is String) {
+    return ClockBatteryPosition.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => ClockBatteryPosition.top,
+    );
+  }
+  return ClockBatteryPosition.top;
 }
 
 /// 阅读器偏好（按作品持久化）。
@@ -321,6 +426,77 @@ class ReaderPreferences {
   /// 双击任意处可进入/退出放大态，放大后单指/鼠标拖动平移。
   final MouseWheelAction mouseWheelAction;
 
+  /// 预加载数量：距章末/章首多少页时开始预加载相邻章节（范围 1–16，默认 4）。
+  final int preloadImageCount;
+
+  /// 跨章无缝续读：章末/章首直接续读相邻章（复用预载缓存），不重建章节、无白屏。
+  /// 关闭时保持传统的「整章加载 + 过渡标题卡」行为。
+  final bool seamlessReading;
+
+  /// 段式连续模型下，段与段之间是否插入「章分割/过渡」条目（章节标题卡）。
+  /// 仅对 webtoon（条漫）连续模式生效。
+  final bool showChapterSeparator;
+
+  /// 鼠标滚轮滚动速度倍率（webtoon 连续滚动增量 × 本值），范围 0.5–3.0，默认 1.0。
+  /// paged 模式滚轮翻页行为不受影响（REQ-B5）。
+  final double readerScrollSpeed;
+
+  /// 音量键翻页开关（Android 拦截音量上/下翻页；其他平台并入键盘）。
+  final bool volumeKeyPageTurn;
+
+  /// 音量键在 webtoon（条漫）模式下的竖向滚动步长（占视口高度百分比），范围 10–100，默认 40。
+  final int volumeKeyPageTurnDistancePercent;
+
+  /// 长按缩放开关（REQ-B2）：开启后长按图片进入 1.75x 缩放（再长按/松手退出）；
+  /// 关闭时保持长按弹菜单行为。
+  final bool enableLongPressToZoom;
+
+  /// 长按缩放锚点（REQ-B2）：[press]=按触点，[center]=按屏幕中心。
+  final LongPressZoomPosition longPressZoomPosition;
+
+  /// 双击 / 长按缩放锚点来源（REQ-B11）：left / center / right。
+  final ZoomStart zoomStart;
+
+  /// 自动翻页间隔（秒），0=关闭（默认）。paged 模式定时自动翻页。
+  final int autoPageTurningInterval;
+
+  /// 自动滚动开关（webtoon 平滑自动滚动，速度随 [readerScrollSpeed]）。
+  final bool autoScroll;
+
+  /// paged 翻页过渡动画（REQ-B7）：none=瞬切 / slide=滑入 / fade=淡入淡出。
+  final ReaderPageAnimation pageAnimation;
+
+  /// 双击缩放动画时长（毫秒，REQ-B7），默认 500。随系统 [MediaQuery.disableAnimations] 比例。
+  final int doubleTapAnimSpeed;
+
+  /// webtoon 相邻页间距（像素，REQ-C14），范围 0–50，默认 0。
+  final int readerPageSpacing;
+
+  /// 首屏单图（REQ-C13）：双页模式第一章第一页单独显示，其后恢复双页。
+  final bool showSingleImageOnFirstPage;
+
+  /// 时间/电量浮层（REQ-C5）。
+  final bool showClockBattery;
+  final ClockBatteryPosition clockBatteryPosition;
+  final double clockBatteryMargin;
+  final double clockBatteryOpacity;
+  final double clockBatteryFontSize;
+
+  /// 系统亮度（REQ-C3）：-1.0~1.0，0=不干预；正值写系统亮度、负值叠加黑色遮罩。
+  final double readerBrightness;
+
+  /// 阅读中自动下载后续章节（REQ-C7）：进度越过当前章 25% 时后台入队。
+  final bool autoDownloadChapters;
+
+  /// 跳章过滤（REQ-C11）：下/上一章时跳过已读 / 被筛选 / 标题重复章节。
+  final bool skipReadChapters;
+  final bool skipFilteredChapters;
+  final bool skipDuplicateChapters;
+
+  /// 每屏多图 gallery（REQ-C4）：竖/横屏一屏纵向堆叠张数，1–5，默认 1。
+  final int readerScreenPicNumberForPortrait;
+  final int readerScreenPicNumberForLandscape;
+
   const ReaderPreferences({
     this.readingMode = ReadingMode.singleLTR,
     this.doubleTapZoom = true,
@@ -356,6 +532,33 @@ class ReaderPreferences {
     this.doubleTapZoomScale = 2.0,
     this.scrollWheelInverted = false,
     this.mouseWheelAction = MouseWheelAction.zoom,
+    this.preloadImageCount = 4,
+    this.seamlessReading = true,
+    this.showChapterSeparator = true,
+    this.readerScrollSpeed = 1.0,
+    this.volumeKeyPageTurn = false,
+    this.volumeKeyPageTurnDistancePercent = 40,
+    this.enableLongPressToZoom = false,
+    this.longPressZoomPosition = LongPressZoomPosition.press,
+    this.zoomStart = ZoomStart.center,
+    this.autoPageTurningInterval = 0,
+    this.autoScroll = false,
+    this.pageAnimation = ReaderPageAnimation.slide,
+    this.doubleTapAnimSpeed = 500,
+    this.readerPageSpacing = 0,
+    this.showSingleImageOnFirstPage = false,
+    this.showClockBattery = false,
+    this.clockBatteryPosition = ClockBatteryPosition.top,
+    this.clockBatteryMargin = 8.0,
+    this.clockBatteryOpacity = 0.8,
+    this.clockBatteryFontSize = 12.0,
+    this.readerBrightness = 0.0,
+    this.autoDownloadChapters = false,
+    this.skipReadChapters = false,
+    this.skipFilteredChapters = false,
+    this.skipDuplicateChapters = false,
+    this.readerScreenPicNumberForPortrait = 1,
+    this.readerScreenPicNumberForLandscape = 1,
   });
 
   /// 滤镜是否为默认值（各轴均为 0 且不反色/不灰度），用于跳过无谓的 ColorFiltered 图层。
@@ -442,6 +645,58 @@ class ReaderPreferences {
           (json['doubleTapZoomScale'] as num?)?.toDouble() ?? 2.0,
       scrollWheelInverted: json['scrollWheelInverted'] as bool? ?? false,
       mouseWheelAction: _parseMouseWheelAction(json['mouseWheelAction']),
+      preloadImageCount:
+          ((json['preloadImageCount'] as num?)?.toInt() ?? 4).clamp(1, 16),
+      seamlessReading: json['seamlessReading'] as bool? ?? true,
+      showChapterSeparator: json['showChapterSeparator'] as bool? ?? true,
+      readerScrollSpeed:
+          ((json['readerScrollSpeed'] as num?)?.toDouble() ?? 1.0)
+              .clamp(0.5, 3.0),
+      volumeKeyPageTurn: json['volumeKeyPageTurn'] as bool? ?? false,
+      volumeKeyPageTurnDistancePercent:
+          ((json['volumeKeyPageTurnDistancePercent'] as num?)?.toInt() ?? 40)
+              .clamp(10, 100),
+      enableLongPressToZoom:
+          json['enableLongPressToZoom'] as bool? ?? false,
+      longPressZoomPosition:
+          _parseLongPressZoomPosition(json['longPressZoomPosition']),
+      zoomStart: _parseZoomStart(json['zoomStart']),
+      autoPageTurningInterval:
+          ((json['autoPageTurningInterval'] as num?)?.toInt() ?? 0)
+              .clamp(0, 20),
+      autoScroll: json['autoScroll'] as bool? ?? false,
+      pageAnimation: _parsePageAnimation(json['pageAnimation']),
+      doubleTapAnimSpeed:
+          ((json['doubleTapAnimSpeed'] as num?)?.toInt() ?? 500)
+              .clamp(100, 1500),
+      readerPageSpacing:
+          ((json['readerPageSpacing'] as num?)?.toInt() ?? 0).clamp(0, 50),
+      showSingleImageOnFirstPage:
+          json['showSingleImageOnFirstPage'] as bool? ?? false,
+      showClockBattery: json['showClockBattery'] as bool? ?? false,
+      clockBatteryPosition:
+          _parseClockBatteryPosition(json['clockBatteryPosition']),
+      clockBatteryMargin:
+          (json['clockBatteryMargin'] as num?)?.toDouble() ?? 8.0,
+      clockBatteryOpacity:
+          ((json['clockBatteryOpacity'] as num?)?.toDouble() ?? 0.8)
+              .clamp(0.1, 1.0),
+      clockBatteryFontSize:
+          (json['clockBatteryFontSize'] as num?)?.toDouble() ?? 12.0,
+      readerBrightness:
+          ((json['readerBrightness'] as num?)?.toDouble() ?? 0.0)
+              .clamp(-1.0, 1.0),
+      autoDownloadChapters:
+          json['autoDownloadChapters'] as bool? ?? false,
+      skipReadChapters: json['skipReadChapters'] as bool? ?? false,
+      skipFilteredChapters: json['skipFilteredChapters'] as bool? ?? false,
+      skipDuplicateChapters: json['skipDuplicateChapters'] as bool? ?? false,
+      readerScreenPicNumberForPortrait:
+          ((json['readerScreenPicNumberForPortrait'] as num?)?.toInt() ?? 1)
+              .clamp(1, 5),
+      readerScreenPicNumberForLandscape:
+          ((json['readerScreenPicNumberForLandscape'] as num?)?.toInt() ?? 1)
+              .clamp(1, 5),
     );
   }
 
@@ -480,6 +735,33 @@ class ReaderPreferences {
         'doubleTapZoomScale': doubleTapZoomScale,
         'scrollWheelInverted': scrollWheelInverted,
         'mouseWheelAction': mouseWheelAction.name,
+        'preloadImageCount': preloadImageCount,
+        'seamlessReading': seamlessReading,
+        'showChapterSeparator': showChapterSeparator,
+        'readerScrollSpeed': readerScrollSpeed,
+        'volumeKeyPageTurn': volumeKeyPageTurn,
+        'volumeKeyPageTurnDistancePercent': volumeKeyPageTurnDistancePercent,
+        'enableLongPressToZoom': enableLongPressToZoom,
+        'longPressZoomPosition': longPressZoomPosition.name,
+        'zoomStart': zoomStart.name,
+        'autoPageTurningInterval': autoPageTurningInterval,
+        'autoScroll': autoScroll,
+        'pageAnimation': pageAnimation.name,
+        'doubleTapAnimSpeed': doubleTapAnimSpeed,
+        'readerPageSpacing': readerPageSpacing,
+        'showSingleImageOnFirstPage': showSingleImageOnFirstPage,
+        'showClockBattery': showClockBattery,
+        'clockBatteryPosition': clockBatteryPosition.name,
+        'clockBatteryMargin': clockBatteryMargin,
+        'clockBatteryOpacity': clockBatteryOpacity,
+        'clockBatteryFontSize': clockBatteryFontSize,
+        'readerBrightness': readerBrightness,
+        'autoDownloadChapters': autoDownloadChapters,
+        'skipReadChapters': skipReadChapters,
+        'skipFilteredChapters': skipFilteredChapters,
+        'skipDuplicateChapters': skipDuplicateChapters,
+        'readerScreenPicNumberForPortrait': readerScreenPicNumberForPortrait,
+        'readerScreenPicNumberForLandscape': readerScreenPicNumberForLandscape,
       };
 
   ReaderPreferences copyWith({
@@ -517,6 +799,33 @@ class ReaderPreferences {
     double? doubleTapZoomScale,
     bool? scrollWheelInverted,
     MouseWheelAction? mouseWheelAction,
+    int? preloadImageCount,
+    bool? seamlessReading,
+    bool? showChapterSeparator,
+    double? readerScrollSpeed,
+    bool? volumeKeyPageTurn,
+    int? volumeKeyPageTurnDistancePercent,
+    bool? enableLongPressToZoom,
+    LongPressZoomPosition? longPressZoomPosition,
+    ZoomStart? zoomStart,
+    int? autoPageTurningInterval,
+    bool? autoScroll,
+    ReaderPageAnimation? pageAnimation,
+    int? doubleTapAnimSpeed,
+    int? readerPageSpacing,
+    bool? showSingleImageOnFirstPage,
+    bool? showClockBattery,
+    ClockBatteryPosition? clockBatteryPosition,
+    double? clockBatteryMargin,
+    double? clockBatteryOpacity,
+    double? clockBatteryFontSize,
+    double? readerBrightness,
+    bool? autoDownloadChapters,
+    bool? skipReadChapters,
+    bool? skipFilteredChapters,
+    bool? skipDuplicateChapters,
+    int? readerScreenPicNumberForPortrait,
+    int? readerScreenPicNumberForLandscape,
   }) =>
       ReaderPreferences(
         readingMode: readingMode ?? this.readingMode,
@@ -554,6 +863,47 @@ class ReaderPreferences {
         doubleTapZoomScale: doubleTapZoomScale ?? this.doubleTapZoomScale,
         scrollWheelInverted: scrollWheelInverted ?? this.scrollWheelInverted,
         mouseWheelAction: mouseWheelAction ?? this.mouseWheelAction,
+        preloadImageCount: preloadImageCount ?? this.preloadImageCount,
+        seamlessReading: seamlessReading ?? this.seamlessReading,
+        showChapterSeparator:
+            showChapterSeparator ?? this.showChapterSeparator,
+        readerScrollSpeed: readerScrollSpeed ?? this.readerScrollSpeed,
+        volumeKeyPageTurn: volumeKeyPageTurn ?? this.volumeKeyPageTurn,
+        volumeKeyPageTurnDistancePercent:
+            volumeKeyPageTurnDistancePercent ??
+                this.volumeKeyPageTurnDistancePercent,
+        enableLongPressToZoom:
+            enableLongPressToZoom ?? this.enableLongPressToZoom,
+        longPressZoomPosition:
+            longPressZoomPosition ?? this.longPressZoomPosition,
+        zoomStart: zoomStart ?? this.zoomStart,
+        autoPageTurningInterval:
+            autoPageTurningInterval ?? this.autoPageTurningInterval,
+        autoScroll: autoScroll ?? this.autoScroll,
+        pageAnimation: pageAnimation ?? this.pageAnimation,
+        doubleTapAnimSpeed: doubleTapAnimSpeed ?? this.doubleTapAnimSpeed,
+        readerPageSpacing: readerPageSpacing ?? this.readerPageSpacing,
+        showSingleImageOnFirstPage:
+            showSingleImageOnFirstPage ?? this.showSingleImageOnFirstPage,
+        showClockBattery: showClockBattery ?? this.showClockBattery,
+        clockBatteryPosition:
+            clockBatteryPosition ?? this.clockBatteryPosition,
+        clockBatteryMargin: clockBatteryMargin ?? this.clockBatteryMargin,
+        clockBatteryOpacity: clockBatteryOpacity ?? this.clockBatteryOpacity,
+        clockBatteryFontSize:
+            clockBatteryFontSize ?? this.clockBatteryFontSize,
+        readerBrightness: readerBrightness ?? this.readerBrightness,
+        autoDownloadChapters:
+            autoDownloadChapters ?? this.autoDownloadChapters,
+        skipReadChapters: skipReadChapters ?? this.skipReadChapters,
+        skipFilteredChapters:
+            skipFilteredChapters ?? this.skipFilteredChapters,
+        skipDuplicateChapters:
+            skipDuplicateChapters ?? this.skipDuplicateChapters,
+        readerScreenPicNumberForPortrait: readerScreenPicNumberForPortrait ??
+            this.readerScreenPicNumberForPortrait,
+        readerScreenPicNumberForLandscape: readerScreenPicNumberForLandscape ??
+            this.readerScreenPicNumberForLandscape,
       );
 
   /// 以 [base] 为全局默认，仅用本对象中「用户自定义过的字段」覆盖。
@@ -664,6 +1014,108 @@ class ReaderPreferences {
           identical(mouseWheelAction, def.mouseWheelAction)
               ? base.mouseWheelAction
               : mouseWheelAction,
+      preloadImageCount:
+          identical(preloadImageCount, def.preloadImageCount)
+              ? base.preloadImageCount
+              : preloadImageCount,
+      seamlessReading: identical(seamlessReading, def.seamlessReading)
+          ? base.seamlessReading
+          : seamlessReading,
+      showChapterSeparator:
+          identical(showChapterSeparator, def.showChapterSeparator)
+              ? base.showChapterSeparator
+              : showChapterSeparator,
+      readerScrollSpeed:
+          identical(readerScrollSpeed, def.readerScrollSpeed)
+              ? base.readerScrollSpeed
+              : readerScrollSpeed,
+      volumeKeyPageTurn:
+          identical(volumeKeyPageTurn, def.volumeKeyPageTurn)
+              ? base.volumeKeyPageTurn
+              : volumeKeyPageTurn,
+      volumeKeyPageTurnDistancePercent: identical(
+              volumeKeyPageTurnDistancePercent,
+              def.volumeKeyPageTurnDistancePercent)
+          ? base.volumeKeyPageTurnDistancePercent
+          : volumeKeyPageTurnDistancePercent,
+      enableLongPressToZoom:
+          identical(enableLongPressToZoom, def.enableLongPressToZoom)
+              ? base.enableLongPressToZoom
+              : enableLongPressToZoom,
+      longPressZoomPosition:
+          identical(longPressZoomPosition, def.longPressZoomPosition)
+              ? base.longPressZoomPosition
+              : longPressZoomPosition,
+      zoomStart: identical(zoomStart, def.zoomStart)
+          ? base.zoomStart
+          : zoomStart,
+      autoPageTurningInterval:
+          identical(autoPageTurningInterval, def.autoPageTurningInterval)
+              ? base.autoPageTurningInterval
+              : autoPageTurningInterval,
+      autoScroll: identical(autoScroll, def.autoScroll)
+          ? base.autoScroll
+          : autoScroll,
+      pageAnimation: identical(pageAnimation, def.pageAnimation)
+          ? base.pageAnimation
+          : pageAnimation,
+      doubleTapAnimSpeed:
+          identical(doubleTapAnimSpeed, def.doubleTapAnimSpeed)
+              ? base.doubleTapAnimSpeed
+              : doubleTapAnimSpeed,
+      readerPageSpacing: identical(readerPageSpacing, def.readerPageSpacing)
+          ? base.readerPageSpacing
+          : readerPageSpacing,
+      showSingleImageOnFirstPage: identical(
+              showSingleImageOnFirstPage, def.showSingleImageOnFirstPage)
+          ? base.showSingleImageOnFirstPage
+          : showSingleImageOnFirstPage,
+      showClockBattery: identical(showClockBattery, def.showClockBattery)
+          ? base.showClockBattery
+          : showClockBattery,
+      clockBatteryPosition:
+          identical(clockBatteryPosition, def.clockBatteryPosition)
+              ? base.clockBatteryPosition
+              : clockBatteryPosition,
+      clockBatteryMargin: identical(clockBatteryMargin, def.clockBatteryMargin)
+          ? base.clockBatteryMargin
+          : clockBatteryMargin,
+      clockBatteryOpacity:
+          identical(clockBatteryOpacity, def.clockBatteryOpacity)
+              ? base.clockBatteryOpacity
+              : clockBatteryOpacity,
+      clockBatteryFontSize:
+          identical(clockBatteryFontSize, def.clockBatteryFontSize)
+              ? base.clockBatteryFontSize
+              : clockBatteryFontSize,
+      readerBrightness: identical(readerBrightness, def.readerBrightness)
+          ? base.readerBrightness
+          : readerBrightness,
+      autoDownloadChapters:
+          identical(autoDownloadChapters, def.autoDownloadChapters)
+              ? base.autoDownloadChapters
+              : autoDownloadChapters,
+      skipReadChapters: identical(skipReadChapters, def.skipReadChapters)
+          ? base.skipReadChapters
+          : skipReadChapters,
+      skipFilteredChapters:
+          identical(skipFilteredChapters, def.skipFilteredChapters)
+              ? base.skipFilteredChapters
+              : skipFilteredChapters,
+      skipDuplicateChapters:
+          identical(skipDuplicateChapters, def.skipDuplicateChapters)
+              ? base.skipDuplicateChapters
+              : skipDuplicateChapters,
+      readerScreenPicNumberForPortrait: identical(
+              readerScreenPicNumberForPortrait,
+              def.readerScreenPicNumberForPortrait)
+          ? base.readerScreenPicNumberForPortrait
+          : readerScreenPicNumberForPortrait,
+      readerScreenPicNumberForLandscape: identical(
+              readerScreenPicNumberForLandscape,
+              def.readerScreenPicNumberForLandscape)
+          ? base.readerScreenPicNumberForLandscape
+          : readerScreenPicNumberForLandscape,
     );
   }
 
@@ -687,6 +1139,24 @@ class ReaderPreferences {
     }
     return base;
   }
+}
+
+/// 三层设置覆盖取值（REQ-C9）：global（全局默认）→ work（作品）→ device（设备/会话）。
+///
+/// - [base]：已合并的「全局默认 + 作品」偏好（即 [ReaderPreferences.mergedWith] 结果）；
+/// - [device]：当前运行时覆盖层（如按屏幕尺寸/方向的临时偏好，退出阅读器不持久化），
+///   可为 null（表示无设备层覆盖，此时回落 [base]）；
+/// - [selector]：按字段取值（`(p) => p.readerBrightness` 等）。
+///
+/// 优先级：device 非空且该字段在 device 层被设置时取 device；否则取 [base]。
+/// 返回类型泛型化，阅读器按字段取用，兼容任意字段类型。
+T getReaderSetting<T>(
+  ReaderPreferences base,
+  ReaderPreferences? device,
+  T Function(ReaderPreferences preferences) selector,
+) {
+  if (device == null) return selector(base);
+  return selector(device);
 }
 
 /// 持久化后端抽象（可注入内存实现用于测试，避免测试依赖原生插件）。

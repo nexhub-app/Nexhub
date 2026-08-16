@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,6 +38,15 @@ class FakeMediaApiService extends MediaApiService {
 }
 
 void main() {
+  setUp(() async {
+    final Directory dir = await Directory.systemTemp.createTemp('comic_reader_hive');
+    try {
+      Hive.init(dir.path);
+    } on Object {
+      // Hive.init 二次调用可能抛错或静默，包一层避免影响。
+    }
+  });
+
   testWidgets('reader renders pages and toggles UI', (tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       // 默认开启双击缩放（InteractiveViewer 参与手势竞技场），
@@ -103,8 +115,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byIcon(Icons.arrow_back), findsOneWidget);
 
-    // 再次点击中心收起控件。
-    await tester.tapAt(const Offset(400, 600));
+    // 再次点击（中心另一位置，避开双击缩放：双击间距需 <300ms 且距离 <36px，
+    // 因此换一个仍在中心 toggle 区的点，确保这是一次独立的单击而非双击缩放）。
+    await tester.tapAt(const Offset(300, 600));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byIcon(Icons.arrow_back), findsNothing);
   });

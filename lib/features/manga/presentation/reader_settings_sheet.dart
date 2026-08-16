@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
@@ -61,6 +62,12 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         p == TargetPlatform.macOS ||
         p == TargetPlatform.linux ||
         p == TargetPlatform.fuchsia;
+  }
+
+  /// 是否显示「音量键翻页」设置：仅 Android（iOS / 桌面没有物理音量键翻页语义）。
+  bool get _showVolumeKey {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.android;
   }
 
   // ──────────────────── 构建辅助 ────────────────────
@@ -166,6 +173,30 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         return l10n.readerZoomFitHeight;
       case 'readerZoomOriginal':
         return l10n.readerZoomOriginal;
+      // zoom anchor (REQ-B11)
+      case 'readerZoomStartLeft':
+        return l10n.readerZoomStartLeft;
+      case 'readerZoomStartCenter':
+        return l10n.readerZoomStartCenter;
+      case 'readerZoomStartRight':
+        return l10n.readerZoomStartRight;
+      // long-press zoom anchor (REQ-B2)
+      case 'readerLongPressAtPress':
+        return l10n.readerLongPressAtPress;
+      case 'readerLongPressAtCenter':
+        return l10n.readerLongPressAtCenter;
+      // page animation (REQ-B7)
+      case 'readerPageAnimNone':
+        return l10n.readerPageAnimNone;
+      case 'readerPageAnimSlide':
+        return l10n.readerPageAnimSlide;
+      case 'readerPageAnimFade':
+        return l10n.readerPageAnimFade;
+      // clock/battery position (REQ-C5)
+      case 'readerClockPosTop':
+        return l10n.readerClockPosTop;
+      case 'readerClockPosBottom':
+        return l10n.readerClockPosBottom;
       default:
         return key;
     }
@@ -295,6 +326,243 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
           onSelected: (_) => _update(_draft.copyWith(initialZoom: z)),
         );
       }).toList(),
+    );
+  }
+
+  /// 缩放锚点（REQ-B11）：双击 / 长按缩放的锚点来源。
+  Widget _buildZoomStart() {
+    return Wrap(
+      spacing: AppTokens.spaceSm,
+      runSpacing: AppTokens.spaceSm,
+      children: ZoomStart.values.map((z) {
+        return ChoiceChip(
+          label: Text(_l(z.l10nKey())),
+          selected: _draft.zoomStart == z,
+          onSelected: (_) => _update(_draft.copyWith(zoomStart: z)),
+        );
+      }).toList(),
+    );
+  }
+
+  /// 长按缩放锚点（REQ-B2）：按触点 / 按屏幕中心。
+  Widget _buildLongPressZoomPosition() {
+    return Wrap(
+      spacing: AppTokens.spaceSm,
+      runSpacing: AppTokens.spaceSm,
+      children: LongPressZoomPosition.values.map((p) {
+        return ChoiceChip(
+          label: Text(_l(p.l10nKey())),
+          selected: _draft.longPressZoomPosition == p,
+          onSelected: (_) =>
+              _update(_draft.copyWith(longPressZoomPosition: p)),
+        );
+      }).toList(),
+    );
+  }
+
+  /// 翻页过渡动画（REQ-B7）：无动画 / 滑入 / 淡入淡出。
+  Widget _buildPageAnimation() {
+    return Wrap(
+      spacing: AppTokens.spaceSm,
+      runSpacing: AppTokens.spaceSm,
+      children: ReaderPageAnimation.values.map((a) {
+        return ChoiceChip(
+          label: Text(_l(a.l10nKey())),
+          selected: _draft.pageAnimation == a,
+          onSelected: (_) => _update(_draft.copyWith(pageAnimation: a)),
+        );
+      }).toList(),
+    );
+  }
+
+  /// 自动翻页（REQ-B9）：开关 + 间隔滑块（仅 paged 模式有意义，条漫自动滚动走
+  /// [_buildAutoScroll]）。
+  Widget _buildAutoPageTurning() {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _switchTile(l10n.readerAutoPageTurning, _draft.autoPageTurningInterval > 0,
+            (v) => _update(
+                _draft.copyWith(autoPageTurningInterval: v ? 5 : 0))),
+        if (_draft.autoPageTurningInterval > 0)
+          _SliderRow(
+            label: l10n.readerAutoPageInterval,
+            value: _draft.autoPageTurningInterval.toDouble(),
+            min: 1,
+            max: 20,
+            divisions: 19,
+            displayValue: '${_draft.autoPageTurningInterval}s',
+            onChanged: (v) => _update(
+                _draft.copyWith(autoPageTurningInterval: v.round())),
+          ),
+      ],
+    );
+  }
+
+  /// 音量键翻页（REQ-B8，仅 Android）：开关 + 条漫滚动距离滑块。
+  Widget _buildVolumeKey() {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _switchTile(l10n.readerVolumeKeyPageTurn, _draft.volumeKeyPageTurn,
+            (v) => _update(_draft.copyWith(volumeKeyPageTurn: v))),
+        if (_draft.volumeKeyPageTurn)
+          _SliderRow(
+            label: l10n.readerVolumeKeyDistance,
+            value: _draft.volumeKeyPageTurnDistancePercent.toDouble(),
+            min: 10,
+            max: 100,
+            divisions: 18,
+            displayValue: '${_draft.volumeKeyPageTurnDistancePercent}%',
+            onChanged: (v) => _update(
+                _draft.copyWith(volumeKeyPageTurnDistancePercent: v.round())),
+          ),
+      ],
+    );
+  }
+
+  /// 自动下载与跳章过滤（REQ-C7 / REQ-C11）。
+  Widget _buildAutoDownload() {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _switchTile(l10n.readerAutoDownload, _draft.autoDownloadChapters,
+            (v) => _update(_draft.copyWith(autoDownloadChapters: v))),
+        _switchTile(l10n.readerSkipReadChapters, _draft.skipReadChapters,
+            (v) => _update(_draft.copyWith(skipReadChapters: v))),
+        _switchTile(l10n.readerSkipFilteredChapters, _draft.skipFilteredChapters,
+            (v) => _update(_draft.copyWith(skipFilteredChapters: v))),
+        _switchTile(l10n.readerSkipDuplicateChapters, _draft.skipDuplicateChapters,
+            (v) => _update(_draft.copyWith(skipDuplicateChapters: v))),
+      ],
+    );
+  }
+
+  /// 时间/电量浮层（REQ-C5）。
+  Widget _buildClockBattery() {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _switchTile(l10n.readerClockBattery, _draft.showClockBattery,
+            (v) => _update(_draft.copyWith(showClockBattery: v))),
+        if (_draft.showClockBattery) ...<Widget>[
+          const SizedBox(height: AppTokens.spaceSm),
+          Text(l10n.readerClockPosition,
+              style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: AppTokens.spaceXs),
+          Wrap(
+            spacing: AppTokens.spaceSm,
+            runSpacing: AppTokens.spaceSm,
+            children: ClockBatteryPosition.values.map((p) {
+              return ChoiceChip(
+                label: Text(_l(p.l10nKey())),
+                selected: _draft.clockBatteryPosition == p,
+                onSelected: (_) =>
+                    _update(_draft.copyWith(clockBatteryPosition: p)),
+              );
+            }).toList(),
+          ),
+          _SliderRow(
+            label: l10n.readerClockMargin,
+            value: _draft.clockBatteryMargin,
+            min: 0,
+            max: 40,
+            divisions: 40,
+            displayValue: '${_draft.clockBatteryMargin.round()}',
+            onChanged: (v) =>
+                _update(_draft.copyWith(clockBatteryMargin: v)),
+          ),
+          _SliderRow(
+            label: l10n.readerClockOpacity,
+            value: _draft.clockBatteryOpacity,
+            min: 0.1,
+            max: 1.0,
+            divisions: 9,
+            displayValue: _draft.clockBatteryOpacity.toStringAsFixed(1),
+            onChanged: (v) =>
+                _update(_draft.copyWith(clockBatteryOpacity: v)),
+          ),
+          _SliderRow(
+            label: l10n.readerClockFontSize,
+            value: _draft.clockBatteryFontSize,
+            min: 10,
+            max: 24,
+            divisions: 14,
+            displayValue: '${_draft.clockBatteryFontSize.round()}',
+            onChanged: (v) =>
+                _update(_draft.copyWith(clockBatteryFontSize: v)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 多图/间距（REQ-C4 / REQ-C13 / REQ-C14）。
+  Widget _buildMultiImageSpacing() {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _SliderRow(
+          label: l10n.readerPageSpacing,
+          value: _draft.readerPageSpacing.toDouble(),
+          min: 0,
+          max: 50,
+          divisions: 50,
+          displayValue: '${_draft.readerPageSpacing}',
+          onChanged: (v) =>
+              _update(_draft.copyWith(readerPageSpacing: v.round())),
+        ),
+        _switchTile(l10n.readerShowSingleImageOnFirstPage,
+            _draft.showSingleImageOnFirstPage,
+            (v) => _update(_draft.copyWith(showSingleImageOnFirstPage: v))),
+        _SliderRow(
+          label: l10n.readerScreenPicNumberPortrait,
+          value: _draft.readerScreenPicNumberForPortrait.toDouble(),
+          min: 1,
+          max: 5,
+          divisions: 4,
+          displayValue: '${_draft.readerScreenPicNumberForPortrait}',
+          onChanged: (v) => _update(
+              _draft.copyWith(readerScreenPicNumberForPortrait: v.round())),
+        ),
+        _SliderRow(
+          label: l10n.readerScreenPicNumberLandscape,
+          value: _draft.readerScreenPicNumberForLandscape.toDouble(),
+          min: 1,
+          max: 5,
+          divisions: 4,
+          displayValue: '${_draft.readerScreenPicNumberForLandscape}',
+          onChanged: (v) => _update(
+              _draft.copyWith(readerScreenPicNumberForLandscape: v.round())),
+        ),
+      ],
+    );
+  }
+
+  /// 自动滚动（REQ-B10，条漫）：开关 + 滚动速度倍率滑块。
+  Widget _buildAutoScroll() {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _switchTile(l10n.readerAutoScroll, _draft.autoScroll,
+            (v) => _update(_draft.copyWith(autoScroll: v))),
+        _SliderRow(
+          label: l10n.readerScrollSpeed,
+          value: _draft.readerScrollSpeed,
+          min: 0.5,
+          max: 3.0,
+          divisions: 25,
+          displayValue: '${_draft.readerScrollSpeed.toStringAsFixed(1)}x',
+          onChanged: (v) =>
+              _update(_draft.copyWith(readerScrollSpeed: v)),
+        ),
+      ],
     );
   }
 
@@ -532,6 +800,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       '翻页', '点击', '阅读模式', '单页', '竖排', '长条', '条漫',
                       '方向', '屏幕', '横屏', '竖屏', '背景', '侧边距', '缩放',
                       '双击', '点按', '区域', 'tap', 'webtoon', '方向', 'page',
+                      '锚点', '长按缩放', '翻页动画', '自动翻页', '音量键', '音量',
+                      'zoom', 'anchor', 'fade', 'volume', 'auto',
                     ],
                     children: <Widget>[
                       _section(context, l10n.readerMode, _buildReadingMode()),
@@ -554,6 +824,38 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       _switchTile(l10n.readerZoom, _draft.doubleTapZoom,
                           (v) => _update(_draft.copyWith(doubleTapZoom: v))),
                       _section(context, l10n.readerInitialZoom, _buildInitialZoom()),
+                      // 缩放锚点（REQ-B11）
+                      _section(context, l10n.readerZoomStart, _buildZoomStart()),
+                      // 长按缩放（REQ-B2）：开启时显示锚点选择
+                      _switchTile(l10n.readerLongPressZoom,
+                          _draft.enableLongPressToZoom,
+                          (v) => _update(
+                              _draft.copyWith(enableLongPressToZoom: v))),
+                      if (_draft.enableLongPressToZoom)
+                        _section(context, l10n.readerLongPressZoomPosition,
+                            _buildLongPressZoomPosition()),
+                      // 翻页过渡动画（REQ-B7）
+                      _section(context, l10n.readerPageAnimation,
+                          _buildPageAnimation()),
+                      // 双击缩放动画时长（REQ-B7）
+                      Padding(
+                        padding:
+                            const EdgeInsets.only(bottom: AppTokens.spaceMd),
+                        child: _SliderRow(
+                          label: l10n.readerDoubleTapAnimSpeed,
+                          value: _draft.doubleTapAnimSpeed.toDouble(),
+                          min: 100,
+                          max: 1500,
+                          divisions: 14,
+                          displayValue: '${_draft.doubleTapAnimSpeed}ms',
+                          onChanged: (v) => _update(
+                              _draft.copyWith(doubleTapAnimSpeed: v.round())),
+                        ),
+                      ),
+                      // 自动翻页（REQ-B9，paged 模式）
+                      _buildAutoPageTurning(),
+                      // 音量键翻页（REQ-B8，仅 Android）
+                      if (_showVolumeKey) _buildVolumeKey(),
                     ],
                   ),
 
@@ -570,6 +872,21 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     ],
                     children: <Widget>[
                       _buildImageFilter(),
+                      // 阅读亮度（REQ-C3）：独立于滤镜，控制系统亮度/黑色遮罩。
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+                        child: _SliderRow(
+                          label: l10n.readerBrightness,
+                          value: _draft.readerBrightness,
+                          min: -1.0,
+                          max: 1.0,
+                          divisions: 40,
+                          displayValue:
+                              _draft.readerBrightness.toStringAsFixed(2),
+                          onChanged: (v) =>
+                              _update(_draft.copyWith(readerBrightness: v)),
+                        ),
+                      ),
                     ],
                   ),
 
@@ -583,7 +900,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     searchTerms: const <String>[
                       '页码', '进度', '进度条', '全屏', '常亮', '旋转', '双页',
                       '分屏', '长按', '防缩', '章节', '过渡', '显示', 'page',
-                      'fullscreen', 'screen', '亮度',
+                      'fullscreen', 'screen', '亮度', '自动滚动', '滚动速度',
+                      'auto scroll', 'scroll speed', '滚轮',
                     ],
                     children: <Widget>[
                       _switchTile(l10n.readerCropEdge, _draft.cropEdge,
@@ -623,6 +941,76 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       _switchTile(l10n.readerChapterTransition,
                           _draft.showChapterTransition,
                           (v) => _update(_draft.copyWith(showChapterTransition: v))),
+                      _SliderRow(
+                        label: l10n.readerPreloadCount,
+                        value: _draft.preloadImageCount.toDouble(),
+                        min: 1,
+                        max: 16,
+                        divisions: 15,
+                        displayValue: '${_draft.preloadImageCount}',
+                        onChanged: (v) =>
+                            _update(_draft.copyWith(preloadImageCount: v.round())),
+                      ),
+                      _switchTile(l10n.readerSeamlessReading,
+                          _draft.seamlessReading,
+                          (v) => _update(_draft.copyWith(seamlessReading: v))),
+                      // 章分割/过渡条目仅对 webtoon（条漫）连续模式生效。
+                      _switchTile(l10n.readerChapterSeparator,
+                          _draft.showChapterSeparator,
+                          (v) => _update(
+                              _draft.copyWith(showChapterSeparator: v))),
+                      // 自动滚动（REQ-B10，条漫）：开关 + 滚动速度。
+                      _buildAutoScroll(),
+                    ],
+                  ),
+
+                  // ── 自动（下载/跳章过滤）────────────────────────
+                  _buildSettingsGroup(
+                    context,
+                    l10n.readerGroupAuto,
+                    description: l10n.readerGroupAutoDesc,
+                    leading: Icons.download,
+                    searchQuery: q,
+                    searchTerms: const <String>[
+                      '自动', '下载', '章节', '跳过', '已读', '筛选', '重复',
+                      'auto', 'download', 'skip', 'chapter', 'read',
+                      'filter', 'duplicate',
+                    ],
+                    children: <Widget>[
+                      _buildAutoDownload(),
+                    ],
+                  ),
+
+                  // ── 浮层（时间/电量）───────────────────────────
+                  _buildSettingsGroup(
+                    context,
+                    l10n.readerGroupOverlay,
+                    description: l10n.readerGroupOverlayDesc,
+                    leading: Icons.access_time,
+                    searchQuery: q,
+                    searchTerms: const <String>[
+                      '时间', '电量', '浮层', '时钟', '电池', '位置', '边距',
+                      '透明度', '字号', 'clock', 'battery', 'overlay', 'time',
+                    ],
+                    children: <Widget>[
+                      _buildClockBattery(),
+                    ],
+                  ),
+
+                  // ── 多图与间距 ────────────────────────────────
+                  _buildSettingsGroup(
+                    context,
+                    l10n.readerGroupMulti,
+                    description: l10n.readerGroupMultiDesc,
+                    leading: Icons.grid_view,
+                    searchQuery: q,
+                    searchTerms: const <String>[
+                      '多图', '间距', '首屏', '单图', '竖屏', '横屏', '每屏',
+                      'multi', 'spacing', 'page', 'single', 'image',
+                      'portrait', 'landscape', 'screen',
+                    ],
+                    children: <Widget>[
+                      _buildMultiImageSpacing(),
                     ],
                   ),
 

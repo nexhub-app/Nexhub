@@ -84,6 +84,20 @@ class ReaderTapZones extends StatefulWidget {
   /// 长按回调（用于弹出图片「保存 / 分享」菜单等）。为 null 时不检测长按。
   final VoidCallback? onLongPress;
 
+  /// 长按回调（带触点坐标，REQ-B2 长按缩放）。非 null 时优先于 [onLongPress]，
+  /// 传入按下位置（左上原点坐标），用于「按触点 / 按屏幕中心」的定点缩放。
+  final void Function(Offset)? onLongPressAt;
+
+  /// 长按松手回调（REQ-B2 长按缩放退出）：长按已触发（[onLongPressAt] / [onLongPress]
+  /// 执行过）且手指抬起/取消时调用一次。为 null 时不回调。
+  final VoidCallback? onLongPressRelease;
+
+  /// 双击回退回调（REQ-B3：单击即时 + 双击回退）：单击翻页【立即】执行，若在
+  /// 双击窗口内出现第二次点击，则先撤销前一次单击已触发的翻页（prev/next），
+  /// 再执行双击缩放。参数 [next] 为被撤销的单击方向（true=上一击是下一页）。
+  /// 中心 toggle 区单击不翻页，无需回退。为 null 时不回退。
+  final void Function(bool next)? onUndoPageTurn;
+
   /// 单击拦截：每次命中热区的单击（含双击 / Shift+点击前的首次抬起）都会先调用，
   /// 返回 true 则吞掉本次单击（不执行 prev/next/toggle、不触发缩放）。
   /// 用于内联设置面板打开时「点阅读区任意处关闭面板」，与小说阅读器行为一致。
@@ -123,6 +137,9 @@ class ReaderTapZones extends StatefulWidget {
     this.onTrackpadPan,
     this.onSecondaryTap,
       this.onLongPress,
+      this.onLongPressAt,
+      this.onLongPressRelease,
+      this.onUndoPageTurn,
       this.onTapIntercept,
       this.isToolbarRegion,
       this.showPreview = false,
@@ -166,9 +183,16 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
   DateTime? _lastTapTime;
   Offset? _lastTapPos;
 
+  /// 上一次「已分发」的单击动作（双击窗口内用于「单击即时 + 双击回退」）。
+  /// 仅记录真实执行过导航/切换的动作；缩放态、拖拽、拦截等未翻页场景置 null。
+  _TapAction? _lastTapAction;
+
   // 长按检测：按下后启动定时器，到阈值仍未抬起且未明显移动则触发。
   Timer? _longPressTimer;
   bool _longPressFired = false;
+
+  /// 长按已触发且手指仍未抬起（用于松手时回调 [widget.onLongPressRelease]）。
+  bool _longPressHeld = false;
 
   // 单击派发延迟定时器：单击命中后延迟一个双击窗口再派发，若期间出现双击则取消，
   // 从而「双击仅缩放、不触发导航」（P0 手势 bug #5）。为 null 表示无待派发单击。
@@ -187,15 +211,22 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     super.dispose();
   }
 
-  /// 启动长按定时器（仅在 [widget.onLongPress] 非空时）。
+  /// 启动长按定时器（仅在 [widget.onLongPress] 或 [widget.onLongPressAt] 非空时）。
   void _startLongPressTimer(int pointer) {
-    if (widget.onLongPress == null) return;
+    if (widget.onLongPress == null && widget.onLongPressAt == null) return;
     _longPressTimer?.cancel();
     _longPressFired = false;
+    _longPressHeld = false;
     _longPressTimer = Timer(_longPressThreshold, () {
       if (_activePointer == pointer) {
         _longPressFired = true;
-        widget.onLongPress!();
+        _longPressHeld = true;
+        final pos = _downPos;
+        if (widget.onLongPressAt != null && pos != null) {
+          widget.onLongPressAt!(pos);
+        } else {
+          widget.onLongPress!();
+        }
       }
     });
   }
@@ -346,6 +377,10 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
       _downTime = null;
       _downShift = false;
       _longPressFired = false;
+      if (_longPressHeld) {
+        _longPressHeld = false;
+        widget.onLongPressRelease?.call();
+      }
     }
   }
 
@@ -371,6 +406,11 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
         _downTime = null;
         _downShift = false;
         _longPressFired = false;
+        // 长按缩放中落下第二根手指：全部抬起时同样退出（REQ-B2）。
+        if (_longPressHeld) {
+          _longPressHeld = false;
+          widget.onLongPressRelease?.call();
+        }
       }
       return;
     }
@@ -381,6 +421,8 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     final move = (e.localPosition - downPos).distance;
     final dt = DateTime.now().difference(_downTime!);
     final fired = _longPressFired;
+    final held = _longPressHeld;
+    _longPressHeld = false;
     _activePointer = null;
     _downPos = null;
     _downTime = null;
@@ -388,8 +430,11 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     final bool shifted = _downShift;
     _downShift = false;
     if (fired) {
-      // 长按已弹出菜单：取消可能 pending 的单击派发，避免长按后误翻页。
+      // 长按已触发（菜单 / 长按缩放）：取消可能 pending 的单击派发，避免长按后误翻页。
       _tapTimer?.cancel();
+      _lastTapAction = null;
+      // 长按缩放：松手退出（REQ-B2）。
+      if (held) widget.onLongPressRelease?.call();
       return;
     }
     // 缩放状态：放大态单指手势交由图片自身的平移 / 捏合处理，覆盖层不再派发翻页 / 导航。
@@ -397,6 +442,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     // 拖拽（滑动）优先：移动超过 slop 视为拖拽，不触发单击导航 / 缩放。
     // 放大态下拖拽由图片平移处理，覆盖层不翻页（P0 手势 bug #4）。
     if (move > _tapSlop) {
+      _lastTapAction = null;
       if (!zoomed && !widget.isWebtoon) {
         final double dx = e.localPosition.dx - downPos.dx;
         final double dy = e.localPosition.dy - downPos.dy;
@@ -426,14 +472,19 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     // 内联设置面板打开时，任意单击都用来关闭面板（吞掉导航 / 缩放）。
     if (widget.onTapIntercept?.call() ?? false) {
       _tapTimer?.cancel();
+      _lastTapAction = null;
       return;
     }
 
     // 控制栏区域：交给控制栏自身按钮处理，不参与热区翻页，避免点按钮误触发翻页。
-    if (widget.isToolbarRegion?.call(e.localPosition) ?? false) return;
+    if (widget.isToolbarRegion?.call(e.localPosition) ?? false) {
+      _lastTapAction = null;
+      return;
+    }
 
     // 桌面 Shift+左键：在点击处缩放（兜底双击缩放），不触发导航 / 双击。
     if (shifted) {
+      _lastTapAction = null;
       final at = widget.onZoomAt;
       if (at != null) {
         at(e.localPosition);
@@ -453,12 +504,17 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
         _lastTapPos != null &&
         (_lastTapPos! - e.localPosition).distance <= _doubleTapSlop;
     if (isDouble) {
-      // 双击：仅缩放、抑制本次导航（P0 手势 bug #5）。用点击点作锚定（P0 #6），
-      // 与 Shift+左键定点缩放一致；取消可能 pending 的首次单击派发。
+      // 双击：先撤销前一次单击已触发的翻页（单击即时 + 双击回退，REQ-B3），再执行
+      // 缩放（仅缩放、抑制本次导航，P0 手势 bug #5）。中心 toggle 区单击不翻页，
+      // [_lastTapAction] 为 toggle 时无需回退。用点击点作锚定（P0 #6）。
+      if (_lastTapAction != null && _lastTapAction != _TapAction.toggle) {
+        widget.onUndoPageTurn?.call(_lastTapAction == _TapAction.next);
+      }
       _tapTimer?.cancel();
       _tapTimer = null;
       _lastTapTime = null;
       _lastTapPos = null;
+      _lastTapAction = null;
       final at = widget.onZoomAt;
       if (at != null) {
         at(e.localPosition);
@@ -469,19 +525,28 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     }
 
     final action = _actionAt(e.localPosition, size.width, size.height);
-    if (action == null) return;
+    if (action == null) {
+      // 点击落在热区外：不导航，也不与后续点击构成「双击回退」。
+      _lastTapAction = null;
+      return;
+    }
 
     // 内联设置面板打开时，任意单击都用来关闭面板（吞掉导航 / 缩放）。
     if (widget.onTapIntercept?.call() ?? false) {
       _tapTimer?.cancel();
+      _lastTapAction = null;
       return;
     }
 
     // 控制栏区域：交给控制栏自身按钮处理，不参与热区翻页，避免点按钮误触发翻页。
-    if (widget.isToolbarRegion?.call(e.localPosition) ?? false) return;
+    if (widget.isToolbarRegion?.call(e.localPosition) ?? false) {
+      _lastTapAction = null;
+      return;
+    }
 
     // 桌面 Shift+左键：在点击处缩放（兜底双击缩放），不触发导航 / 双击。
     if (shifted) {
+      _lastTapAction = null;
       final at = widget.onZoomAt;
       if (at != null) {
         at(e.localPosition);
@@ -497,24 +562,23 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     if (zoomed) {
       _lastTapTime = now;
       _lastTapPos = e.localPosition;
+      _lastTapAction = null;
       return;
     }
 
-    // 非双击：桌面鼠标与触摸统一走双击窗口延迟派发（单击延迟 300ms 换取双击缩放，
-    // 双击缩放行为参考常见图片查看器的桌面交互）。期间若出现第二次点击，则被上面
-    // isDouble 分支取消本次派发，从而「双击只缩放、不翻页」。
+    // 非双击：单击【即时】派发（REQ-B3，不再延迟 300ms），并记录本次动作供
+    // 双击窗口内的「回退翻页」判定（记【反转后】的真实动作，方向判断才准确）。
+    // 若随后出现第二次点击，上面 isDouble 分支会撤销本次翻页并执行缩放。
     _lastTapTime = now;
     _lastTapPos = e.localPosition;
-    _tapTimer?.cancel();
-    final _TapAction pending = action;
-    _tapTimer = Timer(_doubleTapTimeout, () {
-      _tapTimer = null;
-      if (mounted) _dispatch(pending);
-    });
+    final _TapAction effective = _effectiveAction(action);
+    _dispatchEffective(effective);
+    _lastTapAction = effective;
   }
 
-  void _dispatch(_TapAction a) {
-    switch (_effectiveAction(a)) {
+  /// 按动作派发（[action] 须为已反转后的有效动作）。
+  void _dispatchEffective(_TapAction action) {
+    switch (action) {
       case _TapAction.prev:
         widget.onPrev();
       case _TapAction.next:

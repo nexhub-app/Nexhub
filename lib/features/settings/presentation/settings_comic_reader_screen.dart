@@ -3,7 +3,8 @@
 /// 持久化到 SharedPreferences（key: `reader_default_settings_v1`）。
 library;
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
@@ -122,6 +123,36 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
       MouseWheelAction.zoom => l10n.readerWheelZoom,
       MouseWheelAction.page => l10n.readerWheelPage,
     };
+  }
+
+  String _zoomStartLabel(AppLocalizations l10n, ZoomStart z) {
+    return switch (z) {
+      ZoomStart.left => l10n.readerZoomStartLeft,
+      ZoomStart.center => l10n.readerZoomStartCenter,
+      ZoomStart.right => l10n.readerZoomStartRight,
+    };
+  }
+
+  String _longPressZoomPositionLabel(
+      AppLocalizations l10n, LongPressZoomPosition p) {
+    return switch (p) {
+      LongPressZoomPosition.press => l10n.readerLongPressAtPress,
+      LongPressZoomPosition.center => l10n.readerLongPressAtCenter,
+    };
+  }
+
+  String _pageAnimationLabel(AppLocalizations l10n, ReaderPageAnimation a) {
+    return switch (a) {
+      ReaderPageAnimation.none => l10n.readerPageAnimNone,
+      ReaderPageAnimation.slide => l10n.readerPageAnimSlide,
+      ReaderPageAnimation.fade => l10n.readerPageAnimFade,
+    };
+  }
+
+  /// 是否显示「音量键翻页」设置：仅 Android。
+  bool get _showVolumeKey {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.android;
   }
 
   /// 阅读模式切换联动：切到竖排 / 长条时双页拆分不再生效，自动关闭。
@@ -401,6 +432,128 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         );
                       }).toList(),
                     ),
+                    const SizedBox(height: AppTokens.spaceMd),
+
+                    // 缩放锚点（REQ-B11）
+                    _chipSection(
+                      context,
+                      l10n.readerZoomStart,
+                      ZoomStart.values.map((z) {
+                        return ChoiceChip(
+                          label: Text(_zoomStartLabel(l10n, z)),
+                          selected: _settings.comicZoomStart == z,
+                          onSelected: (_) =>
+                              _update(_settings.copyWith(comicZoomStart: z)),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+
+                    // 长按缩放（REQ-B2）：开启时显示锚点选择
+                    SettingsSwitchTile(
+                      title: l10n.readerLongPressZoom,
+                      subtitle: l10n.readerLongPressZoomDesc,
+                      value: _settings.comicEnableLongPressToZoom,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicEnableLongPressToZoom: v)),
+                    ),
+                    SettingsExpand(
+                      visible: _settings.comicEnableLongPressToZoom,
+                      padding: EdgeInsets.zero,
+                      child: _chipSection(
+                        context,
+                        l10n.readerLongPressZoomPosition,
+                        LongPressZoomPosition.values.map((p) {
+                          return ChoiceChip(
+                            label: Text(_longPressZoomPositionLabel(l10n, p)),
+                            selected: _settings.comicLongPressZoomPosition == p,
+                            onSelected: (_) => _update(
+                                _settings.copyWith(comicLongPressZoomPosition: p)),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+
+                    // 翻页过渡动画（REQ-B7）
+                    _chipSection(
+                      context,
+                      l10n.readerPageAnimation,
+                      ReaderPageAnimation.values.map((a) {
+                        return ChoiceChip(
+                          label: Text(_pageAnimationLabel(l10n, a)),
+                          selected: _settings.comicPageAnimation == a,
+                          onSelected: (_) =>
+                              _update(_settings.copyWith(comicPageAnimation: a)),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+
+                    // 双击缩放动画时长（REQ-B7）
+                    SettingsSliderTile(
+                      label: l10n.readerDoubleTapAnimSpeed,
+                      value: _settings.comicDoubleTapAnimSpeed.toDouble(),
+                      min: 100,
+                      max: 1500,
+                      divisions: 14,
+                      display: '${_settings.comicDoubleTapAnimSpeed}ms',
+                      onChanged: (v) => _update(_settings.copyWith(
+                          comicDoubleTapAnimSpeed: v.round())),
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+
+                    // 自动翻页（REQ-B9，paged 模式）
+                    SettingsSwitchTile(
+                      title: l10n.readerAutoPageTurning,
+                      subtitle: l10n.readerAutoPageTurningDesc,
+                      value: _settings.comicAutoPageTurningInterval > 0,
+                      onChanged: (v) => _update(_settings.copyWith(
+                          comicAutoPageTurningInterval: v ? 5 : 0)),
+                    ),
+                    SettingsExpand(
+                      visible: _settings.comicAutoPageTurningInterval > 0,
+                      padding: EdgeInsets.zero,
+                      child: SettingsSliderTile(
+                        label: l10n.readerAutoPageInterval,
+                        value: _settings.comicAutoPageTurningInterval.toDouble(),
+                        min: 1,
+                        max: 20,
+                        divisions: 19,
+                        display: '${_settings.comicAutoPageTurningInterval}s',
+                        onChanged: (v) => _update(_settings.copyWith(
+                            comicAutoPageTurningInterval: v.round())),
+                      ),
+                    ),
+
+                    // 音量键翻页（REQ-B8，仅 Android）
+                    if (_showVolumeKey) ...<Widget>[
+                      const SizedBox(height: AppTokens.spaceMd),
+                      SettingsSwitchTile(
+                        title: l10n.readerVolumeKeyPageTurn,
+                        subtitle: l10n.readerVolumeKeyPageTurnDesc,
+                        value: _settings.comicVolumeKeyPageTurn,
+                        onChanged: (v) => _update(
+                            _settings.copyWith(comicVolumeKeyPageTurn: v)),
+                      ),
+                      SettingsExpand(
+                        visible: _settings.comicVolumeKeyPageTurn,
+                        padding: EdgeInsets.zero,
+                        child: SettingsSliderTile(
+                          label: l10n.readerVolumeKeyDistance,
+                          value: _settings
+                              .comicVolumeKeyPageTurnDistancePercent
+                              .toDouble(),
+                          min: 10,
+                          max: 100,
+                          divisions: 18,
+                          display:
+                              '${_settings.comicVolumeKeyPageTurnDistancePercent}%',
+                          onChanged: (v) => _update(_settings.copyWith(
+                              comicVolumeKeyPageTurnDistancePercent: v.round())),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
 
@@ -432,6 +585,18 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _update(_settings.copyWith(comicFilterInverted: v)),
                       onGrayscaleChanged: (v) =>
                           _update(_settings.copyWith(comicGrayscale: v)),
+                    ),
+                    // 阅读亮度（REQ-C3）：正值写系统、负值叠加遮罩。
+                    SettingsSliderTile(
+                      label: l10n.readerBrightness,
+                      value: _settings.comicReaderBrightness,
+                      min: -1.0,
+                      max: 1.0,
+                      divisions: 40,
+                      display:
+                          _settings.comicReaderBrightness.toStringAsFixed(2),
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(comicReaderBrightness: v)),
                     ),
                   ],
                 ),
@@ -513,8 +678,51 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     SettingsSwitchTile(
                       title: l10n.readerChapterTransition,
                       value: _settings.comicChapterTransition,
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(comicChapterTransition: v)),
+                    ),
+                    SettingsSliderTile(
+                      label: l10n.readerPreloadCount,
+                      value: _settings.comicPreloadImageCount.toDouble(),
+                      min: 1,
+                      max: 16,
+                      divisions: 15,
+                      display: '${_settings.comicPreloadImageCount}',
                       onChanged: (v) => _update(
-                          _settings.copyWith(comicChapterTransition: v)),
+                          _settings.copyWith(comicPreloadImageCount: v.round())),
+                    ),
+                    SettingsSwitchTile(
+                      title: l10n.readerSeamlessReading,
+                      subtitle: l10n.readerSeamlessReadingDesc,
+                      value: _settings.comicSeamlessReading,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicSeamlessReading: v)),
+                    ),
+                    SettingsSwitchTile(
+                      title: l10n.readerChapterSeparator,
+                      subtitle: l10n.readerChapterSeparatorDesc,
+                      value: _settings.comicShowChapterSeparator,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicShowChapterSeparator: v)),
+                    ),
+                    // 自动滚动（REQ-B10，条漫）：开关 + 滚动速度。
+                    SettingsSwitchTile(
+                      title: l10n.readerAutoScroll,
+                      subtitle: l10n.readerAutoScrollDesc,
+                      value: _settings.comicAutoScroll,
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(comicAutoScroll: v)),
+                    ),
+                    SettingsSliderTile(
+                      label: l10n.readerScrollSpeed,
+                      value: _settings.comicReaderScrollSpeed,
+                      min: 0.5,
+                      max: 3.0,
+                      divisions: 25,
+                      display:
+                          '${_settings.comicReaderScrollSpeed.toStringAsFixed(1)}x',
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(comicReaderScrollSpeed: v)),
                     ),
                   ],
                 ),
@@ -628,6 +836,176 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                       ),
                     ],
                   ),
+
+                // ── 自动（下载 / 跳章过滤）──
+                SettingsCard(
+                  key: const ValueKey<String>('comic.auto'),
+                  title: l10n.comicReaderAutoSection,
+                  index: 6,
+                  children: <Widget>[
+                    SettingsSwitchTile(
+                      title: l10n.readerAutoDownload,
+                      subtitle: l10n.readerAutoDownloadDesc,
+                      value: _settings.comicAutoDownloadChapters,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicAutoDownloadChapters: v)),
+                    ),
+                    SettingsSwitchTile(
+                      title: l10n.readerSkipReadChapters,
+                      subtitle: l10n.readerSkipReadChaptersDesc,
+                      value: _settings.comicSkipReadChapters,
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(comicSkipReadChapters: v)),
+                    ),
+                    SettingsSwitchTile(
+                      title: l10n.readerSkipFilteredChapters,
+                      subtitle: l10n.readerSkipFilteredChaptersDesc,
+                      value: _settings.comicSkipFilteredChapters,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicSkipFilteredChapters: v)),
+                    ),
+                    SettingsSwitchTile(
+                      title: l10n.readerSkipDuplicateChapters,
+                      subtitle: l10n.readerSkipDuplicateChaptersDesc,
+                      value: _settings.comicSkipDuplicateChapters,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicSkipDuplicateChapters: v)),
+                    ),
+                  ],
+                ),
+
+                // ── 浮层（时间 / 电量）──
+                SettingsCard(
+                  key: const ValueKey<String>('comic.overlay'),
+                  title: l10n.comicReaderOverlaySection,
+                  index: 7,
+                  children: <Widget>[
+                    SettingsSwitchTile(
+                      title: l10n.readerClockBattery,
+                      subtitle: l10n.readerClockBatteryDesc,
+                      value: _settings.comicShowClockBattery,
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(comicShowClockBattery: v)),
+                    ),
+                    SettingsExpand(
+                      visible: _settings.comicShowClockBattery,
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          _chipSection(
+                            context,
+                            l10n.readerClockPosition,
+                            <Widget>[
+                              ChoiceChip(
+                                label: Text(l10n.readerClockPosTop),
+                                selected:
+                                    _settings.comicClockBatteryPosition ==
+                                        ClockBatteryPosition.top,
+                                onSelected: (_) => _update(_settings.copyWith(
+                                    comicClockBatteryPosition:
+                                        ClockBatteryPosition.top)),
+                              ),
+                              ChoiceChip(
+                                label: Text(l10n.readerClockPosBottom),
+                                selected:
+                                    _settings.comicClockBatteryPosition ==
+                                        ClockBatteryPosition.bottom,
+                                onSelected: (_) => _update(_settings.copyWith(
+                                    comicClockBatteryPosition:
+                                        ClockBatteryPosition.bottom)),
+                              ),
+                            ],
+                          ),
+                          SettingsSliderTile(
+                            label: l10n.readerClockMargin,
+                            value: _settings.comicClockBatteryMargin,
+                            min: 0,
+                            max: 40,
+                            divisions: 40,
+                            display:
+                                '${_settings.comicClockBatteryMargin.round()}',
+                            onChanged: (v) => _update(
+                                _settings.copyWith(comicClockBatteryMargin: v)),
+                          ),
+                          SettingsSliderTile(
+                            label: l10n.readerClockOpacity,
+                            value: _settings.comicClockBatteryOpacity,
+                            min: 0.1,
+                            max: 1.0,
+                            divisions: 9,
+                            display:
+                                _settings.comicClockBatteryOpacity
+                                    .toStringAsFixed(2),
+                            onChanged: (v) => _update(_settings.copyWith(
+                                comicClockBatteryOpacity: v)),
+                          ),
+                          SettingsSliderTile(
+                            label: l10n.readerClockFontSize,
+                            value: _settings.comicClockBatteryFontSize,
+                            min: 10,
+                            max: 24,
+                            divisions: 14,
+                            display:
+                                '${_settings.comicClockBatteryFontSize.round()}',
+                            onChanged: (v) => _update(_settings.copyWith(
+                                comicClockBatteryFontSize: v)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // ── 多图 / 间距 ──
+                SettingsCard(
+                  key: const ValueKey<String>('comic.multiImage'),
+                  title: l10n.comicReaderMultiImageSection,
+                  index: 8,
+                  children: <Widget>[
+                    SettingsSliderTile(
+                      label: l10n.readerPageSpacing,
+                      value: _settings.comicReaderPageSpacing.toDouble(),
+                      min: 0,
+                      max: 50,
+                      divisions: 50,
+                      display: '${_settings.comicReaderPageSpacing}',
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicReaderPageSpacing: v.round())),
+                    ),
+                    SettingsSwitchTile(
+                      title: l10n.readerShowSingleImageOnFirstPage,
+                      subtitle: l10n.readerShowSingleImageOnFirstPageDesc,
+                      value: _settings.comicShowSingleImageOnFirstPage,
+                      onChanged: (v) => _update(_settings.copyWith(
+                          comicShowSingleImageOnFirstPage: v)),
+                    ),
+                    SettingsSliderTile(
+                      label: l10n.readerScreenPicNumberPortrait,
+                      value: _settings.comicReaderScreenPicNumberForPortrait
+                          .toDouble(),
+                      min: 1,
+                      max: 5,
+                      divisions: 4,
+                      display:
+                          '${_settings.comicReaderScreenPicNumberForPortrait}',
+                      onChanged: (v) => _update(_settings.copyWith(
+                          comicReaderScreenPicNumberForPortrait: v.round())),
+                    ),
+                    SettingsSliderTile(
+                      label: l10n.readerScreenPicNumberLandscape,
+                      value: _settings.comicReaderScreenPicNumberForLandscape
+                          .toDouble(),
+                      min: 1,
+                      max: 5,
+                      divisions: 4,
+                      display:
+                          '${_settings.comicReaderScreenPicNumberForLandscape}',
+                      onChanged: (v) => _update(_settings.copyWith(
+                          comicReaderScreenPicNumberForLandscape: v.round())),
+                    ),
+                  ],
+                ),
               ],
               ),
             )
