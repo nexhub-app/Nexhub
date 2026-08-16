@@ -3123,6 +3123,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noSearchResults => 'No results';
 
   @override
+  String searchProgress(int searched, int total) {
+    return 'Searched $searched/$total chapters';
+  }
+
+  @override
   String get customBgColor => 'Custom background';
 
   @override

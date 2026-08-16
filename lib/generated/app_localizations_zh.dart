@@ -3075,6 +3075,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noSearchResults => '无搜索结果';
 
   @override
+  String searchProgress(int searched, int total) {
+    return '已搜索 $searched/$total 章';
+  }
+
+  @override
   String get customBgColor => '自定义背景色';
 
   @override

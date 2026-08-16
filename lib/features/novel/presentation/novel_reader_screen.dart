@@ -3193,13 +3193,31 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       service: _service,
       source: _source,
       novelId: widget.novelId,
+      // 搜索与屏显用同一繁简口径：正文转换后匹配，繁文书也能用简体关键词搜到。
+      convertMode: ChineseConvertMode.fromString(_prefs.chineseConvert),
     );
-    if (result != null &&
-        result.chapterIndex != _chapterIndex &&
-        mounted) {
+    if (result == null || !mounted) return;
+    if (result.chapterIndex != _chapterIndex) {
+      // 跨章：携带命中偏移加载目标章，分页就绪后由 P0-2 恢复路径把偏移
+      // 映射回页码（_buildReader 消费 _savedCharOffset），落到命中页。
+      _savedCharOffset = result.charOffset;
       _chapterIndex = result.chapterIndex;
       _loadChapter(_chapterIndex);
+      return;
     }
+    // 同章：分页已就绪，直接把偏移映射成页码跳转（与书签跳页同构）。
+    final resolved = _pageForCharOffset(result.charOffset);
+    if (_prefs.pageAnimation.isScroll) {
+      final sc = _scrollController;
+      if (sc != null && sc.hasClients) {
+        final h = sc.position.viewportDimension;
+        sc.jumpTo((resolved * h).clamp(0.0, sc.position.maxScrollExtent));
+      }
+    } else {
+      _pageKey.currentState?.jumpToPage(resolved);
+    }
+    setState(() => _currentPage = resolved);
+    _saveProgress(resolved);
   }
 
   /// 底部工具栏配置 sheet：勾选 / 排序槽位（最多 6 个）。
