@@ -2426,6 +2426,7 @@
   "playerMore": "More",
   "seekForward10": "Forward 10s",
   "seekBackward10": "Backward 10s",
+  "playerSeekCancel": "Seek canceled",
   "novelTitleAlignLeft": "Left",
   "novelTitleAlignCenter": "Center",
   "novelTitleAlignRight": "Right",

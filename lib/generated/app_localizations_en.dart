@@ -4400,6 +4400,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get seekBackward10 => 'Backward 10s';
 
   @override
+  String get playerSeekCancel => 'Seek canceled';
+
+  @override
   String get novelTitleAlignLeft => 'Left';
 
   @override

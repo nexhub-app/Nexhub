@@ -27,6 +27,8 @@ import '../../../core/player/player_controller.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/player_settings.dart';
 import '../../../core/player/widgets/seek_bar.dart';
+import '../../../core/resolver/builtin_resolver.dart'
+    show clearResolvedVideoCache;
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
@@ -301,6 +303,53 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isBuffering = false;
   StreamSubscription<bool>? _bufferingSub;
 
+  /// 实时缓冲网速文本（F-6，缓冲时显示在转圈下方；null = 不可用）。
+  String? _bufferingSpeedText;
+
+  /// 网速轮询定时器（F-6，仅缓冲期间运行，500ms 读一次 mpv `cache-speed`）。
+  Timer? _speedProbeTimer;
+
+  /// 开始轮询网速（F-6）：读 mpv `cache-speed`（KB/s）格式化为 MB/s 显示。
+  /// 平台不支持（返回 null）时保持隐藏，不影响播放。
+  void _startSpeedProbe() {
+    _stopSpeedProbe();
+    _speedProbeTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (_disposed || !mounted) return;
+      unawaited(_probeCacheSpeed());
+    });
+    unawaited(_probeCacheSpeed());
+  }
+
+  Future<void> _probeCacheSpeed() async {
+    try {
+      final String? raw = await _controller.backend.getProperty('cache-speed');
+      if (_disposed || !mounted) return;
+      if (raw == null || raw.isEmpty) {
+        if (_bufferingSpeedText != null) {
+          setState(() => _bufferingSpeedText = null);
+        }
+        return;
+      }
+      final double kbps = double.tryParse(raw.trim()) ?? 0;
+      final String text = kbps >= 1024
+          ? '${(kbps / 1024).toStringAsFixed(1)} MB/s'
+          : '${kbps.round()} KB/s';
+      if (_bufferingSpeedText != text) {
+        setState(() => _bufferingSpeedText = text);
+      }
+    } on Object {
+      // 属性读取失败（平台不支持）静默忽略。
+    }
+  }
+
+  void _stopSpeedProbe() {
+    _speedProbeTimer?.cancel();
+    _speedProbeTimer = null;
+    if (_bufferingSpeedText != null) {
+      _bufferingSpeedText = null;
+    }
+  }
+
   /// 播放状态订阅（P8.3.x §加载指示器）：订阅底层 playing 流同步 [_isPlaying]，
   /// 避免「视频已开始播放但中央大播放按钮仍显示」「缓冲转圈不消失」等 UI 滞后。
   StreamSubscription<bool>? _playingSub;
@@ -322,6 +371,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// 横滑 seek 预览目标时间，松手后跳转。
   Duration _seekPreview = Duration.zero;
+
+  /// 横滑过程中累计的垂直位移（F-15：上滑取消 seek，超阈值标记取消）。
+  double _seekDragVerticalDelta = 0;
+
+  /// 本次横滑是否已被上滑取消（松手不跳转）。
+  bool _seekDragCancelled = false;
+
+  /// 上滑判定阈值（逻辑像素）：横滑中垂直位移超过该值视为「上滑取消」。
+  static const double _kSeekCancelThreshold = 40;
 
   /// 上次双击的时刻（F-14 防抖：双击后 600ms 内屏蔽单击，防三分区误触）。
   DateTime _lastDoubleTapAt = DateTime.fromMillisecondsSinceEpoch(0);
@@ -701,10 +759,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 监听解码自动降级（花屏 / 硬解失败自愈）：提示并 re-open 生效
     _decodeFallbackSub =
         _controller.decodeFallbackStream.listen(_onDecodeFallback);
-    // 监听缓冲状态：缓冲中显示加载动画（功能2）
+    // 监听缓冲状态：缓冲中显示加载动画（功能2）+ 实时网速（F-6）。
     _bufferingSub = _controller.bufferingStream.listen((b) {
       if (_disposed || !mounted) return;
       setState(() => _isBuffering = b);
+      // F-6：缓冲开始轮询 mpv cache-speed 显示网速，结束停止。
+      if (b) {
+        _startSpeedProbe();
+      } else {
+        _stopSpeedProbe();
+      }
     });
     // 播放状态同步：底层播放/暂停时同步 [_isPlaying]，驱动中央大播放按钮、
     // 底栏播放图标、缓冲指示器收敛。修复「视频已自动播放但 UI 仍显示暂停态」
@@ -1561,6 +1625,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     Map<String, String>? headers = _playHeaders;
     if (!_isDirectMode) {
       try {
+        // F-10：重试前清空视频地址缓存——缓存里可能存着已过期的签名直链，
+        // 不清会导致反复拿到旧 URL 而「假死」；清空后重新解析拿到新链接。
+        clearResolvedVideoCache();
         final repo = context.read<SourceRepository>();
         final service = context.read<MediaApiService>();
         final source = repo.getById(widget.sourceId);
@@ -3015,6 +3082,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 兜底保存弹幕显示设置（滑块即时保存之外，确保离开页面必定落盘）。
     unawaited(_saveDanmakuSettings());
     _sleepTimer?.cancel();
+    _speedProbeTimer?.cancel();
     // F-5：退出播放器清按集睡眠计数（仅"关定时/退出"才取消，切集保留）。
     _sleepEpisodesRemaining = 0;
     _gestureIndicatorTimer?.cancel();
@@ -3198,10 +3266,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               if (_controller.isLocked) return;
               _dragAxis = _GestureAxis.horizontal;
               _seekPreview = _position;
+              // F-15：每次拖动重置上滑取消状态。
+              _seekDragVerticalDelta = 0;
+              _seekDragCancelled = false;
             },
             onHorizontalDragUpdate: (DragUpdateDetails d) {
               if (_controller.isLocked) return;
               if (_dragAxis != _GestureAxis.horizontal) return;
+              // F-15：累计垂直位移，超过阈值 → 取消本次 seek（松手不跳转）。
+              _seekDragVerticalDelta += d.delta.dy;
+              if (!_seekDragCancelled &&
+                  _seekDragVerticalDelta.abs() > _kSeekCancelThreshold) {
+                _seekDragCancelled = true;
+                _showGestureIndicator(l10n.playerSeekCancel);
+                return;
+              }
+              if (_seekDragCancelled) return;
               final width = context.size?.width ?? 1;
               final delta = d.delta.dx / width;
               final next = _seekPreview +
@@ -3222,9 +3302,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 return;
               }
               if (_dragAxis == _GestureAxis.horizontal) {
-                unawaited(_controller.seek(_seekPreview));
+                // F-15：上滑取消后松手不跳转，进度停在原位置。
+                if (!_seekDragCancelled) {
+                  unawaited(_controller.seek(_seekPreview));
+                }
               }
               _dragAxis = _GestureAxis.none;
+              _seekDragCancelled = false;
+              _seekDragVerticalDelta = 0;
             },
             child: Center(
               child: _buildVideoSurface(),
@@ -3245,16 +3330,34 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           // 中央手势指示器（锁定态不显示）
           if (!_controller.isLocked) _buildGestureIndicator(),
 
-          // 功能2：缓冲加载动画（播放中缓冲时显示中央转圈）。
+          // 功能2：缓冲加载动画（播放中缓冲时显示中央转圈）+ 实时网速（F-6）。
           if (_isBuffering && !_controller.isLocked)
-            const Center(
-              child: SizedBox(
-                width: 56,
-                height: 56,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
-                ),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Colors.white70),
+                    ),
+                  ),
+                  // F-6：缓冲时显示实时网速（mpv cache-speed，平台不支持则隐藏）。
+                  if (_bufferingSpeedText != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppTokens.spaceSm),
+                      child: Text(
+                        _bufferingSpeedText!,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
 

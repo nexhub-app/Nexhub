@@ -4326,6 +4326,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get seekBackward10 => '快退 10 秒';
 
   @override
+  String get playerSeekCancel => '已取消快进';
+
+  @override
   String get novelTitleAlignLeft => '左对齐';
 
   @override
