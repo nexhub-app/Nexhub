@@ -235,6 +235,22 @@ class LocalNovelParser {
   static int _totalLen(List<String> paras) =>
       paras.fold<int>(0, (sum, p) => sum + p.length);
 
+  /// 「卷/部」级标题判定（目录智能分卷分组用）：命中的章节标题作为其后
+  /// 各章的分节名，直到下一个卷级标题。覆盖中文「第X卷/部」「卷X」与
+  /// 英文 Volume/Vol./Part + 数字（罗马/阿拉伯）。
+  static final RegExp _volumeTitleRegex = RegExp(
+    r'^\s*('
+    r'第[一二三四五六七八九十百千万零〇两\d]+[卷部](?![章节回])'
+    r'|卷[一二三四五六七八九十百千万零〇两\d]+'
+    r'|(volume|vol\.?|part)\s+(\d+|[ivxlcdm]+)'
+    r')',
+    caseSensitive: false,
+  );
+
+  /// 判断章节标题是否为卷级标题（见 [_volumeTitleRegex]）。
+  static bool isVolumeTitle(String title) =>
+      title.trim().length <= 40 && _volumeTitleRegex.hasMatch(title);
+
   /// 解析 EPUB 文件。
   ///
   /// 用 archive 解压后：经 META-INF/container.xml 定位 .opf 根文件，

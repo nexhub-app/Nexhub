@@ -1917,6 +1917,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     setState(() => _showInlineSettings = !_showInlineSettings);
   }
 
+  /// 滑块拖动中的轻量预览：只更新内存 [_prefs]，不 setState / 不重分页 /
+  /// 不落盘——长章节整章重分页与偏好落盘都是重操作，逐拖动帧触发会连续
+  /// 阻塞 UI 线程（「长内容设置字号卡退」的根因）。松手由 [_onPrefsChanged]
+  /// 一次性应用（重分页 + 落盘）。滑块拇指/数值标签由 [_SliderRow] 本地
+  /// 状态驱动，无需父级重建。
+  void _onPrefsPreview(NovelReaderPreferences next) {
+    _prefs = next;
+  }
+
   Future<void> _onPrefsChanged(NovelReaderPreferences next) async {
     final animationChanged = next.pageAnimation != _prefs.pageAnimation;
     final convertChanged =
@@ -2648,6 +2657,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     }
                   case 'bookmarkList':
                     _showBookmarkList();
+                  case 'summary':
+                    _showReadingSummary();
                   case 'configureBottomToolbar':
                     _showBottomToolbarConfig();
                   case 'notes':
@@ -2699,6 +2710,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   child: ListTile(
                     leading: const Icon(Icons.bookmark_border),
                     title: Text(l10n.novelMenuBookmarkList),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ),
+                // 阅读总结（进度 / 时长 / 剩余预估）
+                PopupMenuItem<String>(
+                  value: 'summary',
+                  child: ListTile(
+                    leading: const Icon(Icons.insights_outlined),
+                    title: Text(l10n.novelReadingSummary),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                   ),
@@ -3113,11 +3134,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final tocStore = context.read<NovelTocStore>();
     final chapters = _effectiveChapters;
     tocStore.setChapters(widget.sourceId, widget.novelId, chapters);
+    // 本地书目录智能分卷分组：以最近的「卷/部」级标题作为分节名（TXT 行级
+    // 切分保留了卷标题章；无任何卷级标题时返回 null，目录保持平铺）。
+    final sections = _isLocalMode ? _computeVolumeSections(chapters) : null;
     final index = await showChapterList(
       context,
       chapters,
       _chapterIndex,
       bookmarkedIndices: bookmarkedChapters,
+      sectionOf: sections == null
+          ? null
+          : (int i) => i >= 0 && i < sections.length ? sections[i] : null,
     );
     if (index != null && index != _chapterIndex && mounted) {
       _chapterIndex = index;
@@ -3128,6 +3155,171 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _loadChapter(_chapterIndex);
       }
     }
+  }
+
+  /// 计算本地书的分卷分节名（目录智能分类）：每章归属其之前最近的
+  /// 「卷/部」级标题（[LocalNovelParser.isVolumeTitle]），卷标题章自身
+  /// 开启新分节。全书无任何卷级标题时返回 null（目录保持平铺）；首个
+  /// 卷标题之前的章节不归属任何分节（无分节头）。
+  List<String?>? _computeVolumeSections(List<Episode> chapters) {
+    if (chapters.isEmpty) return null;
+    final sections = List<String?>.filled(chapters.length, null);
+    String? current;
+    var hasVolume = false;
+    for (var i = 0; i < chapters.length; i++) {
+      final title = chapters[i].title;
+      if (LocalNovelParser.isVolumeTitle(title)) {
+        current = title.trim();
+        hasVolume = true;
+      }
+      sections[i] = current;
+    }
+    return hasVolume ? sections : null;
+  }
+
+  // ─────────────────────── 阅读总结 ───────────────────────
+
+  /// 秒数 → 本地化时长文案（X 小时 Y 分钟 / X 小时 / Y 分钟）。
+  String _formatReadDuration(AppLocalizations l10n, int seconds) {
+    if (seconds <= 0) return l10n.novelDurationMin(0);
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    if (h > 0 && m > 0) return l10n.novelDurationHourMin(h, m);
+    if (h > 0) return l10n.novelDurationHour(h);
+    return l10n.novelDurationMin(m);
+  }
+
+  /// 阅读总结（统计摘要卡）：进度 / 当前位置 / 累计与今日阅读时长 /
+  /// 阅读次数 / 按历史均速预估的读完剩余时长 / 本章字数。
+  /// 统计数据来自阅读会话记录（本地无源书可能无统计数据，降级隐藏该组）。
+  Future<void> _showReadingSummary() async {
+    final l10n = AppLocalizations.of(context);
+    final chapters = _effectiveChapters;
+    final total = chapters.length;
+    final read = total > 0 ? _chapterIndex + 1 : 0;
+
+    // 统计（best-effort：Hive box 未就绪时整组降级隐藏）。
+    WorkReadingStats? stats;
+    DailyReadingStats? today;
+    try {
+      stats = StatsRepository.instance.statsFor(
+        workId: widget.novelId,
+        sourceId: widget.sourceId.isEmpty ? null : widget.sourceId,
+        type: StatsMediaType.novel,
+      );
+      final now = DateTime.now();
+      final range = StatsRepository.instance.dailyForRange(now, now);
+      today = range.isEmpty ? null : range.first;
+    } on Object {
+      stats = null;
+      today = null;
+    }
+
+    // 剩余时长估算：平均每章耗时 × 剩余章数（读到第 X 章即已进入 X 章）。
+    String? remaining;
+    if (stats != null &&
+        stats.totalDurationSec > 0 &&
+        read > 0 &&
+        total > read) {
+      final avgPerChapter = stats.totalDurationSec / read;
+      final remainingSec = (avgPerChapter * (total - read)).round();
+      remaining = l10n.novelSummaryRemaining(
+          _formatReadDuration(l10n, remainingSec));
+    }
+
+    // 当前章字数（按当前已加载的正文块统计）。
+    final curChars = _paragraphs.fold<int>(
+        0,
+        (sum, b) =>
+            sum + (b is NovelTextBlock ? b.text.trim().length : 0));
+
+    final chapterTitle = chapters.isNotEmpty
+        ? chapters[_chapterIndex.clamp(0, chapters.length - 1)].title
+        : '';
+    final pages = _pagination?.pages.length ?? 0;
+    final page = pages > 0 ? _currentPage.clamp(0, pages - 1) + 1 : 0;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (BuildContext sheetCtx) {
+        final theme = Theme.of(sheetCtx);
+        Widget row(String label, String value, {IconData? icon}) => ListTile(
+              dense: true,
+              leading: icon != null ? Icon(icon, size: 20) : null,
+              title: Text(label),
+              trailing: Text(
+                value,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            );
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(AppTokens.spaceMd),
+                child: Text(l10n.novelReadingSummary,
+                    style: theme.textTheme.titleLarge),
+              ),
+              if (total > 0) ...<Widget>[
+                row(
+                  l10n.novelSummaryProgress(read, total),
+                  total > 0
+                      ? '${(read / total * 100).toStringAsFixed(0)}%'
+                      : '',
+                  icon: Icons.timeline,
+                ),
+                if (chapterTitle.isNotEmpty && pages > 0)
+                  row(
+                    l10n.novelSummaryPosition(chapterTitle, page, pages),
+                    '',
+                    icon: Icons.menu_book_outlined,
+                  ),
+                row(l10n.novelSummaryCurrentChars(curChars), '',
+                    icon: Icons.text_fields),
+              ],
+              if (stats != null && stats.totalDurationSec > 0) ...<Widget>[
+                const Divider(height: 1, indent: AppTokens.spaceLg,
+                    endIndent: AppTokens.spaceLg),
+                row(
+                  l10n.novelSummaryTotalRead,
+                  _formatReadDuration(l10n, stats.totalDurationSec),
+                  icon: Icons.schedule,
+                ),
+                if (today != null && today.novelDurationSec > 0)
+                  row(
+                    l10n.novelSummaryToday,
+                    _formatReadDuration(l10n, today.novelDurationSec),
+                    icon: Icons.today,
+                  ),
+                row(
+                  l10n.novelSummarySessionsValue(stats.sessionCount),
+                  '',
+                  icon: Icons.repeat,
+                ),
+                if (remaining != null)
+                  row(remaining, '', icon: Icons.hourglass_bottom),
+              ] else
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppTokens.spaceLg,
+                      vertical: AppTokens.spaceSm),
+                  child: Text(
+                    l10n.novelSummaryNoStats,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline),
+                  ),
+                ),
+              const SizedBox(height: AppTokens.spaceSm),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   /// 聚合本地模式：切换章节排序方式（EPUB 内部章节的展开位置）。
@@ -3405,6 +3597,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         prefs: _prefs,
         brightness: _brightness,
         onChanged: _onPrefsChanged,
+        onPreview: _onPrefsPreview,
         onBrightnessChanged: _setBrightness,
         onClose: _toggleInlineSettings,
         onCache: _isLocalMode ? null : _startNovelDownload,
@@ -3724,13 +3917,10 @@ class _NovelPageWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textStyle = prefs.resolveBodyTextStyle(textColor);
-    // 章节标题样式：放大字号 + 加粗，让翻页时一眼看到「第N章」分界
-    // （修复本地 EPUB 长篇无视觉章节边界的问题）。
-    final headingStyle = textStyle.copyWith(
-      fontSize: (textStyle.fontSize ?? 16) * 1.4,
-      fontWeight: FontWeight.w700,
-      height: 1.4,
-    );
+    // 章节标题样式：与分页测量共用 [NovelPaginator.headingStyleOf]——
+    // 两处样式必须逐字段一致，否则标题行会按不同字宽断行/计高，
+    // 表现为右侧字符被裁或页底溢出（「字符显示不全」）。
+    final headingStyle = NovelPaginator.headingStyleOf(textStyle);
 
     // 页眉页脚颜色：自定义优先，否则跟随正文色半透明。
     final hfColor = headerFooterColor != null
@@ -4155,6 +4345,7 @@ class _NovelInlineSettings extends StatelessWidget {
   final NovelReaderPreferences prefs;
   final double brightness;
   final ValueChanged<NovelReaderPreferences> onChanged;
+  final ValueChanged<NovelReaderPreferences>? onPreview;
   final ValueChanged<double> onBrightnessChanged;
   final VoidCallback onClose;
   final VoidCallback? onCache;
@@ -4169,6 +4360,7 @@ class _NovelInlineSettings extends StatelessWidget {
     required this.prefs,
     required this.brightness,
     required this.onChanged,
+    this.onPreview,
     required this.onBrightnessChanged,
     required this.onClose,
     this.onCache,
@@ -4546,7 +4738,9 @@ class _NovelInlineSettings extends StatelessWidget {
                       max: 32,
                       divisions: 20,
                       unit: 'sp',
-                      onChanged: (v) =>
+                      onChanged: (v) => onPreview?.call(
+                          prefs.copyWith(fontSize: v)),
+                      onChangeEnd: (v) =>
                           onChanged(prefs.copyWith(fontSize: v)),
                     ),
                     _SliderRow(
@@ -4555,7 +4749,9 @@ class _NovelInlineSettings extends StatelessWidget {
                       min: 1.2,
                       max: 3.0,
                       divisions: 18,
-                      onChanged: (v) =>
+                      onChanged: (v) => onPreview?.call(
+                          prefs.copyWith(lineHeight: v)),
+                      onChangeEnd: (v) =>
                           onChanged(prefs.copyWith(lineHeight: v)),
                     ),
                     _SliderRow(
@@ -4565,8 +4761,10 @@ class _NovelInlineSettings extends StatelessWidget {
                       max: 48,
                       divisions: 22,
                       unit: 'px',
-                      onChanged: (v) =>
-                          onChanged(prefs.copyWith(paragraphSpacing: v)),
+                      onChanged: (v) => onPreview?.call(
+                          prefs.copyWith(paragraphSpacing: v)),
+                      onChangeEnd: (v) => onChanged(
+                          prefs.copyWith(paragraphSpacing: v)),
                     ),
                     _SliderRow(
                       label: l10n.novelMargin,
@@ -4575,7 +4773,10 @@ class _NovelInlineSettings extends StatelessWidget {
                       max: 64,
                       divisions: 14,
                       unit: 'px',
-                      onChanged: (v) => onChanged(prefs.copyWith(margin: v)),
+                      onChanged: (v) =>
+                          onPreview?.call(prefs.copyWith(margin: v)),
+                      onChangeEnd: (v) =>
+                          onChanged(prefs.copyWith(margin: v)),
                     ),
                     _SliderRow(
                       label: l10n.novelLetterSpacing,
@@ -4584,7 +4785,9 @@ class _NovelInlineSettings extends StatelessWidget {
                       max: 8,
                       divisions: 16,
                       unit: 'px',
-                      onChanged: (v) =>
+                      onChanged: (v) => onPreview?.call(
+                          prefs.copyWith(letterSpacing: v)),
+                      onChangeEnd: (v) =>
                           onChanged(prefs.copyWith(letterSpacing: v)),
                     ),
                       ],
@@ -4717,7 +4920,9 @@ class _NovelInlineSettings extends StatelessWidget {
                             min: 1.0,
                             max: 2.5,
                             divisions: 15,
-                            onChanged: (v) => onChanged(
+                            onChanged: (v) => onPreview?.call(
+                                prefs.copyWith(titleFontScale: v)),
+                            onChangeEnd: (v) => onChanged(
                                 prefs.copyWith(titleFontScale: v)),
                           ),
                           SwitchListTile(
@@ -4748,7 +4953,9 @@ class _NovelInlineSettings extends StatelessWidget {
                               min: 0.4,
                               max: 1.5,
                               divisions: 22,
-                              onChanged: (v) => onChanged(
+                              onChanged: (v) => onPreview?.call(
+                                  prefs.copyWith(titleSubScale: v)),
+                              onChangeEnd: (v) => onChanged(
                                   prefs.copyWith(titleSubScale: v)),
                             ),
                             _SliderRow(
@@ -4758,7 +4965,9 @@ class _NovelInlineSettings extends StatelessWidget {
                               max: 32,
                               divisions: 32,
                               unit: 'px',
-                              onChanged: (v) => onChanged(
+                              onChanged: (v) => onPreview?.call(
+                                  prefs.copyWith(titleSegmentSpacing: v)),
+                              onChangeEnd: (v) => onChanged(
                                   prefs.copyWith(titleSegmentSpacing: v)),
                             ),
                             _SliderRow(
@@ -4767,7 +4976,9 @@ class _NovelInlineSettings extends StatelessWidget {
                               min: 1.0,
                               max: 2.5,
                               divisions: 30,
-                              onChanged: (v) => onChanged(
+                              onChanged: (v) => onPreview?.call(
+                                  prefs.copyWith(titleSubLineSpacing: v)),
+                              onChangeEnd: (v) => onChanged(
                                   prefs.copyWith(titleSubLineSpacing: v)),
                             ),
                             _SliderRow(
@@ -4777,7 +4988,9 @@ class _NovelInlineSettings extends StatelessWidget {
                               max: 48,
                               divisions: 48,
                               unit: 'px',
-                              onChanged: (v) => onChanged(
+                              onChanged: (v) => onPreview?.call(
+                                  prefs.copyWith(titleTopMargin: v)),
+                              onChangeEnd: (v) => onChanged(
                                   prefs.copyWith(titleTopMargin: v)),
                             ),
                             _SliderRow(
@@ -4787,7 +5000,9 @@ class _NovelInlineSettings extends StatelessWidget {
                               max: 48,
                               divisions: 48,
                               unit: 'px',
-                              onChanged: (v) => onChanged(
+                              onChanged: (v) => onPreview?.call(
+                                  prefs.copyWith(titleBottomMargin: v)),
+                              onChangeEnd: (v) => onChanged(
                                   prefs.copyWith(titleBottomMargin: v)),
                             ),
                           ],
@@ -4959,7 +5174,9 @@ class _NovelInlineSettings extends StatelessWidget {
                           max: 48,
                           divisions: 48,
                           unit: 'px',
-                          onChanged: (v) => onChanged(
+                          onChanged: (v) => onPreview?.call(
+                              prefs.copyWith(headerFooterMargin: v)),
+                          onChangeEnd: (v) => onChanged(
                               prefs.copyWith(headerFooterMargin: v)),
                         ),
                       ],
@@ -5077,7 +5294,9 @@ class _NovelInlineSettings extends StatelessWidget {
                             max: 8,
                             divisions: 32,
                             unit: 'px',
-                            onChanged: (v) =>
+                            onChanged: (v) => onPreview?.call(
+                                prefs.copyWith(shadowBlur: v)),
+                            onChangeEnd: (v) =>
                                 onChanged(prefs.copyWith(shadowBlur: v)),
                           ),
                           _SliderRow(
@@ -5087,8 +5306,10 @@ class _NovelInlineSettings extends StatelessWidget {
                             max: 8,
                             divisions: 32,
                             unit: 'px',
-                            onChanged: (v) =>
-                                onChanged(prefs.copyWith(shadowOffsetX: v)),
+                            onChanged: (v) => onPreview?.call(
+                                prefs.copyWith(shadowOffsetX: v)),
+                            onChangeEnd: (v) => onChanged(
+                                prefs.copyWith(shadowOffsetX: v)),
                           ),
                           _SliderRow(
                             label: l10n.novelShadowOffsetY,
@@ -5097,8 +5318,10 @@ class _NovelInlineSettings extends StatelessWidget {
                             max: 8,
                             divisions: 32,
                             unit: 'px',
-                            onChanged: (v) =>
-                                onChanged(prefs.copyWith(shadowOffsetY: v)),
+                            onChanged: (v) => onPreview?.call(
+                                prefs.copyWith(shadowOffsetY: v)),
+                            onChangeEnd: (v) => onChanged(
+                                prefs.copyWith(shadowOffsetY: v)),
                           ),
                         ],
                         const Divider(height: 1),
@@ -5135,7 +5358,9 @@ class _NovelInlineSettings extends StatelessWidget {
                             max: 6,
                             divisions: 22,
                             unit: 'px',
-                            onChanged: (v) => onChanged(
+                            onChanged: (v) => onPreview?.call(
+                                prefs.copyWith(underlineThickness: v)),
+                            onChangeEnd: (v) => onChanged(
                                 prefs.copyWith(underlineThickness: v)),
                           ),
                           if (prefs.underlineDashed) ...<Widget>[
@@ -5146,7 +5371,9 @@ class _NovelInlineSettings extends StatelessWidget {
                               max: 16,
                               divisions: 30,
                               unit: 'px',
-                              onChanged: (v) => onChanged(
+                              onChanged: (v) => onPreview?.call(
+                                  prefs.copyWith(underlineDashLength: v)),
+                              onChangeEnd: (v) => onChanged(
                                   prefs.copyWith(underlineDashLength: v)),
                             ),
                             _SliderRow(
@@ -5156,7 +5383,9 @@ class _NovelInlineSettings extends StatelessWidget {
                               max: 16,
                               divisions: 32,
                               unit: 'px',
-                              onChanged: (v) => onChanged(
+                              onChanged: (v) => onPreview?.call(
+                                  prefs.copyWith(underlineDashGap: v)),
+                              onChangeEnd: (v) => onChanged(
                                   prefs.copyWith(underlineDashGap: v)),
                             ),
                           ],
@@ -5297,9 +5526,11 @@ class _NovelInlineSettings extends StatelessWidget {
                                 divisions: 30,
                                 onChanged: (v) {
                                   tts.setRate(v);
-                                  onChanged(
+                                  onPreview?.call(
                                       prefs.copyWith(ttsSpeechRate: v));
                                 },
+                                onChangeEnd: (v) => onChanged(
+                                    prefs.copyWith(ttsSpeechRate: v)),
                               ),
                               ListTile(
                                 contentPadding: EdgeInsets.zero,
@@ -5463,7 +5694,9 @@ class _NovelInlineSettings extends StatelessWidget {
                 max: 32,
                 divisions: 20,
                 unit: 'sp',
-                onChanged: (v) => onChanged(prefs.copyWith(fontSize: v)),
+                onChanged: (v) =>
+                    onPreview?.call(prefs.copyWith(fontSize: v)),
+                onChangeEnd: (v) => onChanged(prefs.copyWith(fontSize: v)),
               ),
               _SliderRow(
                 label: l10n.novelBrightness,
@@ -5916,7 +6149,12 @@ Widget _buildSettingsGroup(
 }
 
 /// 通用滑块行。
-class _SliderRow extends StatelessWidget {
+///
+/// 拖动期间滑块与数值标签由本地状态驱动（不依赖父级重建，父级可只在
+/// 松手时应用），[onChanged] 逐帧回调用于轻量预览，[onChangeEnd] 在松手
+/// 时回调一次用于重操作提交（长章节整章重分页必须走这里，逐帧触发会
+/// 连续阻塞 UI——「设置字号卡退」的根因）。
+class _SliderRow extends StatefulWidget {
   final String label;
   final double value;
   final double min;
@@ -5924,6 +6162,7 @@ class _SliderRow extends StatelessWidget {
   final int divisions;
   final String? unit;
   final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChangeEnd;
 
   const _SliderRow({
     required this.label,
@@ -5933,33 +6172,51 @@ class _SliderRow extends StatelessWidget {
     required this.divisions,
     this.unit,
     required this.onChanged,
+    this.onChangeEnd,
   });
 
   @override
+  State<_SliderRow> createState() => _SliderRowState();
+}
+
+class _SliderRowState extends State<_SliderRow> {
+  /// 拖动中的本地值（null = 未在拖动，显示父级值）。
+  double? _dragValue;
+
+  @override
   Widget build(BuildContext context) {
+    final double v = _dragValue ?? widget.value;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
       child: Row(
         children: <Widget>[
           SizedBox(
             width: 96,
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+            child:
+                Text(widget.label, style: Theme.of(context).textTheme.bodyMedium),
           ),
           Expanded(
             child: Slider(
-              value: value,
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChanged: onChanged,
+              value: v,
+              min: widget.min,
+              max: widget.max,
+              divisions: widget.divisions,
+              onChanged: (nv) {
+                setState(() => _dragValue = nv);
+                widget.onChanged(nv);
+              },
+              onChangeEnd: (nv) {
+                setState(() => _dragValue = null);
+                widget.onChangeEnd?.call(nv);
+              },
             ),
           ),
           SizedBox(
             width: 56,
             child: Text(
-              unit != null
-                  ? '${value.toStringAsFixed(value < 10 ? 1 : 0)}$unit'
-                  : value.toStringAsFixed(1),
+              widget.unit != null
+                  ? '${v.toStringAsFixed(v < 10 ? 1 : 0)}${widget.unit}'
+                  : v.toStringAsFixed(1),
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.end,
             ),

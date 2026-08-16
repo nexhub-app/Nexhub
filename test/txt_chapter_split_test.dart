@@ -161,4 +161,36 @@ void main() {
     expect(chapters[0].title, '楔子');
     expect(chapters[1].title, contains('第一章'));
   });
+
+  test('isVolumeTitle：卷级标题判定（目录分卷分组用）', () {
+    expect(LocalNovelParser.isVolumeTitle('第一卷 风起'), isTrue);
+    expect(LocalNovelParser.isVolumeTitle('第二部'), isTrue);
+    expect(LocalNovelParser.isVolumeTitle('卷三'), isTrue);
+    expect(LocalNovelParser.isVolumeTitle('Volume 12'), isTrue);
+    expect(LocalNovelParser.isVolumeTitle('Part 2'), isTrue);
+    expect(LocalNovelParser.isVolumeTitle('第一章 开始'), isFalse);
+    expect(LocalNovelParser.isVolumeTitle('第三回'), isFalse);
+    expect(LocalNovelParser.isVolumeTitle('他说到第一卷的内容如何如何'), isFalse);
+  });
+
+  test('卷级标题章节切分（TXT 含分卷结构）', () {
+    final buf = StringBuffer();
+    buf.writeln('第一卷 风起');
+    buf.write(_para(0, lines: 60));
+    buf.writeln('第一章 少年');
+    buf.write(_para(1, lines: 60));
+    buf.writeln('第二章 江湖');
+    buf.write(_para(2, lines: 60));
+    buf.writeln('第二卷 云涌');
+    buf.write(_para(3, lines: 60));
+
+    final chapters = LocalNovelParser.splitTxtChapters(
+      buf.toString(),
+      fallbackTitle: '书名',
+    );
+    expect(chapters.length, 4);
+    expect(chapters[0].title, contains('第一卷'));
+    expect(LocalNovelParser.isVolumeTitle(chapters[0].title), isTrue);
+    expect(LocalNovelParser.isVolumeTitle(chapters[3].title), isTrue);
+  });
 }

@@ -4408,6 +4408,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerSeekCancel => 'Seek canceled';
 
   @override
+  String get novelReadingSummary => 'Reading summary';
+
+  @override
+  String novelSummaryProgress(int read, int total) {
+    return 'Progress: chapter $read of $total';
+  }
+
+  @override
+  String get novelSummaryTotalRead => 'Total reading time';
+
+  @override
+  String get novelSummaryToday => 'Today';
+
+  @override
+  String novelSummarySessionsValue(int count) {
+    return '$count sessions';
+  }
+
+  @override
+  String novelSummaryRemaining(String duration) {
+    return 'Est. time to finish: $duration';
+  }
+
+  @override
+  String novelSummaryCurrentChars(int count) {
+    return '$count chars in this chapter';
+  }
+
+  @override
+  String novelDurationHourMin(int h, int m) {
+    return '${h}h ${m}m';
+  }
+
+  @override
+  String novelDurationHour(int h) {
+    return '${h}h';
+  }
+
+  @override
+  String novelDurationMin(int m) {
+    return '$m min';
+  }
+
+  @override
+  String get novelSummaryNoStats => 'No reading stats yet';
+
+  @override
+  String novelSummaryPosition(String chapter, int page, int pages) {
+    return 'Now: $chapter · page $page/$pages';
+  }
+
+  @override
   String get playerAutoPlayCountdown => 'Auto-play next countdown';
 
   @override
