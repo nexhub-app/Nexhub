@@ -435,11 +435,42 @@ class PlayerController extends ChangeNotifier {
   /// 切换前可调用 [setPendingLine] 注入已解析的新线路（用于跨线路重新解析
   /// 场景，如详情页 chips 切换多 lineName），[_openCurrentLine] 会优先使用
   /// 注入的线路而忽略该索引处的旧值。
+  ///
+  /// 切换成功后按切换前的播放位置恢复（B-10），避免换线后从头播放。
   Future<void> selectLine(int index) async {
     if (index < 0 || index >= lines.length) return;
+    // 记录切换前的播放位置（open() 会重置播放器状态）。
+    final Duration resumeAt = _backend.player.state.position;
     currentLineIndex = index;
     notifyListeners();
     await _openCurrentLine();
+    if (resumeAt > Duration.zero) {
+      await _restorePositionAfterOpen(resumeAt);
+    }
+  }
+
+  /// 重新打开媒体后恢复到 [target]（B-10）。
+  ///
+  /// open() 返回时底层往往尚未完成 demux（duration 仍为 0），立即 seek 会被
+  /// mpv 静默丢弃；先等 duration 就绪（最多 8 秒）再 seek，并延迟校验实际
+  /// 落点，偏差超过 3 秒补发一次。seek 经 [seek] 入口更新重连宽限期，避免
+  /// 换线后的重新缓冲被 stall 检测误判为卡顿。
+  Future<void> _restorePositionAfterOpen(Duration target) async {
+    if (_backend.player.state.duration <= Duration.zero) {
+      try {
+        await _backend.player.stream.duration
+            .firstWhere((Duration d) => d > Duration.zero)
+            .timeout(const Duration(seconds: 8));
+      } on Object {
+        // 超时或流异常：仍尝试 seek 一次，失败也不影响播放。
+      }
+    }
+    await seek(target);
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    final Duration cur = _backend.player.state.position;
+    if ((cur - target).abs() > const Duration(seconds: 3)) {
+      await seek(target);
+    }
   }
 
   /// 重新打开当前选中线路的 URL（复用现有 `_player.open(Media(url))` 入口）。
