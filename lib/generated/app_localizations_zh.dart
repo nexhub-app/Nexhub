@@ -4334,6 +4334,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerSeekCancel => '已取消快进';
 
   @override
+  String get playerSkipOpEd => '跳过片头/片尾';
+
+  @override
+  String get playerSkipOp => '跳过片头';
+
+  @override
+  String get playerSkipEd => '跳过片尾';
+
+  @override
+  String get playerSkipOpEndLabel => '片头结束（分:秒）';
+
+  @override
+  String get playerSkipEdStartLabel => '片尾开始（分:秒）';
+
+  @override
+  String get playerSkipUseCurrent => '用当前时间';
+
+  @override
+  String get playerSkipAuto => '自动跳过';
+
+  @override
+  String get playerSkipHint => '留空表示不启用；设置对该作品的全部剧集生效。';
+
+  @override
   String get novelReadingSummary => '阅读总结';
 
   @override

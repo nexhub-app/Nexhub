@@ -8426,6 +8426,54 @@ abstract class AppLocalizations {
   /// **'Seek canceled'**
   String get playerSeekCancel;
 
+  /// No description provided for @playerSkipOpEd.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip intro & outro'**
+  String get playerSkipOpEd;
+
+  /// No description provided for @playerSkipOp.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip intro'**
+  String get playerSkipOp;
+
+  /// No description provided for @playerSkipEd.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip outro'**
+  String get playerSkipEd;
+
+  /// No description provided for @playerSkipOpEndLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Intro ends (m:ss)'**
+  String get playerSkipOpEndLabel;
+
+  /// No description provided for @playerSkipEdStartLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Outro starts (m:ss)'**
+  String get playerSkipEdStartLabel;
+
+  /// No description provided for @playerSkipUseCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Use current'**
+  String get playerSkipUseCurrent;
+
+  /// No description provided for @playerSkipAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto skip'**
+  String get playerSkipAuto;
+
+  /// No description provided for @playerSkipHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to disable. Applies to all episodes of this series.'**
+  String get playerSkipHint;
+
   /// No description provided for @novelReadingSummary.
   ///
   /// In en, this message translates to:
