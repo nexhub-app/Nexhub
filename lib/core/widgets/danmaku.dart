@@ -41,6 +41,10 @@ class DanmakuController {
     if (items != null) setItems(items);
   }
 
+  /// 同文本合并窗口（秒）：窗口内相同文本只保留最早一条（F-20）。
+  /// 热门句被观众刷屏时同屏会出现数条一模一样的弹幕，合并后屏显更清爽。
+  static const int _mergeWindowSeconds = 5;
+
   cd.DanmakuController? _controller;
   final List<DanmakuItem> _items = [];
 
@@ -53,11 +57,33 @@ class DanmakuController {
   /// 绑定 canvas_danmaku 控制器。
   void attach(cd.DanmakuController controller) => _controller = controller;
 
-  /// 替换全部弹幕数据（清空旧的、重建秒索引并重置游标）。
+  /// 同文本合并（F-20）：按时间排序后，相同文本距上一次「保留」不足
+  /// [_mergeWindowSeconds] 秒的丢弃；本人发送的弹幕不参与合并。
+  static List<DanmakuItem> mergeDuplicates(List<DanmakuItem> items) {
+    if (items.length < 2) return items;
+    final sorted = List<DanmakuItem>.from(items)
+      ..sort((a, b) => a.time.compareTo(b.time));
+    final lastKept = <String, Duration>{};
+    final out = <DanmakuItem>[];
+    for (final it in sorted) {
+      if (!it.selfSend) {
+        final last = lastKept[it.text];
+        if (last != null &&
+            it.time - last < const Duration(seconds: _mergeWindowSeconds)) {
+          continue;
+        }
+        lastKept[it.text] = it.time;
+      }
+      out.add(it);
+    }
+    return out;
+  }
+
+  /// 替换全部弹幕数据（清空旧的、去重合并、重建秒索引并重置游标）。
   void setItems(List<DanmakuItem> items) {
     _items
       ..clear()
-      ..addAll(items);
+      ..addAll(mergeDuplicates(items));
     _bySecond.clear();
     for (var i = 0; i < _items.length; i++) {
       final sec = _items[i].time.inSeconds;
