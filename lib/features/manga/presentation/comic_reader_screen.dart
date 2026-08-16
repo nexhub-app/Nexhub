@@ -35,7 +35,6 @@ import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/download/download_manager.dart';
-import '../../../core/download/download_task.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/stats/reading_session_recorder.dart';
@@ -389,6 +388,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 缩放动画进行中标志：动画期间忽略双击 / 平移 / 方向键缩放请求。
   bool _zoomAnimating = false;
 
+  /// 当前缩放动画的目标矩阵：中断/连点时先定格到目标态再继续，保证三态循环不卡死。
+  /// 翻页时 [_resetZoom] 也会清空此值，避免翻页后残留目标导致双击无反应。
+  Matrix4? _zoomAnimTarget;
+
   /// 缩放动画当前挂载的监听（每轮动画先移除旧监听再挂新监听，避免累积泄漏）。
   void Function()? _zoomAnimTick;
   void Function(AnimationStatus)? _zoomAnimStatus;
@@ -557,6 +560,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (_isLocalMode) _uiVisible = true;
     if (mounted) setState(() {});
     _applyOrientation();
+    // 移动端：进入阅读器即按全屏偏好隐藏状态栏/导航栏（immersiveSticky）。
+    // 桌面端不自动 OS 全屏（避免 window_manager 的 setFullScreen 在初始化期
+    // 同步调用卡死渲染管道，见 _applyFullscreen 注释）；桌面全屏仅由 F11 /
+    // 设置面板开关触发（见 _handleKeyEvent / didUpdateWidget）。
+    if (!_isDesktop) _applyFullscreen();
     // 注意：window_manager 的 ensureInitialized 已在 main() 的 runApp 之前完成
     // （运行期再调会冻结渲染管道），此处只管应用状态，不再初始化。
     _applyWakelock();
@@ -1341,8 +1349,23 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (_seamActive && _seam.isNotEmpty) {
       final _SeamSegment? seg = _seamSegmentAt(flatIdx);
       if (seg != null && seg.chapterIndex > _chapterIndex) {
+        // 跳章过滤（REQ-C11）：滚入下一段时若相邻章应被跳过（已读/被筛选/重复），
+        // 不无缝重锚到相邻章，而是直接整章加载到过滤后的目标章，避免条漫下
+        // 「跳章过滤不生效」。
+        final int? resolved = _resolveChapterTarget(1);
+        if (resolved == null || resolved != seg.chapterIndex) {
+          if (resolved == null) return;
+          _jumpToChapter(resolved);
+          return;
+        }
         if (_seamAdvance(1)) return;
       } else if (seg != null && seg.chapterIndex < _chapterIndex) {
+        final int? resolved = _resolveChapterTarget(-1);
+        if (resolved == null || resolved != seg.chapterIndex) {
+          if (resolved == null) return;
+          _jumpToChapter(resolved);
+          return;
+        }
         if (_seamAdvance(-1)) return;
       }
     }
@@ -1877,11 +1900,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (_autoDownloadTriggeredChapter == _chapterIndex) return; // 每章仅一次。
     final total = _images.length;
     if (total <= 0 || (page + 1) / total < 0.25) return; // 未越过 25%。
-    // 已存在该作品的下载批次（任意状态：进行中/已完成/等待）则跳过，避免重复入队。
-    final bool hasTask = dm.tasks.any(
-      (t) => t.contentId == widget.comicId && t.status != DownloadStatus.cancelled,
+    // 存在该作品的【活跃】下载批次（进行中/等待/暂停）则跳过，避免重复入队；
+    // 已完成/失败/取消的批次不阻塞——否则用户之前手动下过前几话（completed 任务
+    // 仍在列表里），后续新话永远无法自动下载（「没有自动下载」的根因）。
+    final bool hasActiveTask = dm.tasks.any(
+      (t) => t.contentId == widget.comicId && t.isActive,
     );
-    if (hasTask) return;
+    if (hasActiveTask) return;
     _autoDownloadTriggeredChapter = _chapterIndex;
     final item = MediaItem(
       id: widget.comicId,
@@ -1916,6 +1941,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 基准残留放大矩阵，`realFactor` 恒为 1 导致捏合无效果。
   void _resetZoom() {
     _pinchBaseMatrix = null;
+    // 翻页/切章时结束未完成的缩放动画：否则动画控制器仍在 forward，会在翻页后
+    // 继续改写矩阵并残留 _zoomAnimating=true，导致「三态只剩缩小、双击无反应」。
+    _stopZoomAnimation();
     _zoomController.value = Matrix4.identity();
   }
 
@@ -2253,7 +2281,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final Color scrim = Theme.of(context).colorScheme.surface;
     return Positioned(
       top: 80,
-      right: 6,
+      left: 6,
       bottom: 90,
       child: MouseRegion(
         cursor: SystemMouseCursors.grab,
@@ -2429,8 +2457,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void _toggleZoom([Offset? focal]) {
     // 双击缩放开关：关闭时任何触发路径（双击 / 定点双击 / Shift+左键兜底）均不缩放。
     if (!_prefs.doubleTapZoom) return;
-    // 缩放动画进行中：忽略新的缩放请求（防连点打断动画造成抖动）。
-    if (_zoomAnimating) return;
+    // 缩放动画进行中：先定格到目标态并结束动画，再进入下一次三态循环——
+    // 否则动画未完成（如翻页时 _resetZoom 中断）会留下 _zoomAnimating=true，
+    // 后续双击被「忽略新请求」吞掉，表现为「三态只剩缩小、之后双击无反应」。
+    if (_zoomAnimating) {
+      final Matrix4? t = _zoomAnimTarget;
+      _stopZoomAnimation();
+      if (t != null) _zoomController.value = Matrix4.copy(t);
+    }
     final m = _zoomController.value;
     final cur = m.getMaxScaleOnAxis();
     final Size vp = MediaQuery.of(context).size;
@@ -2481,13 +2515,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     final AnimationController c = _zoomAnimController ??=
         AnimationController(vsync: this);
-    c.stop();
-    // 先移除上一轮监听再挂本轮，避免累积泄漏（removeListener 为公开方法，
-    // 不像 clearListeners 受 protected 限制）。
-    if (_zoomAnimTick != null) c.removeListener(_zoomAnimTick!);
-    if (_zoomAnimStatus != null) c.removeStatusListener(_zoomAnimStatus!);
+    _stopZoomAnimation();
     c.duration = Duration(milliseconds: ms);
     _zoomAnimating = true;
+    _zoomAnimTarget = target;
     final Animation<double> curve =
         CurvedAnimation(parent: c, curve: Curves.easeOutCubic);
     final Matrix4Tween tween = Matrix4Tween(begin: m, end: target);
@@ -2499,6 +2530,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         return;
       }
       _zoomAnimating = false;
+      _zoomAnimTarget = null;
       // 动画结束即卸载本轮监听，避免下一轮重复移除。
       c.removeListener(onTick);
       c.removeStatusListener(onStatus);
@@ -2511,6 +2543,25 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     c.addListener(onTick);
     c.addStatusListener(onStatus);
     c.forward(from: 0);
+  }
+
+  /// 结束当前缩放动画：停止控制器、摘除本轮监听、复位动画状态与目标。
+  /// 供双击连点（先定格再继续三态循环）与翻页/切章 [_resetZoom] 调用，
+  /// 避免残留 [_zoomAnimating]=true 导致后续双击/手势被永久忽略（三态失效）。
+  void _stopZoomAnimation() {
+    final AnimationController? c = _zoomAnimController;
+    if (c == null) return;
+    c.stop();
+    if (_zoomAnimTick != null) {
+      c.removeListener(_zoomAnimTick!);
+      _zoomAnimTick = null;
+    }
+    if (_zoomAnimStatus != null) {
+      c.removeStatusListener(_zoomAnimStatus!);
+      _zoomAnimStatus = null;
+    }
+    _zoomAnimating = false;
+    _zoomAnimTarget = null;
   }
 
   /// 按 [ReaderPreferences.zoomStart] 计算双击缩放锚点（REQ-B11）。
@@ -2661,8 +2712,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _volumeKeyActive = true;
       _volumeKeyLastVolume = null;
       try {
+        // 音量键翻页期间禁止系统音量条弹出（setVolume 默认会显示原生 UI）。
+        unawaited(FlutterVolumeController.updateShowSystemUI(false));
         // emitOnStart=false：挂载时不发首值，避免误判为一次音量变化。
         FlutterVolumeController.addListener(_onVolumeChanged, emitOnStart: false);
+        // 异步用当前音量建立初始基线：使首次按键即可生效，而非「首个事件仅建基线」。
+        unawaited(_initVolumeBaseline());
       } on Object {
         // 插件不可用（测试 / 模拟器）时静默降级。
         _volumeKeyActive = false;
@@ -2672,20 +2727,40 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _volumeKeyLastVolume = null;
       try {
         FlutterVolumeController.removeListener();
+        unawaited(FlutterVolumeController.updateShowSystemUI(true));
       } on Object {
         // 忽略。
       }
     }
   }
 
+  /// 异步查询当前音量作为按键基线，使挂载后首次按键即可触发翻页/滚动。
+  Future<void> _initVolumeBaseline() async {
+    try {
+      final double? v = await FlutterVolumeController.getVolume();
+      if (_volumeKeyActive && v != null) {
+        _volumeKeyLastVolume = v;
+      }
+    } on Object {
+      // 插件不可用（测试 / 模拟器）时保持 null（首个事件仍退化为建基线）。
+    }
+  }
+
   /// 音量键事件：音量变大 → 下一页 / 向下滚动；变小 → 上一页 / 向上滚动；
   /// 随后把系统音量恢复为按键前值（抑制音量条弹出与系统音量变化）。
+  ///
+  /// 竞态防护：把 [_volumeKeyBusy] 的置位跨越整个「动作 + 恢复音量」过程——
+  /// `setVolume` 恢复音量后会再次触发监听事件，若在恢复完成前就释放 busy，
+  /// 该恢复事件会被当成一次反向按键，导致「翻页 → 反向翻页 → 翻页…」的振荡
+  /// 与音量抖动（P0 实机 bug）。故 busy 在恢复完成后才释放，并以目标音量重建基线。
   void _onVolumeChanged(double volume) {
     if (_volumeKeyBusy) return;
     final double? last = _volumeKeyLastVolume;
-    _volumeKeyLastVolume = volume;
-    // 首个事件仅建立基线，不触发翻页。
-    if (last == null) return;
+    // 基线尚未建立（挂载后 getVolume 未返回 / 首个事件）时仅记录，不触发翻页。
+    if (last == null) {
+      _volumeKeyLastVolume = volume;
+      return;
+    }
     final double diff = volume - last;
     if (diff.abs() < 0.01) return;
     _volumeKeyBusy = true;
@@ -2695,11 +2770,22 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       } else {
         _volumeKeyAction(-1);
       }
-      // 恢复音量：恢复后监听再触发时音量≈基线（diff≈0），被上方过滤，不会死循环。
-      FlutterVolumeController.setVolume(last);
+    } on Object {
+      // 忽略插件异常。
+    }
+    // 恢复音量到按键前值：await 期间保持 busy，抑制恢复事件被当作反向按键；
+    // 完成后以目标音量重建基线，使下一次按键的 diff 仍相对基线计算。
+    unawaited(_restoreVolumeAfterAction(last));
+  }
+
+  /// 把系统音量恢复到 [target]，完成后释放 [_volumeKeyBusy] 并以 [target] 重建基线。
+  Future<void> _restoreVolumeAfterAction(double target) async {
+    try {
+      await FlutterVolumeController.setVolume(target);
     } on Object {
       // 忽略插件异常。
     } finally {
+      _volumeKeyLastVolume = target;
       _volumeKeyBusy = false;
     }
   }
@@ -2772,6 +2858,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 自动滚动单帧回调：按已流逝时间换算本次像素增量，用
   /// [ScrollOffsetController.animateScroll] 平滑下滚（与滚轮共用同一像素路径，
   /// 同样应用 readerScrollSpeed 倍率）。滚到底由列表边界自然夹紧。
+  ///
+  /// 动画时长取一帧（16ms，≈ 屏幕刷新率）：旧实现用 1ms 让每次动画「瞬间完成」，
+  /// 但每帧新建 animateScroll 都会取消上一轮 DrivenScrollActivity、立即重开一个新
+  /// 动画——高频重启驱动活动造成条漫自动滚动「每页一瞬卡顿」。16ms 单帧动画与
+  /// 刷新节奏一致，逐帧推进平滑且不产生视觉跳变。
   void _onAutoScrollTick(Duration elapsed) {
     if (_autoScrollPaused || !mounted) return;
     final Duration delta = elapsed - _autoScrollElapsed;
@@ -2783,10 +2874,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (px <= 0) return;
     final ScrollOffsetController? soc = _webtoonOffsetController;
     if (soc == null) return;
-    // 1ms 满足 DrivenScrollActivity 的 duration>zero 断言，视觉上≈连续滚动；
+    // 单帧动画满足 DrivenScrollActivity 的 duration>zero 断言，视觉上≈连续滚动；
     // 与滚轮路径共用 catchError 兜底（unawaited 时 try-catch 捕不到异步错误）。
     unawaited(soc
-        .animateScroll(offset: px, duration: const Duration(milliseconds: 1))
+        .animateScroll(
+          offset: px,
+          duration: const Duration(milliseconds: 16),
+        )
         .catchError((Object _) {}));
   }
 
@@ -3953,7 +4047,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         }
         // 首屏单图（REQ-C13）：第一跨页只放第 0 页，其后恢复双页。
         final bool firstSingle = _showFirstPageSingle && spreadIdx == 0;
-        final int a = firstSingle ? 0 : spreadIdx * 2 - 1;
+        // 跨页左页索引统一经 _doublePageLeftPageFor 计算：首屏单图关闭时
+        // spread 0 左页为 0（旧手写 `spreadIdx * 2 - 1` 在此时算出 -1 →
+        // `_images[-1]` RangeError 崩溃），开启时 spread 0 为 0、其后为 2k-1。
+        final int a = _doublePageLeftPageFor(spreadIdx);
         final int b = a + 1;
         final aImg = _images[a];
         final bImg = !firstSingle && b < _images.length ? _images[b] : null;
@@ -4573,7 +4670,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 时间 / 电量浮层（REQ-C5）：控制栏可见时显示，随控制栏显隐。
   ///
-  /// 位置（[ClockBatteryPosition.top] / bottom）与边距、透明度、字号均由偏好控制；
+  /// 位置（[ClockBatteryPosition] 四角）与边距、透明度、字号均由偏好控制；
   /// 电量不可用（-1，部分平台/测试环境）时仅显示时间。
   Widget _buildClockBatteryOverlay(AppLocalizations l10n) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -4603,11 +4700,24 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       ),
     );
     final double m = _prefs.clockBatteryMargin;
+    final ClockBatteryPosition pos = _prefs.clockBatteryPosition;
     return Positioned(
-      top: _prefs.clockBatteryPosition == ClockBatteryPosition.top ? m : null,
-      bottom:
-          _prefs.clockBatteryPosition == ClockBatteryPosition.bottom ? m : null,
-      left: m,
+      top: (pos == ClockBatteryPosition.topLeft ||
+              pos == ClockBatteryPosition.topRight)
+          ? m
+          : null,
+      bottom: (pos == ClockBatteryPosition.bottomLeft ||
+              pos == ClockBatteryPosition.bottomRight)
+          ? m
+          : null,
+      left: (pos == ClockBatteryPosition.topLeft ||
+              pos == ClockBatteryPosition.bottomLeft)
+          ? m
+          : null,
+      right: (pos == ClockBatteryPosition.topRight ||
+              pos == ClockBatteryPosition.bottomRight)
+          ? m
+          : null,
       child: Opacity(
         opacity: _prefs.clockBatteryOpacity.clamp(0.1, 1.0),
         child: chip,
@@ -4670,23 +4780,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               icon: Icon(_isFav ? Icons.favorite : Icons.favorite_border),
               tooltip: l10n.favorite,
               onPressed: _onFavoritePressed,
-            ),
-            // 收藏当前页图片（REQ-C2）：心形高亮已收藏，点击 toggle。
-            IconButton(
-              icon: Icon(
-                _isPageImageFav
-                    ? Icons.favorite
-                    : Icons.favorite_border,
-                color: _isPageImageFav ? Colors.amber : null,
-              ),
-              tooltip: l10n.readerFavoriteImage,
-              onPressed: _toggleCurrentPageImageFavorite,
-            ),
-            // 图片收藏图库入口（REQ-C2）。
-            IconButton(
-              icon: const Icon(Icons.photo_library_outlined),
-              tooltip: l10n.readerImageFavorite,
-              onPressed: _openImageFavoriteGallery,
             ),
             // 章节书签 toggle（REQ-C1）：已书签高亮，点击取消。本地单文件无章节概念隐藏。
             if (!_isLocalMode || _isAggregatedLocal)
@@ -4996,6 +5089,22 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           icon: Icon(_readingModeIcon(_prefs.readingMode)),
           tooltip: l10n.readerMode,
           onPressed: () => _showReadingModePicker(l10n),
+        ),
+        // 收藏当前页图片（REQ-C2）：心形高亮已收藏，点击 toggle。原在顶栏，
+        // 因顶栏按钮过多遮挡标题，移入底栏。
+        IconButton(
+          icon: Icon(
+            _isPageImageFav ? Icons.favorite : Icons.favorite_border,
+            color: _isPageImageFav ? Colors.amber : null,
+          ),
+          tooltip: l10n.readerFavoriteImage,
+          onPressed: _toggleCurrentPageImageFavorite,
+        ),
+        // 图片收藏图库入口（REQ-C2）。
+        IconButton(
+          icon: const Icon(Icons.photo_library_outlined),
+          tooltip: l10n.readerImageFavorite,
+          onPressed: _openImageFavoriteGallery,
         ),
         const Spacer(),
         IconButton(

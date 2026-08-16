@@ -12193,6 +12193,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New content available'**
   String get rssNewContentGeneric;
+
+  /// No description provided for @readerClockPosTopLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Left'**
+  String get readerClockPosTopLeft;
+
+  /// No description provided for @readerClockPosTopRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Right'**
+  String get readerClockPosTopRight;
+
+  /// No description provided for @readerClockPosBottomLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom Left'**
+  String get readerClockPosBottomLeft;
+
+  /// No description provided for @readerClockPosBottomRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom Right'**
+  String get readerClockPosBottomRight;
 }
 
 class _AppLocalizationsDelegate

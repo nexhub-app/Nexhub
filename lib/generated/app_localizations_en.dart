@@ -6443,4 +6443,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rssNewContentGeneric => 'New content available';
+
+  @override
+  String get readerClockPosTopLeft => 'Top Left';
+
+  @override
+  String get readerClockPosTopRight => 'Top Right';
+
+  @override
+  String get readerClockPosBottomLeft => 'Bottom Left';
+
+  @override
+  String get readerClockPosBottomRight => 'Bottom Right';
 }

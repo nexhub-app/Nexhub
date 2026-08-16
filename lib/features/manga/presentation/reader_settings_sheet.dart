@@ -197,6 +197,14 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         return l10n.readerClockPosTop;
       case 'readerClockPosBottom':
         return l10n.readerClockPosBottom;
+      case 'readerClockPosTopLeft':
+        return l10n.readerClockPosTopLeft;
+      case 'readerClockPosTopRight':
+        return l10n.readerClockPosTopRight;
+      case 'readerClockPosBottomLeft':
+        return l10n.readerClockPosBottomLeft;
+      case 'readerClockPosBottomRight':
+        return l10n.readerClockPosBottomRight;
       default:
         return key;
     }

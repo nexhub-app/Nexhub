@@ -3668,5 +3668,9 @@
   "rssNewContentGeneric": "New content available",
   "@rssNewContentGeneric": {
     "description": "Generic text shown when notification content is hidden"
-  }
+  },
+  "readerClockPosTopLeft": "Top Left",
+  "readerClockPosTopRight": "Top Right",
+  "readerClockPosBottomLeft": "Bottom Left",
+  "readerClockPosBottomRight": "Bottom Right"
 }
