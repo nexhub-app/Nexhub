@@ -210,6 +210,17 @@
   "nextChapter": "Next chapter",
   "readerLastChapterReached": "Already at the last chapter",
   "readerFirstChapterReached": "Already at the first chapter",
+  "readerNextChapterSkipped": "Next chapter: {title}",
+  "@readerNextChapterSkipped": {
+    "description": "Webtoon skip-transition banner title shown when jumping over read/filtered/duplicate chapters",
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "readerNextChapterSkippedHint": "Tap to jump now",
+  "@readerNextChapterSkippedHint": {
+    "description": "Hint text on the webtoon skip-transition banner telling the user to tap to jump immediately"
+  },
   "readerSettings": "Reader settings",
   "readerMode": "Reading mode",
   "readerBackground": "Background",

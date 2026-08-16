@@ -495,6 +495,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerFirstChapterReached => 'Already at the first chapter';
 
   @override
+  String readerNextChapterSkipped(Object title) {
+    return 'Next chapter: $title';
+  }
+
+  @override
+  String get readerNextChapterSkippedHint => 'Tap to jump now';
+
+  @override
   String get readerSettings => 'Reader settings';
 
   @override

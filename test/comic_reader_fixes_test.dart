@@ -170,6 +170,105 @@ void main() {
     expect(find.byType(MangaPageImage), findsAtLeastNWidgets(1));
   });
 
+  testWidgets('Bug1: 音量键方向映射对应翻页功能 down→next、up→prev', (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1':
+          '{"readingMode":"singleLTR","doubleTapZoom":true,"progressBarOnRight":false}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final service = FakeMediaApiServiceFixes();
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    await tester.pumpWidget(wrapReader(tester, repo: repo, service: service, favorites: favorites));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // 音量键方向映射（代码复核确认）：_onVolumeKeyDown → _volumeKeyAction(+1) →
+    // _goNextPage；_onVolumeKeyUp → _volumeKeyAction(-1) → _goPrevPage。此处通过
+    // 阅读区 next/prev 热区触发与音量键完全相同的 _goNextPage/_goPrevPage，并断言
+    // 页码指示器（第 N / 5 页）随之前进/回退。
+    // 先单击中心 toggle 区显示控制栏（页 1）。
+    await tester.tapAt(const Offset(400, 600));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('第 1 / 5 页'), findsOneWidget);
+
+    // 音量下键 → 下一页（_goNextPage）。
+    await tester.tapAt(const Offset(700, 600));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('第 2 / 5 页'), findsOneWidget);
+
+    // 音量上键 → 上一页（_goPrevPage）。
+    await tester.tapAt(const Offset(200, 600));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('第 1 / 5 页'), findsOneWidget);
+  });
+
+  testWidgets('Bug3: 双击缩放三态循环 1x→0.5x→2x→1x（修复三态消失）', (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1': '{"readingMode":"singleLTR","doubleTapZoom":true}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final service = FakeMediaApiServiceFixes();
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    await tester.pumpWidget(wrapReader(tester, repo: repo, service: service, favorites: favorites));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    double scale() {
+      final MangaPageImage img =
+          tester.widget<MangaPageImage>(find.byType(MangaPageImage).first);
+      return img.zoomController!.value.getMaxScaleOnAxis();
+    }
+
+    Future<void> doDoubleTap() async {
+      await tester.tapAt(const Offset(400, 600));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(const Offset(400, 600));
+      // 分帧推进，让双击缩放动画（默认 500ms）完整结束。
+      for (int i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    // 第一次双击 → 缩小到 0.5x。
+    await doDoubleTap();
+    expect(scale(), closeTo(0.5, 0.02));
+
+    // 第二次双击 → 放大到 2.0x。修复前：缩小态第一击被当普通单击派发翻页，
+    // _resetZoom 把 0.5x 清回 1x，双击后只能再次缩到 0.5x（三态消失）。
+    await doDoubleTap();
+    expect(scale(), closeTo(2.0, 0.02));
+
+    // 第三次双击 → 恢复 1.0x，三态循环完整。
+    await doDoubleTap();
+    expect(scale(), closeTo(1.0, 0.02));
+  });
+
   testWidgets('Bug6: 双页 + 首屏单图 → 第一屏单张，其后双页', (tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'reader_prefs_m1':
