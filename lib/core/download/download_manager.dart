@@ -26,6 +26,8 @@ import '../scraper/media_api_service.dart';
 import '../services/source_repository.dart';
 import '../utils/app_log.dart';
 import '../local/saf_bridge.dart' show normalizeSafTreeUri;
+import '../novel/novel_chinese_converter.dart';
+import '../novel/novel_reader_preferences.dart';
 import 'comic_download_handler.dart';
 import 'download_file_system.dart';
 import 'download_format_preferences.dart';
@@ -1202,8 +1204,23 @@ class DownloadManager extends ChangeNotifier {
         return;
       }
 
+      // 小说任务：读取该作品的阅读偏好，落盘时应用与阅读器一致的繁简转换
+      // （B-05：阅读器内开繁→简后，离线缓存与显示保持相同）。
+      ChineseConvertMode novelConvertMode = ChineseConvertMode.none;
+      if (task.sourceType == SourceType.novelSource) {
+        try {
+          final novelPrefs = await NovelReaderPreferencesStore().get(
+              task.contentId);
+          novelConvertMode =
+              ChineseConvertMode.fromString(novelPrefs.chineseConvert);
+        } on Object {
+          // 偏好读取失败按不转换处理，不阻塞下载。
+        }
+      }
+
       final handler = _createHandler(task, source, item.title, item.author,
-          chapters);
+          chapters,
+          novelConvertMode: novelConvertMode);
 
       AppLog.instance.i('[下载开始] ${item.title} (${task.id}, '
           '${chapters.length} 章, 格式 ${task.format.label})');
@@ -1359,8 +1376,9 @@ class DownloadManager extends ChangeNotifier {
     PluginConfig source,
     String title,
     String? author,
-    List<Episode> chapters,
-  ) {
+    List<Episode> chapters, {
+    ChineseConvertMode novelConvertMode = ChineseConvertMode.none,
+  }) {
     switch (task.sourceType) {
       case SourceType.mangaSource:
         return ComicDownloadHandler(
@@ -1383,6 +1401,7 @@ class DownloadManager extends ChangeNotifier {
           bookTitle: title,
           author: author,
           concurrency: _settings.threadCount,
+          convertMode: novelConvertMode,
         );
       case SourceType.animeSource:
         return MediaDownloadHandler(
