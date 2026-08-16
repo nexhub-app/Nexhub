@@ -316,6 +316,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 上次自动保存播放位置的时间（节流，每 5 秒存一次）。
   DateTime _lastPositionSaveAt = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// 上次 setState 刷新 UI 的时间（B-17）：position 流约 4–10Hz，整页重建
+  /// 开销大（含 Marquee / SeekBar / 手势层）；节流到 ~250ms 后 UI 仍平滑，
+  /// 但重建频率显著下降。
+  DateTime? _lastPositionUiAt;
+
+  /// 播放位置管理器缓存（B-6）。
+  ///
+  /// deactivate 之后 context 已失活，dispose 里再调 `context.read` 会抛
+  /// 「Looking up a deactivated widget's ancestor is unsafe」并被 catch 吞掉，
+  /// 导致退出前最后 ≤5s 的进度丢失。因此 _init 阶段（context 有效时）读取并
+  /// 缓存到 State 字段，[_maybeSavePosition] / [_saveCurrentPosition] 一律走
+  /// 缓存引用写盘，dispose 期也能可靠保存。
+  MediaPlaybackPositionManager? _positionManager;
+
   /// 当前集「续播位置恢复」是否已完成（成功 seek / 无记录 / 放弃）。
   ///
   /// 修复「记住播放进度没作用」：媒体刚 open 时会立刻推送 position=0 的事件，
@@ -497,6 +511,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Future<void> _init() async {
+    // 缓存播放位置管理器引用（B-6）：context 仅在页面存活期有效，dispose 时
+    // 已失活无法 context.read；提前缓存后保存进度在任何时刻（含退出瞬间）可靠。
+    try {
+      _positionManager = context.read<MediaPlaybackPositionManager>();
+    } on Object {
+      _positionManager = null;
+    }
+
     // 优先恢复弹幕相关持久化设置（源选择 / 显示设置 / 自定义 URL）。
     // 必须放在视频打开之前：一旦视频解析或打开抛异常，_init 后续代码不会执行，
     // 设置就会永远停留在默认值，表现为「退出重进无法保持」。
@@ -1029,21 +1051,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return id;
   }
 
-  Future<void> _loadDanmaku() async {
+  /// 加载当前集弹幕（首载入口，B-21 统一走 [_loadDanmakuFor]）。
+  Future<void> _loadDanmaku() => _loadDanmakuFor(widget.episode);
+
+  /// 加载指定剧集弹幕（首载 / 切集共用，B-21）。
+  ///
+  /// 与旧的 `_loadDanmakuForEpisode` 相比补齐了与首载 [_loadDanmaku] 对称的
+  /// 行为：自定义 URL 源为空时清空跳过、凭据未配置时给出提示，不再静默失败。
+  Future<void> _loadDanmakuFor(Episode ep) async {
     if (_danmakuRepo == null) return;
     // 关闭弹幕源：清空并跳过加载。
     if (_danmakuSource == DanmakuSourceType.off) {
       _danmakuController.clear();
       return;
     }
-    // #6 A4-#6: 自定义 URL 源且 URL 为空时，提示并跳过。
+    // 自定义 URL 源且 URL 为空时，清空并跳过。
     if (_danmakuSource == DanmakuSourceType.customUrl &&
         _customDanmakuUrl.isEmpty) {
       _danmakuController.clear();
       return;
     }
     try {
-      final ep = widget.episode;
       final dandanId = await _resolveDandanId(ep);
       final items = await _danmakuRepo!.getDanmaku(
         sourceId: widget.sourceId,
@@ -1069,7 +1097,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       if (_disposed || !mounted) return;
       _danmakuController.setItems(filtered);
     } on Object catch (e) {
-      // 凭据未配置时给出提示，其余错误静默忽略。
+      // 凭据未配置时给出提示，其余错误静默忽略（首载 / 切集行为一致）。
       final msg = e.toString();
       if (msg.contains('credentials not configured') &&
           mounted &&
@@ -1108,7 +1136,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _maybeSavePosition();
     // 达到「已看」阈值时自动标记当前集
     _maybeMarkWatched();
-    if (mounted) setState(() {});
+    // setState 节流（B-17）：position 流 ~4-10Hz，全量重建开销大。
+    // 弹幕注入 / 进度写盘 / 预解析不受此节流影响（各自已有守卫或节流）。
+    final now = DateTime.now();
+    if (_lastPositionUiAt == null ||
+        now.difference(_lastPositionUiAt!) >=
+            const Duration(milliseconds: 250)) {
+      _lastPositionUiAt = now;
+      if (mounted) setState(() {});
+    }
   }
 
   /// 节流保存播放位置：每 5 秒写一次到 MediaPlaybackPositionManager。
@@ -1118,13 +1154,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final now = DateTime.now();
     if (now.difference(_lastPositionSaveAt) < const Duration(seconds: 5)) return;
     _lastPositionSaveAt = now;
-    try {
-      final mgr = context.read<MediaPlaybackPositionManager>();
-      unawaited(mgr.savePosition(
-          widget.itemId, _episodeIndex, _position.inMilliseconds));
-    } on Object {
-      // Manager 不可用时静默忽略。
-    }
+    // 用 _init 阶段缓存的引用（B-6）：不依赖 context，任何时刻（含 dispose 期）可写。
+    final mgr = _positionManager;
+    if (mgr == null) return;
+    unawaited(mgr.savePosition(
+        widget.itemId, _episodeIndex, _position.inMilliseconds));
   }
 
   /// 播放进度达到「已看」阈值时自动标记当前集已看（每集仅标记一次）。
@@ -1524,8 +1558,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
     // 代次守卫：快速连播 / 手动切集并发时，丢弃过期切换，避免旧集覆盖新集。
     final int token = ++_loadToken;
-    _sleepTimer?.cancel();
-    _sleepTimer = null;
+    // 睡眠定时跨集保留（B-13）：切集不取消定时器——用户设的「30 分钟后暂停」
+    // 在连播场景下应继续生效，否则换集后定时被静默清除。仅「关闭定时」
+    // （_showSleepTimerPicker 的关闭项）与退出播放器（dispose）才取消。
     // 保存当前集播放位置（P8.1.2）
     _saveCurrentPosition();
     // 新一集的续播恢复尚未开始：先关闸，防止新媒体 open 时的 position=0
@@ -1632,48 +1667,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 与 [_maybeSavePosition] 同理：恢复未完成时（如加载中就退出）不写盘，
     // 否则会把上次的续播点抹成 0。
     if (!_positionRestoreDone) return;
-    try {
-      final mgr = context.read<MediaPlaybackPositionManager>();
-      unawaited(mgr.savePosition(
-          widget.itemId, _episodeIndex, _position.inMilliseconds));
-    } on Object {
-      // Manager 不可用时静默忽略。
-    }
+    // 用 _init 阶段缓存的引用（B-6）：dispose 期 context 已失活，
+    // 不能再用 context.read（会被 catch 吞掉导致最后一段进度丢失）。
+    final mgr = _positionManager;
+    if (mgr == null) return;
+    unawaited(mgr.savePosition(
+        widget.itemId, _episodeIndex, _position.inMilliseconds));
   }
 
-  Future<void> _loadDanmakuForEpisode(Episode ep) async {
-    if (_danmakuRepo == null) return;
-    // 关闭弹幕源：清空并跳过加载。
-    if (_danmakuSource == DanmakuSourceType.off) {
-      _danmakuController.clear();
-      return;
-    }
-    try {
-      final dandanId = await _resolveDandanId(ep);
-      final items = await _danmakuRepo!.getDanmaku(
-        sourceId: widget.sourceId,
-        episodeId: ep.id,
-        dandanplayEpisodeId: _danmakuSource == DanmakuSourceType.bilibili
-            ? null
-            : dandanId,
-        bilibiliCid: _danmakuSource == DanmakuSourceType.dandanplay
-            ? null
-            : ep.bilibiliCid,
-        bangumiId: ep.bangumiId,
-        danmakuUrl: ep.danmakuUrl,
-      );
-      final filtered = items
-          .where((i) => !_danmakuSettings.shouldFilter(i.text))
-          .map((i) => i.toDanmakuItem())
-          .toList();
-      // 退页守卫：await 期间可能已退出（deactivate 置 _disposed 后 mounted
-      // 仍为 true），退出后不再写弹幕层。
-      if (_disposed || !mounted) return;
-      _danmakuController.setItems(filtered);
-    } on Object {
-      // 静默忽略。
-    }
-  }
+  /// 切集弹幕加载（B-21）：与首载 [_loadDanmaku] 统一走共用加载逻辑，
+  /// 保证凭据提示 / 自定义 URL 空值跳过行为一致。
+  Future<void> _loadDanmakuForEpisode(Episode ep) => _loadDanmakuFor(ep);
 
   void _toggleDanmaku() {
     setState(() => _danmakuOn = !_danmakuOn);
@@ -1788,7 +1792,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           )
         else
           VideoLine(
-            name: ln.isEmpty ? '线路' : ln,
+            name: ln.isEmpty ? _lineName(0) : ln, // B-18：空线路名统一走 l10n
             url: _episodeUrlAt(byLine, episodes, ln, currentPos),
             headers: const <String, String>{},
           ),
@@ -2078,8 +2082,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _onSeek(Duration position) async {
     await _controller.seek(position);
-    _danmakuController.clear();
-    _danmakuController.reset();
+    // 弹幕游标拨回目标位置附近（只重放窗口内弹幕），与 tick 用同一时间基准
+    // （含 timeOffset），避免 seek 回看时把整条时间轴的弹幕一次性灌进屏幕（B-14）。
+    final adjusted = position +
+        Duration(
+            milliseconds:
+                (_danmakuSettings.timeOffset * 1000).round());
+    _danmakuController.resetTo(adjusted);
     setState(() => _position = position);
   }
 
@@ -2743,17 +2752,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _connectCast(CastDevice device, AppLocalizations l10n) async {
     final String url = _playUrl ?? widget.episode.url;
+    // 乐观置位投屏中（UI 反馈）；连接失败（超时无握手确认）回滚状态并提示（B-8）。
+    if (mounted) setState(() => _isCasting = true);
     try {
       await _castService.connectAndPlay(device, url, title: _episodeTitle);
       await _controller.pause();
       if (mounted) {
-        setState(() => _isCasting = true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.castingTo(device.name))),
         );
       }
     } on Object {
       if (mounted) {
+        setState(() => _isCasting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.castNotSupportedOnDevice)),
         );
@@ -3064,13 +3075,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               _dragAxis = _GestureAxis.none;
             },
             child: Center(
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Video(
-                  controller: _videoController!,
-                  controls: NoVideoControls,
-                ),
-              ),
+              child: _buildVideoSurface(),
             ),
           ),
 
@@ -3181,6 +3186,32 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ),
       ),
     );
+  }
+
+  /// 按当前画面比例构建视频表面（B-7 修复「比例设置不生效」）。
+  ///
+  /// 原实现把 Video 固定塞进 16:9 容器，4:3 / fill 只改了 mpv 侧
+  /// `video-aspect-override`，容器比例不变导致视觉不生效（fill 时上下黑边
+  /// 依旧）。现由比例设置直接驱动容器：
+  /// - default：容器铺满（SizedBox.expand），Video 内部 contain 按视频原始比例
+  ///   居中显示，无多余黑边；
+  /// - 4:3 / 16:9：固定比例容器 + contain，黑边被裁剪到容器外侧；
+  /// - fill：容器铺满 + BoxFit.fill 拉伸填满（与 mpv keepaspect=no 双保险）。
+  Widget _buildVideoSurface() {
+    final String ratio = _controller.currentAspectRatio;
+    final Widget video = Video(
+      controller: _videoController!,
+      controls: NoVideoControls,
+      fit: ratio == 'fill' ? BoxFit.fill : BoxFit.contain,
+    );
+    switch (ratio) {
+      case '4:3':
+        return Center(child: AspectRatio(aspectRatio: 4 / 3, child: video));
+      case '16:9':
+        return Center(child: AspectRatio(aspectRatio: 16 / 9, child: video));
+      default:
+        return SizedBox.expand(child: video);
+    }
   }
 
   Widget _buildTopBar(AppLocalizations l10n) {
@@ -3745,7 +3776,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _sleepTimer?.cancel();
     _sleepTimer = Timer(Duration(minutes: minutes), () {
       _controller.pause();
+      // 同步 UI 状态（B-15）：_isPlaying 依赖 playing 流同步可能延迟，
+      // 若流事件晚到，暂停后 UI 仍显示播放态。Timer 回调内直接置位
+      // _isPlaying=false 并让控制层常显，保证「定时到点暂停」立即可见。
+      _uiHideTimer?.cancel();
       if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _uiVisible = true;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.playerTimerFired)),
         );
@@ -4171,6 +4210,8 @@ class _MarqueeTextState extends State<_MarqueeText>
         _animController.repeat();
       }
     }
+    // TextPainter 用完即释放（B-19）：仅测量用，不常驻，避免小规模资源泄漏。
+    renderer.dispose();
   }
 
   void _onAnimTick() {
