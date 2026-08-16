@@ -331,9 +331,9 @@ Future<void> openDownloadedWorkFolder(
   }
 
   // 无聚合文件（扫描失败 / 空目录 / 单文件导入）：
-  // - SAF 作品文件夹：扫描不到内容说明真没有可读取文件。此时 [workDir] 是**文件夹**
-  //   URI（tree 根），若再走 openLocalEntry 会把文件夹当文件去 resolveSafUri，
-  //   报 "该路径是一个文件夹，请选择具体文件"。所以直接提示，绝不打开文件夹当文件。
+  // - SAF 作品文件夹：先尝试收集「纯散图」（无归档/其它文件时整目录交给阅读器，
+  //   与真实路径 openLocalEntry → gatherLocalComicImages 行为一致）；仍无内容
+  //   才提示。绝不把文件夹当文件去 resolveSafUri（会报"该路径是一个文件夹"）。
   // - 真实路径：保留原 openLocalEntry 单文件/散图回退（兼容单文件导入）。
   if (!isAndroidSafUri(workDir)) {
     await openLocalEntry(
@@ -346,7 +346,32 @@ Future<void> openDownloadedWorkFolder(
         addedAt: DateTime.now().millisecondsSinceEpoch,
       ),
     );
-  } else if (context.mounted) {
+    return;
+  }
+
+  // SAF 作品文件夹扫描不到归档/其它文件，可能是「纯散图」目录（每张图 = 一页）。
+  // 收集散图（content:// URI，懒解析）进漫画阅读器，与真实路径走 openLocalEntry
+  // 时 gatherLocalComicImages 的行为一致；确实没有任何可读图片才提示。
+  if (kind == LocalMediaKind.images || kind == LocalMediaKind.pdf) {
+    final List<String> looseImages = await gatherSafImages(workDir);
+    if (!context.mounted) return;
+    if (looseImages.isNotEmpty) {
+      _pushComicReader(
+        context,
+        LocalContentEntry(
+          id: id,
+          title: title,
+          path: workDir,
+          kind: kind,
+          addedAt: DateTime.now().millisecondsSinceEpoch,
+        ),
+        remember,
+        localImages: looseImages,
+      );
+      return;
+    }
+  }
+  if (context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('未在该文件夹中找到可读取的内容')),
     );

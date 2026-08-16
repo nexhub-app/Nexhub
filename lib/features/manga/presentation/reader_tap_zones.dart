@@ -54,12 +54,6 @@ class ReaderTapZones extends StatefulWidget {
   /// 为 null 时按未放大处理。
   final bool Function()? isZoomed;
 
-  /// 缩放状态读取（含缩小态）：scale != 1（放大 >1 或缩小 <1）时，单指单击不派发
-  /// 翻页 / 导航（仅记录双击基准）。双击缩放三态循环中缩小态（0.5x）时 [isZoomed]
-  /// 返回 false，若不在此拦截，双击的第一击会误触发 toggle UI（表现为「缩小后双击
-  /// 只切换控制栏、不缩放」）。为 null 时按未缩放处理。
-  final bool Function()? isScaled;
-
   /// 双指捏合更新回调：以双指中点为焦点、以起始距离为基准的累计比例 [scaleFactor]
   /// （0 表示尚未达到 2 指，不会回调）。屏幕级手动跟踪指针实现，不依赖每页的
   /// GestureDetector——条漫模式双指落在不同页时依然生效（C2 根治）。
@@ -135,7 +129,6 @@ class ReaderTapZones extends StatefulWidget {
     this.onZoom,
     this.onZoomAt,
     this.isZoomed,
-    this.isScaled,
     this.onPinchUpdate,
     this.onPinchEnd,
     this.onPanUpdate,
@@ -446,9 +439,6 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     }
     // 缩放状态：放大态单指手势交由图片自身的平移 / 捏合处理，覆盖层不再派发翻页 / 导航。
     final bool zoomed = widget.isZoomed?.call() ?? false;
-    // 缩放状态（含缩小态 0.5x）：scale != 1 时单指单击不派发翻页 / 导航，仅记录双击
-    // 基准，保证缩小态下双击三态循环仍能触发（第一击不误触发 toggle UI）。
-    final bool scaled = widget.isScaled?.call() ?? false;
     // 拖拽（滑动）优先：移动超过 slop 视为拖拽，不触发单击导航 / 缩放。
     // 放大态下拖拽由图片平移处理，覆盖层不翻页（P0 手势 bug #4）。
     if (move > _tapSlop) {
@@ -566,11 +556,13 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
       return;
     }
 
-    // 缩放态（含放大 >1 与缩小 <1）：单指单击不导航（也不 toggle UI），避免与图片
+    // 缩放态（放大 >1）：单指单击不导航（也不 toggle UI），避免与图片
     // 平移 / 双击缩放打架（P0 #4 / 双击三态循环）。
     // 但【必须记录本次点击】时间与位置：否则缩放态下第 1 击直接 return、不记录，
-    // 第 2 击永远构不成双击 → 缩放态双击（如「缩小后再次双击缩放」）失效。
-    if (zoomed || scaled) {
+    // 第 2 击永远构不成双击 → 缩放态双击失效。
+    // 缩小态（<1）：不夹击，让双击检测走正常流程——双击检测已在上面优先处理，
+    // 缩小态下单次单击应正常触发 toggle/导航。
+    if (zoomed) {
       _lastTapTime = now;
       _lastTapPos = e.localPosition;
       _lastTapAction = null;

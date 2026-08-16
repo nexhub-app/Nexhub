@@ -15,7 +15,6 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
-import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
@@ -25,6 +24,7 @@ import '../../../core/comic/image_favorite_manager.dart';
 import '../../../core/comic/models/reader_preferences.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/utils/app_log.dart';
+import '../../../core/utils/volume_key_listener.dart';
 import 'reader_settings_sheet.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/reader_default_settings.dart';
@@ -403,14 +403,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   // ── REQ-B1 音量键翻页（仅 Android）──────────────────────────────
 
-  /// 音量键监听是否已挂载（防重复初始化）。
-  bool _volumeKeyActive = false;
-
-  /// 最近一次音量键回调的原始音量（用于按键后恢复、抑制系统音量变化）。
-  double? _volumeKeyLastVolume;
-
-  /// 音量键事件处理中标志：防嵌套（连续按键不叠加触发）。
-  bool _volumeKeyBusy = false;
+  /// 原生音量键拦截器（Android onKeyDown 方案）：彻底消费按键事件，阻止系统音量条。
+  final VolumeKeyListener _volumeKeyListener = VolumeKeyListener();
 
   // ── REQ-B6 自动滚动 / 自动翻页 + 后台暂停 ───────────────────────
 
@@ -960,14 +954,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _pageFadeTimer?.cancel();
     _autoPageTurnTimer?.cancel();
     _autoScrollTicker?.stop();
-    if (_volumeKeyActive) {
-      _volumeKeyActive = false;
-      try {
-        FlutterVolumeController.removeListener();
-      } on Object {
-        // 忽略。
-      }
-    }
+    // 停止原生音量键拦截，恢复系统默认音量键行为。
+    unawaited(_volumeKeyListener.stop());
     // 移除全局键盘监听（必须在 dispose 里，否则离页后快捷键仍会触发本页翻页）。
     HardwareKeyboard.instance.removeHandler(_onGlobalKey);
     // P0 数据丢失修复：防抖窗口内若有 pending 写入，先立即落盘再取消定时器——否则
@@ -1416,11 +1404,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         }
         // 从当前章【首页】上翻进上一段：keep 重锚会保持视口内同一内容，落在上一章
         // 的随机页；应显式落到上一章【末页】（与「上一章」按钮/首页上翻体验一致）。
-        if (_seamAdvance(
-            -1,
-            reposition: _currentPage <= 0
-                ? _SeamAdvanceTarget.last
-                : _SeamAdvanceTarget.keep)) {
+        // 再次上翻（已处于上一章末页）时仍以末页重锚，避免落到上一章的随机中间页。
+        if (_seamAdvance(-1, reposition: _SeamAdvanceTarget.last)) {
           return;
         }
       }
@@ -1443,17 +1428,27 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         }
       }
     }
+    // 条漫跳章过滤边界（REQ-C11）：当前章已是 seam 最后一段（下一章因已读/
+    // 被筛选/未预载未纳入无缝列表），无缝列表已到头——滚到章末直接整章跳转到
+    // 过滤后的下一目标章，避免用户被卡在章末无法连续阅读。
+    if (_seamActive &&
+        _seam.isNotEmpty &&
+        atVeryEnd &&
+        _seam.last.chapterIndex == _chapterIndex &&
+        _chapterIndex + 1 < widget.chapters.length) {
+      _goNextChapter();
+      return;
+    }
     final int idx = _resolveSeamIndex(flatIdx, atVeryEnd: atVeryEnd);
     if (idx != _currentPage) {
       _currentPage = idx;
       _scheduleProgressSave(idx);
-      // 自动滚动期间跳过全量重建与图片收藏异步刷新：滚动位置已由
-      // ScrollOffsetController 逐帧驱动，setState 重建只会造成页边界卡顿；
-      // 用户手动滚动/翻页时才需要刷新进度条与图片收藏状态。
+      // 自动滚动期间跳过昂贵的图片收藏异步刷新（滚动位置由 ScrollOffsetController
+      // 逐帧驱动，无需重建），但仍执行轻量 setState 让进度条/页码实时更新。
       if (!_autoScrolling) {
-        if (mounted) setState(() {});
         unawaited(_refreshPageImageFav());
       }
+      if (mounted) setState(() {});
     }
     _maybePreload(idx);
   }
@@ -2778,90 +2773,29 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   // ─────────────────────── REQ-B8 音量键翻页 ───────────────────────
 
   /// 按当前偏好同步音量键监听：仅 Android 且开启 [ReaderPreferences.volumeKeyPageTurn]
-  /// 时挂载 [FlutterVolumeController] 监听，否则移除。调用点：[_init]、[_applySettingsAuto]、
-  /// [_onPrefsChanged]（偏好变化后即时生效）。
+  /// 时通过 [VolumeKeyListener] 挂载原生 onKeyDown 拦截（彻底消费按键事件，阻止系统
+  /// 音量条弹出），否则停止并恢复系统默认音量键行为。调用点：[_init]、
+  /// [_applySettingsAuto]、[_onPrefsChanged]（偏好变化后即时生效）。
   void _syncVolumeKey() {
     final bool want = _prefs.volumeKeyPageTurn && !kIsWeb && Platform.isAndroid;
-    if (want && !_volumeKeyActive) {
-      _volumeKeyActive = true;
-      _volumeKeyLastVolume = null;
-      try {
-        // 音量键翻页期间禁止系统音量条弹出（setVolume 默认会显示原生 UI）。
-        unawaited(FlutterVolumeController.updateShowSystemUI(false));
-        // emitOnStart=false：挂载时不发首值，避免误判为一次音量变化。
-        FlutterVolumeController.addListener(_onVolumeChanged, emitOnStart: false);
-        // 异步用当前音量建立初始基线：使首次按键即可生效，而非「首个事件仅建基线」。
-        unawaited(_initVolumeBaseline());
-      } on Object {
-        // 插件不可用（测试 / 模拟器）时静默降级。
-        _volumeKeyActive = false;
-      }
-    } else if (!want && _volumeKeyActive) {
-      _volumeKeyActive = false;
-      _volumeKeyLastVolume = null;
-      try {
-        FlutterVolumeController.removeListener();
-        unawaited(FlutterVolumeController.updateShowSystemUI(true));
-      } on Object {
-        // 忽略。
-      }
+    if (want) {
+      unawaited(_volumeKeyListener.start(
+        onVolumeDown: _onVolumeKeyDown,
+        onVolumeUp: _onVolumeKeyUp,
+      ));
+    } else {
+      unawaited(_volumeKeyListener.stop());
     }
   }
 
-  /// 异步查询当前音量作为按键基线，使挂载后首次按键即可触发翻页/滚动。
-  Future<void> _initVolumeBaseline() async {
-    try {
-      final double? v = await FlutterVolumeController.getVolume();
-      if (_volumeKeyActive && v != null) {
-        _volumeKeyLastVolume = v;
-      }
-    } on Object {
-      // 插件不可用（测试 / 模拟器）时保持 null（首个事件仍退化为建基线）。
-    }
+  /// 音量下键（KEYCODE_VOLUME_DOWN）：下一页 / 向下滚动。
+  void _onVolumeKeyDown() {
+    _volumeKeyAction(1);
   }
 
-  /// 音量键事件：音量变小（下音量键） → 下一页 / 向下滚动；变大（上音量键） → 上一页 /
-  /// 向上滚动；随后把系统音量恢复为按键前值（抑制音量条弹出与系统音量变化）。
-  ///
-  /// 竞态防护：把 [_volumeKeyBusy] 的置位跨越整个「动作 + 恢复音量」过程——
-  /// `setVolume` 恢复音量后会再次触发监听事件，若在恢复完成前就释放 busy，
-  /// 该恢复事件会被当成一次反向按键，导致「翻页 → 反向翻页 → 翻页…」的振荡
-  /// 与音量抖动（P0 实机 bug）。故 busy 在恢复完成后才释放，并以目标音量重建基线。
-  void _onVolumeChanged(double volume) {
-    if (_volumeKeyBusy) return;
-    final double? last = _volumeKeyLastVolume;
-    // 基线尚未建立（挂载后 getVolume 未返回 / 首个事件）时仅记录，不触发翻页。
-    if (last == null) {
-      _volumeKeyLastVolume = volume;
-      return;
-    }
-    final double diff = volume - last;
-    if (diff.abs() < 0.01) return;
-    _volumeKeyBusy = true;
-    try {
-      if (diff < 0) {
-        _volumeKeyAction(1);
-      } else {
-        _volumeKeyAction(-1);
-      }
-    } on Object {
-      // 忽略插件异常。
-    }
-    // 恢复音量到按键前值：await 期间保持 busy，抑制恢复事件被当作反向按键；
-    // 完成后以目标音量重建基线，使下一次按键的 diff 仍相对基线计算。
-    unawaited(_restoreVolumeAfterAction(last));
-  }
-
-  /// 把系统音量恢复到 [target]，完成后释放 [_volumeKeyBusy] 并以 [target] 重建基线。
-  Future<void> _restoreVolumeAfterAction(double target) async {
-    try {
-      await FlutterVolumeController.setVolume(target);
-    } on Object {
-      // 忽略插件异常。
-    } finally {
-      _volumeKeyLastVolume = target;
-      _volumeKeyBusy = false;
-    }
+  /// 音量上键（KEYCODE_VOLUME_UP）：上一页 / 向上滚动。
+  void _onVolumeKeyUp() {
+    _volumeKeyAction(-1);
   }
 
   /// 音量键动作：翻页模式翻页；条漫模式按 [ReaderPreferences.volumeKeyPageTurnDistancePercent]
@@ -3715,11 +3649,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               onZoomAt: (pos) => _toggleZoom(pos),
               // 缩放感知：放大态单指单击不触发翻页/导航（P0 手势 bug）。
               isZoomed: () => _zoomController.value.getMaxScaleOnAxis() > 1.001,
-              // 缩放感知（含缩小态 0.5x）：scale != 1 时单指单击不派发翻页/导航，
-              // 保证双击缩放三态循环在缩小态下仍能触发（第一击不误触发 toggle UI）。
-              isScaled: () =>
-                  (_zoomController.value.getMaxScaleOnAxis() - 1.0).abs() >
-                  0.001,
               // 屏幕级捏合（C2 根治）：覆盖层统一跟踪双指，条漫跨页也生效。
               onPinchUpdate: _onPinchUpdate,
               onPinchEnd: _onPinchEnd,
@@ -3956,9 +3885,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       (_prefs.readingMode == ReadingMode.singleLTR ||
           _prefs.readingMode == ReadingMode.singleRTL);
 
-  /// 首屏单图（REQ-C13）：双页模式每章第一页单独显示，其后恢复双页。
+  /// 首屏单图（REQ-C13）：双页模式【第一章】首页单独显示，其后恢复双页。
+  /// 仅首章生效：进度条 / 跨页映射（[_doublePageSpreadFor] / [_doublePageLeftPageFor]）
+  /// 均按「每章首页为常规跨页」设计，扩展到其它章会造成进度条与跨页计数错位。
   bool get _showFirstPageSingle =>
-      _prefs.showSingleImageOnFirstPage && _isDoublePage;
+      _prefs.showSingleImageOnFirstPage &&
+      _chapterIndex == 0 &&
+      _isDoublePage;
 
   /// 逻辑单页 → 跨页序号（REQ-C13 首屏单图映射）。
   ///
@@ -4858,17 +4791,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // 章节书签 toggle（REQ-C1）：已书签高亮，点击取消。本地单文件无章节概念隐藏。
-            if (!_isLocalMode || _isAggregatedLocal)
-              IconButton(
-                icon: Icon(
-                  _chapterBookmarked
-                      ? Icons.bookmark
-                      : Icons.bookmark_border,
-                ),
-                tooltip: l10n.readerChapterBookmark,
-                onPressed: _toggleChapterBookmark,
-              ),
             IconButton(
               icon: const Icon(Icons.settings),
               tooltip: l10n.readerSettings,
@@ -5170,7 +5092,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         // 收藏按钮：点击弹出底部菜单（收藏作品 / 收藏当前页图片 / 图片收藏图库）。
         IconButton(
           icon: Icon(_isFav ? Icons.favorite : Icons.favorite_border),
-          color: _isFav ? Colors.amber : null,
           tooltip: l10n.favorite,
           onPressed: _showFavoriteMenu,
         ),
