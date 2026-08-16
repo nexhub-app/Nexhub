@@ -1291,6 +1291,16 @@
   "playerTimerCustom": "自定义",
   "playerTimerCanceled": "已取消定时关闭",
   "playerTimerFired": "定时关闭已触发，播放已暂停",
+  "playerTimerEpisodes": "再播 {count} 集后暂停",
+  "@playerTimerEpisodes": {
+    "description": "Sleep timer: pause after N episodes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playerTimerEpisodesFired": "已按集数定时暂停播放",
   "noDescription": "暂无简介",
   "aboutAppTitle": "关于",
   "openSourceLicenses": "开源协议",
@@ -1950,6 +1960,7 @@
   "playerSeekNormal": "1x",
   "playerSeekDouble": "2x",
   "playerLongPressSpeedUp": "长按加速",
+  "playerBottomProgress": "隐藏控制栏时显示底部进度条",
   "playerDefaultVolume": "默认音量",
   "playerResetEpisodeSettings": "重置该视频设置",
   "playerResetEpisodeSettingsDone": "已恢复该视频的全局默认设置",

@@ -206,6 +206,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// Sleep timer for auto-pausing playback.
   Timer? _sleepTimer;
 
+  /// 睡眠定时「按集数」模式（F-5）：再播 N 集后暂停（0 = 未启用）。
+  /// 与按分钟模式互斥，跨集保留（配合 B-13）；播完一集递减，归零暂停。
+  int _sleepEpisodesRemaining = 0;
+
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<bool>? _completedSub;
   StreamSubscription<void>? _stallSub;
@@ -262,6 +266,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 控制层自动隐藏延时。
   static const Duration _kUiAutoHide = Duration(seconds: 4);
 
+  /// 控制栏隐藏租约计数（F-16）：拖动进度 / 打开菜单时递增，禁止自动隐藏；
+  /// 释放归零后重启自动隐藏倒计时。
+  int _panelHoldCount = 0;
+
+  /// 持有控制栏：禁止自动隐藏（拖动进度条 / 菜单打开期间调用）。
+  void _acquirePanelHold() {
+    _panelHoldCount++;
+    _uiHideTimer?.cancel();
+  }
+
+  /// 释放控制栏持有：计数归零且播放中时重启自动隐藏倒计时。
+  void _releasePanelHold() {
+    _panelHoldCount = (_panelHoldCount - 1).clamp(0, 1 << 30);
+    if (_panelHoldCount == 0) {
+      _scheduleUiHide();
+    }
+  }
+
   // ─────────────────────── 播放器设置（PlayerSettings 消费） ───────────────────────
   /// 全局播放器默认设置。_init 中从 PlayerSettingsStore 加载并应用到底层播放器。
   PlayerSettings _playerSettings = const PlayerSettings();
@@ -300,6 +322,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// 横滑 seek 预览目标时间，松手后跳转。
   Duration _seekPreview = Duration.zero;
+
+  /// 上次双击的时刻（F-14 防抖：双击后 600ms 内屏蔽单击，防三分区误触）。
+  DateTime _lastDoubleTapAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// 连续双击累积次数（F-11：10s→20s→30s，900ms 无后续双击或换方向则重置）。
+  int _doubleTapCount = 1;
+
+  /// 双击方向（-1 快退 / 1 快进 / 0 中间播放暂停）。
+  int _doubleTapDirection = 0;
 
   /// 当前系统亮度缓存（init 时从 [ScreenBrightness.instance.application] 读取）。
   double _brightness = 0.5;
@@ -360,6 +391,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// 屏幕亮度插件实例（手势调节系统亮度）。
   final ScreenBrightness _brightnessPlugin = ScreenBrightness();
+
+  /// PiP 状态订阅（B-9）：进入/退出系统画中画时更新 UI 状态。
+  StreamSubscription<PiPStatus>? _pipStatusSub;
+
+  /// 进入 PiP 时的播放位置（退出时若进度被系统回收则续播）。
+  Duration _pipEnterPosition = Duration.zero;
 
   @override
   void initState() {
@@ -1267,6 +1304,33 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } on Object {
       // Manager 不可用时静默忽略。
     }
+    // 睡眠定时「按集数」模式（F-5）：播完本集递减；归零则暂停、不连播。
+    // 仅当还有下一集可播时生效（最后一集播完本身就不连播，无需拦截）。
+    if (_sleepEpisodesRemaining > 0 &&
+        widget.episodes != null &&
+        _episodeIndex < widget.episodes!.length - 1) {
+      _sleepEpisodesRemaining--;
+      if (_sleepEpisodesRemaining == 0) {
+        _controller.pause();
+        // UI 同步（同 B-15）：暂停后控制层常显，避免流事件延迟导致仍显播放态。
+        _uiHideTimer?.cancel();
+        if (mounted) {
+          setState(() {
+            _isPlaying = false;
+            _uiVisible = true;
+          });
+          try {
+            final l10n = AppLocalizations.of(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.playerTimerEpisodesFired)),
+            );
+          } on Object {
+            // context 已失活，忽略提示。
+          }
+        }
+        return;
+      }
+    }
     // 自动连播
     if (_controller.autoPlayNext &&
         widget.episodes != null &&
@@ -1687,6 +1751,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _toggleUi() {
+    // F-14：双击后 600ms 内屏蔽单击，防止双击手势的尾随单击误触显隐控制栏。
+    if (DateTime.now().difference(_lastDoubleTapAt) <
+        const Duration(milliseconds: 600)) {
+      return;
+    }
     setState(() => _uiVisible = !_uiVisible);
     if (_uiVisible) {
       _scheduleUiHide();
@@ -1702,11 +1771,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void _scheduleUiHide() {
     _uiHideTimer?.cancel();
     if (_disposed || !mounted) return;
+    // F-16：拖动进度 / 菜单打开期间持有控制栏，不安排自动隐藏。
+    if (_panelHoldCount > 0) return;
     if (!_isPlaying) return;
     _uiHideTimer = Timer(_kUiAutoHide, () {
       if (_disposed || !mounted) return;
-      // 二次校验：倒计时期间可能已暂停 / 已手动隐藏。
-      if (!_isPlaying || !_uiVisible) return;
+      // 二次校验：倒计时期间可能已暂停 / 已手动隐藏 / 新持有租约。
+      if (_panelHoldCount > 0 || !_isPlaying || !_uiVisible) return;
       setState(() => _uiVisible = false);
     });
   }
@@ -2094,16 +2165,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   /// 打开弹幕设置面板（底部 modal bottom sheet）。
   Future<void> _openDanmakuSettings() async {
-    await DanmakuSettingsSheet.show(
-      context,
-      settings: _danmakuSettings,
-      onChanged: (next) {
-        setState(() => _danmakuSettings = next);
-        _applyDanmakuOption();
-        unawaited(_saveDanmakuSettings());
-      },
-      onMatch: _openDanmakuMatch,
-    );
+    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    _acquirePanelHold();
+    try {
+      await DanmakuSettingsSheet.show(
+        context,
+        settings: _danmakuSettings,
+        onChanged: (next) {
+          setState(() => _danmakuSettings = next);
+          _applyDanmakuOption();
+          unawaited(_saveDanmakuSettings());
+        },
+        onMatch: _openDanmakuMatch,
+      );
+    } finally {
+      _releasePanelHold();
+    }
   }
 
   /// 打开「手动匹配弹幕」面板，用户搜索番剧并选定集数后应用到当前集。
@@ -2124,43 +2201,49 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _openDanmakuSource() async {
-    await DanmakuSourceSheet.show(
-      context,
-      currentSource: _danmakuSource,
-      currentCustomUrl: _customDanmakuUrl,
-      onChanged: (next) async {
-        if (next == _danmakuSource) return;
-        setState(() => _danmakuSource = next);
-        // 持久化用户选择。
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(_kDanmakuSourceKey, next.name);
-        } on Object {
-          // 写入失败静默忽略。
-        }
-        // 清空并重新加载弹幕。
-        _danmakuController.clear();
-        _danmakuController.reset();
-        _loadDanmaku();
-      },
-      onCustomUrl: (url) async {
-        setState(() {
-          _customDanmakuUrl = url;
-          _danmakuSource = DanmakuSourceType.customUrl;
-        });
-        // 持久化 URL 和源选择。
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString(_kDanmakuCustomUrlKey, url);
-          await prefs.setString(_kDanmakuSourceKey, DanmakuSourceType.customUrl.name);
-        } on Object {
-          // 写入失败静默忽略。
-        }
-        _danmakuController.clear();
-        _danmakuController.reset();
-        _loadDanmaku();
-      },
-    );
+    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    _acquirePanelHold();
+    try {
+      await DanmakuSourceSheet.show(
+        context,
+        currentSource: _danmakuSource,
+        currentCustomUrl: _customDanmakuUrl,
+        onChanged: (next) async {
+          if (next == _danmakuSource) return;
+          setState(() => _danmakuSource = next);
+          // 持久化用户选择。
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString(_kDanmakuSourceKey, next.name);
+          } on Object {
+            // 写入失败静默忽略。
+          }
+          // 清空并重新加载弹幕。
+          _danmakuController.clear();
+          _danmakuController.reset();
+          _loadDanmaku();
+        },
+        onCustomUrl: (url) async {
+          setState(() {
+            _customDanmakuUrl = url;
+            _danmakuSource = DanmakuSourceType.customUrl;
+          });
+          // 持久化 URL 和源选择。
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString(_kDanmakuCustomUrlKey, url);
+            await prefs.setString(_kDanmakuSourceKey, DanmakuSourceType.customUrl.name);
+          } on Object {
+            // 写入失败静默忽略。
+          }
+          _danmakuController.clear();
+          _danmakuController.reset();
+          _loadDanmaku();
+        },
+      );
+    } finally {
+      _releasePanelHold();
+    }
   }
 
   /// 倍速选择面板（底部弹出，点击即生效）。
@@ -2168,6 +2251,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     const speeds = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0];
     final current = _controller.playbackSpeed;
 
+    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -2231,7 +2316,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ),
         );
       },
-    );
+    )
+        // F-16：面板关闭后释放控制栏租约。
+        .whenComplete(_releasePanelHold);
   }
 
   /// 功能5：选择长按自定义倍速值（更多菜单入口）。
@@ -2456,6 +2543,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _showMoreMenu(AppLocalizations l10n) {
+    // F-16：菜单打开期间持有控制栏，禁止自动隐藏；关闭后释放。
+    _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -2679,10 +2768,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       ),
     ),
   ),
-);
+)
+      // F-16：菜单关闭后释放控制栏租约，重启自动隐藏倒计时。
+      .whenComplete(_releasePanelHold);
   }
 
   void _showCastSheet(AppLocalizations l10n) {
+    // F-16：设备选择面板打开期间持有控制栏。
+    _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -2747,7 +2840,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ),
         ),
       ),
-    );
+    )
+        // F-16：面板关闭后释放控制栏租约。
+        .whenComplete(_releasePanelHold);
   }
 
   Future<void> _connectCast(CastDevice device, AppLocalizations l10n) async {
@@ -2795,6 +2890,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         return;
       }
       await floating.enable(ImmediatePiP());
+      // 进入/退出系统 PiP 的生命周期处理（B-9）：监听 PiP 状态变化，
+      // 进入时记录位置并隐藏控制层，退出时恢复控制层、必要时续播。
+      _listenPipStatus(floating);
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2802,6 +2900,41 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         );
       }
     }
+  }
+
+  /// 订阅系统 PiP 状态（B-9）。
+  ///
+  /// floating 的 [Floating.pipStatusStream] 以 ~100ms 轮询探测 PiP 模式
+  /// （broadcast + distinct，仅变化时推送）。行为：
+  /// - 进入 PiP（[PiPStatus.enabled]）：记录进入时的播放位置、隐藏控制层
+  ///   （小窗无控制栏，避免 UI 堆叠）；
+  /// - 退出 PiP（[PiPStatus.disabled]）：恢复控制层；若 PiP 期间被系统回收
+  ///   （Activity 重建 / 进程回收）导致进度明显回退（< 进入位置 - 5s），
+  ///   seek 回进入位置续播，避免用户回到播放页却从头开始。
+  /// 进入 PiP 不主动暂停：小窗内继续播放是主流体验。
+  void _listenPipStatus(Floating floating) {
+    _pipStatusSub?.cancel();
+    _pipStatusSub = floating.pipStatusStream.listen((PiPStatus status) {
+      if (_disposed || !mounted || !_controllerCreated) return;
+      switch (status) {
+        case PiPStatus.enabled:
+          _pipEnterPosition = _controller.position;
+          if (_uiVisible) setState(() => _uiVisible = false);
+          break;
+        case PiPStatus.disabled:
+          setState(() => _uiVisible = true);
+          // PiP 期间被系统回收导致进度回退 → 续播。
+          if (_pipEnterPosition > Duration.zero &&
+              _controller.position <
+                  _pipEnterPosition - const Duration(seconds: 5)) {
+            unawaited(_controller.seek(_pipEnterPosition));
+          }
+          break;
+        case PiPStatus.automatic:
+        case PiPStatus.unavailable:
+          break;
+      }
+    });
   }
 
   Widget _menuHeader(AppLocalizations l10n) {
@@ -2853,6 +2986,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _decodeFallbackSub?.cancel();
     _bufferingSub?.cancel();
     _playingSub?.cancel();
+    _pipStatusSub?.cancel();
     // 关闭可能残留的 SnackBar：其退出动画的 AnimationController 在 widget 失活后
     // 仍会 tick，并尝试访问已销毁的 Scaffold 祖先 → 抛「deactivated widget」
     // （见用户日志 AnimationController#...for SnackBar）。deactivate 阶段 context
@@ -2881,6 +3015,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 兜底保存弹幕显示设置（滑块即时保存之外，确保离开页面必定落盘）。
     unawaited(_saveDanmakuSettings());
     _sleepTimer?.cancel();
+    // F-5：退出播放器清按集睡眠计数（仅"关定时/退出"才取消，切集保留）。
+    _sleepEpisodesRemaining = 0;
     _gestureIndicatorTimer?.cancel();
     _uiHideTimer?.cancel();
     _positionSub?.cancel();
@@ -2889,6 +3025,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _decodeFallbackSub?.cancel();
     _bufferingSub?.cancel();
     _playingSub?.cancel();
+    _pipStatusSub?.cancel();
     _resolveProgress.dispose();
     unawaited(_castService.disconnect());
     _focusNode.dispose();
@@ -3000,18 +3137,33 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             onLongPressStart: (_) => _onLongPressSpeedStart(),
             onLongPressEnd: (_) => _onLongPressSpeedEnd(),
             // 双击：左=快退 10s；中=播放/暂停；右=快进 10s（锁定态忽略）。
+            // F-11：连续双击同方向累加（10s→20s→30s，900ms 无后续双击或
+            // 换方向则重置），指示器按累加秒数显示。
             onDoubleTapDown: (TapDownDetails d) {
               if (_controller.isLocked) return;
               final width = context.size?.width ?? 0;
               final dx = d.localPosition.dx;
-              if (dx < width / 3) {
-                // 左三分之一：快退 10s
-                unawaited(_seekBy(const Duration(seconds: -10)));
-                _showGestureIndicator(l10n.seekBackward10);
-              } else if (dx > width * 2 / 3) {
-                // 右三分之一：快进 10s
-                unawaited(_seekBy(const Duration(seconds: 10)));
-                _showGestureIndicator(l10n.seekForward10);
+              final int direction =
+                  dx < width / 3 ? -1 : (dx > width * 2 / 3 ? 1 : 0);
+              final now = DateTime.now();
+              // 900ms 无后续双击或方向变化 → 重置计数；同方向连击 → 累加（上限 3 次）。
+              if (now.difference(_lastDoubleTapAt) >
+                      const Duration(milliseconds: 900) ||
+                  direction != _doubleTapDirection) {
+                _doubleTapCount = 1;
+                _doubleTapDirection = direction;
+              } else {
+                _doubleTapCount = (_doubleTapCount + 1).clamp(1, 3);
+              }
+              _lastDoubleTapAt = now;
+              if (direction < 0) {
+                final seconds = 10 * _doubleTapCount;
+                unawaited(_seekBy(Duration(seconds: -seconds)));
+                _showGestureIndicator('-${seconds}s');
+              } else if (direction > 0) {
+                final seconds = 10 * _doubleTapCount;
+                unawaited(_seekBy(Duration(seconds: seconds)));
+                _showGestureIndicator('+${seconds}s');
               } else {
                 // 中间三分之一：播放/暂停
                 _togglePlayPause();
@@ -3182,6 +3334,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
           ],
+
+          // F-12：控制栏隐藏时底部保留细进度条（可开关，设置页 player.bottomProgress）。
+          // 常驻显示当前播放位置，不拦截点击（IgnorePointer），方便全屏沉浸时看进度。
+          if (!_uiVisible &&
+              _playerSettings.showBottomProgress &&
+              _duration > Duration.zero)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: LinearProgressIndicator(
+                  value: (_position.inMilliseconds / _duration.inMilliseconds)
+                      .clamp(0.0, 1.0),
+                  minHeight: 2.5,
+                  backgroundColor: Colors.white24,
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            ),
         ],
         ),
       ),
@@ -3347,6 +3520,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               position: _position,
               duration: _duration,
               onSeek: _onSeek,
+              // F-16：拖动期间持有控制栏，防止自动隐藏打断拖拽。
+              onDragStart: _acquirePanelHold,
+              onDragEnd: _releasePanelHold,
             ),
             // 单行控件：时间 | 上一集 | 播放/暂停 | 下一集 | 弹幕 | 弹幕设置 ‖ 倍速 | 比例 | 选集 | 全屏
             // （原两行合并：删去与快捷行完全重复的主控行按钮，弹幕设置紧邻弹幕开关）
@@ -3501,6 +3677,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 当前选中线路（面板内的局部可变状态）：初始为正在播放的那条。
     String selectedLine = _selectedLine ?? widget.episode.lineName ?? '';
 
+    // F-16：选集面板打开期间持有控制栏，禁止自动隐藏。
+    _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -3675,7 +3853,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           },
         );
       },
-    );
+    )
+        // F-16：面板关闭后释放控制栏租约。
+        .whenComplete(_releasePanelHold);
   }
 
   /// 线路 ≤1 条时的提示占位（图标 + 文案 + 居中）。
@@ -3723,6 +3903,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _showSleepTimerPicker(AppLocalizations l10n) {
+    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -3741,6 +3923,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 Navigator.pop(ctx);
                 _sleepTimer?.cancel();
                 _sleepTimer = null;
+                // F-5：关闭定时同时清按集计数。
+                _sleepEpisodesRemaining = 0;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(l10n.playerTimerCanceled)),
                 );
@@ -3753,6 +3937,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 onTap: () {
                   Navigator.pop(ctx);
                   _setSleepTimer(m, l10n);
+                },
+              ),
+            // F-5：睡眠定时「按集数」模式（与按分钟互斥，跨集保留）。
+            for (final n in <int>[1, 2, 3])
+              ListTile(
+                leading: const Icon(Icons.video_library),
+                title: Text(l10n.playerTimerEpisodes(n)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _setSleepEpisodes(n, l10n);
                 },
               ),
             ListTile(
@@ -3769,10 +3963,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       ),
     ),
   ),
-);
+)
+      // F-16：面板关闭后释放控制栏租约。
+      .whenComplete(_releasePanelHold);
   }
 
   void _setSleepTimer(int minutes, AppLocalizations l10n) {
+    // F-5：按分钟模式与按集数模式互斥。
+    _sleepEpisodesRemaining = 0;
     _sleepTimer?.cancel();
     _sleepTimer = Timer(Duration(minutes: minutes), () {
       _controller.pause();
@@ -3792,6 +3990,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.playerTimerMinutes(minutes))),
+    );
+  }
+
+  /// F-5：睡眠定时「再播 N 集后暂停」模式。
+  ///
+  /// 与按分钟模式互斥（取消分钟 Timer）；计数跨集保留（B-13 已保证切集不取消
+  /// 定时器），由 [_onCompleted] 播完一集递减，归零时暂停并提示。
+  void _setSleepEpisodes(int count, AppLocalizations l10n) {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _sleepEpisodesRemaining = count;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.playerTimerEpisodes(count))),
     );
   }
 
@@ -3841,6 +4052,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         '${pos ~/ 60}:${(pos % 60).toString().padLeft(2, '0')}';
     final durStr =
         '${dur ~/ 60}:${(dur % 60).toString().padLeft(2, '0')}';
+    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -3892,7 +4105,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ),
         );
       },
-    );
+    )
+        // F-16：面板关闭后释放控制栏租约。
+        .whenComplete(_releasePanelHold);
   }
 
   /// 播放统计面板：读 mpv 只读属性展示实际软/硬解状态、编码、分辨率、
@@ -3900,6 +4115,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 「hwdec=auto 实际落在哪条解码路径」与花屏问题排查。
   void _showPlaybackStats(AppLocalizations l10n) {
     Timer? refreshTimer;
+    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -3999,7 +4216,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ),
         ),
       ),
-    ).whenComplete(() => refreshTimer?.cancel());
+    ).whenComplete(() {
+      refreshTimer?.cancel();
+      // F-16：面板关闭后释放控制栏租约。
+      _releasePanelHold();
+    });
   }
 
   /// 播放统计面板的单行「标签: 值」。标签列上限 140（窄屏自动让位，值换行）。
