@@ -3284,7 +3284,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 键盘快捷键（P0）：方向键 / PageUp·Down 翻页，F11·F 全屏，Esc 关菜单 / 退出全屏，
+  /// 键盘快捷键（P0）：方向键 / PageUp·Down 翻页，F11 全屏，Esc 关菜单 / 退出全屏，
   /// 空格切换 UI，+/- 缩放，N·P 切换上一话 / 下一话。
   ///
   /// 不依赖 [Focus] 焦点链：通过 [_onGlobalKey] 用 [HardwareKeyboard] 全局监听，
@@ -3316,7 +3316,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       }
       return KeyEventResult.ignored;
     }
-    if (key == LogicalKeyboardKey.f11 || key == LogicalKeyboardKey.keyF) {
+    // 全屏仅绑 F11：裸 F 键不再触发（与其他阅读器快捷键冲突且与 F11 重复）。
+    if (key == LogicalKeyboardKey.f11) {
       _toggleFullscreen();
       return KeyEventResult.handled;
     }
@@ -3450,7 +3451,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     return _handleKeyEvent(event) == KeyEventResult.handled;
   }
 
-  /// 切换桌面 OS 全屏（F11 / F 触发）。移动端无 window_manager，忽略。
+  /// 切换桌面 OS 全屏（F11 触发）。移动端无 window_manager，忽略。
   ///
   /// B3：切换前固定当前页，切换期间用 [_restoringPage] 屏蔽滚动 / 翻页回写
   /// （onPageChanged 在视口变宽时会把像素偏移对应到别的页，污染 [_currentPage]
@@ -4975,11 +4976,15 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         ? null
         : widget.chapters[_chapterIndex];
     final String? chapterUrl = chapter?.url;
+    // 章节链接拼接：源返回相对路径时补 baseUrl；已是绝对 URL（http 开头）
+    // 时直接使用，避免拼出 `https://a.comhttps://b.com/...` 的非法地址。
     final String? absoluteChapterUrl = (chapterUrl != null &&
             chapterUrl.isNotEmpty)
-        ? (_source != null && _source!.site.baseUrl.isNotEmpty
-            ? _source!.site.baseUrl + chapterUrl
-            : chapterUrl)
+        ? (chapterUrl.startsWith('http') ||
+                _source == null ||
+                _source!.site.baseUrl.isEmpty
+            ? chapterUrl
+            : _source!.site.baseUrl + chapterUrl)
         : null;
     // 本地模式标题：文件名 · 本地文件（无章节概念）。
     final String titleText = _isLocalMode
