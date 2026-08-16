@@ -546,6 +546,12 @@ class DownloadManager extends ChangeNotifier {
       localPath: workDir,
     );
 
+    // 诊断日志：任务创建即输出关键信息（源/格式/落盘目录/章节数），
+    // 便于排查「下载列表无内容 / 详情页显示已下载但文件未落盘」类问题。
+    AppLog.instance.i('[下载任务创建] ${item.title} (${task.id}, '
+        '${selectedChapters.length} 章, 源 ${sourceType.name}, '
+        '格式 ${format.label}, 目录 $workDir)');
+
     _tasks.add(task);
     await _persist();
     await _writeMetaJson(task);
