@@ -4856,6 +4856,18 @@ abstract class AppLocalizations {
   /// **'Sleep timer fired, playback paused'**
   String get playerTimerFired;
 
+  /// Sleep timer: pause after N episodes
+  ///
+  /// In en, this message translates to:
+  /// **'Pause after {count} more episodes'**
+  String playerTimerEpisodes(int count);
+
+  /// No description provided for @playerTimerEpisodesFired.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback paused by episode sleep timer'**
+  String get playerTimerEpisodesFired;
+
   /// No description provided for @noDescription.
   ///
   /// In en, this message translates to:
@@ -6721,6 +6733,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Long Press Speed Boost'**
   String get playerLongPressSpeedUp;
+
+  /// No description provided for @playerBottomProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Show bottom progress bar when controls hidden'**
+  String get playerBottomProgress;
 
   /// No description provided for @playerDefaultVolume.
   ///

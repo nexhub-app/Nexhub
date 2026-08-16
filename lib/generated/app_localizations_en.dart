@@ -2496,6 +2496,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerTimerFired => 'Sleep timer fired, playback paused';
 
   @override
+  String playerTimerEpisodes(int count) {
+    return 'Pause after $count more episodes';
+  }
+
+  @override
+  String get playerTimerEpisodesFired =>
+      'Playback paused by episode sleep timer';
+
+  @override
   String get noDescription => 'No description available';
 
   @override
@@ -3492,6 +3501,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get playerLongPressSpeedUp => 'Long Press Speed Boost';
+
+  @override
+  String get playerBottomProgress =>
+      'Show bottom progress bar when controls hidden';
 
   @override
   String get playerDefaultVolume => 'Default Volume';

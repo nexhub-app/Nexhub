@@ -1312,6 +1312,16 @@
   "playerTimerCustom": "Custom",
   "playerTimerCanceled": "Sleep timer canceled",
   "playerTimerFired": "Sleep timer fired, playback paused",
+  "playerTimerEpisodes": "Pause after {count} more episodes",
+  "@playerTimerEpisodes": {
+    "description": "Sleep timer: pause after N episodes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playerTimerEpisodesFired": "Playback paused by episode sleep timer",
   "noDescription": "No description available",
   "aboutAppTitle": "About",
   "openSourceLicenses": "Open source licenses",
@@ -1975,6 +1985,7 @@
   "playerSeekNormal": "1x",
   "playerSeekDouble": "2x",
   "playerLongPressSpeedUp": "Long Press Speed Boost",
+  "playerBottomProgress": "Show bottom progress bar when controls hidden",
   "playerDefaultVolume": "Default Volume",
   "playerResetEpisodeSettings": "Reset This Video Settings",
   "playerResetEpisodeSettingsDone": "Restored this video to global defaults",
