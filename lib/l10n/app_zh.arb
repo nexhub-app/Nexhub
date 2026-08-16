@@ -3624,5 +3624,9 @@
   "rssNewContentGeneric": "有新内容",
   "@rssNewContentGeneric": {
     "description": "隐藏通知内容时显示的通用文案"
-  }
+  },
+  "readerClockPosTopLeft": "左上",
+  "readerClockPosTopRight": "右上",
+  "readerClockPosBottomLeft": "左下",
+  "readerClockPosBottomRight": "右下"
 }

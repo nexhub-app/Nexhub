@@ -898,22 +898,40 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                             l10n.readerClockPosition,
                             <Widget>[
                               ChoiceChip(
-                                label: Text(l10n.readerClockPosTop),
+                                label: Text(l10n.readerClockPosTopLeft),
                                 selected:
                                     _settings.comicClockBatteryPosition ==
-                                        ClockBatteryPosition.top,
+                                        ClockBatteryPosition.topLeft,
                                 onSelected: (_) => _update(_settings.copyWith(
                                     comicClockBatteryPosition:
-                                        ClockBatteryPosition.top)),
+                                        ClockBatteryPosition.topLeft)),
                               ),
                               ChoiceChip(
-                                label: Text(l10n.readerClockPosBottom),
+                                label: Text(l10n.readerClockPosTopRight),
                                 selected:
                                     _settings.comicClockBatteryPosition ==
-                                        ClockBatteryPosition.bottom,
+                                        ClockBatteryPosition.topRight,
                                 onSelected: (_) => _update(_settings.copyWith(
                                     comicClockBatteryPosition:
-                                        ClockBatteryPosition.bottom)),
+                                        ClockBatteryPosition.topRight)),
+                              ),
+                              ChoiceChip(
+                                label: Text(l10n.readerClockPosBottomLeft),
+                                selected:
+                                    _settings.comicClockBatteryPosition ==
+                                        ClockBatteryPosition.bottomLeft,
+                                onSelected: (_) => _update(_settings.copyWith(
+                                    comicClockBatteryPosition:
+                                        ClockBatteryPosition.bottomLeft)),
+                              ),
+                              ChoiceChip(
+                                label: Text(l10n.readerClockPosBottomRight),
+                                selected:
+                                    _settings.comicClockBatteryPosition ==
+                                        ClockBatteryPosition.bottomRight,
+                                onSelected: (_) => _update(_settings.copyWith(
+                                    comicClockBatteryPosition:
+                                        ClockBatteryPosition.bottomRight)),
                               ),
                             ],
                           ),

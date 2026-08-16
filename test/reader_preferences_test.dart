@@ -113,7 +113,7 @@ void main() {
     expect(def.readerPageSpacing, 0);
     expect(def.showSingleImageOnFirstPage, false);
     expect(def.showClockBattery, false);
-    expect(def.clockBatteryPosition, ClockBatteryPosition.top);
+    expect(def.clockBatteryPosition, ClockBatteryPosition.topLeft);
     expect(def.readerBrightness, 0.0);
     expect(def.autoDownloadChapters, false);
     expect(def.skipReadChapters, false);
@@ -126,7 +126,7 @@ void main() {
       readerPageSpacing: 20,
       showSingleImageOnFirstPage: true,
       showClockBattery: true,
-      clockBatteryPosition: ClockBatteryPosition.bottom,
+      clockBatteryPosition: ClockBatteryPosition.bottomRight,
       clockBatteryMargin: 12,
       clockBatteryOpacity: 0.5,
       clockBatteryFontSize: 16,
@@ -142,7 +142,7 @@ void main() {
     expect(back.readerPageSpacing, 20);
     expect(back.showSingleImageOnFirstPage, true);
     expect(back.showClockBattery, true);
-    expect(back.clockBatteryPosition, ClockBatteryPosition.bottom);
+    expect(back.clockBatteryPosition, ClockBatteryPosition.bottomRight);
     expect(back.clockBatteryMargin, 12);
     expect(back.clockBatteryOpacity, 0.5);
     expect(back.clockBatteryFontSize, 16);
