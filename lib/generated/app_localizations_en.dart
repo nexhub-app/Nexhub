@@ -4408,6 +4408,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerSeekCancel => 'Seek canceled';
 
   @override
+  String get playerAutoPlayCountdown => 'Auto-play next countdown';
+
+  @override
+  String get playerCountdownImmediate => 'Immediate';
+
+  @override
+  String playerAutoNextCountdown(int left) {
+    return 'Next episode in ${left}s';
+  }
+
+  @override
   String get novelTitleAlignLeft => 'Left';
 
   @override

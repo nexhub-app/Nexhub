@@ -212,6 +212,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 与按分钟模式互斥，跨集保留（配合 B-13）；播完一集递减，归零暂停。
   int _sleepEpisodesRemaining = 0;
 
+  /// 自动连播倒计时（F-8）：播完一集后按设置的秒数延迟连播，期间底部
+  /// SnackBar 实时显示剩余秒数并可取消；0（未配置）时保持立即连播。
+  Timer? _autoNextCountdownTimer;
+
+  /// 倒计时剩余秒数（SnackBar 内容实时刷新用）。
+  final ValueNotifier<int> _autoNextCountdownLeft =
+      ValueNotifier<int>(0);
+
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<bool>? _completedSub;
   StreamSubscription<void>? _stallSub;
@@ -1395,11 +1403,73 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         return;
       }
     }
-    // 自动连播
+    // 自动连播（F-8：可配置倒计时，倒计时期间可取消）
     if (_controller.autoPlayNext &&
         widget.episodes != null &&
         _episodeIndex < widget.episodes!.length - 1) {
+      final countdown = _playerSettings.autoPlayCountdownSeconds;
+      if (countdown > 0) {
+        _startAutoNextCountdown(countdown);
+      } else {
+        _goNextEpisode();
+      }
+    }
+  }
+
+  /// 启动自动连播倒计时（F-8）：SnackBar 实时显示剩余秒数并提供「取消」，
+  /// 归零后播放下一集。期间控制层常显，便于用户看清提示。
+  void _startAutoNextCountdown(int seconds) {
+    _cancelAutoNextCountdown();
+    _autoNextCountdownLeft.value = seconds;
+    _uiHideTimer?.cancel();
+    if (mounted) {
+      setState(() => _uiVisible = true);
+      try {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              duration: Duration(seconds: seconds + 1),
+              content: ValueListenableBuilder<int>(
+                valueListenable: _autoNextCountdownLeft,
+                builder: (BuildContext ctx, int left, Widget? child) =>
+                    Text(l10n.playerAutoNextCountdown(left)),
+              ),
+              action: SnackBarAction(
+                label: l10n.cancel,
+                onPressed: _cancelAutoNextCountdown,
+              ),
+            ),
+          );
+      } on Object {
+        // context 已失活则只走静默倒计时。
+      }
+    }
+    _autoNextCountdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final left = _autoNextCountdownLeft.value - 1;
+      if (left > 0) {
+        _autoNextCountdownLeft.value = left;
+        return;
+      }
+      _cancelAutoNextCountdown();
+      if (!mounted || _disposed) return;
+      try {
+        // 倒计时归零切集前撤下提示条，避免盖住切集提示。
+        ScaffoldMessenger.of(context).clearSnackBars();
+      } on Object {
+        // context 已失活则忽略。
+      }
       _goNextEpisode();
+    });
+  }
+
+  /// 取消自动连播倒计时（用户点「取消」/ 手动切集 / 退出播放器）。
+  void _cancelAutoNextCountdown() {
+    _autoNextCountdownTimer?.cancel();
+    _autoNextCountdownTimer = null;
+    if (_autoNextCountdownLeft.value != 0) {
+      _autoNextCountdownLeft.value = 0;
     }
   }
 
@@ -1687,6 +1757,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (widget.episodes == null || index < 0 || index >= widget.episodes!.length) {
       return;
     }
+    // F-8：手动切集取消进行中的连播倒计时（倒计时归零触发的切集除外，
+    // 归零路径先取消再切，此处只会拦到用户手动操作）。
+    _cancelAutoNextCountdown();
     // 代次守卫：快速连播 / 手动切集并发时，丢弃过期切换，避免旧集覆盖新集。
     final int token = ++_loadToken;
     // 睡眠定时跨集保留（B-13）：切集不取消定时器——用户设的「30 分钟后暂停」
@@ -2172,6 +2245,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.space) {
       if (_controller.isLocked) return KeyEventResult.handled;
+      // F-8：用户手动重播则取消进行中的连播倒计时。
+      _cancelAutoNextCountdown();
       if (_isPlaying) {
         _controller.pause();
       } else {
@@ -3083,6 +3158,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     unawaited(_saveDanmakuSettings());
     _sleepTimer?.cancel();
     _speedProbeTimer?.cancel();
+    // F-8：退出播放器取消连播倒计时并释放通知器。
+    _cancelAutoNextCountdown();
+    _autoNextCountdownLeft.dispose();
     // F-5：退出播放器清按集睡眠计数（仅"关定时/退出"才取消，切集保留）。
     _sleepEpisodesRemaining = 0;
     _gestureIndicatorTimer?.cancel();
@@ -3431,6 +3509,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   iconSize: 48,
                   icon: const Icon(Icons.play_arrow),
                   onPressed: () {
+                    // F-8：用户手动重播则取消进行中的连播倒计时。
+                    _cancelAutoNextCountdown();
                     _controller.play();
                     setState(() => _isPlaying = true);
                   },
@@ -3659,6 +3739,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   icon: _isPlaying ? Icons.pause : Icons.play_arrow,
                   tooltip: _isPlaying ? l10n.pause : l10n.play,
                   onTap: () {
+                    // F-8：用户手动重播则取消进行中的连播倒计时。
+                    _cancelAutoNextCountdown();
                     if (_isPlaying) {
                       _controller.pause();
                     } else {

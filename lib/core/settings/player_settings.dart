@@ -30,6 +30,9 @@ class PlayerSettings {
   final PlayerAspectRatio aspectRatio;
   final double playbackSpeed;
   final bool autoPlayNext;
+  /// 自动连播倒计时秒数（F-8）：播完一集后弹「N 秒后播放下一集」可取消，
+  /// 0 = 立即连播（保持旧行为）。
+  final int autoPlayCountdownSeconds;
   final double subtitleFontSize;
   final PlayerLockOrientation lockOrientation;
   final SeekMultiplier seekMultiplier;
@@ -57,6 +60,7 @@ class PlayerSettings {
     this.aspectRatio = PlayerAspectRatio.defaultRatio,
     this.playbackSpeed = 1.0,
     this.autoPlayNext = true,
+    this.autoPlayCountdownSeconds = 0,
     this.subtitleFontSize = 16.0,
     this.lockOrientation = PlayerLockOrientation.landscape,
     this.seekMultiplier = SeekMultiplier.normal,
@@ -83,6 +87,7 @@ class PlayerSettings {
     PlayerAspectRatio? aspectRatio,
     double? playbackSpeed,
     bool? autoPlayNext,
+    int? autoPlayCountdownSeconds,
     double? subtitleFontSize,
     PlayerLockOrientation? lockOrientation,
     SeekMultiplier? seekMultiplier,
@@ -108,6 +113,8 @@ class PlayerSettings {
         aspectRatio: aspectRatio ?? this.aspectRatio,
         playbackSpeed: playbackSpeed ?? this.playbackSpeed,
         autoPlayNext: autoPlayNext ?? this.autoPlayNext,
+        autoPlayCountdownSeconds:
+            autoPlayCountdownSeconds ?? this.autoPlayCountdownSeconds,
         subtitleFontSize: subtitleFontSize ?? this.subtitleFontSize,
         lockOrientation: lockOrientation ?? this.lockOrientation,
         seekMultiplier: seekMultiplier ?? this.seekMultiplier,
@@ -135,6 +142,7 @@ class PlayerSettings {
         'aspectRatio': aspectRatio.name,
         'playbackSpeed': playbackSpeed,
         'autoPlayNext': autoPlayNext,
+        'autoPlayCountdownSeconds': autoPlayCountdownSeconds,
         'subtitleFontSize': subtitleFontSize,
         'lockOrientation': lockOrientation.name,
         'seekMultiplier': seekMultiplier.name,
@@ -197,6 +205,8 @@ class PlayerSettings {
       aspectRatio: aspectRatio,
       playbackSpeed: (json['playbackSpeed'] as num?)?.toDouble() ?? 1.0,
       autoPlayNext: json['autoPlayNext'] as bool? ?? true,
+      autoPlayCountdownSeconds:
+          (json['autoPlayCountdownSeconds'] as num?)?.toInt() ?? 0,
       subtitleFontSize:
           (json['subtitleFontSize'] as num?)?.toDouble() ?? 16.0,
       lockOrientation: lockOrientation,
