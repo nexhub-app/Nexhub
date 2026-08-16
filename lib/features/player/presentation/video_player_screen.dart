@@ -418,6 +418,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 但重建频率显著下降。
   DateTime? _lastPositionUiAt;
 
+  // ── F-3 跳过片头片尾（按作品记忆，经 EpisodePlayerSettingsStore）──
+
+  /// 片头结束点（秒，null = 未设置）。位置进入 [2s, opEnd-1s] 显示
+  /// 「跳过片头」按钮；开启自动跳过时直接 seek 过去。
+  int? _skipOpEndSec;
+
+  /// 片尾开始点（秒，null = 未设置）。位置进入 [edStart, edStart+8s] 显示
+  /// 「跳过片尾」按钮。
+  int? _skipEdStartSec;
+
+  /// 自动跳过开关（与片头/片尾点一起按作品持久化）。
+  bool _skipAuto = false;
+
+  /// 本集是否已跳过片头/片尾（手动或自动，防止重复跳/循环跳）。
+  bool _opSkippedThisEpisode = false;
+  bool _edSkippedThisEpisode = false;
+
   /// 播放位置管理器缓存（B-6）。
   ///
   /// deactivate 之后 context 已失活，dispose 里再调 `context.read` 会抛
@@ -837,6 +854,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   /// 加载播放器设置：全局默认 + 该剧集单独覆盖（覆盖字段优先）。
+  /// 同时读取跳过片头/片尾区间（F-3，独立于 PlayerSettings 字段，单独
+  /// 存在该剧集覆盖存储里）。
   Future<void> _loadPlayerSettings() async {
     try {
       final global = await PlayerSettingsStore().load();
@@ -844,6 +863,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           await EpisodePlayerSettingsStore().loadMerged(global, widget.itemId);
     } on Object {
       _playerSettings = const PlayerSettings();
+    }
+    try {
+      final overrides =
+          await EpisodePlayerSettingsStore().loadOverrides(widget.itemId);
+      _skipOpEndSec = (overrides['skipOpEndSec'] as num?)?.toInt();
+      _skipEdStartSec = (overrides['skipEdStartSec'] as num?)?.toInt();
+      _skipAuto = overrides['skipAuto'] as bool? ?? false;
+    } on Object {
+      // 读取失败按未设置处理，不影响播放。
     }
   }
 
@@ -1231,6 +1259,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (_duration == Duration.zero) {
       _duration = _controller.duration;
     }
+    // F-3：自动跳过片头/片尾（未开启或未设置时为空操作）。
+    _maybeAutoSkip(position);
     // 注入弹幕
     if (_danmakuOn) {
       final adjusted = position +
@@ -1293,6 +1323,195 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } on Object {
       // Manager 不可用时静默忽略。
     }
+  }
+
+  // ─────────────────────── F-3 跳过片头/片尾 ───────────────────────
+
+  /// 是否显示「跳过片头」悬浮按钮：设置过片头结束点、位置在
+  /// (1s, opEnd-1s) 且本集未跳过。位置上限留 1s 缓冲避免临门一点还弹按钮。
+  bool get _showSkipOpButton {
+    final opEnd = _skipOpEndSec;
+    if (opEnd == null || opEnd <= 3 || _opSkippedThisEpisode) return false;
+    final posSec = _position.inSeconds;
+    return posSec > 1 && posSec < opEnd - 1;
+  }
+
+  /// 是否显示「跳过片尾」悬浮按钮：设置过片尾开始点、位置落在
+  /// [edStart, edStart+8s) 且本集未跳过。
+  bool get _showSkipEdButton {
+    final edStart = _skipEdStartSec;
+    if (edStart == null || _edSkippedThisEpisode) return false;
+    final posSec = _position.inSeconds;
+    return posSec >= edStart && posSec < edStart + 8;
+  }
+
+  /// 自动跳过片头/片尾（F-3）：进入区间且本集未跳过时直接 seek 越过。
+  /// 片头要求位置 > 2s 才触发：开局即跳会吞掉「以停顿/回忆开场」的作品，
+  /// 也避免续播恢复落在片头内时反复跳。
+  void _maybeAutoSkip(Duration position) {
+    if (!_skipAuto) return;
+    final posSec = position.inSeconds;
+    final opEnd = _skipOpEndSec;
+    if (opEnd != null &&
+        opEnd > 3 &&
+        !_opSkippedThisEpisode &&
+        posSec > 2 &&
+        posSec < opEnd - 1) {
+      _skipIntro();
+      return;
+    }
+    final edStart = _skipEdStartSec;
+    final durSec = _duration.inSeconds;
+    if (edStart != null &&
+        durSec > 0 &&
+        edStart < durSec - 5 &&
+        !_edSkippedThisEpisode &&
+        posSec >= edStart &&
+        posSec < edStart + 8) {
+      _skipOutro();
+    }
+  }
+
+  /// 跳过片头：seek 到片头结束点。
+  void _skipIntro() {
+    final opEnd = _skipOpEndSec;
+    if (opEnd == null) return;
+    _opSkippedThisEpisode = true;
+    unawaited(_controller.seek(Duration(seconds: opEnd)));
+    if (mounted) setState(() {});
+  }
+
+  /// 跳过片尾：seek 到片尾前（触底后由完成事件接续连播/下一集）。
+  void _skipOutro() {
+    if (_duration <= Duration.zero) return;
+    _edSkippedThisEpisode = true;
+    unawaited(
+        _controller.seek(_duration - const Duration(milliseconds: 200)));
+    if (mounted) setState(() {});
+  }
+
+  /// 「分:秒」格式化（供跳过设置对话框展示当前值）。
+  String _fmtMmSs(int? seconds) {
+    if (seconds == null || seconds < 0) return '';
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  /// 解析「分:秒」或纯秒数文本；非法/为空返回 null（= 未设置）。
+  int? _parseMmSs(String raw) {
+    final t = raw.trim();
+    if (t.isEmpty) return null;
+    final colon = t.indexOf(':');
+    int? value;
+    if (colon < 0) {
+      value = int.tryParse(t);
+    } else {
+      final m = int.tryParse(t.substring(0, colon));
+      final s = int.tryParse(t.substring(colon + 1));
+      if (m != null && s != null) value = m * 60 + s;
+    }
+    if (value == null || value < 0) return null;
+    return value;
+  }
+
+  /// 跳过片头/片尾设置对话框（F-3）：片头结束点 / 片尾开始点（分:秒，
+  /// 可一键取当前播放位置）+ 自动跳过开关；按作品持久化。
+  Future<void> _showSkipSettings() async {
+    final l10n = AppLocalizations.of(context);
+    final opCtl = TextEditingController(text: _fmtMmSs(_skipOpEndSec));
+    final edCtl = TextEditingController(text: _fmtMmSs(_skipEdStartSec));
+    var auto = _skipAuto;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogCtx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setDlg) => AlertDialog(
+          title: Text(l10n.playerSkipOpEd),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: TextField(
+                      controller: opCtl,
+                      decoration: InputDecoration(
+                          labelText: l10n.playerSkipOpEndLabel),
+                      keyboardType: TextInputType.datetime,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      opCtl.text = _fmtMmSs(_position.inSeconds);
+                    },
+                    child: Text(l10n.playerSkipUseCurrent),
+                  ),
+                ],
+              ),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: TextField(
+                      controller: edCtl,
+                      decoration: InputDecoration(
+                          labelText: l10n.playerSkipEdStartLabel),
+                      keyboardType: TextInputType.datetime,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      edCtl.text = _fmtMmSs(_position.inSeconds);
+                    },
+                    child: Text(l10n.playerSkipUseCurrent),
+                  ),
+                ],
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(l10n.playerSkipAuto),
+                value: auto,
+                onChanged: (v) => setDlg(() => auto = v),
+              ),
+              Text(
+                l10n.playerSkipHint,
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(l10n.save),
+            ),
+          ],
+        ),
+      ),
+    );
+    opCtl.dispose();
+    edCtl.dispose();
+    if (saved != true || !mounted) return;
+    final opEnd = _parseMmSs(opCtl.text);
+    final edStart = _parseMmSs(edCtl.text);
+    // 合法性钳制：片头必须 ≥ 5s；片尾开始必须距结尾 ≥ 5s（否则无意义）。
+    final durSec = _duration.inSeconds;
+    final safeOp = (opEnd != null && opEnd >= 5) ? opEnd : null;
+    final safeEd = (edStart != null && durSec > 0 && edStart < durSec - 5)
+        ? edStart
+        : (edStart != null && durSec <= 0 && edStart >= 30 ? edStart : null);
+    setState(() {
+      _skipOpEndSec = safeOp;
+      _skipEdStartSec = safeEd;
+      _skipAuto = auto;
+      _opSkippedThisEpisode = false;
+      _edSkippedThisEpisode = false;
+    });
+    unawaited(_saveEpisodeSetting('skipOpEndSec', safeOp));
+    unawaited(_saveEpisodeSetting('skipEdStartSec', safeEd));
+    unawaited(_saveEpisodeSetting('skipAuto', auto));
   }
 
   /// 读后自动删除：看完整个作品后清理其已下载文件（受排除分类限制）。
@@ -1780,6 +1999,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       // 切集重置重连状态：上一集的重连耗尽不应影响本集。
       _reconnectExhausted = false;
       _reconnectAttempts = 0;
+      // F-3：新的一集重新允许跳过片头/片尾。
+      _opSkippedThisEpisode = false;
+      _edSkippedThisEpisode = false;
     });
 
     final ep = widget.episodes![index];
@@ -2895,6 +3117,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 _pickScreenshotDirectory(l10n);
               },
             ),
+            // 跳过片头/片尾设置（F-3）
+            ListTile(
+              leading: const Icon(Icons.skip_next),
+              title: Text(l10n.playerSkipOpEd),
+              subtitle: (_skipOpEndSec != null || _skipEdStartSec != null)
+                  ? Text(
+                      '${_fmtMmSs(_skipOpEndSec)} / ${_fmtMmSs(_skipEdStartSec)}'
+                      '${_skipAuto ? ' · ${l10n.playerSkipAuto}' : ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : null,
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_showSkipSettings());
+              },
+            ),
             // 重置该视频的单独设置（恢复跟随全局默认）
             ListTile(
               leading: const Icon(Icons.settings_backup_restore),
@@ -3407,6 +3646,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
           // 中央手势指示器（锁定态不显示）
           if (!_controller.isLocked) _buildGestureIndicator(),
+
+          // F-3：跳过片头/片尾悬浮按钮（右下角，控制栏显示时抬高避让）。
+          if (!_controller.isLocked && _showSkipOpButton)
+            Positioned(
+              right: AppTokens.spaceLg,
+              bottom: _uiVisible ? 108 : 28,
+              child: _SkipChip(
+                  label: l10n.playerSkipOp,
+                  icon: Icons.fast_forward,
+                  onTap: _skipIntro),
+            ),
+          if (!_controller.isLocked && _showSkipEdButton)
+            Positioned(
+              right: AppTokens.spaceLg,
+              bottom: _uiVisible ? 108 : 28,
+              child: _SkipChip(
+                  label: l10n.playerSkipEd,
+                  icon: Icons.fast_forward,
+                  onTap: _skipOutro),
+            ),
 
           // 功能2：缓冲加载动画（播放中缓冲时显示中央转圈）+ 实时网速（F-6）。
           if (_isBuffering && !_controller.isLocked)
@@ -4563,6 +4822,49 @@ class _ControlButton extends StatelessWidget {
 /// 横向滚动文字（Marquee）：当文本超出可用宽度时自动循环滚动；
 /// 文本能完整显示时静止不动（无动画开销）。
 ///
+/// 跳过片头/片尾悬浮按钮（F-3）：半透明胶囊，浮在画面右下角。
+class _SkipChip extends StatelessWidget {
+  const _SkipChip({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.inverseSurface.withValues(alpha: 0.85),
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(icon, size: 18, color: scheme.onInverseSurface),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: scheme.onInverseSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 用 [SingleChildScrollView] 承载文本，由 [AnimationController] 驱动
 /// [_scrollController] 手动滚动；避免 ListView.builder(itemCount:null) 在
 /// 顶栏 Row 内触发无限高度布局崩溃。
