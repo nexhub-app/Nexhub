@@ -44,7 +44,7 @@ Future<List<String>> gatherLocalComicImages(String path) async {
   final dir = Directory(path);
   if (await dir.exists()) {
     return dir
-        .listSync()
+        .listSync(recursive: true)
         .whereType<File>()
         .where((x) => isImageFile(x.path))
         .map((x) => x.path)

@@ -58,12 +58,18 @@ ReaderPageAnimation _parsePageAnimation(Object? raw) {
 /// 解析时间/电量浮层位置（容错：非法字符串回退 top）。
 ClockBatteryPosition _parseClockBatteryPosition(Object? raw) {
   if (raw is String) {
+    // 兼容旧数据：top → topLeft, bottom → bottomLeft
+    final String mapped = switch (raw) {
+      'top' => 'topLeft',
+      'bottom' => 'bottomLeft',
+      _ => raw,
+    };
     return ClockBatteryPosition.values.firstWhere(
-      (e) => e.name == raw,
-      orElse: () => ClockBatteryPosition.top,
+      (e) => e.name == mapped,
+      orElse: () => ClockBatteryPosition.topLeft,
     );
   }
-  return ClockBatteryPosition.top;
+  return ClockBatteryPosition.topLeft;
 }
 
 /// 小说默认简繁转换（项 2）。
@@ -318,7 +324,7 @@ class ReaderDefaultSettings {
     this.comicReaderPageSpacing = 0,
     this.comicShowSingleImageOnFirstPage = false,
     this.comicShowClockBattery = false,
-    this.comicClockBatteryPosition = ClockBatteryPosition.top,
+    this.comicClockBatteryPosition = ClockBatteryPosition.topLeft,
     this.comicClockBatteryMargin = 8.0,
     this.comicClockBatteryOpacity = 0.8,
     this.comicClockBatteryFontSize = 12.0,

@@ -6315,4 +6315,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get rssNewContentGeneric => '有新内容';
+
+  @override
+  String get readerClockPosTopLeft => '左上';
+
+  @override
+  String get readerClockPosTopRight => '右上';
+
+  @override
+  String get readerClockPosBottomLeft => '左下';
+
+  @override
+  String get readerClockPosBottomRight => '右下';
 }

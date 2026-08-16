@@ -269,14 +269,18 @@ enum ReaderPageAnimation {
       };
 }
 
-/// 时间/电量浮层位置（REQ-C5）：顶部 / 底部。
+/// 时间/电量浮层位置（REQ-C5）：四角。
 enum ClockBatteryPosition {
-  top,
-  bottom;
+  topLeft,
+  topRight,
+  bottomLeft,
+  bottomRight;
 
   String l10nKey() => switch (this) {
-        ClockBatteryPosition.top => 'readerClockPosTop',
-        ClockBatteryPosition.bottom => 'readerClockPosBottom',
+        ClockBatteryPosition.topLeft => 'readerClockPosTopLeft',
+        ClockBatteryPosition.topRight => 'readerClockPosTopRight',
+        ClockBatteryPosition.bottomLeft => 'readerClockPosBottomLeft',
+        ClockBatteryPosition.bottomRight => 'readerClockPosBottomRight',
       };
 }
 
@@ -327,12 +331,18 @@ ReaderPageAnimation _parsePageAnimation(Object? raw) {
 /// 解析时间/电量浮层位置（容错：非法字符串回退 top）。
 ClockBatteryPosition _parseClockBatteryPosition(Object? raw) {
   if (raw is String) {
+    // 兼容旧数据：top → topLeft, bottom → bottomLeft
+    final String mapped = switch (raw) {
+      'top' => 'topLeft',
+      'bottom' => 'bottomLeft',
+      _ => raw,
+    };
     return ClockBatteryPosition.values.firstWhere(
-      (e) => e.name == raw,
-      orElse: () => ClockBatteryPosition.top,
+      (e) => e.name == mapped,
+      orElse: () => ClockBatteryPosition.topLeft,
     );
   }
-  return ClockBatteryPosition.top;
+  return ClockBatteryPosition.topLeft;
 }
 
 /// 阅读器偏好（按作品持久化）。
@@ -524,7 +534,7 @@ class ReaderPreferences {
     this.flashInterval = 0,
     this.flashColor = ReaderFlashColor.black,
     this.initialZoom = ReaderInitialZoom.fitWidth,
-    this.fullscreen = false,
+    this.fullscreen = true,
     this.showLongPressMenu = true,
     this.filterGrayscale = false,
     this.preventShrink = false,
@@ -548,7 +558,7 @@ class ReaderPreferences {
     this.readerPageSpacing = 0,
     this.showSingleImageOnFirstPage = false,
     this.showClockBattery = false,
-    this.clockBatteryPosition = ClockBatteryPosition.top,
+    this.clockBatteryPosition = ClockBatteryPosition.topLeft,
     this.clockBatteryMargin = 8.0,
     this.clockBatteryOpacity = 0.8,
     this.clockBatteryFontSize = 12.0,
@@ -636,7 +646,7 @@ class ReaderPreferences {
       flashInterval: (json['flashInterval'] as num?)?.toInt() ?? 0,
       flashColor: _parseFlashColor(json['flashColor']),
       initialZoom: _parseInitialZoom(json['initialZoom']),
-      fullscreen: json['fullscreen'] as bool? ?? false,
+      fullscreen: json['fullscreen'] as bool? ?? true,
       showLongPressMenu: json['showLongPressMenu'] as bool? ?? true,
       filterGrayscale: json['filterGrayscale'] as bool? ?? false,
       preventShrink: json['preventShrink'] as bool? ?? false,
