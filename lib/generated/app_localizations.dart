@@ -8426,6 +8426,78 @@ abstract class AppLocalizations {
   /// **'Seek canceled'**
   String get playerSeekCancel;
 
+  /// No description provided for @novelReadingSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading summary'**
+  String get novelReadingSummary;
+
+  /// No description provided for @novelSummaryProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress: chapter {read} of {total}'**
+  String novelSummaryProgress(int read, int total);
+
+  /// No description provided for @novelSummaryTotalRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Total reading time'**
+  String get novelSummaryTotalRead;
+
+  /// No description provided for @novelSummaryToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get novelSummaryToday;
+
+  /// No description provided for @novelSummarySessionsValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} sessions'**
+  String novelSummarySessionsValue(int count);
+
+  /// No description provided for @novelSummaryRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Est. time to finish: {duration}'**
+  String novelSummaryRemaining(String duration);
+
+  /// No description provided for @novelSummaryCurrentChars.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} chars in this chapter'**
+  String novelSummaryCurrentChars(int count);
+
+  /// No description provided for @novelDurationHourMin.
+  ///
+  /// In en, this message translates to:
+  /// **'{h}h {m}m'**
+  String novelDurationHourMin(int h, int m);
+
+  /// No description provided for @novelDurationHour.
+  ///
+  /// In en, this message translates to:
+  /// **'{h}h'**
+  String novelDurationHour(int h);
+
+  /// No description provided for @novelDurationMin.
+  ///
+  /// In en, this message translates to:
+  /// **'{m} min'**
+  String novelDurationMin(int m);
+
+  /// No description provided for @novelSummaryNoStats.
+  ///
+  /// In en, this message translates to:
+  /// **'No reading stats yet'**
+  String get novelSummaryNoStats;
+
+  /// No description provided for @novelSummaryPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Now: {chapter} · page {page}/{pages}'**
+  String novelSummaryPosition(String chapter, int page, int pages);
+
   /// No description provided for @playerAutoPlayCountdown.
   ///
   /// In en, this message translates to:

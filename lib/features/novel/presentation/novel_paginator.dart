@@ -152,6 +152,19 @@ class NovelPaginationResult {
 class NovelPaginator {
   NovelPaginator._();
 
+  /// 章节标题行样式（分页测量与翻页渲染共用，两处必须一致）：
+  /// 正文样式放大 1.4 倍 + 加粗 + 行高 1.4。
+  ///
+  /// 此前分页测量用正文样式断行、渲染却按标题样式放大绘制，标题行实际
+  /// 宽度超出测量值 ~40%，在 `softWrap:false + clip` 下右侧字符被裁
+  ///（「字符显示不全」的根因）；行高同理超出导致页底溢出。统一取样式后
+  /// 测量与渲染逐字符一致。
+  static TextStyle headingStyleOf(TextStyle bodyStyle) => bodyStyle.copyWith(
+        fontSize: (bodyStyle.fontSize ?? 16) * 1.4,
+        fontWeight: FontWeight.w700,
+        height: 1.4,
+      );
+
   /// 将章节正文分页。
   ///
   /// [blocks] — 章节正文块（文本段与插图共存，每段首行已含 `　　` 缩进）。
@@ -207,14 +220,12 @@ class NovelPaginator {
       final block = blocks[bi];
       if (block is NovelTextBlock) {
         if (block.text.isEmpty) continue;
-        // 章节标题块用更大的标题样式折行，与正文等高规则不同：
-        // 这里直接复用正文样式做宽度测算，最终渲染时再换成 heading 样式，
-        // 避免分页器为 heading 行另算高度造成页内排版错位（heading 行高度
-        // 由渲染层自然撑开，预留高度已在 titleReserve 与块前后段距中处理）。
+        // 章节标题块用标题样式折行（与渲染一致，见 [headingStyleOf]）：
+        // 若按正文样式断行、渲染再放大，标题行会超宽被裁 + 超高溢出页底。
         final lines = _breakParagraph(
           block.text,
           textBlockIndex,
-          style,
+          block.isHeading ? headingStyleOf(style) : style,
           width,
           dir,
           scaler,
@@ -245,6 +256,16 @@ class NovelPaginator {
     )..layout(maxWidth: width);
     final lineHeight = measureTp.height;
     measureTp.dispose();
+    // 标题行按标题样式单独测高（比正文行高 ~1.4 倍），装箱时逐行取用。
+    final headingProbe = TextPainter(
+      text: TextSpan(text: '中', style: headingStyleOf(style)),
+      textDirection: dir,
+      textScaler: scaler,
+    )..layout(maxWidth: width);
+    final headingLineHeight = headingProbe.height;
+    headingProbe.dispose();
+
+    double lineHeightOf(NovelLine l) => l.isHeading ? headingLineHeight : lineHeight;
 
     // 3) 章节大标题仅在第一页顶部预留高度（#7）。
     final bool showTitle = prefs.showChapterTitleInBody &&
@@ -311,7 +332,8 @@ class NovelPaginator {
       }
 
       final line = (item as NovelTextLineItem).line;
-      final lineH = lineHeight + (line.isLastLine ? prefs.paragraphSpacing : 0);
+      final lineH =
+          lineHeightOf(line) + (line.isLastLine ? prefs.paragraphSpacing : 0);
 
       // 当前页已放不下且不是空页 → 考虑翻页
       if (used + lineH > height && current.isNotEmpty) {
@@ -350,7 +372,8 @@ class NovelPaginator {
             final removed = current.removeLast();
             deferred.insert(0, removed); // 保持顺序
             final removedLineH = removed is NovelTextLineItem
-                ? lineHeight + (removed.line.isLastLine ? prefs.paragraphSpacing : 0)
+                ? lineHeightOf(removed.line) +
+                    (removed.line.isLastLine ? prefs.paragraphSpacing : 0)
                 : 0;
             used -= removedLineH;
           }

@@ -4334,6 +4334,58 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerSeekCancel => '已取消快进';
 
   @override
+  String get novelReadingSummary => '阅读总结';
+
+  @override
+  String novelSummaryProgress(int read, int total) {
+    return '进度：读到第 $read / $total 章';
+  }
+
+  @override
+  String get novelSummaryTotalRead => '累计阅读';
+
+  @override
+  String get novelSummaryToday => '今日阅读';
+
+  @override
+  String novelSummarySessionsValue(int count) {
+    return '$count 次';
+  }
+
+  @override
+  String novelSummaryRemaining(String duration) {
+    return '预计读完还需 $duration';
+  }
+
+  @override
+  String novelSummaryCurrentChars(int count) {
+    return '本章 $count 字';
+  }
+
+  @override
+  String novelDurationHourMin(int h, int m) {
+    return '$h 小时 $m 分';
+  }
+
+  @override
+  String novelDurationHour(int h) {
+    return '$h 小时';
+  }
+
+  @override
+  String novelDurationMin(int m) {
+    return '$m 分钟';
+  }
+
+  @override
+  String get novelSummaryNoStats => '暂无阅读统计';
+
+  @override
+  String novelSummaryPosition(String chapter, int page, int pages) {
+    return '当前：$chapter · 第 $page/$pages 页';
+  }
+
+  @override
   String get playerAutoPlayCountdown => '自动连播倒计时';
 
   @override

@@ -2411,6 +2411,52 @@
   "seekForward10": "快进 10 秒",
   "seekBackward10": "快退 10 秒",
   "playerSeekCancel": "已取消快进",
+  "novelReadingSummary": "阅读总结",
+  "novelSummaryProgress": "进度：读到第 {read} / {total} 章",
+  "@novelSummaryProgress": {
+    "placeholders": {
+      "read": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "novelSummaryTotalRead": "累计阅读",
+  "novelSummaryToday": "今日阅读",
+  "novelSummarySessionsValue": "{count} 次",
+  "@novelSummarySessionsValue": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "novelSummaryRemaining": "预计读完还需 {duration}",
+  "@novelSummaryRemaining": {
+    "placeholders": {"duration": {"type": "String"}}
+  },
+  "novelSummaryCurrentChars": "本章 {count} 字",
+  "@novelSummaryCurrentChars": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "novelDurationHourMin": "{h} 小时 {m} 分",
+  "@novelDurationHourMin": {
+    "placeholders": {
+      "h": {"type": "int"},
+      "m": {"type": "int"}
+    }
+  },
+  "novelDurationHour": "{h} 小时",
+  "@novelDurationHour": {
+    "placeholders": {"h": {"type": "int"}}
+  },
+  "novelDurationMin": "{m} 分钟",
+  "@novelDurationMin": {
+    "placeholders": {"m": {"type": "int"}}
+  },
+  "novelSummaryNoStats": "暂无阅读统计",
+  "novelSummaryPosition": "当前：{chapter} · 第 {page}/{pages} 页",
+  "@novelSummaryPosition": {
+    "placeholders": {
+      "chapter": {"type": "String"},
+      "page": {"type": "int"},
+      "pages": {"type": "int"}
+    }
+  },
   "playerAutoPlayCountdown": "自动连播倒计时",
   "@playerAutoPlayCountdown": {},
   "playerCountdownImmediate": "立即",
