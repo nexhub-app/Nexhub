@@ -8414,6 +8414,12 @@ abstract class AppLocalizations {
   /// **'Backward 10s'**
   String get seekBackward10;
 
+  /// No description provided for @playerSeekCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Seek canceled'**
+  String get playerSeekCancel;
+
   /// No description provided for @novelTitleAlignLeft.
   ///
   /// In en, this message translates to:

@@ -2403,6 +2403,7 @@
   "playerMore": "更多",
   "seekForward10": "快进 10 秒",
   "seekBackward10": "快退 10 秒",
+  "playerSeekCancel": "已取消快进",
   "novelTitleAlignLeft": "左对齐",
   "novelTitleAlignCenter": "居中",
   "novelTitleAlignRight": "右对齐",
