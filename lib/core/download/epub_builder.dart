@@ -22,9 +22,20 @@ Uint8List _u8(String s) => Uint8List.fromList(utf8.encode(s));
 /// EPUB 章节数据。
 class EpubChapter {
   final String title;
-  final String content; // HTML 片段（段落列表）
+  final String content; // HTML 片段（段落列表，可含 <img> 引用）
 
   const EpubChapter({required this.title, required this.content});
+}
+
+/// EPUB 内嵌图片资源。
+///
+/// [href] 为相对 `OEBPS/` 的包内路径（如 `Images/<hash>.jpg`），章节 XHTML
+/// 内以同名相对路径 `<img src="...">` 引用；[data] 为图片原始字节。
+class EpubImage {
+  final String href;
+  final Uint8List data;
+
+  const EpubImage({required this.href, required this.data});
 }
 
 /// EPUB 元数据。
@@ -45,9 +56,13 @@ class EpubBuilder {
   EpubBuilder();
 
   /// 构建 EPUB 字节流。
+  ///
+  /// [images] 为内嵌图片资源（可选）：写入 `OEBPS/<href>` 并注册 manifest，
+  /// 供章节 XHTML 内的 `<img>` 引用（图文小说导出不再丢图）。
   static Uint8List build({
     required EpubMetadata metadata,
     required List<EpubChapter> chapters,
+    List<EpubImage> images = const <EpubImage>[],
   }) {
     final archive = Archive();
 
@@ -62,7 +77,7 @@ class EpubBuilder {
     archive.addFile(ArchiveFile('META-INF/container.xml', containerData.length, containerData));
 
     // 3. OEBPS/content.opf
-    final opfData = _u8(_contentOpf(metadata, chapters));
+    final opfData = _u8(_contentOpf(metadata, chapters, images));
     archive.addFile(ArchiveFile('OEBPS/content.opf', opfData.length, opfData));
 
     // 4. OEBPS/toc.ncx
@@ -74,6 +89,14 @@ class EpubBuilder {
       final ch = chapters[i];
       final chData = _u8(_chapterXhtml(ch));
       archive.addFile(ArchiveFile('OEBPS/chapter-${i + 1}.xhtml', chData.length, chData));
+    }
+
+    // 6. 内嵌图片资源
+    for (var i = 0; i < images.length; i++) {
+      final img = images[i];
+      final path = 'OEBPS/${img.href}';
+      if (archive.files.any((f) => f.name == path)) continue; // 同名去重
+      archive.addFile(ArchiveFile(path, img.data.length, img.data));
     }
 
     final encoder = ZipEncoder();
@@ -111,7 +134,7 @@ class EpubBuilder {
 </container>''';
 
   static String _contentOpf(
-      EpubMetadata metadata, List<EpubChapter> chapters) {
+      EpubMetadata metadata, List<EpubChapter> chapters, List<EpubImage> images) {
     final buf = StringBuffer();
     buf.writeln('<?xml version="1.0" encoding="UTF-8"?>');
     buf.writeln(
@@ -135,6 +158,11 @@ class EpubBuilder {
       buf.writeln(
           '    <item id="ch${i + 1}" href="chapter-${i + 1}.xhtml" media-type="application/xhtml+xml"/>');
     }
+    for (var i = 0; i < images.length; i++) {
+      buf.writeln(
+          '    <item id="img${i + 1}" href="${images[i].href}"'
+          ' media-type="${_imageMediaType(images[i].href)}"/>');
+    }
     buf.writeln('  </manifest>');
     buf.writeln('  <spine toc="ncx">');
     for (var i = 0; i < chapters.length; i++) {
@@ -143,6 +171,19 @@ class EpubBuilder {
     buf.writeln('  </spine>');
     buf.writeln('</package>');
     return buf.toString();
+  }
+
+  /// 按扩展名推断图片 MIME 类型（未知扩展名按 JPEG 兜底）。
+  static String _imageMediaType(String href) {
+    final ext = href.toLowerCase().split('.').last;
+    return switch (ext) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'gif' => 'image/gif',
+      'bmp' => 'image/bmp',
+      'svg' => 'image/svg+xml',
+      _ => 'image/jpeg',
+    };
   }
 
   static String _tocNcx(EpubMetadata metadata, List<EpubChapter> chapters) {

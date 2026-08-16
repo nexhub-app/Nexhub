@@ -142,5 +142,53 @@ void main() {
       expect(text, contains('Ch1'));
       expect(text, contains('Para 1'));
     });
+
+    test('images are written into package and registered in manifest', () {
+      final imgData = Uint8List.fromList([0x89, 0x50, 0x4E, 0x47]);
+      final bytes = EpubBuilder.build(
+        metadata: const EpubMetadata(title: '图文书'),
+        chapters: const <EpubChapter>[
+          EpubChapter(
+            title: 'Ch1',
+            content: '<p>正文</p>\n<div><img src="Images/a.png" alt=""/></div>',
+          ),
+        ],
+        images: <EpubImage>[
+          EpubImage(href: 'Images/a.png', data: imgData),
+        ],
+      );
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final names = archive.files.map((f) => f.name).toList();
+      expect(names, contains('OEBPS/Images/a.png'));
+
+      final imgFile =
+          archive.files.firstWhere((f) => f.name == 'OEBPS/Images/a.png');
+      expect(imgFile.content as List<int>, imgData);
+
+      final opf = String.fromCharCodes(archive.files
+          .firstWhere((f) => f.name == 'OEBPS/content.opf')
+          .content as List<int>);
+      expect(opf, contains('href="Images/a.png"'));
+      expect(opf, contains('media-type="image/png"'));
+    });
+
+    test('duplicate image hrefs are written once', () {
+      final imgData = Uint8List.fromList([1, 2, 3]);
+      final bytes = EpubBuilder.build(
+        metadata: const EpubMetadata(title: 'T'),
+        chapters: const <EpubChapter>[
+          EpubChapter(title: 'C', content: '<p>x</p>'),
+        ],
+        images: <EpubImage>[
+          EpubImage(href: 'Images/a.jpg', data: imgData),
+          EpubImage(href: 'Images/a.jpg', data: imgData),
+        ],
+      );
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final count = archive.files
+          .where((f) => f.name == 'OEBPS/Images/a.jpg')
+          .length;
+      expect(count, 1);
+    });
   });
 }

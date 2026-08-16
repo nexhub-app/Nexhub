@@ -147,23 +147,61 @@ class NovelDownloadHandler implements DownloadHandler {
         title: bookTitle.isNotEmpty ? bookTitle : task.title,
         author: author,
       );
-      final epubChapters = <EpubChapter>[
-        for (var i = 0; i < chapters.length; i++)
-          EpubChapter(
-            title: chapters[i].title,
-            content: (fetched[i] ?? const <NovelBlock>[])
-                .whereType<NovelTextBlock>()
-                .map((b) =>
-                    '<p>${_escape(convertChinese(b.text, convertMode))}</p>')
-                .join('\n'),
-          ),
-      ];
+      // 内嵌插图（B-04）：正文里的插图块下载后写入 EPUB 资源并在 XHTML 内
+      // 引用，图文小说导出不再丢图。按 URL 去重（跨章同图只存一份字节），
+      // 单张下载失败降级跳过（与 TXT 插图路径一致），不阻塞整本导出。
+      final images = <String, EpubImage>{}; // url → 资源（名字 = 哈希+扩展名）
+      Future<String?> imageRef(String url) async {
+        final existing = images[url];
+        if (existing != null) return existing.href;
+        try {
+          final Map<String, String> headers = <String, String>{
+            ...?source.fetchHeadersFor(url),
+            'Accept': 'image/jpeg,image/png,image/webp,image/gif,*/*;q=0.8',
+          };
+          final bytes =
+              await HttpFetcher.instance.getBytes(url, headers: headers);
+          if (bytes.isEmpty) return null;
+          final href = 'Images/${_hash(url)}${_extFromUrl(url)}';
+          images[url] =
+              EpubImage(href: href, data: Uint8List.fromList(bytes));
+          return href;
+        } on Object {
+          return null;
+        }
+      }
+
+      final epubChapters = <EpubChapter>[];
+      for (var i = 0; i < chapters.length; i++) {
+        _throwIfCancelled(isCancelled);
+        final parts = <String>[];
+        for (final b in fetched[i] ?? const <NovelBlock>[]) {
+          if (b is NovelTextBlock) {
+            if (b.text.trim().isNotEmpty) {
+              parts.add('<p>${_escape(convertChinese(b.text, convertMode))}</p>');
+            }
+          } else if (b is NovelImageBlock && b.isValid) {
+            final ref = await imageRef(b.url);
+            if (ref != null) {
+              parts.add('<div><img src="$ref" alt=""/></div>');
+            }
+          }
+        }
+        epubChapters.add(EpubChapter(
+          title: chapters[i].title,
+          content: parts.join('\n'),
+        ));
+      }
       if (epubChapters.isEmpty ||
           epubChapters.every((c) => c.content.trim().isEmpty)) {
         throw Exception(
             '未能获取到任何章节内容，可能被源拦截或章节地址已失效');
       }
-      final bytes = EpubBuilder.build(metadata: metadata, chapters: epubChapters);
+      final bytes = EpubBuilder.build(
+        metadata: metadata,
+        chapters: epubChapters,
+        images: images.values.toList(growable: false),
+      );
       final safeTitle =
           _sanitize(bookTitle.isNotEmpty ? bookTitle : task.title);
       final epubPath = fs.join(workDir, '$safeTitle.epub');
