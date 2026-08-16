@@ -2459,6 +2459,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerTimerFired => '定时关闭已触发，播放已暂停';
 
   @override
+  String playerTimerEpisodes(int count) {
+    return '再播 $count 集后暂停';
+  }
+
+  @override
+  String get playerTimerEpisodesFired => '已按集数定时暂停播放';
+
+  @override
   String get noDescription => '暂无简介';
 
   @override
@@ -3440,6 +3448,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get playerLongPressSpeedUp => '长按加速';
+
+  @override
+  String get playerBottomProgress => '隐藏控制栏时显示底部进度条';
 
   @override
   String get playerDefaultVolume => '默认音量';

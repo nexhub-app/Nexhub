@@ -38,6 +38,8 @@ class PlayerSettings {
   final double longPressSpeed;
   final double defaultVolume;
   final String screenshotSavePath;
+  /// 隐藏控制栏后底部是否保留细进度条（F-12，默认开启）。
+  final bool showBottomProgress;
   final double subtitleScale;
   final double subtitleBorderSize;
   final double subtitleShadowOffset;
@@ -62,6 +64,7 @@ class PlayerSettings {
     this.longPressSpeed = 2.0,
     this.defaultVolume = 100.0,
     this.screenshotSavePath = '',
+    this.showBottomProgress = true,
     this.subtitleScale = 1.0,
     this.subtitleBorderSize = 1.5,
     this.subtitleShadowOffset = 2.0,
@@ -87,6 +90,7 @@ class PlayerSettings {
     double? longPressSpeed,
     double? defaultVolume,
     String? screenshotSavePath,
+    bool? showBottomProgress,
     double? subtitleScale,
     double? subtitleBorderSize,
     double? subtitleShadowOffset,
@@ -111,6 +115,7 @@ class PlayerSettings {
         longPressSpeed: longPressSpeed ?? this.longPressSpeed,
         defaultVolume: defaultVolume ?? this.defaultVolume,
         screenshotSavePath: screenshotSavePath ?? this.screenshotSavePath,
+        showBottomProgress: showBottomProgress ?? this.showBottomProgress,
         subtitleScale: subtitleScale ?? this.subtitleScale,
         subtitleBorderSize: subtitleBorderSize ?? this.subtitleBorderSize,
         subtitleShadowOffset:
@@ -137,6 +142,7 @@ class PlayerSettings {
         'longPressSpeed': longPressSpeed,
         'defaultVolume': defaultVolume,
         'screenshotSavePath': screenshotSavePath,
+        'showBottomProgress': showBottomProgress,
         'subtitleScale': subtitleScale,
         'subtitleBorderSize': subtitleBorderSize,
         'subtitleShadowOffset': subtitleShadowOffset,
@@ -202,6 +208,7 @@ class PlayerSettings {
           (json['defaultVolume'] as num?)?.toDouble() ?? 100.0,
       screenshotSavePath:
           json['screenshotSavePath'] as String? ?? '',
+      showBottomProgress: json['showBottomProgress'] as bool? ?? true,
       subtitleScale:
           (json['subtitleScale'] as num?)?.toDouble() ?? 1.0,
       subtitleBorderSize:

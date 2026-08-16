@@ -510,6 +510,14 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       onChanged: (v) =>
                           _update(_settings.copyWith(longPressSpeed: v)),
                     ),
+                    // F-12：隐藏控制栏后底部细进度条（可开关）。
+                    SettingsSwitchTile(
+                      key: const ValueKey<String>('player.bottomProgress'),
+                      title: l10n.playerBottomProgress,
+                      value: _settings.showBottomProgress,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(showBottomProgress: v)),
+                    ),
                   ],
                 ),
               ],

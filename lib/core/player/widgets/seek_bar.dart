@@ -12,6 +12,8 @@ class SeekBar extends StatefulWidget {
     required this.position,
     required this.duration,
     this.onSeek,
+    this.onDragStart,
+    this.onDragEnd,
   });
 
   /// 当前播放位置。
@@ -22,6 +24,12 @@ class SeekBar extends StatefulWidget {
 
   /// 拖动结束时的回调。
   final ValueChanged<Duration>? onSeek;
+
+  /// 开始拖动进度条（F-16：控制栏租约，拖动期间禁止自动隐藏）。
+  final VoidCallback? onDragStart;
+
+  /// 结束拖动进度条（F-16：释放租约后重启自动隐藏倒计时）。
+  final VoidCallback? onDragEnd;
 
   @override
   State<SeekBar> createState() => _SeekBarState();
@@ -77,6 +85,7 @@ class _SeekBarState extends State<SeekBar> {
                 min: 0,
                 max: _maxValue,
                 onChangeStart: (double v) {
+                  widget.onDragStart?.call();
                   setState(() {
                     _dragging = true;
                     _dragValue = v;
@@ -87,6 +96,7 @@ class _SeekBarState extends State<SeekBar> {
                 },
                 onChangeEnd: (double v) {
                   setState(() => _dragging = false);
+                  widget.onDragEnd?.call();
                   widget.onSeek?.call(Duration(milliseconds: v.round()));
                 },
               ),
