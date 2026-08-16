@@ -45,6 +45,8 @@ CJK_DATA_WHITELIST = {
     # 在线筛选 Sheet：地区候选 value 是透传给 MacCMS 源 API 的协议值（中国大陆/日本/...），
     # 用户可见标签已通过 labelKey + l10n 解析；CJK 字符为数据而非 UI 文案。
     "lib/core/widgets/online_filter_sheet.dart",
+    # 漫画阅读器设置内联面板：searchTerms 为搜索元数据（中英关键词），非用户可见字符串。
+    "lib/features/manga/presentation/reader_settings_sheet.dart",
 }
 
 problems: list[str] = []

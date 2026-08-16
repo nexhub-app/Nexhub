@@ -1577,7 +1577,7 @@ abstract class AppLocalizations {
   /// No description provided for @clearHistoryConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Clear all browsing history for this module? This cannot be undone.'**
+  /// **'Clear all browsing history for this module? Reading progress will be kept and restored when you revisit.'**
   String get clearHistoryConfirm;
 
   /// No description provided for @historyCleared.
@@ -5294,6 +5294,30 @@ abstract class AppLocalizations {
   /// **'Image load failed'**
   String get imageLoadFailed;
 
+  /// Gallery screen title for favorited comic images
+  ///
+  /// In en, this message translates to:
+  /// **'Image Favorites'**
+  String get imageFavoriteGalleryTitle;
+
+  /// Empty state shown when no images have been favorited
+  ///
+  /// In en, this message translates to:
+  /// **'No favorited images yet'**
+  String get imageFavoriteEmpty;
+
+  /// Confirmation dialog before removing a favorited image
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this favorited image?'**
+  String get imageFavoriteDeleteConfirm;
+
+  /// Snackbar shown after a favorited image is removed
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from image favorites'**
+  String get imageFavoriteDeleted;
+
   /// Series entry button label and series detail screen title
   ///
   /// In en, this message translates to:
@@ -7778,6 +7802,396 @@ abstract class AppLocalizations {
   /// **'Chapter transition'**
   String get readerChapterTransition;
 
+  /// No description provided for @readerPreloadCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Preload count'**
+  String get readerPreloadCount;
+
+  /// No description provided for @readerPreloadCountDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Pages from the chapter end/start to begin preloading adjacent chapters (higher = smoother, uses more data)'**
+  String get readerPreloadCountDesc;
+
+  /// No description provided for @readerSeamlessReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Seamless cross-chapter reading'**
+  String get readerSeamlessReading;
+
+  /// No description provided for @readerSeamlessReadingDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep reading the adjacent chapter right at the chapter end/start using the preloaded cache, without reloading the chapter or flashing white'**
+  String get readerSeamlessReadingDesc;
+
+  /// No description provided for @readerChapterSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter separator'**
+  String get readerChapterSeparator;
+
+  /// No description provided for @readerChapterSeparatorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert a chapter title card between chapters in webtoon continuous mode'**
+  String get readerChapterSeparatorDesc;
+
+  /// No description provided for @readerScrollSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll speed'**
+  String get readerScrollSpeed;
+
+  /// No description provided for @readerScrollSpeedDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiplier applied to the webtoon scroll amount from the mouse wheel (0.5x–3x)'**
+  String get readerScrollSpeedDesc;
+
+  /// No description provided for @readerVolumeKeyPageTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume key page turn'**
+  String get readerVolumeKeyPageTurn;
+
+  /// No description provided for @readerVolumeKeyPageTurnDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Intercept volume up/down to turn pages on Android (paged: turn page; webtoon: scroll by distance)'**
+  String get readerVolumeKeyPageTurnDesc;
+
+  /// No description provided for @readerVolumeKeyDistance.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume key scroll distance'**
+  String get readerVolumeKeyDistance;
+
+  /// No description provided for @readerVolumeKeyDistanceDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'How far the volume key scrolls in webtoon mode (percent of viewport height)'**
+  String get readerVolumeKeyDistanceDesc;
+
+  /// No description provided for @readerLongPressZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press to zoom'**
+  String get readerLongPressZoom;
+
+  /// No description provided for @readerLongPressZoomDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press enters 1.75x zoom (long-press/release exits); when off, long-press shows the menu'**
+  String get readerLongPressZoomDesc;
+
+  /// No description provided for @readerLongPressAtPress.
+  ///
+  /// In en, this message translates to:
+  /// **'At press point'**
+  String get readerLongPressAtPress;
+
+  /// No description provided for @readerLongPressAtCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen center'**
+  String get readerLongPressAtCenter;
+
+  /// No description provided for @readerLongPressZoomPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press zoom anchor'**
+  String get readerLongPressZoomPosition;
+
+  /// No description provided for @readerZoomStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom anchor'**
+  String get readerZoomStart;
+
+  /// No description provided for @readerZoomStartLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get readerZoomStartLeft;
+
+  /// No description provided for @readerZoomStartCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get readerZoomStartCenter;
+
+  /// No description provided for @readerZoomStartRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get readerZoomStartRight;
+
+  /// No description provided for @readerAutoPageTurning.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto page turning'**
+  String get readerAutoPageTurning;
+
+  /// No description provided for @readerAutoPageTurningDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically turn pages in paged mode at a fixed interval (0 = off)'**
+  String get readerAutoPageTurningDesc;
+
+  /// No description provided for @readerAutoPageInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto page interval (s)'**
+  String get readerAutoPageInterval;
+
+  /// No description provided for @readerAutoScroll.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto scroll'**
+  String get readerAutoScroll;
+
+  /// No description provided for @readerAutoScrollDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Smoothly auto-scroll in webtoon mode at the scroll speed above'**
+  String get readerAutoScrollDesc;
+
+  /// No description provided for @readerPageAnimation.
+  ///
+  /// In en, this message translates to:
+  /// **'Page transition animation'**
+  String get readerPageAnimation;
+
+  /// No description provided for @readerPageAnimNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get readerPageAnimNone;
+
+  /// No description provided for @readerPageAnimSlide.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide'**
+  String get readerPageAnimSlide;
+
+  /// No description provided for @readerPageAnimFade.
+  ///
+  /// In en, this message translates to:
+  /// **'Fade'**
+  String get readerPageAnimFade;
+
+  /// No description provided for @readerDoubleTapAnimSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Double-tap zoom animation'**
+  String get readerDoubleTapAnimSpeed;
+
+  /// No description provided for @readerDoubleTapAnimSpeedDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration of the double-tap zoom animation in milliseconds (scaled with system reduce-motion)'**
+  String get readerDoubleTapAnimSpeedDesc;
+
+  /// No description provided for @readerPageSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Page spacing'**
+  String get readerPageSpacing;
+
+  /// No description provided for @readerPageSpacingDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Gap between webtoon pages (px)'**
+  String get readerPageSpacingDesc;
+
+  /// No description provided for @readerShowSingleImageOnFirstPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Single image on first page'**
+  String get readerShowSingleImageOnFirstPage;
+
+  /// No description provided for @readerShowSingleImageOnFirstPageDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the first page alone in spread mode on chapter one, then resume spread'**
+  String get readerShowSingleImageOnFirstPageDesc;
+
+  /// No description provided for @readerClockBattery.
+  ///
+  /// In en, this message translates to:
+  /// **'Clock / battery overlay'**
+  String get readerClockBattery;
+
+  /// No description provided for @readerClockBatteryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show current time and battery in the reader, toggled with the controls'**
+  String get readerClockBatteryDesc;
+
+  /// No description provided for @readerClockPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlay position'**
+  String get readerClockPosition;
+
+  /// No description provided for @readerClockPosTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Top'**
+  String get readerClockPosTop;
+
+  /// No description provided for @readerClockPosBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom'**
+  String get readerClockPosBottom;
+
+  /// No description provided for @readerClockMargin.
+  ///
+  /// In en, this message translates to:
+  /// **'Margin'**
+  String get readerClockMargin;
+
+  /// No description provided for @readerClockOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Opacity'**
+  String get readerClockOpacity;
+
+  /// No description provided for @readerClockFontSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Font size'**
+  String get readerClockFontSize;
+
+  /// No description provided for @readerBrightness.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading brightness'**
+  String get readerBrightness;
+
+  /// No description provided for @readerBrightnessDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Positive writes to system brightness; negative dims system brightness and overlays a black mask'**
+  String get readerBrightnessDesc;
+
+  /// No description provided for @readerAutoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download later chapters'**
+  String get readerAutoDownload;
+
+  /// No description provided for @readerAutoDownloadDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue later chapters for download after reading 25% of the current one (silent on failure)'**
+  String get readerAutoDownloadDesc;
+
+  /// No description provided for @readerSkipReadChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip read chapters'**
+  String get readerSkipReadChapters;
+
+  /// No description provided for @readerSkipReadChaptersDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip already-read chapters when going to the next/previous chapter'**
+  String get readerSkipReadChaptersDesc;
+
+  /// No description provided for @readerSkipFilteredChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip filtered chapters'**
+  String get readerSkipFilteredChapters;
+
+  /// No description provided for @readerSkipFilteredChaptersDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip filtered chapters when going to the next/previous chapter'**
+  String get readerSkipFilteredChaptersDesc;
+
+  /// No description provided for @readerSkipDuplicateChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip duplicate chapters'**
+  String get readerSkipDuplicateChapters;
+
+  /// No description provided for @readerSkipDuplicateChaptersDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip chapters with duplicate titles when going to the next/previous chapter'**
+  String get readerSkipDuplicateChaptersDesc;
+
+  /// No description provided for @readerScreenPicNumberPortrait.
+  ///
+  /// In en, this message translates to:
+  /// **'Images per screen (portrait)'**
+  String get readerScreenPicNumberPortrait;
+
+  /// No description provided for @readerScreenPicNumberLandscape.
+  ///
+  /// In en, this message translates to:
+  /// **'Images per screen (landscape)'**
+  String get readerScreenPicNumberLandscape;
+
+  /// No description provided for @readerScreenPicNumberDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Stack multiple images vertically per screen (1–5)'**
+  String get readerScreenPicNumberDesc;
+
+  /// No description provided for @readerChapterBookmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark this chapter'**
+  String get readerChapterBookmark;
+
+  /// No description provided for @readerChapterBookmarked.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter bookmarked'**
+  String get readerChapterBookmarked;
+
+  /// No description provided for @readerChapterBookmarkRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter bookmark removed'**
+  String get readerChapterBookmarkRemoved;
+
+  /// No description provided for @readerImageFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Image favorites'**
+  String get readerImageFavorite;
+
+  /// No description provided for @readerFavoriteImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite this image'**
+  String get readerFavoriteImage;
+
+  /// No description provided for @imageFavoriteAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Image favorited'**
+  String get imageFavoriteAdded;
+
+  /// No description provided for @imageFavoriteRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Image unfavorited'**
+  String get imageFavoriteRemoved;
+
+  /// Battery percentage in clock/battery overlay
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String readerClockBatteryPercent(int percent);
+
   /// No description provided for @comicDefaultFullscreen.
   ///
   /// In en, this message translates to:
@@ -8593,6 +9007,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Flash Effect'**
   String get readerGroupFlash;
+
+  /// No description provided for @readerGroupAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (Download / Skip)'**
+  String get readerGroupAuto;
+
+  /// No description provided for @readerGroupAutoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-download later chapters and skip read, filtered, or duplicate chapters when navigating.'**
+  String get readerGroupAutoDesc;
+
+  /// No description provided for @readerGroupOverlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlay (Clock / Battery)'**
+  String get readerGroupOverlay;
+
+  /// No description provided for @readerGroupOverlayDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the current time and battery in the reader, with position, margin, opacity, and font size.'**
+  String get readerGroupOverlayDesc;
+
+  /// No description provided for @readerGroupMulti.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-image & Spacing'**
+  String get readerGroupMulti;
+
+  /// No description provided for @readerGroupMultiDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple images per screen, single image on first page, and page spacing.'**
+  String get readerGroupMultiDesc;
 
   /// No description provided for @readerCommonSettings.
   ///
@@ -11089,6 +11539,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mouse Wheel'**
   String get comicSectionMouseWheel;
+
+  /// Comic reader settings - Auto download & chapter skip section title
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (download / chapter skip)'**
+  String get comicReaderAutoSection;
+
+  /// Comic reader settings - Clock/battery overlay section title
+  ///
+  /// In en, this message translates to:
+  /// **'Overlay (clock / battery)'**
+  String get comicReaderOverlaySection;
+
+  /// Comic reader settings - Multi-image & spacing section title
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-image / spacing'**
+  String get comicReaderMultiImageSection;
 
   /// Statistics page title
   ///

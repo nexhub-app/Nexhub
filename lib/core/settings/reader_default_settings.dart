@@ -22,6 +22,50 @@ ReaderFlashColor _parseFlashColor(Object? raw) {
   return ReaderFlashColor.black;
 }
 
+/// 解析长按缩放锚点（容错：非法字符串回退 press）。
+LongPressZoomPosition _parseLongPressZoomPosition(Object? raw) {
+  if (raw is String) {
+    return LongPressZoomPosition.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => LongPressZoomPosition.press,
+    );
+  }
+  return LongPressZoomPosition.press;
+}
+
+/// 解析缩放锚点（容错：非法字符串回退 center）。
+ZoomStart _parseZoomStart(Object? raw) {
+  if (raw is String) {
+    return ZoomStart.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => ZoomStart.center,
+    );
+  }
+  return ZoomStart.center;
+}
+
+/// 解析翻页过渡动画（容错：非法字符串回退 slide）。
+ReaderPageAnimation _parsePageAnimation(Object? raw) {
+  if (raw is String) {
+    return ReaderPageAnimation.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => ReaderPageAnimation.slide,
+    );
+  }
+  return ReaderPageAnimation.slide;
+}
+
+/// 解析时间/电量浮层位置（容错：非法字符串回退 top）。
+ClockBatteryPosition _parseClockBatteryPosition(Object? raw) {
+  if (raw is String) {
+    return ClockBatteryPosition.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => ClockBatteryPosition.top,
+    );
+  }
+  return ClockBatteryPosition.top;
+}
+
 /// 小说默认简繁转换（项 2）。
 enum NovelChineseConversion {
   none,
@@ -75,6 +119,74 @@ class ReaderDefaultSettings {
 
   /// 漫画：章节切换时显示过渡标题卡。
   final bool comicChapterTransition;
+
+  /// 漫画：预加载图片数量（范围 1–16，默认 4）。
+  final int comicPreloadImageCount;
+
+  /// 漫画：跨章无缝续读（章末/章首直接续读相邻章，复用预载缓存，不重建章节）。
+  final bool comicSeamlessReading;
+
+  /// 漫画：段式连续模型下段与段之间是否插入「章分割/过渡」条目（章节标题卡）。
+  /// 仅对 webtoon（条漫）连续模式生效。
+  final bool comicShowChapterSeparator;
+
+  /// 漫画：鼠标滚轮滚动速度倍率（webtoon 连续滚动增量 × 本值），范围 0.5–3.0，默认 1.0。
+  final double comicReaderScrollSpeed;
+
+  /// 漫画：音量键翻页开关（Android 拦截音量上/下翻页；其他平台并入键盘）。
+  final bool comicVolumeKeyPageTurn;
+
+  /// 漫画：音量键在 webtoon（条漫）模式下的竖向滚动步长（占视口高度百分比），范围 10–100，默认 40。
+  final int comicVolumeKeyPageTurnDistancePercent;
+
+  /// 漫画：长按缩放开关（REQ-B2）：开启后长按图片进入 1.75x 缩放；关闭时保持长按弹菜单。
+  final bool comicEnableLongPressToZoom;
+
+  /// 漫画：长按缩放锚点（REQ-B2）：[press]=按触点，[center]=按屏幕中心。
+  final LongPressZoomPosition comicLongPressZoomPosition;
+
+  /// 漫画：双击 / 长按缩放锚点来源（REQ-B11）：left / center / right。
+  final ZoomStart comicZoomStart;
+
+  /// 漫画：自动翻页间隔（秒），0=关闭（默认）。paged 模式定时自动翻页。
+  final int comicAutoPageTurningInterval;
+
+  /// 漫画：自动滚动开关（webtoon 平滑自动滚动，速度随 [comicReaderScrollSpeed]）。
+  final bool comicAutoScroll;
+
+  /// 漫画：paged 翻页过渡动画（REQ-B7）：none=瞬切 / slide=滑入 / fade=淡入淡出。
+  final ReaderPageAnimation comicPageAnimation;
+
+  /// 漫画：双击缩放动画时长（毫秒，REQ-B7），默认 500。
+  final int comicDoubleTapAnimSpeed;
+
+  /// 漫画：webtoon 相邻页间距（像素，REQ-C14），范围 0–50，默认 0。
+  final int comicReaderPageSpacing;
+
+  /// 漫画：首屏单图（REQ-C13）：双页模式第一章第一页单独显示。
+  final bool comicShowSingleImageOnFirstPage;
+
+  /// 漫画：时间/电量浮层（REQ-C5）。
+  final bool comicShowClockBattery;
+  final ClockBatteryPosition comicClockBatteryPosition;
+  final double comicClockBatteryMargin;
+  final double comicClockBatteryOpacity;
+  final double comicClockBatteryFontSize;
+
+  /// 漫画：系统亮度（REQ-C3）：-1.0~1.0，0=不干预；正值写系统、负值遮罩。
+  final double comicReaderBrightness;
+
+  /// 漫画：阅读中自动下载后续章节（REQ-C7）。
+  final bool comicAutoDownloadChapters;
+
+  /// 漫画：跳章过滤（REQ-C11）。
+  final bool comicSkipReadChapters;
+  final bool comicSkipFilteredChapters;
+  final bool comicSkipDuplicateChapters;
+
+  /// 漫画：每屏多图 gallery（REQ-C4）：竖/横屏一屏堆叠张数，1–5，默认 1。
+  final int comicReaderScreenPicNumberForPortrait;
+  final int comicReaderScreenPicNumberForLandscape;
 
   // ── 小说补充（来自小说阅读面板，项 1）──
   final double novelParagraphSpacing;
@@ -190,6 +302,33 @@ class ReaderDefaultSettings {
     this.comicGrayscale = false,
     this.comicPreventShrink = false,
     this.comicChapterTransition = false,
+    this.comicPreloadImageCount = 4,
+    this.comicSeamlessReading = true,
+    this.comicShowChapterSeparator = true,
+    this.comicReaderScrollSpeed = 1.0,
+    this.comicVolumeKeyPageTurn = false,
+    this.comicVolumeKeyPageTurnDistancePercent = 40,
+    this.comicEnableLongPressToZoom = false,
+    this.comicLongPressZoomPosition = LongPressZoomPosition.press,
+    this.comicZoomStart = ZoomStart.center,
+    this.comicAutoPageTurningInterval = 0,
+    this.comicAutoScroll = false,
+    this.comicPageAnimation = ReaderPageAnimation.slide,
+    this.comicDoubleTapAnimSpeed = 500,
+    this.comicReaderPageSpacing = 0,
+    this.comicShowSingleImageOnFirstPage = false,
+    this.comicShowClockBattery = false,
+    this.comicClockBatteryPosition = ClockBatteryPosition.top,
+    this.comicClockBatteryMargin = 8.0,
+    this.comicClockBatteryOpacity = 0.8,
+    this.comicClockBatteryFontSize = 12.0,
+    this.comicReaderBrightness = 0.0,
+    this.comicAutoDownloadChapters = false,
+    this.comicSkipReadChapters = false,
+    this.comicSkipFilteredChapters = false,
+    this.comicSkipDuplicateChapters = false,
+    this.comicReaderScreenPicNumberForPortrait = 1,
+    this.comicReaderScreenPicNumberForLandscape = 1,
     this.novelParagraphSpacing = 16.0,
     this.novelMargin = 24.0,
     this.novelShadow = false,
@@ -282,6 +421,33 @@ class ReaderDefaultSettings {
     bool? comicGrayscale,
     bool? comicPreventShrink,
     bool? comicChapterTransition,
+    int? comicPreloadImageCount,
+    bool? comicSeamlessReading,
+    bool? comicShowChapterSeparator,
+    double? comicReaderScrollSpeed,
+    bool? comicVolumeKeyPageTurn,
+    int? comicVolumeKeyPageTurnDistancePercent,
+    bool? comicEnableLongPressToZoom,
+    LongPressZoomPosition? comicLongPressZoomPosition,
+    ZoomStart? comicZoomStart,
+    int? comicAutoPageTurningInterval,
+    bool? comicAutoScroll,
+    ReaderPageAnimation? comicPageAnimation,
+    int? comicDoubleTapAnimSpeed,
+    int? comicReaderPageSpacing,
+    bool? comicShowSingleImageOnFirstPage,
+    bool? comicShowClockBattery,
+    ClockBatteryPosition? comicClockBatteryPosition,
+    double? comicClockBatteryMargin,
+    double? comicClockBatteryOpacity,
+    double? comicClockBatteryFontSize,
+    double? comicReaderBrightness,
+    bool? comicAutoDownloadChapters,
+    bool? comicSkipReadChapters,
+    bool? comicSkipFilteredChapters,
+    bool? comicSkipDuplicateChapters,
+    int? comicReaderScreenPicNumberForPortrait,
+    int? comicReaderScreenPicNumberForLandscape,
     double? novelParagraphSpacing,
     double? novelMargin,
     bool? novelShadow,
@@ -378,6 +544,60 @@ class ReaderDefaultSettings {
         comicPreventShrink: comicPreventShrink ?? this.comicPreventShrink,
         comicChapterTransition:
             comicChapterTransition ?? this.comicChapterTransition,
+        comicPreloadImageCount:
+            comicPreloadImageCount ?? this.comicPreloadImageCount,
+        comicSeamlessReading:
+            comicSeamlessReading ?? this.comicSeamlessReading,
+        comicShowChapterSeparator:
+            comicShowChapterSeparator ?? this.comicShowChapterSeparator,
+        comicReaderScrollSpeed:
+            comicReaderScrollSpeed ?? this.comicReaderScrollSpeed,
+        comicVolumeKeyPageTurn:
+            comicVolumeKeyPageTurn ?? this.comicVolumeKeyPageTurn,
+        comicVolumeKeyPageTurnDistancePercent:
+            comicVolumeKeyPageTurnDistancePercent ??
+                this.comicVolumeKeyPageTurnDistancePercent,
+        comicEnableLongPressToZoom:
+            comicEnableLongPressToZoom ?? this.comicEnableLongPressToZoom,
+        comicLongPressZoomPosition:
+            comicLongPressZoomPosition ?? this.comicLongPressZoomPosition,
+        comicZoomStart: comicZoomStart ?? this.comicZoomStart,
+        comicAutoPageTurningInterval:
+            comicAutoPageTurningInterval ?? this.comicAutoPageTurningInterval,
+        comicAutoScroll: comicAutoScroll ?? this.comicAutoScroll,
+        comicPageAnimation: comicPageAnimation ?? this.comicPageAnimation,
+        comicDoubleTapAnimSpeed:
+            comicDoubleTapAnimSpeed ?? this.comicDoubleTapAnimSpeed,
+        comicReaderPageSpacing:
+            comicReaderPageSpacing ?? this.comicReaderPageSpacing,
+        comicShowSingleImageOnFirstPage: comicShowSingleImageOnFirstPage ??
+            this.comicShowSingleImageOnFirstPage,
+        comicShowClockBattery:
+            comicShowClockBattery ?? this.comicShowClockBattery,
+        comicClockBatteryPosition:
+            comicClockBatteryPosition ?? this.comicClockBatteryPosition,
+        comicClockBatteryMargin:
+            comicClockBatteryMargin ?? this.comicClockBatteryMargin,
+        comicClockBatteryOpacity:
+            comicClockBatteryOpacity ?? this.comicClockBatteryOpacity,
+        comicClockBatteryFontSize:
+            comicClockBatteryFontSize ?? this.comicClockBatteryFontSize,
+        comicReaderBrightness:
+            comicReaderBrightness ?? this.comicReaderBrightness,
+        comicAutoDownloadChapters:
+            comicAutoDownloadChapters ?? this.comicAutoDownloadChapters,
+        comicSkipReadChapters:
+            comicSkipReadChapters ?? this.comicSkipReadChapters,
+        comicSkipFilteredChapters:
+            comicSkipFilteredChapters ?? this.comicSkipFilteredChapters,
+        comicSkipDuplicateChapters:
+            comicSkipDuplicateChapters ?? this.comicSkipDuplicateChapters,
+        comicReaderScreenPicNumberForPortrait:
+            comicReaderScreenPicNumberForPortrait ??
+                this.comicReaderScreenPicNumberForPortrait,
+        comicReaderScreenPicNumberForLandscape:
+            comicReaderScreenPicNumberForLandscape ??
+                this.comicReaderScreenPicNumberForLandscape,
         novelParagraphSpacing:
             novelParagraphSpacing ?? this.novelParagraphSpacing,
         novelMargin: novelMargin ?? this.novelMargin,
@@ -501,6 +721,36 @@ class ReaderDefaultSettings {
         'comicGrayscale': comicGrayscale,
         'comicPreventShrink': comicPreventShrink,
         'comicChapterTransition': comicChapterTransition,
+        'comicPreloadImageCount': comicPreloadImageCount,
+        'comicSeamlessReading': comicSeamlessReading,
+        'comicShowChapterSeparator': comicShowChapterSeparator,
+        'comicReaderScrollSpeed': comicReaderScrollSpeed,
+        'comicVolumeKeyPageTurn': comicVolumeKeyPageTurn,
+        'comicVolumeKeyPageTurnDistancePercent':
+            comicVolumeKeyPageTurnDistancePercent,
+        'comicEnableLongPressToZoom': comicEnableLongPressToZoom,
+        'comicLongPressZoomPosition': comicLongPressZoomPosition.name,
+        'comicZoomStart': comicZoomStart.name,
+        'comicAutoPageTurningInterval': comicAutoPageTurningInterval,
+        'comicAutoScroll': comicAutoScroll,
+        'comicPageAnimation': comicPageAnimation.name,
+        'comicDoubleTapAnimSpeed': comicDoubleTapAnimSpeed,
+        'comicReaderPageSpacing': comicReaderPageSpacing,
+        'comicShowSingleImageOnFirstPage': comicShowSingleImageOnFirstPage,
+        'comicShowClockBattery': comicShowClockBattery,
+        'comicClockBatteryPosition': comicClockBatteryPosition.name,
+        'comicClockBatteryMargin': comicClockBatteryMargin,
+        'comicClockBatteryOpacity': comicClockBatteryOpacity,
+        'comicClockBatteryFontSize': comicClockBatteryFontSize,
+        'comicReaderBrightness': comicReaderBrightness,
+        'comicAutoDownloadChapters': comicAutoDownloadChapters,
+        'comicSkipReadChapters': comicSkipReadChapters,
+        'comicSkipFilteredChapters': comicSkipFilteredChapters,
+        'comicSkipDuplicateChapters': comicSkipDuplicateChapters,
+        'comicReaderScreenPicNumberForPortrait':
+            comicReaderScreenPicNumberForPortrait,
+        'comicReaderScreenPicNumberForLandscape':
+            comicReaderScreenPicNumberForLandscape,
         'novelParagraphSpacing': novelParagraphSpacing,
         'novelMargin': novelMargin,
         'novelShadow': novelShadow,
@@ -683,6 +933,71 @@ class ReaderDefaultSettings {
       comicPreventShrink: json['comicPreventShrink'] as bool? ?? false,
       comicChapterTransition:
           json['comicChapterTransition'] as bool? ?? false,
+      comicPreloadImageCount:
+          ((json['comicPreloadImageCount'] as num?)?.toInt() ?? 4)
+              .clamp(1, 16),
+      comicSeamlessReading:
+          json['comicSeamlessReading'] as bool? ?? true,
+      comicShowChapterSeparator:
+          json['comicShowChapterSeparator'] as bool? ?? true,
+      comicReaderScrollSpeed:
+          ((json['comicReaderScrollSpeed'] as num?)?.toDouble() ?? 1.0)
+              .clamp(0.5, 3.0),
+      comicVolumeKeyPageTurn:
+          json['comicVolumeKeyPageTurn'] as bool? ?? false,
+      comicVolumeKeyPageTurnDistancePercent:
+          ((json['comicVolumeKeyPageTurnDistancePercent'] as num?)?.toInt() ??
+                  40)
+              .clamp(10, 100),
+      comicEnableLongPressToZoom:
+          json['comicEnableLongPressToZoom'] as bool? ?? false,
+      comicLongPressZoomPosition: _parseLongPressZoomPosition(
+          json['comicLongPressZoomPosition']),
+      comicZoomStart: _parseZoomStart(json['comicZoomStart']),
+      comicAutoPageTurningInterval:
+          ((json['comicAutoPageTurningInterval'] as num?)?.toInt() ?? 0)
+              .clamp(0, 20),
+      comicAutoScroll: json['comicAutoScroll'] as bool? ?? false,
+      comicPageAnimation:
+          _parsePageAnimation(json['comicPageAnimation']),
+      comicDoubleTapAnimSpeed:
+          ((json['comicDoubleTapAnimSpeed'] as num?)?.toInt() ?? 500)
+              .clamp(100, 1500),
+      comicReaderPageSpacing:
+          ((json['comicReaderPageSpacing'] as num?)?.toInt() ?? 0)
+              .clamp(0, 50),
+      comicShowSingleImageOnFirstPage:
+          json['comicShowSingleImageOnFirstPage'] as bool? ?? false,
+      comicShowClockBattery:
+          json['comicShowClockBattery'] as bool? ?? false,
+      comicClockBatteryPosition:
+          _parseClockBatteryPosition(json['comicClockBatteryPosition']),
+      comicClockBatteryMargin:
+          (json['comicClockBatteryMargin'] as num?)?.toDouble() ?? 8.0,
+      comicClockBatteryOpacity:
+          ((json['comicClockBatteryOpacity'] as num?)?.toDouble() ?? 0.8)
+              .clamp(0.1, 1.0),
+      comicClockBatteryFontSize:
+          (json['comicClockBatteryFontSize'] as num?)?.toDouble() ?? 12.0,
+      comicReaderBrightness:
+          ((json['comicReaderBrightness'] as num?)?.toDouble() ?? 0.0)
+              .clamp(-1.0, 1.0),
+      comicAutoDownloadChapters:
+          json['comicAutoDownloadChapters'] as bool? ?? false,
+      comicSkipReadChapters:
+          json['comicSkipReadChapters'] as bool? ?? false,
+      comicSkipFilteredChapters:
+          json['comicSkipFilteredChapters'] as bool? ?? false,
+      comicSkipDuplicateChapters:
+          json['comicSkipDuplicateChapters'] as bool? ?? false,
+      comicReaderScreenPicNumberForPortrait:
+          ((json['comicReaderScreenPicNumberForPortrait'] as num?)?.toInt() ??
+                  1)
+              .clamp(1, 5),
+      comicReaderScreenPicNumberForLandscape:
+          ((json['comicReaderScreenPicNumberForLandscape'] as num?)?.toInt() ??
+                  1)
+              .clamp(1, 5),
       novelParagraphSpacing:
           (json['novelParagraphSpacing'] as num?)?.toDouble() ?? 16.0,
       novelMargin: (json['novelMargin'] as num?)?.toDouble() ?? 24.0,
@@ -848,6 +1163,35 @@ class ReaderDefaultSettings {
       splitDoublePage: comicSplitDoublePage,
       filterSaturation: comicFilterSaturation,
       filterHue: comicFilterHue,
+      preloadImageCount: comicPreloadImageCount,
+      seamlessReading: comicSeamlessReading,
+      showChapterSeparator: comicShowChapterSeparator,
+      readerScrollSpeed: comicReaderScrollSpeed,
+      volumeKeyPageTurn: comicVolumeKeyPageTurn,
+      volumeKeyPageTurnDistancePercent:
+          comicVolumeKeyPageTurnDistancePercent,
+      enableLongPressToZoom: comicEnableLongPressToZoom,
+      longPressZoomPosition: comicLongPressZoomPosition,
+      zoomStart: comicZoomStart,
+      autoPageTurningInterval: comicAutoPageTurningInterval,
+      autoScroll: comicAutoScroll,
+      pageAnimation: comicPageAnimation,
+      doubleTapAnimSpeed: comicDoubleTapAnimSpeed,
+      readerPageSpacing: comicReaderPageSpacing,
+      showSingleImageOnFirstPage: comicShowSingleImageOnFirstPage,
+      showClockBattery: comicShowClockBattery,
+      clockBatteryPosition: comicClockBatteryPosition,
+      clockBatteryMargin: comicClockBatteryMargin,
+      clockBatteryOpacity: comicClockBatteryOpacity,
+      clockBatteryFontSize: comicClockBatteryFontSize,
+      readerBrightness: comicReaderBrightness,
+      autoDownloadChapters: comicAutoDownloadChapters,
+      skipReadChapters: comicSkipReadChapters,
+      skipFilteredChapters: comicSkipFilteredChapters,
+      skipDuplicateChapters: comicSkipDuplicateChapters,
+      readerScreenPicNumberForPortrait: comicReaderScreenPicNumberForPortrait,
+      readerScreenPicNumberForLandscape:
+          comicReaderScreenPicNumberForLandscape,
     );
   }
 

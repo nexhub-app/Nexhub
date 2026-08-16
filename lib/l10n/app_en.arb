@@ -308,7 +308,7 @@
   "clearAll": "Clear All",
   "clearAllConfirm": "Clear all download records? Downloaded files will not be deleted.",
   "clearHistory": "Clear History",
-  "clearHistoryConfirm": "Clear all browsing history for this module? This cannot be undone.",
+  "clearHistoryConfirm": "Clear all browsing history for this module? Reading progress will be kept and restored when you revisit.",
   "historyCleared": "History cleared",
   "batchPause": "Batch Pause",
   "batchResume": "Batch Resume",
@@ -1410,6 +1410,22 @@
   "screenshotPathSetting": "Screenshot save path",
   "screenshotPathDefault": "Default (Documents/screenshots)",
   "imageLoadFailed": "Image load failed",
+  "imageFavoriteGalleryTitle": "Image Favorites",
+  "@imageFavoriteGalleryTitle": {
+    "description": "Gallery screen title for favorited comic images"
+  },
+  "imageFavoriteEmpty": "No favorited images yet",
+  "@imageFavoriteEmpty": {
+    "description": "Empty state shown when no images have been favorited"
+  },
+  "imageFavoriteDeleteConfirm": "Delete this favorited image?",
+  "@imageFavoriteDeleteConfirm": {
+    "description": "Confirmation dialog before removing a favorited image"
+  },
+  "imageFavoriteDeleted": "Removed from image favorites",
+  "@imageFavoriteDeleted": {
+    "description": "Snackbar shown after a favorited image is removed"
+  },
   "seriesTitle": "Series",
   "@seriesTitle": {
     "description": "Series entry button label and series detail screen title"
@@ -2266,6 +2282,79 @@
   "readerGrayscale": "Grayscale",
   "readerPreventShrink": "Prevent shrink",
   "readerChapterTransition": "Chapter transition",
+  "readerPreloadCount": "Preload count",
+  "readerPreloadCountDesc": "Pages from the chapter end/start to begin preloading adjacent chapters (higher = smoother, uses more data)",
+  "readerSeamlessReading": "Seamless cross-chapter reading",
+  "readerSeamlessReadingDesc": "Keep reading the adjacent chapter right at the chapter end/start using the preloaded cache, without reloading the chapter or flashing white",
+  "readerChapterSeparator": "Chapter separator",
+  "readerChapterSeparatorDesc": "Insert a chapter title card between chapters in webtoon continuous mode",
+  "readerScrollSpeed": "Scroll speed",
+  "readerScrollSpeedDesc": "Multiplier applied to the webtoon scroll amount from the mouse wheel (0.5x–3x)",
+  "readerVolumeKeyPageTurn": "Volume key page turn",
+  "readerVolumeKeyPageTurnDesc": "Intercept volume up/down to turn pages on Android (paged: turn page; webtoon: scroll by distance)",
+  "readerVolumeKeyDistance": "Volume key scroll distance",
+  "readerVolumeKeyDistanceDesc": "How far the volume key scrolls in webtoon mode (percent of viewport height)",
+  "readerLongPressZoom": "Long-press to zoom",
+  "readerLongPressZoomDesc": "Long-press enters 1.75x zoom (long-press/release exits); when off, long-press shows the menu",
+  "readerLongPressAtPress": "At press point",
+  "readerLongPressAtCenter": "Screen center",
+  "readerLongPressZoomPosition": "Long-press zoom anchor",
+  "readerZoomStart": "Zoom anchor",
+  "readerZoomStartLeft": "Left",
+  "readerZoomStartCenter": "Center",
+  "readerZoomStartRight": "Right",
+  "readerAutoPageTurning": "Auto page turning",
+  "readerAutoPageTurningDesc": "Automatically turn pages in paged mode at a fixed interval (0 = off)",
+  "readerAutoPageInterval": "Auto page interval (s)",
+  "readerAutoScroll": "Auto scroll",
+  "readerAutoScrollDesc": "Smoothly auto-scroll in webtoon mode at the scroll speed above",
+  "readerPageAnimation": "Page transition animation",
+  "readerPageAnimNone": "None",
+  "readerPageAnimSlide": "Slide",
+  "readerPageAnimFade": "Fade",
+  "readerDoubleTapAnimSpeed": "Double-tap zoom animation",
+  "readerDoubleTapAnimSpeedDesc": "Duration of the double-tap zoom animation in milliseconds (scaled with system reduce-motion)",
+  "readerPageSpacing": "Page spacing",
+  "readerPageSpacingDesc": "Gap between webtoon pages (px)",
+  "readerShowSingleImageOnFirstPage": "Single image on first page",
+  "readerShowSingleImageOnFirstPageDesc": "Show the first page alone in spread mode on chapter one, then resume spread",
+  "readerClockBattery": "Clock / battery overlay",
+  "readerClockBatteryDesc": "Show current time and battery in the reader, toggled with the controls",
+  "readerClockPosition": "Overlay position",
+  "readerClockPosTop": "Top",
+  "readerClockPosBottom": "Bottom",
+  "readerClockMargin": "Margin",
+  "readerClockOpacity": "Opacity",
+  "readerClockFontSize": "Font size",
+  "readerBrightness": "Reading brightness",
+  "readerBrightnessDesc": "Positive writes to system brightness; negative dims system brightness and overlays a black mask",
+  "readerAutoDownload": "Auto-download later chapters",
+  "readerAutoDownloadDesc": "Queue later chapters for download after reading 25% of the current one (silent on failure)",
+  "readerSkipReadChapters": "Skip read chapters",
+  "readerSkipReadChaptersDesc": "Skip already-read chapters when going to the next/previous chapter",
+  "readerSkipFilteredChapters": "Skip filtered chapters",
+  "readerSkipFilteredChaptersDesc": "Skip filtered chapters when going to the next/previous chapter",
+  "readerSkipDuplicateChapters": "Skip duplicate chapters",
+  "readerSkipDuplicateChaptersDesc": "Skip chapters with duplicate titles when going to the next/previous chapter",
+  "readerScreenPicNumberPortrait": "Images per screen (portrait)",
+  "readerScreenPicNumberLandscape": "Images per screen (landscape)",
+  "readerScreenPicNumberDesc": "Stack multiple images vertically per screen (1–5)",
+  "readerChapterBookmark": "Bookmark this chapter",
+  "readerChapterBookmarked": "Chapter bookmarked",
+  "readerChapterBookmarkRemoved": "Chapter bookmark removed",
+  "readerImageFavorite": "Image favorites",
+  "readerFavoriteImage": "Favorite this image",
+  "imageFavoriteAdded": "Image favorited",
+  "imageFavoriteRemoved": "Image unfavorited",
+  "readerClockBatteryPercent": "{percent}%",
+  "@readerClockBatteryPercent": {
+    "description": "Battery percentage in clock/battery overlay",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "comicDefaultFullscreen": "Fullscreen",
   "comicDefaultLongPressMenu": "Long-press menu",
   "comicDefaultGrayscale": "Grayscale",
@@ -2446,6 +2535,12 @@
   "readerGroupViewFilter": "Display & Filter",
   "readerGroupProgress": "Progress & Display",
   "readerGroupFlash": "Flash Effect",
+  "readerGroupAuto": "Auto (Download / Skip)",
+  "readerGroupAutoDesc": "Auto-download later chapters and skip read, filtered, or duplicate chapters when navigating.",
+  "readerGroupOverlay": "Overlay (Clock / Battery)",
+  "readerGroupOverlayDesc": "Show the current time and battery in the reader, with position, margin, opacity, and font size.",
+  "readerGroupMulti": "Multi-image & Spacing",
+  "readerGroupMultiDesc": "Multiple images per screen, single image on first page, and page spacing.",
   "readerCommonSettings": "Common",
   "readerGroupPageTapDesc": "Basic reading controls: page mode, screen orientation, tap zones, and zoom.",
   "readerGroupViewFilterDesc": "Adjust brightness, contrast, color temperature, grayscale, etc.",
@@ -3156,6 +3251,18 @@
   "comicSectionMouseWheel": "Mouse Wheel",
   "@comicSectionMouseWheel": {
     "description": "Comic reader settings - Mouse Wheel section title"
+  },
+  "comicReaderAutoSection": "Auto (download / chapter skip)",
+  "@comicReaderAutoSection": {
+    "description": "Comic reader settings - Auto download & chapter skip section title"
+  },
+  "comicReaderOverlaySection": "Overlay (clock / battery)",
+  "@comicReaderOverlaySection": {
+    "description": "Comic reader settings - Clock/battery overlay section title"
+  },
+  "comicReaderMultiImageSection": "Multi-image / spacing",
+  "@comicReaderMultiImageSection": {
+    "description": "Comic reader settings - Multi-image & spacing section title"
   },
   "statsOverviewTitle": "Statistics",
   "@statsOverviewTitle": {
