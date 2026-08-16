@@ -4408,6 +4408,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerSeekCancel => 'Seek canceled';
 
   @override
+  String get playerSkipOpEd => 'Skip intro & outro';
+
+  @override
+  String get playerSkipOp => 'Skip intro';
+
+  @override
+  String get playerSkipEd => 'Skip outro';
+
+  @override
+  String get playerSkipOpEndLabel => 'Intro ends (m:ss)';
+
+  @override
+  String get playerSkipEdStartLabel => 'Outro starts (m:ss)';
+
+  @override
+  String get playerSkipUseCurrent => 'Use current';
+
+  @override
+  String get playerSkipAuto => 'Auto skip';
+
+  @override
+  String get playerSkipHint =>
+      'Leave empty to disable. Applies to all episodes of this series.';
+
+  @override
   String get novelReadingSummary => 'Reading summary';
 
   @override
