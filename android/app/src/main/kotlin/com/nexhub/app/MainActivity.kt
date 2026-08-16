@@ -48,19 +48,28 @@ class MainActivity : FlutterFragmentActivity() {
         )
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+    // Bug1 修复：把音量键拦截从 onKeyDown 提升到 dispatchKeyEvent——在 view 层级
+    // （FlutterView）消费按键之前先拿到事件，避免 FlutterView 先吃掉按键导致
+    // Activity.onKeyDown 收不到（实机音量键翻页完全无响应的根因）。
+    // 拦截开启时：仅 ACTION_DOWN 向 Flutter 派发事件；DOWN 与 UP 均返回 true 完全
+    // 消费，阻止系统音量条弹出。未开启时走默认分发（音量键正常调系统音量）。
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (volumeKeyInterceptionEnabled) {
-            when (keyCode) {
+            when (event.keyCode) {
                 KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                    volumeEventSink?.success("volume_down")
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        volumeEventSink?.success("volume_down")
+                    }
                     return true
                 }
                 KeyEvent.KEYCODE_VOLUME_UP -> {
-                    volumeEventSink?.success("volume_up")
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        volumeEventSink?.success("volume_up")
+                    }
                     return true
                 }
             }
         }
-        return super.onKeyDown(keyCode, event)
+        return super.dispatchKeyEvent(event)
     }
 }

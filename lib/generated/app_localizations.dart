@@ -1022,6 +1022,18 @@ abstract class AppLocalizations {
   /// **'Already at the first chapter'**
   String get readerFirstChapterReached;
 
+  /// Webtoon skip-transition banner title shown when jumping over read/filtered/duplicate chapters
+  ///
+  /// In en, this message translates to:
+  /// **'Next chapter: {title}'**
+  String readerNextChapterSkipped(Object title);
+
+  /// Hint text on the webtoon skip-transition banner telling the user to tap to jump immediately
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to jump now'**
+  String get readerNextChapterSkippedHint;
+
   /// No description provided for @readerSettings.
   ///
   /// In en, this message translates to:
