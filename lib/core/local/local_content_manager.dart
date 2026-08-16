@@ -10,6 +10,7 @@ import 'dart:io' show Directory, File, FileSystemException;
 import 'package:nexhub/core/local/archive_extractor.dart';
 import 'package:nexhub/core/local/local_novel_parser.dart';
 import 'package:nexhub/core/local/pdf_util.dart';
+import 'package:nexhub/core/utils/app_log.dart';
 import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -126,7 +127,11 @@ LocalMediaKind? classifyFolderByContent(String dirPath) {
     if (kind == null) continue;
     counts[kind] = (counts[kind] ?? 0) + 1;
   }
-  if (counts.isEmpty) return null;
+  if (counts.isEmpty) {
+    // 目录为空或没有可识别的媒体文件：记警告日志，便于排查「导入/打开无反应」。
+    AppLog.instance.w('[本地类型识别] 目录为空或无已识别媒体文件: $dirPath');
+    return null;
+  }
   final sorted = counts.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
   return sorted.first.key;
@@ -258,6 +263,10 @@ List<String> listFolderFilesByKind(String dir, LocalMediaKind kind) {
   raw.sort(naturalCompare);
   arch.sort(naturalCompare);
   other.sort(naturalCompare);
+  if (raw.isEmpty && arch.isEmpty && other.isEmpty) {
+    // 目录下既无散图、也无归档/其它文件：记警告日志，便于排查「打开漫画文件夹无反应」。
+    AppLog.instance.w('[本地漫画扫描] 目录未发现图片/归档/其它文件: $dir');
+  }
   return (rawImages: raw, archives: arch, others: other);
 }
 

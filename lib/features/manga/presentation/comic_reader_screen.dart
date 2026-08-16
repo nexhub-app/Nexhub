@@ -426,6 +426,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 后台暂停标志：App 进入 paused/inactive/hidden 时置位，resumed 清除。
   bool _autoScrollPaused = false;
 
+  /// 自动滚动 Ticker 是否正在运行（webtoon 模式）。运行期间 [_onWebtoonScroll]
+  /// 跳过全量重建与图片收藏异步刷新，仅更新页码字段与进度保存，避免自动滚动
+  /// 在页边界处因 setState 全量重建而卡顿。
+  bool _autoScrolling = false;
+
   /// 章节切换过渡标题卡状态。
   bool _transitionVisible = false;
   String _transitionTitle = '';
@@ -824,6 +829,49 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       source: source,
       item: item,
       toggleLocalFavorite: _toggleFavorite,
+    );
+  }
+
+  /// 收藏按钮弹出菜单：收藏作品 / 收藏当前页图片 / 打开图片收藏图库。
+  /// 底栏单个收藏按钮的点击入口（原底栏两个图标 + 顶栏收藏按钮合并而来）。
+  void _showFavoriteMenu() {
+    final l10n = AppLocalizations.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: Icon(_isFav ? Icons.favorite : Icons.favorite_border),
+              title: Text(l10n.favorite),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _onFavoritePressed();
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                _isPageImageFav ? Icons.favorite : Icons.favorite_border,
+                color: _isPageImageFav ? Colors.amber : null,
+              ),
+              title: Text(l10n.readerFavoriteImage),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _toggleCurrentPageImageFavorite();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(l10n.readerImageFavorite),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _openImageFavoriteGallery();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1366,7 +1414,15 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           _jumpToChapter(resolved);
           return;
         }
-        if (_seamAdvance(-1)) return;
+        // 从当前章【首页】上翻进上一段：keep 重锚会保持视口内同一内容，落在上一章
+        // 的随机页；应显式落到上一章【末页】（与「上一章」按钮/首页上翻体验一致）。
+        if (_seamAdvance(
+            -1,
+            reposition: _currentPage <= 0
+                ? _SeamAdvanceTarget.last
+                : _SeamAdvanceTarget.keep)) {
+          return;
+        }
       }
     }
     // 到底修正：最后一项的底边 == 列表内容末端，一旦它不在视口下方（trailingEdge<=1）
@@ -1391,9 +1447,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (idx != _currentPage) {
       _currentPage = idx;
       _scheduleProgressSave(idx);
-      if (mounted) setState(() {});
-      // 滚动翻页后刷新当前页图片收藏状态（REQ-C2）。
-      unawaited(_refreshPageImageFav());
+      // 自动滚动期间跳过全量重建与图片收藏异步刷新：滚动位置已由
+      // ScrollOffsetController 逐帧驱动，setState 重建只会造成页边界卡顿；
+      // 用户手动滚动/翻页时才需要刷新进度条与图片收藏状态。
+      if (!_autoScrolling) {
+        if (mounted) setState(() {});
+        unawaited(_refreshPageImageFav());
+      }
     }
     _maybePreload(idx);
   }
@@ -1520,16 +1580,21 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       return;
     }
     final List<_SeamSegment> segments = <_SeamSegment>[];
-    // 上一章段：仅当已预载才纳入（未预载则边界回退走整章加载）。
+    // 上一章段：仅当已预载才纳入（未预载则边界回退走整章加载）。跳章过滤
+    // （REQ-C11）下若相邻章会被跳过，则不把该段纳入无缝列表——否则用户滚入
+    // 边界会先看到已读/被筛除的邻章内容，再整章跳转（「先显示已读章，后跳章」）。
     final int prevIdx = _chapterIndex - 1;
-    final List<String>? prevImgs =
-        prevIdx >= 0 ? _preload[prevIdx] : null;
-    if (prevImgs != null && prevImgs.isNotEmpty) {
-      segments.add(_SeamSegment(
-        chapterIndex: prevIdx,
-        pageCount: prevImgs.length,
-        title: widget.chapters[prevIdx].title,
-      ));
+    if (prevIdx >= 0) {
+      final int? resolvedPrev = _resolveChapterTarget(-1);
+      final List<String>? prevImgs =
+          resolvedPrev == prevIdx ? _preload[prevIdx] : null;
+      if (prevImgs != null && prevImgs.isNotEmpty) {
+        segments.add(_SeamSegment(
+          chapterIndex: prevIdx,
+          pageCount: prevImgs.length,
+          title: widget.chapters[prevIdx].title,
+        ));
+      }
     }
     // 当前章段：始终存在。
     segments.add(_SeamSegment(
@@ -1537,16 +1602,20 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       pageCount: _images.length,
       title: widget.chapters[_chapterIndex].title,
     ));
-    // 下一章段：仅当已预载才纳入。
+    // 下一章段：仅当已预载才纳入。同上，相邻章会被跳章过滤跳过时排除该段，
+    // 用户滚到章末由「下一章」/单步翻页整章加载到过滤后的目标章。
     final int nextIdx = _chapterIndex + 1;
-    final List<String>? nextImgs =
-        nextIdx < widget.chapters.length ? _preload[nextIdx] : null;
-    if (nextImgs != null && nextImgs.isNotEmpty) {
-      segments.add(_SeamSegment(
-        chapterIndex: nextIdx,
-        pageCount: nextImgs.length,
-        title: widget.chapters[nextIdx].title,
-      ));
+    if (nextIdx < widget.chapters.length) {
+      final int? resolvedNext = _resolveChapterTarget(1);
+      final List<String>? nextImgs =
+          resolvedNext == nextIdx ? _preload[nextIdx] : null;
+      if (nextImgs != null && nextImgs.isNotEmpty) {
+        segments.add(_SeamSegment(
+          chapterIndex: nextIdx,
+          pageCount: nextImgs.length,
+          title: widget.chapters[nextIdx].title,
+        ));
+      }
     }
     // 计算各段起始偏移 + 两张扁平映射。
     final List<int> pageMap = <int>[];
@@ -1907,6 +1976,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       (t) => t.contentId == widget.comicId && t.isActive,
     );
     if (hasActiveTask) return;
+    AppLog.instance.i(
+      '[漫画自动下载] 触发入队 comic=${widget.comicId} '
+      'chapter=$_chapterIndex page=$page total=$total '
+      '后续章节数=${widget.chapters.length - _chapterIndex - 1}',
+    );
     _autoDownloadTriggeredChapter = _chapterIndex;
     final item = MediaItem(
       id: widget.comicId,
@@ -2746,8 +2820,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 音量键事件：音量变大 → 下一页 / 向下滚动；变小 → 上一页 / 向上滚动；
-  /// 随后把系统音量恢复为按键前值（抑制音量条弹出与系统音量变化）。
+  /// 音量键事件：音量变小（下音量键） → 下一页 / 向下滚动；变大（上音量键） → 上一页 /
+  /// 向上滚动；随后把系统音量恢复为按键前值（抑制音量条弹出与系统音量变化）。
   ///
   /// 竞态防护：把 [_volumeKeyBusy] 的置位跨越整个「动作 + 恢复音量」过程——
   /// `setVolume` 恢复音量后会再次触发监听事件，若在恢复完成前就释放 busy，
@@ -2765,7 +2839,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (diff.abs() < 0.01) return;
     _volumeKeyBusy = true;
     try {
-      if (diff > 0) {
+      if (diff < 0) {
         _volumeKeyAction(1);
       } else {
         _volumeKeyAction(-1);
@@ -2849,9 +2923,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (wantScroll && _autoScrollTicker == null) {
       _autoScrollElapsed = Duration.zero;
       _autoScrollTicker = createTicker(_onAutoScrollTick)..start();
+      _autoScrolling = true;
     } else if (!wantScroll && _autoScrollTicker != null) {
       _autoScrollTicker?.stop();
       _autoScrollTicker = null;
+      _autoScrolling = false;
     }
   }
 
@@ -2896,6 +2972,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _autoPageTurnTimer = null;
       _autoScrollTicker?.stop();
       _autoScrollTicker = null;
+      _autoScrolling = false;
     } else {
       if (mounted) _syncAutoMotion();
     }
@@ -3638,6 +3715,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               onZoomAt: (pos) => _toggleZoom(pos),
               // 缩放感知：放大态单指单击不触发翻页/导航（P0 手势 bug）。
               isZoomed: () => _zoomController.value.getMaxScaleOnAxis() > 1.001,
+              // 缩放感知（含缩小态 0.5x）：scale != 1 时单指单击不派发翻页/导航，
+              // 保证双击缩放三态循环在缩小态下仍能触发（第一击不误触发 toggle UI）。
+              isScaled: () =>
+                  (_zoomController.value.getMaxScaleOnAxis() - 1.0).abs() >
+                  0.001,
               // 屏幕级捏合（C2 根治）：覆盖层统一跟踪双指，条漫跨页也生效。
               onPinchUpdate: _onPinchUpdate,
               onPinchEnd: _onPinchEnd,
@@ -3874,9 +3956,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       (_prefs.readingMode == ReadingMode.singleLTR ||
           _prefs.readingMode == ReadingMode.singleRTL);
 
-  /// 首屏单图（REQ-C13）：双页模式第一章第一页单独显示，其后恢复双页。
+  /// 首屏单图（REQ-C13）：双页模式每章第一页单独显示，其后恢复双页。
   bool get _showFirstPageSingle =>
-      _prefs.showSingleImageOnFirstPage && _chapterIndex == 0 && _isDoublePage;
+      _prefs.showSingleImageOnFirstPage && _isDoublePage;
 
   /// 逻辑单页 → 跨页序号（REQ-C13 首屏单图映射）。
   ///
@@ -4776,11 +4858,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            IconButton(
-              icon: Icon(_isFav ? Icons.favorite : Icons.favorite_border),
-              tooltip: l10n.favorite,
-              onPressed: _onFavoritePressed,
-            ),
             // 章节书签 toggle（REQ-C1）：已书签高亮，点击取消。本地单文件无章节概念隐藏。
             if (!_isLocalMode || _isAggregatedLocal)
               IconButton(
@@ -5090,21 +5167,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           tooltip: l10n.readerMode,
           onPressed: () => _showReadingModePicker(l10n),
         ),
-        // 收藏当前页图片（REQ-C2）：心形高亮已收藏，点击 toggle。原在顶栏，
-        // 因顶栏按钮过多遮挡标题，移入底栏。
+        // 收藏按钮：点击弹出底部菜单（收藏作品 / 收藏当前页图片 / 图片收藏图库）。
         IconButton(
-          icon: Icon(
-            _isPageImageFav ? Icons.favorite : Icons.favorite_border,
-            color: _isPageImageFav ? Colors.amber : null,
-          ),
-          tooltip: l10n.readerFavoriteImage,
-          onPressed: _toggleCurrentPageImageFavorite,
-        ),
-        // 图片收藏图库入口（REQ-C2）。
-        IconButton(
-          icon: const Icon(Icons.photo_library_outlined),
-          tooltip: l10n.readerImageFavorite,
-          onPressed: _openImageFavoriteGallery,
+          icon: Icon(_isFav ? Icons.favorite : Icons.favorite_border),
+          color: _isFav ? Colors.amber : null,
+          tooltip: l10n.favorite,
+          onPressed: _showFavoriteMenu,
         ),
         const Spacer(),
         IconButton(
