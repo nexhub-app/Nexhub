@@ -1630,6 +1630,13 @@
   "searchInBook": "Search in book",
   "wholeBook": "Whole book",
   "noSearchResults": "No results",
+  "searchProgress": "Searched {searched}/{total} chapters",
+  "@searchProgress": {
+    "placeholders": {
+      "searched": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
   "customBgColor": "Custom background",
   "tapZoneInvert": "Tap invert",
   "tapInvertNone": "None",

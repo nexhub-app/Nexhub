@@ -1609,6 +1609,13 @@
   "searchInBook": "书内搜索",
   "wholeBook": "全书",
   "noSearchResults": "无搜索结果",
+  "searchProgress": "已搜索 {searched}/{total} 章",
+  "@searchProgress": {
+    "placeholders": {
+      "searched": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
   "customBgColor": "自定义背景色",
   "tapZoneInvert": "点击反转",
   "tapInvertNone": "不反转",
