@@ -16,6 +16,7 @@ import '../models/episode.dart';
 import '../models/novel_block.dart';
 import '../models/plugin_config.dart';
 import '../local/local_novel_parser.dart' show kNexhubImgMarker;
+import '../novel/novel_chinese_converter.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/media_api_service.dart';
 import '../utils/app_log.dart';
@@ -36,6 +37,7 @@ class NovelDownloadHandler implements DownloadHandler {
     this.bookTitle = '',
     this.author,
     this.concurrency = 1,
+    this.convertMode = ChineseConvertMode.none,
   });
 
   final MediaApiService service;
@@ -49,6 +51,10 @@ class NovelDownloadHandler implements DownloadHandler {
 
   /// 章节并行拉取数（来自下载设置「线程数」），<=1 退化为顺序下载。
   final int concurrency;
+
+  /// 繁简转换模式：落盘前对文本块应用与阅读器一致的转换，
+  /// 保证「阅读器内开繁→简后，离线缓存与显示相同」。默认不转换。
+  final ChineseConvertMode convertMode;
 
   @override
   Future<DownloadResult> download(
@@ -96,7 +102,7 @@ class NovelDownloadHandler implements DownloadHandler {
       for (final b in blocks) {
         if (b is NovelTextBlock) {
           if (b.text.trim().isNotEmpty) {
-            buffer.writeln(b.text);
+            buffer.writeln(convertChinese(b.text, convertMode));
             buffer.writeln();
           }
         } else if (b is NovelImageBlock) {
@@ -147,7 +153,8 @@ class NovelDownloadHandler implements DownloadHandler {
             title: chapters[i].title,
             content: (fetched[i] ?? const <NovelBlock>[])
                 .whereType<NovelTextBlock>()
-                .map((b) => '<p>${_escape(b.text)}</p>')
+                .map((b) =>
+                    '<p>${_escape(convertChinese(b.text, convertMode))}</p>')
                 .join('\n'),
           ),
       ];
