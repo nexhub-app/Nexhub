@@ -25,6 +25,7 @@ import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/novel_block.dart';
 import '../../../core/utils/app_log.dart';
+import '../../../core/utils/volume_key_listener.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/download/download_manager.dart';
 import '../../../core/novel/novel_page_animation.dart';
@@ -543,6 +544,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       _prefs = _prefs.copyWith(autoPageInterval: 0);
       await _store.save(widget.novelId, _prefs);
     }
+    // 音量键翻页（N5）：偏好加载完成后按需挂载原生拦截。
+    unawaited(_syncVolumeKey());
     // 重新注册自定义字体文件（正文 / 标题），否则重启后字体不生效。
     await _loadCustomFontsIfNeeded();
     final saved = await _progress.get(widget.novelId);
@@ -1151,6 +1154,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 读后自动删除：读完（进度到最后一章）时清理该内容已下载文件。
     unawaited(_maybeAutoDeleteDownloaded());
     WidgetsBinding.instance.removeObserver(this);
+    // 音量键翻页（N5）：退出阅读器恢复系统默认音量键行为。
+    unawaited(_volumeKeyListener.stop());
     _timeTimer.cancel();
     _batterySubscription?.cancel();
     _autoPageTimer?.cancel();
@@ -1786,6 +1791,30 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   // ─────────────────────── 导航 ───────────────────────
 
+  /// 音量键翻页（N5，仅 Android）：音量上 = 上一页、音量下 = 下一页，
+  /// 翻页/滚动模式均生效（复用 [_goNextPage]/[_goPrevPage] 的模式分派）。
+  final VolumeKeyListener _volumeKeyListener = VolumeKeyListener();
+
+  /// 按偏好挂载/卸载音量键原生拦截。调用点：[_init]、[_onPrefsChanged]
+  /// （偏好变化后即时生效）、dispose（恢复系统默认音量键行为）。
+  Future<void> _syncVolumeKey() async {
+    final bool want =
+        _prefs.volumeKeyPageTurn && !kIsWeb && Platform.isAndroid;
+    try {
+      if (want) {
+        await _volumeKeyListener.start(
+          onVolumeDown: _goNextPage,
+          onVolumeUp: _goPrevPage,
+        );
+      } else {
+        await _volumeKeyListener.stop();
+      }
+    } on Object catch (e) {
+      // 原生通道未就绪/订阅异常：不阻塞阅读，写日志便于实机排查。
+      AppLog.instance.e('[小说音量键] 同步失败: $e');
+    }
+  }
+
   void _goNextPage() {
     if (_loading || _chapterLoading) return;
     if (_prefs.pageAnimation.isScroll) {
@@ -1932,7 +1961,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         next.chineseConvert != _prefs.chineseConvert;
     final autoPageChanged =
         next.autoPageInterval != _prefs.autoPageInterval;
+    final volumeKeyChanged =
+        next.volumeKeyPageTurn != _prefs.volumeKeyPageTurn;
     _prefs = next;
+    if (volumeKeyChanged) {
+      // 音量键开关即时生效（N5）。
+      unawaited(_syncVolumeKey());
+    }
     // 任何阅读设置变化都使分页缓存失效（字号/行距/段距/边距/字体等不会 bump
     // _contentVersion，但会影响分页高度，必须靠 _prefsVersion 触发重新分页）。
     _prefsVersion++;
@@ -5496,6 +5531,15 @@ class _NovelInlineSettings extends StatelessWidget {
                       onChanged: (v) => onChanged(
                           prefs.copyWith(scrollWheelInverted: v)),
                     ),
+                    // 音量键翻页（N5，仅 Android 有物理音量键翻页语义）。
+                    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.readerVolumeKeyPageTurn),
+                        value: prefs.volumeKeyPageTurn,
+                        onChanged: (v) => onChanged(
+                            prefs.copyWith(volumeKeyPageTurn: v)),
+                      ),
                       ],
                     ),
                     // ── 朗读组 ──

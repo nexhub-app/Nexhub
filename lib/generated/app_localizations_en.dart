@@ -782,6 +782,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clearHistory => 'Clear History';
 
   @override
+  String get recentSearches => 'Recent searches';
+
+  @override
   String get clearHistoryConfirm =>
       'Clear all browsing history for this module? Reading progress will be kept and restored when you revisit.';
 

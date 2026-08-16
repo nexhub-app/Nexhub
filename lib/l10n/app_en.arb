@@ -319,6 +319,7 @@
   "clearAll": "Clear All",
   "clearAllConfirm": "Clear all download records? Downloaded files will not be deleted.",
   "clearHistory": "Clear History",
+  "recentSearches": "Recent searches",
   "clearHistoryConfirm": "Clear all browsing history for this module? Reading progress will be kept and restored when you revisit.",
   "historyCleared": "History cleared",
   "batchPause": "Batch Pause",

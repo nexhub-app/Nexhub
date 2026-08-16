@@ -18,6 +18,10 @@ class MediaPlaybackPositionManager extends ChangeNotifier {
   /// Hive box 名。
   static const String boxName = 'media_playback_position';
 
+  /// 每部作品保留的剧集位置记录上限（F-9）：长篇连载剧集上千时，
+  /// 无上限的 put-only 存储会无限膨胀；按最近使用顺序裁剪最旧的记录。
+  static const int maxRecordsPerContent = 50;
+
   final Box<dynamic>? _box;
 
   /// 内存缓存：`contentId:episodeIndex` → 播放位置毫秒。
@@ -25,6 +29,10 @@ class MediaPlaybackPositionManager extends ChangeNotifier {
 
   /// 内存缓存：contentId → 最后播放剧集索引。
   final Map<String, int> _lastEpisodes = {};
+
+  /// 每部作品的剧集键（`contentId:episodeIndex`）最近使用顺序，最新在前。
+  /// 供 [savePosition] 超限裁剪最旧记录（F-9）；首次保存时从既有键惰性构建。
+  final Map<String, List<String>> _recentKeys = {};
 
   Future<void> init() async {
     final box = await _openBox();
@@ -47,16 +55,59 @@ class MediaPlaybackPositionManager extends ChangeNotifier {
     return Hive.openBox(boxName);
   }
 
+  /// 列出某作品现有的全部剧集键（`contentId:episodeIndex`）。
+  /// contentId 内部不含 `:`，按首个冒号切分（episodeIndex 为整数）。
+  List<String> _keysOf(String contentId) {
+    return _positions.keys
+        .where((k) => k.startsWith('$contentId:'))
+        .toList();
+  }
+
   /// 保存播放位置。
   Future<void> savePosition(
-      String contentId, int episodeIndex, int positionMs) async {
+    String contentId, int episodeIndex, int positionMs) async {
     final k = '$contentId:$episodeIndex';
     _positions[k] = positionMs;
     _lastEpisodes[contentId] = episodeIndex;
     final box = await _openBox();
     await box.put('pos:$k', positionMs);
     await box.put('last_ep:$contentId', episodeIndex);
+    await _pruneRecords(contentId);
     notifyListeners();
+  }
+
+  /// 超限裁剪（F-9）：把本作品的剧集键按最近使用排序（当前保存项置顶，
+  /// 其余沿用既有 MRU 顺序，首次调用时按剧集号排序兜底），超出
+  /// [maxRecordsPerContent] 的最旧记录从内存与 Hive 中删除。
+  Future<void> _pruneRecords(String contentId) async {
+    var recent = _recentKeys[contentId];
+    if (recent == null) {
+      // 惰性构建：既有键（含历史遗留）按剧集号升序作为初始顺序。
+      final existing = _keysOf(contentId)
+        ..sort((a, b) {
+          final ai = int.tryParse(a.substring(a.indexOf(':') + 1)) ?? 0;
+          final bi = int.tryParse(b.substring(b.indexOf(':') + 1)) ?? 0;
+          return ai.compareTo(bi);
+        });
+      recent = existing.reversed.toList(growable: true);
+    }
+    final current = '$contentId:${_lastEpisodes[contentId]}';
+    recent
+      ..removeWhere((k) => !_positions.containsKey(k))
+      ..remove(current)
+      ..insert(0, current);
+    if (recent.length <= maxRecordsPerContent) {
+      _recentKeys[contentId] = recent;
+      return;
+    }
+    final toRemove = recent.sublist(maxRecordsPerContent);
+    recent.length = maxRecordsPerContent;
+    _recentKeys[contentId] = recent;
+    final box = await _openBox();
+    for (final k in toRemove) {
+      _positions.remove(k);
+      await box.delete('pos:$k');
+    }
   }
 
   /// 获取播放位置（毫秒），无记录返回 0。
@@ -87,6 +138,7 @@ class MediaPlaybackPositionManager extends ChangeNotifier {
       _positions.remove(k);
     }
     _lastEpisodes.remove(contentId);
+    _recentKeys.remove(contentId);
     final box = await _openBox();
     for (final k in keysToRemove) {
       await box.delete('pos:$k');
