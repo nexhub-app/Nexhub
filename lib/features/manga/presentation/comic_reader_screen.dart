@@ -441,6 +441,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 在页边界处因 setState 全量重建而卡顿。
   bool _autoScrolling = false;
 
+  /// 自动滚动期间页码变化触发 UI 重建的限频时间戳：条漫逐帧滚动时每张图
+  /// 顶端触顶都会切换当前页，整屏重建会打断滚动动画（触顶卡一下），限频
+  /// ~300ms 兼顾进度指示实时性与滚动连贯。
+  DateTime _lastAutoScrollUiSyncAt =
+      DateTime.fromMillisecondsSinceEpoch(0);
+
   /// 章节切换过渡标题卡状态。
   bool _transitionVisible = false;
   String _transitionTitle = '';
@@ -1480,11 +1486,21 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _currentPage = idx;
       _scheduleProgressSave(idx);
       // 自动滚动期间跳过昂贵的图片收藏异步刷新（滚动位置由 ScrollOffsetController
-      // 逐帧驱动，无需重建），但仍执行轻量 setState 让进度条/页码实时更新。
+      // 逐帧驱动，无需重建），进度指示的整屏重建也限频：条漫逐帧滚动时每张图
+      // 顶端触顶都会切换 _currentPage，若每次都整屏重建会在滚动动画进行中打断
+      // 帧节奏（表现为「图片顶到屏幕顶端时卡一下」）。限频 ~300ms，进度条更新
+      // 感知无明显延迟，滚动保持连贯。
       if (!_autoScrolling) {
         unawaited(_refreshPageImageFav());
+        if (mounted) setState(() {});
+      } else {
+        final now = DateTime.now();
+        if (mounted &&
+            now.difference(_lastAutoScrollUiSyncAt).inMilliseconds >= 300) {
+          _lastAutoScrollUiSyncAt = now;
+          setState(() {});
+        }
       }
-      if (mounted) setState(() {});
     }
     _maybePreload(idx);
   }
@@ -2838,8 +2854,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   /// 切换内联设置面板的显隐。
+  ///
+  /// 关闭时统一提交设备/会话层草稿（[_commitDeviceOverride]）到作品层持久化：
+  /// 面板有三种关闭路径（面板内关闭按钮 / Esc / 点阅读区任意处），此前仅按钮
+  /// 路径提交，Esc 与点击关闭会丢掉本次会话的全部改动（自动翻页间隔、自动
+  /// 下载开关等重开阅读器后回退）。
   void _toggleInlineSettings() {
+    final bool closing = _showInlineSettings;
     setState(() => _showInlineSettings = !_showInlineSettings);
+    if (closing) {
+      unawaited(_commitDeviceOverride());
+    }
   }
 
   /// 设置面板内的改动：即时预览 + 自动保存。
@@ -2869,6 +2894,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     _syncVolumeKey();
     _syncAutoMotion();
+    if (!prev.autoDownloadChapters && next.autoDownloadChapters) {
+      // 面板里刚开启自动下载：若当前已读过本章 >25%，立即检查入队，
+      // 不必等下一次翻页保存进度才触发（「开了没反应」的观感来源）。
+      _maybeAutoDownload(_currentPage);
+    }
     if (prev.orientation != next.orientation) _applyOrientation();
     if (prev.fullscreen != next.fullscreen) _applyFullscreen();
     if (prev.keepScreenOn != next.keepScreenOn) _applyWakelock();
