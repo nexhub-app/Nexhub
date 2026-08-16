@@ -28,26 +28,42 @@ class DanmakuItem {
 
 /// 弹幕控制器（基于 canvas_danmaku）。
 ///
-/// 持有全部弹幕与已展示索引，按视频播放位置给出「此刻应出现」的弹幕。
-/// 通过 [attach] 绑定 [cd.DanmakuController] 后，调用 [tick] 即可自动注入。
+/// 持有全部弹幕与「秒 → 弹幕索引」索引表，按视频播放位置增量注入「此刻应
+/// 出现」的弹幕。通过 [attach] 绑定 [cd.DanmakuController] 后，调用 [tick]
+/// 即可自动注入。
+///
+/// 秒索引 + 游标设计（修复 seek 后弹幕 flood 与 tick O(n) 全量扫描）：
+/// - [tick] 只遍历当前秒与游标之间的索引桶（每秒一次查表），不再扫描全部弹幕；
+/// - seek 后调用 [resetTo]，把游标拨回目标位置前 [lookbackSeconds] 秒，只补
+///   重放该窗口内的弹幕，避免「把整条时间轴上的弹幕一次性灌进屏幕」。
 class DanmakuController {
   DanmakuController([List<DanmakuItem>? items]) {
-    if (items != null) _items.addAll(items);
+    if (items != null) setItems(items);
   }
 
   cd.DanmakuController? _controller;
   final List<DanmakuItem> _items = [];
-  final Set<int> _shown = <int>{};
+
+  /// 秒 → 该秒内弹幕的索引列表（tick 时按秒查表，O(秒跨度) 而非 O(全部弹幕)）。
+  final Map<int, List<int>> _bySecond = <int, List<int>>{};
+
+  /// 已注入到的最大秒（游标）。小于等于该值的秒不再注入。
+  int _cursorSecond = -1;
 
   /// 绑定 canvas_danmaku 控制器。
   void attach(cd.DanmakuController controller) => _controller = controller;
 
-  /// 替换全部弹幕数据（清空旧的并重置展示索引）。
+  /// 替换全部弹幕数据（清空旧的、重建秒索引并重置游标）。
   void setItems(List<DanmakuItem> items) {
     _items
       ..clear()
       ..addAll(items);
-    _shown.clear();
+    _bySecond.clear();
+    for (var i = 0; i < _items.length; i++) {
+      final sec = _items[i].time.inSeconds;
+      _bySecond.putIfAbsent(sec, () => <int>[]).add(i);
+    }
+    _cursorSecond = -1;
   }
 
   /// 更新弹幕选项（同步到 canvas_danmaku 控制器）。
@@ -55,39 +71,55 @@ class DanmakuController {
     _controller?.updateOption(option);
   }
 
-  /// 按视频位置注入弹幕到 canvas_danmaku 控制器。
+  /// 按视频位置增量注入弹幕到 canvas_danmaku 控制器。
+  ///
+  /// 游标后的每一秒，取该秒索引桶里的弹幕注入；已注入过的秒跳过。
   void tick(Duration position) {
-    final pending = _pendingItems(position);
-    for (final item in pending) {
-      _controller?.addDanmaku(
-        cd.DanmakuContentItem(
-          item.text,
-          color: item.color,
-          type: item.type,
-        ),
-      );
-    }
-  }
-
-  List<DanmakuItem> _pendingItems(Duration position) {
-    final out = <DanmakuItem>[];
-    for (var i = 0; i < _items.length; i++) {
-      if (!_shown.contains(i) && _items[i].time <= position) {
-        _shown.add(i);
-        out.add(_items[i]);
+    final sec = position.inSeconds;
+    if (sec <= _cursorSecond) return;
+    for (var s = _cursorSecond + 1; s <= sec; s++) {
+      final indices = _bySecond[s];
+      if (indices == null) continue;
+      for (final i in indices) {
+        _controller?.addDanmaku(
+          cd.DanmakuContentItem(
+            _items[i].text,
+            color: _items[i].color,
+            type: _items[i].type,
+          ),
+        );
       }
     }
-    return out;
+    _cursorSecond = sec;
   }
 
-  /// 返回播放位置 [position] 之前尚未展示的弹幕（向后兼容）。
-  List<DanmakuItem> pending(Duration position) => _pendingItems(position);
+  /// seek 后调用：清屏并把游标拨回 [position] 前 [lookbackSeconds] 秒，
+  /// 使后续 [tick] 只重放目标位置附近窗口内的弹幕（修复 seek flood）。
+  void resetTo(Duration position, {int lookbackSeconds = 3}) {
+    _controller?.clear();
+    _cursorSecond = position.inSeconds - lookbackSeconds;
+  }
 
   /// 清空屏幕上的弹幕。
   void clear() => _controller?.clear();
 
-  /// 重置已展示索引（重新播放时调用）。
-  void reset() => _shown.clear();
+  /// 重置游标（从头开始注入）。切集 / 重新加载弹幕后调用。
+  void reset() => _cursorSecond = -1;
+
+  /// 返回播放位置 [position] 之前尚未展示的弹幕（向后兼容，切片实现）。
+  List<DanmakuItem> pending(Duration position) {
+    final out = <DanmakuItem>[];
+    final start = _cursorSecond + 1;
+    final end = position.inSeconds;
+    if (end <= start) return out;
+    for (var s = start; s <= end; s++) {
+      for (final i in _bySecond[s] ?? const <int>[]) {
+        out.add(_items[i]);
+      }
+    }
+    _cursorSecond = end;
+    return out;
+  }
 
   /// 构造均匀分布的示例弹幕。
   static List<DanmakuItem> demo(int count,
