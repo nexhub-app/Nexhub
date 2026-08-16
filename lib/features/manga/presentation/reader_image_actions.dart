@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +31,12 @@ Future<void> showReaderImageActions({
   PluginConfig? source,
   required String comicId,
   required SourceType sourceType,
+  /// 章节书签入口（REQ-C1）：非空时显示「收藏此章」，点击调用后关闭面板。
+  /// 由阅读器传入 toggle 当前章书签的回调。
+  Future<bool> Function()? onBookmarkChapter,
+  /// 图片收藏入口（REQ-C2）：非空时显示「收藏此图」，点击调用后关闭面板。
+  /// 由阅读器传入 toggle 当前页图片收藏的回调。
+  Future<void> Function()? onFavoriteImage,
 }) async {
   final AppLocalizations l10n = AppLocalizations.of(context);
   final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -47,6 +52,24 @@ Future<void> showReaderImageActions({
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
+              if (onBookmarkChapter != null)
+                ListTile(
+                  leading: Icon(Icons.bookmark_border, color: scheme.primary),
+                  title: Text(l10n.readerChapterBookmark),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    unawaited(onBookmarkChapter());
+                  },
+                ),
+              if (onFavoriteImage != null)
+                ListTile(
+                  leading: Icon(Icons.favorite_border, color: scheme.primary),
+                  title: Text(l10n.readerFavoriteImage),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    unawaited(onFavoriteImage());
+                  },
+                ),
               ListTile(
                 leading: Icon(Icons.image_outlined, color: scheme.primary),
                 title: Text(l10n.setAsCover),
@@ -172,7 +195,7 @@ Map<String, String>? _buildHeaders(PluginConfig? source, String? url) {
   final bool hasFields = (siteHeaders != null && siteHeaders.isNotEmpty) ||
       (ahHeaders != null && ahHeaders.isNotEmpty) ||
       (referer != null && referer.isNotEmpty) ||
-      (ua != null && ua.isNotEmpty) ||
+      (ua.isNotEmpty) ||
       (cookies != null && cookies.isNotEmpty);
   if (!hasFields) return null;
   final Map<String, String> m = <String, String>{};
@@ -181,7 +204,7 @@ Map<String, String>? _buildHeaders(PluginConfig? source, String? url) {
   if (referer != null && referer.isNotEmpty) {
     m['Referer'] = referer;
   }
-  if (ua != null && ua.isNotEmpty) {
+  if (ua.isNotEmpty) {
     m['User-Agent'] = ua;
   }
   if (cookies != null && cookies.isNotEmpty) {

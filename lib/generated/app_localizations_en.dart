@@ -775,7 +775,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get clearHistoryConfirm =>
-      'Clear all browsing history for this module? This cannot be undone.';
+      'Clear all browsing history for this module? Reading progress will be kept and restored when you revisit.';
 
   @override
   String get historyCleared => 'History cleared';
@@ -2733,6 +2733,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageLoadFailed => 'Image load failed';
 
   @override
+  String get imageFavoriteGalleryTitle => 'Image Favorites';
+
+  @override
+  String get imageFavoriteEmpty => 'No favorited images yet';
+
+  @override
+  String get imageFavoriteDeleteConfirm => 'Delete this favorited image?';
+
+  @override
+  String get imageFavoriteDeleted => 'Removed from image favorites';
+
+  @override
   String get seriesTitle => 'Series';
 
   @override
@@ -4050,6 +4062,221 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerChapterTransition => 'Chapter transition';
 
   @override
+  String get readerPreloadCount => 'Preload count';
+
+  @override
+  String get readerPreloadCountDesc =>
+      'Pages from the chapter end/start to begin preloading adjacent chapters (higher = smoother, uses more data)';
+
+  @override
+  String get readerSeamlessReading => 'Seamless cross-chapter reading';
+
+  @override
+  String get readerSeamlessReadingDesc =>
+      'Keep reading the adjacent chapter right at the chapter end/start using the preloaded cache, without reloading the chapter or flashing white';
+
+  @override
+  String get readerChapterSeparator => 'Chapter separator';
+
+  @override
+  String get readerChapterSeparatorDesc =>
+      'Insert a chapter title card between chapters in webtoon continuous mode';
+
+  @override
+  String get readerScrollSpeed => 'Scroll speed';
+
+  @override
+  String get readerScrollSpeedDesc =>
+      'Multiplier applied to the webtoon scroll amount from the mouse wheel (0.5x–3x)';
+
+  @override
+  String get readerVolumeKeyPageTurn => 'Volume key page turn';
+
+  @override
+  String get readerVolumeKeyPageTurnDesc =>
+      'Intercept volume up/down to turn pages on Android (paged: turn page; webtoon: scroll by distance)';
+
+  @override
+  String get readerVolumeKeyDistance => 'Volume key scroll distance';
+
+  @override
+  String get readerVolumeKeyDistanceDesc =>
+      'How far the volume key scrolls in webtoon mode (percent of viewport height)';
+
+  @override
+  String get readerLongPressZoom => 'Long-press to zoom';
+
+  @override
+  String get readerLongPressZoomDesc =>
+      'Long-press enters 1.75x zoom (long-press/release exits); when off, long-press shows the menu';
+
+  @override
+  String get readerLongPressAtPress => 'At press point';
+
+  @override
+  String get readerLongPressAtCenter => 'Screen center';
+
+  @override
+  String get readerLongPressZoomPosition => 'Long-press zoom anchor';
+
+  @override
+  String get readerZoomStart => 'Zoom anchor';
+
+  @override
+  String get readerZoomStartLeft => 'Left';
+
+  @override
+  String get readerZoomStartCenter => 'Center';
+
+  @override
+  String get readerZoomStartRight => 'Right';
+
+  @override
+  String get readerAutoPageTurning => 'Auto page turning';
+
+  @override
+  String get readerAutoPageTurningDesc =>
+      'Automatically turn pages in paged mode at a fixed interval (0 = off)';
+
+  @override
+  String get readerAutoPageInterval => 'Auto page interval (s)';
+
+  @override
+  String get readerAutoScroll => 'Auto scroll';
+
+  @override
+  String get readerAutoScrollDesc =>
+      'Smoothly auto-scroll in webtoon mode at the scroll speed above';
+
+  @override
+  String get readerPageAnimation => 'Page transition animation';
+
+  @override
+  String get readerPageAnimNone => 'None';
+
+  @override
+  String get readerPageAnimSlide => 'Slide';
+
+  @override
+  String get readerPageAnimFade => 'Fade';
+
+  @override
+  String get readerDoubleTapAnimSpeed => 'Double-tap zoom animation';
+
+  @override
+  String get readerDoubleTapAnimSpeedDesc =>
+      'Duration of the double-tap zoom animation in milliseconds (scaled with system reduce-motion)';
+
+  @override
+  String get readerPageSpacing => 'Page spacing';
+
+  @override
+  String get readerPageSpacingDesc => 'Gap between webtoon pages (px)';
+
+  @override
+  String get readerShowSingleImageOnFirstPage => 'Single image on first page';
+
+  @override
+  String get readerShowSingleImageOnFirstPageDesc =>
+      'Show the first page alone in spread mode on chapter one, then resume spread';
+
+  @override
+  String get readerClockBattery => 'Clock / battery overlay';
+
+  @override
+  String get readerClockBatteryDesc =>
+      'Show current time and battery in the reader, toggled with the controls';
+
+  @override
+  String get readerClockPosition => 'Overlay position';
+
+  @override
+  String get readerClockPosTop => 'Top';
+
+  @override
+  String get readerClockPosBottom => 'Bottom';
+
+  @override
+  String get readerClockMargin => 'Margin';
+
+  @override
+  String get readerClockOpacity => 'Opacity';
+
+  @override
+  String get readerClockFontSize => 'Font size';
+
+  @override
+  String get readerBrightness => 'Reading brightness';
+
+  @override
+  String get readerBrightnessDesc =>
+      'Positive writes to system brightness; negative dims system brightness and overlays a black mask';
+
+  @override
+  String get readerAutoDownload => 'Auto-download later chapters';
+
+  @override
+  String get readerAutoDownloadDesc =>
+      'Queue later chapters for download after reading 25% of the current one (silent on failure)';
+
+  @override
+  String get readerSkipReadChapters => 'Skip read chapters';
+
+  @override
+  String get readerSkipReadChaptersDesc =>
+      'Skip already-read chapters when going to the next/previous chapter';
+
+  @override
+  String get readerSkipFilteredChapters => 'Skip filtered chapters';
+
+  @override
+  String get readerSkipFilteredChaptersDesc =>
+      'Skip filtered chapters when going to the next/previous chapter';
+
+  @override
+  String get readerSkipDuplicateChapters => 'Skip duplicate chapters';
+
+  @override
+  String get readerSkipDuplicateChaptersDesc =>
+      'Skip chapters with duplicate titles when going to the next/previous chapter';
+
+  @override
+  String get readerScreenPicNumberPortrait => 'Images per screen (portrait)';
+
+  @override
+  String get readerScreenPicNumberLandscape => 'Images per screen (landscape)';
+
+  @override
+  String get readerScreenPicNumberDesc =>
+      'Stack multiple images vertically per screen (1–5)';
+
+  @override
+  String get readerChapterBookmark => 'Bookmark this chapter';
+
+  @override
+  String get readerChapterBookmarked => 'Chapter bookmarked';
+
+  @override
+  String get readerChapterBookmarkRemoved => 'Chapter bookmark removed';
+
+  @override
+  String get readerImageFavorite => 'Image favorites';
+
+  @override
+  String get readerFavoriteImage => 'Favorite this image';
+
+  @override
+  String get imageFavoriteAdded => 'Image favorited';
+
+  @override
+  String get imageFavoriteRemoved => 'Image unfavorited';
+
+  @override
+  String readerClockBatteryPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
   String get comicDefaultFullscreen => 'Fullscreen';
 
   @override
@@ -4471,6 +4698,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get readerGroupFlash => 'Flash Effect';
+
+  @override
+  String get readerGroupAuto => 'Auto (Download / Skip)';
+
+  @override
+  String get readerGroupAutoDesc =>
+      'Auto-download later chapters and skip read, filtered, or duplicate chapters when navigating.';
+
+  @override
+  String get readerGroupOverlay => 'Overlay (Clock / Battery)';
+
+  @override
+  String get readerGroupOverlayDesc =>
+      'Show the current time and battery in the reader, with position, margin, opacity, and font size.';
+
+  @override
+  String get readerGroupMulti => 'Multi-image & Spacing';
+
+  @override
+  String get readerGroupMultiDesc =>
+      'Multiple images per screen, single image on first page, and page spacing.';
 
   @override
   String get readerCommonSettings => 'Common';
@@ -5834,6 +6082,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get comicSectionMouseWheel => 'Mouse Wheel';
+
+  @override
+  String get comicReaderAutoSection => 'Auto (download / chapter skip)';
+
+  @override
+  String get comicReaderOverlaySection => 'Overlay (clock / battery)';
+
+  @override
+  String get comicReaderMultiImageSection => 'Multi-image / spacing';
 
   @override
   String get statsOverviewTitle => 'Statistics';

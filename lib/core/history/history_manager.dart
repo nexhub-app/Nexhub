@@ -40,6 +40,12 @@ class HistoryEntry {
   /// 优先于 [coverUrl] 使用；为空时回退远程 [coverUrl]。
   final String? localCoverPath;
 
+  /// 软删除标记（REQ-C8 历史 hidden 列）。
+  ///
+  /// 为 true 表示该条目被「清历史」隐藏：不出现在书架历史列表，但条目本身
+  /// 与进度仍保留，用户重新进入该作品（详情/阅读器记录浏览）时自动复原为 false。
+  final bool hidden;
+
   const HistoryEntry({
     required this.id,
     required this.title,
@@ -52,6 +58,7 @@ class HistoryEntry {
     this.category,
     this.status,
     this.localCoverPath,
+    this.hidden = false,
   });
 
   factory HistoryEntry.fromMediaItem(
@@ -95,6 +102,7 @@ class HistoryEntry {
         'category': category,
         'status': status,
         'localCoverPath': localCoverPath,
+        'hidden': hidden,
       };
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) => HistoryEntry(
@@ -110,9 +118,11 @@ class HistoryEntry {
         category: json['category'] as String?,
         status: json['status'] as String?,
         localCoverPath: json['localCoverPath'] as String?,
+        // 旧数据无 hidden 字段时按 false（可见）解析，保证向后兼容。
+        hidden: json['hidden'] as bool? ?? false,
       );
 
-  HistoryEntry copyWith({String? localCoverPath}) => HistoryEntry(
+  HistoryEntry copyWith({String? localCoverPath, bool? hidden}) => HistoryEntry(
         id: id,
         title: title,
         coverUrl: coverUrl,
@@ -124,6 +134,7 @@ class HistoryEntry {
         category: category,
         status: status,
         localCoverPath: localCoverPath ?? this.localCoverPath,
+        hidden: hidden ?? this.hidden,
       );
 }
 
@@ -158,8 +169,17 @@ class HistoryManager extends ChangeNotifier {
   }
 
   /// 获取某模块的历史列表（按浏览时间倒序）。
-  List<HistoryEntry> historyFor(SourceType type) =>
-      List.unmodifiable(_cache[type]?.reversed.toList() ?? const <HistoryEntry>[]);
+  ///
+  /// 过滤掉已软删除（[HistoryEntry.hidden] == true）的条目，使其不再出现在
+  /// 书架/历史列表中（REQ-C8）。被隐藏的条目仍保留在内部缓存中（进度不丢），
+  /// 可经 [findById] 取到；用户重新进入该作品后自动复原可见。
+  List<HistoryEntry> historyFor(SourceType type) {
+    final list = _cache[type];
+    if (list == null) return const <HistoryEntry>[];
+    return List.unmodifiable(
+      list.reversed.where((e) => !e.hidden).toList(),
+    );
+  }
 
   /// 查找指定 id 的历史条目（按内容 sourceType + id 唯一定位）。
   ///
@@ -204,7 +224,10 @@ class HistoryManager extends ChangeNotifier {
 
     // 移除旧记录（去重）
     list.removeWhere((e) => e.id == item.id);
-    // 添加到末尾（最新的在后面，读取时 reversed）
+    // 添加到末尾（最新的在后面，读取时 reversed）。
+    // 新条目经 fromMediaItem 构建，hidden 恒为 false——因此已软删除（被清历史）
+    // 的条目在用户重新进入该作品（详情/阅读器记录浏览）时会自动复原可见
+    // （REQ-C8：重读自动复原），进度与阅读位置不受影响。
     final entry = HistoryEntry.fromMediaItem(
       item,
       lastChapter: lastChapter,
@@ -269,11 +292,87 @@ class HistoryManager extends ChangeNotifier {
     return ext.length <= 5 ? ext : '.jpg';
   }
 
-  /// 清除某模块的历史。
+  /// 清除某模块的历史（REQ-C8：软删除）。
+  ///
+  /// 不再物理删除条目，而是将本模块全部条目批量置 [HistoryEntry.hidden] = true：
+  /// 条目从书架/历史列表消失（[historyFor] 已过滤），但进度与数据保留，
+  /// 用户重新进入该作品（详情/阅读器记录浏览）时自动复原可见。
   Future<void> clearHistory(SourceType type) async {
-    _cache[type]?.clear();
+    await hideAll(type);
+  }
+
+  /// 批量软删除某模块全部历史（等价 [clearHistory]，命名更直白）。
+  ///
+  /// 与 [clearAll]（物理清空）语义区分：本方法保留条目与进度，仅隐藏。
+  Future<void> hideAll(SourceType type) async {
+    final list = _cache[type];
+    if (list == null || list.isEmpty) return;
+    for (var i = 0; i < list.length; i++) {
+      list[i] = list[i].copyWith(hidden: true);
+    }
     await _persist();
     notifyListeners();
+  }
+
+  /// 软删除单条历史记录（按内容 id 定位，置 [HistoryEntry.hidden] = true）。
+  ///
+  /// [sourceType] 显式指定所属模块时只在该模块内操作（更精确）；不传则在
+  /// 所有模块中查找匹配 id 的条目。与 [removeHistory]（物理删除）区分。
+  Future<void> markHidden(String contentId, {SourceType? sourceType}) async {
+    var touched = false;
+    if (sourceType != null) {
+      touched = _hideEntryInList(_cache[sourceType], contentId);
+    } else {
+      for (final list in _cache.values) {
+        touched = _hideEntryInList(list, contentId) || touched;
+      }
+    }
+    if (!touched) return;
+    await _persist();
+    notifyListeners();
+  }
+
+  bool _hideEntryInList(List<HistoryEntry>? list, String contentId) {
+    if (list == null) return false;
+    var touched = false;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id == contentId && !list[i].hidden) {
+        list[i] = list[i].copyWith(hidden: true);
+        touched = true;
+      }
+    }
+    return touched;
+  }
+
+  /// 复原（取消软删除）单条历史记录：置 [HistoryEntry.hidden] = false。
+  ///
+  /// 用户在详情/阅读器重新进入该作品时调用，使条目重新出现在书架历史列表。
+  /// 注：阅读器/详情页本就会调用 [addHistory]，新增条目 hidden 恒为 false，
+  /// 已覆盖"重读自动复原"；本方法供需要在不动浏览记录的情况下复原的场景使用。
+  Future<void> restore(String contentId, {SourceType? sourceType}) async {
+    var touched = false;
+    if (sourceType != null) {
+      touched = _restoreEntryInList(_cache[sourceType], contentId);
+    } else {
+      for (final list in _cache.values) {
+        touched = _restoreEntryInList(list, contentId) || touched;
+      }
+    }
+    if (!touched) return;
+    await _persist();
+    notifyListeners();
+  }
+
+  bool _restoreEntryInList(List<HistoryEntry>? list, String contentId) {
+    if (list == null) return false;
+    var touched = false;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id == contentId && list[i].hidden) {
+        list[i] = list[i].copyWith(hidden: false);
+        touched = true;
+      }
+    }
+    return touched;
   }
 
   /// 删除单条历史记录（按内容 id 定位）。
@@ -292,7 +391,10 @@ class HistoryManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 清除全部历史。
+  /// 物理清空全部历史（REQ-C8 保留的「物理清空」选项）。
+  ///
+  /// 与软删除（[clearHistory] / [hideAll]）不同：本方法直接删除所有条目，
+  /// 进度与数据一并清除，不可恢复。谨慎调用。
   Future<void> clearAll() async {
     _cache.clear();
     await _persist();

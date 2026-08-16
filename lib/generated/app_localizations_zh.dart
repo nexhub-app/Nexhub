@@ -767,7 +767,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get clearHistory => '清除历史';
 
   @override
-  String get clearHistoryConfirm => '确定清除本模块的全部浏览历史吗？此操作不可恢复。';
+  String get clearHistoryConfirm => '确定清除本模块的全部浏览历史吗？阅读进度将保留，重新进入该作品后自动恢复。';
 
   @override
   String get historyCleared => '历史已清除';
@@ -2689,6 +2689,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageLoadFailed => '图片加载失败';
 
   @override
+  String get imageFavoriteGalleryTitle => '图片收藏';
+
+  @override
+  String get imageFavoriteEmpty => '暂无收藏图片';
+
+  @override
+  String get imageFavoriteDeleteConfirm => '确定删除这张收藏图片吗？';
+
+  @override
+  String get imageFavoriteDeleted => '已删除收藏图片';
+
+  @override
   String get seriesTitle => '系列';
 
   @override
@@ -3996,6 +4008,204 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerChapterTransition => '章节过渡';
 
   @override
+  String get readerPreloadCount => '预加载数量';
+
+  @override
+  String get readerPreloadCountDesc => '距章末 / 章首多少页时开始预载相邻章节（越大越流畅，占用更多流量）';
+
+  @override
+  String get readerSeamlessReading => '跨章无缝续读';
+
+  @override
+  String get readerSeamlessReadingDesc => '章末 / 章首直接续读相邻章（复用预载缓存），不重建章节、无白屏';
+
+  @override
+  String get readerChapterSeparator => '章分割过渡';
+
+  @override
+  String get readerChapterSeparatorDesc => '条漫连续模式下，章节之间插入章节标题卡';
+
+  @override
+  String get readerScrollSpeed => '滚动速度';
+
+  @override
+  String get readerScrollSpeedDesc => '鼠标滚轮在条漫模式下的滚动增量倍率（0.5x–3x）';
+
+  @override
+  String get readerVolumeKeyPageTurn => '音量键翻页';
+
+  @override
+  String get readerVolumeKeyPageTurnDesc =>
+      'Android 拦截音量上/下翻页（翻页模式：翻页；条漫模式：按距离滚动）';
+
+  @override
+  String get readerVolumeKeyDistance => '音量键滚动距离';
+
+  @override
+  String get readerVolumeKeyDistanceDesc => '条漫模式下音量键每次滚动的距离（占视口高度百分比）';
+
+  @override
+  String get readerLongPressZoom => '长按缩放';
+
+  @override
+  String get readerLongPressZoomDesc => '长按进入 1.75x 缩放（再长按/松手退出）；关闭时保持长按弹菜单';
+
+  @override
+  String get readerLongPressAtPress => '按触点';
+
+  @override
+  String get readerLongPressAtCenter => '屏幕中心';
+
+  @override
+  String get readerLongPressZoomPosition => '长按缩放锚点';
+
+  @override
+  String get readerZoomStart => '缩放锚点';
+
+  @override
+  String get readerZoomStartLeft => '左侧';
+
+  @override
+  String get readerZoomStartCenter => '中心';
+
+  @override
+  String get readerZoomStartRight => '右侧';
+
+  @override
+  String get readerAutoPageTurning => '自动翻页';
+
+  @override
+  String get readerAutoPageTurningDesc => '翻页模式按固定间隔自动翻页（0=关闭）';
+
+  @override
+  String get readerAutoPageInterval => '自动翻页间隔（秒）';
+
+  @override
+  String get readerAutoScroll => '自动滚动';
+
+  @override
+  String get readerAutoScrollDesc => '条漫模式下按上方滚动速度平滑自动滚动';
+
+  @override
+  String get readerPageAnimation => '翻页过渡动画';
+
+  @override
+  String get readerPageAnimNone => '无动画';
+
+  @override
+  String get readerPageAnimSlide => '滑入';
+
+  @override
+  String get readerPageAnimFade => '淡入淡出';
+
+  @override
+  String get readerDoubleTapAnimSpeed => '双击缩放动画';
+
+  @override
+  String get readerDoubleTapAnimSpeedDesc => '双击缩放动画时长（毫秒，随系统减弱动态效果按比例缩放）';
+
+  @override
+  String get readerPageSpacing => '页间距';
+
+  @override
+  String get readerPageSpacingDesc => '条漫相邻页间距（像素）';
+
+  @override
+  String get readerShowSingleImageOnFirstPage => '首屏单图';
+
+  @override
+  String get readerShowSingleImageOnFirstPageDesc => '双页模式第一章第一页单独显示，其后恢复双页';
+
+  @override
+  String get readerClockBattery => '时间 / 电量浮层';
+
+  @override
+  String get readerClockBatteryDesc => '在阅读器显示当前时间与电量，随控制栏显隐';
+
+  @override
+  String get readerClockPosition => '浮层位置';
+
+  @override
+  String get readerClockPosTop => '顶部';
+
+  @override
+  String get readerClockPosBottom => '底部';
+
+  @override
+  String get readerClockMargin => '边距';
+
+  @override
+  String get readerClockOpacity => '透明度';
+
+  @override
+  String get readerClockFontSize => '字号';
+
+  @override
+  String get readerBrightness => '阅读亮度';
+
+  @override
+  String get readerBrightnessDesc => '正值写入系统亮度；负值压暗系统亮度并叠加黑色遮罩';
+
+  @override
+  String get readerAutoDownload => '自动下载后续章节';
+
+  @override
+  String get readerAutoDownloadDesc => '读到当前章 25% 后后台下载后续章节（失败静默）';
+
+  @override
+  String get readerSkipReadChapters => '跳过已读章节';
+
+  @override
+  String get readerSkipReadChaptersDesc => '下/上一章时跳过已读章节';
+
+  @override
+  String get readerSkipFilteredChapters => '跳过被筛选章节';
+
+  @override
+  String get readerSkipFilteredChaptersDesc => '下/上一章时跳过被筛选的章节';
+
+  @override
+  String get readerSkipDuplicateChapters => '跳过重复章节';
+
+  @override
+  String get readerSkipDuplicateChaptersDesc => '下/上一章时跳过标题重复的章节';
+
+  @override
+  String get readerScreenPicNumberPortrait => '竖屏每屏图片数';
+
+  @override
+  String get readerScreenPicNumberLandscape => '横屏每屏图片数';
+
+  @override
+  String get readerScreenPicNumberDesc => '一屏纵向堆叠多张图片（1–5）';
+
+  @override
+  String get readerChapterBookmark => '收藏此章';
+
+  @override
+  String get readerChapterBookmarked => '已收藏该章';
+
+  @override
+  String get readerChapterBookmarkRemoved => '已取消收藏该章';
+
+  @override
+  String get readerImageFavorite => '图片收藏';
+
+  @override
+  String get readerFavoriteImage => '收藏此图';
+
+  @override
+  String get imageFavoriteAdded => '已收藏此图';
+
+  @override
+  String get imageFavoriteRemoved => '已取消收藏此图';
+
+  @override
+  String readerClockBatteryPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
   String get comicDefaultFullscreen => '全屏';
 
   @override
@@ -4413,6 +4623,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get readerGroupFlash => '闪屏效果';
+
+  @override
+  String get readerGroupAuto => '自动（下载/跳章过滤）';
+
+  @override
+  String get readerGroupAutoDesc => '阅读中自动下载后续章节，以及下/上一章时跳过已读、被筛选或重复章节。';
+
+  @override
+  String get readerGroupOverlay => '浮层（时间/电量）';
+
+  @override
+  String get readerGroupOverlayDesc => '在阅读器显示当前时间与电量，并调节其位置、边距、透明度与字号。';
+
+  @override
+  String get readerGroupMulti => '多图与间距';
+
+  @override
+  String get readerGroupMultiDesc => '每屏多图、首屏单图与条漫页间距设置。';
 
   @override
   String get readerCommonSettings => '常用设置';
@@ -5744,6 +5972,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get comicSectionMouseWheel => '鼠标滚轮';
+
+  @override
+  String get comicReaderAutoSection => '自动（下载 / 跳章过滤）';
+
+  @override
+  String get comicReaderOverlaySection => '浮层（时间 / 电量）';
+
+  @override
+  String get comicReaderMultiImageSection => '多图 / 间距';
 
   @override
   String get statsOverviewTitle => '统计';

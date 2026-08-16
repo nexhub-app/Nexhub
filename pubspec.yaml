@@ -116,6 +116,8 @@ dependencies:
   # 0.5.x 重写了 Windows 线程处理，修复 0.3.x 的 setFullScreen 阻塞死锁
   # （该版本线程处理已验证稳定，无冻结问题）。
   window_manager: ^0.5.2
+  # 音量键翻页（REQ-B1）：Android 拦截音量上/下翻页，防止系统音量变化。
+  flutter_volume_controller: ^2.0.1
 
 dev_dependencies:
   flutter_test:
