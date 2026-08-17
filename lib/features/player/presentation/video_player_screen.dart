@@ -24,6 +24,8 @@ import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/player/player_controller.dart';
+import '../../../core/player/play_queue_store.dart';
+import '../../../core/navigation/app_page_route.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/player_settings.dart';
 import '../../../core/player/widgets/seek_bar.dart';
@@ -277,6 +279,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 其它线路初始只是剧集页地址，经 [_resolveLineUrl] 重新解析后会加入本集合，
   /// 之后切回该线路无需再解析。
   final Set<int> _resolvedLineIndices = <int>{0};
+
+  /// 跨作品播放队列持久化（F-4）。
+  final PlayQueueStore _queueStore = PlayQueueStore();
 
 
   Duration _duration = Duration.zero;
@@ -665,6 +670,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // 加载全局播放器默认设置（解码/音频/比例/倍速/音量/方向/手势等）。
     // 在创建 Player 之前加载，创建后立即应用到底层播放器。
     await _loadPlayerSettings();
+
+    // F-4：记录当前作品为「最近播放」，用于启动恢复「继续上次」。
+    unawaited(_persistCurrentEpisode(_episodeIndex));
 
     // 创建 Player + VideoController 并打开媒体。
     // 关键：先等待上一次播放器的原生 VideoOutput 释放完成（见 PlayerController.pendingDisposal），
@@ -1668,15 +1676,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       }
     }
     // 自动连播（F-8：可配置倒计时，倒计时期间可取消）
-    if (_controller.autoPlayNext &&
-        widget.episodes != null &&
-        _episodeIndex < widget.episodes!.length - 1) {
+    final bool hasNextInWork = widget.episodes != null &&
+        _episodeIndex < widget.episodes!.length - 1;
+    if (_controller.autoPlayNext && hasNextInWork) {
       final countdown = _playerSettings.autoPlayCountdownSeconds;
       if (countdown > 0) {
         _startAutoNextCountdown(countdown);
       } else {
         _goNextEpisode();
       }
+      return;
+    }
+    // 跨作品连播（F-4）：当前作品已无下一集（或本就无剧集列表），
+    // 尝试从播放队列取下一部作品续播（沿用 autoPlayNext 开关与倒计时）。
+    if (_controller.autoPlayNext) {
+      unawaited(_maybePlayNextWork());
     }
   }
 
@@ -1742,6 +1756,325 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       return;
     }
     _changeEpisode(_episodeIndex + 1);
+  }
+
+  // ───────────────────────── F-4 播放队列（跨作品） ─────────────────────────
+
+  /// 把「当前正在播放的作品」封装为队列条目（用于加入队列 / 记录最近播放）。
+  QueuedWork _currentAsQueuedWork([int? index]) {
+    final int idx = index ?? _episodeIndex;
+    String? epId;
+    String? epTitle;
+    if (widget.episodes != null &&
+        idx >= 0 &&
+        idx < widget.episodes!.length) {
+      final ep = widget.episodes![idx];
+      epId = ep.id;
+      epTitle = ep.title;
+    }
+    return QueuedWork(
+      sourceId: widget.sourceId,
+      itemId: widget.itemId,
+      title: widget.title,
+      coverUrl: widget.coverUrl,
+      sourceType: widget.favoriteType ?? SourceType.animeSource,
+      detailUrl: widget.detailUrl,
+      episodeId: epId,
+      episodeTitle: epTitle,
+      episodeIndex: idx,
+    );
+  }
+
+  /// 记录当前作品为「最近播放」（F-4 启动恢复）。best-effort，不阻塞播放。
+  Future<void> _persistCurrentEpisode(int index) async {
+    if (_disposed) return;
+    try {
+      await _queueStore.setCurrent(_currentAsQueuedWork(index));
+    } on Object {
+      // 持久化失败不影响播放。
+    }
+  }
+
+  Future<void> _addCurrentToQueue() async {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    await _queueStore.add(_currentAsQueuedWork());
+    if (!mounted) return;
+    _safeSnackBar(l10n.playerQueueAdded);
+  }
+
+  Future<void> _playCurrentNext() async {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    await _queueStore.insertNext(_currentAsQueuedWork());
+    if (!mounted) return;
+    _safeSnackBar(l10n.playerQueuePlayNextAdded);
+  }
+
+  /// 当前作品末集播完且开启了自动连播：从队列取第一部续播。
+  Future<void> _maybePlayNextWork() async {
+    if (!mounted || _disposed) return;
+    final queue = await _queueStore.getQueue();
+    if (queue.isEmpty) return;
+    final next = queue.first;
+    final seconds = _playerSettings.autoPlayCountdownSeconds;
+    if (seconds > 0) {
+      _showNextWorkCountdown(next, seconds);
+      return;
+    }
+    await _replaceWithQueuedWork(next, queue);
+  }
+
+  /// 跨作品连播倒计时（复用自动连播倒计时机制，提示下一部作品名）。
+  void _showNextWorkCountdown(QueuedWork next, int seconds) {
+    _cancelAutoNextCountdown();
+    _autoNextCountdownLeft.value = seconds;
+    _uiHideTimer?.cancel();
+    if (mounted) {
+      setState(() => _uiVisible = true);
+      try {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              duration: Duration(seconds: seconds + 1),
+              content: ValueListenableBuilder<int>(
+                valueListenable: _autoNextCountdownLeft,
+                builder: (BuildContext c, int left, Widget? child) => Text(
+                    '${l10n.playerAutoNextWork(next.title)} ($left)'),
+              ),
+              action: SnackBarAction(
+                label: l10n.cancel,
+                onPressed: _cancelAutoNextCountdown,
+              ),
+            ),
+          );
+      } on Object {
+        // context 已失活则只走静默倒计时。
+      }
+    }
+    _autoNextCountdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final left = _autoNextCountdownLeft.value - 1;
+      if (left > 0) {
+        _autoNextCountdownLeft.value = left;
+        return;
+      }
+      _cancelAutoNextCountdown();
+      if (!mounted || _disposed) return;
+      try {
+        ScaffoldMessenger.of(context).clearSnackBars();
+      } on Object {
+        // ignore
+      }
+      unawaited(_queueStore.getQueue().then((q) {
+        if (q.isEmpty) return;
+        unawaited(_replaceWithQueuedWork(q.first, q));
+      }));
+    });
+  }
+
+  /// 用队列里的下一部作品替换当前播放页（跨作品连播核心）。
+  ///
+  /// 重新抓取该作品的剧集列表（源即插件：由源解析器决定，不在此硬编码），
+  /// 定位起始集后 pushReplacement 新播放页；队列中的该作品移除并写入「最近播放」。
+  Future<void> _replaceWithQueuedWork(
+      QueuedWork w, List<QueuedWork> queue) async {
+    if (!mounted || _disposed) return;
+    late final AppLocalizations l10n;
+    try {
+      l10n = AppLocalizations.of(context);
+    } on Object {
+      return;
+    }
+    // 从队列移除该作品（成为当前播放）。
+    final remaining = queue.where((e) => e.itemId != w.itemId).toList();
+    await _queueStore.setQueue(remaining);
+    await _queueStore.setCurrent(w);
+
+    // 抓取剧集列表。
+    _safeSnackBar(l10n.playerQueueLoading(w.title));
+    try {
+      final repo = context.read<SourceRepository>();
+      final service = context.read<MediaApiService>();
+      final source = repo.getById(w.sourceId);
+      if (source == null) {
+        _safeSnackBar(l10n.playerQueueLoadFailed);
+        return;
+      }
+      final episodes = await service.fetchEpisodes(
+        source,
+        w.itemId,
+        title: w.title,
+        detailUrl: w.detailUrl,
+      );
+      if (!mounted || _disposed) return;
+      if (episodes.isEmpty) {
+        _safeSnackBar(l10n.playerQueueNoEpisodes);
+        return;
+      }
+      int startIndex = w.episodeIndex.clamp(0, episodes.length - 1);
+      if (w.episodeId != null) {
+        final idx = episodes.indexWhere((e) => e.id == w.episodeId);
+        if (idx >= 0) startIndex = idx;
+      }
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(
+        AppPageRoute<void>(
+          builder: (_) => VideoPlayerScreen(
+            title: w.title,
+            episode: episodes[startIndex],
+            sourceId: w.sourceId,
+            itemId: w.itemId,
+            episodes: episodes,
+            initialEpisodeIndex: startIndex,
+            favoriteType: w.sourceType,
+            detailUrl: w.detailUrl,
+            coverUrl: w.coverUrl,
+            restoreProgress: true,
+          ),
+        ),
+      );
+    } on Object {
+      if (mounted) _safeSnackBar(l10n.playerQueueLoadFailed);
+    }
+  }
+
+  /// 从队列管理面板「继续上次」：打开持久化的最近作品（不在队列中时仅作当前恢复）。
+  Future<void> _resumeLastWork(QueuedWork w) async {
+    if (!mounted || _disposed) return;
+    await _replaceWithQueuedWork(w, await _queueStore.getQueue());
+  }
+
+  /// 播放队列管理面板（F-4）：列出待播队列，支持重排 / 删除 / 清空；
+  /// 顶部若有与当前不同的「最近播放」作品，提供「继续上次」恢复入口。
+  Future<void> _showQueueSheet(AppLocalizations l10n) async {
+    final queue = await _queueStore.getQueue();
+    final current = await _queueStore.getCurrent();
+    if (!mounted) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext ctx) {
+        // 局部可变副本，便于重排 / 删除即时刷新。
+        List<QueuedWork> local = List<QueuedWork>.from(queue);
+        final bool showResume =
+            current != null && current.itemId != widget.itemId;
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+            child: StatefulBuilder(
+              builder: (BuildContext bctx, StateSetter setStateLocal) {
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.all(AppTokens.spaceMd),
+                        child: Text(l10n.playerQueue,
+                            style: Theme.of(ctx).textTheme.titleMedium),
+                      ),
+                      if (showResume)
+                        ListTile(
+                          leading: const Icon(Icons.play_circle_fill),
+                          title: Text(l10n.playerQueueResumeLast(
+                              current!.title)),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            unawaited(_resumeLastWork(current));
+                          },
+                        ),
+                      if (local.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(AppTokens.spaceMd),
+                          child: Text(l10n.playerQueueEmpty),
+                        ),
+                      for (int i = 0; i < local.length; i++)
+                        _queueItemTile(
+                          l10n,
+                          local[i],
+                          i,
+                          local.length,
+                          (int from, int to) {
+                            setStateLocal(() {
+                              final item = local.removeAt(from);
+                              local.insert(to, item);
+                            });
+                            unawaited(_queueStore.move(from, to));
+                          },
+                          () {
+                            setStateLocal(() => local.removeAt(i));
+                            unawaited(_queueStore.removeAt(i));
+                          },
+                        ),
+                      if (local.isNotEmpty)
+                        ListTile(
+                          leading: const Icon(Icons.delete_sweep),
+                          title: Text(l10n.playerQueueCleared),
+                          onTap: () {
+                            setStateLocal(() => local.clear());
+                            unawaited(_queueStore.clear());
+                          },
+                        ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _queueItemTile(
+    AppLocalizations l10n,
+    QueuedWork w,
+    int index,
+    int total,
+    void Function(int from, int to) onMove,
+    VoidCallback onRemove,
+  ) {
+    return ListTile(
+      leading: w.coverUrl != null
+          ? Image.network(w.coverUrl!,
+              width: 40,
+              height: 56,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Icon(Icons.movie))
+          : const Icon(Icons.movie),
+      title:
+          Text(w.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: w.episodeTitle != null
+          ? Text(w.episodeTitle!,
+              maxLines: 1, overflow: TextOverflow.ellipsis)
+          : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.arrow_upward),
+            tooltip: l10n.playerQueueMoveUp,
+            onPressed:
+                index > 0 ? () => onMove(index, index - 1) : null,
+          ),
+          IconButton(
+            icon: const Icon(Icons.arrow_downward),
+            tooltip: l10n.playerQueueMoveDown,
+            onPressed: index < total - 1
+                ? () => onMove(index, index + 1)
+                : null,
+          ),
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: l10n.playerQueueRemove,
+            onPressed: onRemove,
+          ),
+        ],
+      ),
+    );
   }
 
   /// 预解析下一集：当前集播放进度>80% 时后台拉取下一集地址，
@@ -2175,6 +2508,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       }
       // 切集失败也需开闸，否则该集永远不再保存进度。
       _positionRestoreDone = true;
+    }
+    // F-4：切集后更新「最近播放」的起始集（成功=新集，失败回滚=旧集）。
+    if (mounted) {
+      unawaited(_persistCurrentEpisode(_episodeIndex));
     }
   }
 
@@ -3339,6 +3676,34 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               onTap: () {
                 Navigator.pop(ctx);
                 unawaited(_resetEpisodeSettings());
+              },
+            ),
+            // ── F-4 播放队列（跨作品）──
+            const Divider(height: 1),
+            if (!_isDirectMode)
+              ListTile(
+                leading: const Icon(Icons.playlist_add),
+                title: Text(l10n.playerAddToQueue),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  unawaited(_addCurrentToQueue());
+                },
+              ),
+            if (!_isDirectMode)
+              ListTile(
+                leading: const Icon(Icons.playlist_play),
+                title: Text(l10n.playerPlayNext),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  unawaited(_playCurrentNext());
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.queue_music),
+              title: Text(l10n.playerQueue),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_showQueueSheet(l10n));
               },
             ),
             const SizedBox(height: AppTokens.spaceSm),

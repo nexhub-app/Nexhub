@@ -908,6 +908,46 @@
   "playerLock": "锁定",
   "playerUnlock": "解锁",
   "playerAutoPlayNext": "自动连播",
+  "playerAddToQueue": "加入播放队列",
+  "playerPlayNext": "下一部播放",
+  "playerQueue": "播放队列",
+  "playerQueueEmpty": "队列为空",
+  "playerQueueAdded": "已加入播放队列",
+  "playerQueuePlayNextAdded": "已设为下一部播放",
+  "playerQueueCleared": "已清空队列",
+  "playerQueueRemoved": "已从队列移除",
+  "playerQueueNoEpisodes": "该作品无可用剧集",
+  "playerQueueLoadFailed": "加载下一部失败，已停止连播",
+  "playerQueueLoading": "正在加载：{title}",
+  "@playerQueueLoading": {
+    "description": "Shown while fetching the next queued work's episode list",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "playerQueueResumeLast": "继续播放：{title}",
+  "@playerQueueResumeLast": {
+    "description": "Resume banner for the last played work",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "playerAutoNextWork": "即将播放：{title}",
+  "@playerAutoNextWork": {
+    "description": "Countdown hint before cross-work auto-play",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "playerQueueMoveUp": "上移",
+  "playerQueueMoveDown": "下移",
+  "playerQueueRemove": "移除",
   "playerDecodeMode": "解码模式",
   "playerDecodeAuto": "自动",
   "playerDecodeSw": "软件解码",

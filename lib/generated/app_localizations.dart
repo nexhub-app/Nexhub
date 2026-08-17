@@ -3884,6 +3884,102 @@ abstract class AppLocalizations {
   /// **'Auto-play next'**
   String get playerAutoPlayNext;
 
+  /// No description provided for @playerAddToQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to queue'**
+  String get playerAddToQueue;
+
+  /// No description provided for @playerPlayNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Play next'**
+  String get playerPlayNext;
+
+  /// No description provided for @playerQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Play queue'**
+  String get playerQueue;
+
+  /// No description provided for @playerQueueEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue is empty'**
+  String get playerQueueEmpty;
+
+  /// No description provided for @playerQueueAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to queue'**
+  String get playerQueueAdded;
+
+  /// No description provided for @playerQueuePlayNextAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as next'**
+  String get playerQueuePlayNextAdded;
+
+  /// No description provided for @playerQueueCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue cleared'**
+  String get playerQueueCleared;
+
+  /// No description provided for @playerQueueRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from queue'**
+  String get playerQueueRemoved;
+
+  /// No description provided for @playerQueueNoEpisodes.
+  ///
+  /// In en, this message translates to:
+  /// **'No episodes available'**
+  String get playerQueueNoEpisodes;
+
+  /// No description provided for @playerQueueLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load next work, auto-play stopped'**
+  String get playerQueueLoadFailed;
+
+  /// No description provided for @playerQueueLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading: {title}'**
+  String playerQueueLoading(String title);
+
+  /// No description provided for @playerQueueResumeLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume: {title}'**
+  String playerQueueResumeLast(String title);
+
+  /// No description provided for @playerAutoNextWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Up next: {title}'**
+  String playerAutoNextWork(String title);
+
+  /// No description provided for @playerQueueMoveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get playerQueueMoveUp;
+
+  /// No description provided for @playerQueueMoveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get playerQueueMoveDown;
+
+  /// No description provided for @playerQueueRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get playerQueueRemove;
+
   /// No description provided for @playerDecodeMode.
   ///
   /// In en, this message translates to:
