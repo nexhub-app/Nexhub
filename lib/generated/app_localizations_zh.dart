@@ -3461,6 +3461,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerBottomProgress => '隐藏控制栏时显示底部进度条';
 
   @override
+  String get playerAutoSelectLine => '自动选择可用线路';
+
+  @override
+  String get playerCurrentPlayingLine => '正在播放的线路';
+
+  @override
+  String playerLineSwitched(String line) {
+    return '已切换到线路 $line';
+  }
+
+  @override
+  String playerLineFailover(String from, String to) {
+    return '线路 $from 不可用，已切换到线路 $to';
+  }
+
+  @override
   String get playerDefaultVolume => '默认音量';
 
   @override

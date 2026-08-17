@@ -261,6 +261,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 重新解析并重新打开播放器（拿到未过期的新直链）。
   bool _reconnectExhausted = false;
 
+  // ─────────────────────── F-1 多源自动选源 / 故障回退 ───────────────────────
+
+  /// 按「源 + 剧集」记忆用户手动选过的线路名（F-1 手动选源记忆）。
+  final LineSelectionStore _lineStore = LineSelectionStore();
+
+  /// 是否开启自动选线路（来自 PlayerSettings.autoSelectLine，_init 加载）。
+  bool _autoSelectLine = true;
+
+  /// 本集会话内已尝试过（含已失败）的候选线路索引。故障回退时只轮换未尝试过的，
+  /// 避免反复跳回已确认不可用的线路形成死循环。
+  final Set<int> _triedLineIndices = <int>{};
+
+  /// 已持有「可直接播放直链」的候选线路索引。索引 0 永远是刚解析出的当前线路；
+  /// 其它线路初始只是剧集页地址，经 [_resolveLineUrl] 重新解析后会加入本集合，
+  /// 之后切回该线路无需再解析。
+  final Set<int> _resolvedLineIndices = <int>{0};
+
+
   Duration _duration = Duration.zero;
   bool _isPlaying = false;
   bool _uiVisible = true;
@@ -744,17 +762,42 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       // 解析视频地址（自动处理渲染后抽取）
       final video =
           await _resolveVideoWithCapture(service, source, widget.episode.url);
-      _playUrl = video.url;
-      _playHeaders = video.headers;
+      String playUrl = video.url;
+      Map<String, String>? playHeaders = video.headers;
+      _playUrl = playUrl;
+      _playHeaders = playHeaders;
 
       // 由解析结果构造播放线路：源提供多线路（video.lines）时使用，
       // 否则以单线路 url 兜底为「线路 1」。播放页「选集 / 线路」面板据此切换。
       if (video.url.isNotEmpty) {
         _controller.lines = _buildLines(video);
         _controller.currentLineIndex = 0;
+        // F-1：重置本集会话内的选路状态（索引 0 永远是当前刚解析出的直链）。
+        _resolvedLineIndices
+          ..clear()
+          ..add(0);
+        _triedLineIndices.clear();
+        // 手动记忆的线路优先：用户此前为本集选过某线路，进集直接用它。
+        final memName = await _lineStore.getSelectedLine(
+            widget.sourceId, widget.episode.id);
+        if (memName != null) {
+          final idx = _indexOfLineName(memName);
+          if (idx != null && idx != 0) {
+            final resolved = await _resolveLineUrl(idx);
+            if (resolved != null) {
+              _controller.lines[idx] = resolved;
+              _resolvedLineIndices.add(idx);
+              playUrl = resolved.url;
+              playHeaders = resolved.headers;
+              _controller.currentLineIndex = idx;
+            }
+          }
+        }
+        _playUrl = playUrl;
+        _playHeaders = playHeaders;
       }
 
-      await _controller.open(video.url, headers: video.headers);
+      await _controller.open(playUrl, headers: playHeaders);
       // 解析成功后自动开始播放
       _controller.play();
     }
@@ -864,6 +907,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } on Object {
       _playerSettings = const PlayerSettings();
     }
+    // F-1：自动选线路开关（来自全局 + 剧集覆盖合并结果）。
+    _autoSelectLine = _playerSettings.autoSelectLine;
     try {
       final overrides =
           await EpisodePlayerSettingsStore().loadOverrides(widget.itemId);
@@ -1862,8 +1907,29 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } finally {
       _reconnecting = false;
       if (_reconnectAttempts >= _kMaxReconnectAttempts && !_reconnectExhausted) {
-        _reconnectExhausted = true;
-        if (mounted) setState(() {});
+        // F-1 故障回退：当前线路重连耗尽，仍有未尝试的候选线路则自动切换下一条，
+        // 而非直接弹「链接失效」让用户手点。所有候选都试过才放弃。
+        final failedIndex = _controller.currentLineIndex;
+        _triedLineIndices.add(failedIndex);
+        final next = _autoSelectLine ? _nextUntriedLine() : null;
+        if (next != null) {
+          _reconnectExhausted = false;
+          _reconnectAttempts = 0;
+          final fromName = _controller.lines[failedIndex].name;
+          final toName = _controller.lines[next].name;
+          unawaited(_switchActiveLine(next, remember: false));
+          if (mounted) {
+            try {
+              _safeSnackBar(AppLocalizations.of(context)
+                  .playerLineFailover(fromName, toName));
+            } on Object {
+              // context 已失活，忽略。
+            }
+          }
+        } else {
+          _reconnectExhausted = true;
+          if (mounted) setState(() {});
+        }
       }
     }
   }
@@ -2050,15 +2116,39 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       final video =
           await _resolveVideoWithCapture(service, source, ep.url);
-      _playUrl = video.url;
-      _playHeaders = video.headers;
+      String playUrl = video.url;
+      Map<String, String>? playHeaders = video.headers;
+      _playUrl = playUrl;
+      _playHeaders = playHeaders;
       // 切集后刷新线路列表（源提供多线路时直接使用 video.lines）。
       if (video.url.isNotEmpty) {
         _controller.lines = _buildLines(video);
         _controller.currentLineIndex = 0;
+        // F-1：重置本集选路状态；手动记忆的线路优先。
+        _resolvedLineIndices
+          ..clear()
+          ..add(0);
+        _triedLineIndices.clear();
+        final memName = await _lineStore.getSelectedLine(
+            widget.sourceId, ep.id);
+        if (memName != null) {
+          final idx = _indexOfLineName(memName);
+          if (idx != null && idx != 0) {
+            final resolved = await _resolveLineUrl(idx);
+            if (resolved != null) {
+              _controller.lines[idx] = resolved;
+              _resolvedLineIndices.add(idx);
+              playUrl = resolved.url;
+              playHeaders = resolved.headers;
+              _controller.currentLineIndex = idx;
+            }
+          }
+        }
+        _playUrl = playUrl;
+        _playHeaders = playHeaders;
       }
       if (token != _loadToken) return;
-      await _controller.open(video.url, headers: video.headers);
+      await _controller.open(playUrl, headers: playHeaders);
       // 切集后自动播放
       _controller.play();
       _danmakuController.clear();
@@ -2242,6 +2332,114 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final group = byLine[line];
     if (group == null || pos < 0 || pos >= group.length) return '';
     return episodes[group[pos]].url;
+  }
+
+  // ─────────────────────── F-1 多源自动选源 / 故障回退 ───────────────────────
+
+  /// 在候选线路列表中按线路名找索引（线路名已 canonicalize，与记忆存储的键一致）。
+  int? _indexOfLineName(String name) {
+    for (var i = 0; i < _controller.lines.length; i++) {
+      if (_controller.lines[i].name == name) return i;
+    }
+    return null;
+  }
+
+  /// 取指定候选线路的「可直接播放直链」。
+  ///
+  /// 索引 0 永远是刚解析出的当前线路（已是直链）；其它线路初始只是剧集页地址，
+  /// 须重新走解析链路拿真实直链。解析失败（源要求验证等）返回 null，调用方回退。
+  Future<VideoLine?> _resolveLineUrl(int index) async {
+    if (index < 0 || index >= _controller.lines.length) return null;
+    if (_resolvedLineIndices.contains(index)) {
+      return _controller.lines[index];
+    }
+    final pageUrl = _controller.lines[index].url;
+    if (pageUrl.isEmpty) return null;
+    try {
+      final repo = context.read<SourceRepository>();
+      final service = context.read<MediaApiService>();
+      final source = repo.getById(widget.sourceId);
+      if (source == null) return null;
+      final video = await _resolveVideoWithCapture(service, source, pageUrl);
+      if (video.url.isEmpty) return null;
+      return VideoLine(
+        name: _controller.lines[index].name,
+        url: video.url,
+        headers: video.headers,
+      );
+    } on Object {
+      return null;
+    }
+  }
+
+  /// 切换到指定候选线路并续播（故障回退 / 用户手动选源共用）。
+  ///
+  /// 目标线路若尚未解析（仍是剧集页地址）先重新解析拿到直链，再在同一 Player
+  /// 实例上重开恢复播放；已解析过的线路直接复用 [PlayerController.selectLine]
+  /// （含 B-10 位置恢复）。切换成功则记住该线路（按集），供下次进集自动选。
+  Future<void> _switchActiveLine(int index,
+      {Duration? resumeAt, bool remember = true}) async {
+    if (_disposed || index < 0 || index >= _controller.lines.length) return;
+    if (index == _controller.currentLineIndex) return;
+    _reconnecting = true;
+    try {
+      final target = await _resolveLineUrl(index);
+      if (target == null || target.url.isEmpty) return;
+      _controller.lines[index] = target;
+      _resolvedLineIndices.add(index);
+      _controller.currentLineIndex = index;
+      _playUrl = target.url;
+      _playHeaders = target.headers;
+      // 同一 Player 实例重开并恢复到断流前进度（F-10/B-10 同款稳健 seek）。
+      await _reopenAndResume(target.url, target.headers,
+          resumeAt ?? _lastGoodPosition);
+      await _controller.play();
+      // 仅用户手动选源才记忆；故障自动回退不写死偏好（避免临时死链被永久锁定）。
+      if (remember) {
+        _rememberLine(target.name);
+        if (mounted) {
+          _safeSnackBar(
+              AppLocalizations.of(context).playerLineSwitched(target.name));
+        }
+      }
+    } on Object {
+      // 切换失败静默忽略，stall / 重连逻辑会接管后续恢复。
+    } finally {
+      _reconnecting = false;
+    }
+  }
+
+  /// 记住用户手动选中的线路（按「源 + 剧集」）。
+  Future<void> _rememberLine(String lineName) async {
+    try {
+      await _lineStore.setSelectedLine(
+          widget.sourceId, widget.episode.id, lineName);
+    } on Object {
+      // 记忆失败不影响播放。
+    }
+  }
+
+  /// 故障回退：找一个尚未尝试过的候选线路索引（排除当前线路）。
+  /// 返回 null 表示所有候选线路都已尝试过，应放弃自动切换。
+  int? _nextUntriedLine() {
+    for (var i = 0; i < _controller.lines.length; i++) {
+      if (i != _controller.currentLineIndex && !_triedLineIndices.contains(i)) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  /// 安全地弹 SnackBar：widget 失活（异步回调滞后）时吞掉异常，避免崩溃。
+  void _safeSnackBar(String message) {
+    try {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      );
+    } on Object {
+      // context 已失活，忽略。
+    }
   }
 
   /// 相对当前播放位置 seek 指定偏移（负值快退，正值快进），自动 clamp 到 [0, _duration]。
@@ -4165,6 +4363,63 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         ],
                       ),
                     ),
+                    const Divider(height: 1),
+                    // F-1：当前播放线路切换（手动选源，按集记忆）。
+                    // 仅当候选线路 > 1 时显示；点选即切换正在播放的线路并记住。
+                    if (_controller.lines.length > 1)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                            AppTokens.spaceMd,
+                            AppTokens.spaceSm,
+                            AppTokens.spaceMd,
+                            0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              l10n.playerCurrentPlayingLine,
+                              style: Theme.of(ctx)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(ctx)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                            ),
+                            const SizedBox(height: AppTokens.spaceXs),
+                            SizedBox(
+                              height: 36,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _controller.lines.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: AppTokens.spaceSm),
+                                itemBuilder: (BuildContext _, int i) {
+                                  final line = _controller.lines[i];
+                                  final active =
+                                      i == _controller.currentLineIndex;
+                                  return ChoiceChip(
+                                    label: Text(line.name),
+                                    selected: active,
+                                    onSelected: (bool _) async {
+                                      if (i ==
+                                          _controller.currentLineIndex) {
+                                        return;
+                                      }
+                                      // 关闭面板后切换（与选集同理：点选即生效）。
+                                      Navigator.pop(ctx);
+                                      await _switchActiveLine(i);
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      const SizedBox.shrink(),
                     const Divider(height: 1),
                     // 上半：当前线路的剧集列表（仅显示过滤后的集）。
                     Expanded(

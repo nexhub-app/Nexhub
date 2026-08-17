@@ -30,6 +30,9 @@ class PlayerSettings {
   final PlayerAspectRatio aspectRatio;
   final double playbackSpeed;
   final bool autoPlayNext;
+  /// 自动选线路（F-1，默认开启）：进入剧集时优先用「按集记忆」选过的线路；
+  /// 播放卡死/失败后自动轮换到其它候选线路重试，不弹「链接失效」让用户手点。
+  final bool autoSelectLine;
   /// 自动连播倒计时秒数（F-8）：播完一集后弹「N 秒后播放下一集」可取消，
   /// 0 = 立即连播（保持旧行为）。
   final int autoPlayCountdownSeconds;
@@ -60,6 +63,7 @@ class PlayerSettings {
     this.aspectRatio = PlayerAspectRatio.defaultRatio,
     this.playbackSpeed = 1.0,
     this.autoPlayNext = true,
+    this.autoSelectLine = true,
     this.autoPlayCountdownSeconds = 0,
     this.subtitleFontSize = 16.0,
     this.lockOrientation = PlayerLockOrientation.landscape,
@@ -87,6 +91,7 @@ class PlayerSettings {
     PlayerAspectRatio? aspectRatio,
     double? playbackSpeed,
     bool? autoPlayNext,
+    bool? autoSelectLine,
     int? autoPlayCountdownSeconds,
     double? subtitleFontSize,
     PlayerLockOrientation? lockOrientation,
@@ -113,6 +118,7 @@ class PlayerSettings {
         aspectRatio: aspectRatio ?? this.aspectRatio,
         playbackSpeed: playbackSpeed ?? this.playbackSpeed,
         autoPlayNext: autoPlayNext ?? this.autoPlayNext,
+        autoSelectLine: autoSelectLine ?? this.autoSelectLine,
         autoPlayCountdownSeconds:
             autoPlayCountdownSeconds ?? this.autoPlayCountdownSeconds,
         subtitleFontSize: subtitleFontSize ?? this.subtitleFontSize,
@@ -142,6 +148,7 @@ class PlayerSettings {
         'aspectRatio': aspectRatio.name,
         'playbackSpeed': playbackSpeed,
         'autoPlayNext': autoPlayNext,
+        'autoSelectLine': autoSelectLine,
         'autoPlayCountdownSeconds': autoPlayCountdownSeconds,
         'subtitleFontSize': subtitleFontSize,
         'lockOrientation': lockOrientation.name,
@@ -205,6 +212,7 @@ class PlayerSettings {
       aspectRatio: aspectRatio,
       playbackSpeed: (json['playbackSpeed'] as num?)?.toDouble() ?? 1.0,
       autoPlayNext: json['autoPlayNext'] as bool? ?? true,
+      autoSelectLine: json['autoSelectLine'] as bool? ?? true,
       autoPlayCountdownSeconds:
           (json['autoPlayCountdownSeconds'] as num?)?.toInt() ?? 0,
       subtitleFontSize:
@@ -327,6 +335,61 @@ class EpisodePlayerSettingsStore {
   Future<void> clearOverrides(String itemId) async {
     final all = await _loadAll();
     all.remove(itemId);
+    await _backend.set(_key, jsonEncode(all));
+  }
+}
+
+/// 按「源 + 剧集」记忆用户手动选中的播放线路名（F-1 手动选源记忆）。
+///
+/// 仅存用户实际手动切换过的线路；读取不到时回退到自动选线路逻辑。
+/// 存线路**名**而非索引：线路列表由源声明、顺序可能随源更新变化，
+/// 按名匹配比按索引更稳健。
+///
+/// 值结构：`{"<sourceId>::<episodeId>": "<lineName>"}`。
+class LineSelectionStore {
+  static const String _key = 'episode_line_selection_v1';
+
+  final PrefsBackend _backend;
+
+  LineSelectionStore({PrefsBackend? backend})
+      : _backend = backend ?? const SharedPrefsBackend();
+
+  String _mk(String sourceId, String episodeId) => '$sourceId::$episodeId';
+
+  Future<Map<String, dynamic>> _loadAll() async {
+    final raw = await _backend.get(_key);
+    if (raw == null || raw.isEmpty) return <String, dynamic>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } on Object {
+      // 数据损坏按空处理。
+    }
+    return <String, dynamic>{};
+  }
+
+  /// 读取某剧集记忆的线路名；无记忆返回 null。
+  Future<String?> getSelectedLine(String sourceId, String episodeId) async {
+    final all = await _loadAll();
+    final value = all[_mk(sourceId, episodeId)];
+    return value is String ? value : null;
+  }
+
+  /// 写入某剧集选中的线路名。
+  Future<void> setSelectedLine(
+    String sourceId,
+    String episodeId,
+    String lineName,
+  ) async {
+    final all = await _loadAll();
+    all[_mk(sourceId, episodeId)] = lineName;
+    await _backend.set(_key, jsonEncode(all));
+  }
+
+  /// 清除某剧集的记忆（恢复自动选线路）。
+  Future<void> clear(String sourceId, String episodeId) async {
+    final all = await _loadAll();
+    all.remove(_mk(sourceId, episodeId));
     await _backend.set(_key, jsonEncode(all));
   }
 }

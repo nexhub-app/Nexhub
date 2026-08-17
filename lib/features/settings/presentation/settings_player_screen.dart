@@ -538,6 +538,14 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       onChanged: (v) => _update(
                           _settings.copyWith(showBottomProgress: v)),
                     ),
+                    // F-1：自动选线路（按集记忆的线路优先；失败自动轮换候选线路）。
+                    SettingsSwitchTile(
+                      key: const ValueKey<String>('player.autoSelectLine'),
+                      title: l10n.playerAutoSelectLine,
+                      value: _settings.autoSelectLine,
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(autoSelectLine: v)),
+                    ),
                   ],
                 ),
               ],
