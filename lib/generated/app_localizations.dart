@@ -6752,6 +6752,30 @@ abstract class AppLocalizations {
   /// **'Show bottom progress bar when controls hidden'**
   String get playerBottomProgress;
 
+  /// No description provided for @playerAutoSelectLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-select available line'**
+  String get playerAutoSelectLine;
+
+  /// No description provided for @playerCurrentPlayingLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Currently playing line'**
+  String get playerCurrentPlayingLine;
+
+  /// No description provided for @playerLineSwitched.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched to line {line}'**
+  String playerLineSwitched(String line);
+
+  /// No description provided for @playerLineFailover.
+  ///
+  /// In en, this message translates to:
+  /// **'Line {from} unavailable, switched to line {to}'**
+  String playerLineFailover(String from, String to);
+
   /// No description provided for @playerDefaultVolume.
   ///
   /// In en, this message translates to:

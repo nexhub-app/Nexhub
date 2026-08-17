@@ -3515,6 +3515,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show bottom progress bar when controls hidden';
 
   @override
+  String get playerAutoSelectLine => 'Auto-select available line';
+
+  @override
+  String get playerCurrentPlayingLine => 'Currently playing line';
+
+  @override
+  String playerLineSwitched(String line) {
+    return 'Switched to line $line';
+  }
+
+  @override
+  String playerLineFailover(String from, String to) {
+    return 'Line $from unavailable, switched to line $to';
+  }
+
+  @override
   String get playerDefaultVolume => 'Default Volume';
 
   @override
