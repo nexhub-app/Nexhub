@@ -1995,6 +1995,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerAutoPlayNext => 'Auto-play next';
 
   @override
+  String get playerAddToQueue => 'Add to queue';
+
+  @override
+  String get playerPlayNext => 'Play next';
+
+  @override
+  String get playerQueue => 'Play queue';
+
+  @override
+  String get playerQueueEmpty => 'Queue is empty';
+
+  @override
+  String get playerQueueAdded => 'Added to queue';
+
+  @override
+  String get playerQueuePlayNextAdded => 'Set as next';
+
+  @override
+  String get playerQueueCleared => 'Queue cleared';
+
+  @override
+  String get playerQueueRemoved => 'Removed from queue';
+
+  @override
+  String get playerQueueNoEpisodes => 'No episodes available';
+
+  @override
+  String get playerQueueLoadFailed => 'Failed to load next work, auto-play stopped';
+
+  @override
+  String playerQueueLoading(String title) {
+    return 'Loading: $title';
+  }
+
+  @override
+  String playerQueueResumeLast(String title) {
+    return 'Resume: $title';
+  }
+
+  @override
+  String playerAutoNextWork(String title) {
+    return 'Up next: $title';
+  }
+
+  @override
+  String get playerQueueMoveUp => 'Move up';
+
+  @override
+  String get playerQueueMoveDown => 'Move down';
+
+  @override
+  String get playerQueueRemove => 'Remove';
+
+  @override
   String get playerDecodeMode => 'Decode mode';
 
   @override

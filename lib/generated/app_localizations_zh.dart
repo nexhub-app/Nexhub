@@ -1967,6 +1967,60 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerAutoPlayNext => '自动连播';
 
   @override
+  String get playerAddToQueue => '加入播放队列';
+
+  @override
+  String get playerPlayNext => '下一部播放';
+
+  @override
+  String get playerQueue => '播放队列';
+
+  @override
+  String get playerQueueEmpty => '队列为空';
+
+  @override
+  String get playerQueueAdded => '已加入播放队列';
+
+  @override
+  String get playerQueuePlayNextAdded => '已设为下一部播放';
+
+  @override
+  String get playerQueueCleared => '已清空队列';
+
+  @override
+  String get playerQueueRemoved => '已从队列移除';
+
+  @override
+  String get playerQueueNoEpisodes => '该作品无可用剧集';
+
+  @override
+  String get playerQueueLoadFailed => '加载下一部失败，已停止连播';
+
+  @override
+  String playerQueueLoading(String title) {
+    return '正在加载：$title';
+  }
+
+  @override
+  String playerQueueResumeLast(String title) {
+    return '继续播放：$title';
+  }
+
+  @override
+  String playerAutoNextWork(String title) {
+    return '即将播放：$title';
+  }
+
+  @override
+  String get playerQueueMoveUp => '上移';
+
+  @override
+  String get playerQueueMoveDown => '下移';
+
+  @override
+  String get playerQueueRemove => '移除';
+
+  @override
   String get playerDecodeMode => '解码模式';
 
   @override

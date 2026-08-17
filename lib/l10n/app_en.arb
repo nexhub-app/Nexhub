@@ -921,6 +921,46 @@
   "playerLock": "Lock",
   "playerUnlock": "Unlock",
   "playerAutoPlayNext": "Auto-play next",
+  "playerAddToQueue": "Add to queue",
+  "playerPlayNext": "Play next",
+  "playerQueue": "Play queue",
+  "playerQueueEmpty": "Queue is empty",
+  "playerQueueAdded": "Added to queue",
+  "playerQueuePlayNextAdded": "Set as next",
+  "playerQueueCleared": "Queue cleared",
+  "playerQueueRemoved": "Removed from queue",
+  "playerQueueNoEpisodes": "No episodes available",
+  "playerQueueLoadFailed": "Failed to load next work, auto-play stopped",
+  "playerQueueLoading": "Loading: {title}",
+  "@playerQueueLoading": {
+    "description": "Shown while fetching the next queued work's episode list",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "playerQueueResumeLast": "Resume: {title}",
+  "@playerQueueResumeLast": {
+    "description": "Resume banner for the last played work",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "playerAutoNextWork": "Up next: {title}",
+  "@playerAutoNextWork": {
+    "description": "Countdown hint before cross-work auto-play",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "playerQueueMoveUp": "Move up",
+  "playerQueueMoveDown": "Move down",
+  "playerQueueRemove": "Remove",
   "playerDecodeMode": "Decode mode",
   "playerDecodeAuto": "Auto",
   "playerDecodeSw": "Software",
