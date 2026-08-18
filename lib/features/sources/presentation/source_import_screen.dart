@@ -75,7 +75,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
     });
     try {
       // 统一批量解析：支持单源 / JSON 数组（小说+媒体+漫画混排）/
-      // Legado 书源 / 包装对象 / NDJSON / XML，一次导入多种类型。
+      // 通用书源格式 / 包装对象 / NDJSON / XML，一次导入多种类型。
       final list = SourceRepository.parseMixedSources(text);
       final repo = context.read<SourceRepository>();
       final filtered = list.where((c) => !repo.isAgeBlocked(c)).toList();

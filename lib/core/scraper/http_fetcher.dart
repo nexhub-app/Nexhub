@@ -104,6 +104,20 @@ class HttpFetcher {
   /// 既轮换了不同站点之间的指纹，又不会在单次会话里自相矛盾。
   final Map<String, int> _hostProfile = {};
 
+  /// 源声明的 User-Agent 按 host 覆盖（如笔趣阁移动端 UA）。
+  ///
+  /// 书源可能在 header 里声明特定 UA，移动站点加固反爬后会拒绝中心化桌面
+  /// UA。直接请求与 WebView 验证、后续重试必须共用同一 UA，否则会话 Cookie
+  /// 绑定到不同 UA → 验证死循环。由 [AnalyzeUrl] 在发起请求时按 host 注册，
+  /// 作为 [userAgentForUrl] 的最高优先级（仅低于高级设置的全局默认 UA）。
+  final Map<String, String> _hostUaOverrides = {};
+
+  /// 注册某 host 的源声明 UA（覆盖中心化指纹 UA）。空 host/UA 直接忽略。
+  void registerHostUserAgent(String host, String ua) {
+    if (host.isEmpty || ua.isEmpty) return;
+    _hostUaOverrides[host] = ua;
+  }
+
   static final List<_BrowserProfile> _profiles = const <_BrowserProfile>[
     _BrowserProfile(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -282,6 +296,10 @@ class HttpFetcher {
   String _uaForHost(String host) {
     final custom = _customUa();
     if (custom.isNotEmpty) return custom;
+    // 源声明 UA 优先：保证「直连请求 == WebView 验证 == 重试」三处 UA 一致，
+    // 避免 Cookie 绑定错位导致的验证死循环（笔趣阁等移动站点）。
+    final override = _hostUaOverrides[host];
+    if (override != null && override.isNotEmpty) return override;
     return _profiles[_profileIndexFor(host)].ua;
   }
 

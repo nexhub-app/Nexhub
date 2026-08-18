@@ -339,7 +339,7 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     }
 
     // 按类型分组。manifest 里 type 字段可能有多种写法（官方库用短词
-    // `anime`/`manga`/`novel`，Legado 老源用 `bookSource`，旧版用
+    // `anime`/`manga`/`novel`，老书源格式用 `bookSource`，旧版用
     // `animeSource` 等长词），统一归到三类后再排序展示，未识别则归「未分类」。
     final groups = <String, List<int>>{};
     for (int i = 0; i < _entries.length; i++) {
@@ -528,7 +528,7 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
   }
 
   /// 把 manifest 里的 type 字段统一归到三类长词，未知则返回 'unknown'。
-  /// 兼容官方短词（`anime`/`manga`/`novel`）、Legado 老词（`bookSource`）
+  /// 兼容官方短词（`anime`/`manga`/`novel`）、老格式书源词（`bookSource`）
   /// 以及长词（`animeSource`/`mangaSource`/`novelSource`）。
   static String _canonicalType(String? raw) {
     final s = (raw ?? '').trim().toLowerCase();

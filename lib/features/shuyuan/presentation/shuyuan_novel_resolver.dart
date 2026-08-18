@@ -19,11 +19,16 @@ import '../../../core/models/novel_block.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/resolver/source_resolver.dart';
 import '../../../core/resolver/resolver_registry.dart';
+import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/verification_detector.dart';
+import '../web_book/book_chapter_list.dart';
+import '../web_book/book_content.dart';
+import '../web_book/book_info.dart';
 import '../web_book/book_list.dart';
 import '../model/book_source.dart';
 import '../model/search_book.dart';
 import '../model/xiaoshuo_book.dart';
+import '../model/xiaoshuo_book_chapter.dart';
 import '../shuyuan_adapter.dart';
 import '../web_book/web_book.dart';
 
@@ -47,36 +52,53 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
     }
     final bookSource = shuyuanSource.toBookSource();
 
-    switch (apiName) {
-      case 'search':
-        return _handleSearch(source, bookSource, vars);
-      case 'explore':
-        return _handleExplore(source, bookSource, vars);
-      case 'category':
-        // 动态筛选 Sheet 可能发 __route='category'（被 MediaApiService 剔除后
-        // 不影响源 URL）；本源 routes 不含 'category'，通常已被忽略并沿用原
-        // apiName。此处兜底，避免极端情况下抛 UnsupportedError。
-        return _handleExplore(source, bookSource, vars);
-      case 'latest':
-        return _handleLatest(source, bookSource, vars);
-      case 'detail':
-        return _handleDetail(source, bookSource, vars);
-      case 'toc':
-      case 'chapters':
-        return _handleChapterList(source, bookSource, vars, onProgress: onProgress);
-      case 'content':
-        return _handleContent(source, bookSource, vars);
+    try {
+      switch (apiName) {
+        case 'search':
+          return await _handleSearch(source, bookSource, vars);
+        case 'explore':
+          return await _handleExplore(source, bookSource, vars);
+        case 'category':
+          // 动态筛选 Sheet 可能发 __route='category'（被 MediaApiService 剔除后
+          // 不影响源 URL）；本源 routes 不含 'category'，通常已被忽略并沿用原
+          // apiName。此处兜底，避免极端情况下抛 UnsupportedError。
+          return await _handleExplore(source, bookSource, vars);
+        case 'latest':
+          return await _handleLatest(source, bookSource, vars);
+        case 'detail':
+          return await _handleDetail(source, bookSource, vars);
+        case 'toc':
+        case 'chapters':
+          return await _handleChapterList(source, bookSource, vars, onProgress: onProgress);
+        case 'content':
+          return await _handleContent(source, bookSource, vars);
         default:
           throw UnsupportedError(
             'ShuyuanNovelResolver does not support apiName: $apiName',
           );
       }
+    } on VerificationRequiredException catch (e) {
+      // 反爬拦截（Cloudflare / 滑块 / 临时挑战）。声明 useWebview 的书源（如
+      // 笔趣阁）被站点的 TLS/指纹校验拦截——Dart HTTP 的客户端指纹被拒，手动
+      // Cookie 验证无效。改为抛 [WebViewHtmlRequest]，交由 UI 打开真浏览器
+      // 取回渲染后 HTML 再回灌源选择器解析；未声明 useWebview 的书源维持原
+      // 验证流程（仅影响已显式开启的书源，不影响其它书源）。
+      if (source.useWebview) {
+        throw WebViewHtmlRequest(
+          sourceId: source.id,
+          apiName: apiName,
+          url: e.url,
+        );
+      }
+      rethrow;
+    }
   }
 
   /// 渲染后 HTML 回灌：WebView 过验证后拿回的整页 HTML 直接走 WebBook 规则解析，
   /// 不再重新发起直连请求（否则会再次撞 Cloudflare）。覆盖 search/explore/latest
-  /// （列表类，用 [BookList] 解析）；detail/chapters/content 在真机极少被反爬拦截，
-  /// 回退到普通直连 [resolve]（重抓），保持行为兼容。
+  /// （列表类，用 [BookList] 解析）；detail/chapters/content 同样直接解析渲染
+  /// HTML，不再回退直连 [resolve]（否则回灌后会再次撞墙，形成「验证→重抓→再验证」
+  /// 死循环，正文/目录/详情永远为空）。
   @override
   Future<dynamic> resolveRenderedHtml(
     PluginConfig source,
@@ -106,9 +128,58 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
         return books
             .map((sb) => _searchBookToMediaItem(sb, source.id))
             .toList();
+      case 'detail':
+        // 详情页：用 [BookInfo] 解析渲染后 HTML（与 [WebBook.getBookInfo] 同口径）。
+        final id = vars['id'] ?? vars['detailUrl'] ?? '';
+        final book = XiaoshuoBook(bookUrl: id, name: '');
+        BookInfo.analyzeBookInfo(
+          bookSource: bookSource,
+          book: book,
+          baseUrl: id,
+          redirectUrl: id,
+          body: html,
+        );
+        return _xiaoshuoBookToMediaItem(book, source.id);
+      case 'toc':
+      case 'chapters':
+        // 目录：用 [BookChapterList] 解析渲染后 HTML（与 [WebBook.getChapterList]
+        // 首页批次同口径，逐章连续编号以支持上下章导航）。
+        final id = vars['id'] ?? vars['detailUrl'] ?? '';
+        final book = XiaoshuoBook(bookUrl: id, name: '');
+        final chapters = BookChapterList.analyzeChapterList(
+          bookSource: bookSource,
+          book: book,
+          baseUrl: id,
+          redirectUrl: id,
+          body: html,
+        );
+        return <Episode>[
+          for (var i = 0; i < chapters.length; i++)
+            Episode(id: '$i', title: chapters[i].title, url: chapters[i].url),
+        ];
+      case 'content':
+        // 正文：用 [BookContent] 解析渲染后 HTML（与 [WebBook.getContent] 同口径，
+        // 声明式 ruleContent 而非脚本 override——书源渲染路径一致）。正文分页跟随
+        // 在渲染路径下不做（WebView 取回的已是单页渲染结果），绝大多数章节单页。
+        final chapterUrl = vars['url'] ?? vars['chapter'] ?? '';
+        final book = XiaoshuoBook(bookUrl: '', name: '');
+        final blocks = BookContent.analyzeContent(
+          bookSource: bookSource,
+          book: book,
+          bookChapter: XiaoshuoBookChapter(bookUrl: '', url: chapterUrl),
+          baseUrl: chapterUrl,
+          redirectUrl: chapterUrl,
+          body: html,
+        );
+        if (blocks.isEmpty) {
+          throw SourceResolveException(
+            sourceId: source.id,
+            apiName: 'content',
+            message: '正文渲染后解析为空',
+          );
+        }
+        return blocks;
       default:
-        // detail / chapters / content：真机极少被反爬拦截（详情页/正文已可正常抓取），
-        // 回退到普通直连 resolve（重抓），保持行为兼容。
         return resolve(source, apiName, vars: vars);
     }
   }

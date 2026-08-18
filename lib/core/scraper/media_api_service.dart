@@ -137,7 +137,7 @@ class MediaApiService {
   /// [HttpFetcher] 取回原始 JSON 再交给 [CollectApiParser]，属通用 MacCMS 处理，
   /// 不含任何站点特定逻辑。
   Future<List<CategoryEntry>> fetchCategories(PluginConfig source) async {
-    // 0. 书源（Legado / shuyuan）：分类声明在 selectors['xiaoshuo'].exploreUrl，
+    // 0. 书源（通用书源格式 / shuyuan）：分类声明在 selectors['xiaoshuo'].exploreUrl，
     //    形如「玄幻小说::https://...\n修真小说::https://...」。经 ShuyuanAdapter
     //    转换后从未进入既有分类逻辑，故在此优先解析。含 `<js>` 的动态分类首版跳过。
     final xiaoshuo = source.selectors?['xiaoshuo'];

@@ -183,8 +183,8 @@ class SourceRepository extends ChangeNotifier {
   ///
   /// 支持输入形态：
   /// - 单个 PluginConfig（Map）
-  /// - JSON 数组（PluginConfig 与 Legado 书源可混排）
-  /// - 单个 Legado 书源对象（缺 `type` 字段）
+  /// - JSON 数组（PluginConfig 与通用书源格式可混排）
+  /// - 单个通用书源格式对象（缺 `type` 字段）
   /// - 包装对象 `{"bookSources":[...]}` / `{"data":[...]}` 等
   /// - NDJSON（每行一个对象）
   /// - XML（书源 `<source>` / `<bookSource>`）
@@ -307,7 +307,7 @@ class SourceRepository extends ChangeNotifier {
     }
   }
 
-  /// 解析单个对象：Legado 书源（缺 type）→ 转 PluginConfig；
+  /// 解析单个对象：通用书源格式（缺 type）→ 转 PluginConfig；
   /// 否则按 PluginConfig 解析，校验失败返回 null。
   static PluginConfig? _tryParseMapWithService(
     Map<String, dynamic> json,

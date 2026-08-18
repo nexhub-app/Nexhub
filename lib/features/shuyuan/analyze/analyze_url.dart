@@ -230,8 +230,14 @@ class AnalyzeUrl {
 
     // 全应用统一 UA（中心真源）：过验证的 UA 与后续 HttpFetcher 重试的 UA 必须一致，
     // 否则反爬把 Cookie 绑定到 UA+IP，UA 漂移 → Cookie 失效 → 验证死循环。
+    // 最终 UA：默认中心化指纹 UA；若源 header 显式声明 UA（如笔趣阁移动端 UA），
+    // 则改用源的 UA——移动站点加固反爬后会拒绝桌面 UA，旧逻辑强制剥掉源 UA、
+    // 改用桌面 UA 正是「笔趣阁无需验证却被判 403/验证」的根因。
+    // 无论哪种 UA，都按 host 注册到 HttpFetcher，保证 WebView 验证与后续重试
+    // 复用同一 UA → 会话 Cookie 绑定一致，避免验证死循环。
+    final effectiveUa = HttpFetcher.instance.userAgentForUrl(url);
     final requestHeaders = <String, String>{
-      'User-Agent': HttpFetcher.instance.userAgentForUrl(url),
+      'User-Agent': effectiveUa,
       'Accept':
           'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -241,9 +247,22 @@ class AnalyzeUrl {
     if (source?.header != null && source!.header!.isNotEmpty) {
       try {
         final headerMap = _parseHeader(source!.header!);
-        // 源 header 的 User-Agent 若覆盖中心 UA，会破坏「验证 UA==重试 UA」一致
-        // 性，故跳过其 UA，仅保留 Referer 等其他字段。
-        headerMap.remove('User-Agent');
+        // 源 header 的 User-Agent 必须生效（尊重「源即插件」：源作者配的 UA 即意图）。
+        // 提取后按 host 注册到 HttpFetcher，使 WebView 验证复用同一 UA。
+        String? sourceUa;
+        for (final key in headerMap.keys.toList()) {
+          if (key.toLowerCase() == 'user-agent') {
+            sourceUa = headerMap.remove(key);
+            break;
+          }
+        }
+        if (sourceUa != null && sourceUa.isNotEmpty) {
+          requestHeaders['User-Agent'] = sourceUa;
+          final host = Uri.tryParse(url)?.host;
+          if (host != null && host.isNotEmpty) {
+            HttpFetcher.instance.registerHostUserAgent(host, sourceUa);
+          }
+        }
         requestHeaders.addAll(headerMap);
       } catch (_) {}
     }

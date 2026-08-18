@@ -408,7 +408,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       try {
         final text = await readSourceText(path);
         // 统一批量解析：单 PluginConfig / JSON 数组（小说+媒体+漫画混排）/
-        // Legado 书源 / XML 等，一个文件可解析出多个源。
+        // 通用书源格式 / XML 等，一个文件可解析出多个源。
         final configs = SourceRepository.parseMixedSources(text);
         if (configs.isEmpty) {
           items.add(_ImportPreviewItem(
