@@ -8,6 +8,10 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"
         tools:ignore="ScopedStorage"/>
+    <!-- F-25 后台播放 + 媒体通知：Android 14+ 前台服务类型与通知权限 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="nexhub"
         android:name="${applicationName}"
@@ -64,6 +68,16 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- F-25 后台播放：声明 AudioService 前台服务类型（Android 14+ 必需），
+             与 audio_service 插件清单合并；mediaPlayback 类型避免被系统回收。 -->
+        <service
+            android:name="com.ryanheise.audioservice.AudioService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </service>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
