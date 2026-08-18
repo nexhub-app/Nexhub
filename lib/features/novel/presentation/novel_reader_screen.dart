@@ -49,6 +49,7 @@ import '../../../core/widgets/web_favorite_action.dart';
 import '../../../core/widgets/source_image.dart';
 import '../../../core/novel/novel_chinese_converter.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
+import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/local/local_novel_parser.dart';
 import '../../../core/novel/novel_toc_store.dart';
 import 'novel_animated_page_view.dart';
@@ -319,6 +320,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 正文抓取撞验证（如 Cloudflare 临时挑战）时记录异常：错误视图的重试
   /// 按钮改走验证页（回灌 Cookie 后重载本章），而非死错误无验证入口。
   VerificationRequiredException? _verificationError;
+
+  /// 正文抓取被反爬拦截且源声明 useWebview 时记录 [WebViewHtmlRequest]：错误
+  /// 视图提供「抓取本章渲染内容」入口，打开真浏览器取回渲染后 HTML 回灌解析，
+  /// 而非走无效的手动 Cookie 验证（Dart HTTP 的 TLS 指纹被 Cloudflare 拒）。
+  WebViewHtmlRequest? _htmlCaptureRequest;
 
   /// 本地单文件（EPUB / TXT）：整本解析一次后缓存的章节列表，以及对应的
   /// 章节导航列表（供目录/上下章）。逐章加载：`_loadLocalText` 每次
@@ -1463,6 +1469,18 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       // 合法的页码会在 _buildReader 哨兵校正后，由后续翻页/渲染自动保存；
       // 若 restorePage ≥ 0 则正常记录进度。
       if (restorePage >= 0) _saveProgress(restorePage);
+    } on WebViewHtmlRequest catch (e) {
+      // 反爬拦截且源声明 useWebview：记录请求，由错误视图提供「抓取本章渲染
+      // 内容」入口（打开真浏览器取回渲染 HTML 回灌），而非无效的手动验证流程。
+      if (mounted) {
+        setState(() {
+          _isResolveError = false;
+          _verificationError = null;
+          _htmlCaptureRequest = e;
+          _error = e.toString();
+          _loading = false;
+        });
+      }
     } on VerificationRequiredException catch (e) {
       // 验证拦截：记录异常供错误视图提供"去验证"入口，修复"验证完成后
       // 正文仍无法显示"的阅读器侧断链（此前落入通用分支成死错误）。
@@ -1488,6 +1506,82 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         setState(() {
           _isResolveError = false;
           _verificationError = null;
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+    _chapterLoading = false;
+  }
+
+  /// 用 WebView 取回的渲染后 HTML 重抓本章正文（源声明 useWebview 的反爬回灌路径）。
+  ///
+  /// 与 [_loadChapter] 仅差在把 [renderedHtml] 透传给 [MediaApiService
+  /// .fetchNovelContent]，从而走 [ShuyuanNovelResolver.resolveRenderedHtml]
+  /// 的 content 分支直接解析渲染 HTML，不再发起会被 Cloudflare 拒绝的直连请求。
+  Future<void> _loadChapterWithRenderedHtml(
+    int index,
+    String renderedHtml, {
+    int restorePage = 0,
+  }) async {
+    if (_chapterLoading) return;
+    _chapterLoading = true;
+    if (mounted) setState(() => _loading = true);
+    _stopAutoPage();
+    try {
+      final source = _repo.getById(widget.sourceId);
+      if (source == null) throw Exception('source not found: ${widget.sourceId}');
+      if (index < 0 || index >= widget.chapters.length) {
+        throw Exception('chapter index out of range: $index');
+      }
+      final chapter = widget.chapters[index];
+      final paragraphs = await _service.fetchNovelContent(
+        source,
+        novelId: widget.novelId,
+        chapterUrl: chapter.url,
+        renderedHtml: renderedHtml,
+      );
+      if (!mounted) {
+        _chapterLoading = false;
+        return;
+      }
+      setState(() {
+        _rawParagraphs = paragraphs;
+        _paragraphs = _applyConvert(paragraphs);
+        _loading = false;
+        _error = null;
+        _verificationError = null;
+        _htmlCaptureRequest = null;
+        _contentVersion++;
+      });
+      _setupControllers(restorePage: restorePage);
+      if (restorePage >= 0) _saveProgress(restorePage);
+    } on VerificationRequiredException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isResolveError = false;
+          _verificationError = e;
+          _htmlCaptureRequest = null;
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    } on SourceResolveException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isResolveError = true;
+          _verificationError = null;
+          _htmlCaptureRequest = null;
+          _error = e.message;
+          _loading = false;
+        });
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        setState(() {
+          _isResolveError = false;
+          _verificationError = null;
+          _htmlCaptureRequest = null;
           _error = e.toString();
           _loading = false;
         });
@@ -2269,6 +2363,26 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             if (!mounted || !shouldRetry) return;
             setState(() => _verificationError = null);
             await _loadChapter(_chapterIndex, restorePage: _currentPage);
+          },
+        );
+      }
+      // 反爬拦截态（源声明 useWebview）：打开真浏览器抓取本章渲染后 HTML 回灌解析。
+      final captureRequest = _htmlCaptureRequest;
+      if (captureRequest != null && !_isLocalMode) {
+        return _CenterMessage(
+          icon: Icons.error_outline,
+          message: l10n.captureHint,
+          onRetry: () async {
+            final outcome = await navigateToHtmlCapture(
+              context,
+              request: captureRequest,
+            );
+            if (!mounted || outcome?.hasRenderedHtml != true) return;
+            await _loadChapterWithRenderedHtml(
+              _chapterIndex,
+              outcome!.renderedHtml!,
+              restorePage: _currentPage,
+            );
           },
         );
       }
