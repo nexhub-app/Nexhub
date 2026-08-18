@@ -3521,12 +3521,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerCurrentPlayingLine => '正在播放的线路';
 
   @override
-  String playerLineSwitched(String line) {
+  String playerLineSwitched(Object line) {
     return '已切换到线路 $line';
   }
 
   @override
-  String playerLineFailover(String from, String to) {
+  String playerLineFailover(Object from, Object to) {
     return '线路 $from 不可用，已切换到线路 $to';
   }
 
