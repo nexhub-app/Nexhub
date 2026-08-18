@@ -57,5 +57,10 @@
 			</array>
 		</dict>
 	</array>
+	<!-- F-25 后台播放：声明音频后台模式，退到后台后媒体会话继续出声（iOS） -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 </dict>
 </plist>

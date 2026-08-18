@@ -2022,7 +2022,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerQueueNoEpisodes => 'No episodes available';
 
   @override
-  String get playerQueueLoadFailed => 'Failed to load next work, auto-play stopped';
+  String get playerQueueLoadFailed =>
+      'Failed to load next work, auto-play stopped';
 
   @override
   String playerQueueLoading(String title) {
@@ -3575,12 +3576,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerCurrentPlayingLine => 'Currently playing line';
 
   @override
-  String playerLineSwitched(String line) {
+  String playerLineSwitched(Object line) {
     return 'Switched to line $line';
   }
 
   @override
-  String playerLineFailover(String from, String to) {
+  String playerLineFailover(Object from, Object to) {
     return 'Line $from unavailable, switched to line $to';
   }
 

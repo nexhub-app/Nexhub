@@ -3944,19 +3944,19 @@ abstract class AppLocalizations {
   /// **'Failed to load next work, auto-play stopped'**
   String get playerQueueLoadFailed;
 
-  /// No description provided for @playerQueueLoading.
+  /// Shown while fetching the next queued work's episode list
   ///
   /// In en, this message translates to:
   /// **'Loading: {title}'**
   String playerQueueLoading(String title);
 
-  /// No description provided for @playerQueueResumeLast.
+  /// Resume banner for the last played work
   ///
   /// In en, this message translates to:
   /// **'Resume: {title}'**
   String playerQueueResumeLast(String title);
 
-  /// No description provided for @playerAutoNextWork.
+  /// Countdown hint before cross-work auto-play
   ///
   /// In en, this message translates to:
   /// **'Up next: {title}'**
@@ -6864,13 +6864,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Switched to line {line}'**
-  String playerLineSwitched(String line);
+  String playerLineSwitched(Object line);
 
   /// No description provided for @playerLineFailover.
   ///
   /// In en, this message translates to:
   /// **'Line {from} unavailable, switched to line {to}'**
-  String playerLineFailover(String from, String to);
+  String playerLineFailover(Object from, Object to);
 
   /// No description provided for @playerDefaultVolume.
   ///

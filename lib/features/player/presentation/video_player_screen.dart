@@ -24,6 +24,7 @@ import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/player/player_controller.dart';
+import '../../../core/player/audio_playback_service.dart';
 import '../../../core/player/play_queue_store.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/settings/general_settings.dart';
@@ -279,6 +280,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 其它线路初始只是剧集页地址，经 [_resolveLineUrl] 重新解析后会加入本集合，
   /// 之后切回该线路无需再解析。
   final Set<int> _resolvedLineIndices = <int>{0};
+
+  /// F-25：当前会话在 [AudioPlaybackService] 的代次 token。
+  /// 进集/切集 attach 刷新通知、dispose 时 detach（token 不符则忽略，
+  /// 兼容 pushReplacement 跨作品换页时旧页迟到 detach）。
+  int _bgToken = 0;
 
   /// 跨作品播放队列持久化（F-4）。
   final PlayQueueStore _queueStore = PlayQueueStore();
@@ -891,6 +897,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     // 刷新收藏状态（P9.1.7 §16.1 顶栏收藏按钮）
     _refreshFavorite();
+
+    // F-25：注册后台媒体通知（播放/暂停/进度/锁屏控制）。
+    _attachBackgroundPlayback();
 
     if (mounted) setState(() {});
     // 关键：_initFuture 完成后 FutureBuilder 才会渲染播放器 UI（含弹幕覆盖层），
@@ -2513,6 +2522,54 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (mounted) {
       unawaited(_persistCurrentEpisode(_episodeIndex));
     }
+    // F-25：切集成功刷新后台通知（标题/上下集按钮）。
+    if (_positionRestoreDone) _attachBackgroundPlayback();
+  }
+
+  /// F-25：把当前播放会话注册到系统媒体通知（后台播放 / 锁屏控制）。
+  ///
+  /// 使用当前集标题 + 作品名构建 [MediaItem]，并把控制器的播放/暂停/seek/
+  /// 上/下一集回调转发给 [AudioPlaybackService]。attach 内部按代次自增，
+  /// 返回的 token 供 dispose 时 detach 校验。Windows/Web 不支持时服务层
+  /// 静默降级为无操作（不影响前台播放）。
+  void _attachBackgroundPlayback() {
+    if (!_controllerCreated) return;
+    final int epIndex = _episodeIndex;
+    final String title = _currentEpisodeTitle();
+    // 当前集 ID：切集后须用当前集而非初始集（widget.episode 不可变），
+    // 否则通知栏 MediaItem.id 不刷新、跨集不更新标题关联。
+    final String currentEpId = (widget.episodes != null &&
+            epIndex >= 0 &&
+            epIndex < widget.episodes!.length)
+        ? widget.episodes![epIndex].id
+        : widget.episode.id;
+    final bool hasNext = widget.episodes != null &&
+        epIndex >= 0 &&
+        epIndex < widget.episodes!.length - 1;
+    final bool hasPrev = widget.episodes != null && epIndex > 0;
+    _bgToken = AudioPlaybackService.instance.attach(AudioPlaybackSession(
+      id: '${widget.sourceId}::$currentEpId',
+      title: title,
+      artist: widget.title,
+      positionStream: _controller.positionStream,
+      durationStream: _controller.durationStream,
+      playingStream: _controller.playingStream,
+      onPlay: () => _controller.play(),
+      onPause: () => _controller.pause(),
+      onSeek: (Duration p) => _controller.seek(p),
+      onNext: hasNext ? () async => _goNextEpisode() : null,
+      onPrev: hasPrev ? () => _changeEpisode(epIndex - 1) : null,
+    ));
+  }
+
+  /// 当前集标题（切集后随 [_episodeIndex] 变化）。
+  String _currentEpisodeTitle() {
+    if (widget.episodes != null &&
+        _episodeIndex >= 0 &&
+        _episodeIndex < widget.episodes!.length) {
+      return widget.episodes![_episodeIndex].title;
+    }
+    return widget.episode.title;
   }
 
   /// 保存当前集播放位置到 MediaPlaybackPositionManager。
@@ -3989,6 +4046,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     // PlayerController.pendingDisposal，确保「旧播放器销毁」先于「新播放器创建」，
     // 避免退出重进时新旧 surface 冲突（Lost connection to device）。
     _videoController = null;
+    // F-25：退出播放器注销后台媒体通知（token 校验防止误清跨作品换页的新会话）。
+    AudioPlaybackService.instance.detach(_bgToken);
     if (_controllerCreated) {
       _controller.dispose();
     }
