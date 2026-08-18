@@ -286,7 +286,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
           isAndroidSafUri(path) ? safBaseName(path) : p.basename(path);
       try {
         final raw = await readSourceText(path);
-        // 统一批量解析：支持小说(Legado)源，且一个文件可含多个源。
+        // 统一批量解析：支持小说(通用书源格式)源，且一个文件可含多个源。
         final configs = SourceRepository.parseMixedSources(raw);
         if (configs.isEmpty) {
           items.add(_ImportPreviewItem(

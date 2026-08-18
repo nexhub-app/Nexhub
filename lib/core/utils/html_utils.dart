@@ -51,7 +51,7 @@ class HtmlUtils {
   }
 
   /// Returns the **inner HTML** of the first element matched by [selector].
-  /// Used by `context.dom.queryHtml` (golden Legado/novel scripts) to grab a
+  /// Used by `context.dom.queryHtml` (golden 老格式 novel scripts) to grab a
   /// markup fragment (e.g. the novel-content `<div>`) for later cleaning.
   /// Unlike [query] (which returns trimmed text), this preserves the markup.
   static String? queryHtml(String html, String selector) {

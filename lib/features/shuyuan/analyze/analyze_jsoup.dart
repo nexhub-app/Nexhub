@@ -26,7 +26,7 @@ class AnalyzeByJsoup {
   /// jsoup 伪选择器 `:contains(text)` 匹配（`package:html` 的 querySelectorAll
   /// 不支持该伪类，遇到会抛异常）。这里做通用降级：剥离所有 `:contains(...)`
   /// 片段拿到基础 CSS 选择器，先 querySelectorAll，再按元素文本包含过滤。
-  /// 这是 Legado/阅读 书源里最常用的伪选择器（如 `p:contains(作者)`、
+  /// 这是主流书源格式里最常用的伪选择器（如 `p:contains(作者)`、
   /// `a:contains(下一页)`），支持它可让大量社区书源开箱即用（源即插件）。
   static final RegExp _containsRegex = RegExp(r':contains\(([^)]*)\)');
 
