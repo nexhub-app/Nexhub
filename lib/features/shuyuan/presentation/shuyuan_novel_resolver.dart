@@ -254,6 +254,13 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
       return books.map((b) => _xiaoshuoBookToMediaItem(b, source.id)).toList();
     }
 
+    // 没指定分类时，走全量发现页。书源未配置 exploreUrl（纯搜索源，无发现页）
+    // 时优雅返回空列表，避免把「书源未配置 exploreUrl」当作错误刷红屏/
+    // 空态误导用户（真实网络错误仍会正常抛出由上层重试）。
+    if (bookSource.exploreUrl == null || bookSource.exploreUrl!.isEmpty) {
+      return <MediaItem>[];
+    }
+
     // 没指定分类时，走全量发现页
     final books = await _webBook.exploreBook(source: bookSource, page: page);
     return books.map((b) => _xiaoshuoBookToMediaItem(b, source.id)).toList();
