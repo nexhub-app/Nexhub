@@ -1,12 +1,22 @@
 /// 章节目录解析：依据书源 `ruleToc` 解析章节列表（标题、URL、卷/VIP/付费标记）。
 library;
 
+import 'dart:convert';
+
+import '../analyze/js_engine.dart';
+import '../analyze/analyze_rule.dart';
 import '../model/book_source.dart';
 import '../model/xiaoshuo_book.dart';
 import '../model/xiaoshuo_book_chapter.dart';
-import '../analyze/analyze_rule.dart';
 
 class BookChapterList {
+  // 复用同一 QuickJS 运行时（按需创建），避免每次解析目录都重建运行时。
+  static JsEngine? _jsEngineHolder;
+  static JsEngine get _jsEngine {
+    _jsEngineHolder ??= JsEngine();
+    return _jsEngineHolder!;
+  }
+
   static List<XiaoshuoBookChapter> analyzeChapterList({
     required XiaoshuoBookSource bookSource,
     required XiaoshuoBook book,
@@ -20,7 +30,7 @@ class BookChapterList {
       ..setBaseUrl(baseUrl)
       ..setRedirectUrl(redirectUrl ?? baseUrl);
 
-    final chapters = <XiaoshuoBookChapter>[];
+    var chapters = <XiaoshuoBookChapter>[];
     // URL 去重：避免目录页中"最新章节预览"等栏与正式列表重复收录同一章节，
     // 也防止跨书链接被错误计入。通用能力，仅按绝对 URL 去重，不影响正常多章节。
     final seenUrls = <String>{};
@@ -190,7 +200,90 @@ class BookChapterList {
       chapters[i].index = i;
     }
 
+    // legado ruleToc.preUpdateJs / formatJs：对解析后的整章列表做 JS 二次处理
+    // （典型如统一修正章节 URL 前缀、剔除/重排章节）。legado 语义：输入列表
+    // 绑定为 JS 全局变量 `result`，脚本可就地修改或整体重排 `result`，引擎序列化
+    // `result` 回读重建章节。仅当源显式声明时进入此分支，缺省行为完全不变。
+    if (tocRule.preUpdateJs != null && tocRule.preUpdateJs!.isNotEmpty) {
+      chapters = _applyTocJs(chapters, tocRule.preUpdateJs!);
+    }
+    if (tocRule.formatJs != null && tocRule.formatJs!.isNotEmpty) {
+      chapters = _applyTocJs(chapters, tocRule.formatJs!);
+    }
+    // JS 可能增删/重排章节，重新连续编号（保持 index 与列表顺序一致）。
+    for (int i = 0; i < chapters.length; i++) {
+      chapters[i].index = i;
+    }
+
     return chapters;
+  }
+
+  /// 把章节列表桥入 JS 沙箱执行 [js]（legado `result` 绑定整章列表），
+  /// 再把结果序列化回 `List<XiaoshuoBookChapter>`。失败或结果为空时原样返回，
+  /// 保证任一源脚本异常都不会让目录彻底丢失。
+  static List<XiaoshuoBookChapter> _applyTocJs(
+    List<XiaoshuoBookChapter> chapters,
+    String js,
+  ) {
+    if (chapters.isEmpty) return chapters;
+    try {
+      // 用 legado 章节对象字段名（name/url/tag/isVolume/...）构造输入，
+      // 与 legado 脚本里访问的字段一致；bookUrl 单独保留源书籍地址。
+      final input = chapters.map((c) => <String, dynamic>{
+        'name': c.title,
+        'url': c.url,
+        'tag': c.tag,
+        'isVolume': c.isVolume,
+        'isVip': c.isVip,
+        'isPay': c.isPay,
+        'bookUrl': c.bookUrl,
+        'variableMap': c.variableMap,
+      }).toList();
+      // 末尾追加 JSON.stringify(result) 取出对象（而非字符串化的最后表达式），
+      // 与 legado `result` 变量返回约定一致；脚本即便只就地修改也能量化回读。
+      final out = _jsEngine.eval(
+        '$js\n;JSON.stringify(result);',
+        bindings: <String, dynamic>{'result': input},
+      );
+      if (out.isEmpty) return chapters;
+      final decoded = jsonDecode(out);
+      if (decoded is! List) return chapters;
+      final result = <XiaoshuoBookChapter>[];
+      for (final item in decoded) {
+        if (item is! Map) continue;
+        final m = item as Map<dynamic, dynamic>;
+        final url = _jsStr(m['url']);
+        if (url == null || url.isEmpty) continue;
+        final ch = XiaoshuoBookChapter(bookUrl: _jsStr(m['bookUrl']) ?? '');
+        ch.title = _jsStr(m['name']) ?? '';
+        ch.url = url;
+        ch.tag = _jsStr(m['tag']);
+        ch.isVolume = _jsBool(m['isVolume']) ?? false;
+        ch.isVip = _jsBool(m['isVip']) ?? false;
+        ch.isPay = _jsBool(m['isPay']) ?? false;
+        final vm = m['variableMap'];
+        if (vm is Map) {
+          vm.forEach((k, v) => ch.variableMap[k.toString()] = v.toString());
+        }
+        result.add(ch);
+      }
+      return result;
+    } catch (_) {
+      return chapters;
+    }
+  }
+
+  static String? _jsStr(dynamic v) {
+    if (v == null) return null;
+    return v.toString();
+  }
+
+  static bool? _jsBool(dynamic v) {
+    if (v == null) return null;
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    final s = v.toString().toLowerCase();
+    return s == 'true' || s == '1';
   }
 
   /// 判断章节标题是否为"垃圾条目"（导航/翻页/公告/跨书预览等非正文章节）。

@@ -35,6 +35,7 @@ import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/download/download_manager.dart';
+import '../../../core/download/download_settings.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/stats/reading_session_recorder.dart';
@@ -279,7 +280,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 避免在整章「缩成一屏」的占位状态下误判到底 / 误判尺寸已稳定。
   static const double _kMinRealItemHeight = 0.3;
 
-  int _currentPage = 0;
+  int _currentPageValue = 0;
+
+  /// 当前页（逻辑单页索引）。赋值时同步广播到 [_currentPageNotifier]，
+  /// 底栏滑条 / 页码标签以 ValueListenableBuilder 局部刷新——自动滚动期间
+  /// 页码切换不再触发整屏 setState（见 [_onWebtoonScroll] 触顶卡顿修复）。
+  final ValueNotifier<int> _currentPageNotifier = ValueNotifier<int>(0);
+  int get _currentPage => _currentPageValue;
+  set _currentPage(int v) {
+    _currentPageValue = v;
+    _currentPageNotifier.value = v;
+  }
+
   bool _uiVisible = false;
 
   /// 是否实际进入了桌面 OS 全屏（[_requestOsFullscreen(true)] 成功）。退出时仅当
@@ -437,15 +449,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   bool _autoScrollPaused = false;
 
   /// 自动滚动 Ticker 是否正在运行（webtoon 模式）。运行期间 [_onWebtoonScroll]
-  /// 跳过全量重建与图片收藏异步刷新，仅更新页码字段与进度保存，避免自动滚动
-  /// 在页边界处因 setState 全量重建而卡顿。
+  /// 不做整屏 setState（页码指示由 [_currentPageNotifier] 局部刷新），也跳过
+  /// 图片收藏异步刷新，避免自动滚动在页边界处因全量重建而卡顿。
   bool _autoScrolling = false;
-
-  /// 自动滚动期间页码变化触发 UI 重建的限频时间戳：条漫逐帧滚动时每张图
-  /// 顶端触顶都会切换当前页，整屏重建会打断滚动动画（触顶卡一下），限频
-  /// ~300ms 兼顾进度指示实时性与滚动连贯。
-  DateTime _lastAutoScrollUiSyncAt =
-      DateTime.fromMillisecondsSinceEpoch(0);
 
   /// 章节切换过渡标题卡状态。
   bool _transitionVisible = false;
@@ -963,6 +969,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   @override
   void dispose() {
+    // 兜底提交设备/会话层草稿：设置面板开着直接退出阅读器（返回键 / 关窗）时，
+    // 面板内的改动（自动翻页间隔、自动下载开关等）没有经过任何关闭路径提交，
+    // 不在此落盘就会全部丢失（「设置完退出重进后消失」的根因）。
+    // _store 写 shared_preferences 不依赖 context，dispose 后异步完成是安全的。
+    unawaited(_commitDeviceOverride());
     // 退出时一次性结算本次阅读会话（commit 内部 best-effort）。
     if (widget.sourceId.isNotEmpty) {
       unawaited(ReadingSessionRecorder.instance.commit(
@@ -982,6 +993,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _zoomController.dispose();
     _flashController.dispose();
     _readerFocus.dispose();
+    _currentPageNotifier.dispose();
     _transitionTimer?.cancel();
     _skipTransitionTimer?.cancel();
     // REQ-B6/B7/B8 清理：翻页淡入定时器、自动翻页定时器、自动滚动 Ticker 与音量键监听。
@@ -1485,21 +1497,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (idx != _currentPage) {
       _currentPage = idx;
       _scheduleProgressSave(idx);
-      // 自动滚动期间跳过昂贵的图片收藏异步刷新（滚动位置由 ScrollOffsetController
-      // 逐帧驱动，无需重建），进度指示的整屏重建也限频：条漫逐帧滚动时每张图
-      // 顶端触顶都会切换 _currentPage，若每次都整屏重建会在滚动动画进行中打断
-      // 帧节奏（表现为「图片顶到屏幕顶端时卡一下」）。限频 ~300ms，进度条更新
-      // 感知无明显延迟，滚动保持连贯。
+      // 自动滚动期间不整屏 setState、不做图片收藏异步刷新：页码指示由
+      // [_currentPageNotifier] 驱动的 ValueListenableBuilder 局部刷新（只重建
+      // 底栏滑条/页码小部件，不触碰图片列表）。此前每张图顶端触顶都整屏重建，
+      // 会在滚动动画进行中打断帧节奏——且条漫图高远超限频窗口，限频也拦不住
+      // 每个边界一次的全量重建（「图片顶到屏幕顶端时卡一下」的根因）。
       if (!_autoScrolling) {
         unawaited(_refreshPageImageFav());
         if (mounted) setState(() {});
-      } else {
-        final now = DateTime.now();
-        if (mounted &&
-            now.difference(_lastAutoScrollUiSyncAt).inMilliseconds >= 300) {
-          _lastAutoScrollUiSyncAt = now;
-          setState(() {});
-        }
       }
     }
     _maybePreload(idx);
@@ -2071,13 +2076,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 阅读中自动下载后续章节（REQ-C7）。
   ///
-  /// 条件：开启 [ReaderPreferences.autoDownloadChapters] + 非本地模式 + 存在后续章节
-  /// + 当前章阅读进度越过 25% + 本章尚未触发过 + 该作品没有正在/已完成的下载批次。
-  /// 全部满足时把 `chapterIndex+1` 起的后续章节入队下载；任何失败静默忽略，不打断阅读。
+  /// 两个触发源，共用同一组前置条件（非本地模式 + 存在后续章节 + 本章进度越过
+  /// 25% + 本章尚未触发过 + 该作品没有正在/已激活的下载批次）：
+  /// - 阅读器面板的 [ReaderPreferences.autoDownloadChapters] 开启：`chapterIndex+1`
+  ///   起的全部后续章节作为单个任务入队；
+  /// - 下载设置的「预下载后续内容数」（[DownloadSettings.preDownloadCount] > 0）：
+  ///   预下载后续 N 话（与视频播放器同一语义，逐话入队、跳过已下载/已排队）。
+  ///   此前漫画阅读器完全忽略该设置——设置里开了预下载，看漫画却什么都不下，
+  ///   下载列表始终为空的直接根因。
+  /// 任何失败静默忽略，不打断阅读。
   void _maybeAutoDownload(int page) {
     final dm = _downloadManager;
     if (dm == null) return;
-    if (!_prefs.autoDownloadChapters) return;
     if (_isLocalMode) return; // 本地文件无在线下载概念。
     if (widget.chapters.length <= _chapterIndex + 1) return; // 已是最后一章。
     if (_autoDownloadTriggeredChapter == _chapterIndex) return; // 每章仅一次。
@@ -2090,12 +2100,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       (t) => t.contentId == widget.comicId && t.isActive,
     );
     if (hasActiveTask) return;
-    AppLog.instance.i(
-      '[漫画自动下载] 触发入队 comic=${widget.comicId} '
-      'chapter=$_chapterIndex page=$page total=$total '
-      '后续章节数=${widget.chapters.length - _chapterIndex - 1}',
-    );
-    _autoDownloadTriggeredChapter = _chapterIndex;
     final item = MediaItem(
       id: widget.comicId,
       title: widget.title,
@@ -2104,21 +2108,57 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       coverUrl: widget.coverUrl,
       detailUrl: widget.detailUrl,
     );
-    final List<int> indices = <int>[
-      for (var i = _chapterIndex + 1; i < widget.chapters.length; i++) i,
-    ];
-    unawaited(
-      dm.addTask(
-        item: item,
-        chapters: widget.chapters,
-        chapterIndices: indices,
-      ).then((_) {
-        // 成功入队不提示（非阻塞、静默）。
-      }).catchError((Object _) {
+    if (_prefs.autoDownloadChapters) {
+      AppLog.instance.i(
+        '[漫画自动下载] 触发入队 comic=${widget.comicId} '
+        'chapter=$_chapterIndex page=$page total=$total '
+        '后续章节数=${widget.chapters.length - _chapterIndex - 1}',
+      );
+      _autoDownloadTriggeredChapter = _chapterIndex;
+      final List<int> indices = <int>[
+        for (var i = _chapterIndex + 1; i < widget.chapters.length; i++) i,
+      ];
+      unawaited(
+        dm.addTask(
+          item: item,
+          chapters: widget.chapters,
+          chapterIndices: indices,
+        ).then((_) {
+          // 成功入队不提示（非阻塞、静默）。
+        }).catchError((Object _) {
+          // 失败静默：不打断阅读。
+          _autoDownloadTriggeredChapter = -1;
+        }),
+      );
+      return;
+    }
+    // 预下载路径：从存储重读设置（DownloadManager 缓存的 settings 可能还是启动
+    // 时的旧值，设置页热改后不重读会漏触发）。
+    AppLog.instance.i(
+      '[漫画预下载] 检查 comic=${widget.comicId} '
+      'chapter=$_chapterIndex page=$page total=$total',
+    );
+    _autoDownloadTriggeredChapter = _chapterIndex;
+    unawaited(() async {
+      final int count;
+      try {
+        count = (await DownloadSettingsStore().load()).preDownloadCount;
+      } on Object {
+        return;
+      }
+      if (count <= 0) return;
+      try {
+        await dm.preDownloadNextEpisodes(
+          item: item,
+          chapters: widget.chapters,
+          fromIndex: _chapterIndex,
+          count: count,
+        );
+      } on Object {
         // 失败静默：不打断阅读。
         _autoDownloadTriggeredChapter = -1;
-      }),
-    );
+      }
+    }());
   }
 
   // ─────────────────────── 导航 ───────────────────────
@@ -3061,6 +3101,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _autoScrollTicker?.stop();
       _autoScrollTicker = null;
       _autoScrolling = false;
+      // 滚动期间跳过了图片收藏异步刷新，停止后按最终页补一次。
+      unawaited(_refreshPageImageFav());
     }
   }
 
@@ -5203,10 +5245,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final bool doubleMode = _isDoublePage;
     final int totalImages = _images.length;
     final int total = doubleMode ? _spreadCount : totalImages;
-    final int currentIndex =
-        doubleMode ? _doublePageSpreadFor(_currentPage) : _currentPage;
-    final double base = total > 1 ? currentIndex / (total - 1) : 0.0;
-    final double value = base.clamp(0.0, 1.0);
     return Semantics(
       label: l10n.readerProgress,
       child: Directionality(
@@ -5214,47 +5252,60 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         textDirection: _prefs.readingMode == ReadingMode.singleRTL
             ? TextDirection.rtl
             : TextDirection.ltr,
-        child: Row(
-          children: <Widget>[
-            IconButton(
-              icon: const Icon(Icons.chevron_left),
-              tooltip: l10n.prevPage,
-              onPressed: _goPrevPage,
-            ),
-            Expanded(
-              child: Slider(
-                value: value,
-                onChanged: total > 1
-                    ? (v) {
-                        final target = doubleMode
-                            ? _doublePageLeftPageFor(
-                                (v * (total - 1)).round())
-                            : (v * (total - 1)).round();
-                        _jumpToPage(target);
-                      }
-                    : null,
-              ),
-            ),
-            if (_prefs.showPageNumber)
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm),
-                child: Text(
-                  doubleMode
-                      ? _doublePageIndicatorText(l10n, currentIndex, totalImages)
-                      : l10n.pageIndicator(
-                          totalImages == 0 ? 0 : _currentPage + 1,
-                          totalImages,
-                        ),
-                  style: Theme.of(context).textTheme.bodyMedium,
+        // 页码经 notifier 局部刷新：自动滚动期间页码切换只重建滑条/页码行，
+        // 不触发整屏 setState（触顶卡顿根治）。按钮为稳定方法引用，重建无副作用。
+        child: ValueListenableBuilder<int>(
+          valueListenable: _currentPageNotifier,
+          builder: (context, page, _) {
+            final int currentIndex =
+                doubleMode ? _doublePageSpreadFor(page) : page;
+            final double value = total > 1
+                ? (currentIndex / (total - 1)).clamp(0.0, 1.0)
+                : 0.0;
+            return Row(
+              children: <Widget>[
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  tooltip: l10n.prevPage,
+                  onPressed: _goPrevPage,
                 ),
-              ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              tooltip: l10n.nextPage,
-              onPressed: _goNextPage,
-            ),
-          ],
+                Expanded(
+                  child: Slider(
+                    value: value,
+                    onChanged: total > 1
+                        ? (v) {
+                            final target = doubleMode
+                                ? _doublePageLeftPageFor(
+                                    (v * (total - 1)).round())
+                                : (v * (total - 1)).round();
+                            _jumpToPage(target);
+                          }
+                        : null,
+                  ),
+                ),
+                if (_prefs.showPageNumber)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppTokens.spaceSm),
+                    child: Text(
+                      doubleMode
+                          ? _doublePageIndicatorText(
+                              l10n, currentIndex, totalImages)
+                          : l10n.pageIndicator(
+                              totalImages == 0 ? 0 : page + 1,
+                              totalImages,
+                            ),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  tooltip: l10n.nextPage,
+                  onPressed: _goNextPage,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -5296,10 +5347,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final bool doubleMode = _isDoublePage;
     final int totalImages = _images.length;
     final int total = doubleMode ? _spreadCount : totalImages;
-    final int currentIndex =
-        doubleMode ? _doublePageSpreadFor(_currentPage) : _currentPage;
-    final double base = total > 1 ? currentIndex / (total - 1) : 0.0;
-    final double value = base.clamp(0.0, 1.0);
     final bool showNum = _prefs.showPageNumber;
     return Positioned(
       right: AppTokens.spaceXs,
@@ -5309,62 +5356,74 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         child: Center(
           child: Semantics(
             label: l10n.readerProgress,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                IconButton(
-                  icon: const Icon(Icons.expand_less),
-                  tooltip: l10n.prevPage,
-                  onPressed: _goPrevPage,
-                ),
-              if (showNum)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppTokens.spaceXs,
-                  ),
-                  child: Text(
-                    doubleMode
-                        ? _doublePageRangeText(currentIndex, totalImages)
-                        : '${totalImages == 0 ? 0 : _currentPage + 1}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-                SizedBox(
-                  // 旋转 90° 后，Slider 的横向宽度变成竖向高度。
-                  height: MediaQuery.of(context).size.height * 0.4,
-                  child: RotatedBox(
-                    quarterTurns: 1,
-                    child: Slider(
-                      value: value,
-                      onChanged: total > 1
-                          ? (v) {
-                              final target = doubleMode
-                                  ? _doublePageLeftPageFor(
-                                      (v * (total - 1)).round())
-                                  : (v * (total - 1)).round();
-                              _jumpToPage(target);
-                            }
-                          : null,
+            // 页码经 notifier 局部刷新（同 [_buildProgressBar]，自动滚动期间
+            // 不整屏 setState）。
+            child: ValueListenableBuilder<int>(
+              valueListenable: _currentPageNotifier,
+              builder: (context, page, _) {
+                final int currentIndex =
+                    doubleMode ? _doublePageSpreadFor(page) : page;
+                final double value = total > 1
+                    ? (currentIndex / (total - 1)).clamp(0.0, 1.0)
+                    : 0.0;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    IconButton(
+                      icon: const Icon(Icons.expand_less),
+                      tooltip: l10n.prevPage,
+                      onPressed: _goPrevPage,
                     ),
-                  ),
-                ),
-                if (showNum)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppTokens.spaceXs,
+                    if (showNum)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppTokens.spaceXs,
+                        ),
+                        child: Text(
+                          doubleMode
+                              ? _doublePageRangeText(currentIndex, totalImages)
+                              : '${totalImages == 0 ? 0 : page + 1}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    SizedBox(
+                      // 旋转 90° 后，Slider 的横向宽度变成竖向高度。
+                      height: MediaQuery.of(context).size.height * 0.4,
+                      child: RotatedBox(
+                        quarterTurns: 1,
+                        child: Slider(
+                          value: value,
+                          onChanged: total > 1
+                              ? (v) {
+                                  final target = doubleMode
+                                      ? _doublePageLeftPageFor(
+                                          (v * (total - 1)).round())
+                                      : (v * (total - 1)).round();
+                                  _jumpToPage(target);
+                                }
+                              : null,
+                        ),
+                      ),
                     ),
-                    child: Text(
-                      // 与单页模式保持一致：底部始终显示总页数。
-                      '$totalImages',
-                      style: Theme.of(context).textTheme.bodySmall,
+                    if (showNum)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppTokens.spaceXs,
+                        ),
+                        child: Text(
+                          // 与单页模式保持一致：底部始终显示总页数。
+                          '$totalImages',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.expand_more),
+                      tooltip: l10n.nextPage,
+                      onPressed: _goNextPage,
                     ),
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.expand_more),
-                  tooltip: l10n.nextPage,
-                  onPressed: _goNextPage,
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ),
         ),

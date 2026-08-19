@@ -46,6 +46,7 @@ class BookList {
     required String baseUrl,
     required String body,
     required bool isSearch,
+    String? searchKey,
     Map<String, String>? ruleData,
   }) {
     // 登录墙拦截：部分书源（如八一中文 81txt）的搜索接口被服务端「登录/验证码」
@@ -74,6 +75,7 @@ class BookList {
     String? bookUrlRule;
     String? kindRule;
     String? lastChapterRule;
+    List<dynamic> checkKeyWordRule = const <dynamic>[];
 
     if (isSearch) {
       final rule = bookSource.getSearchRule();
@@ -84,6 +86,7 @@ class BookList {
       bookUrlRule = rule.bookUrl;
       kindRule = rule.bookKind;
       lastChapterRule = rule.bookLastChapter;
+      checkKeyWordRule = analyzeRule.splitSourceRule(rule.checkKeyWord ?? '');
     } else {
       final rule = bookSource.getExploreRule();
       bookListRule = rule.bookList;
@@ -136,6 +139,8 @@ class BookList {
           ruleBookUrl,
           ruleKind,
           ruleLastChapter,
+          searchKey,
+          ruleCheckKeyword: checkKeyWordRule,
         );
         if (book != null && book.name.isNotEmpty) {
           books.add(book);
@@ -173,6 +178,8 @@ class BookList {
     List<dynamic> ruleBookUrl,
     List<dynamic> ruleKind,
     List<dynamic> ruleLastChapter,
+    String? searchKey,
+    {required List<dynamic> ruleCheckKeyword}
   ) {
     String name = '';
     String author = '';
@@ -189,6 +196,20 @@ class BookList {
 
     if (name.isEmpty) {
       return null;
+    }
+
+    // legado checkKeyWord：按书源规则从结果项抽取文本，若不含搜索关键词则
+    // 视为无关结果予以过滤（仅搜索场景、且源声明了 checkKeyWord 时生效）。
+    if (searchKey != null &&
+        searchKey.isNotEmpty &&
+        ruleCheckKeyword.isNotEmpty) {
+      try {
+        final ck = analyzeRule.getStringFromRules(ruleCheckKeyword);
+        if (ck.isNotEmpty &&
+            !ck.toLowerCase().contains(searchKey.toLowerCase())) {
+          return null;
+        }
+      } catch (_) {}
     }
 
     try {

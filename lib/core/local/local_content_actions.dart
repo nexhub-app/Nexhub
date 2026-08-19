@@ -162,22 +162,13 @@ Future<void> openLocalEntry(BuildContext context, LocalContentEntry e) async {
   }
   if (e.kind == LocalMediaKind.text) {
     final lower = e.path.toLowerCase();
-    if (lower.endsWith('.txt')) {
-      Navigator.of(context).push(
-        AppPageRoute<void>(
-          builder: (_) => NovelReaderScreen(
-            novelId: e.id,
-            title: e.title,
-            sourceId: '',
-            chapters: const <Episode>[],
-            localTextPath: e.path,
-            restoreProgress: remember,
-          ),
-        ),
-      );
-      return;
-    }
-    if (lower.endsWith('.epub')) {
+    final titleLower = e.title.toLowerCase();
+    // SAF 选中的文件是 content:// URI，无扩展名，仅按 path 判断会漏判 →
+    // 「无法打开 TXT」。显示名（f.name / 文件夹名）保留扩展名，作为兜底判断。
+    final bool isEpub =
+        lower.endsWith('.epub') || titleLower.endsWith('.epub');
+    final bool isTxt = lower.endsWith('.txt') || titleLower.endsWith('.txt');
+    if (isEpub) {
       Navigator.of(context).push(
         AppPageRoute<void>(
           builder: (_) => NovelReaderScreen(
@@ -192,6 +183,21 @@ Future<void> openLocalEntry(BuildContext context, LocalContentEntry e) async {
       );
       return;
     }
+    // .txt 或扩展名缺失（content:// 无扩展名）：默认按 txt 处理，交给阅读器
+    // resolveSafUri 后按内容解析（本地小说绝大多数为 txt）。
+    Navigator.of(context).push(
+      AppPageRoute<void>(
+        builder: (_) => NovelReaderScreen(
+          novelId: e.id,
+          title: e.title,
+          sourceId: '',
+          chapters: const <Episode>[],
+          localTextPath: e.path,
+          restoreProgress: remember,
+        ),
+      ),
+    );
+    return;
   }
   _pushLocalMediaViewer(context, e);
 }
