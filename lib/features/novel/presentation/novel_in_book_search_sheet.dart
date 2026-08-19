@@ -482,16 +482,18 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                           onSelected: (_) =>
                               setState(() => _scope = InBookSearchScope.range),
                         ),
-                        const Spacer(),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Text(l10n.searchUseRegex),
-                            Switch(
-                              value: _useRegex,
-                              onChanged: (v) => setState(() => _useRegex = v),
-                            ),
-                          ],
+                      ],
+                    ),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    // 正则开关单独成行：Spacer/Expanded 不能直接放进 Wrap（会触发
+                    // Incorrect use of ParentDataWidget 崩溃），故用 Row + 末尾对齐。
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: <Widget>[
+                        Text(l10n.searchUseRegex),
+                        Switch(
+                          value: _useRegex,
+                          onChanged: (v) => setState(() => _useRegex = v),
                         ),
                       ],
                     ),
