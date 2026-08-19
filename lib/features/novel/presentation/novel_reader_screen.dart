@@ -59,6 +59,10 @@ import 'novel_note_manager.dart';
 import 'novel_paginator.dart';
 import 'novel_tts_controller.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
+import '../domain/novel_summary_service.dart';
+import '../domain/novel_summary_settings.dart';
 
 /// 小说阅读器（Phase 4 — Task 19/20）。
 ///
@@ -210,28 +214,6 @@ Future<List<dynamic>> _parseEpubIsolate(String path) async {
   ];
 }
 
-/// 在独立 isolate 解析 TXT（Task 6）：读取 + 解码 + 分段，避免大文件阻塞主线程。
-/// 返回可序列化块列表（[compute] 不支持自定义类跨 isolate），主线程再重组为
-/// [NovelBlock]：元素为 `[0, text]`（文本段）或 `[1, imagePath]`（本地插图，
-/// 由下载器以 [kNexhubImgMarker] 占位行写入）。编码自动嗅探（UTF-8 / GBK /
-/// UTF-16），GBK 中文不再乱码。无插图标记的纯 TXT 全部转为文本段，行为与旧版一致。
-Future<List<dynamic>> _parseTxtIsolate(String path) async {
-  final bytes = await File(path).readAsBytes();
-  final text = decodeTextBytes(bytes);
-  final out = <dynamic>[];
-  for (final raw in text.split('\n')) {
-    final line = raw.trim();
-    if (line.isEmpty) continue;
-    if (line.startsWith(kNexhubImgMarker)) {
-      final img = line.substring(kNexhubImgMarker.length).trim();
-      if (img.isNotEmpty) out.add(<dynamic>[1, img]);
-    } else {
-      out.add(<dynamic>[0, raw]);
-    }
-  }
-  return out;
-}
-
 /// 在独立 isolate 解析单文件 TXT 为**章节结构**（B-01/B-02）：读取 + 解码 +
 /// 行级章节切分（[LocalNovelParser.splitTxtChapters]，不依赖空行分段，
 /// 单换行分隔的 TXT 也能正确分章；英文章节名/拼写数字亦命中）。
@@ -245,19 +227,14 @@ Future<List<dynamic>> _parseTxtChaptersIsolate(String path) async {
   final fallback = p.basenameWithoutExtension(path);
   final chapters =
       LocalNovelParser.splitTxtChapters(text, fallbackTitle: fallback);
-  // 段落 → 可序列化块：`[0, text]` 文本段 / `[1, imagePath]` 本地插图
-  //（下载器以 [kNexhubImgMarker] 占位行写入；路径为空的占位行跳过）。
-  List<dynamic> toBlock(String para) {
-    if (para.startsWith(kNexhubImgMarker)) {
-      final img = para.substring(kNexhubImgMarker.length).trim();
-      if (img.isNotEmpty) return <dynamic>[1, img];
-    }
-    return <dynamic>[0, para];
-  }
-
+  // 段落 → 可序列化字符串：下载器内联插图以 [kNexhubImgMarker] 占位行写入，
+  // 原样保留，交由主线程 build 阶段（_loadLocalText 的 singleTxt 分支）识别为
+  // 本地插图 [NovelImageBlock]；不再包成 [0,para]/[1,img] 块——消费端
+  // `List<String>.from(c[1])` 与 build 循环均按纯字符串处理，否则会触发
+  // `type 'List<dynamic>' is not a subtype of type 'String'`。
   return <dynamic>[
     for (final ch in chapters)
-      <dynamic>[ch.title, <dynamic>[for (final para in ch.content) toBlock(para)]],
+      <dynamic>[ch.title, <dynamic>[for (final para in ch.content) para]],
   ];
 }
 
@@ -353,6 +330,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 聚合模式已解析的 EPUB 缓存（path -> 整本），展开目录与逐章读取共用。
   final Map<String, LocalNovelBook> _aggEpubBooks =
       <String, LocalNovelBook>{};
+  /// 聚合模式已解析的 TXT 缓存（path -> 整本），展开内部章节与逐章读取共用。
+  /// 与 [_aggEpubBooks] 同构，实现「TXT 目录导入内部章节细化（和 epub 一样）」。
+  final Map<String, LocalNovelBook> _aggTxtBooks = <String, LocalNovelBook>{};
+  /// 聚合模式 TXT 章节路由：episode.id -> (文件 path, 内部章节下标 ci)。
+  /// ci = -1 表示整文件（无内部章节）。用精确字符串匹配路由，规避文件路径含
+  /// 分隔符导致的解析歧义；续读进度按 index 存储，合成 id 不影响续读。
+  final Map<String, (String, int)> _aggTxtEpisodeMeta =
+      <String, (String, int)>{};
   bool _aggBuilding = false;
 
   /// 是否为本地文件模式（Task O4.B.3）。
@@ -656,12 +641,49 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             }
           }
         } else {
-          all.add(Episode(
-            id: path,
-            title: _chapterTitleFor(path),
-            url: '',
-            number: all.length + 1,
-          ));
+          // TXT 与 EPUB 同构：解析整本并按内部章节展开（TXT 目录导入章节细化
+          // 「和 epub 一样」）。无内部章节的纯文本兜底为单章（标题=文件名）。
+          LocalNovelBook? book = _aggTxtBooks[path];
+          if (book == null) {
+            final local = await resolveSafUri(path);
+            final raw = await compute(_parseTxtChaptersIsolate, local);
+            book = LocalNovelBook(
+              title: _chapterTitleFor(path),
+              author: null,
+              coverPath: null,
+              chapters: <LocalNovelChapter>[
+                for (final c in raw)
+                  LocalNovelChapter(
+                    title: c[0] as String,
+                    content: List<String>.from(c[1] as List),
+                  ),
+              ],
+            );
+            _aggTxtBooks[path] = book;
+          }
+          if (book.chapters.isEmpty) {
+            final id = '$path#-1';
+            all.add(Episode(
+              id: id,
+              title: _chapterTitleFor(path),
+              url: '',
+              number: all.length + 1,
+            ));
+            _aggTxtEpisodeMeta[id] = (path, -1);
+          } else {
+            for (var ci = 0; ci < book.chapters.length; ci++) {
+              final id = '$path#$ci';
+              all.add(Episode(
+                id: id,
+                title: book.chapters[ci].title.isEmpty
+                    ? _chapterTitleFor(path)
+                    : book.chapters[ci].title,
+                url: '',
+                number: all.length + 1,
+              ));
+              _aggTxtEpisodeMeta[id] = (path, ci);
+            }
+          }
         }
       }
       // 2) 按排序模式调整顺序。
@@ -758,6 +780,64 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           setState(() {
             _rawParagraphs = epubBlocks;
             _paragraphs = _applyConvert(epubBlocks);
+            _loading = false;
+            _error = null;
+            _contentVersion++;
+          });
+          _setupControllers(restorePage: restorePage);
+          return;
+        }
+        // TXT 内部章节（聚合目录导入，和 EPUB 一样按内部章节展开）：从缓存解析
+        // 书取指定内部章节渲染；ci = -1 表示整文件（无内部章节，如 collapsed 模式），
+        // 展平全部内部章节。精确字符串匹配路由，规避文件路径含分隔符的歧义。
+        final txtMeta = _aggTxtEpisodeMeta[ep.id];
+        if (txtMeta != null) {
+          final book = _aggTxtBooks[txtMeta.$1];
+          if (book == null || book.chapters.isEmpty) {
+            if (token != _loadToken) return;
+            setState(() {
+              _rawParagraphs = const <NovelBlock>[];
+              _paragraphs = const <NovelBlock>[];
+              _loading = false;
+              _error = AppLocalizations.of(context).localFileLoadFailed;
+            });
+            return;
+          }
+          final List<NovelBlock> txtBlocks;
+          if (txtMeta.$2 < 0) {
+            txtBlocks = <NovelBlock>[
+              for (final ch in book.chapters) ...<NovelBlock>[
+                if (ch.title.isNotEmpty) NovelTextBlock(ch.title, isHeading: true),
+                for (final p in ch.content)
+                  if (p.trim().isNotEmpty)
+                    p.startsWith(kNexhubImgMarker) &&
+                            p.substring(kNexhubImgMarker.length).trim().isNotEmpty
+                        ? NovelImageBlock(
+                            p.substring(kNexhubImgMarker.length).trim(),
+                            source: _source,
+                          )
+                        : NovelTextBlock(p),
+              ],
+            ];
+          } else {
+            final ch = book.chapters[txtMeta.$2.clamp(0, book.chapters.length - 1)];
+            txtBlocks = <NovelBlock>[
+              if (ch.title.isNotEmpty) NovelTextBlock(ch.title, isHeading: true),
+              for (final p in ch.content)
+                if (p.trim().isNotEmpty)
+                  p.startsWith(kNexhubImgMarker) &&
+                          p.substring(kNexhubImgMarker.length).trim().isNotEmpty
+                      ? NovelImageBlock(
+                          p.substring(kNexhubImgMarker.length).trim(),
+                          source: _source,
+                        )
+                      : NovelTextBlock(p),
+            ];
+          }
+          if (token != _loadToken) return;
+          setState(() {
+            _rawParagraphs = txtBlocks;
+            _paragraphs = _applyConvert(txtBlocks);
             _loading = false;
             _error = null;
             _contentVersion++;
@@ -938,13 +1018,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   : NovelTextBlock(para),
         ];
       } else {
-        // 聚合模式的 TXT 章节文件：每个文件本身即一章，整文件扁平解析，
-        // 不做文件内二次切分（避免把单章内容误拆）。
-        // 大 TXT 放到独立 isolate 解析，避免阻塞主线程（Task 6）。
-        // 块列表：文本段 [0,text] 与本地插图 [1,imagePath]（下载器内联标记）。
-        final parsed = await compute(_parseTxtIsolate, localPath);
+        // 聚合模式的 TXT 章节文件：每个文件本身即一章；为满足「和 epub 一样」
+        // 的章节细化需求，文件内部仍按行级规则二次切分为子章节
+        // （splitTxtChapters：仅命中「第X章/节/回/卷…」等标题才切，无标题则
+        // 整文件作为单章，不会误拆单章内容），子章节标题作为 heading、插图标记
+        // 转为本地插图——与 epub 聚合分支同构。大 TXT 仍放独立 isolate 解析。
+        final raw = await compute(_parseTxtChaptersIsolate, localPath);
         if (!mounted || token != _loadToken) return;
-        if (parsed.isEmpty) {
+        if (raw.isEmpty) {
           if (token != _loadToken) return;
           setState(() {
             _rawParagraphs = const <NovelBlock>[];
@@ -954,18 +1035,28 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           });
           return;
         }
-        // 文本段包成 [NovelTextBlock]；插图标记包成 [NovelImageBlock] 走本地渲染。
-        final List<NovelBlock> built = <NovelBlock>[];
-        for (final e in parsed) {
-          final kind = e[0] as int;
-          final val = e[1] as String;
-          if (kind == 1) {
-            built.add(NovelImageBlock(val, source: _source));
-          } else {
-            built.add(NovelTextBlock(val));
-          }
-        }
-        blocks = built;
+        final chapters = <LocalNovelChapter>[
+          for (final c in raw)
+            LocalNovelChapter(
+              title: c[0] as String,
+              content: List<String>.from(c[1] as List),
+            ),
+        ];
+        blocks = <NovelBlock>[
+          for (final ch in chapters) ...<NovelBlock>[
+            if (ch.title.isNotEmpty) NovelTextBlock(ch.title, isHeading: true),
+            for (final para in ch.content)
+              if (para.trim().isNotEmpty)
+                // 下载器占位行 → 本地插图；其余为正文段。
+                para.startsWith(kNexhubImgMarker) &&
+                        para.substring(kNexhubImgMarker.length).trim().isNotEmpty
+                    ? NovelImageBlock(
+                        para.substring(kNexhubImgMarker.length).trim(),
+                        source: _source,
+                      )
+                    : NovelTextBlock(para),
+          ],
+        ];
       }
       if (token != _loadToken) return;
       setState(() {
@@ -1900,8 +1991,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           onVolumeDown: _goNextPage,
           onVolumeUp: _goPrevPage,
         );
+        AppLog.instance.i('[小说音量键] 已开启原生拦截（音量下=下一页/音量上=上一页）');
       } else {
         await _volumeKeyListener.stop();
+        AppLog.instance.i('[小说音量键] 已关闭原生拦截');
       }
     } on Object catch (e) {
       // 原生通道未就绪/订阅异常：不阻塞阅读，写日志便于实机排查。
@@ -2583,6 +2676,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         if (block is NovelImageBlock) {
           final double bodyW =
               MediaQuery.of(ctx).size.width - _prefs.margin * 2;
+          // 书源 ruleContent.imageStyle 若声明宽度铺满（max-width:100% /
+          // width:100%），则按图片原始比例完整显示（fitWidth + 高度自适应），
+          // 否则维持原缩略裁切（cover + 0.5 比例）。未声明样式时默认不变。
+          final bool fitWidth = _novelBlockImageIsFitWidth(block.style);
           return Padding(
             padding: EdgeInsets.only(bottom: _prefs.paragraphSpacing),
             child: GestureDetector(
@@ -2592,8 +2689,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 url: block.url,
                 source: block.source ?? _source,
                 width: bodyW,
-                height: bodyW * 0.5,
-                fit: BoxFit.cover,
+                height: fitWidth ? null : bodyW * 0.5,
+                fit: fitWidth ? BoxFit.fitWidth : BoxFit.cover,
                 radius: 8,
               ),
             ),
@@ -2807,7 +2904,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   case 'bookmarkList':
                     _showBookmarkList();
                   case 'summary':
-                    _showReadingSummary();
+                    _showReadingOverview();
                   case 'configureBottomToolbar':
                     _showBottomToolbarConfig();
                   case 'notes':
@@ -2863,7 +2960,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     dense: true,
                   ),
                 ),
-                // 阅读总结（进度 / 时长 / 剩余预估）
+                // 阅读速览（总结本章内容：离线摘要 / 云端 AI）
                 PopupMenuItem<String>(
                   value: 'summary',
                   child: ListTile(
@@ -3189,7 +3286,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   /// 缓存本书到本地（离线阅读）：复用全局 [DownloadManager] 提交整本下载任务。
   /// 本地模式（localTextPath）无在线源，入口已禁用；章节为空则提示。
-  Future<void> _startNovelDownload() async {
+  Future<void> _startNovelDownload({List<int>? selectedIndices}) async {
     final l10n = AppLocalizations.of(context);
     if (widget.chapters.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -3200,10 +3297,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final dl = context.read<DownloadManager>();
     // 逐章比对：只缓存尚未下载的章节；全部下载完成才提示「已下载」。
     // 旧实现用 isItemDownloaded（下过任意一章即为 true）整体拦截，
-    // 导致部分缓存后无法补齐剩余章节。
+    // 导致部分缓存后无法补齐剩余章节。selectedIndices 非空时直接采用
+    // （来自「缓存」弹窗的自定义勾选），否则默认补齐未下载章节。
     final Set<String> downloadedTitles =
         dl.downloadedChapterTitles(widget.novelId);
-    final indices = <int>[
+    final List<int> indices = selectedIndices ?? <int>[
       for (int i = 0; i < widget.chapters.length; i++)
         if (!downloadedTitles.contains(widget.chapters[i].title)) i
     ];
@@ -3230,6 +3328,100 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.downloadStarted)),
       );
+    }
+  }
+
+  /// 缓存章节多选弹窗：默认勾选「尚未缓存」的章节，用户可任意勾选 / 取消
+  /// （含全选 / 全不选），确认后只缓存选中章节。已缓存章节用图标标记但不
+  /// 强制勾选——用户可重复缓存以补齐缺失。
+  Future<void> _showCacheChaptersDialog() async {
+    final l10n = AppLocalizations.of(context);
+    final dl = context.read<DownloadManager>();
+    final Set<String> downloaded =
+        dl.downloadedChapterTitles(widget.novelId);
+    final chapters = widget.chapters;
+    final selected = <bool>[
+      for (final c in chapters) !downloaded.contains(c.title)
+    ];
+
+    final List<int>? indices = await showDialog<List<int>?>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) {
+          final picked = selected.where((e) => e).length;
+          return AlertDialog(
+            title: Text(l10n.cacheChaptersTitle),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: MediaQuery.of(ctx).size.height * 0.6,
+              child: Column(
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      TextButton(
+                        onPressed: () => setSt(() {
+                          for (var i = 0; i < selected.length; i++) {
+                            selected[i] = true;
+                          }
+                        }),
+                        child: Text(l10n.selectAll),
+                      ),
+                      TextButton(
+                        onPressed: () => setSt(() {
+                          for (var i = 0; i < selected.length; i++) {
+                            selected[i] = false;
+                          }
+                        }),
+                        child: Text(l10n.deselectAll),
+                      ),
+                      const Spacer(),
+                      Text(l10n.cacheSelectedCount(picked)),
+                    ],
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: chapters.length,
+                      itemBuilder: (_, i) {
+                        final done = downloaded.contains(chapters[i].title);
+                        return CheckboxListTile(
+                          title: Text(
+                            chapters[i].title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          value: selected[i],
+                          onChanged: (v) =>
+                              setSt(() => selected[i] = v ?? false),
+                          secondary: done
+                              ? const Icon(Icons.cloud_done_outlined, size: 18)
+                              : null,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(null),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(<int>[
+                  for (var i = 0; i < selected.length; i++)
+                    if (selected[i]) i
+                ]),
+                child: Text(l10n.cacheSelected),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (indices != null && indices.isNotEmpty && mounted) {
+      await _startNovelDownload(selectedIndices: indices);
     }
   }
 
@@ -3326,7 +3518,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     return hasVolume ? sections : null;
   }
 
-  // ─────────────────────── 阅读总结 ───────────────────────
+  // ─────────────────────── 阅读速览 ───────────────────────
 
   /// 秒数 → 本地化时长文案（X 小时 Y 分钟 / X 小时 / Y 分钟）。
   String _formatReadDuration(AppLocalizations l10n, int seconds) {
@@ -3341,13 +3533,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 阅读总结（统计摘要卡）：进度 / 当前位置 / 累计与今日阅读时长 /
   /// 阅读次数 / 按历史均速预估的读完剩余时长 / 本章字数。
   /// 统计数据来自阅读会话记录（本地无源书可能无统计数据，降级隐藏该组）。
-  Future<void> _showReadingSummary() async {
-    final l10n = AppLocalizations.of(context);
+  /// 阅读数据（统计卡）：进度 / 当前位置 / 累计与今日阅读时长 /
+  /// 阅读次数 / 读完剩余预估 / 本章字数。无统计数据时降级提示。
+  Widget _buildReadingStatsWidget(AppLocalizations l10n) {
     final chapters = _effectiveChapters;
     final total = chapters.length;
     final read = total > 0 ? _chapterIndex + 1 : 0;
 
-    // 统计（best-effort：Hive box 未就绪时整组降级隐藏）。
     WorkReadingStats? stats;
     DailyReadingStats? today;
     try {
@@ -3364,7 +3556,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       today = null;
     }
 
-    // 剩余时长估算：平均每章耗时 × 剩余章数（读到第 X 章即已进入 X 章）。
     String? remaining;
     if (stats != null &&
         stats.totalDurationSec > 0 &&
@@ -3376,7 +3567,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           _formatReadDuration(l10n, remainingSec));
     }
 
-    // 当前章字数（按当前已加载的正文块统计）。
     final curChars = _paragraphs.fold<int>(
         0,
         (sum, b) =>
@@ -3388,88 +3578,122 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final pages = _pagination?.pages.length ?? 0;
     final page = pages > 0 ? _currentPage.clamp(0, pages - 1) + 1 : 0;
 
+    final theme = Theme.of(context);
+    Widget row(String label, String value, {IconData? icon}) => ListTile(
+          dense: true,
+          leading: icon != null ? Icon(icon, size: 20) : null,
+          title: Text(label),
+          trailing: Text(
+            value,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (total > 0) ...<Widget>[
+          row(
+            l10n.novelSummaryProgress(read, total),
+            total > 0 ? '${(read / total * 100).toStringAsFixed(0)}%' : '',
+            icon: Icons.timeline,
+          ),
+          if (chapterTitle.isNotEmpty && pages > 0)
+            row(
+              l10n.novelSummaryPosition(chapterTitle, page, pages),
+              '',
+              icon: Icons.menu_book_outlined,
+            ),
+          row(l10n.novelSummaryCurrentChars(curChars), '',
+              icon: Icons.text_fields),
+        ],
+        if (stats != null && stats.totalDurationSec > 0) ...<Widget>[
+          const Divider(height: 1, indent: AppTokens.spaceLg,
+              endIndent: AppTokens.spaceLg),
+          row(
+            l10n.novelSummaryTotalRead,
+            _formatReadDuration(l10n, stats.totalDurationSec),
+            icon: Icons.schedule,
+          ),
+          if (today != null && today.novelDurationSec > 0)
+            row(
+              l10n.novelSummaryToday,
+              _formatReadDuration(l10n, today.novelDurationSec),
+              icon: Icons.today,
+            ),
+          row(
+            l10n.novelSummarySessionsValue(stats.sessionCount),
+            '',
+            icon: Icons.repeat,
+          ),
+          if (remaining != null)
+            row(remaining, '', icon: Icons.hourglass_bottom),
+        ] else
+          Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppTokens.spaceLg, vertical: AppTokens.spaceSm),
+            child: Text(
+              l10n.novelSummaryNoStats,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
+            ),
+          ),
+        const SizedBox(height: AppTokens.spaceSm),
+      ],
+    );
+  }
+
+  /// 阅读速览（N5 改名 + 重定位）：总结「当前章节内容」。
+  /// - 离线摘要：本地抽取式，无需网络/配置，秒出。
+  /// - 云端总结：调用用户配置的 OpenAI 兼容 /chat/completions 接口。
+  /// 底部保留「阅读数据」统计卡（见 [_buildReadingStatsWidget]）。
+  Future<void> _showReadingOverview() async {
+    final l10n = AppLocalizations.of(context);
+    final service = NovelSummaryService();
+    final settings = NovelSummarySettings.instance;
+
+    // 当前章正文（仅文本块拼接）。
+    final chapterText = _paragraphs
+        .whereType<NovelTextBlock>()
+        .map((b) => b.text)
+        .join('\n');
+
+    final NovelOverviewMode initialMode = await settings.getMode();
+    final NovelSummaryConfig initialConfig = await settings.getConfig();
+
+    // 离线摘要同步计算，进入即展示。
+    final String localResult = chapterText.trim().isNotEmpty
+        ? service.localSummary(
+            chapterText,
+            maxSentences: adaptiveMaxSentences(chapterText.length),
+          )
+        : '';
+
+    if (!mounted) return;
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       builder: (BuildContext sheetCtx) {
-        final theme = Theme.of(sheetCtx);
-        Widget row(String label, String value, {IconData? icon}) => ListTile(
-              dense: true,
-              leading: icon != null ? Icon(icon, size: 20) : null,
-              title: Text(label),
-              trailing: Text(
-                value,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
-              ),
-            );
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(AppTokens.spaceMd),
-                child: Text(l10n.novelReadingSummary,
-                    style: theme.textTheme.titleLarge),
-              ),
-              if (total > 0) ...<Widget>[
-                row(
-                  l10n.novelSummaryProgress(read, total),
-                  total > 0
-                      ? '${(read / total * 100).toStringAsFixed(0)}%'
-                      : '',
-                  icon: Icons.timeline,
-                ),
-                if (chapterTitle.isNotEmpty && pages > 0)
-                  row(
-                    l10n.novelSummaryPosition(chapterTitle, page, pages),
-                    '',
-                    icon: Icons.menu_book_outlined,
-                  ),
-                row(l10n.novelSummaryCurrentChars(curChars), '',
-                    icon: Icons.text_fields),
-              ],
-              if (stats != null && stats.totalDurationSec > 0) ...<Widget>[
-                const Divider(height: 1, indent: AppTokens.spaceLg,
-                    endIndent: AppTokens.spaceLg),
-                row(
-                  l10n.novelSummaryTotalRead,
-                  _formatReadDuration(l10n, stats.totalDurationSec),
-                  icon: Icons.schedule,
-                ),
-                if (today != null && today.novelDurationSec > 0)
-                  row(
-                    l10n.novelSummaryToday,
-                    _formatReadDuration(l10n, today.novelDurationSec),
-                    icon: Icons.today,
-                  ),
-                row(
-                  l10n.novelSummarySessionsValue(stats.sessionCount),
-                  '',
-                  icon: Icons.repeat,
-                ),
-                if (remaining != null)
-                  row(remaining, '', icon: Icons.hourglass_bottom),
-              ] else
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppTokens.spaceLg,
-                      vertical: AppTokens.spaceSm),
-                  child: Text(
-                    l10n.novelSummaryNoStats,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.outline),
-                  ),
-                ),
-              const SizedBox(height: AppTokens.spaceSm),
-            ],
+          child: _ReadingOverviewPanel(
+            l10n: l10n,
+            service: service,
+            settings: settings,
+            initialMode: initialMode,
+            initialConfig: initialConfig,
+            chapterText: chapterText,
+            localResult: localResult,
+            statsWidget: _buildReadingStatsWidget(l10n),
           ),
         );
       },
     );
   }
+
 
   /// 聚合本地模式：切换章节排序方式（EPUB 内部章节的展开位置）。
   /// 切换后重建展开目录并回到当前章节（目录结构变化，页码按新章节重分）。
@@ -3749,7 +3973,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         onPreview: _onPrefsPreview,
         onBrightnessChanged: _setBrightness,
         onClose: _toggleInlineSettings,
-        onCache: _isLocalMode ? null : _startNovelDownload,
+        onCache: _isLocalMode ? null : _showCacheChaptersDialog,
         onResetBook: _resetBookPrefs,
         onConfigureToolbar: _showBottomToolbarConfig,
         tts: _tts,
@@ -3779,6 +4003,257 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 }
 
 /// 居中的提示信息（错误 / 空）。
+
+/// 阅读速览面板：模式切换（离线/云端）+ 章节内容摘要 + 云端 API 设置 +
+/// 阅读数据统计（折叠于底部）。独立 StatefulWidget 便于管理输入框与生成态。
+class _ReadingOverviewPanel extends StatefulWidget {
+  const _ReadingOverviewPanel({
+    required this.l10n,
+    required this.service,
+    required this.settings,
+    required this.initialMode,
+    required this.initialConfig,
+    required this.chapterText,
+    required this.localResult,
+    required this.statsWidget,
+  });
+
+  final AppLocalizations l10n;
+  final NovelSummaryService service;
+  final NovelSummarySettings settings;
+  final NovelOverviewMode initialMode;
+  final NovelSummaryConfig initialConfig;
+  final String chapterText;
+  final String localResult;
+  final Widget statsWidget;
+
+  @override
+  State<_ReadingOverviewPanel> createState() => _ReadingOverviewPanelState();
+}
+
+class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
+  late NovelOverviewMode _mode;
+  late NovelSummaryConfig _config;
+  bool _generating = false;
+  String? _apiResult;
+  String? _apiError;
+  bool _showApiSettings = false;
+
+  final TextEditingController _baseCtl = TextEditingController();
+  final TextEditingController _keyCtl = TextEditingController();
+  final TextEditingController _modelCtl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = widget.initialMode;
+    _config = widget.initialConfig;
+    _baseCtl.text = _config.baseUrl;
+    _keyCtl.text = _config.apiKey;
+    _modelCtl.text = _config.model;
+  }
+
+  @override
+  void dispose() {
+    _baseCtl.dispose();
+    _keyCtl.dispose();
+    _modelCtl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _setMode(NovelOverviewMode m) async {
+    if (m == _mode) return;
+    setState(() => _mode = m);
+    await widget.settings.setMode(m);
+  }
+
+  Future<void> _generate() async {
+    final cfg = NovelSummaryConfig(
+      baseUrl: _baseCtl.text.trim(),
+      apiKey: _keyCtl.text.trim(),
+      model: _modelCtl.text.trim(),
+    );
+    if (cfg.baseUrl.isEmpty || cfg.apiKey.isEmpty) {
+      setState(() {
+        _apiError = widget.l10n.overviewApiMissing;
+        _showApiSettings = true;
+      });
+      return;
+    }
+    setState(() {
+      _generating = true;
+      _apiError = null;
+      _apiResult = null;
+    });
+    try {
+      final r = await widget.service.cloudSummary(widget.chapterText, cfg);
+      if (!mounted) return;
+      setState(() {
+        _apiResult = r;
+        _generating = false;
+      });
+      await widget.settings.saveConfig(cfg);
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _apiError = '${widget.l10n.overviewApiError}：$e';
+        _generating = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    final theme = Theme.of(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(AppTokens.spaceMd, AppTokens.spaceMd,
+          AppTokens.spaceMd, AppTokens.spaceLg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(l10n.novelReadingSummary, style: theme.textTheme.titleLarge),
+          const SizedBox(height: AppTokens.spaceMd),
+          // 总结方式切换。
+          SegmentedButton<NovelOverviewMode>(
+            segments: <ButtonSegment<NovelOverviewMode>>[
+              ButtonSegment<NovelOverviewMode>(
+                value: NovelOverviewMode.local,
+                label: Text(l10n.overviewModeLocal),
+              ),
+              ButtonSegment<NovelOverviewMode>(
+                value: NovelOverviewMode.api,
+                label: Text(l10n.overviewModeApi),
+              ),
+            ],
+            selected: <NovelOverviewMode>{_mode},
+            onSelectionChanged: (s) => _setMode(s.first),
+          ),
+          const SizedBox(height: AppTokens.spaceMd),
+          Text(l10n.overviewChapterSummary,
+              style: theme.textTheme.titleMedium),
+          const SizedBox(height: AppTokens.spaceSm),
+          // 摘要内容。
+          if (_mode == NovelOverviewMode.local)
+            if (widget.localResult.isEmpty)
+              Text(
+                l10n.overviewEmpty,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.outline),
+              )
+            else
+              SelectableText(widget.localResult,
+                  style: theme.textTheme.bodyMedium)
+          else if (_generating)
+            const Padding(
+              padding: EdgeInsets.all(AppTokens.spaceMd),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_apiResult != null)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                SelectableText(_apiResult!,
+                    style: theme.textTheme.bodyMedium),
+                const SizedBox(height: AppTokens.spaceSm),
+                Wrap(
+                  spacing: AppTokens.spaceSm,
+                  children: <Widget>[
+                    TextButton.icon(
+                      onPressed: _generate,
+                      icon: const Icon(Icons.refresh),
+                      label: Text(l10n.overviewRetry),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: _apiResult!));
+                      },
+                      icon: const Icon(Icons.copy),
+                      label: Text(l10n.overviewCopy),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                if (_apiError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+                    child: Text(
+                      _apiError!,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.error),
+                    ),
+                  ),
+                FilledButton.icon(
+                  onPressed: _generate,
+                  icon: const Icon(Icons.auto_awesome),
+                  label: Text(l10n.overviewGenerate),
+                ),
+              ],
+            ),
+          // 云端 API 设置。
+          if (_mode == NovelOverviewMode.api)
+            ExpansionTile(
+              title: Text(l10n.overviewApiSettings),
+              initiallyExpanded: _showApiSettings,
+              children: <Widget>[
+                TextField(
+                  controller: _baseCtl,
+                  decoration: InputDecoration(
+                    labelText: l10n.overviewApiBaseUrl,
+                    hintText: 'https://api.openai.com/v1',
+                  ),
+                ),
+                TextField(
+                  controller: _keyCtl,
+                  decoration: InputDecoration(labelText: l10n.overviewApiKey),
+                  obscureText: true,
+                ),
+                TextField(
+                  controller: _modelCtl,
+                  decoration: InputDecoration(
+                    labelText: l10n.overviewApiModel,
+                    hintText: 'gpt-3.5-turbo',
+                  ),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () async {
+                      await widget.settings.saveConfig(NovelSummaryConfig(
+                        baseUrl: _baseCtl.text.trim(),
+                        apiKey: _keyCtl.text.trim(),
+                        model: _modelCtl.text.trim(),
+                      ));
+                      if (mounted) {
+                        setState(() {
+                          _apiError = null;
+                          _apiResult = null;
+                        });
+                      }
+                    },
+                    child: Text(l10n.save),
+                  ),
+                ),
+              ],
+            ),
+          // 阅读数据（保留原统计卡）。
+          ExpansionTile(
+            title: Text(l10n.statsOverviewTitle),
+            initiallyExpanded: true,
+            children: <Widget>[widget.statsWidget],
+          ),
+        ],
+      ),
+    );
+  }
+}
 class _CenterMessage extends StatelessWidget {
   final IconData icon;
   final String message;
@@ -6383,4 +6858,12 @@ class _SliderRowState extends State<_SliderRow> {
       ),
     );
   }
+}
+
+/// 判断书源 [imageStyle] 是否要求图片宽度铺满（legado 常见 `max-width:100%` /
+/// `width:100%`）。命中则返回 true，渲染层据此改为按原比例完整显示图片。
+bool _novelBlockImageIsFitWidth(String? style) {
+  if (style == null || style.isEmpty) return false;
+  final String s = style.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+  return s.contains('max-width') || s.contains('width:100%');
 }

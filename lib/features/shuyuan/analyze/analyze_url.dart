@@ -130,6 +130,23 @@ class AnalyzeUrl {
       });
     }
 
+    // legado 书源兼容：legado 原生搜索/发现 URL 普遍使用尖括号占位符
+    // `<searchKey>`/`<key>`/`<page>`（部分老源用中文书名号《searchKey》/《page》），
+    // 而本引擎此前只识别 {{key}}/{{page}}。import 的 legado 源若用这类占位符，
+    // 关键字/页码不会被替换 → URL 残留字面量 `<searchKey>`（非法字符）→ 请求
+    // 失败或返回空 → "legado 源网络导入无法解析到任何内容"。此处补齐两种占位符。
+    // `<`/`>`/《/》 均不会出现在正常 URL 中，故对既有 {{}} 源零影响。
+    if (key != null && key!.isNotEmpty) {
+      final encodedKey = Uri.encodeComponent(key!);
+      url = url
+          .replaceAll('<searchKey>', encodedKey)
+          .replaceAll('<key>', encodedKey)
+          .replaceAll('《searchKey》', encodedKey)
+          .replaceAll('《key》', encodedKey);
+    }
+    url = url.replaceAll('<page>', page.toString());
+    url = url.replaceAll('《page》', page.toString());
+
     // 兜底：确保任何残留的 {{key}}/{{page}} 被正确替换与编码（极少见，
     // 仅当上面的正则未覆盖时触发，不会造成重复编码）。
     if (key != null && key!.isNotEmpty) {

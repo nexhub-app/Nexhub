@@ -5876,6 +5876,12 @@ abstract class AppLocalizations {
   /// **'Invalid'**
   String get shuyuanImportInvalid;
 
+  /// No description provided for @shuyuanImportTypeUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported type (text only)'**
+  String get shuyuanImportTypeUnsupported;
+
   /// No description provided for @shuyuanImportSuccess.
   ///
   /// In en, this message translates to:
@@ -7853,7 +7859,7 @@ abstract class AppLocalizations {
   /// No description provided for @novelCacheBook.
   ///
   /// In en, this message translates to:
-  /// **'Cache book'**
+  /// **'Cache'**
   String get novelCacheBook;
 
   /// No description provided for @novelResetBookPrefs.
@@ -8603,7 +8609,7 @@ abstract class AppLocalizations {
   /// No description provided for @novelReadingSummary.
   ///
   /// In en, this message translates to:
-  /// **'Reading summary'**
+  /// **'Reading overview'**
   String get novelReadingSummary;
 
   /// No description provided for @novelSummaryProgress.
@@ -12523,6 +12529,222 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bottom Right'**
   String get readerClockPosBottomRight;
+
+  /// No description provided for @cacheBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache'**
+  String get cacheBook;
+
+  /// No description provided for @cacheChaptersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select chapters to cache'**
+  String get cacheChaptersTitle;
+
+  /// No description provided for @cacheSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache selected'**
+  String get cacheSelected;
+
+  /// Selected chapter count in cache dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Selected {count} chapters'**
+  String cacheSelectedCount(int count);
+
+  /// No description provided for @searchPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get searchPause;
+
+  /// No description provided for @searchResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get searchResume;
+
+  /// No description provided for @searchScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Scope'**
+  String get searchScope;
+
+  /// No description provided for @searchScopeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Whole book'**
+  String get searchScopeAll;
+
+  /// No description provided for @searchScopeFromHere.
+  ///
+  /// In en, this message translates to:
+  /// **'From current'**
+  String get searchScopeFromHere;
+
+  /// No description provided for @searchScopeRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Range'**
+  String get searchScopeRange;
+
+  /// No description provided for @searchUseRegex.
+  ///
+  /// In en, this message translates to:
+  /// **'Regex'**
+  String get searchUseRegex;
+
+  /// No description provided for @searchRegexInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid regex'**
+  String get searchRegexInvalid;
+
+  /// No description provided for @searchRangeStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get searchRangeStart;
+
+  /// No description provided for @searchRangeEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get searchRangeEnd;
+
+  /// No description provided for @overviewChapterSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter overview'**
+  String get overviewChapterSummary;
+
+  /// No description provided for @overviewMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary mode'**
+  String get overviewMode;
+
+  /// No description provided for @overviewModeLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get overviewModeLocal;
+
+  /// No description provided for @overviewModeApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud AI'**
+  String get overviewModeApi;
+
+  /// No description provided for @overviewGenerate.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate'**
+  String get overviewGenerate;
+
+  /// No description provided for @overviewGenerating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating…'**
+  String get overviewGenerating;
+
+  /// No description provided for @overviewEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No content to summarize'**
+  String get overviewEmpty;
+
+  /// No description provided for @overviewApiSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary API'**
+  String get overviewApiSettings;
+
+  /// No description provided for @overviewApiBaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'API base URL'**
+  String get overviewApiBaseUrl;
+
+  /// No description provided for @overviewApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get overviewApiKey;
+
+  /// No description provided for @overviewApiModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get overviewApiModel;
+
+  /// No description provided for @overviewApiError.
+  ///
+  /// In en, this message translates to:
+  /// **'Request failed'**
+  String get overviewApiError;
+
+  /// No description provided for @overviewApiMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'API not configured'**
+  String get overviewApiMissing;
+
+  /// No description provided for @overviewRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get overviewRetry;
+
+  /// No description provided for @overviewCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get overviewCopy;
+
+  /// No description provided for @importLegadoSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Import legado sources'**
+  String get importLegadoSource;
+
+  /// No description provided for @legadoImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'legado source import'**
+  String get legadoImportTitle;
+
+  /// No description provided for @legadoImportHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select legado source JSON'**
+  String get legadoImportHint;
+
+  /// No description provided for @legadoImportedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported \$count sources'**
+  String get legadoImportedCount;
+
+  /// No description provided for @legadoParseError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse source'**
+  String get legadoParseError;
+
+  /// No description provided for @legadoGroupDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'legado'**
+  String get legadoGroupDefault;
+
+  /// No description provided for @searchPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get searchPaused;
 }
 
 class _AppLocalizationsDelegate

@@ -21,14 +21,21 @@ class ExploreRule {
   });
 
   factory ExploreRule.fromJson(Map<String, dynamic> json) {
+    // 与 SearchRule 一致：兼容 legado 原文键名（name/author/coverUrl/
+    // kind/lastChapter）与内部命名（bookName/...），原名优先。
+    String? pick(String legado, String internal) {
+      final v = json[legado] as String?;
+      if (v != null && v.isNotEmpty) return v;
+      return json[internal] as String?;
+    }
     return ExploreRule(
       bookList: json['bookList'] as String?,
-      bookName: json['bookName'] as String?,
-      bookAuthor: json['bookAuthor'] as String?,
+      bookName: pick('name', 'bookName'),
+      bookAuthor: pick('author', 'bookAuthor'),
       bookUrl: json['bookUrl'] as String?,
-      bookCoverUrl: json['bookCoverUrl'] as String?,
-      bookKind: json['bookKind'] as String?,
-      bookLastChapter: json['bookLastChapter'] as String?,
+      bookCoverUrl: pick('coverUrl', 'bookCoverUrl'),
+      bookKind: pick('kind', 'bookKind'),
+      bookLastChapter: pick('lastChapter', 'bookLastChapter'),
     );
   }
 

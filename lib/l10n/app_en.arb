@@ -1607,6 +1607,7 @@
   "shuyuanImportEmpty": "No parsed results",
   "shuyuanImportValid": "Valid",
   "shuyuanImportInvalid": "Invalid",
+  "shuyuanImportTypeUnsupported": "Unsupported type (text only)",
   "shuyuanImportSuccess": "Imported {count} book sources",
   "@shuyuanImportSuccess": {
     "placeholders": {
@@ -1674,8 +1675,12 @@
   "searchProgress": "Searched {searched}/{total} chapters",
   "@searchProgress": {
     "placeholders": {
-      "searched": {"type": "int"},
-      "total": {"type": "int"}
+      "searched": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "customBgColor": "Custom background",
@@ -2337,7 +2342,7 @@
   "bottomToolbarConfigTitle": "Bottom toolbar",
   "slotsShown": "Shown",
   "slotsHidden": "Hidden (tap + to add)",
-  "novelCacheBook": "Cache book",
+  "novelCacheBook": "Cache",
   "novelResetBookPrefs": "Reset book to default",
   "novelResetBookDone": "Book settings reset to default",
   "readerCropEdge": "Crop edges",
@@ -2487,50 +2492,84 @@
   "playerSkipUseCurrent": "Use current",
   "playerSkipAuto": "Auto skip",
   "playerSkipHint": "Leave empty to disable. Applies to all episodes of this series.",
-  "novelReadingSummary": "Reading summary",
+  "novelReadingSummary": "Reading overview",
   "novelSummaryProgress": "Progress: chapter {read} of {total}",
   "@novelSummaryProgress": {
     "placeholders": {
-      "read": {"type": "int"},
-      "total": {"type": "int"}
+      "read": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "novelSummaryTotalRead": "Total reading time",
   "novelSummaryToday": "Today",
   "novelSummarySessionsValue": "{count} sessions",
   "@novelSummarySessionsValue": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "novelSummaryRemaining": "Est. time to finish: {duration}",
   "@novelSummaryRemaining": {
-    "placeholders": {"duration": {"type": "String"}}
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
   },
   "novelSummaryCurrentChars": "{count} chars in this chapter",
   "@novelSummaryCurrentChars": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "novelDurationHourMin": "{h}h {m}m",
   "@novelDurationHourMin": {
     "placeholders": {
-      "h": {"type": "int"},
-      "m": {"type": "int"}
+      "h": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      }
     }
   },
   "novelDurationHour": "{h}h",
   "@novelDurationHour": {
-    "placeholders": {"h": {"type": "int"}}
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
   },
   "novelDurationMin": "{m} min",
   "@novelDurationMin": {
-    "placeholders": {"m": {"type": "int"}}
+    "placeholders": {
+      "m": {
+        "type": "int"
+      }
+    }
   },
   "novelSummaryNoStats": "No reading stats yet",
   "novelSummaryPosition": "Now: {chapter} · page {page}/{pages}",
   "@novelSummaryPosition": {
     "placeholders": {
-      "chapter": {"type": "String"},
-      "page": {"type": "int"},
-      "pages": {"type": "int"}
+      "chapter": {
+        "type": "String"
+      },
+      "page": {
+        "type": "int"
+      },
+      "pages": {
+        "type": "int"
+      }
     }
   },
   "playerAutoPlayCountdown": "Auto-play next countdown",
@@ -2539,7 +2578,9 @@
   "playerAutoNextCountdown": "Next episode in {left}s",
   "@playerAutoNextCountdown": {
     "placeholders": {
-      "left": {"type": "int"}
+      "left": {
+        "type": "int"
+      }
     }
   },
   "novelTitleAlignLeft": "Left",
@@ -3037,23 +3078,43 @@
   "bangumiGuessMatch": "Best-guess match: {name}",
   "bangumiEps": "{count} eps",
   "@bangumiEps": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "bangumiAirDate": "Aired: {date}",
   "@bangumiAirDate": {
-    "placeholders": {"date": {"type": "String"}}
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "bangumiCollectionWish": "{count} wish",
   "@bangumiCollectionWish": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "bangumiCollectionDoing": "{count} watching",
   "@bangumiCollectionDoing": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "bangumiCollectionCollect": "{count} watched",
   "@bangumiCollectionCollect": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "bangumiCharacters": "Characters",
   "bangumiRelated": "Related",
@@ -3232,16 +3293,26 @@
   "libraryImportResult": "Imported {success}/{total} sources ({failed} failed)",
   "@libraryImportResult": {
     "placeholders": {
-      "success": {"type": "int"},
-      "total": {"type": "int"},
-      "failed": {"type": "int"}
+      "success": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
     }
   },
   "libraryVersion": "Lib v{lib} · Installed v{installed}",
   "@libraryVersion": {
     "placeholders": {
-      "lib": {"type": "int"},
-      "installed": {"type": "int"}
+      "lib": {
+        "type": "int"
+      },
+      "installed": {
+        "type": "int"
+      }
     }
   },
   "libraryNotInstalled": "Not installed",
@@ -3255,7 +3326,9 @@
   "libraryAlreadyLatestCount": "{count} already latest",
   "@libraryAlreadyLatestCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "sourcePin": "Pin",
@@ -3328,14 +3401,18 @@
   "@ageBlockedManageHint": {
     "description": "Banner in source management when age restriction hides mature sources",
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "ageBlockedImportHint": "Due to age restriction, {count} 18+ source(s) were not imported",
   "@ageBlockedImportHint": {
     "description": "Banner in import preview when age restriction hides mature sources",
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "ageRestriction": "Age restriction",
@@ -3810,5 +3887,49 @@
   "readerClockPosTopLeft": "Top Left",
   "readerClockPosTopRight": "Top Right",
   "readerClockPosBottomLeft": "Bottom Left",
-  "readerClockPosBottomRight": "Bottom Right"
+  "readerClockPosBottomRight": "Bottom Right",
+  "cacheBook": "Cache",
+  "cacheChaptersTitle": "Select chapters to cache",
+  "cacheSelected": "Cache selected",
+  "cacheSelectedCount": "Selected {count} chapters",
+  "@cacheSelectedCount": {
+    "description": "Selected chapter count in cache dialog",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchPause": "Pause",
+  "searchResume": "Resume",
+  "searchScope": "Scope",
+  "searchScopeAll": "Whole book",
+  "searchScopeFromHere": "From current",
+  "searchScopeRange": "Range",
+  "searchUseRegex": "Regex",
+  "searchRegexInvalid": "Invalid regex",
+  "searchRangeStart": "Start",
+  "searchRangeEnd": "End",
+  "overviewChapterSummary": "Chapter overview",
+  "overviewMode": "Summary mode",
+  "overviewModeLocal": "Offline",
+  "overviewModeApi": "Cloud AI",
+  "overviewGenerate": "Generate",
+  "overviewGenerating": "Generating…",
+  "overviewEmpty": "No content to summarize",
+  "overviewApiSettings": "Summary API",
+  "overviewApiBaseUrl": "API base URL",
+  "overviewApiKey": "API key",
+  "overviewApiModel": "Model",
+  "overviewApiError": "Request failed",
+  "overviewApiMissing": "API not configured",
+  "overviewRetry": "Retry",
+  "overviewCopy": "Copy",
+  "importLegadoSource": "Import legado sources",
+  "legadoImportTitle": "legado source import",
+  "legadoImportHint": "Select legado source JSON",
+  "legadoImportedCount": "Imported $count sources",
+  "legadoParseError": "Failed to parse source",
+  "legadoGroupDefault": "legado",
+  "searchPaused": "Paused"
 }

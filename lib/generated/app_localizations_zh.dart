@@ -3000,6 +3000,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shuyuanImportInvalid => '无效';
 
   @override
+  String get shuyuanImportTypeUnsupported => '类型不支持（仅文本书源）';
+
+  @override
   String shuyuanImportSuccess(int count) {
     return '已导入 $count 个书源';
   }
@@ -4048,7 +4051,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get slotsHidden => '已隐藏（点 + 添加）';
 
   @override
-  String get novelCacheBook => '缓存本书';
+  String get novelCacheBook => '缓存';
 
   @override
   String get novelResetBookPrefs => '恢复本书默认';
@@ -4431,7 +4434,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerSkipHint => '留空表示不启用；设置对该作品的全部剧集生效。';
 
   @override
-  String get novelReadingSummary => '阅读总结';
+  String get novelReadingSummary => '阅读速览';
 
   @override
   String novelSummaryProgress(int read, int total) {
@@ -6514,4 +6517,114 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get readerClockPosBottomRight => '右下';
+
+  @override
+  String get cacheBook => '缓存';
+
+  @override
+  String get cacheChaptersTitle => '选择要缓存的章节';
+
+  @override
+  String get cacheSelected => '缓存选中';
+
+  @override
+  String cacheSelectedCount(int count) {
+    return '已选 $count 章';
+  }
+
+  @override
+  String get searchPause => '暂停';
+
+  @override
+  String get searchResume => '继续';
+
+  @override
+  String get searchScope => '范围';
+
+  @override
+  String get searchScopeAll => '全书';
+
+  @override
+  String get searchScopeFromHere => '当前章之后';
+
+  @override
+  String get searchScopeRange => '起止章';
+
+  @override
+  String get searchUseRegex => '正则';
+
+  @override
+  String get searchRegexInvalid => '正则表达式无效';
+
+  @override
+  String get searchRangeStart => '起始章';
+
+  @override
+  String get searchRangeEnd => '结束章';
+
+  @override
+  String get overviewChapterSummary => '本章速览';
+
+  @override
+  String get overviewMode => '总结方式';
+
+  @override
+  String get overviewModeLocal => '离线摘要';
+
+  @override
+  String get overviewModeApi => '云端总结';
+
+  @override
+  String get overviewGenerate => '生成速览';
+
+  @override
+  String get overviewGenerating => '生成中…';
+
+  @override
+  String get overviewEmpty => '本章暂无内容可总结';
+
+  @override
+  String get overviewApiSettings => '速览 API 设置';
+
+  @override
+  String get overviewApiBaseUrl => 'API 地址';
+
+  @override
+  String get overviewApiKey => 'API 密钥';
+
+  @override
+  String get overviewApiModel => '模型名称';
+
+  @override
+  String get overviewApiError => '调用失败';
+
+  @override
+  String get overviewApiMissing => '未配置 API，请在设置中填写';
+
+  @override
+  String get overviewRetry => '重试';
+
+  @override
+  String get overviewCopy => '复制';
+
+  @override
+  String get importLegadoSource => '导入 legado 书源';
+
+  @override
+  String get legadoImportTitle => 'legado 书源导入';
+
+  @override
+  String get legadoImportHint => '选择 legado 书源 JSON 文件（可多选）';
+
+  @override
+  String get legadoImportedCount => '已导入 \$count 个书源';
+
+  @override
+  String get legadoParseError => '书源解析失败';
+
+  @override
+  String get legadoGroupDefault => 'legado';
+
+  @override
+  String get searchPaused => '已暂停';
 }

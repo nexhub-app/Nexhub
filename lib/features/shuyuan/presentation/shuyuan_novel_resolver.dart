@@ -124,6 +124,7 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
           baseUrl: bookSource.bookSourceUrl,
           body: html,
           isSearch: isSearch,
+          searchKey: isSearch ? (vars['keyword'] ?? vars['key'] ?? '') : null,
         );
         return books
             .map((sb) => _searchBookToMediaItem(sb, source.id))

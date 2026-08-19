@@ -5,12 +5,20 @@ library;
 import 'package:html/parser.dart' as html_parser;
 
 import '../../../core/models/novel_block.dart';
+import '../analyze/analyze_rule.dart';
+import '../analyze/js_engine.dart';
 import '../model/book_source.dart';
 import '../model/xiaoshuo_book.dart';
 import '../model/xiaoshuo_book_chapter.dart';
-import '../analyze/analyze_rule.dart';
 
 class BookContent {
+  // 复用同一 QuickJS 运行时（按需创建），避免每次解析正文都重建运行时。
+  static JsEngine? _jsEngineHolder;
+  static JsEngine get _jsEngine {
+    _jsEngineHolder ??= JsEngine();
+    return _jsEngineHolder!;
+  }
+
   // 预编译正则
   static final _brRegex = RegExp(r'<br\s*/?\s*>', caseSensitive: false);
   static final _pOpenRegex = RegExp(r'<p[^>]*>');
@@ -144,7 +152,20 @@ class BookContent {
     String content = '';
 
     if (contentRule.content != null && contentRule.content!.isNotEmpty) {
-      content = _getContent(analyzeRule, contentRule.content!);
+      // legado 语义：若声明了 subContent，则先按 content 取若干容器元素，
+      // 再对每个容器应用 subContent 提取正文（典型用于「外层多个内容块、
+      // 内层才是段落」的站点）。未声明时维持原 getString(content) 行为不变。
+      if (contentRule.subContent != null && contentRule.subContent!.isNotEmpty) {
+        content = _getContentWithSub(
+          analyzeRule,
+          contentRule.content!,
+          contentRule.subContent!,
+          baseUrl,
+          redirectUrl ?? baseUrl,
+        );
+      } else {
+        content = _getContent(analyzeRule, contentRule.content!);
+      }
     }
 
     // 如果 primary selector 未命中或结果为空，尝试 fallback selector 列表
@@ -205,6 +226,21 @@ class BookContent {
     var blocks = _formatToBlocks(content, baseUrl, redirectUrl ?? baseUrl);
     blocks = _cleanContentAdsBlocks(blocks);
 
+    // legado ruleContent.imageDecode：对正文插图 URL 做 JS 解码（部分站点用 JS
+    // 混淆图片地址，需还原真实 URL 才能加载）。仅源声明 imageDecode 时生效，
+    // 解码失败则保留原 URL（不丢图）。
+    if (contentRule.imageDecode != null && contentRule.imageDecode!.isNotEmpty) {
+      blocks = _decodeImageUrls(blocks, contentRule.imageDecode!);
+    }
+    // legado ruleContent.imageStyle：把图片 CSS 样式（如 max-width:100%）绑到
+    // 插图块，供渲染层按样式约束显示。仅源声明时生效，缺省不影响任何源。
+    if (contentRule.imageStyle != null && contentRule.imageStyle!.isNotEmpty) {
+      final style = contentRule.imageStyle!;
+      blocks = blocks.map((b) => b is NovelImageBlock
+          ? NovelImageBlock(b.url, source: b.source, style: style)
+          : b).toList();
+    }
+
     // 添加段落缩进（仅对声明了 replaceRegex 的源，幂等处理）。
     // 先去掉行首可能存在的全角/半角缩进，再统一加一个全角空格，避免源 HTML
     // 已带首行缩进时与引擎缩进叠加（笔趣阁 #nr1@html 多页一致性修复）。
@@ -220,6 +256,37 @@ class BookContent {
   static String _getContent(AnalyzeRule analyzeRule, String contentRule) {
     try {
       return analyzeRule.getString(contentRule, unescape: false);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// 带 subContent 的正文提取：先按 [contentRule] 取若干容器元素，
+  /// 再对每个容器应用 [subRule] 提取其正文，逐容器拼接。
+  /// 若 [contentRule] 命中不到元素（如本身是 `@text` 文本型规则），
+  /// 退化为直接 getString([contentRule])，保证不漏内容。
+  static String _getContentWithSub(
+    AnalyzeRule analyzeRule,
+    String contentRule,
+    String subRule,
+    String baseUrl,
+    String redirectUrl,
+  ) {
+    try {
+      final elements = analyzeRule.getElements(contentRule);
+      if (elements.isEmpty) {
+        return analyzeRule.getString(contentRule, unescape: false);
+      }
+      final parts = <String>[];
+      for (final el in elements) {
+        final subAnalyzer = AnalyzeRule()
+          ..setContent(el, redirectUrl)
+          ..setBaseUrl(baseUrl)
+          ..setRedirectUrl(redirectUrl);
+        final s = subAnalyzer.getString(subRule, unescape: false).trim();
+        if (s.isNotEmpty) parts.add(s);
+      }
+      return parts.join('\n');
     } catch (_) {
       return '';
     }
@@ -435,6 +502,29 @@ class BookContent {
     return RegExp(
       r'\.(jpe?g|png|gif|webp|avif|bmp|svg)(\?|#|$)',
     ).hasMatch(lower);
+  }
+
+  /// 对正文插图块逐个应用 [decodeJs] 解码 URL（legado `result` 绑定单图 URL，
+  /// 脚本返回真实地址）。解码结果非空才替换，异常/空结果保留原 URL。
+  static List<NovelBlock> _decodeImageUrls(
+    List<NovelBlock> blocks,
+    String decodeJs,
+  ) {
+    final out = <NovelBlock>[];
+    for (final b in blocks) {
+      if (b is! NovelImageBlock) {
+        out.add(b);
+        continue;
+      }
+      var url = b.url;
+      try {
+        final decoded =
+            _jsEngine.eval(decodeJs, bindings: <String, dynamic>{'result': url});
+        if (decoded.isNotEmpty) url = decoded;
+      } catch (_) {}
+      out.add(NovelImageBlock(url, source: b.source, style: b.style));
+    }
+    return out;
   }
 
   /// 解码常见 HTML 实体（与旧 _formatContent 行为一致）。

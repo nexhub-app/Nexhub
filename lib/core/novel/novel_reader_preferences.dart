@@ -397,7 +397,11 @@ class NovelReaderPreferences {
     this.footerRight = NovelHeaderFooterContent.pageNumber,
     this.chineseConvert = 'none',
     this.autoPageInterval = 0,
-    this.volumeKeyPageTurn = false,
+    // 小说阅读器默认开启音量键翻页：实测日志显示默认 false 时进入阅读器会打印
+    // "[小说音量键] 已关闭原生拦截"，导致用户按音量键无法翻页。原生
+    // MainActivity.dispatchKeyEvent 拦截逻辑本身正确，问题仅在默认偏好关闭。
+    // 与漫画阅读器（ReaderPreferences 默认 true）保持一致，提升开箱可用性。
+    this.volumeKeyPageTurn = true,
     this.fontFamily,
     this.tapZoneInvert = TapZoneInvert.none,
     this.tapZoneLayout = ReaderTapZoneLayout.lShape,

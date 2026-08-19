@@ -3048,6 +3048,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shuyuanImportInvalid => 'Invalid';
 
   @override
+  String get shuyuanImportTypeUnsupported => 'Unsupported type (text only)';
+
+  @override
   String shuyuanImportSuccess(int count) {
     return 'Imported $count book sources';
   }
@@ -4104,7 +4107,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get slotsHidden => 'Hidden (tap + to add)';
 
   @override
-  String get novelCacheBook => 'Cache book';
+  String get novelCacheBook => 'Cache';
 
   @override
   String get novelResetBookPrefs => 'Reset book to default';
@@ -4507,7 +4510,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Leave empty to disable. Applies to all episodes of this series.';
 
   @override
-  String get novelReadingSummary => 'Reading summary';
+  String get novelReadingSummary => 'Reading overview';
 
   @override
   String novelSummaryProgress(int read, int total) {
@@ -6646,4 +6649,114 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get readerClockPosBottomRight => 'Bottom Right';
+
+  @override
+  String get cacheBook => 'Cache';
+
+  @override
+  String get cacheChaptersTitle => 'Select chapters to cache';
+
+  @override
+  String get cacheSelected => 'Cache selected';
+
+  @override
+  String cacheSelectedCount(int count) {
+    return 'Selected $count chapters';
+  }
+
+  @override
+  String get searchPause => 'Pause';
+
+  @override
+  String get searchResume => 'Resume';
+
+  @override
+  String get searchScope => 'Scope';
+
+  @override
+  String get searchScopeAll => 'Whole book';
+
+  @override
+  String get searchScopeFromHere => 'From current';
+
+  @override
+  String get searchScopeRange => 'Range';
+
+  @override
+  String get searchUseRegex => 'Regex';
+
+  @override
+  String get searchRegexInvalid => 'Invalid regex';
+
+  @override
+  String get searchRangeStart => 'Start';
+
+  @override
+  String get searchRangeEnd => 'End';
+
+  @override
+  String get overviewChapterSummary => 'Chapter overview';
+
+  @override
+  String get overviewMode => 'Summary mode';
+
+  @override
+  String get overviewModeLocal => 'Offline';
+
+  @override
+  String get overviewModeApi => 'Cloud AI';
+
+  @override
+  String get overviewGenerate => 'Generate';
+
+  @override
+  String get overviewGenerating => 'Generating…';
+
+  @override
+  String get overviewEmpty => 'No content to summarize';
+
+  @override
+  String get overviewApiSettings => 'Summary API';
+
+  @override
+  String get overviewApiBaseUrl => 'API base URL';
+
+  @override
+  String get overviewApiKey => 'API key';
+
+  @override
+  String get overviewApiModel => 'Model';
+
+  @override
+  String get overviewApiError => 'Request failed';
+
+  @override
+  String get overviewApiMissing => 'API not configured';
+
+  @override
+  String get overviewRetry => 'Retry';
+
+  @override
+  String get overviewCopy => 'Copy';
+
+  @override
+  String get importLegadoSource => 'Import legado sources';
+
+  @override
+  String get legadoImportTitle => 'legado source import';
+
+  @override
+  String get legadoImportHint => 'Select legado source JSON';
+
+  @override
+  String get legadoImportedCount => 'Imported \$count sources';
+
+  @override
+  String get legadoParseError => 'Failed to parse source';
+
+  @override
+  String get legadoGroupDefault => 'legado';
+
+  @override
+  String get searchPaused => 'Paused';
 }

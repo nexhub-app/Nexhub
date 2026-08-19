@@ -1586,6 +1586,7 @@
   "shuyuanImportEmpty": "暂无解析结果",
   "shuyuanImportValid": "有效",
   "shuyuanImportInvalid": "无效",
+  "shuyuanImportTypeUnsupported": "类型不支持（仅文本书源）",
   "shuyuanImportSuccess": "已导入 {count} 个书源",
   "@shuyuanImportSuccess": {
     "placeholders": {
@@ -1653,8 +1654,12 @@
   "searchProgress": "已搜索 {searched}/{total} 章",
   "@searchProgress": {
     "placeholders": {
-      "searched": {"type": "int"},
-      "total": {"type": "int"}
+      "searched": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "customBgColor": "自定义背景色",
@@ -2314,7 +2319,7 @@
   "bottomToolbarConfigTitle": "底部工具栏",
   "slotsShown": "已显示",
   "slotsHidden": "已隐藏（点 + 添加）",
-  "novelCacheBook": "缓存本书",
+  "novelCacheBook": "缓存",
   "novelResetBookPrefs": "恢复本书默认",
   "novelResetBookDone": "已恢复本书默认设置",
   "readerCropEdge": "裁边",
@@ -2464,50 +2469,84 @@
   "playerSkipUseCurrent": "用当前时间",
   "playerSkipAuto": "自动跳过",
   "playerSkipHint": "留空表示不启用；设置对该作品的全部剧集生效。",
-  "novelReadingSummary": "阅读总结",
+  "novelReadingSummary": "阅读速览",
   "novelSummaryProgress": "进度：读到第 {read} / {total} 章",
   "@novelSummaryProgress": {
     "placeholders": {
-      "read": {"type": "int"},
-      "total": {"type": "int"}
+      "read": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "novelSummaryTotalRead": "累计阅读",
   "novelSummaryToday": "今日阅读",
   "novelSummarySessionsValue": "{count} 次",
   "@novelSummarySessionsValue": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "novelSummaryRemaining": "预计读完还需 {duration}",
   "@novelSummaryRemaining": {
-    "placeholders": {"duration": {"type": "String"}}
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
   },
   "novelSummaryCurrentChars": "本章 {count} 字",
   "@novelSummaryCurrentChars": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "novelDurationHourMin": "{h} 小时 {m} 分",
   "@novelDurationHourMin": {
     "placeholders": {
-      "h": {"type": "int"},
-      "m": {"type": "int"}
+      "h": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      }
     }
   },
   "novelDurationHour": "{h} 小时",
   "@novelDurationHour": {
-    "placeholders": {"h": {"type": "int"}}
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
   },
   "novelDurationMin": "{m} 分钟",
   "@novelDurationMin": {
-    "placeholders": {"m": {"type": "int"}}
+    "placeholders": {
+      "m": {
+        "type": "int"
+      }
+    }
   },
   "novelSummaryNoStats": "暂无阅读统计",
   "novelSummaryPosition": "当前：{chapter} · 第 {page}/{pages} 页",
   "@novelSummaryPosition": {
     "placeholders": {
-      "chapter": {"type": "String"},
-      "page": {"type": "int"},
-      "pages": {"type": "int"}
+      "chapter": {
+        "type": "String"
+      },
+      "page": {
+        "type": "int"
+      },
+      "pages": {
+        "type": "int"
+      }
     }
   },
   "playerAutoPlayCountdown": "自动连播倒计时",
@@ -2516,7 +2555,9 @@
   "playerAutoNextCountdown": "{left} 秒后播放下一集",
   "@playerAutoNextCountdown": {
     "placeholders": {
-      "left": {"type": "int"}
+      "left": {
+        "type": "int"
+      }
     }
   },
   "novelTitleAlignLeft": "左对齐",
@@ -2993,23 +3034,43 @@
   "bangumiGuessMatch": "疑似匹配：{name}",
   "bangumiEps": "{count} 话",
   "@bangumiEps": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "bangumiAirDate": "放送：{date}",
   "@bangumiAirDate": {
-    "placeholders": {"date": {"type": "String"}}
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   },
   "bangumiCollectionWish": "{count} 想看",
   "@bangumiCollectionWish": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "bangumiCollectionDoing": "{count} 在看",
   "@bangumiCollectionDoing": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "bangumiCollectionCollect": "{count} 看过",
   "@bangumiCollectionCollect": {
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "bangumiCharacters": "角色",
   "bangumiRelated": "关联作品",
@@ -3188,16 +3249,26 @@
   "libraryImportResult": "已导入 {success}/{total} 个源（{failed} 失败）",
   "@libraryImportResult": {
     "placeholders": {
-      "success": {"type": "int"},
-      "total": {"type": "int"},
-      "failed": {"type": "int"}
+      "success": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
     }
   },
   "libraryVersion": "库 v{lib} · 已装 v{installed}",
   "@libraryVersion": {
     "placeholders": {
-      "lib": {"type": "int"},
-      "installed": {"type": "int"}
+      "lib": {
+        "type": "int"
+      },
+      "installed": {
+        "type": "int"
+      }
     }
   },
   "libraryNotInstalled": "未安装",
@@ -3211,7 +3282,9 @@
   "libraryAlreadyLatestCount": "{count} 个已是最新",
   "@libraryAlreadyLatestCount": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "sourcePin": "置顶",
@@ -3284,14 +3357,18 @@
   "@ageBlockedManageHint": {
     "description": "Banner in source management when age restriction hides mature sources",
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "ageBlockedImportHint": "因年龄限制，{count} 个成人（18+）源未导入",
   "@ageBlockedImportHint": {
     "description": "Banner in import preview when age restriction hides mature sources",
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "ageRestriction": "年龄限制",
@@ -3766,5 +3843,49 @@
   "readerClockPosTopLeft": "左上",
   "readerClockPosTopRight": "右上",
   "readerClockPosBottomLeft": "左下",
-  "readerClockPosBottomRight": "右下"
+  "readerClockPosBottomRight": "右下",
+  "cacheBook": "缓存",
+  "cacheChaptersTitle": "选择要缓存的章节",
+  "cacheSelected": "缓存选中",
+  "cacheSelectedCount": "已选 {count} 章",
+  "@cacheSelectedCount": {
+    "description": "Selected chapter count in cache dialog",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchPause": "暂停",
+  "searchResume": "继续",
+  "searchScope": "范围",
+  "searchScopeAll": "全书",
+  "searchScopeFromHere": "当前章之后",
+  "searchScopeRange": "起止章",
+  "searchUseRegex": "正则",
+  "searchRegexInvalid": "正则表达式无效",
+  "searchRangeStart": "起始章",
+  "searchRangeEnd": "结束章",
+  "overviewChapterSummary": "本章速览",
+  "overviewMode": "总结方式",
+  "overviewModeLocal": "离线摘要",
+  "overviewModeApi": "云端总结",
+  "overviewGenerate": "生成速览",
+  "overviewGenerating": "生成中…",
+  "overviewEmpty": "本章暂无内容可总结",
+  "overviewApiSettings": "速览 API 设置",
+  "overviewApiBaseUrl": "API 地址",
+  "overviewApiKey": "API 密钥",
+  "overviewApiModel": "模型名称",
+  "overviewApiError": "调用失败",
+  "overviewApiMissing": "未配置 API，请在设置中填写",
+  "overviewRetry": "重试",
+  "overviewCopy": "复制",
+  "importLegadoSource": "导入 legado 书源",
+  "legadoImportTitle": "legado 书源导入",
+  "legadoImportHint": "选择 legado 书源 JSON 文件（可多选）",
+  "legadoImportedCount": "已导入 $count 个书源",
+  "legadoParseError": "书源解析失败",
+  "legadoGroupDefault": "legado",
+  "searchPaused": "已暂停"
 }

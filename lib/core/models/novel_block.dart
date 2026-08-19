@@ -42,11 +42,14 @@ class NovelTextBlock extends NovelBlock {
 ///
 /// [url] 已是解析层拼好的绝对地址（含 baseUrl 归一化）。
 /// [source] 透传给 [SourceImage] 以注入书源防盗链 headers（Referer/Cookie 等）。
+/// [style] 透传书源 `ruleContent.imageStyle`（CSS 字符串，如 `max-width:100%`），
+/// 渲染层据此约束图片显示方式（未声明则为 null，走默认行为）。
 class NovelImageBlock extends NovelBlock {
   final String url;
   final PluginConfig? source;
+  final String? style;
 
-  const NovelImageBlock(this.url, {this.source});
+  const NovelImageBlock(this.url, {this.source, this.style});
 
   /// 是否为可显示的图片地址（http/https 或 data:image 内联）。
   bool get isValid =>

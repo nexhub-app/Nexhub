@@ -135,9 +135,10 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
       _parsed = sources;
       _loading = false;
       _selectedUrls.clear();
-      // 默认全选有效源
+      // 默认全选「文本类且有效」的书源；音频/图片/视频/文件类（legado
+      // bookSourceType 1/2/3/4）在小说阅读器无法解析，预览标为不支持且不勾选。
       for (final s in sources) {
-        if (s.isValid) {
+        if (s.isValid && _isNovelSupported(s)) {
           _selectedUrls.add(s.bookSourceUrl);
         }
       }
@@ -147,12 +148,19 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
     });
   }
 
+  /// 小说阅读器仅支持文本书源（legado bookSourceType == 0）。
+  /// 音频(1)/图片(2)/文件(3)/视频(4) 在小说模块无对应解析管线，导入亦无法使用。
+  bool _isNovelSupported(ShuyuanSource s) => s.bookSourceType == 0;
+
   // ── 批量保存（仅保存勾选项） ──
   void _saveAll() {
     final repo = context.read<SourceRepository>();
     final l10n = AppLocalizations.of(context);
     final selected = _parsed
-        .where((s) => s.isValid && _selectedUrls.contains(s.bookSourceUrl))
+        .where((s) =>
+            s.isValid &&
+            _isNovelSupported(s) &&
+            _selectedUrls.contains(s.bookSourceUrl))
         .toList();
     if (selected.isEmpty) return;
 
@@ -380,8 +388,10 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
   }
 
   Widget _buildSourceCard(ShuyuanSource source, ColorScheme scheme) {
-    final isValid = source.isValid;
+    final novelSupported = _isNovelSupported(source);
+    final isValid = source.isValid && novelSupported;
     final isSelected = _selectedUrls.contains(source.bookSourceUrl);
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
       child: AppCard(
@@ -402,9 +412,13 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
                   : null,
             ),
             Icon(
-              isValid ? Icons.check_circle : Icons.error_outline,
+              isValid
+                  ? Icons.check_circle
+                  : (novelSupported ? Icons.error_outline : Icons.block),
               size: 20,
-              color: isValid ? scheme.primary : scheme.error,
+              color: isValid
+                  ? scheme.primary
+                  : (novelSupported ? scheme.error : scheme.onSurfaceVariant),
             ),
             const SizedBox(width: AppTokens.spaceSm),
             Expanded(
@@ -442,10 +456,12 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
             const SizedBox(width: AppTokens.spaceSm),
             Text(
               isValid
-                  ? AppLocalizations.of(context).shuyuanImportValid
-                  : AppLocalizations.of(context).shuyuanImportInvalid,
+                  ? l10n.shuyuanImportValid
+                  : (novelSupported ? l10n.shuyuanImportInvalid : l10n.shuyuanImportTypeUnsupported),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: isValid ? scheme.primary : scheme.error,
+                    color: isValid
+                        ? scheme.primary
+                        : (novelSupported ? scheme.error : scheme.onSurfaceVariant),
                   ),
             ),
           ],
