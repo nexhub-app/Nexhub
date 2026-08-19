@@ -3748,41 +3748,51 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 打开书内搜索（顶栏与底部工具栏共用；本地模式不可用）。
   Future<void> _showInBookSearch() async {
     if (_isLocalMode) return;
-    final tocStore = context.read<NovelTocStore>();
-    tocStore.setChapters(widget.sourceId, widget.novelId, widget.chapters);
-    final chapters = tocStore.chaptersFor(widget.sourceId, widget.novelId);
-    final result = await showNovelInBookSearchSheet(
-      context: context,
-      chapters: chapters,
-      currentChapterIndex: _chapterIndex,
-      service: _service,
-      source: _source,
-      novelId: widget.novelId,
-      // 搜索与屏显用同一繁简口径：正文转换后匹配，繁文书也能用简体关键词搜到。
-      convertMode: ChineseConvertMode.fromString(_prefs.chineseConvert),
-    );
-    if (result == null || !mounted) return;
-    if (result.chapterIndex != _chapterIndex) {
-      // 跨章：携带命中偏移加载目标章，分页就绪后由 P0-2 恢复路径把偏移
-      // 映射回页码（_buildReader 消费 _savedCharOffset），落到命中页。
-      _savedCharOffset = result.charOffset;
-      _chapterIndex = result.chapterIndex;
-      _loadChapter(_chapterIndex);
-      return;
-    }
-    // 同章：分页已就绪，直接把偏移映射成页码跳转（与书签跳页同构）。
-    final resolved = _pageForCharOffset(result.charOffset);
-    if (_prefs.pageAnimation.isScroll) {
-      final sc = _scrollController;
-      if (sc != null && sc.hasClients) {
-        final h = sc.position.viewportDimension;
-        sc.jumpTo((resolved * h).clamp(0.0, sc.position.maxScrollExtent));
+    try {
+      final tocStore = context.read<NovelTocStore>();
+      tocStore.setChapters(widget.sourceId, widget.novelId, widget.chapters);
+      final chapters = tocStore.chaptersFor(widget.sourceId, widget.novelId);
+      final result = await showNovelInBookSearchSheet(
+        context: context,
+        chapters: chapters,
+        currentChapterIndex: _chapterIndex,
+        service: _service,
+        source: _source,
+        novelId: widget.novelId,
+        // 搜索与屏显用同一繁简口径：正文转换后匹配，繁文书也能用简体关键词搜到。
+        convertMode: ChineseConvertMode.fromString(_prefs.chineseConvert),
+      );
+      if (result == null || !mounted) return;
+      if (result.chapterIndex != _chapterIndex) {
+        // 跨章：携带命中偏移加载目标章，分页就绪后由 P0-2 恢复路径把偏移
+        // 映射回页码（_buildReader 消费 _savedCharOffset），落到命中页。
+        _savedCharOffset = result.charOffset;
+        _chapterIndex = result.chapterIndex;
+        _loadChapter(_chapterIndex);
+        return;
       }
-    } else {
-      _pageKey.currentState?.jumpToPage(resolved);
+      // 同章：分页已就绪，直接把偏移映射成页码跳转（与书签跳页同构）。
+      final resolved = _pageForCharOffset(result.charOffset);
+      if (_prefs.pageAnimation.isScroll) {
+        final sc = _scrollController;
+        if (sc != null && sc.hasClients) {
+          final h = sc.position.viewportDimension;
+          sc.jumpTo((resolved * h).clamp(0.0, sc.position.maxScrollExtent));
+        }
+      } else {
+        _pageKey.currentState?.jumpToPage(resolved);
+      }
+      setState(() => _currentPage = resolved);
+      _saveProgress(resolved);
+    } catch (e, st) {
+      // 兜底：避免未预期异常（如源/存储异常）在手势回调中未被捕获导致阅读器整体卡退。
+      debugPrint('[novel_reader] 书内搜索失败: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('搜索失败：$e')),
+        );
+      }
     }
-    setState(() => _currentPage = resolved);
-    _saveProgress(resolved);
   }
 
   /// 底部工具栏配置 sheet：勾选 / 排序槽位（最多 6 个）。
