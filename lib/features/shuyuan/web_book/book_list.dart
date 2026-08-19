@@ -88,14 +88,29 @@ class BookList {
       lastChapterRule = rule.bookLastChapter;
       checkKeyWordRule = analyzeRule.splitSourceRule(rule.checkKeyWord ?? '');
     } else {
-      final rule = bookSource.getExploreRule();
-      bookListRule = rule.bookList;
-      nameRule = rule.bookName;
-      authorRule = rule.bookAuthor;
-      coverUrlRule = rule.bookCoverUrl;
-      bookUrlRule = rule.bookUrl;
-      kindRule = rule.bookKind;
-      lastChapterRule = rule.bookLastChapter;
+      final exploreRule = bookSource.getExploreRule();
+      if (exploreRule.bookList == null || exploreRule.bookList!.isEmpty) {
+        // legado 行为：绝大多数书源只配置 ruleSearch，发现/分类页直接复用
+        // ruleSearch 解析（legado 官方即如此）。若 ruleExplore 未配置（空），
+        // 回退到 ruleSearch，避免发现页因空规则而解析不到任何内容——
+        // 这是「导入的书源在在线浏览页什么都没有」的主因之一。
+        final searchRule = bookSource.getSearchRule();
+        bookListRule = searchRule.bookList;
+        nameRule = searchRule.bookName;
+        authorRule = searchRule.bookAuthor;
+        coverUrlRule = searchRule.bookCoverUrl;
+        bookUrlRule = searchRule.bookUrl;
+        kindRule = searchRule.bookKind;
+        lastChapterRule = searchRule.bookLastChapter;
+      } else {
+        bookListRule = exploreRule.bookList;
+        nameRule = exploreRule.bookName;
+        authorRule = exploreRule.bookAuthor;
+        coverUrlRule = exploreRule.bookCoverUrl;
+        bookUrlRule = exploreRule.bookUrl;
+        kindRule = exploreRule.bookKind;
+        lastChapterRule = exploreRule.bookLastChapter;
+      }
     }
 
     if (bookListRule == null || bookListRule.isEmpty) {

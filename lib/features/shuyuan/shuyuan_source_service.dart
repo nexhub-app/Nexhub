@@ -222,6 +222,10 @@ class ShuyuanSourceService {
       : _dio = Dio(BaseOptions(
           connectTimeout: const Duration(seconds: 15),
           receiveTimeout: const Duration(seconds: 30),
+          // 关键：强制以纯文本返回，避免服务端标 application/json 时 Dio 自动
+          // 把响应体解码成 List/Map，导致 response.data 不再是 String，
+          // 后续 _parseSourceContent 的 .trim() 抛 TypeError → 网络导入「解析不到任何内容」。
+          responseType: ResponseType.plain,
           validateStatus: (status) => status != null && status < 500,
           headers: {
             'User-Agent':
@@ -233,12 +237,29 @@ class ShuyuanSourceService {
   /// 从 URL 抓取书源列表。
   Future<List<ShuyuanSource>> fetchSourcesFromUrl(String url) async {
     final resolvedUrl = _resolveUrl(url);
-    final response = await _dio.get<String>(resolvedUrl);
+    final response = await _dio.get<dynamic>(resolvedUrl);
     if (response.statusCode != 200) {
       throw Exception('HTTP ${response.statusCode}');
     }
-    final content = response.data ?? '';
+    // 统一为字符串：responseType=plain 时已是 String；若个别环境仍返回
+    // 已解码对象（List/Map），重新序列化回 JSON 文本再交给解析器。
+    final raw = response.data;
+    final content = _coerceToString(raw);
     return _parseSourceContent(content);
+  }
+
+  /// 将 Dio 响应体统一转为字符串：已解码对象重新序列化为 JSON 文本。
+  static String _coerceToString(dynamic raw) {
+    if (raw == null) return '';
+    if (raw is String) return raw;
+    if (raw is List || raw is Map) {
+      try {
+        return json.encode(raw);
+      } catch (_) {
+        return raw.toString();
+      }
+    }
+    return raw.toString();
   }
 
   /// 从本地文件读取书源列表。
@@ -272,24 +293,34 @@ class ShuyuanSourceService {
     return url;
   }
 
-  List<ShuyuanSource> _parseSourceContent(String content) {
-    content = content.trim();
+  List<ShuyuanSource> _parseSourceContent(dynamic content) {
+    var text = _coerceToString(content).replaceAll('\uFEFF', '').trim();
 
-    if (content.startsWith('<')) {
-      return _parseXml(content);
+    // 兼容粘贴站常见的 ```json ... ``` 代码围栏：取出围栏内的 JSON 文本。
+    final fenceMatch = RegExp(r'```(?:json)?\s*([\s\S]*?)```', caseSensitive: false)
+        .firstMatch(text);
+    if (fenceMatch != null) {
+      final inner = fenceMatch.group(1)!.trim();
+      if (inner.isNotEmpty) text = inner;
     }
 
-    if (content.startsWith('[')) {
-      return _parseJsonArray(content);
+    if (text.isEmpty) return const <ShuyuanSource>[];
+
+    if (text.startsWith('<')) {
+      return _parseXml(text);
     }
 
-    if (content.startsWith('{')) {
-      final single = _parseSingleSource(content);
+    if (text.startsWith('[')) {
+      return _parseJsonArray(text);
+    }
+
+    if (text.startsWith('{')) {
+      final single = _parseSingleSource(text);
       return single != null ? [single] : <ShuyuanSource>[];
     }
 
-    // 兜底：从内容中提取首个 JSON 数组
-    final jsonMatch = RegExp(r'\[[\s\S]*\]').firstMatch(content);
+    // 兜底：从内容中提取首个 JSON 数组（部分页面把书源包在 <pre>/script 里）
+    final jsonMatch = RegExp(r'\[[\s\S]*\]').firstMatch(text);
     if (jsonMatch != null) {
       return _parseJsonArray(jsonMatch.group(0)!);
     }
