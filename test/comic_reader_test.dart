@@ -6,6 +6,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/favorites/favorites_manager.dart';
+import 'package:nexhub/core/comic/models/reader_preferences.dart';
 import 'package:nexhub/core/models/plugin_config.dart';
 import 'package:nexhub/core/models/episode.dart';
 import 'package:nexhub/core/resolver/resolver_registry.dart';
@@ -120,5 +121,15 @@ void main() {
     await tester.tapAt(const Offset(300, 600));
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byIcon(Icons.arrow_back), findsNothing);
+  });
+
+  test('设备层草稿提交到 store 持久化', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final store = ReaderPreferencesStore();
+    final draft = const ReaderPreferences().copyWith(autoPageTurningInterval: 10);
+    // 模拟 _commitDeviceOverride 路径：设备层草稿写入作品层持久化。
+    await store.save('m2', draft);
+    final loaded = await store.get('m2');
+    expect(loaded.autoPageTurningInterval, 10);
   });
 }

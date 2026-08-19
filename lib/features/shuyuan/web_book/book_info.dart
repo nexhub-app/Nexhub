@@ -95,6 +95,15 @@ class BookInfo {
       } catch (_) {}
     }
 
+    if (bookInfoRule.wordCount != null && bookInfoRule.wordCount!.isNotEmpty) {
+      try {
+        final wordCount = analyzeRule.getString(bookInfoRule.wordCount!);
+        if (wordCount.isNotEmpty) {
+          book.wordCount = wordCount;
+        }
+      } catch (_) {}
+    }
+
     if (bookInfoRule.recommendations != null &&
         bookInfoRule.recommendations!.isNotEmpty) {
       try {

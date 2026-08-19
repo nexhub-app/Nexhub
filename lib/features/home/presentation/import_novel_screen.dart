@@ -57,8 +57,11 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
           );
           continue;
         }
-        // Android 走 FileType.any，需校验是否为小说类型。
-        if (classifyByPath(f.path!) != LocalMediaKind.text) {
+        // Android 走 FileType.any，选中文件是 content:// URI，无文件扩展名，
+        // 直接按 path 分类会失败（"无法打开 TXT" 根因）。改按显示名 f.name
+        // （含 .txt/.epub 扩展名）分类，path 作为兜底。
+        final kind = classifyByPath(f.name) ?? classifyByPath(f.path!);
+        if (kind != LocalMediaKind.text) {
           if (!mounted) continue;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(AppLocalizations.of(context).unrecognizedFile(f.name))),

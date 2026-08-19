@@ -49,6 +49,7 @@ class WebBook {
       baseUrl: analyzeUrl.url,
       body: body,
       isSearch: true,
+      searchKey: key,
     );
   }
 
