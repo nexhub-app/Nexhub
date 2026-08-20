@@ -16,14 +16,13 @@ import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Bug 7 跳章过渡提示测试：条漫跳过被筛选/已读章时，滚到章末显示「下一章：{标题}」
-/// 过渡横幅（短暂停留或点击后跳转），不再直接整章跳跃，改善连续性感知。
+/// Bug 7 连续阅读测试（2026-08-20 重写）：条漫跳过被筛选/已读章时，滚到章末
+/// 【直接自动连读】到过滤后的目标章——不再显示「下一章：{标题}」过渡横幅、
+/// 无需点击/延时确认（横幅机制已由「直接自动连读」取代）。
 ///
 /// 覆盖：
-/// - l10n 键值（en/zh 跳章过渡提示文本）
-/// - 滚到章末显示横幅（不直接整章跳转）
-/// - 点击横幅立即跳转到过滤后的目标章
-/// - 延时到期自动跳转到过滤后的目标章
+/// - l10n 键值（en/zh 跳章过渡提示文本，键保留兼容）
+/// - 滚到章末直接加载目标章（不显示横幅、不整章跳跃等待）
 class _FakeApiServiceSkip extends MediaApiService {
   _FakeApiServiceSkip() : super(ResolverRegistry.instance);
 
@@ -134,9 +133,9 @@ void main() {
     expect(en.readerNextChapterSkippedHint, 'Tap to jump now');
   });
 
-  testWidgets('Bug7: 滚到章末显示跳章过渡横幅，点击立即跳转到目标章',
+  testWidgets('Bug7: 条漫滚到章末直接自动连读目标章（无横幅、无需点击）',
       (tester) async {
-    // 条漫 + seamless + 跳过被筛选章（c2 空标题被跳过）。
+    // 条漫 + seamless + 跳过被筛选章（c2 空标题被跳过，目标章 c3）。
     SharedPreferences.setMockInitialValues(<String, Object>{
       'reader_prefs_m1':
           '{"readingMode":"webtoon","seamlessReading":true,"showChapterSeparator":true,"skipFilteredChapters":true,"doubleTapZoom":false}',
@@ -159,38 +158,28 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.byType(MangaPageImage), findsAtLeastNWidgets(1));
+    expect(_rendersChapter(tester, '/c1/'), isTrue,
+        reason: '初始应渲染当前章 c1');
 
-    // 初始无横幅。
+    // 初始无横幅、无 c3 内容。
     expect(find.text('下一章：第3话'), findsNothing);
 
-    // 滚到章末（逐步滚动，避免 overscroll 触发整章跳转）。
+    // 滚到章末：逐步滚动直到目标章 c3 被渲染（自动连读，无需点击/等待横幅）。
     await _scrollUntil(
       tester,
-      () => find.text('下一章：第3话').evaluate().isNotEmpty,
+      () => _rendersChapter(tester, '/c3/'),
     );
 
-    // 横幅出现：不再直接整章跳跃，仍停留在当前章 c1。
-    expect(find.text('下一章：第3话'), findsOneWidget);
-    expect(find.text('点击立即跳转'), findsOneWidget);
-    expect(_rendersChapter(tester, '/c1/'), isTrue,
-        reason: '跳章过渡期间应停留在当前章内容，不直接整章跳跃');
-
-    // 点击横幅 → 立即跳转到过滤后的目标章 c3。
-    await tester.tap(find.text('下一章：第3话'));
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(milliseconds: 100));
-
     expect(_rendersChapter(tester, '/c3/'), isTrue,
-        reason: '点击横幅后应跳到过滤后的目标章 c3');
-    // 横幅已收起。
+        reason: '滚到章末后应直接自动连读到过滤后的目标章 c3');
+    // 不再出现「下一章」横幅（直接自动连读，无过渡确认）。
     expect(find.text('下一章：第3话'), findsNothing);
   });
 
-  testWidgets('Bug7: 跳章过渡横幅延时到期自动跳转到目标章', (tester) async {
+  testWidgets('Bug7: 无跳章过滤时滚到章末直接无缝进入下一章（c2）', (tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'reader_prefs_m1':
-          '{"readingMode":"webtoon","seamlessReading":true,"showChapterSeparator":true,"skipFilteredChapters":true,"doubleTapZoom":false}',
+          '{"readingMode":"webtoon","seamlessReading":true,"showChapterSeparator":true,"doubleTapZoom":false}',
     });
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1;
@@ -209,21 +198,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 50));
 
-    // 滚到章末显示横幅。
+    // 滚到章末：逐步滚动直到下一章 c2 被渲染。
     await _scrollUntil(
       tester,
-      () => find.text('下一章：第3话').evaluate().isNotEmpty,
+      () => _rendersChapter(tester, '/c2/'),
     );
-    expect(find.text('下一章：第3话'), findsOneWidget);
 
-    // 延时到期（约 1.8s）自动跳转到目标章 c3。
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(_rendersChapter(tester, '/c3/'), isTrue,
-        reason: '延时到期后应自动跳到过滤后的目标章 c3');
-    expect(find.text('下一章：第3话'), findsNothing);
+    expect(_rendersChapter(tester, '/c2/'), isTrue,
+        reason: '无过滤时滚到章末应直接连读到相邻下一章 c2');
+    expect(find.text('下一章：第2话'), findsNothing);
   });
 }
