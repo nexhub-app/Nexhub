@@ -1,6 +1,8 @@
 /// 小说书源数据模型，承载书源元信息与各路由规则。
 library;
 
+import 'dart:convert';
+
 import 'rule_search.dart';
 import 'rule_toc.dart';
 import 'rule_content.dart';
@@ -244,12 +246,10 @@ dynamic _parseRuleDynamic(dynamic val) {
   if (val is Map) return Map<String, dynamic>.from(val.cast());
   if (val is String && val.isNotEmpty) {
     try {
-      final decoded = Map<String, dynamic>.from(val as Map);
-      return decoded;
-    } catch (_) {}
-    try {
-      final decoded = Map<String, dynamic>.from(val as Map);
-      return decoded;
+      // JSON 字符串解析：部分 Legado 书源将规则存储为 JSON 字符串而非 Map
+      final decoded = jsonDecode(val);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded.cast());
     } catch (_) {}
   }
   if (val is List) {

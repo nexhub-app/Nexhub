@@ -4,6 +4,8 @@
 /// 站点解析能力全部下沉到 Builtin/Script/WebView Resolver 或源内嵌脚本。
 library;
 
+import 'dart:convert';
+
 import '../models/category_entry.dart';
 import '../models/episode.dart';
 import '../models/media_item.dart';
@@ -367,9 +369,39 @@ class MediaApiService {
   /// 例：`玄幻小说::https://x.com/xuanhuan/\n修真小说::https://x.com/xiuzhen/`。
   /// 含 `<js>` 的动态分类首版无法解析，跳过；其余纯文本行按 `::` 拆出
   /// 标题与 URL，URL 作为分类 id（供 ShuyuanNovelResolver 回传 exploreCategory）。
+  /// 解析书源探索 URL 为分类条目列表。
+  ///
+  /// 支持两种格式：
+  /// - `name::url` 多行/`&&` 分隔
+  /// - JSON 数组：`[{"title":"分类名","url":"..."}, ...]`
+  ///
+  /// 含 `<js>` 的动态分类首版无法解析，跳过。
   static List<CategoryEntry> _parseShuyuanExploreUrl(String exploreUrl) {
+    final trimmed = exploreUrl.trim();
+    // JSON 数组格式：`[{"title":"..." ,"url":"..."}, ...]`
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        final decoded = _jsonDecodeAsList(trimmed);
+        if (decoded.isNotEmpty) {
+          final entries = <CategoryEntry>[];
+          for (final item in decoded) {
+            if (item is! Map) continue;
+            final title = _stringField(item, 'title') ??
+                _stringField(item, 'name') ??
+                '';
+            final url = _stringField(item, 'url') ?? '';
+            if (title.isEmpty || url.isEmpty) continue;
+            entries.add(CategoryEntry(id: url, title: title));
+          }
+          if (entries.isNotEmpty) return entries;
+        }
+      } catch (_) {
+        // JSON 解析失败，回退到 name::url 格式解析
+      }
+    }
+    // name::url 格式（多行或 && 分隔）
     final entries = <CategoryEntry>[];
-    for (final rawLine in exploreUrl.split(RegExp(r'\n|&&'))) {
+    for (final rawLine in trimmed.split(RegExp(r'\n|&&'))) {
       final line = rawLine.trim();
       if (line.isEmpty) continue;
       if (line.contains('<js>')) continue; // 首版不支持动态分类脚本
@@ -381,6 +413,29 @@ class MediaApiService {
       entries.add(CategoryEntry(id: url, title: title));
     }
     return entries;
+  }
+
+  /// 安全地将 JSON 字符串解析为 List。
+  static List<dynamic> _jsonDecodeAsList(String json) {
+    final parsed = _jsonDecode(json);
+    if (parsed is List) return parsed;
+    return const [];
+  }
+
+  /// 安全地将 JSON 字符串解析为任意类型。
+  static dynamic _jsonDecode(String json) {
+    try {
+      return jsonDecode(json);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 安全地从 Map 中提取字符串字段。
+  static String? _stringField(Map map, String key) {
+    final v = map[key];
+    if (v is String && v.isNotEmpty) return v;
+    return null;
   }
 
   /// 选择加载某分类时应使用的路由名（统一三列表页逻辑，避免重复实现）。
