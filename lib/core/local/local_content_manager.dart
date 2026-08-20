@@ -109,6 +109,10 @@ void registerSafCoverResolver(Future<String?> Function(String, LocalMediaKind) f
   _safCoverResolver = fn;
 }
 
+/// 本次会话内生成视频封面失败过的路径，避免 [computeLocalCover] 回填时
+/// 反复创建 media_kit Player 拖慢启动（失败多为解码/平台不支持，重试无意义）。
+final Set<String> _failedVideoCoverTries = <String>{};
+
 /// 递归扫描目录，按里面真实文件的多数扩展名决定 [LocalMediaKind]。
 ///
 /// 实现 spec F2.D：不再一刀切标 images。混合目录按多数决定；空目录或全未识别
@@ -299,9 +303,12 @@ Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
     final cover = await LocalNovelParser.extractCover(path);
     if (cover != null) return cover;
   }
-  // 视频：用 media_kit 截首帧作为封面（本地导入视频无封面问题）。
+  // 视频：优先用文件夹内已有封面（poster/folder/cover… 或同名图），
+  // 没有再截首帧生成（本地导入视频无封面问题）。
   if (kind == LocalMediaKind.video) {
-    return await _extractVideoThumbnail(path);
+    final folderCover = _findFolderCover(path);
+    if (folderCover != null) return folderCover;
+    return await extractVideoThumbnail(path);
   }
   if (kind != LocalMediaKind.images) return null;
   try {
@@ -340,45 +347,102 @@ Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
   return null;
 }
 
+/// 本地视频文件夹内常见封面文件名（不含扩展名，按优先级，不区分大小写）。
+const List<String> kFolderCoverNames = <String>[
+  'poster',
+  'folder',
+  'cover',
+  'fanart',
+  'albumart',
+  'thumbnail',
+  'backdrop',
+  'artwork',
+  'banner',
+  'landscape',
+];
+
+/// 若视频所在文件夹存在封面图，返回其路径；否则返回 null。
+///
+/// 扫描父目录：先按常见封面名（poster/folder/cover…）+ 图片扩展名匹配，
+/// 再回退到「与视频同名（去扩展名）的图片」，如 ep01.mp4 → ep01.jpg。
+/// 命中即直接使用，避免无谓的截帧解码开销。
+String? _findFolderCover(String videoPath) {
+  try {
+    final dir = Directory(p.dirname(videoPath));
+    if (!dir.existsSync()) return null;
+    final files = dir
+        .listSync()
+        .whereType<File>()
+        .where((f) => isImageFile(f.path))
+        .toList();
+    if (files.isEmpty) return null;
+    final byName = <String, String>{};
+    for (final f in files) {
+      byName[p.basenameWithoutExtension(f.path).toLowerCase()] = f.path;
+    }
+    for (final name in kFolderCoverNames) {
+      final hit = byName[name];
+      if (hit != null) return hit;
+    }
+    final base = p.basenameWithoutExtension(videoPath).toLowerCase();
+    final same = byName[base];
+    if (same != null) return same;
+    return null;
+  } on Object {
+    return null;
+  }
+}
+
 /// 为本地视频生成首帧缩略图，落盘到 `local_covers/video_<hash>.jpg` 并返回路径；
 /// 任意失败（解码失败 / 平台不支持）返回 null，由 UI 回退占位图，不阻断导入。
 ///
 /// 复用 media_kit 的 [Player.screenshot] 截首帧，避免引入额外依赖。位于此而非
 /// 播放器内部，是因为导入流程（browse_local / content_import）需要在无播放页的
 /// 情况下为视频生成封面。无视频画面（Web / 部分平台）时安全回退 null。
-Future<String?> _extractVideoThumbnail(String path) async {
+///
+/// 注意：**必须播放态截图**。旧实现 `play: false` + 轮询 `stream.position`，
+/// 但 mpv 暂停态下 time-pos 不推进，等待恒超时 → 截帧拿不到帧、缓存无封面。
+/// 现改为静音播放约 1.2s（解码管线活跃）后 seek 到 1s 处截图，稳定可靠。
+Future<String?> extractVideoThumbnail(String path) async {
   Player? player;
   try {
     MediaKit.ensureInitialized();
-    player = Player();
-    await player.open(Media(path), play: false);
-    // 跳到 1s 处取首帧，避开黑屏开场；轮询 position 直到帧解码，兜底 5s 超时。
-    await player.seek(const Duration(seconds: 1));
-    final Completer<void> decoded = Completer<void>();
-    late final StreamSubscription<Duration> sub;
-    sub = player.stream.position.listen((Duration pos) {
-      if (!decoded.isCompleted && pos >= const Duration(milliseconds: 800)) {
+    player = Player(configuration: PlayerConfiguration(muted: true));
+    await player.open(Media(path), play: true);
+    // 等时长就绪 = 元数据解析成功（暂停态也会更新，作为打开成功的信号）。
+    final Completer<void> ready = Completer<void>();
+    late final StreamSubscription<Duration?> sub;
+    sub = player.stream.duration.listen((Duration? d) {
+      if (!ready.isCompleted && d != null && d > Duration.zero) {
         sub.cancel();
-        decoded.complete();
+        ready.complete();
       }
     });
-    await decoded.future.timeout(
-      const Duration(seconds: 5),
-      onTimeout: () {
-        sub.cancel();
-      },
+    await ready.future.timeout(
+      const Duration(seconds: 8),
+      onTimeout: () => sub.cancel(),
     );
+    // 播放约 1.2s，确保首帧 / 关键帧已解码并渲染，截图稳定。
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    // 跳到 1s 处取帧，避开黑屏开场。
+    await player.seek(const Duration(seconds: 1));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     final Uint8List? bytes = await player.screenshot(format: 'image/jpeg');
-    if (bytes == null) return null;
+    if (bytes == null) {
+      AppLog.instance.w('[本地视频封面] 截帧返回空: $path');
+      return null;
+    }
     final dir = await getApplicationDocumentsDirectory();
     final coverDir = Directory(p.join(dir.path, 'local_covers'));
     await coverDir.create(recursive: true);
     final target =
         File(p.join(coverDir.path, 'video_${path.hashCode}.jpg'));
     await target.writeAsBytes(bytes);
+    AppLog.instance.i('[本地视频封面] 生成成功: $path -> ${target.path}');
     return target.path;
-  } on Object catch (e) {
-    AppLog.instance.e('[本地视频封面] 缩略图生成失败: $path -> $e');
+  } on Object catch (e, st) {
+    _failedVideoCoverTries.add(path);
+    AppLog.instance.eWithStack('[本地视频封面] 缩略图生成失败: $path', e, st);
     return null;
   } finally {
     await player?.dispose();
@@ -511,15 +575,24 @@ class LocalContentManager extends ChangeNotifier {
     }
   }
 
-  /// 为缺封面的图片类历史条目补算「第一张图」作为封面并持久化。
+  /// 为缺封面的历史条目补算封面并持久化。
   ///
-  /// 只处理 [LocalMediaKind.images] 且 `coverUrl == null` 的条目（视频/文本本就
-  /// 无封面）。补算失败（如 .cbr/损坏包）静默跳过，保持 null 由 UI 回退占位。
+  /// 处理图片类（取首图）与视频类（media_kit 截首帧）且 `coverUrl == null`
+  /// 的条目；补算失败（损坏包 / 解码失败）静默跳过，保持 null 由 UI 回退占位。
   Future<void> _backfillMissingCovers() async {
     var dirty = false;
     for (var i = 0; i < _items.length; i++) {
       final e = _items[i];
-      if (e.coverUrl != null || e.kind != LocalMediaKind.images) continue;
+      if (e.coverUrl != null) continue;
+      // 仅补图片类与视频类（视频用 media_kit 截首帧）；其余类型本就无封面。
+      if (e.kind != LocalMediaKind.images && e.kind != LocalMediaKind.video) {
+        continue;
+      }
+      // 本会话已失败过的视频跳过，避免启动时反复创建 Player 拖慢启动。
+      if (e.kind == LocalMediaKind.video &&
+          _failedVideoCoverTries.contains(e.path)) {
+        continue;
+      }
       final cover = await computeLocalCover(e.path, e.kind);
       if (cover == null) continue;
       _items[i] = LocalContentEntry(
@@ -555,7 +628,8 @@ class LocalContentManager extends ChangeNotifier {
       final bool needFilePaths =
           entry.filePaths != null && entry.filePaths!.isNotEmpty;
       final bool needCover = existing.coverUrl == null &&
-          existing.kind == LocalMediaKind.images;
+          (existing.kind == LocalMediaKind.images ||
+              existing.kind == LocalMediaKind.video);
       if (needFilePaths || needCover) {
         final String? coverUrl = existing.coverUrl ??
             await computeLocalCover(existing.path, existing.kind);

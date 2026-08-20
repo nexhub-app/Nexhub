@@ -29,7 +29,9 @@ import 'local_content_manager.dart'
         naturalCompare,
         isComicArchive,
         isComicIgnored,
-        registerSafCoverResolver;
+        registerSafCoverResolver,
+        extractVideoThumbnail,
+        kFolderCoverNames;
 import 'archive_extractor.dart' show extractFirstArchiveImage;
 import '../local/pdf_util.dart' show extractPdfCover;
 import '../utils/app_log.dart';
@@ -755,6 +757,10 @@ String _tryDecodeComponent(String s) {
 
 /// SAF 条目封面：取首图 / PDF 首页并落盘（注入到 [computeLocalCover]）。
 Future<String?> _computeLocalCoverSaf(String treeOrFilePath, LocalMediaKind kind) async {
+  // 视频：文件夹封面优先（poster/folder/cover… 或与视频同名图），没有再截首帧。
+  if (kind == LocalMediaKind.video) {
+    return _safVideoCover(treeOrFilePath);
+  }
   if (kind != LocalMediaKind.images && kind != LocalMediaKind.pdf) return null;
   try {
     final scanned = await scanComicFolderSaf(treeOrFilePath);
@@ -768,6 +774,45 @@ Future<String?> _computeLocalCoverSaf(String treeOrFilePath, LocalMediaKind kind
     }
   } catch (_) {
     return null;
+  }
+  return null;
+}
+
+/// SAF 视频封面：目录 URI 做「文件夹封面优先」查找（与真实路径视频一致），
+/// 没有再取首个视频落盘截帧；单文件 URI 无法反查父目录，直接落盘截帧。
+Future<String?> _safVideoCover(String uriOrPath) async {
+  try {
+    final SafDocumentFile? st = await _safeStat(_normalizeSafDocUri(uriOrPath));
+    if (st != null && !st.isDir) {
+      final local = await resolveSafUri(uriOrPath);
+      return await extractVideoThumbnail(local);
+    }
+    final String dirUri = await resolveSafDirUri(uriOrPath);
+    final List<String> images =
+        await listFolderFilesByKindSaf(dirUri, LocalMediaKind.images);
+    final Map<String, String> byName = <String, String>{};
+    for (final u in images) {
+      byName[safBaseName(u).toLowerCase()] = u;
+    }
+    for (final name in kFolderCoverNames) {
+      final String? hit = byName[name];
+      if (hit != null) return await resolveSafUri(hit);
+    }
+    final List<String> videos =
+        await listFolderFilesByKindSaf(dirUri, LocalMediaKind.video);
+    if (videos.isNotEmpty) {
+      // 与首个视频同名的图片（ep01.mp4 → ep01.jpg）兜底。
+      final String base = safBaseName(videos.first)
+          .toLowerCase()
+          .replaceFirst(
+              RegExp(r'\.(mp4|mkv|avi|mov|webm|m4v|flv|ts)$'), '');
+      final String? same = byName[base];
+      if (same != null) return await resolveSafUri(same);
+      final String local = await resolveSafUri(videos.first);
+      return await extractVideoThumbnail(local);
+    }
+  } on Object catch (e) {
+    AppLog.instance.e('[SAF 视频封面] 失败: $uriOrPath -> $e');
   }
   return null;
 }
