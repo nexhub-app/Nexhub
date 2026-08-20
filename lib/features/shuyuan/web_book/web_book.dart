@@ -93,7 +93,16 @@ class WebBook {
       throw Exception('书源未配置 exploreUrl');
     }
 
-    var urlEntries = parseMultiLevelUrls(exploreUrl);
+    // 先尝试解析 JSON 数组格式的 exploreUrl
+    var resolvedExplore = exploreUrl;
+    if (exploreUrl.trim().startsWith('[')) {
+      final jsonResult = _parseRawJsonArray(exploreUrl);
+      if (jsonResult.isNotEmpty) {
+        resolvedExplore = jsonResult;
+      }
+    }
+
+    var urlEntries = parseMultiLevelUrls(resolvedExplore);
     if (urlEntries.isEmpty) {
       final trimmed = exploreUrl.trim();
       if (trimmed.isNotEmpty) {
