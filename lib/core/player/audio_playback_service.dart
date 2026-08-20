@@ -167,11 +167,8 @@ class _PlaybackHandler extends BaseAudioHandler with SeekHandler {
   /// 系统侧重启（通知被划掉后重新点按 / Android 13 重建）：无会话时忽略。
   @override
   Future<void> stop() async {
-    final s = _session;
-    // 通知被用户划掉视为「停止播放」：暂停底层并解除通知。
-    if (s != null) {
-      await s.onPause();
-    }
+    // 仅解除通知与前台服务，不回调底层暂停（detach 时播放页正在销毁，
+    // 触碰控制器会报错；通知为 ongoing 不可手动划掉，stop 只来自 detach）。
     clear();
     await super.stop();
   }
@@ -240,7 +237,7 @@ class AudioPlaybackService {
           androidNotificationChannelName: notificationChannelName,
           androidNotificationChannelId: 'nexhub.playback',
           androidNotificationOngoing: true,
-          androidStopForegroundOnPause: true,
+          androidStopForegroundOnPause: false,
         ),
       );
       await _configureAudioSession();
@@ -295,6 +292,10 @@ class AudioPlaybackService {
     if (handler == null) return;
     if (token != _generation) return;
     handler.updateSession(session);
+    // 前台媒体服务（通知栏 + 锁屏控件）由 AudioService.init + 设置 mediaItem/
+    // playbackState 自动拉起（audio_service 0.18 无需再调 start()）。前台服务
+    // 使应用进后台时不被 OS 挂起，配合 androidStopForegroundOnPause=false，
+    // 「后台播放」可持续（音频继续解码）。
   }
 
   /// 注销会话（播放页 dispose 时调用）。token 与当前代次不一致时忽略
@@ -303,6 +304,8 @@ class AudioPlaybackService {
     if (!_supported) return;
     if (token != _generation) return;
     _generation++;
-    _handler?.clear();
+    // 停止前台服务、移除通知（audio_service 0.18 用 handler.stop，而非已废弃的
+    // AudioService.stop）。通知为 ongoing 不可手动划掉，故仅此处置调用。
+    unawaited(_handler?.stop().catchError((Object _) {}));
   }
 }

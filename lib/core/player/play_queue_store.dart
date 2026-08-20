@@ -15,6 +15,10 @@ class QueuedWork {
   final SourceType sourceType;
   final String? detailUrl;
 
+  /// 本地/直连视频：无源可重抓剧集，入队时携带文件路径，连播时直接重开播放页。
+  final String? localUri;
+  final String? directUrl;
+
   /// 起始集标识：优先按 [episodeId] 在重新抓取的剧集列表里定位，
   /// 找不到时回退到 [episodeIndex]，再不行从头开始。
   final String? episodeId;
@@ -28,6 +32,8 @@ class QueuedWork {
     this.coverUrl,
     this.sourceType = SourceType.animeSource,
     this.detailUrl,
+    this.localUri,
+    this.directUrl,
     this.episodeId,
     this.episodeTitle,
     this.episodeIndex = 0,
@@ -40,6 +46,8 @@ class QueuedWork {
         'coverUrl': coverUrl,
         'sourceType': sourceType.apiName,
         'detailUrl': detailUrl,
+        'localUri': localUri,
+        'directUrl': directUrl,
         'episodeId': episodeId,
         'episodeTitle': episodeTitle,
         'episodeIndex': episodeIndex,
@@ -54,6 +62,8 @@ class QueuedWork {
       coverUrl: json['coverUrl'] as String?,
       sourceType: st ?? SourceType.animeSource,
       detailUrl: json['detailUrl'] as String?,
+      localUri: json['localUri'] as String?,
+      directUrl: json['directUrl'] as String?,
       episodeId: json['episodeId'] as String?,
       episodeTitle: json['episodeTitle'] as String?,
       episodeIndex: (json['episodeIndex'] as int?) ?? 0,
@@ -79,14 +89,14 @@ class PlayQueueStore {
 
   Future<List<QueuedWork>> getQueue() async {
     final String? raw = await _backend.get(_queueKey);
-    if (raw == null || raw.isEmpty) return const <QueuedWork>[];
+    if (raw == null || raw.isEmpty) return <QueuedWork>[];
     try {
       final List<dynamic> list = jsonDecode(raw) as List<dynamic>;
       return list
           .map((e) => QueuedWork.fromJson(e as Map<String, dynamic>))
           .toList();
     } on Object {
-      return const <QueuedWork>[];
+      return <QueuedWork>[];
     }
   }
 

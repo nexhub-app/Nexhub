@@ -159,12 +159,14 @@ class VideoPlayerScreen extends StatefulWidget {
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
-class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+class _VideoPlayerScreenState extends State<VideoPlayerScreen>
+    with WidgetsBindingObserver {
   // 注意：_controller 不在 initState 同步创建，而是在 _init() 中、等上一次播放器
   // 原生释放完成后再创建。否则新 Player 的 mpv 上下文会与尚未释放的旧 surface
   // 重叠，连续多次打开会在第三次冲突杀进程（Lost connection to device）。
   late final PlayerController _controller;
   bool _controllerCreated = false;
+  bool _playingBeforeBackground = false; // 进后台前是否在播放（用于回前台恢复）
   VideoController? _videoController;
 
   final DanmakuController _danmakuController = DanmakuController();
@@ -415,8 +417,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   /// 本次横滑是否已被上滑取消（松手不跳转）。
   bool _seekDragCancelled = false;
 
+  /// 本次拖动是否已给过取消震动（仅首次进入取消态震动一次）。
+  bool _seekDragCancelledFeedback = false;
+
   /// 上滑判定阈值（逻辑像素）：横滑中垂直位移超过该值视为「上滑取消」。
-  static const double _kSeekCancelThreshold = 40;
+  /// 24px ≈ 0.6cm 物理位移，比旧值 32 更易触发（实测用户"明显上移"仍可能
+  /// 不足 32px），同时保留对自然抖动的防误触。
+  static const double _kSeekCancelThreshold = 24;
 
   /// 上次双击的时刻（F-14 防抖：双击后 600ms 内屏蔽单击，防三分区误触）。
   DateTime _lastDoubleTapAt = DateTime.fromMillisecondsSinceEpoch(0);
@@ -513,6 +520,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // 首帧后把默认弹幕设置（字号/不透明度/区域）同步到弹幕层，
     // 否则覆盖层会沿用 canvas_danmaku 的默认值（区域=全屏、字号=16）。
     // 注意：此时 _controller 尚未创建（在 _init 中等旧播放器释放后才建），
@@ -534,6 +542,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         coverUrl: widget.coverUrl,
         lastChapterTitle: widget.episode.id,
       ));
+    }
+  }
+
+  /// 后台播放（F-25）：进后台不主动暂停，依赖前台媒体服务保活；回到前台若
+  /// 此前在播且被视频表面销毁误暂停，则恢复播放。
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (!_controllerCreated) return;
+    if (state == AppLifecycleState.paused) {
+      _playingBeforeBackground = _controller.isPlaying;
+    } else if (state == AppLifecycleState.resumed) {
+      if (_playingBeforeBackground && !_controller.isPlaying) {
+        unawaited(_controller.play());
+      }
+      _playingBeforeBackground = false;
     }
   }
 
@@ -1488,7 +1512,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       context: context,
       builder: (BuildContext dialogCtx) => StatefulBuilder(
         builder: (BuildContext ctx, StateSetter setDlg) => AlertDialog(
-          title: Text(l10n.playerSkipOpEd),
+          // 弹窗占据更多屏幕宽度与高度（垂直边距收紧），内容显示区域更大。
+          insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24, vertical: 12),
+          // 紧凑按钮栏：降低「取消/保存」栏自身高度，把垂直空间让给内容区。
+          actionsPadding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+          title: Text(
+            l10n.playerSkipOpEd,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+          ),
         // 手机适配：内容用 SingleChildScrollView 包裹，避免窄屏下「使用当前」
         // 按钮 / 开关与输入行挤压重叠；自动跳过用 Row+Switch 替代占宽的
         // SwitchListTile，减少横向溢出风险。
@@ -1503,7 +1535,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     child: TextField(
                       controller: opCtl,
                       decoration: InputDecoration(
-                          labelText: l10n.playerSkipOpEndLabel),
+                        labelText: l10n.playerSkipOpEndLabel,
+                        labelStyle: const TextStyle(fontSize: 13),
+                      ),
                       keyboardType: TextInputType.datetime,
                     ),
                   ),
@@ -1511,7 +1545,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     onPressed: () {
                       opCtl.text = _fmtMmSs(_position.inSeconds);
                     },
-                    child: Text(l10n.playerSkipUseCurrent),
+                    child: Text(l10n.playerSkipUseCurrent,
+                        style: const TextStyle(fontSize: 13)),
                   ),
                 ],
               ),
@@ -1522,7 +1557,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     child: TextField(
                       controller: edCtl,
                       decoration: InputDecoration(
-                          labelText: l10n.playerSkipEdStartLabel),
+                        labelText: l10n.playerSkipEdStartLabel,
+                        labelStyle: const TextStyle(fontSize: 13),
+                      ),
                       keyboardType: TextInputType.datetime,
                     ),
                   ),
@@ -1530,7 +1567,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     onPressed: () {
                       edCtl.text = _fmtMmSs(_position.inSeconds);
                     },
-                    child: Text(l10n.playerSkipUseCurrent),
+                    child: Text(l10n.playerSkipUseCurrent,
+                        style: const TextStyle(fontSize: 13)),
                   ),
                 ],
               ),
@@ -1539,7 +1577,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: <Widget>[
                   Expanded(
-                    child: Text(l10n.playerSkipAuto),
+                    child: Text(
+                      l10n.playerSkipAuto,
+                      style: const TextStyle(fontSize: 14),
+                    ),
                   ),
                   Switch(
                     value: auto,
@@ -1550,18 +1591,31 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               const SizedBox(height: AppTokens.spaceSm),
               Text(
                 l10n.playerSkipHint,
-                style: Theme.of(ctx).textTheme.bodySmall,
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontSize: 12),
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
+              style: TextButton.styleFrom(
+                minimumSize: const Size(44, 28),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: Text(l10n.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
+              style: TextButton.styleFrom(
+                minimumSize: const Size(44, 28),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: Text(l10n.save),
             ),
           ],
@@ -1803,6 +1857,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       coverUrl: widget.coverUrl,
       sourceType: widget.favoriteType ?? SourceType.animeSource,
       detailUrl: widget.detailUrl,
+      localUri: widget.localUri,
+      directUrl: widget.directUrl,
       episodeId: epId,
       episodeTitle: epTitle,
       episodeIndex: idx,
@@ -1927,6 +1983,31 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     final remaining = queue.where((e) => e.itemId != w.itemId).toList();
     await _queueStore.setQueue(remaining);
     await _queueStore.setCurrent(w);
+
+    // 本地/直连视频：无源可重抓，直接带路径重开播放页（无需按源拉剧集）。
+    if (w.localUri != null || w.directUrl != null) {
+      if (!mounted || _disposed) return;
+      await Navigator.of(context).pushReplacement(
+        AppPageRoute<void>(
+          builder: (_) => VideoPlayerScreen(
+            title: w.title,
+            episode: Episode(
+              id: w.itemId,
+              title: w.title,
+              url: w.localUri ?? w.directUrl ?? '',
+            ),
+            sourceId: '',
+            itemId: w.itemId,
+            localUri: w.localUri,
+            directUrl: w.directUrl,
+            coverUrl: w.coverUrl,
+            favoriteType: w.sourceType,
+            restoreProgress: true,
+          ),
+        ),
+      );
+      return;
+    }
 
     // 抓取剧集列表。
     _safeSnackBar(l10n.playerQueueLoading(w.title));
@@ -2903,7 +2984,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _gestureIndicatorText = text;
       _gestureIndicatorVisible = true;
     });
+    // 取消态（横滑上滑取消 seek）需常显直到松手，不被 800ms 计时隐藏，
+    // 否则手指停住后「已取消快进」图标消失，用户误以为取消未生效。
+    if (_seekDragCancelled) return;
     _gestureIndicatorTimer = Timer(const Duration(milliseconds: 800), () {
+      if (_seekDragCancelled) return;
       if (mounted) {
         setState(() => _gestureIndicatorVisible = false);
       }
@@ -3782,24 +3867,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ),
             // ── F-4 播放队列（跨作品）──
             const Divider(height: 1),
-            if (!_isDirectMode)
-              ListTile(
-                leading: const Icon(Icons.playlist_add),
-                title: Text(l10n.playerAddToQueue),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  unawaited(_addCurrentToQueue());
-                },
-              ),
-            if (!_isDirectMode)
-              ListTile(
-                leading: const Icon(Icons.playlist_play),
-                title: Text(l10n.playerPlayNext),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  unawaited(_playCurrentNext());
-                },
-              ),
+            ListTile(
+              leading: const Icon(Icons.playlist_add),
+              title: Text(l10n.playerAddToQueue),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_addCurrentToQueue());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.playlist_play),
+              title: Text(l10n.playerPlayNext),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_playCurrentNext());
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.queue_music),
               title: Text(l10n.playerQueue),
@@ -4044,6 +4127,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // 退出时保存最后播放位置
     _saveCurrentPosition();
     // 退出时一次性结算本次会话的观看时长（commit 内部 best-effort）。
@@ -4253,6 +4337,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               // F-15：每次拖动重置上滑取消状态。
               _seekDragVerticalDelta = 0;
               _seekDragCancelled = false;
+              _seekDragCancelledFeedback = false;
             },
             onHorizontalDragUpdate: (DragUpdateDetails d) {
               if (_controller.isLocked) return;
@@ -4264,6 +4349,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 _seekDragCancelled = true;
               }
               if (_seekDragCancelled) {
+                // 取消态：预览目标强制复位为当前进度——双保险，即使松手
+                // 路径意外 seek 也会回到原位，保证「上滑取消不跳转」。
+                _seekPreview = _position;
+                // 首次进入取消态时给一次轻微震动，让「已取消」可被触觉感知
+                //（仅图标常显时用户可能未察觉状态已切换）。
+                if (!_seekDragCancelledFeedback) {
+                  _seekDragCancelledFeedback = true;
+                  HapticFeedback.mediumImpact();
+                }
                 // 取消态持续显示提示（重置计时器，松手前保持可见），
                 // 同时明确渲染取消图标，解决「上滑没有取消图标」的问题。
                 _showGestureIndicator(l10n.playerSeekCancel);
@@ -4295,7 +4389,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 }
               }
               _dragAxis = _GestureAxis.none;
+              // 拖拽结束（含取消态）：隐藏指示器并复位取消状态。
+              _gestureIndicatorTimer?.cancel();
+              if (mounted) setState(() => _gestureIndicatorVisible = false);
               _seekDragCancelled = false;
+              _seekDragCancelledFeedback = false;
               _seekDragVerticalDelta = 0;
             },
             child: Center(
