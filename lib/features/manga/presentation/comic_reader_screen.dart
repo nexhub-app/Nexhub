@@ -186,6 +186,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   int _chapterIndex = 0;
   int _savedPage = 0;
 
+  /// 每章最后一次读到的页（key = 章节索引）。随每次翻页即时更新并异步持久化到
+  /// [ComicProgressManager.saveChapterPage]，供「回到上一话」恢复到离开页而非
+  /// 固定首页/末页（连续阅读）。内存缓存提供同步读取（切章回调内不能用 await）。
+  final Map<int, int> _chapterPageCache = <int, int>{};
+
   /// 是否正在把视图恢复到保存的页码。
   ///
   /// 恢复期间滚动回调产生的页码是「过渡值」（通常是 0），若照常写盘会把
@@ -271,8 +276,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 超过 [_kChapterOverscroll] 即换章，松手或重新开始滚动时清零。
   double _overscrollAccum = 0;
 
-  /// 边界拖拽换章阈值（像素）。
-  static const double _kChapterOverscroll = 160;
+  /// 边界拖拽换章阈值（像素）。本地聚合/在线 seam 无邻段时，翻到章首/章末
+  /// 靠此阈值触发换章；阈值过大（原 160px）在窄屏上需要拖很远，感知为
+  /// 「翻到首页就翻不了上一话」。降至 80px（约 2cm）平衡防误触与响应性。
+  static const double _kChapterOverscroll = 80;
 
   /// 判定「item 已按真实图片尺寸布局」的最小高度（视口高度归一化）。
   /// 图片未加载时每条 item 仅是占位小高度（约几十像素 ≈ 0.05 视口），而真实漫画页
@@ -458,15 +465,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   String _transitionTitle = '';
   Timer? _transitionTimer;
 
-  /// 跳章过渡提示（REQ-C11 条漫跳章过滤）：无缝列表已到头 + 已到章末 + 下一章会被
-  /// 跳过（已读/被筛选/重复）时显示「下一章：{标题}」横幅，短暂停留或点击后整章
-  /// 跳转到过滤后的目标章，避免直接整章跳跃导致的连续性差。
+  /// 跳章过渡提示状态（2026-08-20 起条漫滚到章末改「直接自动连读」，横幅不再
+  /// 有启动入口；字段保留给 _hideSkipTransition 的幂等清除路径，恒为 false）。
   bool _showSkipTransition = false;
 
-  /// 跳章过渡提示的目标章标题（空标题已回退为「第 N 话」）。
-  String? _skipTransitionTitle;
-
-  /// 跳章过渡提示的延时跳转定时器：显示后约 1.8s 未点击则自动 [_goNextChapter]。
+  /// 跳章过渡提示的延时跳转定时器（同横幅一并废弃，保留清除路径）。
   Timer? _skipTransitionTimer;
 
   MediaApiService get _service => context.read<MediaApiService>();
@@ -590,6 +593,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           GeneralSettingsStore.instance.settings.rememberPosition) {
         _savedPage = saved.currentPage;
       }
+      // 恢复按章页码表：回到上一话时恢复到离开页。
+      for (final MapEntry<String, int> e in saved.chapterPages.entries) {
+        final int? ci = int.tryParse(e.key);
+        if (ci != null && ci >= 0 && ci < widget.chapters.length) {
+          _chapterPageCache[ci] = e.value;
+        }
+      }
     }
     _refreshFavorite();
     unawaited(_refreshChapterBookmark());
@@ -683,6 +693,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       });
       // 章节图片就绪后刷新当前页图片收藏状态（REQ-C2）。
       unawaited(_refreshPageImageFav());
+      // 预载提前（本地聚合）：章节加载完成即预载过滤后的相邻目标章（跳过已读/
+      // 被过滤章）。本地解压慢，若等滚到章末才触发预载（_maybePreload），
+      // seam 无缝列表常缺邻段 → 章末要手动跳/章首翻不了上一话。此处提前开始
+      // 解压，用户滚到边界时邻章通常已就绪，直接无缝衔接。
+      _preloadAdjacentTargets();
       // 回到上一话末页时 restoreToLast=true（与在线 [_loadChapter] 对齐）：
       // 翻页模式直接落末页，条漫模式先落首页、首帧后再滚动到底（见 [_loadChapter]）。
       final bool lastPage = restoreToLast && imgs.isNotEmpty;
@@ -1188,6 +1203,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       });
       // 章节图片就绪后刷新当前页图片收藏状态（REQ-C2）。
       unawaited(_refreshPageImageFav());
+      // 预载提前：章节加载完成即预载过滤后的相邻目标章（跳过已读/被过滤章），
+      // 让 seam 无缝列表在用户滚到边界前就绪，章末/章首直接无缝衔接。
+      _preloadAdjacentTargets();
       // 切章时重置缩放/平移，避免上一话的缩放状态残留到新章（P0 手势 bug）。
       _resetZoom();
       _setupControllers(restorePage: deferToLast ? 0 : rp);
@@ -1452,10 +1470,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           _jumpToChapter(resolved);
           return;
         }
-        // 从当前章【首页】上翻进上一段：keep 重锚会保持视口内同一内容，落在上一章
-        // 的随机页；应显式落到上一章【末页】（与「上一章」按钮/首页上翻体验一致）。
-        // 再次上翻（已处于上一章末页）时仍以末页重锚，避免落到上一章的随机中间页。
-        if (_seamAdvance(-1, reposition: _SeamAdvanceTarget.last)) {
+        // 从当前章【首页】上翻进上一段：恢复到「上次离开上一话时读到的页」（逐章
+        // 进度记录）；该话无记录则落到上一章【末页】（与「上一章」按钮一致）。
+        final int? prevPage = _chapterPageCache[seg.chapterIndex];
+        final bool reanchored = prevPage != null
+            ? _seamAdvance(-1,
+                reposition: _SeamAdvanceTarget.first, targetPage: prevPage)
+            : _seamAdvance(-1, reposition: _SeamAdvanceTarget.last);
+        if (reanchored) {
           return;
         }
       }
@@ -1481,12 +1503,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 条漫跳章过滤边界（REQ-C11）：当前章已是 seam 最后一段（下一章因已读/
     // 被筛选/未预载未纳入无缝列表），无缝列表已到头——滚到章末不再直接整章跳转，
     // 而是显示「下一章：{标题}」过渡提示（短暂停留或点击后跳转），改善连续性感知。
+    // 条漫「直接连着读」（参照库语义）：滚到章末、且下一可导航章尚未纳入无缝
+    // 列表（预载未完成 / 中间隔着被过滤的已读章）时，不再弹「下一章」横幅等待
+    // 点击或 1.8s 延时，直接整章加载目标章（_goNextChapter 内部优先无缝重锚，
+    // 失败才整章加载），保证连续阅读不中断。
+    // 若已到最后一章（无下一可导航章）则回落常规到底修正路径。
     if (_seamActive &&
         _seam.isNotEmpty &&
         atVeryEnd &&
         _seam.last.chapterIndex == _chapterIndex &&
-        _chapterIndex + 1 < widget.chapters.length) {
-      _startSkipTransition();
+        _resolveChapterTarget(1) != null) {
+      _goNextChapter();
       return;
     } else if (_showSkipTransition) {
       // 用户已滚离章末 / 下一章已纳入无缝列表（条件不再成立）：收起过渡提示并
@@ -1513,6 +1540,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 防抖进度保存：合并频繁翻页产生的写入，避免高频 IO。
   /// 滚动回调中使用；_jumpToPage / _setupControllers 中仍直接调用 _saveProgress。
   void _scheduleProgressSave(int page) {
+    // 每章页码即时记录（不防抖）：离开本章那一帧就写入，供「回到上一话」恢复离开页。
+    // 防抖只作用于「最近章+页」单条记录，per-chapter 若也防抖会被后续新章页覆盖丢失。
+    final int ci = _chapterIndex;
+    _chapterPageCache[ci] = page;
+    unawaited(_progress.saveChapterPage(widget.comicId, ci, page));
     // 记录 pending 页码，dispose 时若有未触发的写入可立即 flush（P0 数据丢失修复）。
     _pendingSavePage = page;
     _saveProgressDebounce?.cancel();
@@ -1521,7 +1553,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       // 页码若被其它路径更新，仍以最新页码落盘，确保 _maybeAutoDownload 等
       // 依赖最新进度（越过 25%）的判定不会被旧页码卡住（自动下载不触发）。
       final int p = _pendingSavePage ?? page;
-      _saveProgress(p);
+      // 防抖到期时若已切章（seam 重锚 / 整章加载），`_chapterIndex` 已是新章——
+      // 直接 `_saveProgress(p)` 会把【旧章的页码】写到【新章】名下，造成
+      // 「切章后进度错乱/丢失」（重进回退到错误章页）。此时仅把该页补写进
+      // 原章的 per-chapter 记录（「回到上一话」仍能恢复离开页），主记录保持新章；
+      // 原章进度若已达标，同样补记已读（与进度一致）。
+      if (_chapterIndex != ci) {
+        unawaited(_progress.saveChapterPage(widget.comicId, ci, p));
+        _maybeMarkChapterWatched(p, chapterIndex: ci);
+      } else {
+        _saveProgress(p);
+      }
       _pendingSavePage = null;
     });
   }
@@ -1531,20 +1573,54 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final bool localMulti = _isAggregatedLocal ||
         (widget.localChapterDirs != null &&
             widget.localChapterDirs!.isNotEmpty);
-    // 接近章末：预加载下一章（末页翻下一张不再等待网络）。
+    // 接近章末：预加载过滤后的下一章（跳过已读/被过滤/重复章），
+    // 末页翻下一张不再等待网络。
     if (idx >= _images.length - _prefs.preloadImageCount) {
-      if (localMulti) {
-        unawaited(_preloadChapterLocal(_chapterIndex + 1));
-      } else {
-        _preloadChapter(_chapterIndex + 1);
+      final int? nextTarget = _resolveChapterTarget(1);
+      if (nextTarget != null) {
+        if (localMulti) {
+          unawaited(_preloadChapterLocal(nextTarget));
+        } else {
+          _preloadChapter(nextTarget);
+        }
       }
     }
-    // 接近章首：预加载上一章（首页翻上一张回到上一话末页不卡顿）。
+    // 接近章首：预加载过滤后的上一章（首页翻上一张回到上一话末页不卡顿）。
     if (idx <= _prefs.preloadImageCount - 1) {
+      final int? prevTarget = _resolveChapterTarget(-1);
+      if (prevTarget != null) {
+        if (localMulti) {
+          unawaited(_preloadChapterLocal(prevTarget));
+        } else {
+          _preloadChapter(prevTarget);
+        }
+      }
+    }
+  }
+
+  /// 章节加载完成后立即预载过滤后的相邻目标章（上/下各一）。
+  ///
+  /// 与 [_maybePreload]（滚到章末/章首附近才触发）互补：提前开始本地解压/网络
+  /// 拉取，用户滚到边界时邻章通常已进入 [_preload]，seam 无缝列表可直接纳入，
+  /// 避免「章末要手动跳 / 章首翻不了上一话」。best-effort：失败静默忽略。
+  void _preloadAdjacentTargets() {
+    final bool localMulti = _isAggregatedLocal ||
+        (widget.localChapterDirs != null &&
+            widget.localChapterDirs!.isNotEmpty);
+    final int? nextTarget = _resolveChapterTarget(1);
+    if (nextTarget != null) {
       if (localMulti) {
-        unawaited(_preloadChapterLocal(_chapterIndex - 1));
+        unawaited(_preloadChapterLocal(nextTarget));
       } else {
-        _preloadChapter(_chapterIndex - 1);
+        _preloadChapter(nextTarget);
+      }
+    }
+    final int? prevTarget = _resolveChapterTarget(-1);
+    if (prevTarget != null) {
+      if (localMulti) {
+        unawaited(_preloadChapterLocal(prevTarget));
+      } else {
+        _preloadChapter(prevTarget);
       }
     }
   }
@@ -1639,19 +1715,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       return;
     }
     final List<_SeamSegment> segments = <_SeamSegment>[];
-    // 上一章段：仅当已预载才纳入（未预载则边界回退走整章加载）。跳章过滤
-    // （REQ-C11）下若相邻章会被跳过，则不把该段纳入无缝列表——否则用户滚入
-    // 边界会先看到已读/被筛除的邻章内容，再整章跳转（「先显示已读章，后跳章」）。
-    final int prevIdx = _chapterIndex - 1;
-    if (prevIdx >= 0) {
-      final int? resolvedPrev = _resolveChapterTarget(-1);
-      final List<String>? prevImgs =
-          resolvedPrev == prevIdx ? _preload[prevIdx] : null;
+    // 上一章段：仅当已预载才纳入（未预载则边界回退走整章加载）。段定位用
+    // 跳章过滤（REQ-C11）后的目标章：相邻章会被跳过（已读/被筛除/重复）时，
+    // 直接把过滤后的目标章段接在当前章前，条漫向上滚可无缝回到上一未读章。
+    final int? resolvedPrev = _resolveChapterTarget(-1);
+    if (resolvedPrev != null && resolvedPrev != _chapterIndex) {
+      final List<String>? prevImgs = _preload[resolvedPrev];
       if (prevImgs != null && prevImgs.isNotEmpty) {
         segments.add(_SeamSegment(
-          chapterIndex: prevIdx,
+          chapterIndex: resolvedPrev,
           pageCount: prevImgs.length,
-          title: widget.chapters[prevIdx].title,
+          title: widget.chapters[resolvedPrev].title,
         ));
       }
     }
@@ -1661,18 +1735,16 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       pageCount: _images.length,
       title: widget.chapters[_chapterIndex].title,
     ));
-    // 下一章段：仅当已预载才纳入。同上，相邻章会被跳章过滤跳过时排除该段，
-    // 用户滚到章末由「下一章」/单步翻页整章加载到过滤后的目标章。
-    final int nextIdx = _chapterIndex + 1;
-    if (nextIdx < widget.chapters.length) {
-      final int? resolvedNext = _resolveChapterTarget(1);
-      final List<String>? nextImgs =
-          resolvedNext == nextIdx ? _preload[nextIdx] : null;
+    // 下一章段：仅当已预载才纳入。同上，段定位用过滤后的目标章（跳过已读/
+    // 被筛除/重复章），条漫滚到章末直接无缝进入下一未读章，无需点击过渡。
+    final int? resolvedNext = _resolveChapterTarget(1);
+    if (resolvedNext != null && resolvedNext != _chapterIndex) {
+      final List<String>? nextImgs = _preload[resolvedNext];
       if (nextImgs != null && nextImgs.isNotEmpty) {
         segments.add(_SeamSegment(
-          chapterIndex: nextIdx,
+          chapterIndex: resolvedNext,
           pageCount: nextImgs.length,
-          title: widget.chapters[nextIdx].title,
+          title: widget.chapters[resolvedNext].title,
         ));
       }
     }
@@ -1843,9 +1915,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   ///
   /// 执行序列：记录锚点 → 交换 [_images]/[_preload] → 预载新邻段 → 重建 [_seam]
   /// → setState 重建扁平列表 → 首帧后 jumpTo 平移视口 → 末帧解除 [_seamReanchoring]。
-  bool _seamAdvance(int dir, {_SeamAdvanceTarget reposition = _SeamAdvanceTarget.keep}) {
+  bool _seamAdvance(int dir,
+      {_SeamAdvanceTarget reposition = _SeamAdvanceTarget.keep,
+      int? targetPage,
+      int? targetOverride}) {
     if (_seamReanchoring) return false;
-    final int target = _chapterIndex + dir;
+    // 目标章：显式指定（目录点选，不应用跳章过滤）优先；否则沿 [dir] 方向过滤
+    // （跳过已读/被过滤/重复章）后的可导航章——条漫连续阅读在「下一章已读」时
+    // 直接连到下一未读章。
+    final int target = targetOverride ??
+        _resolveChapterTarget(dir) ??
+        (_chapterIndex + dir);
     if (target < 0 || target >= widget.chapters.length) return false;
     // 重锚目标章的图片必须已就绪（当前章或预载缓存），否则整章加载兜底。
     final List<String> targetImgs = target == _chapterIndex
@@ -1866,47 +1946,54 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       if (anchorPage < 0) return false;
     }
     _seamReanchoring = true;
-    // 交换章节数据：旧当前章转存预载缓存（成为重锚后的邻段），目标章提升为当前章。
-    // 在线/本地聚合/下载目录统一走同一交换：图片列表均为内存字符串列表。
-    _preload[oldChapter] = _images;
-    _images = targetImgs;
-    _chapterIndex = target;
-    // 翻章后刷新顶栏章节书签状态（REQ-C1）。
-    unawaited(_refreshChapterBookmark());
-    // 预载新一层的相邻章（越界时自动忽略）。
-    if (_isAggregatedLocal ||
-        (widget.localChapterDirs != null &&
-            widget.localChapterDirs!.isNotEmpty)) {
-      unawaited(_preloadChapterLocal(target + dir));
-    } else {
-      _preloadChapter(target + dir);
+    try {
+      // 交换章节数据：旧当前章转存预载缓存（成为重锚后的邻段），目标章提升为当前章。
+      // 在线/本地聚合/下载目录统一走同一交换：图片列表均为内存字符串列表。
+      _preload[oldChapter] = _images;
+      _images = targetImgs;
+      _chapterIndex = target;
+      // 翻章后刷新顶栏章节书签状态（REQ-C1）。
+      unawaited(_refreshChapterBookmark());
+      // 预载新一层的可导航章（沿原方向过滤后的目标；越界时自动忽略）。
+      final int? nextTarget = _resolveChapterTarget(dir);
+      if (_isAggregatedLocal ||
+          (widget.localChapterDirs != null &&
+              widget.localChapterDirs!.isNotEmpty)) {
+        if (nextTarget != null) {
+          unawaited(_preloadChapterLocal(nextTarget));
+        }
+      } else {
+        _preloadChapter(nextTarget ?? (target + dir));
+      }
+      // 页旋转表仅对当前段有效：重锚后旧段旋转记录不再适用，整表清空。
+      _pageRotations.clear();
+      _rebuildSeam();
+    } on Object {
+      // 防御：同步重锚段（交换/预载/重建 seam）异常时立即复位标志——否则
+      // _seamReanchoring 永久为 true，滚动回调与后续换章全部静默失效（表现为
+      // 「翻到首页后就无法翻上一章」），且后续调用一律 return false 卡死。
+      _seamReanchoring = false;
+      return false;
     }
-    // 页旋转表仅对当前段有效：重锚后旧段旋转记录不再适用，整表清空。
-    _pageRotations.clear();
-    _rebuildSeam();
-    // 重锚落点即当前阅读页：keep = 锚点页（目标章内相对页），first = 首页，last = 末页。
+    // 重锚落点即当前阅读页：keep = 锚点页（目标章内相对页），first = 首页，last = 末页，
+    // targetPage = 显式指定的页（「回到上一话」恢复到离开页）。
     // 提前校正 _currentPage，避免重锚后到滚动回调收敛前这一小段窗口把旧章页码
     // 误当作新章页码写盘（A1.6 进度/页码在连续模型下正确）。
     final int lastPage = _images.isEmpty ? 0 : _images.length - 1;
-    _currentPage = switch (reposition) {
-      _SeamAdvanceTarget.keep => (anchorPage ?? 0).clamp(0, lastPage),
-      _SeamAdvanceTarget.first => 0,
-      _SeamAdvanceTarget.last => lastPage,
-    };
-    // 重锚后落点换算。
-    final int jumpIndex;
-    final double jumpAlign;
-    switch (reposition) {
-      case _SeamAdvanceTarget.keep:
-        jumpIndex = _seamFlatIndexOf(target, anchorPage ?? 0);
-        jumpAlign = (anchor?.edge ?? 0.0).clamp(-2.0, 2.0);
-      case _SeamAdvanceTarget.first:
-        jumpIndex = _seamFlatIndexOf(target, 0);
-        jumpAlign = 0.0;
-      case _SeamAdvanceTarget.last:
-        jumpIndex = _seamFlatIndexOf(target, _images.length - 1);
-        jumpAlign = 0.0;
-    }
+    final int page = targetPage ??
+        switch (reposition) {
+          _SeamAdvanceTarget.keep => (anchorPage ?? 0).clamp(0, lastPage),
+          _SeamAdvanceTarget.first => 0,
+          _SeamAdvanceTarget.last => lastPage,
+        };
+    _currentPage = page.clamp(0, lastPage);
+    // 重锚后落点换算：keep 保持视口锚点，其余按落点页定位（首页/末页/显式页）。
+    final int jumpIndex = reposition == _SeamAdvanceTarget.keep
+        ? _seamFlatIndexOf(target, anchorPage ?? 0)
+        : _seamFlatIndexOf(target, page);
+    final double jumpAlign = reposition == _SeamAdvanceTarget.keep
+        ? (anchor?.edge ?? 0.0).clamp(-2.0, 2.0)
+        : 0.0;
     final isc = _itemScrollController;
     final int token = _loadToken;
     if (mounted) setState(() {});
@@ -1917,6 +2004,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         // jumpTo 为确定性瞬移：重锚后把视口钉到换算出的扁平条目 + 对齐系数，
         // 同一内容回到原屏幕位置（或落到目标章首页/末页）。
         isc.jumpTo(index: jumpIndex, alignment: jumpAlign);
+      }
+      // 回到上一章（last 落点）：预载图的真实尺寸可能尚未就绪，单次 jumpTo 按
+      // 占位高度定位会错位（停在倒数几页/不到底）。复用「两段式滚到底」精确收尾：
+      // 轮询末页底边直到贴视口底（与 [_loadLocalImages] restoreToLast 路径一致）。
+      // targetPage（显式恢复到离开页）目标图来自预载缓存、尺寸已知，单次 jumpTo 即准，
+      // 无需贴底轮询。
+      if (reposition == _SeamAdvanceTarget.last && targetPage == null) {
+        // 与 [_loadLocalImages] restoreToLast 全程屏蔽一致：轮询/收尾期间滚动回写被
+        // _restoringPage 屏蔽（_seamReanchoring 在下一帧即解除，仅靠它不足以盖住
+        // 轮询窗口），避免 jumpTo 中间位置被误写进度；_finishWebtoonRestore 收尾时
+        // 解除并写末页进度。
+        _restoringPage = true;
+        _scrollToWebtoonLast(lastPage, token);
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -2010,6 +2110,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   void _saveProgress(int page) {
     if (widget.chapters.isEmpty) return;
+    // 每章页码即时记录（见 [_scheduleProgressSave] 注释）：直接保存路径同样维护。
+    _chapterPageCache[_chapterIndex] = page;
+    unawaited(_progress.saveChapterPage(widget.comicId, _chapterIndex, page));
     final chapter = widget.chapters[_chapterIndex];
     _progress.save(
       widget.comicId,
@@ -2054,21 +2157,26 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _maybeAutoDownload(page);
   }
 
-  /// 章节阅读进度达到「已看」阈值时标记当前章已读。
+  /// 章节阅读进度达到「已看」阈值时标记该章已读。
   ///
   /// 阈值取自 [GeneralSettingsStore.watchedThresholdPercent]（默认 90）。
   /// 已读章节由 [MediaWatchedManager] 统一记录（与详情页 isRead 共用），
   /// `markWatched` 本身幂等，此处额外用 `isWatched` 跳过已读章节。
-  void _maybeMarkChapterWatched(int page) {
-    final total = _images.length;
+  /// [chapterIndex] 可显式指定原章（切章后防抖补记场景，见 [_scheduleProgressSave]）；
+  /// 缺省用当前章。目标章图片不在内存（[_preload] 已取走）时无法得知总页数，跳过。
+  void _maybeMarkChapterWatched(int page, {int? chapterIndex}) {
+    final int ci = chapterIndex ?? _chapterIndex;
+    final int total = ci == _chapterIndex
+        ? _images.length
+        : (_preload[ci]?.length ?? -1);
     if (total <= 0) return;
     final ratio = (page + 1) / total;
     final threshold = GeneralSettingsStore.instance.watchedThresholdPercent;
     if (!progressReachesWatchedThreshold(ratio, threshold)) return;
     try {
       final watched = context.read<MediaWatchedManager>();
-      if (watched.isWatched(widget.comicId, _chapterIndex)) return;
-      unawaited(watched.markWatched(widget.comicId, _chapterIndex));
+      if (watched.isWatched(widget.comicId, ci)) return;
+      unawaited(watched.markWatched(widget.comicId, ci));
     } catch (_) {
       // Manager 不可用时静默忽略。
     }
@@ -2109,15 +2217,27 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       detailUrl: widget.detailUrl,
     );
     if (_prefs.autoDownloadChapters) {
+      // 入队前过滤已下载/已排队章节（与 preDownloadNextEpisodes 同一语义）：
+      // 「自动下载后续章节」= 下载接下来【未下载】的话，已下载的不重复下载。
+      final Set<String> downloaded = dm.downloadedChapterTitles(widget.comicId);
+      final Set<String> queued = dm.queuedChapterTitles(widget.comicId);
+      final List<int> indices = <int>[
+        for (var i = _chapterIndex + 1; i < widget.chapters.length; i++)
+          if (!downloaded.contains(widget.chapters[i].title) &&
+              !queued.contains(widget.chapters[i].title))
+            i,
+      ];
+      if (indices.isEmpty) {
+        // 后续章节已全部下载/排队：记触发防止重复判定，但不再入队。
+        _autoDownloadTriggeredChapter = _chapterIndex;
+        return;
+      }
       AppLog.instance.i(
         '[漫画自动下载] 触发入队 comic=${widget.comicId} '
         'chapter=$_chapterIndex page=$page total=$total '
-        '后续章节数=${widget.chapters.length - _chapterIndex - 1}',
+        '待下载数=${indices.length}（已过滤下载/排队）',
       );
       _autoDownloadTriggeredChapter = _chapterIndex;
-      final List<int> indices = <int>[
-        for (var i = _chapterIndex + 1; i < widget.chapters.length; i++) i,
-      ];
       unawaited(
         dm.addTask(
           item: item,
@@ -2177,10 +2297,30 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _hideSkipTransition();
   }
 
+  /// 翻页时保留缩放倍数、仅清平移（用户需求：删除「翻页重置缩放」策略）。
+  ///
+  /// 所有 MangaPageImage 共享同一个 [_zoomController]，上一页的**平移**会原样带到
+  /// 下一页造成位置错乱，故平移必须清零；**缩放倍数**则保留——放大后翻页，下一页
+  /// 继续以相同倍数居中显示（与条漫模式「缩放不因翻页重置」的连续阅读习惯对齐）。
+  /// 同时结束未完成的缩放动画（动画在翻页后继续 forward 会改写矩阵），并清空
+  /// 捏合起手基准，避免下一次捏合时基准残留导致 realFactor 恒为 1。
+  void _keepZoomForPageTurn() {
+    _pinchBaseMatrix = null;
+    _stopZoomAnimation();
+    _hideSkipTransition();
+    final Matrix4 m = _zoomController.value;
+    final double s = m.getMaxScaleOnAxis();
+    if (s <= 1.001) {
+      _zoomController.value = Matrix4.identity();
+    } else {
+      // 中心原点坐标系：仅含 scale 的矩阵 = 以视口中心为锚点的同倍数缩放。
+      _zoomController.value = Matrix4.identity()..scale(s);
+    }
+  }
+
   void _goNextPage() {
-    // 翻页模式翻页清除缩放：下一页 1 倍居中（验收 C1）；条漫模式保持缩放——
-    // 放大后滚动浏览其他页是连续阅读的常态（条漫缩放不因翻页重置，符合连续滚动阅读习惯）。
-    if (!_prefs.readingMode.isWebtoon) _resetZoom();
+    // 翻页保留缩放倍数、仅清平移（不再完全重置；条漫模式完全不重置）。
+    if (!_prefs.readingMode.isWebtoon) _keepZoomForPageTurn();
     _triggerFlash();
     if (_prefs.readingMode.isWebtoon) {
       _webtoonStep(1);
@@ -2224,8 +2364,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   void _goPrevPage() {
-    // 同 [_goNextPage]：仅翻页模式翻页清除缩放，条漫保持。
-    if (!_prefs.readingMode.isWebtoon) _resetZoom();
+    // 同 [_goNextPage]：翻页保留缩放倍数、仅清平移。
+    if (!_prefs.readingMode.isWebtoon) _keepZoomForPageTurn();
     _triggerFlash();
     if (_prefs.readingMode.isWebtoon) {
       _webtoonStep(-1);
@@ -2349,33 +2489,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     });
   }
 
-  /// 显示「下一章：{标题}」跳章过渡提示（REQ-C11 条漫跳章过滤）。
-  ///
-  /// 仅当无缝列表已到头、已滚到章末且下一章会被跳过时由 [_onWebtoonScroll] 调用。
-  /// 显示后启动一次性延时（约 1.8s）自动 [_goNextChapter]，用户点击横幅可立即跳转。
-  /// 已显示时重复调用直接返回（滚动回调高频触发，避免反复重启定时器）。
-  void _startSkipTransition() {
-    if (_showSkipTransition) return;
-    final int? target = _resolveChapterTarget(1);
-    if (target == null || target >= widget.chapters.length) return;
-    final String title = widget.chapters[target].title.trim();
-    final String label = title.isEmpty
-        ? AppLocalizations.of(context).chapterN(target + 1)
-        : title;
-    setState(() {
-      _showSkipTransition = true;
-      _skipTransitionTitle = label;
-    });
-    _skipTransitionTimer?.cancel();
-    _skipTransitionTimer = Timer(const Duration(milliseconds: 1800), () {
-      _skipTransitionTimer = null;
-      if (!mounted) return;
-      _showSkipTransition = false;
-      _goNextChapter();
-    });
-  }
-
   /// 收起跳章过渡提示并取消延时跳转（未显示时无副作用）。
+  /// 保留以兼容横幅 UI 的清除路径；条漫场景横幅已由「直接自动连读」取代，
+  /// 不再有启动入口（_showSkipTransition 恒为 false）。
   void _hideSkipTransition() {
     _skipTransitionTimer?.cancel();
     _skipTransitionTimer = null;
@@ -2392,17 +2508,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _showBoundaryHint(AppLocalizations.of(context).readerLastChapterReached);
       return;
     }
-    // 相邻章（未跳过任何章）走既有无缝/重锚路径，保持体验。
-    if (next == _chapterIndex + 1) {
-      // 段式连续模型（跨章无缝续读）：目标章已预载 → 无缝重锚到其首页，不重建章节。
-      if (_seamActive) {
-        final bool reanchored =
-            _seamAdvance(1, reposition: _SeamAdvanceTarget.first);
-        if (reanchored) return;
-      }
-      // paged 段式连续模型（章末过渡卡 / 章首衔接）：目标章已预载 → 直接交换
-      // 图片并重锚到新章首页，无白屏、无网络等待。
-      if (_pagedSeamActive && _pagedAdvance(next, toLast: false)) return;
+    // 目标章（跳过已读/被过滤/重复章后）优先尝试既有无缝/重锚路径，保持体验；
+    // 目标章已预载（或恰为当前章）→ 无缝重锚到其首页，不重建章节。
+    if (_seamActive) {
+      final bool reanchored =
+          _seamAdvance(1, reposition: _SeamAdvanceTarget.first);
+      if (reanchored) return;
+    }
+    // paged 段式连续模型（章末过渡卡 / 章首衔接）：目标章已预载 → 直接交换
+    // 图片并重锚到新章首页，无白屏、无网络等待。（仅相邻章走过渡卡衔接。）
+    if (_pagedSeamActive && next == _chapterIndex + 1 &&
+        _pagedAdvance(next, toLast: false)) {
+      return;
     }
     // 跳过过滤（REQ-C11）或相邻章未预载：整章加载目标章。
     _triggerChapterTransition(widget.chapters[next].title);
@@ -2422,26 +2539,43 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _showBoundaryHint(AppLocalizations.of(context).readerFirstChapterReached);
       return;
     }
-    // 相邻章（未跳过任何章）走既有无缝/重锚路径。
-    if (prev == _chapterIndex - 1) {
-      // 段式连续模型（跨章无缝续读）：目标章已预载 → 无缝重锚到其末页，不重建章节。
-      if (_seamActive) {
-        final bool reanchored =
-            _seamAdvance(-1, reposition: _SeamAdvanceTarget.last);
-        if (reanchored) return;
-      }
-      // paged 段式连续模型（章末过渡卡 / 章首衔接）：目标章已预载 → 直接交换
-      // 图片并重锚到上一章末页（章首翻上一张保持连贯）。
-      if (_pagedSeamActive && _pagedAdvance(prev, toLast: true)) return;
+    // 回到上一话恢复「上次离开该话时读到的页」（逐章进度记录）；该话无记录则落
+    // 末页（保持既有「上一章 → 上一话末尾」语义）。内存缓存同步可读。
+    final int? prevPage = _chapterPageCache[prev];
+    // 目标章（跳过已读/被过滤/重复章后）优先尝试无缝/重锚路径：目标章已预载 →
+    // 无缝重锚到进度页（无记录末页），不重建章节。
+    if (_seamActive) {
+      final bool reanchored = prevPage != null
+          ? _seamAdvance(-1,
+              reposition: _SeamAdvanceTarget.first, targetPage: prevPage)
+          : _seamAdvance(-1, reposition: _SeamAdvanceTarget.last);
+      if (reanchored) return;
+    }
+    // paged 段式连续模型（章末过渡卡 / 章首衔接）：目标章已预载 → 直接交换
+    // 图片并重锚到进度页（无记录则上一章末页），章首翻上一张保持连贯。
+    if (_pagedSeamActive &&
+        prev == _chapterIndex - 1 &&
+        (prevPage != null
+            ? _pagedAdvance(prev, toLast: false, page: prevPage)
+            : _pagedAdvance(prev, toLast: true))) {
+      return;
     }
     // 跳过过滤（REQ-C11）或相邻章未预载：整章加载目标章。
     _triggerChapterTransition(widget.chapters[prev].title);
     _chapterIndex = prev;
-    // 回到上一话的【最后一页】，保证「首页翻上一张」连贯。
+    // 回到上一话：有进度记录 → 恢复到离开页；否则落到【最后一页】（未读过从头读）。
     if (_isLocalMode) {
-      _loadLocalImages(restorePage: -1, restoreToLast: true);
+      if (prevPage != null) {
+        _loadLocalImages(restorePage: prevPage);
+      } else {
+        _loadLocalImages(restorePage: 0, restoreToLast: true);
+      }
     } else {
-      _loadChapter(_chapterIndex, restoreToLast: true);
+      if (prevPage != null) {
+        _loadChapter(_chapterIndex, restorePage: prevPage);
+      } else {
+        _loadChapter(_chapterIndex, restoreToLast: true);
+      }
     }
   }
 
@@ -2516,16 +2650,36 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (index < 0 || index >= widget.chapters.length) return;
     if (index == _chapterIndex) return;
     // 相邻章先尝试既有无缝/重锚路径，保持阅读体验。
+    // 注意：目录点选是显式目标，不应用跳章过滤（_seamAdvance 内部默认按过滤
+    // 目标定位，这里必须传 targetOverride 钉死用户点选的章）。
     if (index == _chapterIndex + 1) {
       if (_seamActive) {
-        if (_seamAdvance(1, reposition: _SeamAdvanceTarget.first)) return;
+        if (_seamAdvance(1,
+            reposition: _SeamAdvanceTarget.first, targetOverride: index)) {
+          return;
+        }
       }
       if (_pagedSeamActive && _pagedAdvance(index, toLast: false)) return;
     } else if (index == _chapterIndex - 1) {
+      // 回上一章：恢复到「上次离开该话时读到的页」；无记录落末页。
+      final int? prevPage = _chapterPageCache[index];
       if (_seamActive) {
-        if (_seamAdvance(-1, reposition: _SeamAdvanceTarget.last)) return;
+        if (prevPage != null
+            ? _seamAdvance(-1,
+                reposition: _SeamAdvanceTarget.first,
+                targetPage: prevPage,
+                targetOverride: index)
+            : _seamAdvance(-1,
+                reposition: _SeamAdvanceTarget.last, targetOverride: index)) {
+          return;
+        }
       }
-      if (_pagedSeamActive && _pagedAdvance(index, toLast: true)) return;
+      if (_pagedSeamActive &&
+          (prevPage != null
+              ? _pagedAdvance(index, toLast: false, page: prevPage)
+              : _pagedAdvance(index, toLast: true))) {
+        return;
+      }
     }
     _triggerChapterTransition(widget.chapters[index].title);
     _chapterIndex = index;
@@ -2618,7 +2772,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 执行序列：交换 [_images]/[_preload] → 预载新邻章 → 清页旋转表 → 重置缩放 →
   /// [_setupControllers] 以目标页重建 PageController（每章独立 Key，initialPage 必定
   /// 生效，确定性瞬移到目标页，无中间态/无白屏）→ 写盘进度。
-  bool _pagedAdvance(int target, {required bool toLast}) {
+  bool _pagedAdvance(int target,
+      {required bool toLast, int? page}) {
     if (_pagedReanchoring) return false;
     if (target < 0 || target >= widget.chapters.length) return false;
     if (target == _chapterIndex) return false;
@@ -2645,10 +2800,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _pageRotations.clear();
     _resetZoom();
     final int last = _images.isEmpty ? 0 : _images.length - 1;
-    final int page = (toLast ? last : 0).clamp(0, last);
-    _currentPage = page;
-    _setupControllers(restorePage: page);
-    _scheduleProgressSave(page);
+    // 落点：[page] 显式页（回到上一话恢复离开页）优先；否则 toLast=末页、否则首页。
+    final int p = (page ?? (toLast ? last : 0)).clamp(0, last);
+    _currentPage = p;
+    _setupControllers(restorePage: p);
+    _scheduleProgressSave(p);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _pagedReanchoring = false;
@@ -3995,59 +4151,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 ),
               ),
             ),
-          // 条漫跳章过渡提示（REQ-C11）：无缝列表已到头 + 下一章被跳过时显示
-          // 「下一章：{标题}」底部横幅，点击立即跳转到过滤后的目标章。
-          if (_showSkipTransition && _prefs.readingMode.isWebtoon)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: _uiVisible ? 96 : 40,
-              child: Center(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () {
-                      _skipTransitionTimer?.cancel();
-                      _skipTransitionTimer = null;
-                      setState(() => _showSkipTransition = false);
-                      _goNextChapter();
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 24),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.78),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white24),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            l10n.readerNextChapterSkipped(
-                                _skipTransitionTitle ?? ''),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            l10n.readerNextChapterSkippedHint,
-                            style: const TextStyle(
-                                color: Colors.white70, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          // 条漫跳章过渡横幅已移除（2026-08-20）：滚到章末由「直接自动连读」
+          // 取代（见 _onWebtoonScroll），不再需要点击/延时确认。
           if (_uiVisible)
             Positioned(
               top: 0,
@@ -5812,7 +5917,13 @@ class _ZoomFactorBadgeState extends State<_ZoomFactorBadge> {
     _hideTimer = Timer(const Duration(milliseconds: 1200), () {
       if (mounted) setState(() => _visible = false);
     });
-    if (!_visible && mounted) setState(() => _visible = true);
+    // 首次进入放大态才显示徽标；此后每次矩阵变化都刷新：捏合/滚轮缩放是连续手势，
+    // 倍数文本须实时跟随（旧实现仅在 _visible 状态翻转时 setState——既漏了置位，
+    // 又使捏合过程中倍数停留在初始值）。
+    if (mounted) {
+      if (!_visible) _visible = true;
+      setState(() {});
+    }
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'package:nexhub/core/local/local_content_manager.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -57,6 +58,8 @@ void main() {
     List<Episode> chapters = const <Episode>[
       Episode(id: 'c1', title: '第1话', url: '/c1'),
     ],
+    int initialChapterIndex = 0,
+    List<String>? localChapterDirs,
   }) {
     return Provider<MediaApiService>.value(
       value: service,
@@ -78,6 +81,8 @@ void main() {
               title: '测试漫画',
               sourceId: 'src1',
               chapters: chapters,
+              initialChapterIndex: initialChapterIndex,
+              localChapterDirs: localChapterDirs,
             ),
           ),
         ),
@@ -325,5 +330,381 @@ void main() {
       ..sort();
     expect(imgs, hasLength(3)); // 递归收集子目录 3 张图，忽略 txt
     expect(imgs.map((s) => s.toLowerCase()), isNot(contains('note.txt')));
+  });
+
+  /// 当前渲染的 MangaPageImage URL 集合（PageView/条漫列表的可见项）。
+  List<String> renderedUrls(WidgetTester tester) => tester
+      .widgetList<MangaPageImage>(find.byType(MangaPageImage))
+      .map((w) => w.url)
+      .toList();
+
+  testWidgets('BugZ1: 翻页模式翻页保留缩放倍数、仅清平移（不重置缩放）', (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1': '{"readingMode":"singleLTR","doubleTapZoom":true}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final service = FakeMediaApiServiceFixes();
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    await tester.pumpWidget(wrapReader(tester, repo: repo, service: service, favorites: favorites));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    Matrix4 zoomMatrix() {
+      final MangaPageImage img =
+          tester.widget<MangaPageImage>(find.byType(MangaPageImage).first);
+      return img.zoomController!.value;
+    }
+
+    // 双击放大到 2.0x（三态顺序：1x→0.5x→2x，需连续两次双击）。
+    Future<void> doubleTap() async {
+      await tester.tapAt(const Offset(400, 600));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tapAt(const Offset(400, 600));
+      for (int i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    await doubleTap();
+    await doubleTap();
+    expect(zoomMatrix().getMaxScaleOnAxis(), closeTo(2.0, 0.02));
+
+    // 键盘翻到下一页（绕过缩放手势竞技场，直接走 _goNextPage）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    // 修复后：翻页只清平移、保留倍数 —— 缩放仍为 2.0x。
+    final Matrix4 m = zoomMatrix();
+    expect(m.getMaxScaleOnAxis(), closeTo(2.0, 0.02),
+        reason: '翻页不应重置缩放倍数（旧行为：被清回 1x）');
+    expect(m.storage[12].abs(), lessThan(0.01),
+        reason: '上一页的水平平移应被清零（不残留到下一页）');
+    // 注：竖直方向 y 位移由 InteractiveViewer 对超视口内容做边界夹紧/居中，是
+    // 正常终态（x=0、y 居中），不作为「平移残留」断言依据。
+  });
+
+  testWidgets('BugZ2: 缩放倍数徽标实时跟随矩阵变化，停止 1.2s 后隐藏', (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1': '{"readingMode":"singleLTR","doubleTapZoom":true}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final service = FakeMediaApiServiceFixes();
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    await tester.pumpWidget(wrapReader(tester, repo: repo, service: service, favorites: favorites));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // 直接驱动共享缩放控制器，模拟捏合/滚轮的连续缩放（真实手势会逐帧改矩阵）。
+    final TransformationController ctrl = tester
+        .widget<MangaPageImage>(find.byType(MangaPageImage).first)
+        .zoomController!;
+
+    ctrl.value = Matrix4.identity()..scale(2.0);
+    await tester.pump();
+    expect(find.text('2.0×'), findsOneWidget, reason: '首次放大应显示倍数徽标');
+
+    // 可见期间矩阵继续变化 → 倍数文本须实时刷新（旧实现：停留在首次显示值）。
+    ctrl.value = Matrix4.identity()..scale(2.5);
+    await tester.pump();
+    expect(find.text('2.5×'), findsOneWidget, reason: '捏合中倍数应实时跟随');
+    expect(find.text('2.0×'), findsNothing);
+
+    ctrl.value = Matrix4.identity()..scale(3.2);
+    await tester.pump();
+    expect(find.text('3.2×'), findsOneWidget);
+
+    // 回到 1x 立即隐藏。
+    ctrl.value = Matrix4.identity();
+    await tester.pump();
+    expect(find.text('3.2×'), findsNothing, reason: '回到 1x 应立即可见性隐藏');
+
+    // 停止缩放 1.2s 后淡出（_hideTimer 到期）。
+    ctrl.value = Matrix4.identity()..scale(2.0);
+    await tester.pump();
+    expect(find.text('2.0×'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1300));
+    expect(find.text('2.0×'), findsNothing, reason: '停止缩放 1.2s 后徽标应淡出');
+  });
+
+  testWidgets('BugZ3: 本地连续阅读回上一话 → 恢复到离开页（进度页）', (tester) async {
+    // 两个本地图片目录各 3 张占位图（_gatherDirImages 只收集路径不读内容）。
+    // 注意：testWidgets 运行在 FakeAsync zone，真实异步文件 IO 永不完成，
+    // 因此全部使用同步 API（createTempSync / writeAsBytesSync）。
+    final Directory root = Directory.systemTemp.createTempSync('comic_local_multi');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } on Object {
+        // 清理失败忽略。
+      }
+    });
+    final Directory dir1 = Directory('${root.path}${Platform.pathSeparator}ch1')
+      ..createSync(recursive: true);
+    final Directory dir2 = Directory('${root.path}${Platform.pathSeparator}ch2')
+      ..createSync(recursive: true);
+    for (final dir in <Directory>[dir1, dir2]) {
+      for (var p = 1; p <= 3; p++) {
+        File('${dir.path}${Platform.pathSeparator}$p.png').writeAsBytesSync(
+            <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      }
+    }
+    final String dir2Prefix = dir2.path;
+
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1':
+          '{"readingMode":"webtoon","seamlessReading":true,"showChapterSeparator":true,"doubleTapZoom":false}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    // 本地多话：localChapterDirs 下标对齐 chapters，从第 1 话（index 0）进入。
+    await tester.pumpWidget(wrapReader(
+      tester,
+      repo: repo,
+      service: FakeMediaApiServiceFixes(),
+      favorites: favorites,
+      chapters: const <Episode>[
+        Episode(id: 'c1', title: '第1话', url: '/c1'),
+        Episode(id: 'c2', title: '第2话', url: '/c2'),
+      ],
+      initialChapterIndex: 0,
+      localChapterDirs: <String>[dir1.path, dir2.path],
+    ));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '初始应在第 1 话');
+
+    Future<void> pumpSettle() async {
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    // 视口顶部项的 URL（webtoon 占位高 = 屏宽×1.5 ≈ 一屏一页，顶部项即当前页）。
+    String topUrl() =>
+        tester.widgetList<MangaPageImage>(find.byType(MangaPageImage)).first.url;
+
+    // 第 1 话翻到第 2 页（记录离开页 = 2）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await pumpSettle();
+    expect(topUrl().endsWith('2.png'), isTrue,
+        reason: '第 1 话应翻到第 2 页（后续以此作为离开页）');
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '初始应在第 1 话');
+
+    // 翻到下一话：应从【首页】开始（Bug「下一话跳转不对」修复方向）。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await pumpSettle();
+    expect(topUrl().contains(dir2.path), isTrue,
+        reason: '进入下一话应渲染第 2 话内容');
+    expect(topUrl().endsWith('1.png'), isTrue,
+        reason: '进入下一话应从首页开始（并非中间页）');
+
+    // 回到上一话：应恢复到【离开页 第 2 页】，而非首页/物理末页（第 3 页）。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await pumpSettle();
+    expect(topUrl().contains(dir1.path), isTrue,
+        reason: '回上一话应渲染第 1 话内容');
+    expect(topUrl().endsWith('2.png'), isTrue,
+        reason: '回上一话应恢复到上次离开的第 2 页（进度记录），而非首页/末页');
+    expect(renderedUrls(tester).any((u) => u.contains(dir2Prefix)), isFalse,
+        reason: '不应再渲染第 2 话内容');
+  });
+
+  testWidgets('BugZ5: 本地连续阅读末页翻入下一话（首页），不卡死', (tester) async {
+    final Directory root =
+        Directory.systemTemp.createTempSync('comic_local_nextch');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } on Object {
+        // 清理失败忽略。
+      }
+    });
+    final Directory dir1 = Directory('${root.path}${Platform.pathSeparator}ch1')
+      ..createSync(recursive: true);
+    final Directory dir2 = Directory('${root.path}${Platform.pathSeparator}ch2')
+      ..createSync(recursive: true);
+    for (final dir in <Directory>[dir1, dir2]) {
+      for (var p = 1; p <= 3; p++) {
+        File('${dir.path}${Platform.pathSeparator}$p.png').writeAsBytesSync(
+            <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      }
+    }
+
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1':
+          '{"readingMode":"webtoon","seamlessReading":true,"showChapterSeparator":true,"doubleTapZoom":false}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    await tester.pumpWidget(wrapReader(
+      tester,
+      repo: repo,
+      service: FakeMediaApiServiceFixes(),
+      favorites: favorites,
+      chapters: const <Episode>[
+        Episode(id: 'c1', title: '第1话', url: '/c1'),
+        Episode(id: 'c2', title: '第2话', url: '/c2'),
+      ],
+      initialChapterIndex: 0,
+      localChapterDirs: <String>[dir1.path, dir2.path],
+    ));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    Future<void> pumpSettle() async {
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    // 视口顶部项的 URL（一屏一页，顶部项即当前页）。
+    String topUrl() =>
+        tester.widgetList<MangaPageImage>(find.byType(MangaPageImage)).first.url;
+
+    // 第 1 话 3 页：逐页下翻。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await pumpSettle();
+    expect(topUrl().endsWith('2.png'), isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await pumpSettle();
+    expect(topUrl().endsWith('3.png'), isTrue, reason: '应到第 1 话末页');
+    // 第 3 次 PageDown：末页越界 → 无缝进入下一话【首页】（修复「末页无反应/无法连续」）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await pumpSettle();
+    expect(topUrl().contains(dir2.path), isTrue,
+        reason: '末页翻下一页应进入第 2 话（不卡死）');
+    expect(topUrl().endsWith('1.png'), isTrue,
+        reason: '末页翻下一页应落在第 2 话首页');
+    // 继续读不卡死：第 2 话内再翻一页。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await pumpSettle();
+    expect(topUrl().endsWith('2.png'), isTrue,
+        reason: '进入下一话后应能继续正常翻页（不卡死）');
+  });
+
+  testWidgets('BugZ4: 本地已到第1话首页再翻上一页 → 边界提示且不卡死', (tester) async {
+    final Directory root =
+        Directory.systemTemp.createTempSync('comic_local_boundary');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } on Object {
+        // 清理失败忽略。
+      }
+    });
+    final Directory dir1 = Directory('${root.path}${Platform.pathSeparator}ch1')
+      ..createSync(recursive: true);
+    for (var p = 1; p <= 3; p++) {
+      File('${dir1.path}${Platform.pathSeparator}$p.png').writeAsBytesSync(
+          <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+    }
+
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1':
+          '{"readingMode":"webtoon","seamlessReading":true,"showChapterSeparator":true,"doubleTapZoom":false}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    // 单话本地目录（第一话），从首页开始。
+    await tester.pumpWidget(wrapReader(
+      tester,
+      repo: repo,
+      service: FakeMediaApiServiceFixes(),
+      favorites: favorites,
+      chapters: const <Episode>[
+        Episode(id: 'c1', title: '第1话', url: '/c1'),
+      ],
+      initialChapterIndex: 0,
+      localChapterDirs: <String>[dir1.path],
+    ));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(MangaPageImage), findsAtLeastNWidgets(1));
+
+    // 首页翻上一页 → 上一章已无 → 第一话边界提示（不应卡死/静默失效）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('已经是第一章了'), findsOneWidget,
+        reason: '第一话首页再翻上一页应提示已是第一章');
+
+    // 关键回归断言：提示后阅读器仍可正常翻页（修复前 _seamReanchoring 残留
+    // 会导致滚动/翻页全部静默失效）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    for (int i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(MangaPageImage), findsAtLeastNWidgets(1),
+        reason: '边界提示后仍应能正常翻页（未卡死）');
   });
 }
