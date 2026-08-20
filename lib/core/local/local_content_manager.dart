@@ -4,9 +4,12 @@
 /// 避免各 feature 自行散布扩展名判断逻辑。
 library;
 
+import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io' show Directory, File, FileSystemException;
 
+import 'package:media_kit/media_kit.dart';
 import 'package:nexhub/core/local/archive_extractor.dart';
 import 'package:nexhub/core/local/local_novel_parser.dart';
 import 'package:nexhub/core/local/pdf_util.dart';
@@ -296,6 +299,10 @@ Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
     final cover = await LocalNovelParser.extractCover(path);
     if (cover != null) return cover;
   }
+  // 视频：用 media_kit 截首帧作为封面（本地导入视频无封面问题）。
+  if (kind == LocalMediaKind.video) {
+    return await _extractVideoThumbnail(path);
+  }
   if (kind != LocalMediaKind.images) return null;
   try {
     final lower = path.toLowerCase();
@@ -331,6 +338,51 @@ Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
     return null;
   }
   return null;
+}
+
+/// 为本地视频生成首帧缩略图，落盘到 `local_covers/video_<hash>.jpg` 并返回路径；
+/// 任意失败（解码失败 / 平台不支持）返回 null，由 UI 回退占位图，不阻断导入。
+///
+/// 复用 media_kit 的 [Player.screenshot] 截首帧，避免引入额外依赖。位于此而非
+/// 播放器内部，是因为导入流程（browse_local / content_import）需要在无播放页的
+/// 情况下为视频生成封面。无视频画面（Web / 部分平台）时安全回退 null。
+Future<String?> _extractVideoThumbnail(String path) async {
+  Player? player;
+  try {
+    MediaKit.ensureInitialized();
+    player = Player();
+    await player.open(Media(path), play: false);
+    // 跳到 1s 处取首帧，避开黑屏开场；轮询 position 直到帧解码，兜底 5s 超时。
+    await player.seek(const Duration(seconds: 1));
+    final Completer<void> decoded = Completer<void>();
+    late final StreamSubscription<Duration> sub;
+    sub = player.stream.position.listen((Duration pos) {
+      if (!decoded.isCompleted && pos >= const Duration(milliseconds: 800)) {
+        sub.cancel();
+        decoded.complete();
+      }
+    });
+    await decoded.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        sub.cancel();
+      },
+    );
+    final Uint8List? bytes = await player.screenshot(format: 'image/jpeg');
+    if (bytes == null) return null;
+    final dir = await getApplicationDocumentsDirectory();
+    final coverDir = Directory(p.join(dir.path, 'local_covers'));
+    await coverDir.create(recursive: true);
+    final target =
+        File(p.join(coverDir.path, 'video_${path.hashCode}.jpg'));
+    await target.writeAsBytes(bytes);
+    return target.path;
+  } on Object catch (e) {
+    AppLog.instance.e('[本地视频封面] 缩略图生成失败: $path -> $e');
+    return null;
+  } finally {
+    await player?.dispose();
+  }
 }
 
 /// 仅解压漫画归档内自然排序第一张图片到 `local_covers/` 缓存目录，返回其路径。

@@ -1489,8 +1489,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       builder: (BuildContext dialogCtx) => StatefulBuilder(
         builder: (BuildContext ctx, StateSetter setDlg) => AlertDialog(
           title: Text(l10n.playerSkipOpEd),
-          content: Column(
+        // 手机适配：内容用 SingleChildScrollView 包裹，避免窄屏下「使用当前」
+        // 按钮 / 开关与输入行挤压重叠；自动跳过用 Row+Switch 替代占宽的
+        // SwitchListTile，减少横向溢出风险。
+        content: SingleChildScrollView(
+          child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Row(
                 children: <Widget>[
@@ -1510,6 +1515,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: AppTokens.spaceSm),
               Row(
                 children: <Widget>[
                   Expanded(
@@ -1528,18 +1534,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ],
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(l10n.playerSkipAuto),
-                value: auto,
-                onChanged: (v) => setDlg(() => auto = v),
+              const SizedBox(height: AppTokens.spaceSm),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  Expanded(
+                    child: Text(l10n.playerSkipAuto),
+                  ),
+                  Switch(
+                    value: auto,
+                    onChanged: (v) => setDlg(() => auto = v),
+                  ),
+                ],
               ),
+              const SizedBox(height: AppTokens.spaceSm),
               Text(
                 l10n.playerSkipHint,
                 style: Theme.of(ctx).textTheme.bodySmall,
               ),
             ],
           ),
+        ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
@@ -1807,17 +1822,29 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Future<void> _addCurrentToQueue() async {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
-    await _queueStore.add(_currentAsQueuedWork());
-    if (!mounted) return;
-    _safeSnackBar(l10n.playerQueueAdded);
+    try {
+      await _queueStore.add(_currentAsQueuedWork());
+      if (!mounted) return;
+      _safeSnackBar(l10n.playerQueueAdded);
+    } on Object catch (e) {
+      AppLog.instance.e('[播放队列] 加入队列失败: $e');
+      if (!mounted) return;
+      _safeSnackBar(l10n.playerQueueLoadFailed);
+    }
   }
 
   Future<void> _playCurrentNext() async {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
-    await _queueStore.insertNext(_currentAsQueuedWork());
-    if (!mounted) return;
-    _safeSnackBar(l10n.playerQueuePlayNextAdded);
+    try {
+      await _queueStore.insertNext(_currentAsQueuedWork());
+      if (!mounted) return;
+      _safeSnackBar(l10n.playerQueuePlayNextAdded);
+    } on Object catch (e) {
+      AppLog.instance.e('[播放队列] 下一部播放失败: $e');
+      if (!mounted) return;
+      _safeSnackBar(l10n.playerQueueLoadFailed);
+    }
   }
 
   /// 当前作品末集播完且开启了自动连播：从队列取第一部续播。
@@ -2884,7 +2911,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   /// 中央手势指示器浮层：显示双击 ±10s / 亮度 % / 音量 % / 横滑 seek 目标时间。
+  ///
+  /// 横滑 seek 上滑取消时（[_seekDragCancelled]）渲染红色背景 + 取消图标，
+  /// 让「取消」状态一目了然（F-15 反馈增强）。
   Widget _buildGestureIndicator() {
+    final bool cancelled = _seekDragCancelled;
     return IgnorePointer(
       child: Center(
         child: AnimatedOpacity(
@@ -2896,13 +2927,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               vertical: AppTokens.spaceSm,
             ),
             decoration: BoxDecoration(
-              color: Colors.black54,
+              color: cancelled
+                  ? Colors.red.withValues(alpha: 0.78)
+                  : Colors.black54,
               borderRadius: BorderRadius.circular(AppTokens.spaceSm),
             ),
-            child: Text(
-              _gestureIndicatorText ?? '',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-            ),
+            child: cancelled
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const Icon(Icons.cancel, color: Colors.white, size: 28),
+                      const SizedBox(height: 4),
+                      Text(
+                        _gestureIndicatorText ?? '',
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ],
+                  )
+                : Text(
+                    _gestureIndicatorText ?? '',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
           ),
         ),
       ),
@@ -4217,10 +4262,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               if (!_seekDragCancelled &&
                   _seekDragVerticalDelta.abs() > _kSeekCancelThreshold) {
                 _seekDragCancelled = true;
+              }
+              if (_seekDragCancelled) {
+                // 取消态持续显示提示（重置计时器，松手前保持可见），
+                // 同时明确渲染取消图标，解决「上滑没有取消图标」的问题。
                 _showGestureIndicator(l10n.playerSeekCancel);
                 return;
               }
-              if (_seekDragCancelled) return;
               final width = context.size?.width ?? 1;
               final delta = d.delta.dx / width;
               final next = _seekPreview +
