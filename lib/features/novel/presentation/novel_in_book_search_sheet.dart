@@ -23,11 +23,15 @@ class InBookSearchResult {
   /// 反查命中所在页，而非只落到章节首页。
   final int charOffset;
 
+  /// 搜索关键词（用于结果列表高亮显示匹配文本）。
+  final String keyword;
+
   const InBookSearchResult({
     required this.chapterIndex,
     required this.chapterTitle,
     required this.snippet,
     required this.charOffset,
+    required this.keyword,
   });
 }
 
@@ -80,6 +84,9 @@ Future<void> _parallelFor(
 /// 支持「当前章 / 全书 / 当前章之后 / 起止章」范围切换；可开启正则搜索；
 /// 全书搜索按小并发并行拉取 + 章节结果缓存（重复搜索不重抓）；结果**实时**
 /// 随章节命中流式插入（非搜完才显示）；搜索中可「暂停 / 继续」。
+///
+/// [localChapterBlocks] 为本地模式预解析的章节正文块列表（索引与 [chapters] 对齐），
+/// 非空时跳过网络拉取，直接在本机内容中搜索。
 Future<InBookSearchResult?> showNovelInBookSearchSheet({
   required BuildContext context,
   required List<Episode> chapters,
@@ -88,6 +95,7 @@ Future<InBookSearchResult?> showNovelInBookSearchSheet({
   required PluginConfig? source,
   required String novelId,
   required ChineseConvertMode convertMode,
+  List<List<NovelBlock>>? localChapterBlocks,
 }) {
   return showModalBottomSheet<InBookSearchResult>(
     context: context,
@@ -100,6 +108,7 @@ Future<InBookSearchResult?> showNovelInBookSearchSheet({
       source: source,
       novelId: novelId,
       convertMode: convertMode,
+      localChapterBlocks: localChapterBlocks,
     ),
   );
 }
@@ -112,6 +121,7 @@ class _InBookSearchSheet extends StatefulWidget {
     required this.source,
     required this.novelId,
     required this.convertMode,
+    this.localChapterBlocks,
   });
 
   final List<Episode> chapters;
@@ -123,6 +133,10 @@ class _InBookSearchSheet extends StatefulWidget {
   /// 与阅读器一致的繁简转换模式：正文与关键字均按该模式转换后再匹配，
   /// 保证「屏显简体、原文繁体」时也能用简体关键字搜到（正则模式不转换关键字）。
   final ChineseConvertMode convertMode;
+
+  /// 本地模式预解析的章节正文块列表（索引与 [chapters] 对齐）。
+  /// 非空时跳过网络拉取，直接在本机内容中搜索。
+  final List<List<NovelBlock>>? localChapterBlocks;
 
   @override
   State<_InBookSearchSheet> createState() => _InBookSearchSheetState();
@@ -234,7 +248,8 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
 
   Future<void> _search() async {
     final keywordSrc = _controller.text.trim();
-    if (keywordSrc.isEmpty || widget.source == null) return;
+    if (keywordSrc.isEmpty) return;
+    if (widget.source == null && widget.localChapterBlocks == null) return;
     final int gen = ++_generation;
     _paused = false;
     _resumeCompleter = null;
@@ -298,16 +313,23 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
         final chapter = widget.chapters[ci];
         List<NovelBlock>? blocks = _chapterCache[ci];
         if (blocks == null) {
-          try {
-            blocks = await widget.service.fetchNovelContent(
-              widget.source!,
-              novelId: widget.novelId,
-              chapterUrl: chapter.url,
-            );
+          if (widget.localChapterBlocks != null &&
+              ci < widget.localChapterBlocks!.length) {
+            // 本地模式：使用预解析的章节正文块，跳过网络拉取
+            blocks = widget.localChapterBlocks![ci];
             _chapterCache[ci] = blocks;
-          } on Object {
-            // 跳过拉取失败的章节。
-            return;
+          } else {
+            try {
+              blocks = await widget.service.fetchNovelContent(
+                widget.source!,
+                novelId: widget.novelId,
+                chapterUrl: chapter.url,
+              );
+              _chapterCache[ci] = blocks;
+            } on Object {
+              // 跳过拉取失败的章节。
+              return;
+            }
           }
         }
         if (gen != _generation || !mounted) throw const _SearchAborted();
@@ -388,6 +410,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
             snippet:
                 '${start > 0 ? '...' : ''}${para.substring(start, end)}${end < para.length ? '...' : ''}',
             charOffset: offset + m.start,
+            keyword: pattern,
           ));
           if (hits.length >= limit) return hits;
         }
@@ -402,6 +425,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
             snippet:
                 '${start > 0 ? '...' : ''}${para.substring(start, end)}${end < para.length ? '...' : ''}',
             charOffset: offset + idx,
+            keyword: pattern,
           ));
           if (hits.length >= limit) return hits;
           idx = para.indexOf(pattern, idx + pattern.length);
@@ -415,125 +439,137 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
+    final sheetHeight = isLandscape ? 0.85 : 0.7;
     return AppSheetBody(
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
         child: DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.4,
-          maxChildSize: 0.9,
+          initialChildSize: sheetHeight,
+          minChildSize: 0.35,
+          maxChildSize: 0.92,
           expand: false,
           builder: (ctx, scrollController) => Column(
             children: <Widget>[
+              // ───── 搜索栏 ─────
               Padding(
-                padding: const EdgeInsets.all(AppTokens.spaceMd),
-                child: Column(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTokens.spaceMd,
+                  AppTokens.spaceMd,
+                  AppTokens.spaceMd,
+                  AppTokens.spaceXs,
+                ),
+                child: Row(
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: TextField(
-                            controller: _controller,
-                            decoration: InputDecoration(
-                              hintText: l10n.searchInBook,
-                              prefixIcon: const Icon(Icons.search),
-                              border: const OutlineInputBorder(),
-                            ),
-                            onSubmitted: (_) => _search(),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        decoration: InputDecoration(
+                          hintText: l10n.searchInBook,
+                          prefixIcon: const Icon(Icons.search),
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
                           ),
+                          isDense: true,
                         ),
-                        const SizedBox(width: AppTokens.spaceSm),
-                        FilledButton(
-                          onPressed: _searching ? null : _search,
-                          child: Text(l10n.search),
-                        ),
-                      ],
+                        onSubmitted: (_) => _search(),
+                      ),
                     ),
-                    const SizedBox(height: AppTokens.spaceSm),
-                    // 范围 + 正则 控制行
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceXs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: <Widget>[
-                        ChoiceChip(
-                          label: Text(l10n.currentChapter),
-                          selected: _scope == InBookSearchScope.currentChapter,
-                          onSelected: (_) => setState(
-                              () => _scope = InBookSearchScope.currentChapter),
-                        ),
-                        ChoiceChip(
-                          label: Text(l10n.searchScopeAll),
-                          selected: _scope == InBookSearchScope.wholeBook,
-                          onSelected: (_) =>
-                              setState(() => _scope = InBookSearchScope.wholeBook),
-                        ),
-                        ChoiceChip(
-                          label: Text(l10n.searchScopeFromHere),
-                          selected: _scope == InBookSearchScope.fromCurrent,
-                          onSelected: (_) => setState(
-                              () => _scope = InBookSearchScope.fromCurrent),
-                        ),
-                        ChoiceChip(
-                          label: Text(l10n.searchScopeRange),
-                          selected: _scope == InBookSearchScope.range,
-                          onSelected: (_) =>
-                              setState(() => _scope = InBookSearchScope.range),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    // 正则开关单独成行：Spacer/Expanded 不能直接放进 Wrap（会触发
-                    // Incorrect use of ParentDataWidget 崩溃），故用 Row + 末尾对齐。
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: <Widget>[
-                        Text(l10n.searchUseRegex),
-                        Switch(
-                          value: _useRegex,
-                          onChanged: (v) => setState(() => _useRegex = v),
-                        ),
-                      ],
-                    ),
-                    // 起止章范围输入
-                    if (_scope == InBookSearchScope.range)
-                      Padding(
-                        padding:
-                            const EdgeInsets.only(top: AppTokens.spaceXs),
-                        child: Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: TextField(
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  labelText: l10n.searchRangeStart,
-                                  border: const OutlineInputBorder(),
-                                ),
-                                onChanged: (v) =>
-                                    _rangeStart = int.tryParse(v),
-                              ),
-                            ),
-                            const SizedBox(width: AppTokens.spaceSm),
-                            Expanded(
-                              child: TextField(
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  labelText: l10n.searchRangeEnd,
-                                  border: const OutlineInputBorder(),
-                                ),
-                                onChanged: (v) => _rangeEnd = int.tryParse(v),
-                              ),
-                            ),
-                          ],
+                    const SizedBox(width: AppTokens.spaceSm),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
                         ),
                       ),
-                    // 最近搜索关键词
-                    if (!_searching &&
-                        _controller.text.isEmpty &&
-                        _history.isNotEmpty) ...<Widget>[
-                      const SizedBox(height: AppTokens.spaceSm),
+                      onPressed: _searching ? null : _search,
+                      child: Text(l10n.search),
+                    ),
+                  ],
+                ),
+              ),
+              // ───── 范围选择 ─────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: <Widget>[
+                      _buildScopeChip(l10n.currentChapter, InBookSearchScope.currentChapter),
+                      const SizedBox(width: AppTokens.spaceXs),
+                      _buildScopeChip(l10n.searchScopeAll, InBookSearchScope.wholeBook),
+                      const SizedBox(width: AppTokens.spaceXs),
+                      _buildScopeChip(l10n.searchScopeFromHere, InBookSearchScope.fromCurrent),
+                      const SizedBox(width: AppTokens.spaceXs),
+                      _buildScopeChip(l10n.searchScopeRange, InBookSearchScope.range),
+                      const SizedBox(width: AppTokens.spaceSm),
+                      // 正则开关
+                      Text(l10n.searchUseRegex, style: Theme.of(context).textTheme.bodySmall),
+                      const SizedBox(width: 4),
+                      SizedBox(
+                        height: 24,
+                        child: Switch(
+                          value: _useRegex,
+                          onChanged: (v) => setState(() => _useRegex = v),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+                    // ───── 起止章范围输入 ─────
+              if (_scope == InBookSearchScope.range)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTokens.spaceMd, AppTokens.spaceXs, AppTokens.spaceMd, 0,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '起始章',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          onChanged: (v) => _rangeStart = int.tryParse(v),
+                        ),
+                      ),
+                      const SizedBox(width: AppTokens.spaceSm),
+                      Expanded(
+                        child: TextField(
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '结束章',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          ),
+                          onChanged: (v) => _rangeEnd = int.tryParse(v),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              // ───── 最近搜索 ─────
+              if (!_searching &&
+                  _controller.text.isEmpty &&
+                  _history.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTokens.spaceMd, AppTokens.spaceXs, AppTokens.spaceMd, 0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
                       Row(
                         children: <Widget>[
                           Expanded(
@@ -546,6 +582,8 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                             icon: const Icon(Icons.clear_all, size: 18),
                             tooltip: l10n.clearHistory,
                             onPressed: _clearHistory,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                           ),
                         ],
                       ),
@@ -568,19 +606,21 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                         ],
                       ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
               Expanded(
-                child: _searching
+                child: _searching && _results.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            const CircularProgressIndicator(),
+                            const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            ),
                             Padding(
-                              padding:
-                                  const EdgeInsets.only(top: AppTokens.spaceSm),
+                              padding: const EdgeInsets.only(top: 8),
                               child: Text(
                                 _paused
                                     ? l10n.searchPaused
@@ -589,48 +629,171 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
-                            const SizedBox(height: AppTokens.spaceSm),
-                            FilledButton.icon(
-                              onPressed: _togglePause,
-                              icon: Icon(_paused
-                                  ? Icons.play_arrow
-                                  : Icons.pause),
-                              label: Text(_paused
-                                  ? l10n.searchResume
-                                  : l10n.searchPause),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 28,
+                              child: FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                ),
+                                onPressed: _togglePause,
+                                icon: Icon(
+                                  _paused ? Icons.play_arrow : Icons.pause,
+                                  size: 16,
+                                ),
+                                label: Text(
+                                  _paused ? l10n.searchResume : l10n.searchPause,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       )
                     : _results.isEmpty
                         ? Center(child: Text(l10n.noSearchResults))
-                        : ListView.separated(
-                            controller: scrollController,
-                            itemCount: _results.length,
-                            separatorBuilder: (_, __) => const Divider(
-                                height: 1, indent: AppTokens.spaceMd),
-                            itemBuilder: (_, i) {
-                              final r = _results[i];
-                              return ListTile(
-                                title: Text(
-                                  '${l10n.chapterN(r.chapterIndex + 1)} · ${r.chapterTitle}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                        : Column(
+                            children: <Widget>[
+                              // 搜索中时在顶部显示进度条
+                              if (_searching)
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppTokens.spaceMd,
+                                    vertical: AppTokens.spaceXs,
+                                  ),
+                                  child: Row(
+                                    children: <Widget>[
+                                      SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppTokens.spaceSm),
+                                      Expanded(
+                                        child: Text(
+                                          _paused
+                                              ? l10n.searchPaused
+                                              : l10n.searchProgress(
+                                                  _searchedCount, _totalCount),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        height: 26,
+                                        child: FilledButton.icon(
+                                          style: FilledButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                                          ),
+                                          onPressed: _togglePause,
+                                          icon: Icon(
+                                            _paused
+                                                ? Icons.play_arrow
+                                                : Icons.pause,
+                                            size: 14,
+                                          ),
+                                          label: Text(
+                                            _paused
+                                                ? l10n.searchResume
+                                                : l10n.searchPause,
+                                            style: const TextStyle(fontSize: 11),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                subtitle: Text(
-                                  r.snippet,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                              // 结果列表
+                              Expanded(
+                                child: ListView.separated(
+                                  controller: scrollController,
+                                  itemCount: _results.length,
+                                  separatorBuilder: (_, __) => const Divider(
+                                      height: 1, indent: AppTokens.spaceMd),
+                                  itemBuilder: (_, i) {
+                                    final r = _results[i];
+                                    return ListTile(
+                                      dense: true,
+                                      visualDensity: VisualDensity.compact,
+                                      title: Text(
+                                        '${l10n.chapterN(r.chapterIndex + 1)} · ${r.chapterTitle}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      subtitle: Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: _buildHighlightedText(
+                                          r.snippet,
+                                          r.keyword,
+                                          Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                      onTap: () => Navigator.of(context).pop(r),
+                                    );
+                                  },
                                 ),
-                                onTap: () => Navigator.of(context).pop(r),
-                              );
-                            },
+                              ),
+                            ],
                           ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// 构建带关键词高亮的富文本。
+  Widget _buildHighlightedText(String text, String keyword, Color highlightColor) {
+    if (keyword.isEmpty) {
+      return Text(text, maxLines: 2, overflow: TextOverflow.ellipsis);
+    }
+    final spans = <TextSpan>[];
+    final lower = text.toLowerCase();
+    final kw = keyword.toLowerCase();
+    var start = 0;
+    while (true) {
+      final idx = lower.indexOf(kw, start);
+      if (idx < 0) {
+        spans.add(TextSpan(text: text.substring(start)));
+        break;
+      }
+      if (idx > start) {
+        spans.add(TextSpan(text: text.substring(start, idx)));
+      }
+      spans.add(TextSpan(
+        text: text.substring(idx, idx + kw.length),
+        style: TextStyle(
+          backgroundColor: highlightColor.withValues(alpha: 0.3),
+          fontWeight: FontWeight.w600,
+        ),
+      ));
+      start = idx + kw.length;
+    }
+    return Text.rich(
+      TextSpan(
+        style: Theme.of(context).textTheme.bodySmall,
+        children: spans,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  /// 构建范围选择芯片（适配手机紧凑布局）。
+  Widget _buildScopeChip(String label, InBookSearchScope scope) {
+    final selected = _scope == scope;
+    return ChoiceChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      selected: selected,
+      onSelected: (_) => setState(() => _scope = scope),
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     );
   }
 }

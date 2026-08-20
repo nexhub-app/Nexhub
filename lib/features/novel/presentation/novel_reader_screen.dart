@@ -366,6 +366,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   bool _uiVisible = false;
   int _contentVersion = 0;
 
+  /// 搜索关键词（用于正文高亮）。搜索跳转后设置，3 秒后清除。
+  String? _searchKeyword;
+  Timer? _searchHighlightTimer;
+
   /// scroll 模式下当前滚动比例（0..1），用于同步底部进度滑条。
   double _scrollFraction = 0;
 
@@ -1264,6 +1268,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _tts.removeListener(_onTtsChanged);
     _tts.dispose();
     _settingsSearchController.dispose();
+    _searchHighlightTimer?.cancel();
     super.dispose();
   }
 
@@ -2716,13 +2721,55 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 ? _prefs.paragraphSpacing * 2
                 : _prefs.paragraphSpacing,
           ),
-          child: Text(
-            text,
-            style: headingStyle,
-            textAlign: isHeading ? TextAlign.center : TextAlign.start,
-          ),
+          child: _buildHighlightedBodyText(text, baseStyle, headingStyle, isHeading),
         );
       },
+    );
+  }
+
+  /// 构建正文文本（带搜索关键词高亮）。
+  Widget _buildHighlightedBodyText(
+    String text,
+    TextStyle baseStyle,
+    TextStyle headingStyle,
+    bool isHeading,
+  ) {
+    final kw = _searchKeyword;
+    if (kw == null || kw.isEmpty || !text.toLowerCase().contains(kw.toLowerCase())) {
+      return Text(
+        text,
+        style: isHeading ? headingStyle : baseStyle,
+        textAlign: isHeading ? TextAlign.center : TextAlign.start,
+      );
+    }
+    final spans = <TextSpan>[];
+    final lower = text.toLowerCase();
+    final kwLower = kw.toLowerCase();
+    var start = 0;
+    while (true) {
+      final idx = lower.indexOf(kwLower, start);
+      if (idx < 0) {
+        spans.add(TextSpan(text: text.substring(start)));
+        break;
+      }
+      if (idx > start) {
+        spans.add(TextSpan(text: text.substring(start, idx)));
+      }
+      spans.add(TextSpan(
+        text: text.substring(idx, idx + kwLower.length),
+        style: (isHeading ? headingStyle : baseStyle).copyWith(
+          backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+          fontWeight: FontWeight.w700,
+        ),
+      ));
+      start = idx + kwLower.length;
+    }
+    return Text.rich(
+      TextSpan(
+        style: isHeading ? headingStyle : baseStyle,
+        children: spans,
+      ),
+      textAlign: isHeading ? TextAlign.center : TextAlign.start,
     );
   }
 
@@ -3745,24 +3792,75 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// 打开书内搜索（顶栏与底部工具栏共用；本地模式不可用）。
+  /// 打开书内搜索（顶栏与底部工具栏共用；本地模式可用）。
   Future<void> _showInBookSearch() async {
-    if (_isLocalMode) return;
+    // 源不存在且非本地模式时直接提示。
+    if (_source == null && !_isLocalMode) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.sourceNotFound)),
+        );
+      }
+      return;
+    }
+    // 本地模式：等待加载完成后再打开搜索
+    if (_isLocalMode && _loading) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.loading)),
+        );
+      }
+      return;
+    }
+    final chapters = _effectiveChapters;
+    if (chapters.isEmpty) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.emptyContent)),
+        );
+      }
+      return;
+    }
+    // 本地模式：收集预解析的章节正文块（从 _localParsedChapters 构建）
+    List<List<NovelBlock>>? localBlocks;
+    if (_isLocalMode && _localParsedChapters != null && _localParsedChapters!.isNotEmpty) {
+      localBlocks = <List<NovelBlock>>[];
+      for (final ch in _localParsedChapters!) {
+        final blocks = <NovelBlock>[];
+        for (final para in ch.content) {
+          if (para.trim().isNotEmpty) {
+            blocks.add(NovelTextBlock(para));
+          }
+        }
+        localBlocks.add(blocks);
+      }
+    }
     try {
       final tocStore = context.read<NovelTocStore>();
-      tocStore.setChapters(widget.sourceId, widget.novelId, widget.chapters);
-      final chapters = tocStore.chaptersFor(widget.sourceId, widget.novelId);
+      tocStore.setChapters(widget.sourceId, widget.novelId, chapters);
       final result = await showNovelInBookSearchSheet(
         context: context,
         chapters: chapters,
         currentChapterIndex: _chapterIndex,
         service: _service,
-        source: _source,
+        source: _isLocalMode ? null : _source,
         novelId: widget.novelId,
         // 搜索与屏显用同一繁简口径：正文转换后匹配，繁文书也能用简体关键词搜到。
         convertMode: ChineseConvertMode.fromString(_prefs.chineseConvert),
+        localChapterBlocks: localBlocks,
       );
       if (result == null || !mounted) return;
+      // 设置搜索关键词高亮
+      _searchHighlightTimer?.cancel();
+      _searchKeyword = result.keyword;
+      _searchHighlightTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          setState(() => _searchKeyword = null);
+        }
+      });
       if (result.chapterIndex != _chapterIndex) {
         // 跨章：携带命中偏移加载目标章，分页就绪后由 P0-2 恢复路径把偏移
         // 映射回页码（_buildReader 消费 _savedCharOffset），落到命中页。
