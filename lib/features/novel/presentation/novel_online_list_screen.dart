@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/local/local_content_actions.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
@@ -67,9 +68,15 @@ class NovelOnlineListScreen extends StatelessWidget {
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.novelSource,
             title: l10n.search,
-            onItemTap: (item, heroTag) => Navigator.of(context).push(
-              AppHeroPageRoute<void>(
-                builder: (_) => ContentDetailScreen(item: item, heroTag: heroTag),
+            // 搜索结果含本地内容（导入/下载），本地条目直接进本地阅读器。
+            onItemTap: (item, heroTag) => openSearchResultEntry(
+              context,
+              item: item,
+              heroTag: heroTag,
+              onOnline: (it, tag) => Navigator.of(context).push(
+                AppHeroPageRoute<void>(
+                  builder: (_) => ContentDetailScreen(item: it, heroTag: tag),
+                ),
               ),
             ),
           ),

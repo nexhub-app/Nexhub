@@ -36,9 +36,13 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final manager = context.watch<DownloadManager>();
-    // 基础列表 = 全部未归档任务（含失败/已完成）：此前只取 activeTasks，
-    // 失败任务永远不出现 → 下载错误完全看不见。
-    final allTasks = manager.tasks.where((t) => !t.archived).toList();
+    // 基础列表 = 未归档且未完成任务（下载列表 = 下载队列）：
+    // - 排除已完成任务：已完成内容在「已下载内容页」展示，
+    //   「清除记录」后不应再在下载列表出现已下载记录。
+    // - 保留失败任务，否则下载错误完全看不见。
+    final allTasks = manager.tasks
+        .where((t) => !t.archived && !t.isCompleted)
+        .toList();
 
     // 按类型 + 状态筛选
     List<DownloadTask> filteredTasks = _typeFilter == null
@@ -81,7 +85,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
                 icon: const Icon(Icons.delete_sweep_outlined),
                 tooltip: l10n.clearAll,
                 onPressed: () =>
-                    _confirmClearAll(context, manager, filteredTasks, l10n),
+                    _confirmClearAll(context, manager, l10n),
               ),
             if (filteredTasks.isNotEmpty)
               IconButton(
@@ -308,7 +312,6 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
   void _confirmClearAll(
     BuildContext context,
     DownloadManager manager,
-    List<DownloadTask> tasks,
     AppLocalizations l10n,
   ) {
     showDialog<void>(
@@ -323,9 +326,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
           ),
           FilledButton(
             onPressed: () {
-              for (final task in tasks) {
-                manager.cancel(task.id, deleteFiles: false);
-              }
+              manager.clearAll(deleteFiles: false);
               Navigator.pop(ctx);
             },
             child: Text(l10n.confirm),
@@ -386,7 +387,9 @@ class _DownloadTaskTile extends StatelessWidget {
               Row(
                 children: <Widget>[
                   Text(
-                    '${task.downloadedChapters} / ${task.totalChapters}',
+                    task.progress >= 1.0
+                        ? '100%'
+                        : '${(task.progress * 100).toStringAsFixed(0)}%',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),

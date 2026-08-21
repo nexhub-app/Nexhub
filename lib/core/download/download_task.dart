@@ -148,6 +148,7 @@ class DownloadTask {
     this.chapterTitles = const <String>[],
     this.totalChapters = 0,
     this.downloadedChapters = 0,
+    this.chapterProgress = 0.0,
     this.status = DownloadStatus.pending,
     this.error,
     this.localPath,
@@ -160,9 +161,15 @@ class DownloadTask {
     this.archivedAt,
   });
 
-  /// 进度（0.0 ~ 1.0）。
+  /// 当前章节内部进度（0.0 ~ 1.0），用于单章节/单文件下载时显示更细粒度进度。
+  final double chapterProgress;
+
+  /// 进度（0.0 ~ 1.0），包含章节内细粒度进度。
   double get progress =>
-      totalChapters > 0 ? (downloadedChapters / totalChapters).clamp(0.0, 1.0) : 0.0;
+      totalChapters > 0
+          ? ((downloadedChapters + chapterProgress) / totalChapters)
+              .clamp(0.0, 1.0)
+          : 0.0;
 
   /// 是否已完成（用于已下载内容页过滤）。
   bool get isCompleted => status == DownloadStatus.completed;
@@ -182,6 +189,7 @@ class DownloadTask {
     String? coverUrl,
     DownloadStatus? status,
     int? downloadedChapters,
+    double? chapterProgress,
     int? totalChapters,
     String? error,
     String? localPath,
@@ -204,6 +212,7 @@ class DownloadTask {
         chapterTitles: chapterTitles ?? this.chapterTitles,
         totalChapters: totalChapters ?? this.totalChapters,
         downloadedChapters: downloadedChapters ?? this.downloadedChapters,
+        chapterProgress: chapterProgress ?? this.chapterProgress,
         status: status ?? this.status,
         error: error ?? this.error,
         localPath: localPath ?? this.localPath,
@@ -227,6 +236,7 @@ class DownloadTask {
         'chapterTitles': chapterTitles,
         'totalChapters': totalChapters,
         'downloadedChapters': downloadedChapters,
+        'chapterProgress': chapterProgress,
         'status': status.label,
         'error': error,
         'localPath': localPath,
@@ -255,6 +265,7 @@ class DownloadTask {
             const <String>[],
         totalChapters: json['totalChapters'] as int? ?? 0,
         downloadedChapters: json['downloadedChapters'] as int? ?? 0,
+        chapterProgress: (json['chapterProgress'] as num?)?.toDouble() ?? 0.0,
         status: DownloadStatus.fromString(json['status'] as String?),
         error: json['error'] as String?,
         localPath: json['localPath'] as String?,

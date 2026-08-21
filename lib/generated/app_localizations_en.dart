@@ -776,7 +776,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get clearAllConfirm =>
-      'Clear all download records? Downloaded files will not be deleted.';
+      'This clears all active/paused/failed download records across all filters. Finished downloads are kept and remain readable. Continue?';
 
   @override
   String get clearHistory => 'Clear History';
@@ -2622,6 +2622,55 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get updateCheckFailed =>
       'Failed to check for updates. Try again later.';
+
+  @override
+  String get updateMirrorSettings => 'Update Mirror Settings';
+
+  @override
+  String get updateMirror => 'Mirror';
+
+  @override
+  String get updateSilentDownload => 'Silent download';
+
+  @override
+  String get updateDownloadAndInstall => 'Download & Install';
+
+  @override
+  String get updateDownloaded => 'Download complete. Ready to install.';
+
+  @override
+  String get updateInstallNow => 'Install Now';
+
+  @override
+  String get updateAutoSwitchMirror => 'Auto-switch to fastest mirror';
+
+  @override
+  String get updateAutoSwitchMirrorDesc =>
+      'Test mirror latency during download and pick the fastest';
+
+  @override
+  String get updateMirrorSelection => 'Mirror Selection';
+
+  @override
+  String get updateCustomMirrors => 'Custom Mirrors';
+
+  @override
+  String get updateNoCustomMirrors => 'No custom mirrors';
+
+  @override
+  String get updateAddMirror => 'Add Mirror';
+
+  @override
+  String get updateMirrorName => 'Mirror Name';
+
+  @override
+  String get updateMirrorUrl => 'Mirror URL';
+
+  @override
+  String get updateTestMirrors => 'Test All Mirrors';
+
+  @override
+  String get updateMirrorTimeout => 'Timeout';
 
   @override
   String get settingsGroupLanguage => 'Language';
