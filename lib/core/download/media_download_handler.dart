@@ -12,8 +12,6 @@ library;
 import 'dart:math' show min;
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart' show Options, ResponseBody, ResponseType;
-
 import '../models/episode.dart';
 import '../models/plugin_config.dart';
 import '../scraper/http_fetcher.dart';
@@ -86,7 +84,6 @@ class MediaDownloadHandler implements DownloadHandler {
     }
 
     // 阶段二：并行下载已解析的集（直链写字节；HLS 分段下载拼接）。
-    var completed = 0;
     var written = 0;
     // 逐集文件路径：下标对齐 chapters（缺则为空串，供上层跳过未下载集）。
     final List<String> chapterPaths =
@@ -100,7 +97,11 @@ class MediaDownloadHandler implements DownloadHandler {
       var ok = false;
       String? path;
       if (link.isHls) {
-        if (await _downloadHls(taskDir, seq, link)) {
+        if (await _downloadHls(taskDir, seq, link,
+            onProgress: (fileProgress) {
+              onProgress?.call(idx, resolvable.length, fileProgress);
+            },
+        )) {
           path = fs.join(taskDir, '${_pad(seq)}.ts');
           ok = true;
         }
@@ -124,6 +125,9 @@ class MediaDownloadHandler implements DownloadHandler {
               taskDir,
               seq,
               SniffedVideoLink(url: line.url, headers: line.headers),
+              onProgress: (fileProgress) {
+                onProgress?.call(idx, resolvable.length, fileProgress);
+              },
             )) {
               path = fs.join(taskDir, '${_pad(seq)}.ts');
               ok = true;
@@ -175,15 +179,17 @@ class MediaDownloadHandler implements DownloadHandler {
   Future<bool> _downloadHls(
     String taskDir,
     int idx,
-    SniffedVideoLink link,
-  ) async {
+    SniffedVideoLink link, {
+    void Function(double progress)? onProgress,
+  }) async {
     try {
       final bytes = await _getBytesRetry(link.url, link.headers,
           what: 'm3u8');
       if (bytes.isEmpty) return false;
       final text = String.fromCharCodes(bytes);
       if (!text.contains('#EXTM3U')) return false;
-      final Stream<List<int>> out = _concatHlsStream(text, link);
+      final Stream<List<int>> out = _concatHlsStream(text, link,
+          onProgress: onProgress);
       await fs.writeStream(
         fs.join(taskDir, '${_pad(idx + 1)}.ts'),
         out,
@@ -202,7 +208,9 @@ class MediaDownloadHandler implements DownloadHandler {
 
   /// 解析 m3u8 文本并**流式产出**拼接后的分片字节（处理嵌套变体 / EXT-X-MAP）。
   Stream<List<int>> _concatHlsStream(
-      String playlistText, SniffedVideoLink link) async* {
+      String playlistText, SniffedVideoLink link, {
+    void Function(double progress)? onProgress,
+  }) async* {
     final lines =
         playlistText.split('\n').map((l) => l.trim()).toList();
 
@@ -251,6 +259,7 @@ class MediaDownloadHandler implements DownloadHandler {
     // 单分片偶发超时/失败不阻断整集：重试几次，仍失败则跳过（带空档拼接，视频仍可播）。
     final segBytes = List<Uint8List?>.filled(segments.length, null);
     var failed = 0;
+    final int totalSegs = segments.length;
     await runPool(8, [for (var k = 0; k < segments.length; k++) k], (k) async {
       final b = await _getSegmentTolerant(segments[k], link.headers);
       if (b == null) {
@@ -259,6 +268,8 @@ class MediaDownloadHandler implements DownloadHandler {
       } else {
         segBytes[k] = b;
       }
+    }, onItemDone: (completed, _) {
+      onProgress?.call(completed / totalSegs);
     });
     if (failed >= segments.length) {
       AppLog.instance.e('[HLS 全部分片失败] ${link.url} ($failed/${segments.length})');
@@ -338,22 +349,30 @@ class MediaDownloadHandler implements DownloadHandler {
         ...?extraHeaders,
       };
       final String path = fs.join(taskDir, '${_pad(idx + 1)}.mp4');
-      // 使用 Dio 流式响应获取 Content-Length 和下载流
-      final response = await HttpFetcher.instance.dio.get<ResponseBody>(
-        url,
-        options: Options(
-          headers: merged.isEmpty ? null : merged,
-          responseType: ResponseType.stream,
-        ),
-      );
-      final totalStr = response.headers.value('content-length');
-      final totalBytes =
-          totalStr != null ? int.tryParse(totalStr) : null;
-      final body = response.data;
-      if (body == null) return false;
+
+      // 使用 getBytesStream 流式下载，通过 onHeaders 回调获取 Content-Length
+      // 与 HttpFetcher 完全兼容，避免独立 HEAD/Dio.get 可能的不兼容问题
+      int? totalBytes;
       var receivedBytes = 0;
       var firstChunk = true;
-      await fs.writeStream(path, body.stream.map((chunk) {
+      await fs.writeStream(path, HttpFetcher.instance
+          .getBytesStream(url,
+              headers: merged.isEmpty ? null : merged,
+              fetchDest: 'video',
+              onHeaders: (headers) {
+                final cl = headers['content-length']?.firstOrNull;
+                if (cl != null) totalBytes = int.tryParse(cl);
+                if (totalBytes == null) {
+                  final cr = headers['content-range']?.firstOrNull;
+                  if (cr != null) {
+                    final match = RegExp(r'/(\d+)$').firstMatch(cr);
+                    if (match != null) {
+                      totalBytes = int.tryParse(match.group(1)!);
+                    }
+                  }
+                }
+              })
+          .asyncMap((chunk) {
         if (firstChunk) {
           firstChunk = false;
           if (_looksLikeHtml(chunk)) {
@@ -361,21 +380,19 @@ class MediaDownloadHandler implements DownloadHandler {
           }
         }
         receivedBytes += chunk.length;
-        if (totalBytes != null && totalBytes > 0) {
-          onProgress?.call(receivedBytes / totalBytes);
+        if (totalBytes != null && totalBytes! > 0) {
+          onProgress?.call(receivedBytes / totalBytes!);
         }
         return chunk;
       }));
-      // 空流（0 字节）→ 视为失败。
       if (!await fs.exists(path)) return false;
       return true;
     } on Object catch (e) {
       AppLog.instance.w('[直链下载失败] $url: $e');
-      // 清掉半截文件，避免「假完成」。
       try {
         final String path = fs.join(taskDir, '${_pad(idx + 1)}.mp4');
         if (await fs.exists(path)) await fs.delete(path);
-      } on Object {/* 忽略清理失败 */}
+      } on Object {}
       return false;
     }
   }

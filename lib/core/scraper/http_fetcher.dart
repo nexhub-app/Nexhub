@@ -925,8 +925,9 @@ class HttpFetcher {
     Map<String, String>? headers,
     EffectiveNetworkProfile? net,
     String? fetchDest = 'video',
+    void Function(Map<String, List<String>> headers)? onHeaders,
   }) {
-    return _getBytesStreamFollow(url, headers, net, fetchDest, 0);
+    return _getBytesStreamFollow(url, headers, net, fetchDest, 0, onHeaders: onHeaders);
   }
 
   Stream<Uint8List> _getBytesStreamFollow(
@@ -934,8 +935,9 @@ class HttpFetcher {
     Map<String, String>? headers,
     EffectiveNetworkProfile? net,
     String? fetchDest,
-    int depth,
-  ) async* {
+    int depth, {
+    void Function(Map<String, List<String>> headers)? onHeaders,
+  }) async* {
     final Map<String, String> merged = _mergeHeaders(null, <String, String>{
       ...?headers,
       if (fetchDest != null) 'Sec-Fetch-Dest': fetchDest,
@@ -955,6 +957,8 @@ class HttpFetcher {
       ),
     );
     final int code = resp.statusCode ?? 0;
+    // 通知调用方响应头已到达（用于获取 Content-Length 等）
+    onHeaders?.call(resp.headers.map);
     if (code >= 300 && code < 400 && depth < kMaxRedirects) {
       final String? loc =
           resp.headers.value('location') ?? resp.headers.value('Location');
@@ -963,7 +967,8 @@ class HttpFetcher {
             ? Uri.parse(loc)
             : Uri.parse(url).resolve(loc);
         yield* _getBytesStreamFollow(
-            next.toString(), headers, net, fetchDest, depth + 1);
+            next.toString(), headers, net, fetchDest, depth + 1,
+            onHeaders: onHeaders);
         return;
       }
     }
