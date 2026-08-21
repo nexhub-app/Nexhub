@@ -48,7 +48,10 @@ dependencies:
   # RAR/CBR（含 RAR5），无需原生库，桌面+安卓通用。覆盖 .cbr/.rar/.7z 等。
   koni_archive: ^0.9.0
   # PDF 漫画解析：把 PDF 每页渲染成图片供漫画阅读器复用（本地文件，Android/iOS/桌面）
-  pdfx: ^2.9.2
+  # 钉死 2.9.2：2.10.0/2.11.0（2026-08-20 同日发布）调用了 vector_math 新版已移除的
+  # Matrix4.translateByDouble / scaleByDouble，与 Flutter 3.47 自带的 vector_math 不兼容，
+  # 构建期直接报 "The method 'translateByDouble' isn't defined"。CI 重新 pub get 会解析到 2.11.0 导致四平台全挂。
+  pdfx: 2.9.2
   # 下载基路径（平台文档目录）
   path_provider: ^2.1.3
   # 在系统浏览器中打开 URL（验证流程 / 外部链接）
