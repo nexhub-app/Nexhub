@@ -150,7 +150,7 @@ jobs:
           java-version: '17'
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.0'
+          flutter-version: '3.47.0'
           channel: 'stable'
           cache: true
       - name: 获取依赖
@@ -207,7 +207,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.0'
+          flutter-version: '3.47.0'
           channel: 'stable'
           cache: true
       - name: 启用 Windows 桌面支持
@@ -334,7 +334,7 @@ jobs:
             libwebkit2gtk-4.1-dev libjsoncpp-dev libmpv-dev
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.0'
+          flutter-version: '3.47.0'
           channel: 'stable'
           cache: true
       - name: 启用 Linux 桌面支持
@@ -412,7 +412,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.0'
+          flutter-version: '3.47.0'
           channel: 'stable'
           cache: true
       - name: 启用 macOS 桌面支持
