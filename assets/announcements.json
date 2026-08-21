@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.0-beta.1-announce",
+    "date": "2026-08-22",
+    "title": "NexHub 2.0.0-beta.1 预发布测试版",
+    "titleEn": "NexHub 2.0.0-beta.1 (pre-release beta)",
+    "body": "2.0.0 预发布测试版来了！底层升级到 Flutter 3.47；小说阅读器新增 Legado（阅读）书源导入兼容、书内搜索跳命中、阅读总结、音量键 / 滚轮翻页、TXT 内部章节细化、进度恢复修正、GBK 乱码修复；漫画阅读器新增书签、图片收藏、自然排序、自动下载、缩放倍数指示等大批实机修复；影视播放器新增多源自动选源 + 故障回退、跨作品播放队列、后台播放 + 通知栏、画中画、跳过片头片尾、自动连播倒计时、睡眠按集数、双击 seek 累加、底部细进度条、弹幕去重、本地视频封面、横滑取消手势等。这是 beta 测试版，可能有个别 bug，欢迎升级并反馈。无破坏性数据变更，可直接覆盖安装。",
+    "bodyEn": "The 2.0.0 pre-release beta is here! Flutter upgraded to 3.47; the novel reader gains Legado (阅读) source import, in-book search jump, reading summary, volume-key / wheel page-turn, TXT chapter splitting, progress-restore fix and GBK mojibake fix; the manga reader adds bookmarks, image collection, natural sort, auto-download, zoom-ratio indicator and many real-device fixes; the video player adds multi-source auto-select with failover, cross-work play queue, background playback + notification, PiP, intro/outro skip, auto-next countdown, sleep-by-episodes, double-tap seek accumulation, bottom thin progress bar, danmaku dedupe, local video cover and swipe-cancel gesture. This is a beta — some bugs may remain; upgrade and report issues. No breaking data changes — just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v1.2.0-announce",
     "date": "2026-08-14",
     "title": "NexHub 1.2.0 发布说明",

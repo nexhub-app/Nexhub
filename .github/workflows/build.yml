@@ -465,6 +465,7 @@ jobs:
           name: NexHub ${{ github.ref_name }}
           body_path: RELEASE_BODY.md
           allowUpdates: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             artifacts/android-apk/*.apk
             artifacts/windows-build/NexHub-windows-x64.zip
