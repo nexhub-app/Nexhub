@@ -86,6 +86,10 @@ class NovelDownloadHandler implements DownloadHandler {
         AppLog.instance.w('[小说章节抓取失败] ${task.title} 第${i + 1}章: $e');
         fetched[i] = null;
       }
+    }, onItemDone: (completed, total) {
+      // 获取阶段报告中间进度：downloadedChapters=0, chapterProgress=completed/total
+      // 这样单个章节下载时也能看到 0%→50%→100% 的进度变化
+      onProgress?.call(0, chapters.length, completed / total);
     });
 
     // 章节文件路径（下标对齐 chapters）
