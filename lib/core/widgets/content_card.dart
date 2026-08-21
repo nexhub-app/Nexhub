@@ -4,6 +4,7 @@ import '../settings/layout_settings.dart';
 import '../theme/app_tokens.dart';
 import 'app_animations.dart';
 import 'app_cover_image.dart';
+import 'highlight_text.dart';
 
 /// 内容卡片（封面 + 标题 + 元信息 + 进度条/徽标）。
 /// 动漫 / 漫画 / 小说 / 影视 四模块共用的统一卡片。
@@ -20,6 +21,10 @@ class ContentCard extends StatelessWidget {
   final String? heroTag;
   final double width;
 
+  /// 搜索关键词高亮：非空时标题中命中的片段以主题色加粗强调
+  /// （搜索结果列表用；普通卡片不传保持原样）。
+  final String? highlightQuery;
+
   /// 入场动画的去重 key：非空时同一 key 全局只入场一次（避免列表滚动回来重复播放）。
   /// 缺省回退到 [heroTag]；两者皆空则该卡片每次挂载都播放。
   final String? entranceKey;
@@ -35,6 +40,7 @@ class ContentCard extends StatelessWidget {
     this.source,
     this.width = 120,
     this.entranceKey,
+    this.highlightQuery,
   });
 
   @override
@@ -92,12 +98,15 @@ class ContentCard extends StatelessWidget {
           ),
           const SizedBox(height: AppTokens.spaceXs),
             if (layout.showTitle)
-              Text(title,
-                  maxLines: layout.titleMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontSize: layout.titleFontSize,
-                      )),
+              HighlightText(
+                text: title,
+                query: highlightQuery,
+                maxLines: layout.titleMaxLines,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: layout.titleFontSize,
+                    ),
+              ),
             if (subtitle != null && layout.showAuthor) ...<Widget>[
               const SizedBox(height: AppTokens.spaceXxs),
               Text(subtitle!,

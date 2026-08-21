@@ -11,6 +11,7 @@ import '../../../core/scraper/media_api_service.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/novel/novel_chinese_converter.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/highlight_text.dart' show searchHitSpans;
 
 /// 书内搜索结果项。
 class InBookSearchResult {
@@ -26,12 +27,17 @@ class InBookSearchResult {
   /// 搜索关键词（用于结果列表高亮显示匹配文本）。
   final String keyword;
 
+  /// 正则模式下的已编译表达式（正文/结果高亮用；普通模式为 null）。
+  /// 非空时 [keyword] 为正则源文本，高亮按正则匹配而非子串包含。
+  final RegExp? regex;
+
   const InBookSearchResult({
     required this.chapterIndex,
     required this.chapterTitle,
     required this.snippet,
     required this.charOffset,
     required this.keyword,
+    this.regex,
   });
 }
 
@@ -85,8 +91,8 @@ Future<void> _parallelFor(
 /// 全书搜索按小并发并行拉取 + 章节结果缓存（重复搜索不重抓）；结果**实时**
 /// 随章节命中流式插入（非搜完才显示）；搜索中可「暂停 / 继续」。
 ///
-/// [localChapterBlocks] 为本地模式预解析的章节正文块列表（索引与 [chapters] 对齐），
-/// 非空时跳过网络拉取，直接在本机内容中搜索。
+/// [localChapterLoader] 为本地模式的章节正文块按需加载器（参数为章下标，
+/// 与 [chapters] 对齐）。非空时跳过网络拉取，直接在本机内容中搜索。
 Future<InBookSearchResult?> showNovelInBookSearchSheet({
   required BuildContext context,
   required List<Episode> chapters,
@@ -95,7 +101,7 @@ Future<InBookSearchResult?> showNovelInBookSearchSheet({
   required PluginConfig? source,
   required String novelId,
   required ChineseConvertMode convertMode,
-  List<List<NovelBlock>>? localChapterBlocks,
+  Future<List<NovelBlock>> Function(int chapterIndex)? localChapterLoader,
 }) {
   return showModalBottomSheet<InBookSearchResult>(
     context: context,
@@ -108,7 +114,7 @@ Future<InBookSearchResult?> showNovelInBookSearchSheet({
       source: source,
       novelId: novelId,
       convertMode: convertMode,
-      localChapterBlocks: localChapterBlocks,
+      localChapterLoader: localChapterLoader,
     ),
   );
 }
@@ -121,7 +127,7 @@ class _InBookSearchSheet extends StatefulWidget {
     required this.source,
     required this.novelId,
     required this.convertMode,
-    this.localChapterBlocks,
+    this.localChapterLoader,
   });
 
   final List<Episode> chapters;
@@ -134,9 +140,9 @@ class _InBookSearchSheet extends StatefulWidget {
   /// 保证「屏显简体、原文繁体」时也能用简体关键字搜到（正则模式不转换关键字）。
   final ChineseConvertMode convertMode;
 
-  /// 本地模式预解析的章节正文块列表（索引与 [chapters] 对齐）。
-  /// 非空时跳过网络拉取，直接在本机内容中搜索。
-  final List<List<NovelBlock>>? localChapterBlocks;
+  /// 本地模式的章节正文块按需加载器（参数为章下标，与 [chapters] 对齐）。
+  /// 非空时跳过网络拉取，直接在本机内容中搜索（单文件与聚合导入均支持）。
+  final Future<List<NovelBlock>> Function(int chapterIndex)? localChapterLoader;
 
   @override
   State<_InBookSearchSheet> createState() => _InBookSearchSheetState();
@@ -249,7 +255,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
   Future<void> _search() async {
     final keywordSrc = _controller.text.trim();
     if (keywordSrc.isEmpty) return;
-    if (widget.source == null && widget.localChapterBlocks == null) return;
+    if (widget.source == null && widget.localChapterLoader == null) return;
     final int gen = ++_generation;
     _paused = false;
     _resumeCompleter = null;
@@ -313,11 +319,16 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
         final chapter = widget.chapters[ci];
         List<NovelBlock>? blocks = _chapterCache[ci];
         if (blocks == null) {
-          if (widget.localChapterBlocks != null &&
-              ci < widget.localChapterBlocks!.length) {
-            // 本地模式：使用预解析的章节正文块，跳过网络拉取
-            blocks = widget.localChapterBlocks![ci];
-            _chapterCache[ci] = blocks;
+          final loader = widget.localChapterLoader;
+          if (loader != null) {
+            // 本地模式（单文件 / 聚合导入）：按需加载章节正文块，跳过网络拉取。
+            try {
+              blocks = await loader(ci);
+              _chapterCache[ci] = blocks;
+            } on Object {
+              // 跳过加载失败的章节。
+              return;
+            }
           } else {
             try {
               blocks = await widget.service.fetchNovelContent(
@@ -411,6 +422,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                 '${start > 0 ? '...' : ''}${para.substring(start, end)}${end < para.length ? '...' : ''}',
             charOffset: offset + m.start,
             keyword: pattern,
+            regex: regex,
           ));
           if (hits.length >= limit) return hits;
         }
@@ -730,6 +742,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                                           r.snippet,
                                           r.keyword,
                                           Theme.of(context).colorScheme.primary,
+                                          regex: r.regex,
                                         ),
                                       ),
                                       onTap: () => Navigator.of(context).pop(r),
@@ -747,32 +760,24 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
     );
   }
 
-  /// 构建带关键词高亮的富文本。
-  Widget _buildHighlightedText(String text, String keyword, Color highlightColor) {
-    if (keyword.isEmpty) {
+  /// 构建带关键词高亮的富文本（普通模式按子串包含、正则模式按表达式匹配）。
+  Widget _buildHighlightedText(
+    String text,
+    String keyword,
+    Color highlightColor, {
+    RegExp? regex,
+  }) {
+    final spans = searchHitSpans(
+      text: text,
+      query: keyword,
+      regex: regex,
+      hitStyle: TextStyle(
+        backgroundColor: highlightColor.withValues(alpha: 0.3),
+        fontWeight: FontWeight.w600,
+      ),
+    );
+    if (spans == null) {
       return Text(text, maxLines: 2, overflow: TextOverflow.ellipsis);
-    }
-    final spans = <TextSpan>[];
-    final lower = text.toLowerCase();
-    final kw = keyword.toLowerCase();
-    var start = 0;
-    while (true) {
-      final idx = lower.indexOf(kw, start);
-      if (idx < 0) {
-        spans.add(TextSpan(text: text.substring(start)));
-        break;
-      }
-      if (idx > start) {
-        spans.add(TextSpan(text: text.substring(start, idx)));
-      }
-      spans.add(TextSpan(
-        text: text.substring(idx, idx + kw.length),
-        style: TextStyle(
-          backgroundColor: highlightColor.withValues(alpha: 0.3),
-          fontWeight: FontWeight.w600,
-        ),
-      ));
-      start = idx + kw.length;
     }
     return Text.rich(
       TextSpan(

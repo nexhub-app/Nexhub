@@ -6,6 +6,7 @@
 /// 由 ShuyuanAdapter 写入）时，路由到 ShuyuanNovelResolver。
 library;
 
+import '../models/category_entry.dart';
 import '../models/plugin_config.dart';
 import 'builtin_resolver.dart';
 import 'script_resolver.dart';
@@ -130,13 +131,33 @@ class ResolverRegistry {
     }
     throw UnsupportedError('resolveRenderedHtml 仅支持书源，收到 apiName=$apiName');
   }
+
+  /// 解析书源的发现分类（含 `<js>` 动态分类）。
+  ///
+  /// 书源的分类声明在 `selectors['xiaoshuo'].exploreUrl`，支持 `名称::URL`
+  /// 多行、JSON 数组与 `<js>`/`@js:` 动态生成等多种格式，只有书源引擎
+  /// （[ExploreCategoriesCapable]）能完整解析；静态正则解析会漏掉动态分类，
+  /// 导致这类源「分类页没有任何 Tab」。
+  ///
+  /// 引擎未注册（测试环境）或解析失败时返回空列表，由调用方回退静态解析。
+  List<CategoryEntry> resolveExploreCategories(PluginConfig source) {
+    if (_isShuyuanSource(source)) {
+      try {
+        return _shuyuanResolver.resolveExploreCategories(source);
+      } on Object {
+        return const <CategoryEntry>[];
+      }
+    }
+    return const <CategoryEntry>[];
+  }
 }
 
 // 惰性单例：书源解析器（WebBook 内部维护 XiaoshuoHttp，
 // 复用静态 Dio 实例，单例化避免每次解析都重建）。
 final _LazyShuyuanResolver _shuyuanResolver = _LazyShuyuanResolver();
 
-class _LazyShuyuanResolver implements SourceResolver, RenderedHtmlCapable {
+class _LazyShuyuanResolver
+    implements SourceResolver, RenderedHtmlCapable, ExploreCategoriesCapable {
   RenderedHtmlCapable? _inner;
 
   @override
@@ -162,6 +183,17 @@ class _LazyShuyuanResolver implements SourceResolver, RenderedHtmlCapable {
   }) {
     _inner ??= _createShuyuanResolver() as RenderedHtmlCapable;
     return _inner!.resolveRenderedHtml(source, apiName, html, vars: vars);
+  }
+
+  /// 发现分类解析转发：委托书源引擎完整解析（含动态分类）。
+  @override
+  List<CategoryEntry> resolveExploreCategories(PluginConfig source) {
+    final inner = _inner ??= _createShuyuanResolver() as RenderedHtmlCapable;
+    if (inner is ExploreCategoriesCapable) {
+      return (inner as ExploreCategoriesCapable)
+          .resolveExploreCategories(source);
+    }
+    return const <CategoryEntry>[];
   }
 
   SourceResolver _createShuyuanResolver() {
@@ -214,4 +246,14 @@ abstract class RenderedHtmlCapable {
     String html, {
     Map<String, String> vars = const {},
   });
+}
+
+/// 能解析「发现分类」的解析器（书源引擎）。
+///
+/// 书源的发现分类（exploreUrl）支持 `名称::URL`、JSON 数组、`<js>` 动态
+/// 生成等格式，只有书源引擎能完整解析；本接口让 core 层
+/// （[ResolverRegistry.resolveExploreCategories]）无需反向依赖 feature 层
+/// 即可获取分类列表。
+abstract class ExploreCategoriesCapable {
+  List<CategoryEntry> resolveExploreCategories(PluginConfig source);
 }

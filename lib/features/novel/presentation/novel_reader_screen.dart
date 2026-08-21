@@ -44,6 +44,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/reader_tokens.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/chapter_list_sheet.dart';
+import '../../../core/widgets/highlight_text.dart' show searchHitSpans;
 import '../../../core/widgets/detail_action_utils.dart';
 import '../../../core/widgets/web_favorite_action.dart';
 import '../../../core/widgets/source_image.dart';
@@ -368,6 +369,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   /// 搜索关键词（用于正文高亮）。搜索跳转后设置，3 秒后清除。
   String? _searchKeyword;
+  /// 正则搜索模式下的已编译表达式（正文高亮用；普通子串搜索为 null）。
+  RegExp? _searchRegex;
   Timer? _searchHighlightTimer;
 
   /// scroll 模式下当前滚动比例（0..1），用于同步底部进度滑条。
@@ -2551,6 +2554,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           //（表现为「翻到首页 → 重进却落到上一章末页」）。
           _saveProgress(resolved);
           _savedCharOffset = null;
+          // 搜索跳转到达：命中页此刻才渲染就绪，现在启动高亮计时器
+          // （普通进度恢复时无关键词，不会走到这里）。
+          if (_searchKeyword != null || _searchRegex != null) {
+            _startSearchHighlightTimer();
+          }
         }
 
         // 检测分页结果是否变化（跨章/改偏好/旋转屏幕时变化）。
@@ -2626,6 +2634,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               headerFooterMargin: _prefs.headerFooterMargin,
               ttsCurrentIndex: _tts.currentIndex,
               ttsActive: _tts.state != NovelTtsState.stopped,
+              searchKeyword: _searchKeyword,
+              searchRegex: _searchRegex,
               onParagraphTap: _onParagraphTapped,
               onImageTap: (url, src) => _showImageViewer(url, src ?? _source),
               source: _source,
@@ -2727,49 +2737,31 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
-  /// 构建正文文本（带搜索关键词高亮）。
+  /// 构建正文文本（带搜索关键词高亮；正则模式按表达式匹配）。
   Widget _buildHighlightedBodyText(
     String text,
     TextStyle baseStyle,
     TextStyle headingStyle,
     bool isHeading,
   ) {
-    final kw = _searchKeyword;
-    if (kw == null || kw.isEmpty || !text.toLowerCase().contains(kw.toLowerCase())) {
-      return Text(
-        text,
-        style: isHeading ? headingStyle : baseStyle,
-        textAlign: isHeading ? TextAlign.center : TextAlign.start,
-      );
-    }
-    final spans = <TextSpan>[];
-    final lower = text.toLowerCase();
-    final kwLower = kw.toLowerCase();
-    var start = 0;
-    while (true) {
-      final idx = lower.indexOf(kwLower, start);
-      if (idx < 0) {
-        spans.add(TextSpan(text: text.substring(start)));
-        break;
-      }
-      if (idx > start) {
-        spans.add(TextSpan(text: text.substring(start, idx)));
-      }
-      spans.add(TextSpan(
-        text: text.substring(idx, idx + kwLower.length),
-        style: (isHeading ? headingStyle : baseStyle).copyWith(
-          backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
-          fontWeight: FontWeight.w700,
-        ),
-      ));
-      start = idx + kwLower.length;
+    final style = isHeading ? headingStyle : baseStyle;
+    final align = isHeading ? TextAlign.center : TextAlign.start;
+    final spans = searchHitSpans(
+      text: text,
+      query: _searchKeyword,
+      regex: _searchRegex,
+      hitStyle: style.copyWith(
+        backgroundColor:
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+        fontWeight: FontWeight.w700,
+      ),
+    );
+    if (spans == null) {
+      return Text(text, style: style, textAlign: align);
     }
     return Text.rich(
-      TextSpan(
-        style: isHeading ? headingStyle : baseStyle,
-        children: spans,
-      ),
-      textAlign: isHeading ? TextAlign.center : TextAlign.start,
+      TextSpan(style: style, children: spans),
+      textAlign: align,
     );
   }
 
@@ -3792,6 +3784,135 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
+  /// 构建本地模式的章节正文块 loader（供书内搜索按章拉取）。
+  ///
+  /// - 单文件（EPUB/TXT）：直接从已整本解析的 [_localParsedChapters] 切片；
+  /// - 聚合导入（localChapterPaths）：按 [_effectiveChapters] 的展开目录逐章
+  ///   路由（EPUB 内部章 / TXT 内部章 / 整文件），缓存未命中时按需解析文件。
+  ///
+  /// 块结构与渲染路径（[_loadLocalText]）保持同构（标题 heading + 插图标记
+  /// 转换），使搜索的章内字符偏移与分页偏移同口径。
+  Future<List<NovelBlock>> Function(int)? _localSearchChapterLoader() {
+    if (!_isLocalMode) return null;
+    if (_isAggregatedLocal) {
+      return (int ci) async {
+        final chs = _effectiveChapters;
+        if (ci < 0 || ci >= chs.length) return const <NovelBlock>[];
+        return _localBlocksForAggEpisode(chs[ci]);
+      };
+    }
+    final parsed = _localParsedChapters;
+    if (parsed == null || parsed.isEmpty) return null;
+    return (int ci) async {
+      if (ci < 0 || ci >= parsed.length) return const <NovelBlock>[];
+      return _localBlocksForParsedChapter(parsed[ci]);
+    };
+  }
+
+  /// 单文件模式：由已解析章节构建正文块（与 [_loadLocalText] 渲染块同构）。
+  List<NovelBlock> _localBlocksForParsedChapter(LocalNovelChapter ch) {
+    return <NovelBlock>[
+      if (ch.title.isNotEmpty) NovelTextBlock(ch.title, isHeading: true),
+      for (final para in ch.content)
+        if (para.trim().isNotEmpty) _localParagraphToBlock(para),
+    ];
+  }
+
+  /// 段落 → 正文块：下载器插图占位行转本地插图，其余为文本段。
+  NovelBlock _localParagraphToBlock(String para) {
+    final img = para.startsWith(kNexhubImgMarker)
+        ? para.substring(kNexhubImgMarker.length).trim()
+        : '';
+    if (img.isNotEmpty) {
+      return NovelImageBlock(img, source: _source);
+    }
+    return NovelTextBlock(para);
+  }
+
+  /// 聚合模式：按 episode.id 路由取该章正文块。
+  ///
+  /// - `path|ci`：EPUB 内部章节；
+  /// - `_aggTxtEpisodeMeta[id]`：TXT 内部章节（ci<0 为整文件展平）；
+  /// - 其余（collapsed 模式的整文件章）：按扩展名整书展平。
+  Future<List<NovelBlock>> _localBlocksForAggEpisode(Episode ep) async {
+    final sepIdx = ep.id.indexOf('|');
+    if (sepIdx >= 0) {
+      final path = ep.id.substring(0, sepIdx);
+      final ci = int.tryParse(ep.id.substring(sepIdx + 1)) ?? 0;
+      final book = await _aggBookForPath(path, isEpub: true);
+      if (book == null || book.chapters.isEmpty) return const <NovelBlock>[];
+      final ch = book.chapters[ci.clamp(0, book.chapters.length - 1)];
+      return _localBlocksForParsedChapter(ch);
+    }
+    final txtMeta = _aggTxtEpisodeMeta[ep.id];
+    if (txtMeta != null) {
+      final book = await _aggBookForPath(txtMeta.$1, isEpub: false);
+      if (book == null || book.chapters.isEmpty) return const <NovelBlock>[];
+      if (txtMeta.$2 < 0) {
+        // 整文件（无内部章节）：展平全部内部章节（与渲染路径一致）。
+        return <NovelBlock>[
+          for (final ch in book.chapters) ..._localBlocksForParsedChapter(ch),
+        ];
+      }
+      final ch =
+          book.chapters[txtMeta.$2.clamp(0, book.chapters.length - 1)];
+      return _localBlocksForParsedChapter(ch);
+    }
+    // collapsed 模式：episode.id 即文件路径，整书展平（EPUB 走展平、TXT 走
+    // 内部章节展平——与 [_loadLocalText] 对应分支同构）。
+    final isEpub = ep.id.toLowerCase().endsWith('.epub');
+    final book = await _aggBookForPath(ep.id, isEpub: isEpub);
+    if (book == null || book.chapters.isEmpty) return const <NovelBlock>[];
+    return <NovelBlock>[
+      for (final ch in book.chapters) ..._localBlocksForParsedChapter(ch),
+    ];
+  }
+
+  /// 聚合模式按需取整本书（优先命中已有缓存，未缓存则现场解析）。
+  Future<LocalNovelBook?> _aggBookForPath(String path,
+      {required bool isEpub}) async {
+    if (isEpub) {
+      var book = _aggEpubBooks[path];
+      if (book != null) return book;
+      final local = await resolveSafUri(path);
+      if (local == null) return null;
+      final raw = await compute(_parseEpubIsolate, local);
+      book = LocalNovelBook(
+        title: raw[0] as String,
+        author: raw[1] as String?,
+        coverPath: raw[2] as String?,
+        chapters: <LocalNovelChapter>[
+          for (final c in raw[3] as List)
+            LocalNovelChapter(
+              title: c[0] as String,
+              content: List<String>.from(c[1] as List),
+            ),
+        ],
+      );
+      _aggEpubBooks[path] = book;
+      return book;
+    }
+    var book = _aggTxtBooks[path];
+    if (book != null) return book;
+    final local = await resolveSafUri(path);
+    if (local == null) return null;
+    final raw = await compute(_parseTxtChaptersIsolate, local);
+    book = LocalNovelBook(
+      title: _chapterTitleFor(path),
+      author: null,
+      coverPath: null,
+      chapters: <LocalNovelChapter>[
+        for (final c in raw)
+          LocalNovelChapter(
+            title: c[0] as String,
+            content: List<String>.from(c[1] as List),
+          ),
+      ],
+    );
+    _aggTxtBooks[path] = book;
+    return book;
+  }
+
   /// 打开书内搜索（顶栏与底部工具栏共用；本地模式可用）。
   Future<void> _showInBookSearch() async {
     // 源不存在且非本地模式时直接提示。
@@ -3824,20 +3945,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       }
       return;
     }
-    // 本地模式：收集预解析的章节正文块（从 _localParsedChapters 构建）
-    List<List<NovelBlock>>? localBlocks;
-    if (_isLocalMode && _localParsedChapters != null && _localParsedChapters!.isNotEmpty) {
-      localBlocks = <List<NovelBlock>>[];
-      for (final ch in _localParsedChapters!) {
-        final blocks = <NovelBlock>[];
-        for (final para in ch.content) {
-          if (para.trim().isNotEmpty) {
-            blocks.add(NovelTextBlock(para));
-          }
-        }
-        localBlocks.add(blocks);
-      }
-    }
+    // 本地模式：按需加载章节正文块的 loader（单文件与聚合导入统一走此路径，
+    // 修复聚合导入（localChapterPaths）下本地内容不进搜索导致全书搜索无结果）。
+    final localLoader = _localSearchChapterLoader();
     try {
       final tocStore = context.read<NovelTocStore>();
       tocStore.setChapters(widget.sourceId, widget.novelId, chapters);
@@ -3850,20 +3960,20 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         novelId: widget.novelId,
         // 搜索与屏显用同一繁简口径：正文转换后匹配，繁文书也能用简体关键词搜到。
         convertMode: ChineseConvertMode.fromString(_prefs.chineseConvert),
-        localChapterBlocks: localBlocks,
+        localChapterLoader: localLoader,
       );
       if (result == null || !mounted) return;
-      // 设置搜索关键词高亮
+      // 设置搜索关键词高亮（普通模式为关键词、正则模式为表达式）。
+      // 计时器延迟到「命中页渲染就绪」后再启动：跨章命中要经历网络
+      // 拉取 + 分页，慢网下若在点击瞬间启动，高亮会在页面渲染完成前
+      // 就被清除（表现为跳转后看不到任何强调）。
       _searchHighlightTimer?.cancel();
       _searchKeyword = result.keyword;
-      _searchHighlightTimer = Timer(const Duration(seconds: 3), () {
-        if (mounted) {
-          setState(() => _searchKeyword = null);
-        }
-      });
+      _searchRegex = result.regex;
       if (result.chapterIndex != _chapterIndex) {
         // 跨章：携带命中偏移加载目标章，分页就绪后由 P0-2 恢复路径把偏移
-        // 映射回页码（_buildReader 消费 _savedCharOffset），落到命中页。
+        // 映射回页码（_buildReader 消费 _savedCharOffset 时启动计时器），
+        // 落到命中页。
         _savedCharOffset = result.charOffset;
         _chapterIndex = result.chapterIndex;
         _loadChapter(_chapterIndex);
@@ -3882,6 +3992,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       }
       setState(() => _currentPage = resolved);
       _saveProgress(resolved);
+      _startSearchHighlightTimer();
     } catch (e, st) {
       // 兜底：避免未预期异常（如源/存储异常）在手势回调中未被捕获导致阅读器整体卡退。
       debugPrint('[novel_reader] 书内搜索失败: $e\n$st');
@@ -3891,6 +4002,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         );
       }
     }
+  }
+
+  /// 启动/重启搜索高亮计时器：3 秒后清除正文中的搜索命中强调。
+  ///
+  /// 在「命中页真正渲染就绪」时调用（同章跳页后 / 跨章偏移恢复消费时），
+  /// 而非点击搜索结果瞬间——跨章命中要经历网络拉取 + 分页，慢网下若在
+  /// 点击时启动，高亮会在页面渲染完成前就被清除。
+  void _startSearchHighlightTimer() {
+    _searchHighlightTimer?.cancel();
+    _searchHighlightTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _searchKeyword = null;
+          _searchRegex = null;
+        });
+      }
+    });
   }
 
   /// 底部工具栏配置 sheet：勾选 / 排序槽位（最多 6 个）。
@@ -4622,6 +4750,11 @@ class _NovelPageWidget extends StatelessWidget {
   final void Function(String url, PluginConfig? source)? onImageTap;
   /// 当前章节所属书源（插图块未携带 source 时，作为防盗链 headers 兜底）。
   final PluginConfig? source;
+  /// 书内搜索关键词（非空且行内命中时，正文行渲染为高亮富文本）。
+  final String? searchKeyword;
+  /// 正则搜索模式下的已编译表达式（与 [searchKeyword] 二选一生效，
+  /// 非空时优先按正则匹配高亮）。
+  final RegExp? searchRegex;
 
   const _NovelPageWidget({
     required this.lines,
@@ -4643,6 +4776,8 @@ class _NovelPageWidget extends StatelessWidget {
     required this.headerFooterMargin,
     this.ttsCurrentIndex = -1,
     this.ttsActive = false,
+    this.searchKeyword,
+    this.searchRegex,
     this.onParagraphTap,
   });
 
@@ -4775,31 +4910,36 @@ class _NovelPageWidget extends StatelessWidget {
     );
   }
 
-  /// 构建单行文本（按行渲染）：TTS 高亮 + 点击跳转。
+  /// 构建单行文本（按行渲染）：搜索高亮 + TTS 高亮 + 点击跳转。
   ///
   /// 每行已是适配宽度的视觉行，首行自带 `　　` 缩进；段距由上层在
   /// [isLastLine] 后统一添加，这里只负责单行的文字与高亮。
   Widget _buildLine(BuildContext context, NovelLine line, TextStyle textStyle) {
     final isCurrent = ttsActive && line.paragraphIndex == ttsCurrentIndex;
-    // TTS 当前朗读段落：浅色高亮背景（类似电子书阅读器的跟读效果）。
-    final Widget textWidget = prefs.fontUnderline && prefs.underlineDashed
-        ? _DashedUnderlineText(
-            text: line.text,
-            style: textStyle,
-            dashLength: prefs.underlineDashLength,
-            dashGap: prefs.underlineDashGap,
-            thickness: prefs.underlineThickness,
-            color: prefs.resolveUnderlineColor(textColor),
-          )
-        : Text(
-            line.text,
-            style: textStyle,
-            // 每行已是按宽度精确测量出的单行文本，禁止再次折行/省略，
-            // 保证渲染与分页器测量一致（按行排版）。
-            softWrap: false,
-            maxLines: 1,
-            overflow: TextOverflow.clip,
-          );
+    // 搜索命中行渲染为高亮富文本（普通/正则模式），未命中保持原渲染
+    // （含虚线下划线变体）；高亮只改命中片段样式、不改行约束，因此
+    // 不影响与分页器一致的按行测量。
+    final Widget? searchHit =
+        _buildSearchHighlight(context, line.text, textStyle);
+    final Widget textWidget = searchHit ??
+        (prefs.fontUnderline && prefs.underlineDashed
+            ? _DashedUnderlineText(
+                text: line.text,
+                style: textStyle,
+                dashLength: prefs.underlineDashLength,
+                dashGap: prefs.underlineDashGap,
+                thickness: prefs.underlineThickness,
+                color: prefs.resolveUnderlineColor(textColor),
+              )
+            : Text(
+                line.text,
+                style: textStyle,
+                // 每行已是按宽度精确测量出的单行文本，禁止再次折行/省略，
+                // 保证渲染与分页器测量一致（按行排版）。
+                softWrap: false,
+                maxLines: 1,
+                overflow: TextOverflow.clip,
+              ));
 
     final content = isCurrent
         ? Container(
@@ -4836,6 +4976,36 @@ class _NovelPageWidget extends StatelessWidget {
       );
     }
     return content;
+  }
+
+  /// 搜索关键词命中行 → 高亮富文本；未命中返回 null（走原渲染路径）。
+  ///
+  /// [searchRegex] 非空时按正则匹配（优先），否则按关键词大小写不敏感
+  /// 子串匹配。行文本与分页测量逐字一致，Text.rich 仅给命中片段附加
+  /// 背景色/加粗，约束保持 softWrap:false + 单行 + clip，不影响按行排版。
+  Widget? _buildSearchHighlight(
+    BuildContext context,
+    String text,
+    TextStyle textStyle,
+  ) {
+    final spans = searchHitSpans(
+      text: text,
+      query: searchKeyword,
+      regex: searchRegex,
+      hitStyle: textStyle.copyWith(
+        backgroundColor:
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+        fontWeight: FontWeight.w700,
+      ),
+    );
+    if (spans == null) return null;
+    return Text.rich(
+      TextSpan(style: textStyle, children: spans),
+      // 与未命中行的 Text 约束一致：不折行/不省略，保证渲染与测量相同。
+      softWrap: false,
+      maxLines: 1,
+      overflow: TextOverflow.clip,
+    );
   }
 
   Widget _buildHeaderFooter(

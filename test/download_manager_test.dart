@@ -176,7 +176,7 @@ void main() {
       await manager.init();
     });
 
-    test('clearAll(false) recovers orphaned downloads from meta.json',
+    test('clearAll(false) keeps completed tasks, removes active only',
         () async {
       // Simulate a completed download: write meta.json + product file
       final task = DownloadTask(
@@ -193,6 +193,20 @@ void main() {
         localPath: '${fs.basePath}/orphan_1.cbz',
       );
 
+      // Simulate an in-progress download
+      final active = DownloadTask(
+        id: 'active_1',
+        title: 'Active Novel',
+        sourceType: SourceType.novelSource,
+        contentId: 'novel_active',
+        format: DownloadFormat.epub,
+        totalChapters: 10,
+        downloadedChapters: 3,
+        status: DownloadStatus.downloading,
+        createdAt: 1700000000000,
+        localPath: '${fs.basePath}/active_1.epub',
+      );
+
       // Write product file and meta.json
       await fs.writeBytes(
         task.localPath!,
@@ -204,18 +218,24 @@ void main() {
       );
 
       // Add to manager's task list, then clearAll(false)
-      // (simulating: tasks were in storage, then cleared)
-      await storage.saveAll(<DownloadTask>[task]);
+      await storage.saveAll(<DownloadTask>[task, active]);
       await manager.init();
       expect(manager.completedTasks.length, 1);
+      expect(manager.activeTasks.length, 1);
 
       // Clear all records (keep files)
       await manager.clearAll(deleteFiles: false);
 
-      // After clearAll(false), orphaned download should be recovered
+      // All records cleared; completed tasks are rebuilt from disk meta.json
+      // for the downloaded-content page, active tasks are fully removed.
       expect(manager.completedTasks.length, 1);
       expect(manager.completedTasks.first.id, 'orphan_1');
       expect(manager.activeTasks, isEmpty);
+      // 下载列表页应过滤 completed：列表查询排除已完成记录。
+      final listTasks = manager.tasks
+          .where((t) => !t.archived && !t.isCompleted)
+          .toList();
+      expect(listTasks, isEmpty);
     });
 
     test('clearAll(true) deletes files and does not recover', () async {

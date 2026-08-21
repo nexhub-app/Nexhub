@@ -56,9 +56,18 @@ class NovelHomeScreen extends StatelessWidget {
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.novelSource,
             title: l10n.search,
-            onItemTap: (MediaItem item, String? heroTag) => Navigator.of(context).push(
-              AppHeroPageRoute<void>(
-                builder: (_) => ContentDetailScreen(item: item, heroTag: heroTag),
+            // 搜索结果含本地内容（导入/下载），本地条目直接进本地阅读器，
+            // 在线条目照旧跳详情页。
+            onItemTap: (MediaItem item, String? heroTag) =>
+                openSearchResultEntry(
+              context,
+              item: item,
+              heroTag: heroTag,
+              onOnline: (it, tag) => Navigator.of(context).push(
+                AppHeroPageRoute<void>(
+                  builder: (_) =>
+                      ContentDetailScreen(item: it, heroTag: tag),
+                ),
               ),
             ),
           ),
