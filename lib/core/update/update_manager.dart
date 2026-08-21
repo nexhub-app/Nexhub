@@ -395,10 +395,11 @@ class UpdateManager extends ChangeNotifier {
 
   /// 公开的镜像探测方法（供镜像设置页测速使用）。
   ///
-  /// 使用 [testUrl]（默认 GitHub 项目主页）经镜像前缀转换后发起 HEAD 请求，
+  /// 使用 [testUrl]（默认 GitHub 最新 release 页面）经镜像前缀转换后发起 HEAD 请求，
   /// 返回延迟毫秒；失败时抛出异常。
   Future<int> probeMirror(String prefix, {String? testUrl}) async {
-    final String actualUrl = testUrl ?? 'https://github.com/nexhub-app/nexhub';
+    final String actualUrl =
+        testUrl ?? 'https://github.com/nexhub-app/nexhub/releases/latest';
     final String probeUrl =
         prefix == 'https://github.com/' ? actualUrl : actualUrl.replaceFirst(
             'https://github.com/', prefix);

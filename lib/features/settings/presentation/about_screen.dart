@@ -588,7 +588,6 @@ class _UpdateMirrorSettingsScreenState
   UpdateSettings _settings = const UpdateSettings.defaults();
   bool _loaded = false;
   final Map<String, int> _latencyResults = <String, int>{};
-  bool _probing = false;
 
   @override
   void initState() {
@@ -671,9 +670,7 @@ class _UpdateMirrorSettingsScreenState
   }
 
   Future<void> _probeAllMirrors() async {
-    final l10n = widget.l10n;
     setState(() {
-      _probing = true;
       _latencyResults.clear();
     });
     // 组装所有镜像列表（默认镜像 + 自定义镜像）
@@ -683,23 +680,22 @@ class _UpdateMirrorSettingsScreenState
     for (final m in _settings.customMirrors) {
       mirrors.add((name: m.name, prefix: m.baseUrl));
     }
-    // 逐个探测
-    for (final m in mirrors) {
-      final Stopwatch sw = Stopwatch()..start();
-      try {
-        await _manager.probeMirror(m.prefix);
-        final int ms = sw.elapsedMilliseconds;
-        if (mounted) {
-          setState(() => _latencyResults[m.name] = ms);
-        }
-      } on Object {
-        if (mounted) {
-          setState(() => _latencyResults[m.name] = -1); // -1 表示超时/失败
-        }
-      }
-    }
+    // 并发探测所有镜像，每个结果到达后立即更新 UI
+    final List<Future<void>> probes = <Future<void>>[
+      for (final m in mirrors)
+        _manager.probeMirror(m.prefix).then((int ms) {
+          if (mounted) {
+            setState(() => _latencyResults[m.name] = ms);
+          }
+        }).catchError((_) {
+          if (mounted) {
+            setState(() => _latencyResults[m.name] = -1);
+          }
+        }),
+    ];
+    await Future.wait(probes);
     if (mounted) {
-      setState(() => _probing = false);
+      setState(() {});
     }
   }
 
