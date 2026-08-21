@@ -75,7 +75,6 @@ class BookList {
     String? bookUrlRule;
     String? kindRule;
     String? lastChapterRule;
-    List<dynamic> checkKeyWordRule = const <dynamic>[];
 
     if (isSearch) {
       final rule = bookSource.getSearchRule();
@@ -86,7 +85,6 @@ class BookList {
       bookUrlRule = rule.bookUrl;
       kindRule = rule.bookKind;
       lastChapterRule = rule.bookLastChapter;
-      checkKeyWordRule = analyzeRule.splitSourceRule(rule.checkKeyWord ?? '');
     } else {
       final exploreRule = bookSource.getExploreRule();
       if (exploreRule.bookList == null || exploreRule.bookList!.isEmpty) {
@@ -154,8 +152,6 @@ class BookList {
           ruleBookUrl,
           ruleKind,
           ruleLastChapter,
-          searchKey,
-          ruleCheckKeyword: checkKeyWordRule,
         );
         if (book != null && book.name.isNotEmpty) {
           books.add(book);
@@ -193,8 +189,6 @@ class BookList {
     List<dynamic> ruleBookUrl,
     List<dynamic> ruleKind,
     List<dynamic> ruleLastChapter,
-    String? searchKey,
-    {required List<dynamic> ruleCheckKeyword}
   ) {
     String name = '';
     String author = '';
@@ -205,26 +199,15 @@ class BookList {
 
     try {
       if (ruleName.isNotEmpty) {
-        name = formatBookName(analyzeRule.getStringFromRules(ruleName));
+        // 规则路径书名只做轻量清洗（对齐通用书源引擎语义）：去「作者:xxx /
+        // xxx 著」尾缀 + 首尾分隔符。此前误用通用兜底的激进过滤（含
+        // 「推荐/新书/热门/连载…」等子串即整条丢弃），会把正常书名错误过滤。
+        name = formatBookNameLight(analyzeRule.getStringFromRules(ruleName));
       }
     } catch (_) {}
 
     if (name.isEmpty) {
       return null;
-    }
-
-    // legado checkKeyWord：按书源规则从结果项抽取文本，若不含搜索关键词则
-    // 视为无关结果予以过滤（仅搜索场景、且源声明了 checkKeyWord 时生效）。
-    if (searchKey != null &&
-        searchKey.isNotEmpty &&
-        ruleCheckKeyword.isNotEmpty) {
-      try {
-        final ck = analyzeRule.getStringFromRules(ruleCheckKeyword);
-        if (ck.isNotEmpty &&
-            !ck.toLowerCase().contains(searchKey.toLowerCase())) {
-          return null;
-        }
-      } catch (_) {}
     }
 
     try {
@@ -287,7 +270,28 @@ class BookList {
     );
   }
 
+  /// 规则路径书名轻量清洗（对齐通用书源引擎语义）：
+  /// - 去「作者：xxx」/「xxx 著」尾缀（列表项书名常带）；
+  /// - 去首尾分隔符并 trim。
+  /// 不做任何关键词级丢弃——书源规则明确指向书名元素，信任源作者的规则；
+  /// 激进的导航词过滤仅用于 [formatBookName]（通用兜底解析路径）。
+  static String formatBookNameLight(String name) {
+    if (name.isEmpty) return name;
+    var result = name
+        .replaceAll(RegExp(r'\s+作\s*者.*'), '')
+        .replaceAll(RegExp(r'\s+\S+\s+著'), '')
+        .replaceAll(RegExp(r'^\s*[-_—–|/\\]+\s*'), '')
+        .replaceAll(RegExp(r'\s*[-_—–|/\\]+\s*$'), '')
+        .trim();
+    // 超长防御：正常书名不会超过 50 字，超长多为解析到整段文本。
+    if (result.length > 80) result = result.substring(0, 80);
+    return result;
+  }
+
   /// 书名格式化：过滤分类导航/广告/品牌词，剥离方括号与分隔符。
+  /// 仅用于通用兜底解析（[_parseGenericBookList]）——该路径从任意 <a> 标签
+  /// 提取候选，必须激进过滤导航/品牌/分类词；规则路径请用
+  /// [formatBookNameLight]。
   static String formatBookName(String name) {
     if (name.isEmpty) return name;
 

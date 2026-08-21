@@ -217,9 +217,39 @@ class WebBook {
     void Function(List<XiaoshuoBookChapter>)? onBatch,
   }) async {
     final tocRule = source.getTocRule();
-    final tocUrl = (book.tocUrl != null && book.tocUrl!.isNotEmpty)
+    var tocUrl = (book.tocUrl != null && book.tocUrl!.isNotEmpty)
         ? book.tocUrl!
         : book.bookUrl;
+
+    // 兜底：上层直接请求目录而未先解析详情（book.tocUrl 为空）时，先用
+    // 详情页解析出 tocUrl 再抓目录。否则会把详情页 URL 当目录页请求——
+    // HTML 源详情页不含目录元素、API 源详情接口不含 rows，目录必然为空
+    // （「无法解析到章节目录」的主因之一：detail 已解析出 tocUrl 但未随
+    // MediaItem 传给目录请求，book 是新建的，tocUrl 丢失）。
+    if (book.tocUrl == null || book.tocUrl!.isEmpty) {
+      try {
+        final detailBook = await getBookInfo(
+          source: source,
+          bookUrl: book.bookUrl,
+        );
+        if (detailBook.tocUrl != null && detailBook.tocUrl!.isNotEmpty) {
+          tocUrl = detailBook.tocUrl!;
+        }
+        // 顺带回填详情字段（书名/作者/简介/封面），阅读器顶部信息更完整。
+        if (book.name.isEmpty) book.name = detailBook.name;
+        if (book.author.isEmpty) book.author = detailBook.author;
+        if (book.intro == null || book.intro!.isEmpty) {
+          book.intro = detailBook.intro;
+        }
+        if (book.coverUrl == null || book.coverUrl!.isEmpty) {
+          book.coverUrl = detailBook.coverUrl;
+        }
+      } catch (_) {
+        // 详情页解析失败时维持原行为（用 bookUrl 当 tocUrl），
+        // 不因兜底失败阻断目录请求。
+      }
+    }
+
     final analyzeUrl = AnalyzeUrl(
       url: tocUrl,
       baseUrl: source.bookSourceUrl,
@@ -358,7 +388,7 @@ class WebBook {
         final nextUrl =
             _extractNextContentUrl(currentBody, currentUrl, nextRule);
         if (nextUrl.isEmpty || visited.contains(nextUrl)) break;
-        if (!_isNextPageOfChapter(chapterRoot, nextUrl)) break;
+        if (!_isNextPageOfChapter(chapterRoot, nextUrl, currentUrl)) break;
         visited.add(nextUrl);
 
         final pageAnalyze = AnalyzeUrl(
@@ -457,7 +487,13 @@ class WebBook {
   /// 的真实分页，又能可靠拒绝「下一章」——即使下一章的 URL 尾号只差 1
   /// （如 `..._3574.html`→`..._3573.html`），因为它不是 `X` 的前缀扩展。
   /// 通用规则，不含任何站点/域名硬编码。
-  bool _isNextPageOfChapter(String chapterRoot, String nextUrl) {
+  ///
+  /// 另有 **query 参数分页**（`?file=...&page=2` 形式，host+path 与本章第 1 页
+  /// 相同、页码在 query 中）：当 [nextUrl] 与当前页 URL [currentUrl] 同
+  /// host+path、URL 不同、且 nextUrl 的 query 含页码参数（page/p 等）时，
+  /// 视为同章分页放行。「下一章」的 path 必与本章不同，不会误入此分支。
+  bool _isNextPageOfChapter(String chapterRoot, String nextUrl,
+      [String? currentUrl]) {
     try {
       final u = Uri.parse(nextUrl);
       var path = u.path;
@@ -465,12 +501,41 @@ class WebBook {
       final slash = path.lastIndexOf('/');
       if (dot > slash) path = path.substring(0, dot);
       final next = '${u.host}$path';
-      if (next == chapterRoot) return false; // 同一页，避免自循环
+      if (next == chapterRoot) {
+        return _isQueryPagination(currentUrl, nextUrl);
+      }
       final esc = RegExp.escape(chapterRoot);
       return RegExp('^$esc([-_/]\\d+)+\$').hasMatch(next);
     } catch (_) {
       return false;
     }
+  }
+
+  /// query 参数分页判定：仅当 [nextUrl] 与 [currentUrl] 同 host+path、URL 不同、
+  /// 且 nextUrl 的 query 含页码参数（page/p/pageIndex 等常见键）时视为同章
+  /// 分页。当前页无页码参数（第 1 页）或页码不同均放行；两页 URL 相同
+  /// （自循环）或 nextUrl 无页码参数则拒绝。
+  static bool _isQueryPagination(String? currentUrl, String nextUrl) {
+    if (currentUrl == null || currentUrl.isEmpty) return false;
+    final cur = Uri.tryParse(currentUrl);
+    final next = Uri.tryParse(nextUrl);
+    if (cur == null || next == null) return false;
+    if (cur.host != next.host || cur.path != next.path) return false;
+    if (cur.toString() == next.toString()) return false;
+    final nextPage = _pageParamOf(next.queryParameters);
+    if (nextPage == null) return false;
+    final curPage = _pageParamOf(cur.queryParameters);
+    return curPage == null || curPage != nextPage;
+  }
+
+  /// 从 query 参数中提取页码值（page / p / pageIndex / page_num 等常见键）。
+  static String? _pageParamOf(Map<String, String> params) {
+    const keys = ['page', 'p', 'pageIndex', 'pageindex', 'page_num', 'pageno', 'pn'];
+    for (final k in keys) {
+      final v = params[k];
+      if (v != null && v.isNotEmpty) return v;
+    }
+    return null;
   }
 
   /// 兼容旧调用：从详情页取封面 URL。

@@ -13,6 +13,7 @@
 /// - `content`：WebBook.getContent(chapterUrl=vars['url'])
 library;
 
+import '../../../core/models/category_entry.dart';
 import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/novel_block.dart';
@@ -32,7 +33,8 @@ import '../model/xiaoshuo_book_chapter.dart';
 import '../shuyuan_adapter.dart';
 import '../web_book/web_book.dart';
 
-class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
+class ShuyuanNovelResolver
+    implements SourceResolver, RenderedHtmlCapable, ExploreCategoriesCapable {
   ShuyuanNovelResolver();
 
   final WebBook _webBook = WebBook();
@@ -185,6 +187,24 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
     }
   }
 
+  // ── 发现分类解析 ──
+  /// 解析书源 exploreUrl 为分类列表（支持 `名称::URL` 多行 / JSON 数组 /
+  /// `<js>` 动态生成），供在线浏览页生成分类 Tab。此前静态正则解析会跳过
+  /// 含 `<js>` 的 exploreUrl，这类源一个分类 Tab 都没有。
+  @override
+  List<CategoryEntry> resolveExploreCategories(PluginConfig source) {
+    final shuyuanSource = ShuyuanAdapter.fromPluginConfig(source);
+    if (shuyuanSource == null) return const <CategoryEntry>[];
+    final bookSource = shuyuanSource.toBookSource();
+    return _webBook
+        .getExploreCategories(bookSource)
+        .map((e) => CategoryEntry(
+              id: e.url,
+              title: e.name.isNotEmpty ? e.name : e.url,
+            ))
+        .toList();
+  }
+
   // ── 搜索 ──
   Future<List<MediaItem>> _handleSearch(
     PluginConfig source,
@@ -261,8 +281,16 @@ class ShuyuanNovelResolver implements SourceResolver, RenderedHtmlCapable {
       return <MediaItem>[];
     }
 
-    // 没指定分类时，走全量发现页
-    final books = await _webBook.exploreBook(source: bookSource, page: page);
+    // 首页 latest 板块（未指定分类）：只取第一个分类，而非逐个抓取全部分类
+    // 再合并。此前串行抓取全部分类（同 host 限流下可达数十秒），首页长时间
+    // 停留在加载态，用户感知即「页面没有内容」；分类 Tab 已提供完整分类浏览。
+    final categories = _webBook.getExploreCategories(bookSource);
+    if (categories.isEmpty) return <MediaItem>[];
+    final books = await _webBook.exploreCategory(
+      source: bookSource,
+      categoryUrl: categories.first.url,
+      page: page,
+    );
     return books.map((b) => _xiaoshuoBookToMediaItem(b, source.id)).toList();
   }
 

@@ -30,18 +30,199 @@ class AnalyzeByJsoup {
   /// `a:contains(下一页)`），支持它可让大量社区书源开箱即用（源即插件）。
   static final RegExp _containsRegex = RegExp(r':contains\(([^)]*)\)');
 
-  /// 安全查询：透明支持 `:contains(...)`，其余走标准 querySelectorAll。
-  /// 任何异常（不支持的伪类 / 非法选择器）都降级为空列表，避免整条规则失效。
+  /// 安全查询：透明支持 `:has(...)` / `:contains(...)`，其余走标准
+  /// querySelectorAll。任何异常（不支持的伪类 / 非法选择器 / 无引号数字
+  /// 属性值）都降级处理，避免整条规则失效。
+  ///
+  /// `:has(...)` 的降级见 [_queryHas]（剥离片段先查宿主、按子元素过滤、
+  /// 支持 `+`/`>`/`~`/空格组合器，括号平衡解析在 [_splitHas]）。
   static List<Element> _safeQuery(Element root, String selector) {
     final s = selector.trim();
     if (s.isEmpty) return const [];
+    if (s.contains(':has(')) {
+      return _queryHas(root, s);
+    }
     if (s.contains(':contains(')) {
       return _queryContains(root, s);
     }
     try {
       return root.querySelectorAll(s);
     } catch (_) {
+      // 属性值无引号且以数字开头（如 `[color*=008800]`）时，package:html 的
+      // CSS 解析器把值当数字 token 抛 FormatException（参考实现 jsoup 原生
+      // 支持）。通用降级：给无引号属性值补引号后重试，仍失败才返回空。
+      final repaired = _repairAttrQuotes(s);
+      if (repaired != null && repaired != s) {
+        try {
+          return root.querySelectorAll(repaired);
+        } catch (_) {
+          return const [];
+        }
+      }
       return const [];
+    }
+  }
+
+  /// 给选择器中「无引号属性值」补引号：
+  /// `[color*=008800]` → `[color*="008800"]`、`[type=text]` → `[type="text"]`。
+  /// 已带引号的值（`[href*="soft"]`）不匹配、原样保留；选择器不含属性段时
+  /// 返回 null（表示无需修复）。
+  static String? _repairAttrQuotes(String selector) {
+    if (!selector.contains('[')) return null;
+    var changed = false;
+    // 只匹配无引号属性值（值不含引号，用「非 ] 非空白」字符类表达），
+    // 已带引号的值（如 [href*="soft"]）不会被误伤。
+    final repaired = selector.replaceAllMapped(
+      RegExp(r'\[([\w-]+)\s*(\*=|^=|\$=|~=|\|=|=)\s*([^\]\s]+)\]'),
+      (m) {
+        changed = true;
+        return '[${m.group(1)}${m.group(2)}"${m.group(3)}"]';
+      },
+    );
+    return changed ? repaired : null;
+  }
+
+  /// 提取选择器中第一个 `:has(...)` 的三段（宿主 / inner / 后续组合器）。
+  ///
+  /// inner 可能嵌套 `:contains(...)` 等带括号的选择器（如
+  /// `p:has(strong font:contains(小说简介)) + p`），须按括号平衡扫描
+  /// 而非正则 `[^)]*`（后者会在 inner 内层的 `)` 处提前截断）。
+  static (String, String, String)? _splitHas(String selector) {
+    final start = selector.indexOf(':has(');
+    if (start < 0) return null;
+    var depth = 0;
+    var inQuote = false;
+    for (var i = start + 5; i < selector.length; i++) {
+      final c = selector[i];
+      if (c == "'" || c == '"') {
+        inQuote = !inQuote;
+        continue;
+      }
+      if (inQuote) continue;
+      if (c == '(') {
+        depth++;
+      } else if (c == ')') {
+        if (depth == 0) {
+          return (
+            selector.substring(0, start).trim(),
+            selector.substring(start + 5, i).trim(),
+            selector.substring(i + 1).trim(),
+          );
+        }
+        depth--;
+      }
+    }
+    return null;
+  }
+
+  /// 处理含 `:has(...)` 的选择器（支持逗号分组、`:contains` 嵌套与
+  /// `+` / `>` / `~` / 空格组合器）。
+  ///
+  /// 语义（对齐参考实现 jsoup）：`:has(inner)` 修饰其宿主元素，先按
+  /// 宿主选择器查出候选，过滤出「包含匹配 inner 的子元素」的宿主；若
+  /// `:has(...)` 后还有组合器（如 `p:has(strong) + p`），再对每个宿主
+  /// 应用组合器得到目标元素。
+  static List<Element> _queryHas(Element root, String selector) {
+    final result = <Element>[];
+    for (final group in selector.split(',')) {
+      var g = group.trim();
+      if (g.isEmpty) continue;
+      final parts = _splitHas(g);
+      if (parts == null) {
+        result.addAll(_safeQuery(root, g));
+        continue;
+      }
+      final (before, inner, after) = parts;
+
+      // 宿主元素：before 为空时（`:has` 位于开头）以全部元素为候选。
+      List<Element> hosts;
+      if (before.isEmpty) {
+        hosts = root.querySelectorAll('*');
+      } else {
+        hosts = _safeQuery(root, before);
+      }
+      // 过滤出包含匹配 inner 的子元素的宿主（inner 可含 :contains 等，
+      // 递归走 _safeQuery 透明处理）。
+      if (inner.isNotEmpty) {
+        hosts = hosts.where((el) => _safeQuery(el, inner).isNotEmpty).toList();
+      }
+      result.addAll(_applyAfterCombinator(hosts, after));
+    }
+    return result;
+  }
+
+  /// 对 `:has(...)` 宿主应用其后的组合器（` + p` / ` > p` / ` ~ p` / ` p`），
+  /// 无组合器（after 为空）时原样返回宿主。
+  static List<Element> _applyAfterCombinator(
+      List<Element> hosts, String after) {
+    if (after.isEmpty) return hosts;
+    final m = RegExp(r'^([\s]*)([>+~]?)([\s]*)(.+)$').firstMatch(after);
+    if (m == null) return hosts;
+    final comb = m.group(2) ?? '';
+    final target = m.group(4)!.trim();
+    final out = <Element>[];
+    for (final host in hosts) {
+      List<Element> candidates;
+      switch (comb) {
+        case '+':
+          final ns = host.nextElementSibling;
+          candidates = ns != null ? [ns] : const [];
+          break;
+        case '>':
+          candidates = host.children;
+          break;
+        case '~':
+          // 一般兄弟组合器：父元素 children 中位于 host 之后的全部元素。
+          final parent = host.parent;
+          if (parent != null) {
+            final siblings = parent.children;
+            final idx = siblings.indexOf(host);
+            candidates = idx >= 0 && idx < siblings.length - 1
+                ? siblings.sublist(idx + 1)
+                : const <Element>[];
+          } else {
+            candidates = const <Element>[];
+          }
+          break;
+        default: // 空格：后代元素
+          try {
+            candidates = host.querySelectorAll('*');
+          } catch (_) {
+            candidates = const [];
+          }
+      }
+      for (final c in candidates) {
+        if (_matchesSelector(c, target)) out.add(c);
+      }
+    }
+    return out;
+  }
+
+  /// 判断元素是否匹配选择器。`package:html` 的 Element 无 matches()，
+  /// 用「父元素 querySelectorAll 的结果包含该元素」等价判定；选择器含
+  /// `:contains(...)` 时降级为「基础选择器命中 + 文本包含」。
+  static bool _matchesSelector(Element el, String selector) {
+    final parent = el.parent;
+    if (parent == null) return false;
+    if (selector.contains(':contains(')) {
+      final texts = <String>[];
+      final base = selector.replaceAllMapped(_containsRegex, (mm) {
+        final t = (mm.group(1) ?? '').trim();
+        if (t.isNotEmpty) texts.add(t);
+        return '';
+      }).trim();
+      try {
+        final els =
+            base.isEmpty ? parent.querySelectorAll('*') : parent.querySelectorAll(base);
+        return els.contains(el) && texts.every(el.text.contains);
+      } catch (_) {
+        return false;
+      }
+    }
+    try {
+      return parent.querySelectorAll(selector).contains(el);
+    } catch (_) {
+      return false;
     }
   }
 
