@@ -127,9 +127,13 @@ class BookChapterList {
         }
 
         if (bookChapter.url.isEmpty) {
-          // 章节 URL 为空时跳过该章节，不使用 baseUrl（TOC URL）作为回退，
-          // 否则会请求目录页而非章节页导致解析失败。
-          continue;
+          // 对齐 Legado 参考库：卷章节用标题+索引做 URL 占位，普通章节用 baseUrl
+          // 回退。避免跳过（continue）导致目录数丢失，也保证后续跨书过滤不误删。
+          if (bookChapter.isVolume) {
+            bookChapter.url = '${bookChapter.title}$i';
+          } else {
+            bookChapter.url = baseUrl;
+          }
         }
 
         // 跨书过滤（源可配置 ruleToc.chapterScope = "bookDir"）：
@@ -223,15 +227,44 @@ class BookChapterList {
       chapters[i].index = i;
     }
 
-    // legado ruleToc.preUpdateJs / formatJs：对解析后的整章列表做 JS 二次处理
-    // （典型如统一修正章节 URL 前缀、剔除/重排章节）。legado 语义：输入列表
-    // 绑定为 JS 全局变量 `result`，脚本可就地修改或整体重排 `result`，引擎序列化
-    // `result` 回读重建章节。仅当源显式声明时进入此分支，缺省行为完全不变。
+    // legado ruleToc.preUpdateJs：对解析后的整章列表做 JS 二次处理
+    // （典型如统一修正章节 URL 前缀、剔除/重排章节）。输入列表绑定为 JS 全局变量
+    // `result`，脚本可就地修改或整体重排 `result`，引擎序列化 `result` 回读重建。
+    // 仅当源显式声明时进入此分支，缺省行为完全不变。
     if (tocRule.preUpdateJs != null && tocRule.preUpdateJs!.isNotEmpty) {
       chapters = _applyTocJs(chapters, tocRule.preUpdateJs!);
     }
+    // legado ruleToc.formatJs：逐章节执行，绑定 index/chapter/title/gInt 变量，
+    // 返回值为该章节格式化后的标题（对齐 Legado 参考库语义，非列表级操作）。
     if (tocRule.formatJs != null && tocRule.formatJs!.isNotEmpty) {
-      chapters = _applyTocJs(chapters, tocRule.formatJs!);
+      final js = tocRule.formatJs!;
+      for (int i = 0; i < chapters.length; i++) {
+        final ch = chapters[i];
+        try {
+          final result = _jsEngine.eval(
+            js,
+            bindings: <String, dynamic>{
+              'gInt': 0,
+              'index': i + 1,
+              'chapter': <String, dynamic>{
+                'name': ch.title,
+                'url': ch.url,
+                'tag': ch.tag,
+                'isVolume': ch.isVolume,
+                'isVip': ch.isVip,
+                'isPay': ch.isPay,
+                'bookUrl': ch.bookUrl,
+              },
+              'title': ch.title,
+            },
+          );
+          if (result.isNotEmpty) {
+            ch.title = result;
+          }
+        } catch (_) {
+          // formatJs 失败不影响目录列表（保留原标题）
+        }
+      }
     }
     // JS 可能增删/重排章节，重新连续编号（保持 index 与列表顺序一致）。
     for (int i = 0; i < chapters.length; i++) {
