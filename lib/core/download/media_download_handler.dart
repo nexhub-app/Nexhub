@@ -12,6 +12,8 @@ library;
 import 'dart:math' show min;
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart' show Options, ResponseBody, ResponseType;
+
 import '../models/episode.dart';
 import '../models/plugin_config.dart';
 import '../scraper/http_fetcher.dart';
@@ -103,9 +105,13 @@ class MediaDownloadHandler implements DownloadHandler {
           ok = true;
         }
       } else {
-        // 直链视频：流式下载（分块写盘），避免整块读入内存导致 OOM 卡退。
-        // 大文件（几百 MB）用 getBytes 一次性读会内存暴涨。
-        if (await _downloadDirect(taskDir, seq, link.url, link.headers)) {
+        // 直链视频：通过 Dio 下载（支持进度回调），避免整块读入内存导致 OOM。
+        if (await _downloadDirect(
+            taskDir, seq, link.url, link.headers,
+            onProgress: (fileProgress) {
+              onProgress?.call(idx, resolvable.length, fileProgress);
+            },
+        )) {
           path = fs.join(taskDir, '${_pad(seq)}.mp4');
           ok = true;
         }
@@ -124,7 +130,11 @@ class MediaDownloadHandler implements DownloadHandler {
             }
           } else {
             if (await _downloadDirect(
-                taskDir, seq, line.url, line.headers)) {
+                taskDir, seq, line.url, line.headers,
+                onProgress: (fileProgress) {
+                  onProgress?.call(idx, resolvable.length, fileProgress);
+                },
+            )) {
               path = fs.join(taskDir, '${_pad(seq)}.mp4');
               ok = true;
             }
@@ -136,8 +146,8 @@ class MediaDownloadHandler implements DownloadHandler {
         chapterPaths[idx] = path;
         written++;
       }
-      completed++;
-      onProgress?.call(completed, resolvable.length);
+    }, onItemDone: (completed, total) {
+      onProgress?.call(completed, total, 0.0);
     });
 
     // 一个直链都没写成 → 明确报错（覆盖「全部被跳过（HLS 拼接失败）→ 假完成」）。
@@ -319,24 +329,40 @@ class MediaDownloadHandler implements DownloadHandler {
     String taskDir,
     int idx,
     String url,
-    Map<String, String>? extraHeaders,
-  ) async {
+    Map<String, String>? extraHeaders, {
+    void Function(double progress)? onProgress,
+  }) async {
     try {
       final Map<String, String> merged = <String, String>{
         ...?source.fetchHeadersFor(url),
         ...?extraHeaders,
       };
       final String path = fs.join(taskDir, '${_pad(idx + 1)}.mp4');
+      // 使用 Dio 流式响应获取 Content-Length 和下载流
+      final response = await HttpFetcher.instance.dio.get<ResponseBody>(
+        url,
+        options: Options(
+          headers: merged.isEmpty ? null : merged,
+          responseType: ResponseType.stream,
+        ),
+      );
+      final totalStr = response.headers.value('content-length');
+      final totalBytes =
+          totalStr != null ? int.tryParse(totalStr) : null;
+      final body = response.data;
+      if (body == null) return false;
+      var receivedBytes = 0;
       var firstChunk = true;
-      await fs.writeStream(path, HttpFetcher.instance
-          .getBytesStream(url,
-              headers: merged.isEmpty ? null : merged, fetchDest: 'video')
-          .asyncMap((chunk) {
+      await fs.writeStream(path, body.stream.map((chunk) {
         if (firstChunk) {
           firstChunk = false;
           if (_looksLikeHtml(chunk)) {
             throw Exception('视频响应被防盗链拦截（HTML 错误页）');
           }
+        }
+        receivedBytes += chunk.length;
+        if (totalBytes != null && totalBytes > 0) {
+          onProgress?.call(receivedBytes / totalBytes);
         }
         return chunk;
       }));

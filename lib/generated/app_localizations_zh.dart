@@ -769,7 +769,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get clearAll => '清除全部';
 
   @override
-  String get clearAllConfirm => '确定清除全部下载记录吗？已下载的文件不会被删除。';
+  String get clearAllConfirm =>
+      '将清除所有筛选下全部下载中/已暂停/失败的任务记录，已下载完成的内容将保留、可直接阅读。确定继续吗？';
 
   @override
   String get clearHistory => '清除历史';
@@ -2581,6 +2582,54 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get updateCheckFailed => '检查更新失败，请稍后重试';
+
+  @override
+  String get updateMirrorSettings => '更新镜像设置';
+
+  @override
+  String get updateMirror => '镜像';
+
+  @override
+  String get updateSilentDownload => '静默下载';
+
+  @override
+  String get updateDownloadAndInstall => '下载并安装';
+
+  @override
+  String get updateDownloaded => '下载完成，可开始安装';
+
+  @override
+  String get updateInstallNow => '立即安装';
+
+  @override
+  String get updateAutoSwitchMirror => '自动切换高速镜像';
+
+  @override
+  String get updateAutoSwitchMirrorDesc => '下载时自动测试各镜像延迟，选择最快的一个';
+
+  @override
+  String get updateMirrorSelection => '镜像选择';
+
+  @override
+  String get updateCustomMirrors => '自定义镜像';
+
+  @override
+  String get updateNoCustomMirrors => '暂无自定义镜像';
+
+  @override
+  String get updateAddMirror => '添加镜像';
+
+  @override
+  String get updateMirrorName => '镜像名称';
+
+  @override
+  String get updateMirrorUrl => '镜像地址';
+
+  @override
+  String get updateTestMirrors => '测试所有镜像';
+
+  @override
+  String get updateMirrorTimeout => '超时';
 
   @override
   String get settingsGroupLanguage => '语言';

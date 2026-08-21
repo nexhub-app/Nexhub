@@ -973,6 +973,43 @@ class HttpFetcher {
     }
   }
 
+  /// 下载文件到本地路径，支持进度回调（[onReceiveProgress] = (已接收, 总大小)）。
+  ///
+  /// 使用内部 Dio 实例，与 [getBytesStream] 同一网络配置（proxy、interceptor、cookie）。
+  /// 仅使用默认网络档案（[EffectiveNetworkProfile]）；需源级覆盖时调用方自行合并 headers。
+  Future<void> downloadFile(
+    String url,
+    String savePath, {
+    Map<String, String>? headers,
+    void Function(int received, int total)? onReceiveProgress,
+    CancelToken? cancelToken,
+  }) async {
+    await _dio.download(
+      url,
+      savePath,
+      options: Options(headers: headers),
+      onReceiveProgress: onReceiveProgress,
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// 获取默认档案的 Dio 实例（供调用方发送自定义请求）。
+  Dio get dio => _dio;
+
+  /// 发送 HEAD 请求获取响应头（主要用于获取 Content-Length）。
+  ///
+  /// 返回响应头映射；请求失败时抛出异常。
+  Future<Map<String, List<String>>> head(
+    String url, {
+    Map<String, String>? headers,
+  }) async {
+    final resp = await _dio.head<dynamic>(
+      url,
+      options: Options(headers: headers),
+    );
+    return resp.headers.map;
+  }
+
   /// WebView 验证完成后把共享 Cookie 同步进 Fetcher（含父域子域匹配）。
   ///
   /// 同步后自增 [cookieVersion] 并广播，触发封面图加载层立即用新 Cookie 重取

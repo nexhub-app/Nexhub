@@ -79,12 +79,14 @@ class ComicDownloadHandler implements DownloadHandler {
             );
             writtenThis++;
           }
+        }, onItemDone: (completed, total) {
+          onProgress?.call(i, chapters.length, completed / total);
         });
         if (writtenThis > 0) {
           chapterPaths[i] = chDir;
           writtenTotal += writtenThis;
         }
-        onProgress?.call(i + 1, chapters.length);
+        onProgress?.call(i + 1, chapters.length, 0.0);
       }
       // 一张都没写进 → 明确报错，避免"只有空文件夹"的假完成。
       if (writtenTotal == 0) {
@@ -112,6 +114,8 @@ class ComicDownloadHandler implements DownloadHandler {
       final idxList = [for (var j = 0; j < images.length; j++) j];
       await runPool(concurrency, idxList, (j) async {
         pageBytes[j] = await _fetchImageBytes(images[j]);
+      }, onItemDone: (completed, total) {
+        onProgress?.call(i, chapters.length, completed / total);
       });
       final List<CbzPage> chPages = <CbzPage>[];
       for (var j = 0; j < pageBytes.length; j++) {
@@ -125,7 +129,7 @@ class ComicDownloadHandler implements DownloadHandler {
       }
       // 该话无图 → 跳过（不入 chapterPaths），避免"空 cbz"或假完成。
       if (chPages.isEmpty) {
-        onProgress?.call(i + 1, chapters.length);
+        onProgress?.call(i + 1, chapters.length, 0.0);
         continue;
       }
       // 拦截图检测（沿用原整本逻辑，改为按话）：全部页平均 <20KB 基本可判定
@@ -143,7 +147,7 @@ class ComicDownloadHandler implements DownloadHandler {
             : 'short';
         AppLog.instance.e('[漫画下载失败] ${task.title} 第${i + 1}话: '
             '图片疑似被源拦截 (平均 ${(avg ~/ 1024)}KB/张, 首字节 0x$head)');
-        onProgress?.call(i + 1, chapters.length);
+        onProgress?.call(i + 1, chapters.length, 0.0);
         continue;
       }
       final cbzBytes = CbzBuilder.build(pages: chPages);
@@ -151,7 +155,7 @@ class ComicDownloadHandler implements DownloadHandler {
       await fs.writeBytes(cbzPath, cbzBytes);
       chapterPaths[i] = cbzPath;
       wroteChapters++;
-      onProgress?.call(i + 1, chapters.length);
+      onProgress?.call(i + 1, chapters.length, 0.0);
     }
 
     if (wroteChapters == 0) {

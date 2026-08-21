@@ -22,6 +22,7 @@ import 'package:nexhub/core/local/saf_bridge.dart'
         listFolderFilesByKindSaf,
         scanComicFolderSaf;
 import 'package:nexhub/core/models/episode.dart';
+import 'package:nexhub/core/models/media_item.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/settings/general_settings.dart';
 import 'package:nexhub/features/home/presentation/local_media_viewer.dart';
@@ -427,6 +428,55 @@ LocalMediaKind? parseLocalMediaKind(String? name) {
     if (k.name == name) return k;
   }
   return null;
+}
+
+/// 打开搜索结果条目：本地导入/下载条目（[MediaItem.extra] 带
+/// `localPath`/`filePaths`）直接进入本地阅读器/播放器，其余条目走
+/// 在线详情页（[onOnline] 回调，由调用方决定跳转与 heroTag）。
+///
+/// 供各模块搜索页复用——搜索结果现在并入本地内容，点击行为须与书架一致
+/// （本地内容不再误跳在线详情页）。
+Future<void> openSearchResultEntry(
+  BuildContext context, {
+  required MediaItem item,
+  String? heroTag,
+  required void Function(MediaItem item, String? heroTag) onOnline,
+}) async {
+  final extra = item.extra;
+  final localPath = extra == null ? null : extra['localPath'] as String?;
+  final localKind = extra == null ? null : extra['localKind'] as String?;
+  final filePaths =
+      extra == null ? null : extra['filePaths'] as List<String>?;
+  // 聚合文件夹（多文件=多章/话/集）：复用统一路由进入阅读器/播放器。
+  if (filePaths != null && filePaths.isNotEmpty) {
+    final kind = parseLocalMediaKind(localKind);
+    if (kind != null) {
+      openLocalAggregatedEntry(
+        context,
+        id: item.id,
+        title: item.title,
+        kind: kind,
+        filePaths: filePaths,
+      );
+      return;
+    }
+  }
+  // 本地导入单文件 / 已下载作品文件夹：扫描文件夹聚合进阅读器/播放器。
+  if (localPath != null && localPath.isNotEmpty) {
+    final kind = parseLocalMediaKind(localKind);
+    if (kind != null) {
+      await openDownloadedWorkFolder(
+        context,
+        id: item.id,
+        title: item.title,
+        sourceId: item.sourceId ?? '',
+        workDir: localPath,
+        kind: kind,
+      );
+      return;
+    }
+  }
+  onOnline(item, heroTag);
 }
 
 /// 打开聚合本地条目（B 阶段：文件夹导入，多文件 = 多章/多话）。

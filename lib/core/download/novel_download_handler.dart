@@ -88,7 +88,7 @@ class NovelDownloadHandler implements DownloadHandler {
       }
     });
 
-    // chapterFilePaths 下标对齐 chapters（空字符串 = 该章内容为空被跳过），
+    // 章节文件路径（下标对齐 chapters）
     // 与 media/comic handler 的语义一致，供阅读器跨批次聚合时正确对齐。
     final List<String> chapterFilePaths =
         List<String>.filled(chapters.length, '');
@@ -99,7 +99,10 @@ class NovelDownloadHandler implements DownloadHandler {
       final blocks = fetched[i] ?? const <NovelBlock>[];
       final seq = ch.number ?? (i + 1);
       final buffer = StringBuffer();
-      for (final b in blocks) {
+      for (var bIdx = 0; bIdx < blocks.length; bIdx++) {
+        final b = blocks[bIdx];
+        // 报告章节内处理进度（文本块/插图块处理）
+        onProgress?.call(i, chapters.length, bIdx / blocks.length);
         if (b is NovelTextBlock) {
           if (b.text.trim().isNotEmpty) {
             buffer.writeln(convertChinese(b.text, convertMode));
@@ -121,7 +124,7 @@ class NovelDownloadHandler implements DownloadHandler {
         // 该章内容为空（源抓取失败/被拦截）：跳过，不写空文件。SAF 文件系统
         // 会拒绝写入空内容（writeBytes 校验），直接写空文件会抛异常 → 整个
         // 下载失败 → 作品目录被清理（表现为"文件夹没有内容"）。
-        onProgress?.call(i + 1, chapters.length);
+        onProgress?.call(i + 1, chapters.length, 0.0);
         continue;
       }
       anyContent = true;
@@ -129,7 +132,7 @@ class NovelDownloadHandler implements DownloadHandler {
       final filePath = fs.join(workDir, fileName);
       await fs.writeString(filePath, buffer.toString());
       chapterFilePaths[i] = filePath;
-      onProgress?.call(i + 1, chapters.length);
+      onProgress?.call(i + 1, chapters.length, 0.0);
     }
 
     // 全部章节正文与插图都为空（源正文抓取失败/被反盗链拦截）→ 明确报错，

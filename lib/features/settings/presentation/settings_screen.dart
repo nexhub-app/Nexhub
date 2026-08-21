@@ -2015,62 +2015,55 @@ class _CategoryCard extends StatelessWidget {
     final c = category;
     final TextTheme text = Theme.of(context).textTheme;
 
-    final Widget card = Material(
-      color: scheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-        side: BorderSide(
-          color: scheme.outlineVariant,
-          width: 1,
-        ),
+    final Widget card = InkWell(
+      borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+      onTap: () => Navigator.of(context).push(
+        AppPageRoute<void>(builder: (_) => c.builder()),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-        onTap: () => Navigator.of(context).push(
-          AppPageRoute<void>(builder: (_) => c.builder()),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: AppTokens.spaceMd,
+          horizontal: AppTokens.spaceSm,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                ),
-                child: Icon(c.icon, color: scheme.onPrimaryContainer, size: 24),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               ),
-              const SizedBox(width: AppTokens.spaceMd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      c.title,
-                      style: text.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.3,
-                      ),
+              child: Icon(c.icon, color: scheme.onPrimaryContainer, size: 24),
+            ),
+            const SizedBox(width: AppTokens.spaceMd),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    c.title,
+                    style: text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      c.desc,
-                      style: text.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    c.desc,
+                    style: text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Icon(
-                Icons.chevron_right,
-                color: scheme.onSurfaceVariant,
-                size: 20,
-              ),
-            ],
-          ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: scheme.onSurfaceVariant,
+              size: 20,
+            ),
+          ],
         ),
       ),
     );

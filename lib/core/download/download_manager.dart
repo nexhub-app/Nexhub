@@ -5,8 +5,9 @@
 /// 2. 持久化任务列表到 [DownloadStorage]。
 /// 3. 每个任务写入 `.meta.json` 到下载目录，用于孤儿恢复。
 /// 4. 清除记录精确规则（§10.3）：
-///    - `clearAll(false)` → 清存储后立即 `recoverOrphanedDownloads()` 从 meta.json 重建 completed。
-///    - `clearAll(true)` → 删文件 + meta.json，不恢复，两页皆空。
+///    - `clearAll(false)` → 仅移除未完成任务（逐个 cancel 中止在途下载），
+///      已完成任务保留，已下载内容页立即可读。
+///    - `clearAll(true)` → 删文件 + meta.json，所有记录清除。
 /// 5. 下载列表页过滤 completed 只显活跃；已下载内容页只显 completed。
 ///
 /// 使用 [ChangeNotifier] 驱动 UI 更新。
@@ -636,11 +637,11 @@ class DownloadManager extends ChangeNotifier {
     }
   }
 
-  /// 预下载「当前剧集之后」尚未下载的连续 [count] 集（「预下载后续剧集」用）。
+  /// 预下载「当前剧集之后」连续的 [count] 个章节位置（「预下载后续剧集」用）。
   ///
-  /// 从 [fromIndex] 下一集开始向后扫描：已下载 / 已在队列的跳过，
-  /// 直到找到 [count] 个未下载的剧集或章节耗尽为止。受
-  /// [DownloadSettings.maxConcurrent] 队列限制，不会打断已有下载。
+  /// 从 [fromIndex] 下一集开始，取连续的 [count] 个章节位置：
+  /// 已下载 / 已在队列的跳过不下载，但不向后延伸（即实际下载数 ≤ count）。
+  /// 受 [DownloadSettings.maxConcurrent] 队列限制，不会打断已有下载。
   Future<int> preDownloadNextEpisodes({
     required MediaItem item,
     required List<Episode> chapters,
@@ -651,8 +652,9 @@ class DownloadManager extends ChangeNotifier {
     final downloaded = downloadedChapterTitles(item.id);
     final queued = queuedChapterTitles(item.id);
     final indices = <int>[];
-    for (var i = fromIndex + 1; i < chapters.length; i++) {
-      if (indices.length >= count) break;
+    // 从 fromIndex+1 开始取连续 count 个位置，已下载/已排队的跳过但不延伸。
+    final end = (fromIndex + 1 + count).clamp(0, chapters.length);
+    for (var i = fromIndex + 1; i < end; i++) {
       final title = chapters[i].title;
       if (downloaded.contains(title) || queued.contains(title)) continue;
       indices.add(i);
@@ -854,9 +856,11 @@ class DownloadManager extends ChangeNotifier {
 
   /// 清除全部记录（§10.3）。
   ///
-  /// [deleteFiles] = false → 清存储后立即 `recoverOrphanedDownloads()`，
-  ///   已下载内容页从 meta.json 重建 completed，立即可见。
-  /// [deleteFiles] = true → 删文件 + meta.json，不恢复，两页皆空。
+  /// [deleteFiles] = false → 清空全部任务记录（含已完成）并清存储，不删除磁盘文件；
+  ///   随后 [recoverOrphanedDownloads] 从磁盘 meta.json 恢复已完成任务，
+  ///   「已下载内容页」继续显示已完成内容；「下载列表页」过滤 completed 后
+  ///   不显示已下载记录（下载列表 = 下载队列）。
+  /// [deleteFiles] = true → 删文件 + meta.json，所有记录全部清除。
   Future<void> clearAll({required bool deleteFiles}) async {
     if (deleteFiles) {
       // 删除所有任务的磁盘文件 + meta.json
@@ -866,12 +870,10 @@ class DownloadManager extends ChangeNotifier {
       _tasks.clear();
       await storage.clear();
     } else {
-      // 仅清存储中的任务记录，不删文件
+      // 清空全部记录（不删文件），再从磁盘恢复已完成任务供已下载内容页显示。
       _tasks.clear();
       await storage.clear();
-      // 立即从 meta.json 恢复 completed 任务
       await recoverOrphanedDownloads();
-      // 恢复遗留孤立文件夹（无 meta.json 的旧数据）
       await _recoverLegacyOrphanedFolders();
     }
     notifyListeners();
@@ -1235,9 +1237,11 @@ class DownloadManager extends ChangeNotifier {
       try {
         result = await handler.download(
           task,
-          onProgress: (downloaded, total) {
+          onProgress: (downloaded, total, chapterProgress) {
             _updateTask(task.id,
-                downloadedChapters: downloaded, totalChapters: total);
+                downloadedChapters: downloaded,
+                totalChapters: total,
+                chapterProgress: chapterProgress);
           },
           isCancelled: () => _cancelledTaskIds.contains(task.id),
         );
@@ -1547,6 +1551,7 @@ class DownloadManager extends ChangeNotifier {
     DownloadStatus? status,
     int? downloadedChapters,
     int? totalChapters,
+    double? chapterProgress,
     String? error,
   }) {
     final idx = _tasks.indexWhere((t) => t.id == taskId);
@@ -1555,6 +1560,7 @@ class DownloadManager extends ChangeNotifier {
       status: status,
       downloadedChapters: downloadedChapters,
       totalChapters: totalChapters,
+      chapterProgress: chapterProgress,
       error: error,
     );
     notifyListeners();

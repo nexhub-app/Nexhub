@@ -47,6 +47,8 @@ import '../../core/services/config_loader.dart';
 import '../../core/scraper/cookie_store.dart';
 import '../../core/scraper/http_fetcher.dart';
 import '../../core/theme/theme_controller.dart';
+import '../../core/update/update_manager.dart';
+import '../../core/update/update_settings.dart';
 import '../shuyuan/presentation/shuyuan_novel_resolver.dart';
 import '../../core/theme/app_tokens.dart';
 
@@ -201,6 +203,12 @@ class _SplashScreenState extends State<SplashScreen> {
     );
     await downloadManager.init();
 
+    // 应用内更新管理器初始化（加载镜像/自动检查设置）。
+    await UpdateManager.instance.init();
+
+    // 启动时自动检查更新（静默，不阻塞初始化）。
+    unawaited(_autoCheckUpdate());
+
     // Favorites / history / RSS / article-feed managers initialization.
     final favoritesManager = FavoritesManager();
     await favoritesManager.init();
@@ -268,6 +276,19 @@ class _SplashScreenState extends State<SplashScreen> {
     setState(() {
       _initFuture = _initialize();
     });
+  }
+
+  /// 启动时自动检查更新（静默）。
+  Future<void> _autoCheckUpdate() async {
+    final settings = await UpdateSettingsStore().load();
+    if (!settings.autoCheck) return;
+    final manager = UpdateManager.instance;
+    final release = await manager.checkForUpdate(
+      timeout: const Duration(seconds: 15),
+    );
+    if (release == null) return;
+    // 比较版本号，有新版本时 UpdateManager 已缓存 latestRelease，供 About 页显示。
+    // 不在此处弹窗，避免中断用户首次进入应用。
   }
 
   @override

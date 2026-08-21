@@ -140,12 +140,20 @@ class MediaApiService {
   /// 不含任何站点特定逻辑。
   Future<List<CategoryEntry>> fetchCategories(PluginConfig source) async {
     // 0. 书源（通用书源格式 / shuyuan）：分类声明在 selectors['xiaoshuo'].exploreUrl，
-    //    形如「玄幻小说::https://...\n修真小说::https://...」。经 ShuyuanAdapter
-    //    转换后从未进入既有分类逻辑，故在此优先解析。含 `<js>` 的动态分类首版跳过。
+    //    形如「玄幻小说::https://...\n修真小说::https://...」、JSON 数组或
+    //    `<js>` 动态生成。优先经书源引擎（registry 注入）完整解析——静态正则
+    //    解析会跳过含 `<js>` 的 exploreUrl，导致这类源没有任何分类 Tab；
+    //    引擎不可用或解析为空时回退静态解析。
     final xiaoshuo = source.selectors?['xiaoshuo'];
-    if (xiaoshuo is Map && xiaoshuo['exploreUrl'] is String) {
-      final entries = _parseShuyuanExploreUrl(xiaoshuo['exploreUrl'] as String);
-      if (entries.isNotEmpty) return entries;
+    if (xiaoshuo is Map) {
+      final engineEntries =
+          registry.resolveExploreCategories(source);
+      if (engineEntries.isNotEmpty) return engineEntries;
+      if (xiaoshuo['exploreUrl'] is String) {
+        final entries =
+            _parseShuyuanExploreUrl(xiaoshuo['exploreUrl'] as String);
+        if (entries.isNotEmpty) return entries;
+      }
     }
 
     // 1. 声明式静态分类：selectors.category.categories（如 goda 漫画）。

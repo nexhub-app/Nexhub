@@ -9,7 +9,7 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/widgets/bookshelf_content.dart';
 import '../../../core/local/local_content_actions.dart'
-    show openDownloadedWorkFolder;
+    show openDownloadedWorkFolder, openSearchResultEntry;
 import '../../../core/local/local_content_manager.dart'
     show LocalMediaKind;
 import '../../../core/widgets/library_shell.dart';
@@ -59,9 +59,18 @@ class MediaHomeScreen extends StatelessWidget {
           builder: (_) => ModuleSourceSearchScreen(
             sourceType: SourceType.animeSource,
             title: l10n.search,
-            onItemTap: (MediaItem item, String? heroTag) => Navigator.of(context).push(
-              AppHeroPageRoute<void>(
-                builder: (_) => ContentDetailScreen(item: item, heroTag: heroTag),
+            // 搜索结果含本地内容（导入/下载），本地条目直接进本地播放器，
+            // 在线条目照旧跳详情页。
+            onItemTap: (MediaItem item, String? heroTag) =>
+                openSearchResultEntry(
+              context,
+              item: item,
+              heroTag: heroTag,
+              onOnline: (it, tag) => Navigator.of(context).push(
+                AppHeroPageRoute<void>(
+                  builder: (_) =>
+                      ContentDetailScreen(item: it, heroTag: tag),
+                ),
               ),
             ),
           ),

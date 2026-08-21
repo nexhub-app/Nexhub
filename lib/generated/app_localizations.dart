@@ -1577,7 +1577,7 @@ abstract class AppLocalizations {
   /// No description provided for @clearAllConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Clear all download records? Downloaded files will not be deleted.'**
+  /// **'This clears all active/paused/failed download records across all filters. Finished downloads are kept and remain readable. Continue?'**
   String get clearAllConfirm;
 
   /// No description provided for @clearHistory.
@@ -5077,6 +5077,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to check for updates. Try again later.'**
   String get updateCheckFailed;
+
+  /// No description provided for @updateMirrorSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Mirror Settings'**
+  String get updateMirrorSettings;
+
+  /// No description provided for @updateMirror.
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror'**
+  String get updateMirror;
+
+  /// No description provided for @updateSilentDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Silent download'**
+  String get updateSilentDownload;
+
+  /// No description provided for @updateDownloadAndInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Download & Install'**
+  String get updateDownloadAndInstall;
+
+  /// No description provided for @updateDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Download complete. Ready to install.'**
+  String get updateDownloaded;
+
+  /// No description provided for @updateInstallNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Install Now'**
+  String get updateInstallNow;
+
+  /// No description provided for @updateAutoSwitchMirror.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-switch to fastest mirror'**
+  String get updateAutoSwitchMirror;
+
+  /// No description provided for @updateAutoSwitchMirrorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Test mirror latency during download and pick the fastest'**
+  String get updateAutoSwitchMirrorDesc;
+
+  /// No description provided for @updateMirrorSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror Selection'**
+  String get updateMirrorSelection;
+
+  /// No description provided for @updateCustomMirrors.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Mirrors'**
+  String get updateCustomMirrors;
+
+  /// No description provided for @updateNoCustomMirrors.
+  ///
+  /// In en, this message translates to:
+  /// **'No custom mirrors'**
+  String get updateNoCustomMirrors;
+
+  /// No description provided for @updateAddMirror.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Mirror'**
+  String get updateAddMirror;
+
+  /// No description provided for @updateMirrorName.
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror Name'**
+  String get updateMirrorName;
+
+  /// No description provided for @updateMirrorUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror URL'**
+  String get updateMirrorUrl;
+
+  /// No description provided for @updateTestMirrors.
+  ///
+  /// In en, this message translates to:
+  /// **'Test All Mirrors'**
+  String get updateTestMirrors;
+
+  /// No description provided for @updateMirrorTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Timeout'**
+  String get updateMirrorTimeout;
 
   /// No description provided for @settingsGroupLanguage.
   ///

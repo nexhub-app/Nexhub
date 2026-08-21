@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:dio/dio.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/update/update_manager.dart';
+import '../../../core/update/update_settings.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import './widgets/settings_widgets.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
@@ -79,11 +80,38 @@ class AboutScreen extends StatefulWidget {
 
 class _AboutScreenState extends State<AboutScreen> {
   PackageInfo? _packageInfo;
+  bool _downloadCompleteNotified = false;
+  bool _updateDialogVisible = false;
 
   @override
   void initState() {
     super.initState();
     _loadPackageInfo();
+    // 更新对话框已关闭时，后台下载完成/失败经此回调弹提示（保证静默/关框下载可感知）。
+    UpdateManager.instance.addListener(_onUpdateManagerChanged);
+  }
+
+  @override
+  void dispose() {
+    UpdateManager.instance.removeListener(_onUpdateManagerChanged);
+    super.dispose();
+  }
+
+  void _onUpdateManagerChanged() {
+    final m = UpdateManager.instance;
+    if (!mounted || _updateDialogVisible) return;
+    if (m.status == UpdateStatus.done && !_downloadCompleteNotified) {
+      _downloadCompleteNotified = true;
+      final String name = m.progress.fileName;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$name 下载完成')),
+      );
+    } else if (m.status == UpdateStatus.failed && !_downloadCompleteNotified) {
+      _downloadCompleteNotified = true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(m.lastError ?? '下载失败')),
+      );
+    }
   }
 
   Future<void> _loadPackageInfo() async {
@@ -100,10 +128,12 @@ class _AboutScreenState extends State<AboutScreen> {
     }
   }
 
-  /// 检查 GitHub 最新发布版本，与当前版本比较。
+  /// 检查最新版本并下载安装。
   Future<void> _checkForUpdate(AppLocalizations l10n) async {
     if (_packageInfo == null) await _loadPackageInfo();
     final String current = _packageInfo?.version ?? '0.0.0';
+    final manager = UpdateManager.instance;
+    _downloadCompleteNotified = false;
 
     if (!mounted) return;
     showDialog<void>(
@@ -120,94 +150,38 @@ class _AboutScreenState extends State<AboutScreen> {
       ),
     );
 
-    String? latestTag;
-    try {
-      latestTag = await _fetchLatestReleaseTag();
-    } on Object {
-      latestTag = null;
-    }
-
+    final UpdateReleaseInfo? release = await manager.checkForUpdate();
     if (!mounted) return;
     Navigator.of(context).pop(); // 关闭加载框
 
-    if (latestTag == null) {
+    if (release == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.updateCheckFailed)),
       );
       return;
     }
 
-    final bool newer = _isNewer(
-      _normalizeVersion(latestTag),
-      _normalizeVersion(current),
+    final bool newer = manager.isNewer(
+      release.tagName,
+      current,
     );
 
     if (!mounted) return;
     if (newer) {
+      _updateDialogVisible = true;
       await showDialog<void>(
         context: context,
-        builder: (ctx) => AppAlertDialog(
-          title: Text(l10n.updateAvailable(latestTag!)),
-          content: Text(l10n.updateAvailableHint),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _openRepository();
-              },
-              child: Text(l10n.updateGoToDownload),
-            ),
-          ],
+        builder: (ctx) => _UpdateDialog(
+          release: release,
+          currentVersion: current,
         ),
       );
+      _updateDialogVisible = false;
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.updateLatest)),
       );
     }
-  }
-
-  /// 从 GitHub Releases API 获取最新发布标签（tag_name）。
-  Future<String?> _fetchLatestReleaseTag() async {
-    final Dio dio = Dio();
-    final Response<List<dynamic>> resp =
-        await dio.get<List<dynamic>>(
-      'https://api.github.com/repos/nexhub-app/nexhub/releases',
-      options: Options(
-        headers: <String, String>{
-          'Accept': 'application/vnd.github+json',
-        },
-        receiveTimeout: const Duration(seconds: 10),
-        sendTimeout: const Duration(seconds: 10),
-      ),
-    );
-    final List<dynamic>? list = resp.data;
-    if (list == null || list.isEmpty) return null;
-    final Map<String, dynamic> first = list.first as Map<String, dynamic>;
-    return first['tag_name'] as String?;
-  }
-
-  /// 将版本字符串规范为数字段列表（去掉前缀 v 与预发布后缀）。
-  List<int> _normalizeVersion(String v) {
-    final String cleaned =
-        v.replaceAll(RegExp(r'^[vV]'), '').split('-').first;
-    return cleaned.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-  }
-
-  /// 判断 [a] 是否比 [b] 版本更新（按数字段逐位比较）。
-  bool _isNewer(List<int> a, List<int> b) {
-    final int n = a.length > b.length ? a.length : b.length;
-    for (int i = 0; i < n; i++) {
-      final int x = i < a.length ? a[i] : 0;
-      final int y = i < b.length ? b[i] : 0;
-      if (x > y) return true;
-      if (x < y) return false;
-    }
-    return false;
   }
 
   @override
@@ -319,6 +293,12 @@ class _AboutScreenState extends State<AboutScreen> {
             onTap: _openRepository,
           ),
           AppListTile(
+            leading: const SettingsLeadingIcon(icon:Icons.settings_input_antenna),
+            title: Text(l10n.updateMirrorSettings),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _openMirrorSettings(l10n),
+          ),
+          AppListTile(
             leading: const SettingsLeadingIcon(icon:Icons.system_update_alt),
             title: Text(l10n.checkUpdate),
             trailing: const Icon(Icons.chevron_right),
@@ -375,5 +355,491 @@ class _AboutScreenState extends State<AboutScreen> {
         ],
       ),
     );
+  }
+
+  /// 打开镜像设置页。
+  void _openMirrorSettings(AppLocalizations l10n) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => UpdateMirrorSettingsScreen(l10n: l10n),
+      ),
+    );
+  }
+}
+
+/// 更新可用对话框：展示版本信息、下载进度、静默下载开关与安装操作。
+class _UpdateDialog extends StatefulWidget {
+  final UpdateReleaseInfo release;
+  final String currentVersion;
+
+  const _UpdateDialog({
+    required this.release,
+    required this.currentVersion,
+  });
+
+  @override
+  State<_UpdateDialog> createState() => _UpdateDialogState();
+}
+
+class _UpdateDialogState extends State<_UpdateDialog> {
+  final UpdateManager _manager = UpdateManager.instance;
+  bool _silent = false;
+  bool _downloading = false;
+  bool _downloaded = false;
+  double _progress = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _manager.addListener(_onManagerUpdate);
+  }
+
+  @override
+  void dispose() {
+    _manager.removeListener(_onManagerUpdate);
+    super.dispose();
+  }
+
+  void _onManagerUpdate() {
+    if (!mounted) return;
+    final p = _manager.progress.progress;
+    setState(() {
+      if (_manager.status == UpdateStatus.downloading) {
+        _downloading = true;
+        _progress = p;
+      } else if (_manager.status == UpdateStatus.done) {
+        _downloading = false;
+        _downloaded = true;
+      } else if (_manager.status == UpdateStatus.failed) {
+        _downloading = false;
+      }
+    });
+  }
+
+  Future<void> _startDownload() async {
+    setState(() => _downloading = true);
+    final String? path = await _manager.downloadInstaller(
+      widget.release,
+      silent: _silent,
+    );
+    if (mounted && path != null) {
+      setState(() {
+        _downloading = false;
+        _downloaded = true;
+      });
+    } else if (mounted) {
+      setState(() => _downloading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _manager.lastError ?? 'Download failed',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _install() async {
+    final bool ok = await _manager.installDownloaded();
+    if (!mounted) return;
+    if (ok) {
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_manager.lastError ?? 'Install failed')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final String mirrorName = _manager.currentMirrorName;
+    final int percent = (_progress * 100).round();
+
+    return AlertDialog(
+      title: Text(l10n.updateAvailable(widget.release.tagName)),
+      content: SizedBox(
+        width: 360,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                widget.release.body.isEmpty
+                    ? l10n.updateAvailableHint
+                    : widget.release.body,
+                style: textTheme.bodyMedium,
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: AppTokens.spaceMd),
+              // 镜像信息
+              Row(
+                children: <Widget>[
+                  Icon(Icons.cloud_download_outlined,
+                      size: 18, color: scheme.onSurfaceVariant),
+                  const SizedBox(width: AppTokens.spaceXs),
+                  Text(
+                    '${l10n.updateMirror}: $mirrorName',
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTokens.spaceSm),
+              // 下载进度
+              if (_downloading) ...<Widget>[
+                LinearProgressIndicator(value: _progress),
+                const SizedBox(height: AppTokens.spaceXs),
+                Text(
+                  '$percent%',
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: scheme.primary),
+                  textAlign: TextAlign.right,
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+              ],
+              if (_downloaded) ...<Widget>[
+                Row(
+                  children: <Widget>[
+                    Icon(Icons.check_circle_outline,
+                        color: scheme.primary, size: 20),
+                    const SizedBox(width: AppTokens.spaceXs),
+                    Text(
+                      l10n.updateDownloaded,
+                      style: textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        if (!_downloading && !_downloaded) ...<Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.cancel),
+          ),
+          // 静默下载开关
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                l10n.updateSilentDownload,
+                style: textTheme.bodySmall,
+              ),
+              const SizedBox(width: AppTokens.spaceXs),
+              Switch(
+                value: _silent,
+                onChanged: (v) => setState(() => _silent = v),
+                materialTapTargetSize:
+                    MaterialTapTargetSize.shrinkWrap,
+              ),
+            ],
+          ),
+          FilledButton(
+            onPressed: _startDownload,
+            child: Text(l10n.updateDownloadAndInstall),
+          ),
+        ] else if (_downloading) ...<Widget>[
+          TextButton(
+            onPressed: () {
+              // 关闭对话框，下载在后台继续（静默下载）。
+              // 完成后 About 页监听 UpdateManager 弹出提示。
+              Navigator.pop(context);
+            },
+            child: Text(l10n.cancel),
+          ),
+        ] else if (_downloaded) ...<Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: _install,
+            child: Text(l10n.updateInstallNow),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// 镜像设置页：自动切换开关、镜像选择、自定义镜像增删。
+class UpdateMirrorSettingsScreen extends StatefulWidget {
+  final AppLocalizations l10n;
+
+  const UpdateMirrorSettingsScreen({super.key, required this.l10n});
+
+  @override
+  State<UpdateMirrorSettingsScreen> createState() =>
+      _UpdateMirrorSettingsScreenState();
+}
+
+class _UpdateMirrorSettingsScreenState
+    extends State<UpdateMirrorSettingsScreen> {
+  final UpdateManager _manager = UpdateManager.instance;
+  UpdateSettings _settings = const UpdateSettings.defaults();
+  bool _loaded = false;
+  final Map<String, int> _latencyResults = <String, int>{};
+  bool _probing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    await _manager.reloadSettings();
+    if (!mounted) return;
+    setState(() {
+      _settings = _manager.settings;
+      _loaded = true;
+    });
+    // 页面加载后自动测速所有镜像
+    _probeAllMirrors();
+  }
+
+  Future<void> _save(UpdateSettings s) async {
+    setState(() => _settings = s);
+    await _manager.saveSettings(s);
+  }
+
+  void _addCustomMirror() {
+    final TextEditingController nameCtrl = TextEditingController();
+    final TextEditingController urlCtrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(widget.l10n.updateAddMirror),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            TextField(
+              controller: nameCtrl,
+              decoration: InputDecoration(
+                labelText: widget.l10n.updateMirrorName,
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+            TextField(
+              controller: urlCtrl,
+              decoration: InputDecoration(
+                labelText: widget.l10n.updateMirrorUrl,
+                hintText: 'https://ghproxy.com/',
+              ),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(widget.l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              final String name = nameCtrl.text.trim();
+              final String url = urlCtrl.text.trim();
+              if (name.isEmpty || url.isEmpty) return;
+              Navigator.pop(ctx);
+              _save(_settings.copyWith(
+                customMirrors: <UpdateMirror>[
+                  ..._settings.customMirrors,
+                  UpdateMirror(name: name, baseUrl: url),
+                ],
+              ));
+            },
+            child: Text(widget.l10n.confirm),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _removeCustomMirror(int index) {
+    final List<UpdateMirror> mirrors = List<UpdateMirror>.of(
+      _settings.customMirrors,
+    )..removeAt(index);
+    _save(_settings.copyWith(customMirrors: mirrors));
+  }
+
+  Future<void> _probeAllMirrors() async {
+    final l10n = widget.l10n;
+    setState(() {
+      _probing = true;
+      _latencyResults.clear();
+    });
+    // 组装所有镜像列表（默认镜像 + 自定义镜像）
+    final List<({String name, String prefix})> mirrors =
+        List<({String name, String prefix})>.of(
+            UpdateManager.defaultMirrors);
+    for (final m in _settings.customMirrors) {
+      mirrors.add((name: m.name, prefix: m.baseUrl));
+    }
+    // 逐个探测
+    for (final m in mirrors) {
+      final Stopwatch sw = Stopwatch()..start();
+      try {
+        await _manager.probeMirror(m.prefix);
+        final int ms = sw.elapsedMilliseconds;
+        if (mounted) {
+          setState(() => _latencyResults[m.name] = ms);
+        }
+      } on Object {
+        if (mounted) {
+          setState(() => _latencyResults[m.name] = -1); // -1 表示超时/失败
+        }
+      }
+    }
+    if (mounted) {
+      setState(() => _probing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.updateMirrorSettings),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.maybePop(context),
+        ),
+      ),
+      body: !_loaded
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(AppTokens.spaceLg),
+              children: <Widget>[
+                // 自动切换镜像开关
+                AppListTile(
+                  leading: const Icon(Icons.bolt),
+                  title: Text(l10n.updateAutoSwitchMirror),
+                  subtitle: Text(l10n.updateAutoSwitchMirrorDesc),
+                  trailing: Switch(
+                    value: _settings.autoSwitchMirror,
+                    onChanged: (v) =>
+                        _save(_settings.copyWith(autoSwitchMirror: v)),
+                  ),
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                // 当前镜像选择
+                Text(
+                  l10n.updateMirrorSelection,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                ..._buildMirrorTiles(l10n),
+                const SizedBox(height: AppTokens.spaceLg),
+                // 自定义镜像
+                Text(
+                  l10n.updateCustomMirrors,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                if (_settings.customMirrors.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AppTokens.spaceSm),
+                    child: Text(
+                      l10n.updateNoCustomMirrors,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                else
+                  ..._settings.customMirrors.asMap().entries.map((e) {
+                    final int idx = e.key;
+                    final UpdateMirror m = e.value;
+                    return ListTile(
+                      leading: const Icon(Icons.dns_outlined),
+                      title: Text(m.name),
+                      subtitle: Text(
+                        m.baseUrl,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: l10n.delete,
+                        onPressed: () => _removeCustomMirror(idx),
+                      ),
+                    );
+                  }),
+                const SizedBox(height: AppTokens.spaceSm),
+                OutlinedButton.icon(
+                  onPressed: _addCustomMirror,
+                  icon: const Icon(Icons.add),
+                  label: Text(l10n.updateAddMirror),
+                ),
+              ],
+            ),
+    );
+  }
+
+  List<Widget> _buildMirrorTiles(AppLocalizations l10n) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final List<({String name, String prefix})> mirrors =
+        List<({String name, String prefix})>.of(
+            UpdateManager.defaultMirrors);
+    for (final m in _settings.customMirrors) {
+      mirrors.add((name: m.name, prefix: m.baseUrl));
+    }
+
+    final List<Widget> tiles = <Widget>[];
+    for (int i = 0; i < mirrors.length; i++) {
+      final int idx = i;
+      final String label = mirrors[i].name;
+      final bool selected = _settings.mirrorIndex == idx;
+      // 该镜像的测速延迟（-1 = 超时，null = 未测）
+      final int? latency = _latencyResults[label];
+      tiles.add(
+        RadioListTile<int>(
+          value: idx,
+          groupValue: _settings.mirrorIndex,
+          onChanged: (v) => _save(_settings.copyWith(mirrorIndex: v ?? 0)),
+          title: Text(label),
+          subtitle: latency != null
+              ? Text(
+                  latency < 0
+                      ? l10n.updateMirrorTimeout
+                      : '${latency}ms',
+                  style: TextStyle(
+                    color: latency < 0
+                        ? scheme.error
+                        : latency < 1000
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                )
+              : null,
+          secondary: selected
+              ? const Icon(Icons.check_circle, color: null)
+              : null,
+        ),
+      );
+      if (i < mirrors.length - 1) {
+        tiles.add(const Divider(height: 1));
+      }
+    }
+    return tiles;
   }
 }

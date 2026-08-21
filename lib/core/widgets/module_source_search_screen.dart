@@ -12,6 +12,9 @@ import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/download/download_manager.dart';
+import '../../../core/download/download_task.dart';
+import '../../../core/local/local_content_manager.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/scraper/media_api_service.dart';
@@ -29,6 +32,7 @@ import '../../../core/novel/novel_progress_manager.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/content_card.dart';
+import '../../../core/widgets/highlight_text.dart';
 import '../../../core/widgets/module_search_screen.dart';
 import '../../features/verification/presentation/verification_handler.dart';
 
@@ -191,10 +195,15 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
 
       try {
         final allResults = await _fetchPage(trimmed, 1);
+        // 本地内容（导入 + 已下载）与网络结果同列展示：聚合模式下先匹配本地，
+        // 命中条目携带本地 extra（localPath/filePaths），点击由调用方走本地打开。
+        final localResults = _scope == _SearchScope.aggregate
+            ? _searchLocalContent(trimmed)
+            : const <MediaItem>[];
 
         if (mounted) {
           setState(() {
-            _results = allResults;
+            _results = <MediaItem>[...localResults, ...allResults];
             _loading = false;
             // 上一页非空才可能有下一页；具体是否声明 {page} 由 _fetchPage 判定。
             _hasMore = allResults.isNotEmpty && _anySourcePaged();
@@ -406,6 +415,91 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
         return const <String>['search'];
     }
   }
+
+  /// 本地内容搜索：导入记录 + 已下载作品，按标题/作者匹配关键词，
+  /// 转成与网络结果同构的 [MediaItem]（extra 携带 localPath/filePaths，
+  /// 供调用方本地打开）。与网络搜索的匹配语义一致（忽略大小写与空白）。
+  List<MediaItem> _searchLocalContent(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return const <MediaItem>[];
+    final qNorm = q.replaceAll(RegExp(r'\s+'), '');
+
+    bool titleMatches(String title) => title
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), '')
+        .contains(qNorm);
+
+    final results = <MediaItem>[];
+
+    // 1. 导入的本地内容（按模块映射可搜 kind；漫画含 images 与 pdf）。
+    final kinds = _kindsForSourceType(widget.sourceType);
+    final localManager = context.read<LocalContentManager>();
+    for (final e in localManager.items) {
+      if (!kinds.contains(e.kind)) continue;
+      if (!titleMatches(e.title)) continue;
+      results.add(MediaItem(
+        id: e.id,
+        title: e.title,
+        coverUrl: e.coverUrl,
+        sourceId: '',
+        sourceType: widget.sourceType,
+        extra: <String, dynamic>{
+          'isLocal': true,
+          'localPath': e.path,
+          'localKind': e.kind.name,
+          'filePaths': e.filePaths,
+        },
+      ));
+    }
+
+    // 2. 已下载作品（同源同内容合并取最新批次，与书架「本地」段一致）。
+    final downloadManager = context.read<DownloadManager>();
+    final byContent = <String, DownloadTask>{};
+    for (final t in downloadManager.completedTasks) {
+      if (t.sourceType != widget.sourceType) continue;
+      if (!titleMatches(t.title)) continue;
+      final key = '${t.sourceId ?? ''}|${t.contentId}';
+      final prev = byContent[key];
+      if (prev == null || t.createdAt >= prev.createdAt) byContent[key] = t;
+    }
+    for (final t in byContent.values) {
+      results.add(MediaItem(
+        id: t.contentId,
+        title: t.title,
+        coverUrl: t.localCoverPath ?? t.coverUrl,
+        sourceId: t.sourceId,
+        sourceType: widget.sourceType,
+        extra: <String, dynamic>{
+          'isLocal': true,
+          if (t.localPath != null && t.localPath!.isNotEmpty)
+            'localPath': t.localPath,
+          'localKind': _kindForFormat(t.format)?.name,
+          if (t.chapterFilePaths != null && t.chapterFilePaths!.isNotEmpty)
+            'filePaths': t.chapterFilePaths!,
+        },
+      ));
+    }
+    return results;
+  }
+
+  /// 模块类型 → 可搜索的本地媒体 kind（与书架「本地」段口径一致）。
+  static List<LocalMediaKind> _kindsForSourceType(SourceType type) =>
+      switch (type) {
+        SourceType.mangaSource => [LocalMediaKind.images, LocalMediaKind.pdf],
+        SourceType.novelSource => [LocalMediaKind.text],
+        SourceType.animeSource => [LocalMediaKind.video],
+      };
+
+  /// 下载格式 → 本地媒体 kind（null 表示该格式无本地阅读路径）。
+  static LocalMediaKind? _kindForFormat(DownloadFormat f) => switch (f) {
+        DownloadFormat.cbz => LocalMediaKind.images,
+        DownloadFormat.folder => LocalMediaKind.images,
+        DownloadFormat.jpg => LocalMediaKind.images,
+        DownloadFormat.png => LocalMediaKind.images,
+        DownloadFormat.epub => LocalMediaKind.text,
+        DownloadFormat.txt => LocalMediaKind.text,
+        DownloadFormat.video => LocalMediaKind.video,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -640,6 +734,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
 
   Widget _buildGrid(BuildContext context) {
     final layout = LayoutSettingsStore.instance.settings;
+    final l10n = AppLocalizations.of(context);
     final cross = layout.gridColumns;
     final spacing = layout.gridSpacing;
     final width = MediaQuery.of(context).size.width;
@@ -677,6 +772,8 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
               ? _computeProgress(item)
               : Future<double?>.value(null),
         );
+        // 本地结果（导入/下载）无在线源，meta 显示「本地」标识。
+        final bool isLocal = item.extra?['isLocal'] == true;
         return FutureBuilder<double?>(
           future: future,
           builder: (ctx, snap) => ContentCard(
@@ -684,10 +781,11 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
             source: source,
             title: item.title,
             subtitle: item.author,
-            meta: source?.name,
+            meta: isLocal ? l10n.subTabLocal : source?.name,
             progress: snap.data,
             width: itemW,
             heroTag: 'search-${item.id}',
+            highlightQuery: _controller.text,
             onTap: () => widget.onItemTap(item, 'search-${item.id}'),
           ),
         );
@@ -697,6 +795,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
 
   Widget _buildList(BuildContext context) {
     final layout = LayoutSettingsStore.instance.settings;
+    final l10n = AppLocalizations.of(context);
     final isCompact = layout.listStyle == ListLayoutStyle.compact;
     return ListView.separated(
       padding: const EdgeInsets.all(AppTokens.spaceLg),
@@ -706,6 +805,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
         final item = _results[i];
         final source =
             context.read<SourceRepository>().getById(item.sourceId ?? '');
+        final bool isLocal = item.extra?['isLocal'] == true;
         return AppCard(
           onTap: () => widget.onItemTap(item, 'search-${item.id}-list'),
           padding: EdgeInsets.zero,
@@ -731,8 +831,9 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
               ),
             ),
             title: layout.showTitle
-                ? Text(
-                    item.title,
+                ? HighlightText(
+                    text: item.title,
+                    query: _controller.text,
                     style: Theme.of(context)
                         .textTheme
                         .bodyLarge
@@ -745,7 +846,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
                 ? Text(
                     <String?>[
                       item.author,
-                      source?.name,
+                      if (isLocal) l10n.subTabLocal else source?.name,
                     ].where((s) => s != null && s.isNotEmpty).join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

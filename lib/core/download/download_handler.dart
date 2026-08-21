@@ -6,9 +6,9 @@ library;
 
 import 'download_task.dart';
 
-/// 处理器进度回调。
+/// 处理器进度回调：已完成章节数、总章节数、当前章节内部进度（0.0~1.0）。
 typedef DownloadProgressCallback = void Function(
-    int downloadedChapters, int totalChapters);
+    int downloadedChapters, int totalChapters, double chapterProgress);
 
 /// 取消检查回调：返回 true 表示用户已取消该下载任务。
 ///
@@ -68,20 +68,25 @@ abstract class DownloadHandler {
 
 /// 有界并发池：最多 [concurrency] 个任务并行执行，全部完成后返回。
 ///
+/// 每个任务完成后调用 [onItemDone]（已完成任务数，总任务数），
 /// 适用于以「单元（图片 / 章节）」为粒度的并行拉取——配合按索引写入，
 /// 即可在并行执行下依然保持结果有序。
 Future<void> runPool<T>(
   int concurrency,
   List<T> items,
-  Future<void> Function(T) task,
-) async {
+  Future<void> Function(T) task, {
+  void Function(int completed, int total)? onItemDone,
+}) async {
   if (concurrency < 1) concurrency = 1;
   if (items.isEmpty) return;
   final queue = List<T>.from(items);
+  var completed = 0;
   Future<void> worker() async {
     while (queue.isNotEmpty) {
       final item = queue.removeLast();
       await task(item);
+      completed++;
+      onItemDone?.call(completed, items.length);
     }
   }
 
