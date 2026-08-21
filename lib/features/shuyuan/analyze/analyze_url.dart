@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:fast_gbk/fast_gbk.dart';
+import '../../../core/utils/app_log.dart';
 import 'analyze_rule.dart';
 import '../../../core/scraper/browser_faithful_adapter.dart';
 import '../../../core/scraper/verification_detector.dart';
@@ -120,37 +121,33 @@ class AnalyzeUrl {
           return page.toString();
         }
         if (expr == 'key') {
-          // 关键修复：搜索关键词必须 URL 编码，否则含中文等非 ASCII 字符的
-          // 搜索地址会被 HTTP 客户端拒绝（FormatException / 空结果），
-          // 导致搜索"无效果"。编码后服务端解码得到原词，行为等价且更兼容。
-          return key != null && key!.isNotEmpty ? Uri.encodeComponent(key!) : '';
+          // 占位符替换为「原始关键词」而非预编码值：编码统一延迟到
+          // [analyzeUrl] 之后按源声明的 charset 处理（GBK 站点按 GBK 编码，
+          // 其余按 UTF-8），避免 GBK 站点收到 UTF-8 乱码而搜索无结果。
+          return key ?? '';
         }
         final jsResult = _evalJs(expr, url);
         return jsResult;
       });
     }
 
-    // legado 书源兼容：legado 原生搜索/发现 URL 普遍使用尖括号占位符
-    // `<searchKey>`/`<key>`/`<page>`（部分老源用中文书名号《searchKey》/《page》），
-    // 而本引擎此前只识别 {{key}}/{{page}}。import 的 legado 源若用这类占位符，
-    // 关键字/页码不会被替换 → URL 残留字面量 `<searchKey>`（非法字符）→ 请求
-    // 失败或返回空 → "legado 源网络导入无法解析到任何内容"。此处补齐两种占位符。
-    // `<`/`>`/《/》 均不会出现在正常 URL 中，故对既有 {{}} 源零影响。
+    // 通用书源格式兼容：搜索/发现 URL 普遍使用尖括号占位符
+    // `<searchKey>`/`<key>`/`<page>`（部分老源用中文书名号《searchKey》/《page》）。
+    // 同样替换为原始关键词，编码延后统一处理。
     if (key != null && key!.isNotEmpty) {
-      final encodedKey = Uri.encodeComponent(key!);
       url = url
-          .replaceAll('<searchKey>', encodedKey)
-          .replaceAll('<key>', encodedKey)
-          .replaceAll('《searchKey》', encodedKey)
-          .replaceAll('《key》', encodedKey);
+          .replaceAll('<searchKey>', key!)
+          .replaceAll('<key>', key!)
+          .replaceAll('《searchKey》', key!)
+          .replaceAll('《key》', key!);
     }
     url = url.replaceAll('<page>', page.toString());
     url = url.replaceAll('《page》', page.toString());
 
-    // 兜底：确保任何残留的 {{key}}/{{page}} 被正确替换与编码（极少见，
-    // 仅当上面的正则未覆盖时触发，不会造成重复编码）。
+    // 兜底：确保任何残留的 {{key}}/{{page}} 被替换（极少见，
+    // 仅当上面的正则未覆盖时触发）。
     if (key != null && key!.isNotEmpty) {
-      url = url.replaceAll('{{key}}', Uri.encodeComponent(key!));
+      url = url.replaceAll('{{key}}', key!);
     }
     url = url.replaceAll('{{page}}', page.toString());
   }
@@ -161,14 +158,8 @@ class AnalyzeUrl {
     final paramMatch = paramPattern.firstMatch(originalUrl);
     final urlNoOption = paramMatch != null ? originalUrl.substring(0, paramMatch.start) : originalUrl;
 
-    url = _getAbsoluteUrl(urlNoOption);
-
-    if (url.isNotEmpty) {
-      try {
-        final uri = Uri.parse(url);
-        baseUrl = '${uri.scheme}://${uri.host}';
-      } catch (_) {}
-    }
+    // 基础 URL（去选项）：后续选项中的 js 可整体改写 url。
+    url = urlNoOption;
 
     if (paramMatch != null && urlNoOption.length != originalUrl.length) {
       final optionStr = originalUrl.substring(paramMatch.end - 1);
@@ -176,7 +167,16 @@ class AnalyzeUrl {
         final option = json.decode(optionStr) as Map<String, dynamic>?;
         if (option != null) {
           method = option['method']?.toString();
-          body = option['body']?.toString();
+          // body 可为字符串或 JSON 对象/数组（QQ 等 API 源的
+          // `"body":{"key":"{{key}}"}` 写法）：对象须按 JSON 序列化，
+          // 此前 toString() 产出 Dart Map 字面量 `{key: value}` 导致服务端
+          // 解析失败 → API 型源搜索全空。
+          final rawBody = option['body'];
+          if (rawBody is String) {
+            body = rawBody;
+          } else if (rawBody != null) {
+            body = jsonEncode(rawBody);
+          }
           charset = option['charset']?.toString();
           retry = option['retry'] ?? 0;
           useWebView = option['useWebView'] ?? false;
@@ -194,12 +194,154 @@ class AnalyzeUrl {
 
           final js = option['js']?.toString();
           if (js != null && js.isNotEmpty) {
-            final jsResult = _evalJs(js, url);
+            final jsResult = _evalJs(js, urlNoOption);
             url = jsResult;
           }
         }
       } catch (_) {}
     }
+
+    // 参数编码必须在 Uri 绝对化**之前**：Dart 的 Uri.parse/resolve 会把 query
+    // 中的非 ASCII 字符自动按 UTF-8 百分号转义，之后再编码就拿到了已被错误
+    // 编码的值（GBK 站点无法纠正）。先按源声明 charset 编码完，再绝对化。
+    _encodeRequestParams();
+
+    url = _getAbsoluteUrl(url);
+
+    if (url.isNotEmpty) {
+      try {
+        final uri = Uri.parse(url);
+        baseUrl = '${uri.scheme}://${uri.host}';
+      } catch (_) {}
+    }
+  }
+
+  /// 按源声明的字符集对请求参数编码（GET query / POST form）。
+  ///
+  /// 占位符（`{{key}}` 等）替换的是**原始关键词**，编码统一延迟到此处：
+  /// - GBK 系站点（charset=gbk/gb2312/gb18030）按 GBK 编码关键词，
+  ///   否则按 UTF-8 —— 此前恒定 UTF-8 预编码，GBK 站点收到乱码导致
+  ///   「搜索有请求但永远无结果」。
+  /// - POST form 补声明 `application/x-www-form-urlencoded`：多数站点
+  ///   （尤其 PHP `$_POST`）不按该 Content-Type 解析请求体，缺省时整个
+  ///   表单体被服务端丢弃 → POST 搜索全部为空。
+  /// - 已编码值（合法 `%XX` 序列）不重复编码，避免把预编码源二次转义。
+  void _encodeRequestParams() {
+    final cs = _normalizeCharset(charset);
+    final isPost = method?.toUpperCase() == 'POST';
+
+    if (isPost) {
+      final b = body;
+      if (b != null && b.isNotEmpty && !_looksLikeStructuredBody(b)) {
+        body = _encodeForm(b, cs);
+        headerMap.putIfAbsent(
+            'Content-Type', () => 'application/x-www-form-urlencoded');
+      } else if (b != null && b.isNotEmpty) {
+        // JSON/XML 请求体：按原文发送，仅补 JSON 的 Content-Type。
+        if (b.trimLeft().startsWith('{')) {
+          headerMap.putIfAbsent('Content-Type', () => 'application/json');
+        }
+      }
+      return;
+    }
+
+    // GET：仅编码 query 段（path 由源模板给出，保持原样）。
+    final qIdx = url.indexOf('?');
+    if (qIdx < 0) return;
+    final base = url.substring(0, qIdx);
+    final query = url.substring(qIdx + 1);
+    if (query.isEmpty) return;
+    // 全部为可见 ASCII（无中文/空格等需编码字符）时无需处理。
+    final needsEncode =
+        query.codeUnits.any((c) => c > 0x7e || c < 0x20);
+    if (!needsEncode) return;
+    url = '$base?${_encodeForm(query, cs)}';
+  }
+
+  /// JSON / XML 请求体判定（这类体不做 form 编码，按原文发送）。
+  bool _looksLikeStructuredBody(String b) {
+    final t = b.trimLeft();
+    return t.startsWith('{') || t.startsWith('[') || t.startsWith('<');
+  }
+
+  /// form 编码：按 `&`/`=` 拆分键值对，逐个值按 [charsetLower] 编码。
+  String _encodeForm(String form, String? charsetLower) {
+    final out = <String>[];
+    for (final pair in form.split('&')) {
+      final eq = pair.indexOf('=');
+      if (eq < 0) {
+        out.add(_encodeValue(pair, charsetLower));
+        continue;
+      }
+      out.add('${_encodeValue(pair.substring(0, eq), charsetLower)}'
+          '=${_encodeValue(pair.substring(eq + 1), charsetLower)}');
+    }
+    return out.join('&');
+  }
+
+  /// 单值编码：已编码值原样保留；GBK 系按 GBK，其余 UTF-8。
+  String _encodeValue(String value, String? charsetLower) {
+    if (value.isEmpty) return value;
+    if (_isAlreadyEncoded(value)) return value;
+    final lower = charsetLower?.toLowerCase();
+    if (lower == 'gbk' || lower == 'gb2312' || lower == 'gb18030') {
+      try {
+        return _percentEncodeBytes(gbk.encode(value));
+      } catch (_) {
+        // GBK 编码失败（生僻字等）回退 UTF-8。
+      }
+    }
+    return Uri.encodeComponent(value);
+  }
+
+  /// 已编码判定：仅含未保留字符与合法 `%XX` 序列。
+  bool _isAlreadyEncoded(String value) {
+    for (var i = 0; i < value.length; i++) {
+      final c = value.codeUnitAt(i);
+      final unreserved = (c >= 0x30 && c <= 0x39) ||
+          (c >= 0x41 && c <= 0x5a) ||
+          (c >= 0x61 && c <= 0x7a) ||
+          c == 0x2d || // -
+          c == 0x2e || // .
+          c == 0x5f || // _
+          c == 0x7e; // ~
+      if (unreserved) continue;
+      if (c == 0x25 && // %
+          i + 2 < value.length &&
+          _isHexDigit(value.codeUnitAt(i + 1)) &&
+          _isHexDigit(value.codeUnitAt(i + 2))) {
+        i += 2;
+        continue;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  bool _isHexDigit(int c) =>
+      (c >= 0x30 && c <= 0x39) ||
+      (c >= 0x41 && c <= 0x46) ||
+      (c >= 0x61 && c <= 0x66);
+
+  /// 字节序列百分号编码（未保留字符保留原样）。
+  String _percentEncodeBytes(List<int> bytes) {
+    final sb = StringBuffer();
+    for (final b in bytes) {
+      final unreserved = (b >= 0x30 && b <= 0x39) ||
+          (b >= 0x41 && b <= 0x5a) ||
+          (b >= 0x61 && b <= 0x7a) ||
+          b == 0x2d ||
+          b == 0x2e ||
+          b == 0x5f ||
+          b == 0x7e;
+      if (unreserved) {
+        sb.writeCharCode(b);
+      } else {
+        sb.write('%');
+        sb.write(b.toRadixString(16).toUpperCase().padLeft(2, '0'));
+      }
+    }
+    return sb.toString();
   }
 
   String _getAbsoluteUrl(String urlStr) {
@@ -218,7 +360,13 @@ class AnalyzeUrl {
     try {
       final analyzeRule = AnalyzeRule(book: ruleData, chapter: chapter)
         ..setBaseUrl(baseUrl);
-      return analyzeRule.evalJs(jsCode, currentResult);
+      // URL 内 JS 的宿主绑定（对齐 legado AnalyzeUrl.evalJS）：
+      // 分页偏移（`page-1`）、关键词处理等表达式依赖 page/key。
+      return analyzeRule.evalJs(jsCode, currentResult, extraBindings: {
+        'page': page,
+        'key': key ?? '',
+        'speakText': speakText ?? '',
+      });
     } catch (_) {
       return currentResult;
     }
@@ -263,13 +411,13 @@ class AnalyzeUrl {
 
     if (source?.header != null && source!.header!.isNotEmpty) {
       try {
-        final headerMap = _parseHeader(source!.header!);
+        final sourceHeader = _parseHeader(source!.header!);
         // 源 header 的 User-Agent 必须生效（尊重「源即插件」：源作者配的 UA 即意图）。
         // 提取后按 host 注册到 HttpFetcher，使 WebView 验证复用同一 UA。
         String? sourceUa;
-        for (final key in headerMap.keys.toList()) {
+        for (final key in sourceHeader.keys.toList()) {
           if (key.toLowerCase() == 'user-agent') {
-            sourceUa = headerMap.remove(key);
+            sourceUa = sourceHeader.remove(key);
             break;
           }
         }
@@ -280,8 +428,15 @@ class AnalyzeUrl {
             HttpFetcher.instance.registerHostUserAgent(host, sourceUa);
           }
         }
-        requestHeaders.addAll(headerMap);
+        requestHeaders.addAll(sourceHeader);
       } catch (_) {}
+    }
+
+    // URL 选项 headers（书源 searchUrl 的 `,{"headers":{...}}` 声明 + POST
+    // Content-Type 补全）此前从未并入实际请求，源声明的请求头全部丢失；
+    // 此处统一并入（选项头在源 header 之后、显式 headers 参数之前生效）。
+    if (headerMap.isNotEmpty) {
+      requestHeaders.addAll(headerMap);
     }
 
     if (headers != null) {
@@ -307,6 +462,7 @@ class AnalyzeUrl {
       // 若不过闸门，目录分页/详情/推荐背靠背连发会触发 Cloudflare 临时挑战
       // （笔趣阁反代即因此循环弹验证）。长目录变慢由渐进批次保障首屏体验。
       await HttpFetcher.instance.runGate(url);
+      AppLog.instance.d('[书源HTTP] ${method?.toUpperCase() ?? 'GET'} $url');
 
       // 代理：源声明的 proxy 字段此前解析但未使用；此处落地——非空时改用带
       // IOHttpClientAdapter(findProxy) 的临时 Dio 发起本次请求，不影响全局默认 Dio。
@@ -345,7 +501,13 @@ class AnalyzeUrl {
       final contentType = _extractHeaderValue(
         response.headers['content-type'],
       );
+      final effectiveCs = _normalizeCharset(charset) ??
+          _extractCharsetFromContentType(contentType) ??
+          _extractCharsetFromMeta(bytes);
       body = _decodeBody(bytes, charset, contentType);
+      AppLog.instance.d(
+          '[书源HTTP] ← ${response.statusCode} ${body.length}字符 '
+          'charset=${effectiveCs ?? 'utf8-容错'}');
 
       // 解码后统一检测「验证/反爬挑战页」（覆盖 Cloudflare、以及 PTCMS 等站点
       // 自带的「系统安全验证」等）。命中则抛 [VerificationRequiredException]，
@@ -365,6 +527,7 @@ class AnalyzeUrl {
         url = response.redirects.last.location.toString();
       }
     } on DioException catch (e) {
+      AppLog.instance.w('[书源HTTP] Dio异常 ${e.response?.statusCode} $url');
       final status = e.response?.statusCode;
       // 非 2xx 也可能是「验证 / 反爬挑战页」：PTCMS「系统安全验证」常以 403
       // 返回挑战 HTML，此时 validateStatus 已拒收、请求体被丢给上层前必须先过
@@ -458,14 +621,18 @@ class AnalyzeUrl {
   /// 字符集解码优先级：
   /// 1. URL 选项中的 charset
   /// 2. HTTP Content-Type 中的 charset
-  /// 3. UTF-8 容错解码
+  /// 3. HTML `<meta charset="...">` / `<meta http-equiv="Content-Type" ... charset=...>`
+  ///    声明（许多 GBK 系站点只写 meta，Content-Type 不带 charset，缺此探测会
+  ///    全部按 UTF-8 容错解码 → 中文乱码）
+  /// 4. UTF-8 容错解码
   String _decodeBody(Uint8List bytes, String? optionCharset, String? contentType) {
     final effectiveCharset = _normalizeCharset(optionCharset) ??
-        _extractCharsetFromContentType(contentType);
+        _extractCharsetFromContentType(contentType) ??
+        _extractCharsetFromMeta(bytes);
 
     if (effectiveCharset != null) {
       final lower = effectiveCharset.toLowerCase();
-      if (lower == 'gbk' || lower == 'gb2312') {
+      if (lower == 'gbk' || lower == 'gb2312' || lower == 'gb18030') {
         return gbk.decode(bytes);
       }
       if (lower == 'big5') {
@@ -475,6 +642,31 @@ class AnalyzeUrl {
     }
 
     return utf8.decode(bytes, allowMalformed: true);
+  }
+
+  /// 从 HTML 头部探测 `<meta charset>` / `http-equiv="Content-Type"` 声明的字符集。
+  ///
+  /// 只扫描前 4KB（charset 声明总在 <head> 开头），按 ASCII 子集读取原始字节
+  /// 避免在未解码前引入额外依赖；扫描区即使含非 ASCII 字节也只会被当作
+  /// 乱码字符，不影响 charset 关键字匹配。
+  static String? _extractCharsetFromMeta(Uint8List bytes) {
+    final limit = bytes.length < 4096 ? bytes.length : 4096;
+    // 仅取 ASCII 可读字符拼接，中文/双字节原文会被丢弃（charset 关键字是 ASCII）。
+    final buf = StringBuffer();
+    for (var i = 0; i < limit; i++) {
+      final c = bytes[i];
+      if (c >= 0x20 && c < 0x7f) {
+        buf.writeCharCode(c);
+      }
+    }
+    final head = buf.toString();
+    if (!head.contains('charset', 0)) return null;
+    // 双引号字符串转义（raw 字符串里 \' 会提前终止字面量）。
+    final m = RegExp(
+      "charset\\s*=\\s*[\"']?\\s*([a-zA-Z0-9_-]+)",
+      caseSensitive: false,
+    ).firstMatch(head);
+    return m?.group(1)?.trim().toLowerCase();
   }
 
   String? _normalizeCharset(String? charset) {

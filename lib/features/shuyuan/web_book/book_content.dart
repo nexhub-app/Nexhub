@@ -5,6 +5,7 @@ library;
 import 'package:html/parser.dart' as html_parser;
 
 import '../../../core/models/novel_block.dart';
+import '../../../core/utils/app_log.dart';
 import '../analyze/analyze_rule.dart';
 import '../analyze/js_engine.dart';
 import '../model/book_source.dart';
@@ -166,6 +167,15 @@ class BookContent {
       } else {
         content = _getContent(analyzeRule, contentRule.content!);
       }
+    }
+
+    // 正文规则提取结果日志：空结果 → 规则未命中 / JS 失败（真机排查关键）。
+    if (content.trim().isEmpty) {
+      AppLog.instance.w('[书源正文] 规则提取为空: 源=${bookSource.bookSourceName} '
+          'url=$redirectUrl content规则=${contentRule.content ?? '(空)'}');
+    } else {
+      AppLog.instance.d('[书源正文] 规则命中: 源=${bookSource.bookSourceName} '
+          '${content.length}字符 url=$redirectUrl');
     }
 
     // 如果 primary selector 未命中或结果为空，尝试 fallback selector 列表

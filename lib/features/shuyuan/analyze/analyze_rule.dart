@@ -2,7 +2,10 @@
 /// 支持 `##` 正则替换、`@put` 变量、`<js>`/`@js:` 内嵌脚本与 `&&/||/%%` 复合规则。
 library;
 
+import 'dart:convert';
+
 import 'package:html/dom.dart';
+import '../../../core/utils/app_log.dart';
 import 'source_rule.dart';
 import 'analyze_jsoup.dart';
 import 'analyze_xpath.dart';
@@ -122,14 +125,13 @@ class AnalyzeRule {
     if (result != null && ruleList.isNotEmpty) {
       for (final sourceRule in ruleList) {
         _putAll(sourceRule.putMap);
-        sourceRule.makeUpRule(result);
         if (result == null) continue;
-        final rule = sourceRule.rule;
-        if (rule.isNotEmpty) {
-          result = _executeRuleElements(result, sourceRule);
+        final st = _makeUpRule(sourceRule, result);
+        if (st.rule.isNotEmpty) {
+          result = _executeRuleElements(result, sourceRule, single: true);
         }
-        if (result != null && sourceRule.replaceRegex.isNotEmpty) {
-          result = _replaceRegex(result.toString(), sourceRule);
+        if (result != null && st.replaceRegex.isNotEmpty) {
+          result = _replaceRegex(result.toString(), st);
         }
       }
     }
@@ -189,28 +191,20 @@ class AnalyzeRule {
     if (ruleList.isEmpty) return '';
     var result = mContent ?? content;
     if (result != null && ruleList.isNotEmpty) {
-      if (result is Map) {
-        final sourceRule = ruleList.first;
+      for (final sourceRule in ruleList) {
         _putAll(sourceRule.putMap);
-        sourceRule.makeUpRule(result);
-        result = sourceRule.getParamSize() > 1
-            ? sourceRule.rule
-            : result[sourceRule.rule]?.toString();
-        if (result != null && sourceRule.replaceRegex.isNotEmpty) {
-          result = _replaceRegex(result.toString(), sourceRule);
+        final st = _makeUpRule(sourceRule, result);
+        if (result == null) continue;
+        if (st.rule.isNotEmpty || st.replaceRegex.isEmpty) {
+          if (st.templateMode) {
+            // 模板模式：内嵌表达式替换后的整串即结果。
+            result = st.rule;
+          } else {
+            result = _executeRule(result, sourceRule.mode, st.rule, isUrl: isUrl);
+          }
         }
-      } else {
-        for (final sourceRule in ruleList) {
-          _putAll(sourceRule.putMap);
-          sourceRule.makeUpRule(result);
-          if (result == null) continue;
-          final rule = sourceRule.rule;
-          if (rule.isNotEmpty) {
-            result = _executeRule(result, sourceRule, isUrl: isUrl);
-          }
-          if (result != null && sourceRule.replaceRegex.isNotEmpty) {
-            result = _replaceRegex(result.toString(), sourceRule);
-          }
+        if (result != null && st.replaceRegex.isNotEmpty) {
+          result = _replaceRegex(result.toString(), st);
         }
       }
     }
@@ -232,40 +226,22 @@ class AnalyzeRule {
     if (ruleList.isEmpty) return [];
     var result = content;
     if (content != null && ruleList.isNotEmpty) {
-      result = content;
-      if (result is Map) {
-        final sourceRule = ruleList.first;
+      for (final sourceRule in ruleList) {
         _putAll(sourceRule.putMap);
-        sourceRule.makeUpRule(result);
-        result = sourceRule.getParamSize() > 1
-            ? sourceRule.rule
-            : result[sourceRule.rule];
-        if (result != null && sourceRule.replaceRegex.isNotEmpty) {
-          if (result is List) {
-            result = result.map((o) => _replaceRegex(o.toString(), sourceRule)).toList();
+        final st = _makeUpRule(sourceRule, result);
+        if (result == null) continue;
+        if (st.rule.isNotEmpty || st.replaceRegex.isEmpty) {
+          if (st.templateMode) {
+            result = st.rule;
           } else {
-            result = _replaceRegex(result.toString(), sourceRule);
+            result = _executeRule(result, sourceRule.mode, st.rule, isUrl: isUrl);
           }
         }
-      } else {
-        for (final sourceRule in ruleList) {
-          _putAll(sourceRule.putMap);
-          sourceRule.makeUpRule(result);
-          if (result == null) continue;
-          final rule = sourceRule.rule;
-          if (rule.isNotEmpty) {
-            result = _executeRule(result, sourceRule, isUrl: isUrl);
-          }
-          if (result != null && sourceRule.replaceRegex.isNotEmpty) {
-            if (result is List) {
-              final newList = <String>[];
-              for (final item in result) {
-                newList.add(_replaceRegex(item.toString(), sourceRule));
-              }
-              result = newList;
-            } else {
-              result = _replaceRegex(result.toString(), sourceRule);
-            }
+        if (result != null && st.replaceRegex.isNotEmpty) {
+          if (result is List) {
+            result = result.map((o) => _replaceRegex(o.toString(), st)).toList();
+          } else {
+            result = _replaceRegex(result.toString(), st);
           }
         }
       }
@@ -295,10 +271,8 @@ class AnalyzeRule {
     return [];
   }
 
-  dynamic _executeRule(dynamic result, SourceRule sourceRule, {bool isUrl = false}) {
-    final rule = sourceRule.rule;
-
-    switch (sourceRule.mode) {
+  dynamic _executeRule(dynamic result, Mode mode, String rule, {bool isUrl = false}) {
+    switch (mode) {
       case Mode.js:
         return _evalJs(rule, result);
       case Mode.regex:
@@ -318,8 +292,9 @@ class AnalyzeRule {
     }
   }
 
-  dynamic _executeRuleElements(dynamic result, SourceRule sourceRule) {
-    final rule = sourceRule.rule;
+  dynamic _executeRuleElements(dynamic result, SourceRule sourceRule, {bool single = false}) {
+    final st = _makeUpRule(sourceRule, result);
+    final rule = st.rule;
 
     switch (sourceRule.mode) {
       case Mode.js:
@@ -333,7 +308,8 @@ class AnalyzeRule {
         return [];
       case Mode.json:
         final analyzer = _getJsonAnalyzer(result);
-        return analyzer.getList(rule);
+        // single（getElement/init 规则）：返回对象本身；列表规则返回元素数组。
+        return single ? analyzer.getObject(rule) : analyzer.getList(rule);
       case Mode.xpath:
         final analyzer = _getXPathAnalyzer(result);
         return analyzer.getElements(rule);
@@ -364,7 +340,7 @@ class AnalyzeRule {
     return _analyzeByJson!;
   }
 
-  String _evalJs(String jsStr, dynamic result) {
+  String _evalJs(String jsStr, dynamic result, {Map<String, dynamic>? extraBindings}) {
     try {
       _jsEngine ??= JsEngine();
       final bindings = <String, dynamic>{
@@ -373,41 +349,159 @@ class AnalyzeRule {
         'baseUrl': baseUrl ?? '',
         'src': content?.toString() ?? '',
         'title': chapter?.title ?? '',
+        if (extraBindings != null) ...extraBindings,
       };
-      return _jsEngine!.eval(jsStr, bindings: bindings);
-    } catch (_) {
+      return _jsEngine!.eval(_expandJavaBridge(jsStr), bindings: bindings);
+    } catch (e) {
+      // JS 引擎调用本身抛异常（极少见）时记录到运行日志，便于真机排查
+      // 「书源 JS 规则不生效」。失败返回空串维持既有行为。
+      final brief = jsStr.replaceAll('\n', ' ').trim();
+      AppLog.instance.w('[书源JS] 调用异常: '
+          '${brief.length > 120 ? '${brief.substring(0, 120)}…' : brief} → $e');
       return '';
     }
   }
 
-  String evalJs(String jsStr, dynamic result) {
-    return _evalJs(jsStr, result);
+  String evalJs(String jsStr, dynamic result, {Map<String, dynamic>? extraBindings}) {
+    return _evalJs(jsStr, result, extraBindings: extraBindings);
   }
 
-  String _replaceRegex(String result, SourceRule sourceRule) {
-    if (sourceRule.replaceRegex.isEmpty) return result;
-    try {
-      final regex = RegExp(sourceRule.replaceRegex);
-      if (sourceRule.replaceFirst) {
-        return result.replaceFirst(regex, sourceRule.replacement);
+  // ── 内嵌表达式（{{...}} / @get:{...}）求值期替换 ──
+
+  /// 内嵌表达式与变量引用的切分模式（对齐通用书源格式语义）。
+  static final RegExp _evalPattern = RegExp(
+    r'@get:\{[^}]+?\}|\{\{[\w\W]*?\}\}',
+    caseSensitive: false,
+  );
+
+  /// 计算规则的生效状态：替换 `{{...}}` 内嵌表达式与 `@get:{...}` 变量
+  /// 引用后，再分割 `##` 正则替换段。
+  ///
+  /// 不修改缓存的 [SourceRule]（规则列表按规则串缓存、跨元素复用），
+  /// 每次求值返回独立的生效状态。
+  _RuleState _makeUpRule(SourceRule sourceRule, dynamic result) {
+    if (!sourceRule.hasInnerRule) {
+      return _RuleState(
+        sourceRule.rule,
+        sourceRule.replaceRegex,
+        sourceRule.replacement,
+        sourceRule.replaceFirst,
+        sourceRule.templateMode,
+      );
+    }
+    final replaced = _replaceInnerRules(sourceRule.rawRule, result);
+    final parts = replaced.split('##');
+    return _RuleState(
+      parts[0].trim(),
+      parts.length > 1 ? parts[1] : '',
+      parts.length > 2 ? parts[2] : '',
+      parts.length > 3,
+      sourceRule.templateMode,
+    );
+  }
+
+  /// 替换规则串中的全部内嵌表达式：
+  /// - `@get:{key}` → 变量取值；
+  /// - `{{规则}}`（`@`/`$.`/`$[`/`//` 开头）→ 按规则对当前内容求值；
+  /// - `{{JS 表达式}}` → JS 求值（绑定 result/baseUrl 等宿主上下文）。
+  String _replaceInnerRules(String ruleStr, dynamic result) {
+    return ruleStr.replaceAllMapped(_evalPattern, (m) {
+      final token = m.group(0)!;
+      if (token.length > 6 &&
+          token.substring(0, 5).toLowerCase() == '@get:') {
+        final key = token.substring(6, token.length - 1);
+        return get(key);
       }
-      return result.replaceAll(regex, sourceRule.replacement);
+      final expr = token.substring(2, token.length - 2).trim();
+      if (_isRuleExpr(expr)) {
+        return getString(expr);
+      }
+      return _formatJsNumberText(_evalJs(expr, result));
+    });
+  }
+
+  /// 内嵌表达式是否为规则（而非 JS 表达式）。
+  static bool _isRuleExpr(String expr) {
+    return expr.startsWith('@') ||
+        expr.startsWith('\$.') ||
+        expr.startsWith('\$[') ||
+        expr.startsWith('//');
+  }
+
+  /// JS 数值结果整型化：引擎把整数算式结果返回为 `19.0` 形式时去掉
+  /// 小数位（URL 分页偏移等场景不能带 `.0`）。
+  static String _formatJsNumberText(String s) {
+    if (s.length > 2 && RegExp(r'^-?\d+\.0+$').hasMatch(s)) {
+      return s.substring(0, s.indexOf('.'));
+    }
+    return s;
+  }
+
+  // ── 宿主桥接调用展开 ──
+
+  static final RegExp _javaGetStringSingle =
+      RegExp(r"java\.getString\(\s*'([^']*)'\s*\)");
+  static final RegExp _javaGetStringDouble =
+      RegExp(r'java\.getString\(\s*"([^"]*)"\s*\)');
+  static final RegExp _javaGetSingle =
+      RegExp(r"java\.get\(\s*'([^']*)'\s*\)");
+  static final RegExp _javaGetDouble =
+      RegExp(r'java\.get\(\s*"([^"]*)"\s*\)');
+
+  /// 宿主桥接调用展开：JS 沙箱无法直接暴露宿主对象，通用书源常见的
+  /// `java.getString('规则')` / `java.get('变量')` 调用在求值前由宿主
+  /// 内联为求值结果（JSON 字符串字面量，转义兼容 JS 语法）。
+  String _expandJavaBridge(String jsExpr) {
+    if (!jsExpr.contains('java.')) return jsExpr;
+    var out = jsExpr;
+    out = out.replaceAllMapped(
+        _javaGetStringSingle, (m) => jsonEncode(getString(m.group(1) ?? '')));
+    out = out.replaceAllMapped(
+        _javaGetStringDouble, (m) => jsonEncode(getString(m.group(1) ?? '')));
+    out = out.replaceAllMapped(
+        _javaGetSingle, (m) => jsonEncode(get(m.group(1) ?? '')));
+    out = out.replaceAllMapped(
+        _javaGetDouble, (m) => jsonEncode(get(m.group(1) ?? '')));
+    return out;
+  }
+
+  String _replaceRegex(String result, _RuleState st) {
+    if (st.replaceRegex.isEmpty) return result;
+    try {
+      final regex = RegExp(st.replaceRegex);
+      String expand(Match m) => _expandReplacement(m, st.replacement);
+      if (st.replaceFirst) {
+        return result.replaceFirstMapped(regex, expand);
+      }
+      return result.replaceAllMapped(regex, expand);
     } catch (_) {
       try {
-        if (sourceRule.replaceFirst) {
-          final index = result.indexOf(sourceRule.replaceRegex);
+        if (st.replaceFirst) {
+          final index = result.indexOf(st.replaceRegex);
           if (index >= 0) {
             return result.substring(0, index) +
-                sourceRule.replacement +
-                result.substring(index + sourceRule.replaceRegex.length);
+                st.replacement +
+                result.substring(index + st.replaceRegex.length);
           }
           return '';
         }
-        return result.replaceAll(sourceRule.replaceRegex, sourceRule.replacement);
+        return result.replaceAll(st.replaceRegex, st.replacement);
       } catch (_) {
         return result;
       }
     }
+  }
+
+  /// 展开 `##` 正则替换中的 `$1`..`$9` 分组引用（`$0` 为整串）。
+  /// Dart 的字符串替换不展开 `$N`，须显式映射。
+  static String _expandReplacement(Match m, String replacement) {
+    if (!replacement.contains(r'$')) return replacement;
+    return replacement.replaceAllMapped(RegExp(r'\$(\d)'), (rm) {
+      final idx = int.parse(rm.group(1)!);
+      if (idx == 0) return m.group(0) ?? '';
+      if (idx <= m.groupCount) return m.group(idx) ?? '';
+      return '';
+    });
   }
 
   String _getAbsoluteUrl(String url) {
@@ -443,4 +537,17 @@ class AnalyzeRule {
       put(entry.key, getString(entry.value));
     }
   }
+}
+
+/// 规则求值期的生效状态：[SourceRule] 的规则串经内嵌表达式替换、
+/// `##` 正则替换段分割后的最终形态。
+class _RuleState {
+  final String rule;
+  final String replaceRegex;
+  final String replacement;
+  final bool replaceFirst;
+  final bool templateMode;
+
+  _RuleState(this.rule, this.replaceRegex, this.replacement, this.replaceFirst,
+      this.templateMode);
 }
