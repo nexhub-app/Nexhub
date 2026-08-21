@@ -3,6 +3,7 @@ library;
 
 import 'dart:convert';
 
+import '../../../core/utils/app_log.dart';
 import '../analyze/js_engine.dart';
 import '../analyze/analyze_rule.dart';
 import '../model/book_source.dart';
@@ -45,12 +46,20 @@ class BookChapterList {
       listRule = listRule.substring(1);
     }
 
-    if (listRule.isEmpty) return chapters;
+    if (listRule.isEmpty) {
+      AppLog.instance.w('[书源目录] chapterList 规则为空: 源=${bookSource.bookSourceName}');
+      return chapters;
+    }
 
     try {
       var elements = analyzeRule.getElements(listRule);
+      AppLog.instance.d('[书源目录] 源=${bookSource.bookSourceName} '
+          '规则=$listRule → ${elements.length}个元素');
 
-      if (elements.isEmpty) return chapters;
+      if (elements.isEmpty) {
+        AppLog.instance.w('[书源目录] 规则未命中任何元素: $listRule 源=${bookSource.bookSourceName}');
+        return chapters;
+      }
 
       // 排除选择器：在进入逐条解析前，先剔除落在"最新章节预览"/"推荐"等
       // 非正文容器内的元素。比 [chapterScope] URL 前缀过滤更彻底——这些元素
@@ -194,6 +203,20 @@ class BookChapterList {
       final reversed = chapters.reversed.toList();
       chapters.clear();
       chapters.addAll(reversed);
+    }
+
+    // 汇总日志：解析出的章节数与首章信息（目录为空时据此判断是
+    // 「规则未命中」还是「命中但被过滤/URL为空」）。
+    if (chapters.isEmpty) {
+      AppLog.instance.w('[书源目录] 解析出 0 章: 源=${bookSource.bookSourceName} '
+          '规则=$listRule（元素存在但章节为空，多为 chapterUrl 规则未命中）');
+    } else {
+      final first = chapters.first;
+      final firstUrl = first.url.length > 60
+          ? '${first.url.substring(0, 60)}…'
+          : first.url;
+      AppLog.instance.d('[书源目录] 源=${bookSource.bookSourceName} '
+          '共${chapters.length}章 首章=[${first.title}] url=$firstUrl');
     }
 
     for (int i = 0; i < chapters.length; i++) {

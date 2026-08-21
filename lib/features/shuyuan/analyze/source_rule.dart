@@ -21,6 +21,19 @@ class SourceRule {
 
   bool isCss = false;
 
+  /// 原始规则（`##` 分割前）。含 `{{...}}` 内嵌表达式时，`##` 可能出现在
+  /// 表达式内部（如 `{{$.tag##\\|##、}}`），构造期不能提前分割，须等
+  /// 内嵌表达式替换完成后再分割（由规则引擎求值期处理）。
+  String rawRule = '';
+
+  /// 是否含 `{{...}}` / `@get:{...}` 内嵌表达式（求值期需替换）。
+  bool hasInnerRule = false;
+
+  /// 模板模式：首个 `{{...}}` 位于规则开头、或其前置文本不含 `##` 时，
+  /// 内嵌表达式全部替换后的整串即为最终结果（不再走选择器/JSON 解析）。
+  /// 通用书源格式的 URL 模板与字段模板（`{{$.a}}分` 等）即此语义。
+  bool templateMode = false;
+
   SourceRule(String ruleStr, [this.mode = Mode.defaultMode, bool isJson = false]) {
     _init(ruleStr, isJson);
   }
@@ -32,17 +45,21 @@ class SourceRule {
       return;
     }
 
-    if (ruleStr.toLowerCase().startsWith('@css: ')) {
+    // 前缀匹配对齐通用书源格式语义：大小写不敏感、冒号后不要求空格
+    // （社区源普遍写 `@css:.item` 而非 `@css: .item`，此前要求空格导致
+    // 无空格形式整条规则失效 → 列表解析为空）。
+    final lower = ruleStr.toLowerCase();
+    if (lower.startsWith('@css:')) {
       mode = Mode.defaultMode;
       isCss = true;
       rule = ruleStr.substring(5);
-    } else if (ruleStr.toLowerCase().startsWith('@xpath: ')) {
+    } else if (lower.startsWith('@xpath:')) {
       mode = Mode.xpath;
       rule = ruleStr.substring(7);
-    } else if (ruleStr.toLowerCase().startsWith('@json: ')) {
+    } else if (lower.startsWith('@json:')) {
       mode = Mode.json;
       rule = ruleStr.substring(6);
-    } else if (ruleStr.toLowerCase().startsWith('@js: ')) {
+    } else if (lower.startsWith('@js:')) {
       mode = Mode.js;
       rule = ruleStr.substring(4);
     } else if (ruleStr.startsWith('@@')) {
@@ -63,13 +80,30 @@ class SourceRule {
     rule = _splitPutRule(rule);
     elementsRule = rule;
 
-    _splitRegex(rule);
+    // 内嵌表达式检测：`{{...}}`（规则/JS 表达式）与 `@get:{...}`（变量引用）。
+    // 含内嵌表达式时 `##` 分割延迟到替换完成后（表达式内部可含 `##` 正则）。
+    rawRule = rule;
+    final firstInner = _firstInnerRuleIndex(rule);
+    hasInnerRule = firstInner != null;
+    if (hasInnerRule) {
+      // 首个内嵌表达式位于开头、或前置文本不含 ## → 模板模式。
+      final prefix = rule.substring(0, firstInner);
+      templateMode = prefix.trim().isEmpty || !prefix.contains('##');
+    } else {
+      _splitRegex(rule);
+    }
   }
 
-  int getParamSize() {
-    if (rule.isEmpty) return 0;
-    final matches = RegExp(r'\{\{.*?\}\}').allMatches(rule);
-    return matches.length;
+  /// 首个内嵌表达式的起始位置；无则返回 null。
+  static int? _firstInnerRuleIndex(String ruleStr) {
+    int? min;
+    final getMatch = RegExp(r'@get:\{').firstMatch(ruleStr);
+    if (getMatch != null) min = getMatch.start;
+    final jsMatch = RegExp(r'\{\{').firstMatch(ruleStr);
+    if (jsMatch != null && (min == null || jsMatch.start < min)) {
+      min = jsMatch.start;
+    }
+    return min;
   }
 
   bool _looksLikeCss(String rule) {
@@ -105,16 +139,6 @@ class SourceRule {
     if (parts.length > 1) replaceRegex = parts[1];
     if (parts.length > 2) replacement = parts[2];
     if (parts.length > 3) replaceFirst = true;
-  }
-
-  void makeUpRule(dynamic result) {
-    if (rule.contains('##')) {
-      final parts = rule.split('##');
-      rule = parts[0].trim();
-      if (parts.length > 1) replaceRegex = parts[1];
-      if (parts.length > 2) replacement = parts[2];
-      if (parts.length > 3) replaceFirst = true;
-    }
   }
 
   static Map<String, String> _parseJsonMap(String jsonStr) {

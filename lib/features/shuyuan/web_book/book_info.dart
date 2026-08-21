@@ -4,6 +4,7 @@ library;
 import '../model/book_source.dart';
 import '../model/xiaoshuo_book.dart';
 import '../analyze/analyze_rule.dart';
+import '../../../core/utils/app_log.dart';
 
 class BookInfo {
   static void analyzeBookInfo({
@@ -25,8 +26,14 @@ class BookInfo {
         final initContent = analyzeRule.getElement(bookInfoRule.init!);
         if (initContent != null) {
           analyzeRule.setContent(initContent);
+          AppLog.instance
+              .d('[书源详情] init规则命中: ${initContent.toString().length}字符');
+        } else {
+          AppLog.instance.w('[书源详情] init规则未命中: ${bookInfoRule.init}');
         }
-      } catch (_) {}
+      } catch (e) {
+        AppLog.instance.w('[书源详情] init规则异常: ${bookInfoRule.init} → $e');
+      }
     }
 
     final canReNameFlag = canReName && (bookInfoRule.canReName?.isEmpty ?? true);
@@ -139,6 +146,15 @@ class BookInfo {
     if (book.tocUrl == null || book.tocUrl!.isEmpty) {
       book.tocUrl = redirectUrl ?? baseUrl;
     }
+
+    // 汇总日志：书名/作者/简介/封面/目录URL 最终结果（便于真机排查
+    // 「详情页解析不全」——哪一项为空一目了然）。
+    AppLog.instance.d('[书源详情] 源=${bookSource.bookSourceName} '
+        '书名=${book.name.isEmpty ? '(空)' : book.name} '
+        '作者=${book.author.isEmpty ? '(空)' : book.author} '
+        '简介=${(book.intro ?? '').length}字符 '
+        '封面=${(book.coverUrl ?? '').isEmpty ? '(空)' : book.coverUrl} '
+        'toc=${(book.tocUrl ?? '').isEmpty ? '(空)' : book.tocUrl}');
   }
 
   static String _formatBookName(String name) {
