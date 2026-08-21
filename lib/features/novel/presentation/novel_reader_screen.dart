@@ -220,14 +220,20 @@ Future<List<dynamic>> _parseEpubIsolate(String path) async {
 /// 单换行分隔的 TXT 也能正确分章；英文章节名/拼写数字亦命中）。
 /// 返回可序列化章节列表：每个元素为 `[title, blocks]`，blocks 内元素为
 /// `[0, text]`（文本段）或 `[1, imagePath]`（下载器占位的本地插图）。
-Future<List<dynamic>> _parseTxtChaptersIsolate(String path) async {
+///
+/// 参数为 `(path, fallback)` 记录：[path] 是**实际要读取的文件**（SAF 下载内容经
+/// [resolveSafUri] 落盘后的缓存路径）；[fallback] 是源文件的标题（去扩展名）。
+/// 二者分离是关键：下载的单章 TXT 正文通常不含「第X章」标题行，`splitTxtChapters`
+/// 会落到 `fallbackTitle` 兜底；若像旧实现那样用 `basename(path)` 当兜底，标题就会
+/// 显示成缓存文件名（`saf_<hash>`），即「标签变成 saf 的内容」。
+Future<List<dynamic>> _parseTxtChaptersIsolate(
+    (String path, String fallback) args) async {
+  final path = args.$1;
   final bytes = await File(path).readAsBytes();
   var text = decodeTextBytes(bytes);
   if (text.startsWith('\uFEFF')) text = text.substring(1);
   text = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-  final fallback = p.basenameWithoutExtension(path);
-  final chapters =
-      LocalNovelParser.splitTxtChapters(text, fallbackTitle: fallback);
+  final chapters = LocalNovelParser.splitTxtChapters(text, fallbackTitle: args.$2);
   // 段落 → 可序列化字符串：下载器内联插图以 [kNexhubImgMarker] 占位行写入，
   // 原样保留，交由主线程 build 阶段（_loadLocalText 的 singleTxt 分支）识别为
   // 本地插图 [NovelImageBlock]；不再包成 [0,para]/[1,img] 块——消费端
@@ -653,7 +659,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           LocalNovelBook? book = _aggTxtBooks[path];
           if (book == null) {
             final local = await resolveSafUri(path);
-            final raw = await compute(_parseTxtChaptersIsolate, local);
+            // fallback 用源文件标题（而非缓存路径 basename），避免下载的正文无标题
+            // 行时章节标题显示成 `saf_<hash>`（「标签变成 saf 的内容」）。
+            final raw = await compute(
+                _parseTxtChaptersIsolate, (local, _chapterTitleFor(path)));
             book = LocalNovelBook(
               title: _chapterTitleFor(path),
               author: null,
@@ -747,6 +756,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       // 其余本地模式取固定文件。
       String? localPath;
       var isEpub = false;
+      // 聚合模式 TXT 章节：resolveSafUri 会把 localPath 覆盖为缓存路径 `saf_<hash>`,
+      // 这里在覆盖前记住源文件标题，供 1047 分支做 fallback（避免标题成 saf 内容）。
+      String? sourceTitle;
       if (widget.localChapterPaths != null &&
           widget.localChapterPaths!.isNotEmpty) {
         await _ensureAggregatedChapters();
@@ -854,6 +866,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         }
         localPath = ep.id;
         isEpub = ep.id.toLowerCase().endsWith('.epub');
+        sourceTitle = _chapterTitleFor(ep.id);
       } else if (widget.localEpubPath != null) {
         localPath = widget.localEpubPath;
         isEpub = true;
@@ -969,7 +982,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         // 单 TXT（localTextPath）：行级章节切分并缓存（B-01/B-02，段落仅以
         // 单换行分隔的文件也能正确分章），逐章切片加载，与单 EPUB 同构。
         if (!localParsed) {
-          final raw = await compute(_parseTxtChaptersIsolate, localPath);
+          // fallback 用源文件标题（localTextPath），而非 resolveSafUri 后的缓存
+          // 路径 basename——否则无标题行的 TXT 章节会显示 `saf_<hash>`。
+          final raw = await compute(_parseTxtChaptersIsolate,
+              (localPath, _chapterTitleFor(widget.localTextPath!)));
           if (!mounted) return;
           final parsed = <LocalNovelChapter>[
             for (final c in raw)
@@ -1030,7 +1046,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         // （splitTxtChapters：仅命中「第X章/节/回/卷…」等标题才切，无标题则
         // 整文件作为单章，不会误拆单章内容），子章节标题作为 heading、插图标记
         // 转为本地插图——与 epub 聚合分支同构。大 TXT 仍放独立 isolate 解析。
-        final raw = await compute(_parseTxtChaptersIsolate, localPath);
+        // fallback 用源文件标题（sourceTitle 已记录，覆盖前 ep.id 为源文件路径），
+        // 避免章节标题显示 `saf_<hash>`（「标签变成 saf 的内容」）。
+        final raw = await compute(
+            _parseTxtChaptersIsolate, (localPath, sourceTitle ?? 'chapter'));
         if (!mounted || token != _loadToken) return;
         if (raw.isEmpty) {
           if (token != _loadToken) return;
@@ -3896,7 +3915,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (book != null) return book;
     final local = await resolveSafUri(path);
     if (local == null) return null;
-    final raw = await compute(_parseTxtChaptersIsolate, local);
+    final raw = await compute(
+        _parseTxtChaptersIsolate, (local, _chapterTitleFor(path)));
     book = LocalNovelBook(
       title: _chapterTitleFor(path),
       author: null,
