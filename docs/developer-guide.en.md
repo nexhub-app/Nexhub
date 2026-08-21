@@ -115,6 +115,7 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 | --- | --- |
 | `id` | Required, unique id (e.g. `manga_goda`); same-id sources upgrade/skip by `version` |
 | `name` | Required, display name |
+| `author` | Optional, source author name (shown on the source detail page, for attribution) |
 | `version` | Integer version (default 1); same-id sources upgrade/skip by version |
 | `type` | Required, media type: `animeSource` (video / anime) / `mangaSource` (manga) / `novelSource` (novel) |
 | `site` | Required, site info (see 4.5.1) |
@@ -122,7 +123,7 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 | `ageRating` | **Optional, age rating**: `general` / `teen` (16+) / `mature` (18+); aliases like `all` / `16` / `r18` / `nsfw` accepted; **default `general`; `mature` is hidden by default** |
 | `enabled` | Optional, enabled (default true) |
 
-> Note: the source model **does not read** `author` / `lang` / `builtin` — writing them is ignored, don't treat them as functional fields.
+> Note: the source model **does not read** `lang` / `builtin` — writing them is ignored, don't treat them as functional fields; `author` is now a real field shown on the source detail page.
 
 **Minimal example (declarative anime source)**:
 
@@ -513,6 +514,23 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 3. To improve the engine / readers / player / docs, file Issues and Pull Requests.
 
 > Co-creation presumes **compliance and copyright respect**: only parse public content you have the right to access and that permits scraping; don't use sources to infringe others' lawful rights.
+
+---
+
+### 4.5.5 Recommended source-authoring practices
+
+Pulling the earlier modules together, here is a recommended checklist for writing a solid source — follow it to avoid common pitfalls:
+
+1. **Fill the basic fields first** (`id` / `name` / `version` / `type` / `site` / `parser` / `author`) so the app can identify, manage and attribute the source.
+2. **Get one module working before the rest**: usually start with `search` or `latest`, and use browser DevTools (F12) to confirm the real HTML/JSON matches your selectors.
+3. **Prefer declarative**: use jsonpath / css / xpath when possible instead of scripts — easier to maintain and more stable.
+4. **Join relative links to baseUrl**: if cover / detail links are relative, the app joins them with `site.baseUrl`; make sure `baseUrl` is correct.
+5. **Use the `__meta` protocol for async**: any "request another API then parse" returns `{__meta:true,__fetchUrl,__processor}` — the only safe async channel in the sandbox.
+6. **Never hardcode site constants into the app**: keep all rules in the source file, so a site change only needs a source update.
+7. **Add announcement and mirrors**: when the domain is unstable, use `announcement` to inform users and `site.mirrors` as a fallback.
+8. **Self-test the import**: paste the JSON in the app's "Import Source" and confirm no errors before sharing.
+
+> The online tutorial (bilingual, with demos) is at [NexHub official site · Source-authoring tutorial](https://nexhub-app.github.io/website/), section 15.
 
 ---
 
