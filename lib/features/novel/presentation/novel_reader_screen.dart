@@ -18,6 +18,14 @@ import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../../core/comic/models/reader_preferences.dart'
     show ReaderTapZoneLayout, TapZoneInvert;
+import '../../../core/novel/novel_replace_rule.dart'
+    show NovelReplaceRuleSet;
+import '../../../core/novel/novel_highlight_rule.dart'
+    show NovelHighlightRuleSet;
+import '../../../core/novel/novel_rule_cache.dart'
+    show NovelRuleCache;
+import '../../../core/novel/novel_replace_rule_screen.dart'
+    show NovelReplaceRuleScreen;
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/history/history_manager.dart';
 import '../../../core/history/media_watched_manager.dart';
@@ -278,8 +286,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   /// 网络拉取的原始图文块（未做繁简转换）。
   List<NovelBlock> _rawParagraphs = const <NovelBlock>[];
-  /// 实际渲染的图文块（应用繁简转换后）。
+  /// 实际渲染的图文块（应用繁简转换 + 替换规则后）。
   List<NovelBlock> _paragraphs = const <NovelBlock>[];
+
+  /// 当前书籍的替换规则（惰性加载，在 [_loadChapter] 中填充）。
+  NovelReplaceRuleSet? _replaceRuleSet;
+  /// 当前书籍的高亮规则（惰性加载，在 [_loadChapter] 中填充）。
+  NovelHighlightRuleSet? _highlightRuleSet;
 
   /// 仅文本块列表（供 TTS 朗读，跳过插图；索引与排版段落序号一致）。
   List<String> get _paragraphTexts =>
@@ -1574,6 +1587,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         chapterUrl: chapter.url,
       );
       if (!mounted) { _chapterLoading = false; return; }
+      // 加载替换/高亮规则（排版期编译缓存，规则变更不重拉全书）。
+      _replaceRuleSet = await NovelRuleCache().getReplaceRules(widget.novelId);
+      _highlightRuleSet = await NovelRuleCache().getHighlightRules(widget.novelId);
       setState(() {
         _rawParagraphs = paragraphs;
         _paragraphs = _applyConvert(paragraphs);
@@ -1710,10 +1726,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   /// 按当前繁简转换模式转换图文块：仅文本块做转换，插图块原样保留。
   List<NovelBlock> _applyConvert(List<NovelBlock> input) {
+    // 1. 应用替换规则（书籍级替换规则引擎，排版期编译缓存）。
+    List<NovelBlock> replaced = input;
+    final replaceRules = _replaceRuleSet;
+    if (replaceRules != null && replaceRules.enabled && replaceRules.rules.isNotEmpty) {
+      replaced = [
+        for (final b in input)
+          if (b is NovelTextBlock)
+            NovelTextBlock(replaceRules.apply(b.text, scopeFilter: 'content'))
+          else
+            b,
+      ];
+    }
+    // 2. 应用繁简转换。
     final mode = ChineseConvertMode.fromString(_prefs.chineseConvert);
-    if (mode == ChineseConvertMode.none) return input;
+    if (mode == ChineseConvertMode.none) return replaced;
     return [
-      for (final b in input)
+      for (final b in replaced)
         if (b is NovelTextBlock)
           NovelTextBlock(convertChinese(b.text, mode))
         else
@@ -4236,6 +4265,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         searchController: _settingsSearchController,
         onSearchChanged: (_) => setState(() {}),
         onShowTapZonePreview: () => _showTapZonePreview(l10n),
+        novelId: widget.novelId,
+        novelName: widget.title,
       ),
     );
 
@@ -5277,6 +5308,8 @@ class _NovelInlineSettings extends StatelessWidget {
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback? onShowTapZonePreview;
+  final String novelId;
+  final String novelName;
 
   const _NovelInlineSettings({
     required this.prefs,
@@ -5292,6 +5325,8 @@ class _NovelInlineSettings extends StatelessWidget {
     required this.searchController,
     required this.onSearchChanged,
     this.onShowTapZonePreview,
+    required this.novelId,
+    required this.novelName,
   });
 
   @override
@@ -6498,6 +6533,9 @@ class _NovelInlineSettings extends StatelessWidget {
                       leading: Icons.tune,
                       searchTerms: const <String>[
                         '简繁',
+                        '替换',
+                        '净化',
+                        '正则',
                         '缓存',
                         '恢复',
                         '配置',
@@ -6538,6 +6576,26 @@ class _NovelInlineSettings extends StatelessWidget {
                     const SizedBox(height: AppTokens.spaceMd),
                     const Divider(height: 1),
                     const SizedBox(height: AppTokens.spaceMd),
+                    // 替换规则（书籍级正文净化）
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.cleaning_services_outlined),
+                      title: const Text('替换规则'),
+                      subtitle: const Text('正文净化，正则/纯文本替换'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NovelReplaceRuleScreen(
+                              bookId: novelId,
+                              bookName: novelName,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppTokens.spaceSm),
                     // 缓存本书到本地（离线阅读）
                     ListTile(
                       contentPadding: EdgeInsets.zero,
