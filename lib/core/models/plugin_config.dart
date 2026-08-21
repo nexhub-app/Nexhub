@@ -819,6 +819,8 @@ int _coerceVersion(dynamic v) {
 class PluginConfig {
   final String id;
   final String name;
+  /// 源作者名（可选）。用于源详情页展示与溯源 / 致谢，不参与解析逻辑。
+  final String? author;
   final SourceType type;
   final String? responseType; // json | html
   final bool useWebview;
@@ -858,6 +860,7 @@ class PluginConfig {
   const PluginConfig({
     required this.id,
     required this.name,
+    this.author,
     required this.type,
     this.responseType,
     this.useWebview = false,
@@ -951,6 +954,7 @@ class PluginConfig {
     return PluginConfig(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
+      author: json['author'] as String?,
       type: type,
       responseType: json['responseType'] as String?,
       useWebview: json['useWebview'] as bool? ?? false,
@@ -1008,6 +1012,7 @@ class PluginConfig {
         'id': id,
         'version': version,
         'name': name,
+        if (author != null) 'author': author,
         'type': type.apiName,
         if (responseType != null) 'responseType': responseType,
         'useWebview': useWebview,
@@ -1068,6 +1073,7 @@ class PluginConfig {
   PluginConfig copyWith({
     String? id,
     String? name,
+    String? author,
     SiteConfig? site,
     bool? enabled,
     bool? enabledExplore,
@@ -1083,6 +1089,7 @@ class PluginConfig {
       PluginConfig(
         id: id ?? this.id,
         name: name ?? this.name,
+        author: author ?? this.author,
         type: type,
         responseType: responseType,
         useWebview: useWebview,
