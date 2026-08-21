@@ -461,10 +461,12 @@ class BookContent {
     final urls = <String>[];
     for (final im in imgTags) {
       final tag = im.group(0) ?? '';
+      // 对齐 Legado 参考库：优先查特定属性，再兜底任意 data-xxx。
       final src = _attr(tag, 'data-original') ??
           _attr(tag, 'data-src') ??
           _attr(tag, 'data-lazy-src') ??
-          _attr(tag, 'src');
+          _attr(tag, 'src') ??
+          _attrFirstDataXxx(tag);
       if (src == null || src.isEmpty) continue;
       final abs = _toAbsoluteUrl(src, baseUrl, redirectUrl);
       if (_looksLikeImage(abs)) urls.add(abs);
@@ -472,13 +474,42 @@ class BookContent {
     return urls;
   }
 
+  /// 从 <img> 标签中提取第一个 `data-xxx` 属性值（对齐 Legado 参考库
+  /// `formatImagePattern` 第三分支：`<img[^>]*\sdata-[^=>]*=['"]([^'"]*)['"][^>]*>`）。
+  /// 按顺序扫描所有 data-* 属性，返回第一个非空、非占位符的值。
+  static String? _attrFirstDataXxx(String tag) {
+    // 三引号原始字符串避免单/双引号冲突
+    final matches = RegExp(
+      r"""\sdata-([a-zA-Z]\w*)\s*=\s*"([^"]*)"|\sdata-([a-zA-Z]\w*)\s*=\s*'([^']*)'|\sdata-([a-zA-Z]\w*)\s*=\s*([^\s>]+)""",
+      caseSensitive: false,
+    ).allMatches(tag);
+    for (final m in matches) {
+      final val = m.group(2) ?? m.group(4) ?? m.group(6) ?? '';
+      if (val.isNotEmpty && !_looksLikeImage(val)) continue;
+      if (val.isNotEmpty) return val;
+    }
+    return null;
+  }
+
   /// 读取单个 HTML 标签属性值。
+  ///
+  /// 支持三种格式（对齐 Legado 参考库）：
+  /// 1. 双引号：`name="value"`
+  /// 2. 单引号：`name='value'`
+  /// 3. 无引号：`name=value`（值遇空格/`>` 结束）
   static String? _attr(String tag, String name) {
+    // 优先匹配引号形式
     final m = RegExp(
       '$name=["\']([^"\']+)["\']',
       caseSensitive: false,
     ).firstMatch(tag);
-    return m?.group(1);
+    if (m != null) return m.group(1);
+    // 无引号兜底：值到下一个空格或 `>` 为止
+    final m2 = RegExp(
+      '$name=([^\\s>]+)',
+      caseSensitive: false,
+    ).firstMatch(tag);
+    return m2?.group(1);
   }
 
   /// 相对路径转绝对 URL：优先用最终页地址（redirectUrl），回退 baseUrl。
@@ -498,6 +529,10 @@ class BookContent {
   }
 
   /// 过滤明显非插图的占位图（1px 透明图、loading 动画、spacer 等）。
+  ///
+  /// 对齐 Legado 参考库：保留所有非占位符的 URL（包括无扩展名 CDN 图床），
+  /// 仅过滤明显是占位图/loading 图的 URL。此前要求扩展名（.jpg/.png 等），
+  /// 导致无扩展名图床 URL 被误过滤，插图永远无法显示。
   static bool _looksLikeImage(String url) {
     if (url.startsWith('data:image')) return true;
     final lower = url.toLowerCase();
@@ -509,9 +544,9 @@ class BookContent {
         lower.contains('blank')) {
       return false;
     }
-    return RegExp(
-      r'\.(jpe?g|png|gif|webp|avif|bmp|svg)(\?|#|$)',
-    ).hasMatch(lower);
+    // 只要不是明显占位图就可以通过。不再要求 URL 含图片扩展名，
+    // 兼容 CDN 图床的无扩展名 URL（如 https://cdn.example.com/image?id=123）。
+    return true;
   }
 
   /// 对正文插图块逐个应用 [decodeJs] 解码 URL（legado `result` 绑定单图 URL，
