@@ -132,12 +132,14 @@ docs/*
 !docs/developer-guide.md
 !docs/developer-guide.en.md
 !docs/GITHUB_ISSUE_TEMPLATE.md
-!docs/UI_BASELINE.md
-# 以下为本地开发笔记，不入库
+# 以下为本地开发笔记，不入库（保留在磁盘，不跟踪）
 docs/ARCHITECTURE_BASELINE.md
+docs/FLUTTER_UPGRADE_PLAN.md
+docs/TODO_COMPLETION_AUDIT.md
 docs/TODO_comic_reader.md
 docs/TODO_novel_reader.md
 docs/UI_优化方案_2026-08-05.md
+docs/UI_BASELINE.md
 
 # 内部源扫描脚本
 tools/scan_golden_sources.py
