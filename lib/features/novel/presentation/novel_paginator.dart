@@ -190,8 +190,14 @@ class NovelPaginator {
           ? NovelReaderPreferences.customLoadedFontFamily
           : prefs.fontFamily,
     );
+    // Text 组件会把自身样式与环境 DefaultTextStyle 合并（显式字段覆盖、
+    // 缺省字段继承——如主题 bodyMedium 的 height 会渗入页眉页脚行高，
+    // 使其实际高度可能大于 fontSize）。探针必须按同样的合并语义测高，
+    // 否则分页高估可用高度 ~O(10px)，满页底部行被裁（「字符显示不全」）。
+    final chromeStyle =
+        DefaultTextStyle.of(context).style.merge(headerFooterStyle);
     final chromeTp = TextPainter(
-      text: TextSpan(text: 'M', style: headerFooterStyle),
+      text: TextSpan(text: 'M', style: chromeStyle),
       textDirection: Directionality.of(context),
       textScaler: MediaQuery.textScalerOf(context),
     )..layout(maxWidth: width);
@@ -368,6 +374,7 @@ class NovelPaginator {
 
           // 把本段已装入 current 的行退出来（连同 used 高度一起扣回）
           final deferred = <NovelPageItem>[];
+          var deferredH = 0.0;
           while (current.length > paraStartInCurrent) {
             final removed = current.removeLast();
             deferred.insert(0, removed); // 保持顺序
@@ -376,6 +383,7 @@ class NovelPaginator {
                     (removed.line.isLastLine ? prefs.paragraphSpacing : 0)
                 : 0;
             used -= removedLineH;
+            deferredH += removedLineH;
           }
 
           // 当前页到此结束（不含被回退的本段行）
@@ -383,7 +391,11 @@ class NovelPaginator {
             pages.add(current);
           }
           current = deferred;
-          used = 0; // 新页重新开始计数
+          // 回退行已在 current 中占据高度：新页必须从 deferredH 继续累计，
+          // 而非从 0 开始。此前置 0 会把回退行的高度从记账中丢掉，新页
+          // 继续按“空页”装行 → 整页超装一个段首块的高度，页底行被
+          // SingleChildScrollView 裁切（「正文内容超出显示区域/字符显示不全」）。
+          used = deferredH;
           // 不 continue! 下面会把 line(=deferred 的首行)正常加入 current
         } else {
           // 无寡行风险 → 正常翻页
