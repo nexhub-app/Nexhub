@@ -212,7 +212,11 @@ Future<void> openLocalEntry(BuildContext context, LocalContentEntry e) async {
 /// - 视频：扫描 .mp4/.ts/… 构建完整集列表进播放器（可上下集切换）。
 /// - 小说：扫描 .txt/.epub 按章聚合进阅读器（可切章；epub 内部章节自动展开）。
 /// - 漫画：扫描归档按话聚合；folder 模式取子目录为话；散图整目录交给阅读器收集。
-/// [initialIndex] 为点选的章节/集/话下标（0 起），打开后定位到该项。
+/// [initialIndex] 非 null 表示用户从文件列表【点选】了某一话/集（0 起），打开后
+/// 定位到该项——此时阅读器不恢复存档章（restoreProgress=false），否则点选会被
+/// 上次存档拉回另一话（「点回之前读的话却进不去/进度丢失」的根因）；点选的
+/// 恰是存档在读话时仍会恢复页码（阅读器 _init 的 restoreProgress=false 分支）。
+/// null（默认，打开作品入口）= 继续阅读语义：恢复到上次读到的章 + 页。
 Future<void> openDownloadedWorkFolder(
   BuildContext context, {
   required String id,
@@ -220,9 +224,11 @@ Future<void> openDownloadedWorkFolder(
   required String sourceId,
   required String workDir,
   required LocalMediaKind kind,
-  int initialIndex = 0,
+  int? initialIndex,
 }) async {
   final bool remember = GeneralSettingsStore.instance.settings.rememberPosition;
+  // 点选入口（initialIndex 非 null）：不恢复存档章，尊重点选；继续阅读入口恢复。
+  final bool restore = remember && initialIndex == null;
 
   // 视频：本地内容机制不处理视频，单独走播放器（完整集列表，连播/上下集切换）。
   if (kind == LocalMediaKind.video) {
@@ -260,7 +266,7 @@ Future<void> openDownloadedWorkFolder(
           number: i + 1,
         ),
     ];
-    final int start = initialIndex.clamp(0, eps.length - 1);
+    final int start = (initialIndex ?? 0).clamp(0, eps.length - 1);
     Navigator.of(context).push(
       AppPageRoute<void>(
         builder: (_) => VideoPlayerScreen(
@@ -271,6 +277,8 @@ Future<void> openDownloadedWorkFolder(
           episodes: eps,
           initialEpisodeIndex: start,
           localUri: eps[start].url,
+          // 视频的 restoreProgress 只控制「本集播放位置」seek，不影响集选择：
+          // 点选入口同样恢复该集进度。
           restoreProgress: remember,
         ),
       ),
@@ -290,7 +298,7 @@ Future<void> openDownloadedWorkFolder(
   // 聚合模式（每文件一章/一话）：直接构造阅读器，支持从点选章节进入。
   if (filePaths.isNotEmpty) {
     final List<Episode> chapters = buildLocalChapterList(filePaths);
-    final int start = initialIndex.clamp(0, chapters.length - 1);
+    final int start = (initialIndex ?? 0).clamp(0, chapters.length - 1);
     if (kind == LocalMediaKind.text) {
       Navigator.of(context).push(
         AppPageRoute<void>(
@@ -301,7 +309,7 @@ Future<void> openDownloadedWorkFolder(
             chapters: chapters,
             localChapterPaths: filePaths,
             initialChapterIndex: start,
-            restoreProgress: remember,
+            restoreProgress: restore,
           ),
         ),
       );
@@ -329,7 +337,7 @@ Future<void> openDownloadedWorkFolder(
             localChapterDirs: isDirs ? filePaths : null,
             localArchivePaths: isDirs ? null : filePaths,
             initialChapterIndex: start,
-            restoreProgress: remember,
+            restoreProgress: restore,
           ),
         ),
       );

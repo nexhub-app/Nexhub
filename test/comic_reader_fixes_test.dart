@@ -48,6 +48,14 @@ void main() {
     } on Object {
       // Hive.init 二次调用可能抛错或静默，包一层避免影响。
     }
+    // 预打开章节书签 box：FakeAsync（testWidgets）内真实 IO 永不完成，
+    // 目录按钮的 _bookmarkedIndices 会永久挂起；setUp 在普通 async zone，
+    // 此处打开后 reader 内 isBoxOpen 命中同步路径。
+    try {
+      await Hive.openBox('comic_bookmarks');
+    } on Object {
+      // 已打开/失败忽略。
+    }
   });
 
   Widget wrapReader(
@@ -60,6 +68,8 @@ void main() {
     ],
     int initialChapterIndex = 0,
     List<String>? localChapterDirs,
+    bool restoreProgress = true,
+    String comicId = 'm1',
   }) {
     return Provider<MediaApiService>.value(
       value: service,
@@ -77,12 +87,16 @@ void main() {
               GlobalCupertinoLocalizations.delegate,
             ],
             home: ComicReaderScreen(
-              comicId: 'm1',
+              // key 区分「多次进入」：同位置同类型会复用 State（_init 不重跑），
+              // 真实场景是 pop 后重新 push 的新实例。
+              key: ValueKey('$comicId-$restoreProgress-$initialChapterIndex'),
+              comicId: comicId,
               title: '测试漫画',
               sourceId: 'src1',
               chapters: chapters,
               initialChapterIndex: initialChapterIndex,
               localChapterDirs: localChapterDirs,
+              restoreProgress: restoreProgress,
             ),
           ),
         ),
@@ -706,5 +720,563 @@ void main() {
     }
     expect(find.byType(MangaPageImage), findsAtLeastNWidgets(1),
         reason: '边界提示后仍应能正常翻页（未卡死）');
+  });
+
+  testWidgets('进度回归: 翻页模式切下一话再切回 → 恢复离开页（按钮路径）',
+      (tester) async {
+    final Directory root =
+        Directory.systemTemp.createTempSync('comic_chswitch_a');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } on Object {}
+    });
+    final Directory dir1 =
+        Directory('${root.path}${Platform.pathSeparator}ch1')..createSync(recursive: true);
+    final Directory dir2 =
+        Directory('${root.path}${Platform.pathSeparator}ch2')..createSync(recursive: true);
+    for (final dir in <Directory>[dir1, dir2]) {
+      for (var p = 1; p <= 3; p++) {
+        File('${dir.path}${Platform.pathSeparator}$p.png').writeAsBytesSync(
+            <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      }
+    }
+
+    // 翻页模式（默认设置：singleLTR + seamlessReading=true）。
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1': '{"readingMode":"singleLTR","doubleTapZoom":false}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    await tester.pumpWidget(wrapReader(
+      tester,
+      repo: repo,
+      service: FakeMediaApiServiceFixes(),
+      favorites: favorites,
+      chapters: const <Episode>[
+        Episode(id: 'c1', title: '第1话', url: '/c1'),
+        Episode(id: 'c2', title: '第2话', url: '/c2'),
+      ],
+      initialChapterIndex: 0,
+      localChapterDirs: <String>[dir1.path, dir2.path],
+    ));
+    await tester.pump(const Duration(milliseconds: 200));
+    for (int i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '初始应在第 1 话');
+
+    Future<void> pumpSettle() async {
+      for (int i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    // 第 1 话翻到第 2 页（离开页 = 2）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(renderedUrls(tester).first.endsWith('2.png'), isTrue,
+        reason: '第 1 话应翻到第 2 页');
+
+    // 切下一话（Ctrl+↓ = 下一话按钮同路径）。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await pumpSettle();
+    expect(renderedUrls(tester).any((u) => u.contains(dir2.path)), isTrue,
+        reason: '应切到第 2 话');
+
+    // 再切回第 1 话（Ctrl+↑ = 上一话按钮同路径）→ 应恢复到离开页第 2 页。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await pumpSettle();
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '应切回第 1 话');
+    expect(renderedUrls(tester).first.endsWith('2.png'), isTrue,
+        reason: '切回第 1 话应恢复到离开页第 2 页，而非首页/末页');
+  });
+
+  testWidgets('进度回归: 翻页模式章末翻入下一话再切回 → 恢复离开页',
+      (tester) async {
+    final Directory root =
+        Directory.systemTemp.createTempSync('comic_chswitch_b');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } on Object {}
+    });
+    final Directory dir1 =
+        Directory('${root.path}${Platform.pathSeparator}ch1')..createSync(recursive: true);
+    final Directory dir2 =
+        Directory('${root.path}${Platform.pathSeparator}ch2')..createSync(recursive: true);
+    for (final dir in <Directory>[dir1, dir2]) {
+      for (var p = 1; p <= 3; p++) {
+        File('${dir.path}${Platform.pathSeparator}$p.png').writeAsBytesSync(
+            <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      }
+    }
+
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1': '{"readingMode":"singleLTR","doubleTapZoom":false}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    await tester.pumpWidget(wrapReader(
+      tester,
+      repo: repo,
+      service: FakeMediaApiServiceFixes(),
+      favorites: favorites,
+      chapters: const <Episode>[
+        Episode(id: 'c1', title: '第1话', url: '/c1'),
+        Episode(id: 'c2', title: '第2话', url: '/c2'),
+      ],
+      initialChapterIndex: 0,
+      localChapterDirs: <String>[dir1.path, dir2.path],
+    ));
+    await tester.pump(const Duration(milliseconds: 200));
+    for (int i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '初始应在第 1 话');
+
+    Future<void> pumpSettle() async {
+      for (int i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+    Future<void> next() async {
+      await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    // 第 1 话连翻两页到末页（第 3 页 = 离开页），再翻越过章末进入第 2 话。
+    await next();
+    expect(renderedUrls(tester).first.endsWith('2.png'), isTrue);
+    await next();
+    expect(renderedUrls(tester).first.endsWith('3.png'), isTrue,
+        reason: '第 1 话应到末页');
+    await next(); // 末页再翻：过渡卡或直接进入下一话
+    await pumpSettle();
+    await next(); // （若上一翻只到过渡卡，再翻进入下一话）
+    await pumpSettle();
+    expect(renderedUrls(tester).any((u) => u.contains(dir2.path)), isTrue,
+        reason: '应进入第 2 话');
+    expect(renderedUrls(tester).first.contains(dir2.path), isTrue,
+        reason: '当前视口应为第 2 话内容（非第 1 话残留）');
+
+    // 切回第 1 话 → 应恢复到离开页第 3 页（末页），而非首页。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await pumpSettle();
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '应切回第 1 话');
+    expect(renderedUrls(tester).first.endsWith('3.png'), isTrue,
+        reason: '切回第 1 话应恢复到离开页第 3 页（末页），而非首页');
+  });
+
+  testWidgets('进度回归: 条漫无缝滚动回上一话 → 恢复离开页', (tester) async {
+    final Directory root =
+        Directory.systemTemp.createTempSync('comic_chswitch_c');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } on Object {}
+    });
+    final Directory dir1 =
+        Directory('${root.path}${Platform.pathSeparator}ch1')..createSync(recursive: true);
+    final Directory dir2 =
+        Directory('${root.path}${Platform.pathSeparator}ch2')..createSync(recursive: true);
+    for (final dir in <Directory>[dir1, dir2]) {
+      for (var p = 1; p <= 3; p++) {
+        File('${dir.path}${Platform.pathSeparator}$p.png').writeAsBytesSync(
+            <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      }
+    }
+
+    // 条漫 + 无缝连续阅读（与 BugZ3 同设置）。
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1':
+          '{"readingMode":"webtoon","seamlessReading":true,"showChapterSeparator":true,"doubleTapZoom":false}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    await tester.pumpWidget(wrapReader(
+      tester,
+      repo: repo,
+      service: FakeMediaApiServiceFixes(),
+      favorites: favorites,
+      chapters: const <Episode>[
+        Episode(id: 'c1', title: '第1话', url: '/c1'),
+        Episode(id: 'c2', title: '第2话', url: '/c2'),
+      ],
+      initialChapterIndex: 0,
+      localChapterDirs: <String>[dir1.path, dir2.path],
+    ));
+    await tester.pump(const Duration(milliseconds: 200));
+    for (int i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '初始应在第 1 话');
+
+    Future<void> pumpSettle() async {
+      for (int i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+    String topUrl() =>
+        tester.widgetList<MangaPageImage>(find.byType(MangaPageImage)).first.url;
+
+    // 第 1 话翻到第 2 页（离开页）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await pumpSettle();
+    expect(topUrl().endsWith('2.png'), isTrue, reason: '第 1 话应翻到第 2 页');
+
+    // 切第 2 话，等上一话预载进无缝列表。
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    for (int i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(topUrl().contains(dir2.path), isTrue, reason: '应切到第 2 话');
+
+    // 从第 2 话顶部逐步向回滚（下拖），每步检查：视口滚入上一段应触发无缝重锚
+    // 回第 1 话并恢复到离开页；一旦回到第 1 话即停止拖拽（继续拖会往前翻页）。
+    String? landed;
+    for (int i = 0; i < 6; i++) {
+      await tester.dragFrom(const Offset(400, 600), const Offset(0, 500));
+      await pumpSettle();
+      final u = topUrl();
+      if (u.contains(dir1.path)) {
+        landed = u;
+        break;
+      }
+    }
+    expect(landed, isNotNull, reason: '上滚越过边界应无缝回到第 1 话');
+    expect(landed!.endsWith('2.png'), isTrue,
+        reason: '滚动回上一话应恢复到离开页第 2 页，而非末页/首页');
+  });
+
+  testWidgets('进度回归: 无缝关闭时切下一话再切回 → 恢复离开页', (tester) async {
+    final Directory root =
+        Directory.systemTemp.createTempSync('comic_chswitch_e');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } on Object {}
+    });
+    final Directory dir1 =
+        Directory('${root.path}${Platform.pathSeparator}ch1')..createSync(recursive: true);
+    final Directory dir2 =
+        Directory('${root.path}${Platform.pathSeparator}ch2')..createSync(recursive: true);
+    for (final dir in <Directory>[dir1, dir2]) {
+      for (var p = 1; p <= 3; p++) {
+        File('${dir.path}${Platform.pathSeparator}$p.png').writeAsBytesSync(
+            <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      }
+    }
+
+    // seamlessReading=false：切话全走整章加载路径。
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1':
+          '{"readingMode":"singleLTR","seamlessReading":false,"doubleTapZoom":false}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    await tester.pumpWidget(wrapReader(
+      tester,
+      repo: repo,
+      service: FakeMediaApiServiceFixes(),
+      favorites: favorites,
+      chapters: const <Episode>[
+        Episode(id: 'c1', title: '第1话', url: '/c1'),
+        Episode(id: 'c2', title: '第2话', url: '/c2'),
+      ],
+      initialChapterIndex: 0,
+      localChapterDirs: <String>[dir1.path, dir2.path],
+    ));
+    await tester.pump(const Duration(milliseconds: 200));
+    for (int i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '初始应在第 1 话');
+
+    Future<void> pumpSettle() async {
+      for (int i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    // 第 1 话翻到第 2 页（离开页）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(renderedUrls(tester).first.endsWith('2.png'), isTrue);
+
+    // 章末翻页进入第 2 话（末页再翻两次越过章末）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    await pumpSettle();
+    expect(renderedUrls(tester).any((u) => u.contains(dir2.path)), isTrue,
+        reason: '章末翻页应进入第 2 话');
+
+    // 章首上翻回第 1 话 → 恢复到离开页第 3 页（末页）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageUp);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    await pumpSettle();
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '章首上翻应回到第 1 话');
+    expect(renderedUrls(tester).first.endsWith('3.png'), isTrue,
+        reason: '回到第 1 话应恢复到离开页第 3 页（末页），而非首页');
+  });
+
+  testWidgets('进度回归: 点选入口不被存档章覆盖（点哪话进哪话）', (tester) async {
+    final Directory root =
+        Directory.systemTemp.createTempSync('comic_chswitch_f');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } on Object {}
+    });
+    final Directory dir1 =
+        Directory('${root.path}${Platform.pathSeparator}ch1')..createSync(recursive: true);
+    final Directory dir2 =
+        Directory('${root.path}${Platform.pathSeparator}ch2')..createSync(recursive: true);
+    for (final dir in <Directory>[dir1, dir2]) {
+      for (var p = 1; p <= 3; p++) {
+        File('${dir.path}${Platform.pathSeparator}$p.png').writeAsBytesSync(
+            <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      }
+    }
+
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1': '{"readingMode":"singleLTR","doubleTapZoom":false}',
+      // 存档：上次读到第 2 话第 2 页（索引 1）。
+      'comic_progress_pick_test':
+          '{"chapterId":"c2","currentPage":1,"chapterIndex":1,'
+          '"totalChapters":2,"chapterPages":{"1":1}}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    Future<void> openAndSettle(
+        {required bool restore,
+        required int chapter,
+        String comicId = 'pick_test'}) async {
+      await tester.pumpWidget(wrapReader(
+        tester,
+        repo: repo,
+        service: FakeMediaApiServiceFixes(),
+        favorites: favorites,
+        chapters: const <Episode>[
+          Episode(id: 'c1', title: '第1话', url: '/c1'),
+          Episode(id: 'c2', title: '第2话', url: '/c2'),
+        ],
+        initialChapterIndex: chapter,
+        localChapterDirs: <String>[dir1.path, dir2.path],
+        restoreProgress: restore,
+        comicId: comicId,
+      ));
+      await tester.pump(const Duration(milliseconds: 200));
+      for (int i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+    // 继续阅读入口（restoreProgress=true）：恢复存档的第 2 话第 2 页。
+    await openAndSettle(restore: true, chapter: 0);
+    expect(renderedUrls(tester).any((u) => u.contains(dir2.path)), isTrue,
+        reason: '继续阅读应恢复存档的第 2 话');
+    expect(renderedUrls(tester).first.endsWith('2.png'), isTrue,
+        reason: '继续阅读应恢复存档页码（第 2 页）');
+
+    // 点选入口（restoreProgress=false + initialChapterIndex=0，模拟
+    // openDownloadedWorkFolder 的文件列表点选第 1 话）：不被存档章拉走，
+    // 进入点选的第 1 话。
+    await openAndSettle(restore: false, chapter: 0);
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '点选第 1 话应进入第 1 话，而非被存档拉回第 2 话');
+
+    // 点选的恰是存档在读话（第 2 话）时，仍恢复页码（点选第 2 话 → 第 2 页）。
+    // 用独立 comicId：上一次会话 dispose 时会把旧存档刷成第 1 话（正常语义），
+    // 直接复用会互相污染。
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1': '{"readingMode":"singleLTR","doubleTapZoom":false}',
+      'comic_progress_pick2_test':
+          '{"chapterId":"c2","currentPage":1,"chapterIndex":1,'
+          '"totalChapters":2,"chapterPages":{"1":1}}',
+    });
+    await openAndSettle(restore: false, chapter: 1, comicId: 'pick2_test');
+    expect(renderedUrls(tester).any((u) => u.contains(dir2.path)), isTrue,
+        reason: '点选第 2 话应进入第 2 话');
+    expect(renderedUrls(tester).first.endsWith('2.png'), isTrue,
+        reason: '点选存档在读话应恢复到存档页码（第 2 页），而非首页');
+  });
+
+  testWidgets('进度回归: 章节目录切话再切回 → 恢复离开页', (tester) async {
+    final Directory root =
+        Directory.systemTemp.createTempSync('comic_chswitch_toc');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } on Object {}
+    });
+    final Directory dir1 =
+        Directory('${root.path}${Platform.pathSeparator}ch1')..createSync(recursive: true);
+    final Directory dir2 =
+        Directory('${root.path}${Platform.pathSeparator}ch2')..createSync(recursive: true);
+    for (final dir in <Directory>[dir1, dir2]) {
+      for (var p = 1; p <= 3; p++) {
+        File('${dir.path}${Platform.pathSeparator}$p.png').writeAsBytesSync(
+            <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+      }
+    }
+
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1': '{"readingMode":"singleLTR","doubleTapZoom":false}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    // 下载目录聚合（localChapterDirs）多话本地漫画。
+    await tester.pumpWidget(wrapReader(
+      tester,
+      repo: repo,
+      service: FakeMediaApiServiceFixes(),
+      favorites: favorites,
+      chapters: const <Episode>[
+        Episode(id: 'c1', title: '第1话', url: '/c1'),
+        Episode(id: 'c2', title: '第2话', url: '/c2'),
+      ],
+      initialChapterIndex: 0,
+      localChapterDirs: <String>[dir1.path, dir2.path],
+    ));
+    await tester.pump(const Duration(milliseconds: 200));
+    for (int i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '初始应在第 1 话');
+
+    Future<void> pumpSettle() async {
+      for (int i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    // 第 1 话翻到第 2 页（离开页）。
+    await tester.sendKeyEvent(LogicalKeyboardKey.pageDown);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(renderedUrls(tester).first.endsWith('2.png'), isTrue);
+
+    // 本地多话模式顶栏应有章节目录按钮。
+    expect(find.byIcon(Icons.toc), findsOneWidget,
+        reason: '下载目录聚合模式应显示章节目录按钮');
+
+    // 打开章节目录 → 选第 2 话。
+    await tester.tap(find.byIcon(Icons.toc));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('第2话').last);
+    await tester.pump(const Duration(milliseconds: 100));
+    await pumpSettle();
+    expect(renderedUrls(tester).any((u) => u.contains(dir2.path)), isTrue,
+        reason: '目录选第 2 话应进入第 2 话');
+
+    // 再打开目录 → 切回第 1 话：应恢复到离开页第 2 页，而非第 1 页。
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byIcon(Icons.toc));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('第1话').last);
+    await tester.pump(const Duration(milliseconds: 100));
+    await pumpSettle();
+    expect(renderedUrls(tester).any((u) => u.contains(dir1.path)), isTrue,
+        reason: '目录切回第 1 话应回到第 1 话');
+    expect(renderedUrls(tester).first.endsWith('2.png'), isTrue,
+        reason: '目录切回第 1 话应恢复到离开页第 2 页，而非首页');
   });
 }

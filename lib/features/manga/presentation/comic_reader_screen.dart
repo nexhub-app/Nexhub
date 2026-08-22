@@ -585,7 +585,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     //   从第 1 页开始，用户会认为进度根本没保存（P0 数据丢失的实际观感来源）。
     //   受全局「记住阅读位置」开关约束，关闭时不恢复。
     final saved = await _progress.get(widget.comicId);
-    if (saved != null && saved.chapterIndex < widget.chapters.length) {
+    // 单文件本地模式（无章节表，章恒为 0）同样恢复到已读页；多章模式要求存档章
+    // 在章节表内（列表变短时丢弃旧进度）。此前 `chapterIndex < chapters.length`
+    // 在空章节表下恒为 false，本地漫画重进永远从第 1 页开始。
+    if (saved != null &&
+        (widget.chapters.isEmpty
+            ? _isLocalMode
+            : saved.chapterIndex < widget.chapters.length)) {
       if (widget.restoreProgress) {
         _chapterIndex = saved.chapterIndex;
         _savedPage = saved.currentPage;
@@ -770,7 +776,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 当前章标题（无章节概念时为作品标题）。
   String get _currentChapterTitle {
-    if (_isLocalMode && !_isAggregatedLocal) return widget.title;
+    // 本地单文件（无章节表）无章节概念；归档/下载目录聚合均有章节表。
+    if (_isLocalMode && widget.chapters.isEmpty) return widget.title;
     if (_chapterIndex < widget.chapters.length) {
       final t = widget.chapters[_chapterIndex].title;
       if (t.isNotEmpty) return t;
@@ -977,7 +984,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 长按图片菜单「收藏此章」回调（REQ-C1）：本地单文件无章节概念时入口置空。
   Future<bool> _toggleChapterBookmarkFromMenu() async {
-    if (_isLocalMode && !_isAggregatedLocal) return false;
+    if (_isLocalMode && widget.chapters.isEmpty) return false;
     await _toggleChapterBookmark();
     return _chapterBookmarked;
   }
@@ -2109,7 +2116,16 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   void _saveProgress(int page) {
-    if (widget.chapters.isEmpty) return;
+    // 单文件本地模式（无章节表，章恒为 0）：主进度同样落盘，供重进恢复到已读页；
+    // 章节联动（收藏/历史/已读标记）不适用，跳过。此前直接 return 导致本地漫画
+    // 重进永远从第 1 页开始（进度从未保存）。只写主记录一条：saveChapterPage 与
+    // save 并发写同一 key 时完成顺序不定，旧值可能覆盖新页码。
+    if (widget.chapters.isEmpty) {
+      if (!_isLocalMode) return;
+      _chapterPageCache[0] = page;
+      unawaited(_progress.save(widget.comicId, '', page, 0));
+      return;
+    }
     // 每章页码即时记录（见 [_scheduleProgressSave] 注释）：直接保存路径同样维护。
     _chapterPageCache[_chapterIndex] = page;
     unawaited(_progress.saveChapterPage(widget.comicId, _chapterIndex, page));
@@ -2683,12 +2699,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     _triggerChapterTransition(widget.chapters[index].title);
     _chapterIndex = index;
-    if (_isAggregatedLocal) {
-      _loadLocalImages();
-    } else if (_isLocalMode) {
-      _loadLocalImages(restorePage: 0);
+    // 目录点选之前读过的话（非相邻 / 邻话未预载、seam/paged 重锚不适用）时，
+    // 整章加载同样恢复到「上次离开该话时读到的页」（与「上一章」按钮语义一致）；
+    // 无记录从首页开始。
+    final int? restorePage = _chapterPageCache[index];
+    if (_isLocalMode) {
+      _loadLocalImages(restorePage: restorePage ?? 0);
     } else {
-      _loadChapter(_chapterIndex);
+      _loadChapter(_chapterIndex, restorePage: restorePage ?? 0);
     }
   }
 
@@ -5222,8 +5240,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               tooltip: l10n.readerSettings,
               onPressed: _openSettings,
             ),
-            // 章节列表按钮：本地单文件模式无章节概念，隐藏；聚合本地模式保留。
-            if (!_isLocalMode || _isAggregatedLocal)
+            // 章节列表按钮：本地单文件模式（无章节表）隐藏；多话模式（在线 /
+            // 归档聚合 / 下载目录聚合）都保留目录切话入口。
+            if (!_isLocalMode || widget.chapters.length > 1)
               IconButton(
                 icon: const Icon(Icons.toc),
                 tooltip: l10n.chapterList,
@@ -5235,12 +5254,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     bookmarkedIndices: await _bookmarkedIndices(),
                   );
                   if (index != null && index != _chapterIndex && mounted) {
-                    _chapterIndex = index;
-                    if (_isAggregatedLocal) {
-                      _loadLocalImages();
-                    } else {
-                      _loadChapter(_chapterIndex);
-                    }
+                    // 统一走 _jumpToChapter：回到之前读的话时恢复到离开页
+                    // （_chapterPageCache），且 localChapterDirs 下载聚合模式走
+                    // 本地取图而非在线 fetchImages。此前这里手动
+                    // `_chapterIndex = index; _loadLocalImages()` /
+                    // `_loadChapter()` 不带 restorePage，目录切回已读话永远落
+                    // 首页（进度丢失），下载目录模式还误走在线加载。
+                    _jumpToChapter(index);
                   }
                 },
               ),
