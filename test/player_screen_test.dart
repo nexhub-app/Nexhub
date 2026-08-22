@@ -10,6 +10,9 @@
 // 6. 播放统计 PlayerStats 解析与花屏自动降级纯函数（无需构造 Player）
 library;
 
+import 'dart:io';
+
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/comic/models/reader_preferences.dart';
 import 'package:nexhub/core/favorites/favorites_manager.dart';
@@ -131,6 +134,77 @@ void main() {
       // 此处引用 VideoPlayerScreen 确保类编译期存在，防止误删。
       test('VideoPlayerScreen class is importable', () {
         expect(VideoPlayerScreen, isNotNull);
+      });
+    });
+
+    group('F-15 横滑上滑取消 seek', () {
+      // 整屏 pump 受阻于 media_kit（见文件头注释），无法直接测播放器手势。
+      // 拆成两层验证：
+      // 1) 真实手势管线验证框架行为前提（delta.dy 恒为 0）；
+      // 2) 源码守护：取消判定必须基于指针 Y 差值而非 delta.dy 累加。
+
+      testWidgets(
+        'HorizontalDragGestureRecognizer 回调 delta.dy 恒为 0（框架行为前提）',
+        (WidgetTester tester) async {
+          // 复刻播放器的 GestureDetector 配置：横滑 + 竖滑识别器同场竞技。
+          final List<Offset> deltas = <Offset>[];
+          final List<double> globalYs = <double>[];
+          bool verticalFired = false;
+          await tester.pumpWidget(
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragUpdate: (DragUpdateDetails d) {
+                deltas.add(d.delta);
+                globalYs.add(d.globalPosition.dy);
+              },
+              onVerticalDragUpdate: (_) => verticalFired = true,
+              child: const SizedBox.expand(),
+            ),
+          );
+
+          // 先横移让横滑识别器赢得竞技场（该次移动被 slop 判定消费，不产生
+          // update），再分两步上滑共 60px 产生多次 update。
+          final TestGesture gesture =
+              await tester.startGesture(const Offset(100, 300));
+          await gesture.moveBy(const Offset(40, 0));
+          await gesture.moveBy(const Offset(0, -20));
+          await gesture.moveBy(const Offset(0, -40));
+          await gesture.up();
+          await tester.pump();
+
+          expect(deltas, isNotEmpty, reason: '横滑应被识别并触发 update');
+          expect(verticalFired, isFalse, reason: '横滑已赢竞技场，竖滑不应触发');
+          // 框架按主轴过滤 delta：dy 分量恒为 0（这就是旧实现失效的根源）。
+          expect(
+            deltas.every((Offset o) => o.dy == 0),
+            isTrue,
+            reason: 'HorizontalDrag 的 update delta.dy 应恒为 0',
+          );
+          // 但 globalPosition 是未过滤的原始坐标：上滑后 Y 明显减小，
+          // 因此取消判定可以用 globalPosition.dy 与起点的差值计算。
+          expect(globalYs.length, greaterThanOrEqualTo(2),
+              reason: '两步上滑应各产生一次 update');
+          expect(globalYs.last, lessThan(globalYs.first - 24),
+              reason: '指针全局 Y 应随上滑减小且超过取消阈值');
+        },
+      );
+
+      test('取消判定基于指针 Y 差值而非 delta.dy 累加（源码守护）', () {
+        final String source = File(
+          'lib/features/player/presentation/video_player_screen.dart',
+        ).readAsStringSync();
+        expect(
+          source.contains('_seekDragVerticalDelta += d.delta.dy'),
+          isFalse,
+          reason: 'delta.dy 恒为 0（框架按主轴过滤），累加它会让上滑取消'
+              '永远不触发（无取消图标/无震动/松手仍跳转）',
+        );
+        expect(
+          source.contains(
+              '_seekDragVerticalDelta = d.globalPosition.dy - _seekDragStartY'),
+          isTrue,
+          reason: '取消判定必须基于指针全局 Y 与拖动起点的差值',
+        );
       });
     });
   });

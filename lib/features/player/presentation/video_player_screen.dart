@@ -411,7 +411,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 横滑 seek 预览目标时间，松手后跳转。
   Duration _seekPreview = Duration.zero;
 
-  /// 横滑过程中累计的垂直位移（F-15：上滑取消 seek，超阈值标记取消）。
+  /// 横滑起点指针全局 Y，用于计算拖动中的垂直位移（F-15）。
+  double _seekDragStartY = 0;
+
+  /// 横滑过程中指针相对起点的垂直位移（F-15：上滑取消 seek，超阈值标记取消）。
+  ///
+  /// 注意：不能累加 dragUpdate.delta.dy——HorizontalDragGestureRecognizer
+  /// 传给回调的 delta 被框架按主轴过滤为 Offset(dx, 0)，dy 恒为 0，累加它
+  /// 会让取消判定永远不触发。只能用 globalPosition.dy 与起点的差值。
   double _seekDragVerticalDelta = 0;
 
   /// 本次横滑是否已被上滑取消（松手不跳转）。
@@ -421,8 +428,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   bool _seekDragCancelledFeedback = false;
 
   /// 上滑判定阈值（逻辑像素）：横滑中垂直位移超过该值视为「上滑取消」。
-  /// 24px ≈ 0.6cm 物理位移，比旧值 32 更易触发（实测用户"明显上移"仍可能
-  /// 不足 32px），同时保留对自然抖动的防误触。
+  /// 24px ≈ 0.6cm 物理位移，保留对自然抖动的防误触。
+  /// （此前降阈值无效——旧实现累加的 delta.dy 恒为 0，与阈值大小无关，
+  /// 见 [_seekDragVerticalDelta] 注释。）
   static const double _kSeekCancelThreshold = 24;
 
   /// 上次双击的时刻（F-14 防抖：双击后 600ms 内屏蔽单击，防三分区误触）。
@@ -4330,11 +4338,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             onVerticalDragEnd: (_) {
               _dragAxis = _GestureAxis.none;
             },
-            onHorizontalDragStart: (_) {
+            onHorizontalDragStart: (DragStartDetails d) {
               if (_controller.isLocked) return;
               _dragAxis = _GestureAxis.horizontal;
               _seekPreview = _position;
-              // F-15：每次拖动重置上滑取消状态。
+              // F-15：记录起点 Y 并重置上滑取消状态。
+              _seekDragStartY = d.globalPosition.dy;
               _seekDragVerticalDelta = 0;
               _seekDragCancelled = false;
               _seekDragCancelledFeedback = false;
@@ -4342,8 +4351,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             onHorizontalDragUpdate: (DragUpdateDetails d) {
               if (_controller.isLocked) return;
               if (_dragAxis != _GestureAxis.horizontal) return;
-              // F-15：累计垂直位移，超过阈值 → 取消本次 seek（松手不跳转）。
-              _seekDragVerticalDelta += d.delta.dy;
+              // F-15：计算相对起点的垂直位移，超过阈值 → 取消本次 seek
+              // （松手不跳转）。delta.dy 恒为 0（框架按主轴过滤，见字段
+              // 注释），必须用指针全局 Y 与起点的差值。
+              _seekDragVerticalDelta = d.globalPosition.dy - _seekDragStartY;
               if (!_seekDragCancelled &&
                   _seekDragVerticalDelta.abs() > _kSeekCancelThreshold) {
                 _seekDragCancelled = true;
