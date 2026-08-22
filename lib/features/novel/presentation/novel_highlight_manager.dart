@@ -38,6 +38,9 @@ class NovelHighlight {
   /// 高亮色（ARGB int）。
   final int color;
 
+  /// 划线效果（"bg"/"underline"/"wavy"/"dotted"）。
+  final String effect;
+
   /// 可选笔记 / 摘录。
   final String? note;
 
@@ -54,6 +57,7 @@ class NovelHighlight {
     required this.contextAfter,
     required this.color,
     required this.createdAt,
+    this.effect = 'bg',
     this.note,
   });
 
@@ -66,6 +70,7 @@ class NovelHighlight {
         'contextBefore': contextBefore,
         'contextAfter': contextAfter,
         'color': color,
+        'effect': effect,
         'createdAt': createdAt,
         if (note != null) 'note': note,
       };
@@ -81,6 +86,7 @@ class NovelHighlight {
       contextAfter: json['contextAfter'] as String? ?? '',
       color: (json['color'] as num?)?.toInt() ?? 0xFFFFFF00,
       createdAt: (json['createdAt'] as num?)?.toInt() ?? 0,
+      effect: json['effect'] as String? ?? 'bg',
       note: json['note'] as String?,
     );
   }

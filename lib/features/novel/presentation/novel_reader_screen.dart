@@ -2224,10 +2224,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   label: l10n.selectionParagraph,
                   onPressed: _selParagraph,
                 )),
+                // 高亮和划线按钮放一起
                 Expanded(child: _selToolbarButton(
                   icon: Icons.palette_outlined,
                   label: l10n.selectionHighlight,
-                  onPressed: () => _showColorPicker(),
+                  onPressed: () => _showColorPicker(HighlightEffect.bg),
+                )),
+                Expanded(child: _selToolbarButton(
+                  icon: Icons.format_underline,
+                  label: l10n.selectionUnderline,
+                  onPressed: () => _showColorPicker(HighlightEffect.underline),
                 )),
                 Expanded(child: _selToolbarButton(
                   icon: Icons.edit_note_outlined,
@@ -2239,11 +2245,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   label: l10n.selectionShare,
                   onPressed: () => _selShare(),
                 )),
-                Expanded(child: _selToolbarButton(
-                  icon: Icons.close_outlined,
-                  label: l10n.selectionCancel,
-                  onPressed: _selCancel,
-                )),
               ],
             ),
           ),
@@ -2254,7 +2255,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   /// 显示颜色选择器弹窗，点击色块直接落盘划线（无确认按钮）。
   /// 支持预选色 + 自定义颜色（全部颜色可设置）。
-  Future<void> _showColorPicker() async {
+  /// [effect] 指定划线效果（bg=高亮, underline=下划线等）。
+  Future<void> _showColorPicker([HighlightEffect effect = HighlightEffect.bg]) async {
     final l10n = AppLocalizations.of(context);
     final result = await showDialog<int>(
       context: context,
@@ -2322,7 +2324,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       ),
     );
     if (result != null) {
-      await _selHighlight(result);
+      await _selHighlight(result, effect: effect.name);
     }
   }
 
@@ -2361,14 +2363,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(AppLocalizations.of(context).selectionCopied)),
     );
-  }
-
-  void _selCancel() {
-    _selectionController.clearSelection();
-    setState(() {
-      _showSelectionToolbar = false;
-      _uiVisible = true;
-    });
   }
 
   /// 格式化时间戳为可读字符串（如 "2024-01-15 14:30"）。
@@ -2446,39 +2440,44 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 ],
               ),
             ),
-            TextButton.icon(
-              icon: const Icon(Icons.image_outlined, size: 18),
-              label: Text(l10n.shareChangeCover),
-              onPressed: () async {
-                final result = await FilePicker.platform.pickFiles(
-                  type: FileType.image,
-                  withData: true,
-                );
-                if (result != null && result.files.isNotEmpty) {
-                  final bytes = result.files.first.bytes;
-                  if (bytes != null) {
-                    // 保存临时文件供 Image.memory 使用
-                    final dir = await getTemporaryDirectory();
-                    final tempFile = File(
-                      '${dir.path}/nexhub_share_cover_${DateTime.now().millisecondsSinceEpoch}.png',
+            // 三个按钮一排：更换封面 | 取消 | 分享
+            ButtonBar(
+              alignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                TextButton.icon(
+                  icon: const Icon(Icons.image_outlined, size: 18),
+                  label: Text(l10n.shareChangeCover),
+                  onPressed: () async {
+                    final result = await FilePicker.platform.pickFiles(
+                      type: FileType.image,
+                      withData: true,
                     );
-                    await tempFile.writeAsBytes(bytes);
-                    cover = tempFile.path;
-                    if (ctx.mounted) setDialogState(() {});
-                  }
-                }
-              },
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(l10n.cancel),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                await _captureAndShare(shareKey, l10n);
-              },
-              child: Text(l10n.selectionShare),
+                    if (result != null && result.files.isNotEmpty) {
+                      final bytes = result.files.first.bytes;
+                      if (bytes != null) {
+                        final dir = await getTemporaryDirectory();
+                        final tempFile = File(
+                          '${dir.path}/nexhub_share_cover_${DateTime.now().millisecondsSinceEpoch}.png',
+                        );
+                        await tempFile.writeAsBytes(bytes);
+                        cover = tempFile.path;
+                        if (ctx.mounted) setDialogState(() {});
+                      }
+                    }
+                  },
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(l10n.cancel),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.of(ctx).pop();
+                    await _captureAndShare(shareKey, l10n);
+                  },
+                  child: Text(l10n.selectionShare),
+                ),
+              ],
             ),
           ],
         ),
@@ -2525,7 +2524,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   }
 
   /// 落盘当前活动选区为一条划线，返回新建的划线（不刷新 / 不收工具条）。
-  Future<NovelHighlight?> _persistSelectionAsHighlight(int color) async {
+  Future<NovelHighlight?> _persistSelectionAsHighlight(int color, {String effect = 'bg'}) async {
     final controller = _selectionController;
     final quote = controller.quote;
     if (quote.isEmpty) return null;
@@ -2546,6 +2545,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       contextBefore: ctx.before,
       contextAfter: ctx.after,
       color: color,
+      effect: effect,
       createdAt: DateTime.now().millisecondsSinceEpoch,
     );
     await NovelHighlightManager().add(hl);
@@ -2553,8 +2553,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   }
 
   /// 落盘当前活动选区为一条划线，并刷新渲染。
-  Future<void> _selHighlight(int color) async {
-    final hl = await _persistSelectionAsHighlight(color);
+  Future<void> _selHighlight(int color, {String effect = 'bg'}) async {
+    final hl = await _persistSelectionAsHighlight(color, effect: effect);
     if (hl == null) return;
     // 直接添加已解析划线到控制器，跳过重定位（确保即时显示）。
     final controller = _selectionController;
@@ -2564,6 +2564,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         controller.selectionEnd!,
         color,
         hl.key,
+        effect: HighlightEffect.values.firstWhere(
+          (e) => e.name == effect,
+          orElse: () => HighlightEffect.bg,
+        ),
       );
     }
     _selectionController.clearSelection();
@@ -5575,26 +5579,54 @@ Widget buildSelectionRichText(
   TextOverflow overflow = TextOverflow.clip,
 }) {
   final n = text.length;
+  // 逐字符效果信息：背景色 + 装饰样式
   final List<int?> bg = List<int?>.filled(n, null);
+  final List<HighlightEffect?> effects = List<HighlightEffect?>.filled(n, null);
   // 先铺已存划线（低优先级），再覆盖活动选区（高优先级）。
   for (final s in spans.where((s) => !s.isActive)) {
-    for (var i = s.start; i < s.end && i < n; i++) bg[i] = s.color;
+    for (var i = s.start; i < s.end && i < n; i++) {
+      bg[i] = s.color;
+      effects[i] = s.effect;
+    }
   }
   for (final s in spans.where((s) => s.isActive)) {
-    for (var i = s.start; i < s.end && i < n; i++) bg[i] = s.color;
+    for (var i = s.start; i < s.end && i < n; i++) {
+      bg[i] = s.color;
+      effects[i] = s.effect;
+    }
   }
   final children = <TextSpan>[];
   var i = 0;
   while (i < n) {
     final c = bg[i];
+    final eff = effects[i];
     var j = i + 1;
-    while (j < n && bg[j] == c) {
+    while (j < n && bg[j] == c && effects[j] == eff) {
       j++;
+    }
+    TextStyle? style;
+    if (c != null) {
+      style = base.copyWith(backgroundColor: Color(c));
+      if (eff != null && eff != HighlightEffect.bg) {
+        final decoration = TextDecoration.underline;
+        final decorationStyle = switch (eff) {
+          HighlightEffect.underline => TextDecorationStyle.solid,
+          HighlightEffect.wavy => TextDecorationStyle.wavy,
+          HighlightEffect.dotted => TextDecorationStyle.dotted,
+          _ => TextDecorationStyle.solid,
+        };
+        style = style.copyWith(
+          decoration: decoration,
+          decorationStyle: decorationStyle,
+          decorationColor: Color(c).withValues(alpha: 0.8),
+          decorationThickness: 1.5,
+        );
+      }
     }
     children.add(
       TextSpan(
         text: text.substring(i, j),
-        style: c == null ? null : base.copyWith(backgroundColor: Color(c)),
+        style: style,
       ),
     );
     i = j;

@@ -14,11 +14,26 @@ import 'package:nexhub/core/models/novel_block.dart';
 import 'novel_highlight_manager.dart';
 import 'novel_paginator.dart';
 
+/// 划线效果枚举。
+enum HighlightEffect {
+  bg,
+  underline,
+  wavy,
+  dotted;
+
+  String get l10nKey => switch (this) {
+        HighlightEffect.bg => 'highlightEffectBg',
+        HighlightEffect.underline => 'highlightEffectUnderline',
+        HighlightEffect.wavy => 'highlightEffectWavy',
+        HighlightEffect.dotted => 'highlightEffectDotted',
+      };
+}
+
 /// 单行内需要背景高亮的字符区间 [start, end)（半开）。
 ///
 /// 公开类型：渲染层（[_NovelPageWidget]）需跨库引用。
 class HighlightSpan {
-  const HighlightSpan(this.start, this.end, this.color, this.isActive);
+  const HighlightSpan(this.start, this.end, this.color, this.isActive, {this.effect = HighlightEffect.bg});
 
   final int start;
   final int end;
@@ -26,11 +41,14 @@ class HighlightSpan {
 
   /// 是否为活动选区（渲染优先级最高）。
   final bool isActive;
+
+  /// 划线效果（默认背景高亮）。
+  final HighlightEffect effect;
 }
 
 /// 已解析（已重定位）的划线，用于渲染与跳转。
 class _ResolvedHighlight {
-  const _ResolvedHighlight(this.start, this.end, this.color, this.key);
+  const _ResolvedHighlight(this.start, this.end, this.color, this.key, {this.effect = HighlightEffect.bg});
 
   final int start;
   final int end;
@@ -38,6 +56,9 @@ class _ResolvedHighlight {
 
   /// 对应 [NovelHighlight.key]，便于点击/删除时回查。
   final String key;
+
+  /// 划线效果。
+  final HighlightEffect effect;
 }
 
 /// 选区 / 划线控制器。
@@ -147,7 +168,7 @@ class NovelSelectionController extends ChangeNotifier {
     for (final h in _highlights) {
       final s = (h.start - lineGlobal).clamp(0, blockLen);
       final e = (h.end - lineGlobal).clamp(0, blockLen);
-      if (e > s) result.add(HighlightSpan(s, e, h.color, false));
+      if (e > s) result.add(HighlightSpan(s, e, h.color, false, effect: h.effect));
     }
     return result;
   }
@@ -294,7 +315,7 @@ class NovelSelectionController extends ChangeNotifier {
     for (final h in _highlights) {
       final s = (h.start - lineGlobal).clamp(0, lineLen);
       final e = (h.end - lineGlobal).clamp(0, lineLen);
-      if (e > s) result.add(HighlightSpan(s, e, h.color, false));
+      if (e > s) result.add(HighlightSpan(s, e, h.color, false, effect: h.effect));
     }
     return result;
   }
@@ -321,10 +342,10 @@ class NovelSelectionController extends ChangeNotifier {
   }
 
   /// 直接添加一条已解析的划线（跳过重定位），用于保存后即时显示。
-  void addResolvedHighlight(int start, int end, int color, String key) {
+  void addResolvedHighlight(int start, int end, int color, String key, {HighlightEffect effect = HighlightEffect.bg}) {
     // 移除已存在的同 key 划线（更新场景）
     _highlights.removeWhere((h) => h.key == key);
-    _highlights.add(_ResolvedHighlight(start, end, color, key));
+    _highlights.add(_ResolvedHighlight(start, end, color, key, effect: effect));
     notifyListeners();
   }
 
@@ -343,6 +364,10 @@ class NovelSelectionController extends ChangeNotifier {
           resolved + h.quote.length,
           h.color,
           h.key,
+          effect: HighlightEffect.values.firstWhere(
+            (e) => e.name == h.effect,
+            orElse: () => HighlightEffect.bg,
+          ),
         ));
       }
     }

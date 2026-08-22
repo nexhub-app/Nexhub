@@ -3978,6 +3978,7 @@
   "selectionCopy": "Copy",
   "selectionCopied": "Copied",
   "selectionHighlight": "Highlight",
+  "selectionUnderline": "Underline",
   "customColor": "Custom Color",
   "customColorApply": "Apply Custom Color",
   "selectionNote": "Note",
