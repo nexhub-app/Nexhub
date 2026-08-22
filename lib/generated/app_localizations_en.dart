@@ -39,6 +39,72 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sourceManagementTitle => 'Source Management';
 
   @override
+  String get sourceDiagnosticsTitle => 'Source Diagnostics';
+
+  @override
+  String get diagnoseRun => 'Run Diagnostics';
+
+  @override
+  String get diagnoseRunning => 'Running…';
+
+  @override
+  String get diagnoseKeywordLabel => 'Test keyword';
+
+  @override
+  String get diagnoseKeywordHint =>
+      'Used for the search step, e.g. a book title';
+
+  @override
+  String get diagnoseSource => 'Source';
+
+  @override
+  String get diagnoseSearch => 'Search';
+
+  @override
+  String get diagnoseDetail => 'Detail';
+
+  @override
+  String get diagnoseToc => 'Chapters';
+
+  @override
+  String get diagnoseContent => 'Content';
+
+  @override
+  String get diagnoseStatusOk => 'OK';
+
+  @override
+  String get diagnoseStatusFail => 'Failed';
+
+  @override
+  String get diagnoseStatusSkip => 'Skipped';
+
+  @override
+  String diagnoseLatency(int ms) {
+    return 'Latency: $ms ms';
+  }
+
+  @override
+  String get diagnoseSample => 'Sample';
+
+  @override
+  String get diagnoseRuleInfo => 'Rule logs';
+
+  @override
+  String get diagnoseError => 'Error';
+
+  @override
+  String get diagnoseNoDetail => 'No further detail';
+
+  @override
+  String get diagnoseOverallOk => 'All passed';
+
+  @override
+  String get diagnoseOverallFail => 'Issues found';
+
+  @override
+  String get diagnoseTooltip => 'Diagnose';
+
+  @override
   String get downloadSettingsTitle => 'Download';
 
   @override
@@ -372,7 +438,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get useMonet => 'Use dynamic color (Monet)';
 
   @override
-  String get customColor => 'Custom theme color';
+  String get customColor => 'Custom Color';
 
   @override
   String get presetColor => 'Preset colors';
@@ -6808,4 +6874,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchPaused => 'Paused';
+
+  @override
+  String get selectionCopy => 'Copy';
+
+  @override
+  String get selectionCopied => 'Copied';
+
+  @override
+  String get selectionHighlight => 'Highlight';
+
+  @override
+  String get customColorApply => 'Apply Custom Color';
+
+  @override
+  String get selectionNote => 'Note';
+
+  @override
+  String get selectionShare => 'Share';
+
+  @override
+  String get shareChangeCover => 'Change Cover';
+
+  @override
+  String get selectionCancel => 'Cancel';
+
+  @override
+  String get selectionParagraph => 'Paragraph';
+
+  @override
+  String get highlightList => 'Highlights';
+
+  @override
+  String get highlightEmpty => 'No highlights';
+
+  @override
+  String get highlightDelete => 'Delete highlight';
+
+  @override
+  String get highlightEditNote => 'Edit note';
+
+  @override
+  String get highlightNoteHint => 'Write your thought…';
+
+  @override
+  String get highlightSave => 'Save';
+
+  @override
+  String get highlightJump => 'Go to';
+
+  @override
+  String get highlightColor => 'Color';
 }

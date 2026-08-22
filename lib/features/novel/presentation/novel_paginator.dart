@@ -39,10 +39,9 @@ class NovelLine {
 
   /// 逐字符列（TextColumn）定位：本行每个字符**左边缘**相对行首的 x 坐标。
   ///
-  /// 由 [NovelPaginator._breakParagraph] 用 [TextPainter.getBoxesForSelection]
-/// 复用段落级 [TextPainter] 一次算出（无需额外 layout），与
-/// 逐字符位置记录完全对应。命中测试 [hitTestCharOffset]
-  /// 据此把点击 x 映射到精确字符下标。
+  /// 由 [NovelPaginator._breakParagraph] 用 [TextPainter.getOffsetForCaret]
+  /// 逐字符计算，命中测试 [hitTestCharOffset] 据此把点击 x 映射到精确字符下标。
+  /// 长度一般为字符数；合字/组合字符可能合并为一个 box（不影响中文命中精度）。
   ///
   /// 长度一般为字符数；合字/组合字符可能合并为一个 box（不影响中文命中精度）。
   /// 默认空列表（极少数空行未携带，命中回退到段首）。
@@ -429,11 +428,9 @@ class NovelPaginator {
   ///   [TextPainter.computeLineMetrics] 得到每行的高度，再用
   ///   [TextPainter.getPositionForOffset] 在每行垂直中心、左边缘探测起始字符
   ///   偏移，从而切出整行文本（与渲染断行点完全一致）。
-  /// - **逐字符列(charLefts) 延迟计算**：`charLefts` 仅用于「点哪读哪」精确
-  ///   命中，而该能力当前未启用；若在分页阶段对每一行调用
-  ///   [TextPainter.getBoxesForSelection] 预取，会在大章节（数万行）上造成
-  ///   明显卡顿（项 116）。故分页阶段不再预取，[NovelLine.charLefts] 保持
-  ///   空，待将来按需（点击时）再计算，移除分页热路径上的重量级调用。
+  /// - **逐字符列(charLefts) 计算**：每行逐字符用 [TextPainter.getOffsetForCaret]
+  ///   取左边缘 x 坐标，供长按选区精确命中测试（[hitTestCharOffset]）。
+  ///   开销 O(总字符数)，典型章节数百行可接受；大章节（数万行）亦在合理范围。
   static List<NovelLine> _breakParagraph(
     String para,
     int paraIndex,
@@ -470,12 +467,22 @@ class NovelPaginator {
       final e = i + 1 < metrics.length ? starts[i + 1] : para.length;
       if (s >= e) continue;
 
+      // 计算本行逐字符左边缘 x 坐标（用于长按选区精确命中测试）。
+      // 用 getOffsetForCaret 逐字符取左边缘，开销 O(n) 每行；典型章
+      // 节约数百行，数万行巨章也在可接受范围。
+      final charLefts = <double>[];
+      for (var ci = s; ci < e; ci++) {
+        final caret = tp.getOffsetForCaret(TextPosition(offset: ci), Rect.zero);
+        charLefts.add(caret.dx);
+      }
+
       lines.add(NovelLine(
         text: para.substring(s, e),
         paragraphIndex: paraIndex,
         isFirstLine: i == 0,
         isLastLine: i == metrics.length - 1,
         isHeading: isHeading,
+        charLefts: charLefts,
       ));
     }
     tp.dispose();

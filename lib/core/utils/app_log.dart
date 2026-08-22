@@ -28,6 +28,11 @@ class AppLog {
   final List<String> _entries = <String>[];
   final List<String> _timestamps = <String>[];
 
+  /// 作用域日志捕获缓冲：非 null 时，[ _add ] 会同步写入此缓冲，
+  /// 用于书源诊断面板「单步规则调试」——在某一诊断步骤前后 start/stop，
+  /// 即可拿到该步骤产生的全部规则解析日志，而不污染全局运行日志环形缓冲。
+  static StringBuffer? _scopeCapture;
+
   /// 只读快照（最新在前）。
   List<String> get entries {
     final List<String> out = <String>[];
@@ -55,10 +60,27 @@ class AppLog {
         '${now.second.toString().padLeft(2, '0')}';
     _timestamps.add(ts);
     _entries.add('[$level] $msg');
+    if (_scopeCapture != null) {
+      _scopeCapture!.write('[$level] $msg\n');
+    }
     if (_entries.length > _maxEntries) {
       _entries.removeAt(0);
       _timestamps.removeAt(0);
     }
+  }
+
+  /// 开始作用域日志捕获（用于书源诊断单步规则调试）。
+  void startScopeCapture() {
+    _scopeCapture = StringBuffer();
+  }
+
+  /// 结束作用域捕获并返回捕获到的日志文本（无内容返回 null）。
+  String? stopScopeCapture() {
+    final buf = _scopeCapture;
+    _scopeCapture = null;
+    if (buf == null) return null;
+    final text = buf.toString().trim();
+    return text.isEmpty ? null : text;
   }
 
   /// 调试级（受「详细日志」开关控制）：网络请求/响应明细等。

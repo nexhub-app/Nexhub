@@ -158,6 +158,132 @@ abstract class AppLocalizations {
   /// **'Source Management'**
   String get sourceManagementTitle;
 
+  /// No description provided for @sourceDiagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Source Diagnostics'**
+  String get sourceDiagnosticsTitle;
+
+  /// No description provided for @diagnoseRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run Diagnostics'**
+  String get diagnoseRun;
+
+  /// No description provided for @diagnoseRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running…'**
+  String get diagnoseRunning;
+
+  /// No description provided for @diagnoseKeywordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Test keyword'**
+  String get diagnoseKeywordLabel;
+
+  /// No description provided for @diagnoseKeywordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Used for the search step, e.g. a book title'**
+  String get diagnoseKeywordHint;
+
+  /// No description provided for @diagnoseSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Source'**
+  String get diagnoseSource;
+
+  /// No description provided for @diagnoseSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get diagnoseSearch;
+
+  /// No description provided for @diagnoseDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail'**
+  String get diagnoseDetail;
+
+  /// No description provided for @diagnoseToc.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapters'**
+  String get diagnoseToc;
+
+  /// No description provided for @diagnoseContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Content'**
+  String get diagnoseContent;
+
+  /// No description provided for @diagnoseStatusOk.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get diagnoseStatusOk;
+
+  /// No description provided for @diagnoseStatusFail.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get diagnoseStatusFail;
+
+  /// No description provided for @diagnoseStatusSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get diagnoseStatusSkip;
+
+  /// Diagnostics step latency in milliseconds
+  ///
+  /// In en, this message translates to:
+  /// **'Latency: {ms} ms'**
+  String diagnoseLatency(int ms);
+
+  /// No description provided for @diagnoseSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample'**
+  String get diagnoseSample;
+
+  /// No description provided for @diagnoseRuleInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule logs'**
+  String get diagnoseRuleInfo;
+
+  /// No description provided for @diagnoseError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get diagnoseError;
+
+  /// No description provided for @diagnoseNoDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'No further detail'**
+  String get diagnoseNoDetail;
+
+  /// No description provided for @diagnoseOverallOk.
+  ///
+  /// In en, this message translates to:
+  /// **'All passed'**
+  String get diagnoseOverallOk;
+
+  /// No description provided for @diagnoseOverallFail.
+  ///
+  /// In en, this message translates to:
+  /// **'Issues found'**
+  String get diagnoseOverallFail;
+
+  /// No description provided for @diagnoseTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnose'**
+  String get diagnoseTooltip;
+
   /// No description provided for @downloadSettingsTitle.
   ///
   /// In en, this message translates to:
@@ -803,7 +929,7 @@ abstract class AppLocalizations {
   /// No description provided for @customColor.
   ///
   /// In en, this message translates to:
-  /// **'Custom theme color'**
+  /// **'Custom Color'**
   String get customColor;
 
   /// No description provided for @presetColor.
@@ -12841,6 +12967,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paused'**
   String get searchPaused;
+
+  /// No description provided for @selectionCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get selectionCopy;
+
+  /// No description provided for @selectionCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get selectionCopied;
+
+  /// No description provided for @selectionHighlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight'**
+  String get selectionHighlight;
+
+  /// No description provided for @customColorApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply Custom Color'**
+  String get customColorApply;
+
+  /// No description provided for @selectionNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get selectionNote;
+
+  /// No description provided for @selectionShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get selectionShare;
+
+  /// No description provided for @shareChangeCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Cover'**
+  String get shareChangeCover;
+
+  /// No description provided for @selectionCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get selectionCancel;
+
+  /// No description provided for @selectionParagraph.
+  ///
+  /// In en, this message translates to:
+  /// **'Paragraph'**
+  String get selectionParagraph;
+
+  /// No description provided for @highlightList.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlights'**
+  String get highlightList;
+
+  /// No description provided for @highlightEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No highlights'**
+  String get highlightEmpty;
+
+  /// No description provided for @highlightDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete highlight'**
+  String get highlightDelete;
+
+  /// No description provided for @highlightEditNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit note'**
+  String get highlightEditNote;
+
+  /// No description provided for @highlightNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write your thought…'**
+  String get highlightNoteHint;
+
+  /// No description provided for @highlightSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get highlightSave;
+
+  /// No description provided for @highlightJump.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to'**
+  String get highlightJump;
+
+  /// No description provided for @highlightColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get highlightColor;
 }
 
 class _AppLocalizationsDelegate

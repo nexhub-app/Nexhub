@@ -70,6 +70,10 @@ class NovelAnimatedPageView extends StatefulWidget {
   /// 此参数不参与。
   final bool scrollWheelInverted;
 
+  /// 选区激活时返回 true（长按拖拽选区中或已有活动选区）。
+  /// 为真时屏蔽横向翻页拖拽，避免选区拖动手势被翻页抢走。
+  final bool Function()? selectionActive;
+
   const NovelAnimatedPageView({
     super.key,
     required this.animation,
@@ -87,6 +91,7 @@ class NovelAnimatedPageView extends StatefulWidget {
     this.onVerticalDragUpdate,
     this.onVerticalDragEnd,
     this.scrollWheelInverted = false,
+    this.selectionActive,
   });
 
   @override
@@ -273,6 +278,11 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
 
   void _onHorizontalDragStart(DragStartDetails d) {
     if (_isScroll || _isNone || _animating) return;
+    // 选区激活时让出指针，避免选区拖动手势被翻页抢走。
+    if (widget.selectionActive?.call() == true) {
+      _dragging = false;
+      return;
+    }
     _dragging = true;
     _dragForward = null;
     _dragDelta = 0;

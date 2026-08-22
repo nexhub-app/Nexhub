@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -15,6 +17,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:screen_brightness/screen_brightness.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/comic/models/reader_preferences.dart'
     show ReaderTapZoneLayout, TapZoneInvert;
@@ -66,6 +70,8 @@ import 'novel_bookmark_manager.dart';
 import 'novel_in_book_search_sheet.dart';
 import 'novel_note_manager.dart';
 import 'novel_paginator.dart';
+import 'novel_selection_controller.dart';
+import 'novel_highlight_manager.dart';
 import 'novel_tts_controller.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import 'package:dio/dio.dart';
@@ -267,6 +273,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   FavoritesManager? _favorites;
   final NovelBookmarkManager _bookmarks = NovelBookmarkManager();
   final ScreenBrightness _brightnessPlugin = ScreenBrightness();
+
+  /// P1-5 / N6 选区控制器：维护活动选区与已存划线的章节全局偏移锚点，
+  /// 并负责渲染层（[_NovelPageWidget]）的实时刷新。
+  final NovelSelectionController _selectionController =
+      NovelSelectionController();
+  /// 选区工具条是否可见（长按选区结束后显示）。
+  bool _showSelectionToolbar = false;
+  /// 长按选词刚完成标记：防止抬起手指时 _onTapUp 立即清除选区。
+  bool _selectionJustMade = false;
+  /// 划线色板（ARGB，含 50% 透明度，与活动选区同调）。
+  static const List<int> _highlightPalette = <int>[
+    0x80FFFF00,
+    0x8000FF00,
+    0x8080C0FF,
+    0x80FF80AB,
+  ];
   final GlobalKey<NovelAnimatedPageViewState> _pageKey =
       GlobalKey<NovelAnimatedPageViewState>();
 
@@ -1215,9 +1237,35 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (mounted) setState(() {});
   }
 
-  /// 显示笔记列表（三点菜单入口）。
+  /// 显示笔记列表（三点菜单），包含独立笔记与划线摘录笔记。
   Future<void> _showNoteList() async {
     final notes = await _notes.notesForNovel(widget.novelId);
+    final highlights = await NovelHighlightManager().listFor(widget.novelId);
+    final highlightNotes =
+        highlights.where((h) => h.note != null && h.note!.isNotEmpty).toList();
+    final merged = <_MergedNoteEntry>[
+      for (final n in notes)
+        _MergedNoteEntry(
+          chapterIndex: n.chapterIndex,
+          chapterTitle: n.chapterTitle,
+          quote: n.selectedText,
+          note: n.note,
+          createdAt: n.createdAt,
+          isHighlightNote: false,
+          deleteKey: n.id,
+        ),
+      for (final h in highlightNotes)
+        _MergedNoteEntry(
+          chapterIndex: h.chapterIndex,
+          chapterTitle: h.chapterTitle,
+          quote: h.quote,
+          note: h.note!,
+          createdAt: h.createdAt,
+          isHighlightNote: true,
+          deleteKey: h.key,
+        ),
+    ];
+    merged.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     if (!mounted) return;
     showModalBottomSheet<void>(
       context: context,
@@ -1228,46 +1276,287 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           child: ConstrainedBox(
             constraints:
                 BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
-            child: notes.isEmpty
+            child: merged.isEmpty
                 ? Center(child: Text(l10n.noNotes))
                 : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: notes.length,
-                  itemBuilder: (_, i) {
-                    final n = notes[i];
-                    return ListTile(
-                      title: Text(
-                        '${l10n.chapterN(n.chapterIndex + 1)} · ${n.chapterTitle}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        n.selectedText,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () {
-                          _notes.removeNote(n.id);
+                    shrinkWrap: true,
+                    itemCount: merged.length,
+                    itemBuilder: (_, i) {
+                      final entry = merged[i];
+                      return ListTile(
+                        leading: Icon(
+                          entry.isHighlightNote
+                              ? Icons.highlight_alt
+                              : Icons.notes,
+                          size: 20,
+                          color: entry.isHighlightNote
+                              ? Theme.of(ctx).colorScheme.primary
+                              : null,
+                        ),
+                        title: Text(
+                          '${l10n.chapterN(entry.chapterIndex + 1)} · ${entry.chapterTitle}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Row(
+                              children: <Widget>[
+                                if (entry.quote.isNotEmpty)
+                                  Expanded(
+                                    child: Text(
+                                      entry.quote,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Theme.of(ctx)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                  ),
+                                Text(
+                                  _formatTimestamp(entry.createdAt),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(ctx)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.4),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              entry.note,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () {
+                            if (entry.isHighlightNote) {
+                              NovelHighlightManager().remove(entry.deleteKey);
+                            } else {
+                              _notes.removeNote(entry.deleteKey);
+                            }
+                            Navigator.of(ctx).pop();
+                            _showNoteList();
+                          },
+                        ),
+                        onTap: () {
+                          if (entry.chapterIndex != _chapterIndex) {
+                            _chapterIndex = entry.chapterIndex;
+                            _loadChapter(_chapterIndex);
+                          }
                           Navigator.of(ctx).pop();
-                          _showNoteList();
                         },
-                      ),
-                      onTap: () {
-                        if (n.chapterIndex != _chapterIndex) {
-                          _chapterIndex = n.chapterIndex;
-                          _loadChapter(_chapterIndex);
-                        }
-                        Navigator.of(ctx).pop();
-                      },
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
           ),
         );
       },
     );
+  }
+
+  /// 显示划线列表（三点菜单 / 摘录入口），支持查看、编辑笔记、删除、跳转
+  /// （Phase 2 / N6，参照 [_showNoteList] 模式）。
+  Future<void> _showHighlightList() async {
+    final highlights = await NovelHighlightManager().listFor(widget.novelId);
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+            ),
+            child: highlights.isEmpty
+                ? Center(child: Text(l10n.highlightEmpty))
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: highlights.length,
+                    itemBuilder: (_, i) {
+                      final h = highlights[i];
+                      final swatch = Color(h.color);
+                      return ListTile(
+                        leading: Container(
+                          width: 4,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: swatch,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        title: Text(
+                          '${l10n.chapterN(h.chapterIndex + 1)} · ${h.chapterTitle}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              h.quote,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (h.note != null && h.note!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  h.note!,
+                                  maxLines: 5,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                    color: Theme.of(ctx)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            IconButton(
+                              icon: const Icon(Icons.edit_note_outlined),
+                              onPressed: () {
+                                Navigator.of(ctx).pop();
+                                _editHighlightNote(h);
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () async {
+                                await NovelHighlightManager().remove(h.key);
+                                if (!mounted) return;
+                                Navigator.of(ctx).pop();
+                                _showHighlightList();
+                              },
+                            ),
+                          ],
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          if (h.chapterIndex != _chapterIndex) {
+                            _chapterIndex = h.chapterIndex;
+                            _loadChapter(_chapterIndex);
+                          }
+                          // 使用搜索关键词跳转到选中文本位置
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              _searchKeyword = h.quote;
+                              _searchRegex = null;
+                              _startSearchHighlightTimer();
+                              // 在分页模式下尝试跳转到包含引文的页面
+                              if (!_prefs.pageAnimation.isScroll && _pagination != null) {
+                                _jumpToQuote(h.quote);
+                              }
+                            }
+                          });
+                        },
+                      );
+                    },
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 编辑单条划线的笔记（Phase 2 / N6 摘录）。
+  Future<void> _editHighlightNote(NovelHighlight hl) async {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final controller = TextEditingController(text: hl.note ?? '');
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.highlightEditNote),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                hl.quote,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontStyle: FontStyle.italic),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: l10n.highlightNoteHint,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: Text(l10n.highlightSave),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return;
+    await NovelHighlightManager().update(key: hl.key, note: result);
+    await _reloadHighlightsForChapter();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.highlightSave)),
+      );
+    }
+  }
+
+  /// 滚动模式正文是否处于 TTS 朗读态（TTS 态不拦截长按选区）。
+  bool _ttsActiveForBody() => _tts.state != NovelTtsState.stopped;
+
+  /// 滚动模式长按起始：选中整块（章节全局偏移范围）。
+  ///
+  /// 块为整段多行文本，精确折行 x 命中留待后续；先满足「滚动模式可划线」。
+  void _onSelLongPressStartScroll(int blockIndex, String text) {
+    final start = _selectionController.globalOffsetForBlock(
+      _paragraphs,
+      blockIndex,
+      0,
+    );
+    final end = start + text.length;
+    _selectionController.setSelecting(true);
+    _selectionController.setSelectionAnchor(start);
+    _selectionController.setSelection(start, end);
+  }
+
+  /// 滚动模式长按结束：解除选区激活；有选区则显示工具条。
+  void _onSelLongPressEndScroll() {
+    _selectionController.setSelecting(false);
+    _selectionController.setSelectionAnchor(null);
+    if (_selectionController.hasSelection && mounted) {
+      _selectionJustMade = true;
+      setState(() => _showSelectionToolbar = true);
+    }
   }
 
   @override
@@ -1863,11 +2152,439 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 直接丢弃非法值，避免 _currentPage 被污染为 -1/-2/-3。
     if (idx < 0) return;
     if (idx == _currentPage) return;
+    // 翻页时收起选区工具条并清空活动选区。
+    if (_showSelectionToolbar) {
+      _selectionController.clearSelection();
+      _showSelectionToolbar = false;
+    }
+    _selectionJustMade = false;
     _currentPage = idx;
     _saveProgress(idx);
     // 翻页后刷新底部进度条 / 页码（底部栏位于 ListenableBuilder(_tts) 内，
     // 翻页不经由 _tts 通知，必须主动 setState 才能实时更新进度。
     if (mounted) setState(() {});
+  }
+
+  /// 把当前分页结果注入选区控制器，并异步加载本章已存划线（重新解析定位）。
+  ///
+  /// 仅在分页真正变化时（`sigChanged`）于帧后调用，避免在 build 期间
+  /// 触发控制器通知（会触发 "setState during build"）。
+  void _bindSelection() {
+    if (_prefs.pageAnimation.isScroll) {
+      // 滚动模式：直接用章节 blocks 注入（与分页同源，文本流一致）。
+      _selectionController.setBlocks(_paragraphs);
+    } else {
+      final p = _pagination;
+      if (p == null) return;
+      _selectionController.setPagination(p);
+    }
+    _reloadHighlightsForChapter();
+  }
+
+  Future<void> _reloadHighlightsForChapter() async {
+    final chs = _effectiveChapters;
+    if (_chapterIndex < 0 || _chapterIndex >= chs.length) {
+      _selectionController.setPersistedHighlights(const <NovelHighlight>[]);
+      return;
+    }
+    final list = await NovelHighlightManager()
+        .listForChapter(widget.novelId, _chapterIndex);
+    if (!mounted) return;
+    _selectionController.setPersistedHighlights(list);
+  }
+
+  /// 选区工具条：复制 / 整段 / 划线色板 / 取消（P1-5 / N6）。
+  Widget _buildSelectionToolbar() {
+    final l10n = AppLocalizations.of(context);
+    final cs = Theme.of(context).colorScheme;
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: SafeArea(
+        top: false,
+        bottom: true,
+        child: Material(
+          elevation: 8,
+          color: cs.surface,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTokens.spaceXs,
+              vertical: AppTokens.spaceXs,
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(child: _selToolbarButton(
+                  icon: Icons.copy_outlined,
+                  label: l10n.selectionCopy,
+                  onPressed: _selCopy,
+                )),
+                Expanded(child: _selToolbarButton(
+                  icon: Icons.subject_outlined,
+                  label: l10n.selectionParagraph,
+                  onPressed: _selParagraph,
+                )),
+                Expanded(child: _selToolbarButton(
+                  icon: Icons.palette_outlined,
+                  label: l10n.selectionHighlight,
+                  onPressed: () => _showColorPicker(),
+                )),
+                Expanded(child: _selToolbarButton(
+                  icon: Icons.edit_note_outlined,
+                  label: l10n.selectionNote,
+                  onPressed: () => _selHighlightWithNote(),
+                )),
+                Expanded(child: _selToolbarButton(
+                  icon: Icons.share_outlined,
+                  label: l10n.selectionShare,
+                  onPressed: () => _selShare(),
+                )),
+                Expanded(child: _selToolbarButton(
+                  icon: Icons.close_outlined,
+                  label: l10n.selectionCancel,
+                  onPressed: _selCancel,
+                )),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 显示颜色选择器弹窗，点击色块直接落盘划线（无确认按钮）。
+  /// 支持预选色 + 自定义颜色（全部颜色可设置）。
+  Future<void> _showColorPicker() async {
+    final l10n = AppLocalizations.of(context);
+    final result = await showDialog<int>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          Color customColor = const Color(0x80FFFF00);
+          return AlertDialog(
+            title: Text(l10n.selectionHighlight),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // 预选色板
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: _highlightPalette.map((c) {
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.of(ctx).pop(c);
+                      },
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Color(c),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 16),
+                // 自定义颜色
+                Text(l10n.customColor, style: const TextStyle(fontSize: 13)),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 200,
+                  child: _ColorPickerSlider(
+                    initialColor: customColor,
+                    onChanged: (c) {
+                      customColor = c;
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(customColor.value),
+                  child: Text(l10n.customColorApply),
+                ),
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(l10n.cancel),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (result != null) {
+      await _selHighlight(result);
+    }
+  }
+
+  Widget _selToolbarButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: cs.onSurface,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 18),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  void _selCopy() {
+    final quote = _selectionController.quote;
+    if (quote.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: quote));
+    _selectionController.clearSelection();
+    setState(() {
+      _showSelectionToolbar = false;
+      _uiVisible = true; // 恢复控制面板
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context).selectionCopied)),
+    );
+  }
+
+  void _selCancel() {
+    _selectionController.clearSelection();
+    setState(() {
+      _showSelectionToolbar = false;
+      _uiVisible = true;
+    });
+  }
+
+  /// 格式化时间戳为可读字符串（如 "2024-01-15 14:30"）。
+  String _formatTimestamp(int ms) {
+    if (ms <= 0) return '';
+    final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+    return '${dt.year}-${_pad(dt.month)}-${_pad(dt.day)} ${_pad(dt.hour)}:${_pad(dt.minute)}';
+  }
+
+  String _pad(int n) => n.toString().padLeft(2, '0');
+
+  /// 分享选区为带书封的渐变文艺卡（Phase 3 / N6）。
+  ///
+  /// 先预热书封（失败则用渐变占位），再弹预览 Dialog（含 RepaintBoundary），
+  /// 用户点「分享」时把卡片栅格化为 PNG 临时文件经 [Share.shareXFiles] 分享。
+  /// 支持自定义封面图片（从相册选择）。
+  Future<void> _selShare() async {
+    final quote = _selectionController.quote;
+    if (quote.isEmpty) return;
+    final l10n = AppLocalizations.of(context);
+    final chs = _effectiveChapters;
+    final chapterTitle = (_chapterIndex >= 0 && _chapterIndex < chs.length)
+        ? chs[_chapterIndex].title
+        : '';
+    String? cover = widget.coverUrl;
+    // 预热书封，避免卡片渲染时图未就绪导致空白。
+    if (cover != null && cover.isNotEmpty) {
+      try {
+        await precacheImage(NetworkImage(cover), context);
+      } on Object {
+        // 占位渐变兜底
+      }
+    }
+    if (!mounted) return;
+    final shareKey = GlobalKey();
+    if (!mounted) return;
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    double coverScale = 1.0; // 封面缩放比例
+    // 用 StatefulBuilder 使自定义封面选择后实时更新预览
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          contentPadding: EdgeInsets.zero,
+          content: SingleChildScrollView(
+            child: RepaintBoundary(
+              key: shareKey,
+              child: _NovelShareCard(
+                quote: quote,
+                title: widget.title,
+                chapterTitle: chapterTitle,
+                coverUrl: cover,
+                compact: isMobile,
+                coverScale: coverScale,
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            // 封面大小调节滑块
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: <Widget>[
+                  const Icon(Icons.photo_size_select_small, size: 16),
+                  Expanded(
+                    child: Slider(
+                      value: coverScale,
+                      min: 0.3,
+                      max: 1.5,
+                      divisions: 12,
+                      onChanged: (v) => setDialogState(() => coverScale = v),
+                    ),
+                  ),
+                  const Icon(Icons.photo_size_select_large, size: 16),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              icon: const Icon(Icons.image_outlined, size: 18),
+              label: Text(l10n.shareChangeCover),
+              onPressed: () async {
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.image,
+                  withData: true,
+                );
+                if (result != null && result.files.isNotEmpty) {
+                  final bytes = result.files.first.bytes;
+                  if (bytes != null) {
+                    // 保存临时文件供 Image.memory 使用
+                    final dir = await getTemporaryDirectory();
+                    final tempFile = File(
+                      '${dir.path}/nexhub_share_cover_${DateTime.now().millisecondsSinceEpoch}.png',
+                    );
+                    await tempFile.writeAsBytes(bytes);
+                    cover = tempFile.path;
+                    if (ctx.mounted) setDialogState(() {});
+                  }
+                }
+              },
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(l10n.cancel),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await _captureAndShare(shareKey, l10n);
+              },
+              child: Text(l10n.selectionShare),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 把 [shareKey] 对应的卡片栅格化为 PNG 并分享。
+  Future<void> _captureAndShare(GlobalKey shareKey, AppLocalizations l10n) async {
+    try {
+      final boundary = shareKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final image = await boundary.toImage(pixelRatio: 2.0);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) return;
+      final dir = await getTemporaryDirectory();
+      final file = File(
+        p.join(dir.path, 'nexhub_share_${DateTime.now().millisecondsSinceEpoch}.png'),
+      );
+      await file.writeAsBytes(bytes.buffer.asUint8List());
+      await Share.shareXFiles(
+        <XFile>[XFile(file.path)],
+        text: '${widget.title} · ${_effectiveChapters.length > _chapterIndex && _chapterIndex >= 0 ? _effectiveChapters[_chapterIndex].title : ''}',
+      );
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.shareFailed)),
+        );
+      }
+    }
+  }
+
+  /// 把活动选区扩展到整段（按锚点所在段落的章内全局起止偏移）。
+  void _selParagraph() {
+    final controller = _selectionController;
+    if (!controller.hasSelection) return;
+    final para = controller.paragraphIndexAt(controller.selectionStart!);
+    if (para == null) return;
+    final range = controller.paragraphGlobalRange(para);
+    if (range == null) return;
+    controller.setSelectionRange(range.start, range.end);
+  }
+
+  /// 落盘当前活动选区为一条划线，返回新建的划线（不刷新 / 不收工具条）。
+  Future<NovelHighlight?> _persistSelectionAsHighlight(int color) async {
+    final controller = _selectionController;
+    final quote = controller.quote;
+    if (quote.isEmpty) return null;
+    final ctx = controller.context();
+    final chs = _effectiveChapters;
+    final chapterId = (_chapterIndex >= 0 && _chapterIndex < chs.length)
+        ? chs[_chapterIndex].id
+        : 'unknown';
+    final chapterTitle = (_chapterIndex >= 0 && _chapterIndex < chs.length)
+        ? chs[_chapterIndex].title
+        : '';
+    final hl = NovelHighlight(
+      novelId: widget.novelId,
+      chapterIndex: _chapterIndex,
+      chapterId: chapterId,
+      chapterTitle: chapterTitle,
+      quote: quote,
+      contextBefore: ctx.before,
+      contextAfter: ctx.after,
+      color: color,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    await NovelHighlightManager().add(hl);
+    return hl;
+  }
+
+  /// 落盘当前活动选区为一条划线，并刷新渲染。
+  Future<void> _selHighlight(int color) async {
+    final hl = await _persistSelectionAsHighlight(color);
+    if (hl == null) return;
+    // 直接添加已解析划线到控制器，跳过重定位（确保即时显示）。
+    final controller = _selectionController;
+    if (controller.hasSelection) {
+      controller.addResolvedHighlight(
+        controller.selectionStart!,
+        controller.selectionEnd!,
+        color,
+        hl.key,
+      );
+    }
+    _selectionController.clearSelection();
+    if (mounted) setState(() {
+      _showSelectionToolbar = false;
+      _uiVisible = true;
+    });
+  }
+
+  /// 落盘为划线后立即打开笔记编辑（Phase 2 / N6 摘录）。
+  Future<void> _selHighlightWithNote() async {
+    final hl = await _persistSelectionAsHighlight(_highlightPalette.first);
+    if (hl == null) return;
+    await _reloadHighlightsForChapter();
+    _selectionController.clearSelection();
+    if (mounted) setState(() {
+      _showSelectionToolbar = false;
+      _uiVisible = true;
+    });
+    if (!mounted) return;
+    await _editHighlightNote(hl);
   }
 
   /// 计算某页在章内的「起始字符偏移」（累计文本行长度，忽略插图）。
@@ -2182,6 +2899,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     setState(() {
       _uiVisible = !_uiVisible;
       if (!_uiVisible) _showInlineSettings = false;
+      // 显示控制面板时自动收起选区工具条，避免被底栏遮挡。
+      if (_uiVisible && _showSelectionToolbar) {
+        _selectionController.clearSelection();
+        _showSelectionToolbar = false;
+      }
     });
   }
 
@@ -2234,6 +2956,19 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   void _onTapUp(TapUpDetails details, Size size) {
     if (_showInlineSettings) {
       _toggleInlineSettings();
+      return;
+    }
+    // 选区工具条可见时，点按任意处先收起工具条并清空选区（消费本次点按，
+    // 避免误触翻页）。
+    if (_showSelectionToolbar) {
+      // 刚由长按选词结束产生的工具条：忽略本次抬起事件（属于长按抬起），
+      // 不清除选区，等待用户第二次点击才收起。
+      if (_selectionJustMade) {
+        _selectionJustMade = false;
+        return;
+      }
+      _selectionController.clearSelection();
+      setState(() => _showSelectionToolbar = false);
       return;
     }
     final action = TapZoneResolver.resolve(
@@ -2584,6 +3319,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           );
           _paginationSig = sig;
           _paginationChapterIndex = _chapterIndex;
+          // 分页真正变化时（章节 / 偏好 / 尺寸），帧后注入选区控制器并加载划线。
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && _paginationChapterIndex == _chapterIndex) {
+              _bindSelection();
+            }
+          });
         }
 
         // P0-2：章内字符偏移恢复（抗字号/边距/排版变化）。
@@ -2655,51 +3396,71 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           });
         }
 
-        return NovelAnimatedPageView(
-          key: _pageKey,
-          contentVersion: _contentVersion,
-          animation: _prefs.pageAnimation,
-          pageCount: pages.length,
-          initialPage: _currentPage,
-          background: bg,
-          pageBuilder: (BuildContext ctx, int pageIndex) {
-            final page = pages[pageIndex];
-            return _NovelPageWidget(
-              lines: page,
-              prefs: _prefs,
-              bg: bg,
-              textColor: textColor,
-              animation: _prefs.pageAnimation,
-              chapterTitle: chapterTitle,
-              bookName: widget.title,
-              pageIndex: pageIndex,
-              totalPages: pages.length,
-              time: _currentTime,
-              batteryLevel: _batteryLevel,
-              headerCenter: _prefs.headerCenter,
-              footerCenter: _prefs.footerCenter,
-              headerFooterColor: _prefs.headerFooterColor,
-              headerFooterMargin: _prefs.headerFooterMargin,
-              ttsCurrentIndex: _tts.currentIndex,
-              ttsActive: _tts.state != NovelTtsState.stopped,
-              searchKeyword: _searchKeyword,
-              searchRegex: _searchRegex,
-              onParagraphTap: _onParagraphTapped,
-              onImageTap: (url, src) => _showImageViewer(url, src ?? _source),
-              source: _source,
-            );
-          },
-          scrollBuilder: _prefs.pageAnimation.isScroll
-              ? (BuildContext ctx) => _buildScrollContent(bg, textColor)
-              : null,
-          onPageChanged: _onPageChanged,
-          onRequestNextChapter: _goNextChapter,
-          onRequestPrevChapter: () => _goPrevChapter(toLastPage: true),
-          onTapUp: _onTapUp,
-          onVerticalDragStart: _onBrightnessDragStart,
-          onVerticalDragUpdate: _onBrightnessDragUpdate,
-          onVerticalDragEnd: _onBrightnessDragEnd,
-          scrollWheelInverted: _prefs.scrollWheelInverted,
+        return Stack(
+          children: <Widget>[
+            Positioned.fill(
+              child: NovelAnimatedPageView(
+                key: _pageKey,
+                contentVersion: _contentVersion,
+                animation: _prefs.pageAnimation,
+                pageCount: pages.length,
+                initialPage: _currentPage,
+                background: bg,
+                selectionActive: () =>
+                    _selectionController.hasSelection ||
+                    _selectionController.isSelecting,
+                pageBuilder: (BuildContext ctx, int pageIndex) {
+                  final page = pages[pageIndex];
+                  return _NovelPageWidget(
+                    lines: page,
+                    prefs: _prefs,
+                    bg: bg,
+                    textColor: textColor,
+                    animation: _prefs.pageAnimation,
+                    chapterTitle: chapterTitle,
+                    bookName: widget.title,
+                    pageIndex: pageIndex,
+                    totalPages: pages.length,
+                    time: _currentTime,
+                    batteryLevel: _batteryLevel,
+                    headerCenter: _prefs.headerCenter,
+                    footerCenter: _prefs.footerCenter,
+                    headerFooterColor: _prefs.headerFooterColor,
+                    headerFooterMargin: _prefs.headerFooterMargin,
+                    ttsCurrentIndex: _tts.currentIndex,
+                    ttsActive: _tts.state != NovelTtsState.stopped,
+                    searchKeyword: _searchKeyword,
+                    searchRegex: _searchRegex,
+                    onParagraphTap: _onParagraphTapped,
+                    onImageTap: (url, src) => _showImageViewer(url, src ?? _source),
+                    source: _source,
+                    selectionController: _selectionController,
+                    onSelectionConfirmed: () {
+                      _selectionJustMade = true;
+                      if (mounted) {
+                        setState(() {
+                          _showSelectionToolbar = true;
+                          _uiVisible = false; // 显示工具栏时隐藏控制面板
+                        });
+                      }
+                    },
+                  );
+                },
+                scrollBuilder: _prefs.pageAnimation.isScroll
+                    ? (BuildContext ctx) => _buildScrollContent(bg, textColor)
+                    : null,
+                onPageChanged: _onPageChanged,
+                onRequestNextChapter: _goNextChapter,
+                onRequestPrevChapter: () => _goPrevChapter(toLastPage: true),
+                onTapUp: _onTapUp,
+                onVerticalDragStart: _onBrightnessDragStart,
+                onVerticalDragUpdate: _onBrightnessDragUpdate,
+                onVerticalDragEnd: _onBrightnessDragEnd,
+                scrollWheelInverted: _prefs.scrollWheelInverted,
+              ),
+            ),
+            if (_showSelectionToolbar) _buildSelectionToolbar(),
+          ],
         );
       },
     );
@@ -2718,13 +3479,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 显示标题时列表首项为标题，其后为图文块。
     final int itemCount = _paragraphs.length + (showTitle ? 1 : 0);
 
-    return ListView.builder(
-      controller: sc,
-      padding: EdgeInsets.symmetric(
-        horizontal: _prefs.margin,
-        vertical: _prefs.margin,
-      ),
-      itemCount: itemCount,
+    return GestureDetector(
+      // 滚动模式：点按空白处收起选区工具条或切换控制面板。
+      onTap: () {
+        if (_showSelectionToolbar) {
+          _selectionController.clearSelection();
+          if (mounted) setState(() => _showSelectionToolbar = false);
+        } else {
+          _toggleUi();
+        }
+      },
+      child: ListView.builder(
+        controller: sc,
+        padding: EdgeInsets.symmetric(
+          horizontal: _prefs.margin,
+          vertical: _prefs.margin,
+        ),
+        itemCount: itemCount,
       itemBuilder: (BuildContext ctx, int i) {
         if (showTitle && i == 0) {
           return _buildChapterTitleWidget(
@@ -2772,6 +3543,43 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 height: 1.5,
               )
             : baseStyle;
+        final Widget bodyText = _buildHighlightedBodyText(
+          text,
+          baseStyle,
+          headingStyle,
+          isHeading,
+        );
+        // 滚动模式选区：非 TTS 态文本块包长按手势，复用与分页同源的
+        // 章节全局字符偏移坐标系（[NovelSelectionController.setBlocks]）。
+        // 块为整段多行文本，Phase 4 长按直接选整块（精确折行 x 命中留待后续），
+        // 拖拽扩选由工具条「整段」按钮覆盖（与分页行内限制一致）。
+        final Widget wrapped = !_ttsActiveForBody()
+            ? AnimatedBuilder(
+                animation: _selectionController,
+                builder: (ctx, _) {
+                  final spans = _selectionController.blockSpans(
+                    _paragraphs,
+                    idx,
+                    text,
+                  );
+                  final Widget child = spans.isEmpty
+                      ? bodyText
+                      : buildSelectionRichText(
+                          text,
+                          isHeading ? headingStyle : baseStyle,
+                          spans,
+                          softWrap: true,
+                        );
+                  return GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onLongPressStart: (_) =>
+                        _onSelLongPressStartScroll(idx, text),
+                    onLongPressEnd: (_) => _onSelLongPressEndScroll(),
+                    child: child,
+                  );
+                },
+              )
+            : bodyText;
         return Padding(
           padding: EdgeInsets.only(
             top: isHeading ? _prefs.paragraphSpacing * 2 : 0,
@@ -2779,9 +3587,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 ? _prefs.paragraphSpacing * 2
                 : _prefs.paragraphSpacing,
           ),
-          child: _buildHighlightedBodyText(text, baseStyle, headingStyle, isHeading),
+          child: wrapped,
         );
       },
+      ),
     );
   }
 
@@ -2996,6 +3805,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     _showBottomToolbarConfig();
                   case 'notes':
                     _showNoteList();
+                  case 'highlights':
+                    _showHighlightList();
                   case 'pageAnimation':
                     _showPageAnimationPicker();
                   case 'aggSort':
@@ -3081,6 +3892,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   ),
                 ),
                 const PopupMenuDivider(),
+                // 划线列表（P1-5 / Phase 2）
+                PopupMenuItem<String>(
+                  value: 'highlights',
+                  child: ListTile(
+                    leading: const Icon(Icons.format_color_fill_outlined),
+                    title: Text(l10n.highlightList),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                ),
                 // 笔记列表（P3.1）
                 PopupMenuItem<String>(
                   value: 'notes',
@@ -4070,6 +4891,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     });
   }
 
+  /// 跳转到包含引文文本的页面（分页模式）。
+  void _jumpToQuote(String quote) {
+    final pages = _pagination?.pages;
+    if (pages == null || quote.isEmpty) return;
+    for (var p = 0; p < pages.length; p++) {
+      final page = pages[p];
+      final buf = StringBuffer();
+      for (final item in page) {
+        if (item is NovelTextLineItem) buf.write(item.line.text);
+      }
+      if (buf.toString().contains(quote)) {
+        _pageKey.currentState?.jumpToPage(p);
+        break;
+      }
+    }
+  }
+
   /// 底部工具栏配置 sheet：勾选 / 排序槽位（最多 6 个）。
   Future<void> _showBottomToolbarConfig() async {
     final l10n = AppLocalizations.of(context);
@@ -4723,6 +5561,52 @@ class _DashedUnderlineText extends StatelessWidget {
   }
 }
 
+/// 把活动选区 / 已存划线背景合并成富文本。
+///
+/// 逐字符记录背景色，再按相同背景色连续段合并为 [TextSpan]。
+/// 分页模式下每行是单行视觉行，[softWrap]=false+[maxLines]=1；
+/// 滚动模式下为整段文字，应传 [softWrap]=true 且不设 maxLines。
+Widget buildSelectionRichText(
+  String text,
+  TextStyle base,
+  List<HighlightSpan> spans, {
+  bool softWrap = false,
+  int? maxLines,
+  TextOverflow overflow = TextOverflow.clip,
+}) {
+  final n = text.length;
+  final List<int?> bg = List<int?>.filled(n, null);
+  // 先铺已存划线（低优先级），再覆盖活动选区（高优先级）。
+  for (final s in spans.where((s) => !s.isActive)) {
+    for (var i = s.start; i < s.end && i < n; i++) bg[i] = s.color;
+  }
+  for (final s in spans.where((s) => s.isActive)) {
+    for (var i = s.start; i < s.end && i < n; i++) bg[i] = s.color;
+  }
+  final children = <TextSpan>[];
+  var i = 0;
+  while (i < n) {
+    final c = bg[i];
+    var j = i + 1;
+    while (j < n && bg[j] == c) {
+      j++;
+    }
+    children.add(
+      TextSpan(
+        text: text.substring(i, j),
+        style: c == null ? null : base.copyWith(backgroundColor: Color(c)),
+      ),
+    );
+    i = j;
+  }
+  return Text.rich(
+    TextSpan(style: base, children: children),
+    softWrap: softWrap,
+    maxLines: maxLines,
+    overflow: overflow,
+  );
+}
+
 class _DashedUnderlinePainter extends CustomPainter {
   final List<LineMetrics> lines;
   final double dashLength;
@@ -4806,11 +5690,17 @@ class _NovelPageWidget extends StatelessWidget {
   /// 正则搜索模式下的已编译表达式（与 [searchKeyword] 二选一生效，
   /// 非空时优先按正则匹配高亮）。
   final RegExp? searchRegex;
+  /// 选区控制器：渲染活动选区 + 已存划线背景。
+  final NovelSelectionController selectionController;
+  /// 长按选区结束后（有非空选区）回调，用于显示工具条。
+  final VoidCallback? onSelectionConfirmed;
 
   const _NovelPageWidget({
     required this.lines,
     this.onImageTap,
     this.source,
+    required this.selectionController,
+    this.onSelectionConfirmed,
     required this.prefs,
     required this.bg,
     required this.textColor,
@@ -4893,49 +5783,22 @@ class _NovelPageWidget extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   clipBehavior: Clip.hardEdge,
                   padding: EdgeInsets.symmetric(horizontal: prefs.margin),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      // 章节大标题仅在第一页顶部渲染（#7，含对齐 / 分段模式）。
-                      if (pageIndex == 0)
-                        _buildChapterTitleWidget(
-                          prefs,
-                          chapterTitle,
-                          bookName,
-                        ),
-                      for (final item in lines) ...<Widget>[
-                        if (item is NovelTextLineItem) ...[
-                          _buildLine(
-                            context,
-                            item.line,
-                            item.line.isHeading ? headingStyle : textStyle,
+                  child: AnimatedBuilder(
+                    animation: selectionController,
+                    builder: (BuildContext _, Widget? __) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        // 章节大标题仅在第一页顶部渲染（#7，含对齐 / 分段模式）。
+                        if (pageIndex == 0)
+                          _buildChapterTitleWidget(
+                            prefs,
+                            chapterTitle,
+                            bookName,
                           ),
-                          // 段落间距（仅段末行后加）
-                          if (item.line.isLastLine)
-                            SizedBox(height: prefs.paragraphSpacing),
-                        ] else if (item is NovelImageItem) ...[
-                          // 翻页模式插图独占一页：占满可用高度居中显示，
-                          // 点按打开大图查看器（fit contain 不裁切）。
-                          SizedBox(
-                            width: imgW,
-                            height: scrollH,
-                            child: GestureDetector(
-                              onTap: () => onImageTap?.call(
-                                item.image.url,
-                                item.image.source,
-                              ),
-                            child: SourceImage(
-                              url: item.image.url,
-                              source: item.image.source ?? source,
-                              width: imgW,
-                              height: scrollH,
-                              fit: BoxFit.contain,
-                            ),
-                            ),
-                          ),
-                        ],
+                        ..._buildPageLines(context, headingStyle, textStyle, imgW,
+                            scrollH),
                       ],
-                    ],
+                    ),
                   ),
                 );
               },
@@ -4965,32 +5828,46 @@ class _NovelPageWidget extends StatelessWidget {
   ///
   /// 每行已是适配宽度的视觉行，首行自带 `　　` 缩进；段距由上层在
   /// [isLastLine] 后统一添加，这里只负责单行的文字与高亮。
-  Widget _buildLine(BuildContext context, NovelLine line, TextStyle textStyle) {
+  Widget _buildLine(
+    BuildContext context,
+    NovelLine line,
+    TextStyle textStyle, {
+    required int lineIndexInPage,
+  }) {
     final isCurrent = ttsActive && line.paragraphIndex == ttsCurrentIndex;
-    // 搜索命中行渲染为高亮富文本（普通/正则模式），未命中保持原渲染
-    // （含虚线下划线变体）；高亮只改命中片段样式、不改行约束，因此
-    // 不影响与分页器一致的按行测量。
+    // 选区背景（活动选区 + 已存划线）：优先于搜索高亮渲染（优先级
+    // 活动选区 > 已存高亮 > 搜索）。仅当本行确有选区/划线时才走富文本路径，
+    // 否则保持原渲染（搜索 / 虚线下划线 / 纯文本），不影响分页测量。
+    final List<HighlightSpan> selSpans =
+        selectionController.lineSpans(pageIndex, lineIndexInPage);
     final Widget? searchHit =
         _buildSearchHighlight(context, line.text, textStyle);
-    final Widget textWidget = searchHit ??
-        (prefs.fontUnderline && prefs.underlineDashed
-            ? _DashedUnderlineText(
-                text: line.text,
-                style: textStyle,
-                dashLength: prefs.underlineDashLength,
-                dashGap: prefs.underlineDashGap,
-                thickness: prefs.underlineThickness,
-                color: prefs.resolveUnderlineColor(textColor),
-              )
-            : Text(
-                line.text,
-                style: textStyle,
-                // 每行已是按宽度精确测量出的单行文本，禁止再次折行/省略，
-                // 保证渲染与分页器测量一致（按行排版）。
-                softWrap: false,
-                maxLines: 1,
-                overflow: TextOverflow.clip,
-              ));
+    final Widget textWidget;
+    if (selSpans.isNotEmpty) {
+      textWidget =
+          buildSelectionRichText(line.text, textStyle, selSpans);
+    } else if (searchHit != null) {
+      textWidget = searchHit;
+    } else if (prefs.fontUnderline && prefs.underlineDashed) {
+      textWidget = _DashedUnderlineText(
+        text: line.text,
+        style: textStyle,
+        dashLength: prefs.underlineDashLength,
+        dashGap: prefs.underlineDashGap,
+        thickness: prefs.underlineThickness,
+        color: prefs.resolveUnderlineColor(textColor),
+      );
+    } else {
+      textWidget = Text(
+        line.text,
+        style: textStyle,
+        // 每行已是按宽度精确测量出的单行文本，禁止再次折行/省略，
+        // 保证渲染与分页器测量一致（按行排版）。
+        softWrap: false,
+        maxLines: 1,
+        overflow: TextOverflow.clip,
+      );
+    }
 
     final content = isCurrent
         ? Container(
@@ -5027,6 +5904,108 @@ class _NovelPageWidget extends StatelessWidget {
       );
     }
     return content;
+  }
+
+  /// 把本页所有行构建为 Widget 列表（含文本行的长按选区手势与插图渲染）。
+  ///
+  /// 文本行在非 TTS 态下包裹 [GestureDetector] 以支持长按选区（长按=选区，
+  /// 短按仍由外层翻页手势处理——二者在竞技场自然分离）；TTS 态下不包裹，
+  /// 避免与「点哪读哪」的段落跳转冲突。
+  List<Widget> _buildPageLines(
+    BuildContext context,
+    TextStyle headingStyle,
+    TextStyle textStyle,
+    double imgW,
+    double scrollH,
+  ) {
+    final List<Widget> result = <Widget>[];
+    for (var li = 0; li < lines.length; li++) {
+      final item = lines[li];
+      if (item is NovelTextLineItem) {
+        final Widget line = _buildLine(
+          context,
+          item.line,
+          item.line.isHeading ? headingStyle : textStyle,
+          lineIndexInPage: li,
+        );
+        final Widget wrapped = !ttsActive
+            ? GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onLongPressStart: (d) => _onSelLongPressStart(li, d),
+                onLongPressMoveUpdate: (d) => _onSelLongPressMove(li, d),
+                onLongPressEnd: (_) => _onSelLongPressEnd(),
+                child: line,
+              )
+            : line;
+        result.add(wrapped);
+        if (item.line.isLastLine) {
+          result.add(SizedBox(height: prefs.paragraphSpacing));
+        }
+      } else if (item is NovelImageItem) {
+        // 翻页模式插图独占一页：占满可用高度居中显示，点按打开大图查看器。
+        result.add(
+          SizedBox(
+            width: imgW,
+            height: scrollH,
+            child: GestureDetector(
+              onTap: () => onImageTap?.call(item.image.url, item.image.source),
+              child: SourceImage(
+                url: item.image.url,
+                source: item.image.source ?? source,
+                width: imgW,
+                height: scrollH,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    return result;
+  }
+
+  /// 长按选区起始：记录锚点全局偏移并标记选区激活（让翻页手势让出指针）。
+  void _onSelLongPressStart(int lineIndexInPage, LongPressStartDetails d) {
+    final item = lines[lineIndexInPage];
+    if (item is! NovelTextLineItem) return;
+    final ci = item.line.hitTestCharOffset(d.localPosition.dx);
+    final global = selectionController.globalOffsetFor(
+      pageIndex,
+      lineIndexInPage,
+      ci,
+    );
+    selectionController.setSelecting(true);
+    selectionController.setSelectionAnchor(global);
+    // 长按即选中锚点所在的「词/句」（标点/空白切分），拖拽时由 move 重定义选区。
+    final word = selectionController.wordRangeAt(global);
+    if (word != null) selectionController.setSelection(word.start, word.end);
+  }
+
+  /// 长按拖拽中：以锚点为起点、当前落点为终点更新活动选区。
+  ///
+  /// Phase 0 仅支持行内选区：纵向移出本行时 [hitTestCharOffset] 自然夹紧到
+  /// 行首/行尾；跨行整段由工具条「整段」按钮覆盖。
+  void _onSelLongPressMove(int lineIndexInPage, LongPressMoveUpdateDetails d) {
+    final anchor = selectionController.selectionAnchor;
+    if (anchor == null) return;
+    final item = lines[lineIndexInPage];
+    if (item is! NovelTextLineItem) return;
+    final ci = item.line.hitTestCharOffset(d.localPosition.dx);
+    final global = selectionController.globalOffsetFor(
+      pageIndex,
+      lineIndexInPage,
+      ci,
+    );
+    selectionController.setSelection(anchor, global);
+  }
+
+  /// 长按结束：解除选区激活；若有非空选区则通知外层显示工具条。
+  void _onSelLongPressEnd() {
+    selectionController.setSelecting(false);
+    selectionController.setSelectionAnchor(null);
+    if (selectionController.hasSelection) {
+      onSelectionConfirmed?.call();
+    }
   }
 
   /// 搜索关键词命中行 → 高亮富文本；未命中返回 null（走原渲染路径）。
@@ -7222,4 +8201,314 @@ bool _novelBlockImageIsFitWidth(String? style) {
   if (style == null || style.isEmpty) return false;
   final String s = style.toLowerCase().replaceAll(RegExp(r'\s+'), '');
   return s.contains('max-width') || s.contains('width:100%');
+}
+
+/// 分享卡片：带书封的渐变文艺卡（Phase 3 / N6）。
+///
+/// 1080×1440（3:4）竖卡（桌面端完整尺寸，手机端紧凑版）：顶部书封 + 渐变叠层，
+/// 中部引文大字号，底部书名 / 章节 / 落款。书封缺省时用渐变占位。
+/// 供 [RepaintBoundary] 栅格化分享。
+class _NovelShareCard extends StatelessWidget {
+  const _NovelShareCard({
+    required this.quote,
+    required this.title,
+    required this.chapterTitle,
+    this.coverUrl,
+    this.compact = false,
+    this.coverScale = 1.0,
+  });
+
+  final String quote;
+  final String title;
+  final String chapterTitle;
+  final String? coverUrl;
+  final bool compact;
+  final double coverScale;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final double w = compact ? 360 : 1080;
+    final double h = compact ? 480 : 1440;
+    final double p = compact ? 24 : 72;
+    final double coverH = (compact ? 170 : 520) * coverScale;
+    final double titleFontSize = compact ? 18 : 40;
+    final double quoteFontSize = compact ? 16 : 38;
+    final double metaFontSize = compact ? 13 : 30;
+    final double brandFontSize = compact ? 14 : 28;
+    final double radius = compact ? 12 : 24;
+    final double quotePadding = compact ? 16 : 40;
+    final double spacing = compact ? 16 : 48;
+    final double gap = compact ? 12 : 40;
+    final double coverTitleLeft = compact ? 12 : 32;
+    final double coverTitleBottom = compact ? 10 : 28;
+    final gradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: <Color>[
+        cs.primary.withValues(alpha: 0.85),
+        cs.primaryContainer.withValues(alpha: 0.95),
+        cs.surface,
+      ],
+    );
+    final Widget cover = (coverUrl != null && coverUrl!.isNotEmpty)
+        ? (coverUrl!.startsWith('http://') || coverUrl!.startsWith('https://')
+            ? Image.network(
+                coverUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  decoration: BoxDecoration(gradient: gradient),
+                ),
+              )
+            : Image.file(
+                File(coverUrl!),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  decoration: BoxDecoration(gradient: gradient),
+                ),
+              ))
+        : Container(decoration: BoxDecoration(gradient: gradient));
+    return Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[cs.surface, cs.surfaceContainerHighest],
+        ),
+      ),
+      padding: EdgeInsets.all(p),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // 书封 + 渐变叠层
+          ClipRRect(
+            borderRadius: BorderRadius.circular(radius),
+            child: Stack(
+              children: <Widget>[
+                SizedBox(
+                  width: double.infinity,
+                  height: coverH,
+                  child: cover,
+                ),
+                Container(
+                  width: double.infinity,
+                  height: coverH,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: <Color>[
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.55),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: coverTitleLeft,
+                  bottom: coverTitleBottom,
+                  right: coverTitleLeft,
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: titleFontSize,
+                      fontWeight: FontWeight.w700,
+                      shadows: const <Shadow>[
+                        Shadow(
+                          color: Colors.black54,
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: spacing),
+          // 引文
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(quotePadding),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(radius),
+                border: Border.all(
+                  color: cs.outline.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                quote,
+                style: TextStyle(
+                  fontSize: quoteFontSize,
+                  height: 1.7,
+                  color: cs.onSurface,
+                  fontFamily: 'serif',
+                ),
+                maxLines: 12,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          SizedBox(height: gap),
+          // 章节 + 落款
+          if (chapterTitle.isNotEmpty)
+            Text(
+              chapterTitle,
+              style: TextStyle(
+                fontSize: metaFontSize,
+                color: cs.onSurface.withValues(alpha: 0.75),
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          if (chapterTitle.isNotEmpty) SizedBox(height: compact ? 4 : 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Text(
+                '—— 摘自《$title》',
+                style: TextStyle(
+                  fontSize: metaFontSize,
+                  color: cs.onSurface.withValues(alpha: 0.6),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              Text(
+                'NexHub',
+                style: TextStyle(
+                  fontSize: brandFontSize,
+                  color: cs.primary,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 合并笔记条目（独立笔记 + 划线摘录笔记），用于笔记列表统一展示。
+class _MergedNoteEntry {
+  final int chapterIndex;
+  final String chapterTitle;
+  final String quote;
+  final String note;
+  final int createdAt;
+  final bool isHighlightNote;
+  /// 用于删除操作的实际 key（独立笔记用 NovelNote.id，划线笔记用 highlight.key）。
+  final String deleteKey;
+
+  const _MergedNoteEntry({
+    required this.chapterIndex,
+    required this.chapterTitle,
+    required this.quote,
+    required this.note,
+    required this.createdAt,
+    required this.isHighlightNote,
+    required this.deleteKey,
+  });
+}
+
+/// 简易颜色选择器滑块：RGB 三通道滑块 + 颜色预览。
+class _ColorPickerSlider extends StatefulWidget {
+  final Color initialColor;
+  final ValueChanged<Color> onChanged;
+
+  const _ColorPickerSlider({
+    required this.initialColor,
+    required this.onChanged,
+  });
+
+  @override
+  State<_ColorPickerSlider> createState() => _ColorPickerSliderState();
+}
+
+class _ColorPickerSliderState extends State<_ColorPickerSlider> {
+  late double _r;
+  late double _g;
+  late double _b;
+  late double _a;
+
+  @override
+  void initState() {
+    super.initState();
+    _r = widget.initialColor.r;
+    _g = widget.initialColor.g;
+    _b = widget.initialColor.b;
+    _a = widget.initialColor.a;
+  }
+
+  Color get _currentColor => Color.from(
+        alpha: _a,
+        red: _r,
+        green: _g,
+        blue: _b,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _currentColor;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        // 颜色预览
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _slider('R', _r, (v) => setState(() => _r = v)),
+        _slider('G', _g, (v) => setState(() => _g = v)),
+        _slider('B', _b, (v) => setState(() => _b = v)),
+        _slider('A', _a, (v) => setState(() => _a = v)),
+      ],
+    );
+  }
+
+  Widget _slider(String label, double value, ValueChanged<double> onChanged) {
+    return Row(
+      children: <Widget>[
+        SizedBox(
+          width: 16,
+          child: Text(label, style: const TextStyle(fontSize: 11)),
+        ),
+        Expanded(
+          child: Slider(
+            value: value,
+            min: 0.0,
+            max: 1.0,
+            divisions: 255,
+            onChanged: (v) {
+              onChanged(v);
+              widget.onChanged(_currentColor);
+            },
+          ),
+        ),
+        SizedBox(
+          width: 36,
+          child: Text(
+            (value * 255).round().toString(),
+            style: const TextStyle(fontSize: 10),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
+    );
+  }
 }

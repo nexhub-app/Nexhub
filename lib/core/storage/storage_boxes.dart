@@ -33,6 +33,7 @@ const List<String> kStorageBoxNames = <String>[
   'article_feeds',
   'settings',
   'novel_bookmarks',
+  'novel_highlights',
   'comic_bookmarks',
   // 漫画阅读器收藏的图片（图库页数据，REQ-C2）
   ImageFavoriteManager.boxName, // 'image_favorites'
