@@ -18,6 +18,7 @@ import '../../../core/danmaku/danmaku_source.dart';
 import '../../../core/danmaku/dandanplay_service.dart';
 import '../../../core/download/download_manager.dart';
 import '../../../core/favorites/favorites_manager.dart';
+import '../../../core/async_session.dart';
 import '../../../core/history/media_playback_position_manager.dart';
 import '../../../core/history/media_watched_manager.dart';
 import '../../../core/models/episode.dart';
@@ -500,7 +501,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   late int _episodeIndex;
   /// 切集代次守卫：快速连播 / 手动切集并发时，丢弃过期切换，
   /// 避免较慢的解析/打开覆盖已切换的集（表现为「切集还是同一集」）。
-  int _loadToken = 0;
+  final AsyncSession _loadSession = AsyncSession();
 
   /// 当前选中的播放线路名（来自 [Episode.lineName]）。由 [widget.episode]
   /// 初始化，切换剧集时跟随新 ep 同步。
@@ -2515,7 +2516,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 归零路径先取消再切，此处只会拦到用户手动操作）。
     _cancelAutoNextCountdown();
     // 代次守卫：快速连播 / 手动切集并发时，丢弃过期切换，避免旧集覆盖新集。
-    final int token = ++_loadToken;
+    final int token = _loadSession.next();
     // 睡眠定时跨集保留（B-13）：切集不取消定时器——用户设的「30 分钟后暂停」
     // 在连播场景下应继续生效，否则换集后定时被静默清除。仅「关闭定时」
     // （_showSleepTimerPicker 的关闭项）与退出播放器（dispose）才取消。
@@ -2560,7 +2561,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       }
       _playUrl = direct;
       _playHeaders = null;
-      if (token != _loadToken) return;
+      if (!_loadSession.isValid(token)) return;
       await _controller.open(direct);
       _controller.play();
       _danmakuController.clear();
@@ -2616,7 +2617,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         _playUrl = playUrl;
         _playHeaders = playHeaders;
       }
-      if (token != _loadToken) return;
+      if (!_loadSession.isValid(token)) return;
       await _controller.open(playUrl, headers: playHeaders);
       // 切集后自动播放
       _controller.play();
@@ -2635,7 +2636,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // 切集失败：界面若停在「新集」但画面仍是旧集，须回滚索引并提示，
       // 避免用户误以为已切换成功（P0 B-4）。
       AppLog.instance.eWithStack('[切集失败] index=$index', e);
-      if (token != _loadToken) return;
+      if (!_loadSession.isValid(token)) return;
       if (mounted) {
         setState(() => _episodeIndex = oldIndex);
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(

@@ -49,6 +49,7 @@ import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/async_session.dart';
 import '../../../core/stats/reading_session_recorder.dart';
 import '../../../core/stats/stats_models.dart';
 import '../../../core/stats/stats_repository.dart';
@@ -294,7 +295,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   int _chapterIndex = 0;
   /// 本地加载代次守卫：快速翻章 / 初始与切换并发时，丢弃过期结果，
   /// 避免较慢的初始解析覆盖已切换的章节（表现为「切换章还是同一章」）。
-  int _loadToken = 0;
+  final AsyncSession _loadSession = AsyncSession();
   int _savedPage = 0;
 
   /// 待恢复的「章内字符偏移」（P0-2）。
@@ -780,7 +781,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// - EPUB（[localEpubPath]）：经 [LocalNovelParser.parseEpub] 解析为章节，
   ///   章节标题与正文段落统一展平为 [NovelTextBlock]，复用同一套分页/渲染路径。
   Future<void> _loadLocalText({int restorePage = 0}) async {
-    final int token = ++_loadToken;
+    final int token = _loadSession.next();
     if (mounted) setState(() => _loading = true);
     _stopAutoPage();
     try {
@@ -797,7 +798,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         await _ensureAggregatedChapters();
         final chs = _effectiveChapters;
         if (chs.isEmpty) {
-          if (token != _loadToken) return;
+          if (!_loadSession.isValid(token)) return;
           setState(() {
             _rawParagraphs = const <NovelBlock>[];
             _paragraphs = const <NovelBlock>[];
@@ -813,7 +814,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           final book = _aggEpubBooks[ep.id.substring(0, sepIdx)];
           final ci = int.tryParse(ep.id.substring(sepIdx + 1)) ?? 0;
           if (book == null || book.chapters.isEmpty) {
-            if (token != _loadToken) return;
+            if (!_loadSession.isValid(token)) return;
             setState(() {
               _rawParagraphs = const <NovelBlock>[];
               _paragraphs = const <NovelBlock>[];
@@ -828,7 +829,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             for (final p in ch.content)
               if (p.trim().isNotEmpty) NovelTextBlock(p),
           ];
-          if (token != _loadToken) return;
+          if (!_loadSession.isValid(token)) return;
           setState(() {
             _rawParagraphs = epubBlocks;
             _paragraphs = _applyConvert(epubBlocks);
@@ -846,7 +847,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         if (txtMeta != null) {
           final book = _aggTxtBooks[txtMeta.$1];
           if (book == null || book.chapters.isEmpty) {
-            if (token != _loadToken) return;
+            if (!_loadSession.isValid(token)) return;
             setState(() {
               _rawParagraphs = const <NovelBlock>[];
               _paragraphs = const <NovelBlock>[];
@@ -886,7 +887,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                       : NovelTextBlock(p),
             ];
           }
-          if (token != _loadToken) return;
+          if (!_loadSession.isValid(token)) return;
           setState(() {
             _rawParagraphs = txtBlocks;
             _paragraphs = _applyConvert(txtBlocks);
@@ -937,7 +938,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               ],
             );
             if (book.chapters.isEmpty) {
-              if (token != _loadToken) return;
+              if (!_loadSession.isValid(token)) return;
               setState(() {
                 _rawParagraphs = const <NovelBlock>[];
                 _paragraphs = const <NovelBlock>[];
@@ -979,7 +980,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           // 聚合模式里的 EPUB 文件：每个文件 = 一章，整文件解析后展平
           //（保持原行为，不缓存切片）。
           final raw = await compute(_parseEpubIsolate, localPath);
-          if (!mounted || token != _loadToken) return;
+          if (!mounted || !_loadSession.isValid(token)) return;
           final book = LocalNovelBook(
             title: raw[0] as String,
             author: raw[1] as String?,
@@ -993,7 +994,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             ],
           );
           if (book.chapters.isEmpty) {
-            if (token != _loadToken) return;
+            if (!_loadSession.isValid(token)) return;
             setState(() {
               _rawParagraphs = const <NovelBlock>[];
               _paragraphs = const <NovelBlock>[];
@@ -1028,7 +1029,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               ),
           ];
           if (parsed.isEmpty) {
-            if (token != _loadToken) return;
+            if (!_loadSession.isValid(token)) return;
             setState(() {
               _rawParagraphs = const <NovelBlock>[];
               _paragraphs = const <NovelBlock>[];
@@ -1083,9 +1084,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         // 避免章节标题显示 `saf_<hash>`（「标签变成 saf 的内容」）。
         final raw = await compute(
             _parseTxtChaptersIsolate, (localPath, sourceTitle ?? 'chapter'));
-        if (!mounted || token != _loadToken) return;
+        if (!mounted || !_loadSession.isValid(token)) return;
         if (raw.isEmpty) {
-          if (token != _loadToken) return;
+          if (!_loadSession.isValid(token)) return;
           setState(() {
             _rawParagraphs = const <NovelBlock>[];
             _paragraphs = const <NovelBlock>[];
@@ -1117,7 +1118,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           ],
         ];
       }
-      if (token != _loadToken) return;
+      if (!_loadSession.isValid(token)) return;
       setState(() {
         _rawParagraphs = blocks;
         _paragraphs = _applyConvert(blocks);
@@ -1131,7 +1132,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           '[小说加载失败] ${widget.title} (epub=${widget.localEpubPath != null}, '
           'txt=${widget.localTextPath != null})',
           e);
-      if (token != _loadToken || !mounted) return;
+      if (!_loadSession.isValid(token) || !mounted) return;
       setState(() {
         _isResolveError = false;
         _error = e.toString();

@@ -36,6 +36,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/download/download_manager.dart';
 import '../../../core/download/download_settings.dart';
+import '../../../core/async_session.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/stats/reading_session_recorder.dart';
@@ -204,7 +205,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 章节加载令牌：每次发起加载自增，仅最新请求的加载结果会被应用，
   /// 避免快速翻章时旧章节覆盖新章节（竞态导致「显示的章节与 _chapterIndex 不一致」）。
-  int _loadToken = 0;
+  final AsyncSession _loadSession = AsyncSession();
   final Map<int, List<String>> _preload = <int, List<String>>{};
   /// 正在预加载的章节下标集合（防止同一章重复发起请求）。
   final Set<int> _preloading = <int>{};
@@ -651,7 +652,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       {int restorePage = 0, bool restoreToLast = false}) async {
     // 聚合本地模式同样需要「代次守卫」：初始加载与快速翻话可能并发，
     // 若不丢弃过期结果，较慢的初始解压会覆盖已切换的话（表现为「切换话还是同一话」）。
-    final int token = ++_loadToken;
+    final int token = _loadSession.next();
     if (mounted) setState(() => _loading = true);
     try {
       List<String> imgs;
@@ -687,7 +688,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         imgs = const <String>[];
       }
       // 期间若又发起了更新的加载（快速翻话 / 初始与切换并发），丢弃本次过期结果。
-      if (!mounted || token != _loadToken) return;
+      if (!mounted || !_loadSession.isValid(token)) return;
       if (imgs.isEmpty) {
         AppLog.instance.w('[漫画加载失败] ${widget.title}: 本地图片为空 '
             '(cbz=${widget.localCbzPath != null}, '
@@ -728,7 +729,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           '[漫画加载异常] ${widget.title} (cbz=${widget.localCbzPath != null}, '
           'pdf=${widget.localPdfPath != null})',
           e);
-      if (token != _loadToken || !mounted) return;
+      if (!_loadSession.isValid(token) || !mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
@@ -1183,7 +1184,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   Future<void> _loadChapter(int index,
       {int restorePage = 0, bool restoreToLast = false}) async {
-    final int token = ++_loadToken;
+    final int token = _loadSession.next();
     // 翻章后刷新顶栏章节书签状态（REQ-C1）。
     unawaited(_refreshChapterBookmark());
     if (mounted) setState(() => _loading = true);
@@ -1201,7 +1202,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           );
       // 期间若又发起了更新的加载（快速翻章），丢弃本次过期结果，
       // 避免旧章节的图片覆盖到新 _chapterIndex 上导致显示错乱。
-      if (token != _loadToken || !mounted) return;
+      if (!_loadSession.isValid(token) || !mounted) return;
       // 回到上一话末页时 restoreToLast=true。
       // 翻页模式直接把落点设为末页（PageView 首帧即定位，无中间态）。
       // 条漫模式则先落首页、待首帧布局完成后再主动滚动到底：切章瞬间图片尚未
@@ -1234,7 +1235,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       // useWebview 脚本源（manga_goda / manga_baozimh 等）需在内嵌 WebView
       // 加载章节页、等待 JS 渲染后取回整页 HTML，再回灌给脚本解析图片。
       // 捕获请求后展示「抓取本页渲染内容」引导，用户触发回填并重试。
-      if (token != _loadToken || !mounted) return;
+      if (!_loadSession.isValid(token) || !mounted) return;
       if (mounted) {
         setState(() {
           _htmlCaptureRequest = req;
@@ -1243,7 +1244,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         });
       }
     } on Object catch (e) {
-      if (token != _loadToken || !mounted) return;
+      if (!_loadSession.isValid(token) || !mounted) return;
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -2013,10 +2014,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _pendingWebtoonInitialAlignment = jumpAlign;
     }
     final isc = _itemScrollController;
-    final int token = _loadToken;
+    final int token = _loadSession.current;
     if (mounted) setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || token != _loadToken) return;
+      if (!mounted || !_loadSession.isValid(token)) return;
       if (isc != null && isc.isAttached &&
           jumpIndex >= 0 && jumpIndex < _seamItemCount) {
         // jumpTo 为确定性瞬移：重锚后把视口钉到换算出的扁平条目 + 对齐系数，
@@ -2070,14 +2071,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final int flatTarget = _seamFlatIndexOf(_chapterIndex, target);
     if (flatTarget < 0 || flatTarget >= _seamItemCount) return false;
     final before = _webtoonScrollAnchor();
-    final int token = _loadToken;
+    final int token = _loadSession.current;
     isc.jumpTo(index: flatTarget, alignment: 0.0);
     _webtoonStepTimer?.cancel();
     _webtoonStepTimer = Timer(
       AppTokens.durFast + const Duration(milliseconds: 120),
       () {
         _webtoonStepTimer = null;
-        if (!mounted || token != _loadToken) return;
+        if (!mounted || !_loadSession.isValid(token)) return;
         final after = _webtoonScrollAnchor();
         if (before == null || after == null) return;
         final bool stalled = before.index == after.index &&
@@ -2450,7 +2451,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       return;
     }
     final before = _webtoonScrollAnchor();
-    final int token = _loadToken;
+    final int token = _loadSession.current;
     // 条漫单步翻页用 jumpTo 确定性瞬移：scrollTo 反向连续调用时 SPL 0.3.8 会因
     // 内部 _scrollOffset 未即时更新产生「回弹/抽搐」（铁律③）。jumpTo 不排队动画、
     // 不与拖拽/上一动画争用 scroll activity，彻底消除反向翻页回弹。
@@ -2464,7 +2465,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       () {
         _webtoonStepTimer = null;
         // 章节已切换 / 页面已销毁则放弃本次判定，避免误触发换章。
-        if (!mounted || token != _loadToken) return;
+        if (!mounted || !_loadSession.isValid(token)) return;
         final after = _webtoonScrollAnchor();
         if (before == null || after == null) return;
         // 锚点未变 = 滚动被夹紧（已到边界），此时才换章。比较的是整段动画前后的
@@ -4724,7 +4725,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       final bool toLast = _pendingWebtoonScrollToLast;
       _pendingWebtoonRestore = null;
       _pendingWebtoonScrollToLast = false;
-      final int token = _loadToken;
+      final int token = _loadSession.current;
       // 进度条即时对齐「即将到达的页」：回到上一话时目标是末页，若沿用 target(=0)
       // 会让整个恢复期（等图加载 + 滚动收尾，约 1~3s）的页码停在第一页，收尾时才
       // 突然跳到末页。此处在 build 期内直接赋值（同帧生效，不触发额外重建），
@@ -4732,7 +4733,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       final int expectPage = _images.isEmpty ? 0 : _images.length - 1;
       _currentPage = (toLast ? expectPage : target).clamp(0, expectPage);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || token != _loadToken) return;
+        if (!mounted || !_loadSession.isValid(token)) return;
         final int last = _images.isEmpty ? 0 : _images.length - 1;
         if (toLast && last > 0 && isc.isAttached) {
           // 「回到上一话末页」的两段式落点：
@@ -4757,7 +4758,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           _webtoonLastPageTimer = Timer.periodic(
             const Duration(milliseconds: 80),
             (timer) {
-              if (!mounted || token != _loadToken) {
+              if (!mounted || !_loadSession.isValid(token)) {
                 timer.cancel();
                 _webtoonLastPageTimer = null;
                 _webtoonLastPageTimeout?.cancel();
@@ -4804,7 +4805,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           _webtoonLastPageTimeout?.cancel();
           _webtoonLastPageTimeout = Timer(const Duration(seconds: 3), () {
             _webtoonLastPageTimeout = null;
-            if (!mounted || token != _loadToken) return;
+            if (!mounted || !_loadSession.isValid(token)) return;
             if (_webtoonLastPageTimer == null) return; // 已稳定并滚动，无需兜底。
             _webtoonLastPageTimer?.cancel();
             _webtoonLastPageTimer = null;
@@ -4859,7 +4860,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _webtoonRestoreTimer = Timer.periodic(const Duration(milliseconds: 80), (
       timer,
     ) {
-      if (!mounted || token != _loadToken) {
+      if (!mounted || !_loadSession.isValid(token)) {
         timer.cancel();
         _webtoonRestoreTimer = null;
         return;
@@ -4908,12 +4909,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 回到上一话末页的收尾：把当前页赋成末页、解除屏蔽、写盘。
   void _finishWebtoonRestore(int last, int token) {
     _webtoonRestoreTimer = null;
-    if (!mounted || token != _loadToken) return;
+    if (!mounted || !_loadSession.isValid(token)) return;
     _currentPage = last;
     // 延后一帧再解除 _restoringPage：本方法常由最后一跳 jumpTo 所在帧直接调用，
     // 等本帧布局/绘制结束后再放行，避免用户紧跟其后的滚动与收尾瞬移产生竞态回弹。
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || token != _loadToken) return;
+      if (!mounted || !_loadSession.isValid(token)) return;
       _restoringPage = false;
       _saveProgress(last);
       setState(() {});
