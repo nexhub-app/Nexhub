@@ -507,20 +507,31 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     SettingsSwitchTile(
                       title: l10n.readerAutoPageTurning,
                       subtitle: l10n.readerAutoPageTurningDesc,
-                      value: _settings.comicAutoPageTurningInterval > 0,
-                      onChanged: (v) => _update(_settings.copyWith(
-                          comicAutoPageTurningInterval: v ? 5 : 0)),
+                      value: _settings.comicAutoPageTurningEnabled,
+                      onChanged: (v) {
+                        // 关闭只切开关、保留间隔；重新开启恢复上次间隔，
+                        // 从未设置过才兜底 5。
+                        final int cur =
+                            _settings.comicAutoPageTurningInterval;
+                        _update(_settings.copyWith(
+                          comicAutoPageTurningEnabled: v,
+                          comicAutoPageTurningInterval: v && cur <= 0 ? 5 : cur,
+                        ));
+                      },
                     ),
                     SettingsExpand(
-                      visible: _settings.comicAutoPageTurningInterval > 0,
+                      visible: _settings.comicAutoPageTurningEnabled,
                       padding: EdgeInsets.zero,
                       child: SettingsSliderTile(
                         label: l10n.readerAutoPageInterval,
-                        value: _settings.comicAutoPageTurningInterval.toDouble(),
+                        value: _settings.comicAutoPageTurningInterval
+                            .clamp(1, 20)
+                            .toDouble(),
                         min: 1,
                         max: 20,
                         divisions: 19,
-                        display: '${_settings.comicAutoPageTurningInterval}s',
+                        display:
+                            '${_settings.comicAutoPageTurningInterval.clamp(1, 20)}s',
                         onChanged: (v) => _update(_settings.copyWith(
                             comicAutoPageTurningInterval: v.round())),
                       ),

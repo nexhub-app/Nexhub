@@ -3254,8 +3254,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 后台（[_autoScrollPaused]）或模式不匹配时一律停止。调用点同 [_syncVolumeKey]，
   /// 以及 [didChangeAppLifecycleState] 从后台恢复时。
   void _syncAutoMotion() {
-    // 自动翻页：仅翻页模式 + 间隔 > 0 生效。
+    // 自动翻页：仅翻页模式 + 开关开启 + 间隔 > 0 生效。
     final bool wantPage = _prefs.readingMode.isPaged &&
+        _prefs.autoPageTurningEnabled &&
         _prefs.autoPageTurningInterval > 0 &&
         !_autoScrollPaused;
     if (wantPage) {

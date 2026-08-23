@@ -154,7 +154,12 @@ class ReaderDefaultSettings {
   /// 漫画：双击 / 长按缩放锚点来源（REQ-B11）：left / center / right。
   final ZoomStart comicZoomStart;
 
-  /// 漫画：自动翻页间隔（秒），0=关闭（默认）。paged 模式定时自动翻页。
+  /// 漫画：自动翻页开关（REQ-B9）。与 [comicAutoPageTurningInterval] 分开存储：
+  /// 关闭开关不清零间隔，重新开启时恢复上次设置的间隔。
+  final bool comicAutoPageTurningEnabled;
+
+  /// 漫画：自动翻页间隔（秒），范围 1–20；0=从未设置（开启开关时按 5 兜底）。
+  /// 仅 [comicAutoPageTurningEnabled] 开启时生效。paged 模式定时自动翻页。
   final int comicAutoPageTurningInterval;
 
   /// 漫画：自动滚动开关（webtoon 平滑自动滚动，速度随 [comicReaderScrollSpeed]）。
@@ -317,6 +322,7 @@ class ReaderDefaultSettings {
     this.comicEnableLongPressToZoom = false,
     this.comicLongPressZoomPosition = LongPressZoomPosition.press,
     this.comicZoomStart = ZoomStart.center,
+    this.comicAutoPageTurningEnabled = false,
     this.comicAutoPageTurningInterval = 0,
     this.comicAutoScroll = false,
     this.comicPageAnimation = ReaderPageAnimation.slide,
@@ -436,6 +442,7 @@ class ReaderDefaultSettings {
     bool? comicEnableLongPressToZoom,
     LongPressZoomPosition? comicLongPressZoomPosition,
     ZoomStart? comicZoomStart,
+    bool? comicAutoPageTurningEnabled,
     int? comicAutoPageTurningInterval,
     bool? comicAutoScroll,
     ReaderPageAnimation? comicPageAnimation,
@@ -568,6 +575,8 @@ class ReaderDefaultSettings {
         comicLongPressZoomPosition:
             comicLongPressZoomPosition ?? this.comicLongPressZoomPosition,
         comicZoomStart: comicZoomStart ?? this.comicZoomStart,
+        comicAutoPageTurningEnabled:
+            comicAutoPageTurningEnabled ?? this.comicAutoPageTurningEnabled,
         comicAutoPageTurningInterval:
             comicAutoPageTurningInterval ?? this.comicAutoPageTurningInterval,
         comicAutoScroll: comicAutoScroll ?? this.comicAutoScroll,
@@ -737,6 +746,7 @@ class ReaderDefaultSettings {
         'comicEnableLongPressToZoom': comicEnableLongPressToZoom,
         'comicLongPressZoomPosition': comicLongPressZoomPosition.name,
         'comicZoomStart': comicZoomStart.name,
+        'comicAutoPageTurningEnabled': comicAutoPageTurningEnabled,
         'comicAutoPageTurningInterval': comicAutoPageTurningInterval,
         'comicAutoScroll': comicAutoScroll,
         'comicPageAnimation': comicPageAnimation.name,
@@ -963,6 +973,11 @@ class ReaderDefaultSettings {
       comicAutoPageTurningInterval:
           ((json['comicAutoPageTurningInterval'] as num?)?.toInt() ?? 0)
               .clamp(0, 20),
+      // 迁移：旧数据没有独立开关字段，interval > 0 即视为开启。
+      comicAutoPageTurningEnabled:
+          json['comicAutoPageTurningEnabled'] as bool? ??
+              (((json['comicAutoPageTurningInterval'] as num?)?.toInt() ?? 0) >
+                  0),
       comicAutoScroll: json['comicAutoScroll'] as bool? ?? false,
       comicPageAnimation:
           _parsePageAnimation(json['comicPageAnimation']),
@@ -1179,6 +1194,7 @@ class ReaderDefaultSettings {
       enableLongPressToZoom: comicEnableLongPressToZoom,
       longPressZoomPosition: comicLongPressZoomPosition,
       zoomStart: comicZoomStart,
+      autoPageTurningEnabled: comicAutoPageTurningEnabled,
       autoPageTurningInterval: comicAutoPageTurningInterval,
       autoScroll: comicAutoScroll,
       pageAnimation: comicPageAnimation,

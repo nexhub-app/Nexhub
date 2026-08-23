@@ -390,17 +390,23 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _switchTile(l10n.readerAutoPageTurning, _draft.autoPageTurningInterval > 0,
-            (v) => _update(
-                _draft.copyWith(autoPageTurningInterval: v ? 5 : 0))),
-        if (_draft.autoPageTurningInterval > 0)
+        _switchTile(l10n.readerAutoPageTurning, _draft.autoPageTurningEnabled,
+            (v) {
+          // 关闭只切开关、保留间隔；重新开启恢复上次间隔，从未设置过才兜底 5。
+          final int cur = _draft.autoPageTurningInterval;
+          _update(_draft.copyWith(
+            autoPageTurningEnabled: v,
+            autoPageTurningInterval: v && cur <= 0 ? 5 : cur,
+          ));
+        }),
+        if (_draft.autoPageTurningEnabled)
           _SliderRow(
             label: l10n.readerAutoPageInterval,
-            value: _draft.autoPageTurningInterval.toDouble(),
+            value: _draft.autoPageTurningInterval.clamp(1, 20).toDouble(),
             min: 1,
             max: 20,
             divisions: 19,
-            displayValue: '${_draft.autoPageTurningInterval}s',
+            displayValue: '${_draft.autoPageTurningInterval.clamp(1, 20)}s',
             onChanged: (v) => _update(
                 _draft.copyWith(autoPageTurningInterval: v.round())),
           ),

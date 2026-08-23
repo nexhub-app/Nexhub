@@ -467,7 +467,12 @@ class ReaderPreferences {
   /// 双击 / 长按缩放锚点来源（REQ-B11）：left / center / right。
   final ZoomStart zoomStart;
 
-  /// 自动翻页间隔（秒），0=关闭（默认）。paged 模式定时自动翻页。
+  /// 自动翻页开关（REQ-B9）。与 [autoPageTurningInterval] 分开存储：关闭开关
+  /// 不清零间隔，重新开启时恢复上次设置的间隔（旧数据 0 时兜底 5）。
+  final bool autoPageTurningEnabled;
+
+  /// 自动翻页间隔（秒），范围 1–20；0=从未设置（开启开关时按 5 兜底）。
+  /// 仅 [autoPageTurningEnabled] 开启时生效。paged 模式定时自动翻页。
   final int autoPageTurningInterval;
 
   /// 自动滚动开关（webtoon 平滑自动滚动，速度随 [readerScrollSpeed]）。
@@ -551,6 +556,7 @@ class ReaderPreferences {
     this.enableLongPressToZoom = false,
     this.longPressZoomPosition = LongPressZoomPosition.press,
     this.zoomStart = ZoomStart.center,
+    this.autoPageTurningEnabled = false,
     this.autoPageTurningInterval = 0,
     this.autoScroll = false,
     this.pageAnimation = ReaderPageAnimation.slide,
@@ -674,6 +680,9 @@ class ReaderPreferences {
       autoPageTurningInterval:
           ((json['autoPageTurningInterval'] as num?)?.toInt() ?? 0)
               .clamp(0, 20),
+      // 迁移：旧数据没有独立开关字段，interval > 0 即视为开启。
+      autoPageTurningEnabled: json['autoPageTurningEnabled'] as bool? ??
+          (((json['autoPageTurningInterval'] as num?)?.toInt() ?? 0) > 0),
       autoScroll: json['autoScroll'] as bool? ?? false,
       pageAnimation: _parsePageAnimation(json['pageAnimation']),
       doubleTapAnimSpeed:
@@ -754,6 +763,7 @@ class ReaderPreferences {
         'enableLongPressToZoom': enableLongPressToZoom,
         'longPressZoomPosition': longPressZoomPosition.name,
         'zoomStart': zoomStart.name,
+        'autoPageTurningEnabled': autoPageTurningEnabled,
         'autoPageTurningInterval': autoPageTurningInterval,
         'autoScroll': autoScroll,
         'pageAnimation': pageAnimation.name,
@@ -818,6 +828,7 @@ class ReaderPreferences {
     bool? enableLongPressToZoom,
     LongPressZoomPosition? longPressZoomPosition,
     ZoomStart? zoomStart,
+    bool? autoPageTurningEnabled,
     int? autoPageTurningInterval,
     bool? autoScroll,
     ReaderPageAnimation? pageAnimation,
@@ -887,6 +898,8 @@ class ReaderPreferences {
         longPressZoomPosition:
             longPressZoomPosition ?? this.longPressZoomPosition,
         zoomStart: zoomStart ?? this.zoomStart,
+        autoPageTurningEnabled:
+            autoPageTurningEnabled ?? this.autoPageTurningEnabled,
         autoPageTurningInterval:
             autoPageTurningInterval ?? this.autoPageTurningInterval,
         autoScroll: autoScroll ?? this.autoScroll,
@@ -1059,6 +1072,10 @@ class ReaderPreferences {
       zoomStart: identical(zoomStart, def.zoomStart)
           ? base.zoomStart
           : zoomStart,
+      autoPageTurningEnabled:
+          identical(autoPageTurningEnabled, def.autoPageTurningEnabled)
+              ? base.autoPageTurningEnabled
+              : autoPageTurningEnabled,
       autoPageTurningInterval:
           identical(autoPageTurningInterval, def.autoPageTurningInterval)
               ? base.autoPageTurningInterval

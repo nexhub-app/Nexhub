@@ -132,4 +132,34 @@ void main() {
     final loaded = await store.get('m2');
     expect(loaded.autoPageTurningInterval, 10);
   });
+
+  test('关闭自动翻页不清零间隔，重新开启恢复原间隔', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final store = ReaderPreferencesStore();
+    // 开启并设间隔 12s → 仅关开关（UI 新路径：只切 enabled）。
+    final draft = const ReaderPreferences()
+        .copyWith(autoPageTurningEnabled: true, autoPageTurningInterval: 12)
+        .copyWith(autoPageTurningEnabled: false);
+    expect(draft.autoPageTurningInterval, 12);
+    await store.save('m2', draft);
+    var loaded = await store.get('m2');
+    expect(loaded.autoPageTurningEnabled, isFalse);
+    expect(loaded.autoPageTurningInterval, 12);
+    // 重新开启：间隔保持上次值而非重置为 5。
+    loaded = loaded.copyWith(autoPageTurningEnabled: true);
+    expect(loaded.autoPageTurningInterval, 12);
+  });
+
+  test('旧数据迁移：无 autoPageTurningEnabled 键时按 interval>0 推导开关', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m3': '{"autoPageTurningInterval":7}',
+      'reader_prefs_m4': '{"autoPageTurningInterval":0}',
+    });
+    final store = ReaderPreferencesStore();
+    final on = await store.get('m3');
+    expect(on.autoPageTurningEnabled, isTrue);
+    expect(on.autoPageTurningInterval, 7);
+    final off = await store.get('m4');
+    expect(off.autoPageTurningEnabled, isFalse);
+  });
 }
