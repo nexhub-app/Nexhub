@@ -9,7 +9,7 @@
 /// （如 MacCMS/jsExtractor 源）以及普通直链 / HLS 源。
 library;
 
-import 'dart:math' show min;
+import 'dart:math' show max, min;
 import 'dart:typed_data';
 
 import '../models/episode.dart';
@@ -54,23 +54,36 @@ class MediaDownloadHandler implements DownloadHandler {
 
     // 阶段一：逐集解析真实下载地址（后台静默嗅探 / 直连解析）。
     // 受并发上限约束（默认 1，最多 3），避免同时拉起过多无界面 WebView。
+    //
+    // 进度分段：嗅探占总进度前 10%、字节下载占后 90%。嗅探（原子解析 +
+    // WebView 加载）没有真实进度信号 → 渐近估计填充区间，且与已解析完成的
+    // 集数（真实下限）取 max，避免整个嗅探期（单集最长 25s）停在 0%。
+    const sniffSpan = 0.1;
+    const downloadSpan = 1.0 - sniffSpan;
     final resolved = List<SniffedVideoLink?>.filled(chapters.length, null);
     final sniffConcurrency = min(concurrency, 3).clamp(1, 3);
     final idxList = [for (var i = 0; i < chapters.length; i++) i];
-    await runPool(sniffConcurrency, idxList, (i) async {
-      _throwIfCancelled(isCancelled);
-      try {
-        resolved[i] = await VideoLinkSniffer.resolveEpisode(
-          service,
-          source,
-          chapters[i].url,
-          timeout: const Duration(seconds: 25),
-        );
-      } on Object catch (e) {
-        AppLog.instance.w('[视频地址解析失败] ${task.title} 第${i + 1}集: $e');
-        resolved[i] = null;
-      }
-    });
+    var resolvedFloor = 0.0;
+    await estimateOpaqueProgress(
+      () => runPool(sniffConcurrency, idxList, (i) async {
+        _throwIfCancelled(isCancelled);
+        try {
+          resolved[i] = await VideoLinkSniffer.resolveEpisode(
+            service,
+            source,
+            chapters[i].url,
+            timeout: const Duration(seconds: 25),
+          );
+        } on Object catch (e) {
+          AppLog.instance.w('[视频地址解析失败] ${task.title} 第${i + 1}集: $e');
+          resolved[i] = null;
+        }
+      }, onItemDone: (completed, total) {
+        resolvedFloor = completed / total;
+      }),
+      onValue: (v) => reportOverallProgress(onProgress,
+          sniffSpan * max(v, resolvedFloor), chapters.length),
+    );
 
     final resolvable = <int>[];
     for (var i = 0; i < chapters.length; i++) {
@@ -84,6 +97,8 @@ class MediaDownloadHandler implements DownloadHandler {
     }
 
     // 阶段二：并行下载已解析的集（直链写字节；HLS 分段下载拼接）。
+    // 每集进度映射进后 90% 区间：f = 0.1 + 0.9 * (k + fileProgress) / N，
+    // k 为本集在 resolvable 中的序号——进度在阶段切换处单调接管，不回跳。
     var written = 0;
     // 逐集文件路径：下标对齐 chapters（缺则为空串，供上层跳过未下载集）。
     final List<String> chapterPaths =
@@ -93,25 +108,26 @@ class MediaDownloadHandler implements DownloadHandler {
       // 集序号取「全局序号」：单集/分批下载时文件名与整本下载一致，
       // 避免第二批下载用本地 1..N 覆盖第一批文件（内容在管理器里对不上）。
       final int seq = chapters[idx].number ?? (idx + 1);
+      final k = resolvable.indexOf(idx);
+      void episodeReport(double fileProgress) => reportOverallProgress(
+          onProgress,
+          sniffSpan + downloadSpan * (k + fileProgress) / resolvable.length,
+          chapters.length);
       final link = resolved[idx]!;
       var ok = false;
       String? path;
       if (link.isHls) {
         if (await _downloadHls(taskDir, seq, link,
-            onProgress: (fileProgress) {
-              onProgress?.call(idx, resolvable.length, fileProgress);
-            },
+            onProgress: episodeReport,
         )) {
           path = fs.join(taskDir, '${_pad(seq)}.ts');
           ok = true;
         }
       } else {
-        // 直链视频：通过 Dio 下载（支持进度回调），避免整块读入内存导致 OOM。
+        // 直链视频：流式下载（支持进度回调），避免整块读入内存导致 OOM。
         if (await _downloadDirect(
             taskDir, seq, link.url, link.headers,
-            onProgress: (fileProgress) {
-              onProgress?.call(idx, resolvable.length, fileProgress);
-            },
+            onProgress: episodeReport,
         )) {
           path = fs.join(taskDir, '${_pad(seq)}.mp4');
           ok = true;
@@ -125,9 +141,7 @@ class MediaDownloadHandler implements DownloadHandler {
               taskDir,
               seq,
               SniffedVideoLink(url: line.url, headers: line.headers),
-              onProgress: (fileProgress) {
-                onProgress?.call(idx, resolvable.length, fileProgress);
-              },
+              onProgress: episodeReport,
             )) {
               path = fs.join(taskDir, '${_pad(seq)}.ts');
               ok = true;
@@ -135,9 +149,7 @@ class MediaDownloadHandler implements DownloadHandler {
           } else {
             if (await _downloadDirect(
                 taskDir, seq, line.url, line.headers,
-                onProgress: (fileProgress) {
-                  onProgress?.call(idx, resolvable.length, fileProgress);
-                },
+                onProgress: episodeReport,
             )) {
               path = fs.join(taskDir, '${_pad(seq)}.mp4');
               ok = true;
@@ -151,7 +163,8 @@ class MediaDownloadHandler implements DownloadHandler {
         written++;
       }
     }, onItemDone: (completed, total) {
-      onProgress?.call(completed, total, 0.0);
+      reportOverallProgress(onProgress,
+          sniffSpan + downloadSpan * completed / total, chapters.length);
     });
 
     // 一个直链都没写成 → 明确报错（覆盖「全部被跳过（HLS 拼接失败）→ 假完成」）。
@@ -224,9 +237,12 @@ class MediaDownloadHandler implements DownloadHandler {
         final vbytes = await _getBytesRetry(variantUrl, link.headers,
             what: '变体 m3u8');
         if (vbytes.isEmpty) return;
+        // 变体（master playlist）递归时透传进度回调：旧实现丢了它，
+        // 自适应 HLS 全部分片下载期间没有任何进度上报。
         yield* _concatHlsStream(
             String.fromCharCodes(vbytes),
-            SniffedVideoLink(url: variantUrl, headers: link.headers));
+            SniffedVideoLink(url: variantUrl, headers: link.headers),
+            onProgress: onProgress);
       }
       return;
     }
@@ -331,6 +347,9 @@ class MediaDownloadHandler implements DownloadHandler {
     return uri.resolve(s).toString();
   }
 
+  /// 无 Content-Length 直链的假定单集体量（约 100MB）：仅用于渐近进度估计。
+  static const int _assumedEpBytes = 100 * 1024 * 1024;
+
   /// 直链视频流式下载：逐块写盘（`<dir>/NNN.mp4`），内存占用恒定。
   ///
   /// 返回 true 表示成功写出；失败返回 false（由上层尝试备用线路）。
@@ -381,7 +400,12 @@ class MediaDownloadHandler implements DownloadHandler {
         }
         receivedBytes += chunk.length;
         if (totalBytes != null && totalBytes! > 0) {
-          onProgress?.call(receivedBytes / totalBytes!);
+          onProgress?.call((receivedBytes / totalBytes!).clamp(0.0, 1.0));
+        } else {
+          // 无 Content-Length（chunked 传输）算不出真实百分比：
+          // 以「已收字节 / (已收字节 + 假定体量)」渐近估计，进度随字节
+          // 持续增长且不会虚假封顶，下载停滞时进度也随之停止。
+          onProgress?.call(receivedBytes / (receivedBytes + _assumedEpBytes));
         }
         return chunk;
       }));

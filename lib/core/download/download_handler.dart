@@ -4,6 +4,8 @@
 /// 负责拉取内容、打包、写入本地文件，并报告进度。
 library;
 
+import 'dart:async' show Timer;
+
 import 'download_task.dart';
 
 /// 处理器进度回调：已完成章节数、总章节数、当前章节内部进度（0.0~1.0）。
@@ -93,4 +95,43 @@ Future<void> runPool<T>(
   final count = concurrency < items.length ? concurrency : items.length;
   final workers = <Future<void>>[for (var i = 0; i < count; i++) worker()];
   await Future.wait(workers);
+}
+
+/// 把整任务级总进度（0.0~1.0）编码进处理器进度回调三元组。
+///
+/// Manager 侧进度公式为 `(downloadedChapters + chapterProgress) / totalChapters`。
+/// 多阶段流程（嗅探→下载 / 抓取→写盘）各自只占总进度的一段区间时，
+/// 用本函数按真实章节数换算：进度单调递增不回跳，`downloadedChapters`
+/// 也随总进度自然增长（不会在阶段切换时清零回跳）。
+void reportOverallProgress(
+  DownloadProgressCallback? onProgress,
+  double fraction,
+  int totalChapters,
+) {
+  if (onProgress == null) return;
+  final scaled = (fraction.clamp(0.0, 1.0)) * totalChapters;
+  final done = scaled.floor();
+  onProgress(done, totalChapters, scaled - done);
+}
+
+/// 黑盒阶段进度估计：在 [phase] 执行期间按渐近曲线周期上报估计值。
+///
+/// 地址嗅探（无界面 WebView）/ 单章正文抓取（一次原子请求）这类阶段没有
+/// 可上报的真实进度——单集/单章任务会在 0% 停留整个阶段、完成瞬间跳 100%。
+/// 曲线 `cap * t/(t+1)`（t 为已耗时/半衰期）保证进度持续增加又不会虚假封顶：
+/// 约一个半衰期到区间一半，三个半衰期到 3/4，渐近逼近 [cap]。
+/// [phase] 结束（含异常/取消）后定时器必然取消，由调用方以真实进度接管。
+Future<T> estimateOpaqueProgress<T>(
+  Future<T> Function() phase, {
+  required void Function(double value) onValue,
+  Duration halfTime = const Duration(seconds: 2),
+  Duration tick = const Duration(milliseconds: 150),
+}) {
+  const cap = 0.95;
+  final watch = Stopwatch()..start();
+  final timer = Timer.periodic(tick, (_) {
+    final t = watch.elapsedMilliseconds / halfTime.inMilliseconds;
+    onValue(cap * t / (t + 1));
+  });
+  return phase().whenComplete(timer.cancel);
 }

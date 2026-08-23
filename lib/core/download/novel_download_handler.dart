@@ -68,10 +68,15 @@ class NovelDownloadHandler implements DownloadHandler {
     await fs.createDir(imagesDir);
 
     // 并行拉取各章正文块（保留顺序），再逐章落盘（含插图下载）。
+    //
+    // 进度分段：抓取占前 80%、写盘与插图占后 20%。抓取完由写盘进度直接
+    // 接管，消除旧实现「抓取报 100% → 写盘又回到 0%」的进度回跳。
+    const fetchSpan = 0.8;
+    const writeSpan = 1.0 - fetchSpan;
     final List<List<NovelBlock>?> fetched =
         List<List<NovelBlock>?>.filled(chapters.length, null);
     final idxList = [for (var i = 0; i < chapters.length; i++) i];
-    await runPool(concurrency, idxList, (i) async {
+    Future<void> fetchAllChapters() => runPool(concurrency, idxList, (i) async {
       _throwIfCancelled(isCancelled);
       final ch = chapters[i];
       try {
@@ -87,10 +92,21 @@ class NovelDownloadHandler implements DownloadHandler {
         fetched[i] = null;
       }
     }, onItemDone: (completed, total) {
-      // 获取阶段报告中间进度：downloadedChapters=0, chapterProgress=completed/total
-      // 这样单个章节下载时也能看到 0%→50%→100% 的进度变化
-      onProgress?.call(0, chapters.length, completed / total);
+      // 抓取阶段真实进度（每完成一章）映射进前 80% 区间。
+      reportOverallProgress(
+          onProgress, fetchSpan * completed / total, chapters.length);
     });
+    if (chapters.length == 1) {
+      // 单章抓取是一次原子请求，期间没有真实进度信号 → 渐近估计填充
+      // 0%→80% 区间，避免整个网络等待期停在 0%、完成瞬间跳 100%。
+      await estimateOpaqueProgress(
+        fetchAllChapters,
+        onValue: (v) => reportOverallProgress(
+            onProgress, fetchSpan * v, chapters.length),
+      );
+    } else {
+      await fetchAllChapters();
+    }
 
     // 章节文件路径（下标对齐 chapters）
     // 与 media/comic handler 的语义一致，供阅读器跨批次聚合时正确对齐。
@@ -105,8 +121,12 @@ class NovelDownloadHandler implements DownloadHandler {
       final buffer = StringBuffer();
       for (var bIdx = 0; bIdx < blocks.length; bIdx++) {
         final b = blocks[bIdx];
-        // 报告章节内处理进度（文本块/插图块处理）
-        onProgress?.call(i, chapters.length, bIdx / blocks.length);
+        // 章内块进度（文本块/插图块）映射进后 20% 区间：插图逐张下载时
+        // 进度随之逐渐增加；纯文本章写盘极快，瞬时走完属真实情况。
+        reportOverallProgress(
+            onProgress,
+            fetchSpan + writeSpan * (i + bIdx / blocks.length) / chapters.length,
+            chapters.length);
         if (b is NovelTextBlock) {
           if (b.text.trim().isNotEmpty) {
             buffer.writeln(convertChinese(b.text, convertMode));
@@ -128,7 +148,8 @@ class NovelDownloadHandler implements DownloadHandler {
         // 该章内容为空（源抓取失败/被拦截）：跳过，不写空文件。SAF 文件系统
         // 会拒绝写入空内容（writeBytes 校验），直接写空文件会抛异常 → 整个
         // 下载失败 → 作品目录被清理（表现为"文件夹没有内容"）。
-        onProgress?.call(i + 1, chapters.length, 0.0);
+        reportOverallProgress(onProgress,
+            fetchSpan + writeSpan * (i + 1) / chapters.length, chapters.length);
         continue;
       }
       anyContent = true;
@@ -136,7 +157,8 @@ class NovelDownloadHandler implements DownloadHandler {
       final filePath = fs.join(workDir, fileName);
       await fs.writeString(filePath, buffer.toString());
       chapterFilePaths[i] = filePath;
-      onProgress?.call(i + 1, chapters.length, 0.0);
+      reportOverallProgress(onProgress,
+          fetchSpan + writeSpan * (i + 1) / chapters.length, chapters.length);
     }
 
     // 全部章节正文与插图都为空（源正文抓取失败/被反盗链拦截）→ 明确报错，
