@@ -5727,17 +5727,19 @@ Widget buildSelectionRichText(
   TextOverflow overflow = TextOverflow.clip,
 }) {
   final n = text.length;
-  // 逐字符效果信息：背景色 + 装饰样式（独立存储，可同时存在）
+  // 逐字符效果信息：背景色 + 装饰样式 + 划线颜色（独立存储，可同时存在）
   final List<int?> bg = List<int?>.filled(n, null);
   final List<HighlightEffect?> effects = List<HighlightEffect?>.filled(n, null);
+  final List<int?> uc = List<int?>.filled(n, null); // underline color
   // 先铺已存划线（低优先级），再覆盖活动选区（高优先级）。
   for (final s in spans.where((s) => !s.isActive)) {
     for (var i = s.start; i < s.end && i < n; i++) {
       if (s.effect == HighlightEffect.bg) {
         bg[i] = s.color;
       } else {
-        // 划线效果仅设装饰，不设背景色（可与背景高亮共存）
+        // 划线效果：存储效果类型和颜色（不设背景色）
         effects[i] = s.effect;
+        uc[i] = s.color;
       }
     }
   }
@@ -5747,6 +5749,7 @@ Widget buildSelectionRichText(
         bg[i] = s.color;
       } else {
         effects[i] = s.effect;
+        uc[i] = s.color;
       }
     }
   }
@@ -5755,8 +5758,9 @@ Widget buildSelectionRichText(
   while (i < n) {
     final c = bg[i];
     final eff = effects[i];
+    final underlineColor = uc[i];
     var j = i + 1;
-    while (j < n && bg[j] == c && effects[j] == eff) {
+    while (j < n && bg[j] == c && effects[j] == eff && uc[j] == underlineColor) {
       j++;
     }
     TextStyle? style;
@@ -5775,7 +5779,7 @@ Widget buildSelectionRichText(
       style = baseStyle.copyWith(
         decoration: decoration,
         decorationStyle: decorationStyle,
-        decorationColor: Color(c ?? 0x80FF0000).withValues(alpha: 0.8),
+        decorationColor: Color(underlineColor ?? 0x80FF0000).withValues(alpha: 0.8),
         decorationThickness: 1.5,
       );
     }
