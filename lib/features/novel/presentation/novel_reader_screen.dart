@@ -2341,10 +2341,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 const SizedBox(height: 8),
                 SizedBox(
                   width: 200,
-                  child: _ColorPickerSlider(
-                    initialColor: customColor,
+                  child: _SimpleColorSlider(
+                    value: customColor.value,
                     onChanged: (c) {
-                      customColor = c;
+                      customColor = Color(c);
                     },
                   ),
                 ),
@@ -2379,7 +2379,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          Color customUnderlineColor = const Color(0x80FF0000);
           return AlertDialog(
             title: Text(l10n.selectionUnderline),
             content: SingleChildScrollView(
@@ -2434,17 +2433,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   // 自定义颜色滑块
                   Text(l10n.customColor, style: const TextStyle(fontSize: 12)),
                   const SizedBox(height: 4),
-                  SizedBox(
-                    width: 200,
-                    child: _ColorPickerSlider(
-                      initialColor: customUnderlineColor,
-                      onChanged: (c) => setDialogState(() => customUnderlineColor = c),
+                  // 颜色预览
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Color(selectedColor),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.3)),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  TextButton(
-                    onPressed: () => setDialogState(() => selectedColor = customUnderlineColor.value),
-                    child: Text(l10n.customColorApply, style: const TextStyle(fontSize: 12)),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: 200,
+                    child: _SimpleColorSlider(
+                      value: selectedColor,
+                      onChanged: (c) => setDialogState(() => selectedColor = c),
+                    ),
                   ),
                 ],
               ),
@@ -8620,21 +8625,21 @@ class _MergedNoteEntry {
   });
 }
 
-/// 简易颜色选择器滑块：RGB 三通道滑块 + 颜色预览。
-class _ColorPickerSlider extends StatefulWidget {
-  final Color initialColor;
-  final ValueChanged<Color> onChanged;
+/// 简易颜色滑块：直接操作 int 颜色值，滑块拖动实时更新。
+class _SimpleColorSlider extends StatefulWidget {
+  final int value;
+  final ValueChanged<int> onChanged;
 
-  const _ColorPickerSlider({
-    required this.initialColor,
+  const _SimpleColorSlider({
+    required this.value,
     required this.onChanged,
   });
 
   @override
-  State<_ColorPickerSlider> createState() => _ColorPickerSliderState();
+  State<_SimpleColorSlider> createState() => _SimpleColorSliderState();
 }
 
-class _ColorPickerSliderState extends State<_ColorPickerSlider> {
+class _SimpleColorSliderState extends State<_SimpleColorSlider> {
   late double _r;
   late double _g;
   late double _b;
@@ -8643,40 +8648,36 @@ class _ColorPickerSliderState extends State<_ColorPickerSlider> {
   @override
   void initState() {
     super.initState();
-    _r = widget.initialColor.r;
-    _g = widget.initialColor.g;
-    _b = widget.initialColor.b;
-    _a = widget.initialColor.a;
+    _fromColor(widget.value);
   }
 
-  Color get _currentColor => Color.from(
-        alpha: _a,
-        red: _r,
-        green: _g,
-        blue: _b,
-      );
+  @override
+  void didUpdateWidget(_SimpleColorSlider old) {
+    super.didUpdateWidget(old);
+    if (old.value != widget.value) {
+      _fromColor(widget.value);
+    }
+  }
+
+  void _fromColor(int color) {
+    final c = Color(color);
+    _r = c.r;
+    _g = c.g;
+    _b = c.b;
+    _a = c.a;
+  }
+
+  int get _currentValue => Color.from(alpha: _a, red: _r, green: _g, blue: _b).value;
 
   @override
   Widget build(BuildContext context) {
-    final color = _currentColor;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        // 颜色预览
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            border: Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
-          ),
-        ),
-        const SizedBox(height: 8),
-        _slider('R', _r, (v) => setState(() => _r = v)),
-        _slider('G', _g, (v) => setState(() => _g = v)),
-        _slider('B', _b, (v) => setState(() => _b = v)),
-        _slider('A', _a, (v) => setState(() => _a = v)),
+        _slider('R', _r, (v) => setState(() { _r = v; widget.onChanged(_currentValue); })),
+        _slider('G', _g, (v) => setState(() { _g = v; widget.onChanged(_currentValue); })),
+        _slider('B', _b, (v) => setState(() { _b = v; widget.onChanged(_currentValue); })),
+        _slider('A', _a, (v) => setState(() { _a = v; widget.onChanged(_currentValue); })),
       ],
     );
   }
@@ -8684,30 +8685,21 @@ class _ColorPickerSliderState extends State<_ColorPickerSlider> {
   Widget _slider(String label, double value, ValueChanged<double> onChanged) {
     return Row(
       children: <Widget>[
-        SizedBox(
-          width: 16,
-          child: Text(label, style: const TextStyle(fontSize: 11)),
-        ),
+        SizedBox(width: 16, child: Text(label, style: const TextStyle(fontSize: 11))),
         Expanded(
           child: Slider(
             value: value,
             min: 0.0,
             max: 1.0,
             divisions: 255,
-            onChanged: (v) {
-              onChanged(v);
-              widget.onChanged(_currentColor);
-            },
+            onChanged: onChanged,
           ),
         ),
-        SizedBox(
-          width: 36,
-          child: Text(
-            (value * 255).round().toString(),
-            style: const TextStyle(fontSize: 10),
-            textAlign: TextAlign.right,
-          ),
-        ),
+        SizedBox(width: 36, child: Text(
+          (value * 255).round().toString(),
+          style: const TextStyle(fontSize: 10),
+          textAlign: TextAlign.right,
+        )),
       ],
     );
   }
