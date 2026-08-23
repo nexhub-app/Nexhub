@@ -1408,15 +1408,30 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     itemBuilder: (_, i) {
                       final h = highlights[i];
                       final swatch = Color(h.color);
+                      final isUnderline = h.effect != 'bg';
                       return ListTile(
-                        leading: Container(
-                          width: 4,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: swatch,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
+                        leading: isUnderline
+                          ? Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: swatch.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Icon(
+                                Icons.format_underline,
+                                size: 16,
+                                color: swatch,
+                              ),
+                            )
+                          : Container(
+                              width: 4,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: swatch,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
                         title: Text(
                           '${l10n.chapterN(h.chapterIndex + 1)} · ${h.chapterTitle}',
                           maxLines: 1,
@@ -2226,40 +2241,39 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           elevation: 8,
           color: cs.surface,
           child: Container(
+            clipBehavior: Clip.hardEdge,
             padding: const EdgeInsets.symmetric(
               horizontal: AppTokens.spaceXs,
               vertical: AppTokens.spaceXs,
             ),
             child: Row(
               children: <Widget>[
-                Flexible(child: _selToolbarButton(
+                Expanded(child: _selToolbarButton(
                   icon: Icons.copy_outlined,
                   label: l10n.selectionCopy,
                   onPressed: _selCopy,
                 )),
-                Flexible(child: _selToolbarButton(
+                Expanded(child: _selToolbarButton(
                   icon: Icons.subject_outlined,
                   label: l10n.selectionParagraph,
                   onPressed: _selParagraph,
                 )),
-                // 高亮按钮：弹出背景色选择器
-                Flexible(child: _selToolbarButton(
+                Expanded(child: _selToolbarButton(
                   icon: Icons.palette_outlined,
                   label: l10n.selectionHighlight,
                   onPressed: () => _showColorPicker(),
                 )),
-                // 划线按钮：弹出样式+颜色选择器
-                Flexible(child: _selToolbarButton(
+                Expanded(child: _selToolbarButton(
                   icon: Icons.format_underline,
                   label: l10n.selectionUnderline,
                   onPressed: () => _showUnderlinePicker(),
                 )),
-                Flexible(child: _selToolbarButton(
+                Expanded(child: _selToolbarButton(
                   icon: Icons.edit_note_outlined,
                   label: l10n.selectionNote,
                   onPressed: () => _selHighlightWithNote(),
                 )),
-                Flexible(child: _selToolbarButton(
+                Expanded(child: _selToolbarButton(
                   icon: Icons.share_outlined,
                   label: l10n.selectionShare,
                   onPressed: () => _selShare(),
@@ -2348,7 +2362,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 显示划线样式+颜色选择器弹窗，先选样式再选颜色，确认后落盘。
   Future<void> _showUnderlinePicker() async {
     final l10n = AppLocalizations.of(context);
-    // 使用记录类型返回 (color, effectName)
     HighlightEffect selectedEffect = HighlightEffect.underline;
     int selectedColor = _highlightPalette.first;
     final result = await showDialog<MapEntry<int, HighlightEffect>>(
@@ -2358,70 +2371,72 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           Color customUnderlineColor = const Color(0x80FF0000);
           return AlertDialog(
             title: Text(l10n.selectionUnderline),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                // 样式选择
-                Text(l10n.underlineStyle, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    for (final eff in [HighlightEffect.underline, HighlightEffect.wavy, HighlightEffect.dotted])
-                      ChoiceChip(
-                        label: Text(_effectLabel(eff, l10n), style: const TextStyle(fontSize: 12)),
-                        selected: eff == selectedEffect,
-                        onSelected: (_) => setDialogState(() => selectedEffect = eff),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // 颜色选择
-                Text(l10n.underlineColor, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  alignment: WrapAlignment.center,
-                  children: _highlightPalette.map((c) {
-                    return GestureDetector(
-                      onTap: () => setDialogState(() => selectedColor = c),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Color(c),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: c == selectedColor
-                                ? Theme.of(ctx).colorScheme.primary
-                                : Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.3),
-                            width: c == selectedColor ? 3 : 1,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  // 样式选择
+                  Text(l10n.underlineStyle, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      for (final eff in [HighlightEffect.underline, HighlightEffect.wavy, HighlightEffect.dotted])
+                        ChoiceChip(
+                          label: Text(_effectLabel(eff, l10n), style: const TextStyle(fontSize: 12)),
+                          selected: eff == selectedEffect,
+                          onSelected: (_) => setDialogState(() => selectedEffect = eff),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // 颜色选择
+                  Text(l10n.underlineColor, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.center,
+                    children: _highlightPalette.map((c) {
+                      return GestureDetector(
+                        onTap: () => setDialogState(() => selectedColor = c),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Color(c),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: c == selectedColor
+                                  ? Theme.of(ctx).colorScheme.primary
+                                  : Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.3),
+                              width: c == selectedColor ? 3 : 1,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 12),
-                // 自定义颜色滑块
-                Text(l10n.customColor, style: const TextStyle(fontSize: 12)),
-                const SizedBox(height: 4),
-                SizedBox(
-                  width: 200,
-                  child: _ColorPickerSlider(
-                    initialColor: customUnderlineColor,
-                    onChanged: (c) => customUnderlineColor = c,
+                      );
+                    }).toList(),
                   ),
-                ),
-                const SizedBox(height: 4),
-                TextButton(
-                  onPressed: () => setDialogState(() => selectedColor = customUnderlineColor.value),
-                  child: Text(l10n.customColorApply, style: const TextStyle(fontSize: 12)),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  // 自定义颜色滑块
+                  Text(l10n.customColor, style: const TextStyle(fontSize: 12)),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    width: 200,
+                    child: _ColorPickerSlider(
+                      initialColor: customUnderlineColor,
+                      onChanged: (c) => setDialogState(() => customUnderlineColor = c),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: () => setDialogState(() => selectedColor = customUnderlineColor.value),
+                    child: Text(l10n.customColorApply, style: const TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
             ),
             actions: <Widget>[
               TextButton(
@@ -2466,14 +2481,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       onPressed: onPressed,
       style: TextButton.styleFrom(
         foregroundColor: cs.onSurface,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(icon, size: 18),
-          const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 11)),
+          Icon(icon, size: 16),
+          const SizedBox(height: 1),
+          Text(label, style: const TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis, maxLines: 1),
         ],
       ),
     );
