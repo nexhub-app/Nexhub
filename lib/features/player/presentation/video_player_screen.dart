@@ -28,6 +28,7 @@ import '../../../core/player/player_controller.dart';
 import '../../../core/player/audio_playback_service.dart';
 import '../../../core/player/pip_actions_bridge.dart';
 import '../../../core/player/play_queue_store.dart';
+import 'package:nexhub/features/player/pip/desktop_pip_controller.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/player_settings.dart';
@@ -79,6 +80,15 @@ part 'video_player_screenshot.dart';
 part 'video_player_danmaku_input.dart';
 part 'video_player_widgets.dart';
 
+
+/// 常量：是否桌面平台（Windows/macOS/Linux），供 part 文件使用。
+bool get _isDesktopPlatform {
+  try {
+    return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+  } on Object {
+    return false;
+  }
+}
 
 /// 发送弹幕时可选择的预设颜色（与主流弹幕站一致）。
 const List<Color> _danmakuPresetColors = <Color>[
@@ -546,6 +556,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   StreamSubscription<Duration>? _castPositionSub;
   StreamSubscription<Object>? _castErrorSub;
   Duration _castPosition = Duration.zero;
+
+  /// 桌面 PiP 控制器（F-24）。
+  final DesktopPipController _desktopPipController =
+      DesktopPipController.instance;
 
   /// 键盘焦点节点（P8.3.4 §廿四 键盘快捷键）。
   final FocusNode _focusNode = FocusNode();

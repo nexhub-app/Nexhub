@@ -2481,6 +2481,8 @@
   },
   "playerEpisodes": "选集",
   "playerPip": "画中画",
+  "playerDesktopPip": "桌面画中画",
+  "playerDesktopPipActive": "桌面画中画已开启",
   "playerCast": "投屏",
   "playerMore": "更多",
   "seekForward10": "快进 10 秒",

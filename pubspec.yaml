@@ -126,6 +126,7 @@ dependencies:
   # 处理音频打断（来电暂停恢复）与拔耳机暂停。
   audio_service: ^0.18.15
   audio_session: ^0.2.2
+  desktop_multi_window: ^0.3.0
 
 dev_dependencies:
   flutter_test:
