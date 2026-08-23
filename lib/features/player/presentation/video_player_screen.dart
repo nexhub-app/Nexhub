@@ -50,6 +50,7 @@ import '../../../core/local/local_content_manager.dart'
 import '../../../core/local/saf_bridge.dart' show resolveSafVideoFile;
 import '../../../core/widgets/app_error_state.dart';
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:cast/cast.dart';
@@ -3537,14 +3538,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             // 底栏
             if (_uiVisible) _buildBottomBar(l10n),
 
-            // 中央播放/暂停按钮（仅暂停态显示）
+            // 中央播放/暂停按钮（仅暂停态显示）— 毛玻璃 + 弹性动画
             if (_uiVisible && !_isPlaying)
               Center(
-                child: IconButton.filled(
+                child: _CenterPlayButton(
                   key: const Key('player_play_pause'),
-                  iconSize: 36,
-                  icon: const Icon(Icons.play_arrow),
-                  onPressed: () {
+                  onTap: () {
                     // F-8：用户手动重播则取消进行中的连播倒计时。
                     _cancelAutoNextCountdown();
                     _controller.play();
@@ -3711,7 +3710,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           left: AppTokens.spaceMd,
           right: AppTokens.spaceMd,
           bottom: MediaQuery.of(context).padding.bottom + AppTokens.spaceSm,
-          top: AppTokens.spaceSm,
+          top: 24,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

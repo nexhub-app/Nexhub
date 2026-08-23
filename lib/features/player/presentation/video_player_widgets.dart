@@ -78,6 +78,93 @@ class _DanmakuToggle extends StatelessWidget {
   }
 }
 
+/// 中央播放/暂停按钮（毛玻璃圆形 + 弹性入场动画 + 按压缩放反馈）。
+///
+/// 仅暂停态显示，视觉特征：
+/// - 半透明圆形背景 + BackdropFilter 模糊（毛玻璃）
+/// - 外阴影增加浮起感
+/// - 弹性缩放入场动画（Curves.elasticOut）
+/// - 按下时微缩放反馈
+
+class _CenterPlayButton extends StatefulWidget {
+  const _CenterPlayButton({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  State<_CenterPlayButton> createState() => _CenterPlayButtonState();
+}
+
+class _CenterPlayButtonState extends State<_CenterPlayButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  double _pressScale = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressScale = 0.88),
+      onTapUp: (_) => setState(() => _pressScale = 1.0),
+      onTapCancel: () => setState(() => _pressScale = 1.0),
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (BuildContext context, Widget? child) {
+          // 弹性曲线：0.3→1.0，带过冲回弹
+          final double elasticValue =
+              Curves.elasticOut.transform(_controller.value);
+          return Transform.scale(
+            scale: elasticValue * _pressScale,
+            child: child,
+          );
+        },
+        child: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.18),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 20,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: ClipOval(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Center(
+                child: Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 34,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 控制按钮（透明背景圆形，紧凑尺寸）。
 
 class _ControlButton extends StatelessWidget {
