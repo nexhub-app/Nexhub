@@ -4323,6 +4323,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerBrightnessDesc => '正值写入系统亮度；负值压暗系统亮度并叠加黑色遮罩';
 
   @override
+  String get readerNightLight => '夜览';
+
+  @override
+  String get readerNightLightDesc => '叠加暖色盖层减少蓝光，独立于阅读亮度';
+
+  @override
+  String get readerNightLightOpacity => '夜览强度';
+
+  @override
   String get readerAutoDownload => '自动下载后续章节';
 
   @override

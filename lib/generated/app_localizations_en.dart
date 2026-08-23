@@ -4393,6 +4393,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Positive writes to system brightness; negative dims system brightness and overlays a black mask';
 
   @override
+  String get readerNightLight => 'Night light';
+
+  @override
+  String get readerNightLightDesc =>
+      'Overlay a warm tint to reduce blue light; independent of reading brightness';
+
+  @override
+  String get readerNightLightOpacity => 'Night light intensity';
+
+  @override
   String get readerAutoDownload => 'Auto-download later chapters';
 
   @override

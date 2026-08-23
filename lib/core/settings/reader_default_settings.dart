@@ -187,6 +187,10 @@ class ReaderDefaultSettings {
   /// 漫画：系统亮度（REQ-C3）：-1.0~1.0，0=不干预；正值写系统、负值遮罩。
   final double comicReaderBrightness;
 
+  /// 漫画：夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立开关 + 暖色不透明度（0.1–0.85）。
+  final bool comicNightLightEnabled;
+  final double comicNightLightOpacity;
+
   /// 漫画：阅读中自动下载后续章节（REQ-C7）。
   final bool comicAutoDownloadChapters;
 
@@ -335,6 +339,8 @@ class ReaderDefaultSettings {
     this.comicClockBatteryOpacity = 0.8,
     this.comicClockBatteryFontSize = 12.0,
     this.comicReaderBrightness = 0.0,
+    this.comicNightLightEnabled = false,
+    this.comicNightLightOpacity = 0.4,
     this.comicAutoDownloadChapters = false,
     this.comicSkipReadChapters = false,
     this.comicSkipFilteredChapters = false,
@@ -455,6 +461,8 @@ class ReaderDefaultSettings {
     double? comicClockBatteryOpacity,
     double? comicClockBatteryFontSize,
     double? comicReaderBrightness,
+    bool? comicNightLightEnabled,
+    double? comicNightLightOpacity,
     bool? comicAutoDownloadChapters,
     bool? comicSkipReadChapters,
     bool? comicSkipFilteredChapters,
@@ -599,6 +607,10 @@ class ReaderDefaultSettings {
             comicClockBatteryFontSize ?? this.comicClockBatteryFontSize,
         comicReaderBrightness:
             comicReaderBrightness ?? this.comicReaderBrightness,
+        comicNightLightEnabled:
+            comicNightLightEnabled ?? this.comicNightLightEnabled,
+        comicNightLightOpacity:
+            comicNightLightOpacity ?? this.comicNightLightOpacity,
         comicAutoDownloadChapters:
             comicAutoDownloadChapters ?? this.comicAutoDownloadChapters,
         comicSkipReadChapters:
@@ -759,6 +771,8 @@ class ReaderDefaultSettings {
         'comicClockBatteryOpacity': comicClockBatteryOpacity,
         'comicClockBatteryFontSize': comicClockBatteryFontSize,
         'comicReaderBrightness': comicReaderBrightness,
+        'comicNightLightEnabled': comicNightLightEnabled,
+        'comicNightLightOpacity': comicNightLightOpacity,
         'comicAutoDownloadChapters': comicAutoDownloadChapters,
         'comicSkipReadChapters': comicSkipReadChapters,
         'comicSkipFilteredChapters': comicSkipFilteredChapters,
@@ -1003,6 +1017,11 @@ class ReaderDefaultSettings {
       comicReaderBrightness:
           ((json['comicReaderBrightness'] as num?)?.toDouble() ?? 0.0)
               .clamp(-1.0, 1.0),
+      comicNightLightEnabled:
+          json['comicNightLightEnabled'] as bool? ?? false,
+      comicNightLightOpacity:
+          ((json['comicNightLightOpacity'] as num?)?.toDouble() ?? 0.4)
+              .clamp(0.1, 0.85),
       comicAutoDownloadChapters:
           json['comicAutoDownloadChapters'] as bool? ?? false,
       comicSkipReadChapters:
@@ -1207,6 +1226,8 @@ class ReaderDefaultSettings {
       clockBatteryOpacity: comicClockBatteryOpacity,
       clockBatteryFontSize: comicClockBatteryFontSize,
       readerBrightness: comicReaderBrightness,
+      nightLightEnabled: comicNightLightEnabled,
+      nightLightOpacity: comicNightLightOpacity,
       autoDownloadChapters: comicAutoDownloadChapters,
       skipReadChapters: comicSkipReadChapters,
       skipFilteredChapters: comicSkipFilteredChapters,

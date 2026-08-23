@@ -500,6 +500,13 @@ class ReaderPreferences {
   /// 系统亮度（REQ-C3）：-1.0~1.0，0=不干预；正值写系统亮度、负值叠加黑色遮罩。
   final double readerBrightness;
 
+  /// 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于 [readerBrightness] 的开关，
+  /// 开启后在阅读区叠加暖色（0xFF2A1800）半透明盖层减少蓝光，不干预系统亮度。
+  final bool nightLightEnabled;
+
+  /// 夜览暖色盖层不透明度（0.1–0.85，夜览 toOpacity 范围），默认 0.4。
+  final double nightLightOpacity;
+
   /// 阅读中自动下载后续章节（REQ-C7）：进度越过当前章 25% 时后台入队。
   final bool autoDownloadChapters;
 
@@ -569,6 +576,8 @@ class ReaderPreferences {
     this.clockBatteryOpacity = 0.8,
     this.clockBatteryFontSize = 12.0,
     this.readerBrightness = 0.0,
+    this.nightLightEnabled = false,
+    this.nightLightOpacity = 0.4,
     this.autoDownloadChapters = false,
     this.skipReadChapters = false,
     this.skipFilteredChapters = false,
@@ -705,6 +714,10 @@ class ReaderPreferences {
       readerBrightness:
           ((json['readerBrightness'] as num?)?.toDouble() ?? 0.0)
               .clamp(-1.0, 1.0),
+      nightLightEnabled: json['nightLightEnabled'] as bool? ?? false,
+      nightLightOpacity:
+          ((json['nightLightOpacity'] as num?)?.toDouble() ?? 0.4)
+              .clamp(0.1, 0.85),
       autoDownloadChapters:
           json['autoDownloadChapters'] as bool? ?? false,
       skipReadChapters: json['skipReadChapters'] as bool? ?? false,
@@ -776,6 +789,8 @@ class ReaderPreferences {
         'clockBatteryOpacity': clockBatteryOpacity,
         'clockBatteryFontSize': clockBatteryFontSize,
         'readerBrightness': readerBrightness,
+        'nightLightEnabled': nightLightEnabled,
+        'nightLightOpacity': nightLightOpacity,
         'autoDownloadChapters': autoDownloadChapters,
         'skipReadChapters': skipReadChapters,
         'skipFilteredChapters': skipFilteredChapters,
@@ -841,6 +856,8 @@ class ReaderPreferences {
     double? clockBatteryOpacity,
     double? clockBatteryFontSize,
     double? readerBrightness,
+    bool? nightLightEnabled,
+    double? nightLightOpacity,
     bool? autoDownloadChapters,
     bool? skipReadChapters,
     bool? skipFilteredChapters,
@@ -916,6 +933,8 @@ class ReaderPreferences {
         clockBatteryFontSize:
             clockBatteryFontSize ?? this.clockBatteryFontSize,
         readerBrightness: readerBrightness ?? this.readerBrightness,
+        nightLightEnabled: nightLightEnabled ?? this.nightLightEnabled,
+        nightLightOpacity: nightLightOpacity ?? this.nightLightOpacity,
         autoDownloadChapters:
             autoDownloadChapters ?? this.autoDownloadChapters,
         skipReadChapters: skipReadChapters ?? this.skipReadChapters,
@@ -1118,6 +1137,14 @@ class ReaderPreferences {
       readerBrightness: identical(readerBrightness, def.readerBrightness)
           ? base.readerBrightness
           : readerBrightness,
+      nightLightEnabled:
+          identical(nightLightEnabled, def.nightLightEnabled)
+              ? base.nightLightEnabled
+              : nightLightEnabled,
+      nightLightOpacity:
+          identical(nightLightOpacity, def.nightLightOpacity)
+              ? base.nightLightOpacity
+              : nightLightOpacity,
       autoDownloadChapters:
           identical(autoDownloadChapters, def.autoDownloadChapters)
               ? base.autoDownloadChapters

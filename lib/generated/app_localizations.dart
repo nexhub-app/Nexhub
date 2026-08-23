@@ -8396,6 +8396,24 @@ abstract class AppLocalizations {
   /// **'Positive writes to system brightness; negative dims system brightness and overlays a black mask'**
   String get readerBrightnessDesc;
 
+  /// No description provided for @readerNightLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Night light'**
+  String get readerNightLight;
+
+  /// No description provided for @readerNightLightDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlay a warm tint to reduce blue light; independent of reading brightness'**
+  String get readerNightLightDesc;
+
+  /// No description provided for @readerNightLightOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Night light intensity'**
+  String get readerNightLightOpacity;
+
   /// No description provided for @readerAutoDownload.
   ///
   /// In en, this message translates to:

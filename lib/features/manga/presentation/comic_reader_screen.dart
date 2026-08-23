@@ -22,6 +22,7 @@ import '../../../core/comic/comic_bookmark_manager.dart';
 import '../../../core/comic/comic_progress_manager.dart';
 import '../../../core/comic/image_favorite_manager.dart';
 import '../../../core/comic/models/reader_preferences.dart';
+import '../../../core/theme/reader_tokens.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/utils/app_log.dart';
 import '../../../core/utils/volume_key_listener.dart';
@@ -4242,6 +4243,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 child: Container(
                   color: Colors.black.withValues(
                     alpha: (-_effectivePrefs.readerBrightness).clamp(0.0, 1.0),
+                  ),
+                ),
+              ),
+            ),
+          // 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于
+          // [readerBrightness] 的暖色（纸感 0xFF2A1800）半透明覆盖，减少蓝光，
+          // 不干预系统亮度；可与负值黑遮罩叠加（偏色 + 压暗）。
+          if (_effectivePrefs.nightLightEnabled)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: ReaderTokens.nightLightColor.withValues(
+                    alpha: _effectivePrefs.nightLightOpacity.clamp(0.0, 1.0),
                   ),
                 ),
               ),

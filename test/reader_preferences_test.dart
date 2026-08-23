@@ -115,6 +115,8 @@ void main() {
     expect(def.showClockBattery, false);
     expect(def.clockBatteryPosition, ClockBatteryPosition.topLeft);
     expect(def.readerBrightness, 0.0);
+    expect(def.nightLightEnabled, false);
+    expect(def.nightLightOpacity, 0.4);
     expect(def.autoDownloadChapters, false);
     expect(def.skipReadChapters, false);
     expect(def.skipFilteredChapters, false);
@@ -131,6 +133,8 @@ void main() {
       clockBatteryOpacity: 0.5,
       clockBatteryFontSize: 16,
       readerBrightness: -0.5,
+      nightLightEnabled: true,
+      nightLightOpacity: 0.65,
       autoDownloadChapters: true,
       skipReadChapters: true,
       skipFilteredChapters: true,
@@ -147,6 +151,8 @@ void main() {
     expect(back.clockBatteryOpacity, 0.5);
     expect(back.clockBatteryFontSize, 16);
     expect(back.readerBrightness, -0.5);
+    expect(back.nightLightEnabled, true);
+    expect(back.nightLightOpacity, 0.65);
     expect(back.autoDownloadChapters, true);
     expect(back.skipReadChapters, true);
     expect(back.skipFilteredChapters, true);
@@ -159,12 +165,15 @@ void main() {
     final prefs = ReaderPreferences.fromJson(<String, dynamic>{
       'readerPageSpacing': 999,
       'readerBrightness': 5.0,
+      'nightLightOpacity': 0.99,
       'clockBatteryOpacity': 0.05,
       'readerScreenPicNumberForPortrait': 9,
       'readerScreenPicNumberForLandscape': 0,
     });
     expect(prefs.readerPageSpacing, 50);
     expect(prefs.readerBrightness, 1.0);
+    // 夜览强度按 VeneraX toOpacity 范围 0.1–0.85 clamp。
+    expect(prefs.nightLightOpacity, 0.85);
     expect(prefs.clockBatteryOpacity, 0.1);
     expect(prefs.readerScreenPicNumberForPortrait, 5);
     expect(prefs.readerScreenPicNumberForLandscape, 1);
@@ -180,6 +189,11 @@ void main() {
     expect(custom.copyWith().readerBrightness, 0.4);
     expect(custom.copyWith(readerBrightness: -0.2).readerBrightness, -0.2);
     expect(custom.copyWith(showClockBattery: false).showClockBattery, false);
+    // 夜览：copyWith 生效，mergedWith 未自定义时回落全局默认、自定义时覆盖。
+    final nightLight = custom.copyWith(
+        nightLightEnabled: true, nightLightOpacity: 0.7);
+    expect(nightLight.nightLightEnabled, true);
+    expect(nightLight.nightLightOpacity, 0.7);
 
     const base = ReaderPreferences(readerBrightness: 0.7);
     // 未自定义时回落全局默认，自定义时覆盖。
@@ -188,6 +202,14 @@ void main() {
     expect(custom.mergedWith(base).showClockBattery, true);
     expect(custom.mergedWith(base).skipDuplicateChapters, true);
     expect(custom.mergedWith(base).readerScreenPicNumberForPortrait, 2);
+    // 全局层可配置夜览默认：未自定义回落全局，自定义覆盖。
+    final nightBase =
+        base.copyWith(nightLightEnabled: true, nightLightOpacity: 0.5);
+    expect(const ReaderPreferences().mergedWith(nightBase).nightLightEnabled,
+        true);
+    expect(const ReaderPreferences().mergedWith(nightBase).nightLightOpacity,
+        0.5);
+    expect(nightLight.mergedWith(nightBase).nightLightOpacity, 0.7);
   });
 
   test('getReaderSetting resolves three tiers (REQ-C9)', () {

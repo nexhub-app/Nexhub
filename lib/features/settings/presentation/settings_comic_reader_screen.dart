@@ -609,6 +609,26 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                       onChanged: (v) =>
                           _update(_settings.copyWith(comicReaderBrightness: v)),
                     ),
+                    // 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于阅读亮度。
+                    SettingsSwitchTile(
+                      title: l10n.readerNightLight,
+                      subtitle: l10n.readerNightLightDesc,
+                      value: _settings.comicNightLightEnabled,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicNightLightEnabled: v)),
+                    ),
+                    if (_settings.comicNightLightEnabled)
+                      SettingsSliderTile(
+                        label: l10n.readerNightLightOpacity,
+                        value: _settings.comicNightLightOpacity,
+                        min: 0.1,
+                        max: 0.85,
+                        divisions: 15,
+                        display: _settings.comicNightLightOpacity
+                            .toStringAsFixed(2),
+                        onChanged: (v) => _update(
+                            _settings.copyWith(comicNightLightOpacity: v)),
+                      ),
                   ],
                 ),
 

@@ -49,4 +49,7 @@ class ReaderTokens {
   /// 反色滤镜（修复桌面全黑问题，见文档雷区）。
   static const ColorFilter invertFilter =
       ColorFilter.mode(Color(0xFFFFFFFF), BlendMode.difference);
+
+  /// 夜览暖色盖层基础色（暖橙棕 0xFF2A1800：暗暖纸感色，非纯黑）。
+  static const Color nightLightColor = Color(0xFF2A1800);
 }

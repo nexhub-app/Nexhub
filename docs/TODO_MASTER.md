@@ -20,9 +20,10 @@
 |---|---|---|---|
 | 小说 | 0 待办（P1-1/P1-2 归档，P1-5/P1-7 完成） | 15（含低挂果 9） | 13（含远期单列 10） |
 | 播放器 | 0 待办（9 项全部完成） | 5 | 1（F-13 归档）+ 归档 3 项 |
-| 漫画 | 9 | 6 | 5 + 暂缓清单 |
+| 漫画 | 0 待办（P1 输入/功能 9 项全部完成） | 6 | 5 + 暂缓清单 |
 
 > ✅ **L0 已清零**（2026-08-18）：Legado 兼容代码豁免清理裁定（§2）、Flutter 本机实扫确认 3.47.0、审计 §3 的 9 处残留已清理。**L1 已全部完成**（2026-08-18 用户逐项确认），无待办。
+> ✅ **L2 漫画清零**（2026-08-22 源码审计 + 夜览盖层补齐）：P1 输入/功能 9 项全部完成并回填，详见下方漫画表；剩余 L2 待办仅 X 组跨类型项（X-1 睡眠定时→漫画、X-2 待读队列→小说/漫画 等 5 项）。
 > ✅ **L2/L3/L4 逐项确认（2026-08-18 用户）**：13 项已做剔除（漫画：自动滚动、过渡动画、每屏多图、浮层、章节滑块、跳章过滤、章末过渡、首屏单图、页间距；小说：阅读统计、B11 亮度、搜索正则；播放器：F-21）；3 项决策不做归档（长按缩放、三层设置、P2-1）；2 项默认未做待检测（漫画图片加载失败重试 UI、播放器 F-29 缓存降级）。
 > 🆕 **跨类型对齐评审（2026-08-18 用户）**：新增 X 组 5 项（X-1 睡眠定时→漫画、X-2 待读队列→小说/漫画、X-3 统一图片图库→播放器/小说、X-4 小说预下载、X-5 TTS 通知栏，见 L2 跨类型小节）；B2/B3/B4 作为原条目范围扩展注记（P1-2 / F-27 / F-28）。未纳入：A2、A6、B1、B5；C 类（弹幕/字幕/PiP/投屏/倍速/划线/TTS 朗读/缩放图片收藏等类型特有功能）确认不跨类型对齐。
 > 📦 **已归档（用户评估裁定）**：小说 L2 两项归档，L2 无待办——**P1-1 书源多线路支持**（已决策抛弃，永不实现）；**P1-2 书源质量体检 / 调试器**（已实现并 `dart analyze` 0 error 后评估无用，实现、入口、l10n `diagnose*` 键与 `AppLog` 作用域捕获整体移除，后续不再实现）。两者详见下方 L2 表格 ❌ 行。
@@ -76,17 +77,18 @@
 
 | 状态 | 项 | 要点 |
 |---|---|---|
-| ⬜ | 预加载数量可配置（1-16） | 当前写死末 4/头 3（`_maybePreload` 983-988）；三家默认 4 |
-| ⬜ | 键盘快捷键补全 | WASD/小键盘 2468 翻页（Breeze）、Ctrl+方向跳章；放大态方向键语义待定（pan / 翻页） |
-| ⬜ | 鼠标滚轮速度可调 | `readerScrollSpeed`(0.5-3.0)，三家 Flutter 系 |
-| ⬜ | 鼠标光标反馈 | `MouseRegion(cursor: SystemMouseCursors.click)` |
-| ⬜ | 放大态边缘滑动切页 | Mihon `navigateToPan` panLeft/Right（步长 `view.width/scale`，250ms EASE_OUT_QUAD，到底再翻页） |
-| ⬜ | 缩放锚点可配 zoomStart | Mihon LEFT/CENTER/RIGHT；KongComic press/center |
-| ⬜ | 亮度双轨方案 | Mihon 正值写系统 `screenBrightness`、负值系统最低+黑遮罩；VeneraX 夜览暖色盖层（warm 0xFF2A1800/black/red，toOpacity 0.1-0.85，可跟随深色）；当前仅 ColorFilter 亮度（画面内提亮不调系统屏） |
-| ⬜ | 图片加载失败重试 UI | KongComic `ComicImage` 错误态带重试按钮；当前 `SourceImage` `errorBuilder` 只显示转圈 placeholder（`source_image.dart:348`），失败永久转圈无提示。**状态：默认未做，待源码/实机检测** |
-| ⬜ | 历史 hidden 列 | VeneraX 清历史只置 `hidden=1` 保留进度，重读自动复原；当前清历史丢进度 |
+| ✅ | 预加载数量可配置（1-16） | `ReaderPreferences.preloadImageCount`（默认 4，clamp 1-16）+ 设置面板滑杆（`reader_settings_sheet.dart` min:1/max:16）；`_maybePreload` 双端按该值预载（`comic_reader_screen.dart:1591/1602`）。三家默认 4 对齐 |
+| ✅ | 键盘快捷键补全 | `_handleKeyEvent`（`comic_reader_screen.dart:3550`）：WASD + 小键盘 2468 + PageUp·Down 翻页（条漫走单步滚动）、Ctrl+方向跳章、N/P 上下话、± 缩放、F11/Esc/空格；放大态方向键语义已定并实现——先平移（步长 ≈ 视口 1/3）到底再翻页/滚动（`_handleZoomedArrow`） |
+| ✅ | 鼠标滚轮速度可调 | `ReaderPreferences.readerScrollSpeed`（clamp 0.5-3.0，默认 1.0）+ 设置面板滑杆（min:0.5/max:3.0）；webtoon 滚轮滚动距离乘该倍率（`_onPointerScroll` `dy * readerScrollSpeed`），翻页模式滚轮可配缩放/翻页（`mouseWheelAction`） |
+| ✅ | 鼠标光标反馈 | 图片区 `MouseRegion(cursor: isZoomed ? grab : click)`（`MangaPageImage.build`）、章节滑块 grab、顶/底栏 click |
+| ✅ | 放大态边缘滑动切页 | 等价实现（REQ-B9，`_onPanUpdate`）：放大态平移被边界夹紧后继续向边外滑，累计超过 56px 阈值触发翻页 / 条漫滚动（`_edgeSwipeAccum`/`_edgeSwipeThreshold`），与键盘方向键语义一致；未采用 Mihon 步长+250ms 动画路径 |
+| ✅ | 缩放锚点可配 zoomStart | `ReaderPreferences.zoomStart`（LEFT/CENTER/RIGHT）+ `_anchorFromZoomStart`（`comic_reader_screen.dart:3032`）+ 设置面板分段选择（`_buildZoomStart`）；center 保留触点锚定 |
+| ✅ | 亮度双轨方案 | 主干（REQ-C3）：正值写系统 `screenBrightness`、负值系统最低+黑遮罩（`_applyBrightness`+`_dimBrightnessActive`，透明度随 \|值\|）✅ 早已实现；**2026-08-22 补齐 VeneraX 夜览暖色盖层**：独立开关 + 强度滑杆（0.1-0.85，`ReaderPreferences.nightLightEnabled/nightLightOpacity`，色 0xFF2A1800 入 `ReaderTokens.nightLightColor`），阅读区叠加层 + 阅读器内联面板 + 全局设置屏幕，三层覆盖（global→work→device）完整 |
+| ✅ | 图片加载失败重试 UI | `SourceImage`→`_RetryableNetworkImage`（`source_image.dart:196`）：指数退避重试（1s/2s/4s 共 3 次）失败后显示 broken_image + 「重试」按钮（`_buildError`），不再永久转圈；本地图失败回落 placeholder。**状态：源码确认已实现** |
+| ✅ | 历史 hidden 列 | `HistoryManager`（`history_manager.dart`）：`clearHistory`/`hideAll` 批量软删除置 `hidden=true` 保留进度，`markHidden` 单条隐藏，`restore`/重读自动复原；物理清空走 `clearAll`；l10n 文案「阅读进度将保留，重新进入该作品后自动恢复」。**状态：源码确认已实现** |
 
 > ✅ **2026-08-18 用户确认已做并移除**：自动滚动+后台暂停、翻页过渡动画+双击缩放动画、每屏多图、时间/电量浮层、章节导航滑块、跳章过滤、章末过渡/评论、首屏单图、页间距。
+> ✅ **2026-08-22 源码审计回填**：上表 9 项经 `dart analyze` + 相关测试验证全部完成（其中 8 项此前已实现但未回填，仅夜览暖色盖层本轮补齐）；跨类型 X-1/X-2 仍待办见下节。
 > ❌ **2026-08-18 决策不做**：长按缩放+锚点、三层设置覆盖（见 L4 归档）。
 
 #### 跨类型对齐（X 组 · 2026-08-18 评审新增）

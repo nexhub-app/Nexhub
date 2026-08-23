@@ -896,6 +896,25 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                               _update(_draft.copyWith(readerBrightness: v)),
                         ),
                       ),
+                      // 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于阅读亮度。
+                      _switchTile(l10n.readerNightLight, _draft.nightLightEnabled,
+                          (v) => _update(_draft.copyWith(nightLightEnabled: v))),
+                      if (_draft.nightLightEnabled)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(bottom: AppTokens.spaceMd),
+                          child: _SliderRow(
+                            label: l10n.readerNightLightOpacity,
+                            value: _draft.nightLightOpacity,
+                            min: 0.1,
+                            max: 0.85,
+                            divisions: 15,
+                            displayValue:
+                                '${(_draft.nightLightOpacity * 100).round()}%',
+                            onChanged: (v) => _update(
+                                _draft.copyWith(nightLightOpacity: v)),
+                          ),
+                        ),
                     ],
                   ),
 
