@@ -32,8 +32,6 @@ class UnifiedSourceTile extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onMigrate;
-  final VoidCallback? onDiagnose;
-  final String diagnoseTooltip; // 来自 l10n（「诊断」）
   final VoidCallback? onNetworkOverride; // 网络覆盖（走代理/自定义 Hosts 等）
   final VoidCallback? onLogin;
   final ValueChanged<bool>? onIncognitoToggle; // 切换无痕模式
@@ -66,8 +64,6 @@ class UnifiedSourceTile extends StatelessWidget {
     this.onEdit,
     this.onDelete,
     this.onMigrate,
-    this.onDiagnose,
-    this.diagnoseTooltip = '',
     this.onNetworkOverride,
     this.onLogin,
     this.onIncognitoToggle,
@@ -195,7 +191,6 @@ class UnifiedSourceTile extends StatelessWidget {
       onDelete != null ||
       onHide != null ||
       onMigrate != null ||
-      onDiagnose != null ||
       onNetworkOverride != null ||
       onLogin != null ||
       onIncognitoToggle != null;
@@ -237,8 +232,6 @@ class UnifiedSourceTile extends StatelessWidget {
               isHidden ? unhideTooltip : hideTooltip),
         if (onMigrate != null)
           _menuItem('migrate', Icons.upgrade, migrateTooltip),
-        if (onDiagnose != null)
-          _menuItem('diagnose', Icons.medical_services_outlined, diagnoseTooltip),
       ];
 
   void _onMenuSelected(String value) {
@@ -266,9 +259,6 @@ class UnifiedSourceTile extends StatelessWidget {
         break;
       case 'migrate':
         onMigrate?.call();
-        break;
-      case 'diagnose':
-        onDiagnose?.call();
         break;
     }
   }

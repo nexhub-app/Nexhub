@@ -34,7 +34,6 @@ import 'source_mirror_screen.dart';
 import 'source_network_override_screen.dart';
 import 'source_login_screen.dart';
 import 'source_edit_screen.dart';
-import 'source_diagnostics_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import 'library_sources_screen.dart';
@@ -836,7 +835,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                 migrateTooltip: l10n.sourceMigrate,
                 networkOverrideTooltip: l10n.sourceNetworkOverride,
                 loginTooltip: l10n.sourceLogin,
-                diagnoseTooltip: l10n.diagnoseTooltip,
                 // 源管理页：操作收进「更多」菜单，更清爽
                 useMoreMenu: true,
                 moreMenuTooltip: l10n.moreActions,
@@ -848,11 +846,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                 },
                 onToggle: (bool value) =>
                     context.read<SourceRepository>().setEnabled(s.id, value),
-                onDiagnose: () => Navigator.of(context).push(
-                  AppPageRoute<void>(
-                    builder: (_) => SourceDiagnosticsScreen(source: s),
-                  ),
-                ),
                 onMirrorSettings: () => Navigator.of(context).push(
                   AppPageRoute<void>(
                     builder: (_) => SourceMirrorScreen(source: s),
