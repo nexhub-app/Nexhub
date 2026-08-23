@@ -403,11 +403,25 @@ String? _findFolderCover(String videoPath) {
 /// 注意：**必须播放态截图**。旧实现 `play: false` + 轮询 `stream.position`，
 /// 但 mpv 暂停态下 time-pos 不推进，等待恒超时 → 截帧拿不到帧、缓存无封面。
 /// 现改为静音播放约 1.2s（解码管线活跃）后 seek 到 1s 处截图，稳定可靠。
+///
+/// 注意：media_kit 的 NativePlayer 初始化时默认设置 mpv 选项 `vid=no`（禁用
+/// 视频轨道解码），仅在 [VideoController] attach 时才改回 `vid=auto`。本函数
+/// 无 VideoController，必须显式启用视频轨道，否则 `screenshot()`（mpv
+/// screenshot-raw）取不到任何视频帧、恒返回空 → 封面从未写入缓存（本地导入
+/// 视频无封面根因）。Web 平台无 NativePlayer，保持回退 null。
 Future<String?> extractVideoThumbnail(String path) async {
   Player? player;
   try {
     MediaKit.ensureInitialized();
-    player = Player(configuration: PlayerConfiguration(muted: true));
+    player = Player(configuration: const PlayerConfiguration(muted: true));
+    try {
+      final platform = player.platform;
+      if (platform is NativePlayer) {
+        await platform.setProperty('vid', 'auto');
+      }
+    } on Object {
+      // 平台不支持 mpv 属性设置（如 Web）或属性无效，忽略，截图回退 null。
+    }
     await player.open(Media(path), play: true);
     // 等时长就绪 = 元数据解析成功（暂停态也会更新，作为打开成功的信号）。
     final Completer<void> ready = Completer<void>();
@@ -429,6 +443,9 @@ Future<String?> extractVideoThumbnail(String path) async {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     final Uint8List? bytes = await player.screenshot(format: 'image/jpeg');
     if (bytes == null) {
+      // 返回空（无视频轨道 / 解码失败）也记入失败集合：否则每次启动
+      // _backfillMissingCovers 都会对同一视频重建 Player 播 1.5s，拖慢启动。
+      _failedVideoCoverTries.add(path);
       AppLog.instance.w('[本地视频封面] 截帧返回空: $path');
       return null;
     }

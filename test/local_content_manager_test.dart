@@ -3,7 +3,7 @@ import 'package:nexhub/core/local/local_content_manager.dart';
 
 /// spec F2.3.2：覆盖 classifyByPath 各格式识别 + 未识别返回 null + 大小写不敏感。
 ///
-/// 注意：LocalMediaKind 枚举仅 video/images/text 三种；
+/// 注意：LocalMediaKind 枚举有 video/images/text/pdf 四种；
 /// 漫画（cbz/cbr/zip/rar）映射到 images，小说（txt/epub/umd）映射到 text。
 void main() {
   group('classifyByPath - comics (LocalMediaKind.images)', () {
@@ -94,10 +94,16 @@ void main() {
     });
   });
 
-  group('classifyByPath - unrecognized returns null', () {
-    test('returns null for .pdf', () {
-      expect(classifyByPath('foo.pdf'), isNull);
+  group('classifyByPath - pdf (LocalMediaKind.pdf)', () {
+    test('recognizes .pdf as pdf', () {
+      expect(classifyByPath('foo.pdf'), LocalMediaKind.pdf);
     });
+    test('recognizes .PDF as pdf (case insensitive)', () {
+      expect(classifyByPath('foo.PDF'), LocalMediaKind.pdf);
+    });
+  });
+
+  group('classifyByPath - unrecognized returns null', () {
     test('returns null for .unknown', () {
       expect(classifyByPath('foo.unknown'), isNull);
     });
@@ -144,6 +150,7 @@ void main() {
       expect(LocalMediaKind.parse('video'), LocalMediaKind.video);
       expect(LocalMediaKind.parse('images'), LocalMediaKind.images);
       expect(LocalMediaKind.parse('text'), LocalMediaKind.text);
+      expect(LocalMediaKind.parse('pdf'), LocalMediaKind.pdf);
     });
     test('parse returns null for unknown', () {
       expect(LocalMediaKind.parse('comics'), isNull);
