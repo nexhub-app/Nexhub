@@ -3452,6 +3452,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// - [readerBrightness] > 0：正值写入系统亮度（0.0–1.0）。
   /// - [readerBrightness] < 0：系统亮度压到最低，并叠加黑色遮罩（透明度随 |值|）。
   /// - 0：不干预系统亮度（退出/关闭时由 [_resetBrightness] 恢复）。
+  ///
+  /// 写入系统亮度是异步 MethodChannel 调用：部分平台/显示器不支持改系统亮度
+  /// （如 Windows 报 "Problem setting monitor brightness"），异常在异步阶段抛出，
+  /// 外层 try/catch 捕不到、`unawaited` 也不吞——必须 catchError 兜底静默降级
+  /// （UI 遮罩仍生效，仅系统亮度不干预），否则成为 Uncaught zone error。
   void _applyBrightness() {
     // REQ-C9：亮度按三层覆盖后的实际生效值应用（设备层可临时覆盖）。
     final double v = _effectivePrefs.readerBrightness;
@@ -3463,20 +3468,23 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     try {
       if (v > 0) {
         _dimBrightnessActive = false;
-        // 正值：写入系统亮度。
-        unawaited(_brightnessPlugin.setScreenBrightness(v.clamp(0.0, 1.0)));
+        // 正值：写入系统亮度（失败静默降级）。
+        unawaited(_brightnessPlugin
+            .setScreenBrightness(v.clamp(0.0, 1.0))
+            .catchError((Object _) {}));
       } else {
         // 负值：压暗系统亮度 + 黑遮罩。
         _dimBrightnessActive = true;
-        unawaited(_brightnessPlugin.setScreenBrightness(0.0));
+        unawaited(
+            _brightnessPlugin.setScreenBrightness(0.0).catchError((Object _) {}));
       }
       if (mounted) setState(() {});
     } on Object {
-      // 部分平台不支持，静默忽略。
+      // 同步异常（如插件缺失）同样静默忽略。
     }
   }
 
-  /// 退出阅读器 / 关闭亮度设置时恢复系统原亮度（异步，异常在后续微任务抛出）。
+  /// 退出阅读器 / 关闭亮度设置时恢复系统原亮度（异步，失败静默忽略）。
   void _resetBrightness() {
     _dimBrightnessActive = false;
     _brightnessPlugin.resetScreenBrightness().catchError((Object _) {});
