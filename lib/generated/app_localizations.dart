@@ -5468,6 +5468,12 @@ abstract class AppLocalizations {
   /// **'Disconnect'**
   String get castDisconnect;
 
+  /// No description provided for @castDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Casting disconnected'**
+  String get castDisconnected;
+
   /// No description provided for @pip.
   ///
   /// In en, this message translates to:
@@ -8671,6 +8677,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Picture in picture'**
   String get playerPip;
+
+  /// No description provided for @playerDesktopPip.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop PiP'**
+  String get playerDesktopPip;
+
+  /// No description provided for @playerDesktopPipActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop PiP active'**
+  String get playerDesktopPipActive;
 
   /// No description provided for @playerCast.
   ///

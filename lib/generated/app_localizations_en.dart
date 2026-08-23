@@ -2832,6 +2832,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get castDisconnect => 'Disconnect';
 
   @override
+  String get castDisconnected => 'Casting disconnected';
+
+  @override
   String get pip => 'Picture-in-Picture';
 
   @override
@@ -4542,6 +4545,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get playerPip => 'Picture in picture';
+
+  @override
+  String get playerDesktopPip => 'Desktop PiP';
+
+  @override
+  String get playerDesktopPipActive => 'Desktop PiP active';
 
   @override
   String get playerCast => 'Cast';

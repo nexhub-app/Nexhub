@@ -2787,6 +2787,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get castDisconnect => '断开投屏';
 
   @override
+  String get castDisconnected => '投屏已断开';
+
+  @override
   String get pip => '画中画';
 
   @override
@@ -4466,6 +4469,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get playerPip => '画中画';
+
+  @override
+  String get playerDesktopPip => '桌面画中画';
+
+  @override
+  String get playerDesktopPipActive => '桌面画中画已开启';
 
   @override
   String get playerCast => '投屏';
