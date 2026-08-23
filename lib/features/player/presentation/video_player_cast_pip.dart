@@ -1,6 +1,15 @@
 part of 'video_player_screen.dart';
 
 extension _VideoCastPip on _VideoPlayerScreenState {
+  /// 是否桌面平台（Windows/macOS/Linux）。
+  bool get _isDesktop {
+    try {
+      return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+    } on Object {
+      return false;
+    }
+  }
+
   void _showCastSheet(AppLocalizations l10n) {
     // F-16：设备选择面板打开期间持有控制栏。
     _acquirePanelHold();
@@ -139,6 +148,16 @@ extension _VideoCastPip on _VideoPlayerScreenState {
   }
 
   Future<void> _togglePip(AppLocalizations l10n) async {
+    // 桌面端：用 window_manager 缩小窗口置顶，实现应用内 PiP（F-24）。
+    if (_isDesktop) {
+      if (_desktopPipActive) {
+        await _exitDesktopPip();
+      } else {
+        await _enterDesktopPip(l10n);
+      }
+      return;
+    }
+    // Android 系统 PiP（F-23）。
     final floating = Floating();
     try {
       final bool available = await floating.isPipAvailable;
@@ -170,10 +189,6 @@ extension _VideoCastPip on _VideoPlayerScreenState {
         return;
       }
       // F-23 窗口三动作（播放/暂停、快退 10s、快进 30s）：进入前下发动作列表。
-      // 进出 PiP 的生命周期事件由原生 onPictureInPictureModeChanged 经
-      // nexhub/pip_events 推送（pip:enabled / pip:disabled），不走 floating
-      // 的 pipStatusStream——它以 10ms 间隔轮询平台通道且定时器永不停止，
-      // 首次使用后持续每秒 ~100 次原生调用，PiP 视频解码时会把系统拖卡。
       await _configurePipActions(l10n);
       _pipActionSub ??= PipActionsBridge.instance.actionStream
           .listen(_onPipEvent);
@@ -184,6 +199,65 @@ extension _VideoCastPip on _VideoPlayerScreenState {
           SnackBar(content: Text(l10n.pipNotSupportedOnDevice)),
         );
       }
+    }
+  }
+
+  /// 桌面 PiP：缩小窗口置顶播放（F-24）。
+  Future<void> _enterDesktopPip(AppLocalizations l10n) async {
+    if (_isCasting) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.pipNotWhileCasting)),
+        );
+      }
+      return;
+    }
+    if (!_controllerCreated ||
+        _controller.duration <= Duration.zero) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.pipNotReady)),
+        );
+      }
+      return;
+    }
+    try {
+      // 保存当前窗口状态。
+      _savedWindowPos = await windowManager.getPosition();
+      _savedWindowSize = await windowManager.getSize();
+      // 窗口置顶 + 无边框 + 固定 16:9 小尺寸。
+      await windowManager.setAlwaysOnTop(true);
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      await windowManager.setSize(const Size(480, 270));
+      await windowManager.setMinimumSize(const Size(320, 180));
+      await windowManager.setMaximumSize(const Size(960, 540));
+      if (mounted) {
+        setState(() => _desktopPipActive = true);
+      }
+    } on Object catch (e) {
+      debugPrint('_enterDesktopPip failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.pipNotSupportedOnDevice)),
+        );
+      }
+    }
+  }
+
+  /// 退出桌面 PiP，恢复窗口。
+  Future<void> _exitDesktopPip() async {
+    try {
+      await windowManager.setAlwaysOnTop(false);
+      await windowManager.setTitleBarStyle(TitleBarStyle.normal);
+      await windowManager.setSize(_savedWindowSize);
+      await windowManager.setPosition(_savedWindowPos);
+      await windowManager.setMinimumSize(const Size(0, 0));
+      await windowManager.setMaximumSize(const Size(0, 0));
+    } on Object catch (e) {
+      debugPrint('_exitDesktopPip failed: $e');
+    }
+    if (mounted) {
+      setState(() => _desktopPipActive = false);
     }
   }
 

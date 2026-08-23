@@ -9,6 +9,7 @@ import 'package:hive/hive.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../../../core/danmaku/bilibili_danmaku_service.dart';
 import '../../../core/danmaku/danmaku_repository.dart';
@@ -559,6 +560,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 是否处于系统 PiP 中（F-23）：进出事件由原生 onPictureInPictureModeChanged
   /// 经 nexhub/pip_events 推送（pip:enabled / pip:disabled）。
   bool _inPip = false;
+
+  /// 桌面 PiP 模式（F-24 改用 window_manager）：缩小窗口置顶播放。
+  bool _desktopPipActive = false;
+
+  /// 进入桌面 PiP 前保存的窗口位置和大小，用于退出时恢复。
+  Offset _savedWindowPos = Offset.zero;
+  Size _savedWindowSize = const Size(1280, 720);
 
   /// PiP 窗口动作点击订阅（F-23：`action:<id>` 事件）。
   StreamSubscription<String>? _pipActionSub;
@@ -3448,6 +3456,25 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               ),
             ),
           ),
+
+          // 桌面 PiP 关闭按钮（缩小窗口置顶时显示）。
+          if (_desktopPipActive)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => unawaited(_exitDesktopPip()),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 20),
+                ),
+              ),
+            ),
 
           // 中央手势指示器（锁定态 / PiP 小窗不显示）
           if (!_controller.isLocked && !_inPip) _buildGestureIndicator(),
