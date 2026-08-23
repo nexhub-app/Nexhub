@@ -46,8 +46,7 @@ import '../../verification/presentation/webview_verification_screen.dart';
 import '../../../core/settings/danmaku_config.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_log.dart';
-import '../../../core/local/local_content_manager.dart'
-    show isAndroidSafUri;
+import '../../../core/local/local_content_manager.dart' show isAndroidSafUri;
 import '../../../core/local/saf_bridge.dart' show resolveSafVideoFile;
 import '../../../core/widgets/app_error_state.dart';
 import 'dart:io';
@@ -80,7 +79,6 @@ part 'video_player_screenshot.dart';
 part 'video_player_danmaku_input.dart';
 part 'video_player_widgets.dart';
 
-
 /// 发送弹幕时可选择的预设颜色（与主流弹幕站一致）。
 const List<Color> _danmakuPresetColors = <Color>[
   Colors.white,
@@ -93,7 +91,6 @@ const List<Color> _danmakuPresetColors = <Color>[
   Colors.purple,
   Color(0xFFFF4081), // 粉
 ];
-
 
 /// 视频播放页（Phase 5）。
 ///
@@ -136,7 +133,7 @@ class VideoPlayerScreen extends StatefulWidget {
   final Map<String, String>? directHeaders;
 
   /// 详情页 URL（用于收藏时透传，避免历史/收藏详情灰屏）。
-    final String? detailUrl;
+  final String? detailUrl;
 
   /// 是否恢复上次播放位置（默认 true）。
   ///
@@ -232,8 +229,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   Timer? _autoNextCountdownTimer;
 
   /// 倒计时剩余秒数（SnackBar 内容实时刷新用）。
-  final ValueNotifier<int> _autoNextCountdownLeft =
-      ValueNotifier<int>(0);
+  final ValueNotifier<int> _autoNextCountdownLeft = ValueNotifier<int>(0);
 
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<bool>? _completedSub;
@@ -301,7 +297,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 跨作品播放队列持久化（F-4）。
   final PlayQueueStore _queueStore = PlayQueueStore();
 
-
   Duration _duration = Duration.zero;
   bool _isPlaying = false;
   bool _uiVisible = true;
@@ -345,8 +340,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   // ─────────────────────── 解析进度条（功能3） ───────────────────────
   /// 解析进度 notifier（null=隐藏）。放 State 而非 PlayerController：_initFuture
   /// 转圈帧时 _controller 尚未创建，State 级 notifier 可安全在加载态渲染。
-  final ValueNotifier<double?> _resolveProgress =
-      ValueNotifier<double?>(null);
+  final ValueNotifier<double?> _resolveProgress = ValueNotifier<double?>(null);
 
   // ─────────────────────── 缓冲加载动画（功能2） ───────────────────────
   bool _isBuffering = false;
@@ -527,6 +521,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 当前剧集索引（若有全集列表）。
   late int _episodeIndex;
+
   /// 切集代次守卫：快速连播 / 手动切集并发时，丢弃过期切换，
   /// 避免较慢的解析/打开覆盖已切换的集（表现为「切集还是同一集」）。
   final AsyncSession _loadSession = AsyncSession();
@@ -561,12 +556,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 经 nexhub/pip_events 推送（pip:enabled / pip:disabled）。
   bool _inPip = false;
 
-  /// 桌面 PiP 模式（F-24 改用 window_manager）：缩小窗口置顶播放。
+  /// 桌面 PiP 模式（F-24 改用 window_manager）：隐藏标题栏 + 缩小窗口置顶播放。
   bool _desktopPipActive = false;
 
-  /// 进入桌面 PiP 前保存的窗口位置和大小，用于退出时恢复。
+  /// 进入桌面 PiP 前保存的窗口状态（位置 / 大小 / 最大化 / 标题），退出时恢复。
   Offset _savedWindowPos = Offset.zero;
   Size _savedWindowSize = const Size(1280, 720);
+  bool _savedWindowMaximized = false;
+  String _savedWindowTitle = 'nexhub';
+
+  /// 桌面 PiP 进出串行化：异步期间再次点击直接忽略，防止把 PiP 小窗尺寸
+  /// 存成「原始尺寸」或恢复到中间态。
+  bool _pipSwitching = false;
 
   /// PiP 窗口动作点击订阅（F-23：`action:<id>` 事件）。
   StreamSubscription<String>? _pipActionSub;
@@ -579,8 +580,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 否则覆盖层会沿用 canvas_danmaku 的默认值（区域=全屏、字号=16）。
     // 注意：此时 _controller 尚未创建（在 _init 中等旧播放器释放后才建），
     // _applyDanmakuOption 内部读取 _controller.playbackSpeed 已用 try/catch 兜底。
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _applyDanmakuOption());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyDanmakuOption());
     _episodeIndex = widget.initialEpisodeIndex ?? 0;
     // 详情页 chips 选中的线路名会透传到 widget.episode.lineName（chips
     // 过滤后的 ep 副本），未提供时退化为 null 表示"未分组 / 全部"。
@@ -659,51 +659,52 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final isOuter = renderedHtml == null;
     if (isOuter) _resolveProgress.value = 0.05;
     try {
-    // 1) 自动嗅探优先（网站视频通用捕获，与源无关）
-    final pageUrl = _absolutePageUrl(source, episodeUrl);
-    if (pageUrl != null) {
+      // 1) 自动嗅探优先（网站视频通用捕获，与源无关）
+      final pageUrl = _absolutePageUrl(source, episodeUrl);
+      if (pageUrl != null) {
+        try {
+          final outcome = await navigateToSnifferCapture(
+            context,
+            url: pageUrl,
+            timeout: const Duration(seconds: 12),
+            autoPopOnTimeout: true,
+          );
+          if (outcome?.hasExtractedUrl == true &&
+              outcome!.extractedUrl != null) {
+            return _capturedVideoResult(source, outcome);
+          }
+        } on Object {
+          // 嗅探自身异常（如 WebView 不可用），落回手动解析
+        }
+      }
+      if (isOuter) _resolveProgress.value = 0.5;
+      // 2) 嗅探未命中 → 回退源声明的手动解析
       try {
-        final outcome = await navigateToSnifferCapture(
-          context,
-          url: pageUrl,
-          timeout: const Duration(seconds: 12),
-          autoPopOnTimeout: true,
-        );
+        return await service.fetchVideoUrl(source, episodeUrl,
+            renderedHtml: renderedHtml);
+      } on WebViewHtmlRequest catch (e) {
+        if (!mounted) rethrow;
+        final outcome = await navigateToHtmlCapture(context, request: e);
+        if (outcome?.hasRenderedHtml == true) {
+          return _resolveVideoWithCapture(
+            service,
+            source,
+            episodeUrl,
+            renderedHtml: outcome!.renderedHtml,
+          );
+        }
         if (outcome?.hasExtractedUrl == true && outcome!.extractedUrl != null) {
           return _capturedVideoResult(source, outcome);
         }
-      } on Object {
-        // 嗅探自身异常（如 WebView 不可用），落回手动解析
+        throw Exception('video capture cancelled');
+      } on WebViewExtractionRequest catch (e) {
+        if (!mounted) rethrow;
+        final outcome = await navigateToExtraction(context, request: e);
+        if (outcome?.hasExtractedUrl == true && outcome!.extractedUrl != null) {
+          return _capturedVideoResult(source, outcome);
+        }
+        throw Exception('video extraction cancelled');
       }
-    }
-    if (isOuter) _resolveProgress.value = 0.5;
-    // 2) 嗅探未命中 → 回退源声明的手动解析
-    try {
-      return await service.fetchVideoUrl(source, episodeUrl,
-          renderedHtml: renderedHtml);
-    } on WebViewHtmlRequest catch (e) {
-      if (!mounted) rethrow;
-      final outcome = await navigateToHtmlCapture(context, request: e);
-      if (outcome?.hasRenderedHtml == true) {
-        return _resolveVideoWithCapture(
-          service,
-          source,
-          episodeUrl,
-          renderedHtml: outcome!.renderedHtml,
-        );
-      }
-      if (outcome?.hasExtractedUrl == true && outcome!.extractedUrl != null) {
-        return _capturedVideoResult(source, outcome);
-      }
-      throw Exception('video capture cancelled');
-    } on WebViewExtractionRequest catch (e) {
-      if (!mounted) rethrow;
-      final outcome = await navigateToExtraction(context, request: e);
-      if (outcome?.hasExtractedUrl == true && outcome!.extractedUrl != null) {
-        return _capturedVideoResult(source, outcome);
-      }
-      throw Exception('video extraction cancelled');
-    }
     } finally {
       if (isOuter) _resolveProgress.value = null;
     }
@@ -1073,7 +1074,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         orients = const <DeviceOrientation>[];
     }
     // 记录退出全屏后要恢复的方向（全屏按钮临时强制横屏，退出回到此处）。
-    _controller.setBaseOrientations(isPhone ? orients : const <DeviceOrientation>[]);
+    _controller
+        .setBaseOrientations(isPhone ? orients : const <DeviceOrientation>[]);
     if (!isPhone) return;
     try {
       await SystemChrome.setPreferredOrientations(orients);
@@ -1222,8 +1224,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _customDanmakuUrl = prefs.getString(_kDanmakuCustomUrlKey) ?? '';
       // 恢复弹幕显示设置：与全局「弹幕显示设置」页共用同一存储（单一数据源）。
       _danmakuSettings = await _loadDanmakuSettings();
-      debugPrint(
-          '[_loadDanmakuSourcePref] 已恢复弹幕显示设置: '
+      debugPrint('[_loadDanmakuSourcePref] 已恢复弹幕显示设置: '
           'area=${_danmakuSettings.area} fontSize=${_danmakuSettings.fontSize} '
           'opacity=${_danmakuSettings.opacity} lineHeight=${_danmakuSettings.lineHeight} '
           'duration=${_danmakuSettings.duration}');
@@ -1276,8 +1277,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
     // 旧方案兼容副本：SharedPreferencesAsync 键 danmaku_settings。
     try {
-      final raw = await SharedPreferencesAsync()
-          .getString(_kLegacyDanmakuSettingsKey);
+      final raw =
+          await SharedPreferencesAsync().getString(_kLegacyDanmakuSettingsKey);
       if (raw != null && raw.isNotEmpty) {
         return DanmakuSettings.fromJson(
             jsonDecode(raw) as Map<String, dynamic>);
@@ -1360,9 +1361,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       final items = await _danmakuRepo!.getDanmaku(
         sourceId: widget.sourceId,
         episodeId: ep.id,
-        dandanplayEpisodeId: _danmakuSource == DanmakuSourceType.bilibili
-            ? null
-            : dandanId,
+        dandanplayEpisodeId:
+            _danmakuSource == DanmakuSourceType.bilibili ? null : dandanId,
         bilibiliCid: _danmakuSource == DanmakuSourceType.dandanplay
             ? null
             : ep.bilibiliCid,
@@ -1383,9 +1383,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } on Object catch (e) {
       // 凭据未配置时给出提示，其余错误静默忽略（首载 / 切集行为一致）。
       final msg = e.toString();
-      if (msg.contains('credentials not configured') &&
-          mounted &&
-          !_disposed) {
+      if (msg.contains('credentials not configured') && mounted && !_disposed) {
         final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1411,9 +1409,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 注入弹幕
     if (_danmakuOn) {
       final adjusted = position +
-          Duration(
-              milliseconds:
-                  (_danmakuSettings.timeOffset * 1000).round());
+          Duration(milliseconds: (_danmakuSettings.timeOffset * 1000).round());
       _danmakuController.tick(adjusted);
     }
     // 预解析下一集（进度>80% 触发，后台拉地址写入 VideoSourceCache）
@@ -1438,7 +1434,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 续播恢复完成前禁止写盘，避免刚 open 时的 position=0 覆盖旧存档。
     if (!_positionRestoreDone) return;
     final now = DateTime.now();
-    if (now.difference(_lastPositionSaveAt) < const Duration(seconds: 5)) return;
+    if (now.difference(_lastPositionSaveAt) < const Duration(seconds: 5)) {
+      return;
+    }
     _lastPositionSaveAt = now;
     // 用 _init 阶段缓存的引用（B-6）：不依赖 context，任何时刻（含 dispose 期）可写。
     final mgr = _positionManager;
@@ -1532,8 +1530,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   void _skipOutro() {
     if (_duration <= Duration.zero) return;
     _edSkippedThisEpisode = true;
-    unawaited(
-        _controller.seek(_duration - const Duration(milliseconds: 200)));
+    unawaited(_controller.seek(_duration - const Duration(milliseconds: 200)));
     if (mounted) setState(() {});
   }
 
@@ -1574,90 +1571,91 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       builder: (BuildContext dialogCtx) => StatefulBuilder(
         builder: (BuildContext ctx, StateSetter setDlg) => AlertDialog(
           // 弹窗占据更多屏幕宽度与高度（垂直边距收紧），内容显示区域更大。
-          insetPadding: const EdgeInsets.symmetric(
-              horizontal: 24, vertical: 12),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           // 紧凑按钮栏：降低「取消/保存」栏自身高度，把垂直空间让给内容区。
           actionsPadding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
           title: Text(
             l10n.playerSkipOpEd,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
           ),
-        // 手机适配：内容用 SingleChildScrollView 包裹，避免窄屏下「使用当前」
-        // 按钮 / 开关与输入行挤压重叠；自动跳过用 Row+Switch 替代占宽的
-        // SwitchListTile，减少横向溢出风险。
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: TextField(
-                      controller: opCtl,
-                      decoration: InputDecoration(
-                        labelText: l10n.playerSkipOpEndLabel,
-                        labelStyle: const TextStyle(fontSize: 13),
+          // 手机适配：内容用 SingleChildScrollView 包裹，避免窄屏下「使用当前」
+          // 按钮 / 开关与输入行挤压重叠；自动跳过用 Row+Switch 替代占宽的
+          // SwitchListTile，减少横向溢出风险。
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: TextField(
+                        controller: opCtl,
+                        decoration: InputDecoration(
+                          labelText: l10n.playerSkipOpEndLabel,
+                          labelStyle: const TextStyle(fontSize: 13),
+                        ),
+                        keyboardType: TextInputType.datetime,
                       ),
-                      keyboardType: TextInputType.datetime,
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      opCtl.text = _fmtMmSs(_position.inSeconds);
-                    },
-                    child: Text(l10n.playerSkipUseCurrent,
-                        style: const TextStyle(fontSize: 13)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTokens.spaceSm),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: TextField(
-                      controller: edCtl,
-                      decoration: InputDecoration(
-                        labelText: l10n.playerSkipEdStartLabel,
-                        labelStyle: const TextStyle(fontSize: 13),
+                    TextButton(
+                      onPressed: () {
+                        opCtl.text = _fmtMmSs(_position.inSeconds);
+                      },
+                      child: Text(l10n.playerSkipUseCurrent,
+                          style: const TextStyle(fontSize: 13)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: TextField(
+                        controller: edCtl,
+                        decoration: InputDecoration(
+                          labelText: l10n.playerSkipEdStartLabel,
+                          labelStyle: const TextStyle(fontSize: 13),
+                        ),
+                        keyboardType: TextInputType.datetime,
                       ),
-                      keyboardType: TextInputType.datetime,
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      edCtl.text = _fmtMmSs(_position.inSeconds);
-                    },
-                    child: Text(l10n.playerSkipUseCurrent,
-                        style: const TextStyle(fontSize: 13)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTokens.spaceSm),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      l10n.playerSkipAuto,
-                      style: const TextStyle(fontSize: 14),
+                    TextButton(
+                      onPressed: () {
+                        edCtl.text = _fmtMmSs(_position.inSeconds);
+                      },
+                      child: Text(l10n.playerSkipUseCurrent,
+                          style: const TextStyle(fontSize: 13)),
                     ),
-                  ),
-                  Switch(
-                    value: auto,
-                    onChanged: (v) => setDlg(() => auto = v),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTokens.spaceSm),
-              Text(
-                l10n.playerSkipHint,
-                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(fontSize: 12),
-              ),
-              const SizedBox(height: 8),
-            ],
+                  ],
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        l10n.playerSkipAuto,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                    Switch(
+                      value: auto,
+                      onChanged: (v) => setDlg(() => auto = v),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                Text(
+                  l10n.playerSkipHint,
+                  style:
+                      Theme.of(ctx).textTheme.bodySmall?.copyWith(fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
-        ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
@@ -1815,8 +1813,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       }
     }
     // 自动连播（F-8：可配置倒计时，倒计时期间可取消）
-    final bool hasNextInWork = widget.episodes != null &&
-        _episodeIndex < widget.episodes!.length - 1;
+    final bool hasNextInWork =
+        widget.episodes != null && _episodeIndex < widget.episodes!.length - 1;
     if (_controller.autoPlayNext && hasNextInWork) {
       final countdown = _playerSettings.autoPlayCountdownSeconds;
       if (countdown > 0) {
@@ -1891,7 +1889,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   void _goNextEpisode() {
-    if (widget.episodes == null || _episodeIndex >= widget.episodes!.length - 1) {
+    if (widget.episodes == null ||
+        _episodeIndex >= widget.episodes!.length - 1) {
       return;
     }
     _changeEpisode(_episodeIndex + 1);
@@ -1904,9 +1903,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final int idx = index ?? _episodeIndex;
     String? epId;
     String? epTitle;
-    if (widget.episodes != null &&
-        idx >= 0 &&
-        idx < widget.episodes!.length) {
+    if (widget.episodes != null && idx >= 0 && idx < widget.episodes!.length) {
       final ep = widget.episodes![idx];
       epId = ep.id;
       epTitle = ep.title;
@@ -1994,8 +1991,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               duration: Duration(seconds: seconds + 1),
               content: ValueListenableBuilder<int>(
                 valueListenable: _autoNextCountdownLeft,
-                builder: (BuildContext c, int left, Widget? child) => Text(
-                    '${l10n.playerAutoNextWork(next.title)} ($left)'),
+                builder: (BuildContext c, int left, Widget? child) =>
+                    Text('${l10n.playerAutoNextWork(next.title)} ($left)'),
               ),
               action: SnackBarAction(
                 label: l10n.cancel,
@@ -2156,8 +2153,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       if (showResume)
                         ListTile(
                           leading: const Icon(Icons.play_circle_fill),
-                          title: Text(l10n.playerQueueResumeLast(
-                              current!.title)),
+                          title:
+                              Text(l10n.playerQueueResumeLast(current!.title)),
                           onTap: () {
                             Navigator.pop(ctx);
                             unawaited(_resumeLastWork(current));
@@ -2223,11 +2220,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => const Icon(Icons.movie))
           : const Icon(Icons.movie),
-      title:
-          Text(w.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Text(w.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: w.episodeTitle != null
-          ? Text(w.episodeTitle!,
-              maxLines: 1, overflow: TextOverflow.ellipsis)
+          ? Text(w.episodeTitle!, maxLines: 1, overflow: TextOverflow.ellipsis)
           : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2235,15 +2230,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           IconButton(
             icon: const Icon(Icons.arrow_upward),
             tooltip: l10n.playerQueueMoveUp,
-            onPressed:
-                index > 0 ? () => onMove(index, index - 1) : null,
+            onPressed: index > 0 ? () => onMove(index, index - 1) : null,
           ),
           IconButton(
             icon: const Icon(Icons.arrow_downward),
             tooltip: l10n.playerQueueMoveDown,
-            onPressed: index < total - 1
-                ? () => onMove(index, index + 1)
-                : null,
+            onPressed:
+                index < total - 1 ? () => onMove(index, index + 1) : null,
           ),
           IconButton(
             icon: const Icon(Icons.close),
@@ -2272,8 +2265,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final nextEp = widget.episodes![_episodeIndex + 1];
     // 后台拉取，结果由 BuiltinResolver 写入 VideoSourceCache；不 await、不阻塞 UI。
     unawaited(
-      service.fetchVideoUrl(source, nextEp.url).catchError((_) =>
-          const VideoResult(url: '', type: 'unknown')),
+      service
+          .fetchVideoUrl(source, nextEp.url)
+          .catchError((_) => const VideoResult(url: '', type: 'unknown')),
     );
     // 预下载后续剧集：设置开启（>0）且进度跨过 80% 时，自动排队
     // 尚未下载的后续 N 集（不打断已有下载队列）。
@@ -2417,7 +2411,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // 重开失败，受 max attempts 限制，不会无限循环。
     } finally {
       _reconnecting = false;
-      if (_reconnectAttempts >= _kMaxReconnectAttempts && !_reconnectExhausted) {
+      if (_reconnectAttempts >= _kMaxReconnectAttempts &&
+          !_reconnectExhausted) {
         // F-1 故障回退：当前线路重连耗尽，仍有未尝试的候选线路则自动切换下一条，
         // 而非直接弹「链接失效」让用户手点。所有候选都试过才放弃。
         final failedIndex = _controller.currentLineIndex;
@@ -2550,7 +2545,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   Future<void> _changeEpisode(int index) async {
-    if (widget.episodes == null || index < 0 || index >= widget.episodes!.length) {
+    if (widget.episodes == null ||
+        index < 0 ||
+        index >= widget.episodes!.length) {
       return;
     }
     // F-8：手动切集取消进行中的连播倒计时（倒计时归零触发的切集除外，
@@ -2593,11 +2590,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (isAndroidSafUri(direct)) {
         try {
           direct = await resolveSafVideoFile(direct);
-          AppLog.instance
-              .i('[本地视频切集] SAF/content 已解析为真实文件：$direct');
+          AppLog.instance.i('[本地视频切集] SAF/content 已解析为真实文件：$direct');
         } on Object catch (e) {
-          AppLog.instance
-              .eWithStack('[本地视频切集] SAF 解析失败：$direct', e);
+          AppLog.instance.eWithStack('[本地视频切集] SAF 解析失败：$direct', e);
         }
       }
       _playUrl = direct;
@@ -2625,8 +2620,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (source == null) return;
 
     try {
-      final video =
-          await _resolveVideoWithCapture(service, source, ep.url);
+      final video = await _resolveVideoWithCapture(service, source, ep.url);
       String playUrl = video.url;
       Map<String, String>? playHeaders = video.headers;
       _playUrl = playUrl;
@@ -2640,8 +2634,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           ..clear()
           ..add(0);
         _triedLineIndices.clear();
-        final memName = await _lineStore.getSelectedLine(
-            widget.sourceId, ep.id);
+        final memName =
+            await _lineStore.getSelectedLine(widget.sourceId, ep.id);
         if (memName != null) {
           final idx = _indexOfLineName(memName);
           if (idx != null && idx != 0) {
@@ -2681,7 +2675,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (mounted) {
         setState(() => _episodeIndex = oldIndex);
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.playerEpisodeSwitchFailed)),
+          SnackBar(
+              content: Text(
+                  AppLocalizations.of(context)!.playerEpisodeSwitchFailed)),
         );
       }
       // 切集失败也需开闸，否则该集永远不再保存进度。
@@ -2866,7 +2862,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       setState(() => _isFav = !wasFavorite);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(wasFavorite ? l10n.favoriteRemoved : l10n.favoriteAdded),
+          content:
+              Text(wasFavorite ? l10n.favoriteRemoved : l10n.favoriteAdded),
         ),
       );
     }
@@ -2908,9 +2905,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 弹幕游标拨回目标位置附近（只重放窗口内弹幕），与 tick 用同一时间基准
     // （含 timeOffset），避免 seek 回看时把整条时间轴的弹幕一次性灌进屏幕（B-14）。
     final adjusted = position +
-        Duration(
-            milliseconds:
-                (_danmakuSettings.timeOffset * 1000).round());
+        Duration(milliseconds: (_danmakuSettings.timeOffset * 1000).round());
     _danmakuController.resetTo(adjusted);
     setState(() => _position = position);
   }
@@ -2984,7 +2979,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString(_kDanmakuCustomUrlKey, url);
-            await prefs.setString(_kDanmakuSourceKey, DanmakuSourceType.customUrl.name);
+            await prefs.setString(
+                _kDanmakuSourceKey, DanmakuSourceType.customUrl.name);
           } on Object {
             // 写入失败静默忽略。
           }
@@ -3045,21 +3041,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 Expanded(
                   child: ListView(
                     shrinkWrap: true,
-                    children: speeds.map((s) => ListTile(
-                      dense: true,
-                      title: Center(child: Text('${s}x')),
-                      tileColor: (s == current)
-                          ? Theme.of(ctx).colorScheme.primaryContainer
-                          : null,
-                      onTap: () {
-                        unawaited(_controller.setPlaybackSpeed(s));
-                        _playerSettings =
-                            _playerSettings.copyWith(playbackSpeed: s);
-                        unawaited(_saveEpisodeSetting('playbackSpeed', s));
-                        _applyDanmakuOption();
-                        Navigator.pop(ctx);
-                      },
-                    )).toList(),
+                    children: speeds
+                        .map((s) => ListTile(
+                              dense: true,
+                              title: Center(child: Text('${s}x')),
+                              tileColor: (s == current)
+                                  ? Theme.of(ctx).colorScheme.primaryContainer
+                                  : null,
+                              onTap: () {
+                                unawaited(_controller.setPlaybackSpeed(s));
+                                _playerSettings =
+                                    _playerSettings.copyWith(playbackSpeed: s);
+                                unawaited(
+                                    _saveEpisodeSetting('playbackSpeed', s));
+                                _applyDanmakuOption();
+                                Navigator.pop(ctx);
+                              },
+                            ))
+                        .toList(),
                   ),
                 ),
                 const SizedBox(height: AppTokens.spaceSm),
@@ -3081,8 +3080,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       isScrollControlled: true,
       builder: (BuildContext sheetCtx) => SafeArea(
         child: ConstrainedBox(
-          constraints:
-              BoxConstraints(maxHeight: MediaQuery.of(sheetCtx).size.height * 0.85),
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(sheetCtx).size.height * 0.85),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -3225,6 +3224,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 注意：resetScreenBrightness 是异步方法，其 PlatformException 在后续微任务抛出，
     // 同步 try/catch 捕获不到，会形成「Uncaught zone error」；故用 .catchError 兜底。
     _brightnessPlugin.resetScreenBrightness().catchError((Object _) {});
+    // F-24：仍在桌面 PiP 时直接退出播放器（返回/Esc/路由替换），兜底恢复
+    // 窗口原状（标题栏/尺寸/位置/最大化/置顶），否则小窗状态会残留到其他页面。
+    if (_desktopPipActive) {
+      unawaited(_exitDesktopPip());
+    }
     super.dispose();
   }
 
@@ -3253,8 +3257,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                         value: v >= 0 ? v : null,
                         minHeight: 3,
                         backgroundColor: Colors.white24,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.white),
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(Colors.white),
                       );
                     },
                   ),
@@ -3295,6 +3299,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       );
     }
     // 包裹 Focus 以响应键盘快捷键（P8.3.4 §廿四）。
+    // pipMode：Android 系统 PiP 或桌面 PiP——小窗内抑制完整控制层
+    // （顶栏/底栏/中央按钮/边缘按钮/弹幕），桌面 PiP 换用紧凑控件层。
+    final bool pipMode = _inPip || _desktopPipActive;
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
@@ -3303,339 +3310,351 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // 命中路径，用来重置控制层自动隐藏倒计时，保证「操作过程中控制条不消失」。
       child: Listener(
         onPointerDown: (_) => _bumpUiHideTimer(),
-        child: Stack(
-        children: <Widget>[
-          // 视频画面 + 手势系统（双击 中=播放/暂停·左=快退·右=快进 / 左竖滑亮度 / 右竖滑音量 / 横滑 seek 预览）
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            // 功能1：单击显隐控制栏。
-            onTap: _toggleUi,
-            // 功能4：长按切自定义倍速，松手恢复（受 longPressSpeedUp 开关控制）。
-            onLongPressStart: (_) => _onLongPressSpeedStart(),
-            onLongPressEnd: (_) => _onLongPressSpeedEnd(),
-            // 双击：左=快退 10s；中=播放/暂停；右=快进 10s（锁定态忽略）。
-            // F-11：连续双击同方向累加（10s→20s→30s，900ms 无后续双击或
-            // 换方向则重置），指示器按累加秒数显示。
-            onDoubleTapDown: (TapDownDetails d) {
-              if (_controller.isLocked) return;
-              final width = context.size?.width ?? 0;
-              final dx = d.localPosition.dx;
-              final int direction =
-                  dx < width / 3 ? -1 : (dx > width * 2 / 3 ? 1 : 0);
-              final now = DateTime.now();
-              // 900ms 无后续双击或方向变化 → 重置计数；同方向连击 → 累加（上限 3 次）。
-              if (now.difference(_lastDoubleTapAt) >
-                      const Duration(milliseconds: 900) ||
-                  direction != _doubleTapDirection) {
-                _doubleTapCount = 1;
-                _doubleTapDirection = direction;
-              } else {
-                _doubleTapCount = (_doubleTapCount + 1).clamp(1, 3);
-              }
-              _lastDoubleTapAt = now;
-              if (direction < 0) {
-                final seconds = 10 * _doubleTapCount;
-                unawaited(_seekBy(Duration(seconds: -seconds)));
-                _showGestureIndicator('-${seconds}s');
-              } else if (direction > 0) {
-                final seconds = 10 * _doubleTapCount;
-                unawaited(_seekBy(Duration(seconds: seconds)));
-                _showGestureIndicator('+${seconds}s');
-              } else {
-                // 中间三分之一：播放/暂停
-                _togglePlayPause();
-              }
-            },
-            onVerticalDragStart: (DragStartDetails d) {
-              if (_controller.isLocked) return;
-              final width = context.size?.width ?? 1;
-              _dragAxis = d.localPosition.dx < width / 2
-                  ? _GestureAxis.verticalLeft
-                  : _GestureAxis.verticalRight;
-              _dragStartBrightness = _brightness;
-              _dragStartVolume = _controller.volume;
-            },
-            onVerticalDragUpdate: (DragUpdateDetails d) {
-              if (_controller.isLocked) return;
-              if (_dragAxis == _GestureAxis.none) return;
-              final height = context.size?.height ?? 1;
-              // 上滑为正（增量），下滑为负
-              final delta = -d.delta.dy / height;
-              if (_dragAxis == _GestureAxis.verticalLeft) {
-                unawaited(
-                    _setBrightness(_dragStartBrightness + delta));
-              } else if (_dragAxis == _GestureAxis.verticalRight) {
-                unawaited(_setVolume(_dragStartVolume + delta * 100));
-              }
-            },
-            onVerticalDragEnd: (_) {
-              _dragAxis = _GestureAxis.none;
-            },
-            onHorizontalDragStart: (DragStartDetails d) {
-              if (_controller.isLocked) return;
-              _dragAxis = _GestureAxis.horizontal;
-              _seekPreview = _position;
-              // F-15：记录起点 Y 并重置上滑取消状态。
-              _seekDragStartY = d.globalPosition.dy;
-              _seekDragVerticalDelta = 0;
-              _seekDragCancelled = false;
-              _seekDragCancelledFeedback = false;
-            },
-            onHorizontalDragUpdate: (DragUpdateDetails d) {
-              if (_controller.isLocked) return;
-              if (_dragAxis != _GestureAxis.horizontal) return;
-              // F-15：计算相对起点的垂直位移，超过阈值 → 取消本次 seek
-              // （松手不跳转）。delta.dy 恒为 0（框架按主轴过滤，见字段
-              // 注释），必须用指针全局 Y 与起点的差值。
-              _seekDragVerticalDelta = d.globalPosition.dy - _seekDragStartY;
-              if (!_seekDragCancelled &&
-                  _seekDragVerticalDelta.abs() > _kSeekCancelThreshold) {
-                _seekDragCancelled = true;
-              }
-              if (_seekDragCancelled) {
-                // 取消态：预览目标强制复位为当前进度——双保险，即使松手
-                // 路径意外 seek 也会回到原位，保证「上滑取消不跳转」。
-                _seekPreview = _position;
-                // 首次进入取消态时给一次轻微震动，让「已取消」可被触觉感知
-                //（仅图标常显时用户可能未察觉状态已切换）。
-                if (!_seekDragCancelledFeedback) {
-                  _seekDragCancelledFeedback = true;
-                  HapticFeedback.mediumImpact();
-                }
-                // 取消态持续显示提示（重置计时器，松手前保持可见），
-                // 同时明确渲染取消图标，解决「上滑没有取消图标」的问题。
-                _showGestureIndicator(l10n.playerSeekCancel);
-                return;
-              }
-              final width = context.size?.width ?? 1;
-              final delta = d.delta.dx / width;
-              final next = _seekPreview +
-                  Duration(
-                      seconds: (delta *
-                              _duration.inSeconds *
-                              _seekMultiplierFactor)
-                          .round());
-              _seekPreview = next < Duration.zero
-                  ? Duration.zero
-                  : (next > _duration ? _duration : next);
-              _showGestureIndicator(
-                  '${_formatDuration(_seekPreview)} / ${_formatDuration(_duration)}');
-            },
-            onHorizontalDragEnd: (_) {
-              if (_controller.isLocked) {
-                _dragAxis = _GestureAxis.none;
-                return;
-              }
-              if (_dragAxis == _GestureAxis.horizontal) {
-                // F-15：上滑取消后松手不跳转，进度停在原位置。
-                if (!_seekDragCancelled) {
-                  unawaited(_controller.seek(_seekPreview));
-                }
-              }
-              _dragAxis = _GestureAxis.none;
-              // 拖拽结束（含取消态）：隐藏指示器并复位取消状态。
-              _gestureIndicatorTimer?.cancel();
-              if (mounted) setState(() => _gestureIndicatorVisible = false);
-              _seekDragCancelled = false;
-              _seekDragCancelledFeedback = false;
-              _seekDragVerticalDelta = 0;
-            },
-            child: Center(
-              child: _buildVideoSurface(),
-            ),
-          ),
-
-          // 弹幕覆盖层（PiP 小窗内停用：小窗里弹幕不可读，白白消耗 60fps
-          // 绘制，是 PiP 卡顿的显著负载来源之一）。
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DanmakuOverlay(
-                key: _danmakuKey,
-                enabled: _danmakuOn && !_inPip,
-                controller: _danmakuController,
-              ),
-            ),
-          ),
-
-          // 桌面 PiP 关闭按钮（缩小窗口置顶时显示）。
-          if (_desktopPipActive)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: () => unawaited(_exitDesktopPip()),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.close, color: Colors.white, size: 20),
+        // 桌面 PiP：鼠标移入窗口显示紧凑控件，移出收起（播放中）。
+        child: MouseRegion(
+          onEnter: _desktopPipActive ? (_) => _pipHoverEnter() : null,
+          onExit: _desktopPipActive ? (_) => _pipHoverExit() : null,
+          child: Stack(
+            children: <Widget>[
+              // 视频画面 + 手势系统（双击 中=播放/暂停·左=快退·右=快进 / 左竖滑亮度 / 右竖滑音量 / 横滑 seek 预览）
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                // 功能1：单击显隐控制栏。
+                onTap: _toggleUi,
+                // 桌面 PiP 模式：拖动视频区域任意处 = 移动窗口（窗口已隐藏标题栏，
+                // 这是 PiP 小窗的移动入口）；此时横滑 seek / 竖滑亮度音量停用。
+                onPanStart: _desktopPipActive
+                    ? (DragStartDetails _) => _pipDragWindow()
+                    : null,
+                // 功能4：长按切自定义倍速，松手恢复（受 longPressSpeedUp 开关控制）。
+                onLongPressStart: (_) => _onLongPressSpeedStart(),
+                onLongPressEnd: (_) => _onLongPressSpeedEnd(),
+                // 双击：左=快退 10s；中=播放/暂停；右=快进 10s（锁定态忽略）。
+                // F-11：连续双击同方向累加（10s→20s→30s，900ms 无后续双击或
+                // 换方向则重置），指示器按累加秒数显示。
+                onDoubleTapDown: (TapDownDetails d) {
+                  if (_controller.isLocked) return;
+                  final width = context.size?.width ?? 0;
+                  final dx = d.localPosition.dx;
+                  final int direction =
+                      dx < width / 3 ? -1 : (dx > width * 2 / 3 ? 1 : 0);
+                  final now = DateTime.now();
+                  // 900ms 无后续双击或方向变化 → 重置计数；同方向连击 → 累加（上限 3 次）。
+                  if (now.difference(_lastDoubleTapAt) >
+                          const Duration(milliseconds: 900) ||
+                      direction != _doubleTapDirection) {
+                    _doubleTapCount = 1;
+                    _doubleTapDirection = direction;
+                  } else {
+                    _doubleTapCount = (_doubleTapCount + 1).clamp(1, 3);
+                  }
+                  _lastDoubleTapAt = now;
+                  if (direction < 0) {
+                    final seconds = 10 * _doubleTapCount;
+                    unawaited(_seekBy(Duration(seconds: -seconds)));
+                    _showGestureIndicator('-${seconds}s');
+                  } else if (direction > 0) {
+                    final seconds = 10 * _doubleTapCount;
+                    unawaited(_seekBy(Duration(seconds: seconds)));
+                    _showGestureIndicator('+${seconds}s');
+                  } else {
+                    // 中间三分之一：播放/暂停
+                    _togglePlayPause();
+                  }
+                },
+                onVerticalDragStart: _desktopPipActive
+                    ? null
+                    : (DragStartDetails d) {
+                        if (_controller.isLocked) return;
+                        final width = context.size?.width ?? 1;
+                        _dragAxis = d.localPosition.dx < width / 2
+                            ? _GestureAxis.verticalLeft
+                            : _GestureAxis.verticalRight;
+                        _dragStartBrightness = _brightness;
+                        _dragStartVolume = _controller.volume;
+                      },
+                onVerticalDragUpdate: _desktopPipActive
+                    ? null
+                    : (DragUpdateDetails d) {
+                        if (_controller.isLocked) return;
+                        if (_dragAxis == _GestureAxis.none) return;
+                        final height = context.size?.height ?? 1;
+                        // 上滑为正（增量），下滑为负
+                        final delta = -d.delta.dy / height;
+                        if (_dragAxis == _GestureAxis.verticalLeft) {
+                          unawaited(
+                              _setBrightness(_dragStartBrightness + delta));
+                        } else if (_dragAxis == _GestureAxis.verticalRight) {
+                          unawaited(_setVolume(_dragStartVolume + delta * 100));
+                        }
+                      },
+                onVerticalDragEnd: _desktopPipActive
+                    ? null
+                    : (_) {
+                        _dragAxis = _GestureAxis.none;
+                      },
+                onHorizontalDragStart: _desktopPipActive
+                    ? null
+                    : (DragStartDetails d) {
+                        if (_controller.isLocked) return;
+                        _dragAxis = _GestureAxis.horizontal;
+                        _seekPreview = _position;
+                        // F-15：记录起点 Y 并重置上滑取消状态。
+                        _seekDragStartY = d.globalPosition.dy;
+                        _seekDragVerticalDelta = 0;
+                        _seekDragCancelled = false;
+                        _seekDragCancelledFeedback = false;
+                      },
+                onHorizontalDragUpdate: _desktopPipActive
+                    ? null
+                    : (DragUpdateDetails d) {
+                        if (_controller.isLocked) return;
+                        if (_dragAxis != _GestureAxis.horizontal) return;
+                        // F-15：计算相对起点的垂直位移，超过阈值 → 取消本次 seek
+                        // （松手不跳转）。delta.dy 恒为 0（框架按主轴过滤，见字段
+                        // 注释），必须用指针全局 Y 与起点的差值。
+                        _seekDragVerticalDelta =
+                            d.globalPosition.dy - _seekDragStartY;
+                        if (!_seekDragCancelled &&
+                            _seekDragVerticalDelta.abs() >
+                                _kSeekCancelThreshold) {
+                          _seekDragCancelled = true;
+                        }
+                        if (_seekDragCancelled) {
+                          // 取消态：预览目标强制复位为当前进度——双保险，即使松手
+                          // 路径意外 seek 也会回到原位，保证「上滑取消不跳转」。
+                          _seekPreview = _position;
+                          // 首次进入取消态时给一次轻微震动，让「已取消」可被触觉感知
+                          //（仅图标常显时用户可能未察觉状态已切换）。
+                          if (!_seekDragCancelledFeedback) {
+                            _seekDragCancelledFeedback = true;
+                            HapticFeedback.mediumImpact();
+                          }
+                          // 取消态持续显示提示（重置计时器，松手前保持可见），
+                          // 同时明确渲染取消图标，解决「上滑没有取消图标」的问题。
+                          _showGestureIndicator(l10n.playerSeekCancel);
+                          return;
+                        }
+                        final width = context.size?.width ?? 1;
+                        final delta = d.delta.dx / width;
+                        final next = _seekPreview +
+                            Duration(
+                                seconds: (delta *
+                                        _duration.inSeconds *
+                                        _seekMultiplierFactor)
+                                    .round());
+                        _seekPreview = next < Duration.zero
+                            ? Duration.zero
+                            : (next > _duration ? _duration : next);
+                        _showGestureIndicator(
+                            '${_formatDuration(_seekPreview)} / ${_formatDuration(_duration)}');
+                      },
+                onHorizontalDragEnd: _desktopPipActive
+                    ? null
+                    : (_) {
+                        if (_controller.isLocked) {
+                          _dragAxis = _GestureAxis.none;
+                          return;
+                        }
+                        if (_dragAxis == _GestureAxis.horizontal) {
+                          // F-15：上滑取消后松手不跳转，进度停在原位置。
+                          if (!_seekDragCancelled) {
+                            unawaited(_controller.seek(_seekPreview));
+                          }
+                        }
+                        _dragAxis = _GestureAxis.none;
+                        // 拖拽结束（含取消态）：隐藏指示器并复位取消状态。
+                        _gestureIndicatorTimer?.cancel();
+                        if (mounted) {
+                          setState(() => _gestureIndicatorVisible = false);
+                        }
+                        _seekDragCancelled = false;
+                        _seekDragCancelledFeedback = false;
+                        _seekDragVerticalDelta = 0;
+                      },
+                child: Center(
+                  child: _buildVideoSurface(),
                 ),
               ),
-            ),
 
-          // 中央手势指示器（锁定态 / PiP 小窗不显示）
-          if (!_controller.isLocked && !_inPip) _buildGestureIndicator(),
-
-          // F-3：跳过片头/片尾悬浮按钮（右下角，控制栏显示时抬高避让）。
-          if (!_controller.isLocked && !_inPip && _showSkipOpButton)
-            Positioned(
-              right: AppTokens.spaceLg,
-              bottom: _uiVisible ? 96 : 28,
-              child: _SkipChip(
-                  label: l10n.playerSkipOp,
-                  icon: Icons.fast_forward,
-                  onTap: _skipIntro),
-            ),
-          if (!_controller.isLocked && !_inPip && _showSkipEdButton)
-            Positioned(
-              right: AppTokens.spaceLg,
-              bottom: _uiVisible ? 96 : 28,
-              child: _SkipChip(
-                  label: l10n.playerSkipEd,
-                  icon: Icons.fast_forward,
-                  onTap: _skipOutro),
-            ),
-
-          // 功能2：缓冲加载动画（播放中缓冲时显示中央转圈）+ 实时网速（F-6）。
-          if (_isBuffering && !_controller.isLocked)
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  const SizedBox(
-                    width: 56,
-                    height: 56,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Colors.white70),
-                    ),
+              // 弹幕覆盖层（PiP 小窗内停用：小窗里弹幕不可读，白白消耗 60fps
+              // 绘制，是 PiP 卡顿的显著负载来源之一）。
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DanmakuOverlay(
+                    key: _danmakuKey,
+                    enabled: _danmakuOn && !pipMode,
+                    controller: _danmakuController,
                   ),
-                  // F-6：缓冲时显示实时网速（mpv cache-speed，平台不支持则隐藏）。
-                  if (_bufferingSpeedText != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppTokens.spaceSm),
-                      child: Text(
-                        _bufferingSpeedText!,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
+                ),
+              ),
+
+              // 桌面 PiP 紧凑控件层（悬停/点按显示）：关闭、播放/暂停、进度条。
+              if (_desktopPipActive) _buildDesktopPipControls(l10n),
+
+              // 中央手势指示器（锁定态 / PiP 小窗不显示）
+              if (!_controller.isLocked && !pipMode) _buildGestureIndicator(),
+
+              // F-3：跳过片头/片尾悬浮按钮（右下角，控制栏显示时抬高避让）。
+              if (!_controller.isLocked && !pipMode && _showSkipOpButton)
+                Positioned(
+                  right: AppTokens.spaceLg,
+                  bottom: _uiVisible ? 96 : 28,
+                  child: _SkipChip(
+                      label: l10n.playerSkipOp,
+                      icon: Icons.fast_forward,
+                      onTap: _skipIntro),
+                ),
+              if (!_controller.isLocked && !pipMode && _showSkipEdButton)
+                Positioned(
+                  right: AppTokens.spaceLg,
+                  bottom: _uiVisible ? 96 : 28,
+                  child: _SkipChip(
+                      label: l10n.playerSkipEd,
+                      icon: Icons.fast_forward,
+                      onTap: _skipOutro),
+                ),
+
+              // 功能2：缓冲加载动画（播放中缓冲时显示中央转圈）+ 实时网速（F-6）。
+              if (_isBuffering && !_controller.isLocked)
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white70),
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-
-          // 功能3：解析进度条（顶部细进度条，类似网站加载条）。
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: ValueListenableBuilder<double?>(
-              valueListenable: _resolveProgress,
-              builder: (BuildContext _, double? v, Widget? __) {
-                if (v == null) return const SizedBox.shrink();
-                return LinearProgressIndicator(
-                  value: v >= 0 ? v : null,
-                  minHeight: 3,
-                  backgroundColor: Colors.white24,
-                  valueColor:
-                      const AlwaysStoppedAnimation<Color>(Colors.white),
-                );
-              },
-            ),
-          ),
-
-          // 左边缘常驻锁定按钮（垂直居中；锁定时仍可见，作解锁入口）。
-          // 任何播放/暂停/控制层状态都常驻可用（PiP 小窗除外）——按钮在左缘
-          // 垂直居中，与画面中央的播放钮横向错开，不会相互遮挡。
-          if (!_inPip)
-            Positioned(
-              left: AppTokens.spaceLg,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: _ControlButton(
-                  key: const Key('player_lock_edge'),
-                  icon: _controller.isLocked ? Icons.lock : Icons.lock_open,
-                  tooltip: _controller.isLocked
-                      ? l10n.playerUnlock
-                      : l10n.playerLock,
-                  onTap: _toggleLock,
+                      // F-6：缓冲时显示实时网速（mpv cache-speed，平台不支持则隐藏）。
+                      if (_bufferingSpeedText != null)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(top: AppTokens.spaceSm),
+                          child: Text(
+                            _bufferingSpeedText!,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
 
-          // 右边缘常驻截图按钮（垂直居中；锁定态 / PiP 小窗隐藏，避免误触）
-          if (!_controller.isLocked && !_inPip)
-            Positioned(
-              right: AppTokens.spaceLg,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: _ControlButton(
-                  key: const Key('player_screenshot_edge'),
-                  icon: Icons.camera_alt,
-                  tooltip: l10n.playerScreenshot,
-                  onTap: () => unawaited(_captureAndSaveScreenshot(l10n)),
-                ),
-              ),
-            ),
-
-          // 控制层（未锁定且不在 PiP 小窗时显示）
-          if (!_controller.isLocked) ...<Widget>[
-            // 顶栏（_buildTopBar 自身已返回 Positioned，无需再包一层，否则嵌套
-            // Positioned 触发「Incorrect use of ParentDataWidget」并使视频区塌缩为 0）
-            if (_uiVisible && !_inPip) _buildTopBar(l10n),
-
-            // 底栏
-            if (_uiVisible && !_inPip) _buildBottomBar(l10n),
-
-            // 中央播放/暂停按钮：由 _isPlaying/_uiVisible 驱动的状态机——
-            // 暂停态常显（毛玻璃+呼吸光环），播放/暂停切换有图标形变动画
-            // （暂停→播放：暂停符号弹出后淡出；播放→暂停：弹性入场）。
-            if (!_inPip)
-              Align(
-                alignment: const Alignment(0, -0.15),
-                child: _CenterPlayButton(
-                  key: const Key('player_play_pause'),
-                  isPlaying: _isPlaying,
-                  uiVisible: _uiVisible,
-                  onToggle: () {
-                    // F-8：用户手动重播则取消进行中的连播倒计时。
-                    _cancelAutoNextCountdown();
-                    _controller.play();
-                    setState(() => _isPlaying = true);
+              // 功能3：解析进度条（顶部细进度条，类似网站加载条）。
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: ValueListenableBuilder<double?>(
+                  valueListenable: _resolveProgress,
+                  builder: (BuildContext _, double? v, Widget? __) {
+                    if (v == null) return const SizedBox.shrink();
+                    return LinearProgressIndicator(
+                      value: v >= 0 ? v : null,
+                      minHeight: 3,
+                      backgroundColor: Colors.white24,
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(Colors.white),
+                    );
                   },
                 ),
               ),
-          ],
 
-          // F-12：控制栏隐藏时底部保留细进度条（可开关，设置页 player.bottomProgress）。
-          // 常驻显示当前播放位置，不拦截点击（IgnorePointer），方便全屏沉浸时看进度。
-          if (!_uiVisible &&
-              _playerSettings.showBottomProgress &&
-              _duration > Duration.zero)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: IgnorePointer(
-                child: LinearProgressIndicator(
-                  value: (_position.inMilliseconds / _duration.inMilliseconds)
-                      .clamp(0.0, 1.0),
-                  minHeight: 2.5,
-                  backgroundColor: Colors.white24,
-                  valueColor:
-                      const AlwaysStoppedAnimation<Color>(Colors.white),
+              // 左边缘常驻锁定按钮（垂直居中；锁定时仍可见，作解锁入口）。
+              // 任何播放/暂停/控制层状态都常驻可用（PiP 小窗除外）——按钮在左缘
+              // 垂直居中，与画面中央的播放钮横向错开，不会相互遮挡。
+              if (!pipMode)
+                Positioned(
+                  left: AppTokens.spaceLg,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: _ControlButton(
+                      key: const Key('player_lock_edge'),
+                      icon: _controller.isLocked ? Icons.lock : Icons.lock_open,
+                      tooltip: _controller.isLocked
+                          ? l10n.playerUnlock
+                          : l10n.playerLock,
+                      onTap: _toggleLock,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-        ],
+
+              // 右边缘常驻截图按钮（垂直居中；锁定态 / PiP 小窗隐藏，避免误触）
+              if (!_controller.isLocked && !pipMode)
+                Positioned(
+                  right: AppTokens.spaceLg,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: _ControlButton(
+                      key: const Key('player_screenshot_edge'),
+                      icon: Icons.camera_alt,
+                      tooltip: l10n.playerScreenshot,
+                      onTap: () => unawaited(_captureAndSaveScreenshot(l10n)),
+                    ),
+                  ),
+                ),
+
+              // 控制层（未锁定且不在 PiP 小窗时显示；桌面 PiP 用紧凑控件层）
+              if (!_controller.isLocked) ...<Widget>[
+                // 顶栏（_buildTopBar 自身已返回 Positioned，无需再包一层，否则嵌套
+                // Positioned 触发「Incorrect use of ParentDataWidget」并使视频区塌缩为 0）
+                if (_uiVisible && !pipMode) _buildTopBar(l10n),
+
+                // 底栏
+                if (_uiVisible && !pipMode) _buildBottomBar(l10n),
+
+                // 中央播放/暂停按钮：由 _isPlaying/_uiVisible 驱动的状态机——
+                // 暂停态常显（毛玻璃+呼吸光环），播放/暂停切换有图标形变动画
+                // （暂停→播放：暂停符号弹出后淡出；播放→暂停：弹性入场）。
+                if (!pipMode)
+                  Align(
+                    alignment: const Alignment(0, -0.15),
+                    child: _CenterPlayButton(
+                      key: const Key('player_play_pause'),
+                      isPlaying: _isPlaying,
+                      uiVisible: _uiVisible,
+                      onToggle: () {
+                        // F-8：用户手动重播则取消进行中的连播倒计时。
+                        _cancelAutoNextCountdown();
+                        _controller.play();
+                        setState(() => _isPlaying = true);
+                      },
+                    ),
+                  ),
+              ],
+
+              // F-12：控制栏隐藏时底部保留细进度条（可开关，设置页 player.bottomProgress）。
+              // 常驻显示当前播放位置，不拦截点击（IgnorePointer），方便全屏沉浸时看进度。
+              if (!_uiVisible &&
+                  _playerSettings.showBottomProgress &&
+                  _duration > Duration.zero)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: LinearProgressIndicator(
+                      value:
+                          (_position.inMilliseconds / _duration.inMilliseconds)
+                              .clamp(0.0, 1.0),
+                      minHeight: 2.5,
+                      backgroundColor: Colors.white24,
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -3796,8 +3815,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               builder: (BuildContext _, double? v, Widget? __) {
                 if (v == null) return const SizedBox.shrink();
                 return Padding(
-                  padding:
-                      const EdgeInsets.only(bottom: AppTokens.spaceXs),
+                  padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
                   child: LinearProgressIndicator(
                     value: v >= 0 ? v : null,
                     minHeight: 2,
@@ -3881,7 +3899,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 _ControlButton(
                   key: const Key('player_quick_speed'),
                   icon: Icons.speed,
-                  tooltip: '${l10n.playerPlaybackSpeed} ${_controller.playbackSpeed}x',
+                  tooltip:
+                      '${l10n.playerPlaybackSpeed} ${_controller.playbackSpeed}x',
                   onTap: () => _showSpeedPicker(l10n),
                 ),
                 // 比例（循环 default / 4:3 / 16:9 / fill）
@@ -3924,8 +3943,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   tooltip: _controller.isFullscreen
                       ? l10n.playerExitFullscreen
                       : l10n.playerFullscreen,
-                  onTap: () =>
-                      unawaited(_controller.toggleFullscreen()),
+                  onTap: () => unawaited(_controller.toggleFullscreen()),
                 ),
               ],
             ),
@@ -3960,20 +3978,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (messenger == null) return;
     final uri = Uri.tryParse(url);
     if (uri == null) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(l10n.errorParse)));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.errorParse)));
       return;
     }
     try {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!ok && mounted) {
-        messenger.showSnackBar(
-            SnackBar(content: Text(l10n.browseNetworkConnect)));
+        messenger
+            .showSnackBar(SnackBar(content: Text(l10n.browseNetworkConnect)));
       }
     } on Object {
       if (mounted) {
-        messenger.showSnackBar(
-            SnackBar(content: Text(l10n.errorNetwork)));
+        messenger.showSnackBar(SnackBar(content: Text(l10n.errorNetwork)));
       }
     }
   }

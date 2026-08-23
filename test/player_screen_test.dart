@@ -117,7 +117,9 @@ void main() {
         expect(screen.itemId, 'item1');
       });
 
-      test('VideoPlayerScreen favoriteType defaults to null (no favorite button)', () {
+      test(
+          'VideoPlayerScreen favoriteType defaults to null (no favorite button)',
+          () {
         const screen = VideoPlayerScreen(
           title: 'test',
           episode: Episode(id: 'e1', title: 'ep1', url: '/e1'),
@@ -193,15 +195,17 @@ void main() {
         final String source = File(
           'lib/features/player/presentation/video_player_screen.dart',
         ).readAsStringSync();
+        // 用宽松空白匹配：dart format 换行不影响守护语义。
         expect(
-          source.contains('_seekDragVerticalDelta += d.delta.dy'),
+          RegExp(r'_seekDragVerticalDelta\s*\+=\s*d\.delta\.dy')
+              .hasMatch(source),
           isFalse,
           reason: 'delta.dy 恒为 0（框架按主轴过滤），累加它会让上滑取消'
               '永远不触发（无取消图标/无震动/松手仍跳转）',
         );
         expect(
-          source.contains(
-              '_seekDragVerticalDelta = d.globalPosition.dy - _seekDragStartY'),
+          RegExp(r'_seekDragVerticalDelta\s*=\s*d\.globalPosition\.dy\s*-\s*_seekDragStartY')
+              .hasMatch(source),
           isTrue,
           reason: '取消判定必须基于指针全局 Y 与拖动起点的差值',
         );
