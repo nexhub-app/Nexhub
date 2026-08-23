@@ -8678,18 +8678,6 @@ abstract class AppLocalizations {
   /// **'Picture in picture'**
   String get playerPip;
 
-  /// No description provided for @playerDesktopPip.
-  ///
-  /// In en, this message translates to:
-  /// **'Desktop PiP'**
-  String get playerDesktopPip;
-
-  /// No description provided for @playerDesktopPipActive.
-  ///
-  /// In en, this message translates to:
-  /// **'Desktop PiP active'**
-  String get playerDesktopPipActive;
-
   /// No description provided for @playerCast.
   ///
   /// In en, this message translates to:

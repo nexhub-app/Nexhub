@@ -77,19 +77,6 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
                 _togglePip(l10n);
               },
             ),
-            // F-24：桌面 PiP 窗口（仅桌面平台显示）
-            if (_isDesktopPlatform)
-              ListTile(
-                leading: const Icon(Icons.picture_in_picture_alt),
-                title: Text(l10n.playerDesktopPip),
-                subtitle: _desktopPipController.isInDesktopPip
-                    ? Text(l10n.playerDesktopPipActive)
-                    : null,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _toggleDesktopPip(l10n);
-                },
-              ),
             ListTile(
               leading: const Icon(Icons.memory),
               title: Text(l10n.playerDecodeMode),

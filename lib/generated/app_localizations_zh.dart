@@ -4471,12 +4471,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerPip => '画中画';
 
   @override
-  String get playerDesktopPip => '桌面画中画';
-
-  @override
-  String get playerDesktopPipActive => '桌面画中画已开启';
-
-  @override
   String get playerCast => '投屏';
 
   @override

@@ -4547,12 +4547,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerPip => 'Picture in picture';
 
   @override
-  String get playerDesktopPip => 'Desktop PiP';
-
-  @override
-  String get playerDesktopPipActive => 'Desktop PiP active';
-
-  @override
   String get playerCast => 'Cast';
 
   @override

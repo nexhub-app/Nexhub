@@ -2504,8 +2504,6 @@
   },
   "playerEpisodes": "Episodes",
   "playerPip": "Picture in picture",
-  "playerDesktopPip": "Desktop PiP",
-  "playerDesktopPipActive": "Desktop PiP active",
   "playerCast": "Cast",
   "playerMore": "More",
   "seekForward10": "Forward 10s",

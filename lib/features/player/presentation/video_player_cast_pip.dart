@@ -252,39 +252,4 @@ extension _VideoCastPip on _VideoPlayerScreenState {
         break;
     }
   }
-
-  /// 切换桌面 PiP 窗口（F-24）。
-  Future<void> _toggleDesktopPip(AppLocalizations l10n) async {
-    if (_desktopPipController.isInDesktopPip) {
-      // 已在桌面 PiP 中，退出。
-      await _desktopPipController.exitDesktopPip();
-      if (mounted) setState(() {});
-      return;
-    }
-    // 进入桌面 PiP。
-    final url = _playUrl ?? widget.episode.url;
-    if (url.isEmpty) return;
-    final ok = await _desktopPipController.enterDesktopPip(
-      videoUrl: url,
-      position: _controller.position.inMilliseconds,
-      onMessage: (msg) {
-        // 处理 PiP 窗口回传消息。
-        if (!mounted || _disposed) return;
-        switch (msg['method'] as String? ?? '') {
-          case 'exit':
-            // 用户在 PiP 窗口点击了关闭。
-            unawaited(_desktopPipController.exitDesktopPip());
-            if (mounted) setState(() {});
-            break;
-        }
-      },
-    );
-    if (ok) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.playerDesktopPipActive)),
-        );
-      }
-    }
-  }
 }

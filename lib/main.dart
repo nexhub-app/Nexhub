@@ -6,14 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'core/network/runtime/nexhub_http_overrides.dart';
 import 'core/debug/crash_log.dart';
 import 'core/utils/app_log.dart';
 import 'features/splash/splash_screen.dart';
 import 'core/player/audio_playback_service.dart';
 import 'core/theme/app_tokens.dart';
-import 'features/player/pip/desktop_pip_controller.dart';
 
 /// Entry point: defers all initialization to [SplashScreen] so the user sees
 /// a branded splash while Hive boxes, sources, and managers come online.
@@ -102,23 +100,6 @@ void main() {
       await AudioPlaybackService.instance.initialize();
     } on Object catch (e, st) {
       debugPrint('AudioPlaybackService.initialize failed: $e\n$st');
-    }
-
-    // F-24：桌面 PiP 窗口入口——若通过 desktop_multi_window 启动，
-    // 运行精简的 PiP 视频 UI，而非主 SplashScreen。
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-      try {
-        final pipController = await WindowController.fromCurrentEngine();
-        if (pipController.arguments == 'pip') {
-          runApp(const MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: DesktopPipScreen(),
-          ));
-          return;
-        }
-      } on Object {
-        // 非 multi-window 启动（正常主窗口），继续走 SplashScreen。
-      }
     }
 
     runApp(const SplashScreen());
