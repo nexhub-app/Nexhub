@@ -410,22 +410,30 @@ class _DanmakuScreenState<T> extends State<DanmakuScreen<T>>
   }
 
   /// 确定滚动弹幕是否可以添加
+  ///
+  /// 所有滚动弹幕共用 [DanmakuOption.durationInMilliseconds]，速度
+  /// `v = (viewWidth + width) / duration`，即**越宽越快**。新弹幕从屏幕右侧
+  /// (x = viewWidth) 进入，需判断它是否在同轨旧弹幕离场前追上（碰撞）。
+  ///
+  /// 旧近似公式用"剩余生命比例 > 新弹幕穿越可见区比例"估算，会过度拒绝本不会
+  /// 碰撞的弹幕。这里用精确的速度预判：新弹幕追上旧弹幕的时刻
+  /// `L = (viewWidth - oldX - oldW) / (newSpeed - oldSpeed)`，
+  /// 旧弹幕离场时刻 `tExit = (oldX + oldW) / oldSpeed`；二者相交即碰撞，
+  /// 化简得 `oldSpeed * viewWidth < newSpeed * (oldX + oldW)`。
   bool _scrollCanAddToTrack(double yPosition, double newDanmakuWidth) {
-    for (DanmakuItem item in _scrollDanmakuItems) {
-      if (item.yPosition == yPosition) {
-        final existingEndPosition = item.xPosition + item.width;
-        // 首先保证进入屏幕时不发生重叠，其次保证知道移出屏幕前不与速度慢的弹幕(弹幕宽度较小)发生重叠
-        if (_viewWidth - existingEndPosition < 0) {
-          return false;
-        }
-        if (item.width < newDanmakuWidth) {
-          if ((1 -
-                  ((_viewWidth - item.xPosition) / (item.width + _viewWidth))) >
-              ((_viewWidth) / (_viewWidth + newDanmakuWidth))) {
-            return false;
-          }
-        }
-      }
+    final double newSpeed =
+        (_viewWidth + newDanmakuWidth) / _option.durationInMilliseconds;
+    for (final DanmakuItem item in _scrollDanmakuItems) {
+      if (item.yPosition != yPosition) continue;
+      final double oldEnd = item.xPosition + item.width;
+      // 1) 同轨旧弹幕尚未完全进入：入口处必然重叠
+      if (_viewWidth - oldEnd < 0) return false;
+      final double oldSpeed =
+          (_viewWidth + item.width) / _option.durationInMilliseconds;
+      // 2) 新弹幕不比旧弹幕快 → 永远追不上 → 安全
+      if (newSpeed <= oldSpeed) continue;
+      // 3) 新弹幕更快：若旧弹幕离场前被追上 → 碰撞，不可加入该轨道
+      if (oldSpeed * _viewWidth < newSpeed * oldEnd) return false;
     }
     return true;
   }
