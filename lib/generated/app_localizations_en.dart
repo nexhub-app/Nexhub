@@ -39,72 +39,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sourceManagementTitle => 'Source Management';
 
   @override
-  String get sourceDiagnosticsTitle => 'Source Diagnostics';
-
-  @override
-  String get diagnoseRun => 'Run Diagnostics';
-
-  @override
-  String get diagnoseRunning => 'Running…';
-
-  @override
-  String get diagnoseKeywordLabel => 'Test keyword';
-
-  @override
-  String get diagnoseKeywordHint =>
-      'Used for the search step, e.g. a book title';
-
-  @override
-  String get diagnoseSource => 'Source';
-
-  @override
-  String get diagnoseSearch => 'Search';
-
-  @override
-  String get diagnoseDetail => 'Detail';
-
-  @override
-  String get diagnoseToc => 'Chapters';
-
-  @override
-  String get diagnoseContent => 'Content';
-
-  @override
-  String get diagnoseStatusOk => 'OK';
-
-  @override
-  String get diagnoseStatusFail => 'Failed';
-
-  @override
-  String get diagnoseStatusSkip => 'Skipped';
-
-  @override
-  String diagnoseLatency(int ms) {
-    return 'Latency: $ms ms';
-  }
-
-  @override
-  String get diagnoseSample => 'Sample';
-
-  @override
-  String get diagnoseRuleInfo => 'Rule logs';
-
-  @override
-  String get diagnoseError => 'Error';
-
-  @override
-  String get diagnoseNoDetail => 'No further detail';
-
-  @override
-  String get diagnoseOverallOk => 'All passed';
-
-  @override
-  String get diagnoseOverallFail => 'Issues found';
-
-  @override
-  String get diagnoseTooltip => 'Diagnose';
-
-  @override
   String get downloadSettingsTitle => 'Download';
 
   @override
@@ -2905,6 +2839,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Picture-in-Picture is not supported on this device';
 
   @override
+  String get pipNotWhileCasting => 'Cannot enter PiP while casting';
+
+  @override
+  String get pipNotReady => 'PiP is unavailable until the media is ready';
+
+  @override
+  String get pipActionPlay => 'Play';
+
+  @override
+  String get pipActionPause => 'Pause';
+
+  @override
+  String get pipActionDanmaku => 'Danmaku';
+
+  @override
+  String get pipActionForward => 'Forward 30s';
+
+  @override
   String get screenshot => 'Screenshot';
 
   @override
@@ -3341,6 +3293,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noNotes => 'No notes yet';
+
+  @override
+  String get noteEditUnsupported =>
+      'Independent notes cannot be edited. Delete and recreate.';
 
   @override
   String get add => 'Add';
@@ -6883,6 +6839,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectionHighlight => 'Highlight';
+
+  @override
+  String get selectionUnderline => 'Underline';
+
+  @override
+  String get underlineStyle => 'Underline Style';
+
+  @override
+  String get underlineColor => 'Underline Color';
+
+  @override
+  String get underlineStyleSolid => 'Solid';
+
+  @override
+  String get underlineStyleWavy => 'Wavy';
+
+  @override
+  String get underlineStyleDotted => 'Dotted';
 
   @override
   String get customColorApply => 'Apply Custom Color';

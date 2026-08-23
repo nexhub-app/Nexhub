@@ -25,6 +25,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/player/player_controller.dart';
 import '../../../core/player/audio_playback_service.dart';
+import '../../../core/player/pip_actions_bridge.dart';
 import '../../../core/player/play_queue_store.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/settings/general_settings.dart';
@@ -524,6 +525,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 进入 PiP 时的播放位置（退出时若进度被系统回收则续播）。
   Duration _pipEnterPosition = Duration.zero;
+
+  /// 是否处于系统 PiP 中（F-23）：进入时刷新窗口动作、退出时复位。
+  bool _inPip = false;
+
+  /// PiP 窗口动作点击订阅（F-23：`action:<id>` 事件）。
+  StreamSubscription<String>? _pipActionSub;
 
   @override
   void initState() {
@@ -1099,6 +1106,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       unawaited(_controller.play());
       if (mounted) setState(() => _isPlaying = true);
       _scheduleUiHide();
+    }
+    // F-23：PiP 窗口内播放/暂停后刷新动作图标（播放↔暂停）。
+    if (_inPip) {
+      unawaited(_configurePipActions(AppLocalizations.of(context)));
     }
   }
 
@@ -4026,6 +4037,29 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         }
         return;
       }
+      // F-23 条件进入：投屏中 / 媒体未就绪时不进入（canEnterPiP 守卫）。
+      if (_isCasting) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.pipNotWhileCasting)),
+          );
+        }
+        return;
+      }
+      if (!_controllerCreated ||
+          _controller.duration <= Duration.zero ||
+          _controller.isLocked) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.pipNotReady)),
+          );
+        }
+        return;
+      }
+      // F-23 窗口三动作（播放/暂停、弹幕、快进）：进入前下发动作列表并订阅点击。
+      await _configurePipActions(l10n);
+      _pipActionSub ??= PipActionsBridge.instance.actionStream
+          .listen(_onPipAction);
       await floating.enable(ImmediatePiP());
       // 进入/退出系统 PiP 的生命周期处理（B-9）：监听 PiP 状态变化，
       // 进入时记录位置并隐藏控制层，退出时恢复控制层、必要时续播。
@@ -4036,6 +4070,49 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           SnackBar(content: Text(l10n.pipNotSupportedOnDevice)),
         );
       }
+    }
+  }
+
+  /// 下发 PiP 窗口动作（F-23）：播放/暂停（图标随当前播放态）、弹幕开关、快进 30s。
+  ///
+  /// 原生侧经 `setPictureInPictureParams` 动态刷新，PiP 窗口内即时生效；
+  /// 非 PiP 模式下调用仅更新参数、无副作用。
+  Future<void> _configurePipActions(AppLocalizations l10n) async {
+    final bool playing = _controller.isPlaying;
+    await PipActionsBridge.instance.setActions(<Map<String, String>>[
+      <String, String>{
+        'id': 'play_pause',
+        'title': playing ? l10n.pipActionPause : l10n.pipActionPlay,
+        'icon': playing ? 'pause' : 'play',
+      },
+      <String, String>{
+        'id': 'danmaku',
+        'title': l10n.pipActionDanmaku,
+        'icon': 'danmaku',
+      },
+      <String, String>{
+        'id': 'forward_30',
+        'title': l10n.pipActionForward,
+        'icon': 'forward',
+      },
+    ]);
+  }
+
+  /// PiP 窗口动作点击处理（F-23）。
+  void _onPipAction(String event) {
+    if (_disposed || !mounted || !_controllerCreated) return;
+    switch (event) {
+      case 'action:play_pause':
+        _togglePlayPause();
+        break;
+      case 'action:danmaku':
+        _toggleDanmaku();
+        break;
+      case 'action:forward_30':
+        unawaited(_controller.seek(
+          _controller.position + const Duration(seconds: 30),
+        ));
+        break;
     }
   }
 
@@ -4055,10 +4132,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (_disposed || !mounted || !_controllerCreated) return;
       switch (status) {
         case PiPStatus.enabled:
+          _inPip = true;
           _pipEnterPosition = _controller.position;
           if (_uiVisible) setState(() => _uiVisible = false);
           break;
         case PiPStatus.disabled:
+          _inPip = false;
           setState(() => _uiVisible = true);
           // PiP 期间被系统回收导致进度回退 → 续播。
           if (_pipEnterPosition > Duration.zero &&
@@ -4124,6 +4203,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _bufferingSub?.cancel();
     _playingSub?.cancel();
     _pipStatusSub?.cancel();
+    _pipActionSub?.cancel();
+    _pipActionSub = null;
     // 关闭可能残留的 SnackBar：其退出动画的 AnimationController 在 widget 失活后
     // 仍会 tick，并尝试访问已销毁的 Scaffold 祖先 → 抛「deactivated widget」
     // （见用户日志 AnimationController#...for SnackBar）。deactivate 阶段 context
@@ -4168,6 +4249,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _bufferingSub?.cancel();
     _playingSub?.cancel();
     _pipStatusSub?.cancel();
+    _pipActionSub?.cancel();
+    _pipActionSub = null;
+    // F-23：退出播放器清空 PiP 窗口动作（避免下次进入残留旧动作）。
+    // 退出时 PiP 已结束（PiP 模式不会触发 dispose），安全清理。
+    unawaited(PipActionsBridge.instance.clearActions());
     _resolveProgress.dispose();
     unawaited(_castService.disconnect());
     _focusNode.dispose();

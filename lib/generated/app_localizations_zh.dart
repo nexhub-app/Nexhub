@@ -39,71 +39,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceManagementTitle => '源管理';
 
   @override
-  String get sourceDiagnosticsTitle => '源诊断';
-
-  @override
-  String get diagnoseRun => '开始诊断';
-
-  @override
-  String get diagnoseRunning => '诊断中…';
-
-  @override
-  String get diagnoseKeywordLabel => '测试关键词';
-
-  @override
-  String get diagnoseKeywordHint => '用于搜索步骤，例如书名';
-
-  @override
-  String get diagnoseSource => '源类型';
-
-  @override
-  String get diagnoseSearch => '搜索';
-
-  @override
-  String get diagnoseDetail => '详情';
-
-  @override
-  String get diagnoseToc => '目录';
-
-  @override
-  String get diagnoseContent => '正文';
-
-  @override
-  String get diagnoseStatusOk => '正常';
-
-  @override
-  String get diagnoseStatusFail => '失败';
-
-  @override
-  String get diagnoseStatusSkip => '跳过';
-
-  @override
-  String diagnoseLatency(int ms) {
-    return '耗时 $ms 毫秒';
-  }
-
-  @override
-  String get diagnoseSample => '采样结果';
-
-  @override
-  String get diagnoseRuleInfo => '规则日志';
-
-  @override
-  String get diagnoseError => '错误';
-
-  @override
-  String get diagnoseNoDetail => '无更多明细';
-
-  @override
-  String get diagnoseOverallOk => '全部通过';
-
-  @override
-  String get diagnoseOverallFail => '存在问题';
-
-  @override
-  String get diagnoseTooltip => '诊断';
-
-  @override
   String get downloadSettingsTitle => '下载';
 
   @override
@@ -2858,6 +2793,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pipNotSupportedOnDevice => '当前设备不支持画中画';
 
   @override
+  String get pipNotWhileCasting => '投屏中无法进入画中画';
+
+  @override
+  String get pipNotReady => '媒体加载完成后才能进入画中画';
+
+  @override
+  String get pipActionPlay => '播放';
+
+  @override
+  String get pipActionPause => '暂停';
+
+  @override
+  String get pipActionDanmaku => '弹幕';
+
+  @override
+  String get pipActionForward => '快进 30 秒';
+
+  @override
   String get screenshot => '截图';
 
   @override
@@ -3291,6 +3244,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noNotes => '暂无笔记';
+
+  @override
+  String get noteEditUnsupported => '独立笔记暂不支持编辑，可删除后重建';
 
   @override
   String get add => '添加';
@@ -6749,7 +6705,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get selectionCopied => '已复制';
 
   @override
-  String get selectionHighlight => '划线';
+  String get selectionHighlight => '高亮';
+
+  @override
+  String get selectionUnderline => '划线';
+
+  @override
+  String get underlineStyle => '划线样式';
+
+  @override
+  String get underlineColor => '划线颜色';
+
+  @override
+  String get underlineStyleSolid => '实线';
+
+  @override
+  String get underlineStyleWavy => '波浪线';
+
+  @override
+  String get underlineStyleDotted => '虚线';
 
   @override
   String get customColorApply => '应用自定义颜色';
@@ -6770,13 +6744,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get selectionParagraph => '整段';
 
   @override
-  String get highlightList => '划线列表';
+  String get highlightList => '标记列表';
 
   @override
-  String get highlightEmpty => '暂无划线';
+  String get highlightEmpty => '暂无标记';
 
   @override
-  String get highlightDelete => '删除划线';
+  String get highlightDelete => '删除标记';
 
   @override
   String get highlightEditNote => '编辑摘录';

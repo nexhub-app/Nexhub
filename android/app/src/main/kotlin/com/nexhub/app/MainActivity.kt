@@ -1,9 +1,17 @@
 package com.nexhub.app
 
+import android.app.PendingIntent
+import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.graphics.drawable.Icon
 import android.net.Uri
+import android.os.Build
 import android.util.Log
+import android.util.Rational
 import android.view.KeyEvent
 import androidx.core.content.FileProvider
 import com.ryanheise.audioservice.AudioServicePlugin
@@ -18,6 +26,21 @@ class MainActivity : FlutterFragmentActivity() {
     private var volumeEventSink: EventChannel.EventSink? = null
     // 诊断：开启拦截但 EventSink 未就绪时只告警一次，避免每条按键刷日志。
     private var volumeSinkWarned = false
+
+    // ── F-23 系统 PiP 窗口动作（Android O+）──────────────────────────────
+    // floating 包仅支持进出 PiP，不支持窗口内自定义动作（RemoteAction）；
+    // 这里在应用侧扩展 nexhub/pip（下发动作）与 nexhub/pip_events（回传点击），
+    // 经动态 BroadcastReceiver 把 PiP 窗口按钮点击转成 Flutter 事件。
+    private var pipEventSink: EventChannel.EventSink? = null
+    private var pipActions: List<RemoteAction> = emptyList()
+    private var pipReceiverRegistered = false
+    private val pipActionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != PIP_ACTION) return
+            val id = intent.getStringExtra(EXTRA_ACTION_ID) ?: return
+            pipEventSink?.success("action:$id")
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -80,6 +103,45 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
         )
+
+        // ── F-23 系统 PiP 窗口动作通道 ──
+        // Flutter 下发「播放/暂停、弹幕、快进」动作列表，原生构建 RemoteAction
+        // 并刷新 PictureInPictureParams；PiP 窗口按钮点击经广播回传 Flutter。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            PIP_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setActions" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val actions = call.argument<List<Map<String, Any?>>>("actions")
+                    pipActions = buildPipActions(actions)
+                    refreshPipParams()
+                    result.success(true)
+                }
+                "clearActions" -> {
+                    pipActions = emptyList()
+                    refreshPipParams()
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            PIP_EVENTS
+        ).setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    pipEventSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    pipEventSink = null
+                }
+            }
+        )
+        registerPipReceiver()
     }
 
     // 后台播放修复：自定义 Activity（继承 FlutterFragmentActivity）必须覆写
@@ -144,5 +206,88 @@ class MainActivity : FlutterFragmentActivity() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(intent)
+    }
+
+    // ── F-23 系统 PiP 窗口动作（Android O+）──────────────────────────────
+
+    companion object {
+        private const val PIP_CHANNEL = "nexhub/pip"
+        private const val PIP_EVENTS = "nexhub/pip_events"
+        private const val PIP_ACTION = "com.nexhub.app.PIP_ACTION"
+        private const val EXTRA_ACTION_ID = "actionId"
+        // PendingIntent 请求码基址：每个动作 +index，保持稳定复用（FLAG_UPDATE_CURRENT）。
+        private const val PIP_ACTION_REQUEST_BASE = 2000
+    }
+
+    /** 注册 PiP 动作广播接收器（幂等：重复注册会抛异常，用标志位防重）。 */
+    private fun registerPipReceiver() {
+        if (pipReceiverRegistered) return
+        pipReceiverRegistered = true
+        val filter = IntentFilter(PIP_ACTION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(pipActionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(pipActionReceiver, filter)
+        }
+    }
+
+    /**
+     * 把 Flutter 下发的动作列表构建成 [RemoteAction]。
+     * 图标按字符串图标名映射到应用 drawable；Android O 以下不支持 RemoteAction，
+     * 返回空列表（PiP 无窗口动作，仅系统默认行为）。
+     */
+    private fun buildPipActions(actions: List<Map<String, Any?>>?): List<RemoteAction> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || actions.isNullOrEmpty()) {
+            return emptyList()
+        }
+        return actions.mapIndexedNotNull { index, map ->
+            val id = map["id"] as? String ?: return@mapIndexedNotNull null
+            val title = (map["title"] as? String) ?: id
+            val icon = when (map["icon"]) {
+                "pause" -> R.drawable.ic_pip_pause
+                "danmaku" -> R.drawable.ic_pip_danmaku
+                "forward" -> R.drawable.ic_pip_forward
+                else -> R.drawable.ic_pip_play
+            }
+            val intent = Intent(PIP_ACTION).apply {
+                setPackage(packageName)
+                putExtra(EXTRA_ACTION_ID, id)
+            }
+            val pending = PendingIntent.getBroadcast(
+                this,
+                PIP_ACTION_REQUEST_BASE + index,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            RemoteAction(Icon.createWithResource(this, icon), title, title, pending)
+        }
+    }
+
+    /** 用当前动作列表刷新 PictureInPictureParams（进入 PiP 前或状态变化时调用）。 */
+    private fun refreshPipParams() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        try {
+            val builder = PictureInPictureParams.Builder()
+                .setAspectRatio(Rational(16, 9))
+            if (pipActions.isNotEmpty()) {
+                builder.setActions(pipActions)
+            }
+            setPictureInPictureParams(builder.build())
+        } catch (_: Exception) {
+            // 低版本 / 参数非法时忽略：PiP 基础进出仍可用。
+        }
+    }
+
+    override fun onDestroy() {
+        if (pipReceiverRegistered) {
+            try {
+                unregisterReceiver(pipActionReceiver)
+            } catch (_: Exception) {
+                // 忽略：Activity 生命周期抖动时可能已注销。
+            }
+            pipReceiverRegistered = false
+        }
+        super.onDestroy()
     }
 }

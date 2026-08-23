@@ -158,132 +158,6 @@ abstract class AppLocalizations {
   /// **'Source Management'**
   String get sourceManagementTitle;
 
-  /// No description provided for @sourceDiagnosticsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Source Diagnostics'**
-  String get sourceDiagnosticsTitle;
-
-  /// No description provided for @diagnoseRun.
-  ///
-  /// In en, this message translates to:
-  /// **'Run Diagnostics'**
-  String get diagnoseRun;
-
-  /// No description provided for @diagnoseRunning.
-  ///
-  /// In en, this message translates to:
-  /// **'Running…'**
-  String get diagnoseRunning;
-
-  /// No description provided for @diagnoseKeywordLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Test keyword'**
-  String get diagnoseKeywordLabel;
-
-  /// No description provided for @diagnoseKeywordHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Used for the search step, e.g. a book title'**
-  String get diagnoseKeywordHint;
-
-  /// No description provided for @diagnoseSource.
-  ///
-  /// In en, this message translates to:
-  /// **'Source'**
-  String get diagnoseSource;
-
-  /// No description provided for @diagnoseSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Search'**
-  String get diagnoseSearch;
-
-  /// No description provided for @diagnoseDetail.
-  ///
-  /// In en, this message translates to:
-  /// **'Detail'**
-  String get diagnoseDetail;
-
-  /// No description provided for @diagnoseToc.
-  ///
-  /// In en, this message translates to:
-  /// **'Chapters'**
-  String get diagnoseToc;
-
-  /// No description provided for @diagnoseContent.
-  ///
-  /// In en, this message translates to:
-  /// **'Content'**
-  String get diagnoseContent;
-
-  /// No description provided for @diagnoseStatusOk.
-  ///
-  /// In en, this message translates to:
-  /// **'OK'**
-  String get diagnoseStatusOk;
-
-  /// No description provided for @diagnoseStatusFail.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed'**
-  String get diagnoseStatusFail;
-
-  /// No description provided for @diagnoseStatusSkip.
-  ///
-  /// In en, this message translates to:
-  /// **'Skipped'**
-  String get diagnoseStatusSkip;
-
-  /// Diagnostics step latency in milliseconds
-  ///
-  /// In en, this message translates to:
-  /// **'Latency: {ms} ms'**
-  String diagnoseLatency(int ms);
-
-  /// No description provided for @diagnoseSample.
-  ///
-  /// In en, this message translates to:
-  /// **'Sample'**
-  String get diagnoseSample;
-
-  /// No description provided for @diagnoseRuleInfo.
-  ///
-  /// In en, this message translates to:
-  /// **'Rule logs'**
-  String get diagnoseRuleInfo;
-
-  /// No description provided for @diagnoseError.
-  ///
-  /// In en, this message translates to:
-  /// **'Error'**
-  String get diagnoseError;
-
-  /// No description provided for @diagnoseNoDetail.
-  ///
-  /// In en, this message translates to:
-  /// **'No further detail'**
-  String get diagnoseNoDetail;
-
-  /// No description provided for @diagnoseOverallOk.
-  ///
-  /// In en, this message translates to:
-  /// **'All passed'**
-  String get diagnoseOverallOk;
-
-  /// No description provided for @diagnoseOverallFail.
-  ///
-  /// In en, this message translates to:
-  /// **'Issues found'**
-  String get diagnoseOverallFail;
-
-  /// No description provided for @diagnoseTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Diagnose'**
-  String get diagnoseTooltip;
-
   /// No description provided for @downloadSettingsTitle.
   ///
   /// In en, this message translates to:
@@ -5606,6 +5480,42 @@ abstract class AppLocalizations {
   /// **'Picture-in-Picture is not supported on this device'**
   String get pipNotSupportedOnDevice;
 
+  /// No description provided for @pipNotWhileCasting.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot enter PiP while casting'**
+  String get pipNotWhileCasting;
+
+  /// No description provided for @pipNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'PiP is unavailable until the media is ready'**
+  String get pipNotReady;
+
+  /// No description provided for @pipActionPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get pipActionPlay;
+
+  /// No description provided for @pipActionPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pipActionPause;
+
+  /// No description provided for @pipActionDanmaku.
+  ///
+  /// In en, this message translates to:
+  /// **'Danmaku'**
+  String get pipActionDanmaku;
+
+  /// No description provided for @pipActionForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Forward 30s'**
+  String get pipActionForward;
+
   /// No description provided for @screenshot.
   ///
   /// In en, this message translates to:
@@ -6439,6 +6349,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No notes yet'**
   String get noNotes;
+
+  /// No description provided for @noteEditUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Independent notes cannot be edited. Delete and recreate.'**
+  String get noteEditUnsupported;
 
   /// No description provided for @add.
   ///
@@ -12985,6 +12901,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Highlight'**
   String get selectionHighlight;
+
+  /// No description provided for @selectionUnderline.
+  ///
+  /// In en, this message translates to:
+  /// **'Underline'**
+  String get selectionUnderline;
+
+  /// No description provided for @underlineStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Underline Style'**
+  String get underlineStyle;
+
+  /// No description provided for @underlineColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Underline Color'**
+  String get underlineColor;
+
+  /// No description provided for @underlineStyleSolid.
+  ///
+  /// In en, this message translates to:
+  /// **'Solid'**
+  String get underlineStyleSolid;
+
+  /// No description provided for @underlineStyleWavy.
+  ///
+  /// In en, this message translates to:
+  /// **'Wavy'**
+  String get underlineStyleWavy;
+
+  /// No description provided for @underlineStyleDotted.
+  ///
+  /// In en, this message translates to:
+  /// **'Dotted'**
+  String get underlineStyleDotted;
 
   /// No description provided for @customColorApply.
   ///
