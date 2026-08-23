@@ -134,8 +134,8 @@ class _CenterPlayButtonState extends State<_CenterPlayButton>
           );
         },
         child: Container(
-          width: 64,
-          height: 64,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.white.withValues(alpha: 0.18),
@@ -151,10 +151,10 @@ class _CenterPlayButtonState extends State<_CenterPlayButton>
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
               child: Center(
-                child: Icon(
-                  Icons.play_arrow_rounded,
-                  color: Colors.white,
-                  size: 34,
+                  child: Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.white,
+                    size: 28,
                 ),
               ),
             ),

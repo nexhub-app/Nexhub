@@ -3513,8 +3513,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             ),
 
           // 右边缘常驻截图按钮（垂直居中；锁定态隐藏，避免误触）
-          // 暂停态隐藏：避免与中央大播放钮重叠
-          if (!_controller.isLocked && (_isPlaying || !_uiVisible))
+          // 暂停态也可见：用户常需截取暂停帧
+          if (!_controller.isLocked)
             Positioned(
               right: AppTokens.spaceLg,
               top: 0,
@@ -3539,8 +3539,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             if (_uiVisible) _buildBottomBar(l10n),
 
             // 中央播放/暂停按钮（仅暂停态显示）— 毛玻璃 + 弹性动画
+            // 略偏上（Alignment vertical -0.15），避免与底栏控件视觉重叠
             if (_uiVisible && !_isPlaying)
-              Center(
+              Align(
+                alignment: const Alignment(0, -0.15),
                 child: _CenterPlayButton(
                   key: const Key('player_play_pause'),
                   onTap: () {
