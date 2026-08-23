@@ -3493,24 +3493,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           ),
 
           // 左边缘常驻锁定按钮（垂直居中；锁定时仍可见，作解锁入口）
-          Positioned(
-            left: AppTokens.spaceLg,
-            top: 0,
-            bottom: 0,
-            child: Center(
-              child: _ControlButton(
-                key: const Key('player_lock_edge'),
-                icon: _controller.isLocked ? Icons.lock : Icons.lock_open,
-                tooltip: _controller.isLocked
-                    ? l10n.playerUnlock
-                    : l10n.playerLock,
-                onTap: _toggleLock,
+          // 暂停态隐藏：避免与中央大播放钮重叠导致误触/遮挡
+          if (_isPlaying || !_uiVisible)
+            Positioned(
+              left: AppTokens.spaceLg,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: _ControlButton(
+                  key: const Key('player_lock_edge'),
+                  icon: _controller.isLocked ? Icons.lock : Icons.lock_open,
+                  tooltip: _controller.isLocked
+                      ? l10n.playerUnlock
+                      : l10n.playerLock,
+                  onTap: _toggleLock,
+                ),
               ),
             ),
-          ),
 
           // 右边缘常驻截图按钮（垂直居中；锁定态隐藏，避免误触）
-          if (!_controller.isLocked)
+          // 暂停态隐藏：避免与中央大播放钮重叠
+          if (!_controller.isLocked && (_isPlaying || !_uiVisible))
             Positioned(
               right: AppTokens.spaceLg,
               top: 0,
@@ -3539,7 +3542,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               Center(
                 child: IconButton.filled(
                   key: const Key('player_play_pause'),
-                  iconSize: 48,
+                  iconSize: 36,
                   icon: const Icon(Icons.play_arrow),
                   onPressed: () {
                     // F-8：用户手动重播则取消进行中的连播倒计时。

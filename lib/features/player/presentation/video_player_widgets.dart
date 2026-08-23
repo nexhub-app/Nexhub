@@ -78,7 +78,7 @@ class _DanmakuToggle extends StatelessWidget {
   }
 }
 
-/// 控制按钮（透明背景圆形）。
+/// 控制按钮（透明背景圆形，紧凑尺寸）。
 
 class _ControlButton extends StatelessWidget {
   const _ControlButton({
@@ -97,10 +97,12 @@ class _ControlButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      icon: Icon(icon, color: Colors.white),
+      icon: Icon(icon, color: Colors.white, size: 22),
       tooltip: tooltip,
       onPressed: onTap,
       onLongPress: onLongPress,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      padding: const EdgeInsets.all(8),
     );
   }
 }
