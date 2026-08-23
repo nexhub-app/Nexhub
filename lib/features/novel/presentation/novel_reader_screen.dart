@@ -2704,6 +2704,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       effect: effect,
       createdAt: DateTime.now().millisecondsSinceEpoch,
     );
+    // 新的覆盖旧的：删除同章+同引文+同效果的旧标记
+    final existing = await NovelHighlightManager().listFor(widget.novelId);
+    final dupKey = '${_chapterIndex}::${quote}::${effect}';
+    for (final e in existing) {
+      if ('${e.chapterIndex}::${e.quote}::${e.effect}' == dupKey) {
+        await NovelHighlightManager().remove(e.key);
+      }
+    }
     await NovelHighlightManager().add(hl);
     return hl;
   }
