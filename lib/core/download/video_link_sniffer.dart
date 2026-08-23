@@ -8,7 +8,9 @@
 /// 1. 直连解析快路径 [MediaApiService.fetchVideoUrl]：多数源直接拿到直链 / m3u8，
 ///    不加载 WebView，最快；
 /// 2. 若快路径抛出 [WebViewExtractionRequest]（jsExtractor）/ [WebViewHtmlRequest]
-///    （渲染后抽取）→ 拉起一个无界面 WebView 处理；
+///    （渲染后抽取）→ 拉起一个无界面 WebView 处理；抽取脚本返回
+///    `webview:<url>` 重定向指令时（MacCMS 加密源需跳中转域解密）跟随跳转
+///    并重跑脚本，与播放器验证页同策略；
 /// 3. 若快路径返回非媒体地址 / 抛其它异常 → 通用嗅探兜底（加载播放页捕获真实直链）。
 library;
 
@@ -141,21 +143,49 @@ class VideoLinkSniffer {
     // 先尝试「源声明的手动解析」（抽取脚本 / 渲染后 HTML）。
     SniffedVideoLink? manual;
     if (jsExtractor != null && jsExtractor.isNotEmpty) {
-      for (var attempt = 0; attempt < 5 && manual == null; attempt++) {
+      // 等页面加载完成（onLoadStop）再首次抽取：decrypt()/player 数据在
+      // 加载后才就位；旧实现只等 WebView 创建，页面慢时重试全在加载期跑空。
+      await sniffer.waitForPage();
+      var depth = 0;
+      var attempt = 0;
+      while (manual == null) {
+        String? redirect;
         try {
           final raw = await sniffer.eval(jsExtractor);
-          final url = _parseExtractedResult(raw);
-          if (url != null && url.isNotEmpty) {
-            manual = SniffedVideoLink(url: url, headers: headers);
-            break;
+          redirect = _asRedirect(raw);
+          if (redirect == null) {
+            final url = _parseExtractedResult(raw);
+            if (url != null && url.isNotEmpty) {
+              manual = SniffedVideoLink(url: url, headers: headers);
+            }
           }
         } on Object {
           // decrypt() 可能尚未就绪，稍后重试。
         }
+        if (manual != null) break;
+        // `webview:<url>` 重定向指令：直链需在中转域由站点自带 decrypt()
+        // 解出（如 MacCMS 加密源）。与播放器验证页 _runExtraction 同策略：
+        // 跳转后重跑同一脚本。旧实现丢弃该指令 → 此类源只能靠无头嗅探
+        // 碰运气（页面不自动播放就拿不到）→ 下载小概率全部解析失败。
+        if (redirect != null) {
+          if (depth >= 3) break; // 重定向超限防呆。
+          depth++;
+          attempt = 0;
+          try {
+            await sniffer.navigate(
+                redirect, timeout: const Duration(seconds: 20));
+            continue;
+          } on Object {
+            break;
+          }
+        }
+        if (++attempt >= 8) break;
         await Future<void>.delayed(const Duration(milliseconds: 600));
       }
     } else {
       try {
+        // 同样等页面加载完成再取 HTML，避免拿到 about:blank / 半截页面。
+        await sniffer.waitForPage();
         final html = await sniffer.getHtml();
         if (html != null && html.isNotEmpty) {
           final vr = await service.fetchVideoUrl(
@@ -205,6 +235,30 @@ class VideoLinkSniffer {
       headers: vr.headers,
       lines: vr.lines,
     );
+  }
+
+  /// 若 [raw] 是 `webview:<url>` 形式的重定向指令则返回目标 URL，否则 null。
+  ///
+  /// 与播放器验证页同名逻辑一致：jsExtractor 返回该前缀表示真实直链需先
+  /// 加载中转页（由站点自带解密函数解出）。兼容 evaluateJavascript 把
+  /// 字符串包成 JSON（带外层引号）的情况。
+  static String? _asRedirect(dynamic raw) {
+    if (raw is! String) return null;
+    var s = raw.trim();
+    if (s.startsWith('"') && s.endsWith('"')) {
+      try {
+        final decoded = jsonDecode(s);
+        if (decoded is String) s = decoded;
+      } on Object {
+        // 保留原字符串继续判断。
+      }
+    }
+    if (!s.startsWith('webview:')) return null;
+    final target = s.substring('webview:'.length).trim();
+    if (target.startsWith('http://') || target.startsWith('https://')) {
+      return target;
+    }
+    return null;
   }
 
   /// 解析 jsExtractor 回传结果（对齐播放器 `_parseExtractedResult`）。
@@ -270,12 +324,14 @@ class _HeadlessSniffer {
   HeadlessInAppWebView? _wv;
   final Completer<InAppWebViewController> _created =
       Completer<InAppWebViewController>();
+  Completer<void> _pageLoaded = Completer<void>();
 
   Future<InAppWebViewController> load(
     String url,
     Map<String, String>? headers,
     String hookJs,
   ) async {
+    _pageLoaded = Completer<void>();
     _wv = HeadlessInAppWebView(
       initialUrlRequest: URLRequest(url: WebUri(url), headers: headers),
       initialUserScripts:
@@ -287,12 +343,30 @@ class _HeadlessSniffer {
       onLoadResource: (c, r) => bridge.onResource(r.url?.toString()),
       onLoadStart: (c, uri) => bridge.onRequest(uri?.toString(), _referer(headers)),
       onLoadStop: (c, uri) async {
+        if (!_pageLoaded.isCompleted) _pageLoaded.complete();
         // 加载完成后 DOM 深度扫描，扩大召回（对齐播放器嗅探模式）。
         await bridge.deepScan();
       },
     );
     await _wv!.run();
     return _created.future;
+  }
+
+  /// 等待当前页面加载完成（onLoadStop）；超时则放弃等待继续执行（best-effort）。
+  Future<void> waitForPage({
+    Duration timeout = const Duration(seconds: 20),
+  }) =>
+      _pageLoaded.future.timeout(timeout, onTimeout: () {});
+
+  /// 跳转到 `webview:` 重定向目标页并等待其加载完成（超时同上放行）。
+  ///
+  /// initialUserScripts 在后续导航中仍会注入，嗅探桥/捕获链路保持接通。
+  Future<void> navigate(String url,
+      {Duration timeout = const Duration(seconds: 20)}) async {
+    _pageLoaded = Completer<void>();
+    final c = await _created.future;
+    await c.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+    await _pageLoaded.future.timeout(timeout, onTimeout: () {});
   }
 
   List<SniffedMedia> get videos => engine.filtered(SniffFilter.video);
