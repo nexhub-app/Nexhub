@@ -1466,6 +1466,7 @@
   "pipActionPlay": "播放",
   "pipActionPause": "暂停",
   "pipActionDanmaku": "弹幕",
+  "pipActionRewind": "快退 10 秒",
   "pipActionForward": "快进 30 秒",
   "screenshot": "截图",
   "screenshotSaved": "截图已保存",

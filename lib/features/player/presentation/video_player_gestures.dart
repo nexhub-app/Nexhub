@@ -18,8 +18,6 @@ extension _VideoGestures on _VideoPlayerScreenState {
   }
 
   /// 设置系统亮度（0..1）并刷新手势指示器。
-
-  /// 设置系统亮度（0..1）并刷新手势指示器。
   Future<void> _setBrightness(double v) async {
     final clamped = v.clamp(0.0, 1.0);
     final l10n = AppLocalizations.of(context);
@@ -33,18 +31,12 @@ extension _VideoGestures on _VideoPlayerScreenState {
   }
 
   /// 设置播放器音量（0..100，经 PlayerController 透传）并刷新手势指示器。
-
-  /// 设置播放器音量（0..100，经 PlayerController 透传）并刷新手势指示器。
   Future<void> _setVolume(double v) async {
     final l10n = AppLocalizations.of(context);
     await _controller.setVolume(v);
     _showGestureIndicator(
         '${l10n.playerVolume}: ${_controller.volume.round()}%');
   }
-
-  /// 显示手势指示器约 800ms 后自动淡出。
-  ///
-  /// 多次连续触发会重置计时器，指示器保持显示直到最后一次触发后 800ms。
 
   /// 显示手势指示器约 800ms 后自动淡出。
   ///
@@ -65,11 +57,6 @@ extension _VideoGestures on _VideoPlayerScreenState {
       }
     });
   }
-
-  /// 中央手势指示器浮层：显示双击 ±10s / 亮度 % / 音量 % / 横滑 seek 目标时间。
-  ///
-  /// 横滑 seek 上滑取消时（[_seekDragCancelled]）渲染红色背景 + 取消图标，
-  /// 让「取消」状态一目了然（F-15 反馈增强）。
 
   /// 中央手势指示器浮层：显示双击 ±10s / 亮度 % / 音量 % / 横滑 seek 目标时间。
   ///

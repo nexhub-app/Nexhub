@@ -7,9 +7,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.Configuration
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.util.Rational
 import android.view.KeyEvent
@@ -34,6 +37,10 @@ class MainActivity : FlutterFragmentActivity() {
     private var pipEventSink: EventChannel.EventSink? = null
     private var pipActions: List<RemoteAction> = emptyList()
     private var pipReceiverRegistered = false
+    // 进入 PiP 后延迟刷新动作参数：转场动画进行中同步调
+    // setPictureInPictureParams 会与系统 PiP 转场互相干扰（闪烁/卡顿）。
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val pipRefreshRunnable = Runnable { refreshPipParams() }
     private val pipActionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != PIP_ACTION) return
@@ -246,7 +253,7 @@ class MainActivity : FlutterFragmentActivity() {
             val title = (map["title"] as? String) ?: id
             val icon = when (map["icon"]) {
                 "pause" -> R.drawable.ic_pip_pause
-                "danmaku" -> R.drawable.ic_pip_danmaku
+                "rewind" -> R.drawable.ic_pip_rewind
                 "forward" -> R.drawable.ic_pip_forward
                 else -> R.drawable.ic_pip_play
             }
@@ -279,7 +286,35 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
+    /**
+     * PiP 进出事件推送 + 动作参数恢复。
+     *
+     * 1. 经 `nexhub/pip_events` 向 Flutter 推送 `pip:enabled` / `pip:disabled`。
+     *    floating 包的 pipStatusStream 实际以 10ms 间隔轮询平台通道且定时器
+     *    永不停止（首次使用后整个进程持续每秒 ~100 次原生调用，在 PiP 视频
+     *    解码场景会把系统拖到严重卡顿）——因此 Dart 侧彻底不用它，进出事件
+     *    全部由本回调推送，零轮询。
+     * 2. 进入 PiP 后延迟 250ms 重放动作参数：floating 经
+     *    enterPictureInPictureMode(builder.build()) 进入时传入的 params 只含
+     *    宽高比、不含动作列表，会顶掉此前 setPictureInPictureParams 下发的
+     *    RemoteActions；转场动画中同步重放又会与系统转场互相干扰，故延后。
+     */
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        mainHandler.removeCallbacks(pipRefreshRunnable)
+        if (isInPictureInPictureMode) {
+            pipEventSink?.success("pip:enabled")
+            mainHandler.postDelayed(pipRefreshRunnable, 250)
+        } else {
+            pipEventSink?.success("pip:disabled")
+        }
+    }
+
     override fun onDestroy() {
+        mainHandler.removeCallbacks(pipRefreshRunnable)
         if (pipReceiverRegistered) {
             try {
                 unregisterReceiver(pipActionReceiver)

@@ -1487,6 +1487,7 @@
   "pipActionPlay": "Play",
   "pipActionPause": "Pause",
   "pipActionDanmaku": "Danmaku",
+  "pipActionRewind": "Rewind 10s",
   "pipActionForward": "Forward 30s",
   "screenshot": "Screenshot",
   "screenshotSaved": "Screenshot saved",

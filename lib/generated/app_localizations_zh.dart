@@ -2808,6 +2808,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pipActionDanmaku => '弹幕';
 
   @override
+  String get pipActionRewind => '快退 10 秒';
+
+  @override
   String get pipActionForward => '快进 30 秒';
 
   @override

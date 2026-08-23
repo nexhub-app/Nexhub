@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 快退：双左三角（与 ic_pip_forward 镜像） -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M20,5l-8,7 8,7z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,5l-8,7 8,7z" />
+</vector>

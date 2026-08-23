@@ -5510,6 +5510,12 @@ abstract class AppLocalizations {
   /// **'Danmaku'**
   String get pipActionDanmaku;
 
+  /// No description provided for @pipActionRewind.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewind 10s'**
+  String get pipActionRewind;
+
   /// No description provided for @pipActionForward.
   ///
   /// In en, this message translates to:

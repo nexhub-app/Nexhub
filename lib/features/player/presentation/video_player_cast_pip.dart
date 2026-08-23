@@ -136,14 +136,15 @@ extension _VideoCastPip on _VideoPlayerScreenState {
         }
         return;
       }
-      // F-23 窗口三动作（播放/暂停、弹幕、快进）：进入前下发动作列表并订阅点击。
+      // F-23 窗口三动作（播放/暂停、快退 10s、快进 30s）：进入前下发动作列表。
+      // 进出 PiP 的生命周期事件由原生 onPictureInPictureModeChanged 经
+      // nexhub/pip_events 推送（pip:enabled / pip:disabled），不走 floating
+      // 的 pipStatusStream——它以 10ms 间隔轮询平台通道且定时器永不停止，
+      // 首次使用后持续每秒 ~100 次原生调用，PiP 视频解码时会把系统拖卡。
       await _configurePipActions(l10n);
       _pipActionSub ??= PipActionsBridge.instance.actionStream
-          .listen(_onPipAction);
+          .listen(_onPipEvent);
       await floating.enable(ImmediatePiP());
-      // 进入/退出系统 PiP 的生命周期处理（B-9）：监听 PiP 状态变化，
-      // 进入时记录位置并隐藏控制层，退出时恢复控制层、必要时续播。
-      _listenPipStatus(floating);
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -153,15 +154,10 @@ extension _VideoCastPip on _VideoPlayerScreenState {
     }
   }
 
-  /// 下发 PiP 窗口动作（F-23）：播放/暂停（图标随当前播放态）、弹幕开关、快进 30s。
+  /// 下发 PiP 窗口动作（F-23）：播放/暂停（图标随当前播放态）、快退 10s、快进 30s。
   ///
-  /// 原生侧经 `setPictureInPictureParams` 动态刷新，PiP 窗口内即时生效；
-  /// 非 PiP 模式下调用仅更新参数、无副作用。
-
-  /// 下发 PiP 窗口动作（F-23）：播放/暂停（图标随当前播放态）、弹幕开关、快进 30s。
-  ///
-  /// 原生侧经 `setPictureInPictureParams` 动态刷新，PiP 窗口内即时生效；
-  /// 非 PiP 模式下调用仅更新参数、无副作用。
+  /// 原生侧经 `setPictureInPictureParams` 刷新；进入 PiP 时 floating 传入的
+  /// 参数会把动作顶掉，原生在转场结束后延迟重放恢复（见 MainActivity）。
   Future<void> _configurePipActions(AppLocalizations l10n) async {
     final bool playing = _controller.isPlaying;
     await PipActionsBridge.instance.setActions(<Map<String, String>>[
@@ -171,9 +167,9 @@ extension _VideoCastPip on _VideoPlayerScreenState {
         'icon': playing ? 'pause' : 'play',
       },
       <String, String>{
-        'id': 'danmaku',
-        'title': l10n.pipActionDanmaku,
-        'icon': 'danmaku',
+        'id': 'rewind_10',
+        'title': l10n.pipActionRewind,
+        'icon': 'rewind',
       },
       <String, String>{
         'id': 'forward_30',
@@ -183,17 +179,38 @@ extension _VideoCastPip on _VideoPlayerScreenState {
     ]);
   }
 
-  /// PiP 窗口动作点击处理（F-23）。
-
-  /// PiP 窗口动作点击处理（F-23）。
-  void _onPipAction(String event) {
+  /// PiP 事件统一处理（F-23 + B-9）：
+  /// - `action:<id>`：PiP 窗口动作按钮点击（播放/暂停、快退、快进）；
+  /// - `pip:enabled` / `pip:disabled`：进出 PiP 的生命周期事件（原生
+  ///   onPictureInPictureModeChanged 推送，替代 floating 的 10ms 轮询流）。
+  void _onPipEvent(String event) {
     if (_disposed || !mounted || !_controllerCreated) return;
     switch (event) {
+      case 'pip:enabled':
+        _inPip = true;
+        _pipEnterPosition = _controller.position;
+        // 小窗内强制隐藏整层控制 UI（顶栏/底栏/中央按钮/边缘按钮），
+        // 否则这些浮层会按全屏尺寸渲染进小窗，挤满画面。
+        if (_uiVisible) setState(() => _uiVisible = false);
+        break;
+      case 'pip:disabled':
+        _inPip = false;
+        setState(() => _uiVisible = true);
+        // PiP 期间被系统回收导致进度回退 → 续播。
+        if (_pipEnterPosition > Duration.zero &&
+            _controller.position <
+                _pipEnterPosition - const Duration(seconds: 5)) {
+          unawaited(_controller.seek(_pipEnterPosition));
+        }
+        break;
       case 'action:play_pause':
         _togglePlayPause();
         break;
-      case 'action:danmaku':
-        _toggleDanmaku();
+      case 'action:rewind_10':
+        final target =
+            _controller.position - const Duration(seconds: 10);
+        unawaited(_controller.seek(
+            target < Duration.zero ? Duration.zero : target));
         break;
       case 'action:forward_30':
         unawaited(_controller.seek(
@@ -201,53 +218,5 @@ extension _VideoCastPip on _VideoPlayerScreenState {
         ));
         break;
     }
-  }
-
-  /// 订阅系统 PiP 状态（B-9）。
-  ///
-  /// floating 的 [Floating.pipStatusStream] 以 ~100ms 轮询探测 PiP 模式
-  /// （broadcast + distinct，仅变化时推送）。行为：
-  /// - 进入 PiP（[PiPStatus.enabled]）：记录进入时的播放位置、隐藏控制层
-  ///   （小窗无控制栏，避免 UI 堆叠）；
-  /// - 退出 PiP（[PiPStatus.disabled]）：恢复控制层；若 PiP 期间被系统回收
-  ///   （Activity 重建 / 进程回收）导致进度明显回退（< 进入位置 - 5s），
-  ///   seek 回进入位置续播，避免用户回到播放页却从头开始。
-  /// 进入 PiP 不主动暂停：小窗内继续播放是主流体验。
-
-  /// 订阅系统 PiP 状态（B-9）。
-  ///
-  /// floating 的 [Floating.pipStatusStream] 以 ~100ms 轮询探测 PiP 模式
-  /// （broadcast + distinct，仅变化时推送）。行为：
-  /// - 进入 PiP（[PiPStatus.enabled]）：记录进入时的播放位置、隐藏控制层
-  ///   （小窗无控制栏，避免 UI 堆叠）；
-  /// - 退出 PiP（[PiPStatus.disabled]）：恢复控制层；若 PiP 期间被系统回收
-  ///   （Activity 重建 / 进程回收）导致进度明显回退（< 进入位置 - 5s），
-  ///   seek 回进入位置续播，避免用户回到播放页却从头开始。
-  /// 进入 PiP 不主动暂停：小窗内继续播放是主流体验。
-  void _listenPipStatus(Floating floating) {
-    _pipStatusSub?.cancel();
-    _pipStatusSub = floating.pipStatusStream.listen((PiPStatus status) {
-      if (_disposed || !mounted || !_controllerCreated) return;
-      switch (status) {
-        case PiPStatus.enabled:
-          _inPip = true;
-          _pipEnterPosition = _controller.position;
-          if (_uiVisible) setState(() => _uiVisible = false);
-          break;
-        case PiPStatus.disabled:
-          _inPip = false;
-          setState(() => _uiVisible = true);
-          // PiP 期间被系统回收导致进度回退 → 续播。
-          if (_pipEnterPosition > Duration.zero &&
-              _controller.position <
-                  _pipEnterPosition - const Duration(seconds: 5)) {
-            unawaited(_controller.seek(_pipEnterPosition));
-          }
-          break;
-        case PiPStatus.automatic:
-        case PiPStatus.unavailable:
-          break;
-      }
-    });
   }
 }

@@ -48,8 +48,6 @@ extension _VideoScreenshot on _VideoPlayerScreenState {
   }
 
   /// 选择自定义截图保存目录。
-
-  /// 选择自定义截图保存目录。
   Future<void> _pickScreenshotDirectory(AppLocalizations l10n) async {
     try {
       final String? selected = await FilePicker.platform.getDirectoryPath(
@@ -73,6 +71,4 @@ extension _VideoScreenshot on _VideoPlayerScreenState {
       // 用户取消或平台不支持，静默忽略
     }
   }
-
-  /// 刷新收藏状态（P9.1.7 §16.1 顶栏收藏按钮）。
 }

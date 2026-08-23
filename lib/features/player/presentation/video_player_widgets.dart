@@ -18,143 +18,286 @@ class _DanmakuToggle extends StatelessWidget {
   final VoidCallback? onSettings;
   final VoidCallback? onLongPressSettings;
 
+  /// 弹幕区紧凑图标按钮：无背景框，触控区 32×32 + compact 密度，
+  /// 不抬高所在控件行的高度。
+  Widget _miniBtn({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    VoidCallback? onTap,
+    VoidCallback? onLongPress,
+  }) =>
+      IconButton(
+        icon: Icon(icon, color: color, size: 20),
+        tooltip: tooltip,
+        onPressed: onTap,
+        onLongPress: onLongPress,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        padding: EdgeInsets.zero,
+      );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (!isOn) {
-      // 关闭态：仅显示空心开关按钮，紧凑尺寸
-      return IconButton(
-        icon: const Icon(Icons.comment_outlined, color: Colors.white54),
-        iconSize: 22,
-        tooltip: l10n.danmaku,
-        onPressed: onToggle,
-        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-        padding: const EdgeInsets.all(AppTokens.spaceXs),
-      );
-    }
-
-    // 开启态：高亮背景 + 实心图标 + 发送 + 设置
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppTokens.spaceXxs),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.6)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // 弹幕开关（开启态，实心图标）
-          IconButton(
-            icon: Icon(Icons.comment, color: theme.colorScheme.primary, size: 20),
-            tooltip: l10n.danmaku,
-            onPressed: onToggle,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            padding: EdgeInsets.zero,
+    // 无边框药丸：开启态实心主色图标 + 发送 + 设置；关闭态仅空心开关。
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _miniBtn(
+          icon: isOn ? Icons.comment : Icons.comment_outlined,
+          color: isOn ? theme.colorScheme.primary : Colors.white54,
+          tooltip: l10n.danmaku,
+          onTap: onToggle,
+        ),
+        if (isOn && onSend != null)
+          _miniBtn(
+            icon: Icons.send_outlined,
+            color: Colors.white70,
+            tooltip: l10n.danmakuSend ?? 'Send danmaku',
+            onTap: onSend,
           ),
-          // 发送弹幕按钮（仅开启时显示）
-          if (onSend != null)
-            IconButton(
-              icon: const Icon(Icons.send, color: Colors.white70, size: 18),
-              tooltip: l10n.danmakuSend ?? 'Send danmaku',
-              onPressed: onSend,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              padding: EdgeInsets.zero,
-            ),
-          // 弹幕设置（长按=弹幕源选择）
-          if (onSettings != null)
-            IconButton(
-              icon: const Icon(Icons.settings, color: Colors.white70, size: 18),
-              tooltip: l10n.danmakuSettings,
-              onPressed: onSettings,
-              onLongPress: onLongPressSettings,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              padding: EdgeInsets.zero,
-            ),
-        ],
-      ),
+        if (isOn && onSettings != null)
+          _miniBtn(
+            icon: Icons.tune,
+            color: Colors.white70,
+            tooltip: l10n.danmakuSettings,
+            onTap: onSettings,
+            onLongPress: onLongPressSettings,
+          ),
+      ],
     );
   }
 }
 
-/// 中央播放/暂停按钮（毛玻璃圆形 + 弹性入场动画 + 按压缩放反馈）。
+/// 中央播放/暂停按钮：暂停态常显，播放/暂停切换带图标形变动效。
 ///
-/// 仅暂停态显示，视觉特征：
-/// - 半透明圆形背景 + BackdropFilter 模糊（毛玻璃）
-/// - 外阴影增加浮起感
-/// - 弹性缩放入场动画（Curves.elasticOut）
-/// - 按下时微缩放反馈
+/// 由 [isPlaying] / [uiVisible] 驱动的状态机（不再由父级条件挂载）：
+/// - **暂停且控制层可见**：完整展示——毛玻璃圆盘 + 细白描边 + 双层错相位
+///   呼吸光环（两圈白环循环扩散淡出）+ 播放三角（光学居中微移），可点击；
+/// - **暂停 → 播放**（任何触发路径）：图标即刻形变为暂停符号 ‖，先弹跳
+///   放大再整体淡出缩没——让「状态切换」肉眼可见；
+/// - **播放 → 暂停**：elasticOut 弹性入场 + 光环重启；
+/// - 控制层隐藏或播放中：完全移出渲染树（SizedBox.shrink），不挡手势。
+///
+/// 按下时缩至 0.88 并给轻微触感反馈。
 
 class _CenterPlayButton extends StatefulWidget {
-  const _CenterPlayButton({super.key, required this.onTap});
+  const _CenterPlayButton({
+    super.key,
+    required this.isPlaying,
+    required this.uiVisible,
+    required this.onToggle,
+  });
 
-  final VoidCallback onTap;
+  /// 当前播放状态：true = 播放中（按钮处于退出过渡或隐藏）。
+  final bool isPlaying;
+
+  /// 控制层是否可见：暂停时若控制层隐藏，按钮同样隐藏。
+  final bool uiVisible;
+
+  /// 完整展示（暂停态）时的点击回调（恢复播放）。
+  final VoidCallback onToggle;
 
   @override
   State<_CenterPlayButton> createState() => _CenterPlayButtonState();
 }
 
 class _CenterPlayButtonState extends State<_CenterPlayButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+    with TickerProviderStateMixin {
+  late final AnimationController _entrance;
+  late final AnimationController _halo;
+  late final AnimationController _exit;
+  bool _shown = false;
   double _pressScale = 1.0;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _entrance = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..forward();
+      duration: const Duration(milliseconds: 700),
+    );
+    // 呼吸光环：周期循环，扩散 + 淡出，两环相位差半个周期。
+    _halo = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    _exit = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    )..addStatusListener((AnimationStatus status) {
+        // 退出动画结束后触发一次重建：build 依据 _shown=false 返回
+        // SizedBox.shrink，把按钮彻底移出渲染树。没有这次 setState 时，
+        // AnimatedBuilder 的完成帧会把 opacity 从 0 回跳到 1（结尾闪现）。
+        if (status == AnimationStatus.completed && !_shown && mounted) {
+          setState(() {});
+        }
+      });
+    if (!widget.isPlaying && widget.uiVisible) {
+      _show();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _CenterPlayButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying == oldWidget.isPlaying &&
+        widget.uiVisible == oldWidget.uiVisible) {
+      return;
+    }
+    if (widget.isPlaying) {
+      // 暂停 → 播放：暂停图标弹出 + 淡出（build 期间图标随 isPlaying 切换）。
+      if (_shown) _dismiss();
+    } else if (widget.uiVisible) {
+      // 播放 → 暂停（或控制层重新可见）：弹性登场。
+      _show();
+    } else if (_shown) {
+      // 暂停但控制层被隐藏：静默淡出（图标保持播放态不变）。
+      _dismiss();
+    }
+  }
+
+  void _show() {
+    _shown = true;
+    // reset（而非 stop）：stop 不清零，残留的 _exit.value 会让 settle/pop
+    // 缩放系数失真——上一轮退出动画播完后（value=1）再显示会永久卡在
+    // 75% 大小，表现为不同路径弹出的按钮尺寸不一致。
+    _exit.reset();
+    _pressScale = 1.0;
+    _entrance.forward(from: 0);
+    _halo.repeat();
+  }
+
+  void _dismiss() {
+    _shown = false;
+    _pressScale = 1.0;
+    _halo.stop();
+    _exit.forward(from: 0);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _entrance.dispose();
+    _halo.dispose();
+    _exit.dispose();
     super.dispose();
+  }
+
+  /// 单圈光环在进度 [t] (0..1) 时的形态：easeOut 放大 1→1.45，透明度 0.4→0。
+  Widget _haloRing(double t) {
+    final double scale = 1.0 + 0.45 * Curves.easeOut.transform(t);
+    final double opacity = 0.4 * (1.0 - t);
+    return Transform.scale(
+      scale: scale,
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: opacity),
+            width: 1.5,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressScale = 0.88),
-      onTapUp: (_) => setState(() => _pressScale = 1.0),
-      onTapCancel: () => setState(() => _pressScale = 1.0),
-      onTap: widget.onTap,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (BuildContext context, Widget? child) {
-          // 弹性曲线：0.3→1.0，带过冲回弹
-          final double elasticValue =
-              Curves.elasticOut.transform(_controller.value);
-          return Transform.scale(
-            scale: elasticValue * _pressScale,
-            child: child,
-          );
+    // 隐藏（播放中 / 控制层隐藏）且无过渡动画在进行：完全移出渲染树，
+    // 不占命中区域，点击穿透到底层视频手势。
+    final bool transitioning = _exit.isAnimating || _entrance.isAnimating;
+    if (!_shown && !transitioning) return const SizedBox.shrink();
+
+    return IgnorePointer(
+      // 隐藏 / 退出过渡期间不响应点击（连点穿透给视频手势层）。
+      ignoring: !_shown,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _pressScale = 0.88),
+        onTapUp: (_) => setState(() => _pressScale = 1.0),
+        onTapCancel: () => setState(() => _pressScale = 1.0),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          widget.onToggle();
         },
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.18),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 20,
-                spreadRadius: 2,
+        // 外框比按钮大一圈，给扩散光环留出绘制空间（不裁剪）。
+        child: SizedBox(
+          width: 96,
+          height: 96,
+          child: AnimatedBuilder(
+            animation: Listenable.merge(<Listenable>[_entrance, _halo, _exit]),
+            builder: (BuildContext context, Widget? child) {
+              final double elastic =
+                  Curves.elasticOut.transform(_entrance.value);
+              // 退出过渡（仅进行中生效，杜绝残留值失真）：先弹跳放大
+              // （sin 半周期），同时后半段淡出并回缩。
+              final double e = _exit.value;
+              final double animating = _exit.isAnimating ? 1.0 : 0.0;
+              final double pop = 1.0 + 0.12 * math.sin(math.pi * e) * animating;
+              final double settle =
+                  1.0 - 0.25 * Curves.easeIn.transform(e) * animating;
+              // 退出动画结束的那一帧 isAnimating 已为 false，若直接给 1.0 会
+              // 在被移出树前闪现一下——未展示状态强制透明兜底。
+              final double fade =
+                  1.0 - Curves.easeIn.transform(Interval(0.3, 1).transform(e));
+              final double opacity = _exit.isAnimating
+                  ? fade
+                  : (_shown ? 1.0 : 0.0);
+              return Opacity(
+                opacity: opacity,
+                child: Transform.scale(
+                  scale: elastic * pop * settle * _pressScale,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      _haloRing(_halo.value),
+                      _haloRing((_halo.value + 0.5) % 1.0),
+                      child!,
+                    ],
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.18),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.35),
+                  width: 1.5,
+                ),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: ClipOval(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Center(
-                  child: Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 28,
+              child: ClipOval(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  // 播放三角右侧天然留白，向右微移实现光学居中；暂停符号对称。
+                  child: Center(
+                    child: widget.isPlaying
+                        ? const Icon(
+                            Icons.pause_rounded,
+                            color: Colors.white,
+                            size: 30,
+                          )
+                        : const Padding(
+                            padding: EdgeInsets.only(left: 1.5),
+                            child: Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
+                  ),
                 ),
               ),
             ),
@@ -188,8 +331,11 @@ class _ControlButton extends StatelessWidget {
       tooltip: tooltip,
       onPressed: onTap,
       onLongPress: onLongPress,
+      // compact 密度 + 36px 约束：默认 padded 触控目标会把按钮撑到 48px 高，
+      // 拉高整个控件行；compact 后实际触控区即 36px。
+      visualDensity: VisualDensity.compact,
       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
     );
   }
 }

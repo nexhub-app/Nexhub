@@ -2854,6 +2854,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pipActionDanmaku => 'Danmaku';
 
   @override
+  String get pipActionRewind => 'Rewind 10s';
+
+  @override
   String get pipActionForward => 'Forward 30s';
 
   @override

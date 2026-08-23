@@ -50,6 +50,7 @@ import '../../../core/local/local_content_manager.dart'
 import '../../../core/local/saf_bridge.dart' show resolveSafVideoFile;
 import '../../../core/widgets/app_error_state.dart';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:file_picker/file_picker.dart';
@@ -401,6 +402,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 避免「视频已开始播放但中央大播放按钮仍显示」「缓冲转圈不消失」等 UI 滞后。
   StreamSubscription<bool>? _playingSub;
 
+  /// 暂停事件去抖：mpv 暂停→播放瞬间可能抖出瞬态 false，延迟确认防误闪。
+  Timer? _playingFalseDebounce;
+
+  /// 应用播放/暂停态到 UI（playingStream 事件确认后调用）。
+  void _applyPlayingState(bool p) {
+    if (!mounted) return;
+    setState(() {
+      _isPlaying = p;
+      // 暂停时控制层常显（用户需要看到播放键 / 进度条）。
+      // PiP 小窗内例外：小窗放不下控制层，强制显示会铺满整个小窗。
+      if (!p && !_inPip) _uiVisible = true;
+    });
+    // 播放 → 启动自动隐藏倒计时；暂停 → 取消倒计时保持常显。
+    if (p) {
+      _scheduleUiHide();
+    } else {
+      _uiHideTimer?.cancel();
+    }
+  }
+
   // ─────────────────────── 长按倍速（功能4） ───────────────────────
   /// 长按加速前的原倍速，松手恢复。
   double _speedBeforeLongPress = 1.0;
@@ -527,13 +548,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 屏幕亮度插件实例（手势调节系统亮度）。
   final ScreenBrightness _brightnessPlugin = ScreenBrightness();
 
-  /// PiP 状态订阅（B-9）：进入/退出系统画中画时更新 UI 状态。
-  StreamSubscription<PiPStatus>? _pipStatusSub;
-
   /// 进入 PiP 时的播放位置（退出时若进度被系统回收则续播）。
   Duration _pipEnterPosition = Duration.zero;
 
-  /// 是否处于系统 PiP 中（F-23）：进入时刷新窗口动作、退出时复位。
+  /// 是否处于系统 PiP 中（F-23）：进出事件由原生 onPictureInPictureModeChanged
+  /// 经 nexhub/pip_events 推送（pip:enabled / pip:disabled）。
   bool _inPip = false;
 
   /// PiP 窗口动作点击订阅（F-23：`action:<id>` 事件）。
@@ -901,19 +920,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 播放状态同步：底层播放/暂停时同步 [_isPlaying]，驱动中央大播放按钮、
     // 底栏播放图标、缓冲指示器收敛。修复「视频已自动播放但 UI 仍显示暂停态」
     // 及「_togglePlayPause 首次点击行为反了」的问题。
+    // 注意 mpv 在暂停→播放瞬间（伴随缓冲）可能先抖出一个瞬态 false，直接消费
+    // 会让中央播放键误判「又暂停了」而闪现播放图标——false 事件延迟 250ms
+    // 确认，期间恢复播放则视为抖动丢弃。
     _playingSub = _controller.playingStream.listen((p) {
       if (_disposed || !mounted) return;
-      setState(() {
-        _isPlaying = p;
-        // 暂停时控制层常显（用户需要看到播放键 / 进度条）。
-        if (!p) _uiVisible = true;
-      });
-      // 播放 → 启动自动隐藏倒计时；暂停 → 取消倒计时保持常显。
       if (p) {
-        _scheduleUiHide();
-      } else {
-        _uiHideTimer?.cancel();
+        _playingFalseDebounce?.cancel();
+        _applyPlayingState(true);
+        return;
       }
+      _playingFalseDebounce?.cancel();
+      _playingFalseDebounce = Timer(const Duration(milliseconds: 250), () {
+        if (_disposed || !mounted || _controller.isPlaying) return;
+        _applyPlayingState(false);
+      });
     });
     // 兜底同步一次当前播放态：playingStream 是广播流，若在 open()/play() 之后
     // 才订阅，可能错过已发出的 true，导致「实际在播放但 UI 停在暂停态」。
@@ -1102,8 +1123,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (_controller.isPlaying) {
       unawaited(_controller.pause());
       // 暂停：取消自动隐藏并让控制层常显，用户能立刻看到播放键。
+      // PiP 小窗内例外：小窗放不下控制层，保持隐藏（画面重叠的根源）。
       _uiHideTimer?.cancel();
-      if (mounted) {
+      if (mounted && !_inPip) {
         setState(() {
           _isPlaying = false;
           _uiVisible = true;
@@ -2731,6 +2753,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   void _toggleUi() {
+    // PiP 小窗内不响应显隐切换：小窗放不下控制层，弹出即铺满画面。
+    if (_inPip) return;
     // F-14：双击后 600ms 内屏蔽单击，防止双击手势的尾随单击误触显隐控制栏。
     if (DateTime.now().difference(_lastDoubleTapAt) <
         const Duration(milliseconds: 600)) {
@@ -3112,7 +3136,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _decodeFallbackSub?.cancel();
     _bufferingSub?.cancel();
     _playingSub?.cancel();
-    _pipStatusSub?.cancel();
+    _playingFalseDebounce?.cancel();
     _pipActionSub?.cancel();
     _pipActionSub = null;
     // 关闭可能残留的 SnackBar：其退出动画的 AnimationController 在 widget 失活后
@@ -3158,7 +3182,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _decodeFallbackSub?.cancel();
     _bufferingSub?.cancel();
     _playingSub?.cancel();
-    _pipStatusSub?.cancel();
+    _playingFalseDebounce?.cancel();
     _pipActionSub?.cancel();
     _pipActionSub = null;
     // F-23：退出播放器清空 PiP 窗口动作（避免下次进入残留旧动作）。
@@ -3408,34 +3432,35 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             ),
           ),
 
-          // 弹幕覆盖层
+          // 弹幕覆盖层（PiP 小窗内停用：小窗里弹幕不可读，白白消耗 60fps
+          // 绘制，是 PiP 卡顿的显著负载来源之一）。
           Positioned.fill(
             child: IgnorePointer(
               child: DanmakuOverlay(
                 key: _danmakuKey,
-                enabled: _danmakuOn,
+                enabled: _danmakuOn && !_inPip,
                 controller: _danmakuController,
               ),
             ),
           ),
 
-          // 中央手势指示器（锁定态不显示）
-          if (!_controller.isLocked) _buildGestureIndicator(),
+          // 中央手势指示器（锁定态 / PiP 小窗不显示）
+          if (!_controller.isLocked && !_inPip) _buildGestureIndicator(),
 
           // F-3：跳过片头/片尾悬浮按钮（右下角，控制栏显示时抬高避让）。
-          if (!_controller.isLocked && _showSkipOpButton)
+          if (!_controller.isLocked && !_inPip && _showSkipOpButton)
             Positioned(
               right: AppTokens.spaceLg,
-              bottom: _uiVisible ? 108 : 28,
+              bottom: _uiVisible ? 96 : 28,
               child: _SkipChip(
                   label: l10n.playerSkipOp,
                   icon: Icons.fast_forward,
                   onTap: _skipIntro),
             ),
-          if (!_controller.isLocked && _showSkipEdButton)
+          if (!_controller.isLocked && !_inPip && _showSkipEdButton)
             Positioned(
               right: AppTokens.spaceLg,
-              bottom: _uiVisible ? 108 : 28,
+              bottom: _uiVisible ? 96 : 28,
               child: _SkipChip(
                   label: l10n.playerSkipEd,
                   icon: Icons.fast_forward,
@@ -3493,9 +3518,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             ),
           ),
 
-          // 左边缘常驻锁定按钮（垂直居中；锁定时仍可见，作解锁入口）
-          // 暂停态隐藏：避免与中央大播放钮重叠导致误触/遮挡
-          if (_isPlaying || !_uiVisible)
+          // 左边缘常驻锁定按钮（垂直居中；锁定时仍可见，作解锁入口）。
+          // 任何播放/暂停/控制层状态都常驻可用（PiP 小窗除外）——按钮在左缘
+          // 垂直居中，与画面中央的播放钮横向错开，不会相互遮挡。
+          if (!_inPip)
             Positioned(
               left: AppTokens.spaceLg,
               top: 0,
@@ -3512,9 +3538,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               ),
             ),
 
-          // 右边缘常驻截图按钮（垂直居中；锁定态隐藏，避免误触）
-          // 暂停态也可见：用户常需截取暂停帧
-          if (!_controller.isLocked)
+          // 右边缘常驻截图按钮（垂直居中；锁定态 / PiP 小窗隐藏，避免误触）
+          if (!_controller.isLocked && !_inPip)
             Positioned(
               right: AppTokens.spaceLg,
               top: 0,
@@ -3529,23 +3554,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               ),
             ),
 
-          // 控制层（未锁定时显示）
+          // 控制层（未锁定且不在 PiP 小窗时显示）
           if (!_controller.isLocked) ...<Widget>[
             // 顶栏（_buildTopBar 自身已返回 Positioned，无需再包一层，否则嵌套
             // Positioned 触发「Incorrect use of ParentDataWidget」并使视频区塌缩为 0）
-            if (_uiVisible) _buildTopBar(l10n),
+            if (_uiVisible && !_inPip) _buildTopBar(l10n),
 
             // 底栏
-            if (_uiVisible) _buildBottomBar(l10n),
+            if (_uiVisible && !_inPip) _buildBottomBar(l10n),
 
-            // 中央播放/暂停按钮（仅暂停态显示）— 毛玻璃 + 弹性动画
-            // 略偏上（Alignment vertical -0.15），避免与底栏控件视觉重叠
-            if (_uiVisible && !_isPlaying)
+            // 中央播放/暂停按钮：由 _isPlaying/_uiVisible 驱动的状态机——
+            // 暂停态常显（毛玻璃+呼吸光环），播放/暂停切换有图标形变动画
+            // （暂停→播放：暂停符号弹出后淡出；播放→暂停：弹性入场）。
+            if (!_inPip)
               Align(
                 alignment: const Alignment(0, -0.15),
                 child: _CenterPlayButton(
                   key: const Key('player_play_pause'),
-                  onTap: () {
+                  isPlaying: _isPlaying,
+                  uiVisible: _uiVisible,
+                  onToggle: () {
                     // F-8：用户手动重播则取消进行中的连播倒计时。
                     _cancelAutoNextCountdown();
                     _controller.play();
@@ -3608,6 +3636,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   Widget _buildTopBar(AppLocalizations l10n) {
+    // 顶栏按钮统一紧凑尺寸（默认 IconButton 为 48px 触控区，一排五个太占宽）。
+    Widget topBarBtn({
+      Key? key,
+      required IconData icon,
+      Color? color,
+      String? tooltip,
+      VoidCallback? onPressed,
+    }) =>
+        IconButton(
+          key: key,
+          icon: Icon(icon, color: color ?? Colors.white, size: 20),
+          tooltip: tooltip,
+          onPressed: onPressed,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          padding: const EdgeInsets.all(7),
+        );
+
     return Positioned(
       top: 0,
       left: 0,
@@ -3622,14 +3668,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         ),
         padding: EdgeInsets.only(
           top: MediaQuery.of(context).padding.top,
-          left: AppTokens.spaceSm,
-          right: AppTokens.spaceSm,
+          left: AppTokens.spaceXs,
+          right: AppTokens.spaceXs,
         ),
         child: Row(
           children: <Widget>[
-            IconButton(
+            topBarBtn(
               key: const Key('player_back'),
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              icon: Icons.arrow_back,
               onPressed: () => Navigator.of(context).pop(),
             ),
             // 滚动媒体名 + 集数（长标题自动横向滚动）
@@ -3644,22 +3690,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               ),
             ),
             // 投屏
-            IconButton(
+            topBarBtn(
               key: const Key('player_cast'),
-              icon: Icon(Icons.cast,
-                  color: _isCasting ? Colors.amber : Colors.white),
+              icon: Icons.cast,
+              color: _isCasting ? Colors.amber : Colors.white,
               tooltip: l10n.playerCast,
               onPressed: () => _showCastSheet(l10n),
             ),
             // 字幕
-            IconButton(
+            topBarBtn(
               key: const Key('player_subtitle'),
-              icon: Icon(
-                _controller.subtitleVisible
-                    ? Icons.subtitles
-                    : Icons.subtitles_outlined,
-                color: Colors.white,
-              ),
+              icon: _controller.subtitleVisible
+                  ? Icons.subtitles
+                  : Icons.subtitles_outlined,
               tooltip: l10n.playerSubtitle,
               onPressed: () => SubtitlePanel.show(
                 context,
@@ -3669,19 +3712,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             ),
             // 收藏按钮（P9.1.7 §16.1 顶栏收藏，仅 favoriteType 提供时显示）
             if (widget.favoriteType != null)
-              IconButton(
+              topBarBtn(
                 key: const Key('player_favorite'),
-                icon: Icon(
-                  _isFav ? Icons.favorite : Icons.favorite_border,
-                  color: _isFav ? Colors.redAccent : Colors.white,
-                ),
+                icon: _isFav ? Icons.favorite : Icons.favorite_border,
+                color: _isFav ? Colors.redAccent : Colors.white,
                 tooltip: l10n.favorite,
                 onPressed: _onFavoritePressed,
               ),
             // 更多（已瘦身：解码 / 音频 / 媒体信息 / 外部播放 / 定时关闭 / 分享 / PiP / 连播）
-            IconButton(
+            topBarBtn(
               key: const Key('player_more'),
-              icon: const Icon(Icons.more_vert, color: Colors.white),
+              icon: Icons.more_vert,
               tooltip: l10n.playerMore,
               onPressed: () => _showMoreMenu(l10n),
             ),
@@ -3711,8 +3752,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         padding: EdgeInsets.only(
           left: AppTokens.spaceMd,
           right: AppTokens.spaceMd,
-          bottom: MediaQuery.of(context).padding.bottom + AppTokens.spaceSm,
-          top: 24,
+          bottom: MediaQuery.of(context).padding.bottom + 2,
+          top: 8,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -3735,7 +3776,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 );
               },
             ),
-            // 进度行：SeekBar + 时间 + 内联控件
+            // 进度条在上、控件行沉底
             SeekBar(
               position: _position,
               duration: _duration,
@@ -3745,7 +3786,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               onDragEnd: _releasePanelHold,
             ),
             // 单行控件：时间 | 上一集 | 播放/暂停 | 下一集 | 弹幕 | 弹幕设置 ‖ 倍速 | 比例 | 选集 | 全屏
-            // （原两行合并：删去与快捷行完全重复的主控行按钮，弹幕设置紧邻弹幕开关）
             Row(
               children: <Widget>[
                 // 时间
