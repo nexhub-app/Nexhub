@@ -1385,10 +1385,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
-  /// 显示划线列表（三点菜单 / 摘录入口），支持查看、编辑笔记、删除、跳转
+  /// 显示标记列表（划线列表），支持查看、编辑笔记、删除、跳转
   /// （Phase 2 / N6，参照 [_showNoteList] 模式）。
+  /// 同章+同引文+同效果的标记自动合并（保留最新颜色和笔记）。
   Future<void> _showHighlightList() async {
     final highlights = await NovelHighlightManager().listFor(widget.novelId);
+    // 合并：同章+同引文+同效果 → 保留最新的一条
+    final merged = <String, NovelHighlight>{};
+    for (final h in highlights) {
+      final key = '${h.chapterIndex}::${h.quote}::${h.effect}';
+      final existing = merged[key];
+      if (existing == null || h.createdAt > existing.createdAt) {
+        merged[key] = h;
+      }
+    }
+    final list = merged.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
@@ -1400,13 +1412,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(ctx).size.height * 0.85,
             ),
-            child: highlights.isEmpty
+            child: list.isEmpty
                 ? Center(child: Text(l10n.highlightEmpty))
                 : ListView.builder(
                     shrinkWrap: true,
-                    itemCount: highlights.length,
+                    itemCount: list.length,
                     itemBuilder: (_, i) {
-                      final h = highlights[i];
+                      final h = list[i];
                       final swatch = Color(h.color);
                       final isUnderline = h.effect != 'bg';
                       return ListTile(
@@ -2241,7 +2253,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           elevation: 8,
           color: cs.surface,
           child: Container(
-            clipBehavior: Clip.hardEdge,
             padding: const EdgeInsets.symmetric(
               horizontal: AppTokens.spaceXs,
               vertical: AppTokens.spaceXs,
