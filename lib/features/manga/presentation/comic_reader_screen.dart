@@ -272,6 +272,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 由 [_buildWebtoon] 首帧后消费。
   bool _pendingWebtoonScrollToLast = false;
 
+  /// 条漫切章重建列表时的首帧对齐系数（keep 无缝重锚写入）。
+  /// 列表以 ValueKey('webtoon-章') 挂载，seam 重锚切章必然换 key → SPL State
+  /// 整体重建，新列表首帧按 initialScrollIndex + initialAlignment 落位。若不传
+  /// 对齐系数（默认 0 = 页顶贴视口顶），而 keep 重锚的真实位置常在页面中部
+  /// （edge 为负），首帧与 post-frame jumpTo 钉回的位置差可达大半页，表现为
+  /// 「闪一下」。传入后首帧即最终位置，jumpTo 成为同参 no-op，无中间帧。
+  double? _pendingWebtoonInitialAlignment;
+
   /// 条漫边界拖拽累计位移（像素）：正=持续拖出底部，负=持续拖出顶部。
   /// 超过 [_kChapterOverscroll] 即换章，松手或重新开始滚动时清零。
   double _overscrollAccum = 0;
@@ -1477,14 +1485,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           _jumpToChapter(resolved);
           return;
         }
-        // 从当前章【首页】上翻进上一段：恢复到「上次离开上一话时读到的页」（逐章
-        // 进度记录）；该话无记录则落到上一章【末页】（与「上一章」按钮一致）。
-        final int? prevPage = _chapterPageCache[seg.chapterIndex];
-        final bool reanchored = prevPage != null
-            ? _seamAdvance(-1,
-                reposition: _SeamAdvanceTarget.first, targetPage: prevPage)
-            : _seamAdvance(-1, reposition: _SeamAdvanceTarget.last);
-        if (reanchored) {
+        // 从当前章【首页】上翻进上一段：与向下方向一致用 keep 无缝重锚——把视口
+        // 钉在原位平滑读入上一话末页，不瞬时 jumpTo 到「离开页/末页」（连续阅读
+        // 上翻被瞬间跳走）。显式入口（「上一章」按钮/快捷键/目录点选）仍恢复离开页
+        // （见 [_goPrevChapter]），不受影响。
+        if (_seamAdvance(-1)) {
           return;
         }
       }
@@ -2001,6 +2006,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final double jumpAlign = reposition == _SeamAdvanceTarget.keep
         ? (anchor?.edge ?? 0.0).clamp(-2.0, 2.0)
         : 0.0;
+    // keep 重锚的首帧对齐（见 [_pendingWebtoonInitialAlignment]）：切章换 key
+    // 重建列表时直接落在真实阅读位置（常为页面中部），消除「首帧对齐 0 →
+    // post-frame jumpTo 钉回」两帧位置差造成的闪帧。
+    if (reposition == _SeamAdvanceTarget.keep) {
+      _pendingWebtoonInitialAlignment = jumpAlign;
+    }
     final isc = _itemScrollController;
     final int token = _loadToken;
     if (mounted) setState(() {});
@@ -4701,6 +4712,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final restoreIndex = _seamActive && _seamItemCount > 0
         ? _seamFlatIndexOf(_chapterIndex, restorePage)
         : restorePage;
+    // keep 无缝重锚写入的首帧对齐系数：一次性消费——仅切章换 key 重建 SPL 的
+    // 那一帧需要它，同 key 的后续 rebuild 不会重读 initialAlignment。
+    final double restoreAlign = _pendingWebtoonInitialAlignment ?? 0.0;
+    _pendingWebtoonInitialAlignment = null;
     // 一次性恢复：仅在本章首次渲染时（_pendingWebtoonRestore 非空）锁定当前页并解除
     // 写盘屏蔽。监听器已在 _setupControllers 注册，此处不再重复添加（避免每次
     // setState 重注册导致重复回调）。恢复标记在此消费，后续重建不再触发。
@@ -4811,7 +4826,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       // 以 overscroll 上报。累计超过阈值即换章 —— 这是连续滚动阅读的标准手势，
       // 让换章彻底摆脱对「当前页」测量值的依赖。
       onNotification: _handleWebtoonScrollNotification,
-      child: _buildWebtoonList(isc, ipl, restoreIndex, gap),
+      child: _buildWebtoonList(isc, ipl, restoreIndex, gap, restoreAlign),
     );
   }
 
@@ -4954,6 +4969,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     ItemPositionsListener ipl,
     int restoreIndex,
     double gap,
+    double restoreAlign,
   ) {
     final Widget list = PageStorage(
       // 按章节隔离 SPL 的滚动位置存储：SPL 的 _updatePositions 每帧把当前可见项
@@ -4974,6 +4990,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       scrollOffsetController: _webtoonOffsetController,
       itemPositionsListener: ipl,
       initialScrollIndex: restoreIndex,
+      // keep 无缝重锚的首帧对齐（真实阅读位置常在页面中部，edge 为负）：
+      // 切章换 key 重建时直接落在最终位置，避免「首帧对齐 0 → jumpTo 钉回」闪帧。
+      initialAlignment: restoreAlign,
       // 连续滚动（条漫）：未放大 ClampingScrollPhysics 平滑滚动、边界夹紧无回弹；
       // 放大态（_zoomed）切 NeverScrollableScrollPhysics：禁【拖动】滚动（拖动
       // 交给外层矩阵平移 = 上下左右都能拖图），滚轮改由 [_onPointerScroll] 手动

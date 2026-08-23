@@ -15,6 +15,7 @@ import 'package:nexhub/core/scraper/media_api_service.dart';
 import 'package:nexhub/core/services/source_repository.dart';
 import 'package:nexhub/features/manga/presentation/comic_reader_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 阅读器修复测试（v2）：覆盖统一收藏按钮、双击缩放三态、首屏单图、
@@ -904,7 +905,7 @@ void main() {
         reason: '切回第 1 话应恢复到离开页第 3 页（末页），而非首页');
   });
 
-  testWidgets('进度回归: 条漫无缝滚动回上一话 → 恢复离开页', (tester) async {
+  testWidgets('进度回归: 条漫无缝滚动回上一话 → 无缝衔接末页（不瞬移）', (tester) async {
     final Directory root =
         Directory.systemTemp.createTempSync('comic_chswitch_c');
     addTearDown(() {
@@ -983,21 +984,33 @@ void main() {
     }
     expect(topUrl().contains(dir2.path), isTrue, reason: '应切到第 2 话');
 
-    // 从第 2 话顶部逐步向回滚（下拖），每步检查：视口滚入上一段应触发无缝重锚
-    // 回第 1 话并恢复到离开页；一旦回到第 1 话即停止拖拽（继续拖会往前翻页）。
-    String? landed;
-    for (int i = 0; i < 6; i++) {
-      await tester.dragFrom(const Offset(400, 600), const Offset(0, 500));
-      await pumpSettle();
-      final u = topUrl();
-      if (u.contains(dir1.path)) {
-        landed = u;
-        break;
+    // 从第 2 话顶部向回滚（下拖）：视口滚入上一段应触发 keep 无缝重锚。逐帧步进
+    // 并在每帧检查 SPL 的 key：切章必然换 key（'webtoon-章'）→ State 整体重建，
+    // 抓到换章的那一帧，其 initialAlignment 必须已经是真实阅读位置（页面中部，
+    // 负对齐）——否则首帧按默认对齐 0（页顶贴屏顶）渲染、post-frame jumpTo 才
+    // 钉回，中间帧位置差就是实机上的「闪一下」。
+    final gesture = await tester.startGesture(const Offset(400, 600));
+    double? swapAlign;
+    for (int i = 0; i < 15 && swapAlign == null; i++) {
+      await gesture.moveBy(const Offset(0, 120));
+      await tester.pump(const Duration(milliseconds: 16));
+      final spl = tester.widget<ScrollablePositionedList>(
+          find.byWidgetPredicate((w) => w is ScrollablePositionedList));
+      final key = spl.key;
+      if (key is ValueKey<String> && key.value == 'webtoon-0') {
+        swapAlign = spl.initialAlignment;
       }
     }
-    expect(landed, isNotNull, reason: '上滚越过边界应无缝回到第 1 话');
-    expect(landed!.endsWith('2.png'), isTrue,
-        reason: '滚动回上一话应恢复到离开页第 2 页，而非末页/首页');
+    await gesture.up();
+    await pumpSettle();
+    expect(swapAlign, isNotNull, reason: '上滚越过边界应无缝重锚回第 1 话');
+    expect(swapAlign!, lessThan(0.0),
+        reason: '切章重建首帧应直接落在真实阅读位置（负对齐），而非先对齐 0 再钉回（闪帧）');
+    final String landed = topUrl();
+    expect(landed.contains(dir1.path), isTrue, reason: '重锚后应渲染第 1 话内容');
+    expect(landed.endsWith('3.png'), isTrue,
+        reason: '滚动回上一话应无缝衔接末页（3.png，视口钉在原位），'
+            '而非瞬移到离开页第 2 页');
   });
 
   testWidgets('进度回归: 无缝关闭时切下一话再切回 → 恢复离开页', (tester) async {
