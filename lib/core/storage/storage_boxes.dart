@@ -39,6 +39,8 @@ const List<String> kStorageBoxNames = <String>[
   ImageFavoriteManager.boxName, // 'image_favorites'
   'media_watched',
   'media_playback_position',
+  // 字幕记忆（F-22）：按视频 URL 记忆外部字幕 / 激活轨道 / 样式
+  'subtitle_memory',
   'source_mirrors',
   'chapter_fetch_times',
   // 命名常量由对应类的 boxName 静态字段提供（保持类型安全，避免硬编码漂移）。

@@ -71,16 +71,17 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   @override
   void initState() {
     super.initState();
-    final d = widget.defaults;
-    _subFontSize = d?.subtitleFontSize ?? 28.0;
-    _subScale = d?.subtitleScale ?? 1.0;
-    _subBorderSize = d?.subtitleBorderSize ?? 1.5;
-    _subShadowOffset = d?.subtitleShadowOffset ?? 2.0;
-    _subColor = d?.subtitleColor ?? 'FFFFFF';
-    _subBorderColor = d?.subtitleBorderColor ?? '000000';
-    _subShadowColor = d?.subtitleShadowColor ?? '000000';
-    _subPosition = d?.subtitlePosition ?? 'bottom';
-    _subAssMode = d?.subtitleAssMode ?? 'yes';
+    // 样式初值取自控制器（已恢复的 F-22 记忆或默认回落值），与记忆打通。
+    final c = widget.controller;
+    _subFontSize = c.subFontSize;
+    _subScale = c.subScale;
+    _subBorderSize = c.subBorderSize;
+    _subShadowOffset = c.subShadowOffset;
+    _subColor = c.subColor;
+    _subBorderColor = c.subBorderColor;
+    _subShadowColor = c.subShadowColor;
+    _subPosition = c.subPosition;
+    _subAssMode = c.subAssMode;
     _refreshTracks(widget.controller.subtitleTracks);
     _tracksSub = widget.controller.tracksStream.listen((Tracks t) {
       _refreshTracks(t.subtitle);
@@ -205,7 +206,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             trailing: selected?.id == track.id
                 ? Icon(Icons.check, color: theme.colorScheme.primary)
                 : null,
-            onTap: () => widget.controller.setSubtitleTrack(track),
+            onTap: () {
+              widget.controller.setSubtitleTrack(track);
+              unawaited(widget.controller.saveSubtitleState());
+            },
           ),
         // 关闭字幕
         ListTile(
@@ -215,7 +219,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           trailing: selected == null
               ? Icon(Icons.check, color: theme.colorScheme.primary)
               : null,
-          onTap: () => widget.controller.setSubtitleTrack(null),
+          onTap: () {
+            widget.controller.setSubtitleTrack(null);
+            unawaited(widget.controller.saveSubtitleState());
+          },
         ),
         if (_tracks.isEmpty)
           Padding(
@@ -247,6 +254,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
       final track = SubtitleTrack.uri(path);
       await widget.controller.setSubtitleTrack(track);
       await widget.controller.setSubtitleVisible(true);
+      await widget.controller.saveSubtitleState();
       messenger.showSnackBar(
         SnackBar(content: Text(track.title ?? path)),
       );
@@ -283,7 +291,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           max: 60,
           divisions: 46,
           onChanged: (v) => setState(() => _subFontSize = v),
-          onChangeEnd: (v) => widget.controller.setSubtitleFontSize(v),
+          onChangeEnd: (v) {
+            widget.controller.setSubtitleFontSize(v);
+            unawaited(widget.controller.saveSubtitleState());
+          },
         ),
         // 缩放
         Row(
@@ -298,7 +309,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           max: 3.0,
           divisions: 50,
           onChanged: (v) => setState(() => _subScale = v),
-          onChangeEnd: (v) => widget.controller.setSubtitleScale(v),
+          onChangeEnd: (v) {
+            widget.controller.setSubtitleScale(v);
+            unawaited(widget.controller.saveSubtitleState());
+          },
         ),
         // 边框宽度
         Row(
@@ -313,7 +327,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           max: 6,
           divisions: 12,
           onChanged: (v) => setState(() => _subBorderSize = v),
-          onChangeEnd: (v) => widget.controller.setSubtitleBorderSize(v),
+          onChangeEnd: (v) {
+            widget.controller.setSubtitleBorderSize(v);
+            unawaited(widget.controller.saveSubtitleState());
+          },
         ),
         // 阴影偏移
         Row(
@@ -328,7 +345,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           max: 12,
           divisions: 24,
           onChanged: (v) => setState(() => _subShadowOffset = v),
-          onChangeEnd: (v) => widget.controller.setSubtitleShadowOffset(v),
+          onChangeEnd: (v) {
+            widget.controller.setSubtitleShadowOffset(v);
+            unawaited(widget.controller.saveSubtitleState());
+          },
         ),
 
         const SizedBox(height: AppTokens.spaceXs),
@@ -375,6 +395,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             final pos = s.first;
             setState(() => _subPosition = pos);
             widget.controller.setSubtitlePosition(pos);
+            unawaited(widget.controller.saveSubtitleState());
           },
           showSelectedIcon: false,
           style: ButtonStyle(
@@ -403,6 +424,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                 if (v != null) {
                   setState(() => _subAssMode = v);
                   widget.controller.setSubtitleAssOverride(v);
+                  unawaited(widget.controller.saveSubtitleState());
                 }
               },
               underline: Container(),
@@ -459,12 +481,15 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     if (isText) {
       setState(() => _subColor = selected);
       widget.controller.setSubtitleColor(selected);
+      unawaited(widget.controller.saveSubtitleState());
     } else if (isBorder) {
       setState(() => _subBorderColor = selected);
       widget.controller.setSubtitleBorderColor(selected);
+      unawaited(widget.controller.saveSubtitleState());
     } else {
       setState(() => _subShadowColor = selected);
       widget.controller.setSubtitleShadowColor(selected);
+      unawaited(widget.controller.saveSubtitleState());
     }
   }
 
@@ -501,8 +526,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           min: -5,
           max: 5,
           divisions: 100,
-          onChanged: (double v) =>
-              widget.controller.setSubtitleDelay(Duration(milliseconds: (v * 1000).round())),
+          onChanged: (double v) {
+            widget.controller.setSubtitleDelay(Duration(milliseconds: (v * 1000).round()));
+            unawaited(widget.controller.saveSubtitleState());
+          },
         ),
       ],
     );
@@ -513,7 +540,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
       contentPadding: EdgeInsets.zero,
       title: Text(l10n.subtitleShow),
       value: widget.controller.subtitleVisible,
-      onChanged: (bool v) => widget.controller.setSubtitleVisible(v),
+      onChanged: (bool v) {
+        widget.controller.setSubtitleVisible(v);
+        unawaited(widget.controller.saveSubtitleState());
+      },
     );
   }
 }
