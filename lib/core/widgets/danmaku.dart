@@ -45,6 +45,11 @@ class DanmakuController {
   /// 热门句被观众刷屏时同屏会出现数条一模一样的弹幕，合并后屏显更清爽。
   static const int _mergeWindowSeconds = 5;
 
+  /// 视为「跳转（seek）」的播放位置跨度阈值（秒）。正常播放时位置流每次事件
+  /// 推进 ≤ ~2 秒（与倍速无关，因更新按墙上时钟频率），超出即判定为拖动 seek /
+  /// 自动跳过 / 续播恢复 / PiP 进出等跳转，需清屏重拨游标而非增量灌入。
+  static const int _seekJumpSeconds = 5;
+
   cd.DanmakuController? _controller;
   final List<DanmakuItem> _items = [];
 
@@ -100,8 +105,19 @@ class DanmakuController {
   /// 按视频位置增量注入弹幕到 canvas_danmaku 控制器。
   ///
   /// 游标后的每一秒，取该秒索引桶里的弹幕注入；已注入过的秒跳过。
+  ///
+  /// 位置相对游标大跨度跳转（拖动 seek / 自动跳过片头片尾 / 续播恢复 / PiP 进出）
+  /// 时，单次 [position] 相对游标前进或后退远超正常播放步进：不清屏重拨游标就会
+  /// 把跳转区间内的弹幕一次性灌入（flood）或倒退后长时间无弹幕。`_onSeek` 已对
+  /// 拖动 seek 显式 [resetTo]，此处再统一兜底所有走 [tick] 的跳转入口。
   void tick(Duration position) {
     final sec = position.inSeconds;
+    // 检测 seek 类大跨度跳转（前进或后退均计）：跨越超过 [_seekJumpSeconds]
+    // 秒即视为跳转，清屏并把游标拨回目标前 lookbackSeconds 秒，仅重放该窗口。
+    if ((sec - _cursorSecond).abs() > _seekJumpSeconds) {
+      resetTo(position);
+      return;
+    }
     if (sec <= _cursorSecond) return;
     for (var s = _cursorSecond + 1; s <= sec; s++) {
       final indices = _bySecond[s];
