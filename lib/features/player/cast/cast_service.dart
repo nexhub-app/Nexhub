@@ -6,6 +6,9 @@ import 'package:cast/cast.dart';
 ///
 /// 流程：发现设备 -> 建立会话 -> 启动媒体接收器(CC1AD845) -> 发送 LOAD 播放视频地址。
 /// 全程 try/catch 降级，避免投屏异常影响本地播放。
+///
+/// F-26 扩展：投屏后持续接收 [MEDIA_STATUS] 消息解析播放位置，经 [positionStream]
+/// 暴露给调用方；[sessionStateStream] 反映会话生命周期，用于断开自动暂停本地播放。
 class CastService {
   CastSession? _session;
   CastDevice? _device;
@@ -17,6 +20,27 @@ class CastService {
   /// 接收器握手确认（B-8）：收到第 2 条状态消息（接收器就绪）即 complete；
   /// 超时则由 [connectAndPlay] 判定失败并回滚。
   Completer<void>? _handshakeCompleter;
+
+  /// ── F-26 投屏位置同步 ──────────────────────────────────────────────
+  final StreamController<Duration> _positionController =
+      StreamController<Duration>.broadcast();
+
+  /// 投屏端播放位置变化流（接收器定期上报 MEDIA_STATUS 中的 currentTime）。
+  Stream<Duration> get positionStream => _positionController.stream;
+
+  /// 媒体会话状态流（connecting / connected / closed）。
+  late final Stream<CastSessionState> sessionStateStream =
+      Stream<CastSessionState>.empty();
+
+  /// 是否有错误发生（投屏断开或异常后由 [sessionStateStream] 通知）。
+  final StreamController<Object> _errorController =
+      StreamController<Object>.broadcast();
+
+  /// 投屏错误事件流（F-26：投屏断开 / 异常时推送）。
+  Stream<Object> get errorStream => _errorController.stream;
+
+  StreamSubscription<Map<String, dynamic>>? _messageSub;
+  StreamSubscription<CastSessionState>? _stateSub;
 
   bool get isCasting => _session != null;
   String? get deviceName => _device?.name;
@@ -46,18 +70,9 @@ class CastService {
     _session = session;
     _device = device;
 
-    var messageIndex = 0;
-    session.messageStream.listen((_) {
-      messageIndex += 1;
-      // 接收器就绪后（收到第 2 条状态消息）再发送 LOAD。
-      if (messageIndex == 2) {
-        _handshakeCompleter?.complete();
-        Future<void>.delayed(const Duration(seconds: 2)).then((_) {
-          _sendLoad(session, url, title);
-        });
-      }
-    });
-    session.stateStream.listen((_) {});
+    // F-26：投屏握手后持续监听消息（位置同步）与会话状态（断开检测）。
+    _listenSessionMessages(session, url, title);
+    _listenSessionState(session);
 
     session.sendMessage(CastSession.kNamespaceReceiver, <String, String>{
       'type': 'LAUNCH',
@@ -100,6 +115,64 @@ class CastService {
     }
   }
 
+  /// 持续监听投屏消息（F-26）：握手确认 + 位置同步 + 错误上报。
+  ///
+  /// 消息流包含 RECEIVER_STATUS（握手）、MEDIA_STATUS（位置同步）等。
+  /// 握手确认后（第 2 条 RECEIVER_STATUS）发送 LOAD 加载视频。
+  int _messageCount = 0;
+
+  void _listenSessionMessages(CastSession session, String url, String title) {
+    _messageSub?.cancel();
+    _messageSub = session.messageStream.listen((Map<String, dynamic> msg) {
+      _messageCount++;
+      final String? type = msg['type'] as String?;
+      if (type == null) return;
+
+      // 握手：接收器就绪后完成 handshake 并发送 LOAD。
+      if (type == 'RECEIVER_STATUS' && _messageCount == 2) {
+        _handshakeCompleter?.complete();
+        Future<void>.delayed(const Duration(seconds: 2)).then((_) {
+          _sendLoad(session, url, title);
+        });
+      }
+
+      // F-26 位置同步：MEDIA_STATUS 消息包含 currentTime。
+      if (type == 'MEDIA_STATUS') {
+        _handleMediaStatus(msg);
+      }
+    }, onError: (Object error) {
+      _errorController.add(error);
+    }, cancelOnError: false);
+  }
+
+  /// 解析 MEDIA_STATUS 消息，提取 currentTime 注入位置流。
+  void _handleMediaStatus(Map<String, dynamic> msg) {
+    try {
+      final List<dynamic>? status = msg['status'] as List<dynamic>?;
+      if (status == null || status.isEmpty) return;
+      final Map<String, dynamic>? first = status[0] as Map<String, dynamic>?;
+      if (first == null) return;
+      final num? currentTime = first['currentTime'] as num?;
+      if (currentTime != null) {
+        _positionController.add(
+          Duration(milliseconds: (currentTime * 1000).round()),
+        );
+      }
+    } on Object {
+      // 解析失败静默忽略（非关键路径）。
+    }
+  }
+
+  /// 持续监听投屏会话状态（F-26）：连接断开时注入 error 流。
+  void _listenSessionState(CastSession session) {
+    _stateSub?.cancel();
+    _stateSub = session.stateStream.listen((CastSessionState state) {
+      if (state == CastSessionState.closed) {
+        _errorController.add('cast_disconnected');
+      }
+    });
+  }
+
   String _contentTypeForUrl(String url) {
     final String lower = url.toLowerCase();
     if (lower.contains('.m3u8')) return 'application/vnd.apple.mpegurl';
@@ -117,8 +190,13 @@ class CastService {
   ///
   /// 用 dynamic 调用 endSession 以兼容不同版本（方法名可能不同），
   /// 失败时静默忽略，不影响本地播放。断开 Future 记入 [_pendingDisconnect]，
-  /// 供下一次 [connectAndPlay] await（B-20）。
+  /// 供下一次 [connectAndPlay] await（B-20）。同时取消 F-26 的持续订阅。
   Future<void> disconnect() async {
+    _messageSub?.cancel();
+    _messageSub = null;
+    _stateSub?.cancel();
+    _stateSub = null;
+    _messageCount = 0;
     final CastSession? session = _session;
     _session = null;
     _device = null;

@@ -1480,6 +1480,7 @@
   "castNoDevices": "No cast devices found",
   "castNotSupportedOnDevice": "Casting is not supported on this device",
   "castDisconnect": "Disconnect",
+  "castDisconnected": "Casting disconnected",
   "pip": "Picture-in-Picture",
   "pipNotSupportedOnDevice": "Picture-in-Picture is not supported on this device",
   "pipNotWhileCasting": "Cannot enter PiP while casting",

@@ -542,6 +542,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   final CastService _castService = CastService();
   bool _isCasting = false;
 
+  // F-26 投屏位置同步与断开事件订阅。
+  StreamSubscription<Duration>? _castPositionSub;
+  StreamSubscription<Object>? _castErrorSub;
+  Duration _castPosition = Duration.zero;
+
   /// 键盘焦点节点（P8.3.4 §廿四 键盘快捷键）。
   final FocusNode _focusNode = FocusNode();
 

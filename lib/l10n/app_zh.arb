@@ -1459,6 +1459,7 @@
   "castNoDevices": "未找到投屏设备",
   "castNotSupportedOnDevice": "当前设备不支持投屏",
   "castDisconnect": "断开投屏",
+  "castDisconnected": "投屏已断开",
   "pip": "画中画",
   "pipNotSupportedOnDevice": "当前设备不支持画中画",
   "pipNotWhileCasting": "投屏中无法进入画中画",

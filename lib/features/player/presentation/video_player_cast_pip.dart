@@ -80,6 +80,12 @@ extension _VideoCastPip on _VideoPlayerScreenState {
     try {
       await _castService.connectAndPlay(device, url, title: _episodeTitle);
       await _controller.pause();
+      // F-26：订阅投屏位置同步与断开事件。
+      _castPositionSub = _castService.positionStream.listen(_onCastPosition);
+      _castErrorSub = _castService.errorStream.listen((Object error) {
+        if (_disposed || !mounted) return;
+        _onCastDisconnected(l10n);
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.castingTo(device.name))),
@@ -95,8 +101,35 @@ extension _VideoCastPip on _VideoPlayerScreenState {
     }
   }
 
+  /// 投屏位置同步回调（F-26）：接收器 MEDIA_STATUS 中的 currentTime。
+  /// 不做本地进度 seek（投屏端独立播放），仅刷新 UI 显示。
+  void _onCastPosition(Duration position) {
+    _castPosition = position;
+    // 若需要显示投屏进度，可在此触发 setState（当前 UI 暂不显示投屏进度条，
+    // 仅在投屏工具栏显示，后续可扩展）
+  }
+
+  /// 投屏意外断开处理（F-26）：自动暂停本地播放，恢复本地控制。
+  void _onCastDisconnected(AppLocalizations l10n) {
+    _castPositionSub?.cancel();
+    _castPositionSub = null;
+    _castErrorSub?.cancel();
+    _castErrorSub = null;
+    if (_isCasting && mounted) {
+      setState(() => _isCasting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.castDisconnected)),
+      );
+    }
+  }
+
   Future<void> _disconnectCast(AppLocalizations l10n) async {
     await _castService.disconnect();
+    _castPositionSub?.cancel();
+    _castPositionSub = null;
+    _castErrorSub?.cancel();
+    _castErrorSub = null;
+    _castPosition = Duration.zero;
     if (mounted) {
       setState(() => _isCasting = false);
       ScaffoldMessenger.of(context).showSnackBar(
