@@ -222,12 +222,14 @@ extension _VideoCastPip on _VideoPlayerScreenState {
       return;
     }
     try {
-      // 保存当前窗口状态。
-      _savedWindowPos = await windowManager.getPosition();
-      _savedWindowSize = await windowManager.getSize();
-      // 窗口置顶 + 无边框 + 固定 16:9 小尺寸。
+      // 保存当前窗口状态（先保存再缩小，确保恢复时有正确的原始值）。
+      final pos = await windowManager.getPosition();
+      final size = await windowManager.getSize();
+      _savedWindowPos = pos;
+      _savedWindowSize = size;
+      // 窗口置顶 + 16:9 小尺寸（保留标题栏，用户可拖拽移动）。
       await windowManager.setAlwaysOnTop(true);
-      await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      await windowManager.setTitle('NexHub PiP');
       await windowManager.setSize(const Size(480, 270));
       await windowManager.setMinimumSize(const Size(320, 180));
       await windowManager.setMaximumSize(const Size(960, 540));
@@ -244,15 +246,16 @@ extension _VideoCastPip on _VideoPlayerScreenState {
     }
   }
 
-  /// 退出桌面 PiP，恢复窗口。
+  /// 退出桌面 PiP，恢复窗口原始大小和位置。
   Future<void> _exitDesktopPip() async {
     try {
       await windowManager.setAlwaysOnTop(false);
-      await windowManager.setTitleBarStyle(TitleBarStyle.normal);
-      await windowManager.setSize(_savedWindowSize);
+      // 先恢复位置，再恢复大小（部分平台对顺序敏感）。
       await windowManager.setPosition(_savedWindowPos);
+      await windowManager.setSize(_savedWindowSize);
       await windowManager.setMinimumSize(const Size(0, 0));
       await windowManager.setMaximumSize(const Size(0, 0));
+      await windowManager.setTitle('');
     } on Object catch (e) {
       debugPrint('_exitDesktopPip failed: $e');
     }
