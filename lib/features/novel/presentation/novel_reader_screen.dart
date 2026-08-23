@@ -280,8 +280,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       NovelSelectionController();
   /// 选区工具条是否可见（长按选区结束后显示）。
   bool _showSelectionToolbar = false;
-  /// 长按选词刚完成标记：防止抬起手指时 _onTapUp 立即清除选区。
-  bool _selectionJustMade = false;
   /// 划线色板（ARGB，含 50% 透明度，与活动选区同调）。
   static const List<int> _highlightPalette = <int>[
     0x80FFFF00,
@@ -1576,7 +1574,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _selectionController.setSelecting(false);
     _selectionController.setSelectionAnchor(null);
     if (_selectionController.hasSelection && mounted) {
-      _selectionJustMade = true;
       setState(() => _showSelectionToolbar = true);
     }
   }
@@ -2179,7 +2176,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       _selectionController.clearSelection();
       _showSelectionToolbar = false;
     }
-    _selectionJustMade = false;
     _currentPage = idx;
     _saveProgress(idx);
     // 翻页后刷新底部进度条 / 页码（底部栏位于 ListenableBuilder(_tts) 内，
@@ -2236,34 +2232,34 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             ),
             child: Row(
               children: <Widget>[
-                Expanded(child: _selToolbarButton(
+                Flexible(child: _selToolbarButton(
                   icon: Icons.copy_outlined,
                   label: l10n.selectionCopy,
                   onPressed: _selCopy,
                 )),
-                Expanded(child: _selToolbarButton(
+                Flexible(child: _selToolbarButton(
                   icon: Icons.subject_outlined,
                   label: l10n.selectionParagraph,
                   onPressed: _selParagraph,
                 )),
                 // 高亮按钮：弹出背景色选择器
-                Expanded(child: _selToolbarButton(
+                Flexible(child: _selToolbarButton(
                   icon: Icons.palette_outlined,
                   label: l10n.selectionHighlight,
                   onPressed: () => _showColorPicker(),
                 )),
                 // 划线按钮：弹出样式+颜色选择器
-                Expanded(child: _selToolbarButton(
+                Flexible(child: _selToolbarButton(
                   icon: Icons.format_underline,
                   label: l10n.selectionUnderline,
                   onPressed: () => _showUnderlinePicker(),
                 )),
-                Expanded(child: _selToolbarButton(
+                Flexible(child: _selToolbarButton(
                   icon: Icons.edit_note_outlined,
                   label: l10n.selectionNote,
                   onPressed: () => _selHighlightWithNote(),
                 )),
-                Expanded(child: _selToolbarButton(
+                Flexible(child: _selToolbarButton(
                   icon: Icons.share_outlined,
                   label: l10n.selectionShare,
                   onPressed: () => _selShare(),
@@ -3094,15 +3090,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       _toggleInlineSettings();
       return;
     }
-    // 选区工具条可见时，点按任意处先收起工具条并清空选区（消费本次点按，
-    // 避免误触翻页）。
+    // 选区工具条可见时，点按任意处收起工具条并清空选区。
     if (_showSelectionToolbar) {
-      // 刚由长按选词结束产生的工具条：忽略本次抬起事件（属于长按抬起），
-      // 不清除选区，等待用户第二次点击才收起。
-      if (_selectionJustMade) {
-        _selectionJustMade = false;
-        return;
-      }
       _selectionController.clearSelection();
       setState(() => _showSelectionToolbar = false);
       return;
@@ -3572,7 +3561,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     source: _source,
                     selectionController: _selectionController,
                     onSelectionConfirmed: () {
-                      _selectionJustMade = true;
                       if (mounted) {
                         setState(() {
                           _showSelectionToolbar = true;
@@ -5711,20 +5699,27 @@ Widget buildSelectionRichText(
   TextOverflow overflow = TextOverflow.clip,
 }) {
   final n = text.length;
-  // 逐字符效果信息：背景色 + 装饰样式
+  // 逐字符效果信息：背景色 + 装饰样式（独立存储，可同时存在）
   final List<int?> bg = List<int?>.filled(n, null);
   final List<HighlightEffect?> effects = List<HighlightEffect?>.filled(n, null);
   // 先铺已存划线（低优先级），再覆盖活动选区（高优先级）。
   for (final s in spans.where((s) => !s.isActive)) {
     for (var i = s.start; i < s.end && i < n; i++) {
-      bg[i] = s.color;
-      effects[i] = s.effect;
+      if (s.effect == HighlightEffect.bg) {
+        bg[i] = s.color;
+      } else {
+        // 划线效果仅设装饰，不设背景色（可与背景高亮共存）
+        effects[i] = s.effect;
+      }
     }
   }
   for (final s in spans.where((s) => s.isActive)) {
     for (var i = s.start; i < s.end && i < n; i++) {
-      bg[i] = s.color;
-      effects[i] = s.effect;
+      if (s.effect == HighlightEffect.bg) {
+        bg[i] = s.color;
+      } else {
+        effects[i] = s.effect;
+      }
     }
   }
   final children = <TextSpan>[];
@@ -5739,21 +5734,22 @@ Widget buildSelectionRichText(
     TextStyle? style;
     if (c != null) {
       style = base.copyWith(backgroundColor: Color(c));
-      if (eff != null && eff != HighlightEffect.bg) {
-        final decoration = TextDecoration.underline;
-        final decorationStyle = switch (eff) {
-          HighlightEffect.underline => TextDecorationStyle.solid,
-          HighlightEffect.wavy => TextDecorationStyle.wavy,
-          HighlightEffect.dotted => TextDecorationStyle.dotted,
-          _ => TextDecorationStyle.solid,
-        };
-        style = style.copyWith(
-          decoration: decoration,
-          decorationStyle: decorationStyle,
-          decorationColor: Color(c).withValues(alpha: 0.8),
-          decorationThickness: 1.5,
-        );
-      }
+    }
+    if (eff != null && eff != HighlightEffect.bg) {
+      final decoration = TextDecoration.underline;
+      final decorationStyle = switch (eff) {
+        HighlightEffect.underline => TextDecorationStyle.solid,
+        HighlightEffect.wavy => TextDecorationStyle.wavy,
+        HighlightEffect.dotted => TextDecorationStyle.dotted,
+        _ => TextDecorationStyle.solid,
+      };
+      final baseStyle = style ?? base;
+      style = baseStyle.copyWith(
+        decoration: decoration,
+        decorationStyle: decorationStyle,
+        decorationColor: Color(c ?? 0x80FF0000).withValues(alpha: 0.8),
+        decorationThickness: 1.5,
+      );
     }
     children.add(
       TextSpan(
