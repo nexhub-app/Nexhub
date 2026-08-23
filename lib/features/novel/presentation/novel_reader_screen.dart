@@ -1337,17 +1337,39 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                             ),
                           ],
                         ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () {
-                            if (entry.isHighlightNote) {
-                              NovelHighlightManager().remove(entry.deleteKey);
-                            } else {
-                              _notes.removeNote(entry.deleteKey);
-                            }
-                            Navigator.of(ctx).pop();
-                            _showNoteList();
-                          },
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            IconButton(
+                              icon: const Icon(Icons.edit_note_outlined, size: 20),
+                              onPressed: () {
+                                Navigator.of(ctx).pop();
+                                if (entry.isHighlightNote) {
+                                  // 划线笔记：通过 highlight key 查找并编辑
+                                  NovelHighlightManager().getByKey(entry.deleteKey).then((hl) {
+                                    if (hl != null && mounted) _editHighlightNote(hl);
+                                  });
+                                } else {
+                                  // 独立笔记：暂不支持编辑（可删除后重建）
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(AppLocalizations.of(context).noteEditUnsupported)),
+                                  );
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 20),
+                              onPressed: () {
+                                if (entry.isHighlightNote) {
+                                  NovelHighlightManager().remove(entry.deleteKey);
+                                } else {
+                                  _notes.removeNote(entry.deleteKey);
+                                }
+                                Navigator.of(ctx).pop();
+                                _showNoteList();
+                              },
+                            ),
+                          ],
                         ),
                         onTap: () {
                           if (entry.chapterIndex != _chapterIndex) {
@@ -2224,16 +2246,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   label: l10n.selectionParagraph,
                   onPressed: _selParagraph,
                 )),
-                // 高亮和划线按钮放一起
+                // 高亮按钮：弹出背景色选择器
                 Expanded(child: _selToolbarButton(
                   icon: Icons.palette_outlined,
                   label: l10n.selectionHighlight,
-                  onPressed: () => _showColorPicker(HighlightEffect.bg),
+                  onPressed: () => _showColorPicker(),
                 )),
+                // 划线按钮：弹出样式+颜色选择器
                 Expanded(child: _selToolbarButton(
                   icon: Icons.format_underline,
                   label: l10n.selectionUnderline,
-                  onPressed: () => _showColorPicker(HighlightEffect.underline),
+                  onPressed: () => _showUnderlinePicker(),
                 )),
                 Expanded(child: _selToolbarButton(
                   icon: Icons.edit_note_outlined,
@@ -2253,10 +2276,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
-  /// 显示颜色选择器弹窗，点击色块直接落盘划线（无确认按钮）。
-  /// 支持预选色 + 自定义颜色（全部颜色可设置）。
-  /// [effect] 指定划线效果（bg=高亮, underline=下划线等）。
-  Future<void> _showColorPicker([HighlightEffect effect = HighlightEffect.bg]) async {
+  /// 显示高亮颜色选择器弹窗（背景高亮效果），点击色块直接落盘。
+  Future<void> _showColorPicker() async {
     final l10n = AppLocalizations.of(context);
     final result = await showDialog<int>(
       context: context,
@@ -2324,7 +2345,118 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       ),
     );
     if (result != null) {
-      await _selHighlight(result, effect: effect.name);
+      await _selHighlight(result);
+    }
+  }
+
+  /// 显示划线样式+颜色选择器弹窗，先选样式再选颜色，确认后落盘。
+  Future<void> _showUnderlinePicker() async {
+    final l10n = AppLocalizations.of(context);
+    // 使用记录类型返回 (color, effectName)
+    HighlightEffect selectedEffect = HighlightEffect.underline;
+    int selectedColor = _highlightPalette.first;
+    final result = await showDialog<MapEntry<int, HighlightEffect>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          Color customUnderlineColor = const Color(0x80FF0000);
+          return AlertDialog(
+            title: Text(l10n.selectionUnderline),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // 样式选择
+                Text(l10n.underlineStyle, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    for (final eff in [HighlightEffect.underline, HighlightEffect.wavy, HighlightEffect.dotted])
+                      ChoiceChip(
+                        label: Text(_effectLabel(eff, l10n), style: const TextStyle(fontSize: 12)),
+                        selected: eff == selectedEffect,
+                        onSelected: (_) => setDialogState(() => selectedEffect = eff),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // 颜色选择
+                Text(l10n.underlineColor, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: _highlightPalette.map((c) {
+                    return GestureDetector(
+                      onTap: () => setDialogState(() => selectedColor = c),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Color(c),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: c == selectedColor
+                                ? Theme.of(ctx).colorScheme.primary
+                                : Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.3),
+                            width: c == selectedColor ? 3 : 1,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                // 自定义颜色滑块
+                Text(l10n.customColor, style: const TextStyle(fontSize: 12)),
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: 200,
+                  child: _ColorPickerSlider(
+                    initialColor: customUnderlineColor,
+                    onChanged: (c) => customUnderlineColor = c,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                TextButton(
+                  onPressed: () => setDialogState(() => selectedColor = customUnderlineColor.value),
+                  child: Text(l10n.customColorApply, style: const TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(MapEntry(selectedColor, selectedEffect)),
+                child: Text(l10n.confirm),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (result != null) {
+      await _selHighlight(result.key, effect: result.value.name);
+    }
+  }
+
+  /// 划线效果的中文标签。
+  String _effectLabel(HighlightEffect eff, AppLocalizations l10n) {
+    switch (eff) {
+      case HighlightEffect.underline:
+        return l10n.underlineStyleSolid;
+      case HighlightEffect.wavy:
+        return l10n.underlineStyleWavy;
+      case HighlightEffect.dotted:
+        return l10n.underlineStyleDotted;
+      default:
+        return eff.name;
     }
   }
 
