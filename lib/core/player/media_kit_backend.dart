@@ -1,5 +1,6 @@
 import 'package:media_kit/media_kit.dart';
 
+import 'player_capability.dart';
 import 'video_player_backend.dart';
 
 /// 基于 media_kit / mpv 的视频播放后端实现。
@@ -10,6 +11,16 @@ class MediaKitBackend extends VideoPlayerBackend {
   MediaKitBackend(this._player) {
     _applyDefaultProperties();
   }
+
+  @override
+  Set<PlayerCapability> get capabilities => const <PlayerCapability>{
+        PlayerCapability.hwdec,
+        PlayerCapability.audioChannel,
+        PlayerCapability.aspectRatio,
+        PlayerCapability.propertyQuery,
+        PlayerCapability.subtitle,
+        PlayerCapability.danmaku,
+      };
 
   final Player _player;
 
