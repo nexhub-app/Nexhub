@@ -594,15 +594,21 @@ class LocalContentManager extends ChangeNotifier {
 
   /// 为缺封面的历史条目补算封面并持久化。
   ///
-  /// 处理图片类（取首图）与视频类（media_kit 截首帧）且 `coverUrl == null`
-  /// 的条目；补算失败（损坏包 / 解码失败）静默跳过，保持 null 由 UI 回退占位。
+  /// 处理图片类（取首图）、视频类（media_kit 截首帧）、PDF（渲染首页）、
+  /// EPUB（从压缩包提取封面图）且 `coverUrl == null` 的条目；补算失败
+  ///（损坏包 / 解码失败）静默跳过，保持 null 由 UI 回退占位。
   Future<void> _backfillMissingCovers() async {
     var dirty = false;
     for (var i = 0; i < _items.length; i++) {
       final e = _items[i];
       if (e.coverUrl != null) continue;
-      // 仅补图片类与视频类（视频用 media_kit 截首帧）；其余类型本就无封面。
-      if (e.kind != LocalMediaKind.images && e.kind != LocalMediaKind.video) {
+      // 仅补图片、视频、PDF、EPUB（text+.epub）；其余类型无封面。
+      final bool isEpub = e.kind == LocalMediaKind.text &&
+          e.path.toLowerCase().endsWith('.epub');
+      if (e.kind != LocalMediaKind.images &&
+          e.kind != LocalMediaKind.video &&
+          e.kind != LocalMediaKind.pdf &&
+          !isEpub) {
         continue;
       }
       // 本会话已失败过的视频跳过，避免启动时反复创建 Player 拖慢启动。

@@ -86,6 +86,7 @@ class AppCoverImage extends StatelessWidget {
               height: height,
               fit: fit,
               frameBuilder: _frame(placeholder),
+              errorBuilder: (c, e, s) => placeholder,
             );
           },
         );
@@ -96,6 +97,7 @@ class AppCoverImage extends StatelessWidget {
           height: height,
           fit: fit,
           frameBuilder: _frame(placeholder),
+          errorBuilder: (c, e, s) => placeholder,
         );
       }
     } else {

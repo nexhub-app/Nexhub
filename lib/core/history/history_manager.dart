@@ -166,6 +166,8 @@ class HistoryManager extends ChangeNotifier {
       }
     }
     notifyListeners();
+    // 回填缺封面条目的本地缓存，确保离线可见。
+    unawaited(_backfillMissingCovers());
   }
 
   /// 获取某模块的历史列表（按浏览时间倒序）。
@@ -252,7 +254,12 @@ class HistoryManager extends ChangeNotifier {
   Future<void> _cacheCoverFor(HistoryEntry entry) async {
     final url = entry.coverUrl;
     if (url == null || url.isEmpty || !url.startsWith('http')) return;
-    if (entry.localCoverPath != null) return;
+    // 已有本地缓存且文件真实存在，跳过下载。
+    if (entry.localCoverPath != null) {
+      final existing = File(entry.localCoverPath!);
+      if (await existing.exists()) return;
+      // 文件已丢失（被清理/不存在），继续重新下载。
+    }
     try {
       final dir = await getApplicationDocumentsDirectory();
       final coverDir = Directory(p.join(dir.path, 'history_covers'));
@@ -275,6 +282,18 @@ class HistoryManager extends ChangeNotifier {
       notifyListeners();
     } on Object {
       // 封面缓存失败不影响历史功能。
+    }
+  }
+
+  /// 启动时回填缺封面条目的本地缓存（离线可见）。
+  ///
+  /// 遍历所有已加载的历史条目，对无本地缓存（或缓存文件已丢失）的远程封面
+  /// 重新下载；已缓存的有效条目跳过。任何失败均静默忽略，不影响历史功能。
+  Future<void> _backfillMissingCovers() async {
+    for (final list in _cache.values) {
+      for (final entry in list) {
+        await _cacheCoverFor(entry);
+      }
     }
   }
 
