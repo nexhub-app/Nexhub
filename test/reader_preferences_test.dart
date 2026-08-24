@@ -172,7 +172,7 @@ void main() {
     });
     expect(prefs.readerPageSpacing, 50);
     expect(prefs.readerBrightness, 1.0);
-    // 夜览强度按 VeneraX toOpacity 范围 0.1–0.85 clamp。
+    // 夜览强度范围 0.1–0.85 clamp。
     expect(prefs.nightLightOpacity, 0.85);
     expect(prefs.clockBatteryOpacity, 0.1);
     expect(prefs.readerScreenPicNumberForPortrait, 5);

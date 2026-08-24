@@ -748,7 +748,7 @@ void main() {
       // 目录层级：<根>/漫画/我的漫画作品（类型中文 + 作品名）。
       expect(task.localPath, contains('漫画'));
       expect(task.localPath, contains('我的漫画作品'));
-      // 同作品再下一批 → 仍落到同一 localPath（Mihon 风格：每部作品一个目录）。
+      // 同作品再下一批 → 仍落到同一 localPath（每部作品一个目录）。
       final second = await manager.addTask(item: item, chapters: <Episode>[
         const Episode(id: 'c3', title: '第3话', url: 'u3'),
       ]);
