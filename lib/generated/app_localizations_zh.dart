@@ -2040,6 +2040,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerDecodeHwPlusHint => '花屏时推荐';
 
   @override
+  String get playerUpscaleShader => '超分辨率';
+
+  @override
+  String get playerUpscaleShaderOff => '关闭';
+
+  @override
+  String get playerUpscaleShaderPerformance => '效率';
+
+  @override
+  String get playerUpscaleShaderQuality => '质量';
+
+  @override
+  String get playerUpscaleShaderHint => '低清晰度源实时修复放大；卡顿时选效率或关闭';
+
+  @override
   String playerDecodeFallback(String mode) {
     return '检测到解码异常，已切换为$mode';
   }
@@ -2550,6 +2565,10 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get acknowledgementsRssHub =>
       '为 NexHub 的订阅功能提供 RSS 聚合服务。以 AGPL-3.0 发布（© DIYgod），NexHub 仅作客户端调用，未修改或再分发其源码。';
+
+  @override
+  String get acknowledgementsAnime4K =>
+      '播放器「超分辨率」内置其 GLSL shader 预设（Mode A 效率/质量档），随应用分发。以 MIT License 发布（© 2019-2021 bloc97）。';
 
   @override
   String get acknowledgementsViewProject => '查看项目';
@@ -4263,6 +4282,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerAutoScrollDesc => '条漫模式下按上方滚动速度平滑自动滚动';
 
   @override
+  String get readerSleepTimer => '睡眠定时';
+
+  @override
+  String get readerSleepTimerDesc => '按分钟或按话数定时暂停阅读';
+
+  @override
+  String get readerSleepTimerOff => '关闭定时';
+
+  @override
+  String readerSleepTimerChapters(Object count) {
+    return '再读 $count 话后暂停';
+  }
+
+  @override
+  String get readerSleepTimerFired => '定时已触发，暂停阅读';
+
+  @override
   String get readerPageAnimation => '翻页过渡动画';
 
   @override
@@ -4384,6 +4420,50 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get imageFavoriteRemoved => '已取消收藏此图';
+
+  @override
+  String get imageFavoriteAdd => '收藏到图库';
+
+  @override
+  String get imageFavoriteSourceComic => '漫画';
+
+  @override
+  String get imageFavoriteSourcePlayer => '播放器';
+
+  @override
+  String get imageFavoriteSourceNovel => '小说';
+
+  @override
+  String get readingQueueTitle => '待读队列';
+
+  @override
+  String get readingQueueAdd => '加入待读队列';
+
+  @override
+  String get readingQueueAdded => '已加入待读队列';
+
+  @override
+  String get readingQueueOpen => '待读队列';
+
+  @override
+  String get readingQueueEmpty => '待读队列为空\n在作品菜单或书架长按中添加入队';
+
+  @override
+  String get readingQueueClear => '清空';
+
+  @override
+  String readingQueueLoading(Object title) {
+    return '正在打开 $title…';
+  }
+
+  @override
+  String get readingQueueLoadFailed => '打开待读作品失败';
+
+  @override
+  String get readingQueueTypeNovel => '小说';
+
+  @override
+  String get readingQueueTypeComic => '漫画';
 
   @override
   String readerClockBatteryPercent(int percent) {

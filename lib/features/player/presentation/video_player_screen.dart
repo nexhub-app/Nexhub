@@ -1029,6 +1029,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       await _controller.setHwdec(_decodeModeToMpv(s.decodeMode));
       await _controller.setAudioChannel(_audioChannelToMpv(s.audioChannel));
       await _controller.setAspectRatio(_aspectRatioToMpv(s.aspectRatio));
+      // F-7：超分辨率 shader 档位（资产部署 + glsl-shaders 注入，off 清空）。
+      await _controller.setUpscaleShader(s.upscaleShader);
       if (s.defaultVolume >= 0 && s.defaultVolume <= 100) {
         await _controller.setVolume(s.defaultVolume);
         _dragStartVolume = _controller.volume;

@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 
 import '../models/episode.dart';
+import '../settings/player_settings.dart' show UpscaleShaderMode;
+import 'anime4k_shaders.dart';
 import 'media_kit_backend.dart';
 import 'subtitle_memory_store.dart';
 import 'video_player_backend.dart';
@@ -920,6 +922,29 @@ class PlayerController extends ChangeNotifier {
   /// 设置画面比例（委托后端）。
   Future<void> setAspectRatio(String ratio) async {
     await _backend.setAspectRatio(ratio);
+    notifyListeners();
+  }
+
+  // ────────── 超分辨率 shader（F-7） ──────────
+
+  UpscaleShaderMode _upscaleShader = UpscaleShaderMode.off;
+
+  /// 当前超分辨率档位。
+  UpscaleShaderMode get upscaleShader => _upscaleShader;
+
+  /// 设置超分辨率 shader 档位（F-7）。
+  ///
+  /// 部署预设文件到应用目录后经 mpv `glsl-shaders` 注入，运行时即时生效、
+  /// 无需重开；off 或部署失败（如 Web 无文件系统）传空串清空。
+  Future<void> setUpscaleShader(UpscaleShaderMode mode) async {
+    _upscaleShader = mode;
+    try {
+      await _backend.setUpscaleShaders(
+        await Anime4kShaderCatalog.mpvShaderList(mode),
+      );
+    } on Object {
+      // 后端不支持（NoOp 降级）或属性设置失败，忽略。
+    }
     notifyListeners();
   }
 

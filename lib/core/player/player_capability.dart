@@ -20,4 +20,7 @@ enum PlayerCapability {
 
   /// 弹幕功能（仅 media_kit 后端通过画布层实现）。
   danmaku,
+
+  /// GLSL 用户 shader 注入（mpv `glsl-shaders`，F-7 超分辨率）。
+  upscaleShader,
 }

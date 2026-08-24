@@ -32,6 +32,13 @@ abstract class VideoPlayerBackend {
     throw UnsupportedError('setAspectRatio is not supported by this backend');
   }
 
+  /// 设置 GLSL 用户 shader 列表（mpv `glsl-shaders`，F-7 超分辨率）。
+  ///
+  /// 传入空字符串表示清空（关闭超分辨率）。
+  Future<void> setUpscaleShaders(String shaders) async {
+    throw UnsupportedError('setUpscaleShaders is not supported by this backend');
+  }
+
   /// 读取后端只读属性（如 mpv 的 `hwdec-current`）。
   ///
   /// 默认实现返回 null（不支持查询），子类按需覆写。

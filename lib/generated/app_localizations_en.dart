@@ -2068,6 +2068,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerDecodeHwPlusHint => 'Recommended for screen artifacts';
 
   @override
+  String get playerUpscaleShader => 'Super resolution';
+
+  @override
+  String get playerUpscaleShaderOff => 'Off';
+
+  @override
+  String get playerUpscaleShaderPerformance => 'Fast';
+
+  @override
+  String get playerUpscaleShaderQuality => 'Quality';
+
+  @override
+  String get playerUpscaleShaderHint =>
+      'Real-time upscale for low-res sources; use Fast or Off if frames drop';
+
+  @override
   String playerDecodeFallback(String mode) {
     return 'Decoding issue detected, switched to $mode';
   }
@@ -2588,6 +2604,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get acknowledgementsRssHub =>
       'Powers the RSS aggregation behind NexHub\'s subscription feature. Licensed under AGPL-3.0 (© DIYgod); NexHub only calls it as a client and does not modify or redistribute its source.';
+
+  @override
+  String get acknowledgementsAnime4K =>
+      'The player\'s \"Super resolution\" ships its GLSL shader presets (Mode A Fast/Quality). Licensed under the MIT License (© 2019-2021 bloc97).';
 
   @override
   String get acknowledgementsViewProject => 'View project';
@@ -4329,6 +4349,24 @@ class AppLocalizationsEn extends AppLocalizations {
       'Smoothly auto-scroll in webtoon mode at the scroll speed above';
 
   @override
+  String get readerSleepTimer => 'Sleep timer';
+
+  @override
+  String get readerSleepTimerDesc =>
+      'Pause reading after a set time or chapter count';
+
+  @override
+  String get readerSleepTimerOff => 'Turn off timer';
+
+  @override
+  String readerSleepTimerChapters(Object count) {
+    return 'Pause after $count more chapters';
+  }
+
+  @override
+  String get readerSleepTimerFired => 'Sleep timer fired, reading paused';
+
+  @override
   String get readerPageAnimation => 'Page transition animation';
 
   @override
@@ -4460,6 +4498,51 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get imageFavoriteRemoved => 'Image unfavorited';
+
+  @override
+  String get imageFavoriteAdd => 'Save to gallery';
+
+  @override
+  String get imageFavoriteSourceComic => 'Comic';
+
+  @override
+  String get imageFavoriteSourcePlayer => 'Player';
+
+  @override
+  String get imageFavoriteSourceNovel => 'Novel';
+
+  @override
+  String get readingQueueTitle => 'Reading queue';
+
+  @override
+  String get readingQueueAdd => 'Add to reading queue';
+
+  @override
+  String get readingQueueAdded => 'Added to reading queue';
+
+  @override
+  String get readingQueueOpen => 'Reading queue';
+
+  @override
+  String get readingQueueEmpty =>
+      'Reading queue is empty\nAdd works from the work menu or bookshelf long-press';
+
+  @override
+  String get readingQueueClear => 'Clear';
+
+  @override
+  String readingQueueLoading(Object title) {
+    return 'Opening $title…';
+  }
+
+  @override
+  String get readingQueueLoadFailed => 'Failed to open queued work';
+
+  @override
+  String get readingQueueTypeNovel => 'Novel';
+
+  @override
+  String get readingQueueTypeComic => 'Comic';
 
   @override
   String readerClockBatteryPercent(int percent) {

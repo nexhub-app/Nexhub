@@ -20,6 +20,7 @@ class MediaKitBackend extends VideoPlayerBackend {
         PlayerCapability.propertyQuery,
         PlayerCapability.subtitle,
         PlayerCapability.danmaku,
+        PlayerCapability.upscaleShader,
       };
 
   final Player _player;
@@ -93,6 +94,15 @@ class MediaKitBackend extends VideoPlayerBackend {
   Future<void> setHwdec(String mode) async {
     _currentHwdec = mode;
     await _setProperty('hwdec', _hwdecToMpv(mode));
+  }
+
+  /// 设置 GLSL 用户 shader 列表（F-7 超分辨率）。
+  ///
+  /// mpv 运行时替换 `glsl-shaders`，渲染管线下一帧重建，无需 re-open；
+  /// 空字符串清空。平台不支持（如 Web）由 [_setProperty] 静默忽略。
+  @override
+  Future<void> setUpscaleShaders(String shaders) async {
+    await _setProperty('glsl-shaders', shaders);
   }
 
   /// 读取 mpv 只读属性（如 `hwdec-current` / `video-codec`）。

@@ -23,6 +23,9 @@ enum PlayerLockOrientation { auto, portrait, landscape }
 /// 播放器左右拖动 Seek 区间倍率。
 enum SeekMultiplier { half, normal, double }
 
+/// 超分辨率 shader 档位（F-7）：off 关闭 / performance 效率 / quality 质量。
+enum UpscaleShaderMode { off, performance, quality }
+
 /// 播放器默认设置。
 class PlayerSettings {
   final DecodeMode decodeMode;
@@ -56,6 +59,8 @@ class PlayerSettings {
   final String subtitleAssMode;
   final int subtitleDelayMs;
   final bool subtitleVisible;
+  /// 超分辨率 shader 档位（F-7，默认关闭）。
+  final UpscaleShaderMode upscaleShader;
 
   const PlayerSettings({
     this.decodeMode = DecodeMode.auto,
@@ -83,6 +88,7 @@ class PlayerSettings {
     this.subtitleAssMode = 'yes',
     this.subtitleDelayMs = 0,
     this.subtitleVisible = true,
+    this.upscaleShader = UpscaleShaderMode.off,
   });
 
   PlayerSettings copyWith({
@@ -111,6 +117,7 @@ class PlayerSettings {
     String? subtitleAssMode,
     int? subtitleDelayMs,
     bool? subtitleVisible,
+    UpscaleShaderMode? upscaleShader,
   }) =>
       PlayerSettings(
         decodeMode: decodeMode ?? this.decodeMode,
@@ -140,6 +147,7 @@ class PlayerSettings {
         subtitleAssMode: subtitleAssMode ?? this.subtitleAssMode,
         subtitleDelayMs: subtitleDelayMs ?? this.subtitleDelayMs,
         subtitleVisible: subtitleVisible ?? this.subtitleVisible,
+        upscaleShader: upscaleShader ?? this.upscaleShader,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -168,6 +176,7 @@ class PlayerSettings {
         'subtitleAssMode': subtitleAssMode,
         'subtitleDelayMs': subtitleDelayMs,
         'subtitleVisible': subtitleVisible,
+        'upscaleShader': upscaleShader.name,
       };
 
   factory PlayerSettings.fromJson(Map<String, dynamic> json) {
@@ -204,6 +213,13 @@ class PlayerSettings {
       seekMultiplier = SeekMultiplier.values.firstWhere(
         (e) => e.name == json['seekMultiplier'],
         orElse: () => SeekMultiplier.normal,
+      );
+    }
+    UpscaleShaderMode upscaleShader = UpscaleShaderMode.off;
+    if (json['upscaleShader'] is String) {
+      upscaleShader = UpscaleShaderMode.values.firstWhere(
+        (e) => e.name == json['upscaleShader'],
+        orElse: () => UpscaleShaderMode.off,
       );
     }
     return PlayerSettings(
@@ -243,6 +259,7 @@ class PlayerSettings {
       subtitleAssMode: json['subtitleAssMode'] as String? ?? 'yes',
       subtitleDelayMs: json['subtitleDelayMs'] as int? ?? 0,
       subtitleVisible: json['subtitleVisible'] as bool? ?? true,
+      upscaleShader: upscaleShader,
     );
   }
 }

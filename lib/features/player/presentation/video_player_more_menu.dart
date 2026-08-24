@@ -121,6 +121,38 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
                 },
               ),
             ),
+            // F-7：超分辨率 shader 档位（无清晰度源时提升观感）
+            ListTile(
+              leading: const Icon(Icons.auto_awesome),
+              title: Text(l10n.playerUpscaleShader),
+              subtitle: Text(l10n.playerUpscaleShaderHint),
+              trailing: DropdownButton<String>(
+                value: _playerSettings.upscaleShader.name,
+                items: <DropdownMenuItem<String>>[
+                  DropdownMenuItem<String>(
+                      value: 'off', child: Text(l10n.playerUpscaleShaderOff)),
+                  DropdownMenuItem<String>(
+                      value: 'performance',
+                      child: Text(l10n.playerUpscaleShaderPerformance)),
+                  DropdownMenuItem<String>(
+                      value: 'quality',
+                      child: Text(l10n.playerUpscaleShaderQuality)),
+                ],
+                onChanged: (String? v) {
+                  Navigator.pop(ctx);
+                  if (v == null) return;
+                  final mode = UpscaleShaderMode.values.firstWhere(
+                    (e) => e.name == v,
+                    orElse: () => UpscaleShaderMode.off,
+                  );
+                  // glsl-shaders 运行时替换，即时生效无需 re-open。
+                  unawaited(_controller.setUpscaleShader(mode));
+                  _playerSettings =
+                      _playerSettings.copyWith(upscaleShader: mode);
+                  unawaited(_saveEpisodeSetting('upscaleShader', mode.name));
+                },
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.graphic_eq),
               title: Text(l10n.playerAudioChannel),

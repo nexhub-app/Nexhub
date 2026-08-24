@@ -326,6 +326,11 @@ class _AboutScreenState extends State<AboutScreen> {
         desc: l10n.acknowledgementsRssHub,
         url: 'https://github.com/DIYgod/RSSHub',
       ),
+      _AcknowledgementCredit(
+        name: 'Anime4K',
+        desc: l10n.acknowledgementsAnime4K,
+        url: 'https://github.com/bloc97/Anime4K',
+      ),
     ];
     if (!mounted) return;
     showDialog<void>(

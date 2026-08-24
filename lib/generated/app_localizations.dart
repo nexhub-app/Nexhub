@@ -4016,6 +4016,36 @@ abstract class AppLocalizations {
   /// **'Recommended for screen artifacts'**
   String get playerDecodeHwPlusHint;
 
+  /// No description provided for @playerUpscaleShader.
+  ///
+  /// In en, this message translates to:
+  /// **'Super resolution'**
+  String get playerUpscaleShader;
+
+  /// No description provided for @playerUpscaleShaderOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get playerUpscaleShaderOff;
+
+  /// No description provided for @playerUpscaleShaderPerformance.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast'**
+  String get playerUpscaleShaderPerformance;
+
+  /// No description provided for @playerUpscaleShaderQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality'**
+  String get playerUpscaleShaderQuality;
+
+  /// No description provided for @playerUpscaleShaderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Real-time upscale for low-res sources; use Fast or Off if frames drop'**
+  String get playerUpscaleShaderHint;
+
   /// SnackBar shown when decode mode is auto-downgraded after a hardware decoding failure
   ///
   /// In en, this message translates to:
@@ -5017,6 +5047,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Powers the RSS aggregation behind NexHub\'s subscription feature. Licensed under AGPL-3.0 (© DIYgod); NexHub only calls it as a client and does not modify or redistribute its source.'**
   String get acknowledgementsRssHub;
+
+  /// No description provided for @acknowledgementsAnime4K.
+  ///
+  /// In en, this message translates to:
+  /// **'The player\'s \"Super resolution\" ships its GLSL shader presets (Mode A Fast/Quality). Licensed under the MIT License (© 2019-2021 bloc97).'**
+  String get acknowledgementsAnime4K;
 
   /// No description provided for @acknowledgementsViewProject.
   ///
@@ -8276,6 +8312,36 @@ abstract class AppLocalizations {
   /// **'Smoothly auto-scroll in webtoon mode at the scroll speed above'**
   String get readerAutoScrollDesc;
 
+  /// No description provided for @readerSleepTimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer'**
+  String get readerSleepTimer;
+
+  /// No description provided for @readerSleepTimerDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause reading after a set time or chapter count'**
+  String get readerSleepTimerDesc;
+
+  /// No description provided for @readerSleepTimerOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off timer'**
+  String get readerSleepTimerOff;
+
+  /// No description provided for @readerSleepTimerChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause after {count} more chapters'**
+  String readerSleepTimerChapters(Object count);
+
+  /// No description provided for @readerSleepTimerFired.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer fired, reading paused'**
+  String get readerSleepTimerFired;
+
   /// No description provided for @readerPageAnimation.
   ///
   /// In en, this message translates to:
@@ -8521,6 +8587,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Image unfavorited'**
   String get imageFavoriteRemoved;
+
+  /// No description provided for @imageFavoriteAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to gallery'**
+  String get imageFavoriteAdd;
+
+  /// No description provided for @imageFavoriteSourceComic.
+  ///
+  /// In en, this message translates to:
+  /// **'Comic'**
+  String get imageFavoriteSourceComic;
+
+  /// No description provided for @imageFavoriteSourcePlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Player'**
+  String get imageFavoriteSourcePlayer;
+
+  /// No description provided for @imageFavoriteSourceNovel.
+  ///
+  /// In en, this message translates to:
+  /// **'Novel'**
+  String get imageFavoriteSourceNovel;
+
+  /// No description provided for @readingQueueTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading queue'**
+  String get readingQueueTitle;
+
+  /// No description provided for @readingQueueAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to reading queue'**
+  String get readingQueueAdd;
+
+  /// No description provided for @readingQueueAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to reading queue'**
+  String get readingQueueAdded;
+
+  /// No description provided for @readingQueueOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading queue'**
+  String get readingQueueOpen;
+
+  /// No description provided for @readingQueueEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading queue is empty\nAdd works from the work menu or bookshelf long-press'**
+  String get readingQueueEmpty;
+
+  /// No description provided for @readingQueueClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get readingQueueClear;
+
+  /// No description provided for @readingQueueLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening {title}…'**
+  String readingQueueLoading(Object title);
+
+  /// No description provided for @readingQueueLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open queued work'**
+  String get readingQueueLoadFailed;
+
+  /// No description provided for @readingQueueTypeNovel.
+  ///
+  /// In en, this message translates to:
+  /// **'Novel'**
+  String get readingQueueTypeNovel;
+
+  /// No description provided for @readingQueueTypeComic.
+  ///
+  /// In en, this message translates to:
+  /// **'Comic'**
+  String get readingQueueTypeComic;
 
   /// Battery percentage in clock/battery overlay
   ///

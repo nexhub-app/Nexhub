@@ -203,6 +203,25 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                             label: Text(l10n.playerAspectFill)),
                       ],
                     ),
+                    // F-7：超分辨率 shader 默认档位（播放器内可按剧集单独覆盖）
+                    SettingsSegmentedTile<UpscaleShaderMode>(
+                      key: const ValueKey<String>('player.upscaleShader'),
+                      title: l10n.playerUpscaleShader,
+                      selected: <UpscaleShaderMode>{_settings.upscaleShader},
+                      onSelectionChanged: (s) =>
+                          _update(_settings.copyWith(upscaleShader: s.first)),
+                      segments: <ButtonSegment<UpscaleShaderMode>>[
+                        ButtonSegment<UpscaleShaderMode>(
+                            value: UpscaleShaderMode.off,
+                            label: Text(l10n.playerUpscaleShaderOff)),
+                        ButtonSegment<UpscaleShaderMode>(
+                            value: UpscaleShaderMode.performance,
+                            label: Text(l10n.playerUpscaleShaderPerformance)),
+                        ButtonSegment<UpscaleShaderMode>(
+                            value: UpscaleShaderMode.quality,
+                            label: Text(l10n.playerUpscaleShaderQuality)),
+                      ],
+                    ),
                     SettingsSliderTile(
                       label: l10n.playerDefaultSpeed,
                       value: _settings.playbackSpeed,
