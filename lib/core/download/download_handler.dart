@@ -30,7 +30,7 @@ class DownloadCancelledException implements Exception {
 
 /// 下载结果：作品目录 + 逐章/逐集文件路径。
 ///
-/// 引入"作品目录"概念（Mihon 风格：每部作品一个文件夹，内部每话/每集一个文件），
+/// 引入"作品目录"概念：每部作品一个文件夹，内部每话/每集一个文件，
 /// 取代原先"按任务 id 平铺/单文件"的落盘方式，使同部作品多批下载聚合进同一目录，
 /// 且阅读器可凭 [chapterFilePaths] 按话/集打开与切换。
 class DownloadResult {
