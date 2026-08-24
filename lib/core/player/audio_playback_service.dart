@@ -25,13 +25,16 @@ import '../utils/app_log.dart';
 ///
 /// 回调在 handler 收到系统媒体控件指令时被调用（通知栏按钮 / 锁屏 / 耳机线控 /
 /// 蓝牙）。所有回调由播放页提供，本层不感知 PlayerController。
+///
+/// X-5：TTS 朗读等「无进度」会话可传 null 的 [positionStream] / [durationStream]
+/// （通知栏不显示进度条，仅标题 + 播放/暂停/上一句/下一句控件）。
 class AudioPlaybackSession {
   const AudioPlaybackSession({
     required this.id,
     required this.title,
     required this.artist,
-    required this.positionStream,
-    required this.durationStream,
+    this.positionStream,
+    this.durationStream,
     required this.playingStream,
     required this.onPlay,
     required this.onPause,
@@ -43,21 +46,24 @@ class AudioPlaybackSession {
   /// 媒体条目 ID（作品 + 剧集维度，切集时变化以刷新通知标题）。
   final String id;
 
-  /// 通知标题（集名 / 文件名）。
+  /// 通知标题（集名 / 文件名 / TTS 章节名）。
   final String title;
 
   /// 通知副标题（作品名）。
   final String? artist;
 
-  final Stream<Duration> positionStream;
-  final Stream<Duration> durationStream;
+  /// 播放进度流；null = 无进度概念（TTS），通知栏不显示进度条。
+  final Stream<Duration>? positionStream;
+  final Stream<Duration>? durationStream;
+
+  /// 播放/暂停状态流（必须提供，通知栏图标与锁屏控件依赖它）。
   final Stream<bool> playingStream;
 
   final Future<void> Function() onPlay;
   final Future<void> Function() onPause;
   final Future<void> Function(Duration position) onSeek;
 
-  /// 下一集 / 上一集；null 时通知栏不显示对应按钮。
+  /// 下一集 / 上一句（TTS）；null 时通知栏不显示对应按钮。
   final Future<void> Function()? onNext;
   final Future<void> Function()? onPrev;
 }
@@ -88,22 +94,29 @@ class _PlaybackHandler extends BaseAudioHandler with SeekHandler {
     ));
     // 初始 playing 态未知，先按暂停图标出通知（流首事件很快纠正）。
     _pushState(playing: false, position: Duration.zero);
-    _durationSub = session.durationStream.listen((d) {
-      if (d <= Duration.zero) return;
-      final item = mediaItem.valueOrNull;
-      // 同一集 duration 反复回调（seek/缓冲都会重发），只在变化时更新。
-      if (item == null || item.duration == d) return;
-      mediaItem.add(item.copyWith(duration: d));
-    });
-    _positionSub = session.positionStream.listen((p) {
-      _lastKnownPosition = p;
-      final now = DateTime.now();
-      if (now.difference(_lastPositionPushAt) < const Duration(seconds: 1)) {
-        return;
-      }
-      _lastPositionPushAt = now;
-      _pushState(playing: null, position: p);
-    });
+    // X-5：duration/position 流可为 null（TTS 无进度），此时不订阅进度推送。
+    final Stream<Duration>? durationStream = session.durationStream;
+    if (durationStream != null) {
+      _durationSub = durationStream.listen((d) {
+        if (d <= Duration.zero) return;
+        final item = mediaItem.valueOrNull;
+        // 同一集 duration 反复回调（seek/缓冲都会重发），只在变化时更新。
+        if (item == null || item.duration == d) return;
+        mediaItem.add(item.copyWith(duration: d));
+      });
+    }
+    final Stream<Duration>? positionStream = session.positionStream;
+    if (positionStream != null) {
+      _positionSub = positionStream.listen((p) {
+        _lastKnownPosition = p;
+        final now = DateTime.now();
+        if (now.difference(_lastPositionPushAt) < const Duration(seconds: 1)) {
+          return;
+        }
+        _lastPositionPushAt = now;
+        _pushState(playing: null, position: p);
+      });
+    }
     _playingSub = session.playingStream.listen((playing) {
       _pushState(playing: playing, position: _lastKnownPosition);
     });

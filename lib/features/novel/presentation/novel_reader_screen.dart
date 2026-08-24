@@ -51,6 +51,7 @@ import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/async_session.dart';
+import '../../../core/player/audio_playback_service.dart';
 import '../../../core/stats/reading_session_recorder.dart';
 import '../../../core/stats/stats_models.dart';
 import '../../../core/stats/stats_repository.dart';
@@ -144,6 +145,26 @@ class NovelReaderScreen extends StatefulWidget {
 
   @override
   State<NovelReaderScreen> createState() => _NovelReaderScreenState();
+}
+
+/// X-5：TTS 播放状态流（供通知栏会话订阅）。
+///
+/// 以 [NovelTtsController] 的 listener 广播 isPlaying 变化：仅在有变化时推送
+/// （段落切换等无关事件不触发通知刷新）；onCancel 时解除监听。
+Stream<bool> _ttsPlayingStream(NovelTtsController tts) {
+  return Stream<bool>.multi((StreamController<bool> controller) {
+    bool last = tts.isPlaying;
+    controller.add(last);
+    void listener() {
+      final bool now = tts.isPlaying;
+      if (now == last) return;
+      last = now;
+      controller.add(now);
+    }
+
+    tts.addListener(listener);
+    controller.onCancel = () => tts.removeListener(listener);
+  });
 }
 
 /// 朗读睡眠定时选择（分钟；0 = 关闭）。
@@ -456,6 +477,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   // ─────────────────────── TTS 朗读（P3.1） ───────────────────────
   final NovelTtsController _tts = NovelTtsController();
+
+  // ── X-5 朗读通知栏控制：audio_service 会话代次与标题快照 ──────────
+  /// 当前 TTS 会话的 attach 代次；null = 未挂载通知栏会话。
+  int? _ttsAudioToken;
+
+  /// 上次 attach 时的通知标题（章节/作品变化时刷新媒体条目）。
+  String? _ttsAudioTitle;
 
   // ─────────────────────── 笔记（P3.1） ───────────────────────
   final NovelNoteManager _notes = NovelNoteManager();
@@ -1638,6 +1666,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 避免「Uncaught zone error」在 release 下升级为进程崩溃。
     _brightnessPlugin.resetScreenBrightness().catchError((Object _) {});
     _tts.removeListener(_onTtsChanged);
+    // X-5：退出阅读器释放通知栏媒体会话（若朗读仍在后台，系统通知随之移除）。
+    if (_ttsAudioToken != null) {
+      AudioPlaybackService.instance.detach(_ttsAudioToken!);
+      _ttsAudioToken = null;
+      _ttsAudioTitle = null;
+    }
     _tts.dispose();
     _settingsSearchController.dispose();
     _searchHighlightTimer?.cancel();
@@ -3008,6 +3042,48 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
+  /// X-5：按 TTS 状态同步通知栏媒体会话（audio_service）。
+  ///
+  /// - 朗读中（playing / paused）：attach 会话并注册播放/暂停/上句/下句回调，
+  ///   标题随章节变化刷新；暂停保持会话（通知栏可恢复）。
+  /// - 停止：detach 会话、移除通知（播放页仍在栈上，下次朗读重新 attach）。
+  ///
+  /// 由 [_onTtsChanged] 统一驱动（state / currentIndex 变化都会触发）。
+  void _syncTtsAudioService() {
+    final bool stopped = _tts.state == NovelTtsState.stopped;
+    final List<Episode> chs = _effectiveChapters;
+    final String chapterTitle = chs.isEmpty
+        ? ''
+        : chs[_chapterIndex.clamp(0, chs.length - 1)].title;
+    final String title =
+        chapterTitle.isEmpty ? widget.title : '${widget.title} · $chapterTitle';
+    if (stopped) {
+      if (_ttsAudioToken != null) {
+        AudioPlaybackService.instance.detach(_ttsAudioToken!);
+        _ttsAudioToken = null;
+        _ttsAudioTitle = null;
+      }
+      return;
+    }
+    if (_ttsAudioToken == null || _ttsAudioTitle != title) {
+      _ttsAudioToken = AudioPlaybackService.instance.attach(
+        AudioPlaybackSession(
+          id: 'tts:${widget.novelId}',
+          title: title,
+          artist: widget.title,
+          // TTS 无进度概念：不提供 position/duration 流，通知栏不显示进度条。
+          playingStream: _ttsPlayingStream(_tts),
+          onPlay: () => _tts.resume(),
+          onPause: () => _tts.pause(),
+          onSeek: (_) async {}, // 无进度，seek 为 no-op。
+          onNext: () => _tts.next(),
+          onPrev: () => _tts.prev(),
+        ),
+      );
+      _ttsAudioTitle = title;
+    }
+  }
+
   /// TTS 状态变化回调（currentIndex / state 变化）。
   ///
   /// - 高亮：build 直接读取 `_tts.currentIndex`，随本回调的 [setState] 自动刷新。
@@ -3015,6 +3091,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   ///   （"自动定位到朗读的页面"）；滚动模式段落连续排版，交给高亮与用户手势。
   void _onTtsChanged() {
     if (!mounted) return;
+    // X-5：通知栏会话同步（stopped 时 detach、playing/paused 时 attach/刷新标题）。
+    _syncTtsAudioService();
     if (_tts.state == NovelTtsState.stopped) return;
     final int idx = _tts.currentIndex;
     final pages = _pagination?.pages;
