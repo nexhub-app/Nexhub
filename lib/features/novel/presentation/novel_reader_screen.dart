@@ -1989,11 +1989,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       final chapter = widget.chapters[index];
       final List<NovelBlock> paragraphs;
       // X-4：命中预下载缓存（离线/已预取章节）则跳过网络抓取，直接渲染。
-      // TEMP-DEBUG
-      final List<NovelBlock>? cached = null; /*
       final List<NovelBlock>? cached = await _preDownloader
           .cached(widget.novelId, chapter.id);
-      */
       if (cached != null) {
         paragraphs = cached;
       } else {

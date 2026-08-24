@@ -48,6 +48,9 @@ void main() {
     // 避免 Hive.openBox() 在 _init() 中创建的异步计时器干扰 pumpAndSettle。
     await Hive.openBox('novel_notes');
     await Hive.openBox('novel_bookmarks');
+    // X-4 预下载缓存 box：同样预打开，避免阅读器 _loadChapter 里 Hive.openBox
+    // 的后台任务阻塞 pumpAndSettle（读缓存走 isBoxOpen 快路径返回 null）。
+    await Hive.openBox('novel_pre_downloads');
   });
 
   tearDownAll(() async {

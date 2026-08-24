@@ -62,6 +62,9 @@ void main() {
     Hive.init(Directory.systemTemp.path);
     await Hive.openBox('novel_notes');
     await Hive.openBox('novel_bookmarks');
+    // X-4 预下载缓存 box：预打开避免阅读器 _loadChapter 内 Hive.openBox
+    // 的后台任务阻塞 pumpAndSettle（与 novel_reader_test 同模式）。
+    await Hive.openBox('novel_pre_downloads');
   });
 
   tearDownAll(() async {
