@@ -1259,12 +1259,6 @@ class SettingsScreen extends StatelessWidget {
         builder: (_) => const SettingsCategoriesScreen(),
       ),
       _SettingEntry(
-        icon: Icons.photo_library_outlined,
-        title: l10n.imageFavoriteGalleryTitle,
-        keywords: const <String>['图片收藏', '图库', '收藏图片', '截图', '插图'],
-        builder: (_) => const ImageFavoriteGalleryScreen(),
-      ),
-      _SettingEntry(
         icon: Icons.download,
         title: l10n.downloadManagementTitle,
         keywords: const <String>['下载', '下载管理', '任务', '队列', '速度'],

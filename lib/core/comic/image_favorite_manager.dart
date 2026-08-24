@@ -13,6 +13,7 @@ library;
 import 'dart:convert';
 
 import 'package:hive/hive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 收藏来源模块（X-3 统一图库）。
 enum ImageFavoriteSource {
@@ -56,6 +57,9 @@ class ImageFavorite {
   /// 创建时间（毫秒）。
   final int createdAt;
 
+  /// 自定义文件夹（'' = 未分类；问题 4 文件夹管理）。
+  final String folder;
+
   const ImageFavorite({
     this.source = ImageFavoriteSource.comic,
     required this.comicId,
@@ -64,6 +68,7 @@ class ImageFavorite {
     required this.pageIndex,
     required this.imageUrl,
     required this.createdAt,
+    this.folder = '',
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -74,6 +79,7 @@ class ImageFavorite {
         'pageIndex': pageIndex,
         'imageUrl': imageUrl,
         'createdAt': createdAt,
+        'folder': folder,
       };
 
   factory ImageFavorite.fromJson(Map<String, dynamic> json) {
@@ -85,6 +91,7 @@ class ImageFavorite {
       pageIndex: (json['pageIndex'] as num?)?.toInt() ?? 0,
       imageUrl: json['imageUrl'] as String? ?? '',
       createdAt: (json['createdAt'] as num?)?.toInt() ?? 0,
+      folder: json['folder'] as String? ?? '',
     );
   }
 
@@ -147,6 +154,47 @@ class ImageFavoriteManager {
       return true;
     } on Object {
       return false;
+    }
+  }
+
+  /// 移动条目到文件夹（'' = 未分类）；找不到该 key 时返回 false。
+  Future<bool> moveToFolder(String key, String folder) async {
+    if (key.isEmpty) return false;
+    try {
+      final box = await _openBox();
+      final Object? raw = box.get(key);
+      if (raw is! String || raw.isEmpty) return false;
+      final Map<String, dynamic> json =
+          jsonDecode(raw) as Map<String, dynamic>;
+      json['folder'] = folder;
+      await box.put(key, jsonEncode(json));
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
+  /// 返回全部收藏中出现的非空文件夹名（含空文件夹需查 [folders]）。
+  static const String foldersPrefsKey = 'image_favorite_folders_v1';
+
+  /// 读自定义文件夹名列表（SharedPreferences；含空文件夹条目）。
+  Future<List<String>> folders() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getStringList(foldersPrefsKey) ?? <String>[];
+    } on Object {
+      return <String>[];
+    }
+  }
+
+  /// 保存文件夹名列表（新建 / 删除文件夹后调用）。
+  Future<void> saveFolders(List<String> folders) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final List<String> clean = folders.where((f) => f.trim().isNotEmpty).toSet().toList();
+      await prefs.setStringList(foldersPrefsKey, clean);
+    } on Object {
+      // 写入失败忽略。
     }
   }
 

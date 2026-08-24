@@ -20,6 +20,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:nexhub/core/comic/image_favorite_manager.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'package:nexhub/core/settings/general_settings.dart';
 import 'package:nexhub/core/theme/app_tokens.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import 'package:nexhub/core/widgets/app_empty_state.dart';
@@ -68,12 +69,30 @@ class _ImageFavoriteGalleryScreenState
   bool _showTime = true;
   String _query = '';
 
+  /// 文件夹筛选：null=全部，''=未分类，其它=文件夹名。
+  String? _folderFilter;
+
+  /// 自定义文件夹名列表（含空文件夹条目）。
+  List<String> _folders = const <String>[];
+
+  /// 多选模式选中的条目 key（非空即处于多选模式）。
+  final Set<String> _selected = <String>{};
+
+  /// 应用时间格式（跟随设置页「时间格式」，含 24h 时刻）。
+  AppDateFormat _dateFormat = AppDateFormat.defaultFormat;
+
   @override
   void initState() {
     super.initState();
     _manager = widget.manager ?? ImageFavoriteManager();
     _sourceFilter = widget.sourceFilter;
     _load();
+    _manager.folders().then((List<String> f) {
+      if (mounted) setState(() => _folders = f);
+    });
+    GeneralSettingsStore.instance.load().then((GeneralSettings g) {
+      if (mounted) setState(() => _dateFormat = g.dateFormat);
+    });
   }
 
   Future<void> _load() async {
@@ -104,7 +123,7 @@ class _ImageFavoriteGalleryScreenState
     };
   }
 
-  /// 当前筛选结果（分类 + 时间轴 + 关键词 + 排序）。
+  /// 当前筛选结果（分类 + 时间轴 + 文件夹 + 关键词 + 排序）。
   List<ImageFavorite> get _visible {
     List<ImageFavorite> list = _favorites;
     final ImageFavoriteSource? filter = _sourceFilter;
@@ -113,11 +132,16 @@ class _ImageFavoriteGalleryScreenState
     }
     final DateTime now = DateTime.now();
     list = list.where((f) => _inTimeRange(f, now)).toList();
+    final String? folder = _folderFilter;
+    if (folder != null) {
+      list = list.where((f) => f.folder == folder).toList();
+    }
     final String q = _query.trim().toLowerCase();
     if (q.isNotEmpty) {
       list = list.where((f) {
         return f.chapterTitle.toLowerCase().contains(q) ||
             f.comicId.toLowerCase().contains(q) ||
+            f.folder.toLowerCase().contains(q) ||
             f.imageUrl.toLowerCase().contains(q);
       }).toList();
     }
@@ -305,8 +329,379 @@ class _ImageFavoriteGalleryScreenState
 
   String _timeLabel(ImageFavorite f) {
     final DateTime t = DateTime.fromMillisecondsSinceEpoch(f.createdAt);
-    return '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')} '
-        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    // 跟随应用时间格式设置（AppDateFormat + 时刻 HH:mm）。
+    return _dateFormat.format(t, withTime: true);
+  }
+
+  // ─────────────── 文件夹管理 ───────────────
+
+  /// 新建文件夹（自定义名称）。
+  Future<void> _createFolder() async {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final TextEditingController controller = TextEditingController();
+    final String? name = await showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(l10n.imageFavoriteNewFolder),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(hintText: l10n.imageFavoriteFolderHint),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
+    final String clean = (name ?? '').trim();
+    if (clean.isEmpty) return;
+    final List<String> next = List<String>.from(_folders);
+    if (!next.contains(clean)) next.add(clean);
+    await _manager.saveFolders(next);
+    if (!mounted) return;
+    setState(() {
+      _folders = next;
+      _folderFilter = clean;
+    });
+  }
+
+  /// 删除文件夹（确认后移除列表；其中图片回到「未分类」，不删除图片）。
+  Future<void> _deleteFolder(String folder) async {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(l10n.imageFavoriteDeleteFolder),
+        content: Text(l10n.imageFavoriteDeleteFolderConfirm(folder)),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    // 该文件夹内图片移回未分类。
+    for (final ImageFavorite f in _favorites) {
+      if (f.folder == folder) {
+        await _manager.moveToFolder(f.key, '');
+      }
+    }
+    final List<String> next =
+        _folders.where((f) => f != folder).toList();
+    await _manager.saveFolders(next);
+    if (!mounted) return;
+    setState(() {
+      _folders = next;
+      if (_folderFilter == folder) _folderFilter = null;
+      _favorites = _favorites
+          .map((f) =>
+              f.folder == folder ? _withFolder(f, '') : f)
+          .toList();
+    });
+  }
+
+  ImageFavorite _withFolder(ImageFavorite f, String folder) =>
+      ImageFavorite(
+        source: f.source,
+        comicId: f.comicId,
+        chapterIndex: f.chapterIndex,
+        chapterTitle: f.chapterTitle,
+        pageIndex: f.pageIndex,
+        imageUrl: f.imageUrl,
+        createdAt: f.createdAt,
+        folder: folder,
+      );
+
+  // ─────────────── 多选模式 ───────────────
+
+  void _toggleSelect(ImageFavorite f) {
+    setState(() {
+      if (!_selected.add(f.key)) _selected.remove(f.key);
+    });
+  }
+
+  void _exitSelection() => setState(() => _selected.clear());
+
+  void _selectAllVisible() {
+    setState(() {
+      for (final ImageFavorite f in _visible) {
+        _selected.add(f.key);
+      }
+    });
+  }
+
+  /// 批量删除选中项。
+  Future<void> _batchDelete() async {
+    if (_selected.isEmpty) return;
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(l10n.deleteConfirmTitle),
+        content: Text(l10n.imageFavoriteDeleteMulti(_selected.length)),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    for (final String key in _selected.toList()) {
+      await _manager.remove(key);
+    }
+    if (!mounted) return;
+    setState(() {
+      _favorites = _favorites
+          .where((f) => !_selected.contains(f.key))
+          .toList();
+      _selected.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.imageFavoriteDeleted)),
+    );
+  }
+
+  /// 批量重命名：仅选中 1 张时启用（多张时提示）。
+  Future<void> _batchRename() async {
+    if (_selected.length != 1) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.imageFavoriteRenameSingle)),
+        );
+      }
+      return;
+    }
+    final ImageFavorite? target;
+    {
+      ImageFavorite? found;
+      for (final ImageFavorite f in _favorites) {
+        if (_selected.contains(f.key)) {
+          found = f;
+          break;
+        }
+      }
+      target = found;
+    }
+    if (target == null) return;
+    final ImageFavorite t = target;
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final TextEditingController controller =
+        TextEditingController(text: t.chapterTitle);
+    final String? title = await showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(l10n.imageFavoriteRename),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(hintText: l10n.imageFavoriteTitleHint),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
+    if (title == null || title.trim().isEmpty) return;
+    final bool ok = await _manager.updateTitle(t.key, title);
+    if (!mounted) return;
+    setState(() {
+      _favorites = _favorites
+          .map((f) => f.key == t.key
+              ? ImageFavorite(
+                  source: f.source,
+                  comicId: f.comicId,
+                  chapterIndex: f.chapterIndex,
+                  chapterTitle: title.trim(),
+                  pageIndex: f.pageIndex,
+                  imageUrl: f.imageUrl,
+                  createdAt: f.createdAt,
+                  folder: f.folder,
+                )
+              : f)
+          .toList();
+      _selected.clear();
+    });
+    if (ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.imageFavoriteRenamed)),
+      );
+    }
+  }
+
+  /// 批量移动到文件夹：弹选择（现有文件夹 + 新建），确认后逐条移动。
+  Future<void> _batchMove() async {
+    if (_selected.isEmpty) return;
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final String? folder = await showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) => SimpleDialog(
+        title: Text(l10n.imageFavoriteMoveTo),
+        children: <Widget>[
+          for (final String f in const <String>[''] + _folders)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(ctx).pop(f),
+              child: Text(
+                f.isEmpty ? l10n.imageFavoriteUnfiled : f,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          const Divider(height: 1),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop('__new__'),
+            child: Text(
+              l10n.imageFavoriteNewFolder,
+              style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (folder == null) return;
+    String target = folder;
+    if (folder == '__new__') {
+      final TextEditingController controller = TextEditingController();
+      final String? name = await showDialog<String>(
+        context: context,
+        builder: (BuildContext ctx) => AlertDialog(
+          title: Text(l10n.imageFavoriteNewFolder),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration:
+                InputDecoration(hintText: l10n.imageFavoriteFolderHint),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text),
+              child: Text(l10n.ok),
+            ),
+          ],
+        ),
+      );
+      target = (name ?? '').trim();
+      if (target.isEmpty) return;
+      final List<String> next = List<String>.from(_folders);
+      if (!next.contains(target)) next.add(target);
+      await _manager.saveFolders(next);
+      _folders = next;
+    }
+    for (final String key in _selected.toList()) {
+      await _manager.moveToFolder(key, target);
+    }
+    if (!mounted) return;
+    setState(() {
+      _favorites = _favorites
+          .map((f) => _selected.contains(f.key) ? _withFolder(f, target) : f)
+          .toList();
+      _selected.clear();
+      _folderFilter = target.isEmpty ? null : target;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.imageFavoriteMoved)),
+    );
+  }
+
+  /// 批量分享：本地文件合并发送文件，网络链接发送文本。
+  Future<void> _batchShare() async {
+    if (_selected.isEmpty) return;
+    final List<ImageFavorite> items = _favorites
+        .where((f) => _selected.contains(f.key))
+        .toList();
+    final List<String> local = items
+        .map((f) => f.imageUrl)
+        .where((u) => !u.startsWith('http'))
+        .toList();
+    try {
+      if (local.isNotEmpty) {
+        await Share.shareXFiles(
+          <XFile>[
+            for (final String p in local)
+              if (await File(p).exists()) XFile(p),
+          ],
+        );
+      } else {
+        final String text =
+            items.map((f) => '${f.chapterTitle}\n${f.imageUrl}').join('\n\n');
+        await Share.share(text);
+      }
+    } on Object {
+      // 取消 / 失败忽略。
+    }
+    if (mounted) setState(() => _selected.clear());
+  }
+
+  /// 文件夹筛选行（全部 / 未分类 / 各文件夹 + 新建）。
+  Widget _buildFolderRow(AppLocalizations l10n) {
+    final List<String> options = <String>['', ..._folders];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
+      child: Row(
+        children: <Widget>[
+          _PlainChip(
+            icon: null,
+            label: l10n.imageFavoriteAllFolders,
+            selected: _folderFilter == null,
+            enabled: true,
+            onTap: () => setState(() => _folderFilter = null),
+          ),
+          const SizedBox(width: AppTokens.spaceXs),
+          for (final String f in options) ...<Widget>[
+            GestureDetector(
+              // 长按文件夹 chip：删除文件夹（图片回到未分类）。
+              onLongPress: f.isEmpty ? null : () => _deleteFolder(f),
+              child: _PlainChip(
+                icon: f.isEmpty ? Icons.layers_clear_outlined : Icons.folder_outlined,
+                label: f.isEmpty ? l10n.imageFavoriteUnfiled : f,
+                selected: _folderFilter == f,
+                enabled: true,
+                onTap: () => setState(() => _folderFilter = f),
+              ),
+            ),
+            const SizedBox(width: AppTokens.spaceXs),
+          ],
+          _PlainChip(
+            icon: Icons.create_new_folder_outlined,
+            label: l10n.imageFavoriteNewFolder,
+            selected: false,
+            enabled: true,
+            onTap: _createFolder,
+          ),
+        ],
+      ),
+    );
   }
 
   /// 打开全屏大图（Hero 飞入 + InteractiveViewer 缩放）。
@@ -511,8 +906,49 @@ class _ImageFavoriteGalleryScreenState
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
+    final bool selecting = _selected.isNotEmpty;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.imageFavoriteGalleryTitle)),
+      appBar: AppBar(
+        title: Text(
+          selecting
+              ? l10n.imageFavoriteSelected(_selected.length)
+              : l10n.imageFavoriteGalleryTitle,
+        ),
+        actions: selecting
+            ? <Widget>[
+                IconButton(
+                  tooltip: l10n.imageFavoriteSelectAll,
+                  icon: const Icon(Icons.select_all),
+                  onPressed: _selectAllVisible,
+                ),
+                IconButton(
+                  tooltip: l10n.share,
+                  icon: const Icon(Icons.share_outlined),
+                  onPressed: _batchShare,
+                ),
+                IconButton(
+                  tooltip: l10n.imageFavoriteRename,
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: _batchRename,
+                ),
+                IconButton(
+                  tooltip: l10n.imageFavoriteMoveTo,
+                  icon: const Icon(Icons.drive_file_move_outline),
+                  onPressed: _batchMove,
+                ),
+                IconButton(
+                  tooltip: l10n.delete,
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _batchDelete,
+                ),
+                IconButton(
+                  tooltip: l10n.cancel,
+                  icon: const Icon(Icons.close),
+                  onPressed: _exitSelection,
+                ),
+              ]
+            : null,
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -522,6 +958,8 @@ class _ImageFavoriteGalleryScreenState
                 _buildSourceFilter(l10n),
                 const SizedBox(height: AppTokens.spaceXs),
                 _buildTimeRange(l10n),
+                const SizedBox(height: AppTokens.spaceXs),
+                _buildFolderRow(l10n),
                 const SizedBox(height: AppTokens.spaceXs),
                 _buildControlsRow(l10n),
                 const SizedBox(height: AppTokens.spaceXs),
@@ -556,7 +994,7 @@ class _ImageFavoriteGalleryScreenState
             showTime: _showTime,
             timeLabel: _timeLabel,
             onTapOpen: () => _openWorkPager(items),
-            onLongPress: (ImageFavorite f) => _showActions(f),
+            onLongPress: _toggleSelect,
           );
         },
       );
@@ -568,7 +1006,7 @@ class _ImageFavoriteGalleryScreenState
         showTime: _showTime,
         timeLabel: _timeLabel,
         onOpen: _openFullscreen,
-        onLongPress: _showActions,
+        onLongPress: _toggleSelect,
       );
     } else {
       child = GridView.builder(
@@ -599,90 +1037,141 @@ class _ImageFavoriteGalleryScreenState
     );
   }
 
-  /// 单个缩略图：点击看大图，长按操作菜单。
+  /// 单个缩略图：点击看大图（多选模式为勾选），长按进入多选，选中角标。
   Widget _buildThumb(BuildContext context, ImageFavorite favorite) {
     final bool showMeta = _showTitle || _showTime;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _openFullscreen(favorite),
-        onLongPress: () => _showActions(favorite),
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            SourceImage(
-              url: favorite.imageUrl,
-              heroTag: favorite.key,
-              fit: BoxFit.cover,
-            ),
-            Positioned(
-              left: AppTokens.spaceXs,
-              bottom: showMeta ? 30 : AppTokens.spaceXs,
-              child: _SourceBadge(source: favorite.source),
-            ),
-            if (showMeta)
+    final bool selecting = _selected.isNotEmpty;
+    final bool checked = _selected.contains(favorite.key);
+    return AnimatedScale(
+      scale: checked ? 0.94 : 1.0,
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: selecting
+              ? () => _toggleSelect(favorite)
+              : () => _openFullscreen(favorite),
+          onLongPress: () => _toggleSelect(favorite),
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              SourceImage(
+                url: favorite.imageUrl,
+                heroTag: favorite.key,
+                fit: BoxFit.cover,
+              ),
+              // 选中高亮边框。
+              if (selecting)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius:
+                            BorderRadius.circular(AppTokens.radiusSm),
+                        border: Border.all(
+                          color: checked
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.white24,
+                          width: checked ? 3 : 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: <Color>[
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.55),
+                left: AppTokens.spaceXs,
+                bottom: showMeta ? 30 : AppTokens.spaceXs,
+                child: _SourceBadge(source: favorite.source),
+              ),
+              if (showMeta)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.55),
+                        ],
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        if (_showTitle)
+                          Text(
+                            favorite.chapterTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        if (_showTime)
+                          Text(
+                            _timeLabel(favorite),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 9,
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      if (_showTitle)
-                        Text(
-                          favorite.chapterTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
+                ),
+              // 右上角：多选模式显示勾选圈，非多选显示删除叉。
+              Positioned(
+                top: AppTokens.spaceXs,
+                right: AppTokens.spaceXs,
+                child: selecting
+                    ? AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: checked
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.black.withValues(alpha: 0.45),
+                          border: Border.all(
+                            color: checked
+                                ? Colors.white
+                                : Colors.white54,
+                            width: 1.5,
                           ),
                         ),
-                      if (_showTime)
-                        Text(
-                          _timeLabel(favorite),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 9,
+                        child: checked
+                            ? const Icon(Icons.check,
+                                size: 14, color: Colors.white)
+                            : null,
+                      )
+                    : Material(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => _confirmDelete(favorite),
+                          child: const Padding(
+                            padding: EdgeInsets.all(2),
+                            child:
+                                Icon(Icons.close, size: 16, color: Colors.white),
                           ),
                         ),
-                    ],
-                  ),
-                ),
+                      ),
               ),
-            Positioned(
-              top: AppTokens.spaceXs,
-              right: AppTokens.spaceXs,
-              child: Material(
-                color: Colors.black.withValues(alpha: 0.45),
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => _confirmDelete(favorite),
-                  child: const Padding(
-                    padding: EdgeInsets.all(2),
-                    child: Icon(Icons.close, size: 16, color: Colors.white),
-                  ),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

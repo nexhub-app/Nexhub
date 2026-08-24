@@ -2301,8 +2301,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (mounted) setState(() {});
   }
 
-  /// X-4：当前章阅读进度越过阈值时，后台预下载后续 N 章正文（离线阅读 /
-  /// 快速切章命中缓存）。每章只触发一次；开始与结果均有 SnackBar 可见反馈。
+  /// X-4：当前章阅读进度越过阈值时，把后续 N 章加入正式下载（DownloadManager：
+  /// 下载列表可见 + 本地文件落地，离线可读；与漫画自动下载同机制）。
+  /// 每章只触发一次；开始/失败均有 SnackBar 可见反馈。
   void _maybePreDownload() {
     if (!_preDownloadPrefs.enabled) return;
     if (_isLocalMode) return;
@@ -2310,32 +2311,67 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (_preDownloadTriggeredFor == currentIdx) return;
     final int total = _pagination?.pages.length ?? 0;
     if (total <= 0) return;
-    final int percent =
-        (((_currentPage + 1) / total) * 100).round();
+    final int percent = (((_currentPage + 1) / total) * 100).round();
     if (percent < _preDownloadPrefs.thresholdPercent) return;
     _preDownloadTriggeredFor = currentIdx;
-    final PluginConfig? src = _source;
-    if (src == null) return;
     final AppLocalizations l10n = AppLocalizations.of(context);
-    final int count = _preDownloadPrefs.count;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.preDownloadStarted(count))),
+    final DownloadManager? dm = _downloadManager;
+    if (dm == null) return;
+    // 无后续章节可下：直接视为已处理。
+    if (widget.chapters.length <= currentIdx + 1) return;
+    // 已有该作品活跃下载批次（进行中/等待/暂停）则跳过，避免重复入队；
+    // 已完成/失败/取消批次不阻塞（手动下过前几章后新章仍能自动下）。
+    final bool hasActive = dm.tasks.any(
+      (t) => t.contentId == widget.novelId && t.isActive,
     );
-    unawaited(_preDownloader.preDownload(
-      service: _service,
-      source: src,
-      novelId: widget.novelId,
-      chapters: widget.chapters,
-      startIndex: currentIdx + 1,
-      count: count,
-    ).then((int done) {
-      if (!mounted) return;
-      final String text = done > 0
-          ? l10n.preDownloadDone(done)
-          : l10n.preDownloadFailedHint;
+    if (hasActive) return;
+    final MediaItem item = MediaItem(
+      id: widget.novelId,
+      title: widget.title,
+      sourceId: widget.sourceId,
+      sourceType: SourceType.novelSource,
+      coverUrl: widget.coverUrl,
+      detailUrl: widget.detailUrl,
+    );
+    // 过滤已下载 / 已排队章节：预下载 = 下载接下来「未下载」的 N 章。
+    final Set<String> downloaded = dm.downloadedChapterTitles(widget.novelId);
+    final Set<String> queued = dm.queuedChapterTitles(widget.novelId);
+    final int count = _preDownloadPrefs.count;
+    final List<int> indices = <int>[
+      for (int i = currentIdx + 1; i < widget.chapters.length; i++)
+        if (!downloaded.contains(widget.chapters[i].title) &&
+            !queued.contains(widget.chapters[i].title))
+          i,
+    ];
+    if (indices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(text)),
+        SnackBar(content: Text(l10n.preDownloadDone(0))),
       );
+      return;
+    }
+    final int pick = indices.length > count
+        ? indices.sublist(0, count).toList().length
+        : indices.length;
+    final List<int> selected = indices.take(count).toList();
+    AppLog.instance.i(
+      '[小说预下载] 入队 novel=${widget.novelId} '
+      'chapter=$currentIdx page=$_currentPage total=$total 待下=$pick',
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.preDownloadStarted(selected.length))),
+    );
+    unawaited(dm.addTask(
+      item: item,
+      chapters: widget.chapters,
+      chapterIndices: selected,
+    ).then((_) {
+      // 成功入队：下载进度在下载管理可见，不再重复提示。
+    }).catchError((Object e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.preDownloadFailedHint)),
+        );
+      }
     }));
   }
 
