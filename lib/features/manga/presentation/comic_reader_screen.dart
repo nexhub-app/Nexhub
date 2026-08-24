@@ -470,6 +470,87 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 图片收藏异步刷新，避免自动滚动在页边界处因全量重建而卡顿。
   bool _autoScrolling = false;
 
+  // ── X-1 睡眠定时（跨类型对齐：播放器 F-5 / 小说 TTS）────────────────
+
+  /// 按分钟定时：到时暂停阅读（一次性 Timer）。
+  Timer? _sleepTimer;
+
+  /// 分钟模式下选定的分钟数（供设置面板回显当前状态）。
+  int _sleepMinutes = 0;
+
+  /// 按话数定时剩余计数：进入新章节递减，归零触发暂停。
+  int _sleepChaptersRemaining = 0;
+
+  /// 首次章节加载完成前不计数（初始章不是「读完一话」）。
+  bool _sleepPrimeLoaded = false;
+
+  /// 当前睡眠定时状态（设置面板回显用）。
+  ComicSleepTimerState get _sleepTimerState {
+    if (_sleepMinutes > 0) {
+      return ComicSleepTimerState.minutes(_sleepMinutes);
+    }
+    if (_sleepChaptersRemaining > 0) {
+      return ComicSleepTimerState.chapters(_sleepChaptersRemaining);
+    }
+    return const ComicSleepTimerState.off();
+  }
+
+  /// 进入一个新章节（读完一话进入下一话）：按话数定时递减。
+  /// 首次加载的初始章不计数；分钟模式不参与。
+  void _onChapterEntered() {
+    if (!_sleepPrimeLoaded) {
+      _sleepPrimeLoaded = true;
+      return;
+    }
+    if (_sleepChaptersRemaining <= 0) return;
+    _sleepChaptersRemaining--;
+    if (_sleepChaptersRemaining <= 0) {
+      _fireSleepTimer(AppLocalizations.of(context));
+    }
+  }
+
+  /// 应用睡眠定时选择（设置面板回调）：分钟 / 话数 / 关闭。
+  void _applySleepTimer(ComicSleepTimerState state) {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _sleepMinutes = 0;
+    _sleepChaptersRemaining = 0;
+    switch (state.mode) {
+      case ComicSleepTimerMode.off:
+        break;
+      case ComicSleepTimerMode.minutes:
+        _sleepMinutes = state.value;
+        _sleepTimer = Timer(Duration(minutes: state.value), () {
+          if (mounted) {
+            _fireSleepTimer(AppLocalizations.of(context));
+          }
+        });
+        break;
+      case ComicSleepTimerMode.chapters:
+        _sleepChaptersRemaining = state.value;
+        break;
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// 定时触发：暂停自动翻页 / 自动滚动（会话级停止运行，保留偏好开关）并提示。
+  void _fireSleepTimer(AppLocalizations l10n) {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    _sleepMinutes = 0;
+    _sleepChaptersRemaining = 0;
+    _autoPageTurnTimer?.cancel();
+    _autoPageTurnTimer = null;
+    _autoScrollTicker?.stop();
+    _autoScrollTicker = null;
+    _autoScrolling = false;
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.readerSleepTimerFired)),
+    );
+  }
+
   /// 章节切换过渡标题卡状态。
   bool _transitionVisible = false;
   String _transitionTitle = '';
@@ -709,6 +790,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       });
       // 章节图片就绪后刷新当前页图片收藏状态（REQ-C2）。
       unawaited(_refreshPageImageFav());
+      // 进入新章节（X-1 睡眠定时按话数计数；首次加载由 _sleepPrimeLoaded 排除）。
+      _onChapterEntered();
       // 预载提前（本地聚合）：章节加载完成即预载过滤后的相邻目标章（跳过已读/
       // 被过滤章）。本地解压慢，若等滚到章末才触发预载（_maybePreload），
       // seam 无缝列表常缺邻段 → 章末要手动跳/章首翻不了上一话。此处提前开始
@@ -1032,6 +1115,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _pageFadeTimer?.cancel();
     _autoPageTurnTimer?.cancel();
     _autoScrollTicker?.stop();
+    // X-1 睡眠定时清理。
+    _sleepTimer?.cancel();
     // 停止原生音量键拦截，恢复系统默认音量键行为。
     unawaited(_volumeKeyListener.stop());
     // 移除全局键盘监听（必须在 dispose 里，否则离页后快捷键仍会触发本页翻页）。
@@ -1220,6 +1305,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       });
       // 章节图片就绪后刷新当前页图片收藏状态（REQ-C2）。
       unawaited(_refreshPageImageFav());
+      // 进入新章节（X-1 睡眠定时按话数计数；首次加载由 _sleepPrimeLoaded 排除）。
+      _onChapterEntered();
       // 预载提前：章节加载完成即预载过滤后的相邻目标章（跳过已读/被过滤章），
       // 让 seam 无缝列表在用户滚到边界前就绪，章末/章首直接无缝衔接。
       _preloadAdjacentTargets();
@@ -1966,6 +2053,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _preload[oldChapter] = _images;
       _images = targetImgs;
       _chapterIndex = target;
+      // 睡眠定时按话数计数（X-1；seam 无缝切章同样算「读完一话进入下一话」）。
+      _onChapterEntered();
       // 翻章后刷新顶栏章节书签状态（REQ-C1）。
       unawaited(_refreshChapterBookmark());
       // 预载新一层的可导航章（沿原方向过滤后的目标；越界时自动忽略）。
@@ -2816,6 +2905,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _preload[oldChapter] = _images;
     _images = targetImgs;
     _chapterIndex = target;
+    // 睡眠定时按话数计数（X-1；paged 无缝重锚切章同样算「读完一话进入下一话」）。
+    _onChapterEntered();
     // 翻章后刷新顶栏章节书签状态（REQ-C1）。
     unawaited(_refreshChapterBookmark());
     // 预载新一层的相邻章（越界时自动忽略）。
@@ -4294,6 +4385,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           unawaited(_commitDeviceOverride());
           _toggleInlineSettings();
         },
+        // X-1 睡眠定时：会话级状态回显 + 选择回调（阅读器持有 Timer 生命周期）。
+        sleepTimer: _sleepTimerState,
+        onSleepTimerChanged: _applySleepTimer,
       ),
     );
 

@@ -12,21 +12,35 @@ import 'reader_tap_zones.dart';
 /// 直接嵌入阅读界面（桌面端右侧 / 移动端底部）。
 ///
 /// [onClose] 为关闭图标回调（内联场景用它关闭面板）。
+/// [sleepTimer] / [onSleepTimerChanged]：会话级睡眠定时（X-1 跨类型对齐，
+/// 非偏好字段，由阅读器持有 Timer 生命周期，面板仅做选择交互）。
 Widget buildComicSettingsSheet({
   required ReaderPreferences initial,
   void Function(ReaderPreferences)? onChanged,
   required VoidCallback onClose,
+  ComicSleepTimerState? sleepTimer,
+  ValueChanged<ComicSleepTimerState>? onSleepTimerChanged,
 }) =>
-    _FlatSettingsSheet(initial: initial, onChanged: onChanged, onClose: onClose);
+    _FlatSettingsSheet(
+      initial: initial,
+      onChanged: onChanged,
+      onClose: onClose,
+      sleepTimer: sleepTimer,
+      onSleepTimerChanged: onSleepTimerChanged,
+    );
 
 class _FlatSettingsSheet extends StatefulWidget {
   final ReaderPreferences initial;
   final void Function(ReaderPreferences)? onChanged;
   final VoidCallback onClose;
+  final ComicSleepTimerState? sleepTimer;
+  final ValueChanged<ComicSleepTimerState>? onSleepTimerChanged;
   const _FlatSettingsSheet({
     required this.initial,
     required this.onChanged,
     required this.onClose,
+    this.sleepTimer,
+    this.onSleepTimerChanged,
   });
 
   @override
@@ -452,6 +466,111 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         _switchTile(l10n.readerSkipDuplicateChapters, _draft.skipDuplicateChapters,
             (v) => _update(_draft.copyWith(skipDuplicateChapters: v))),
       ],
+    );
+  }
+
+  /// 睡眠定时（X-1 跨类型对齐）：按分钟 / 按话数。会话级状态，由阅读器持有
+  /// Timer 生命周期，此处只做选择交互（播放器 F-5 picker 同构）。
+  Widget _buildSleepTimer() {
+    final l10n = AppLocalizations.of(context);
+    final ComicSleepTimerState? st = widget.sleepTimer;
+    final String summary = switch (st?.mode) {
+      ComicSleepTimerMode.minutes => l10n.playerTimerMinutes(st!.value),
+      ComicSleepTimerMode.chapters => l10n.readerSleepTimerChapters(st!.value),
+      _ => l10n.readerSleepTimerOff,
+    };
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.bedtime_outlined),
+      title: Text(l10n.readerSleepTimer),
+      subtitle: Text(summary),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showSleepTimerPicker(l10n),
+    );
+  }
+
+  /// 睡眠定时选择底部弹层：关闭 / 预设分钟 / 按话数 / 自定义分钟。
+  void _showSleepTimerPicker(AppLocalizations l10n) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.timer_off),
+              title: Text(l10n.readerSleepTimerOff),
+              onTap: () {
+                Navigator.pop(ctx);
+                widget.onSleepTimerChanged?.call(const ComicSleepTimerState.off());
+              },
+            ),
+            for (final m in <int>[15, 30, 45, 60, 90])
+              ListTile(
+                leading: const Icon(Icons.timer),
+                title: Text(l10n.playerTimerMinutes(m)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onSleepTimerChanged
+                      ?.call(ComicSleepTimerState.minutes(m));
+                },
+              ),
+            for (final n in <int>[1, 2, 3])
+              ListTile(
+                leading: const Icon(Icons.menu_book_outlined),
+                title: Text(l10n.readerSleepTimerChapters(n)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onSleepTimerChanged
+                      ?.call(ComicSleepTimerState.chapters(n));
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: Text(l10n.playerTimerCustom),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showCustomSleepTimerDialog(l10n);
+              },
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 自定义分钟输入框（>0 生效）。
+  void _showCustomSleepTimerDialog(AppLocalizations l10n) {
+    final TextEditingController controller = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(l10n.readerSleepTimer),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(hintText: l10n.playerTimerCustom),
+          autofocus: true,
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              final m = int.tryParse(controller.text.trim());
+              if (m != null && m > 0) {
+                Navigator.pop(ctx);
+                widget.onSleepTimerChanged
+                    ?.call(ComicSleepTimerState.minutes(m));
+              }
+            },
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1014,6 +1133,22 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     ],
                     children: <Widget>[
                       _buildAutoDownload(),
+                    ],
+                  ),
+
+                  // ── 睡眠定时（X-1）────────────────────────────
+                  _buildSettingsGroup(
+                    context,
+                    l10n.readerSleepTimer,
+                    description: l10n.readerSleepTimerDesc,
+                    leading: Icons.bedtime_outlined,
+                    searchQuery: q,
+                    searchTerms: const <String>[
+                      '睡眠', '定时', '暂停', '分钟', '话数', 'sleep', 'timer',
+                      'minute', 'chapter',
+                    ],
+                    children: <Widget>[
+                      _buildSleepTimer(),
                     ],
                   ),
 

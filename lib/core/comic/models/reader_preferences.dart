@@ -1213,6 +1213,42 @@ T getReaderSetting<T>(
   return selector(device);
 }
 
+/// 漫画睡眠定时模式（X-1 跨类型对齐）。
+///
+/// 会话级状态（不持久化到偏好）：按分钟到时暂停 / 按话数读完 N 话后暂停，
+/// 与播放器 F-5、小说 TTS 睡眠定时语义对齐。
+enum ComicSleepTimerMode { off, minutes, chapters }
+
+/// 漫画睡眠定时状态：设置面板与阅读器之间的双向通信载体。
+class ComicSleepTimerState {
+  final ComicSleepTimerMode mode;
+
+  /// 有效值：minutes 模式为分钟数，chapters 模式为话数；off 时为 0。
+  final int value;
+
+  const ComicSleepTimerState._(this.mode, this.value);
+
+  const ComicSleepTimerState.off()
+      : this._(ComicSleepTimerMode.off, 0);
+
+  const ComicSleepTimerState.minutes(int minutes)
+      : this._(ComicSleepTimerMode.minutes, minutes);
+
+  const ComicSleepTimerState.chapters(int chapters)
+      : this._(ComicSleepTimerMode.chapters, chapters);
+
+  bool get isActive => mode != ComicSleepTimerMode.off;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ComicSleepTimerState &&
+      other.mode == mode &&
+      other.value == value;
+
+  @override
+  int get hashCode => Object.hash(mode, value);
+}
+
 /// 持久化后端抽象（可注入内存实现用于测试，避免测试依赖原生插件）。
 abstract class PrefsBackend {
   Future<String?> get(String key);
