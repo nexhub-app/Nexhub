@@ -121,7 +121,7 @@
 
 | 状态 | 项 | 编号 | 要点 |
 |---|---|---|---|
-| ⬜ | 超分辨率 shader | F-7 | mpv `glsl-shaders` 注入 Anime4K 效率/质量档（无清晰度源时提升观感），注意性能档位 |
+| ✅ | 超分辨率 shader | F-7 | mpv `glsl-shaders` 注入 Anime4K 效率/质量档（无清晰度源时提升观感），注意性能档位。2026-08-24 已实现（8d2052e）：内置 Anime4K v4 GLSL 预设（Mode A Fast/HQ 共 8 文件 ≈393KB，MIT 随应用分发+致谢页署名）；`anime4k_shaders.dart` 首次使用时从资产部署到应用支持目录（版本标记重拷）；`VideoPlayerBackend.setUpscaleShaders` + `PlayerCapability.upscaleShader` + `PlayerController.setUpscaleShader`（运行时切换即时生效无需 re-open，off/失败传空串清空）；`PlayerSettings.upscaleShader`（默认关，支持按剧集覆盖）；入口：更多菜单档位下拉 + 全局播放器设置页分段（关闭/效率/质量）；7 项单测（`player_upscale_shader_test.dart`）。**待真机验证画质与性能档位帧率** |
 | ⬜ | 弹幕发送上传 | F-18 | 现仅本地即时显示；接弹幕平台发送 API（需登录态），校验时长/集数 |
 | ⬜ | 缓存策略降级 | F-29 | 移动网络/低内存自动降级 demuxer 缓存（1500MB→2MB），HLS 强制 `demuxer-lavf-format`。**状态：默认未做，待检测** |
 | ⬜ | 错误分级重试 | F-30 | `waitUntilMediaReady` 按来源分级超时（媒体服务器 30s/网络 6s/本地 5s）+ 单次自动重试 |
