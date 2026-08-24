@@ -137,21 +137,121 @@ final Map<String, String> _s2tMap = <String, String>{
     e.value: e.key,
 };
 
+/// 短语级映射（繁 → 简）。
+///
+/// 用于修正逐字转换中的一对多歧义与误转：
+/// - **排除词**：整体不参与逐字转换，以「自身 → 自身」形式登记
+///   （如品牌/俚语「雪梨」「芝士」「魔法門」等，转换后保持原貌）。
+/// - **修正词**：把逐字会转错的词组显式映射到正确结果
+///   （如「皇后」「乾隆」「乾坤」「故里」）。
+///
+/// 键按长度降序匹配（最长优先），可随需求继续扩充。
+const Map<String, String> _phraseT2S = <String, String>{
+  // 排除词：整体不转换
+  '雪梨': '雪梨',
+  '芝士': '芝士',
+  '魔法門': '魔法門',
+  // 修正：乾 → 干 的误转
+  '乾隆': '乾隆',
+  '乾坤': '乾坤',
+  '乾陵': '乾陵',
+  // 修正：後 → 后 的误转（帝王/皇后类）
+  '皇后': '皇后',
+  '太后': '太后',
+  // 修正：裡 → 里 的距离/乡里类（這裡/哪裡默认转「里」已正确，无需登记）
+  '故里': '故里',
+  '邻里': '邻里',
+  '乡里': '乡里',
+};
+
+/// 短语级映射（简 → 繁），与 [_phraseT2S] 镜像互补。
+///
+/// 简转繁时一对多歧义更严重（干/后/里/发 默认全部单向），此处显式纠偏。
+const Map<String, String> _phraseS2T = <String, String>{
+  // 排除词：整体不转换
+  '雪梨': '雪梨',
+  '芝士': '芝士',
+  // 修正：干 → 乾 的误转（仅干部/干活类，干燥/干净默认「乾」正确）
+  '干部': '幹部',
+  '干活': '幹活',
+  '干线': '幹線',
+  '骨干': '骨幹',
+  // 修正：后 → 後 的误转（帝王/太后类）
+  '皇后': '皇后',
+  '太后': '太后',
+  '后羿': '后羿',
+  // 修正：里 → 裡 的距离/乡里类
+  '公里': '公里',
+  '里程': '里程',
+  '故里': '故里',
+  '邻里': '鄰里',
+  '里弄': '里弄',
+  '乡里': '鄉里',
+  // 修正：发 → 發 的误转（头发类，发展/发现默认「發」正确）
+  '头发': '頭髮',
+  '理发': '理髮',
+  '发型': '髮型',
+  '毛发': '毛髮',
+  '脱发': '脫髮',
+  '白发': '白髮',
+  '黑发': '黑髮',
+  '长发': '長髮',
+};
+
+/// 将映射表按 key 长度降序排序，供最长匹配扫描使用。
+List<MapEntry<String, String>> _sortByKeyLengthDesc(Map<String, String> map) {
+  final entries = map.entries.toList();
+  entries.sort((MapEntry<String, String> a, MapEntry<String, String> b) =>
+      b.key.length.compareTo(a.key.length));
+  return entries;
+}
+
+final List<MapEntry<String, String>> _phraseT2SSorted =
+    _sortByKeyLengthDesc(_phraseT2S);
+final List<MapEntry<String, String>> _phraseS2TSorted =
+    _sortByKeyLengthDesc(_phraseS2T);
+
 /// 按指定模式转换字符串。
 ///
-/// - [ChineseConvertMode.none] 原样返回。
-/// - [ChineseConvertMode.traditionalToSimplified] 逐字查 [_t2sMap]。
-/// - [ChineseConvertMode.simplifiedToTraditional] 逐字查 [_s2tMap]。
+/// 转换顺序（[ChineseConvertMode.none] 原样返回）：
+/// 1. **短语级最长匹配**：在 [_phraseT2S] / [_phraseS2T] 中按 key 长度降序扫描，
+///    命中即整段写入目标（排除词写入自身、修正词写入纠偏结果），并跳过后续逐字处理。
+/// 2. **字符级回退**：未命中短语时，逐字查 [_t2sMap] / [_s2tMap]。
+///
+/// 短语表可随需求安全扩充，不影响既有字符级映射。
 String convertChinese(String input, ChineseConvertMode mode) {
   if (mode == ChineseConvertMode.none || input.isEmpty) return input;
-  final map = mode == ChineseConvertMode.traditionalToSimplified
+  final charMap = mode == ChineseConvertMode.traditionalToSimplified
       ? _t2sMap
       : _s2tMap;
-  if (map.isEmpty) return input;
+  final phrases = mode == ChineseConvertMode.traditionalToSimplified
+      ? _phraseT2SSorted
+      : _phraseS2TSorted;
+  if (charMap.isEmpty && phrases.isEmpty) return input;
+
+  final runes = input.runes.toList();
   final buffer = StringBuffer();
-  for (final ch in input.runes) {
-    final s = String.fromCharCode(ch);
-    buffer.write(map[s] ?? s);
+  int i = 0;
+  while (i < runes.length) {
+    bool matched = false;
+    for (final MapEntry<String, String> entry in phrases) {
+      final int keyLen = entry.key.length;
+      if (i + keyLen <= runes.length) {
+        final String sub =
+            String.fromCharCodes(runes.sublist(i, i + keyLen));
+        if (sub == entry.key) {
+          buffer.write(entry.value);
+          i += keyLen;
+          matched = true;
+          break;
+        }
+      }
+    }
+    if (!matched) {
+      final String ch = String.fromCharCode(runes[i]);
+      buffer.write(charMap[ch] ?? ch);
+      i += 1;
+    }
   }
   return buffer.toString();
 }
