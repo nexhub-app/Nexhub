@@ -45,6 +45,8 @@ import '../../../core/novel/novel_page_animation.dart';
 import '../../../core/novel/novel_progress_manager.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/reader/tap_zone_resolver.dart';
+import '../../../core/reader/reading_queue_store.dart';
+import '../../../core/widgets/reading_queue_sheet.dart' show openReadingQueueSheet;
 import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/scraper/media_api_service.dart';
@@ -1263,6 +1265,25 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       await _tts.speak(_paragraphTexts, sleepTimer: _prefs.ttsSleepTimer);
     }
     if (mounted) setState(() {});
+  }
+
+  /// X-2：把当前作品加入待读队列（三点菜单入口）。
+  Future<void> _addCurrentToReadingQueue() async {
+    final l10n = AppLocalizations.of(context);
+    await ReadingQueueStore().add(QueuedReading(
+      sourceType: SourceType.novelSource,
+      sourceId: widget.sourceId,
+      itemId: widget.novelId,
+      title: widget.title,
+      coverUrl: widget.coverUrl,
+      detailUrl: widget.detailUrl,
+      initialChapterIndex: _chapterIndex,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.readingQueueAdded)),
+    );
   }
 
   /// 显示笔记列表（三点菜单），包含独立笔记与划线摘录笔记。
@@ -4045,6 +4066,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     _showPageAnimationPicker();
                   case 'aggSort':
                     _showAggChapterModePicker();
+                  case 'addToReadingQueue':
+                    _addCurrentToReadingQueue();
+                  case 'readingQueue':
+                    openReadingQueueSheet(context);
                 }
               },
               itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
@@ -4081,6 +4106,27 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     ),
                   ),
                   const PopupMenuDivider(),
+                ],
+                // X-2 待读队列：加入队列 / 打开队列（非本地模式才显示）。
+                if (!_isLocalMode) ...<PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'addToReadingQueue',
+                    child: ListTile(
+                      leading: const Icon(Icons.playlist_add),
+                      title: Text(l10n.readingQueueAdd),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'readingQueue',
+                    child: ListTile(
+                      leading: const Icon(Icons.playlist_play),
+                      title: Text(l10n.readingQueueOpen),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
                 ],
                 // 书签列表
                 PopupMenuItem<String>(

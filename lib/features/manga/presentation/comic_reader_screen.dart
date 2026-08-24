@@ -38,6 +38,8 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/download/download_manager.dart';
 import '../../../core/download/download_settings.dart';
 import '../../../core/async_session.dart';
+import '../../../core/reader/reading_queue_store.dart';
+import '../../../core/widgets/reading_queue_sheet.dart' show openReadingQueueSheet;
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/stats/reading_session_recorder.dart';
@@ -548,6 +550,25 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.readerSleepTimerFired)),
+    );
+  }
+
+  /// X-2：把当前作品加入待读队列（顶栏更多菜单入口）。
+  Future<void> _addCurrentToReadingQueue() async {
+    final l10n = AppLocalizations.of(context);
+    await ReadingQueueStore().add(QueuedReading(
+      sourceType: SourceType.mangaSource,
+      sourceId: widget.sourceId,
+      itemId: widget.comicId,
+      title: widget.title,
+      coverUrl: widget.coverUrl,
+      detailUrl: widget.detailUrl,
+      initialChapterIndex: _chapterIndex,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.readingQueueAdded)),
     );
   }
 
@@ -5407,6 +5428,15 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 icon: const Icon(Icons.more_vert),
                 tooltip: l10n.moreActions,
                 onSelected: (String value) {
+                  switch (value) {
+                    // X-2 待读队列：不需要章节 URL，先于 webview 守卫处理。
+                    case 'addToReadingQueue':
+                      _addCurrentToReadingQueue();
+                      return;
+                    case 'readingQueue':
+                      openReadingQueueSheet(context);
+                      return;
+                  }
                   if (absoluteChapterUrl == null) return;
                   switch (value) {
                     case 'webview':
@@ -5422,6 +5452,26 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   }
                 },
                 itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
+                  // X-2 待读队列：加入队列 / 打开队列。
+                  PopupMenuItem<String>(
+                    value: 'addToReadingQueue',
+                    child: ListTile(
+                      leading: const Icon(Icons.playlist_add),
+                      title: Text(l10n.readingQueueAdd),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'readingQueue',
+                    child: ListTile(
+                      leading: const Icon(Icons.playlist_play),
+                      title: Text(l10n.readingQueueOpen),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                  const PopupMenuDivider(),
                   PopupMenuItem<String>(
                     value: 'webview',
                     enabled: absoluteChapterUrl != null,

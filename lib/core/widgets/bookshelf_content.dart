@@ -35,6 +35,8 @@ import 'bangumi_bind_sheet.dart';
 import 'content_card.dart';
 import 'favorite_group_assign_sheet.dart';
 import 'library_shell.dart';
+import '../reader/reading_queue_store.dart';
+import 'reading_queue_sheet.dart';
 import '../theme/app_tokens.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
@@ -464,11 +466,12 @@ class _FavoriteBookshelf extends StatelessWidget {
                 source: e.sourceId != null ? repo.getById(e.sourceId!) : null,
                 author: e.author,
                 onTap: () => onItemTap?.call(e.toMediaItem()),
-                // 长按弹出操作菜单（分组指定 / Bangumi 绑定，仅收藏书架）。
+                // 长按弹出操作菜单（分组指定 / Bangumi 绑定 / 待读队列，仅收藏书架）。
                 onLongPress: () => _showFavoriteActionsMenu(
                   context,
                   contentId: e.id,
                   sourceType: sourceType,
+                  item: e.toMediaItem(),
                 ),
               ))
           .toList(),
@@ -476,11 +479,12 @@ class _FavoriteBookshelf extends StatelessWidget {
   }
 }
 
-/// 收藏卡片长按操作菜单：分组指定 / Bangumi 绑定与评分 / Bangumi 收藏状态。
+/// 收藏卡片长按操作菜单：分组指定 / Bangumi 绑定与评分 / 待读队列。
 void _showFavoriteActionsMenu(
   BuildContext context, {
   required String contentId,
   required SourceType sourceType,
+  required MediaItem item,
 }) {
   final l10n = AppLocalizations.of(context);
   showModalBottomSheet<void>(
@@ -523,6 +527,37 @@ void _showFavoriteActionsMenu(
                   );
                 },
               ),
+              // X-2 待读队列：加入队列 / 打开队列（仅在线作品；本地作品隐藏）。
+              if (item.sourceId != null && item.sourceId!.isNotEmpty) ...<Widget>[
+                ListTile(
+                  leading: const Icon(Icons.playlist_add),
+                  title: Text(l10n.readingQueueAdd),
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    await ReadingQueueStore().add(QueuedReading(
+                      sourceType: sourceType,
+                      sourceId: item.sourceId!,
+                      itemId: item.id,
+                      title: item.title,
+                      coverUrl: item.coverUrl,
+                      detailUrl: item.detailUrl,
+                      updatedAt: DateTime.now().millisecondsSinceEpoch,
+                    ));
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.readingQueueAdded)),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.playlist_play),
+                  title: Text(l10n.readingQueueOpen),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    openReadingQueueSheet(context);
+                  },
+                ),
+              ],
             ],
           ),
         ),
