@@ -2499,6 +2499,7 @@
   "imageFavoriteRenamed": "Renamed",
   "imageFavoriteTitleHint": "New title",
   "imageFavoriteAllFolders": "All folders",
+  "imageFavoriteFiltersToggle": "Collapse / expand filters",
   "imageFavoriteUnfiled": "Unfiled",
   "imageFavoriteNewFolder": "New folder",
   "imageFavoriteFolderHint": "Folder name",

@@ -15,6 +15,7 @@
 /// 组件实现（瀑布流 / 堆叠卡 / 相册 / 查看器）在 part 文件中。
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -26,6 +27,7 @@ import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import 'package:nexhub/core/widgets/app_empty_state.dart';
 import 'package:nexhub/core/widgets/source_image.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:share_plus/share_plus.dart';
 
 part 'image_favorite_gallery_parts.dart';
@@ -77,6 +79,12 @@ class _ImageFavoriteGalleryScreenState
 
   /// 多选模式选中的条目 key（非空即处于多选模式）。
   final Set<String> _selected = <String>{};
+
+  /// 筛选区（搜索 / 分类 / 时间轴 / 文件夹）是否收起（增大展示面积）。
+  bool _filtersCollapsed = false;
+
+  /// 文件夹行滚动控制器：点击文件夹自动滚动居中。
+  final ItemScrollController _folderItemScroll = ItemScrollController();
 
   /// 应用时间格式（跟随设置页「时间格式」，含 24h 时刻）。
   AppDateFormat _dateFormat = AppDateFormat.defaultFormat;
@@ -663,43 +671,67 @@ class _ImageFavoriteGalleryScreenState
   }
 
   /// 文件夹筛选行（全部 / 未分类 / 各文件夹 + 新建）。
+  ///
+  /// 手机适配：横向可滚动；点击任一文件夹自动滚动将该 chip 居中。
   Widget _buildFolderRow(AppLocalizations l10n) {
-    final List<String> options = <String>['', ..._folders];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
-      child: Row(
-        children: <Widget>[
-          _PlainChip(
-            icon: null,
-            label: l10n.imageFavoriteAllFolders,
-            selected: _folderFilter == null,
-            enabled: true,
-            onTap: () => setState(() => _folderFilter = null),
-          ),
-          const SizedBox(width: AppTokens.spaceXs),
-          for (final String f in options) ...<Widget>[
-            GestureDetector(
-              // 长按文件夹 chip：删除文件夹（图片回到未分类）。
-              onLongPress: f.isEmpty ? null : () => _deleteFolder(f),
+    // 展示列表：0 = 全部；1..N = 文件夹；N+1 = 新建。
+    final int newIndex = _folders.length + 1;
+    return SizedBox(
+      height: 40,
+      child: ScrollablePositionedList.builder(
+        itemScrollController: _folderItemScroll,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
+        itemCount: newIndex + 1,
+        itemBuilder: (BuildContext ctx, int index) {
+          if (index == newIndex) {
+            return Padding(
+              padding: const EdgeInsets.only(right: AppTokens.spaceXs),
               child: _PlainChip(
-                icon: f.isEmpty ? Icons.layers_clear_outlined : Icons.folder_outlined,
-                label: f.isEmpty ? l10n.imageFavoriteUnfiled : f,
-                selected: _folderFilter == f,
+                icon: Icons.create_new_folder_outlined,
+                label: l10n.imageFavoriteNewFolder,
+                selected: false,
                 enabled: true,
-                onTap: () => setState(() => _folderFilter = f),
+                onTap: _createFolder,
+              ),
+            );
+          }
+          final bool isAll = index == 0;
+          final String f = isAll ? '' : _folders[index - 1];
+          final bool selected = isAll
+              ? _folderFilter == null
+              : _folderFilter == f;
+          return Padding(
+            padding: const EdgeInsets.only(right: AppTokens.spaceXs),
+            child: GestureDetector(
+              // 长按文件夹 chip：删除文件夹（图片回到未分类）。
+              onLongPress: isAll ? null : () => _deleteFolder(f),
+              child: _PlainChip(
+                icon: isAll
+                    ? Icons.photo_library_outlined
+                    : (f.isEmpty
+                        ? Icons.layers_clear_outlined
+                        : Icons.folder_outlined),
+                label: isAll
+                    ? l10n.imageFavoriteAllFolders
+                    : (f.isEmpty ? l10n.imageFavoriteUnfiled : f),
+                selected: selected,
+                enabled: true,
+                onTap: () {
+                  setState(() =>
+                      _folderFilter = isAll ? null : f);
+                  // 手机适配：选中的文件夹自动滚动到行中央。
+                  unawaited(_folderItemScroll.scrollTo(
+                    index: index,
+                    alignment: 0.5,
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeInOut,
+                  ));
+                },
               ),
             ),
-            const SizedBox(width: AppTokens.spaceXs),
-          ],
-          _PlainChip(
-            icon: Icons.create_new_folder_outlined,
-            label: l10n.imageFavoriteNewFolder,
-            selected: false,
-            enabled: true,
-            onTap: _createFolder,
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -797,86 +829,90 @@ class _ImageFavoriteGalleryScreenState
   Widget _buildControlsRow(AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
-      child: Row(
-        children: <Widget>[
-          SegmentedButton<_GalleryLayout>(
-            showSelectedIcon: false,
-            style: const ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      // 手机适配：控制项横向可滚动，窄屏不溢出。
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: <Widget>[
+            SegmentedButton<_GalleryLayout>(
+              showSelectedIcon: false,
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              segments: <ButtonSegment<_GalleryLayout>>[
+                ButtonSegment<_GalleryLayout>(
+                  value: _GalleryLayout.grid,
+                  icon: const Icon(Icons.grid_view, size: 16),
+                  label: Text(l10n.imageFavoriteLayoutGrid),
+                ),
+                ButtonSegment<_GalleryLayout>(
+                  value: _GalleryLayout.masonry,
+                  icon: const Icon(Icons.view_quilt_outlined, size: 16),
+                  label: Text(l10n.imageFavoriteLayoutMasonry),
+                ),
+              ],
+              selected: <_GalleryLayout>{_layout},
+              onSelectionChanged: (Set<_GalleryLayout> s) =>
+                  setState(() => _layout = s.first),
             ),
-            segments: <ButtonSegment<_GalleryLayout>>[
-              ButtonSegment<_GalleryLayout>(
-                value: _GalleryLayout.grid,
-                icon: const Icon(Icons.grid_view, size: 16),
-                label: Text(l10n.imageFavoriteLayoutGrid),
-              ),
-              ButtonSegment<_GalleryLayout>(
-                value: _GalleryLayout.masonry,
-                icon: const Icon(Icons.view_quilt_outlined, size: 16),
-                label: Text(l10n.imageFavoriteLayoutMasonry),
-              ),
-            ],
-            selected: <_GalleryLayout>{_layout},
-            onSelectionChanged: (Set<_GalleryLayout> s) =>
-                setState(() => _layout = s.first),
-          ),
-          const SizedBox(width: AppTokens.spaceXs),
-          _PlainChip(
-            icon: Icons.layers_outlined,
-            label: l10n.imageFavoriteGroupByWork,
-            selected: _groupByWork,
-            enabled: true,
-            onTap: () => setState(() => _groupByWork = !_groupByWork),
-          ),
-          const Spacer(),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_horiz),
-            tooltip: l10n.imageFavoriteDisplayOptions,
-            onSelected: (String v) {
-              switch (v) {
-                case 'title':
-                  setState(() => _showTitle = !_showTitle);
-                case 'time':
-                  setState(() => _showTime = !_showTime);
-                case 'newest':
-                  setState(() => _sort = _GallerySort.newest);
-                case 'oldest':
-                  setState(() => _sort = _GallerySort.oldest);
-                case 'byTitle':
-                  setState(() => _sort = _GallerySort.title);
-              }
-            },
-            itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
-              CheckedPopupMenuItem<String>(
-                value: 'title',
-                checked: _showTitle,
-                child: Text(l10n.imageFavoriteShowTitle),
-              ),
-              CheckedPopupMenuItem<String>(
-                value: 'time',
-                checked: _showTime,
-                child: Text(l10n.imageFavoriteShowTime),
-              ),
-              const PopupMenuDivider(),
-              CheckedPopupMenuItem<String>(
-                value: 'newest',
-                checked: _sort == _GallerySort.newest,
-                child: Text(l10n.imageFavoriteSortNewest),
-              ),
-              CheckedPopupMenuItem<String>(
-                value: 'oldest',
-                checked: _sort == _GallerySort.oldest,
-                child: Text(l10n.imageFavoriteSortOldest),
-              ),
-              CheckedPopupMenuItem<String>(
-                value: 'byTitle',
-                checked: _sort == _GallerySort.title,
-                child: Text(l10n.imageFavoriteSortTitle),
-              ),
-            ],
-          ),
-        ],
+            const SizedBox(width: AppTokens.spaceXs),
+            _PlainChip(
+              icon: Icons.layers_outlined,
+              label: l10n.imageFavoriteGroupByWork,
+              selected: _groupByWork,
+              enabled: true,
+              onTap: () => setState(() => _groupByWork = !_groupByWork),
+            ),
+            const SizedBox(width: AppTokens.spaceXs),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_horiz),
+              tooltip: l10n.imageFavoriteDisplayOptions,
+              onSelected: (String v) {
+                switch (v) {
+                  case 'title':
+                    setState(() => _showTitle = !_showTitle);
+                  case 'time':
+                    setState(() => _showTime = !_showTime);
+                  case 'newest':
+                    setState(() => _sort = _GallerySort.newest);
+                  case 'oldest':
+                    setState(() => _sort = _GallerySort.oldest);
+                  case 'byTitle':
+                    setState(() => _sort = _GallerySort.title);
+                }
+              },
+              itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
+                CheckedPopupMenuItem<String>(
+                  value: 'title',
+                  checked: _showTitle,
+                  child: Text(l10n.imageFavoriteShowTitle),
+                ),
+                CheckedPopupMenuItem<String>(
+                  value: 'time',
+                  checked: _showTime,
+                  child: Text(l10n.imageFavoriteShowTime),
+                ),
+                const PopupMenuDivider(),
+                CheckedPopupMenuItem<String>(
+                  value: 'newest',
+                  checked: _sort == _GallerySort.newest,
+                  child: Text(l10n.imageFavoriteSortNewest),
+                ),
+                CheckedPopupMenuItem<String>(
+                  value: 'oldest',
+                  checked: _sort == _GallerySort.oldest,
+                  child: Text(l10n.imageFavoriteSortOldest),
+                ),
+                CheckedPopupMenuItem<String>(
+                  value: 'byTitle',
+                  checked: _sort == _GallerySort.title,
+                  child: Text(l10n.imageFavoriteSortTitle),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -954,13 +990,39 @@ class _ImageFavoriteGalleryScreenState
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                _buildSearch(l10n),
-                _buildSourceFilter(l10n),
-                const SizedBox(height: AppTokens.spaceXs),
-                _buildTimeRange(l10n),
-                const SizedBox(height: AppTokens.spaceXs),
-                _buildFolderRow(l10n),
-                const SizedBox(height: AppTokens.spaceXs),
+                // 筛选收起开关 + 搜索框（收起时仅保留开关行，增大展示面积）。
+                Row(
+                  children: <Widget>[
+                    IconButton(
+                      tooltip: l10n.imageFavoriteFiltersToggle,
+                      icon: Icon(
+                        _filtersCollapsed
+                            ? Icons.expand_more
+                            : Icons.expand_less,
+                      ),
+                      onPressed: () => setState(
+                          () => _filtersCollapsed = !_filtersCollapsed),
+                    ),
+                    Expanded(child: _buildSearch(l10n)),
+                  ],
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeInOut,
+                  child: _filtersCollapsed
+                      ? const SizedBox(width: double.infinity)
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            _buildSourceFilter(l10n),
+                            const SizedBox(height: AppTokens.spaceXs),
+                            _buildTimeRange(l10n),
+                            const SizedBox(height: AppTokens.spaceXs),
+                            _buildFolderRow(l10n),
+                            const SizedBox(height: AppTokens.spaceXs),
+                          ],
+                        ),
+                ),
                 _buildControlsRow(l10n),
                 const SizedBox(height: AppTokens.spaceXs),
                 Expanded(child: _buildBody(l10n)),
