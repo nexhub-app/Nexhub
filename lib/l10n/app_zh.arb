@@ -2435,6 +2435,10 @@
   "readerFavoriteImage": "收藏此图",
   "imageFavoriteAdded": "已收藏此图",
   "imageFavoriteRemoved": "已取消收藏此图",
+  "imageFavoriteAdd": "收藏到图库",
+  "imageFavoriteSourceComic": "漫画",
+  "imageFavoriteSourcePlayer": "播放器",
+  "imageFavoriteSourceNovel": "小说",
   "readerClockBatteryPercent": "{percent}%",
   "@readerClockBatteryPercent": {
     "description": "Battery percentage in clock/battery overlay",

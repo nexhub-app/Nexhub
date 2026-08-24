@@ -34,8 +34,16 @@ extension _VideoScreenshot on _VideoPlayerScreenState {
       final File file = File(p.join(baseDir.path, fileName));
       await file.writeAsBytes(bytes);
       if (mounted) {
+        // X-3：截图保存后提供「收藏到图库」快捷入口（统一图片收藏图库）。
+        final String path = file.path;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.screenshotSaved)),
+          SnackBar(
+            content: Text(l10n.screenshotSaved),
+            action: SnackBarAction(
+              label: l10n.imageFavoriteAdd,
+              onPressed: () => unawaited(_favoriteScreenshot(path, l10n)),
+            ),
+          ),
         );
       }
     } on Object catch (e) {
@@ -45,6 +53,28 @@ extension _VideoScreenshot on _VideoPlayerScreenState {
         );
       }
     }
+  }
+
+  /// X-3：把刚保存的截图收藏进统一图片图库（来源 = 播放器）。
+  Future<void> _favoriteScreenshot(String path, AppLocalizations l10n) async {
+    final String label = _episodeTitle.isEmpty
+        ? widget.title
+        : '${widget.title} · $_episodeTitle';
+    final bool added = await ImageFavoriteManager().toggleByUrl(
+      source: ImageFavoriteSource.player,
+      workId: widget.itemId,
+      workTitle: widget.title,
+      label: label,
+      imageUrl: path,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          added ? l10n.imageFavoriteAdded : l10n.imageFavoriteRemoved,
+        ),
+      ),
+    );
   }
 
   /// 选择自定义截图保存目录。

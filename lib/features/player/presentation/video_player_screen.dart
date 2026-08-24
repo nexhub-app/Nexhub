@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../../core/danmaku/bilibili_danmaku_service.dart';
+import '../../../core/comic/image_favorite_manager.dart';
 import '../../../core/danmaku/danmaku_repository.dart';
 import '../../../core/danmaku/danmaku_settings.dart';
 import '../../../core/danmaku/danmaku_settings_store.dart';

@@ -1,26 +1,53 @@
-/// 图片收藏管理器（REQ-C2 图片收藏图库）。
+/// 图片收藏管理器（REQ-C2 图片收藏图库 · X-3 统一图库扩展）。
 ///
 /// 镜像 [ComicBookmarkManager] 结构，按 作品 + 章节 + 页码 保存图片收藏到
 /// Hive box `image_favorites`。支持添加 / 删除 / 切换 / 列出全部收藏，
 /// 并按 createdAt 倒序返回（图库最新收藏在前）。
+///
+/// X-3 跨类型对齐扩展：漫画之外，播放器截图与小说插图也收藏入同一图库——
+/// [ImageFavoriteSource] 区分来源；无「章节+页码」位置概念的条目（截图 /
+/// 插图）走 [toggleByUrl]，以 `来源::img::URL` 为唯一键去重，漫画条目维持
+/// 原有 `comicId::chapterIndex::pageIndex` 键格式（存量数据兼容）。
 library;
 
 import 'dart:convert';
 
 import 'package:hive/hive.dart';
 
+/// 收藏来源模块（X-3 统一图库）。
+enum ImageFavoriteSource {
+  comic,
+  player,
+  novel;
+
+  String get apiName => switch (this) {
+        ImageFavoriteSource.comic => 'comic',
+        ImageFavoriteSource.player => 'player',
+        ImageFavoriteSource.novel => 'novel',
+      };
+
+  static ImageFavoriteSource parse(String? name) => switch (name) {
+        'player' => ImageFavoriteSource.player,
+        'novel' => ImageFavoriteSource.novel,
+        _ => ImageFavoriteSource.comic,
+      };
+}
+
 /// 单条收藏图片。
 class ImageFavorite {
-  /// 所属漫画 ID。
+  /// 来源模块（漫画 / 播放器截图 / 小说插图）。
+  final ImageFavoriteSource source;
+
+  /// 所属作品 ID（漫画 ID / 播放器作品 ID / 小说 ID）。
   final String comicId;
 
-  /// 章节在 chapters 列表中的索引。
+  /// 章节在 chapters 列表中的索引（无章节概念的条目为 -1）。
   final int chapterIndex;
 
-  /// 章节标题（展示用）。
+  /// 章节标题（展示用；无章节概念的条目填作品/集/章标题）。
   final String chapterTitle;
 
-  /// 页在章节中的索引（0 起）。
+  /// 页在章节中的索引（0 起；无章节概念的条目为 -1）。
   final int pageIndex;
 
   /// 图片地址（URL 或本地路径）。
@@ -30,6 +57,7 @@ class ImageFavorite {
   final int createdAt;
 
   const ImageFavorite({
+    this.source = ImageFavoriteSource.comic,
     required this.comicId,
     required this.chapterIndex,
     required this.chapterTitle,
@@ -39,6 +67,7 @@ class ImageFavorite {
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'source': source.apiName,
         'comicId': comicId,
         'chapterIndex': chapterIndex,
         'chapterTitle': chapterTitle,
@@ -49,6 +78,7 @@ class ImageFavorite {
 
   factory ImageFavorite.fromJson(Map<String, dynamic> json) {
     return ImageFavorite(
+      source: ImageFavoriteSource.parse(json['source'] as String?),
       comicId: json['comicId'] as String? ?? '',
       chapterIndex: (json['chapterIndex'] as num?)?.toInt() ?? 0,
       chapterTitle: json['chapterTitle'] as String? ?? '',
@@ -58,9 +88,16 @@ class ImageFavorite {
     );
   }
 
-  /// 复合 key：`comicId::chapterIndex::pageIndex`，唯一标识一条收藏图片
-  /// （同一作品同一章同一页只保留一份）。
-  String get key => '$comicId::$chapterIndex::$pageIndex';
+  /// 复合 key：
+  /// - 漫画：`comicId::chapterIndex::pageIndex`（兼容存量，同一作品同一章同一页
+  ///   只保留一份）；
+  /// - 截图/插图（无位置概念）：`来源::img::imageUrl`，按图片地址去重。
+  String get key {
+    if (source == ImageFavoriteSource.comic) {
+      return '$comicId::$chapterIndex::$pageIndex';
+    }
+    return '${source.apiName}::img::$imageUrl';
+  }
 }
 
 /// 图片收藏管理器——使用 Hive box `image_favorites`。
@@ -114,6 +151,41 @@ class ImageFavoriteManager {
       chapterIndex: chapterIndex,
       chapterTitle: chapterTitle,
       pageIndex: pageIndex,
+      imageUrl: imageUrl,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    await box.put(key, jsonEncode(fav.toJson()));
+    return true;
+  }
+
+  /// 按 URL 切换收藏状态（X-3：播放器截图 / 小说插图，无章节+页码位置概念）。
+  ///
+  /// 以 `来源::img::imageUrl` 为唯一键去重：同一来源同一图片地址只保留一份。
+  /// [workId] 为作品 ID（展示/定位用）；[workTitle] 为作品标题；[label] 为
+  /// 条目标题（截图/章节名）。
+  Future<bool> toggleByUrl({
+    required ImageFavoriteSource source,
+    required String workId,
+    required String workTitle,
+    required String label,
+    required String imageUrl,
+  }) async {
+    if (imageUrl.isEmpty) return false;
+    final String key = '${source.apiName}::img::$imageUrl';
+    final box = await _openBox();
+    final Object? raw = box.get(key);
+    if (raw is String && raw.isNotEmpty) {
+      // 已收藏：删除。
+      await box.delete(key);
+      return false;
+    }
+    // 未收藏：新增。
+    final ImageFavorite fav = ImageFavorite(
+      source: source,
+      comicId: workId,
+      chapterIndex: -1,
+      chapterTitle: workTitle,
+      pageIndex: -1,
       imageUrl: imageUrl,
       createdAt: DateTime.now().millisecondsSinceEpoch,
     );

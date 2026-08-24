@@ -2458,6 +2458,10 @@
   "readerFavoriteImage": "Favorite this image",
   "imageFavoriteAdded": "Image favorited",
   "imageFavoriteRemoved": "Image unfavorited",
+  "imageFavoriteAdd": "Save to gallery",
+  "imageFavoriteSourceComic": "Comic",
+  "imageFavoriteSourcePlayer": "Player",
+  "imageFavoriteSourceNovel": "Novel",
   "readerClockBatteryPercent": "{percent}%",
   "@readerClockBatteryPercent": {
     "description": "Battery percentage in clock/battery overlay",

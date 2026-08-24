@@ -144,6 +144,12 @@ class _ImageFavoriteGalleryScreenState extends State<ImageFavoriteGalleryScreen>
               fit: BoxFit.cover,
             ),
           ),
+          // 来源角标（X-3 统一图库：漫画 / 播放器截图 / 小说插图）。
+          Positioned(
+            left: AppTokens.spaceXs,
+            bottom: AppTokens.spaceXs,
+            child: _SourceBadge(source: favorite.source),
+          ),
           // 右上角删除按钮（半透明圆形，叠在缩略图上，避免误触放大图）。
           Positioned(
             top: AppTokens.spaceXs,
@@ -164,6 +170,47 @@ class _ImageFavoriteGalleryScreenState extends State<ImageFavoriteGalleryScreen>
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 来源角标（X-3）：半透明黑底小图标 + 来源名，区分漫画/播放器截图/小说插图。
+class _SourceBadge extends StatelessWidget {
+  const _SourceBadge({required this.source});
+
+  final ImageFavoriteSource source;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final (IconData icon, String label) = switch (source) {
+      ImageFavoriteSource.comic => (Icons.menu_book_outlined, l10n.imageFavoriteSourceComic),
+      ImageFavoriteSource.player => (
+          Icons.play_circle_outline,
+          l10n.imageFavoriteSourcePlayer,
+        ),
+      ImageFavoriteSource.novel => (
+          Icons.auto_stories_outlined,
+          l10n.imageFavoriteSourceNovel,
+        ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 11, color: Colors.white),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, color: Colors.white),
           ),
         ],
       ),

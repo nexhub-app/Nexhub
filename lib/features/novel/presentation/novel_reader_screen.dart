@@ -22,6 +22,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/comic/models/reader_preferences.dart'
     show ReaderTapZoneLayout, TapZoneInvert;
+import '../../../core/comic/image_favorite_manager.dart';
 import '../../../core/novel/novel_replace_rule.dart'
     show NovelReplaceRuleSet;
 import '../../../core/novel/novel_highlight_rule.dart'
@@ -3791,30 +3792,19 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 全屏查看插图：支持缩放/平移，防盗链 headers 由 [SourceImage] 注入。
   void _showImageViewer(String url, PluginConfig? source) {
     if (url.isEmpty) return;
+    final List<Episode> chs = _effectiveChapters;
+    final String chapterTitle = chs.isEmpty
+        ? ''
+        : chs[_chapterIndex.clamp(0, chs.length - 1)].title;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (BuildContext ctx) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            iconTheme: const IconThemeData(color: Colors.white),
-            elevation: 0,
-          ),
-          body: LayoutBuilder(
-            builder: (BuildContext ctx, BoxConstraints c) => InteractiveViewer(
-              minScale: 0.5,
-              maxScale: 4.0,
-              child: Center(
-                child: SourceImage(
-                  url: url,
-                  source: source,
-                  width: c.maxWidth,
-                  height: c.maxHeight,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          ),
+        // X-3：插图大图查看器带「收藏入统一图库」按钮（来源 = 小说）。
+        builder: (BuildContext ctx) => _NovelImageFavoriteViewer(
+          url: url,
+          source: source,
+          workId: widget.novelId,
+          workTitle: widget.title,
+          label: chapterTitle,
         ),
       ),
     );
@@ -8702,6 +8692,105 @@ class _SimpleColorSliderState extends State<_SimpleColorSlider> {
           textAlign: TextAlign.right,
         )),
       ],
+    );
+  }
+}
+
+/// 小说插图大图查看器（X-3 统一图片收藏图库）。
+///
+/// 黑底 + InteractiveViewer 缩放；AppBar 提供「收藏 / 取消收藏」按钮，收藏写入
+/// 与漫画共用的 Hive `image_favorites` box（来源 = novel，按 URL 去重）。
+class _NovelImageFavoriteViewer extends StatefulWidget {
+  final String url;
+  final PluginConfig? source;
+  final String workId;
+  final String workTitle;
+  final String label;
+
+  const _NovelImageFavoriteViewer({
+    required this.url,
+    this.source,
+    required this.workId,
+    required this.workTitle,
+    required this.label,
+  });
+
+  @override
+  State<_NovelImageFavoriteViewer> createState() =>
+      _NovelImageFavoriteViewerState();
+}
+
+class _NovelImageFavoriteViewerState extends State<_NovelImageFavoriteViewer> {
+  final ImageFavoriteManager _manager = ImageFavoriteManager();
+  bool? _isFavorite;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    final bool fav = await _manager.isFavoriteByUrl(widget.url);
+    if (mounted) setState(() => _isFavorite = fav);
+  }
+
+  Future<void> _toggleFavorite() async {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final bool added = await _manager.toggleByUrl(
+      source: ImageFavoriteSource.novel,
+      workId: widget.workId,
+      workTitle: widget.workTitle,
+      label: widget.label,
+      imageUrl: widget.url,
+    );
+    if (!mounted) return;
+    setState(() => _isFavorite = added);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          added ? l10n.imageFavoriteAdded : l10n.imageFavoriteRemoved,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+        actions: <Widget>[
+          IconButton(
+            tooltip: AppLocalizations.of(context).imageFavoriteAdd,
+            icon: Icon(
+              _isFavorite == true
+                  ? Icons.star
+                  : Icons.star_border,
+              color: Colors.white,
+            ),
+            onPressed: _toggleFavorite,
+          ),
+        ],
+      ),
+      body: LayoutBuilder(
+        builder: (BuildContext ctx, BoxConstraints c) => InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Center(
+            child: SourceImage(
+              url: widget.url,
+              source: widget.source,
+              width: c.maxWidth,
+              height: c.maxHeight,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
