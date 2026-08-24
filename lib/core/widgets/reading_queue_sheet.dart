@@ -37,8 +37,11 @@ Future<void> openReadingQueueSheet(BuildContext context) async {
         top: Radius.circular(AppTokens.radiusLg),
       ),
     ),
-    builder: (BuildContext ctx) =>
-        _ReadingQueueSheet(store: store, initial: queue),
+    builder: (BuildContext ctx) => _ReadingQueueSheet(
+      store: store,
+      initial: queue,
+      pageContext: context,
+    ),
   );
 }
 
@@ -78,7 +81,7 @@ Future<void> openReadingFromQueue(
     final PluginConfig? source =
         w.sourceId.isEmpty ? null : repo.getById(w.sourceId);
     if (source == null) {
-      if (context.mounted) Navigator.of(context).pop(); // 关闭 loading
+      // 统一由 catch 关闭 loading（避免重复 pop 弹掉页面）。
       throw StateError('source missing: ${w.sourceId}');
     }
     // 小说：优先读 TOC 缓存，命中即秒开（不重新抓目录）。
@@ -162,7 +165,15 @@ class _ReadingQueueSheet extends StatefulWidget {
   final ReadingQueueStore store;
   final List<QueuedReading> initial;
 
-  const _ReadingQueueSheet({required this.store, required this.initial});
+  /// 打开弹层时的页面级 context：点击队列项后用它完成 dialog/导航，
+  /// 避免用弹层自身 context（pop 后 mounted=false 导致加载永不关闭）。
+  final BuildContext pageContext;
+
+  const _ReadingQueueSheet({
+    required this.store,
+    required this.initial,
+    required this.pageContext,
+  });
 
   @override
   State<_ReadingQueueSheet> createState() => _ReadingQueueSheetState();
@@ -253,7 +264,10 @@ class _ReadingQueueSheetState extends State<_ReadingQueueSheet> {
                           ),
                           onTap: () {
                             Navigator.of(ctx).pop();
-                            openReadingFromQueue(context, w, widget.store);
+                            // 用打开弹层时的页面 context 完成后续导航：
+                            // 弹层自身 context 在 pop 后 mounted=false。
+                            openReadingFromQueue(
+                                widget.pageContext, w, widget.store);
                           },
                           onLongPress: () async {
                             await widget.store.removeAt(index);

@@ -129,6 +129,27 @@ class ImageFavoriteManager {
     await box.delete(key);
   }
 
+  /// 重命名条目标题（问题 3：长按菜单「重命名标题」）。
+  ///
+  /// 更新 chapterTitle 字段并落盘；找不到该 key / 空标题时返回 false。
+  Future<bool> updateTitle(String key, String title) async {
+    if (key.isEmpty) return false;
+    final String clean = title.trim();
+    if (clean.isEmpty) return false;
+    try {
+      final box = await _openBox();
+      final Object? raw = box.get(key);
+      if (raw is! String || raw.isEmpty) return false;
+      final Map<String, dynamic> json =
+          jsonDecode(raw) as Map<String, dynamic>;
+      json['chapterTitle'] = clean;
+      await box.put(key, jsonEncode(json));
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
   /// 切换收藏状态：未收藏则添加并返回 true，已收藏则删除并返回 false。
   Future<bool> toggle({
     required String comicId,

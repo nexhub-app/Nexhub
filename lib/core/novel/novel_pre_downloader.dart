@@ -70,8 +70,9 @@ class NovelPreDownloader {
 
   /// 后台预下载从 [startIndex] 起的至多 [count] 章（串行，失败即停）。
   ///
+  /// 返回实际成功下载的章节数（跳过缓存 / 抓取失败的章不计入）。
   /// 仅在命中缓存或正在下载时跳过；静默失败（不打扰阅读），写日志备查。
-  Future<void> preDownload({
+  Future<int> preDownload({
     required MediaApiService service,
     required PluginConfig source,
     required String novelId,
@@ -79,8 +80,8 @@ class NovelPreDownloader {
     required int startIndex,
     required int count,
   }) async {
-    int done = 0;
-    for (int i = startIndex; i < chapters.length && done < count; i++) {
+    int downloaded = 0;
+    for (int i = startIndex; i < chapters.length && downloaded < count; i++) {
       final Episode chapter = chapters[i];
       final String key = _key(novelId, chapter.id);
       if (_memory.containsKey(key) || _inFlight.contains(key)) {
@@ -96,7 +97,7 @@ class NovelPreDownloader {
         );
         _memory[key] = blocks;
         await _persist(key, blocks);
-        done++;
+        downloaded++;
       } on Object catch (e) {
         AppLog.instance.w('[预下载] 章节抓取失败 ${chapter.title}: $e');
         break; // 连续失败不再继续，避免流量/请求风暴。
@@ -104,6 +105,7 @@ class NovelPreDownloader {
         _inFlight.remove(key);
       }
     }
+    return downloaded;
   }
 
   /// 按作品清空缓存（预下载设置关闭 / 源切换时可调用清理）。

@@ -2016,6 +2016,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _contentVersion++;
       });
       _setupControllers(restorePage: restorePage);
+      // X-4：章节加载完成、分页就绪后检查一次预下载（单页章 / 直达章末场景，
+      // 不依赖用户翻页也能触发；postFrame 等 LayoutBuilder 算出分页）。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _maybePreDownload();
+      });
       // 不在此处对哨兵值 -1 调用 _saveProgress（会存入非法页码）。
       // 合法的页码会在 _buildReader 哨兵校正后，由后续翻页/渲染自动保存；
       // 若 restorePage ≥ 0 则正常记录进度。
@@ -2297,7 +2302,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   }
 
   /// X-4：当前章阅读进度越过阈值时，后台预下载后续 N 章正文（离线阅读 /
-  /// 快速切章命中缓存）。每章只触发一次，静默失败不打扰阅读。
+  /// 快速切章命中缓存）。每章只触发一次；开始与结果均有 SnackBar 可见反馈。
   void _maybePreDownload() {
     if (!_preDownloadPrefs.enabled) return;
     if (_isLocalMode) return;
@@ -2311,14 +2316,27 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _preDownloadTriggeredFor = currentIdx;
     final PluginConfig? src = _source;
     if (src == null) return;
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final int count = _preDownloadPrefs.count;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.preDownloadStarted(count))),
+    );
     unawaited(_preDownloader.preDownload(
       service: _service,
       source: src,
       novelId: widget.novelId,
       chapters: widget.chapters,
       startIndex: currentIdx + 1,
-      count: _preDownloadPrefs.count,
-    ));
+      count: count,
+    ).then((int done) {
+      if (!mounted) return;
+      final String text = done > 0
+          ? l10n.preDownloadDone(done)
+          : l10n.preDownloadFailedHint;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(text)),
+      );
+    }));
   }
 
   /// 把当前分页结果注入选区控制器，并异步加载本章已存划线（重新解析定位）。
