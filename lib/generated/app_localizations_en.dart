@@ -3071,6 +3071,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelSectionMisc => 'Other';
 
   @override
+  String get novelSectionPreDownload => 'Pre-download';
+
+  @override
+  String get preDownloadEnabled =>
+      'Pre-download upcoming chapters while reading';
+
+  @override
+  String get preDownloadThreshold =>
+      'Trigger threshold (current chapter progress)';
+
+  @override
+  String get preDownloadCount => 'Chapters to pre-download';
+
+  @override
   String get novelShowChapterTitle => 'Show chapter title in body';
 
   @override

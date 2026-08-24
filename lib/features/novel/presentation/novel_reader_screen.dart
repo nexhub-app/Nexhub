@@ -44,6 +44,8 @@ import '../../../core/download/download_manager.dart';
 import '../../../core/novel/novel_page_animation.dart';
 import '../../../core/novel/novel_progress_manager.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
+import '../../../core/novel/novel_pre_download_preferences.dart';
+import '../../../core/novel/novel_pre_downloader.dart';
 import '../../../core/reader/tap_zone_resolver.dart';
 import '../../../core/reader/reading_queue_store.dart';
 import '../../../core/widgets/reading_queue_sheet.dart' show openReadingQueueSheet;
@@ -487,6 +489,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 上次 attach 时的通知标题（章节/作品变化时刷新媒体条目）。
   String? _ttsAudioTitle;
 
+  // ── X-4 阅读中预下载后续章节 ─────────────────────────
+  final NovelPreDownloader _preDownloader = NovelPreDownloader();
+
+  /// 预下载配置快照（initState 加载；设置页修改后重进阅读器生效）。
+  NovelPreDownloadPreferences _preDownloadPrefs =
+      const NovelPreDownloadPreferences();
+
+  /// 已触发过预下载的章节索引（每章只触发一次）。
+  int _preDownloadTriggeredFor = -1;
+
   // ─────────────────────── 笔记（P3.1） ───────────────────────
   final NovelNoteManager _notes = NovelNoteManager();
 
@@ -615,6 +627,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
     // 音量键翻页（N5）：偏好加载完成后按需挂载原生拦截。
     unawaited(_syncVolumeKey());
+    // X-4：预下载配置加载（静态方法内部 try/catch，失败回落默认）。
+    _preDownloadPrefs = await NovelPreDownloadPreferences.load();
     // 重新注册自定义字体文件（正文 / 标题），否则重启后字体不生效。
     await _loadCustomFontsIfNeeded();
     final saved = await _progress.get(widget.novelId);
@@ -1973,11 +1987,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       final source = _repo.getById(widget.sourceId);
       if (source == null) throw Exception('source not found: ${widget.sourceId}');
       final chapter = widget.chapters[index];
-      final paragraphs = await _service.fetchNovelContent(
-        source,
-        novelId: widget.novelId,
-        chapterUrl: chapter.url,
-      );
+      final List<NovelBlock> paragraphs;
+      // X-4：命中预下载缓存（离线/已预取章节）则跳过网络抓取，直接渲染。
+      // TEMP-DEBUG
+      final List<NovelBlock>? cached = null; /*
+      final List<NovelBlock>? cached = await _preDownloader
+          .cached(widget.novelId, chapter.id);
+      */
+      if (cached != null) {
+        paragraphs = cached;
+      } else {
+        paragraphs = await _service.fetchNovelContent(
+          source,
+          novelId: widget.novelId,
+          chapterUrl: chapter.url,
+        );
+      }
       if (!mounted) { _chapterLoading = false; return; }
       // 加载替换/高亮规则（排版期编译缓存，规则变更不重拉全书）。
       _replaceRuleSet = await NovelRuleCache().getReplaceRules(widget.novelId);
@@ -2199,6 +2224,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       if (idx != _currentPage) {
         _currentPage = idx;
         _saveProgress(idx);
+        // X-4：滚动模式进度越过阈值同样触发预下载（每章一次）。
+        if (mounted) _maybePreDownload();
       }
     }
     if ((frac - _scrollFraction).abs() < 0.005) return;
@@ -2262,9 +2289,36 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
     _currentPage = idx;
     _saveProgress(idx);
+    // X-4：阅读进度越过阈值时触发后台预下载后续章节（每章一次）。
+    if (mounted) _maybePreDownload();
     // 翻页后刷新底部进度条 / 页码（底部栏位于 ListenableBuilder(_tts) 内，
     // 翻页不经由 _tts 通知，必须主动 setState 才能实时更新进度。
     if (mounted) setState(() {});
+  }
+
+  /// X-4：当前章阅读进度越过阈值时，后台预下载后续 N 章正文（离线阅读 /
+  /// 快速切章命中缓存）。每章只触发一次，静默失败不打扰阅读。
+  void _maybePreDownload() {
+    if (!_preDownloadPrefs.enabled) return;
+    if (_isLocalMode) return;
+    final int currentIdx = _chapterIndex;
+    if (_preDownloadTriggeredFor == currentIdx) return;
+    final int total = _pagination?.pages.length ?? 0;
+    if (total <= 0) return;
+    final int percent =
+        (((_currentPage + 1) / total) * 100).round();
+    if (percent < _preDownloadPrefs.thresholdPercent) return;
+    _preDownloadTriggeredFor = currentIdx;
+    final PluginConfig? src = _source;
+    if (src == null) return;
+    unawaited(_preDownloader.preDownload(
+      service: _service,
+      source: src,
+      novelId: widget.novelId,
+      chapters: widget.chapters,
+      startIndex: currentIdx + 1,
+      count: _preDownloadPrefs.count,
+    ));
   }
 
   /// 把当前分页结果注入选区控制器，并异步加载本章已存划线（重新解析定位）。

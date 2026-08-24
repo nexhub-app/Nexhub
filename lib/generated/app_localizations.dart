@@ -5924,6 +5924,30 @@ abstract class AppLocalizations {
   /// **'Other'**
   String get novelSectionMisc;
 
+  /// No description provided for @novelSectionPreDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-download'**
+  String get novelSectionPreDownload;
+
+  /// No description provided for @preDownloadEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-download upcoming chapters while reading'**
+  String get preDownloadEnabled;
+
+  /// No description provided for @preDownloadThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Trigger threshold (current chapter progress)'**
+  String get preDownloadThreshold;
+
+  /// No description provided for @preDownloadCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapters to pre-download'**
+  String get preDownloadCount;
+
   /// No description provided for @novelShowChapterTitle.
   ///
   /// In en, this message translates to:

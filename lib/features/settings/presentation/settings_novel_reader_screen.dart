@@ -12,6 +12,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/comic/models/reader_preferences.dart';
 import '../../../core/novel/novel_page_animation.dart';
+import '../../../core/novel/novel_pre_download_preferences.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -36,6 +37,9 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
   late ReaderDefaultSettings _settings;
   bool _loaded = false;
 
+  /// X-4：阅读中预下载配置（独立于 [_settings] 聚合，直接读写）。
+  NovelPreDownloadPreferences _preDownload = const NovelPreDownloadPreferences();
+
   @override
   void initState() {
     super.initState();
@@ -48,11 +52,19 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
         });
       }
     });
+    NovelPreDownloadPreferences.load().then((p) {
+      if (mounted) setState(() => _preDownload = p);
+    });
   }
 
   void _update(ReaderDefaultSettings next) {
     setState(() => _settings = next);
     _store.save(next);
+  }
+
+  void _updatePreDownload(NovelPreDownloadPreferences next) {
+    setState(() => _preDownload = next);
+    NovelPreDownloadPreferences.save(next);
   }
 
   // ── 标签辅助函数 ──
@@ -1457,6 +1469,43 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                         ),
                       ],
                     ),
+                  ],
+                ),
+
+                // ── 10b. 阅读中预下载（X-4 跨类型对齐）──
+                SettingsCard(
+                  key: const ValueKey<String>('novel.predownload'),
+                  index: 10,
+                  title: l10n.novelSectionPreDownload,
+                  children: <Widget>[
+                    SettingsSwitchTile(
+                      title: l10n.preDownloadEnabled,
+                      value: _preDownload.enabled,
+                      onChanged: (v) => _updatePreDownload(
+                          _preDownload.copyWith(enabled: v)),
+                    ),
+                    if (_preDownload.enabled) ...<Widget>[
+                      SettingsSliderTile(
+                        label: l10n.preDownloadThreshold,
+                        value: _preDownload.thresholdPercent.toDouble(),
+                        min: 50,
+                        max: 99,
+                        divisions: 49,
+                        display: '${_preDownload.thresholdPercent}%',
+                        onChanged: (v) => _updatePreDownload(
+                            _preDownload.copyWith(thresholdPercent: v.round())),
+                      ),
+                      SettingsSliderTile(
+                        label: l10n.preDownloadCount,
+                        value: _preDownload.count.toDouble(),
+                        min: 1,
+                        max: 10,
+                        divisions: 9,
+                        display: '${_preDownload.count}',
+                        onChanged: (v) => _updatePreDownload(
+                            _preDownload.copyWith(count: v.round())),
+                      ),
+                    ],
                   ],
                 ),
               ],

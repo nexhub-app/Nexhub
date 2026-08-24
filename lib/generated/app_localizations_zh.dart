@@ -3024,6 +3024,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelSectionMisc => '其他';
 
   @override
+  String get novelSectionPreDownload => '预下载';
+
+  @override
+  String get preDownloadEnabled => '阅读中预下载后续章节';
+
+  @override
+  String get preDownloadThreshold => '触发阈值（当前章进度）';
+
+  @override
+  String get preDownloadCount => '预下载章节数';
+
+  @override
   String get novelShowChapterTitle => '正文显示章节标题';
 
   @override
