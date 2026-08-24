@@ -414,17 +414,23 @@ Future<List<String>> _scanWorkDirFiles(
       return <String>[]; // SAF 下 folder 子目录模式暂不支持（归档模式正常）。
     }
     final r = scanComicFolder(workDir);
-    if (r.archives.isNotEmpty || r.others.isNotEmpty) {
-      return <String>[...r.archives, ...r.others];
+    // 有归档文件（cbz/zip/rar）：每归档一章，优先使用。
+    if (r.archives.isNotEmpty) {
+      return r.archives;
     }
+    // 无归档但有子目录（典型漫画下载：每话一子目录）：优先子目录列表。
     final dir = Directory(workDir);
-    if (!dir.existsSync()) return <String>[];
-    return dir
-        .listSync()
-        .whereType<Directory>()
-        .map((d) => d.path)
-        .toList()
-      ..sort();
+    if (dir.existsSync()) {
+      final List<String> subDirs = dir
+          .listSync()
+          .whereType<Directory>()
+          .map((d) => d.path)
+          .toList()
+        ..sort();
+      if (subDirs.isNotEmpty) return subDirs;
+    }
+    // 无归档、无子目录：回落零散图片文件（松散图片单章模式）。
+    return r.others;
   }
   return <String>[];
 }

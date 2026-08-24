@@ -59,9 +59,16 @@ class ComicDownloadHandler implements DownloadHandler {
       for (var i = 0; i < chapters.length; i++) {
         _throwIfCancelled(isCancelled);
         final ch = chapters[i];
-        // 话目录按「全局序号」命名（与视频一致，保证分批单独下载不互相覆盖）。
+        // 话目录按「全局序号_标题」命名（与视频一致带序号保证分批不互相覆盖，
+        // 同时带章节标题便于文件管理器识别；标题为空时退化为纯序号）。
         final seq = ch.number ?? (i + 1);
-        final chDir = fs.join(basePath, _pad(seq));
+        final titlePart = _sanitizeTitle(
+          task.chapterTitles.length > i ? task.chapterTitles[i] : '',
+        );
+        final chDir = fs.join(
+          basePath,
+          titlePart.isEmpty ? _pad(seq) : '${_pad(seq)}_$titlePart',
+        );
         await fs.createDir(chDir);
         final images = await service.fetchImages(
           source,
@@ -151,7 +158,14 @@ class ComicDownloadHandler implements DownloadHandler {
         continue;
       }
       final cbzBytes = CbzBuilder.build(pages: chPages);
-      final cbzPath = fs.join(basePath, '${_pad(seq)}.cbz');
+      // 文件名 = 序号_章节标题.cbz（标题含非法文件名字符时清洗）。
+      final String titlePart = _sanitizeTitle(task.chapterTitles.length > i
+          ? task.chapterTitles[i]
+          : '');
+      final String cbzName = titlePart.isEmpty
+          ? '${_pad(seq)}.cbz'
+          : '${_pad(seq)}_$titlePart.cbz';
+      final cbzPath = fs.join(basePath, cbzName);
       await fs.writeBytes(cbzPath, cbzBytes);
       chapterPaths[i] = cbzPath;
       wroteChapters++;
@@ -209,6 +223,15 @@ class ComicDownloadHandler implements DownloadHandler {
         head.startsWith('<HTML') ||
         head.startsWith('<HEAD') ||
         head.startsWith('<BODY');
+  }
+
+  /// 清洗文件名非法字符（/ \ : * ? " < > |），若结果为空返回空串。
+  static String _sanitizeTitle(String title) {
+    final String cleaned = title.replaceAll(
+      RegExp(r'[/\\:*?"<>|]'),
+      '',
+    ).trim();
+    return cleaned;
   }
 
   static String _pad(int n, [int width = 4]) =>

@@ -8,6 +8,7 @@ import 'package:media_kit/media_kit.dart';
 import '../models/episode.dart';
 import '../settings/player_settings.dart' show UpscaleShaderMode;
 import 'anime4k_shaders.dart';
+import 'demuxer_cache_policy.dart';
 import 'media_kit_backend.dart';
 import 'subtitle_memory_store.dart';
 import 'video_player_backend.dart';
@@ -387,6 +388,13 @@ class PlayerController extends ChangeNotifier {
     /// 或未知协议处理，导致 `player.open` 既不报错也不完成（UI 无限转圈）。
     /// 网络地址 / 已带 scheme 的地址保持原样。
     final openUrl = _normalizeOpenUrl(url);
+    // F-29：HLS 地址强制 `demuxer-lavf-format=hls`，跳过内容探测；
+    // 须在 open 前设置（demuxer 打开时读取）。
+    try {
+      await _backend.prepareDemuxerForUrl(openUrl);
+    } on Object {
+      // 后端不支持（NoOp / Web 降级），忽略。
+    }
     await _backend.player.open(Media(openUrl, httpHeaders: headers));
     // F-22：记录当前媒体 URL，异步恢复字幕记忆（不阻塞打开，失败静默）。
     _subtitleMediaUrl = url;
@@ -467,7 +475,7 @@ class PlayerController extends ChangeNotifier {
       try {
         await _backend.player.stream.duration
             .firstWhere((Duration d) => d > Duration.zero)
-            .timeout(const Duration(seconds: 8));
+            .timeout(openReadyTimeout);
       } on Object {
         // 超时或流异常：仍尝试 seek 一次，失败也不影响播放。
       }
@@ -947,6 +955,28 @@ class PlayerController extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  // ────────── demuxer 缓存降级（F-29） ──────────
+
+  /// 应用 demuxer 缓存档位（移动网络 / 低内存降级）。
+  ///
+  /// 后端不支持（NoOp / Web 降级）时静默忽略。运行时可反复调用，
+  /// 网络切换时由播放器侧重新 resolve 后再次应用。
+  Future<void> applyDemuxerCacheProfile(DemuxerCacheProfile profile) async {
+    try {
+      await _backend.setDemuxerCacheBudget(profile.maxBytes, profile.maxBackBytes);
+    } on Object {
+      // 后端不支持（NoOp 降级），忽略。
+    }
+  }
+
+  // ────────── 分级就绪超时（F-30） ──────────
+
+  /// open 后元数据就绪等待超时（[_restorePositionAfterOpen] 使用）。
+  ///
+  /// 播放器侧按来源分级设置：源解析的媒体服务器 30s、直链网络 6s、
+  /// 本地文件 5s；默认 8s 与历史行为一致。
+  Duration openReadyTimeout = const Duration(seconds: 8);
 
   /// 当前解码模式。
   String get currentHwdec => _backend.currentHwdec;

@@ -13,10 +13,6 @@ import 'package:provider/provider.dart';
 import '../../features/novel/presentation/novel_reader_screen.dart';
 import '../../features/manga/presentation/comic_reader_screen.dart';
 import '../../generated/app_localizations.dart';
-import '../download/download_manager.dart';
-import '../download/download_local_first.dart';
-import '../download/download_task.dart' show DownloadTask;
-import '../local/local_content_actions.dart' show openDownloadedWorkFolder;
 import '../models/episode.dart' show Episode;
 import '../models/plugin_config.dart' show PluginConfig, SourceType;
 import '../navigation/app_page_route.dart';
@@ -60,36 +56,6 @@ Future<void> openReadingFromQueue(
   QueuedReading w,
   ReadingQueueStore store,
 ) async {
-  // 本地优先：已下载（同源同 id / 标题匹配）的作品直接本地读——
-  // 不弹加载指示、不抓目录（下载完成的内容离线可读）。
-  DownloadManager? dm;
-  try {
-    dm = context.read<DownloadManager>();
-  } on Object {
-    dm = null;
-  }
-  if (dm != null) {
-    final Object? matched = findLocalDownload(
-      dm,
-      sourceType: w.sourceType,
-      contentId: w.itemId,
-      title: w.title,
-    );
-    if (matched is DownloadTask && context.mounted) {
-      await openDownloadedWorkFolder(
-        context,
-        id: w.itemId,
-        title: w.title,
-        sourceId: w.sourceId,
-        workDir: matched.localPath!,
-        kind: kindForFormat(matched.format),
-        initialIndex: w.initialChapterIndex,
-      );
-      await store.removeByItemId(w.itemId);
-      await store.setCurrent(w);
-      return;
-    }
-  }
   final l10n = AppLocalizations.of(context);
   // 加载指示：抓目录可能需要若干秒（长书目录多页串行）。
   showDialog<void>(

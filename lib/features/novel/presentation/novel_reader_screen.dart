@@ -41,6 +41,7 @@ import '../../../core/utils/app_log.dart';
 import '../../../core/utils/volume_key_listener.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/download/download_manager.dart';
+import '../../../core/download/local_to_online.dart';
 import '../../../core/novel/novel_page_animation.dart';
 import '../../../core/novel/novel_progress_manager.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
@@ -498,6 +499,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   /// 已触发过预下载的章节索引（每章只触发一次）。
   int _preDownloadTriggeredFor = -1;
+
+  /// 本地读完自动接续在线（无缝）：防重入标志。
+  bool _localToOnlineTriggered = false;
 
   /// 滚动模式 TTS 跟随：当前朗读段挂此 key，帧后 ensureVisible 滚到可视区。
   final GlobalKey _ttsParagraphKey = GlobalKey();
@@ -3159,6 +3163,31 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       } else {
         _loadChapter(_chapterIndex);
       }
+      return;
+    }
+    // 本地模式读完最后一章：无缝接入在线内容继续阅读。
+    if (_isLocalMode) {
+      unawaited(_continueOnlineLocal());
+    }
+  }
+
+  /// 本地内容读完自动接续在线（无缝）：抓在线目录 → 定位续读点 →
+  /// pushReplacement 替换为在线阅读器。失败时提示并允许重试。
+  Future<void> _continueOnlineLocal() async {
+    if (_localToOnlineTriggered) return;
+    _localToOnlineTriggered = true;
+    final bool switched = await continueOnlineAfterLocal(
+      context,
+      sourceType: SourceType.novelSource,
+      contentId: widget.novelId,
+      title: widget.title,
+      sourceId: widget.sourceId,
+      localChapters: _effectiveChapters,
+      localLastIndex: _chapterIndex,
+    );
+    // 切换未发生（无在线源 / 已是最新 / 抓取失败）：复位触发位以便重试。
+    if (!switched && mounted) {
+      setState(() => _localToOnlineTriggered = false);
     }
   }
 
@@ -4419,7 +4448,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         (_currentPage > 0 || _chapterIndex > 0);
     final bool hasNext = !_loading &&
         (_currentPage < total - 1 ||
-            _chapterIndex < _effectiveChapters.length - 1);
+            _chapterIndex < _effectiveChapters.length - 1 ||
+            // 本地模式末页时允许按钮可点（触发下一章/在线续读）。
+            _isLocalMode);
     // 滑块仅在多页时允许拖动跳页；单页时禁用（无跳页意义）但保留布局。
     final bool sliderInteractive = isScroll || total > 1;
     final int divisions = total > 1 ? total - 1 : 1;

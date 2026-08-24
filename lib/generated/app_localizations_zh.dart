@@ -3036,6 +3036,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preDownloadCount => '预下载章节数';
 
   @override
+  String preDownloadStarted(Object count) {
+    return '正在后台预下载后续 $count 章';
+  }
+
+  @override
+  String preDownloadDone(Object count) {
+    return '已预下载 $count 章';
+  }
+
+  @override
+  String get preDownloadFailedHint => '预下载失败（可能需要验证或网络超时）';
+
+  @override
+  String get localReadContinueOnline => '本地内容已读完，正在接入在线继续阅读…';
+
+  @override
+  String get localContinueOnlineFailed => '无法接入在线内容';
+
+  @override
+  String get localContinueOnlineUpToDate => '已读完最新内容';
+
+  @override
   String get novelShowChapterTitle => '正文显示章节标题';
 
   @override
@@ -4440,10 +4462,129 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageFavoriteSourceComic => '漫画';
 
   @override
-  String get imageFavoriteSourcePlayer => '播放器';
+  String get imageFavoriteSourcePlayer => '媒体';
 
   @override
   String get imageFavoriteSourceNovel => '小说';
+
+  @override
+  String get imageFavoriteAll => '全部';
+
+  @override
+  String get imageFavoriteSearchHint => '搜索标题 / 作品 / 链接';
+
+  @override
+  String get imageFavoriteSortNewest => '最新';
+
+  @override
+  String get imageFavoriteSortOldest => '最早';
+
+  @override
+  String get imageFavoriteSortTitle => '按标题';
+
+  @override
+  String imageFavoriteCount(Object count) {
+    return '$count 张';
+  }
+
+  @override
+  String get imageFavoriteNoMatch => '无匹配收藏';
+
+  @override
+  String get imageFavoriteFilter => '筛选分类';
+
+  @override
+  String get imageFavoriteTimeAll => '全部时间';
+
+  @override
+  String get imageFavoriteTimeToday => '今天';
+
+  @override
+  String get imageFavoriteTimeWeek => '本周';
+
+  @override
+  String get imageFavoriteTimeMonth => '本月';
+
+  @override
+  String get imageFavoriteTimeYear => '今年';
+
+  @override
+  String get imageFavoriteTimeOlder => '更早';
+
+  @override
+  String get imageFavoriteLayoutGrid => '网格';
+
+  @override
+  String get imageFavoriteLayoutMasonry => '瀑布流';
+
+  @override
+  String get imageFavoriteGroupByWork => '按作品';
+
+  @override
+  String get imageFavoriteDisplayOptions => '显示与排序';
+
+  @override
+  String get imageFavoriteShowTitle => '显示标题';
+
+  @override
+  String get imageFavoriteShowTime => '显示时间';
+
+  @override
+  String get imageFavoriteRename => '重命名标题';
+
+  @override
+  String get imageFavoriteRenamed => '已重命名';
+
+  @override
+  String get imageFavoriteTitleHint => '新标题';
+
+  @override
+  String get imageFavoriteAllFolders => '全部';
+
+  @override
+  String get imageFavoriteFiltersToggle => '收起 / 展开筛选';
+
+  @override
+  String get imageFavoriteUnfiled => '未分类';
+
+  @override
+  String get imageFavoriteNewFolder => '新建文件夹';
+
+  @override
+  String get imageFavoriteFolderHint => '文件夹名称';
+
+  @override
+  String get imageFavoriteDeleteFolder => '删除文件夹';
+
+  @override
+  String imageFavoriteDeleteFolderConfirm(Object folder) {
+    return '删除文件夹 $folder？其中图片将回到未分类';
+  }
+
+  @override
+  String imageFavoriteSelected(Object count) {
+    return '已选 $count 张';
+  }
+
+  @override
+  String get imageFavoriteSelectAll => '全选';
+
+  @override
+  String get imageFavoriteMoveTo => '移动到文件夹';
+
+  @override
+  String get imageFavoriteMoved => '已移动';
+
+  @override
+  String imageFavoriteDeleteMulti(Object count) {
+    return '确定删除选中的 $count 张图片？';
+  }
+
+  @override
+  String get imageFavoriteRenameSingle => '请仅选择一张进行重命名';
+
+  @override
+  String get imageFavoriteGalleryDesc => '漫画截图、播放器截图与小说插图的统一图库（文件夹/多选管理）';
 
   @override
   String get readingQueueTitle => '待读队列';

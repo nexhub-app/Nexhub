@@ -39,6 +39,20 @@ abstract class VideoPlayerBackend {
     throw UnsupportedError('setUpscaleShaders is not supported by this backend');
   }
 
+  /// 设置 demuxer 前向 / 后向缓存预算（F-29 缓存策略降级）。
+  ///
+  /// 默认实现抛出 [UnsupportedError]，子类按需覆写。
+  Future<void> setDemuxerCacheBudget(int maxBytes, int maxBackBytes) async {
+    throw UnsupportedError('setDemuxerCacheBudget is not supported by this backend');
+  }
+
+  /// open 前按地址准备 demuxer 格式（F-29：HLS 强制 hls）。
+  ///
+  /// 默认实现抛出 [UnsupportedError]，子类按需覆写。
+  Future<void> prepareDemuxerForUrl(String url) async {
+    throw UnsupportedError('prepareDemuxerForUrl is not supported by this backend');
+  }
+
   /// 读取后端只读属性（如 mpv 的 `hwdec-current`）。
   ///
   /// 默认实现返回 null（不支持查询），子类按需覆写。

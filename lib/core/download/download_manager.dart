@@ -540,6 +540,7 @@ class DownloadManager extends ChangeNotifier {
       contentId: item.id,
       format: format,
       chapterTitles: selectedChapters.map((c) => c.title).toList(),
+      chapterIds: selectedChapters.map((c) => c.id).toList(),
       totalChapters: selectedChapters.length,
       downloadedChapters: 0,
       status: DownloadStatus.pending,
@@ -1253,6 +1254,11 @@ class DownloadManager extends ChangeNotifier {
       }
       final localPath = result.workPath;
       final chapterFiles = result.chapterFilePaths;
+      // 与章节文件路径保持平行：本地下载的章节身份以"本轮实际下载的 chapters"
+      // 为准（重试时可能是原选中章节的子集），避免 chapterFilePaths 与
+      // chapterIds 错位导致阅读器按身份对应章节时张冠李戴。
+      final List<String> chapterIdsForRun =
+          chapters.map((c) => c.id).toList();
 
       // 下载完成瞬间又被取消（最后章节与取消竞态）→ 同样按取消处理。
       if (_cancelledTaskIds.contains(task.id)) {
@@ -1281,6 +1287,7 @@ class DownloadManager extends ChangeNotifier {
           downloadedChapters: task.totalChapters,
           localPath: localPath,
           chapterFilePaths: chapterFiles,
+          chapterIds: chapterIdsForRun,
           completedAt: DateTime.now().millisecondsSinceEpoch,
           localCoverPath: localCoverPath,
           coverUrl: localCoverPath ?? item.coverUrl,
@@ -1297,6 +1304,7 @@ class DownloadManager extends ChangeNotifier {
         downloadedChapters: task.totalChapters,
         localPath: localPath,
         chapterFilePaths: chapterFiles,
+        chapterIds: chapterIdsForRun,
         completedAt: DateTime.now().millisecondsSinceEpoch,
         localCoverPath: localCoverPath,
         coverUrl: localCoverPath ?? item.coverUrl,

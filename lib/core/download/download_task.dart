@@ -115,6 +115,13 @@ class DownloadTask {
   /// 旧数据（无此字段）从 [localPath] 推导（见 [DownloadManager] 恢复逻辑）。
   final List<String>? chapterFilePaths;
 
+  /// 逐章/逐集的章节 id 列表（与 [chapterFilePaths] 平行对应）。
+  ///
+  /// 供阅读器把"本地文件"精确对应到"在线章节身份"——而不是按数组下标硬对应，
+  /// 修正「本地/在线章节张冠李戴」类问题。旧数据（无此字段）为 null，
+  /// 此时阅读器回退到 [chapterTitles] 甚至下标兜底，保证旧下载仍可看。
+  final List<String>? chapterIds;
+
   /// 创建时间戳（毫秒）。
   final int createdAt;
 
@@ -153,6 +160,7 @@ class DownloadTask {
     this.error,
     this.localPath,
     this.chapterFilePaths,
+    this.chapterIds,
     required this.createdAt,
     this.completedAt,
     this.localCoverPath,
@@ -194,6 +202,7 @@ class DownloadTask {
     String? error,
     String? localPath,
     List<String>? chapterFilePaths,
+    List<String>? chapterIds,
     int? completedAt,
     String? localCoverPath,
     String? coverKey,
@@ -217,6 +226,7 @@ class DownloadTask {
         error: error ?? this.error,
         localPath: localPath ?? this.localPath,
         chapterFilePaths: chapterFilePaths ?? this.chapterFilePaths,
+        chapterIds: chapterIds ?? this.chapterIds,
         createdAt: createdAt,
         completedAt: completedAt ?? this.completedAt,
         localCoverPath: localCoverPath ?? this.localCoverPath,
@@ -241,6 +251,7 @@ class DownloadTask {
         'error': error,
         'localPath': localPath,
         'chapterFilePaths': chapterFilePaths,
+        'chapterIds': chapterIds,
         'createdAt': createdAt,
         'completedAt': completedAt,
         'localCoverPath': localCoverPath,
@@ -270,6 +281,9 @@ class DownloadTask {
         error: json['error'] as String?,
         localPath: json['localPath'] as String?,
         chapterFilePaths: (json['chapterFilePaths'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList(),
+        chapterIds: (json['chapterIds'] as List<dynamic>?)
                 ?.map((e) => e as String)
                 .toList(),
         createdAt: json['createdAt'] as int? ?? 0,

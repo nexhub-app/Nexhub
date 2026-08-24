@@ -36,6 +36,7 @@ import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/download/download_manager.dart';
+import '../../../core/download/local_to_online.dart';
 import '../../../core/download/download_settings.dart';
 import '../../../core/async_session.dart';
 import '../../../core/reader/reading_queue_store.dart';
@@ -341,6 +342,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 已触发自动下载的章节索引（REQ-C7）：每章仅触发一次，避免翻页重复入队。
   int _autoDownloadTriggeredChapter = -1;
+
+  /// 本地读完自动接续在线（无缝）：防重入标志。
+  bool _localToOnlineTriggered = false;
 
   // ── 三层设置覆盖（REQ-C9）──
   /// 设备/会话层运行时覆盖：优先级最高、退出阅读器不持久化。
@@ -2646,6 +2650,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _hideSkipTransition();
     final next = _resolveChapterTarget(1);
     if (next == null) {
+      // 本地模式读完最后一话：无缝接入在线继续阅读（失败回落原提示）。
+      if (_isLocalMode && widget.sourceId.isNotEmpty) {
+        unawaited(_continueOnlineLocal());
+        return;
+      }
       _showBoundaryHint(AppLocalizations.of(context).readerLastChapterReached);
       return;
     }
@@ -2669,6 +2678,26 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _loadLocalImages();
     } else {
       _loadChapter(_chapterIndex);
+    }
+  }
+
+  /// 本地内容读完自动接续在线（无缝）：抓在线目录 → 定位续读点 →
+  /// pushReplacement 替换为在线阅读器。失败时提示并允许重试。
+  Future<void> _continueOnlineLocal() async {
+    if (_localToOnlineTriggered) return;
+    _localToOnlineTriggered = true;
+    final bool switched = await continueOnlineAfterLocal(
+      context,
+      sourceType: SourceType.mangaSource,
+      contentId: widget.comicId,
+      title: widget.title,
+      sourceId: widget.sourceId,
+      localChapters: widget.chapters,
+      localLastIndex: _chapterIndex,
+    );
+    // 切换未发生（无在线源 / 已是最新 / 抓取失败）：复位触发位以便重试。
+    if (!switched && mounted) {
+      setState(() => _localToOnlineTriggered = false);
     }
   }
 
@@ -6224,3 +6253,4 @@ class _NoOverscrollBehavior extends ScrollBehavior {
   ) =>
       child;
 }
+

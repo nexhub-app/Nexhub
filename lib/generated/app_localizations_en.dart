@@ -3085,6 +3085,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preDownloadCount => 'Chapters to pre-download';
 
   @override
+  String preDownloadStarted(Object count) {
+    return 'Pre-downloading next $count chapters in background';
+  }
+
+  @override
+  String preDownloadDone(Object count) {
+    return 'Pre-downloaded $count chapters';
+  }
+
+  @override
+  String get preDownloadFailedHint =>
+      'Pre-download failed (may need verification or network timed out)';
+
+  @override
+  String get localReadContinueOnline =>
+      'Local content finished, switching to online to continue…';
+
+  @override
+  String get localContinueOnlineFailed => 'Failed to continue online';
+
+  @override
+  String get localContinueOnlineUpToDate => 'You have read the latest content';
+
+  @override
   String get novelShowChapterTitle => 'Show chapter title in body';
 
   @override
@@ -4520,10 +4544,130 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageFavoriteSourceComic => 'Comic';
 
   @override
-  String get imageFavoriteSourcePlayer => 'Player';
+  String get imageFavoriteSourcePlayer => 'Media';
 
   @override
   String get imageFavoriteSourceNovel => 'Novel';
+
+  @override
+  String get imageFavoriteAll => 'All';
+
+  @override
+  String get imageFavoriteSearchHint => 'Search title, work or link';
+
+  @override
+  String get imageFavoriteSortNewest => 'Newest';
+
+  @override
+  String get imageFavoriteSortOldest => 'Oldest';
+
+  @override
+  String get imageFavoriteSortTitle => 'By title';
+
+  @override
+  String imageFavoriteCount(Object count) {
+    return '$count images';
+  }
+
+  @override
+  String get imageFavoriteNoMatch => 'No matching favorites';
+
+  @override
+  String get imageFavoriteFilter => 'Filter by source';
+
+  @override
+  String get imageFavoriteTimeAll => 'All time';
+
+  @override
+  String get imageFavoriteTimeToday => 'Today';
+
+  @override
+  String get imageFavoriteTimeWeek => 'This week';
+
+  @override
+  String get imageFavoriteTimeMonth => 'This month';
+
+  @override
+  String get imageFavoriteTimeYear => 'This year';
+
+  @override
+  String get imageFavoriteTimeOlder => 'Earlier';
+
+  @override
+  String get imageFavoriteLayoutGrid => 'Grid';
+
+  @override
+  String get imageFavoriteLayoutMasonry => 'Masonry';
+
+  @override
+  String get imageFavoriteGroupByWork => 'By work';
+
+  @override
+  String get imageFavoriteDisplayOptions => 'Display & sort';
+
+  @override
+  String get imageFavoriteShowTitle => 'Show title';
+
+  @override
+  String get imageFavoriteShowTime => 'Show time';
+
+  @override
+  String get imageFavoriteRename => 'Rename title';
+
+  @override
+  String get imageFavoriteRenamed => 'Renamed';
+
+  @override
+  String get imageFavoriteTitleHint => 'New title';
+
+  @override
+  String get imageFavoriteAllFolders => 'All folders';
+
+  @override
+  String get imageFavoriteFiltersToggle => 'Collapse / expand filters';
+
+  @override
+  String get imageFavoriteUnfiled => 'Unfiled';
+
+  @override
+  String get imageFavoriteNewFolder => 'New folder';
+
+  @override
+  String get imageFavoriteFolderHint => 'Folder name';
+
+  @override
+  String get imageFavoriteDeleteFolder => 'Delete folder';
+
+  @override
+  String imageFavoriteDeleteFolderConfirm(Object folder) {
+    return 'Delete folder $folder? Images inside will return to unfiled';
+  }
+
+  @override
+  String imageFavoriteSelected(Object count) {
+    return '$count selected';
+  }
+
+  @override
+  String get imageFavoriteSelectAll => 'Select all';
+
+  @override
+  String get imageFavoriteMoveTo => 'Move to folder';
+
+  @override
+  String get imageFavoriteMoved => 'Moved';
+
+  @override
+  String imageFavoriteDeleteMulti(Object count) {
+    return 'Delete $count selected images?';
+  }
+
+  @override
+  String get imageFavoriteRenameSingle => 'Select exactly one image to rename';
+
+  @override
+  String get imageFavoriteGalleryDesc =>
+      'Unified gallery of comic pages, player screenshots and novel images (folders / multi-select)';
 
   @override
   String get readingQueueTitle => 'Reading queue';

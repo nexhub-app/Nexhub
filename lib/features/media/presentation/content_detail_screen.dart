@@ -35,7 +35,6 @@ import 'package:provider/provider.dart';
 
 import '../../../core/bookmark/unified_bookmark_repository.dart';
 import '../../../core/download/download_manager.dart';
-import '../../../core/download/download_local_first.dart';
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/history/history_manager.dart';
 import '../../../core/history/media_watched_manager.dart';
@@ -519,17 +518,6 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           ),
         );
       case SourceType.mangaSource:
-        // 本地优先：已下载（同作品/标题匹配）直接走本地阅读。
-        if (await openLocalFirstIfDownloaded(
-          context,
-          sourceType: SourceType.mangaSource,
-          contentId: widget.item.id,
-          title: widget.item.title,
-          sourceId: sid,
-          initialIndex: index,
-        )) {
-          break;
-        }
         await Navigator.of(context).push(
           AppPageRoute<void>(
             builder: (_) => ComicReaderScreen(
@@ -545,17 +533,6 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           ),
         );
       case SourceType.novelSource:
-        // 本地优先：已下载（同作品/标题匹配）直接走本地阅读。
-        if (await openLocalFirstIfDownloaded(
-          context,
-          sourceType: SourceType.novelSource,
-          contentId: widget.item.id,
-          title: widget.item.title,
-          sourceId: sid,
-          initialIndex: index,
-        )) {
-          break;
-        }
         await Navigator.of(context).push(
           AppPageRoute<void>(
             builder: (_) => NovelReaderScreen(

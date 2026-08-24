@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:canvas_danmaku/canvas_danmaku.dart' as cd;
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -27,6 +28,7 @@ import '../../../core/models/episode.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/player/player_controller.dart';
+import '../../../core/player/demuxer_cache_policy.dart';
 import '../../../core/player/audio_playback_service.dart';
 import '../../../core/player/pip_actions_bridge.dart';
 import '../../../core/player/play_queue_store.dart';
@@ -272,6 +274,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 自动重连已耗尽：置位后由 UI 展示「视频链接已失效，点击重试」，用户手动触发
   /// 重新解析并重新打开播放器（拿到未过期的新直链）。
   bool _reconnectExhausted = false;
+
+  // ─────────────── F-29 缓存策略降级 / F-30 分级重试 ───────────────
+
+  /// F-29：demuxer 缓存档位解析器（移动网络 / 低内存自动降级）。
+  final DemuxerCachePolicyResolver _cachePolicyResolver =
+      DemuxerCachePolicyResolver();
+
+  /// F-29：网络变化订阅（蜂窝 ↔ Wi-Fi 切换时重算缓存档位）。
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   // ─────────────────────── F-1 多源自动选源 / 故障回退 ───────────────────────
 
@@ -804,6 +815,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 应用全局播放器默认设置（解码/音频/比例/倍速/音量/方向/手势/字幕样式）。
     // 这是让 PlayerSettings 13 个字段真正生效的「地基」调用。
     await _applyPlayerSettings();
+
+    // F-29：按当前网络 / 设备内存应用 demuxer 缓存档位，并订阅网络变化
+    // （蜂窝 ↔ Wi-Fi 切换时即时升降档，无需重开播放器）。
+    unawaited(_applyDemuxerCachePolicy());
+    _connectivitySub?.cancel();
+    _connectivitySub = _cachePolicyResolver.onConnectivityChanged.listen((_) {
+      if (_disposed) return;
+      unawaited(_applyDemuxerCachePolicy());
+    });
 
     if (_isDirectMode) {
       // 本地 / 直链模式：跳过在线源解析，直接打开给定地址。
@@ -2540,6 +2560,52 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     timer.cancel();
     await sub.cancel();
     return result;
+  }
+
+  /// F-30：按媒体来源分级的就绪等待超时。
+  ///
+  /// 源解析的媒体服务器（CMS / P2P 分发，冷启动慢）30s；直链网络地址 6s；
+  /// 本地文件 5s。供 [_waitUntilReady] / [_seekWhenReady] 与 controller
+  /// 的 `openReadyTimeout` 统一取值。
+  Duration get _readyTimeout {
+    if (!_isDirectMode) return const Duration(seconds: 30);
+    final url = _playUrl ?? '';
+    final isNetwork = url.startsWith('http://') || url.startsWith('https://');
+    return isNetwork ? const Duration(seconds: 6) : const Duration(seconds: 5);
+  }
+
+  /// F-30：初始 open 的单次自动重试。
+  ///
+  /// open 后按分级超时等元数据；超时（duration 始终为 0，常见于媒体服务器
+  /// 冷启动首连失败）则自动 re-open 同地址一次自愈。切集 / 重连会推进
+  /// [_loadSession] 代次，使过期 token 的重试短路，避免误重试新地址；
+  /// 重连进行中（[_reconnecting]）也跳过，不与 stall 检测叠加。
+  Future<void> _retryOpenOnceIfStalled() async {
+    final token = _loadSession.current;
+    final ready = await _waitUntilReady(_readyTimeout);
+    if (ready || _disposed || _reconnecting || !_loadSession.isValid(token)) {
+      return;
+    }
+    final url = _playUrl;
+    if (url == null || url.isEmpty) return;
+    _controller.openReadyTimeout = _readyTimeout;
+    AppLog.instance.w(
+        '[F-30] open 后 ${_readyTimeout.inSeconds}s 元数据未就绪，自动重试一次：$url');
+    try {
+      await _reopenAndResume(url, _playHeaders, _lastGoodPosition);
+    } on Object {
+      // 重开失败交给 stall 检测 / 手动重试。
+    }
+  }
+
+  /// F-29：resolve 当前网络 / 设备条件并应用到 mpv demuxer 缓存。
+  Future<void> _applyDemuxerCachePolicy() async {
+    try {
+      final profile = await _cachePolicyResolver.resolve();
+      await _controller.applyDemuxerCacheProfile(profile);
+    } on Object {
+      // 解析或应用失败保持现状（后端默认标准档），不影响播放。
+    }
   }
 
   void _goPrevEpisode() {

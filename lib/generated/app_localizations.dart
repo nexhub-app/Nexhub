@@ -5948,6 +5948,42 @@ abstract class AppLocalizations {
   /// **'Chapters to pre-download'**
   String get preDownloadCount;
 
+  /// No description provided for @preDownloadStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-downloading next {count} chapters in background'**
+  String preDownloadStarted(Object count);
+
+  /// No description provided for @preDownloadDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-downloaded {count} chapters'**
+  String preDownloadDone(Object count);
+
+  /// No description provided for @preDownloadFailedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pre-download failed (may need verification or network timed out)'**
+  String get preDownloadFailedHint;
+
+  /// No description provided for @localReadContinueOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Local content finished, switching to online to continue…'**
+  String get localReadContinueOnline;
+
+  /// No description provided for @localContinueOnlineFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to continue online'**
+  String get localContinueOnlineFailed;
+
+  /// No description provided for @localContinueOnlineUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'You have read the latest content'**
+  String get localContinueOnlineUpToDate;
+
   /// No description provided for @novelShowChapterTitle.
   ///
   /// In en, this message translates to:
@@ -8627,7 +8663,7 @@ abstract class AppLocalizations {
   /// No description provided for @imageFavoriteSourcePlayer.
   ///
   /// In en, this message translates to:
-  /// **'Player'**
+  /// **'Media'**
   String get imageFavoriteSourcePlayer;
 
   /// No description provided for @imageFavoriteSourceNovel.
@@ -8635,6 +8671,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Novel'**
   String get imageFavoriteSourceNovel;
+
+  /// No description provided for @imageFavoriteAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get imageFavoriteAll;
+
+  /// No description provided for @imageFavoriteSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search title, work or link'**
+  String get imageFavoriteSearchHint;
+
+  /// No description provided for @imageFavoriteSortNewest.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest'**
+  String get imageFavoriteSortNewest;
+
+  /// No description provided for @imageFavoriteSortOldest.
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest'**
+  String get imageFavoriteSortOldest;
+
+  /// No description provided for @imageFavoriteSortTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'By title'**
+  String get imageFavoriteSortTitle;
+
+  /// No description provided for @imageFavoriteCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} images'**
+  String imageFavoriteCount(Object count);
+
+  /// No description provided for @imageFavoriteNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching favorites'**
+  String get imageFavoriteNoMatch;
+
+  /// No description provided for @imageFavoriteFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by source'**
+  String get imageFavoriteFilter;
+
+  /// No description provided for @imageFavoriteTimeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get imageFavoriteTimeAll;
+
+  /// No description provided for @imageFavoriteTimeToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get imageFavoriteTimeToday;
+
+  /// No description provided for @imageFavoriteTimeWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This week'**
+  String get imageFavoriteTimeWeek;
+
+  /// No description provided for @imageFavoriteTimeMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get imageFavoriteTimeMonth;
+
+  /// No description provided for @imageFavoriteTimeYear.
+  ///
+  /// In en, this message translates to:
+  /// **'This year'**
+  String get imageFavoriteTimeYear;
+
+  /// No description provided for @imageFavoriteTimeOlder.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier'**
+  String get imageFavoriteTimeOlder;
+
+  /// No description provided for @imageFavoriteLayoutGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Grid'**
+  String get imageFavoriteLayoutGrid;
+
+  /// No description provided for @imageFavoriteLayoutMasonry.
+  ///
+  /// In en, this message translates to:
+  /// **'Masonry'**
+  String get imageFavoriteLayoutMasonry;
+
+  /// No description provided for @imageFavoriteGroupByWork.
+  ///
+  /// In en, this message translates to:
+  /// **'By work'**
+  String get imageFavoriteGroupByWork;
+
+  /// No description provided for @imageFavoriteDisplayOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Display & sort'**
+  String get imageFavoriteDisplayOptions;
+
+  /// No description provided for @imageFavoriteShowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show title'**
+  String get imageFavoriteShowTitle;
+
+  /// No description provided for @imageFavoriteShowTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Show time'**
+  String get imageFavoriteShowTime;
+
+  /// No description provided for @imageFavoriteRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename title'**
+  String get imageFavoriteRename;
+
+  /// No description provided for @imageFavoriteRenamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Renamed'**
+  String get imageFavoriteRenamed;
+
+  /// No description provided for @imageFavoriteTitleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New title'**
+  String get imageFavoriteTitleHint;
+
+  /// No description provided for @imageFavoriteAllFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'All folders'**
+  String get imageFavoriteAllFolders;
+
+  /// No description provided for @imageFavoriteFiltersToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse / expand filters'**
+  String get imageFavoriteFiltersToggle;
+
+  /// No description provided for @imageFavoriteUnfiled.
+  ///
+  /// In en, this message translates to:
+  /// **'Unfiled'**
+  String get imageFavoriteUnfiled;
+
+  /// No description provided for @imageFavoriteNewFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'New folder'**
+  String get imageFavoriteNewFolder;
+
+  /// No description provided for @imageFavoriteFolderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder name'**
+  String get imageFavoriteFolderHint;
+
+  /// No description provided for @imageFavoriteDeleteFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete folder'**
+  String get imageFavoriteDeleteFolder;
+
+  /// No description provided for @imageFavoriteDeleteFolderConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete folder {folder}? Images inside will return to unfiled'**
+  String imageFavoriteDeleteFolderConfirm(Object folder);
+
+  /// No description provided for @imageFavoriteSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String imageFavoriteSelected(Object count);
+
+  /// No description provided for @imageFavoriteSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get imageFavoriteSelectAll;
+
+  /// No description provided for @imageFavoriteMoveTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to folder'**
+  String get imageFavoriteMoveTo;
+
+  /// No description provided for @imageFavoriteMoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved'**
+  String get imageFavoriteMoved;
+
+  /// No description provided for @imageFavoriteDeleteMulti.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count} selected images?'**
+  String imageFavoriteDeleteMulti(Object count);
+
+  /// No description provided for @imageFavoriteRenameSingle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select exactly one image to rename'**
+  String get imageFavoriteRenameSingle;
+
+  /// No description provided for @imageFavoriteGalleryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Unified gallery of comic pages, player screenshots and novel images (folders / multi-select)'**
+  String get imageFavoriteGalleryDesc;
 
   /// No description provided for @readingQueueTitle.
   ///
