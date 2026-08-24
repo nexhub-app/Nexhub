@@ -499,6 +499,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 已触发过预下载的章节索引（每章只触发一次）。
   int _preDownloadTriggeredFor = -1;
 
+  /// 滚动模式 TTS 跟随：当前朗读段挂此 key，帧后 ensureVisible 滚到可视区。
+  final GlobalKey _ttsParagraphKey = GlobalKey();
+
   // ─────────────────────── 笔记（P3.1） ───────────────────────
   final NovelNoteManager _notes = NovelNoteManager();
 
@@ -3035,10 +3038,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   final VolumeKeyListener _volumeKeyListener = VolumeKeyListener();
 
   /// 按偏好挂载/卸载音量键原生拦截。调用点：[_init]、[_onPrefsChanged]
-  /// （偏好变化后即时生效）、dispose（恢复系统默认音量键行为）。
+  /// （偏好变化后即时生效）、dispose（恢复系统默认音量键行为）、
+  /// TTS 状态变化（朗读中不拦截，音量键恢复系统调音量——问题 5 修复）。
   Future<void> _syncVolumeKey() async {
-    final bool want =
-        _prefs.volumeKeyPageTurn && !kIsWeb && Platform.isAndroid;
+    final bool ttsActive = _tts.state != NovelTtsState.stopped;
+    final bool want = _prefs.volumeKeyPageTurn &&
+        !kIsWeb &&
+        Platform.isAndroid &&
+        !ttsActive;
     try {
       if (want) {
         await _volumeKeyListener.start(
@@ -3048,7 +3055,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         AppLog.instance.i('[小说音量键] 已开启原生拦截（音量下=下一页/音量上=上一页）');
       } else {
         await _volumeKeyListener.stop();
-        AppLog.instance.i('[小说音量键] 已关闭原生拦截');
+        AppLog.instance.i('[小说音量键] 已关闭原生拦截'
+            '${ttsActive ? '（朗读中，音量键用于调节音量）' : ''}');
       }
     } on Object catch (e) {
       // 原生通道未就绪/订阅异常：不阻塞阅读，写日志便于实机排查。
@@ -3165,13 +3173,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (!mounted) return;
     // X-5：通知栏会话同步（stopped 时 detach、playing/paused 时 attach/刷新标题）。
     _syncTtsAudioService();
+    // 问题 5：TTS 朗读中音量键恢复系统调音量（不翻页），状态变化时重新同步拦截。
+    unawaited(_syncVolumeKey());
     if (_tts.state == NovelTtsState.stopped) return;
     final int idx = _tts.currentIndex;
     final pages = _pagination?.pages;
     if (pages == null || pages.isEmpty) return;
     if (_prefs.pageAnimation.isScroll) {
-      // 滚动模式：仅刷新高亮，不抢翻页面。
+      // 滚动模式（问题 6 对齐）：刷新高亮 + 自动滚动跟随当前朗读段，
+      // 由 itemBuilder 挂 _ttsParagraphKey 的段定位。
       setState(() {});
+      _scheduleTtsParagraphScroll();
       return;
     }
     int? target;
@@ -3187,6 +3199,27 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
     // 高亮随 currentIndex 变化刷新（即使未翻页也要重绘选中段）。
     setState(() {});
+  }
+
+  /// 滚动模式 TTS 跟随（问题 6）：帧后把当前朗读段滚动到可视区
+  /// （约视口上 1/3，留出下文空间），随朗读进度自动滚动适应语速。
+  void _scheduleTtsParagraphScroll() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_tts.state == NovelTtsState.stopped) return;
+      final BuildContext? paragraphCtx = _ttsParagraphKey.currentContext;
+      if (paragraphCtx == null) return;
+      try {
+        Scrollable.ensureVisible(
+          paragraphCtx,
+          alignment: 0.3,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+        );
+      } on Object {
+        // ensureVisible 失败（如正在重建）忽略，下一段切换会再次触发。
+      }
+    });
   }
 
   /// TTS 模式下点击某一段落：跳转到该段落开始朗读。
@@ -3870,8 +3903,34 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         // 章节全局字符偏移坐标系（[NovelSelectionController.setBlocks]）。
         // 块为整段多行文本，Phase 4 长按直接选整块（精确折行 x 命中留待后续），
         // 拖拽扩选由工具条「整段」按钮覆盖（与分页行内限制一致）。
-        final Widget wrapped = !_ttsActiveForBody()
-            ? AnimatedBuilder(
+        // TTS 态（问题 6 对齐）：当前朗读段高亮强调 + 点按段落跳转朗读 +
+        // 自动滚动跟随（段挂 key，_onTtsChanged 帧后 ensureVisible）。
+        final Widget wrapped;
+        if (_ttsActiveForBody()) {
+          final bool isCurrent = idx == _tts.currentIndex;
+          final Widget text = isCurrent
+              ? Container(
+                  decoration: BoxDecoration(
+                    color: _prefs.resolveTextColor(bg).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppTokens.radiusXs),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 4, vertical: 2),
+                  child: bodyText,
+                )
+              : bodyText;
+          final Widget tappable = GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            excludeFromSemantics: true,
+            onTap: () => _onParagraphTapped(idx),
+            child: isCurrent
+                ? KeyedSubtree(key: _ttsParagraphKey, child: text)
+                : text,
+          );
+          wrapped = tappable;
+        } else {
+          final Widget selected =
+              AnimatedBuilder(
                 animation: _selectionController,
                 builder: (ctx, _) {
                   final spans = _selectionController.blockSpans(
@@ -3895,8 +3954,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     child: child,
                   );
                 },
-              )
-            : bodyText;
+              );
+          wrapped = selected;
+        }
         return Padding(
           padding: EdgeInsets.only(
             top: isHeading ? _prefs.paragraphSpacing * 2 : 0,
@@ -5436,6 +5496,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         onShowTapZonePreview: () => _showTapZonePreview(l10n),
         novelId: widget.novelId,
         novelName: widget.title,
+        // 问题 4：预下载配置保存后刷新阅读器内的快照，触发判定即时生效。
+        onPreDownloadChanged: () async {
+          _preDownloadPrefs = await NovelPreDownloadPreferences.load();
+        },
       ),
     );
 
@@ -6660,6 +6724,8 @@ class _NovelInlineSettings extends StatelessWidget {
   final VoidCallback? onShowTapZonePreview;
   final String novelId;
   final String novelName;
+  /// 问题 4：预下载配置保存后的回调（阅读器刷新快照，触发判定即时效）。
+  final VoidCallback? onPreDownloadChanged;
 
   const _NovelInlineSettings({
     required this.prefs,
@@ -6677,6 +6743,7 @@ class _NovelInlineSettings extends StatelessWidget {
     this.onShowTapZonePreview,
     required this.novelId,
     required this.novelName,
+    this.onPreDownloadChanged,
   });
 
   @override
@@ -7946,6 +8013,16 @@ class _NovelInlineSettings extends StatelessWidget {
                       },
                     ),
                     const SizedBox(height: AppTokens.spaceSm),
+                    // 阅读中预下载（问题 4）：开关/阈值/数量配置弹窗。
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.download_for_offline_outlined),
+                      title: Text(l10n.novelSectionPreDownload),
+                      subtitle: Text(l10n.preDownloadEnabled),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _showPreDownloadDialog(context, l10n),
+                    ),
+                    const SizedBox(height: AppTokens.spaceSm),
                     // 缓存本书到本地（离线阅读）
                     ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -7988,6 +8065,77 @@ class _NovelInlineSettings extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 问题 4：预下载配置弹窗（开关 / 触发阈值 / 章节数），保存后通知阅读器。
+  Future<void> _showPreDownloadDialog(
+      BuildContext context, AppLocalizations l10n) async {
+    final NovelPreDownloadPreferences initial =
+        await NovelPreDownloadPreferences.load();
+    if (!context.mounted) return;
+    NovelPreDownloadPreferences? draft;
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx2, StateSetter setDialogState) {
+          draft ??= initial;
+          final NovelPreDownloadPreferences d = draft!;
+          return AppAlertDialog(
+            title: Text(l10n.novelSectionPreDownload),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.preDownloadEnabled),
+                    value: d.enabled,
+                    onChanged: (v) => setDialogState(
+                        () => draft = draft!.copyWith(enabled: v)),
+                  ),
+                  if (d.enabled) ...<Widget>[
+                    const SizedBox(height: AppTokens.spaceSm),
+                    _SliderRow(
+                      label: l10n.preDownloadThreshold,
+                      value: d.thresholdPercent.toDouble(),
+                      min: 50,
+                      max: 99,
+                      divisions: 49,
+                      onChanged: (v) => setDialogState(() => draft =
+                          draft!.copyWith(thresholdPercent: v.round())),
+                    ),
+                    _SliderRow(
+                      label: l10n.preDownloadCount,
+                      value: d.count.toDouble(),
+                      min: 1,
+                      max: 10,
+                      divisions: 9,
+                      onChanged: (v) => setDialogState(() => draft =
+                          draft!.copyWith(count: v.round())),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(l10n.cancel),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  NovelPreDownloadPreferences.save(draft!);
+                  onPreDownloadChanged?.call();
+                },
+                child: Text(l10n.ok),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

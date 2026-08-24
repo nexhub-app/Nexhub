@@ -493,48 +493,58 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
   void _showSleepTimerPicker(AppLocalizations l10n) {
     showModalBottomSheet<void>(
       context: context,
+      // 内容行数较多，矮窗口下必须可滚动（否则 RenderFlex 溢出）。
+      isScrollControlled: true,
       builder: (BuildContext ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.timer_off),
-              title: Text(l10n.readerSleepTimerOff),
-              onTap: () {
-                Navigator.pop(ctx);
-                widget.onSleepTimerChanged?.call(const ComicSleepTimerState.off());
-              },
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.8,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  leading: const Icon(Icons.timer_off),
+                  title: Text(l10n.readerSleepTimerOff),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    widget.onSleepTimerChanged
+                        ?.call(const ComicSleepTimerState.off());
+                  },
+                ),
+                for (final m in <int>[15, 30, 45, 60, 90])
+                  ListTile(
+                    leading: const Icon(Icons.timer),
+                    title: Text(l10n.playerTimerMinutes(m)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      widget.onSleepTimerChanged
+                          ?.call(ComicSleepTimerState.minutes(m));
+                    },
+                  ),
+                for (final n in <int>[1, 2, 3])
+                  ListTile(
+                    leading: const Icon(Icons.menu_book_outlined),
+                    title: Text(l10n.readerSleepTimerChapters(n)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      widget.onSleepTimerChanged
+                          ?.call(ComicSleepTimerState.chapters(n));
+                    },
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: Text(l10n.playerTimerCustom),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showCustomSleepTimerDialog(l10n);
+                  },
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+              ],
             ),
-            for (final m in <int>[15, 30, 45, 60, 90])
-              ListTile(
-                leading: const Icon(Icons.timer),
-                title: Text(l10n.playerTimerMinutes(m)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  widget.onSleepTimerChanged
-                      ?.call(ComicSleepTimerState.minutes(m));
-                },
-              ),
-            for (final n in <int>[1, 2, 3])
-              ListTile(
-                leading: const Icon(Icons.menu_book_outlined),
-                title: Text(l10n.readerSleepTimerChapters(n)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  widget.onSleepTimerChanged
-                      ?.call(ComicSleepTimerState.chapters(n));
-                },
-              ),
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: Text(l10n.playerTimerCustom),
-              onTap: () {
-                Navigator.pop(ctx);
-                _showCustomSleepTimerDialog(l10n);
-              },
-            ),
-            const SizedBox(height: AppTokens.spaceSm),
-          ],
+          ),
         ),
       ),
     );

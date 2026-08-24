@@ -1,8 +1,12 @@
-/// 图片收藏图库（REQ-C2）——网格缩略图目录页。
+/// 图片收藏图库（REQ-C2 · 问题 3 统一图库增强）——网格缩略图目录页。
 ///
 /// 展示 [ImageFavoriteManager] 中的全部收藏图片：网格缩略图（2~4 列自适应），
 /// 点击打开全屏大图（Hero 飞入 + InteractiveViewer 缩放），长按缩略图或点
 /// 右上角按钮删除单条。
+///
+/// 统一图库（X-3 / 问题 3）：支持按来源分类（全部 / 漫画 / 媒体[播放器] /
+/// 小说）、标题/链接搜索、时间排序（最新/最早）与按标题排序、条数统计；
+/// [sourceFilter] 非空时锁定该分类（如漫画阅读器入口只显示漫画收藏）。
 library;
 
 import 'package:flutter/material.dart';
@@ -13,12 +17,18 @@ import 'package:nexhub/core/widgets/app_empty_state.dart';
 import 'package:nexhub/core/widgets/source_image.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
+/// 排序方式。
+enum _GallerySort { newest, oldest, title }
+
 /// 图片收藏图库页。
 class ImageFavoriteGalleryScreen extends StatefulWidget {
-  const ImageFavoriteGalleryScreen({super.key, this.manager});
+  const ImageFavoriteGalleryScreen({super.key, this.manager, this.sourceFilter});
 
   /// 可注入的管理器（便于测试 / 复用同一实例）；默认新建。
   final ImageFavoriteManager? manager;
+
+  /// 锁定来源分类（null = 全部）；漫画阅读器入口传 [ImageFavoriteSource.comic]。
+  final ImageFavoriteSource? sourceFilter;
 
   @override
   State<ImageFavoriteGalleryScreen> createState() =>
@@ -30,10 +40,17 @@ class _ImageFavoriteGalleryScreenState extends State<ImageFavoriteGalleryScreen>
   List<ImageFavorite> _favorites = const <ImageFavorite>[];
   bool _loading = true;
 
+  /// 当前分类（全部显示 null）。
+  ImageFavoriteSource? _sourceFilter;
+
+  String _query = '';
+  _GallerySort _sort = _GallerySort.newest;
+
   @override
   void initState() {
     super.initState();
     _manager = widget.manager ?? ImageFavoriteManager();
+    _sourceFilter = widget.sourceFilter;
     _load();
   }
 
@@ -51,6 +68,33 @@ class _ImageFavoriteGalleryScreenState extends State<ImageFavoriteGalleryScreen>
   int get _columns {
     final int cols = (MediaQuery.sizeOf(context).width / 180).floor();
     return cols < 2 ? 2 : (cols > 4 ? 4 : cols);
+  }
+
+  /// 当前筛选结果：来源分类 + 关键词（标题 / 作品名 / 图片地址）+ 排序。
+  List<ImageFavorite> get _visible {
+    List<ImageFavorite> list = _favorites;
+    final ImageFavoriteSource? filter = _sourceFilter;
+    if (filter != null) {
+      list = list.where((f) => f.source == filter).toList();
+    }
+    final String q = _query.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      list = list.where((f) {
+        return f.chapterTitle.toLowerCase().contains(q) ||
+            f.comicId.toLowerCase().contains(q) ||
+            f.imageUrl.toLowerCase().contains(q);
+      }).toList();
+    }
+    switch (_sort) {
+      case _GallerySort.newest:
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      case _GallerySort.oldest:
+        list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      case _GallerySort.title:
+        list.sort((a, b) =>
+            a.chapterTitle.toLowerCase().compareTo(b.chapterTitle.toLowerCase()));
+    }
+    return list;
   }
 
   /// 删除确认弹窗，确认后移除该条收藏并提示。
@@ -94,6 +138,115 @@ class _ImageFavoriteGalleryScreenState extends State<ImageFavoriteGalleryScreen>
     );
   }
 
+  /// 分类切换（全部 / 漫画 / 媒体 / 小说）。
+  Widget _buildSourceFilter(AppLocalizations l10n) {
+    final bool locked = widget.sourceFilter != null;
+    final List<(ImageFavoriteSource?, String, IconData)> options =
+        <(ImageFavoriteSource?, String, IconData)>[
+      (null, l10n.imageFavoriteAll, Icons.photo_library_outlined),
+      (
+        ImageFavoriteSource.comic,
+        l10n.imageFavoriteSourceComic,
+        Icons.menu_book_outlined,
+      ),
+      (
+        ImageFavoriteSource.player,
+        l10n.imageFavoriteSourcePlayer,
+        Icons.play_circle_outline,
+      ),
+      (
+        ImageFavoriteSource.novel,
+        l10n.imageFavoriteSourceNovel,
+        Icons.auto_stories_outlined,
+      ),
+    ];
+    return Semantics(
+      label: l10n.imageFavoriteFilter,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
+        child: Row(
+          children: <Widget>[
+            for (final (source, label, icon) in options) ...<Widget>[
+              ChoiceChip(
+                avatar: Icon(icon, size: 16),
+                label: Text(label),
+                selected: _sourceFilter == source,
+                onSelected: locked && source != null
+                    ? null
+                    : (_) => setState(() {
+                          _sourceFilter = source;
+                        }),
+              ),
+              const SizedBox(width: AppTokens.spaceXs),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 搜索框 + 排序行 + 计数。
+  Widget _buildToolbar(AppLocalizations l10n) {
+    final int count = _visible.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTokens.spaceMd,
+            vertical: AppTokens.spaceXs,
+          ),
+          child: TextField(
+            onChanged: (v) => setState(() => _query = v),
+            decoration: InputDecoration(
+              hintText: l10n.imageFavoriteSearchHint,
+              prefixIcon: const Icon(Icons.search),
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
+          child: Row(
+            children: <Widget>[
+              Text(
+                l10n.imageFavoriteCount(count),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const Spacer(),
+              ChoiceChip(
+                label: Text(l10n.imageFavoriteSortNewest),
+                selected: _sort == _GallerySort.newest,
+                onSelected: (_) => setState(() => _sort = _GallerySort.newest),
+              ),
+              const SizedBox(width: AppTokens.spaceXs),
+              ChoiceChip(
+                label: Text(l10n.imageFavoriteSortOldest),
+                selected: _sort == _GallerySort.oldest,
+                onSelected: (_) => setState(() => _sort = _GallerySort.oldest),
+              ),
+              const SizedBox(width: AppTokens.spaceXs),
+              ChoiceChip(
+                label: Text(l10n.imageFavoriteSortTitle),
+                selected: _sort == _GallerySort.title,
+                onSelected: (_) => setState(() => _sort = _GallerySort.title),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTokens.spaceXs),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
@@ -107,23 +260,34 @@ class _ImageFavoriteGalleryScreenState extends State<ImageFavoriteGalleryScreen>
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_favorites.isEmpty) {
-      return AppEmptyState(
-        icon: Icons.photo_library_outlined,
-        message: l10n.imageFavoriteEmpty,
-      );
-    }
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: _columns,
-        mainAxisSpacing: AppTokens.spaceSm,
-        crossAxisSpacing: AppTokens.spaceSm,
-      ),
-      itemCount: _favorites.length,
-      itemBuilder: (BuildContext ctx, int index) {
-        return _buildThumb(ctx, _favorites[index]);
-      },
+    final List<ImageFavorite> visible = _visible;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _buildSourceFilter(l10n),
+        _buildToolbar(l10n),
+        Expanded(
+          child: visible.isEmpty
+              ? AppEmptyState(
+                  icon: Icons.photo_library_outlined,
+                  message: _favorites.isEmpty
+                      ? l10n.imageFavoriteEmpty
+                      : l10n.imageFavoriteNoMatch,
+                )
+              : GridView.builder(
+                  padding: const EdgeInsets.all(AppTokens.spaceMd),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: _columns,
+                    mainAxisSpacing: AppTokens.spaceSm,
+                    crossAxisSpacing: AppTokens.spaceSm,
+                  ),
+                  itemCount: visible.length,
+                  itemBuilder: (BuildContext ctx, int index) {
+                    return _buildThumb(ctx, visible[index]);
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -187,7 +351,10 @@ class _SourceBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final (IconData icon, String label) = switch (source) {
-      ImageFavoriteSource.comic => (Icons.menu_book_outlined, l10n.imageFavoriteSourceComic),
+      ImageFavoriteSource.comic => (
+          Icons.menu_book_outlined,
+          l10n.imageFavoriteSourceComic,
+        ),
       ImageFavoriteSource.player => (
           Icons.play_circle_outline,
           l10n.imageFavoriteSourcePlayer,

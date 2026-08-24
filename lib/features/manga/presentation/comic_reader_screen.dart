@@ -944,11 +944,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 打开图片收藏图库（REQ-C2）。
+  /// 打开图片收藏图库（REQ-C2 · 问题 3：漫画入口仅显示漫画收藏）。
   void _openImageFavoriteGallery() {
     Navigator.of(context).push(
       AppPageRoute<void>(
-        builder: (_) => const ImageFavoriteGalleryScreen(),
+        builder: (_) => const ImageFavoriteGalleryScreen(
+          sourceFilter: ImageFavoriteSource.comic,
+        ),
       ),
     );
   }

@@ -33,6 +33,7 @@ import './settings_advanced_screen.dart';
 import './settings_categories_screen.dart';
 import './settings_download_screen.dart';
 import './settings_import_export_screen.dart';
+import '../../manga/presentation/image_favorite_gallery_screen.dart';
 import './settings_cloud_sync_screen.dart';
 import './settings_bangumi_screen.dart';
 import './settings_rss_notifications_screen.dart';
@@ -1256,6 +1257,12 @@ class SettingsScreen extends StatelessWidget {
         title: l10n.deleteGroup,
         keywords: const <String>['删除分组', '删除分类'],
         builder: (_) => const SettingsCategoriesScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.photo_library_outlined,
+        title: l10n.imageFavoriteGalleryTitle,
+        keywords: const <String>['图片收藏', '图库', '收藏图片', '截图', '插图'],
+        builder: (_) => const ImageFavoriteGalleryScreen(),
       ),
       _SettingEntry(
         icon: Icons.download,
