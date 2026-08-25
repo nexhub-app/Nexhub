@@ -72,6 +72,7 @@ LocalMediaKind? classifyByPath(String path) {
     '.mpg',
     '.mpeg',
     '.rmvb',
+    '.m3u8',
   ].contains(ext)) {
     return LocalMediaKind.video;
   }

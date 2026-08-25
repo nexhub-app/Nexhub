@@ -14,6 +14,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 
 import '../download/download_manager.dart';
@@ -100,7 +101,10 @@ class BookshelfContent extends StatelessWidget {
 
   /// Returns the distinct categories present in the given sub-tab's data.
   ///
-  /// - local: download format labels (cbz/epub/folder/txt/video)
+  /// - local: actual file extensions present (mp4/mkv/ts、cbz/zip/7z、pdf、
+  ///   txt/epub、m3u8……), derived from downloaded tasks and imported items.
+  ///   Coarse labels like `video` are never shown — the label comes from the
+  ///   real product extension.
   /// - history / favorite: non-null [HistoryEntry.category] /
   ///   [FavoriteEntry.category] values
   ///
@@ -113,16 +117,23 @@ class BookshelfContent extends StatelessWidget {
   ) {
     switch (subTab) {
       case LibrarySubTab.local:
-        // 分类段展示该模块"下载格式全集 + 本地导入类型全集"，使各模块有更多可筛
-        // 选项（即使某项当前数量为 0 也列出，便于按格式归拢）。
-        // 媒体仅 video 一项 → 由筛选面板在选项 ≤1 时自动隐藏该段。
-        final Set<String> categories = <String>{
-          for (final DownloadFormat f
-              in _downloadFormatsForSourceType(sourceType))
-            f.label,
-          for (final LocalMediaKind k in _kindsForSourceType(sourceType))
-            k.name,
-        };
+        // 分类段只展示「书架里实际存在的格式」，按真实产物扩展名派生
+        // （mp4/mkv/ts、cbz/zip/7z、pdf、txt/epub、m3u8……），不展示粗粒度
+        // 标签（如 video）。某格式无任何文件时自然不出现 → 配合筛选面板
+        // 「选项 ≤1 自动隐藏该段」实现"无该格式则隐藏"。
+        final dm = context.read<DownloadManager>();
+        final lm = context.read<LocalContentManager>();
+        final Set<String> categories = <String>{};
+        for (final t
+            in dm.completedTasks.where((t) => t.sourceType == sourceType)) {
+          final c = _taskCategory(t);
+          if (c != null) categories.add(c);
+        }
+        final importedKinds = _kindsForSourceType(sourceType);
+        for (final e
+            in lm.items.where((e) => importedKinds.contains(e.kind))) {
+          categories.add(_importedCategory(e));
+        }
         final sorted = categories.toList()..sort();
         return sorted;
       case LibrarySubTab.history:
@@ -180,10 +191,11 @@ class _LocalBookshelf extends StatelessWidget {
         .where((t) => t.sourceType == sourceType)
         .toList();
 
-    // 分类筛选：本地段以下载格式（cbz/epub/folder/txt/video）作为分类。
+    // 分类筛选：本地段以实际产物格式（下载任务取真实扩展名，导入项取文件扩展名）
+    // 作为分类，仅命中所选格式。
     if (filter.category != null) {
       tasks = tasks
-          .where((t) => t.format.label == filter.category)
+          .where((t) => _taskCategory(t) == filter.category)
           .toList();
     }
 
@@ -215,7 +227,9 @@ class _LocalBookshelf extends StatelessWidget {
             .where((e) => importedKinds.contains(e.kind))
             .toList();
     if (filter.category != null && importedKinds.isNotEmpty) {
-      imported = imported.where((e) => e.kind.name == filter.category).toList();
+      imported = imported
+          .where((e) => _importedCategory(e) == filter.category)
+          .toList();
     }
     imported = imported.where((e) {
       switch (filter.progress) {
@@ -651,22 +665,45 @@ List<LocalMediaKind> _kindsForSourceType(SourceType type) => switch (type) {
       SourceType.animeSource => [LocalMediaKind.video],
     };
 
-/// 按 [SourceType] 映射到该模块本地书架「下载格式」分类全集（与
-/// [_kindsForSourceType] 互补：前者为在线下载产物格式，后者为本地导入类型）。
+/// 取下载任务首个产物文件的扩展名（不含点，小写）。
 ///
-/// 全集展示使各模块分类段选项更丰富（即使某项当前数量为 0 也列出）；媒体(动漫)
-/// 仅 [DownloadFormat.video] 一项，由筛选面板在选项 ≤1 时自动隐藏该段。
-List<DownloadFormat> _downloadFormatsForSourceType(SourceType type) =>
-    switch (type) {
-      SourceType.novelSource => [DownloadFormat.epub, DownloadFormat.txt],
-      SourceType.mangaSource => [
-        DownloadFormat.cbz,
-        DownloadFormat.folder,
-        DownloadFormat.jpg,
-        DownloadFormat.png,
-      ],
-      SourceType.animeSource => [DownloadFormat.video],
-    };
+/// 优先用逐章/集文件 [DownloadTask.chapterFilePaths]（视频为 `001.mp4`、
+/// 漫画为 `001.cbz`、小说为整本 `title.txt/.epub`），回退到 [DownloadTask.localPath]。
+/// 目录或取不到时返回 null。
+String? _firstFileExtension(DownloadTask t) {
+  String? candidate;
+  if (t.chapterFilePaths != null) {
+    for (final fp in t.chapterFilePaths!) {
+      if (fp.isNotEmpty) {
+        candidate = fp;
+        break;
+      }
+    }
+  }
+  candidate ??= t.localPath;
+  if (candidate == null || candidate.isEmpty) return null;
+  final ext = path.extension(candidate);
+  return ext.isNotEmpty ? ext.substring(1).toLowerCase() : null;
+}
+
+/// 下载任务在分类筛选项中归属的格式标签。
+///
+/// 优先用实际产物扩展名（粒度最细：mp4/mkv/ts、cbz、epub…）；无扩展名时回退到
+/// 下载格式枚举（folder/jpg/png/cbz/epub/txt 等具名格式）。旧版 `video` 下载若
+/// 取不到扩展名则不归入任何格式，避免暴露粗粒度 "video" 标签。
+String? _taskCategory(DownloadTask t) {
+  final ext = _firstFileExtension(t);
+  if (ext != null) return ext;
+  if (t.format == DownloadFormat.video) return null;
+  return t.format.label;
+}
+
+/// 导入项在分类筛选项中归属的格式标签：优先用文件扩展名（cbz/zip/7z/pdf/
+/// m3u8/mp4…），无扩展名时回退到 [LocalMediaKind] 名称。
+String _importedCategory(LocalContentEntry e) {
+  final ext = path.extension(e.path).toLowerCase();
+  return ext.isNotEmpty ? ext.substring(1) : e.kind.name;
+}
 
 /// 按 [DownloadFormat] 映射到 [LocalMediaKind]，用于下载内容点击时透传给
 /// onItemTap 的 extra，供阅读器分流。
