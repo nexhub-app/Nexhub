@@ -1572,6 +1572,7 @@
   "traditionalToSimplified": "繁转简",
   "simplifiedToTraditional": "简转繁",
   "autoPageInterval": "自动翻页间隔",
+  "autoPageSmooth": "平滑自动翻页",
   "autoPageOff": "关闭",
   "pauseAutoPage": "暂停自动翻页",
   "resumeAutoPage": "恢复自动翻页",

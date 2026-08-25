@@ -1774,10 +1774,45 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (!_autoPageEnabled || _autoPagePaused) return;
     if (_paragraphs.isEmpty) return;
     final interval = _prefs.autoPageInterval;
-    _autoPageTimer = Timer.periodic(
-      Duration(seconds: interval),
-      (_) => _goNextPage(),
-    );
+    if (_prefs.autoPageSmooth) {
+      // O5 像素级平滑：50ms 一帧按比例推进，一整页耗时 = interval 秒。
+      // 滚动模式直接推进滚动像素；翻页模式驱动过渡进度（advanceAutoPage）。
+      const int tickMs = 50;
+      final double deltaPerTick = tickMs / (interval * 1000);
+      _autoPageTimer = Timer.periodic(
+        const Duration(milliseconds: tickMs),
+        (_) => _autoPageTick(deltaPerTick),
+      );
+    } else {
+      _autoPageTimer = Timer.periodic(
+        Duration(seconds: interval),
+        (_) => _goNextPage(),
+      );
+    }
+  }
+
+  /// 平滑自动翻页单帧推进（O5）。
+  void _autoPageTick(double delta) {
+    if (_loading || _chapterLoading || !_autoPageEnabled || _autoPagePaused) {
+      return;
+    }
+    if (_prefs.pageAnimation.isScroll) {
+      final sc = _scrollController;
+      if (sc == null || !sc.hasClients) return;
+      final pos = sc.position;
+      if (pos.maxScrollExtent <= 0) return;
+      if (sc.offset >= pos.maxScrollExtent - 0.5) {
+        // 已到本章底：进入下一章（切章会按项目约束停止自动翻页）。
+        _goNextChapter();
+        return;
+      }
+      final double px = pos.viewportDimension * delta;
+      sc.jumpTo(
+        (sc.offset + px).clamp(0.0, pos.maxScrollExtent).toDouble(),
+      );
+      return;
+    }
+    _pageKey.currentState?.advanceAutoPage(delta);
   }
 
   /// 完全停止自动翻页（切章 / dispose 时调用）。
@@ -1789,6 +1824,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 暂停 / 恢复自动翻页（运行时切换，不影响偏好）。
   void _toggleAutoPagePause() {
     setState(() => _autoPagePaused = !_autoPagePaused);
+    if (_autoPagePaused) {
+      // 平滑模式下中止半程过渡，避免停留在过渡画面。
+      _pageKey.currentState?.cancelAutoTurn();
+    }
     _applyAutoPage();
   }
 
@@ -8436,6 +8475,14 @@ class _NovelInlineSettings extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: AppTokens.spaceMd),
+                    // 平滑自动翻页（O5）：按像素/过渡进度连续推进整页。
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(l10n.autoPageSmooth),
+                      value: prefs.autoPageSmooth,
+                      onChanged: (v) =>
+                          onChanged(prefs.copyWith(autoPageSmooth: v)),
+                    ),
                     // 鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,

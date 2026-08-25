@@ -261,6 +261,9 @@ class ReaderDefaultSettings {
   final List<String> novelBottomToolbarSlots;
   final String novelTapZoneLayout;
   final int novelAutoPageInterval;
+
+  /// 小说自动翻页平滑模式（O5，映射到 NovelReaderPreferences.autoPageSmooth）。
+  final bool novelAutoPageSmooth;
   final String novelThemeFollow;
   final int? novelShadowColor;
   final double novelShadowBlur;
@@ -428,6 +431,7 @@ class ReaderDefaultSettings {
     this.novelBottomToolbarSlots = const <String>['toc', 'prevChapter', 'nightMode', 'autoPage', 'settings', 'bookmark'],
     this.novelTapZoneLayout = 'lShape',
     this.novelAutoPageInterval = 0,
+    this.novelAutoPageSmooth = false,
     this.novelThemeFollow = 'followApp',
     this.novelShadowColor,
     this.novelShadowBlur = 0.5,
@@ -564,6 +568,7 @@ class ReaderDefaultSettings {
     List<String>? novelBottomToolbarSlots,
     String? novelTapZoneLayout,
     int? novelAutoPageInterval,
+    bool? novelAutoPageSmooth,
     String? novelThemeFollow,
     int? novelShadowColor,
     double? novelShadowBlur,
@@ -744,6 +749,7 @@ class ReaderDefaultSettings {
         novelTapZoneLayout: novelTapZoneLayout ?? this.novelTapZoneLayout,
         novelAutoPageInterval:
             novelAutoPageInterval ?? this.novelAutoPageInterval,
+        novelAutoPageSmooth: novelAutoPageSmooth ?? this.novelAutoPageSmooth,
         novelThemeFollow: novelThemeFollow ?? this.novelThemeFollow,
         novelShadowColor: novelShadowColor ?? this.novelShadowColor,
         novelShadowBlur: novelShadowBlur ?? this.novelShadowBlur,
@@ -911,6 +917,7 @@ class ReaderDefaultSettings {
         'novelBottomToolbarSlots': novelBottomToolbarSlots,
         'novelTapZoneLayout': novelTapZoneLayout,
         'novelAutoPageInterval': novelAutoPageInterval,
+        'novelAutoPageSmooth': novelAutoPageSmooth,
         'novelThemeFollow': novelThemeFollow,
         if (novelShadowColor != null) 'novelShadowColor': novelShadowColor,
         'novelShadowBlur': novelShadowBlur,
@@ -1196,6 +1203,7 @@ class ReaderDefaultSettings {
           json['novelTapZoneLayout'] as String? ?? 'lShape',
       novelAutoPageInterval:
           (json['novelAutoPageInterval'] as num?)?.toInt() ?? 0,
+      novelAutoPageSmooth: json['novelAutoPageSmooth'] as bool? ?? false,
       novelThemeFollow:
           json['novelThemeFollow'] as String? ?? 'followApp',
       novelShadowColor: json['novelShadowColor'] as int?,
@@ -1424,6 +1432,7 @@ class ReaderDefaultSettings {
       ),
       bottomToolbarSlots: novelBottomToolbarSlots.map((s) => NovelBottomTool.fromString(s) ?? NovelBottomTool.toc).toList(),
       autoPageInterval: novelAutoPageInterval,
+      autoPageSmooth: novelAutoPageSmooth,
       // 下划线
       underlineColor: novelUnderlineColor,
       underlineDashed: novelUnderlineDashed,

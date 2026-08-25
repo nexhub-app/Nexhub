@@ -1661,6 +1661,13 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                           ),
                       ],
                     ),
+                    // 平滑自动翻页（O5）：按像素/过渡进度连续推进整页。
+                    SettingsSwitchTile(
+                      title: l10n.autoPageSmooth,
+                      value: _settings.novelAutoPageSmooth,
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(novelAutoPageSmooth: v)),
+                    ),
                     const Divider(height: 1),
                     const SizedBox(height: AppTokens.spaceSm),
                     // 鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）

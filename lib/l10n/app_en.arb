@@ -1592,6 +1592,7 @@
   "traditionalToSimplified": "Traditional to Simplified",
   "simplifiedToTraditional": "Simplified to Traditional",
   "autoPageInterval": "Auto Page Interval",
+  "autoPageSmooth": "Smooth Auto-Page",
   "autoPageOff": "Off",
   "pauseAutoPage": "Pause Auto Page",
   "resumeAutoPage": "Resume Auto Page",

@@ -319,6 +319,10 @@ class NovelReaderPreferences {
   /// 自动翻页间隔（秒；0 = 关闭，常用值 3/5/10/15）。
   final int autoPageInterval;
 
+  /// 自动翻页平滑模式（O5）：开启后按像素 / 过渡进度连续推进，
+  /// 一整页的推进耗时 = [autoPageInterval] 秒；关闭为定时整页跳转。
+  final bool autoPageSmooth;
+
   /// 音量键翻页（仅 Android）：音量上 = 上一页、音量下 = 下一页；
   /// 滚动模式按视口 80% 滚动。默认关闭。
   final bool volumeKeyPageTurn;
@@ -473,6 +477,7 @@ class NovelReaderPreferences {
     this.footerRight = NovelHeaderFooterContent.pageNumber,
     this.chineseConvert = 'none',
     this.autoPageInterval = 0,
+    this.autoPageSmooth = false,
     // 小说阅读器默认开启音量键翻页：实测日志显示默认 false 时进入阅读器会打印
     // "[小说音量键] 已关闭原生拦截"，导致用户按音量键无法翻页。原生
     // MainActivity.dispatchKeyEvent 拦截逻辑本身正确，问题仅在默认偏好关闭。
@@ -549,6 +554,7 @@ class NovelReaderPreferences {
     NovelHeaderFooterContent? footerRight,
     String? chineseConvert,
     int? autoPageInterval,
+    bool? autoPageSmooth,
     bool? volumeKeyPageTurn,
     Object? fontFamily = _kNovelPrefsFontFamilySentinel,
     TapZoneInvert? tapZoneInvert,
@@ -631,6 +637,7 @@ class NovelReaderPreferences {
       footerRight: footerRight ?? this.footerRight,
       chineseConvert: chineseConvert ?? this.chineseConvert,
       autoPageInterval: autoPageInterval ?? this.autoPageInterval,
+      autoPageSmooth: autoPageSmooth ?? this.autoPageSmooth,
       volumeKeyPageTurn: volumeKeyPageTurn ?? this.volumeKeyPageTurn,
       // 用哨兵区分「未传入」与「显式传入 null」。
       fontFamily: identical(fontFamily, _kNovelPrefsFontFamilySentinel)
@@ -760,6 +767,9 @@ class NovelReaderPreferences {
       autoPageInterval: identical(autoPageInterval, def.autoPageInterval)
           ? base.autoPageInterval
           : autoPageInterval,
+      autoPageSmooth: identical(autoPageSmooth, def.autoPageSmooth)
+          ? base.autoPageSmooth
+          : autoPageSmooth,
       fontFamily: fontFamily ?? base.fontFamily,
       tapZoneInvert: identical(tapZoneInvert, def.tapZoneInvert)
           ? base.tapZoneInvert
@@ -1048,6 +1058,7 @@ class NovelReaderPreferences {
         'footerRight': footerRight.name,
         'chineseConvert': chineseConvert,
         'autoPageInterval': autoPageInterval,
+        'autoPageSmooth': autoPageSmooth,
         'volumeKeyPageTurn': volumeKeyPageTurn,
         if (fontFamily != null) 'fontFamily': fontFamily,
         'tapZoneInvert': tapZoneInvert.name,
@@ -1131,6 +1142,7 @@ class NovelReaderPreferences {
           json['footerRight'] as String?),
       chineseConvert: json['chineseConvert'] as String? ?? 'none',
       autoPageInterval: (json['autoPageInterval'] as num?)?.toInt() ?? 0,
+      autoPageSmooth: json['autoPageSmooth'] as bool? ?? false,
       volumeKeyPageTurn: json['volumeKeyPageTurn'] as bool? ?? false,
       fontFamily: json['fontFamily'] as String?,
       tapZoneInvert: _parseTapZoneInvert(json['tapZoneInvert']),

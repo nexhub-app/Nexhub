@@ -124,6 +124,12 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
   double _dragDelta = 0;
   double _dragProgress = 0;
 
+  // ── 平滑自动翻页（O5）──
+  /// none/scroll 模式的累计过渡比例（满 1 落页）。
+  double _autoAccum = 0;
+  /// 自定义动画模式是否正处于一次手动驱动的翻页过渡中。
+  bool _autoTurning = false;
+
   @override
   void initState() {
     super.initState();
@@ -174,6 +180,8 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
       _dragForward = null;
       _dragDelta = 0;
       _dragProgress = 0;
+      _autoAccum = 0;
+      _autoTurning = false;
       _controller.stop();
       _controller.value = 0;
       if (mounted) setState(() {});
@@ -256,6 +264,73 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
     if (clamped == _index) return;
     _index = clamped;
     widget.onPageChanged?.call(_index);
+    if (mounted) setState(() {});
+  }
+
+  // ─────────────────── 平滑自动翻页（O5） ───────────────────
+
+  /// 自动翻页推进一个增量 [delta]（本帧应推进的页面过渡比例，如
+  /// 50ms 帧 / 间隔秒数）。返回 true 表示本次调用完成了一次落页。
+  ///
+  /// - none / scroll 动画：累计满 1 调用 [nextPage]（滚动视图的像素级
+  ///   平滑由外层直接驱动滚动控制器）；
+  /// - 自定义动画：复用拖拽跟手的过渡渲染管线，`_controller.value`
+  ///   由外部逐帧推进（手动 set value 不触发 status listener），跨过
+  ///   1.0 时自行复位过渡态并落页；到达本章末页时请求下一章。
+  bool advanceAutoPage(double delta) {
+    if (delta <= 0 || _dragging) return false;
+    if (_isNone || _isScroll) {
+      _autoAccum += delta;
+      if (_autoAccum >= 1.0) {
+        _autoAccum = 0;
+        nextPage();
+        return true;
+      }
+      return false;
+    }
+    if (!_autoTurning) {
+      final rawTarget = _index + 1;
+      if (rawTarget >= widget.pageCount) {
+        widget.onRequestNextChapter?.call();
+        return true;
+      }
+      _controller.stop();
+      _reversing = false;
+      _controller.value = 0;
+      _fromIndex = _index;
+      _index = rawTarget;
+      _forward = true;
+      _animating = true;
+      _autoTurning = true;
+      widget.onPageChanged?.call(_index);
+      if (mounted) setState(() {});
+    }
+    final double v = (_controller.value + delta).clamp(0.0, 1.0);
+    _controller.value = v;
+    if (v >= 1.0) {
+      _finishAutoTurn();
+      return true;
+    }
+    return false;
+  }
+
+  void _finishAutoTurn() {
+    _autoTurning = false;
+    _animating = false;
+    _fromIndex = null;
+    if (mounted) setState(() {});
+  }
+
+  /// 中止进行中的平滑自动翻页过渡（暂停 / 切章时调用）：停在目标页静态态，
+  /// 避免残留半程过渡画面。
+  void cancelAutoTurn() {
+    if (!_autoTurning) return;
+    _autoTurning = false;
+    _animating = false;
+    _fromIndex = null;
+    _autoAccum = 0;
+    _controller.stop();
+    _controller.value = 0;
     if (mounted) setState(() {});
   }
 
