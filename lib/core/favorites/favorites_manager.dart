@@ -26,6 +26,13 @@ class FavoriteEntry {
   /// 「原书名 + 中文译名」并存的外语源作品；为空时排序回退到 [title]。
   final String? titleZh;
 
+  /// 导演（媒体/动漫专属排序用）。来自 [MediaItem.director]，多数源无此字段，
+  /// 排序时空值回退到 [title]。
+  final String? director;
+
+  /// 主演（媒体/动漫专属排序用）。来自 [MediaItem.actors]，空值回退到 [title]。
+  final String? actors;
+
   final String? detailUrl;
   final int favoritedAt;
 
@@ -51,12 +58,14 @@ class FavoriteEntry {
     required this.id,
     required this.title,
     required this.sourceType,
-    this.coverUrl,
-    this.sourceId,
-    this.author,
-    this.titleZh,
-    this.detailUrl,
-    required this.favoritedAt,
+        this.coverUrl,
+        this.sourceId,
+        this.author,
+        this.titleZh,
+        this.director,
+        this.actors,
+        this.detailUrl,
+        required this.favoritedAt,
     this.lastRead = 0,
     this.category,
     this.status,
@@ -74,6 +83,8 @@ class FavoriteEntry {
         sourceType: item.sourceType ?? SourceType.animeSource,
         author: item.author,
         titleZh: item.title,
+        director: item.director,
+        actors: item.actors,
         detailUrl: item.detailUrl,
         favoritedAt: favoritedAt ?? DateTime.now().millisecondsSinceEpoch,
         lastRead: 0,
@@ -90,6 +101,8 @@ class FavoriteEntry {
         sourceType: sourceType,
         author: author,
         titleZh: titleZh,
+        director: director,
+        actors: actors,
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: timestamp,
@@ -109,6 +122,8 @@ class FavoriteEntry {
         sourceType: sourceType,
         author: author,
         titleZh: titleZh,
+        director: director,
+        actors: actors,
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: lastRead,
@@ -128,6 +143,8 @@ class FavoriteEntry {
         sourceType: sourceType,
         author: author,
         titleZh: titleZh,
+        director: director,
+        actors: actors,
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: lastRead,
@@ -148,6 +165,8 @@ class FavoriteEntry {
         sourceType: sourceType,
         author: author,
         titleZh: titleZh,
+        director: director,
+        actors: actors,
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: lastRead,
@@ -165,6 +184,8 @@ class FavoriteEntry {
         sourceId: sourceId,
         sourceType: sourceType,
         author: author,
+        director: director,
+        actors: actors,
         detailUrl: detailUrl,
         tags: category != null ? <String>[category!] : null,
         status: status,
@@ -178,6 +199,8 @@ class FavoriteEntry {
         'sourceType': sourceType.apiName,
         'author': author,
         'titleZh': titleZh,
+        'director': director,
+        'actors': actors,
         'detailUrl': detailUrl,
         'favoritedAt': favoritedAt,
         'lastRead': lastRead,
@@ -197,6 +220,8 @@ class FavoriteEntry {
             SourceType.parse(json['sourceType'] as String?) ?? SourceType.animeSource,
         author: json['author'] as String?,
         titleZh: json['titleZh'] as String?,
+        director: json['director'] as String?,
+        actors: json['actors'] as String?,
         detailUrl: json['detailUrl'] as String?,
         favoritedAt: json['favoritedAt'] as int? ?? 0,
         lastRead: json['lastRead'] as int? ?? 0,

@@ -10,6 +10,7 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -609,7 +610,9 @@ void _sortTasks(
     case BookshelfSort.title:
     case BookshelfSort.author:
     case BookshelfSort.titleZh:
-      // 下载任务无作者 / 中文书名字段，作者与中文书名排序回退标题。
+    case BookshelfSort.director:
+    case BookshelfSort.actors:
+      // 下载任务无作者 / 中文书名 / 导演 / 主演字段，均回退标题。
       tasks.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
     case BookshelfSort.manual:
       tasks.sort((a, b) => _manualCompare(
@@ -629,6 +632,9 @@ void _sortLocalEntries(
     case BookshelfSort.title:
     case BookshelfSort.author:
     case BookshelfSort.titleZh:
+    case BookshelfSort.director:
+    case BookshelfSort.actors:
+      // 导入的本地内容无导演 / 主演字段，回退标题。
       entries.sort(
           (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
     case BookshelfSort.manual:
@@ -673,6 +679,14 @@ void _sortHistoryEntries(
     case BookshelfSort.titleZh:
       entries.sort(
           (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    case BookshelfSort.director:
+      entries.sort((a, b) => (a.director ?? a.title)
+          .toLowerCase()
+          .compareTo((b.director ?? b.title).toLowerCase()));
+    case BookshelfSort.actors:
+      entries.sort((a, b) => (a.actors ?? a.title)
+          .toLowerCase()
+          .compareTo((b.actors ?? b.title).toLowerCase()));
     case BookshelfSort.manual:
       entries.sort((a, b) =>
           _manualCompare(sourceType, a.id, a.title, b.id, b.title));
@@ -699,6 +713,14 @@ void _sortFavoriteEntries(
       entries.sort((a, b) => (a.titleZh ?? a.title)
           .toLowerCase()
           .compareTo((b.titleZh ?? b.title).toLowerCase()));
+    case BookshelfSort.director:
+      entries.sort((a, b) => (a.director ?? a.title)
+          .toLowerCase()
+          .compareTo((b.director ?? b.title).toLowerCase()));
+    case BookshelfSort.actors:
+      entries.sort((a, b) => (a.actors ?? a.title)
+          .toLowerCase()
+          .compareTo((b.actors ?? b.title).toLowerCase()));
     case BookshelfSort.manual:
       entries.sort((a, b) =>
           _manualCompare(sourceType, a.id, a.title, b.id, b.title));
@@ -922,13 +944,36 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
   Widget _buildList(LayoutSettings layout) {
     final bool isCompact = layout.listStyle == ListLayoutStyle.compact;
     if (_manual) {
+      // 手动排序：对齐「源管理」拖拽视觉——左侧拖动手柄 + 自定义 decorator。
+      // 关闭默认右侧手柄，改用左侧 drag_indicator 图标触发拖拽。
       return ReorderableListView.builder(
         padding: const EdgeInsets.all(AppTokens.spaceMd),
         itemCount: _items.length,
         onReorderItem: _onReorderItem,
+        buildDefaultDragHandles: false,
+        proxyDecorator: _listProxyDecorator,
         itemBuilder: (ctx, i) => KeyedSubtree(
           key: ValueKey<String>(_items[i].id),
-          child: _buildRow(_items[i], layout, isCompact),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              ReorderableDragStartListener(
+                index: i,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: AppTokens.spaceXs),
+                  child: Icon(
+                    Icons.drag_indicator,
+                    size: 20,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.45),
+                  ),
+                ),
+              ),
+              Expanded(child: _buildRow(_items[i], layout, isCompact)),
+            ],
+          ),
         ),
       );
     }
@@ -936,6 +981,53 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
       padding: const EdgeInsets.all(AppTokens.spaceMd),
       itemCount: _items.length,
       itemBuilder: (context, i) => _buildRow(_items[i], layout, isCompact),
+    );
+  }
+
+  /// 列表手动拖拽时的浮起装饰（对齐「源管理」风格）：easeOut 缓动 + 轻微上浮
+  /// + 1.04 缩放 + 主色描边 + 双层阴影（主阴影 + 主色辉光），增强"拎起"手感。
+  Widget _listProxyDecorator(
+    Widget child,
+    int index,
+    Animation<double> animation,
+  ) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) {
+        final double t = Curves.easeOut.transform(animation.value);
+        final double scale = lerpDouble(1.0, 1.04, t)!;
+        final ColorScheme scheme = Theme.of(context).colorScheme;
+        return Transform.translate(
+          offset: Offset(0, -3 * t),
+          child: Transform.scale(
+            scale: scale,
+            child: Opacity(
+              opacity: lerpDouble(1.0, 0.97, t)!,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                  border: Border.all(
+                    color: scheme.primary.withValues(alpha: 0.3 * t),
+                  ),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: scheme.shadow.withValues(alpha: 0.26 * t),
+                      blurRadius: 16 * t + 4,
+                      offset: Offset(0, 7 * t + 2),
+                    ),
+                    BoxShadow(
+                      color: scheme.primary.withValues(alpha: 0.12 * t),
+                      blurRadius: 28 * t,
+                      offset: Offset(0, 3 * t),
+                    ),
+                  ],
+                ),
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

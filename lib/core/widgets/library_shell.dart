@@ -276,6 +276,7 @@ class _LibraryShellState extends State<LibraryShell> {
       context,
       initialFilter: _filter,
       categories: categories,
+      sourceType: _sourceTypeForSubTab(_sub.first),
       // 分组段仅收藏子段有意义，其余子段不展示。
       groups: _sub.first == LibrarySubTab.favorite
           ? context.read<FavoritesManager>().groupsFor(_favType)
@@ -283,6 +284,18 @@ class _LibraryShellState extends State<LibraryShell> {
     );
     if (result != null && mounted) {
       setState(() => _filter = result);
+    }
+  }
+
+  /// 当前子段所属模块类型：收藏段取 [_favType]，历史/已下载段取
+  /// [historySourceType]（未提供时回落 [_favType]）。用于筛选面板按类型渲染排序项。
+  SourceType _sourceTypeForSubTab(LibrarySubTab sub) {
+    switch (sub) {
+      case LibrarySubTab.favorite:
+        return _favType;
+      case LibrarySubTab.history:
+      case LibrarySubTab.local:
+        return widget.historySourceType ?? _favType;
     }
   }
 

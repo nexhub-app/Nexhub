@@ -36,6 +36,12 @@ class HistoryEntry {
   /// 状态（连载中 / 已完结），用于书架筛选。
   final String? status;
 
+  /// 导演（媒体/动漫专属排序用）。来自 [MediaItem.director]，空值排序回退到 [title]。
+  final String? director;
+
+  /// 主演（媒体/动漫专属排序用）。来自 [MediaItem.actors]，空值排序回退到 [title]。
+  final String? actors;
+
   /// 封面本地缓存路径（离线可见）。写入历史时异步下载远程封面落盘，
   /// 优先于 [coverUrl] 使用；为空时回退远程 [coverUrl]。
   final String? localCoverPath;
@@ -57,6 +63,8 @@ class HistoryEntry {
     this.lastChapter,
     this.category,
     this.status,
+    this.director,
+    this.actors,
     this.localCoverPath,
     this.hidden = false,
   });
@@ -77,6 +85,8 @@ class HistoryEntry {
         lastChapter: lastChapter,
         category: item.tags?.isNotEmpty == true ? item.tags!.first : null,
         status: item.status,
+        director: item.director,
+        actors: item.actors,
       );
 
   MediaItem toMediaItem() => MediaItem(
@@ -88,6 +98,8 @@ class HistoryEntry {
         detailUrl: detailUrl,
         tags: category != null ? <String>[category!] : null,
         status: status,
+        director: director,
+        actors: actors,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -101,6 +113,8 @@ class HistoryEntry {
         'lastChapter': lastChapter,
         'category': category,
         'status': status,
+        'director': director,
+        'actors': actors,
         'localCoverPath': localCoverPath,
         'hidden': hidden,
       };
@@ -117,6 +131,8 @@ class HistoryEntry {
         lastChapter: json['lastChapter'] as String?,
         category: json['category'] as String?,
         status: json['status'] as String?,
+        director: json['director'] as String?,
+        actors: json['actors'] as String?,
         localCoverPath: json['localCoverPath'] as String?,
         // 旧数据无 hidden 字段时按 false（可见）解析，保证向后兼容。
         hidden: json['hidden'] as bool? ?? false,
@@ -133,6 +149,8 @@ class HistoryEntry {
         lastChapter: lastChapter,
         category: category,
         status: status,
+        director: director,
+        actors: actors,
         localCoverPath: localCoverPath ?? this.localCoverPath,
         hidden: hidden ?? this.hidden,
       );

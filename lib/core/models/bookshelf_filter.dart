@@ -6,6 +6,8 @@ library;
 
 import 'package:flutter/foundation.dart';
 
+import 'plugin_config.dart';
+
 /// 排序方式。
 enum BookshelfSort {
   /// 按时间倒序（收藏时间 / 浏览时间 / 完成时间）。
@@ -23,8 +25,54 @@ enum BookshelfSort {
   /// 按中文书名（收藏取 titleZh，无则回退 title；其它类型直接取 title）。
   titleZh,
 
+  /// 按导演（媒体/动漫专属语义，无字段时回退标题）。
+  director,
+
+  /// 按主演（媒体/动漫专属语义，无字段时回退标题）。
+  actors,
+
   /// 手动排序：按用户在书架拖拽保存的自定义顺序。
   manual,
+}
+
+/// 各 [SourceType] 书架可用的排序项及其语义。
+///
+/// - 小说：最近/标题/作者/最新章/中文书名/手动（完整六维）。
+/// - 漫画：最近/标题/作者/最新话/手动（无中文书名维度）。
+/// - 媒体(动漫)：最近/标题/最新/导演/主演/手动（无作者/中文书名维度，
+///   以导演/主演替代；"最新"随类型在 UI 上呈现为最新章/最新话/最新）。
+///
+/// 注意：本函数只描述"该类型有哪些排序项"，与布局模式（列表/网格）无关；
+/// 手动项是否对当前布局可见由调用方（筛选面板）按 [LayoutMode] 决定。
+List<BookshelfSort> availableSortsFor(SourceType type) {
+  switch (type) {
+    case SourceType.novelSource:
+      return const <BookshelfSort>[
+        BookshelfSort.recent,
+        BookshelfSort.title,
+        BookshelfSort.author,
+        BookshelfSort.latestChapter,
+        BookshelfSort.titleZh,
+        BookshelfSort.manual,
+      ];
+    case SourceType.mangaSource:
+      return const <BookshelfSort>[
+        BookshelfSort.recent,
+        BookshelfSort.title,
+        BookshelfSort.author,
+        BookshelfSort.latestChapter,
+        BookshelfSort.manual,
+      ];
+    case SourceType.animeSource:
+      return const <BookshelfSort>[
+        BookshelfSort.recent,
+        BookshelfSort.title,
+        BookshelfSort.latestChapter,
+        BookshelfSort.director,
+        BookshelfSort.actors,
+        BookshelfSort.manual,
+      ];
+  }
 }
 
 /// 进度筛选语义。

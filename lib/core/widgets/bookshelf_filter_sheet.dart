@@ -9,14 +9,21 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../favorites/favorite_group.dart';
 import '../models/bookshelf_filter.dart';
+import '../models/plugin_config.dart';
+import '../settings/layout_settings.dart';
 import '../theme/app_tokens.dart';
 import 'app_animations.dart';
 
 /// 唤起书架筛选底部面板，返回用户确认后的筛选状态；取消则返回 null。
+///
+/// [sourceType] 决定可排序项（小说 6 项 / 漫画 5 项 / 媒体 6 项），"手动"项
+/// 是否展示由当前布局模式（列表/网格）决定，因此本面板直接读取
+/// [LayoutSettingsStore] 的当前布局。
 Future<BookshelfFilter?> showBookshelfFilterSheet(
   BuildContext context, {
   required BookshelfFilter initialFilter,
   required List<String> categories,
+  required SourceType sourceType,
   List<FavoriteGroup> groups = const <FavoriteGroup>[],
 }) {
   return showModalBottomSheet<BookshelfFilter>(
@@ -30,6 +37,7 @@ Future<BookshelfFilter?> showBookshelfFilterSheet(
     builder: (BuildContext ctx) => _BookshelfFilterSheet(
       initialFilter: initialFilter,
       categories: categories,
+      sourceType: sourceType,
       groups: groups,
     ),
   );
@@ -38,11 +46,13 @@ Future<BookshelfFilter?> showBookshelfFilterSheet(
 class _BookshelfFilterSheet extends StatefulWidget {
   final BookshelfFilter initialFilter;
   final List<String> categories;
+  final SourceType sourceType;
   final List<FavoriteGroup> groups;
 
   const _BookshelfFilterSheet({
     required this.initialFilter,
     required this.categories,
+    required this.sourceType,
     required this.groups,
   });
 
@@ -64,6 +74,36 @@ class _BookshelfFilterSheetState extends State<_BookshelfFilterSheet> {
     final Set<String> next = Set<String>.of(_filter.groupIds);
     if (!next.remove(id)) next.add(id);
     setState(() => _filter = _filter.copyWith(groupIds: next));
+  }
+
+  /// 按当前 [SourceType] 映射排序项文案。"最新"语义随类型变化：
+  /// 小说=最新章、漫画=最新话、媒体(动漫)=最新。
+  String _sortLabel(BookshelfSort sort, AppLocalizations l10n) {
+    switch (sort) {
+      case BookshelfSort.recent:
+        return l10n.sortRecent;
+      case BookshelfSort.title:
+        return l10n.sortTitle;
+      case BookshelfSort.author:
+        return l10n.sortAuthor;
+      case BookshelfSort.latestChapter:
+        switch (widget.sourceType) {
+          case SourceType.animeSource:
+            return l10n.sortLatestUpdate;
+          case SourceType.mangaSource:
+            return l10n.sortLatestMangaChapter;
+          case SourceType.novelSource:
+            return l10n.sortLatestChapter;
+        }
+      case BookshelfSort.titleZh:
+        return l10n.sortTitleZh;
+      case BookshelfSort.director:
+        return l10n.sortDirector;
+      case BookshelfSort.actors:
+        return l10n.sortActors;
+      case BookshelfSort.manual:
+        return l10n.sortManual;
+    }
   }
 
   @override
@@ -96,44 +136,22 @@ class _BookshelfFilterSheetState extends State<_BookshelfFilterSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    _Section(label: l10n.sortBy, children: <Widget>[
-                      _ChoiceChip(
-                        label: l10n.sortRecent,
-                        selected: _filter.sort == BookshelfSort.recent,
-                        onSelected: (_) => setState(() => _filter =
-                            _filter.copyWith(sort: BookshelfSort.recent)),
-                      ),
-                      _ChoiceChip(
-                        label: l10n.sortTitle,
-                        selected: _filter.sort == BookshelfSort.title,
-                        onSelected: (_) => setState(() => _filter =
-                            _filter.copyWith(sort: BookshelfSort.title)),
-                      ),
-                      _ChoiceChip(
-                        label: l10n.sortAuthor,
-                        selected: _filter.sort == BookshelfSort.author,
-                        onSelected: (_) => setState(() => _filter =
-                            _filter.copyWith(sort: BookshelfSort.author)),
-                      ),
-                      _ChoiceChip(
-                        label: l10n.sortLatestChapter,
-                        selected: _filter.sort == BookshelfSort.latestChapter,
-                        onSelected: (_) => setState(() => _filter = _filter
-                            .copyWith(sort: BookshelfSort.latestChapter)),
-                      ),
-                      _ChoiceChip(
-                        label: l10n.sortTitleZh,
-                        selected: _filter.sort == BookshelfSort.titleZh,
-                        onSelected: (_) => setState(() => _filter =
-                            _filter.copyWith(sort: BookshelfSort.titleZh)),
-                      ),
-                      _ChoiceChip(
-                        label: l10n.sortManual,
-                        selected: _filter.sort == BookshelfSort.manual,
-                        onSelected: (_) => setState(() => _filter =
-                            _filter.copyWith(sort: BookshelfSort.manual)),
-                      ),
-                    ]),
+                    _Section(
+                      label: l10n.sortBy,
+                      children: <Widget>[
+                        for (final BookshelfSort s in availableSortsFor(widget.sourceType))
+                          // 「手动」仅在列表布局下有意义（网格拖拽为长按手势），故隐藏。
+                          if (s != BookshelfSort.manual ||
+                              LayoutSettingsStore.instance.settings.layoutMode ==
+                                  LayoutMode.list)
+                            _ChoiceChip(
+                              label: _sortLabel(s, l10n),
+                              selected: _filter.sort == s,
+                              onSelected: (_) => setState(() => _filter =
+                                  _filter.copyWith(sort: s)),
+                            ),
+                      ],
+                    ),
                     const SizedBox(height: AppTokens.spaceMd),
                     _Section(label: l10n.filterByStatus, children: <Widget>[
                       _ChoiceChip(
