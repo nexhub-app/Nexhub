@@ -80,20 +80,25 @@ extension _VideoDanmakuInput on _VideoPlayerScreenState {
     }
 
     // 发送逻辑（横竖屏共用）。
+    //
+    // F-18：本地即时显示保持不变；关闭输入框后后台尝试经弹弹play API 上传
+    // （需登录态），校验时长 / 集数匹配，结果以 SnackBar 提示。
     void send(BuildContext ctx) {
       final text = controller.text.trim();
-      if (text.isNotEmpty) {
-        final item = DanmakuItem(
-          text: text,
-          time: _position +
-              Duration(milliseconds: (_danmakuSettings.timeOffset * 1000).round()),
-          color: selectedColor,
-          type: selectedType,
-          selfSend: true,
-        );
-        _danmakuKey.currentState?.addSingle(item);
-      }
+      if (text.isEmpty) return;
+      final time = _position +
+          Duration(
+              milliseconds: (_danmakuSettings.timeOffset * 1000).round());
+      final item = DanmakuItem(
+        text: text,
+        time: time,
+        color: selectedColor,
+        type: selectedType,
+        selfSend: true,
+      );
+      _danmakuKey.currentState?.addSingle(item);
       Navigator.pop(ctx);
+      unawaited(_uploadDanmaku(text, time, selectedColor, selectedType));
     }
 
     if (landscape) {
@@ -154,6 +159,161 @@ extension _VideoDanmakuInput on _VideoPlayerScreenState {
           ),
         ),
       );
+    }
+  }
+
+  /// F-18：上传弹幕到弹弹play（本地显示后后台执行）。
+  ///
+  /// - 集数校验：解析不到 dandanplay episodeId（源为 bilibili / 自定义 URL /
+  ///   匹配失败）时不上传，提示仅本地显示；
+  /// - 时长校验：发送位置超出视频时长时不上传；
+  /// - 登录态：未登录先弹就地登录框；凭据未配置 / 账号密码错误 / 上传失败
+  ///   均以 SnackBar 提示。
+  Future<void> _uploadDanmaku(
+    String text,
+    Duration time,
+    Color color,
+    cd.DanmakuItemType type,
+  ) async {
+    if (_disposed || !mounted) return;
+    final l10n = AppLocalizations.of(context);
+    // 集数校验：无 episodeId 无法定位弹幕库。
+    final ep = widget.episodes?[_episodeIndex] ?? widget.episode;
+    int? episodeId;
+    try {
+      episodeId = await _resolveDandanId(ep);
+    } on Object {
+      episodeId = null;
+    }
+    if (episodeId == null) {
+      _safeSnackBar(l10n.danmakuSendNoEpisode);
+      return;
+    }
+    // 时长校验：发送位置超出视频时长（timeOffset 拉偏导致）不上传。
+    if (_duration > Duration.zero && time >= _duration) {
+      _safeSnackBar(l10n.danmakuSendTimeInvalid);
+      return;
+    }
+    // 登录态：未登录就地登录，取消则放弃上传（本地已显示）。
+    await DandanplayAuth.instance.init();
+    if (!DandanplayAuth.instance.isLoggedIn) {
+      final ok = await _showDandanplayLoginDialog();
+      if (!ok || _disposed || !mounted) return;
+    }
+    try {
+      final service = DandanplayService(configStore: DanmakuConfigStore());
+      await service.sendComment(
+        episodeId: '$episodeId',
+        time: time.inMilliseconds / 1000.0,
+        mode: switch (type) {
+          cd.DanmakuItemType.scroll => 1,
+          cd.DanmakuItemType.bottom => 4,
+          cd.DanmakuItemType.top => 5,
+          _ => 1,
+        },
+        color: color.toARGB32() & 0xFFFFFF,
+        comment: text,
+        bearerToken: DandanplayAuth.instance.token ?? '',
+      );
+      if (_disposed || !mounted) return;
+      _safeSnackBar(l10n.danmakuUploadSuccess);
+    } on Object catch (e) {
+      AppLog.instance.e('[F-18] 弹幕上传失败：$e');
+      if (_disposed || !mounted) return;
+      _safeSnackBar(l10n.danmakuUploadFailed(e.toString()));
+    }
+  }
+
+  /// F-18：弹弹play 就地登录对话框。返回 true 表示登录成功。
+  Future<bool> _showDandanplayLoginDialog() async {
+    final l10n = AppLocalizations.of(context);
+    final userCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
+    var busy = false;
+    String? error;
+
+    Future<void> submit(BuildContext ctx, void Function(VoidCallback) setSt) async {
+      final userName = userCtrl.text.trim();
+      final password = passCtrl.text;
+      if (userName.isEmpty || password.isEmpty) {
+        setSt(() => error = l10n.danmakuLoginEmptyFields);
+        return;
+      }
+      setSt(() {
+        busy = true;
+        error = null;
+      });
+      try {
+        await DandanplayAuth.instance.login(userName, password);
+        if (!mounted) return;
+        Navigator.pop(ctx, true);
+        _safeSnackBar(l10n.loginSuccess);
+      } on Object catch (e) {
+        AppLog.instance.e('[F-18] 弹弹play 登录失败：$e');
+        setSt(() {
+          busy = false;
+          error = e.toString();
+        });
+      }
+    }
+
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext ctx) => StatefulBuilder(
+          builder: (BuildContext ctx, void Function(VoidCallback) setSt) =>
+              AppAlertDialog(
+            title: Text(l10n.danmakuLoginTitle),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(l10n.danmakuLoginRequiredHint),
+                const SizedBox(height: AppTokens.spaceMd),
+                TextField(
+                  controller: userCtrl,
+                  autofocus: true,
+                  enabled: !busy,
+                  decoration:
+                      InputDecoration(labelText: l10n.danmakuUsername),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                TextField(
+                  controller: passCtrl,
+                  obscureText: true,
+                  enabled: !busy,
+                  decoration:
+                      InputDecoration(labelText: l10n.danmakuPassword),
+                  onSubmitted: (_) {
+                    if (!busy) submit(ctx, setSt);
+                  },
+                ),
+                if (error != null) ...<Widget>[
+                  const SizedBox(height: AppTokens.spaceSm),
+                  Text(
+                    error!,
+                    style: TextStyle(
+                        color: Theme.of(ctx).colorScheme.error, fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.cancel),
+              ),
+              TextButton(
+                onPressed: busy ? null : () => submit(ctx, setSt),
+                child: Text(l10n.danmakuLoginAction),
+              ),
+            ],
+          ),
+        ),
+      );
+      return result ?? false;
+    } finally {
+      userCtrl.dispose();
+      passCtrl.dispose();
     }
   }
 }

@@ -368,6 +368,46 @@ class AppLocalizationsZh extends AppLocalizations {
   String get danmakuSendHint => '输入弹幕内容';
 
   @override
+  String get danmakuUploadSuccess => '弹幕已上传';
+
+  @override
+  String danmakuUploadFailed(String error) {
+    return '弹幕上传失败：$error';
+  }
+
+  @override
+  String get danmakuSendNoEpisode => '弹幕未匹配到剧集，仅本地显示';
+
+  @override
+  String get danmakuSendTimeInvalid => '发送位置超出视频时长，仅本地显示';
+
+  @override
+  String get danmakuLoginTitle => '登录弹弹play';
+
+  @override
+  String get danmakuLoginRequiredHint => '发送弹幕需要登录弹弹play 账号';
+
+  @override
+  String get danmakuUsername => '用户名';
+
+  @override
+  String get danmakuPassword => '密码';
+
+  @override
+  String get danmakuLoginAction => '登录';
+
+  @override
+  String get danmakuLoginEmptyFields => '请填写用户名与密码';
+
+  @override
+  String get danmakuAccountSection => '弹弹play 账号';
+
+  @override
+  String danmakuAccountLoggedInAs(String name) {
+    return '已登录：$name';
+  }
+
+  @override
   String get danmakuStyle => '弹幕样式';
 
   @override

@@ -800,6 +800,78 @@ abstract class AppLocalizations {
   /// **'Enter danmaku text'**
   String get danmakuSendHint;
 
+  /// No description provided for @danmakuUploadSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Danmaku posted'**
+  String get danmakuUploadSuccess;
+
+  /// No description provided for @danmakuUploadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to post danmaku: {error}'**
+  String danmakuUploadFailed(String error);
+
+  /// No description provided for @danmakuSendNoEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'No matched danmaku episode; shown locally only'**
+  String get danmakuSendNoEpisode;
+
+  /// No description provided for @danmakuSendTimeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Position beyond video duration; shown locally only'**
+  String get danmakuSendTimeInvalid;
+
+  /// No description provided for @danmakuLoginTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to DanDanPlay'**
+  String get danmakuLoginTitle;
+
+  /// No description provided for @danmakuLoginRequiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to your DanDanPlay account to post danmaku'**
+  String get danmakuLoginRequiredHint;
+
+  /// No description provided for @danmakuUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get danmakuUsername;
+
+  /// No description provided for @danmakuPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get danmakuPassword;
+
+  /// No description provided for @danmakuLoginAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get danmakuLoginAction;
+
+  /// No description provided for @danmakuLoginEmptyFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter username and password'**
+  String get danmakuLoginEmptyFields;
+
+  /// No description provided for @danmakuAccountSection.
+  ///
+  /// In en, this message translates to:
+  /// **'DanDanPlay Account'**
+  String get danmakuAccountSection;
+
+  /// No description provided for @danmakuAccountLoggedInAs.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in as {name}'**
+  String danmakuAccountLoggedInAs(String name);
+
   /// No description provided for @danmakuStyle.
   ///
   /// In en, this message translates to:

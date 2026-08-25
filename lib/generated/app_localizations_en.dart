@@ -372,6 +372,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get danmakuSendHint => 'Enter danmaku text';
 
   @override
+  String get danmakuUploadSuccess => 'Danmaku posted';
+
+  @override
+  String danmakuUploadFailed(String error) {
+    return 'Failed to post danmaku: $error';
+  }
+
+  @override
+  String get danmakuSendNoEpisode =>
+      'No matched danmaku episode; shown locally only';
+
+  @override
+  String get danmakuSendTimeInvalid =>
+      'Position beyond video duration; shown locally only';
+
+  @override
+  String get danmakuLoginTitle => 'Sign in to DanDanPlay';
+
+  @override
+  String get danmakuLoginRequiredHint =>
+      'Sign in to your DanDanPlay account to post danmaku';
+
+  @override
+  String get danmakuUsername => 'Username';
+
+  @override
+  String get danmakuPassword => 'Password';
+
+  @override
+  String get danmakuLoginAction => 'Sign in';
+
+  @override
+  String get danmakuLoginEmptyFields => 'Please enter username and password';
+
+  @override
+  String get danmakuAccountSection => 'DanDanPlay Account';
+
+  @override
+  String danmakuAccountLoggedInAs(String name) {
+    return 'Signed in as $name';
+  }
+
+  @override
   String get danmakuStyle => 'Danmaku style';
 
   @override

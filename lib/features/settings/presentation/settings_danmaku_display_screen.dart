@@ -9,11 +9,14 @@
 /// 渲染层读取（`DanmakuSettings` 中对应 enum 字段仍保留以做向后兼容）。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/danmaku/danmaku_settings.dart';
 import '../../../core/danmaku/danmaku_settings_store.dart';
+import '../../../core/danmaku/dandanplay_auth.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
@@ -211,10 +214,66 @@ class _SettingsDanmakuDisplayScreenState
                     ),
                   ],
                 ),
+
+                // ── F-18：弹弹play 账号（发送弹幕的登录态）──
+                SettingsCard(
+                  key: const ValueKey<String>('danmaku.account'),
+                  index: 3,
+                  title: l10n.danmakuAccountSection,
+                  children: <Widget>[_dandanplayAccountSection(l10n)],
+                ),
               ],
               ),
             )
           : const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  /// F-18：弹弹play 账号分区——登录状态 + 登出。
+  ///
+  /// 登录入口不在本页（发送弹幕时在播放器内就地弹出），此处仅展示当前
+  /// 登录态并支持退出。
+  Widget _dandanplayAccountSection(AppLocalizations l10n) {
+    final auth = DandanplayAuth.instance;
+    return FutureBuilder<void>(
+      future: auth.init(),
+      builder: (BuildContext context, AsyncSnapshot<void> snap) {
+        final loggedIn = snap.connectionState == ConnectionState.done
+            ? auth.isLoggedIn
+            : null; // 加载中
+        final theme = Theme.of(context);
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    if (loggedIn == null)
+                      Text(l10n.loginStatusLoggedOut,
+                          style: theme.textTheme.bodyMedium)
+                    else if (loggedIn)
+                      Text(l10n.danmakuAccountLoggedInAs(auth.displayName ?? ''),
+                          style: theme.textTheme.bodyMedium)
+                    else
+                      Text(l10n.loginStatusLoggedOut,
+                          style: theme.textTheme.bodyMedium),
+                  ],
+                ),
+              ),
+              if (loggedIn == true)
+                TextButton(
+                  onPressed: () {
+                    unawaited(auth.logout());
+                    if (mounted) setState(() {});
+                  },
+                  child: Text(l10n.logoutAction),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 

@@ -19,6 +19,7 @@ import '../../../core/danmaku/danmaku_settings.dart';
 import '../../../core/danmaku/danmaku_settings_store.dart';
 import '../../../core/danmaku/danmaku_source.dart';
 import '../../../core/danmaku/dandanplay_service.dart';
+import '../../../core/danmaku/dandanplay_auth.dart';
 import '../../../core/download/download_manager.dart';
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/async_session.dart';
@@ -29,6 +30,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/player/player_controller.dart';
 import '../../../core/player/demuxer_cache_policy.dart';
+import '../../../core/player/player_capability.dart';
 import '../../../core/player/audio_playback_service.dart';
 import '../../../core/player/pip_actions_bridge.dart';
 import '../../../core/player/play_queue_store.dart';
@@ -852,6 +854,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // 加超时兜底，把"卡死"变成明确错误，让用户能看到原因而非一直转圈。
       final stopwatch = Stopwatch()..start();
       AppLog.instance.i('[本地视频打开] 调用 media_kit.open：$direct');
+      _controller.openReadyTimeout = _readyTimeout;
       try {
         await _controller
             .open(direct, headers: headers)
@@ -863,6 +866,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       }
       // 直链 / 本地模式打开后自动播放（与在线分支对齐，修复「打开即暂停」，P0 B-1）。
       _controller.play();
+      // F-30：分级超时等待元数据，超时自动 re-open 一次自愈。
+      unawaited(_retryOpenOnceIfStalled());
       AppLog.instance.i('[本地视频打开] media_kit.open 完成，'
           '耗时 ${stopwatch.elapsedMilliseconds}ms');
     } else {
@@ -914,6 +919,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       await _controller.open(playUrl, headers: playHeaders);
       // 解析成功后自动开始播放
       _controller.play();
+      // F-30：分级超时等待元数据（媒体服务器 30s），超时自动 re-open 一次自愈。
+      unawaited(_retryOpenOnceIfStalled());
     }
 
     // 退页守卫：open() 期间可能已退场，后续订阅 / 弹幕加载 / setState 须在
@@ -1778,7 +1785,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       try {
         await _controller.durationStream
             .firstWhere((Duration d) => d > Duration.zero)
-            .timeout(const Duration(seconds: 10));
+            // F-30：按来源分级超时（原固定 10s 对媒体服务器冷启动不够）。
+            .timeout(_readyTimeout);
       } on Object {
         // 超时或流异常：仍尝试 seek 一次，失败也不影响正常播放。
       }
@@ -2482,7 +2490,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // stop 失败忽略，open 仍会重建当前媒体。
     }
     await _controller.open(url, headers: headers);
-    await _waitUntilReady(const Duration(seconds: 8));
+    // F-30：按来源分级超时等元数据（媒体服务器 30s / 直链 6s / 本地 5s）。
+    await _waitUntilReady(_readyTimeout);
     // 稳健 seek：open 后首帧/分片可能未到位，校验位置，接近 0 则重试。
     for (var attempt = 0; attempt < 6; attempt++) {
       await _controller.seek(resumeAt);
@@ -2669,6 +2678,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (!_loadSession.isValid(token)) return;
       await _controller.open(direct);
       _controller.play();
+      // F-30：分级超时等待元数据，超时自动 re-open 一次自愈。
+      unawaited(_retryOpenOnceIfStalled());
       _danmakuController.clear();
       _danmakuController.reset();
       // 重新加载弹幕（使用新剧集 ID）
@@ -2725,6 +2736,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       await _controller.open(playUrl, headers: playHeaders);
       // 切集后自动播放
       _controller.play();
+      // F-30：分级超时等待元数据（媒体服务器 30s），超时自动 re-open 一次自愈。
+      unawaited(_retryOpenOnceIfStalled());
       _danmakuController.clear();
       _danmakuController.reset();
       // 重新加载弹幕（使用新剧集 ID）
@@ -3266,6 +3279,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _playingFalseDebounce?.cancel();
     _pipActionSub?.cancel();
     _pipActionSub = null;
+    // F-29：退出播放器取消网络变化订阅（缓存档位随播放器生命周期）。
+    unawaited(_connectivitySub?.cancel());
+    _connectivitySub = null;
     // F-23：退出播放器清空 PiP 窗口动作（避免下次进入残留旧动作）。
     // 退出时 PiP 已结束（PiP 模式不会触发 dispose），安全清理。
     unawaited(PipActionsBridge.instance.clearActions());

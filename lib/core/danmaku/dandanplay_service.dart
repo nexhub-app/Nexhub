@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import '../settings/danmaku_config.dart';
 import 'dandanplay_parser.dart';
 import 'danmaku_source.dart';
-
 /// 弹弹play 弹幕服务。
 ///
 /// 签名算法：`base64(sha256(AppId+Timestamp+Path+AppSecret))`
@@ -157,6 +156,100 @@ class DandanplayService implements DanmakuSource {
     }
   }
 
+  /// 弹弹play 账号登录（F-18 发送弹幕前置）。
+  ///
+  /// 对应 `POST /api/v2/login`（官方账号服务器）：
+  /// - 请求体含 `{userName, password, appId, unixTimestamp, hash}`，
+  ///   其中 `hash = md5(AppId + Password + Timestamp + UserName + AppSecret)`；
+  /// - 响应携带用户级 token（后续发送弹幕以 `Authorization: Bearer` 携带）
+  /// 与用户信息。
+  ///
+  /// 凭据未配置时抛 [StateError]；账号密码错误 / 网络异常原样抛出由 UI 提示。
+  Future<DandanplayLoginResult> login(String userName, String password) async {
+    const path = '/api/v2/login';
+    final cfg = await _loadConfig();
+    if (!cfg.isConfigured) {
+      throw StateError('DanDanPlay credentials not configured');
+    }
+    final timestamp =
+        DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+    final hash = md5
+        .convert(utf8.encode('${cfg.appId}$password$timestamp$userName${cfg.appSecret}'))
+        .toString();
+    final response = await _dio.post<Map<String, dynamic>>(
+      path,
+      data: <String, dynamic>{
+        'userName': userName,
+        'password': password,
+        'appId': cfg.appId,
+        'unixTimestamp': timestamp,
+        'hash': hash,
+      },
+      options: Options(
+        headers: <String, String>{
+          ..._signHeaders(cfg, path),
+          'User-Agent': 'NexHub/1.0',
+          'Accept': 'application/json',
+        },
+        responseType: ResponseType.json,
+      ),
+    );
+    final data = response.data;
+    final token = data?['token']?.toString() ?? '';
+    if (token.isEmpty) {
+      throw StateError('DanDanPlay login failed: no token in response');
+    }
+    final user = data?['user'];
+    return DandanplayLoginResult(
+      token: token,
+      userName: user is Map ? (user['userName']?.toString() ?? userName) : userName,
+      screenName:
+          user is Map ? (user['screenName']?.toString() ?? '') : '',
+    );
+  }
+
+  /// 上传弹幕到指定剧集（F-18）。
+  ///
+  /// 对应 `POST /api/v2/comment/{episodeId}`：
+  /// - 需应用级签名 + 用户级 `Authorization: Bearer {token}`（未登录时服务器拒绝）；
+  /// - [time] 为视频内秒数；[mode]：1=滚动 / 4=底部 / 5=顶部；[color] 为 RGB 整数。
+  ///
+  /// 成功返回弹幕 cid；失败（未登录 / 校验不过 / 网络）原样抛出由 UI 提示。
+  Future<String> sendComment({
+    required String episodeId,
+    required double time,
+    required int mode,
+    required int color,
+    required String comment,
+    required String bearerToken,
+  }) async {
+    final path = '/api/v2/comment/$episodeId';
+    final response = await _dio.post<Map<String, dynamic>>(
+      path,
+      data: <String, dynamic>{
+        'time': time,
+        'mode': mode,
+        'color': color & 0xFFFFFF,
+        'comment': comment,
+      },
+      options: Options(
+        headers: <String, String>{
+          ...await _authHeaders(path),
+          'Authorization': 'Bearer $bearerToken',
+          'User-Agent': 'NexHub/1.0',
+          'Accept': 'application/json',
+        },
+        responseType: ResponseType.json,
+      ),
+    );
+    final success = response.data?['success'] == true;
+    if (!success) {
+      throw StateError(
+          'DanDanPlay sendComment rejected: ${response.data?['errorMessage'] ?? response.statusCode}');
+    }
+    return response.data?['cid']?.toString() ?? '';
+  }
+
   /// 构造当前请求所需的签名头。
   ///
   /// 未配置凭据时抛出 [StateError]，由调用方转换为友好提示。
@@ -165,6 +258,11 @@ class DandanplayService implements DanmakuSource {
     if (!cfg.isConfigured) {
       throw StateError('DanDanPlay credentials not configured');
     }
+    return _signHeaders(cfg, path);
+  }
+
+  /// 已持有配置时构造签名头（login 等已校验过凭据的路径复用）。
+  Map<String, String> _signHeaders(DanmakuConfig cfg, String path) {
     final timestamp = _timestamp();
     final signature = _sign(cfg.appId, cfg.appSecret, timestamp, path);
     return <String, String>{
@@ -249,4 +347,22 @@ class DandanplayMatchEpisode {
   }
 
   static String _asString(dynamic v) => v?.toString() ?? '';
+}
+
+/// `/api/v2/login` 登录成功结果（F-18）。
+class DandanplayLoginResult {
+  const DandanplayLoginResult({
+    required this.token,
+    required this.userName,
+    required this.screenName,
+  });
+
+  /// 用户级访问令牌（发送弹幕以 `Authorization: Bearer` 携带）。
+  final String token;
+
+  /// 登录名。
+  final String userName;
+
+  /// 展示昵称；服务器未返回时为空串，展示层回退 [userName]。
+  final String screenName;
 }
