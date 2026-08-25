@@ -113,18 +113,16 @@ class BookshelfContent extends StatelessWidget {
   ) {
     switch (subTab) {
       case LibrarySubTab.local:
-        final manager = context.read<DownloadManager>();
-        final localManager = context.read<LocalContentManager>();
-        final categories = manager.completedTasks
-            .where((t) => t.sourceType == sourceType)
-            .map((t) => t.format.label)
-            .toSet();
-        final importedKinds = _kindsForSourceType(sourceType);
-        for (final e in localManager.items) {
-          if (importedKinds.contains(e.kind)) {
-            categories.add(e.kind.name);
-          }
-        }
+        // 分类段展示该模块"下载格式全集 + 本地导入类型全集"，使各模块有更多可筛
+        // 选项（即使某项当前数量为 0 也列出，便于按格式归拢）。
+        // 媒体仅 video 一项 → 由筛选面板在选项 ≤1 时自动隐藏该段。
+        final Set<String> categories = <String>{
+          for (final DownloadFormat f
+              in _downloadFormatsForSourceType(sourceType))
+            f.label,
+          for (final LocalMediaKind k in _kindsForSourceType(sourceType))
+            k.name,
+        };
         final sorted = categories.toList()..sort();
         return sorted;
       case LibrarySubTab.history:
@@ -651,6 +649,23 @@ List<LocalMediaKind> _kindsForSourceType(SourceType type) => switch (type) {
       SourceType.mangaSource => [LocalMediaKind.images, LocalMediaKind.pdf],
       SourceType.novelSource => [LocalMediaKind.text],
       SourceType.animeSource => [LocalMediaKind.video],
+    };
+
+/// 按 [SourceType] 映射到该模块本地书架「下载格式」分类全集（与
+/// [_kindsForSourceType] 互补：前者为在线下载产物格式，后者为本地导入类型）。
+///
+/// 全集展示使各模块分类段选项更丰富（即使某项当前数量为 0 也列出）；媒体(动漫)
+/// 仅 [DownloadFormat.video] 一项，由筛选面板在选项 ≤1 时自动隐藏该段。
+List<DownloadFormat> _downloadFormatsForSourceType(SourceType type) =>
+    switch (type) {
+      SourceType.novelSource => [DownloadFormat.epub, DownloadFormat.txt],
+      SourceType.mangaSource => [
+        DownloadFormat.cbz,
+        DownloadFormat.folder,
+        DownloadFormat.jpg,
+        DownloadFormat.png,
+      ],
+      SourceType.animeSource => [DownloadFormat.video],
     };
 
 /// 按 [DownloadFormat] 映射到 [LocalMediaKind]，用于下载内容点击时透传给

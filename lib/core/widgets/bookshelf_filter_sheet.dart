@@ -173,24 +173,26 @@ class _BookshelfFilterSheetState extends State<_BookshelfFilterSheet> {
                             _filter.copyWith(status: l10n.statusCompleted)),
                       ),
                     ]),
-                    const SizedBox(height: AppTokens.spaceMd),
-                    _Section(label: l10n.filterByCategory, children: <
-                        Widget>[
-                      _ChoiceChip(
-                        label: l10n.allLabel,
-                        selected: _filter.category == null,
-                        onSelected: (_) => setState(() =>
-                            _filter = _filter.copyWith(category: null)),
-                      ),
-                      ...widget.categories.map(
-                        (String c) => _ChoiceChip(
-                          label: c,
-                          selected: _filter.category == c,
+                    if (widget.categories.length > 1) ...<Widget>[
+                      const SizedBox(height: AppTokens.spaceMd),
+                      _Section(label: l10n.filterByCategory, children: <
+                          Widget>[
+                        _ChoiceChip(
+                          label: l10n.allLabel,
+                          selected: _filter.category == null,
                           onSelected: (_) => setState(() =>
-                              _filter = _filter.copyWith(category: c)),
+                              _filter = _filter.copyWith(category: null)),
                         ),
-                      ),
-                    ]),
+                        ...widget.categories.map(
+                          (String c) => _ChoiceChip(
+                            label: c,
+                            selected: _filter.category == c,
+                            onSelected: (_) => setState(() =>
+                                _filter = _filter.copyWith(category: c)),
+                          ),
+                        ),
+                      ]),
+                    ],
                     if (widget.groups.isNotEmpty) ...<Widget>[
                       const SizedBox(height: AppTokens.spaceMd),
                       _Section(label: l10n.filterByGroup, children: <Widget>[
