@@ -306,9 +306,11 @@ class _LocalBookshelf extends StatelessWidget {
           title: e.title,
           sourceType: sourceType,
           coverUrl: e.coverUrl,
+          author: e.author,
           onTap: () => onItemTap?.call(MediaItem(
             id: e.id,
             title: e.title,
+            author: e.author,
             sourceId: '',
             sourceType: sourceType,
             extra: <String, dynamic>{

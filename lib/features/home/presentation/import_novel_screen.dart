@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 import '../../../core/local/folder_import_dialog.dart';
 import '../../../core/local/import_permission.dart';
 import '../../../core/local/local_content_manager.dart';
+import '../../../core/local/local_novel_parser.dart';
 import '../../../core/platform/platform_service.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -68,12 +69,16 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
           );
           continue;
         }
+        // 文件名自动解析书名/作者（「《书名》作者：xx」等常见命名），
+        // 入库标题不再带扩展名与作者尾缀。
+        final parsed = LocalNovelParser.analyzeNameAuthor(f.name);
         await context.read<LocalContentManager>().add(LocalContentEntry(
           id: f.path!,
-          title: f.name,
+          title: parsed.name,
           path: f.path!,
           kind: LocalMediaKind.text,
           addedAt: DateTime.now().millisecondsSinceEpoch,
+          author: parsed.author,
         ));
       }
       if (mounted) {
@@ -154,12 +159,16 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
         targetFiles = result.selectedFiles;
       }
       for (final f in targetFiles) {
+        // 与单文件导入一致：文件名自动解析书名/作者。
+        final baseName = safBaseName(f);
+        final parsed = LocalNovelParser.analyzeNameAuthor(baseName);
         await context.read<LocalContentManager>().add(LocalContentEntry(
           id: f,
-          title: safBaseName(f),
+          title: parsed.name,
           path: f,
           kind: LocalMediaKind.text,
           addedAt: DateTime.now().millisecondsSinceEpoch,
+          author: parsed.author,
         ));
       }
       if (mounted) {

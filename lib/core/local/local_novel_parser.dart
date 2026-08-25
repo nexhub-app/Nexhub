@@ -79,6 +79,71 @@ class LocalNovelParser {
   /// 防止超长章拖垮分页与渲染。
   static const int _kMaxChapterChars = 100 * 1024;
 
+  /// 文件名书名/作者解析的四种常见命名模式（按序尝试，首个命中生效）：
+  /// 「前缀《书名》…作者：xxx」「前缀《书名》后缀」「书名 作者：xxx」「书名 by xxx」。
+  /// 书名取第 2 捕获组，第 1 + 3 组拼接后作为作者候选清洗。
+  static final List<RegExp> _nameAuthorPatterns = <RegExp>[
+    RegExp(r'(.*?)《([^《》]+)》.*?作者：(.*)'),
+    RegExp(r'(.*?)《([^《》]+)》(.*)'),
+    RegExp(r'(^)(.+) 作者：(.+)$'),
+    RegExp(r'(^)(.+) by (.+)$'),
+  ];
+
+  /// 书名噪声：尾部「作者…」说明与「xx 著」署名。
+  static final RegExp _bookNameNoiseRegex = RegExp(r'\s+作\s*者.*|\s+\S+\s+著');
+
+  /// 作者噪声：「作者：」类前缀与「著」署名尾缀。
+  static final RegExp _bookAuthorNoiseRegex =
+      RegExp(r'^\s*作\s*者[:：\s]+|\s+著');
+
+  /// 「XX 著」署名提取（用于无显式作者标记的《书名》后缀形态）。
+  static final RegExp _signatureAuthorRegex =
+      RegExp(r'([^\s《》]{1,24})\s*著\s*$');
+
+  static String _formatBookName(String raw) =>
+      raw.replaceAll(_bookNameNoiseRegex, '').trim();
+
+  static String _formatBookAuthor(String raw) =>
+      raw.replaceAll(_bookAuthorNoiseRegex, '').trim();
+
+  /// 从文件名自动解析书名与作者。
+  ///
+  /// 先截掉最后一个 `.` 之后的部分（扩展名），再按序尝试
+  /// [_nameAuthorPatterns]，命中时书名 = 第 2 捕获组：
+  /// - 带显式作者标记的模式（`作者：` / ` by `）：作者取标记后的文本清洗；
+  /// - 无标记的《书名》形态：仅当后缀以「XX 著」署名结尾时提取作者；
+  /// 全部未命中时书名为整名清洗结果，作者取移除书名后的剩余文本清洗结果
+  /// （无剩余则为 null）。返回 `(name:, author:)` 记录，`name` 保证非空、
+  /// `author` 可空。
+  static ({String name, String? author}) analyzeNameAuthor(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    final base = dot > 0 ? fileName.substring(0, dot) : fileName;
+    for (var i = 0; i < _nameAuthorPatterns.length; i++) {
+      final m = _nameAuthorPatterns[i].firstMatch(base);
+      if (m == null) continue;
+      final name = (m.group(2) ?? '').trim();
+      if (name.isEmpty) continue;
+      String? author;
+      if (i == 1) {
+        // 无标记的《书名》后缀形态：《书名》(标注) 或 《书名》XX著。
+        author = _signatureAuthorRegex
+            .firstMatch((m.group(3) ?? '').trim())
+            ?.group(1);
+      } else {
+        author = _formatBookAuthor(m.group(3) ?? '');
+      }
+      return (
+        name: name,
+        author: (author == null || author.isEmpty) ? null : author,
+      );
+    }
+    final name = _formatBookName(base);
+    if (name.isEmpty) return (name: base.trim(), author: null);
+    final rest = base.replaceFirst(name, '');
+    final author = rest == base ? '' : _formatBookAuthor(rest);
+    return (name: name, author: author.isEmpty ? null : author);
+  }
+
   /// 解析 TXT 文件。
   ///
   /// 自动嗅探编码（UTF-8 / GBK / UTF-16）读取；章节切分见
@@ -92,12 +157,12 @@ class LocalNovelParser {
     // 统一换行符为 \n
     text = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 
-    final bookTitle = p.basenameWithoutExtension(filePath);
+    final parsedName = analyzeNameAuthor(p.basename(filePath));
 
     return LocalNovelBook(
-      title: bookTitle,
-      author: null,
-      chapters: splitTxtChapters(text, fallbackTitle: bookTitle),
+      title: parsedName.name,
+      author: parsedName.author,
+      chapters: splitTxtChapters(text, fallbackTitle: parsedName.name),
     );
   }
 
@@ -286,9 +351,10 @@ class LocalNovelParser {
     final opfXml = readText(opfPath);
     final opfDir = p.dirname(opfPath);
 
-    // 2. 解析 metadata：title / author
-    var bookTitle = p.basenameWithoutExtension(filePath);
-    String? author;
+    // 2. 解析 metadata：title / author（元数据缺失时回退文件名自动解析）。
+    final fallbackName = analyzeNameAuthor(p.basename(filePath));
+    var bookTitle = fallbackName.name;
+    String? author = fallbackName.author;
     final titleMatch =
         RegExp(r'<dc:title[^>]*>([^<]*)</dc:title>', caseSensitive: false)
             .firstMatch(opfXml);

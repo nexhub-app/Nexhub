@@ -506,6 +506,10 @@ class LocalContentEntry {
   /// （散图文件夹由阅读器实时扫描目录内图片，无需预存列表）。
   final List<String>? filePaths;
 
+  /// 作者（仅小说条目）：导入期从文件名自动解析（`《书名》作者：xx` 等
+  /// 常见命名），EPUB 元数据优先。解析不出为 null。
+  final String? author;
+
   const LocalContentEntry({
     required this.id,
     required this.title,
@@ -514,6 +518,7 @@ class LocalContentEntry {
     required this.addedAt,
     this.coverUrl,
     this.filePaths,
+    this.author,
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -524,6 +529,7 @@ class LocalContentEntry {
         'addedAt': addedAt,
         'coverUrl': coverUrl,
         'filePaths': filePaths,
+        'author': author,
       };
 
   factory LocalContentEntry.fromJson(Map<String, dynamic> json) => LocalContentEntry(
@@ -536,6 +542,7 @@ class LocalContentEntry {
         filePaths: (json['filePaths'] as List?)
             ?.map((e) => e as String)
             .toList(),
+        author: json['author'] as String?,
       );
 
   /// 浅拷贝并覆盖部分字段（用于重命名等）。
@@ -547,6 +554,7 @@ class LocalContentEntry {
     int? addedAt,
     String? coverUrl,
     List<String>? filePaths,
+    String? author,
   }) =>
       LocalContentEntry(
         id: id ?? this.id,
@@ -556,6 +564,7 @@ class LocalContentEntry {
         addedAt: addedAt ?? this.addedAt,
         coverUrl: coverUrl ?? this.coverUrl,
         filePaths: filePaths ?? this.filePaths,
+        author: author ?? this.author,
       );
 }
 
