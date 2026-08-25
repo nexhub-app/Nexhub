@@ -343,6 +343,11 @@ class NovelReaderPreferences {
   /// 底部工具栏槽位（有序，最多 6 个；超出截断）。
   final List<NovelBottomTool> bottomToolbarSlots;
 
+  /// 点按九区动作（N2）：3×3 区域各配置一个 [NovelTapAction] 名，
+  /// 行优先共 9 项。空列表 / 长度不为 9 时回退旧的布局预设解析
+  /// （tapZoneLayout + tapZoneInvert）。
+  final List<String> tapZoneActions;
+
   // ─────────────── #5 朗读设置 ───────────────
   /// 朗读语速（0.5–2.0，1.0 = 正常）。
   final double ttsSpeechRate;
@@ -488,6 +493,7 @@ class NovelReaderPreferences {
     this.tapZoneLayout = ReaderTapZoneLayout.lShape,
     this.themeFollow = NovelThemeFollow.followApp,
     this.bottomToolbarSlots = NovelBottomTool.defaults,
+    this.tapZoneActions = const <String>[],
     // #5 朗读
     this.ttsSpeechRate = 1.0,
     this.ttsSleepTimer = 0,
@@ -561,6 +567,7 @@ class NovelReaderPreferences {
     ReaderTapZoneLayout? tapZoneLayout,
     NovelThemeFollow? themeFollow,
     List<NovelBottomTool>? bottomToolbarSlots,
+    List<String>? tapZoneActions,
     // #5 朗读
     double? ttsSpeechRate,
     int? ttsSleepTimer,
@@ -648,6 +655,7 @@ class NovelReaderPreferences {
       themeFollow: themeFollow ?? this.themeFollow,
       bottomToolbarSlots:
           bottomToolbarSlots ?? this.bottomToolbarSlots,
+      tapZoneActions: tapZoneActions ?? this.tapZoneActions,
       // #5 朗读
       ttsSpeechRate: ttsSpeechRate ?? this.ttsSpeechRate,
       ttsSleepTimer: ttsSleepTimer ?? this.ttsSleepTimer,
@@ -784,6 +792,9 @@ class NovelReaderPreferences {
           listEquals(bottomToolbarSlots, def.bottomToolbarSlots)
               ? base.bottomToolbarSlots
               : bottomToolbarSlots,
+      tapZoneActions: listEquals(tapZoneActions, def.tapZoneActions)
+          ? base.tapZoneActions
+          : tapZoneActions,
       // #5 朗读
       ttsSpeechRate: identical(ttsSpeechRate, def.ttsSpeechRate)
           ? base.ttsSpeechRate
@@ -1066,6 +1077,7 @@ class NovelReaderPreferences {
         'themeFollow': themeFollow.name,
         'bottomToolbarSlots':
             bottomToolbarSlots.map((NovelBottomTool t) => t.name).toList(),
+        'tapZoneActions': tapZoneActions,
         // #5 朗读
         'ttsSpeechRate': ttsSpeechRate,
         'ttsSleepTimer': ttsSleepTimer,
@@ -1150,6 +1162,10 @@ class NovelReaderPreferences {
       themeFollow: NovelThemeFollow.fromString(json['themeFollow'] as String?),
       bottomToolbarSlots: _parseBottomToolbarSlots(
           json['bottomToolbarSlots']),
+      tapZoneActions: (json['tapZoneActions'] as List?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
       // #5 朗读
       ttsSpeechRate: (json['ttsSpeechRate'] as num?)?.toDouble() ?? 1.0,
       ttsSleepTimer: (json['ttsSleepTimer'] as num?)?.toInt() ?? 0,

@@ -18,6 +18,8 @@ import '../../../core/novel/novel_page_animation.dart';
 import '../../../core/novel/novel_pre_download_preferences.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/settings/reader_default_settings.dart';
+import '../../../core/novel/novel_tap_action.dart'
+    show NovelTapAction, kNovelTapZoneClassic;
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/reader_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
@@ -303,6 +305,103 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
       NovelBottomTool.search => l10n.toolSearch,
       NovelBottomTool.tts => l10n.toolTts,
     };
+  }
+
+  // ── 九区动作编辑器（N2）──
+
+  String _tapActionLabel(AppLocalizations l10n, NovelTapAction a) {
+    return switch (a) {
+      NovelTapAction.none => l10n.tapActNone,
+      NovelTapAction.menu => l10n.tapActMenu,
+      NovelTapAction.prevPage => l10n.tapZonePrev,
+      NovelTapAction.nextPage => l10n.tapZoneNext,
+      NovelTapAction.prevChapter => l10n.toolPrevChapter,
+      NovelTapAction.nextChapter => l10n.toolNextChapter,
+      NovelTapAction.addBookmark => l10n.toolBookmark,
+      NovelTapAction.bookmarkList => l10n.toolBookmarkList,
+      NovelTapAction.toc => l10n.toolToc,
+      NovelTapAction.search => l10n.toolSearch,
+      NovelTapAction.ttsToggle => l10n.toolTts,
+      NovelTapAction.ttsPauseResume => l10n.tapActTtsPauseResume,
+      NovelTapAction.nightMode => l10n.toolNightMode,
+      NovelTapAction.autoPagePause => l10n.toolAutoPage,
+      NovelTapAction.syncProgress => l10n.tapActSyncProgress,
+      NovelTapAction.purifyToggle => l10n.tapActPurifyToggle,
+    };
+  }
+
+  /// 当前生效的九区配置（未自定义时显示经典布局等价映射）。
+  List<NovelTapAction> _effectiveTapZones() {
+    if (_settings.novelTapZoneActions.length == 9) {
+      return _settings.novelTapZoneActions
+          .map((s) => NovelTapAction.tryParse(s) ?? NovelTapAction.menu)
+          .toList();
+    }
+    return List<NovelTapAction>.from(kNovelTapZoneClassic);
+  }
+
+  void _setTapZone(int index, NovelTapAction action) {
+    final base = _settings.novelTapZoneActions.length == 9
+        ? List<String>.from(_settings.novelTapZoneActions)
+        : kNovelTapZoneClassic.map((a) => a.name).toList();
+    base[index] = action.name;
+    _update(_settings.copyWith(novelTapZoneActions: base));
+  }
+
+  Widget _buildTapZoneEditor(AppLocalizations l10n) {
+    final zones = _effectiveTapZones();
+    final border = BorderSide(color: Theme.of(context).dividerColor);
+    return Column(
+      children: <Widget>[
+        for (var row = 0; row < 3; row++)
+          Padding(
+            padding: EdgeInsets.only(bottom: row < 2 ? AppTokens.spaceXs : 0),
+            child: Row(
+              children: <Widget>[
+                for (var col = 0; col < 3; col++)
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                          right: col < 2 ? AppTokens.spaceXs : 0),
+                      child: Container(
+                        height: 40,
+                        decoration: BoxDecoration(
+                          borderRadius:
+                              BorderRadius.circular(AppTokens.radiusSm),
+                          border: Border.fromBorderSide(border),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppTokens.spaceXs),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<NovelTapAction>(
+                            value: zones[row * 3 + col],
+                            isExpanded: true,
+                            isDense: true,
+                            items: NovelTapAction.values
+                                .map((a) => DropdownMenuItem<NovelTapAction>(
+                                      value: a,
+                                      child: Text(
+                                        _tapActionLabel(l10n, a),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ))
+                                .toList(),
+                            onChanged: (v) {
+                              if (v != null) _setTapZone(row * 3 + col, v);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
   }
 
   // ── 颜色选择器辅助 ──
@@ -1639,6 +1738,24 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                 label: _tapZoneInvertLabel(l10n, v),
                               ))
                           .toList(),
+                    ),
+                    // N2：九区动作编辑器（3×3 逐区自定义；配置后优先生效）
+                    Text(l10n.novelTapZoneActions,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    _buildTapZoneEditor(l10n),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => _update(_settings.copyWith(
+                            novelTapZoneActions:
+                                kNovelTapZoneClassic.map((a) => a.name).toList())),
+                        icon: const Icon(Icons.restart_alt, size: 18),
+                        label: Text(l10n.novelTapZoneReset),
+                      ),
                     ),
                     // 自动翻页间隔
                     Text(l10n.autoPageInterval,

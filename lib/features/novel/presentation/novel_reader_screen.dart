@@ -29,6 +29,8 @@ import '../../../core/novel/novel_highlight_rule.dart'
     show NovelHighlightRuleSet;
 import '../../../core/novel/novel_rule_cache.dart'
     show NovelRuleCache;
+import '../../../core/novel/novel_tap_action.dart'
+    show NovelTapAction, novelTapGridIndexOf;
 import '../../../core/novel/novel_replace_rule_screen.dart'
     show NovelReplaceRuleScreen;
 import '../../../core/favorites/favorites_manager.dart';
@@ -3564,6 +3566,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       setState(() => _showSelectionToolbar = false);
       return;
     }
+    // N2：九区自定义动作优先（偏好长度为 9 时生效）；未配置时回退
+    // 旧布局预设解析，保持既有行为不变。
+    final List<String> tapGrid = _prefs.tapZoneActions;
+    if (tapGrid.length == 9) {
+      final int zone = novelTapGridIndexOf(details.localPosition, size);
+      NovelTapAction act =
+          NovelTapAction.tryParse(tapGrid[zone]) ?? NovelTapAction.menu;
+      if (_prefs.tapZoneInvert == TapZoneInvert.leftRight) {
+        act = switch (act) {
+          NovelTapAction.prevPage => NovelTapAction.nextPage,
+          NovelTapAction.nextPage => NovelTapAction.prevPage,
+          _ => act,
+        };
+      }
+      _dispatchTapAction(act);
+      return;
+    }
     final action = TapZoneResolver.resolve(
       layout: _prefs.tapZoneLayout,
       invert: _prefs.tapZoneInvert,
@@ -3578,6 +3597,177 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _goPrevPage();
       case TapZoneAction.next:
         _goNextPage();
+    }
+  }
+
+  /// 分发九区动作（N2）。
+  void _dispatchTapAction(NovelTapAction action) {
+    switch (action) {
+      case NovelTapAction.none:
+        break;
+      case NovelTapAction.menu:
+        _toggleUi();
+      case NovelTapAction.prevPage:
+        _goPrevPage();
+      case NovelTapAction.nextPage:
+        _goNextPage();
+      case NovelTapAction.prevChapter:
+        _goPrevChapter();
+      case NovelTapAction.nextChapter:
+        _goNextChapter();
+      case NovelTapAction.addBookmark:
+        _addBookmark();
+      case NovelTapAction.bookmarkList:
+        _showBookmarkList();
+      case NovelTapAction.toc:
+        _showChapterList();
+      case NovelTapAction.search:
+        _showInBookSearch();
+      case NovelTapAction.ttsToggle:
+        _toggleTts();
+      case NovelTapAction.ttsPauseResume:
+        if (_tts.isPaused) {
+          _tts.resume();
+        } else if (_tts.isPlaying) {
+          _tts.pause();
+        } else {
+          _toggleTts();
+        }
+        if (mounted) setState(() {});
+      case NovelTapAction.nightMode:
+        _toggleNightMode();
+      case NovelTapAction.autoPagePause:
+        if (!_autoPageEnabled) return; // 未启用时无语义，交由设置入口开启
+        _toggleAutoPagePause();
+      case NovelTapAction.syncProgress:
+        unawaited(_syncProgressFromCloud());
+      case NovelTapAction.purifyToggle:
+        unawaited(_togglePurify());
+    }
+  }
+
+  /// 九区「净化开关」动作（N2）：翻转本书替换净化总开关并局部重排。
+  Future<void> _togglePurify() async {
+    try {
+      final rules =
+          await NovelRuleCache().getReplaceRules(widget.novelId);
+      rules.enabled = !rules.enabled;
+      await NovelRuleCache().saveReplaceRules(rules);
+      _refreshConvert();
+    } on Object {
+      // 缓存/持久化失败静默忽略
+    }
+  }
+
+  /// 九区「同步进度」动作（N2）：拉取云端阅读进度。
+  ///
+  /// 本地领先 → 静默上传并提示；云端领先 → 弹确认框，确认后应用云端
+  /// 快照并跳转到对应章节页；无差异提示「进度无变化」。
+  Future<void> _syncProgressFromCloud() async {
+    if (_isLocalMode) return;
+    final l10n = AppLocalizations.of(context);
+    final int idx = _chapterIndex.clamp(
+        0, _effectiveChapters.isNotEmpty ? _effectiveChapters.length - 1 : 0);
+    final int total = _pagination?.pages.length ?? 0;
+    final int page = (_currentPage < 0 && total > 0)
+        ? total - 1
+        : _currentPage.clamp(0, total > 0 ? total - 1 : 0);
+    final point = NovelProgressPoint(
+      novelId: widget.novelId,
+      chapterIndex: idx,
+      charOffset: _pagination != null ? _charOffsetForPage(page) : null,
+      page: page,
+    );
+    bool appliedRemote = false;
+    bool uploadedLocal = false;
+    bool conflict = false;
+    try {
+      final r = await NovelProgressSyncService()
+          .pullOne(widget.novelId, point);
+      appliedRemote = r.appliedRemote;
+      uploadedLocal = r.uploadedLocal;
+      conflict = r.conflict;
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.cloudSyncSyncFailed)),
+      );
+      return;
+    }
+    if (!mounted) return;
+
+    bool useRemote = appliedRemote;
+    if (conflict) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext ctx) => AppAlertDialog(
+          title: Text(l10n.novelProgressConflictTitle),
+          content: Text(l10n.novelProgressConflictBody(1)),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(l10n.novelProgressUseRemote),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (ok != true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.novelProgressSyncedNone)),
+        );
+        return;
+      }
+      useRemote = true;
+    } else if (!useRemote && uploadedLocal) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.cloudSyncSyncSuccess)),
+      );
+      return;
+    } else if (!useRemote) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.novelProgressSyncedNone)),
+      );
+      return;
+    }
+
+    // 应用云端快照（appliedRemote 的空本地场景与确认后的冲突场景统一走此写入）。
+    try {
+      final applied = await NovelProgressSyncService().applyRemote(
+        <String, NovelProgressPoint>{widget.novelId: point},
+        confirmedIds: <String>[widget.novelId],
+      );
+      if (!mounted) return;
+      if (applied.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.cloudSyncSyncFailed)),
+        );
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.cloudSyncSyncSuccess)),
+      );
+      final saved = await NovelProgressManager().get(widget.novelId);
+      if (!mounted || saved == null) return;
+      if (widget.chapters.isEmpty) return;
+      final target = saved.chapterIndex.clamp(0, widget.chapters.length - 1);
+      _jumpToBookmark(NovelBookmark(
+        novelId: widget.novelId,
+        chapterIndex: target,
+        chapterId: saved.chapterId,
+        chapterTitle: '',
+        page: saved.currentPage,
+        createdAt: 0,
+      ));
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.cloudSyncSyncFailed)),
+      );
     }
   }
 
