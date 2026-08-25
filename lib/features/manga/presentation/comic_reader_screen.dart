@@ -270,6 +270,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 真实高度渲染，彻底消除方向反转时的高度突变。切章（_setupControllers）清空。
   final Set<String> _webtoonLoadedUrls = <String>{};
 
+  /// 真实图片自然尺寸缓存（URL → 原始像素宽高）。条漫占位高与放大态纵向平移
+  /// 夹取均优先用此处的真实高度估算；未命中（该图从未加载过）回退经验值。
+  /// 与 [_webtoonLoadedUrls] 同理，切章（_setupControllers）清空。
+  final Map<String, Size> _realImageDims = <String, Size>{};
+
   /// 由滚动通知实时捕获的视口高度，用于把 itemTrailingEdge（比例）换算成像素差。
   double? _webtoonViewport;
 
@@ -407,6 +412,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 翻页闪光动画控制器与覆盖层状态。
   late final AnimationController _flashController;
+
+  /// E-Ink 刷新（L3）：按翻页间隔累计的页数计数器与上次计入的页码。
+  int _einkPageCount = 0;
+  int _einkLastPage = -1;
 
   /// 当前注册到 [_flashController] 的监听器引用：重播闪光前用 removeListener
   /// 摘除旧监听，避免 clearListeners（受保护成员不可用）。
@@ -724,6 +733,20 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       }
     }
     _refreshFavorite();
+    // 自动收藏（L3 漫画）：打开作品即加入收藏。已收藏跳过，避免 toggle 误移除。
+    if (_effectivePrefs.isAutoFavorite &&
+        _favorites != null &&
+        !_favorites!.isFavorite(widget.comicId, SourceType.mangaSource)) {
+      unawaited(_favorites!.toggleFavorite(MediaItem(
+        id: widget.comicId,
+        title: widget.title,
+        sourceId: widget.sourceId,
+        sourceType: SourceType.mangaSource,
+        detailUrl: widget.detailUrl,
+        coverUrl: widget.coverUrl,
+      )));
+      _isFav = true;
+    }
     unawaited(_refreshChapterBookmark());
     // 本地漫画（无章节/无在线源）默认显示控制栏，避免「只有图片没有操控面板」。
     // 联网漫画仍保持沉浸式（点屏切换显隐）。
@@ -1264,7 +1287,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       final Size vp = MediaQuery.of(context).size;
       final m = _zoomController.value;
       _zoomController.value = _prefs.readingMode.isWebtoon
-          ? _clampWebtoonZoomMatrix(Matrix4.copy(m), vp)
+          ? _clampWebtoonZoomMatrix(
+              Matrix4.copy(m), vp, _currentWebtoonContentHeight(vp))
           : _clampZoomMatrix(Matrix4.copy(m), vp);
       // 视口尺寸变化（全屏切换 / 拖窗口边角）后，PageView 的像素偏移对应页索引会
       // 漂移（页宽变了），进度条会跳到别的页（B3）。重新把当前页锚回视口。
@@ -2300,6 +2324,15 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _maybeMarkChapterWatched(page);
     // 阅读中自动下载后续章节（REQ-C7）：进度越过 25% 时后台入队，失败静默。
     _maybeAutoDownload(page);
+    // E-Ink 刷新（L3）：按翻页间隔累计页数，跨页变化时 +1，达到间隔触发一次全屏闪烁。
+    if (_effectivePrefs.einkRefreshEnabled && page != _einkLastPage) {
+      _einkLastPage = page;
+      _einkPageCount++;
+      if (_einkPageCount >= _effectivePrefs.einkRefreshInterval) {
+        _einkPageCount = 0;
+        _triggerEinkRefresh();
+      }
+    }
   }
 
   /// 章节阅读进度达到「已看」阈值时标记该章已读。
@@ -2632,6 +2665,23 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         onDone?.call();
       });
     });
+  }
+
+  /// E-Ink 刷新（L3）：墨水屏防残影，按翻页间隔自动全屏闪烁一次。
+  /// 复用 [_runFlash] 与闪光覆盖层，颜色/时长由 [ReaderPreferences.einkRefreshStyle]
+  /// / [ReaderPreferences.einkRefreshDuration] 决定。
+  void _triggerEinkRefresh() {
+    if (!mounted) return;
+    final Color color = _effectivePrefs.einkRefreshStyle ==
+            ReaderEInkRefreshStyle.black
+        ? Colors.black
+        : Colors.white;
+    _runFlash(
+      color,
+      Duration(
+        milliseconds: _effectivePrefs.einkRefreshDuration.clamp(50, 1000),
+      ),
+    );
   }
 
   /// 收起跳章过渡提示并取消延时跳转（未显示时无副作用）。
@@ -3044,15 +3094,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     });
   }
 
-  /// 双击缩放：三态循环（用户需求，参考 photo_view 的 scaleState 循环思想）——
-  /// 原样(1x) → 缩小(0.5x) → 放大([ReaderPreferences.doubleTapZoomScale]) →
-  /// 恢复原样(1x) → …。preventShrink 打开时跳过缩小态（1x ↔ 放大两态）。
+  /// 双击缩放：两态循环（下限固定为「适配尺寸」[ReaderPreferences.minScale]，
+  /// 放大目标为 [ReaderPreferences.doubleTapZoomScale]）——
+  /// 适配下限(minScale) ↔ 放大(doubleTapZoomScale) → …。
   /// 以 [focal]（视口坐标）或视口中心为锚点；[focal] 为 null 时使用中心。
+  ///
+  /// 下限即适配尺寸：双击永远不会下探到 fit 以下（旧实现曾硬编码 0.5 绕过
+  /// [minScale]，导致双击下限与捏合/平移下限不一致）。[preventShrink] 仅约束
+  /// 捏合/平移是否回弹到适配尺寸，不影响本两态循环。
   ///
   /// 实现要点：
   /// - 每次双击【绝对设置】目标矩阵（不乘旧矩阵），直接到达目标态——避免
-  ///   「乘旧矩阵」的浮点累积导致第三次「恢复原样」scale 漂移（如 0.99999x
-  ///   被误判为缩小态、循环错乱）。
+  ///   「乘旧矩阵」的浮点累积导致循环错乱。
   /// - Transform/AnimatedBuilder 以「视口中心」为原点（等价 alignment: center），
   ///   而 focal 是「左上原点」坐标；[_toTransformAnchor] 负责换算。
   void _toggleZoom([Offset? focal]) {
@@ -3074,16 +3127,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final Offset anchor = focal == null
         ? Offset.zero
         : _anchorFromZoomStart(focal, vp);
-    final double target;
-    if (cur > 1.001) {
-      target = 1.0; // 放大态 → 恢复原样
-    } else if (_prefs.preventShrink) {
-      target = _prefs.doubleTapZoomScale; // 防缩小时 1x ↔ 放大两态
-    } else if (cur < 0.999) {
-      target = _prefs.doubleTapZoomScale; // 缩小态 → 放大
-    } else {
-      target = 0.5; // 原样 → 缩小（第一次双击；minScale 默认 1.0，故用固定 0.5）
-    }
+    // 两态循环：当前高于适配下限则回到下限（适配尺寸），否则放大到目标。
+    // 下限用 minScale（默认 1.0 = fit），不再硬编码 0.5 下探到 fit 以下。
+    final double target = cur > _prefs.minScale + 0.001
+        ? _prefs.minScale
+        : _prefs.doubleTapZoomScale;
     // 绝对设置：translate(anchor*(1-target)) · scale(target)。
     // 推导：中心系坐标 c 变换为 c' = c*t + T；焦点保持不动需 c' = c →
     // T = anchor*(1-target)。webtoon 的 anchor 纵向为 0（纵向滚动交还列表）。
@@ -3972,6 +4020,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 手动滚动承担（见 [_onPointerScroll]）；列表拖动滚动已被放大态 physics
   /// （NeverScrollableScrollPhysics）禁用，故矩阵平移与列表滚动不会同时发生。
   ///
+  /// 当前页在 fitWidth 下的真实布局高度（缩放 1 倍时）：用于 [_clampWebtoonZoomMatrix]
+  /// 精确夹取纵向平移。依赖 [_realImageDims] 缓存；该页从未加载过则返回 null
+  /// （由夹紧函数回退经验值）。
+  double? _currentWebtoonContentHeight(Size vp) {
+    if (_images.isEmpty) return null;
+    final String url = _images[_currentPage.clamp(0, _images.length - 1)];
+    final Size? dims = _realImageDims[url];
+    if (dims == null || dims.width <= 0) return null;
+    return dims.height * vp.width / dims.width;
+  }
+
   /// REQ-B9 放大态边缘滑动切页：平移被边界夹紧（贴边且继续向边外滑）时，
   /// 累计该方向滑动，超过 [_edgeSwipeThreshold] 触发翻页 / 滚动（webtoon 换章），
   /// 与键盘方向键（[_handleZoomedArrow]）语义一致。
@@ -3985,7 +4044,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final double beforeY = m.getTranslation().y;
     final Matrix4 moved = Matrix4.copy(m)..leftTranslate(delta.dx, delta.dy);
     final Matrix4 clamped = webtoon
-        ? _clampWebtoonZoomMatrix(moved, vp)
+        ? _clampWebtoonZoomMatrix(moved, vp, _currentWebtoonContentHeight(vp))
         : _clampZoomMatrix(moved, vp);
     _zoomController.value = clamped;
     final double afterX = clamped.getTranslation().x;
@@ -4033,7 +4092,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final double beforeY = m.getTranslation().y;
     final Matrix4 moved = Matrix4.copy(m)..leftTranslate(dx * stepX, dy * stepY);
     final Matrix4 clamped = webtoon
-        ? _clampWebtoonZoomMatrix(moved, vp)
+        ? _clampWebtoonZoomMatrix(moved, vp, _currentWebtoonContentHeight(vp))
         : _clampZoomMatrix(moved, vp);
     _zoomController.value = clamped;
     final double afterX = clamped.getTranslation().x;
@@ -5209,6 +5268,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             // 消除「占位→真实」高度突变导致的反向翻页回弹/闪烁。
             urlLoaded: (url) => _webtoonLoadedUrls.contains(url),
             onUrlLoaded: (url) => _webtoonLoadedUrls.add(url),
+            // 缓存真实自然尺寸（L3：占位高 / 纵向夹取基于真实高度）。
+            onImageInfo: (url, w, h) => _realImageDims[url] = Size(w, h),
+            realHeightResolver: (url, maxWidth) {
+              final Size? dims = _realImageDims[url];
+              if (dims == null || dims.width <= 0) return null;
+              // fitWidth 下布局高度 = 自然高 × (视口宽 / 自然宽)。
+              return dims.height * maxWidth / dims.width;
+            },
           ),
         );
       },
@@ -5937,6 +6004,15 @@ class MangaPageImage extends StatefulWidget {
   /// 图片加载完成时上报 URL（阅读器据此写入 [_webtoonLoadedUrls]）。
   final void Function(String url)? onUrlLoaded;
 
+  /// 自然尺寸回调（一次）：把解码出的原始宽高回传阅读器，用于缓存真实高度。
+  final void Function(String url, double naturalWidth, double naturalHeight)?
+      onImageInfo;
+
+  /// 查询某 URL 在给定最大宽度下的真实「适配宽度」布局高度（fitWidth 下
+  /// height = naturalHeight × maxWidth / naturalWidth）。命中缓存返回真实值，
+  /// 未命中（该图从未加载过）返回 null，由调用方回退经验值。
+  final double? Function(String url, double maxWidth)? realHeightResolver;
+
   const MangaPageImage({
     super.key,
     required this.url,
@@ -5948,6 +6024,8 @@ class MangaPageImage extends StatefulWidget {
     this.zoomEnabled,
     this.urlLoaded,
     this.onUrlLoaded,
+    this.onImageInfo,
+    this.realHeightResolver,
   });
 
   @override
@@ -6019,17 +6097,24 @@ class _MangaPageImageState extends State<MangaPageImage> {
         widget.onUrlLoaded?.call(widget.url);
         if (mounted) setState(() => _imageLoaded = true);
       },
+      onImageInfo: (w, h) =>
+          widget.onImageInfo?.call(widget.url, w, h),
     );
 
     // 仅未加载时占位：加载完成后直接用真实图高，不再受 minHeight 约束。
+    // 占位高度优先用缓存的「真实图片高度」（fitWidth 下 naturalHeight × 视口宽 /
+    // naturalWidth）；未加载过该图（缓存未命中）才回退经验值（屏宽 × 1.5）。
     final Widget content = (reserveWebtoonHeight && !showRealHeight)
         ? LayoutBuilder(
-            builder: (context, constraints) => ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxWidth * 1.5,
-              ),
-              child: imgSource,
-            ),
+            builder: (context, constraints) {
+              final double? cachedRealH = widget.realHeightResolver
+                  ?.call(widget.url, constraints.maxWidth);
+              final double ph = cachedRealH ?? constraints.maxWidth * 1.5;
+              return ConstrainedBox(
+                constraints: BoxConstraints(minHeight: ph),
+                child: imgSource,
+              );
+            },
           )
         : imgSource;
 
@@ -6048,6 +6133,7 @@ class _MangaPageImageState extends State<MangaPageImage> {
       hue: widget.prefs.filterHue,
       inverted: widget.prefs.filterInverted,
       grayscale: widget.prefs.filterGrayscale,
+      colorProfile: widget.prefs.colorProfile,
       child: raw,
     );
     // 旋转包裹在 img 外：仅对该页生效，不影响其他页。
@@ -6220,14 +6306,18 @@ Matrix4 _clampZoomMatrix(Matrix4 m, Size vp) {
 /// 横向按图片宽度（≈ 视口宽 × s）精确夹取、贴边即停；纵向在列表滚动到边界时
 /// 转矩阵平移（放大内容的屏幕外部分），精确上界需列表总高，用「视口高 × 缩放
 /// 余量」大值兜底——保证放大后能拖到长条图的任意纵向位置。
-Matrix4 _clampWebtoonZoomMatrix(Matrix4 m, Size vp) {
+Matrix4 _clampWebtoonZoomMatrix(Matrix4 m, Size vp, [double? realContentHeight]) {
   final double s = m.getMaxScaleOnAxis();
   if (s <= 1.001) {
     m.setTranslationRaw(0, 0, 0);
     return m;
   }
   final double maxX = (s - 1) * vp.width / 2;
-  final double maxY = (s - 1) * vp.height * 8;
+  // 纵向：已知当前页真实布局高度（fitWidth 下 height × s）则精确夹取到长条图
+  // 任意纵向位置；未知（该页从未加载）回退经验值（视口高 × 8）。
+  final double maxY = realContentHeight != null && realContentHeight * s > vp.height
+      ? (realContentHeight * s - vp.height) / 2
+      : (s - 1) * vp.height * 8;
   double tx = m.getTranslation().x;
   double ty = m.getTranslation().y;
   tx = tx.clamp(-maxX, maxX);

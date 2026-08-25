@@ -31,6 +31,11 @@ class SourceImage extends StatelessWidget {
   /// 避免 ConstrainedBox(minHeight) 在真实图高偏小时残留空白带（割裂感）。
   final VoidCallback? onLoadComplete;
 
+  /// 图片自然尺寸回调（一次）：解码完成后回传原始像素宽高。
+  /// 条漫阅读器借此缓存「真实图片高度」，未加载项也能用真实高度估算占位
+  /// （L3 体验项：占位高 / 纵向平移夹取均基于真实高度，经验值仅兜底）。
+  final void Function(double width, double height)? onImageInfo;
+
   const SourceImage({
     super.key,
     required this.url,
@@ -43,6 +48,7 @@ class SourceImage extends StatelessWidget {
     this.placeholder,
     this.enableRetry = true,
     this.onLoadComplete,
+    this.onImageInfo,
   });
 
   bool get _isHttp =>
@@ -145,6 +151,7 @@ class SourceImage extends StatelessWidget {
             placeholder: placeholder ?? _defaultPlaceholder(context),
             enableRetry: enableRetry,
             onLoadComplete: onLoadComplete,
+            onImageInfo: onImageInfo,
           );
         } else {
           core = _SafOrLocalImage(
@@ -154,6 +161,7 @@ class SourceImage extends StatelessWidget {
             fit: fit,
             placeholder: placeholder ?? _defaultPlaceholder(context),
             onLoadComplete: onLoadComplete,
+            onImageInfo: onImageInfo,
           );
         }
         return r == null
@@ -176,6 +184,7 @@ class _RetryableNetworkImage extends StatefulWidget {
   final bool enableRetry;
   final int cookieVersion;
   final VoidCallback? onLoadComplete;
+  final void Function(double width, double height)? onImageInfo;
 
   const _RetryableNetworkImage({
     required this.url,
@@ -187,6 +196,7 @@ class _RetryableNetworkImage extends StatefulWidget {
     this.enableRetry = true,
     this.cookieVersion = 0,
     this.onLoadComplete,
+    this.onImageInfo,
   });
 
   @override
@@ -250,6 +260,19 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
       },
       imageBuilder: (ctx, provider) {
         _notifyLoaded();
+        // 回传自然尺寸（缓存命中，无重复下载）：供条漫占位/夹取基于真实高度估算。
+        final ImageStream stream = provider.resolve(const ImageConfiguration());
+        ImageStreamListener? listener;
+        listener = ImageStreamListener(
+          (ImageInfo info, bool _) {
+            widget.onImageInfo
+                ?.call(info.image.width.toDouble(), info.image.height.toDouble());
+            stream.removeListener(listener!);
+          },
+          onError: (Object error, StackTrace? stackTrace) =>
+              stream.removeListener(listener!),
+        );
+        stream.addListener(listener!);
         return Image(
           image: provider,
           width: widget.width,
@@ -315,6 +338,7 @@ class _LocalFileImage extends StatefulWidget {
   final BoxFit fit;
   final Widget placeholder;
   final VoidCallback? onLoadComplete;
+  final void Function(double width, double height)? onImageInfo;
 
   const _LocalFileImage({
     required this.file,
@@ -323,6 +347,7 @@ class _LocalFileImage extends StatefulWidget {
     this.fit = BoxFit.cover,
     required this.placeholder,
     this.onLoadComplete,
+    this.onImageInfo,
   });
 
   @override
@@ -340,6 +365,21 @@ class _LocalFileImageState extends State<_LocalFileImage> {
 
   @override
   Widget build(BuildContext context) {
+    // 回传自然尺寸（文件已在本机，解码开销极小）：供条漫占位/夹取基于真实高度估算。
+    final ImageStream stream = FileImage(widget.file).resolve(
+      const ImageConfiguration(),
+    );
+    ImageStreamListener? listener;
+    listener = ImageStreamListener(
+      (ImageInfo info, bool _) {
+        widget.onImageInfo
+            ?.call(info.image.width.toDouble(), info.image.height.toDouble());
+        stream.removeListener(listener!);
+      },
+      onError: (Object error, StackTrace? stackTrace) =>
+          stream.removeListener(listener!),
+    );
+    stream.addListener(listener!);
     return Image.file(
       widget.file,
       width: widget.width,
@@ -374,6 +414,7 @@ class _SafOrLocalImage extends StatefulWidget {
   final BoxFit fit;
   final Widget placeholder;
   final VoidCallback? onLoadComplete;
+  final void Function(double width, double height)? onImageInfo;
 
   const _SafOrLocalImage({
     required this.uriOrPath,
@@ -382,6 +423,7 @@ class _SafOrLocalImage extends StatefulWidget {
     this.fit = BoxFit.cover,
     required this.placeholder,
     this.onLoadComplete,
+    this.onImageInfo,
   });
 
   @override
@@ -423,6 +465,7 @@ class _SafOrLocalImageState extends State<_SafOrLocalImage> {
       fit: widget.fit,
       placeholder: widget.placeholder,
       onLoadComplete: widget.onLoadComplete,
+      onImageInfo: widget.onImageInfo,
     );
   }
 }

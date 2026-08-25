@@ -72,6 +72,30 @@ ClockBatteryPosition _parseClockBatteryPosition(Object? raw) {
   return ClockBatteryPosition.topLeft;
 }
 
+/// 解析色彩配置预设（容错：非法字符串回退 none）。
+/// 注意：reader_preferences.dart 中的同名私有函数对本库不可见，这里本地实现一份。
+ReaderColorProfile _parseColorProfile(Object? raw) {
+  if (raw is String) {
+    return ReaderColorProfile.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => ReaderColorProfile.none,
+    );
+  }
+  return ReaderColorProfile.none;
+}
+
+/// 解析 E-Ink 刷新样式（容错：非法字符串回退 white）。
+/// 注意：reader_preferences.dart 中的同名私有函数对本库不可见，这里本地实现一份。
+ReaderEInkRefreshStyle _parseEInkRefreshStyle(Object? raw) {
+  if (raw is String) {
+    return ReaderEInkRefreshStyle.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => ReaderEInkRefreshStyle.white,
+    );
+  }
+  return ReaderEInkRefreshStyle.white;
+}
+
 /// 小说默认简繁转换（项 2）。
 enum NovelChineseConversion {
   none,
@@ -191,6 +215,18 @@ class ReaderDefaultSettings {
   final bool comicNightLightEnabled;
   final double comicNightLightOpacity;
 
+  /// 漫画：图片色彩配置预设（L3 ICC 校色近似）。
+  final ReaderColorProfile comicColorProfile;
+
+  /// 漫画：E-Ink 刷新（L3）：墨水屏防残影，按翻页间隔自动全屏闪烁。
+  final bool comicEinkRefreshEnabled;
+  final int comicEinkRefreshInterval;
+  final int comicEinkRefreshDuration;
+  final ReaderEInkRefreshStyle comicEinkRefreshStyle;
+
+  /// 漫画：自动收藏（L3 漫画）：打开作品即加入收藏。
+  final bool comicIsAutoFavorite;
+
   /// 漫画：阅读中自动下载后续章节（REQ-C7）。
   final bool comicAutoDownloadChapters;
 
@@ -261,6 +297,19 @@ class ReaderDefaultSettings {
 
   /// 小说：鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）。
   final bool novelScrollWheelInverted;
+
+  // ── 小说补充 v3（P2-10 排版增强，与 NovelReaderPreferences #10 对齐）──
+  /// 正文字重细粒度（100–900；null = 跟随加粗开关）。
+  final int? novelFontWeightValue;
+
+  /// 正文对齐方式（'start' / 'justify'）。
+  final String novelTextAlignMode;
+
+  /// 中文断行模式（'standard' / 'cjkStrict'）。
+  final String novelLineBreakMode;
+
+  /// 下划线样式（'solid' / 'dashed' / 'wavy' / 'dotted'）。
+  final String novelUnderlineStyle;
 
   // ── 漫画补充（来自漫画阅读面板，项 1）──
   final double comicFilterBrightness;
@@ -341,6 +390,12 @@ class ReaderDefaultSettings {
     this.comicReaderBrightness = 0.0,
     this.comicNightLightEnabled = false,
     this.comicNightLightOpacity = 0.4,
+    this.comicColorProfile = ReaderColorProfile.none,
+    this.comicEinkRefreshEnabled = false,
+    this.comicEinkRefreshInterval = 10,
+    this.comicEinkRefreshDuration = 200,
+    this.comicEinkRefreshStyle = ReaderEInkRefreshStyle.white,
+    this.comicIsAutoFavorite = false,
     this.comicAutoDownloadChapters = false,
     this.comicSkipReadChapters = false,
     this.comicSkipFilteredChapters = false,
@@ -400,6 +455,11 @@ class ReaderDefaultSettings {
     this.novelTtsBackground = false,
     this.novelTtsSleepTimer = 0,
     this.novelScrollWheelInverted = false,
+    // P2-10 排版增强
+    this.novelFontWeightValue,
+    this.novelTextAlignMode = 'start',
+    this.novelLineBreakMode = 'standard',
+    this.novelUnderlineStyle = 'solid',
     this.comicFilterBrightness = 0.0,
     this.comicFilterContrast = 0.0,
     this.comicFilterColorTemp = 0.0,
@@ -463,6 +523,12 @@ class ReaderDefaultSettings {
     double? comicReaderBrightness,
     bool? comicNightLightEnabled,
     double? comicNightLightOpacity,
+    ReaderColorProfile? comicColorProfile,
+    bool? comicEinkRefreshEnabled,
+    int? comicEinkRefreshInterval,
+    int? comicEinkRefreshDuration,
+    ReaderEInkRefreshStyle? comicEinkRefreshStyle,
+    bool? comicIsAutoFavorite,
     bool? comicAutoDownloadChapters,
     bool? comicSkipReadChapters,
     bool? comicSkipFilteredChapters,
@@ -522,6 +588,11 @@ class ReaderDefaultSettings {
     bool? novelTtsBackground,
     int? novelTtsSleepTimer,
     bool? novelScrollWheelInverted,
+    // P2-10 排版增强
+    int? novelFontWeightValue,
+    String? novelTextAlignMode,
+    String? novelLineBreakMode,
+    String? novelUnderlineStyle,
     double? comicFilterBrightness,
     double? comicFilterContrast,
     double? comicFilterColorTemp,
@@ -611,6 +682,17 @@ class ReaderDefaultSettings {
             comicNightLightEnabled ?? this.comicNightLightEnabled,
         comicNightLightOpacity:
             comicNightLightOpacity ?? this.comicNightLightOpacity,
+        comicColorProfile: comicColorProfile ?? this.comicColorProfile,
+        comicEinkRefreshEnabled:
+            comicEinkRefreshEnabled ?? this.comicEinkRefreshEnabled,
+        comicEinkRefreshInterval:
+            comicEinkRefreshInterval ?? this.comicEinkRefreshInterval,
+        comicEinkRefreshDuration:
+            comicEinkRefreshDuration ?? this.comicEinkRefreshDuration,
+        comicEinkRefreshStyle:
+            comicEinkRefreshStyle ?? this.comicEinkRefreshStyle,
+        comicIsAutoFavorite:
+            comicIsAutoFavorite ?? this.comicIsAutoFavorite,
         comicAutoDownloadChapters:
             comicAutoDownloadChapters ?? this.comicAutoDownloadChapters,
         comicSkipReadChapters:
@@ -700,6 +782,11 @@ class ReaderDefaultSettings {
         novelTtsSleepTimer: novelTtsSleepTimer ?? this.novelTtsSleepTimer,
         novelScrollWheelInverted:
             novelScrollWheelInverted ?? this.novelScrollWheelInverted,
+    // P2-10 排版增强
+    novelFontWeightValue: novelFontWeightValue ?? this.novelFontWeightValue,
+    novelTextAlignMode: novelTextAlignMode ?? this.novelTextAlignMode,
+    novelLineBreakMode: novelLineBreakMode ?? this.novelLineBreakMode,
+    novelUnderlineStyle: novelUnderlineStyle ?? this.novelUnderlineStyle,
         comicFilterBrightness:
             comicFilterBrightness ?? this.comicFilterBrightness,
         comicFilterContrast:
@@ -773,6 +860,12 @@ class ReaderDefaultSettings {
         'comicReaderBrightness': comicReaderBrightness,
         'comicNightLightEnabled': comicNightLightEnabled,
         'comicNightLightOpacity': comicNightLightOpacity,
+        'comicColorProfile': comicColorProfile.name,
+        'comicEinkRefreshEnabled': comicEinkRefreshEnabled,
+        'comicEinkRefreshInterval': comicEinkRefreshInterval,
+        'comicEinkRefreshDuration': comicEinkRefreshDuration,
+        'comicEinkRefreshStyle': comicEinkRefreshStyle.name,
+        'comicIsAutoFavorite': comicIsAutoFavorite,
         'comicAutoDownloadChapters': comicAutoDownloadChapters,
         'comicSkipReadChapters': comicSkipReadChapters,
         'comicSkipFilteredChapters': comicSkipFilteredChapters,
@@ -834,6 +927,12 @@ class ReaderDefaultSettings {
         'novelTtsBackground': novelTtsBackground,
         'novelTtsSleepTimer': novelTtsSleepTimer,
         'novelScrollWheelInverted': novelScrollWheelInverted,
+        // P2-10 排版增强
+        if (novelFontWeightValue != null)
+          'novelFontWeightValue': novelFontWeightValue,
+        'novelTextAlignMode': novelTextAlignMode,
+        'novelLineBreakMode': novelLineBreakMode,
+        'novelUnderlineStyle': novelUnderlineStyle,
         'comicFilterBrightness': comicFilterBrightness,
         'comicFilterContrast': comicFilterContrast,
         'comicFilterColorTemp': comicFilterColorTemp,
@@ -1022,6 +1121,18 @@ class ReaderDefaultSettings {
       comicNightLightOpacity:
           ((json['comicNightLightOpacity'] as num?)?.toDouble() ?? 0.4)
               .clamp(0.1, 0.85),
+      comicColorProfile: _parseColorProfile(json['comicColorProfile']),
+      comicEinkRefreshEnabled:
+          json['comicEinkRefreshEnabled'] as bool? ?? false,
+      comicEinkRefreshInterval:
+          ((json['comicEinkRefreshInterval'] as num?)?.toInt() ?? 10)
+              .clamp(1, 50),
+      comicEinkRefreshDuration:
+          ((json['comicEinkRefreshDuration'] as num?)?.toInt() ?? 200)
+              .clamp(50, 1000),
+      comicEinkRefreshStyle:
+          _parseEInkRefreshStyle(json['comicEinkRefreshStyle']),
+      comicIsAutoFavorite: json['comicIsAutoFavorite'] as bool? ?? false,
       comicAutoDownloadChapters:
           json['comicAutoDownloadChapters'] as bool? ?? false,
       comicSkipReadChapters:
@@ -1126,6 +1237,14 @@ class ReaderDefaultSettings {
           (json['novelTtsSleepTimer'] as num?)?.toInt() ?? 0,
       novelScrollWheelInverted:
           json['novelScrollWheelInverted'] as bool? ?? false,
+      // P2-10 排版增强
+      novelFontWeightValue: (json['novelFontWeightValue'] as num?)?.toInt(),
+      novelTextAlignMode:
+          json['novelTextAlignMode'] as String? ?? 'start',
+      novelLineBreakMode:
+          json['novelLineBreakMode'] as String? ?? 'standard',
+      novelUnderlineStyle:
+          json['novelUnderlineStyle'] as String? ?? 'solid',
       comicFilterBrightness:
           (json['comicFilterBrightness'] as num?)?.toDouble() ?? 0.0,
       comicFilterContrast:
@@ -1228,6 +1347,12 @@ class ReaderDefaultSettings {
       readerBrightness: comicReaderBrightness,
       nightLightEnabled: comicNightLightEnabled,
       nightLightOpacity: comicNightLightOpacity,
+      colorProfile: comicColorProfile,
+      einkRefreshEnabled: comicEinkRefreshEnabled,
+      einkRefreshInterval: comicEinkRefreshInterval,
+      einkRefreshDuration: comicEinkRefreshDuration,
+      einkRefreshStyle: comicEinkRefreshStyle,
+      isAutoFavorite: comicIsAutoFavorite,
       autoDownloadChapters: comicAutoDownloadChapters,
       skipReadChapters: comicSkipReadChapters,
       skipFilteredChapters: comicSkipFilteredChapters,
@@ -1328,6 +1453,20 @@ class ReaderDefaultSettings {
       ttsBackground: novelTtsBackground,
       ttsSleepTimer: novelTtsSleepTimer,
       scrollWheelInverted: novelScrollWheelInverted,
+      // P2-10 排版增强
+      fontWeightValue: novelFontWeightValue,
+      textAlignMode: NovelTextAlignMode.values.firstWhere(
+        (e) => e.name == novelTextAlignMode,
+        orElse: () => NovelTextAlignMode.start,
+      ),
+      lineBreakMode: NovelLineBreakMode.values.firstWhere(
+        (e) => e.name == novelLineBreakMode,
+        orElse: () => NovelLineBreakMode.standard,
+      ),
+      underlineStyle: NovelUnderlineStyle.values.firstWhere(
+        (e) => e.name == novelUnderlineStyle,
+        orElse: () => NovelUnderlineStyle.solid,
+      ),
     );
   }
 }

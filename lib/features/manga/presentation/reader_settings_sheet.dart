@@ -457,6 +457,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        _switchTile(l10n.readerAutoFavorite, _draft.isAutoFavorite,
+            (v) => _update(_draft.copyWith(isAutoFavorite: v))),
         _switchTile(l10n.readerAutoDownload, _draft.autoDownloadChapters,
             (v) => _update(_draft.copyWith(autoDownloadChapters: v))),
         _switchTile(l10n.readerSkipReadChapters, _draft.skipReadChapters,
@@ -741,6 +743,78 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
+  /// 色彩配置（ICC 校色近似）：分段选择色彩矩阵预设。
+  Widget _buildColorProfile() {
+    return Wrap(
+      spacing: AppTokens.spaceSm,
+      runSpacing: AppTokens.spaceSm,
+      children: ReaderColorProfile.values.map((c) {
+        return ChoiceChip(
+          label: Text(_l(c.l10nKey())),
+          selected: _draft.colorProfile == c,
+          onSelected: (_) => _update(_draft.copyWith(colorProfile: c)),
+        );
+      }).toList(),
+    );
+  }
+
+  /// E-Ink 刷新（墨水屏防残影）：开关 + 间隔 + 时长 + 闪烁样式。
+  Widget _buildEInkRefresh() {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _switchTile(l10n.readerEInkRefresh, _draft.einkRefreshEnabled,
+            (v) => _update(_draft.copyWith(einkRefreshEnabled: v))),
+        if (_draft.einkRefreshEnabled) ...<Widget>[
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+            child: _SliderRow(
+              label: l10n.readerEInkRefreshInterval,
+              value: _draft.einkRefreshInterval.toDouble(),
+              min: 1,
+              max: 50,
+              divisions: 49,
+              displayValue: '${_draft.einkRefreshInterval}',
+              onChanged: (v) =>
+                  _update(_draft.copyWith(einkRefreshInterval: v.round())),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+            child: _SliderRow(
+              label: l10n.readerEInkRefreshDuration,
+              value: _draft.einkRefreshDuration.toDouble(),
+              min: 50,
+              max: 1000,
+              divisions: 95,
+              displayValue: '${_draft.einkRefreshDuration} ms',
+              onChanged: (v) =>
+                  _update(_draft.copyWith(einkRefreshDuration: v.round())),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+            child: Text(l10n.readerEInkRefreshStyle,
+                style: Theme.of(context).textTheme.bodyMedium),
+          ),
+          Wrap(
+            spacing: AppTokens.spaceSm,
+            runSpacing: AppTokens.spaceSm,
+            children: ReaderEInkRefreshStyle.values.map((s) {
+              return ChoiceChip(
+                label: Text(_l(s.l10nKey())),
+                selected: _draft.einkRefreshStyle == s,
+                onSelected: (_) =>
+                    _update(_draft.copyWith(einkRefreshStyle: s)),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildMouseWheel() {
     final l10n = AppLocalizations.of(context);
     // 条漫（连续滚动）模式下滚轮按上下文自动分派（未放大=滚动、已放大=缩放），
@@ -1010,6 +1084,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     ],
                     children: <Widget>[
                       _buildImageFilter(),
+                      // 色彩配置（ICC 校色近似）：矩阵预设
+                      _section(context, l10n.readerColorProfile, _buildColorProfile()),
                       // 阅读亮度（REQ-C3）：独立于滤镜，控制系统亮度/黑色遮罩。
                       Padding(
                         padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
@@ -1234,6 +1310,22 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                         ),
                       ],
                       _section(context, l10n.readerFlashColor, _buildFlashColor()),
+                    ],
+                  ),
+
+                  // ── E-Ink 刷新（墨水屏防残影）────────────────────────
+                  _buildSettingsGroup(
+                    context,
+                    l10n.readerGroupEInk,
+                    description: l10n.readerGroupEInkDesc,
+                    leading: Icons.refresh,
+                    searchQuery: q,
+                    searchTerms: const <String>[
+                      'eink', '墨水', '电子墨水', '残影', '刷新', 'e-ink',
+                      'refresh', 'ghost', '闪',
+                    ],
+                    children: <Widget>[
+                      _buildEInkRefresh(),
                     ],
                   ),
 

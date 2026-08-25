@@ -344,6 +344,30 @@ abstract class AppLocalizations {
   /// **'Manual'**
   String get sortManual;
 
+  /// No description provided for @sortDirector.
+  ///
+  /// In en, this message translates to:
+  /// **'Director'**
+  String get sortDirector;
+
+  /// No description provided for @sortActors.
+  ///
+  /// In en, this message translates to:
+  /// **'Cast'**
+  String get sortActors;
+
+  /// No description provided for @sortLatestUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest'**
+  String get sortLatestUpdate;
+
+  /// No description provided for @sortLatestMangaChapter.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest chapter'**
+  String get sortLatestMangaChapter;
+
   /// No description provided for @filterByStatus.
   ///
   /// In en, this message translates to:
@@ -1243,6 +1267,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Gray blue'**
   String get readerBgGrayBlue;
+
+  /// No description provided for @readerBgEInk.
+  ///
+  /// In en, this message translates to:
+  /// **'E-Ink paper'**
+  String get readerBgEInk;
 
   /// No description provided for @readerBgWhite.
   ///
@@ -5834,6 +5864,18 @@ abstract class AppLocalizations {
   /// **'Bookmark Added'**
   String get bookmarkAdded;
 
+  /// No description provided for @novelSwipeKeepGoing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep swiping down to add bookmark'**
+  String get novelSwipeKeepGoing;
+
+  /// No description provided for @novelSwipeRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Release to add bookmark'**
+  String get novelSwipeRelease;
+
   /// No description provided for @deleteBookmark.
   ///
   /// In en, this message translates to:
@@ -8612,6 +8654,114 @@ abstract class AppLocalizations {
   /// **'Skip chapters with duplicate titles when going to the next/previous chapter'**
   String get readerSkipDuplicateChaptersDesc;
 
+  /// No description provided for @readerColorProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Color profile'**
+  String get readerColorProfile;
+
+  /// No description provided for @readerColorProfileNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get readerColorProfileNone;
+
+  /// No description provided for @readerColorProfileSrgb.
+  ///
+  /// In en, this message translates to:
+  /// **'sRGB'**
+  String get readerColorProfileSrgb;
+
+  /// No description provided for @readerColorProfileWarm.
+  ///
+  /// In en, this message translates to:
+  /// **'Warm'**
+  String get readerColorProfileWarm;
+
+  /// No description provided for @readerColorProfileCool.
+  ///
+  /// In en, this message translates to:
+  /// **'Cool'**
+  String get readerColorProfileCool;
+
+  /// No description provided for @readerColorProfileManga.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga'**
+  String get readerColorProfileManga;
+
+  /// No description provided for @readerColorProfilePaper.
+  ///
+  /// In en, this message translates to:
+  /// **'Paper'**
+  String get readerColorProfilePaper;
+
+  /// No description provided for @readerEInkRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'E-Ink refresh'**
+  String get readerEInkRefresh;
+
+  /// No description provided for @readerEInkRefreshDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'E-ink ghosting fix: auto full-screen flash by page-turn interval'**
+  String get readerEInkRefreshDesc;
+
+  /// No description provided for @readerEInkRefreshInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh interval (pages)'**
+  String get readerEInkRefreshInterval;
+
+  /// No description provided for @readerEInkRefreshDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh duration (ms)'**
+  String get readerEInkRefreshDuration;
+
+  /// No description provided for @readerEInkRefreshWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'White flash'**
+  String get readerEInkRefreshWhite;
+
+  /// No description provided for @readerEInkRefreshBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Black flash'**
+  String get readerEInkRefreshBlack;
+
+  /// No description provided for @readerEInkRefreshStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh style'**
+  String get readerEInkRefreshStyle;
+
+  /// No description provided for @readerGroupEInk.
+  ///
+  /// In en, this message translates to:
+  /// **'E-Ink refresh'**
+  String get readerGroupEInk;
+
+  /// No description provided for @readerGroupEInkDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'E-ink devices only: anti-ghosting full-screen refresh'**
+  String get readerGroupEInkDesc;
+
+  /// No description provided for @readerAutoFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-favorite'**
+  String get readerAutoFavorite;
+
+  /// No description provided for @readerAutoFavoriteDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to favorites when opening a comic (skips if already favorited)'**
+  String get readerAutoFavoriteDesc;
+
   /// No description provided for @readerScreenPicNumberPortrait.
   ///
   /// In en, this message translates to:
@@ -9529,6 +9679,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dashed underline'**
   String get novelUnderlineDashed;
+
+  /// No description provided for @novelUnderlineStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Underline style'**
+  String get novelUnderlineStyle;
+
+  /// No description provided for @novelUnderlineStyleSolid.
+  ///
+  /// In en, this message translates to:
+  /// **'Solid'**
+  String get novelUnderlineStyleSolid;
+
+  /// No description provided for @novelUnderlineStyleDashed.
+  ///
+  /// In en, this message translates to:
+  /// **'Dashed'**
+  String get novelUnderlineStyleDashed;
+
+  /// No description provided for @novelUnderlineStyleWavy.
+  ///
+  /// In en, this message translates to:
+  /// **'Wavy'**
+  String get novelUnderlineStyleWavy;
+
+  /// No description provided for @novelUnderlineStyleDotted.
+  ///
+  /// In en, this message translates to:
+  /// **'Dotted'**
+  String get novelUnderlineStyleDotted;
+
+  /// No description provided for @novelFontWeightFine.
+  ///
+  /// In en, this message translates to:
+  /// **'Font weight (100-900)'**
+  String get novelFontWeightFine;
+
+  /// No description provided for @novelFontWeightAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (follow bold switch)'**
+  String get novelFontWeightAuto;
+
+  /// No description provided for @novelTextAlignMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Text alignment'**
+  String get novelTextAlignMode;
+
+  /// No description provided for @novelTextAlignStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural (left)'**
+  String get novelTextAlignStart;
+
+  /// No description provided for @novelTextAlignJustify.
+  ///
+  /// In en, this message translates to:
+  /// **'Justified'**
+  String get novelTextAlignJustify;
+
+  /// No description provided for @novelLineBreakMode.
+  ///
+  /// In en, this message translates to:
+  /// **'CJK line breaking'**
+  String get novelLineBreakMode;
+
+  /// No description provided for @novelLineBreakStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Native wrapping'**
+  String get novelLineBreakStandard;
+
+  /// No description provided for @novelLineBreakCjkStrict.
+  ///
+  /// In en, this message translates to:
+  /// **'Char-wise + kinsoku'**
+  String get novelLineBreakCjkStrict;
+
+  /// No description provided for @novelTypographyShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share typography as JSON'**
+  String get novelTypographyShare;
+
+  /// No description provided for @novelTypographyImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import typography JSON'**
+  String get novelTypographyImport;
+
+  /// No description provided for @novelTypographyShareDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Typography JSON copied/shared'**
+  String get novelTypographyShareDone;
+
+  /// No description provided for @novelTypographyImportBad.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid or unrecognized typography JSON'**
+  String get novelTypographyImportBad;
+
+  /// No description provided for @novelTypographyImportConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply imported typography?'**
+  String get novelTypographyImportConfirmTitle;
+
+  /// No description provided for @novelTypographyImportConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This will override {n} reading typography defaults.'**
+  String novelTypographyImportConfirm(int n);
 
   /// No description provided for @novelUnderlineThickness.
   ///

@@ -134,6 +134,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sortManual => 'Manual';
 
   @override
+  String get sortDirector => 'Director';
+
+  @override
+  String get sortActors => 'Cast';
+
+  @override
+  String get sortLatestUpdate => 'Latest';
+
+  @override
+  String get sortLatestMangaChapter => 'Latest chapter';
+
+  @override
   String get filterByStatus => 'Status';
 
   @override
@@ -606,6 +618,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get readerBgGrayBlue => 'Gray blue';
+
+  @override
+  String get readerBgEInk => 'E-Ink paper';
 
   @override
   String get readerBgWhite => 'White';
@@ -3024,6 +3039,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookmarkAdded => 'Bookmark Added';
 
   @override
+  String get novelSwipeKeepGoing => 'Keep swiping down to add bookmark';
+
+  @override
+  String get novelSwipeRelease => 'Release to add bookmark';
+
+  @override
   String get deleteBookmark => 'Delete Bookmark';
 
   @override
@@ -4519,6 +4540,63 @@ class AppLocalizationsEn extends AppLocalizations {
       'Skip chapters with duplicate titles when going to the next/previous chapter';
 
   @override
+  String get readerColorProfile => 'Color profile';
+
+  @override
+  String get readerColorProfileNone => 'None';
+
+  @override
+  String get readerColorProfileSrgb => 'sRGB';
+
+  @override
+  String get readerColorProfileWarm => 'Warm';
+
+  @override
+  String get readerColorProfileCool => 'Cool';
+
+  @override
+  String get readerColorProfileManga => 'Manga';
+
+  @override
+  String get readerColorProfilePaper => 'Paper';
+
+  @override
+  String get readerEInkRefresh => 'E-Ink refresh';
+
+  @override
+  String get readerEInkRefreshDesc =>
+      'E-ink ghosting fix: auto full-screen flash by page-turn interval';
+
+  @override
+  String get readerEInkRefreshInterval => 'Refresh interval (pages)';
+
+  @override
+  String get readerEInkRefreshDuration => 'Refresh duration (ms)';
+
+  @override
+  String get readerEInkRefreshWhite => 'White flash';
+
+  @override
+  String get readerEInkRefreshBlack => 'Black flash';
+
+  @override
+  String get readerEInkRefreshStyle => 'Refresh style';
+
+  @override
+  String get readerGroupEInk => 'E-Ink refresh';
+
+  @override
+  String get readerGroupEInkDesc =>
+      'E-ink devices only: anti-ghosting full-screen refresh';
+
+  @override
+  String get readerAutoFavorite => 'Auto-favorite';
+
+  @override
+  String get readerAutoFavoriteDesc =>
+      'Add to favorites when opening a comic (skips if already favorited)';
+
+  @override
   String get readerScreenPicNumberPortrait => 'Images per screen (portrait)';
 
   @override
@@ -5023,6 +5101,66 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get novelUnderlineDashed => 'Dashed underline';
+
+  @override
+  String get novelUnderlineStyle => 'Underline style';
+
+  @override
+  String get novelUnderlineStyleSolid => 'Solid';
+
+  @override
+  String get novelUnderlineStyleDashed => 'Dashed';
+
+  @override
+  String get novelUnderlineStyleWavy => 'Wavy';
+
+  @override
+  String get novelUnderlineStyleDotted => 'Dotted';
+
+  @override
+  String get novelFontWeightFine => 'Font weight (100-900)';
+
+  @override
+  String get novelFontWeightAuto => 'Auto (follow bold switch)';
+
+  @override
+  String get novelTextAlignMode => 'Text alignment';
+
+  @override
+  String get novelTextAlignStart => 'Natural (left)';
+
+  @override
+  String get novelTextAlignJustify => 'Justified';
+
+  @override
+  String get novelLineBreakMode => 'CJK line breaking';
+
+  @override
+  String get novelLineBreakStandard => 'Native wrapping';
+
+  @override
+  String get novelLineBreakCjkStrict => 'Char-wise + kinsoku';
+
+  @override
+  String get novelTypographyShare => 'Share typography as JSON';
+
+  @override
+  String get novelTypographyImport => 'Import typography JSON';
+
+  @override
+  String get novelTypographyShareDone => 'Typography JSON copied/shared';
+
+  @override
+  String get novelTypographyImportBad =>
+      'Invalid or unrecognized typography JSON';
+
+  @override
+  String get novelTypographyImportConfirmTitle => 'Apply imported typography?';
+
+  @override
+  String novelTypographyImportConfirm(int n) {
+    return 'This will override $n reading typography defaults.';
+  }
 
   @override
   String get novelUnderlineThickness => 'Underline thickness';

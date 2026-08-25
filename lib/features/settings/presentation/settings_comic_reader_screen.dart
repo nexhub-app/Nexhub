@@ -125,6 +125,24 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
     };
   }
 
+  String _colorProfileLabel(AppLocalizations l10n, ReaderColorProfile c) {
+    return switch (c) {
+      ReaderColorProfile.none => l10n.readerColorProfileNone,
+      ReaderColorProfile.srgb => l10n.readerColorProfileSrgb,
+      ReaderColorProfile.warm => l10n.readerColorProfileWarm,
+      ReaderColorProfile.cool => l10n.readerColorProfileCool,
+      ReaderColorProfile.manga => l10n.readerColorProfileManga,
+      ReaderColorProfile.paper => l10n.readerColorProfilePaper,
+    };
+  }
+
+  String _einkStyleLabel(AppLocalizations l10n, ReaderEInkRefreshStyle s) {
+    return switch (s) {
+      ReaderEInkRefreshStyle.white => l10n.readerEInkRefreshWhite,
+      ReaderEInkRefreshStyle.black => l10n.readerEInkRefreshBlack,
+    };
+  }
+
   String _zoomStartLabel(AppLocalizations l10n, ZoomStart z) {
     return switch (z) {
       ZoomStart.left => l10n.readerZoomStartLeft,
@@ -626,9 +644,73 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         divisions: 15,
                         display: _settings.comicNightLightOpacity
                             .toStringAsFixed(2),
-                        onChanged: (v) => _update(
-                            _settings.copyWith(comicNightLightOpacity: v)),
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicNightLightOpacity: v)),
                       ),
+                    // 色彩配置（ICC 校色近似）：矩阵预设
+                    _chipSection(
+                      context,
+                      l10n.readerColorProfile,
+                      ReaderColorProfile.values.map((c) {
+                        return ChoiceChip(
+                          label: Text(_colorProfileLabel(l10n, c)),
+                          selected: _settings.comicColorProfile == c,
+                          onSelected: (_) => _update(
+                              _settings.copyWith(comicColorProfile: c)),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+
+                // ── E-Ink 刷新（墨水屏防残影）──
+                SettingsCard(
+                  key: const ValueKey<String>('comic.einkRefresh'),
+                  title: l10n.readerGroupEInk,
+                  description: l10n.readerGroupEInkDesc,
+                  index: 9,
+                  children: <Widget>[
+                    SettingsSwitchTile(
+                      title: l10n.readerEInkRefresh,
+                      subtitle: l10n.readerEInkRefreshDesc,
+                      value: _settings.comicEinkRefreshEnabled,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicEinkRefreshEnabled: v)),
+                    ),
+                    if (_settings.comicEinkRefreshEnabled) ...<Widget>[
+                      SettingsSliderTile(
+                        label: l10n.readerEInkRefreshInterval,
+                        value: _settings.comicEinkRefreshInterval.toDouble(),
+                        min: 1,
+                        max: 50,
+                        divisions: 49,
+                        display: '${_settings.comicEinkRefreshInterval}',
+                        onChanged: (v) => _update(_settings.copyWith(
+                            comicEinkRefreshInterval: v.round())),
+                      ),
+                      SettingsSliderTile(
+                        label: l10n.readerEInkRefreshDuration,
+                        value: _settings.comicEinkRefreshDuration.toDouble(),
+                        min: 50,
+                        max: 1000,
+                        divisions: 95,
+                        display: '${_settings.comicEinkRefreshDuration} ms',
+                        onChanged: (v) => _update(_settings.copyWith(
+                            comicEinkRefreshDuration: v.round())),
+                      ),
+                      _chipSection(
+                        context,
+                        l10n.readerEInkRefreshStyle,
+                        ReaderEInkRefreshStyle.values.map((s) {
+                          return ChoiceChip(
+                            label: Text(_einkStyleLabel(l10n, s)),
+                            selected: _settings.comicEinkRefreshStyle == s,
+                            onSelected: (_) => _update(_settings.copyWith(
+                                comicEinkRefreshStyle: s)),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
 
@@ -874,6 +956,13 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                   title: l10n.comicReaderAutoSection,
                   index: 6,
                   children: <Widget>[
+                    SettingsSwitchTile(
+                      title: l10n.readerAutoFavorite,
+                      subtitle: l10n.readerAutoFavoriteDesc,
+                      value: _settings.comicIsAutoFavorite,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicIsAutoFavorite: v)),
+                    ),
                     SettingsSwitchTile(
                       title: l10n.readerAutoDownload,
                       subtitle: l10n.readerAutoDownloadDesc,

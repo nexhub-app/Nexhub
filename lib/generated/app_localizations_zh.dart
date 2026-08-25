@@ -132,6 +132,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sortManual => '手动';
 
   @override
+  String get sortDirector => '导演';
+
+  @override
+  String get sortActors => '主演';
+
+  @override
+  String get sortLatestUpdate => '最新';
+
+  @override
+  String get sortLatestMangaChapter => '最新话';
+
+  @override
   String get filterByStatus => '状态';
 
   @override
@@ -600,6 +612,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get readerBgGrayBlue => '浅灰蓝';
+
+  @override
+  String get readerBgEInk => '墨水屏纸感';
 
   @override
   String get readerBgWhite => '白色';
@@ -2977,6 +2992,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bookmarkAdded => '书签已添加';
 
   @override
+  String get novelSwipeKeepGoing => '继续下滑添加书签';
+
+  @override
+  String get novelSwipeRelease => '松开添加书签';
+
+  @override
   String get deleteBookmark => '删除书签';
 
   @override
@@ -4438,6 +4459,60 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerSkipDuplicateChaptersDesc => '下/上一章时跳过标题重复的章节';
 
   @override
+  String get readerColorProfile => '色彩配置';
+
+  @override
+  String get readerColorProfileNone => '无';
+
+  @override
+  String get readerColorProfileSrgb => 'sRGB';
+
+  @override
+  String get readerColorProfileWarm => '暖色';
+
+  @override
+  String get readerColorProfileCool => '冷色';
+
+  @override
+  String get readerColorProfileManga => '漫画';
+
+  @override
+  String get readerColorProfilePaper => '纸感';
+
+  @override
+  String get readerEInkRefresh => 'E-Ink 刷新';
+
+  @override
+  String get readerEInkRefreshDesc => '墨水屏防残影：按翻页间隔自动全屏闪烁清残影';
+
+  @override
+  String get readerEInkRefreshInterval => '刷新间隔（页）';
+
+  @override
+  String get readerEInkRefreshDuration => '刷新时长（毫秒）';
+
+  @override
+  String get readerEInkRefreshWhite => '白闪';
+
+  @override
+  String get readerEInkRefreshBlack => '黑闪';
+
+  @override
+  String get readerEInkRefreshStyle => '刷新样式';
+
+  @override
+  String get readerGroupEInk => 'E-Ink 刷新';
+
+  @override
+  String get readerGroupEInkDesc => '墨水屏设备专用：防残影全屏刷新';
+
+  @override
+  String get readerAutoFavorite => '自动收藏';
+
+  @override
+  String get readerAutoFavoriteDesc => '打开漫画即加入收藏（已收藏则不重复操作）';
+
+  @override
   String get readerScreenPicNumberPortrait => '竖屏每屏图片数';
 
   @override
@@ -4936,6 +5011,65 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get novelUnderlineDashed => '虚线下划线';
+
+  @override
+  String get novelUnderlineStyle => '下划线样式';
+
+  @override
+  String get novelUnderlineStyleSolid => '实线';
+
+  @override
+  String get novelUnderlineStyleDashed => '虚线';
+
+  @override
+  String get novelUnderlineStyleWavy => '波浪线';
+
+  @override
+  String get novelUnderlineStyleDotted => '点线';
+
+  @override
+  String get novelFontWeightFine => '字重（100-900）';
+
+  @override
+  String get novelFontWeightAuto => '自动（跟随加粗开关）';
+
+  @override
+  String get novelTextAlignMode => '对齐方式';
+
+  @override
+  String get novelTextAlignStart => '自然（左对齐）';
+
+  @override
+  String get novelTextAlignJustify => '两端对齐';
+
+  @override
+  String get novelLineBreakMode => '中文断行';
+
+  @override
+  String get novelLineBreakStandard => '原生折行';
+
+  @override
+  String get novelLineBreakCjkStrict => '逐字断行+禁则';
+
+  @override
+  String get novelTypographyShare => '排版参数分享为 JSON';
+
+  @override
+  String get novelTypographyImport => '导入排版 JSON';
+
+  @override
+  String get novelTypographyShareDone => '排版 JSON 已复制/分享';
+
+  @override
+  String get novelTypographyImportBad => '无效或无法识别的排版 JSON';
+
+  @override
+  String get novelTypographyImportConfirmTitle => '应用导入的排版？';
+
+  @override
+  String novelTypographyImportConfirm(int n) {
+    return '将覆盖当前 $n 项阅读排版默认值。';
+  }
 
   @override
   String get novelUnderlineThickness => '下划线线宽';

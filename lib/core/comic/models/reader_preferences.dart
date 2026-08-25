@@ -190,6 +190,74 @@ ReaderInitialZoom _parseInitialZoom(Object? raw) {
   return ReaderInitialZoom.fitWidth;
 }
 
+/// 图片色彩配置预设（L3 ICC 校色近似）：在手动滤镜（色温/色相/饱和度）之外，
+/// 提供一键套用的色彩风格。Flutter 原生 ICC displayProfile 支持有限，此处用
+/// 固定的 4x5 颜色矩阵近似常见显示特性（见 [ReaderImageFilter.profileMatrix]）。
+enum ReaderColorProfile {
+  /// 无（跟随手动滤镜，不叠加预设）。
+  none,
+
+  /// sRGB：标准色域，近似中性。
+  srgb,
+
+  /// 暖色（纸感）：轻微提暖，适合暖屏/夜读。
+  warm,
+
+  /// 冷色：轻微提冷，适合日光屏。
+  cool,
+
+  /// 漫画：增艳 + 微暖，线条更跳。
+  manga,
+
+  /// 纸感：降饱和 + 微暖，模拟印刷纸质观感。
+  paper;
+
+  String l10nKey() => switch (this) {
+        ReaderColorProfile.none => 'readerColorProfileNone',
+        ReaderColorProfile.srgb => 'readerColorProfileSrgb',
+        ReaderColorProfile.warm => 'readerColorProfileWarm',
+        ReaderColorProfile.cool => 'readerColorProfileCool',
+        ReaderColorProfile.manga => 'readerColorProfileManga',
+        ReaderColorProfile.paper => 'readerColorProfilePaper',
+      };
+}
+
+/// 解析色彩配置预设（容错：非法字符串回退 none）。
+ReaderColorProfile _parseColorProfile(Object? raw) {
+  if (raw is String) {
+    return ReaderColorProfile.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => ReaderColorProfile.none,
+    );
+  }
+  return ReaderColorProfile.none;
+}
+
+/// E-Ink 刷新闪烁样式（L3 E-Ink 刷新设置）。
+enum ReaderEInkRefreshStyle {
+  /// 白闪：全屏白覆盖后淡出（墨水屏清残影常见）。
+  white,
+
+  /// 黑闪：全屏黑覆盖后淡出。
+  black;
+
+  String l10nKey() => switch (this) {
+        ReaderEInkRefreshStyle.white => 'readerEInkRefreshWhite',
+        ReaderEInkRefreshStyle.black => 'readerEInkRefreshBlack',
+      };
+}
+
+/// 解析 E-Ink 刷新样式（容错：非法字符串回退 white）。
+ReaderEInkRefreshStyle _parseEInkRefreshStyle(Object? raw) {
+  if (raw is String) {
+    return ReaderEInkRefreshStyle.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => ReaderEInkRefreshStyle.white,
+    );
+  }
+  return ReaderEInkRefreshStyle.white;
+}
+
 /// 解析闪光颜色（容错：非法字符串回退黑）。
 ReaderFlashColor _parseFlashColor(Object? raw) {
   if (raw is String) {
@@ -507,6 +575,25 @@ class ReaderPreferences {
   /// 夜览暖色盖层不透明度（0.1–0.85，夜览 toOpacity 范围），默认 0.4。
   final double nightLightOpacity;
 
+  /// 图片色彩配置预设（L3 ICC 校色近似）：none / srgb / warm / cool / manga / paper。
+  /// 在手动滤镜之外叠加一层固定色彩矩阵（见 [ReaderImageFilter.profileMatrix]）。
+  final ReaderColorProfile colorProfile;
+
+  /// E-Ink 刷新（L3）：墨水屏防残影，按翻页间隔自动做一次全屏闪烁清残影。
+  final bool einkRefreshEnabled;
+
+  /// E-Ink 刷新间隔（翻页数），范围 1–50，默认 10。每翻过 N 页触发一次刷新。
+  final int einkRefreshInterval;
+
+  /// E-Ink 刷新闪烁时长（毫秒），范围 50–1000，默认 200。
+  final int einkRefreshDuration;
+
+  /// E-Ink 刷新闪烁样式（white / black）。
+  final ReaderEInkRefreshStyle einkRefreshStyle;
+
+  /// 自动收藏（L3 漫画）：打开作品即加入收藏（不重复操作，已收藏跳过）。
+  final bool isAutoFavorite;
+
   /// 阅读中自动下载后续章节（REQ-C7）：进度越过当前章 25% 时后台入队。
   final bool autoDownloadChapters;
 
@@ -578,6 +665,12 @@ class ReaderPreferences {
     this.readerBrightness = 0.0,
     this.nightLightEnabled = false,
     this.nightLightOpacity = 0.4,
+    this.colorProfile = ReaderColorProfile.none,
+    this.einkRefreshEnabled = false,
+    this.einkRefreshInterval = 10,
+    this.einkRefreshDuration = 200,
+    this.einkRefreshStyle = ReaderEInkRefreshStyle.white,
+    this.isAutoFavorite = false,
     this.autoDownloadChapters = false,
     this.skipReadChapters = false,
     this.skipFilteredChapters = false,
@@ -718,6 +811,15 @@ class ReaderPreferences {
       nightLightOpacity:
           ((json['nightLightOpacity'] as num?)?.toDouble() ?? 0.4)
               .clamp(0.1, 0.85),
+      colorProfile: _parseColorProfile(json['colorProfile']),
+      einkRefreshEnabled: json['einkRefreshEnabled'] as bool? ?? false,
+      einkRefreshInterval:
+          ((json['einkRefreshInterval'] as num?)?.toInt() ?? 10).clamp(1, 50),
+      einkRefreshDuration:
+          ((json['einkRefreshDuration'] as num?)?.toInt() ?? 200)
+              .clamp(50, 1000),
+      einkRefreshStyle: _parseEInkRefreshStyle(json['einkRefreshStyle']),
+      isAutoFavorite: json['isAutoFavorite'] as bool? ?? false,
       autoDownloadChapters:
           json['autoDownloadChapters'] as bool? ?? false,
       skipReadChapters: json['skipReadChapters'] as bool? ?? false,
@@ -791,6 +893,12 @@ class ReaderPreferences {
         'readerBrightness': readerBrightness,
         'nightLightEnabled': nightLightEnabled,
         'nightLightOpacity': nightLightOpacity,
+        'colorProfile': colorProfile.name,
+        'einkRefreshEnabled': einkRefreshEnabled,
+        'einkRefreshInterval': einkRefreshInterval,
+        'einkRefreshDuration': einkRefreshDuration,
+        'einkRefreshStyle': einkRefreshStyle.name,
+        'isAutoFavorite': isAutoFavorite,
         'autoDownloadChapters': autoDownloadChapters,
         'skipReadChapters': skipReadChapters,
         'skipFilteredChapters': skipFilteredChapters,
@@ -858,6 +966,12 @@ class ReaderPreferences {
     double? readerBrightness,
     bool? nightLightEnabled,
     double? nightLightOpacity,
+    ReaderColorProfile? colorProfile,
+    bool? einkRefreshEnabled,
+    int? einkRefreshInterval,
+    int? einkRefreshDuration,
+    ReaderEInkRefreshStyle? einkRefreshStyle,
+    bool? isAutoFavorite,
     bool? autoDownloadChapters,
     bool? skipReadChapters,
     bool? skipFilteredChapters,
@@ -935,6 +1049,12 @@ class ReaderPreferences {
         readerBrightness: readerBrightness ?? this.readerBrightness,
         nightLightEnabled: nightLightEnabled ?? this.nightLightEnabled,
         nightLightOpacity: nightLightOpacity ?? this.nightLightOpacity,
+        colorProfile: colorProfile ?? this.colorProfile,
+        einkRefreshEnabled: einkRefreshEnabled ?? this.einkRefreshEnabled,
+        einkRefreshInterval: einkRefreshInterval ?? this.einkRefreshInterval,
+        einkRefreshDuration: einkRefreshDuration ?? this.einkRefreshDuration,
+        einkRefreshStyle: einkRefreshStyle ?? this.einkRefreshStyle,
+        isAutoFavorite: isAutoFavorite ?? this.isAutoFavorite,
         autoDownloadChapters:
             autoDownloadChapters ?? this.autoDownloadChapters,
         skipReadChapters: skipReadChapters ?? this.skipReadChapters,
@@ -1145,6 +1265,24 @@ class ReaderPreferences {
           identical(nightLightOpacity, def.nightLightOpacity)
               ? base.nightLightOpacity
               : nightLightOpacity,
+      colorProfile: identical(colorProfile, def.colorProfile)
+          ? base.colorProfile
+          : colorProfile,
+      einkRefreshEnabled: identical(einkRefreshEnabled, def.einkRefreshEnabled)
+          ? base.einkRefreshEnabled
+          : einkRefreshEnabled,
+      einkRefreshInterval: identical(einkRefreshInterval, def.einkRefreshInterval)
+          ? base.einkRefreshInterval
+          : einkRefreshInterval,
+      einkRefreshDuration: identical(einkRefreshDuration, def.einkRefreshDuration)
+          ? base.einkRefreshDuration
+          : einkRefreshDuration,
+      einkRefreshStyle: identical(einkRefreshStyle, def.einkRefreshStyle)
+          ? base.einkRefreshStyle
+          : einkRefreshStyle,
+      isAutoFavorite: identical(isAutoFavorite, def.isAutoFavorite)
+          ? base.isAutoFavorite
+          : isAutoFavorite,
       autoDownloadChapters:
           identical(autoDownloadChapters, def.autoDownloadChapters)
               ? base.autoDownloadChapters

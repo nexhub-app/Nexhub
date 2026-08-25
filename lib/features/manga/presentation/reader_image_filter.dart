@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
+import '../../../core/comic/models/reader_preferences.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// 漫画阅读器图片滤镜：亮度 / 对比度 / 色温。
@@ -93,6 +94,56 @@ class ReaderImageFilter {
       colorTemp == 0.0 &&
       saturation == 0.0 &&
       hue == 0.0;
+
+  /// 色彩配置预设矩阵（L3 ICC 校色近似）：Flutter 原生 ICC displayProfile 支持
+  /// 有限，用固定 4x5 颜色矩阵近似常见显示风格。仅在 [profile] != none 时应用，
+  /// 与手动滤镜（亮度/对比度/色温/饱和度/色相）叠加生效。
+  static List<double> profileMatrix(ReaderColorProfile profile) {
+    switch (profile) {
+      case ReaderColorProfile.none:
+        return const <double>[
+          1, 0, 0, 0, 0,
+          0, 1, 0, 0, 0,
+          0, 0, 1, 0, 0,
+          0, 0, 0, 1, 0,
+        ];
+      case ReaderColorProfile.srgb:
+        return const <double>[
+          1, 0, 0, 0, 0,
+          0, 1, 0, 0, 0,
+          0, 0, 1, 0, 0,
+          0, 0, 0, 1, 0,
+        ];
+      case ReaderColorProfile.warm:
+        return const <double>[
+          1.06, 0, 0, 0, 0,
+          0, 1, 0, 0, 0,
+          0, 0, 0.94, 0, 0,
+          0, 0, 0, 1, 0,
+        ];
+      case ReaderColorProfile.cool:
+        return const <double>[
+          0.94, 0, 0, 0, 0,
+          0, 1, 0, 0, 0,
+          0, 0, 1.06, 0, 0,
+          0, 0, 0, 1, 0,
+        ];
+      case ReaderColorProfile.manga:
+        return const <double>[
+          1.04, 0.03, 0, 0, 0,
+          0.02, 1.02, 0, 0, 0,
+          0, 0, 0.92, 0, 0,
+          0, 0, 0, 1, 0,
+        ];
+      case ReaderColorProfile.paper:
+        return const <double>[
+          0.0584, 0.9097, 0.0918, 0, 0,
+          0.2704, 0.6977, 0.0918, 0, 0,
+          0.2398, 0.8077, -0.1066, 0, 0,
+          0, 0, 0, 1, 0,
+        ];
+    }
+  }
 }
 
 /// 用滤镜包裹子节点；三轴为 0 且不反色时直接返回原节点，避免无谓的图层开销。
@@ -108,6 +159,7 @@ class ReaderImageFiltered extends StatelessWidget {
   final double hue;
   final bool inverted;
   final bool grayscale;
+  final ReaderColorProfile colorProfile;
   final Widget child;
 
   const ReaderImageFiltered({
@@ -119,6 +171,7 @@ class ReaderImageFiltered extends StatelessWidget {
     this.hue = 0.0,
     this.inverted = false,
     this.grayscale = false,
+    this.colorProfile = ReaderColorProfile.none,
     required this.child,
   });
 
@@ -131,7 +184,12 @@ class ReaderImageFiltered extends StatelessWidget {
       saturation,
       hue,
     );
-    if (matrixIdentity && !inverted && !grayscale) return child;
+    if (matrixIdentity &&
+        !inverted &&
+        !grayscale &&
+        colorProfile == ReaderColorProfile.none) {
+      return child;
+    }
     Widget result = child;
     if (grayscale) {
       result = ColorFiltered(
@@ -166,6 +224,15 @@ class ReaderImageFiltered extends StatelessWidget {
     if (inverted) {
       result = ColorFiltered(
         colorFilter: const ColorFilter.mode(Colors.white, BlendMode.difference),
+        child: result,
+      );
+    }
+    // 色彩配置预设（L3 ICC 校色近似）：在手动滤镜之上叠加固定色彩矩阵。
+    if (colorProfile != ReaderColorProfile.none) {
+      result = ColorFiltered(
+        colorFilter: ColorFilter.matrix(
+          ReaderImageFilter.profileMatrix(colorProfile),
+        ),
         child: result,
       );
     }
