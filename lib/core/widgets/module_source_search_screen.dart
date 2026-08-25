@@ -28,7 +28,9 @@ import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/comic/comic_progress_manager.dart';
 import '../../../core/history/media_watched_manager.dart';
+import '../../../core/novel/novel_chinese_converter.dart';
 import '../../../core/novel/novel_progress_manager.dart';
+import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/content_card.dart';
@@ -101,6 +103,9 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
   bool _hasMore = false;
   /// 追加加载中标记（避免滚动回调重复触发）。
   bool _loadingMore = false;
+  /// 小说模块繁简转换（E4）：按全局阅读偏好的转换方向，仅作用于
+  /// 搜索结果的标题/作者展示与本地匹配归一，不改写入库/收藏的原始数据。
+  ChineseConvertMode _novelConvertMode = ChineseConvertMode.none;
 
   @override
   void initState() {
@@ -109,6 +114,23 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
     _grid = LayoutSettingsStore.instance.settings.layoutMode == LayoutMode.grid;
     LayoutSettingsStore.instance.addListener(_onLayoutStoreChanged);
     _searchField = widget.searchField;
+    // E4：小说模块读取全局繁简转换偏好，用于结果标题/作者展示转换。
+    if (widget.sourceType == SourceType.novelSource) {
+      ReaderDefaultSettingsStore()
+          .load()
+          .then((ReaderDefaultSettings s) {
+        if (!mounted) return;
+        setState(() {
+          _novelConvertMode = switch (s.novelChineseConversion) {
+            NovelChineseConversion.traditionalToSimplified =>
+              ChineseConvertMode.traditionalToSimplified,
+            NovelChineseConversion.simplifiedToTraditional =>
+              ChineseConvertMode.simplifiedToTraditional,
+            NovelChineseConversion.none => ChineseConvertMode.none,
+          };
+        });
+      });
+    }
     // 直达模式：调用方已提供真实页面地址（如详情页抓取到的作者/标签落地页），
     // 直接带入搜索，跳过关键词输入与客户端收窄（服务端已按该页过滤）。
     _extractedUrl = widget.extractedUrl;
@@ -148,6 +170,16 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
         _grid = LayoutSettingsStore.instance.settings.layoutMode == LayoutMode.grid;
       });
     }
+  }
+
+  /// E4：按全局小说转换偏好转换展示文本（标题/作者/高亮关键词）。
+  String _convText(String? text) {
+    if (text == null ||
+        text.isEmpty ||
+        _novelConvertMode == ChineseConvertMode.none) {
+      return text ?? '';
+    }
+    return convertChinese(text, _novelConvertMode);
   }
 
   @override
@@ -419,15 +451,30 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
   /// 本地内容搜索：导入记录 + 已下载作品，按标题/作者匹配关键词，
   /// 转成与网络结果同构的 [MediaItem]（extra 携带 localPath/filePaths，
   /// 供调用方本地打开）。与网络搜索的匹配语义一致（忽略大小写与空白）。
+  /// 小说模块额外做繁简双向归一（E4）：关键词与标题统一转简体后比对，
+  /// 繁体关键词也能命中简体书名，反之亦然。
   List<MediaItem> _searchLocalContent(String query) {
     final q = query.trim().toLowerCase();
     if (q.isEmpty) return const <MediaItem>[];
     final qNorm = q.replaceAll(RegExp(r'\s+'), '');
+    final bool isNovel = widget.sourceType == SourceType.novelSource;
+    // 双向归一基准：查询转简体后的规范化形式（仅小说模块使用）。
+    final String? qSimp = isNovel
+        ? convertChinese(q, ChineseConvertMode.traditionalToSimplified)
+            .toLowerCase()
+            .replaceAll(RegExp(r'\s+'), '')
+        : null;
 
-    bool titleMatches(String title) => title
-        .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), '')
-        .contains(qNorm);
+    bool titleMatches(String title) {
+      final normTitle = title.toLowerCase().replaceAll(RegExp(r'\s+'), '');
+      if (normTitle.contains(qNorm)) return true;
+      if (qSimp == null || qSimp.isEmpty || qSimp == qNorm) return false;
+      final titleSimp = convertChinese(
+              title, ChineseConvertMode.traditionalToSimplified)
+          .toLowerCase()
+          .replaceAll(RegExp(r'\s+'), '');
+      return titleSimp.contains(qSimp);
+    }
 
     final results = <MediaItem>[];
 
@@ -440,6 +487,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
       results.add(MediaItem(
         id: e.id,
         title: e.title,
+        author: e.author,
         coverUrl: e.coverUrl,
         sourceId: '',
         sourceType: widget.sourceType,
@@ -779,13 +827,13 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
           builder: (ctx, snap) => ContentCard(
             coverUrl: item.coverUrl,
             source: source,
-            title: item.title,
-            subtitle: item.author,
+            title: _convText(item.title),
+            subtitle: _convText(item.author),
             meta: isLocal ? l10n.subTabLocal : source?.name,
             progress: snap.data,
             width: itemW,
             heroTag: 'search-${item.id}',
-            highlightQuery: _controller.text,
+            highlightQuery: _convText(_controller.text),
             onTap: () => widget.onItemTap(item, 'search-${item.id}'),
           ),
         );
@@ -832,8 +880,8 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
             ),
             title: layout.showTitle
                 ? HighlightText(
-                    text: item.title,
-                    query: _controller.text,
+                    text: _convText(item.title),
+                    query: _convText(_controller.text),
                     style: Theme.of(context)
                         .textTheme
                         .bodyLarge
@@ -845,7 +893,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
             subtitle: layout.showAuthor
                 ? Text(
                     <String?>[
-                      item.author,
+                      _convText(item.author),
                       if (isLocal) l10n.subTabLocal else source?.name,
                     ].where((s) => s != null && s.isNotEmpty).join(' · '),
                     maxLines: 1,
