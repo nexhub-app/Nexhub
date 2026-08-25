@@ -1930,7 +1930,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                         subParts.add(bm.note!);
                       }
                       return ListTile(
-                        leading: const Icon(Icons.bookmark),
+                        leading: _buildBookmarkLeading(bm),
                         title: Text(bm.chapterTitle.isEmpty
                             ? l10n.novelChapterN(bm.chapterIndex + 1)
                             : bm.chapterTitle),
@@ -1953,6 +1953,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           Navigator.of(ctx).pop();
                           _jumpToBookmark(bm);
                         },
+                        // I7：长按弹出角标图操作（自定义 / 恢复默认）。
+                        onLongPress: () => _showBadgeActions(ctx, bm),
                       );
                     },
                   ),
@@ -1963,6 +1965,75 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         );
       },
     );
+  }
+
+  /// 书签列表角标：自定义图优先，加载失败/未设置回退默认图标（I7）。
+  Widget _buildBookmarkLeading(NovelBookmark bm) {
+    final path = bm.iconPath;
+    if (path == null || path.isEmpty) return const Icon(Icons.bookmark);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+      child: Image.file(
+        File(path),
+        width: 28,
+        height: 28,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Icon(Icons.bookmark),
+      ),
+    );
+  }
+
+  /// 角标图操作菜单（I7）：自定义 / 恢复默认；操作完成后刷新列表。
+  Future<void> _showBadgeActions(BuildContext sheetCtx, NovelBookmark bm) async {
+    final l10n = AppLocalizations.of(sheetCtx);
+    final String? action = await showModalBottomSheet<String>(
+      context: sheetCtx,
+      builder: (BuildContext c) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.image_outlined),
+              title: Text(l10n.bookmarkBadgeCustom),
+              onTap: () => Navigator.of(c).pop('custom'),
+            ),
+            if (bm.iconPath != null && bm.iconPath!.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.refresh),
+                title: Text(l10n.bookmarkBadgeReset),
+                onTap: () => Navigator.of(c).pop('reset'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (action == null) return;
+    if (action == 'custom') {
+      await _pickBadgeImage(bm);
+    } else if (action == 'reset') {
+      await _bookmarks.setBadge(bm.key, null);
+    }
+    // 刷新书签列表（与删除后的重建流程一致）。
+    if (!mounted) return;
+    _showBookmarkList();
+  }
+
+  /// 选图并复制到应用目录后设为书签角标（I7）。取消选图为无操作。
+  Future<void> _pickBadgeImage(NovelBookmark bm) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.image);
+      final path = result?.files.single.path;
+      if (path == null || path.isEmpty) return;
+      final docs = await getApplicationDocumentsDirectory();
+      final dir = Directory(p.join(docs.path, 'novel_badges'));
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final dest = p.join(
+          dir.path, '${DateTime.now().millisecondsSinceEpoch}${p.extension(path)}');
+      await File(path).copy(dest);
+      await _bookmarks.setBadge(bm.key, dest);
+    } on Object {
+      // 选图 / 复制失败静默忽略
+    }
   }
 
   /// 跳转到指定书签。

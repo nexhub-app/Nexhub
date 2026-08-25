@@ -3041,6 +3041,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get deleteBookmark => '删除书签';
 
   @override
+  String get bookmarkBadgeCustom => '自定义角标图';
+
+  @override
+  String get bookmarkBadgeReset => '恢复默认图标';
+
+  @override
   String get noBookmarks => '暂无书签';
 
   @override

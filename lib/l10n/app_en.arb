@@ -1605,6 +1605,8 @@
   "novelSwipeKeepGoing": "Keep swiping down to add bookmark",
   "novelSwipeRelease": "Release to add bookmark",
   "deleteBookmark": "Delete Bookmark",
+  "bookmarkBadgeCustom": "Custom Badge Image",
+  "bookmarkBadgeReset": "Reset Default Icon",
   "noBookmarks": "No Bookmarks",
   "bookmarkNoteHint": "Note (optional)",
   "novelChapterProgress": "Ch. {current} / {total}",

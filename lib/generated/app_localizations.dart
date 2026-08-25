@@ -5954,6 +5954,18 @@ abstract class AppLocalizations {
   /// **'Delete Bookmark'**
   String get deleteBookmark;
 
+  /// No description provided for @bookmarkBadgeCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Badge Image'**
+  String get bookmarkBadgeCustom;
+
+  /// No description provided for @bookmarkBadgeReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Default Icon'**
+  String get bookmarkBadgeReset;
+
   /// No description provided for @noBookmarks.
   ///
   /// In en, this message translates to:

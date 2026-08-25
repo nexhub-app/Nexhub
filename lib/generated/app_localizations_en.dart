@@ -3091,6 +3091,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteBookmark => 'Delete Bookmark';
 
   @override
+  String get bookmarkBadgeCustom => 'Custom Badge Image';
+
+  @override
+  String get bookmarkBadgeReset => 'Reset Default Icon';
+
+  @override
   String get noBookmarks => 'No Bookmarks';
 
   @override

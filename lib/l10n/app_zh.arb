@@ -1585,6 +1585,8 @@
   "novelSwipeKeepGoing": "继续下滑添加书签",
   "novelSwipeRelease": "松开添加书签",
   "deleteBookmark": "删除书签",
+  "bookmarkBadgeCustom": "自定义角标图",
+  "bookmarkBadgeReset": "恢复默认图标",
   "noBookmarks": "暂无书签",
   "bookmarkNoteHint": "备注（可选）",
   "novelChapterProgress": "第 {current} 章 / 共 {total} 章",

@@ -31,6 +31,9 @@ class NovelBookmark {
   /// 可选备注。
   final String? note;
 
+  /// 自定义角标图路径（I7，应用目录内的本地图片绝对路径；null=默认图标）。
+  final String? iconPath;
+
   const NovelBookmark({
     required this.novelId,
     required this.chapterIndex,
@@ -39,6 +42,7 @@ class NovelBookmark {
     required this.page,
     required this.createdAt,
     this.note,
+    this.iconPath,
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -49,6 +53,7 @@ class NovelBookmark {
         'page': page,
         'createdAt': createdAt,
         if (note != null) 'note': note,
+        if (iconPath != null) 'iconPath': iconPath,
       };
 
   factory NovelBookmark.fromJson(Map<String, dynamic> json) {
@@ -60,8 +65,21 @@ class NovelBookmark {
       page: (json['page'] as num?)?.toInt() ?? 0,
       createdAt: (json['createdAt'] as num?)?.toInt() ?? 0,
       note: json['note'] as String?,
+      iconPath: json['iconPath'] as String?,
     );
   }
+
+  /// 返回一个更新了角标图路径的副本（[icon] 传 null 恢复默认图标）。
+  NovelBookmark copyWithIcon(String? icon) => NovelBookmark(
+        novelId: novelId,
+        chapterIndex: chapterIndex,
+        chapterId: chapterId,
+        chapterTitle: chapterTitle,
+        page: page,
+        createdAt: createdAt,
+        note: note,
+        iconPath: icon,
+      );
 
   /// 复合 key：`novelId::chapterIndex::createdAt`，唯一标识一条书签。
   String get key => '$novelId::$chapterIndex::$createdAt';
@@ -94,6 +112,22 @@ class NovelBookmarkManager {
   Future<void> remove(String key) async {
     final box = await _openBox();
     await box.delete(key);
+  }
+
+  /// 更新书签自定义角标图（I7）。[iconPath] 为应用目录内的图片绝对路径，
+  /// 传 null 恢复默认图标；书签不存在或数据损坏时静默忽略。
+  Future<void> setBadge(String key, String? iconPath) async {
+    final box = await _openBox();
+    final raw = box.get(key);
+    if (raw is! String || raw.isEmpty) return;
+    try {
+      final bm = NovelBookmark.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      await box.put(key, jsonEncode(bm.copyWithIcon(iconPath).toJson()));
+    } on Object {
+      // 损坏数据忽略
+    }
   }
 
   /// 列出某本书的全部书签（按创建时间倒序）。
