@@ -109,6 +109,30 @@ class _BookshelfFilterSheetState extends State<_BookshelfFilterSheet> {
                         onSelected: (_) => setState(() => _filter =
                             _filter.copyWith(sort: BookshelfSort.title)),
                       ),
+                      _ChoiceChip(
+                        label: l10n.sortAuthor,
+                        selected: _filter.sort == BookshelfSort.author,
+                        onSelected: (_) => setState(() => _filter =
+                            _filter.copyWith(sort: BookshelfSort.author)),
+                      ),
+                      _ChoiceChip(
+                        label: l10n.sortLatestChapter,
+                        selected: _filter.sort == BookshelfSort.latestChapter,
+                        onSelected: (_) => setState(() => _filter = _filter
+                            .copyWith(sort: BookshelfSort.latestChapter)),
+                      ),
+                      _ChoiceChip(
+                        label: l10n.sortTitleZh,
+                        selected: _filter.sort == BookshelfSort.titleZh,
+                        onSelected: (_) => setState(() => _filter =
+                            _filter.copyWith(sort: BookshelfSort.titleZh)),
+                      ),
+                      _ChoiceChip(
+                        label: l10n.sortManual,
+                        selected: _filter.sort == BookshelfSort.manual,
+                        onSelected: (_) => setState(() => _filter =
+                            _filter.copyWith(sort: BookshelfSort.manual)),
+                      ),
                     ]),
                     const SizedBox(height: AppTokens.spaceMd),
                     _Section(label: l10n.filterByStatus, children: <Widget>[

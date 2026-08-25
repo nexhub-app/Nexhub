@@ -120,6 +120,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sortTitle => '标题';
 
   @override
+  String get sortAuthor => '作者';
+
+  @override
+  String get sortLatestChapter => '最新章';
+
+  @override
+  String get sortTitleZh => '中文书名';
+
+  @override
+  String get sortManual => '手动';
+
+  @override
   String get filterByStatus => '状态';
 
   @override

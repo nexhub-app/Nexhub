@@ -9,6 +9,8 @@
 /// 三模块共用，通过 [sourceType] 过滤数据，通过 [filter] 应用筛选/排序。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +23,7 @@ import '../history/history_manager.dart';
 import '../local/local_content_manager.dart';
 import '../local/local_content_actions.dart';
 import '../models/bookshelf_filter.dart';
+import '../models/bookshelf_manual_order.dart';
 import '../models/media_item.dart';
 import '../models/plugin_config.dart';
 import '../services/source_repository.dart';
@@ -202,7 +205,7 @@ class _LocalBookshelf extends StatelessWidget {
     }).toList();
 
     // 排序。
-    _sortTasks(tasks, filter.sort);
+    _sortTasks(tasks, filter.sort, sourceType);
 
     // 导入的本地内容（R3 修复）：按 sourceType 映射 LocalMediaKind 后过滤。
     // 漫画源同时接受 images 与 pdf。
@@ -225,7 +228,7 @@ class _LocalBookshelf extends StatelessWidget {
           return true;
       }
     }).toList();
-    _sortLocalEntries(imported, filter.sort);
+    _sortLocalEntries(imported, filter.sort, sourceType);
 
     final isEmpty = tasks.isEmpty && imported.isEmpty;
     if (isEmpty) {
@@ -305,7 +308,11 @@ class _LocalBookshelf extends StatelessWidget {
           onLongPress: () => showLocalEntryActions(context, e),
         )));
 
-    return _BookshelfGrid(items: items);
+    return _BookshelfGrid(
+      items: items,
+      sort: filter.sort,
+      sourceType: sourceType,
+    );
   }
 }
 
@@ -351,7 +358,7 @@ class _HistoryBookshelf extends StatelessWidget {
     }
 
     // 排序。
-    _sortHistoryEntries(entries, filter.sort);
+    _sortHistoryEntries(entries, filter.sort, sourceType);
 
     if (entries.isEmpty) {
       return AppEmptyState(
@@ -374,6 +381,8 @@ class _HistoryBookshelf extends StatelessWidget {
                 onDelete: () => manager.removeHistory(e.id, sourceType: sourceType),
               ))
           .toList(),
+      sort: filter.sort,
+      sourceType: sourceType,
     );
   }
 }
@@ -445,7 +454,7 @@ class _FavoriteBookshelf extends StatelessWidget {
     }).toList();
 
     // 排序。
-    _sortFavoriteEntries(entries, filter.sort);
+    _sortFavoriteEntries(entries, filter.sort, sourceType);
 
     if (entries.isEmpty) {
       return AppEmptyState(
@@ -475,6 +484,8 @@ class _FavoriteBookshelf extends StatelessWidget {
                 ),
               ))
           .toList(),
+      sort: filter.sort,
+      sourceType: sourceType,
     );
   }
 }
@@ -568,22 +579,61 @@ void _showFavoriteActionsMenu(
 
 // ── 排序辅助 ────────────────────────────────────────────
 
-void _sortTasks(List<DownloadTask> tasks, BookshelfSort sort) {
+/// 手动排序比较：已排序条目（有索引）在前，按索引升序；未排序条目在后，
+/// 以标题作为稳定回退。未加载时 [BookshelfManualOrderStore.indexFor] 会后台加载。
+int _manualCompare(
+  SourceType type,
+  String idA,
+  String titleA,
+  String idB,
+  String titleB,
+) {
+  final store = BookshelfManualOrderStore.instance;
+  final int? ia = store.indexFor(type, idA);
+  final int? ib = store.indexFor(type, idB);
+  if (ia != null && ib != null) return ia.compareTo(ib);
+  if (ia != null) return -1;
+  if (ib != null) return 1;
+  return titleA.toLowerCase().compareTo(titleB.toLowerCase());
+}
+
+void _sortTasks(
+  List<DownloadTask> tasks,
+  BookshelfSort sort,
+  SourceType sourceType,
+) {
   switch (sort) {
     case BookshelfSort.recent:
+    case BookshelfSort.latestChapter:
       tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     case BookshelfSort.title:
+    case BookshelfSort.author:
+    case BookshelfSort.titleZh:
+      // 下载任务无作者 / 中文书名字段，作者与中文书名排序回退标题。
       tasks.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    case BookshelfSort.manual:
+      tasks.sort((a, b) => _manualCompare(
+          sourceType, a.contentId, a.title, b.contentId, b.title));
   }
 }
 
-void _sortLocalEntries(List<LocalContentEntry> entries, BookshelfSort sort) {
+void _sortLocalEntries(
+  List<LocalContentEntry> entries,
+  BookshelfSort sort,
+  SourceType sourceType,
+) {
   switch (sort) {
     case BookshelfSort.recent:
+    case BookshelfSort.latestChapter:
       entries.sort((a, b) => b.addedAt.compareTo(a.addedAt));
     case BookshelfSort.title:
+    case BookshelfSort.author:
+    case BookshelfSort.titleZh:
       entries.sort(
           (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    case BookshelfSort.manual:
+      entries.sort((a, b) =>
+          _manualCompare(sourceType, a.id, a.title, b.id, b.title));
   }
 }
 
@@ -609,23 +659,49 @@ LocalMediaKind? _kindForFormat(DownloadFormat f) => switch (f) {
       DownloadFormat.video => LocalMediaKind.video,
     };
 
-void _sortHistoryEntries(List<HistoryEntry> entries, BookshelfSort sort) {
+void _sortHistoryEntries(
+  List<HistoryEntry> entries,
+  BookshelfSort sort,
+  SourceType sourceType,
+) {
   switch (sort) {
     case BookshelfSort.recent:
+    case BookshelfSort.latestChapter:
       entries.sort((a, b) => b.viewedAt.compareTo(a.viewedAt));
     case BookshelfSort.title:
+    case BookshelfSort.author:
+    case BookshelfSort.titleZh:
       entries.sort(
           (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    case BookshelfSort.manual:
+      entries.sort((a, b) =>
+          _manualCompare(sourceType, a.id, a.title, b.id, b.title));
   }
 }
 
-void _sortFavoriteEntries(List<FavoriteEntry> entries, BookshelfSort sort) {
+void _sortFavoriteEntries(
+  List<FavoriteEntry> entries,
+  BookshelfSort sort,
+  SourceType sourceType,
+) {
   switch (sort) {
     case BookshelfSort.recent:
       entries.sort((a, b) => b.favoritedAt.compareTo(a.favoritedAt));
+    case BookshelfSort.latestChapter:
+      // 收藏段"最新章"取最近阅读章节时间（lastRead），未读为 0 排末尾。
+      entries.sort((a, b) => b.lastRead.compareTo(a.lastRead));
     case BookshelfSort.title:
-      entries.sort(
-          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    case BookshelfSort.author:
+      entries.sort((a, b) => (a.author ?? a.title)
+          .toLowerCase()
+          .compareTo((b.author ?? b.title).toLowerCase()));
+    case BookshelfSort.titleZh:
+      entries.sort((a, b) => (a.titleZh ?? a.title)
+          .toLowerCase()
+          .compareTo((b.titleZh ?? b.title).toLowerCase()));
+    case BookshelfSort.manual:
+      entries.sort((a, b) =>
+          _manualCompare(sourceType, a.id, a.title, b.id, b.title));
   }
 }
 
@@ -660,10 +736,64 @@ class _BookshelfItem {
   });
 }
 
-class _BookshelfGrid extends StatelessWidget {
+class _BookshelfGrid extends StatefulWidget {
   final List<_BookshelfItem> items;
+  final BookshelfSort sort;
+  final SourceType sourceType;
 
-  const _BookshelfGrid({required this.items});
+  const _BookshelfGrid({
+    required this.items,
+    required this.sort,
+    required this.sourceType,
+  });
+
+  @override
+  State<_BookshelfGrid> createState() => _BookshelfGridState();
+}
+
+class _BookshelfGridState extends State<_BookshelfGrid> {
+  late List<_BookshelfItem> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _items = List<_BookshelfItem>.from(widget.items);
+  }
+
+  @override
+  void didUpdateWidget(covariant _BookshelfGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 父级每次 build 重新传入已按当前排序排好的 items；手动排序时本组件是展示
+    // 真相（拖拽后本地重排并写回存储），与父级按存储索引重排结果一致。
+    _items = List<_BookshelfItem>.from(widget.items);
+  }
+
+  bool get _manual => widget.sort == BookshelfSort.manual;
+
+  /// 列表手动排序（[ReorderableListView.onReorderItem]，newIndex 已为目标位）。
+  void _onReorderItem(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= _items.length) return;
+    if (newIndex < 0 || newIndex >= _items.length) return;
+    setState(() {
+      final item = _items.removeAt(oldIndex);
+      _items.insert(newIndex, item);
+    });
+    unawaited(BookshelfManualOrderStore.instance
+        .applyOrder(widget.sourceType, _items.map((e) => e.id).toList()));
+  }
+
+  /// 网格手动排序：拖拽落点重排（SDK 无 ReorderableGridView，用 Draggable+DragTarget）。
+  void _onGridDrop(int from, int to) {
+    if (from < 0 || from >= _items.length) return;
+    if (to < 0 || to >= _items.length) return;
+    setState(() {
+      final item = _items.removeAt(from);
+      final target = to > from ? to - 1 : to;
+      _items.insert(target, item);
+    });
+    unawaited(BookshelfManualOrderStore.instance
+        .applyOrder(widget.sourceType, _items.map((e) => e.id).toList()));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -673,9 +803,9 @@ class _BookshelfGrid extends StatelessWidget {
       builder: (context, _) {
         final LayoutSettings layout = LayoutSettingsStore.instance.settings;
         if (layout.layoutMode == LayoutMode.list) {
-          return _buildList(items, layout);
+          return _buildList(layout);
         }
-        return _buildGrid(items, layout);
+        return _buildGrid(layout);
       },
     );
   }
@@ -720,8 +850,9 @@ class _BookshelfGrid extends StatelessWidget {
     return null;
   }
 
-  /// 网格模式：列数/间距跟随布局设置，卡片显示作者 + 进度。
-  Widget _buildGrid(List<_BookshelfItem> items, LayoutSettings layout) {
+  /// 网格模式：列数/间距跟随布局设置，卡片显示作者 + 进度。手动排序时切换为
+  /// 拖拽重排（LongPressDraggable + DragTarget，SDK 无 ReorderableGridView）。
+  Widget _buildGrid(LayoutSettings layout) {
     final int cross = layout.gridColumns.clamp(1, 8);
     final double spacing = layout.gridSpacing.clamp(4, 24);
     final double textH = _textHeight(layout);
@@ -732,173 +863,103 @@ class _BookshelfGrid extends StatelessWidget {
             (width - AppTokens.spaceMd * 2 - spacing * (cross - 1)) / cross;
         final double coverH = itemW / AppTokens.coverAspectRatio;
         final double ratio = itemW / (coverH + textH);
-        return GridView.builder(
-          padding: const EdgeInsets.all(AppTokens.spaceMd),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: cross,
-            crossAxisSpacing: spacing,
-            mainAxisSpacing: spacing,
-            childAspectRatio: ratio,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, i) {
-            final item = items[i];
-            // 进度：异步计算后通过 FutureBuilder 传给 ContentCard
-            return FutureBuilder<double?>(
-              future: layout.showProgress ? _computeProgress(item) : Future<double?>.value(null),
-              builder: (ctx, snap) {
-                Widget card = ContentCard(
-                  coverUrl: item.coverUrl,
-                  title: item.title,
-                  subtitle: (layout.showAuthor && item.author != null)
-                      ? item.author
-                      : null,
-                  source: item.source,
-                  onTap: item.onTap,
-                  width: itemW,
-                  progress: snap.data,
-                );
-                // 长按/右键入口（ContentCard 未暴露 onLongPress，外层手势兼容 InkWell）。
-                if (item.onLongPress != null) {
-                  card = GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onLongPress: item.onLongPress,
-                    onSecondaryTap: item.onLongPress,
+        final List<Widget> children = <Widget>[
+          for (final item in _items)
+            KeyedSubtree(
+              key: ValueKey<String>(item.id),
+              child: _buildCard(ctx, item, layout, itemW),
+            ),
+        ];
+        if (_manual) {
+          // SDK 无 ReorderableGridView：用 LongPressDraggable + DragTarget 实现网格拖拽重排。
+          return GridView.builder(
+            padding: const EdgeInsets.all(AppTokens.spaceMd),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cross,
+              crossAxisSpacing: spacing,
+              mainAxisSpacing: spacing,
+              childAspectRatio: ratio,
+            ),
+            itemCount: _items.length,
+            itemBuilder: (ctx, i) {
+              final item = _items[i];
+              final card = _buildCard(ctx, item, layout, itemW);
+              return LongPressDraggable<int>(
+                data: i,
+                delay: const Duration(milliseconds: 200),
+                feedback: Material(
+                  color: Colors.transparent,
+                  child: SizedBox(
+                    width: itemW,
+                    height: itemW / ratio,
                     child: card,
-                  );
-                }
-                // 历史记录：右上角悬浮删除按钮（仅历史书架传入 onDelete）。
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: <Widget>[
-                    card,
-                    if (item.onDelete != null)
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius:
-                                BorderRadius.circular(AppTokens.radiusFull),
-                            onTap: () => _confirmDelete(ctx, item),
-                            child: Container(
-                              padding: const EdgeInsets.all(AppTokens.spaceXs),
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.delete_outline,
-                                  size: 18, color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            );
-          },
+                  ),
+                ),
+                childWhenDragging: Opacity(opacity: 0.3, child: card),
+                child: DragTarget<int>(
+                  onWillAcceptWithDetails: (d) => d.data != i,
+                  onAcceptWithDetails: (d) => _onGridDrop(d.data, i),
+                  builder: (c, accepted, rejected) => card,
+                ),
+              );
+            },
+          );
+        }
+        return GridView.count(
+          crossAxisCount: cross,
+          crossAxisSpacing: spacing,
+          mainAxisSpacing: spacing,
+          childAspectRatio: ratio,
+          padding: const EdgeInsets.all(AppTokens.spaceMd),
+          children: children,
         );
       },
     );
   }
 
-  /// 列表模式：单列横向卡片（封面 + 标题 + 作者），不再显示章节数字。
-  Widget _buildList(List<_BookshelfItem> items, LayoutSettings layout) {
+  /// 列表模式：单列横向卡片（封面 + 标题 + 作者）。手动排序时切换为
+  /// [ReorderableListView] 支持拖拽重排。
+  Widget _buildList(LayoutSettings layout) {
     final bool isCompact = layout.listStyle == ListLayoutStyle.compact;
+    if (_manual) {
+      return ReorderableListView.builder(
+        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        itemCount: _items.length,
+        onReorderItem: _onReorderItem,
+        itemBuilder: (ctx, i) => KeyedSubtree(
+          key: ValueKey<String>(_items[i].id),
+          child: _buildRow(_items[i], layout, isCompact),
+        ),
+      );
+    }
     return ListView.builder(
       padding: const EdgeInsets.all(AppTokens.spaceMd),
-      itemCount: items.length,
-      itemBuilder: (context, i) {
-        final item = items[i];
-        final ColorScheme scheme = Theme.of(context).colorScheme;
-        Widget card = AppCard(
-            onTap: item.onTap,
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: AppTokens.spaceMd,
-                vertical: isCompact ? AppTokens.spaceXs : AppTokens.spaceSm,
-              ),
-              leading: ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(layout.coverRadius.toDouble()),
-                child: SizedBox(
-                  width: isCompact ? 40 : 56,
-                  height: isCompact ? 56 : 78,
-                  child: AppCoverImage(
-                    coverUrl: item.coverUrl,
-                    source: item.source,
-                    title: item.title,
-                    width: isCompact ? 40 : 56,
-                    height: isCompact ? 56 : 78,
-                    radius: layout.coverRadius,
-                  ),
-                ),
-              ),
-              title: layout.showTitle
-                  ? Text(
-                      item.title,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyLarge
-                          ?.copyWith(fontSize: layout.titleFontSize),
-                      maxLines: layout.titleMaxLines,
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : null,
-              subtitle: (layout.showAuthor &&
-                      item.author != null &&
-                      item.author!.isNotEmpty)
-                  ? Text(
-                      item.author!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                    )
-                  : null,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  if (layout.showProgress)
-                    FutureBuilder<double?>(
-                      future: _computeProgress(item),
-                      builder: (ctx, snap) {
-                        final double? p = snap.data;
-                        if (p == null || p <= 0) {
-                          return const SizedBox.shrink();
-                        }
-                        return Padding(
-                          padding:
-                              const EdgeInsets.only(right: AppTokens.spaceSm),
-                          child: Text(
-                            '${(p * 100).round()}%',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color:
-                                      Theme.of(context).colorScheme.primary,
-                                ),
-                          ),
-                        );
-                      },
-                    ),
-                  if (item.onDelete != null)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: AppLocalizations.of(context).delete,
-                      onPressed: () => _confirmDelete(context, item),
-                    ),
-                ],
-              ),
-            ),
-          );
-        // 长按/右键入口（AppCard 未暴露 onLongPress，外层手势兼容）。
+      itemCount: _items.length,
+      itemBuilder: (context, i) => _buildRow(_items[i], layout, isCompact),
+    );
+  }
+
+  /// 单卡片（网格模式）：封面 + 标题 + 可选作者 + 进度 + 删除浮钮。
+  Widget _buildCard(
+    BuildContext ctx,
+    _BookshelfItem item,
+    LayoutSettings layout,
+    double itemW,
+  ) {
+    return FutureBuilder<double?>(
+      future: layout.showProgress ? _computeProgress(item) : Future<double?>.value(null),
+      builder: (ctx2, snap) {
+        Widget card = ContentCard(
+          coverUrl: item.coverUrl,
+          title: item.title,
+          subtitle:
+              (layout.showAuthor && item.author != null) ? item.author : null,
+          source: item.source,
+          onTap: item.onTap,
+          width: itemW,
+          progress: snap.data,
+        );
+        // 长按/右键入口（ContentCard 未暴露 onLongPress，外层手势兼容 InkWell）。
         if (item.onLongPress != null) {
           card = GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -907,11 +968,138 @@ class _BookshelfGrid extends StatelessWidget {
             child: card,
           );
         }
-        return Padding(
-          padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-          child: card,
+        // 历史记录：右上角悬浮删除按钮（仅历史书架传入 onDelete）。
+        return Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            card,
+            if (item.onDelete != null)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius:
+                        BorderRadius.circular(AppTokens.radiusFull),
+                    onTap: () => _confirmDelete(ctx, item),
+                    child: Container(
+                      padding: const EdgeInsets.all(AppTokens.spaceXs),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.delete_outline,
+                          size: 18, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         );
       },
+    );
+  }
+
+  /// 单行（列表模式）：封面 + 标题 + 作者 + 进度 + 删除按钮。
+  Widget _buildRow(_BookshelfItem item, LayoutSettings layout, bool isCompact) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    Widget card = AppCard(
+        onTap: item.onTap,
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: AppTokens.spaceMd,
+            vertical: isCompact ? AppTokens.spaceXs : AppTokens.spaceSm,
+          ),
+          leading: ClipRRect(
+            borderRadius:
+                BorderRadius.circular(layout.coverRadius.toDouble()),
+            child: SizedBox(
+              width: isCompact ? 40 : 56,
+              height: isCompact ? 56 : 78,
+              child: AppCoverImage(
+                coverUrl: item.coverUrl,
+                source: item.source,
+                title: item.title,
+                width: isCompact ? 40 : 56,
+                height: isCompact ? 56 : 78,
+                radius: layout.coverRadius,
+              ),
+            ),
+          ),
+          title: layout.showTitle
+              ? Text(
+                  item.title,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(fontSize: layout.titleFontSize),
+                  maxLines: layout.titleMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : null,
+          subtitle: (layout.showAuthor &&
+                  item.author != null &&
+                  item.author!.isNotEmpty)
+              ? Text(
+                  item.author!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                )
+              : null,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (layout.showProgress)
+                FutureBuilder<double?>(
+                  future: _computeProgress(item),
+                  builder: (ctx, snap) {
+                    final double? p = snap.data;
+                    if (p == null || p <= 0) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding:
+                          const EdgeInsets.only(right: AppTokens.spaceSm),
+                      child: Text(
+                        '${(p * 100).round()}%',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                      ),
+                    );
+                  },
+                ),
+              if (item.onDelete != null)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: AppLocalizations.of(context).delete,
+                  onPressed: () => _confirmDelete(context, item),
+                ),
+            ],
+          ),
+        ),
+      );
+    // 长按/右键入口（AppCard 未暴露 onLongPress，外层手势兼容）。
+    if (item.onLongPress != null) {
+      card = GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPress: item.onLongPress,
+        onSecondaryTap: item.onLongPress,
+        child: card,
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+      child: card,
     );
   }
 

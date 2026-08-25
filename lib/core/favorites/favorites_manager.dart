@@ -21,6 +21,11 @@ class FavoriteEntry {
   final String? sourceId;
   final SourceType sourceType;
   final String? author;
+
+  /// 中文书名（M2 中文书名排序用）。多数作品 title 即中文名，本字段用于
+  /// 「原书名 + 中文译名」并存的外语源作品；为空时排序回退到 [title]。
+  final String? titleZh;
+
   final String? detailUrl;
   final int favoritedAt;
 
@@ -49,6 +54,7 @@ class FavoriteEntry {
     this.coverUrl,
     this.sourceId,
     this.author,
+    this.titleZh,
     this.detailUrl,
     required this.favoritedAt,
     this.lastRead = 0,
@@ -67,6 +73,7 @@ class FavoriteEntry {
         sourceId: item.sourceId,
         sourceType: item.sourceType ?? SourceType.animeSource,
         author: item.author,
+        titleZh: item.title,
         detailUrl: item.detailUrl,
         favoritedAt: favoritedAt ?? DateTime.now().millisecondsSinceEpoch,
         lastRead: 0,
@@ -82,6 +89,7 @@ class FavoriteEntry {
         sourceId: sourceId,
         sourceType: sourceType,
         author: author,
+        titleZh: titleZh,
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: timestamp,
@@ -100,6 +108,7 @@ class FavoriteEntry {
         sourceId: sourceId,
         sourceType: sourceType,
         author: author,
+        titleZh: titleZh,
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: lastRead,
@@ -118,6 +127,7 @@ class FavoriteEntry {
         sourceId: sourceId,
         sourceType: sourceType,
         author: author,
+        titleZh: titleZh,
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: lastRead,
@@ -137,6 +147,7 @@ class FavoriteEntry {
         sourceId: sourceId,
         sourceType: sourceType,
         author: author,
+        titleZh: titleZh,
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: lastRead,
@@ -166,6 +177,7 @@ class FavoriteEntry {
         'sourceId': sourceId,
         'sourceType': sourceType.apiName,
         'author': author,
+        'titleZh': titleZh,
         'detailUrl': detailUrl,
         'favoritedAt': favoritedAt,
         'lastRead': lastRead,
@@ -184,6 +196,7 @@ class FavoriteEntry {
         sourceType:
             SourceType.parse(json['sourceType'] as String?) ?? SourceType.animeSource,
         author: json['author'] as String?,
+        titleZh: json['titleZh'] as String?,
         detailUrl: json['detailUrl'] as String?,
         favoritedAt: json['favoritedAt'] as int? ?? 0,
         lastRead: json['lastRead'] as int? ?? 0,

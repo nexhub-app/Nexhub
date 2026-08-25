@@ -320,6 +320,30 @@ abstract class AppLocalizations {
   /// **'Title'**
   String get sortTitle;
 
+  /// No description provided for @sortAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get sortAuthor;
+
+  /// No description provided for @sortLatestChapter.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest chapter'**
+  String get sortLatestChapter;
+
+  /// No description provided for @sortTitleZh.
+  ///
+  /// In en, this message translates to:
+  /// **'Chinese title'**
+  String get sortTitleZh;
+
+  /// No description provided for @sortManual.
+  ///
+  /// In en, this message translates to:
+  /// **'Manual'**
+  String get sortManual;
+
   /// No description provided for @filterByStatus.
   ///
   /// In en, this message translates to:

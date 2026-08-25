@@ -122,6 +122,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sortTitle => 'Title';
 
   @override
+  String get sortAuthor => 'Author';
+
+  @override
+  String get sortLatestChapter => 'Latest chapter';
+
+  @override
+  String get sortTitleZh => 'Chinese title';
+
+  @override
+  String get sortManual => 'Manual';
+
+  @override
   String get filterByStatus => 'Status';
 
   @override

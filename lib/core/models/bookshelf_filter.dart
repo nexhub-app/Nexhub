@@ -13,6 +13,18 @@ enum BookshelfSort {
 
   /// 按标题字母升序。
   title,
+
+  /// 按作者升序（无作者字段的类型回退标题）。
+  author,
+
+  /// 按最新章/最近阅读进度（收藏取 lastRead，历史取 viewedAt，下载取 createdAt，导入取 addedAt）。
+  latestChapter,
+
+  /// 按中文书名（收藏取 titleZh，无则回退 title；其它类型直接取 title）。
+  titleZh,
+
+  /// 手动排序：按用户在书架拖拽保存的自定义顺序。
+  manual,
 }
 
 /// 进度筛选语义。
