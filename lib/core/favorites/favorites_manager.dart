@@ -39,6 +39,10 @@ class FavoriteEntry {
   /// 最后阅读时间（毫秒），0 表示未读过（P8.1.3 §廿一 收藏切换不丢 dateAdded/lastRead）。
   final int lastRead;
 
+  /// 源站最新章/更新时间（毫秒，M2「最新章」排序用；0=未知）。
+  /// 来自详情页解析的 updatedAt（小说源的 updateTime 字段），进详情页时回填。
+  final int updatedAt;
+
   /// 分类（取自 MediaItem.tags 首项），用于书架筛选。
   final String? category;
 
@@ -67,6 +71,7 @@ class FavoriteEntry {
         this.detailUrl,
         required this.favoritedAt,
     this.lastRead = 0,
+    this.updatedAt = 0,
     this.category,
     this.status,
     this.groupIds = const <String>[],
@@ -88,6 +93,7 @@ class FavoriteEntry {
         detailUrl: item.detailUrl,
         favoritedAt: favoritedAt ?? DateTime.now().millisecondsSinceEpoch,
         lastRead: 0,
+        updatedAt: item.updatedAt?.millisecondsSinceEpoch ?? 0,
         category: item.tags?.isNotEmpty == true ? item.tags!.first : null,
         status: item.status,
       );
@@ -106,6 +112,7 @@ class FavoriteEntry {
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: timestamp,
+        updatedAt: updatedAt,
         category: category,
         status: status,
         groupIds: groupIds,
@@ -127,6 +134,7 @@ class FavoriteEntry {
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: lastRead,
+        updatedAt: updatedAt,
         category: category,
         status: status,
         groupIds: groupIds,
@@ -148,6 +156,7 @@ class FavoriteEntry {
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: lastRead,
+        updatedAt: updatedAt,
         category: category,
         status: status,
         groupIds: List<String>.unmodifiable(newGroupIds),
@@ -170,11 +179,34 @@ class FavoriteEntry {
         detailUrl: detailUrl,
         favoritedAt: favoritedAt,
         lastRead: lastRead,
+        updatedAt: updatedAt,
         category: category,
         status: status,
         groupIds: groupIds,
         myRating: myRating ?? this.myRating,
         myComment: myComment ?? this.myComment,
+      );
+
+  /// 返回一个更新了「源站最新章时间」的副本（M2 最新章排序，详情页回填）。
+  FavoriteEntry withUpdatedAt(int millis) => FavoriteEntry(
+        id: id,
+        title: title,
+        coverUrl: coverUrl,
+        sourceId: sourceId,
+        sourceType: sourceType,
+        author: author,
+        titleZh: titleZh,
+        director: director,
+        actors: actors,
+        detailUrl: detailUrl,
+        favoritedAt: favoritedAt,
+        lastRead: lastRead,
+        updatedAt: millis,
+        category: category,
+        status: status,
+        groupIds: groupIds,
+        myRating: myRating,
+        myComment: myComment,
       );
 
   MediaItem toMediaItem() => MediaItem(
@@ -204,6 +236,7 @@ class FavoriteEntry {
         'detailUrl': detailUrl,
         'favoritedAt': favoritedAt,
         'lastRead': lastRead,
+        'updatedAt': updatedAt,
         'category': category,
         'status': status,
         'groupIds': groupIds,
@@ -225,6 +258,7 @@ class FavoriteEntry {
         detailUrl: json['detailUrl'] as String?,
         favoritedAt: json['favoritedAt'] as int? ?? 0,
         lastRead: json['lastRead'] as int? ?? 0,
+        updatedAt: json['updatedAt'] as int? ?? 0,
         category: json['category'] as String?,
         status: json['status'] as String?,
         groupIds:
@@ -369,6 +403,26 @@ class FavoritesManager extends ChangeNotifier {
     final idx = list.indexWhere((e) => e.id == contentId);
     if (idx < 0) return;
     list[idx] = list[idx].withLastRead(DateTime.now().millisecondsSinceEpoch);
+    await _persist();
+    notifyListeners();
+  }
+
+  /// 更新某收藏条目的「源站最新章时间」（M2 最新章排序，详情页刷新回填）。
+  ///
+  /// 仅更新已存在条目（不自动创建）；[updatedAtMs] 非正数或与现值相同
+  /// 时为无操作。
+  Future<void> updateUpdatedAt(
+    String contentId,
+    SourceType type,
+    int updatedAtMs,
+  ) async {
+    if (updatedAtMs <= 0) return;
+    final list = _cache[type];
+    if (list == null) return;
+    final idx = list.indexWhere((e) => e.id == contentId);
+    if (idx < 0) return;
+    if (list[idx].updatedAt == updatedAtMs) return;
+    list[idx] = list[idx].withUpdatedAt(updatedAtMs);
     await _persist();
     notifyListeners();
   }

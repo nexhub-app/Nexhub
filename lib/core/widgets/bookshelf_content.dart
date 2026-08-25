@@ -30,6 +30,7 @@ import '../models/media_item.dart';
 import '../models/plugin_config.dart';
 import '../services/source_repository.dart';
 import '../settings/layout_settings.dart';
+import '../utils/chinese_collation.dart';
 import '../history/media_watched_manager.dart';
 import '../novel/novel_progress_manager.dart';
 import '../comic/comic_progress_manager.dart';
@@ -756,17 +757,22 @@ void _sortFavoriteEntries(
     case BookshelfSort.recent:
       entries.sort((a, b) => b.favoritedAt.compareTo(a.favoritedAt));
     case BookshelfSort.latestChapter:
-      // 收藏段"最新章"取最近阅读章节时间（lastRead），未读为 0 排末尾。
-      entries.sort((a, b) => b.lastRead.compareTo(a.lastRead));
+      // 最新章时间（M2 语义修正）：优先源站更新时间 updatedAt
+      // （详情页刷新回填），无记录时回退最后阅读时间、再回退收藏时间。
+      int chapterTimeOf(FavoriteEntry e) => e.updatedAt > 0
+          ? e.updatedAt
+          : (e.lastRead > 0 ? e.lastRead : e.favoritedAt);
+      entries.sort((a, b) => chapterTimeOf(b).compareTo(chapterTimeOf(a)));
     case BookshelfSort.title:
     case BookshelfSort.author:
       entries.sort((a, b) => (a.author ?? a.title)
           .toLowerCase()
           .compareTo((b.author ?? b.title).toLowerCase()));
     case BookshelfSort.titleZh:
-      entries.sort((a, b) => (a.titleZh ?? a.title)
-          .toLowerCase()
-          .compareTo((b.titleZh ?? b.title).toLowerCase()));
+      // 中文书名按拼音序比较（M2）：GBK 一级字库近似拼音序，
+      // 替代此前的码元序（码元序对汉字是部首笔画序，不符合直觉）。
+      entries.sort((a, b) =>
+          compareZhPinyin(a.titleZh ?? a.title, b.titleZh ?? b.title));
     case BookshelfSort.director:
       entries.sort((a, b) => (a.director ?? a.title)
           .toLowerCase()

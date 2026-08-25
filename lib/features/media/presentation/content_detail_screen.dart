@@ -343,6 +343,16 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       )
           .then((MediaItem detail) {
         if (mounted) setState(() => _fetchedDetail = _mergeDetail(detail));
+        // M2：详情解析出源站更新时间时回填收藏条目，供书架「最新章」排序。
+        if (detail.updatedAt != null && mounted) {
+          context
+              .read<FavoritesManager>()
+              .updateUpdatedAt(
+                id,
+                _favType,
+                detail.updatedAt!.millisecondsSinceEpoch,
+              );
+        }
       }).catchError((Object error) {
         if (!mounted) return;
         if (error is WebViewHtmlRequest) {
