@@ -65,6 +65,12 @@ class NovelAnimatedPageView extends StatefulWidget {
   /// 竖向拖拽结束回调（用于左侧 1/3 亮度手势）。
   final void Function(DragEndDetails)? onVerticalDragEnd;
 
+  /// N4 下滑切书签手势（P2-9）：主区域纵向下滑手势回调组。
+  /// 三者非空时启用（与左侧 1/3 亮度手势区域互斥，见 _wrapGestures）。
+  final void Function(DragStartDetails)? onBookmarkSwipeStart;
+  final void Function(DragUpdateDetails)? onBookmarkSwipeUpdate;
+  final void Function(DragEndDetails)? onBookmarkSwipeEnd;
+
   /// 鼠标滚轮翻页方向反转（仅翻页模式生效）。向下滚默认 = 下一页；
   /// 为 true 时翻转（向上滚 = 下一页）。滚动模式由底层 Scrollable 接管滚轮，
   /// 此参数不参与。
@@ -90,6 +96,9 @@ class NovelAnimatedPageView extends StatefulWidget {
     this.onVerticalDragStart,
     this.onVerticalDragUpdate,
     this.onVerticalDragEnd,
+    this.onBookmarkSwipeStart,
+    this.onBookmarkSwipeUpdate,
+    this.onBookmarkSwipeEnd,
     this.scrollWheelInverted = false,
     this.selectionActive,
   });
@@ -451,6 +460,22 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
             ],
           )
         : base;
+    // N4 下滑切书签（P2-9）：主区域纵向下滑。与横向翻页手势共存于同一
+    // GestureDetector——Flutter 手势竞技场按位移方向自动裁决横/纵拖拽，
+    // 横向滑动走翻页、纵向下滑走书签，无需额外分区。
+    final bookmarkSwipeEnabled = !_isScroll &&
+        widget.onBookmarkSwipeStart != null &&
+        widget.onBookmarkSwipeUpdate != null &&
+        widget.onBookmarkSwipeEnd != null;
+    final Widget withSwipe = bookmarkSwipeEnabled
+        ? GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onVerticalDragStart: widget.onBookmarkSwipeStart,
+            onVerticalDragUpdate: widget.onBookmarkSwipeUpdate,
+            onVerticalDragEnd: widget.onBookmarkSwipeEnd,
+            child: inner,
+          )
+        : inner;
     // 翻页模式：拦截鼠标滚轮翻页。scroll 模式不拦截（底层 Scrollable 接管滚轮）。
     return Listener(
       onPointerSignal: (signal) {
@@ -467,7 +492,7 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
           }
         }
       },
-      child: inner,
+      child: withSwipe,
     );
   }
 }

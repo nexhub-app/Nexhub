@@ -6416,6 +6416,60 @@ abstract class AppLocalizations {
   /// **'Background playback'**
   String get novelTtsBackground;
 
+  /// No description provided for @httpTtsEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Online TTS engine'**
+  String get httpTtsEnable;
+
+  /// No description provided for @httpTtsEnableDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Synthesize speech via an HTTP endpoint (self-hosted or third-party; no built-in keys)'**
+  String get httpTtsEnableDesc;
+
+  /// No description provided for @httpTtsUrlTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'URL template'**
+  String get httpTtsUrlTemplate;
+
+  /// No description provided for @httpTtsDefaultVoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Default voice'**
+  String get httpTtsDefaultVoice;
+
+  /// No description provided for @httpTtsVoiceMap.
+  ///
+  /// In en, this message translates to:
+  /// **'Role → voice (one \'role=voice\' per line)'**
+  String get httpTtsVoiceMap;
+
+  /// No description provided for @httpTtsConcurrency.
+  ///
+  /// In en, this message translates to:
+  /// **'Preload concurrency (1-8)'**
+  String get httpTtsConcurrency;
+
+  /// No description provided for @httpTtsMaxFailures.
+  ///
+  /// In en, this message translates to:
+  /// **'Consecutive failure stop threshold'**
+  String get httpTtsMaxFailures;
+
+  /// No description provided for @httpTtsSilentPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Silent placeholder on failure'**
+  String get httpTtsSilentPlaceholder;
+
+  /// No description provided for @httpTtsSilentPlaceholderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip failed sentences and keep reading; disable to stop immediately'**
+  String get httpTtsSilentPlaceholderDesc;
+
   /// No description provided for @novelSectionFont.
   ///
   /// In en, this message translates to:
@@ -7765,6 +7819,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sync Now'**
   String get cloudSyncSyncNow;
+
+  /// No description provided for @novelProgressSyncNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync reading progress'**
+  String get novelProgressSyncNow;
+
+  /// No description provided for @novelProgressConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading progress conflict'**
+  String get novelProgressConflictTitle;
+
+  /// No description provided for @novelProgressConflictBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud progress is ahead for {n} books. Use cloud progress?'**
+  String novelProgressConflictBody(int n);
+
+  /// No description provided for @novelProgressUseRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Use cloud'**
+  String get novelProgressUseRemote;
+
+  /// No description provided for @novelProgressSyncedUploaded.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} uploaded'**
+  String novelProgressSyncedUploaded(int n);
+
+  /// No description provided for @novelProgressSyncedRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} restored'**
+  String novelProgressSyncedRestored(int n);
+
+  /// No description provided for @novelProgressSyncedConflicted.
+  ///
+  /// In en, this message translates to:
+  /// **'{n} need confirmation'**
+  String novelProgressSyncedConflicted(int n);
+
+  /// No description provided for @novelProgressSyncedNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No progress changes'**
+  String get novelProgressSyncedNone;
 
   /// No description provided for @cloudSyncLastSyncTime.
   ///
@@ -9775,6 +9877,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Typography JSON copied/shared'**
   String get novelTypographyShareDone;
+
+  /// No description provided for @novelScrollImageMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll image style'**
+  String get novelScrollImageMode;
+
+  /// No description provided for @novelScrollImageModeBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Full-width'**
+  String get novelScrollImageModeBanner;
+
+  /// No description provided for @novelScrollImageModeCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Card'**
+  String get novelScrollImageModeCard;
+
+  /// No description provided for @novelScrollImageAlign.
+  ///
+  /// In en, this message translates to:
+  /// **'Image alignment'**
+  String get novelScrollImageAlign;
+
+  /// No description provided for @novelScrollImageAlignLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get novelScrollImageAlignLeft;
+
+  /// No description provided for @novelScrollImageAlignCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get novelScrollImageAlignCenter;
+
+  /// No description provided for @novelScrollImageAlignRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get novelScrollImageAlignRight;
 
   /// No description provided for @novelTypographyImportBad.
   ///

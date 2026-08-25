@@ -50,13 +50,14 @@ class NovelProgressManager {
   final PrefsBackend _backend;
   final Map<String, NovelReadingProgress> _cache = {};
 
-  static const String _prefix = 'novel_progress_';
+  /// 进度存储键前缀（P2-8 云同步枚举本地全部进度用）。
+  static const String prefix = 'novel_progress_';
 
   /// 读取进度（无记录返回 null）。
   Future<NovelReadingProgress?> get(String novelId) async {
     final cached = _cache[novelId];
     if (cached != null) return cached;
-    final raw = await _backend.get('$_prefix$novelId');
+    final raw = await _backend.get('${prefix}$novelId');
     if (raw == null || raw.isEmpty) return null;
     try {
       return NovelReadingProgress.fromJson(
@@ -84,12 +85,12 @@ class NovelProgressManager {
       totalChapters: totalChapters ?? _cache[novelId]?.totalChapters,
     );
     _cache[novelId] = p;
-    await _backend.set('$_prefix$novelId', jsonEncode(p.toJson()));
+    await _backend.set('${prefix}$novelId', jsonEncode(p.toJson()));
   }
 
   /// 清除进度（如移除书架）。
   Future<void> clear(String novelId) async {
     _cache.remove(novelId);
-    await _backend.set('$_prefix$novelId', '');
+    await _backend.set('${prefix}$novelId', '');
   }
 }

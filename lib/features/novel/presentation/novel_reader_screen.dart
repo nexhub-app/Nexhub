@@ -43,6 +43,7 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/download/download_manager.dart';
 import '../../../core/download/local_to_online.dart';
 import '../../../core/novel/novel_page_animation.dart';
+import '../../../core/novel/novel_progress_conflict.dart';
 import '../../../core/novel/novel_progress_manager.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/novel/novel_pre_download_preferences.dart';
@@ -54,6 +55,7 @@ import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
+import '../../../core/services/novel_progress_sync_service.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/async_session.dart';
 import '../../../core/player/audio_playback_service.dart';
@@ -79,7 +81,7 @@ import 'novel_in_book_search_sheet.dart';
 import 'novel_note_manager.dart';
 import 'novel_paginator.dart';
 import 'novel_selection_controller.dart';
-import 'novel_highlight_manager.dart';
+import '../../../core/novel/novel_highlight_manager.dart';
 import 'novel_tts_controller.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import 'package:dio/dio.dart';
@@ -456,6 +458,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   bool _showBrightnessIndicator = false;
   StreamSubscription<double>? _brightnessSub;
   bool _brightnessChangedByUs = false;
+
+  // ─────────────────────── N4 下滑切书签手势（P2-9） ───────────────────────
+  /// 下滑书签手势进行中（页面随指下移的视觉反馈）。
+  bool _bookmarkSwipeActive = false;
+  /// 手势待定态：已开始但方向尚未确定（可能横向翻页误触，需方向判定）。
+  bool _bookmarkSwipePending = false;
+  /// 手势累计纵向位移（向下为正，px）。
+  double _bookmarkSwipeDy = 0;
+  /// 手势累计横向位移（方向判定用）。
+  double _bookmarkSwipeDx = 0;
+  /// 触发落盘所需的下滑距离（屏高比例）。
+  static const double _bookmarkSwipeThresholdRatio = 0.18;
+
+  /// N4 判定：下滑手势（dy > 0）且纵向位移明显大于横向（absY > absX * 1.5，
+  /// 对标判定 ratio），由亮度手势（仅左 1/3 屏生效）之外的区域触发。
+  /// 滚动模式不启用——滚动本身即纵向手势，会与列表滚动冲突。
+  bool get _bookmarkSwipeEnabled => !_prefs.pageAnimation.isScroll;
 
   // ─────────────────────── 页眉/页脚 time/battery ───────────────────────
   String _currentTime = '';
@@ -1683,6 +1702,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 进度此前仅在阅读中写入，若翻章后的那次落盘尚未完成即被 pop，重进会
     // 回放上一章末页；此处保证最后所在页/章被持久化。
     _persistProgressNow();
+    // P2-8：退出时把当前书进度静默上传到 WebDAV（best-effort；未配置/
+    // 网络失败/云端领先均静默忽略，不阻塞退出）。
+    unawaited(_pushProgressToCloud());
     // 退出时一次性结算本次阅读会话（commit 内部 best-effort）。
     if (widget.sourceId.isNotEmpty) {
       unawaited(ReadingSessionRecorder.instance.commit(
@@ -3068,6 +3090,33 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     ));
   }
 
+  /// P2-8：把当前书阅读进度静默上传到 WebDAV（best-effort）。
+  ///
+  /// 触发点：阅读器退出（dispose）；云端领先时不覆盖（防回退），
+  /// 本地领先/无远端记录时上传。未配置云同步 / 网络失败静默返回 false。
+  Future<bool> _pushProgressToCloud() async {
+    try {
+      final chapters = _effectiveChapters;
+      if (chapters.isEmpty || _paragraphs.isEmpty) return false;
+      final idx = _chapterIndex.clamp(0, chapters.length - 1);
+      final total = _pagination?.pages.length ?? 0;
+      final page = (_currentPage < 0 && total > 0)
+          ? total - 1
+          : _currentPage.clamp(0, total > 0 ? total - 1 : 0);
+      return await NovelProgressSyncService().pushOne(
+        widget.novelId,
+        NovelProgressPoint(
+          novelId: widget.novelId,
+          chapterIndex: idx,
+          charOffset: _pagination != null ? _charOffsetForPage(page) : null,
+          page: page,
+        ),
+      );
+    } on Object {
+      return false;
+    }
+  }
+
   /// 章节阅读进度达到「已看」阈值时标记当前章已读。
   ///
   /// 阈值取自 [GeneralSettingsStore.watchedThresholdPercent]（默认 90）。
@@ -3493,6 +3542,156 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
+  // ─────────────────────── N4 下滑切书签手势 ───────────────────────
+
+  /// N4 下滑起点：仅分页模式启用；左 1/3 屏留给亮度手势。
+  /// 方向判定延后到 update（DragStartDetails 无 velocity，且纵向拖拽在手势
+  /// 竞技场中被横向翻页识别器让出时才回调——此时已是纵向手势，只需防误触）。
+  void _onBookmarkSwipeStart(DragStartDetails d) {
+    if (!_bookmarkSwipeEnabled) return;
+    final w = context.size?.width ?? MediaQuery.sizeOf(context).width;
+    if (d.globalPosition.dx < w / 3) return; // 与亮度手势区域互斥
+    _bookmarkSwipePending = true;
+    _bookmarkSwipeActive = false;
+    _bookmarkSwipeDy = 0;
+    _bookmarkSwipeDx = 0;
+  }
+
+  void _onBookmarkSwipeUpdate(DragUpdateDetails d) {
+    if (!_bookmarkSwipePending && !_bookmarkSwipeActive) return;
+    final dx = d.delta.dx;
+    final dy = d.delta.dy;
+    if (!_bookmarkSwipeActive) {
+      // 待定态：累计方向，直到明确「纵向且向下」才激活（对标 N4 判定：
+      // dy > 0 且 absY > absX * ratio，页面随指下移）。
+      _bookmarkSwipeDx += dx;
+      _bookmarkSwipeDy += dy;
+      if (_bookmarkSwipeDx.abs() > _bookmarkSwipeDy.abs() * 2) {
+        // 横向主导 → 用户实际想翻页，放弃。
+        _bookmarkSwipePending = false;
+        _bookmarkSwipeDy = 0;
+        _bookmarkSwipeDx = 0;
+        return;
+      }
+      if (_bookmarkSwipeDy > 0 &&
+          _bookmarkSwipeDy > _bookmarkSwipeDx.abs() * 1.5) {
+        _bookmarkSwipeActive = true;
+        if (mounted) setState(() {});
+        return;
+      }
+      if (_bookmarkSwipeDy < -24) {
+        // 明确上滑 → 放弃（可能是亮度/滚动方向误触）。
+        _bookmarkSwipePending = false;
+        _bookmarkSwipeDy = 0;
+        _bookmarkSwipeDx = 0;
+      }
+      return;
+    }
+    // 激活态：仅累计向下位移（向上回拖不抵消，避免抖动让进度归零）。
+    if (dy > 0) {
+      _bookmarkSwipeDy = _bookmarkSwipeDy + dy;
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _onBookmarkSwipeEnd(DragEndDetails d) async {
+    if (!_bookmarkSwipePending && !_bookmarkSwipeActive) return;
+    final h = MediaQuery.sizeOf(context).height;
+    final threshold = h * _bookmarkSwipeThresholdRatio;
+    final reached = _bookmarkSwipeActive && _bookmarkSwipeDy >= threshold;
+    _bookmarkSwipePending = false;
+    _bookmarkSwipeActive = false;
+    _bookmarkSwipeDy = 0;
+    _bookmarkSwipeDx = 0;
+    if (mounted) setState(() {});
+    if (reached) {
+      await _addBookmarkQuick();
+    }
+  }
+
+  /// N4 快捷落盘：跳过备注弹窗直接保存当前页书签（与工具栏「加书签」
+  /// 弹窗路径区分；下滑是快捷操作，打断弹窗反而碍事）。
+  Future<void> _addBookmarkQuick() async {
+    final l10n = AppLocalizations.of(context);
+    final String chapterId;
+    final String chapterTitle;
+    final chapters = _effectiveChapters;
+    if (_isLocalMode && _parsedChapterEpisodes == null) {
+      chapterId = 'local';
+      chapterTitle = '';
+    } else {
+      if (chapters.isEmpty) return;
+      final chapter = chapters[_chapterIndex.clamp(0, chapters.length - 1)];
+      chapterId = chapter.id;
+      chapterTitle = chapter.title;
+    }
+    final bm = NovelBookmark(
+      novelId: widget.novelId,
+      chapterIndex: _chapterIndex,
+      chapterId: chapterId,
+      chapterTitle: chapterTitle,
+      page: _currentPage,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    await _bookmarks.add(bm);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.bookmarkAdded)),
+    );
+  }
+
+  /// N4 下滑切书签（P2-9）：顶部提示条。手势进行中显示「继续下滑添加书签」，
+  /// 超过阈值后变「松开添加书签」。覆盖在页面上方（页面已随指下移露出背景）。
+  Widget _buildBookmarkSwipeHint(Color bg, Color textColor) {
+    final h = MediaQuery.sizeOf(context).height;
+    final threshold = h * _bookmarkSwipeThresholdRatio;
+    final ready = _bookmarkSwipeDy >= threshold;
+    final l10n = AppLocalizations.of(context);
+    return Positioned(
+      top: 16 + _bookmarkSwipeDy,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTokens.spaceMd,
+              vertical: AppTokens.spaceXs,
+            ),
+            decoration: BoxDecoration(
+              color: bg.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  ready ? Icons.bookmark_added : Icons.bookmark_add_outlined,
+                  size: 18,
+                  color: ready
+                      ? const Color(0xFF16A34A)
+                      : textColor.withValues(alpha: 0.7),
+                ),
+                const SizedBox(width: AppTokens.spaceXs),
+                Text(
+                  ready ? l10n.novelSwipeRelease : l10n.novelSwipeKeepGoing,
+                  style: TextStyle(fontSize: 13, color: textColor),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ─────────────────────── 构建 ───────────────────────
 
   @override
@@ -3830,10 +4029,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           });
         }
 
+        // N4 下滑切书签（P2-9）：手势进行中页面随指下移（露出上方背景），
+        // 顶部显示提示条；松手超过阈值即落盘书签并复位。
+        final double swipeDy = _bookmarkSwipeActive ? _bookmarkSwipeDy : 0;
         return Stack(
           children: <Widget>[
             Positioned.fill(
-              child: NovelAnimatedPageView(
+              child: Transform.translate(
+                offset: Offset(0, swipeDy),
+                child: NovelAnimatedPageView(
                 key: _pageKey,
                 contentVersion: _contentVersion,
                 animation: _prefs.pageAnimation,
@@ -3889,9 +4093,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 onVerticalDragStart: _onBrightnessDragStart,
                 onVerticalDragUpdate: _onBrightnessDragUpdate,
                 onVerticalDragEnd: _onBrightnessDragEnd,
+                // N4 下滑切书签（P2-9）：主区域纵向下滑（滚动模式由
+                // animated_page_view 内部 _isScroll 判断自动禁用）。
+                onBookmarkSwipeStart: _onBookmarkSwipeStart,
+                onBookmarkSwipeUpdate: _onBookmarkSwipeUpdate,
+                onBookmarkSwipeEnd: _onBookmarkSwipeEnd,
                 scrollWheelInverted: _prefs.scrollWheelInverted,
               ),
             ),
+            ),
+            if (_bookmarkSwipeActive) _buildBookmarkSwipeHint(bg, textColor),
             if (_showSelectionToolbar) _buildSelectionToolbar(),
           ],
         );
@@ -3940,6 +4151,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         final int idx = showTitle ? i - 1 : i;
         final block = _paragraphs[idx];
         // 插图块：滚动模式图文混排，固定比例缩略显示，点开看大图。
+        // P2-4 / A10：banner 模式铺满整行（按源 style 或全宽，高度自适应）；
+        // card 模式按正文宽 72% 卡片式缩列 + [scrollImageAlign] 水平对齐。
         if (block is NovelImageBlock) {
           final double bodyW =
               MediaQuery.of(ctx).size.width - _prefs.margin * 2;
@@ -3947,19 +4160,43 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           // width:100%），则按图片原始比例完整显示（fitWidth + 高度自适应），
           // 否则维持原缩略裁切（cover + 0.5 比例）。未声明样式时默认不变。
           final bool fitWidth = _novelBlockImageIsFitWidth(block.style);
+          final bool card = _prefs.scrollImageMode == NovelScrollImageMode.card;
+          final double imgW;
+          final double? imgH;
+          final BoxFit fit;
+          if (card) {
+            imgW = bodyW * 0.72;
+            imgH = null;
+            fit = BoxFit.fitWidth;
+          } else {
+            imgW = bodyW;
+            imgH = fitWidth ? null : bodyW * 0.5;
+            fit = fitWidth ? BoxFit.fitWidth : BoxFit.cover;
+          }
+          final Widget image = SourceImage(
+            url: block.url,
+            source: block.source ?? _source,
+            width: imgW,
+            height: imgH,
+            fit: fit,
+            radius: 8,
+          );
+          final Widget aligned = card
+              ? Align(
+                  alignment: switch (_prefs.scrollImageAlign) {
+                    NovelScrollImageAlign.left => Alignment.centerLeft,
+                    NovelScrollImageAlign.right => Alignment.centerRight,
+                    NovelScrollImageAlign.center => Alignment.center,
+                  },
+                  child: image,
+                )
+              : image;
           return Padding(
             padding: EdgeInsets.only(bottom: _prefs.paragraphSpacing),
             child: GestureDetector(
               onTap: () =>
                   _showImageViewer(block.url, block.source ?? _source),
-              child: SourceImage(
-                url: block.url,
-                source: block.source ?? _source,
-                width: bodyW,
-                height: fitWidth ? null : bodyW * 0.5,
-                fit: fitWidth ? BoxFit.fitWidth : BoxFit.cover,
-                radius: 8,
-              ),
+              child: aligned,
             ),
           );
         }
@@ -4062,7 +4299,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     bool isHeading,
   ) {
     final style = isHeading ? headingStyle : baseStyle;
-    final align = isHeading ? TextAlign.center : TextAlign.start;
+    // P2-4 / A6：滚动模式正文两端对齐（与分页模式 justify 语义一致）；
+    // 标题行恒居中（章节分界视觉），其余正文按 [NovelTextAlignMode] 取
+    // 自然左对齐或 justify。原生 TextAlign.justify 对整段多行文本生效，
+    // 与分页模式的逐行字距均摊策略各自独立（两模式渲染路径不同）。
+    final align = isHeading
+        ? TextAlign.center
+        : (_prefs.textAlignMode == NovelTextAlignMode.justify
+            ? TextAlign.justify
+            : TextAlign.start);
     final spans = searchHitSpans(
       text: text,
       query: _searchKeyword,
@@ -5991,6 +6236,9 @@ String _hfContentLabel(NovelHeaderFooterContent c, AppLocalizations l10n) {
 class _DashedUnderlineText extends StatelessWidget {
   final String text;
   final TextStyle style;
+
+  /// 下划线样式（P2-10 / B6 扩展：wavy / dotted 走本组件自定义绘制）。
+  final NovelUnderlineStyle underlineStyle;
   final double dashLength;
   final double dashGap;
   final double thickness;
@@ -5999,6 +6247,7 @@ class _DashedUnderlineText extends StatelessWidget {
   const _DashedUnderlineText({
     required this.text,
     required this.style,
+    this.underlineStyle = NovelUnderlineStyle.dashed,
     required this.dashLength,
     required this.dashGap,
     required this.thickness,
@@ -6026,6 +6275,7 @@ class _DashedUnderlineText extends StatelessWidget {
               child: CustomPaint(
                 size: painterSize,
                 painter: _DashedUnderlinePainter(
+                  style: underlineStyle,
                   lines: lines,
                   dashLength: dashLength <= 0 ? 1.0 : dashLength,
                   dashGap: dashGap <= 0 ? 0.0 : dashGap,
@@ -6128,6 +6378,8 @@ Widget buildSelectionRichText(
 }
 
 class _DashedUnderlinePainter extends CustomPainter {
+  /// 下划线样式：dashed / wavy / dotted（P2-10 / B6）。
+  final NovelUnderlineStyle style;
   final List<LineMetrics> lines;
   final double dashLength;
   final double dashGap;
@@ -6135,6 +6387,7 @@ class _DashedUnderlinePainter extends CustomPainter {
   final Color color;
 
   _DashedUnderlinePainter({
+    required this.style,
     required this.lines,
     required this.dashLength,
     required this.dashGap,
@@ -6156,23 +6409,157 @@ class _DashedUnderlinePainter extends CustomPainter {
     for (final LineMetrics line in lines) {
       final double y = line.baseline + underlineOffset;
       final double lineEnd = line.left + line.width;
-      double x = line.left;
-      while (x < lineEnd) {
-        final double segEnd = (x + dashLength).clamp(line.left, lineEnd);
-        canvas.drawLine(Offset(x, y), Offset(segEnd, y), paint);
-        x += step;
+      switch (style) {
+        case NovelUnderlineStyle.wavy:
+          // 波浪线：正弦半波折线，波幅 ≈ max(2, 字号×0.12)，波长 = dashLength。
+          final amp =
+              lines.isNotEmpty ? (lines.first.height * 0.10).clamp(2.0, 4.0) : 3.0;
+          final wl = dashLength <= 0 ? 6.0 : dashLength * 2;
+          final path = ui.Path();
+          var x = line.left;
+          path.moveTo(x, y);
+          var up = true;
+          while (x < lineEnd) {
+            final nx = (x + wl).clamp(line.left, lineEnd);
+            path.quadraticBezierTo(
+              (x + nx) / 2,
+              up ? y - amp : y + amp,
+              nx,
+              y,
+            );
+            up = !up;
+            x = nx;
+          }
+          canvas.drawPath(path, paint);
+        case NovelUnderlineStyle.dotted:
+          // 点线：以 dashLength 为点径、dashGap 为间隔画圆点。
+          final r = (dashLength <= 0 ? 1.0 : dashLength) / 2;
+          final dotPaint = Paint()
+            ..color = color
+            ..style = PaintingStyle.fill;
+          double x = line.left + r;
+          while (x < lineEnd) {
+            canvas.drawCircle(Offset(x, y), r, dotPaint);
+            x += r * 2 + (dashGap <= 0 ? 2.0 : dashGap);
+          }
+        case NovelUnderlineStyle.solid || NovelUnderlineStyle.dashed:
+          // 实线段序列（dashed 按 dashLength/dashGap；solid 单段铺满）。
+          double x = line.left;
+          while (x < lineEnd) {
+            final double segEnd = (x + dashLength).clamp(line.left, lineEnd);
+            canvas.drawLine(Offset(x, y), Offset(segEnd, y), paint);
+            x += step;
+          }
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant _DashedUnderlinePainter old) {
-    return old.dashLength != dashLength ||
+    return old.style != style ||
+        old.dashLength != dashLength ||
         old.dashGap != dashGap ||
         old.thickness != thickness ||
         old.color != color ||
         old.lines.length != lines.length;
   }
+}
+
+/// 两端对齐单行文本（P2-10 / A6）。
+///
+/// 分页模式下每行已是精确测量的视觉行，但行宽通常略小于可用宽度；
+/// justify 模式把「剩余空间」均摊到字符间隙，使左右两端对齐。
+/// 用 [TextPainter] 测自然宽后按 [FittedBox]-free 方案逐字布局：
+/// 仅当文本 ≥2 字符且确有剩余空间时启用拉伸，否则退化为普通 Text。
+class _JustifiedLineText extends StatelessWidget {
+  final String text;
+  final TextStyle baseStyle;
+
+  /// 目标行宽（分页时的正文可用宽度）。
+  final double targetWidth;
+
+  const _JustifiedLineText({
+    required this.text,
+    required this.baseStyle,
+    required this.targetWidth,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (text.length < 2 || targetWidth <= 0) {
+      return Text(text, style: baseStyle, softWrap: false, maxLines: 1);
+    }
+    return LayoutBuilder(
+      builder: (BuildContext ctx, BoxConstraints constraints) {
+        final dir = Directionality.of(ctx);
+        final scaler = MediaQuery.textScalerOf(ctx);
+        final tp = TextPainter(
+          text: TextSpan(text: text, style: baseStyle),
+          textDirection: dir,
+          textScaler: scaler,
+        )..layout(maxWidth: double.infinity);
+        final naturalW = tp.maxIntrinsicWidth;
+        tp.dispose();
+        // 剩余空间不足 0.5px 或超宽（不应发生，断行已保证）时不拉伸。
+        final extra = constraints.maxWidth - naturalW;
+        if (extra < 0.5) {
+          return Text(text, style: baseStyle, softWrap: false, maxLines: 1);
+        }
+        // 字符间隙均摊：(n-1) 个间隙。
+        final gap = extra / (text.length - 1);
+        return SizedBox(
+          width: constraints.maxWidth,
+          child: CustomPaint(
+            size: Size(constraints.maxWidth, tp.height),
+            painter: _JustifiedLinePainter(
+              text: text,
+              style: baseStyle,
+              direction: dir,
+              scaler: scaler,
+              gap: gap,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 两端对齐行绘制器：逐字符按均摊间隙排布。
+class _JustifiedLinePainter extends CustomPainter {
+  final String text;
+  final TextStyle style;
+  final TextDirection direction;
+  final TextScaler scaler;
+  final double gap;
+
+  _JustifiedLinePainter({
+    required this.text,
+    required this.style,
+    required this.direction,
+    required this.scaler,
+    required this.gap,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final tp = TextPainter(
+      textDirection: direction,
+      textScaler: scaler,
+    );
+    double x = 0;
+    for (var i = 0; i < text.length; i++) {
+      tp.text = TextSpan(text: text[i], style: style);
+      tp.layout(maxWidth: double.infinity);
+      tp.paint(canvas, Offset(x, 0));
+      x += tp.maxIntrinsicWidth + gap;
+    }
+    tp.dispose();
+  }
+
+  @override
+  bool shouldRepaint(covariant _JustifiedLinePainter old) =>
+      old.text != text || old.gap != gap || old.style != style;
 }
 
 /// 单页小说内容（含页眉页脚）。
@@ -6353,6 +6740,7 @@ class _NovelPageWidget extends StatelessWidget {
     NovelLine line,
     TextStyle textStyle, {
     required int lineIndexInPage,
+    double? targetWidth,
   }) {
     final isCurrent = ttsActive && line.paragraphIndex == ttsCurrentIndex;
     // 选区背景（活动选区 + 已存划线）：优先于搜索高亮渲染（优先级
@@ -6362,20 +6750,39 @@ class _NovelPageWidget extends StatelessWidget {
         selectionController.lineSpans(pageIndex, lineIndexInPage);
     final Widget? searchHit =
         _buildSearchHighlight(context, line.text, textStyle);
+    // P2-10 / A6 两端对齐：仅分页模式（本 Widget 即分页页）、正文非标题行、
+    // 非段末行且无选区/搜索高亮时生效——把不满一行的行按「字距均摊」拉伸
+    // 到整行宽（与原生 textAlign: justify 视觉等价，且不受单行富文本
+    // justify 失效影响）。末行/标题/高亮行保持自然排版。
+    final bool justifyLine = prefs.textAlignMode == NovelTextAlignMode.justify &&
+        !line.isHeading &&
+        !line.isLastLine &&
+        selSpans.isEmpty &&
+        searchHit == null &&
+        !(prefs.fontUnderline && prefs.needsCustomUnderlinePaint);
     final Widget textWidget;
     if (selSpans.isNotEmpty) {
       textWidget =
           buildSelectionRichText(line.text, textStyle, selSpans);
     } else if (searchHit != null) {
       textWidget = searchHit;
-    } else if (prefs.fontUnderline && prefs.underlineDashed) {
+    } else if (prefs.needsCustomUnderlinePaint) {
       textWidget = _DashedUnderlineText(
         text: line.text,
         style: textStyle,
+        underlineStyle: prefs.underlineStyle == NovelUnderlineStyle.solid
+            ? NovelUnderlineStyle.dashed
+            : prefs.underlineStyle,
         dashLength: prefs.underlineDashLength,
         dashGap: prefs.underlineDashGap,
         thickness: prefs.underlineThickness,
         color: prefs.resolveUnderlineColor(textColor),
+      );
+    } else if (justifyLine) {
+      textWidget = _JustifiedLineText(
+        text: line.text,
+        baseStyle: textStyle,
+        targetWidth: targetWidth ?? 0,
       );
     } else {
       textWidget = Text(
@@ -6447,6 +6854,7 @@ class _NovelPageWidget extends StatelessWidget {
           item.line,
           item.line.isHeading ? headingStyle : textStyle,
           lineIndexInPage: li,
+          targetWidth: imgW,
         );
         final Widget wrapped = !ttsActive
             ? GestureDetector(
@@ -8611,6 +9019,7 @@ class _NovelInlineSettings extends StatelessWidget {
       8 => l10n.readerBgMint,
       9 => l10n.readerBgApricot,
       10 => l10n.readerBgGrayBlue,
+      11 => l10n.readerBgEInk,
       _ => l10n.readerBgWhite,
     };
   }

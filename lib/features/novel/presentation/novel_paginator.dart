@@ -17,6 +17,7 @@ library;
 import 'package:flutter/widgets.dart';
 
 import '../../../core/models/novel_block.dart';
+import '../../../core/novel/novel_line_breaker.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -227,15 +228,33 @@ class NovelPaginator {
         if (block.text.isEmpty) continue;
         // 章节标题块用标题样式折行（与渲染一致，见 [headingStyleOf]）：
         // 若按正文样式断行、渲染再放大，标题行会超宽被裁 + 超高溢出页底。
-        final lines = _breakParagraph(
-          block.text,
-          textBlockIndex,
-          block.isHeading ? headingStyleOf(style) : style,
-          width,
-          dir,
-          scaler,
-          isHeading: block.isHeading,
-        );
+        final styleForBlock =
+            block.isHeading ? headingStyleOf(style) : style;
+        List<NovelLine> lines;
+        if (prefs.lineBreakMode == NovelLineBreakMode.cjkStrict &&
+            !block.isHeading) {
+          // P2-10 / A5：中文逐字断行 + 禁首禁尾。标题行仍走原生折行
+          // （标题短、居中展示，禁则意义不大且需与渲染层保持一致）。
+          lines = _breakParagraphStrict(
+            block.text,
+            textBlockIndex,
+            styleForBlock,
+            width,
+            dir,
+            scaler,
+            isHeading: block.isHeading,
+          );
+        } else {
+          lines = _breakParagraph(
+            block.text,
+            textBlockIndex,
+            styleForBlock,
+            width,
+            dir,
+            scaler,
+            isHeading: block.isHeading,
+          );
+        }
         for (final l in lines) {
           allItems.add(NovelTextLineItem(l, blockIndex: bi));
         }
@@ -487,5 +506,32 @@ class NovelPaginator {
     }
     tp.dispose();
     return lines;
+  }
+
+  /// P2-10 / A5：中文逐字断行 + 禁首禁尾标点路径。
+  ///
+  /// 复用 [NovelLineBreaker] 的禁则切行结果，适配为 [NovelLine]
+  /// （charLefts 已由断行器按整行布局重测，命中测试语义一致）。
+  static List<NovelLine> _breakParagraphStrict(
+    String para,
+    int paraIndex,
+    TextStyle style,
+    double width,
+    TextDirection dir,
+    TextScaler scaler, {
+    bool isHeading = false,
+  }) {
+    final broken = NovelLineBreaker.breakParagraph(para, style, width, dir, scaler);
+    return <NovelLine>[
+      for (var i = 0; i < broken.length; i++)
+        NovelLine(
+          text: broken[i].text,
+          paragraphIndex: paraIndex,
+          isFirstLine: i == 0,
+          isLastLine: i == broken.length - 1,
+          isHeading: isHeading,
+          charLefts: broken[i].charLefts,
+        ),
+    ];
   }
 }

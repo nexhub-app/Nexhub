@@ -1414,6 +1414,8 @@ class DownloadManager extends ChangeNotifier {
           author: author,
           concurrency: _settings.threadCount,
           convertMode: novelConvertMode,
+          // P2-11：导出附带划线 / 批注附录。
+          includeHighlights: true,
         );
       case SourceType.animeSource:
         return MediaDownloadHandler(

@@ -311,6 +311,13 @@ class ReaderDefaultSettings {
   /// 下划线样式（'solid' / 'dashed' / 'wavy' / 'dotted'）。
   final String novelUnderlineStyle;
 
+  // ── 小说补充 v4（P2-4 滚动模式图文增强）──
+  /// 滚动模式插图展示模式（'banner' / 'card'）。
+  final String novelScrollImageMode;
+
+  /// 滚动模式插图水平对齐（'left' / 'center' / 'right'）。
+  final String novelScrollImageAlign;
+
   // ── 漫画补充（来自漫画阅读面板，项 1）──
   final double comicFilterBrightness;
   final double comicFilterContrast;
@@ -460,6 +467,9 @@ class ReaderDefaultSettings {
     this.novelTextAlignMode = 'start',
     this.novelLineBreakMode = 'standard',
     this.novelUnderlineStyle = 'solid',
+    // P2-4 滚动模式图文增强
+    this.novelScrollImageMode = 'banner',
+    this.novelScrollImageAlign = 'center',
     this.comicFilterBrightness = 0.0,
     this.comicFilterContrast = 0.0,
     this.comicFilterColorTemp = 0.0,
@@ -593,6 +603,9 @@ class ReaderDefaultSettings {
     String? novelTextAlignMode,
     String? novelLineBreakMode,
     String? novelUnderlineStyle,
+    // P2-4 滚动模式图文增强
+    String? novelScrollImageMode,
+    String? novelScrollImageAlign,
     double? comicFilterBrightness,
     double? comicFilterContrast,
     double? comicFilterColorTemp,
@@ -787,6 +800,11 @@ class ReaderDefaultSettings {
     novelTextAlignMode: novelTextAlignMode ?? this.novelTextAlignMode,
     novelLineBreakMode: novelLineBreakMode ?? this.novelLineBreakMode,
     novelUnderlineStyle: novelUnderlineStyle ?? this.novelUnderlineStyle,
+    // P2-4 滚动模式图文增强
+    novelScrollImageMode:
+        novelScrollImageMode ?? this.novelScrollImageMode,
+    novelScrollImageAlign:
+        novelScrollImageAlign ?? this.novelScrollImageAlign,
         comicFilterBrightness:
             comicFilterBrightness ?? this.comicFilterBrightness,
         comicFilterContrast:
@@ -933,6 +951,9 @@ class ReaderDefaultSettings {
         'novelTextAlignMode': novelTextAlignMode,
         'novelLineBreakMode': novelLineBreakMode,
         'novelUnderlineStyle': novelUnderlineStyle,
+        // P2-4 滚动模式图文增强
+        'novelScrollImageMode': novelScrollImageMode,
+        'novelScrollImageAlign': novelScrollImageAlign,
         'comicFilterBrightness': comicFilterBrightness,
         'comicFilterContrast': comicFilterContrast,
         'comicFilterColorTemp': comicFilterColorTemp,
@@ -1245,6 +1266,11 @@ class ReaderDefaultSettings {
           json['novelLineBreakMode'] as String? ?? 'standard',
       novelUnderlineStyle:
           json['novelUnderlineStyle'] as String? ?? 'solid',
+      // P2-4 滚动模式图文增强
+      novelScrollImageMode:
+          json['novelScrollImageMode'] as String? ?? 'banner',
+      novelScrollImageAlign:
+          json['novelScrollImageAlign'] as String? ?? 'center',
       comicFilterBrightness:
           (json['comicFilterBrightness'] as num?)?.toDouble() ?? 0.0,
       comicFilterContrast:
@@ -1466,6 +1492,15 @@ class ReaderDefaultSettings {
       underlineStyle: NovelUnderlineStyle.values.firstWhere(
         (e) => e.name == novelUnderlineStyle,
         orElse: () => NovelUnderlineStyle.solid,
+      ),
+      // P2-4 滚动模式图文增强
+      scrollImageMode: NovelScrollImageMode.values.firstWhere(
+        (e) => e.name == novelScrollImageMode,
+        orElse: () => NovelScrollImageMode.banner,
+      ),
+      scrollImageAlign: NovelScrollImageAlign.values.firstWhere(
+        (e) => e.name == novelScrollImageAlign,
+        orElse: () => NovelScrollImageAlign.center,
       ),
     );
   }

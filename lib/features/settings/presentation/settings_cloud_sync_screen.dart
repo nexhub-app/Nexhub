@@ -12,9 +12,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/novel/novel_progress_conflict.dart';
+import '../../../core/novel/novel_progress_manager.dart';
 import '../../../core/services/backup_archive.dart';
 import '../../../core/services/cloud_sync_service.dart';
+import '../../../core/services/novel_progress_sync_service.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_list_tile.dart';
@@ -176,6 +180,91 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
         ),
       );
     }
+  }
+
+  /// P2-8：手动同步阅读进度。拉取远端 → 逐书裁决：
+  /// - 本地领先自动上传、本地无记录自动应用云端；
+  /// - 云端领先且本地有记录 → 弹确认框，确认后写回本地。
+  ///
+  /// 本地进度来源：SharedPreferences 前缀扫描（NovelProgressManager.prefix）。
+  Future<void> _syncNovelProgress(AppLocalizations l10n) async {
+    final messenger = ScaffoldMessenger.of(context);
+    // 1) 汇总本地全部小说进度为快照。
+    final prefs = await SharedPreferences.getInstance();
+    final manager = NovelProgressManager();
+    final local = <String, NovelProgressPoint>{};
+    for (final key in prefs.getKeys()) {
+      if (!key.startsWith(NovelProgressManager.prefix)) continue;
+      final novelId = key.substring(NovelProgressManager.prefix.length);
+      final p = await manager.get(novelId);
+      if (p == null) continue;
+      local[novelId] = NovelProgressPoint(
+        novelId: novelId,
+        chapterIndex: p.chapterIndex,
+        charOffset: p.charOffset,
+        page: p.currentPage,
+      );
+    }
+
+    // 2) 全量裁决。
+    final progressService = NovelProgressSyncService();
+    final result = await progressService.syncAll(local);
+    if (!mounted) return;
+
+    // 3) 远端领先且本地有记录 → 需确认。
+    if (result.requireConfirmation.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.novelProgressConflictTitle),
+          content: Text(
+            l10n.novelProgressConflictBody(result.requireConfirmation.length),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.novelProgressUseRemote),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && mounted) {
+        // 4) 写回本地（被确认的 novelId 全量 applyRemote 后逐个落盘）。
+        final applied = await progressService.applyRemote(
+          local,
+          confirmedIds: result.requireConfirmation,
+        );
+        if (mounted) {
+          for (final id in applied) {
+            final rp = local[id];
+            if (rp == null) continue;
+            await manager.save(
+              id,
+              '',
+              rp.page,
+              rp.chapterIndex,
+              charOffset: rp.charOffset,
+            );
+          }
+        }
+      }
+    }
+
+    // 5) 汇总提示。
+    if (!mounted) return;
+    final parts = <String>[
+      if (result.uploaded > 0) l10n.novelProgressSyncedUploaded(result.uploaded),
+      if (result.autoAppliedFromRemote.isNotEmpty)
+        l10n.novelProgressSyncedRestored(result.autoAppliedFromRemote.length),
+      if (result.requireConfirmation.isNotEmpty)
+        l10n.novelProgressSyncedConflicted(result.requireConfirmation.length),
+      if (!result.hasChanges) l10n.novelProgressSyncedNone,
+    ];
+    messenger.showSnackBar(SnackBar(content: Text(parts.join(' '))));
   }
 
   Future<void> _pullRemote(AppLocalizations l10n) async {
@@ -522,6 +611,13 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
                   )
                 : const Icon(Icons.cloud_sync),
             label: Text(l10n.cloudSyncSyncNow),
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
+          // P2-8：逐书进度冲突裁决同步（含确认框）。
+          OutlinedButton.icon(
+            onPressed: _syncing ? null : () => _syncNovelProgress(l10n),
+            icon: const Icon(Icons.menu_book_outlined, size: 18),
+            label: Text(l10n.novelProgressSyncNow),
           ),
           const SizedBox(height: AppTokens.spaceMd),
           _buildStatusCard(config, l10n),

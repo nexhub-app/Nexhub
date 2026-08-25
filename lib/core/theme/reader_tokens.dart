@@ -26,6 +26,7 @@ class ReaderTokens {
     Color(0xFFDFF0EA), // mint（淡青薄荷）
     Color(0xFFFBEED9), // apricot（暖杏）
     Color(0xFFDBE6EC), // gray blue（浅灰蓝）
+    Color(0xFFE3E0D9), // e-ink（P2-10 / B3：近纸白低饱和，模拟墨水屏纸感）
   ];
 
   /// 背景预设名称 l10n key（与 bgPresets 一一对应）。
@@ -41,6 +42,7 @@ class ReaderTokens {
     'readerBgMint',
     'readerBgApricot',
     'readerBgGrayBlue',
+    'readerBgEInk',
   ];
 
   /// 默认强调色（用于小说重点色、下划线等）。

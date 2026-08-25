@@ -42,6 +42,60 @@ const Object _kNovelPrefsColorUnset = Object();
 /// titleCustomFontPath），区分「未传入」与「显式传 null（清除文件）」。
 const Object _kNovelPrefsPathUnset = Object();
 
+/// 中文排版断行模式（P2-10 / A5）。
+///
+/// - [standard] — Flutter TextPainter 原生折行（现状，宽松）。
+/// - [cjkStrict] — 逐字符断行 + 禁首禁尾标点：行首禁排闭合标点
+///   （」』）】…、，。！？等），行尾禁排开启标点（（「『等）；
+///   禁则处理采用「悬挂」（行尾标点突出至边距外）优先、放不下整体提前换行。
+enum NovelLineBreakMode { standard, cjkStrict;
+
+  static NovelLineBreakMode fromString(String? raw) =>
+      raw == 'cjkStrict' ? NovelLineBreakMode.cjkStrict : NovelLineBreakMode.standard;
+}
+
+/// 正文两端对齐模式（P2-10 / A6）。
+///
+/// 仅作用于分页模式渲染：[justify] 把不满一行的正文行拉伸到整行宽
+/// （末行与标题行除外）；[start] 维持原生左对齐。
+enum NovelTextAlignMode { start, justify;
+
+  static NovelTextAlignMode fromString(String? raw) =>
+      raw == 'justify' ? NovelTextAlignMode.justify : NovelTextAlignMode.start;
+}
+
+/// 下划线样式（P2-10 / B6 扩展）。
+enum NovelUnderlineStyle { solid, dashed, wavy, dotted;
+
+  static NovelUnderlineStyle fromString(String? raw) => switch (raw) {
+        'dashed' => NovelUnderlineStyle.dashed,
+        'wavy' => NovelUnderlineStyle.wavy,
+        'dotted' => NovelUnderlineStyle.dotted,
+        _ => NovelUnderlineStyle.solid,
+      };
+}
+
+/// 滚动模式插图展示模式（P2-4 / A10）。
+///
+/// - [banner] — 铺满整行完整显示（按源 style 或全宽），高度自适应。
+/// - [card] — 卡片式：按正文宽度比例缩列完整显示，配合 [NovelScrollImageAlign]
+///   做水平对齐，图文混排更接近「图文并排」的观感。
+enum NovelScrollImageMode { banner, card;
+
+  static NovelScrollImageMode fromString(String? raw) =>
+      raw == 'card' ? NovelScrollImageMode.card : NovelScrollImageMode.banner;
+}
+
+/// 滚动模式插图水平对齐（P2-4 / A10；仅 card 模式生效）。
+enum NovelScrollImageAlign { left, center, right;
+
+  static NovelScrollImageAlign fromString(String? raw) => switch (raw) {
+        'left' => NovelScrollImageAlign.left,
+        'right' => NovelScrollImageAlign.right,
+        _ => NovelScrollImageAlign.center,
+      };
+}
+
 /// 页眉 / 页脚槽位内容类型（文档 8.3，6 种）。
 enum NovelHeaderFooterContent {
   none,
@@ -371,6 +425,28 @@ class NovelReaderPreferences {
   /// 仅作用于翻页模式（paged）；滚动模式由底层 Scrollable 接管滚轮。
   final bool scrollWheelInverted;
 
+  // ─────────────── #10 排版增强（P2-10） ───────────────
+  /// 正文字重（100–900 细粒度；null = 不指定，跟随 [fontBold]）。
+  /// 与 [fontBold] 的关系：fontWeight 显式设置时优先生效，fontBold 仅在
+  /// fontWeight 为 null 时决定 bold/normal。
+  final int? fontWeightValue;
+
+  /// 正文两端对齐（分页模式）：开启后非末行拉伸到整行宽。
+  final NovelTextAlignMode textAlignMode;
+
+  /// 中文逐字断行 + 禁首禁尾标点（cjkStrict）；standard 为原生折行。
+  final NovelLineBreakMode lineBreakMode;
+
+  /// 下划线样式：实线 / 虚线 / 波浪 / 点线。dashed 兼容旧 [underlineDashed]。
+  final NovelUnderlineStyle underlineStyle;
+
+  // ─────────────── #11 滚动模式图文增强（P2-4） ───────────────
+  /// 滚动模式插图展示模式：banner 铺满整行 / card 卡片式缩列。
+  final NovelScrollImageMode scrollImageMode;
+
+  /// 滚动模式插图水平对齐（card 模式生效）。
+  final NovelScrollImageAlign scrollImageAlign;
+
   const NovelReaderPreferences({
     this.fontSize = 18.0,
     this.lineHeight = 1.8,
@@ -437,6 +513,14 @@ class NovelReaderPreferences {
     this.headerFooterColor,
     this.headerFooterMargin = 12.0,
     this.scrollWheelInverted = false,
+    // #10 排版增强
+    this.fontWeightValue,
+    this.textAlignMode = NovelTextAlignMode.start,
+    this.lineBreakMode = NovelLineBreakMode.standard,
+    this.underlineStyle = NovelUnderlineStyle.solid,
+    // #11 滚动模式图文增强
+    this.scrollImageMode = NovelScrollImageMode.banner,
+    this.scrollImageAlign = NovelScrollImageAlign.center,
   });
 
   NovelReaderPreferences copyWith({
@@ -501,6 +585,14 @@ class NovelReaderPreferences {
     Object? headerFooterColor = _kNovelPrefsColorUnset,
     double? headerFooterMargin,
     bool? scrollWheelInverted,
+    // #10 排版增强
+    int? fontWeightValue,
+    NovelTextAlignMode? textAlignMode,
+    NovelLineBreakMode? lineBreakMode,
+    NovelUnderlineStyle? underlineStyle,
+    // #11 滚动模式图文增强
+    NovelScrollImageMode? scrollImageMode,
+    NovelScrollImageAlign? scrollImageAlign,
   }) {
     return NovelReaderPreferences(
       fontSize: fontSize ?? this.fontSize,
@@ -590,6 +682,14 @@ class NovelReaderPreferences {
           : headerFooterColor as int?,
       headerFooterMargin: headerFooterMargin ?? this.headerFooterMargin,
       scrollWheelInverted: scrollWheelInverted ?? this.scrollWheelInverted,
+      // #10 排版增强
+      fontWeightValue: fontWeightValue ?? this.fontWeightValue,
+      textAlignMode: textAlignMode ?? this.textAlignMode,
+      lineBreakMode: lineBreakMode ?? this.lineBreakMode,
+      underlineStyle: underlineStyle ?? this.underlineStyle,
+      // #11 滚动模式图文增强
+      scrollImageMode: scrollImageMode ?? this.scrollImageMode,
+      scrollImageAlign: scrollImageAlign ?? this.scrollImageAlign,
     );
   }
 
@@ -754,6 +854,26 @@ class NovelReaderPreferences {
       scrollWheelInverted: identical(scrollWheelInverted, def.scrollWheelInverted)
           ? base.scrollWheelInverted
           : scrollWheelInverted,
+      // #10 排版增强
+      fontWeightValue: identical(fontWeightValue, def.fontWeightValue)
+          ? base.fontWeightValue
+          : fontWeightValue,
+      textAlignMode: identical(textAlignMode, def.textAlignMode)
+          ? base.textAlignMode
+          : textAlignMode,
+      lineBreakMode: identical(lineBreakMode, def.lineBreakMode)
+          ? base.lineBreakMode
+          : lineBreakMode,
+      underlineStyle: identical(underlineStyle, def.underlineStyle)
+          ? base.underlineStyle
+          : underlineStyle,
+      // #11 滚动模式图文增强
+      scrollImageMode: identical(scrollImageMode, def.scrollImageMode)
+          ? base.scrollImageMode
+          : scrollImageMode,
+      scrollImageAlign: identical(scrollImageAlign, def.scrollImageAlign)
+          ? base.scrollImageAlign
+          : scrollImageAlign,
     );
   }
 
@@ -807,27 +927,46 @@ class NovelReaderPreferences {
     return textColor.withValues(alpha: 0.3);
   }
 
-  /// 构建正文 [TextStyle]，统一应用字号 / 行距 / 字距 / 字体 / 加粗 / 斜体 /
-  /// 下划线 / 颜色 / 阴影。paged 与 scroll 两种渲染共用，确保所有字体样式
-  /// 真实生效且可共存。[autoTextColor] 为按背景亮度推导的默认色，
-  /// [customTextColor] 非空时覆盖。
+  /// 构建正文 [TextStyle]，统一应用字号 / 行距 / 字距 / 字体 / 字重（P2-10
+  /// 细粒度 100–900，未设置时回退 [fontBold] 开关）/ 斜体 / 下划线 / 颜色 /
+  /// 阴影。paged 与 scroll 两种渲染共用，确保所有字体样式真实生效且可共存。
+  /// [autoTextColor] 为按背景亮度推导的默认色，[customTextColor] 非空时覆盖。
   ///
-  /// 注意：当 [fontUnderline] && [underlineDashed] 同时开启时，本样式不设
-  /// `TextDecoration.underline`，由上层 `_NovelPageWidget` 用 `CustomPaint`
-  /// 按 [underlineDashLength] / [underlineDashGap] 自定义绘制虚线
-  /// （原生 `TextDecorationStyle.dashed` 不支持自定义段长/间隙）。
+  /// 下划线（P2-10 / B6）：solid 实线走原生 `TextDecoration.underline`；
+  /// dashed/wavy/dotted 交由上层 `_NovelPageWidget` 的 `CustomPaint` 自定义
+  /// 绘制（原生 `TextDecorationStyle` 不支持自定义段长/间隙/波幅），
+  /// 此时本样式不设 decoration。
   TextStyle resolveBodyTextStyle(Color autoTextColor) {
     final Color color =
         customTextColor != null ? Color(customTextColor!) : autoTextColor;
     final bool hasUnderline = fontUnderline;
-    // 虚线下划线交由 CustomPaint 绘制，原生 decoration 仅处理 solid 实线。
-    final bool nativeUnderline = hasUnderline && !underlineDashed;
+    // 仅实线下划线走原生 decoration；其余样式由 CustomPaint 绘制。
+    final bool nativeUnderline =
+        hasUnderline && underlineStyle == NovelUnderlineStyle.solid;
+    final FontWeight? weight;
+    if (fontWeightValue != null) {
+      // 细粒度字重：100–900 clamp 后映射到 FontWeight 常量表。
+      final v = fontWeightValue!.clamp(100, 900);
+      weight = switch (v) {
+        100 => FontWeight.w100,
+        200 => FontWeight.w200,
+        300 => FontWeight.w300,
+        400 => FontWeight.w400,
+        500 => FontWeight.w500,
+        600 => FontWeight.w600,
+        700 => FontWeight.w700,
+        800 => FontWeight.w800,
+        _ => FontWeight.w900,
+      };
+    } else {
+      weight = fontBold ? FontWeight.bold : null;
+    }
     return TextStyle(
       fontSize: fontSize,
       height: lineHeight,
       color: color,
       fontFamily: customFontPath != null ? customLoadedFontFamily : fontFamily,
-      fontWeight: fontBold ? FontWeight.bold : null,
+      fontWeight: weight,
       fontStyle: fontItalic ? FontStyle.italic : null,
       decoration: nativeUnderline ? TextDecoration.underline : null,
       decorationColor: nativeUnderline && underlineColor != null
@@ -847,6 +986,10 @@ class NovelReaderPreferences {
           : null,
     );
   }
+
+  /// 是否需要上层 CustomPaint 绘制非实线下划线（dashed/wavy/dotted）。
+  bool get needsCustomUnderlinePaint =>
+      fontUnderline && underlineStyle != NovelUnderlineStyle.solid;
 
   /// 下划线颜色（[underlineColor] 优先；否则跟随正文色）。
   Color? resolveUnderlineColor(Color textColor) {
@@ -943,6 +1086,14 @@ class NovelReaderPreferences {
         if (headerFooterColor != null) 'headerFooterColor': headerFooterColor,
         'headerFooterMargin': headerFooterMargin,
         'scrollWheelInverted': scrollWheelInverted,
+        // #10 排版增强
+        if (fontWeightValue != null) 'fontWeightValue': fontWeightValue,
+        'textAlignMode': textAlignMode.name,
+        'lineBreakMode': lineBreakMode.name,
+        'underlineStyle': underlineStyle.name,
+        // #11 滚动模式图文增强
+        'scrollImageMode': scrollImageMode.name,
+        'scrollImageAlign': scrollImageAlign.name,
       };
 
   /// 从 JSON 反序列化。
@@ -1025,6 +1176,19 @@ class NovelReaderPreferences {
       headerFooterMargin:
           (json['headerFooterMargin'] as num?)?.toDouble() ?? 12.0,
       scrollWheelInverted: json['scrollWheelInverted'] as bool? ?? false,
+      // #10 排版增强
+      fontWeightValue: (json['fontWeightValue'] as num?)?.toInt(),
+      textAlignMode: NovelTextAlignMode.fromString(
+          json['textAlignMode'] as String?),
+      lineBreakMode: NovelLineBreakMode.fromString(
+          json['lineBreakMode'] as String?),
+      underlineStyle: NovelUnderlineStyle.fromString(
+          json['underlineStyle'] as String?),
+      // #11 滚动模式图文增强
+      scrollImageMode: NovelScrollImageMode.fromString(
+          json['scrollImageMode'] as String?),
+      scrollImageAlign: NovelScrollImageAlign.fromString(
+          json['scrollImageAlign'] as String?),
     );
   }
 }
@@ -1062,6 +1226,67 @@ List<NovelBottomTool> _parseBottomToolbarSlots(Object? raw) {
     if (parsed.isNotEmpty) return parsed;
   }
   return NovelBottomTool.defaults;
+}
+
+/// 排版参数 JSON 导出/导入（P2-10 / B10，对标 shareReadConfig）。
+///
+/// 仅覆盖「排版」维度字段（字体/字重/字号/行距/段距/边距/对齐/断行/
+/// 下划线/阴影/标题排版），不携带颜色/背景/页眉页脚/TTS 等设备相关或
+/// 非排版偏好，避免跨设备导入时污染无关设置。
+abstract final class NovelTypographyShare {
+  /// 参与导出/导入的排版字段名集合（[NovelReaderPreferences.toJson] 键）。
+  static const Set<String> keys = <String>{
+    'fontSize', 'lineHeight', 'paragraphSpacing', 'margin',
+    'letterSpacing', 'fontBold', 'fontItalic', 'fontUnderline',
+    'showChapterTitleInBody', 'titleFontScale', 'titleBold',
+    'shadow', 'shadowBlur', 'shadowOffsetX', 'shadowOffsetY',
+    'fontWeightValue', 'textAlignMode', 'lineBreakMode',
+    'underlineStyle', 'underlineDashed', 'underlineThickness',
+    'underlineDashLength', 'underlineDashGap',
+    'titleAlign', 'titleSegmentMode', 'titleSubScale',
+    'titleSegmentSpacing', 'titleSubLineSpacing',
+    'titleTopMargin', 'titleBottomMargin',
+  };
+
+  /// 从偏好中抽取排版字段为可分享 JSON 字符串（紧凑、稳定键序）。
+  static String exportJson(NovelReaderPreferences prefs) {
+    final full = prefs.toJson();
+    final picked = <String, dynamic>{
+      for (final k in keys)
+        if (full.containsKey(k)) k: full[k],
+    };
+    return jsonEncode(picked);
+  }
+
+  /// 解析导入的排版 JSON，以 [base] 为底合并其中的合法排版字段。
+  ///
+  /// 合并策略：`base.toJson() ∪ 导入字段` 后整体走 [fromJson]，天然获得
+  /// 类型容错（非法值回退默认）与枚举反序列化回退。返回命中的字段数与
+  /// 合并结果；JSON 无法解析 / 无有效排版字段时返回 null。
+  static ({int fields, NovelReaderPreferences merged})? importJson(
+    String raw,
+    NovelReaderPreferences base,
+  ) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on Object {
+      return null;
+    }
+    if (decoded is! Map<String, dynamic>) return null;
+    final filtered = <String, dynamic>{};
+    for (final entry in decoded.entries) {
+      if (keys.contains(entry.key) && entry.value != null) {
+        filtered[entry.key] = entry.value;
+      }
+    }
+    if (filtered.isEmpty) return null;
+    final mergedJson = <String, dynamic>{...base.toJson(), ...filtered};
+    return (
+      fields: filtered.length,
+      merged: NovelReaderPreferences.fromJson(mergedJson),
+    );
+  }
 }
 
 /// 小说阅读器偏好存储（按 novelId 持久化）。

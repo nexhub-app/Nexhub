@@ -1719,6 +1719,15 @@
   "novelMenuBookmarkList": "Bookmark list",
   "novelMenuConfigureToolbar": "Configure bottom toolbar",
   "novelTtsBackground": "Background playback",
+  "httpTtsEnable": "Online TTS engine",
+  "httpTtsEnableDesc": "Synthesize speech via an HTTP endpoint (self-hosted or third-party; no built-in keys)",
+  "httpTtsUrlTemplate": "URL template",
+  "httpTtsDefaultVoice": "Default voice",
+  "httpTtsVoiceMap": "Role → voice (one 'role=voice' per line)",
+  "httpTtsConcurrency": "Preload concurrency (1-8)",
+  "httpTtsMaxFailures": "Consecutive failure stop threshold",
+  "httpTtsSilentPlaceholder": "Silent placeholder on failure",
+  "httpTtsSilentPlaceholderDesc": "Skip failed sentences and keep reading; disable to stop immediately",
   "novelSectionFont": "Font style",
   "searchInBook": "Search in book",
   "wholeBook": "Whole book",
@@ -2230,6 +2239,42 @@
   "cloudSyncSyncFrequencyDaily": "Daily",
   "cloudSyncSyncFrequencyWeekly": "Weekly",
   "cloudSyncSyncNow": "Sync Now",
+  "novelProgressSyncNow": "Sync reading progress",
+  "novelProgressConflictTitle": "Reading progress conflict",
+  "novelProgressConflictBody": "Cloud progress is ahead for {n} books. Use cloud progress?",
+  "@novelProgressConflictBody": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "novelProgressUseRemote": "Use cloud",
+  "novelProgressSyncedUploaded": "{n} uploaded",
+  "@novelProgressSyncedUploaded": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "novelProgressSyncedRestored": "{n} restored",
+  "@novelProgressSyncedRestored": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "novelProgressSyncedConflicted": "{n} need confirmation",
+  "@novelProgressSyncedConflicted": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "novelProgressSyncedNone": "No progress changes",
   "cloudSyncLastSyncTime": "Last sync: {time}",
   "cloudSyncNeverSynced": "Never synced",
   "cloudSyncSyncSuccess": "Sync successful",
@@ -2790,6 +2835,13 @@
   "novelTypographyShare": "Share typography as JSON",
   "novelTypographyImport": "Import typography JSON",
   "novelTypographyShareDone": "Typography JSON copied/shared",
+  "novelScrollImageMode": "Scroll image style",
+  "novelScrollImageModeBanner": "Full-width",
+  "novelScrollImageModeCard": "Card",
+  "novelScrollImageAlign": "Image alignment",
+  "novelScrollImageAlignLeft": "Left",
+  "novelScrollImageAlignCenter": "Center",
+  "novelScrollImageAlignRight": "Right",
   "novelTypographyImportBad": "Invalid or unrecognized typography JSON",
   "novelTypographyImportConfirmTitle": "Apply imported typography?",
   "novelTypographyImportConfirm": "This will override {n} reading typography defaults.",

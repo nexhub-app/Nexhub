@@ -17,6 +17,7 @@ import '../models/novel_block.dart';
 import '../models/plugin_config.dart';
 import '../local/local_novel_parser.dart' show kNexhubImgMarker;
 import '../novel/novel_chinese_converter.dart';
+import '../novel/novel_highlight_manager.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/media_api_service.dart';
 import '../utils/app_log.dart';
@@ -38,6 +39,7 @@ class NovelDownloadHandler implements DownloadHandler {
     this.author,
     this.concurrency = 1,
     this.convertMode = ChineseConvertMode.none,
+    this.includeHighlights = false,
   });
 
   final MediaApiService service;
@@ -55,6 +57,10 @@ class NovelDownloadHandler implements DownloadHandler {
   /// 繁简转换模式：落盘前对文本块应用与阅读器一致的转换，
   /// 保证「阅读器内开繁→简后，离线缓存与显示相同」。默认不转换。
   final ChineseConvertMode convertMode;
+
+  /// P2-11：是否把本书划线/批注作为附录附带进导出（EPUB 追加一章，
+  /// TXT 追加一个划线文件）。默认关闭，调用方显式开启。
+  final bool includeHighlights;
 
   @override
   Future<DownloadResult> download(
@@ -226,6 +232,19 @@ class NovelDownloadHandler implements DownloadHandler {
         throw Exception(
             '未能获取到任何章节内容，可能被源拦截或章节地址已失效');
       }
+
+      // P2-11：划线 / 批注附带为书末附录章节（仅当开启且存在划线时）。
+      if (includeHighlights) {
+        final highlights = await _loadHighlights();
+        final html = NovelDownloadHandler.highlightsToEpubHtml(highlights);
+        if (html != null) {
+          epubChapters.add(EpubChapter(
+            title: NovelDownloadHandler.highlightsTitle,
+            content: html,
+          ));
+        }
+      }
+
       final bytes = EpubBuilder.build(
         metadata: metadata,
         chapters: epubChapters,
@@ -244,6 +263,17 @@ class NovelDownloadHandler implements DownloadHandler {
     // 会把 result.workPath 覆盖进 task.localPath，若这里返回文件路径会导致
     // localPath 变成 `.txt` 文件，后续在 `localPath` 下写 meta.json/cover.jpg
     // 时 SAF 报 "Parent document isn't a directory"。
+    // P2-11：划线 / 批注附带为独立文件（不进入 chapterFilePaths，避免被
+    // 跨批次聚合误识别为章节）。
+    if (includeHighlights) {
+      final highlights = await _loadHighlights();
+      if (highlights.isNotEmpty) {
+        final highlightsPath =
+            fs.join(workDir, '${NovelDownloadHandler.highlightsTitle}.txt');
+        await fs.writeString(
+            highlightsPath, NovelDownloadHandler.highlightsToTxt(highlights));
+      }
+    }
     return DownloadResult(workPath: workDir, chapterFilePaths: chapterFilePaths);
   }
 
@@ -265,7 +295,7 @@ class NovelDownloadHandler implements DownloadHandler {
     return clean.isEmpty ? 'chapter' : clean;
   }
 
-  String _escape(String s) =>
+  static String _escape(String s) =>
       s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
   /// 下载插图到 [imagesDir]，按 URL 哈希命名（跨章同图去重复用）。
@@ -319,5 +349,65 @@ class NovelDownloadHandler implements DownloadHandler {
       sb.write(b.toRadixString(16).padLeft(2, '0'));
     }
     return sb.toString();
+  }
+
+  // ─────────────────── P2-11 划线附带 ───────────────────
+
+  /// 读取本书全部划线 / 批注（按章节顺序、创建时间升序）。
+  /// 异常（Hive 未初始化等）返回空列表，不影响导出主流程。
+  Future<List<NovelHighlight>> _loadHighlights() async {
+    try {
+      return await NovelHighlightManager().listFor(novelId);
+    } on Object {
+      return const <NovelHighlight>[];
+    }
+  }
+
+  /// 划线导出标题（EPUB 章节名 / TXT 文件名前缀共用）。
+  static const String highlightsTitle = '_划线批注';
+
+  /// 把划线列表渲染为 EPUB 章节 HTML。<p> 逐条：章节名 — 划线内容，
+  /// 笔记以斜体附注；空列表返回 null（不追加章节）。
+  static String? highlightsToEpubHtml(List<NovelHighlight> highlights) {
+    return _highlightsToEpubHtml(highlights);
+  }
+
+  static String? _highlightsToEpubHtml(List<NovelHighlight> highlights) {
+    final parts = <String>[];
+    for (final h in highlights) {
+      final chapter = h.chapterTitle.isNotEmpty
+          ? '<span style="font-weight:bold">${_escape(h.chapterTitle)}</span><br/>'
+          : '';
+      var text = '${chapter}${_escape(h.quote)}';
+      if (h.note != null && h.note!.isNotEmpty) {
+        text += '<br/><i>备注：${_escape(h.note!)}</i>';
+      }
+      parts.add('<p>$text</p>');
+    }
+    if (parts.isEmpty) return null;
+    return parts.join('\n');
+  }
+
+  /// TXT 划线文件内容：每条「章节名 / 划线 / 备注」，行间空行分隔。
+  static String highlightsToTxt(List<NovelHighlight> highlights) {
+    return _highlightsToTxt(highlights);
+  }
+
+  static String _highlightsToTxt(List<NovelHighlight> highlights) {
+    final buffer = StringBuffer();
+    buffer.writeln('书内划线与批注（P2-11 导出附录）');
+    buffer.writeln('======================');
+    buffer.writeln();
+    for (final h in highlights) {
+      if (h.chapterTitle.isNotEmpty) {
+        buffer.writeln('【${h.chapterTitle}】');
+      }
+      buffer.writeln(h.quote);
+      if (h.note != null && h.note!.isNotEmpty) {
+        buffer.writeln('备注：${h.note}');
+      }
+      buffer.writeln();
+    }
+    return buffer.toString();
   }
 }

@@ -11,7 +11,7 @@ library;
 import 'package:flutter/foundation.dart';
 
 import 'package:nexhub/core/models/novel_block.dart';
-import 'novel_highlight_manager.dart';
+import '../../../core/novel/novel_highlight_manager.dart';
 import 'novel_paginator.dart';
 
 /// 划线效果枚举。

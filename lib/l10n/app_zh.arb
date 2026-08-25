@@ -1699,6 +1699,15 @@
   "novelMenuBookmarkList": "书签列表",
   "novelMenuConfigureToolbar": "配置底部工具栏",
   "novelTtsBackground": "后台朗读",
+  "httpTtsEnable": "在线 TTS 引擎",
+  "httpTtsEnableDesc": "使用 HTTP 端点合成语音（需自建/第三方 TTS 服务，不内置密钥）",
+  "httpTtsUrlTemplate": "URL 模板",
+  "httpTtsDefaultVoice": "默认音色",
+  "httpTtsVoiceMap": "角色 → 音色（每行「角色=音色」）",
+  "httpTtsConcurrency": "预下载并发（1-8）",
+  "httpTtsMaxFailures": "连续失败停止阈值",
+  "httpTtsSilentPlaceholder": "失败静音占位降级",
+  "httpTtsSilentPlaceholderDesc": "单句合成失败时静音跳过继续朗读；关闭则立即停止",
   "novelSectionFont": "字体样式",
   "searchInBook": "书内搜索",
   "wholeBook": "全书",
@@ -2208,6 +2217,42 @@
   "cloudSyncSyncFrequencyDaily": "每日",
   "cloudSyncSyncFrequencyWeekly": "每周",
   "cloudSyncSyncNow": "立即同步",
+  "novelProgressSyncNow": "同步阅读进度",
+  "novelProgressConflictTitle": "阅读进度冲突",
+  "novelProgressConflictBody": "云端有 {n} 本书的阅读进度领先于本机，是否采用云端进度？",
+  "@novelProgressConflictBody": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "novelProgressUseRemote": "采用云端",
+  "novelProgressSyncedUploaded": "已上传 {n} 本",
+  "@novelProgressSyncedUploaded": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "novelProgressSyncedRestored": "恢复 {n} 本",
+  "@novelProgressSyncedRestored": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "novelProgressSyncedConflicted": "{n} 本待确认",
+  "@novelProgressSyncedConflicted": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "novelProgressSyncedNone": "阅读进度无变化",
   "cloudSyncLastSyncTime": "上次同步：{time}",
   "cloudSyncNeverSynced": "尚未同步",
   "cloudSyncSyncSuccess": "同步成功",
@@ -2767,6 +2812,13 @@
   "novelTypographyShare": "排版参数分享为 JSON",
   "novelTypographyImport": "导入排版 JSON",
   "novelTypographyShareDone": "排版 JSON 已复制/分享",
+  "novelScrollImageMode": "滚动插图样式",
+  "novelScrollImageModeBanner": "通栏",
+  "novelScrollImageModeCard": "卡片式",
+  "novelScrollImageAlign": "插图对齐",
+  "novelScrollImageAlignLeft": "靠左",
+  "novelScrollImageAlignCenter": "居中",
+  "novelScrollImageAlignRight": "靠右",
   "novelTypographyImportBad": "无效或无法识别的排版 JSON",
   "novelTypographyImportConfirmTitle": "应用导入的排版？",
   "novelTypographyImportConfirm": "将覆盖当前 {n} 项阅读排版默认值。",

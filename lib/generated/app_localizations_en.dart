@@ -3336,6 +3336,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelTtsBackground => 'Background playback';
 
   @override
+  String get httpTtsEnable => 'Online TTS engine';
+
+  @override
+  String get httpTtsEnableDesc =>
+      'Synthesize speech via an HTTP endpoint (self-hosted or third-party; no built-in keys)';
+
+  @override
+  String get httpTtsUrlTemplate => 'URL template';
+
+  @override
+  String get httpTtsDefaultVoice => 'Default voice';
+
+  @override
+  String get httpTtsVoiceMap => 'Role → voice (one \'role=voice\' per line)';
+
+  @override
+  String get httpTtsConcurrency => 'Preload concurrency (1-8)';
+
+  @override
+  String get httpTtsMaxFailures => 'Consecutive failure stop threshold';
+
+  @override
+  String get httpTtsSilentPlaceholder => 'Silent placeholder on failure';
+
+  @override
+  String get httpTtsSilentPlaceholderDesc =>
+      'Skip failed sentences and keep reading; disable to stop immediately';
+
+  @override
   String get novelSectionFont => 'Font style';
 
   @override
@@ -4046,6 +4075,38 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSyncSyncNow => 'Sync Now';
+
+  @override
+  String get novelProgressSyncNow => 'Sync reading progress';
+
+  @override
+  String get novelProgressConflictTitle => 'Reading progress conflict';
+
+  @override
+  String novelProgressConflictBody(int n) {
+    return 'Cloud progress is ahead for $n books. Use cloud progress?';
+  }
+
+  @override
+  String get novelProgressUseRemote => 'Use cloud';
+
+  @override
+  String novelProgressSyncedUploaded(int n) {
+    return '$n uploaded';
+  }
+
+  @override
+  String novelProgressSyncedRestored(int n) {
+    return '$n restored';
+  }
+
+  @override
+  String novelProgressSyncedConflicted(int n) {
+    return '$n need confirmation';
+  }
+
+  @override
+  String get novelProgressSyncedNone => 'No progress changes';
 
   @override
   String cloudSyncLastSyncTime(String time) {
@@ -5149,6 +5210,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get novelTypographyShareDone => 'Typography JSON copied/shared';
+
+  @override
+  String get novelScrollImageMode => 'Scroll image style';
+
+  @override
+  String get novelScrollImageModeBanner => 'Full-width';
+
+  @override
+  String get novelScrollImageModeCard => 'Card';
+
+  @override
+  String get novelScrollImageAlign => 'Image alignment';
+
+  @override
+  String get novelScrollImageAlignLeft => 'Left';
+
+  @override
+  String get novelScrollImageAlignCenter => 'Center';
+
+  @override
+  String get novelScrollImageAlignRight => 'Right';
 
   @override
   String get novelTypographyImportBad =>

@@ -3282,6 +3282,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelTtsBackground => '后台朗读';
 
   @override
+  String get httpTtsEnable => '在线 TTS 引擎';
+
+  @override
+  String get httpTtsEnableDesc => '使用 HTTP 端点合成语音（需自建/第三方 TTS 服务，不内置密钥）';
+
+  @override
+  String get httpTtsUrlTemplate => 'URL 模板';
+
+  @override
+  String get httpTtsDefaultVoice => '默认音色';
+
+  @override
+  String get httpTtsVoiceMap => '角色 → 音色（每行「角色=音色」）';
+
+  @override
+  String get httpTtsConcurrency => '预下载并发（1-8）';
+
+  @override
+  String get httpTtsMaxFailures => '连续失败停止阈值';
+
+  @override
+  String get httpTtsSilentPlaceholder => '失败静音占位降级';
+
+  @override
+  String get httpTtsSilentPlaceholderDesc => '单句合成失败时静音跳过继续朗读；关闭则立即停止';
+
+  @override
   String get novelSectionFont => '字体样式';
 
   @override
@@ -3984,6 +4011,38 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudSyncSyncNow => '立即同步';
+
+  @override
+  String get novelProgressSyncNow => '同步阅读进度';
+
+  @override
+  String get novelProgressConflictTitle => '阅读进度冲突';
+
+  @override
+  String novelProgressConflictBody(int n) {
+    return '云端有 $n 本书的阅读进度领先于本机，是否采用云端进度？';
+  }
+
+  @override
+  String get novelProgressUseRemote => '采用云端';
+
+  @override
+  String novelProgressSyncedUploaded(int n) {
+    return '已上传 $n 本';
+  }
+
+  @override
+  String novelProgressSyncedRestored(int n) {
+    return '恢复 $n 本';
+  }
+
+  @override
+  String novelProgressSyncedConflicted(int n) {
+    return '$n 本待确认';
+  }
+
+  @override
+  String get novelProgressSyncedNone => '阅读进度无变化';
 
   @override
   String cloudSyncLastSyncTime(String time) {
@@ -5059,6 +5118,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get novelTypographyShareDone => '排版 JSON 已复制/分享';
+
+  @override
+  String get novelScrollImageMode => '滚动插图样式';
+
+  @override
+  String get novelScrollImageModeBanner => '通栏';
+
+  @override
+  String get novelScrollImageModeCard => '卡片式';
+
+  @override
+  String get novelScrollImageAlign => '插图对齐';
+
+  @override
+  String get novelScrollImageAlignLeft => '靠左';
+
+  @override
+  String get novelScrollImageAlignCenter => '居中';
+
+  @override
+  String get novelScrollImageAlignRight => '靠右';
 
   @override
   String get novelTypographyImportBad => '无效或无法识别的排版 JSON';

@@ -7,10 +7,13 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/comic/models/reader_preferences.dart';
+import '../../../core/novel/novel_http_tts_config.dart';
 import '../../../core/novel/novel_page_animation.dart';
 import '../../../core/novel/novel_pre_download_preferences.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
@@ -40,6 +43,9 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
   /// X-4：阅读中预下载配置（独立于 [_settings] 聚合，直接读写）。
   NovelPreDownloadPreferences _preDownload = const NovelPreDownloadPreferences();
 
+  /// P2-3：在线 HTTP TTS 配置（独立持久化，直接读写）。
+  NovelHttpTtsConfig _httpTts = const NovelHttpTtsConfig();
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +61,9 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
     NovelPreDownloadPreferences.load().then((p) {
       if (mounted) setState(() => _preDownload = p);
     });
+    NovelHttpTtsConfigStore().load().then((c) {
+      if (mounted) setState(() => _httpTts = c);
+    });
   }
 
   void _update(ReaderDefaultSettings next) {
@@ -65,6 +74,139 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
   void _updatePreDownload(NovelPreDownloadPreferences next) {
     setState(() => _preDownload = next);
     NovelPreDownloadPreferences.save(next);
+  }
+
+  /// P2-3：保存在线 TTS 配置。
+  void _updateHttpTts(NovelHttpTtsConfig next) {
+    setState(() => _httpTts = next);
+    NovelHttpTtsConfigStore().save(next);
+  }
+
+  /// P2-3：分区内小节标题（与设置卡片其它分组标题样式一致）。
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: Theme.of(context)
+          .textTheme
+          .bodyMedium
+          ?.copyWith(fontWeight: FontWeight.w500),
+    );
+  }
+
+  /// P2-3：解析「角色=音色」多行文本为映射（忽略空行/无=行）。
+  static Map<String, String> _parseVoiceMap(String raw) {
+    final result = <String, String>{};
+    for (final line in raw.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      final eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+      final role = trimmed.substring(0, eq).trim();
+      final voice = trimmed.substring(eq + 1).trim();
+      if (role.isNotEmpty && voice.isNotEmpty) {
+        result[role] = voice;
+      }
+    }
+    return result;
+  }
+
+  /// P2-10 / B10：把当前排版默认值导出为 JSON 并分享（复制到剪贴板 +
+  /// 系统分享面板）。
+  Future<void> _shareTypography(AppLocalizations l10n) async {
+    final json =
+        NovelTypographyShare.exportJson(_settings.toNovelReaderPreferences());
+    await Clipboard.setData(ClipboardData(text: json));
+    if (!mounted) return;
+    try {
+      await Share.share(json, subject: l10n.novelTypographyShare);
+    } on Object {
+      // 桌面/无分享目标环境忽略，剪贴板已兜底。
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.novelTypographyShareDone)),
+    );
+  }
+
+  /// P2-10 / B10：弹窗粘贴排版 JSON，确认后合并进当前默认值。
+  Future<void> _importTypography(AppLocalizations l10n) async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.novelTypographyImport),
+        content: SingleChildScrollView(
+          child: TextField(
+            controller: controller,
+            maxLines: 6,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: '{"fontSize":20,...}',
+              isDense: true,
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final result = NovelTypographyShare.importJson(
+      controller.text.trim(),
+      _settings.toNovelReaderPreferences(),
+    );
+    if (result == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.novelTypographyImportBad)),
+      );
+      return;
+    }
+    final merged = result.merged;
+    _update(_settings.copyWith(
+      novelFontSize: merged.fontSize,
+      novelLineHeight: merged.lineHeight,
+      novelParagraphSpacing: merged.paragraphSpacing,
+      novelMargin: merged.margin,
+      novelLetterSpacing: merged.letterSpacing,
+      novelFontBold: merged.fontBold,
+      novelFontItalic: merged.fontItalic,
+      novelFontUnderline: merged.fontUnderline,
+      novelShadow: merged.shadow,
+      novelShadowBlur: merged.shadowBlur,
+      novelShadowOffsetX: merged.shadowOffsetX,
+      novelShadowOffsetY: merged.shadowOffsetY,
+      novelShowChapterTitleInBody: merged.showChapterTitleInBody,
+      novelTitleFontScale: merged.titleFontScale,
+      novelTitleBold: merged.titleBold,
+      novelTitleAlign: merged.titleAlign.name,
+      novelTitleSegmentMode: merged.titleSegmentMode,
+      novelTitleSubScale: merged.titleSubScale,
+      novelTitleSegmentSpacing: merged.titleSegmentSpacing,
+      novelTitleSubLineSpacing: merged.titleSubLineSpacing,
+      novelTitleTopMargin: merged.titleTopMargin,
+      novelTitleBottomMargin: merged.titleBottomMargin,
+      novelFontWeightValue: merged.fontWeightValue,
+      novelTextAlignMode: merged.textAlignMode.name,
+      novelLineBreakMode: merged.lineBreakMode.name,
+      novelUnderlineStyle: merged.underlineStyle.name,
+      novelUnderlineDashed: merged.underlineStyle ==
+          NovelUnderlineStyle.dashed,
+      novelUnderlineThickness: merged.underlineThickness,
+      novelUnderlineDashLength: merged.underlineDashLength,
+      novelUnderlineDashGap: merged.underlineDashGap,
+    ));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.novelTypographyImportConfirm(result.fields))),
+    );
   }
 
   // ── 标签辅助函数 ──
@@ -102,6 +244,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
       8 => l10n.readerBgMint,
       9 => l10n.readerBgApricot,
       10 => l10n.readerBgGrayBlue,
+      11 => l10n.readerBgEInk,
       _ => l10n.readerBgWhite,
     };
   }
@@ -659,6 +802,222 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                       context: context,
                       l10n: l10n,
                       isTitle: false,
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+                    // P2-10：字重细粒度（100–900；未选 = 跟随加粗开关）。
+                    Text(l10n.novelFontWeightFine,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        AppValuePulse(
+                          trigger: _settings.novelFontWeightValue == null,
+                          from: 0.9,
+                          child: ChoiceChip(
+                            label: Text(l10n.novelFontWeightAuto),
+                            selected:
+                                _settings.novelFontWeightValue == null,
+                            onSelected: (_) => _update(_settings
+                                .copyWith(novelFontWeightValue: null)),
+                          ),
+                        ),
+                        for (final w in <int>[300, 400, 500, 600, 700])
+                          AppValuePulse(
+                            trigger: _settings.novelFontWeightValue == w,
+                            from: 0.9,
+                            child: ChoiceChip(
+                              label: Text('$w'),
+                              selected:
+                                  _settings.novelFontWeightValue == w,
+                              onSelected: (_) => _update(_settings
+                                  .copyWith(novelFontWeightValue: w)),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                // ── 2b. 排版增强（P2-10）──
+                SettingsCard(
+                  key: const ValueKey<String>('novel.typography'),
+                  index: 1,
+                  title: l10n.novelTextAlignMode,
+                  children: <Widget>[
+                    // 对齐方式。
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        for (final m in NovelTextAlignMode.values)
+                          AppValuePulse(
+                            trigger:
+                                _settings.novelTextAlignMode == m.name,
+                            from: 0.9,
+                            child: ChoiceChip(
+                              label: Text(m == NovelTextAlignMode.justify
+                                  ? l10n.novelTextAlignJustify
+                                  : l10n.novelTextAlignStart),
+                              selected:
+                                  _settings.novelTextAlignMode == m.name,
+                              onSelected: (_) => _update(_settings
+                                  .copyWith(novelTextAlignMode: m.name)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+                    // 中文断行模式。
+                    Text(l10n.novelLineBreakMode,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        for (final m in NovelLineBreakMode.values)
+                          AppValuePulse(
+                            trigger:
+                                _settings.novelLineBreakMode == m.name,
+                            from: 0.9,
+                            child: ChoiceChip(
+                              label: Text(
+                                  m == NovelLineBreakMode.cjkStrict
+                                      ? l10n.novelLineBreakCjkStrict
+                                      : l10n.novelLineBreakStandard),
+                              selected:
+                                  _settings.novelLineBreakMode == m.name,
+                              onSelected: (_) => _update(_settings
+                                  .copyWith(novelLineBreakMode: m.name)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+                    // 下划线样式。
+                    Text(l10n.novelUnderlineStyle,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        for (final s in NovelUnderlineStyle.values)
+                          AppValuePulse(
+                            trigger:
+                                _settings.novelUnderlineStyle == s.name,
+                            from: 0.9,
+                            child: ChoiceChip(
+                              label: Text(switch (s) {
+                                NovelUnderlineStyle.solid =>
+                                  l10n.novelUnderlineStyleSolid,
+                                NovelUnderlineStyle.dashed =>
+                                  l10n.novelUnderlineStyleDashed,
+                                NovelUnderlineStyle.wavy =>
+                                  l10n.novelUnderlineStyleWavy,
+                                NovelUnderlineStyle.dotted =>
+                                  l10n.novelUnderlineStyleDotted,
+                              }),
+                              selected:
+                                  _settings.novelUnderlineStyle == s.name,
+                              onSelected: (_) => _update(_settings
+                                  .copyWith(novelUnderlineStyle: s.name)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+                    // 排版 JSON 分享 / 导入（B10）。
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.ios_share, size: 18),
+                          label: Text(l10n.novelTypographyShare),
+                          onPressed: () => _shareTypography(l10n),
+                        ),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.download, size: 18),
+                          label: Text(l10n.novelTypographyImport),
+                          onPressed: () => _importTypography(l10n),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+                    // P2-4：滚动模式图文样式（插图展示模式 + 水平对齐）。
+                    Text(l10n.novelScrollImageMode,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        for (final m in NovelScrollImageMode.values)
+                          AppValuePulse(
+                            trigger:
+                                _settings.novelScrollImageMode == m.name,
+                            from: 0.9,
+                            child: ChoiceChip(
+                              label: Text(m == NovelScrollImageMode.card
+                                  ? l10n.novelScrollImageModeCard
+                                  : l10n.novelScrollImageModeBanner),
+                              selected:
+                                  _settings.novelScrollImageMode == m.name,
+                              onSelected: (_) => _update(_settings
+                                  .copyWith(novelScrollImageMode: m.name)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTokens.spaceMd),
+                    // 滚动插图水平对齐（仅 card 模式视觉生效）。
+                    Text(l10n.novelScrollImageAlign,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        for (final a in NovelScrollImageAlign.values)
+                          AppValuePulse(
+                            trigger:
+                                _settings.novelScrollImageAlign == a.name,
+                            from: 0.9,
+                            child: ChoiceChip(
+                              label: Text(switch (a) {
+                                NovelScrollImageAlign.left =>
+                                  l10n.novelScrollImageAlignLeft,
+                                NovelScrollImageAlign.right =>
+                                  l10n.novelScrollImageAlignRight,
+                                NovelScrollImageAlign.center =>
+                                  l10n.novelScrollImageAlignCenter,
+                              }),
+                              selected:
+                                  _settings.novelScrollImageAlign == a.name,
+                              onSelected: (_) => _update(
+                                  _settings.copyWith(
+                                      novelScrollImageAlign: a.name)),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
@@ -1404,6 +1763,91 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                       onChanged: (v) =>
                           _update(_settings.copyWith(novelTtsBackground: v)),
                     ),
+                    const SizedBox(height: AppTokens.spaceMd),
+                    const Divider(height: 1),
+                    const SizedBox(height: AppTokens.spaceMd),
+                    // P2-3：在线 HTTP TTS 引擎配置。
+                    SettingsSwitchTile(
+                      title: l10n.httpTtsEnable,
+                      subtitle: l10n.httpTtsEnableDesc,
+                      value: _httpTts.enabled,
+                      onChanged: (v) =>
+                          _updateHttpTts(_httpTts.copyWith(enabled: v)),
+                    ),
+                    if (_httpTts.enabled) ...<Widget>[
+                      _label(l10n.httpTtsUrlTemplate),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      TextField(
+                        controller: TextEditingController(
+                            text: _httpTts.urlTemplate),
+                        decoration: const InputDecoration(
+                          hintText: 'https://tts.example/api?text={text}&voice={voice}',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        onSubmitted: (v) => _updateHttpTts(
+                            _httpTts.copyWith(urlTemplate: v)),
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      _label(l10n.httpTtsDefaultVoice),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      TextField(
+                        controller:
+                            TextEditingController(text: _httpTts.defaultVoice),
+                        decoration: const InputDecoration(
+                          hintText: 'xiaoyun',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        onSubmitted: (v) => _updateHttpTts(
+                            _httpTts.copyWith(defaultVoice: v)),
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      _label(l10n.httpTtsVoiceMap),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      TextField(
+                        controller: TextEditingController(
+                            text: _httpTts.voiceByRole.entries
+                                .map((e) => '${e.key}=${e.value}')
+                                .join('\n')),
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          hintText: '小明=xiaoming\n旁白=xiaoyun',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        onSubmitted: (v) => _updateHttpTts(_httpTts.copyWith(
+                            voiceByRole: _parseVoiceMap(v))),
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      SettingsSliderTile(
+                        label: l10n.httpTtsConcurrency,
+                        value: _httpTts.concurrency.toDouble(),
+                        min: 1,
+                        max: 8,
+                        divisions: 7,
+                        display: '${_httpTts.concurrency}',
+                        onChanged: (v) => _updateHttpTts(
+                            _httpTts.copyWith(concurrency: v.round())),
+                      ),
+                      SettingsSliderTile(
+                        label: l10n.httpTtsMaxFailures,
+                        value: _httpTts.maxConsecutiveFailures.toDouble(),
+                        min: 1,
+                        max: 10,
+                        divisions: 9,
+                        display: '${_httpTts.maxConsecutiveFailures}',
+                        onChanged: (v) => _updateHttpTts(_httpTts
+                            .copyWith(maxConsecutiveFailures: v.round())),
+                      ),
+                      SettingsSwitchTile(
+                        title: l10n.httpTtsSilentPlaceholder,
+                        subtitle: l10n.httpTtsSilentPlaceholderDesc,
+                        value: _httpTts.silentPlaceholderOnFailure,
+                        onChanged: (v) => _updateHttpTts(_httpTts.copyWith(
+                            silentPlaceholderOnFailure: v)),
+                      ),
+                    ],
                   ],
                 ),
 

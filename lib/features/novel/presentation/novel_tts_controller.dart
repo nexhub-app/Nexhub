@@ -2,6 +2,8 @@
 ///
 /// 封装 flutter_tts，提供逐段朗读、暂停/恢复/停止、自动翻段功能。
 /// 朗读状态通过 [notifyListeners] 广播，阅读器据此更新 UI。
+/// P2-3：支持在线 HTTP TTS 引擎（[novel_http_tts_player.dart]），
+/// 由配置 [NovelHttpTtsConfig] 启用时优先走在线管线。
 library;
 
 import 'dart:async';
@@ -9,6 +11,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+
+import '../../../core/novel/novel_http_tts_config.dart';
+import '../../../core/novel/novel_http_tts_player.dart';
+import '../../../core/novel/novel_http_tts_sentence_player.dart';
 
 enum NovelTtsState {
   stopped,
@@ -23,6 +29,9 @@ class NovelTtsController extends ChangeNotifier {
   NovelTtsState _state = NovelTtsState.stopped;
   int _currentIndex = 0;
   List<String> _paragraphs = const <String>[];
+
+  /// P2-3 在线引擎的活跃播放会话（朗读中非空，用于取消）。
+  NovelHttpTtsPlayer? _onlinePlayer;
 
   double _rate = 1.0;
   Timer? _sleepTimer;
@@ -67,9 +76,10 @@ class NovelTtsController extends ChangeNotifier {
   ///
   /// [sleepTimer] 为睡眠定时（分钟）；> 0 时启动后自动开启定时器，
   /// 到时停止朗读。用于 prefs.ttsSleepTimer 持久化恢复。
+  ///
+  /// P2-3：优先使用在线 HTTP TTS 引擎（配置启用且有模板时）。
   Future<void> speak(List<String> paragraphs,
       {int startIndex = 0, int sleepTimer = 0}) async {
-    await _ensureTts();
     _paragraphs = paragraphs;
     _currentIndex = startIndex.clamp(0, _paragraphs.length - 1);
     _state = NovelTtsState.playing;
@@ -78,6 +88,26 @@ class NovelTtsController extends ChangeNotifier {
     if (sleepTimer > 0) {
       startSleepTimer(sleepTimer);
     }
+    // P2-3：在线引擎优先。
+    final cfg = await NovelHttpTtsConfigStore().load();
+    if (cfg.enabled && cfg.urlTemplate.isNotEmpty) {
+      _onlinePlayer = NovelHttpTtsPlayer(
+        config: cfg,
+        player: buildDefaultTtsSentencePlayer(
+          cancelled: () => _state == NovelTtsState.stopped,
+        ),
+      );
+      _onlinePlayer!.onCompleted = () {
+        if (_state == NovelTtsState.stopped) return;
+        _state = NovelTtsState.stopped;
+        _isSpeaking = false;
+        notifyListeners();
+      };
+      await _onlinePlayer!.speak(paragraphs);
+      _onlinePlayer = null;
+      return;
+    }
+    await _ensureTts();
     await _speakCurrent();
   }
 
@@ -125,7 +155,17 @@ class NovelTtsController extends ChangeNotifier {
 
   /// 停止朗读。
   Future<void> stop() async {
-    if (_tts == null) return;
+    _onlinePlayer?.cancel();
+    _onlinePlayer = null;
+    if (_tts == null) {
+      _state = NovelTtsState.stopped;
+      _isSpeaking = false;
+      _cancelSleepTimer();
+      _sleepRemaining = null;
+      await _setAwake(false);
+      notifyListeners();
+      return;
+    }
     await _tts!.stop();
     _state = NovelTtsState.stopped;
     _isSpeaking = false;
