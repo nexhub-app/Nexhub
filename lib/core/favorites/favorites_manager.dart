@@ -43,6 +43,10 @@ class FavoriteEntry {
   /// 来自详情页解析的 updatedAt（小说源的 updateTime 字段），进详情页时回填。
   final int updatedAt;
 
+  /// 上次查看目录时的章节总数（M3 新章提示用；0=未记录）。
+  /// 详情页/阅读器加载目录时回写；当前目录总数超过该值即视为「有新章」。
+  final int lastSeenChapterCount;
+
   /// 分类（取自 MediaItem.tags 首项），用于书架筛选。
   final String? category;
 
@@ -72,6 +76,7 @@ class FavoriteEntry {
         required this.favoritedAt,
     this.lastRead = 0,
     this.updatedAt = 0,
+    this.lastSeenChapterCount = 0,
     this.category,
     this.status,
     this.groupIds = const <String>[],
@@ -94,6 +99,7 @@ class FavoriteEntry {
         favoritedAt: favoritedAt ?? DateTime.now().millisecondsSinceEpoch,
         lastRead: 0,
         updatedAt: item.updatedAt?.millisecondsSinceEpoch ?? 0,
+        lastSeenChapterCount: 0,
         category: item.tags?.isNotEmpty == true ? item.tags!.first : null,
         status: item.status,
       );
@@ -113,6 +119,7 @@ class FavoriteEntry {
         favoritedAt: favoritedAt,
         lastRead: timestamp,
         updatedAt: updatedAt,
+        lastSeenChapterCount: lastSeenChapterCount,
         category: category,
         status: status,
         groupIds: groupIds,
@@ -135,6 +142,7 @@ class FavoriteEntry {
         favoritedAt: favoritedAt,
         lastRead: lastRead,
         updatedAt: updatedAt,
+        lastSeenChapterCount: lastSeenChapterCount,
         category: category,
         status: status,
         groupIds: groupIds,
@@ -157,6 +165,7 @@ class FavoriteEntry {
         favoritedAt: favoritedAt,
         lastRead: lastRead,
         updatedAt: updatedAt,
+        lastSeenChapterCount: lastSeenChapterCount,
         category: category,
         status: status,
         groupIds: List<String>.unmodifiable(newGroupIds),
@@ -180,6 +189,7 @@ class FavoriteEntry {
         favoritedAt: favoritedAt,
         lastRead: lastRead,
         updatedAt: updatedAt,
+        lastSeenChapterCount: lastSeenChapterCount,
         category: category,
         status: status,
         groupIds: groupIds,
@@ -202,6 +212,30 @@ class FavoriteEntry {
         favoritedAt: favoritedAt,
         lastRead: lastRead,
         updatedAt: millis,
+        lastSeenChapterCount: lastSeenChapterCount,
+        category: category,
+        status: status,
+        groupIds: groupIds,
+        myRating: myRating,
+        myComment: myComment,
+      );
+
+  /// 返回一个更新了「已见章节数」的副本（M3 新章提示，目录加载回写）。
+  FavoriteEntry withLastSeenChapterCount(int count) => FavoriteEntry(
+        id: id,
+        title: title,
+        coverUrl: coverUrl,
+        sourceId: sourceId,
+        sourceType: sourceType,
+        author: author,
+        titleZh: titleZh,
+        director: director,
+        actors: actors,
+        detailUrl: detailUrl,
+        favoritedAt: favoritedAt,
+        lastRead: lastRead,
+        updatedAt: updatedAt,
+        lastSeenChapterCount: count,
         category: category,
         status: status,
         groupIds: groupIds,
@@ -237,6 +271,7 @@ class FavoriteEntry {
         'favoritedAt': favoritedAt,
         'lastRead': lastRead,
         'updatedAt': updatedAt,
+        'lastSeenChapterCount': lastSeenChapterCount,
         'category': category,
         'status': status,
         'groupIds': groupIds,
@@ -259,6 +294,7 @@ class FavoriteEntry {
         favoritedAt: json['favoritedAt'] as int? ?? 0,
         lastRead: json['lastRead'] as int? ?? 0,
         updatedAt: json['updatedAt'] as int? ?? 0,
+        lastSeenChapterCount: json['lastSeenChapterCount'] as int? ?? 0,
         category: json['category'] as String?,
         status: json['status'] as String?,
         groupIds:
@@ -403,6 +439,26 @@ class FavoritesManager extends ChangeNotifier {
     final idx = list.indexWhere((e) => e.id == contentId);
     if (idx < 0) return;
     list[idx] = list[idx].withLastRead(DateTime.now().millisecondsSinceEpoch);
+    await _persist();
+    notifyListeners();
+  }
+
+  /// 更新某收藏条目的「已见章节数」（M3 新章提示，详情页/阅读器目录加载回写）。
+  ///
+  /// 仅更新已存在条目；[count] 非正数时为无操作。回写后书架上
+  /// 「当前目录总数 > 已见数」的新章角标即消失。
+  Future<void> updateLastSeenChapters(
+    String contentId,
+    SourceType type,
+    int count,
+  ) async {
+    if (count <= 0) return;
+    final list = _cache[type];
+    if (list == null) return;
+    final idx = list.indexWhere((e) => e.id == contentId);
+    if (idx < 0) return;
+    if (list[idx].lastSeenChapterCount == count) return;
+    list[idx] = list[idx].withLastSeenChapterCount(count);
     await _persist();
     notifyListeners();
   }

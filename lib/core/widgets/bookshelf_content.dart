@@ -33,6 +33,7 @@ import '../settings/layout_settings.dart';
 import '../utils/chinese_collation.dart';
 import '../history/media_watched_manager.dart';
 import '../novel/novel_progress_manager.dart';
+import '../novel/novel_toc_cache.dart';
 import '../comic/comic_progress_manager.dart';
 import 'app_card.dart';
 import 'app_cover_image.dart';
@@ -490,6 +491,8 @@ class _FavoriteBookshelf extends StatelessWidget {
                 coverUrl: e.coverUrl,
                 source: e.sourceId != null ? repo.getById(e.sourceId!) : null,
                 author: e.author,
+                lastSeenChapterCount: e.lastSeenChapterCount,
+                sourceId: e.sourceId,
                 onTap: () => onItemTap?.call(e.toMediaItem()),
                 // 长按弹出操作菜单（分组指定 / Bangumi 绑定 / 待读队列，仅收藏书架）。
                 onLongPress: () => _showFavoriteActionsMenu(
@@ -802,6 +805,12 @@ class _BookshelfItem {
   /// 长按回调（仅收藏书架传入，弹出分组指定面板）。
   final VoidCallback? onLongPress;
 
+  /// 上次查看目录时的章节总数（M3 新章提示；仅收藏条目传入，0=未记录）。
+  final int lastSeenChapterCount;
+
+  /// 源 id（仅收藏/下载段需要：目录缓存与进度按源路由时使用）。
+  final String? sourceId;
+
   final int chapterCount;
 
   const _BookshelfItem({
@@ -814,6 +823,8 @@ class _BookshelfItem {
     this.onTap,
     this.onDelete,
     this.onLongPress,
+    this.lastSeenChapterCount = 0,
+    this.sourceId,
     this.chapterCount = 0,
   });
 }
@@ -1098,7 +1109,11 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
     LayoutSettings layout,
     double itemW,
   ) {
-    return FutureBuilder<double?>(
+    return FutureBuilder<(int, bool)?>(
+      future: _computeUnreadBadge(item),
+      builder: (ctx0, badgeSnap) {
+        final (int unread, bool isNew)? badge = badgeSnap.data;
+        return FutureBuilder<double?>(
       future: layout.showProgress ? _computeProgress(item) : Future<double?>.value(null),
       builder: (ctx2, snap) {
         Widget card = ContentCard(
@@ -1125,6 +1140,13 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
           clipBehavior: Clip.none,
           children: <Widget>[
             card,
+            // M3：小说收藏未读/新章角标（数字；isNew 红色标识有新章）。
+            if (badge != null)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: _buildUnreadBadge(ctx2, badge.$1, badge.$2),
+              ),
             if (item.onDelete != null)
               Positioned(
                 top: 4,
@@ -1150,7 +1172,69 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
           ],
         );
       },
+        );
+      },
     );
+  }
+
+  /// 未读/新章角标控件（M3）：胶囊数字；新章用 error 色。
+  Widget _buildUnreadBadge(BuildContext ctx, int count, bool isNew) {
+    final scheme = Theme.of(ctx).colorScheme;
+    final text = count > 99 ? '99+' : '$count';
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceXs + 1, vertical: 1),
+      constraints: const BoxConstraints(minWidth: 18),
+      decoration: BoxDecoration(
+        color: isNew ? scheme.error : scheme.primary,
+        borderRadius: BorderRadius.circular(AppTokens.radiusFull),
+        border: Border.all(color: scheme.surface, width: 1),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
+              color: scheme.onPrimary,
+              fontWeight: FontWeight.w700,
+              fontSize: 10,
+              height: 1.3,
+            ),
+      ),
+    );
+  }
+
+  /// 小说收藏条目的未读/新章角标数据（M3）。返回 `(未读数, 是否有新章)`，
+  /// null 表示不显示。
+  ///
+  /// - 总数：目录缓存优先（最新），进度内 totalChapters 兜底；
+  /// - 有进度：unread = total − 已读位置（≤0 不显示）；isNew 时红色；
+  /// - 无进度：仅在「总数 > 已见章节数」时显示红色新章角标
+  ///   （刚收藏未读过的书不打扰）。
+  Future<(int, bool)?> _computeUnreadBadge(_BookshelfItem item) async {
+    if (item.sourceType != SourceType.novelSource) return null;
+    try {
+      final progress = await NovelProgressManager().get(item.id);
+      final readPos = (progress?.chapterIndex ?? -1) + 1; // 0 = 无进度
+      var total = progress?.totalChapters ?? 0;
+      final sid = item.sourceId ?? item.source?.id;
+      if (sid != null && sid.isNotEmpty) {
+        try {
+          final cached = await NovelTocCache().read(sid, item.id);
+          if (cached != null && cached.length > total) total = cached.length;
+        } on Object {/* 目录缓存缺失忽略 */}
+      }
+      if (total <= 0) return null;
+      final bool isNew = item.lastSeenChapterCount > 0 &&
+          total > item.lastSeenChapterCount;
+      if (readPos > 0) {
+        final unread = total - readPos;
+        return unread > 0 ? (unread, isNew) : null;
+      }
+      if (isNew) return (total - item.lastSeenChapterCount, true);
+      return null;
+    } on Object {
+      return null;
+    }
   }
 
   /// 单行（列表模式）：封面 + 标题 + 作者 + 进度 + 删除按钮。

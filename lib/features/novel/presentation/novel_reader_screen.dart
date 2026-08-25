@@ -5104,6 +5104,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final tocStore = context.read<NovelTocStore>();
     final chapters = _effectiveChapters;
     tocStore.setChapters(widget.sourceId, widget.novelId, chapters);
+    // M3：回写「已见章节数」，书架新章角标随查看目录清除。
+    if (chapters.isNotEmpty) {
+      unawaited(context.read<FavoritesManager>().updateLastSeenChapters(
+          widget.novelId, SourceType.novelSource, chapters.length));
+    }
     // 本地书目录智能分卷分组：以最近的「卷/部」级标题作为分节名（TXT 行级
     // 切分保留了卷标题章；无任何卷级标题时返回 null，目录保持平铺）。
     final sections = _isLocalMode ? _computeVolumeSections(chapters) : null;
@@ -5542,6 +5547,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     try {
       final tocStore = context.read<NovelTocStore>();
       tocStore.setChapters(widget.sourceId, widget.novelId, chapters);
+      // M3：与目录一致，回写「已见章节数」。
+      if (chapters.isNotEmpty) {
+        unawaited(context.read<FavoritesManager>().updateLastSeenChapters(
+            widget.novelId, SourceType.novelSource, chapters.length));
+      }
       final result = await showNovelInBookSearchSheet(
         context: context,
         chapters: chapters,

@@ -415,6 +415,12 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       _tocNovelId!,
       _chapters,
     );
+    // M3：回写「已见章节数」到收藏条目，书架据此判定/清除新章角标。
+    if (_chapters.isNotEmpty) {
+      unawaited(context
+          .read<FavoritesManager>()
+          .updateLastSeenChapters(_tocNovelId!, _favType, _chapters.length));
+    }
   }
 
   /// 从共享目录源取回「更完整」的目录，覆盖当前详情页目录（阅读器侧刷新后回流）。
