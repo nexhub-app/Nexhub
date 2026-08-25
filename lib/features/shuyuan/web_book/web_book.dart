@@ -339,12 +339,17 @@ class WebBook {
 
   /// 获取章节正文：抓取 `chapterUrl` 并通过 `ruleContent` 解析。
   ///
-  /// **正文分页跟随**：许多站点把单章正文拆成多页（`xxx.html`、`xxx_2.html`…）。
-  /// 若书源声明了 `ruleContent.nextContentUrl`，本方法会沿"下一页"链接继续抓取
-  /// 并拼接，直到没有下一页为止。为避免误把"下一章"链接当成"下一页"（二者在
-  /// 部分站点的最后一页共用同一元素），仅当下一页 URL 与当前页属于**同一章**
-  /// （目录相同、去掉 `_N` 分页后缀后的文件名相同）时才继续跟随；并带访问去重
-  /// 与最大页数上限，杜绝死循环。此为通用引擎能力，对所有分页书源生效。
+  /// **正文分页跟随**（K3，双模式）：许多站点把单章正文拆成多页
+  /// （`xxx.html`、`xxx_2.html`…）。若书源声明了 `ruleContent.nextContentUrl`：
+  /// - **串行模式**：规则每页命中单个"下一页"链接时，逐页跟随抓取并拼接，
+  ///   直到没有下一页为止；
+  /// - **并发模式**：规则一次命中多个"下一页"链接（分页条全量选择器）时，
+  ///   按声明顺序 ≤4 并发抓取并保序拼接。
+  ///
+  /// 为避免误把"下一章"链接当成"下一页"（二者在部分站点的最后一页共用同一
+  /// 元素），仅当下一页 URL 与当前页属于**同一章**（目录相同、去掉 `_N` 分页
+  /// 后缀后的文件名相同）时才继续跟随；并带访问去重与最大页数上限（30），
+  /// 杜绝死循环。此为通用引擎能力，对所有分页书源生效。
   Future<BookContentResult> getContent({
     required XiaoshuoBookSource source,
     required String chapterUrl,
@@ -381,37 +386,81 @@ class WebBook {
       // `<根>_<数字>` / `<根>-<数字>` / `<根>/<数字>` 形式（见 _isNextPageOfChapter）。
       final chapterRoot = _chapterRootOf(firstAnalyze.url);
       final visited = <String>{chapterUrl, firstAnalyze.url};
-      var currentUrl = firstAnalyze.url;
-      var currentBody = firstBody;
       const maxPages = 30;
-      for (var i = 0; i < maxPages; i++) {
-        final nextUrl =
-            _extractNextContentUrl(currentBody, currentUrl, nextRule);
-        if (nextUrl.isEmpty || visited.contains(nextUrl)) break;
-        if (!_isNextPageOfChapter(chapterRoot, nextUrl, currentUrl)) break;
-        visited.add(nextUrl);
 
-        final pageAnalyze = AnalyzeUrl(
-          url: nextUrl,
-          baseUrl: source.bookSourceUrl,
-          source: source,
+      // 多页并发模式（K3）：规则一次命中多个"下一页"链接（如分页条全量
+      // 选择器返回整组页码链接）时，按声明顺序并发抓取（≤4 并发）并保序
+      // 拼接。任一子页失败/为空即停止追加（只保留连续前缀，避免正文中段
+      // 缺页）；并发子页不再继续提取下页，与串行循环互斥。
+      final batchUrls = _extractNextContentUrls(firstBody, firstAnalyze.url, nextRule)
+          .where((u) =>
+              !visited.contains(u) &&
+              _isNextPageOfChapter(chapterRoot, u, firstAnalyze.url))
+          .take(maxPages - 1)
+          .toList(growable: false);
+      if (batchUrls.length > 1) {
+        visited.addAll(batchUrls);
+        final pages = await mapOrderedPool<(String, String)>(
+          batchUrls,
+          4,
+          (url) async {
+            final analyze = AnalyzeUrl(
+              url: url,
+              baseUrl: source.bookSourceUrl,
+              source: source,
+            );
+            final body = await analyze.getStrResponse();
+            return (analyze.url, body);
+          },
         );
-        final pageBody = await pageAnalyze.getStrResponse();
-        if (pageBody.isEmpty) break;
+        for (final page in pages) {
+          if (page == null) break;
+          final (pageUrl, pageBody) = page;
+          if (pageBody.isEmpty) break;
+          final pageContent = BookContent.analyzeContent(
+            bookSource: source,
+            book: book,
+            bookChapter: XiaoshuoBookChapter(bookUrl: '', url: pageUrl),
+            baseUrl: pageUrl,
+            redirectUrl: pageUrl,
+            body: pageBody,
+          );
+          if (pageContent.isEmpty) break;
+          blocks.addAll(pageContent);
+        }
+      } else {
+        // 串行跟随模式：逐页提取单个"下一页"并抓取，直到没有下一页为止。
+        var currentUrl = firstAnalyze.url;
+        var currentBody = firstBody;
+        for (var i = 0; i < maxPages; i++) {
+          final nextUrl =
+              _extractNextContentUrl(currentBody, currentUrl, nextRule);
+          if (nextUrl.isEmpty || visited.contains(nextUrl)) break;
+          if (!_isNextPageOfChapter(chapterRoot, nextUrl, currentUrl)) break;
+          visited.add(nextUrl);
 
-        final pageContent = BookContent.analyzeContent(
-          bookSource: source,
-          book: book,
-          bookChapter: XiaoshuoBookChapter(bookUrl: '', url: nextUrl),
-          baseUrl: pageAnalyze.url,
-          redirectUrl: pageAnalyze.url,
-          body: pageBody,
-        );
-        if (pageContent.isEmpty) break;
+          final pageAnalyze = AnalyzeUrl(
+            url: nextUrl,
+            baseUrl: source.bookSourceUrl,
+            source: source,
+          );
+          final pageBody = await pageAnalyze.getStrResponse();
+          if (pageBody.isEmpty) break;
 
-        blocks.addAll(pageContent);
-        currentUrl = pageAnalyze.url;
-        currentBody = pageBody;
+          final pageContent = BookContent.analyzeContent(
+            bookSource: source,
+            book: book,
+            bookChapter: XiaoshuoBookChapter(bookUrl: '', url: nextUrl),
+            baseUrl: pageAnalyze.url,
+            redirectUrl: pageAnalyze.url,
+            body: pageBody,
+          );
+          if (pageContent.isEmpty) break;
+
+          blocks.addAll(pageContent);
+          currentUrl = pageAnalyze.url;
+          currentBody = pageBody;
+        }
       }
     }
 
@@ -438,6 +487,66 @@ class WebBook {
     } catch (_) {
       return '';
     }
+  }
+
+  /// 从当前页正文中提取全部"下一页"候选绝对 URL（K3 多页并发模式）。
+  ///
+  /// 规则一次命中多个链接（如分页条全量选择器）时逐条过滤：空串、
+  /// 回退 baseUrl、非 http(s) 占位链接（javascript:void(0)/# 等）均剔除。
+  List<String> _extractNextContentUrls(
+      String body, String baseUrl, String rule) {
+    try {
+      final analyzeRule = AnalyzeRule()
+        ..setContent(body, baseUrl)
+        ..setBaseUrl(baseUrl)
+        ..setRedirectUrl(baseUrl);
+      final raw = analyzeRule.getStringList(rule, isUrl: true);
+      final out = <String>[];
+      for (final u in raw) {
+        final t = u.trim();
+        if (t.isEmpty || t == baseUrl) continue;
+        final lower = t.toLowerCase();
+        if (!lower.startsWith('http://') && !lower.startsWith('https://')) {
+          continue;
+        }
+        if (!out.contains(t)) out.add(t);
+      }
+      return out;
+    } catch (_) {
+      return const <String>[];
+    }
+  }
+
+  /// 有界并发池（K3）：对 [urls] 并发执行 [task]，结果**按输入顺序**返回；
+  /// 单项抛错对应位为 null，不影响其他项。[limit] 为最大并发数。
+  ///
+  /// 静态纯调度逻辑（网络经 [task] 注入），便于单测保序性与并发上限。
+  static Future<List<T?>> mapOrderedPool<T>(
+    List<String> urls,
+    int limit,
+    Future<T> Function(String url) task,
+  ) async {
+    final results = List<T?>.filled(urls.length, null);
+    if (urls.isEmpty) return results;
+    var cursor = 0;
+    Future<void> worker() async {
+      while (cursor < urls.length) {
+        final i = cursor++;
+        try {
+          results[i] = await task(urls[i]);
+        } on Object {
+          results[i] = null;
+        }
+      }
+    }
+
+    final workerCount = limit < 1
+        ? 1
+        : (limit > urls.length ? urls.length : limit);
+    await Future.wait(
+      <Future<void>>[for (var w = 0; w < workerCount; w++) worker()],
+    );
+    return results;
   }
 
   /// 从当前目录页中提取"下一页"绝对 URL；无下一页时返回空串。
