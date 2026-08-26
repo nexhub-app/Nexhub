@@ -10304,6 +10304,36 @@ abstract class AppLocalizations {
   /// **'Dual-page mode'**
   String get novelTwoPageMode;
 
+  /// No description provided for @novelAiIllustrate.
+  ///
+  /// In en, this message translates to:
+  /// **'AI illustration'**
+  String get novelAiIllustrate;
+
+  /// No description provided for @novelAiIllustrateConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate an illustration for this chapter with the configured cloud AI and append it to the chapter content?'**
+  String get novelAiIllustrateConfirm;
+
+  /// No description provided for @novelAiIllustrating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating illustration…'**
+  String get novelAiIllustrating;
+
+  /// No description provided for @novelAiIllustrateDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration appended to chapter'**
+  String get novelAiIllustrateDone;
+
+  /// No description provided for @novelAiIllustrateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration failed'**
+  String get novelAiIllustrateFailed;
+
   /// No description provided for @novelTwoPageModeDesc.
   ///
   /// In en, this message translates to:

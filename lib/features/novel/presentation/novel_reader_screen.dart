@@ -93,6 +93,7 @@ import 'package:flutter/services.dart';
 import '../domain/novel_summary_service.dart';
 import '../domain/novel_summary_settings.dart';
 import '../domain/novel_translation_service.dart';
+import '../domain/novel_illustration_service.dart';
 // N7 内容编辑：正文编辑持久化管理器（Hive `novel_content_edits`）。
 
 /// 小说阅读器（Phase 4 — Task 19/20）。
@@ -2186,6 +2187,71 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       ),
     );
     if (mounted) setState(() {});
+  }
+
+  /// O4 AI 章节配图：云端生成一张本章插图，落盘后以插图占位行追加进
+  /// N7 内容编辑记录并重载（图文混排显示；重复生成覆盖旧图）。
+  Future<void> _generateAiIllustration() async {
+    final l10n = AppLocalizations.of(context);
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(l10n.novelAiIllustrate),
+        content: Text(l10n.novelAiIllustrateConfirm),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.novelAiIllustrating)),
+    );
+    try {
+      final chapter = widget.chapters[_chapterIndex];
+      final excerpt = <String>[
+        for (final b in _rawParagraphs)
+          if (b is NovelTextBlock && b.text.trim().isNotEmpty) b.text,
+      ].join('\n');
+      final path = await NovelIllustrationService().generateAndSave(
+        novelId: widget.novelId,
+        chapterId: chapter.id,
+        chapterTitle: chapter.title,
+        excerpt: excerpt,
+      );
+      // 追加到内容编辑记录（无编辑则从当前原文初始化），复用 N7 覆盖管线。
+      final existing = await _contentEdits.load(widget.novelId, chapter.id);
+      final baseText = NovelContentEditManager.encodeBlocksToEditableText(
+        existing?.blocks ?? _rawParagraphs,
+      );
+      final newText =
+          '$baseText\n\n${NovelIllustrationService.markerLineFor(path)}';
+      await _contentEdits.save(NovelContentEdit(
+        novelId: widget.novelId,
+        chapterId: chapter.id,
+        chapterIndex: _chapterIndex,
+        chapterTitle: chapter.title,
+        blocks: NovelContentEditManager.parseEditableText(newText),
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.novelAiIllustrateDone)),
+      );
+      unawaited(_loadChapter(_chapterIndex, restorePage: _currentPage));
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${l10n.novelAiIllustrateFailed}: $e')),
+      );
+    }
   }
 
   // ─────────────────────── 数据加载 ───────────────────────
@@ -5050,6 +5116,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     _showReadingOverview();
                   case 'translate':
                     _showTranslationSheet();
+                  case 'aiIllustration':
+                    _generateAiIllustration();
                   case 'contentEdit':
                     _showContentEditor();
                   case 'contentEditRestore':
@@ -5146,6 +5214,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     dense: true,
                   ),
                 ),
+                // O4 AI 章节配图（云端生图；聚合本地模式不提供）
+                if (!_isAggregatedLocal)
+                  PopupMenuItem<String>(
+                    value: 'aiIllustration',
+                    child: ListTile(
+                      leading: const Icon(Icons.auto_awesome_outlined),
+                      title: Text(l10n.novelAiIllustrate),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
                 // 聚合本地模式：章节排序（EPUB 展开位置）
                 if (_isAggregatedLocal) ...<PopupMenuEntry<String>>[
                   const PopupMenuDivider(),

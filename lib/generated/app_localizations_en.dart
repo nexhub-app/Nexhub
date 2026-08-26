@@ -5442,6 +5442,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelTwoPageMode => 'Dual-page mode';
 
   @override
+  String get novelAiIllustrate => 'AI illustration';
+
+  @override
+  String get novelAiIllustrateConfirm =>
+      'Generate an illustration for this chapter with the configured cloud AI and append it to the chapter content?';
+
+  @override
+  String get novelAiIllustrating => 'Generating illustration…';
+
+  @override
+  String get novelAiIllustrateDone => 'Illustration appended to chapter';
+
+  @override
+  String get novelAiIllustrateFailed => 'Illustration failed';
+
+  @override
   String get novelTwoPageModeDesc =>
       'In paged mode on wide screens, show two pages side by side like an open book';
 

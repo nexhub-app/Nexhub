@@ -5343,6 +5343,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelTwoPageMode => '双页模式';
 
   @override
+  String get novelAiIllustrate => 'AI 配图';
+
+  @override
+  String get novelAiIllustrateConfirm => '使用已配置的云端 AI 为本章生成一张插图，并追加到本章内容？';
+
+  @override
+  String get novelAiIllustrating => '正在生成插图…';
+
+  @override
+  String get novelAiIllustrateDone => '插图已追加到本章';
+
+  @override
+  String get novelAiIllustrateFailed => '配图失败';
+
+  @override
   String get novelTwoPageModeDesc => '翻页模式下宽屏左右并排显示两页，如摊开的实体书';
 
   @override
