@@ -2670,6 +2670,19 @@
   "playerSkipAuto": "自动跳过",
   "playerSkipHint": "留空表示不启用；设置对该作品的全部剧集生效。",
   "novelReadingSummary": "阅读速览",
+  "novelParagraphTranslate": "段落翻译",
+  "novelTranslateAction": "翻译本章",
+  "novelTranslateRetranslate": "重新翻译",
+  "novelTranslateProgress": "已译 {done} 段",
+  "@novelTranslateProgress": {
+    "placeholders": {
+      "done": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
+  "novelTranslateNoApi": "翻译失败——请先在「阅读速览」中配置云端 AI 接口",
+  "novelTranslating": "正在翻译…",
+  "novelTranslateHint": "点按「翻译本章」生成本章双语对照译文",
   "novelContentEdit": "内容编辑",
   "novelContentEditHint": "每段一段；@@NEXHUB_IMG@@ 开头行为插图，@@NEXHUB_TITLE@@ 前缀标记章节标题",
   "novelContentEditSaved": "本章内容已更新",

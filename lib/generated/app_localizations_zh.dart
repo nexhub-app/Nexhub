@@ -4978,6 +4978,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelReadingSummary => '阅读速览';
 
   @override
+  String get novelParagraphTranslate => '段落翻译';
+
+  @override
+  String get novelTranslateAction => '翻译本章';
+
+  @override
+  String get novelTranslateRetranslate => '重新翻译';
+
+  @override
+  String novelTranslateProgress(String done, String total) {
+    return '已译 $done 段';
+  }
+
+  @override
+  String get novelTranslateNoApi => '翻译失败——请先在「阅读速览」中配置云端 AI 接口';
+
+  @override
+  String get novelTranslating => '正在翻译…';
+
+  @override
+  String get novelTranslateHint => '点按「翻译本章」生成本章双语对照译文';
+
+  @override
   String get novelContentEdit => '内容编辑';
 
   @override

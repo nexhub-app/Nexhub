@@ -77,6 +77,7 @@ import '../../verification/presentation/webview_verification_screen.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/local/local_novel_parser.dart';
 import '../../../core/novel/novel_content_edit_manager.dart';
+import '../../../core/novel/novel_translation_manager.dart';
 import '../../../core/novel/novel_toc_store.dart';
 import 'novel_animated_page_view.dart';
 import 'novel_bookmark_manager.dart';
@@ -91,6 +92,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import '../domain/novel_summary_service.dart';
 import '../domain/novel_summary_settings.dart';
+import '../domain/novel_translation_service.dart';
 // N7 内容编辑：正文编辑持久化管理器（Hive `novel_content_edits`）。
 
 /// 小说阅读器（Phase 4 — Task 19/20）。
@@ -2129,6 +2131,28 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
     _chapterIndex = bm.chapterIndex;
     _loadChapter(_chapterIndex, restorePage: bm.page);
+  }
+
+  /// O3 段落翻译：双语对照面板（缓存优先展示，可整章翻译并持久化）。
+  Future<void> _showTranslationSheet() async {
+    final paragraphs = <String>[
+      for (final b in _paragraphs)
+        if (b is NovelTextBlock && !b.isHeading && b.text.trim().isNotEmpty)
+          b.text,
+    ];
+    final chapter = widget.chapters[_chapterIndex];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _NovelTranslationSheet(
+        novelId: widget.novelId,
+        chapterId: chapter.id,
+        chapterTitle: chapter.title,
+        paragraphs: paragraphs,
+        manager: NovelTranslationManager(),
+      ),
+    );
+    if (mounted) setState(() {});
   }
 
   // ─────────────────────── 数据加载 ───────────────────────
@@ -4939,6 +4963,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     _showBookmarkList();
                   case 'summary':
                     _showReadingOverview();
+                  case 'translate':
+                    _showTranslationSheet();
                   case 'contentEdit':
                     _showContentEditor();
                   case 'contentEditRestore':
@@ -10131,6 +10157,193 @@ class _NovelImageFavoriteViewerState extends State<_NovelImageFavoriteViewer> {
               fit: BoxFit.contain,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// O3 段落翻译双语面板：原文/译文逐段对照；缓存命中直接展示，
+/// 「翻译本章」走云端 AI（批量优先、分块回退），完成后持久化缓存。
+class _NovelTranslationSheet extends StatefulWidget {
+  const _NovelTranslationSheet({
+    required this.novelId,
+    required this.chapterId,
+    required this.chapterTitle,
+    required this.paragraphs,
+    required this.manager,
+  });
+
+  final String novelId;
+  final String chapterId;
+  final String chapterTitle;
+  final List<String> paragraphs;
+  final NovelTranslationManager manager;
+
+  @override
+  State<_NovelTranslationSheet> createState() => _NovelTranslationSheetState();
+}
+
+class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
+  List<String>? _translations;
+  bool _translating = false;
+  String? _progress;
+  String _progressTotal = '';
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCache();
+  }
+
+  Future<void> _loadCache() async {
+    final cached = await widget.manager
+        .load(widget.novelId, widget.chapterId);
+    if (mounted && cached != null) {
+      setState(() => _translations = cached.translations);
+    }
+  }
+
+  Future<void> _translate() async {
+    if (_translating) return;
+    setState(() {
+      _translating = true;
+      _error = null;
+      _progress = null;
+    });
+    try {
+      final result = await NovelTranslationService().translateParagraphs(
+        widget.paragraphs,
+        onProgress: (done, total) {
+          if (mounted) {
+            setState(() {
+              _progress = '$done';
+              _progressTotal = '$total';
+            });
+          }
+        },
+      );
+      await widget.manager.save(NovelChapterTranslation(
+        novelId: widget.novelId,
+        chapterId: widget.chapterId,
+        chapterTitle: widget.chapterTitle,
+        lang: NovelTranslationManager.defaultLang,
+        translations: result,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ));
+      if (mounted) setState(() => _translations = result);
+    } on Object catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _translating = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.all(AppTokens.spaceMd),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      l10n.novelParagraphTranslate,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed:
+                        _translating || widget.paragraphs.isEmpty
+                            ? null
+                            : _translate,
+                    icon: _translating
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.translate, size: 18),
+                    label: Text(_translations == null
+                        ? l10n.novelTranslateAction
+                        : l10n.novelTranslateRetranslate),
+                  ),
+                ],
+              ),
+            ),
+            if (_translating && _progress != null)
+              Padding(
+                padding:
+                    const EdgeInsets.only(bottom: AppTokens.spaceXs),
+                child: Text(l10n.novelTranslateProgress(_progress!, _progressTotal),
+                    style: TextStyle(
+                        fontSize: 12, color: scheme.onSurfaceVariant)),
+              ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
+                child: Text(
+                  l10n.novelTranslateNoApi,
+                  style: TextStyle(fontSize: 12, color: scheme.error),
+                ),
+              ),
+            const Divider(height: 1),
+            Expanded(
+              child: _translations == null
+                  ? Center(
+                      child: Text(
+                        _translating
+                            ? l10n.novelTranslating
+                            : l10n.novelTranslateHint,
+                        style: TextStyle(color: scheme.onSurfaceVariant),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding:
+                          const EdgeInsets.all(AppTokens.spaceMd),
+                      itemCount: widget.paragraphs.length,
+                      itemBuilder: (context, i) {
+                        final t = i < _translations!.length
+                            ? _translations![i]
+                            : '';
+                        return Padding(
+                          padding: const EdgeInsets.only(
+                              bottom: AppTokens.spaceMd),
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(widget.paragraphs[i],
+                                  style: const TextStyle(
+                                      fontSize: 14, height: 1.5)),
+                              const SizedBox(height: AppTokens.spaceXs),
+                              Text(
+                                t.isEmpty ? '…' : t,
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    height: 1.5,
+                                    color: scheme.primary),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
     );

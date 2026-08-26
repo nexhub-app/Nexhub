@@ -9632,6 +9632,48 @@ abstract class AppLocalizations {
   /// **'Reading overview'**
   String get novelReadingSummary;
 
+  /// No description provided for @novelParagraphTranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'Paragraph translation'**
+  String get novelParagraphTranslate;
+
+  /// No description provided for @novelTranslateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate chapter'**
+  String get novelTranslateAction;
+
+  /// No description provided for @novelTranslateRetranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-translate'**
+  String get novelTranslateRetranslate;
+
+  /// No description provided for @novelTranslateProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} paragraphs'**
+  String novelTranslateProgress(String done, String total);
+
+  /// No description provided for @novelTranslateNoApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation failed — configure the cloud AI endpoint in Reading Overview'**
+  String get novelTranslateNoApi;
+
+  /// No description provided for @novelTranslating.
+  ///
+  /// In en, this message translates to:
+  /// **'Translating…'**
+  String get novelTranslating;
+
+  /// No description provided for @novelTranslateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Translate chapter to render a bilingual view of this chapter'**
+  String get novelTranslateHint;
+
   /// No description provided for @novelContentEdit.
   ///
   /// In en, this message translates to:

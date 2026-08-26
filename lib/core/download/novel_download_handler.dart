@@ -19,6 +19,7 @@ import '../local/local_novel_parser.dart' show kNexhubImgMarker;
 import '../novel/novel_chinese_converter.dart';
 import '../novel/novel_export_template.dart';
 import '../novel/novel_highlight_manager.dart';
+import '../novel/novel_translation_manager.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/media_api_service.dart';
 import '../utils/app_log.dart';
@@ -41,6 +42,7 @@ class NovelDownloadHandler implements DownloadHandler {
     this.concurrency = 1,
     this.convertMode = ChineseConvertMode.none,
     this.includeHighlights = false,
+    this.includeTranslations = false,
     this.exportTemplate,
     this.coverUrl,
     this.templateStore,
@@ -65,6 +67,10 @@ class NovelDownloadHandler implements DownloadHandler {
   /// P2-11：是否把本书划线/批注作为附录附带进导出（EPUB 追加一章，
   /// TXT 追加一个划线文件）。默认关闭，调用方显式开启。
   final bool includeHighlights;
+
+  /// F5：是否把已缓存的章节译文（O3 段落翻译）作为附录附带进导出。
+  /// 仅包含有译文的章节；默认关闭，调用方显式开启。
+  final bool includeTranslations;
 
   /// F4：导出模板（显式传入优先；为 null 时下载开始时从
   /// [templateStore] 异步载入全局模板）。
@@ -289,6 +295,19 @@ class NovelDownloadHandler implements DownloadHandler {
         }
       }
 
+      // F5：已缓存译文附带为书末附录章节（仅当开启且存在翻译缓存时）。
+      if (includeTranslations) {
+        final translations = await _loadTranslations();
+        final html =
+            NovelDownloadHandler.translationsToEpubHtml(translations);
+        if (html != null) {
+          epubChapters.add(EpubChapter(
+            title: NovelDownloadHandler.translationsTitle,
+            content: html,
+          ));
+        }
+      }
+
       final bytes = EpubBuilder.build(
         metadata: metadata,
         chapters: epubChapters,
@@ -319,6 +338,16 @@ class NovelDownloadHandler implements DownloadHandler {
             fs.join(workDir, '${NovelDownloadHandler.highlightsTitle}.txt');
         await fs.writeString(
             highlightsPath, NovelDownloadHandler.highlightsToTxt(highlights));
+      }
+    }
+    // F5：已缓存译文附带为独立文件（不进入 chapterFilePaths）。
+    if (includeTranslations) {
+      final translations = await _loadTranslations();
+      if (translations.isNotEmpty) {
+        final path =
+            fs.join(workDir, '${NovelDownloadHandler.translationsTitle}.txt');
+        await fs.writeString(
+            path, NovelDownloadHandler.translationsToTxt(translations));
       }
     }
     return DownloadResult(workPath: workDir, chapterFilePaths: chapterFilePaths);
@@ -414,6 +443,57 @@ class NovelDownloadHandler implements DownloadHandler {
       paragraphs.add('<p>${_escape(p)}</p>');
     }
     return paragraphs.join('\n');
+  }
+
+  /// F5：读取本书全部章节译文缓存（异常返回空列表，不影响导出主流程）。
+  Future<List<NovelChapterTranslation>> _loadTranslations() async {
+    try {
+      return await NovelTranslationManager().listForNovel(novelId);
+    } on Object {
+      return const <NovelChapterTranslation>[];
+    }
+  }
+
+  /// 译文导出标题（EPUB 章节名 / TXT 文件名共用）。
+  static const String translationsTitle = '_段落翻译';
+
+  /// 把译文缓存渲染为 EPUB 附录 HTML：每章一节（章名加粗），段内
+  /// 「原文 + 译文」两行对照；空列表返回 null（不追加附录）。
+  static String? translationsToEpubHtml(
+      List<NovelChapterTranslation> translations) {
+    final parts = <String>[];
+    for (final t in translations) {
+      if (t.translations.isEmpty) continue;
+      final buf = StringBuffer();
+      buf.write('<span style="font-weight:bold">'
+          '${_escape(t.chapterTitle.isEmpty ? t.chapterId : t.chapterTitle)}'
+          '</span><br/>');
+      for (var i = 0; i < t.translations.length; i++) {
+        buf.write('<p>${_escape(t.translations[i])}</p>');
+      }
+      parts.add(buf.toString());
+    }
+    if (parts.isEmpty) return null;
+    return '<hr/>${parts.join('<hr/>')}';
+  }
+
+  /// 译文缓存的 TXT 版本：每节「【章名】+ 逐行译文」，节间空行分隔。
+  static String translationsToTxt(
+      List<NovelChapterTranslation> translations) {
+    final buffer = StringBuffer();
+    buffer.writeln('书内段落译文（F5 导出附录）');
+    buffer.writeln('======================');
+    buffer.writeln();
+    for (final t in translations) {
+      final title =
+          t.chapterTitle.isNotEmpty ? t.chapterTitle : t.chapterId;
+      buffer.writeln('【$title】');
+      for (final line in t.translations) {
+        buffer.writeln(line);
+      }
+      buffer.writeln();
+    }
+    return buffer.toString();
   }
 
   /// 读取本书全部划线 / 批注（按章节顺序、创建时间升序）。

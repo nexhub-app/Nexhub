@@ -36,6 +36,8 @@ const List<String> kStorageBoxNames = <String>[
   'novel_highlights',
   // 小说正文内容编辑（N7：读者直接改正文并持久化，整章覆盖语义）
   'novel_content_edits',
+  // 小说段落翻译缓存（O3 双语面板 / F5 导出附带）
+  'novel_translations',
   'comic_bookmarks',
   // 漫画阅读器收藏的图片（图库页数据，REQ-C2）
   ImageFavoriteManager.boxName, // 'image_favorites'

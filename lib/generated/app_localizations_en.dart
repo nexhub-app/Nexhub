@@ -5072,6 +5072,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelReadingSummary => 'Reading overview';
 
   @override
+  String get novelParagraphTranslate => 'Paragraph translation';
+
+  @override
+  String get novelTranslateAction => 'Translate chapter';
+
+  @override
+  String get novelTranslateRetranslate => 'Re-translate';
+
+  @override
+  String novelTranslateProgress(String done, String total) {
+    return '$done of $total paragraphs';
+  }
+
+  @override
+  String get novelTranslateNoApi =>
+      'Translation failed — configure the cloud AI endpoint in Reading Overview';
+
+  @override
+  String get novelTranslating => 'Translating…';
+
+  @override
+  String get novelTranslateHint =>
+      'Tap Translate chapter to render a bilingual view of this chapter';
+
+  @override
   String get novelContentEdit => 'Edit chapter content';
 
   @override

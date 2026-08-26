@@ -1453,6 +1453,8 @@ class DownloadManager extends ChangeNotifier {
           convertMode: novelConvertMode,
           // P2-11：导出附带划线 / 批注附录。
           includeHighlights: true,
+          // F5：导出附带已缓存的章节译文（O3 段落翻译）。
+          includeTranslations: true,
           // F4：全局导出模板（CSS/封面/简介）+ 网络封面（嵌入 EPUB 封面页）。
           coverUrl: novelCoverUrl,
         );

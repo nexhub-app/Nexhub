@@ -2693,6 +2693,19 @@
   "playerSkipAuto": "Auto skip",
   "playerSkipHint": "Leave empty to disable. Applies to all episodes of this series.",
   "novelReadingSummary": "Reading overview",
+  "novelParagraphTranslate": "Paragraph translation",
+  "novelTranslateAction": "Translate chapter",
+  "novelTranslateRetranslate": "Re-translate",
+  "novelTranslateProgress": "{done} of {total} paragraphs",
+  "@novelTranslateProgress": {
+    "placeholders": {
+      "done": {"type": "String"},
+      "total": {"type": "String"}
+    }
+  },
+  "novelTranslateNoApi": "Translation failed — configure the cloud AI endpoint in Reading Overview",
+  "novelTranslating": "Translating…",
+  "novelTranslateHint": "Tap Translate chapter to render a bilingual view of this chapter",
   "novelContentEdit": "Edit chapter content",
   "novelContentEditHint": "One paragraph per block; lines starting with @@NEXHUB_IMG@@ are illustrations and @@NEXHUB_TITLE@@ marks headings",
   "novelContentEditSaved": "Chapter content updated",
