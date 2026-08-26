@@ -3,14 +3,38 @@ library;
 
 import 'package:flutter_js/flutter_js.dart';
 
+import '../../../core/novel/novel_chinese_converter.dart';
 import '../../../core/utils/app_log.dart';
 
 class JsEngine {
   JavascriptRuntime? _runtime;
 
+  /// 是否已注入全局预置脚本（繁简转换 t2s()/s2t()）。
+  bool _preludeInjected = false;
+
   JavascriptRuntime get runtime {
-    _runtime ??= getJavascriptRuntime();
+    if (_runtime == null) {
+      _runtime = getJavascriptRuntime();
+      _injectPrelude();
+    }
     return _runtime!;
+  }
+
+  /// 注入全局预置脚本（E5）：书源 JS 内可直接调用 `t2s(str)` / `s2t(str)`
+  /// 做繁简转换（短语级最长匹配 + 字符级回退，与阅读器正文转换同表同语义）。
+  /// QuickJS 同一运行时的全局声明跨 eval 持久，注入一次即可。
+  void _injectPrelude() {
+    if (_preludeInjected) return;
+    _preludeInjected = true;
+    try {
+      final result = _runtime!.evaluate(chineseConverterJsPrelude);
+      if (result.isError) {
+        AppLog.instance.w(
+            '[书源JS] 繁简转换预置脚本注入失败: ${result.stringResult}');
+      }
+    } catch (e) {
+      AppLog.instance.w('[书源JS] 繁简转换预置脚本注入异常: $e');
+    }
   }
 
   /// 执行 [jsStr]，绑定 [bindings] 为 JS 全局变量。
@@ -90,5 +114,7 @@ class JsEngine {
   void dispose() {
     _runtime?.dispose();
     _runtime = null;
+    // 运行时重建后需重新注入预置脚本。
+    _preludeInjected = false;
   }
 }

@@ -268,3 +268,62 @@ List<String> convertChineseList(
       .map((String p) => convertChinese(p, mode))
       .toList(growable: false);
 }
+
+// ── JS 沙箱预置脚本（E5：书源 JS 内暴露 t2s()/s2t()）──────────────────
+
+String _jsEscape(String s) => s
+    .replaceAll('\\', r'\\')
+    .replaceAll('"', r'\"')
+    .replaceAll('\n', r'\n')
+    .replaceAll('\r', r'\r')
+    .replaceAll('\t', r'\t')
+    .replaceAll('\u2028', r'\u2028')
+    .replaceAll('\u2029', r'\u2029');
+
+String _jsObjectFromMap(Map<String, String> map) {
+  final entries = map.entries
+      .map((e) => '"${_jsEscape(e.key)}":"${_jsEscape(e.value)}"')
+      .join(',');
+  return '{$entries}';
+}
+
+String _jsArrayFromEntries(List<MapEntry<String, String>> entries) {
+  final items = entries
+      .map((e) => '["${_jsEscape(e.key)}","${_jsEscape(e.value)}"]')
+      .join(',');
+  return '[$items]';
+}
+
+/// 生成交给 JS 沙箱求值的繁简转换预置脚本（E5）。
+///
+/// 在书源 JS 环境注册全局 `t2s(str)` / `s2t(str)`，语义与 [convertChinese]
+/// 完全一致：短语级最长匹配（含排除词「自身→自身」）优先、字符级映射回退、
+/// 按 Unicode 码点切分。映射数据由 Dart 侧映射表序列化为 JS 字面量，
+/// 保证书源脚本与阅读器正文的转换结果一致；表更新后此处自动跟随。
+final String chineseConverterJsPrelude = () {
+  final js = StringBuffer()
+    ..write('(function(global){')
+    ..write('var T2S=${_jsObjectFromMap(_t2sMap)};')
+    ..write('var S2T=${_jsObjectFromMap(_s2tMap)};')
+    // 短语表按 key 长度降序序列化，与 Dart 侧最长匹配顺序一致。
+    ..write('var PT2S=${_jsArrayFromEntries(_phraseT2SSorted)};')
+    ..write('var PS2T=${_jsArrayFromEntries(_phraseS2TSorted)};')
+    ..write('function __zhConv(s,charMap,phrases){')
+    ..write('if(s===null||s===undefined)return \'\';')
+    ..write('s=String(s);if(!s.length)return s;')
+    // Array.from 按 Unicode 码点切分，对齐 Dart runes 语义（含增补平面字符）。
+    ..write('var runes=Array.from(s);var out=\'\';var i=0;')
+    ..write('while(i<runes.length){var matched=false;')
+    ..write('for(var p=0;p<phrases.length;p++){')
+    ..write('var key=phrases[p][0];')
+    ..write('if(i+key.length<=runes.length&&runes.slice(i,i+key.length).join(\'\')===key){')
+    ..write('out+=phrases[p][1];i+=key.length;matched=true;break;}')
+    ..write('}')
+    ..write('if(!matched){var ch=runes[i];out+=(charMap[ch]!==undefined?charMap[ch]:ch);i+=1;}')
+    ..write('}')
+    ..write('return out;}')
+    ..write('global.t2s=function(s){return __zhConv(s,T2S,PT2S);};')
+    ..write('global.s2t=function(s){return __zhConv(s,S2T,PS2T);};')
+    ..write('})(globalThis);');
+  return js.toString();
+}();
