@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/local/local_novel_parser.dart';
+import 'package:nexhub/core/models/novel_block.dart';
+import 'package:nexhub/core/novel/novel_content_edit_manager.dart';
 import 'package:nexhub/features/novel/domain/novel_illustration_service.dart';
 
 void main() {
