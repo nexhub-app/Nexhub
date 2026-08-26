@@ -5337,6 +5337,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelHfPageAndProgress => '页码及进度';
 
   @override
+  String get novelHfBookPageNumber => '整本页码';
+
+  @override
   String get novelHfTimeAndBattery => '时间及电量';
 
   @override

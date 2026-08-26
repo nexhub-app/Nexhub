@@ -5436,6 +5436,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelHfPageAndProgress => 'Page & progress';
 
   @override
+  String get novelHfBookPageNumber => 'Book page number';
+
+  @override
   String get novelHfTimeAndBattery => 'Time & battery';
 
   @override

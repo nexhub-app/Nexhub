@@ -374,6 +374,32 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 偏好版本号：任何阅读设置（字号/行距/段距/边距/字体/标题样式…）变化都自增，
   /// 作为分页缓存签名的一部分，确保改设置后分页立即刷新。
   int _prefsVersion = 0;
+
+  /// G3 整本分页校准：本会话内已见过的「章节 → 页数」缓存。每次某章完成
+  /// 分页即记录；整本页码 tip 由它跨章累计（会话级，不持久化——页数随
+  /// 排版偏好与屏幕尺寸变化，跨会话复用反而失真）。
+  final Map<int, int> _chapterPageCounts = <int, int>{};
+
+  /// 计算整本页码文案（G3）：
+  /// - 全部章节数已知 → `第 X 页 / 共 Y 页`（精确校准）；
+  /// - 部分已知 → `全书第 X+ 页`（`+` 表示后续章节尚未校准，估算值）；
+  /// - 无任何分页数据 → 空串（槽位退化为空）。
+  String _bookPageLabelFor(int page) {
+    if (_chapterPageCounts.isEmpty) return '';
+    var before = 0;
+    for (final e in _chapterPageCounts.entries) {
+      if (e.key < _chapterIndex) before += e.value;
+    }
+    final x = before + page + 1;
+    final totalChapters = _effectiveChapters.length;
+    var totalPages = 0;
+    for (final e in _chapterPageCounts.entries) {
+      totalPages += e.value;
+    }
+    final bool allKnown =
+        totalChapters > 0 && _chapterPageCounts.length >= totalChapters;
+    return allKnown ? '第 $x 页 / 共 $totalPages 页' : '全书第 $x+ 页';
+  }
   bool _loading = true;
   String? _error;
   bool _isResolveError = false;
@@ -4420,6 +4446,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           );
           _paginationSig = sig;
           _paginationChapterIndex = _chapterIndex;
+          // G3：本章页数入整本校准缓存（覆盖旧值——同章重新分页以新值为准）。
+          _chapterPageCounts[_chapterIndex] = _pagination!.pages.length;
           // 分页真正变化时（章节 / 偏好 / 尺寸），帧后注入选区控制器并加载划线。
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && _paginationChapterIndex == _chapterIndex) {
@@ -4540,6 +4568,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     onParagraphTap: _onParagraphTapped,
                     onImageTap: (url, src) => _showImageViewer(url, src ?? _source),
                     source: _source,
+                    bookPageLabel: (p) => _bookPageLabelFor(p),
                     selectionController: _selectionController,
                     onSelectionConfirmed: () {
                       if (mounted) {
@@ -6763,6 +6792,8 @@ String _hfContentLabel(NovelHeaderFooterContent c, AppLocalizations l10n) {
       return l10n.novelHfPageAndProgress;
     case NovelHeaderFooterContent.timeAndBattery:
       return l10n.novelHfTimeAndBattery;
+    case NovelHeaderFooterContent.bookPageNumber:
+      return l10n.novelHfBookPageNumber;
   }
 }
 
@@ -7140,6 +7171,10 @@ class _NovelPageWidget extends StatelessWidget {
   /// 长按选区结束后（有非空选区）回调，用于显示工具条。
   final VoidCallback? onSelectionConfirmed;
 
+  /// G3 整本页码：给定章内页码，返回跨章累计的全书页位文案
+  /// （由阅读器状态基于会话分页缓存计算；null/空串表示不可用）。
+  final String Function(int page)? bookPageLabel;
+
   const _NovelPageWidget({
     required this.lines,
     this.onImageTap,
@@ -7165,6 +7200,7 @@ class _NovelPageWidget extends StatelessWidget {
     this.searchKeyword,
     this.searchRegex,
     this.onParagraphTap,
+    this.bookPageLabel,
   });
 
   @override
@@ -7530,6 +7566,8 @@ class _NovelPageWidget extends StatelessWidget {
           '${page + 1}/$total  ${(progress * 100).round()}%',
         NovelHeaderFooterContent.timeAndBattery =>
           '${time}${batteryLevel >= 0 ? '  $batteryLevel%' : ''}',
+        NovelHeaderFooterContent.bookPageNumber =>
+          bookPageLabel?.call(page) ?? '',
       };
     }
 

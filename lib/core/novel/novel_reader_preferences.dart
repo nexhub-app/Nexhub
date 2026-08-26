@@ -106,7 +106,11 @@ enum NovelHeaderFooterContent {
   pageNumber,
   progressPercent,
   pageAndProgress,
-  timeAndBattery;
+  timeAndBattery,
+
+  /// 整本页码（G3）：跨章累计的全书页位（已读章节数来自本会话分页缓存；
+  /// 未全部校准时以「+」标注估算）。
+  bookPageNumber;
 
   static NovelHeaderFooterContent fromString(String? raw) {
     return switch (raw) {
@@ -118,6 +122,7 @@ enum NovelHeaderFooterContent {
       'progressPercent' => progressPercent,
       'pageAndProgress' => pageAndProgress,
       'timeAndBattery' => timeAndBattery,
+      'bookPageNumber' => bookPageNumber,
       _ => none,
     };
   }
@@ -132,6 +137,7 @@ enum NovelHeaderFooterContent {
         NovelHeaderFooterContent.progressPercent => 'novelHfProgressPercent',
         NovelHeaderFooterContent.pageAndProgress => 'novelHfPageAndProgress',
         NovelHeaderFooterContent.timeAndBattery => 'novelHfTimeAndBattery',
+        NovelHeaderFooterContent.bookPageNumber => 'novelHfBookPageNumber',
       };
 }
 
@@ -898,6 +904,26 @@ class NovelReaderPreferences {
     );
   }
 
+  /// 以 [base] 为底，仅用 [keys] 列出的字段覆盖（显式「本书单独设置」）。
+  ///
+  /// 与 [mergedWith] 靠「与类默认值比较」推断不同，本方法由调用方显式给出
+  /// 用户真正改过的字段名（[NovelReaderPreferencesStore.getOverrideKeys]），
+  /// 未列出的字段一律跟随全局默认——保证总设置的修改实时作用于
+  /// 没有单独设置该书对应字段的情况。
+  NovelReaderPreferences mergedWithKeys(
+    NovelReaderPreferences base,
+    Iterable<String> keys,
+  ) {
+    final keySet = keys.toSet();
+    if (keySet.isEmpty) return base;
+    final selfJson = toJson();
+    final mergedJson = <String, dynamic>{...base.toJson()};
+    for (final key in keySet) {
+      if (selfJson.containsKey(key)) mergedJson[key] = selfJson[key];
+    }
+    return NovelReaderPreferences.fromJson(mergedJson);
+  }
+
   /// 解析背景色（自定义优先，否则取预设）。
   ///
   /// 夜间快捷开关（[nightMode]）：开启时不再强制单一深灰，而是在**所选**
@@ -1335,6 +1361,29 @@ abstract final class NovelTypographyShare {
   }
 }
 
+/// 计算 [next] 相对 [prev] 发生变化的字段名集合（[NovelReaderPreferences.toJson] 键）。
+///
+/// 列表字段按内容比较，其余用 `==`。弹窗每次改动调用一次，
+/// 把差集累积进「本书单独设置」覆盖记录，取代整包落盘后的默认值猜测。
+Set<String> novelPrefsChangedKeys(
+  NovelReaderPreferences prev,
+  NovelReaderPreferences next,
+) {
+  final a = prev.toJson();
+  final b = next.toJson();
+  final changed = <String>{};
+  for (final entry in b.entries) {
+    final av = a[entry.key];
+    final bv = entry.value;
+    if (av is List && bv is List) {
+      if (!listEquals(av, bv)) changed.add(entry.key);
+    } else if (av != bv) {
+      changed.add(entry.key);
+    }
+  }
+  return changed;
+}
+
 /// 小说阅读器偏好存储（按 novelId 持久化）。
 class NovelReaderPreferencesStore {
   NovelReaderPreferencesStore({PrefsBackend? backend})
@@ -1344,6 +1393,12 @@ class NovelReaderPreferencesStore {
   final Map<String, NovelReaderPreferences> _cache = {};
 
   static const String _prefix = 'novel_prefs_';
+
+  /// 显式「本书单独设置」覆盖记录的 sidecar 键后缀。
+  ///
+  /// 与偏好本体分开存：本体仍是完整 JSON（兼容旧版/云同步），但合并时只认
+  /// 这里列出的字段；未列出的字段实时跟随总设置。
+  static const String _overrideSuffix = '#ovr';
 
   Future<NovelReaderPreferences> get(String novelId) async {
     final cached = _cache[novelId];
@@ -1358,8 +1413,38 @@ class NovelReaderPreferencesStore {
     }
   }
 
-  Future<void> save(String novelId, NovelReaderPreferences prefs) async {
+  /// 读取本书显式单独设置过的字段名集合。
+  ///
+  /// 无 sidecar 记录的历史数据按旧规则迁移推断：与类默认值不同的字段视为
+  /// 单独设置（维持既有表现，不丢用户已调好的配置）。
+  Future<Set<String>> getOverrideKeys(String novelId) async {
+    final raw = await _backend.get('$_prefix$novelId$_overrideSuffix');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          return <String>{for (final e in decoded) e.toString()};
+        }
+      } on Object {
+        // 解析失败则回退到旧规则推断。
+      }
+    }
+    final stored = await get(novelId);
+    return novelPrefsChangedKeys(const NovelReaderPreferences(), stored);
+  }
+
+  /// 保存偏好。[overrideKeys] 非空时同步写入显式覆盖记录；
+  /// 传空集合表示清除全部单独设置（恢复本书默认）。
+  Future<void> save(
+    String novelId,
+    NovelReaderPreferences prefs, {
+    Set<String>? overrideKeys,
+  }) async {
     _cache[novelId] = prefs;
     await _backend.set('$_prefix$novelId', jsonEncode(prefs.toJson()));
+    if (overrideKeys != null) {
+      await _backend.set('$_prefix$novelId$_overrideSuffix',
+          jsonEncode(overrideKeys.toList()..sort()));
+    }
   }
 }

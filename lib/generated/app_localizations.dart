@@ -10292,6 +10292,12 @@ abstract class AppLocalizations {
   /// **'Page & progress'**
   String get novelHfPageAndProgress;
 
+  /// No description provided for @novelHfBookPageNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Book page number'**
+  String get novelHfBookPageNumber;
+
   /// No description provided for @novelHfTimeAndBattery.
   ///
   /// In en, this message translates to:

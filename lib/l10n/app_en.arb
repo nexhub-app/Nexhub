@@ -2919,6 +2919,7 @@
   "novelHeaderFooterColor": "Header & Footer color",
   "novelHeaderFooterMargin": "Header & Footer margin",
   "novelHfPageAndProgress": "Page & progress",
+  "novelHfBookPageNumber": "Book page number",
   "novelHfTimeAndBattery": "Time & battery",
   "layoutDetailGroup": "Layout Details",
   "layoutProgressDisplay": "Progress Display",

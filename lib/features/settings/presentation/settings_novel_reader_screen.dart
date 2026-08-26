@@ -320,6 +320,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
       NovelHeaderFooterContent.progressPercent => l10n.novelHfProgressPercent,
       NovelHeaderFooterContent.pageAndProgress => l10n.novelHfPageAndProgress,
       NovelHeaderFooterContent.timeAndBattery => l10n.novelHfTimeAndBattery,
+      NovelHeaderFooterContent.bookPageNumber => l10n.novelHfBookPageNumber,
     };
   }
 
