@@ -76,6 +76,8 @@ import '../../../core/novel/novel_chinese_converter.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/local/local_novel_parser.dart';
+import '../../../core/local/portable_book_parser.dart'
+    show PortableBookParser, isPortableBookFile;
 import '../../../core/novel/novel_content_edit_manager.dart';
 import '../../../core/novel/novel_translation_manager.dart';
 import '../../../core/novel/novel_toc_store.dart';
@@ -298,6 +300,15 @@ Future<List<dynamic>> _parseTxtChaptersIsolate(
 
 /// 聚合本地模式的章节排序方式（见 [_NovelReaderScreenState._aggMode]）。
 enum _AggChapterMode { fileExpanded, epubLast, collapsed }
+
+/// D7：在独立 isolate 解析便携文档（Mobi/PDF 文本层）为章节结构，
+/// 返回形状与 [_parseTxtChaptersIsolate] 一致（`[title, [para,…]]` 列表）。
+Future<List<dynamic>> _parsePortableIsolate(String path) async {
+  final book = await PortableBookParser.parse(path);
+  return <dynamic>[
+    <dynamic>[book.title, <dynamic>[for (final c in book.chapters[0].content) c]],
+  ];
+}
 
 class _NovelReaderScreenState extends State<NovelReaderScreen>
     with WidgetsBindingObserver {
@@ -1143,8 +1154,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         if (!localParsed) {
           // fallback 用源文件标题（localTextPath），而非 resolveSafUri 后的缓存
           // 路径 basename——否则无标题行的 TXT 章节会显示 `saf_<hash>`。
-          final raw = await compute(_parseTxtChaptersIsolate,
-              (localPath, _chapterTitleFor(widget.localTextPath!)));
+          final raw = isPortableBookFile(widget.localTextPath!)
+              ? await compute(_parsePortableIsolate, localPath)
+              : await compute(_parseTxtChaptersIsolate,
+                  (localPath, _chapterTitleFor(widget.localTextPath!)));
           if (!mounted) return;
           final parsed = <LocalNovelChapter>[
             for (final c in raw)

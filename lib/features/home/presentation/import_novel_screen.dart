@@ -18,6 +18,8 @@ import '../../../core/local/import_permission.dart';
 import '../../../core/local/local_content_manager.dart';
 import '../../../core/local/archive_extractor.dart'
     show extractNovelFilesFromArchive, isNovelArchiveFile;
+import '../../../core/local/portable_book_parser.dart'
+    show isPortableBookFile;
 import '../../../core/local/local_novel_parser.dart';
 import '../../../core/platform/platform_service.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -52,7 +54,11 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
         type: isAndroid ? FileType.any : FileType.custom,
         allowedExtensions: isAndroid
             ? null
-            : const <String>['txt', 'epub', 'zip', 'cbz', 'rar', '7z', 'cb7'],
+            : const <String>[
+                'txt', 'epub', 'zip', 'cbz', 'rar', '7z', 'cb7',
+                // D7 便携文档：Mobi 系与 PDF（文本层）。
+                'mobi', 'prc', 'azw', 'pdf',
+              ],
       );
       if (result == null || !mounted) return;
       var importedCount = 0;
@@ -69,9 +75,14 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
         // 直接按 path 分类会失败（"无法打开 TXT" 根因）。改按显示名 f.name
         // （含 .txt/.epub 扩展名）分类，path 作为兜底。
         final kind = classifyByPath(f.name) ?? classifyByPath(f.path!);
+        // D7 便携文档（Mobi/PDF 文本层）：按小说入库，打开时由阅读器解析。
+        final bool isPortable = isPortableBookFile(f.path!) ||
+            isPortableBookFile(f.name);
         // D9 压缩包批量导入：解压归档内 txt/epub 逐本入库（持久目录，
         // 文件名解析书名/作者）。非小说归档（无 txt/epub 条目）报错跳过。
-        if (kind != LocalMediaKind.text && isNovelArchiveFile(f.path!)) {
+        if (kind != LocalMediaKind.text &&
+            !isPortable &&
+            isNovelArchiveFile(f.path!)) {
           try {
             final extracted = await extractNovelFilesFromArchive(f.path!);
             archiveCount++;
@@ -100,7 +111,7 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
           }
           continue;
         }
-        if (kind != LocalMediaKind.text) {
+        if (kind != LocalMediaKind.text && !isPortable) {
           if (!mounted) continue;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(AppLocalizations.of(context).unrecognizedFile(f.name))),
