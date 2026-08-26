@@ -929,14 +929,32 @@ class NovelReaderPreferences {
   }
 
   /// 解析强调色。
+  ///
+  /// B3 墨水屏主题化：选中墨水屏背景预设且未显式自定义强调色时，
+  /// 联动使用墨水屏配套强调色（朱批暗红），避免高饱和荧光色破坏纸感。
   Color resolveEmphasisColor() {
     if (emphasisColor != null) return Color(emphasisColor!);
+    if (isEInkBackground) return ReaderTokens.eInkEmphasisColor;
     return ReaderTokens.emphasisDefault;
   }
 
+  /// 当前是否处于「墨水屏背景主题」（B3）：未自定义背景色且选中的是
+  /// 墨水屏预设。仅作为文字 / 强调色联动的判定依据，不改变持久值；
+  /// 夜间压暗后的背景由各 resolve 方法按亮度另行回退。
+  bool get isEInkBackground =>
+      customBgColor == null &&
+      bgPresetIndex.clamp(0, ReaderTokens.bgPresets.length - 1) ==
+          ReaderTokens.eInkPresetIndex;
+
   /// 正文文字颜色（[customTextColor] 优先；否则按背景亮度自动取黑/白）。
+  ///
+  /// B3 墨水屏主题化：选中墨水屏背景且未自定义文字色时，日间（浅色背景）
+  /// 使用炭灰正文色模拟墨水屏观感；夜间压暗后仍回退亮色文字保证可读。
   Color resolveTextColor(Color bg) {
     if (customTextColor != null) return Color(customTextColor!);
+    if (bg.computeLuminance() > 0.5 && isEInkBackground) {
+      return ReaderTokens.eInkTextColor;
+    }
     return bg.computeLuminance() > 0.5
         ? const Color(0xFF1A1A1A)
         : const Color(0xFFE0E0E0);

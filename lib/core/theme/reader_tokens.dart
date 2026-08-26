@@ -48,6 +48,19 @@ class ReaderTokens {
   /// 默认强调色（用于小说重点色、下划线等）。
   static const Color emphasisDefault = Color(0xFFF43F5E);
 
+  /// 墨水屏背景预设索引（bgPresets 末位，P2-10 引入）。
+  /// B3 主题化：选中该预设时文字 / 强调色联动切换为墨水屏配套色，
+  /// 见 [NovelReaderPreferences.isEInkBackground]。
+  static const int eInkPresetIndex = 11;
+
+  /// 墨水屏主题正文色（炭灰 #3E3D3B）：比纯黑柔和，模拟墨水屏纸面显示、
+  /// 降低高分辨率屏下的边缘锐利感；仅在浅色（日间）背景下生效。
+  static const Color eInkTextColor = Color(0xFF3E3D3B);
+
+  /// 墨水屏主题强调色（朱批暗红）：低饱和暖红替代默认荧光粉，
+  /// 在近纸白背景上保持可辨识且不刺眼。
+  static const Color eInkEmphasisColor = Color(0xFF9E4B3C);
+
   /// 反色滤镜（修复桌面全黑问题，见文档雷区）。
   static const ColorFilter invertFilter =
       ColorFilter.mode(Color(0xFFFFFFFF), BlendMode.difference);
