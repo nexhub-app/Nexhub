@@ -107,8 +107,70 @@ Future<List<String>> extractArchiveImages(String path) async {
   }
 }
 
-int _naturalCompare(String a, String b) {
-  final ra = _splitNatural(a);
+/// 常见小说归档扩展名（D9 压缩包批量导入：zip/cbz 系 + koni_archive
+/// 支持的 tar/7z/rar 系）。小写比较。
+const List<String> kNovelArchiveExtensions = <String>[
+  '.zip', '.cbz', '.tar', '.7z', '.cb7', '.rar', '.cbr',
+];
+
+/// 路径是否为支持的归档文件（按扩展名，大小写不敏感）。
+bool isNovelArchiveFile(String path) {
+  final lower = path.toLowerCase();
+  return kNovelArchiveExtensions.any(lower.endsWith);
+}
+
+bool _isNovelTextFile(String path) {
+  final lower = path.toLowerCase();
+  return lower.endsWith('.txt') || lower.endsWith('.epub');
+}
+
+/// 归档内单个小说文件的解压上限（256MB）：整本长篇 TXT/EPUB 远小于此，
+/// 防解压炸弹。
+const int _kMaxNovelFileBytes = 256 << 20;
+
+/// 解压归档内的小说文件（.txt/.epub）到应用支持目录的持久化子目录，
+/// 返回按归档内相对路径自然排序的文件路径列表（D9 压缩包批量导入）。
+///
+/// 与漫画图片解压不同：导入后这些文件**就是书库本体**（条目 path 直接指向
+/// 它们），因此落盘在 `getApplicationSupportDirectory()/novel_imports/`
+/// （持久目录）而非系统临时目录，不参与阅读器退出清理；目录名带源归档
+/// 标识避免不同归档同名覆盖。无小说文件 / 超限 / IO 失败向上抛出。
+Future<List<String>> extractNovelFilesFromArchive(String path) async {
+  final archive = await openArchiveFile(path);
+  try {
+    final entries = archive.files
+        .where((e) => !e.isDirectory && _isNovelTextFile(e.path))
+        .toList()
+      ..sort((a, b) => _naturalCompare(a.path, b.path));
+    if (entries.isEmpty) {
+      throw StateError('archive contains no novel file: $path');
+    }
+    final supportDir = await getApplicationSupportDirectory();
+    final outDir = Directory(p.join(
+      supportDir.path,
+      'novel_imports',
+      '${p.basename(path)}_${path.hashCode}',
+    ));
+    await outDir.create(recursive: true);
+    final out = <String>[];
+    for (final entry in entries) {
+      final bytes =
+          await archive.readBytes(entry, maxSize: _kMaxNovelFileBytes);
+      // 条目路径 hash 防同归档不同子目录同名冲突（与图片解压同策略）。
+      final target = File(p.join(
+        outDir.path,
+        '${entry.path.hashCode}_${p.basename(entry.path)}',
+      ));
+      await target.writeAsBytes(bytes);
+      out.add(target.path);
+    }
+    return out;
+  } finally {
+    await archive.close();
+  }
+}
+
+int _naturalCompare(String a, String b) {  final ra = _splitNatural(a);
   final rb = _splitNatural(b);
   final n = ra.length < rb.length ? ra.length : rb.length;
   for (int i = 0; i < n; i++) {

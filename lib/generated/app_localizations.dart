@@ -3947,8 +3947,14 @@ abstract class AppLocalizations {
   /// No description provided for @importNovelFormatsHint.
   ///
   /// In en, this message translates to:
-  /// **'Supports .txt and .epub formats'**
+  /// **'Supports .txt / .epub files and archives (.zip / .cbz / .rar / .7z) containing them'**
   String get importNovelFormatsHint;
+
+  /// No description provided for @novelArchiveImported.
+  ///
+  /// In en, this message translates to:
+  /// **'archive(s) unpacked'**
+  String get novelArchiveImported;
 
   /// No description provided for @importNovelPickFile.
   ///

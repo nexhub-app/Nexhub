@@ -16,6 +16,8 @@ import 'package:provider/provider.dart';
 import '../../../core/local/folder_import_dialog.dart';
 import '../../../core/local/import_permission.dart';
 import '../../../core/local/local_content_manager.dart';
+import '../../../core/local/archive_extractor.dart'
+    show extractNovelFilesFromArchive, isNovelArchiveFile;
 import '../../../core/local/local_novel_parser.dart';
 import '../../../core/platform/platform_service.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -43,13 +45,18 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
     try {
       // Android SAF 无法按 txt/epub 之外的扩展名稳定过滤（cbz/mkv 等无标准 MIME
       // 会被隐藏），统一用 FileType.any 再由 classifyByPath 校验；桌面保留 custom。
+      // D9：桌面侧扩展名加入压缩包（zip/cbz/7z/rar…），归档内 txt/epub 批量导入。
       final isAndroid = PlatformService.instance.isAndroid;
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
         type: isAndroid ? FileType.any : FileType.custom,
-        allowedExtensions: isAndroid ? null : const <String>['txt', 'epub'],
+        allowedExtensions: isAndroid
+            ? null
+            : const <String>['txt', 'epub', 'zip', 'cbz', 'rar', '7z', 'cb7'],
       );
       if (result == null || !mounted) return;
+      var importedCount = 0;
+      var archiveCount = 0;
       for (final f in result.files) {
         if (f.path == null) {
           if (!mounted) continue;
@@ -62,6 +69,37 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
         // 直接按 path 分类会失败（"无法打开 TXT" 根因）。改按显示名 f.name
         // （含 .txt/.epub 扩展名）分类，path 作为兜底。
         final kind = classifyByPath(f.name) ?? classifyByPath(f.path!);
+        // D9 压缩包批量导入：解压归档内 txt/epub 逐本入库（持久目录，
+        // 文件名解析书名/作者）。非小说归档（无 txt/epub 条目）报错跳过。
+        if (kind != LocalMediaKind.text && isNovelArchiveFile(f.path!)) {
+          try {
+            final extracted = await extractNovelFilesFromArchive(f.path!);
+            archiveCount++;
+            for (final path in extracted) {
+              final parsed =
+                  LocalNovelParser.analyzeNameAuthor(p.basename(path));
+              await context.read<LocalContentManager>().add(LocalContentEntry(
+                    id: path,
+                    title: parsed.name,
+                    path: path,
+                    kind: LocalMediaKind.text,
+                    addedAt: DateTime.now().millisecondsSinceEpoch,
+                    author: parsed.author,
+                  ));
+              importedCount++;
+            }
+          } on Object catch (e) {
+            if (!mounted) continue;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content:
+                      Text(AppLocalizations.of(context).unrecognizedFile(
+                    '${f.name} ($e)',
+                  ))),
+            );
+          }
+          continue;
+        }
         if (kind != LocalMediaKind.text) {
           if (!mounted) continue;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -80,10 +118,14 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
           addedAt: DateTime.now().millisecondsSinceEpoch,
           author: parsed.author,
         ));
+        importedCount++;
       }
       if (mounted) {
+        final summary = archiveCount > 0
+            ? '$archiveCount ${AppLocalizations.of(context).novelArchiveImported} · $importedCount ${AppLocalizations.of(context).contentImportOpened}'
+            : '$importedCount ${AppLocalizations.of(context).contentImportOpened}';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${result.files.length} ${AppLocalizations.of(context).contentImportOpened}')),
+          SnackBar(content: Text(summary)),
         );
       }
     } catch (e) {

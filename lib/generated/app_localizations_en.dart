@@ -2031,7 +2031,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importNovelTitle => 'Import Novel';
 
   @override
-  String get importNovelFormatsHint => 'Supports .txt and .epub formats';
+  String get importNovelFormatsHint =>
+      'Supports .txt / .epub files and archives (.zip / .cbz / .rar / .7z) containing them';
+
+  @override
+  String get novelArchiveImported => 'archive(s) unpacked';
 
   @override
   String get importNovelPickFile => 'Select File';

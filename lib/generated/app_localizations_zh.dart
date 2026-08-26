@@ -2002,7 +2002,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get importNovelTitle => '导入小说';
 
   @override
-  String get importNovelFormatsHint => '支持 .txt 和 .epub 格式';
+  String get importNovelFormatsHint =>
+      '支持 .txt / .epub 文件，以及包含它们的压缩包（.zip / .cbz / .rar / .7z）';
+
+  @override
+  String get novelArchiveImported => '个压缩包已解包导入';
 
   @override
   String get importNovelPickFile => '选择文件';
