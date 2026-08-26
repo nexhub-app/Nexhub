@@ -84,13 +84,26 @@ class NovelContentEditManager extends ChangeNotifier {
 
   Box<dynamic>? _box;
 
+  /// 存储不可用降级标记（如测试环境未初始化 Hive 时 openBox 可能**永久挂起**
+  /// 而非抛错——该管理器位于章节加载热路径，必须快速失败避免阅读器无限转圈）。
+  bool _degraded = false;
+
   Future<void> init() async {
     if (_box != null) return;
+    if (_degraded) throw StateError('novel_content_edits 存储不可用');
     if (Hive.isBoxOpen(boxName)) {
       _box = Hive.box(boxName);
       return;
     }
-    _box = await Hive.openBox(boxName);
+    try {
+      _box = await Hive.openBox(boxName).timeout(
+            const Duration(seconds: 2),
+            onTimeout: () => throw StateError('openBox 超时'),
+          );
+    } on Object {
+      _degraded = true;
+      rethrow;
+    }
   }
 
   Future<Box<dynamic>> _ensureBox() async {
