@@ -160,6 +160,10 @@ class ReaderDefaultSettings {
   /// 仅对 webtoon（条漫）连续模式生效。
   final bool comicShowChapterSeparator;
 
+  /// 漫画：条漫解码限幅（P3 资源/内存）：连续模式解码位图下采样，
+  /// 限制长条漫原图的全尺寸解码内存。此前只有阅读器弹窗可配，补全局默认。
+  final bool comicWebtoonLimitDecodeSize;
+
   /// 漫画：鼠标滚轮滚动速度倍率（webtoon 连续滚动增量 × 本值），范围 0.5–3.0，默认 1.0。
   final double comicReaderScrollSpeed;
 
@@ -265,9 +269,9 @@ class ReaderDefaultSettings {
   /// 小说自动翻页平滑模式（O5，映射到 NovelReaderPreferences.autoPageSmooth）。
   final bool novelAutoPageSmooth;
 
-  /// 小说点按九区动作（N2，9 个 [NovelTapAction] 名，行优先；空 = 未自定义，
-  /// 运行时回退布局预设）。映射到 NovelReaderPreferences.tapZoneActions。
-  final List<String> novelTapZoneActions;
+  /// 小说音量键翻页（仅 Android 生效；映射到
+  /// NovelReaderPreferences.volumeKeyPageTurn）。默认开启。
+  final bool novelVolumeKeyPageTurn;
   final String novelThemeFollow;
   final int? novelShadowColor;
   final double novelShadowBlur;
@@ -308,8 +312,8 @@ class ReaderDefaultSettings {
   final bool novelScrollWheelInverted;
 
   // ── 小说补充 v3（P2-10 排版增强，与 NovelReaderPreferences #10 对齐）──
-  /// 正文字重细粒度（100–900；null = 跟随加粗开关）。
-  final int? novelFontWeightValue;
+  /// 加粗字重滑块（100–900，仅加粗开启时生效）。
+  final int novelFontWeightValue;
 
   /// 正文对齐方式（'start' / 'justify'）。
   final String novelTextAlignMode;
@@ -385,6 +389,7 @@ class ReaderDefaultSettings {
     this.comicPreloadImageCount = 4,
     this.comicSeamlessReading = true,
     this.comicShowChapterSeparator = true,
+    this.comicWebtoonLimitDecodeSize = true,
     this.comicReaderScrollSpeed = 1.0,
     this.comicVolumeKeyPageTurn = false,
     this.comicVolumeKeyPageTurnDistancePercent = 40,
@@ -438,7 +443,7 @@ class ReaderDefaultSettings {
     this.novelTapZoneLayout = 'lShape',
     this.novelAutoPageInterval = 0,
     this.novelAutoPageSmooth = false,
-    this.novelTapZoneActions = const <String>[],
+    this.novelVolumeKeyPageTurn = true,
     this.novelThemeFollow = 'followApp',
     this.novelShadowColor,
     this.novelShadowBlur = 0.5,
@@ -475,7 +480,7 @@ class ReaderDefaultSettings {
     this.novelTtsSleepTimer = 0,
     this.novelScrollWheelInverted = false,
     // P2-10 排版增强
-    this.novelFontWeightValue,
+    this.novelFontWeightValue = 700,
     this.novelTextAlignMode = 'start',
     this.novelLineBreakMode = 'standard',
     this.novelUnderlineStyle = 'solid',
@@ -524,6 +529,7 @@ class ReaderDefaultSettings {
     int? comicPreloadImageCount,
     bool? comicSeamlessReading,
     bool? comicShowChapterSeparator,
+    bool? comicWebtoonLimitDecodeSize,
     double? comicReaderScrollSpeed,
     bool? comicVolumeKeyPageTurn,
     int? comicVolumeKeyPageTurnDistancePercent,
@@ -577,7 +583,7 @@ class ReaderDefaultSettings {
     String? novelTapZoneLayout,
     int? novelAutoPageInterval,
     bool? novelAutoPageSmooth,
-    List<String>? novelTapZoneActions,
+    bool? novelVolumeKeyPageTurn,
     String? novelThemeFollow,
     int? novelShadowColor,
     double? novelShadowBlur,
@@ -670,6 +676,8 @@ class ReaderDefaultSettings {
             comicSeamlessReading ?? this.comicSeamlessReading,
         comicShowChapterSeparator:
             comicShowChapterSeparator ?? this.comicShowChapterSeparator,
+        comicWebtoonLimitDecodeSize:
+            comicWebtoonLimitDecodeSize ?? this.comicWebtoonLimitDecodeSize,
         comicReaderScrollSpeed:
             comicReaderScrollSpeed ?? this.comicReaderScrollSpeed,
         comicVolumeKeyPageTurn:
@@ -760,8 +768,8 @@ class ReaderDefaultSettings {
         novelAutoPageInterval:
             novelAutoPageInterval ?? this.novelAutoPageInterval,
         novelAutoPageSmooth: novelAutoPageSmooth ?? this.novelAutoPageSmooth,
-        novelTapZoneActions:
-            novelTapZoneActions ?? this.novelTapZoneActions,
+        novelVolumeKeyPageTurn:
+            novelVolumeKeyPageTurn ?? this.novelVolumeKeyPageTurn,
         novelThemeFollow: novelThemeFollow ?? this.novelThemeFollow,
         novelShadowColor: novelShadowColor ?? this.novelShadowColor,
         novelShadowBlur: novelShadowBlur ?? this.novelShadowBlur,
@@ -772,7 +780,6 @@ class ReaderDefaultSettings {
         novelUnderlineDashed:
             novelUnderlineDashed ?? this.novelUnderlineDashed,
         novelTwoPageMode: novelTwoPageMode ?? this.novelTwoPageMode,
-
         novelUnderlineThickness:
             novelUnderlineThickness ?? this.novelUnderlineThickness,
         novelUnderlineDashLength:
@@ -876,6 +883,7 @@ class ReaderDefaultSettings {
         'comicPreloadImageCount': comicPreloadImageCount,
         'comicSeamlessReading': comicSeamlessReading,
         'comicShowChapterSeparator': comicShowChapterSeparator,
+        'comicWebtoonLimitDecodeSize': comicWebtoonLimitDecodeSize,
         'comicReaderScrollSpeed': comicReaderScrollSpeed,
         'comicVolumeKeyPageTurn': comicVolumeKeyPageTurn,
         'comicVolumeKeyPageTurnDistancePercent':
@@ -932,7 +940,7 @@ class ReaderDefaultSettings {
         'novelTapZoneLayout': novelTapZoneLayout,
         'novelAutoPageInterval': novelAutoPageInterval,
         'novelAutoPageSmooth': novelAutoPageSmooth,
-        'novelTapZoneActions': novelTapZoneActions,
+        'novelVolumeKeyPageTurn': novelVolumeKeyPageTurn,
         'novelThemeFollow': novelThemeFollow,
         if (novelShadowColor != null) 'novelShadowColor': novelShadowColor,
         'novelShadowBlur': novelShadowBlur,
@@ -969,8 +977,8 @@ class ReaderDefaultSettings {
         'novelTtsSleepTimer': novelTtsSleepTimer,
         'novelScrollWheelInverted': novelScrollWheelInverted,
         // P2-10 排版增强
-        if (novelFontWeightValue != null)
-          'novelFontWeightValue': novelFontWeightValue,
+        // P2-10 排版增强
+        'novelFontWeightValue': novelFontWeightValue,
         'novelTextAlignMode': novelTextAlignMode,
         'novelLineBreakMode': novelLineBreakMode,
         'novelUnderlineStyle': novelUnderlineStyle,
@@ -1113,6 +1121,8 @@ class ReaderDefaultSettings {
           json['comicSeamlessReading'] as bool? ?? true,
       comicShowChapterSeparator:
           json['comicShowChapterSeparator'] as bool? ?? true,
+      comicWebtoonLimitDecodeSize:
+          json['comicWebtoonLimitDecodeSize'] as bool? ?? true,
       comicReaderScrollSpeed:
           ((json['comicReaderScrollSpeed'] as num?)?.toDouble() ?? 1.0)
               .clamp(0.5, 3.0),
@@ -1220,10 +1230,8 @@ class ReaderDefaultSettings {
       novelAutoPageInterval:
           (json['novelAutoPageInterval'] as num?)?.toInt() ?? 0,
       novelAutoPageSmooth: json['novelAutoPageSmooth'] as bool? ?? false,
-      novelTapZoneActions: (json['novelTapZoneActions'] as List?)
-              ?.map((e) => e as String)
-              .toList() ??
-          const <String>[],
+      novelVolumeKeyPageTurn:
+          json['novelVolumeKeyPageTurn'] as bool? ?? true,
       novelThemeFollow:
           json['novelThemeFollow'] as String? ?? 'followApp',
       novelShadowColor: json['novelShadowColor'] as int?,
@@ -1237,7 +1245,6 @@ class ReaderDefaultSettings {
       novelUnderlineDashed:
           json['novelUnderlineDashed'] as bool? ?? false,
       novelTwoPageMode: json['novelTwoPageMode'] as bool? ?? false,
-
       novelUnderlineThickness:
           (json['novelUnderlineThickness'] as num?)?.toDouble() ?? 1.0,
       novelUnderlineDashLength:
@@ -1289,7 +1296,9 @@ class ReaderDefaultSettings {
       novelScrollWheelInverted:
           json['novelScrollWheelInverted'] as bool? ?? false,
       // P2-10 排版增强
-      novelFontWeightValue: (json['novelFontWeightValue'] as num?)?.toInt(),
+      novelFontWeightValue:
+          ((json['novelFontWeightValue'] as num?)?.toInt() ?? 700)
+              .clamp(100, 900),
       novelTextAlignMode:
           json['novelTextAlignMode'] as String? ?? 'start',
       novelLineBreakMode:
@@ -1381,6 +1390,7 @@ class ReaderDefaultSettings {
       preloadImageCount: comicPreloadImageCount,
       seamlessReading: comicSeamlessReading,
       showChapterSeparator: comicShowChapterSeparator,
+      webtoonLimitDecodeSize: comicWebtoonLimitDecodeSize,
       readerScrollSpeed: comicReaderScrollSpeed,
       volumeKeyPageTurn: comicVolumeKeyPageTurn,
       volumeKeyPageTurnDistancePercent:
@@ -1455,7 +1465,7 @@ class ReaderDefaultSettings {
       bottomToolbarSlots: novelBottomToolbarSlots.map((s) => NovelBottomTool.fromString(s) ?? NovelBottomTool.toc).toList(),
       autoPageInterval: novelAutoPageInterval,
       autoPageSmooth: novelAutoPageSmooth,
-      tapZoneActions: novelTapZoneActions,
+      volumeKeyPageTurn: novelVolumeKeyPageTurn,
       // 下划线
       underlineColor: novelUnderlineColor,
       underlineDashed: novelUnderlineDashed,

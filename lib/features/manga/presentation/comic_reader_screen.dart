@@ -355,9 +355,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   // ── 三层设置覆盖（REQ-C9）──
   /// 设备/会话层运行时覆盖：优先级最高、退出阅读器不持久化。
   ///
-  /// null 表示无设备层覆盖（回落 [ReaderPreferences.mergedWith] 后的作品层 [_prefs]）。
+  /// null 表示无设备层覆盖（回落 [ReaderPreferences.mergedWithKeys] 后的作品层 [_prefs]）。
   /// 内联设置面板的即时预览（onChanged）写入本层；关闭面板时再提交到作品层持久化。
   ReaderPreferences? _devicePrefs;
+
+  /// 本书显式单独设置过的字段名（[ReaderPreferences.toJson] 键）。
+  /// 只有这些字段覆盖全局默认，其余实时跟随总设置。
+  final Set<String> _overrideKeys = <String>{};
 
   /// 三层覆盖后的实际生效偏好：设备层非空取设备层，否则取作品层。
   ReaderPreferences get _effectivePrefs =>
@@ -718,8 +722,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   Future<void> _init() async {
     final defaults = await ReaderDefaultSettingsStore().load();
+    // 显式覆盖合并：只有用户单独设置过的字段覆盖全局默认，其余实时跟随总设置。
+    _overrideKeys.addAll(await _store.getOverrideKeys(widget.comicId));
     _prefs = (await _store.get(widget.comicId))
-        .mergedWith(defaults.toReaderPreferences());
+        .mergedWithKeys(defaults.toReaderPreferences(), _overrideKeys);
     // 进度恢复分两种情形：
     // - restoreProgress=true（「继续阅读」入口）：章 + 页都恢复。
     // - restoreProgress=false（详情页明确点选某话）：不改章，但**若点选的正是上次
@@ -1250,7 +1256,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       // 测试环境忽略。
     }
     // 退出时兜底保存偏好，确保设置退出后仍保留。
-    unawaited(_store.save(widget.comicId, _prefs));
+    unawaited(_store.save(widget.comicId, _prefs, overrideKeys: _overrideKeys));
     // REQ-C5 / REQ-C3 清理：停止时间/电量浮层，恢复系统原亮度。
     _stopTimeAndBattery();
     _resetBrightness();
@@ -3355,10 +3361,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       {required bool persist}) async {
     if (!mounted) return;
     final prev = _prefs;
+    // 记录本次真正改动的字段为「本书单独设置」，未动过的字段继续跟随总设置。
+    // 设备层预览与直接落盘两条路径都走这里，覆盖记录随改动即时累积，
+    // 由 [_commitDeviceOverride] / persist 分支一并持久化。
+    _overrideKeys.addAll(comicPrefsChangedKeys(prev, next));
     _prefs = next;
     if (persist) {
       _devicePrefs = null;
-      await _store.save(widget.comicId, next);
+      await _store.save(widget.comicId, next, overrideKeys: _overrideKeys);
     } else {
       _devicePrefs = next;
     }
@@ -3411,7 +3421,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final ReaderPreferences? device = _devicePrefs;
     if (device == null) return;
     _devicePrefs = null;
-    await _store.save(widget.comicId, device);
+    await _store.save(widget.comicId, device, overrideKeys: _overrideKeys);
   }
 
   /// 即时落盘偏好变更（用于底栏快捷工具栏的开关，例如裁剪 / 模式切换）。
@@ -3586,7 +3596,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       } else {
         _flushPendingProgress(_currentPage);
       }
-      unawaited(_store.save(widget.comicId, _prefs));
+      unawaited(_store.save(widget.comicId, _prefs, overrideKeys: _overrideKeys));
       unawaited(_commitDeviceOverride());
     }
     if (_autoScrollPaused == background) return;

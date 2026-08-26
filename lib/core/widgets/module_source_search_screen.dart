@@ -106,6 +106,9 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
   /// 小说模块繁简转换（E4）：按全局阅读偏好的转换方向，仅作用于
   /// 搜索结果的标题/作者展示与本地匹配归一，不改写入库/收藏的原始数据。
   ChineseConvertMode _novelConvertMode = ChineseConvertMode.none;
+  /// 单源搜索简繁兜底（E4 扩展）：首搜为空、用简↔繁互转关键词命中后，
+  /// 记录实际生效关键词，后续翻页沿用，避免「下一页又回到原词导致结果错位」。
+  String? _networkKeyword;
 
   @override
   void initState() {
@@ -226,19 +229,30 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
       });
 
       try {
-        final allResults = await _fetchPage(trimmed, 1);
-        // 本地内容（导入 + 已下载）与网络结果同列展示：聚合模式下先匹配本地，
+        List<MediaItem> networkResults = await _fetchPage(trimmed, 1);
+        // 简繁兜底（E4 扩展）：单源搜索首次结果为空时，用简↔繁互转后的
+        // 关键词向同一源再请求一次；命中则后续翻页也沿用转换后关键词。
+        if (_scope == _SearchScope.single && networkResults.isEmpty) {
+          final alt = _alternativeChineseKeyword(trimmed);
+          if (alt != null && alt != trimmed) {
+            final retried = await _fetchPage(alt, 1);
+            if (retried.isNotEmpty) {
+              networkResults = retried;
+              _networkKeyword = alt;
+            }
+          }
+        }
+        // 本地内容（导入 + 已下载）与网络结果同列展示：先匹配本地，
         // 命中条目携带本地 extra（localPath/filePaths），点击由调用方走本地打开。
-        final localResults = _scope == _SearchScope.aggregate
-            ? _searchLocalContent(trimmed)
-            : const <MediaItem>[];
+        // 聚合 / 单源两种模式均启用（单源也支持本地内容的双向简繁归一匹配）。
+        final localResults = _searchLocalContent(trimmed);
 
         if (mounted) {
           setState(() {
-            _results = <MediaItem>[...localResults, ...allResults];
+            _results = <MediaItem>[...localResults, ...networkResults];
             _loading = false;
             // 上一页非空才可能有下一页；具体是否声明 {page} 由 _fetchPage 判定。
-            _hasMore = allResults.isNotEmpty && _anySourcePaged();
+            _hasMore = networkResults.isNotEmpty && _anySourcePaged();
           });
         }
       } catch (_) {
@@ -274,7 +288,9 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
     setState(() => _loadingMore = true);
     try {
       final next = _page + 1;
-      final items = await _fetchPage(trimmed, next);
+      // 简繁兜底命中后，后续翻页沿用转换后的关键词（见首搜处的 _networkKeyword 赋值）。
+      final keyword = _networkKeyword ?? trimmed;
+      final items = await _fetchPage(keyword, next);
       if (!mounted) return;
       setState(() {
         if (items.isEmpty) {
@@ -293,6 +309,17 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
     } catch (_) {
       if (mounted) setState(() => _loadingMore = false);
     }
+  }
+
+  /// 单源搜索简繁兜底：返回 [kw] 的简↔繁互转变体；若与原文相同（纯 ASCII/
+  /// 已统一）则返回 null（无需再搜一次，避免无谓加压）。
+  String? _alternativeChineseKeyword(String kw) {
+    if (kw.isEmpty) return null;
+    final trad = convertChinese(kw, ChineseConvertMode.simplifiedToTraditional);
+    if (trad != kw) return trad;
+    final simp = convertChinese(kw, ChineseConvertMode.traditionalToSimplified);
+    if (simp != kw) return simp;
+    return null;
   }
 
   /// 拉取第 [page] 页搜索结果（跨源循环）。供首搜(page=1)与翻页复用。

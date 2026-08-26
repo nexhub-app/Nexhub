@@ -130,6 +130,21 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
   /// 自定义动画模式是否正处于一次手动驱动的翻页过渡中。
   bool _autoTurning = false;
 
+  // ── 翻页过渡页缓存 ──
+  /// 过渡期间 from/to 两页的构建结果按「(fromIdx,toIdx,contentVersion)」
+  /// 缓存复用。此前每帧都调用 [widget.pageBuilder] 全量重建两页
+  /// （几十个行 widget + 文本排版），是翻页掉帧的主因；一次过渡内页面
+  /// 内容不变，缓存后动画期间只重排 Transform/Opacity/裁剪层。
+  String? _turnCacheKey;
+  Widget? _turnFromPage;
+  Widget? _turnToPage;
+
+  void _invalidateTurnCache() {
+    _turnCacheKey = null;
+    _turnFromPage = null;
+    _turnToPage = null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -146,6 +161,7 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
         if (s == AnimationStatus.completed) {
           _animating = false;
           _fromIndex = null;
+          _invalidateTurnCache();
           if (mounted) setState(() {});
         } else if (s == AnimationStatus.dismissed) {
           // 只有在真实拖拽回弹（_reversing==true）时才恢复来源页。
@@ -154,6 +170,7 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
           // 并清掉 _animating，导致「翻一次就卡死 / 按钮点第二次无反应」。
           if (!_reversing) return;
           _reversing = false;
+          _invalidateTurnCache();
           // 回弹：恢复到来源页。
           if (_fromIndex != null) {
             _index = _fromIndex!;
@@ -182,6 +199,7 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
       _dragProgress = 0;
       _autoAccum = 0;
       _autoTurning = false;
+      _invalidateTurnCache();
       _controller.stop();
       _controller.value = 0;
       if (mounted) setState(() {});
@@ -471,9 +489,19 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
             }
             final progress = _dragging ? _dragProgress : _controller.value;
 
+            // 过渡页缓存：同一对 (from,to) 只构建一次子树，动画帧仅重绘
+            // 变换/透明度/裁剪层（翻页卡顿主修复）。
+            final turnKey =
+                '$fromIdx|$toIdx|${widget.contentVersion}|${widget.animation}';
+            if (_turnCacheKey != turnKey) {
+              _turnFromPage = widget.pageBuilder(context, fromIdx);
+              _turnToPage = widget.pageBuilder(context, toIdx);
+              _turnCacheKey = turnKey;
+            }
+
             return _StackPageTurner(
-              fromPage: widget.pageBuilder(context, fromIdx),
-              toPage: widget.pageBuilder(context, toIdx),
+              fromPage: _turnFromPage!,
+              toPage: _turnToPage!,
               forward: forward,
               progress: progress,
               animation: widget.animation,

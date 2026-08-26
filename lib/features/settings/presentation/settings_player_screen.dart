@@ -26,6 +26,11 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
   late PlayerSettings _settings;
   bool _loaded = false;
 
+  /// 截图目录唯一来源是 SharedPreferences 键 `screenshot_custom_dir`
+  /// （播放器运行时只读它）。player_settings_v1.screenshotSavePath 是
+  /// 从不被运行时读取的影子字段，本页不再读写，避免双 key 互相过时。
+  String _screenshotDir = '';
+
   /// BGR 十六进制字符串转 Color（mpv 使用 BGR 格式）。
   static Color _bgrToColor(String hex) {
     final val = int.tryParse(hex, radix: 16) ?? 0xFFFFFFFF;
@@ -47,14 +52,9 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
       _store.load(),
       SharedPreferences.getInstance(),
     ]);
-    final settings = results[0] as PlayerSettings;
+    _settings = results[0] as PlayerSettings;
     final prefs = results[1] as SharedPreferences;
-    final customDir = prefs.getString('screenshot_custom_dir');
-    if (customDir != null && customDir.isNotEmpty) {
-      _settings = settings.copyWith(screenshotSavePath: customDir);
-    } else {
-      _settings = settings;
-    }
+    _screenshotDir = prefs.getString('screenshot_custom_dir') ?? '';
     if (mounted) {
       setState(() => _loaded = true);
     }
@@ -62,9 +62,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
 
   Future<void> _update(PlayerSettings next) async {
     setState(() => _settings = next);
-    _store.save(next);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('screenshot_custom_dir', next.screenshotSavePath);
+    await _store.save(next);
   }
 
   /// 字幕颜色选择器（弹出预设颜色网格）。
@@ -458,9 +456,9 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                                 ),
                                 const SizedBox(height: AppTokens.spaceXs),
                                 Text(
-                                  _settings.screenshotSavePath.isEmpty
+                                  _screenshotDir.isEmpty
                                       ? l10n.screenshotPathDefault
-                                      : _settings.screenshotSavePath,
+                                      : _screenshotDir,
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
@@ -477,7 +475,9 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                             onPressed: () async {
                               final dir = await FilePicker.platform.getDirectoryPath();
                               if (dir != null && mounted) {
-                                _update(_settings.copyWith(screenshotSavePath: dir));
+                                setState(() => _screenshotDir = dir);
+                                final prefs = await SharedPreferences.getInstance();
+                                await prefs.setString('screenshot_custom_dir', dir);
                               }
                             },
                           ),

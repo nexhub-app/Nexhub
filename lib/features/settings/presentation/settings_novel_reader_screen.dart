@@ -8,10 +8,8 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../core/comic/models/reader_preferences.dart';
 import '../../../core/novel/novel_http_tts_config.dart';
@@ -20,8 +18,6 @@ import '../../../core/novel/novel_pre_download_preferences.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/novel/novel_export_template.dart';
-import '../../../core/novel/novel_tap_action.dart'
-    show NovelTapAction, kNovelTapZoneClassic;
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/reader_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
@@ -153,105 +149,6 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
     return result;
   }
 
-  /// P2-10 / B10：把当前排版默认值导出为 JSON 并分享（复制到剪贴板 +
-  /// 系统分享面板）。
-  Future<void> _shareTypography(AppLocalizations l10n) async {
-    final json =
-        NovelTypographyShare.exportJson(_settings.toNovelReaderPreferences());
-    await Clipboard.setData(ClipboardData(text: json));
-    if (!mounted) return;
-    try {
-      await Share.share(json, subject: l10n.novelTypographyShare);
-    } on Object {
-      // 桌面/无分享目标环境忽略，剪贴板已兜底。
-    }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.novelTypographyShareDone)),
-    );
-  }
-
-  /// P2-10 / B10：弹窗粘贴排版 JSON，确认后合并进当前默认值。
-  Future<void> _importTypography(AppLocalizations l10n) async {
-    final controller = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.novelTypographyImport),
-        content: SingleChildScrollView(
-          child: TextField(
-            controller: controller,
-            maxLines: 6,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: '{"fontSize":20,...}',
-              isDense: true,
-            ),
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.confirm),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    final result = NovelTypographyShare.importJson(
-      controller.text.trim(),
-      _settings.toNovelReaderPreferences(),
-    );
-    if (result == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.novelTypographyImportBad)),
-      );
-      return;
-    }
-    final merged = result.merged;
-    _update(_settings.copyWith(
-      novelFontSize: merged.fontSize,
-      novelLineHeight: merged.lineHeight,
-      novelParagraphSpacing: merged.paragraphSpacing,
-      novelMargin: merged.margin,
-      novelLetterSpacing: merged.letterSpacing,
-      novelFontBold: merged.fontBold,
-      novelFontItalic: merged.fontItalic,
-      novelFontUnderline: merged.fontUnderline,
-      novelShadow: merged.shadow,
-      novelShadowBlur: merged.shadowBlur,
-      novelShadowOffsetX: merged.shadowOffsetX,
-      novelShadowOffsetY: merged.shadowOffsetY,
-      novelShowChapterTitleInBody: merged.showChapterTitleInBody,
-      novelTitleFontScale: merged.titleFontScale,
-      novelTitleBold: merged.titleBold,
-      novelTitleAlign: merged.titleAlign.name,
-      novelTitleSegmentMode: merged.titleSegmentMode,
-      novelTitleSubScale: merged.titleSubScale,
-      novelTitleSegmentSpacing: merged.titleSegmentSpacing,
-      novelTitleSubLineSpacing: merged.titleSubLineSpacing,
-      novelTitleTopMargin: merged.titleTopMargin,
-      novelTitleBottomMargin: merged.titleBottomMargin,
-      novelFontWeightValue: merged.fontWeightValue,
-      novelTextAlignMode: merged.textAlignMode.name,
-      novelLineBreakMode: merged.lineBreakMode.name,
-      novelUnderlineStyle: merged.underlineStyle.name,
-      novelUnderlineDashed: merged.underlineStyle ==
-          NovelUnderlineStyle.dashed,
-      novelUnderlineThickness: merged.underlineThickness,
-      novelUnderlineDashLength: merged.underlineDashLength,
-      novelUnderlineDashGap: merged.underlineDashGap,
-    ));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.novelTypographyImportConfirm(result.fields))),
-    );
-  }
-
   // ── 标签辅助函数 ──
 
   String _pageAnimLabel(AppLocalizations l10n, NovelPageAnimation anim) {
@@ -347,103 +244,6 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
       NovelBottomTool.search => l10n.toolSearch,
       NovelBottomTool.tts => l10n.toolTts,
     };
-  }
-
-  // ── 九区动作编辑器（N2）──
-
-  String _tapActionLabel(AppLocalizations l10n, NovelTapAction a) {
-    return switch (a) {
-      NovelTapAction.none => l10n.tapActNone,
-      NovelTapAction.menu => l10n.tapActMenu,
-      NovelTapAction.prevPage => l10n.tapZonePrev,
-      NovelTapAction.nextPage => l10n.tapZoneNext,
-      NovelTapAction.prevChapter => l10n.toolPrevChapter,
-      NovelTapAction.nextChapter => l10n.toolNextChapter,
-      NovelTapAction.addBookmark => l10n.toolBookmark,
-      NovelTapAction.bookmarkList => l10n.toolBookmarkList,
-      NovelTapAction.toc => l10n.toolToc,
-      NovelTapAction.search => l10n.toolSearch,
-      NovelTapAction.ttsToggle => l10n.toolTts,
-      NovelTapAction.ttsPauseResume => l10n.tapActTtsPauseResume,
-      NovelTapAction.nightMode => l10n.toolNightMode,
-      NovelTapAction.autoPagePause => l10n.toolAutoPage,
-      NovelTapAction.syncProgress => l10n.tapActSyncProgress,
-      NovelTapAction.purifyToggle => l10n.tapActPurifyToggle,
-    };
-  }
-
-  /// 当前生效的九区配置（未自定义时显示经典布局等价映射）。
-  List<NovelTapAction> _effectiveTapZones() {
-    if (_settings.novelTapZoneActions.length == 9) {
-      return _settings.novelTapZoneActions
-          .map((s) => NovelTapAction.tryParse(s) ?? NovelTapAction.menu)
-          .toList();
-    }
-    return List<NovelTapAction>.from(kNovelTapZoneClassic);
-  }
-
-  void _setTapZone(int index, NovelTapAction action) {
-    final base = _settings.novelTapZoneActions.length == 9
-        ? List<String>.from(_settings.novelTapZoneActions)
-        : kNovelTapZoneClassic.map((a) => a.name).toList();
-    base[index] = action.name;
-    _update(_settings.copyWith(novelTapZoneActions: base));
-  }
-
-  Widget _buildTapZoneEditor(AppLocalizations l10n) {
-    final zones = _effectiveTapZones();
-    final border = BorderSide(color: Theme.of(context).dividerColor);
-    return Column(
-      children: <Widget>[
-        for (var row = 0; row < 3; row++)
-          Padding(
-            padding: EdgeInsets.only(bottom: row < 2 ? AppTokens.spaceXs : 0),
-            child: Row(
-              children: <Widget>[
-                for (var col = 0; col < 3; col++)
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                          right: col < 2 ? AppTokens.spaceXs : 0),
-                      child: Container(
-                        height: 40,
-                        decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(AppTokens.radiusSm),
-                          border: Border.fromBorderSide(border),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppTokens.spaceXs),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<NovelTapAction>(
-                            value: zones[row * 3 + col],
-                            isExpanded: true,
-                            isDense: true,
-                            items: NovelTapAction.values
-                                .map((a) => DropdownMenuItem<NovelTapAction>(
-                                      value: a,
-                                      child: Text(
-                                        _tapActionLabel(l10n, a),
-                                        overflow: TextOverflow.ellipsis,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                      ),
-                                    ))
-                                .toList(),
-                            onChanged: (v) {
-                              if (v != null) _setTapZone(row * 3 + col, v);
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-      ],
-    );
   }
 
   // ── 颜色选择器辅助 ──
@@ -876,6 +676,8 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                       children: <Widget>[
                         FilterChip(
                           label: Text(l10n.fontBold),
+                          // 加粗是唯一开关：开启后按字重滑块渲染，关闭即恢复
+                          // 默认字重，不再有第二个可覆盖它的字重字段。
                           selected: _settings.novelFontBold,
                           onSelected: (v) =>
                               _update(_settings.copyWith(novelFontBold: v)),
@@ -945,41 +747,19 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                       isTitle: false,
                     ),
                     const SizedBox(height: AppTokens.spaceMd),
-                    // P2-10：字重细粒度（100–900；未选 = 跟随加粗开关）。
-                    Text(l10n.novelFontWeightFine,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w500)),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        AppValuePulse(
-                          trigger: _settings.novelFontWeightValue == null,
-                          from: 0.9,
-                          child: ChoiceChip(
-                            label: Text(l10n.novelFontWeightAuto),
-                            selected:
-                                _settings.novelFontWeightValue == null,
-                            onSelected: (_) => _update(_settings
-                                .copyWith(novelFontWeightValue: null)),
-                          ),
-                        ),
-                        for (final w in <int>[300, 400, 500, 600, 700])
-                          AppValuePulse(
-                            trigger: _settings.novelFontWeightValue == w,
-                            from: 0.9,
-                            child: ChoiceChip(
-                              label: Text('$w'),
-                              selected:
-                                  _settings.novelFontWeightValue == w,
-                              onSelected: (_) => _update(_settings
-                                  .copyWith(novelFontWeightValue: w)),
-                            ),
-                          ),
-                      ],
+                    // 加粗字重滑块（100–900）：仅加粗开启时显示并生效。
+                    SettingsExpand(
+                      visible: _settings.novelFontBold,
+                      child: SettingsSliderTile(
+                        label: l10n.novelFontWeightFine,
+                        value: _settings.novelFontWeightValue.toDouble(),
+                        min: 100,
+                        max: 900,
+                        divisions: 16,
+                        display: '${_settings.novelFontWeightValue}',
+                        onChanged: (v) => _update(
+                            _settings.copyWith(novelFontWeightValue: v.round())),
+                      ),
                     ),
                   ],
                 ),
@@ -1076,24 +856,6 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                   .copyWith(novelUnderlineStyle: s.name)),
                             ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceMd),
-                    // 排版 JSON 分享 / 导入（B10）。
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.ios_share, size: 18),
-                          label: Text(l10n.novelTypographyShare),
-                          onPressed: () => _shareTypography(l10n),
-                        ),
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.download, size: 18),
-                          label: Text(l10n.novelTypographyImport),
-                          onPressed: () => _importTypography(l10n),
-                        ),
                       ],
                     ),
                     const SizedBox(height: AppTokens.spaceMd),
@@ -1390,14 +1152,21 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                         onChanged: (v) => _update(
                             _settings.copyWith(novelUnderlineThickness: v)),
                       ),
+                      // 「虚线」开关直接改写下划线样式：勾选切到 dashed、取消回到
+                      // solid。旧 bool 字段 underlineDashed 已是死副本（渲染只认
+                      // style），仅保留兼容读取，不再写入。
                       SettingsSwitchTile(
                         title: l10n.novelUnderlineDashed,
-                        value: _settings.novelUnderlineDashed,
-                        onChanged: (v) => _update(
-                            _settings.copyWith(novelUnderlineDashed: v)),
+                        value: _settings.novelUnderlineStyle ==
+                            NovelUnderlineStyle.dashed.name,
+                        onChanged: (v) => _update(_settings.copyWith(
+                            novelUnderlineStyle: v
+                                ? NovelUnderlineStyle.dashed.name
+                                : NovelUnderlineStyle.solid.name)),
                       ),
                       SettingsExpand(
-                        visible: _settings.novelUnderlineDashed,
+                        visible: _settings.novelUnderlineStyle ==
+                            NovelUnderlineStyle.dashed.name,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
@@ -1718,64 +1487,67 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                       onChanged: (v) =>
                           _update(_settings.copyWith(novelBrightness: v)),
                     ),
-                    // 翻页动画
-                    _labeled(
-                      l10n.novelPageAnimation,
-                      DropdownButton<NovelPageAnimation>(
-                        value: _settings.novelPageAnimation,
-                        isExpanded: true,
-                        items: NovelPageAnimation.values.map((anim) {
-                          return DropdownMenuItem<NovelPageAnimation>(
-                            value: anim,
-                            child: Text(_pageAnimLabel(l10n, anim)),
-                          );
-                        }).toList(),
-                        onChanged: (v) {
-                          if (v != null) {
-                            _update(
-                                _settings.copyWith(novelPageAnimation: v));
-                          }
-                        },
-                      ),
-                    ),
-                    // 点击分区布局
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: AppTokens.spaceXs),
-                      child: Row(
-                        children: <Widget>[
-                          Text(l10n.readerTapZone,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w500)),
-                          const Spacer(),
-                          TextButton(
-                            onPressed: () => _showTapZonePreview(context, l10n),
-                            child: Text(l10n.tapZonePreview),
+                    // 翻页动画（胶囊式快捷选择）
+                    Text(l10n.novelPageAnimation,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        for (final anim in NovelPageAnimation.values)
+                          ChoiceChip(
+                            label: Text(_pageAnimLabel(l10n, anim)),
+                            selected: _settings.novelPageAnimation == anim,
+                            onSelected: (_) => _update(
+                                _settings.copyWith(novelPageAnimation: anim)),
                           ),
-                        ],
-                      ),
+                      ],
                     ),
-                    DropdownButton<ReaderTapZoneLayout>(
-                        value: ReaderTapZoneLayout.values.firstWhere(
-                          (e) => e.name == _settings.novelTapZoneLayout,
-                          orElse: () => ReaderTapZoneLayout.lShape,
+                    // 音量键翻页（仅 Android 生效）
+                    SettingsSwitchTile(
+                      title: l10n.readerVolumeKeyPageTurn,
+                      value: _settings.novelVolumeKeyPageTurn,
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(novelVolumeKeyPageTurn: v)),
+                    ),
+                    // 点击分区布局（胶囊式快捷选择）
+                    Text(l10n.readerTapZone,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        for (final layout in ReaderTapZoneLayout.values)
+                          ChoiceChip(
+                            label: Text(_tapLayoutLabel(l10n, layout)),
+                            selected: ReaderTapZoneLayout.values.firstWhere(
+                                  (e) => e.name == _settings.novelTapZoneLayout,
+                                  orElse: () => ReaderTapZoneLayout.lShape,
+                                ) ==
+                                layout,
+                            onSelected: (_) => _update(_settings
+                                .copyWith(novelTapZoneLayout: layout.name)),
+                          ),
+                      ],
+                    ),
+                    Row(
+                      children: <Widget>[
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: () => _showTapZonePreview(context, l10n),
+                          icon: const Icon(Icons.visibility_outlined, size: 18),
+                          label: Text(l10n.tapZonePreview),
                         ),
-                        isExpanded: true,
-                        items: ReaderTapZoneLayout.values.map((layout) {
-                          return DropdownMenuItem<ReaderTapZoneLayout>(
-                            value: layout,
-                            child: Text(_tapLayoutLabel(l10n, layout)),
-                          );
-                        }).toList(),
-                        onChanged: (v) {
-                          if (v != null) {
-                            _update(
-                                _settings.copyWith(novelTapZoneLayout: v.name));
-                          }
-                        },
-                      ),
+                      ],
+                    ),
                     // 点击区域翻转
                     SettingsChoiceChips<TapZoneInvert>(
                       title: l10n.readerTapInvert,
@@ -1788,24 +1560,6 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                 label: _tapZoneInvertLabel(l10n, v),
                               ))
                           .toList(),
-                    ),
-                    // N2：九区动作编辑器（3×3 逐区自定义；配置后优先生效）
-                    Text(l10n.novelTapZoneActions,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w500)),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    _buildTapZoneEditor(l10n),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () => _update(_settings.copyWith(
-                            novelTapZoneActions:
-                                kNovelTapZoneClassic.map((a) => a.name).toList())),
-                        icon: const Icon(Icons.restart_alt, size: 18),
-                        label: Text(l10n.novelTapZoneReset),
-                      ),
                     ),
                     // 自动翻页间隔
                     Text(l10n.autoPageInterval,

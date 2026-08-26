@@ -349,11 +349,6 @@ class NovelReaderPreferences {
   /// 底部工具栏槽位（有序，最多 6 个；超出截断）。
   final List<NovelBottomTool> bottomToolbarSlots;
 
-  /// 点按九区动作（N2）：3×3 区域各配置一个 [NovelTapAction] 名，
-  /// 行优先共 9 项。空列表 / 长度不为 9 时回退旧的布局预设解析
-  /// （tapZoneLayout + tapZoneInvert）。
-  final List<String> tapZoneActions;
-
   // ─────────────── #5 朗读设置 ───────────────
   /// 朗读语速（0.5–2.0，1.0 = 正常）。
   final double ttsSpeechRate;
@@ -445,10 +440,10 @@ class NovelReaderPreferences {
   final bool scrollWheelInverted;
 
   // ─────────────── #10 排版增强（P2-10） ───────────────
-  /// 正文字重（100–900 细粒度；null = 不指定，跟随 [fontBold]）。
-  /// 与 [fontBold] 的关系：fontWeight 显式设置时优先生效，fontBold 仅在
-  /// fontWeight 为 null 时决定 bold/normal。
-  final int? fontWeightValue;
+  /// 加粗字重滑块（100–900）：仅 [fontBold] 开启时生效，关闭加粗即恢复
+  /// 默认字重。加粗开关与字重只有一个数据源，杜绝「开了开关看不到变化 /
+  /// 关了开关关不掉」的双字段覆盖问题。
+  final int fontWeightValue;
 
   /// 正文两端对齐（分页模式）：开启后非末行拉伸到整行宽。
   final NovelTextAlignMode textAlignMode;
@@ -503,7 +498,6 @@ class NovelReaderPreferences {
     this.tapZoneLayout = ReaderTapZoneLayout.lShape,
     this.themeFollow = NovelThemeFollow.followApp,
     this.bottomToolbarSlots = NovelBottomTool.defaults,
-    this.tapZoneActions = const <String>[],
     // #5 朗读
     this.ttsSpeechRate = 1.0,
     this.ttsSleepTimer = 0,
@@ -536,7 +530,7 @@ class NovelReaderPreferences {
     this.headerFooterMargin = 12.0,
     this.scrollWheelInverted = false,
     // #10 排版增强
-    this.fontWeightValue,
+    this.fontWeightValue = 700,
     this.textAlignMode = NovelTextAlignMode.start,
     this.lineBreakMode = NovelLineBreakMode.standard,
     this.underlineStyle = NovelUnderlineStyle.solid,
@@ -578,7 +572,6 @@ class NovelReaderPreferences {
     ReaderTapZoneLayout? tapZoneLayout,
     NovelThemeFollow? themeFollow,
     List<NovelBottomTool>? bottomToolbarSlots,
-    List<String>? tapZoneActions,
     // #5 朗读
     double? ttsSpeechRate,
     int? ttsSleepTimer,
@@ -667,7 +660,6 @@ class NovelReaderPreferences {
       themeFollow: themeFollow ?? this.themeFollow,
       bottomToolbarSlots:
           bottomToolbarSlots ?? this.bottomToolbarSlots,
-      tapZoneActions: tapZoneActions ?? this.tapZoneActions,
       // #5 朗读
       ttsSpeechRate: ttsSpeechRate ?? this.ttsSpeechRate,
       ttsSleepTimer: ttsSleepTimer ?? this.ttsSleepTimer,
@@ -805,9 +797,6 @@ class NovelReaderPreferences {
           listEquals(bottomToolbarSlots, def.bottomToolbarSlots)
               ? base.bottomToolbarSlots
               : bottomToolbarSlots,
-      tapZoneActions: listEquals(tapZoneActions, def.tapZoneActions)
-          ? base.tapZoneActions
-          : tapZoneActions,
       // #5 朗读
       ttsSpeechRate: identical(ttsSpeechRate, def.ttsSpeechRate)
           ? base.ttsSpeechRate
@@ -1002,9 +991,10 @@ class NovelReaderPreferences {
     return textColor.withValues(alpha: 0.3);
   }
 
-  /// 构建正文 [TextStyle]，统一应用字号 / 行距 / 字距 / 字体 / 字重（P2-10
-  /// 细粒度 100–900，未设置时回退 [fontBold] 开关）/ 斜体 / 下划线 / 颜色 /
-  /// 阴影。paged 与 scroll 两种渲染共用，确保所有字体样式真实生效且可共存。
+  /// 构建正文 [TextStyle]，统一应用字号 / 行距 / 字距 / 字体 / 字重
+  /// （[fontBold] 开启时按 [fontWeightValue] 滑块取 100–900 字重）/
+  /// 斜体 / 下划线 / 颜色 / 阴影。paged 与 scroll 两种渲染共用，确保所有
+  /// 字体样式真实生效且可共存。
   /// [autoTextColor] 为按背景亮度推导的默认色，[customTextColor] 非空时覆盖。
   ///
   /// 下划线（P2-10 / B6）：solid 实线走原生 `TextDecoration.underline`；
@@ -1019,9 +1009,9 @@ class NovelReaderPreferences {
     final bool nativeUnderline =
         hasUnderline && underlineStyle == NovelUnderlineStyle.solid;
     final FontWeight? weight;
-    if (fontWeightValue != null) {
-      // 细粒度字重：100–900 clamp 后映射到 FontWeight 常量表。
-      final v = fontWeightValue!.clamp(100, 900);
+    if (fontBold) {
+      // 加粗开启时按字重滑块（100–900）取细粒度字重。
+      final v = fontWeightValue.clamp(100, 900);
       weight = switch (v) {
         100 => FontWeight.w100,
         200 => FontWeight.w200,
@@ -1034,7 +1024,7 @@ class NovelReaderPreferences {
         _ => FontWeight.w900,
       };
     } else {
-      weight = fontBold ? FontWeight.bold : null;
+      weight = null;
     }
     return TextStyle(
       fontSize: fontSize,
@@ -1131,7 +1121,6 @@ class NovelReaderPreferences {
         'themeFollow': themeFollow.name,
         'bottomToolbarSlots':
             bottomToolbarSlots.map((NovelBottomTool t) => t.name).toList(),
-        'tapZoneActions': tapZoneActions,
         // #5 朗读
         'ttsSpeechRate': ttsSpeechRate,
         'ttsSleepTimer': ttsSleepTimer,
@@ -1165,7 +1154,7 @@ class NovelReaderPreferences {
         'headerFooterMargin': headerFooterMargin,
         'scrollWheelInverted': scrollWheelInverted,
         // #10 排版增强
-        if (fontWeightValue != null) 'fontWeightValue': fontWeightValue,
+        'fontWeightValue': fontWeightValue,
         'textAlignMode': textAlignMode.name,
         'lineBreakMode': lineBreakMode.name,
         'underlineStyle': underlineStyle.name,
@@ -1188,7 +1177,6 @@ class NovelReaderPreferences {
       customTextColor: json['customTextColor'] as int?,
       shadowColor: json['shadowColor'] as int?,
       letterSpacing: (json['letterSpacing'] as num?)?.toDouble() ?? 0.0,
-      fontBold: json['fontBold'] as bool? ?? false,
       fontItalic: json['fontItalic'] as bool? ?? false,
       fontUnderline: json['fontUnderline'] as bool? ?? false,
       showChapterTitleInBody:
@@ -1217,10 +1205,6 @@ class NovelReaderPreferences {
       themeFollow: NovelThemeFollow.fromString(json['themeFollow'] as String?),
       bottomToolbarSlots: _parseBottomToolbarSlots(
           json['bottomToolbarSlots']),
-      tapZoneActions: (json['tapZoneActions'] as List?)
-              ?.map((e) => e as String)
-              .toList() ??
-          const <String>[],
       // #5 朗读
       ttsSpeechRate: (json['ttsSpeechRate'] as num?)?.toDouble() ?? 1.0,
       ttsSleepTimer: (json['ttsSleepTimer'] as num?)?.toInt() ?? 0,
@@ -1261,7 +1245,9 @@ class NovelReaderPreferences {
           (json['headerFooterMargin'] as num?)?.toDouble() ?? 12.0,
       scrollWheelInverted: json['scrollWheelInverted'] as bool? ?? false,
       // #10 排版增强
-      fontWeightValue: (json['fontWeightValue'] as num?)?.toInt(),
+      fontBold: _legacyFontBold(json),
+      fontWeightValue:
+          ((json['fontWeightValue'] as num?)?.toInt() ?? 700).clamp(100, 900),
       textAlignMode: NovelTextAlignMode.fromString(
           json['textAlignMode'] as String?),
       lineBreakMode: NovelLineBreakMode.fromString(
@@ -1312,65 +1298,14 @@ List<NovelBottomTool> _parseBottomToolbarSlots(Object? raw) {
   return NovelBottomTool.defaults;
 }
 
-/// 排版参数 JSON 导出/导入（P2-10 / B10，对标 shareReadConfig）。
-///
-/// 仅覆盖「排版」维度字段（字体/字重/字号/行距/段距/边距/对齐/断行/
-/// 下划线/阴影/标题排版），不携带颜色/背景/页眉页脚/TTS 等设备相关或
-/// 非排版偏好，避免跨设备导入时污染无关设置。
-abstract final class NovelTypographyShare {
-  /// 参与导出/导入的排版字段名集合（[NovelReaderPreferences.toJson] 键）。
-  static const Set<String> keys = <String>{
-    'fontSize', 'lineHeight', 'paragraphSpacing', 'margin',
-    'letterSpacing', 'fontBold', 'fontItalic', 'fontUnderline',
-    'showChapterTitleInBody', 'titleFontScale', 'titleBold',
-    'shadow', 'shadowBlur', 'shadowOffsetX', 'shadowOffsetY',
-    'fontWeightValue', 'textAlignMode', 'lineBreakMode',
-    'underlineStyle', 'underlineDashed', 'underlineThickness',
-    'underlineDashLength', 'underlineDashGap',
-    'titleAlign', 'titleSegmentMode', 'titleSubScale',
-    'titleSegmentSpacing', 'titleSubLineSpacing',
-    'titleTopMargin', 'titleBottomMargin',
-  };
-
-  /// 从偏好中抽取排版字段为可分享 JSON 字符串（紧凑、稳定键序）。
-  static String exportJson(NovelReaderPreferences prefs) {
-    final full = prefs.toJson();
-    final picked = <String, dynamic>{
-      for (final k in keys)
-        if (full.containsKey(k)) k: full[k],
-    };
-    return jsonEncode(picked);
-  }
-
-  /// 解析导入的排版 JSON，以 [base] 为底合并其中的合法排版字段。
-  ///
-  /// 合并策略：`base.toJson() ∪ 导入字段` 后整体走 [fromJson]，天然获得
-  /// 类型容错（非法值回退默认）与枚举反序列化回退。返回命中的字段数与
-  /// 合并结果；JSON 无法解析 / 无有效排版字段时返回 null。
-  static ({int fields, NovelReaderPreferences merged})? importJson(
-    String raw,
-    NovelReaderPreferences base,
-  ) {
-    Object? decoded;
-    try {
-      decoded = jsonDecode(raw);
-    } on Object {
-      return null;
-    }
-    if (decoded is! Map<String, dynamic>) return null;
-    final filtered = <String, dynamic>{};
-    for (final entry in decoded.entries) {
-      if (keys.contains(entry.key) && entry.value != null) {
-        filtered[entry.key] = entry.value;
-      }
-    }
-    if (filtered.isEmpty) return null;
-    final mergedJson = <String, dynamic>{...base.toJson(), ...filtered};
-    return (
-      fields: filtered.length,
-      merged: NovelReaderPreferences.fromJson(mergedJson),
-    );
-  }
+/// 旧版字重语义迁移：fontWeightValue 曾是「null = 跟随 fontBold 开关、
+/// 非空时整体接管渲染」的细粒度字段（阅读器关闭加粗时会写入 400）。
+/// 新语义下 fontWeightValue 仅是加粗开启时的滑块值，这里把旧数据统一
+/// 折算：权重 >=600 视为加粗，<600 视为未加粗。
+bool _legacyFontBold(Map<String, dynamic> json) {
+  final rawWeight = (json['fontWeightValue'] as num?)?.toInt();
+  if (rawWeight == null) return json['fontBold'] as bool? ?? false;
+  return rawWeight >= 600;
 }
 
 /// 计算 [next] 相对 [prev] 发生变化的字段名集合（[NovelReaderPreferences.toJson] 键）。

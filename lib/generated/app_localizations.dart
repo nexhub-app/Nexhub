@@ -6020,6 +6020,18 @@ abstract class AppLocalizations {
   /// **'Release to add bookmark'**
   String get novelSwipeRelease;
 
+  /// No description provided for @novelSwipeReleaseRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Release to remove bookmark'**
+  String get novelSwipeReleaseRemove;
+
+  /// No description provided for @novelBookmarkRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark removed'**
+  String get novelBookmarkRemoved;
+
   /// No description provided for @deleteBookmark.
   ///
   /// In en, this message translates to:
@@ -6709,48 +6721,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Toggle UI'**
   String get tapZoneToggle;
-
-  /// No description provided for @novelTapZoneActions.
-  ///
-  /// In en, this message translates to:
-  /// **'9-Zone Tap Actions (3×3)'**
-  String get novelTapZoneActions;
-
-  /// No description provided for @novelTapZoneReset.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset Classic Layout'**
-  String get novelTapZoneReset;
-
-  /// No description provided for @tapActNone.
-  ///
-  /// In en, this message translates to:
-  /// **'Do nothing'**
-  String get tapActNone;
-
-  /// No description provided for @tapActMenu.
-  ///
-  /// In en, this message translates to:
-  /// **'Menu'**
-  String get tapActMenu;
-
-  /// No description provided for @tapActTtsPauseResume.
-  ///
-  /// In en, this message translates to:
-  /// **'TTS Pause/Resume'**
-  String get tapActTtsPauseResume;
-
-  /// No description provided for @tapActSyncProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'Sync Progress'**
-  String get tapActSyncProgress;
-
-  /// No description provided for @tapActPurifyToggle.
-  ///
-  /// In en, this message translates to:
-  /// **'Purify Toggle'**
-  String get tapActPurifyToggle;
 
   /// No description provided for @startReading.
   ///
@@ -10109,14 +10079,8 @@ abstract class AppLocalizations {
   /// No description provided for @novelFontWeightFine.
   ///
   /// In en, this message translates to:
-  /// **'Font weight (100-900)'**
+  /// **'Bold weight (100-900)'**
   String get novelFontWeightFine;
-
-  /// No description provided for @novelFontWeightAuto.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto (follow bold switch)'**
-  String get novelFontWeightAuto;
 
   /// No description provided for @novelTextAlignMode.
   ///
@@ -10153,24 +10117,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Char-wise + kinsoku'**
   String get novelLineBreakCjkStrict;
-
-  /// No description provided for @novelTypographyShare.
-  ///
-  /// In en, this message translates to:
-  /// **'Share typography as JSON'**
-  String get novelTypographyShare;
-
-  /// No description provided for @novelTypographyImport.
-  ///
-  /// In en, this message translates to:
-  /// **'Import typography JSON'**
-  String get novelTypographyImport;
-
-  /// No description provided for @novelTypographyShareDone.
-  ///
-  /// In en, this message translates to:
-  /// **'Typography JSON copied/shared'**
-  String get novelTypographyShareDone;
 
   /// No description provided for @novelScrollImageMode.
   ///
@@ -10213,24 +10159,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Right'**
   String get novelScrollImageAlignRight;
-
-  /// No description provided for @novelTypographyImportBad.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid or unrecognized typography JSON'**
-  String get novelTypographyImportBad;
-
-  /// No description provided for @novelTypographyImportConfirmTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Apply imported typography?'**
-  String get novelTypographyImportConfirmTitle;
-
-  /// No description provided for @novelTypographyImportConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'This will override {n} reading typography defaults.'**
-  String novelTypographyImportConfirm(int n);
 
   /// No description provided for @novelUnderlineThickness.
   ///

@@ -29,6 +29,36 @@ void main() {
       expect(r.author, 'John Doe');
     });
 
+    test('模式五：书名【作者】.txt', () {
+      final r = LocalNovelParser.analyzeNameAuthor('斗破苍穹【天蚕土豆】.txt');
+      expect(r.name, '斗破苍穹');
+      expect(r.author, '天蚕土豆');
+    });
+
+    test('模式六：书名 - 作者.epub', () {
+      final r = LocalNovelParser.analyzeNameAuthor('诡秘之主 - 爱潜水的乌贼.epub');
+      expect(r.name, '诡秘之主');
+      expect(r.author, '爱潜水的乌贼');
+    });
+
+    test('模式六：全角连接符「书名—作者」', () {
+      final r = LocalNovelParser.analyzeNameAuthor('第一序列 — 会说话的肘子.txt');
+      expect(r.name, '第一序列');
+      expect(r.author, '会说话的肘子');
+    });
+
+    test('裸空格：书名 作者.txt 启发式取末段为作者', () {
+      final r = LocalNovelParser.analyzeNameAuthor('凡人修仙传 忘语.txt');
+      expect(r.name, '凡人修仙传');
+      expect(r.author, '忘语');
+    });
+
+    test('裸空格：末段为卷号/精校等修饰词时不误判为作者', () {
+      final r = LocalNovelParser.analyzeNameAuthor('斗破苍穹 精校版.txt');
+      expect(r.name, '斗破苍穹');
+      expect(r.author, isNull);
+    });
+
     test('无标记纯文件名：整名为书名、作者为空', () {
       final r = LocalNovelParser.analyzeNameAuthor('斗破苍穹.txt');
       expect(r.name, '斗破苍穹');

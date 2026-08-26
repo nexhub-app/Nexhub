@@ -3075,6 +3075,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelSwipeRelease => '松开添加书签';
 
   @override
+  String get novelSwipeReleaseRemove => '松开取消书签';
+
+  @override
+  String get novelBookmarkRemoved => '书签已取消';
+
+  @override
   String get deleteBookmark => '删除书签';
 
   @override
@@ -3434,27 +3440,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tapZoneToggle => '切换界面';
-
-  @override
-  String get novelTapZoneActions => '九区动作（3×3 自定义）';
-
-  @override
-  String get novelTapZoneReset => '恢复经典布局';
-
-  @override
-  String get tapActNone => '无操作';
-
-  @override
-  String get tapActMenu => '菜单';
-
-  @override
-  String get tapActTtsPauseResume => '朗读暂停/继续';
-
-  @override
-  String get tapActSyncProgress => '同步进度';
-
-  @override
-  String get tapActPurifyToggle => '净化开关';
 
   @override
   String get startReading => '开始朗读';
@@ -5242,10 +5227,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelUnderlineStyleDotted => '点线';
 
   @override
-  String get novelFontWeightFine => '字重（100-900）';
-
-  @override
-  String get novelFontWeightAuto => '自动（跟随加粗开关）';
+  String get novelFontWeightFine => '加粗字重（100-900）';
 
   @override
   String get novelTextAlignMode => '对齐方式';
@@ -5264,15 +5246,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get novelLineBreakCjkStrict => '逐字断行+禁则';
-
-  @override
-  String get novelTypographyShare => '排版参数分享为 JSON';
-
-  @override
-  String get novelTypographyImport => '导入排版 JSON';
-
-  @override
-  String get novelTypographyShareDone => '排版 JSON 已复制/分享';
 
   @override
   String get novelScrollImageMode => '滚动插图样式';
@@ -5294,17 +5267,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get novelScrollImageAlignRight => '靠右';
-
-  @override
-  String get novelTypographyImportBad => '无效或无法识别的排版 JSON';
-
-  @override
-  String get novelTypographyImportConfirmTitle => '应用导入的排版？';
-
-  @override
-  String novelTypographyImportConfirm(int n) {
-    return '将覆盖当前 $n 项阅读排版默认值。';
-  }
 
   @override
   String get novelUnderlineThickness => '下划线线宽';

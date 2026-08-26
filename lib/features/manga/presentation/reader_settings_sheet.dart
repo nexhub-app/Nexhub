@@ -68,16 +68,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     widget.onChanged?.call(next);
   }
 
-  /// 是否显示「鼠标滚轮」设置分组：仅桌面平台（Windows / macOS / Linux）与
-  /// 桌面端 Web 显示；手机（Android / iOS）没有滚轮，隐藏该分组。
-  bool get _showMouseWheel {
-    final TargetPlatform p = defaultTargetPlatform;
-    return p == TargetPlatform.windows ||
-        p == TargetPlatform.macOS ||
-        p == TargetPlatform.linux ||
-        p == TargetPlatform.fuchsia;
-  }
-
   /// 是否显示「音量键翻页」设置：仅 Android（iOS / 桌面没有物理音量键翻页语义）。
   bool get _showVolumeKey {
     if (kIsWeb) return false;
@@ -168,18 +158,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         return l10n.readerTapInvertUpDown;
       case 'readerTapInvertAll':
         return l10n.readerTapInvertAll;
-      // flash color
-      case 'readerFlashBlack':
-        return l10n.readerFlashBlack;
-      case 'readerFlashWhite':
-        return l10n.readerFlashWhite;
-      case 'readerFlashBlackWhite':
-        return l10n.readerFlashBlackWhite;
-      // mouse wheel action
-      case 'readerWheelZoom':
-        return l10n.readerWheelZoom;
-      case 'readerWheelPage':
-        return l10n.readerWheelPage;
       // initial zoom
       case 'readerZoomFitWidth':
         return l10n.readerZoomFitWidth;
@@ -207,10 +185,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
       case 'readerPageAnimFade':
         return l10n.readerPageAnimFade;
       // clock/battery position (REQ-C5)
-      case 'readerClockPosTop':
-        return l10n.readerClockPosTop;
-      case 'readerClockPosBottom':
-        return l10n.readerClockPosBottom;
       case 'readerClockPosTopLeft':
         return l10n.readerClockPosTopLeft;
       case 'readerClockPosTopRight':
@@ -447,26 +421,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
             onChanged: (v) => _update(
                 _draft.copyWith(volumeKeyPageTurnDistancePercent: v.round())),
           ),
-      ],
-    );
-  }
-
-  /// 自动下载与跳章过滤（REQ-C7 / REQ-C11）。
-  Widget _buildAutoDownload() {
-    final l10n = AppLocalizations.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        _switchTile(l10n.readerAutoFavorite, _draft.isAutoFavorite,
-            (v) => _update(_draft.copyWith(isAutoFavorite: v))),
-        _switchTile(l10n.readerAutoDownload, _draft.autoDownloadChapters,
-            (v) => _update(_draft.copyWith(autoDownloadChapters: v))),
-        _switchTile(l10n.readerSkipReadChapters, _draft.skipReadChapters,
-            (v) => _update(_draft.copyWith(skipReadChapters: v))),
-        _switchTile(l10n.readerSkipFilteredChapters, _draft.skipFilteredChapters,
-            (v) => _update(_draft.copyWith(skipFilteredChapters: v))),
-        _switchTile(l10n.readerSkipDuplicateChapters, _draft.skipDuplicateChapters,
-            (v) => _update(_draft.copyWith(skipDuplicateChapters: v))),
       ],
     );
   }
@@ -708,20 +662,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  Widget _buildFlashColor() {
-    return Wrap(
-      spacing: AppTokens.spaceSm,
-      runSpacing: AppTokens.spaceSm,
-      children: ReaderFlashColor.values.map((c) {
-        return ChoiceChip(
-          label: Text(_l(c.l10nKey())),
-          selected: _draft.flashColor == c,
-          onSelected: (_) => _update(_draft.copyWith(flashColor: c)),
-        );
-      }).toList(),
-    );
-  }
-
   Widget _buildImageFilter() {
     return ReaderImageFilterPanel(
       brightness: _draft.filterBrightness,
@@ -755,118 +695,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
           onSelected: (_) => _update(_draft.copyWith(colorProfile: c)),
         );
       }).toList(),
-    );
-  }
-
-  /// E-Ink 刷新（墨水屏防残影）：开关 + 间隔 + 时长 + 闪烁样式。
-  Widget _buildEInkRefresh() {
-    final l10n = AppLocalizations.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        _switchTile(l10n.readerEInkRefresh, _draft.einkRefreshEnabled,
-            (v) => _update(_draft.copyWith(einkRefreshEnabled: v))),
-        if (_draft.einkRefreshEnabled) ...<Widget>[
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
-            child: _SliderRow(
-              label: l10n.readerEInkRefreshInterval,
-              value: _draft.einkRefreshInterval.toDouble(),
-              min: 1,
-              max: 50,
-              divisions: 49,
-              displayValue: '${_draft.einkRefreshInterval}',
-              onChanged: (v) =>
-                  _update(_draft.copyWith(einkRefreshInterval: v.round())),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
-            child: _SliderRow(
-              label: l10n.readerEInkRefreshDuration,
-              value: _draft.einkRefreshDuration.toDouble(),
-              min: 50,
-              max: 1000,
-              divisions: 95,
-              displayValue: '${_draft.einkRefreshDuration} ms',
-              onChanged: (v) =>
-                  _update(_draft.copyWith(einkRefreshDuration: v.round())),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-            child: Text(l10n.readerEInkRefreshStyle,
-                style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          Wrap(
-            spacing: AppTokens.spaceSm,
-            runSpacing: AppTokens.spaceSm,
-            children: ReaderEInkRefreshStyle.values.map((s) {
-              return ChoiceChip(
-                label: Text(_l(s.l10nKey())),
-                selected: _draft.einkRefreshStyle == s,
-                onSelected: (_) =>
-                    _update(_draft.copyWith(einkRefreshStyle: s)),
-              );
-            }).toList(),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildMouseWheel() {
-    final l10n = AppLocalizations.of(context);
-    // 条漫（连续滚动）模式下滚轮按上下文自动分派（未放大=滚动、已放大=缩放），
-    // 「作用（缩放/翻页）」二选一设置无意义，仅在翻页模式显示；「方向（自然/反向）」
-    // 在条漫仍控制放大时的滚轮方向，始终显示。
-    final bool showAction = !_draft.readingMode.isWebtoon;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        if (showAction) ...<Widget>[
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-            child: Text(l10n.readerWheelAction,
-                style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          Wrap(
-            spacing: AppTokens.spaceSm,
-            runSpacing: AppTokens.spaceSm,
-            children: MouseWheelAction.values.map((a) {
-              return ChoiceChip(
-                label: Text(_l(a.l10nKey())),
-                selected: _draft.mouseWheelAction == a,
-                onSelected: (_) => _update(_draft.copyWith(mouseWheelAction: a)),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: AppTokens.spaceMd),
-        ],
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-          child: Text(l10n.comicDefaultScrollWheel,
-              style: Theme.of(context).textTheme.bodyMedium),
-        ),
-        Wrap(
-          spacing: AppTokens.spaceSm,
-          runSpacing: AppTokens.spaceSm,
-          children: <Widget>[
-            ChoiceChip(
-              label: Text(l10n.comicWheelNatural),
-              selected: !_draft.scrollWheelInverted,
-              onSelected: (_) =>
-                  _update(_draft.copyWith(scrollWheelInverted: false)),
-            ),
-            ChoiceChip(
-              label: Text(l10n.comicWheelInverted),
-              selected: _draft.scrollWheelInverted,
-              onSelected: (_) =>
-                  _update(_draft.copyWith(scrollWheelInverted: true)),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -1133,8 +961,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     searchTerms: const <String>[
                       '页码', '进度', '进度条', '全屏', '常亮', '旋转', '双页',
                       '分屏', '长按', '防缩', '章节', '过渡', '显示', 'page',
-                      'fullscreen', 'screen', '亮度', '自动滚动', '滚动速度',
-                      'auto scroll', 'scroll speed', '滚轮', '自动翻页',
+                      'fullscreen', 'screen', '自动滚动', '滚动速度',
+                      'auto scroll', 'scroll speed', '自动翻页',
                       '翻页间隔', '首屏单图', '单图', 'auto page turn',
                     ],
                     children: <Widget>[
@@ -1211,23 +1039,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     ],
                   ),
 
-                  // ── 自动（下载/跳章过滤）────────────────────────
-                  _buildSettingsGroup(
-                    context,
-                    l10n.readerGroupAuto,
-                    description: l10n.readerGroupAutoDesc,
-                    leading: Icons.download,
-                    searchQuery: q,
-                    searchTerms: const <String>[
-                      '自动', '下载', '章节', '跳过', '已读', '筛选', '重复',
-                      'auto', 'download', 'skip', 'chapter', 'read',
-                      'filter', 'duplicate',
-                    ],
-                    children: <Widget>[
-                      _buildAutoDownload(),
-                    ],
-                  ),
-
                   // ── 睡眠定时（X-1）────────────────────────────
                   _buildSettingsGroup(
                     context,
@@ -1276,82 +1087,6 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       _buildMultiImageSpacing(),
                     ],
                   ),
-
-                  // ── 翻页闪光 ────────────────────────────────
-                  _buildSettingsGroup(
-                    context,
-                    l10n.readerGroupFlash,
-                    description: l10n.readerGroupFlashDesc,
-                    leading: Icons.flash_on,
-                    searchQuery: q,
-                    searchTerms: const <String>[
-                      '闪光', '翻页灯', '闪屏', 'flash',
-                    ],
-                    children: <Widget>[
-                      _switchTile(l10n.readerFlashEnabled, _draft.flashEnabled,
-                          (v) => _update(_draft.copyWith(flashEnabled: v))),
-                      if (_draft.flashEnabled) ...<Widget>[
-                        Padding(
-                          padding: const EdgeInsets.only(top: AppTokens.spaceXs),
-                          child: _SliderRow(
-                            label: l10n.readerFlashTime,
-                            value: _draft.flashTime.toDouble(),
-                            min: 50,
-                            max: 600,
-                            divisions: 55,
-                            displayValue: '${_draft.flashTime} ms',
-                            onChanged: (v) =>
-                                _update(_draft.copyWith(flashTime: v.round())),
-                          ),
-                        ),
-                        _SliderRow(
-                          label: l10n.readerFlashInterval,
-                          value: _draft.flashInterval.toDouble(),
-                          min: 0,
-                          max: 600,
-                          divisions: 60,
-                          displayValue: '${_draft.flashInterval} ms',
-                          onChanged: (v) =>
-                              _update(_draft.copyWith(flashInterval: v.round())),
-                        ),
-                      ],
-                      _section(context, l10n.readerFlashColor, _buildFlashColor()),
-                    ],
-                  ),
-
-                  // ── E-Ink 刷新（墨水屏防残影）────────────────────────
-                  _buildSettingsGroup(
-                    context,
-                    l10n.readerGroupEInk,
-                    description: l10n.readerGroupEInkDesc,
-                    leading: Icons.refresh,
-                    searchQuery: q,
-                    searchTerms: const <String>[
-                      'eink', '墨水', '电子墨水', '残影', '刷新', 'e-ink',
-                      'refresh', 'ghost', '闪',
-                    ],
-                    children: <Widget>[
-                      _buildEInkRefresh(),
-                    ],
-                  ),
-
-                  // ── 鼠标滚轮 ────────────────────────────────
-                  // 仅桌面平台显示（手机无滚轮，见 [_showMouseWheel]）。
-                  if (_showMouseWheel)
-                    _buildSettingsGroup(
-                      context,
-                      l10n.readerGroupMouseWheel,
-                      description: l10n.readerGroupMouseWheelDesc,
-                      leading: Icons.mouse,
-                      searchQuery: q,
-                      searchTerms: const <String>[
-                        '滚轮', '鼠标', '翻页', '缩放', '滚动', '方向',
-                        'wheel', 'zoom', 'page', 'mouse', 'scroll',
-                      ],
-                      children: <Widget>[
-                        _buildMouseWheel(),
-                      ],
-                    ),
                 ],
               ),
             ),

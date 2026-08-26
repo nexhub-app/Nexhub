@@ -6,6 +6,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -685,16 +686,6 @@ class ReaderPreferences {
     this.readerScreenPicNumberForLandscape = 1,
   });
 
-  /// 滤镜是否为默认值（各轴均为 0 且不反色/不灰度），用于跳过无谓的 ColorFiltered 图层。
-  bool get filterIsIdentity =>
-      filterBrightness == 0.0 &&
-      filterContrast == 0.0 &&
-      filterColorTemp == 0.0 &&
-      filterSaturation == 0.0 &&
-      filterHue == 0.0 &&
-      !filterInverted &&
-      !filterGrayscale;
-
   factory ReaderPreferences.fromJson(Map<String, dynamic> json) {
     ReadingMode mode = ReadingMode.singleLTR;
     if (json['readingMode'] is String) {
@@ -1080,251 +1071,23 @@ class ReaderPreferences {
             this.readerScreenPicNumberForLandscape,
       );
 
-  /// 以 [base] 为全局默认，仅用本对象中「用户自定义过的字段」覆盖。
+  /// 以 [base] 为底，仅用 [keys] 列出的字段覆盖（显式「本书单独设置」）。
   ///
-  /// 用于：设置页的阅读器默认设置作为 [base]，打开具体作品时读取的
-  /// per-work 偏好作为本对象；用户没改过的项回落到全局默认。
-  ReaderPreferences mergedWith(ReaderPreferences base) {
-    const def = ReaderPreferences();
-    return ReaderPreferences(
-      readingMode: identical(readingMode, def.readingMode)
-          ? base.readingMode
-          : readingMode,
-      doubleTapZoom: identical(doubleTapZoom, def.doubleTapZoom)
-          ? base.doubleTapZoom
-          : doubleTapZoom,
-      orientation: identical(orientation, def.orientation)
-          ? base.orientation
-          : orientation,
-      background: identical(background, def.background)
-          ? base.background
-          : background,
-      tapZoneLayout: identical(tapZoneLayout, def.tapZoneLayout)
-          ? base.tapZoneLayout
-          : tapZoneLayout,
-      tapZoneInvert: identical(tapZoneInvert, def.tapZoneInvert)
-          ? base.tapZoneInvert
-          : tapZoneInvert,
-      minScale: identical(minScale, def.minScale) ? base.minScale : minScale,
-      maxScale: identical(maxScale, def.maxScale) ? base.maxScale : maxScale,
-      filterBrightness: identical(filterBrightness, def.filterBrightness)
-          ? base.filterBrightness
-          : filterBrightness,
-      filterContrast: identical(filterContrast, def.filterContrast)
-          ? base.filterContrast
-          : filterContrast,
-      filterColorTemp: identical(filterColorTemp, def.filterColorTemp)
-          ? base.filterColorTemp
-          : filterColorTemp,
-      filterSaturation: identical(filterSaturation, def.filterSaturation)
-          ? base.filterSaturation
-          : filterSaturation,
-      filterHue: identical(filterHue, def.filterHue)
-          ? base.filterHue
-          : filterHue,
-      filterInverted: identical(filterInverted, def.filterInverted)
-          ? base.filterInverted
-          : filterInverted,
-      cropEdge: identical(cropEdge, def.cropEdge) ? base.cropEdge : cropEdge,
-      showPageNumber: identical(showPageNumber, def.showPageNumber)
-          ? base.showPageNumber
-          : showPageNumber,
-      progressBarOnRight:
-          identical(progressBarOnRight, def.progressBarOnRight)
-              ? base.progressBarOnRight
-              : progressBarOnRight,
-      keepScreenOn: identical(keepScreenOn, def.keepScreenOn)
-          ? base.keepScreenOn
-          : keepScreenOn,
-      rotateLandscape: identical(rotateLandscape, def.rotateLandscape)
-          ? base.rotateLandscape
-          : rotateLandscape,
-      splitDoublePage: identical(splitDoublePage, def.splitDoublePage)
-          ? base.splitDoublePage
-          : splitDoublePage,
-      sideMargin: identical(sideMargin, def.sideMargin)
-          ? base.sideMargin
-          : sideMargin,
-      flashEnabled: identical(flashEnabled, def.flashEnabled)
-          ? base.flashEnabled
-          : flashEnabled,
-      flashTime: identical(flashTime, def.flashTime)
-          ? base.flashTime
-          : flashTime,
-      flashInterval: identical(flashInterval, def.flashInterval)
-          ? base.flashInterval
-          : flashInterval,
-      flashColor: identical(flashColor, def.flashColor)
-          ? base.flashColor
-          : flashColor,
-      initialZoom: identical(initialZoom, def.initialZoom)
-          ? base.initialZoom
-          : initialZoom,
-      fullscreen: identical(fullscreen, def.fullscreen)
-          ? base.fullscreen
-          : fullscreen,
-      showLongPressMenu: identical(showLongPressMenu, def.showLongPressMenu)
-          ? base.showLongPressMenu
-          : showLongPressMenu,
-      filterGrayscale: identical(filterGrayscale, def.filterGrayscale)
-          ? base.filterGrayscale
-          : filterGrayscale,
-      preventShrink: identical(preventShrink, def.preventShrink)
-          ? base.preventShrink
-          : preventShrink,
-      showChapterTransition:
-          identical(showChapterTransition, def.showChapterTransition)
-              ? base.showChapterTransition
-              : showChapterTransition,
-      doubleTapZoomScale:
-          identical(doubleTapZoomScale, def.doubleTapZoomScale)
-              ? base.doubleTapZoomScale
-              : doubleTapZoomScale,
-      scrollWheelInverted:
-          identical(scrollWheelInverted, def.scrollWheelInverted)
-              ? base.scrollWheelInverted
-              : scrollWheelInverted,
-      mouseWheelAction:
-          identical(mouseWheelAction, def.mouseWheelAction)
-              ? base.mouseWheelAction
-              : mouseWheelAction,
-      preloadImageCount:
-          identical(preloadImageCount, def.preloadImageCount)
-              ? base.preloadImageCount
-              : preloadImageCount,
-      seamlessReading: identical(seamlessReading, def.seamlessReading)
-          ? base.seamlessReading
-          : seamlessReading,
-      webtoonLimitDecodeSize:
-          identical(webtoonLimitDecodeSize, def.webtoonLimitDecodeSize)
-              ? base.webtoonLimitDecodeSize
-              : webtoonLimitDecodeSize,
-      showChapterSeparator:
-          identical(showChapterSeparator, def.showChapterSeparator)
-              ? base.showChapterSeparator
-              : showChapterSeparator,
-      readerScrollSpeed:
-          identical(readerScrollSpeed, def.readerScrollSpeed)
-              ? base.readerScrollSpeed
-              : readerScrollSpeed,
-      volumeKeyPageTurn:
-          identical(volumeKeyPageTurn, def.volumeKeyPageTurn)
-              ? base.volumeKeyPageTurn
-              : volumeKeyPageTurn,
-      volumeKeyPageTurnDistancePercent: identical(
-              volumeKeyPageTurnDistancePercent,
-              def.volumeKeyPageTurnDistancePercent)
-          ? base.volumeKeyPageTurnDistancePercent
-          : volumeKeyPageTurnDistancePercent,
-      enableLongPressToZoom:
-          identical(enableLongPressToZoom, def.enableLongPressToZoom)
-              ? base.enableLongPressToZoom
-              : enableLongPressToZoom,
-      longPressZoomPosition:
-          identical(longPressZoomPosition, def.longPressZoomPosition)
-              ? base.longPressZoomPosition
-              : longPressZoomPosition,
-      zoomStart: identical(zoomStart, def.zoomStart)
-          ? base.zoomStart
-          : zoomStart,
-      autoPageTurningEnabled:
-          identical(autoPageTurningEnabled, def.autoPageTurningEnabled)
-              ? base.autoPageTurningEnabled
-              : autoPageTurningEnabled,
-      autoPageTurningInterval:
-          identical(autoPageTurningInterval, def.autoPageTurningInterval)
-              ? base.autoPageTurningInterval
-              : autoPageTurningInterval,
-      autoScroll: identical(autoScroll, def.autoScroll)
-          ? base.autoScroll
-          : autoScroll,
-      pageAnimation: identical(pageAnimation, def.pageAnimation)
-          ? base.pageAnimation
-          : pageAnimation,
-      doubleTapAnimSpeed:
-          identical(doubleTapAnimSpeed, def.doubleTapAnimSpeed)
-              ? base.doubleTapAnimSpeed
-              : doubleTapAnimSpeed,
-      readerPageSpacing: identical(readerPageSpacing, def.readerPageSpacing)
-          ? base.readerPageSpacing
-          : readerPageSpacing,
-      showSingleImageOnFirstPage: identical(
-              showSingleImageOnFirstPage, def.showSingleImageOnFirstPage)
-          ? base.showSingleImageOnFirstPage
-          : showSingleImageOnFirstPage,
-      showClockBattery: identical(showClockBattery, def.showClockBattery)
-          ? base.showClockBattery
-          : showClockBattery,
-      clockBatteryPosition:
-          identical(clockBatteryPosition, def.clockBatteryPosition)
-              ? base.clockBatteryPosition
-              : clockBatteryPosition,
-      clockBatteryMargin: identical(clockBatteryMargin, def.clockBatteryMargin)
-          ? base.clockBatteryMargin
-          : clockBatteryMargin,
-      clockBatteryOpacity:
-          identical(clockBatteryOpacity, def.clockBatteryOpacity)
-              ? base.clockBatteryOpacity
-              : clockBatteryOpacity,
-      clockBatteryFontSize:
-          identical(clockBatteryFontSize, def.clockBatteryFontSize)
-              ? base.clockBatteryFontSize
-              : clockBatteryFontSize,
-      readerBrightness: identical(readerBrightness, def.readerBrightness)
-          ? base.readerBrightness
-          : readerBrightness,
-      nightLightEnabled:
-          identical(nightLightEnabled, def.nightLightEnabled)
-              ? base.nightLightEnabled
-              : nightLightEnabled,
-      nightLightOpacity:
-          identical(nightLightOpacity, def.nightLightOpacity)
-              ? base.nightLightOpacity
-              : nightLightOpacity,
-      colorProfile: identical(colorProfile, def.colorProfile)
-          ? base.colorProfile
-          : colorProfile,
-      einkRefreshEnabled: identical(einkRefreshEnabled, def.einkRefreshEnabled)
-          ? base.einkRefreshEnabled
-          : einkRefreshEnabled,
-      einkRefreshInterval: identical(einkRefreshInterval, def.einkRefreshInterval)
-          ? base.einkRefreshInterval
-          : einkRefreshInterval,
-      einkRefreshDuration: identical(einkRefreshDuration, def.einkRefreshDuration)
-          ? base.einkRefreshDuration
-          : einkRefreshDuration,
-      einkRefreshStyle: identical(einkRefreshStyle, def.einkRefreshStyle)
-          ? base.einkRefreshStyle
-          : einkRefreshStyle,
-      isAutoFavorite: identical(isAutoFavorite, def.isAutoFavorite)
-          ? base.isAutoFavorite
-          : isAutoFavorite,
-      autoDownloadChapters:
-          identical(autoDownloadChapters, def.autoDownloadChapters)
-              ? base.autoDownloadChapters
-              : autoDownloadChapters,
-      skipReadChapters: identical(skipReadChapters, def.skipReadChapters)
-          ? base.skipReadChapters
-          : skipReadChapters,
-      skipFilteredChapters:
-          identical(skipFilteredChapters, def.skipFilteredChapters)
-              ? base.skipFilteredChapters
-              : skipFilteredChapters,
-      skipDuplicateChapters:
-          identical(skipDuplicateChapters, def.skipDuplicateChapters)
-              ? base.skipDuplicateChapters
-              : skipDuplicateChapters,
-      readerScreenPicNumberForPortrait: identical(
-              readerScreenPicNumberForPortrait,
-              def.readerScreenPicNumberForPortrait)
-          ? base.readerScreenPicNumberForPortrait
-          : readerScreenPicNumberForPortrait,
-      readerScreenPicNumberForLandscape: identical(
-              readerScreenPicNumberForLandscape,
-              def.readerScreenPicNumberForLandscape)
-          ? base.readerScreenPicNumberForLandscape
-          : readerScreenPicNumberForLandscape,
-    );
+  /// 由调用方显式给出用户真正改过的字段名
+  /// （[ReaderPreferencesStore.getOverrideKeys]），
+  /// 未列出的字段一律跟随全局默认。
+  ReaderPreferences mergedWithKeys(
+    ReaderPreferences base,
+    Iterable<String> keys,
+  ) {
+    final keySet = keys.toSet();
+    if (keySet.isEmpty) return base;
+    final selfJson = toJson();
+    final mergedJson = <String, dynamic>{...base.toJson()};
+    for (final key in keySet) {
+      if (selfJson.containsKey(key)) mergedJson[key] = selfJson[key];
+    }
+    return ReaderPreferences.fromJson(mergedJson);
   }
 
   /// 背景实际颜色（结合深浅色：auto 在浅色主题用白、深色用黑）。
@@ -1351,7 +1114,7 @@ class ReaderPreferences {
 
 /// 三层设置覆盖取值（REQ-C9）：global（全局默认）→ work（作品）→ device（设备/会话）。
 ///
-/// - [base]：已合并的「全局默认 + 作品」偏好（即 [ReaderPreferences.mergedWith] 结果）；
+/// - [base]：已合并的「全局默认 + 作品」偏好（即 [ReaderPreferences.mergedWithKeys] 结果）；
 /// - [device]：当前运行时覆盖层（如按屏幕尺寸/方向的临时偏好，退出阅读器不持久化），
 ///   可为 null（表示无设备层覆盖，此时回落 [base]）；
 /// - [selector]：按字段取值（`(p) => p.readerBrightness` 等）。
@@ -1403,6 +1166,61 @@ class ComicSleepTimerState {
   int get hashCode => Object.hash(mode, value);
 }
 
+/// 已升级为「仅总设置」的作品层字段（[ReaderPreferences.toJson] 键）。
+///
+/// 这些设置原本在阅读器弹窗可改，现移除弹窗入口、只在全局设置页配置；
+/// 作品层存储加载 / 保存时剥离它们，避免历史弹窗写入的值继续遮蔽总设置。
+const Set<String> kComicWorkRemovedSettingKeys = <String>{
+  // 自动化组（自动收藏 / 下载 / 跳章过滤）。
+  'isAutoFavorite',
+  'autoDownloadChapters',
+  'skipReadChapters',
+  'skipFilteredChapters',
+  'skipDuplicateChapters',
+  // E-Ink 刷新。
+  'einkRefreshEnabled',
+  'einkRefreshInterval',
+  'einkRefreshDuration',
+  'einkRefreshStyle',
+  // 鼠标滚轮（桌面）。
+  'mouseWheelAction',
+  'scrollWheelInverted',
+  // 翻页闪光。
+  'flashEnabled',
+  'flashTime',
+  'flashInterval',
+  'flashColor',
+};
+
+/// 计算 [next] 相对 [prev] 发生变化的字段名集合（[ReaderPreferences.toJson] 键）。
+///
+/// 列表字段按内容比较，其余用 `==`。设置面板每次改动调用一次，
+/// 把差集累积进「本书单独设置」覆盖记录，取代整包落盘后的默认值猜测。
+Set<String> comicPrefsChangedKeys(
+  ReaderPreferences prev,
+  ReaderPreferences next,
+) {
+  final a = prev.toJson();
+  final b = next.toJson();
+  final changed = <String>{};
+  for (final entry in b.entries) {
+    final av = a[entry.key];
+    final bv = entry.value;
+    if (av is List && bv is List) {
+      if (!listEquals(av, bv)) changed.add(entry.key);
+    } else if (av != bv) {
+      changed.add(entry.key);
+    }
+  }
+  return changed;
+}
+
+Map<String, dynamic> _stripWorkRemovedKeys(Map<String, dynamic> json) =>
+    <String, dynamic>{
+      for (final entry in json.entries)
+        if (!kComicWorkRemovedSettingKeys.contains(entry.key)) entry.key: entry.value,
+    };
+
 /// 持久化后端抽象（可注入内存实现用于测试，避免测试依赖原生插件）。
 abstract class PrefsBackend {
   Future<String?> get(String key);
@@ -1445,16 +1263,22 @@ class ReaderPreferencesStore {
 
   static const String _prefix = 'reader_prefs_';
 
-  /// 读取某作品偏好（缺省返回默认）。
+  /// 显式「本书单独设置」覆盖记录的 sidecar 键后缀。
+  ///
+  /// 与偏好本体分开存：本体仍是完整 JSON（兼容旧版/云同步），但合并时只认
+  /// 这里列出的字段；未列出的字段实时跟随总设置。
+  static const String _overrideSuffix = '#ovr';
+
+  /// 读取某作品偏好（缺省返回默认）。已升级为「仅总设置」的字段在此剥离。
   Future<ReaderPreferences> get(String id) async {
     final cached = _cache[id];
     if (cached != null) return cached;
     final raw = await _backend.get('$_prefix$id');
     if (raw == null) return const ReaderPreferences();
     try {
-      final prefs = ReaderPreferences.fromJson(
-        jsonDecode(raw) as Map<String, dynamic>,
-      );
+      final json = jsonDecode(raw);
+      if (json is! Map<String, dynamic>) return const ReaderPreferences();
+      final prefs = ReaderPreferences.fromJson(_stripWorkRemovedKeys(json));
       _cache[id] = prefs;
       return prefs;
     } on Object {
@@ -1462,8 +1286,43 @@ class ReaderPreferencesStore {
     }
   }
 
-  Future<void> save(String id, ReaderPreferences prefs) async {
+  /// 读取本书显式单独设置过的字段名集合。
+  ///
+  /// 无 sidecar 记录的历史数据按旧规则迁移推断：与类默认值不同的字段视为
+  /// 单独设置（维持既有表现）；已升级为「仅总设置」的字段一律排除。
+  Future<Set<String>> getOverrideKeys(String id) async {
+    final raw = await _backend.get('$_prefix$id$_overrideSuffix');
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          return <String>{for (final e in decoded) e.toString()}
+            ..removeAll(kComicWorkRemovedSettingKeys);
+        }
+      } on Object {
+        // 解析失败则回退到旧规则推断。
+      }
+    }
+    final stored = await get(id);
+    return comicPrefsChangedKeys(const ReaderPreferences(), stored)
+        .difference(kComicWorkRemovedSettingKeys);
+  }
+
+  /// 保存偏好：已升级为「仅总设置」的字段不会写入作品层；
+  /// [overrideKeys] 非空时同步写入显式覆盖记录（空集合 = 清除全部单独设置）。
+  Future<void> save(
+    String id,
+    ReaderPreferences prefs, {
+    Set<String>? overrideKeys,
+  }) async {
     _cache[id] = prefs;
-    await _backend.set(_prefix + id, jsonEncode(prefs.toJson()));
+    await _backend.set(
+      _prefix + id,
+      jsonEncode(_stripWorkRemovedKeys(prefs.toJson())),
+    );
+    if (overrideKeys != null) {
+      await _backend.set('$_prefix$id$_overrideSuffix',
+          jsonEncode(overrideKeys.toList()..sort()));
+    }
   }
 }

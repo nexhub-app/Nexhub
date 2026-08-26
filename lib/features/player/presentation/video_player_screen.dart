@@ -1307,9 +1307,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
     // 旧方案兼容副本：SharedPreferencesAsync 键 danmaku_settings。
     try {
-      final raw =
-          await SharedPreferencesAsync().getString(_kLegacyDanmakuSettingsKey);
+      final sp = SharedPreferencesAsync();
+      final raw = await sp.getString(_kLegacyDanmakuSettingsKey);
       if (raw != null && raw.isNotEmpty) {
+        // 读后即删：迁移只发生一次，避免旧键永久残留。
+        await sp.remove(_kLegacyDanmakuSettingsKey);
         return DanmakuSettings.fromJson(
             jsonDecode(raw) as Map<String, dynamic>);
       }

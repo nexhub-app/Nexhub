@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:battery_plus/battery_plus.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/foundation.dart';
@@ -29,8 +30,6 @@ import '../../../core/novel/novel_highlight_rule.dart'
     show NovelHighlightRuleSet;
 import '../../../core/novel/novel_rule_cache.dart'
     show NovelRuleCache;
-import '../../../core/novel/novel_tap_action.dart'
-    show NovelTapAction, novelTapGridIndexOf;
 import '../../../core/novel/novel_replace_rule_screen.dart'
     show NovelReplaceRuleScreen;
 import '../../../core/favorites/favorites_manager.dart';
@@ -3846,23 +3845,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       setState(() => _showSelectionToolbar = false);
       return;
     }
-    // N2：九区自定义动作优先（偏好长度为 9 时生效）；未配置时回退
-    // 旧布局预设解析，保持既有行为不变。
-    final List<String> tapGrid = _prefs.tapZoneActions;
-    if (tapGrid.length == 9) {
-      final int zone = novelTapGridIndexOf(details.localPosition, size);
-      NovelTapAction act =
-          NovelTapAction.tryParse(tapGrid[zone]) ?? NovelTapAction.menu;
-      if (_prefs.tapZoneInvert == TapZoneInvert.leftRight) {
-        act = switch (act) {
-          NovelTapAction.prevPage => NovelTapAction.nextPage,
-          NovelTapAction.nextPage => NovelTapAction.prevPage,
-          _ => act,
-        };
-      }
-      _dispatchTapAction(act);
-      return;
-    }
     final action = TapZoneResolver.resolve(
       layout: _prefs.tapZoneLayout,
       invert: _prefs.tapZoneInvert,
@@ -3877,177 +3859,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _goPrevPage();
       case TapZoneAction.next:
         _goNextPage();
-    }
-  }
-
-  /// 分发九区动作（N2）。
-  void _dispatchTapAction(NovelTapAction action) {
-    switch (action) {
-      case NovelTapAction.none:
-        break;
-      case NovelTapAction.menu:
-        _toggleUi();
-      case NovelTapAction.prevPage:
-        _goPrevPage();
-      case NovelTapAction.nextPage:
-        _goNextPage();
-      case NovelTapAction.prevChapter:
-        _goPrevChapter();
-      case NovelTapAction.nextChapter:
-        _goNextChapter();
-      case NovelTapAction.addBookmark:
-        _addBookmark();
-      case NovelTapAction.bookmarkList:
-        _showBookmarkList();
-      case NovelTapAction.toc:
-        _showChapterList();
-      case NovelTapAction.search:
-        _showInBookSearch();
-      case NovelTapAction.ttsToggle:
-        _toggleTts();
-      case NovelTapAction.ttsPauseResume:
-        if (_tts.isPaused) {
-          _tts.resume();
-        } else if (_tts.isPlaying) {
-          _tts.pause();
-        } else {
-          _toggleTts();
-        }
-        if (mounted) setState(() {});
-      case NovelTapAction.nightMode:
-        _toggleNightMode();
-      case NovelTapAction.autoPagePause:
-        if (!_autoPageEnabled) return; // 未启用时无语义，交由设置入口开启
-        _toggleAutoPagePause();
-      case NovelTapAction.syncProgress:
-        unawaited(_syncProgressFromCloud());
-      case NovelTapAction.purifyToggle:
-        unawaited(_togglePurify());
-    }
-  }
-
-  /// 九区「净化开关」动作（N2）：翻转本书替换净化总开关并局部重排。
-  Future<void> _togglePurify() async {
-    try {
-      final rules =
-          await NovelRuleCache().getReplaceRules(widget.novelId);
-      rules.enabled = !rules.enabled;
-      await NovelRuleCache().saveReplaceRules(rules);
-      _refreshConvert();
-    } on Object {
-      // 缓存/持久化失败静默忽略
-    }
-  }
-
-  /// 九区「同步进度」动作（N2）：拉取云端阅读进度。
-  ///
-  /// 本地领先 → 静默上传并提示；云端领先 → 弹确认框，确认后应用云端
-  /// 快照并跳转到对应章节页；无差异提示「进度无变化」。
-  Future<void> _syncProgressFromCloud() async {
-    if (_isLocalMode) return;
-    final l10n = AppLocalizations.of(context);
-    final int idx = _chapterIndex.clamp(
-        0, _effectiveChapters.isNotEmpty ? _effectiveChapters.length - 1 : 0);
-    final int total = _pagination?.pages.length ?? 0;
-    final int page = (_currentPage < 0 && total > 0)
-        ? total - 1
-        : _currentPage.clamp(0, total > 0 ? total - 1 : 0);
-    final point = NovelProgressPoint(
-      novelId: widget.novelId,
-      chapterIndex: idx,
-      charOffset: _pagination != null ? _charOffsetForPage(page) : null,
-      page: page,
-    );
-    bool appliedRemote = false;
-    bool uploadedLocal = false;
-    bool conflict = false;
-    try {
-      final r = await NovelProgressSyncService()
-          .pullOne(widget.novelId, point);
-      appliedRemote = r.appliedRemote;
-      uploadedLocal = r.uploadedLocal;
-      conflict = r.conflict;
-    } on Object {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.cloudSyncSyncFailed)),
-      );
-      return;
-    }
-    if (!mounted) return;
-
-    bool useRemote = appliedRemote;
-    if (conflict) {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (BuildContext ctx) => AppAlertDialog(
-          title: Text(l10n.novelProgressConflictTitle),
-          content: Text(l10n.novelProgressConflictBody(1)),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(l10n.novelProgressUseRemote),
-            ),
-          ],
-        ),
-      );
-      if (!mounted) return;
-      if (ok != true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.novelProgressSyncedNone)),
-        );
-        return;
-      }
-      useRemote = true;
-    } else if (!useRemote && uploadedLocal) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.cloudSyncSyncSuccess)),
-      );
-      return;
-    } else if (!useRemote) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.novelProgressSyncedNone)),
-      );
-      return;
-    }
-
-    // 应用云端快照（appliedRemote 的空本地场景与确认后的冲突场景统一走此写入）。
-    try {
-      final applied = await NovelProgressSyncService().applyRemote(
-        <String, NovelProgressPoint>{widget.novelId: point},
-        confirmedIds: <String>[widget.novelId],
-      );
-      if (!mounted) return;
-      if (applied.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.cloudSyncSyncFailed)),
-        );
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.cloudSyncSyncSuccess)),
-      );
-      final saved = await NovelProgressManager().get(widget.novelId);
-      if (!mounted || saved == null) return;
-      if (widget.chapters.isEmpty) return;
-      final target = saved.chapterIndex.clamp(0, widget.chapters.length - 1);
-      _jumpToBookmark(NovelBookmark(
-        novelId: widget.novelId,
-        chapterIndex: target,
-        chapterId: saved.chapterId,
-        chapterTitle: '',
-        page: saved.currentPage,
-        createdAt: 0,
-      ));
-    } on Object {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.cloudSyncSyncFailed)),
-      );
     }
   }
 
@@ -4135,6 +3946,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _bookmarkSwipeActive = false;
     _bookmarkSwipeDy = 0;
     _bookmarkSwipeDx = 0;
+    // 预取当前位置是否已有书签：决定本次下滑是添加还是取消（提示条文案同步）。
+    unawaited(_refreshQuickBookmarkState());
   }
 
   void _onBookmarkSwipeUpdate(DragUpdateDetails d) {
@@ -4159,12 +3972,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         if (mounted) setState(() {});
         return;
       }
-      if (_bookmarkSwipeDy < -24) {
-        // 明确上滑 → 放弃（可能是亮度/滚动方向误触）。
-        _bookmarkSwipePending = false;
-        _bookmarkSwipeDy = 0;
-        _bookmarkSwipeDx = 0;
-      }
+      // 仅允许下滑触发；上滑/回落不取消手势（避免误判打断），继续等待
+      // 手指拖回下滑方向或抬手复位。
       return;
     }
     // 激活态：仅累计向下位移（向上回拖不抵消，避免抖动让进度归零）。
@@ -4189,10 +3998,29 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// N4 快捷落盘：跳过备注弹窗直接保存当前页书签（与工具栏「加书签」
-  /// 弹窗路径区分；下滑是快捷操作，打断弹窗反而碍事）。
+  /// N4 快捷切换（P2-9 修订）：当前位置已有书签时下滑即取消该书签，
+  /// 否则跳过备注弹窗直接保存当前页书签（与工具栏「加书签」弹窗路径
+  /// 区分；下滑是快捷操作，打断弹窗反而碍事）。
   Future<void> _addBookmarkQuick() async {
     final l10n = AppLocalizations.of(context);
+    // 已有同章同页书签 → 取消之。
+    final existing = await _bookmarks.listFor(widget.novelId);
+    NovelBookmark? hit;
+    for (final b in existing) {
+      if (b.chapterIndex == _chapterIndex && b.page == _currentPage) {
+        hit = b;
+        break;
+      }
+    }
+    if (hit != null) {
+      await _bookmarks.remove(hit.key);
+      if (!mounted) return;
+      setState(() => _currentPosHasBookmark = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.novelBookmarkRemoved)),
+      );
+      return;
+    }
     final String chapterId;
     final String chapterTitle;
     final chapters = _effectiveChapters;
@@ -4215,9 +4043,24 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
     await _bookmarks.add(bm);
     if (!mounted) return;
+    setState(() => _currentPosHasBookmark = true);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.bookmarkAdded)),
     );
+  }
+
+  /// 当前章节页是否已有快捷书签（决定下滑提示与行为：添加 / 取消）。
+  bool _currentPosHasBookmark = false;
+
+  /// 异步刷新 [_currentPosHasBookmark]（手势开始时预取，Hive 缓存读取很快）。
+  Future<void> _refreshQuickBookmarkState() async {
+    final list = await _bookmarks.listFor(widget.novelId);
+    if (!mounted) return;
+    final has =
+        list.any((b) => b.chapterIndex == _chapterIndex && b.page == _currentPage);
+    if (has != _currentPosHasBookmark) {
+      setState(() => _currentPosHasBookmark = has);
+    }
   }
 
   /// N4 下滑切书签（P2-9）：顶部提示条。手势进行中显示「继续下滑添加书签」，
@@ -4253,7 +4096,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Icon(
-                  ready ? Icons.bookmark_added : Icons.bookmark_add_outlined,
+                  ready
+                      ? (_currentPosHasBookmark
+                          ? Icons.bookmark_remove
+                          : Icons.bookmark_added)
+                      : Icons.bookmark_add_outlined,
                   size: 18,
                   color: ready
                       ? const Color(0xFF16A34A)
@@ -4261,7 +4108,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 ),
                 const SizedBox(width: AppTokens.spaceXs),
                 Text(
-                  ready ? l10n.novelSwipeRelease : l10n.novelSwipeKeepGoing,
+                  ready
+                      ? (_currentPosHasBookmark
+                          ? l10n.novelSwipeReleaseRemove
+                          : l10n.novelSwipeRelease)
+                      : l10n.novelSwipeKeepGoing,
                   style: TextStyle(fontSize: 13, color: textColor),
                 ),
               ],
@@ -4771,6 +4622,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           horizontal: _prefs.margin,
           vertical: _prefs.margin,
         ),
+        // 预构建视口外一段内容，滚动/插图撑高时减少白屏与掉帧。
+        scrollCacheExtent: ScrollCacheExtent.pixels(600),
         itemCount: itemCount,
       itemBuilder: (BuildContext ctx, int i) {
         if (showTitle && i == 0) {
@@ -4788,31 +4641,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         if (block is NovelImageBlock) {
           final double bodyW =
               MediaQuery.of(ctx).size.width - _prefs.margin * 2;
-          // 书源 ruleContent.imageStyle 若声明宽度铺满（max-width:100% /
-          // width:100%），则按图片原始比例完整显示（fitWidth + 高度自适应），
-          // 否则维持原缩略裁切（cover + 0.5 比例）。未声明样式时默认不变。
-          final bool fitWidth = _novelBlockImageIsFitWidth(block.style);
+          // P2-4 / A10：banner 模式自适应完整显示（按图片真实宽高比撑高，
+          // 加载前以 2:1 占位）；card 模式按正文宽 72% 卡片式缩列 +
+          // [scrollImageAlign] 水平对齐。两种模式均不再裁切。
           final bool card = _prefs.scrollImageMode == NovelScrollImageMode.card;
-          final double imgW;
-          final double? imgH;
-          final BoxFit fit;
-          if (card) {
-            imgW = bodyW * 0.72;
-            imgH = null;
-            fit = BoxFit.fitWidth;
-          } else {
-            imgW = bodyW;
-            imgH = fitWidth ? null : bodyW * 0.5;
-            fit = fitWidth ? BoxFit.fitWidth : BoxFit.cover;
-          }
-          final Widget image = SourceImage(
-            url: block.url,
-            source: block.source ?? _source,
-            width: imgW,
-            height: imgH,
-            fit: fit,
-            radius: 8,
-          );
+          final Widget image = card
+              ? SourceImage(
+                  url: block.url,
+                  source: block.source ?? _source,
+                  width: bodyW * 0.72,
+                  fit: BoxFit.fitWidth,
+                  radius: 8,
+                )
+              : _AdaptiveScrollImage(
+                  url: block.url,
+                  source: block.source ?? _source,
+                  width: bodyW,
+                );
           final Widget aligned = card
               ? Align(
                   alignment: switch (_prefs.scrollImageAlign) {
@@ -4898,11 +4743,21 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           spans,
                           softWrap: true,
                         );
-                  return GestureDetector(
+                  return RawGestureDetector(
                     behavior: HitTestBehavior.translucent,
-                    onLongPressStart: (_) =>
-                        _onSelLongPressStartScroll(idx, text),
-                    onLongPressEnd: (_) => _onSelLongPressEndScroll(),
+                    gestures: <Type, GestureRecognizerFactory>{
+                      _TolerantLongPressGestureRecognizer:
+                          GestureRecognizerFactoryWithHandlers<
+                              _TolerantLongPressGestureRecognizer>(
+                        () => _TolerantLongPressGestureRecognizer(),
+                        (_TolerantLongPressGestureRecognizer instance) {
+                          instance.onLongPressStart = (_) =>
+                              _onSelLongPressStartScroll(idx, text);
+                          instance.onLongPressEnd = (_) =>
+                              _onSelLongPressEndScroll();
+                        },
+                      ),
+                    },
                     child: child,
                   );
                 },
@@ -7579,11 +7434,26 @@ class _NovelPageWidget extends StatelessWidget {
           targetWidth: imgW,
         );
         final Widget wrapped = !ttsActive
-            ? GestureDetector(
+            ? RawGestureDetector(
                 behavior: HitTestBehavior.translucent,
-                onLongPressStart: (d) => _onSelLongPressStart(li, d),
-                onLongPressMoveUpdate: (d) => _onSelLongPressMove(li, d),
-                onLongPressEnd: (_) => _onSelLongPressEnd(),
+                gestures: <Type, GestureRecognizerFactory>{
+                  _TolerantLongPressGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                          _TolerantLongPressGestureRecognizer>(
+                    () => _TolerantLongPressGestureRecognizer(),
+                    (_TolerantLongPressGestureRecognizer instance) {
+                      instance.onLongPressStart = (d) {
+                        _onSelLongPressStart(li, d);
+                      };
+                      instance.onLongPressMoveUpdate = (d) {
+                        _onSelLongPressMove(li, d);
+                      };
+                      instance.onLongPressEnd = (_) {
+                        _onSelLongPressEnd();
+                      };
+                    },
+                  ),
+                },
                 child: line,
               )
             : line;
@@ -7592,19 +7462,22 @@ class _NovelPageWidget extends StatelessWidget {
           result.add(SizedBox(height: prefs.paragraphSpacing));
         }
       } else if (item is NovelImageItem) {
-        // 翻页模式插图独占一页：占满可用高度居中显示，点按打开大图查看器。
+        // 翻页模式插图独占一页：占满可用高度居中显示。点按不拦截——
+        // 透传给外层点按分区（翻页/呼出菜单）；长按才打开大图查看器。
         result.add(
           SizedBox(
             width: imgW,
             height: scrollH,
             child: GestureDetector(
-              onTap: () => onImageTap?.call(item.image.url, item.image.source),
+              onLongPress: () =>
+                  onImageTap?.call(item.image.url, item.image.source),
               child: SourceImage(
                 url: item.image.url,
                 source: item.image.source ?? source,
                 width: imgW,
                 height: scrollH,
                 fit: BoxFit.contain,
+                decodeCapWidthPx: 1600,
               ),
             ),
           ),
@@ -8320,6 +8193,8 @@ class _NovelInlineSettings extends StatelessWidget {
                         '字体大小',
                         '行高',
                         '段落',
+                        '对齐',
+                        '两端对齐',
                       ],
                       children: <Widget>[
                     _SliderRow(
@@ -8381,6 +8256,31 @@ class _NovelInlineSettings extends StatelessWidget {
                       onChangeEnd: (v) =>
                           onChanged(prefs.copyWith(letterSpacing: v)),
                     ),
+                    // 对齐方式（与总设置同步；仅分页模式两端对齐生效）
+                    const SizedBox(height: AppTokens.spaceMd),
+                    Text(l10n.novelTextAlignMode,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <Widget>[
+                        ChoiceChip(
+                          label: Text(l10n.novelTextAlignStart),
+                          selected:
+                              prefs.textAlignMode == NovelTextAlignMode.start,
+                          onSelected: (_) => onChanged(prefs.copyWith(
+                              textAlignMode: NovelTextAlignMode.start)),
+                        ),
+                        ChoiceChip(
+                          label: Text(l10n.novelTextAlignJustify),
+                          selected: prefs.textAlignMode ==
+                              NovelTextAlignMode.justify,
+                          onSelected: (_) => onChanged(prefs.copyWith(
+                              textAlignMode: NovelTextAlignMode.justify)),
+                        ),
+                      ],
+                    ),
                       ],
                     ),
                     // ── 字体样式组 ──
@@ -8396,6 +8296,8 @@ class _NovelInlineSettings extends StatelessWidget {
                         '字体',
                         '字体文件',
                         '字族',
+                        '字重',
+                        '加粗',
                       ],
                       children: <Widget>[
                     // 字体样式（加粗 / 斜体 / 下划线，可共存）
@@ -8408,14 +8310,11 @@ class _NovelInlineSettings extends StatelessWidget {
                       children: <Widget>[
                         FilterChip(
                           label: Text(l10n.fontBold),
-                          // 字重细粒度值非空时优先于 fontBold 渲染（模型层规则），
-                          // 因此开关直接写 fontWeightValue：开=本书强制 700，
-                          // 关=本书固定 400。按「最终视觉字重」回显选中态，
-                          // 避免全局设置了细字重后「开了加粗却看不到变化」。
-                          selected:
-                              (prefs.fontWeightValue ?? (prefs.fontBold ? 700 : 400)) >= 600,
-                          onSelected: (v) => onChanged(
-                              prefs.copyWith(fontWeightValue: v ? 700 : 400)),
+                          // 加粗是唯一开关：开启后按下方字重滑块渲染，
+                          // 关闭即恢复默认字重，可随时关掉。
+                          selected: prefs.fontBold,
+                          onSelected: (v) =>
+                              onChanged(prefs.copyWith(fontBold: v)),
                         ),
                         FilterChip(
                           label: Text(l10n.fontItalic),
@@ -8431,6 +8330,22 @@ class _NovelInlineSettings extends StatelessWidget {
                         ),
                       ],
                     ),
+                    // 加粗字重滑块（100–900）：仅加粗开启时显示并生效。
+                    if (prefs.fontBold) ...<Widget>[
+                      const SizedBox(height: AppTokens.spaceSm),
+                      _SliderRow(
+                        label: l10n.novelFontWeightFine,
+                        value: prefs.fontWeightValue.toDouble(),
+                        min: 100,
+                        max: 900,
+                        divisions: 16,
+                        unit: '',
+                        onChanged: (v) => onPreview?.call(
+                            prefs.copyWith(fontWeightValue: v.round())),
+                        onChangeEnd: (v) => onChanged(
+                            prefs.copyWith(fontWeightValue: v.round())),
+                      ),
+                    ],
                     // 自定义字体（M3.5.3）
                     const SizedBox(height: AppTokens.spaceMd),
                     Text(l10n.customFont,
@@ -8943,9 +8858,14 @@ class _NovelInlineSettings extends StatelessWidget {
                           SwitchListTile(
                             contentPadding: EdgeInsets.zero,
                             title: Text(l10n.novelUnderlineDashed),
-                            value: prefs.underlineDashed,
-                            onChanged: (v) =>
-                                onChanged(prefs.copyWith(underlineDashed: v)),
+                            // 与下划线样式统一：开关直接改写 style（旧 bool
+                            // 字段 underlineDashed 仅兼容读取，不再写入）。
+                            value:
+                                prefs.underlineStyle == NovelUnderlineStyle.dashed,
+                            onChanged: (v) => onChanged(prefs.copyWith(
+                                underlineStyle: v
+                                    ? NovelUnderlineStyle.dashed
+                                    : NovelUnderlineStyle.solid)),
                           ),
                           _SliderRow(
                             label: l10n.novelUnderlineThickness,
@@ -8959,7 +8879,8 @@ class _NovelInlineSettings extends StatelessWidget {
                             onChangeEnd: (v) => onChanged(
                                 prefs.copyWith(underlineThickness: v)),
                           ),
-                          if (prefs.underlineDashed) ...<Widget>[
+                          if (prefs.underlineStyle ==
+                              NovelUnderlineStyle.dashed) ...<Widget>[
                             _SliderRow(
                               label: l10n.novelUnderlineDashLength,
                               value: prefs.underlineDashLength,
@@ -9066,6 +8987,15 @@ class _NovelInlineSettings extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: AppTokens.spaceMd),
+                    // A7 双页模式：翻页模式宽屏左右并排两页（与总设置同步）。
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(l10n.novelTwoPageMode),
+                      subtitle: Text(l10n.novelTwoPageModeDesc),
+                      value: prefs.twoPageMode,
+                      onChanged: (v) =>
+                          onChanged(prefs.copyWith(twoPageMode: v)),
+                    ),
                     // 自动翻页间隔（M3.5.2）
                     Text(l10n.autoPageInterval,
                         style: Theme.of(context).textTheme.bodyMedium),
@@ -9945,12 +9875,63 @@ class _SliderRowState extends State<_SliderRow> {
   }
 }
 
-/// 判断书源 [imageStyle] 是否要求图片宽度铺满（legado 常见 `max-width:100%` /
-/// `width:100%`）。命中则返回 true，渲染层据此改为按原比例完整显示图片。
-bool _novelBlockImageIsFitWidth(String? style) {
-  if (style == null || style.isEmpty) return false;
-  final String s = style.toLowerCase().replaceAll(RegExp(r'\s+'), '');
-  return s.contains('max-width') || s.contains('width:100%');
+/// 滚动模式自适应插图（P2-4 修订）：解码前按 2:1 占位（与旧缩略高度一致，
+/// 避免列表跳动），拿到自然尺寸后按图片真实宽高比撑高完整显示（fitWidth
+/// 不裁切）。修复「插图显示不全、要点开才能看全」。解码宽度限幅防大图卡顿。
+class _AdaptiveScrollImage extends StatefulWidget {
+  final String url;
+  final PluginConfig? source;
+  final double width;
+
+  const _AdaptiveScrollImage({
+    required this.url,
+    required this.source,
+    required this.width,
+  });
+
+  @override
+  State<_AdaptiveScrollImage> createState() => _AdaptiveScrollImageState();
+}
+
+class _AdaptiveScrollImageState extends State<_AdaptiveScrollImage> {
+  double? _ratio; // 高/宽；null = 尚未解码，按 2:1 占位。
+
+  @override
+  Widget build(BuildContext context) {
+    final double h = _ratio != null ? widget.width * _ratio! : widget.width * 0.5;
+    return SourceImage(
+      url: widget.url,
+      source: widget.source,
+      width: widget.width,
+      height: h,
+      fit: BoxFit.fitWidth,
+      radius: 8,
+      decodeCapWidthPx: 1600,
+      onImageInfo: (double w, double imgH) {
+        if (!mounted || w <= 0 || imgH <= 0) return;
+        final double r = imgH / w;
+        if ((r - (_ratio ?? -1)).abs() > 0.001) {
+          setState(() => _ratio = r);
+        }
+      },
+    );
+  }
+}
+
+/// 长按选区识别器：放宽「接受前位移容忍度」。
+///
+/// Flutter 默认 touch slop 仅 18 逻辑像素，手机上手指按住时的自然抖动即可
+/// 超限——长按被判失败、指针落回外层翻页/滚动拖拽手势，页面轻微平移后
+/// 回弹，表现为「长按闪一下」。放宽到 40px 后抖动不再打断长按；真正的
+/// 滑动翻页位移通常在 deadline（500ms）内远超 40px，仍由拖拽手势获胜。
+class _TolerantLongPressGestureRecognizer extends LongPressGestureRecognizer {
+  _TolerantLongPressGestureRecognizer({this.preAcceptTolerance = 40});
+
+  /// 接受前允许的漂移上限（逻辑像素）。
+  final double preAcceptTolerance;
+
+  @override
+  double? get preAcceptSlopTolerance => preAcceptTolerance;
 }
 
 /// 分享卡片：带书封的渐变文艺卡（Phase 3 / N6）。

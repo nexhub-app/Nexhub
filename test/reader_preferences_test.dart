@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/comic/models/reader_preferences.dart';
 import 'package:nexhub/core/theme/reader_tokens.dart';
@@ -54,7 +56,7 @@ void main() {
     expect(missing.showChapterSeparator, true);
   });
 
-  test('seamlessReading and showChapterSeparator copyWith and mergedWith', () {
+  test('seamlessReading and showChapterSeparator copyWith and mergedWithKeys', () {
     const custom = ReaderPreferences(
         seamlessReading: false, showChapterSeparator: false);
     expect(custom.copyWith().seamlessReading, false);
@@ -63,21 +65,37 @@ void main() {
     expect(custom.copyWith(showChapterSeparator: true).showChapterSeparator,
         true);
 
-    // 未自定义时回落全局默认，自定义时覆盖。
+    // 未自定义（无覆盖键）时回落全局默认，自定义字段覆盖。
     const base = ReaderPreferences(seamlessReading: false);
-    expect(const ReaderPreferences().mergedWith(base).seamlessReading, false);
-    expect(custom.mergedWith(base).seamlessReading, false);
+    const def = ReaderPreferences();
+    expect(const ReaderPreferences()
+        .mergedWithKeys(base, const <String>{})
+        .seamlessReading, false);
+    expect(
+      custom
+          .mergedWithKeys(base, comicPrefsChangedKeys(def, custom))
+          .seamlessReading,
+      false,
+    );
   });
 
-  test('preloadImageCount copyWith and mergedWith', () {
+  test('preloadImageCount copyWith and mergedWithKeys', () {
     const custom = ReaderPreferences(preloadImageCount: 12);
     expect(custom.copyWith().preloadImageCount, 12);
     expect(custom.copyWith(preloadImageCount: 3).preloadImageCount, 3);
 
-    // 未自定义时回落全局默认，自定义时覆盖。
+    // 未自定义（无覆盖键）时回落全局默认，自定义字段覆盖。
     const base = ReaderPreferences(preloadImageCount: 10);
-    expect(const ReaderPreferences().mergedWith(base).preloadImageCount, 10);
-    expect(custom.mergedWith(base).preloadImageCount, 12);
+    const def = ReaderPreferences();
+    expect(const ReaderPreferences()
+        .mergedWithKeys(base, const <String>{})
+        .preloadImageCount, 10);
+    expect(
+      custom
+          .mergedWithKeys(base, comicPrefsChangedKeys(def, custom))
+          .preloadImageCount,
+      12,
+    );
   });
 
   test('defaults applied for unknown / missing values', () {
@@ -91,6 +109,55 @@ void main() {
     expect((await store.get('x')).readingMode, ReadingMode.singleLTR);
     await store.save('x', const ReaderPreferences(readingMode: ReadingMode.singleRTL));
     expect((await store.get('x')).readingMode, ReadingMode.singleRTL);
+  });
+
+  test('mergedWithKeys only overrides listed fields', () {
+    final global = const ReaderPreferences().copyWith(
+        preloadImageCount: 8, readerScrollSpeed: 2.0);
+    const stored = ReaderPreferences(preloadImageCount: 3);
+    final merged = stored.mergedWithKeys(global, <String>{'preloadImageCount'});
+    expect(merged.preloadImageCount, 3);
+    // 未列出的字段实时跟随全局默认。
+    expect(merged.readerScrollSpeed, 2.0);
+  });
+
+  test('comicPrefsChangedKeys diffs changed fields only', () {
+    const a = ReaderPreferences();
+    final b = a.copyWith(
+        readingMode: ReadingMode.webtoon, flashEnabled: true);
+    expect(comicPrefsChangedKeys(a, b),
+        <String>{'readingMode', 'flashEnabled'});
+    expect(comicPrefsChangedKeys(a, a), isEmpty);
+  });
+
+  test('work store strips settings promoted to global-only', () async {
+    final backend = InMemoryBackend();
+    final store = ReaderPreferencesStore(backend: backend);
+    final prefs = const ReaderPreferences()
+        .copyWith(flashEnabled: true, autoDownloadChapters: true);
+
+    // 保存时剥离「仅总设置」字段，不写入作品层 blob。
+    await store.save('c1', prefs, overrideKeys: <String>{
+      'flashEnabled', 'autoDownloadChapters',
+    });
+    final raw =
+        jsonDecode((await backend.get('reader_prefs_c1'))!) as Map<String, dynamic>;
+    expect(raw.containsKey('flashEnabled'), false);
+    expect(raw.containsKey('autoDownloadChapters'), false);
+
+    // 全新实例从盘读取：被剥离字段回落类默认（跟随总设置），覆盖键同样剔除。
+    final fresh = ReaderPreferencesStore(backend: backend);
+    final loaded = await fresh.get('c1');
+    expect(loaded.flashEnabled, false);
+    expect(loaded.autoDownloadChapters, false);
+    expect(await fresh.getOverrideKeys('c1'), isEmpty);
+
+    // 历史脏数据（blob 直接注入已升级字段）在读取时清洗，不再遮蔽总设置。
+    await backend.set(
+        'reader_prefs_c2', jsonEncode(<String, dynamic>{'flashEnabled': true}));
+    final legacyStore = ReaderPreferencesStore(backend: backend);
+    expect((await legacyStore.get('c2')).flashEnabled, false);
+    expect(await legacyStore.getOverrideKeys('c2'), isEmpty);
   });
 
   test('resolveBackgroundColor maps preset index', () {
@@ -179,7 +246,7 @@ void main() {
     expect(prefs.readerScreenPicNumberForLandscape, 1);
   });
 
-  test('Phase C fields copyWith and mergedWith', () {
+  test('Phase C fields copyWith and mergedWithKeys', () {
     const custom = ReaderPreferences(
       readerBrightness: 0.4,
       showClockBattery: true,
@@ -189,27 +256,36 @@ void main() {
     expect(custom.copyWith().readerBrightness, 0.4);
     expect(custom.copyWith(readerBrightness: -0.2).readerBrightness, -0.2);
     expect(custom.copyWith(showClockBattery: false).showClockBattery, false);
-    // 夜览：copyWith 生效，mergedWith 未自定义时回落全局默认、自定义时覆盖。
+    // 夜览：copyWith 生效；合并语义为「未自定义回落全局、自定义覆盖」。
     final nightLight = custom.copyWith(
         nightLightEnabled: true, nightLightOpacity: 0.7);
     expect(nightLight.nightLightEnabled, true);
     expect(nightLight.nightLightOpacity, 0.7);
 
     const base = ReaderPreferences(readerBrightness: 0.7);
-    // 未自定义时回落全局默认，自定义时覆盖。
-    expect(const ReaderPreferences().mergedWith(base).readerBrightness, 0.7);
-    expect(custom.mergedWith(base).readerBrightness, 0.4);
-    expect(custom.mergedWith(base).showClockBattery, true);
-    expect(custom.mergedWith(base).skipDuplicateChapters, true);
-    expect(custom.mergedWith(base).readerScreenPicNumberForPortrait, 2);
+    const def = ReaderPreferences();
+    final customKeys = comicPrefsChangedKeys(def, custom);
+    // 未自定义（无覆盖键）时回落全局默认，自定义字段覆盖。
+    expect(const ReaderPreferences()
+        .mergedWithKeys(base, const <String>{})
+        .readerBrightness, 0.7);
+    expect(custom.mergedWithKeys(base, customKeys).readerBrightness, 0.4);
+    expect(custom.mergedWithKeys(base, customKeys).showClockBattery, true);
+    expect(custom.mergedWithKeys(base, customKeys).skipDuplicateChapters, true);
+    expect(custom.mergedWithKeys(base, customKeys)
+        .readerScreenPicNumberForPortrait, 2);
     // 全局层可配置夜览默认：未自定义回落全局，自定义覆盖。
     final nightBase =
         base.copyWith(nightLightEnabled: true, nightLightOpacity: 0.5);
-    expect(const ReaderPreferences().mergedWith(nightBase).nightLightEnabled,
-        true);
-    expect(const ReaderPreferences().mergedWith(nightBase).nightLightOpacity,
-        0.5);
-    expect(nightLight.mergedWith(nightBase).nightLightOpacity, 0.7);
+    final nightKeys = comicPrefsChangedKeys(def, nightLight);
+    expect(const ReaderPreferences()
+        .mergedWithKeys(nightBase, const <String>{})
+        .nightLightEnabled, true);
+    expect(const ReaderPreferences()
+        .mergedWithKeys(nightBase, const <String>{})
+        .nightLightOpacity, 0.5);
+    expect(nightLight.mergedWithKeys(nightBase, nightKeys).nightLightOpacity,
+        0.7);
   });
 
   test('getReaderSetting resolves three tiers (REQ-C9)', () {

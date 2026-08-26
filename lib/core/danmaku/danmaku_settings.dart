@@ -1,15 +1,3 @@
-/// 弹幕字体大小预设（项 6）。
-enum DanmakuFontSize { small, medium, large }
-
-/// 弹幕滚动速度预设（项 6）。
-enum DanmakuScrollSpeed { slow, medium, fast }
-
-/// 弹幕显示区域预设（项 6）。
-enum DanmakuDisplayArea { quarter, half, full }
-
-/// 弹幕同屏数量上限预设（项 6）。
-enum DanmakuMaxOnScreen { ten, twenty, fifty, hundred }
-
 /// 弹幕设置模型。
 class DanmakuSettings {
   const DanmakuSettings({
@@ -24,10 +12,6 @@ class DanmakuSettings {
     this.followPlaybackSpeed = false,
     this.fontSize = 16.0,
     this.opacity = 1.0,
-    this.fontSizePreset = DanmakuFontSize.medium,
-    this.scrollSpeed = DanmakuScrollSpeed.medium,
-    this.displayArea = DanmakuDisplayArea.full,
-    this.maxOnScreen = DanmakuMaxOnScreen.fifty,
   });
 
   /// 关键词过滤（支持正则）。
@@ -63,18 +47,6 @@ class DanmakuSettings {
   /// 不透明度（0.1-1.0）。
   final double opacity;
 
-  /// 字体大小预设（项 6，小/中/大）。
-  final DanmakuFontSize fontSizePreset;
-
-  /// 滚动速度预设（项 6）。
-  final DanmakuScrollSpeed scrollSpeed;
-
-  /// 显示区域预设（项 6，1/4 / 半屏 / 全屏）。
-  final DanmakuDisplayArea displayArea;
-
-  /// 同屏数量上限预设（项 6）。
-  final DanmakuMaxOnScreen maxOnScreen;
-
   DanmakuSettings copyWith({
     List<String>? filterKeywords,
     double? timeOffset,
@@ -87,10 +59,6 @@ class DanmakuSettings {
     bool? followPlaybackSpeed,
     double? fontSize,
     double? opacity,
-    DanmakuFontSize? fontSizePreset,
-    DanmakuScrollSpeed? scrollSpeed,
-    DanmakuDisplayArea? displayArea,
-    DanmakuMaxOnScreen? maxOnScreen,
   }) =>
       DanmakuSettings(
         filterKeywords: filterKeywords ?? this.filterKeywords,
@@ -104,10 +72,6 @@ class DanmakuSettings {
         followPlaybackSpeed: followPlaybackSpeed ?? this.followPlaybackSpeed,
         fontSize: fontSize ?? this.fontSize,
         opacity: opacity ?? this.opacity,
-        fontSizePreset: fontSizePreset ?? this.fontSizePreset,
-        scrollSpeed: scrollSpeed ?? this.scrollSpeed,
-        displayArea: displayArea ?? this.displayArea,
-        maxOnScreen: maxOnScreen ?? this.maxOnScreen,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -122,45 +86,14 @@ class DanmakuSettings {
         'followPlaybackSpeed': followPlaybackSpeed,
         'fontSize': fontSize,
         'opacity': opacity,
-        'fontSizePreset': fontSizePreset.name,
-        'scrollSpeed': scrollSpeed.name,
-        'displayArea': displayArea.name,
-        'maxOnScreen': maxOnScreen.name,
       };
 
   static DanmakuSettings fromJson(Map<String, dynamic> json) {
-    final keywords = json['filterKeywords'];
-    DanmakuFontSize fontSizePreset = DanmakuFontSize.medium;
-    if (json['fontSizePreset'] is String) {
-      fontSizePreset = DanmakuFontSize.values.firstWhere(
-        (e) => e.name == json['fontSizePreset'],
-        orElse: () => DanmakuFontSize.medium,
-      );
-    }
-    DanmakuScrollSpeed scrollSpeed = DanmakuScrollSpeed.medium;
-    if (json['scrollSpeed'] is String) {
-      scrollSpeed = DanmakuScrollSpeed.values.firstWhere(
-        (e) => e.name == json['scrollSpeed'],
-        orElse: () => DanmakuScrollSpeed.medium,
-      );
-    }
-    DanmakuDisplayArea displayArea = DanmakuDisplayArea.full;
-    if (json['displayArea'] is String) {
-      displayArea = DanmakuDisplayArea.values.firstWhere(
-        (e) => e.name == json['displayArea'],
-        orElse: () => DanmakuDisplayArea.full,
-      );
-    }
-    DanmakuMaxOnScreen maxOnScreen = DanmakuMaxOnScreen.fifty;
-    if (json['maxOnScreen'] is String) {
-      maxOnScreen = DanmakuMaxOnScreen.values.firstWhere(
-        (e) => e.name == json['maxOnScreen'],
-        orElse: () => DanmakuMaxOnScreen.fifty,
-      );
-    }
     return DanmakuSettings(
-      filterKeywords: keywords is List
-          ? keywords.whereType<String>().toList(growable: false)
+      filterKeywords: json['filterKeywords'] is List
+          ? (json['filterKeywords'] as List)
+              .whereType<String>()
+              .toList(growable: false)
           : const <String>[],
       timeOffset: (json['timeOffset'] as num?)?.toDouble() ?? 0,
       area: (json['area'] as num?)?.toDouble() ?? 0.5,
@@ -172,10 +105,6 @@ class DanmakuSettings {
       followPlaybackSpeed: json['followPlaybackSpeed'] as bool? ?? false,
       fontSize: (json['fontSize'] as num?)?.toDouble() ?? 16.0,
       opacity: (json['opacity'] as num?)?.toDouble() ?? 1.0,
-      fontSizePreset: fontSizePreset,
-      scrollSpeed: scrollSpeed,
-      displayArea: displayArea,
-      maxOnScreen: maxOnScreen,
     );
   }
 

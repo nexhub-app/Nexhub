@@ -3127,6 +3127,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelSwipeRelease => 'Release to add bookmark';
 
   @override
+  String get novelSwipeReleaseRemove => 'Release to remove bookmark';
+
+  @override
+  String get novelBookmarkRemoved => 'Bookmark removed';
+
+  @override
   String get deleteBookmark => 'Delete Bookmark';
 
   @override
@@ -3495,27 +3501,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tapZoneToggle => 'Toggle UI';
-
-  @override
-  String get novelTapZoneActions => '9-Zone Tap Actions (3×3)';
-
-  @override
-  String get novelTapZoneReset => 'Reset Classic Layout';
-
-  @override
-  String get tapActNone => 'Do nothing';
-
-  @override
-  String get tapActMenu => 'Menu';
-
-  @override
-  String get tapActTtsPauseResume => 'TTS Pause/Resume';
-
-  @override
-  String get tapActSyncProgress => 'Sync Progress';
-
-  @override
-  String get tapActPurifyToggle => 'Purify Toggle';
 
   @override
   String get startReading => 'Start reading';
@@ -5342,10 +5327,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelUnderlineStyleDotted => 'Dotted';
 
   @override
-  String get novelFontWeightFine => 'Font weight (100-900)';
-
-  @override
-  String get novelFontWeightAuto => 'Auto (follow bold switch)';
+  String get novelFontWeightFine => 'Bold weight (100-900)';
 
   @override
   String get novelTextAlignMode => 'Text alignment';
@@ -5364,15 +5346,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get novelLineBreakCjkStrict => 'Char-wise + kinsoku';
-
-  @override
-  String get novelTypographyShare => 'Share typography as JSON';
-
-  @override
-  String get novelTypographyImport => 'Import typography JSON';
-
-  @override
-  String get novelTypographyShareDone => 'Typography JSON copied/shared';
 
   @override
   String get novelScrollImageMode => 'Scroll image style';
@@ -5394,18 +5367,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get novelScrollImageAlignRight => 'Right';
-
-  @override
-  String get novelTypographyImportBad =>
-      'Invalid or unrecognized typography JSON';
-
-  @override
-  String get novelTypographyImportConfirmTitle => 'Apply imported typography?';
-
-  @override
-  String novelTypographyImportConfirm(int n) {
-    return 'This will override $n reading typography defaults.';
-  }
 
   @override
   String get novelUnderlineThickness => 'Underline thickness';

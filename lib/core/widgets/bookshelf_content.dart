@@ -1110,7 +1110,7 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
     double itemW,
   ) {
     return FutureBuilder<(int, bool)?>(
-      future: _computeUnreadBadge(item),
+      future: _computeUnreadBadge(ctx, item),
       builder: (ctx0, badgeSnap) {
         final (int unread, bool isNew)? badge = badgeSnap.data;
         return FutureBuilder<double?>(
@@ -1150,7 +1150,7 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
             if (item.onDelete != null)
               Positioned(
                 top: 4,
-                right: 4,
+                left: 4,
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -1203,35 +1203,93 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
     );
   }
 
-  /// 小说收藏条目的未读/新章角标数据（M3）。返回 `(未读数, 是否有新章)`，
+  /// 收藏/历史条目的未读/新章角标数据（M3）。返回 `(未读数, 是否有新章)`，
   /// null 表示不显示。
   ///
-  /// - 总数：目录缓存优先（最新），进度内 totalChapters 兜底；
-  /// - 有进度：unread = total − 已读位置（≤0 不显示）；isNew 时红色；
-  /// - 无进度：仅在「总数 > 已见章节数」时显示红色新章角标
-  ///   （刚收藏未读过的书不打扰）。
-  Future<(int, bool)?> _computeUnreadBadge(_BookshelfItem item) async {
-    if (item.sourceType != SourceType.novelSource) return null;
+  /// 三模块统一入口：按 [SourceType] 分发到小说 / 漫画 / 影视各自的进度源。
+  /// 总数与「已读/已看位置」的取法各模块不同（见各 _compute*Badge 辅助）。
+  Future<(int, bool)?> _computeUnreadBadge(
+      BuildContext ctx, _BookshelfItem item) async {
     try {
-      final progress = await NovelProgressManager().get(item.id);
-      final readPos = (progress?.chapterIndex ?? -1) + 1; // 0 = 无进度
-      var total = progress?.totalChapters ?? 0;
-      final sid = item.sourceId ?? item.source?.id;
-      if (sid != null && sid.isNotEmpty) {
-        try {
-          final cached = await NovelTocCache().read(sid, item.id);
-          if (cached != null && cached.length > total) total = cached.length;
-        } on Object {/* 目录缓存缺失忽略 */}
+      switch (item.sourceType) {
+        case SourceType.novelSource:
+          return await _computeNovelBadge(item);
+        case SourceType.mangaSource:
+          return await _computeComicBadge(item);
+        case SourceType.animeSource:
+          return await _computeMediaBadge(ctx, item);
       }
-      if (total <= 0) return null;
-      final bool isNew = item.lastSeenChapterCount > 0 &&
-          total > item.lastSeenChapterCount;
-      if (readPos > 0) {
-        final unread = total - readPos;
-        return unread > 0 ? (unread, isNew) : null;
-      }
-      if (isNew) return (total - item.lastSeenChapterCount, true);
+    } on Object {
       return null;
+    }
+  }
+
+  /// 总数 > 已见章节数 ⇒ 有新章（红色）。
+  bool _hasNewChapter(int total, int lastSeen) =>
+      lastSeen > 0 && total > lastSeen;
+
+  /// 小说：目录缓存优先（最新），进度内 totalChapters 兜底；
+  /// unread = total − 已读位置（章节索引 + 1）。
+  Future<(int, bool)?> _computeNovelBadge(_BookshelfItem item) async {
+    final progress = await NovelProgressManager().get(item.id);
+    final readPos = (progress?.chapterIndex ?? -1) + 1; // 0 = 无进度
+    var total = progress?.totalChapters ?? 0;
+    final sid = item.sourceId ?? item.source?.id;
+    if (sid != null && sid.isNotEmpty) {
+      try {
+        final cached = await NovelTocCache().read(sid, item.id);
+        if (cached != null && cached.length > total) total = cached.length;
+      } on Object {/* 目录缓存缺失忽略 */}
+    }
+    if (total <= 0) return null;
+    final isNew = _hasNewChapter(total, item.lastSeenChapterCount);
+    if (readPos > 0) {
+      final unread = total - readPos;
+      return unread > 0 ? (unread, isNew) : null;
+    }
+    if (isNew) return (total - item.lastSeenChapterCount, true);
+    return null;
+  }
+
+  /// 漫画：进度来自 [ComicProgressManager]（chapterIndex + totalChapters，
+  /// 走 SharedPreferences，无需 init）。逻辑与小说完全对齐。
+  Future<(int, bool)?> _computeComicBadge(_BookshelfItem item) async {
+    final progress = await ComicProgressManager().get(item.id);
+    final readPos = (progress?.chapterIndex ?? -1) + 1; // 0 = 无进度
+    final total = progress?.totalChapters ?? 0;
+    if (total <= 0) return null;
+    final isNew = _hasNewChapter(total, item.lastSeenChapterCount);
+    if (readPos > 0) {
+      final unread = total - readPos;
+      return unread > 0 ? (unread, isNew) : null;
+    }
+    if (isNew) return (total - item.lastSeenChapterCount, true);
+    return null;
+  }
+
+  /// 影视：已看集数来自 [MediaWatchedManager]（应用级单例，Provider 注入），
+  /// unread = total − 已看集数。总数优先取书架条目的 chapterCount，
+  /// 否则回退到已见集数 lastSeenChapterCount（二者皆缺则不显示，避免误报）。
+  Future<(int, bool)?> _computeMediaBadge(
+      BuildContext ctx, _BookshelfItem item) async {
+    final watcher = _readWatchedManager(ctx);
+    if (watcher == null) return null;
+    final watched = watcher.watchedCount(item.id);
+    final total = item.chapterCount > 0
+        ? item.chapterCount
+        : item.lastSeenChapterCount;
+    if (total <= 0) return null;
+    final isNew = _hasNewChapter(total, item.lastSeenChapterCount);
+    final unread = total - watched;
+    if (unread > 0) return (unread, isNew);
+    if (isNew) return (total - item.lastSeenChapterCount, true);
+    return null;
+  }
+
+  /// Provider 容错读取影视已看管理器（未注册时返回 null 而非抛异常）。
+  MediaWatchedManager? _readWatchedManager(BuildContext ctx) {
+    try {
+      return ctx.read<MediaWatchedManager>();
     } on Object {
       return null;
     }

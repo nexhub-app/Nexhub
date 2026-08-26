@@ -79,18 +79,42 @@ class LocalNovelParser {
   /// 防止超长章拖垮分页与渲染。
   static const int _kMaxChapterChars = 100 * 1024;
 
-  /// 文件名书名/作者解析的四种常见命名模式（按序尝试，首个命中生效）：
-  /// 「前缀《书名》…作者：xxx」「前缀《书名》后缀」「书名 作者：xxx」「书名 by xxx」。
-  /// 书名取第 2 捕获组，第 1 + 3 组拼接后作为作者候选清洗。
+  /// 文件名书名/作者解析的常见命名模式（按序尝试，首个命中生效）：
+  /// 「前缀《书名》…作者：xxx」「前缀《书名》后缀」「书名 作者：xxx」
+  /// 「书名 by xxx」「书名【作者】」「书名 - 作者」。
   static final List<RegExp> _nameAuthorPatterns = <RegExp>[
     RegExp(r'(.*?)《([^《》]+)》.*?作者：(.*)'),
     RegExp(r'(.*?)《([^《》]+)》(.*)'),
     RegExp(r'(^)(.+) 作者：(.+)$'),
-    RegExp(r'(^)(.+) by (.+)$'),
+    RegExp(r'(^)(.+) by (.+)$', caseSensitive: false),
+    // 「书名【作者】」：末尾全角方括号内为作者（1–30 字，防误吞正文式长标注）。
+    RegExp(r'^(.+?)【([^【】]{1,30})】$'),
+    // 「书名 - 作者」（半角 - / 全角 — – 连接符；贪婪书名取最后一个分隔符，
+    // 兼容书名本身含连字符的情况）。同时兼容全角空格(U+3000)——Dart 的 \s
+    // 不含全角空格，真实文件名常以此作分隔，否则整段被当书名、作者丢失。
+    RegExp(r'^(.+)[ \u3000]+[-—–][ \u3000]+(.+)$'),
   ];
 
-  /// 书名噪声：尾部「作者…」说明与「xx 著」署名。
-  static final RegExp _bookNameNoiseRegex = RegExp(r'\s+作\s*者.*|\s+\S+\s+著');
+  /// 任意空白（含全角空格 U+3000）：Dart \s 不含全角空格，解析命名需用它切分。
+  static final RegExp _anyWhitespace = RegExp(r'[\s\u3000]+');
+
+  /// 去除首尾空白（含全角空格 U+3000）。
+  static String _trimWs(String s) =>
+      s.replaceAll(RegExp(r'^[\s\u3000]+|[\s\u3000]+$'), '');
+
+  /// 裸空格兜底时「不像作者」的末段噪声：卷号 / 完结标记 / 精校等修饰词 /
+  /// 纯数字 / 单字「著」类署名尾缀，命中则不把末段当作者（交回旧清洗路径）。
+  static final RegExp _authorLikeNoiseRegex = RegExp(
+    r'^(第\s*.+\s*[卷部话章节回]|完本|完结|全集|全本|精校.*|校对.*|修订.*|'
+    r'典藏.*|\d+|著|撰)$',
+    caseSensitive: false,
+  );
+
+  /// 书名噪声：尾部「作者…」说明、「xx 著」署名与「精校/校对/完本」等修饰词。
+  static final RegExp _bookNameNoiseRegex = RegExp(
+    r'\s+作\s*者.*|\s+\S+\s+著|\s+精校.*|\s+校对.*|\s+修订.*|\s+典藏.*'
+    r'|\s+完本|\s+完结|\s+全本',
+  );
 
   /// 作者噪声：「作者：」类前缀与「著」署名尾缀。
   static final RegExp _bookAuthorNoiseRegex =
@@ -121,27 +145,58 @@ class LocalNovelParser {
     for (var i = 0; i < _nameAuthorPatterns.length; i++) {
       final m = _nameAuthorPatterns[i].firstMatch(base);
       if (m == null) continue;
-      final name = (m.group(2) ?? '').trim();
-      if (name.isEmpty) continue;
+      String name;
       String? author;
-      if (i == 1) {
-        // 无标记的《书名》后缀形态：《书名》(标注) 或 《书名》XX著。
-        author = _signatureAuthorRegex
-            .firstMatch((m.group(3) ?? '').trim())
-            ?.group(1);
-      } else {
-        author = _formatBookAuthor(m.group(3) ?? '');
+      switch (i) {
+        case 1:
+          // 无标记的《书名》后缀形态：《书名》(标注) 或 《书名》XX著。
+          name = _trimWs(m.group(2) ?? '');
+          author = _signatureAuthorRegex
+              .firstMatch(_trimWs(m.group(3) ?? ''))
+              ?.group(1);
+        case 4 || 5:
+          // 「书名【作者】」/「书名 - 作者」：书名 = 第 1 组，作者 = 第 2 组。
+          name = _trimWs(m.group(1) ?? '');
+          author = _formatBookAuthor(m.group(2) ?? '');
+        default:
+          // 带显式作者标记的模式（`作者：` / ` by `）：作者取标记后的文本清洗。
+          name = _trimWs(m.group(2) ?? '');
+          author = _formatBookAuthor(m.group(3) ?? '');
       }
+      if (name.isEmpty) continue;
       return (
         name: name,
         author: (author == null || author.isEmpty) ? null : author,
       );
     }
+    // 裸空格兜底（「书名 作者.txt」）：无任何显式分隔符/括注时，若最后一段
+    // 短且不像卷号/修饰词，取末段为作者。
+    final bareSpaced = _bareSpaceAuthorSplit(base);
+    if (bareSpaced != null) return bareSpaced;
     final name = _formatBookName(base);
     if (name.isEmpty) return (name: base.trim(), author: null);
     final rest = base.replaceFirst(name, '');
-    final author = rest == base ? '' : _formatBookAuthor(rest);
+    var author = rest == base ? '' : _formatBookAuthor(rest);
+    // 剩余部分若只是「精校/完结」类修饰词，不算作者。
+    if (_authorLikeNoiseRegex.hasMatch(author)) author = '';
     return (name: name, author: author.isEmpty ? null : author);
+  }
+
+  /// 裸空格形态「书名 作者」启发式切分：末段 ≤20 字、非纯数字/卷号/精校类
+  /// 修饰词时视为作者；不满足则返回 null（走整名兜底）。
+  static ({String name, String? author})? _bareSpaceAuthorSplit(String base) {
+    final trimmed = _trimWs(base);
+    if (!_anyWhitespace.hasMatch(trimmed)) return null;
+    final parts = trimmed.split(_anyWhitespace);
+    if (parts.length < 2) return null;
+    final last = _trimWs(parts.last);
+    if (last.isEmpty || last.length > 20) return null;
+    if (_authorLikeNoiseRegex.hasMatch(last)) return null;
+    final namePart = _trimWs(parts.sublist(0, parts.length - 1).join(' '));
+    if (namePart.isEmpty || _authorLikeNoiseRegex.hasMatch(namePart)) {
+      return null;
+    }
+    return (name: namePart, author: last);
   }
 
   /// 解析 TXT 文件。

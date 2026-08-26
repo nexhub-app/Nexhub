@@ -818,6 +818,14 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                       onChanged: (v) => _update(
                           _settings.copyWith(comicShowChapterSeparator: v)),
                     ),
+                    // 条漫解码限幅（P3 资源/内存）：连续模式解码位图下采样，
+                    // 限制长条漫原图的全尺寸解码内存。
+                    SettingsSwitchTile(
+                      title: l10n.readerWebtoonDecodeLimit,
+                      value: _settings.comicWebtoonLimitDecodeSize,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicWebtoonLimitDecodeSize: v)),
+                    ),
                     // 自动滚动（REQ-B10，条漫）：开关 + 滚动速度。
                     SettingsSwitchTile(
                       title: l10n.readerAutoScroll,

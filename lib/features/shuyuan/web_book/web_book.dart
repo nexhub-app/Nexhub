@@ -7,6 +7,7 @@
 library;
 
 import '../../../core/models/novel_block.dart';
+import '../../../core/novel/novel_chinese_converter.dart';
 import '../analyze/analyze_rule.dart';
 import '../analyze/analyze_url.dart';
 import '../model/book_source.dart';
@@ -23,6 +24,10 @@ export 'web_book_types.dart';
 
 class WebBook {
   /// 搜索书籍：按 `source.searchUrl` 模板抓取并通过 `ruleSearch` 解析。
+  ///
+  /// 简繁转换：用户输入简体却搜繁体源（或反之）时，自动以另一字形补搜一次并
+  /// 合并去重，避免「同书异形」漏检。原文与转换结果相同（纯 ASCII / 已统一）
+  /// 时只搜一次，不额外加压。
   Future<List<SearchBook>> searchBook({
     required XiaoshuoBookSource source,
     required String key,
@@ -33,6 +38,41 @@ class WebBook {
       throw Exception('书源未配置 searchUrl');
     }
 
+    // 收集与原文不同的字形变体（通常至多 1 个：简→繁 或 繁→简）。
+    final variants = <String>{
+      convertChinese(key, ChineseConvertMode.simplifiedToTraditional),
+      convertChinese(key, ChineseConvertMode.traditionalToSimplified),
+    }.where((k) => k != key && k.isNotEmpty).toList();
+
+    final merged = <SearchBook>[
+      ...await _searchOnce(source, searchUrl, key, page),
+    ];
+    for (final k in variants) {
+      try {
+        merged.addAll(await _searchOnce(source, searchUrl, k, page));
+      } on Object {
+        // 单个变体失败不影响主结果。
+      }
+    }
+
+    // 按 bookUrl 去重（保留首次出现）。
+    final seen = <String>{};
+    final result = <SearchBook>[];
+    for (final b in merged) {
+      if (seen.contains(b.bookUrl)) continue;
+      seen.add(b.bookUrl);
+      result.add(b);
+    }
+    return result;
+  }
+
+  /// 以单个关键字执行一次单源搜索（[searchBook] 的原子单元）。
+  Future<List<SearchBook>> _searchOnce(
+    XiaoshuoBookSource source,
+    String searchUrl,
+    String key,
+    int page,
+  ) async {
     final analyzeUrl = AnalyzeUrl(
       url: searchUrl,
       baseUrl: source.bookSourceUrl,

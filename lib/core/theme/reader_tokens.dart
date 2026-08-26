@@ -26,7 +26,7 @@ class ReaderTokens {
     Color(0xFFDFF0EA), // mint（淡青薄荷）
     Color(0xFFFBEED9), // apricot（暖杏）
     Color(0xFFDBE6EC), // gray blue（浅灰蓝）
-    Color(0xFFE3E0D9), // e-ink（P2-10 / B3：近纸白低饱和，模拟墨水屏纸感）
+    Color(0xFFFFFFFF), // e-ink（纯白底，墨水屏风格）
   ];
 
   /// 背景预设名称 l10n key（与 bgPresets 一一对应）。
@@ -53,12 +53,12 @@ class ReaderTokens {
   /// 见 [NovelReaderPreferences.isEInkBackground]。
   static const int eInkPresetIndex = 11;
 
-  /// 墨水屏主题正文色（炭灰 #3E3D3B）：比纯黑柔和，模拟墨水屏纸面显示、
-  /// 降低高分辨率屏下的边缘锐利感；仅在浅色（日间）背景下生效。
-  static const Color eInkTextColor = Color(0xFF3E3D3B);
+  /// 墨水屏主题正文色（纯黑 #000000）：纯白底 + 纯黑字的最高对比
+  /// 墨水屏观感；仅在浅色（日间）背景下生效。
+  static const Color eInkTextColor = Color(0xFF000000);
 
   /// 墨水屏主题强调色（朱批暗红）：低饱和暖红替代默认荧光粉，
-  /// 在近纸白背景上保持可辨识且不刺眼。
+  /// 在纯白背景上保持可辨识且不刺眼。
   static const Color eInkEmphasisColor = Color(0xFF9E4B3C);
 
   /// 反色滤镜（修复桌面全黑问题，见文档雷区）。
