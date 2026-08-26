@@ -27,6 +27,11 @@ class SourceImage extends StatelessWidget {
   final Widget? placeholder;
   final bool enableRetry;
 
+  /// 解码位图宽上限（像素，P3 资源/内存）：非 null 时按比例下采样解码
+  /// （`ResizeImage` 语义，不放大小图）。条漫连续模式传入
+  /// `min(2560, 屏幕物理像素 × 2)` 以限制长条漫的解码内存；null = 不限幅。
+  final int? decodeCapWidthPx;
+
   /// 图片成功解码后回调（一次）。条漫阅读器借此在图片加载完成后移除占位高度，
   /// 避免 ConstrainedBox(minHeight) 在真实图高偏小时残留空白带（割裂感）。
   final VoidCallback? onLoadComplete;
@@ -47,6 +52,7 @@ class SourceImage extends StatelessWidget {
     this.radius,
     this.placeholder,
     this.enableRetry = true,
+    this.decodeCapWidthPx,
     this.onLoadComplete,
     this.onImageInfo,
   });
@@ -148,6 +154,7 @@ class SourceImage extends StatelessWidget {
             width: width,
             height: height,
             fit: fit,
+            decodeCapWidthPx: decodeCapWidthPx,
             placeholder: placeholder ?? _defaultPlaceholder(context),
             enableRetry: enableRetry,
             onLoadComplete: onLoadComplete,
@@ -159,6 +166,7 @@ class SourceImage extends StatelessWidget {
             width: width,
             height: height,
             fit: fit,
+            decodeCapWidthPx: decodeCapWidthPx,
             placeholder: placeholder ?? _defaultPlaceholder(context),
             onLoadComplete: onLoadComplete,
             onImageInfo: onImageInfo,
@@ -183,6 +191,7 @@ class _RetryableNetworkImage extends StatefulWidget {
   final Widget placeholder;
   final bool enableRetry;
   final int cookieVersion;
+  final int? decodeCapWidthPx;
   final VoidCallback? onLoadComplete;
   final void Function(double width, double height)? onImageInfo;
 
@@ -195,6 +204,7 @@ class _RetryableNetworkImage extends StatefulWidget {
     required this.placeholder,
     this.enableRetry = true,
     this.cookieVersion = 0,
+    this.decodeCapWidthPx,
     this.onLoadComplete,
     this.onImageInfo,
   });
@@ -253,6 +263,7 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
       width: widget.width,
       height: widget.height,
       fit: widget.fit,
+      memCacheWidth: widget.decodeCapWidthPx,
       placeholder: (c, u) => widget.placeholder,
       errorWidget: (c, u, e) {
         _notifyLoaded();
@@ -337,6 +348,7 @@ class _LocalFileImage extends StatefulWidget {
   final double? height;
   final BoxFit fit;
   final Widget placeholder;
+  final int? decodeCapWidthPx;
   final VoidCallback? onLoadComplete;
   final void Function(double width, double height)? onImageInfo;
 
@@ -346,6 +358,7 @@ class _LocalFileImage extends StatefulWidget {
     this.height,
     this.fit = BoxFit.cover,
     required this.placeholder,
+    this.decodeCapWidthPx,
     this.onLoadComplete,
     this.onImageInfo,
   });
@@ -380,8 +393,17 @@ class _LocalFileImageState extends State<_LocalFileImage> {
           stream.removeListener(listener!),
     );
     stream.addListener(listener!);
-    return Image.file(
-      widget.file,
+    // 解码限幅（P3）：非 null 时用 ResizeImage 按比例下采样解码位图
+    // （不放大小图），限制长条漫原图的全尺寸解码内存。
+    final ImageProvider provider = widget.decodeCapWidthPx == null
+        ? FileImage(widget.file)
+        : ResizeImage(
+            FileImage(widget.file),
+            width: widget.decodeCapWidthPx,
+            allowUpscaling: false,
+          );
+    return Image(
+      image: provider,
       width: widget.width,
       height: widget.height,
       fit: widget.fit,
@@ -413,6 +435,7 @@ class _SafOrLocalImage extends StatefulWidget {
   final double? height;
   final BoxFit fit;
   final Widget placeholder;
+  final int? decodeCapWidthPx;
   final VoidCallback? onLoadComplete;
   final void Function(double width, double height)? onImageInfo;
 
@@ -422,6 +445,7 @@ class _SafOrLocalImage extends StatefulWidget {
     this.height,
     this.fit = BoxFit.cover,
     required this.placeholder,
+    this.decodeCapWidthPx,
     this.onLoadComplete,
     this.onImageInfo,
   });
@@ -464,6 +488,7 @@ class _SafOrLocalImageState extends State<_SafOrLocalImage> {
       height: widget.height,
       fit: widget.fit,
       placeholder: widget.placeholder,
+      decodeCapWidthPx: widget.decodeCapWidthPx,
       onLoadComplete: widget.onLoadComplete,
       onImageInfo: widget.onImageInfo,
     );

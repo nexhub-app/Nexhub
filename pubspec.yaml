@@ -101,6 +101,8 @@ dependencies:
   battery_plus: ^6.0.0
   # 带缓存的网络图片（统一 SourceImage，注入防盗链 headers + 重试）
   cached_network_image: ^3.4.1
+  # 图片磁盘缓存管理（高级设置「图片缓存」占用统计与清理；cached_network_image 同款后端）
+  flutter_cache_manager: ^3.4.2
   # 剪贴板图片二进制复制（长按菜单「复制图片」，跨平台真复制，Rust 后端需 NDK）
   super_clipboard: ^0.9.1
   # 系统分享（详情页分享到微信/QQ/记事本等）

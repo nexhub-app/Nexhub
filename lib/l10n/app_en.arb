@@ -2488,6 +2488,7 @@
   "readerSeamlessReadingDesc": "Keep reading the adjacent chapter right at the chapter end/start using the preloaded cache, without reloading the chapter or flashing white",
   "readerChapterSeparator": "Chapter separator",
   "readerChapterSeparatorDesc": "Insert a chapter title card between chapters in webtoon continuous mode",
+  "readerWebtoonDecodeLimit": "Limit webtoon decode size",
   "readerScrollSpeed": "Scroll speed",
   "readerScrollSpeedDesc": "Multiplier applied to the webtoon scroll amount from the mouse wheel (0.5x–3x)",
   "readerVolumeKeyPageTurn": "Volume key page turn",
@@ -4076,6 +4077,11 @@
     "description": "Clear WebView data subtitle"
   },
   "webviewDataCleared": "WebView data cleared",
+  "advancedImageCache": "Image cache",
+  "advancedImageCacheDesc": "Disk usage of downloaded images; tap to clear",
+  "imageCacheCleared": "Image cache cleared",
+  "imageCacheClearConfirm": "Clear image cache?",
+  "imageCacheCalculating": "Calculating…",
   "@webviewDataCleared": {
     "description": "WebView data cleared toast"
   },

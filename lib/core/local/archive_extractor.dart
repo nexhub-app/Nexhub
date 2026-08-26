@@ -18,6 +18,59 @@ import 'local_content_manager.dart' show isImageFile;
 /// 单张图片解压内存上限（50MB），防解压炸弹。漫画页通常远小于此。
 const int _kMaxImageBytes = 50 << 20;
 
+/// 归档解压结果（P3 资源回收）：除排序后的图片路径外，附带本次解压的
+/// 独立临时目录，供阅读器退出时整目录删除（无需逐文件追踪）。
+class ArchiveImagesExtraction {
+  const ArchiveImagesExtraction({required this.dir, required this.files});
+
+  /// 本次解压的临时根目录（`<tmp>/nexhub_arch/<归档名>_<hash>`）。
+  final String dir;
+
+  /// 按图片路径自然排序的临时图片文件路径列表。
+  final List<String> files;
+}
+
+/// 解压 [path] 指向的漫画归档到独立子目录并返回追踪结果。
+///
+/// 与 [extractArchiveImages] 的差异仅在于输出位置：旧函数把图片平铺到系统
+/// 临时目录根部、生命周期完全交给 OS；本函数按源归档隔离子目录，调用方
+/// （漫画阅读器）记录 [ArchiveImagesExtraction.dir] 并在退出时递归删除，
+/// 避免 CBZ/CBR/7z 解压产物长期滞留磁盘。排序与单张大小限制两者一致。
+Future<ArchiveImagesExtraction> extractArchiveImagesToDir(String path) async {
+  final archive = await openArchiveFile(path);
+  try {
+    final entries = archive.files
+        .where((e) => !e.isDirectory && isImageFile(e.path))
+        .toList();
+    entries.sort((a, b) => _naturalCompare(a.path, b.path));
+    if (entries.isEmpty) {
+      throw StateError('archive contains no image: $path');
+    }
+    final tempDir = await getTemporaryDirectory();
+    // 目录名带「源归档标识」：不同章节归档互不共享目录，重进同一归档时
+    // 同名文件直接覆盖复用，不会跨归档污染。
+    final outDir = Directory(p.join(
+      tempDir.path,
+      'nexhub_arch',
+      '${p.basename(path)}_${path.hashCode}',
+    ));
+    await outDir.create(recursive: true);
+    final out = <String>[];
+    for (final entry in entries) {
+      final bytes = await archive.readBytes(entry, maxSize: _kMaxImageBytes);
+      // 文件名仍带条目路径 hash：同一归档内不同子目录可能存在同名图片。
+      final target = File(p.join(
+        outDir.path,
+        '${entry.path.hashCode}_${p.basename(entry.path)}',
+      ));
+      await target.writeAsBytes(bytes);
+      out.add(target.path);
+    }
+    return ArchiveImagesExtraction(dir: outDir.path, files: out);
+  } finally {
+    await archive.close();
+  }
+}
 /// 解压 [path] 指向的漫画归档，返回按图片路径自然排序的临时图片文件路径列表。
 ///
 /// 支持 ZIP/CBZ、TAR/CBT、7z/CB7、RAR/CBR 等；[path] 为 Android SAF URI

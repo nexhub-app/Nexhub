@@ -3002,6 +3002,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoPageInterval => '自动翻页间隔';
 
   @override
+  String get autoPageSmooth => '平滑自动翻页';
+
+  @override
   String get autoPageOff => '关闭';
 
   @override
@@ -3397,6 +3400,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tapZoneToggle => '切换界面';
+
+  @override
+  String get novelTapZoneActions => '九区动作（3×3 自定义）';
+
+  @override
+  String get novelTapZoneReset => '恢复经典布局';
+
+  @override
+  String get tapActNone => '无操作';
+
+  @override
+  String get tapActMenu => '菜单';
+
+  @override
+  String get tapActTtsPauseResume => '朗读暂停/继续';
+
+  @override
+  String get tapActSyncProgress => '同步进度';
+
+  @override
+  String get tapActPurifyToggle => '净化开关';
 
   @override
   String get startReading => '开始朗读';
@@ -4391,6 +4415,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get readerChapterSeparatorDesc => '条漫连续模式下，章节之间插入章节标题卡';
+
+  @override
+  String get readerWebtoonDecodeLimit => '条漫解码限幅';
 
   @override
   String get readerScrollSpeed => '滚动速度';
@@ -7068,6 +7095,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get webviewDataCleared => 'WebView 数据已清除';
+
+  @override
+  String get advancedImageCache => '图片缓存';
+
+  @override
+  String get advancedImageCacheDesc => '已下载图片的磁盘占用，点按清理';
+
+  @override
+  String get imageCacheCleared => '图片缓存已清理';
+
+  @override
+  String get imageCacheClearConfirm => '清理图片缓存？';
+
+  @override
+  String get imageCacheCalculating => '计算中…';
 
   @override
   String get confirmActionHint => '该操作不可撤销，确定继续？';

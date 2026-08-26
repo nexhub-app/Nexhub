@@ -22,6 +22,7 @@ import '../../../core/comic/comic_bookmark_manager.dart';
 import '../../../core/comic/comic_progress_manager.dart';
 import '../../../core/comic/image_favorite_manager.dart';
 import '../../../core/comic/models/reader_preferences.dart';
+import '../../../core/comic/reader_image_cache_policy.dart';
 import '../../../core/theme/reader_tokens.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/utils/app_log.dart';
@@ -646,10 +647,25 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// PDF 临时渲染缓存目录（逐页 JPEG）。退出阅读器时清理。
   String? _pdfCacheDir;
 
+  /// 归档（CBZ/CBR/7z…）解压出的临时目录集合（P3 资源回收）。每次
+  /// [extractArchiveImagesToDir] 产生一个按源归档隔离的子目录，退出阅读器时
+  /// 整目录递归删除——此前解压产物平铺在系统临时目录、只靠 OS 兜底清理。
+  final List<String> _archiveTempDirs = <String>[];
+
   /// 桌面平台（Windows / Linux / macOS，非 Web）：启用 window_manager 真实全屏与
   /// 键盘快捷键（P0）。移动端走 SystemChrome。
   bool get _isDesktop =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+
+  /// 进入阅读器期间上调 Flutter 图片缓存预算（P3 资源/内存）：按设备物理内存
+  /// 100–500MB；退出阅读器在 dispose 恢复默认 100MB，不挤占其他页面。
+  void _applyImageCacheBudget() {
+    unawaited(() async {
+      final total = await probeDeviceTotalMemBytes();
+      PaintingBinding.instance.imageCache.maximumSizeBytes =
+          resolveComicImageCacheBytes(total);
+    }());
+  }
 
   @override
   void initState() {
@@ -680,6 +696,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 全局键盘监听（F11 / Esc / 方向键等）——不依赖 Focus 焦点，按钮/面板/对话框
     // 抢焦点后快捷键依然有效（F11、Esc 失效的根治）。
     HardwareKeyboard.instance.addHandler(_onGlobalKey);
+    _applyImageCacheBudget();
     _init();
     // 阅读时长统计：进入阅读器即开始，dispose 时一次性结算。
     if (widget.sourceId.isNotEmpty) {
@@ -876,9 +893,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 保证页码顺序正确。
   /// SAF 感知：若 [path] 为 Android content:// URI，先经 [resolveSafUri] 落到应用
   /// 缓存再解压（C 阶段：手机端 SAF 文件夹导入）；
+  /// 解压产物落在独立子目录并登记到 [_archiveTempDirs]，退出阅读器时整体删除
+  /// （P3 资源回收，不再滞留系统临时目录）。
   Future<List<String>> _extractCbz(String path) async {
     final local = await resolveSafUri(path);
-    return extractArchiveImages(local);
+    final ex = await extractArchiveImagesToDir(local);
+    _archiveTempDirs.add(ex.dir);
+    return ex.files;
   }
 
   /// 收集本地图片子目录内、按文件名排序的图片路径列表（每话一目录的下载产物）。
@@ -1245,6 +1266,30 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         }),
       );
     }
+    // P3 资源回收：删除本次会话解压的全部归档临时目录（CBZ/CBR/7z…），
+    // 与 PDF 缓存同策略——阅读器退出即不残留磁盘产物。去重后逐个 best-effort 删除。
+    if (_archiveTempDirs.isNotEmpty) {
+      final dirs = _archiveTempDirs.toSet().toList(growable: false);
+      unawaited(
+        Future<void>(() async {
+          for (final dir in dirs) {
+            try {
+              await Directory(dir).delete(recursive: true);
+            } on Object {
+              // 单个目录清理失败不影响其余。
+            }
+          }
+        }),
+      );
+    }
+    // P3 资源/内存：离开阅读器把 Flutter 图片缓存预算恢复为默认（100MB），
+    // 不让阅读期间按设备内存上调的预算（100–500MB）挤占书架/详情页。
+    try {
+      PaintingBinding.instance.imageCache.maximumSizeBytes =
+          kComicImageCacheDefaultBytes;
+    } on Object {
+      // 测试环境忽略。
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -1416,6 +1461,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   void _setupControllers({int restorePage = 0, bool wasDoublePage = false}) {
+    // P3 缓存清理策略：预载图列表与渲染 HTML 缓存此前只增不减，长阅读会话
+    // （数百章）会持续吃内存。按当前章保留 ±2 章窗口（seam 无缝续读仅用 ±1，
+    // 窗口留一档余量），窗口外的条目直接淘汰；重读时按原路径重新抓取/解压。
+    final int lo = _chapterIndex - 2;
+    final int hi = _chapterIndex + 2;
+    _preload.removeWhere((k, _) => k < lo || k > hi);
+    _renderedHtmlByChapter.removeWhere((k, _) => k < lo || k > hi);
     // 段式连续模型依赖 [_images]/[_prefs]/[_preload] 的当前状态：本章数据就绪后
     // （[loadChapter]/[_loadLocalImages] 已写入 [_images]）或偏好变化后（[applySettingsAuto]/
     // [_onPrefsChanged] 已更新 [_prefs]）在此重建扁平列表；paged/非 seamless 时清空 seam。
@@ -3522,6 +3574,21 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     final bool background = state != AppLifecycleState.resumed;
+    // P3 进程被杀恢复：退后台（paused/detached）时系统随时可能杀掉进程，
+    // dispose 兜底不会执行。此刻把防抖中的进度与偏好立即落盘，保证重开应用
+    // 能从最后位置继续（章节/页码恢复走既有的 [ComicProgressManager] 存档链路）。
+    if (background && !_restoringPage && _images.isNotEmpty) {
+      if (_saveProgressDebounce?.isActive ?? false) {
+        final page = _pendingSavePage ?? _currentPage;
+        _saveProgressDebounce?.cancel();
+        _flushPendingProgress(page);
+        _pendingSavePage = null;
+      } else {
+        _flushPendingProgress(_currentPage);
+      }
+      unawaited(_store.save(widget.comicId, _prefs));
+      unawaited(_commitDeviceOverride());
+    }
     if (_autoScrollPaused == background) return;
     _autoScrollPaused = background;
     if (background) {
@@ -5978,6 +6045,10 @@ class _CenterMessage extends StatelessWidget {
 ///
 /// 增强：[rotationQuarterTurns] 让用户对单页 90° 旋转（不影响其他页）；
 /// [cropEdge] 为 true 时改用 [BoxFit.cover] / 居中裁切去四周留白（简单版）。
+
+/// 条漫连续模式解码位图的宽上限（像素，P3 资源/内存 enableResize）。
+const int _kWebtoonDecodeCapSide = 2560;
+
 class MangaPageImage extends StatefulWidget {
   final String url;
   final ReaderPreferences prefs;
@@ -6086,11 +6157,26 @@ class _MangaPageImageState extends State<MangaPageImage> {
     final bool showRealHeight =
         (widget.urlLoaded?.call(widget.url) ?? false) || _imageLoaded;
 
+    // P3 解码限幅（连续模式 enableResize）：条漫模式下把解码位图宽下采样到
+    // min(2560, 屏幕物理像素 × 2)——长条漫原图常达数千 px 宽，全尺寸解码一张
+    // 可占数十 MB 内存，连续滚动极易触发低机卡顿/OOM。×2 系数为捏合放大保留
+    // 一档细节；上限 2560 对齐参考实现的 BaseImageProvider 限幅。paged 单页
+    // 模式不限幅（页面数少且需放大细节）。
+    int? decodeCapWidthPx;
+    if (widget.prefs.readingMode.isWebtoon &&
+        widget.prefs.webtoonLimitDecodeSize) {
+      final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1.0;
+      final screenW = MediaQuery.sizeOf(context).width;
+      decodeCapWidthPx =
+          (screenW * dpr * 2).round().clamp(720, _kWebtoonDecodeCapSide);
+    }
+
     final Widget imgSource = SourceImage(
       url: widget.url,
       source: widget.source,
       fit: fit,
       width: width,
+      decodeCapWidthPx: decodeCapWidthPx,
       placeholder: const Center(child: AppLoadingIndicator()),
       onLoadComplete: () {
         // 先上报阅读器级记录（同帧生效），再更新局部状态。

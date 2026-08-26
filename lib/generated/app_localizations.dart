@@ -5876,6 +5876,12 @@ abstract class AppLocalizations {
   /// **'Auto Page Interval'**
   String get autoPageInterval;
 
+  /// No description provided for @autoPageSmooth.
+  ///
+  /// In en, this message translates to:
+  /// **'Smooth Auto-Page'**
+  String get autoPageSmooth;
+
   /// No description provided for @autoPageOff.
   ///
   /// In en, this message translates to:
@@ -6637,6 +6643,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Toggle UI'**
   String get tapZoneToggle;
+
+  /// No description provided for @novelTapZoneActions.
+  ///
+  /// In en, this message translates to:
+  /// **'9-Zone Tap Actions (3×3)'**
+  String get novelTapZoneActions;
+
+  /// No description provided for @novelTapZoneReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Classic Layout'**
+  String get novelTapZoneReset;
+
+  /// No description provided for @tapActNone.
+  ///
+  /// In en, this message translates to:
+  /// **'Do nothing'**
+  String get tapActNone;
+
+  /// No description provided for @tapActMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Menu'**
+  String get tapActMenu;
+
+  /// No description provided for @tapActTtsPauseResume.
+  ///
+  /// In en, this message translates to:
+  /// **'TTS Pause/Resume'**
+  String get tapActTtsPauseResume;
+
+  /// No description provided for @tapActSyncProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Progress'**
+  String get tapActSyncProgress;
+
+  /// No description provided for @tapActPurifyToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Purify Toggle'**
+  String get tapActPurifyToggle;
 
   /// No description provided for @startReading.
   ///
@@ -8503,6 +8551,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Insert a chapter title card between chapters in webtoon continuous mode'**
   String get readerChapterSeparatorDesc;
+
+  /// No description provided for @readerWebtoonDecodeLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Limit webtoon decode size'**
+  String get readerWebtoonDecodeLimit;
 
   /// No description provided for @readerScrollSpeed.
   ///
@@ -13567,6 +13621,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'WebView data cleared'**
   String get webviewDataCleared;
+
+  /// No description provided for @advancedImageCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Image cache'**
+  String get advancedImageCache;
+
+  /// No description provided for @advancedImageCacheDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Disk usage of downloaded images; tap to clear'**
+  String get advancedImageCacheDesc;
+
+  /// No description provided for @imageCacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Image cache cleared'**
+  String get imageCacheCleared;
+
+  /// No description provided for @imageCacheClearConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear image cache?'**
+  String get imageCacheClearConfirm;
+
+  /// No description provided for @imageCacheCalculating.
+  ///
+  /// In en, this message translates to:
+  /// **'Calculating…'**
+  String get imageCacheCalculating;
 
   /// Dangerous action confirmation hint
   ///

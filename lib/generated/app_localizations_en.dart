@@ -3052,6 +3052,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autoPageInterval => 'Auto Page Interval';
 
   @override
+  String get autoPageSmooth => 'Smooth Auto-Page';
+
+  @override
   String get autoPageOff => 'Off';
 
   @override
@@ -3456,6 +3459,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tapZoneToggle => 'Toggle UI';
+
+  @override
+  String get novelTapZoneActions => '9-Zone Tap Actions (3×3)';
+
+  @override
+  String get novelTapZoneReset => 'Reset Classic Layout';
+
+  @override
+  String get tapActNone => 'Do nothing';
+
+  @override
+  String get tapActMenu => 'Menu';
+
+  @override
+  String get tapActTtsPauseResume => 'TTS Pause/Resume';
+
+  @override
+  String get tapActSyncProgress => 'Sync Progress';
+
+  @override
+  String get tapActPurifyToggle => 'Purify Toggle';
 
   @override
   String get startReading => 'Start reading';
@@ -4462,6 +4486,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get readerChapterSeparatorDesc =>
       'Insert a chapter title card between chapters in webtoon continuous mode';
+
+  @override
+  String get readerWebtoonDecodeLimit => 'Limit webtoon decode size';
 
   @override
   String get readerScrollSpeed => 'Scroll speed';
@@ -7217,6 +7244,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get webviewDataCleared => 'WebView data cleared';
+
+  @override
+  String get advancedImageCache => 'Image cache';
+
+  @override
+  String get advancedImageCacheDesc =>
+      'Disk usage of downloaded images; tap to clear';
+
+  @override
+  String get imageCacheCleared => 'Image cache cleared';
+
+  @override
+  String get imageCacheClearConfirm => 'Clear image cache?';
+
+  @override
+  String get imageCacheCalculating => 'Calculating…';
 
   @override
   String get confirmActionHint => 'This action cannot be undone. Continue?';

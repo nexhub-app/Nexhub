@@ -2466,6 +2466,7 @@
   "readerSeamlessReadingDesc": "章末 / 章首直接续读相邻章（复用预载缓存），不重建章节、无白屏",
   "readerChapterSeparator": "章分割过渡",
   "readerChapterSeparatorDesc": "条漫连续模式下，章节之间插入章节标题卡",
+  "readerWebtoonDecodeLimit": "条漫解码限幅",
   "readerScrollSpeed": "滚动速度",
   "readerScrollSpeedDesc": "鼠标滚轮在条漫模式下的滚动增量倍率（0.5x–3x）",
   "readerVolumeKeyPageTurn": "音量键翻页",
@@ -4032,6 +4033,11 @@
     "description": "清除 WebView 数据副标题"
   },
   "webviewDataCleared": "WebView 数据已清除",
+  "advancedImageCache": "图片缓存",
+  "advancedImageCacheDesc": "已下载图片的磁盘占用，点按清理",
+  "imageCacheCleared": "图片缓存已清理",
+  "imageCacheClearConfirm": "清理图片缓存？",
+  "imageCacheCalculating": "计算中…",
   "@webviewDataCleared": {
     "description": "WebView 数据清除完成提示"
   },

@@ -1198,6 +1198,12 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                           _draft.showChapterSeparator,
                           (v) => _update(
                               _draft.copyWith(showChapterSeparator: v))),
+                      // 条漫解码限幅（P3 资源/内存）：连续模式解码位图下采样，
+                      // 限制长条漫原图的全尺寸解码内存。
+                      _switchTile(l10n.readerWebtoonDecodeLimit,
+                          _draft.webtoonLimitDecodeSize,
+                          (v) => _update(
+                              _draft.copyWith(webtoonLimitDecodeSize: v))),
                       // 自动翻页（REQ-B9，paged）：开关 + 间隔。
                       _buildAutoPageTurning(),
                       // 自动滚动（REQ-B10，条漫）：开关 + 滚动速度。

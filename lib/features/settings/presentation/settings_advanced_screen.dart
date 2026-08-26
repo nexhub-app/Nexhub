@@ -5,12 +5,18 @@
 /// - 详细日志开关（HttpFetcher 打印每个请求 / 响应）
 /// - 清除爬取 Cookie
 /// - 清除 WebView Cookie 与缓存
+/// - 图片磁盘缓存（占用统计 + 一键清理，P3 资源/内存）
 /// - 默认 UA（预设 + 自定义）
 library;
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/settings/advanced_settings.dart';
@@ -58,6 +64,8 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
         if (mounted) setState(() => _s = s);
       });
     }
+    // 图片磁盘缓存占用（P3 资源/内存）：进入页面异步统计。
+    _refreshImageCacheSize();
   }
 
   void _update(AdvancedSettings next) {
@@ -126,6 +134,69 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
       );
     }
   }
+
+  // ── 图片磁盘缓存管理（P3 资源/内存）─────────────────────────────
+  String _imageCacheSizeText = '';
+
+  Future<void> _refreshImageCacheSize() async {
+    final int total = await _computeImageCacheSize();
+    if (mounted) {
+      setState(() => _imageCacheSizeText = _formatBytes(total));
+    }
+  }
+
+  static const String _kCacheDirName = 'libCachedImageData';
+
+  /// 统计 cached_network_image 磁盘缓存占用（临时目录 libCachedImageData）。
+  /// 目录不存在（从未缓存过 / 平台差异）时返回 0。
+  Future<int> _computeImageCacheSize() async {
+    try {
+      final tmp = await getTemporaryDirectory();
+      final dir = Directory('${tmp.path}/$_kCacheDirName');
+      if (!dir.existsSync()) return 0;
+      int total = 0;
+      await for (final entity
+          in dir.list(recursive: true, followLinks: false)) {
+        if (entity is File) {
+          try {
+            total += await entity.length();
+          } on Object {
+            // 单文件统计失败忽略。
+          }
+        }
+      }
+      return total;
+    } on Object {
+      return 0;
+    }
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
+  }
+
+  Future<void> _clearImageCache(
+      BuildContext context, AppLocalizations l10n) async {
+    final ok = await _confirm(context, l10n, l10n.imageCacheClearConfirm);
+    if (!ok || !context.mounted) return;
+    try {
+      await DefaultCacheManager().emptyCache();
+    } catch (_) {}
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.imageCacheCleared)),
+      );
+    }
+    unawaited(_refreshImageCacheSize());
+  }
+
 
   void _pickUserAgent(BuildContext context, AppLocalizations l10n) {
     final current = _s.defaultUserAgent;
@@ -296,6 +367,22 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                 subtitle: Text(l10n.clearWebviewDataDesc),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => _clearWebviewData(context, l10n),
+              ),
+              ListTile(
+                key: const ValueKey<String>('advanced.imageCache'),
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  Icons.image_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: Text(l10n.advancedImageCache),
+                subtitle: Text(
+                  _imageCacheSizeText.isEmpty
+                      ? l10n.advancedImageCacheDesc
+                      : '${l10n.advancedImageCacheDesc} · $_imageCacheSizeText',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _clearImageCache(context, l10n),
               ),
             ],
           ),

@@ -511,6 +511,11 @@ class ReaderPreferences {
   /// 关闭时保持传统的「整章加载 + 过渡标题卡」行为。
   final bool seamlessReading;
 
+  /// 条漫（连续模式）解码限幅开关（P3 资源/内存）：开启时把解码位图宽下采样到
+  /// `min(2560, 屏幕物理像素 × 2)`，避免超长条漫原图（数千 px 宽）全尺寸解码
+  /// 挤爆内存。仅 webtoon 模式生效；paged 单页仍按原图解码保证放大细节。
+  final bool webtoonLimitDecodeSize;
+
   /// 段式连续模型下，段与段之间是否插入「章分割/过渡」条目（章节标题卡）。
   /// 仅对 webtoon（条漫）连续模式生效。
   final bool showChapterSeparator;
@@ -643,6 +648,7 @@ class ReaderPreferences {
     this.mouseWheelAction = MouseWheelAction.zoom,
     this.preloadImageCount = 4,
     this.seamlessReading = true,
+    this.webtoonLimitDecodeSize = true,
     this.showChapterSeparator = true,
     this.readerScrollSpeed = 1.0,
     this.volumeKeyPageTurn = false,
@@ -766,6 +772,8 @@ class ReaderPreferences {
       preloadImageCount:
           ((json['preloadImageCount'] as num?)?.toInt() ?? 4).clamp(1, 16),
       seamlessReading: json['seamlessReading'] as bool? ?? true,
+      webtoonLimitDecodeSize:
+          json['webtoonLimitDecodeSize'] as bool? ?? true,
       showChapterSeparator: json['showChapterSeparator'] as bool? ?? true,
       readerScrollSpeed:
           ((json['readerScrollSpeed'] as num?)?.toDouble() ?? 1.0)
@@ -871,6 +879,7 @@ class ReaderPreferences {
         'mouseWheelAction': mouseWheelAction.name,
         'preloadImageCount': preloadImageCount,
         'seamlessReading': seamlessReading,
+        'webtoonLimitDecodeSize': webtoonLimitDecodeSize,
         'showChapterSeparator': showChapterSeparator,
         'readerScrollSpeed': readerScrollSpeed,
         'volumeKeyPageTurn': volumeKeyPageTurn,
@@ -944,6 +953,7 @@ class ReaderPreferences {
     MouseWheelAction? mouseWheelAction,
     int? preloadImageCount,
     bool? seamlessReading,
+    bool? webtoonLimitDecodeSize,
     bool? showChapterSeparator,
     double? readerScrollSpeed,
     bool? volumeKeyPageTurn,
@@ -1017,6 +1027,8 @@ class ReaderPreferences {
         mouseWheelAction: mouseWheelAction ?? this.mouseWheelAction,
         preloadImageCount: preloadImageCount ?? this.preloadImageCount,
         seamlessReading: seamlessReading ?? this.seamlessReading,
+        webtoonLimitDecodeSize:
+            webtoonLimitDecodeSize ?? this.webtoonLimitDecodeSize,
         showChapterSeparator:
             showChapterSeparator ?? this.showChapterSeparator,
         readerScrollSpeed: readerScrollSpeed ?? this.readerScrollSpeed,
@@ -1183,6 +1195,10 @@ class ReaderPreferences {
       seamlessReading: identical(seamlessReading, def.seamlessReading)
           ? base.seamlessReading
           : seamlessReading,
+      webtoonLimitDecodeSize:
+          identical(webtoonLimitDecodeSize, def.webtoonLimitDecodeSize)
+              ? base.webtoonLimitDecodeSize
+              : webtoonLimitDecodeSize,
       showChapterSeparator:
           identical(showChapterSeparator, def.showChapterSeparator)
               ? base.showChapterSeparator
