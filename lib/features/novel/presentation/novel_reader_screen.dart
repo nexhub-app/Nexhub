@@ -330,6 +330,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       NovelSelectionController();
   /// 选区工具条是否可见（长按选区结束后显示）。
   bool _showSelectionToolbar = false;
+  /// 长按选区手势进行中（按下到松手之间）：用于阻止翻页拖拽抢走长按指针，
+  /// 避免「长按选中一闪即逝」被横向翻页手势打断。
+  bool _longPressEngaged = false;
+  /// 刚由长按确认选区：吞掉紧随其后的那次 tap-up，避免误清空刚建立的选区。
+  bool _selectionJustConfirmed = false;
   /// 划线色板（ARGB，含 50% 透明度，与活动选区同调）。
   static const List<int> _highlightPalette = <int>[
     0x80FFFF00,
@@ -520,6 +525,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   // ─────────────────────── N4 下滑切书签手势（P2-9） ───────────────────────
   /// 下滑书签手势进行中（页面随指下移的视觉反馈）。
   bool _bookmarkSwipeActive = false;
+  /// 本次下滑手势已被取消（上滑回拖到阈值之上）：松手不落盘、不移除书签。
+  bool _bookmarkSwipeCancelled = false;
   /// 手势待定态：已开始但方向尚未确定（可能横向翻页误触，需方向判定）。
   bool _bookmarkSwipePending = false;
   /// 手势累计纵向位移（向下为正，px）。
@@ -1742,6 +1749,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   ///
   /// 块为整段多行文本，精确折行 x 命中留待后续；先满足「滚动模式可划线」。
   void _onSelLongPressStartScroll(int blockIndex, String text) {
+    _longPressEngaged = true;
     final start = _selectionController.globalOffsetForBlock(
       _paragraphs,
       blockIndex,
@@ -1755,9 +1763,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   /// 滚动模式长按结束：解除选区激活；有选区则显示工具条。
   void _onSelLongPressEndScroll() {
+    _longPressEngaged = false;
     _selectionController.setSelecting(false);
     _selectionController.setSelectionAnchor(null);
     if (_selectionController.hasSelection && mounted) {
+      _selectionJustConfirmed = true;
       setState(() => _showSelectionToolbar = true);
     }
   }
@@ -2431,7 +2441,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       // X-4：章节加载完成、分页就绪后检查一次预下载（单页章 / 直达章末场景，
       // 不依赖用户翻页也能触发；postFrame 等 LayoutBuilder 算出分页）。
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _maybePreDownload();
+        if (!mounted) return;
+        _maybePreDownload();
+        // X-4b：把后续 1~2 章正文后台填入 _preDownloader 缓存，使下次翻页在
+        // _loadChapter 处命中 cached() 而跳过主线程 fetchNovelContent（含
+        // flutter_js 同步解析），消除「网络翻页卡顿」。
+        _warmNextChapterCache();
       });
       // 不在此处对哨兵值 -1 调用 _saveProgress（会存入非法页码）。
       // 合法的页码会在 _buildReader 哨兵校正后，由后续翻页/渲染自动保存；
@@ -2788,6 +2803,30 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         );
       }
     }));
+  }
+
+  /// X-4b：章节加载完成后，后台把后续 1~2 章正文填入 [_preDownloader] 的内存 /
+  /// Hive 缓存。这样下一次翻页在 [_loadChapter] 处命中 [cached()] 而跳过主线程
+  /// 的 fetchNovelContent（含 flutter_js 同步解析），消除「网络翻页卡顿」。
+  ///
+  /// 与 [_maybePreDownload] 的落盘下载相互独立：本方法只填缓存、不写本地文件、
+  /// 不出 SnackBar、不受预下载总开关限制（纯为翻页流畅度服务；总带宽约等于把
+  /// 抓取时机提前，并不额外消耗）。[_preDownloader.preDownload] 自带内存 / 在途 /
+  /// 落地三重去重，重复调用安全。
+  void _warmNextChapterCache() {
+    if (_isLocalMode) return;
+    final source = _repo.getById(widget.sourceId);
+    if (source == null) return;
+    final int nextIdx = _chapterIndex + 1;
+    if (nextIdx >= widget.chapters.length) return;
+    unawaited(_preDownloader.preDownload(
+      service: _service,
+      source: source,
+      novelId: widget.novelId,
+      chapters: widget.chapters,
+      startIndex: nextIdx,
+      count: 2,
+    ));
   }
 
   /// 把当前分页结果注入选区控制器，并异步加载本章已存划线（重新解析定位）。
@@ -3841,6 +3880,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
     // 选区工具条可见时，点按任意处收起工具条并清空选区。
     if (_showSelectionToolbar) {
+      // 吞掉长按松手后紧随的那次 tap-up，避免刚建立的选区被误清空（闪一下）。
+      if (_selectionJustConfirmed) {
+        _selectionJustConfirmed = false;
+        return;
+      }
       _selectionController.clearSelection();
       setState(() => _showSelectionToolbar = false);
       return;
@@ -3944,6 +3988,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (d.globalPosition.dx < w / 3) return; // 与亮度手势区域互斥
     _bookmarkSwipePending = true;
     _bookmarkSwipeActive = false;
+    _bookmarkSwipeCancelled = false;
     _bookmarkSwipeDy = 0;
     _bookmarkSwipeDx = 0;
     // 预取当前位置是否已有书签：决定本次下滑是添加还是取消（提示条文案同步）。
@@ -3962,24 +4007,36 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       if (_bookmarkSwipeDx.abs() > _bookmarkSwipeDy.abs() * 2) {
         // 横向主导 → 用户实际想翻页，放弃。
         _bookmarkSwipePending = false;
+        _bookmarkSwipeActive = false;
+        _bookmarkSwipeCancelled = false;
         _bookmarkSwipeDy = 0;
         _bookmarkSwipeDx = 0;
+        return;
+      }
+      // 尚未过阈值时上滑回到原位即取消（允许反悔，回到原点）。
+      if (_bookmarkSwipeDy <= 0) {
+        _bookmarkSwipePending = false;
+        _bookmarkSwipeActive = false;
+        _bookmarkSwipeCancelled = true;
+        _bookmarkSwipeDy = 0;
+        _bookmarkSwipeDx = 0;
+        if (mounted) setState(() {});
         return;
       }
       if (_bookmarkSwipeDy > 0 &&
           _bookmarkSwipeDy > _bookmarkSwipeDx.abs() * 1.5) {
         _bookmarkSwipeActive = true;
+        _bookmarkSwipeCancelled = false;
         if (mounted) setState(() {});
         return;
       }
-      // 仅允许下滑触发；上滑/回落不取消手势（避免误判打断），继续等待
-      // 手指拖回下滑方向或抬手复位。
       return;
     }
-    // 激活态：仅累计向下位移（向上回拖不抵消，避免抖动让进度归零）。
-    if (dy > 0) {
-      _bookmarkSwipeDy = _bookmarkSwipeDy + dy;
-    }
+    // 激活态：累计位移（含向上回拖，dy 可能变负）；回拖到阈值线之上即取消。
+    _bookmarkSwipeDy = _bookmarkSwipeDy + dy;
+    final h = MediaQuery.sizeOf(context).height;
+    final threshold = h * _bookmarkSwipeThresholdRatio;
+    _bookmarkSwipeCancelled = _bookmarkSwipeDy < threshold;
     if (mounted) setState(() {});
   }
 
@@ -3987,9 +4044,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (!_bookmarkSwipePending && !_bookmarkSwipeActive) return;
     final h = MediaQuery.sizeOf(context).height;
     final threshold = h * _bookmarkSwipeThresholdRatio;
-    final reached = _bookmarkSwipeActive && _bookmarkSwipeDy >= threshold;
+    final reached =
+        _bookmarkSwipeActive && _bookmarkSwipeDy >= threshold && !_bookmarkSwipeCancelled;
     _bookmarkSwipePending = false;
     _bookmarkSwipeActive = false;
+    _bookmarkSwipeCancelled = false;
     _bookmarkSwipeDy = 0;
     _bookmarkSwipeDx = 0;
     if (mounted) setState(() {});
@@ -4520,10 +4579,19 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     selectionController: _selectionController,
                     onSelectionConfirmed: () {
                       if (mounted) {
+                        _selectionJustConfirmed = true;
                         setState(() {
                           _showSelectionToolbar = true;
                           _uiVisible = false; // 显示工具栏时隐藏控制面板
                         });
+                      }
+                    },
+                    onSelectionActiveChanged: (engaged) {
+                      // 长按选区激活期间置位 _longPressEngaged，使翻页手势让出指针，
+                      // 避免选区拖拽被翻页抢走（「长按一闪即逝」的根因）。
+                      if (mounted) {
+                        _longPressEngaged = engaged;
+                        setState(() {});
                       }
                     },
                   );
@@ -4537,6 +4605,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 initialPage: initialDisplay,
                 background: bg,
                 selectionActive: () =>
+                    _longPressEngaged ||
                     _selectionController.hasSelection ||
                     _selectionController.isSelecting,
                 pageBuilder: (BuildContext ctx, int displayIndex) {
@@ -4610,6 +4679,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       // 滚动模式：点按空白处收起选区工具条或切换控制面板。
       onTap: () {
         if (_showSelectionToolbar) {
+          // 吞掉长按松手后紧随的那次 tap，避免刚建立的选区被误清空（闪一下）。
+          if (_selectionJustConfirmed) {
+            _selectionJustConfirmed = false;
+            return;
+          }
           _selectionController.clearSelection();
           if (mounted) setState(() => _showSelectionToolbar = false);
         } else {
@@ -7175,6 +7249,9 @@ class _NovelPageWidget extends StatelessWidget {
   final NovelSelectionController selectionController;
   /// 长按选区结束后（有非空选区）回调，用于显示工具条。
   final VoidCallback? onSelectionConfirmed;
+  /// 长按选区激活状态变化回调（开始 = true / 结束 = false），由阅读器 State
+  /// 用以置位 [_longPressEngaged]，使翻页手势在选区拖拽期间让出指针。
+  final void Function(bool engaged)? onSelectionActiveChanged;
 
   /// G3 整本页码：给定章内页码，返回跨章累计的全书页位文案
   /// （由阅读器状态基于会话分页缓存计算；null/空串表示不可用）。
@@ -7186,6 +7263,7 @@ class _NovelPageWidget extends StatelessWidget {
     this.source,
     required this.selectionController,
     this.onSelectionConfirmed,
+    this.onSelectionActiveChanged,
     required this.prefs,
     required this.bg,
     required this.textColor,
@@ -7507,6 +7585,7 @@ class _NovelPageWidget extends StatelessWidget {
       lineIndexInPage,
       ci,
     );
+    onSelectionActiveChanged?.call(true);
     selectionController.setSelecting(true);
     selectionController.setSelectionAnchor(global);
     // 长按即选中锚点所在的「词/句」（标点/空白切分），拖拽时由 move 重定义选区。
@@ -7534,6 +7613,7 @@ class _NovelPageWidget extends StatelessWidget {
 
   /// 长按结束：解除选区激活；若有非空选区则通知外层显示工具条。
   void _onSelLongPressEnd() {
+    onSelectionActiveChanged?.call(false);
     selectionController.setSelecting(false);
     selectionController.setSelectionAnchor(null);
     if (selectionController.hasSelection) {

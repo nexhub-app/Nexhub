@@ -284,7 +284,7 @@ class _LocalBookshelf extends StatelessWidget {
       final group = entry.value
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
       final lead = group.reduce((a, b) => a.createdAt >= b.createdAt ? a : b);
-      final chapterCount = group.fold(0, (s, e) => s + e.chapterTitles.length);
+      final chapterCount = group.fold(0, (s, e) => s + _localChapterCount(e));
       items.add(_BookshelfItem(
         id: lead.contentId,
         title: lead.title,
@@ -791,6 +791,18 @@ void _sortFavoriteEntries(
 }
 
 // ── 网格视图 ────────────────────────────────────────────
+
+/// 本地/下载项的「本地已有章数」：
+/// - 逐章产物（漫画/动漫/视频，[DownloadTask.chapterFilePaths] 多文件）→
+///   以实际落盘文件数为准（即真正可在本机阅读的章数）。
+/// - 整本单文件（小说 epub/txt，[chapterFilePaths] 仅 1 项或无）→ 回退到
+///   章节总数（整本书已在本机，章数即全量）。
+/// 用于未读角标分母，避免把"下载任务记录的章名数"当成本地已有数。
+int _localChapterCount(DownloadTask t) {
+  final files = t.chapterFilePaths;
+  if (files != null && files.length > 1) return files.length;
+  return t.chapterTitles.length;
+}
 
 class _BookshelfItem {
   final String id;
