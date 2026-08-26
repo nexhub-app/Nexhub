@@ -408,6 +408,36 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get dandanplayLoggedOut => '已退出弹弹play 账号';
+
+  @override
+  String get dandanplayAppNotConfigured => '弹弹play 应用未配置，当前无法登录';
+
+  @override
+  String get dandanplayLoginTab => '登录';
+
+  @override
+  String get dandanplayRegisterTab => '注册';
+
+  @override
+  String get dandanplayEmail => '邮箱';
+
+  @override
+  String get dandanplayNickname => '昵称';
+
+  @override
+  String get dandanplayRegisterAction => '注册并登录';
+
+  @override
+  String get dandanplayRegisterSuccess => '注册成功，已自动登录';
+
+  @override
+  String get dandanplayRegisterEmptyFields => '请填写用户名、密码与邮箱';
+
+  @override
+  String get dandanplayRegisterEmailInvalid => '邮箱格式不正确';
+
+  @override
   String get danmakuStyle => '弹幕样式';
 
   @override
@@ -7032,6 +7062,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onboardingBangumiLogin => '立即登录';
+
+  @override
+  String get onboardingDandanplayTitle => '关联 弹弹play';
+
+  @override
+  String get onboardingDandanplayBody => '登录后可发送并同步弹幕到弹弹play，跨设备共享弹幕库。';
+
+  @override
+  String get onboardingDandanplayLogin => '去登录';
 
   @override
   String get onboardingPrivacyTitle => '隐私与合规';

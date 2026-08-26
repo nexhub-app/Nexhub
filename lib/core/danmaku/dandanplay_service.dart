@@ -195,17 +195,60 @@ class DandanplayService implements DanmakuSource {
       ),
     );
     final data = response.data;
-    final token = data?['token']?.toString() ?? '';
-    if (token.isEmpty) {
-      throw StateError('DanDanPlay login failed: no token in response');
+    if (data == null) throw StateError('DanDanPlay empty response');
+    return DandanplayLoginResult.fromResponseJson(data, userName);
+  }
+
+  /// 弹弹play 新用户注册（"增加弹弹play新用户注册"）。
+  ///
+  /// 对应 `POST /api/v2/register`（官方账号服务器）：
+  /// - 请求体在登录字段基础上增加 `email` 与 `screenName`，并复用同一套
+  ///   `hash = md5(AppId + Password + Timestamp + UserName + AppSecret)` 与
+  ///   应用级签名头；
+  /// - 成功响应与登录一致（`LoginResponse`，携带 token + 用户信息），可直接
+  ///   复用 [DandanplayLoginResult] 并自动登录。
+  ///
+  /// 凭据未配置 / 参数校验失败（用户名已存在、邮箱格式错误等）原样抛出
+  /// [StateError]，由 UI 提示。
+  Future<DandanplayLoginResult> register({
+    required String userName,
+    required String password,
+    required String email,
+    required String screenName,
+  }) async {
+    const path = '/api/v2/register';
+    final cfg = await _loadConfig();
+    if (!cfg.isConfigured) {
+      throw StateError('DanDanPlay credentials not configured');
     }
-    final user = data?['user'];
-    return DandanplayLoginResult(
-      token: token,
-      userName: user is Map ? (user['userName']?.toString() ?? userName) : userName,
-      screenName:
-          user is Map ? (user['screenName']?.toString() ?? '') : '',
+    final timestamp =
+        DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+    final hash = md5
+        .convert(utf8.encode('${cfg.appId}$password$timestamp$userName${cfg.appSecret}'))
+        .toString();
+    final response = await _dio.post<Map<String, dynamic>>(
+      path,
+      data: <String, dynamic>{
+        'userName': userName,
+        'password': password,
+        'email': email,
+        'screenName': screenName,
+        'appId': cfg.appId,
+        'unixTimestamp': timestamp,
+        'hash': hash,
+      },
+      options: Options(
+        headers: <String, String>{
+          ..._signHeaders(cfg, path),
+          'User-Agent': 'NexHub/1.0',
+          'Accept': 'application/json',
+        },
+        responseType: ResponseType.json,
+      ),
     );
+    final data = response.data;
+    if (data == null) throw StateError('DanDanPlay empty response');
+    return DandanplayLoginResult.fromResponseJson(data, userName);
   }
 
   /// 上传弹幕到指定剧集（F-18）。
@@ -349,7 +392,7 @@ class DandanplayMatchEpisode {
   static String _asString(dynamic v) => v?.toString() ?? '';
 }
 
-/// `/api/v2/login` 登录成功结果（F-18）。
+/// `/api/v2/login` 与 `/api/v2/register` 共用的成功结果（F-18）。
 class DandanplayLoginResult {
   const DandanplayLoginResult({
     required this.token,
@@ -365,4 +408,46 @@ class DandanplayLoginResult {
 
   /// 展示昵称；服务器未返回时为空串，展示层回退 [userName]。
   final String screenName;
+
+  /// 从 `LoginResponse`（login / register 共用，= `ResponseBase` + 用户字段）
+  /// 解析。兼容嵌套 `user` 与扁平两种返回结构。
+  ///
+  /// `errorCode != 0` 或 `success == false` 时抛出 [StateError] 并携带服务器
+  /// `errorMessage`（含 `errorDetail`），便于 UI 直接展示失败原因
+  /// （用户名已存在、邮箱格式错误、密码长度不符等）。
+  factory DandanplayLoginResult.fromResponseJson(
+    Map<String, dynamic> data,
+    String fallbackUserName,
+  ) {
+    final errorCode = data['errorCode'];
+    final success = data['success'];
+    if ((success is bool && !success) ||
+        (errorCode is int && errorCode != 0)) {
+      final msg = data['errorMessage']?.toString();
+      final detail = data['errorDetail']?.toString();
+      final reason = (detail != null && detail.isNotEmpty)
+          ? '$msg（$detail）'
+          : (msg?.isNotEmpty == true ? msg! : 'DanDanPlay request failed');
+      throw StateError(reason);
+    }
+    final token = data['token']?.toString() ?? '';
+    if (token.isEmpty) {
+      throw StateError('DanDanPlay request failed: no token in response');
+    }
+    final user = data['user'];
+    final String userName;
+    final String screenName;
+    if (user is Map) {
+      userName = user['userName']?.toString() ?? fallbackUserName;
+      screenName = user['screenName']?.toString() ?? '';
+    } else {
+      userName = data['userName']?.toString() ?? fallbackUserName;
+      screenName = data['screenName']?.toString() ?? '';
+    }
+    return DandanplayLoginResult(
+      token: token,
+      userName: userName,
+      screenName: screenName,
+    );
+  }
 }

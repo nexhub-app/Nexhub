@@ -872,6 +872,66 @@ abstract class AppLocalizations {
   /// **'Signed in as {name}'**
   String danmakuAccountLoggedInAs(String name);
 
+  /// No description provided for @dandanplayLoggedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed out of DanDanPlay'**
+  String get dandanplayLoggedOut;
+
+  /// No description provided for @dandanplayAppNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'DanDanPlay app is not configured; login unavailable'**
+  String get dandanplayAppNotConfigured;
+
+  /// No description provided for @dandanplayLoginTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get dandanplayLoginTab;
+
+  /// No description provided for @dandanplayRegisterTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Register'**
+  String get dandanplayRegisterTab;
+
+  /// No description provided for @dandanplayEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get dandanplayEmail;
+
+  /// No description provided for @dandanplayNickname.
+  ///
+  /// In en, this message translates to:
+  /// **'Nickname'**
+  String get dandanplayNickname;
+
+  /// No description provided for @dandanplayRegisterAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Register & sign in'**
+  String get dandanplayRegisterAction;
+
+  /// No description provided for @dandanplayRegisterSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered and signed in'**
+  String get dandanplayRegisterSuccess;
+
+  /// No description provided for @dandanplayRegisterEmptyFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter username, password and email'**
+  String get dandanplayRegisterEmptyFields;
+
+  /// No description provided for @dandanplayRegisterEmailInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid email format'**
+  String get dandanplayRegisterEmailInvalid;
+
   /// No description provided for @danmakuStyle.
   ///
   /// In en, this message translates to:
@@ -13489,6 +13549,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign in now'**
   String get onboardingBangumiLogin;
+
+  /// No description provided for @onboardingDandanplayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect DanDanPlay'**
+  String get onboardingDandanplayTitle;
+
+  /// No description provided for @onboardingDandanplayBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to post and sync danmaku to DanDanPlay and share comment libraries across devices.'**
+  String get onboardingDandanplayBody;
+
+  /// No description provided for @onboardingDandanplayLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get onboardingDandanplayLogin;
 
   /// No description provided for @onboardingPrivacyTitle.
   ///

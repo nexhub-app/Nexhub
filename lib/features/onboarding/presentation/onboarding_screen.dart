@@ -20,8 +20,10 @@ import 'package:nexhub/core/theme/app_tokens.dart';
 import 'package:nexhub/core/theme/theme_controller.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/locale/locale_controller.dart';
+import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import '../../settings/presentation/settings_dandanplay_account_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onDone;
@@ -35,7 +37,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _page = 0;
-  static const int _total = 6;
+  static const int _total = 7;
   bool _permissionsGranted = false;
 
   void _goNext() {
@@ -105,6 +107,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           },
           icon: const Icon(Icons.login),
           label: Text(loc.onboardingBangumiLogin),
+        ),
+      ),
+      _OnboardingPageData(
+        icon: Icons.chat_bubble_outline,
+        title: l10n.onboardingDandanplayTitle,
+        body: l10n.onboardingDandanplayBody,
+        action: (ctx, loc) => FilledButton.icon(
+          onPressed: () {
+            // 引导页中前往弹弹play 登录页；失败不阻断引导。
+            Navigator.of(ctx).push(
+              AppPageRoute<void>(
+                builder: (_) => const SettingsDandanplayAccountScreen(),
+              ),
+            );
+          },
+          icon: const Icon(Icons.login),
+          label: Text(loc.onboardingDandanplayLogin),
         ),
       ),
       _OnboardingPageData(

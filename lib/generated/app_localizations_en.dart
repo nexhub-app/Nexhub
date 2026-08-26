@@ -415,6 +415,38 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get dandanplayLoggedOut => 'Signed out of DanDanPlay';
+
+  @override
+  String get dandanplayAppNotConfigured =>
+      'DanDanPlay app is not configured; login unavailable';
+
+  @override
+  String get dandanplayLoginTab => 'Sign in';
+
+  @override
+  String get dandanplayRegisterTab => 'Register';
+
+  @override
+  String get dandanplayEmail => 'Email';
+
+  @override
+  String get dandanplayNickname => 'Nickname';
+
+  @override
+  String get dandanplayRegisterAction => 'Register & sign in';
+
+  @override
+  String get dandanplayRegisterSuccess => 'Registered and signed in';
+
+  @override
+  String get dandanplayRegisterEmptyFields =>
+      'Please enter username, password and email';
+
+  @override
+  String get dandanplayRegisterEmailInvalid => 'Invalid email format';
+
+  @override
   String get danmakuStyle => 'Danmaku style';
 
   @override
@@ -7174,6 +7206,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingBangumiLogin => 'Sign in now';
+
+  @override
+  String get onboardingDandanplayTitle => 'Connect DanDanPlay';
+
+  @override
+  String get onboardingDandanplayBody =>
+      'Sign in to post and sync danmaku to DanDanPlay and share comment libraries across devices.';
+
+  @override
+  String get onboardingDandanplayLogin => 'Sign in';
 
   @override
   String get onboardingPrivacyTitle => 'Privacy & compliance';

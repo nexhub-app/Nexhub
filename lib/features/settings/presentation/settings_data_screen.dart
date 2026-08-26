@@ -16,6 +16,8 @@ import './settings_download_screen.dart';
 import './settings_import_export_screen.dart';
 import './settings_cloud_sync_screen.dart';
 import './settings_bangumi_screen.dart';
+import './settings_dandanplay_account_screen.dart';
+import '../../../core/danmaku/dandanplay_auth.dart';
 
 /// 数据与账户汇总页：统计 / 分类 / 下载 / 备份 / 云同步 / Bangumi。
 ///
@@ -103,6 +105,13 @@ class SettingsDataScreen extends StatelessWidget {
                 ),
               ),
             ),
+            _DandanplayTile(
+              onTap: () => Navigator.of(context).push(
+                AppPageRoute<void>(
+                  builder: (_) => const SettingsDandanplayAccountScreen(),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -186,6 +195,38 @@ class _BangumiTile extends StatelessWidget {
             return AppListTile(
               leading: const SettingsLeadingIcon(icon:Icons.live_tv),
               title: Text(l10n.bangumiSettings),
+              subtitle: Text(subtitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onTap,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DandanplayTile extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _DandanplayTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return FutureBuilder<void>(
+      future: DandanplayAuth.instance.init(),
+      builder: (BuildContext ctx, AsyncSnapshot<void> snap) {
+        return AnimatedBuilder(
+          animation: DandanplayAuth.instance,
+          builder: (_, __) {
+            final auth = DandanplayAuth.instance;
+            final subtitle = auth.isLoggedIn
+                ? l10n.danmakuAccountLoggedInAs(auth.displayName ?? '')
+                : l10n.loginStatusLoggedOut;
+            return AppListTile(
+              leading: const SettingsLeadingIcon(icon: Icons.chat_bubble_outline),
+              title: Text(l10n.danmakuAccountSection),
               subtitle: Text(subtitle),
               trailing: const Icon(Icons.chevron_right),
               onTap: onTap,

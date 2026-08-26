@@ -95,4 +95,36 @@ class DandanplayAuth extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  /// 注册新账号并自动登录（持久化 token）。
+  ///
+  /// 经 `DandanplayService.register`（POST /api/v2/register），成功后响应与
+  /// 登录一致（带 token + 用户信息），直接落盘并切换为已登录态，无需再调
+  /// [login]。凭据未配置 / 参数校验失败原样抛出由 UI 提示。
+  Future<void> register({
+    required String userName,
+    required String password,
+    required String email,
+    required String screenName,
+  }) async {
+    await init();
+    final service = DandanplayService(configStore: DanmakuConfigStore());
+    final result = await service.register(
+      userName: userName,
+      password: password,
+      email: email,
+      screenName: screenName,
+    );
+    _token = result.token;
+    _userName = result.userName;
+    _screenName = result.screenName;
+    try {
+      await _storage.write(key: _tokenKey, value: _token);
+      await _storage.write(key: _usernameKey, value: _userName);
+      await _storage.write(key: _screenNameKey, value: _screenName);
+    } catch (_) {
+      // 写盘失败不阻断注册：本次会话内已登录。
+    }
+    notifyListeners();
+  }
 }

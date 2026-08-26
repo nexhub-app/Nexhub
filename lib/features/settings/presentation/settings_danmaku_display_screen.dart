@@ -9,14 +9,11 @@
 /// 渲染层读取（`DanmakuSettings` 中对应 enum 字段仍保留以做向后兼容）。
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/danmaku/danmaku_settings.dart';
 import '../../../core/danmaku/danmaku_settings_store.dart';
-import '../../../core/danmaku/dandanplay_auth.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
@@ -135,10 +132,10 @@ class _SettingsDanmakuDisplayScreenState
                 ),
 
                 // ── 外观 ──
-                // 注：「字体大小」原为分段按钮（小/中/大 → `fontSizePreset`），
+                // 注：「字体大小」原为分段按钮（小/中/大），
                 // canvas_danmaku 渲染层只读取 `fontSize`（double），分段选择从未生效。
-                // 现统一使用下方 12-28 滑块（更细自定义）。
-                // 模型与 enum `DanmakuFontSize` 字段保留，旧 JSON 仍可被 fromJson 解析。
+                // 现统一使用下方 12-28 滑块（更细自定义）；对应死字段已从模型移除，
+                // 旧 JSON 中的遗留键会被 fromJson 忽略。
                 SettingsCard(
                   key: const ValueKey<String>('danmaku.appearance'),
                   index: 1,
@@ -166,114 +163,10 @@ class _SettingsDanmakuDisplayScreenState
                     ),
                   ],
                 ),
-
-                // ── 显示 ──
-                // 注：本组曾有三个分段按钮与一个滑块并存，其中：
-                //   - 显示区域（1/4 半屏 全屏 → `displayArea`）从未被渲染层读取；
-                //   - 同屏上限（10/20/50/100 → `maxOnScreen`）未被引擎支持（无此字段）；
-                //   - 滚动速度（慢/中/快 → `scrollSpeed`）未被引擎读取。
-                // 现移除以上 3 个分段按钮，仅保留生效滑块。
-                // 模型与对应 enum 字段保留，旧 JSON 仍可被 fromJson 解析（向后兼容）。
-                SettingsCard(
-                  key: const ValueKey<String>('danmaku.display'),
-                  index: 2,
-                  title: l10n.danmakuDisplayGroupDisplay,
-                  children: <Widget>[
-                    SettingsSliderTile(
-                      label: l10n.danmakuArea,
-                      value: _settings.area,
-                      min: 0.1,
-                      max: 1.0,
-                      divisions: 9,
-                      display: _settings.area.toStringAsFixed(1),
-                      onChanged: (v) => _update(_settings.copyWith(area: v)),
-                    ),
-                    SettingsSliderTile(
-                      label: l10n.danmakuDuration,
-                      value: _settings.duration,
-                      min: 3,
-                      max: 15,
-                      divisions: 12,
-                      display: _settings.duration.toStringAsFixed(0),
-                      onChanged: (v) => _update(_settings.copyWith(duration: v)),
-                    ),
-                    SettingsSliderTile(
-                      label: l10n.danmakuLineHeight,
-                      value: _settings.lineHeight,
-                      min: 1.0,
-                      max: 2.0,
-                      divisions: 10,
-                      display: _settings.lineHeight.toStringAsFixed(1),
-                      onChanged: (v) => _update(_settings.copyWith(lineHeight: v)),
-                    ),
-                    SettingsSwitchTile(
-                      title: l10n.danmakuFollowSpeed,
-                      value: _settings.followPlaybackSpeed,
-                      onChanged: (v) => _update(
-                          _settings.copyWith(followPlaybackSpeed: v)),
-                    ),
-                  ],
-                ),
-
-                // ── F-18：弹弹play 账号（发送弹幕的登录态）──
-                SettingsCard(
-                  key: const ValueKey<String>('danmaku.account'),
-                  index: 3,
-                  title: l10n.danmakuAccountSection,
-                  children: <Widget>[_dandanplayAccountSection(l10n)],
-                ),
               ],
               ),
             )
           : const Center(child: CircularProgressIndicator()),
-    );
-  }
-
-  /// F-18：弹弹play 账号分区——登录状态 + 登出。
-  ///
-  /// 登录入口不在本页（发送弹幕时在播放器内就地弹出），此处仅展示当前
-  /// 登录态并支持退出。
-  Widget _dandanplayAccountSection(AppLocalizations l10n) {
-    final auth = DandanplayAuth.instance;
-    return FutureBuilder<void>(
-      future: auth.init(),
-      builder: (BuildContext context, AsyncSnapshot<void> snap) {
-        final loggedIn = snap.connectionState == ConnectionState.done
-            ? auth.isLoggedIn
-            : null; // 加载中
-        final theme = Theme.of(context);
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    if (loggedIn == null)
-                      Text(l10n.loginStatusLoggedOut,
-                          style: theme.textTheme.bodyMedium)
-                    else if (loggedIn)
-                      Text(l10n.danmakuAccountLoggedInAs(auth.displayName ?? ''),
-                          style: theme.textTheme.bodyMedium)
-                    else
-                      Text(l10n.loginStatusLoggedOut,
-                          style: theme.textTheme.bodyMedium),
-                  ],
-                ),
-              ),
-              if (loggedIn == true)
-                TextButton(
-                  onPressed: () {
-                    unawaited(auth.logout());
-                    if (mounted) setState(() {});
-                  },
-                  child: Text(l10n.logoutAction),
-                ),
-            ],
-          ),
-        );
-      },
     );
   }
 

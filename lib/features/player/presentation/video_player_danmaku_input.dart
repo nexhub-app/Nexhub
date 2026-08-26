@@ -167,8 +167,9 @@ extension _VideoDanmakuInput on _VideoPlayerScreenState {
   /// - 集数校验：解析不到 dandanplay episodeId（源为 bilibili / 自定义 URL /
   ///   匹配失败）时不上传，提示仅本地显示；
   /// - 时长校验：发送位置超出视频时长时不上传；
-  /// - 登录态：未登录先弹就地登录框；凭据未配置 / 账号密码错误 / 上传失败
-  ///   均以 SnackBar 提示。
+  /// - 登录态：未登录不再弹登录框（项 9 / 弹幕重构），仅本地显示并提示去
+  ///   设置「数据与账号」或首启引导页登录；已登录才上传；凭据未配置 /
+  ///   账号密码错误 / 上传失败均以 SnackBar 提示。
   Future<void> _uploadDanmaku(
     String text,
     Duration time,
@@ -194,11 +195,11 @@ extension _VideoDanmakuInput on _VideoPlayerScreenState {
       _safeSnackBar(l10n.danmakuSendTimeInvalid);
       return;
     }
-    // 登录态：未登录就地登录，取消则放弃上传（本地已显示）。
+    // 登录态：未登录不再弹登录框，仅本地显示并提示去设置/引导登录；已登录才上传。
     await DandanplayAuth.instance.init();
     if (!DandanplayAuth.instance.isLoggedIn) {
-      final ok = await _showDandanplayLoginDialog();
-      if (!ok || _disposed || !mounted) return;
+      _safeSnackBar(l10n.danmakuLoginRequiredHint);
+      return;
     }
     try {
       final service = DandanplayService(configStore: DanmakuConfigStore());
@@ -224,96 +225,4 @@ extension _VideoDanmakuInput on _VideoPlayerScreenState {
     }
   }
 
-  /// F-18：弹弹play 就地登录对话框。返回 true 表示登录成功。
-  Future<bool> _showDandanplayLoginDialog() async {
-    final l10n = AppLocalizations.of(context);
-    final userCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    var busy = false;
-    String? error;
-
-    Future<void> submit(BuildContext ctx, void Function(VoidCallback) setSt) async {
-      final userName = userCtrl.text.trim();
-      final password = passCtrl.text;
-      if (userName.isEmpty || password.isEmpty) {
-        setSt(() => error = l10n.danmakuLoginEmptyFields);
-        return;
-      }
-      setSt(() {
-        busy = true;
-        error = null;
-      });
-      try {
-        await DandanplayAuth.instance.login(userName, password);
-        if (!mounted) return;
-        Navigator.pop(ctx, true);
-        _safeSnackBar(l10n.loginSuccess);
-      } on Object catch (e) {
-        AppLog.instance.e('[F-18] 弹弹play 登录失败：$e');
-        setSt(() {
-          busy = false;
-          error = e.toString();
-        });
-      }
-    }
-
-    try {
-      final result = await showDialog<bool>(
-        context: context,
-        builder: (BuildContext ctx) => StatefulBuilder(
-          builder: (BuildContext ctx, void Function(VoidCallback) setSt) =>
-              AppAlertDialog(
-            title: Text(l10n.danmakuLoginTitle),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(l10n.danmakuLoginRequiredHint),
-                const SizedBox(height: AppTokens.spaceMd),
-                TextField(
-                  controller: userCtrl,
-                  autofocus: true,
-                  enabled: !busy,
-                  decoration:
-                      InputDecoration(labelText: l10n.danmakuUsername),
-                ),
-                const SizedBox(height: AppTokens.spaceSm),
-                TextField(
-                  controller: passCtrl,
-                  obscureText: true,
-                  enabled: !busy,
-                  decoration:
-                      InputDecoration(labelText: l10n.danmakuPassword),
-                  onSubmitted: (_) {
-                    if (!busy) submit(ctx, setSt);
-                  },
-                ),
-                if (error != null) ...<Widget>[
-                  const SizedBox(height: AppTokens.spaceSm),
-                  Text(
-                    error!,
-                    style: TextStyle(
-                        color: Theme.of(ctx).colorScheme.error, fontSize: 12),
-                  ),
-                ],
-              ],
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(l10n.cancel),
-              ),
-              TextButton(
-                onPressed: busy ? null : () => submit(ctx, setSt),
-                child: Text(l10n.danmakuLoginAction),
-              ),
-            ],
-          ),
-        ),
-      );
-      return result ?? false;
-    } finally {
-      userCtrl.dispose();
-      passCtrl.dispose();
-    }
-  }
 }
