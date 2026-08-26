@@ -299,6 +299,9 @@ enum _AggChapterMode { fileExpanded, epubLast, collapsed }
 class _NovelReaderScreenState extends State<NovelReaderScreen>
     with WidgetsBindingObserver {
   final NovelReaderPreferencesStore _store = NovelReaderPreferencesStore();
+  /// 本书显式单独设置过的字段名（[NovelReaderPreferences.toJson] 键）。
+  /// 只有这些字段覆盖全局默认，其余实时跟随总设置。
+  Set<String> _overrideKeys = <String>{};
   final NovelProgressManager _progress = NovelProgressManager();
 
   /// 下载管理器（initState 缓存引用，dispose 阶段 context 已不可用）。
@@ -588,6 +591,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       _persistProgressNow();
+      // P2-5 云同步增强：退后台即细粒度（逐书文件）静默上传当前进度，
+      // 多端「暂停即同步」；云端领先时不覆盖（防回退），失败静默。
+      unawaited(_pushProgressToCloud());
     }
     // TTS 后台朗读开关：关闭时应用进入后台即暂停朗读；
     // 开启时保持朗读（wakelock_plus 已持有唤醒锁）。
@@ -651,14 +657,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   Future<void> _init() async {
     final defaults = await ReaderDefaultSettingsStore().load();
-    _prefs = (await _store.get(widget.novelId))
-        .mergedWith(defaults.toNovelReaderPreferences());
+    // 显式覆盖合并：只有用户单独设置过的字段覆盖全局默认，其余实时跟随总设置。
+    _overrideKeys = await _store.getOverrideKeys(widget.novelId);
+    _prefs = (await _store.get(widget.novelId)).mergedWithKeys(
+        defaults.toNovelReaderPreferences(), _overrideKeys);
     // 迁移：自动翻页不应在进入阅读器时默认启动。
     // 之前误将默认值改为 30 导致已持久化数据残留非零值；
     // 无论具体数值是多少，一律重置为 0（关闭），由用户手动开启。
+    // 仅做内存修正，不再整包落盘——旧实现会把合并结果全量写回，
+    // 使所有继承字段被误判为「本书单独设置」、从此脱离总设置。
     if (_prefs.autoPageInterval > 0) {
       _prefs = _prefs.copyWith(autoPageInterval: 0);
-      await _store.save(widget.novelId, _prefs);
     }
     // 音量键翻页（N5）：偏好加载完成后按需挂载原生拦截。
     unawaited(_syncVolumeKey());
@@ -3663,6 +3672,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         next.autoPageInterval != _prefs.autoPageInterval;
     final volumeKeyChanged =
         next.volumeKeyPageTurn != _prefs.volumeKeyPageTurn;
+    // 记录本次真正改动的字段为「本书单独设置」，未动过的字段继续跟随总设置。
+    _overrideKeys.addAll(novelPrefsChangedKeys(_prefs, next));
     _prefs = next;
     if (volumeKeyChanged) {
       // 音量键开关即时生效（N5）。
@@ -3671,7 +3682,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 任何阅读设置变化都使分页缓存失效（字号/行距/段距/边距/字体等不会 bump
     // _contentVersion，但会影响分页高度，必须靠 _prefsVersion 触发重新分页）。
     _prefsVersion++;
-    await _store.save(widget.novelId, next);
+    await _store.save(widget.novelId, next, overrideKeys: _overrideKeys);
     if (convertChanged && _rawParagraphs.isNotEmpty) {
       _refreshConvert();
     } else if (animationChanged && _paragraphs.isNotEmpty) {
@@ -5524,11 +5535,31 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// 恢复本书默认设置：清除按书覆盖，写回全局默认（下次读取会继承全局默认）。
+  /// 恢复本书默认设置：清除单独设置记录，当前会话直接应用全局默认，
+  /// 与下次打开时的合并结果保持一致（旧实现停留在类默认值且未清覆盖记录）。
   Future<void> _resetBookPrefs() async {
     final l10n = AppLocalizations.of(context);
-    await _store.save(widget.novelId, const NovelReaderPreferences());
-    setState(() => _prefs = const NovelReaderPreferences());
+    _overrideKeys = <String>{};
+    await _store.save(
+      widget.novelId,
+      const NovelReaderPreferences(),
+      overrideKeys: _overrideKeys,
+    );
+    NovelReaderPreferences restored =
+        const NovelReaderPreferences();
+    try {
+      final defaults = await ReaderDefaultSettingsStore().load();
+      restored = defaults.toNovelReaderPreferences();
+    } on Object {
+      // 全局默认加载失败时退回类默认值。
+    }
+    setState(() => _prefs = restored);
+    // 排版相关默认可能变化：使分页缓存失效并重建控制器（同 _onPrefsChanged）。
+    _prefsVersion++;
+    _contentVersion++;
+    if (_paragraphs.isNotEmpty) {
+      _setupControllers(restorePage: _currentPage);
+    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.novelResetBookDone)),
@@ -8165,9 +8196,14 @@ class _NovelInlineSettings extends StatelessWidget {
                       children: <Widget>[
                         FilterChip(
                           label: Text(l10n.fontBold),
-                          selected: prefs.fontBold,
-                          onSelected: (v) =>
-                              onChanged(prefs.copyWith(fontBold: v)),
+                          // 字重细粒度值非空时优先于 fontBold 渲染（模型层规则），
+                          // 因此开关直接写 fontWeightValue：开=本书强制 700，
+                          // 关=本书固定 400。按「最终视觉字重」回显选中态，
+                          // 避免全局设置了细字重后「开了加粗却看不到变化」。
+                          selected:
+                              (prefs.fontWeightValue ?? (prefs.fontBold ? 700 : 400)) >= 600,
+                          onSelected: (v) => onChanged(
+                              prefs.copyWith(fontWeightValue: v ? 700 : 400)),
                         ),
                         FilterChip(
                           label: Text(l10n.fontItalic),

@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/novel/novel_progress_conflict.dart';
+import 'package:nexhub/core/services/novel_progress_sync_service.dart';
 
 NovelProgressPoint _point(
   String id, {
@@ -115,6 +116,25 @@ void main() {
       });
       expect(back.charOffset, isNull);
       expect(back.inChapterMetric, 5); // 回退页码
+    });
+  });
+
+  group('P2-5 细粒度：逐书远端文件名', () {
+    test('非法字符清洗 + hash 后缀，确定性且无碰撞', () {
+      final a = NovelProgressSyncService.remoteBookFileName('book/abc?x=1');
+      final b = NovelProgressSyncService.remoteBookFileName('book_abc_x_1');
+      // 清洗后前缀相同但 hash 后缀不同 → 不同文件名（不碰撞）。
+      expect(a, isNot(equals(b)));
+      expect(a, matches(RegExp(r'^[A-Za-z0-9._\-]+[.]json$')));
+      // 确定性：同一 id 两次生成一致。
+      expect(
+        NovelProgressSyncService.remoteBookFileName('书名 with 空格'),
+        NovelProgressSyncService.remoteBookFileName('书名 with 空格'),
+      );
+    });
+
+    test('细粒度目录常量为 nexhub/progress', () {
+      expect(NovelProgressSyncService.remoteProgressDir, 'nexhub/progress');
     });
   });
 }
