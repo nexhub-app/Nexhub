@@ -748,6 +748,9 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     ),
                     const SizedBox(height: AppTokens.spaceMd),
                     // 加粗字重滑块（100–900）：仅加粗开启时显示并生效。
+                    // divisions 取 8 使滑块停在 100/200/.../900 整百档位，
+                    // 与 resolveBodyTextStyle 的 switch 精确匹配，避免 150/250 等
+                    // 中间值落到 default 的 w900 导致字重忽粗忽细。
                     SettingsExpand(
                       visible: _settings.novelFontBold,
                       child: SettingsSliderTile(
@@ -755,7 +758,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                         value: _settings.novelFontWeightValue.toDouble(),
                         min: 100,
                         max: 900,
-                        divisions: 16,
+                        divisions: 8,
                         display: '${_settings.novelFontWeightValue}',
                         onChanged: (v) => _update(
                             _settings.copyWith(novelFontWeightValue: v.round())),
@@ -768,9 +771,15 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                 SettingsCard(
                   key: const ValueKey<String>('novel.typography'),
                   index: 1,
-                  title: l10n.novelTextAlignMode,
+                  title: l10n.novelTypographyGroup,
                   children: <Widget>[
                     // 对齐方式。
+                    Text(l10n.novelTextAlignMode,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: AppTokens.spaceXs),
                     Wrap(
                       spacing: AppTokens.spaceSm,
                       runSpacing: AppTokens.spaceSm,

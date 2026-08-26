@@ -1233,6 +1233,19 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
   Future<(int, bool)?> _computeNovelBadge(_BookshelfItem item) async {
     final progress = await NovelProgressManager().get(item.id);
     final readPos = (progress?.chapterIndex ?? -1) + 1; // 0 = 无进度
+
+    // 本地/下载项：总数以「已下载章节数」为准，不能用在线总章数（会远大于
+    // 已下载量，导致未读角标显示成整本小说的章节数）。与影视角标对齐。
+    if (item.chapterCount > 0) {
+      final isNew = _hasNewChapter(item.chapterCount, item.lastSeenChapterCount);
+      if (readPos > 0) {
+        final unread = item.chapterCount - readPos;
+        return unread > 0 ? (unread, isNew) : null;
+      }
+      if (isNew) return (item.chapterCount - item.lastSeenChapterCount, true);
+      return null;
+    }
+
     var total = progress?.totalChapters ?? 0;
     final sid = item.sourceId ?? item.source?.id;
     if (sid != null && sid.isNotEmpty) {
@@ -1256,6 +1269,19 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
   Future<(int, bool)?> _computeComicBadge(_BookshelfItem item) async {
     final progress = await ComicProgressManager().get(item.id);
     final readPos = (progress?.chapterIndex ?? -1) + 1; // 0 = 无进度
+
+    // 本地/下载项：总数以「已下载章节数」为准（与小说、影视角标对齐），
+    // 否则会误用在线总章数导致未读数被放大。
+    if (item.chapterCount > 0) {
+      final isNew = _hasNewChapter(item.chapterCount, item.lastSeenChapterCount);
+      if (readPos > 0) {
+        final unread = item.chapterCount - readPos;
+        return unread > 0 ? (unread, isNew) : null;
+      }
+      if (isNew) return (item.chapterCount - item.lastSeenChapterCount, true);
+      return null;
+    }
+
     final total = progress?.totalChapters ?? 0;
     if (total <= 0) return null;
     final isNew = _hasNewChapter(total, item.lastSeenChapterCount);

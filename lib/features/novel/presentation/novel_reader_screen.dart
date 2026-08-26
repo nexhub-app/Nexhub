@@ -4726,42 +4726,44 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           );
           wrapped = tappable;
         } else {
-          final Widget selected =
-              AnimatedBuilder(
-                animation: _selectionController,
-                builder: (ctx, _) {
-                  final spans = _selectionController.blockSpans(
-                    _paragraphs,
-                    idx,
-                    text,
-                  );
-                  final Widget child = spans.isEmpty
-                      ? bodyText
-                      : buildSelectionRichText(
-                          text,
-                          isHeading ? headingStyle : baseStyle,
-                          spans,
-                          softWrap: true,
-                        );
-                  return RawGestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    gestures: <Type, GestureRecognizerFactory>{
-                      _TolerantLongPressGestureRecognizer:
-                          GestureRecognizerFactoryWithHandlers<
-                              _TolerantLongPressGestureRecognizer>(
-                        () => _TolerantLongPressGestureRecognizer(),
-                        (_TolerantLongPressGestureRecognizer instance) {
-                          instance.onLongPressStart = (_) =>
-                              _onSelLongPressStartScroll(idx, text);
-                          instance.onLongPressEnd = (_) =>
-                              _onSelLongPressEndScroll();
-                        },
-                      ),
-                    },
-                    child: child,
-                  );
-                },
+        // 滚动模式选区：长按手势识别器必须「稳定」，不能包在监听 selectionController
+        // 的 AnimatedBuilder 内——否则 setSelection 触发的 notifyListeners 会重建
+        // RawGestureDetector、新建识别器，进行中的长按被打断（表现为「长按闪一下」）。
+        // 这里把识别器放在外层，仅内层文本随选区变化重建。
+        final Widget selected = RawGestureDetector(
+          behavior: HitTestBehavior.translucent,
+          gestures: <Type, GestureRecognizerFactory>{
+            _TolerantLongPressGestureRecognizer:
+                GestureRecognizerFactoryWithHandlers<
+                    _TolerantLongPressGestureRecognizer>(
+              () => _TolerantLongPressGestureRecognizer(),
+              (_TolerantLongPressGestureRecognizer instance) {
+                instance.onLongPressStart = (_) =>
+                    _onSelLongPressStartScroll(idx, text);
+                instance.onLongPressEnd = (_) =>
+                    _onSelLongPressEndScroll();
+              },
+            ),
+          },
+          child: AnimatedBuilder(
+            animation: _selectionController,
+            builder: (ctx, _) {
+              final spans = _selectionController.blockSpans(
+                _paragraphs,
+                idx,
+                text,
               );
+              return spans.isEmpty
+                  ? bodyText
+                  : buildSelectionRichText(
+                      text,
+                      isHeading ? headingStyle : baseStyle,
+                      spans,
+                      softWrap: true,
+                    );
+            },
+          ),
+        );
           wrapped = selected;
         }
         return Padding(
@@ -7267,22 +7269,23 @@ class _NovelPageWidget extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   clipBehavior: Clip.hardEdge,
                   padding: EdgeInsets.symmetric(horizontal: prefs.margin),
-                  child: AnimatedBuilder(
-                    animation: selectionController,
-                    builder: (BuildContext _, Widget? __) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        // 章节大标题仅在第一页顶部渲染（#7，含对齐 / 分段模式）。
-                        if (pageIndex == 0)
-                          _buildChapterTitleWidget(
-                            prefs,
-                            chapterTitle,
-                            bookName,
-                          ),
-                        ..._buildPageLines(context, headingStyle, textStyle, imgW,
-                            scrollH),
-                      ],
-                    ),
+                  // 注意：此处不再用 AnimatedBuilder(selectionController) 包裹——
+                  // 否则选区变化会重建整页、连带重建每行 RawGestureDetector，长按
+                  // 进行中即被打断（「长按闪一下」）。选区高亮改由 _buildLine 内
+                  // 的局部 AnimatedBuilder 处理，只重绘本行文本。
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      // 章节大标题仅在第一页顶部渲染（#7，含对齐 / 分段模式）。
+                      if (pageIndex == 0)
+                        _buildChapterTitleWidget(
+                          prefs,
+                          chapterTitle,
+                          bookName,
+                        ),
+                      ..._buildPageLines(context, headingStyle, textStyle, imgW,
+                          scrollH),
+                    ],
                   ),
                 );
               },
@@ -7323,28 +7326,24 @@ class _NovelPageWidget extends StatelessWidget {
     // 选区背景（活动选区 + 已存划线）：优先于搜索高亮渲染（优先级
     // 活动选区 > 已存高亮 > 搜索）。仅当本行确有选区/划线时才走富文本路径，
     // 否则保持原渲染（搜索 / 虚线下划线 / 纯文本），不影响分页测量。
-    final List<HighlightSpan> selSpans =
-        selectionController.lineSpans(pageIndex, lineIndexInPage);
     final Widget? searchHit =
         _buildSearchHighlight(context, line.text, textStyle);
     // P2-10 / A6 两端对齐：仅分页模式（本 Widget 即分页页）、正文非标题行、
-    // 非段末行且无选区/搜索高亮时生效——把不满一行的行按「字距均摊」拉伸
+    // 非段末行时生效——把不满一行的行按「字距均摊」拉伸
     // 到整行宽（与原生 textAlign: justify 视觉等价，且不受单行富文本
     // justify 失效影响）。末行/标题/高亮行保持自然排版。
-    final bool justifyLine = prefs.textAlignMode == NovelTextAlignMode.justify &&
+    // 选区渲染移入下方 AnimatedBuilder：长按选区时只重建本行文本、不重建外层
+    // RawGestureDetector，否则识别器被重建、长按进行中即被打断（「长按闪一下」）。
+    final bool justifyLineBase = prefs.textAlignMode == NovelTextAlignMode.justify &&
         !line.isHeading &&
         !line.isLastLine &&
-        selSpans.isEmpty &&
         searchHit == null &&
         !(prefs.fontUnderline && prefs.needsCustomUnderlinePaint);
-    final Widget textWidget;
-    if (selSpans.isNotEmpty) {
-      textWidget =
-          buildSelectionRichText(line.text, textStyle, selSpans);
-    } else if (searchHit != null) {
-      textWidget = searchHit;
+    final Widget baseWidget;
+    if (searchHit != null) {
+      baseWidget = searchHit;
     } else if (prefs.needsCustomUnderlinePaint) {
-      textWidget = _DashedUnderlineText(
+      baseWidget = _DashedUnderlineText(
         text: line.text,
         style: textStyle,
         underlineStyle: prefs.underlineStyle == NovelUnderlineStyle.solid
@@ -7355,14 +7354,14 @@ class _NovelPageWidget extends StatelessWidget {
         thickness: prefs.underlineThickness,
         color: prefs.resolveUnderlineColor(textColor),
       );
-    } else if (justifyLine) {
-      textWidget = _JustifiedLineText(
+    } else if (justifyLineBase) {
+      baseWidget = _JustifiedLineText(
         text: line.text,
         baseStyle: textStyle,
         targetWidth: targetWidth ?? 0,
       );
     } else {
-      textWidget = Text(
+      baseWidget = Text(
         line.text,
         style: textStyle,
         // 每行已是按宽度精确测量出的单行文本，禁止再次折行/省略，
@@ -7373,17 +7372,27 @@ class _NovelPageWidget extends StatelessWidget {
       );
     }
 
-    final content = isCurrent
-        ? Container(
-            decoration: BoxDecoration(
-              color: prefs.resolveTextColor(bg).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppTokens.radiusXs),
-            ),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 4, vertical: 2),
-            child: textWidget,
-          )
-        : textWidget;
+    final content = AnimatedBuilder(
+      animation: selectionController,
+      builder: (ctx, _) {
+        final selSpans =
+            selectionController.lineSpans(pageIndex, lineIndexInPage);
+        final Widget tw = selSpans.isNotEmpty
+            ? buildSelectionRichText(line.text, textStyle, selSpans)
+            : baseWidget;
+        return isCurrent
+            ? Container(
+                decoration: BoxDecoration(
+                  color: prefs.resolveTextColor(bg).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusXs),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 4, vertical: 2),
+                child: tw,
+              )
+            : tw;
+      },
+    );
 
     // TTS 激活时，点按任意行即跳转到该段落开始朗读（按所属段落）。
     // 仅 TTS 激活才包裹手势：非朗读态下点按文本照常由外层翻页。
@@ -7462,13 +7471,14 @@ class _NovelPageWidget extends StatelessWidget {
           result.add(SizedBox(height: prefs.paragraphSpacing));
         }
       } else if (item is NovelImageItem) {
-        // 翻页模式插图独占一页：占满可用高度居中显示。点按不拦截——
-        // 透传给外层点按分区（翻页/呼出菜单）；长按才打开大图查看器。
+        // 翻页模式插图独占一页：占满可用高度居中显示。点按即打开大图查看器
+        // （与滚动模式一致）；长按同样可打开，二者不冲突（长按不会触发 onTap）。
         result.add(
           SizedBox(
             width: imgW,
             height: scrollH,
             child: GestureDetector(
+              onTap: () => onImageTap?.call(item.image.url, item.image.source),
               onLongPress: () =>
                   onImageTap?.call(item.image.url, item.image.source),
               child: SourceImage(
@@ -7875,57 +7885,41 @@ class _NovelInlineSettings extends StatelessWidget {
         ),
         child: Column(
           children: <Widget>[
-            // 标题行
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTokens.spaceLg,
-                vertical: AppTokens.spaceMd,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Text(
-                    l10n.readerSettings,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: onClose,
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            // #3：底部工具栏「配置」入口从工具栏齿轮移至此处，保持可配置能力。
-            if (onConfigureToolbar != null)
-              ListTile(
-                leading: const Icon(Icons.view_module_outlined),
-                title: Text(l10n.configureBottomToolbar),
-                onTap: onConfigureToolbar,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
-              ),
-            // 搜索框（固定，不随滚动消失）
+            // 搜索行：搜索框 + 底部工具栏配置入口并置，为内容区省出标题行空间。
             Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppTokens.spaceLg,
                 vertical: AppTokens.spaceSm,
               ),
-              child: TextField(
-                controller: searchController,
-                onChanged: onSearchChanged,
-                decoration: InputDecoration(
-                  hintText: l10n.novelSettingsSearch,
-                  prefixIcon: const Icon(Icons.search),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: TextField(
+                      controller: searchController,
+                      onChanged: onSearchChanged,
+                      decoration: InputDecoration(
+                        hintText: l10n.novelSettingsSearch,
+                        prefixIcon: const Icon(Icons.search),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
+                  if (onConfigureToolbar != null) ...<Widget>[
+                    const SizedBox(width: AppTokens.spaceSm),
+                    IconButton(
+                      icon: const Icon(Icons.view_module_outlined),
+                      tooltip: l10n.configureBottomToolbar,
+                      onPressed: onConfigureToolbar,
+                    ),
+                  ],
+                ],
               ),
             ),
             // 可滚动内容
@@ -8193,8 +8187,6 @@ class _NovelInlineSettings extends StatelessWidget {
                         '字体大小',
                         '行高',
                         '段落',
-                        '对齐',
-                        '两端对齐',
                       ],
                       children: <Widget>[
                     _SliderRow(
@@ -8256,31 +8248,6 @@ class _NovelInlineSettings extends StatelessWidget {
                       onChangeEnd: (v) =>
                           onChanged(prefs.copyWith(letterSpacing: v)),
                     ),
-                    // 对齐方式（与总设置同步；仅分页模式两端对齐生效）
-                    const SizedBox(height: AppTokens.spaceMd),
-                    Text(l10n.novelTextAlignMode,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        ChoiceChip(
-                          label: Text(l10n.novelTextAlignStart),
-                          selected:
-                              prefs.textAlignMode == NovelTextAlignMode.start,
-                          onSelected: (_) => onChanged(prefs.copyWith(
-                              textAlignMode: NovelTextAlignMode.start)),
-                        ),
-                        ChoiceChip(
-                          label: Text(l10n.novelTextAlignJustify),
-                          selected: prefs.textAlignMode ==
-                              NovelTextAlignMode.justify,
-                          onSelected: (_) => onChanged(prefs.copyWith(
-                              textAlignMode: NovelTextAlignMode.justify)),
-                        ),
-                      ],
-                    ),
                       ],
                     ),
                     // ── 字体样式组 ──
@@ -8331,6 +8298,8 @@ class _NovelInlineSettings extends StatelessWidget {
                       ],
                     ),
                     // 加粗字重滑块（100–900）：仅加粗开启时显示并生效。
+                    // divisions 取 8 使滑块停在整百档位，与 resolveBodyTextStyle
+                    // 的 switch 精确匹配，避免中间值落到 default 的 w900。
                     if (prefs.fontBold) ...<Widget>[
                       const SizedBox(height: AppTokens.spaceSm),
                       _SliderRow(
@@ -8338,7 +8307,7 @@ class _NovelInlineSettings extends StatelessWidget {
                         value: prefs.fontWeightValue.toDouble(),
                         min: 100,
                         max: 900,
-                        divisions: 16,
+                        divisions: 8,
                         unit: '',
                         onChanged: (v) => onPreview?.call(
                             prefs.copyWith(fontWeightValue: v.round())),
@@ -8381,6 +8350,169 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n: l10n,
                       title: false,
                     ),
+                      ],
+                    ),
+                    // ── 排版样式组（与总设置页「排版增强」同步）──
+                    _buildSettingsGroup(
+                      context,
+                      l10n.novelTypographyGroup,
+                      searchQuery: searchController.text,
+                      leading: Icons.format_align_left,
+                      initiallyExpanded: true,
+                      searchTerms: const <String>[
+                        '对齐',
+                        '两端对齐',
+                        '断行',
+                        '中文',
+                        '禁则',
+                        '下划线',
+                        '实线',
+                        '虚线',
+                        '波浪',
+                        '点线',
+                        '插图',
+                        '滚动',
+                        '图片',
+                        '通栏',
+                        '卡片',
+                        '排版',
+                      ],
+                      children: <Widget>[
+                        // 对齐方式（与总设置同步；仅分页模式两端对齐生效）
+                        Text(l10n.novelTextAlignMode,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        const SizedBox(height: AppTokens.spaceXs),
+                        Wrap(
+                          spacing: AppTokens.spaceSm,
+                          runSpacing: AppTokens.spaceSm,
+                          children: <Widget>[
+                            ChoiceChip(
+                              label: Text(l10n.novelTextAlignStart),
+                              selected: prefs.textAlignMode ==
+                                  NovelTextAlignMode.start,
+                              onSelected: (_) => onChanged(prefs.copyWith(
+                                  textAlignMode: NovelTextAlignMode.start)),
+                            ),
+                            ChoiceChip(
+                              label: Text(l10n.novelTextAlignJustify),
+                              selected: prefs.textAlignMode ==
+                                  NovelTextAlignMode.justify,
+                              onSelected: (_) => onChanged(prefs.copyWith(
+                                  textAlignMode: NovelTextAlignMode.justify)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppTokens.spaceMd),
+                        // 中文断行模式
+                        Text(l10n.novelLineBreakMode,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        const SizedBox(height: AppTokens.spaceXs),
+                        Wrap(
+                          spacing: AppTokens.spaceSm,
+                          runSpacing: AppTokens.spaceSm,
+                          children: <Widget>[
+                            ChoiceChip(
+                              label: Text(l10n.novelLineBreakStandard),
+                              selected: prefs.lineBreakMode ==
+                                  NovelLineBreakMode.standard,
+                              onSelected: (_) => onChanged(prefs.copyWith(
+                                  lineBreakMode: NovelLineBreakMode.standard)),
+                            ),
+                            ChoiceChip(
+                              label: Text(l10n.novelLineBreakCjkStrict),
+                              selected: prefs.lineBreakMode ==
+                                  NovelLineBreakMode.cjkStrict,
+                              onSelected: (_) => onChanged(prefs.copyWith(
+                                  lineBreakMode: NovelLineBreakMode.cjkStrict)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppTokens.spaceMd),
+                        // 下划线样式
+                        Text(l10n.novelUnderlineStyle,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        const SizedBox(height: AppTokens.spaceXs),
+                        Wrap(
+                          spacing: AppTokens.spaceSm,
+                          runSpacing: AppTokens.spaceSm,
+                          children: <Widget>[
+                            for (final s in NovelUnderlineStyle.values)
+                              ChoiceChip(
+                                label: Text(switch (s) {
+                                  NovelUnderlineStyle.solid =>
+                                    l10n.novelUnderlineStyleSolid,
+                                  NovelUnderlineStyle.dashed =>
+                                    l10n.novelUnderlineStyleDashed,
+                                  NovelUnderlineStyle.wavy =>
+                                    l10n.novelUnderlineStyleWavy,
+                                  NovelUnderlineStyle.dotted =>
+                                    l10n.novelUnderlineStyleDotted,
+                                }),
+                                selected: prefs.underlineStyle == s,
+                                onSelected: (_) => onChanged(
+                                    prefs.copyWith(underlineStyle: s)),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: AppTokens.spaceMd),
+                        // 滚动插图样式
+                        Text(l10n.novelScrollImageMode,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        const SizedBox(height: AppTokens.spaceXs),
+                        Wrap(
+                          spacing: AppTokens.spaceSm,
+                          runSpacing: AppTokens.spaceSm,
+                          children: <Widget>[
+                            ChoiceChip(
+                              label: Text(l10n.novelScrollImageModeBanner),
+                              selected: prefs.scrollImageMode ==
+                                  NovelScrollImageMode.banner,
+                              onSelected: (_) => onChanged(prefs.copyWith(
+                                  scrollImageMode: NovelScrollImageMode.banner)),
+                            ),
+                            ChoiceChip(
+                              label: Text(l10n.novelScrollImageModeCard),
+                              selected: prefs.scrollImageMode ==
+                                  NovelScrollImageMode.card,
+                              onSelected: (_) => onChanged(prefs.copyWith(
+                                  scrollImageMode: NovelScrollImageMode.card)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppTokens.spaceMd),
+                        // 插图对齐（仅 card 模式生效）
+                        Text(l10n.novelScrollImageAlign,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                        const SizedBox(height: AppTokens.spaceXs),
+                        Wrap(
+                          spacing: AppTokens.spaceSm,
+                          runSpacing: AppTokens.spaceSm,
+                          children: <Widget>[
+                            ChoiceChip(
+                              label: Text(l10n.novelScrollImageAlignLeft),
+                              selected: prefs.scrollImageAlign ==
+                                  NovelScrollImageAlign.left,
+                              onSelected: (_) => onChanged(prefs.copyWith(
+                                  scrollImageAlign: NovelScrollImageAlign.left)),
+                            ),
+                            ChoiceChip(
+                              label: Text(l10n.novelScrollImageAlignCenter),
+                              selected: prefs.scrollImageAlign ==
+                                  NovelScrollImageAlign.center,
+                              onSelected: (_) => onChanged(prefs.copyWith(
+                                  scrollImageAlign:
+                                      NovelScrollImageAlign.center)),
+                            ),
+                            ChoiceChip(
+                              label: Text(l10n.novelScrollImageAlignRight),
+                              selected: prefs.scrollImageAlign ==
+                                  NovelScrollImageAlign.right,
+                              onSelected: (_) => onChanged(prefs.copyWith(
+                                  scrollImageAlign:
+                                      NovelScrollImageAlign.right)),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     // ── 章节标题组 ──
@@ -8838,7 +8970,8 @@ class _NovelInlineSettings extends StatelessWidget {
                         const Divider(height: 1),
                         const SizedBox(height: AppTokens.spaceSm),
                         // fontUnderline 开关已移至「字体样式」组，
-                        // 这里保留下划线颜色 / 虚线 / 线宽 / 段长 / 间隙。
+                        // 这里保留下划线颜色 / 线宽 / 段长 / 间隙；
+                        // 下划线样式（solid/dashed/wavy/dotted）已独立到「排版样式」组。
                         if (prefs.fontUnderline) ...<Widget>[
                           _colorTile(
                             context: context,
@@ -8854,18 +8987,6 @@ class _NovelInlineSettings extends StatelessWidget {
                             onClear: () =>
                                 onChanged(prefs.copyWith(underlineColor: null)),
                             clearTooltip: l10n.novelUnderlineColorAuto,
-                          ),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(l10n.novelUnderlineDashed),
-                            // 与下划线样式统一：开关直接改写 style（旧 bool
-                            // 字段 underlineDashed 仅兼容读取，不再写入）。
-                            value:
-                                prefs.underlineStyle == NovelUnderlineStyle.dashed,
-                            onChanged: (v) => onChanged(prefs.copyWith(
-                                underlineStyle: v
-                                    ? NovelUnderlineStyle.dashed
-                                    : NovelUnderlineStyle.solid)),
                           ),
                           _SliderRow(
                             label: l10n.novelUnderlineThickness,

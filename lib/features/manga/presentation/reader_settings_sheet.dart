@@ -787,20 +787,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // 标题 + 关闭
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Text(l10n.readerSettings,
-                  style: Theme.of(context).textTheme.titleLarge),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: widget.onClose,
-              ),
-            ],
-          ),
-          const Divider(height: 1),
-          // 搜索框（固定，不随滚动消失）
+          // 搜索框（固定，不随滚动消失；去掉标题行以扩大内容区）
           Padding(
             padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
             child: TextField(

@@ -1011,7 +1011,8 @@ class NovelReaderPreferences {
     final FontWeight? weight;
     if (fontBold) {
       // 加粗开启时按字重滑块（100–900）取细粒度字重。
-      final v = fontWeightValue.clamp(100, 900);
+      // 对任意值按最近整百归一，防止旧数据/异常值落到 w900 导致忽粗忽细。
+      final v = (fontWeightValue.clamp(100, 900) / 100).round() * 100;
       weight = switch (v) {
         100 => FontWeight.w100,
         200 => FontWeight.w200,

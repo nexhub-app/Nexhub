@@ -440,7 +440,11 @@ class WebBook {
           .toList(growable: false);
       if (batchUrls.length > 1) {
         visited.addAll(batchUrls);
-        final pages = await mapOrderedPool<(String, String)>(
+        // 多页并发模式（K3）：在并发 worker 内「取回即解析」，让同步 HTML 解析
+        // 与同批其他页的网络请求重叠，缩短整章就绪的墙钟时间，并避免「先并发取回
+        // 全部、再主线程串行解析」造成的长时间连续阻塞（→ 翻页/切章卡顿）。
+        // 每页解析失败（task 抛错 → 池置 null）或正文为空则停止追加（保留连续前缀）。
+        final pages = await mapOrderedPool<List<NovelBlock>>(
           batchUrls,
           4,
           (url) async {
@@ -450,21 +454,19 @@ class WebBook {
               source: source,
             );
             final body = await analyze.getStrResponse();
-            return (analyze.url, body);
+            if (body.isEmpty) return const <NovelBlock>[];
+            return BookContent.analyzeContent(
+              bookSource: source,
+              book: book,
+              bookChapter: XiaoshuoBookChapter(bookUrl: '', url: analyze.url),
+              baseUrl: analyze.url,
+              redirectUrl: analyze.url,
+              body: body,
+            );
           },
         );
-        for (final page in pages) {
-          if (page == null) break;
-          final (pageUrl, pageBody) = page;
-          if (pageBody.isEmpty) break;
-          final pageContent = BookContent.analyzeContent(
-            bookSource: source,
-            book: book,
-            bookChapter: XiaoshuoBookChapter(bookUrl: '', url: pageUrl),
-            baseUrl: pageUrl,
-            redirectUrl: pageUrl,
-            body: pageBody,
-          );
+        for (final pageContent in pages) {
+          if (pageContent == null) break;
           if (pageContent.isEmpty) break;
           blocks.addAll(pageContent);
         }
