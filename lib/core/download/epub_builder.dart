@@ -59,12 +59,25 @@ class EpubBuilder {
   ///
   /// [images] 为内嵌图片资源（可选）：写入 `OEBPS/<href>` 并注册 manifest，
   /// 供章节 XHTML 内的 `<img>` 引用（图文小说导出不再丢图）。
+  ///
+  /// F4 自定义模板：
+  /// - [css] 非空时写入 `OEBPS/style.css`，所有章节 XHTML `<head>` 注入引用；
+  /// - [coverImage] 非空时生成书首封面页 `cover.xhtml`（spine 首项），
+  ///   并按 EPUB 2 惯例写入 `<meta name="cover">`；
+  /// - [introHtml] 非空时在封面后生成简介页 `intro.xhtml`（占位符已由调用方
+  ///   替换、HTML 已转义）。
   static Uint8List build({
     required EpubMetadata metadata,
     required List<EpubChapter> chapters,
     List<EpubImage> images = const <EpubImage>[],
+    String? css,
+    EpubImage? coverImage,
+    String? introHtml,
   }) {
     final archive = Archive();
+    final bool hasCss = css != null && css.trim().isNotEmpty;
+    final bool hasCover = coverImage != null;
+    final bool hasIntro = introHtml != null && introHtml.trim().isNotEmpty;
 
     // 1. mimetype（不压缩，必须是第一条且无额外字段）
     final mimetypeData = _u8('application/epub+zip');
@@ -77,17 +90,19 @@ class EpubBuilder {
     archive.addFile(ArchiveFile('META-INF/container.xml', containerData.length, containerData));
 
     // 3. OEBPS/content.opf
-    final opfData = _u8(_contentOpf(metadata, chapters, images));
+    final opfData = _u8(_contentOpf(metadata, chapters, images,
+        hasCss: hasCss, coverImage: coverImage, hasIntro: hasIntro));
     archive.addFile(ArchiveFile('OEBPS/content.opf', opfData.length, opfData));
 
     // 4. OEBPS/toc.ncx
-    final ncxData = _u8(_tocNcx(metadata, chapters));
+    final ncxData = _u8(_tocNcx(metadata, chapters,
+        hasCover: hasCover, hasIntro: hasIntro));
     archive.addFile(ArchiveFile('OEBPS/toc.ncx', ncxData.length, ncxData));
 
     // 5. 章节正文
     for (var i = 0; i < chapters.length; i++) {
       final ch = chapters[i];
-      final chData = _u8(_chapterXhtml(ch));
+      final chData = _u8(_chapterXhtml(ch, linkCss: hasCss));
       archive.addFile(ArchiveFile('OEBPS/chapter-${i + 1}.xhtml', chData.length, chData));
     }
 
@@ -97,6 +112,37 @@ class EpubBuilder {
       final path = 'OEBPS/${img.href}';
       if (archive.files.any((f) => f.name == path)) continue; // 同名去重
       archive.addFile(ArchiveFile(path, img.data.length, img.data));
+    }
+
+    // 7. F4 模板产物：style.css / cover.xhtml / intro.xhtml / 封面图。
+    if (hasCss) {
+      final cssData = _u8(css);
+      archive.addFile(ArchiveFile('OEBPS/style.css', cssData.length, cssData));
+    }
+    if (hasCover) {
+      final coverPath = 'OEBPS/${coverImage.href}';
+      if (!archive.files.any((f) => f.name == coverPath)) {
+        archive.addFile(ArchiveFile(
+            coverPath, coverImage.data.length, coverImage.data));
+      }
+      final xhtml = _u8(_staticPageXhtml(
+        title: 'Cover',
+        linkCss: hasCss,
+        body: '<div class="cover" style="text-align:center;margin:0">'
+            '<img src="${coverImage.href}" alt="cover"'
+            ' style="max-width:100%;max-height:100%"/></div>',
+      ));
+      archive.addFile(
+          ArchiveFile('OEBPS/cover.xhtml', xhtml.length, xhtml));
+    }
+    if (hasIntro) {
+      final xhtml = _u8(_staticPageXhtml(
+        title: 'Intro',
+        linkCss: hasCss,
+        body: introHtml,
+      ));
+      archive.addFile(
+          ArchiveFile('OEBPS/intro.xhtml', xhtml.length, xhtml));
     }
 
     final encoder = ZipEncoder();
@@ -134,7 +180,9 @@ class EpubBuilder {
 </container>''';
 
   static String _contentOpf(
-      EpubMetadata metadata, List<EpubChapter> chapters, List<EpubImage> images) {
+      EpubMetadata metadata, List<EpubChapter> chapters, List<EpubImage> images,
+      {bool hasCss = false, EpubImage? coverImage, bool hasIntro = false}) {
+    final bool hasCover = coverImage != null;
     final buf = StringBuffer();
     buf.writeln('<?xml version="1.0" encoding="UTF-8"?>');
     buf.writeln(
@@ -150,10 +198,25 @@ class EpubBuilder {
         '    <dc:language>${metadata.language ?? 'zh'}</dc:language>');
     buf.writeln('    <dc:identifier id="BookId" opf:scheme="UUID">'
         'nexhub-${DateTime.now().millisecondsSinceEpoch}</dc:identifier>');
+    // EPUB 2 封面惯例：meta name="cover" 指向 manifest 项。
+    if (hasCover) {
+      buf.writeln('    <meta name="cover" content="coverImg"/>');
+    }
     buf.writeln('  </metadata>');
     buf.writeln('  <manifest>');
     buf.writeln(
         '    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>');
+    if (hasCss) {
+      buf.writeln(
+          '    <item id="css" href="style.css" media-type="text/css"/>');
+    }
+    if (hasCover) {
+      buf.writeln(
+          '    <item id="coverPage" href="cover.xhtml" media-type="application/xhtml+xml"/>');
+      buf.writeln(
+          '    <item id="coverImg" href="${coverImage.href}"'
+          ' media-type="${_imageMediaType(coverImage.href)}"/>');
+    }
     for (var i = 0; i < chapters.length; i++) {
       buf.writeln(
           '    <item id="ch${i + 1}" href="chapter-${i + 1}.xhtml" media-type="application/xhtml+xml"/>');
@@ -163,8 +226,18 @@ class EpubBuilder {
           '    <item id="img${i + 1}" href="${images[i].href}"'
           ' media-type="${_imageMediaType(images[i].href)}"/>');
     }
+    if (hasIntro) {
+      buf.writeln(
+          '    <item id="introPage" href="intro.xhtml" media-type="application/xhtml+xml"/>');
+    }
     buf.writeln('  </manifest>');
     buf.writeln('  <spine toc="ncx">');
+    if (hasCover) {
+      buf.writeln('    <itemref idref="coverPage"/>');
+    }
+    if (hasIntro) {
+      buf.writeln('    <itemref idref="introPage"/>');
+    }
     for (var i = 0; i < chapters.length; i++) {
       buf.writeln('    <itemref idref="ch${i + 1}"/>');
     }
@@ -186,7 +259,8 @@ class EpubBuilder {
     };
   }
 
-  static String _tocNcx(EpubMetadata metadata, List<EpubChapter> chapters) {
+  static String _tocNcx(EpubMetadata metadata, List<EpubChapter> chapters,
+      {bool hasCover = false, bool hasIntro = false}) {
     final buf = StringBuffer();
     buf.writeln('<?xml version="1.0" encoding="UTF-8"?>');
     buf.writeln(
@@ -196,26 +270,56 @@ class EpubBuilder {
     buf.writeln('  </head>');
     buf.writeln('  <docTitle><text>${_escape(metadata.title)}</text></docTitle>');
     buf.writeln('  <navMap>');
-    for (var i = 0; i < chapters.length; i++) {
-      buf.writeln('    <navPoint id="nav${i + 1}" playOrder="${i + 1}">');
+    var order = 0;
+    void navPoint(String id, String title, String src) {
+      order += 1;
       buf.writeln(
-          '      <navLabel><text>${_escape(chapters[i].title)}</text></navLabel>');
-      buf.writeln('      <content src="chapter-${i + 1}.xhtml"/>');
+          '    <navPoint id="$id" playOrder="$order">');
+      buf.writeln(
+          '      <navLabel><text>${_escape(title)}</text></navLabel>');
+      buf.writeln('      <content src="$src"/>');
       buf.writeln('    </navPoint>');
+    }
+
+    // F4：封面 / 简介页与 spine 顺序一致地出现在目录最前。
+    if (hasCover) navPoint('navCover', 'Cover', 'cover.xhtml');
+    if (hasIntro) navPoint('navIntro', 'Intro', 'intro.xhtml');
+    for (var i = 0; i < chapters.length; i++) {
+      navPoint('nav${i + 1}', chapters[i].title, 'chapter-${i + 1}.xhtml');
     }
     buf.writeln('  </navMap>');
     buf.writeln('</ncx>');
     return buf.toString();
   }
 
-  static String _chapterXhtml(EpubChapter ch) {
+  static String _chapterXhtml(EpubChapter ch, {bool linkCss = false}) {
+    final cssLink =
+        linkCss ? '<link rel="stylesheet" type="text/css" href="style.css"/>' : '';
     return '''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
-<head><title>${_escape(ch.title)}</title></head>
+<head><title>${_escape(ch.title)}</title>$cssLink</head>
 <body>
 <h1>${_escape(ch.title)}</h1>
 ${ch.content}
+</body>
+</html>''';
+  }
+
+  /// F4 静态页（封面 / 简介）共用 XHTML 模板。
+  static String _staticPageXhtml({
+    required String title,
+    required String body,
+    bool linkCss = false,
+  }) {
+    final cssLink =
+        linkCss ? '<link rel="stylesheet" type="text/css" href="style.css"/>' : '';
+    return '''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>${_escape(title)}</title>$cssLink</head>
+<body>
+$body
 </body>
 </html>''';
   }

@@ -13670,6 +13670,96 @@ abstract class AppLocalizations {
   /// **'WebView data cleared'**
   String get webviewDataCleared;
 
+  /// No description provided for @cloudSyncAutoUploadNovelExports.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-upload novel exports'**
+  String get cloudSyncAutoUploadNovelExports;
+
+  /// No description provided for @cloudSyncAutoUploadNovelExportsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload exported EPUB files to WebDAV nexhub/exports after download completes'**
+  String get cloudSyncAutoUploadNovelExportsDesc;
+
+  /// No description provided for @uploadToWebdav.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload exports to WebDAV'**
+  String get uploadToWebdav;
+
+  /// No description provided for @uploadToWebdavDone.
+  ///
+  /// In en, this message translates to:
+  /// **'export file(s) uploaded to WebDAV'**
+  String get uploadToWebdavDone;
+
+  /// No description provided for @uploadToWebdavNoFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'No downloaded EPUB exports for this title yet'**
+  String get uploadToWebdavNoFiles;
+
+  /// No description provided for @uploadToWebdavFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Export upload failed, check WebDAV config'**
+  String get uploadToWebdavFailed;
+
+  /// No description provided for @novelExportTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Export template (EPUB)'**
+  String get novelExportTemplate;
+
+  /// No description provided for @novelExportTemplateDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom stylesheet, cover page and intro page embedded in the EPUB export'**
+  String get novelExportTemplateDesc;
+
+  /// No description provided for @novelExportCss.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom CSS (style.css)'**
+  String get novelExportCss;
+
+  /// No description provided for @novelExportCssHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Plain CSS rules applied to every chapter (font family, line height…)'**
+  String get novelExportCssHint;
+
+  /// No description provided for @novelExportIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Book intro page'**
+  String get novelExportIntro;
+
+  /// No description provided for @novelExportIntroHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Blank line separates paragraphs; title and author placeholders are auto-substituted'**
+  String get novelExportIntroHint;
+
+  /// No description provided for @novelExportIncludeCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Embed network cover as first cover page'**
+  String get novelExportIncludeCover;
+
+  /// No description provided for @novelExportIncludeIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Append intro page after cover'**
+  String get novelExportIncludeIntro;
+
+  /// No description provided for @novelExportSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Export template saved'**
+  String get novelExportSaved;
+
   /// No description provided for @advancedImageCache.
   ///
   /// In en, this message translates to:

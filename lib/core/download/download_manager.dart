@@ -25,6 +25,8 @@ import '../models/plugin_config.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/media_api_service.dart';
 import '../services/source_repository.dart';
+import '../services/cloud_sync_service.dart';
+import '../services/novel_export_upload_service.dart';
 import '../utils/app_log.dart';
 import '../local/saf_bridge.dart' show normalizeSafTreeUri;
 import '../novel/novel_chinese_converter.dart';
@@ -1223,7 +1225,9 @@ class DownloadManager extends ChangeNotifier {
 
       final handler = _createHandler(task, source, item.title, item.author,
           chapters,
-          novelConvertMode: novelConvertMode);
+          novelConvertMode: novelConvertMode,
+          novelCoverUrl:
+              task.sourceType == SourceType.novelSource ? item.coverUrl : null);
 
       AppLog.instance.i('[下载开始] ${item.title} (${task.id}, '
           '${chapters.length} 章, 格式 ${task.format.label})');
@@ -1322,6 +1326,11 @@ class DownloadManager extends ChangeNotifier {
       await _writeMetaJson(completed);
       await _persist();
       notifyListeners();
+      // F6：小说 EPUB 导出自动上传 WebDAV（开关开启时；best-effort 后台执行，
+      // 失败仅记日志，不影响本地下载结果）。TXT 逐章产物不整包上传。
+      if (task.sourceType == SourceType.novelSource) {
+        unawaited(_maybeUploadNovelExports(completed));
+      }
     } catch (e) {
       // 失败即清理半成品（作品目录 / 0 字节封面），避免"只有空文件夹"残留
       // 且没有报错入口（任务错误文本只在下载管理-失败里可见）。
@@ -1351,6 +1360,33 @@ class DownloadManager extends ChangeNotifier {
     // 保留任务记录为 cancelled 状态（供历史查看），不写 meta.json。
     await _persist();
     notifyListeners();
+  }
+
+  /// F6：小说导出自动上传 WebDAV。读取云同步配置的
+  /// `autoUploadNovelExports` 开关，把本次任务的 EPUB 单文件逐个上传到
+  /// `nexhub/exports/`。任何失败只记日志（后台旁路，不阻塞下载完成态）。
+  Future<void> _maybeUploadNovelExports(DownloadTask completed) async {
+    try {
+      final cfg = await CloudSyncConfigStore().load();
+      if (!cfg.autoUploadNovelExports) return;
+      if (cfg.url.isEmpty) return;
+      final files = (completed.chapterFilePaths ?? const <String>[])
+          .where((f) => f.toLowerCase().endsWith('.epub'))
+          .toList(growable: false);
+      if (files.isEmpty) return;
+      final uploader = NovelExportUploadService();
+      for (final f in files) {
+        try {
+          final result = await uploader.uploadFile(f);
+          AppLog.instance.i(
+              '[导出上传] ${completed.title} → ${result.remoteUrl}');
+        } on Object catch (e) {
+          AppLog.instance.w('[导出上传失败] ${completed.title}: $e');
+        }
+      }
+    } on Object catch (e) {
+      AppLog.instance.w('[导出上传] 配置读取失败: $e');
+    }
   }
 
   /// 删除某任务在作品目录内写入的文件（不含其它批次的共享文件）。
@@ -1390,6 +1426,7 @@ class DownloadManager extends ChangeNotifier {
     String? author,
     List<Episode> chapters, {
     ChineseConvertMode novelConvertMode = ChineseConvertMode.none,
+    String? novelCoverUrl,
   }) {
     switch (task.sourceType) {
       case SourceType.mangaSource:
@@ -1416,6 +1453,8 @@ class DownloadManager extends ChangeNotifier {
           convertMode: novelConvertMode,
           // P2-11：导出附带划线 / 批注附录。
           includeHighlights: true,
+          // F4：全局导出模板（CSS/封面/简介）+ 网络封面（嵌入 EPUB 封面页）。
+          coverUrl: novelCoverUrl,
         );
       case SourceType.animeSource:
         return MediaDownloadHandler(

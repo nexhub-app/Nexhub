@@ -7122,6 +7122,52 @@ class AppLocalizationsZh extends AppLocalizations {
   String get webviewDataCleared => 'WebView 数据已清除';
 
   @override
+  String get cloudSyncAutoUploadNovelExports => '小说导出自动上传';
+
+  @override
+  String get cloudSyncAutoUploadNovelExportsDesc =>
+      '下载完成后自动把导出的 EPUB 上传到 WebDAV nexhub/exports 目录';
+
+  @override
+  String get uploadToWebdav => '上传导出到 WebDAV';
+
+  @override
+  String get uploadToWebdavDone => '个导出文件已上传到 WebDAV';
+
+  @override
+  String get uploadToWebdavNoFiles => '本书还没有已下载的 EPUB 导出产物';
+
+  @override
+  String get uploadToWebdavFailed => '导出上传失败，请检查 WebDAV 配置';
+
+  @override
+  String get novelExportTemplate => '导出模板（EPUB）';
+
+  @override
+  String get novelExportTemplateDesc => '自定义样式表、封面页与简介页随导出的 EPUB 一并生成';
+
+  @override
+  String get novelExportCss => '自定义 CSS（style.css）';
+
+  @override
+  String get novelExportCssHint => '直接写普通 CSS 规则，应用于全部章节（可自定义字体族、行距等）';
+
+  @override
+  String get novelExportIntro => '书籍简介页';
+
+  @override
+  String get novelExportIntroHint => '空行分段；书名与作者占位符会自动替换';
+
+  @override
+  String get novelExportIncludeCover => '嵌入网络封面为书首封面页';
+
+  @override
+  String get novelExportIncludeIntro => '封面后追加简介页';
+
+  @override
+  String get novelExportSaved => '导出模板已保存';
+
+  @override
   String get advancedImageCache => '图片缓存';
 
   @override

@@ -17,6 +17,7 @@ import '../models/novel_block.dart';
 import '../models/plugin_config.dart';
 import '../local/local_novel_parser.dart' show kNexhubImgMarker;
 import '../novel/novel_chinese_converter.dart';
+import '../novel/novel_export_template.dart';
 import '../novel/novel_highlight_manager.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/media_api_service.dart';
@@ -40,6 +41,9 @@ class NovelDownloadHandler implements DownloadHandler {
     this.concurrency = 1,
     this.convertMode = ChineseConvertMode.none,
     this.includeHighlights = false,
+    this.exportTemplate,
+    this.coverUrl,
+    this.templateStore,
   });
 
   final MediaApiService service;
@@ -61,6 +65,17 @@ class NovelDownloadHandler implements DownloadHandler {
   /// P2-11：是否把本书划线/批注作为附录附带进导出（EPUB 追加一章，
   /// TXT 追加一个划线文件）。默认关闭，调用方显式开启。
   final bool includeHighlights;
+
+  /// F4：导出模板（显式传入优先；为 null 时下载开始时从
+  /// [templateStore] 异步载入全局模板）。
+  final NovelExportTemplate? exportTemplate;
+
+  /// F4：网络封面地址（嵌入 EPUB 封面页用；与落盘的 cover.jpg 无关，
+  /// 因为封面在 handler.download 之后才写盘，EPUB 构建期需自行获取）。
+  final String? coverUrl;
+
+  /// F4：模板存储（默认全局单例，测试可注入内存实现）。
+  final NovelExportTemplateStore? templateStore;
 
   @override
   Future<DownloadResult> download(
@@ -178,6 +193,35 @@ class NovelDownloadHandler implements DownloadHandler {
 
     // EPUB 格式：保持整本单文件 legacy（逐章 TXT 为默认推荐格式）。
     if (format == DownloadFormat.epub) {
+      // F4：解析导出模板（显式传入优先，否则读全局存储）。
+      final NovelExportTemplate tpl = exportTemplate ??
+          await (templateStore ?? NovelExportTemplateStore.instance).load();
+      // F4：封面字节（模板开启 + 有网络封面时获取；失败降级为无封面页）。
+      EpubImage? coverImage;
+      if (tpl.includeCover && coverUrl != null && coverUrl!.isNotEmpty) {
+        try {
+          final Map<String, String> headers = <String, String>{
+            ...?source.fetchHeadersFor(coverUrl!),
+            'Accept': 'image/jpeg,image/png,image/webp,image/gif,*/*;q=0.8',
+          };
+          final coverBytes = await HttpFetcher.instance
+              .getBytes(coverUrl!, headers: headers);
+          if (coverBytes.isNotEmpty) {
+            coverImage = EpubImage(
+              href: 'Images/cover${_extFromUrl(coverUrl!)}',
+              data: Uint8List.fromList(coverBytes),
+            );
+          }
+        } on Object {
+          coverImage = null;
+        }
+      }
+      final introHtml = (tpl.includeIntro && tpl.intro.trim().isNotEmpty)
+          ? renderIntroHtml(tpl.intro,
+              bookTitle: bookTitle.isNotEmpty ? bookTitle : task.title,
+              author: author)
+          : null;
+
       final metadata = EpubMetadata(
         title: bookTitle.isNotEmpty ? bookTitle : task.title,
         author: author,
@@ -249,6 +293,9 @@ class NovelDownloadHandler implements DownloadHandler {
         metadata: metadata,
         chapters: epubChapters,
         images: images.values.toList(growable: false),
+        css: tpl.customCss.trim().isEmpty ? null : tpl.customCss,
+        coverImage: coverImage,
+        introHtml: introHtml,
       );
       final safeTitle =
           _sanitize(bookTitle.isNotEmpty ? bookTitle : task.title);
@@ -352,6 +399,22 @@ class NovelDownloadHandler implements DownloadHandler {
   }
 
   // ─────────────────── P2-11 划线附带 ───────────────────
+
+  /// F4：把模板简介文本渲染为简介页 HTML 片段：`{book}` / `{author}`
+  /// 占位符替换后按空行分段、逐段转义为 `<p>`。
+  static String renderIntroHtml(String intro,
+      {required String bookTitle, String? author}) {
+    final text = intro
+        .replaceAll('{book}', bookTitle)
+        .replaceAll('{author}', author ?? '');
+    final paragraphs = <String>[];
+    for (final raw in text.split(RegExp(r'\n\s*\n'))) {
+      final p = raw.trim();
+      if (p.isEmpty) continue;
+      paragraphs.add('<p>${_escape(p)}</p>');
+    }
+    return paragraphs.join('\n');
+  }
 
   /// 读取本书全部划线 / 批注（按章节顺序、创建时间升序）。
   /// 异常（Hive 未初始化等）返回空列表，不影响导出主流程。

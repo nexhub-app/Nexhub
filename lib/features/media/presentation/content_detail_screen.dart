@@ -35,6 +35,8 @@ import 'package:provider/provider.dart';
 
 import '../../../core/bookmark/unified_bookmark_repository.dart';
 import '../../../core/download/download_manager.dart';
+import '../../../core/download/download_task.dart' show DownloadStatus;
+import '../../../core/services/novel_export_upload_service.dart';
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/history/history_manager.dart';
 import '../../../core/history/media_watched_manager.dart';
@@ -771,6 +773,59 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         Navigator.of(context).push(
           AppPageRoute<void>(builder: (_) => const DownloadListScreen()),
         );
+      case 'uploadToWebdav':
+        unawaited(_uploadExportsToWebdav(l10n));
+    }
+  }
+
+  /// F6：把本书已下载的 EPUB 导出产物手动上传到 WebDAV `nexhub/exports/`。
+  /// 仅小说详情页展示；未配置 WebDAV 时提示先去配置。
+  Future<void> _uploadExportsToWebdav(AppLocalizations l10n) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final dm = context.read<DownloadManager>();
+      final files = <String>[
+        for (final t in dm.tasks)
+          if (t.contentId == widget.item.id &&
+              t.sourceType == SourceType.novelSource &&
+              t.status == DownloadStatus.completed)
+            ...(t.chapterFilePaths ?? const <String>[])
+                .where((f) => f.toLowerCase().endsWith('.epub')),
+      ];
+      if (files.isEmpty) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.uploadToWebdavNoFiles)),
+        );
+        return;
+      }
+      final uploader = NovelExportUploadService();
+      if (!await uploader.isConfigured()) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.cloudSyncErrorNoConfig)),
+        );
+        return;
+      }
+      var ok = 0;
+      for (final f in files) {
+        try {
+          await uploader.uploadFile(f);
+          ok++;
+        } on Object {
+          // 单文件失败继续尝试其余产物；全部失败时在最终提示中体现。
+        }
+      }
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(ok > 0
+            ? '$ok ${l10n.uploadToWebdavDone}'
+            : l10n.uploadToWebdavFailed),
+      ));
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.uploadToWebdavFailed)),
+        );
+      }
     }
   }
 
@@ -1225,6 +1280,18 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 ],
               ),
             ),
+            // F6：小说已导出的 EPUB 上传到 WebDAV（手动触发）。
+            if (_isNovel)
+              PopupMenuItem<String>(
+                value: 'uploadToWebdav',
+                child: Row(
+                  children: <Widget>[
+                    const Icon(Icons.cloud_upload_outlined),
+                    const SizedBox(width: AppTokens.spaceSm),
+                    Text(l10n.uploadToWebdav),
+                  ],
+                ),
+              ),
           ],
         ),
       ],

@@ -586,6 +586,21 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
           ),
           const SizedBox(height: AppTokens.spaceLg),
 
+          // ── F6：小说导出自动上传 WebDAV ──
+          SwitchListTile(
+            title: Text(l10n.cloudSyncAutoUploadNovelExports),
+            subtitle: Text(l10n.cloudSyncAutoUploadNovelExportsDesc),
+            value: config.autoUploadNovelExports,
+            onChanged: (v) async {
+              await service.updateConfig(
+                config.copyWith(autoUploadNovelExports: v),
+                null,
+              );
+              if (context.mounted) setState(() {});
+            },
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
+
           // ── 同步范围（分类勾选） ──
           Card(
             child: Padding(

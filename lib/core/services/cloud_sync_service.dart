@@ -121,6 +121,10 @@ class CloudSyncConfig {
   /// 各 box（及 `__prefs__`）的内容 sha256，用于增量同步。
   final Map<String, String>? boxHashes;
 
+  /// F6：小说导出完成后自动把 EPUB 产物上传到 WebDAV `nexhub/exports/`。
+  /// 独立于整包备份的 autoSync（导出上传与备份节奏无关）。
+  final bool autoUploadNovelExports;
+
   const CloudSyncConfig({
     this.url = '',
     this.username = '',
@@ -130,6 +134,7 @@ class CloudSyncConfig {
     this.lastUpload,
     this.lastRestore,
     this.boxHashes,
+    this.autoUploadNovelExports = false,
   });
 
   /// 下次自动同步时间戳（毫秒）；不满足自动同步条件时返回 null。
@@ -154,6 +159,7 @@ class CloudSyncConfig {
     SyncStatusEntry? lastUpload,
     SyncStatusEntry? lastRestore,
     Map<String, String>? boxHashes,
+    bool? autoUploadNovelExports,
   }) {
     return CloudSyncConfig(
       url: url ?? this.url,
@@ -164,6 +170,8 @@ class CloudSyncConfig {
       lastUpload: lastUpload ?? this.lastUpload,
       lastRestore: lastRestore ?? this.lastRestore,
       boxHashes: boxHashes ?? this.boxHashes,
+      autoUploadNovelExports:
+          autoUploadNovelExports ?? this.autoUploadNovelExports,
     );
   }
 
@@ -177,6 +185,7 @@ class CloudSyncConfig {
         if (lastUpload != null) 'lastUpload': lastUpload!.toJson(),
         if (lastRestore != null) 'lastRestore': lastRestore!.toJson(),
         if (boxHashes != null) 'boxHashes': boxHashes,
+        'autoUploadNovelExports': autoUploadNovelExports,
       };
 
   factory CloudSyncConfig.fromJson(Map<String, dynamic> json) {
@@ -209,6 +218,8 @@ class CloudSyncConfig {
       lastUpload: parseStatus(json['lastUpload']),
       lastRestore: parseStatus(json['lastRestore']),
       boxHashes: parseHashes(json['boxHashes']),
+      autoUploadNovelExports:
+          (json['autoUploadNovelExports'] as bool?) ?? false,
     );
   }
 }

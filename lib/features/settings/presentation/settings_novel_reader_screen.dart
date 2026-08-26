@@ -3,6 +3,7 @@
 /// 持久化到 SharedPreferences（key: `reader_default_settings_v1`）。
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -18,6 +19,7 @@ import '../../../core/novel/novel_page_animation.dart';
 import '../../../core/novel/novel_pre_download_preferences.dart';
 import '../../../core/novel/novel_reader_preferences.dart';
 import '../../../core/settings/reader_default_settings.dart';
+import '../../../core/novel/novel_export_template.dart';
 import '../../../core/novel/novel_tap_action.dart'
     show NovelTapAction, kNovelTapZoneClassic;
 import '../../../core/theme/app_tokens.dart';
@@ -48,6 +50,12 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
   /// P2-3：在线 HTTP TTS 配置（独立持久化，直接读写）。
   NovelHttpTtsConfig _httpTts = const NovelHttpTtsConfig();
 
+  /// F4：EPUB 导出模板（全局配置，直接读写）。
+  NovelExportTemplate _exportTemplate = const NovelExportTemplate();
+  final TextEditingController _exportCssController = TextEditingController();
+  final TextEditingController _exportIntroController = TextEditingController();
+  Timer? _exportSaveDebounce;
+
   @override
   void initState() {
     super.initState();
@@ -65,6 +73,39 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
     });
     NovelHttpTtsConfigStore().load().then((c) {
       if (mounted) setState(() => _httpTts = c);
+    });
+    NovelExportTemplateStore.instance.load().then((t) {
+      if (!mounted) return;
+      _exportCssController.text = t.customCss;
+      _exportIntroController.text = t.intro;
+      setState(() => _exportTemplate = t);
+    });
+  }
+
+  @override
+  void dispose() {
+    _exportSaveDebounce?.cancel();
+    _exportCssController.dispose();
+    _exportIntroController.dispose();
+    super.dispose();
+  }
+
+  /// F4：更新导出模板（开关类立即落盘）。
+  void _updateExportTemplate(NovelExportTemplate next) {
+    setState(() => _exportTemplate = next);
+    NovelExportTemplateStore.instance.save(next);
+  }
+
+  /// F4：文本字段防抖保存（停顿 600ms 后写入）。
+  void _saveExportTemplateDebounced() {
+    _exportSaveDebounce?.cancel();
+    _exportSaveDebounce = Timer(const Duration(milliseconds: 600), () {
+      NovelExportTemplateStore.instance.save(
+        _exportTemplate.copyWith(
+          customCss: _exportCssController.text,
+          intro: _exportIntroController.text,
+        ),
+      );
     });
   }
 
@@ -2074,6 +2115,58 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             _preDownload.copyWith(count: v.round())),
                       ),
                     ],
+                  ],
+                ),
+
+                // ── 10c. 导出模板（F4：EPUB 自定义样式/封面/简介）──
+                SettingsCard(
+                  key: const ValueKey<String>('novel.exportTemplate'),
+                  index: 11,
+                  title: l10n.novelExportTemplate,
+                  children: <Widget>[
+                    Text(l10n.novelExportTemplateDesc,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant)),
+                    const SizedBox(height: AppTokens.spaceSm),
+                    SettingsSwitchTile(
+                      title: l10n.novelExportIncludeCover,
+                      value: _exportTemplate.includeCover,
+                      onChanged: (v) => _updateExportTemplate(
+                          _exportTemplate.copyWith(includeCover: v)),
+                    ),
+                    SettingsSwitchTile(
+                      title: l10n.novelExportIncludeIntro,
+                      value: _exportTemplate.includeIntro,
+                      onChanged: (v) => _updateExportTemplate(
+                          _exportTemplate.copyWith(includeIntro: v)),
+                    ),
+                    _labeled(
+                        l10n.novelExportCss,
+                        TextField(
+                          controller: _exportCssController,
+                          maxLines: 5,
+                          style: const TextStyle(
+                              fontSize: 12, fontFamily: 'monospace'),
+                          decoration: InputDecoration(
+                            hintText: l10n.novelExportCssHint,
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          onChanged: (_) => _saveExportTemplateDebounced(),
+                        )),
+                    _labeled(
+                        l10n.novelExportIntro,
+                        TextField(
+                          controller: _exportIntroController,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            hintText: l10n.novelExportIntroHint,
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          onChanged: (_) => _saveExportTemplateDebounced(),
+                        )),
                   ],
                 ),
               ],

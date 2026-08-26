@@ -7272,6 +7272,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get webviewDataCleared => 'WebView data cleared';
 
   @override
+  String get cloudSyncAutoUploadNovelExports => 'Auto-upload novel exports';
+
+  @override
+  String get cloudSyncAutoUploadNovelExportsDesc =>
+      'Upload exported EPUB files to WebDAV nexhub/exports after download completes';
+
+  @override
+  String get uploadToWebdav => 'Upload exports to WebDAV';
+
+  @override
+  String get uploadToWebdavDone => 'export file(s) uploaded to WebDAV';
+
+  @override
+  String get uploadToWebdavNoFiles =>
+      'No downloaded EPUB exports for this title yet';
+
+  @override
+  String get uploadToWebdavFailed =>
+      'Export upload failed, check WebDAV config';
+
+  @override
+  String get novelExportTemplate => 'Export template (EPUB)';
+
+  @override
+  String get novelExportTemplateDesc =>
+      'Custom stylesheet, cover page and intro page embedded in the EPUB export';
+
+  @override
+  String get novelExportCss => 'Custom CSS (style.css)';
+
+  @override
+  String get novelExportCssHint =>
+      'Plain CSS rules applied to every chapter (font family, line height…)';
+
+  @override
+  String get novelExportIntro => 'Book intro page';
+
+  @override
+  String get novelExportIntroHint =>
+      'Blank line separates paragraphs; title and author placeholders are auto-substituted';
+
+  @override
+  String get novelExportIncludeCover =>
+      'Embed network cover as first cover page';
+
+  @override
+  String get novelExportIncludeIntro => 'Append intro page after cover';
+
+  @override
+  String get novelExportSaved => 'Export template saved';
+
+  @override
   String get advancedImageCache => 'Image cache';
 
   @override
