@@ -5068,6 +5068,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelReadingSummary => 'Reading overview';
 
   @override
+  String get novelContentEdit => 'Edit chapter content';
+
+  @override
+  String get novelContentEditHint =>
+      'One paragraph per block; lines starting with @@NEXHUB_IMG@@ are illustrations and @@NEXHUB_TITLE@@ marks headings';
+
+  @override
+  String get novelContentEditSaved => 'Chapter content updated';
+
+  @override
+  String get novelContentEditEmpty => 'Nothing to save: content is empty';
+
+  @override
+  String get novelContentEditBadge => 'edited';
+
+  @override
+  String get novelContentEditRestore => 'Restore original';
+
+  @override
+  String get novelContentEditRestoreConfirm =>
+      'Discard your edits and restore the chapter to its original content?';
+
+  @override
+  String get novelContentEditRestored => 'Original content restored';
+
+  @override
   String novelSummaryProgress(int read, int total) {
     return 'Progress: chapter $read of $total';
   }

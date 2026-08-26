@@ -2669,6 +2669,14 @@
   "playerSkipAuto": "自动跳过",
   "playerSkipHint": "留空表示不启用；设置对该作品的全部剧集生效。",
   "novelReadingSummary": "阅读速览",
+  "novelContentEdit": "内容编辑",
+  "novelContentEditHint": "每段一段；@@NEXHUB_IMG@@ 开头行为插图，@@NEXHUB_TITLE@@ 前缀标记章节标题",
+  "novelContentEditSaved": "本章内容已更新",
+  "novelContentEditEmpty": "内容为空，未保存",
+  "novelContentEditBadge": "已编辑",
+  "novelContentEditRestore": "恢复原文",
+  "novelContentEditRestoreConfirm": "放弃对本章的修改并恢复为源站原文？",
+  "novelContentEditRestored": "已恢复原文",
   "novelSummaryProgress": "进度：读到第 {read} / {total} 章",
   "@novelSummaryProgress": {
     "placeholders": {

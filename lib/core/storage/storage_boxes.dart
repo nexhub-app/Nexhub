@@ -34,6 +34,8 @@ const List<String> kStorageBoxNames = <String>[
   'settings',
   'novel_bookmarks',
   'novel_highlights',
+  // 小说正文内容编辑（N7：读者直接改正文并持久化，整章覆盖语义）
+  'novel_content_edits',
   'comic_bookmarks',
   // 漫画阅读器收藏的图片（图库页数据，REQ-C2）
   ImageFavoriteManager.boxName, // 'image_favorites'

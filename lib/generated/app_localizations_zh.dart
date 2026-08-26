@@ -4974,6 +4974,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelReadingSummary => '阅读速览';
 
   @override
+  String get novelContentEdit => '内容编辑';
+
+  @override
+  String get novelContentEditHint =>
+      '每段一段；@@NEXHUB_IMG@@ 开头行为插图，@@NEXHUB_TITLE@@ 前缀标记章节标题';
+
+  @override
+  String get novelContentEditSaved => '本章内容已更新';
+
+  @override
+  String get novelContentEditEmpty => '内容为空，未保存';
+
+  @override
+  String get novelContentEditBadge => '已编辑';
+
+  @override
+  String get novelContentEditRestore => '恢复原文';
+
+  @override
+  String get novelContentEditRestoreConfirm => '放弃对本章的修改并恢复为源站原文？';
+
+  @override
+  String get novelContentEditRestored => '已恢复原文';
+
+  @override
   String novelSummaryProgress(int read, int total) {
     return '进度：读到第 $read / $total 章';
   }

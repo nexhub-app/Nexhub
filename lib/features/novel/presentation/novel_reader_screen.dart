@@ -76,6 +76,7 @@ import '../../../core/novel/novel_chinese_converter.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/local/local_novel_parser.dart';
+import '../../../core/novel/novel_content_edit_manager.dart';
 import '../../../core/novel/novel_toc_store.dart';
 import 'novel_animated_page_view.dart';
 import 'novel_bookmark_manager.dart';
@@ -90,6 +91,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import '../domain/novel_summary_service.dart';
 import '../domain/novel_summary_settings.dart';
+// N7 内容编辑：正文编辑持久化管理器（Hive `novel_content_edits`）。
 
 /// 小说阅读器（Phase 4 — Task 19/20）。
 ///
@@ -345,6 +347,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   NovelReplaceRuleSet? _replaceRuleSet;
   /// 当前书籍的高亮规则（惰性加载，在 [_loadChapter] 中填充）。
   NovelHighlightRuleSet? _highlightRuleSet;
+
+  /// N7 内容编辑：正文编辑持久化管理器 + 「当前章是否被编辑过」标记
+  /// （控制菜单「内容编辑 / 恢复原文」入口与已编辑角标）。
+  final NovelContentEditManager _contentEdits = NovelContentEditManager();
+  bool _currentChapterEdited = false;
 
   /// 仅文本块列表（供 TTS 朗读，跳过插图；索引与排版段落序号一致）。
   List<String> get _paragraphTexts =>
@@ -2117,6 +2124,125 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   // ─────────────────────── 数据加载 ───────────────────────
 
+  /// N7 内容编辑：若本章存在读者编辑记录则返回编辑块列表（并置已编辑标记），
+  /// 否则原样返回抓取结果。
+  Future<List<NovelBlock>> _applyContentEditOverride(
+    String chapterId,
+    List<NovelBlock> fetched,
+  ) async {
+    try {
+      final edit = await _contentEdits.load(widget.novelId, chapterId);
+      final bool edited = edit != null && edit.blocks.isNotEmpty;
+      if (mounted && edited != _currentChapterEdited) {
+        setState(() => _currentChapterEdited = edited);
+      }
+      return edited ? edit!.blocks : fetched;
+    } on Object {
+      // 编辑数据损坏时按无编辑处理，不影响正常阅读。
+      return fetched;
+    }
+  }
+
+  /// N7 内容编辑：弹出整章正文编辑框。图片块以 `@@NEXHUB_IMG@@url` 占位行、
+  /// 标题块以 `@@NEXHUB_TITLE@@` 前缀行呈现；保存后按「整章覆盖」语义落盘
+  /// （Hive `novel_content_edits`），随后重载本章使编辑生效。
+  Future<void> _showContentEditor() async {
+    final l10n = AppLocalizations.of(context);
+    final controller = TextEditingController(
+      text: NovelContentEditManager.encodeBlocksToEditableText(_rawParagraphs),
+    );
+    final bool? saved = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(l10n.novelContentEdit),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: MediaQuery.of(ctx).size.height * 0.55,
+          child: TextField(
+            controller: controller,
+            maxLines: null,
+            expands: true,
+            textAlignVertical: TextAlignVertical.top,
+            style: const TextStyle(fontSize: 14, height: 1.5),
+            decoration: InputDecoration(
+              hintText: l10n.novelContentEditHint,
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    // 先取文本再销毁控制器（dispose 后读 text 会抛断言）。
+    final String editedText = controller.text;
+    controller.dispose();
+    if (saved != true || !mounted) return;
+
+    final List<NovelBlock> blocks =
+        NovelContentEditManager.parseEditableText(editedText);
+    if (blocks.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.novelContentEditEmpty)),
+      );
+      return;
+    }
+    final chapter = widget.chapters[_chapterIndex];
+    await _contentEdits.save(
+      NovelContentEdit(
+        novelId: widget.novelId,
+        chapterId: chapter.id,
+        chapterIndex: _chapterIndex,
+        chapterTitle: chapter.title,
+        blocks: blocks,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.novelContentEditSaved)),
+    );
+    await _loadChapter(_chapterIndex, restorePage: _currentPage);
+  }
+
+  /// N7 内容编辑：移除本章的编辑记录并重载（恢复源站原文）。
+  Future<void> _restoreOriginalContent() async {
+    final l10n = AppLocalizations.of(context);
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(l10n.novelContentEditRestore),
+        content: Text(l10n.novelContentEditRestoreConfirm),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _contentEdits.remove(widget.novelId, widget.chapters[_chapterIndex].id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.novelContentEditRestored)),
+    );
+    await _loadChapter(_chapterIndex, restorePage: _currentPage);
+  }
+
   Future<void> _loadChapter(int index, {int restorePage = 0}) async {
     // 防并发：章节加载期间忽略新的切章请求（快速连按上一页/下一页时）。
     if (_chapterLoading) return;
@@ -2142,12 +2268,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         );
       }
       if (!mounted) { _chapterLoading = false; return; }
+      // N7 内容编辑：本章存在读者编辑记录时以编辑块整体覆盖抓取结果
+      // （替换规则 / 繁简转换仍在其后照常应用）。
+      final List<NovelBlock> effective =
+          await _applyContentEditOverride(chapter.id, paragraphs);
       // 加载替换/高亮规则（排版期编译缓存，规则变更不重拉全书）。
       _replaceRuleSet = await NovelRuleCache().getReplaceRules(widget.novelId);
       _highlightRuleSet = await NovelRuleCache().getHighlightRules(widget.novelId);
       setState(() {
-        _rawParagraphs = paragraphs;
-        _paragraphs = _applyConvert(paragraphs);
+        _rawParagraphs = effective;
+        _paragraphs = _applyConvert(effective);
         _loading = false;
         _error = null;
         _verificationError = null;
@@ -2239,9 +2369,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _chapterLoading = false;
         return;
       }
+      // N7 内容编辑：同 [_loadChapter]，渲染 HTML 抓取结果同样可被编辑覆盖。
+      final List<NovelBlock> effectiveEdited =
+          await _applyContentEditOverride(chapter.id, paragraphs);
       setState(() {
-        _rawParagraphs = paragraphs;
-        _paragraphs = _applyConvert(paragraphs);
+        _rawParagraphs = effectiveEdited;
+        _paragraphs = _applyConvert(effectiveEdited);
         _loading = false;
         _error = null;
         _verificationError = null;
@@ -4795,6 +4928,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     _showBookmarkList();
                   case 'summary':
                     _showReadingOverview();
+                  case 'contentEdit':
+                    _showContentEditor();
+                  case 'contentEditRestore':
+                    _restoreOriginalContent();
                   case 'configureBottomToolbar':
                     _showBottomToolbarConfig();
                   case 'notes':
@@ -4899,6 +5036,39 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                       dense: true,
                     ),
                   ),
+                ],
+                // N7 内容编辑：直接修改本章正文并持久化（聚合本地模式除外——
+                // 本地书正文来自文件本身，覆盖语义不适用）。已编辑时追加
+                // 「恢复原文」入口并在标题旁显示角标。
+                if (!_isAggregatedLocal) ...<PopupMenuEntry<String>>[
+                  PopupMenuItem<String>(
+                    value: 'contentEdit',
+                    child: ListTile(
+                      leading: const Icon(Icons.edit_outlined),
+                      title: Text(l10n.novelContentEdit),
+                      trailing: _currentChapterEdited
+                          ? Text(
+                              l10n.novelContentEditBadge,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            )
+                          : null,
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ),
+                  if (_currentChapterEdited)
+                    PopupMenuItem<String>(
+                      value: 'contentEditRestore',
+                      child: ListTile(
+                        leading: const Icon(Icons.restore),
+                        title: Text(l10n.novelContentEditRestore),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
                 ],
                 // 配置底部工具栏
                 PopupMenuItem<String>(
@@ -6809,6 +6979,7 @@ class _JustifiedLineText extends StatelessWidget {
           textScaler: scaler,
         )..layout(maxWidth: double.infinity);
         final naturalW = tp.maxIntrinsicWidth;
+        final lineHeight = tp.height;
         tp.dispose();
         // 剩余空间不足 0.5px 或超宽（不应发生，断行已保证）时不拉伸。
         final extra = constraints.maxWidth - naturalW;
@@ -6820,7 +6991,7 @@ class _JustifiedLineText extends StatelessWidget {
         return SizedBox(
           width: constraints.maxWidth,
           child: CustomPaint(
-            size: Size(constraints.maxWidth, tp.height),
+            size: Size(constraints.maxWidth, lineHeight),
             painter: _JustifiedLinePainter(
               text: text,
               style: baseStyle,

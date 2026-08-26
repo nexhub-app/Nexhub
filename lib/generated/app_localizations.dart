@@ -9626,6 +9626,54 @@ abstract class AppLocalizations {
   /// **'Reading overview'**
   String get novelReadingSummary;
 
+  /// No description provided for @novelContentEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit chapter content'**
+  String get novelContentEdit;
+
+  /// No description provided for @novelContentEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One paragraph per block; lines starting with @@NEXHUB_IMG@@ are illustrations and @@NEXHUB_TITLE@@ marks headings'**
+  String get novelContentEditHint;
+
+  /// No description provided for @novelContentEditSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter content updated'**
+  String get novelContentEditSaved;
+
+  /// No description provided for @novelContentEditEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to save: content is empty'**
+  String get novelContentEditEmpty;
+
+  /// No description provided for @novelContentEditBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'edited'**
+  String get novelContentEditBadge;
+
+  /// No description provided for @novelContentEditRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore original'**
+  String get novelContentEditRestore;
+
+  /// No description provided for @novelContentEditRestoreConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard your edits and restore the chapter to its original content?'**
+  String get novelContentEditRestoreConfirm;
+
+  /// No description provided for @novelContentEditRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Original content restored'**
+  String get novelContentEditRestored;
+
   /// No description provided for @novelSummaryProgress.
   ///
   /// In en, this message translates to:

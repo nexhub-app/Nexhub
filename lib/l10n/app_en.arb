@@ -2692,6 +2692,14 @@
   "playerSkipAuto": "Auto skip",
   "playerSkipHint": "Leave empty to disable. Applies to all episodes of this series.",
   "novelReadingSummary": "Reading overview",
+  "novelContentEdit": "Edit chapter content",
+  "novelContentEditHint": "One paragraph per block; lines starting with @@NEXHUB_IMG@@ are illustrations and @@NEXHUB_TITLE@@ marks headings",
+  "novelContentEditSaved": "Chapter content updated",
+  "novelContentEditEmpty": "Nothing to save: content is empty",
+  "novelContentEditBadge": "edited",
+  "novelContentEditRestore": "Restore original",
+  "novelContentEditRestoreConfirm": "Discard your edits and restore the chapter to its original content?",
+  "novelContentEditRestored": "Original content restored",
   "novelSummaryProgress": "Progress: chapter {read} of {total}",
   "@novelSummaryProgress": {
     "placeholders": {
