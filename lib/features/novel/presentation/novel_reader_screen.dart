@@ -380,6 +380,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 排版偏好与屏幕尺寸变化，跨会话复用反而失真）。
   final Map<int, int> _chapterPageCounts = <int, int>{};
 
+  /// A7 双页模式：当前章是否以双页呈现（与最近一次分页的判定一致，
+  /// 由 build 的 LayoutBuilder 按偏好 + 宽高比计算后写入）。
+  bool _twoPageActive = false;
+
+  /// 双页模式两页间的中缝宽度（逻辑像素）。
+  static const double _kTwoPageGutter = 16;
+
   /// 计算整本页码文案（G3）：
   /// - 全部章节数已知 → `第 X 页 / 共 Y 页`（精确校准）；
   /// - 部分已知 → `全书第 X+ 页`（`+` 表示后续章节尚未校准，估算值）；
@@ -4431,14 +4438,26 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         // 会在翻页瞬间产生明显卡顿，并使翻页动画被重型计算抢占、看起来「无动画」。
         final scaler = MediaQuery.textScalerOf(context);
         final dir = Directionality.of(context);
+        // A7 双页模式：翻页模式 + 用户开启 + 宽屏（宽 > 高）时生效——
+        // 每页按半宽排版，屏幕左右并排显示两页（对齐实体书摊开形态）。
+        final bool twoPage = _prefs.twoPageMode &&
+            !_prefs.pageAnimation.isScroll &&
+            constraints.maxWidth > constraints.maxHeight;
         final sig =
-            '$_contentVersion|$_prefsVersion|$_chapterIndex|${w.round()}x${h.round()}|$scaler|$dir|$chapterTitleForBody|${widget.title}';
+            '$_contentVersion|$_prefsVersion|$_chapterIndex|${w.round()}x${h.round()}|$scaler|$dir|$chapterTitleForBody|${widget.title}|two=$twoPage';
         final bool sigChanged = _paginationSig != sig;
         final int prevChapterIndex = _paginationChapterIndex;
         if (_pagination == null || sigChanged) {
+          // 双页时按半宽减中缝分页；单页沿用全宽。
+          final BoxConstraints layoutConstraints = twoPage
+              ? BoxConstraints(
+                  maxWidth: (constraints.maxWidth - _kTwoPageGutter) / 2,
+                  maxHeight: constraints.maxHeight,
+                )
+              : constraints;
           _pagination = NovelPaginator.paginate(
             blocks: _paragraphs,
-            constraints: constraints,
+            constraints: layoutConstraints,
             prefs: _prefs,
             context: context,
             chapterTitle: chapterTitleForBody,
@@ -4446,6 +4465,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           );
           _paginationSig = sig;
           _paginationChapterIndex = _chapterIndex;
+          _twoPageActive = twoPage;
           // G3：本章页数入整本校准缓存（覆盖旧值——同章重新分页以新值为准）。
           _chapterPageCounts[_chapterIndex] = _pagination!.pages.length;
           // 分页真正变化时（章节 / 偏好 / 尺寸），帧后注入选区控制器并加载划线。
@@ -4533,18 +4553,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             Positioned.fill(
               child: Transform.translate(
                 offset: Offset(0, swipeDy),
-                child: NovelAnimatedPageView(
-                key: _pageKey,
-                contentVersion: _contentVersion,
-                animation: _prefs.pageAnimation,
-                pageCount: pages.length,
-                initialPage: _currentPage,
-                background: bg,
-                selectionActive: () =>
-                    _selectionController.hasSelection ||
-                    _selectionController.isSelecting,
-                pageBuilder: (BuildContext ctx, int pageIndex) {
-                  final page = pages[pageIndex];
+                child: Builder(builder: (context) {
+                // A7 双页：呈现层把「页」映射为「跨页（spread）」——一个屏幕位
+                // 显示左右两页；进度/存档仍以左页页码为准（onPageChanged 处换算）。
+                final bool twoPage = _twoPageActive && pages.length > 1;
+                final int displayCount =
+                    twoPage ? (pages.length + 1) ~/ 2 : pages.length;
+                final int initialDisplay =
+                    twoPage ? (_currentPage ~/ 2).clamp(0, displayCount - 1) : _currentPage;
+                Widget buildSinglePage(BuildContext ctx, int p) {
+                  final page = pages[p];
                   return _NovelPageWidget(
                     lines: page,
                     prefs: _prefs,
@@ -4553,7 +4571,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     animation: _prefs.pageAnimation,
                     chapterTitle: chapterTitle,
                     bookName: widget.title,
-                    pageIndex: pageIndex,
+                    pageIndex: p,
                     totalPages: pages.length,
                     time: _currentTime,
                     batteryLevel: _batteryLevel,
@@ -4568,7 +4586,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     onParagraphTap: _onParagraphTapped,
                     onImageTap: (url, src) => _showImageViewer(url, src ?? _source),
                     source: _source,
-                    bookPageLabel: (p) => _bookPageLabelFor(p),
+                    bookPageLabel: (p2) => _bookPageLabelFor(p2),
                     selectionController: _selectionController,
                     onSelectionConfirmed: () {
                       if (mounted) {
@@ -4579,11 +4597,48 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                       }
                     },
                   );
+                }
+
+                return NovelAnimatedPageView(
+                key: _pageKey,
+                contentVersion: _contentVersion,
+                animation: _prefs.pageAnimation,
+                pageCount: displayCount,
+                initialPage: initialDisplay,
+                background: bg,
+                selectionActive: () =>
+                    _selectionController.hasSelection ||
+                    _selectionController.isSelecting,
+                pageBuilder: (BuildContext ctx, int displayIndex) {
+                  if (!twoPage) return buildSinglePage(ctx, displayIndex);
+                  final int left = displayIndex * 2;
+                  final int right = left + 1;
+                  return Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: left < pages.length
+                            ? buildSinglePage(ctx, left)
+                            : Container(color: bg), // 奇数页末跨页的右侧留空
+                      ),
+                      const SizedBox(width: _kTwoPageGutter),
+                      Expanded(
+                        child: right < pages.length
+                            ? buildSinglePage(ctx, right)
+                            : Container(color: bg),
+                      ),
+                    ],
+                  );
                 },
                 scrollBuilder: _prefs.pageAnimation.isScroll
                     ? (BuildContext ctx) => _buildScrollContent(bg, textColor)
                     : null,
-                onPageChanged: _onPageChanged,
+                onPageChanged: twoPage
+                    ? (int spreadIdx) {
+                        // 双页以「左页」作为当前逻辑页（与漫画双页语义一致）。
+                        _onPageChanged(
+                            (spreadIdx * 2).clamp(0, pages.length - 1));
+                      }
+                    : _onPageChanged,
                 onRequestNextChapter: _goNextChapter,
                 onRequestPrevChapter: () => _goPrevChapter(toLastPage: true),
                 onTapUp: _onTapUp,
@@ -4596,8 +4651,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 onBookmarkSwipeUpdate: _onBookmarkSwipeUpdate,
                 onBookmarkSwipeEnd: _onBookmarkSwipeEnd,
                 scrollWheelInverted: _prefs.scrollWheelInverted,
+              );
+                }),
               ),
-            ),
             ),
             if (_bookmarkSwipeActive) _buildBookmarkSwipeHint(bg, textColor),
             if (_showSelectionToolbar) _buildSelectionToolbar(),

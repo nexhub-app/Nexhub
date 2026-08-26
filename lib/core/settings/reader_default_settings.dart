@@ -275,6 +275,8 @@ class ReaderDefaultSettings {
   final double novelShadowOffsetY;
   final int? novelUnderlineColor;
   final bool novelUnderlineDashed;
+  /// 小说：A7 双页模式（翻页模式宽屏左右并排两页）。
+  final bool novelTwoPageMode;
   final double novelUnderlineThickness;
   final double novelUnderlineDashLength;
   final double novelUnderlineDashGap;
@@ -444,6 +446,7 @@ class ReaderDefaultSettings {
     this.novelShadowOffsetY = 0.5,
     this.novelUnderlineColor,
     this.novelUnderlineDashed = false,
+    this.novelTwoPageMode = false,
     this.novelUnderlineThickness = 1.0,
     this.novelUnderlineDashLength = 4.0,
     this.novelUnderlineDashGap = 2.0,
@@ -582,6 +585,7 @@ class ReaderDefaultSettings {
     double? novelShadowOffsetY,
     int? novelUnderlineColor,
     bool? novelUnderlineDashed,
+    bool? novelTwoPageMode,
     double? novelUnderlineThickness,
     double? novelUnderlineDashLength,
     double? novelUnderlineDashGap,
@@ -767,6 +771,8 @@ class ReaderDefaultSettings {
             novelUnderlineColor ?? this.novelUnderlineColor,
         novelUnderlineDashed:
             novelUnderlineDashed ?? this.novelUnderlineDashed,
+        novelTwoPageMode: novelTwoPageMode ?? this.novelTwoPageMode,
+
         novelUnderlineThickness:
             novelUnderlineThickness ?? this.novelUnderlineThickness,
         novelUnderlineDashLength:
@@ -934,6 +940,7 @@ class ReaderDefaultSettings {
         'novelShadowOffsetY': novelShadowOffsetY,
         if (novelUnderlineColor != null) 'novelUnderlineColor': novelUnderlineColor,
         'novelUnderlineDashed': novelUnderlineDashed,
+        'novelTwoPageMode': novelTwoPageMode,
         'novelUnderlineThickness': novelUnderlineThickness,
         'novelUnderlineDashLength': novelUnderlineDashLength,
         'novelUnderlineDashGap': novelUnderlineDashGap,
@@ -1229,6 +1236,8 @@ class ReaderDefaultSettings {
       novelUnderlineColor: json['novelUnderlineColor'] as int?,
       novelUnderlineDashed:
           json['novelUnderlineDashed'] as bool? ?? false,
+      novelTwoPageMode: json['novelTwoPageMode'] as bool? ?? false,
+
       novelUnderlineThickness:
           (json['novelUnderlineThickness'] as num?)?.toDouble() ?? 1.0,
       novelUnderlineDashLength:
@@ -1450,6 +1459,7 @@ class ReaderDefaultSettings {
       // 下划线
       underlineColor: novelUnderlineColor,
       underlineDashed: novelUnderlineDashed,
+      twoPageMode: novelTwoPageMode,
       underlineThickness: novelUnderlineThickness,
       underlineDashLength: novelUnderlineDashLength,
       underlineDashGap: novelUnderlineDashGap,

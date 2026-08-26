@@ -5439,6 +5439,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get novelHfBookPageNumber => 'Book page number';
 
   @override
+  String get novelTwoPageMode => 'Dual-page mode';
+
+  @override
+  String get novelTwoPageModeDesc =>
+      'In paged mode on wide screens, show two pages side by side like an open book';
+
+  @override
   String get novelHfTimeAndBattery => 'Time & battery';
 
   @override

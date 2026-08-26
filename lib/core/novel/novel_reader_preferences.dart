@@ -384,6 +384,10 @@ class NovelReaderPreferences {
   /// 下划线是否虚线。
   final bool underlineDashed;
 
+  /// A7 双页模式：翻页模式下横屏/宽屏时左右并排显示两页（每页按半宽分页）。
+  /// 滚动模式与竖屏自动失效；仅改变呈现，进度仍以「左页」页码为准。
+  final bool twoPageMode;
+
   /// 下划线线宽（像素）。
   final double underlineThickness;
 
@@ -511,6 +515,7 @@ class NovelReaderPreferences {
     this.shadowOffsetY = 0.5,
     this.underlineColor,
     this.underlineDashed = false,
+    this.twoPageMode = false,
     this.underlineThickness = 1.0,
     this.underlineDashLength = 4.0,
     this.underlineDashGap = 2.0,
@@ -585,6 +590,7 @@ class NovelReaderPreferences {
     double? shadowOffsetY,
     Object? underlineColor = _kNovelPrefsColorUnset,
     bool? underlineDashed,
+    bool? twoPageMode,
     double? underlineThickness,
     double? underlineDashLength,
     double? underlineDashGap,
@@ -677,6 +683,7 @@ class NovelReaderPreferences {
           ? this.underlineColor
           : underlineColor as int?,
       underlineDashed: underlineDashed ?? this.underlineDashed,
+      twoPageMode: twoPageMode ?? this.twoPageMode,
       underlineThickness: underlineThickness ?? this.underlineThickness,
       underlineDashLength: underlineDashLength ?? this.underlineDashLength,
       underlineDashGap: underlineDashGap ?? this.underlineDashGap,
@@ -829,6 +836,9 @@ class NovelReaderPreferences {
       underlineDashed: identical(underlineDashed, def.underlineDashed)
           ? base.underlineDashed
           : underlineDashed,
+      twoPageMode: identical(twoPageMode, def.twoPageMode)
+          ? base.twoPageMode
+          : twoPageMode,
       underlineThickness: identical(underlineThickness, def.underlineThickness)
           ? base.underlineThickness
           : underlineThickness,
@@ -1133,6 +1143,7 @@ class NovelReaderPreferences {
         'shadowOffsetY': shadowOffsetY,
         if (underlineColor != null) 'underlineColor': underlineColor,
         'underlineDashed': underlineDashed,
+        'twoPageMode': twoPageMode,
         'underlineThickness': underlineThickness,
         'underlineDashLength': underlineDashLength,
         'underlineDashGap': underlineDashGap,
@@ -1221,6 +1232,7 @@ class NovelReaderPreferences {
       shadowOffsetY: (json['shadowOffsetY'] as num?)?.toDouble() ?? 0.5,
       underlineColor: json['underlineColor'] as int?,
       underlineDashed: json['underlineDashed'] as bool? ?? false,
+      twoPageMode: json['twoPageMode'] as bool? ?? false,
       underlineThickness:
           (json['underlineThickness'] as num?)?.toDouble() ?? 1.0,
       underlineDashLength:

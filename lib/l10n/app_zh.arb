@@ -2897,6 +2897,8 @@
   "novelHeaderFooterMargin": "页眉页脚边距",
   "novelHfPageAndProgress": "页码及进度",
   "novelHfBookPageNumber": "整本页码",
+  "novelTwoPageMode": "双页模式",
+  "novelTwoPageModeDesc": "翻页模式下宽屏左右并排显示两页，如摊开的实体书",
 "novelHfTimeAndBattery": "时间及电量",
   "layoutDetailGroup": "布局细节",
   "layoutProgressDisplay": "进度显示方式",

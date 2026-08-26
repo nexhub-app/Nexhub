@@ -5340,6 +5340,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get novelHfBookPageNumber => '整本页码';
 
   @override
+  String get novelTwoPageMode => '双页模式';
+
+  @override
+  String get novelTwoPageModeDesc => '翻页模式下宽屏左右并排显示两页，如摊开的实体书';
+
+  @override
   String get novelHfTimeAndBattery => '时间及电量';
 
   @override

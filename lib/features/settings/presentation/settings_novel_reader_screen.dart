@@ -1698,6 +1698,14 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   index: 6,
                   title: l10n.novelSectionPage,
                   children: <Widget>[
+                    // A7 双页模式：翻页模式下宽屏左右并排两页。
+                    SettingsSwitchTile(
+                      title: l10n.novelTwoPageMode,
+                      subtitle: l10n.novelTwoPageModeDesc,
+                      value: _settings.novelTwoPageMode,
+                      onChanged: (v) =>
+                          _update(_settings.copyWith(novelTwoPageMode: v)),
+                    ),
                     // 亮度
                     SettingsSliderTile(
                       label: l10n.novelBrightness,

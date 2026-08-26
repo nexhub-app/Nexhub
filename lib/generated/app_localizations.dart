@@ -10298,6 +10298,18 @@ abstract class AppLocalizations {
   /// **'Book page number'**
   String get novelHfBookPageNumber;
 
+  /// No description provided for @novelTwoPageMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Dual-page mode'**
+  String get novelTwoPageMode;
+
+  /// No description provided for @novelTwoPageModeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'In paged mode on wide screens, show two pages side by side like an open book'**
+  String get novelTwoPageModeDesc;
+
   /// No description provided for @novelHfTimeAndBattery.
   ///
   /// In en, this message translates to:

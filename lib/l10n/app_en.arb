@@ -2920,6 +2920,8 @@
   "novelHeaderFooterMargin": "Header & Footer margin",
   "novelHfPageAndProgress": "Page & progress",
   "novelHfBookPageNumber": "Book page number",
+  "novelTwoPageMode": "Dual-page mode",
+  "novelTwoPageModeDesc": "In paged mode on wide screens, show two pages side by side like an open book",
   "novelHfTimeAndBattery": "Time & battery",
   "layoutDetailGroup": "Layout Details",
   "layoutProgressDisplay": "Progress Display",
