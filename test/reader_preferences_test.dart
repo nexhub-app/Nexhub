@@ -56,6 +56,21 @@ void main() {
     expect(missing.showChapterSeparator, true);
   });
 
+  test('showChapterSlider default to true and round-trip', () {
+    const def = ReaderPreferences();
+    expect(def.showChapterSlider, true);
+    // 显式关闭可经 JSON 往返保留。
+    const custom = ReaderPreferences(showChapterSlider: false);
+    final back = ReaderPreferences.fromJson(custom.toJson());
+    expect(back.showChapterSlider, false);
+    // 缺省键回落默认 true。
+    final missing = ReaderPreferences.fromJson(<String, dynamic>{});
+    expect(missing.showChapterSlider, true);
+    // copyWith 保留旧值 / 可覆盖。
+    expect(custom.copyWith().showChapterSlider, false);
+    expect(custom.copyWith(showChapterSlider: true).showChapterSlider, true);
+  });
+
   test('seamlessReading and showChapterSeparator copyWith and mergedWithKeys', () {
     const custom = ReaderPreferences(
         seamlessReading: false, showChapterSeparator: false);

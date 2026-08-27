@@ -2454,6 +2454,7 @@
   "readerRotatePage": "旋转页面",
   "readerKeepScreenOn": "屏幕常亮",
   "readerProgressBarOnRight": "进度条在右侧",
+  "readerShowChapterSlider": "章节导航滑块",
   "readerShowPageNumber": "显示页码",
   "readerSplitDoublePage": "双页拆分",
   "readerSplitDoublePageHint": "已开启双页拆分，已切换到横排单页模式",

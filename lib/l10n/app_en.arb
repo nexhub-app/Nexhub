@@ -2476,6 +2476,7 @@
   "readerRotatePage": "Rotate page",
   "readerKeepScreenOn": "Keep screen on",
   "readerProgressBarOnRight": "Progress bar on right",
+  "readerShowChapterSlider": "Chapter navigation slider",
   "readerShowPageNumber": "Show page number",
   "readerSplitDoublePage": "Split double page",
   "readerSplitDoublePageHint": "Double-page split enabled; switched to horizontal single-page mode",

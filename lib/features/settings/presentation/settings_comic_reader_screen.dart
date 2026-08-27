@@ -739,6 +739,12 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _settings.copyWith(comicProgressBarOnRight: v)),
                     ),
                     SettingsSwitchTile(
+                      title: l10n.readerShowChapterSlider,
+                      value: _settings.comicShowChapterSlider,
+                      onChanged: (v) => _update(
+                          _settings.copyWith(comicShowChapterSlider: v)),
+                    ),
+                    SettingsSwitchTile(
                       title: l10n.readerKeepScreenOn,
                       value: _settings.comicKeepScreenOn,
                       onChanged: (v) =>

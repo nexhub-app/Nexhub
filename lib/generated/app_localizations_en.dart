@@ -4451,6 +4451,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerProgressBarOnRight => 'Progress bar on right';
 
   @override
+  String get readerShowChapterSlider => 'Chapter navigation slider';
+
+  @override
   String get readerShowPageNumber => 'Show page number';
 
   @override

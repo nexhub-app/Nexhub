@@ -193,6 +193,19 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         return l10n.readerClockPosBottomLeft;
       case 'readerClockPosBottomRight':
         return l10n.readerClockPosBottomRight;
+      // color profile（ICC 校色近似）
+      case 'readerColorProfileNone':
+        return l10n.readerColorProfileNone;
+      case 'readerColorProfileSrgb':
+        return l10n.readerColorProfileSrgb;
+      case 'readerColorProfileWarm':
+        return l10n.readerColorProfileWarm;
+      case 'readerColorProfileCool':
+        return l10n.readerColorProfileCool;
+      case 'readerColorProfileManga':
+        return l10n.readerColorProfileManga;
+      case 'readerColorProfilePaper':
+        return l10n.readerColorProfilePaper;
       default:
         return key;
     }
@@ -951,6 +964,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       'fullscreen', 'screen', '自动滚动', '滚动速度',
                       'auto scroll', 'scroll speed', '自动翻页',
                       '翻页间隔', '首屏单图', '单图', 'auto page turn',
+                      '章节滑块', 'chapter slider',
                     ],
                     children: <Widget>[
                       _switchTile(l10n.readerCropEdge, _draft.cropEdge,
@@ -960,6 +974,10 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       _switchTile(l10n.readerProgressBarOnRight,
                           _draft.progressBarOnRight,
                           (v) => _update(_draft.copyWith(progressBarOnRight: v))),
+                      _switchTile(l10n.readerShowChapterSlider,
+                          _draft.showChapterSlider,
+                          (v) => _update(
+                              _draft.copyWith(showChapterSlider: v))),
                       _switchTile(l10n.readerKeepScreenOn, _draft.keepScreenOn,
                           (v) => _update(_draft.copyWith(keepScreenOn: v))),
                       _switchTile(l10n.readerRotatePage, _draft.rotateLandscape,

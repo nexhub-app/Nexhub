@@ -4382,6 +4382,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerProgressBarOnRight => '进度条在右侧';
 
   @override
+  String get readerShowChapterSlider => '章节导航滑块';
+
+  @override
   String get readerShowPageNumber => '显示页码';
 
   @override

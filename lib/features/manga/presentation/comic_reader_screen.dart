@@ -428,6 +428,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   double _flashOpacity = 0.0;
   Color _flashColor = Colors.black;
 
+  /// 闪光覆盖层是否处于播放中。渲染条件据此判断，与 [_prefs.flashEnabled] 解耦：
+  /// E-Ink 定期刷新（L3）在普通闪光关闭时也能全屏闪烁清残影（此前被
+  /// `if (_prefs.flashEnabled)` 吞掉导致「没有作用」）。
+  bool _flashLayerActive = false;
+
   // ── REQ-B7 翻页过渡动画 + 双击缩放动画 ──────────────────────────
 
   /// 双击 / 长按缩放动画控制器（[ReaderPreferences.doubleTapAnimSpeed] 毫秒）。
@@ -2716,10 +2721,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       if (mounted) setState(() => _flashOpacity = _flashController.value);
     };
     _flashController.addListener(_flashListener!);
-    setState(() => _flashColor = color);
+    setState(() {
+      _flashColor = color;
+      // 置位覆盖层活动标志：E-Ink 定期刷新不依赖 flashEnabled 也能渲染闪烁层。
+      _flashLayerActive = true;
+    });
     _flashController.forward(from: 0).then((_) {
       _flashController.reverse(from: 1).then((_) {
-        if (mounted) setState(() => _flashOpacity = 0.0);
+        if (mounted) {
+          setState(() {
+            _flashOpacity = 0.0;
+            _flashLayerActive = false;
+          });
+        }
         onDone?.call();
       });
     });
@@ -3152,14 +3166,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     });
   }
 
-  /// 双击缩放：两态循环（下限固定为「适配尺寸」[ReaderPreferences.minScale]，
-  /// 放大目标为 [ReaderPreferences.doubleTapZoomScale]）——
-  /// 适配下限(minScale) ↔ 放大(doubleTapZoomScale) → …。
+  /// 双击缩放：三态循环（用户需求，参考 photo_view 的 scaleState 循环思想）——
+  /// 原样(1x) → 缩小(0.5x) → 放大([ReaderPreferences.doubleTapZoomScale]) →
+  /// 恢复原样(1x) → …。preventShrink 打开时跳过缩小态（1x ↔ 放大两态）。
   /// 以 [focal]（视口坐标）或视口中心为锚点；[focal] 为 null 时使用中心。
   ///
-  /// 下限即适配尺寸：双击永远不会下探到 fit 以下（旧实现曾硬编码 0.5 绕过
-  /// [minScale]，导致双击下限与捏合/平移下限不一致）。[preventShrink] 仅约束
-  /// 捏合/平移是否回弹到适配尺寸，不影响本两态循环。
+  /// 缩小态固定为 0.5x（低于默认 minScale=1.0 = fit），属三态循环的既定行为；
+  /// [preventShrink] 仅约束捏合/平移是否回弹到适配尺寸，同时跳过缩小态。
   ///
   /// 实现要点：
   /// - 每次双击【绝对设置】目标矩阵（不乘旧矩阵），直接到达目标态——避免
@@ -3185,11 +3198,18 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final Offset anchor = focal == null
         ? Offset.zero
         : _anchorFromZoomStart(focal, vp);
-    // 两态循环：当前高于适配下限则回到下限（适配尺寸），否则放大到目标。
-    // 下限用 minScale（默认 1.0 = fit），不再硬编码 0.5 下探到 fit 以下。
-    final double target = cur > _prefs.minScale + 0.001
-        ? _prefs.minScale
-        : _prefs.doubleTapZoomScale;
+    // 三态循环：放大态 → 恢复原样；防缩小时 1x ↔ 放大两态；缩小态 → 放大；
+    // 原样 → 缩小（第一次双击，固定 0.5x）。
+    final double target;
+    if (cur > 1.001) {
+      target = 1.0; // 放大态 → 恢复原样
+    } else if (_prefs.preventShrink) {
+      target = _prefs.doubleTapZoomScale; // 防缩小时 1x ↔ 放大两态
+    } else if (cur < 0.999) {
+      target = _prefs.doubleTapZoomScale; // 缩小态 → 放大
+    } else {
+      target = 0.5; // 原样 → 缩小（第一次双击）
+    }
     // 绝对设置：translate(anchor*(1-target)) · scale(target)。
     // 推导：中心系坐标 c 变换为 c' = c*t + T；焦点保持不动需 c' = c →
     // T = anchor*(1-target)。webtoon 的 anchor 纵向为 0（纵向滚动交还列表）。
@@ -4441,7 +4461,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 ),
               ),
             ),
-          if (_prefs.flashEnabled)
+          if (_flashLayerActive)
             Positioned.fill(
               child: IgnorePointer(
                 child: Container(
@@ -4490,8 +4510,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             _buildRightProgressBar(l10n),
           if (_uiVisible && _prefs.showClockBattery)
             _buildClockBatteryOverlay(l10n),
-          // 章节导航滑块（REQ-C10）：ui 可见时显示，拖动预览章节。
-          if (_uiVisible && !_isLocalMode)
+          // 章节导航滑块（REQ-C10）：ui 可见 + 设置开启时显示，拖动预览章节。
+          if (_uiVisible &&
+              !_isLocalMode &&
+              _effectivePrefs.showChapterSlider)
             _buildChapterSlider(l10n),
           // 章节导航滑块预览浮层（REQ-C10）：拖动时在顶部预览章节标题。
           if (_uiVisible && _sliderPreviewChapter != null)

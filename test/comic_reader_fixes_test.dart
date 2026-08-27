@@ -1292,4 +1292,70 @@ void main() {
     expect(renderedUrls(tester).first.endsWith('2.png'), isTrue,
         reason: '目录切回第 1 话应恢复到离开页第 2 页，而非首页');
   });
+
+  testWidgets('EInk: 普通闪光关闭时 E-Ink 定期刷新仍渲染全屏闪烁覆盖层', (tester) async {
+    // flashEnabled=false + einkRefreshEnabled=true（间隔 1 页）：翻页即触发
+    // _triggerEinkRefresh → _runFlash。修复前覆盖层被 `if (_prefs.flashEnabled)`
+    // 吞掉（「E-Ink 定期刷新没有作用」）；修复后由 _flashLayerActive 独立渲染。
+    // E-Ink 属「仅总设置」字段（作品层存储剥离），经全局默认注入：
+    // reader_default_settings_v1 → toReaderPreferences() → mergedWithKeys。
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'reader_prefs_m1': '{"readingMode":"singleLTR","doubleTapZoom":false,'
+          '"flashEnabled":false,"progressBarOnRight":true}',
+      'reader_default_settings_v1':
+          '{"comicEinkRefreshEnabled":true,"comicEinkRefreshInterval":1,'
+          '"comicEinkRefreshDuration":200,"comicFlashEnabled":false}',
+    });
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+
+    final source = PluginConfig.fromJson(<String, dynamic>{
+      'id': 'src1', 'name': 'S', 'type': 'mangaSource', 'responseType': 'json',
+      'site': {'domain': 'https://example.com', 'baseUrl': 'https://example.com'},
+      'parser': {'type': 'builtin'},
+      'routes': {'images': '/images?cid={cid}'},
+      'selectors': {'images': '\$.images'},
+    });
+    final repo = SourceRepository(<PluginConfig>[source]);
+    final service = FakeMediaApiServiceFixes();
+    final favorites = FavoritesManager();
+    await favorites.init();
+
+    await tester.pumpWidget(wrapReader(
+        tester, repo: repo, service: service, favorites: favorites));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // 阅读区右侧热区翻到下一页 → E-Ink 页计数达间隔 → 触发全屏闪烁（白闪 200ms）。
+    await tester.tapAt(const Offset(700, 600));
+    // 让翻页完成且闪烁动画进行中（200ms 内、未结束），覆盖层应为半透明白色。
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final overlay = find.byWidgetPredicate((Widget w) {
+      if (w is! Container) return false;
+      final Color? c = w.color;
+      if (c == null) return false;
+      // E-Ink 默认白闪：RGB=1，动画中 alpha 处于 (0,1)。
+      return c.r == 1.0 && c.g == 1.0 && c.b == 1.0 && c.a > 0.0 && c.a < 1.0;
+    });
+    expect(overlay, findsWidgets,
+        reason: '普通闪光关闭时 E-Ink 定期刷新也应渲染全屏闪烁覆盖层');
+
+    // 闪烁结束后覆盖层消失（_flashLayerActive 复位），避免常驻遮挡。
+    // 分帧推进：forward 200ms + reverse 200ms 完成后才复位；多 pump 一次
+    // 让复位 setState 落地。断言只匹配「半透明白」（排除纯白常驻背景）。
+    for (int i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(
+        find.byWidgetPredicate((Widget w) {
+          if (w is! Container) return false;
+          final Color? c = w.color;
+          if (c == null) return false;
+          return c.r == 1.0 && c.g == 1.0 && c.b == 1.0 &&
+              c.a > 0.0 && c.a < 1.0;
+        }),
+        findsNothing,
+        reason: '闪烁结束后覆盖层应复位消失');
+  });
 }

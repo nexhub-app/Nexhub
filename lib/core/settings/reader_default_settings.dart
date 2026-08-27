@@ -160,6 +160,10 @@ class ReaderDefaultSettings {
   /// 仅对 webtoon（条漫）连续模式生效。
   final bool comicShowChapterSeparator;
 
+  /// 漫画：是否显示章节导航滑块（REQ-C10，阅读器左缘的竖向章节拖动条）。
+  /// 仅多章节作品显示；关闭后阅读器不再显示该滑块。
+  final bool comicShowChapterSlider;
+
   /// 漫画：条漫解码限幅（P3 资源/内存）：连续模式解码位图下采样，
   /// 限制长条漫原图的全尺寸解码内存。此前只有阅读器弹窗可配，补全局默认。
   final bool comicWebtoonLimitDecodeSize;
@@ -389,6 +393,7 @@ class ReaderDefaultSettings {
     this.comicPreloadImageCount = 4,
     this.comicSeamlessReading = true,
     this.comicShowChapterSeparator = true,
+    this.comicShowChapterSlider = true,
     this.comicWebtoonLimitDecodeSize = true,
     this.comicReaderScrollSpeed = 1.0,
     this.comicVolumeKeyPageTurn = false,
@@ -529,6 +534,7 @@ class ReaderDefaultSettings {
     int? comicPreloadImageCount,
     bool? comicSeamlessReading,
     bool? comicShowChapterSeparator,
+    bool? comicShowChapterSlider,
     bool? comicWebtoonLimitDecodeSize,
     double? comicReaderScrollSpeed,
     bool? comicVolumeKeyPageTurn,
@@ -676,6 +682,8 @@ class ReaderDefaultSettings {
             comicSeamlessReading ?? this.comicSeamlessReading,
         comicShowChapterSeparator:
             comicShowChapterSeparator ?? this.comicShowChapterSeparator,
+        comicShowChapterSlider:
+            comicShowChapterSlider ?? this.comicShowChapterSlider,
         comicWebtoonLimitDecodeSize:
             comicWebtoonLimitDecodeSize ?? this.comicWebtoonLimitDecodeSize,
         comicReaderScrollSpeed:
@@ -883,6 +891,7 @@ class ReaderDefaultSettings {
         'comicPreloadImageCount': comicPreloadImageCount,
         'comicSeamlessReading': comicSeamlessReading,
         'comicShowChapterSeparator': comicShowChapterSeparator,
+        'comicShowChapterSlider': comicShowChapterSlider,
         'comicWebtoonLimitDecodeSize': comicWebtoonLimitDecodeSize,
         'comicReaderScrollSpeed': comicReaderScrollSpeed,
         'comicVolumeKeyPageTurn': comicVolumeKeyPageTurn,
@@ -1121,6 +1130,8 @@ class ReaderDefaultSettings {
           json['comicSeamlessReading'] as bool? ?? true,
       comicShowChapterSeparator:
           json['comicShowChapterSeparator'] as bool? ?? true,
+      comicShowChapterSlider:
+          json['comicShowChapterSlider'] as bool? ?? true,
       comicWebtoonLimitDecodeSize:
           json['comicWebtoonLimitDecodeSize'] as bool? ?? true,
       comicReaderScrollSpeed:
@@ -1390,6 +1401,7 @@ class ReaderDefaultSettings {
       preloadImageCount: comicPreloadImageCount,
       seamlessReading: comicSeamlessReading,
       showChapterSeparator: comicShowChapterSeparator,
+      showChapterSlider: comicShowChapterSlider,
       webtoonLimitDecodeSize: comicWebtoonLimitDecodeSize,
       readerScrollSpeed: comicReaderScrollSpeed,
       volumeKeyPageTurn: comicVolumeKeyPageTurn,

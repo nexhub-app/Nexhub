@@ -8480,6 +8480,12 @@ abstract class AppLocalizations {
   /// **'Progress bar on right'**
   String get readerProgressBarOnRight;
 
+  /// No description provided for @readerShowChapterSlider.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter navigation slider'**
+  String get readerShowChapterSlider;
+
   /// No description provided for @readerShowPageNumber.
   ///
   /// In en, this message translates to:

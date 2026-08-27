@@ -521,6 +521,10 @@ class ReaderPreferences {
   /// 仅对 webtoon（条漫）连续模式生效。
   final bool showChapterSeparator;
 
+  /// 是否显示章节导航滑块（REQ-C10）：阅读器左缘的竖向章节拖动条。
+  /// 仅多章节作品显示；关闭后阅读器不再显示该滑块。
+  final bool showChapterSlider;
+
   /// 鼠标滚轮滚动速度倍率（webtoon 连续滚动增量 × 本值），范围 0.5–3.0，默认 1.0。
   /// paged 模式滚轮翻页行为不受影响（REQ-B5）。
   final double readerScrollSpeed;
@@ -651,6 +655,7 @@ class ReaderPreferences {
     this.seamlessReading = true,
     this.webtoonLimitDecodeSize = true,
     this.showChapterSeparator = true,
+    this.showChapterSlider = true,
     this.readerScrollSpeed = 1.0,
     this.volumeKeyPageTurn = false,
     this.volumeKeyPageTurnDistancePercent = 40,
@@ -766,6 +771,7 @@ class ReaderPreferences {
       webtoonLimitDecodeSize:
           json['webtoonLimitDecodeSize'] as bool? ?? true,
       showChapterSeparator: json['showChapterSeparator'] as bool? ?? true,
+      showChapterSlider: json['showChapterSlider'] as bool? ?? true,
       readerScrollSpeed:
           ((json['readerScrollSpeed'] as num?)?.toDouble() ?? 1.0)
               .clamp(0.5, 3.0),
@@ -872,6 +878,7 @@ class ReaderPreferences {
         'seamlessReading': seamlessReading,
         'webtoonLimitDecodeSize': webtoonLimitDecodeSize,
         'showChapterSeparator': showChapterSeparator,
+        'showChapterSlider': showChapterSlider,
         'readerScrollSpeed': readerScrollSpeed,
         'volumeKeyPageTurn': volumeKeyPageTurn,
         'volumeKeyPageTurnDistancePercent': volumeKeyPageTurnDistancePercent,
@@ -946,6 +953,7 @@ class ReaderPreferences {
     bool? seamlessReading,
     bool? webtoonLimitDecodeSize,
     bool? showChapterSeparator,
+    bool? showChapterSlider,
     double? readerScrollSpeed,
     bool? volumeKeyPageTurn,
     int? volumeKeyPageTurnDistancePercent,
@@ -1022,6 +1030,8 @@ class ReaderPreferences {
             webtoonLimitDecodeSize ?? this.webtoonLimitDecodeSize,
         showChapterSeparator:
             showChapterSeparator ?? this.showChapterSeparator,
+        showChapterSlider:
+            showChapterSlider ?? this.showChapterSlider,
         readerScrollSpeed: readerScrollSpeed ?? this.readerScrollSpeed,
         volumeKeyPageTurn: volumeKeyPageTurn ?? this.volumeKeyPageTurn,
         volumeKeyPageTurnDistancePercent:
