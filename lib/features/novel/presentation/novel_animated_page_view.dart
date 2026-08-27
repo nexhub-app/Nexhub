@@ -154,9 +154,10 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
       vsync: this,
       duration: AppTokens.durPageTurn,
     )
-      ..addListener(() {
-        if (mounted) setState(() {});
-      })
+      // 注意：动画期间不能在这里 setState 重建整棵 widget 树（手势树 +
+      // LayoutBuilder + 翻页层每帧全重建，是真机动画掉帧主因）。进度渲染改由
+      // build 中 turning 分支的 AnimatedBuilder 局部驱动（见 build），
+      // 这里只挂状态监听，不 setState。
       ..addStatusListener((AnimationStatus s) {
         if (s == AnimationStatus.completed) {
           _animating = false;
@@ -371,9 +372,18 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
     _index = target;
     _forward = forward;
     _animating = true;
-    _controller.forward();
     widget.onPageChanged?.call(_index);
+    // 关键性能修复：动画第一帧会同步构建 from/to 两整页（pageBuilder 几十行
+    // 文本 + 手势），叠加 reader 的 onPageChanged → setState 重建，首帧 build
+    // 高达 150~300ms，表现为「点击后动画卡顿」。这里**先 setState 构建一帧**
+    // （两页就绪 + reader 重建），下一帧再 forward 启动动画——构建成本被挪到
+    // 用户感知不到的"点击后极短停顿"，动画时间线内每帧只重排变换层。
     setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_animating || _fromIndex == null) return;
+      _controller.forward();
+    });
   }
 
   // ─────────────────────── 拖拽跟手 ───────────────────────
@@ -469,45 +479,69 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
           builder: (BuildContext ctx, BoxConstraints c) {
             final w = c.maxWidth;
             final h = c.maxHeight;
-            final current = widget.pageBuilder(context, _index);
 
-            if (!_isCustom) {
-              // none：直接显示当前页，无动画。
-              return current;
-            }
-
-            final turning = _animating || _dragging;
-            if (!turning) {
-              return current;
+            // 非动画模式 / 不在翻页过渡中：直接构建当前页。
+            // 注意：动画期间不能执行该分支——`pageBuilder` 会全量构建一页
+            // （几十行文本 + 手势识别器），每帧调用一次是翻页掉帧主因；
+            // 过渡页内容由下方 from/to 缓存复用，动画帧只重排变换/合成层。
+            if (!_isCustom || (!_animating && !_dragging)) {
+              return widget.pageBuilder(context, _index);
             }
 
             final fromIdx = _dragging ? _index : (_fromIndex ?? _index);
             final forward = _dragging ? (_dragForward ?? _forward) : _forward;
             final toIdx = _dragging ? (forward ? _index + 1 : _index - 1) : _index;
             if (toIdx < 0 || toIdx >= widget.pageCount) {
-              return current;
+              return widget.pageBuilder(context, _index);
             }
-            final progress = _dragging ? _dragProgress : _controller.value;
 
             // 过渡页缓存：同一对 (from,to) 只构建一次子树，动画帧仅重绘
             // 变换/透明度/裁剪层（翻页卡顿主修复）。
+            // 这里就包好 RepaintBoundary：整页几十行文本位图离线缓存，动画帧
+            // 的 Transform/Opacity/裁剪只做图层合成/平移，不重绘内部文本——
+            // 若不加隔离，每帧都会强制重绘整页（中低端安卓掉帧主因）。
             final turnKey =
                 '$fromIdx|$toIdx|${widget.contentVersion}|${widget.animation}';
             if (_turnCacheKey != turnKey) {
-              _turnFromPage = widget.pageBuilder(context, fromIdx);
-              _turnToPage = widget.pageBuilder(context, toIdx);
+              _turnFromPage = RepaintBoundary(
+                child: widget.pageBuilder(context, fromIdx),
+              );
+              _turnToPage = RepaintBoundary(
+                child: widget.pageBuilder(context, toIdx),
+              );
               _turnCacheKey = turnKey;
             }
 
-            return _StackPageTurner(
-              fromPage: _turnFromPage!,
-              toPage: _turnToPage!,
-              forward: forward,
-              progress: progress,
-              animation: widget.animation,
-              width: w,
-              height: h,
-              background: widget.background,
+            // 拖拽跟手：进度由手指驱动，直接渲染当前 _dragProgress（drag 事件
+            // 每次触发一次 build，无需动画控制器）。
+            if (_dragging) {
+              return _StackPageTurner(
+                fromPage: _turnFromPage!,
+                toPage: _turnToPage!,
+                forward: forward,
+                progress: _dragProgress,
+                animation: widget.animation,
+                width: w,
+                height: h,
+                background: widget.background,
+              );
+            }
+
+            // 自动动画：进度由 _controller 驱动，用 AnimatedBuilder 只重建翻页层，
+            // 不重建外层手势树 / ColoredBox / LayoutBuilder（动画期间整树 setState
+            // 是真机翻页掉帧主因——每帧重建 GestureDetector + 布局）。
+            return AnimatedBuilder(
+              animation: _controller,
+              builder: (BuildContext ctx, Widget? _) => _StackPageTurner(
+                fromPage: _turnFromPage!,
+                toPage: _turnToPage!,
+                forward: forward,
+                progress: _controller.value,
+                animation: widget.animation,
+                width: w,
+                height: h,
+                background: widget.background,
+              ),
             );
           },
         ),
@@ -629,15 +663,18 @@ class _StackPageTurner extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = progress.clamp(0.0, 1.0);
     final Widget child;
+    // from/to 页已在 turn 缓存构建时包好 RepaintBoundary（见
+    // NovelAnimatedPageViewState.build 的 turnKey 分支），这里不再每帧新建
+    // boundary——动画帧只重排 Transform/Opacity/裁剪层，内部文本位图缓存复用。
     switch (animation) {
       case NovelPageAnimation.fade:
-        child = _buildFade(p);
+        child = _buildFade(p, fromPage, toPage);
       case NovelPageAnimation.cover:
-        child = _buildCover(p);
+        child = _buildCover(p, fromPage, toPage);
       case NovelPageAnimation.slide:
-        child = _buildSlide(p);
+        child = _buildSlide(p, fromPage, toPage);
       case NovelPageAnimation.simulation:
-        child = _buildSimulation(p);
+        child = _buildSimulation(p, fromPage, toPage);
       case NovelPageAnimation.none:
       case NovelPageAnimation.scroll:
         child = toPage;
@@ -650,7 +687,7 @@ class _StackPageTurner extends StatelessWidget {
   }
 
   /// 交叉淡入：旧页在下，新页淡入覆盖；过渡中点轻微压暗增加层次。
-  Widget _buildFade(double p) {
+  Widget _buildFade(double p, Widget fromPage, Widget toPage) {
     return Stack(
       children: <Widget>[
         Positioned.fill(child: fromPage),
@@ -661,7 +698,7 @@ class _StackPageTurner extends StatelessWidget {
   }
 
   /// 覆盖：新页从侧边滑入，覆盖静止的旧页；移动页前缘投阴影。
-  Widget _buildCover(double p) {
+  Widget _buildCover(double p, Widget fromPage, Widget toPage) {
     final offset = forward ? width * (1 - p) : -width * (1 - p);
     return Stack(
       children: <Widget>[
@@ -679,7 +716,7 @@ class _StackPageTurner extends StatelessWidget {
   }
 
   /// 滑动：新旧页同时平移；两页交界处投阴影。
-  Widget _buildSlide(double p) {
+  Widget _buildSlide(double p, Widget fromPage, Widget toPage) {
     final fromOffset = forward ? -width * p : width * p;
     final toOffset = forward ? width * (1 - p) : -width * (1 - p);
     return Stack(
@@ -700,7 +737,7 @@ class _StackPageTurner extends StatelessWidget {
   }
 
   /// 仿真卷页：目标页在下铺满，来源页按 creaseX 裁剪并卷离；卷边投阴影 + 折痕高光。
-  Widget _buildSimulation(double p) {
+  Widget _buildSimulation(double p, Widget fromPage, Widget toPage) {
     final creaseX = forward ? width * (1 - p) : width * p;
     return Stack(
       children: <Widget>[

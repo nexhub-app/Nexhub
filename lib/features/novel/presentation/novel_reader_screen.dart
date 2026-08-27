@@ -333,8 +333,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 长按选区手势进行中（按下到松手之间）：用于阻止翻页拖拽抢走长按指针，
   /// 避免「长按选中一闪即逝」被横向翻页手势打断。
   bool _longPressEngaged = false;
-  /// 刚由长按确认选区：吞掉紧随其后的那次 tap-up，避免误清空刚建立的选区。
-  bool _selectionJustConfirmed = false;
+  /// 刚由长按确认选区的时刻（null = 无待吞 tap）。用于吞掉长按松手后**极短
+  /// 窗口内**（[_kSelectionTapSinkWindow]）跟随的 tap-up，避免误清空刚建立的
+  /// 选区；窗口之外的点击照常收起工具条——否则会吞掉用户退出工具栏的第一下
+  /// （表现为「要点两下才退出」）。
+  DateTime? _selectionJustConfirmedAt;
+  /// 长按确认选区后，允许吞掉紧随 tap 的时间窗口。
+  static const Duration _kSelectionTapSinkWindow =
+      Duration(milliseconds: 250);
   /// 划线色板（ARGB，含 50% 透明度，与活动选区同调）。
   static const List<int> _highlightPalette = <int>[
     0x80FFFF00,
@@ -1767,7 +1773,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _selectionController.setSelecting(false);
     _selectionController.setSelectionAnchor(null);
     if (_selectionController.hasSelection && mounted) {
-      _selectionJustConfirmed = true;
+      _selectionJustConfirmedAt = DateTime.now();
       setState(() => _showSelectionToolbar = true);
     }
   }
@@ -3446,13 +3452,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       chapterId = chapters[idx].id;
       chapterTitle = chapters[idx].title;
     }
+    final int? charOff = _pagination != null ? _charOffsetForPage(page) : null;
     _progress.save(
       widget.novelId,
       chapterId,
       page,
       _chapterIndex,
       // P0-2：附带章内字符偏移，使进度在字号/边距/排版变化时仍回到同一处文字。
-      charOffset: _pagination != null ? _charOffsetForPage(page) : null,
+      charOffset: charOff,
       totalChapters: (!_isLocalMode || _isAggregatedLocal || _parsedChapterEpisodes != null)
           ? _effectiveChapters.length
           : null,
@@ -3880,11 +3887,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
     // 选区工具条可见时，点按任意处收起工具条并清空选区。
     if (_showSelectionToolbar) {
-      // 吞掉长按松手后紧随的那次 tap-up，避免刚建立的选区被误清空（闪一下）。
-      if (_selectionJustConfirmed) {
-        _selectionJustConfirmed = false;
+      // 吞掉长按松手后极短窗口内（250ms）紧随的那次 tap-up，避免刚建立的
+      // 选区被误清空（闪一下）；窗口之外的点击是用户主动收起，照常清空——
+      // 否则会吞掉用户退出工具栏的第一下，表现为「要点两下才退出」。
+      final DateTime? sinkAt = _selectionJustConfirmedAt;
+      if (sinkAt != null &&
+          DateTime.now().difference(sinkAt) < _kSelectionTapSinkWindow) {
+        _selectionJustConfirmedAt = null;
         return;
       }
+      _selectionJustConfirmedAt = null;
       _selectionController.clearSelection();
       setState(() => _showSelectionToolbar = false);
       return;
@@ -4579,7 +4591,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     selectionController: _selectionController,
                     onSelectionConfirmed: () {
                       if (mounted) {
-                        _selectionJustConfirmed = true;
+                        _selectionJustConfirmedAt = DateTime.now();
                         setState(() {
                           _showSelectionToolbar = true;
                           _uiVisible = false; // 显示工具栏时隐藏控制面板
@@ -4589,10 +4601,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     onSelectionActiveChanged: (engaged) {
                       // 长按选区激活期间置位 _longPressEngaged，使翻页手势让出指针，
                       // 避免选区拖拽被翻页抢走（「长按一闪即逝」的根因）。
-                      if (mounted) {
-                        _longPressEngaged = engaged;
-                        setState(() {});
-                      }
+                      // 注意：这里绝不能 setState——置位字段后拖拽手势经
+                      // `selectionActive` 闭包读取的是最新字段值，无需重建；而一旦
+                      // setState 重建整棵阅读器树，pageBuilder 会重新构建每个文本行
+                      // 的 RawGestureDetector，识别器被替换、进行中的长按即刻中断
+                      // （表现：选中闪一下就消失）。
+                      _longPressEngaged = engaged;
                     },
                   );
                 }
@@ -4679,11 +4693,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       // 滚动模式：点按空白处收起选区工具条或切换控制面板。
       onTap: () {
         if (_showSelectionToolbar) {
-          // 吞掉长按松手后紧随的那次 tap，避免刚建立的选区被误清空（闪一下）。
-          if (_selectionJustConfirmed) {
-            _selectionJustConfirmed = false;
+          // 吞掉长按松手后极短窗口内（250ms）紧随的那次 tap，避免误清空
+          // 刚建立的选区（闪一下）；窗口之外照常收起（点一下即退）。
+          final DateTime? sinkAt = _selectionJustConfirmedAt;
+          if (sinkAt != null &&
+              DateTime.now().difference(sinkAt) < _kSelectionTapSinkWindow) {
+            _selectionJustConfirmedAt = null;
             return;
           }
+          _selectionJustConfirmedAt = null;
           _selectionController.clearSelection();
           if (mounted) setState(() => _showSelectionToolbar = false);
         } else {
@@ -4803,22 +4821,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         // 滚动模式选区：长按手势识别器必须「稳定」，不能包在监听 selectionController
         // 的 AnimatedBuilder 内——否则 setSelection 触发的 notifyListeners 会重建
         // RawGestureDetector、新建识别器，进行中的长按被打断（表现为「长按闪一下」）。
-        // 这里把识别器放在外层，仅内层文本随选区变化重建。
-        final Widget selected = RawGestureDetector(
-          behavior: HitTestBehavior.translucent,
-          gestures: <Type, GestureRecognizerFactory>{
-            _TolerantLongPressGestureRecognizer:
-                GestureRecognizerFactoryWithHandlers<
-                    _TolerantLongPressGestureRecognizer>(
-              () => _TolerantLongPressGestureRecognizer(),
-              (_TolerantLongPressGestureRecognizer instance) {
-                instance.onLongPressStart = (_) =>
-                    _onSelLongPressStartScroll(idx, text);
-                instance.onLongPressEnd = (_) =>
-                    _onSelLongPressEndScroll();
-              },
-            ),
-          },
+        // 这里把识别器放在外层（StatefulWidget 稳定持有识别器实例），仅内层文本随
+        // 选区变化重建。
+        final Widget selected = _StableLongPressDetector(
+          onLongPressStart: (_) => _onSelLongPressStartScroll(idx, text),
+          onLongPressEnd: _onSelLongPressEndScroll,
           child: AnimatedBuilder(
             animation: _selectionController,
             builder: (ctx, _) {
@@ -7499,9 +7506,9 @@ class _NovelPageWidget extends StatelessWidget {
 
   /// 把本页所有行构建为 Widget 列表（含文本行的长按选区手势与插图渲染）。
   ///
-  /// 文本行在非 TTS 态下包裹 [GestureDetector] 以支持长按选区（长按=选区，
-  /// 短按仍由外层翻页手势处理——二者在竞技场自然分离）；TTS 态下不包裹，
-  /// 避免与「点哪读哪」的段落跳转冲突。
+  /// 文本行在非 TTS 态下包裹长按选区手势（长按=选区，短按仍由外层翻页手势
+  /// 处理——二者在竞技场自然分离）；TTS 态下不包裹，避免与「点哪读哪」的
+  /// 段落跳转冲突。
   List<Widget> _buildPageLines(
     BuildContext context,
     TextStyle headingStyle,
@@ -7521,26 +7528,10 @@ class _NovelPageWidget extends StatelessWidget {
           targetWidth: imgW,
         );
         final Widget wrapped = !ttsActive
-            ? RawGestureDetector(
-                behavior: HitTestBehavior.translucent,
-                gestures: <Type, GestureRecognizerFactory>{
-                  _TolerantLongPressGestureRecognizer:
-                      GestureRecognizerFactoryWithHandlers<
-                          _TolerantLongPressGestureRecognizer>(
-                    () => _TolerantLongPressGestureRecognizer(),
-                    (_TolerantLongPressGestureRecognizer instance) {
-                      instance.onLongPressStart = (d) {
-                        _onSelLongPressStart(li, d);
-                      };
-                      instance.onLongPressMoveUpdate = (d) {
-                        _onSelLongPressMove(li, d);
-                      };
-                      instance.onLongPressEnd = (_) {
-                        _onSelLongPressEnd();
-                      };
-                    },
-                  ),
-                },
+            ? _StableLongPressDetector(
+                onLongPressStart: (d) => _onSelLongPressStart(li, d),
+                onLongPressMoveUpdate: (d) => _onSelLongPressMove(li, d),
+                onLongPressEnd: _onSelLongPressEnd,
                 child: line,
               )
             : line;
@@ -7608,6 +7599,12 @@ class _NovelPageWidget extends StatelessWidget {
       lineIndexInPage,
       ci,
     );
+    // 关键：手指轻微抖动时 hitTest 会命中同一个字符（global == anchor），
+    // 若直接 setSelection(anchor, anchor) 会走 a==b → clearSelection，
+    // 把长按刚建立的整词/句选区清空（真机「工具栏不出现」的根因：
+    // longPressStart hasSel=true → move 微抖 → clearSelection → end hasSel=false）。
+    // 仅在落点确实变化时才更新选区，微抖动保持原选区不动。
+    if (global == anchor) return;
     selectionController.setSelection(anchor, global);
   }
 
@@ -10133,6 +10130,71 @@ class _TolerantLongPressGestureRecognizer extends LongPressGestureRecognizer {
 
   @override
   double? get preAcceptSlopTolerance => preAcceptTolerance;
+}
+
+/// 稳定长按选区手势容器：把 [RawGestureDetector] 及其识别器工厂封装成
+/// StatefulWidget，**在 State 生命周期内持有同一份 gestures 配置实例**。
+///
+/// 为什么需要稳定实例：翻页动画期间 [NovelAnimatedPageView] 每帧重建、页面
+/// 文本行随之外层 Widget 重建。若每次 build 都新建 `GestureRecognizerFactory`
+/// 实例，`RawGestureDetector` 的 `didUpdateWidget → _syncAll` 虽会复用同 type
+/// 识别器，但 `initializer` 每次重新绑定回调，且依赖 Element 位置完全稳定；
+/// 一旦子树结构抖动（行数变化 / 动画期间 from/to 双页并存），识别器配置即被
+/// 篡改/重建，进行中的长按被中途打断（表现：「选中闪一下就消失」）。
+///
+/// 这里 gestures map 只在 [initState] 创建一次并缓存，`initializer` 内回调经
+/// [widget] 间接读取最新配置（组件重建时拿到的是新 widget 的新回调），
+/// 识别器实例与配置在长按期间保持恒定。
+class _StableLongPressDetector extends StatefulWidget {
+  const _StableLongPressDetector({
+    required this.onLongPressStart,
+    this.onLongPressMoveUpdate,
+    required this.onLongPressEnd,
+    required this.child,
+  });
+
+  final void Function(LongPressStartDetails d)? onLongPressStart;
+  final void Function(LongPressMoveUpdateDetails d)? onLongPressMoveUpdate;
+  final VoidCallback? onLongPressEnd;
+  final Widget child;
+
+  @override
+  State<_StableLongPressDetector> createState() =>
+      _StableLongPressDetectorState();
+}
+
+class _StableLongPressDetectorState extends State<_StableLongPressDetector> {
+  late final Map<Type, GestureRecognizerFactory> _gestures;
+
+  @override
+  void initState() {
+    super.initState();
+    // 只创建一次：识别器实例恒定，长按期间外层如何重建都不会被替换/重置。
+    _gestures = <Type, GestureRecognizerFactory>{
+      _TolerantLongPressGestureRecognizer:
+          GestureRecognizerFactoryWithHandlers<
+              _TolerantLongPressGestureRecognizer>(
+        () => _TolerantLongPressGestureRecognizer(),
+        // initializer 每次 _syncAll 都会执行；回调读取 widget 最新配置，
+        // 因此组件重建（换行/换块）后长按仍绑定到新的行/块。
+        (_TolerantLongPressGestureRecognizer instance) {
+          instance.onLongPressStart = (d) => widget.onLongPressStart?.call(d);
+          instance.onLongPressMoveUpdate = (d) =>
+              widget.onLongPressMoveUpdate?.call(d);
+          instance.onLongPressEnd = (_) => widget.onLongPressEnd?.call();
+        },
+      ),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RawGestureDetector(
+      behavior: HitTestBehavior.translucent,
+      gestures: _gestures,
+      child: widget.child,
+    );
+  }
 }
 
 /// 分享卡片：带书封的渐变文艺卡（Phase 3 / N6）。
