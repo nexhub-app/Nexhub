@@ -33,7 +33,11 @@ import './settings_advanced_screen.dart';
 import './settings_categories_screen.dart';
 import './settings_download_screen.dart';
 import './settings_import_export_screen.dart';
-import '../../manga/presentation/image_favorite_gallery_screen.dart';
+import './settings_ai_screen.dart';
+import './settings_translation_screen.dart';
+import './crash_log_screen.dart';
+import './log_viewer_screen.dart';
+import './settings_dandanplay_account_screen.dart';
 import './settings_cloud_sync_screen.dart';
 import './settings_bangumi_screen.dart';
 import './settings_rss_notifications_screen.dart';
@@ -1061,13 +1065,49 @@ class SettingsScreen extends StatelessWidget {
         builder: (_) => const SettingsRememberPositionScreen(),
       ),
 
-      // ───────────────── 内容与源 ─────────────────
+      // ───────────────── 配置与网络 ─────────────────
       _SettingEntry(
         icon: Icons.rss_feed,
         title: l10n.settingsCatContent,
         desc: l10n.settingsCatContentDesc,
-        keywords: const <String>['内容', '源'],
+        keywords: const <String>['配置', '网络', '内容', '源', 'ai', 'AI',
+            '爬取', '翻译'],
         builder: (_) => const SettingsContentScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.auto_awesome,
+        title: l10n.aiSettingsEntry,
+        desc: l10n.aiSettingsEntryDesc,
+        keywords: const <String>['ai', 'AI', '接口', '密钥', '模型', 'api',
+            'openai', '速览', '总结', '摘要', '配图', '生图', '云端', 'gpt'],
+        builder: (_) => const SettingsAiScreen(),
+        scrollKeyId: 'ai.common',
+      ),
+      _SettingEntry(
+        icon: Icons.insights_outlined,
+        title: l10n.aiSummarySection,
+        desc: l10n.aiSummaryDesc,
+        keywords: const <String>['速览', '总结', '摘要', '章节速览', '离线', '云端'],
+        builder: (_) => const SettingsAiScreen(),
+        scrollKeyId: 'ai.summary',
+      ),
+      _SettingEntry(
+        icon: Icons.auto_awesome_outlined,
+        title: l10n.aiIllustrationSection,
+        desc: l10n.aiIllustrationDesc,
+        keywords: const <String>['配图', '生图', '插图', '图片', '章节配图',
+            'illustration', 'ai配图'],
+        builder: (_) => const SettingsAiScreen(),
+        scrollKeyId: 'ai.illustration',
+      ),
+      _SettingEntry(
+        icon: Icons.translate,
+        title: l10n.translationSettingsEntry,
+        desc: l10n.translationSettingsEntryDesc,
+        keywords: const <String>['翻译', '双语', '译文', '目标语言', '段落翻译',
+            'translate', '翻译接口'],
+        builder: (_) => const SettingsTranslationScreen(),
+        scrollKeyId: 'translation.api',
       ),
       _SettingEntry(
         icon: Icons.extension_outlined,
@@ -1530,6 +1570,13 @@ class SettingsScreen extends StatelessWidget {
         keywords: const <String>['导入数据', '数据恢复'],
         builder: (_) => const SettingsImportExportScreen(),
       ),
+      _SettingEntry(
+        icon: Icons.chat_bubble_outline,
+        title: l10n.danmakuAccountSection,
+        keywords: const <String>['弹弹', '弹弹play', '账号', '弹幕账号',
+            'dandanplay', '登录'],
+        builder: (_) => const SettingsDandanplayAccountScreen(),
+      ),
 
       // ───────────────── 隐私与安全 ─────────────────
       _SettingEntry(
@@ -1655,6 +1702,21 @@ class SettingsScreen extends StatelessWidget {
         scrollKeyId: 'advanced.clean',
       ),
       _SettingEntry(
+        icon: Icons.bug_report_outlined,
+        title: l10n.crashLogTitle,
+        desc: l10n.crashLogDesc,
+        keywords: const <String>['崩溃', '日志', '异常', '错误', '闪退', 'crash'],
+        builder: (_) => const CrashLogScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.article_outlined,
+        title: l10n.runtimeLog,
+        desc: l10n.runtimeLogDesc,
+        keywords: const <String>['日志', '运行日志', '网络请求', '响应', 'log',
+            '详细日志'],
+        builder: (_) => const LogViewerScreen(),
+      ),
+      _SettingEntry(
         icon: Icons.colorize_outlined,
         title: l10n.customBgColor,
         keywords: const <String>['自定义背景色', '背景色', '底色'],
@@ -1698,6 +1760,14 @@ class SettingsScreen extends StatelessWidget {
         title: l10n.checkUpdate,
         keywords: const <String>['更新', '检查更新', '版本'],
         builder: (_) => const AboutScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.cloud_outlined,
+        title: l10n.updateMirrorSettings,
+        keywords: const <String>['镜像', '更新源', '下载源', 'mirror', '更新镜像'],
+        builder: (ctx) => UpdateMirrorSettingsScreen(
+          l10n: AppLocalizations.of(ctx),
+        ),
       ),
       _SettingEntry(
         icon: Icons.code,

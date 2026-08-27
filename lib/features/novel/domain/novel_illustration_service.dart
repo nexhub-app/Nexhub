@@ -37,19 +37,24 @@ class NovelIllustrationService {
   }
 
   /// 生成并保存插图，返回本地文件路径。失败抛异常由 UI 展示。
+  ///
+  /// [config] / [model] / [size] 缺省时读取 AI 配置页的「配图」配置
+  /// （独立接口优先，回落通用配置；model/size 取功能级选项）。
   Future<String> generateAndSave({
     required String novelId,
     required String chapterId,
     required String chapterTitle,
     required String excerpt,
     NovelSummaryConfig? config,
-    String model = '',
-    String size = '1024x1024',
+    String? model,
+    String? size,
   }) async {
-    final cfg = config ?? await _settings.getConfig();
+    final cfg = config ?? await _settings.getIllustrationConfig();
     final base = cfg.baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
     if (base.isEmpty) throw Exception('未配置云端 AI 接口');
 
+    final resolvedModel = model ?? await _settings.getIllustrationModel();
+    final resolvedSize = size ?? await _settings.getIllustrationSize();
     final resp = await _dio.post<Map<String, dynamic>>(
       '$base/images/generations',
       options: Options(
@@ -62,10 +67,10 @@ class NovelIllustrationService {
         receiveTimeout: const Duration(seconds: 180),
       ),
       data: <String, dynamic>{
-        if (model.trim().isNotEmpty) 'model': model.trim(),
+        if (resolvedModel.trim().isNotEmpty) 'model': resolvedModel.trim(),
         'prompt': buildPrompt(chapterTitle, excerpt),
         'n': 1,
-        'size': size,
+        'size': resolvedSize.trim().isEmpty ? '1024x1024' : resolvedSize.trim(),
         'response_format': 'b64_json',
       },
     );
@@ -95,8 +100,7 @@ class NovelIllustrationService {
     final dir = Directory(p.join(support.path, 'novel_illustrations'));
     await dir.create(recursive: true);
     // 文件名按 书+章 hash 稳定命名：同章再次生成覆盖旧图（保留最新一张）。
-    final name =
-        '${(novelId + '|' + chapterId).hashCode.abs()}.png';
+    final name = '${'$novelId|$chapterId'.hashCode.abs()}.png';
     final file = File(p.join(dir.path, name));
     await file.writeAsBytes(bytes);
     return file.path;

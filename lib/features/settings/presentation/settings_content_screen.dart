@@ -8,8 +8,10 @@ import 'package:nexhub/core/navigation/app_page_route.dart';
 import '../../sources/presentation/source_manager_screen.dart';
 import '../../home/presentation/browse_web_scrape_screen.dart';
 import './settings_network_screen.dart';
+import './settings_ai_screen.dart';
+import './settings_translation_screen.dart';
 
-/// 内容与源汇总页：源管理 / 网页爬取 / 网络设置入口。
+/// 配置与网络汇总页：源管理 / 网页爬取 / AI 配置 / 双语翻译 / 网络设置入口。
 class SettingsContentScreen extends StatelessWidget {
   const SettingsContentScreen({super.key});
 
@@ -44,6 +46,28 @@ class SettingsContentScreen extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 AppPageRoute<void>(
                   builder: (_) => const BrowseWebScrapeScreen(),
+                ),
+              ),
+            ),
+            AppListTile(
+              leading: const SettingsLeadingIcon(icon:Icons.auto_awesome),
+              title: Text(l10n.aiSettingsEntry),
+              subtitle: Text(l10n.aiSettingsEntryDesc),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                AppPageRoute<void>(
+                  builder: (_) => const SettingsAiScreen(),
+                ),
+              ),
+            ),
+            AppListTile(
+              leading: const SettingsLeadingIcon(icon:Icons.translate),
+              title: Text(l10n.translationSettingsEntry),
+              subtitle: Text(l10n.translationSettingsEntryDesc),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                AppPageRoute<void>(
+                  builder: (_) => const SettingsTranslationScreen(),
                 ),
               ),
             ),

@@ -89,12 +89,12 @@ import 'novel_selection_controller.dart';
 import '../../../core/novel/novel_highlight_manager.dart';
 import 'novel_tts_controller.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import '../domain/novel_summary_service.dart';
 import '../domain/novel_summary_settings.dart';
 import '../domain/novel_translation_service.dart';
 import '../domain/novel_illustration_service.dart';
+import '../../settings/presentation/settings_ai_screen.dart';
 // N7 内容编辑：正文编辑持久化管理器（Hive `novel_content_edits`）。
 
 /// 小说阅读器（Phase 4 — Task 19/20）。
@@ -2203,6 +2203,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           b.text,
     ];
     final chapter = widget.chapters[_chapterIndex];
+    // 目标语言取自翻译配置页（NovelSummarySettings）。
+    final targetLang =
+        await NovelSummarySettings.instance.getTranslationTargetLanguage();
+    if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -2211,6 +2215,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         chapterId: chapter.id,
         chapterTitle: chapter.title,
         paragraphs: paragraphs,
+        targetLanguage: targetLang,
         manager: NovelTranslationManager(),
       ),
     );
@@ -5937,7 +5942,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         .join('\n');
 
     final NovelOverviewMode initialMode = await settings.getMode();
-    final NovelSummaryConfig initialConfig = await settings.getConfig();
 
     // 离线摘要同步计算，进入即展示。
     final String localResult = chapterText.trim().isNotEmpty
@@ -5960,7 +5964,6 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             service: service,
             settings: settings,
             initialMode: initialMode,
-            initialConfig: initialConfig,
             chapterText: chapterText,
             localResult: localResult,
             statsWidget: _buildReadingStatsWidget(l10n),
@@ -6482,6 +6485,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         onPreDownloadChanged: () async {
           _preDownloadPrefs = await NovelPreDownloadPreferences.load();
         },
+        // AI 功能组：速览 / 翻译 / 配图入口。
+        onOpenSummary: _showReadingOverview,
+        onTranslate: _showTranslationSheet,
+        onGenerateIllustration: _generateAiIllustration,
       ),
     );
 
@@ -6514,7 +6521,6 @@ class _ReadingOverviewPanel extends StatefulWidget {
     required this.service,
     required this.settings,
     required this.initialMode,
-    required this.initialConfig,
     required this.chapterText,
     required this.localResult,
     required this.statsWidget,
@@ -6524,7 +6530,6 @@ class _ReadingOverviewPanel extends StatefulWidget {
   final NovelSummaryService service;
   final NovelSummarySettings settings;
   final NovelOverviewMode initialMode;
-  final NovelSummaryConfig initialConfig;
   final String chapterText;
   final String localResult;
   final Widget statsWidget;
@@ -6535,32 +6540,14 @@ class _ReadingOverviewPanel extends StatefulWidget {
 
 class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
   late NovelOverviewMode _mode;
-  late NovelSummaryConfig _config;
   bool _generating = false;
   String? _apiResult;
   String? _apiError;
-  bool _showApiSettings = false;
-
-  final TextEditingController _baseCtl = TextEditingController();
-  final TextEditingController _keyCtl = TextEditingController();
-  final TextEditingController _modelCtl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _mode = widget.initialMode;
-    _config = widget.initialConfig;
-    _baseCtl.text = _config.baseUrl;
-    _keyCtl.text = _config.apiKey;
-    _modelCtl.text = _config.model;
-  }
-
-  @override
-  void dispose() {
-    _baseCtl.dispose();
-    _keyCtl.dispose();
-    _modelCtl.dispose();
-    super.dispose();
   }
 
   Future<void> _setMode(NovelOverviewMode m) async {
@@ -6569,16 +6556,19 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
     await widget.settings.setMode(m);
   }
 
-  Future<void> _generate() async {
-    final cfg = NovelSummaryConfig(
-      baseUrl: _baseCtl.text.trim(),
-      apiKey: _keyCtl.text.trim(),
-      model: _modelCtl.text.trim(),
+  /// 跳转 AI 配置页（速览模式 / 通用与速览接口统一在 AI 配置页管理）。
+  void _openAiSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const SettingsAiScreen()),
     );
-    if (cfg.baseUrl.isEmpty || cfg.apiKey.isEmpty) {
+  }
+
+  Future<void> _generate() async {
+    // 统一读取「速览」功能级配置（独立接口优先，回落通用 AI 配置）。
+    final cfg = await widget.settings.getSummaryConfig();
+    if (cfg.baseUrl.trim().isEmpty) {
       setState(() {
         _apiError = widget.l10n.overviewApiMissing;
-        _showApiSettings = true;
       });
       return;
     }
@@ -6594,7 +6584,6 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
         _apiResult = r;
         _generating = false;
       });
-      await widget.settings.saveConfig(cfg);
     } on Object catch (e) {
       if (!mounted) return;
       setState(() {
@@ -6698,53 +6687,15 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
                 ),
               ],
             ),
-          // 云端 API 设置。
-          if (_mode == NovelOverviewMode.api)
-            ExpansionTile(
-              title: Text(l10n.overviewApiSettings),
-              initiallyExpanded: _showApiSettings,
-              children: <Widget>[
-                TextField(
-                  controller: _baseCtl,
-                  decoration: InputDecoration(
-                    labelText: l10n.overviewApiBaseUrl,
-                    hintText: 'https://api.openai.com/v1',
-                  ),
-                ),
-                TextField(
-                  controller: _keyCtl,
-                  decoration: InputDecoration(labelText: l10n.overviewApiKey),
-                  obscureText: true,
-                ),
-                TextField(
-                  controller: _modelCtl,
-                  decoration: InputDecoration(
-                    labelText: l10n.overviewApiModel,
-                    hintText: 'gpt-3.5-turbo',
-                  ),
-                ),
-                const SizedBox(height: AppTokens.spaceSm),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () async {
-                      await widget.settings.saveConfig(NovelSummaryConfig(
-                        baseUrl: _baseCtl.text.trim(),
-                        apiKey: _keyCtl.text.trim(),
-                        model: _modelCtl.text.trim(),
-                      ));
-                      if (mounted) {
-                        setState(() {
-                          _apiError = null;
-                          _apiResult = null;
-                        });
-                      }
-                    },
-                    child: Text(l10n.save),
-                  ),
-                ),
-              ],
+          // AI 配置入口（接口与速览配置统一在 AI 配置页管理）。
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _openAiSettings,
+              icon: const Icon(Icons.auto_awesome),
+              label: Text(l10n.aiSettingsTitle),
             ),
+          ),
           // 阅读数据（保留原统计卡）。
           ExpansionTile(
             title: Text(l10n.statsOverviewTitle),
@@ -7903,6 +7854,10 @@ class _NovelInlineSettings extends StatelessWidget {
   final String novelName;
   /// 问题 4：预下载配置保存后的回调（阅读器刷新快照，触发判定即时效）。
   final VoidCallback? onPreDownloadChanged;
+  // ── AI 功能组入口回调（打开速览 / 翻译 / 生成配图）──
+  final VoidCallback? onOpenSummary;
+  final VoidCallback? onTranslate;
+  final VoidCallback? onGenerateIllustration;
 
   const _NovelInlineSettings({
     required this.prefs,
@@ -7921,6 +7876,9 @@ class _NovelInlineSettings extends StatelessWidget {
     required this.novelId,
     required this.novelName,
     this.onPreDownloadChanged,
+    this.onOpenSummary,
+    this.onTranslate,
+    this.onGenerateIllustration,
   });
 
   @override
@@ -7949,7 +7907,10 @@ class _NovelInlineSettings extends StatelessWidget {
         || groupMatches(l10n.novelSectionTts,
             const <String>['朗读', '语速', '睡眠', '后台', '语音'])
         || groupMatches(l10n.novelSectionMisc,
-            const <String>['简繁', '缓存', '恢复', '配置', '工具栏', '转换']);
+            const <String>['简繁', '缓存', '恢复', '配置', '工具栏', '转换'])
+        || groupMatches(l10n.novelSectionAi,
+            const <String>['ai', '速览', '总结', '摘要', '翻译', '双语', '配图',
+                '生图', '云端', '离线', 'gpt', '模型', '接口', '密钥']);
     return Material(
       elevation: 4,
       child: Container(
@@ -9397,6 +9358,54 @@ class _NovelInlineSettings extends StatelessWidget {
                     ),
                       ],
                     ),
+                    // ── AI 功能组（章节速览 / 翻译 / AI 配图入口，可搜索）──
+                    _buildSettingsGroup(
+                      context,
+                      l10n.novelSectionAi,
+                      searchQuery: searchController.text,
+                      leading: Icons.auto_awesome,
+                      searchTerms: const <String>[
+                        'ai',
+                        '速览',
+                        '总结',
+                        '摘要',
+                        '翻译',
+                        '双语',
+                        '配图',
+                        '生图',
+                        '云端',
+                        '离线',
+                        'gpt',
+                        '模型',
+                        '接口',
+                        '密钥',
+                      ],
+                      children: <Widget>[
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.insights_outlined),
+                          title: Text(l10n.novelAiOpenSummary),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: onOpenSummary,
+                        ),
+                        const SizedBox(height: AppTokens.spaceSm),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.translate),
+                          title: Text(l10n.novelAiOpenTranslation),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: onTranslate,
+                        ),
+                        const SizedBox(height: AppTokens.spaceSm),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.auto_awesome_outlined),
+                          title: Text(l10n.novelAiIllustrate),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: onGenerateIllustration,
+                        ),
+                      ],
+                    ),
                     if (searchController.text.trim().isNotEmpty &&
                         !hasSearchMatch)
                       Padding(
@@ -10602,6 +10611,7 @@ class _NovelTranslationSheet extends StatefulWidget {
     required this.chapterId,
     required this.chapterTitle,
     required this.paragraphs,
+    required this.targetLanguage,
     required this.manager,
   });
 
@@ -10609,6 +10619,9 @@ class _NovelTranslationSheet extends StatefulWidget {
   final String chapterId;
   final String chapterTitle;
   final List<String> paragraphs;
+
+  /// 翻译目标语言（取自翻译配置页；兼作缓存 lang 标记）。
+  final String targetLanguage;
   final NovelTranslationManager manager;
 
   @override
@@ -10629,8 +10642,11 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
   }
 
   Future<void> _loadCache() async {
-    final cached = await widget.manager
-        .load(widget.novelId, widget.chapterId);
+    final cached = await widget.manager.load(
+      widget.novelId,
+      widget.chapterId,
+      lang: widget.targetLanguage,
+    );
     if (mounted && cached != null) {
       setState(() => _translations = cached.translations);
     }
@@ -10644,7 +10660,9 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
       _progress = null;
     });
     try {
-      final result = await NovelTranslationService().translateParagraphs(
+      final result = await NovelTranslationService(
+        targetLanguage: widget.targetLanguage,
+      ).translateParagraphs(
         widget.paragraphs,
         onProgress: (done, total) {
           if (mounted) {
@@ -10659,7 +10677,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
         novelId: widget.novelId,
         chapterId: widget.chapterId,
         chapterTitle: widget.chapterTitle,
-        lang: NovelTranslationManager.defaultLang,
+        lang: widget.targetLanguage,
         translations: result,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       ));

@@ -1,7 +1,8 @@
 /// 小说段落翻译服务（O3：双语/段落翻译）。
 ///
-/// 复用 AI 摘要的 OpenAI 兼容配置（[NovelSummarySettings]，baseUrl/apiKey/model），
-/// 对当前章节的文本段落逐段翻译：
+/// 复用 AI 统一配置（[NovelSummarySettings]）：
+/// - **翻译级独立接口**优先（AI 配置页），baseUrl 为空时回落通用配置；
+/// - 目标语言 / 分块大小读取翻译配置页的设置；
 /// - **批量优先**：全部段落以 `<<<N>>>` 序号分隔拼成一次请求，解析回逐段译文
 ///   （省 token、快）；
 /// - **分块回退**：批量解析段数不齐 / 请求失败时按 [batchSize] 分块重试；
@@ -19,15 +20,16 @@ class NovelTranslationService {
   NovelTranslationService({
     Dio? dio,
     NovelSummarySettings? settings,
-    this.targetLanguage = '中文',
+    String? targetLanguage,
   })  : _dio = dio ?? Dio(),
-        _settings = settings ?? NovelSummarySettings.instance;
+        _settings = settings ?? NovelSummarySettings.instance,
+        _targetLanguage = targetLanguage;
 
   final Dio _dio;
   final NovelSummarySettings _settings;
 
-  /// 翻译目标语言描述（提示词用，默认中文）。
-  final String targetLanguage;
+  /// 翻译目标语言（提示词用，默认中文）；null 时运行时读翻译配置页设置。
+  final String? _targetLanguage;
 
   /// 批量分隔标记（行首独立出现；正文含该串的概率可忽略）。
   static const String batchMarker = '<<<';
@@ -77,18 +79,22 @@ class NovelTranslationService {
   /// [onProgress] 回调 (已完成段数, 总数)，供长章节显示进度。
   Future<List<String>> translateParagraphs(
     List<String> paragraphs, {
-    int batchSize = 12,
+    int? batchSize,
     void Function(int done, int total)? onProgress,
   }) async {
     if (paragraphs.isEmpty) return const <String>[];
-    final cfg = await _settings.getConfig();
+    final cfg = await _settings.getTranslationConfig();
     if (cfg.baseUrl.trim().isEmpty) {
       throw Exception('未配置云端 AI 接口');
     }
+    final lang =
+        _targetLanguage ?? await _settings.getTranslationTargetLanguage();
+    final chunkSize =
+        batchSize ?? await _settings.getTranslationBatchSize();
 
     // 1) 整章一次批量（最省 token）；失败/解析不齐 → 分块回退。
     try {
-      final oneShot = await _requestBatch(paragraphs, cfg);
+      final oneShot = await _requestBatch(paragraphs, cfg, lang);
       final parsed = parseBatched(oneShot, paragraphs.length);
       if (parsed != null) {
         onProgress?.call(paragraphs.length, paragraphs.length);
@@ -98,13 +104,13 @@ class NovelTranslationService {
       // 落入分块回退。
     }
 
-    // 2) 分块翻译（每块 batchSize 段，块内仍走批量协议）。
+    // 2) 分块翻译（每块 chunkSize 段，块内仍走批量协议）。
     final result = List<String>.filled(paragraphs.length, '');
     var done = 0;
-    for (var start = 0; start < paragraphs.length; start += batchSize) {
-      final end = (start + batchSize).clamp(0, paragraphs.length);
+    for (var start = 0; start < paragraphs.length; start += chunkSize) {
+      final end = (start + chunkSize).clamp(0, paragraphs.length);
       final chunk = paragraphs.sublist(start, end);
-      final raw = await _requestBatch(chunk, cfg);
+      final raw = await _requestBatch(chunk, cfg, lang);
       final parsed =
           parseBatched(raw, chunk.length) ?? (throw Exception('翻译返回格式异常'));
       for (var i = 0; i < chunk.length; i++) {
@@ -117,7 +123,7 @@ class NovelTranslationService {
   }
 
   Future<String> _requestBatch(
-      List<String> paragraphs, NovelSummaryConfig cfg) async {
+      List<String> paragraphs, NovelSummaryConfig cfg, String lang) async {
     final trimmedBase = cfg.baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
     final resp = await _dio.post<Map<String, dynamic>>(
       '$trimmedBase/chat/completions',
@@ -137,7 +143,7 @@ class NovelTranslationService {
           <String, dynamic>{
             'role': 'system',
             'content': '你是专业的小说译者。把用户给出的每个编号段落翻译成'
-                '$targetLanguage，保持原文的语气与人名译名一致。'
+                '$lang，保持原文的语气与人名译名一致。'
                 '输出必须严格保持编号格式：每段译文前单独一行 <<<序号>>>，'
                 '不要添加任何解释或合并段落。',
           },

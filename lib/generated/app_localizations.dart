@@ -10481,14 +10481,224 @@ abstract class AppLocalizations {
   /// No description provided for @settingsCatContent.
   ///
   /// In en, this message translates to:
-  /// **'Content & Sources'**
+  /// **'Config & Network'**
   String get settingsCatContent;
 
   /// No description provided for @settingsCatContentDesc.
   ///
   /// In en, this message translates to:
-  /// **'Source management, scraping & network'**
+  /// **'Sources, scraping, AI & network'**
   String get settingsCatContentDesc;
+
+  /// No description provided for @aiSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Settings'**
+  String get aiSettingsTitle;
+
+  /// No description provided for @aiSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage AI endpoints & features (summary / illustration / translation)'**
+  String get aiSettingsDesc;
+
+  /// No description provided for @aiCommonApiSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Common API'**
+  String get aiCommonApiSection;
+
+  /// No description provided for @aiCommonApiDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Fallback endpoint for all AI features; a feature-specific endpoint takes priority'**
+  String get aiCommonApiDesc;
+
+  /// No description provided for @aiBaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get aiBaseUrl;
+
+  /// No description provided for @aiBaseUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. https://api.openai.com/v1'**
+  String get aiBaseUrlHint;
+
+  /// No description provided for @aiApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get aiApiKey;
+
+  /// No description provided for @aiModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get aiModel;
+
+  /// No description provided for @aiModelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. gpt-3.5-turbo'**
+  String get aiModelHint;
+
+  /// No description provided for @aiOverrideHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to use the common API'**
+  String get aiOverrideHint;
+
+  /// No description provided for @aiSummarySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter Summary'**
+  String get aiSummarySection;
+
+  /// No description provided for @aiSummaryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary mode & dedicated endpoint (empty = common API)'**
+  String get aiSummaryDesc;
+
+  /// No description provided for @aiSummaryMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary mode'**
+  String get aiSummaryMode;
+
+  /// No description provided for @aiIllustrationSection.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Illustration'**
+  String get aiIllustrationSection;
+
+  /// No description provided for @aiIllustrationDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustration endpoint & generation options (empty = common API)'**
+  String get aiIllustrationDesc;
+
+  /// No description provided for @aiIllustrationModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Image model'**
+  String get aiIllustrationModel;
+
+  /// No description provided for @aiIllustrationModelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty for server default'**
+  String get aiIllustrationModelHint;
+
+  /// No description provided for @aiIllustrationSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Image size'**
+  String get aiIllustrationSize;
+
+  /// No description provided for @aiSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'AI settings saved'**
+  String get aiSaved;
+
+  /// No description provided for @aiSettingsEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Settings'**
+  String get aiSettingsEntry;
+
+  /// No description provided for @aiSettingsEntryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'AI endpoint, chapter summary & illustration'**
+  String get aiSettingsEntryDesc;
+
+  /// No description provided for @translationSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bilingual / Translation'**
+  String get translationSettingsTitle;
+
+  /// No description provided for @translationSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Target language, endpoint & options'**
+  String get translationSettingsDesc;
+
+  /// No description provided for @translationApiSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation API'**
+  String get translationApiSection;
+
+  /// No description provided for @translationApiDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Dedicated endpoint; falls back to common API when empty'**
+  String get translationApiDesc;
+
+  /// No description provided for @translationTargetLang.
+  ///
+  /// In en, this message translates to:
+  /// **'Target language'**
+  String get translationTargetLang;
+
+  /// No description provided for @translationTargetLangHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Chinese / English / Japanese'**
+  String get translationTargetLangHint;
+
+  /// No description provided for @translationBatchSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Chunk size (paragraphs)'**
+  String get translationBatchSize;
+
+  /// No description provided for @translationBatchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry in chunks when the whole-chapter request fails'**
+  String get translationBatchHint;
+
+  /// No description provided for @translationSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation settings saved'**
+  String get translationSaved;
+
+  /// No description provided for @translationSettingsEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Bilingual / Translation'**
+  String get translationSettingsEntry;
+
+  /// No description provided for @translationSettingsEntryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Target language & endpoint config'**
+  String get translationSettingsEntryDesc;
+
+  /// No description provided for @novelSectionAi.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Features'**
+  String get novelSectionAi;
+
+  /// No description provided for @novelAiOpenSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Open chapter summary'**
+  String get novelAiOpenSummary;
+
+  /// No description provided for @novelAiOpenTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Open paragraph translation'**
+  String get novelAiOpenTranslation;
 
   /// No description provided for @settingsCatData.
   ///

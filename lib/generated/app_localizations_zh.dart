@@ -5428,10 +5428,115 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsCatPlaybackDesc => '播放器、漫画、小说与弹幕显示';
 
   @override
-  String get settingsCatContent => '内容与源';
+  String get settingsCatContent => '配置与网络';
 
   @override
-  String get settingsCatContentDesc => '源管理、网页爬取与网络设置';
+  String get settingsCatContentDesc => '源管理、网页爬取、AI 与网络设置';
+
+  @override
+  String get aiSettingsTitle => 'AI 配置';
+
+  @override
+  String get aiSettingsDesc => '统一管理 AI 接口与智能功能（速览 / 配图 / 翻译）';
+
+  @override
+  String get aiCommonApiSection => '通用 API 配置';
+
+  @override
+  String get aiCommonApiDesc => '所有 AI 功能的兜底接口；某功能单独配置后会优先使用其专用接口';
+
+  @override
+  String get aiBaseUrl => '接口地址';
+
+  @override
+  String get aiBaseUrlHint => '如 https://api.openai.com/v1';
+
+  @override
+  String get aiApiKey => 'API 密钥';
+
+  @override
+  String get aiModel => '模型';
+
+  @override
+  String get aiModelHint => '如 gpt-3.5-turbo';
+
+  @override
+  String get aiOverrideHint => '留空则使用通用配置';
+
+  @override
+  String get aiSummarySection => '章节速览';
+
+  @override
+  String get aiSummaryDesc => '速览方式与独立接口（留空则用通用配置）';
+
+  @override
+  String get aiSummaryMode => '速览方式';
+
+  @override
+  String get aiIllustrationSection => 'AI 配图';
+
+  @override
+  String get aiIllustrationDesc => '章节配图独立接口与生图选项（留空则用通用配置）';
+
+  @override
+  String get aiIllustrationModel => '生图模型';
+
+  @override
+  String get aiIllustrationModelHint => '留空则由服务端决定';
+
+  @override
+  String get aiIllustrationSize => '图片尺寸';
+
+  @override
+  String get aiSaved => 'AI 配置已保存';
+
+  @override
+  String get aiSettingsEntry => 'AI 配置';
+
+  @override
+  String get aiSettingsEntryDesc => '统一管理 AI 接口、章节速览与 AI 配图';
+
+  @override
+  String get translationSettingsTitle => '双语/段落翻译';
+
+  @override
+  String get translationSettingsDesc => '翻译目标语言、接口与选项';
+
+  @override
+  String get translationApiSection => '翻译接口';
+
+  @override
+  String get translationApiDesc => '翻译专用接口；留空则用通用配置';
+
+  @override
+  String get translationTargetLang => '目标语言';
+
+  @override
+  String get translationTargetLangHint => '如 中文 / 英文 / 日文';
+
+  @override
+  String get translationBatchSize => '分块大小（段/块）';
+
+  @override
+  String get translationBatchHint => '整章请求失败后按此分块重试';
+
+  @override
+  String get translationSaved => '翻译配置已保存';
+
+  @override
+  String get translationSettingsEntry => '双语/段落翻译';
+
+  @override
+  String get translationSettingsEntryDesc => '翻译目标语言与接口配置';
+
+  @override
+  String get novelSectionAi => 'AI 功能';
+
+  @override
+  String get novelAiOpenSummary => '打开章节速览';
+
+  @override
+  String get novelAiOpenTranslation => '打开段落翻译';
 
   @override
   String get settingsCatData => '数据与账户';

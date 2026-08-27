@@ -5531,10 +5531,123 @@ class AppLocalizationsEn extends AppLocalizations {
       'Player, comic, novel & danmaku display';
 
   @override
-  String get settingsCatContent => 'Content & Sources';
+  String get settingsCatContent => 'Config & Network';
 
   @override
-  String get settingsCatContentDesc => 'Source management, scraping & network';
+  String get settingsCatContentDesc => 'Sources, scraping, AI & network';
+
+  @override
+  String get aiSettingsTitle => 'AI Settings';
+
+  @override
+  String get aiSettingsDesc =>
+      'Manage AI endpoints & features (summary / illustration / translation)';
+
+  @override
+  String get aiCommonApiSection => 'Common API';
+
+  @override
+  String get aiCommonApiDesc =>
+      'Fallback endpoint for all AI features; a feature-specific endpoint takes priority';
+
+  @override
+  String get aiBaseUrl => 'Base URL';
+
+  @override
+  String get aiBaseUrlHint => 'e.g. https://api.openai.com/v1';
+
+  @override
+  String get aiApiKey => 'API key';
+
+  @override
+  String get aiModel => 'Model';
+
+  @override
+  String get aiModelHint => 'e.g. gpt-3.5-turbo';
+
+  @override
+  String get aiOverrideHint => 'Leave empty to use the common API';
+
+  @override
+  String get aiSummarySection => 'Chapter Summary';
+
+  @override
+  String get aiSummaryDesc =>
+      'Summary mode & dedicated endpoint (empty = common API)';
+
+  @override
+  String get aiSummaryMode => 'Summary mode';
+
+  @override
+  String get aiIllustrationSection => 'AI Illustration';
+
+  @override
+  String get aiIllustrationDesc =>
+      'Illustration endpoint & generation options (empty = common API)';
+
+  @override
+  String get aiIllustrationModel => 'Image model';
+
+  @override
+  String get aiIllustrationModelHint => 'Leave empty for server default';
+
+  @override
+  String get aiIllustrationSize => 'Image size';
+
+  @override
+  String get aiSaved => 'AI settings saved';
+
+  @override
+  String get aiSettingsEntry => 'AI Settings';
+
+  @override
+  String get aiSettingsEntryDesc =>
+      'AI endpoint, chapter summary & illustration';
+
+  @override
+  String get translationSettingsTitle => 'Bilingual / Translation';
+
+  @override
+  String get translationSettingsDesc => 'Target language, endpoint & options';
+
+  @override
+  String get translationApiSection => 'Translation API';
+
+  @override
+  String get translationApiDesc =>
+      'Dedicated endpoint; falls back to common API when empty';
+
+  @override
+  String get translationTargetLang => 'Target language';
+
+  @override
+  String get translationTargetLangHint => 'e.g. Chinese / English / Japanese';
+
+  @override
+  String get translationBatchSize => 'Chunk size (paragraphs)';
+
+  @override
+  String get translationBatchHint =>
+      'Retry in chunks when the whole-chapter request fails';
+
+  @override
+  String get translationSaved => 'Translation settings saved';
+
+  @override
+  String get translationSettingsEntry => 'Bilingual / Translation';
+
+  @override
+  String get translationSettingsEntryDesc =>
+      'Target language & endpoint config';
+
+  @override
+  String get novelSectionAi => 'AI Features';
+
+  @override
+  String get novelAiOpenSummary => 'Open chapter summary';
+
+  @override
+  String get novelAiOpenTranslation => 'Open paragraph translation';
 
   @override
   String get settingsCatData => 'Data & Accounts';
