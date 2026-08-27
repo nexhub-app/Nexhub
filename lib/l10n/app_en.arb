@@ -2965,7 +2965,7 @@
   "aiIllustrationSize": "Image size",
   "aiSaved": "AI settings saved",
   "aiSettingsEntry": "AI Settings",
-  "aiSettingsEntryDesc": "AI endpoint, chapter summary & illustration",
+  "aiSettingsEntryDesc": "AI endpoint, chapter summary, illustration & translation",
   "translationSettingsTitle": "Bilingual / Translation",
   "translationSettingsDesc": "Target language, endpoint & options",
   "translationApiSection": "Translation API",

@@ -3,11 +3,12 @@
 /// 层级结构（需求：统一管理 AI 的配置）：
 /// - **通用 API 配置**：所有 AI 功能的兜底 baseUrl/apiKey/model；
 /// - **章节速览**：速览方式（离线 / 云端 AI）+ 独立接口（留空回落通用）；
-/// - **AI 配图**：章节配图独立接口 + 生图模型与尺寸（留空回落通用）。
+/// - **AI 配图**：章节配图独立接口 + 生图模型与尺寸（留空回落通用）；
+/// - **双语/段落翻译**：翻译独立接口 + 目标语言 + 分块大小（留空回落通用）。
 ///
 /// 存储走 [NovelSummarySettings]（SharedPreferences），与阅读器速览面板、
 /// 配图 / 翻译服务共享同一份配置。页面 body 用 [SettingsAutoScroll] 包裹，
-/// 供设置搜索以 `ai.*` 滚动定位到具体卡片。
+/// 供设置搜索以 `ai.*` / `translation.*` 滚动定位到具体卡片。
 library;
 
 import 'package:flutter/material.dart';
@@ -55,6 +56,13 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
   final _illModelNameCtrl = TextEditingController();
   String _illSize = '1024x1024';
 
+  // 双语/段落翻译
+  final _trBaseCtrl = TextEditingController();
+  final _trKeyCtrl = TextEditingController();
+  final _trModelCtrl = TextEditingController();
+  final _trLangCtrl = TextEditingController();
+  double _trBatch = 12;
+
   bool _saving = false;
 
   @override
@@ -75,6 +83,12 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     final iKey = illCfg.apiKey == defaultCfg.apiKey ? '' : illCfg.apiKey;
     final iModel = illCfg.model == defaultCfg.model ? '' : illCfg.model;
     final mode = await _settings.getMode();
+    final trCfg = await _settings.getTranslationConfig();
+    final tBase = trCfg.baseUrl == defaultCfg.baseUrl ? '' : trCfg.baseUrl;
+    final tKey = trCfg.apiKey == defaultCfg.apiKey ? '' : trCfg.apiKey;
+    final tModel = trCfg.model == defaultCfg.model ? '' : trCfg.model;
+    final trLang = await _settings.getTranslationTargetLanguage();
+    final trBatch = await _settings.getTranslationBatchSize();
 
     if (!mounted) return;
     setState(() {
@@ -90,6 +104,12 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       _illBaseCtrl.text = iBase;
       _illKeyCtrl.text = iKey;
       _illModelCtrl.text = iModel;
+
+      _trBaseCtrl.text = tBase;
+      _trKeyCtrl.text = tKey;
+      _trModelCtrl.text = tModel;
+      _trLangCtrl.text = trLang;
+      _trBatch = trBatch.toDouble();
     });
     // 配图模型与尺寸单独加载（避免阻塞首帧）。
     final illModel = await _settings.getIllustrationModel();
@@ -113,6 +133,10 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     _illKeyCtrl.dispose();
     _illModelCtrl.dispose();
     _illModelNameCtrl.dispose();
+    _trBaseCtrl.dispose();
+    _trKeyCtrl.dispose();
+    _trModelCtrl.dispose();
+    _trLangCtrl.dispose();
     super.dispose();
   }
 
@@ -137,6 +161,13 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       ));
       await _settings.saveIllustrationModel(_illModelNameCtrl.text.trim());
       await _settings.saveIllustrationSize(_illSize);
+      await _settings.saveTranslationConfig(NovelSummaryConfig(
+        baseUrl: _trBaseCtrl.text.trim(),
+        apiKey: _trKeyCtrl.text.trim(),
+        model: _trModelCtrl.text.trim(),
+      ));
+      await _settings.saveTranslationTargetLanguage(_trLangCtrl.text.trim());
+      await _settings.saveTranslationBatchSize(_trBatch.round());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.aiSaved)),
@@ -246,6 +277,54 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                     for (final s in _kIllustrationSizes)
                       SettingsChoiceChipData<String>(value: s, label: s),
                   ],
+                ),
+              ],
+            ),
+            SettingsCard(
+              key: const ValueKey<String>('translation.api'),
+              title: l10n.translationSettingsTitle,
+              description: l10n.translationApiDesc,
+              children: <Widget>[
+                Text(
+                  l10n.aiOverrideHint,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Theme.of(context).colorScheme.outline),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                _ApiFields(
+                  baseCtrl: _trBaseCtrl,
+                  keyCtrl: _trKeyCtrl,
+                  modelCtrl: _trModelCtrl,
+                  baseHint: l10n.aiBaseUrlHint,
+                  modelHint: l10n.aiModelHint,
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                TextField(
+                  controller: _trLangCtrl,
+                  decoration: InputDecoration(
+                    labelText: l10n.translationTargetLang,
+                    hintText: l10n.translationTargetLangHint,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                SettingsSliderTile(
+                  label: l10n.translationBatchSize,
+                  value: _trBatch,
+                  min: 4,
+                  max: 40,
+                  divisions: 36,
+                  display: '${_trBatch.round()}',
+                  onChanged: (v) => setState(() => _trBatch = v),
+                ),
+                Text(
+                  l10n.translationBatchHint,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Theme.of(context).colorScheme.outline),
                 ),
               ],
             ),

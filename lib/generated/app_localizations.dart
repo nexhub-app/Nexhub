@@ -10613,7 +10613,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiSettingsEntryDesc.
   ///
   /// In en, this message translates to:
-  /// **'AI endpoint, chapter summary & illustration'**
+  /// **'AI endpoint, chapter summary, illustration & translation'**
   String get aiSettingsEntryDesc;
 
   /// No description provided for @translationSettingsTitle.

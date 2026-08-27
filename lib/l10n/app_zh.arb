@@ -2942,7 +2942,7 @@
   "aiIllustrationSize": "图片尺寸",
   "aiSaved": "AI 配置已保存",
   "aiSettingsEntry": "AI 配置",
-  "aiSettingsEntryDesc": "统一管理 AI 接口、章节速览与 AI 配图",
+  "aiSettingsEntryDesc": "统一管理 AI 接口、章节速览、AI 配图与双语翻译",
   "translationSettingsTitle": "双语/段落翻译",
   "translationSettingsDesc": "翻译目标语言、接口与选项",
   "translationApiSection": "翻译接口",

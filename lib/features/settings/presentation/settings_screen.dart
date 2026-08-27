@@ -34,7 +34,6 @@ import './settings_categories_screen.dart';
 import './settings_download_screen.dart';
 import './settings_import_export_screen.dart';
 import './settings_ai_screen.dart';
-import './settings_translation_screen.dart';
 import './crash_log_screen.dart';
 import './log_viewer_screen.dart';
 import './settings_dandanplay_account_screen.dart';
@@ -1106,7 +1105,7 @@ class SettingsScreen extends StatelessWidget {
         desc: l10n.translationSettingsEntryDesc,
         keywords: const <String>['翻译', '双语', '译文', '目标语言', '段落翻译',
             'translate', '翻译接口'],
-        builder: (_) => const SettingsTranslationScreen(),
+        builder: (_) => const SettingsAiScreen(),
         scrollKeyId: 'translation.api',
       ),
       _SettingEntry(

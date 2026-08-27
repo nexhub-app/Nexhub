@@ -5494,7 +5494,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiSettingsEntry => 'AI 配置';
 
   @override
-  String get aiSettingsEntryDesc => '统一管理 AI 接口、章节速览与 AI 配图';
+  String get aiSettingsEntryDesc => '统一管理 AI 接口、章节速览、AI 配图与双语翻译';
 
   @override
   String get translationSettingsTitle => '双语/段落翻译';

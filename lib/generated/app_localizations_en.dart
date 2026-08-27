@@ -5602,7 +5602,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiSettingsEntryDesc =>
-      'AI endpoint, chapter summary & illustration';
+      'AI endpoint, chapter summary, illustration & translation';
 
   @override
   String get translationSettingsTitle => 'Bilingual / Translation';
