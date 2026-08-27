@@ -844,6 +844,9 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       '双击', '点按', '区域', 'tap', 'webtoon', '方向', 'page',
                       '锚点', '长按缩放', '翻页动画', '音量键', '音量',
                       'zoom', 'anchor', 'fade', 'volume', 'auto',
+                      '双击缩放动画', '初始缩放', '长按缩放锚点', '屏幕方向',
+                      '翻页过渡动画', '左右留白', '点击翻转', '点击区域',
+                      '双击缩放', '缩放锚点', '动画速度',
                     ],
                     children: <Widget>[
                       _section(context, l10n.readerMode, _buildReadingMode()),
@@ -909,6 +912,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     searchTerms: const <String>[
                       '亮度', '对比度', '色温', '灰度', '反色', '滤镜', '画面',
                       '颜色', '饱和', '色调', 'filter', 'brightness', 'contrast',
+                      '阅读亮度', '色彩配置', '夜览', '夜览强度', '暖色', '盖层',
                     ],
                     children: <Widget>[
                       _buildImageFilter(),
@@ -965,6 +969,10 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       'auto scroll', 'scroll speed', '自动翻页',
                       '翻页间隔', '首屏单图', '单图', 'auto page turn',
                       '章节滑块', 'chapter slider',
+                      '裁边', '显示页码', '进度条在右侧', '章节导航滑块',
+                      '章节过渡', '章分割过渡', '屏幕常亮', '长按菜单', '预加载数量',
+                      '防止缩小', '旋转页面', '跨章无缝续读', '双页拆分',
+                      '条漫解码限幅',
                     ],
                     children: <Widget>[
                       _switchTile(l10n.readerCropEdge, _draft.cropEdge,

@@ -7836,6 +7836,62 @@ class _RawRegion {
   const _RawRegion(this.left, this.top, this.width, this.height);
 }
 
+// ───────────────── 内联设置弹窗搜索关键词 ─────────────────
+/// 各设置组的搜索关键词（组标题 + 组内全部具体设置项标题的关键词）。
+/// `hasSearchMatch` 与 `_buildSettingsGroup` 共用同一份常量，保证
+/// 「是否有组命中」的判定与实际组过滤完全一致；补充关键词即可让
+/// 内联弹窗里任意具体设置项（如「预下载」「标题加粗」「双击缩放」）
+/// 通过搜索直达对应分组。
+const List<String> _kNovelSecColorTerms = <String>[
+  '颜色', '背景', '亮度', '夜间', '文字色', '强调色', '背景色',
+  '正文颜色', '自定义背景色', '跟随背景', '自动配色', '标题色',
+];
+const List<String> _kNovelSecTextTerms = <String>[
+  '字号', '行距', '段距', '边距', '字距', '字体大小', '行高', '段落',
+];
+const List<String> _kNovelSecFontTerms = <String>[
+  '粗体', '斜体', '下划线', '字体', '字体文件', '字族', '字重', '加粗',
+  '自定义字体', '等宽', '衬线', '系统', '100-900',
+];
+const List<String> _kNovelSecTypographyTerms = <String>[
+  '对齐', '两端对齐', '断行', '中文', '禁则', '下划线', '实线', '虚线', '波浪',
+  '点线', '插图', '滚动', '图片', '通栏', '卡片', '排版',
+  '逐字断行', '原生折行', '插图对齐', '居中', '靠左', '靠右', '卡片式',
+  '对齐方式', '下划线样式', '波浪线', '自然',
+];
+const List<String> _kNovelSecTitleTerms = <String>[
+  '章节标题', '标题', '位置', '字体', '分段', '字号',
+  '显示', '加粗', '颜色', '边距', '上边距', '下边距', '强调色', '倍数', '倍率',
+  '行距', '间距', '分段模式', '对齐', '隐藏',
+];
+const List<String> _kNovelSecHeaderFooterTerms = <String>[
+  '页眉', '页脚', '时间', '电量', '页数', '进度',
+  '左侧', '右侧', '中间', '颜色', '边距',
+];
+const List<String> _kNovelSecShadowUnderlineTerms = <String>[
+  '阴影', '下划线', '颜色', '虚线', '阴影色',
+  '文字阴影', '模糊', '半径', '偏移', '水平', '垂直', '线宽', '实线段长',
+  '间隙', '比例', '自动', '半透明',
+];
+const List<String> _kNovelSecPageTerms = <String>[
+  '翻页', '动画', '点击', '自动翻页', '手势', '分区',
+  '间隔', '平滑', '双页', '模式', '滚轮', '反转', '点击区域', '翻转', '音量键',
+  '预览', '点按', '左右', '上下', '全部', '关闭',
+];
+const List<String> _kNovelSecTtsTerms = <String>[
+  '朗读', '语速', '睡眠', '后台', '语音',
+  '定时', '剩余', '分钟', '秒',
+];
+const List<String> _kNovelSecMiscTerms = <String>[
+  '简繁', '替换', '净化', '正则', '缓存', '恢复', '配置', '工具栏', '转换',
+  '繁简转换', '繁转简', '简转繁', '不转换', '预下载', '章节数', '阈值',
+  '恢复默认', '本书', '替换规则',
+];
+const List<String> _kNovelSecAiTerms = <String>[
+  'ai', '速览', '总结', '摘要', '翻译', '双语', '配图', '生图', '云端', '离线',
+  'gpt', '模型', '接口', '密钥',
+];
+
 class _NovelInlineSettings extends StatelessWidget {
   final NovelReaderPreferences prefs;
   final double brightness;
@@ -7891,26 +7947,19 @@ class _NovelInlineSettings extends StatelessWidget {
       return hay.contains(q);
     }
     final bool hasSearchMatch = groupMatches(l10n.novelSectionColor,
-            const <String>['颜色', '背景', '亮度', '夜间', '文字色', '强调色', '背景色'])
-        || groupMatches(l10n.novelSectionText,
-            const <String>['字号', '行距', '段距', '边距', '字距', '字体大小', '行高', '段落'])
-        || groupMatches(l10n.novelSectionFont,
-            const <String>['粗体', '斜体', '下划线', '字体', '字体文件', '字族'])
-        || groupMatches(l10n.novelSectionTitle,
-            const <String>['章节标题', '标题', '位置', '字体', '分段', '字号'])
+            _kNovelSecColorTerms)
+        || groupMatches(l10n.novelSectionText, _kNovelSecTextTerms)
+        || groupMatches(l10n.novelSectionFont, _kNovelSecFontTerms)
+        || groupMatches(l10n.novelTypographyGroup, _kNovelSecTypographyTerms)
+        || groupMatches(l10n.novelSectionTitle, _kNovelSecTitleTerms)
         || groupMatches(l10n.novelSectionHeaderFooter,
-            const <String>['页眉', '页脚', '时间', '电量', '页数', '进度'])
+            _kNovelSecHeaderFooterTerms)
         || groupMatches(l10n.novelSectionShadowUnderline,
-            const <String>['阴影', '下划线', '颜色', '虚线', '阴影色'])
-        || groupMatches(l10n.novelSectionPage,
-            const <String>['翻页', '动画', '点击', '自动翻页', '手势', '分区'])
-        || groupMatches(l10n.novelSectionTts,
-            const <String>['朗读', '语速', '睡眠', '后台', '语音'])
-        || groupMatches(l10n.novelSectionMisc,
-            const <String>['简繁', '缓存', '恢复', '配置', '工具栏', '转换'])
-        || groupMatches(l10n.novelSectionAi,
-            const <String>['ai', '速览', '总结', '摘要', '翻译', '双语', '配图',
-                '生图', '云端', '离线', 'gpt', '模型', '接口', '密钥']);
+            _kNovelSecShadowUnderlineTerms)
+        || groupMatches(l10n.novelSectionPage, _kNovelSecPageTerms)
+        || groupMatches(l10n.novelSectionTts, _kNovelSecTtsTerms)
+        || groupMatches(l10n.novelSectionMisc, _kNovelSecMiscTerms)
+        || groupMatches(l10n.novelSectionAi, _kNovelSecAiTerms);
     return Material(
       elevation: 4,
       child: Container(
@@ -7978,15 +8027,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n.novelSectionColor,
                       searchQuery: searchController.text,
                       leading: Icons.palette,
-                      searchTerms: const <String>[
-                        '颜色',
-                        '背景',
-                        '亮度',
-                        '夜间',
-                        '文字色',
-                        '强调色',
-                        '背景色',
-                      ],
+                      searchTerms: _kNovelSecColorTerms,
                       children: <Widget>[
                     // 亮度（从「翻页与交互」组上移，最常调）
                     _SliderRow(
@@ -8216,16 +8257,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       initiallyExpanded: true,
                       searchQuery: searchController.text,
                       leading: Icons.text_fields,
-                      searchTerms: const <String>[
-                        '字号',
-                        '行距',
-                        '段距',
-                        '边距',
-                        '字距',
-                        '字体大小',
-                        '行高',
-                        '段落',
-                      ],
+                      searchTerms: _kNovelSecTextTerms,
                       children: <Widget>[
                     _SliderRow(
                       label: l10n.novelFontSize,
@@ -8294,16 +8326,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n.novelSectionFont,
                       searchQuery: searchController.text,
                       leading: Icons.font_download_outlined,
-                      searchTerms: const <String>[
-                        '粗体',
-                        '斜体',
-                        '下划线',
-                        '字体',
-                        '字体文件',
-                        '字族',
-                        '字重',
-                        '加粗',
-                      ],
+                      searchTerms: _kNovelSecFontTerms,
                       children: <Widget>[
                     // 字体样式（加粗 / 斜体 / 下划线，可共存）
                     Text(l10n.novelFontStyle,
@@ -8397,24 +8420,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       searchQuery: searchController.text,
                       leading: Icons.format_align_left,
                       initiallyExpanded: true,
-                      searchTerms: const <String>[
-                        '对齐',
-                        '两端对齐',
-                        '断行',
-                        '中文',
-                        '禁则',
-                        '下划线',
-                        '实线',
-                        '虚线',
-                        '波浪',
-                        '点线',
-                        '插图',
-                        '滚动',
-                        '图片',
-                        '通栏',
-                        '卡片',
-                        '排版',
-                      ],
+                      searchTerms: _kNovelSecTypographyTerms,
                       children: <Widget>[
                         // 对齐方式（与总设置同步；仅分页模式两端对齐生效）
                         Text(l10n.novelTextAlignMode,
@@ -8559,14 +8565,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n.novelSectionTitle,
                       searchQuery: searchController.text,
                       leading: Icons.title,
-                      searchTerms: const <String>[
-                        '章节标题',
-                        '标题',
-                        '位置',
-                        '字体',
-                        '分段',
-                        '字号',
-                      ],
+                      searchTerms: _kNovelSecTitleTerms,
                       children: <Widget>[
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
@@ -8778,14 +8777,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n.novelSectionHeaderFooter,
                       searchQuery: searchController.text,
                       leading: Icons.view_headline,
-                      searchTerms: const <String>[
-                        '页眉',
-                        '页脚',
-                        '时间',
-                        '电量',
-                        '页数',
-                        '进度',
-                      ],
+                      searchTerms: _kNovelSecHeaderFooterTerms,
                       children: <Widget>[
                         _buildHfSlotPicker(
                           context: context,
@@ -8868,13 +8860,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n.novelSectionShadowUnderline,
                       searchQuery: searchController.text,
                       leading: Icons.format_color_text,
-                      searchTerms: const <String>[
-                        '阴影',
-                        '下划线',
-                        '颜色',
-                        '虚线',
-                        '阴影色',
-                      ],
+                      searchTerms: _kNovelSecShadowUnderlineTerms,
                       children: <Widget>[
                         // 文字阴影开关（从「颜色与背景」组移入）
                         SwitchListTile(
@@ -9074,14 +9060,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n.novelSectionPage,
                       searchQuery: searchController.text,
                       leading: Icons.gesture,
-                      searchTerms: const <String>[
-                        '翻页',
-                        '动画',
-                        '点击',
-                        '自动翻页',
-                        '手势',
-                        '分区',
-                      ],
+                      searchTerms: _kNovelSecPageTerms,
                       children: <Widget>[
                     // 翻页动画
                     Text(l10n.novelPageAnimation,
@@ -9206,13 +9185,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n.novelSectionTts,
                       searchQuery: searchController.text,
                       leading: Icons.record_voice_over,
-                      searchTerms: const <String>[
-                        '朗读',
-                        '语速',
-                        '睡眠',
-                        '后台',
-                        '语音',
-                      ],
+                      searchTerms: _kNovelSecTtsTerms,
                       children: <Widget>[
                         ListenableBuilder(
                           listenable: tts,
@@ -9267,17 +9240,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n.novelSectionMisc,
                       searchQuery: searchController.text,
                       leading: Icons.tune,
-                      searchTerms: const <String>[
-                        '简繁',
-                        '替换',
-                        '净化',
-                        '正则',
-                        '缓存',
-                        '恢复',
-                        '配置',
-                        '工具栏',
-                        '转换',
-                      ],
+                      searchTerms: _kNovelSecMiscTerms,
                       children: <Widget>[
                     // 繁简转换（M3.5.1）
                     Text(l10n.chineseConverter,
@@ -9364,22 +9327,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n.novelSectionAi,
                       searchQuery: searchController.text,
                       leading: Icons.auto_awesome,
-                      searchTerms: const <String>[
-                        'ai',
-                        '速览',
-                        '总结',
-                        '摘要',
-                        '翻译',
-                        '双语',
-                        '配图',
-                        '生图',
-                        '云端',
-                        '离线',
-                        'gpt',
-                        '模型',
-                        '接口',
-                        '密钥',
-                      ],
+                      searchTerms: _kNovelSecAiTerms,
                       children: <Widget>[
                         ListTile(
                           contentPadding: EdgeInsets.zero,
