@@ -97,13 +97,29 @@ class SourceAuthManager extends ChangeNotifier {
 
   /// Cookie 快速判定：源相关 host（baseUrl 与 login.url）的 Cookie 头中
   /// 出现 checkCookie 键名即视为已登录。
+  ///
+  /// 匹配规则：① 精确（正则 `checkCookie=`，兼容既有配置）；② 前缀（cookie 名
+  /// 以 checkCookie 开头，如 nhentai 配置写 `session` 而 Django 实际下发
+  /// `sessionid`）——避免出现「Cookie 已回灌、却因名字差一个 id 而始终判未登录」。
   bool _cookieLoggedIn(PluginConfig source) {
     final key = source.comments?.login?.checkCookie;
     if (key == null || key.isEmpty) return false;
     final pattern = RegExp('(^|;\\s*)${RegExp.escape(key)}=');
     for (final host in _hostsFor(source)) {
       final header = _cookieHeader(host);
-      if (header != null && pattern.hasMatch(header)) return true;
+      if (header == null || header.isEmpty) continue;
+      if (pattern.hasMatch(header)) return true;
+      var matched = false;
+      for (final part in header.split(';')) {
+        final eq = part.indexOf('=');
+        if (eq <= 0) continue;
+        final name = part.substring(0, eq).trim();
+        if (name == key || name.startsWith(key)) {
+          matched = true;
+          break;
+        }
+      }
+      if (matched) return true;
     }
     return false;
   }

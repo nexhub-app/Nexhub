@@ -5991,6 +5991,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get getCookie => 'Get Cookie';
 
   @override
+  String get cookieNotFoundHint =>
+      'No login cookie detected. Confirm you are signed in, then retry';
+
+  @override
   String get webLogin => 'Web login';
 
   @override

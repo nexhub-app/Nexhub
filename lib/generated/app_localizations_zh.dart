@@ -5864,6 +5864,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get getCookie => '获取 Cookie';
 
   @override
+  String get cookieNotFoundHint => '未检测到登录 Cookie，请确认已登录后重试';
+
+  @override
   String get webLogin => '网页登录';
 
   @override

@@ -3103,6 +3103,7 @@
   "loginRequired": "Login required for this action",
   "sourceLogin": "Source login",
   "getCookie": "Get Cookie",
+  "cookieNotFoundHint": "No login cookie detected. Confirm you are signed in, then retry",
   "webLogin": "Web login",
   "webLoginDesc": "Log in on the site page; the session is captured automatically",
   "pasteCookie": "Paste Cookie",

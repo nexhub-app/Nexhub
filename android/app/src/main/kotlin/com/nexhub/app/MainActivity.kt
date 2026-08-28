@@ -119,6 +119,33 @@ class MainActivity : FlutterFragmentActivity() {
             }
         }
 
+        // Method channel: 读取系统 WebView Cookie 存储（android.webkit.CookieManager），
+        // 与内嵌 InAppWebView 登录共享同一份 cookie。flutter_inappwebview 的
+        // CookieManager 在某些版本/配置下与 InAppWebView 不是同一存储，导致「登录了
+        // 但取不到 cookie」。直接读系统 CookieManager 是最可靠的做法：网络层经此通道
+        // 拿到会话 cookie 回灌，跳过 flutter_inappwebview 的中间层。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "nexhub/system_cookie"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getCookieHeader" -> {
+                    val url = call.argument<String>("url")
+                    if (url == null) {
+                        result.success(null)
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        val cookies = android.webkit.CookieManager.getInstance().getCookie(url)
+                        result.success(cookies)
+                    } catch (e: Exception) {
+                        result.success(null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         // Event channel for volume key events
         EventChannel(
             flutterEngine.dartExecutor.binaryMessenger,

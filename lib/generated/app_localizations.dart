@@ -11330,6 +11330,12 @@ abstract class AppLocalizations {
   /// **'Get Cookie'**
   String get getCookie;
 
+  /// No description provided for @cookieNotFoundHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No login cookie detected. Confirm you are signed in, then retry'**
+  String get cookieNotFoundHint;
+
   /// No description provided for @webLogin.
   ///
   /// In en, this message translates to:

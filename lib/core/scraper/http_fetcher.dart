@@ -16,6 +16,7 @@ import '../services/config_loader.dart';
 import '../settings/advanced_settings.dart';
 import '../utils/app_log.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'cookie_store.dart';
 import 'verification_detector.dart';
 
@@ -1081,6 +1082,29 @@ class HttpFetcher {
       options: Options(headers: headers),
     );
     return resp.headers.map;
+  }
+
+  /// 读取系统 WebView Cookie 存储中某 url 的 Cookie 头（与内嵌 InAppWebView 登录
+  /// 共享同一份 cookie）。经原生通道 `nexhub/system_cookie` 直连
+  /// `android.webkit.CookieManager.getInstance().getCookie(url)`（iOS 未注册时降级为
+  /// null）。这是参考原生 nhentai 客户端「登录后轮询系统 CookieManager 取会话」的做法，
+  /// 比 flutter_inappwebview 的 CookieManager 更可靠（后者在某些版本/配置下与
+  /// InAppWebView 不是同一存储，导致「登录了但取不到 cookie」）。
+  ///
+  /// 返回的即为可直接作为 `Cookie` 请求头的字符串（如 `sessionid=...; cf_clearance=...`）。
+  static const MethodChannel _systemCookieChannel =
+      MethodChannel('nexhub/system_cookie');
+
+  Future<String?> systemCookieHeader(String url) async {
+    try {
+      final String? r = await _systemCookieChannel.invokeMethod<String>(
+        'getCookieHeader',
+        <String, dynamic>{'url': url},
+      );
+      return r;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// WebView 验证完成后把共享 Cookie 同步进 Fetcher（含父域子域匹配）。
