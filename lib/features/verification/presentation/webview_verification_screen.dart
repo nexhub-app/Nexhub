@@ -173,6 +173,10 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
   @override
   void initState() {
     super.initState();
+    // CF turnstile 拒绝极简 UA（许多源声明如 `Mozilla/5.0`）→ 挑战 600010 无法
+    // 通过。把验证域的 UA 钉为完整浏览器 UA（验证页 WebView 与回灌后的抓取
+    // 请求同 UA，cf_clearance 才有效），源注册的极简 UA 被覆盖。
+    _applyFullBrowserUa();
     _loadHook();
     if (widget.snifferMode) {
       _snifferEngine.onUpdate = _onSnifferModeUpdate;
@@ -218,6 +222,24 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
             target.ref.isNotEmpty ? target.ref : widget.verificationUrl,
       ),
     );
+  }
+
+  /// 把验证域 host 的 UA 钉为完整浏览器 UA（覆盖源声明的极简 UA）。
+  ///
+  /// Cloudflare turnstile 会把仅含 `Mozilla/5.0` 的 UA 判定为不合法浏览器而
+  /// 拒绝（600010）。验证页 WebView 与回灌后的抓取请求必须共享同一 UA，
+  /// 否则下发的 cf_clearance 绑定验证时 UA、对抓取请求无效 → 反复验证。
+  void _applyFullBrowserUa() {
+    try {
+      final String? host = Uri.tryParse(widget.verificationUrl)?.host;
+      if (host == null || host.isEmpty) return;
+      HttpFetcher.instance.registerHostUserAgent(
+        host,
+        HttpFetcher.instance.fullBrowserUserAgent(),
+      );
+    } catch (_) {
+      // UA 覆盖失败不影响主流程。
+    }
   }
 
   /// 加载嗅探钩子脚本（本地 asset，近乎瞬时）。失败时置空字符串，

@@ -280,6 +280,15 @@ class HttpFetcher {
   /// 漂移导致 Cookie 失效 → 验证死循环（幻梦ACG _guard 滑块反复弹的核心根因）。
   String userAgentForUrl(String url) => _uaForHost(Uri.tryParse(url)?.host ?? '');
 
+  /// 取该 host 实际使用的 UA（供调用方在注册/覆盖前查询）。
+  String userAgentForHost(String host) => _uaForHost(host);
+
+  /// 完整浏览器 UA：优先用户配置的全局默认 UA，否则内置完整 Chrome UA。
+  ///
+  /// 供 Cloudflare 验证（turnstile）使用——部分源声明的 UA 极简（如
+  /// `Mozilla/5.0`），被 CF 判定为不合法浏览器 → 挑战 600010 无法通过。
+  String fullBrowserUserAgent() => _defaultUa();
+
   /// 高级设置「默认 UA」：非空时全局固定使用该 UA（覆盖指纹档案轮换）。
   String _customUa() => AdvancedSettingsStore.instance.defaultUserAgent;
 
@@ -1108,19 +1117,57 @@ class HttpFetcher {
           .putIfAbsent(domain ?? baseHost.toLowerCase(), () => <String>[])
           .add(pair);
     }
+    var changed = false;
     byDomain.forEach((host, pairs) {
-      final header = pairs.join('; ');
+      final incoming = pairs.join('; ');
       final existing = _cookieJar[host];
-      // 同名 cookie 追加更新：与旧值合并（新 Set-Cookie 覆盖同名，服务端按序取首值）。
-      _cookieJar[host] = existing == null ? header : '$existing; $header';
-      // 落盘持久化（TTL 7 天），避免重启后重新验证。UA 一并存，回灌时配套校验。
-      unawaited(CookieStore.save(host, _cookieJar[host]!, _uaForHost(host)));
+      // 按 cookie 名合并：同名后者覆盖前者，重组为去重后的 header。
+      // 旧实现直接字符串拼接（`'$existing; $header'`），导致相同会话 Cookie
+      // 永远不相等、无法去重，进而每个响应都自增版本 → 所有源封面无限重载。
+      final merged = _mergeCookieHeader(existing, incoming);
+      if (merged != existing) {
+        _cookieJar[host] = merged;
+        changed = true;
+        // 落盘持久化（TTL 7 天），避免重启后重新验证。UA 一并存，回灌时配套校验。
+        unawaited(CookieStore.save(host, merged, _uaForHost(host)));
+      }
     });
-    // 广播 Cookie 版本，通知封面/图片层用新会话重取。
-    _cookieVersion++;
-    if (!_cookieVersionController.isClosed) {
-      _cookieVersionController.add(_cookieVersion);
+    // 仅在 Cookie 实际变化时广播版本，通知封面/图片层用新会话重取；
+    // 服务端对每个响应重发相同会话 Cookie 时不再触发无谓重载（修复「所有源图片不停刷新」）。
+    if (changed) {
+      _cookieVersion++;
+      if (!_cookieVersionController.isClosed) {
+        _cookieVersionController.add(_cookieVersion);
+      }
     }
+  }
+
+  /// 按 cookie 名合并新旧 header：同名后者覆盖前者，返回重组后的 header。
+  ///
+  /// 输入可为空；输出按插入顺序为 `name=value` 以 `; ` 连接。仅保留含 `=` 的
+  /// 有效对，忽略 `Expires`/`Path`/`Domain` 等属性（调用方只用 `name=value`）。
+  String _mergeCookieHeader(String? existing, String incoming) {
+    final merged = <String, String>{};
+    void putAll(String? src) {
+      if (src == null || src.isEmpty) return;
+      for (final part in src.split(';')) {
+        final kv = part.trim();
+        if (kv.isEmpty || !kv.contains('=')) continue;
+        final eq = kv.indexOf('=');
+        final name = kv.substring(0, eq).trim();
+        final value = kv.substring(eq + 1).trim();
+        if (name.isNotEmpty) merged[name] = value;
+      }
+    }
+
+    putAll(existing);
+    putAll(incoming);
+    final sb = StringBuffer();
+    merged.forEach((name, value) {
+      if (sb.isNotEmpty) sb.write('; ');
+      sb.write('$name=$value');
+    });
+    return sb.toString();
   }
 
   dynamic _decodeJson(String text) {
