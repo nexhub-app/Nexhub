@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.0-beta.2-announce",
+    "date": "2026-08-28",
+    "title": "NexHub 2.0.0-beta.2 预发布测试版",
+    "titleEn": "NexHub 2.0.0-beta.2 (pre-release beta)",
+    "body": "NexHub 2.0.0-beta.2 预发布测试版来了！在 beta.1 基础上继续打磨三大阅读器：小说阅读器新增双页模式、整本页码、AI 双语 / 段落翻译、AI 章节配图、阅读器内正文编辑、墨水屏主题、压缩包批量导入、Mobi / PDF 解析、阅读进度 WebDAV 云同步、EPUB 导出模板、划线 / 高亮 / 摘录 / 分享；漫画阅读器新增夜览暖色盖层、睡眠定时、资源内存优化、双击三态、E-Ink 刷新、ICC 校色、预加载 1–16；影视播放器新增 Anime4K 超分辨率、弹幕发送、缓存降级、错误重试、字幕记忆、系统画中画与投屏完整生命周期；还有跨作品待读队列、统一图片收藏图库、源 API Key 登录与 WebView 登录 + Cookie 回灌、Cloudflare 验证修复，以及大量实机修复。这是 beta 测试版，可能有个别 bug，欢迎升级并反馈。无破坏性数据变更，可直接覆盖安装。",
+    "bodyEn": "NexHub 2.0.0-beta.2 (pre-release beta) is here! Building on beta.1, the three readers are further polished: the novel reader gains dual-page mode, whole-book page numbers, AI bilingual / paragraph translation, AI chapter illustration, in-reader text editing, e-ink theme, batch archive import, Mobi / PDF parsing, fine-grained WebDAV reading-progress sync, EPUB export templates, and highlight / annotate / share; the manga reader adds night-light overlay, sleep timer, resource & memory optimization, double-tap 3-state, E-Ink refresh, ICC color, and 1–16 preload; the video player adds Anime4K super-resolution, danmaku sending, cache degrade, error retry, subtitle memory, and full system-PiP / cast lifecycle; plus a cross-work reading queue, unified image gallery, source API-Key login with WebView login + cookie injection, Cloudflare fix, and many real-device fixes. This is a beta — some bugs may remain; upgrade and report issues. No breaking data changes — just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.0-beta.1-announce",
     "date": "2026-08-22",
     "title": "NexHub 2.0.0-beta.1 预发布测试版",

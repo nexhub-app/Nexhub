@@ -125,6 +125,18 @@
 #     - **需要新增的仓库 Secrets（缺失时不会报错，只是 OAuth 不可用）**：
 #       `BANGUMI_CLIENT_ID` / `BANGUMI_CLIENT_SECRET`，在 https://bgm.tv/dev/app/create
 #       注册应用获得，回调地址必须填 `nexhub://oauth/callback`。
+#   v25（当前，v2.0.0-beta.2）：
+#     - **安装包扩容（全套）**：在原有「Android 单架构分包 + Windows 便携/安装包 +
+#       Linux tar.gz + macOS zip」基础上新增四类安装包，覆盖更多用户安装习惯：
+#       1) **Android 通用 APK（fat）**：保留 `--split-per-abi` 三分包的同时，额外跑一次
+#          `flutter build apk --release`（无 split）产出 `app-release.apk` 单文件全架构，
+#          方便不想按 ABI 选包的用户直接装；
+#       2) **Linux .deb**：用 `dpkg-deb` 把 `build/linux/x64/release/bundle` 打成
+#          `NexHub-linux-x64.deb`（opt/nexhub + /usr/bin 软链 + desktop + 图标）；
+#       3) **Linux .AppImage**：用 `linuxdeploy` + flutter 插件打成 `NexHub-linux-x64.AppImage`
+#          （best-effort，产物缺失仅警告不阻断发布）；
+#       4) **macOS .dmg**：`hdiutil create` 把 `.app` 打成 `NexHub-macos.dmg`，与 zip 并存。
+#       Release 文件清单同步纳入上述新包（通用 APK 已含在通配 *.apk 内）。
 # =============================================================================
 
 name: Build & Release NexHub
@@ -194,6 +206,14 @@ jobs:
         run: |
           set -o pipefail
           flutter build apk --release --split-per-abi --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} --dart-define=BANGUMI_CLIENT_ID=${{ secrets.BANGUMI_CLIENT_ID }} --dart-define=BANGUMI_CLIENT_SECRET=${{ secrets.BANGUMI_CLIENT_SECRET }} 2>&1 | tee apk_build.log || { echo "=== ANDROID BUILD FAILED ===" && tail -n 500 apk_build.log; exit 1; }
+      - name: 编译通用 APK（fat，单文件全架构）
+        # 与上方 --split-per-abi 分包并存：本步产出 app-release.apk（一个包适配所有 ABI），
+        # 方便不想按架构挑包的用户直接安装。产物同样落在 build/app/outputs/flutter-apk/，
+        # 由下方通配 *.apk 一并上传。
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter build apk --release --verbose --dart-define=DANMAKU_APP_ID=${{ secrets.DANMAKU_APP_ID }} --dart-define=DANMAKU_APP_SECRET=${{ secrets.DANMAKU_APP_SECRET }} --dart-define=BANGUMI_CLIENT_ID=${{ secrets.BANGUMI_CLIENT_ID }} --dart-define=BANGUMI_CLIENT_SECRET=${{ secrets.BANGUMI_CLIENT_SECRET }} 2>&1 | tee apk_fat_build.log || { echo "=== ANDROID FAT APK BUILD FAILED ===" && tail -n 500 apk_fat_build.log; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
@@ -404,6 +424,94 @@ jobs:
           name: linux-build
           path: NexHub-linux-x64.tar.gz
           if-no-files-found: error
+      - name: 计算版本号（去掉 v 前缀，供 deb/AppImage 使用）
+        id: ver
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: 打包 Linux .deb 安装包
+        # 用 dpkg-deb 把 release bundle 打成 deb：opt/nexhub 放整套产物，
+        # /usr/bin/nexhub 软链到可执行，附带 desktop 入口与图标。
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -e
+          BUNDLE=build/linux/x64/release/bundle
+          STAGE=nexhub-deb
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE/DEBIAN" "$STAGE/opt/nexhub" "$STAGE/usr/bin" \
+                   "$STAGE/usr/share/applications" \
+                   "$STAGE/usr/share/icons/hicolor/256x256/apps"
+          cp -r "$BUNDLE/." "$STAGE/opt/nexhub/"
+          ln -s /opt/nexhub/nexhub "$STAGE/usr/bin/nexhub"
+          cat > "$STAGE/DEBIAN/control" <<'EOF'
+          Package: nexhub
+          Version: ${VERSION}
+          Section: multimedia
+          Priority: optional
+          Architecture: amd64
+          Depends: libgtk-3-0, libwebkit2gtk-4.1-0, libmpv1 | libmpv2, libsecret-1-0, libjsoncpp25, libglu1-mesa, libpulse0, libasound2, libnotify4
+          Maintainer: NexHub <noreply@nexhub.app>
+          Description: NexHub - 媒体聚合客户端（动漫/漫画/小说/影视）
+           一款插件驱动的跨模块媒体聚合客户端。
+          EOF
+          cat > "$STAGE/usr/share/applications/nexhub.desktop" <<'EOF'
+          [Desktop Entry]
+          Name=NexHub
+          Comment=媒体聚合客户端（动漫/漫画/小说/影视）
+          Exec=/opt/nexhub/nexhub
+          Icon=nexhub
+          Type=Application
+          Categories=AudioVideo;Video;Utility;
+          Terminal=false
+          EOF
+          if [ -f assets/icon/icon.png ]; then
+            cp assets/icon/icon.png "$STAGE/usr/share/icons/hicolor/256x256/apps/nexhub.png"
+          fi
+          dpkg-deb --build "$STAGE" "NexHub-linux-x64.deb"
+          ls -la NexHub-linux-x64.deb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb
+          path: NexHub-linux-x64.deb
+          if-no-files-found: error
+      - name: 打包 Linux .AppImage（best-effort）
+        # 用 linuxdeploy + flutter 插件把 bundle 打成 AppImage。该步骤依赖外部下载，
+        # 失败仅警告、不阻断发布（仍保留 tar.gz 与 deb）。
+        shell: bash
+        run: |
+          set -e
+          BUNDLE=build/linux/x64/release/bundle
+          APPDIR=AppDir
+          rm -rf "$APPDIR" NexHub-linux-x64.AppImage
+          mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" \
+                   "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+          cp -r "$BUNDLE/." "$APPDIR/usr/bin/"
+          cat > "$APPDIR/usr/share/applications/nexhub.desktop" <<'EOF'
+          [Desktop Entry]
+          Name=NexHub
+          Comment=媒体聚合客户端（动漫/漫画/小说/影视）
+          Exec=nexhub
+          Icon=nexhub
+          Type=Application
+          Categories=AudioVideo;Video;Utility;
+          Terminal=false
+          EOF
+          if [ -f assets/icon/icon.png ]; then
+            cp assets/icon/icon.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/nexhub.png"
+          fi
+          wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -O linuxdeploy.AppImage
+          chmod +x linuxdeploy.AppImage
+          wget -q "https://github.com/linuxdeploy/linuxdeploy-plugin-flutter/releases/download/continuous/linuxdeploy-plugin-flutter-x86_64.AppImage" -O linuxdeploy-plugin-flutter.AppImage
+          chmod +x linuxdeploy-plugin-flutter.AppImage
+          ./linuxdeploy.AppImage --appdir "$APPDIR" --plugin flutter --output appimage || \
+            ./linuxdeploy.AppImage --appdir "$APPDIR" --output appimage
+          ls -la NexHub-linux-x64*.AppImage 2>/dev/null || echo "AppImage 未产出（best-effort 跳过）"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: NexHub-linux-x64.AppImage
+          if-no-files-found: warn
 
   macos:
     name: macOS
@@ -441,10 +549,22 @@ jobs:
           APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -n1)
           echo "找到 App: $APP"
           ditto -c -k --sequesterRsrc --keepParent "$APP" NexHub-macos.zip
+      - name: 打包 macOS .dmg 安装镜像
+        # 用 hdiutil 把 .app 打成 dmg，与 zip 并存，方便双击挂载安装。
+        run: |
+          APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -n1)
+          echo "找到 App: $APP"
+          hdiutil create -volname NexHub -srcfolder "$APP" -ov -format UDZO NexHub-macos.dmg
+          ls -la NexHub-macos.dmg
       - uses: actions/upload-artifact@v4
         with:
           name: macos-build
           path: NexHub-macos.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: NexHub-macos.dmg
           if-no-files-found: error
 
   release:
@@ -471,4 +591,7 @@ jobs:
             artifacts/windows-build/NexHub-windows-x64.zip
             artifacts/windows-installer/NexHub-setup-*.exe
             artifacts/linux-build/NexHub-linux-x64.tar.gz
+            artifacts/linux-deb/NexHub-linux-x64.deb
+            artifacts/linux-appimage/NexHub-linux-x64.AppImage
             artifacts/macos-build/NexHub-macos.zip
+            artifacts/macos-dmg/NexHub-macos.dmg

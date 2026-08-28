@@ -252,7 +252,7 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 - `comments.login`: **source login declaration, three login types, combinable** —
   - **WebView login**: `login.url` is the login page; the app opens it in a WebView and captures the session cookie locally after login;
   - **Cookie login**: `login.checkCookie` is the cookie key that means "logged in" for a fast check; you can also paste a whole session cookie into `site.cookies` and every request carries it;
-  - **API key login**: set `login.sendTokenAs` to `"key"`; the user pastes the key in Source details, the app stores it in the local key store and appends `Authorization: <authScheme> <key>` to protected requests (prefix defaults to `Key`). For sites where login yields an access_token but favorites / profile need a separate API key (e.g. nhentai's v2 API explicitly requires `Key <api_key>`, not Bearer);
+  - **API key login**: set `login.sendTokenAs` to `"key"`; the user pastes the key in Source details, the app stores it in the local key store and appends `Authorization: <authScheme> <key>` to protected requests (prefix defaults to `Key`). For sites where login yields an access_token but favorites / profile need a separate API key (some sites' newer APIs explicitly require `Key <api_key>`, not Bearer);
 - Token carrier `login.sendTokenAs`: `null` (cookie only) / `"bearer"` (`Authorization: Bearer <cookie value of checkCookie>`) / `"key"` (`Authorization: <authScheme> <manual key>`, i.e. API key login);
 - Secondary session check: `login.checkUrl` + `login.loggedInSelector` (GET checkUrl; a non-empty selector match means the session is valid);
 - Credentials stay local only; without a login declaration the source is treated as read-only / no-login.
