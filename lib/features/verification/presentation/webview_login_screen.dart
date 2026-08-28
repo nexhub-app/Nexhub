@@ -166,6 +166,50 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
   Future<bool> _syncCookies() async {
     final checkCookie = _login?.checkCookie;
     var wroteAny = false;
+    // 优先一次性取回全部 Cookie 并按自身 domain 分组回灌：登录往往把会话
+    // cookie 下发到主域（Domain=.example.com），而登录页可能停在子域/跳转后
+    // 的域，逐域 getCookies('scheme://host') 容易漏域、且无 path 时读不到
+    // Path 非 / 的 cookie → 表现为「登录了但点获取 Cookie 拿不到 / 仍未登录」。
+    try {
+      final List<Cookie> all = await CookieManager.instance().getAllCookies();
+      if (all.isNotEmpty) {
+        final List<Uri> targets = _targetUris();
+        final Map<String, List<Cookie>> byDomain =
+            <String, List<Cookie>>{};
+        for (final Cookie c in all) {
+          final String? d = c.domain;
+          if (d == null || d.isEmpty) continue;
+          final String host =
+              (d.startsWith('.') ? d.substring(1) : d).toLowerCase();
+          // 仅回灌与本源相关的域（相同/父子域），避免污染其他站点的 jar。
+          final bool related = targets.any((Uri t) {
+            final String th = t.host.toLowerCase();
+            return host == th || host.endsWith('.$th') || th.endsWith('.$host');
+          });
+          if (!related) continue;
+          byDomain.putIfAbsent(host, () => <Cookie>[]).add(c);
+        }
+        for (final MapEntry<String, List<Cookie>> e in byDomain.entries) {
+          final String header = e.value
+              .where((c) =>
+                  c.value != null && c.value.toString().isNotEmpty)
+              .map((c) => '${c.name}=${c.value}')
+              .join('; ');
+          if (header.isEmpty) continue;
+          HttpFetcher.instance.syncCookies(e.key, header);
+          wroteAny = true;
+        }
+        if (checkCookie != null &&
+            checkCookie.isNotEmpty &&
+            all.any((Cookie c) => c.name == checkCookie)) {
+          wroteAny = true;
+        }
+        return wroteAny;
+      }
+    } catch (_) {
+      // getAllCookies 失败（低版本 WebView / 不支持 GET_COOKIE_INFO）：回退逐域。
+    }
+    // 回退：逐域读取（原逻辑）。
     for (final uri in _targetUris()) {
       try {
         final cookies = await CookieManager.instance().getCookies(
