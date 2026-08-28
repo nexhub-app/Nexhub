@@ -444,7 +444,7 @@ jobs:
                    "$STAGE/usr/share/icons/hicolor/256x256/apps"
           cp -r "$BUNDLE/." "$STAGE/opt/nexhub/"
           ln -s /opt/nexhub/nexhub "$STAGE/usr/bin/nexhub"
-          cat > "$STAGE/DEBIAN/control" <<'EOF'
+          cat > "$STAGE/DEBIAN/control" <<EOF
           Package: nexhub
           Version: ${VERSION}
           Section: multimedia
