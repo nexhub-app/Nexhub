@@ -1,6 +1,6 @@
 /// 跨作品待读队列（X-2 跨类型对齐：小说 / 漫画）。
 ///
-/// 复用播放器 F-4 `PlayQueueStore` 的持久化模式（SharedPreferences + 身份存储）：
+/// 复用播放器  `PlayQueueStore` 的持久化模式（SharedPreferences + 身份存储）：
 /// 仅保存作品的身份与起始章信息，具体章节列表在打开时由对应源的解析器
 /// 重新抓取（`fetchNovelChapters` / `fetchChapters`），不在此硬编码目录。
 library;

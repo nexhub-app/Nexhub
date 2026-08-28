@@ -201,7 +201,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                             label: Text(l10n.playerAspectFill)),
                       ],
                     ),
-                    // F-7：超分辨率 shader 默认档位（播放器内可按剧集单独覆盖）
+                    // 超分辨率 shader 默认档位（播放器内可按剧集单独覆盖）
                     SettingsSegmentedTile<UpscaleShaderMode>(
                       key: const ValueKey<String>('player.upscaleShader'),
                       title: l10n.playerUpscaleShader,
@@ -237,7 +237,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       onChanged: (v) =>
                           _update(_settings.copyWith(autoPlayNext: v)),
                     ),
-                    // F-8：自动连播倒计时（播完弹「N 秒后播放下一集」可取消）。
+                    // 自动连播倒计时（播完弹「N 秒后播放下一集」可取消）。
                     if (_settings.autoPlayNext)
                       SettingsChoiceChips<int>(
                         title: l10n.playerAutoPlayCountdown,
@@ -549,7 +549,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       onChanged: (v) =>
                           _update(_settings.copyWith(longPressSpeed: v)),
                     ),
-                    // F-12：隐藏控制栏后底部细进度条（可开关）。
+                    // 隐藏控制栏后底部细进度条（可开关）。
                     SettingsSwitchTile(
                       key: const ValueKey<String>('player.bottomProgress'),
                       title: l10n.playerBottomProgress,
@@ -557,7 +557,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                       onChanged: (v) => _update(
                           _settings.copyWith(showBottomProgress: v)),
                     ),
-                    // F-1：自动选线路（按集记忆的线路优先；失败自动轮换候选线路）。
+                    // 自动选线路（按集记忆的线路优先；失败自动轮换候选线路）。
                     SettingsSwitchTile(
                       key: const ValueKey<String>('player.autoSelectLine'),
                       title: l10n.playerAutoSelectLine,

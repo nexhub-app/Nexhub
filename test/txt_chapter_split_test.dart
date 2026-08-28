@@ -1,4 +1,4 @@
-/// TXT 行级章节切分自测（B-01/B-02）：
+/// TXT 行级章节切分自测（/）：
 /// 单换行分隔文件正确分章、英文章节名命中、双换行文件回归、
 /// 前言独立成章、无标题兜底硬切、超长章二次切分、正文误引过滤。
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +14,7 @@ String _para(int seed, {int lines = 40}) {
 }
 
 void main() {
-  test('B-02: 段落仅以单换行分隔的 TXT 正确分章', () {
+  test(': 段落仅以单换行分隔的 TXT 正确分章', () {
     final buf = StringBuffer();
     buf.writeln('第一章 起点');
     buf.write(_para(0, lines: 60));
@@ -34,7 +34,7 @@ void main() {
     expect(chapters[1].content.first, contains('这是第2章的正文内容第0行'));
   });
 
-  test('B-01: 英文章节名（阿拉伯数字与拼写数字）命中切分', () {
+  test(': 英文章节名（阿拉伯数字与拼写数字）命中切分', () {
     final buf = StringBuffer();
     buf.writeln('Chapter 1 The Beginning');
     buf.write(_para(0, lines: 60));

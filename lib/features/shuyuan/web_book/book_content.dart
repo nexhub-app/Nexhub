@@ -461,7 +461,7 @@ class BookContent {
     final urls = <String>[];
     for (final im in imgTags) {
       final tag = im.group(0) ?? '';
-      // 对齐 Legado 参考库：优先查特定属性，再兜底任意 data-xxx。
+      // 与通用书源规范一致：优先查特定属性，再兜底任意 data-xxx。
       final src = _attr(tag, 'data-original') ??
           _attr(tag, 'data-src') ??
           _attr(tag, 'data-lazy-src') ??
@@ -474,7 +474,7 @@ class BookContent {
     return urls;
   }
 
-  /// 从 <img> 标签中提取第一个 `data-xxx` 属性值（对齐 Legado 参考库
+  /// 从 <img> 标签中提取第一个 `data-xxx` 属性值（沿用通用书源规范
   /// `formatImagePattern` 第三分支：`<img[^>]*\sdata-[^=>]*=['"]([^'"]*)['"][^>]*>`）。
   /// 按顺序扫描所有 data-* 属性，返回第一个非空、非占位符的值。
   static String? _attrFirstDataXxx(String tag) {
@@ -493,7 +493,7 @@ class BookContent {
 
   /// 读取单个 HTML 标签属性值。
   ///
-  /// 支持三种格式（对齐 Legado 参考库）：
+  /// 支持三种格式（沿用通用书源规范）：
   /// 1. 双引号：`name="value"`
   /// 2. 单引号：`name='value'`
   /// 3. 无引号：`name=value`（值遇空格/`>` 结束）
@@ -530,7 +530,7 @@ class BookContent {
 
   /// 过滤明显非插图的占位图（1px 透明图、loading 动画、spacer 等）。
   ///
-  /// 对齐 Legado 参考库：保留所有非占位符的 URL（包括无扩展名 CDN 图床），
+  /// 与通用书源规范一致：保留所有非占位符的 URL（包括无扩展名 CDN 图床），
   /// 仅过滤明显是占位图/loading 图的 URL。此前要求扩展名（.jpg/.png 等），
   /// 导致无扩展名图床 URL 被误过滤，插图永远无法显示。
   static bool _looksLikeImage(String url) {

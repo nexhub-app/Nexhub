@@ -1,4 +1,4 @@
-// F-7 超分辨率 shader：PlayerSettings.upscaleShader 序列化 / 剧集覆盖合并 /
+//  超分辨率 shader：PlayerSettings.upscaleShader 序列化 / 剧集覆盖合并 /
 // Anime4K 档位预设映射的纯单元验证。
 //
 // 完整 Player 构造需原生 libmpv（同 player_screen_test 的限制），故不覆盖
@@ -10,7 +10,7 @@ import 'package:nexhub/core/player/anime4k_shaders.dart';
 import 'package:nexhub/core/settings/player_settings.dart';
 
 void main() {
-  group('F-7 PlayerSettings.upscaleShader', () {
+  group(' PlayerSettings.upscaleShader', () {
     test('默认关闭，toJson 随键持久化', () {
       const s = PlayerSettings();
       expect(s.upscaleShader, UpscaleShaderMode.off);
@@ -59,7 +59,7 @@ void main() {
     });
   });
 
-  group('F-7 Anime4kShaderCatalog', () {
+  group(' Anime4kShaderCatalog', () {
     test('off 档直接返回空串（清空已加载 shader）', () async {
       expect(
         await Anime4kShaderCatalog.mpvShaderList(UpscaleShaderMode.off),

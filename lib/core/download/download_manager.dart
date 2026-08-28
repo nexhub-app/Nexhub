@@ -1210,7 +1210,7 @@ class DownloadManager extends ChangeNotifier {
       }
 
       // 小说任务：读取该作品的阅读偏好，落盘时应用与阅读器一致的繁简转换
-      // （B-05：阅读器内开繁→简后，离线缓存与显示保持相同）。
+      // （阅读器内开繁→简后，离线缓存与显示保持相同）。
       ChineseConvertMode novelConvertMode = ChineseConvertMode.none;
       if (task.sourceType == SourceType.novelSource) {
         try {
@@ -1451,7 +1451,7 @@ class DownloadManager extends ChangeNotifier {
           author: author,
           concurrency: _settings.threadCount,
           convertMode: novelConvertMode,
-          // P2-11：导出附带划线 / 批注附录。
+          // 导出附带划线 / 批注附录。
           includeHighlights: true,
           // F5：导出附带已缓存的章节译文（O3 段落翻译）。
           includeTranslations: true,

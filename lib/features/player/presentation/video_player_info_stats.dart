@@ -10,7 +10,7 @@ extension _VideoInfoStats on _VideoPlayerScreenState {
         '${pos ~/ 60}:${(pos % 60).toString().padLeft(2, '0')}';
     final durStr =
         '${dur ~/ 60}:${(dur % 60).toString().padLeft(2, '0')}';
-    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    // 面板打开期间持有控制栏，禁止自动隐藏。
     _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
@@ -64,7 +64,7 @@ extension _VideoInfoStats on _VideoPlayerScreenState {
         );
       },
     )
-        // F-16：面板关闭后释放控制栏租约。
+        // 面板关闭后释放控制栏租约。
         .whenComplete(_releasePanelHold);
   }
 
@@ -77,7 +77,7 @@ extension _VideoInfoStats on _VideoPlayerScreenState {
   /// 「hwdec=auto 实际落在哪条解码路径」与花屏问题排查。
   void _showPlaybackStats(AppLocalizations l10n) {
     Timer? refreshTimer;
-    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    // 面板打开期间持有控制栏，禁止自动隐藏。
     _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
@@ -180,7 +180,7 @@ extension _VideoInfoStats on _VideoPlayerScreenState {
       ),
     ).whenComplete(() {
       refreshTimer?.cancel();
-      // F-16：面板关闭后释放控制栏租约。
+      // 面板关闭后释放控制栏租约。
       _releasePanelHold();
     });
   }

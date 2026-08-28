@@ -9,7 +9,7 @@ import 'video_player_backend.dart';
 /// 与画面比例的运行时切换能力。持有底层 [Player] 实例供控制器与 UI 使用。
 class MediaKitBackend extends VideoPlayerBackend {
   MediaKitBackend(this._player) {
-    // F-31：能力集合反映真实运行时——mpv 属性系能力仅在原生平台可用，
+    // 能力集合反映真实运行时——mpv 属性系能力仅在原生平台可用，
     // Web（WebPlayer）与异常构造下返回空集，菜单按能力自动隐藏 mpv 专属项。
     _native = _player.platform is NativePlayer;
     _applyDefaultProperties();
@@ -94,7 +94,7 @@ class MediaKitBackend extends VideoPlayerBackend {
     await _setProperty('demuxer-readahead-secs', '120');
     await _setProperty('network-timeout', '60');
     await _setProperty('force-seekable', 'yes');
-    // F-29：标准档 demuxer 前向缓存预算（mpv 默认仅 128MiB，加大后长视频
+    // 标准档 demuxer 前向缓存预算（mpv 默认仅 128MiB，加大后长视频
     // 拖动更顺滑）；移动网络 / 低内存时经 [setDemuxerCacheBudget] 降到
     // 低内存档，避免后台 demux 缓存挤占前台内存。
     await _setProperty('demuxer-max-bytes', '1500MiB');
@@ -105,7 +105,7 @@ class MediaKitBackend extends VideoPlayerBackend {
     // 待后续单独验证后再按需加入。
   }
 
-  /// F-29：设置 demuxer 前向 / 后向缓存预算（字节）。
+  /// 设置 demuxer 前向 / 后向缓存预算（字节）。
   ///
   /// 移动网络或低内存设备降级调用（如 2MiB / 1MiB），非原生平台静默忽略。
   Future<void> setDemuxerCacheBudget(int maxBytes, int maxBackBytes) async {
@@ -113,7 +113,7 @@ class MediaKitBackend extends VideoPlayerBackend {
     await _setProperty('demuxer-max-back-bytes', '$maxBackBytes');
   }
 
-  /// F-29：open 前按地址准备 demuxer 格式。
+  /// open 前按地址准备 demuxer 格式。
   ///
   /// HLS（.m3u8）强制 `demuxer-lavf-format=hls`，跳过 FFmpeg 内容探测——
   /// 部分 CMS 媒体服务器的 m3u8 首段被误探为 mpegts 导致时长缺失 / 黑屏；
@@ -129,7 +129,7 @@ class MediaKitBackend extends VideoPlayerBackend {
     await _setProperty('hwdec', _hwdecToMpv(mode));
   }
 
-  /// 设置 GLSL 用户 shader 列表（F-7 超分辨率）。
+  /// 设置 GLSL 用户 shader 列表（超分辨率）。
   ///
   /// mpv 运行时替换 `glsl-shaders`，渲染管线下一帧重建，无需 re-open；
   /// 空字符串清空。平台不支持（如 Web）由 [_setProperty] 静默忽略。

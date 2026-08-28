@@ -439,7 +439,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
   }
 
   /// 睡眠定时（X-1 跨类型对齐）：按分钟 / 按话数。会话级状态，由阅读器持有
-  /// Timer 生命周期，此处只做选择交互（播放器 F-5 picker 同构）。
+  /// Timer 生命周期，此处只做选择交互（播放器  picker 同构）。
   Widget _buildSleepTimer() {
     final l10n = AppLocalizations.of(context);
     final ComicSleepTimerState? st = widget.sleepTimer;

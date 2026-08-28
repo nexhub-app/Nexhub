@@ -50,7 +50,7 @@ class NovelProgressManager {
   final PrefsBackend _backend;
   final Map<String, NovelReadingProgress> _cache = {};
 
-  /// 进度存储键前缀（P2-8 云同步枚举本地全部进度用）。
+  /// 进度存储键前缀（云同步枚举本地全部进度用）。
   static const String prefix = 'novel_progress_';
 
   /// 读取进度（无记录返回 null）。

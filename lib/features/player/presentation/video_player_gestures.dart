@@ -61,7 +61,7 @@ extension _VideoGestures on _VideoPlayerScreenState {
   /// 中央手势指示器浮层：显示双击 ±10s / 亮度 % / 音量 % / 横滑 seek 目标时间。
   ///
   /// 横滑 seek 上滑取消时（[_seekDragCancelled]）渲染红色背景 + 取消图标，
-  /// 让「取消」状态一目了然（F-15 反馈增强）。
+  /// 让「取消」状态一目了然（反馈增强）。
   Widget _buildGestureIndicator() {
     final bool cancelled = _seekDragCancelled;
     return IgnorePointer(
@@ -117,7 +117,7 @@ extension _VideoGestures on _VideoPlayerScreenState {
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.space) {
       if (_controller.isLocked) return KeyEventResult.handled;
-      // F-8：用户手动重播则取消进行中的连播倒计时。
+      // 用户手动重播则取消进行中的连播倒计时。
       _cancelAutoNextCountdown();
       if (_isPlaying) {
         _controller.pause();

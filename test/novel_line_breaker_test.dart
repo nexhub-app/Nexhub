@@ -1,4 +1,4 @@
-/// P2-10 / A5 中文禁则断行器渲染级单测（需 TextPainter，flutter_test 环境）。
+///  / A5 中文禁则断行器渲染级单测（需 TextPainter，flutter_test 环境）。
 library;
 
 import 'package:flutter/material.dart';

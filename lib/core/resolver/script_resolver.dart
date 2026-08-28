@@ -24,7 +24,7 @@ import 'source_resolver.dart';
 
 /// 源声明式 CDN 图床发现（与 mirrors 路由同源思路，不写死站点逻辑）。
 ///
-/// 拉取源声明的 CDN 列表端点（如 nhentai `/api/v2/cdn`），并行探活各 server，
+/// 拉取源声明的 CDN 列表端点（形如 `/api/v2/cdn`），并行探活各 server，
 /// 选第一个可达的作为图片/缩略图基，注入脚本 `context.cdnImage`/`context.cdnThumb`。
 /// 结果按源 id 缓存于内存，避免每次解析重复探活。连通性仍由 App 网络设置负责。
 class CdnDiscovery {
@@ -32,7 +32,7 @@ class CdnDiscovery {
 
   /// 解析并返回可达图床基；源未声明 cdn 时返回 null（脚本走旧 i3/t3 回退）。
   ///
-  /// 注意：nhentai 等站点的图床是固定的 `i1~i4` / `t1~t4` 子域，直接探活这些已知
+  /// 注意：部分站点的图床是固定的 `i1~i4` / `t1~t4` 子域，直接探活这些已知
   /// 图床即可，无需强依赖 `/api/v2/cdn`（该端点在不少网络会稳定超时，且探活失败
   /// 时若回退到被墙的 `i3` 会原地踏步）。`cdn.url` 仅作为「5s 内可达才采用」的
   /// 可选增强：动态拿到图床列表后覆盖默认列表，否则沿用默认。失败一律回退 `i4`/`t4`。
@@ -387,8 +387,8 @@ class ScriptResolver implements SourceResolver {
           // 由 sourceAuthHeader 统一处理两种模式（不写死站点）：
           //   - sendTokenAs:"bearer" → Authorization: Bearer <checkCookie 值>
           //   - sendTokenAs:"key"    → Authorization: <authScheme 默认 Key> <手动 apiKey>
-          // 并非所有站点都用 Bearer——nhentai 的 v2 API 明确「用 Key <api_key>，
-          // 不是 Bearer」（401 报文已证实），故 nhentai 改用 "key" 模式，正确
+          // 并非所有站点都用 Bearer——部分站点的 v2 API 明确「用 Key <api_key>，
+          // 不是 Bearer」（401 报文已证实），故改用 "key" 模式，正确
           // 携带用户在登录面板粘贴的 API Key。完全由源的 login 配置驱动。
           final authHeader = sourceAuthHeader(source);
           if (authHeader != null) {
@@ -465,7 +465,7 @@ class ScriptResolver implements SourceResolver {
                   '✅ 处理器$processor完成: ${result is List ? "List[${(result as List).length}]" : result.runtimeType}');
             } on Object catch (e) {
               // 失败时把 401 真实响应体打出来，便于定位「鉴权被读但拒绝」的根因
-              // （如 nhentai favorites 要 sessionid 而非 Bearer access_token）。
+              // （如收藏接口要 sessionid 而非 Bearer access_token）。
               // VerificationRequiredException / HttpStatusException 都带 body 字段，
               // 但 toString() 只打状态码与 url，故此处单独提取 body。
               String bodyHint = '';

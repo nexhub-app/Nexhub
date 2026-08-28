@@ -1,4 +1,4 @@
-/// 在线 HTTP TTS 引擎（P2-3 / C3-C7）。
+/// 在线 HTTP TTS 引擎（/ C3-C7）。
 ///
 /// 职责（与播放解耦，核心逻辑可单测）：
 /// - **模板渲染**：[renderUrl] 把 `{text}` / `{voice}` / `{rate}` 占位符
@@ -134,7 +134,7 @@ class HttpTtsPreloader {
   }
 }
 
-/// 轻量信号量（P2-3 预下载并发控制 1-8）。
+/// 轻量信号量（预下载并发控制 1-8）。
 class Semaphore {
   Semaphore(this._max);
   final int _max;

@@ -315,7 +315,7 @@ class ReaderDefaultSettings {
   /// 小说：鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）。
   final bool novelScrollWheelInverted;
 
-  // ── 小说补充 v3（P2-10 排版增强，与 NovelReaderPreferences #10 对齐）──
+  // ── 小说补充 v3（排版增强，与 NovelReaderPreferences #10 对齐）──
   /// 加粗字重滑块（100–900，仅加粗开启时生效）。
   final int novelFontWeightValue;
 
@@ -328,7 +328,7 @@ class ReaderDefaultSettings {
   /// 下划线样式（'solid' / 'dashed' / 'wavy' / 'dotted'）。
   final String novelUnderlineStyle;
 
-  // ── 小说补充 v4（P2-4 滚动模式图文增强）──
+  // ── 小说补充 v4（滚动模式图文增强）──
   /// 滚动模式插图展示模式（'banner' / 'card'）。
   final String novelScrollImageMode;
 
@@ -484,12 +484,12 @@ class ReaderDefaultSettings {
     this.novelTtsBackground = false,
     this.novelTtsSleepTimer = 0,
     this.novelScrollWheelInverted = false,
-    // P2-10 排版增强
+    //  排版增强
     this.novelFontWeightValue = 700,
     this.novelTextAlignMode = 'start',
     this.novelLineBreakMode = 'standard',
     this.novelUnderlineStyle = 'solid',
-    // P2-4 滚动模式图文增强
+    //  滚动模式图文增强
     this.novelScrollImageMode = 'banner',
     this.novelScrollImageAlign = 'center',
     this.comicFilterBrightness = 0.0,
@@ -625,12 +625,12 @@ class ReaderDefaultSettings {
     bool? novelTtsBackground,
     int? novelTtsSleepTimer,
     bool? novelScrollWheelInverted,
-    // P2-10 排版增强
+    //  排版增强
     int? novelFontWeightValue,
     String? novelTextAlignMode,
     String? novelLineBreakMode,
     String? novelUnderlineStyle,
-    // P2-4 滚动模式图文增强
+    //  滚动模式图文增强
     String? novelScrollImageMode,
     String? novelScrollImageAlign,
     double? comicFilterBrightness,
@@ -830,12 +830,12 @@ class ReaderDefaultSettings {
         novelTtsSleepTimer: novelTtsSleepTimer ?? this.novelTtsSleepTimer,
         novelScrollWheelInverted:
             novelScrollWheelInverted ?? this.novelScrollWheelInverted,
-    // P2-10 排版增强
+    //  排版增强
     novelFontWeightValue: novelFontWeightValue ?? this.novelFontWeightValue,
     novelTextAlignMode: novelTextAlignMode ?? this.novelTextAlignMode,
     novelLineBreakMode: novelLineBreakMode ?? this.novelLineBreakMode,
     novelUnderlineStyle: novelUnderlineStyle ?? this.novelUnderlineStyle,
-    // P2-4 滚动模式图文增强
+    //  滚动模式图文增强
     novelScrollImageMode:
         novelScrollImageMode ?? this.novelScrollImageMode,
     novelScrollImageAlign:
@@ -985,13 +985,13 @@ class ReaderDefaultSettings {
         'novelTtsBackground': novelTtsBackground,
         'novelTtsSleepTimer': novelTtsSleepTimer,
         'novelScrollWheelInverted': novelScrollWheelInverted,
-        // P2-10 排版增强
-        // P2-10 排版增强
+        //  排版增强
+        //  排版增强
         'novelFontWeightValue': novelFontWeightValue,
         'novelTextAlignMode': novelTextAlignMode,
         'novelLineBreakMode': novelLineBreakMode,
         'novelUnderlineStyle': novelUnderlineStyle,
-        // P2-4 滚动模式图文增强
+        //  滚动模式图文增强
         'novelScrollImageMode': novelScrollImageMode,
         'novelScrollImageAlign': novelScrollImageAlign,
         'comicFilterBrightness': comicFilterBrightness,
@@ -1306,7 +1306,7 @@ class ReaderDefaultSettings {
           (json['novelTtsSleepTimer'] as num?)?.toInt() ?? 0,
       novelScrollWheelInverted:
           json['novelScrollWheelInverted'] as bool? ?? false,
-      // P2-10 排版增强
+      //  排版增强
       novelFontWeightValue:
           ((json['novelFontWeightValue'] as num?)?.toInt() ?? 700)
               .clamp(100, 900),
@@ -1316,7 +1316,7 @@ class ReaderDefaultSettings {
           json['novelLineBreakMode'] as String? ?? 'standard',
       novelUnderlineStyle:
           json['novelUnderlineStyle'] as String? ?? 'solid',
-      // P2-4 滚动模式图文增强
+      //  滚动模式图文增强
       novelScrollImageMode:
           json['novelScrollImageMode'] as String? ?? 'banner',
       novelScrollImageAlign:
@@ -1534,7 +1534,7 @@ class ReaderDefaultSettings {
       ttsBackground: novelTtsBackground,
       ttsSleepTimer: novelTtsSleepTimer,
       scrollWheelInverted: novelScrollWheelInverted,
-      // P2-10 排版增强
+      //  排版增强
       fontWeightValue: novelFontWeightValue,
       textAlignMode: NovelTextAlignMode.values.firstWhere(
         (e) => e.name == novelTextAlignMode,
@@ -1548,7 +1548,7 @@ class ReaderDefaultSettings {
         (e) => e.name == novelUnderlineStyle,
         orElse: () => NovelUnderlineStyle.solid,
       ),
-      // P2-4 滚动模式图文增强
+      //  滚动模式图文增强
       scrollImageMode: NovelScrollImageMode.values.firstWhere(
         (e) => e.name == novelScrollImageMode,
         orElse: () => NovelScrollImageMode.banner,

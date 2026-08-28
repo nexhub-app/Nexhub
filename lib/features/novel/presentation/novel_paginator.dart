@@ -233,7 +233,7 @@ class NovelPaginator {
         List<NovelLine> lines;
         if (prefs.lineBreakMode == NovelLineBreakMode.cjkStrict &&
             !block.isHeading) {
-          // P2-10 / A5：中文逐字断行 + 禁首禁尾。标题行仍走原生折行
+          //  / A5：中文逐字断行 + 禁首禁尾。标题行仍走原生折行
           // （标题短、居中展示，禁则意义不大且需与渲染层保持一致）。
           lines = _breakParagraphStrict(
             block.text,
@@ -508,7 +508,7 @@ class NovelPaginator {
     return lines;
   }
 
-  /// P2-10 / A5：中文逐字断行 + 禁首禁尾标点路径。
+  ///  / A5：中文逐字断行 + 禁首禁尾标点路径。
   ///
   /// 复用 [NovelLineBreaker] 的禁则切行结果，适配为 [NovelLine]
   /// （charLefts 已由断行器按整行布局重测，命中测试语义一致）。

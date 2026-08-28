@@ -1,7 +1,7 @@
 name: nexhub
 description: 四合一媒体聚合客户端（动漫 / 漫画 / 小说 / 影视）—— Material 3 设计系统基础脚手架。
 publish_to: 'none'
-version: 2.0.0-beta.1+29
+version: 2.0.0-beta.2+30
 repository: https://github.com/nexhub-app/nexhub
 
 environment:
@@ -123,7 +123,7 @@ dependencies:
   window_manager: ^0.5.2
   # 音量键翻页（REQ-B1）：Android 拦截音量上/下翻页，防止系统音量变化。
   flutter_volume_controller: ^2.0.1
-  # 后台播放 + 通知栏媒体控件（F-25）：audio_service 暴露通知/锁屏控制
+  # 后台播放 + 通知栏媒体控件：audio_service 暴露通知/锁屏控制
   # （Android/iOS/macOS；Windows 不支持，静默降级为无通知），audio_session
   # 处理音频打断（来电暂停恢复）与拔耳机暂停。
   audio_service: ^0.18.15

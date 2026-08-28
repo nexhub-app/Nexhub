@@ -176,7 +176,7 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
     // 是否提供网页登录入口：源声明了 login.url（登录页地址）即视为支持网页登录。
     // 与底部面板 [showSourceLoginSheet] 同一套判定，完全由源配置驱动，不写死站点。
     final bool hasWebLogin = widget.source.comments?.login?.url != null;
-    // 手动 API Key 模式（sendTokenAs:"key"）：纯 API Key 源（如 nhentai）不声明
+    // 手动 API Key 模式（sendTokenAs:"key"）：纯 API Key 源不声明
     // login.url / checkCookie，因此不显示「网页登录」「粘贴 Cookie」，只显示 API Key 框。
     final bool isApiKey = widget.source.comments?.login?.sendTokenAs == 'key';
 

@@ -42,7 +42,7 @@ const Object _kNovelPrefsColorUnset = Object();
 /// titleCustomFontPath），区分「未传入」与「显式传 null（清除文件）」。
 const Object _kNovelPrefsPathUnset = Object();
 
-/// 中文排版断行模式（P2-10 / A5）。
+/// 中文排版断行模式（/ A5）。
 ///
 /// - [standard] — Flutter TextPainter 原生折行（现状，宽松）。
 /// - [cjkStrict] — 逐字符断行 + 禁首禁尾标点：行首禁排闭合标点
@@ -54,7 +54,7 @@ enum NovelLineBreakMode { standard, cjkStrict;
       raw == 'cjkStrict' ? NovelLineBreakMode.cjkStrict : NovelLineBreakMode.standard;
 }
 
-/// 正文两端对齐模式（P2-10 / A6）。
+/// 正文两端对齐模式（/ A6）。
 ///
 /// 仅作用于分页模式渲染：[justify] 把不满一行的正文行拉伸到整行宽
 /// （末行与标题行除外）；[start] 维持原生左对齐。
@@ -64,7 +64,7 @@ enum NovelTextAlignMode { start, justify;
       raw == 'justify' ? NovelTextAlignMode.justify : NovelTextAlignMode.start;
 }
 
-/// 下划线样式（P2-10 / B6 扩展）。
+/// 下划线样式（/ B6 扩展）。
 enum NovelUnderlineStyle { solid, dashed, wavy, dotted;
 
   static NovelUnderlineStyle fromString(String? raw) => switch (raw) {
@@ -75,7 +75,7 @@ enum NovelUnderlineStyle { solid, dashed, wavy, dotted;
       };
 }
 
-/// 滚动模式插图展示模式（P2-4 / A10）。
+/// 滚动模式插图展示模式（/ A10）。
 ///
 /// - [banner] — 铺满整行完整显示（按源 style 或全宽），高度自适应。
 /// - [card] — 卡片式：按正文宽度比例缩列完整显示，配合 [NovelScrollImageAlign]
@@ -86,7 +86,7 @@ enum NovelScrollImageMode { banner, card;
       raw == 'card' ? NovelScrollImageMode.card : NovelScrollImageMode.banner;
 }
 
-/// 滚动模式插图水平对齐（P2-4 / A10；仅 card 模式生效）。
+/// 滚动模式插图水平对齐（/ A10；仅 card 模式生效）。
 enum NovelScrollImageAlign { left, center, right;
 
   static NovelScrollImageAlign fromString(String? raw) => switch (raw) {
@@ -439,7 +439,7 @@ class NovelReaderPreferences {
   /// 仅作用于翻页模式（paged）；滚动模式由底层 Scrollable 接管滚轮。
   final bool scrollWheelInverted;
 
-  // ─────────────── #10 排版增强（P2-10） ───────────────
+  // ─────────────── #10 排版增强 ───────────────
   /// 加粗字重滑块（100–900）：仅 [fontBold] 开启时生效，关闭加粗即恢复
   /// 默认字重。加粗开关与字重只有一个数据源，杜绝「开了开关看不到变化 /
   /// 关了开关关不掉」的双字段覆盖问题。
@@ -454,7 +454,7 @@ class NovelReaderPreferences {
   /// 下划线样式：实线 / 虚线 / 波浪 / 点线。dashed 兼容旧 [underlineDashed]。
   final NovelUnderlineStyle underlineStyle;
 
-  // ─────────────── #11 滚动模式图文增强（P2-4） ───────────────
+  // ─────────────── #11 滚动模式图文增强 ───────────────
   /// 滚动模式插图展示模式：banner 铺满整行 / card 卡片式缩列。
   final NovelScrollImageMode scrollImageMode;
 
@@ -997,7 +997,7 @@ class NovelReaderPreferences {
   /// 字体样式真实生效且可共存。
   /// [autoTextColor] 为按背景亮度推导的默认色，[customTextColor] 非空时覆盖。
   ///
-  /// 下划线（P2-10 / B6）：solid 实线走原生 `TextDecoration.underline`；
+  /// 下划线（/ B6）：solid 实线走原生 `TextDecoration.underline`；
   /// dashed/wavy/dotted 交由上层 `_NovelPageWidget` 的 `CustomPaint` 自定义
   /// 绘制（原生 `TextDecorationStyle` 不支持自定义段长/间隙/波幅），
   /// 此时本样式不设 decoration。

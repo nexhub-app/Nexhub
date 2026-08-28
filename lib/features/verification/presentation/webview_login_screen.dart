@@ -38,7 +38,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
   @override
   void initState() {
     super.initState();
-    // 源声明的 UA 可能极简/与 WebView 环境不符（nhentai 为 `Mozilla/5.0`），
+    // 源声明的 UA 可能极简/与 WebView 环境不符（例如只有 `Mozilla/5.0`），
     // 且与能过 turnstile 的 WebView 默认 Android UA 不一致 → CF 600010。
     // 登录前把相关 host 钉为完整浏览器 UA（Android 移动版），登录页与回灌后
     // 的抓取请求同 UA，cf_clearance 才有效。
@@ -198,7 +198,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
   /// ① 实时控制器 Cookie：直接读 [InAppWebViewController] 当前 WebView 的存储，
   ///    最即时，登录刚完成即可拿到会话；
   /// ② 系统 CookieManager 直读：经原生通道 `nexhub/system_cookie` 读
-  ///    `android.webkit.CookieManager.getCookie(url)`（对齐原生 nhentai 客户端
+  ///    `android.webkit.CookieManager.getCookie(url)`（对齐常见原生客户端
   ///    登录后轮询系统 CookieManager 的做法）；
   /// ③ flutter_inappwebview CookieManager 逐域兜底；
   /// ④ 全量 [getAllCookies] 兜底：覆盖登录页停在子域 / Path 非 / 等情况。
@@ -218,7 +218,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
   }
 
   /// 单次尝试：按 ①~④ 优先级读取各相关域 Cookie 并回灌，返回 jar 中是否已出现
-  /// 声明为登录态的 checkCookie 键（如 nhentai 的 `sessionid`）。
+  /// 声明为登录态的 checkCookie 键（如 `sessionid`）。
   ///
   /// [attempt] 仅用于诊断日志（标记第几次重试），不影响读取逻辑。
   Future<bool> _readOnce(int attempt) async {
@@ -333,7 +333,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
     return _jarHasLoginCookie();
   }
 
-  /// jar 中是否出现声明为登录态的 checkCookie 键（精确或前缀匹配，如 nhentai
+  /// jar 中是否出现声明为登录态的 checkCookie 键（精确或前缀匹配，如某源
   /// 的 `sessionid`；配置若写 `session` 也能靠前缀命中）。命中才视为本次取 Cookie
   /// 成功，避免只拿到 cf_clearance 却漏掉会话而被误判未登录。
   bool _jarHasLoginCookie() {
@@ -396,7 +396,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
     }
     if (totalShown == 0) {
       buf.writeln('');
-      buf.writeln('⚠ 系统存储里没有任何 nhentai 相关 cookie。');
+      buf.writeln('⚠ 系统存储里没有任何该站点相关的 cookie。');
       buf.writeln('  最可能的根因：登录其实没真正完成（Cloudflare Turnstile 拦了表单），');
       buf.writeln('  请确认 WebView 里能看到你的用户名/已登录标识，而不是只看到公开首页。');
     }

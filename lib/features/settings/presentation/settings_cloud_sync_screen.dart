@@ -183,7 +183,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     }
   }
 
-  /// P2-8：手动同步阅读进度。拉取远端 → 逐书裁决：
+  /// 手动同步阅读进度。拉取远端 → 逐书裁决：
   /// - 本地领先自动上传、本地无记录自动应用云端；
   /// - 云端领先且本地有记录 → 弹确认框，确认后写回本地。
   ///
@@ -632,7 +632,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             label: Text(l10n.cloudSyncSyncNow),
           ),
           const SizedBox(height: AppTokens.spaceSm),
-          // P2-8：逐书进度冲突裁决同步（含确认框）。
+          // 逐书进度冲突裁决同步（含确认框）。
           OutlinedButton.icon(
             onPressed: _syncing ? null : () => _syncNovelProgress(l10n),
             icon: const Icon(Icons.menu_book_outlined, size: 18),

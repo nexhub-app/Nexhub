@@ -1,4 +1,4 @@
-/// Anime4K 超分辨率 shader 目录服务（F-7）。
+/// Anime4K 超分辨率 shader 目录服务。
 ///
 /// 通过 mpv `glsl-shaders` 属性注入 Anime4K（MIT，bloc97）GLSL 用户 shader，
 /// 两档预设沿用官方 Mode A 组合：

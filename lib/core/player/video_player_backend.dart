@@ -5,10 +5,10 @@ import 'player_capability.dart';
 /// 定义硬件解码、音频通道与画面比例等后端可调能力的统一接口，
 /// 具体实现由 [MediaKitBackend]（基于 media_kit / mpv）提供。
 ///
-/// F-2 扩展：[capabilities] 集供调用方探测后端能力，避免运行时
+///  扩展：[capabilities] 集供调用方探测后端能力，避免运行时
 /// UnsupportedError；[NoOpPlayerBackend] 作为降级占位。
 abstract class VideoPlayerBackend {
-  /// 后端支持的能力集合（F-2）。
+  /// 后端支持的能力集合。
   Set<PlayerCapability> get capabilities => const <PlayerCapability>{};
 
   /// 设置硬件解码模式：auto/sw/hw/hw+。
@@ -32,21 +32,21 @@ abstract class VideoPlayerBackend {
     throw UnsupportedError('setAspectRatio is not supported by this backend');
   }
 
-  /// 设置 GLSL 用户 shader 列表（mpv `glsl-shaders`，F-7 超分辨率）。
+  /// 设置 GLSL 用户 shader 列表（mpv `glsl-shaders`， 超分辨率）。
   ///
   /// 传入空字符串表示清空（关闭超分辨率）。
   Future<void> setUpscaleShaders(String shaders) async {
     throw UnsupportedError('setUpscaleShaders is not supported by this backend');
   }
 
-  /// 设置 demuxer 前向 / 后向缓存预算（F-29 缓存策略降级）。
+  /// 设置 demuxer 前向 / 后向缓存预算（缓存策略降级）。
   ///
   /// 默认实现抛出 [UnsupportedError]，子类按需覆写。
   Future<void> setDemuxerCacheBudget(int maxBytes, int maxBackBytes) async {
     throw UnsupportedError('setDemuxerCacheBudget is not supported by this backend');
   }
 
-  /// open 前按地址准备 demuxer 格式（F-29：HLS 强制 hls）。
+  /// open 前按地址准备 demuxer 格式（HLS 强制 hls）。
   ///
   /// 默认实现抛出 [UnsupportedError]，子类按需覆写。
   Future<void> prepareDemuxerForUrl(String url) async {

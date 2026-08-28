@@ -33,7 +33,7 @@ class MainActivity : FlutterFragmentActivity() {
     // 诊断：开启拦截但 EventSink 未就绪时只告警一次，避免每条按键刷日志。
     private var volumeSinkWarned = false
 
-    // ── F-23 系统 PiP 窗口动作（Android O+）──────────────────────────────
+    // ──  系统 PiP 窗口动作（Android O+）──────────────────────────────
     // floating 包仅支持进出 PiP，不支持窗口内自定义动作（RemoteAction）；
     // 这里在应用侧扩展 nexhub/pip（下发动作）与 nexhub/pip_events（回传点击），
     // 经动态 BroadcastReceiver 把 PiP 窗口按钮点击转成 Flutter 事件。
@@ -164,7 +164,7 @@ class MainActivity : FlutterFragmentActivity() {
             }
         )
 
-        // ── F-23 系统 PiP 窗口动作通道 ──
+        // ──  系统 PiP 窗口动作通道 ──
         // Flutter 下发「播放/暂停、弹幕、快进」动作列表，原生构建 RemoteAction
         // 并刷新 PictureInPictureParams；PiP 窗口按钮点击经广播回传 Flutter。
         MethodChannel(
@@ -325,7 +325,7 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
-    // ── F-23 系统 PiP 窗口动作（Android O+）──────────────────────────────
+    // ──  系统 PiP 窗口动作（Android O+）──────────────────────────────
 
     companion object {
         private const val PIP_CHANNEL = "nexhub/pip"

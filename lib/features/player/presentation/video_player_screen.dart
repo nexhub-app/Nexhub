@@ -227,11 +227,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// Sleep timer for auto-pausing playback.
   Timer? _sleepTimer;
 
-  /// 睡眠定时「按集数」模式（F-5）：再播 N 集后暂停（0 = 未启用）。
-  /// 与按分钟模式互斥，跨集保留（配合 B-13）；播完一集递减，归零暂停。
+  /// 睡眠定时「按集数」模式：再播 N 集后暂停（0 = 未启用）。
+  /// 与按分钟模式互斥，跨集保留（配合 ）；播完一集递减，归零暂停。
   int _sleepEpisodesRemaining = 0;
 
-  /// 自动连播倒计时（F-8）：播完一集后按设置的秒数延迟连播，期间底部
+  /// 自动连播倒计时：播完一集后按设置的秒数延迟连播，期间底部
   /// SnackBar 实时显示剩余秒数并可取消；0（未配置）时保持立即连播。
   Timer? _autoNextCountdownTimer;
 
@@ -279,18 +279,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 重新解析并重新打开播放器（拿到未过期的新直链）。
   bool _reconnectExhausted = false;
 
-  // ─────────────── F-29 缓存策略降级 / F-30 分级重试 ───────────────
+  // ─────────────── 缓存策略降级 /  分级重试 ───────────────
 
-  /// F-29：demuxer 缓存档位解析器（移动网络 / 低内存自动降级）。
+  /// demuxer 缓存档位解析器（移动网络 / 低内存自动降级）。
   final DemuxerCachePolicyResolver _cachePolicyResolver =
       DemuxerCachePolicyResolver();
 
-  /// F-29：网络变化订阅（蜂窝 ↔ Wi-Fi 切换时重算缓存档位）。
+  /// 网络变化订阅（蜂窝 ↔ Wi-Fi 切换时重算缓存档位）。
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
-  // ─────────────────────── F-1 多源自动选源 / 故障回退 ───────────────────────
+  // ─────────────────────── 多源自动选源 / 故障回退 ───────────────────────
 
-  /// 按「源 + 剧集」记忆用户手动选过的线路名（F-1 手动选源记忆）。
+  /// 按「源 + 剧集」记忆用户手动选过的线路名（手动选源记忆）。
   final LineSelectionStore _lineStore = LineSelectionStore();
 
   /// 是否开启自动选线路（来自 PlayerSettings.autoSelectLine，_init 加载）。
@@ -305,12 +305,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 之后切回该线路无需再解析。
   final Set<int> _resolvedLineIndices = <int>{0};
 
-  /// F-25：当前会话在 [AudioPlaybackService] 的代次 token。
+  /// 当前会话在 [AudioPlaybackService] 的代次 token。
   /// 进集/切集 attach 刷新通知、dispose 时 detach（token 不符则忽略，
   /// 兼容 pushReplacement 跨作品换页时旧页迟到 detach）。
   int _bgToken = 0;
 
-  /// 跨作品播放队列持久化（F-4）。
+  /// 跨作品播放队列持久化。
   final PlayQueueStore _queueStore = PlayQueueStore();
 
   Duration _duration = Duration.zero;
@@ -328,7 +328,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 控制层自动隐藏延时。
   static const Duration _kUiAutoHide = Duration(seconds: 4);
 
-  /// 控制栏隐藏租约计数（F-16）：拖动进度 / 打开菜单时递增，禁止自动隐藏；
+  /// 控制栏隐藏租约计数：拖动进度 / 打开菜单时递增，禁止自动隐藏；
   /// 释放归零后重启自动隐藏倒计时。
   int _panelHoldCount = 0;
 
@@ -362,13 +362,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   bool _isBuffering = false;
   StreamSubscription<bool>? _bufferingSub;
 
-  /// 实时缓冲网速文本（F-6，缓冲时显示在转圈下方；null = 不可用）。
+  /// 实时缓冲网速文本（，缓冲时显示在转圈下方；null = 不可用）。
   String? _bufferingSpeedText;
 
-  /// 网速轮询定时器（F-6，仅缓冲期间运行，500ms 读一次 mpv `cache-speed`）。
+  /// 网速轮询定时器（，仅缓冲期间运行，500ms 读一次 mpv `cache-speed`）。
   Timer? _speedProbeTimer;
 
-  /// 开始轮询网速（F-6）：读 mpv `cache-speed`（KB/s）格式化为 MB/s 显示。
+  /// 开始轮询网速：读 mpv `cache-speed`（KB/s）格式化为 MB/s 显示。
   /// 平台不支持（返回 null）时保持隐藏，不影响播放。
   void _startSpeedProbe() {
     _stopSpeedProbe();
@@ -451,10 +451,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 横滑 seek 预览目标时间，松手后跳转。
   Duration _seekPreview = Duration.zero;
 
-  /// 横滑起点指针全局 Y，用于计算拖动中的垂直位移（F-15）。
+  /// 横滑起点指针全局 Y，用于计算拖动中的垂直位移。
   double _seekDragStartY = 0;
 
-  /// 横滑过程中指针相对起点的垂直位移（F-15：上滑取消 seek，超阈值标记取消）。
+  /// 横滑过程中指针相对起点的垂直位移（上滑取消 seek，超阈值标记取消）。
   ///
   /// 注意：不能累加 dragUpdate.delta.dy——HorizontalDragGestureRecognizer
   /// 传给回调的 delta 被框架按主轴过滤为 Offset(dx, 0)，dy 恒为 0，累加它
@@ -473,10 +473,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 见 [_seekDragVerticalDelta] 注释。）
   static const double _kSeekCancelThreshold = 24;
 
-  /// 上次双击的时刻（F-14 防抖：双击后 600ms 内屏蔽单击，防三分区误触）。
+  /// 上次双击的时刻（防抖：双击后 600ms 内屏蔽单击，防三分区误触）。
   DateTime _lastDoubleTapAt = DateTime.fromMillisecondsSinceEpoch(0);
 
-  /// 连续双击累积次数（F-11：10s→20s→30s，900ms 无后续双击或换方向则重置）。
+  /// 连续双击累积次数（10s→20s→30s，900ms 无后续双击或换方向则重置）。
   int _doubleTapCount = 1;
 
   /// 双击方向（-1 快退 / 1 快进 / 0 中间播放暂停）。
@@ -497,12 +497,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 上次自动保存播放位置的时间（节流，每 5 秒存一次）。
   DateTime _lastPositionSaveAt = DateTime.fromMillisecondsSinceEpoch(0);
 
-  /// 上次 setState 刷新 UI 的时间（B-17）：position 流约 4–10Hz，整页重建
+  /// 上次 setState 刷新 UI 的时间：position 流约 4–10Hz，整页重建
   /// 开销大（含 Marquee / SeekBar / 手势层）；节流到 ~250ms 后 UI 仍平滑，
   /// 但重建频率显著下降。
   DateTime? _lastPositionUiAt;
 
-  // ── F-3 跳过片头片尾（按作品记忆，经 EpisodePlayerSettingsStore）──
+  // ──  跳过片头片尾（按作品记忆，经 EpisodePlayerSettingsStore）──
 
   /// 片头结束点（秒，null = 未设置）。位置进入 [2s, opEnd-1s] 显示
   /// 「跳过片头」按钮；开启自动跳过时直接 seek 过去。
@@ -519,7 +519,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   bool _opSkippedThisEpisode = false;
   bool _edSkippedThisEpisode = false;
 
-  /// 播放位置管理器缓存（B-6）。
+  /// 播放位置管理器缓存。
   ///
   /// deactivate 之后 context 已失活，dispose 里再调 `context.read` 会抛
   /// 「Looking up a deactivated widget's ancestor is unsafe」并被 catch 吞掉，
@@ -554,7 +554,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   final CastService _castService = CastService();
   bool _isCasting = false;
 
-  // F-26 投屏位置同步与断开事件订阅。
+  //  投屏位置同步与断开事件订阅。
   StreamSubscription<Duration>? _castPositionSub;
   StreamSubscription<Object>? _castErrorSub;
   Duration _castPosition = Duration.zero;
@@ -568,11 +568,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 进入 PiP 时的播放位置（退出时若进度被系统回收则续播）。
   Duration _pipEnterPosition = Duration.zero;
 
-  /// 是否处于系统 PiP 中（F-23）：进出事件由原生 onPictureInPictureModeChanged
+  /// 是否处于系统 PiP 中：进出事件由原生 onPictureInPictureModeChanged
   /// 经 nexhub/pip_events 推送（pip:enabled / pip:disabled）。
   bool _inPip = false;
 
-  /// 桌面 PiP 模式（F-24 改用 window_manager）：隐藏标题栏 + 缩小窗口置顶播放。
+  /// 桌面 PiP 模式（改用 window_manager）：隐藏标题栏 + 缩小窗口置顶播放。
   bool _desktopPipActive = false;
 
   /// 进入桌面 PiP 前保存的窗口状态（位置 / 大小 / 最大化 / 标题），退出时恢复。
@@ -585,7 +585,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 存成「原始尺寸」或恢复到中间态。
   bool _pipSwitching = false;
 
-  /// PiP 窗口动作点击订阅（F-23：`action:<id>` 事件）。
+  /// PiP 窗口动作点击订阅（`action:<id>` 事件）。
   StreamSubscription<String>? _pipActionSub;
 
   @override
@@ -615,7 +615,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
-  /// 后台播放（F-25）：进后台不主动暂停，依赖前台媒体服务保活；回到前台若
+  /// 后台播放：进后台不主动暂停，依赖前台媒体服务保活；回到前台若
   /// 此前在播且被视频表面销毁误暂停，则恢复播放。
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -755,7 +755,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   Future<void> _init() async {
-    // 缓存播放位置管理器引用（B-6）：context 仅在页面存活期有效，dispose 时
+    // 缓存播放位置管理器引用：context 仅在页面存活期有效，dispose 时
     // 已失活无法 context.read；提前缓存后保存进度在任何时刻（含退出瞬间）可靠。
     try {
       _positionManager = context.read<MediaPlaybackPositionManager>();
@@ -772,7 +772,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 在创建 Player 之前加载，创建后立即应用到底层播放器。
     await _loadPlayerSettings();
 
-    // F-4：记录当前作品为「最近播放」，用于启动恢复「继续上次」。
+    // 记录当前作品为「最近播放」，用于启动恢复「继续上次」。
     unawaited(_persistCurrentEpisode(_episodeIndex));
 
     // 创建 Player + VideoController 并打开媒体。
@@ -782,7 +782,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 第三次冲突杀进程（Lost connection to device）。
     // 重试路径：上一次 _init 已创建播放器但中途失败（如 open 超时），旧实例
     // 尚未释放。先释放旧实例（写入 pendingDisposal），再等其原生释放完成后再建新实例，
-    // 避免旧 Player 泄漏、及「新建 surface 与旧 surface 冲突」崩溃（P0 B-3）。
+    // 避免旧 Player 泄漏、及「新建 surface 与旧 surface 冲突」崩溃（P0 ）。
     // 关键：先等待上一次播放器的原生 VideoOutput 释放完成，再把「新 Player」
     // 创建出来。Player 的 mpv 上下文与原生视频纹理是崩溃高发点，必须保证
     // 「旧播放器完全销毁」先于「新播放器创建」，否则连续多次打开会在第三次
@@ -820,7 +820,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 这是让 PlayerSettings 13 个字段真正生效的「地基」调用。
     await _applyPlayerSettings();
 
-    // F-29：按当前网络 / 设备内存应用 demuxer 缓存档位，并订阅网络变化
+    // 按当前网络 / 设备内存应用 demuxer 缓存档位，并订阅网络变化
     // （蜂窝 ↔ Wi-Fi 切换时即时升降档，无需重开播放器）。
     unawaited(_applyDemuxerCachePolicy());
     _connectivitySub?.cancel();
@@ -866,9 +866,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         throw Exception('本地视频打开超时（media_kit 未能在 30 秒内载入，'
             '可能是文件位置 media_kit 无法读取）');
       }
-      // 直链 / 本地模式打开后自动播放（与在线分支对齐，修复「打开即暂停」，P0 B-1）。
+      // 直链 / 本地模式打开后自动播放（与在线分支对齐，修复「打开即暂停」，P0 ）。
       _controller.play();
-      // F-30：分级超时等待元数据，超时自动 re-open 一次自愈。
+      // 分级超时等待元数据，超时自动 re-open 一次自愈。
       unawaited(_retryOpenOnceIfStalled());
       AppLog.instance.i('[本地视频打开] media_kit.open 完成，'
           '耗时 ${stopwatch.elapsedMilliseconds}ms');
@@ -893,7 +893,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (video.url.isNotEmpty) {
         _controller.lines = _buildLines(video);
         _controller.currentLineIndex = 0;
-        // F-1：重置本集会话内的选路状态（索引 0 永远是当前刚解析出的直链）。
+        // 重置本集会话内的选路状态（索引 0 永远是当前刚解析出的直链）。
         _resolvedLineIndices
           ..clear()
           ..add(0);
@@ -921,12 +921,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       await _controller.open(playUrl, headers: playHeaders);
       // 解析成功后自动开始播放
       _controller.play();
-      // F-30：分级超时等待元数据（媒体服务器 30s），超时自动 re-open 一次自愈。
+      // 分级超时等待元数据（媒体服务器 30s），超时自动 re-open 一次自愈。
       unawaited(_retryOpenOnceIfStalled());
     }
 
     // 退页守卫：open() 期间可能已退场，后续订阅 / 弹幕加载 / setState 须在
-    // _disposed 复查后执行，避免对失活元素调用 setState（P0 B-5）。
+    // _disposed 复查后执行，避免对失活元素调用 setState（P0 ）。
     if (_disposed || !mounted) return;
 
     // 恢复上次播放位置（P8.1.2 §廿一 续读进度跨章节恢复）。
@@ -950,11 +950,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 监听解码自动降级（花屏 / 硬解失败自愈）：提示并 re-open 生效
     _decodeFallbackSub =
         _controller.decodeFallbackStream.listen(_onDecodeFallback);
-    // 监听缓冲状态：缓冲中显示加载动画（功能2）+ 实时网速（F-6）。
+    // 监听缓冲状态：缓冲中显示加载动画（功能2）+ 实时网速。
     _bufferingSub = _controller.bufferingStream.listen((b) {
       if (_disposed || !mounted) return;
       setState(() => _isBuffering = b);
-      // F-6：缓冲开始轮询 mpv cache-speed 显示网速，结束停止。
+      // 缓冲开始轮询 mpv cache-speed 显示网速，结束停止。
       if (b) {
         _startSpeedProbe();
       } else {
@@ -997,7 +997,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } on Object {
       // 读取失败，使用默认路径
     }
-    // 退页守卫：await SharedPreferences 期间可能已退场（P0 B-5）。
+    // 退页守卫：await SharedPreferences 期间可能已退场（P0 ）。
     if (_disposed || !mounted) return;
 
     // 尝试加载弹幕（本地 / 直链模式无剧集元数据，跳过自动匹配；
@@ -1009,7 +1009,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 刷新收藏状态（P9.1.7 §16.1 顶栏收藏按钮）
     _refreshFavorite();
 
-    // F-25：注册后台媒体通知（播放/暂停/进度/锁屏控制）。
+    // 注册后台媒体通知（播放/暂停/进度/锁屏控制）。
     _attachBackgroundPlayback();
 
     if (mounted) setState(() {});
@@ -1025,7 +1025,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   /// 加载播放器设置：全局默认 + 该剧集单独覆盖（覆盖字段优先）。
-  /// 同时读取跳过片头/片尾区间（F-3，独立于 PlayerSettings 字段，单独
+  /// 同时读取跳过片头/片尾区间（，独立于 PlayerSettings 字段，单独
   /// 存在该剧集覆盖存储里）。
   Future<void> _loadPlayerSettings() async {
     try {
@@ -1035,7 +1035,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } on Object {
       _playerSettings = const PlayerSettings();
     }
-    // F-1：自动选线路开关（来自全局 + 剧集覆盖合并结果）。
+    // 自动选线路开关（来自全局 + 剧集覆盖合并结果）。
     _autoSelectLine = _playerSettings.autoSelectLine;
     try {
       final overrides =
@@ -1058,7 +1058,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       await _controller.setHwdec(_decodeModeToMpv(s.decodeMode));
       await _controller.setAudioChannel(_audioChannelToMpv(s.audioChannel));
       await _controller.setAspectRatio(_aspectRatioToMpv(s.aspectRatio));
-      // F-7：超分辨率 shader 档位（资产部署 + glsl-shaders 注入，off 清空）。
+      // 超分辨率 shader 档位（资产部署 + glsl-shaders 注入，off 清空）。
       await _controller.setUpscaleShader(s.upscaleShader);
       if (s.defaultVolume >= 0 && s.defaultVolume <= 100) {
         await _controller.setVolume(s.defaultVolume);
@@ -1183,7 +1183,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (mounted) setState(() => _isPlaying = true);
       _scheduleUiHide();
     }
-    // F-23：PiP 窗口内播放/暂停后刷新动作图标（播放↔暂停）。
+    // PiP 窗口内播放/暂停后刷新动作图标（播放↔暂停）。
     if (_inPip) {
       unawaited(_configurePipActions(AppLocalizations.of(context)));
     }
@@ -1370,10 +1370,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     return id;
   }
 
-  /// 加载当前集弹幕（首载入口，B-21 统一走 [_loadDanmakuFor]）。
+  /// 加载当前集弹幕（首载入口， 统一走 [_loadDanmakuFor]）。
   Future<void> _loadDanmaku() => _loadDanmakuFor(widget.episode);
 
-  /// 加载指定剧集弹幕（首载 / 切集共用，B-21）。
+  /// 加载指定剧集弹幕（首载 / 切集共用，）。
   ///
   /// 与旧的 `_loadDanmakuForEpisode` 相比补齐了与首载 [_loadDanmaku] 对称的
   /// 行为：自定义 URL 源为空时清空跳过、凭据未配置时给出提示，不再静默失败。
@@ -1438,7 +1438,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (_duration == Duration.zero) {
       _duration = _controller.duration;
     }
-    // F-3：自动跳过片头/片尾（未开启或未设置时为空操作）。
+    // 自动跳过片头/片尾（未开启或未设置时为空操作）。
     _maybeAutoSkip(position);
     // 注入弹幕
     if (_danmakuOn) {
@@ -1452,7 +1452,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _maybeSavePosition();
     // 达到「已看」阈值时自动标记当前集
     _maybeMarkWatched();
-    // setState 节流（B-17）：position 流 ~4-10Hz，全量重建开销大。
+    // setState 节流：position 流 ~4-10Hz，全量重建开销大。
     // 弹幕注入 / 进度写盘 / 预解析不受此节流影响（各自已有守卫或节流）。
     final now = DateTime.now();
     if (_lastPositionUiAt == null ||
@@ -1472,7 +1472,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       return;
     }
     _lastPositionSaveAt = now;
-    // 用 _init 阶段缓存的引用（B-6）：不依赖 context，任何时刻（含 dispose 期）可写。
+    // 用 _init 阶段缓存的引用：不依赖 context，任何时刻（含 dispose 期）可写。
     final mgr = _positionManager;
     if (mgr == null) return;
     unawaited(mgr.savePosition(
@@ -1504,7 +1504,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
-  // ─────────────────────── F-3 跳过片头/片尾 ───────────────────────
+  // ─────────────────────── 跳过片头/片尾 ───────────────────────
 
   /// 是否显示「跳过片头」悬浮按钮：设置过片头结束点、位置在
   /// (1s, opEnd-1s) 且本集未跳过。位置上限留 1s 缓冲避免临门一点还弹按钮。
@@ -1524,7 +1524,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     return posSec >= edStart && posSec < edStart + 8;
   }
 
-  /// 自动跳过片头/片尾（F-3）：进入区间且本集未跳过时直接 seek 越过。
+  /// 自动跳过片头/片尾：进入区间且本集未跳过时直接 seek 越过。
   /// 片头要求位置 > 2s 才触发：开局即跳会吞掉「以停顿/回忆开场」的作品，
   /// 也避免续播恢复落在片头内时反复跳。
   void _maybeAutoSkip(Duration position) {
@@ -1593,7 +1593,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     return value;
   }
 
-  /// 跳过片头/片尾设置对话框（F-3）：片头结束点 / 片尾开始点（分:秒，
+  /// 跳过片头/片尾设置对话框：片头结束点 / 片尾开始点（分:秒，
   /// 可一键取当前播放位置）+ 自动跳过开关；按作品持久化。
   Future<void> _showSkipSettings() async {
     final l10n = AppLocalizations.of(context);
@@ -1789,7 +1789,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       try {
         await _controller.durationStream
             .firstWhere((Duration d) => d > Duration.zero)
-            // F-30：按来源分级超时（原固定 10s 对媒体服务器冷启动不够）。
+            // 按来源分级超时（原固定 10s 对媒体服务器冷启动不够）。
             .timeout(_readyTimeout);
       } on Object {
         // 超时或流异常：仍尝试 seek 一次，失败也不影响正常播放。
@@ -1820,7 +1820,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } on Object {
       // Manager 不可用时静默忽略。
     }
-    // 睡眠定时「按集数」模式（F-5）：播完本集递减；归零则暂停、不连播。
+    // 睡眠定时「按集数」模式：播完本集递减；归零则暂停、不连播。
     // 仅当还有下一集可播时生效（最后一集播完本身就不连播，无需拦截）。
     if (_sleepEpisodesRemaining > 0 &&
         widget.episodes != null &&
@@ -1828,7 +1828,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _sleepEpisodesRemaining--;
       if (_sleepEpisodesRemaining == 0) {
         _controller.pause();
-        // UI 同步（同 B-15）：暂停后控制层常显，避免流事件延迟导致仍显播放态。
+        // UI 同步（同 ）：暂停后控制层常显，避免流事件延迟导致仍显播放态。
         _uiHideTimer?.cancel();
         if (mounted) {
           setState(() {
@@ -1847,7 +1847,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         return;
       }
     }
-    // 自动连播（F-8：可配置倒计时，倒计时期间可取消）
+    // 自动连播（可配置倒计时，倒计时期间可取消）
     final bool hasNextInWork =
         widget.episodes != null && _episodeIndex < widget.episodes!.length - 1;
     if (_controller.autoPlayNext && hasNextInWork) {
@@ -1859,14 +1859,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       }
       return;
     }
-    // 跨作品连播（F-4）：当前作品已无下一集（或本就无剧集列表），
+    // 跨作品连播：当前作品已无下一集（或本就无剧集列表），
     // 尝试从播放队列取下一部作品续播（沿用 autoPlayNext 开关与倒计时）。
     if (_controller.autoPlayNext) {
       unawaited(_maybePlayNextWork());
     }
   }
 
-  /// 启动自动连播倒计时（F-8）：SnackBar 实时显示剩余秒数并提供「取消」，
+  /// 启动自动连播倒计时：SnackBar 实时显示剩余秒数并提供「取消」，
   /// 归零后播放下一集。期间控制层常显，便于用户看清提示。
   void _startAutoNextCountdown(int seconds) {
     _cancelAutoNextCountdown();
@@ -1931,7 +1931,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _changeEpisode(_episodeIndex + 1);
   }
 
-  // ───────────────────────── F-4 播放队列（跨作品） ─────────────────────────
+  // ───────────────────────── 播放队列（跨作品） ─────────────────────────
 
   /// 把「当前正在播放的作品」封装为队列条目（用于加入队列 / 记录最近播放）。
   QueuedWork _currentAsQueuedWork([int? index]) {
@@ -1958,7 +1958,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     );
   }
 
-  /// 记录当前作品为「最近播放」（F-4 启动恢复）。best-effort，不阻塞播放。
+  /// 记录当前作品为「最近播放」（启动恢复）。best-effort，不阻塞播放。
   Future<void> _persistCurrentEpisode(int index) async {
     if (_disposed) return;
     try {
@@ -2156,7 +2156,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     await _replaceWithQueuedWork(w, await _queueStore.getQueue());
   }
 
-  /// 播放队列管理面板（F-4）：列出待播队列，支持重排 / 删除 / 清空；
+  /// 播放队列管理面板：列出待播队列，支持重排 / 删除 / 清空；
   /// 顶部若有与当前不同的「最近播放」作品，提供「继续上次」恢复入口。
   Future<void> _showQueueSheet(AppLocalizations l10n) async {
     final queue = await _queueStore.getQueue();
@@ -2448,7 +2448,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _reconnecting = false;
       if (_reconnectAttempts >= _kMaxReconnectAttempts &&
           !_reconnectExhausted) {
-        // F-1 故障回退：当前线路重连耗尽，仍有未尝试的候选线路则自动切换下一条，
+        //  故障回退：当前线路重连耗尽，仍有未尝试的候选线路则自动切换下一条，
         // 而非直接弹「链接失效」让用户手点。所有候选都试过才放弃。
         final failedIndex = _controller.currentLineIndex;
         _triedLineIndices.add(failedIndex);
@@ -2494,7 +2494,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // stop 失败忽略，open 仍会重建当前媒体。
     }
     await _controller.open(url, headers: headers);
-    // F-30：按来源分级超时等元数据（媒体服务器 30s / 直链 6s / 本地 5s）。
+    // 按来源分级超时等元数据（媒体服务器 30s / 直链 6s / 本地 5s）。
     await _waitUntilReady(_readyTimeout);
     // 稳健 seek：open 后首帧/分片可能未到位，校验位置，接近 0 则重试。
     for (var attempt = 0; attempt < 6; attempt++) {
@@ -2522,7 +2522,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     Map<String, String>? headers = _playHeaders;
     if (!_isDirectMode) {
       try {
-        // F-10：重试前清空视频地址缓存——缓存里可能存着已过期的签名直链，
+        // 重试前清空视频地址缓存——缓存里可能存着已过期的签名直链，
         // 不清会导致反复拿到旧 URL 而「假死」；清空后重新解析拿到新链接。
         clearResolvedVideoCache();
         final repo = context.read<SourceRepository>();
@@ -2575,7 +2575,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     return result;
   }
 
-  /// F-30：按媒体来源分级的就绪等待超时。
+  /// 按媒体来源分级的就绪等待超时。
   ///
   /// 源解析的媒体服务器（CMS / P2P 分发，冷启动慢）30s；直链网络地址 6s；
   /// 本地文件 5s。供 [_waitUntilReady] / [_seekWhenReady] 与 controller
@@ -2587,7 +2587,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     return isNetwork ? const Duration(seconds: 6) : const Duration(seconds: 5);
   }
 
-  /// F-30：初始 open 的单次自动重试。
+  /// 初始 open 的单次自动重试。
   ///
   /// open 后按分级超时等元数据；超时（duration 始终为 0，常见于媒体服务器
   /// 冷启动首连失败）则自动 re-open 同地址一次自愈。切集 / 重连会推进
@@ -2603,7 +2603,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (url == null || url.isEmpty) return;
     _controller.openReadyTimeout = _readyTimeout;
     AppLog.instance.w(
-        '[F-30] open 后 ${_readyTimeout.inSeconds}s 元数据未就绪，自动重试一次：$url');
+        '[] open 后 ${_readyTimeout.inSeconds}s 元数据未就绪，自动重试一次：$url');
     try {
       await _reopenAndResume(url, _playHeaders, _lastGoodPosition);
     } on Object {
@@ -2611,7 +2611,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
-  /// F-29：resolve 当前网络 / 设备条件并应用到 mpv demuxer 缓存。
+  /// resolve 当前网络 / 设备条件并应用到 mpv demuxer 缓存。
   Future<void> _applyDemuxerCachePolicy() async {
     try {
       final profile = await _cachePolicyResolver.resolve();
@@ -2632,12 +2632,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         index >= widget.episodes!.length) {
       return;
     }
-    // F-8：手动切集取消进行中的连播倒计时（倒计时归零触发的切集除外，
+    // 手动切集取消进行中的连播倒计时（倒计时归零触发的切集除外，
     // 归零路径先取消再切，此处只会拦到用户手动操作）。
     _cancelAutoNextCountdown();
     // 代次守卫：快速连播 / 手动切集并发时，丢弃过期切换，避免旧集覆盖新集。
     final int token = _loadSession.next();
-    // 睡眠定时跨集保留（B-13）：切集不取消定时器——用户设的「30 分钟后暂停」
+    // 睡眠定时跨集保留：切集不取消定时器——用户设的「30 分钟后暂停」
     // 在连播场景下应继续生效，否则换集后定时被静默清除。仅「关闭定时」
     // （_showSleepTimerPicker 的关闭项）与退出播放器（dispose）才取消。
     // 保存当前集播放位置（P8.1.2）
@@ -2655,7 +2655,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // 切集重置重连状态：上一集的重连耗尽不应影响本集。
       _reconnectExhausted = false;
       _reconnectAttempts = 0;
-      // F-3：新的一集重新允许跳过片头/片尾。
+      // 新的一集重新允许跳过片头/片尾。
       _opSkippedThisEpisode = false;
       _edSkippedThisEpisode = false;
     });
@@ -2682,7 +2682,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (!_loadSession.isValid(token)) return;
       await _controller.open(direct);
       _controller.play();
-      // F-30：分级超时等待元数据，超时自动 re-open 一次自愈。
+      // 分级超时等待元数据，超时自动 re-open 一次自愈。
       unawaited(_retryOpenOnceIfStalled());
       _danmakuController.clear();
       _danmakuController.reset();
@@ -2713,7 +2713,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (video.url.isNotEmpty) {
         _controller.lines = _buildLines(video);
         _controller.currentLineIndex = 0;
-        // F-1：重置本集选路状态；手动记忆的线路优先。
+        // 重置本集选路状态；手动记忆的线路优先。
         _resolvedLineIndices
           ..clear()
           ..add(0);
@@ -2740,7 +2740,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       await _controller.open(playUrl, headers: playHeaders);
       // 切集后自动播放
       _controller.play();
-      // F-30：分级超时等待元数据（媒体服务器 30s），超时自动 re-open 一次自愈。
+      // 分级超时等待元数据（媒体服务器 30s），超时自动 re-open 一次自愈。
       unawaited(_retryOpenOnceIfStalled());
       _danmakuController.clear();
       _danmakuController.reset();
@@ -2755,7 +2755,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       }
     } on Object catch (e) {
       // 切集失败：界面若停在「新集」但画面仍是旧集，须回滚索引并提示，
-      // 避免用户误以为已切换成功（P0 B-4）。
+      // 避免用户误以为已切换成功（P0 ）。
       AppLog.instance.eWithStack('[切集失败] index=$index', e);
       if (!_loadSession.isValid(token)) return;
       if (mounted) {
@@ -2769,15 +2769,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // 切集失败也需开闸，否则该集永远不再保存进度。
       _positionRestoreDone = true;
     }
-    // F-4：切集后更新「最近播放」的起始集（成功=新集，失败回滚=旧集）。
+    // 切集后更新「最近播放」的起始集（成功=新集，失败回滚=旧集）。
     if (mounted) {
       unawaited(_persistCurrentEpisode(_episodeIndex));
     }
-    // F-25：切集成功刷新后台通知（标题/上下集按钮）。
+    // 切集成功刷新后台通知（标题/上下集按钮）。
     if (_positionRestoreDone) _attachBackgroundPlayback();
   }
 
-  /// F-25：把当前播放会话注册到系统媒体通知（后台播放 / 锁屏控制）。
+  /// 把当前播放会话注册到系统媒体通知（后台播放 / 锁屏控制）。
   ///
   /// 使用当前集标题 + 作品名构建 [MediaItem]，并把控制器的播放/暂停/seek/
   /// 上/下一集回调转发给 [AudioPlaybackService]。attach 内部按代次自增，
@@ -2828,7 +2828,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 与 [_maybeSavePosition] 同理：恢复未完成时（如加载中就退出）不写盘，
     // 否则会把上次的续播点抹成 0。
     if (!_positionRestoreDone) return;
-    // 用 _init 阶段缓存的引用（B-6）：dispose 期 context 已失活，
+    // 用 _init 阶段缓存的引用：dispose 期 context 已失活，
     // 不能再用 context.read（会被 catch 吞掉导致最后一段进度丢失）。
     final mgr = _positionManager;
     if (mgr == null) return;
@@ -2836,7 +2836,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         widget.itemId, _episodeIndex, _position.inMilliseconds));
   }
 
-  /// 切集弹幕加载（B-21）：与首载 [_loadDanmaku] 统一走共用加载逻辑，
+  /// 切集弹幕加载：与首载 [_loadDanmaku] 统一走共用加载逻辑，
   /// 保证凭据提示 / 自定义 URL 空值跳过行为一致。
   Future<void> _loadDanmakuForEpisode(Episode ep) => _loadDanmakuFor(ep);
 
@@ -2850,7 +2850,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   void _toggleUi() {
     // PiP 小窗内不响应显隐切换：小窗放不下控制层，弹出即铺满画面。
     if (_inPip) return;
-    // F-14：双击后 600ms 内屏蔽单击，防止双击手势的尾随单击误触显隐控制栏。
+    // 双击后 600ms 内屏蔽单击，防止双击手势的尾随单击误触显隐控制栏。
     if (DateTime.now().difference(_lastDoubleTapAt) <
         const Duration(milliseconds: 600)) {
       return;
@@ -2870,7 +2870,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   void _scheduleUiHide() {
     _uiHideTimer?.cancel();
     if (_disposed || !mounted) return;
-    // F-16：拖动进度 / 菜单打开期间持有控制栏，不安排自动隐藏。
+    // 拖动进度 / 菜单打开期间持有控制栏，不安排自动隐藏。
     if (_panelHoldCount > 0) return;
     if (!_isPlaying) return;
     _uiHideTimer = Timer(_kUiAutoHide, () {
@@ -2989,7 +2989,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   Future<void> _onSeek(Duration position) async {
     await _controller.seek(position);
     // 弹幕游标拨回目标位置附近（只重放窗口内弹幕），与 tick 用同一时间基准
-    // （含 timeOffset），避免 seek 回看时把整条时间轴的弹幕一次性灌进屏幕（B-14）。
+    // （含 timeOffset），避免 seek 回看时把整条时间轴的弹幕一次性灌进屏幕。
     final adjusted = position +
         Duration(milliseconds: (_danmakuSettings.timeOffset * 1000).round());
     _danmakuController.resetTo(adjusted);
@@ -2998,7 +2998,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 打开弹幕设置面板（底部 modal bottom sheet）。
   Future<void> _openDanmakuSettings() async {
-    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    // 面板打开期间持有控制栏，禁止自动隐藏。
     _acquirePanelHold();
     try {
       await DanmakuSettingsSheet.show(
@@ -3034,7 +3034,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   void _openDanmakuSource() async {
-    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    // 面板打开期间持有控制栏，禁止自动隐藏。
     _acquirePanelHold();
     try {
       await DanmakuSourceSheet.show(
@@ -3085,7 +3085,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     const speeds = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0];
     final current = _controller.playbackSpeed;
 
-    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    // 面板打开期间持有控制栏，禁止自动隐藏。
     _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
@@ -3154,7 +3154,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         );
       },
     )
-        // F-16：面板关闭后释放控制栏租约。
+        // 面板关闭后释放控制栏租约。
         .whenComplete(_releasePanelHold);
   }
 
@@ -3267,10 +3267,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     unawaited(_saveDanmakuSettings());
     _sleepTimer?.cancel();
     _speedProbeTimer?.cancel();
-    // F-8：退出播放器取消连播倒计时并释放通知器。
+    // 退出播放器取消连播倒计时并释放通知器。
     _cancelAutoNextCountdown();
     _autoNextCountdownLeft.dispose();
-    // F-5：退出播放器清按集睡眠计数（仅"关定时/退出"才取消，切集保留）。
+    // 退出播放器清按集睡眠计数（仅"关定时/退出"才取消，切集保留）。
     _sleepEpisodesRemaining = 0;
     _gestureIndicatorTimer?.cancel();
     _uiHideTimer?.cancel();
@@ -3283,10 +3283,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _playingFalseDebounce?.cancel();
     _pipActionSub?.cancel();
     _pipActionSub = null;
-    // F-29：退出播放器取消网络变化订阅（缓存档位随播放器生命周期）。
+    // 退出播放器取消网络变化订阅（缓存档位随播放器生命周期）。
     unawaited(_connectivitySub?.cancel());
     _connectivitySub = null;
-    // F-23：退出播放器清空 PiP 窗口动作（避免下次进入残留旧动作）。
+    // 退出播放器清空 PiP 窗口动作（避免下次进入残留旧动作）。
     // 退出时 PiP 已结束（PiP 模式不会触发 dispose），安全清理。
     unawaited(PipActionsBridge.instance.clearActions());
     _resolveProgress.dispose();
@@ -3304,7 +3304,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // PlayerController.pendingDisposal，确保「旧播放器销毁」先于「新播放器创建」，
     // 避免退出重进时新旧 surface 冲突（Lost connection to device）。
     _videoController = null;
-    // F-25：退出播放器注销后台媒体通知（token 校验防止误清跨作品换页的新会话）。
+    // 退出播放器注销后台媒体通知（token 校验防止误清跨作品换页的新会话）。
     AudioPlaybackService.instance.detach(_bgToken);
     if (_controllerCreated) {
       _controller.dispose();
@@ -3313,7 +3313,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 注意：resetScreenBrightness 是异步方法，其 PlatformException 在后续微任务抛出，
     // 同步 try/catch 捕获不到，会形成「Uncaught zone error」；故用 .catchError 兜底。
     _brightnessPlugin.resetScreenBrightness().catchError((Object _) {});
-    // F-24：仍在桌面 PiP 时直接退出播放器（返回/Esc/路由替换），兜底恢复
+    // 仍在桌面 PiP 时直接退出播放器（返回/Esc/路由替换），兜底恢复
     // 窗口原状（标题栏/尺寸/位置/最大化/置顶），否则小窗状态会残留到其他页面。
     if (_desktopPipActive) {
       unawaited(_exitDesktopPip());
@@ -3419,7 +3419,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 onLongPressStart: (_) => _onLongPressSpeedStart(),
                 onLongPressEnd: (_) => _onLongPressSpeedEnd(),
                 // 双击：左=快退 10s；中=播放/暂停；右=快进 10s（锁定态忽略）。
-                // F-11：连续双击同方向累加（10s→20s→30s，900ms 无后续双击或
+                // 连续双击同方向累加（10s→20s→30s，900ms 无后续双击或
                 // 换方向则重置），指示器按累加秒数显示。
                 onDoubleTapDown: (TapDownDetails d) {
                   if (_controller.isLocked) return;
@@ -3488,7 +3488,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                         if (_controller.isLocked) return;
                         _dragAxis = _GestureAxis.horizontal;
                         _seekPreview = _position;
-                        // F-15：记录起点 Y 并重置上滑取消状态。
+                        // 记录起点 Y 并重置上滑取消状态。
                         _seekDragStartY = d.globalPosition.dy;
                         _seekDragVerticalDelta = 0;
                         _seekDragCancelled = false;
@@ -3499,7 +3499,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                     : (DragUpdateDetails d) {
                         if (_controller.isLocked) return;
                         if (_dragAxis != _GestureAxis.horizontal) return;
-                        // F-15：计算相对起点的垂直位移，超过阈值 → 取消本次 seek
+                        // 计算相对起点的垂直位移，超过阈值 → 取消本次 seek
                         // （松手不跳转）。delta.dy 恒为 0（框架按主轴过滤，见字段
                         // 注释），必须用指针全局 Y 与起点的差值。
                         _seekDragVerticalDelta =
@@ -3546,7 +3546,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                           return;
                         }
                         if (_dragAxis == _GestureAxis.horizontal) {
-                          // F-15：上滑取消后松手不跳转，进度停在原位置。
+                          // 上滑取消后松手不跳转，进度停在原位置。
                           if (!_seekDragCancelled) {
                             unawaited(_controller.seek(_seekPreview));
                           }
@@ -3584,7 +3584,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               // 中央手势指示器（锁定态 / PiP 小窗不显示）
               if (!_controller.isLocked && !pipMode) _buildGestureIndicator(),
 
-              // F-3：跳过片头/片尾悬浮按钮（右下角，控制栏显示时抬高避让）。
+              // 跳过片头/片尾悬浮按钮（右下角，控制栏显示时抬高避让）。
               if (!_controller.isLocked && !pipMode && _showSkipOpButton)
                 Positioned(
                   right: AppTokens.spaceLg,
@@ -3604,7 +3604,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       onTap: _skipOutro),
                 ),
 
-              // 功能2：缓冲加载动画（播放中缓冲时显示中央转圈）+ 实时网速（F-6）。
+              // 功能2：缓冲加载动画（播放中缓冲时显示中央转圈）+ 实时网速。
               if (_isBuffering && !_controller.isLocked)
                 Center(
                   child: Column(
@@ -3619,7 +3619,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                               AlwaysStoppedAnimation<Color>(Colors.white70),
                         ),
                       ),
-                      // F-6：缓冲时显示实时网速（mpv cache-speed，平台不支持则隐藏）。
+                      // 缓冲时显示实时网速（mpv cache-speed，平台不支持则隐藏）。
                       if (_bufferingSpeedText != null)
                         Padding(
                           padding:
@@ -3712,7 +3712,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       isPlaying: _isPlaying,
                       uiVisible: _uiVisible,
                       onToggle: () {
-                        // F-8：用户手动重播则取消进行中的连播倒计时。
+                        // 用户手动重播则取消进行中的连播倒计时。
                         _cancelAutoNextCountdown();
                         _controller.play();
                         setState(() => _isPlaying = true);
@@ -3721,7 +3721,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   ),
               ],
 
-              // F-12：控制栏隐藏时底部保留细进度条（可开关，设置页 player.bottomProgress）。
+              // 控制栏隐藏时底部保留细进度条（可开关，设置页 player.bottomProgress）。
               // 常驻显示当前播放位置，不拦截点击（IgnorePointer），方便全屏沉浸时看进度。
               if (!_uiVisible &&
                   _playerSettings.showBottomProgress &&
@@ -3749,7 +3749,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     );
   }
 
-  /// 按当前画面比例构建视频表面（B-7 修复「比例设置不生效」）。
+  /// 按当前画面比例构建视频表面（修复「比例设置不生效」）。
   ///
   /// 原实现把 Video 固定塞进 16:9 容器，4:3 / fill 只改了 mpv 侧
   /// `video-aspect-override`，容器比例不变导致视觉不生效（fill 时上下黑边
@@ -3920,7 +3920,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               position: _position,
               duration: _duration,
               onSeek: _onSeek,
-              // F-16：拖动期间持有控制栏，防止自动隐藏打断拖拽。
+              // 拖动期间持有控制栏，防止自动隐藏打断拖拽。
               onDragStart: _acquirePanelHold,
               onDragEnd: _releasePanelHold,
             ),
@@ -3955,7 +3955,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   icon: _isPlaying ? Icons.pause : Icons.play_arrow,
                   tooltip: _isPlaying ? l10n.pause : l10n.play,
                   onTap: () {
-                    // F-8：用户手动重播则取消进行中的连播倒计时。
+                    // 用户手动重播则取消进行中的连播倒计时。
                     _cancelAutoNextCountdown();
                     if (_isPlaying) {
                       _controller.pause();

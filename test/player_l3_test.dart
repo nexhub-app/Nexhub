@@ -1,8 +1,8 @@
 /// 播放器 L3 剩余项单元测试。
 ///
 /// 覆盖：
-/// - F-29 缓存策略降级：[DemuxerCacheProfile] 两档预算数值；
-/// - F-18 弹幕发送上传：[DandanplayService.sendComment] 请求路径 / 体 /
+/// -  缓存策略降级：[DemuxerCacheProfile] 两档预算数值；
+/// -  弹幕发送上传：[DandanplayService.sendComment] 请求路径 / 体 /
 ///   Bearer 头与成功解析，[DandanplayService.login] 凭据校验与 token 提取。
 library;
 
@@ -46,7 +46,7 @@ class _FakeAdapter implements HttpClientAdapter {
 }
 
 void main() {
-  group('F-29 DemuxerCacheProfile', () {
+  group(' DemuxerCacheProfile', () {
     test('标准档 1500MiB 前向 / 750MiB 后向', () {
       expect(DemuxerCacheProfile.standard.maxBytes, 1500 * 1024 * 1024);
       expect(DemuxerCacheProfile.standard.maxBackBytes, 750 * 1024 * 1024);
@@ -58,7 +58,7 @@ void main() {
     });
   });
 
-  group('F-18 DandanplayService.sendComment', () {
+  group(' DandanplayService.sendComment', () {
     late _FakeAdapter adapter;
     late DandanplayService service;
 
@@ -150,7 +150,7 @@ void main() {
     });
   });
 
-  group('F-18 DandanplayService.login', () {
+  group(' DandanplayService.login', () {
     test('未配置凭据时抛 StateError', () async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final store = DanmakuConfigStore();

@@ -1,8 +1,8 @@
-/// P2-11 划线批注导出单测：
+///  划线批注导出单测：
 /// - 划线 JSON round-trip（含 contextBefore/After 锚点字段）
 /// - 划线导出 EPUB 章节 HTML 渲染
 /// - 划线导出 TXT 文件渲染
-/// - 换源重定位打分逻辑（P1-5 已落地，此处验证锚点数据模型完整）
+/// - 换源重定位打分逻辑（已落地，此处验证锚点数据模型完整）
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -32,7 +32,7 @@ NovelHighlight _hl({
 }
 
 void main() {
-  group('P2-11 划线模型锚点完整性', () {
+  group(' 划线模型锚点完整性', () {
     test('toJson/fromJson round-trip 保留 48 字符锚点上下文', () {
       final h = _hl();
       final back = NovelHighlight.fromJson(h.toJson());
@@ -59,7 +59,7 @@ void main() {
     });
   });
 
-  group('P2-11 划线导出渲染', () {
+  group(' 划线导出渲染', () {
     test('EPUB 章节 HTML：每条划线含章节名 + 引用 + 笔记', () {
       final highlights = <NovelHighlight>[
         _hl(note: '重点'),

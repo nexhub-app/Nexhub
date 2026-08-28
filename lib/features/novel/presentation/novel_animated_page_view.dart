@@ -65,7 +65,7 @@ class NovelAnimatedPageView extends StatefulWidget {
   /// 竖向拖拽结束回调（用于左侧 1/3 亮度手势）。
   final void Function(DragEndDetails)? onVerticalDragEnd;
 
-  /// N4 下滑切书签手势（P2-9）：主区域纵向下滑手势回调组。
+  /// N4 下滑切书签手势：主区域纵向下滑手势回调组。
   /// 三者非空时启用（与左侧 1/3 亮度手势区域互斥，见 _wrapGestures）。
   final void Function(DragStartDetails)? onBookmarkSwipeStart;
   final void Function(DragUpdateDetails)? onBookmarkSwipeUpdate;
@@ -597,7 +597,7 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
             ],
           )
         : base;
-    // N4 下滑切书签（P2-9）：主区域纵向下滑。与横向翻页手势共存于同一
+    // N4 下滑切书签：主区域纵向下滑。与横向翻页手势共存于同一
     // GestureDetector——Flutter 手势竞技场按位移方向自动裁决横/纵拖拽，
     // 横向滑动走翻页、纵向下滑走书签，无需额外分区。
     final bookmarkSwipeEnabled = !_isScroll &&

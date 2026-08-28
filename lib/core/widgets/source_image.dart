@@ -110,8 +110,8 @@ class SourceImage extends StatelessWidget {
     if (m['Accept']?.contains('application/json') ?? false) {
       m['Accept'] = 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8';
     }
-    // 默认补同源 Referer：优先源站 origin（nhentai 等防盗链 CDN 只认源站同源，
-    // 用图片 CDN 域名 i*.nhentai.net 会被直接断连接 → 图片全空），取不到再回退
+    // 默认补同源 Referer：优先源站 origin（部分防盗链 CDN 只认源站同源，
+    // 用图片 CDN 的独立域名会被直接断连接 → 图片全空），取不到再回退
     // 图片 URL 自身 origin。
     if (!m.containsKey('Referer')) {
       final String? origin = _fallbackRefererOrigin();

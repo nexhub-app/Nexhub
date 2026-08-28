@@ -36,7 +36,7 @@ void main() {
       expect(demo[1].time, const Duration(seconds: 2));
     });
 
-    test('F-20: same text within 5s window merged, kept beyond window', () {
+    test(': same text within 5s window merged, kept beyond window', () {
       final items = <DanmakuItem>[
         DanmakuItem(text: '哈哈哈', time: const Duration(seconds: 10)),
         DanmakuItem(text: '哈哈哈', time: const Duration(seconds: 12)),
@@ -51,7 +51,7 @@ void main() {
       expect(merged.map((e) => e.time.inSeconds), <int>[10, 11, 16]);
     });
 
-    test('F-20: self-sent danmaku never merged', () {
+    test(': self-sent danmaku never merged', () {
       final items = <DanmakuItem>[
         DanmakuItem(text: '我发的', time: const Duration(seconds: 1)),
         DanmakuItem(
@@ -61,7 +61,7 @@ void main() {
       expect(merged, hasLength(2));
     });
 
-    test('F-20: setItems dedupes and pending reflects merged list', () {
+    test(': setItems dedupes and pending reflects merged list', () {
       final ctrl = DanmakuController(<DanmakuItem>[
         DanmakuItem(text: '刷屏', time: const Duration(seconds: 1)),
         DanmakuItem(text: '刷屏', time: const Duration(seconds: 2)),

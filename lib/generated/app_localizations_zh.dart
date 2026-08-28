@@ -5900,6 +5900,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get webviewLoginUnsupported => '当前平台不支持内置网页登录，请使用「粘贴 Cookie」方式。';
 
   @override
+  String get apiKeyTitle => 'API Key';
+
+  @override
+  String get apiKeyHint => '在源站账户设置页复制 API Key（收藏等受保护请求需要）。';
+
+  @override
+  String get apiKeyPlaceholder => '粘贴 API Key';
+
+  @override
+  String get apiKeySave => '保存并校验';
+
+  @override
+  String get apiKeyValid => 'API Key 有效';
+
+  @override
+  String get apiKeyInvalid => 'API Key 无效，请检查后重试';
+
+  @override
   String get bangumiSettings => 'Bangumi 同步';
 
   @override

@@ -23,7 +23,7 @@ enum PlayerLockOrientation { auto, portrait, landscape }
 /// 播放器左右拖动 Seek 区间倍率。
 enum SeekMultiplier { half, normal, double }
 
-/// 超分辨率 shader 档位（F-7）：off 关闭 / performance 效率 / quality 质量。
+/// 超分辨率 shader 档位：off 关闭 / performance 效率 / quality 质量。
 enum UpscaleShaderMode { off, performance, quality }
 
 /// 播放器默认设置。
@@ -33,10 +33,10 @@ class PlayerSettings {
   final PlayerAspectRatio aspectRatio;
   final double playbackSpeed;
   final bool autoPlayNext;
-  /// 自动选线路（F-1，默认开启）：进入剧集时优先用「按集记忆」选过的线路；
+  /// 自动选线路（，默认开启）：进入剧集时优先用「按集记忆」选过的线路；
   /// 播放卡死/失败后自动轮换到其它候选线路重试，不弹「链接失效」让用户手点。
   final bool autoSelectLine;
-  /// 自动连播倒计时秒数（F-8）：播完一集后弹「N 秒后播放下一集」可取消，
+  /// 自动连播倒计时秒数：播完一集后弹「N 秒后播放下一集」可取消，
   /// 0 = 立即连播（保持旧行为）。
   final int autoPlayCountdownSeconds;
   final double subtitleFontSize;
@@ -47,7 +47,7 @@ class PlayerSettings {
   final double longPressSpeed;
   final double defaultVolume;
   final String screenshotSavePath;
-  /// 隐藏控制栏后底部是否保留细进度条（F-12，默认开启）。
+  /// 隐藏控制栏后底部是否保留细进度条（，默认开启）。
   final bool showBottomProgress;
   final double subtitleScale;
   final double subtitleBorderSize;
@@ -59,7 +59,7 @@ class PlayerSettings {
   final String subtitleAssMode;
   final int subtitleDelayMs;
   final bool subtitleVisible;
-  /// 超分辨率 shader 档位（F-7，默认关闭）。
+  /// 超分辨率 shader 档位（，默认关闭）。
   final UpscaleShaderMode upscaleShader;
 
   const PlayerSettings({
@@ -356,7 +356,7 @@ class EpisodePlayerSettingsStore {
   }
 }
 
-/// 按「源 + 剧集」记忆用户手动选中的播放线路名（F-1 手动选源记忆）。
+/// 按「源 + 剧集」记忆用户手动选中的播放线路名（手动选源记忆）。
 ///
 /// 仅存用户实际手动切换过的线路；读取不到时回退到自动选线路逻辑。
 /// 存线路**名**而非索引：线路列表由源声明、顺序可能随源更新变化，

@@ -93,7 +93,7 @@ void main() {
       }
     }
 
-    // F-25：后台播放 + 系统媒体通知（audio_service / audio_session）。
+    // 后台播放 + 系统媒体通知（audio_service / audio_session）。
     // 幂等初始化：注册平台媒体会话与音频打断/拔耳机处理。失败不影响前台播放，
     // 仅无后台通知栏。必须在 runApp 之前完成平台侧注册。
     try {

@@ -1,4 +1,4 @@
-/// 播放器后端能力枚举（F-2）。
+/// 播放器后端能力枚举。
 ///
 /// 定义 [VideoPlayerBackend] 可能支持的能力项目，调用方可通过
 /// `backend.capabilities.contains(PlayerCapability.hwdec)` 探测。
@@ -21,6 +21,6 @@ enum PlayerCapability {
   /// 弹幕功能（仅 media_kit 后端通过画布层实现）。
   danmaku,
 
-  /// GLSL 用户 shader 注入（mpv `glsl-shaders`，F-7 超分辨率）。
+  /// GLSL 用户 shader 注入（mpv `glsl-shaders`， 超分辨率）。
   upscaleShader,
 }

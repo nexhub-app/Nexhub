@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-/// 系统 PiP 窗口动作桥（F-23）。
+/// 系统 PiP 窗口动作桥。
 ///
 /// Android O+ 支持在系统画中画窗口内注册自定义动作按钮（[android.app.RemoteAction]）。
 /// floating 包只提供进出 PiP、不支持窗口动作，故应用原生侧（MainActivity）扩展了

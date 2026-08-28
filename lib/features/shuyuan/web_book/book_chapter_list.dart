@@ -127,7 +127,7 @@ class BookChapterList {
         }
 
         if (bookChapter.url.isEmpty) {
-          // 对齐 Legado 参考库：卷章节用标题+索引做 URL 占位，普通章节用 baseUrl
+          // 与通用书源规范一致：卷章节用标题+索引做 URL 占位，普通章节用 baseUrl
           // 回退。避免跳过（continue）导致目录数丢失，也保证后续跨书过滤不误删。
           if (bookChapter.isVolume) {
             bookChapter.url = '${bookChapter.title}$i';
@@ -235,7 +235,7 @@ class BookChapterList {
       chapters = _applyTocJs(chapters, tocRule.preUpdateJs!);
     }
     // legado ruleToc.formatJs：逐章节执行，绑定 index/chapter/title/gInt 变量，
-    // 返回值为该章节格式化后的标题（对齐 Legado 参考库语义，非列表级操作）。
+    // 返回值为该章节格式化后的标题（沿用通用书源规范语义，非列表级操作）。
     if (tocRule.formatJs != null && tocRule.formatJs!.isNotEmpty) {
       final js = tocRule.formatJs!;
       for (int i = 0; i < chapters.length; i++) {

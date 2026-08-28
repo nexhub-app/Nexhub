@@ -162,7 +162,7 @@ void main() {
         cookieHeader: (_) => 'user_token=stale',
         cookieVersions: const Stream<int>.empty(),
         clearCookies: (_) {},
-        probe: (url, {referer}) async => '{"data": {}}',
+        probe: (url, {referer, headers}) async => '{"data": {}}',
       );
       final source = buildSource(login: <String, dynamic>{
         'checkCookie': 'user_token',
@@ -179,7 +179,7 @@ void main() {
         cookieHeader: (_) => 'user_token=stale',
         cookieVersions: const Stream<int>.empty(),
         clearCookies: (_) {},
-        probe: (url, {referer}) =>
+        probe: (url, {referer, headers}) =>
             Future<String>.error(const HttpStatusException(url: 'u', statusCode: 401)),
       );
       final source = buildSource(login: <String, dynamic>{

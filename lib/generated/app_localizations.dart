@@ -11402,6 +11402,42 @@ abstract class AppLocalizations {
   /// **'In-app web login is unavailable on this platform. Use \"Paste Cookie\" instead.'**
   String get webviewLoginUnsupported;
 
+  /// No description provided for @apiKeyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key'**
+  String get apiKeyTitle;
+
+  /// No description provided for @apiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the API Key from the source account settings page (required for favorites and protected requests).'**
+  String get apiKeyHint;
+
+  /// No description provided for @apiKeyPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste API Key'**
+  String get apiKeyPlaceholder;
+
+  /// No description provided for @apiKeySave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save & verify'**
+  String get apiKeySave;
+
+  /// No description provided for @apiKeyValid.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key is valid'**
+  String get apiKeyValid;
+
+  /// No description provided for @apiKeyInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key is invalid, please check and retry'**
+  String get apiKeyInvalid;
+
   /// No description provided for @bangumiSettings.
   ///
   /// In en, this message translates to:

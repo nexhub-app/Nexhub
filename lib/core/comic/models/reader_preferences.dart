@@ -1143,7 +1143,7 @@ T getReaderSetting<T>(
 /// 漫画睡眠定时模式（X-1 跨类型对齐）。
 ///
 /// 会话级状态（不持久化到偏好）：按分钟到时暂停 / 按话数读完 N 话后暂停，
-/// 与播放器 F-5、小说 TTS 睡眠定时语义对齐。
+/// 与播放器、小说 TTS 睡眠定时语义对齐。
 enum ComicSleepTimerMode { off, minutes, chapters }
 
 /// 漫画睡眠定时状态：设置面板与阅读器之间的双向通信载体。

@@ -1,4 +1,4 @@
-/// P2-3 在线 TTS 播放管线单测：
+///  在线 TTS 播放管线单测：
 /// - 分句 → 顺序播放
 /// - 合成失败静音占位（跳过继续）
 /// - 连续失败达阈值停止剩余
@@ -45,7 +45,7 @@ void main() {
     silentPlaceholderOnFailure: false,
   );
 
-  group('P2-3 播放管线：分句 + 顺序播放', () {
+  group(' 播放管线：分句 + 顺序播放', () {
     test('旁白+对话按角色切分并顺序播放', () async {
       final played = <String>[];
       final preloader = _FakePreloader(results: <TtsSynthesisResult>[
@@ -88,7 +88,7 @@ void main() {
     });
   });
 
-  group('P2-3 播放管线：失败降级', () {
+  group(' 播放管线：失败降级', () {
     test('单句失败 + 静音占位 → 跳过继续播放后续', () async {
       final played = <String>[];
       final preloader = _FakePreloader(results: <TtsSynthesisResult>[
@@ -150,7 +150,7 @@ void main() {
     });
   });
 
-  group('P2-3 播放管线：取消', () {
+  group(' 播放管线：取消', () {
     test('cancel 中断剩余播放', () async {
       final played = <String>[];
       final preloader = _FakePreloader(results: <TtsSynthesisResult>[

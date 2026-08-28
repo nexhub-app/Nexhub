@@ -20,7 +20,7 @@ class InBookSearchResult {
   final String snippet;
 
   /// 命中位置在章内的字符偏移：命中前所有文本块长度累计 + 块内命中下标。
-  /// 与阅读器分页偏移同源（P0-2 `_charOffsetForPage` 口径），跳转时用它
+  /// 与阅读器分页偏移同源（`_charOffsetForPage` 口径），跳转时用它
   /// 反查命中所在页，而非只落到章节首页。
   final int charOffset;
 

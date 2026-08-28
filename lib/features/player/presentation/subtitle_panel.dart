@@ -23,10 +23,10 @@ class SubtitlePanel extends StatefulWidget {
 
   final PlayerController controller;
 
-  /// 全局播放器默认设置：面板样式项的初始值来源（打通设置页默认值）。
+ /// 全局播放器默认设置：面板样式项的初始值来源（打通设置页默认值）。
   final PlayerSettings? defaults;
 
-  /// 以 modal bottom sheet 形式展示字幕面板。
+ /// 以 modal bottom sheet 形式展示字幕面板。
   static Future<void> show(
     BuildContext context, {
     required PlayerController controller,
@@ -51,13 +51,13 @@ class SubtitlePanel extends StatefulWidget {
 }
 
 class _SubtitlePanelState extends State<SubtitlePanel> {
-  /// 当前可用字幕轨道（过滤掉 'auto' / 'no' 占位项，仅展示真实轨道）。
+ /// 当前可用字幕轨道（过滤掉 'auto' / 'no' 占位项，仅展示真实轨道）。
   List<SubtitleTrack> _tracks = const <SubtitleTrack>[];
 
   StreamSubscription<Tracks>? _tracksSub;
 
-  // ── 字幕样式状态（本地 UI 状态，onChangeEnd 时写入 mpv） ──
-  // 初始值取自全局播放器默认设置（widget.defaults），与设置页打通。
+ // ── 字幕样式状态（本地 UI 状态，onChangeEnd 时写入 mpv） ──
+ // 初始值取自全局播放器默认设置（widget.defaults），与设置页打通。
   late double _subFontSize;
   late double _subScale;
   late double _subBorderSize;
@@ -71,7 +71,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   @override
   void initState() {
     super.initState();
-    // 样式初值取自控制器（已恢复的 F-22 记忆或默认回落值），与记忆打通。
+  // 样式初值取自控制器（已恢复的 记忆或默认回落值），与记忆打通。
     final c = widget.controller;
     _subFontSize = c.subFontSize;
     _subScale = c.subScale;
@@ -94,7 +94,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     super.dispose();
   }
 
-  /// 更新可用字幕轨道列表（过滤占位项），并同步当前选中轨道的显示状态。
+ /// 更新可用字幕轨道列表（过滤占位项），并同步当前选中轨道的显示状态。
   void _refreshTracks(List<SubtitleTrack> tracks) {
     final real = tracks
         .where((SubtitleTrack t) => t.id != 'auto' && t.id != 'no')
@@ -102,7 +102,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     if (mounted) setState(() => _tracks = real);
   }
 
-  /// 生成轨道展示标签：优先 title，其次 language，最后回退到「轨道 N」。
+ /// 生成轨道展示标签：优先 title，其次 language，最后回退到「轨道 N」。
   String _trackLabel(SubtitleTrack track, AppLocalizations l10n) {
     if (track.title != null && track.title!.trim().isNotEmpty) {
       return track.title!.trim();
@@ -183,13 +183,13 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   Widget _trackSection(AppLocalizations l10n, ThemeData theme) {
     final current = widget.controller.currentSubtitleTrack;
     final visible = widget.controller.subtitleVisible;
-    // 当前生效的轨道：显示开关关闭时视为未选中。
+  // 当前生效的轨道：显示开关关闭时视为未选中。
     final selected = visible ? current : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        // #5 A4-#5: 加载外部字幕文件
+    // #5 A4-#5: 加载外部字幕文件
         ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
@@ -211,7 +211,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
               unawaited(widget.controller.saveSubtitleState());
             },
           ),
-        // 关闭字幕
+    // 关闭字幕
         ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
@@ -238,8 +238,8 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     );
   }
 
-  /// #5 A4-#5: 通过 file_picker 选择本地 .srt/.vtt/.ass 字幕文件，
-  /// 使用 SubtitleTrack.uri 加载到播放器。
+ /// #5 A4-#5: 通过 file_picker 选择本地 .srt/.vtt/.ass 字幕文件，
+ /// 使用 SubtitleTrack.uri 加载到播放器。
   Future<void> _pickExternalSubtitle(AppLocalizations l10n) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
@@ -265,12 +265,12 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     }
   }
 
-  /// 字幕样式设置：字号 / 颜色 / 边框 / 阴影 / 缩放 / 位置 / ASS覆盖。
+ /// 字幕样式设置：字号 / 颜色 / 边框 / 阴影 / 缩放 / 位置 / ASS覆盖。
   Widget _styleSection(AppLocalizations l10n, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        // 标题
+    // 标题
         Padding(
           padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
           child: Text(
@@ -278,7 +278,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             style: theme.textTheme.titleSmall,
           ),
         ),
-        // 字号滑块
+    // 字号滑块
         Row(
           children: <Widget>[
             Expanded(child: Text(l10n.subtitleFontSize, style: theme.textTheme.bodyMedium)),
@@ -296,7 +296,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             unawaited(widget.controller.saveSubtitleState());
           },
         ),
-        // 缩放
+    // 缩放
         Row(
           children: <Widget>[
             Expanded(child: Text(l10n.subtitleScale, style: theme.textTheme.bodyMedium)),
@@ -314,7 +314,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             unawaited(widget.controller.saveSubtitleState());
           },
         ),
-        // 边框宽度
+    // 边框宽度
         Row(
           children: <Widget>[
             Expanded(child: Text(l10n.subtitleBorderSize, style: theme.textTheme.bodyMedium)),
@@ -332,7 +332,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             unawaited(widget.controller.saveSubtitleState());
           },
         ),
-        // 阴影偏移
+    // 阴影偏移
         Row(
           children: <Widget>[
             Expanded(child: Text(l10n.subtitleShadowOffset, style: theme.textTheme.bodyMedium)),
@@ -353,7 +353,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
 
         const SizedBox(height: AppTokens.spaceXs),
 
-        // 颜色选择行（文字颜色 + 边框颜色 + 阴影颜色）
+    // 颜色选择行（文字颜色 + 边框颜色 + 阴影颜色）
         Wrap(
           spacing: AppTokens.spaceSm,
           runSpacing: AppTokens.spaceXs,
@@ -378,7 +378,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
 
         const SizedBox(height: AppTokens.spaceSm),
 
-        // 位置选择
+    // 位置选择
         Row(
           children: <Widget>[
             Expanded(child: Text(l10n.subtitlePosition, style: theme.textTheme.bodyMedium)),
@@ -407,7 +407,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
 
         const SizedBox(height: AppTokens.spaceSm),
 
-        // ASS/SSA 覆盖模式
+    // ASS/SSA 覆盖模式
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
@@ -437,17 +437,17 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     );
   }
 
-  /// 颜色选择器（弹出预设颜色网格）。
+ /// 颜色选择器（弹出预设颜色网格）。
   Future<void> _pickColor(AppLocalizations l10n, {bool isText = false, bool isBorder = false, bool isShadow = false}) async {
     final colors = <String>[
-      'FFFFFF', // 白
-      'FFFF00', // 黄
-      '00FF00', // 绿
-      '00FFFF', // 青
-      'FF0000', // 红
-      'FF00FF', // 品红
-      '0000FF', // 蓝
-      '000000', // 黑
+   'FFFFFF', // 白
+   'FFFF00', // 黄
+   '00FF00', // 绿
+   '00FFFF', // 青
+   'FF0000', // 红
+   'FF00FF', // 品红
+   '0000FF', // 蓝
+   '000000', // 黑
     ];
     final selected = await showDialog<String>(
       context: context,
@@ -493,10 +493,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     }
   }
 
-  /// BGR 十六进制字符串转 Color（mpv 使用 BGR 格式）。
+ /// BGR 十六进制字符串转 Color（mpv 使用 BGR 格式）。
   static Color _bgrToColor(String hex) {
     final val = int.tryParse(hex, radix: 16) ?? 0xFFFFFFFF;
-    // mpv sub-color 是 BGR(AABBGGRR)，Flutter Color 是 ARGB(0xAARRGGBB)
+  // mpv sub-color 是 BGR(AABBGGRR)，Flutter Color 是 ARGB(0xAARRGGBB)
     final r = (val >> 16) & 0xFF;
     final g = (val >> 8) & 0xFF;
     final b = val & 0xFF;

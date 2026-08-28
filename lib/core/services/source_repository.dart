@@ -34,7 +34,6 @@ class SourceRepository extends ChangeNotifier {
   static const List<String> _builtinAssetNames = <String>[
     'manga_baozimh',
     'manga_goda',
-    'manga_nhentai',
     'pms_dalvdm',
     'pms_girigirilove',
     'pms_m233',

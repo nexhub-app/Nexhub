@@ -6031,6 +6031,25 @@ class AppLocalizationsEn extends AppLocalizations {
       'In-app web login is unavailable on this platform. Use \"Paste Cookie\" instead.';
 
   @override
+  String get apiKeyTitle => 'API Key';
+
+  @override
+  String get apiKeyHint =>
+      'Copy the API Key from the source account settings page (required for favorites and protected requests).';
+
+  @override
+  String get apiKeyPlaceholder => 'Paste API Key';
+
+  @override
+  String get apiKeySave => 'Save & verify';
+
+  @override
+  String get apiKeyValid => 'API Key is valid';
+
+  @override
+  String get apiKeyInvalid => 'API Key is invalid, please check and retry';
+
+  @override
   String get bangumiSettings => 'Bangumi sync';
 
   @override

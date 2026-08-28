@@ -1,4 +1,4 @@
-/// 小说 TTS 分句器（P2-3 / C4，对标 RuleBasedSpeechSegmenter 语义）。
+/// 小说 TTS 分句器（/ C4，对标 RuleBasedSpeechSegmenter 语义）。
 ///
 /// 纯函数：输入段落文本，输出带角色标注的句子段序列。
 /// 规则：
@@ -203,7 +203,7 @@ bool _isNameChar(String c) {
 
 /// 旁白切句：按结束标点切短句。句首若命中「角色 + 冒号」句式
 /// （如 `他说：xxx` / `小王心想：xxx`），以冒号前文本为角色、冒号后为
-/// 内容切分（P2-3 无引号句式也支持角色判定）。
+/// 内容切分（无引号句式也支持角色判定）。
 void _appendNarration(String text, List<SpeechSegment> out) {
   final trimmed = text.trim();
   if (trimmed.isEmpty) return;

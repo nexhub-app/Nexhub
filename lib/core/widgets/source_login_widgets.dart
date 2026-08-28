@@ -70,7 +70,7 @@ class _ApiKeyTileState extends State<ApiKeyTile> {
     await SourceKeyStore.set(widget.source.id, param, value);
     _saved.value = true;
     if (!context.mounted) return;
-    // 即时校验：带 Key 头探测 checkUrl（如 nhentai /api/v2/user），
+    // 即时校验：带 Key 头探测 checkUrl（如 /api/v2/user 一类接口），
     // 401/403 或网络失败 → 无效；2xx + 选择器命中 → 有效。
     final ok = await context
         .read<SourceAuthManager>()

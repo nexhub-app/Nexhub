@@ -2,7 +2,7 @@ part of 'video_player_screen.dart';
 
 extension _VideoSleepTimer on _VideoPlayerScreenState {
   void _showSleepTimerPicker(AppLocalizations l10n) {
-    // F-16：面板打开期间持有控制栏，禁止自动隐藏。
+    // 面板打开期间持有控制栏，禁止自动隐藏。
     _acquirePanelHold();
     showModalBottomSheet<void>(
       context: context,
@@ -22,7 +22,7 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
                 Navigator.pop(ctx);
                 _sleepTimer?.cancel();
                 _sleepTimer = null;
-                // F-5：关闭定时同时清按集计数。
+                // 关闭定时同时清按集计数。
                 _sleepEpisodesRemaining = 0;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(l10n.playerTimerCanceled)),
@@ -38,7 +38,7 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
                   _setSleepTimer(m, l10n);
                 },
               ),
-            // F-5：睡眠定时「按集数」模式（与按分钟互斥，跨集保留）。
+            // 睡眠定时「按集数」模式（与按分钟互斥，跨集保留）。
             for (final n in <int>[1, 2, 3])
               ListTile(
                 leading: const Icon(Icons.video_library),
@@ -63,17 +63,17 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
     ),
   ),
 )
-      // F-16：面板关闭后释放控制栏租约。
+      // 面板关闭后释放控制栏租约。
       .whenComplete(_releasePanelHold);
   }
 
   void _setSleepTimer(int minutes, AppLocalizations l10n) {
-    // F-5：按分钟模式与按集数模式互斥。
+    // 按分钟模式与按集数模式互斥。
     _sleepEpisodesRemaining = 0;
     _sleepTimer?.cancel();
     _sleepTimer = Timer(Duration(minutes: minutes), () {
       _controller.pause();
-      // 同步 UI 状态（B-15）：_isPlaying 依赖 playing 流同步可能延迟，
+      // 同步 UI 状态：_isPlaying 依赖 playing 流同步可能延迟，
       // 若流事件晚到，暂停后 UI 仍显示播放态。Timer 回调内直接置位
       // _isPlaying=false 并让控制层常显，保证「定时到点暂停」立即可见。
       _uiHideTimer?.cancel();
@@ -92,14 +92,14 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
     );
   }
 
-  /// F-5：睡眠定时「再播 N 集后暂停」模式。
+  /// 睡眠定时「再播 N 集后暂停」模式。
   ///
-  /// 与按分钟模式互斥（取消分钟 Timer）；计数跨集保留（B-13 已保证切集不取消
+  /// 与按分钟模式互斥（取消分钟 Timer）；计数跨集保留（已保证切集不取消
   /// 定时器），由 [_onCompleted] 播完一集递减，归零时暂停并提示。
 
-  /// F-5：睡眠定时「再播 N 集后暂停」模式。
+  /// 睡眠定时「再播 N 集后暂停」模式。
   ///
-  /// 与按分钟模式互斥（取消分钟 Timer）；计数跨集保留（B-13 已保证切集不取消
+  /// 与按分钟模式互斥（取消分钟 Timer）；计数跨集保留（已保证切集不取消
   /// 定时器），由 [_onCompleted] 播完一集递减，归零时暂停并提示。
   void _setSleepEpisodes(int count, AppLocalizations l10n) {
     _sleepTimer?.cancel();

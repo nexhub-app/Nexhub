@@ -25,10 +25,10 @@ class SeekBar extends StatefulWidget {
   /// 拖动结束时的回调。
   final ValueChanged<Duration>? onSeek;
 
-  /// 开始拖动进度条（F-16：控制栏租约，拖动期间禁止自动隐藏）。
+  /// 开始拖动进度条（控制栏租约，拖动期间禁止自动隐藏）。
   final VoidCallback? onDragStart;
 
-  /// 结束拖动进度条（F-16：释放租约后重启自动隐藏倒计时）。
+  /// 结束拖动进度条（释放租约后重启自动隐藏倒计时）。
   final VoidCallback? onDragEnd;
 
   @override

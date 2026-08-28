@@ -1,4 +1,4 @@
-/// P2-3 在线多音色 TTS 单测：
+///  在线多音色 TTS 单测：
 /// - 分句器（cue 判角色 / 引号配对 / 旁白切句）
 /// - URL 模板渲染（{text}/{voice}/{rate} 占位符）
 /// - 配置模型（round-trip / 角色音色映射 / 并发 clamp）
@@ -11,7 +11,7 @@ import 'package:nexhub/core/novel/novel_http_tts_engine.dart';
 import 'package:nexhub/core/novel/novel_speech_segmenter.dart';
 
 void main() {
-  group('P2-3 分句器：cue 判角色', () {
+  group(' 分句器：cue 判角色', () {
     test('冒号句式判角色', () {
       final segs = segmentSpeech('小明说：你好。');
       expect(segs.length, 1);
@@ -40,7 +40,7 @@ void main() {
     });
   });
 
-  group('P2-3 分句器：混合段落', () {
+  group(' 分句器：混合段落', () {
     test('旁白+对话交错', () {
       final segs = segmentSpeech('他推开门。李四喊："进来吧。" 屋里很安静。');
       expect(segs.length, 3);
@@ -55,7 +55,7 @@ void main() {
     });
   });
 
-  group('P2-3 URL 模板渲染', () {
+  group(' URL 模板渲染', () {
     test('全占位符替换', () {
       final url = renderUrl(
         template: 'https://tts.example/api?text={text}&voice={voice}&rate={rate}',
@@ -81,7 +81,7 @@ void main() {
     });
   });
 
-  group('P2-3 配置模型', () {
+  group(' 配置模型', () {
     test('round-trip 保留字段', () {
       const cfg = NovelHttpTtsConfig(
         enabled: true,
@@ -124,7 +124,7 @@ void main() {
     });
   });
 
-  group('P2-3 预下载队列降级', () {
+  group(' 预下载队列降级', () {
     test('连续失败达阈值 → halted', () {
       final cfg = const NovelHttpTtsConfig(maxConsecutiveFailures: 3, enabled: true);
       final preloader = HttpTtsPreloader(config: cfg);

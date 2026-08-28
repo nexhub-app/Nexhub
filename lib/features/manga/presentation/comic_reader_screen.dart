@@ -496,7 +496,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 图片收藏异步刷新，避免自动滚动在页边界处因全量重建而卡顿。
   bool _autoScrolling = false;
 
-  // ── X-1 睡眠定时（跨类型对齐：播放器 F-5 / 小说 TTS）────────────────
+  // ── X-1 睡眠定时（跨类型对齐：播放器  / 小说 TTS）────────────────
 
   /// 按分钟定时：到时暂停阅读（一次性 Timer）。
   Timer? _sleepTimer;

@@ -156,7 +156,7 @@ class DandanplayService implements DanmakuSource {
     }
   }
 
-  /// 弹弹play 账号登录（F-18 发送弹幕前置）。
+  /// 弹弹play 账号登录（发送弹幕前置）。
   ///
   /// 对应 `POST /api/v2/login`（官方账号服务器）：
   /// - 请求体含 `{userName, password, appId, unixTimestamp, hash}`，
@@ -251,7 +251,7 @@ class DandanplayService implements DanmakuSource {
     return DandanplayLoginResult.fromResponseJson(data, userName);
   }
 
-  /// 上传弹幕到指定剧集（F-18）。
+  /// 上传弹幕到指定剧集。
   ///
   /// 对应 `POST /api/v2/comment/{episodeId}`：
   /// - 需应用级签名 + 用户级 `Authorization: Bearer {token}`（未登录时服务器拒绝）；
@@ -392,7 +392,7 @@ class DandanplayMatchEpisode {
   static String _asString(dynamic v) => v?.toString() ?? '';
 }
 
-/// `/api/v2/login` 与 `/api/v2/register` 共用的成功结果（F-18）。
+/// `/api/v2/login` 与 `/api/v2/register` 共用的成功结果。
 class DandanplayLoginResult {
   const DandanplayLoginResult({
     required this.token,

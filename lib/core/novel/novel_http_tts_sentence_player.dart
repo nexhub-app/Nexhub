@@ -1,4 +1,4 @@
-/// 默认在线 TTS 句播放器（P2-3）：写入临时文件后用 media_kit 播放。
+/// 默认在线 TTS 句播放器：写入临时文件后用 media_kit 播放。
 ///
 /// 实现 [TtsSentencePlayer]：把合成字节落盘到系统临时目录，media_kit
 /// `Player` 播放音频文件，等待 completion / error / 主动取消。

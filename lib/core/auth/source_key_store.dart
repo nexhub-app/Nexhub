@@ -1,6 +1,6 @@
 /// 按源隔离的手动密钥持久化（Hive box `source_keys`）。
 ///
-/// 用途：部分源（如 nhentai 的 v2 API）的受保护请求不认 Cookie / Bearer，
+/// 用途：部分源的受保护请求不认 Cookie / Bearer，
 /// 而是要求用户在站点账户设置页手动获取的 API Key，并以
 /// `Authorization: Key <api_key>` 形式附加。该 Key 不在登录 Cookie 里、
 /// WebView 登录也拿不到，只能由用户粘贴，故需要一个按源持久化的键值仓库。

@@ -685,7 +685,7 @@ class WebviewConfig {
 ///     （少数源用此格式）。
 ///   - "key"      → 追加 `Authorization: <authScheme 默认 Key> <手动填写的 apiKey>`。
 ///     值的来源是用户在登录面板粘贴、持久化在 [SourceKeyStore] 的密钥
-///     （key 名见 [apiKeyParam]），而非 Cookie——适合 nhentai 这类「登录只给
+///     （key 名见 [apiKeyParam]），而非 Cookie——适合「登录只给
 ///     access_token、收藏却要单独 API Key」的站点（其 v2 API 明确「用 Key
 ///     <api_key>，不是 Bearer」，401 报文已证实）。
 /// - [authScheme]：仅 [sendTokenAs]=='key' 时生效，Authorization 头前缀
@@ -848,7 +848,7 @@ int _coerceVersion(dynamic v) {
 
 /// 源声明式 CDN 图床发现（可选 cdn 段）。
 ///
-/// 部分站点（如 nhentai）把图片放在多个子域图床（i1-i4 / t1-t4 .site），其中
+/// 部分站点把图片放在多个子域图床（形如 i1-i4 / t1-t4），其中
 /// 某些子域在特定网络下不可达。源在此声明 CDN 列表端点（如 /api/v2/cdn），
 /// 引擎拉取 server 列表后 **逐个探活选取可达图床**，注入脚本上下文
 /// `context.cdnImage` / `context.cdnThumb`，供脚本拼图片 URL。

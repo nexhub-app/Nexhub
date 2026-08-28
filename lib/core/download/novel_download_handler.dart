@@ -64,7 +64,7 @@ class NovelDownloadHandler implements DownloadHandler {
   /// 保证「阅读器内开繁→简后，离线缓存与显示相同」。默认不转换。
   final ChineseConvertMode convertMode;
 
-  /// P2-11：是否把本书划线/批注作为附录附带进导出（EPUB 追加一章，
+  /// 是否把本书划线/批注作为附录附带进导出（EPUB 追加一章，
   /// TXT 追加一个划线文件）。默认关闭，调用方显式开启。
   final bool includeHighlights;
 
@@ -232,7 +232,7 @@ class NovelDownloadHandler implements DownloadHandler {
         title: bookTitle.isNotEmpty ? bookTitle : task.title,
         author: author,
       );
-      // 内嵌插图（B-04）：正文里的插图块下载后写入 EPUB 资源并在 XHTML 内
+      // 内嵌插图：正文里的插图块下载后写入 EPUB 资源并在 XHTML 内
       // 引用，图文小说导出不再丢图。按 URL 去重（跨章同图只存一份字节），
       // 单张下载失败降级跳过（与 TXT 插图路径一致），不阻塞整本导出。
       final images = <String, EpubImage>{}; // url → 资源（名字 = 哈希+扩展名）
@@ -283,7 +283,7 @@ class NovelDownloadHandler implements DownloadHandler {
             '未能获取到任何章节内容，可能被源拦截或章节地址已失效');
       }
 
-      // P2-11：划线 / 批注附带为书末附录章节（仅当开启且存在划线时）。
+      // 划线 / 批注附带为书末附录章节（仅当开启且存在划线时）。
       if (includeHighlights) {
         final highlights = await _loadHighlights();
         final html = NovelDownloadHandler.highlightsToEpubHtml(highlights);
@@ -329,7 +329,7 @@ class NovelDownloadHandler implements DownloadHandler {
     // 会把 result.workPath 覆盖进 task.localPath，若这里返回文件路径会导致
     // localPath 变成 `.txt` 文件，后续在 `localPath` 下写 meta.json/cover.jpg
     // 时 SAF 报 "Parent document isn't a directory"。
-    // P2-11：划线 / 批注附带为独立文件（不进入 chapterFilePaths，避免被
+    // 划线 / 批注附带为独立文件（不进入 chapterFilePaths，避免被
     // 跨批次聚合误识别为章节）。
     if (includeHighlights) {
       final highlights = await _loadHighlights();
@@ -427,7 +427,7 @@ class NovelDownloadHandler implements DownloadHandler {
     return sb.toString();
   }
 
-  // ─────────────────── P2-11 划线附带 ───────────────────
+  // ─────────────────── 划线附带 ───────────────────
 
   /// F4：把模板简介文本渲染为简介页 HTML 片段：`{book}` / `{author}`
   /// 占位符替换后按空行分段、逐段转义为 `<p>`。
@@ -538,7 +538,7 @@ class NovelDownloadHandler implements DownloadHandler {
 
   static String _highlightsToTxt(List<NovelHighlight> highlights) {
     final buffer = StringBuffer();
-    buffer.writeln('书内划线与批注（P2-11 导出附录）');
+    buffer.writeln('书内划线与批注（导出附录）');
     buffer.writeln('======================');
     buffer.writeln();
     for (final h in highlights) {

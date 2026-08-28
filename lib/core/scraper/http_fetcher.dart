@@ -472,7 +472,7 @@ class HttpFetcher {
   /// 会带上——标准 cookie 作用域）。
   ///
   /// **不做**「子域存储 → 父域请求」的反向携带：图床等子域（如
-  /// `i2.nhentai.net`）的会话/挑战 cookie 若被带到主域 API 请求，Cloudflare
+  /// 图片 CDN 子域）的会话/挑战 cookie 若被带到主域 API 请求，Cloudflare
   /// 会判定请求异常而返回验证挑战（400）→ 验证反复失败。登录回灌场景的
   /// cookie 已按域正确落 key（含主域），无需反向匹配。
   String? _cookieHeaderFor(String? url) {
@@ -485,7 +485,7 @@ class HttpFetcher {
       // 仅标准 cookie 作用域：请求==存储域，或请求是存储域的子域
       //（父域/同域 cookie 才作用于子域请求）。
       // 注意：**不能**反向把「子域存储的 cookie 带到父域请求」——图床等子域
-      // （如 i2.nhentai.net）的会话/挑战 cookie 若被带到主域 API 请求，
+      // （如图片 CDN 子域）的会话/挑战 cookie 若被带到主域 API 请求，
       // Cloudflare 会判定请求异常 → 返回验证挑战（400）→ 验证反复失败。
       // 此前曾加入反向分支造成该回归（9c40fab）。
       if (host == s || host.endsWith('.$s')) {
@@ -625,7 +625,7 @@ class HttpFetcher {
 
   /// 仅探测可达性（供镜像测速）：拿到任何 HTTP 响应（含 4xx/5xx）即视为「可达」，
   /// 仅在 DNS/超时/连接被拒等网络层失败时返回 false。避免根域返回 5xx 被误判为
-  /// 「无法连接」（如 nhentai 类 API 镜像根路径只回 500，但 API 正常）。
+  /// 「无法连接」（如某类 API 镜像根路径只回 500，但 API 正常）。
   Future<bool> isReachable(
     String url, {
     EffectiveNetworkProfile? net,
@@ -1087,7 +1087,7 @@ class HttpFetcher {
   /// 读取系统 WebView Cookie 存储中某 url 的 Cookie 头（与内嵌 InAppWebView 登录
   /// 共享同一份 cookie）。经原生通道 `nexhub/system_cookie` 直连
   /// `android.webkit.CookieManager.getInstance().getCookie(url)`（iOS 未注册时降级为
-  /// null）。这是参考原生 nhentai 客户端「登录后轮询系统 CookieManager 取会话」的做法，
+  /// null）。这是参考「登录后轮询系统 CookieManager 取会话」的通用做法，
   /// 比 flutter_inappwebview 的 CookieManager 更可靠（后者在某些版本/配置下与
   /// InAppWebView 不是同一存储，导致「登录了但取不到 cookie」）。
   ///
@@ -1126,7 +1126,7 @@ class HttpFetcher {
   /// 取某 host 下指定名的 cookie 值（从已存 jar 解析），供源在需要时将登录态
   /// 令牌作为 `Authorization: Bearer` 等请求头发送。
   ///
-  /// 例：nhentai 登录下发 `access_token`(JWT) 而非 Django `sessionid`，但
+  /// 例：某源登录下发 `access_token`(JWT) 而非后端 `sessionid`，但
   /// `/api/v2/favorites` 等需鉴权接口只认会话/Bearer，仅作 Cookie 不被接受。
   /// 源只要声明 `comments.login.checkCookie: access_token`，调用方即可取出该值
   /// 拼 `Authorization: Bearer <值>`（见 [ScriptResolver] 的 meta 预取路径）。

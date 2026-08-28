@@ -115,7 +115,7 @@ class SourceAuthManager extends ChangeNotifier {
   /// 出现 checkCookie 键名即视为已登录。
   ///
   /// 匹配规则：① 精确（正则 `checkCookie=`，兼容既有配置）；② 前缀（cookie 名
-  /// 以 checkCookie 开头，如 nhentai 配置写 `session` 而 Django 实际下发
+  /// 以 checkCookie 开头，如某源配置写 `session` 而后端实际下发
   /// `sessionid`）——避免出现「Cookie 已回灌、却因名字差一个 id 而始终判未登录」。
   bool _cookieLoggedIn(PluginConfig source) {
     final key = source.comments?.login?.checkCookie;
@@ -157,7 +157,7 @@ class SourceAuthManager extends ChangeNotifier {
   /// checkUrl 探测：GET 后按 loggedInSelector 判定（JSONPath/CSS 命中非空
   /// 即有效；未声明选择器时 2xx 即有效）。请求失败（401 等）判未登录。
   /// 探测请求会附加源声明的 Authorization 头（[sourceAuthHeader]，如 `key`
-  /// 模式的 `Key <apiKey>`），使受保护端点（如 nhentai `/api/v2/user`）能真实校验。
+  /// 模式的 `Key <apiKey>`），使受保护端点（如 `/api/v2/user` 一类接口）能真实校验。
   Future<bool> _probeLoggedIn(
     PluginConfig source,
     CommentsLoginConfig login,
@@ -167,7 +167,7 @@ class SourceAuthManager extends ChangeNotifier {
     final url = raw.startsWith('http')
         ? raw
         : '${base.replaceAll(RegExp(r'/+$'), '')}/${raw.replaceAll(RegExp(r'^/+'), '')}';
-    // 受保护端点（如 nhentai /api/v2/user）需在探测时附加源声明的 Authorization
+    // 受保护端点（如 /api/v2/user 一类接口）需在探测时附加源声明的 Authorization
     // 头（[sourceAuthHeader]，如 `key` 模式的 `Key <apiKey>`）才能真实校验。
     // 有头时直接走 HttpFetcher 注入；无头时仍走可注入的 _probe（测试免真实网络）。
     final authHeaders = sourceAuthHeader(source);

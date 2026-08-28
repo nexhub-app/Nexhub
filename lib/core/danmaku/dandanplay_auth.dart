@@ -1,4 +1,4 @@
-/// 弹弹play 账号认证管理（F-18 弹幕发送上传的前置登录态）。
+/// 弹弹play 账号认证管理（弹幕发送上传的前置登录态）。
 ///
 /// - token / 用户名存 [FlutterSecureStorage]（对齐 [BangumiAuth] 的存储策略）；
 /// - 登录经 `DandanplayService.login`（POST /api/v2/login，应用签名 + 账号

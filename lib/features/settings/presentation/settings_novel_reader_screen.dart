@@ -43,7 +43,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
   /// X-4：阅读中预下载配置（独立于 [_settings] 聚合，直接读写）。
   NovelPreDownloadPreferences _preDownload = const NovelPreDownloadPreferences();
 
-  /// P2-3：在线 HTTP TTS 配置（独立持久化，直接读写）。
+  /// 在线 HTTP TTS 配置（独立持久化，直接读写）。
   NovelHttpTtsConfig _httpTts = const NovelHttpTtsConfig();
 
   /// F4：EPUB 导出模板（全局配置，直接读写）。
@@ -115,13 +115,13 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
     NovelPreDownloadPreferences.save(next);
   }
 
-  /// P2-3：保存在线 TTS 配置。
+  /// 保存在线 TTS 配置。
   void _updateHttpTts(NovelHttpTtsConfig next) {
     setState(() => _httpTts = next);
     NovelHttpTtsConfigStore().save(next);
   }
 
-  /// P2-3：分区内小节标题（与设置卡片其它分组标题样式一致）。
+  /// 分区内小节标题（与设置卡片其它分组标题样式一致）。
   Widget _label(String text) {
     return Text(
       text,
@@ -132,7 +132,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
     );
   }
 
-  /// P2-3：解析「角色=音色」多行文本为映射（忽略空行/无=行）。
+  /// 解析「角色=音色」多行文本为映射（忽略空行/无=行）。
   static Map<String, String> _parseVoiceMap(String raw) {
     final result = <String, String>{};
     for (final line in raw.split('\n')) {
@@ -768,7 +768,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   ],
                 ),
 
-                // ── 2b. 排版增强（P2-10）──
+                // ── 2b. 排版增强──
                 SettingsCard(
                   key: const ValueKey<String>('novel.typography'),
                   index: 1,
@@ -869,7 +869,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                       ],
                     ),
                     const SizedBox(height: AppTokens.spaceMd),
-                    // P2-4：滚动模式图文样式（插图展示模式 + 水平对齐）。
+                    // 滚动模式图文样式（插图展示模式 + 水平对齐）。
                     Text(l10n.novelScrollImageMode,
                         style: Theme.of(context)
                             .textTheme
@@ -1708,7 +1708,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     const SizedBox(height: AppTokens.spaceMd),
                     const Divider(height: 1),
                     const SizedBox(height: AppTokens.spaceMd),
-                    // P2-3：在线 HTTP TTS 引擎配置。
+                    // 在线 HTTP TTS 引擎配置。
                     SettingsSwitchTile(
                       key: const ValueKey<String>('novel.ttsEnable'),
                       title: l10n.httpTtsEnable,

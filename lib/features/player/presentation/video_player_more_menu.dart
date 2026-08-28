@@ -1,6 +1,6 @@
 part of 'video_player_screen.dart';
 
-/// F-31：更多菜单声明式条目。
+/// 更多菜单声明式条目。
 ///
 /// 菜单项不再是命令式堆叠的 [ListTile]，而是带显隐谓词的数据描述：
 /// - [requiresCapability]：内核能力要求（`PlayerCapability`），后端不支持时隐藏，
@@ -24,15 +24,15 @@ class _PlayerMenuEntry {
   /// 额外显隐条件；null 表示始终可见。
   final bool Function()? visibilityPredicate;
 
-  /// 是否在本条目前插入分隔线（F-4 播放队列分组）。
+  /// 是否在本条目前插入分隔线（播放队列分组）。
   final bool dividerBefore;
 }
 
 extension _VideoMoreMenu on _VideoPlayerScreenState {
   void _showMoreMenu(AppLocalizations l10n) {
-    // F-16：菜单打开期间持有控制栏，禁止自动隐藏；关闭后释放。
+    // 菜单打开期间持有控制栏，禁止自动隐藏；关闭后释放。
     _acquirePanelHold();
-    // F-31：按内核能力 + 运行时条件过滤声明式条目。
+    // 按内核能力 + 运行时条件过滤声明式条目。
     final capabilities = _controller.backend.capabilities;
     bool visible(_PlayerMenuEntry e) =>
         (e.requiresCapability == null ||
@@ -63,11 +63,11 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
     ),
   ),
 )
-      // F-16：菜单关闭后释放控制栏租约，重启自动隐藏倒计时。
+      // 菜单关闭后释放控制栏租约，重启自动隐藏倒计时。
       .whenComplete(_releasePanelHold);
   }
 
-  /// F-31：构建全部菜单条目（未过滤，渲染时按能力 / 条件显隐）。
+  /// 构建全部菜单条目（未过滤，渲染时按能力 / 条件显隐）。
   List<_PlayerMenuEntry> _buildMoreMenuEntries(AppLocalizations l10n) {
     return <_PlayerMenuEntry>[
       // 自动连播（本地 / 直链模式无下一集，隐藏）
@@ -186,7 +186,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           ),
         ),
       ),
-      // F-7：超分辨率 shader 档位（无清晰度源时提升观感）
+      // 超分辨率 shader 档位（无清晰度源时提升观感）
       _PlayerMenuEntry(
         requiresCapability: PlayerCapability.upscaleShader,
         builder: (BuildContext ctx) => ListTile(
@@ -331,7 +331,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           },
         ),
       ),
-      // 跳过片头/片尾设置（F-3）
+      // 跳过片头/片尾设置
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
           leading: const Icon(Icons.skip_next),
@@ -361,7 +361,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           },
         ),
       ),
-      // ── F-4 播放队列（跨作品）──
+      // ──  播放队列（跨作品）──
       _PlayerMenuEntry(
         dividerBefore: true,
         builder: (BuildContext ctx) => ListTile(

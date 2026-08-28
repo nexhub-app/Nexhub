@@ -1,10 +1,10 @@
-/// 小说阅读进度 WebDAV 云同步服务（P2-8 / P2-5 细粒度增强）。
+/// 小说阅读进度 WebDAV 云同步服务（/  细粒度增强）。
 ///
 /// 远端存储（两代并存，读取时细粒度优先、整文件兜底迁移）：
-/// - **P2-5 逐书细粒度**：`nexhub/progress/<编码后 novelId>.json`，
+/// - ** 逐书细粒度**：`nexhub/progress/<编码后 novelId>.json`，
 ///   一本书一个 JSON 文件；单书 push/pull 只碰自己那一个文件，
 ///   阅读器退后台/切章即可低开销同步；
-/// - P2-8 整文件：WebDAV 根下的 `nexhub/novel-progress.json`
+/// -  整文件：WebDAV 根下的 `nexhub/novel-progress.json`
 ///   （novelId → 快照 map，与整包 ZIP 备份并存）。全量 [syncAll] 仍会
 ///   维护一份整文件快照，兼容旧版本客户端与首次迁移种子。
 ///
@@ -156,7 +156,7 @@ class NovelProgressSyncService {
     }
   }
 
-  // ── P2-5：逐书细粒度远端存取 ──────────────────────────────────
+  // ── ：逐书细粒度远端存取 ──────────────────────────────────
 
   /// 细粒度远端目录（相对 WebDAV 根，每本书一个文件）。
   static const String remoteProgressDir = 'nexhub/progress';
@@ -317,7 +317,7 @@ class NovelProgressSyncService {
     }
     final remoteLegacy =
         await _fetchRemote(cfg.url, cfg.username, cfg.password!);
-    // P2-5：细粒度目录与整文件合并为「远端视图」。同一本书两边都有时按
+    // 细粒度目录与整文件合并为「远端视图」。同一本书两边都有时按
     // 冲突裁决取优（细粒度文件是新版写入路径，通常更新）。
     final dio = _dio(cfg.username, cfg.password!);
     final Map<String, NovelProgressPoint> remote;
@@ -390,7 +390,7 @@ class NovelProgressSyncService {
           unchanged: unchanged,
         );
       }
-      // P2-5：本地领先项同时写入细粒度目录（每本书一个文件；单文件失败
+      // 本地领先项同时写入细粒度目录（每本书一个文件；单文件失败
       // 不回滚——整文件快照仍保证旧版客户端可读）。
       if (ok) {
         final dioPut = _dio(cfg.username, cfg.password!);
@@ -416,7 +416,7 @@ class NovelProgressSyncService {
   /// 云端；本地领先 → 上传；云端领先且本地有记录 → **不自动覆盖**（返回
   /// false 表示存在需确认的冲突，避免阅读器启动时静默吃掉用户本地进度）。
   ///
-  /// P2-5：只读写本书的细粒度文件（`nexhub/progress/<id>.json`）；
+  /// 只读写本书的细粒度文件（`nexhub/progress/<id>.json`）；
   /// 细粒度文件缺失时回退读整文件中的该书条目（旧版迁移种子），命中后
   /// 本地裁决结果照常写回细粒度文件。
   ///
@@ -454,7 +454,7 @@ class NovelProgressSyncService {
     }
   }
 
-  /// 单书静默上传（阅读器退出 / 退后台触发）。P2-5：只 PUT 本书一个文件，
+  /// 单书静默上传（阅读器退出 / 退后台触发）。：只 PUT 本书一个文件，
   /// 不再拉取/写回整文件——多端「退后台即同步」的低开销路径。
   /// 云端领先时不覆盖（防回退）。
   Future<bool> pushOne(String novelId, NovelProgressPoint local) async {

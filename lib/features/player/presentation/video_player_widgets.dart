@@ -343,7 +343,7 @@ class _ControlButton extends StatelessWidget {
 /// 横向滚动文字（Marquee）：当文本超出可用宽度时自动循环滚动；
 /// 文本能完整显示时静止不动（无动画开销）。
 ///
-/// 跳过片头/片尾悬浮按钮（F-3）：半透明胶囊，浮在画面右下角。
+/// 跳过片头/片尾悬浮按钮：半透明胶囊，浮在画面右下角。
 
 class _SkipChip extends StatelessWidget {
   const _SkipChip({
@@ -441,7 +441,7 @@ class _MarqueeTextState extends State<_MarqueeText>
         _animController.repeat();
       }
     }
-    // TextPainter 用完即释放（B-19）：仅测量用，不常驻，避免小规模资源泄漏。
+    // TextPainter 用完即释放：仅测量用，不常驻，避免小规模资源泄漏。
     renderer.dispose();
   }
 

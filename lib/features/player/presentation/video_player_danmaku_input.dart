@@ -81,7 +81,7 @@ extension _VideoDanmakuInput on _VideoPlayerScreenState {
 
     // 发送逻辑（横竖屏共用）。
     //
-    // F-18：本地即时显示保持不变；关闭输入框后后台尝试经弹弹play API 上传
+    // 本地即时显示保持不变；关闭输入框后后台尝试经弹弹play API 上传
     // （需登录态），校验时长 / 集数匹配，结果以 SnackBar 提示。
     void send(BuildContext ctx) {
       final text = controller.text.trim();
@@ -162,7 +162,7 @@ extension _VideoDanmakuInput on _VideoPlayerScreenState {
     }
   }
 
-  /// F-18：上传弹幕到弹弹play（本地显示后后台执行）。
+  /// 上传弹幕到弹弹play（本地显示后后台执行）。
   ///
   /// - 集数校验：解析不到 dandanplay episodeId（源为 bilibili / 自定义 URL /
   ///   匹配失败）时不上传，提示仅本地显示；
@@ -219,7 +219,7 @@ extension _VideoDanmakuInput on _VideoPlayerScreenState {
       if (_disposed || !mounted) return;
       _safeSnackBar(l10n.danmakuUploadSuccess);
     } on Object catch (e) {
-      AppLog.instance.e('[F-18] 弹幕上传失败：$e');
+      AppLog.instance.e('[] 弹幕上传失败：$e');
       if (_disposed || !mounted) return;
       _safeSnackBar(l10n.danmakuUploadFailed(e.toString()));
     }

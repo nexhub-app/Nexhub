@@ -18,7 +18,7 @@ class MediaPlaybackPositionManager extends ChangeNotifier {
   /// Hive box 名。
   static const String boxName = 'media_playback_position';
 
-  /// 每部作品保留的剧集位置记录上限（F-9）：长篇连载剧集上千时，
+  /// 每部作品保留的剧集位置记录上限：长篇连载剧集上千时，
   /// 无上限的 put-only 存储会无限膨胀；按最近使用顺序裁剪最旧的记录。
   static const int maxRecordsPerContent = 50;
 
@@ -31,7 +31,7 @@ class MediaPlaybackPositionManager extends ChangeNotifier {
   final Map<String, int> _lastEpisodes = {};
 
   /// 每部作品的剧集键（`contentId:episodeIndex`）最近使用顺序，最新在前。
-  /// 供 [savePosition] 超限裁剪最旧记录（F-9）；首次保存时从既有键惰性构建。
+  /// 供 [savePosition] 超限裁剪最旧记录；首次保存时从既有键惰性构建。
   final Map<String, List<String>> _recentKeys = {};
 
   Future<void> init() async {
@@ -76,7 +76,7 @@ class MediaPlaybackPositionManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 超限裁剪（F-9）：把本作品的剧集键按最近使用排序（当前保存项置顶，
+  /// 超限裁剪：把本作品的剧集键按最近使用排序（当前保存项置顶，
   /// 其余沿用既有 MRU 顺序，首次调用时按剧集号排序兜底），超出
   /// [maxRecordsPerContent] 的最旧记录从内存与 Hive 中删除。
   Future<void> _pruneRecords(String contentId) async {

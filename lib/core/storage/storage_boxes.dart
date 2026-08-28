@@ -44,7 +44,7 @@ const List<String> kStorageBoxNames = <String>[
   ImageFavoriteManager.boxName, // 'image_favorites'
   'media_watched',
   'media_playback_position',
-  // 字幕记忆（F-22）：按视频 URL 记忆外部字幕 / 激活轨道 / 样式
+  // 字幕记忆：按视频 URL 记忆外部字幕 / 激活轨道 / 样式
   'subtitle_memory',
   'source_mirrors',
   'chapter_fetch_times',
@@ -52,7 +52,7 @@ const List<String> kStorageBoxNames = <String>[
   SubjectLinkStore.boxName, // 'bangumi_subject_links'
   SourceLibraryBookmarks.boxName, // 'source_library_bookmarks'
   SourceLibrarySubscription.boxName, // 'source_library_subs'
-  // 按源隔离的手动密钥（如 nhentai 的 API Key，用于受保护请求鉴权）
+  // 按源隔离的手动密钥（部分源的 API Key，用于受保护请求鉴权）
   SourceKeyStore.boxName, // 'source_keys'
   // 阅读/观看统计（按作品聚合 + 按天聚合）
   kReadingStatsBoxName, // 'reading_stats_v1'

@@ -4,7 +4,7 @@ import 'media_kit_backend.dart';
 import 'no_op_player_backend.dart';
 import 'video_player_backend.dart';
 
-/// 播放器后端工厂（F-2）。
+/// 播放器后端工厂。
 ///
 /// 按平台/可用依赖选择 [VideoPlayerBackend] 实现：
 /// - 桌面/移动端：默认 [MediaKitBackend]（media_kit / mpv）；

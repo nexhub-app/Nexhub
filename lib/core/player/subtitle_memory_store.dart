@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:hive/hive.dart';
 
-/// 单视频字幕记忆（F-22）。
+/// 单视频字幕记忆。
 ///
 /// 按视频 URL（去掉 fragment）为 key，持久化该视频的：外部字幕列表、
 /// 激活轨道、样式（字号 / 缩放 / 边框 / 阴影 / 颜色 / 位置 / ASS 覆盖）、
