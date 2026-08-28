@@ -448,12 +448,16 @@ class HttpFetcher {
     return merged;
   }
 
-  /// 取与 [url] 同域（含父域/子域，双向）的已存 Cookie，拼成 `Cookie` 头值。
+  /// 取与 [url] 同域（含父域→子域标准作用域）的已存 Cookie，拼成 `Cookie` 头值。
   ///
-  /// 双向匹配：请求 host 匹配存储 host、请求是存储的子域（如存储了
-  /// `login.example.com`，请求 `login.example.com` 或 `api.login.example.com`）、
-  /// 存储是请求的子域（如登录发生在 `login.example.com`、抓取请求
-  /// `example.com`）都算命中——后者是「登录后 Cookie 不自动回灌」的关键修复。
+  /// 匹配规则：请求 host 等于存储 host，或请求 host 是存储 host 的子域
+  /// （存储了 `example.com` 的 cookie，请求 `www.example.com` / `api.example.com`
+  /// 会带上——标准 cookie 作用域）。
+  ///
+  /// **不做**「子域存储 → 父域请求」的反向携带：图床等子域（如
+  /// `i2.nhentai.net`）的会话/挑战 cookie 若被带到主域 API 请求，Cloudflare
+  /// 会判定请求异常而返回验证挑战（400）→ 验证反复失败。登录回灌场景的
+  /// cookie 已按域正确落 key（含主域），无需反向匹配。
   String? _cookieHeaderFor(String? url) {
     final host = Uri.tryParse(url ?? '')?.host.toLowerCase();
     if (host == null || host.isEmpty) return null;
@@ -461,8 +465,13 @@ class HttpFetcher {
     _cookieJar.forEach((storedHost, cookie) {
       if (cookie.isEmpty) return;
       final s = storedHost.toLowerCase();
-      // 双向：请求==存储 | 请求是存储的子域 | 存储是请求的子域
-      if (host == s || host.endsWith('.$s') || s.endsWith('.$host')) {
+      // 仅标准 cookie 作用域：请求==存储域，或请求是存储域的子域
+      //（父域/同域 cookie 才作用于子域请求）。
+      // 注意：**不能**反向把「子域存储的 cookie 带到父域请求」——图床等子域
+      // （如 i2.nhentai.net）的会话/挑战 cookie 若被带到主域 API 请求，
+      // Cloudflare 会判定请求异常 → 返回验证挑战（400）→ 验证反复失败。
+      // 此前曾加入反向分支造成该回归（9c40fab）。
+      if (host == s || host.endsWith('.$s')) {
         matched.add(cookie);
       }
     });

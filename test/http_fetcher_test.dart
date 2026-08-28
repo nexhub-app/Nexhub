@@ -4,8 +4,15 @@
 /// 验证冷却延长）。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/scraper/http_fetcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  // HttpFetcher 构造会读取 AdvancedSettings（SharedPreferences），
+  // 需初始化 binding 并 mock 存储，否则 SharedPreferences.getInstance
+  // 抛 "Binding has not yet been initialized"。
+  TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues(<String, Object>{});
+
   group('HttpFetcher.userAgentForUrl', () {
     test('同一 host 多次取 UA 完全一致（防验证死循环的关键）', () {
       const url1 = 'https://www.huanmengacg.com/book/1';
