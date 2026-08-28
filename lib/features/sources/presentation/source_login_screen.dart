@@ -21,6 +21,7 @@ import '../../../core/platform/platform_service.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/source_login_widgets.dart';
 import '../../verification/presentation/webview_login_screen.dart';
 
 /// 源登录全屏页。接收一个 [PluginConfig source]，展示登录态与登录操作。
@@ -172,6 +173,12 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
     // 避免用户点了再弹"不支持"，体验上更明确。
     final bool webLoginSupported =
         PlatformService.instance.isAndroid || PlatformService.instance.isIOS;
+    // 是否提供网页登录入口：源声明了 login.url（登录页地址）即视为支持网页登录。
+    // 与底部面板 [showSourceLoginSheet] 同一套判定，完全由源配置驱动，不写死站点。
+    final bool hasWebLogin = widget.source.comments?.login?.url != null;
+    // 手动 API Key 模式（sendTokenAs:"key"）：纯 API Key 源（如 nhentai）不声明
+    // login.url / checkCookie，因此不显示「网页登录」「粘贴 Cookie」，只显示 API Key 框。
+    final bool isApiKey = widget.source.comments?.login?.sendTokenAs == 'key';
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.source.name)),
@@ -205,8 +212,14 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
             ),
           ),
           const SizedBox(height: AppTokens.spaceMd),
-          if (webLoginSupported) ...<Widget>[
-            _LoginOptionCard(
+          // 手动 API Key 模式（sendTokenAs:"key"）：受保护请求（收藏/个人页）需要
+          // 用户在源站账户设置页获取的 API Key，粘贴后持久化并即时校验。
+          if (isApiKey) ...<Widget>[
+            ApiKeyTile(source: widget.source),
+            const SizedBox(height: AppTokens.spaceMd),
+          ],
+          if (hasWebLogin && webLoginSupported) ...<Widget>[
+            LoginOptionCard(
               icon: Icons.public,
               title: l10n.webLogin,
               subtitle: l10n.webLoginDesc,
@@ -214,7 +227,7 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
             ),
             const SizedBox(height: AppTokens.spaceSm),
           ],
-          _LoginOptionCard(
+          if (hasWebLogin) LoginOptionCard(
             icon: Icons.cookie_outlined,
             title: l10n.pasteCookie,
             subtitle: l10n.pasteCookieDesc,
@@ -226,63 +239,5 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
   }
 }
 
-/// 登录方式选项卡片（图标 + 标题 + 说明 + 右侧箭头）。
-/// 与 [SourceLoginSheet] 内的同款卡片保持一致样式。
-class _LoginOptionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _LoginOptionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return AppCard(
-      onTap: onTap,
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-            ),
-            child: Icon(
-              icon,
-              size: 22,
-              color: theme.colorScheme.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(width: AppTokens.spaceMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(title, style: theme.textTheme.labelLarge),
-                const SizedBox(height: AppTokens.spaceXxs),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.chevron_right,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ],
-      ),
-    );
-  }
-}
+/// 登录方式选项卡片已抽到 [source_login_widgets.dart] 的 [LoginOptionCard]，
+/// 本页直接复用，不再重复定义。

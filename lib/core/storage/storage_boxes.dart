@@ -11,6 +11,7 @@
 library;
 
 import '../comic/image_favorite_manager.dart';
+import '../auth/source_key_store.dart';
 import '../services/bangumi/subject_link_store.dart';
 import '../services/source_library_bookmarks.dart';
 import '../services/source_library_subscription.dart';
@@ -50,7 +51,9 @@ const List<String> kStorageBoxNames = <String>[
   // 命名常量由对应类的 boxName 静态字段提供（保持类型安全，避免硬编码漂移）。
   SubjectLinkStore.boxName, // 'bangumi_subject_links'
   SourceLibraryBookmarks.boxName, // 'source_library_bookmarks'
-  SourceLibrarySubscription.boxName, // 'source_library_subs',
+  SourceLibrarySubscription.boxName, // 'source_library_subs'
+  // 按源隔离的手动密钥（如 nhentai 的 API Key，用于受保护请求鉴权）
+  SourceKeyStore.boxName, // 'source_keys'
   // 阅读/观看统计（按作品聚合 + 按天聚合）
   kReadingStatsBoxName, // 'reading_stats_v1'
   kReadingDailyBoxName, // 'reading_daily_v1'

@@ -16,6 +16,7 @@ import '../network/model/effective_network_profile.dart';
 import '../network/network_config_service.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/verification_detector.dart';
+import '../auth/source_auth_header.dart';
 import '../services/config_loader.dart';
 import 'js_context.dart';
 import 'parse_diagnostics.dart';
@@ -382,6 +383,17 @@ class ScriptResolver implements SourceResolver {
           if (rawHeaders is Map) {
             rawHeaders.forEach((k, v) => fetchHeaders[k.toString()] = v.toString());
           }
+          // 通用：按源 `comments.login` 声明附加受保护请求鉴权头。
+          // 由 sourceAuthHeader 统一处理两种模式（不写死站点）：
+          //   - sendTokenAs:"bearer" → Authorization: Bearer <checkCookie 值>
+          //   - sendTokenAs:"key"    → Authorization: <authScheme 默认 Key> <手动 apiKey>
+          // 并非所有站点都用 Bearer——nhentai 的 v2 API 明确「用 Key <api_key>，
+          // 不是 Bearer」（401 报文已证实），故 nhentai 改用 "key" 模式，正确
+          // 携带用户在登录面板粘贴的 API Key。完全由源的 login 配置驱动。
+          final authHeader = sourceAuthHeader(source);
+          if (authHeader != null) {
+            fetchHeaders.addAll(authHeader);
+          }
           debugPrint(
               '[ScriptResolver] 检测到 meta 协议: method=$fetchMethod, fetch=$fetchUrl, processor=$processor');
           ParseDiagnostics.log(
@@ -452,8 +464,24 @@ class ScriptResolver implements SourceResolver {
                   source.id,
                   '✅ 处理器$processor完成: ${result is List ? "List[${(result as List).length}]" : result.runtimeType}');
             } on Object catch (e) {
-              debugPrint('[ScriptResolver] meta 预取/处理失败: $e');
-              ParseDiagnostics.log(source.id, '❌ meta协议失败: $e');
+              // 失败时把 401 真实响应体打出来，便于定位「鉴权被读但拒绝」的根因
+              // （如 nhentai favorites 要 sessionid 而非 Bearer access_token）。
+              // VerificationRequiredException / HttpStatusException 都带 body 字段，
+              // 但 toString() 只打状态码与 url，故此处单独提取 body。
+              String bodyHint = '';
+              if (e is VerificationRequiredException &&
+                  e.body != null &&
+                  e.body!.isNotEmpty) {
+                final b = e.body!;
+                bodyHint = ' body=${b.length > 400 ? '${b.substring(0, 400)}…' : b}';
+              } else if (e is HttpStatusException &&
+                  e.body != null &&
+                  e.body!.isNotEmpty) {
+                final b = e.body!;
+                bodyHint = ' body=${b.length > 400 ? '${b.substring(0, 400)}…' : b}';
+              }
+              debugPrint('[ScriptResolver] meta 预取/处理失败: $e$bodyHint');
+              ParseDiagnostics.log(source.id, '❌ meta协议失败: $e$bodyHint');
               result = []; // 优雅降级为空列表
             }
           }

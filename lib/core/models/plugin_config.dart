@@ -678,17 +678,37 @@ class WebviewConfig {
 /// - [checkCookie]：Cookie 中出现该键名即视为已登录（快速判断）。
 /// - [checkUrl] + [loggedInSelector]：可选的探测端点二次确认
 ///   （GET checkUrl，选择器命中非空即登录有效）。
+/// - [sendTokenAs]：受保护请求（收藏/个人页等）如何附加 Authorization 头。
+///   完全由源声明驱动，不写死站点：
+///   - null/其他  → 不额外追加，仅靠 HttpFetcher 自动注入的 Cookie（如 sessionid）。
+///   - "bearer"   → 追加 `Authorization: Bearer <checkCookie 对应 Cookie 值>`
+///     （少数源用此格式）。
+///   - "key"      → 追加 `Authorization: <authScheme 默认 Key> <手动填写的 apiKey>`。
+///     值的来源是用户在登录面板粘贴、持久化在 [SourceKeyStore] 的密钥
+///     （key 名见 [apiKeyParam]），而非 Cookie——适合 nhentai 这类「登录只给
+///     access_token、收藏却要单独 API Key」的站点（其 v2 API 明确「用 Key
+///     <api_key>，不是 Bearer」，401 报文已证实）。
+/// - [authScheme]：仅 [sendTokenAs]=='key' 时生效，Authorization 头前缀
+///   （默认 "Key"）。用于兼容不同前缀的源，不写死。
+/// - [apiKeyParam]：仅 [sendTokenAs]=='key' 时生效，手动密钥在 [SourceKeyStore]
+///   中的参数名（默认 "apiKey"），按 `sourceId:apiKeyParam` 存储。
 class CommentsLoginConfig {
   final String? url;
   final String? checkCookie;
   final String? checkUrl;
   final String? loggedInSelector;
+  final String? sendTokenAs;
+  final String? authScheme;
+  final String? apiKeyParam;
 
   const CommentsLoginConfig({
     this.url,
     this.checkCookie,
     this.checkUrl,
     this.loggedInSelector,
+    this.sendTokenAs,
+    this.authScheme,
+    this.apiKeyParam,
   });
 
   factory CommentsLoginConfig.fromJson(Map<String, dynamic> json) =>
@@ -697,6 +717,9 @@ class CommentsLoginConfig {
         checkCookie: json['checkCookie'] as String?,
         checkUrl: json['checkUrl'] as String?,
         loggedInSelector: json['loggedInSelector'] as String?,
+        sendTokenAs: json['sendTokenAs'] as String?,
+        authScheme: json['authScheme'] as String?,
+        apiKeyParam: json['apiKeyParam'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -704,6 +727,9 @@ class CommentsLoginConfig {
         if (checkCookie != null) 'checkCookie': checkCookie,
         if (checkUrl != null) 'checkUrl': checkUrl,
         if (loggedInSelector != null) 'loggedInSelector': loggedInSelector,
+        if (sendTokenAs != null) 'sendTokenAs': sendTokenAs,
+        if (authScheme != null) 'authScheme': authScheme,
+        if (apiKeyParam != null) 'apiKeyParam': apiKeyParam,
       };
 }
 
@@ -764,9 +790,14 @@ class CommentsConfig {
   /// 某操作路由是否已声明（未声明 → 对应按钮不渲染）。
   bool hasRoute(String name) => routes.containsKey(name);
 
-  /// 是否支持登录（声明了 login.url 或 checkCookie）。
+  /// 是否支持登录（声明了 login.url / checkCookie，或走 API Key（sendTokenAs:"key"））。
+  /// 三类任一成立即视为支持登录——否则纯 API Key 源（无 url/checkCookie）会在源管理 /
+  /// 镜像 / 面板入口被错误隐藏，用户点不进登录面板。
   bool get supportsLogin =>
-      login != null && (login!.url != null || login!.checkCookie != null);
+      login != null &&
+      (login!.url != null ||
+          login!.checkCookie != null ||
+          login!.sendTokenAs == 'key');
 }
 
 /// 源公告（可选 announcement 段）。

@@ -20,6 +20,8 @@ import '../scraper/http_fetcher.dart';
 import '../services/config_loader.dart';
 import '../utils/html_utils.dart';
 import '../utils/json_path.dart';
+import 'source_auth_header.dart';
+import 'source_key_store.dart';
 
 class SourceAuthManager extends ChangeNotifier {
   SourceAuthManager({
@@ -50,11 +52,19 @@ class SourceAuthManager extends ChangeNotifier {
 
   StreamSubscription<int>? _sub;
 
-  /// 同步判定某源是否已登录（快速路径：checkCookie 键名匹配，结果缓存）。
+  /// 同步判定某源是否已登录（快速路径）。
+  /// - `sendTokenAs: "key"` 模式：用户已在登录面板粘贴并持久化 API Key 即视为已登录。
+  /// - 其余：Cookie 中 `checkCookie` 键名匹配即已登录（结果缓存）。
   /// 源未声明 comments.login 时恒为 false。
   bool isLoggedIn(PluginConfig source) {
-    if (source.comments?.login == null) return false;
+    final login = source.comments?.login;
+    if (login == null) return false;
     _watched[source.id] = source;
+    if (login.sendTokenAs == 'key') {
+      final param = login.apiKeyParam ?? 'apiKey';
+      final hasKey = SourceKeyStore.get(source.id, param) != null;
+      if (hasKey) return _loginState[source.id] ??= true;
+    }
     return _loginState[source.id] ??= _cookieLoggedIn(source);
   }
 
@@ -78,10 +88,16 @@ class SourceAuthManager extends ChangeNotifier {
     return loggedIn;
   }
 
-  /// 登出：清除该源相关 host 的 Cookie（内存 + 持久化）并广播。
+  /// 登出：清除该源相关 host 的 Cookie（内存 + 持久化）。若为 `key` 模式，
+  /// 同时清除持久化的手动 API Key（二者皆清，登录态归零）并广播。
   Future<void> logout(PluginConfig source) async {
     for (final host in _hostsFor(source)) {
       _clearCookies(host);
+    }
+    final login = source.comments?.login;
+    if (login?.sendTokenAs == 'key') {
+      final param = login!.apiKeyParam ?? 'apiKey';
+      await SourceKeyStore.clear(source.id, param);
     }
     _setState(source.id, false);
   }
@@ -140,6 +156,8 @@ class SourceAuthManager extends ChangeNotifier {
 
   /// checkUrl 探测：GET 后按 loggedInSelector 判定（JSONPath/CSS 命中非空
   /// 即有效；未声明选择器时 2xx 即有效）。请求失败（401 等）判未登录。
+  /// 探测请求会附加源声明的 Authorization 头（[sourceAuthHeader]，如 `key`
+  /// 模式的 `Key <apiKey>`），使受保护端点（如 nhentai `/api/v2/user`）能真实校验。
   Future<bool> _probeLoggedIn(
     PluginConfig source,
     CommentsLoginConfig login,
@@ -149,9 +167,16 @@ class SourceAuthManager extends ChangeNotifier {
     final url = raw.startsWith('http')
         ? raw
         : '${base.replaceAll(RegExp(r'/+$'), '')}/${raw.replaceAll(RegExp(r'^/+'), '')}';
+    // 受保护端点（如 nhentai /api/v2/user）需在探测时附加源声明的 Authorization
+    // 头（[sourceAuthHeader]，如 `key` 模式的 `Key <apiKey>`）才能真实校验。
+    // 有头时直接走 HttpFetcher 注入；无头时仍走可注入的 _probe（测试免真实网络）。
+    final authHeaders = sourceAuthHeader(source);
     final String text;
     try {
-      text = await _probe(url, referer: base);
+      text = authHeaders != null
+          ? await HttpFetcher.instance.getHtml(
+              url, referer: base, headers: authHeaders)
+          : await _probe(url, referer: base);
     } catch (_) {
       return false;
     }

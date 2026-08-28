@@ -23,7 +23,7 @@ import '../scraper/http_fetcher.dart';
 import '../theme/app_tokens.dart';
 import 'app_alert_dialog.dart';
 import 'app_animations.dart';
-import 'app_card.dart';
+import 'source_login_widgets.dart';
 
 /// 唤起源登录面板。返回后调用方可经 SourceAuthManager 读取最新登录态。
 Future<void> showSourceLoginSheet(
@@ -144,6 +144,11 @@ class _SourceLoginSheet extends StatelessWidget {
     // WebView 仅在移动端可用；桌面/Web 直接隐藏「网页登录」入口。
     final bool webLoginSupported = PlatformService.instance.isAndroid ||
         PlatformService.instance.isIOS;
+    // 是否提供网页登录入口：源声明了 login.url（登录页地址）即视为支持网页
+    // 登录。「网页登录」与「粘贴 Cookie」在 login.url 存在时显示，与是否走
+    // API Key（sendTokenAs:"key"）无关——两者可并存。完全由源配置驱动，
+    // 不写死站点。
+    final bool hasWebLogin = source.comments?.login?.url != null;
 
     return AppSheetBody(
       child: SafeArea(
@@ -173,6 +178,12 @@ class _SourceLoginSheet extends StatelessWidget {
               const SizedBox(height: AppTokens.spaceSm),
               Text(l10n.sourceLogin, style: theme.textTheme.titleMedium),
               const SizedBox(height: AppTokens.spaceMd),
+              // 手动 API Key 模式（sendTokenAs:"key"）：受保护请求（收藏/个人页）
+              // 需要用户在源站账户设置页获取的 API Key，粘贴后持久化，并即时校验。
+              if (source.comments?.login?.sendTokenAs == 'key') ...<Widget>[
+                ApiKeyTile(source: source),
+                const SizedBox(height: AppTokens.spaceMd),
+              ],
               if (loggedIn) ...<Widget>[
                 Row(
                   children: <Widget>[
@@ -196,8 +207,8 @@ class _SourceLoginSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTokens.spaceSm),
               ],
-              if (webLoginSupported) ...<Widget>[
-                _LoginOptionCard(
+              if (hasWebLogin && webLoginSupported) ...<Widget>[
+                LoginOptionCard(
                   icon: Icons.public,
                   title: l10n.webLogin,
                   subtitle: l10n.webLoginDesc,
@@ -205,7 +216,7 @@ class _SourceLoginSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTokens.spaceSm),
               ],
-              _LoginOptionCard(
+              if (hasWebLogin) LoginOptionCard(
                 icon: Icons.cookie_outlined,
                 title: l10n.pasteCookie,
                 subtitle: l10n.pasteCookieDesc,
@@ -219,62 +230,6 @@ class _SourceLoginSheet extends StatelessWidget {
   }
 }
 
-/// 登录方式选项卡片（图标 + 标题 + 说明）。
-class _LoginOptionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _LoginOptionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    return AppCard(
-      onTap: onTap,
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-            ),
-            child: Icon(
-              icon,
-              size: 22,
-              color: theme.colorScheme.onPrimaryContainer,
-            ),
-          ),
-          const SizedBox(width: AppTokens.spaceMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(title, style: theme.textTheme.labelLarge),
-                const SizedBox(height: AppTokens.spaceXxs),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(
-            Icons.chevron_right,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ],
-      ),
-    );
-  }
-}
+/// 手动 API Key 输入卡片与登录方式卡片已抽到 [source_login_widgets.dart]，
+/// 本文件仅保留底部面板的布局与登录动作（网页登录 / 粘贴 Cookie / 退出）。
+/// 两处共用 [ApiKeyTile] 与 [LoginOptionCard]，保证行为一致、避免重复维护。

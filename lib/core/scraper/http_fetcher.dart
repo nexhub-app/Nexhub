@@ -1123,6 +1123,26 @@ class HttpFetcher {
 
   String? getCookieHeader(String host) => _cookieJar[host];
 
+  /// 取某 host 下指定名的 cookie 值（从已存 jar 解析），供源在需要时将登录态
+  /// 令牌作为 `Authorization: Bearer` 等请求头发送。
+  ///
+  /// 例：nhentai 登录下发 `access_token`(JWT) 而非 Django `sessionid`，但
+  /// `/api/v2/favorites` 等需鉴权接口只认会话/Bearer，仅作 Cookie 不被接受。
+  /// 源只要声明 `comments.login.checkCookie: access_token`，调用方即可取出该值
+  /// 拼 `Authorization: Bearer <值>`（见 [ScriptResolver] 的 meta 预取路径）。
+  /// 不做任何站点硬编码——完全由源的 checkCookie 配置驱动。
+  String? cookieValue(String host, String name) {
+    final header = _cookieJar[host.toLowerCase()];
+    if (header == null || header.isEmpty) return null;
+    for (final part in header.split(';')) {
+      final kv = part.trim();
+      final eq = kv.indexOf('=');
+      if (eq <= 0) continue;
+      if (kv.substring(0, eq).trim() == name) return kv.substring(eq + 1).trim();
+    }
+    return null;
+  }
+
   /// 清除所有 Cookie（缓存清除）。
   void clearCookies() {
     _cookieJar.clear();
