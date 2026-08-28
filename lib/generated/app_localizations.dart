@@ -5402,6 +5402,138 @@ abstract class AppLocalizations {
   /// **'Timeout'**
   String get updateMirrorTimeout;
 
+  /// No description provided for @updateSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Settings'**
+  String get updateSettings;
+
+  /// No description provided for @updateSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates, upgrade channel and download mode'**
+  String get updateSettingsDesc;
+
+  /// No description provided for @updateChannelSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade channel'**
+  String get updateChannelSection;
+
+  /// No description provided for @updateChannelStable.
+  ///
+  /// In en, this message translates to:
+  /// **'Stable'**
+  String get updateChannelStable;
+
+  /// No description provided for @updateChannelStableDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive stable releases only'**
+  String get updateChannelStableDesc;
+
+  /// No description provided for @updateChannelBeta.
+  ///
+  /// In en, this message translates to:
+  /// **'Beta'**
+  String get updateChannelBeta;
+
+  /// No description provided for @updateChannelBetaDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Early access to new features (may be unstable)'**
+  String get updateChannelBetaDesc;
+
+  /// No description provided for @updateAutoCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check updates automatically'**
+  String get updateAutoCheck;
+
+  /// No description provided for @updateAutoCheckDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for new versions in the background on startup'**
+  String get updateAutoCheckDesc;
+
+  /// No description provided for @updateAutoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download updates automatically'**
+  String get updateAutoDownload;
+
+  /// No description provided for @updateAutoDownloadDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Download the installer automatically when a new version is found'**
+  String get updateAutoDownloadDesc;
+
+  /// No description provided for @updateWifiOnlyAutoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Only auto-download on Wi-Fi'**
+  String get updateWifiOnlyAutoDownload;
+
+  /// No description provided for @updateWifiOnlyAutoDownloadDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for a Wi-Fi connection before auto-downloading'**
+  String get updateWifiOnlyAutoDownloadDesc;
+
+  /// No description provided for @updateInAppDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'In-app download'**
+  String get updateInAppDownload;
+
+  /// No description provided for @updateInAppDownloadDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Download inside the app; open the browser otherwise'**
+  String get updateInAppDownloadDesc;
+
+  /// No description provided for @updateMirrorSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Download mirrors'**
+  String get updateMirrorSection;
+
+  /// No description provided for @updateMirrorCommunityThanks.
+  ///
+  /// In en, this message translates to:
+  /// **'Mirrors are contributed by the community and stability is not guaranteed. Thanks to every generous contributor 🙏'**
+  String get updateMirrorCommunityThanks;
+
+  /// No description provided for @updateMirrorShowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all ({count})'**
+  String updateMirrorShowAll(Object count);
+
+  /// No description provided for @updateMirrorCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get updateMirrorCollapse;
+
+  /// No description provided for @updateMirrorAllUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'All mirrors are unreachable under the current network. Downloads will use GitHub official directly. Retry later or add a custom mirror.'**
+  String get updateMirrorAllUnreachable;
+
+  /// No description provided for @updateOpenedBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened the browser for download'**
+  String get updateOpenedBrowser;
+
+  /// No description provided for @updateCannotOpenBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open the browser'**
+  String get updateCannotOpenBrowser;
+
   /// No description provided for @settingsGroupLanguage.
   ///
   /// In en, this message translates to:
@@ -13795,6 +13927,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No runtime permission needed on this platform'**
   String get onboardingPermissionNotNeeded;
+
+  /// No description provided for @onboardingPermissionStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage'**
+  String get onboardingPermissionStorage;
+
+  /// No description provided for @onboardingPermissionStorageDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Access local files (legacy Android versions)'**
+  String get onboardingPermissionStorageDesc;
+
+  /// No description provided for @onboardingPermissionPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get onboardingPermissionPhotos;
+
+  /// No description provided for @onboardingPermissionPhotosDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Read images from your gallery'**
+  String get onboardingPermissionPhotosDesc;
+
+  /// No description provided for @onboardingPermissionVideos.
+  ///
+  /// In en, this message translates to:
+  /// **'Videos'**
+  String get onboardingPermissionVideos;
+
+  /// No description provided for @onboardingPermissionVideosDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Read videos from your gallery'**
+  String get onboardingPermissionVideosDesc;
+
+  /// No description provided for @onboardingPermissionAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get onboardingPermissionAudio;
+
+  /// No description provided for @onboardingPermissionAudioDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Read local audio files'**
+  String get onboardingPermissionAudioDesc;
+
+  /// No description provided for @onboardingPermissionItemGranted.
+  ///
+  /// In en, this message translates to:
+  /// **'Granted'**
+  String get onboardingPermissionItemGranted;
+
+  /// No description provided for @onboardingPermissionItemDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Not granted'**
+  String get onboardingPermissionItemDenied;
+
+  /// No description provided for @onboardingDownloadTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download location'**
+  String get onboardingDownloadTitle;
+
+  /// No description provided for @onboardingDownloadBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where downloaded anime / manga / novel / video content is saved. You can change it later under Settings → Downloads.'**
+  String get onboardingDownloadBody;
+
+  /// No description provided for @onboardingChooseDownloadPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose download folder'**
+  String get onboardingChooseDownloadPath;
+
+  /// No description provided for @onboardingThemeColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent color'**
+  String get onboardingThemeColorLabel;
+
+  /// No description provided for @onboardingThemePreviewLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Style preview'**
+  String get onboardingThemePreviewLabel;
 
   /// Privacy settings page title
   ///

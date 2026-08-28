@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 
 /// 统一设计常量（仅本组件内部使用）。
 const double _kPillW = 36; // 选中胶囊宽度（只罩图标）
@@ -81,7 +82,11 @@ class AppNavBar extends StatelessWidget {
                     child: _AppNavItem(
                       destination: destinations[i],
                       selected: i == selectedIndex,
-                      onTap: () => onDestinationSelected(i),
+                      onTap: () {
+                        // 底部导航切换：轻触反馈。
+                        AppHaptics.selectionClick();
+                        onDestinationSelected(i);
+                      },
                     ),
                   );
                 }),
@@ -122,7 +127,11 @@ Widget _buildRail(BuildContext context) {
                 child: _AppNavItem(
                   destination: destinations[i],
                   selected: i == selectedIndex,
-                  onTap: () => onDestinationSelected(i),
+                  onTap: () {
+                    // 侧栏导航切换：轻触反馈。
+                    AppHaptics.selectionClick();
+                    onDestinationSelected(i);
+                  },
                 ),
               );
             }),

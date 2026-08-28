@@ -143,7 +143,8 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
       url: url,
       username: username,
     );
-    await service.updateConfig(newConfig, password.isNotEmpty ? password : null);
+    await service.updateConfig(
+        newConfig, password.isNotEmpty ? password : null);
     _passwordController.clear();
     if (!mounted) return;
     setState(() => _saving = false);
@@ -257,7 +258,8 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     // 5) 汇总提示。
     if (!mounted) return;
     final parts = <String>[
-      if (result.uploaded > 0) l10n.novelProgressSyncedUploaded(result.uploaded),
+      if (result.uploaded > 0)
+        l10n.novelProgressSyncedUploaded(result.uploaded),
       if (result.autoAppliedFromRemote.isNotEmpty)
         l10n.novelProgressSyncedRestored(result.autoAppliedFromRemote.length),
       if (result.requireConfirmation.isNotEmpty)
@@ -389,8 +391,9 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     }
   }
 
-  String _formatTime(int ts) => GeneralSettingsStore.instance.settings.dateFormat
-      .format(DateTime.fromMillisecondsSinceEpoch(ts), withTime: true);
+  String _formatTime(int ts) =>
+      GeneralSettingsStore.instance.settings.dateFormat
+          .format(DateTime.fromMillisecondsSinceEpoch(ts), withTime: true);
 
   /// 同步状态明细卡片：展示上次备份 / 恢复的时间、成功与否、数据条数、范围。
   Widget _buildStatusCard(CloudSyncConfig config, AppLocalizations l10n) {
@@ -411,9 +414,11 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
               ],
             ),
             const SizedBox(height: AppTokens.spaceSm),
-            _statusRow(l10n, l10n.cloudSyncStatusUpload, config.lastUpload, theme),
+            _statusRow(
+                l10n, l10n.cloudSyncStatusUpload, config.lastUpload, theme),
             const SizedBox(height: AppTokens.spaceXs),
-            _statusRow(l10n, l10n.cloudSyncStatusRestore, config.lastRestore, theme),
+            _statusRow(
+                l10n, l10n.cloudSyncStatusRestore, config.lastRestore, theme),
             if (config.nextSyncTimestamp != null) ...<Widget>[
               const SizedBox(height: AppTokens.spaceXs),
               Row(
@@ -448,8 +453,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
           Expanded(child: Text(title, style: theme.textTheme.bodyMedium)),
           Text(
             l10n.cloudSyncStatusNotRun,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.hintColor),
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
           ),
         ],
       );
@@ -481,8 +485,8 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
         if (timeText.isNotEmpty) ...<Widget>[
           const SizedBox(width: AppTokens.spaceXs),
           Text(timeText,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.hintColor)),
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
         ],
       ],
     );
@@ -588,6 +592,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
 
           // ── F6：小说导出自动上传 WebDAV ──
           SwitchListTile(
+            key: const ValueKey<String>('cloud.novelAutoUpload'),
             title: Text(l10n.cloudSyncAutoUploadNovelExports),
             subtitle: Text(l10n.cloudSyncAutoUploadNovelExportsDesc),
             value: config.autoUploadNovelExports,
@@ -615,9 +620,8 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
 
           // ── 立即同步（上传） ──
           FilledButton.icon(
-            onPressed: (_syncing || service.isSyncing)
-                ? null
-                : () => _syncNow(l10n),
+            onPressed:
+                (_syncing || service.isSyncing) ? null : () => _syncNow(l10n),
             icon: (_syncing || service.isSyncing)
                 ? const SizedBox(
                     width: 16,
@@ -659,8 +663,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
               ),
             ],
             selected: <bool>{_pullMerge},
-            onSelectionChanged: (sel) =>
-                setState(() => _pullMerge = sel.first),
+            onSelectionChanged: (sel) => setState(() => _pullMerge = sel.first),
           ),
           const SizedBox(height: AppTokens.spaceSm),
           OutlinedButton.icon(
@@ -717,7 +720,8 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
                     child: Text(
                       _errorText(l10n, service.lastError),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onErrorContainer,
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer,
                           ),
                     ),
                   ),

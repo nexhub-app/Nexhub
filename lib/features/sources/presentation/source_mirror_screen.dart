@@ -73,8 +73,14 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
     });
     final stopwatch = Stopwatch()..start();
     try {
-      await HttpFetcher.instance.getHtml(baseUrl);
-      if (mounted) setState(() => _speeds[baseUrl] = stopwatch.elapsedMilliseconds);
+      final reachable = await HttpFetcher.instance.isReachable(baseUrl);
+      if (mounted) {
+        if (reachable) {
+          _speeds[baseUrl] = stopwatch.elapsedMilliseconds;
+        } else {
+          _failed.add(baseUrl);
+        }
+      }
     } catch (_) {
       if (mounted) setState(() => _failed.add(baseUrl));
     } finally {

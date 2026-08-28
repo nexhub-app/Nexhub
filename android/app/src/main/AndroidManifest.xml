@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 触觉反馈：设置/按钮震动（原生 Vibrator，不依赖系统「触摸反馈」设置） -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <!-- F2.C：本地内容导入所需存储/媒体权限（targetSdk 33+ 用 READ_MEDIA_*，旧版本回落 READ_EXTERNAL_STORAGE） -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
@@ -16,7 +18,8 @@
         android:label="nexhub"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:enableOnBackInvokedCallback="true">
         <!-- 视频外接纹理在部分旧 GPU/驱动（Mali、旧 Adreno）上经 Impeller 渲染会
              闪烁+花屏（无 Vulkan 设备落在成熟度更差的 Impeller OpenGL 后端），
              且与解码方式无关——软解也救不了。回退 Skia 渲染。 -->

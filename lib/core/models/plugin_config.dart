@@ -815,6 +815,54 @@ int _coerceVersion(dynamic v) {
   return 1;
 }
 
+/// 源声明式 CDN 图床发现（可选 cdn 段）。
+///
+/// 部分站点（如 nhentai）把图片放在多个子域图床（i1-i4 / t1-t4 .site），其中
+/// 某些子域在特定网络下不可达。源在此声明 CDN 列表端点（如 /api/v2/cdn），
+/// 引擎拉取 server 列表后 **逐个探活选取可达图床**，注入脚本上下文
+/// `context.cdnImage` / `context.cdnThumb`，供脚本拼图片 URL。
+///
+/// 这是通用的「源声明端点、引擎选路」机制，不写死任何站点逻辑；连通性仍由
+/// App 网络设置（代理 / VPN）负责，引擎只从站点自己返回的列表里挑一个能通的。
+/// 与现有 mirrors 路由同源思路。源未声明该段时 [PluginConfig.cdn] 为 null，
+/// 脚本回退到 `i3/t3.{激活镜像域}`（与旧行为一致）。
+class CdnConfig {
+  /// CDN 列表端点：相对 [SiteConfig.baseUrl] 或绝对 URL。
+  final String url;
+  /// 响应里「图片服务器数组」的键，默认 `image_servers`。
+  final String imageServers;
+  /// 响应里「缩略图服务器数组」的键，默认 `thumb_servers`。
+  final String thumbServers;
+  /// 探活全失败时图片基（含协议，无尾斜杠）。缺省按 `i3.{激活镜像域}` 推导。
+  final String? imageFallback;
+  /// 探活全失败时缩略图基。缺省按 `t3.{激活镜像域}` 推导。
+  final String? thumbFallback;
+
+  const CdnConfig({
+    required this.url,
+    this.imageServers = 'image_servers',
+    this.thumbServers = 'thumb_servers',
+    this.imageFallback,
+    this.thumbFallback,
+  });
+
+  factory CdnConfig.fromJson(Map<String, dynamic> json) => CdnConfig(
+        url: json['url'] as String,
+        imageServers: json['imageServers'] as String? ?? 'image_servers',
+        thumbServers: json['thumbServers'] as String? ?? 'thumb_servers',
+        imageFallback: json['imageFallback'] as String?,
+        thumbFallback: json['thumbFallback'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'url': url,
+        'imageServers': imageServers,
+        'thumbServers': thumbServers,
+        if (imageFallback != null) 'imageFallback': imageFallback,
+        if (thumbFallback != null) 'thumbFallback': thumbFallback,
+      };
+}
+
 /// 完整源配置（PluginConfig）。
 class PluginConfig {
   final String id;
@@ -851,6 +899,8 @@ class PluginConfig {
   /// 网络收藏（可选 `webFavorite` 段）。为 null → 该源不提供源站收藏入口，
   /// 在线浏览不显示「网络收藏」Tab，收藏按钮也不显示网络收藏选项。
   final WebFavoriteConfig? webFavorite;
+  /// 源声明式 CDN 图床发现（可选 `cdn` 段）。为 null → 脚本回退 i3/t3 旧行为。
+  final CdnConfig? cdn;
   /// 源年龄分级（可选 `ageRating` 字段，缺省 [SourceAgeRating.general]）。
   final SourceAgeRating ageRating;
   /// 源版本号（整数，缺省 1）。导入时 **≥ 已安装版本** 才覆盖（高版本升级 /
@@ -884,6 +934,7 @@ class PluginConfig {
         this.network,
         this.announcement,
         this.webFavorite,
+        this.cdn,
         this.ageRating = SourceAgeRating.general,
         this.version = 1,
       });
@@ -999,6 +1050,9 @@ class PluginConfig {
           ? WebFavoriteConfig.fromJson(
               Map<String, dynamic>.from(json['webFavorite'] as Map))
           : null,
+      cdn: json['cdn'] is Map
+          ? CdnConfig.fromJson(Map<String, dynamic>.from(json['cdn'] as Map))
+          : null,
       ageRating: SourceAgeRating.parse(json['ageRating']),
       version: _coerceVersion(json['version']),
     );
@@ -1043,6 +1097,7 @@ class PluginConfig {
         if (network != null) 'network': network!.toJson(),
         if (announcement != null) 'announcement': announcement!.toJson(),
         if (webFavorite != null) 'webFavorite': webFavorite!.toJson(),
+        if (cdn != null) 'cdn': cdn!.toJson(),
         'ageRating': ageRating.apiName,
       };
 

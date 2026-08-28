@@ -13,6 +13,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import android.util.Rational
 import android.view.KeyEvent
@@ -87,6 +90,29 @@ class MainActivity : FlutterFragmentActivity() {
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("install_failed", e.message, null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Method channel: 按钮/开关触觉反馈（原生 Vibrator 直接震动，
+        // 不依赖系统「触摸反馈」设置——Flutter 的 HapticFeedback 在部分
+        // 设备/系统设置下被静默，导致手机上感觉不到震动）。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            HAPTIC_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "vibrate" -> {
+                    try {
+                        val intensity = call.argument<Int>("intensity") ?: 1
+                        val duration = call.argument<Int>("duration") ?: 30
+                        val pulses = call.argument<Int>("pulses") ?: 1
+                        vibrate(intensity, duration, pulses)
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("vibrate_failed", e.message, null)
                     }
                 }
                 else -> result.notImplemented()
@@ -215,11 +241,69 @@ class MainActivity : FlutterFragmentActivity() {
         startActivity(intent)
     }
 
+    /**
+     * 触觉反馈：直接经 Vibrator 震动（不依赖系统「触摸反馈」设置）。
+     * [intensity] 0=轻 1=中 2=重；[duration] 单次震动时长毫秒；
+     * [pulses] >1 时用多脉冲波形（短间隔重复），更易被感知。
+     * Android O+ 用 VibrationEffect(createOneShot/createWaveform+振幅)，旧版本退化。
+     */
+    private fun vibrate(intensity: Int, duration: Int, pulses: Int) {
+        val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator?
+        }
+        if (vibrator == null || !vibrator.hasVibrator()) return
+        // 每次先 cancel 清掉可能滞留的上一次波形：连续高频触感（开关/翻页/点按）
+        // 时若不清理，部分 ROM 会把后续 createOneShot/createWaveform 追加到已有
+        // 队列，表现为「只有第一次有震动，之后再点没反应」。
+        vibrator.cancel()
+        val safeDuration = duration.coerceIn(5, 500)
+        val safePulses = pulses.coerceIn(1, 4)
+        val amp = when (intensity.coerceIn(0, 2)) {
+            0 -> 150
+            1 -> 220
+            else -> 255
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (safePulses > 1) {
+                // 多脉冲：震动 d → 停 80ms → 再震 …（timings/amplitudes 等长）
+                val timings = mutableListOf<Long>()
+                val amps = mutableListOf<Int>()
+                for (i in 0 until safePulses) {
+                    if (i > 0) { timings.add(80); amps.add(0) }
+                    timings.add(safeDuration.toLong()); amps.add(amp)
+                }
+                vibrator.vibrate(
+                    VibrationEffect.createWaveform(
+                        timings.toLongArray(), amps.toIntArray(), -1
+                    )
+                )
+            } else {
+                vibrator.vibrate(VibrationEffect.createOneShot(safeDuration.toLong(), amp))
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            if (safePulses > 1) {
+                val timings = mutableListOf<Long>()
+                for (i in 0 until safePulses) {
+                    if (i > 0) timings.add(80)
+                    timings.add(safeDuration.toLong())
+                }
+                vibrator.vibrate(timings.toLongArray(), -1)
+            } else {
+                vibrator.vibrate(safeDuration.toLong())
+            }
+        }
+    }
+
     // ── F-23 系统 PiP 窗口动作（Android O+）──────────────────────────────
 
     companion object {
         private const val PIP_CHANNEL = "nexhub/pip"
         private const val PIP_EVENTS = "nexhub/pip_events"
+        private const val HAPTIC_CHANNEL = "nexhub/haptic"
         private const val PIP_ACTION = "com.nexhub.app.PIP_ACTION"
         private const val EXTRA_ACTION_ID = "actionId"
         // PendingIntent 请求码基址：每个动作 +index，保持稳定复用（FLAG_UPDATE_CURRENT）。

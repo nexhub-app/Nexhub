@@ -38,6 +38,8 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
   void initState() {
     super.initState();
     // 进入页面即刷新登录态（声明 checkUrl 时异步探测二次确认）。
+    // 注意：不在此自动打开 WebView 登录——用户主动点击「网页登录」才拉起，
+    // 避免打开源登录界面时意外弹出内置浏览器（产品明确要求不自动打开）。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<SourceAuthManager>().refreshLoginState(widget.source);
@@ -118,8 +120,7 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
                     labelText: l10n.cookieInputHint,
                     hintText: l10n.cookieHint,
                     border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppTokens.radiusMd),
+                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                     ),
                   ),
                 ),
@@ -169,8 +170,8 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
         context.watch<SourceAuthManager>().isLoggedIn(widget.source);
     // WebView 仅在移动端可用；桌面/Web 直接隐藏「网页登录」入口，
     // 避免用户点了再弹"不支持"，体验上更明确。
-    final bool webLoginSupported = PlatformService.instance.isAndroid ||
-        PlatformService.instance.isIOS;
+    final bool webLoginSupported =
+        PlatformService.instance.isAndroid || PlatformService.instance.isIOS;
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.source.name)),

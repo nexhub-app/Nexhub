@@ -2799,6 +2799,82 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateMirrorTimeout => 'Timeout';
 
   @override
+  String get updateSettings => 'Update Settings';
+
+  @override
+  String get updateSettingsDesc =>
+      'Check for updates, upgrade channel and download mode';
+
+  @override
+  String get updateChannelSection => 'Upgrade channel';
+
+  @override
+  String get updateChannelStable => 'Stable';
+
+  @override
+  String get updateChannelStableDesc => 'Receive stable releases only';
+
+  @override
+  String get updateChannelBeta => 'Beta';
+
+  @override
+  String get updateChannelBetaDesc =>
+      'Early access to new features (may be unstable)';
+
+  @override
+  String get updateAutoCheck => 'Check updates automatically';
+
+  @override
+  String get updateAutoCheckDesc =>
+      'Check for new versions in the background on startup';
+
+  @override
+  String get updateAutoDownload => 'Download updates automatically';
+
+  @override
+  String get updateAutoDownloadDesc =>
+      'Download the installer automatically when a new version is found';
+
+  @override
+  String get updateWifiOnlyAutoDownload => 'Only auto-download on Wi-Fi';
+
+  @override
+  String get updateWifiOnlyAutoDownloadDesc =>
+      'Wait for a Wi-Fi connection before auto-downloading';
+
+  @override
+  String get updateInAppDownload => 'In-app download';
+
+  @override
+  String get updateInAppDownloadDesc =>
+      'Download inside the app; open the browser otherwise';
+
+  @override
+  String get updateMirrorSection => 'Download mirrors';
+
+  @override
+  String get updateMirrorCommunityThanks =>
+      'Mirrors are contributed by the community and stability is not guaranteed. Thanks to every generous contributor 🙏';
+
+  @override
+  String updateMirrorShowAll(Object count) {
+    return 'Show all ($count)';
+  }
+
+  @override
+  String get updateMirrorCollapse => 'Collapse';
+
+  @override
+  String get updateMirrorAllUnreachable =>
+      'All mirrors are unreachable under the current network. Downloads will use GitHub official directly. Retry later or add a custom mirror.';
+
+  @override
+  String get updateOpenedBrowser => 'Opened the browser for download';
+
+  @override
+  String get updateCannotOpenBrowser => 'Unable to open the browser';
+
+  @override
   String get settingsGroupLanguage => 'Language';
 
   @override
@@ -7339,6 +7415,53 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onboardingPermissionNotNeeded =>
       'No runtime permission needed on this platform';
+
+  @override
+  String get onboardingPermissionStorage => 'Storage';
+
+  @override
+  String get onboardingPermissionStorageDesc =>
+      'Access local files (legacy Android versions)';
+
+  @override
+  String get onboardingPermissionPhotos => 'Photos';
+
+  @override
+  String get onboardingPermissionPhotosDesc => 'Read images from your gallery';
+
+  @override
+  String get onboardingPermissionVideos => 'Videos';
+
+  @override
+  String get onboardingPermissionVideosDesc => 'Read videos from your gallery';
+
+  @override
+  String get onboardingPermissionAudio => 'Audio';
+
+  @override
+  String get onboardingPermissionAudioDesc => 'Read local audio files';
+
+  @override
+  String get onboardingPermissionItemGranted => 'Granted';
+
+  @override
+  String get onboardingPermissionItemDenied => 'Not granted';
+
+  @override
+  String get onboardingDownloadTitle => 'Download location';
+
+  @override
+  String get onboardingDownloadBody =>
+      'Choose where downloaded anime / manga / novel / video content is saved. You can change it later under Settings → Downloads.';
+
+  @override
+  String get onboardingChooseDownloadPath => 'Choose download folder';
+
+  @override
+  String get onboardingThemeColorLabel => 'Accent color';
+
+  @override
+  String get onboardingThemePreviewLabel => 'Style preview';
 
   @override
   String get privacySettingsTitle => 'Privacy Settings';

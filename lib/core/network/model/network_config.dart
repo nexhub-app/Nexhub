@@ -57,7 +57,7 @@ class ProxyConfig {
   final String username;
 
   const ProxyConfig({
-    this.mode = ProxyMode.direct,
+    this.mode = ProxyMode.system,
     this.protocol = ProxyProtocol.http,
     this.host = '',
     this.port = 0,
@@ -90,7 +90,7 @@ class ProxyConfig {
       };
 
   factory ProxyConfig.fromJson(Map<String, dynamic> json) => ProxyConfig(
-        mode: _enumFromName(ProxyMode.values, json['mode'], ProxyMode.direct),
+        mode: _enumFromName(ProxyMode.values, json['mode'], ProxyMode.system),
         protocol: _enumFromName(
             ProxyProtocol.values, json['protocol'], ProxyProtocol.http),
         host: (json['host'] as String?) ?? '',

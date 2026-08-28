@@ -75,8 +75,10 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     final defaultCfg = await _settings.getDefaultConfig();
     final summaryCfg = await _settings.getSummaryConfig();
     // 只回显速览「功能级」填写的内容：与通用一致时留空（表示未单独配置）。
-    final sBase = summaryCfg.baseUrl == defaultCfg.baseUrl ? '' : summaryCfg.baseUrl;
-    final sKey = summaryCfg.apiKey == defaultCfg.apiKey ? '' : summaryCfg.apiKey;
+    final sBase =
+        summaryCfg.baseUrl == defaultCfg.baseUrl ? '' : summaryCfg.baseUrl;
+    final sKey =
+        summaryCfg.apiKey == defaultCfg.apiKey ? '' : summaryCfg.apiKey;
     final sModel = summaryCfg.model == defaultCfg.model ? '' : summaryCfg.model;
     final illCfg = await _settings.getIllustrationConfig();
     final iBase = illCfg.baseUrl == defaultCfg.baseUrl ? '' : illCfg.baseUrl;
@@ -311,6 +313,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
                 SettingsSliderTile(
+                  key: const ValueKey<String>('ai.translationBatchSize'),
                   label: l10n.translationBatchSize,
                   value: _trBatch,
                   min: 4,

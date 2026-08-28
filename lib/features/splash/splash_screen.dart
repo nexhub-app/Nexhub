@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../../app.dart';
 import '../../core/article/article_reading_preferences.dart';
@@ -279,6 +280,11 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   /// 启动时自动检查更新（静默）。
+  ///
+  /// 检测到新版本时：
+  /// - 始终缓存到 UpdateManager（About 页可显示）；
+  /// - 若用户开启了「自动下载更新」，且满足 WiFi（如需）与应用内下载条件，
+  ///   则静默下载安装包，不打断首次进入应用。
   Future<void> _autoCheckUpdate() async {
     final settings = await UpdateSettingsStore().load();
     if (!settings.autoCheck) return;
@@ -287,8 +293,16 @@ class _SplashScreenState extends State<SplashScreen> {
       timeout: const Duration(seconds: 15),
     );
     if (release == null) return;
-    // 比较版本号，有新版本时 UpdateManager 已缓存 latestRelease，供 About 页显示。
-    // 不在此处弹窗，避免中断用户首次进入应用。
+    String current = '0.0.0';
+    try {
+      current = (await PackageInfo.fromPlatform()).version;
+    } on Object {
+      // 读取失败按 0.0.0 处理，不阻断自动更新。
+    }
+    if (!manager.isNewer(release.tagName, current)) return;
+    // 触发自动下载（内部按 autoDownload / wifiOnlyAutoDownload /
+    // inAppDownload 设置决定是否真正下载）。
+    await manager.maybeAutoDownload(release);
   }
 
   @override
@@ -408,10 +422,15 @@ class _SplashView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/icon/icon.png',
-              width: 120,
-              height: 120,
+            // 圆角应用图标（与关于页一致）：启动加载时即呈现圆角品牌图标。
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppTokens.radiusXl),
+              child: Image.asset(
+                'assets/icon/icon.png',
+                width: 120,
+                height: 120,
+                fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(height: AppTokens.spaceXl),
             // 灵动三点弹跳加载（替代转圈），与全应用加载动效统一。

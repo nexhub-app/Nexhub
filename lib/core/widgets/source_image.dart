@@ -105,18 +105,42 @@ class SourceImage extends StatelessWidget {
           ? '$existing; $synced'
           : synced;
     }
-    // 默认补同源 Referer：大量站（含幻梦ACG）防盗链要求，缺失即 403。
+    // 图片请求头修正：源 site.headers 常带 `Accept: application/json`（用于
+    // API），漏到图片请求会让部分 CDN 按「伪装的图片请求」拒绝；改为图片专用 Accept。
+    if (m['Accept']?.contains('application/json') ?? false) {
+      m['Accept'] = 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8';
+    }
+    // 默认补同源 Referer：优先源站 origin（nhentai 等防盗链 CDN 只认源站同源，
+    // 用图片 CDN 域名 i*.nhentai.net 会被直接断连接 → 图片全空），取不到再回退
+    // 图片 URL 自身 origin。
     if (!m.containsKey('Referer')) {
-      final String? rawUrl = url;
-      if (rawUrl != null) {
-        try {
-          m['Referer'] = Uri.parse(rawUrl).origin;
-        } catch (_) {
-          // 非法 URL 忽略 Referer。
-        }
-      }
+      final String? origin = _fallbackRefererOrigin();
+      if (origin != null) m['Referer'] = origin;
     }
     return m;
+  }
+
+  /// 图片兜底 Referer 的 origin：优先源站 [SiteConfig.baseUrl] 的 origin
+  /// （大部分防盗链 CDN 只认源站同源），取不到再回退图片 URL 自身 origin。
+  String? _fallbackRefererOrigin() {
+    final String? rawUrl = url;
+    final String? siteBase = source?.site.baseUrl;
+    if (siteBase != null && siteBase.isNotEmpty) {
+      try {
+        final o = Uri.tryParse(siteBase)?.origin;
+        if (o != null && o.isNotEmpty) return o;
+      } catch (_) {
+        // 忽略，回退到图片 URL。
+      }
+    }
+    if (rawUrl != null) {
+      try {
+        return Uri.parse(rawUrl).origin;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
   }
 
   Widget _defaultPlaceholder(BuildContext context) {

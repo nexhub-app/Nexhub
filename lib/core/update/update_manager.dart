@@ -12,6 +12,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show MethodChannel;
@@ -78,6 +79,7 @@ class _ReleaseJson {
   final String name;
   final String body;
   final String htmlUrl;
+  final bool prerelease;
   final List<Map<String, dynamic>> assets;
 
   _ReleaseJson.fromJson(Map<String, dynamic> json)
@@ -85,6 +87,7 @@ class _ReleaseJson {
         name = json['name'] as String? ?? '',
         body = json['body'] as String? ?? '',
         htmlUrl = json['html_url'] as String? ?? '',
+        prerelease = json['prerelease'] as bool? ?? false,
         assets = (json['assets'] as List<dynamic>? ?? const <dynamic>[])
             .whereType<Map<String, dynamic>>()
             .toList();
@@ -103,23 +106,148 @@ class UpdateManager extends ChangeNotifier {
   /// 默认镜像列表（name + 下载前缀替换规则）。
   ///
   /// 镜像协议：将 `https://github.com/` 前缀替换为镜像地址。
-  /// 如 GitHub 官方：不替换；ghproxy：替换为 `https://ghproxy.com/https://github.com/`。
+  /// 如 GitHub 官方：不替换；加速镜像采用主流双层协议：
+  /// 替换为 `https://<域名>/https://github.com/`。
   ///
-  /// 感谢以下镜像提供者的无偿服务 🙏
+  /// 列表按公开测速延迟由低到高排序，方便「自动切换高速镜像」与手动选择。
+  /// 镜像由热心网友公益贡献，无法保障稳定性与可用性，在此一并致谢 🙏
   static const List<({String name, String prefix})> _defaultMirrors = <({
     String name,
     String prefix,
   })>[
     (name: 'GitHub 官方', prefix: 'https://github.com/'),
-    (name: 'GHProxy 镜像', prefix: 'https://ghproxy.com/https://github.com/'),
-    (name: 'GHProxy.NET', prefix: 'https://ghproxy.net/https://github.com/'),
-    (name: 'GH-Proxy.com', prefix: 'https://gh-proxy.com/https://github.com/'),
-    (name: 'ghp.ci', prefix: 'https://ghp.ci/https://github.com/'),
-    (name: 'Moeyy 镜像', prefix: 'https://moeyy.cn/gh-proxy/https://github.com/'),
-    (name: 'Toolwa 镜像', prefix: 'https://toolwa.com/github/https://github.com/'),
-    (name: 'Akams 镜像', prefix: 'https://github.akams.cn/https://github.com/'),
-    (name: 'GitClone', prefix: 'https://gitclone.com/github.com/'),
-    (name: 'FGit 镜像', prefix: 'https://hub.fgit.cf/https://github.com/'),
+    (
+      name: 'gh.jasonzeng.dev',
+      prefix: 'https://gh.jasonzeng.dev/https://github.com/'
+    ),
+    (
+      name: 'js.jiangss.shop',
+      prefix: 'https://js.jiangss.shop/https://github.com/'
+    ),
+    (name: 'tvv.tw', prefix: 'https://tvv.tw/https://github.com/'),
+    (
+      name: 'ghproxy.imciel.com',
+      prefix: 'https://ghproxy.imciel.com/https://github.com/'
+    ),
+    (
+      name: '777.z321.cc.cd',
+      prefix: 'https://777.z321.cc.cd/https://github.com/'
+    ),
+    (
+      name: 'gg.z321.cc.cd',
+      prefix: 'https://gg.z321.cc.cd/https://github.com/'
+    ),
+    (name: 'gh-proxy.com', prefix: 'https://gh-proxy.com/https://github.com/'),
+    (
+      name: 'gh.ruan.dpdns.org',
+      prefix: 'https://gh.ruan.dpdns.org/https://github.com/'
+    ),
+    (
+      name: 'gh.monlor.com',
+      prefix: 'https://gh.monlor.com/https://github.com/'
+    ),
+    (
+      name: 'xsadwsd.kdns.fr',
+      prefix: 'https://xsadwsd.kdns.fr/https://github.com/'
+    ),
+    (name: 'g.z321.cc.cd', prefix: 'https://g.z321.cc.cd/https://github.com/'),
+    (name: 'fastgit.cc', prefix: 'https://fastgit.cc/https://github.com/'),
+    (
+      name: 'githubdog.com',
+      prefix: 'https://githubdog.com/https://github.com/'
+    ),
+    (
+      name: 'github.mxw.qzz.io',
+      prefix: 'https://github.mxw.qzz.io/https://github.com/'
+    ),
+    (
+      name: 'gh.my-website.ccwu.cc',
+      prefix: 'https://gh.my-website.ccwu.cc/https://github.com/'
+    ),
+    (
+      name: 'gh.07150721.xyz',
+      prefix: 'https://gh.07150721.xyz/https://github.com/'
+    ),
+    (name: 'gh.noki.icu', prefix: 'https://gh.noki.icu/https://github.com/'),
+    (name: 'ghfast.top', prefix: 'https://ghfast.top/https://github.com/'),
+    (
+      name: 'ghproxy.felicity.land',
+      prefix: 'https://ghproxy.felicity.land/https://github.com/'
+    ),
+    (
+      name: 'jiashu.1win.eu.org',
+      prefix: 'https://jiashu.1win.eu.org/https://github.com/'
+    ),
+    (
+      name: 'github.ednovas.xyz',
+      prefix: 'https://github.ednovas.xyz/https://github.com/'
+    ),
+    (
+      name: 'ghfile.geekertao.top',
+      prefix: 'https://ghfile.geekertao.top/https://github.com/'
+    ),
+    (
+      name: 'gh.927223.xyz',
+      prefix: 'https://gh.927223.xyz/https://github.com/'
+    ),
+    (
+      name: 'github.tbap.top',
+      prefix: 'https://github.tbap.top/https://github.com/'
+    ),
+    (
+      name: 'gh.felicity.ac.cn',
+      prefix: 'https://gh.felicity.ac.cn/https://github.com/'
+    ),
+    (
+      name: 'cdn.gh-proxy.com',
+      prefix: 'https://cdn.gh-proxy.com/https://github.com/'
+    ),
+    (name: 'gh.ddlc.top', prefix: 'https://gh.ddlc.top/https://github.com/'),
+    (
+      name: 'free.cn.eu.org',
+      prefix: 'https://free.cn.eu.org/https://github.com/'
+    ),
+    (
+      name: 'github.dpik.top',
+      prefix: 'https://github.dpik.top/https://github.com/'
+    ),
+    (
+      name: 'down.mxw.qzz.io',
+      prefix: 'https://down.mxw.qzz.io/https://github.com/'
+    ),
+    (name: 'git.yylx.win', prefix: 'https://git.yylx.win/https://github.com/'),
+    (name: 'ghproxy.net', prefix: 'https://ghproxy.net/https://github.com/'),
+    (
+      name: 'gh.bugdey.us.kg',
+      prefix: 'https://gh.bugdey.us.kg/https://github.com/'
+    ),
+    (
+      name: 'github.nswrz.cn',
+      prefix: 'https://github.nswrz.cn/https://github.com/'
+    ),
+    (
+      name: 'gh.sixyin.com',
+      prefix: 'https://gh.sixyin.com/https://github.com/'
+    ),
+    (name: 'gh.dpik.top', prefix: 'https://gh.dpik.top/https://github.com/'),
+    (name: 'g.blfrp.cn', prefix: 'https://g.blfrp.cn/https://github.com/'),
+    (
+      name: 'github.chenc.dev',
+      prefix: 'https://github.chenc.dev/https://github.com/'
+    ),
+    (
+      name: 'git.669966.xyz',
+      prefix: 'https://git.669966.xyz/https://github.com/'
+    ),
+    (name: 'gh.b52m.cn', prefix: 'https://gh.b52m.cn/https://github.com/'),
+    (
+      name: 'ghproxy.monkeyray.net',
+      prefix: 'https://ghproxy.monkeyray.net/https://github.com/'
+    ),
+    (
+      name: 'github.xxlab.tech',
+      prefix: 'https://github.xxlab.tech/https://github.com/'
+    ),
   ];
 
   /// 公开的默认镜像列表（供镜像设置页使用）。
@@ -169,6 +297,10 @@ class UpdateManager extends ChangeNotifier {
   ///
   /// 返回最新 release 信息；无更新/失败时返回 null 并设置 [_lastError]。
   /// [timeout] 用于控制请求超时（静默检查时更长）。
+  ///
+  /// 按 [_settings.updateChannel] 过滤：
+  /// - 稳定版：跳过 pre-release，取最新正式发布；
+  /// - 测试版：取最新发布（含 pre-release）。
   Future<UpdateReleaseInfo?> checkForUpdate({
     Duration timeout = const Duration(seconds: 10),
   }) async {
@@ -190,13 +322,23 @@ class UpdateManager extends ChangeNotifier {
       if (list == null || list.isEmpty) {
         throw Exception('no releases');
       }
-      final _ReleaseJson first =
-          _ReleaseJson.fromJson(list.first as Map<String, dynamic>);
+      // 解析全部 release，按通道筛选首个可用项。
+      final List<_ReleaseJson> all = list
+          .whereType<Map<String, dynamic>>()
+          .map(_ReleaseJson.fromJson)
+          .toList();
+      final bool wantBeta = _settings.updateChannel == UpdateChannel.beta;
+      _ReleaseJson? first;
+      for (final r in all) {
+        if (!wantBeta && r.prerelease) continue;
+        first = r;
+        break;
+      }
+      first ??= all.first;
       final assets = first.assets
           .map((a) => UpdateAsset(
                 name: a['name'] as String? ?? '',
-                browserDownloadUrl:
-                    a['browser_download_url'] as String? ?? '',
+                browserDownloadUrl: a['browser_download_url'] as String? ?? '',
               ))
           .toList();
       _latestRelease = UpdateReleaseInfo(
@@ -298,25 +440,93 @@ class UpdateManager extends ChangeNotifier {
     return mirrors;
   }
 
-  /// 测试镜像延迟（HEAD 请求），返回毫秒；失败返回 null。
-  Future<int?> _probeMirror(String prefix, String url) async {
-    final String probeUrl =
-        prefix == 'https://github.com/' ? url : url.replaceFirst(
-            'https://github.com/', prefix);
+  /// 探测单个 URL 的可达性延迟（毫秒）；网络层失败返回 null。
+  ///
+  /// 策略（修复「镜像大多显示超时」）：
+  /// 1. 先 HEAD 请求，`validateStatus` 接受任意 HTTP 响应码——镜像对探测路径
+  ///    返回 4xx/5xx 只说明「路径不支持」，并不代表镜像不可达；
+  /// 2. HEAD 被拒（部分镜像只支持 GET）时降级为 Range GET（只取前 1KB），
+  ///    避免下载完整 release 页面；
+  /// 3. 仅 DNS/连接/超时等网络层错误才判定为不可达。
+  Future<int?> _probeUrl(String url, {int timeoutMs = 6000}) async {
     final Stopwatch sw = Stopwatch()..start();
+    final Duration timeout = Duration(milliseconds: timeoutMs);
     try {
       await _dio.head<dynamic>(
-        probeUrl,
+        url,
         options: Options(
-          receiveTimeout: const Duration(seconds: 5),
-          sendTimeout: const Duration(seconds: 5),
+          receiveTimeout: timeout,
+          sendTimeout: timeout,
           followRedirects: true,
+          validateStatus: (_) => true,
         ),
       );
       return sw.elapsedMilliseconds;
     } on Object {
-      return null;
+      // HEAD 不支持/被拒：降级 Range GET（仅测可达性，不拉全量）。
+      try {
+        await _dio.get<dynamic>(
+          url,
+          options: Options(
+            headers: const <String, String>{'Range': 'bytes=0-1023'},
+            receiveTimeout: timeout,
+            sendTimeout: timeout,
+            followRedirects: true,
+            validateStatus: (_) => true,
+          ),
+        );
+        return sw.elapsedMilliseconds;
+      } on Object {
+        return null;
+      }
     }
+  }
+
+  /// 测试镜像延迟（优先 HEAD，失败降级 GET），返回毫秒；不可达返回 null。
+  Future<int?> _probeMirror(String prefix, String url) async {
+    final String probeUrl = prefix == 'https://github.com/'
+        ? url
+        : url.replaceFirst('https://github.com/', prefix);
+    return _probeUrl(probeUrl);
+  }
+
+  /// 当前是否连接 WiFi（用于「自动下载更新仅在 WiFi 下」判断）。
+  Future<bool> isWifiConnected() async {
+    try {
+      final List<ConnectivityResult> results =
+          await Connectivity().checkConnectivity();
+      return results.contains(ConnectivityResult.wifi);
+    } on Object {
+      // 桌面端 connectivity_plus 可能不可用或返回 unknown：视为非移动网络，
+      // 放行自动下载（避免桌面端永远无法自动下载）。
+      return true;
+    }
+  }
+
+  /// 静默检查更新后，按设置决定是否自动下载安装包。
+  ///
+  /// 条件：开启自动下载 + 开启应用内下载 + 有新版本 + 当前非忙碌。
+  /// [wifiOnlyAutoDownload] 开启时仅 WiFi 下下载，移动网络挂起等待。
+  /// 返回是否已触发下载（false = 未满足条件或失败）。
+  Future<bool> maybeAutoDownload(UpdateReleaseInfo release) async {
+    if (!_settings.autoDownload) return false;
+    if (!_settings.inAppDownload) return false;
+    if (isBusy) return false;
+    if (_settings.wifiOnlyAutoDownload && !await isWifiConnected()) {
+      return false;
+    }
+    final String? path = await downloadInstaller(release, silent: true);
+    return path != null;
+  }
+
+  /// 应用内下载关闭时，用系统浏览器打开发布页由用户自行下载。
+  Future<bool> openReleaseInBrowser(UpdateReleaseInfo release) async {
+    final Uri uri = Uri.parse(release.htmlUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return true;
+    }
+    return false;
   }
 
   /// 下载安装包。
@@ -324,11 +534,21 @@ class UpdateManager extends ChangeNotifier {
   /// [release] 目标版本信息；[silent] 静默模式（不弹窗、不打断）；
   /// [onProgress] 进度回调（已含 [_progress] 更新）。
   /// 返回下载后的本地文件路径。
+  ///
+  /// 若 [_settings.inAppDownload] 关闭，改为打开浏览器发布页，返回 null
+  /// 并设置 [_lastError] 为提示文案（调用方据此展示「已打开浏览器」）。
   Future<String?> downloadInstaller(
     UpdateReleaseInfo release, {
     bool silent = false,
     void Function(double progress)? onProgress,
   }) async {
+    // 应用内下载开关关闭：交给浏览器。
+    if (!_settings.inAppDownload) {
+      final bool ok = await openReleaseInBrowser(release);
+      _lastError = ok ? 'opened-in-browser' : 'cannot-open-browser';
+      notifyListeners();
+      return null;
+    }
     final UpdateAsset? asset = _selectAssetForPlatform(release.assets);
     if (asset == null) {
       _lastError = 'No installer asset for this platform';
@@ -395,24 +615,36 @@ class UpdateManager extends ChangeNotifier {
 
   /// 公开的镜像探测方法（供镜像设置页测速使用）。
   ///
-  /// 使用 [testUrl]（默认 GitHub 最新 release 页面）经镜像前缀转换后发起 HEAD 请求，
-  /// 返回延迟毫秒；失败时抛出异常。
+  /// 使用 [testUrl]（默认 GitHub 最新 release 页面）经镜像前缀转换后发起
+  /// 探测（HEAD 优先，失败降级 Range GET，任意 HTTP 响应码视为可达），
+  /// 返回延迟毫秒；网络层不可达时抛出异常。
   Future<int> probeMirror(String prefix, {String? testUrl}) async {
     final String actualUrl =
         testUrl ?? 'https://github.com/nexhub-app/nexhub/releases/latest';
-    final String probeUrl =
-        prefix == 'https://github.com/' ? actualUrl : actualUrl.replaceFirst(
-            'https://github.com/', prefix);
-    final Stopwatch sw = Stopwatch()..start();
-    await _dio.head<dynamic>(
-      probeUrl,
-      options: Options(
-        receiveTimeout: const Duration(seconds: 5),
-        sendTimeout: const Duration(seconds: 5),
-        followRedirects: true,
-      ),
-    );
-    return sw.elapsedMilliseconds;
+    final String probeUrl = prefix == 'https://github.com/'
+        ? actualUrl
+        : actualUrl.replaceFirst('https://github.com/', prefix);
+    final int? ms = await _probeUrl(probeUrl);
+    if (ms == null) {
+      throw Exception('mirror unreachable');
+    }
+    return ms;
+  }
+
+  /// 供测速使用的真实下载文件 URL。
+  ///
+  /// 优先取已检查到的最新版「当前平台安装包」资产地址——镜像对真实下载路径
+  /// 的代理行为才是用户真正需要的（发布页能访问不代表安装包也能加速）；
+  /// 尚未检查过最新版（或无可下载资产）时回退到 release 页面。
+  String defaultProbeUrl() {
+    final UpdateReleaseInfo? release = _latestRelease;
+    if (release != null) {
+      final UpdateAsset? asset = _selectAssetForPlatform(release.assets);
+      if (asset != null && asset.browserDownloadUrl.isNotEmpty) {
+        return asset.browserDownloadUrl;
+      }
+    }
+    return 'https://github.com/nexhub-app/nexhub/releases/latest';
   }
 
   /// 从镜像列表中选最快者（HEAD 探测并发比较）。

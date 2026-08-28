@@ -219,7 +219,7 @@ class _CenterPlayButtonState extends State<_CenterPlayButton>
         onTapUp: (_) => setState(() => _pressScale = 1.0),
         onTapCancel: () => setState(() => _pressScale = 1.0),
         onTap: () {
-          HapticFeedback.lightImpact();
+          AppHaptics.light();
           widget.onToggle();
         },
         // 外框比按钮大一圈，给扩散光环留出绘制空间（不裁剪）。

@@ -61,8 +61,18 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
       source: widget.source,
       onCookiesSynced: () => _synced = true,
     );
+    // 登录页与回灌后的抓取请求必须用同一 UA：服务器把会话绑定到 UA，WebView
+    // 若用默认 UA 登录，回灌到 HttpFetcher 的 cookie 在抓取（不同 UA）时会被判定
+    // 无效——「登录完没有自动获取 cookie 回灌」的另一个关键根因。取站点 baseUrl
+    // 的 UA（与后续抓取一致）作为内置浏览器 UA。
+    final String ua = HttpFetcher.instance.userAgentForUrl(
+      widget.source.site.baseUrl,
+    );
     await browser.openUrlRequest(
       urlRequest: URLRequest(url: WebUri(_loginUrl)),
+      settings: InAppBrowserClassSettings(
+        webViewSettings: InAppWebViewSettings(userAgent: ua),
+      ),
     );
     // 浏览器关闭后，openUrlRequest 的 Future 完成 → 返回结果。
     if (mounted && !_popped) {
@@ -149,13 +159,14 @@ class _LoginBrowser extends InAppBrowser {
 
   @override
   void onBrowserCreated() {
-    final checkCookie = _login?.checkCookie;
-    if (checkCookie != null && checkCookie.isNotEmpty) {
-      _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
-        final detected = await _syncCookies();
-        if (detected) _closeIfNeeded();
-      });
-    }
+    // 始终轮询读取 CookieManager 并回灌：登录多为页内 XHR，onLoadStop 触发时
+    // JS 可能尚未写完 cookie（时序不可靠）；不配置 checkCookie 的源若只依赖
+    // onLoadStop 会漏掉回灌（「登录完没有自动获取 cookie」的根因）。轮询一旦
+    // 检测到已回灌且离开登录页（或无 checkCookie 时的降级条件）即自动关闭。
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      final detected = await _syncCookies();
+      if (detected) _closeIfNeeded();
+    });
   }
 
   @override
@@ -225,6 +236,19 @@ class _LoginBrowser extends InAppBrowser {
       }
     }
     if (wroteAny) onCookiesSynced();
-    return detected;
+    // 自动关闭的条件：checkCookie 命中，或（已回灌 Cookie 且已离开登录页——
+    // 部分源未配置 checkCookie，纯靠停留登录页无法判断，跳到主站即视为完成）。
+    final bool leftLogin = _leftLoginPage();
+    return detected || (wroteAny && leftLogin);
+  }
+
+  /// 当前页面是否已离开登录页（host 不同，或同 host 但路径已变）。
+  bool _leftLoginPage() {
+    final Uri? cur = Uri.tryParse(_currentPageUrl ?? '');
+    final Uri? login = Uri.tryParse(_loginUrl);
+    if (cur == null || login == null) return false;
+    if (login.host.isEmpty || cur.host.isEmpty) return false;
+    if (cur.host != login.host) return true;
+    return cur.path != login.path;
   }
 }

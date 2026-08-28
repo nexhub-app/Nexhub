@@ -18,6 +18,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/comic/comic_bookmark_manager.dart';
 import '../../../core/comic/comic_progress_manager.dart';
 import '../../../core/comic/image_favorite_manager.dart';
@@ -3007,7 +3008,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onVerticalDragStart: (_) {
-            HapticFeedback.selectionClick();
+            AppHaptics.selectionClick();
             setState(() => _sliderPreviewChapter = current);
           },
           onVerticalDragUpdate: (d) {
@@ -3015,7 +3016,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             final double t = (d.localPosition.dy / h).clamp(0.0, 1.0);
             final int idx = (t * (total - 1)).round().clamp(0, total - 1);
             if (idx != _sliderPreviewChapter) {
-              HapticFeedback.selectionClick();
+              AppHaptics.selectionClick();
               setState(() => _sliderPreviewChapter = idx);
             }
           },

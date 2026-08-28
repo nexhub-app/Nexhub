@@ -8,6 +8,7 @@ import '../../../core/settings/rsshub_config.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../../core/widgets/app_card.dart';
+import './widgets/settings_search_target.dart';
 
 /// 预置的 RSSHub 实例列表。
 class _PresetInstance {
@@ -83,8 +84,11 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
         _currentUrl = config.instanceUrl.isNotEmpty
             ? config.instanceUrl
             : _kPresetInstances.first.url;
-        _selectedPresetUrl =
-            config.useCustom ? null : (_currentUrl.isNotEmpty ? _currentUrl : _kPresetInstances.first.url);
+        _selectedPresetUrl = config.useCustom
+            ? null
+            : (_currentUrl.isNotEmpty
+                ? _currentUrl
+                : _kPresetInstances.first.url);
       });
     });
   }
@@ -197,124 +201,131 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.rsshubSettingsTitle)),
-      body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
-        children: <Widget>[
-          // ── 当前实例 ──
-          Text(l10n.currentInstance,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w600,
-                  )),
-          const SizedBox(height: AppTokens.spaceSm),
-          AppCard(
-            child: ListTile(
-              title: Text(_currentUrl),
-              subtitle: Text(_selectedPresetUrl == null
-                  ? l10n.customInstance
-                  : l10n.presetInstanceOfficial),
-            ),
-          ),
-
-          // ── 预置实例 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Expanded(
-                child: Text(l10n.presetInstances,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: scheme.primary,
-                          fontWeight: FontWeight.w600,
-                        )),
-              ),
-              // 一键测速：测试所有预置 + 自定义实例（项 8）
-              TextButton.icon(
-                onPressed: _testingAll ? null : _testAll,
-                icon: _testingAll
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.speed),
-                label: Text(
-                    _testingAll ? l10n.rsshubTestingAll : l10n.rsshubTestAll),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppTokens.spaceSm),
-          ..._kPresetInstances.map((instance) => _buildPresetTile(instance)),
-
-          // ── 自定义实例 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          Text(l10n.customInstance,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w600,
-                  )),
-          const SizedBox(height: AppTokens.spaceSm),
-          // 添加新自定义实例输入框（统一为带内嵌「+ 添加」按钮的输入框，项 8）
-          TextField(
-            controller: _newCustomController,
-            decoration: InputDecoration(
-              hintText: 'https://rsshub.example.com',
-              prefixIcon: const Icon(Icons.link),
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.add),
-                tooltip: l10n.add,
-                onPressed: _addCustomInstance,
-              ),
-            ),
-            keyboardType: TextInputType.url,
-            onSubmitted: (_) => _addCustomInstance(),
-          ),
-          const SizedBox(height: AppTokens.spaceMd),
-          // 自定义实例列表
-          if (_customInstances.isEmpty)
+      body: SettingsAutoScroll(
+        child: ListView(
+          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          children: <Widget>[
+            // ── 当前实例 ──
+            Text(l10n.currentInstance,
+                key: const ValueKey<String>('rsshub.current'),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    )),
+            const SizedBox(height: AppTokens.spaceSm),
             AppCard(
-              child: Padding(
-                padding: const EdgeInsets.all(AppTokens.spaceMd),
-                child: Text(
-                  l10n.noCustomInstances,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+              child: ListTile(
+                title: Text(_currentUrl),
+                subtitle: Text(_selectedPresetUrl == null
+                    ? l10n.customInstance
+                    : l10n.presetInstanceOfficial),
+              ),
+            ),
+
+            // ── 预置实例 ──
+            const SizedBox(height: AppTokens.spaceXl),
+            Row(
+              key: const ValueKey<String>('rsshub.preset'),
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: Text(l10n.presetInstances,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w600,
+                          )),
+                ),
+                // 一键测速：测试所有预置 + 自定义实例（项 8）
+                TextButton.icon(
+                  onPressed: _testingAll ? null : _testAll,
+                  icon: _testingAll
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.speed),
+                  label: Text(
+                      _testingAll ? l10n.rsshubTestingAll : l10n.rsshubTestAll),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
+            ..._kPresetInstances.map((instance) => _buildPresetTile(instance)),
+
+            // ── 自定义实例 ──
+            const SizedBox(height: AppTokens.spaceXl),
+            Text(l10n.customInstance,
+                key: const ValueKey<String>('rsshub.custom'),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    )),
+            const SizedBox(height: AppTokens.spaceSm),
+            // 添加新自定义实例输入框（统一为带内嵌「+ 添加」按钮的输入框，项 8）
+            TextField(
+              controller: _newCustomController,
+              decoration: InputDecoration(
+                hintText: 'https://rsshub.example.com',
+                prefixIcon: const Icon(Icons.link),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.add),
+                  tooltip: l10n.add,
+                  onPressed: _addCustomInstance,
                 ),
               ),
-            )
-          else
-            ..._customInstances
-                .map((url) => _buildCustomTile(url, l10n, scheme)),
-
-          // 自定义实例区域的"恢复默认"按钮
-          if (_customInstances.isNotEmpty) ...<Widget>[
+              keyboardType: TextInputType.url,
+              onSubmitted: (_) => _addCustomInstance(),
+            ),
             const SizedBox(height: AppTokens.spaceMd),
-            OutlinedButton.icon(
-              onPressed: _restoreDefault,
-              icon: const Icon(Icons.restore),
-              label: Text(l10n.restoreDefault),
+            // 自定义实例列表
+            if (_customInstances.isEmpty)
+              AppCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppTokens.spaceMd),
+                  child: Text(
+                    l10n.noCustomInstances,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              )
+            else
+              ..._customInstances
+                  .map((url) => _buildCustomTile(url, l10n, scheme)),
+
+            // 自定义实例区域的"恢复默认"按钮
+            if (_customInstances.isNotEmpty) ...<Widget>[
+              const SizedBox(height: AppTokens.spaceMd),
+              OutlinedButton.icon(
+                onPressed: _restoreDefault,
+                key: const ValueKey<String>('rsshub.restore'),
+                icon: const Icon(Icons.restore),
+                label: Text(l10n.restoreDefault),
+              ),
+            ],
+
+            // ── 故障排除 ──
+            const SizedBox(height: AppTokens.spaceXl),
+            Text(l10n.rsshubTroubleshoot,
+                key: const ValueKey<String>('rsshub.troubleshoot'),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600,
+                    )),
+            const SizedBox(height: AppTokens.spaceSm),
+            AppCard(
+              child: Text(
+                l10n.rsshubTroubleshootHint,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
             ),
           ],
-
-          // ── 故障排除 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          Text(l10n.rsshubTroubleshoot,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w600,
-                  )),
-          const SizedBox(height: AppTokens.spaceSm),
-          AppCard(
-            child: Text(
-              l10n.rsshubTroubleshootHint,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -326,10 +337,12 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
 
     return AppListTile(
       leading: CircleAvatar(
-        backgroundColor:
-            Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-        child: Icon(Icons.rss_feed, size: 18,
-            color: Theme.of(context).colorScheme.primary),
+        backgroundColor: Theme.of(context)
+            .colorScheme
+            .primaryContainer
+            .withValues(alpha: 0.5),
+        child: Icon(Icons.rss_feed,
+            size: 18, color: Theme.of(context).colorScheme.primary),
       ),
       title: Text(instance.name),
       subtitle: Text(instance.url),
@@ -342,8 +355,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
           if (instance.isOfficial)
             Container(
               margin: const EdgeInsets.only(right: AppTokens.spaceXs),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(AppTokens.radiusXs),
@@ -351,8 +363,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
               child: Text(
                 l10n.presetInstanceOfficial,
                 style: TextStyle(
-                    fontSize: 10,
-                    color: Theme.of(context).colorScheme.primary),
+                    fontSize: 10, color: Theme.of(context).colorScheme.primary),
               ),
             ),
           if (isSelected)
@@ -367,7 +378,8 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
     );
   }
 
-  Widget _buildCustomTile(String url, AppLocalizations l10n, ColorScheme scheme) {
+  Widget _buildCustomTile(
+      String url, AppLocalizations l10n, ColorScheme scheme) {
     final isSelected = _currentUrl == url && _selectedPresetUrl == null;
     final status = _testStatus[url];
 
@@ -391,8 +403,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
           if (isSelected)
             Icon(Icons.check_circle, color: scheme.primary, size: 20)
           else
-            Icon(Icons.radio_button_unchecked,
-                color: scheme.outline, size: 20),
+            Icon(Icons.radio_button_unchecked, color: scheme.outline, size: 20),
         ],
       ),
       onTap: () => _selectInstance(url, isCustom: true),

@@ -439,14 +439,21 @@ class HttpFetcher {
     return merged;
   }
 
-  /// 取与 [url] 同域（含父域/子域）的已存 Cookie，拼成 `Cookie` 头值。
+  /// 取与 [url] 同域（含父域/子域，双向）的已存 Cookie，拼成 `Cookie` 头值。
+  ///
+  /// 双向匹配：请求 host 匹配存储 host、请求是存储的子域（如存储了
+  /// `login.example.com`，请求 `login.example.com` 或 `api.login.example.com`）、
+  /// 存储是请求的子域（如登录发生在 `login.example.com`、抓取请求
+  /// `example.com`）都算命中——后者是「登录后 Cookie 不自动回灌」的关键修复。
   String? _cookieHeaderFor(String? url) {
-    final host = Uri.tryParse(url ?? '')?.host;
+    final host = Uri.tryParse(url ?? '')?.host.toLowerCase();
     if (host == null || host.isEmpty) return null;
     final matched = <String>[];
     _cookieJar.forEach((storedHost, cookie) {
       if (cookie.isEmpty) return;
-      if (host == storedHost || host.endsWith('.$storedHost')) {
+      final s = storedHost.toLowerCase();
+      // 双向：请求==存储 | 请求是存储的子域 | 存储是请求的子域
+      if (host == s || host.endsWith('.$s') || s.endsWith('.$host')) {
         matched.add(cookie);
       }
     });
@@ -576,6 +583,33 @@ class HttpFetcher {
     _checkNonVerificationError(url, resp.statusCode, body);
     _storeCookies(url, resp);
     return body;
+    } finally {
+      _requestSemaphore.release();
+    }
+  }
+
+  /// 仅探测可达性（供镜像测速）：拿到任何 HTTP 响应（含 4xx/5xx）即视为「可达」，
+  /// 仅在 DNS/超时/连接被拒等网络层失败时返回 false。避免根域返回 5xx 被误判为
+  /// 「无法连接」（如 nhentai 类 API 镜像根路径只回 500，但 API 正常）。
+  Future<bool> isReachable(
+    String url, {
+    EffectiveNetworkProfile? net,
+    Duration? timeout,
+  }) async {
+    await _gateRequest(url, false);
+    try {
+      final resp = await _dioFor(net).get<dynamic>(
+        url,
+        options: Options(
+          headers: _mergeHeaders(null, null, url),
+          validateStatus: (_) => true,
+          sendTimeout: timeout,
+          receiveTimeout: timeout,
+        ),
+      );
+      return resp.statusCode != null && resp.statusCode! > 0;
+    } on DioException {
+      return false;
     } finally {
       _requestSemaphore.release();
     }
@@ -1051,12 +1085,42 @@ class HttpFetcher {
   void _storeCookies(String url, Response<dynamic> resp) {
     final setCookie = resp.headers['set-cookie'];
     if (setCookie == null || setCookie.isEmpty) return;
-    final host = Uri.tryParse(url)?.host;
-    if (host == null) return;
-    final cookieHeader = setCookie.map((c) => c.split(';').first).join('; ');
-    _cookieJar[host] = cookieHeader;
-    // 落盘持久化（TTL 7 天），避免重启后重新验证。UA 一并存，回灌时配套校验。
-    unawaited(CookieStore.save(host, cookieHeader, _uaForHost(host)));
+    final baseHost = Uri.tryParse(url)?.host ?? '';
+    if (baseHost.isEmpty) return;
+    // 按 Set-Cookie 声明的 Domain 归类（未声明则回退请求 host）：
+    // 服务器常用 Domain=.example.com 下发 cookie，跨子域登录/抓取若只用请求
+    // host 作 key，后续请求到其他子域会因单向下域匹配失配而「登录后不回灌」。
+    final Map<String, List<String>> byDomain = <String, List<String>>{};
+    for (final c in setCookie) {
+      final parts = c.split(';');
+      final pair = parts.first.trim();
+      if (pair.isEmpty || !pair.contains('=')) continue;
+      String? domain;
+      for (final p in parts.skip(1)) {
+        final t = p.trim();
+        if (t.toLowerCase().startsWith('domain=')) {
+          final d = t.substring(7).trim().replaceFirst(RegExp(r'^\.'), '');
+          if (d.isNotEmpty) domain = d.toLowerCase();
+          break;
+        }
+      }
+      byDomain
+          .putIfAbsent(domain ?? baseHost.toLowerCase(), () => <String>[])
+          .add(pair);
+    }
+    byDomain.forEach((host, pairs) {
+      final header = pairs.join('; ');
+      final existing = _cookieJar[host];
+      // 同名 cookie 追加更新：与旧值合并（新 Set-Cookie 覆盖同名，服务端按序取首值）。
+      _cookieJar[host] = existing == null ? header : '$existing; $header';
+      // 落盘持久化（TTL 7 天），避免重启后重新验证。UA 一并存，回灌时配套校验。
+      unawaited(CookieStore.save(host, _cookieJar[host]!, _uaForHost(host)));
+    });
+    // 广播 Cookie 版本，通知封面/图片层用新会话重取。
+    _cookieVersion++;
+    if (!_cookieVersionController.isClosed) {
+      _cookieVersionController.add(_cookieVersion);
+    }
   }
 
   dynamic _decodeJson(String text) {

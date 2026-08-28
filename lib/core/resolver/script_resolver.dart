@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import '../models/episode.dart';
 import '../models/media_item.dart';
 import '../models/plugin_config.dart';
+import '../network/model/effective_network_profile.dart';
 import '../network/network_config_service.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/verification_detector.dart';
@@ -19,6 +20,141 @@ import '../services/config_loader.dart';
 import 'js_context.dart';
 import 'parse_diagnostics.dart';
 import 'source_resolver.dart';
+
+/// 源声明式 CDN 图床发现（与 mirrors 路由同源思路，不写死站点逻辑）。
+///
+/// 拉取源声明的 CDN 列表端点（如 nhentai `/api/v2/cdn`），并行探活各 server，
+/// 选第一个可达的作为图片/缩略图基，注入脚本 `context.cdnImage`/`context.cdnThumb`。
+/// 结果按源 id 缓存于内存，避免每次解析重复探活。连通性仍由 App 网络设置负责。
+class CdnDiscovery {
+  static final Map<String, _CdnBases> _cache = <String, _CdnBases>{};
+
+  /// 解析并返回可达图床基；源未声明 cdn 时返回 null（脚本走旧 i3/t3 回退）。
+  ///
+  /// 注意：nhentai 等站点的图床是固定的 `i1~i4` / `t1~t4` 子域，直接探活这些已知
+  /// 图床即可，无需强依赖 `/api/v2/cdn`（该端点在不少网络会稳定超时，且探活失败
+  /// 时若回退到被墙的 `i3` 会原地踏步）。`cdn.url` 仅作为「5s 内可达才采用」的
+  /// 可选增强：动态拿到图床列表后覆盖默认列表，否则沿用默认。失败一律回退 `i4`/`t4`。
+  static Future<_CdnBases?> resolve(
+    PluginConfig source,
+    String baseUrl,
+    EffectiveNetworkProfile net,
+  ) async {
+    final CdnConfig? cfg = source.cdn;
+    if (cfg == null) return null;
+    final cached = _cache[source.id];
+    if (cached != null) return cached;
+    final String host = _hostOf(baseUrl);
+    // 固定图床列表，i3 放最后（实测最常被墙）。
+    final List<String> imgServers = <String>['i1', 'i2', 'i4', 'i3']
+        .map((p) => 'https://$p.$host')
+        .toList();
+    final List<String> thumbServers = <String>['t1', 't2', 't4', 't3']
+        .map((p) => 'https://$p.$host')
+        .toList();
+    // 可选增强：源声明的 cdn 端点 5s 内可达才采用其列表（避免长等/超时拖慢首屏）。
+    if (cfg.url.isNotEmpty) {
+      try {
+        final endpoint = _expand(cfg.url, baseUrl);
+        if (await HttpFetcher.instance.isReachable(
+          endpoint,
+          net: net,
+          timeout: const Duration(milliseconds: 2500),
+        )) {
+          final data = await HttpFetcher.instance.getJson(
+            endpoint,
+            referer: baseUrl,
+            net: net,
+          );
+          final img = _asStringList(data[cfg.imageServers]);
+          final thumb = _asStringList(data[cfg.thumbServers]);
+          if (img.isNotEmpty) {
+            imgServers
+              ..clear()
+              ..addAll(img);
+          }
+          if (thumb.isNotEmpty) {
+            thumbServers
+              ..clear()
+              ..addAll(thumb);
+          }
+        }
+      } on Object {
+        // 忽略：沿用默认图床列表
+      }
+    }
+    final String img =
+        await _pickReachable(imgServers, net) ?? (cfg.imageFallback ?? _derive(baseUrl, 'i4'));
+    final String thumb = await _pickReachable(thumbServers, net) ??
+        (cfg.thumbFallback ?? _derive(baseUrl, 't4'));
+    final result = _CdnBases(image: _stripSlash(img), thumb: _stripSlash(thumb));
+    _cache[source.id] = result;
+    return result;
+  }
+
+  /// 并行探活各 server，返回**最快可达**的（按响应延迟升序选优），
+  /// 同耗时保持入参顺序偏好（i1 在前）。全部不可达返回 null。
+  static Future<String?> _pickReachable(
+    List<String> servers,
+    EffectiveNetworkProfile net,
+  ) async {
+    if (servers.isEmpty) return null;
+    final latencies = await Future.wait(
+        servers.map((s) => _probeLatency(_stripSlash(s), net)));
+    final reachable = <int>[];
+    for (var i = 0; i < latencies.length; i++) {
+      if (latencies[i] != null) reachable.add(i);
+    }
+    if (reachable.isEmpty) return null;
+    reachable.sort((a, b) => latencies[a]!.compareTo(latencies[b]!));
+    return _stripSlash(servers[reachable.first]);
+  }
+
+  /// 探活单个图床：可达返回耗时（毫秒），不可达/超时返回 null。超时 2.5s。
+  static Future<int?> _probeLatency(String server, EffectiveNetworkProfile net) async {
+    // 根路径探测：图床根会 404，但只要网络可达（非连接拒绝/超时）即视为可用。
+    try {
+      final sw = Stopwatch()..start();
+      final ok = await HttpFetcher.instance.isReachable(
+        '$server/favicon.ico',
+        net: net,
+        timeout: const Duration(milliseconds: 2500),
+      );
+      if (!ok) return null;
+      return sw.elapsedMilliseconds;
+    } on Object {
+      return null;
+    }
+  }
+
+  static List<String> _asStringList(dynamic v) =>
+      v is List ? List<String>.from(v.whereType<String>()) : const <String>[];
+
+  static String _hostOf(String baseUrl) {
+    var h = baseUrl.split('://')[1];
+    h = h.split('/').first;
+    return h;
+  }
+
+  static String _expand(String url, String baseUrl) {
+    if (url.startsWith('http')) return url;
+    final base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    return '$base${url.startsWith('/') ? url : '/$url'}';
+  }
+
+  static String _derive(String baseUrl, String prefix) {
+    return 'https://$prefix.${_hostOf(baseUrl)}';
+  }
+
+  static String _stripSlash(String s) =>
+      s.endsWith('/') ? s.substring(0, s.length - 1) : s;
+}
+
+class _CdnBases {
+  final String image;
+  final String thumb;
+  const _CdnBases({required this.image, required this.thumb});
+}
 
 class ScriptResolver implements SourceResolver {
   ScriptResolver({this.engineFactory});
@@ -56,8 +192,22 @@ class ScriptResolver implements SourceResolver {
     // 注入分页/分类/关键词等到 JS context，供脚本自拼 URL（如 goda 脚本依赖
     // ctx.page / ctx.category 翻页与分类）。无相关变量的源为空操作，无副作用。
     engine.injectContext(vars);
+    final base = ConfigLoader.instance.getActiveMirror(source);
+    // 源声明式 CDN 图床发现：探活选可达图床，注入 context.cdnImage/cdnThumb。
+    // 失败不影响正常解析（脚本回退 i3/t3 旧行为）。
     try {
-      final base = ConfigLoader.instance.getActiveMirror(source);
+      final bases = await CdnDiscovery.resolve(
+          source, base, NetworkConfigService.instance.effectiveFor(source));
+      if (bases != null) {
+        engine.injectContext(<String, String>{
+          'cdnImage': bases.image,
+          'cdnThumb': bases.thumb,
+        });
+      }
+    } on Object catch (e) {
+      debugPrint('[ScriptResolver] CDN 发现跳过(非致命): $e');
+    }
+    try {
       final url =
           source.resolveRouteUrl(apiName, activeBaseUrl: base, vars: vars);
       final rt = source.responseTypeFor(apiName) ?? 'json';

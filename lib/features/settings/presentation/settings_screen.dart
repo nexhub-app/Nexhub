@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
@@ -37,6 +38,7 @@ import './settings_ai_screen.dart';
 import './crash_log_screen.dart';
 import './log_viewer_screen.dart';
 import './settings_dandanplay_account_screen.dart';
+import './settings_update_screen.dart';
 import './settings_cloud_sync_screen.dart';
 import './settings_bangumi_screen.dart';
 import './settings_rss_notifications_screen.dart';
@@ -67,8 +69,7 @@ class SettingsScreen extends StatelessWidget {
       body: ListView.separated(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
         itemCount: categories.length + 1,
-        separatorBuilder: (_, __) =>
-            const SizedBox(height: AppTokens.spaceMd),
+        separatorBuilder: (_, __) => const SizedBox(height: AppTokens.spaceMd),
         itemBuilder: (BuildContext context, int i) {
           if (i == 0) {
             return const _HeroSection();
@@ -80,7 +81,8 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  List<_Category> _buildCategories(BuildContext context, AppLocalizations l10n) {
+  List<_Category> _buildCategories(
+      BuildContext context, AppLocalizations l10n) {
     return <_Category>[
       _Category(
         icon: Icons.palette_outlined,
@@ -149,8 +151,22 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.palette_outlined,
         title: l10n.settingsCatAppearance,
         desc: l10n.settingsCatAppearanceDesc,
-        keywords: const <String>['外观', '主题', '颜色', '字体', '语言', '深色', '浅色',
-            '配色', '启动', '日期', 'monet', '主题色', '动态', '取色'],
+        keywords: const <String>[
+          '外观',
+          '主题',
+          '颜色',
+          '字体',
+          '语言',
+          '深色',
+          '浅色',
+          '配色',
+          '启动',
+          '日期',
+          'monet',
+          '主题色',
+          '动态',
+          '取色'
+        ],
         builder: (_) => const SettingsAppearanceScreen(),
       ),
       _SettingEntry(
@@ -170,8 +186,17 @@ class SettingsScreen extends StatelessWidget {
       _SettingEntry(
         icon: Icons.color_lens_outlined,
         title: l10n.appearanceColorsSection,
-        keywords: const <String>['颜色', '配色', 'monet', '动态色彩', '预设', '主题色',
-            '取色', '自定义颜色', '调色'],
+        keywords: const <String>[
+          '颜色',
+          '配色',
+          'monet',
+          '动态色彩',
+          '预设',
+          '主题色',
+          '取色',
+          '自定义颜色',
+          '调色'
+        ],
         builder: (_) => const SettingsAppearanceScreen(),
         scrollKeyId: 'appearance.colors',
       ),
@@ -243,8 +268,19 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.play_circle_outline,
         title: l10n.playerSettingsTitle,
         desc: l10n.playerSettingsDesc,
-        keywords: const <String>['播放器', '解码', '音频', '倍速', '画面比例',
-            '进度', '长按', '默认', '硬解', '软解', '音轨'],
+        keywords: const <String>[
+          '播放器',
+          '解码',
+          '音频',
+          '倍速',
+          '画面比例',
+          '进度',
+          '长按',
+          '默认',
+          '硬解',
+          '软解',
+          '音轨'
+        ],
         builder: (_) => const SettingsPlayerScreen(),
       ),
       _SettingEntry(
@@ -400,8 +436,17 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.menu_book_outlined,
         title: l10n.novelReaderSettingsTitle,
         desc: l10n.novelReaderSettingsDesc,
-        keywords: const <String>['小说', '阅读', '翻页', '卷轴', '字号', '行距',
-            '段距', '目录', '章节'],
+        keywords: const <String>[
+          '小说',
+          '阅读',
+          '翻页',
+          '卷轴',
+          '字号',
+          '行距',
+          '段距',
+          '目录',
+          '章节'
+        ],
         builder: (_) => const SettingsNovelReaderScreen(),
       ),
       // 小说阅读器子页内具体项（滚动定位）：
@@ -423,8 +468,16 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.auto_stories_outlined,
         title: l10n.comicReaderSettingsTitle,
         desc: l10n.comicReaderSettingsDesc,
-        keywords: const <String>['漫画', '阅读', '方向', '点击区', '滤镜',
-            '缩放', '手势', '翻页'],
+        keywords: const <String>[
+          '漫画',
+          '阅读',
+          '方向',
+          '点击区',
+          '滤镜',
+          '缩放',
+          '手势',
+          '翻页'
+        ],
         builder: (_) => const SettingsComicReaderScreen(),
       ),
       // 漫画阅读器子页内具体项（滚动定位）：
@@ -460,8 +513,20 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.subtitles_outlined,
         title: l10n.danmakuDisplaySettingsTitle,
         desc: l10n.danmakuDisplaySettingsDesc,
-        keywords: const <String>['弹幕', '屏蔽', '过滤', '不透明度', '行高', '字号',
-            '区域', '时长', 'danmaku', '显示', '关键词', '关键字'],
+        keywords: const <String>[
+          '弹幕',
+          '屏蔽',
+          '过滤',
+          '不透明度',
+          '行高',
+          '字号',
+          '区域',
+          '时长',
+          'danmaku',
+          '显示',
+          '关键词',
+          '关键字'
+        ],
         builder: (_) => const SettingsDanmakuDisplayScreen(),
       ),
       // 弹幕显示子页内具体项（滚动定位）：
@@ -475,8 +540,16 @@ class SettingsScreen extends StatelessWidget {
       _SettingEntry(
         icon: Icons.visibility_outlined,
         title: l10n.danmakuDisplayGroupDisplay,
-        keywords: const <String>['弹幕显示', '区域', '顶部', '底部', '滚动', '时长',
-            '跟随倍速', '隐藏'],
+        keywords: const <String>[
+          '弹幕显示',
+          '区域',
+          '顶部',
+          '底部',
+          '滚动',
+          '时长',
+          '跟随倍速',
+          '隐藏'
+        ],
         builder: (_) => const SettingsDanmakuDisplayScreen(),
         scrollKeyId: 'danmaku.display',
       ),
@@ -1069,16 +1142,29 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.rss_feed,
         title: l10n.settingsCatContent,
         desc: l10n.settingsCatContentDesc,
-        keywords: const <String>['配置', '网络', '内容', '源', 'ai', 'AI',
-            '爬取', '翻译'],
+        keywords: const <String>['配置', '网络', '内容', '源', 'ai', 'AI', '爬取', '翻译'],
         builder: (_) => const SettingsContentScreen(),
       ),
       _SettingEntry(
         icon: Icons.auto_awesome,
         title: l10n.aiSettingsEntry,
         desc: l10n.aiSettingsEntryDesc,
-        keywords: const <String>['ai', 'AI', '接口', '密钥', '模型', 'api',
-            'openai', '速览', '总结', '摘要', '配图', '生图', '云端', 'gpt'],
+        keywords: const <String>[
+          'ai',
+          'AI',
+          '接口',
+          '密钥',
+          '模型',
+          'api',
+          'openai',
+          '速览',
+          '总结',
+          '摘要',
+          '配图',
+          '生图',
+          '云端',
+          'gpt'
+        ],
         builder: (_) => const SettingsAiScreen(),
         scrollKeyId: 'ai.common',
       ),
@@ -1094,8 +1180,15 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.auto_awesome_outlined,
         title: l10n.aiIllustrationSection,
         desc: l10n.aiIllustrationDesc,
-        keywords: const <String>['配图', '生图', '插图', '图片', '章节配图',
-            'illustration', 'ai配图'],
+        keywords: const <String>[
+          '配图',
+          '生图',
+          '插图',
+          '图片',
+          '章节配图',
+          'illustration',
+          'ai配图'
+        ],
         builder: (_) => const SettingsAiScreen(),
         scrollKeyId: 'ai.illustration',
       ),
@@ -1103,8 +1196,15 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.translate,
         title: l10n.translationSettingsEntry,
         desc: l10n.translationSettingsEntryDesc,
-        keywords: const <String>['翻译', '双语', '译文', '目标语言', '段落翻译',
-            'translate', '翻译接口'],
+        keywords: const <String>[
+          '翻译',
+          '双语',
+          '译文',
+          '目标语言',
+          '段落翻译',
+          'translate',
+          '翻译接口'
+        ],
         builder: (_) => const SettingsAiScreen(),
         scrollKeyId: 'translation.api',
       ),
@@ -1112,8 +1212,16 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.extension_outlined,
         title: l10n.sourceManagementTitle,
         desc: l10n.subscriptionManagementDesc,
-        keywords: const <String>['源', '源管理', '插件', '导入', '仓库', '源导入',
-            '推荐', '订阅'],
+        keywords: const <String>[
+          '源',
+          '源管理',
+          '插件',
+          '导入',
+          '仓库',
+          '源导入',
+          '推荐',
+          '订阅'
+        ],
         builder: (_) => const SourceManagerScreen(),
       ),
       _SettingEntry(
@@ -1139,8 +1247,17 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.lan_outlined,
         title: l10n.networkSettingsTitle,
         desc: l10n.networkSettingsDesc,
-        keywords: const <String>['网络', '代理', 'dns', 'doh', 'dot', 'sni',
-            'hosts', '翻墙', 'vpn'],
+        keywords: const <String>[
+          '网络',
+          '代理',
+          'dns',
+          'doh',
+          'dot',
+          'sni',
+          'hosts',
+          '翻墙',
+          'vpn'
+        ],
         builder: (_) => const SettingsNetworkScreen(),
       ),
       // 网络子页内具体项（滚动定位）：
@@ -1268,8 +1385,7 @@ class SettingsScreen extends StatelessWidget {
       _SettingEntry(
         icon: Icons.bar_chart,
         title: l10n.statsOverviewTitle,
-        keywords: const <String>['统计', '阅读', '观看', '时长', '阅读时长',
-            '观看时长', '热力图'],
+        keywords: const <String>['统计', '阅读', '观看', '时长', '阅读时长', '观看时长', '热力图'],
         builder: (_) => const StatsOverviewScreen(),
       ),
       _SettingEntry(
@@ -1493,6 +1609,50 @@ class SettingsScreen extends StatelessWidget {
         keywords: const <String>['rsshub', '订阅源', '自建实例'],
         builder: (_) => const SettingsRssHubScreen(),
       ),
+      // RSSHub 子页内更细的设置项：
+      _SettingEntry(
+        icon: Icons.public_outlined,
+        title: l10n.currentInstance,
+        keywords: const <String>['当前实例', 'rsshub地址', '实例地址'],
+        builder: (_) => const SettingsRssHubScreen(),
+        scrollKeyId: 'rsshub.current',
+      ),
+      _SettingEntry(
+        icon: Icons.view_list_outlined,
+        title: l10n.presetInstances,
+        keywords: const <String>['预设实例', '官方实例', '公共实例'],
+        builder: (_) => const SettingsRssHubScreen(),
+        scrollKeyId: 'rsshub.preset',
+      ),
+      _SettingEntry(
+        icon: Icons.add_link_outlined,
+        title: l10n.customInstance,
+        keywords: const <String>['自定义实例', '自建', '私有实例'],
+        builder: (_) => const SettingsRssHubScreen(),
+        scrollKeyId: 'rsshub.custom',
+      ),
+      _SettingEntry(
+        icon: Icons.speed,
+        title: l10n.rsshubTestAll,
+        keywords: const <String>['测试', '测速', '全部实例', '延迟'],
+        builder: (_) => const SettingsRssHubScreen(),
+        scrollKeyId: 'rsshub.preset',
+      ),
+      _SettingEntry(
+        icon: Icons.settings_backup_restore,
+        title: l10n.restoreDefault,
+        keywords: const <String>['恢复默认', '重置', '默认实例'],
+        builder: (_) => const SettingsRssHubScreen(),
+        scrollKeyId: 'rsshub.restore',
+      ),
+      _SettingEntry(
+        icon: Icons.help_outline,
+        title: l10n.rsshubTroubleshoot,
+        desc: l10n.rsshubTroubleshootHint,
+        keywords: const <String>['故障', '排查', '帮助', '无法连接'],
+        builder: (_) => const SettingsRssHubScreen(),
+        scrollKeyId: 'rsshub.troubleshoot',
+      ),
       // Bangumi 子页内更细的设置项：
       _SettingEntry(
         icon: Icons.login_outlined,
@@ -1572,8 +1732,26 @@ class SettingsScreen extends StatelessWidget {
       _SettingEntry(
         icon: Icons.chat_bubble_outline,
         title: l10n.danmakuAccountSection,
-        keywords: const <String>['弹弹', '弹弹play', '账号', '弹幕账号',
-            'dandanplay', '登录'],
+        keywords: const <String>[
+          '弹弹',
+          '弹弹play',
+          '账号',
+          '弹幕账号',
+          'dandanplay',
+          '登录'
+        ],
+        builder: (_) => const SettingsDandanplayAccountScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.login_outlined,
+        title: l10n.danmakuLoginAction,
+        keywords: const <String>['登录', '弹弹登录', '账号登录'],
+        builder: (_) => const SettingsDandanplayAccountScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.person_add_alt_outlined,
+        title: l10n.dandanplayRegisterAction,
+        keywords: const <String>['注册', '新用户', '创建账号'],
         builder: (_) => const SettingsDandanplayAccountScreen(),
       ),
 
@@ -1627,8 +1805,16 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.tune,
         title: l10n.advancedSettingsTitle,
         desc: l10n.advancedSettingsDesc,
-        keywords: const <String>['高级', '崩溃', '日志', '数据清理', '指纹',
-            '调试', '开发者', '详细'],
+        keywords: const <String>[
+          '高级',
+          '崩溃',
+          '日志',
+          '数据清理',
+          '指纹',
+          '调试',
+          '开发者',
+          '详细'
+        ],
         builder: (_) => const SettingsAdvancedScreen(),
       ),
       // 高级子页内具体项（滚动定位）：
@@ -1711,8 +1897,7 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.article_outlined,
         title: l10n.runtimeLog,
         desc: l10n.runtimeLogDesc,
-        keywords: const <String>['日志', '运行日志', '网络请求', '响应', 'log',
-            '详细日志'],
+        keywords: const <String>['日志', '运行日志', '网络请求', '响应', 'log', '详细日志'],
         builder: (_) => const LogViewerScreen(),
       ),
       _SettingEntry(
@@ -1750,8 +1935,17 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.info_outline,
         title: l10n.settingsCatAbout,
         desc: l10n.settingsCatAboutDesc,
-        keywords: const <String>['关于', '版本', '许可', '致谢', '开源', '仓库',
-            '更新', '版权', '鸣谢'],
+        keywords: const <String>[
+          '关于',
+          '版本',
+          '许可',
+          '致谢',
+          '开源',
+          '仓库',
+          '更新',
+          '版权',
+          '鸣谢'
+        ],
         builder: (_) => const AboutScreen(),
       ),
       _SettingEntry(
@@ -1761,12 +1955,99 @@ class SettingsScreen extends StatelessWidget {
         builder: (_) => const AboutScreen(),
       ),
       _SettingEntry(
+        icon: Icons.system_update_alt,
+        title: l10n.updateSettings,
+        desc: l10n.updateSettingsDesc,
+        keywords: const <String>[
+          '镜像',
+          '更新源',
+          '下载源',
+          'mirror',
+          '更新镜像',
+          '更新设置',
+          '检查更新',
+          '升级通道',
+          '稳定版',
+          '测试版',
+          '自动下载',
+          '应用内下载',
+          'WiFi',
+          '无线'
+        ],
+        builder: (_) => const SettingsUpdateScreen(),
+      ),
+      // 更新设置页内更细的设置项：
+      _SettingEntry(
+        icon: Icons.shield_outlined,
+        title: l10n.updateChannelSection,
+        desc: l10n.updateChannelStableDesc,
+        keywords: const <String>[
+          '升级通道',
+          '稳定版',
+          '测试版',
+          'beta',
+          '正式版',
+          '预发布',
+          '通道',
+          '尝鲜'
+        ],
+        builder: (_) => const SettingsUpdateScreen(),
+        scrollKeyId: 'update.channel',
+      ),
+      _SettingEntry(
+        icon: Icons.notifications_active_outlined,
+        title: l10n.updateAutoCheck,
+        desc: l10n.updateAutoCheckDesc,
+        keywords: const <String>['自动检查', '检查更新', '版本检测'],
+        builder: (_) => const SettingsUpdateScreen(),
+        scrollKeyId: 'update.autoCheck',
+      ),
+      _SettingEntry(
+        icon: Icons.download_for_offline_outlined,
+        title: l10n.updateAutoDownload,
+        desc: l10n.updateAutoDownloadDesc,
+        keywords: const <String>['自动下载', '静默下载', '后台下载', '安装包'],
+        builder: (_) => const SettingsUpdateScreen(),
+        scrollKeyId: 'update.autoDownload',
+      ),
+      _SettingEntry(
+        icon: Icons.wifi,
+        title: l10n.updateWifiOnlyAutoDownload,
+        desc: l10n.updateWifiOnlyAutoDownloadDesc,
+        keywords: const <String>['WiFi', '无线', '流量', '移动网络', '省流量'],
+        builder: (_) => const SettingsUpdateScreen(),
+        scrollKeyId: 'update.wifiOnly',
+      ),
+      _SettingEntry(
+        icon: Icons.storage_outlined,
+        title: l10n.updateInAppDownload,
+        desc: l10n.updateInAppDownloadDesc,
+        keywords: const <String>['应用内下载', '浏览器下载', '下载方式'],
+        builder: (_) => const SettingsUpdateScreen(),
+        scrollKeyId: 'update.inAppDownload',
+      ),
+      _SettingEntry(
         icon: Icons.cloud_outlined,
-        title: l10n.updateMirrorSettings,
-        keywords: const <String>['镜像', '更新源', '下载源', 'mirror', '更新镜像'],
-        builder: (ctx) => UpdateMirrorSettingsScreen(
-          l10n: AppLocalizations.of(ctx),
-        ),
+        title: l10n.updateMirrorSelection,
+        desc: l10n.updateMirrorSection,
+        keywords: const <String>[
+          '镜像',
+          '加速',
+          '下载源',
+          '测速',
+          'ghproxy',
+          'mirror',
+          '选择镜像'
+        ],
+        builder: (_) => const SettingsUpdateScreen(),
+        scrollKeyId: 'update.mirror',
+      ),
+      _SettingEntry(
+        icon: Icons.speed,
+        title: l10n.updateTestMirrors,
+        keywords: const <String>['测速', '测试镜像', '延迟', '速度'],
+        builder: (_) => const SettingsUpdateScreen(),
+        scrollKeyId: 'update.mirror',
       ),
       _SettingEntry(
         icon: Icons.code,
@@ -1798,6 +2079,2176 @@ class SettingsScreen extends StatelessWidget {
         title: l10n.thirdPartyLibraries,
         keywords: const <String>['第三方', '库', '依赖', '三方库'],
         builder: (_) => const AboutScreen(),
+      ),
+      // 精细化搜索补全：comic.webtoonLimit
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerWebtoonDecodeLimit,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.webtoonLimit',
+      ),
+      // 精细化搜索补全：comic.skipRead
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerSkipReadChapters,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.skipRead',
+      ),
+      // 精细化搜索补全：comic.einkToggle
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerEInkRefresh,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.einkToggle',
+      ),
+      // 精细化搜索补全：comic.preload
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerPreloadCount,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.preload',
+      ),
+      // 精细化搜索补全：comic.volumeDistance
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerVolumeKeyDistance,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.volumeDistance',
+      ),
+      // 精细化搜索补全：comic.autoDownload
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerAutoDownload,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.autoDownload',
+      ),
+      // 精细化搜索补全：comic.clockOpacity
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerClockOpacity,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.clockOpacity',
+      ),
+      // 精细化搜索补全：comic.chapterSlider
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerShowChapterSlider,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.chapterSlider',
+      ),
+      // 精细化搜索补全：comic.clockMargin
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerClockMargin,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.clockMargin',
+      ),
+      // 精细化搜索补全：comic.doubleTapSpeed
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerDoubleTapAnimSpeed,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.doubleTapSpeed',
+      ),
+      // 精细化搜索补全：comic.clockBattery
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerClockBattery,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.clockBattery',
+      ),
+      // 精细化搜索补全：comic.singleFirst
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerShowSingleImageOnFirstPage,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.singleFirst',
+      ),
+      // 精细化搜索补全：comic.nightLight
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerNightLight,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.nightLight',
+      ),
+      // 精细化搜索补全：comic.autoScroll
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerAutoScroll,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.autoScroll',
+      ),
+      // 精细化搜索补全：comic.brightness
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerBrightness,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.brightness',
+      ),
+      // 精细化搜索补全：comic.einkDuration
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerEInkRefreshDuration,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.einkDuration',
+      ),
+      // 精细化搜索补全：comic.scrollSpeed
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerScrollSpeed,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.scrollSpeed',
+      ),
+      // 精细化搜索补全：comic.einkInterval
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerEInkRefreshInterval,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.einkInterval',
+      ),
+      // 精细化搜索补全：comic.chapterSeparator
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerChapterSeparator,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.chapterSeparator',
+      ),
+      // 精细化搜索补全：comic.pageSpacing
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerPageSpacing,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.pageSpacing',
+      ),
+      // 精细化搜索补全：comic.seamless
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerSeamlessReading,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.seamless',
+      ),
+      // 精细化搜索补全：comic.screenCountLandscape
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerScreenPicNumberLandscape,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.screenCountLandscape',
+      ),
+      // 精细化搜索补全：comic.autoPageTurning
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerAutoPageTurning,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.autoPageTurning',
+      ),
+      // 精细化搜索补全：comic.screenCountPortrait
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerScreenPicNumberPortrait,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.screenCountPortrait',
+      ),
+      // 精细化搜索补全：comic.skipDuplicate
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerSkipDuplicateChapters,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.skipDuplicate',
+      ),
+      // 精细化搜索补全：comic.clockFontSize
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerClockFontSize,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.clockFontSize',
+      ),
+      // 精细化搜索补全：comic.volumePageTurn
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerVolumeKeyPageTurn,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.volumePageTurn',
+      ),
+      // 精细化搜索补全：comic.autoFavorite
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerAutoFavorite,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.autoFavorite',
+      ),
+      // 精细化搜索补全：comic.nightLightOpacity
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerNightLightOpacity,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.nightLightOpacity',
+      ),
+      // 精细化搜索补全：comic.autoPageInterval
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerAutoPageInterval,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.autoPageInterval',
+      ),
+      // 精细化搜索补全：comic.skipFiltered
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerSkipFilteredChapters,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.skipFiltered',
+      ),
+      // 精细化搜索补全：comic.longPressZoom
+      _SettingEntry(
+        icon: Icons.image_outlined,
+        title: l10n.readerLongPressZoom,
+        keywords: const <String>['漫画', '阅读'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.longPressZoom',
+      ),
+      // 精细化搜索补全：novel.preDownloadCount
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.preDownloadCount,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.preDownloadCount',
+      ),
+      // 精细化搜索补全：novel.wheelInverted
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.novelWheelInverted,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.wheelInverted',
+      ),
+      // 精细化搜索补全：novel.preDownloadThreshold
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.preDownloadThreshold,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.preDownloadThreshold',
+      ),
+      // 精细化搜索补全：novel.ttsSilent
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.httpTtsSilentPlaceholder,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.ttsSilent',
+      ),
+      // 精细化搜索补全：novel.ttsMaxFailures
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.httpTtsMaxFailures,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.ttsMaxFailures',
+      ),
+      // 精细化搜索补全：novel.autoPageSmooth
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.autoPageSmooth,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.autoPageSmooth',
+      ),
+      // 精细化搜索补全：novel.preDownload
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.preDownloadEnabled,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.preDownload',
+      ),
+      // 精细化搜索补全：novel.ttsEnable
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.httpTtsEnable,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.ttsEnable',
+      ),
+      // 精细化搜索补全：novel.fontWeightFine
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.novelFontWeightFine,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.fontWeightFine',
+      ),
+      // 精细化搜索补全：novel.exportCover
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.novelExportIncludeCover,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.exportCover',
+      ),
+      // 精细化搜索补全：novel.exportIntro
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.novelExportIncludeIntro,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.exportIntro',
+      ),
+      // 精细化搜索补全：novel.twoPage
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.novelTwoPageMode,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.twoPage',
+      ),
+      // 精细化搜索补全：novel.ttsConcurrency
+      _SettingEntry(
+        icon: Icons.menu_book_outlined,
+        title: l10n.httpTtsConcurrency,
+        keywords: const <String>['小说', '阅读'],
+        builder: (_) => const SettingsNovelReaderScreen(),
+        scrollKeyId: 'novel.ttsConcurrency',
+      ),
+      // 精细化搜索补全：ai.translationBatchSize
+      _SettingEntry(
+        icon: Icons.translate,
+        title: l10n.translationBatchSize,
+        keywords: const <String>['翻译', '批大小'],
+        builder: (_) => const SettingsAiScreen(),
+        scrollKeyId: 'ai.translationBatchSize',
+      ),
+      // 精细化搜索补全：cloud.novelAutoUpload
+      _SettingEntry(
+        icon: Icons.cloud_upload_outlined,
+        title: l10n.cloudSyncAutoUploadNovelExports,
+        keywords: const <String>['云同步', '上传', '导出'],
+        builder: (_) => const SettingsCloudSyncScreen(),
+        scrollKeyId: 'cloud.novelAutoUpload',
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.advancedImageCache,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAdvancedScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.ageRestrictionDisclaimerTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPrivacySecurityScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.aiCommonApiSection,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.aiIllustrationSize,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.aiSettingsTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.aiSummaryMode,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.cloudSyncConflictApply,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.comicReaderAutoSection,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.comicReaderMultiImageSection,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.comicReaderOverlaySection,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.comicWheelInverted,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.comicWheelNatural,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.dandanplayLoginTab,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDandanplayAccountScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.dandanplayRegisterTab,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDandanplayAccountScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.dataImportExportTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsImportExportScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.downloadListTab,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.downloadSettingsTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.downloaderSelectTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.downloads,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.exportFolderCustom,
+        keywords: const <String>[],
+        builder: (_) => const SettingsImportExportScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.exportFolderDefault,
+        keywords: const <String>[],
+        builder: (_) => const SettingsImportExportScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.fontBold,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.fontItalic,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.fontMonospace,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.fontSerif,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.fontSystem,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.fontUnderline,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.heroUrlDialogTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsHeroScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.imageFavoriteGalleryTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDataScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkDnsModeCustom,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkDnsModeDoh,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkDnsModeDot,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkDnsModeSystem,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkProxyModeDirect,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkProxyModeManual,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkProxyModeSystem,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkProxyProtocolHttp,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkProxyProtocolSocks5,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkResetTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.noConvert,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelExportTemplate,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelProgressConflictTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelProgressSyncNow,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelProgressUseRemote,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelSectionPreDownload,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTypographyGroup,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.overviewModeApi,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.overviewModeLocal,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerAspect169,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerAspect43,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerAspectDefault,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerAspectFill,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerAudioMono,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerAudioStereo,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerAutoPlayCountdown,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerAutoSelectLine,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerBottomProgress,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerCountdownImmediate,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerDecodeAuto,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerDecodeHw,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerDecodeHwPlus,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerDecodeSw,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerOrientationAuto,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerOrientationLandscape,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerOrientationPortrait,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerSeekDouble,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerSeekHalf,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerSeekNormal,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerUpscaleShader,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerUpscaleShaderOff,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerUpscaleShaderPerformance,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.playerUpscaleShaderQuality,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerClockPosBottomLeft,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerClockPosBottomRight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerClockPosTopLeft,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerClockPosTopRight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerGroupEInk,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.simplifiedToTraditional,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.subtitleBorderColorLabel,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.subtitleShadowColorLabel,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.traditionalToSimplified,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.translationSettingsTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.aiApiKey,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.aiBaseUrl,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.aiIllustrationModel,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.aiModel,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.autoPageInterval,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.autoPageOff,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.backupImportMode,
+        keywords: const <String>[],
+        builder: (_) => const SettingsImportExportScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.backupScopeNone,
+        keywords: const <String>[],
+        builder: (_) => const SettingsImportExportScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.backupSelectScope,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.bangumiAccount,
+        keywords: const <String>[],
+        builder: (_) => const SettingsBangumiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.bangumiBrowseCollection,
+        keywords: const <String>[],
+        builder: (_) => const SettingsBangumiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.bangumiProxyApi,
+        keywords: const <String>[],
+        builder: (_) => const SettingsBangumiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.bangumiProxyImage,
+        keywords: const <String>[],
+        builder: (_) => const SettingsBangumiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.bangumiProxyMainSite,
+        keywords: const <String>[],
+        builder: (_) => const SettingsBangumiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.bangumiProxyTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsBangumiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.bangumiSettingsSubtitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDataScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.chineseConverter,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.cloudSyncConflictLocal,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.cloudSyncConflictNone,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.cloudSyncConflictRemote,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.cloudSyncConflictTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.cloudSyncPullMode,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.cloudSyncWebdavPassword,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.cloudSyncWebdavUrl,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.cloudSyncWebdavUsername,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCloudSyncScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.comicFormatCbz,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.comicFormatJpg,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.comicFormatPng,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.crashLogClear,
+        keywords: const <String>[],
+        builder: (_) => const LogViewerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.customFont,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.danmakuAddKeyword,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDanmakuDisplayScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.dateFormatDdMmYy,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAppearanceScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.dateFormatDdMmmYyyy,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAppearanceScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.dateFormatDefault,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAppearanceScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.dateFormatMmDdYy,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAppearanceScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.dateFormatMmmDd,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAppearanceScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.dateFormatYyyy,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAppearanceScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.dateFormatYyyyMmDd,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAppearanceScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.downloadAutoDeleteExcludeNone,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.downloadPreDownloadOff,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.downloaderExternal,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.downloaderInternal,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.formatFolder,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.heroRemoveTooltip,
+        keywords: const <String>[],
+        builder: (_) => const SettingsHeroScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.httpTtsDefaultVoice,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.httpTtsUrlTemplate,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.httpTtsVoiceMap,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.interval15m,
+        keywords: const <String>[],
+        builder: (_) => const SettingsRssNotificationsScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.interval1h,
+        keywords: const <String>[],
+        builder: (_) => const SettingsRssNotificationsScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.interval2h,
+        keywords: const <String>[],
+        builder: (_) => const SettingsRssNotificationsScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.interval30m,
+        keywords: const <String>[],
+        builder: (_) => const SettingsRssNotificationsScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.interval4h,
+        keywords: const <String>[],
+        builder: (_) => const SettingsRssNotificationsScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.launchScreenTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAppearanceScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkAddServer,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkDnsTestHost,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkDohUrl,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkDotHost,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkDotPort,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkEchConfigList,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkHostsHost,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkHostsIp,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkProxyHost,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkProxyPassword,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkProxyPort,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkProxyUsername,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkSniDefault,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkTestDns,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkTestDoh,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.networkTestProxy,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNetworkScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.nightMode,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.noGroups,
+        keywords: const <String>[],
+        builder: (_) => const SettingsCategoriesScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelAnimCover,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelAnimFade,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelAnimNone,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelAnimScroll,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelAnimSimulation,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelAnimSlide,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelBgWhite,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelChooseFontFile,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelClearFontFile,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelEmphasisColorAuto,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelExportCss,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelFontStyle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelFooterCenter,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelFooterLeft,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelFooterRight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelFormatEpub,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelFormatTxt,
+        keywords: const <String>[],
+        builder: (_) => const SettingsDownloadScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHeaderCenter,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHeaderLeft,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHeaderRight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHfBattery,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHfBookName,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHfBookPageNumber,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHfChapterTitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHfNone,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHfPageAndProgress,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHfPageNumber,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHfProgressPercent,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHfTime,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelHfTimeAndBattery,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelLineBreakCjkStrict,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelLineBreakMode,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelLineBreakStandard,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelPageAnimation,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelScrollImageAlign,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelScrollImageAlignCenter,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelScrollImageAlignLeft,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelScrollImageAlignRight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelScrollImageMode,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelScrollImageModeBanner,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelScrollImageModeCard,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelShadowColorAuto,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTextAlignJustify,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTextAlignMode,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTextAlignStart,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTextColorFollowBg,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelThemeFollowApp,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelThemeFollowDark,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelThemeFollowLight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTitleAlignCenter,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTitleAlignHidden,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTitleAlignLeft,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTitleAlignRight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTitleColorAuto,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTitleFontFile,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelTitlePosition,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelUnderlineColorAuto,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelUnderlineStyle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelUnderlineStyleDashed,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelUnderlineStyleDotted,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelUnderlineStyleSolid,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.novelUnderlineStyleWavy,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgApricot,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgAuto,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgBeanGreen,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgBlack,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgDarkGray,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgEInk,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgEyeCare,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgGray,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgGrayBlue,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgLightBrown,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgMint,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgParchment,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgWarmLinen,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerBgWhite,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerClockPosition,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerColorProfile,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerColorProfileCool,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerColorProfileManga,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerColorProfileNone,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerColorProfilePaper,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerColorProfileSrgb,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerColorProfileWarm,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerEInkRefreshBlack,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerEInkRefreshStyle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerEInkRefreshWhite,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerFlashBlack,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerFlashBlackWhite,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerFlashWhite,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerInitialZoom,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerLongPressAtCenter,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerLongPressAtPress,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerLongPressZoomPosition,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerModeSingleLTR,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerModeSingleRTL,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerModeSingleVertical,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerModeWebtoon,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerModeWebtoonWithGap,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerOrientationDefault,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerOrientationLandscape,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerOrientationLockLandscape,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerOrientationLockPortrait,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerOrientationPortrait,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerOrientationReversePortrait,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerOrientationSystem,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerPageAnimFade,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerPageAnimNone,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerPageAnimSlide,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerPageAnimation,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerTapBothSides,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerTapInvertAll,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerTapInvertLeftRight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerTapInvertNone,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerTapInvertUpDown,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerTapKindle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerTapLShape,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerTapLeftRight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerTapOff,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerWheelAction,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerWheelPage,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerWheelZoom,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerZoomFitHeight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerZoomFitWidth,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerZoomOriginal,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerZoomStart,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerZoomStartCenter,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerZoomStartLeft,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.readerZoomStartRight,
+        keywords: const <String>[],
+        builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.rssNotificationEnabledSubtitle,
+        keywords: const <String>[],
+        builder: (_) => const SettingsRssNotificationsScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.selectExportFolder,
+        keywords: const <String>[],
+        builder: (_) => const SettingsImportExportScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.subtitleAssOverride,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.subtitlePosition,
+        keywords: const <String>[],
+        builder: (_) => const SettingsPlayerScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.toolAutoPage,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.toolBookmark,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.toolBookmarkList,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.toolNextChapter,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.toolNightMode,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.toolPrevChapter,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.toolSearch,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.toolSettings,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.toolToc,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.toolTts,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.translationTargetLang,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.ttsSleepTimer,
+        keywords: const <String>[],
+        builder: (_) => const SettingsNovelReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.tune_outlined,
+        title: l10n.userAgentCustom,
+        keywords: const <String>[],
+        builder: (_) => const SettingsAdvancedScreen(),
       ),
     ];
   }
@@ -1855,14 +4306,15 @@ class _SettingsSearchSheetState extends State<_SettingsSearchSheet> {
     final List<_SettingEntry> filtered = widget.entries.where((e) {
       if (queryLower.isEmpty) return true;
       if (e.title.toLowerCase().contains(queryLower)) return true;
-      if (e.desc != null && e.desc!.toLowerCase().contains(queryLower)) return true;
+      if (e.desc != null && e.desc!.toLowerCase().contains(queryLower))
+        return true;
       return e.keywords.any((k) => k.toLowerCase().contains(queryLower));
     }).toList();
 
     return SafeArea(
       child: ConstrainedBox(
-        constraints:
-            BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85),
         child: Padding(
           padding: const EdgeInsets.all(AppTokens.spaceMd),
           child: Column(
@@ -1908,14 +4360,15 @@ class _SettingsSearchSheetState extends State<_SettingsSearchSheet> {
                                     e.desc!,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style:
-                                        TextStyle(color: scheme.onSurfaceVariant),
+                                    style: TextStyle(
+                                        color: scheme.onSurfaceVariant),
                                   ),
                             trailing: Icon(
                               Icons.chevron_right,
                               color: scheme.onSurfaceVariant,
                             ),
                             onTap: () {
+                              AppHaptics.selectionClick();
                               final scrollKeyId = e.scrollKeyId;
                               if (scrollKeyId != null) {
                                 requestSettingsScroll(scrollKeyId);
@@ -2020,10 +4473,7 @@ class _HeroSection extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       l10n.settingsTagline,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.white.withValues(alpha: 0.85),
                           ),
                     ),
@@ -2087,9 +4537,13 @@ class _CategoryCard extends StatelessWidget {
 
     final Widget card = InkWell(
       borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-      onTap: () => Navigator.of(context).push(
-        AppPageRoute<void>(builder: (_) => c.builder()),
-      ),
+      onTap: () {
+        // 进入设置分类：轻触反馈（符合 Material 触感规范）。
+        AppHaptics.selectionClick();
+        Navigator.of(context).push(
+          AppPageRoute<void>(builder: (_) => c.builder()),
+        );
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(
           vertical: AppTokens.spaceMd,

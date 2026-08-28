@@ -2752,6 +2752,76 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateMirrorTimeout => '超时';
 
   @override
+  String get updateSettings => '更新设置';
+
+  @override
+  String get updateSettingsDesc => '检查更新、升级通道与下载方式';
+
+  @override
+  String get updateChannelSection => '升级通道';
+
+  @override
+  String get updateChannelStable => '稳定版';
+
+  @override
+  String get updateChannelStableDesc => '仅接收正式发布版本，最稳定';
+
+  @override
+  String get updateChannelBeta => '测试版';
+
+  @override
+  String get updateChannelBetaDesc => '提前体验新功能，可能不稳定';
+
+  @override
+  String get updateAutoCheck => '自动检查更新';
+
+  @override
+  String get updateAutoCheckDesc => '启动时在后台检查是否有新版本';
+
+  @override
+  String get updateAutoDownload => '自动下载更新';
+
+  @override
+  String get updateAutoDownloadDesc => '发现新版本后自动下载安装包';
+
+  @override
+  String get updateWifiOnlyAutoDownload => '仅 WiFi 下自动下载';
+
+  @override
+  String get updateWifiOnlyAutoDownloadDesc => '移动网络下暂不下载，连接 WiFi 后自动继续';
+
+  @override
+  String get updateInAppDownload => '应用内下载';
+
+  @override
+  String get updateInAppDownloadDesc => '在应用内直接下载安装包；关闭后跳转浏览器';
+
+  @override
+  String get updateMirrorSection => '下载镜像';
+
+  @override
+  String get updateMirrorCommunityThanks =>
+      '镜像由社区热心网友公益贡献，无法保障稳定性与可用性，由衷感谢每一位无私分享的贡献者 🙏';
+
+  @override
+  String updateMirrorShowAll(Object count) {
+    return '展开全部（$count 个）';
+  }
+
+  @override
+  String get updateMirrorCollapse => '收起';
+
+  @override
+  String get updateMirrorAllUnreachable =>
+      '当前网络下所有镜像均不可达，下载将使用 GitHub 官方直连；可稍后重试或添加自定义镜像。';
+
+  @override
+  String get updateOpenedBrowser => '已打开浏览器前往下载';
+
+  @override
+  String get updateCannotOpenBrowser => '无法打开浏览器';
+
+  @override
   String get settingsGroupLanguage => '语言';
 
   @override
@@ -7184,6 +7254,52 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onboardingPermissionNotNeeded => '当前平台无需运行时权限';
+
+  @override
+  String get onboardingPermissionStorage => '存储';
+
+  @override
+  String get onboardingPermissionStorageDesc => '访问本地文件（旧系统版本使用）';
+
+  @override
+  String get onboardingPermissionPhotos => '照片';
+
+  @override
+  String get onboardingPermissionPhotosDesc => '读取图库中的图片';
+
+  @override
+  String get onboardingPermissionVideos => '视频';
+
+  @override
+  String get onboardingPermissionVideosDesc => '读取图库中的视频';
+
+  @override
+  String get onboardingPermissionAudio => '音频';
+
+  @override
+  String get onboardingPermissionAudioDesc => '读取本地音频文件';
+
+  @override
+  String get onboardingPermissionItemGranted => '已授权';
+
+  @override
+  String get onboardingPermissionItemDenied => '未授权';
+
+  @override
+  String get onboardingDownloadTitle => '下载位置';
+
+  @override
+  String get onboardingDownloadBody =>
+      '设置动漫 / 漫画 / 小说 / 影视等内容下载后的保存目录，之后也可在「设置 → 下载」中修改。';
+
+  @override
+  String get onboardingChooseDownloadPath => '选择下载目录';
+
+  @override
+  String get onboardingThemeColorLabel => '主题色';
+
+  @override
+  String get onboardingThemePreviewLabel => '样式预览';
 
   @override
   String get privacySettingsTitle => '隐私设置';

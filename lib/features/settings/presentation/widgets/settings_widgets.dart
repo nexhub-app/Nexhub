@@ -14,6 +14,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/utils/app_haptics.dart';
 import '../../../../core/widgets/app_animations.dart';
 
 /// 动态主色图标瓦：用于设置子页入口行的 leading。
@@ -321,6 +322,8 @@ class SettingsSliderTile extends StatelessWidget {
             max: max,
             divisions: divisions,
             onChanged: onChanged,
+            // 松手时轻震确认（拖动过程中不震，避免高频振动打扰）。
+            onChangeEnd: (_) => AppHaptics.selectionClick(),
           ),
         ],
       ),

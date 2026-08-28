@@ -12,6 +12,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../../core/async_session.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/danmaku/bilibili_danmaku_service.dart';
 import '../../../core/comic/image_favorite_manager.dart';
 import '../../../core/danmaku/danmaku_repository.dart';
@@ -3515,7 +3517,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                           //（仅图标常显时用户可能未察觉状态已切换）。
                           if (!_seekDragCancelledFeedback) {
                             _seekDragCancelledFeedback = true;
-                            HapticFeedback.mediumImpact();
+                            AppHaptics.medium();
                           }
                           // 取消态持续显示提示（重置计时器，松手前保持可见），
                           // 同时明确渲染取消图标，解决「上滑没有取消图标」的问题。

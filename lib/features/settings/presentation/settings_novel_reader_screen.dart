@@ -754,6 +754,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     SettingsExpand(
                       visible: _settings.novelFontBold,
                       child: SettingsSliderTile(
+                        key: const ValueKey<String>('novel.fontWeightFine'),
                         label: l10n.novelFontWeightFine,
                         value: _settings.novelFontWeightValue.toDouble(),
                         min: 100,
@@ -1478,6 +1479,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   children: <Widget>[
                     // A7 双页模式：翻页模式下宽屏左右并排两页。
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('novel.twoPage'),
                       title: l10n.novelTwoPageMode,
                       subtitle: l10n.novelTwoPageModeDesc,
                       value: _settings.novelTwoPageMode,
@@ -1518,6 +1520,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     ),
                     // 音量键翻页（仅 Android 生效）
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.volumePageTurn'),
                       title: l10n.readerVolumeKeyPageTurn,
                       value: _settings.novelVolumeKeyPageTurn,
                       onChanged: (v) =>
@@ -1593,6 +1596,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     ),
                     // 平滑自动翻页（O5）：按像素/过渡进度连续推进整页。
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('novel.autoPageSmooth'),
                       title: l10n.autoPageSmooth,
                       value: _settings.novelAutoPageSmooth,
                       onChanged: (v) =>
@@ -1602,6 +1606,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     const SizedBox(height: AppTokens.spaceSm),
                     // 鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('novel.wheelInverted'),
                       title: l10n.novelWheelInverted,
                       value: _settings.novelScrollWheelInverted,
                       onChanged: (v) => _update(
@@ -1705,6 +1710,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     const SizedBox(height: AppTokens.spaceMd),
                     // P2-3：在线 HTTP TTS 引擎配置。
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('novel.ttsEnable'),
                       title: l10n.httpTtsEnable,
                       subtitle: l10n.httpTtsEnableDesc,
                       value: _httpTts.enabled,
@@ -1758,6 +1764,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                       ),
                       const SizedBox(height: AppTokens.spaceMd),
                       SettingsSliderTile(
+                        key: const ValueKey<String>('novel.ttsConcurrency'),
                         label: l10n.httpTtsConcurrency,
                         value: _httpTts.concurrency.toDouble(),
                         min: 1,
@@ -1768,6 +1775,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             _httpTts.copyWith(concurrency: v.round())),
                       ),
                       SettingsSliderTile(
+                        key: const ValueKey<String>('novel.ttsMaxFailures'),
                         label: l10n.httpTtsMaxFailures,
                         value: _httpTts.maxConsecutiveFailures.toDouble(),
                         min: 1,
@@ -1778,6 +1786,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             .copyWith(maxConsecutiveFailures: v.round())),
                       ),
                       SettingsSwitchTile(
+                        key: const ValueKey<String>('novel.ttsSilent'),
                         title: l10n.httpTtsSilentPlaceholder,
                         subtitle: l10n.httpTtsSilentPlaceholderDesc,
                         value: _httpTts.silentPlaceholderOnFailure,
@@ -1860,6 +1869,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   title: l10n.novelSectionPreDownload,
                   children: <Widget>[
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('novel.preDownload'),
                       title: l10n.preDownloadEnabled,
                       value: _preDownload.enabled,
                       onChanged: (v) => _updatePreDownload(
@@ -1867,6 +1877,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     ),
                     if (_preDownload.enabled) ...<Widget>[
                       SettingsSliderTile(
+                        key: const ValueKey<String>('novel.preDownloadThreshold'),
                         label: l10n.preDownloadThreshold,
                         value: _preDownload.thresholdPercent.toDouble(),
                         min: 50,
@@ -1877,6 +1888,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             _preDownload.copyWith(thresholdPercent: v.round())),
                       ),
                       SettingsSliderTile(
+                        key: const ValueKey<String>('novel.preDownloadCount'),
                         label: l10n.preDownloadCount,
                         value: _preDownload.count.toDouble(),
                         min: 1,
@@ -1902,12 +1914,14 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                 Theme.of(context).colorScheme.onSurfaceVariant)),
                     const SizedBox(height: AppTokens.spaceSm),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('novel.exportCover'),
                       title: l10n.novelExportIncludeCover,
                       value: _exportTemplate.includeCover,
                       onChanged: (v) => _updateExportTemplate(
                           _exportTemplate.copyWith(includeCover: v)),
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('novel.exportIntro'),
                       title: l10n.novelExportIncludeIntro,
                       value: _exportTemplate.includeIntro,
                       onChanged: (v) => _updateExportTemplate(

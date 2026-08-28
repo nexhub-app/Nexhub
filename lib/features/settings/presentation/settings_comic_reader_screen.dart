@@ -469,6 +469,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
 
                     // 长按缩放（REQ-B2）：开启时显示锚点选择
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.longPressZoom'),
                       title: l10n.readerLongPressZoom,
                       subtitle: l10n.readerLongPressZoomDesc,
                       value: _settings.comicEnableLongPressToZoom,
@@ -510,6 +511,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
 
                     // 双击缩放动画时长（REQ-B7）
                     SettingsSliderTile(
+                      key: const ValueKey<String>('comic.doubleTapSpeed'),
                       label: l10n.readerDoubleTapAnimSpeed,
                       value: _settings.comicDoubleTapAnimSpeed.toDouble(),
                       min: 100,
@@ -523,6 +525,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
 
                     // 自动翻页（REQ-B9，paged 模式）
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.autoPageTurning'),
                       title: l10n.readerAutoPageTurning,
                       subtitle: l10n.readerAutoPageTurningDesc,
                       value: _settings.comicAutoPageTurningEnabled,
@@ -541,6 +544,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                       visible: _settings.comicAutoPageTurningEnabled,
                       padding: EdgeInsets.zero,
                       child: SettingsSliderTile(
+                        key: const ValueKey<String>('comic.autoPageInterval'),
                         label: l10n.readerAutoPageInterval,
                         value: _settings.comicAutoPageTurningInterval
                             .clamp(1, 20)
@@ -559,6 +563,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     if (_showVolumeKey) ...<Widget>[
                       const SizedBox(height: AppTokens.spaceMd),
                       SettingsSwitchTile(
+                        key: const ValueKey<String>('comic.volumePageTurn'),
                         title: l10n.readerVolumeKeyPageTurn,
                         subtitle: l10n.readerVolumeKeyPageTurnDesc,
                         value: _settings.comicVolumeKeyPageTurn,
@@ -569,6 +574,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         visible: _settings.comicVolumeKeyPageTurn,
                         padding: EdgeInsets.zero,
                         child: SettingsSliderTile(
+                          key: const ValueKey<String>('comic.volumeDistance'),
                           label: l10n.readerVolumeKeyDistance,
                           value: _settings
                               .comicVolumeKeyPageTurnDistancePercent
@@ -617,6 +623,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     ),
                     // 阅读亮度（REQ-C3）：正值写系统、负值叠加遮罩。
                     SettingsSliderTile(
+                      key: const ValueKey<String>('comic.brightness'),
                       label: l10n.readerBrightness,
                       value: _settings.comicReaderBrightness,
                       min: -1.0,
@@ -629,6 +636,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     ),
                     // 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于阅读亮度。
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.nightLight'),
                       title: l10n.readerNightLight,
                       subtitle: l10n.readerNightLightDesc,
                       value: _settings.comicNightLightEnabled,
@@ -637,6 +645,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     ),
                     if (_settings.comicNightLightEnabled)
                       SettingsSliderTile(
+                        key: const ValueKey<String>('comic.nightLightOpacity'),
                         label: l10n.readerNightLightOpacity,
                         value: _settings.comicNightLightOpacity,
                         min: 0.1,
@@ -671,6 +680,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                   index: 9,
                   children: <Widget>[
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.einkToggle'),
                       title: l10n.readerEInkRefresh,
                       subtitle: l10n.readerEInkRefreshDesc,
                       value: _settings.comicEinkRefreshEnabled,
@@ -679,6 +689,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     ),
                     if (_settings.comicEinkRefreshEnabled) ...<Widget>[
                       SettingsSliderTile(
+                        key: const ValueKey<String>('comic.einkInterval'),
                         label: l10n.readerEInkRefreshInterval,
                         value: _settings.comicEinkRefreshInterval.toDouble(),
                         min: 1,
@@ -689,6 +700,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                             comicEinkRefreshInterval: v.round())),
                       ),
                       SettingsSliderTile(
+                        key: const ValueKey<String>('comic.einkDuration'),
                         label: l10n.readerEInkRefreshDuration,
                         value: _settings.comicEinkRefreshDuration.toDouble(),
                         min: 50,
@@ -739,6 +751,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _settings.copyWith(comicProgressBarOnRight: v)),
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.chapterSlider'),
                       title: l10n.readerShowChapterSlider,
                       value: _settings.comicShowChapterSlider,
                       onChanged: (v) => _update(
@@ -801,6 +814,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _update(_settings.copyWith(comicChapterTransition: v)),
                     ),
                     SettingsSliderTile(
+                      key: const ValueKey<String>('comic.preload'),
                       label: l10n.readerPreloadCount,
                       value: _settings.comicPreloadImageCount.toDouble(),
                       min: 1,
@@ -811,6 +825,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _settings.copyWith(comicPreloadImageCount: v.round())),
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.seamless'),
                       title: l10n.readerSeamlessReading,
                       subtitle: l10n.readerSeamlessReadingDesc,
                       value: _settings.comicSeamlessReading,
@@ -818,6 +833,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _settings.copyWith(comicSeamlessReading: v)),
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.chapterSeparator'),
                       title: l10n.readerChapterSeparator,
                       subtitle: l10n.readerChapterSeparatorDesc,
                       value: _settings.comicShowChapterSeparator,
@@ -827,6 +843,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     // 条漫解码限幅（P3 资源/内存）：连续模式解码位图下采样，
                     // 限制长条漫原图的全尺寸解码内存。
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.webtoonLimit'),
                       title: l10n.readerWebtoonDecodeLimit,
                       value: _settings.comicWebtoonLimitDecodeSize,
                       onChanged: (v) => _update(
@@ -834,6 +851,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     ),
                     // 自动滚动（REQ-B10，条漫）：开关 + 滚动速度。
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.autoScroll'),
                       title: l10n.readerAutoScroll,
                       subtitle: l10n.readerAutoScrollDesc,
                       value: _settings.comicAutoScroll,
@@ -841,6 +859,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _update(_settings.copyWith(comicAutoScroll: v)),
                     ),
                     SettingsSliderTile(
+                      key: const ValueKey<String>('comic.scrollSpeed'),
                       label: l10n.readerScrollSpeed,
                       value: _settings.comicReaderScrollSpeed,
                       min: 0.5,
@@ -971,6 +990,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                   index: 6,
                   children: <Widget>[
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.autoFavorite'),
                       title: l10n.readerAutoFavorite,
                       subtitle: l10n.readerAutoFavoriteDesc,
                       value: _settings.comicIsAutoFavorite,
@@ -978,6 +998,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _settings.copyWith(comicIsAutoFavorite: v)),
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.autoDownload'),
                       title: l10n.readerAutoDownload,
                       subtitle: l10n.readerAutoDownloadDesc,
                       value: _settings.comicAutoDownloadChapters,
@@ -985,6 +1006,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _settings.copyWith(comicAutoDownloadChapters: v)),
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.skipRead'),
                       title: l10n.readerSkipReadChapters,
                       subtitle: l10n.readerSkipReadChaptersDesc,
                       value: _settings.comicSkipReadChapters,
@@ -992,6 +1014,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _update(_settings.copyWith(comicSkipReadChapters: v)),
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.skipFiltered'),
                       title: l10n.readerSkipFilteredChapters,
                       subtitle: l10n.readerSkipFilteredChaptersDesc,
                       value: _settings.comicSkipFilteredChapters,
@@ -999,6 +1022,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _settings.copyWith(comicSkipFilteredChapters: v)),
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.skipDuplicate'),
                       title: l10n.readerSkipDuplicateChapters,
                       subtitle: l10n.readerSkipDuplicateChaptersDesc,
                       value: _settings.comicSkipDuplicateChapters,
@@ -1015,6 +1039,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                   index: 7,
                   children: <Widget>[
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.clockBattery'),
                       title: l10n.readerClockBattery,
                       subtitle: l10n.readerClockBatteryDesc,
                       value: _settings.comicShowClockBattery,
@@ -1070,6 +1095,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                             ],
                           ),
                           SettingsSliderTile(
+                            key: const ValueKey<String>('comic.clockMargin'),
                             label: l10n.readerClockMargin,
                             value: _settings.comicClockBatteryMargin,
                             min: 0,
@@ -1081,6 +1107,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                                 _settings.copyWith(comicClockBatteryMargin: v)),
                           ),
                           SettingsSliderTile(
+                            key: const ValueKey<String>('comic.clockOpacity'),
                             label: l10n.readerClockOpacity,
                             value: _settings.comicClockBatteryOpacity,
                             min: 0.1,
@@ -1093,6 +1120,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                                 comicClockBatteryOpacity: v)),
                           ),
                           SettingsSliderTile(
+                            key: const ValueKey<String>('comic.clockFontSize'),
                             label: l10n.readerClockFontSize,
                             value: _settings.comicClockBatteryFontSize,
                             min: 10,
@@ -1116,6 +1144,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                   index: 8,
                   children: <Widget>[
                     SettingsSliderTile(
+                      key: const ValueKey<String>('comic.pageSpacing'),
                       label: l10n.readerPageSpacing,
                       value: _settings.comicReaderPageSpacing.toDouble(),
                       min: 0,
@@ -1126,6 +1155,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           _settings.copyWith(comicReaderPageSpacing: v.round())),
                     ),
                     SettingsSwitchTile(
+                      key: const ValueKey<String>('comic.singleFirst'),
                       title: l10n.readerShowSingleImageOnFirstPage,
                       subtitle: l10n.readerShowSingleImageOnFirstPageDesc,
                       value: _settings.comicShowSingleImageOnFirstPage,
@@ -1133,6 +1163,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           comicShowSingleImageOnFirstPage: v)),
                     ),
                     SettingsSliderTile(
+                      key: const ValueKey<String>('comic.screenCountPortrait'),
                       label: l10n.readerScreenPicNumberPortrait,
                       value: _settings.comicReaderScreenPicNumberForPortrait
                           .toDouble(),
@@ -1145,6 +1176,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           comicReaderScreenPicNumberForPortrait: v.round())),
                     ),
                     SettingsSliderTile(
+                      key: const ValueKey<String>('comic.screenCountLandscape'),
                       label: l10n.readerScreenPicNumberLandscape,
                       value: _settings.comicReaderScreenPicNumberForLandscape
                           .toDouble(),
