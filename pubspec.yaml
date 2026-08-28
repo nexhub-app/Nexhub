@@ -26,7 +26,12 @@ dependencies:
   # JS 沙箱（ScriptResolver 执行源内嵌脚本，quickjs 内核）
   flutter_js: ^0.8.1
   # HTML / CSS 选择器解析
-  html: ^0.15.4
+  # 钉死上界 <0.15.7：html 0.15.7 把 query_selector.dart 的
+  # `matches(Element, String)` 改成了 `matches(Element, SelectorGroup)`，
+  # 而 flutter_html 3.0.0 仍按字符串签名调用，解析到 0.15.7 直接报
+  # "Method not found: 'matches'"，四平台构建全挂。0.15.6 及之前是字符串签名，
+  # 本地 lock 即锁 0.15.6；CI 重新 pub get 会被 ^0.15.4 拉到 0.15.7，故显式封顶。
+  html: ">=0.15.4 <0.15.7"
   # XPath 引擎（内置源声明式选择器：substring-before/after、following-sibling、text() 等）
   xpath_selector: ^3.0.2
   # xpath_selector 的 html 解析适配（基于 package:html）
