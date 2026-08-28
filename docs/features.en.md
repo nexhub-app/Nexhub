@@ -48,6 +48,7 @@ Not just "readable" — it has dedicated fixes for real pain points:
 - Supports **double-page / single-page** layouts, page-turn gestures, chapter selection, left/right swipe switching;
 - Handles "**over-screen ranges**" (extra-long webtoons spanning screens), "**missing image** auto-skip placeholder", "**progress regression**" (reading progress wrongly reset) and other common issues;
 - Reading progress and bookmarks are persisted — closing and reopening returns to the same spot.
+- **v2.0.0-beta.2**: night-light warm overlay, sleep timer (by minutes / by chapters), triple-state double-tap / E-Ink refresh / ICC color (6 presets), auto-favorite cover, configurable preload count (1–16), keyboard shortcut completion and adjustable scroll-wheel speed, plus resource & memory optimization (archive temp-dir cleanup, memory-budget image cache, progress flush when backgrounded).
 
 ## 2.5 Novel reader (six UX principles)
 
@@ -61,6 +62,16 @@ The novel reader follows an explicit set of UX principles so that "settings trul
 6. **Ask before changing**: any UI / interaction change gets a plan confirmed first.
 
 > Note: the brightness control just left-of-center in the reader maps to the "left vertical swipe" gesture, consistent with the video player's interaction habits.
+
+**v2.0.0-beta.2 highlights**: dual-page mode (side-by-side in landscape), whole-book page numbers, bilingual / paragraph translation (AI), AI chapter illustration, AI reading summary, in-reader text editing, e-ink theme, source JS simplified⇄traditional helpers, Mobi / PDF portable doc parsing, batch archive import, per-book fine-grained WebDAV reading-progress sync, EPUB export with custom template + WebDAV upload, highlight / annotate / share, online multi-voice TTS, smooth auto-page and custom bookmark badge icons, etc.
+
+**Existing capabilities (always available)**:
+
+- **Typography**: widow/orphan control (never leaves one or two characters dangling at the top or bottom of a page), font size / line height / paragraph spacing / margins / letter spacing, background presets and custom colors, shadow / underline / italic, chapter-title alignment with independent font scaling, 9 header/footer content combinations, separate body and title fonts.
+- **Reading aids**: sleep timer (auto-stop when it fires) and background wake lock; tap zones for page turning (screen split into zones, each configurable); bookmarks (book / chapter / page) and notes (per book / per chapter).
+- **Local & import**: EPUB lazy loading with NCX / spine table of contents; TXT split into chapters by internal headings; TXT export.
+- **Sync**: WebDAV backup / restore (favorites + progress) for moving between devices.
+- **Shelf**: empty groups are hidden automatically so long lists aren't filled with empty categories.
 
 ## 2.6 Video player (with danmaku)
 
@@ -78,6 +89,8 @@ The novel reader follows an explicit set of UX principles so that "settings trul
 - **Buffering animation**: shows a spinner center-screen while buffering instead of a silent black screen;
 - **Parse progress bar**: when opening an episode to "find the video URL", a thin progress bar appears at the top (like a web loading bar), advancing in two stages: sniff / parse;
 - The player more-menu and "Settings → Player Settings" provide: decode mode, audio channel, aspect ratio, default speed, default volume, auto-play-next, orientation lock, subtitle style, long-press speed, etc. — **all settings truly take effect** (read and applied at player startup).
+- **v2.0.0-beta.2**: Anime4K super-resolution (efficiency / quality modes), danmaku sending after signing in to DandanPlay, cache degrade (auto-downgrade on cellular / low-memory), graded error retry (auto-reopen on episode switch), declarative player menu, subtitle memory per video, anti-overlap track algorithm, stable danmaku position after seek, etc.
+- **v2.0.0-beta.2**: PiP and casting now have full lifecycles — system PiP saves position on entry, resumes on exit, offers three mini-window actions (play/pause, danmaku, fast-forward) and enters only when eligible; casting supports two-way position sync, error reporting and auto-pause on disconnect; desktop PiP becomes a pinned mini window that is draggable and restores the original window when closed.
 
 ## 2.7 Video sniffer engine (new in v0.3.0)
 
@@ -104,7 +117,7 @@ Sync local tracking / reading progress to [Bangumi](https://bgm.tv):
 
 > OAuth credentials are injected at **compile time** and never written into source code. Official builds have them injected; when self-building without injection the OAuth button is unavailable — use an Access Token instead, or register an app at [bgm.tv/dev/app/create](https://bgm.tv/dev/app/create) (callback URL `nexhub://oauth/callback`) and build with `--dart-define=BANGUMI_CLIENT_ID=... --dart-define=BANGUMI_CLIENT_SECRET=...`.
 
-> The generic "cloud sync" (WebDAV / self-hosted) entry is still a placeholder — community contributions welcome.
+> Cloud sync: as of v2.0.0-beta.2, novel reading progress supports **fine-grained per-book WebDAV sync** (one file per book, silent upload on background, automatic conflict resolution); general favorites/settings backup remains based on local import/export and Bangumi sync.
 
 ## 2.10 Network config: global + source-level override (new in v0.4.0)
 
@@ -129,8 +142,9 @@ Hands problems like "can't connect, polluted DNS, need a proxy" back to the user
 
 For sources that require login to view content:
 
-- **Web login**: an embedded WebView opens the site's login page and captures the session cookie on success;
+- **Web login (WebView)**: an embedded WebView opens the site's login page and captures the session cookie on success;
 - **Manual cookie paste**: fallback for desktop and other WebView-less scenarios;
+- **API key login**: when a source declares `comments.login.sendTokenAs = "key"`, the user pastes the key in Source details → Login; the app stores it in the local key store and appends `Authorization: Key <key>` to protected requests (prefix via `authScheme`, key name via `apiKeyParam`). For sites that hand out an access_token on login but require a separate API key on favorites / profile endpoints;
 - Login state is auto-detected and refreshed; **logout** supported (clears only that site's session, not other sources).
 
 ## 2.13 Source management (refactored in v0.4.1)
@@ -173,3 +187,10 @@ Built on Flutter, compilable to **Android / iOS / Windows / macOS / Linux / Web*
 ---
 
 > What changed in each version? See the [Release Notes](../RELEASE_NOTES.md) (Chinese).
+
+## 2.21 You may also like (source capability)
+
+- **Recommendation route**: a source declares `recommend` (preferred) or `related` in `routes`; the detail page calls it with the `{id}` variable and shows the results as the "You may also like" block (hidden when neither is declared);
+- **Manga**: use `selectors.detail.recommendations` (`list` / `title` / `cover` / `url`) to extract the list straight from the detail page;
+- **Novel (Legado)**: use `ruleBookInfo.recommendations` for recommended titles;
+- Recommendations reuse the list parsing engine with the same fields as search / latest — **declared by the source author, the app hard-codes no site recommendation logic**.

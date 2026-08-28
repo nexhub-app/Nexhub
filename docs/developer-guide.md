@@ -248,15 +248,35 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 **源级网络 / 评论 / 登录（v0.4.0 新增）**：
 
 - `network`：源级网络覆盖（见 4.5.1），缺省继承全局，非法值只告警；
-- `comments`：声明该源的评论能力。`provider` 默认 `source`（评论来自源站）；`routes` 声明 `list`（**必需**）/ `replies` / `post` / `reply` / `like` / `report`（未声明的按钮不渲染）；`selectors` 用同一套 JSONPath / CSS / XPath 引擎抽取；`login` 可声明 WebView 登录页与登录态校验（`checkCookie` / `checkUrl`）；
-- 源登录鉴权：对需登录的站点，可用 WebView 捕获会话 Cookie 或手动粘贴 Cookie，凭据仅存本地。
+- `comments`：声明该源的评论能力。`provider` 默认 `source`（评论来自源站）；`routes` 声明 `list`（**必需**）/ `replies` / `post` / `reply` / `like` / `report`（未声明的按钮不渲染）；`selectors` 用同一套 JSONPath / CSS / XPath 引擎抽取；
+- `comments.login`：**源登录声明，支持三种登录类型，可组合**——
+  - **WebView 登录**：`login.url` 填登录页地址，App 用 WebView 打开让用户登录，成功后捕获会话 Cookie 存本地；
+  - **Cookie 登录**：`login.checkCookie` 填「代表已登录的 Cookie 键名」，App 据此快速判定；也可在 `site.cookies` 直接粘贴整段会话 Cookie，全源请求自动携带；
+  - **API Key 登录**：`login.sendTokenAs` 设为 `"key"`，用户在「源详情 → 登录」面板粘贴密钥，App 存本地密钥库，并在受保护请求上追加 `Authorization: <authScheme> <密钥>`（默认前缀 `Key`）。适合「登录给的是 access_token，但收藏 / 个人页却要单独 API Key」的站点（如部分站点的新版 API 明确要求 `Key <api_key>` 而非 Bearer）；
+- 令牌携带方式 `login.sendTokenAs`：`null`（只靠 Cookie）/ `"bearer"`（`Authorization: Bearer <checkCookie 对应 Cookie 值>`）/ `"key"`（`Authorization: <authScheme> <手动密钥>`，即 API Key 登录）；
+- 登录态二次确认：`login.checkUrl` + `login.loggedInSelector`（GET checkUrl，选择器命中非空即视为登录有效）；
+- 凭据只存本地，不会上传；未声明登录时按「只读 / 免登录」处理。
 
 ```json
 "network": { "proxy": "direct", "dns": "system" },
 "comments": {
   "provider": "source",
   "routes": { "list": { "url": "/api/comments?book={id}", "responseType": "json" } },
-  "selectors": { "items": "$.list", "content": "$.content", "author": "$.user" }
+  "selectors": { "items": "$.list", "content": "$.content", "author": "$.user" },
+  "login": {
+    "url": "https://example.com/login",
+    "checkCookie": "sessionid",
+    "checkUrl": "https://example.com/me",
+    "loggedInSelector": ".user-info"
+  }
+}
+// 手动 Cookie 登录：直接把会话 Cookie 填到 site.cookies
+"site": { "baseUrl": "https://example.com", "cookies": "sessionid=abc123; uid=42" }
+// API Key 登录（同样写在 comments.login 段内）
+"login": {
+  "sendTokenAs": "key",    // 追加 Authorization: <authScheme> <用户粘贴的密钥>
+  "authScheme": "Key",     // 默认 Key；站点要求其他前缀时改这里
+  "apiKeyParam": "apiKey"  // 密钥存本地密钥库的参数名，默认 apiKey
 }
 ```
 
@@ -476,6 +496,9 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 | `stealthMode` | bool | 可选；隐身模式（减少特征） |
 | `network` | object | 可选（v0.4.0）；源级网络覆盖：`proxy` / `dns` / `hosts` / `sni` / `ech` |
 | `comments` | object | 可选（v0.4.0）；评论能力：`provider` / `routes` / `selectors` / `login` |
+| `routes.recommend` / `routes.related` | object | 可选；「猜你喜欢」推荐接口（优先 `recommend`，其次 `related`），详情页用 `{id}` 变量调用 |
+| `selectors.detail.recommendations` | object | 可选（漫画）；`{ list, title, cover, url }`，从详情页直接抽取推荐列表 |
+| `ruleBookInfo.recommendations` | string | 可选（小说，Legado 兼容）；推荐书名选择器 |
 | `announcement` | object | 可选；源公告：`title`（必填）/ `body` / `url` / `updatedAt` |
 | `webFavorite` | object | 可选；网络收藏：`enabled` / `title` / `route` / `url` / `addRoute` / `addUrl` / `requireLogin` |
 | `deprecated` / `enabled` / `enabledExplore` / `isHidden` | bool | 可选；废弃标记 / 启用 / 探索启用 / 隐藏 |
@@ -492,6 +515,9 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 | `comments.login.url` | 需要登录时的 WebView 登录页地址 |
 | `comments.login.checkCookie` | Cookie 中出现该键名即视为已登录 |
 | `comments.login.checkUrl` + `loggedInSelector` | 可选的二次探测 |
+| `comments.login.sendTokenAs` | 令牌携带方式（登录类型）：`null` 只靠 Cookie / `bearer` → `Authorization: Bearer <checkCookie 的 Cookie 值>` / `key` → `Authorization: <authScheme> <手动密钥>`（**API Key 登录**） |
+| `comments.login.authScheme` | 仅 `sendTokenAs==key` 生效；`Authorization` 头前缀，默认 `Key` |
+| `comments.login.apiKeyParam` | 仅 `sendTokenAs==key` 生效；密钥在本地密钥库的参数名，默认 `apiKey`（按 `sourceId:apiKeyParam` 存储） |
 
 **关于 `version` 的导入规则（务必注意）**：
 
@@ -517,23 +543,47 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 
 ---
 
-### 4.5.5 源编写推荐做法（最佳实践）
+### 4.5.5 源的猜你喜欢编写教程
 
-把前面各模块串起来，下面是一份「写好一个源」的推荐做法清单，照着走能少踩坑：
+「猜你喜欢」是详情页的推荐区块，用来展示「看了这部的人还看了什么」。给源加上它，用户不必退回搜索就能继续发现内容。
 
-1. **先填基础字段**（`id` / `name` / `version` / `type` / `site` / `parser` / `author`），保证 App 能识别、管理与溯源。
-2. **只做一个模块先跑通**：通常从 `search` 或 `latest` 开始，用浏览器开发者工具（F12）核对真实 HTML/JSON 与你的选择器是否匹配。
-3. **声明式优先**：能用 jsonpath / css / xpath 解决就别写脚本，更易维护也更稳。
-4. **相对链接补 baseUrl**：封面 / 详情链接若是相对路径，App 会按 `site.baseUrl` 自动拼接，确认 `baseUrl` 写对。
-5. **异步走 `__meta` 协议**：任何「先请求接口再解析」都返回 `{__meta:true,__fetchUrl,__processor}`，这是沙箱里唯一安全的异步通道。
-6. **别把站点常量写死进 App**：所有规则留在源文件里，站点改版只改源即可。
-7. **加公告与镜像**：域名不稳时用 `announcement` 告知用户、用 `site.mirrors` 兜底。
-8. **自测导入**：在 App 内「导入源」粘贴 JSON，确认无报错后再分享。
+三种写法（按源类型选，也可并存）：
+
+1. **推荐路由（推荐，影视 / 漫画 / 小说通用）**：在 `routes` 里声明 `recommend`（优先）或 `related`，引擎打开详情时会带上 `{id}` 变量调用该接口，结果渲染成「猜你喜欢」区块；两者都未声明则不渲染该区块。
+2. **漫画（mangaSource）**：在 `selectors.detail` 里加 `recommendations` 对象，用 `list` / `title` / `cover` / `url` 从详情页直接抽取推荐列表（内置源 GoDa漫画、Komiic、FavComic 采用此写法）。
+3. **小说（Legado 兼容）**：用 `ruleBookInfo.recommendations` 抽取推荐书名列表。
+
+> 推荐结果复用列表解析引擎，字段与 `search` / `latest` 一致（`id` / `title` / `cover` / `detailUrl`），多数情况下照抄 `search` 的 selectors 就能跑通。
+
+```json
+// 写法一（通用）：recommend 路由 + 选择器
+{
+  "routes": {
+    "recommend": { "url": "/api/recommend?id={id}", "method": "get", "responseType": "json" }
+  },
+  "selectors": {
+    "recommend": {
+      "list": "$.list",
+      "title": "$.vod_name",
+      "cover": "$.vod_pic",
+      "id": "$.vod_id"
+    }
+  }
+}
+
+// 写法二（漫画）：selectors.detail.recommendations 从详情页直接抽
+"detail": {
+  "title": "h1.text-xl@text",
+  "recommendations": {
+    "list": ".recommend-list a[href^=\"/manga/\"]",
+    "title": "h3@text",
+    "cover": "img@src||data-src",
+    "url": "@href"
+  }
+}
+```
 
 > 在线版教程（含双语与动图）见 [NexHub 官网 · 源编写教程](https://nexhub-app.github.io/website/) 第十五节。
-
----
-
 ## 4.6 测试
 
 ```bash

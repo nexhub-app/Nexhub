@@ -248,15 +248,35 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 **Source-level network / comments / login (new in v0.4.0)**:
 
 - `network`: source-level network override (see 4.5.1); absent = inherit global; invalid values only warn;
-- `comments`: declares the source's commenting capability. `provider` defaults to `source` (comments from the source site); `routes` declares `list` (**required**) / `replies` / `post` / `reply` / `like` / `report` (undeclared buttons are not rendered); `selectors` uses the same JSONPath / CSS / XPath engine; `login` can declare a WebView login page and login-state checks (`checkCookie` / `checkUrl`);
-- Source login auth: for sites requiring login, capture session cookies via WebView or paste cookies manually; credentials are stored locally only.
+- `comments`: declares the source's commenting capability. `provider` defaults to `source` (comments from the source site); `routes` declares `list` (**required**) / `replies` / `post` / `reply` / `like` / `report` (undeclared buttons are not rendered); `selectors` uses the same JSONPath / CSS / XPath engine;
+- `comments.login`: **source login declaration, three login types, combinable** —
+  - **WebView login**: `login.url` is the login page; the app opens it in a WebView and captures the session cookie locally after login;
+  - **Cookie login**: `login.checkCookie` is the cookie key that means "logged in" for a fast check; you can also paste a whole session cookie into `site.cookies` and every request carries it;
+  - **API key login**: set `login.sendTokenAs` to `"key"`; the user pastes the key in Source details, the app stores it in the local key store and appends `Authorization: <authScheme> <key>` to protected requests (prefix defaults to `Key`). For sites where login yields an access_token but favorites / profile need a separate API key (e.g. nhentai's v2 API explicitly requires `Key <api_key>`, not Bearer);
+- Token carrier `login.sendTokenAs`: `null` (cookie only) / `"bearer"` (`Authorization: Bearer <cookie value of checkCookie>`) / `"key"` (`Authorization: <authScheme> <manual key>`, i.e. API key login);
+- Secondary session check: `login.checkUrl` + `login.loggedInSelector` (GET checkUrl; a non-empty selector match means the session is valid);
+- Credentials stay local only; without a login declaration the source is treated as read-only / no-login.
 
 ```json
 "network": { "proxy": "direct", "dns": "system" },
 "comments": {
   "provider": "source",
   "routes": { "list": { "url": "/api/comments?book={id}", "responseType": "json" } },
-  "selectors": { "items": "$.list", "content": "$.content", "author": "$.user" }
+  "selectors": { "items": "$.list", "content": "$.content", "author": "$.user" },
+  "login": {
+    "url": "https://example.com/login",
+    "checkCookie": "sessionid",
+    "checkUrl": "https://example.com/me",
+    "loggedInSelector": ".user-info"
+  }
+}
+// Manual cookie login: paste the session cookie into site.cookies
+"site": { "baseUrl": "https://example.com", "cookies": "sessionid=abc123; uid=42" }
+// API key login (same comments.login block)
+"login": {
+  "sendTokenAs": "key",    // appends Authorization: <authScheme> <pasted key>
+  "authScheme": "Key",     // default Key; change if the site wants another prefix
+  "apiKeyParam": "apiKey"  // key name in the local key store, default apiKey
 }
 ```
 
@@ -476,6 +496,9 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 | `stealthMode` | bool | Optional; stealth mode (fewer fingerprints) |
 | `network` | object | Optional (v0.4.0); source-level network override: `proxy` / `dns` / `hosts` / `sni` / `ech` |
 | `comments` | object | Optional (v0.4.0); commenting: `provider` / `routes` / `selectors` / `login` |
+| `routes.recommend` / `routes.related` | object | Optional; 'You may also like' endpoint (`recommend` preferred, then `related`), called from the detail page with the `{id}` variable |
+| `selectors.detail.recommendations` | object | Optional (manga); `{ list, title, cover, url }` to extract the list straight from the detail page |
+| `ruleBookInfo.recommendations` | string | Optional (novel, Legado); selector for recommended titles |
 | `announcement` | object | Optional; source announcement: `title` (required) / `body` / `url` / `updatedAt` |
 | `webFavorite` | object | Optional; web favorites: `enabled` / `title` / `route` / `url` / `addRoute` / `addUrl` / `requireLogin` |
 | `deprecated` / `enabled` / `enabledExplore` / `isHidden` | bool | Optional; deprecated flag / enabled / explore enabled / hidden |
@@ -492,6 +515,9 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 | `comments.login.url` | WebView login-page URL when login is needed |
 | `comments.login.checkCookie` | Presence of this cookie key means logged in |
 | `comments.login.checkUrl` + `loggedInSelector` | Optional secondary probe |
+| `comments.login.sendTokenAs` | Token carrier (login type): `null` cookie only / `bearer` → `Authorization: Bearer <cookie value of checkCookie>` / `key` → `Authorization: <authScheme> <manual key>` (**API key login**) |
+| `comments.login.authScheme` | Only when `sendTokenAs==key`; `Authorization` prefix, default `Key` |
+| `comments.login.apiKeyParam` | Only when `sendTokenAs==key`; key name in the local key store, default `apiKey` (stored as `sourceId:apiKeyParam`) |
 
 **About the `version` import rule (pay attention)**:
 
@@ -517,23 +543,47 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 
 ---
 
-### 4.5.5 Recommended source-authoring practices
+### 4.5.5 Writing 'You may also like'
 
-Pulling the earlier modules together, here is a recommended checklist for writing a solid source — follow it to avoid common pitfalls:
+"**You may also like**" is the recommendation block on the detail page. Adding it lets readers keep discovering without going back to search.
 
-1. **Fill the basic fields first** (`id` / `name` / `version` / `type` / `site` / `parser` / `author`) so the app can identify, manage and attribute the source.
-2. **Get one module working before the rest**: usually start with `search` or `latest`, and use browser DevTools (F12) to confirm the real HTML/JSON matches your selectors.
-3. **Prefer declarative**: use jsonpath / css / xpath when possible instead of scripts — easier to maintain and more stable.
-4. **Join relative links to baseUrl**: if cover / detail links are relative, the app joins them with `site.baseUrl`; make sure `baseUrl` is correct.
-5. **Use the `__meta` protocol for async**: any "request another API then parse" returns `{__meta:true,__fetchUrl,__processor}` — the only safe async channel in the sandbox.
-6. **Never hardcode site constants into the app**: keep all rules in the source file, so a site change only needs a source update.
-7. **Add announcement and mirrors**: when the domain is unstable, use `announcement` to inform users and `site.mirrors` as a fallback.
-8. **Self-test the import**: paste the JSON in the app's "Import Source" and confirm no errors before sharing.
+Three ways (pick per source type, can coexist):
+
+1. **Recommendation route (recommended, works for anime / manga / novel)**: declare `recommend` (preferred) or `related` in `routes`; when the detail page opens the engine calls it with the `{id}` variable and renders the results as the block. If neither exists, the block is not rendered.
+2. **Manga (mangaSource)**: add a `recommendations` object under `selectors.detail` with `list` / `title` / `cover` / `url` to extract the list straight from the detail page (used by the built-in GoDa, Komiic and FavComic sources).
+3. **Novel (Legado)**: use `ruleBookInfo.recommendations` to extract recommended titles.
+
+> Recommendations reuse the list parsing engine, with the same fields as `search` / `latest` (`id` / `title` / `cover` / `detailUrl`) — in most cases copying your `search` selectors just works.
+
+```json
+// Way 1 (generic): recommend route + selectors
+{
+  "routes": {
+    "recommend": { "url": "/api/recommend?id={id}", "method": "get", "responseType": "json" }
+  },
+  "selectors": {
+    "recommend": {
+      "list": "$.list",
+      "title": "$.vod_name",
+      "cover": "$.vod_pic",
+      "id": "$.vod_id"
+    }
+  }
+}
+
+// Way 2 (manga): selectors.detail.recommendations straight from the detail page
+"detail": {
+  "title": "h1.text-xl@text",
+  "recommendations": {
+    "list": ".recommend-list a[href^=\"/manga/\"]",
+    "title": "h3@text",
+    "cover": "img@src||data-src",
+    "url": "@href"
+  }
+}
+```
 
 > The online tutorial (bilingual, with demos) is at [NexHub official site · Source-authoring tutorial](https://nexhub-app.github.io/website/), section 15.
-
----
-
 ## 4.6 Testing
 
 ```bash
