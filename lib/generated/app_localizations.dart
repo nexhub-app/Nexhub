@@ -11324,6 +11324,12 @@ abstract class AppLocalizations {
   /// **'Source login'**
   String get sourceLogin;
 
+  /// No description provided for @getCookie.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Cookie'**
+  String get getCookie;
+
   /// No description provided for @webLogin.
   ///
   /// In en, this message translates to:

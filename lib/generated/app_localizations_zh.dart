@@ -5861,6 +5861,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceLogin => '源登录';
 
   @override
+  String get getCookie => '获取 Cookie';
+
+  @override
   String get webLogin => '网页登录';
 
   @override

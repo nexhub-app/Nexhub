@@ -313,7 +313,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         _loadRank();
       } else if (idx >= catStart && idx < rankIdx) {
         final cat = _categories[idx - catStart];
-        _ensureTabState(cat.id);
+        _ensureTabLoaded(cat.id);
       }
     }
   }
@@ -654,13 +654,23 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     }
   }
 
-  /// 确保某分类 Tab 的状态已初始化（懒加载首次进入时拉取）。
+  /// 确保某分类 Tab 的状态已初始化（仅建状态，不触发拉取）。
+  ///
+  /// 实际首次拉取由 [_ensureTabLoaded] 在 Tab 激活时触发，避免一次性并发拉取
+  /// 所有分类页占满主线程（筛选卡顿根因）。
   _CategoryTabState _ensureTabState(String categoryId) {
     return _tabStates.putIfAbsent(categoryId, () {
-      final state = _CategoryTabState(categoryId: categoryId);
-      _loadCategoryPage(state, reset: true);
-      return state;
+      return _CategoryTabState(categoryId: categoryId);
     });
+  }
+
+  /// 配合 [_onTabChanged] / [_buildTabViews] 实现「进入分类 Tab 才拉取」：
+  /// 取/建状态后，仅当尚未成功加载且未在加载中时才拉首屏。
+  void _ensureTabLoaded(String categoryId) {
+    final state = _ensureTabState(categoryId);
+    if (!state.loaded && !state.loading) {
+      _loadCategoryPage(state, reset: true);
+    }
   }
 
   /// 构造分类页请求 vars，并做安全兜底：
@@ -732,6 +742,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       state.items.addAll(list);
       state.hasMore = list.isNotEmpty;
       state.page++;
+      state.loaded = true;
       state.error = null;
       state.extractedUrl = null;
     } on Object catch (e) {
@@ -752,6 +763,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
           state.items.addAll(list);
           state.hasMore = list.isNotEmpty;
           state.page++;
+          state.loaded = true;
           state.extractedUrl = null;
           state.renderedHtml = null;
         },
@@ -1157,6 +1169,11 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     for (final c in _categories) {
       final state = _ensureTabState(c.id);
       views.add(_buildCategoryTab(l10n, state, c.title));
+    }
+    // 仅对当前激活的分类 Tab 触发首次拉取；其余分类进入时才由 [_onTabChanged] 加载。
+    final activeIdx = _tabController.index;
+    if (activeIdx >= _catStart && activeIdx < _catStart + _categories.length) {
+      _ensureTabLoaded(_categories[activeIdx - _catStart].id);
     }
     if (_hasRank) {
       views.add(_buildRankTab(l10n));
@@ -2023,6 +2040,9 @@ class _CategoryTabState {
   int page = 1;
   bool loading = false;
   bool hasMore = true;
+  /// 是否已成功拉取过首屏：用于「进入分类 Tab 才拉取」的去重，
+  /// 避免 [_buildTabViews] 一次性并发拉取所有分类页占满主线程（筛选卡顿根因）。
+  bool loaded = false;
   String? error;
   String? extractedUrl;
   String? renderedHtml;

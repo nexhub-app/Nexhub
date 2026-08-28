@@ -3102,6 +3102,7 @@
   "loginToComment": "Log in to comment",
   "loginRequired": "Login required for this action",
   "sourceLogin": "Source login",
+  "getCookie": "Get Cookie",
   "webLogin": "Web login",
   "webLoginDesc": "Log in on the site page; the session is captured automatically",
   "pasteCookie": "Paste Cookie",

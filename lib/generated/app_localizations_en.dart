@@ -5988,6 +5988,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sourceLogin => 'Source login';
 
   @override
+  String get getCookie => 'Get Cookie';
+
+  @override
   String get webLogin => 'Web login';
 
   @override

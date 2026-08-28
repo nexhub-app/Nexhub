@@ -3079,6 +3079,7 @@
   "loginToComment": "登录后评论",
   "loginRequired": "该操作需要登录",
   "sourceLogin": "源登录",
+  "getCookie": "获取 Cookie",
   "webLogin": "网页登录",
   "webLoginDesc": "在站点页面完成登录，自动捕获会话",
   "pasteCookie": "粘贴 Cookie",
