@@ -32,6 +32,34 @@ class WebViewLoginScreen extends StatefulWidget {
 }
 
 class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 源声明的 UA 可能极简/与 WebView 环境不符（nhentai 为 `Mozilla/5.0`），
+    // 且与能过 turnstile 的 WebView 默认 Android UA 不一致 → CF 600010。
+    // 登录前把相关 host 钉为完整浏览器 UA（Android 移动版），登录页与回灌后
+    // 的抓取请求同 UA，cf_clearance 才有效。
+    _applyFullBrowserUa();
+  }
+
+  /// 把本源登录涉及的 host（登录地址 + 站点主域）UA 覆盖为完整浏览器 UA。
+  void _applyFullBrowserUa() {
+    try {
+      final String ua = HttpFetcher.instance.fullBrowserUserAgent();
+      final String? loginHost =
+          Uri.tryParse(widget.source.comments?.login?.url ?? '')?.host;
+      final String? baseHost = Uri.tryParse(widget.source.site.baseUrl)?.host;
+      final Set<String> hosts = <String>{};
+      if (loginHost != null && loginHost.isNotEmpty) hosts.add(loginHost);
+      if (baseHost != null && baseHost.isNotEmpty) hosts.add(baseHost);
+      for (final h in hosts) {
+        HttpFetcher.instance.registerHostUserAgent(h, ua);
+      }
+    } catch (_) {
+      // UA 覆盖失败不影响登录主流程。
+    }
+  }
+
   /// 当前页面地址（onLoadStop 同步维护；getUrl() 是 Future 不能同步用）。
   String? _currentPageUrl;
 

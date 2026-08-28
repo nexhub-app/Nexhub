@@ -283,11 +283,27 @@ class HttpFetcher {
   /// 取该 host 实际使用的 UA（供调用方在注册/覆盖前查询）。
   String userAgentForHost(String host) => _uaForHost(host);
 
-  /// 完整浏览器 UA：优先用户配置的全局默认 UA，否则内置完整 Chrome UA。
+  /// 完整浏览器 UA：优先用户配置的全局默认 UA；否则 Android 返回与系统 Chrome
+  /// 一致的**移动版** UA，其他平台返回内置桌面 UA。
   ///
   /// 供 Cloudflare 验证（turnstile）使用——部分源声明的 UA 极简（如
-  /// `Mozilla/5.0`），被 CF 判定为不合法浏览器 → 挑战 600010 无法通过。
-  String fullBrowserUserAgent() => _defaultUa();
+  /// `Mozilla/5.0`）被 CF 判定为不合法浏览器 → 挑战 600010；而把 Windows 桌面
+  /// UA 硬塞给 Android WebView 会造成「声称桌面、实为移动 WebView」的环境矛盾，
+  /// 同样触发 600010。移动版 UA 与用户手机上能正常过 turnstile 的系统 Chrome
+  /// 一致，环境自洽。
+  String fullBrowserUserAgent() {
+    final String custom = _customUa();
+    if (custom.isNotEmpty) return custom;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return _androidBuiltinUa;
+    }
+    return _defaultBuiltinUa;
+  }
+
+  /// Android 移动版 Chrome UA（与用户手机系统 Chrome 一致，能正常过 turnstile）。
+  static const String _androidBuiltinUa =
+      'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
 
   /// 高级设置「默认 UA」：非空时全局固定使用该 UA（覆盖指纹档案轮换）。
   String _customUa() => AdvancedSettingsStore.instance.defaultUserAgent;
