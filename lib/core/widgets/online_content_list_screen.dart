@@ -158,6 +158,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   bool _homeLoading = false;
   String? _homeError;
 
+  // 首屏冷启动保护：主页解析完成（JS 引擎已热）后自动预载第一个分类，
+  // 这样用户首次点分类不再撞冷启动首调失败，也不会弹出错误提示。
+  bool _firstCategoryPreloaded = false;
+
   // 周期表数据（进入周期表 Tab 时按需抓取，见 [_ensureScheduleData]）
   List<MediaItem> _scheduleItems = <MediaItem>[];
   bool _scheduleLoading = false;
@@ -201,6 +205,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       }
     });
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTabChanged);
     // 监听布局设置变化，切换预设/列数/间距后即时刷新网格
     _layoutStore.addListener(_onLayoutChanged);
     if (widget.initialSource != null &&
@@ -334,6 +339,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
           _tabStates.clear();
           _rebuildTabController();
         });
+        // 分类就绪（若主页也已就绪）即触发首个分类预载，缩短首次点击的冷启动窗口。
+        _tryPreloadFirstCategory();
       }
     } on Object {
       if (mounted) {
@@ -380,6 +387,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       // 首屏懒加载：布局完成后扫描进入视口的板块并触发抓取。
       WidgetsBinding.instance
           .addPostFrameCallback((_) => _scanVisibleSections());
+      // 主页解析完成（引擎已热）→ 预载首个分类，避免首次点分类撞冷启动弹错。
+      _tryPreloadFirstCategory();
     } on Object catch (e) {
       if (!mounted) return;
       // 验证后重试若仍失败，必须把错误透出到 UI；否则 finally 只清掉
@@ -673,6 +682,18 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     }
   }
 
+  /// 主页解析完成（JS 引擎已热）后，自动预载第一个分类页。
+  /// 这样用户首次点任意分类时引擎已就绪，不会再因冷启动首调失败而弹出错误提示。
+  /// 仅在主页与分类都就绪、且尚未预载过时执行一次；[_ensureTabLoaded] 自身会
+  /// 防止重复拉取（loaded/loading 守卫）。
+  void _tryPreloadFirstCategory() {
+    if (_firstCategoryPreloaded) return;
+    if (_source == null || _categories.isEmpty) return;
+    if (_homeLoading) return; // 等主页也加载完，引擎才真正热
+    _firstCategoryPreloaded = true;
+    _ensureTabLoaded(_categories.first.id);
+  }
+
   /// 构造分类页请求 vars，并做安全兜底：
   /// 当筛选把路由覆盖到需要 `{category}` 占位符的路由（如 233 动漫的 `show`
   /// 排序路由 `/show/{category}--{sort}---.html`）而当前 Tab 又没有分类
@@ -718,6 +739,17 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     return null;
   }
 
+  /// 封装单次分类页拉取，供 [_loadCategoryPage] 在冷启动失败时重试。
+  Future<List<MediaItem>> _fetchCategoryOnce(_CategoryTabState state) {
+    return widget.fetchItems(
+      _source!,
+      category: state.categoryId,
+      page: state.page,
+      extractedUrl: state.extractedUrl,
+      vars: _categoryPageVars(_source!, state),
+    );
+  }
+
   Future<void> _loadCategoryPage(
     _CategoryTabState state, {
     bool reset = false,
@@ -731,13 +763,33 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     }
     setState(() => state.loading = true);
     try {
-      final list = await widget.fetchItems(
-        _source!,
-        category: state.categoryId,
-        page: state.page,
-        extractedUrl: state.extractedUrl,
-        vars: _categoryPageVars(_source!, state),
-      );
+      List<MediaItem> list;
+      // 首屏(page==1 且 reset)冷启动保护：JS 引擎首调不稳 / HttpFetcher 节流未就绪时，
+      // 静默重试最多 2 次（800ms、1500ms）。重试期间不写 error，避免向用户弹错误提示；
+      // 校验类错误（Cloudflare 等）不在此重试，交由下方 VerificationNavigator 处理。
+      int attempts = 0;
+      const maxAttempts = 3;
+      while (true) {
+        try {
+          list = await _fetchCategoryOnce(state);
+          break;
+        } on Object catch (e) {
+          final coldStart = reset && state.page == 1;
+          final verifyErr = VerificationNavigator.isVerificationError(e);
+          if (coldStart && !verifyErr && attempts < maxAttempts - 1) {
+            attempts++;
+            await Future.delayed(
+                Duration(milliseconds: attempts == 1 ? 800 : 1500));
+            continue;
+          }
+          rethrow;
+        }
+      }
+      // 首屏冷启动偶发返回空列表（引擎/节流未就绪），再静默重试一次。
+      if (reset && state.page == 1 && list.isEmpty) {
+        await Future.delayed(const Duration(milliseconds: 800));
+        list = await _fetchCategoryOnce(state);
+      }
       if (reset) state.items.clear();
       state.items.addAll(list);
       state.hasMore = list.isNotEmpty;
