@@ -137,6 +137,16 @@
 #          （best-effort，产物缺失仅警告不阻断发布）；
 #       4) **macOS .dmg**：`hdiutil create` 把 `.app` 打成 `NexHub-macos.dmg`，与 zip 并存。
 #       Release 文件清单同步纳入上述新包（通用 APK 已含在通配 *.apk 内）。
+#   v26（当前，v2.0.0-beta.2 补）：
+#     - **Linux .AppImage 步骤失败 exit code 8**：原脚本 `set -e` 下，linuxdeploy 的
+#       `--plugin flutter` 主命令失败后，兜底命令 `./linuxdeploy.AppImage --appdir ... --output appimage`
+#       也未加 `||` 容错，导致 `set -e` 直接中断整个 Linux job、连带阻断 release；且 GitHub
+#       ubuntu 运行实例默认未装 `libfuse2`，linuxdeploy / flutter 插件 AppImage 自挂载失败是
+#       该 exit code 的真实根因之一。
+#     - **修复**：AppImage 步骤内 `sudo apt-get install -y libfuse2`（装不上也不致命），
+#       两个 linuxdeploy 调用均加 `--appimage-extract-and-run` 规避 FUSE；整体 `set +e` 且
+#       末尾 `exit 0`，确保 AppImage 打不出也不影响发布（tar.gz/deb 仍在）；新增
+#       `linux-appimage-log` artifact（if:always()）上传 `appimage_build.log` 便于失败复现。
 # =============================================================================
 
 name: Build & Release NexHub
@@ -478,12 +488,17 @@ jobs:
       - name: 打包 Linux .AppImage（best-effort）
         # 用 linuxdeploy + flutter 插件把 bundle 打成 AppImage。该步骤依赖外部下载，
         # 失败仅警告、不阻断发布（仍保留 tar.gz 与 deb）。
+        # 历史坑（v2.0.0-beta.2 实测 exit code 8）：
+        #   GitHub ubuntu 运行实例默认未装 libfuse2，linuxdeploy / 插件 AppImage 自挂载失败；
+        #   且原脚本 --plugin flutter 主命令失败后，兜底命令未加 || 容错，set -e 直接中断
+        #   整个 Linux job、连带阻断 release。现改为：装 libfuse2 + 全程 --appimage-extract-and-run
+        #   规避 FUSE，整体 set +e 且末尾 exit 0，确保 AppImage 打不出也不影响发布。
         shell: bash
         run: |
           set -e
           BUNDLE=build/linux/x64/release/bundle
           APPDIR=AppDir
-          rm -rf "$APPDIR" NexHub-linux-x64.AppImage
+          rm -rf "$APPDIR" NexHub-linux-x64.AppImage appimage_build.log
           mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" \
                    "$APPDIR/usr/share/icons/hicolor/256x256/apps"
           cp -r "$BUNDLE/." "$APPDIR/usr/bin/"
@@ -500,13 +515,36 @@ jobs:
           if [ -f assets/icon/icon.png ]; then
             cp assets/icon/icon.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/nexhub.png"
           fi
+          # AppImage 运行需要 libfuse2（ubuntu 22.04+ 默认未装），装不上也不致命
+          sudo apt-get install -y libfuse2 2>&1 | tail -n 5 || true
+          # 让 linuxdeploy 能按 PATH 找到 flutter 插件
+          export PATH="$PWD:$PATH"
+          set +e
           wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -O linuxdeploy.AppImage
           chmod +x linuxdeploy.AppImage
           wget -q "https://github.com/linuxdeploy/linuxdeploy-plugin-flutter/releases/download/continuous/linuxdeploy-plugin-flutter-x86_64.AppImage" -O linuxdeploy-plugin-flutter.AppImage
           chmod +x linuxdeploy-plugin-flutter.AppImage
-          ./linuxdeploy.AppImage --appdir "$APPDIR" --plugin flutter --output appimage || \
-            ./linuxdeploy.AppImage --appdir "$APPDIR" --output appimage
-          ls -la NexHub-linux-x64*.AppImage 2>/dev/null || echo "AppImage 未产出（best-effort 跳过）"
+          ./linuxdeploy.AppImage --appimage-extract-and-run --appdir "$APPDIR" --plugin flutter --output appimage > appimage_build.log 2>&1
+          RC=$?
+          if [ $RC -ne 0 ] || [ ! -f NexHub-linux-x64.AppImage ]; then
+            echo "flutter 插件打包失败/未产出（rc=$RC），回退到无插件 linuxdeploy"
+            ./linuxdeploy.AppImage --appimage-extract-and-run --appdir "$APPDIR" --output appimage >> appimage_build.log 2>&1
+          fi
+          if [ -f NexHub-linux-x64.AppImage ]; then
+            echo "AppImage 已产出："
+            ls -la NexHub-linux-x64.AppImage
+          else
+            echo "AppImage 未产出（best-effort 跳过，不阻断发布）"
+            echo "== appimage_build.log 末尾 =="
+            tail -n 60 appimage_build.log 2>/dev/null || true
+          fi
+          exit 0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-appimage-log
+          path: appimage_build.log
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: linux-appimage
