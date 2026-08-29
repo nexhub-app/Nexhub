@@ -52,17 +52,25 @@ class DnsResolver {
     final literal = InternetAddress.tryParse(host);
     if (literal != null) return <InternetAddress>[literal];
 
-    // ① Hosts 优先。
+    // ① Hosts 优先。同一主机配了多条时全部收集并打乱，避免总是撞同一个地址
+    //    （某个地址失效时还有其他候选）。
+    final pinned = <InternetAddress>[];
     for (final h in hosts) {
       if (!h.enabled) continue;
       if (h.host.toLowerCase() == host.toLowerCase() && h.ip.isNotEmpty) {
         final addr = InternetAddress.tryParse(h.ip);
-        if (addr != null) return <InternetAddress>[addr];
+        if (addr != null) pinned.add(addr);
       }
     }
+    if (pinned.isNotEmpty) {
+      pinned.shuffle();
+      return pinned;
+    }
 
-    // ② 缓存（仅在启用时）。
-    final cacheKey = '${cfg.mode.name}|$host';
+    // ② 缓存（仅在启用时）。解析名含后缀，避免不同后缀互相串缓存。
+    final lookupName =
+        shouldApplySuffix(cfg, host) ? '$host${cfg.resolveSuffix}' : host;
+    final cacheKey = '${cfg.mode.name}|$lookupName';
     if (cfg.cacheEnabled) {
       final entry = _cache[cacheKey];
       if (entry != null && !entry.isExpired) return entry.addresses;
@@ -73,16 +81,16 @@ class DnsResolver {
     try {
       switch (cfg.mode) {
         case DnsMode.system:
-          result = await InternetAddress.lookup(host);
+          result = await InternetAddress.lookup(lookupName);
           break;
         case DnsMode.custom:
-          result = await _resolveCustom(host, cfg.servers);
+          result = await _resolveCustom(lookupName, cfg.servers);
           break;
         case DnsMode.doh:
-          result = await _resolveDoh(host, cfg.dohUrl);
+          result = await _resolveDoh(lookupName, cfg.dohUrl);
           break;
         case DnsMode.dot:
-          result = await _resolveDot(host, cfg.dotHost, cfg.dotPort);
+          result = await _resolveDot(lookupName, cfg.dotHost, cfg.dotPort);
           break;
       }
     } on Object catch (e, st) {
@@ -95,10 +103,52 @@ class DnsResolver {
       result = await InternetAddress.lookup(host);
     }
 
+    result = prioritize(result);
+
     if (cfg.cacheEnabled) {
       _cache[cacheKey] = _CacheEntry(result, DateTime.now().add(_defaultTtl));
     }
     return result;
+  }
+
+  /// 结果排序：IPv4 在前、IPv6 在后，同族内打乱。
+  ///
+  /// 两个原因：① 连接工厂只取第一个地址，被投毒的解析常掺进不可路由的 IPv6
+  /// （如 Teredo 段），排后面可避免白等一次超时；② 同族打乱可分摊多地址站点的
+  /// 压力，某个地址失效时下次换一个。
+  @visibleForTesting
+  static List<InternetAddress> prioritize(List<InternetAddress> input) {
+    if (input.length < 2) return input;
+    final v4 = input
+        .where((a) => a.type == InternetAddressType.IPv4)
+        .toList()
+      ..shuffle();
+    final v6 = input
+        .where((a) => a.type != InternetAddressType.IPv4)
+        .toList()
+      ..shuffle();
+    return <InternetAddress>[...v4, ...v6];
+  }
+
+  /// 判断 [host] 是否应拼接 [DnsConfig.resolveSuffix] 再查询。
+  ///
+  /// 后缀为空 → 否。作用域列表为空 → 对所有主机生效；非空 → 仅命中的主机生效，
+  /// 键以 `.` 开头时匹配其子域（与 SNI 覆盖的键规则一致）。
+  @visibleForTesting
+  static bool shouldApplySuffix(DnsConfig cfg, String host) {
+    if (cfg.resolveSuffix.isEmpty) return false;
+    final scope = cfg.resolveSuffixDomains;
+    if (scope.isEmpty) return true;
+    final h = host.trim().toLowerCase();
+    for (final raw in scope) {
+      final key = raw.trim().toLowerCase();
+      if (key.isEmpty) continue;
+      final matched = key.startsWith('.')
+          ? (h.endsWith(key) || h == key.substring(1))
+          : (key == h);
+      if (matched) return true;
+    }
+    return false;
   }
 
   // ---- custom (UDP :53) ----

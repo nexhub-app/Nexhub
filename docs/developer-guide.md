@@ -92,7 +92,7 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 | 子键 | 类型 | 说明 |
 | --- | --- | --- |
 | `network.proxy` | object? | 代理覆盖，如 `{ "mode": "manual", "protocol": "http", "host": "...", "port": 7890 }` |
-| `network.dns` | object? | DNS 覆盖，如 `{ "mode": "doh", "dohUrl": "https://cloudflare-dns.com/dns-query" }` 或 `{ "mode": "custom", "servers": ["8.8.8.8"] }` |
+| `network.dns` | object? | DNS 覆盖，如 `{ "mode": "doh", "dohUrl": "https://cloudflare-dns.com/dns-query" }` 或 `{ "mode": "custom", "servers": ["8.8.8.8"] }`；另有 `resolveSuffix` / `resolveSuffixDomains`（见下方说明） |
 | `network.hosts` | array? | Hosts 覆盖，每项 `{ "ip": "1.2.3.4", "host": "example.com", "enabled": true }` |
 | `network.sni` | object? | SNI 覆盖，如 `{ "enabled": true, "defaultSni": "-" }`；值为 `-` 表示免 SNI，普通域名表示以该域名作 SNI，`domainSni` 为 `{"匹配域名": "SNI值"}` 映射（键可用 `.example.com` 后缀通配） |
 | `network.ech` | object? | ECH 覆盖（运行时暂不生效，见下方限制说明） |
@@ -102,6 +102,17 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 > **`sni` 生效说明**：对「https 直连」真实生效（TLS 握手在应用内完成，SNI 可被覆盖为配置值或置 `-` 免 SNI；免 SNI 配合 hosts 钉定可达 IP 可绕过按 SNI 的连接阻断，Cloudflare 边缘接受无 SNI 握手并按 Host 头路由）。走代理时不生效。
 >
 > ⚠️ 诚实的限制：`ech` 受 Dart TLS 栈限制运行时暂未接通——受限站点请优先使用 `sni`（免 SNI / 自定义值）+ `hosts` 组合，或经支持 ECH 的本地代理内核（手动代理）。其余（proxy / dns / hosts）都真实生效。
+
+> **`dns.resolveSuffix`（解析后缀）**：把「目标主机 + 后缀」交给 DNS 查询，用查到的地址建连，请求头里的 Host 仍是原主机名。
+> 用途：站点主域被 DNS 污染时，查一个不受干扰的别名（如 CDN 提供的别名域）拿到真实地址，**配置文件里不需要写死任何 IP**——地址由每台设备用自己的 DNS 现算，因此适合公开发布的源。
+>
+> | 子键 | 类型 | 说明 |
+> | --- | --- | --- |
+> | `resolveSuffix` | string? | 形如 `".alias-cdn.example"`（须以 `.` 开头）；空表示不启用 |
+> | `resolveSuffixDomains` | array? | 后缀的作用域：精确域名或以 `.` 开头的子域通配（如 `.example.org` 命中 `a.example.org`）。**留空 = 对全部主机生效**，通常应显式列出，避免给图片节点等无关主机加一次必然失败的解析 |
+>
+> 失败处理：后缀查询失败或返回空 → 自动回退原主机名解析，不会变成硬错误。
+> 典型组合：`{ "mode": "system", "resolveSuffix": "...", "resolveSuffixDomains": ["..."] }` + `{ "sni": { "enabled": true, "defaultSni": "-" } }`。
 
 ### 4.5.2 源编写教程（分级：基础 / 中级 / 高级）
 

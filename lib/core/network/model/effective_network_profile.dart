@@ -70,6 +70,7 @@ class EffectiveNetworkProfile {
         ((sni.defaultSni?.isNotEmpty ?? false) || sni.domainSni.isNotEmpty)) {
       return true;
     }
+    if (dns.resolveSuffix.isNotEmpty) return true;
     return false;
   }
 
@@ -84,8 +85,9 @@ class EffectiveNetworkProfile {
     final proxyPart =
         'p:${proxy.mode.name}|${proxy.protocol.name}|${proxy.host}|${proxy.port}|${proxy.username}';
     final servers = List<String>.from(dns.servers)..sort();
+    final suffixScope = List<String>.from(dns.resolveSuffixDomains)..sort();
     final dnsPart =
-        'd:${dns.mode.name}|${servers.join(',')}|${dns.dohUrl}|${dns.dotHost}|${dns.dotPort}|${dns.cacheEnabled}';
+        'd:${dns.mode.name}|${servers.join(',')}|${dns.dohUrl}|${dns.dotHost}|${dns.dotPort}|${dns.cacheEnabled}|${dns.resolveSuffix}|${suffixScope.join(',')}';
     final hostEntries = hosts
         .map((h) => '${h.ip}@${h.host}#${h.enabled}')
         .toList()

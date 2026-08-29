@@ -162,4 +162,26 @@ class NetworkValidators {
     if (v != '-' && !isDomain(v)) return <String>['networkErrorInvalidDomain'];
     return const <String>[];
   }
+
+  /// 校验 DNS 解析后缀：空表示不启用；非空须以 `.` 开头且余下为合法域名。
+  ///
+  /// 用途：解析时把 `目标主机 + 后缀` 交给 DNS，让每台设备用自己的 DNS
+  /// 拿到就近可用的地址，配置文件里不需要写死任何 IP。
+  static List<String> validateResolveSuffix(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return const <String>[];
+    if (!v.startsWith('.') || !isDomain(v.substring(1))) {
+      return <String>['networkErrorInvalidDomain'];
+    }
+    return const <String>[];
+  }
+
+  /// 校验解析后缀的作用域条目：域名，或以 `.` 开头的子域通配。
+  static List<String> validateResolveSuffixDomain(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return const <String>[];
+    final core = v.startsWith('.') ? v.substring(1) : v;
+    if (!isDomain(core)) return <String>['networkErrorInvalidDomain'];
+    return const <String>[];
+  }
 }

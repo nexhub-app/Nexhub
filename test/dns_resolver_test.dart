@@ -81,6 +81,105 @@ void main() {
     });
   });
 
+  group('同一主机多条 Hosts', () {
+    test('全部命中并作为候选返回（供连接工厂轮换）', () async {
+      final r = await resolver.resolve(
+        'multi.test',
+        const DnsConfig(),
+        const <HostsEntry>[
+          HostsEntry(ip: '198.51.100.1', host: 'multi.test'),
+          HostsEntry(ip: '198.51.100.2', host: 'multi.test'),
+          HostsEntry(ip: '198.51.100.3', host: 'multi.test'),
+        ],
+      );
+      expect(r.map((e) => e.address).toSet(), <String>{
+        '198.51.100.1',
+        '198.51.100.2',
+        '198.51.100.3',
+      });
+      expect(resolver.cacheSize, 0);
+    });
+
+    test('非法 IP 条目被忽略', () async {
+      final r = await resolver.resolve(
+        'mixed.test',
+        const DnsConfig(),
+        const <HostsEntry>[
+          HostsEntry(ip: 'not-an-ip', host: 'mixed.test'),
+          HostsEntry(ip: '198.51.100.9', host: 'mixed.test'),
+        ],
+      );
+      expect(r.single.address, '198.51.100.9');
+    });
+  });
+
+  group('resolveSuffix 作用域判定', () {
+    const suffixCfg = DnsConfig(
+      resolveSuffix: '.cdn.example.net',
+      resolveSuffixDomains: <String>['e-hentai.org', '.exhentai.org'],
+    );
+
+    test('后缀为空时一律不适用', () {
+      expect(
+        DnsResolver.shouldApplySuffix(const DnsConfig(), 'any.example'),
+        isFalse,
+      );
+      expect(
+        DnsResolver.shouldApplySuffix(
+          const DnsConfig(resolveSuffixDomains: <String>['a.example']),
+          'a.example',
+        ),
+        isFalse,
+      );
+    });
+
+    test('作用域内精确命中与子域通配命中', () {
+      expect(DnsResolver.shouldApplySuffix(suffixCfg, 'e-hentai.org'), isTrue);
+      expect(DnsResolver.shouldApplySuffix(suffixCfg, 'exhentai.org'), isTrue);
+      expect(DnsResolver.shouldApplySuffix(suffixCfg, 's.exhentai.org'), isTrue);
+    });
+
+    test('作用域外不适用（避免图片节点白等一次解析）', () {
+      expect(DnsResolver.shouldApplySuffix(suffixCfg, 'ehgt.org'), isFalse);
+      expect(
+        DnsResolver.shouldApplySuffix(suffixCfg, 'a1.hath.network'),
+        isFalse,
+      );
+    });
+
+    test('作用域为空列表时对全部主机适用', () {
+      const all = DnsConfig(resolveSuffix: '.cdn.example.net');
+      expect(DnsResolver.shouldApplySuffix(all, 'whatever.example'), isTrue);
+    });
+  });
+
+  group('结果排序 prioritize', () {
+    test('IPv4 排到 IPv6 之前且数量不变', () {
+      final input = <InternetAddress>[
+        InternetAddress('2001:db8::1'),
+        InternetAddress('203.0.113.1'),
+        InternetAddress('2001:db8::2'),
+        InternetAddress('203.0.113.2'),
+      ];
+      final out = DnsResolver.prioritize(input);
+      expect(out, hasLength(4));
+      expect(out.take(2).map((a) => a.address).toSet(), <String>{
+        '203.0.113.1',
+        '203.0.113.2',
+      });
+      expect(
+        out.every((a) => a.type == InternetAddressType.IPv4) ||
+            out.last.type == InternetAddressType.IPv6,
+        isTrue,
+      );
+    });
+
+    test('单元素原样返回', () {
+      final input = <InternetAddress>[InternetAddress('203.0.113.5')];
+      expect(DnsResolver.prioritize(input).single.address, '203.0.113.5');
+    });
+  });
+
   group('缓存维护', () {
     test('clearCache 清空、cacheSize 归零', () async {
       // 通过 IP 字面量/Hosts 不写缓存，这里仅验证 clearCache 幂等且 size 稳定。

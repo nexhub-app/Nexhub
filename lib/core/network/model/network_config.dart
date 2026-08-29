@@ -108,6 +108,20 @@ class DnsConfig {
   final int dotPort;
   final bool cacheEnabled;
 
+  /// 解析后缀：非空时把「目标主机 + 后缀」交给 DNS 查询，用查到的地址建连，
+  /// Host 头仍是原主机名。空字符串表示不启用。
+  ///
+  /// 作用：地址由每台设备自己的 DNS 现算，配置文件里不写死任何 IP，
+  /// 也不会把某台设备解析到的地址带给别人。
+  final String resolveSuffix;
+
+  /// [resolveSuffix] 的生效范围。空列表 = 对所有主机生效；
+  /// 非空则只对列出的主机生效（键以 `.` 开头表示匹配其子域）。
+  ///
+  /// 建议显式列出：后缀对不适用的主机（如图片节点）会先查一次注定失败的名字，
+  /// 白等一轮超时才回退。
+  final List<String> resolveSuffixDomains;
+
   const DnsConfig({
     this.mode = DnsMode.system,
     this.servers = const <String>[],
@@ -115,6 +129,8 @@ class DnsConfig {
     this.dotHost = '',
     this.dotPort = 853,
     this.cacheEnabled = true,
+    this.resolveSuffix = '',
+    this.resolveSuffixDomains = const <String>[],
   });
 
   static const DnsConfig defaults = DnsConfig();
@@ -126,6 +142,8 @@ class DnsConfig {
     String? dotHost,
     int? dotPort,
     bool? cacheEnabled,
+    String? resolveSuffix,
+    List<String>? resolveSuffixDomains,
   }) =>
       DnsConfig(
         mode: mode ?? this.mode,
@@ -134,6 +152,9 @@ class DnsConfig {
         dotHost: dotHost ?? this.dotHost,
         dotPort: dotPort ?? this.dotPort,
         cacheEnabled: cacheEnabled ?? this.cacheEnabled,
+        resolveSuffix: resolveSuffix ?? this.resolveSuffix,
+        resolveSuffixDomains:
+            resolveSuffixDomains ?? this.resolveSuffixDomains,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -143,6 +164,9 @@ class DnsConfig {
         'dotHost': dotHost,
         'dotPort': dotPort,
         'cacheEnabled': cacheEnabled,
+        if (resolveSuffix.isNotEmpty) 'resolveSuffix': resolveSuffix,
+        if (resolveSuffixDomains.isNotEmpty)
+          'resolveSuffixDomains': resolveSuffixDomains,
       };
 
   factory DnsConfig.fromJson(Map<String, dynamic> json) => DnsConfig(
@@ -152,6 +176,8 @@ class DnsConfig {
         dotHost: (json['dotHost'] as String?) ?? '',
         dotPort: (json['dotPort'] as num?)?.toInt() ?? 853,
         cacheEnabled: json['cacheEnabled'] as bool? ?? true,
+        resolveSuffix: (json['resolveSuffix'] as String?) ?? '',
+        resolveSuffixDomains: _stringList(json['resolveSuffixDomains']),
       );
 }
 

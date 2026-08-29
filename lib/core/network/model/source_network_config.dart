@@ -140,6 +140,10 @@ class SourceNetworkConfig {
           portText: d.dotPort.toString(),
         ));
       }
+      errors.addAll(NetworkValidators.validateResolveSuffix(d.resolveSuffix));
+      for (final s in d.resolveSuffixDomains) {
+        errors.addAll(NetworkValidators.validateResolveSuffixDomain(s));
+      }
     }
     final h = hosts;
     if (h != null) {

@@ -132,6 +132,10 @@ class _SourceNetworkOverrideScreenState
         dohUrl: _dohUrlCtrl.text.trim(),
         dotHost: _dotHostCtrl.text.trim(),
         dotPort: int.tryParse(_dotPortCtrl.text.trim()) ?? 853,
+        // 后缀由源 JSON 声明、本页无控件，保存时必须原样带回，
+        // 否则用户只改了别处也会把它清掉，直连能力静默失效。
+        resolveSuffix: _dns!.resolveSuffix,
+        resolveSuffixDomains: _dns!.resolveSuffixDomains,
       ),
       sni: _sni?.copyWith(
         defaultSni: _sniDefaultCtrl.text.trim().isEmpty

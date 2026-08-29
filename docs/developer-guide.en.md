@@ -92,7 +92,7 @@ Each source's "site metadata" and "network access method" are written in the sou
 | Key | Type | Description |
 | --- | --- | --- |
 | `network.proxy` | object? | Proxy override, e.g. `{ "mode": "manual", "protocol": "http", "host": "...", "port": 7890 }` |
-| `network.dns` | object? | DNS override, e.g. `{ "mode": "doh", "dohUrl": "https://cloudflare-dns.com/dns-query" }` or `{ "mode": "custom", "servers": ["8.8.8.8"] }` |
+| `network.dns` | object? | DNS override, e.g. `{ "mode": "doh", "dohUrl": "https://cloudflare-dns.com/dns-query" }` or `{ "mode": "custom", "servers": ["8.8.8.8"] }`; also supports `resolveSuffix` / `resolveSuffixDomains` (see below) |
 | `network.hosts` | array? | Hosts override, each `{ "ip": "1.2.3.4", "host": "example.com", "enabled": true }` |
 | `network.sni` | object? | SNI override, e.g. `{ "enabled": true, "defaultSni": "-" }`; value `-` suppresses SNI entirely, a domain uses that domain as SNI, and `domainSni` maps host patterns (`.example.com` for suffix match) to SNI values |
 | `network.ech` | object? | ECH override (not wired up at runtime yet, see limitation below) |
@@ -102,6 +102,17 @@ Rules: a key that is **absent = inherit global**; a key that is set = **override
 > **How `sni` works**: genuinely effective for direct HTTPS connections (the TLS handshake is completed in-app, so SNI can be overridden with the configured value or suppressed with `-`; suppressing SNI together with hosts pinning a reachable IP bypasses SNI-based blocking — the Cloudflare edge accepts no-SNI handshakes and routes by the Host header). Not applied through a proxy.
 >
 > ⚠️ Honest limitations: `ech` is not wired up at runtime due to Dart TLS-stack limits — for restricted sites prefer `sni` (no-SNI / custom value) combined with `hosts`, or a local ECH-capable proxy core (manual proxy). The rest (proxy / dns / hosts) genuinely work.
+
+> **`dns.resolveSuffix` (resolve suffix, added in v2.0.0)**: the resolver queries *target host + suffix* and connects to the returned address, while the Host header stays the original hostname.
+> Use case: when the site's own domain suffers DNS poisoning, query an unaffected alias (e.g. an alias domain served by the site's CDN) to obtain real addresses — **no IP needs to be hard-coded in the config file**, since each device resolves it with its own DNS. That makes it suitable for publicly shared sources.
+>
+> | Key | Type | Description |
+> | --- | --- | --- |
+> | `resolveSuffix` | string? | Like `".alias-cdn.example"` (must start with `.`); empty = disabled |
+> | `resolveSuffixDomains` | array? | Scope of the suffix: exact domains or `.example.org` for suffix matching. **Empty list = applies to every host**; listing them explicitly is recommended so unrelated hosts (image nodes, etc.) don't pay for a lookup that is bound to fail |
+>
+> Failure handling: if the suffixed lookup fails or returns nothing, it falls back to resolving the original hostname — never a hard error.
+> Typical combo: `{ "mode": "system", "resolveSuffix": "...", "resolveSuffixDomains": ["..."] }` plus `{ "sni": { "enabled": true, "defaultSni": "-" } }`.
 
 ### 4.5.2 Source-authoring tutorial (tiered: Basic / Intermediate / Advanced)
 
