@@ -1303,6 +1303,12 @@ class PluginConfig {
       }
       url = url.replaceAll('{$k}', value);
     });
+    // 占位符偏移：`{page-1}` / `{page+1}` 这类写法。
+    // 用途：相当多站点的分页参数从 0 开始（第 1 页是 `page=0`），而引擎统一
+    // 从 1 开始计数。没有偏移语法时源只能自造变量名（引擎不认）或干脆错位
+    // ——表现为「永远看不到第 1 页 / 翻页重复」。这是通用需求，故在占位符
+    // 解析层支持，不针对任何站点。
+    url = _applyPlaceholderOffsets(url, vars);
     // 兼容旧版「采集api」导出的源：详情/选集路由常用 {season_id}/{sid}/{avid}
     // 占位，而新解析器统一用 {id}。旧应用能正常解析正是靠这些别名映射。
     // 不映射会导致占位被清空成 "...&id=" 从而「详情页空」。
@@ -1352,6 +1358,23 @@ class PluginConfig {
     url = url.replaceAll(RegExp(r'\{[^}]*\}'), '');
     debugPrint('[PluginConfig] resolveRouteUrl: apiName=$apiName finalUrl=$url');
     return url;
+  }
+
+  /// 处理 `{name±N}` 形式的占位符偏移（如 `{page-1}`）。
+  ///
+  /// 仅对「变量值为纯整数」时生效；非数值（如关键词）保持原样交由后续
+  /// cleanup 处理，避免误伤。偏移后为负则夹到 0。
+  static String _applyPlaceholderOffsets(
+      String url, Map<String, String> vars) {
+    final re = RegExp(r'\{([A-Za-z_][A-Za-z0-9_]*)([+-])(\d+)\}');
+    return url.replaceAllMapped(re, (m) {
+      final raw = vars[m.group(1)];
+      final base = int.tryParse(raw?.trim() ?? '');
+      if (base == null) return m.group(0)!; // 非数值：原样保留
+      final delta = int.parse(m.group(3)!);
+      final value = m.group(2) == '-' ? base - delta : base + delta;
+      return (value < 0 ? 0 : value).toString();
+    });
   }
 
   /// 将 [originalUrl] 的 scheme+host 替换为 [newBaseUrl] 的 scheme+host，

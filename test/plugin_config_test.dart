@@ -77,6 +77,63 @@ void main() {
       );
     });
 
+    test('resolveRouteUrl supports {page-1} / {page+1} offsets', () {
+      final source = build(<String, dynamic>{
+        'id': 'pms_zero',
+        'name': '示例',
+        'type': 'mangaSource',
+        'site': {'baseUrl': 'https://example.com'},
+        'parser': {'type': 'builtin'},
+        'routes': {
+          // 0 基分页站点：第 1 页对应 page=0
+          'explore': {'url': '/?f_cats=1019&page={page-1}'},
+          'search': {'url': '/s?q={keyword}&page={page+1}'},
+        },
+      });
+      expect(
+        source.resolveRouteUrl(
+          'explore',
+          activeBaseUrl: 'https://example.com',
+          vars: <String, String>{'page': '1'},
+        ),
+        'https://example.com/?f_cats=1019&page=0',
+      );
+      expect(
+        source.resolveRouteUrl(
+          'explore',
+          activeBaseUrl: 'https://example.com',
+          vars: <String, String>{'page': '3'},
+        ),
+        'https://example.com/?f_cats=1019&page=2',
+      );
+      expect(
+        source.resolveRouteUrl(
+          'search',
+          activeBaseUrl: 'https://example.com',
+          vars: <String, String>{'keyword': 'abc', 'page': '2'},
+        ),
+        'https://example.com/s?q=abc&page=3',
+      );
+      // 偏移后为负 → 夹到 0（不应出现 page=-1）
+      expect(
+        source.resolveRouteUrl(
+          'explore',
+          activeBaseUrl: 'https://example.com',
+          vars: <String, String>{'page': '0'},
+        ),
+        'https://example.com/?f_cats=1019&page=0',
+      );
+      // 非数值变量（关键词）：偏移不生效，占位符保留后由 cleanup 清掉
+      expect(
+        source.resolveRouteUrl(
+          'search',
+          activeBaseUrl: 'https://example.com',
+          vars: <String, String>{'keyword': 'x'},
+        ),
+        'https://example.com/s?q=x&page=',
+      );
+    });
+
     test('responseTypeFor falls back to top-level', () {
       final source = build(<String, dynamic>{
         'id': 'p', 'name': 'p', 'type': 'animeSource',

@@ -248,12 +248,14 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 
 1. 函数签名固定为 `parseXxx(html, context)`，`html` 为页面字符串，`context` 含 `baseUrl`、`log` 等；
 2. 必须**同步返回**结果（数组或对象）；
-3. 需要异步数据时，返回 `{ __meta: true, __fetchUrl, __processor }` 协议对象——引擎会先预取该 URL，再调用 `__processor` 同步处理函数，**这是沙箱里唯一安全的异步通道**；
+3. 需要异步数据时，返回 `{ __meta: true, __fetchUrl, __processor }` 协议对象——引擎会先预取该 URL，再调用 `__processor` 同步处理函数，**这是沙箱里唯一安全的异步通道**；需要一次跟进多个页面时改用 `__fetchUrls`（数组），详见「采集 API 接口说明」；
 4. 不要写死任何站点常量到 App，全部留在源文件。
 
 **采集 API 接口说明**——「采集 API」指一个源对外暴露的「抓取接口集合」，即 `routes` 里定义的一个个端点（search / latest / detail / video / images …）：
 
 - 每个端点先在 `routes` 里定义 url（支持 `{keyword}` / `{page}` / `{id}` / `{url}` / `{detailUrl}` 占位符）、method、responseType、headers、params；
+  - **占位符偏移**：数值型占位符可写 `{page-1}` / `{page+1}`（引擎统一从 1 开始计数，站点从 0 开始时用 `-1`）。值为非数值时不处理，偏移后为负则夹到 0。典型用途：0 基分页站点（第 1 页是 `page=0`）；
+  - **批量预取**：需要「逐个跟进 N 个页面」时，脚本返回 `{ __meta:true, __fetchUrls:[...], __fetchResponseType:'text', __processor:'处理函数名' }`，引擎在 Dart 侧并发抓取（默认并发 6，可用 `__fetchConcurrency` 调整，上限 16），把响应数组交给 `__processor` 同步处理；单条失败该位置为 `null`，不中断整批；
 - 抽取方式由 `parser.overrides.<端点>` 决定：`builtin` / `xpath` / `jsonpath` / `css` / `script` / `webview` / `webview-html`；
 - 声明式端点用 `selectors.<端点>` 指定选择器；脚本端点用 `overrides.<端点>.script` 提供函数；
 - 常用端点一览：`search`（搜索）、`latest`（最新）、`explore` / `category`（发现 / 分类）、`detail`（详情 + 目录）、`episodes`（剧集列表）、`video`（视频地址）、`chapters`（漫画话列表）、`images`（漫画图片）、`week`（周更表）。

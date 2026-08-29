@@ -365,8 +365,9 @@ class ScriptResolver implements SourceResolver {
       // 对已有同步脚本的影响：零。result 不是 Map 或不含 __meta 键时完全跳过。
       if (result is Map) {
         final meta = result as Map<dynamic, dynamic>;
-        if (meta['__meta'] == true && meta['__fetchUrl'] is String) {
-          final fetchUrl = meta['__fetchUrl'] as String;
+        if (meta['__meta'] == true &&
+            (meta['__fetchUrl'] is String || meta['__fetchUrls'] is List)) {
+          final fetchUrl = meta['__fetchUrl'] as String? ?? '';
           final processor = meta['__processor'] as String? ?? '';
           // meta 协议扩展字段（通用，仍不写死任何站点逻辑）：
           //   __fetchMethod  : 'get'(默认) | 'post'
@@ -378,6 +379,17 @@ class ScriptResolver implements SourceResolver {
           final fetchMethod =
               (meta['__fetchMethod'] as String? ?? 'get').toLowerCase();
           final fetchBody = meta['__fetchBody'] as String?;
+          // 批量预取：源可给 `__fetchUrls`（字符串数组）代替单个 `__fetchUrl`，
+          // 用于「一页只有 N 个入口、真实数据要逐个跟进」的站点（如画廊逐页取图）。
+          // 引擎在 Dart 侧并发抓取，结果按输入顺序组成 List<String> 交给
+          // `__processor` 同步处理。通用能力，不含任何站点逻辑。
+          final fetchUrls = (meta['__fetchUrls'] as List?)
+                  ?.map((e) => e.toString())
+                  .where((e) => e.isNotEmpty)
+                  .toList(growable: false) ??
+              const <String>[];
+          final fetchConcurrency =
+              (meta['__fetchConcurrency'] as num?)?.toInt() ?? 0;
           final fetchHeaders = <String, String>{};
           final rawHeaders = meta['__fetchHeaders'];
           if (rawHeaders is Map) {
@@ -399,7 +411,7 @@ class ScriptResolver implements SourceResolver {
           ParseDiagnostics.log(
               source.id, '📡 meta协议($fetchMethod): $apiName → 预取 $fetchUrl');
 
-          if (processor.isNotEmpty) {
+          if (processor.isNotEmpty && (fetchUrl.isNotEmpty || fetchUrls.isNotEmpty)) {
             try {
               // Step 2: Dart 侧预取（使用源的防盗链/UA 配置 + 源级网络覆盖）
               final referer =
@@ -412,46 +424,60 @@ class ScriptResolver implements SourceResolver {
               // 的源，避免把站点逻辑写死进 Dart。镜像页自动获取 JM 域名即其一例。
               final fetchResponseType =
                   (meta['__fetchResponseType'] as String? ?? 'json').toLowerCase();
-              final apiJson = fetchMethod == 'post'
-                  ? (fetchResponseType == 'text'
-                      ? await HttpFetcher.instance.post(
-                          fetchUrl,
-                          data: fetchBody,
-                          headers:
-                              fetchHeaders.isNotEmpty ? fetchHeaders : null,
-                          referer: referer,
-                          net: net,
-                        )
-                      : await HttpFetcher.instance.postJson(
-                          fetchUrl,
-                          data: fetchBody,
-                          headers:
-                              fetchHeaders.isNotEmpty ? fetchHeaders : null,
-                          referer: referer,
-                          net: net,
-                        ))
-                  : (fetchResponseType == 'text'
-                      ? await HttpFetcher.instance.getHtml(
-                          fetchUrl,
-                          headers:
-                              fetchHeaders.isNotEmpty ? fetchHeaders : null,
-                          referer: referer,
-                          net: net,
-                        )
-                      : await HttpFetcher.instance.getJson(
-                          fetchUrl,
-                          referer: referer,
-                          headers:
-                              fetchHeaders.isNotEmpty ? fetchHeaders : null,
-                          net: net,
-                        ));
+              final bool batch = fetchUrls.isNotEmpty;
+              final apiJson = batch
+                  ? await _fetchMany(
+                      urls: fetchUrls,
+                      method: fetchMethod,
+                      body: fetchBody,
+                      headers: fetchHeaders,
+                      referer: referer,
+                      net: net,
+                      responseType: fetchResponseType,
+                      limit: fetchConcurrency,
+                    )
+                  : fetchMethod == 'post'
+                      ? (fetchResponseType == 'text'
+                          ? await HttpFetcher.instance.post(
+                              fetchUrl,
+                              data: fetchBody,
+                              headers:
+                                  fetchHeaders.isNotEmpty ? fetchHeaders : null,
+                              referer: referer,
+                              net: net,
+                            )
+                          : await HttpFetcher.instance.postJson(
+                              fetchUrl,
+                              data: fetchBody,
+                              headers:
+                                  fetchHeaders.isNotEmpty ? fetchHeaders : null,
+                              referer: referer,
+                              net: net,
+                            ))
+                      : (fetchResponseType == 'text'
+                          ? await HttpFetcher.instance.getHtml(
+                              fetchUrl,
+                              headers:
+                                  fetchHeaders.isNotEmpty ? fetchHeaders : null,
+                              referer: referer,
+                              net: net,
+                            )
+                          : await HttpFetcher.instance.getJson(
+                              fetchUrl,
+                              referer: referer,
+                              headers:
+                                  fetchHeaders.isNotEmpty ? fetchHeaders : null,
+                              net: net,
+                            ));
               final payloadInfo = apiJson is Map
                   ? 'keys=${(apiJson as Map).keys}'
                   : (apiJson is String
                       ? 'text len=${apiJson.length}'
                       : apiJson.runtimeType.toString());
-              debugPrint('[ScriptResolver] 预取成功: $fetchUrl, $payloadInfo');
-              ParseDiagnostics.log(source.id, '✅ 预取成功: $fetchUrl');
+              final fetchLabel =
+                  batch ? '${fetchUrls.length} 个 URL(批量)' : fetchUrl;
+              debugPrint('[ScriptResolver] 预取成功: $fetchLabel, $payloadInfo');
+              ParseDiagnostics.log(source.id, '✅ 预取成功: $fetchLabel');
 
               // Step 3: 调用 JS 处理函数（纯同步，传入预取数据）
               final processResult = await engine
@@ -498,6 +524,82 @@ class ScriptResolver implements SourceResolver {
       );
     }
   }
+
+  /// meta 协议的批量预取：并发抓取 [urls]，按输入顺序返回响应列表。
+  ///
+  /// 用途：某些站点「一页只给出 N 个入口，真实数据要逐个跟进」（如画廊页只给
+  /// 缩略图链接、原图要进每个页面取）。脚本侧逐个 await 会触发几十次桥接往返，
+  /// 且容易撞上脚本执行超时；改为在 Dart 侧并发抓取后一次性交回脚本同步处理。
+  ///
+  /// 容错：单个 URL 失败时该位置填 `null`（不中断整批），由脚本决定降级策略
+  /// （跳过 / 保留占位）。源可通过 `__fetchConcurrency` 限制并发（默认 6，
+  /// 上限 16），避免对站点造成突发压力。
+  static Future<List<dynamic>> _fetchMany({
+    required List<String> urls,
+    required String method,
+    String? body,
+    required Map<String, String> headers,
+    required String referer,
+    required EffectiveNetworkProfile net,
+    required String responseType,
+    int limit = 0,
+  }) async {
+    final concurrency = limit <= 0
+        ? _defaultFetchConcurrency
+        : limit.clamp(1, _maxFetchConcurrency);
+    final results = List<dynamic>.filled(urls.length, null, growable: false);
+    var cursor = 0;
+    final workers = <Future<void>>[];
+    final effectiveHeaders = headers.isEmpty ? null : headers;
+    for (var i = 0; i < concurrency && i < urls.length; i++) {
+      workers.add(() async {
+        while (true) {
+          final index = cursor++;
+          if (index >= urls.length) return;
+          final url = urls[index];
+          try {
+            results[index] = method == 'post'
+                ? (responseType == 'text'
+                    ? await HttpFetcher.instance.post(
+                        url,
+                        data: body,
+                        headers: effectiveHeaders,
+                        referer: referer,
+                        net: net,
+                      )
+                    : await HttpFetcher.instance.postJson(
+                        url,
+                        data: body,
+                        headers: effectiveHeaders,
+                        referer: referer,
+                        net: net,
+                      ))
+                : (responseType == 'text'
+                    ? await HttpFetcher.instance.getHtml(
+                        url,
+                        headers: effectiveHeaders,
+                        referer: referer,
+                        net: net,
+                      )
+                    : await HttpFetcher.instance.getJson(
+                        url,
+                        referer: referer,
+                        headers: effectiveHeaders,
+                        net: net,
+                      ));
+          } on Object catch (e) {
+            debugPrint('[ScriptResolver] 批量预取失败($index/$url): $e');
+          }
+        }
+      }());
+    }
+    await Future.wait(workers);
+    return results;
+  }
+
+  /// 批量预取的默认并发数与硬上限。
+  static const int _defaultFetchConcurrency = 6;
+  static const int _maxFetchConcurrency = 16;
 
   /// JS 引擎返回值的防御性解码。
   ///

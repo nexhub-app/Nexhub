@@ -198,7 +198,10 @@ class MediaApiService {
       return staticEntries
           .map((e) => CategoryEntry(
                 id: e['id'] ?? '',
-                title: e['title'] ?? '',
+                // 兼容 `name`：`CategoryEntry.fromJson` 已支持 name/title/
+                // type_name 多种写法，静态分类声明同样应容错，否则源写了
+                // `name` 时会得到一批空白 Tab（字段名不匹配导致）。
+                title: e['title'] ?? e['name'] ?? '',
               ))
           .toList(growable: false);
     }

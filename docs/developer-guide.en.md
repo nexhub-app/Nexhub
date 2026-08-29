@@ -248,12 +248,14 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 
 1. Function signature is fixed as `parseXxx(html, context)`; `html` is the page string, `context` contains `baseUrl`, `log`, etc.;
 2. Must **return synchronously** (array or object);
-3. When async data is needed, return the `{ __meta: true, __fetchUrl, __processor }` protocol object — the engine prefetches that URL, then calls `__processor` as a synchronous handler; **this is the only safe async channel in the sandbox**;
+3. When async data is needed, return the `{ __meta: true, __fetchUrl, __processor }` protocol object — the engine prefetches that URL, then calls `__processor` as a synchronous handler; **this is the only safe async channel in the sandbox**. Use `__fetchUrls` (array) instead of `__fetchUrl` when several pages must be fetched before one synchronous pass;
 4. Never hard-code site constants into the app; keep everything in the source file.
 
 **Collection API interfaces** — "Collection API" means the "set of scraping endpoints" a source exposes, i.e. the endpoints defined in `routes` (search / latest / detail / video / images …):
 
 - Each endpoint defines its url in `routes` first (placeholders `{keyword}` / `{page}` / `{id}` / `{url}` / `{detailUrl}` supported), plus method, responseType, headers, params;
+  - **Placeholder offsets**: numeric placeholders accept `{page-1}` / `{page+1}` (the engine always counts from 1; use `-1` for sites whose first page is `page=0`). Non-numeric values are left untouched and negative results clamp to 0;
+  - **Batch prefetch**: when a page only exposes N entry links that must each be followed, return `{ __meta: true, __fetchUrls: [...], __fetchResponseType: 'text', __processor: 'handlerName' }`. The engine fetches them concurrently in Dart (default 6, tunable via `__fetchConcurrency`, capped at 16) and hands the response array to `__processor`. A single failure becomes `null` at that position instead of aborting the batch;
 - Extraction is decided by `parser.overrides.<endpoint>`: `builtin` / `xpath` / `jsonpath` / `css` / `script` / `webview` / `webview-html`;
 - Declarative endpoints use `selectors.<endpoint>`; script endpoints provide functions via `overrides.<endpoint>.script`;
 - Common endpoints: `search` (search), `latest` (latest), `explore` / `category` (discovery / category), `detail` (detail + contents), `episodes` (episode list), `video` (video URL), `chapters` (manga episode list), `images` (manga images), `week` (weekly schedule).
