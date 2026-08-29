@@ -6515,6 +6515,10 @@ class AppLocalizationsZh extends AppLocalizations {
       '这些设置仅作用于该源的抓取，逐方面覆盖全局网络设置；未开启的方面继承全局配置。';
 
   @override
+  String get sourceNetworkFromSourceNote =>
+      '该源自带了网络配置，已自动沿用，无需重新配置；如需调整可直接修改并保存为自定义覆盖。';
+
+  @override
   String get networkOverrideEnable => '覆盖全局';
 
   @override
@@ -6530,7 +6534,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceNetworkClearConfirm => '移除该源的网络覆盖并继承全局设置？';
 
   @override
+  String get sourceNetworkClearConfirmFromSource =>
+      '该源自带了网络配置，清除自定义覆盖后将恢复为源自带配置（而非全局设置）。确定继续？';
+
+  @override
   String get sourceNetworkCleared => '源级网络覆盖已清除';
+
+  @override
+  String get sourceNetworkClearedToSource => '已清除自定义覆盖，该源恢复为源自带网络配置';
 
   @override
   String get bangumiNoMatch => '未在 Bangumi 找到匹配条目';

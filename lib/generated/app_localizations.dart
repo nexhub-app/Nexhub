@@ -12566,6 +12566,12 @@ abstract class AppLocalizations {
   /// **'These settings only affect this source\'s scraping. They override the global network settings per aspect; aspects left off inherit the global configuration.'**
   String get sourceNetworkScopeNote;
 
+  /// No description provided for @sourceNetworkFromSourceNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This source ships its own network configuration, which is applied automatically — no manual setup required. Edit the values below and save to keep a custom override.'**
+  String get sourceNetworkFromSourceNote;
+
   /// No description provided for @networkOverrideEnable.
   ///
   /// In en, this message translates to:
@@ -12596,11 +12602,23 @@ abstract class AppLocalizations {
   /// **'Remove this source\'s network override and inherit global settings?'**
   String get sourceNetworkClearConfirm;
 
+  /// No description provided for @sourceNetworkClearConfirmFromSource.
+  ///
+  /// In en, this message translates to:
+  /// **'This source ships its own network configuration. Clearing the custom override restores the source\'s built-in configuration (not global settings). Continue?'**
+  String get sourceNetworkClearConfirmFromSource;
+
   /// No description provided for @sourceNetworkCleared.
   ///
   /// In en, this message translates to:
   /// **'Source network override cleared'**
   String get sourceNetworkCleared;
+
+  /// No description provided for @sourceNetworkClearedToSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom override cleared; this source now uses its built-in network configuration'**
+  String get sourceNetworkClearedToSource;
 
   /// No description provided for @bangumiNoMatch.
   ///

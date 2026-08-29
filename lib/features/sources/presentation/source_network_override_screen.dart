@@ -7,6 +7,10 @@
 /// 生效边界：仅作用于经 HttpFetcher 的该源抓取；封面图/原生组件不受源级覆盖影响。
 /// 读写 [SourceNetworkOverrideStore]，保存后经
 /// [NetworkConfigService.onSourceOverrideChanged] 即时生效。
+///
+/// 打开页面时工作副本逐方面取「用户覆盖 ?? 源文件 network 块」，与
+/// [NetworkConfigService.effectiveFor] 的合并语义一致：导入自带 network
+/// 块的源后直接沿用源自带配置，用户无需重新配置；保存后固化为用户覆盖。
 library;
 
 import 'package:flutter/material.dart';
@@ -60,16 +64,25 @@ class _SourceNetworkOverrideScreenState
 
   bool _saving = false;
 
+  /// 源文件自带的 network 块（源作者随源下发，可能为 null 或空）。
+  bool get _hasFileNetwork {
+    final f = widget.source.network;
+    return f != null && !f.isEmpty;
+  }
+
   @override
   void initState() {
     super.initState();
-    // 仅加载「用户覆盖」（源文件 network 块只读、不在此编辑）。
+    // 工作副本逐方面 = 用户覆盖 ?? 源文件 network 块，与运行时
+    // NetworkConfigService.effectiveFor 的合并语义一致：导入自带
+    // network 块的源后，此页直接沿用源自带配置，无需重新手配。
     final ov = SourceNetworkOverrideStore.instance.get(widget.source.id);
-    _proxy = ov?.proxy;
-    _dns = ov?.dns;
-    _sni = ov?.sni;
-    _ech = ov?.ech;
-    _hosts = ov?.hosts;
+    final file = widget.source.network;
+    _proxy = ov?.proxy ?? file?.proxy;
+    _dns = ov?.dns ?? file?.dns;
+    _sni = ov?.sni ?? file?.sni;
+    _ech = ov?.ech ?? file?.ech;
+    _hosts = ov?.hosts ?? file?.hosts;
     _proxyHostCtrl.text = _proxy?.host ?? '';
     _proxyPortCtrl.text =
         (_proxy != null && _proxy!.port > 0) ? '${_proxy!.port}' : '';
@@ -150,7 +163,11 @@ class _SourceNetworkOverrideScreenState
       context: context,
       builder: (ctx) => AppAlertDialog(
         title: Text(l10n.sourceNetworkClear),
-        content: Text(l10n.sourceNetworkClearConfirm),
+        // 源自带 network 块时，清除的是「自定义覆盖」，回落到源自带配置
+        // （运行时仍会生效该配置），而非继承全局。
+        content: Text(_hasFileNetwork
+            ? l10n.sourceNetworkClearConfirmFromSource
+            : l10n.sourceNetworkClearConfirm),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -167,23 +184,28 @@ class _SourceNetworkOverrideScreenState
     await SourceNetworkOverrideStore.instance.remove(widget.source.id);
     NetworkConfigService.instance.onSourceOverrideChanged();
     if (!mounted) return;
+    final file = widget.source.network;
     setState(() {
-      _proxy = null;
-      _dns = null;
-      _sni = null;
-      _ech = null;
-      _hosts = null;
-      _proxyHostCtrl.text = '';
-      _proxyPortCtrl.text = '';
-      _proxyUserCtrl.text = '';
-      _dohUrlCtrl.text = '';
-      _dotHostCtrl.text = '';
-      _dotPortCtrl.text = '853';
-      _sniDefaultCtrl.text = '';
-      _echCtrl.text = '';
+      _proxy = file?.proxy;
+      _dns = file?.dns;
+      _sni = file?.sni;
+      _ech = file?.ech;
+      _hosts = file?.hosts;
+      _proxyHostCtrl.text = _proxy?.host ?? '';
+      _proxyPortCtrl.text =
+          (_proxy != null && _proxy!.port > 0) ? '${_proxy!.port}' : '';
+      _proxyUserCtrl.text = _proxy?.username ?? '';
+      _dohUrlCtrl.text = _dns?.dohUrl ?? '';
+      _dotHostCtrl.text = _dns?.dotHost ?? '';
+      _dotPortCtrl.text = '${_dns?.dotPort ?? 853}';
+      _sniDefaultCtrl.text = _sni?.defaultSni ?? '';
+      _echCtrl.text = _ech?.echConfigList ?? '';
     });
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(l10n.sourceNetworkCleared)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(_hasFileNetwork
+          ? l10n.sourceNetworkClearedToSource
+          : l10n.sourceNetworkCleared),
+    ));
   }
 
   @override
@@ -233,6 +255,15 @@ class _SourceNetworkOverrideScreenState
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
+        // 源自带 network 块：明确告知已自动沿用，避免误以为需要重新配置。
+        if (_hasFileNetwork) ...<Widget>[
+          const SizedBox(height: AppTokens.spaceSm),
+          Text(
+            l10n.sourceNetworkFromSourceNote,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.primary),
+          ),
+        ],
       ],
     );
   }

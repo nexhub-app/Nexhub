@@ -6658,6 +6658,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'These settings only affect this source\'s scraping. They override the global network settings per aspect; aspects left off inherit the global configuration.';
 
   @override
+  String get sourceNetworkFromSourceNote =>
+      'This source ships its own network configuration, which is applied automatically — no manual setup required. Edit the values below and save to keep a custom override.';
+
+  @override
   String get networkOverrideEnable => 'Override global';
 
   @override
@@ -6674,7 +6678,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Remove this source\'s network override and inherit global settings?';
 
   @override
+  String get sourceNetworkClearConfirmFromSource =>
+      'This source ships its own network configuration. Clearing the custom override restores the source\'s built-in configuration (not global settings). Continue?';
+
+  @override
   String get sourceNetworkCleared => 'Source network override cleared';
+
+  @override
+  String get sourceNetworkClearedToSource =>
+      'Custom override cleared; this source now uses its built-in network configuration';
 
   @override
   String get bangumiNoMatch => 'No matching Bangumi subject found';
