@@ -36,6 +36,7 @@ import '../../../core/player/player_capability.dart';
 import '../../../core/player/audio_playback_service.dart';
 import '../../../core/player/pip_actions_bridge.dart';
 import '../../../core/player/play_queue_store.dart';
+import '../../../core/player/subtitle_translation_controller.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/player_settings.dart';
@@ -75,6 +76,7 @@ import 'danmaku_settings_sheet.dart';
 import 'danmaku_source_sheet.dart';
 import 'danmaku_match_sheet.dart';
 import 'subtitle_panel.dart';
+import 'translated_subtitle_overlay.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 part 'video_player_gestures.dart';
 part 'video_player_lines.dart';
@@ -189,6 +191,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   DanmakuSettings _danmakuSettings = const DanmakuSettings();
   DanmakuRepository? _danmakuRepo;
   bool _danmakuOn = true;
+
+  /// 视频实时翻译控制器（视频实时翻译功能）：字幕轨文本轮询翻译 +
+  /// 无字幕时画面 OCR 兜底，译文由 [TranslatedSubtitleOverlay] 渲染。
+  final SubtitleTranslationController _subtitleTranslator =
+      SubtitleTranslationController();
 
   /// 是否为本地文件 / 直链模式（跳过在线源解析，直接打开给定地址）。
   bool get _isDirectMode => widget.localUri != null || widget.directUrl != null;
@@ -802,6 +809,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _controller.addListener(_onControllerChanged);
     _controllerCreated = true;
     _videoController = VideoController(_controller.player);
+    // 视频实时翻译：绑定新控制器（恢复持久化开关；进行中的翻译状态随旧实例失效）。
+    unawaited(_subtitleTranslator.attach(_controller));
 
     // 同步当前系统亮度（手势起点基准）与播放器音量（PlayerController.volume）。
     try {
@@ -1440,6 +1449,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
     // 自动跳过片头/片尾（未开启或未设置时为空操作）。
     _maybeAutoSkip(position);
+    // 视频实时翻译：节流轮询字幕文本 / OCR 兜底（内部自带节流与去重）。
+    _subtitleTranslator.onPositionTick(position);
     // 注入弹幕
     if (_danmakuOn) {
       final adjusted = position +
@@ -3265,6 +3276,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
     // 兜底保存弹幕显示设置（滑块即时保存之外，确保离开页面必定落盘）。
     unawaited(_saveDanmakuSettings());
+    // 视频实时翻译：解绑播放器（保留持久化偏好，下次进入自动恢复）。
+    _subtitleTranslator.detach();
     _sleepTimer?.cancel();
     _speedProbeTimer?.cancel();
     // 退出播放器取消连播倒计时并释放通知器。
@@ -3578,6 +3591,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 ),
               ),
 
+              // 视频实时翻译字幕覆盖层（PiP 小窗 / 锁定态停用；译文显示于
+              // 底部，控制栏可见时抬高避让。整层 IgnorePointer 不影响手势）。
+              if (!pipMode && !_controller.isLocked)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: _uiVisible ? 132 : 36,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: TranslatedSubtitleOverlay(
+                          controller: _subtitleTranslator),
+                    ),
+                  ),
+                ),
+
               // 桌面 PiP 紧凑控件层（悬停/点按显示）：关闭、播放/暂停、进度条。
               if (_desktopPipActive) _buildDesktopPipControls(l10n),
 
@@ -3848,6 +3876,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 context,
                 controller: _controller,
                 defaults: _playerSettings,
+                translator: _subtitleTranslator,
               ),
             ),
             // 收藏按钮（P9.1.7 §16.1 顶栏收藏，仅 favoriteType 提供时显示）

@@ -6,8 +6,8 @@ import 'novel_summary_service.dart';
 ///
 /// 从「单一配置」升级为「通用 + 功能级独立接口」的层级结构（需求：统一管理 AI 配置）：
 /// - **通用配置**（default）：所有 AI 功能共享的兜底 baseUrl/apiKey/model；
-/// - **功能级覆盖**：章节速览 / AI 配图 / 双语翻译 各自可配置独立接口
-///   （baseUrl/apiKey/model），某项留空时回落到通用配置。
+/// - **功能级覆盖**：章节速览 / AI 配图 / 双语翻译 / 漫画翻译 / 视频字幕翻译
+///   各自可配置独立接口（baseUrl/apiKey/model），某项留空时回落到通用配置。
 ///
 /// 底层走 SharedPreferences（与现有弹幕凭据一致；API 密钥明文存本机，不外发）。
 /// 旧的 `novel_overview_api_*` 键继续作为「通用配置」的存储，保证已有配置平滑迁移。
@@ -39,6 +39,18 @@ class NovelSummarySettings {
   static const String _kTrModel = 'novel_translation_api_model_v1';
   static const String _kTrLang = 'novel_translation_lang_v1';
   static const String _kTrBatch = 'novel_translation_batch_v1';
+
+  // ── 漫画翻译功能级接口与选项（视觉模型，留空回落通用）──
+  static const String _kComicBase = 'comic_translation_api_base_v1';
+  static const String _kComicKey = 'comic_translation_api_key_v1';
+  static const String _kComicModel = 'comic_translation_api_model_v1';
+  static const String _kComicLang = 'comic_translation_lang_v1';
+
+  // ── 视频字幕翻译功能级接口与选项（留空回落通用）──
+  static const String _kMediaBase = 'media_translation_api_base_v1';
+  static const String _kMediaKey = 'media_translation_api_key_v1';
+  static const String _kMediaModel = 'media_translation_api_model_v1';
+  static const String _kMediaLang = 'media_translation_lang_v1';
 
   // ─────────────────── 速览模式 ───────────────────
 
@@ -158,6 +170,62 @@ class NovelSummarySettings {
   Future<void> saveTranslationBatchSize(int size) async {
     final p = await SharedPreferences.getInstance();
     await p.setInt(_kTrBatch, size <= 0 ? 12 : size);
+  }
+
+  // ─────────────────── 漫画翻译接口 ───────────────────
+
+  /// 漫画翻译功能级配置（视觉模型）；baseUrl 为空时回落通用配置。
+  Future<NovelSummaryConfig> getComicTranslationConfig() async {
+    final p = await SharedPreferences.getInstance();
+    final specific = _readConfig(p, _kComicBase, _kComicKey, _kComicModel);
+    if (specific.baseUrl.trim().isNotEmpty) return specific;
+    return _readConfig(p, _kBase, _kKey, _kModel);
+  }
+
+  Future<void> saveComicTranslationConfig(NovelSummaryConfig cfg) async {
+    final p = await SharedPreferences.getInstance();
+    await _writeConfig(p, _kComicBase, _kComicKey, _kComicModel, cfg);
+  }
+
+  /// 漫画翻译目标语言（提示词用语；空回落小说翻译的目标语言）。
+  Future<String> getComicTranslationTargetLanguage() async {
+    final p = await SharedPreferences.getInstance();
+    final v = p.getString(_kComicLang);
+    if (v != null && v.trim().isNotEmpty) return v.trim();
+    return getTranslationTargetLanguage();
+  }
+
+  Future<void> saveComicTranslationTargetLanguage(String lang) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kComicLang, lang.trim());
+  }
+
+  // ─────────────────── 视频字幕翻译接口 ───────────────────
+
+  /// 视频字幕翻译功能级配置；baseUrl 为空时回落通用配置。
+  Future<NovelSummaryConfig> getMediaTranslationConfig() async {
+    final p = await SharedPreferences.getInstance();
+    final specific = _readConfig(p, _kMediaBase, _kMediaKey, _kMediaModel);
+    if (specific.baseUrl.trim().isNotEmpty) return specific;
+    return _readConfig(p, _kBase, _kKey, _kModel);
+  }
+
+  Future<void> saveMediaTranslationConfig(NovelSummaryConfig cfg) async {
+    final p = await SharedPreferences.getInstance();
+    await _writeConfig(p, _kMediaBase, _kMediaKey, _kMediaModel, cfg);
+  }
+
+  /// 视频字幕翻译目标语言（提示词用语；空回落小说翻译的目标语言）。
+  Future<String> getMediaTranslationTargetLanguage() async {
+    final p = await SharedPreferences.getInstance();
+    final v = p.getString(_kMediaLang);
+    if (v != null && v.trim().isNotEmpty) return v.trim();
+    return getTranslationTargetLanguage();
+  }
+
+  Future<void> saveMediaTranslationTargetLanguage(String lang) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kMediaLang, lang.trim());
   }
 
   // ─────────────────── 内部工具 ───────────────────

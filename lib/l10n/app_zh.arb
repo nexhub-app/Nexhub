@@ -131,7 +131,13 @@
   "danmakuSendHint": "输入弹幕内容",
   "danmakuUploadSuccess": "弹幕已上传",
   "danmakuUploadFailed": "弹幕上传失败：{error}",
-  "@danmakuUploadFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@danmakuUploadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "danmakuSendNoEpisode": "弹幕未匹配到剧集，仅本地显示",
   "danmakuSendTimeInvalid": "发送位置超出视频时长，仅本地显示",
   "danmakuLoginTitle": "登录弹弹play",
@@ -142,7 +148,13 @@
   "danmakuLoginEmptyFields": "请填写用户名与密码",
   "danmakuAccountSection": "弹弹play 账号",
   "danmakuAccountLoggedInAs": "已登录：{name}",
-  "@danmakuAccountLoggedInAs": {"placeholders": {"name": {"type": "String"}}},
+  "@danmakuAccountLoggedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "dandanplayLoggedOut": "已退出弹弹play 账号",
   "dandanplayAppNotConfigured": "弹弹play 应用未配置，当前无法登录",
   "dandanplayLoginTab": "登录",
@@ -161,7 +173,7 @@
   "themeDark": "深色",
   "themeSystem": "跟随系统",
   "useMonet": "使用动态取色（莫奈）",
-  "customColor": "自定义主题色",
+  "customColor": "自定义颜色",
   "presetColor": "预设颜色",
   "appearanceThemeSection": "主题",
   "appearanceColorsSection": "配色",
@@ -2704,8 +2716,12 @@
   "novelTranslateProgress": "已译 {done} 段",
   "@novelTranslateProgress": {
     "placeholders": {
-      "done": {"type": "String"},
-      "total": {"type": "String"}
+      "done": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "novelTranslateNoApi": "翻译失败——请先在「阅读速览」中配置云端 AI 接口",
@@ -2918,7 +2934,7 @@
   "novelAiIllustrateDone": "插图已追加到本章",
   "novelAiIllustrateFailed": "配图失败",
   "novelTwoPageModeDesc": "翻页模式下宽屏左右并排显示两页，如摊开的实体书",
-"novelHfTimeAndBattery": "时间及电量",
+  "novelHfTimeAndBattery": "时间及电量",
   "layoutDetailGroup": "布局细节",
   "layoutProgressDisplay": "进度显示方式",
   "progressBar": "进度条",
@@ -4254,7 +4270,6 @@
   "underlineStyleSolid": "实线",
   "underlineStyleWavy": "波浪线",
   "underlineStyleDotted": "虚线",
-  "customColor": "自定义颜色",
   "customColorApply": "应用自定义颜色",
   "selectionNote": "摘录",
   "selectionShare": "分享",
@@ -4268,5 +4283,21 @@
   "highlightNoteHint": "写下你的想法…",
   "highlightSave": "保存",
   "highlightJump": "跳转",
-  "highlightColor": "颜色"
+  "highlightColor": "颜色",
+  "comicTranslateSettingLabel": "漫画翻译",
+  "comicTranslateTurnOn": "翻译本页",
+  "comicTranslateTurnOff": "关闭翻译",
+  "comicTranslateLoading": "翻译中…",
+  "comicTranslateFailed": "翻译失败",
+  "subTransSectionTitle": "实时翻译",
+  "subTransToggle": "实时翻译字幕",
+  "subTransToggleDesc": "识别当前字幕并实时显示译文",
+  "subTransShowOriginal": "显示原文",
+  "subTransOcrFallback": "无字幕时识别画面",
+  "subTransOcrFallbackDesc": "无字幕轨时按间隔截取画面识别台词（消耗更多流量）",
+  "aiComicTranslationSection": "漫画翻译",
+  "aiComicTranslationDesc": "漫画页 OCR+翻译使用的视觉模型接口，留空回落通用配置",
+  "aiComicModelHint": "需支持视觉的模型，如 gpt-4o-mini",
+  "aiMediaTranslationSection": "视频字幕翻译",
+  "aiMediaTranslationDesc": "播放器实时字幕翻译接口，留空回落通用配置"
 }

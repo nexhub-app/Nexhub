@@ -140,7 +140,13 @@
   "danmakuSendHint": "Enter danmaku text",
   "danmakuUploadSuccess": "Danmaku posted",
   "danmakuUploadFailed": "Failed to post danmaku: {error}",
-  "@danmakuUploadFailed": {"placeholders": {"error": {"type": "String"}}},
+  "@danmakuUploadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "danmakuSendNoEpisode": "No matched danmaku episode; shown locally only",
   "danmakuSendTimeInvalid": "Position beyond video duration; shown locally only",
   "danmakuLoginTitle": "Sign in to DanDanPlay",
@@ -151,7 +157,13 @@
   "danmakuLoginEmptyFields": "Please enter username and password",
   "danmakuAccountSection": "DanDanPlay Account",
   "danmakuAccountLoggedInAs": "Signed in as {name}",
-  "@danmakuAccountLoggedInAs": {"placeholders": {"name": {"type": "String"}}},
+  "@danmakuAccountLoggedInAs": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "dandanplayLoggedOut": "Signed out of DanDanPlay",
   "dandanplayAppNotConfigured": "DanDanPlay app is not configured; login unavailable",
   "dandanplayLoginTab": "Sign in",
@@ -170,7 +182,7 @@
   "themeDark": "Dark",
   "themeSystem": "System",
   "useMonet": "Use dynamic color (Monet)",
-  "customColor": "Custom theme color",
+  "customColor": "Custom Color",
   "presetColor": "Preset colors",
   "appearanceThemeSection": "Theme",
   "appearanceColorsSection": "Colors",
@@ -2727,8 +2739,12 @@
   "novelTranslateProgress": "{done} of {total} paragraphs",
   "@novelTranslateProgress": {
     "placeholders": {
-      "done": {"type": "String"},
-      "total": {"type": "String"}
+      "done": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
     }
   },
   "novelTranslateNoApi": "Translation failed — configure the cloud AI endpoint in Reading Overview",
@@ -4298,7 +4314,6 @@
   "underlineStyleSolid": "Solid",
   "underlineStyleWavy": "Wavy",
   "underlineStyleDotted": "Dotted",
-  "customColor": "Custom Color",
   "customColorApply": "Apply Custom Color",
   "selectionNote": "Note",
   "selectionShare": "Share",
@@ -4312,5 +4327,21 @@
   "highlightNoteHint": "Write your thought…",
   "highlightSave": "Save",
   "highlightJump": "Go to",
-  "highlightColor": "Color"
+  "highlightColor": "Color",
+  "comicTranslateSettingLabel": "Manga translation",
+  "comicTranslateTurnOn": "Translate this page",
+  "comicTranslateTurnOff": "Turn off translation",
+  "comicTranslateLoading": "Translating…",
+  "comicTranslateFailed": "Translation failed",
+  "subTransSectionTitle": "Live translation",
+  "subTransToggle": "Translate subtitles in real time",
+  "subTransToggleDesc": "Detect the current subtitle line and show the translation on screen",
+  "subTransShowOriginal": "Show original text",
+  "subTransOcrFallback": "Recognize screen when no subtitles",
+  "subTransOcrFallbackDesc": "Capture frames periodically and recognize dialogue (uses more data)",
+  "aiComicTranslationSection": "Manga translation",
+  "aiComicTranslationDesc": "Vision endpoint for manga page OCR + translation; falls back to common API when empty",
+  "aiComicModelHint": "A vision-capable model, e.g. gpt-4o-mini",
+  "aiMediaTranslationSection": "Video subtitle translation",
+  "aiMediaTranslationDesc": "Endpoint for real-time subtitle translation in the player; falls back to common API when empty"
 }

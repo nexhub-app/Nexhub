@@ -1049,6 +1049,11 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       _buildAutoPageTurning(),
                       // 自动滚动（REQ-B10，条漫）：开关 + 滚动速度。
                       _buildAutoScroll(),
+                      // 漫画翻译：开启后对当前页 OCR+翻译并以气泡覆盖层显示。
+                      _switchTile(l10n.comicTranslateSettingLabel,
+                          _draft.translationEnabled,
+                          (v) =>
+                              _update(_draft.copyWith(translationEnabled: v))),
                     ],
                   ),
 

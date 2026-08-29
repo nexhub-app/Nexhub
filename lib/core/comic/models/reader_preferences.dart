@@ -612,6 +612,10 @@ class ReaderPreferences {
   final bool skipFilteredChapters;
   final bool skipDuplicateChapters;
 
+  /// 漫画翻译（漫画翻译功能）：开启后阅读器对当前页自动 OCR+翻译，
+  /// 译文以气泡覆盖层渲染在原图上。开关按作品持久化。
+  final bool translationEnabled;
+
   /// 每屏多图 gallery（REQ-C4）：竖/横屏一屏纵向堆叠张数，1–5，默认 1。
   final int readerScreenPicNumberForPortrait;
   final int readerScreenPicNumberForLandscape;
@@ -684,6 +688,7 @@ class ReaderPreferences {
     this.einkRefreshStyle = ReaderEInkRefreshStyle.white,
     this.isAutoFavorite = false,
     this.autoDownloadChapters = false,
+    this.translationEnabled = false,
     this.skipReadChapters = false,
     this.skipFilteredChapters = false,
     this.skipDuplicateChapters = false,
@@ -827,6 +832,7 @@ class ReaderPreferences {
       isAutoFavorite: json['isAutoFavorite'] as bool? ?? false,
       autoDownloadChapters:
           json['autoDownloadChapters'] as bool? ?? false,
+      translationEnabled: json['translationEnabled'] as bool? ?? false,
       skipReadChapters: json['skipReadChapters'] as bool? ?? false,
       skipFilteredChapters: json['skipFilteredChapters'] as bool? ?? false,
       skipDuplicateChapters: json['skipDuplicateChapters'] as bool? ?? false,
@@ -907,6 +913,7 @@ class ReaderPreferences {
         'einkRefreshStyle': einkRefreshStyle.name,
         'isAutoFavorite': isAutoFavorite,
         'autoDownloadChapters': autoDownloadChapters,
+        'translationEnabled': translationEnabled,
         'skipReadChapters': skipReadChapters,
         'skipFilteredChapters': skipFilteredChapters,
         'skipDuplicateChapters': skipDuplicateChapters,
@@ -982,6 +989,7 @@ class ReaderPreferences {
     ReaderEInkRefreshStyle? einkRefreshStyle,
     bool? isAutoFavorite,
     bool? autoDownloadChapters,
+    bool? translationEnabled,
     bool? skipReadChapters,
     bool? skipFilteredChapters,
     bool? skipDuplicateChapters,
@@ -1070,6 +1078,7 @@ class ReaderPreferences {
         isAutoFavorite: isAutoFavorite ?? this.isAutoFavorite,
         autoDownloadChapters:
             autoDownloadChapters ?? this.autoDownloadChapters,
+        translationEnabled: translationEnabled ?? this.translationEnabled,
         skipReadChapters: skipReadChapters ?? this.skipReadChapters,
         skipFilteredChapters:
             skipFilteredChapters ?? this.skipFilteredChapters,

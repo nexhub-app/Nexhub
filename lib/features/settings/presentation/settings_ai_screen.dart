@@ -4,7 +4,9 @@
 /// - **通用 API 配置**：所有 AI 功能的兜底 baseUrl/apiKey/model；
 /// - **章节速览**：速览方式（离线 / 云端 AI）+ 独立接口（留空回落通用）；
 /// - **AI 配图**：章节配图独立接口 + 生图模型与尺寸（留空回落通用）；
-/// - **双语/段落翻译**：翻译独立接口 + 目标语言 + 分块大小（留空回落通用）。
+/// - **双语/段落翻译**：翻译独立接口 + 目标语言 + 分块大小（留空回落通用）；
+/// - **漫画翻译**：视觉 OCR+翻译独立接口 + 目标语言（留空回落通用）；
+/// - **视频字幕翻译**：实时字幕翻译独立接口 + 目标语言（留空回落通用）。
 ///
 /// 存储走 [NovelSummarySettings]（SharedPreferences），与阅读器速览面板、
 /// 配图 / 翻译服务共享同一份配置。页面 body 用 [SettingsAutoScroll] 包裹，
@@ -63,6 +65,18 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
   final _trLangCtrl = TextEditingController();
   double _trBatch = 12;
 
+  // 漫画翻译（视觉 OCR+翻译）
+  final _comicBaseCtrl = TextEditingController();
+  final _comicKeyCtrl = TextEditingController();
+  final _comicModelCtrl = TextEditingController();
+  final _comicLangCtrl = TextEditingController();
+
+  // 视频字幕翻译
+  final _mediaBaseCtrl = TextEditingController();
+  final _mediaKeyCtrl = TextEditingController();
+  final _mediaModelCtrl = TextEditingController();
+  final _mediaLangCtrl = TextEditingController();
+
   bool _saving = false;
 
   @override
@@ -91,6 +105,17 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     final tModel = trCfg.model == defaultCfg.model ? '' : trCfg.model;
     final trLang = await _settings.getTranslationTargetLanguage();
     final trBatch = await _settings.getTranslationBatchSize();
+    // 漫画翻译 / 视频翻译：同样只回显功能级填写内容（与通用一致时留空）。
+    final comicCfg = await _settings.getComicTranslationConfig();
+    final cBase = comicCfg.baseUrl == defaultCfg.baseUrl ? '' : comicCfg.baseUrl;
+    final cKey = comicCfg.apiKey == defaultCfg.apiKey ? '' : comicCfg.apiKey;
+    final cModel = comicCfg.model == defaultCfg.model ? '' : comicCfg.model;
+    final comicLang = await _settings.getComicTranslationTargetLanguage();
+    final mediaCfg = await _settings.getMediaTranslationConfig();
+    final mBase = mediaCfg.baseUrl == defaultCfg.baseUrl ? '' : mediaCfg.baseUrl;
+    final mKey = mediaCfg.apiKey == defaultCfg.apiKey ? '' : mediaCfg.apiKey;
+    final mModel = mediaCfg.model == defaultCfg.model ? '' : mediaCfg.model;
+    final mediaLang = await _settings.getMediaTranslationTargetLanguage();
 
     if (!mounted) return;
     setState(() {
@@ -112,6 +137,16 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       _trModelCtrl.text = tModel;
       _trLangCtrl.text = trLang;
       _trBatch = trBatch.toDouble();
+
+      _comicBaseCtrl.text = cBase;
+      _comicKeyCtrl.text = cKey;
+      _comicModelCtrl.text = cModel;
+      _comicLangCtrl.text = comicLang;
+
+      _mediaBaseCtrl.text = mBase;
+      _mediaKeyCtrl.text = mKey;
+      _mediaModelCtrl.text = mModel;
+      _mediaLangCtrl.text = mediaLang;
     });
     // 配图模型与尺寸单独加载（避免阻塞首帧）。
     final illModel = await _settings.getIllustrationModel();
@@ -139,6 +174,14 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     _trKeyCtrl.dispose();
     _trModelCtrl.dispose();
     _trLangCtrl.dispose();
+    _comicBaseCtrl.dispose();
+    _comicKeyCtrl.dispose();
+    _comicModelCtrl.dispose();
+    _comicLangCtrl.dispose();
+    _mediaBaseCtrl.dispose();
+    _mediaKeyCtrl.dispose();
+    _mediaModelCtrl.dispose();
+    _mediaLangCtrl.dispose();
     super.dispose();
   }
 
@@ -170,6 +213,20 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       ));
       await _settings.saveTranslationTargetLanguage(_trLangCtrl.text.trim());
       await _settings.saveTranslationBatchSize(_trBatch.round());
+      await _settings.saveComicTranslationConfig(NovelSummaryConfig(
+        baseUrl: _comicBaseCtrl.text.trim(),
+        apiKey: _comicKeyCtrl.text.trim(),
+        model: _comicModelCtrl.text.trim(),
+      ));
+      await _settings.saveComicTranslationTargetLanguage(
+          _comicLangCtrl.text.trim());
+      await _settings.saveMediaTranslationConfig(NovelSummaryConfig(
+        baseUrl: _mediaBaseCtrl.text.trim(),
+        apiKey: _mediaKeyCtrl.text.trim(),
+        model: _mediaModelCtrl.text.trim(),
+      ));
+      await _settings.saveMediaTranslationTargetLanguage(
+          _mediaLangCtrl.text.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.aiSaved)),
@@ -328,6 +385,68 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                       .textTheme
                       .bodySmall
                       ?.copyWith(color: Theme.of(context).colorScheme.outline),
+                ),
+              ],
+            ),
+            SettingsCard(
+              key: const ValueKey<String>('ai.comicTranslation'),
+              title: l10n.aiComicTranslationSection,
+              description: l10n.aiComicTranslationDesc,
+              children: <Widget>[
+                Text(
+                  l10n.aiOverrideHint,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Theme.of(context).colorScheme.outline),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                _ApiFields(
+                  baseCtrl: _comicBaseCtrl,
+                  keyCtrl: _comicKeyCtrl,
+                  modelCtrl: _comicModelCtrl,
+                  baseHint: l10n.aiBaseUrlHint,
+                  modelHint: l10n.aiComicModelHint,
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                TextField(
+                  controller: _comicLangCtrl,
+                  decoration: InputDecoration(
+                    labelText: l10n.translationTargetLang,
+                    hintText: l10n.translationTargetLangHint,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+            SettingsCard(
+              key: const ValueKey<String>('ai.mediaTranslation'),
+              title: l10n.aiMediaTranslationSection,
+              description: l10n.aiMediaTranslationDesc,
+              children: <Widget>[
+                Text(
+                  l10n.aiOverrideHint,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Theme.of(context).colorScheme.outline),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                _ApiFields(
+                  baseCtrl: _mediaBaseCtrl,
+                  keyCtrl: _mediaKeyCtrl,
+                  modelCtrl: _mediaModelCtrl,
+                  baseHint: l10n.aiBaseUrlHint,
+                  modelHint: l10n.aiModelHint,
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                TextField(
+                  controller: _mediaLangCtrl,
+                  decoration: InputDecoration(
+                    labelText: l10n.translationTargetLang,
+                    hintText: l10n.translationTargetLangHint,
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
               ],
             ),

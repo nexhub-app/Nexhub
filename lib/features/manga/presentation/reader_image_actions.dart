@@ -37,6 +37,11 @@ Future<void> showReaderImageActions({
   /// 图片收藏入口（REQ-C2）：非空时显示「收藏此图」，点击调用后关闭面板。
   /// 由阅读器传入 toggle 当前页图片收藏的回调。
   Future<void> Function()? onFavoriteImage,
+  /// 漫画翻译入口：非空时显示「翻译本页 / 关闭翻译」，点击调用后关闭面板。
+  /// 由阅读器传入 toggle 当前页翻译的回调；[translationEnabled] 为当前开关态
+  ///（决定菜单项文案）。
+  Future<void> Function()? onToggleTranslation,
+  bool translationEnabled = false,
 }) async {
   final AppLocalizations l10n = AppLocalizations.of(context);
   final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -68,6 +73,20 @@ Future<void> showReaderImageActions({
                   onTap: () {
                     Navigator.of(ctx).pop();
                     unawaited(onFavoriteImage());
+                  },
+                ),
+              if (onToggleTranslation != null)
+                ListTile(
+                  leading: Icon(
+                    translationEnabled ? Icons.translate : Icons.g_translate,
+                    color: scheme.primary,
+                  ),
+                  title: Text(translationEnabled
+                      ? l10n.comicTranslateTurnOff
+                      : l10n.comicTranslateTurnOn),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    unawaited(onToggleTranslation());
                   },
                 ),
               ListTile(

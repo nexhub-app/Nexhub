@@ -64,6 +64,8 @@ import 'reader_image_actions.dart';
 import 'reader_image_filter.dart';
 import 'reader_tap_zones.dart';
 import 'image_favorite_gallery_screen.dart';
+import 'comic_translation_controller.dart';
+import 'comic_translation_overlay.dart';
 
 /// 段式连续模型（REQ-A1 跨章无缝续读）的段。
 ///
@@ -317,6 +319,61 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   set _currentPage(int v) {
     _currentPageValue = v;
     _currentPageNotifier.value = v;
+    // 漫画翻译开启时，翻到新页自动触发该页 OCR+翻译（内部有缓存/去重守卫，
+    // 高频调用无副作用；webtoon 滚动中反复触发同一页直接命中状态检查返回）。
+    if (_prefs.translationEnabled && _images.isNotEmpty && v >= 0 && v < _images.length) {
+      unawaited(_translation.ensureTranslated(
+        _images[v],
+        chapterKey: _translationChapterKey,
+        pageIndex: v,
+      ));
+    }
+  }
+
+  /// 翻译缓存键的章节部分：优先章节 id（在线源），本地模式回退章索引。
+  String get _translationChapterKey {
+    if (!_isLocalMode &&
+        _chapterIndex >= 0 &&
+        _chapterIndex < widget.chapters.length) {
+      final id = widget.chapters[_chapterIndex].id;
+      if (id.isNotEmpty) return id;
+    }
+    return 'ch$_chapterIndex';
+  }
+
+  /// 同步翻译开关到控制器（设置面板 / 全局偏好变化时调用）。
+  void _syncTranslation() {
+    unawaited(_translation.setEnabled(_prefs.translationEnabled));
+    if (_prefs.translationEnabled) {
+      // 开关刚打开：立即翻译当前页（翻页 setter 只在翻页时触发）。
+      final String? url = _currentPageImageUrl;
+      if (url != null) {
+        unawaited(_translation.ensureTranslated(
+          url,
+          chapterKey: _translationChapterKey,
+          pageIndex: _currentPage,
+        ));
+      }
+    }
+  }
+
+  /// 翻译失败重试（覆盖层错误徽标 → [MangaPageImage.translationRetry]）：
+  /// 按 URL 反查页码后重新发起。
+  void _translationRetryPage(String url) {
+    final int idx = _images.indexOf(url);
+    if (idx < 0) return;
+    unawaited(_translation.retry(
+      url,
+      chapterKey: _translationChapterKey,
+      pageIndex: idx,
+    ));
+  }
+
+  /// 长按 / 右键菜单「翻译本页 / 关闭翻译」：toggle 当前书翻译开关并落盘
+  ///（与底栏工具栏同款持久化路径），开关打开时立即对当前页发起翻译。
+  Future<void> _toggleCurrentPageTranslation() async {
+    final next = _prefs.copyWith(translationEnabled: !_prefs.translationEnabled);
+    await _applySettings(next, persist: true);
   }
 
   bool _uiVisible = false;
@@ -335,6 +392,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 图片收藏管理器与当前页图片收藏状态（REQ-C2 图片收藏图库）。
   final ImageFavoriteManager _imageFavMgr = ImageFavoriteManager();
   bool _isPageImageFav = false;
+
+  /// 漫画翻译控制器（漫画翻译功能）：开关跟随 [_prefs.translationEnabled]，
+  /// 翻页时对当前页触发 OCR+翻译，译文由 [MangaPageImage] 内嵌覆盖层渲染。
+  /// initState 显式构造（源配置异步加载后经 updateSource 补传）。
+  late final ComicTranslationController _translation;
 
   // ── 时间 / 电量浮层（REQ-C5）──
   String _currentTime = '';
@@ -684,6 +746,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 平移夹取上界随之改变，若不重算，已放大/已平移的图片在进出全屏时会出现位置
     // 偏移（验收 B3）。didChangeMetrics 里重夹矩阵修复之。
     WidgetsBinding.instance.addObserver(this);
+    _translation = ComicTranslationController(comicId: widget.comicId);
     _flashController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 120),
@@ -761,6 +824,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         }
       }
     }
+    _syncTranslation();
     _refreshFavorite();
     // 自动收藏（L3 漫画）：打开作品即加入收藏。已收藏跳过，避免 toggle 误移除。
     if (_effectivePrefs.isAutoFavorite &&
@@ -1172,6 +1236,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 不在此落盘就会全部丢失（「设置完退出重进后消失」的根因）。
     // _store 写 shared_preferences 不依赖 context，dispose 后异步完成是安全的。
     unawaited(_commitDeviceOverride());
+    // 停止漫画翻译控制器（进行中的请求结果不再写回状态）。
+    _translation.dispose();
     // 退出时一次性结算本次阅读会话（commit 内部 best-effort）。
     if (widget.sourceId.isNotEmpty) {
       unawaited(ReadingSessionRecorder.instance.commit(
@@ -1386,6 +1452,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       final source = _repo.getById(widget.sourceId);
       if (source == null) throw Exception('source not found: ${widget.sourceId}');
       _source = source;
+      // 翻译控制器的防盗链 headers 需要源配置（源异步加载后补传）。
+      _translation.updateSource(source);
       final chapter = widget.chapters[index];
       final List<String> imgs = _preload.remove(index) ??
           await _service.fetchImages(
@@ -3387,6 +3455,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 由 [_commitDeviceOverride] / persist 分支一并持久化。
     _overrideKeys.addAll(comicPrefsChangedKeys(prev, next));
     _prefs = next;
+    // 漫画翻译开关即时生效（打开时对当前页发起翻译）。
+    if (prev.translationEnabled != next.translationEnabled) _syncTranslation();
     if (persist) {
       _devicePrefs = null;
       await _store.save(widget.comicId, next, overrideKeys: _overrideKeys);
@@ -4416,6 +4486,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                         sourceType: SourceType.mangaSource,
                         onBookmarkChapter: _toggleChapterBookmarkFromMenu,
                         onFavoriteImage: _toggleCurrentPageImageFavorite,
+                        onToggleTranslation: _toggleCurrentPageTranslation,
+                        translationEnabled: _prefs.translationEnabled,
                       ),
               onTapIntercept: () {
                 if (_showInlineSettings) {
@@ -4436,6 +4508,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                         sourceType: SourceType.mangaSource,
                         onBookmarkChapter: _toggleChapterBookmarkFromMenu,
                         onFavoriteImage: _toggleCurrentPageImageFavorite,
+                        onToggleTranslation: _toggleCurrentPageTranslation,
+                        translationEnabled: _prefs.translationEnabled,
                       ),
               // 长按缩放（REQ-B2）：开启时长按定点放大 1.75x、松手恢复；
               // 关闭时由上方 onLongPress 保持「长按弹菜单」行为。
@@ -4770,6 +4844,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             source: _source,
             rotationQuarterTurns: _pageRotations[i] ?? 0,
             cropEdge: _prefs.cropEdge,
+            translation: _translation,
+            translationRetry: _translationRetryPage,
           ),
         );
       },
@@ -4810,6 +4886,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     source: _source,
                     rotationQuarterTurns: _pageRotations[i] ?? 0,
                     cropEdge: _prefs.cropEdge,
+                    translation: _translation,
+                    translationRetry: _translationRetryPage,
                   ),
                 ),
             ],
@@ -4858,6 +4936,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               source: _source,
               rotationQuarterTurns: _pageRotations[a] ?? 0,
               cropEdge: _prefs.cropEdge,
+              translation: _translation,
+              translationRetry: _translationRetryPage,
                 ),
           ),
         ];
@@ -4871,6 +4951,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               source: _source,
               rotationQuarterTurns: _pageRotations[b] ?? 0,
               cropEdge: _prefs.cropEdge,
+              translation: _translation,
+              translationRetry: _translationRetryPage,
                 ),
             ),
           );
@@ -5376,6 +5458,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               // fitWidth 下布局高度 = 自然高 × (视口宽 / 自然宽)。
               return dims.height * maxWidth / dims.width;
             },
+            translation: _translation,
+            translationRetry: _translationRetryPage,
           ),
         );
       },
@@ -6117,6 +6201,13 @@ class MangaPageImage extends StatefulWidget {
   /// 未命中（该图从未加载过）返回 null，由调用方回退经验值。
   final double? Function(String url, double maxWidth)? realHeightResolver;
 
+  /// 漫画翻译控制器（漫画翻译功能）。非 null 且开关打开时，在该页图片上
+  /// 叠加译文覆盖层（气泡按千分比坐标映射到显示矩形）。
+  final ComicTranslationController? translation;
+
+  /// 翻译失败重试回调（覆盖层错误徽标点击；由阅读器按 URL 反查页码后重试）。
+  final void Function(String url)? translationRetry;
+
   const MangaPageImage({
     super.key,
     required this.url,
@@ -6130,6 +6221,8 @@ class MangaPageImage extends StatefulWidget {
     this.onUrlLoaded,
     this.onImageInfo,
     this.realHeightResolver,
+    this.translation,
+    this.translationRetry,
   });
 
   @override
@@ -6255,10 +6348,15 @@ class _MangaPageImageState extends State<MangaPageImage> {
       colorProfile: widget.prefs.colorProfile,
       child: raw,
     );
+    // 漫画翻译覆盖层：叠加在滤镜后的图片上、旋转包裹内（页面旋转时译文
+    // 跟随图片方向），随缩放矩阵一起变换。不盖住滤镜效果之外的任何手势
+    // （气泡层内部 IgnorePointer，仅失败徽标可点重试）。
+    final Widget imgWithTranslation =
+        _buildTranslationOverlay(context, img);
     // 旋转包裹在 img 外：仅对该页生效，不影响其他页。
     final rotated = RotatedBox(
       quarterTurns: widget.rotationQuarterTurns,
-      child: img,
+      child: imgWithTranslation,
     );
     // 把 [_tc] 的矩阵应用到 rotated 上，得到「已缩放/已平移」的最终图像。
     // 必须用 AnimatedBuilder 监听 [_tc]：屏幕级滚轮 / 双击 / 捏合每次改值都会即时
@@ -6317,6 +6415,39 @@ class _MangaPageImageState extends State<MangaPageImage> {
       case ReaderInitialZoom.original:
         return (BoxFit.none, null);
     }
+  }
+
+  /// 漫画翻译覆盖层：翻译关闭 / 无翻译任务时原样返回 [child]，
+  /// 有任务（加载中/完成/失败）时在图片上叠加 [ComicTranslationOverlay]。
+  Widget _buildTranslationOverlay(BuildContext context, Widget child) {
+    final controller = widget.translation;
+    if (controller == null) return child;
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (BuildContext context, Widget? cached) {
+        if (!controller.enabled) return child;
+        final state = controller.stateFor(widget.url);
+        if (state.status == ComicPageTranslationStatus.idle) return child;
+        // 覆盖层按「本页图片 + 当前页索引」重试（章/页键由阅读器闭包提供）。
+        return Stack(
+          fit: StackFit.passthrough,
+          children: <Widget>[
+            cached ?? child,
+            Positioned.fill(
+              child: ComicTranslationOverlay(
+                state: state,
+                zoom: widget.prefs.initialZoom,
+                cropEdge: widget.cropEdge,
+                onRetry: widget.translationRetry == null
+                    ? null
+                    : () => widget.translationRetry!(widget.url),
+              ),
+            ),
+          ],
+        );
+      },
+      child: child,
+    );
   }
 }
 

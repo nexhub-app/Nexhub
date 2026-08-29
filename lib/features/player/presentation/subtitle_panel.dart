@@ -6,6 +6,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
 
 import '../../../core/player/player_controller.dart';
+import '../../../core/player/subtitle_translation_controller.dart';
 import '../../../core/settings/player_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
@@ -14,11 +15,14 @@ import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 ///
 /// 展示可用字幕轨道列表、字幕偏移滑块（-5s~+5s）与显示开关，
 /// 通过 [PlayerController] 实时切换 / 调整字幕，变更立即生效。
+/// 另含「实时翻译」区块（[SubtitleTranslationController]，可选注入）：
+/// 开关 / 显示原文 / 无字幕时画面 OCR 兜底。
 class SubtitlePanel extends StatefulWidget {
   const SubtitlePanel({
     super.key,
     required this.controller,
     this.defaults,
+    this.translator,
   });
 
   final PlayerController controller;
@@ -26,11 +30,15 @@ class SubtitlePanel extends StatefulWidget {
  /// 全局播放器默认设置：面板样式项的初始值来源（打通设置页默认值）。
   final PlayerSettings? defaults;
 
+  /// 视频实时翻译控制器；null 时不显示翻译区块（如测试环境）。
+  final SubtitleTranslationController? translator;
+
  /// 以 modal bottom sheet 形式展示字幕面板。
   static Future<void> show(
     BuildContext context, {
     required PlayerController controller,
     PlayerSettings? defaults,
+    SubtitleTranslationController? translator,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -41,8 +49,11 @@ class SubtitlePanel extends StatefulWidget {
           top: Radius.circular(AppTokens.radiusLg),
         ),
       ),
-      builder: (BuildContext context) =>
-          SubtitlePanel(controller: controller, defaults: defaults),
+      builder: (BuildContext context) => SubtitlePanel(
+        controller: controller,
+        defaults: defaults,
+        translator: translator,
+      ),
     );
   }
 
@@ -143,6 +154,11 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                     _offsetSection(l10n, theme),
                     const SizedBox(height: AppTokens.spaceXs),
                     _visibleSection(l10n, theme),
+                    if (widget.translator != null) ...<Widget>[
+                      const SizedBox(height: AppTokens.spaceXs),
+                      const Divider(height: 1),
+                      _translationSection(l10n, theme),
+                    ],
                     const SizedBox(height: AppTokens.spaceLg),
                   ],
                 );
@@ -543,6 +559,58 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
       onChanged: (bool v) {
         widget.controller.setSubtitleVisible(v);
         unawaited(widget.controller.saveSubtitleState());
+      },
+    );
+  }
+
+  /// 实时翻译区块（视频实时翻译功能）：开关 + 显示原文 + 画面 OCR 兜底。
+  /// 译文渲染在播放画面覆盖层（TranslatedSubtitleOverlay），不在本面板内。
+  /// 包 [ListenableBuilder]：开关切换后区块即时刷新（面板外层仅监听
+  /// PlayerController，不覆盖翻译控制器的变更）。
+  Widget _translationSection(AppLocalizations l10n, ThemeData theme) {
+    final SubtitleTranslationController t = widget.translator!;
+    return ListenableBuilder(
+      listenable: t,
+      builder: (BuildContext context, _) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
+              child: Text(
+                l10n.subTransSectionTitle,
+                style: theme.textTheme.titleSmall,
+              ),
+            ),
+            SwitchListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.subTransToggle),
+              subtitle: Text(l10n.subTransToggleDesc,
+                  style: theme.textTheme.bodySmall),
+              value: t.enabled,
+              onChanged: (bool v) => unawaited(t.setEnabled(v)),
+            ),
+            if (t.enabled) ...<Widget>[
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(l10n.subTransShowOriginal),
+                value: t.showOriginal,
+                onChanged: (bool v) => unawaited(t.setShowOriginal(v)),
+              ),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(l10n.subTransOcrFallback),
+                subtitle: Text(l10n.subTransOcrFallbackDesc,
+                    style: theme.textTheme.bodySmall),
+                value: t.ocrFallback,
+                onChanged: (bool v) => unawaited(t.setOcrFallback(v)),
+              ),
+            ],
+          ],
+        );
       },
     );
   }

@@ -7699,4 +7699,52 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get highlightColor => '颜色';
+
+  @override
+  String get comicTranslateSettingLabel => '漫画翻译';
+
+  @override
+  String get comicTranslateTurnOn => '翻译本页';
+
+  @override
+  String get comicTranslateTurnOff => '关闭翻译';
+
+  @override
+  String get comicTranslateLoading => '翻译中…';
+
+  @override
+  String get comicTranslateFailed => '翻译失败';
+
+  @override
+  String get subTransSectionTitle => '实时翻译';
+
+  @override
+  String get subTransToggle => '实时翻译字幕';
+
+  @override
+  String get subTransToggleDesc => '识别当前字幕并实时显示译文';
+
+  @override
+  String get subTransShowOriginal => '显示原文';
+
+  @override
+  String get subTransOcrFallback => '无字幕时识别画面';
+
+  @override
+  String get subTransOcrFallbackDesc => '无字幕轨时按间隔截取画面识别台词（消耗更多流量）';
+
+  @override
+  String get aiComicTranslationSection => '漫画翻译';
+
+  @override
+  String get aiComicTranslationDesc => '漫画页 OCR+翻译使用的视觉模型接口，留空回落通用配置';
+
+  @override
+  String get aiComicModelHint => '需支持视觉的模型，如 gpt-4o-mini';
+
+  @override
+  String get aiMediaTranslationSection => '视频字幕翻译';
+
+  @override
+  String get aiMediaTranslationDesc => '播放器实时字幕翻译接口，留空回落通用配置';
 }

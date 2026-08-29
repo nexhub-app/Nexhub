@@ -7881,4 +7881,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get highlightColor => 'Color';
+
+  @override
+  String get comicTranslateSettingLabel => 'Manga translation';
+
+  @override
+  String get comicTranslateTurnOn => 'Translate this page';
+
+  @override
+  String get comicTranslateTurnOff => 'Turn off translation';
+
+  @override
+  String get comicTranslateLoading => 'Translating…';
+
+  @override
+  String get comicTranslateFailed => 'Translation failed';
+
+  @override
+  String get subTransSectionTitle => 'Live translation';
+
+  @override
+  String get subTransToggle => 'Translate subtitles in real time';
+
+  @override
+  String get subTransToggleDesc =>
+      'Detect the current subtitle line and show the translation on screen';
+
+  @override
+  String get subTransShowOriginal => 'Show original text';
+
+  @override
+  String get subTransOcrFallback => 'Recognize screen when no subtitles';
+
+  @override
+  String get subTransOcrFallbackDesc =>
+      'Capture frames periodically and recognize dialogue (uses more data)';
+
+  @override
+  String get aiComicTranslationSection => 'Manga translation';
+
+  @override
+  String get aiComicTranslationDesc =>
+      'Vision endpoint for manga page OCR + translation; falls back to common API when empty';
+
+  @override
+  String get aiComicModelHint => 'A vision-capable model, e.g. gpt-4o-mini';
+
+  @override
+  String get aiMediaTranslationSection => 'Video subtitle translation';
+
+  @override
+  String get aiMediaTranslationDesc =>
+      'Endpoint for real-time subtitle translation in the player; falls back to common API when empty';
 }

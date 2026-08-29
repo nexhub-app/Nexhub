@@ -14809,6 +14809,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Color'**
   String get highlightColor;
+
+  /// No description provided for @comicTranslateSettingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga translation'**
+  String get comicTranslateSettingLabel;
+
+  /// No description provided for @comicTranslateTurnOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate this page'**
+  String get comicTranslateTurnOn;
+
+  /// No description provided for @comicTranslateTurnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off translation'**
+  String get comicTranslateTurnOff;
+
+  /// No description provided for @comicTranslateLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Translating…'**
+  String get comicTranslateLoading;
+
+  /// No description provided for @comicTranslateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation failed'**
+  String get comicTranslateFailed;
+
+  /// No description provided for @subTransSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live translation'**
+  String get subTransSectionTitle;
+
+  /// No description provided for @subTransToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate subtitles in real time'**
+  String get subTransToggle;
+
+  /// No description provided for @subTransToggleDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect the current subtitle line and show the translation on screen'**
+  String get subTransToggleDesc;
+
+  /// No description provided for @subTransShowOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Show original text'**
+  String get subTransShowOriginal;
+
+  /// No description provided for @subTransOcrFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognize screen when no subtitles'**
+  String get subTransOcrFallback;
+
+  /// No description provided for @subTransOcrFallbackDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture frames periodically and recognize dialogue (uses more data)'**
+  String get subTransOcrFallbackDesc;
+
+  /// No description provided for @aiComicTranslationSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga translation'**
+  String get aiComicTranslationSection;
+
+  /// No description provided for @aiComicTranslationDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision endpoint for manga page OCR + translation; falls back to common API when empty'**
+  String get aiComicTranslationDesc;
+
+  /// No description provided for @aiComicModelHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A vision-capable model, e.g. gpt-4o-mini'**
+  String get aiComicModelHint;
+
+  /// No description provided for @aiMediaTranslationSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Video subtitle translation'**
+  String get aiMediaTranslationSection;
+
+  /// No description provided for @aiMediaTranslationDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoint for real-time subtitle translation in the player; falls back to common API when empty'**
+  String get aiMediaTranslationDesc;
 }
 
 class _AppLocalizationsDelegate
