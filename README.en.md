@@ -1,6 +1,6 @@
 **English** | [简体中文](./README.md)
 
-> Latest release: **v2.0.0-beta.2 (pre-release beta)**. The previous stable release is **v1.2.0** (major stability fixes for local download / import + reader experience improvements). The project is under continuous development. Contributions and ideas are welcome via Pull Requests / issues. See [RELEASE_NOTES](./RELEASE_NOTES.md) for the full changelog.
+> Latest release: **v2.0.0-beta.3 (pre-release beta)**. The previous stable release is **v1.2.0** (major stability fixes for local download / import + reader experience improvements). The project is under continuous development. Contributions and ideas are welcome via Pull Requests / issues. See [RELEASE_NOTES](./RELEASE_NOTES.md) for the full changelog.
 
 # NexHub
 
@@ -42,11 +42,10 @@ Benefits of this design:
 
 The following features are **not yet implemented** and are priorities for upcoming versions. Design trade-offs are welcome in GitHub Discussions / Issues:
 
-1. **AI integration**: AI-assisted source discovery, content summaries, anime/book companions, natural-language search, etc.;
-2. **Novel translation**: machine-translation pipeline with original/translation side-by-side, on-demand paragraph translation and caching;
-3. **Manga translation (MTL)**: machine-translation text embedding / speech-bubble replacement for manga images to lower the barrier for cross-language manga reading;
-4. **Real-time video translation**: subtitle / real-time subtitle translation for video, with language switching for both external and embedded subtitles;
-5. **More sync backends**: in addition to Bangumi sync, integrate AniList, MyAnimeList, Trakt, SIMKL, MDList, etc., with cross-backend two-way sync and configurable conflict strategies.
+1. **More sync backends**: in addition to Bangumi sync, integrate AniList, MyAnimeList, Trakt, SIMKL, MDList, etc., with cross-backend two-way sync and configurable conflict strategies;
+2. **AI source search / natural-language retrieval**: deeper AI assistance such as searching sources by natural language, anime/book companions, etc.
+
+> Shipped: Manga page translation (MTL) and real-time video subtitle translation landed in **v2.0.0-beta.3**; novel translation (AI bilingual / paragraph) and AI assistance (content summary / chapter illustration) landed in **v2.0.0-beta.2**. The items above are not part of this release; their order and form will adapt to community feedback.
 
 ---
 
