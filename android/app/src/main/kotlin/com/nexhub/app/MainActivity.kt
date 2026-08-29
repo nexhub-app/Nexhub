@@ -21,8 +21,8 @@ import android.util.Rational
 import android.view.KeyEvent
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.webkit.proxy.ProxyConfig
-import androidx.webkit.proxy.ProxyController
+import androidx.webkit.ProxyConfig
+import androidx.webkit.ProxyController
 import com.ryanheise.audioservice.AudioServicePlugin
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -172,8 +172,8 @@ class MainActivity : FlutterFragmentActivity() {
                                 .build()
                             ProxyController.getInstance().setProxyOverride(
                                 proxyConfig,
-                                { result.success(true) },
-                                ContextCompat.getMainExecutor(this)
+                                ContextCompat.getMainExecutor(this),
+                                { result.success(true) }
                             )
                         } catch (e: Exception) {
                             result.success(false)
@@ -186,8 +186,8 @@ class MainActivity : FlutterFragmentActivity() {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                         try {
                             ProxyController.getInstance().clearProxyOverride(
-                                { result.success(true) },
-                                ContextCompat.getMainExecutor(this)
+                                ContextCompat.getMainExecutor(this),
+                                { result.success(true) }
                             )
                         } catch (e: Exception) {
                             result.success(false)
