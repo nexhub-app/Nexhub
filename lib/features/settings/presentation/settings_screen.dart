@@ -1241,6 +1241,20 @@ class SettingsScreen extends StatelessWidget {
         scrollKeyId: 'ai.mediaTranslation',
       ),
       _SettingEntry(
+        icon: Icons.delete_sweep_outlined,
+        title: l10n.translationCacheTitle,
+        desc: l10n.translationCacheDesc,
+        keywords: const <String>[
+          '翻译缓存',
+          '缓存',
+          '清除',
+          '清理',
+          'cache',
+        ],
+        builder: (_) => const SettingsAiScreen(),
+        scrollKeyId: 'translation.cache',
+      ),
+      _SettingEntry(
         icon: Icons.extension_outlined,
         title: l10n.sourceManagementTitle,
         desc: l10n.subscriptionManagementDesc,

@@ -7747,4 +7747,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiMediaTranslationDesc => '播放器实时字幕翻译接口，留空回落通用配置';
+
+  @override
+  String get translationCacheTitle => '翻译缓存';
+
+  @override
+  String get translationCacheDesc => '本地缓存的逐条 AI 译文；清除后相同内容会重新翻译（重新计费）';
+
+  @override
+  String get translationCacheNovel => '小说段落翻译';
+
+  @override
+  String get translationCacheComic => '漫画页翻译';
+
+  @override
+  String get translationCacheSubtitle => '视频字幕翻译';
+
+  @override
+  String translationCacheEntries(Object count) {
+    return '$count 条';
+  }
+
+  @override
+  String get translationCacheClear => '清除全部翻译缓存';
+
+  @override
+  String get translationCacheClearConfirm => '确定清除全部翻译缓存？已译内容将重新翻译并产生接口费用。';
+
+  @override
+  String get translationCacheCleared => '翻译缓存已清除';
 }

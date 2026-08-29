@@ -7933,4 +7933,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiMediaTranslationDesc =>
       'Endpoint for real-time subtitle translation in the player; falls back to common API when empty';
+
+  @override
+  String get translationCacheTitle => 'Translation cache';
+
+  @override
+  String get translationCacheDesc =>
+      'Per-item AI translation results cached locally; clearing them means re-translating (and re-charging)';
+
+  @override
+  String get translationCacheNovel => 'Novel paragraph translation';
+
+  @override
+  String get translationCacheComic => 'Manga page translation';
+
+  @override
+  String get translationCacheSubtitle => 'Video subtitle translation';
+
+  @override
+  String translationCacheEntries(Object count) {
+    return '$count entries';
+  }
+
+  @override
+  String get translationCacheClear => 'Clear all translation caches';
+
+  @override
+  String get translationCacheClearConfirm =>
+      'Clear all translation caches? Translated content will be re-translated with additional API cost.';
+
+  @override
+  String get translationCacheCleared => 'Translation caches cleared';
 }

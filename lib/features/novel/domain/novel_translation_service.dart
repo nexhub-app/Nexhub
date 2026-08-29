@@ -4,13 +4,19 @@
 /// - **翻译级独立接口**优先（AI 配置页），baseUrl 为空时回落通用配置；
 /// - 目标语言 / 分块大小读取翻译配置页的设置；
 /// - **批量优先**：全部段落以 `<<<N>>>` 序号分隔拼成一次请求，解析回逐段译文
-///   （省 token、快）；
+///   （省 token、快）；协议编解码统一走 [BatchProtocol]（B9 收敛单份实现）；
+/// - **预算保护**（B3）：段落数超过 [_kOneShotMaxParagraphs] 时直接跳过
+///   整章 one-shot 进入分块——超大章的整章请求几乎必被输出上限截断，
+///   先试再败只会白付一次大请求的 token/延迟；
 /// - **分块回退**：批量解析段数不齐 / 请求失败时按 [batchSize] 分块重试；
 /// - 译文由调用方经 [NovelTranslationManager] 持久化（F5 导出附带同源）。
 library;
 
 import 'package:dio/dio.dart';
 
+import '../../../core/ai/batch_protocol.dart';
+import '../../../core/ai/translation_exception.dart';
+import '../../../core/utils/app_log.dart';
 import '../../../../core/novel/novel_translation_manager.dart';
 import 'novel_summary_settings.dart';
 import 'novel_summary_service.dart' show NovelSummaryConfig;
@@ -31,48 +37,16 @@ class NovelTranslationService {
   /// 翻译目标语言（提示词用，默认中文）；null 时运行时读翻译配置页设置。
   final String? _targetLanguage;
 
-  /// 批量分隔标记（行首独立出现；正文含该串的概率可忽略）。
-  static const String batchMarker = '<<<';
+  /// 单次请求的段落数上限（B3）：超过直接分块，避免必然截断的超大请求。
+  static const int _kOneShotMaxParagraphs = 40;
 
-  /// 把段落列表编码为单次请求的用户消息。
-  static String encodeBatch(List<String> paragraphs) {
-    final buf = StringBuffer();
-    for (var i = 0; i < paragraphs.length; i++) {
-      buf.writeln('$batchMarker${i + 1}>>>');
-      buf.writeln(paragraphs[i]);
-    }
-    return buf.toString();
-  }
+  /// 批量协议编码（兼容旧入口；实现收敛于 [BatchProtocol]，B9）。
+  static String encodeBatch(List<String> paragraphs) =>
+      BatchProtocol.encode(paragraphs);
 
-  /// 解析模型返回的批量译文为逐段列表。
-  ///
-  /// 宽容策略：以 `<<<N>>>` 行切分；序号缺失/乱序时按出现顺序对位；
-  /// 解析出的段数少于 [expected] 或有空槽时返回 null（调用方走分块回退）。
-  static List<String>? parseBatched(String raw, int expected) {
-    if (raw.trim().isEmpty || expected <= 0) return null;
-    final pattern = RegExp(r'<<<\s*(\d+)\s*>>>');
-    final matches = pattern.allMatches(raw).toList();
-    if (matches.isEmpty) return null;
-    // 按标记切出各段译文。
-    final parts = <String>[];
-    for (var i = 0; i < matches.length; i++) {
-      final start = matches[i].end;
-      final end = i + 1 < matches.length ? matches[i + 1].start : raw.length;
-      parts.add(raw.substring(start, end).trim());
-    }
-    if (parts.length < expected) return null;
-    // 按标记序号对位；序号越界/重复时落入第一个空槽顺延兜底。
-    final result = List<String>.filled(expected, '');
-    for (var i = 0; i < matches.length; i++) {
-      var idx = (int.tryParse(matches[i].group(1)!) ?? (i + 1)) - 1;
-      if (idx < 0 || idx >= expected || result[idx].isNotEmpty) {
-        idx = result.indexWhere((s) => s.isEmpty);
-        if (idx < 0) break;
-      }
-      result[idx] = parts[i];
-    }
-    return result.any((s) => s.isEmpty) ? null : result;
-  }
+  /// 批量协议解析（兼容旧入口；实现收敛于 [BatchProtocol]，B9）。
+  static List<String>? parseBatched(String raw, int expected) =>
+      BatchProtocol.decode(raw, expected);
 
   /// 翻译整个段落列表。返回与输入等长的译文列表（失败抛异常，由 UI 展示）。
   ///
@@ -85,23 +59,29 @@ class NovelTranslationService {
     if (paragraphs.isEmpty) return const <String>[];
     final cfg = await _settings.getTranslationConfig();
     if (cfg.baseUrl.trim().isEmpty) {
-      throw Exception('未配置云端 AI 接口');
+      throw const TranslationException('未配置云端 AI 接口');
     }
     final lang =
         _targetLanguage ?? await _settings.getTranslationTargetLanguage();
     final chunkSize =
         batchSize ?? await _settings.getTranslationBatchSize();
 
-    // 1) 整章一次批量（最省 token）；失败/解析不齐 → 分块回退。
-    try {
-      final oneShot = await _requestBatch(paragraphs, cfg, lang);
-      final parsed = parseBatched(oneShot, paragraphs.length);
-      if (parsed != null) {
-        onProgress?.call(paragraphs.length, paragraphs.length);
-        return parsed;
+    // 1) 整章一次批量（最省 token）；超大章（B3）直接跳过——必然截断的
+    //    请求不值得先付一次 token/延迟；失败/解析不齐 → 分块回退。
+    final bool tryOneShot =
+        paragraphs.length <= _kOneShotMaxParagraphs && batchSize == null;
+    if (tryOneShot) {
+      try {
+        final oneShot = await _requestBatch(paragraphs, cfg, lang);
+        final parsed = parseBatched(oneShot, paragraphs.length);
+        if (parsed != null) {
+          onProgress?.call(paragraphs.length, paragraphs.length);
+          return parsed;
+        }
+      } on Object catch (e) {
+        // 落入分块回退。
+        AppLog.instance.w('[小说翻译] 整章批量失败，转入分块回退: $e');
       }
-    } on Object {
-      // 落入分块回退。
     }
 
     // 2) 分块翻译（每块 chunkSize 段，块内仍走批量协议）。
@@ -112,7 +92,7 @@ class NovelTranslationService {
       final chunk = paragraphs.sublist(start, end);
       final raw = await _requestBatch(chunk, cfg, lang);
       final parsed =
-          parseBatched(raw, chunk.length) ?? (throw Exception('翻译返回格式异常'));
+          parseBatched(raw, chunk.length) ?? (throw const TranslationException('翻译返回格式异常'));
       for (var i = 0; i < chunk.length; i++) {
         result[start + i] = parsed[i];
       }
@@ -125,41 +105,50 @@ class NovelTranslationService {
   Future<String> _requestBatch(
       List<String> paragraphs, NovelSummaryConfig cfg, String lang) async {
     final trimmedBase = cfg.baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
-    final resp = await _dio.post<Map<String, dynamic>>(
-      '$trimmedBase/chat/completions',
-      options: Options(
-        headers: <String, dynamic>{
-          'Content-Type': 'application/json',
-          if (cfg.apiKey.trim().isNotEmpty)
-            'Authorization': 'Bearer ${cfg.apiKey.trim()}',
-        },
-        sendTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 120),
-      ),
-      data: <String, dynamic>{
-        'model':
-            cfg.model.trim().isNotEmpty ? cfg.model.trim() : 'gpt-3.5-turbo',
-        'messages': <Map<String, dynamic>>[
-          <String, dynamic>{
-            'role': 'system',
-            'content': '你是专业的小说译者。把用户给出的每个编号段落翻译成'
-                '$lang，保持原文的语气与人名译名一致。'
-                '输出必须严格保持编号格式：每段译文前单独一行 <<<序号>>>，'
-                '不要添加任何解释或合并段落。',
+    try {
+      final resp = await _dio.post<Map<String, dynamic>>(
+        '$trimmedBase/chat/completions',
+        options: Options(
+          headers: <String, dynamic>{
+            'Content-Type': 'application/json',
+            if (cfg.apiKey.trim().isNotEmpty)
+              'Authorization': 'Bearer ${cfg.apiKey.trim()}',
           },
-          <String, dynamic>{'role': 'user', 'content': encodeBatch(paragraphs)},
-        ],
-        'temperature': 0.2,
-      },
-    );
-    final choices = resp.data?['choices'] as List?;
-    if (choices == null || choices.isEmpty) {
-      throw Exception('empty choices');
+          sendTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 120),
+        ),
+        data: <String, dynamic>{
+          'model': cfg.model.trim().isNotEmpty
+              ? cfg.model.trim()
+              : 'gpt-3.5-turbo',
+          'messages': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'role': 'system',
+              'content': '你是专业的小说译者。把用户给出的每个编号段落翻译成'
+                  '$lang，保持原文的语气与人名译名一致。'
+                  '本次共 ${paragraphs.length} 段，请完整输出 ${paragraphs.length} 段，'
+                  '不要省略或合并。'
+                  '输出必须严格保持编号格式：每段译文前单独一行 <<<序号>>>，'
+                  '不要添加任何解释或合并段落。',
+            },
+            <String, dynamic>{'role': 'user', 'content': encodeBatch(paragraphs)},
+          ],
+          'temperature': 0.2,
+        },
+      );
+      final choices = resp.data?['choices'] as List?;
+      if (choices == null || choices.isEmpty) {
+        throw const TranslationException('AI 返回内容为空');
+      }
+      final content = (choices.first['message'] as Map?)?['content'] as String?;
+      if (content == null || content.trim().isEmpty) {
+        throw const TranslationException('AI 返回内容为空');
+      }
+      return content;
+    } on Object catch (e) {
+      // B7：网络/超时类底层异常归一化后上抛，原始细节入日志。
+      AppLog.instance.w('[小说翻译] 请求失败: $e');
+      throw TranslationException.from(e);
     }
-    final content = (choices.first['message'] as Map?)?['content'] as String?;
-    if (content == null || content.trim().isEmpty) {
-      throw Exception('empty content');
-    }
-    return content;
   }
 }

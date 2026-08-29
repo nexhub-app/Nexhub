@@ -5,9 +5,13 @@
 ///   调用 [ensureTranslated] 触发当前页翻译；
 /// - 图片获取：本地路径直接读文件；网络 URL 走 [DefaultCacheManager]
 ///   （命中磁盘缓存零流量，未命中带防盗链 headers 下载）；
-/// - 图片预处理：超过上限时经 dart:ui 解码下采样再编码，控制请求体积；
+/// - 图片预处理：超过上限时经 [AiImageResizer] 下采样再编码，控制请求体积；
 /// - 调用 [VisionTranslationClient]（视觉模型一次完成 OCR + 翻译），
-///   结果经 [ComicTranslationManager] 持久化（`comicId|章|页|语言` 键）。
+///   结果经 [ComicTranslationManager] 持久化（`comicId|章|页|语言` 键）；
+/// - **并发信号量**（B2）：快速连续翻页时网络请求并发上限 2，防止瞬时打爆
+///   接口限流；缓存命中路径不占槽位；
+/// - 错误归一化（B7）：catch 处统一转 [TranslationException] 可读文案，
+///   原始异常细节仅入 [AppLog]。
 ///
 /// 状态以 [Listenable]（ChangeNotifier）暴露，[MangaPageImage] 内嵌的
 /// 覆盖层监听后按千分比坐标把译文渲染到原图对应位置上。
@@ -15,7 +19,6 @@ library;
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show Size;
@@ -24,10 +27,13 @@ import 'package:flutter/widgets.dart' show Size;
 // ignore: depend_on_referenced_packages
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+import '../../../core/ai/image_resizer.dart';
+import '../../../core/ai/translation_exception.dart';
 import '../../../core/ai/vision_translation_client.dart';
 import '../../../core/comic/comic_translation_manager.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/scraper/http_fetcher.dart';
+import '../../../core/utils/app_log.dart';
 import '../../novel/domain/novel_summary_service.dart';
 import '../../novel/domain/novel_summary_settings.dart';
 
@@ -81,6 +87,10 @@ class ComicTranslationController extends ChangeNotifier {
   /// 原始字节直接发送的上限：超过才走解码下采样（绝大多数漫画页 < 4MB）。
   static const int _kDirectSendLimitBytes = 6 * 1024 * 1024;
 
+  /// 全局并发上限（B2）：快速连续翻页时在途视觉请求最多 2 个，
+  /// 避免瞬时并发触发上游 429/限流。缓存命中不占槽位。
+  static const int _kMaxConcurrent = 2;
+
   final String comicId;
   final ComicTranslationManager _manager;
   final VisionTranslationClient _client;
@@ -103,10 +113,31 @@ class ComicTranslationController extends ChangeNotifier {
   /// 进行中的请求（防同页重复触发）。
   final Set<String> _inFlight = <String>{};
 
+  // ── 并发信号量（B2）──
+  int _active = 0;
+  final List<void Function()> _waiters = <void Function()>[];
+
   bool get enabled => _enabled;
 
   ComicPageTranslationState stateFor(String url) =>
       _states[url] ?? const ComicPageTranslationState();
+
+  /// 轻量信号量：并发达到 [_kMaxConcurrent] 时排队等待，槽位释放按
+  /// 先到先得唤醒。仅网络请求段使用；缓存命中不经过此门。
+  Future<T> _withSlot<T>(Future<T> Function() task) async {
+    while (_active >= _kMaxConcurrent) {
+      final completer = Completer<void>();
+      _waiters.add(completer.complete);
+      await completer.future;
+    }
+    _active++;
+    try {
+      return await task();
+    } finally {
+      _active--;
+      if (_waiters.isNotEmpty) _waiters.removeAt(0)();
+    }
+  }
 
   /// 开关翻译。开启时读取目标语言配置（一次），由阅读器随后对当前页
   /// 调用 [ensureTranslated]。
@@ -121,7 +152,8 @@ class ComicTranslationController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 确保某页已翻译：缓存命中直接回填状态；否则发起 OCR+翻译。
+  /// 确保某页已翻译：缓存命中直接回填状态（不占并发槽位）；否则经
+  /// 信号量排队发起 OCR+翻译。
   Future<void> ensureTranslated(
     String url, {
     required String chapterKey,
@@ -139,7 +171,6 @@ class ComicTranslationController extends ChangeNotifier {
     _states[url] =
         (existing ?? const ComicPageTranslationState()).copyWith(
       status: ComicPageTranslationStatus.loading,
-      error: null,
     );
     notifyListeners();
     try {
@@ -158,26 +189,12 @@ class ComicTranslationController extends ChangeNotifier {
         );
         // 空页缓存无解码机会，仍需补自然尺寸（供覆盖层坐标映射）。
         if (_states[url]!.naturalSize == Size.zero) {
-          unawaited(() async {
-            final Size size;
-            try {
-              size = await _decodeSize(await _loadImageBytes(url));
-            } on Object {
-              return;
-            }
-            if (size == Size.zero) return;
-            final s = _states[url];
-            if (s == null ||
-                s.status != ComicPageTranslationStatus.done) {
-              return;
-            }
-            _states[url] = s.copyWith(naturalSize: size);
-            notifyListeners();
-          }());
+          unawaited(_fillNaturalSize(url));
         }
         return;
       }
-      final result = await _translatePage(url);
+      // 网络请求段受并发信号量约束（B2）。
+      final result = await _withSlot(() => _translatePage(url));
       final translation = ComicPageTranslation(
         imageUrl: url,
         lang: _targetLang,
@@ -190,18 +207,14 @@ class ComicTranslationController extends ChangeNotifier {
         naturalSize: result.naturalSize,
       );
       // 空结果（无文字页）同样缓存，避免翻回来重复请求。
-      await _manager.save(
-        comicId: comicId,
-        chapterKey: chapterKey,
-        pageIndex: pageIndex,
-        lang: _targetLang,
-        translation: translation,
-      );
+      await _saveTranslation(chapterKey, pageIndex, translation);
     } on Object catch (e) {
+      // B7：用户可见文案归一化，原始细节仅入日志。
+      AppLog.instance.w('[漫画翻译] 页面翻译失败 url=$url: $e');
       _states[url] = (_states[url] ?? const ComicPageTranslationState())
           .copyWith(
         status: ComicPageTranslationStatus.error,
-        error: e.toString(),
+        error: TranslationException.from(e).message,
       );
     } finally {
       _inFlight.remove(url);
@@ -209,7 +222,42 @@ class ComicTranslationController extends ChangeNotifier {
     }
   }
 
-  /// 重试某页（错误态覆盖层的重试按钮）。
+  Future<void> _saveTranslation(
+    String chapterKey,
+    int pageIndex,
+    ComicPageTranslation translation,
+  ) async {
+    try {
+      await _manager.save(
+        comicId: comicId,
+        chapterKey: chapterKey,
+        pageIndex: pageIndex,
+        lang: _targetLang,
+        translation: translation,
+      );
+      // B5：保存后惰性裁剪缓存容量。
+      unawaited(_manager.trimToLimit(ComicTranslationManager.defaultMaxEntries));
+    } on Object {
+      // 缓存写失败不影响显示。
+    }
+  }
+
+  /// 缓存命中路径补自然尺寸（微缩解码极廉价；失败静默保持 zero）。
+  Future<void> _fillNaturalSize(String url) async {
+    Size size = Size.zero;
+    try {
+      size = await AiImageResizer.decodeSize(await _loadImageBytes(url));
+    } on Object {
+      return;
+    }
+    if (size == Size.zero) return;
+    final s = _states[url];
+    if (s == null || s.status != ComicPageTranslationStatus.done) return;
+    _states[url] = s.copyWith(naturalSize: size);
+    notifyListeners();
+  }
+
+  /// 重试某页（错误态覆盖层的重试按钮）；重试同样受并发信号量约束。
   Future<void> retry(
     String url, {
     required String chapterKey,
@@ -225,8 +273,8 @@ class ComicTranslationController extends ChangeNotifier {
     final settings = NovelSummarySettings.instance;
     final NovelSummaryConfig cfg = await settings.getComicTranslationConfig();
     if (cfg.baseUrl.trim().isEmpty) {
-      throw Exception('未配置 AI 接口：请先在 设置 → AI 配置 中填写通用接口'
-          '或漫画翻译专用接口（需支持视觉的模型）');
+      throw const TranslationException('未配置 AI 接口：请先在 设置 → AI 配置 中填写'
+          '通用接口或漫画翻译专用接口（需支持视觉的模型）');
     }
     final lang = _langLoaded
         ? _targetLang
@@ -235,7 +283,18 @@ class ComicTranslationController extends ChangeNotifier {
     _langLoaded = true;
 
     final bytes = await _loadImageBytes(url);
-    final (sendBytes, mime, natural) = await _prepareImage(bytes, url);
+    final natural = await AiImageResizer.decodeSize(bytes);
+    Uint8List sendBytes = bytes;
+    String mime = _guessMime(url);
+    if (bytes.lengthInBytes > _kDirectSendLimitBytes) {
+      // 超大图：下采样重编码（B6：codec 释放已收口在 AiImageResizer）。
+      final Uint8List? resized =
+          await AiImageResizer.resizeToLimit(bytes, maxSide: _kMaxSide);
+      if (resized != null) {
+        sendBytes = resized;
+        mime = 'image/png';
+      }
+    }
     final segments = await _client.recognizeImage(
       config: AiEndpointConfig(
         baseUrl: cfg.baseUrl,
@@ -290,82 +349,6 @@ class ComicTranslationController extends ChangeNotifier {
     if (ua.isNotEmpty) m['User-Agent'] = ua;
     if (cookies != null && cookies.isNotEmpty) m['Cookie'] = cookies;
     return m;
-  }
-
-  /// 图片预处理：从已取到的字节解码自然尺寸；超过直接发送上限时
-  /// 解码下采样到 [maxSide] 并重编码 PNG。返回 (发送字节, mime, 自然尺寸)。
-  Future<(Uint8List, String, Size)> _prepareImage(
-    Uint8List bytes,
-    String url,
-  ) async {
-    // 微缩解码（targetWidth=16 极廉价）拿自然尺寸，供覆盖层坐标映射。
-    final natural = await _decodeSize(bytes);
-    if (bytes.lengthInBytes <= _kDirectSendLimitBytes) {
-      final mime = _guessMime(url);
-      return (bytes, mime, natural);
-    }
-    // 超大图：解码 → 长边压到 maxSide → PNG 重编码。
-    final Uint8List? resized = await _resizeImageBytes(bytes);
-    if (resized != null) return (resized, 'image/png', natural);
-    return (bytes, _guessMime(url), natural);
-  }
-
-  Future<Size> _decodeSize(Uint8List bytes) async {
-    try {
-      final ui.Codec codec = await ui.instantiateImageCodec(
-        bytes,
-        targetWidth: 16,
-        allowUpscaling: false,
-      );
-      final ui.FrameInfo frame = await codec.getNextFrame();
-      final Size size =
-          Size(frame.image.width.toDouble(), frame.image.height.toDouble());
-      frame.image.dispose();
-      codec.dispose();
-      return size;
-    } on Object {
-      return Size.zero;
-    }
-  }
-
-  Future<Uint8List?> _resizeImageBytes(
-    Uint8List bytes, {
-    int maxSide = _kMaxSide,
-  }) async {
-    try {
-      final ui.Codec codec = await ui.instantiateImageCodec(
-        bytes,
-        allowUpscaling: false,
-      );
-      final ui.FrameInfo frame = await codec.getNextFrame();
-      final int w = frame.image.width;
-      final int h = frame.image.height;
-      final int longSide = w > h ? w : h;
-      ui.Image toEncode = frame.image;
-      if (longSide > maxSide) {
-        final double ratio = maxSide / longSide;
-        final int tw = (w * ratio).round();
-        final int th = (h * ratio).round();
-        final ui.Codec small = await ui.instantiateImageCodec(
-          bytes,
-          targetWidth: tw,
-          targetHeight: th,
-          allowUpscaling: false,
-        );
-        final ui.FrameInfo smallFrame = await small.getNextFrame();
-        toEncode = smallFrame.image;
-      }
-      final ByteData? data = await toEncode.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-      final Uint8List? out = data?.buffer.asUint8List();
-      if (toEncode != frame.image) toEncode.dispose();
-      frame.image.dispose();
-      codec.dispose();
-      return out;
-    } on Object {
-      return null;
-    }
   }
 
   static String _guessMime(String url) {

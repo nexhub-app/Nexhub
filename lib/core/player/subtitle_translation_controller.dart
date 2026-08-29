@@ -3,12 +3,19 @@
 /// 两条文字来源：
 /// 1. **字幕轨转写**：按播放进度节流读取 mpv `sub-text` 属性（当前字幕文本，
 ///    内置轨 / 外挂 srt/ass 均适用），文本变化即送 AI 翻译；
-/// 2. **画面 OCR 兜底**（可选开关）：无字幕轨时，按间隔对当前帧
+/// 2. **画面 OCR 兜底**（可选开关）：**仅当无字幕轨**（B8）时，按间隔对当前帧
 ///    （`Player.screenshot()`）做视觉 OCR+翻译——无字幕资源的外源视频
 ///    也能获得"实时"翻译（延迟取决于识别间隔，默认 4s）。
 ///
-/// 译文按 `lang|md5(原文)` 持久化到 Hive box `subtitle_translations`
-/// （JSON 字符串，免 TypeAdapter），跨集/跨次观看命中缓存零延迟。
+/// 稳定性护栏：
+/// - **OCR 防重入**（B1）：视觉请求耗时长，`_ocrInFlight` 独立飞行标记，
+///   上一次未返回前跳过新 tick，异常路径也必须复位；
+/// - **单句重试**（B4）：瞬时网络抖动按指数退避重试（最多 3 次尝试），
+///   不再一次失败即丢句；
+/// - **错误归一化**（B7）：用户可见文案经 [TranslationException] 归一化，
+///   原始异常细节仅入 [AppLog]；
+/// - **缓存容量上限**（B5）：译文按 `lang|md5(原文)` 持久化到 Hive box
+///   `subtitle_translations`，save 后惰性裁剪到上限，防止磁盘无限膨胀。
 /// 翻译接口走 [VisionTranslationClient]（OpenAI 兼容 chat/completions），
 /// 配置读取 [NovelSummarySettings] 的视频翻译功能级配置（留空回落通用）。
 library;
@@ -21,7 +28,9 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../ai/translation_exception.dart';
 import '../ai/vision_translation_client.dart';
+import '../utils/app_log.dart';
 import '../../features/novel/domain/novel_summary_service.dart';
 import '../../features/novel/domain/novel_summary_settings.dart';
 
@@ -62,14 +71,21 @@ class SubtitleTranslationController extends ChangeNotifier {
   /// OCR 兜底的取帧间隔（秒）。视觉请求较重，过密会显著增加流量/费用。
   static const int _kOcrIntervalSec = 4;
 
-  /// 同字幕等待翻译超时后重发（AI 卡死自愈）。
+  /// 单句翻译超时（同字幕等待翻译超时后重发）。
   static const Duration _kTranslateTimeout = Duration(seconds: 45);
+
+  /// 单句翻译最大尝试次数（B4：首次 + 2 次重试，指数退避 500ms / 1s）。
+  static const int _kMaxAttempts = 3;
 
   static const String _kBoxName = 'subtitle_translations';
 
+  /// 译文缓存条数上限（B5）。
+  static const int defaultMaxEntries = 5000;
+
   // ── 偏好持久化（SharedPreferences，与截图目录等轻量键同款做法）──
   static const String _kPrefEnabled = 'subtitle_translation_enabled_v1';
-  static const String _kPrefShowOriginal = 'subtitle_translation_show_original_v1';
+  static const String _kPrefShowOriginal =
+      'subtitle_translation_show_original_v1';
   static const String _kPrefOcrFallback = 'subtitle_translation_ocr_fallback_v1';
 
   final VisionTranslationClient _client;
@@ -77,11 +93,16 @@ class SubtitleTranslationController extends ChangeNotifier {
   /// 播放器控制器（attach 后可用；用于读 mpv 属性与截图）。
   dynamic _playerController;
   bool _attached = false;
+  StreamSubscription<dynamic>? _tracksSub;
 
   bool _enabled = false;
   bool _showOriginal = false;
   bool _ocrFallback = false;
   bool _prefsLoaded = false;
+
+  /// 是否存在字幕轨（B8）：attach 与轨道变化时经 `track-list` 检测。
+  /// 有字幕轨时 OCR 兜底不启用（句间间隙不做无意义识别）。
+  bool _hasSubtitleTrack = false;
 
   String _targetLang = 'zh';
   bool _langLoaded = false;
@@ -93,6 +114,10 @@ class SubtitleTranslationController extends ChangeNotifier {
 
   DateTime _lastPollAt = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastOcrAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// OCR 视觉请求飞行标记（B1）：与字幕翻译的 [_inFlightText] 独立，
+  /// 防止耗时的视觉请求被 4s tick 重复并发。
+  bool _ocrInFlight = false;
 
   /// 进行中的翻译任务对应的原文（新句到来时排队，完成后立刻处理队首）。
   String? _inFlightText;
@@ -108,11 +133,30 @@ class SubtitleTranslationController extends ChangeNotifier {
   bool get showOriginal => _showOriginal;
   bool get ocrFallback => _ocrFallback;
 
+  /// 时钟注入点（测试用）：onPositionTick 的节流/间隔判断全部经此取时，
+  /// 单测可注入可控时钟模拟「4s 间隔已过」。
+  @visibleForTesting
+  DateTime Function() clock = DateTime.now;
+
+  /// 当前视频是否有字幕轨（B8；attach 前为 false）。
+  bool get hasSubtitleTrack => _hasSubtitleTrack;
+
   /// 绑定播放器控制器并恢复持久化开关（视频翻译开关跨会话记忆）。
   Future<void> attach(dynamic playerController) async {
     _playerController = playerController;
     _attached = true;
     await _loadPrefs();
+    unawaited(_detectSubtitleTrack());
+    // 轨道变化（加载完成 / 手动换轨 / 换集）时重测字幕轨存在性（B8）。
+    try {
+      _tracksSub?.cancel();
+      _tracksSub = playerController.tracksStream.listen(
+        (dynamic _) => unawaited(_detectSubtitleTrack()),
+        onError: (Object _) {},
+      );
+    } on Object {
+      // 测试假件 / 无流环境：静默跳过订阅。
+    }
     if (_enabled) {
       // 记忆为开启：进入播放页即恢复翻译。
       await _ensureLang();
@@ -123,7 +167,41 @@ class SubtitleTranslationController extends ChangeNotifier {
   void detach() {
     _attached = false;
     _playerController = null;
+    _tracksSub?.cancel();
+    _tracksSub = null;
+    _hasSubtitleTrack = false;
     _resetState();
+  }
+
+  /// 检测当前媒体是否存在字幕轨（B8）。
+  ///
+  /// mpv `track-list` 经 media_kit getProperty 返回 JSON 字符串（也可能
+  /// 直接是 List，视实现而定），两形态都兼容；属性不可用按「无字幕轨」
+  /// 处理（OCR 兜底保持可用）。
+  Future<void> _detectSubtitleTrack() async {
+    final dynamic c = _playerController;
+    if (c == null || !_attached) return;
+    try {
+      final dynamic raw = await c.backend.getProperty('track-list');
+      final list = _asTrackList(raw);
+      _hasSubtitleTrack =
+          list.any((t) => (t as Map?)?['type'] == 'sub');
+    } on Object {
+      _hasSubtitleTrack = false;
+    }
+  }
+
+  static List<dynamic> _asTrackList(dynamic raw) {
+    if (raw is List) return raw;
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) return decoded;
+      } on Object {
+        // 非 JSON 字符串按空轨处理。
+      }
+    }
+    return const <dynamic>[];
   }
 
   Future<void> _loadPrefs() async {
@@ -174,8 +252,11 @@ class SubtitleTranslationController extends ChangeNotifier {
     await _savePref(_kPrefOcrFallback, v);
     if (v && _enabled) {
       await _ensureLang();
-      // 立即做一次 OCR（不等间隔）。
-      await _maybeOcrTick(force: true);
+      await _detectSubtitleTrack();
+      // 无字幕轨才立即做一次 OCR（B8：有轨时不做）。
+      if (!_hasSubtitleTrack) {
+        await _maybeOcrTick(force: true);
+      }
     }
     notifyListeners();
   }
@@ -188,16 +269,20 @@ class SubtitleTranslationController extends ChangeNotifier {
   }
 
   /// 播放进度回调（由播放页 [_onPositionChanged] 每帧转发）：
-  /// 节流轮询 mpv 当前字幕文本；无字幕且开启 OCR 兜底时按间隔取帧识别。
+  /// 节流轮询 mpv 当前字幕文本；**无字幕轨**且开启 OCR 兜底时按间隔取帧识别。
   void onPositionTick(Duration position) {
     if (!_enabled || !_attached) return;
-    final now = DateTime.now();
+    final now = clock();
     if (now.difference(_lastPollAt) >= _kPollInterval) {
       _lastPollAt = now;
       unawaited(_pollSubtitle());
     }
+    // B8：仅无字幕轨（`_lastPolledText` 为空且无 sub 轨）才走 OCR 兜底，
+    // 有轨视频的句间间隙不做无意义识别。
     if (_ocrFallback &&
+        !_hasSubtitleTrack &&
         _lastPolledText.isEmpty &&
+        !_ocrInFlight &&
         now.difference(_lastOcrAt).inSeconds >= _kOcrIntervalSec) {
       _lastOcrAt = now;
       unawaited(_maybeOcrTick());
@@ -226,16 +311,21 @@ class SubtitleTranslationController extends ChangeNotifier {
     unawaited(_translateSentence(clean));
   }
 
-  /// OCR 兜底：截取当前帧送视觉模型识别+翻译。
+  /// OCR 兜底：截取当前帧送视觉模型识别+翻译（B1：防重入）。
   Future<void> _maybeOcrTick({bool force = false}) async {
     final dynamic c = _playerController;
     if (c == null) return;
+    if (!force && _ocrInFlight) return; // 上一次 OCR 未返回则跳过
     if (!force && _inFlightText != null) return;
+    _ocrInFlight = true;
     try {
       final Uint8List? frame = await c.player.screenshot();
       if (frame == null || frame.isEmpty) return;
       final cfg = await _resolveConfig();
-      if (cfg == null) return;
+      if (cfg == null) {
+        throw const TranslationException('未配置 AI 接口：请先在 设置 → AI 配置 中填写'
+            '通用接口或视频翻译专用接口');
+      }
       await _ensureLang();
       final segments = await _client.recognizeImage(
         config: cfg,
@@ -269,15 +359,20 @@ class SubtitleTranslationController extends ChangeNotifier {
       );
       notifyListeners();
     } on Object catch (e) {
-      // OCR 失败静默（不打断播放）；仅在开启且从未有过结果时提示一次。
+      // B7：归一化文案，原始细节入日志；OCR 失败不打断播放，
+      // 仅在从未有过结果时提示一次。
+      AppLog.instance.w('[字幕翻译] 画面 OCR 失败: $e');
       if (_state.translatedText == null) {
-        _state = SubtitleTranslationState(error: e.toString());
+        _state = SubtitleTranslationState(
+            error: TranslationException.from(e).message);
         notifyListeners();
       }
+    } finally {
+      _ocrInFlight = false;
     }
   }
 
-  /// 翻译一句（去重 / 缓存 / 排队）。
+  /// 翻译一句（去重 / 缓存 / 排队 / 重试）。
   Future<void> _translateSentence(String text) async {
     if (text.isEmpty) return;
     await _ensureLang();
@@ -320,16 +415,17 @@ class SubtitleTranslationController extends ChangeNotifier {
     try {
       final cfg = await _resolveConfig();
       if (cfg == null) {
-        throw Exception('未配置 AI 接口：请先在 设置 → AI 配置 中填写通用接口'
-            '或视频翻译专用接口');
+        throw const TranslationException('未配置 AI 接口：请先在 设置 → AI 配置 中填写'
+            '通用接口或视频翻译专用接口');
       }
-      final result = await _client
-          .translateBatch(
-            config: cfg,
-            targetLang: _targetLang,
-            texts: <String>[text],
-          )
-          .timeout(_kTranslateTimeout);
+      // B4：指数退避重试，瞬时抖动不再丢句；重试期间 UI 保持「翻译中」。
+      final result = await _translateWithRetry(
+        () => _client.translateBatch(
+          config: cfg,
+          targetLang: _targetLang,
+          texts: <String>[text],
+        ),
+      );
       final translated = result.first.trim();
       _memoryCache[memKey] = translated;
       await _saveCached(text, translated);
@@ -340,11 +436,12 @@ class SubtitleTranslationController extends ChangeNotifier {
             sourceText: text, translatedText: translated);
       }
     } on Object catch (e) {
+      AppLog.instance.w('[字幕翻译] 单句翻译失败: $e');
       if (_lastPolledText == text) {
         _state = SubtitleTranslationState(
           sourceText: text,
           translatedText: _state.translatedText,
-          error: e.toString(),
+          error: TranslationException.from(e).message,
         );
       }
     } finally {
@@ -357,6 +454,22 @@ class SubtitleTranslationController extends ChangeNotifier {
         unawaited(_translateSentence(next));
       }
     }
+  }
+
+  /// 带指数退避的重试（B4）：最多 [_kMaxAttempts] 次尝试，
+  /// 间隔 500ms / 1s；全部失败抛最后一次异常（由调用方归一化展示）。
+  Future<List<String>> _translateWithRetry(
+    Future<List<String>> Function() send,
+  ) async {
+    for (var i = 0; i < _kMaxAttempts; i++) {
+      try {
+        return await send().timeout(_kTranslateTimeout);
+      } on Object {
+        if (i == _kMaxAttempts - 1) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: 500 * (1 << i)));
+      }
+    }
+    throw StateError('unreachable');
   }
 
   /// 解析视频翻译接口配置（功能级留空回落通用；未配置返回 null）。
@@ -379,7 +492,7 @@ class SubtitleTranslationController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─────────────────── Hive 持久缓存 ───────────────────
+  // ─────────────────── Hive 持久缓存（B5：带容量上限）───────────────────
 
   Future<Box<dynamic>?> _ensureBox() async {
     if (_box != null) return _box;
@@ -422,11 +535,56 @@ class SubtitleTranslationController extends ChangeNotifier {
     try {
       await box.put(
         _cacheKey(_targetLang, text),
-        jsonEncode(<String, dynamic>{'t': translated}),
+        jsonEncode(<String, dynamic>{
+          't': translated,
+          'ts': DateTime.now().millisecondsSinceEpoch,
+        }),
       );
+      // B5：保存后惰性裁剪。
+      await trimCache(defaultMaxEntries);
     } on Object {
       // 缓存写失败不影响显示。
     }
+  }
+
+  /// 当前缓存条数（B5，设置页展示用；box 未打开返回 0）。
+  int cacheCount() => Hive.isBoxOpen(_kBoxName) ? Hive.box(_kBoxName).length : 0;
+
+  /// 容量裁剪（B5）：按保存时间戳升序淘汰最旧条目，返回删除条数。
+  Future<int> trimCache(int maxEntries) async {
+    if (maxEntries <= 0) return 0;
+    final box = await _ensureBox();
+    if (box == null || box.length <= maxEntries) return 0;
+    final entries = <(String, int)>[];
+    for (final key in box.keys) {
+      if (key is! String) continue;
+      final raw = box.get(key);
+      int ts = 0;
+      if (raw is String && raw.isNotEmpty) {
+        try {
+          ts = (jsonDecode(raw) as Map<String, dynamic>)['ts'] as int? ?? 0;
+        } on Object {
+          ts = 0;
+        }
+      }
+      entries.add((key, ts));
+    }
+    if (entries.length <= maxEntries) return 0;
+    entries.sort((a, b) => a.$2.compareTo(b.$2));
+    final victims =
+        entries.take(entries.length - maxEntries).map((e) => e.$1).toList();
+    await box.deleteAll(victims);
+    return victims.length;
+  }
+
+  /// 清空全部译文缓存（B5 设置页「清除翻译缓存」入口）。返回删除条数。
+  Future<int> clearCache() async {
+    final box = await _ensureBox();
+    if (box == null) return 0;
+    final n = box.length;
+    await box.clear();
+    _memoryCache.clear();
+    return n;
   }
 
   /// 剥离 ASS 内联标签（{\...}）与 HTML 标签。

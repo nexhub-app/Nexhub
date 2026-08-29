@@ -5,6 +5,7 @@
 /// （[F5] 翻译缓存随导出附带）按书枚举生成附录。
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -63,6 +64,9 @@ class NovelTranslationManager extends ChangeNotifier {
   static const String boxName = 'novel_translations';
   static const String defaultLang = 'zh';
 
+  /// 缓存条数上限（B5）：save 后惰性裁剪，按 updatedAt 升序淘汰最旧条目。
+  static const int defaultMaxEntries = 5000;
+
   Box<dynamic>? _box;
 
   Future<void> init() async {
@@ -88,6 +92,8 @@ class NovelTranslationManager extends ChangeNotifier {
     final box = await _ensureBox();
     await box.put(keyFor(t.novelId, t.chapterId, lang: t.lang),
         jsonEncode(t.toJson()));
+    // B5：保存后惰性裁剪，防止长期使用磁盘无限膨胀。
+    unawaited(trimToLimit(defaultMaxEntries));
     notifyListeners();
   }
 
@@ -131,5 +137,46 @@ class NovelTranslationManager extends ChangeNotifier {
     }
     result.sort((a, b) => a.chapterTitle.compareTo(b.chapterTitle));
     return result;
+  }
+
+  /// 当前缓存条数（B5，设置页展示用；box 未打开返回 0）。
+  int count() => Hive.isBoxOpen(boxName) ? Hive.box(boxName).length : 0;
+
+  /// 容量裁剪（B5）：按 updatedAt 升序淘汰超出 [maxEntries] 的最旧条目。
+  /// 无时间戳的记录按 0 处理（最先淘汰）。返回删除条数。
+  Future<int> trimToLimit(int maxEntries) async {
+    if (maxEntries <= 0) return 0;
+    final box = await _ensureBox();
+    if (box.length <= maxEntries) return 0;
+    final entries = <(String, int)>[];
+    for (final key in box.keys) {
+      if (key is! String) continue;
+      final raw = box.get(key);
+      int ts = 0;
+      if (raw is String && raw.isNotEmpty) {
+        try {
+          ts = (jsonDecode(raw) as Map<String, dynamic>)['updatedAt'] as int? ?? 0;
+        } on Object {
+          ts = 0; // 损坏数据视为最旧，优先淘汰。
+        }
+      }
+      entries.add((key, ts));
+    }
+    if (entries.length <= maxEntries) return 0;
+    entries.sort((a, b) => a.$2.compareTo(b.$2));
+    final victims =
+        entries.take(entries.length - maxEntries).map((e) => e.$1).toList();
+    await box.deleteAll(victims);
+    notifyListeners();
+    return victims.length;
+  }
+
+  /// 清空全部缓存（B5 设置页「清除翻译缓存」入口）。返回删除条数。
+  Future<int> clearAll() async {
+    final box = await _ensureBox();
+    final n = box.length;
+    await box.clear();
+    notifyListeners();
+    return n;
   }
 }

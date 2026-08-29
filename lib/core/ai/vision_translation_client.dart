@@ -15,6 +15,8 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import 'batch_protocol.dart';
+
 /// 一段识别并翻译后的文字区域（坐标为相对图片宽高的千分比 0–1000）。
 class VisionTextSegment {
   /// 归一化千分比坐标（左上原点）：x1/y1/x2/y2；无坐标（纯文本 OCR）时为 null。
@@ -159,8 +161,8 @@ class VisionTranslationClient {
 
   /// 批量翻译短句（视频字幕场景）：一次请求翻译多条，返回与输入等长的译文。
   ///
-  /// 复用小说翻译同款 `<<<N>>>` 批量协议；解析失败/条数不齐时抛异常，
-  /// 由调用方决定回退策略（逐条重试等）。
+  /// 复用 [BatchProtocol]（`<<<N>>>` 编号分隔，与小说翻译同一份实现）；
+  /// 解析失败/条数不齐时抛异常，由调用方决定回退策略（逐条重试等）。
   Future<List<String>> translateBatch({
     required AiEndpointConfig config,
     required String targetLang,
@@ -168,11 +170,6 @@ class VisionTranslationClient {
   }) async {
     if (texts.isEmpty) return const <String>[];
     final base = config.baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
-    final buf = StringBuffer();
-    for (var i = 0; i < texts.length; i++) {
-      buf.writeln('<<<${i + 1}>>>');
-      buf.writeln(texts[i]);
-    }
     final resp = await _dio.post<Map<String, dynamic>>(
       '$base/chat/completions',
       options: Options(
@@ -196,13 +193,13 @@ class VisionTranslationClient {
                 '输出必须严格保持编号格式：每段译文前单独一行 <<<序号>>>，'
                 '不要添加任何解释或合并段落。',
           },
-          <String, dynamic>{'role': 'user', 'content': buf.toString()},
+          <String, dynamic>{'role': 'user', 'content': BatchProtocol.encode(texts)},
         ],
         'temperature': 0.2,
       },
     );
     final content = _extractContent(resp.data);
-    final parsed = _parseBatched(content ?? '', texts.length);
+    final parsed = BatchProtocol.decode(content ?? '', texts.length);
     if (parsed == null) throw Exception('翻译返回格式异常');
     return parsed;
   }
@@ -265,31 +262,5 @@ class VisionTranslationClient {
     } on Object {
       return const <VisionTextSegment>[];
     }
-  }
-
-  /// 解析 `<<<N>>>` 批量译文为逐条列表；条数不齐返回 null。
-  static List<String>? _parseBatched(String raw, int expected) {
-    if (raw.trim().isEmpty || expected <= 0) return null;
-    final pattern = RegExp(r'<<<\s*(\d+)\s*>>>');
-    final matches = pattern.allMatches(raw).toList();
-    if (matches.isEmpty) return null;
-    final parts = <String>[];
-    for (var i = 0; i < matches.length; i++) {
-      final start = matches[i].end;
-      final end =
-          i + 1 < matches.length ? matches[i + 1].start : raw.length;
-      parts.add(raw.substring(start, end).trim());
-    }
-    if (parts.length < expected) return null;
-    final result = List<String>.filled(expected, '');
-    for (var i = 0; i < matches.length; i++) {
-      var idx = (int.tryParse(matches[i].group(1)!) ?? (i + 1)) - 1;
-      if (idx < 0 || idx >= expected || result[idx].isNotEmpty) {
-        idx = result.indexWhere((s) => s.isEmpty);
-        if (idx < 0) break;
-      }
-      result[idx] = parts[i];
-    }
-    return result.any((s) => s.isEmpty) ? null : result;
   }
 }

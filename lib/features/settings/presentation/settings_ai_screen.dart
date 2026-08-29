@@ -17,6 +17,10 @@ import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/theme/app_tokens.dart';
 import 'package:nexhub/core/widgets/app_animations.dart';
+import 'package:nexhub/core/widgets/app_alert_dialog.dart';
+import 'package:nexhub/core/comic/comic_translation_manager.dart';
+import 'package:nexhub/core/novel/novel_translation_manager.dart';
+import 'package:nexhub/core/player/subtitle_translation_controller.dart';
 import '../../novel/domain/novel_summary_service.dart';
 import '../../novel/domain/novel_summary_settings.dart';
 import 'widgets/settings_widgets.dart';
@@ -77,12 +81,62 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
   final _mediaModelCtrl = TextEditingController();
   final _mediaLangCtrl = TextEditingController();
 
+  // 翻译缓存（B5）：三个 box 的当前条数（清除后刷新）。
+  int _novelCacheCount = 0;
+  int _comicCacheCount = 0;
+  int _subtitleCacheCount = 0;
+  bool _clearingCache = false;
+
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  /// 刷新三个翻译缓存的条数展示（B5）。
+  void _refreshCacheCounts() {
+    _novelCacheCount = NovelTranslationManager().count();
+    _comicCacheCount = ComicTranslationManager().count();
+    _subtitleCacheCount = SubtitleTranslationController().cacheCount();
+  }
+
+  /// 一键清空三个翻译缓存（B5，二次确认后执行）。
+  Future<void> _clearTranslationCaches(AppLocalizations l10n) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AppAlertDialog(
+        title: Text(l10n.translationCacheClear),
+        content: Text(l10n.translationCacheClearConfirm),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _clearingCache = true);
+    try {
+      await NovelTranslationManager().clearAll();
+      await ComicTranslationManager().clearAll();
+      await SubtitleTranslationController().clearCache();
+      if (!mounted) return;
+      setState(_refreshCacheCounts);
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.translationCacheCleared)),
+      );
+    } finally {
+      if (mounted) setState(() => _clearingCache = false);
+    }
   }
 
   Future<void> _load() async {
@@ -122,6 +176,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       _commonBaseCtrl.text = defaultCfg.baseUrl;
       _commonKeyCtrl.text = defaultCfg.apiKey;
       _commonModelCtrl.text = defaultCfg.model;
+      _refreshCacheCounts();
 
       _summaryBaseCtrl.text = sBase;
       _summaryKeyCtrl.text = sKey;
@@ -450,6 +505,31 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                 ),
               ],
             ),
+            SettingsCard(
+              key: const ValueKey<String>('translation.cache'),
+              title: l10n.translationCacheTitle,
+              description: l10n.translationCacheDesc,
+              children: <Widget>[
+                _cacheCountTile(l10n.translationCacheNovel, _novelCacheCount),
+                _cacheCountTile(l10n.translationCacheComic, _comicCacheCount),
+                _cacheCountTile(
+                    l10n.translationCacheSubtitle, _subtitleCacheCount),
+                const SizedBox(height: AppTokens.spaceMd),
+                FilledButton.tonalIcon(
+                  onPressed: _clearingCache
+                      ? null
+                      : () => _clearTranslationCaches(l10n),
+                  icon: _clearingCache
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child:
+                              CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.delete_sweep_outlined),
+                  label: Text(l10n.translationCacheClear),
+                ),
+              ],
+            ),
             const SizedBox(height: AppTokens.spaceMd),
             FilledButton.icon(
               onPressed: _saving ? null : () => _save(l10n),
@@ -464,6 +544,27 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
             const SizedBox(height: AppTokens.spaceXl),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 缓存条数行（分组名 + 当前条数）。
+  Widget _cacheCountTile(String label, int count) {
+    final l10n = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Text(label),
+          Text(
+            l10n.translationCacheEntries(count),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: Theme.of(context).colorScheme.outline),
+          ),
+        ],
       ),
     );
   }

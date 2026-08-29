@@ -4299,5 +4299,14 @@
   "aiComicTranslationDesc": "漫画页 OCR+翻译使用的视觉模型接口，留空回落通用配置",
   "aiComicModelHint": "需支持视觉的模型，如 gpt-4o-mini",
   "aiMediaTranslationSection": "视频字幕翻译",
-  "aiMediaTranslationDesc": "播放器实时字幕翻译接口，留空回落通用配置"
+  "aiMediaTranslationDesc": "播放器实时字幕翻译接口，留空回落通用配置",
+  "translationCacheTitle": "翻译缓存",
+  "translationCacheDesc": "本地缓存的逐条 AI 译文；清除后相同内容会重新翻译（重新计费）",
+  "translationCacheNovel": "小说段落翻译",
+  "translationCacheComic": "漫画页翻译",
+  "translationCacheSubtitle": "视频字幕翻译",
+  "translationCacheEntries": "{count} 条",
+  "translationCacheClear": "清除全部翻译缓存",
+  "translationCacheClearConfirm": "确定清除全部翻译缓存？已译内容将重新翻译并产生接口费用。",
+  "translationCacheCleared": "翻译缓存已清除"
 }

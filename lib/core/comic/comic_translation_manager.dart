@@ -67,6 +67,10 @@ class ComicTranslationManager extends ChangeNotifier {
 
   static const String boxName = 'comic_translations';
 
+  /// 缓存条数上限（B5）：save 后惰性裁剪，按 updatedAt 升序淘汰最旧条目，
+  /// 防止长期使用磁盘无限膨胀。
+  static const int defaultMaxEntries = 5000;
+
   Box<dynamic>? _box;
 
   Future<void> init() async {
@@ -124,6 +128,48 @@ class ComicTranslationManager extends ChangeNotifier {
     } on Object {
       return null; // 损坏数据按无缓存处理。
     }
+  }
+
+  /// 容量裁剪（B5）：按 updatedAt 升序淘汰超出 [maxEntries] 的最旧条目。
+  /// 无时间戳的记录按 0 处理（最先淘汰）。返回删除条数。
+  Future<int> trimToLimit(int maxEntries) async {
+    if (maxEntries <= 0) return 0;
+    final box = await _ensureBox();
+    if (box.length <= maxEntries) return 0;
+    final entries = <(String, int)>[];
+    for (final key in box.keys) {
+      if (key is! String) continue;
+      final raw = box.get(key);
+      int ts = 0;
+      if (raw is String && raw.isNotEmpty) {
+        try {
+          ts = (jsonDecode(raw) as Map<String, dynamic>)['updatedAt'] as int? ??
+              0;
+        } on Object {
+          ts = 0; // 损坏数据视为最旧，优先淘汰。
+        }
+      }
+      entries.add((key, ts));
+    }
+    if (entries.length <= maxEntries) return 0;
+    entries.sort((a, b) => a.$2.compareTo(b.$2));
+    final victims = entries.take(entries.length - maxEntries).map((e) => e.$1).toList();
+    await box.deleteAll(victims);
+    notifyListeners();
+    return victims.length;
+  }
+
+  /// 当前缓存条数（B5，设置页展示用；box 未打开返回 0）。
+  int count() =>
+      Hive.isBoxOpen(boxName) ? Hive.box(boxName).length : 0;
+
+  /// 清空全部缓存（B5 设置页「清除翻译缓存」入口）。返回删除条数。
+  Future<int> clearAll() async {
+    final box = await _ensureBox();
+    final n = box.length;
+    await box.clear();
+    notifyListeners();
+    return n;
   }
 
   /// 清空某部作品的全部翻译缓存（语言切换后旧缓存自动失效，无需手动清理；

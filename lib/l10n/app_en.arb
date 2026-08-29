@@ -4343,5 +4343,14 @@
   "aiComicTranslationDesc": "Vision endpoint for manga page OCR + translation; falls back to common API when empty",
   "aiComicModelHint": "A vision-capable model, e.g. gpt-4o-mini",
   "aiMediaTranslationSection": "Video subtitle translation",
-  "aiMediaTranslationDesc": "Endpoint for real-time subtitle translation in the player; falls back to common API when empty"
+  "aiMediaTranslationDesc": "Endpoint for real-time subtitle translation in the player; falls back to common API when empty",
+  "translationCacheTitle": "Translation cache",
+  "translationCacheDesc": "Per-item AI translation results cached locally; clearing them means re-translating (and re-charging)",
+  "translationCacheNovel": "Novel paragraph translation",
+  "translationCacheComic": "Manga page translation",
+  "translationCacheSubtitle": "Video subtitle translation",
+  "translationCacheEntries": "{count} entries",
+  "translationCacheClear": "Clear all translation caches",
+  "translationCacheClearConfirm": "Clear all translation caches? Translated content will be re-translated with additional API cost.",
+  "translationCacheCleared": "Translation caches cleared"
 }

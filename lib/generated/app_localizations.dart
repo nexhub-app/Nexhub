@@ -14905,6 +14905,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Endpoint for real-time subtitle translation in the player; falls back to common API when empty'**
   String get aiMediaTranslationDesc;
+
+  /// No description provided for @translationCacheTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation cache'**
+  String get translationCacheTitle;
+
+  /// No description provided for @translationCacheDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Per-item AI translation results cached locally; clearing them means re-translating (and re-charging)'**
+  String get translationCacheDesc;
+
+  /// No description provided for @translationCacheNovel.
+  ///
+  /// In en, this message translates to:
+  /// **'Novel paragraph translation'**
+  String get translationCacheNovel;
+
+  /// No description provided for @translationCacheComic.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga page translation'**
+  String get translationCacheComic;
+
+  /// No description provided for @translationCacheSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Video subtitle translation'**
+  String get translationCacheSubtitle;
+
+  /// No description provided for @translationCacheEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} entries'**
+  String translationCacheEntries(Object count);
+
+  /// No description provided for @translationCacheClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all translation caches'**
+  String get translationCacheClear;
+
+  /// No description provided for @translationCacheClearConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all translation caches? Translated content will be re-translated with additional API cost.'**
+  String get translationCacheClearConfirm;
+
+  /// No description provided for @translationCacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation caches cleared'**
+  String get translationCacheCleared;
 }
 
 class _AppLocalizationsDelegate
