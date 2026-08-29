@@ -517,24 +517,29 @@ jobs:
           fi
           # AppImage 运行需要 libfuse2（ubuntu 22.04+ 默认未装），装不上也不致命
           sudo apt-get install -y libfuse2 2>&1 | tail -n 5 || true
-          # 让 linuxdeploy 能按 PATH 找到 flutter 插件
+          # flutter bundle 已是自包含 ELF + 资源，无需 linuxdeploy-plugin-flutter。
+          # 该 continuous 插件返回空 --plugin-api-version，会报 "Could not find plugin: flutter"，故弃用。
+          # 直接用 linuxdeploy --output appimage 打包；linuxdeploy 产出文件名形如
+          # NexHub-x86_64.AppImage，统一重命名为工作流期望的 NexHub-linux-x64.AppImage。
           export PATH="$PWD:$PATH"
           set +e
           wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -O linuxdeploy.AppImage
           chmod +x linuxdeploy.AppImage
-          wget -q "https://github.com/linuxdeploy/linuxdeploy-plugin-flutter/releases/download/continuous/linuxdeploy-plugin-flutter-x86_64.AppImage" -O linuxdeploy-plugin-flutter.AppImage
-          chmod +x linuxdeploy-plugin-flutter.AppImage
-          ./linuxdeploy.AppImage --appimage-extract-and-run --appdir "$APPDIR" --plugin flutter --output appimage > appimage_build.log 2>&1
+          ./linuxdeploy.AppImage --appimage-extract-and-run --appdir "$APPDIR" --output appimage > appimage_build.log 2>&1
           RC=$?
-          if [ $RC -ne 0 ] || [ ! -f NexHub-linux-x64.AppImage ]; then
-            echo "flutter 插件打包失败/未产出（rc=$RC），回退到无插件 linuxdeploy"
-            ./linuxdeploy.AppImage --appimage-extract-and-run --appdir "$APPDIR" --output appimage >> appimage_build.log 2>&1
+          set -e
+          # linuxdeploy 产出文件名不确定（通常 NexHub-x86_64.AppImage），统一重命名为预期名
+          if [ ! -f NexHub-linux-x64.AppImage ]; then
+            SRC=$(ls NexHub-*.AppImage 2>/dev/null | head -n1)
+            if [ -n "$SRC" ]; then
+              mv "$SRC" NexHub-linux-x64.AppImage
+            fi
           fi
           if [ -f NexHub-linux-x64.AppImage ]; then
             echo "AppImage 已产出："
             ls -la NexHub-linux-x64.AppImage
           else
-            echo "AppImage 未产出（best-effort 跳过，不阻断发布）"
+            echo "AppImage 未产出（best-effort 跳过，不阻断发布），rc=$RC"
             echo "== appimage_build.log 末尾 =="
             tail -n 60 appimage_build.log 2>/dev/null || true
           fi
