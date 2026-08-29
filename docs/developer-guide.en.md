@@ -8,7 +8,7 @@
 
 ## 4.1 Environment
 
-- Install the [Flutter SDK](https://flutter.dev) (this project requires **Flutter 3.32.0**, Dart 3.x);
+- Install the [Flutter SDK](https://flutter.dev) (this project requires **Flutter 3.47.0**, Dart 3.x);
 - Set up the build environment for your platform (Android Studio / Xcode / Visual Studio, etc.);
 - Confirm `flutter doctor` shows no significant errors.
 

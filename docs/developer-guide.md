@@ -8,7 +8,7 @@
 
 ## 4.1 环境准备
 
-- 安装 [Flutter SDK](https://flutter.dev)（本项目要求 **Flutter 3.32.0**，Dart 3.x）；
+- 安装 [Flutter SDK](https://flutter.dev)（本项目要求 **Flutter 3.47.0**，Dart 3.x）；
 - 配置好对应平台的编译环境（如 Android Studio / Xcode / Visual Studio 等）；
 - 确认 `flutter doctor` 无明显报错。
 
