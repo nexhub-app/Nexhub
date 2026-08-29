@@ -186,10 +186,12 @@ class HostsEntry {
       );
 }
 
-/// SNI 配置（自定义 SNI 值 / 域名→SNI 映射）。
+/// SNI 配置（默认 SNI / 域名→SNI 映射）。
 ///
-/// 平台限制：Dart TLS 栈对 HTTPS 用请求 host 作 SNI，域前置无法经标准路径生效，
-/// 运行时对主流量尽力应用，UI 标注「实验性」。
+/// 运行时对「https 直连」生效（见 [SniPolicy] 与 NetworkClientBuilder 的
+/// connectionFactory）：值 `-` 表示免 SNI（握手不发送 server_name）；普通域名
+/// 表示以该域名作 SNI。仅直连可用；走外部代理时 TLS 由 HttpClient 自理，
+/// SNI 固定为目标域名。
 class SniConfig {
   final String? defaultSni;
   final Map<String, String> domainSni;
@@ -229,8 +231,10 @@ class SniConfig {
 
 /// ECH（Encrypted Client Hello）配置。
 ///
-/// 平台限制：Dart TLS 栈（BoringSSL 封装）不暴露 ECH API 且无插件，
-/// UI + 持久化 + 参数完整，运行时标注「实验性，暂不生效」。
+/// 平台限制：Dart TLS 栈（BoringSSL 封装）不暴露 ECH API 且无插件，本配置
+/// 运行时不生效。UI/持久化保留是为：(1) 源文件 network 块可声明意图；
+/// (2) 未来接入原生 TLS 后无需迁移。当前让受限站点可用的路径：
+/// 配合 SNI 免 SNI 模式、或经支持 ECH 的本地代理内核（手动代理）。
 class EchConfig {
   final bool enabled;
   final String echConfigList;

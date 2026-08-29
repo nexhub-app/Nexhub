@@ -91,15 +91,17 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 
 | 子键 | 类型 | 说明 |
 | --- | --- | --- |
-| `network.proxy` | object? | 代理覆盖，如 `{ "mode": "http", "host": "...", "port": 7890 }` |
-| `network.dns` | object? | DNS 覆盖，如 `{ "mode": "system" }` 或 `{ "servers": ["8.8.8.8"], "dohUrl": "..." }` |
-| `network.hosts` | array? | Hosts 覆盖，每项 `{ "ip": "1.2.3.4", "host": "example.com" }` |
-| `network.sni` | object? | SNI 覆盖 |
-| `network.ech` | object? | ECH 覆盖 |
+| `network.proxy` | object? | 代理覆盖，如 `{ "mode": "manual", "protocol": "http", "host": "...", "port": 7890 }` |
+| `network.dns` | object? | DNS 覆盖，如 `{ "mode": "doh", "dohUrl": "https://cloudflare-dns.com/dns-query" }` 或 `{ "mode": "custom", "servers": ["8.8.8.8"] }` |
+| `network.hosts` | array? | Hosts 覆盖，每项 `{ "ip": "1.2.3.4", "host": "example.com", "enabled": true }` |
+| `network.sni` | object? | SNI 覆盖，如 `{ "enabled": true, "defaultSni": "-" }`；值为 `-` 表示免 SNI，普通域名表示以该域名作 SNI，`domainSni` 为 `{"匹配域名": "SNI值"}` 映射（键可用 `.example.com` 后缀通配） |
+| `network.ech` | object? | ECH 覆盖（运行时暂不生效，见下方限制说明） |
 
 规则：某子键**缺省 = 继承全局设置**；填写了则**整方面覆盖全局**。生效优先级：**用户对源的 UI 覆盖 > 源 JSON 的 `network` 块 > 全局设置 > 默认值**。非法值只告警、不会导致源无法启用。
 
-> ⚠️ 诚实的限制：`sni` 受 Dart TLS 栈能力限制仅尽力生效；`ech` 运行时暂未接通。这两个键先别指望，其余（proxy / dns / hosts）都真实生效。
+> **`sni` 生效说明**：对「https 直连」真实生效（TLS 握手在应用内完成，SNI 可被覆盖为配置值或置 `-` 免 SNI；免 SNI 配合 hosts 钉定可达 IP 可绕过按 SNI 的连接阻断，Cloudflare 边缘接受无 SNI 握手并按 Host 头路由）。走代理时不生效。
+>
+> ⚠️ 诚实的限制：`ech` 受 Dart TLS 栈限制运行时暂未接通——受限站点请优先使用 `sni`（免 SNI / 自定义值）+ `hosts` 组合，或经支持 ECH 的本地代理内核（手动代理）。其余（proxy / dns / hosts）都真实生效。
 
 ### 4.5.2 源编写教程（分级：基础 / 中级 / 高级）
 

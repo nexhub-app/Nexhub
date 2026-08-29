@@ -5,6 +5,7 @@
 /// - 开：展开与全局页同款表单，整方面覆盖全局。
 ///
 /// 生效边界：仅作用于经 HttpFetcher 的该源抓取；封面图/原生组件不受源级覆盖影响。
+/// SNI 覆盖对 https 直连生效（值 `-` 免 SNI）；ECH 运行时未接通，卡片内说明替代路径。
 /// 读写 [SourceNetworkOverrideStore]，保存后经
 /// [NetworkConfigService.onSourceOverrideChanged] 即时生效。
 ///
@@ -61,8 +62,10 @@ class _SourceNetworkOverrideScreenState
   final _dotPortCtrl = TextEditingController();
   final _sniDefaultCtrl = TextEditingController();
   final _echCtrl = TextEditingController();
+  final _sniTestHostCtrl = TextEditingController(text: 'www.cloudflare.com');
 
   bool _saving = false;
+  bool _testingSni = false;
 
   /// 源文件自带的 network 块（源作者随源下发，可能为 null 或空）。
   bool get _hasFileNetwork {
@@ -104,6 +107,7 @@ class _SourceNetworkOverrideScreenState
     _dotPortCtrl.dispose();
     _sniDefaultCtrl.dispose();
     _echCtrl.dispose();
+    _sniTestHostCtrl.dispose();
     super.dispose();
   }
 
@@ -206,6 +210,44 @@ class _SourceNetworkOverrideScreenState
           ? l10n.sourceNetworkClearedToSource
           : l10n.sourceNetworkCleared),
     ));
+  }
+
+  /// 源级 SNI 握手测试：以「全局配置 + 本页工作副本覆盖」构建档案，
+  /// 与运行时合并语义一致。
+  Future<void> _testSni(AppLocalizations l10n) async {
+    final host = _sniTestHostCtrl.text.trim();
+    if (host.isEmpty) return;
+    final cfg = _collect();
+    final sni = cfg.sni;
+    if (sni != null) {
+      final err =
+          NetworkValidators.validateSniValue(sni.defaultSni ?? '');
+      if (err.isNotEmpty) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_errText(l10n, err.first))));
+        return;
+      }
+    }
+    setState(() => _testingSni = true);
+    final (ok, ms, name) = await NetworkConfigService.instance.testSni(
+      host,
+      NetworkConfigService.instance.config,
+      override: cfg,
+    );
+    if (!mounted) return;
+    setState(() => _testingSni = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok ? l10n.networkSniTestResult(name, ms) : l10n.networkTestFailed,
+          style: ok
+              ? TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                )
+              : null,
+        ),
+      ),
+    );
   }
 
   @override
@@ -416,17 +458,24 @@ class _SourceNetworkOverrideScreenState
     return SettingsCard(
       title: l10n.networkSniTitle,
       children: <Widget>[
-        Text(l10n.networkExperimentalNote,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.error)),
+        Text(
+          l10n.networkSniRuntimeNote,
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
         _overrideToggle(
           l10n,
           enabled: s != null,
           onChanged: (v) => setState(
               () => _sni = v ? const SniConfig(enabled: true) : null),
         ),
-        if (s != null)
+        if (s != null) ...<Widget>[
           _field(_sniDefaultCtrl, l10n.networkSniDefault, Icons.vpn_lock),
+          _domainSniEditor(l10n),
+          _field(_sniTestHostCtrl, l10n.networkSniTestHost,
+              Icons.travel_explore),
+          _testButton(l10n.networkTestSni, _testingSni, () => _testSni(l10n)),
+        ],
       ],
     );
   }
@@ -437,9 +486,11 @@ class _SourceNetworkOverrideScreenState
     return SettingsCard(
       title: l10n.networkEchTitle,
       children: <Widget>[
-        Text(l10n.networkExperimentalNote,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.error)),
+        Text(
+          l10n.networkEchRuntimeNote,
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
         _overrideToggle(
           l10n,
           enabled: e != null,
@@ -451,6 +502,112 @@ class _SourceNetworkOverrideScreenState
               Icons.enhanced_encryption),
       ],
     );
+  }
+
+  /// 域名 → SNI 映射编辑器（与全局页同语义：`.` 前缀后缀通配、`-` 免 SNI）。
+  Widget _domainSniEditor(AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    final s = _sni;
+    final entries = s?.domainSni.entries.toList() ?? const <MapEntry<String, String>>[];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(l10n.networkSniDomainTitle,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        if (entries.isEmpty)
+          Text(l10n.networkSniDomainEmpty, style: theme.textTheme.bodySmall)
+        else
+          for (final entry in entries)
+            Row(
+              children: <Widget>[
+                Expanded(child: Text('${entry.key}  →  ${entry.value}')),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => setState(() {
+                    final next = Map<String, String>.of(s!.domainSni)
+                      ..remove(entry.key);
+                    _sni = s.copyWith(domainSni: next);
+                  }),
+                ),
+              ],
+            ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: () => _addSniMapping(l10n),
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(l10n.networkSniAddDomain),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addSniMapping(AppLocalizations l10n) async {
+    final hostCtrl = TextEditingController();
+    final valueCtrl = TextEditingController();
+    final added = await showDialog<MapEntry<String, String>>(
+      context: context,
+      builder: (ctx) => AppAlertDialog(
+        title: Text(l10n.networkSniAddDomain),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            TextField(
+              controller: hostCtrl,
+              decoration: InputDecoration(
+                labelText: l10n.networkSniDomainHost,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+            TextField(
+              controller: valueCtrl,
+              decoration: InputDecoration(
+                labelText: l10n.networkSniDomainValue,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              final errs = NetworkValidators.validateSniEntry(
+                host: hostCtrl.text.trim(),
+                value: valueCtrl.text.trim(),
+              );
+              if (errs.isNotEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text(_errText(l10n, errs.first))),
+                );
+                return;
+              }
+              Navigator.of(ctx).pop(MapEntry(
+                hostCtrl.text.trim(),
+                valueCtrl.text.trim(),
+              ));
+            },
+            child: Text(l10n.add),
+          ),
+        ],
+      ),
+    );
+    hostCtrl.dispose();
+    valueCtrl.dispose();
+    if (added != null) {
+      setState(() {
+        final next = Map<String, String>.of(_sni?.domainSni ?? const {});
+        next[added.key] = added.value;
+        _sni = (_sni ?? const SniConfig(enabled: true))
+            .copyWith(domainSni: next);
+      });
+    }
   }
 
   Widget _buildHostsCard(AppLocalizations l10n) {
@@ -570,6 +727,22 @@ class _SourceNetworkOverrideScreenState
   }
 
   // ---- 通用小组件 ----
+
+  Widget _testButton(String label, bool busy, VoidCallback onPressed) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: OutlinedButton.icon(
+        onPressed: busy ? null : onPressed,
+        icon: busy
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.network_check, size: 18),
+        label: Text(label),
+      ),
+    );
+  }
 
   Widget _field(
     TextEditingController ctrl,

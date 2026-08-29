@@ -12470,6 +12470,60 @@ abstract class AppLocalizations {
   /// **'Default SNI value'**
   String get networkSniDefault;
 
+  /// No description provided for @networkSniRuntimeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to direct HTTPS connections: the default SNI applies to all hosts, and `-` suppresses SNI entirely (the handshake omits server_name, bypassing SNI-based blocking; pair with custom hosts pinning a reachable IP). Per-host mappings below override the default. Not applied through a proxy.'**
+  String get networkSniRuntimeNote;
+
+  /// No description provided for @networkSniDomainTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Host → SNI mappings'**
+  String get networkSniDomainTitle;
+
+  /// No description provided for @networkSniDomainEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No mappings'**
+  String get networkSniDomainEmpty;
+
+  /// No description provided for @networkSniAddDomain.
+  ///
+  /// In en, this message translates to:
+  /// **'Add SNI mapping'**
+  String get networkSniAddDomain;
+
+  /// No description provided for @networkSniDomainHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host pattern (.example.com for suffix match)'**
+  String get networkSniDomainHost;
+
+  /// No description provided for @networkSniDomainValue.
+  ///
+  /// In en, this message translates to:
+  /// **'SNI value (- for none)'**
+  String get networkSniDomainValue;
+
+  /// No description provided for @networkSniTestHost.
+  ///
+  /// In en, this message translates to:
+  /// **'Host to test'**
+  String get networkSniTestHost;
+
+  /// No description provided for @networkTestSni.
+  ///
+  /// In en, this message translates to:
+  /// **'Test SNI handshake'**
+  String get networkTestSni;
+
+  /// SNI handshake test result with TLS name and latency
+  ///
+  /// In en, this message translates to:
+  /// **'{name} ({ms} ms)'**
+  String networkSniTestResult(String name, int ms);
+
   /// No description provided for @networkEchTitle.
   ///
   /// In en, this message translates to:
@@ -12487,6 +12541,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'ECH config list (base64)'**
   String get networkEchConfigList;
+
+  /// No description provided for @networkEchRuntimeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The Dart TLS stack does not support ECH, so in-app direct connections cannot use it. Alternatives: 1) set a manual proxy pointing at a local ECH-capable core such as mihomo or sing-box (SOCKS5); 2) with system secure DNS (DoH / Private DNS) enabled, WebView-based fetching uses ECH through the native stack.'**
+  String get networkEchRuntimeNote;
 
   /// No description provided for @networkReset.
   ///

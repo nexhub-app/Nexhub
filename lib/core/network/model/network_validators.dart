@@ -136,4 +136,30 @@ class NetworkValidators {
     if (!isPortString(portText)) errors.add('networkErrorInvalidPort');
     return errors;
   }
+
+  /// 校验单条 SNI 域名映射：host 为域名（允许 `.` 前缀的子域通配），
+  /// 值为域名或 `-`（免 SNI 哨兵）。
+  static List<String> validateSniEntry({
+    required String host,
+    required String value,
+  }) {
+    final errors = <String>[];
+    final h = host.trim();
+    if (h.startsWith('.')) {
+      if (!isDomain(h.substring(1))) errors.add('networkErrorInvalidDomain');
+    } else if (!isDomain(h)) {
+      errors.add('networkErrorInvalidDomain');
+    }
+    final v = value.trim();
+    if (v != '-' && !isDomain(v)) errors.add('networkErrorInvalidDomain');
+    return errors;
+  }
+
+  /// 校验 SNI 值（默认值 / 映射值）：域名的或 `-`（免 SNI）或空。
+  static List<String> validateSniValue(String value) {
+    final v = value.trim();
+    if (v.isEmpty) return const <String>[];
+    if (v != '-' && !isDomain(v)) return <String>['networkErrorInvalidDomain'];
+    return const <String>[];
+  }
 }

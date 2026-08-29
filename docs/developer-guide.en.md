@@ -91,15 +91,17 @@ Each source's "site metadata" and "network access method" are written in the sou
 
 | Key | Type | Description |
 | --- | --- | --- |
-| `network.proxy` | object? | Proxy override, e.g. `{ "mode": "http", "host": "...", "port": 7890 }` |
-| `network.dns` | object? | DNS override, e.g. `{ "mode": "system" }` or `{ "servers": ["8.8.8.8"], "dohUrl": "..." }` |
-| `network.hosts` | array? | Hosts override, each `{ "ip": "1.2.3.4", "host": "example.com" }` |
-| `network.sni` | object? | SNI override |
-| `network.ech` | object? | ECH override |
+| `network.proxy` | object? | Proxy override, e.g. `{ "mode": "manual", "protocol": "http", "host": "...", "port": 7890 }` |
+| `network.dns` | object? | DNS override, e.g. `{ "mode": "doh", "dohUrl": "https://cloudflare-dns.com/dns-query" }` or `{ "mode": "custom", "servers": ["8.8.8.8"] }` |
+| `network.hosts` | array? | Hosts override, each `{ "ip": "1.2.3.4", "host": "example.com", "enabled": true }` |
+| `network.sni` | object? | SNI override, e.g. `{ "enabled": true, "defaultSni": "-" }`; value `-` suppresses SNI entirely, a domain uses that domain as SNI, and `domainSni` maps host patterns (`.example.com` for suffix match) to SNI values |
+| `network.ech` | object? | ECH override (not wired up at runtime yet, see limitation below) |
 
 Rules: a key that is **absent = inherit global**; a key that is set = **override the whole aspect**. Priority: **user UI override for the source > source JSON `network` block > global settings > defaults**. Invalid values only warn and never disable the source.
 
-> ⚠️ Honest limitations: `sni` is best-effort only due to Dart TLS-stack limits; `ech` is not wired up at runtime yet. Don't count on those two; the rest (proxy / dns / hosts) genuinely work.
+> **How `sni` works**: genuinely effective for direct HTTPS connections (the TLS handshake is completed in-app, so SNI can be overridden with the configured value or suppressed with `-`; suppressing SNI together with hosts pinning a reachable IP bypasses SNI-based blocking — the Cloudflare edge accepts no-SNI handshakes and routes by the Host header). Not applied through a proxy.
+>
+> ⚠️ Honest limitations: `ech` is not wired up at runtime due to Dart TLS-stack limits — for restricted sites prefer `sni` (no-SNI / custom value) combined with `hosts`, or a local ECH-capable proxy core (manual proxy). The rest (proxy / dns / hosts) genuinely work.
 
 ### 4.5.2 Source-authoring tutorial (tiered: Basic / Intermediate / Advanced)
 

@@ -8,6 +8,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -20,6 +21,7 @@ import 'model/network_config.dart';
 import 'model/source_network_config.dart';
 import 'runtime/dns_resolver.dart';
 import 'runtime/network_client_builder.dart';
+import 'runtime/sni_policy.dart';
 import 'source_network_override_store.dart';
 
 /// 网络配置服务（ChangeNotifier 单例 + Provider）。
@@ -209,5 +211,59 @@ class NetworkConfigService extends ChangeNotifier {
     );
     final (ips, ms) = await testDns(sampleHost, cfg, const <HostsEntry>[]);
     return (ips.isNotEmpty, ms);
+  }
+
+  /// 测试 SNI 握手：按档案 DNS/Hosts 定向 TCP，并按 [SniPolicy] 完成真实 TLS
+  /// 握手（覆盖 / 免 SNI / 正常三种形态与运行时一致）。
+  /// [override] 为源级覆盖（与 [effectiveFor] 同一合并语义）。
+  /// 返回 (成功, 延迟ms, 实际使用的 TLS 名；免 SNI 为 `-`)。
+  Future<(bool, int, String)> testSni(
+    String host,
+    NetworkConfig config, {
+    SourceNetworkConfig? override,
+  }) async {
+    final profile = EffectiveNetworkProfile.fromConfig(
+      config,
+      override: override,
+    );
+    final sni = SniPolicy.resolve(profile.sni, host);
+    String tlsName = sni ?? host;
+    final sw = Stopwatch()..start();
+    try {
+      final addresses =
+          await DnsResolver.instance.resolve(host, profile.dns, profile.hosts);
+      if (addresses.isEmpty) {
+        return (false, sw.elapsedMilliseconds, tlsName);
+      }
+      final socket = await Socket.connect(
+        addresses.first,
+        443,
+        timeout: const Duration(seconds: 8),
+      );
+      try {
+        tlsName = switch (sni) {
+          null => host,
+          '' => socket.remoteAddress.host,
+          _ => sni,
+        };
+        await SecureSocket.secure(
+          socket,
+          host: tlsName,
+          onBadCertificate: (_) => true,
+        );
+        sw.stop();
+        return (
+          true,
+          sw.elapsedMilliseconds,
+          sni == '' ? SniPolicy.noSniToken : tlsName,
+        );
+      } finally {
+        socket.destroy();
+      }
+    } on Object catch (e) {
+      debugPrint('NetworkConfigService.testSni($host) failed: $e');
+      sw.stop();
+      return (false, sw.elapsedMilliseconds, tlsName);
+    }
   }
 }

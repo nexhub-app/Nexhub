@@ -150,6 +150,16 @@ class SourceNetworkConfig {
         ));
       }
     }
+    final s = sni;
+    if (s != null) {
+      errors.addAll(NetworkValidators.validateSniValue(s.defaultSni ?? ''));
+      for (final e in s.domainSni.entries) {
+        errors.addAll(NetworkValidators.validateSniEntry(
+          host: e.key,
+          value: e.value,
+        ));
+      }
+    }
     return errors;
   }
 }

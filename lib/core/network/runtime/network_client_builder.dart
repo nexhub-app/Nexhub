@@ -4,11 +4,13 @@
 /// 消除代理三模式 / connectionFactory / badCertificateCallback 的重复。
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import '../model/effective_network_profile.dart';
 import '../model/network_config.dart';
 import 'dns_resolver.dart';
+import 'sni_policy.dart';
 
 /// 从 [EffectiveNetworkProfile] 构建 [HttpClient] 的单一入口。
 class NetworkClientBuilder {
@@ -30,7 +32,7 @@ class NetworkClientBuilder {
     _applyProxy(client, profile.proxy, proxyPassword);
 
     if (profile.needsCustomConnection) {
-      _applyCustomConnection(client, profile);
+      _applyCustomConnection(client, profile, ctx: ctx);
     }
 
     return client;
@@ -86,24 +88,68 @@ class NetworkClientBuilder {
     }
   }
 
+  /// 自定义连接工厂：DNS/Hosts 定向 + 直连 HTTPS 的 TLS 接管。
+  ///
+  /// 关键契约（见 SDK `_ConnectionTarget.connect`）：connectionFactory 返回的
+  /// socket 会被 HttpClient 原样使用——**https 直连时客户端不会再补做 TLS**，
+  /// 工厂必须自行完成握手并返回已加密的 [SecureSocket]（此前返回裸 socket 会
+  /// 把明文 HTTP 打到 443 端口）。
+  ///
+  /// TLS 在裸 socket 上以 [SniPolicy] 解析出的名字完成：
+  /// - 不覆盖：SNI = 请求域名（与默认路径一致）；
+  /// - 自定义：SNI = 配置域名（证书失配由 onBadCertificate 容忍）；
+  /// - `-` 免 SNI：host 传 IP 字面量，引擎不发送 server_name 扩展。
+  ///
+  /// 走外部代理（proxyHost != null）时由 HttpClient 自己做 CONNECT 隧道 + TLS
+  /// （SNI=目标域名），本工厂只负责把 TCP 连到（可能被 hosts/DNS 覆盖的）代理
+  /// 地址，SNI 覆盖在该路径不可用。
   static void _applyCustomConnection(
     HttpClient client,
-    EffectiveNetworkProfile profile,
-  ) {
+    EffectiveNetworkProfile profile, {
+    SecurityContext? ctx,
+  }) {
     client.connectionFactory = (Uri uri, String? proxyHost, int? proxyPort) {
       // 有代理时 connectionFactory 收到的是代理主机；否则为目标主机。
       final targetHost = proxyHost ?? uri.host;
+      // uri.port 在未显式给端口时为 0，须按 scheme 回落默认端口；
+      // 显式端口必须原样保留（否则带端口的源地址会连到 443/80 上）。
+      final defaultPort = uri.scheme == 'https' ? 443 : 80;
       final targetPort =
-          proxyPort ?? (uri.scheme == 'https' ? 443 : 80);
-      return DnsResolver.instance
-          .resolve(targetHost, profile.dns, profile.hosts)
-          .then((addresses) {
-        if (addresses.isEmpty) {
-          return Socket.startConnect(targetHost, targetPort);
-        }
-        // SNI 自定义值受平台限制（域前置无法经标准路径生效），此处仅完成
-        // DNS/Hosts 定向连接；TLS SNI 由 HttpClient 用 url.host 决定。
-        return Socket.startConnect(addresses.first, targetPort);
+          proxyPort ?? (uri.port != 0 ? uri.port : defaultPort);
+      final tlsDirect = proxyHost == null && uri.scheme == 'https';
+      final sniOverride =
+          tlsDirect ? SniPolicy.resolve(profile.sni, uri.host) : null;
+
+      // DNS/Hosts 定向 TCP：解析结果为空时回退原域名交给系统解析。
+      Future<ConnectionTask<Socket>> tcpTask() =>
+          DnsResolver.instance
+              .resolve(targetHost, profile.dns, profile.hosts)
+              .then((addresses) => addresses.isEmpty
+                  ? Socket.startConnect(targetHost, targetPort)
+                  : Socket.startConnect(addresses.first, targetPort));
+
+      if (!tlsDirect) return tcpTask();
+
+      // https 直连：工厂必须交回已握手的 SecureSocket（见方法注释的契约）。
+      return tcpTask().then((raw) {
+        final Future<Socket> secured = raw.socket.then<Socket>((socket) {
+          // Dart 的 SecureSocket.secure(host:) 同时决定 SNI 与证书校验名；
+          // host 传 IP 字面量时引擎不发送 SNI 扩展（免 SNI 模式的实现基础）。
+          final tlsName = switch (sniOverride) {
+            null => uri.host,
+            '' => socket.remoteAddress.host,
+            _ => sniOverride,
+          };
+          return SecureSocket.secure(
+            socket,
+            host: tlsName,
+            context: ctx,
+            // 与 client.badCertificateCallback=true 对齐：容忍自签，以及
+            // 自定义 SNI 与证书名的必然失配。
+            onBadCertificate: (_) => true,
+          );
+        });
+        return ConnectionTask.fromSocket(secured, raw.cancel);
       });
     };
   }

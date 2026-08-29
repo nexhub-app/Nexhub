@@ -129,7 +129,9 @@ Hands problems like "can't connect, polluted DNS, need a proxy" back to the user
 - **Scope**: global config covers all app network requests (including cover loading and the downloader); DNS has TTL caching and hits custom Hosts first; **changes apply instantly, no restart needed**;
 - **Built-in tests**: proxy test, DNS test, DoH test.
 
-> ⚠️ Honest limitations: **SNI** is best-effort only due to Dart TLS-stack limits; **ECH** has a complete UI but is **not wired up at runtime yet**.
+> **SNI genuinely works for direct HTTPS connections**: you can set a custom SNI value, or `-` to suppress SNI entirely (no-SNI, which together with custom hosts pinning a reachable IP bypasses SNI-based blocking); the settings page adds a "host → SNI mappings" editor and a "Test SNI handshake" button.
+>
+> ⚠️ Honest limitations: **ECH** is **not wired up at runtime** due to Dart TLS-stack limits — for restricted sites prefer no-SNI / custom SNI combined with Hosts, or a local ECH-capable proxy core (manual proxy, e.g. mihomo / sing-box).
 
 ## 2.11 Collection groups, local ratings & comments (new in v0.4.0)
 

@@ -5,7 +5,8 @@
 /// SettingsCard / SettingsSwitchTile / SettingsSegmentedTile。
 ///
 /// 生效边界（UI 显式告知）：全局配置经 HttpOverrides 覆盖所有 dart:io
-/// HttpClient 派生流量；ECH 与自定义 SNI 值受 Dart TLS 栈限制，标注「实验性」。
+/// HttpClient 派生流量；SNI 覆盖对 https 直连生效（值 `-` 免 SNI）；ECH 受
+/// Dart TLS 栈限制运行时未接通，卡片内说明替代路径。
 library;
 
 import 'package:flutter/material.dart';
@@ -50,10 +51,12 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
   final _sniDefaultCtrl = TextEditingController();
   final _echCtrl = TextEditingController();
   final _dnsTestHostCtrl = TextEditingController(text: 'www.google.com');
+  final _sniTestHostCtrl = TextEditingController(text: 'www.cloudflare.com');
 
   bool _testingProxy = false;
   bool _testingDns = false;
   bool _testingDoh = false;
+  bool _testingSni = false;
   bool _saving = false;
   bool _passwordDirty = false;
 
@@ -84,6 +87,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
     _sniDefaultCtrl.dispose();
     _echCtrl.dispose();
     _dnsTestHostCtrl.dispose();
+    _sniTestHostCtrl.dispose();
     super.dispose();
   }
 
@@ -142,6 +146,16 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       final e = NetworkValidators.validateDot(
         host: cfg.dns.dotHost,
         portText: '${cfg.dns.dotPort}',
+      );
+      if (e.isNotEmpty) return _errText(l10n, e.first);
+    }
+    final sniDefaultErr =
+        NetworkValidators.validateSniValue(cfg.sni.defaultSni ?? '');
+    if (sniDefaultErr.isNotEmpty) return _errText(l10n, sniDefaultErr.first);
+    for (final entry in cfg.sni.domainSni.entries) {
+      final e = NetworkValidators.validateSniEntry(
+        host: entry.key,
+        value: entry.value,
       );
       if (e.isNotEmpty) return _errText(l10n, e.first);
     }
@@ -272,6 +286,36 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       SnackBar(
         content: Text(
           ok ? l10n.networkTestSuccess(ms) : l10n.networkTestFailed,
+          style: ok
+              ? TextStyle(
+                  color: _latencyColor(Theme.of(context).colorScheme, ms))
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _testSni(AppLocalizations l10n) async {
+    final host = _sniTestHostCtrl.text.trim();
+    if (host.isEmpty) return;
+    final cfg = _collect();
+    final err = NetworkValidators.validateSniValue(cfg.sni.defaultSni ?? '');
+    if (err.isNotEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(_errText(l10n, err.first))));
+      return;
+    }
+    setState(() => _testingSni = true);
+    final (ok, ms, name) =
+        await NetworkConfigService.instance.testSni(host, cfg);
+    if (!mounted) return;
+    setState(() => _testingSni = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? l10n.networkSniTestResult(name, ms)
+              : l10n.networkTestFailed,
           style: ok
               ? TextStyle(
                   color: _latencyColor(Theme.of(context).colorScheme, ms))
@@ -624,9 +668,11 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       key: const ValueKey<String>('network.sni'),
       title: l10n.networkSniTitle,
       children: <Widget>[
-        Text(l10n.networkExperimentalNote,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.error)),
+        Text(
+          l10n.networkSniRuntimeNote,
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
         SettingsSwitchTile(
           title: l10n.networkSniEnabled,
           value: _draft.sni.enabled,
@@ -634,8 +680,13 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
             _draft = _draft.copyWith(sni: _draft.sni.copyWith(enabled: v));
           }),
         ),
-        if (_draft.sni.enabled)
+        if (_draft.sni.enabled) ...<Widget>[
           _field(_sniDefaultCtrl, l10n.networkSniDefault, Icons.vpn_lock),
+          _domainSniEditor(l10n),
+          _field(_sniTestHostCtrl, l10n.networkSniTestHost,
+              Icons.travel_explore),
+          _testButton(l10n.networkTestSni, _testingSni, () => _testSni(l10n)),
+        ],
       ],
     );
   }
@@ -646,9 +697,11 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       key: const ValueKey<String>('network.ech'),
       title: l10n.networkEchTitle,
       children: <Widget>[
-        Text(l10n.networkExperimentalNote,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.error)),
+        Text(
+          l10n.networkEchRuntimeNote,
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
         SettingsSwitchTile(
           title: l10n.networkEchEnabled,
           value: _draft.ech.enabled,
@@ -660,6 +713,111 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           _field(_echCtrl, l10n.networkEchConfigList, Icons.enhanced_encryption),
       ],
     );
+  }
+
+  /// 域名 → SNI 映射编辑器（键支持 `.` 前缀后缀通配；值支持 `-` 免 SNI）。
+  Widget _domainSniEditor(AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    final entries = _draft.sni.domainSni.entries.toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(l10n.networkSniDomainTitle,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        if (entries.isEmpty)
+          Text(l10n.networkSniDomainEmpty, style: theme.textTheme.bodySmall)
+        else
+          for (final entry in entries)
+            Row(
+              children: <Widget>[
+                Expanded(child: Text('${entry.key}  →  ${entry.value}')),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => setState(() {
+                    final next = Map<String, String>.of(_draft.sni.domainSni)
+                      ..remove(entry.key);
+                    _draft = _draft.copyWith(
+                        sni: _draft.sni.copyWith(domainSni: next));
+                  }),
+                ),
+              ],
+            ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: () => _addSniMapping(l10n),
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(l10n.networkSniAddDomain),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addSniMapping(AppLocalizations l10n) async {
+    final hostCtrl = TextEditingController();
+    final valueCtrl = TextEditingController();
+    final added = await showDialog<MapEntry<String, String>>(
+      context: context,
+      builder: (ctx) => AppAlertDialog(
+        title: Text(l10n.networkSniAddDomain),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            TextField(
+              controller: hostCtrl,
+              decoration: InputDecoration(
+                labelText: l10n.networkSniDomainHost,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+            TextField(
+              controller: valueCtrl,
+              decoration: InputDecoration(
+                labelText: l10n.networkSniDomainValue,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              final errs = NetworkValidators.validateSniEntry(
+                host: hostCtrl.text.trim(),
+                value: valueCtrl.text.trim(),
+              );
+              if (errs.isNotEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text(_errText(l10n, errs.first))),
+                );
+                return;
+              }
+              Navigator.of(ctx).pop(MapEntry(
+                hostCtrl.text.trim(),
+                valueCtrl.text.trim(),
+              ));
+            },
+            child: Text(l10n.add),
+          ),
+        ],
+      ),
+    );
+    hostCtrl.dispose();
+    valueCtrl.dispose();
+    if (added != null) {
+      setState(() {
+        final next = Map<String, String>.of(_draft.sni.domainSni);
+        next[added.key] = added.value;
+        _draft = _draft.copyWith(sni: _draft.sni.copyWith(domainSni: next));
+      });
+    }
   }
 
   // ---- 通用小组件 ----

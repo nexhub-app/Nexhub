@@ -6466,6 +6466,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get networkSniDefault => '默认 SNI 值';
 
   @override
+  String get networkSniRuntimeNote =>
+      '对 https 直连生效：默认 SNI 值作用于全部域名，填 - 表示免 SNI（握手不携带 server_name，可绕过按 SNI 的阻断，建议配合自定义 Hosts 钉定可达 IP）；下方域名映射可按站点覆盖默认值。经代理连接时不生效。';
+
+  @override
+  String get networkSniDomainTitle => '域名 → SNI 映射';
+
+  @override
+  String get networkSniDomainEmpty => '无映射条目';
+
+  @override
+  String get networkSniAddDomain => '添加 SNI 映射';
+
+  @override
+  String get networkSniDomainHost => '匹配域名（.example.com 为后缀通配）';
+
+  @override
+  String get networkSniDomainValue => 'SNI 值（- 为免 SNI）';
+
+  @override
+  String get networkSniTestHost => '待测试主机';
+
+  @override
+  String get networkTestSni => '测试 SNI 握手';
+
+  @override
+  String networkSniTestResult(String name, int ms) {
+    return '$name（$ms 毫秒）';
+  }
+
+  @override
   String get networkEchTitle => 'ECH（加密客户端问候）';
 
   @override
@@ -6473,6 +6503,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get networkEchConfigList => 'ECH 配置列表（base64）';
+
+  @override
+  String get networkEchRuntimeNote =>
+      'Dart TLS 栈暂不支持 ECH，应用内直连无法使用。替代方案：① 代理模式选手动，指向支持 ECH 的本地内核（如 mihomo / sing-box 的 SOCKS5 端口）；② 开启系统安全 DNS（DoH / 私有 DNS）后，网页抓取路径由 WebView 原生栈自动启用 ECH。';
 
   @override
   String get networkReset => '恢复默认网络设置';

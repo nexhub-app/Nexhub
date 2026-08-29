@@ -6609,6 +6609,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get networkSniDefault => 'Default SNI value';
 
   @override
+  String get networkSniRuntimeNote =>
+      'Applies to direct HTTPS connections: the default SNI applies to all hosts, and `-` suppresses SNI entirely (the handshake omits server_name, bypassing SNI-based blocking; pair with custom hosts pinning a reachable IP). Per-host mappings below override the default. Not applied through a proxy.';
+
+  @override
+  String get networkSniDomainTitle => 'Host → SNI mappings';
+
+  @override
+  String get networkSniDomainEmpty => 'No mappings';
+
+  @override
+  String get networkSniAddDomain => 'Add SNI mapping';
+
+  @override
+  String get networkSniDomainHost =>
+      'Host pattern (.example.com for suffix match)';
+
+  @override
+  String get networkSniDomainValue => 'SNI value (- for none)';
+
+  @override
+  String get networkSniTestHost => 'Host to test';
+
+  @override
+  String get networkTestSni => 'Test SNI handshake';
+
+  @override
+  String networkSniTestResult(String name, int ms) {
+    return '$name ($ms ms)';
+  }
+
+  @override
   String get networkEchTitle => 'ECH (Encrypted Client Hello)';
 
   @override
@@ -6616,6 +6647,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get networkEchConfigList => 'ECH config list (base64)';
+
+  @override
+  String get networkEchRuntimeNote =>
+      'The Dart TLS stack does not support ECH, so in-app direct connections cannot use it. Alternatives: 1) set a manual proxy pointing at a local ECH-capable core such as mihomo or sing-box (SOCKS5); 2) with system secure DNS (DoH / Private DNS) enabled, WebView-based fetching uses ECH through the native stack.';
 
   @override
   String get networkReset => 'Reset network settings';

@@ -3376,9 +3376,30 @@
   "networkSniTitle": "SNI",
   "networkSniEnabled": "Enable custom SNI",
   "networkSniDefault": "Default SNI value",
+  "networkSniRuntimeNote": "Applies to direct HTTPS connections: the default SNI applies to all hosts, and `-` suppresses SNI entirely (the handshake omits server_name, bypassing SNI-based blocking; pair with custom hosts pinning a reachable IP). Per-host mappings below override the default. Not applied through a proxy.",
+  "networkSniDomainTitle": "Host → SNI mappings",
+  "networkSniDomainEmpty": "No mappings",
+  "networkSniAddDomain": "Add SNI mapping",
+  "networkSniDomainHost": "Host pattern (.example.com for suffix match)",
+  "networkSniDomainValue": "SNI value (- for none)",
+  "networkSniTestHost": "Host to test",
+  "networkTestSni": "Test SNI handshake",
+  "networkSniTestResult": "{name} ({ms} ms)",
+  "@networkSniTestResult": {
+    "description": "SNI handshake test result with TLS name and latency",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
   "networkEchTitle": "ECH (Encrypted Client Hello)",
   "networkEchEnabled": "Enable ECH",
   "networkEchConfigList": "ECH config list (base64)",
+  "networkEchRuntimeNote": "The Dart TLS stack does not support ECH, so in-app direct connections cannot use it. Alternatives: 1) set a manual proxy pointing at a local ECH-capable core such as mihomo or sing-box (SOCKS5); 2) with system secure DNS (DoH / Private DNS) enabled, WebView-based fetching uses ECH through the native stack.",
   "networkReset": "Reset network settings",
   "networkResetTitle": "Reset network settings",
   "networkResetConfirm": "Restore all network settings to defaults?",
