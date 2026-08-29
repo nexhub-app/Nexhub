@@ -196,3 +196,61 @@ Built on Flutter, compilable to **Android / iOS / Windows / macOS / Linux / Web*
 - **Manga**: use `selectors.detail.recommendations` (`list` / `title` / `cover` / `url`) to extract the list straight from the detail page;
 - **Novel (Legado)**: use `ruleBookInfo.recommendations` for recommended titles;
 - Recommendations reuse the list parsing engine with the same fields as search / latest — **declared by the source author, the app hard-codes no site recommendation logic**.
+
+## 2.22 Manga page translation (MTL · new in v2.0.0-beta.3)
+
+Cross-language manga reading gets its barrier lowered by "machine-translated embedded text":
+
+- **Translate on page turn**: when you open a page, it is automatically run through visual OCR + translation; the translated bubbles are mapped onto the original image position based on viewport / aspect ratio / reading mode;
+- **Remembered per work**: the toggle lives in the long-press menu and reader settings panel; the preference is remembered per work, and a failed page can be retried;
+- **Four-level cache**: translations are cached by work | chapter | page | language, so re-opening an already-seen page opens instantly;
+- **Stability hardening**: a concurrency semaphore (network requests capped at 2; cache hits don't consume a slot) prevents rapid page-turns from triggering 429 rate-limiting;
+- **Dedicated endpoint**: the "Manga translation" settings page accepts a dedicated AI endpoint (falls back to the general translation endpoint when empty).
+
+## 2.23 Real-time video subtitle translation (new in v2.0.0-beta.3)
+
+Cross-language video is covered by "real-time subtitle translation":
+
+- **Subtitle panel toggle**: remembered across sessions; reads player subtitles throttled and translates sentence by sentence;
+- **Fallback when no subtitles**: when no subtitle track exists, it captures frames and OCRs the on-screen text as a fallback;
+- **Original text optional**: the overlay at the bottom can toggle whether to show the original text alongside; cached persistently by language | md5;
+- **No dropped lines**: a single line uses exponential backoff retry (up to 3 times), so a momentary network blip no longer drops a line;
+- **Dedicated endpoint**: the "Video translation" settings page accepts a dedicated AI endpoint (falls back to the general translation endpoint when empty).
+
+> Manga page translation / real-time subtitle translation depend on AI endpoint config; when not configured they fall back to the general translation endpoint or are unavailable.
+
+## 2.24 Highlight / annotate / extract / share (novel reader)
+
+When you meet a striking line in a novel, you can save and share it without leaving the app:
+
+- **Trigger**: long-press to select a word / sentence inside the novel reader, and an action bar pops up: highlight, annotate, extract, share;
+- **Highlight / annotate**: persisted per book, still visible when you re-enter the book; highlights color-mark key passages for easy review;
+- **Extract**: selected sentences go into the book's "extracts / notes", where you can browse, manage, and delete them together;
+- **Share card**: generates a "book cover + gradient literary card" style share image (based on `share_plus`), broadcasting the quote together with the book title / cover to other apps in one tap;
+- These operations only touch local data — they don't affect the source site and upload nothing.
+
+## 2.25 Update channels & version upgrade (beta channel / SemVer)
+
+Get new features early without being bothered by unstable builds — two upgrade channels split the difference:
+
+- Inside the app, "Settings → About / Update" checks for new versions, splitting **stable** and **pre-release** into two channels;
+- Version comparison follows **SemVer**: when the core version matches, pre-release numbers are compared segment by segment — fixing the bug where "beta.1 → beta.2 same-core iteration was judged 'up to date'", so the beta channel stopped receiving updates;
+- The pre-release channel identifies **alpha / beta / rc** by tag and upgrades level by level (alpha < beta < rc < release); the stable channel auto-filters pre-release tags;
+- Turn on "pre-release channel" for early access; stay on stable if you want stability; upgrades reuse the same signing key, so they install over the previous build directly.
+
+## 2.26 Reading statistics
+
+Review "how much / how long you read" — all the data stays local:
+
+- Locally records **reading time** and **reading progress**, aggregated by day (daily granularity); depends on no account and uploads nothing;
+- Covers the **novel / manga / video** readers, all instrumented uniformly;
+- View cumulative and recent data in "Settings / About" or the relevant stats entry, handy for self-review and finding where you left off.
+
+## 2.27 Danmaku rendering & integration (video player)
+
+The video player has built-in danmaku, creating a "watching together" feel:
+
+- Renders danmaku with `canvas_danmaku`, overlaid on the `media_kit` video frame;
+- **Danmaku source**: can connect to open danmaku networks like DandanPlay, auto-matching the danmaku pool by title / episode; some sources require a signed-in danmaku account before pulling / sending;
+- **Rendering detail**: since beta.2 it includes an anti-overlap track algorithm, stable danmaku position after seek, and per-video subtitle memory; after signing in to DandanPlay you can send danmaku;
+- The danmaku toggle and basic style are adjustable in the player "more" menu / settings; films without a danmaku source show no danmaku layer.
