@@ -177,7 +177,17 @@ class BuiltinResolver implements SourceResolver {
   }) async {
     final effectiveBase = baseUrl ?? source.site.baseUrl;
     final net = NetworkConfigService.instance.effectiveFor(source);
-    final result = _parseHtml(source, apiName, html, baseUrl: effectiveBase);
+    debugPrint(
+      '[BuiltinResolver] resolveFromHtml 进入 apiName=$apiName '
+      'htmlLen=${html.length} base=$effectiveBase',
+    );
+    dynamic result;
+    try {
+      result = _parseHtml(source, apiName, html, baseUrl: effectiveBase);
+    } on Object catch (e, st) {
+      debugPrint('[BuiltinResolver] resolveFromHtml 解析异常 apiName=$apiName: $e\n$st');
+      rethrow;
+    }
     final enhanced = await _maybeEnhanceVideo(
       apiName,
       result,

@@ -19,7 +19,10 @@ import android.os.VibratorManager
 import android.util.Log
 import android.util.Rational
 import android.view.KeyEvent
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.webkit.proxy.ProxyConfig
+import androidx.webkit.proxy.ProxyController
 import com.ryanheise.audioservice.AudioServicePlugin
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -140,6 +143,57 @@ class MainActivity : FlutterFragmentActivity() {
                         result.success(cookies)
                     } catch (e: Exception) {
                         result.success(null)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Method channel: 让源自带 WebView 跟随源「网络覆盖」（hosts/DoH/手动代理）。
+        // 经 AndroidX ProxyController 把源域名导到本地正向代理（DNS 由 DnsResolver
+        // 按源 hosts 解析，绕开 DNS 污染）；API 28 以下不支持，安全回落（不生效）。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "nexhub/webview_proxy"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setProxyOverride" -> {
+                    val pacUrl = call.argument<String>("pacUrl")
+                    val proxyUrl = call.argument<String>("proxyUrl")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        try {
+                            val rule = pacUrl ?: proxyUrl
+                            if (rule == null) {
+                                result.success(false)
+                                return@setMethodCallHandler
+                            }
+                            val proxyConfig = ProxyConfig.Builder()
+                                .addProxyRule(rule)
+                                .build()
+                            ProxyController.getInstance().setProxyOverride(
+                                proxyConfig,
+                                { result.success(true) },
+                                ContextCompat.getMainExecutor(this)
+                            )
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    } else {
+                        result.success(false)
+                    }
+                }
+                "clearProxyOverride" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        try {
+                            ProxyController.getInstance().clearProxyOverride(
+                                { result.success(true) },
+                                ContextCompat.getMainExecutor(this)
+                            )
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    } else {
+                        result.success(false)
                     }
                 }
                 else -> result.notImplemented()

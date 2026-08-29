@@ -6,6 +6,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../models/category_entry.dart';
 import '../models/episode.dart';
 import '../models/media_item.dart';
@@ -121,7 +123,11 @@ class MediaApiService {
           effectiveApi,
           vars: effectiveVars,
         );
-    return _asItems(r);
+    final items = _asItems(r);
+    debugPrint(
+      '[MediaApiService] fetchApiResults apiName=$effectiveApi count=${items.length}',
+    );
+    return items;
   }
 
   /// 拉取某源的分类列表。

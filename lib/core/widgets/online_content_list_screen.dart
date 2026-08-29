@@ -503,11 +503,17 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     if (!mounted) return;
     if (source != _source) return; // 已切换源，丢弃旧请求结果，避免污染新源状态。
     try {
+      debugPrint(
+        '[OnlineContentList] _fetchSection 开始 section=${sec.id} route=${sec.route}',
+      );
       final list = await widget.fetchItems(
         source,
         category: '',
         page: 1,
         vars: _homeSectionVars(source, sec),
+      );
+      debugPrint(
+        '[OnlineContentList] _fetchSection 完成 section=${sec.id} route=${sec.route} count=${list.length}',
       );
       if (!mounted) return;
       if (source != _source) return; // 完成前又切了源。
@@ -517,10 +523,51 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         _homeSectionItems[sec.id] = limited;
         _sectionStatus[sec.id] = _SectionStatus.loaded;
       });
-    } catch (_) {
+    } on Object catch (e) {
       if (!mounted) return;
       if (source != _source) return;
-      setState(() => _sectionStatus[sec.id] = _SectionStatus.error);
+      // webview 型源（如 hanime1.me）：无 cf_clearance Cookie 时无头 WebView
+      // 返回 about:blank，SilentHtmlCapture 判内容过小返回 null →
+      // WebViewResolver 抛 WebViewHtmlRequest。必须像 _loadHome/_loadRank
+      // 那样弹出可见验证页并带重试回调，否则异常被吞 → 用户卡在错误/空态。
+      String? retryError;
+      String? extractedUrl;
+      String? renderedHtml;
+      final handled = await VerificationNavigator.handleVerificationAndRetry(
+        context,
+        e,
+        () async {
+          final list = await widget.fetchItems(
+            source,
+            category: '',
+            page: 1,
+            extractedUrl: extractedUrl,
+            renderedHtml: renderedHtml,
+            vars: _homeSectionVars(source, sec),
+          );
+          if (!mounted) return;
+          if (source != _source) return;
+          final limited =
+              sec.limit > 0 ? list.take(sec.limit).toList(growable: false) : list;
+          setState(() {
+            _homeSectionItems[sec.id] = limited;
+            _sectionStatus[sec.id] = _SectionStatus.loaded;
+          });
+        },
+        verifyHandler: widget.verificationHandler,
+        onExtracted: (url) => extractedUrl = url,
+        onRenderedHtml: (html) => renderedHtml = html,
+        onErrorText: (msg) => retryError = msg,
+      );
+      if (!mounted) return;
+      if (source != _source) return;
+      if (!handled) {
+        setState(() => _sectionStatus[sec.id] = _SectionStatus.error);
+      } else if (retryError != null) {
+        // 验证已弹但重试仍失败：保留错误态，避免被空列表掩盖。
+        setState(() => _sectionStatus[sec.id] = _SectionStatus.error);
+      }
+      // handled && retryError == null → 重试回调已成功 setState loaded，无需再处理。
     }
   }
 

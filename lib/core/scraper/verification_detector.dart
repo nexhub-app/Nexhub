@@ -84,6 +84,7 @@ class VerificationDetector {
   /// 滑块验证页已经通过 `/_guard/html.js` / `/_guard/slide.js` 精确识别。
   static const List<String> _activeChallengeMarkers = <String>[
     '__cf_chl',
+    'cf-chl-',
     'g-recaptcha',
     'turnstile',
     'input[type=password]',
@@ -93,6 +94,13 @@ class VerificationDetector {
     'challenge-form',
     'challenge-stage',
     'data-sitekey',
+    // Cloudflare「Managed Challenge / 5 秒盾 / Just a moment」等待页特征：
+    // 这类页以 200 返回、body 含下方字符串，但站点正常内容绝不会出现，故作为
+    // 主动挑战标记直接判验证页（对齐 Han1mePlus 的 isCloudflareResponse 判定）。
+    'just a moment',
+    'attention required',
+    'verify you are human',
+    'checking your browser',
   ];
 
   /// 被动 CF 标记：Cloudflare 为「每一个」经它代理的页面注入（包括正常内容页，

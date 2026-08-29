@@ -8,7 +8,13 @@
 /// 用 `evaluateJavascript(jsExtractor)` 抽取真实地址回传给调用方。
 library;
 
+import 'package:flutter/foundation.dart';
+
 import '../models/plugin_config.dart';
+import '../network/network_config_service.dart';
+import '../network/runtime/webview_source_network.dart';
+import '../scraper/http_fetcher.dart';
+import '../scraper/silent_html_capture.dart';
 import '../scraper/verification_detector.dart';
 import '../services/config_loader.dart';
 import 'builtin_resolver.dart';
@@ -252,10 +258,68 @@ class WebViewResolver implements SourceResolver {
       // search 各关键词各自独立缓存、不会串味。首次捕获由验证回灌流程写入缓存。
       final cached = WebViewHtmlCache.get(source.id, apiName, url);
       if (cached != null && cached.isNotEmpty) {
-        return BuiltinResolver().resolveFromHtml(
+        return const BuiltinResolver().resolveFromHtml(
           source,
           apiName,
           cached,
+          vars: vars,
+        );
+      }
+      // 「验证一次、后台静默抓取」：命中网页模式但本会话未捕获时，先尝试一次
+      // 携带已持久化 Cookie 的直连抓取（走源自带 hosts / DoH 自定义网络）。
+      // - Cookie 仍有效（首次验证成功后已 syncCookies 落盘）→ 返回真实 HTML，
+      //   静默解析、不再弹 WebView 验证页（对齐 Han1meViewer 的 verify-once 体验）。
+      // - Cookie 过期 / 命中 Cloudflare 挑战 → [HttpFetcher] 抛
+      //   [VerificationRequiredException]，回退到可见 WebView 验证流程重新过验证。
+      final silentHtml = await _trySilentHtmlFetch(source, apiName, url);
+      if (silentHtml != null && silentHtml.isNotEmpty) {
+        WebViewHtmlCache.set(source.id, apiName, silentHtml, url: url);
+        debugPrint(
+          '[WebViewResolver] 静默抓取成功 apiName=$apiName host=${Uri.tryParse(url)?.host} 不再弹验证页',
+        );
+        return const BuiltinResolver().resolveFromHtml(
+          source,
+          apiName,
+          silentHtml,
+          vars: vars,
+        );
+      }
+      // 「静默渲染抓取」：直连抓取只能拿到未渲染壳（列表/详情由 JS 动态渲染）
+      // 时，用 headless WebView 静默加载页面、等渲染完成后取回整页 HTML。多数
+      // 源并没有真正的 Cloudflare 挑战页——此前这一步直接抛 WebViewHtmlRequest
+      // 弹可见抓取页、要求用户手动点「抓取本页渲染内容」，反复打断用户。仅当
+      // 静默抓取也命中挑战页 / 失败（返回 null）时才抛 WebViewHtmlRequest，
+      // 回退可见验证页让用户手动过验证。
+      // 「静默渲染抓取」路径：给无头 WebView 也套上源网络跟随（hosts/DoH/代理），
+      // 否则 webview-html 路由在 DNS 污染环境下会把 hanime1.me 解析到错误服务器、
+      // 只抓回广告页。注意 ProxyController 注入仅 Android 生效（Windows 桌面无
+      // MethodChannel handler、静默回落）；Windows 需在本机开启系统代理（WebView2
+      // 默认继承系统代理）才能绕开污染。apply/release 均为 best-effort，失败不阻断。
+      await WebviewSourceNetwork.instance.applyForSource(source);
+      final renderedHtml = await (() async {
+        try {
+          return await SilentHtmlCapture.capture(
+            url,
+            headers: source.site.headers,
+          );
+        } finally {
+          await WebviewSourceNetwork.instance.releaseForSource();
+        }
+      })();
+      debugPrint(
+        '[WebViewResolver] capture 返回 apiName=$apiName '
+        'renderedHtml=${renderedHtml == null ? "null" : renderedHtml.length}',
+      );
+      if (renderedHtml != null && renderedHtml.isNotEmpty) {
+        WebViewHtmlCache.set(source.id, apiName, renderedHtml, url: url);
+        debugPrint(
+          '[WebViewResolver] 静默渲染抓取成功 apiName=$apiName '
+          'host=${Uri.tryParse(url)?.host} 不弹验证页',
+        );
+        return const BuiltinResolver().resolveFromHtml(
+          source,
+          apiName,
+          renderedHtml,
           vars: vars,
         );
       }
@@ -279,5 +343,46 @@ class WebViewResolver implements SourceResolver {
     }
     // 兜底：无 jsExtractor 脚本时走纯验证流程。
     throw WebViewRequiredException(url, headers: source.site.headers);
+  }
+
+  /// 携带已持久化 Cookie 的「后台静默抓取」：用于 [resolve] 的 webview-html 分支，
+  /// 实现「验证一次、以后不再跳验证」。
+  ///
+  /// 仅当 [HttpFetcher.getHtml] 返回非挑战的真实 HTML 时回传该 HTML；命中 Cloudflare
+  /// 挑战（[VerificationRequiredException]）或任何网络异常时回传 null，由调用方
+  /// 先尝试 headless 静默渲染抓取（[SilentHtmlCapture]），仍失败才回退可见
+  /// WebView 验证流程。这样：首次验证成功后 Cookie 落盘，后续同 host 请求
+  /// 自动携带 `cf_clearance` → 直连成功 → 静默；仅 Cookie 过期才会再次弹验证。
+  Future<String?> _trySilentHtmlFetch(
+    PluginConfig source,
+    String apiName,
+    String url,
+  ) async {
+    try {
+      final net = NetworkConfigService.instance.effectiveFor(source);
+      final html = await HttpFetcher.instance.getHtml(
+        url,
+        headers: source.site.headers,
+        net: net,
+      );
+      // getHtml 命中挑战会直接抛 VerificationRequiredException；返回非空正文还需
+      // 二次核验——Cloudflare 的 200「Just a moment」等待页也返回非空，但正文含
+      // 挑战标记；若漏检会被误当真实内容缓存 → 永久空列表。故此处用扩展后的
+      // [VerificationDetector] 复核，命中挑战则回退可见验证。
+      if (html.isEmpty) return null;
+      if (VerificationDetector.isVerificationRequired(statusCode: 200, body: html, headers: const <String, String>{})) {
+        debugPrint('[WebViewResolver] 静默抓取命中挑战壳 apiName=$apiName → 回退可见验证');
+        return null;
+      }
+      return html;
+    } on VerificationRequiredException {
+      // Cookie 过期 / 首次挑战 → 交给可见 WebView 流程重新过验证。
+      return null;
+    } on Object catch (e) {
+      // 其它网络/解析异常：最佳努力回退到可见 WebView（沿用同一 net 配置，
+      // 可能仍能渲染成功），不在此吞掉真实错误。
+      debugPrint('[WebViewResolver] 静默抓取异常 apiName=$apiName url=$url: $e');
+      return null;
+    }
   }
 }

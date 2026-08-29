@@ -88,3 +88,9 @@ android {
 flutter {
     source = "../.."
 }
+
+// 源 WebView 网络跟随：ProxyController（API 28+）把源域名导到本地正向代理，
+// 绕开 DNS 污染。androidx.webkit 提供 ProxyConfig / ProxyController。
+dependencies {
+    implementation("androidx.webkit:webkit:1.12.0")
+}
