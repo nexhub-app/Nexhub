@@ -7,12 +7,13 @@ import 'dart:convert';
 
 import '../comic/models/reader_preferences.dart';
 
-/// 升级通道：稳定版只取正式 release，测试版取包含预发布（pre-release）的最新版。
+/// 升级通道：稳定版只取正式 release，测试版取包含预发布（alpha/beta/rc 等
+/// pre-release）的最新版。
 enum UpdateChannel {
-  /// 稳定版：跳过 pre-release，只取最新正式发布。
+  /// 稳定版：跳过 pre-release（含 tag 识别兜底），只取最新正式发布。
   stable,
 
-  /// 测试版：取最新发布（含 pre-release），可提前体验新功能。
+  /// 测试版：取最新发布（含 alpha/beta/rc 等任意 pre-release），可提前体验新功能。
   beta;
 
   String get name => switch (this) {
@@ -61,7 +62,7 @@ class UpdateSettings {
   /// 自定义镜像列表（空 = 使用默认镜像列表）。
   final List<UpdateMirror> customMirrors;
 
-  /// 升级通道：稳定版只取正式 release，测试版取含预发布的最新版。
+  /// 升级通道：稳定版只取正式 release，测试版取含 alpha/beta/rc 等预发布的最新版。
   final UpdateChannel updateChannel;
 
   /// 发现新版本时是否自动下载（配合 [wifiOnlyAutoDownload]）。

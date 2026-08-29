@@ -5441,7 +5441,7 @@ abstract class AppLocalizations {
   /// No description provided for @updateChannelBetaDesc.
   ///
   /// In en, this message translates to:
-  /// **'Early access to new features (may be unstable)'**
+  /// **'Early access to alpha/beta/rc releases (may be unstable)'**
   String get updateChannelBetaDesc;
 
   /// No description provided for @updateAutoCheck.

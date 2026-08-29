@@ -1434,7 +1434,7 @@
   "updateChannelStable": "稳定版",
   "updateChannelStableDesc": "仅接收正式发布版本，最稳定",
   "updateChannelBeta": "测试版",
-  "updateChannelBetaDesc": "提前体验新功能，可能不稳定",
+  "updateChannelBetaDesc": "提前体验 alpha / beta / rc 测试版本，可能不稳定",
   "updateAutoCheck": "自动检查更新",
   "updateAutoCheckDesc": "启动时在后台检查是否有新版本",
   "updateAutoDownload": "自动下载更新",

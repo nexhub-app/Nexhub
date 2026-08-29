@@ -2770,7 +2770,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateChannelBeta => '测试版';
 
   @override
-  String get updateChannelBetaDesc => '提前体验新功能，可能不稳定';
+  String get updateChannelBetaDesc => '提前体验 alpha / beta / rc 测试版本，可能不稳定';
 
   @override
   String get updateAutoCheck => '自动检查更新';

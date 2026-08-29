@@ -1455,7 +1455,7 @@
   "updateChannelStable": "Stable",
   "updateChannelStableDesc": "Receive stable releases only",
   "updateChannelBeta": "Beta",
-  "updateChannelBetaDesc": "Early access to new features (may be unstable)",
+  "updateChannelBetaDesc": "Early access to alpha/beta/rc releases (may be unstable)",
   "updateAutoCheck": "Check updates automatically",
   "updateAutoCheckDesc": "Check for new versions in the background on startup",
   "updateAutoDownload": "Download updates automatically",

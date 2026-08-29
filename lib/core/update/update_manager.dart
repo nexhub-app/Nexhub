@@ -330,7 +330,12 @@ class UpdateManager extends ChangeNotifier {
       final bool wantBeta = _settings.updateChannel == UpdateChannel.beta;
       _ReleaseJson? first;
       for (final r in all) {
-        if (!wantBeta && r.prerelease) continue;
+        // 稳定版通道：跳过预发布（GitHub 的 prerelease 标记 + tag 识别兜底，
+        // 防止发布时漏勾 prerelease 导致 alpha/beta/rc 混入稳定版）。
+        if (!wantBeta &&
+            (r.prerelease || isPrereleaseVersion(r.tagName))) {
+          continue;
+        }
         first = r;
         break;
       }
@@ -358,17 +363,34 @@ class UpdateManager extends ChangeNotifier {
     }
   }
 
-  /// 判断版本 a 是否比 b 新（逐数字段比较，去 v 前缀与预发布后缀）。
+  /// 版本是否为测试版（预发布版），供通道过滤与外部识别。
+  ///
+  /// 判定：去 `v` 前缀与 `+build` 元数据后带预发布段即视为测试版，
+  /// 覆盖 alpha、beta、rc 及 dev/preview 等任意预发布标识
+  /// （如 `v2.1.0-alpha.1`、`v2.1.0-rc.1`）。
+  static bool isPrereleaseVersion(String version) =>
+      _splitSemver(version)[1].isNotEmpty;
+
+  /// 判断版本 a 是否比 b 新（SemVer 规则，含预发布段）。
+  ///
+  /// 核心：去 `v` 前缀与 `+build` 元数据后，逐数字段比较主版本号。
+  /// 核心版本相同时按预发布段比较（修复测试版通道检测不到
+  /// `v2.0.0-beta.1 → v2.0.0-beta.2` 这类同核心版本的迭代）：
+  /// - 正式版 > 预发布版（`2.0.0` > `2.0.0-beta.1`）；
+  /// - 两者均为预发布时，按 `.` 拆分逐段比较：纯数字段按数值比较
+  ///   （`beta.2` > `beta.1`），数字段小于字母段（SemVer 规范）。
   bool isNewer(String a, String b) {
-    List<int> norm(String v) => v
-        .replaceAll(RegExp(r'^[vV]'), '')
-        .split('-')
-        .first
+    final List<String> pa = _splitSemver(a);
+    final List<String> pb = _splitSemver(b);
+    // 主版本号（点分数字段）
+    final List<int> x = pa.first
         .split('.')
         .map((e) => int.tryParse(e) ?? 0)
         .toList();
-    final List<int> x = norm(a);
-    final List<int> y = norm(b);
+    final List<int> y = pb.first
+        .split('.')
+        .map((e) => int.tryParse(e) ?? 0)
+        .toList();
     final int n = x.length > y.length ? x.length : y.length;
     for (int i = 0; i < n; i++) {
       final int xi = i < x.length ? x[i] : 0;
@@ -376,7 +398,50 @@ class UpdateManager extends ChangeNotifier {
       if (xi > yi) return true;
       if (xi < yi) return false;
     }
-    return false;
+    // 核心版本相同：比较预发布段（pa/pb 第二位为预发布串，可能为空）。
+    return _comparePrerelease(pa[1], pb[1]) > 0;
+  }
+
+  /// 拆分版本号为 `[核心版本, 预发布段]`：去 `v` 前缀与 `+build` 元数据，
+  /// 按 `-` 分离预发布段（无预发布段时第二项为空串）。
+  static List<String> _splitSemver(String v) {
+    final String s = v
+        .replaceAll(RegExp(r'^[vV]'), '')
+        .split('+')
+        .first
+        .trim();
+    final int dash = s.indexOf('-');
+    if (dash < 0) return <String>[s, ''];
+    return <String>[s.substring(0, dash), s.substring(dash + 1)];
+  }
+
+  /// 比较 SemVer 预发布段：正数表示 a 更新，负数表示 b 更新，0 表示相等。
+  ///
+  /// 无预发布段的正式版 > 有预发布段；两者均有预发布时按 SemVer 11 条逐段
+  /// 比较：纯数字标识符按数值比较，数字标识符 < 字母标识符，字母标识符按
+  /// ASCII 字典序。
+  static int _comparePrerelease(String a, String b) {
+    if (a.isEmpty && b.isEmpty) return 0;
+    if (a.isEmpty) return 1; // 正式版 > 预发布
+    if (b.isEmpty) return -1;
+    final List<String> ia = a.split('.');
+    final List<String> ib = b.split('.');
+    final int n = ia.length > ib.length ? ia.length : ib.length;
+    for (int i = 0; i < n; i++) {
+      final String sa = i < ia.length ? ia[i] : '';
+      final String sb = i < ib.length ? ib[i] : '';
+      if (sa == sb) continue;
+      if (sa.isEmpty) return -1; // 标识符少的一方 < 多的一方
+      if (sb.isEmpty) return 1;
+      final int? na = int.tryParse(sa);
+      final int? nb = int.tryParse(sb);
+      if (na != null && nb != null) return na.compareTo(nb);
+      if (na != null) return -1; // 数字标识符 < 字母标识符
+      if (nb != null) return 1;
+      final int c = sa.compareTo(sb);
+      if (c != 0) return c;
+    }
+    return 0;
   }
 
   /// 获取当前平台的安装包资产（Windows/Android/Linux/macOS）。

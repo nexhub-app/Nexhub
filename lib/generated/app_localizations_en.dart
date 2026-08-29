@@ -2819,7 +2819,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateChannelBetaDesc =>
-      'Early access to new features (may be unstable)';
+      'Early access to alpha/beta/rc releases (may be unstable)';
 
   @override
   String get updateAutoCheck => 'Check updates automatically';
