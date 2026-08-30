@@ -4443,5 +4443,22 @@
   "novelTranslateResumable": "{done} of {total} paragraphs translated - resume from where it stopped",
   "prescanStart": "Prescan whole book",
   "prescanProgress": "Prescanning: {done} of {total} chapters",
-  "prescanReady": "Book overview injected into translation context"
+  "prescanReady": "Book overview injected into translation context",
+  "translationPolish": "Translation polish (second pass)",
+  "translationPolishHint": "After a chapter is translated, polish it once more for natural phrasing and consistent terminology. Off by default; each polished chapter costs one extra request.",
+  "polishAction": "Polish this chapter",
+  "translationVariantOriginal": "First pass",
+  "translationVariantPolished": "Polished",
+  "reviewOpen": "Translation review reports",
+  "reviewTitle": "Translation review",
+  "reviewBooksEmpty": "No translated chapters cached yet. Translate some chapters first, then run a review here.",
+  "reviewBookChapters": "{count} chapters translated",
+  "reviewBookFindings": "{count} findings in the latest report",
+  "reviewRunFailed": "Review failed",
+  "reviewFindingCount": "{count} findings",
+  "reviewNoFindings": "No issues found. All checks passed.",
+  "reviewTruncated": "Summary version: showing the first 100 findings. The full report was saved as a JSON file.",
+  "reviewTypeGlossary": "Glossary",
+  "reviewTypeMissing": "Missing",
+  "reviewTypeLiteral": "Literal"
 }

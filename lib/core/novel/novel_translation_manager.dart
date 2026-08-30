@@ -22,6 +22,10 @@ class NovelChapterTranslation {
 
   /// 与章节文本块索引对齐的译文列表。
   final List<String> translations;
+
+  /// 与 [translations] 对齐的原文列表（F5/F10：润色对照、审查证据、
+  /// 双语导出用；旧缓存无此字段为 null，导出按「译文优先」降级）。
+  final List<String>? sources;
   final int updatedAt;
 
   const NovelChapterTranslation({
@@ -30,6 +34,7 @@ class NovelChapterTranslation {
     required this.chapterTitle,
     required this.lang,
     required this.translations,
+    this.sources,
     required this.updatedAt,
   });
 
@@ -39,6 +44,7 @@ class NovelChapterTranslation {
         'chapterTitle': chapterTitle,
         'lang': lang,
         'translations': translations,
+        if (sources != null) 'sources': sources,
         'updatedAt': updatedAt,
       };
 
@@ -53,6 +59,7 @@ class NovelChapterTranslation {
               const <dynamic>[]))
             t as String? ?? '',
         ],
+        sources: (json['sources'] as List<dynamic>?)?.cast<String>(),
         updatedAt: (json['updatedAt'] as num?)?.toInt() ?? 0,
       );
 }
@@ -141,6 +148,70 @@ class NovelTranslationManager extends ChangeNotifier {
     return box.containsKey(checkpointKeyFor(novelId, chapterId, lang: lang));
   }
 
+  // ── F5 多阶段质量：润色独立槽位 ──
+
+  /// 润色结果键前缀（独立于初译缓存；重译章节后旧润色结果失效删除）。
+  static const String polishedSuffix = '|polished';
+
+  static String polishedKeyFor(String novelId, String chapterId,
+          {String lang = defaultLang}) =>
+      '${keyFor(novelId, chapterId, lang: lang)}$polishedSuffix';
+
+  /// 保存章节润色结果（与初译分段对齐）。
+  Future<void> savePolished(NovelChapterTranslation t) async {
+    final box = await _ensureBox();
+    await box.put(polishedKeyFor(t.novelId, t.chapterId, lang: t.lang),
+        jsonEncode(t.toJson()));
+    notifyListeners();
+  }
+
+  /// 读取章节润色结果；无润色记录返回 null。
+  Future<NovelChapterTranslation?> loadPolished(String novelId,
+      String chapterId, {String lang = defaultLang}) async {
+    final box = await _ensureBox();
+    final raw = box.get(polishedKeyFor(novelId, chapterId, lang: lang));
+    if (raw is! String || raw.isEmpty) return null;
+    try {
+      return NovelChapterTranslation.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// 清除章节润色结果（章节重译后旧润色失效）。
+  Future<void> clearPolished(String novelId, String chapterId,
+      {String lang = defaultLang}) async {
+    final box = await _ensureBox();
+    await box.delete(polishedKeyFor(novelId, chapterId, lang: lang));
+    notifyListeners();
+  }
+
+  /// 枚举有章节译文的全部作品（去重），供翻译审查入口（F5）。
+  Future<List<String>> listNovelIds() async {
+    final box = await _ensureBox();
+    final ids = <String>{};
+    for (final key in box.keys) {
+      if (key is! String) continue;
+      if (key.endsWith(checkpointSuffix) ||
+          key.endsWith('|tmp') ||
+          key.endsWith(polishedSuffix)) {
+        continue;
+      }
+      final raw = box.get(key);
+      if (raw is! String || raw.isEmpty) continue;
+      try {
+        final t = NovelChapterTranslation.fromJson(
+            jsonDecode(raw) as Map<String, dynamic>);
+        if (t.novelId.isNotEmpty) ids.add(t.novelId);
+      } on Object {
+        // 损坏数据忽略。
+      }
+    }
+    final result = ids.toList()..sort();
+    return result;
+  }
+
   Future<void> save(NovelChapterTranslation t) async {
     final box = await _ensureBox();
     await box.put(keyFor(t.novelId, t.chapterId, lang: t.lang),
@@ -179,7 +250,9 @@ class NovelTranslationManager extends ChangeNotifier {
     final result = <NovelChapterTranslation>[];
     for (final key in box.keys) {
       if (key is String &&
-          (key.endsWith(checkpointSuffix) || key.endsWith('|tmp'))) {
+          (key.endsWith(checkpointSuffix) ||
+              key.endsWith('|tmp') ||
+              key.endsWith(polishedSuffix))) {
         continue;
       }
       final raw = box.get(key);

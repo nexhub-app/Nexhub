@@ -15265,6 +15265,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Book overview injected into translation context'**
   String get prescanReady;
+
+  /// No description provided for @translationPolish.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation polish (second pass)'**
+  String get translationPolish;
+
+  /// No description provided for @translationPolishHint.
+  ///
+  /// In en, this message translates to:
+  /// **'After a chapter is translated, polish it once more for natural phrasing and consistent terminology. Off by default; each polished chapter costs one extra request.'**
+  String get translationPolishHint;
+
+  /// No description provided for @polishAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Polish this chapter'**
+  String get polishAction;
+
+  /// No description provided for @translationVariantOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'First pass'**
+  String get translationVariantOriginal;
+
+  /// No description provided for @translationVariantPolished.
+  ///
+  /// In en, this message translates to:
+  /// **'Polished'**
+  String get translationVariantPolished;
+
+  /// No description provided for @reviewOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation review reports'**
+  String get reviewOpen;
+
+  /// No description provided for @reviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation review'**
+  String get reviewTitle;
+
+  /// No description provided for @reviewBooksEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No translated chapters cached yet. Translate some chapters first, then run a review here.'**
+  String get reviewBooksEmpty;
+
+  /// No description provided for @reviewBookChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} chapters translated'**
+  String reviewBookChapters(Object count);
+
+  /// No description provided for @reviewBookFindings.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} findings in the latest report'**
+  String reviewBookFindings(Object count);
+
+  /// No description provided for @reviewRunFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Review failed'**
+  String get reviewRunFailed;
+
+  /// No description provided for @reviewFindingCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} findings'**
+  String reviewFindingCount(Object count);
+
+  /// No description provided for @reviewNoFindings.
+  ///
+  /// In en, this message translates to:
+  /// **'No issues found. All checks passed.'**
+  String get reviewNoFindings;
+
+  /// No description provided for @reviewTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary version: showing the first 100 findings. The full report was saved as a JSON file.'**
+  String get reviewTruncated;
+
+  /// No description provided for @reviewTypeGlossary.
+  ///
+  /// In en, this message translates to:
+  /// **'Glossary'**
+  String get reviewTypeGlossary;
+
+  /// No description provided for @reviewTypeMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing'**
+  String get reviewTypeMissing;
+
+  /// No description provided for @reviewTypeLiteral.
+  ///
+  /// In en, this message translates to:
+  /// **'Literal'**
+  String get reviewTypeLiteral;
 }
 
 class _AppLocalizationsDelegate

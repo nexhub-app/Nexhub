@@ -19,6 +19,7 @@ class TranslationOptionsStore {
   static const String _kCot = 'translation_cot_v1';
   static const String _kExportLayout = 'novel_translation_export_layout_v1';
   static const String _kSubtitleLightweight = 'subtitle_translation_lightweight_v1';
+  static const String _kPolish = 'translation_polish_v1';
 
   static const String _styleBoxName = 'translation_style_overrides';
 
@@ -97,6 +98,19 @@ class TranslationOptionsStore {
   Future<void> setSubtitleLightweight(bool v) async {
     final p = await SharedPreferences.getInstance();
     await p.setString(_kSubtitleLightweight, v ? '1' : '0');
+  }
+
+  // ─────────────────── 润色（F5）───────────────────
+
+  /// 翻译润色功能开关（默认关闭：润色会使目标章节产生一次额外请求）。
+  Future<bool> getPolishEnabled() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getString(_kPolish) == '1';
+  }
+
+  Future<void> setPolishEnabled(bool v) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kPolish, v ? '1' : '0');
   }
 
   // ─────────────────── 小说导出排版（F10）───────────────────

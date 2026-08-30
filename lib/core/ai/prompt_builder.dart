@@ -179,4 +179,27 @@ abstract final class PromptBuilder {
       '请把它们汇总为一段约 200 字以内的$lang全书概述：'
       '交代主要人物、核心设定与主线走向，不要逐章罗列，'
       '不要输出标题或任何解释，只输出概述正文。';
+
+  /// 译文润色 system prompt（F5 多阶段质量）。
+  ///
+  /// 输入为「编号原文 + 编号初译」，输出仅润色后的编号译文。
+  static String polishSystemPrompt({
+    required String lang,
+    required int paragraphCount,
+    List<GlossaryEntry> glossary = const <GlossaryEntry>[],
+  }) {
+    final buf = StringBuffer()
+      ..write('你是专业的文学译者。用户会给出若干编号段落，每段包含'
+          '【原文】与【初译】。请在忠实原意的前提下润色初译：'
+          '使行文自然流畅、消除翻译腔、统一人名与术语译名，'
+          '不要增删情节信息。本次共 $paragraphCount 段，'
+          '请完整输出 $paragraphCount 段。'
+          '输出必须严格保持编号格式：每段译文前单独一行 <<<序号>>>，'
+          '只输出润色后的译文，不要添加任何解释。');
+    final glossaryText = glossarySection(glossary);
+    if (glossaryText.isNotEmpty) {
+      buf.write('\n$glossaryText');
+    }
+    return buf.toString();
+  }
 }

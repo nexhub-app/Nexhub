@@ -4399,5 +4399,22 @@
   "novelTranslateResumable": "已译 {done}/{total} 段，可从断点继续",
   "prescanStart": "全书预扫描",
   "prescanProgress": "预扫描中：已完成 {done}/{total} 章",
-  "prescanReady": "已注入全书概述"
+  "prescanReady": "已注入全书概述",
+  "translationPolish": "译文润色（二阶段）",
+  "translationPolishHint": "章节翻译完成后可再润色一遍，使行文自然、术语统一。默认关闭；每章润色会产生一次额外请求。",
+  "polishAction": "润色本章",
+  "translationVariantOriginal": "初译",
+  "translationVariantPolished": "润色",
+  "reviewOpen": "翻译审查报告",
+  "reviewTitle": "翻译审查",
+  "reviewBooksEmpty": "暂无已翻译章节。先翻译若干章节，再回来运行审查。",
+  "reviewBookChapters": "已译 {count} 章",
+  "reviewBookFindings": "最近报告 {count} 条发现",
+  "reviewRunFailed": "审查失败",
+  "reviewFindingCount": "{count} 条发现",
+  "reviewNoFindings": "未发现问题，全部检查通过。",
+  "reviewTruncated": "摘要版：仅显示前 100 条发现，完整报告已保存为 JSON 文件。",
+  "reviewTypeGlossary": "术语",
+  "reviewTypeMissing": "漏译",
+  "reviewTypeLiteral": "直译腔"
 }

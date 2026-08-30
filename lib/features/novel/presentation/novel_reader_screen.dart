@@ -93,9 +93,13 @@ import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import 'package:flutter/services.dart';
 import '../domain/novel_summary_service.dart';
 import '../domain/novel_summary_settings.dart';
+import '../domain/novel_polish_service.dart';
 import '../domain/novel_prescan_service.dart';
 import '../domain/novel_translation_service.dart';
 import '../domain/novel_illustration_service.dart';
+import '../../../core/ai/glossary_manager.dart';
+import '../../../core/ai/translation_exception.dart';
+import '../../../core/ai/translation_options_store.dart';
 import '../../../core/novel/novel_prescan_manager.dart';
 import '../../settings/presentation/settings_ai_screen.dart';
 // N7 内容编辑：正文编辑持久化管理器（Hive `novel_content_edits`）。
@@ -10793,11 +10797,76 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
   /// 防竞态：重试续译时旧任务的检查点回调不再落盘。
   int _runSeq = 0;
 
+  // ── F5 多阶段质量：润色（独立槽位，可对照切换）──
+  List<String>? _polished;
+  bool _showPolished = false;
+  bool _polishing = false;
+  String? _polishProgress;
+  bool _polishEnabled = false;
+
   @override
   void initState() {
     super.initState();
     _loadCache();
     widget.prescanUi?.addListener(_onPrescanChanged);
+  }
+
+  /// 展示用的译文变体（润色结果存在且被选中时用润色列表）。
+  List<String>? get _displayTranslations =>
+      _showPolished && _polished != null ? _polished : _translations;
+
+  Future<void> _polish() async {
+    if (_polishing || _translations == null) return;
+    setState(() {
+      _polishing = true;
+      _polishProgress = null;
+      _error = null;
+    });
+    try {
+      final settings = NovelSummarySettings.instance;
+      final cfg = await settings.getTranslationConfig();
+      if (cfg.baseUrl.trim().isEmpty) {
+        throw const TranslationException('未配置云端 AI 接口');
+      }
+      var glossary = const <GlossaryEntry>[];
+      try {
+        glossary = await GlossaryManager()
+            .effectiveEntries(widget.novelId, widget.targetLanguage);
+      } on Object {
+        // 术语表不可用时按无术语润色。
+      }
+      final result = await NovelPolishService().polishParagraphs(
+        cfg: cfg,
+        lang: widget.targetLanguage,
+        sources: widget.paragraphs,
+        translations: _translations!,
+        glossary: glossary,
+        onProgress: (done, total) {
+          if (mounted) {
+            setState(() => _polishProgress = '$done/$total');
+          }
+        },
+      );
+      await widget.manager.savePolished(NovelChapterTranslation(
+        novelId: widget.novelId,
+        chapterId: widget.chapterId,
+        chapterTitle: widget.chapterTitle,
+        lang: widget.targetLanguage,
+        translations: result,
+        sources: widget.paragraphs,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ));
+      if (mounted) {
+        setState(() {
+          _polished = result;
+          _showPolished = true;
+        });
+      }
+    } on Object catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _polishing = false);
+    }
   }
 
   void _onPrescanChanged() {
@@ -10831,6 +10900,24 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
     );
     if (partial != null && mounted) {
       setState(() => _checkpoint = partial.translations);
+    }
+    // F5：润色结果与功能开关（重进面板恢复对照切换）。
+    try {
+      final polished = await widget.manager.loadPolished(
+        widget.novelId,
+        widget.chapterId,
+        lang: widget.targetLanguage,
+      );
+      final enabled =
+          await TranslationOptionsStore().getPolishEnabled();
+      if (mounted) {
+        setState(() {
+          _polished = polished?.translations;
+          _polishEnabled = enabled;
+        });
+      }
+    } on Object {
+      // 润色状态读取失败不影响面板。
     }
     // F3：打开面板时同步预扫描状态（此前会话已生成的概述立即显示注入标记）。
     final prescanManager = widget.prescanManager;
@@ -10913,10 +11000,16 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
         chapterTitle: widget.chapterTitle,
         lang: widget.targetLanguage,
         translations: result,
+        sources: widget.paragraphs,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       ));
-      // 完整译文已落盘，检查点使命完成。
+      // 完整译文已落盘，检查点使命完成；旧润色结果随重译失效。
       await widget.manager.clearCheckpoint(
+        widget.novelId,
+        widget.chapterId,
+        lang: widget.targetLanguage,
+      );
+      await widget.manager.clearPolished(
         widget.novelId,
         widget.chapterId,
         lang: widget.targetLanguage,
@@ -10925,6 +11018,8 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
         setState(() {
           _translations = result;
           _checkpoint = null;
+          _polished = null;
+          _showPolished = false;
         });
       }
     } on Object catch (e) {
@@ -11001,6 +11096,63 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
     );
   }
 
+  /// F5 润色行：润色按钮（带进度）/ 已润色时初译/润色切换。
+  Widget _polishRow(AppLocalizations l10n, ColorScheme scheme) {
+    if (_polished != null) {
+      return Padding(
+        padding: const EdgeInsets.only(
+            left: AppTokens.spaceMd,
+            right: AppTokens.spaceMd,
+            bottom: AppTokens.spaceXs),
+        child: SegmentedButton<bool>(
+          segments: <ButtonSegment<bool>>[
+            ButtonSegment<bool>(
+              value: false,
+              label: Text(l10n.translationVariantOriginal),
+            ),
+            ButtonSegment<bool>(
+              value: true,
+              label: Text(l10n.translationVariantPolished),
+            ),
+          ],
+          selected: <bool>{_showPolished},
+          onSelectionChanged: (s) =>
+              setState(() => _showPolished = s.first),
+        ),
+      );
+    }
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(
+            left: AppTokens.spaceMd, bottom: AppTokens.spaceXs),
+        child: _polishing
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: AppTokens.spaceSm),
+                  Text(
+                    _polishProgress ?? l10n.novelTranslating,
+                    style: TextStyle(
+                        fontSize: 12, color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              )
+            : TextButton.icon(
+                onPressed: _polish,
+                icon: const Icon(Icons.auto_fix_high, size: 16),
+                label: Text(l10n.polishAction,
+                    style: const TextStyle(fontSize: 12)),
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -11067,6 +11219,11 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                 ),
               ),
             _prescanRow(l10n, scheme),
+            // F5：润色入口与初译/润色对照切换。
+            if (!_translating &&
+                _translations != null &&
+                _polishEnabled)
+              _polishRow(l10n, scheme),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(
@@ -11078,7 +11235,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
               ),
             const Divider(height: 1),
             Expanded(
-              child: (_translations == null && !_hasCheckpoint)
+              child: (_displayTranslations == null && !_hasCheckpoint)
                   ? Center(
                       child: Text(
                         _translating
@@ -11093,11 +11250,13 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                       itemCount: widget.paragraphs.length,
                       itemBuilder: (context, i) {
                         final t = i <
-                                (_translations ?? _checkpoint ?? const <String>[])
+                                (_displayTranslations ??
+                                        _checkpoint ??
+                                        const <String>[])
                                     .length
-                            ? (_translations ??
-                                _checkpoint ??
-                                const <String>[])[i]
+                            ? (_displayTranslations ??
+                                    _checkpoint ??
+                                    const <String>[])[i]
                             : '';
                         return Padding(
                           padding: const EdgeInsets.only(

@@ -26,6 +26,7 @@ import 'package:nexhub/core/player/subtitle_translation_controller.dart';
 import '../../novel/domain/novel_summary_service.dart';
 import '../../novel/domain/novel_summary_settings.dart';
 import 'translation_glossary_screen.dart';
+import 'translation_review_screen.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
 
@@ -74,6 +75,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
   TranslationStyle _trStyle = TranslationStyle.standard;
   bool _trCot = false;
   bool _trSubtitleLightweight = true;
+  bool _trPolish = false;
   String _trExportLayout = 'translationFirst';
 
   final TranslationOptionsStore _trOptions = TranslationOptionsStore();
@@ -171,6 +173,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     final trStyle = await _trOptions.getStyle();
     final trCot = await _trOptions.getCotEnabled();
     final trLightweight = await _trOptions.getSubtitleLightweight();
+    final trPolish = await _trOptions.getPolishEnabled();
     final trExportLayout = await _trOptions.getNovelExportLayout();
     // 漫画翻译 / 视频翻译：同样只回显功能级填写内容（与通用一致时留空）。
     final comicCfg = await _settings.getComicTranslationConfig();
@@ -208,6 +211,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       _trStyle = trStyle;
       _trCot = trCot;
       _trSubtitleLightweight = trLightweight;
+      _trPolish = trPolish;
       _trExportLayout = trExportLayout;
 
       _comicBaseCtrl.text = cBase;
@@ -288,6 +292,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       await _trOptions.setStyle(_trStyle);
       await _trOptions.setCotEnabled(_trCot);
       await _trOptions.setSubtitleLightweight(_trSubtitleLightweight);
+      await _trOptions.setPolishEnabled(_trPolish);
       await _trOptions.setNovelExportLayout(_trExportLayout);
       await _settings.saveComicTranslationConfig(NovelSummaryConfig(
         baseUrl: _comicBaseCtrl.text.trim(),
@@ -513,6 +518,25 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                   },
                   icon: const Icon(Icons.menu_book_outlined),
                   label: Text(l10n.glossaryOpen),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const TranslationReviewScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: Text(l10n.reviewOpen),
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                // F5：润色功能开关（默认关闭，逐章显式触发控成本）。
+                SettingsSwitchTile(
+                  title: l10n.translationPolish,
+                  subtitle: l10n.translationPolishHint,
+                  value: _trPolish,
+                  onChanged: (v) => setState(() => _trPolish = v),
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
                 // F10：小说译文附录排版开关。

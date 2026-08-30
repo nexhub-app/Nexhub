@@ -7948,4 +7948,62 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get prescanReady => '已注入全书概述';
+
+  @override
+  String get translationPolish => '译文润色（二阶段）';
+
+  @override
+  String get translationPolishHint =>
+      '章节翻译完成后可再润色一遍，使行文自然、术语统一。默认关闭；每章润色会产生一次额外请求。';
+
+  @override
+  String get polishAction => '润色本章';
+
+  @override
+  String get translationVariantOriginal => '初译';
+
+  @override
+  String get translationVariantPolished => '润色';
+
+  @override
+  String get reviewOpen => '翻译审查报告';
+
+  @override
+  String get reviewTitle => '翻译审查';
+
+  @override
+  String get reviewBooksEmpty => '暂无已翻译章节。先翻译若干章节，再回来运行审查。';
+
+  @override
+  String reviewBookChapters(Object count) {
+    return '已译 $count 章';
+  }
+
+  @override
+  String reviewBookFindings(Object count) {
+    return '最近报告 $count 条发现';
+  }
+
+  @override
+  String get reviewRunFailed => '审查失败';
+
+  @override
+  String reviewFindingCount(Object count) {
+    return '$count 条发现';
+  }
+
+  @override
+  String get reviewNoFindings => '未发现问题，全部检查通过。';
+
+  @override
+  String get reviewTruncated => '摘要版：仅显示前 100 条发现，完整报告已保存为 JSON 文件。';
+
+  @override
+  String get reviewTypeGlossary => '术语';
+
+  @override
+  String get reviewTypeMissing => '漏译';
+
+  @override
+  String get reviewTypeLiteral => '直译腔';
 }

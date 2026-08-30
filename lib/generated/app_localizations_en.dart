@@ -8142,4 +8142,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get prescanReady => 'Book overview injected into translation context';
+
+  @override
+  String get translationPolish => 'Translation polish (second pass)';
+
+  @override
+  String get translationPolishHint =>
+      'After a chapter is translated, polish it once more for natural phrasing and consistent terminology. Off by default; each polished chapter costs one extra request.';
+
+  @override
+  String get polishAction => 'Polish this chapter';
+
+  @override
+  String get translationVariantOriginal => 'First pass';
+
+  @override
+  String get translationVariantPolished => 'Polished';
+
+  @override
+  String get reviewOpen => 'Translation review reports';
+
+  @override
+  String get reviewTitle => 'Translation review';
+
+  @override
+  String get reviewBooksEmpty =>
+      'No translated chapters cached yet. Translate some chapters first, then run a review here.';
+
+  @override
+  String reviewBookChapters(Object count) {
+    return '$count chapters translated';
+  }
+
+  @override
+  String reviewBookFindings(Object count) {
+    return '$count findings in the latest report';
+  }
+
+  @override
+  String get reviewRunFailed => 'Review failed';
+
+  @override
+  String reviewFindingCount(Object count) {
+    return '$count findings';
+  }
+
+  @override
+  String get reviewNoFindings => 'No issues found. All checks passed.';
+
+  @override
+  String get reviewTruncated =>
+      'Summary version: showing the first 100 findings. The full report was saved as a JSON file.';
+
+  @override
+  String get reviewTypeGlossary => 'Glossary';
+
+  @override
+  String get reviewTypeMissing => 'Missing';
+
+  @override
+  String get reviewTypeLiteral => 'Literal';
 }
