@@ -8131,4 +8131,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String novelTranslateResumable(Object done, Object total) {
     return '$done of $total paragraphs translated - resume from where it stopped';
   }
+
+  @override
+  String get prescanStart => 'Prescan whole book';
+
+  @override
+  String prescanProgress(Object done, Object total) {
+    return 'Prescanning: $done of $total chapters';
+  }
+
+  @override
+  String get prescanReady => 'Book overview injected into translation context';
 }

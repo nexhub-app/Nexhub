@@ -7937,4 +7937,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String novelTranslateResumable(Object done, Object total) {
     return '已译 $done/$total 段，可从断点继续';
   }
+
+  @override
+  String get prescanStart => '全书预扫描';
+
+  @override
+  String prescanProgress(Object done, Object total) {
+    return '预扫描中：已完成 $done/$total 章';
+  }
+
+  @override
+  String get prescanReady => '已注入全书概述';
 }

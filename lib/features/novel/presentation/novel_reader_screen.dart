@@ -93,8 +93,10 @@ import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import 'package:flutter/services.dart';
 import '../domain/novel_summary_service.dart';
 import '../domain/novel_summary_settings.dart';
+import '../domain/novel_prescan_service.dart';
 import '../domain/novel_translation_service.dart';
 import '../domain/novel_illustration_service.dart';
+import '../../../core/novel/novel_prescan_manager.dart';
 import '../../settings/presentation/settings_ai_screen.dart';
 // N7 内容编辑：正文编辑持久化管理器（Hive `novel_content_edits`）。
 
@@ -599,6 +601,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
  // ─────────────────────── 笔记（P3.1） ───────────────────────
   final NovelNoteManager _notes = NovelNoteManager();
+
+ // ── F3 全书预扫描：章节摘要 + 全书概述（后台可续） ──────────────
+  final NovelPrescanManager _prescanManager = NovelPrescanManager();
+  final ValueNotifier<NovelPrescanUi> _prescanUi =
+      ValueNotifier<NovelPrescanUi>(const NovelPrescanUi());
+
+  /// 预扫描取消标记（离开阅读器 / 重开时中断当前批次，已完成章已落盘）。
+  bool _prescanCancelled = false;
 
   MediaApiService get _service => context.read<MediaApiService>();
   SourceRepository get _repo => context.read<SourceRepository>();
@@ -1781,6 +1791,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   @override
   void dispose() {
+  // F3：离开阅读器中断预扫描（已完成章节已逐批落盘，重进可续扫）。
+    _prescanCancelled = true;
+    _prescanUi.dispose();
   // 退出阅读器前兜底落盘当前阅读位置（不依赖 context，见 _persistProgressNow）。
   // 进度此前仅在阅读中写入，若翻章后的那次落盘尚未完成即被 pop，重进会
   // 回放上一章末页；此处保证最后所在页/章被持久化。
@@ -2218,9 +2231,159 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         paragraphs: paragraphs,
         targetLanguage: targetLang,
         manager: NovelTranslationManager(),
+        prescanManager: _prescanManager,
+        prescanUi: _prescanUi,
+        onStartPrescan: _startPrescan,
       ),
     );
     if (mounted) setState(() {});
+  }
+
+  /// F3 全书预扫描：对每章开头生成 1–2 句摘要，全部完成后汇总全书概述。
+  ///
+  /// 按批落盘（断点续扫）：离开阅读器 / 再次进入后重开即从缺摘要章节继续；
+  /// 作品更新（章节列表变化）时按 chapterId 保留仍有效的摘要、概述重算。
+  Future<void> _startPrescan() async {
+    if (_prescanUi.value.running) return;
+    final source = _source;
+    if (source == null) return;
+    final lang =
+        await NovelSummarySettings.instance.getTranslationTargetLanguage();
+    final cfg = await NovelSummarySettings.instance.getTranslationConfig();
+    if (cfg.baseUrl.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text(AppLocalizations.of(context).novelTranslateNoApi)),
+        );
+      }
+      return;
+    }
+    _prescanCancelled = false;
+    _prescanUi.value = NovelPrescanUi(
+      running: true,
+      done: 0,
+      total: widget.chapters.length,
+      ready: _prescanUi.value.ready,
+    );
+    try {
+      await _prescanManager.init();
+      final existing = await _prescanManager.load(widget.novelId, lang: lang);
+      NovelPrescanData data = existing != null
+          ? _prescanManager.mergeWithCurrentChapters(
+              existing: existing,
+              novelTitle: widget.title,
+              currentChapters: <({String id, String title})>[
+                for (final c in widget.chapters) (id: c.id, title: c.title),
+              ],
+            )
+          : NovelPrescanData(
+              novelId: widget.novelId,
+              lang: lang,
+              novelTitle: widget.title,
+              chapters: const <NovelPrescanChapterSummary>[],
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            );
+      await _prescanManager.save(data);
+      final summarizer = NovelPrescanService();
+      final pending = <Episode>[
+        for (final c in widget.chapters)
+          if (data.summaryFor(c.id) == null) c,
+      ];
+      for (var i = 0; i < pending.length; i += NovelPrescanService.chaptersPerBatch) {
+        if (_prescanCancelled || !mounted) return;
+        final end = (i + NovelPrescanService.chaptersPerBatch)
+            .clamp(0, pending.length);
+        final batch = pending.sublist(i, end);
+        final inputs = <PrescanChapterInput>[];
+        for (final c in batch) {
+          final head = await _loadChapterHead(c, source);
+          inputs.add(PrescanChapterInput(
+              chapterId: c.id, title: c.title, head: head));
+        }
+        try {
+          final summaries = await summarizer.summarizeChapters(
+            cfg: cfg,
+            lang: lang,
+            items: inputs,
+          );
+          data = data.copyWith(
+            chapters: <NovelPrescanChapterSummary>[
+              ...data.chapters,
+              for (var k = 0; k < batch.length; k++)
+                NovelPrescanChapterSummary(
+                  chapterId: batch[k].id,
+                  title: batch[k].title,
+                  summary: summaries[k],
+                ),
+            ],
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          );
+          // F3：逐批落盘——中断后从缺摘要章节续扫。
+          await _prescanManager.save(data);
+        } on Object catch (e) {
+          AppLog.instance.w('[预扫描] 批量摘要失败，已保留已完成章节: $e');
+          _prescanUi.value = _prescanUi.value.copyWithRunning(false);
+          return;
+        }
+        _prescanUi.value = _prescanUi.value.copyWith(
+          done: data.chapters.length,
+          total: widget.chapters.length,
+        );
+      }
+      // 章节摘要齐了 → 生成全书概述。
+      if (data.overview == null && data.chapters.isNotEmpty) {
+        final overview = await summarizer.bookOverview(
+          cfg: cfg,
+          lang: lang,
+          novelTitle: widget.title,
+          chapterSummaries: <String>[
+            for (final c in data.chapters) c.summary,
+          ],
+        );
+        data = data.copyWith(
+          overview: overview,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        );
+        await _prescanManager.save(data);
+      }
+      _prescanUi.value = NovelPrescanUi(
+        running: false,
+        done: data.chapters.length,
+        total: widget.chapters.length,
+        ready: data.overview != null,
+      );
+    } on Object catch (e) {
+      AppLog.instance.w('[预扫描] 失败: $e');
+      _prescanUi.value = _prescanUi.value.copyWithRunning(false);
+    }
+  }
+
+  /// 取一章开头片段（优先预下载缓存，失败返回空串——摘要退化为仅依据章节名）。
+  Future<String> _loadChapterHead(
+      Episode chapter, PluginConfig source) async {
+    try {
+      final List<NovelBlock>? cached =
+          await _preDownloader.cached(widget.novelId, chapter.id);
+      final List<NovelBlock> blocks = cached ??
+          await _service.fetchNovelContent(
+            source,
+            novelId: widget.novelId,
+            chapterUrl: chapter.url,
+          );
+      final buf = StringBuffer();
+      for (final b in blocks) {
+        if (b is NovelTextBlock && !b.isHeading && b.text.trim().isNotEmpty) {
+          buf.writeln(b.text.trim());
+          if (buf.length >= 400) break;
+        }
+      }
+      final s = buf.toString().trim();
+      return s.length > 400 ? s.substring(0, 400) : s;
+    } on Object {
+      return '';
+    }
   }
 
  /// O4 AI 章节配图：云端生成一张本章插图，落盘后以插图占位行追加进
@@ -10555,8 +10718,37 @@ class _NovelImageFavoriteViewerState extends State<_NovelImageFavoriteViewer> {
 }
 
 
+/// F3 预扫描的 UI 状态快照（阅读器 → 翻译面板经 [ValueNotifier] 共享）。
+class NovelPrescanUi {
+  final bool running;
+  final int done;
+  final int total;
+
+  /// 全书概述是否已生成（生成后翻译自动注入作品语境）。
+  final bool ready;
+
+  const NovelPrescanUi({
+    this.running = false,
+    this.done = 0,
+    this.total = 0,
+    this.ready = false,
+  });
+
+  NovelPrescanUi copyWith({bool? running, int? done, int? total, bool? ready}) =>
+      NovelPrescanUi(
+        running: running ?? this.running,
+        done: done ?? this.done,
+        total: total ?? this.total,
+        ready: ready ?? this.ready,
+      );
+
+  NovelPrescanUi copyWithRunning(bool running) =>
+      copyWith(running: running);
+}
+
 /// O3 段落翻译双语面板：原文/译文逐段对照；缓存命中直接展示，
 /// 「翻译本章」走云端 AI（批量优先、分块回退），完成后持久化缓存。
+/// F3：可触发全书预扫描（章节摘要+全书概述），翻译时自动注入作品语境。
 class _NovelTranslationSheet extends StatefulWidget {
   const _NovelTranslationSheet({
     required this.novelId,
@@ -10565,6 +10757,9 @@ class _NovelTranslationSheet extends StatefulWidget {
     required this.paragraphs,
     required this.targetLanguage,
     required this.manager,
+    this.prescanManager,
+    this.prescanUi,
+    this.onStartPrescan,
   });
 
   final String novelId;
@@ -10575,6 +10770,11 @@ class _NovelTranslationSheet extends StatefulWidget {
  /// 翻译目标语言（取自翻译配置页；兼作缓存 lang 标记）。
   final String targetLanguage;
   final NovelTranslationManager manager;
+
+  /// F3 全书预扫描（null 时隐藏预扫描入口，如测试环境）。
+  final NovelPrescanManager? prescanManager;
+  final ValueNotifier<NovelPrescanUi>? prescanUi;
+  final VoidCallback? onStartPrescan;
 
   @override
   State<_NovelTranslationSheet> createState() => _NovelTranslationSheetState();
@@ -10597,6 +10797,17 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
   void initState() {
     super.initState();
     _loadCache();
+    widget.prescanUi?.addListener(_onPrescanChanged);
+  }
+
+  void _onPrescanChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.prescanUi?.removeListener(_onPrescanChanged);
+    super.dispose();
   }
 
   bool get _hasCheckpoint =>
@@ -10621,6 +10832,27 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
     if (partial != null && mounted) {
       setState(() => _checkpoint = partial.translations);
     }
+    // F3：打开面板时同步预扫描状态（此前会话已生成的概述立即显示注入标记）。
+    final prescanManager = widget.prescanManager;
+    if (prescanManager != null && widget.prescanUi != null) {
+      try {
+        final data = await prescanManager.load(
+          widget.novelId,
+          lang: widget.targetLanguage,
+        );
+        if (data?.overview != null &&
+            !widget.prescanUi!.value.ready &&
+            mounted) {
+          widget.prescanUi!.value = widget.prescanUi!.value.copyWith(
+            ready: true,
+            done: data!.chapters.length,
+            total: data.chapters.length,
+          );
+        }
+      } on Object {
+        // 预扫描状态读取失败不影响面板。
+      }
+    }
   }
 
   Future<void> _translate({bool resume = false}) async {
@@ -10634,6 +10866,17 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
     final existing = resume && _checkpoint != null
         ? List<String>.of(_checkpoint!)
         : const <String>[];
+    // F3：作品语境（全书概述 + 本章前情摘要）注入 system prompt。
+    String? bookContext;
+    try {
+      final prescan = await (widget.prescanManager ??
+              NovelPrescanManager())
+          .load(widget.novelId, lang: widget.targetLanguage);
+      bookContext = NovelPrescanManager.novelBookContext(
+          prescan, widget.chapterId);
+    } on Object {
+      bookContext = null; // 语境读取失败不影响翻译。
+    }
     try {
       final result = await NovelTranslationService(
         targetLanguage: widget.targetLanguage,
@@ -10641,6 +10884,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
         widget.paragraphs,
         workId: widget.novelId,
         existing: existing,
+        bookContext: bookContext,
         // F4：每个分块完成即落盘检查点，中断后可从断点续译。
         onChunkPersisted: (snapshot) {
           if (seq != _runSeq) return;
@@ -10691,9 +10935,70 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
     }
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  /// F3 预扫描行：入口按钮 / 进度 / 完成标记。
+  Widget _prescanRow(AppLocalizations l10n, ColorScheme scheme) {
+    if (widget.onStartPrescan == null || widget.prescanUi == null) {
+      return const SizedBox.shrink();
+    }
+    final ui = widget.prescanUi!.value;
+    if (ui.running) {
+      return Padding(
+        padding: const EdgeInsets.only(
+            left: AppTokens.spaceMd,
+            right: AppTokens.spaceMd,
+            bottom: AppTokens.spaceXs),
+        child: Row(
+          children: <Widget>[
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: AppTokens.spaceSm),
+            Expanded(
+              child: Text(
+                l10n.prescanProgress(ui.done, ui.total),
+                style: TextStyle(
+                    fontSize: 12, color: scheme.onSurfaceVariant),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (ui.ready) {
+      return Padding(
+        padding: const EdgeInsets.only(
+            left: AppTokens.spaceMd,
+            right: AppTokens.spaceMd,
+            bottom: AppTokens.spaceXs),
+        child: Row(
+          children: <Widget>[
+            Icon(Icons.auto_stories,
+                size: 14, color: scheme.primary),
+            const SizedBox(width: AppTokens.spaceXs),
+            Text(
+              l10n.prescanReady,
+              style: TextStyle(
+                  fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      );
+    }
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(
+            left: AppTokens.spaceMd, bottom: AppTokens.spaceXs),
+        child: TextButton.icon(
+          onPressed: widget.onStartPrescan,
+          icon: const Icon(Icons.travel_explore, size: 16),
+          label: Text(l10n.prescanStart,
+              style: const TextStyle(fontSize: 12)),
+        ),
+      ),
+    );
   }
 
   @override
@@ -10761,6 +11066,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                       fontSize: 12, color: scheme.onSurfaceVariant),
                 ),
               ),
+            _prescanRow(l10n, scheme),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(

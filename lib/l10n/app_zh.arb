@@ -4396,5 +4396,8 @@
   "translationLayoutSourceFirst": "原文优先",
   "translationLayoutBilingual": "双语对照",
   "novelTranslateResume": "继续翻译",
-  "novelTranslateResumable": "已译 {done}/{total} 段，可从断点继续"
+  "novelTranslateResumable": "已译 {done}/{total} 段，可从断点继续",
+  "prescanStart": "全书预扫描",
+  "prescanProgress": "预扫描中：已完成 {done}/{total} 章",
+  "prescanReady": "已注入全书概述"
 }

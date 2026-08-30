@@ -165,4 +165,18 @@ abstract final class PromptBuilder {
           '确认后再输出最终译文，不要输出思考过程。');
     }
   }
+
+  /// 全书预扫描——章节摘要 system prompt（F3）。
+  static String prescanChapterSystemPrompt({required String lang}) =>
+      '你是专业的文学编辑。用户会给出若干编号的章节片段（每段为该章开头的'
+      '文字）。请为每个片段生成 1-2 句$lang摘要，概括该章的关键事件与出场'
+      '人物。输出必须严格保持编号格式：每条摘要前单独一行 <<<序号>>>，'
+      '不要添加任何解释。';
+
+  /// 全书预扫描——全书概述 system prompt（F3）。
+  static String prescanOverviewSystemPrompt({required String lang}) =>
+      '你是专业的文学编辑。用户会给出《书名》与各章的摘要列表。'
+      '请把它们汇总为一段约 200 字以内的$lang全书概述：'
+      '交代主要人物、核心设定与主线走向，不要逐章罗列，'
+      '不要输出标题或任何解释，只输出概述正文。';
 }

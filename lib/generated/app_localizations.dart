@@ -15247,6 +15247,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{done} of {total} paragraphs translated - resume from where it stopped'**
   String novelTranslateResumable(Object done, Object total);
+
+  /// No description provided for @prescanStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescan whole book'**
+  String get prescanStart;
+
+  /// No description provided for @prescanProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Prescanning: {done} of {total} chapters'**
+  String prescanProgress(Object done, Object total);
+
+  /// No description provided for @prescanReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Book overview injected into translation context'**
+  String get prescanReady;
 }
 
 class _AppLocalizationsDelegate

@@ -4440,5 +4440,8 @@
   "translationLayoutSourceFirst": "Source first",
   "translationLayoutBilingual": "Bilingual",
   "novelTranslateResume": "Resume translation",
-  "novelTranslateResumable": "{done} of {total} paragraphs translated - resume from where it stopped"
+  "novelTranslateResumable": "{done} of {total} paragraphs translated - resume from where it stopped",
+  "prescanStart": "Prescan whole book",
+  "prescanProgress": "Prescanning: {done} of {total} chapters",
+  "prescanReady": "Book overview injected into translation context"
 }
