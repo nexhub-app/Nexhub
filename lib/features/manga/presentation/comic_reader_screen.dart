@@ -6458,6 +6458,7 @@ class _MangaPageImageState extends State<MangaPageImage> {
                 state: state,
                 zoom: widget.prefs.initialZoom,
                 cropEdge: widget.cropEdge,
+                backfill: widget.prefs.translationBackfill,
                 onRetry: widget.translationRetry == null
                     ? null
                     : () => widget.translationRetry!(widget.url),

@@ -616,6 +616,10 @@ class ReaderPreferences {
   /// 译文以气泡覆盖层渲染在原图上。开关按作品持久化。
   final bool translationEnabled;
 
+  /// F7 排版回填：开启后译文以「气泡内回填」模式渲染（描边文字 +
+  /// 按 bbox 宽度换行 + 字号自适应），关闭时使用半透明覆盖层模式。
+  final bool translationBackfill;
+
   /// 每屏多图 gallery（REQ-C4）：竖/横屏一屏纵向堆叠张数，1–5，默认 1。
   final int readerScreenPicNumberForPortrait;
   final int readerScreenPicNumberForLandscape;
@@ -689,6 +693,7 @@ class ReaderPreferences {
     this.isAutoFavorite = false,
     this.autoDownloadChapters = false,
     this.translationEnabled = false,
+    this.translationBackfill = false,
     this.skipReadChapters = false,
     this.skipFilteredChapters = false,
     this.skipDuplicateChapters = false,
@@ -833,6 +838,7 @@ class ReaderPreferences {
       autoDownloadChapters:
           json['autoDownloadChapters'] as bool? ?? false,
       translationEnabled: json['translationEnabled'] as bool? ?? false,
+      translationBackfill: json['translationBackfill'] as bool? ?? false,
       skipReadChapters: json['skipReadChapters'] as bool? ?? false,
       skipFilteredChapters: json['skipFilteredChapters'] as bool? ?? false,
       skipDuplicateChapters: json['skipDuplicateChapters'] as bool? ?? false,
@@ -914,6 +920,7 @@ class ReaderPreferences {
         'isAutoFavorite': isAutoFavorite,
         'autoDownloadChapters': autoDownloadChapters,
         'translationEnabled': translationEnabled,
+        'translationBackfill': translationBackfill,
         'skipReadChapters': skipReadChapters,
         'skipFilteredChapters': skipFilteredChapters,
         'skipDuplicateChapters': skipDuplicateChapters,
@@ -990,6 +997,7 @@ class ReaderPreferences {
     bool? isAutoFavorite,
     bool? autoDownloadChapters,
     bool? translationEnabled,
+    bool? translationBackfill,
     bool? skipReadChapters,
     bool? skipFilteredChapters,
     bool? skipDuplicateChapters,
@@ -1079,6 +1087,7 @@ class ReaderPreferences {
         autoDownloadChapters:
             autoDownloadChapters ?? this.autoDownloadChapters,
         translationEnabled: translationEnabled ?? this.translationEnabled,
+        translationBackfill: translationBackfill ?? this.translationBackfill,
         skipReadChapters: skipReadChapters ?? this.skipReadChapters,
         skipFilteredChapters:
             skipFilteredChapters ?? this.skipFilteredChapters,

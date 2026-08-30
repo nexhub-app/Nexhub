@@ -92,10 +92,14 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  Widget _switchTile(String label, bool value, ValueChanged<bool> onChanged) {
+  Widget _switchTile(String label, bool value, ValueChanged<bool> onChanged,
+      {String? subtitle}) {
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(label),
+      subtitle: subtitle != null
+          ? Text(subtitle, style: const TextStyle(fontSize: 12))
+          : null,
       value: value,
       onChanged: (v) {
         AppHaptics.selectionClick();
@@ -1058,6 +1062,14 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                           _draft.translationEnabled,
                           (v) =>
                               _update(_draft.copyWith(translationEnabled: v))),
+                      // F7 排版回填：译文以描边文字回填气泡内（自适应字号）。
+                      _switchTile(
+                        l10n.comicTranslateBackfillLabel,
+                        _draft.translationBackfill,
+                        subtitle: l10n.comicTranslateBackfillDesc,
+                        (v) =>
+                            _update(_draft.copyWith(translationBackfill: v)),
+                      ),
                     ],
                   ),
 

@@ -4429,5 +4429,7 @@
   "offlineExportSrt": "导出双语 SRT",
   "offlineExportAss": "导出双语 ASS",
   "offlineUpload": "上传到 WebDAV",
-  "offlineUploaded": "已上传：{url}"
+  "offlineUploaded": "已上传：{url}",
+  "comicTranslateBackfillLabel": "气泡内回填排版",
+  "comicTranslateBackfillDesc": "译文以描边文字回填到气泡内（按气泡宽度换行、字号自适应）。竖排页降级为横排居中。"
 }

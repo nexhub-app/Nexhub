@@ -4473,5 +4473,7 @@
   "offlineExportSrt": "Export bilingual SRT",
   "offlineExportAss": "Export bilingual ASS",
   "offlineUpload": "Upload to WebDAV",
-  "offlineUploaded": "Uploaded: {url}"
+  "offlineUploaded": "Uploaded: {url}",
+  "comicTranslateBackfillLabel": "Bubble backfill layout",
+  "comicTranslateBackfillDesc": "Render translations inside speech bubbles with stroked text, bubble-width wrapping and adaptive font size. Vertical text pages degrade to horizontal centered layout."
 }

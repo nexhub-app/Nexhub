@@ -8049,4 +8049,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String offlineUploaded(Object url) {
     return '已上传：$url';
   }
+
+  @override
+  String get comicTranslateBackfillLabel => '气泡内回填排版';
+
+  @override
+  String get comicTranslateBackfillDesc =>
+      '译文以描边文字回填到气泡内（按气泡宽度换行、字号自适应）。竖排页降级为横排居中。';
 }

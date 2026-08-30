@@ -8246,4 +8246,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String offlineUploaded(Object url) {
     return 'Uploaded: $url';
   }
+
+  @override
+  String get comicTranslateBackfillLabel => 'Bubble backfill layout';
+
+  @override
+  String get comicTranslateBackfillDesc =>
+      'Render translations inside speech bubbles with stroked text, bubble-width wrapping and adaptive font size. Vertical text pages degrade to horizontal centered layout.';
 }

@@ -10,6 +10,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/ai/backfill_layout.dart';
 import '../../../core/ai/vision_translation_client.dart' show VisionTextSegment;
 import '../../../core/comic/models/reader_preferences.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -74,12 +75,17 @@ class ComicTranslationOverlay extends StatelessWidget {
   /// 重试回调（错误态徽标点击）。为 null 时错误徽标不可点。
   final VoidCallback? onRetry;
 
+  /// F7 排版回填：true 时以「气泡内回填」渲染（描边文字 + bbox 宽度
+  /// 换行 + 字号自适应），false 时为半透明覆盖层模式。
+  final bool backfill;
+
   const ComicTranslationOverlay({
     super.key,
     required this.state,
     required this.zoom,
     this.cropEdge = false,
     this.onRetry,
+    this.backfill = false,
   });
 
   @override
@@ -178,6 +184,7 @@ class ComicTranslationOverlay extends StatelessWidget {
     if (box.width < 12 || box.height < 10) return const SizedBox.shrink();
     final String text = seg.translation.isNotEmpty ? seg.translation : seg.text;
     if (text.isEmpty) return const SizedBox.shrink();
+    if (backfill) return _bubbleBackfill(box, text, seg);
     return Positioned(
       left: box.left,
       top: box.top,
@@ -207,6 +214,36 @@ class ComicTranslationOverlay extends StatelessWidget {
     );
   }
 
+  /// F7 气泡内回填渲染：不铺底色，描边文字保证任意气泡底色可读；
+  /// 按 bbox 宽度换行、字号自适应（竖排页降级横排居中，产品说明见文档）。
+  Widget _bubbleBackfill(Rect box, String text, VisionTextSegment seg) {
+    final result = BackfillLayout.layout(
+      text: text,
+      boxW: box.width - 4,
+      boxH: box.height - 4,
+    );
+    return Positioned(
+      left: box.left,
+      top: box.top,
+      width: box.width,
+      height: box.height,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (final line in result.lines)
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: _StrokeText(line, result.fontSize),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// 底部居中小徽标（加载中 / 失败）。
   Widget _badge(Widget child) {
     return Align(
@@ -228,6 +265,44 @@ class ComicTranslationOverlay extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 描边文字：黑描边 + 白字（叠两层），任意气泡底色上均可读。
+class _StrokeText extends StatelessWidget {
+  final String text;
+  final double fontSize;
+
+  const _StrokeText(this.text, this.fontSize);
+
+  @override
+  Widget build(BuildContext context) {
+    final outline = Text(
+      text,
+      style: TextStyle(
+        fontSize: fontSize,
+        height: 1.18,
+        foreground: Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = fontSize / 7.5
+          ..strokeJoin = StrokeJoin.round
+          ..color = const Color(0xF2000000),
+      ),
+    );
+    return Stack(
+      alignment: Alignment.center,
+      children: <Widget>[
+        outline,
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: fontSize,
+            height: 1.18,
+            color: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 }

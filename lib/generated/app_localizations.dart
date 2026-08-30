@@ -15445,6 +15445,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Uploaded: {url}'**
   String offlineUploaded(Object url);
+
+  /// No description provided for @comicTranslateBackfillLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Bubble backfill layout'**
+  String get comicTranslateBackfillLabel;
+
+  /// No description provided for @comicTranslateBackfillDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Render translations inside speech bubbles with stroked text, bubble-width wrapping and adaptive font size. Vertical text pages degrade to horizontal centered layout.'**
+  String get comicTranslateBackfillDesc;
 }
 
 class _AppLocalizationsDelegate
