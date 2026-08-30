@@ -372,16 +372,30 @@ class HttpFetcher {
   Future<void> _throttleHost(String url) async {
     final host = Uri.tryParse(url)?.host;
     if (host == null || host.isEmpty) return;
-    final now = DateTime.now();
-    var earliest =
-        _hostLastSent[host]?.add(Duration(milliseconds: _minHostGapMs)) ?? now;
-    final cd = _verifyCooldown[host];
-    if (cd != null && cd.isAfter(earliest)) earliest = cd;
-    final gap = earliest.difference(now).inMilliseconds;
-    if (gap > 0) await Future.delayed(Duration(milliseconds: gap));
-    _hostLastSent[host] = DateTime.now();
-    // 冷却到期即清理，避免无限堆积。
-    if (cd != null && now.isAfter(cd)) _verifyCooldown.remove(host);
+    // 严格 per-host 串行队列：把本次请求链接到该 host 上一次请求之后。
+    // 原实现的「读时间戳 → await → 写时间戳」没有互斥，并发请求会各自按同一个
+    // 旧时间戳算出几乎相同的等待时长，到期后一起放行，形成突发请求。
+    // 对突发敏感的站点会以「挂起不响应」回应，表现为 15s 连接超时。
+    final Future<void> prev = _hostGates[host] ?? Future<void>.value();
+    final Completer<void> done = Completer<void>();
+    _hostGates[host] = done.future;
+    await prev;
+    try {
+      final now = DateTime.now();
+      var earliest =
+          _hostLastSent[host]?.add(Duration(milliseconds: _minHostGapMs)) ?? now;
+      final cd = _verifyCooldown[host];
+      if (cd != null && cd.isAfter(earliest)) earliest = cd;
+      final gap = earliest.difference(DateTime.now()).inMilliseconds;
+      if (gap > 0) await Future.delayed(Duration(milliseconds: gap));
+      _hostLastSent[host] = DateTime.now();
+      // 冷却到期即清理，避免无限堆积。
+      if (cd != null && DateTime.now().isAfter(cd)) {
+        _verifyCooldown.remove(host);
+      }
+    } finally {
+      if (!done.isCompleted) done.complete();
+    }
   }
 
   /// 测试可见：仅执行同 host 节流 + 冷却等待（不含并发信号量/隐身延迟），
@@ -408,6 +422,12 @@ class HttpFetcher {
   /// ② 同 host 最小间隔（同一站点两次请求至少间隔 [_minHostGapMs]）→
   /// ③ 隐身随机延迟（打散节拍）。
   static const int _maxConcurrent = 3;
+  // 连接层瞬时错误（连接重置/超时）最大重试次数：共尝试 [_maxHttpRetries + 1] 次。
+  // 针对部分站点对并发/过快请求直接 RST 的观感问题（收藏页/标签搜索偶发空白）。
+  static const int _maxHttpRetries = 2;
+  // 「服务端挂起」（连接/接收超时）时的重试上限：只补 1 次。
+  // 挂起基本等于限流信号，密集重试会延长限流窗口，因此比 RST 更保守。
+  static const int _maxThrottledRetries = 1;
   // 手动跟随重定向的最大跳数（防重定向循环打爆）。
   static const int kMaxRedirects = 5;
   // 同 host 最小间隔：原 500ms，上调到 800ms 进一步降低「短时间内连续请求
@@ -416,6 +436,8 @@ class HttpFetcher {
   static const int _minHostGapMs = 800;
   final _Semaphore _requestSemaphore = _Semaphore(_maxConcurrent);
   final Map<String, DateTime> _hostLastSent = <String, DateTime>{};
+  // 每个 host 的串行队列尾：新请求挂到尾部，保证同站请求严格一前一后放行。
+  final Map<String, Future<void>> _hostGates = <String, Future<void>>{};
 
   Future<void> _gateRequest(String url, bool stealth) async {
     // 1) 全局并发上限：超过则在此排队，直至有空闲名额（在请求方法 finally 中释放）。
@@ -579,6 +601,12 @@ class HttpFetcher {
   }
 
   /// 取 HTML 文本；命中验证特征抛 [VerificationRequiredException]。
+  ///
+  /// 内置「瞬时连接错误重试」：部分站点会对并发/过快请求直接 RST
+  /// （`Connection reset by peer` / 连接超时），单次失败不代表站点不可达。
+  /// 对连接层错误（连接重置、连接/接收/发送超时）自动重试最多 [_maxHttpRetries]
+  /// 次并递增退避，显著改善「收藏页/标签搜索偶发空白」类问题；4xx/5xx 与验证
+  /// 挑战不在此重试（交由各自逻辑处理）。
   Future<String> getHtml(
     String url, {
     Map<String, String>? headers,
@@ -588,15 +616,71 @@ class HttpFetcher {
   }) async {
     await _gateRequest(url, stealth);
     try {
-      final merged = _mergeHeaders(referer, headers, url);
-      final resp = await _dioFor(net).get<List<int>>(
-        url,
-        options: Options(
-          headers: merged,
-          responseType: ResponseType.bytes,
-          validateStatus: (_) => true,
-        ),
-      );
+      return await _getHtmlWithRetry(url, headers, referer, net);
+    } finally {
+      _requestSemaphore.release();
+    }
+  }
+
+  /// [getHtml] 的重试包装：对可重试的连接层错误最多重试 [_maxHttpRetries] 次。
+  Future<String> _getHtmlWithRetry(
+    String url,
+    Map<String, String>? headers,
+    String? referer,
+    EffectiveNetworkProfile? net,
+  ) async {
+    DioException? lastErr;
+    for (var attempt = 0; attempt <= _maxHttpRetries; attempt++) {
+      try {
+        return await _getHtmlOnce(url, headers, referer, net);
+      } on DioException catch (e) {
+        if (!_isRetryableNetworkError(e)) rethrow;
+        lastErr = e;
+        // 超时（连接/接收超时）= 服务端「挂起不响应」，通常是限流信号：
+        // 只再试一次且退避更久，否则短时间连打会把对方的限流窗口撑得更长。
+        // RST（connectionError）多是瞬时抖动，可以快速多试。
+        final bool throttled = e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout;
+        final int budget = throttled ? _maxThrottledRetries : _maxHttpRetries;
+        if (attempt >= budget) rethrow;
+        await Future.delayed(_retryBackoff(attempt, throttled: throttled));
+      }
+    }
+    // 不可达：循环耗尽却未成功（理论上不会发生，仅兜底）。
+    throw lastErr ?? Exception('HTTP 重试耗尽: $url');
+  }
+
+  /// 重试退避时长：带随机抖动打散节拍，避免多请求同时重试形成新的突发。
+  Duration _retryBackoff(int attempt, {required bool throttled}) {
+    final int base = throttled ? 2500 : 600;
+    final int jitter = _random.nextInt(throttled ? 1200 : 400);
+    return Duration(milliseconds: base * (attempt + 1) + jitter);
+  }
+
+  /// 是否可对连接层瞬时错误重试。
+  static bool _isRetryableNetworkError(DioException e) {
+    return e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout;
+  }
+
+  /// 单次 HTML 抓取 + 解析（不含重试），失败的连接层错误直接抛出由上层重试。
+  Future<String> _getHtmlOnce(
+    String url,
+    Map<String, String>? headers,
+    String? referer,
+    EffectiveNetworkProfile? net,
+  ) async {
+    final merged = _mergeHeaders(referer, headers, url);
+    final resp = await _dioFor(net).get<List<int>>(
+      url,
+      options: Options(
+        headers: merged,
+        responseType: ResponseType.bytes,
+        validateStatus: (_) => true,
+      ),
+    );
     final bytes = resp.data ?? const <int>[];
     if (bytes.isEmpty) {
       if (VerificationDetector.isVerificationRequired(
@@ -604,7 +688,7 @@ class HttpFetcher {
         body: '',
         headers: _responseHeaders(resp),
       )) {
-      _recordAndThrowVerify(url, merged, '', resp.statusCode);
+        _recordAndThrowVerify(url, merged, '', resp.statusCode);
       }
       _checkNonVerificationError(url, resp.statusCode, '');
       _storeCookies(url, resp);
@@ -621,9 +705,6 @@ class HttpFetcher {
     _checkNonVerificationError(url, resp.statusCode, body);
     _storeCookies(url, resp);
     return body;
-    } finally {
-      _requestSemaphore.release();
-    }
   }
 
   /// 仅探测可达性（供镜像测速）：拿到任何 HTTP 响应（含 4xx/5xx）即视为「可达」，
@@ -1035,6 +1116,17 @@ class HttpFetcher {
       final String? loc =
           resp.headers.value('location') ?? resp.headers.value('Location');
       if (loc != null && loc.isNotEmpty) {
+        // 3xx 的响应体用不上，但必须排空并关闭底层流：否则连接不会被归还，
+        // 触发 "A resource failed to call close"，连接池占满后新请求会一直
+        // 挂起到超时（表现为莫名的 connectionTimeout）。
+        final body = resp.data;
+        if (body != null) {
+          try {
+            await body.stream.drain<void>();
+          } catch (_) {
+            // 排空失败不阻塞后续跳转。
+          }
+        }
         final Uri next = Uri.parse(loc).isAbsolute
             ? Uri.parse(loc)
             : Uri.parse(url).resolve(loc);
