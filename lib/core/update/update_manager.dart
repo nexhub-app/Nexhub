@@ -478,46 +478,49 @@ class UpdateManager extends ChangeNotifier {
     return assets.first;
   }
 
-  /// 将官方下载 URL 转换为当前镜像的 URL。
-  ///
-  /// [autoSwitchMirror] 开启时，先对各镜像做 HEAD 探测取最快者；
-  /// 否则使用 [_settings.mirrorIndex] 指定的镜像（含自定义镜像）。
-  String _mirrorUrl(String originalUrl) {
-    final List<({String name, String prefix})> mirrors = _buildMirrorList();
-    if (mirrors.isEmpty) return originalUrl;
-
-    final int index = _settings.mirrorIndex.clamp(0, mirrors.length - 1);
-    final mirror = mirrors[index];
-    // GitHub 官方不替换；其他镜像替换前缀
-    if (mirror.prefix == 'https://github.com/') return originalUrl;
-    return originalUrl.replaceFirst('https://github.com/', mirror.prefix);
+  /// 应用镜像前缀转换下载 URL（官方前缀不替换）。
+  String _applyMirrorPrefix(String originalUrl, String prefix) {
+    if (prefix == 'https://github.com/') return originalUrl;
+    return originalUrl.replaceFirst('https://github.com/', prefix);
   }
 
   /// 组装镜像列表（默认镜像 + 自定义镜像）。
+  ///
+  /// 自定义镜像地址做末尾斜杠归一化（用户常漏写，漏写会导致拼接出
+  /// `https://mirrorhttps://github.com/...` 这类非法 URL）。
   List<({String name, String prefix})> _buildMirrorList() {
     final List<({String name, String prefix})> mirrors =
         List<({String name, String prefix})>.of(_defaultMirrors);
     for (final m in _settings.customMirrors) {
       if (m.name.isNotEmpty && m.baseUrl.isNotEmpty) {
-        mirrors.add((name: m.name, prefix: m.baseUrl));
+        String base = m.baseUrl.trim();
+        if (!base.endsWith('/')) base = '$base/';
+        mirrors.add((name: m.name, prefix: base));
       }
     }
     return mirrors;
   }
 
-  /// 探测单个 URL 的可达性延迟（毫秒）；网络层失败返回 null。
+  /// 探测单个 URL 的可达性延迟（毫秒）；不可用返回 null。
   ///
-  /// 策略（修复「镜像大多显示超时」）：
-  /// 1. 先 HEAD 请求，`validateStatus` 接受任意 HTTP 响应码——镜像对探测路径
-  ///    返回 4xx/5xx 只说明「路径不支持」，并不代表镜像不可达；
-  /// 2. HEAD 被拒（部分镜像只支持 GET）时降级为 Range GET（只取前 1KB），
-  ///    避免下载完整 release 页面；
-  /// 3. 仅 DNS/连接/超时等网络层错误才判定为不可达。
+  /// 策略：
+  /// 1. 先 HEAD 请求，`validateStatus` 接受任意响应码以便读取状态；
+  /// 2. 探测真实安装包路径（URL 含 `/releases/download/`）时要求 2xx/3xx
+  ///    ——镜像对安装包返回 403/404 说明无法代理下载，即使响应快也不能选；
+  ///    探测普通页面（如 release 页）时保持宽松，4xx/5xx 仅说明路径不被
+  ///    代理，不代表镜像不可达；
+  /// 3. HEAD 被拒（部分镜像只支持 GET）或状态不达标时降级为 Range GET
+  ///    （只取前 1KB），避免下载完整文件；
+  /// 4. 仅 DNS/连接/超时等网络层错误，或（安装包路径下）持续的 4xx/5xx
+  ///    才判定为不可用。
   Future<int?> _probeUrl(String url, {int timeoutMs = 6000}) async {
     final Stopwatch sw = Stopwatch()..start();
     final Duration timeout = Duration(milliseconds: timeoutMs);
+    // 真实下载文件路径才做状态码校验；页面路径宽减免得误伤「只代理文件」的镜像。
+    final bool strict = url.contains('/releases/download/');
+    int? status;
     try {
-      await _dio.head<dynamic>(
+      final Response<dynamic> resp = await _dio.head<dynamic>(
         url,
         options: Options(
           receiveTimeout: timeout,
@@ -526,25 +529,37 @@ class UpdateManager extends ChangeNotifier {
           validateStatus: (_) => true,
         ),
       );
-      return sw.elapsedMilliseconds;
+      status = resp.statusCode;
     } on Object {
-      // HEAD 不支持/被拒：降级 Range GET（仅测可达性，不拉全量）。
-      try {
-        await _dio.get<dynamic>(
-          url,
-          options: Options(
-            headers: const <String, String>{'Range': 'bytes=0-1023'},
-            receiveTimeout: timeout,
-            sendTimeout: timeout,
-            followRedirects: true,
-            validateStatus: (_) => true,
-          ),
-        );
-        return sw.elapsedMilliseconds;
-      } on Object {
-        return null;
-      }
+      // HEAD 不支持/被拒：降级 Range GET。
+      status = null;
     }
+    if (status != null && status >= 200 && status < 400) {
+      return sw.elapsedMilliseconds;
+    }
+    if (status != null && !strict) {
+      // 页面路径不被代理（4xx/5xx）不代表镜像不可达。
+      return sw.elapsedMilliseconds;
+    }
+    try {
+      final Response<dynamic> resp = await _dio.get<dynamic>(
+        url,
+        options: Options(
+          headers: const <String, String>{'Range': 'bytes=0-1023'},
+          receiveTimeout: timeout,
+          sendTimeout: timeout,
+          followRedirects: true,
+          validateStatus: (_) => true,
+        ),
+      );
+      status = resp.statusCode;
+    } on Object {
+      return null;
+    }
+    if (status != null && status >= 200 && status < 400) {
+      return sw.elapsedMilliseconds;
+    }
+    return null;
   }
 
   /// 测试镜像延迟（优先 HEAD，失败降级 GET），返回毫秒；不可达返回 null。
@@ -634,35 +649,78 @@ class UpdateManager extends ChangeNotifier {
       final String targetPath =
           '${base.path}${Platform.pathSeparator}${asset.name}';
 
-      // 未开启自动切换时直接使用当前镜像
-      String url;
-      if (_settings.autoSwitchMirror) {
-        url = await _pickFastestMirror(asset.browserDownloadUrl);
-      } else {
-        url = _mirrorUrl(asset.browserDownloadUrl);
-      }
-      if (url.isEmpty) {
-        // 所有镜像失败，退回官方原始地址
-        url = asset.browserDownloadUrl;
+      // 本地已存在同名安装包（此前已下载完成，失败残留会被 deleteOnError
+      // 清掉）：直接复用，不再重复下载。
+      final File existing = File(targetPath);
+      if (existing.existsSync() && existing.lengthSync() > 0) {
+        _progress = UpdateProgress(progress: 1.0, fileName: asset.name);
+        _downloadedPath = targetPath;
+        _status = UpdateStatus.done;
+        notifyListeners();
+        return targetPath;
       }
 
-      await _dio.download(
-        url,
-        targetPath,
-        deleteOnError: true,
-        onReceiveProgress: (int received, int total) {
-          final double p = total > 0 ? received / total : 0.0;
-          _progress = _progress.copyWith(progress: p.clamp(0.0, 1.0));
-          onProgress?.call(_progress.progress);
+      // 组装下载候选：主镜像（自动测速最快者 / 手动选中者）优先，其余镜像
+      // 依次兜底，官方直连收尾。镜像对安装包返回 403/404 或网络失败时自动
+      // 降级重试，避免单个镜像故障导致更新中断。
+      final List<({String name, String prefix})> mirrors = _buildMirrorList();
+      ({String name, String prefix})? primary;
+      if (mirrors.isNotEmpty) {
+        if (_settings.autoSwitchMirror) {
+          primary = await _pickFastestMirror(asset.browserDownloadUrl);
+        } else {
+          primary = mirrors[_settings.mirrorIndex.clamp(0, mirrors.length - 1)];
+        }
+      }
+      final List<({String name, String url})> candidates =
+          <({String name, String url})>[];
+      final Set<String> seenUrls = <String>{};
+      void addCandidate(String name, String prefix) {
+        final String url = _applyMirrorPrefix(asset.browserDownloadUrl, prefix);
+        if (seenUrls.add(url)) {
+          candidates.add((name: name, url: url));
+        }
+      }
+
+      if (primary != null) addCandidate(primary.name, primary.prefix);
+      for (final m in mirrors) {
+        if (primary != null && m.prefix == primary.prefix) continue;
+        addCandidate(m.name, m.prefix);
+      }
+      if (candidates.isEmpty) {
+        candidates.add((name: 'GitHub 官方', url: asset.browserDownloadUrl));
+      }
+
+      Object? lastError;
+      for (final ({String name, String url}) c in candidates) {
+        try {
+          await _dio.download(
+            c.url,
+            targetPath,
+            deleteOnError: true,
+            onReceiveProgress: (int received, int total) {
+              final double p = total > 0 ? received / total : 0.0;
+              _progress = _progress.copyWith(
+                progress: p.clamp(0.0, 1.0),
+                mirrorName: c.name,
+              );
+              onProgress?.call(_progress.progress);
+              notifyListeners();
+            },
+          );
+          _progress = _progress.copyWith(progress: 1.0, mirrorName: c.name);
+          _downloadedPath = targetPath;
+          _status = UpdateStatus.done;
           notifyListeners();
-        },
-      );
-
-      _progress = _progress.copyWith(progress: 1.0);
-      _downloadedPath = targetPath;
-      _status = UpdateStatus.done;
-      notifyListeners();
-      return targetPath;
+          return targetPath;
+        } on Object catch (e) {
+          // 当前候选失败（HTTP 4xx/5xx 或网络错误）：重置进度换下一个。
+          lastError = e;
+          _progress = _progress.copyWith(progress: 0.0);
+          notifyListeners();
+        }
+      }
+      throw lastError ?? Exception('all mirrors failed');
     } on Object catch (e) {
       _lastError = e.toString();
       _status = UpdateStatus.failed;
@@ -712,17 +770,20 @@ class UpdateManager extends ChangeNotifier {
     return 'https://github.com/nexhub-app/nexhub/releases/latest';
   }
 
-  /// 从镜像列表中选最快者（HEAD 探测并发比较）。
-  Future<String> _pickFastestMirror(String url) async {
-    final mirrors = _buildMirrorList();
-    if (mirrors.length <= 1) return _mirrorUrl(url);
+  /// 从镜像列表中探测最快者（HEAD/Range GET 并发比较）。
+  ///
+  /// 全部不可用时返回 null（调用方应继续用候选链兜底，官方直连收尾）。
+  Future<({String name, String prefix})?> _pickFastestMirror(String url) async {
+    final List<({String name, String prefix})> mirrors = _buildMirrorList();
+    if (mirrors.isEmpty) return null;
+    if (mirrors.length == 1) return mirrors.first;
 
     final List<Future<int?>> probes = <Future<int?>>[
       for (final m in mirrors) _probeMirror(m.prefix, url),
     ];
     final List<int?> latencies = await Future.wait(probes);
 
-    int bestIndex = 0;
+    int bestIndex = -1;
     int? bestLatency;
     for (int i = 0; i < latencies.length; i++) {
       final int? l = latencies[i];
@@ -731,16 +792,12 @@ class UpdateManager extends ChangeNotifier {
         bestIndex = i;
       }
     }
-    if (bestLatency == null) {
-      // 全部失败：退回官方
-      return url;
-    }
-    // 用探测到的最快镜像（而非 settings.mirrorIndex 指向的镜像）替换前缀，
+    if (bestIndex < 0) return null;
+    // 用探测到的最快镜像（而非 settings.mirrorIndex 指向的镜像），
     // 保证「自动切换高速镜像」真正生效。
-    final ({String name, String prefix}) best = _buildMirrorList()[bestIndex];
+    final ({String name, String prefix}) best = mirrors[bestIndex];
     _progress = _progress.copyWith(mirrorName: best.name);
-    if (best.prefix == 'https://github.com/') return url;
-    return url.replaceFirst('https://github.com/', best.prefix);
+    return best;
   }
 
   /// 获取下载目录（应用文档目录；不可用时降级临时目录）。

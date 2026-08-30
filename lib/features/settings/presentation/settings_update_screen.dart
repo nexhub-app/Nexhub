@@ -25,6 +25,12 @@ import '../../../core/widgets/app_list_tile.dart';
 import './widgets/settings_search_target.dart';
 import './widgets/settings_widgets.dart';
 
+/// 自定义镜像地址归一化：补末尾斜杠（漏写会拼接出非法下载 URL）。
+String _normalizeMirrorBaseUrl(String url) {
+  final String base = url.trim();
+  return base.endsWith('/') ? base : '$base/';
+}
+
 class SettingsUpdateScreen extends StatefulWidget {
   const SettingsUpdateScreen({super.key});
 
@@ -131,7 +137,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
     final List<({String name, String prefix})> all =
         List<({String name, String prefix})>.of(UpdateManager.defaultMirrors);
     for (final m in _settings.customMirrors) {
-      all.add((name: m.name, prefix: m.baseUrl));
+      all.add((name: m.name, prefix: _normalizeMirrorBaseUrl(m.baseUrl)));
     }
     return all.every((m) => _latencyResults.containsKey(m.name));
   }
@@ -143,7 +149,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
     final List<({String name, String prefix})> all =
         List<({String name, String prefix})>.of(UpdateManager.defaultMirrors);
     for (final m in _settings.customMirrors) {
-      all.add((name: m.name, prefix: m.baseUrl));
+      all.add((name: m.name, prefix: _normalizeMirrorBaseUrl(m.baseUrl)));
     }
     if (_latencyResults.isEmpty || !_probeFinished) return all;
     final List<({String name, String prefix})> head = all.take(1).toList();
@@ -168,7 +174,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
     final List<({String name, String prefix})> old =
         List<({String name, String prefix})>.of(UpdateManager.defaultMirrors);
     for (final m in _settings.customMirrors) {
-      old.add((name: m.name, prefix: m.baseUrl));
+      old.add((name: m.name, prefix: _normalizeMirrorBaseUrl(m.baseUrl)));
     }
     if (old.length <= _settings.mirrorIndex) return;
     final String selectedName = old[_settings.mirrorIndex].name;
@@ -220,13 +226,27 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
           FilledButton(
             onPressed: () {
               final String name = nameCtrl.text.trim();
-              final String url = urlCtrl.text.trim();
-              if (name.isEmpty || url.isEmpty) return;
+              final String rawUrl = urlCtrl.text.trim();
+              // 校验：仅接受合法的 http/https 地址（避免存入无法请求的坏 URL）。
+              final Uri? uri = Uri.tryParse(rawUrl);
+              final bool valid = name.isNotEmpty &&
+                  uri != null &&
+                  (uri.scheme == 'https' || uri.scheme == 'http') &&
+                  uri.host.isNotEmpty;
+              if (!valid) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(_l10n().updateMirrorUrlInvalid)),
+                );
+                return;
+              }
               Navigator.pop(ctx);
               _save(_settings.copyWith(
                 customMirrors: <UpdateMirror>[
                   ..._settings.customMirrors,
-                  UpdateMirror(name: name, baseUrl: url),
+                  UpdateMirror(
+                    name: name,
+                    baseUrl: _normalizeMirrorBaseUrl(rawUrl),
+                  ),
                 ],
               ));
             },
@@ -254,7 +274,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
     final List<({String name, String prefix})> mirrors =
         List<({String name, String prefix})>.of(UpdateManager.defaultMirrors);
     for (final m in _settings.customMirrors) {
-      mirrors.add((name: m.name, prefix: m.baseUrl));
+      mirrors.add((name: m.name, prefix: _normalizeMirrorBaseUrl(m.baseUrl)));
     }
     // 用真实下载文件（当前平台安装包）测速，而不是 release 页面：
     // 用户关心的是「安装包能不能加速下载」，发布页可达不代表文件可达。

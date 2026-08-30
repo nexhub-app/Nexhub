@@ -2793,6 +2793,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateMirrorUrl => 'Mirror URL';
 
   @override
+  String get updateMirrorUrlInvalid =>
+      'Invalid mirror URL: must be a full http/https URL';
+
+  @override
   String get updateTestMirrors => 'Test All Mirrors';
 
   @override

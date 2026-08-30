@@ -1426,6 +1426,7 @@
   "updateAddMirror": "添加镜像",
   "updateMirrorName": "镜像名称",
   "updateMirrorUrl": "镜像地址",
+  "updateMirrorUrlInvalid": "镜像地址无效，需为 http/https 开头的完整网址",
   "updateTestMirrors": "测试所有镜像",
   "updateMirrorTimeout": "超时",
   "updateSettings": "更新设置",

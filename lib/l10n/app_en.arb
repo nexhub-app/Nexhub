@@ -1447,6 +1447,7 @@
   "updateAddMirror": "Add Mirror",
   "updateMirrorName": "Mirror Name",
   "updateMirrorUrl": "Mirror URL",
+  "updateMirrorUrlInvalid": "Invalid mirror URL: must be a full http/https URL",
   "updateTestMirrors": "Test All Mirrors",
   "updateMirrorTimeout": "Timeout",
   "updateSettings": "Update Settings",

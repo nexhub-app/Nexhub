@@ -5390,6 +5390,12 @@ abstract class AppLocalizations {
   /// **'Mirror URL'**
   String get updateMirrorUrl;
 
+  /// No description provided for @updateMirrorUrlInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid mirror URL: must be a full http/https URL'**
+  String get updateMirrorUrlInvalid;
+
   /// No description provided for @updateTestMirrors.
   ///
   /// In en, this message translates to:

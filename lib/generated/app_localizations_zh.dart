@@ -2746,6 +2746,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateMirrorUrl => '镜像地址';
 
   @override
+  String get updateMirrorUrlInvalid => '镜像地址无效，需为 http/https 开头的完整网址';
+
+  @override
   String get updateTestMirrors => '测试所有镜像';
 
   @override
