@@ -120,6 +120,12 @@ class WebFavoriteConfig {
   /// 是否需要先登录源站（仅用于提示，不阻断操作）。
   final bool requireLogin;
 
+  /// 解析收藏列表所用的「列表解析入口」（`parser.overrides` 里的键，如
+  /// `search`/`category`/`explore`/`latest`）。收藏页的画廊列表 DOM 通常与搜索
+  /// 结果一致，故多数源应设为 `search`；不填则按
+  /// explore → category → search → latest 回退。声明式，不内置站点逻辑。
+  final String? listEntry;
+
   /// 是否启用「多文件夹」：为 true 时，从收藏页 HTML 用源的
   /// `parser.overrides.folders` 解析出文件夹列表（标题 + 链接 + favcat 序号），
   /// 网络收藏 Tab 顶栏出现文件夹切换条；「加入网络收藏」也会弹出文件夹选择。
@@ -137,6 +143,7 @@ class WebFavoriteConfig {
     this.addRoute,
     this.addUrl,
     this.requireLogin = false,
+    this.listEntry,
     this.folders = false,
     this.add,
   });
@@ -150,6 +157,7 @@ class WebFavoriteConfig {
         addRoute: json['addRoute'] as String?,
         addUrl: json['addUrl'] as String?,
         requireLogin: json['requireLogin'] as bool? ?? false,
+        listEntry: json['listEntry'] as String?,
         folders: json['folders'] as bool? ?? false,
         add: json['add'] is Map
             ? WebFavoriteAddConfig.fromJson(
@@ -165,6 +173,7 @@ class WebFavoriteConfig {
         if (addRoute != null) 'addRoute': addRoute,
         if (addUrl != null) 'addUrl': addUrl,
         'requireLogin': requireLogin,
+        if (listEntry != null) 'listEntry': listEntry,
         if (folders) 'folders': folders,
         if (add != null) 'add': add!.toJson(),
       };

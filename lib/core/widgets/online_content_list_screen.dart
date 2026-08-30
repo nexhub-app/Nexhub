@@ -1574,28 +1574,26 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       return;
     }
     if (_webFavoriteItems.isNotEmpty || _webFavoriteLoading) return;
-    setState(() => _webFavoriteLoading = true);
+    setState(() {
+      _webFavoriteLoading = true;
+      // 重试/重新进入时清掉上一次的错误，否则会一直卡在错误页。
+      _webFavoriteError = null;
+    });
     try {
       if (wf.folders) {
         await _loadWebFavoriteWithFolders(source, wf);
       } else {
-        final items = await widget.fetchItems(
-          source,
-          category: '',
-          page: 1,
-          vars: <String, String>{
-            'page': '1',
-            if (wf.route != null) '__route': wf.route!,
-          },
-        );
-        if (!mounted) return;
-        setState(() {
-          _webFavoriteItems = items.take(200).toList(growable: false);
-          _webFavoriteLoading = false;
-        });
+        await _loadWebFavoriteSimple(source, wf);
       }
-    } on Object {
-      if (mounted) setState(() => _webFavoriteLoading = false);
+    } on Object catch (e) {
+      // 之前这里静默吞异常，用户只看到空白页、无从判断是超时还是真没收藏。
+      // 现在记录错误态并给出「重试」入口（AppErrorState）。
+      debugPrint('[OnlineContentList] 网络收藏加载失败: $e');
+      if (!mounted) return;
+      setState(() {
+        _webFavoriteLoading = false;
+        _webFavoriteError = AppLocalizations.of(context).loadFailed;
+      });
     }
   }
 
@@ -1643,7 +1641,46 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       _webFavoriteFolders = const <WebFavoriteFolder>[];
     }
     // 解析「全部」列表（与源列表解析器一致）。
-    final entry = _webFavoriteListEntry(source);
+    final entry = _webFavoriteListEntry(source, wf);
+    final items = await ScriptResolver().resolveFromHtml(
+      source,
+      entry,
+      html,
+      vars: <String, String>{
+        'baseUrl': ConfigLoader.instance.getActiveMirror(source),
+        'page': '1',
+      },
+    );
+    if (!mounted) return;
+    setState(() {
+      _webFavoriteItems = items is List<MediaItem>
+          ? items.take(200).toList(growable: false)
+          : const <MediaItem>[];
+      _webFavoriteLoading = false;
+    });
+  }
+
+  /// 单文件夹模式（无 folders）：抓收藏页 HTML，用源的列表解析器（[WebFavoriteConfig.listEntry]
+  /// 指定，否则回退 explore/category/search/latest）直接解析「全部」列表。
+  ///
+  /// 不复用 `widget.fetchItems` + `__route:'favorites'`：源没有 `favorites` 解析入口，
+  /// 那样会走到不存在的解析器而返回空列表（网络收藏为空的根因）。
+  Future<void> _loadWebFavoriteSimple(
+    PluginConfig source,
+    WebFavoriteConfig wf,
+  ) async {
+    final routeUrl = wf.route != null && source.routes.containsKey(wf.route)
+        ? source.routes[wf.route]!.url
+        : (wf.url ?? '');
+    final url = _resolveWebFavoriteUrl(source, routeUrl);
+    final html =
+        await HttpFetcher.instance.getHtml(url, referer: source.site.baseUrl);
+    if (!mounted) return;
+    if (html.isEmpty) {
+      setState(() => _webFavoriteLoading = false);
+      return;
+    }
+    final entry = _webFavoriteListEntry(source, wf);
     final items = await ScriptResolver().resolveFromHtml(
       source,
       entry,
@@ -1663,7 +1700,13 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   }
 
   /// 选取源的「列表解析入口」（与 [SourceUrlBrowseScreen] 一致）。
-  static String _webFavoriteListEntry(PluginConfig source) {
+  /// [WebFavoriteConfig.listEntry] 可显式指定（收藏页列表结构与搜索结果一致的
+  /// 源应填 `search`），否则回退 explore/category/search/latest。
+  static String _webFavoriteListEntry(
+    PluginConfig source,
+    WebFavoriteConfig wf,
+  ) {
+    if (wf.listEntry != null && wf.listEntry!.isNotEmpty) return wf.listEntry!;
     for (final k in const <String>['explore', 'category', 'search', 'latest']) {
       if (source.parser.overrides?.containsKey(k) ?? false) return k;
       if (source.selectors?.containsKey(k) ?? false) return k;
