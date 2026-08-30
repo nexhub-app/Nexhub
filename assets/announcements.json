@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.0-beta.3-announce",
+    "date": "2026-08-30",
+    "title": "NexHub 2.0.0-beta.3 预发布测试版",
+    "titleEn": "NexHub 2.0.0-beta.3 (pre-release beta)",
+    "body": "NexHub 2.0.0-beta.3 预发布测试版来了！本次重点带来两大跨语言阅读能力：漫画页翻译（翻页自动对当前页做 OCR + 翻译，译文按版面叠加、按作品记忆、失败可重试）与视频字幕实时翻译（字幕面板开关逐句翻译、无字幕时截帧画面 OCR 兜底、译文覆盖层可选显示原文）。同时修复了更新通道——测试版通道现在能正确识别新版本，并支持 alpha / beta / rc 预发布逐级升级；大幅增强网络连通性：运行时 SNI 控制（免 SNI 绕封锁）、DNS 解析后缀（社区源不含 IP）、源级网络覆盖自动沿用、无头抓取接入 Cloudflare 验证与直连 TLS / 端口修复；源解析能力增强：路由占位符偏移 {page-1}/{page+1}、meta 批量预取、分类键名容错。这是 beta 测试版，可能有个别 bug，欢迎升级并反馈。无破坏性数据变更，可直接覆盖安装。",
+    "bodyEn": "NexHub 2.0.0-beta.3 (pre-release beta) is here! Two cross-language reading capabilities headline this release: manga page translation (auto OCR + translate on page-turn, layout-overlaid bubbles, per-work memory, retry on failure) and real-time video subtitle translation (per-sentence panel toggle, frame OCR fallback when no subtitle, optional original overlay). The update channel is fixed — the beta channel now detects new versions and supports alpha / beta / rc pre-release upgrades; network connectivity is greatly improved with runtime SNI control (SNI-free to bypass blocking), DNS resolve suffixes (no IPs in community sources), auto-inherited source network overrides, headless Cloudflare handling and direct TLS / port fixes; source parsing is enhanced with route placeholder offsets {page-1}/{page+1}, meta batch prefetch and category key tolerance. This is a beta — some bugs may remain; upgrade and report issues. No breaking data changes — just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.0-beta.2-announce",
     "date": "2026-08-28",
     "title": "NexHub 2.0.0-beta.2 预发布测试版",
