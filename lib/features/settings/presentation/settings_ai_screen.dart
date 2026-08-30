@@ -15,6 +15,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:nexhub/core/ai/prompt_builder.dart';
+import 'package:nexhub/core/ai/translation_options_store.dart';
 import 'package:nexhub/core/theme/app_tokens.dart';
 import 'package:nexhub/core/widgets/app_animations.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
@@ -23,6 +25,7 @@ import 'package:nexhub/core/novel/novel_translation_manager.dart';
 import 'package:nexhub/core/player/subtitle_translation_controller.dart';
 import '../../novel/domain/novel_summary_service.dart';
 import '../../novel/domain/novel_summary_settings.dart';
+import 'translation_glossary_screen.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
 
@@ -68,6 +71,12 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
   final _trModelCtrl = TextEditingController();
   final _trLangCtrl = TextEditingController();
   double _trBatch = 12;
+  TranslationStyle _trStyle = TranslationStyle.standard;
+  bool _trCot = false;
+  bool _trSubtitleLightweight = true;
+  String _trExportLayout = 'translationFirst';
+
+  final TranslationOptionsStore _trOptions = TranslationOptionsStore();
 
   // 漫画翻译（视觉 OCR+翻译）
   final _comicBaseCtrl = TextEditingController();
@@ -159,6 +168,10 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     final tModel = trCfg.model == defaultCfg.model ? '' : trCfg.model;
     final trLang = await _settings.getTranslationTargetLanguage();
     final trBatch = await _settings.getTranslationBatchSize();
+    final trStyle = await _trOptions.getStyle();
+    final trCot = await _trOptions.getCotEnabled();
+    final trLightweight = await _trOptions.getSubtitleLightweight();
+    final trExportLayout = await _trOptions.getNovelExportLayout();
     // 漫画翻译 / 视频翻译：同样只回显功能级填写内容（与通用一致时留空）。
     final comicCfg = await _settings.getComicTranslationConfig();
     final cBase = comicCfg.baseUrl == defaultCfg.baseUrl ? '' : comicCfg.baseUrl;
@@ -192,6 +205,10 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       _trModelCtrl.text = tModel;
       _trLangCtrl.text = trLang;
       _trBatch = trBatch.toDouble();
+      _trStyle = trStyle;
+      _trCot = trCot;
+      _trSubtitleLightweight = trLightweight;
+      _trExportLayout = trExportLayout;
 
       _comicBaseCtrl.text = cBase;
       _comicKeyCtrl.text = cKey;
@@ -268,6 +285,10 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       ));
       await _settings.saveTranslationTargetLanguage(_trLangCtrl.text.trim());
       await _settings.saveTranslationBatchSize(_trBatch.round());
+      await _trOptions.setStyle(_trStyle);
+      await _trOptions.setCotEnabled(_trCot);
+      await _trOptions.setSubtitleLightweight(_trSubtitleLightweight);
+      await _trOptions.setNovelExportLayout(_trExportLayout);
       await _settings.saveComicTranslationConfig(NovelSummaryConfig(
         baseUrl: _comicBaseCtrl.text.trim(),
         apiKey: _comicKeyCtrl.text.trim(),
@@ -440,6 +461,79 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                       .textTheme
                       .bodySmall
                       ?.copyWith(color: Theme.of(context).colorScheme.outline),
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                // F8：翻译风格预设（三个模块共用）。
+                SettingsChoiceChips<TranslationStyle>(
+                  title: l10n.translationStyle,
+                  selected: _trStyle,
+                  onSelected: (s) => setState(() => _trStyle = s),
+                  options: <SettingsChoiceChipData<TranslationStyle>>[
+                    SettingsChoiceChipData<TranslationStyle>(
+                      value: TranslationStyle.standard,
+                      label: l10n.translationStyleStandard,
+                    ),
+                    SettingsChoiceChipData<TranslationStyle>(
+                      value: TranslationStyle.colloquial,
+                      label: l10n.translationStyleColloquial,
+                    ),
+                    SettingsChoiceChipData<TranslationStyle>(
+                      value: TranslationStyle.elegant,
+                      label: l10n.translationStyleElegant,
+                    ),
+                    SettingsChoiceChipData<TranslationStyle>(
+                      value: TranslationStyle.internet,
+                      label: l10n.translationStyleInternet,
+                    ),
+                  ],
+                ),
+                // F8：思维链（CoT）开关——默认关闭控成本。
+                SettingsSwitchTile(
+                  title: l10n.translationCot,
+                  subtitle: l10n.translationCotHint,
+                  value: _trCot,
+                  onChanged: (v) => setState(() => _trCot = v),
+                ),
+                // F8：字幕轻量输出（无编号逐行，省 token）。
+                SettingsSwitchTile(
+                  title: l10n.translationSubtitleLightweight,
+                  subtitle: l10n.translationSubtitleLightweightHint,
+                  value: _trSubtitleLightweight,
+                  onChanged: (v) =>
+                      setState(() => _trSubtitleLightweight = v),
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                // F1：术语表编辑器入口。
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                          builder: (_) => const TranslationGlossaryScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.menu_book_outlined),
+                  label: Text(l10n.glossaryOpen),
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                // F10：小说译文附录排版开关。
+                SettingsChoiceChips<String>(
+                  title: l10n.translationExportLayout,
+                  selected: _trExportLayout,
+                  onSelected: (s) => setState(() => _trExportLayout = s),
+                  options: <SettingsChoiceChipData<String>>[
+                    SettingsChoiceChipData<String>(
+                      value: 'translationFirst',
+                      label: l10n.translationLayoutTranslationFirst,
+                    ),
+                    SettingsChoiceChipData<String>(
+                      value: 'sourceFirst',
+                      label: l10n.translationLayoutSourceFirst,
+                    ),
+                    SettingsChoiceChipData<String>(
+                      value: 'bilingual',
+                      label: l10n.translationLayoutBilingual,
+                    ),
+                  ],
                 ),
               ],
             ),

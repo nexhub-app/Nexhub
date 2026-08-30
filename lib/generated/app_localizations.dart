@@ -15061,6 +15061,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Translation caches cleared'**
   String get translationCacheCleared;
+
+  /// No description provided for @glossaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation glossary'**
+  String get glossaryTitle;
+
+  /// No description provided for @glossaryTargetLang.
+  ///
+  /// In en, this message translates to:
+  /// **'Target language: {lang}'**
+  String glossaryTargetLang(String lang);
+
+  /// No description provided for @glossaryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No glossary entries yet. Add character names and proper nouns so translations stay consistent across chapters.'**
+  String get glossaryEmpty;
+
+  /// No description provided for @glossaryAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add term'**
+  String get glossaryAdd;
+
+  /// No description provided for @glossaryEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit term'**
+  String get glossaryEdit;
+
+  /// No description provided for @glossaryTerm.
+  ///
+  /// In en, this message translates to:
+  /// **'Source term'**
+  String get glossaryTerm;
+
+  /// No description provided for @glossaryPreferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred translation'**
+  String get glossaryPreferred;
+
+  /// No description provided for @glossaryAliases.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted aliases (separated by 、 or comma, optional)'**
+  String get glossaryAliases;
+
+  /// No description provided for @glossaryNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note (optional)'**
+  String get glossaryNote;
+
+  /// No description provided for @glossaryImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from JSON'**
+  String get glossaryImport;
+
+  /// No description provided for @glossaryExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as JSON'**
+  String get glossaryExport;
+
+  /// No description provided for @glossaryImportOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} entries'**
+  String glossaryImportOk(int count);
+
+  /// No description provided for @glossaryImportFail.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed: invalid glossary file'**
+  String get glossaryImportFail;
+
+  /// No description provided for @glossaryDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete term “{term}”?'**
+  String glossaryDeleteConfirm(String term);
+
+  /// No description provided for @glossaryAliasesPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Aliases: {aliases}'**
+  String glossaryAliasesPreview(String aliases);
+
+  /// No description provided for @glossaryOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Glossary editor'**
+  String get glossaryOpen;
+
+  /// No description provided for @translationStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation style'**
+  String get translationStyle;
+
+  /// No description provided for @translationStyleStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get translationStyleStandard;
+
+  /// No description provided for @translationStyleColloquial.
+  ///
+  /// In en, this message translates to:
+  /// **'Colloquial'**
+  String get translationStyleColloquial;
+
+  /// No description provided for @translationStyleElegant.
+  ///
+  /// In en, this message translates to:
+  /// **'Elegant'**
+  String get translationStyleElegant;
+
+  /// No description provided for @translationStyleInternet.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet slang'**
+  String get translationStyleInternet;
+
+  /// No description provided for @translationCot.
+  ///
+  /// In en, this message translates to:
+  /// **'Deliberate translation (chain of thought)'**
+  String get translationCot;
+
+  /// No description provided for @translationCotHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Let the model reason about context and terminology before translating. Higher quality but slower and more costly; best for short passages.'**
+  String get translationCotHint;
+
+  /// No description provided for @translationSubtitleLightweight.
+  ///
+  /// In en, this message translates to:
+  /// **'Lightweight subtitle output'**
+  String get translationSubtitleLightweight;
+
+  /// No description provided for @translationSubtitleLightweightHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles are output line-by-line without numbering to save tokens; falls back to numbered protocol automatically when alignment fails.'**
+  String get translationSubtitleLightweightHint;
+
+  /// No description provided for @translationExportLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Novel translation appendix layout'**
+  String get translationExportLayout;
+
+  /// No description provided for @translationLayoutTranslationFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation first'**
+  String get translationLayoutTranslationFirst;
+
+  /// No description provided for @translationLayoutSourceFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Source first'**
+  String get translationLayoutSourceFirst;
+
+  /// No description provided for @translationLayoutBilingual.
+  ///
+  /// In en, this message translates to:
+  /// **'Bilingual'**
+  String get translationLayoutBilingual;
 }
 
 class _AppLocalizationsDelegate

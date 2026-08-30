@@ -7833,4 +7833,100 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get translationCacheCleared => '翻译缓存已清除';
+
+  @override
+  String get glossaryTitle => '翻译术语表';
+
+  @override
+  String glossaryTargetLang(String lang) {
+    return '目标语言：$lang';
+  }
+
+  @override
+  String get glossaryEmpty => '暂无术语。添加人名与专名后，翻译将全书保持同一译名。';
+
+  @override
+  String get glossaryAdd => '添加术语';
+
+  @override
+  String get glossaryEdit => '编辑术语';
+
+  @override
+  String get glossaryTerm => '术语（原文）';
+
+  @override
+  String get glossaryPreferred => '统一译名';
+
+  @override
+  String get glossaryAliases => '可接受别名（顿号或逗号分隔，可选）';
+
+  @override
+  String get glossaryNote => '备注（可选）';
+
+  @override
+  String get glossaryImport => '从 JSON 导入';
+
+  @override
+  String get glossaryExport => '导出 JSON';
+
+  @override
+  String glossaryImportOk(int count) {
+    return '已导入 $count 条术语';
+  }
+
+  @override
+  String get glossaryImportFail => '导入失败：术语表文件格式非法';
+
+  @override
+  String glossaryDeleteConfirm(String term) {
+    return '删除术语「$term」？';
+  }
+
+  @override
+  String glossaryAliasesPreview(String aliases) {
+    return '别名：$aliases';
+  }
+
+  @override
+  String get glossaryOpen => '术语表编辑器';
+
+  @override
+  String get translationStyle => '翻译风格';
+
+  @override
+  String get translationStyleStandard => '标准';
+
+  @override
+  String get translationStyleColloquial => '口语化';
+
+  @override
+  String get translationStyleElegant => '文雅';
+
+  @override
+  String get translationStyleInternet => '网络用语';
+
+  @override
+  String get translationCot => '审慎翻译（思维链）';
+
+  @override
+  String get translationCotHint => '翻译前先让模型理解语境与术语，质量更高但更慢、更贵；适合短篇/低批量场景。';
+
+  @override
+  String get translationSubtitleLightweight => '字幕轻量输出';
+
+  @override
+  String get translationSubtitleLightweightHint =>
+      '字幕译文按行输出、不带编号以省 token；对位失败自动回退编号协议。';
+
+  @override
+  String get translationExportLayout => '小说译文附录排版';
+
+  @override
+  String get translationLayoutTranslationFirst => '译文优先';
+
+  @override
+  String get translationLayoutSourceFirst => '原文优先';
+
+  @override
+  String get translationLayoutBilingual => '双语对照';
 }

@@ -27,8 +27,11 @@ import 'package:flutter/widgets.dart' show Size;
 // ignore: depend_on_referenced_packages
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+import '../../../core/ai/glossary_manager.dart';
 import '../../../core/ai/image_resizer.dart';
+import '../../../core/ai/prompt_builder.dart';
 import '../../../core/ai/translation_exception.dart';
+import '../../../core/ai/translation_options_store.dart';
 import '../../../core/ai/vision_translation_client.dart';
 import '../../../core/comic/comic_translation_manager.dart';
 import '../../../core/models/plugin_config.dart';
@@ -76,9 +79,13 @@ class ComicTranslationController extends ChangeNotifier {
     PluginConfig? source,
     ComicTranslationManager? manager,
     VisionTranslationClient? client,
+    GlossaryManager? glossary,
+    TranslationOptionsStore? options,
   })  : _source = source,
         _manager = manager ?? ComicTranslationManager(),
-        _client = client ?? VisionTranslationClient();
+        _client = client ?? VisionTranslationClient(),
+        _glossary = glossary ?? GlossaryManager(),
+        _options = options ?? TranslationOptionsStore();
 
   /// 请求图片长边上限（像素）：视觉模型对超大图会截断细节，
   /// 长边压到 1600 在识别精度与请求体积（token / 流量）间取得平衡。
@@ -94,6 +101,11 @@ class ComicTranslationController extends ChangeNotifier {
   final String comicId;
   final ComicTranslationManager _manager;
   final VisionTranslationClient _client;
+  final GlossaryManager _glossary;
+  final TranslationOptionsStore _options;
+
+  /// 术语表生效条目（F1，会话内加载一次；语言回落主目标语言）。
+  List<GlossaryEntry>? _glossaryEntries;
 
   /// 网络图下载防盗链 headers 所需的源配置（阅读器异步加载源后补传）。
   PluginConfig? get source => _source;
@@ -194,7 +206,8 @@ class ComicTranslationController extends ChangeNotifier {
         return;
       }
       // 网络请求段受并发信号量约束（B2）。
-      final result = await _withSlot(() => _translatePage(url));
+      final result =
+          await _withSlot(() => _translatePage(url, chapterKey, pageIndex));
       final translation = ComicPageTranslation(
         imageUrl: url,
         lang: _targetLang,
@@ -268,8 +281,35 @@ class ComicTranslationController extends ChangeNotifier {
     await ensureTranslated(url, chapterKey: chapterKey, pageIndex: pageIndex);
   }
 
+  /// F2：前一页已译短摘要——读上一页缓存（跨会话可用），把识别原文拼成
+  /// 1–2 句（截断 160 字符封顶）；无上一页/缓存时返回 null。
+  Future<String?> _prevPageSummary(String chapterKey, int pageIndex) async {
+    if (pageIndex <= 0) return null;
+    try {
+      final prev = await _manager.load(
+        comicId: comicId,
+        chapterKey: chapterKey,
+        pageIndex: pageIndex - 1,
+        lang: _targetLang,
+      );
+      final buf = StringBuffer();
+      for (final s in prev?.segments ?? const <VisionTextSegment>[]) {
+        final t = s.text.trim();
+        if (t.isEmpty) continue;
+        if (buf.isNotEmpty) buf.write('；');
+        buf.write(t);
+        if (buf.length >= 160) break;
+      }
+      final s = buf.toString();
+      if (s.isEmpty) return null;
+      return s.length > 160 ? s.substring(0, 160) : s;
+    } on Object {
+      return null;
+    }
+  }
+
   Future<({List<VisionTextSegment> segments, Size naturalSize})>
-      _translatePage(String url) async {
+      _translatePage(String url, String chapterKey, int pageIndex) async {
     final settings = NovelSummarySettings.instance;
     final NovelSummaryConfig cfg = await settings.getComicTranslationConfig();
     if (cfg.baseUrl.trim().isEmpty) {
@@ -281,6 +321,29 @@ class ComicTranslationController extends ChangeNotifier {
         : await settings.getComicTranslationTargetLanguage();
     _targetLang = lang;
     _langLoaded = true;
+
+    // F1/F8：术语表（作品级回落全局；语言回落主目标语言）+ 风格预设。
+    try {
+      final master =
+          await settings.getTranslationTargetLanguage();
+      _glossaryEntries ??= await _glossary.effectiveEntriesWithFallback(
+          comicId, lang, master);
+    } on Object {
+      _glossaryEntries ??= const <GlossaryEntry>[];
+    }
+    final glossary = _glossaryEntries ?? const <GlossaryEntry>[];
+    String style = TranslationStyle.standard.name;
+    try {
+      style = (await _options.effectiveStyle(comicId)).name;
+    } on Object {
+      // 风格读取失败按标准风格。
+    }
+    final systemPrompt = PromptBuilder.mangaSystemPrompt(
+      lang: lang,
+      glossary: glossary,
+      style: TranslationStyle.fromStorage(style),
+      prevPageSummary: await _prevPageSummary(chapterKey, pageIndex),
+    );
 
     final bytes = await _loadImageBytes(url);
     final natural = await AiImageResizer.decodeSize(bytes);
@@ -303,9 +366,23 @@ class ComicTranslationController extends ChangeNotifier {
       ),
       imageBytes: sendBytes,
       mimeType: mime,
-      systemPrompt: VisionTranslationClient.mangaSystemPrompt(lang),
+      systemPrompt: systemPrompt,
       maxSide: _kMaxSide,
     );
+    // F1：术语冲突检测（仅日志，不阻断显示）。
+    if (glossary.isNotEmpty && segments.isNotEmpty) {
+      try {
+        for (final w in GlossaryManager.detectConflicts(
+          glossary,
+          <String>[for (final s in segments) s.text],
+          <String>[for (final s in segments) s.translation],
+        )) {
+          AppLog.instance.w('[漫画翻译][术语冲突] $w');
+        }
+      } on Object {
+        // 检测失败不影响主流程。
+      }
+    }
     return (segments: segments, naturalSize: natural);
   }
 

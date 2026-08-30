@@ -4345,5 +4345,54 @@
   "translationCacheEntries": "{count} 条",
   "translationCacheClear": "清除全部翻译缓存",
   "translationCacheClearConfirm": "确定清除全部翻译缓存？已译内容将重新翻译并产生接口费用。",
-  "translationCacheCleared": "翻译缓存已清除"
+  "translationCacheCleared": "翻译缓存已清除",
+  "glossaryTitle": "翻译术语表",
+  "glossaryTargetLang": "目标语言：{lang}",
+  "@glossaryTargetLang": {
+    "placeholders": {
+      "lang": {"type": "String"}
+    }
+  },
+  "glossaryEmpty": "暂无术语。添加人名与专名后，翻译将全书保持同一译名。",
+  "glossaryAdd": "添加术语",
+  "glossaryEdit": "编辑术语",
+  "glossaryTerm": "术语（原文）",
+  "glossaryPreferred": "统一译名",
+  "glossaryAliases": "可接受别名（顿号或逗号分隔，可选）",
+  "glossaryNote": "备注（可选）",
+  "glossaryImport": "从 JSON 导入",
+  "glossaryExport": "导出 JSON",
+  "glossaryImportOk": "已导入 {count} 条术语",
+  "@glossaryImportOk": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "glossaryImportFail": "导入失败：术语表文件格式非法",
+  "glossaryDeleteConfirm": "删除术语「{term}」？",
+  "@glossaryDeleteConfirm": {
+    "placeholders": {
+      "term": {"type": "String"}
+    }
+  },
+  "glossaryAliasesPreview": "别名：{aliases}",
+  "@glossaryAliasesPreview": {
+    "placeholders": {
+      "aliases": {"type": "String"}
+    }
+  },
+  "glossaryOpen": "术语表编辑器",
+  "translationStyle": "翻译风格",
+  "translationStyleStandard": "标准",
+  "translationStyleColloquial": "口语化",
+  "translationStyleElegant": "文雅",
+  "translationStyleInternet": "网络用语",
+  "translationCot": "审慎翻译（思维链）",
+  "translationCotHint": "翻译前先让模型理解语境与术语，质量更高但更慢、更贵；适合短篇/低批量场景。",
+  "translationSubtitleLightweight": "字幕轻量输出",
+  "translationSubtitleLightweightHint": "字幕译文按行输出、不带编号以省 token；对位失败自动回退编号协议。",
+  "translationExportLayout": "小说译文附录排版",
+  "translationLayoutTranslationFirst": "译文优先",
+  "translationLayoutSourceFirst": "原文优先",
+  "translationLayoutBilingual": "双语对照"
 }

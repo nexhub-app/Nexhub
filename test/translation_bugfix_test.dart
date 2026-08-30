@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:nexhub/core/ai/image_resizer.dart';
+import 'package:nexhub/core/ai/glossary_manager.dart';
 import 'package:nexhub/core/ai/translation_exception.dart';
 import 'package:nexhub/core/ai/vision_translation_client.dart';
 import 'package:nexhub/core/comic/comic_translation_manager.dart';
@@ -81,13 +82,22 @@ class _FakeVisionClient extends VisionTranslationClient {
     required AiEndpointConfig config,
     required String targetLang,
     required List<String> texts,
+    List<TranslationContextPair> history = const <TranslationContextPair>[],
+    bool lightweight = false,
+    String? systemPrompt,
   }) async {
     translateCalls++;
+    lastHistory = history;
+    lastSystemPrompt = systemPrompt;
     if (translateCalls <= failTranslateTimes) {
       throw Exception('SocketException:connection interrupted');
     }
     return <String>[for (final t in texts) '[$t]'];
   }
+
+  /// F2 测试观测：最近一次请求注入的对话历史与 system prompt。
+  List<TranslationContextPair> lastHistory = const <TranslationContextPair>[];
+  String? lastSystemPrompt;
 }
 
 class _FakeBackend {
@@ -129,8 +139,10 @@ class _EchoAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     final dynamic data = options.data;
-    final String userContent =
-        (data['messages'][1] as Map)['content'] as String;
+    // F2 起批量正文前可能注入历史对话，取最后一条 user 消息作为批量输入。
+    final String userContent = (data['messages'] as List<dynamic>)
+        .cast<Map<dynamic, dynamic>>()
+        .lastWhere((m) => m['role'] == 'user')['content'] as String;
     final matches =
         RegExp(r'<<<\s*(\d+)\s*>>>').allMatches(userContent).toList();
     markerCounts.add(matches.length);
@@ -246,12 +258,27 @@ void main() {
 
   group('B3 小说 one-shot 预算保护', () {
     late _EchoAdapter adapter;
+    late Directory tempDir;
 
-    setUp(() {
+    setUp(() async {
       SharedPreferences.setMockInitialValues(<String, String>{
         'novel_overview_api_base_v1': 'http://test.local',
       });
       adapter = _EchoAdapter();
+      // F1 起 translateParagraphs 会读取术语表（Hive），需先初始化。
+      tempDir = await Directory.systemTemp.createTemp('nexhub_b3_test');
+      Hive.init(tempDir.path);
+    });
+
+    tearDown(() async {
+      if (Hive.isBoxOpen(GlossaryManager.boxName)) {
+        await Hive.deleteBoxFromDisk(GlossaryManager.boxName);
+      }
+      try {
+        await tempDir.delete(recursive: true);
+      } on Object {
+        // 清理失败忽略。
+      }
     });
 
     test('100 段直接分块，每块 ≤ 块大小且 ≤ one-shot 上限', () async {

@@ -8024,4 +8024,103 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get translationCacheCleared => 'Translation caches cleared';
+
+  @override
+  String get glossaryTitle => 'Translation glossary';
+
+  @override
+  String glossaryTargetLang(String lang) {
+    return 'Target language: $lang';
+  }
+
+  @override
+  String get glossaryEmpty =>
+      'No glossary entries yet. Add character names and proper nouns so translations stay consistent across chapters.';
+
+  @override
+  String get glossaryAdd => 'Add term';
+
+  @override
+  String get glossaryEdit => 'Edit term';
+
+  @override
+  String get glossaryTerm => 'Source term';
+
+  @override
+  String get glossaryPreferred => 'Preferred translation';
+
+  @override
+  String get glossaryAliases =>
+      'Accepted aliases (separated by 、 or comma, optional)';
+
+  @override
+  String get glossaryNote => 'Note (optional)';
+
+  @override
+  String get glossaryImport => 'Import from JSON';
+
+  @override
+  String get glossaryExport => 'Export as JSON';
+
+  @override
+  String glossaryImportOk(int count) {
+    return 'Imported $count entries';
+  }
+
+  @override
+  String get glossaryImportFail => 'Import failed: invalid glossary file';
+
+  @override
+  String glossaryDeleteConfirm(String term) {
+    return 'Delete term “$term”?';
+  }
+
+  @override
+  String glossaryAliasesPreview(String aliases) {
+    return 'Aliases: $aliases';
+  }
+
+  @override
+  String get glossaryOpen => 'Glossary editor';
+
+  @override
+  String get translationStyle => 'Translation style';
+
+  @override
+  String get translationStyleStandard => 'Standard';
+
+  @override
+  String get translationStyleColloquial => 'Colloquial';
+
+  @override
+  String get translationStyleElegant => 'Elegant';
+
+  @override
+  String get translationStyleInternet => 'Internet slang';
+
+  @override
+  String get translationCot => 'Deliberate translation (chain of thought)';
+
+  @override
+  String get translationCotHint =>
+      'Let the model reason about context and terminology before translating. Higher quality but slower and more costly; best for short passages.';
+
+  @override
+  String get translationSubtitleLightweight => 'Lightweight subtitle output';
+
+  @override
+  String get translationSubtitleLightweightHint =>
+      'Subtitles are output line-by-line without numbering to save tokens; falls back to numbered protocol automatically when alignment fails.';
+
+  @override
+  String get translationExportLayout => 'Novel translation appendix layout';
+
+  @override
+  String get translationLayoutTranslationFirst => 'Translation first';
+
+  @override
+  String get translationLayoutSourceFirst => 'Source first';
+
+  @override
+  String get translationLayoutBilingual => 'Bilingual';
 }

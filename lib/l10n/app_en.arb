@@ -4389,5 +4389,54 @@
   "translationCacheEntries": "{count} entries",
   "translationCacheClear": "Clear all translation caches",
   "translationCacheClearConfirm": "Clear all translation caches? Translated content will be re-translated with additional API cost.",
-  "translationCacheCleared": "Translation caches cleared"
+  "translationCacheCleared": "Translation caches cleared",
+  "glossaryTitle": "Translation glossary",
+  "glossaryTargetLang": "Target language: {lang}",
+  "@glossaryTargetLang": {
+    "placeholders": {
+      "lang": {"type": "String"}
+    }
+  },
+  "glossaryEmpty": "No glossary entries yet. Add character names and proper nouns so translations stay consistent across chapters.",
+  "glossaryAdd": "Add term",
+  "glossaryEdit": "Edit term",
+  "glossaryTerm": "Source term",
+  "glossaryPreferred": "Preferred translation",
+  "glossaryAliases": "Accepted aliases (separated by 、 or comma, optional)",
+  "glossaryNote": "Note (optional)",
+  "glossaryImport": "Import from JSON",
+  "glossaryExport": "Export as JSON",
+  "glossaryImportOk": "Imported {count} entries",
+  "@glossaryImportOk": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "glossaryImportFail": "Import failed: invalid glossary file",
+  "glossaryDeleteConfirm": "Delete term “{term}”?",
+  "@glossaryDeleteConfirm": {
+    "placeholders": {
+      "term": {"type": "String"}
+    }
+  },
+  "glossaryAliasesPreview": "Aliases: {aliases}",
+  "@glossaryAliasesPreview": {
+    "placeholders": {
+      "aliases": {"type": "String"}
+    }
+  },
+  "glossaryOpen": "Glossary editor",
+  "translationStyle": "Translation style",
+  "translationStyleStandard": "Standard",
+  "translationStyleColloquial": "Colloquial",
+  "translationStyleElegant": "Elegant",
+  "translationStyleInternet": "Internet slang",
+  "translationCot": "Deliberate translation (chain of thought)",
+  "translationCotHint": "Let the model reason about context and terminology before translating. Higher quality but slower and more costly; best for short passages.",
+  "translationSubtitleLightweight": "Lightweight subtitle output",
+  "translationSubtitleLightweightHint": "Subtitles are output line-by-line without numbering to save tokens; falls back to numbered protocol automatically when alignment fails.",
+  "translationExportLayout": "Novel translation appendix layout",
+  "translationLayoutTranslationFirst": "Translation first",
+  "translationLayoutSourceFirst": "Source first",
+  "translationLayoutBilingual": "Bilingual"
 }

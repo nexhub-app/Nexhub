@@ -28,7 +28,10 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../ai/glossary_manager.dart';
+import '../ai/prompt_builder.dart';
 import '../ai/translation_exception.dart';
+import '../ai/translation_options_store.dart';
 import '../ai/vision_translation_client.dart';
 import '../utils/app_log.dart';
 import '../../features/novel/domain/novel_summary_service.dart';
@@ -62,8 +65,13 @@ class SubtitleTranslationState {
 }
 
 class SubtitleTranslationController extends ChangeNotifier {
-  SubtitleTranslationController({VisionTranslationClient? client})
-      : _client = client ?? VisionTranslationClient();
+  SubtitleTranslationController({
+    VisionTranslationClient? client,
+    GlossaryManager? glossary,
+    TranslationOptionsStore? options,
+  })  : _client = client ?? VisionTranslationClient(),
+        _glossary = glossary ?? GlossaryManager(),
+        _options = options ?? TranslationOptionsStore();
 
   /// mpv `sub-text` 轮询节流（位置回调 4-10Hz，属性读取无需每帧）。
   static const Duration _kPollInterval = Duration(milliseconds: 600);
@@ -123,6 +131,22 @@ class SubtitleTranslationController extends ChangeNotifier {
   String? _inFlightText;
   String? _queuedText;
 
+  // ── F1/F8：术语表 + 提示词选项；F2：会话内前文历史 ──
+  final GlossaryManager _glossary;
+  final TranslationOptionsStore _options;
+
+  /// 会话内最近 N 句 {原文, 译文}（F2）：随请求注入为对话历史，
+  /// 超预算按 FIFO 淘汰、优先保留较新句。
+  final List<TranslationContextPair> _history = <TranslationContextPair>[];
+
+  /// 历史注入预算：最多 6 句、总字符（原文+译文）不超过 2400
+  /// （约 1200 token，汉字按 2 字符/token 估算）。
+  static const int _kHistoryMaxPairs = 6;
+  static const int _kHistoryMaxChars = 2400;
+
+  /// 术语表生效条目（会话内加载一次；语言回落主目标语言）。
+  List<GlossaryEntry>? _glossaryEntries;
+
   /// 会话内译文缓存（lang|原文 → 译文）；Hive 为跨会话持久层。
   final Map<String, String> _memoryCache = <String, String>{};
   Box<dynamic>? _box;
@@ -170,6 +194,7 @@ class SubtitleTranslationController extends ChangeNotifier {
     _tracksSub?.cancel();
     _tracksSub = null;
     _hasSubtitleTrack = false;
+    _history.clear(); // F2：离开播放页清空会话上下文。
     _resetState();
   }
 
@@ -266,6 +291,18 @@ class SubtitleTranslationController extends ChangeNotifier {
     _targetLang =
         await NovelSummarySettings.instance.getMediaTranslationTargetLanguage();
     _langLoaded = true;
+    // F1：术语表（全局表为主；字幕无作品身份）按会话加载一次。
+    try {
+      final master = await NovelSummarySettings.instance
+          .getTranslationTargetLanguage();
+      _glossaryEntries = await _glossary.effectiveEntriesWithFallback(
+        GlossaryManager.globalWorkId,
+        _targetLang,
+        master,
+      );
+    } on Object {
+      _glossaryEntries = const <GlossaryEntry>[];
+    }
   }
 
   /// 播放进度回调（由播放页 [_onPositionChanged] 每帧转发）：
@@ -331,7 +368,11 @@ class SubtitleTranslationController extends ChangeNotifier {
         config: cfg,
         imageBytes: frame,
         mimeType: 'image/png',
-        systemPrompt: VisionTranslationClient.videoOcrSystemPrompt(_targetLang),
+        systemPrompt: PromptBuilder.videoOcrSystemPrompt(
+          lang: _targetLang,
+          glossary: _glossaryEntries ?? const <GlossaryEntry>[],
+          style: await _options.effectiveStyle(null),
+        ),
       );
       if (!_enabled) return;
       if (segments.isEmpty) return;
@@ -419,14 +460,42 @@ class SubtitleTranslationController extends ChangeNotifier {
             '通用接口或视频翻译专用接口');
       }
       // B4：指数退避重试，瞬时抖动不再丢句；重试期间 UI 保持「翻译中」。
+      // F1/F8：system prompt 经 PromptBuilder 组装（术语表 + 风格 + CoT），
+      // F2：注入最近几句对话历史；轻量格式默认开启（省 token，失败自动
+      // 回退编号协议）。
+      final glossary = _glossaryEntries ?? const <GlossaryEntry>[];
+      final lightweight = await _options.getSubtitleLightweight();
+      final system = PromptBuilder.subtitleSystemPrompt(
+        lang: _targetLang,
+        glossary: glossary,
+        style: await _options.effectiveStyle(null),
+        lightweight: lightweight,
+        cot: await _options.getCotEnabled(),
+      );
       final result = await _translateWithRetry(
         () => _client.translateBatch(
           config: cfg,
           targetLang: _targetLang,
           texts: <String>[text],
+          history: List<TranslationContextPair>.of(_history),
+          lightweight: lightweight,
+          systemPrompt: system,
         ),
       );
       final translated = result.first.trim();
+      // F1：术语冲突检测（仅日志）。
+      if (glossary.isNotEmpty) {
+        try {
+          for (final w in GlossaryManager.detectConflicts(
+              glossary, <String>[text], <String>[translated])) {
+            AppLog.instance.w('[字幕翻译][术语冲突] $w');
+          }
+        } on Object {
+          // 检测失败不影响主流程。
+        }
+      }
+      // F2：成功句入历史（FIFO + 字符预算淘汰）。
+      _appendToHistory(text, translated);
       _memoryCache[memKey] = translated;
       await _saveCached(text, translated);
       if (!_enabled) return;
@@ -453,6 +522,24 @@ class SubtitleTranslationController extends ChangeNotifier {
         _queuedText = null;
         unawaited(_translateSentence(next));
       }
+    }
+  }
+
+  /// F2：成功句入会话历史——最多 [_kHistoryMaxPairs] 句，总字符超预算时
+  /// 从最旧开始淘汰（优先保留较新句）。
+  void _appendToHistory(String source, String translation) {
+    _history.removeWhere((p) => p.source == source);
+    _history.add((source: source, translation: translation));
+    while (_history.length > _kHistoryMaxPairs) {
+      _history.removeAt(0);
+    }
+    var chars = 0;
+    for (final p in _history) {
+      chars += p.source.length + p.translation.length;
+    }
+    while (chars > _kHistoryMaxChars && _history.length > 1) {
+      final dropped = _history.removeAt(0);
+      chars -= dropped.source.length + dropped.translation.length;
     }
   }
 

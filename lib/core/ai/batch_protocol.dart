@@ -50,4 +50,26 @@ class BatchProtocol {
     }
     return result.any((s) => s.isEmpty) ? null : result;
   }
+
+  /// 轻量逐行解析（F8）：不依赖 `<<<N>>>` 编号，靠换行顺序对位。
+  ///
+  /// 宽容策略：剥 markdown 围栏 → 按行切分 → 丢弃编号标记行与空行；
+  /// 非空行数等于 [expected] 时按顺序返回，否则返回 null（调用方回退
+  /// 编号协议或分块）。
+  static List<String>? decodeLoose(String raw, int expected) {
+    if (raw.trim().isEmpty || expected <= 0) return null;
+    var s = raw.trim();
+    // 剥 ```json ... ``` / ```text ... ``` 围栏。
+    s = s.replaceFirst(RegExp(r'^```[a-zA-Z]*[ \t]?\n?'), '');
+    s = s.replaceFirst(RegExp(r'\n?```\s*$'), '');
+    final marker = RegExp(r'^<<<\s*\d+\s*>>>\s*$');
+    final lines = <String>[];
+    for (final line in s.split('\n')) {
+      final t = line.trim().replaceAll(RegExp(r'^[-*•]\s+'), '');
+      if (t.isEmpty || marker.hasMatch(t)) continue;
+      lines.add(t);
+    }
+    if (lines.length != expected) return null;
+    return lines;
+  }
 }

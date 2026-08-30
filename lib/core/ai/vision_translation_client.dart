@@ -16,6 +16,10 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import 'batch_protocol.dart';
+import 'prompt_builder.dart';
+
+/// 一对「原文→译文」语境（F2 上下文注入的对话历史单元）。
+typedef TranslationContextPair = ({String source, String translation});
 
 /// 一段识别并翻译后的文字区域（坐标为相对图片宽高的千分比 0–1000）。
 class VisionTextSegment {
@@ -84,9 +88,9 @@ class VisionTranslationClient {
 
   final Dio _dio;
 
-  /// 漫画页 OCR+翻译提示词：识别气泡/拟声词并逐区域翻译，
-  /// 坐标用千分比（0–1000）避免像素尺寸歧义。
-  static String mangaSystemPrompt(String targetLang) =>
+  /// 漫画页 OCR+翻译提示词（基础段；术语/风格等公共段由
+  /// [PromptBuilder.mangaSystemPrompt] 追加）。
+  static String mangaBasePrompt(String targetLang) =>
       '你是专业的漫画翻译引擎。用户会给出一张漫画页面图片。'
       '请识别图中所有带文字的区域（对话气泡、旁白框、拟声词、标注），'
       '把每个区域的文字翻译成$targetLang。'
@@ -98,15 +102,23 @@ class VisionTranslationClient {
       'translation 为翻译结果。忽略图片签名/水印/页码等非正文文字。'
       '若图中没有需要翻译的文字，输出 []。';
 
-  /// 视频帧 OCR+翻译提示词：识别画面中的字幕/台词文字并翻译，
-  /// 不需要坐标，输出逐行原文+译文。
-  static String videoOcrSystemPrompt(String targetLang) =>
+  /// 旧入口（兼容）：基础段别名。
+  static String mangaSystemPrompt(String targetLang) =>
+      mangaBasePrompt(targetLang);
+
+  /// 视频帧 OCR+翻译提示词（基础段；公共段由 [PromptBuilder] 追加）：
+  /// 识别画面中的字幕/台词文字并翻译，不需要坐标，输出逐行原文+译文。
+  static String videoOcrBasePrompt(String targetLang) =>
       '你是专业的视频字幕识别引擎。用户会给出一个视频画面帧。'
       '请识别画面中的台词/字幕文字（忽略台标、水印、进度条、按钮等界面元素），'
       '把识别结果翻译成$targetLang。'
       '只输出一个 JSON 数组，不要输出任何解释或 markdown 代码块围栏。'
       '数组每个元素格式：{"text":"原文","translation":"译文"}，'
       '按阅读顺序排列。若画面中没有台词文字，输出 []。';
+
+  /// 旧入口（兼容）：基础段别名。
+  static String videoOcrSystemPrompt(String targetLang) =>
+      videoOcrBasePrompt(targetLang);
 
   /// 单次视觉请求：识别并翻译图片中的文字。
   ///
@@ -163,13 +175,39 @@ class VisionTranslationClient {
   ///
   /// 复用 [BatchProtocol]（`<<<N>>>` 编号分隔，与小说翻译同一份实现）；
   /// 解析失败/条数不齐时抛异常，由调用方决定回退策略（逐条重试等）。
+  ///
+  /// - [history]（F2 上下文注入）：会话内最近若干句 {原文, 译文}，按时间
+  ///   升序注入为对话历史 messages（预算淘汰由调用方负责）；
+  /// - [lightweight]（F8 轻量格式）：要求纯文本逐行输出（无编号）省 token，
+  ///   解析靠顺序对位（[BatchProtocol.decodeLoose]），失败回退编号协议；
+  /// - [systemPrompt]：调用方经 [PromptBuilder] 组装好的完整提示词，
+  ///   传入时覆盖内置默认（术语/风格注入统一走该通道）。
   Future<List<String>> translateBatch({
     required AiEndpointConfig config,
     required String targetLang,
     required List<String> texts,
+    List<TranslationContextPair> history = const <TranslationContextPair>[],
+    bool lightweight = false,
+    String? systemPrompt,
   }) async {
     if (texts.isEmpty) return const <String>[];
     final base = config.baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    final messages = <Map<String, dynamic>>[
+      <String, dynamic>{
+        'role': 'system',
+        'content': systemPrompt ??
+            PromptBuilder.subtitleSystemPrompt(lang: targetLang),
+      },
+      // F2：前文语境作为对话历史注入（升序，最新一句紧邻本次请求）。
+      for (final h in history) ...<Map<String, dynamic>>[
+        <String, dynamic>{
+          'role': 'user',
+          'content': BatchProtocol.encode(<String>[h.source]),
+        },
+        <String, dynamic>{'role': 'assistant', 'content': h.translation},
+      ],
+      <String, dynamic>{'role': 'user', 'content': BatchProtocol.encode(texts)},
+    ];
     final resp = await _dio.post<Map<String, dynamic>>(
       '$base/chat/completions',
       options: Options(
@@ -185,21 +223,17 @@ class VisionTranslationClient {
         'model': config.model.trim().isNotEmpty
             ? config.model.trim()
             : 'gpt-4o-mini',
-        'messages': <Map<String, dynamic>>[
-          <String, dynamic>{
-            'role': 'system',
-            'content': '你是专业的字幕译者。把用户给出的每个编号段落翻译成'
-                '$targetLang，保持原文的语气与人名译名一致，译文口语化。'
-                '输出必须严格保持编号格式：每段译文前单独一行 <<<序号>>>，'
-                '不要添加任何解释或合并段落。',
-          },
-          <String, dynamic>{'role': 'user', 'content': BatchProtocol.encode(texts)},
-        ],
+        'messages': messages,
         'temperature': 0.2,
       },
     );
     final content = _extractContent(resp.data);
-    final parsed = BatchProtocol.decode(content ?? '', texts.length);
+    // 轻量格式优先逐行对位，失败回退编号协议；编号格式反之。
+    final parsed = lightweight
+        ? (BatchProtocol.decodeLoose(content ?? '', texts.length) ??
+            BatchProtocol.decode(content ?? '', texts.length))
+        : (BatchProtocol.decode(content ?? '', texts.length) ??
+            BatchProtocol.decodeLoose(content ?? '', texts.length));
     if (parsed == null) throw Exception('翻译返回格式异常');
     return parsed;
   }
