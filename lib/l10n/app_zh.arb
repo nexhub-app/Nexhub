@@ -4416,5 +4416,18 @@
   "reviewTruncated": "摘要版：仅显示前 100 条发现，完整报告已保存为 JSON 文件。",
   "reviewTypeGlossary": "术语",
   "reviewTypeMissing": "漏译",
-  "reviewTypeLiteral": "直译腔"
+  "reviewTypeLiteral": "直译腔",
+  "offlineTranslateTitle": "整片翻译（离线）",
+  "offlineHint": "选择外挂字幕文件（SRT / VTT / ASS），整片批量翻译后可导出双语字幕；中断后自动续跑。",
+  "offlinePickSubtitle": "选择字幕文件开始翻译",
+  "offlineJobProgress": "已译 {done}/{total} 句",
+  "offlineJobDone": "翻译完成，可导出双语字幕",
+  "offlineJobFailed": "翻译失败",
+  "offlineResume": "继续任务",
+  "offlineCancel": "取消任务",
+  "offlineRetranslate": "重新翻译 / 补齐缺句",
+  "offlineExportSrt": "导出双语 SRT",
+  "offlineExportAss": "导出双语 ASS",
+  "offlineUpload": "上传到 WebDAV",
+  "offlineUploaded": "已上传：{url}"
 }

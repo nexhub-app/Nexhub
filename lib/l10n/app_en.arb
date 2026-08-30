@@ -4460,5 +4460,18 @@
   "reviewTruncated": "Summary version: showing the first 100 findings. The full report was saved as a JSON file.",
   "reviewTypeGlossary": "Glossary",
   "reviewTypeMissing": "Missing",
-  "reviewTypeLiteral": "Literal"
+  "reviewTypeLiteral": "Literal",
+  "offlineTranslateTitle": "Offline whole-video translation",
+  "offlineHint": "Pick an external subtitle file (SRT / VTT / ASS); all sentences are translated in batches and can be exported as bilingual subtitles. Interrupted jobs resume automatically.",
+  "offlinePickSubtitle": "Pick subtitle file to translate",
+  "offlineJobProgress": "Translated {done} of {total} cues",
+  "offlineJobDone": "Translation complete - export below",
+  "offlineJobFailed": "Translation failed",
+  "offlineResume": "Resume",
+  "offlineCancel": "Cancel job",
+  "offlineRetranslate": "Translate again / fill gaps",
+  "offlineExportSrt": "Export bilingual SRT",
+  "offlineExportAss": "Export bilingual ASS",
+  "offlineUpload": "Upload to WebDAV",
+  "offlineUploaded": "Uploaded: {url}"
 }

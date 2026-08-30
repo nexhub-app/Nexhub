@@ -3880,6 +3880,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 controller: _controller,
                 defaults: _playerSettings,
                 translator: _subtitleTranslator,
+                videoPath: _playUrl,
               ),
             ),
             // 收藏按钮（P9.1.7 §16.1 顶栏收藏，仅 favoriteType 提供时显示）

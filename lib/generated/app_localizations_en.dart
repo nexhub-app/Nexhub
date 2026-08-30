@@ -8202,4 +8202,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewTypeLiteral => 'Literal';
+
+  @override
+  String get offlineTranslateTitle => 'Offline whole-video translation';
+
+  @override
+  String get offlineHint =>
+      'Pick an external subtitle file (SRT / VTT / ASS); all sentences are translated in batches and can be exported as bilingual subtitles. Interrupted jobs resume automatically.';
+
+  @override
+  String get offlinePickSubtitle => 'Pick subtitle file to translate';
+
+  @override
+  String offlineJobProgress(Object done, Object total) {
+    return 'Translated $done of $total cues';
+  }
+
+  @override
+  String get offlineJobDone => 'Translation complete - export below';
+
+  @override
+  String get offlineJobFailed => 'Translation failed';
+
+  @override
+  String get offlineResume => 'Resume';
+
+  @override
+  String get offlineCancel => 'Cancel job';
+
+  @override
+  String get offlineRetranslate => 'Translate again / fill gaps';
+
+  @override
+  String get offlineExportSrt => 'Export bilingual SRT';
+
+  @override
+  String get offlineExportAss => 'Export bilingual ASS';
+
+  @override
+  String get offlineUpload => 'Upload to WebDAV';
+
+  @override
+  String offlineUploaded(Object url) {
+    return 'Uploaded: $url';
+  }
 }

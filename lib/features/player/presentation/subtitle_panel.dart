@@ -4,26 +4,35 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:path/path.dart' as p;
+import 'package:share_plus/share_plus.dart';
 
+import '../../../core/ai/translation_exception.dart';
+import '../../../core/ai/vision_translation_client.dart';
 import '../../../core/player/player_controller.dart';
+import '../../../core/player/subtitle_offline_pipeline.dart';
 import '../../../core/player/subtitle_translation_controller.dart';
 import '../../../core/settings/player_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
-import 'package:nexhub/core/widgets/app_alert_dialog.dart';
+import '../../../core/widgets/app_alert_dialog.dart';
+import '../../novel/domain/novel_summary_settings.dart';
 
 /// 字幕面板（底部抽屉）。
 ///
 /// 展示可用字幕轨道列表、字幕偏移滑块（-5s~+5s）与显示开关，
 /// 通过 [PlayerController] 实时切换 / 调整字幕，变更立即生效。
 /// 另含「实时翻译」区块（[SubtitleTranslationController]，可选注入）：
-/// 开关 / 显示原文 / 无字幕时画面 OCR 兜底。
+/// 开关 / 显示原文 / 无字幕时画面 OCR 兜底；「整片翻译（离线）」区块
+/// （[SubtitleOfflinePipeline]，注入 videoPath 时显示）：外挂字幕文件
+/// 整片批量翻译 + 双语 SRT/ASS 导出。
 class SubtitlePanel extends StatefulWidget {
   const SubtitlePanel({
     super.key,
     required this.controller,
     this.defaults,
     this.translator,
+    this.videoPath,
   });
 
   final PlayerController controller;
@@ -34,12 +43,16 @@ class SubtitlePanel extends StatefulWidget {
   /// 视频实时翻译控制器；null 时不显示翻译区块（如测试环境）。
   final SubtitleTranslationController? translator;
 
+  /// 当前播放媒体路径（F6 离线整片翻译的任务标识；空时不显示该区块）。
+  final String? videoPath;
+
  /// 以 modal bottom sheet 形式展示字幕面板。
   static Future<void> show(
     BuildContext context, {
     required PlayerController controller,
     PlayerSettings? defaults,
     SubtitleTranslationController? translator,
+    String? videoPath,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -54,6 +67,7 @@ class SubtitlePanel extends StatefulWidget {
         controller: controller,
         defaults: defaults,
         translator: translator,
+        videoPath: videoPath,
       ),
     );
   }
@@ -67,6 +81,11 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   List<SubtitleTrack> _tracks = const <SubtitleTrack>[];
 
   StreamSubscription<Tracks>? _tracksSub;
+
+  // ── F6 离线整片翻译 ──
+  final SubtitleOfflinePipeline _offlinePipeline = SubtitleOfflinePipeline();
+  String? _offlineJobId;
+  bool _offlineStarting = false;
 
  // ── 字幕样式状态（本地 UI 状态，onChangeEnd 时写入 mpv） ──
  // 初始值取自全局播放器默认设置（widget.defaults），与设置页打通。
@@ -94,6 +113,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     _subShadowColor = c.subShadowColor;
     _subPosition = c.subPosition;
     _subAssMode = c.subAssMode;
+    unawaited(_refreshJobs());
     _refreshTracks(widget.controller.subtitleTracks);
     _tracksSub = widget.controller.tracksStream.listen((Tracks t) {
       _refreshTracks(t.subtitle);
@@ -159,6 +179,11 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                       const SizedBox(height: AppTokens.spaceXs),
                       const Divider(height: 1),
                       _translationSection(l10n, theme),
+                    ],
+                    if ((widget.videoPath ?? '').isNotEmpty) ...<Widget>[
+                      const SizedBox(height: AppTokens.spaceXs),
+                      const Divider(height: 1),
+                      _offlineSection(l10n, theme),
                     ],
                     const SizedBox(height: AppTokens.spaceLg),
                   ],
@@ -629,5 +654,224 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
         );
       },
     );
+  }
+
+  /// F6 整片翻译（离线）：选外挂字幕文件 → 整片批量翻译（断点续跑）→
+  /// 双语 SRT/ASS 导出（系统分享）与 WebDAV 上传。
+  Widget _offlineSection(AppLocalizations l10n, ThemeData theme) {
+    return ListenableBuilder(
+      listenable: _offlinePipeline,
+      builder: (BuildContext context, _) {
+        final job =
+            _offlineJobId == null ? null : _jobsById[_offlineJobId!];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
+              child: Text(l10n.offlineTranslateTitle,
+                  style: theme.textTheme.titleSmall),
+            ),
+            if (job == null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(l10n.offlineHint,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.outline)),
+                    const SizedBox(height: AppTokens.spaceSm),
+                    _offlineStarting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : OutlinedButton.icon(
+                            onPressed: _pickSubtitleAndStart,
+                            icon: const Icon(Icons.movie_filter_outlined,
+                                size: 18),
+                            label: Text(l10n.offlinePickSubtitle),
+                          ),
+                  ],
+                ),
+              )
+            else ...<Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      job.status == SubtitleJobStatus.done
+                          ? l10n.offlineJobDone
+                          : l10n.offlineJobProgress(
+                              job.translatedCount, job.cueCount),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  if (job.status == SubtitleJobStatus.running)
+                    IconButton(
+                      tooltip: l10n.offlineCancel,
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () =>
+                          _offlinePipeline.cancel(job.id),
+                    ),
+                ],
+              ),
+              if (job.status == SubtitleJobStatus.running)
+                LinearProgressIndicator(
+                  value: job.cueCount == 0
+                      ? null
+                      : job.translatedCount / job.cueCount,
+                ),
+              if (job.status == SubtitleJobStatus.failed) ...<Widget>[
+                Text(job.error ?? l10n.offlineJobFailed,
+                    style: TextStyle(
+                        fontSize: 12, color: theme.colorScheme.error)),
+                TextButton.icon(
+                  onPressed: () => unawaited(_resumeOfflineJob(job)),
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: Text(l10n.offlineResume),
+                ),
+              ],
+              if (job.status == SubtitleJobStatus.done) ...<Widget>[
+                Wrap(
+                  spacing: AppTokens.spaceSm,
+                  runSpacing: AppTokens.spaceXs,
+                  children: <Widget>[
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          unawaited(_exportOffline(job, ass: false)),
+                      icon: const Icon(Icons.file_download_outlined,
+                          size: 16),
+                      label: Text(l10n.offlineExportSrt),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          unawaited(_exportOffline(job, ass: true)),
+                      icon: const Icon(Icons.file_download_outlined,
+                          size: 16),
+                      label: Text(l10n.offlineExportAss),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => unawaited(_uploadOffline(job)),
+                      icon: const Icon(Icons.cloud_upload_outlined,
+                          size: 16),
+                      label: Text(l10n.offlineUpload),
+                    ),
+                  ],
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => unawaited(_resumeOfflineJob(job)),
+                  icon: const Icon(Icons.translate, size: 16),
+                  label: Text(l10n.offlineRetranslate),
+                ),
+              ],
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  /// 任务列表缓存（面板打开期间增量维护，进度经 pipeline 监听刷新）。
+  final Map<String, SubtitleOfflineJob> _jobsById =
+      <String, SubtitleOfflineJob>{};
+
+  Future<void> _refreshJobs() async {
+    try {
+      final jobs = await _offlinePipeline.listJobs();
+      if (!mounted) return;
+      setState(() {
+        for (final j in jobs) {
+          _jobsById[j.id] = j;
+        }
+      });
+    } on Object {
+      // Hive 不可用时隐藏离线区块状态。
+    }
+  }
+
+  /// 选择字幕文件并创建/续跑任务。
+  Future<void> _pickSubtitleAndStart() async {
+    final l10n = AppLocalizations.of(context);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const <String>['srt', 'ass', 'ssa', 'vtt'],
+    );
+    final path = result?.files.single.path;
+    if (path == null || path.isEmpty || !mounted) return;
+    await _startOfflineJob(path, l10n);
+  }
+
+  Future<void> _startOfflineJob(String subtitlePath, AppLocalizations l10n) async {
+    setState(() => _offlineStarting = true);
+    try {
+      final settings = NovelSummarySettings.instance;
+      final cfg = await settings.getMediaTranslationConfig();
+      if (cfg.baseUrl.trim().isEmpty) {
+        throw const TranslationException('未配置 AI 接口：请先在 设置 → AI 配置 中填写'
+            '通用接口或视频翻译专用接口');
+      }
+      final lang = await settings.getMediaTranslationTargetLanguage();
+      final id = await _offlinePipeline.start(
+        videoPath: widget.videoPath!,
+        videoTitle: p.basename(widget.videoPath!),
+        subtitlePath: subtitlePath,
+        lang: lang,
+        config: AiEndpointConfig(
+          baseUrl: cfg.baseUrl,
+          apiKey: cfg.apiKey,
+          model: cfg.model,
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _offlineJobId = id);
+      await _refreshJobs();
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _offlineStarting = false);
+    }
+  }
+
+  /// 续跑既有任务（失败重试 / 补译）。
+  Future<void> _resumeOfflineJob(SubtitleOfflineJob job) async {
+    final l10n = AppLocalizations.of(context);
+    await _startOfflineJob(job.subtitlePath, l10n);
+  }
+
+  /// 导出双语字幕并调起系统分享。
+  Future<void> _exportOffline(SubtitleOfflineJob job, {required bool ass}) async {
+    try {
+      final path = await _offlinePipeline.export(job: job, ass: ass);
+      if (!mounted) return;
+      await Share.shareXFiles(<XFile>[XFile(path)]);
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
+  /// 上传双语字幕（默认 SRT）到 WebDAV。
+  Future<void> _uploadOffline(SubtitleOfflineJob job) async {
+    final l10n = AppLocalizations.of(context);
+    try {
+      final path = await _offlinePipeline.export(job: job, ass: false);
+      final url = await _offlinePipeline.uploadToWebDav(path);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.offlineUploaded(url))),
+      );
+    } on Object catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 }

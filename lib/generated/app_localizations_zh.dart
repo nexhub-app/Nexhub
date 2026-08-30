@@ -8006,4 +8006,47 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get reviewTypeLiteral => '直译腔';
+
+  @override
+  String get offlineTranslateTitle => '整片翻译（离线）';
+
+  @override
+  String get offlineHint => '选择外挂字幕文件（SRT / VTT / ASS），整片批量翻译后可导出双语字幕；中断后自动续跑。';
+
+  @override
+  String get offlinePickSubtitle => '选择字幕文件开始翻译';
+
+  @override
+  String offlineJobProgress(Object done, Object total) {
+    return '已译 $done/$total 句';
+  }
+
+  @override
+  String get offlineJobDone => '翻译完成，可导出双语字幕';
+
+  @override
+  String get offlineJobFailed => '翻译失败';
+
+  @override
+  String get offlineResume => '继续任务';
+
+  @override
+  String get offlineCancel => '取消任务';
+
+  @override
+  String get offlineRetranslate => '重新翻译 / 补齐缺句';
+
+  @override
+  String get offlineExportSrt => '导出双语 SRT';
+
+  @override
+  String get offlineExportAss => '导出双语 ASS';
+
+  @override
+  String get offlineUpload => '上传到 WebDAV';
+
+  @override
+  String offlineUploaded(Object url) {
+    return '已上传：$url';
+  }
 }

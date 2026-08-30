@@ -15367,6 +15367,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Literal'**
   String get reviewTypeLiteral;
+
+  /// No description provided for @offlineTranslateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline whole-video translation'**
+  String get offlineTranslateTitle;
+
+  /// No description provided for @offlineHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick an external subtitle file (SRT / VTT / ASS); all sentences are translated in batches and can be exported as bilingual subtitles. Interrupted jobs resume automatically.'**
+  String get offlineHint;
+
+  /// No description provided for @offlinePickSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick subtitle file to translate'**
+  String get offlinePickSubtitle;
+
+  /// No description provided for @offlineJobProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Translated {done} of {total} cues'**
+  String offlineJobProgress(Object done, Object total);
+
+  /// No description provided for @offlineJobDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation complete - export below'**
+  String get offlineJobDone;
+
+  /// No description provided for @offlineJobFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation failed'**
+  String get offlineJobFailed;
+
+  /// No description provided for @offlineResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get offlineResume;
+
+  /// No description provided for @offlineCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel job'**
+  String get offlineCancel;
+
+  /// No description provided for @offlineRetranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate again / fill gaps'**
+  String get offlineRetranslate;
+
+  /// No description provided for @offlineExportSrt.
+  ///
+  /// In en, this message translates to:
+  /// **'Export bilingual SRT'**
+  String get offlineExportSrt;
+
+  /// No description provided for @offlineExportAss.
+  ///
+  /// In en, this message translates to:
+  /// **'Export bilingual ASS'**
+  String get offlineExportAss;
+
+  /// No description provided for @offlineUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload to WebDAV'**
+  String get offlineUpload;
+
+  /// No description provided for @offlineUploaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploaded: {url}'**
+  String offlineUploaded(Object url);
 }
 
 class _AppLocalizationsDelegate
