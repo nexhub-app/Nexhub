@@ -108,6 +108,11 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   Future<InitResult>? _initFuture;
 
+  /// Hive 适配器注册表是进程级静态状态，而 [_initialize] 可能被重试
+  /// （或开发期 hot restart）再次执行；重复注册会抛
+  /// `HiveError: There is already a TypeAdapter for typeId 0`。
+  static bool _adaptersRegistered = false;
+
   /// 主题状态。在初始化管线**之前**就恢复持久化偏好，使加载页 / 错误页
   /// 与主界面同色——否则深色偏好下加载页会先闪一段白底。
   /// 初始化完成后同一实例注入 Provider，避免主题被重置。
@@ -131,18 +136,30 @@ class _SplashScreenState extends State<SplashScreen> {
   /// adapter registration, box opening, source loading, resolver/media setup,
   /// download manager, then favorites/history/rss/article-feed managers.
   Future<InitResult> _initialize() async {
+    try {
+      return await _initializeInner();
+    } on Object catch (e, s) {
+      debugPrint('[Splash] 初始化失败: $e\n$s');
+      rethrow;
+    }
+  }
+
+  Future<InitResult> _initializeInner() async {
     final appDir = await getApplicationDocumentsDirectory();
     await Hive.initFlutter(appDir.path);
 
-    Hive.registerAdapter(HiveMediaItemAdapter());
-    Hive.registerAdapter(HiveEpisodeAdapter());
-    Hive.registerAdapter(HivePluginConfigAdapter());
-    Hive.registerAdapter(HiveReadingProgressAdapter());
-    Hive.registerAdapter(HiveFavoriteAdapter());
-    Hive.registerAdapter(HiveDownloadTaskAdapter());
-    Hive.registerAdapter(HiveDanmakuCacheAdapter());
-    Hive.registerAdapter(HiveRssFeedAdapter());
-    Hive.registerAdapter(HiveSettingsAdapter());
+    if (!_adaptersRegistered) {
+      Hive.registerAdapter(HiveMediaItemAdapter());
+      Hive.registerAdapter(HiveEpisodeAdapter());
+      Hive.registerAdapter(HivePluginConfigAdapter());
+      Hive.registerAdapter(HiveReadingProgressAdapter());
+      Hive.registerAdapter(HiveFavoriteAdapter());
+      Hive.registerAdapter(HiveDownloadTaskAdapter());
+      Hive.registerAdapter(HiveDanmakuCacheAdapter());
+      Hive.registerAdapter(HiveRssFeedAdapter());
+      Hive.registerAdapter(HiveSettingsAdapter());
+      _adaptersRegistered = true;
+    }
 
     await Future.wait(<Future<dynamic>>[
       for (final name in kStorageBoxNames) Hive.openBox(name),

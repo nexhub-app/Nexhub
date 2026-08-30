@@ -1027,7 +1027,18 @@ class DownloadManager extends ChangeNotifier {
       );
 
       _tasks.add(task);
-      await _writeMetaJson(task);
+      try {
+        await _writeMetaJson(task);
+      } on Exception catch (e) {
+        // 单个异常条目（如用户下载目录里的无关同名文件）不应中断整个
+        // 恢复流程乃至应用启动：丢弃该任务，继续处理其余条目。
+        _tasks.remove(task);
+        assert(() {
+          // ignore: avoid_print
+          print('[DownloadManager] 恢复遗留产物失败: $filename, $e');
+          return true;
+        }());
+      }
     }
 
     if (_tasks.isNotEmpty) {
@@ -1635,7 +1646,18 @@ class DownloadManager extends ChangeNotifier {
         ? task.localPath!
         : fs.basePath;
     final metaPath = fs.join(dir, '${task.id}.meta.json');
-    await fs.writeString(metaPath, task.toJsonString());
+    try {
+      await fs.writeString(metaPath, task.toJsonString());
+    } on Exception {
+      // 旧布局的 localPath 可以直接是单文件产物（见 §1530 注释），此时
+      // `<file>/<id>.meta.json` 无法作为目录创建（Windows 抛 errno 183）。
+      // meta 退回下载根目录：根布局 `<taskId>.meta.json` 仍能被
+      // [_findMetaJsonPaths] 识别，恢复流程不受影响。
+      await fs.writeString(
+        fs.join(fs.basePath, '${task.id}.meta.json'),
+        task.toJsonString(),
+      );
+    }
   }
 
   /// 计算某任务封面文件落盘路径（与 [_saveCoverImage] 一致）。
