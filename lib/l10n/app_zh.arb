@@ -4394,5 +4394,7 @@
   "translationExportLayout": "小说译文附录排版",
   "translationLayoutTranslationFirst": "译文优先",
   "translationLayoutSourceFirst": "原文优先",
-  "translationLayoutBilingual": "双语对照"
+  "translationLayoutBilingual": "双语对照",
+  "novelTranslateResume": "继续翻译",
+  "novelTranslateResumable": "已译 {done}/{total} 段，可从断点继续"
 }

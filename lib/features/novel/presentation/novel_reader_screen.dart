@@ -10587,11 +10587,20 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
   String _progressTotal = '';
   String? _error;
 
+  /// F4 断点续译：未完成章节的分块检查点（空串位 = 待译段）。
+  List<String>? _checkpoint;
+
+  /// 防竞态：重试续译时旧任务的检查点回调不再落盘。
+  int _runSeq = 0;
+
   @override
   void initState() {
     super.initState();
     _loadCache();
   }
+
+  bool get _hasCheckpoint =>
+      _checkpoint != null && _checkpoint!.any((t) => t.isEmpty);
 
   Future<void> _loadCache() async {
     final cached = await widget.manager.load(
@@ -10599,23 +10608,52 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
       widget.chapterId,
       lang: widget.targetLanguage,
     );
-    if (mounted && cached != null) {
-      setState(() => _translations = cached.translations);
+    if (cached != null) {
+      if (mounted) setState(() => _translations = cached.translations);
+      return;
+    }
+    // F4：无完整缓存时读取分块检查点，展示已完成段并提供「继续翻译」。
+    final partial = await widget.manager.loadCheckpoint(
+      widget.novelId,
+      widget.chapterId,
+      lang: widget.targetLanguage,
+    );
+    if (partial != null && mounted) {
+      setState(() => _checkpoint = partial.translations);
     }
   }
 
-  Future<void> _translate() async {
+  Future<void> _translate({bool resume = false}) async {
     if (_translating) return;
+    final seq = ++_runSeq;
     setState(() {
       _translating = true;
       _error = null;
       _progress = null;
     });
+    final existing = resume && _checkpoint != null
+        ? List<String>.of(_checkpoint!)
+        : const <String>[];
     try {
       final result = await NovelTranslationService(
         targetLanguage: widget.targetLanguage,
       ).translateParagraphs(
         widget.paragraphs,
+        workId: widget.novelId,
+        existing: existing,
+        // F4：每个分块完成即落盘检查点，中断后可从断点续译。
+        onChunkPersisted: (snapshot) {
+          if (seq != _runSeq) return;
+          _checkpoint = snapshot;
+          widget.manager.saveCheckpoint(NovelChapterTranslation(
+            novelId: widget.novelId,
+            chapterId: widget.chapterId,
+            chapterTitle: widget.chapterTitle,
+            lang: widget.targetLanguage,
+            translations: snapshot,
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          ));
+        },
         onProgress: (done, total) {
           if (mounted) {
             setState(() {
@@ -10633,8 +10671,20 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
         translations: result,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       ));
-      if (mounted) setState(() => _translations = result);
+      // 完整译文已落盘，检查点使命完成。
+      await widget.manager.clearCheckpoint(
+        widget.novelId,
+        widget.chapterId,
+        lang: widget.targetLanguage,
+      );
+      if (mounted) {
+        setState(() {
+          _translations = result;
+          _checkpoint = null;
+        });
+      }
     } on Object catch (e) {
+      // B7 归一化后的可读文案；已完成分块保留在检查点，可重试续译。
       if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _translating = false);
@@ -10669,7 +10719,9 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                     onPressed:
                         _translating || widget.paragraphs.isEmpty
                             ? null
-                            : _translate,
+                            : () => _translate(
+                                resume: _translations == null &&
+                                    _hasCheckpoint),
                     icon: _translating
                         ? const SizedBox(
                             width: 14,
@@ -10678,7 +10730,9 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                                 CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.translate, size: 18),
                     label: Text(_translations == null
-                        ? l10n.novelTranslateAction
+                        ? (_hasCheckpoint
+                            ? l10n.novelTranslateResume
+                            : l10n.novelTranslateAction)
                         : l10n.novelTranslateRetranslate),
                   ),
                 ],
@@ -10692,17 +10746,33 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                     style: TextStyle(
                         fontSize: 12, color: scheme.onSurfaceVariant)),
               ),
+            if (!_translating &&
+                _translations == null &&
+                _hasCheckpoint)
+              Padding(
+                padding:
+                    const EdgeInsets.only(bottom: AppTokens.spaceXs),
+                child: Text(
+                  l10n.novelTranslateResumable(
+                    _checkpoint!.where((t) => t.isNotEmpty).length,
+                    widget.paragraphs.length,
+                  ),
+                  style: TextStyle(
+                      fontSize: 12, color: scheme.onSurfaceVariant),
+                ),
+              ),
             if (_error != null)
               Padding(
-                padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
+                padding: const EdgeInsets.only(
+                    bottom: AppTokens.spaceXs, left: AppTokens.spaceMd, right: AppTokens.spaceMd),
                 child: Text(
-                  l10n.novelTranslateNoApi,
+                  _error!,
                   style: TextStyle(fontSize: 12, color: scheme.error),
                 ),
               ),
             const Divider(height: 1),
             Expanded(
-              child: _translations == null
+              child: (_translations == null && !_hasCheckpoint)
                   ? Center(
                       child: Text(
                         _translating
@@ -10716,8 +10786,12 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                           const EdgeInsets.all(AppTokens.spaceMd),
                       itemCount: widget.paragraphs.length,
                       itemBuilder: (context, i) {
-                        final t = i < _translations!.length
-                            ? _translations![i]
+                        final t = i <
+                                (_translations ?? _checkpoint ?? const <String>[])
+                                    .length
+                            ? (_translations ??
+                                _checkpoint ??
+                                const <String>[])[i]
                             : '';
                         return Padding(
                           padding: const EdgeInsets.only(

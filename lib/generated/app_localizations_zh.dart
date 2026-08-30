@@ -7929,4 +7929,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get translationLayoutBilingual => '双语对照';
+
+  @override
+  String get novelTranslateResume => '继续翻译';
+
+  @override
+  String novelTranslateResumable(Object done, Object total) {
+    return '已译 $done/$total 段，可从断点继续';
+  }
 }

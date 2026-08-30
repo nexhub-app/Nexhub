@@ -8123,4 +8123,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get translationLayoutBilingual => 'Bilingual';
+
+  @override
+  String get novelTranslateResume => 'Resume translation';
+
+  @override
+  String novelTranslateResumable(Object done, Object total) {
+    return '$done of $total paragraphs translated - resume from where it stopped';
+  }
 }

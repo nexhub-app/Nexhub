@@ -4438,5 +4438,7 @@
   "translationExportLayout": "Novel translation appendix layout",
   "translationLayoutTranslationFirst": "Translation first",
   "translationLayoutSourceFirst": "Source first",
-  "translationLayoutBilingual": "Bilingual"
+  "translationLayoutBilingual": "Bilingual",
+  "novelTranslateResume": "Resume translation",
+  "novelTranslateResumable": "{done} of {total} paragraphs translated - resume from where it stopped"
 }

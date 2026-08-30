@@ -88,6 +88,59 @@ class NovelTranslationManager extends ChangeNotifier {
           {String lang = defaultLang}) =>
       '$novelId|$chapterId|$lang';
 
+  // ── F4 断点续译：分块检查点 ──
+
+  /// 检查点键后缀（与正式缓存同 box，避免导出/展示把半成品当完整章节）。
+  static const String checkpointSuffix = '|checkpoint';
+
+  static String checkpointKeyFor(String novelId, String chapterId,
+          {String lang = defaultLang}) =>
+      '${keyFor(novelId, chapterId, lang: lang)}$checkpointSuffix';
+
+  /// 保存分块检查点（译文列表可含空串 = 未完成段）。
+  ///
+  /// 原子写：先落临时键、成功后替换正式键、再删临时键——任一环节中断
+  /// 都不会把半块数据暴露给读取方。
+  Future<void> saveCheckpoint(NovelChapterTranslation t) async {
+    final box = await _ensureBox();
+    final key = checkpointKeyFor(t.novelId, t.chapterId, lang: t.lang);
+    final value = jsonEncode(t.toJson());
+    await box.put('$key|tmp', value);
+    await box.put(key, value);
+    await box.delete('$key|tmp');
+  }
+
+  /// 读取分块检查点；无检查点返回 null。
+  Future<NovelChapterTranslation?> loadCheckpoint(String novelId,
+      String chapterId, {String lang = defaultLang}) async {
+    final box = await _ensureBox();
+    final raw =
+        box.get(checkpointKeyFor(novelId, chapterId, lang: lang));
+    if (raw is! String || raw.isEmpty) return null;
+    try {
+      return NovelChapterTranslation.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// 清除分块检查点（完整译文落盘后调用；也可用于放弃续译）。
+  Future<void> clearCheckpoint(String novelId, String chapterId,
+      {String lang = defaultLang}) async {
+    final box = await _ensureBox();
+    final key = checkpointKeyFor(novelId, chapterId, lang: lang);
+    await box.delete(key);
+    await box.delete('$key|tmp');
+  }
+
+  /// 章节是否存在未完成的检查点（翻译面板入口提示用）。
+  Future<bool> hasCheckpoint(String novelId, String chapterId,
+      {String lang = defaultLang}) async {
+    final box = await _ensureBox();
+    return box.containsKey(checkpointKeyFor(novelId, chapterId, lang: lang));
+  }
+
   Future<void> save(NovelChapterTranslation t) async {
     final box = await _ensureBox();
     await box.put(keyFor(t.novelId, t.chapterId, lang: t.lang),
@@ -118,11 +171,17 @@ class NovelTranslationManager extends ChangeNotifier {
   }
 
   /// 枚举某本书全部有译文的章节（按更新时间倒序），供导出附带（F5）。
+  ///
+  /// F4 检查点键（`…|checkpoint` / `…|tmp`）不属于完整章节译文，跳过。
   Future<List<NovelChapterTranslation>> listForNovel(String novelId,
       {String lang = defaultLang}) async {
     final box = await _ensureBox();
     final result = <NovelChapterTranslation>[];
     for (final key in box.keys) {
+      if (key is String &&
+          (key.endsWith(checkpointSuffix) || key.endsWith('|tmp'))) {
+        continue;
+      }
       final raw = box.get(key);
       if (raw is! String || raw.isEmpty) continue;
       try {

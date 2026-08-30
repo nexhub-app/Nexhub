@@ -15235,6 +15235,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bilingual'**
   String get translationLayoutBilingual;
+
+  /// No description provided for @novelTranslateResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume translation'**
+  String get novelTranslateResume;
+
+  /// No description provided for @novelTranslateResumable.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total} paragraphs translated - resume from where it stopped'**
+  String novelTranslateResumable(Object done, Object total);
 }
 
 class _AppLocalizationsDelegate
