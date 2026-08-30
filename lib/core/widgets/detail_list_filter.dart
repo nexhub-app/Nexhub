@@ -9,6 +9,7 @@ import 'app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'app_card.dart';
 
 /// 多选过滤条件模型。
@@ -247,23 +248,32 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
                   children: <Widget>[
                     CheckboxListTile(
                       value: _filter.downloaded,
-                      onChanged: (v) => setState(() {
-                        _filter = _filter.copyWith(downloaded: v);
-                      }),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        setState(() {
+                          _filter = _filter.copyWith(downloaded: v);
+                        });
+                      },
                       title: Text(l10n.filterDownloaded),
                     ),
                     CheckboxListTile(
                       value: _filter.unread,
-                      onChanged: (v) => setState(() {
-                        _filter = _filter.copyWith(unread: v);
-                      }),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        setState(() {
+                          _filter = _filter.copyWith(unread: v);
+                        });
+                      },
                       title: Text(l10n.filterUnread),
                     ),
                     CheckboxListTile(
                       value: _filter.bookmarked,
-                      onChanged: (v) => setState(() {
-                        _filter = _filter.copyWith(bookmarked: v);
-                      }),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        setState(() {
+                          _filter = _filter.copyWith(bookmarked: v);
+                        });
+                      },
                       title: Text(l10n.filterBookmarked),
                     ),
                   ],
@@ -315,16 +325,22 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
                     if (widget.isMultiSource)
                       CheckboxListTile(
                         value: _display.sourceTitle,
-                        onChanged: (v) => setState(() {
-                          _display = _display.copyWith(sourceTitle: v);
-                        }),
+                        onChanged: (v) {
+                          AppHaptics.selectionClick();
+                          setState(() {
+                            _display = _display.copyWith(sourceTitle: v);
+                          });
+                        },
                         title: Text(l10n.displaySourceTitle),
                       ),
                     CheckboxListTile(
                       value: _display.number,
-                      onChanged: (v) => setState(() {
-                        _display = _display.copyWith(number: v);
-                      }),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        setState(() {
+                          _display = _display.copyWith(number: v);
+                        });
+                      },
                       title: Text(l10n.displayNumber(widget.unitWord)),
                     ),
                   ],

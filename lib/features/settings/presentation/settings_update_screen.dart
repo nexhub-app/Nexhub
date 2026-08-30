@@ -435,7 +435,10 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                     subtitle: Text(l10n.updateAutoCheckDesc),
                     trailing: Switch(
                       value: _settings.autoCheck,
-                      onChanged: (v) => _save(_settings.copyWith(autoCheck: v)),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        _save(_settings.copyWith(autoCheck: v));
+                      },
                     ),
                   ),
 
@@ -449,8 +452,10 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                     subtitle: Text(l10n.updateAutoDownloadDesc),
                     trailing: Switch(
                       value: _settings.autoDownload,
-                      onChanged: (v) =>
-                          _save(_settings.copyWith(autoDownload: v)),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        _save(_settings.copyWith(autoDownload: v));
+                      },
                     ),
                   ),
                   if (_settings.autoDownload)
@@ -463,9 +468,12 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                       subtitle: Text(l10n.updateWifiOnlyAutoDownloadDesc),
                       trailing: Switch(
                         value: _settings.wifiOnlyAutoDownload,
-                        onChanged: (v) => _save(
-                          _settings.copyWith(wifiOnlyAutoDownload: v),
-                        ),
+                        onChanged: (v) {
+                          AppHaptics.selectionClick();
+                          _save(
+                            _settings.copyWith(wifiOnlyAutoDownload: v),
+                          );
+                        },
                       ),
                     ),
 
@@ -479,8 +487,10 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                     subtitle: Text(l10n.updateInAppDownloadDesc),
                     trailing: Switch(
                       value: _settings.inAppDownload,
-                      onChanged: (v) =>
-                          _save(_settings.copyWith(inAppDownload: v)),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        _save(_settings.copyWith(inAppDownload: v));
+                      },
                     ),
                   ),
 
@@ -510,8 +520,10 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                     subtitle: Text(l10n.updateAutoSwitchMirrorDesc),
                     trailing: Switch(
                       value: _settings.autoSwitchMirror,
-                      onChanged: (v) =>
-                          _save(_settings.copyWith(autoSwitchMirror: v)),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        _save(_settings.copyWith(autoSwitchMirror: v));
+                      },
                     ),
                   ),
                   const SizedBox(height: AppTokens.spaceSm),

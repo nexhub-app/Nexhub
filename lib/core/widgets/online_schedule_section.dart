@@ -14,6 +14,7 @@ import '../models/media_item.dart';
 import '../models/plugin_config.dart';
 import '../settings/layout_settings.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'app_cover_image.dart';
 import 'content_card.dart';
 
@@ -123,8 +124,10 @@ class _OnlineScheduleSectionState extends State<OnlineScheduleSection> {
                   child: ChoiceChip(
                     label: Text(_weekdayLabel(l10n, wd)),
                     selected: isSel,
-                    onSelected: (_) =>
-                        setState(() => _selectedWeekday = wd),
+                    onSelected: (_) {
+                      AppHaptics.selectionClick();
+                      setState(() => _selectedWeekday = wd);
+                    },
                   ),
                 );
               }).toList(),

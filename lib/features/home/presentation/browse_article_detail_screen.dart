@@ -16,6 +16,7 @@ import '../../../core/article/article_reading_preferences.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/rss/rss_feed.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_icon_button.dart';
@@ -87,6 +88,7 @@ class BrowseArticleDetailScreen extends StatelessWidget {
                               divisions: 12,
                               value: prefs.fontSize,
                               label: prefs.fontSize.toStringAsFixed(0),
+                              onChangeStart: (_) => AppHaptics.light(),
                               onChanged: notifier.setFontSize,
                             ),
                           ),
@@ -102,13 +104,17 @@ class BrowseArticleDetailScreen extends StatelessWidget {
                         divisions: 15,
                         value: prefs.lineHeight,
                         label: prefs.lineHeight.toStringAsFixed(1),
+                        onChangeStart: (_) => AppHaptics.light(),
                         onChanged: notifier.setLineHeight,
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(l10n.articleNightMode),
                         value: prefs.isNightMode,
-                        onChanged: (_) => notifier.toggleNightMode(),
+                        onChanged: (_) {
+                          AppHaptics.selectionClick();
+                          notifier.toggleNightMode();
+                        },
                       ),
                     ],
                   ),

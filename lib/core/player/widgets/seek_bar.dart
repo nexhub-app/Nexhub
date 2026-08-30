@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_tokens.dart';
+import '../../utils/app_haptics.dart';
 
 /// 视频播放器进度条。
 ///
@@ -85,6 +86,7 @@ class _SeekBarState extends State<SeekBar> {
                 min: 0,
                 max: _maxValue,
                 onChangeStart: (double v) {
+                  AppHaptics.light();
                   widget.onDragStart?.call();
                   setState(() {
                     _dragging = true;

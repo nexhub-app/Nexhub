@@ -24,6 +24,7 @@ import '../../../core/settings/layout_settings.dart';
 import '../../../core/widgets/layout_picker_button.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/comic/comic_progress_manager.dart';
@@ -696,6 +697,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
                         label: Text(s.name),
                         selected: selected,
                         onSelected: (_) {
+                          AppHaptics.selectionClick();
                           setState(() => _selectedSourceId =
                               selected ? null : s.id);
                           _doSearch(_controller.text);
@@ -737,6 +739,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
       label: Text(label),
       selected: selected,
       onSelected: (_) {
+        AppHaptics.selectionClick();
         setState(() => _searchField = field);
         _doSearch(_controller.text);
       },

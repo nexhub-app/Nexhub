@@ -20,6 +20,7 @@ import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/novel/novel_export_template.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/reader_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../manga/presentation/reader_tap_zones.dart';
@@ -528,12 +529,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                               ),
                               selected: _settings.novelBgPresetIndex == i &&
                                   _settings.novelCustomBgColor == null,
-                              onSelected: (_) => _update(
-                                _settings.copyWith(
-                                  novelBgPresetIndex: i,
-                                  novelCustomBgColor: null,
-                                ),
-                              ),
+                              onSelected: (_) {
+                                AppHaptics.selectionClick();
+                                _update( _settings.copyWith( novelBgPresetIndex: i, novelCustomBgColor: null, ), );
+                              },
                             ),
                           ),
                       ],
@@ -564,8 +563,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                     orElse: () => NovelThemeFollow.followApp,
                                   ) ==
                                   f,
-                              onSelected: (_) => _update(
-                                  _settings.copyWith(novelThemeFollow: f.name)),
+                              onSelected: (_) {
+                                AppHaptics.selectionClick();
+                                _update( _settings.copyWith(novelThemeFollow: f.name));
+                              },
                             ),
                           ),
                       ],
@@ -588,8 +589,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             child: ChoiceChip(
                               label: Text(_pageAnimLabel(l10n, anim)),
                               selected: _settings.novelPageAnimation == anim,
-                              onSelected: (_) => _update(
-                                  _settings.copyWith(novelPageAnimation: anim)),
+                              onSelected: (_) {
+                                AppHaptics.selectionClick();
+                                _update( _settings.copyWith(novelPageAnimation: anim));
+                              },
                             ),
                           ),
                       ],
@@ -679,20 +682,26 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                           // 加粗是唯一开关：开启后按字重滑块渲染，关闭即恢复
                           // 默认字重，不再有第二个可覆盖它的字重字段。
                           selected: _settings.novelFontBold,
-                          onSelected: (v) =>
-                              _update(_settings.copyWith(novelFontBold: v)),
+                          onSelected: (v) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(novelFontBold: v));
+                          },
                         ),
                         FilterChip(
                           label: Text(l10n.fontItalic),
                           selected: _settings.novelFontItalic,
-                          onSelected: (v) =>
-                              _update(_settings.copyWith(novelFontItalic: v)),
+                          onSelected: (v) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(novelFontItalic: v));
+                          },
                         ),
                         FilterChip(
                           label: Text(l10n.fontUnderline),
                           selected: _settings.novelFontUnderline,
-                          onSelected: (v) =>
-                              _update(_settings.copyWith(novelFontUnderline: v)),
+                          onSelected: (v) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(novelFontUnderline: v));
+                          },
                         ),
                       ],
                     ),
@@ -714,8 +723,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                           child: ChoiceChip(
                             label: Text(l10n.fontSystem),
                             selected: _settings.novelFontFamily == null,
-                            onSelected: (_) => _update(
-                                _settings.copyWith(novelFontFamily: null)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update( _settings.copyWith(novelFontFamily: null));
+                            },
                           ),
                         ),
                         AppValuePulse(
@@ -724,8 +735,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                           child: ChoiceChip(
                             label: Text(l10n.fontSerif),
                             selected: _settings.novelFontFamily == 'serif',
-                            onSelected: (_) => _update(_settings
-                                .copyWith(novelFontFamily: 'serif')),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update(_settings .copyWith(novelFontFamily: 'serif'));
+                            },
                           ),
                         ),
                         AppValuePulse(
@@ -735,8 +748,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             label: Text(l10n.fontMonospace),
                             selected: _settings.novelFontFamily ==
                                 'monospace',
-                            onSelected: (_) => _update(_settings
-                                .copyWith(novelFontFamily: 'monospace')),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update(_settings .copyWith(novelFontFamily: 'monospace'));
+                            },
                           ),
                         ),
                       ],
@@ -796,8 +811,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                   : l10n.novelTextAlignStart),
                               selected:
                                   _settings.novelTextAlignMode == m.name,
-                              onSelected: (_) => _update(_settings
-                                  .copyWith(novelTextAlignMode: m.name)),
+                              onSelected: (_) {
+                                AppHaptics.selectionClick();
+                                _update(_settings .copyWith(novelTextAlignMode: m.name));
+                              },
                             ),
                           ),
                       ],
@@ -826,8 +843,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                       : l10n.novelLineBreakStandard),
                               selected:
                                   _settings.novelLineBreakMode == m.name,
-                              onSelected: (_) => _update(_settings
-                                  .copyWith(novelLineBreakMode: m.name)),
+                              onSelected: (_) {
+                                AppHaptics.selectionClick();
+                                _update(_settings .copyWith(novelLineBreakMode: m.name));
+                              },
                             ),
                           ),
                       ],
@@ -862,8 +881,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                               }),
                               selected:
                                   _settings.novelUnderlineStyle == s.name,
-                              onSelected: (_) => _update(_settings
-                                  .copyWith(novelUnderlineStyle: s.name)),
+                              onSelected: (_) {
+                                AppHaptics.selectionClick();
+                                _update(_settings .copyWith(novelUnderlineStyle: s.name));
+                              },
                             ),
                           ),
                       ],
@@ -891,8 +912,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                   : l10n.novelScrollImageModeBanner),
                               selected:
                                   _settings.novelScrollImageMode == m.name,
-                              onSelected: (_) => _update(_settings
-                                  .copyWith(novelScrollImageMode: m.name)),
+                              onSelected: (_) {
+                                AppHaptics.selectionClick();
+                                _update(_settings .copyWith(novelScrollImageMode: m.name));
+                              },
                             ),
                           ),
                       ],
@@ -925,9 +948,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                               }),
                               selected:
                                   _settings.novelScrollImageAlign == a.name,
-                              onSelected: (_) => _update(
-                                  _settings.copyWith(
-                                      novelScrollImageAlign: a.name)),
+                              onSelected: (_) {
+                                AppHaptics.selectionClick();
+                                _update( _settings.copyWith( novelScrollImageAlign: a.name));
+                              },
                             ),
                           ),
                       ],
@@ -960,8 +984,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                   orElse: () => NovelThemeFollow.followApp,
                                 ) ==
                                 f,
-                            onSelected: (_) => _update(
-                                _settings.copyWith(novelThemeFollow: f.name)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update( _settings.copyWith(novelThemeFollow: f.name));
+                            },
                           ),
                       ],
                     ),
@@ -1002,12 +1028,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             ),
                             selected: _settings.novelBgPresetIndex == i &&
                                 _settings.novelCustomBgColor == null,
-                            onSelected: (_) => _update(
-                              _settings.copyWith(
-                                novelBgPresetIndex: i,
-                                novelCustomBgColor: null,
-                              ),
-                            ),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update( _settings.copyWith( novelBgPresetIndex: i, novelCustomBgColor: null, ), );
+                            },
                           ),
                       ],
                     ),
@@ -1246,8 +1270,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                     orElse: () => NovelTitleAlign.left,
                                   ) ==
                                   a,
-                              onSelected: (_) => _update(
-                                  _settings.copyWith(novelTitleAlign: a.name)),
+                              onSelected: (_) {
+                                AppHaptics.selectionClick();
+                                _update( _settings.copyWith(novelTitleAlign: a.name));
+                              },
                             ),
                         ],
                       ),
@@ -1513,8 +1539,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                           ChoiceChip(
                             label: Text(_pageAnimLabel(l10n, anim)),
                             selected: _settings.novelPageAnimation == anim,
-                            onSelected: (_) => _update(
-                                _settings.copyWith(novelPageAnimation: anim)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update( _settings.copyWith(novelPageAnimation: anim));
+                            },
                           ),
                       ],
                     ),
@@ -1545,8 +1573,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                   orElse: () => ReaderTapZoneLayout.lShape,
                                 ) ==
                                 layout,
-                            onSelected: (_) => _update(_settings
-                                .copyWith(novelTapZoneLayout: layout.name)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update(_settings .copyWith(novelTapZoneLayout: layout.name));
+                            },
                           ),
                       ],
                     ),
@@ -1589,8 +1619,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             label: Text(
                                 v == 0 ? l10n.autoPageOff : '${v}s'),
                             selected: _settings.novelAutoPageInterval == v,
-                            onSelected: (_) => _update(
-                                _settings.copyWith(novelAutoPageInterval: v)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update( _settings.copyWith(novelAutoPageInterval: v));
+                            },
                           ),
                       ],
                     ),
@@ -1631,6 +1663,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             selected: _settings.novelBottomToolbarSlots
                                 .contains(tool.name),
                             onSelected: (selected) {
+                              AppHaptics.selectionClick();
                               final slots =
                                   List<String>.from(
                                       _settings.novelBottomToolbarSlots);
@@ -1693,8 +1726,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                                 ? l10n.autoPageOff
                                 : '${v}min'),
                             selected: _settings.novelTtsSleepTimer == v,
-                            onSelected: (_) => _update(
-                                _settings.copyWith(novelTtsSleepTimer: v)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update( _settings.copyWith(novelTtsSleepTimer: v));
+                            },
                           ),
                       ],
                     ),
@@ -1822,9 +1857,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             label: Text(l10n.noConvert),
                             selected: _settings.novelChineseConversion ==
                                 NovelChineseConversion.none,
-                            onSelected: (_) => _update(_settings.copyWith(
-                                novelChineseConversion:
-                                    NovelChineseConversion.none)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update(_settings.copyWith( novelChineseConversion: NovelChineseConversion.none));
+                            },
                           ),
                         ),
                         AppValuePulse(
@@ -1837,9 +1873,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             selected: _settings.novelChineseConversion ==
                                 NovelChineseConversion
                                     .traditionalToSimplified,
-                            onSelected: (_) => _update(_settings.copyWith(
-                                novelChineseConversion: NovelChineseConversion
-                                    .traditionalToSimplified)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update(_settings.copyWith( novelChineseConversion: NovelChineseConversion .traditionalToSimplified));
+                            },
                           ),
                         ),
                         AppValuePulse(
@@ -1852,9 +1889,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             selected: _settings.novelChineseConversion ==
                                 NovelChineseConversion
                                     .simplifiedToTraditional,
-                            onSelected: (_) => _update(_settings.copyWith(
-                                novelChineseConversion: NovelChineseConversion
-                                    .simplifiedToTraditional)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update(_settings.copyWith( novelChineseConversion: NovelChineseConversion .simplifiedToTraditional));
+                            },
                           ),
                         ),
                       ],

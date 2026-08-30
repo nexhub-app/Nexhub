@@ -310,6 +310,7 @@ extension _VideoLines on _VideoPlayerScreenState {
                                     label: Text(line.name),
                                     selected: active,
                                     onSelected: (bool _) async {
+                                      AppHaptics.selectionClick();
                                       if (i ==
                                           _controller.currentLineIndex) {
                                         return;
@@ -414,6 +415,7 @@ extension _VideoLines on _VideoPlayerScreenState {
                                 label: Text(displayName),
                                 selected: selected,
                                 onSelected: (bool selected) {
+                                  AppHaptics.selectionClick();
                                   if (!selected) return;
                                   setStateSheet(() {
                                     selectedLine = rawLine;

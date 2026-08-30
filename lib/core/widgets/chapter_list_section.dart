@@ -20,6 +20,7 @@ import 'app_empty_state.dart';
 import 'app_loading_indicator.dart';
 import 'app_search_field.dart';
 import 'detail_list_filter.dart';
+import '../utils/app_haptics.dart';
 
 /// 章节列表区。支持搜索过滤 + 筛选/排序/显示组合 + 可选的线路分组。
 class ChapterListSection extends StatefulWidget {
@@ -622,14 +623,20 @@ class _ChapterListSectionState extends State<ChapterListSection> {
         ChoiceChip(
           label: Text(l10n.all),
           selected: _selectedLine == null,
-          onSelected: (_) => setState(() => _selectedLine = null),
+          onSelected: (_) {
+            AppHaptics.selectionClick();
+            setState(() => _selectedLine = null);
+          },
         ),
         const SizedBox(width: AppTokens.spaceSm),
         for (final line in lineNames) ...<Widget>[
           ChoiceChip(
             label: Text(line),
             selected: _selectedLine == line,
-            onSelected: (_) => setState(() => _selectedLine = line),
+            onSelected: (_) {
+              AppHaptics.selectionClick();
+              setState(() => _selectedLine = line);
+            },
           ),
           const SizedBox(width: AppTokens.spaceSm),
         ],

@@ -9,6 +9,7 @@ import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import 'package:nexhub/core/widgets/app_segmented_tabs.dart';
 import 'package:nexhub/core/theme/app_tokens.dart';
 import 'package:nexhub/core/local/saf_bridge.dart';
+import 'package:nexhub/core/utils/app_haptics.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path/path.dart' as p;
 
@@ -187,13 +188,16 @@ class _FolderFileSelectSheetState extends State<_FolderFileSelectSheet> {
               return CheckboxListTile(
                 value: checked,
                 controlAffinity: ListTileControlAffinity.leading,
-                onChanged: (v) => setState(() {
-                  if (v == true) {
-                    _selected.add(file);
-                  } else {
-                    _selected.remove(file);
-                  }
-                }),
+                onChanged: (v) {
+                  AppHaptics.selectionClick();
+                  setState(() {
+                    if (v == true) {
+                      _selected.add(file);
+                    } else {
+                      _selected.remove(file);
+                    }
+                  });
+                },
                 title: Text(
                   _nameOf(file),
                   maxLines: 1,

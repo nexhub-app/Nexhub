@@ -11,6 +11,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 
 /// 筛选条件（所有字段可选，null 表示不限定）。
 class OnlineFilter {
@@ -371,7 +372,10 @@ class _OnlineFilterSheetState extends State<_OnlineFilterSheet> {
         return ChoiceChip(
           label: Text(it),
           selected: isSel,
-          onSelected: (_) => onToggle(it),
+          onSelected: (_) {
+            AppHaptics.selectionClick();
+            onToggle(it);
+          },
         );
       }).toList(),
     );
@@ -390,7 +394,10 @@ class _OnlineFilterSheetState extends State<_OnlineFilterSheet> {
         return ChoiceChip(
           label: Text(it.label),
           selected: isSel,
-          onSelected: (_) => onToggle(it.value),
+          onSelected: (_) {
+            AppHaptics.selectionClick();
+            onToggle(it.value);
+          },
         );
       }).toList(),
     );
@@ -409,7 +416,10 @@ class _OnlineFilterSheetState extends State<_OnlineFilterSheet> {
         return ChoiceChip(
           label: Text(it.label),
           selected: isSel,
-          onSelected: (_) => onSelect(it.value),
+          onSelected: (_) {
+            AppHaptics.selectionClick();
+            onSelect(it.value);
+          },
         );
       }).toList(),
     );
@@ -668,7 +678,10 @@ class _DynamicFilterSheetState extends State<_DynamicFilterSheet> {
                       return ChoiceChip(
                         label: Text(opt.label),
                         selected: _isSelected(g, opt.value),
-                        onSelected: (_) => _toggle(g, opt.value),
+                        onSelected: (_) {
+                          AppHaptics.selectionClick();
+                          _toggle(g, opt.value);
+                        },
                       );
                     }).toList(),
                   ),

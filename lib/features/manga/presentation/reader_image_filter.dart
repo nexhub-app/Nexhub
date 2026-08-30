@@ -5,6 +5,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/comic/models/reader_preferences.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 
 /// 漫画阅读器图片滤镜：亮度 / 对比度 / 色温。
 ///
@@ -322,6 +323,7 @@ class _ReaderImageFilterPanelState extends State<ReaderImageFilterPanel> {
           title: Text(l10n.readerGrayscale),
           value: _grayscale,
           onChanged: (bool v) {
+            AppHaptics.selectionClick();
             setState(() => _grayscale = v);
             widget.onGrayscaleChanged(v);
           },
@@ -331,6 +333,7 @@ class _ReaderImageFilterPanelState extends State<ReaderImageFilterPanel> {
           title: Text(l10n.filterInverted),
           value: _inverted,
           onChanged: (bool v) {
+            AppHaptics.selectionClick();
             setState(() => _inverted = v);
             widget.onInvertedChanged(v);
           },
@@ -429,6 +432,7 @@ class _SliderRow extends StatelessWidget {
             max: 1.0,
             divisions: 200, // 0.01 步进
             value: value.clamp(-1.0, 1.0),
+            onChangeStart: (_) => AppHaptics.light(),
             onChanged: onChanged,
           ),
         ),

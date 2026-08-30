@@ -1687,7 +1687,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                     ),
                     Switch(
                       value: auto,
-                      onChanged: (v) => setDlg(() => auto = v),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        setDlg(() => auto = v);
+                      },
                     ),
                   ],
                 ),

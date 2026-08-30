@@ -5882,6 +5882,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 Expanded(
                   child: Slider(
                     value: value,
+                    onChangeStart:
+                        total > 1 ? (_) => AppHaptics.light() : null,
                     onChanged: total > 1
                         ? (v) {
                             final target = doubleMode
@@ -6003,6 +6005,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                         quarterTurns: 1,
                         child: Slider(
                           value: value,
+                          onChangeStart:
+                              total > 1 ? (_) => AppHaptics.light() : null,
                           onChanged: total > 1
                               ? (v) {
                                   final target = doubleMode

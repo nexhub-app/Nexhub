@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'app_icon_button.dart';
 
 /// 源列表统一项（源管理页复用）。所有可见字符串来自 l10n。
@@ -272,7 +273,14 @@ class UnifiedSourceTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (deprecated) _deprecatedChip(scheme),
-          if (onToggle != null) Switch(value: enabled, onChanged: onToggle),
+          if (onToggle != null)
+            Switch(
+              value: enabled,
+              onChanged: (v) {
+                AppHaptics.selectionClick();
+                onToggle!(v);
+              },
+            ),
           if (_hasMenuActions)
             PopupMenuButton<String>(
               icon: Icon(Icons.more_vert, color: scheme.onSurfaceVariant),
@@ -311,7 +319,14 @@ class UnifiedSourceTile extends StatelessWidget {
             tooltip: mirrorSettingsTooltip,
             onPressed: onMirrorSettings,
           ),
-        if (onToggle != null) Switch(value: enabled, onChanged: onToggle),
+        if (onToggle != null)
+          Switch(
+            value: enabled,
+            onChanged: (v) {
+              AppHaptics.selectionClick();
+              onToggle!(v);
+            },
+          ),
       ],
     );
   }

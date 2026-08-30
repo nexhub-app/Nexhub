@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import '../../core/novel/novel_replace_rule.dart';
 import '../../core/novel/novel_rule_cache.dart';
+import '../utils/app_haptics.dart';
 
 /// 替换规则管理页面入口：从阅读器设置进入。
 class NovelReplaceRuleScreen extends StatefulWidget {
@@ -456,7 +457,10 @@ class _ReplaceRuleEditScreenState extends State<_ReplaceRuleEditScreen> {
                   title: const Text('使用正则表达式'),
                   subtitle: Text(_isRegex ? '按正则模式匹配替换' : '按纯文本精确匹配'),
                   value: _isRegex,
-                  onChanged: (v) => setState(() => _isRegex = v),
+                  onChanged: (v) {
+                    AppHaptics.selectionClick();
+                    setState(() => _isRegex = v);
+                  },
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 ListTile(
@@ -478,7 +482,10 @@ class _ReplaceRuleEditScreenState extends State<_ReplaceRuleEditScreen> {
                 SwitchListTile(
                   title: const Text('启用'),
                   value: _isEnabled,
-                  onChanged: (v) => setState(() => _isEnabled = v),
+                  onChanged: (v) {
+                    AppHaptics.selectionClick();
+                    setState(() => _isEnabled = v);
+                  },
                 ),
               ],
             ),

@@ -23,6 +23,7 @@ import '../services/bangumi/bangumi_client.dart';
 import '../services/bangumi/bangumi_models.dart';
 import '../services/bangumi/bangumi_sync_service.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 
 /// 唤起 Bangumi 同步弹窗。
 Future<void> showBangumiSyncDialog(
@@ -478,7 +479,10 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                     const Spacer(),
                     Switch(
                       value: _private,
-                      onChanged: (v) => setState(() => _private = v),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        setState(() => _private = v);
+                      },
                     ),
                   ]),
                 ],

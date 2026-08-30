@@ -21,6 +21,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../models/episode.dart';
 import '../progress/unified_progress_repository.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'app_animations.dart';
 
 /// 弹出批量下载选集弹窗，返回用户勾选的**原始索引**升序列表。
@@ -340,13 +341,16 @@ class _DownloadSelectionSheetState extends State<_DownloadSelectionSheet> {
                     final bool downloaded = _isDownloaded(i);
                     return CheckboxListTile(
                       value: _selected.contains(i),
-                      onChanged: (bool? v) => setState(() {
-                        if (v == true) {
-                          _selected.add(i);
-                        } else {
-                          _selected.remove(i);
-                        }
-                      }),
+                      onChanged: (bool? v) {
+                        AppHaptics.selectionClick();
+                        setState(() {
+                          if (v == true) {
+                            _selected.add(i);
+                          } else {
+                            _selected.remove(i);
+                          }
+                        });
+                      },
                       title: Text(ep.title),
                       subtitle:
                           (line != null && line.isNotEmpty) ? Text(line) : null,

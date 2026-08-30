@@ -5,6 +5,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/comic/models/reader_preferences.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import 'reader_image_filter.dart';
 import 'reader_tap_zones.dart';
 
@@ -96,7 +97,10 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
       contentPadding: EdgeInsets.zero,
       title: Text(label),
       value: value,
-      onChanged: onChanged,
+      onChanged: (v) {
+        AppHaptics.selectionClick();
+        onChanged(v);
+      },
     );
   }
 
@@ -1151,6 +1155,7 @@ class _SliderRow extends StatelessWidget {
               min: min,
               max: max,
               divisions: divisions,
+              onChangeStart: (_) => AppHaptics.light(),
               onChanged: onChanged,
             ),
           ),

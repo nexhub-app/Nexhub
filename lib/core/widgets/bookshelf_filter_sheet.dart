@@ -12,6 +12,7 @@ import '../models/bookshelf_filter.dart';
 import '../models/plugin_config.dart';
 import '../settings/layout_settings.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'app_animations.dart';
 
 /// 唤起书架筛选底部面板，返回用户确认后的筛选状态；取消则返回 null。
@@ -334,7 +335,10 @@ class _ChoiceChip extends StatelessWidget {
     return ChoiceChip(
       label: Text(label),
       selected: selected,
-      onSelected: onSelected,
+      onSelected: (v) {
+        AppHaptics.selectionClick();
+        onSelected(v);
+      },
     );
   }
 }

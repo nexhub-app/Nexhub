@@ -80,6 +80,7 @@ import '../../../core/local/portable_book_parser.dart'
 import '../../../core/novel/novel_content_edit_manager.dart';
 import '../../../core/novel/novel_translation_manager.dart';
 import '../../../core/novel/novel_toc_store.dart';
+import '../../../core/utils/app_haptics.dart';
 import 'novel_animated_page_view.dart';
 import 'novel_bookmark_manager.dart';
 import 'novel_in_book_search_sheet.dart';
@@ -3224,6 +3225,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                       min: 0.3,
                       max: 1.5,
                       divisions: 12,
+                      onChangeStart: (_) => AppHaptics.light(),
                       onChanged: (v) => setDialogState(() => coverScale = v),
                     ),
                   ),
@@ -4323,6 +4325,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 min: 0.5,
                 max: 2.0,
                 divisions: 30,
+                onChangeStart: (_) => AppHaptics.light(),
                 onChanged: (v) => _tts.setRate(v),
               ),
             ),
@@ -5361,6 +5364,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           child: Slider(
             value: value.clamp(0.0, 1.0),
             divisions: divisions,
+            onChangeStart: sliderInteractive ? (_) => AppHaptics.light() : null,
             onChanged: sliderInteractive
                 ? (v) {
                     if (isScroll) {
@@ -5647,8 +5651,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                             overflow: TextOverflow.ellipsis,
                           ),
                           value: selected[i],
-                          onChanged: (v) =>
-                              setSt(() => selected[i] = v ?? false),
+                          onChanged: (v) {
+                            AppHaptics.selectionClick();
+                            setSt(() => selected[i] = v ?? false);
+                          },
                           secondary: done
                               ? const Icon(Icons.cloud_done_outlined, size: 18)
                               : null,
@@ -8571,8 +8577,11 @@ class _NovelInlineSettings extends StatelessWidget {
                           contentPadding: EdgeInsets.zero,
                           title: Text(l10n.novelShowChapterTitle),
                           value: prefs.showChapterTitleInBody,
-                          onChanged: (v) => onChanged(
-                              prefs.copyWith(showChapterTitleInBody: v)),
+                          onChanged: (v) {
+                            AppHaptics.selectionClick();
+                            onChanged(
+                                prefs.copyWith(showChapterTitleInBody: v));
+                          },
                         ),
                         if (prefs.showChapterTitleInBody) ...<Widget>[
                           Text(
@@ -8609,8 +8618,10 @@ class _NovelInlineSettings extends StatelessWidget {
                             contentPadding: EdgeInsets.zero,
                             title: Text(l10n.novelTitleBold),
                             value: prefs.titleBold,
-                            onChanged: (v) =>
-                                onChanged(prefs.copyWith(titleBold: v)),
+                            onChanged: (v) {
+                              AppHaptics.selectionClick();
+                              onChanged(prefs.copyWith(titleBold: v));
+                            },
                           ),
                           _fontFileTile(
                             context: context,
@@ -8623,8 +8634,11 @@ class _NovelInlineSettings extends StatelessWidget {
                             contentPadding: EdgeInsets.zero,
                             title: Text(l10n.novelTitleSegmentMode),
                             value: prefs.titleSegmentMode,
-                            onChanged: (v) => onChanged(
-                                prefs.copyWith(titleSegmentMode: v)),
+                            onChanged: (v) {
+                              AppHaptics.selectionClick();
+                              onChanged(
+                                  prefs.copyWith(titleSegmentMode: v));
+                            },
                           ),
                           if (prefs.titleSegmentMode) ...<Widget>[
                             _SliderRow(
@@ -8867,8 +8881,10 @@ class _NovelInlineSettings extends StatelessWidget {
                           contentPadding: EdgeInsets.zero,
                           title: Text(l10n.novelTextShadow),
                           value: prefs.shadow,
-                          onChanged: (v) =>
-                              onChanged(prefs.copyWith(shadow: v)),
+                          onChanged: (v) {
+                            AppHaptics.selectionClick();
+                            onChanged(prefs.copyWith(shadow: v));
+                          },
                         ),
             // 阴影颜色（仅在开启阴影时可调；可清除为跟随正文色）
                         if (prefs.shadow)
@@ -9131,8 +9147,10 @@ class _NovelInlineSettings extends StatelessWidget {
                       title: Text(l10n.novelTwoPageMode),
                       subtitle: Text(l10n.novelTwoPageModeDesc),
                       value: prefs.twoPageMode,
-                      onChanged: (v) =>
-                          onChanged(prefs.copyWith(twoPageMode: v)),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        onChanged(prefs.copyWith(twoPageMode: v));
+                      },
                     ),
           // 自动翻页间隔（M3.5.2）
                     Text(l10n.autoPageInterval,
@@ -9157,16 +9175,21 @@ class _NovelInlineSettings extends StatelessWidget {
                       contentPadding: EdgeInsets.zero,
                       title: Text(l10n.autoPageSmooth),
                       value: prefs.autoPageSmooth,
-                      onChanged: (v) =>
-                          onChanged(prefs.copyWith(autoPageSmooth: v)),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        onChanged(prefs.copyWith(autoPageSmooth: v));
+                      },
                     ),
           // 鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(l10n.novelWheelInverted),
                       value: prefs.scrollWheelInverted,
-                      onChanged: (v) => onChanged(
-                          prefs.copyWith(scrollWheelInverted: v)),
+                      onChanged: (v) {
+                        AppHaptics.selectionClick();
+                        onChanged(
+                            prefs.copyWith(scrollWheelInverted: v));
+                      },
                     ),
           // 音量键翻页（N5，仅 Android 有物理音量键翻页语义）。
                     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
@@ -9174,8 +9197,11 @@ class _NovelInlineSettings extends StatelessWidget {
                         contentPadding: EdgeInsets.zero,
                         title: Text(l10n.readerVolumeKeyPageTurn),
                         value: prefs.volumeKeyPageTurn,
-                        onChanged: (v) => onChanged(
-                            prefs.copyWith(volumeKeyPageTurn: v)),
+                        onChanged: (v) {
+                          AppHaptics.selectionClick();
+                          onChanged(
+                              prefs.copyWith(volumeKeyPageTurn: v));
+                        },
                       ),
                       ],
                     ),
@@ -9226,8 +9252,11 @@ class _NovelInlineSettings extends StatelessWidget {
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(l10n.novelTtsBackground),
                                 value: prefs.ttsBackground,
-                                onChanged: (v) => onChanged(
-                                    prefs.copyWith(ttsBackground: v)),
+                                onChanged: (v) {
+                                  AppHaptics.selectionClick();
+                                  onChanged(
+                                      prefs.copyWith(ttsBackground: v));
+                                },
                               ),
                             ],
                           ),
@@ -9408,8 +9437,11 @@ class _NovelInlineSettings extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                     title: Text(l10n.preDownloadEnabled),
                     value: d.enabled,
-                    onChanged: (v) => setDialogState(
-                        () => draft = draft!.copyWith(enabled: v)),
+                    onChanged: (v) {
+                      AppHaptics.selectionClick();
+                      setDialogState(
+                          () => draft = draft!.copyWith(enabled: v));
+                    },
                   ),
                   if (d.enabled) ...<Widget>[
                     const SizedBox(height: AppTokens.spaceSm),
@@ -10004,6 +10036,7 @@ class _SliderRowState extends State<_SliderRow> {
               min: widget.min,
               max: widget.max,
               divisions: widget.divisions,
+              onChangeStart: (_) => AppHaptics.light(),
               onChanged: (nv) {
                 setState(() => _dragValue = nv);
                 widget.onChanged(nv);
@@ -10438,6 +10471,7 @@ class _SimpleColorSliderState extends State<_SimpleColorSlider> {
             min: 0.0,
             max: 1.0,
             divisions: 255,
+            onChangeStart: (_) => AppHaptics.light(),
             onChanged: onChanged,
           ),
         ),

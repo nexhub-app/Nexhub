@@ -11,6 +11,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../../../core/comic/models/reader_preferences.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../manga/presentation/reader_image_filter.dart';
 import '../../manga/presentation/reader_tap_zones.dart';
@@ -231,7 +232,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_readingModeLabel(l10n, m)),
                           selected: _settings.readingMode == m,
-                          onSelected: (_) => _updateReadingMode(m),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _updateReadingMode(m);
+                          },
                         );
                       }).toList(),
                     ),
@@ -243,8 +247,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_backgroundLabel(l10n, b)),
                           selected: _settings.comicBackground == b,
-                          onSelected: (_) =>
-                              _update(_settings.copyWith(comicBackground: b)),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(comicBackground: b));
+                          },
                         );
                       }).toList(),
                     ),
@@ -256,8 +262,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_orientationLabel(l10n, o)),
                           selected: _settings.comicOrientation == o,
-                          onSelected: (_) =>
-                              _update(_settings.copyWith(comicOrientation: o)),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(comicOrientation: o));
+                          },
                         );
                       }).toList(),
                     ),
@@ -318,7 +326,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_readingModeLabel(l10n, m)),
                           selected: _settings.readingMode == m,
-                          onSelected: (_) => _updateReadingMode(m),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _updateReadingMode(m);
+                          },
                         );
                       }).toList(),
                     ),
@@ -332,8 +343,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_backgroundLabel(l10n, b)),
                           selected: _settings.comicBackground == b,
-                          onSelected: (_) =>
-                              _update(_settings.copyWith(comicBackground: b)),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(comicBackground: b));
+                          },
                         );
                       }).toList(),
                     ),
@@ -347,8 +360,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_orientationLabel(l10n, o)),
                           selected: _settings.comicOrientation == o,
-                          onSelected: (_) =>
-                              _update(_settings.copyWith(comicOrientation: o)),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(comicOrientation: o));
+                          },
                         );
                       }).toList(),
                     ),
@@ -374,8 +389,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_tapZoneLayoutLabel(l10n, t)),
                           selected: _settings.comicTapZoneLayout == t,
-                          onSelected: (_) =>
-                              _update(_settings.copyWith(comicTapZoneLayout: t)),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(comicTapZoneLayout: t));
+                          },
                         );
                       }).toList(),
                     ),
@@ -410,8 +427,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_tapZoneInvertLabel(l10n, inv)),
                           selected: _settings.comicTapZoneInvert == inv,
-                          onSelected: (_) => _update(
-                              _settings.copyWith(comicTapZoneInvert: inv)),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _update( _settings.copyWith(comicTapZoneInvert: inv));
+                          },
                         );
                       }).toList(),
                     ),
@@ -445,8 +464,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_initialZoomLabel(l10n, z)),
                           selected: _settings.comicInitialZoom == z,
-                          onSelected: (_) =>
-                              _update(_settings.copyWith(comicInitialZoom: z)),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(comicInitialZoom: z));
+                          },
                         );
                       }).toList(),
                     ),
@@ -460,8 +481,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_zoomStartLabel(l10n, z)),
                           selected: _settings.comicZoomStart == z,
-                          onSelected: (_) =>
-                              _update(_settings.copyWith(comicZoomStart: z)),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(comicZoomStart: z));
+                          },
                         );
                       }).toList(),
                     ),
@@ -486,8 +509,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           return ChoiceChip(
                             label: Text(_longPressZoomPositionLabel(l10n, p)),
                             selected: _settings.comicLongPressZoomPosition == p,
-                            onSelected: (_) => _update(
-                                _settings.copyWith(comicLongPressZoomPosition: p)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update( _settings.copyWith(comicLongPressZoomPosition: p));
+                            },
                           );
                         }).toList(),
                       ),
@@ -502,8 +527,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_pageAnimationLabel(l10n, a)),
                           selected: _settings.comicPageAnimation == a,
-                          onSelected: (_) =>
-                              _update(_settings.copyWith(comicPageAnimation: a)),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _update(_settings.copyWith(comicPageAnimation: a));
+                          },
                         );
                       }).toList(),
                     ),
@@ -664,8 +691,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         return ChoiceChip(
                           label: Text(_colorProfileLabel(l10n, c)),
                           selected: _settings.comicColorProfile == c,
-                          onSelected: (_) => _update(
-                              _settings.copyWith(comicColorProfile: c)),
+                          onSelected: (_) {
+                            AppHaptics.selectionClick();
+                            _update( _settings.copyWith(comicColorProfile: c));
+                          },
                         );
                       }).toList(),
                     ),
@@ -717,8 +746,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           return ChoiceChip(
                             label: Text(_einkStyleLabel(l10n, s)),
                             selected: _settings.comicEinkRefreshStyle == s,
-                            onSelected: (_) => _update(_settings.copyWith(
-                                comicEinkRefreshStyle: s)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update(_settings.copyWith( comicEinkRefreshStyle: s));
+                            },
                           );
                         }).toList(),
                       ),
@@ -948,8 +979,10 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                             return ChoiceChip(
                               label: Text(_mouseWheelActionLabel(l10n, a)),
                               selected: _settings.comicMouseWheelAction == a,
-                              onSelected: (_) => _update(_settings.copyWith(
-                                  comicMouseWheelAction: a)),
+                              onSelected: (_) {
+                                AppHaptics.selectionClick();
+                                _update(_settings.copyWith( comicMouseWheelAction: a));
+                              },
                             );
                           }).toList(),
                         ),
@@ -964,19 +997,19 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                             label: Text(l10n.comicWheelNatural),
                             selected: _settings.comicScrollWheel ==
                                 ComicScrollWheel.natural,
-                            onSelected: (_) => _update(
-                                _settings.copyWith(
-                                    comicScrollWheel:
-                                        ComicScrollWheel.natural)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update( _settings.copyWith( comicScrollWheel: ComicScrollWheel.natural));
+                            },
                           ),
                           ChoiceChip(
                             label: Text(l10n.comicWheelInverted),
                             selected: _settings.comicScrollWheel ==
                                 ComicScrollWheel.inverted,
-                            onSelected: (_) => _update(
-                                _settings.copyWith(
-                                    comicScrollWheel:
-                                        ComicScrollWheel.inverted)),
+                            onSelected: (_) {
+                              AppHaptics.selectionClick();
+                              _update( _settings.copyWith( comicScrollWheel: ComicScrollWheel.inverted));
+                            },
                           ),
                         ],
                       ),
@@ -1061,36 +1094,40 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                                 selected:
                                     _settings.comicClockBatteryPosition ==
                                         ClockBatteryPosition.topLeft,
-                                onSelected: (_) => _update(_settings.copyWith(
-                                    comicClockBatteryPosition:
-                                        ClockBatteryPosition.topLeft)),
+                                onSelected: (_) {
+                                  AppHaptics.selectionClick();
+                                  _update(_settings.copyWith( comicClockBatteryPosition: ClockBatteryPosition.topLeft));
+                                },
                               ),
                               ChoiceChip(
                                 label: Text(l10n.readerClockPosTopRight),
                                 selected:
                                     _settings.comicClockBatteryPosition ==
                                         ClockBatteryPosition.topRight,
-                                onSelected: (_) => _update(_settings.copyWith(
-                                    comicClockBatteryPosition:
-                                        ClockBatteryPosition.topRight)),
+                                onSelected: (_) {
+                                  AppHaptics.selectionClick();
+                                  _update(_settings.copyWith( comicClockBatteryPosition: ClockBatteryPosition.topRight));
+                                },
                               ),
                               ChoiceChip(
                                 label: Text(l10n.readerClockPosBottomLeft),
                                 selected:
                                     _settings.comicClockBatteryPosition ==
                                         ClockBatteryPosition.bottomLeft,
-                                onSelected: (_) => _update(_settings.copyWith(
-                                    comicClockBatteryPosition:
-                                        ClockBatteryPosition.bottomLeft)),
+                                onSelected: (_) {
+                                  AppHaptics.selectionClick();
+                                  _update(_settings.copyWith( comicClockBatteryPosition: ClockBatteryPosition.bottomLeft));
+                                },
                               ),
                               ChoiceChip(
                                 label: Text(l10n.readerClockPosBottomRight),
                                 selected:
                                     _settings.comicClockBatteryPosition ==
                                         ClockBatteryPosition.bottomRight,
-                                onSelected: (_) => _update(_settings.copyWith(
-                                    comicClockBatteryPosition:
-                                        ClockBatteryPosition.bottomRight)),
+                                onSelected: (_) {
+                                  AppHaptics.selectionClick();
+                                  _update(_settings.copyWith( comicClockBatteryPosition: ClockBatteryPosition.bottomRight));
+                                },
                               ),
                             ],
                           ),

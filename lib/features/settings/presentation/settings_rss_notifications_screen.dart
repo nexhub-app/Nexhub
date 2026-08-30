@@ -16,6 +16,7 @@ import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_list_tile.dart';
+import '../../../core/utils/app_haptics.dart';
 
 class SettingsRssNotificationsScreen extends StatelessWidget {
   const SettingsRssNotificationsScreen({super.key});
@@ -41,7 +42,10 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
               subtitle: Text(l10n.rssNotificationEnabledSubtitle),
               trailing: Switch(
                 value: checker.enabled,
-                onChanged: (v) => checker.setEnabled(v),
+                onChanged: (v) {
+                  AppHaptics.selectionClick();
+                  checker.setEnabled(v);
+                },
               ),
             ),
           ),

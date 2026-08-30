@@ -9,6 +9,7 @@ import '../../../core/player/player_controller.dart';
 import '../../../core/player/subtitle_translation_controller.dart';
 import '../../../core/settings/player_settings.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 /// 字幕面板（底部抽屉）。
@@ -306,6 +307,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           min: 14,
           max: 60,
           divisions: 46,
+          onChangeStart: (_) => AppHaptics.light(),
           onChanged: (v) => setState(() => _subFontSize = v),
           onChangeEnd: (v) {
             widget.controller.setSubtitleFontSize(v);
@@ -324,6 +326,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           min: 0.5,
           max: 3.0,
           divisions: 50,
+          onChangeStart: (_) => AppHaptics.light(),
           onChanged: (v) => setState(() => _subScale = v),
           onChangeEnd: (v) {
             widget.controller.setSubtitleScale(v);
@@ -342,6 +345,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           min: 0,
           max: 6,
           divisions: 12,
+          onChangeStart: (_) => AppHaptics.light(),
           onChanged: (v) => setState(() => _subBorderSize = v),
           onChangeEnd: (v) {
             widget.controller.setSubtitleBorderSize(v);
@@ -360,6 +364,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           min: 0,
           max: 12,
           divisions: 24,
+          onChangeStart: (_) => AppHaptics.light(),
           onChanged: (v) => setState(() => _subShadowOffset = v),
           onChangeEnd: (v) {
             widget.controller.setSubtitleShadowOffset(v);
@@ -542,6 +547,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           min: -5,
           max: 5,
           divisions: 100,
+          onChangeStart: (_) => AppHaptics.light(),
           onChanged: (double v) {
             widget.controller.setSubtitleDelay(Duration(milliseconds: (v * 1000).round()));
             unawaited(widget.controller.saveSubtitleState());
@@ -557,6 +563,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
       title: Text(l10n.subtitleShow),
       value: widget.controller.subtitleVisible,
       onChanged: (bool v) {
+        AppHaptics.selectionClick();
         widget.controller.setSubtitleVisible(v);
         unawaited(widget.controller.saveSubtitleState());
       },
@@ -589,7 +596,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
               subtitle: Text(l10n.subTransToggleDesc,
                   style: theme.textTheme.bodySmall),
               value: t.enabled,
-              onChanged: (bool v) => unawaited(t.setEnabled(v)),
+              onChanged: (bool v) {
+                AppHaptics.selectionClick();
+                unawaited(t.setEnabled(v));
+              },
             ),
             if (t.enabled) ...<Widget>[
               SwitchListTile(
@@ -597,7 +607,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                 contentPadding: EdgeInsets.zero,
                 title: Text(l10n.subTransShowOriginal),
                 value: t.showOriginal,
-                onChanged: (bool v) => unawaited(t.setShowOriginal(v)),
+                onChanged: (bool v) {
+                  AppHaptics.selectionClick();
+                  unawaited(t.setShowOriginal(v));
+                },
               ),
               SwitchListTile(
                 dense: true,
@@ -606,7 +619,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                 subtitle: Text(l10n.subTransOcrFallbackDesc,
                     style: theme.textTheme.bodySmall),
                 value: t.ocrFallback,
-                onChanged: (bool v) => unawaited(t.setOcrFallback(v)),
+                onChanged: (bool v) {
+                  AppHaptics.selectionClick();
+                  unawaited(t.setOcrFallback(v));
+                },
               ),
             ],
           ],

@@ -11,6 +11,7 @@ import '../../../core/scraper/media_api_service.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/novel/novel_chinese_converter.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/highlight_text.dart' show searchHitSpans;
 
 /// 书内搜索结果项。
@@ -527,7 +528,10 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                         height: 24,
                         child: Switch(
                           value: _useRegex,
-                          onChanged: (v) => setState(() => _useRegex = v),
+                          onChanged: (v) {
+                            AppHaptics.selectionClick();
+                            setState(() => _useRegex = v);
+                          },
                           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                       ),

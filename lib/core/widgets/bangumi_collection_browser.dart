@@ -13,6 +13,7 @@ import '../services/bangumi/bangumi_client.dart';
 import '../services/bangumi/bangumi_models.dart';
 import '../services/bangumi/bangumi_sync_service.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'bangumi_subject_sheet.dart';
 
 class BangumiCollectionBrowser extends StatefulWidget {
@@ -205,13 +206,19 @@ class _BangumiCollectionBrowserState extends State<BangumiCollectionBrowser> {
   Widget _typeChip(String label, int type) => ChoiceChip(
         label: Text(label),
         selected: _subjectType == type,
-        onSelected: (_) => _selectSubjectType(type),
+        onSelected: (_) {
+          AppHaptics.selectionClick();
+          _selectSubjectType(type);
+        },
       );
 
   Widget _statusChip(String label, int type) => ChoiceChip(
         label: Text(label),
         selected: _collectionType == type,
-        onSelected: (_) => _selectCollectionType(type),
+        onSelected: (_) {
+          AppHaptics.selectionClick();
+          _selectCollectionType(type);
+        },
       );
 }
 

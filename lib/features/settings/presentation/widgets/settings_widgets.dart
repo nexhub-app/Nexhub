@@ -322,7 +322,8 @@ class SettingsSliderTile extends StatelessWidget {
             max: max,
             divisions: divisions,
             onChanged: onChanged,
-            // 松手时轻震确认（拖动过程中不震，避免高频振动打扰）。
+            // 起拖轻震一下、松手轻震确认（拖动过程中不震，避免高频振动打扰）。
+            onChangeStart: (_) => AppHaptics.light(),
             onChangeEnd: (_) => AppHaptics.selectionClick(),
           ),
         ],
@@ -356,7 +357,11 @@ class SettingsSwitchTile extends StatelessWidget {
         title: Text(title),
         subtitle: subtitle != null ? Text(subtitle!) : null,
         value: value,
-        onChanged: onChanged,
+        // 切换瞬间轻震（AppValuePulse 的弹性动画偏视觉，震动补触觉）。
+        onChanged: (v) {
+          AppHaptics.selectionClick();
+          onChanged(v);
+        },
         contentPadding: EdgeInsets.zero,
       ),
     );
@@ -395,7 +400,10 @@ class SettingsSegmentedTile<T extends Object> extends StatelessWidget {
           from: 0.97,
           child: SegmentedButton<T>(
             selected: selected,
-            onSelectionChanged: onSelectionChanged,
+            onSelectionChanged: (selection) {
+              AppHaptics.selectionClick();
+              onSelectionChanged(selection);
+            },
             segments: segments,
           ),
         ),
@@ -442,7 +450,10 @@ class SettingsChoiceChips<T> extends StatelessWidget {
                 child: ChoiceChip(
                   label: Text(opt.label),
                   selected: opt.value == selected,
-                  onSelected: (_) => onSelected(opt.value),
+                  onSelected: (_) {
+                    AppHaptics.selectionClick();
+                    onSelected(opt.value);
+                  },
                 ),
               ),
           ],

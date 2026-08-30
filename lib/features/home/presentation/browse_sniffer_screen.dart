@@ -27,6 +27,7 @@ import 'package:nexhub/core/sniffer/sniffer_engine.dart' show SnifferEngine;
 import 'package:nexhub/core/sniffer/sniffer_models.dart'
     show MediaKind, SniffFilter, SniffedMedia;
 import 'package:nexhub/core/theme/app_tokens.dart';
+import 'package:nexhub/core/utils/app_haptics.dart';
 import 'package:nexhub/core/widgets/app_url_input_bar.dart';
 import 'package:nexhub/features/player/presentation/video_player_screen.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -624,7 +625,10 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
           label: Text(e.value),
           selected: _filter == e.key,
           visualDensity: VisualDensity.compact,
-          onSelected: (_) => setState(() => _filter = e.key),
+          onSelected: (_) {
+            AppHaptics.selectionClick();
+            setState(() => _filter = e.key);
+          },
         );
       }).toList(),
     );

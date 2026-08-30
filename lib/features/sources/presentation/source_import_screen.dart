@@ -15,6 +15,7 @@ import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/services/source_library_subscription.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_form_field.dart';
@@ -291,15 +292,15 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
     for (final c in importable) {
       repo.addSource(c);
     }
+    // 必须在 pop() 之前捕获 ScaffoldMessenger 与文案，否则 pop 后 context
+    // 正在被拆解，再调用 ScaffoldMessenger.of(context)/AppLocalizations.of(context)
+    // 会访问已失效的 element 树，触发「used after being disposed / wrong build
+    // scope / _dependents.isEmpty」等崩溃（导入 manga_eh.json 时的实测崩溃）。
+    final messenger = ScaffoldMessenger.of(context);
+    final resultMsg = AppLocalizations.of(context)
+        .sourceImportResult(selected.length, _previews.length);
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          AppLocalizations.of(context)
-              .sourceImportResult(selected.length, _previews.length),
-        ),
-      ),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(resultMsg)));
   }
 
   @override
@@ -624,15 +625,18 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
               contentPadding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
               value: _selectedPreviewIndices.contains(i),
-              onChanged: (v) => setState(() {
-                final set = <int>{..._selectedPreviewIndices};
-                if (v == true) {
-                  set.add(i);
-                } else {
-                  set.remove(i);
-                }
-                _selectedPreviewIndices = set;
-              }),
+              onChanged: (v) {
+                AppHaptics.selectionClick();
+                setState(() {
+                  final set = <int>{..._selectedPreviewIndices};
+                  if (v == true) {
+                    set.add(i);
+                  } else {
+                    set.remove(i);
+                  }
+                  _selectedPreviewIndices = set;
+                });
+              },
               title: Text(c.name),
               subtitle: Text(
                 '${c.site.baseUrl}  ·  ${_typeLabel(c.type, l10n)}',

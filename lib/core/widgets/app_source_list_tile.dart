@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'app_icon_button.dart';
 import 'app_animations.dart';
 
@@ -105,7 +106,10 @@ class AppSourceListTile extends StatelessWidget {
               padding: const EdgeInsets.only(left: AppTokens.spaceSm),
               child: Switch(
                 value: enabled,
-                onChanged: onToggle,
+                onChanged: (v) {
+                  AppHaptics.selectionClick();
+                  onToggle!(v);
+                },
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),

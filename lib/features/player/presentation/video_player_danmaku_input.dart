@@ -44,7 +44,10 @@ extension _VideoDanmakuInput on _VideoPlayerScreenState {
                 ChoiceChip(
                   label: Text(label),
                   selected: selectedType == type,
-                  onSelected: (_) => setSt(() => selectedType = type),
+                  onSelected: (_) {
+                    AppHaptics.selectionClick();
+                    setSt(() => selectedType = type);
+                  },
                 ),
             ],
           ),

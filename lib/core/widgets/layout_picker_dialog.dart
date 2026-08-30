@@ -17,6 +17,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../settings/layout_settings.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'app_card.dart';
 
 /// 以 modal bottom sheet 形式展示富布局弹窗。
@@ -590,6 +591,7 @@ class _SliderTile extends StatelessWidget {
               min: min,
               max: max,
               divisions: divisions,
+              onChangeStart: (_) => AppHaptics.light(),
               onChanged: onChanged,
             ),
           ),
@@ -633,7 +635,10 @@ class _SwitchTile extends StatelessWidget {
       title: Text(label),
       trailing: Switch(
         value: value,
-        onChanged: onChanged,
+        onChanged: (v) {
+          AppHaptics.selectionClick();
+          onChanged(v);
+        },
       ),
       onTap: () => onChanged(!value),
     );

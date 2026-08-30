@@ -16,6 +16,7 @@ import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
+import '../../../core/utils/app_haptics.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import './widgets/settings_widgets.dart';
 import './widgets/settings_search_target.dart';
@@ -153,8 +154,10 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                     title: Text(l10n.useMonet),
                     trailing: Switch(
                       value: controller.useMonet,
-                      onChanged: (_) =>
-                          controller.setUseMonet(!controller.useMonet),
+                      onChanged: (_) {
+                        AppHaptics.selectionClick();
+                        controller.setUseMonet(!controller.useMonet);
+                      },
                     ),
                   ),
                 ],

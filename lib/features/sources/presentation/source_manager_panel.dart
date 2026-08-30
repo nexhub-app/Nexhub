@@ -29,6 +29,7 @@ import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import '../../../core/local/local_content_manager.dart' show isAndroidSafUri;
 import '../../../core/local/saf_bridge.dart'
     show listFolderSourceFilesSaf, pickFolderPath, readSourceText, safBaseName;
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/utils/app_log.dart';
 
 /// 本地导入预览项。
@@ -81,14 +82,9 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
         .where((c) => !repo.isAgeBlocked(c))
         .toList();
 
-    final ageBanner = repo.ageBlockedSources.isNotEmpty
-        ? _ageBlockedBanner(l10n, repo, context)
-        : const SizedBox.shrink();
-
     return ListView(
       padding: const EdgeInsets.all(AppTokens.spaceMd),
       children: <Widget>[
-        ageBanner,
         _buildImportBar(l10n),
         const SizedBox(height: AppTokens.spaceMd),
         if (sources.isEmpty)
@@ -114,45 +110,6 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
       case SourceType.mangaSource:
         return l10n.sourceCategoryComic;
     }
-  }
-
-  /// 年龄限制已开启时，提示「N 个 18+ 源已隐藏」。
-  Widget _ageBlockedBanner(
-    AppLocalizations l10n,
-    SourceRepository repo,
-    BuildContext context,
-  ) {
-    final count = repo.ageBlockedSources.length;
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceMd,
-          vertical: AppTokens.spaceSm,
-        ),
-        decoration: BoxDecoration(
-          color: scheme.errorContainer.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(Icons.lock_outline, size: 16, color: scheme.onErrorContainer),
-            const SizedBox(width: AppTokens.spaceXs),
-            Expanded(
-              child: Text(
-                l10n.ageBlockedManageHint(count),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: scheme.onErrorContainer),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   /// 顶部「本地导入」操作条（选择文件 / 选择文件夹）。
@@ -458,13 +415,16 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
             return CheckboxListTile(
               value: _selectedPreviewIndices.contains(i),
               onChanged: item.isValid
-                  ? (v) => setState(() {
+                  ? (v) {
+                      AppHaptics.selectionClick();
+                      setState(() {
                         if (v == true) {
                           _selectedPreviewIndices.add(i);
                         } else {
                           _selectedPreviewIndices.remove(i);
                         }
-                      })
+                      });
+                    }
                   : null,
               title: Text(item.fileName),
               subtitle: item.isValid

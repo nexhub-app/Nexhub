@@ -11,6 +11,7 @@ import '../../../core/scraper/collect_api_parser.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_form_field.dart';
@@ -154,10 +155,11 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
       return;
     }
     repo.addSource(_buildConfig());
+    // 必须在 pop() 之前捕获，避免 pop 后 context 失效导致崩溃。
+    final messenger = ScaffoldMessenger.of(context);
+    final msg = AppLocalizations.of(context).collectApiSaved;
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context).collectApiSaved)),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -263,6 +265,7 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
               ],
               selected: <SourceType>{_sourceType},
               onSelectionChanged: (Set<SourceType> selection) {
+                AppHaptics.selectionClick();
                 setState(() => _sourceType = selection.first);
               },
             ),
@@ -287,6 +290,7 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
               ],
               selected: <SourceAgeRating>{_ageRating},
               onSelectionChanged: (Set<SourceAgeRating> selection) {
+                AppHaptics.selectionClick();
                 setState(() => _ageRating = selection.first);
               },
             ),

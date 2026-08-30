@@ -19,6 +19,7 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/services/config_loader.dart';
 import '../../../core/services/source_library_subscription.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/local/local_content_manager.dart'
     show isAndroidSafUri;
 import '../../../core/local/saf_bridge.dart'
@@ -120,50 +121,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     // 年龄限制开启时隐藏 18+ 源（无法管理 / 无法浏览）
     sources = sources.where((c) => !repo.isAgeBlocked(c)).toList();
     return sources;
-  }
-
-  /// 年龄限制已开启时，提示「N 个 18+ 源已隐藏」（关闭年龄限制后可见）。
-  Widget _buildAgeBlockedBanner(
-    AppLocalizations l10n,
-    ColorScheme scheme,
-    SourceRepository repo,
-  ) {
-    final count = repo.ageBlockedSources.length;
-    if (count == 0) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppTokens.spaceLg,
-        AppTokens.spaceSm,
-        AppTokens.spaceLg,
-        0,
-      ),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceMd,
-          vertical: AppTokens.spaceSm,
-        ),
-        decoration: BoxDecoration(
-          color: scheme.errorContainer.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(Icons.lock_outline, size: 16, color: scheme.onErrorContainer),
-            const SizedBox(width: AppTokens.spaceXs),
-            Expanded(
-              child: Text(
-                l10n.ageBlockedManageHint(count),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: scheme.onErrorContainer),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   /// 按分类 Tab 过滤源（项 7）。
@@ -653,7 +610,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     List<PluginConfig> sources,
     ColorScheme scheme,
   ) {
-    final ageBanner = _buildAgeBlockedBanner(l10n, scheme, context.read<SourceRepository>());
     // 若指定了 filterType（从模块设置页进入），直接显示单列表，不加分类 Tab。
     if (widget.filterType != null) {
       if (sources.isEmpty) {
@@ -668,7 +624,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       }
       return Column(
         children: <Widget>[
-          ageBanner,
           Expanded(child: _buildSourceListView(l10n, sources)),
         ],
       );
@@ -679,7 +634,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       length: 3,
       child: Column(
         children: <Widget>[
-          ageBanner,
           if (sources.isNotEmpty) _buildEnableRecommendedTile(l10n),
           Material(
             color: scheme.surface,
@@ -687,6 +641,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               // 窄屏可滚动，避免图标+文案被挤压重叠（项 1 一并改内层分类栏）。
               isScrollable: true,
               tabAlignment: TabAlignment.start,
+              // 切换分类时轻震一下（onTap 不影响 DefaultTabController 自动切换）。
+              onTap: (_) => AppHaptics.selectionClick(),
               tabs: <Widget>[
                 Tab(icon: const Icon(Icons.book), text: l10n.sourceCategoryNovel),
                 Tab(icon: const Icon(Icons.movie), text: l10n.sourceCategoryMedia),

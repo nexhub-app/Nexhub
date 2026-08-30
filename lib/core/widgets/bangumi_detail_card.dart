@@ -17,6 +17,7 @@ import '../services/bangumi/bangumi_models.dart';
 import '../services/bangumi/bangumi_sync_service.dart';
 import '../services/bangumi/subject_link_store.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'app_card.dart';
 import 'bangumi_bind_sheet.dart';
 import 'bangumi_subject_sheet.dart';
@@ -711,7 +712,10 @@ class _BangumiSyncPanelState extends State<_BangumiSyncPanel> {
             contentPadding: EdgeInsets.zero,
             title: Text(l10n.bangumiHideCollection),
             value: _private,
-            onChanged: (bool v) => setState(() => _private = v),
+            onChanged: (bool v) {
+              AppHaptics.selectionClick();
+              setState(() => _private = v);
+            },
             dense: true,
           ),
           // ───── 进度 ─────
@@ -758,6 +762,7 @@ class _BangumiSyncPanelState extends State<_BangumiSyncPanel> {
                   max: 10,
                   divisions: 10,
                   label: _rating > 0 ? '$_rating' : l10n.bangumiRatingNone,
+                  onChangeStart: (_) => AppHaptics.light(),
                   onChanged: (double v) => setState(() => _rating = v.round()),
                 ),
               ),

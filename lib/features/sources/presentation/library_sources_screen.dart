@@ -1,10 +1,17 @@
 /// 源库查看页：拉取某个 [SourceLibrary] 的 manifest，列出全部源（按 [SourceType] 分组
 /// 显示），用户可勾选要导入的源，点底部「导入选中」一次性写入 [SourceRepository]。
 ///
-/// 与 [SourceImportScreen] 的「库导入」区别：此处只拉一次 manifest，不预抓所有 rawUrl；
-/// 真正导入时再按用户勾选按需抓取，避免大库全量拉取浪费流量与时间。
+/// 与 [SourceImportScreen] 的「库导入」区别：导入时按用户勾选按需抓取 rawUrl，
+/// 避免大库全量拉取浪费流量与时间。
+///
+/// 年龄等级：manifest 通常不声明 `ageRating`（真实等级在各源 JSON 文件里），
+/// 因此除「已安装源直接取已装配置的等级」外，还会**后台低并发补抓**未安装条目
+/// 的 rawUrl 解析真实等级（结果按 rawUrl 进静态缓存，同一次运行内不重复抓），
+/// 解析期间先按 manifest 声明展示；开启年龄限制后，判定为成人 (18+) 的条目
+/// 自动从列表隐藏并取消勾选，导入时同样兜底拦截。
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -17,6 +24,7 @@ import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/services/source_library_subscription.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
@@ -46,11 +54,38 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
   /// 当前版本、标记可更新（库版本 > 已装版本）。
   Map<String, int> _installedVersions = const <String, int>{};
 
+  /// 条目 id → 已解析的年龄等级（manifest 声明 / 已安装源 / 补抓结果）。
+  /// 条目缺省按 [SourceAgeRating.general] 处理。
+  Map<String, SourceAgeRating> _ageRatings = <String, SourceAgeRating>{};
+
+  /// 后台等级解析的代际号：_load 重新执行时 +1，旧的后台任务据此自我终止。
+  int _resolveGen = 0;
+
+  /// rawUrl → 真实年龄等级缓存（进程级，避免重复进页反复抓源 JSON）。
+  static final Map<String, SourceAgeRating> _ageRatingCache =
+      <String, SourceAgeRating>{};
+
+  /// 条目当前生效的年龄等级。
+  SourceAgeRating _ratingOf(_LibEntry e) =>
+      _ageRatings[e.id] ?? SourceAgeRating.general;
+
+  /// 年龄限制开启时该条目是否应被隐藏（等级已判定为成人）。
+  bool _isEntryHidden(_LibEntry e, SourceRepository repo) =>
+      repo.ageRestrictionEnabled && _ratingOf(e).isRestricted;
+
   /// 是否存在「库版本 > 已装版本」的可更新源（控制 AppBar「一键更新」显示）。
-  bool get _hasUpdatable => _entries.any((e) {
-        final ins = _installedVersions[e.id];
-        return ins != null && ins < e.version;
-      });
+  /// 被年龄限制隐藏的条目不计入。
+  bool get _hasUpdatable {
+    if (_entries.isEmpty) return false;
+    final repo = context.read<SourceRepository>();
+    for (int i = 0; i < _entries.length; i++) {
+      final e = _entries[i];
+      if (_isEntryHidden(e, repo)) continue;
+      final ins = _installedVersions[e.id];
+      if (ins != null && ins < e.version) return true;
+    }
+    return false;
+  }
 
   @override
   void initState() {
@@ -58,13 +93,16 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     _load();
   }
 
-  /// 拉取库 manifest 并解析成 [_LibEntry] 列表（不抓 rawUrl，按需时再抓）。
+  /// 拉取库 manifest 并解析成 [_LibEntry] 列表（rawUrl 按需再抓）。
   Future<void> _load() async {
+    _resolveGen++; // 终止仍在运行的旧后台等级解析
+    final gen = _resolveGen;
     setState(() {
       _loading = true;
       _error = null;
       _entries = const <_LibEntry>[];
       _selectedIndices = const <int>{};
+      _ageRatings = <String, SourceAgeRating>{};
     });
     try {
       final text = await HttpFetcher.instance.getHtml(widget.library.url);
@@ -98,8 +136,15 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
       final repo = context.read<SourceRepository>();
       final installed = <String, int>{};
       final selected = <int>{};
+      final ageRatings = <String, SourceAgeRating>{};
       for (int i = 0; i < entries.length; i++) {
         final e = entries[i];
+        // 等级初值：manifest 声明 > 历史（缓存）补抓结果 > general。
+        final cached = e.rawUrl == null ? null : _ageRatingCache[e.rawUrl!];
+        ageRatings[e.id] = cached ??
+            (e.raw['ageRating'] != null
+                ? e.ageRating
+                : SourceAgeRating.general);
         // 1) 精确匹配
         var cfg = repo.getById(e.id);
         // 2) 去类型前缀（novel/novel_xxx → novel_xxx）
@@ -112,18 +157,30 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
         }
         if (cfg != null) {
           installed[e.id] = cfg.version;
+          // 已安装源以其自身配置声明的等级为准（源文件是唯一可信来源）。
+          ageRatings[e.id] = cfg.ageRating;
           if (cfg.version < e.version) selected.add(i); // 可更新
         } else {
           selected.add(i); // 未安装 → 默认勾选导入
         }
+      }
+      // 年龄限制开启时，已判定为成人的条目不预勾选（列表中也会隐藏）。
+      if (repo.ageRestrictionEnabled) {
+        selected.removeWhere(
+          (i) => (ageRatings[entries[i].id] ?? SourceAgeRating.general)
+              .isRestricted,
+        );
       }
       if (!mounted) return;
       setState(() {
         _entries = entries;
         _installedVersions = installed;
         _selectedIndices = selected;
+        _ageRatings = ageRatings;
         _loading = false;
       });
+      // 后台补抓未安装且未声明等级的条目，解析真实年龄等级（渐进刷新）。
+      unawaited(_resolveMissingRatings(gen, repo));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -131,6 +188,70 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
         _loading = false;
       });
     }
+  }
+
+  /// 后台补抓未判定等级条目的 rawUrl，解析真实年龄等级。
+  ///
+  /// 仅处理「未安装 + manifest 未声明 ageRating + 有 rawUrl + 缓存未命中」的
+  /// 条目；并发 3，抓到即缓存并渐进刷新 UI；开启年龄限制时把新判定为成人的
+  /// 条目从列表隐藏并取消勾选。抓取失败不缓存（下次进页重试），不隐藏
+  /// （等级未知时保守显示，导入仍有年龄限制兜底拦截）。
+  Future<void> _resolveMissingRatings(
+    int gen,
+    SourceRepository repo,
+  ) async {
+    final entries = _entries;
+    final pending = <int>[];
+    for (int i = 0; i < entries.length; i++) {
+      final e = entries[i];
+      if (e.rawUrl == null || e.rawUrl!.isEmpty) continue;
+      if (_ageRatingCache.containsKey(e.rawUrl!)) continue;
+      if (_installedVersions.containsKey(e.id)) continue; // 已装源等级可信
+      if (e.raw['ageRating'] != null) continue; // manifest 已声明
+      pending.add(i);
+    }
+    final queue = pending.toList(growable: false);
+    if (queue.isEmpty) return;
+    var cursor = 0;
+    Future<void> worker() async {
+      while (cursor < queue.length) {
+        final i = queue[cursor++];
+        final e = entries[i];
+        final url = e.rawUrl!;
+        SourceAgeRating? rating = _ageRatingCache[url];
+        if (rating == null) {
+          try {
+            final t = await HttpFetcher.instance.getHtml(url);
+            final cfgs = SourceRepository.parseMixedSources(t);
+            if (cfgs.isNotEmpty) {
+              rating = _strictestRating(cfgs);
+              _ageRatingCache[url] = rating;
+            }
+          } on Object {
+            // 抓取 / 解析失败：等级未知，不缓存不隐藏。
+          }
+        }
+        if (rating == null) continue;
+        if (!mounted || gen != _resolveGen) return;
+        setState(() {
+          _ageRatings[e.id] = rating!;
+          if (repo.ageRestrictionEnabled && rating.isRestricted) {
+            _selectedIndices = <int>{..._selectedIndices}..remove(i);
+          }
+        });
+      }
+    }
+    await Future.wait(<Future<void>>[worker(), worker(), worker()]);
+  }
+
+  /// 取一组配置中最严格的年龄等级（源文件打包多源时按最保守口径隐藏）。
+  static SourceAgeRating _strictestRating(List<PluginConfig> cfgs) {
+    var rating = SourceAgeRating.general;
+    for (final c in cfgs) {
+      if (c.ageRating == SourceAgeRating.mature) return SourceAgeRating.mature;
+      if (c.ageRating == SourceAgeRating.teen) rating = SourceAgeRating.teen;
+    }
+    return rating;
   }
 
   /// 把选中的条目按需拉取 rawUrl，解析为 [PluginConfig] 后批量入库。
@@ -152,6 +273,8 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     int failed = 0;
     int alreadyLatest = 0;
     for (final entry in selected) {
+      // 年龄限制兜底：解析后判定为成人的源不导入（列表已隐藏，此处防竞态）。
+      if (_isEntryHidden(entry, repo)) continue;
       try {
         List<PluginConfig> parsed = const <PluginConfig>[];
         // 优先用 rawUrl 抓远端源 JSON；若没有 rawUrl 或抓失败，回退用条目本身解析。
@@ -170,8 +293,9 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
           failed++;
           continue;
         }
-        // 单个源文件里可能打包了多个源，全部入库。
+        // 单个源文件里可能打包了多个源，全部入库（成人源被年龄限制拦截时跳过）。
         for (final cfg in parsed) {
+          if (repo.isAgeBlocked(cfg)) continue;
           final applied = _applySourceUpdate(repo, entry, cfg);
           if (applied == _ApplyResult.updated) {
             success++;
@@ -247,11 +371,14 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     return _ApplyResult.updated;
   }
 
-  /// 一键更新全部可更新的源：只勾选「库版本 > 已装版本」的条目并立即导入。
+  /// 一键更新全部可更新的源：只勾选「库版本 > 已装版本」的条目并立即导入
+  /// （被年龄限制隐藏的条目跳过）。
   Future<void> _updateAll() async {
+    final repo = context.read<SourceRepository>();
     final updatable = <int>{};
     for (int i = 0; i < _entries.length; i++) {
       final e = _entries[i];
+      if (_isEntryHidden(e, repo)) continue;
       final ins = _installedVersions[e.id];
       if (ins != null && ins < e.version) updatable.add(i);
     }
@@ -280,12 +407,22 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
             IconButton(
               tooltip: l10n.libraryUpdateAll,
               icon: const Icon(Icons.system_update_alt),
-              onPressed: _loading || _importing ? null : _updateAll,
+              onPressed: _loading || _importing
+                  ? null
+                  : () {
+                      AppHaptics.light();
+                      _updateAll();
+                    },
             ),
           IconButton(
             tooltip: l10n.retry,
             icon: const Icon(Icons.refresh),
-            onPressed: _loading || _importing ? null : _load,
+            onPressed: _loading || _importing
+                ? null
+                : () {
+                    AppHaptics.selectionClick();
+                    _load();
+                  },
           ),
         ],
       ),
@@ -296,8 +433,13 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(AppTokens.spaceMd),
                 child: FilledButton.icon(
-                  onPressed:
-                      _importing || _selectedIndices.isEmpty ? null : _importSelected,
+                  onPressed: _importing || _selectedIndices.isEmpty
+                      ? null
+                      : () {
+                          // 批量导入属确认类动作，中档双脉冲反馈。
+                          AppHaptics.medium();
+                          _importSelected();
+                        },
                   icon: _importing
                       ? const SizedBox(
                           width: 16,
@@ -341,10 +483,27 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     // 按类型分组。manifest 里 type 字段可能有多种写法（官方库用短词
     // `anime`/`manga`/`novel`，老书源格式用 `bookSource`，旧版用
     // `animeSource` 等长词），统一归到三类后再排序展示，未识别则归「未分类」。
+    // 年龄限制开启时，已判定为成人 (18+) 的条目整行隐藏。
+    final repo = context.read<SourceRepository>();
     final groups = <String, List<int>>{};
     for (int i = 0; i < _entries.length; i++) {
+      if (_isEntryHidden(_entries[i], repo)) continue;
       final t = _canonicalType(_entries[i].type);
       groups.putIfAbsent(t, () => <int>[]).add(i);
+    }
+    if (groups.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.spaceXl),
+          child: Text(
+            l10n.libraryEmpty,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
     }
     final orderedTypes = <String>[
       if (groups.containsKey('novelSource')) 'novelSource',
@@ -400,15 +559,18 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
         : l10n.libraryVersion(entry.version, installed);
     return CheckboxListTile(
       value: selected,
-      onChanged: (v) => setState(() {
-        final s = <int>{..._selectedIndices};
-        if (v == true) {
-          s.add(index);
-        } else {
-          s.remove(index);
-        }
-        _selectedIndices = s;
-      }),
+      onChanged: (v) {
+        AppHaptics.selectionClick();
+        setState(() {
+          final s = <int>{..._selectedIndices};
+          if (v == true) {
+            s.add(index);
+          } else {
+            s.remove(index);
+          }
+          _selectedIndices = s;
+        });
+      },
       controlAffinity: ListTileControlAffinity.leading,
       secondary: updateAvailable
           ? Chip(
@@ -440,7 +602,7 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
             ),
           ),
           const SizedBox(width: AppTokens.spaceXs),
-          _ageChip(context, scheme, entry.ageRating),
+          _ageChip(context, scheme, _ratingOf(entry)),
         ],
       ),
       subtitle: Column(

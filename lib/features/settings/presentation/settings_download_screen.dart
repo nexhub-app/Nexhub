@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/download/download_format_preferences.dart';
 import '../../../core/download/download_manager.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/download/download_settings.dart';
 import '../../../core/download/download_task.dart';
 import '../../../core/favorites/favorite_group.dart';
@@ -537,6 +538,7 @@ class _WifiOnlySettingState extends State<_WifiOnlySetting> {
       trailing: Switch(
         value: _value,
         onChanged: (v) {
+          AppHaptics.selectionClick();
           setState(() => _value = v);
           _save(v);
         },
@@ -582,6 +584,7 @@ class _AutoDeleteSettingState extends State<_AutoDeleteSetting> {
       trailing: Switch(
         value: _value,
         onChanged: (v) {
+          AppHaptics.selectionClick();
           setState(() => _value = v);
           _save(v);
         },

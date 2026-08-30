@@ -20,6 +20,7 @@ import '../../../core/services/backup_archive.dart';
 import '../../../core/services/cloud_sync_service.dart';
 import '../../../core/services/novel_progress_sync_service.dart';
 import '../../../core/settings/general_settings.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../../core/widgets/backup_category_selector.dart';
@@ -555,6 +556,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             title: Text(l10n.cloudSyncAutoSync),
             value: config.autoSync,
             onChanged: (v) async {
+              AppHaptics.selectionClick();
               await service.updateConfig(
                 config.copyWith(autoSync: v),
                 null,
@@ -597,6 +599,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             subtitle: Text(l10n.cloudSyncAutoUploadNovelExportsDesc),
             value: config.autoUploadNovelExports,
             onChanged: (v) async {
+              AppHaptics.selectionClick();
               await service.updateConfig(
                 config.copyWith(autoUploadNovelExports: v),
                 null,

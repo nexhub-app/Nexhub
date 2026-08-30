@@ -5,6 +5,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import './widgets/settings_widgets.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/services/source_repository.dart';
@@ -140,6 +141,7 @@ class _AgeRestrictionSectionState extends State<_AgeRestrictionSection> {
           ),
           value: _s.ageRestrictionEnabled,
           onChanged: (bool v) async {
+            AppHaptics.selectionClick();
             if (!v) {
               final agreed = await _showAgeRestrictionDisclaimer(l10n);
               if (!agreed) return;

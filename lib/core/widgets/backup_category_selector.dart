@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../core/services/backup_archive.dart';
+import '../../core/utils/app_haptics.dart';
 
 /// 分类 → 本地化标签。
 String backupCategoryLabel(AppLocalizations l10n, BackupCategory c) {
@@ -77,6 +78,7 @@ class BackupCategorySelector extends StatelessWidget {
             title: Text(backupCategoryLabel(l10n, c)),
             value: selected.contains(c),
             onChanged: (v) {
+              AppHaptics.selectionClick();
               final next = Set<BackupCategory>.from(selected);
               if (v == true) {
                 next.add(c);
