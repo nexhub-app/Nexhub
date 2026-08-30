@@ -402,9 +402,14 @@ class FavoritesManager extends ChangeNotifier {
       _cache[type]?.any((e) => e.id == contentId) ?? false;
 
   /// 切换收藏状态。重新收藏时保留原始 favoritedAt（P8.1.3 §廿一 不丢 dateAdded）。
-  Future<void> toggleFavorite(MediaItem item) async {
-    final type = item.sourceType ?? SourceType.animeSource;
-    final list = _cache.putIfAbsent(type, () => <FavoriteEntry>[]);
+  ///
+  /// [type] 显式指定归属模块：条目自身缺 `sourceType`（脚本源解析的 MediaItem
+  /// 均为 null）时，调用方（详情页）按源配置反查出的类型才是正确归属——
+  /// 若不传而走 `item.sourceType` 兜底 animeSource，会把漫画/小说收藏进动漫
+  /// 书架，且详情页图标按正确类型查询永远不亮（表现为「无法收藏」）。
+  Future<void> toggleFavorite(MediaItem item, {SourceType? type}) async {
+    final t = type ?? item.sourceType ?? SourceType.animeSource;
+    final list = _cache.putIfAbsent(t, () => <FavoriteEntry>[]);
 
     final idx = list.indexWhere((e) => e.id == item.id);
     if (idx >= 0) {

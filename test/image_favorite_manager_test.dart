@@ -134,4 +134,65 @@ void main() {
     await manager.remove(fav.key);
     expect(await manager.list(), isEmpty);
   });
+
+  test('toggleComicImage 添加与取消，取消时删除实际存储键', () async {
+    expect(
+      await manager.toggleComicImage(
+          comicId: 'c1',
+          chapterIndex: 1,
+          chapterTitle: '第1话',
+          pageIndex: 3,
+          imageUrl: 'https://example.com/p.jpg'),
+      true,
+    );
+    expect(await manager.isFavoriteByUrl('https://example.com/p.jpg'), true);
+    // 位置漂移（同一 URL 出现在不同章节/页码）仍视为已收藏。
+    expect(
+      await manager.toggleComicImage(
+          comicId: 'c1',
+          chapterIndex: 2,
+          chapterTitle: '第2话',
+          pageIndex: 9,
+          imageUrl: 'https://example.com/p.jpg'),
+      false,
+    );
+    expect(await manager.list(), isEmpty);
+  });
+
+  test('toggleComicImage 兼容存量位置键条目（按 URL 命中并删除）', () async {
+    // 存量数据：以 comicId::ch::page 位置键写入。
+    await manager.add(const ImageFavorite(
+      comicId: 'c1',
+      chapterIndex: 0,
+      chapterTitle: 't',
+      pageIndex: 1,
+      imageUrl: 'legacy.jpg',
+      createdAt: 1,
+    ));
+    // URL 命中存量条目 → 取消收藏应删除位置键数据而非新增。
+    expect(
+      await manager.toggleComicImage(
+          comicId: 'c1',
+          chapterIndex: 5,
+          chapterTitle: 't2',
+          pageIndex: 9,
+          imageUrl: 'legacy.jpg'),
+      false,
+    );
+    expect(await manager.list(), isEmpty);
+    // 再次收藏后列表只有一条，位置信息为新传入值（供图库跳转）。
+    expect(
+      await manager.toggleComicImage(
+          comicId: 'c1',
+          chapterIndex: 5,
+          chapterTitle: 't2',
+          pageIndex: 9,
+          imageUrl: 'legacy.jpg'),
+      true,
+    );
+    final list = await manager.list();
+    expect(list.length, 1);
+    expect(list.single.chapterIndex, 5);
+    expect(list.single.pageIndex, 9);
+  });
 }

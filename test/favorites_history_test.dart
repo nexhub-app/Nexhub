@@ -74,6 +74,28 @@ void main() {
       await manager.removeFavorite('novel_1', SourceType.novelSource);
       expect(manager.favoritesFor(SourceType.novelSource), isEmpty);
     });
+
+    test('toggleFavorite explicit type overrides null item.sourceType',
+        () async {
+      // 模拟脚本源条目（sourceType == null）：详情页按源配置反查出漫画类型，
+      // 显式传入后应归属漫画书架，而非被 manager 兜底成 animeSource
+      //（此前正是这个不一致导致「详情页点收藏无效、图标不亮」）。
+      const nullTypeItem = MediaItem(id: 'script_manga_1', title: 'ScriptManga');
+
+      await manager.toggleFavorite(nullTypeItem,
+          type: SourceType.mangaSource);
+      expect(
+          manager.isFavorite('script_manga_1', SourceType.mangaSource), true);
+      expect(manager.favoritesFor(SourceType.mangaSource).length, 1);
+      expect(manager.favoritesFor(SourceType.animeSource), isEmpty);
+
+      // 再次点击（详情页 isFavorite 同类型查询）应正确取消。
+      await manager.toggleFavorite(nullTypeItem,
+          type: SourceType.mangaSource);
+      expect(
+          manager.isFavorite('script_manga_1', SourceType.mangaSource), false);
+      expect(manager.favoritesFor(SourceType.animeSource), isEmpty);
+    });
   });
 
   group('HistoryManager', () {

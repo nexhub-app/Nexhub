@@ -576,7 +576,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final FavoritesManager fav = context.read<FavoritesManager>();
     final bool wasFavorite = fav.isFavorite(widget.item.id, _favType);
-    await fav.toggleFavorite(widget.item);
+    // 显式传入 _favType：脚本源条目缺 sourceType，若让 manager 自行兜底
+    // animeSource，会与上方 isFavorite(_favType) 查询的类型不一致，
+    // 表现为「详情页点收藏无效」（收藏进了别的书架，图标不亮）。
+    await fav.toggleFavorite(widget.item, type: _favType);
     if (!mounted) return;
     if (wasFavorite) {
       ScaffoldMessenger.of(context).showSnackBar(

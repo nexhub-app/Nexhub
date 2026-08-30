@@ -227,6 +227,56 @@ class ImageFavoriteManager {
     return true;
   }
 
+  /// 漫画图片收藏切换（按图片地址为唯一身份去重，持久化语义修正）。
+  ///
+  /// 历史实现按 `comicId::章节::页码` 位置键读写：章节列表顺序漂移（源站目录
+  /// 顺序不稳定 / 自然排序开关）、从待读队列等入口传入子集章节表、本地与在线
+  /// comicId 不一致时，同一张图下次会话落在不同位置键下，既查不到旧收藏、
+  /// 新收藏也可能互相覆盖——表现为「收藏本图重启后丢失」。改为每次先按
+  /// imageUrl 全量查重（含存量位置键条目）：已存在则删除其实际键并返回 false；
+  /// 新增仍写位置键（存量兼容），位置信息保留在 JSON 里供图库跳转回原页。
+  Future<bool> toggleComicImage({
+    required String comicId,
+    required int chapterIndex,
+    required String chapterTitle,
+    required int pageIndex,
+    required String imageUrl,
+  }) async {
+    if (imageUrl.isEmpty) return false;
+    final box = await _openBox();
+    final Object? existingKey = await _findKeyByUrl(box, imageUrl);
+    if (existingKey != null) {
+      await box.delete(existingKey);
+      return false;
+    }
+    final ImageFavorite fav = ImageFavorite(
+      comicId: comicId,
+      chapterIndex: chapterIndex,
+      chapterTitle: chapterTitle,
+      pageIndex: pageIndex,
+      imageUrl: imageUrl,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    await box.put(fav.key, jsonEncode(fav.toJson()));
+    return true;
+  }
+
+  /// 按 imageUrl 查找既有条目的存储键（含存量位置键格式）；找不到返回 null。
+  Future<Object?> _findKeyByUrl(Box<dynamic> box, String imageUrl) async {
+    for (final Object? key in box.keys) {
+      final Object? raw = box.get(key);
+      if (raw is! String || raw.isEmpty) continue;
+      try {
+        final ImageFavorite f =
+            ImageFavorite.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+        if (f.imageUrl == imageUrl) return key;
+      } on Object {
+        // 损坏数据忽略。
+      }
+    }
+    return null;
+  }
+
   /// 按 URL 切换收藏状态（X-3：播放器截图 / 小说插图，无章节+页码位置概念）。
   ///
   /// 以 `来源::img::imageUrl` 为唯一键去重：同一来源同一图片地址只保留一份。

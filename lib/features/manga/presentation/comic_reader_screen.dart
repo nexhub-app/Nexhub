@@ -1024,12 +1024,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   /// 刷新当前页图片收藏状态（init / 翻页 / 切换后调用）。
+  ///
+  /// 按图片地址查询（而非位置键）：源站章节/页码列表顺序漂移或经不同入口
+  /// 进入时位置键会变，按 URL 判定才能正确还原「已收藏」状态。
   Future<void> _refreshPageImageFav() async {
     final String? url = _currentPageImageUrl;
     if (url == null) return;
     try {
-      final bool fav = await _imageFavMgr.isFavorite(
-          widget.comicId, _chapterIndex, _currentPage);
+      final bool fav = await _imageFavMgr.isFavoriteByUrl(url);
       if (mounted && fav != _isPageImageFav) {
         setState(() => _isPageImageFav = fav);
       }
@@ -1045,7 +1047,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final l10n = AppLocalizations.of(context);
     final bool added;
     try {
-      added = await _imageFavMgr.toggle(
+      // URL 身份去重：避免章节/页码顺序漂移导致收藏重启后「丢失」。
+      added = await _imageFavMgr.toggleComicImage(
         comicId: widget.comicId,
         chapterIndex: _chapterIndex,
         chapterTitle: _currentChapterTitle,
@@ -1145,6 +1148,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 _onFavoritePressed();
               },
             ),
+            // 本地单文件无章节概念时隐藏（与长按菜单「收藏此章」入口置空一致）。
+            if (!_isLocalMode || widget.chapters.isNotEmpty)
+              ListTile(
+                leading: Icon(
+                  _chapterBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                  color: _chapterBookmarked ? Colors.amber : null,
+                ),
+                title: Text(l10n.readerChapterBookmark),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _toggleChapterBookmark();
+                },
+              ),
             ListTile(
               leading: Icon(
                 _isPageImageFav ? Icons.favorite : Icons.favorite_border,
