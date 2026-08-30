@@ -1,5 +1,6 @@
 import java.util.Properties
 import java.io.FileInputStream
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -18,9 +19,8 @@ if (keystorePropertiesFile.exists()) {
 }
 
 // 让产出的 APK 文件名前缀为软件名（NexHub-arm64-v8a-release.apk 而非 app-*.apk）。
-// 注意：archivesBaseName 是 project 级属性，Kotlin DSL 中不能在 defaultConfig 内直接赋值，
-// 必须用 project.setProperty 在顶层设置（Groovy DSL 才允许写在 defaultConfig 里）。
-project.setProperty("archivesBaseName", "NexHub")
+// 注意：Gradle 9 移除了 project 级 archivesBaseName 属性，改用 base.archivesName。
+base { archivesName.set("NexHub") }
 
 android {
     namespace = "com.nexhub.app"
@@ -33,10 +33,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -82,6 +78,13 @@ android {
                 signingConfigs.getByName("debug")
             }
         }
+    }
+}
+
+// AGP 9 / Kotlin 2.3 起 kotlinOptions{ jvmTarget } 弃用（编译错误级），改用 compilerOptions DSL。
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
