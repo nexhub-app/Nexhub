@@ -41,10 +41,8 @@ class SourceRepository extends ChangeNotifier {
     'novel_biquge',
     'novel_linovelib',
     'novel_huanmengacg',
-    // 演示用多线路源：用于让用户直观感受"播放线路"切换功能。
-    // 包含 3 条 HLS 公开测试流（不同清晰度）。生产环境可保留用于演示，
-    // 也可在「设置 → 源管理」里直接屏蔽。
-    'demo_multi_line',
+    // 注：曾预留演示用多线路源 demo_multi_line（3 条 HLS 测试流），
+    // 但 assets 从未入库，只会触发"跳过（缺失或解析失败）"日志，故移除引用。
   ];
 
   static const String _builtinOverrideKey = 'source_builtin_overrides_v1';

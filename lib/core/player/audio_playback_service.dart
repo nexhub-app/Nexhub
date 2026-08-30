@@ -250,7 +250,9 @@ class AudioPlaybackService {
           androidNotificationChannelName: notificationChannelName,
           androidNotificationChannelId: 'nexhub.playback',
           androidNotificationOngoing: true,
-          androidStopForegroundOnPause: false,
+          // 必须为 true：audio_service 断言 ongoing 通知要求暂停时退出前台，
+          // 组合 false 会令整个 audio_service 初始化失败（无后台通知）。
+          androidStopForegroundOnPause: true,
         ),
       );
       await _configureAudioSession();
