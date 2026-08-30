@@ -21,6 +21,8 @@ library;
 import 'package:dio/dio.dart';
 
 import '../../../core/ai/batch_protocol.dart';
+import '../../../core/ai/endpoint_router.dart';
+import '../../../core/ai/vision_translation_client.dart' show AiEndpointConfig;
 import '../../../core/ai/glossary_manager.dart';
 import '../../../core/ai/prompt_builder.dart';
 import '../../../core/ai/translation_exception.dart';
@@ -84,8 +86,18 @@ class NovelTranslationService {
     String? bookContext,
   }) async {
     if (paragraphs.isEmpty) return const <String>[];
-    final cfg = await _settings.getTranslationConfig();
-    if (cfg.baseUrl.trim().isEmpty) {
+    // F9：主 + 备用端点（功能级回落通用），失败路由在请求层执行。
+    final endpointCfgs = await _settings.getTranslationEndpoints();
+    final endpoints = <AiEndpointConfig>[
+      for (final c in endpointCfgs)
+        if (c.baseUrl.trim().isNotEmpty)
+          AiEndpointConfig(
+            baseUrl: c.baseUrl,
+            apiKey: c.apiKey,
+            model: c.model,
+          ),
+    ];
+    if (endpoints.isEmpty) {
       throw const TranslationException('未配置云端 AI 接口');
     }
     final lang =
@@ -129,7 +141,7 @@ class NovelTranslationService {
       try {
         final oneShot = await _requestBatch(
           paragraphs,
-          cfg,
+          endpoints,
           lang,
           glossary: glossary,
           style: style,
@@ -162,7 +174,7 @@ class NovelTranslationService {
       if (!fullyDone) {
         final raw = await _requestBatch(
           chunk,
-          cfg,
+          endpoints,
           lang,
           glossary: glossary,
           style: style,
@@ -213,7 +225,7 @@ class NovelTranslationService {
 
   Future<String> _requestBatch(
     List<String> paragraphs,
-    NovelSummaryConfig cfg,
+    List<AiEndpointConfig> endpoints,
     String lang, {
     List<GlossaryEntry> glossary = const <GlossaryEntry>[],
     TranslationStyle style = TranslationStyle.standard,
@@ -221,7 +233,6 @@ class NovelTranslationService {
     String? bookContext,
     List<TranslationContextPair> priorContext = const <TranslationContextPair>[],
   }) async {
-    final trimmedBase = cfg.baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
     final system = PromptBuilder.novelSystemPrompt(
       lang: lang,
       paragraphCount: paragraphs.length,
@@ -231,44 +242,60 @@ class NovelTranslationService {
       bookContext: bookContext,
     );
     try {
-      final resp = await _dio.post<Map<String, dynamic>>(
-        '$trimmedBase/chat/completions',
-        options: Options(
-          headers: <String, dynamic>{
-            'Content-Type': 'application/json',
-            if (cfg.apiKey.trim().isNotEmpty)
-              'Authorization': 'Bearer ${cfg.apiKey.trim()}',
-          },
-          sendTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 120),
-        ),
-        data: <String, dynamic>{
-          'model': cfg.model.trim().isNotEmpty
-              ? cfg.model.trim()
-              : 'gpt-3.5-turbo',
-          'messages': <Map<String, dynamic>>[
-            <String, dynamic>{'role': 'system', 'content': system},
-            // F2：上一块末尾若干段的原文+译文，作为衔接语境。
-            for (final h in priorContext) ...<Map<String, dynamic>>[
-              <String, dynamic>{
-                'role': 'user',
-                'content': encodeBatch(<String>[h.source]),
+      // F9：主 → 备 失败路由（仅连接/超时/429 可切换；健康度熔断见路由器）。
+      final content = await AiEndpointRouter.execute<String>(
+        endpoints,
+        (cfg) async {
+          final trimmedBase =
+              cfg.baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+          final resp = await _dio.post<Map<String, dynamic>>(
+            '$trimmedBase/chat/completions',
+            options: Options(
+              headers: <String, dynamic>{
+                'Content-Type': 'application/json',
+                if (cfg.apiKey.trim().isNotEmpty)
+                  'Authorization': 'Bearer ${cfg.apiKey.trim()}',
               },
-              <String, dynamic>{'role': 'assistant', 'content': h.translation},
-            ],
-            <String, dynamic>{'role': 'user', 'content': encodeBatch(paragraphs)},
-          ],
-          'temperature': 0.2,
+              sendTimeout: const Duration(seconds: 30),
+              receiveTimeout: const Duration(seconds: 120),
+            ),
+            data: <String, dynamic>{
+              'model': cfg.model.trim().isNotEmpty
+                  ? cfg.model.trim()
+                  : 'gpt-3.5-turbo',
+              'messages': <Map<String, dynamic>>[
+                <String, dynamic>{'role': 'system', 'content': system},
+                // F2：上一块末尾若干段的原文+译文，作为衔接语境。
+                for (final h in priorContext) ...<Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'role': 'user',
+                    'content': encodeBatch(<String>[h.source]),
+                  },
+                  <String, dynamic>{
+                    'role': 'assistant',
+                    'content': h.translation
+                  },
+                ],
+                <String, dynamic>{
+                  'role': 'user',
+                  'content': encodeBatch(paragraphs)
+                },
+              ],
+              'temperature': 0.2,
+            },
+          );
+          final choices = resp.data?['choices'] as List?;
+          if (choices == null || choices.isEmpty) {
+            throw const TranslationException('AI 返回内容为空');
+          }
+          final content =
+              (choices.first['message'] as Map?)?['content'] as String?;
+          if (content == null || content.trim().isEmpty) {
+            throw const TranslationException('AI 返回内容为空');
+          }
+          return content;
         },
       );
-      final choices = resp.data?['choices'] as List?;
-      if (choices == null || choices.isEmpty) {
-        throw const TranslationException('AI 返回内容为空');
-      }
-      final content = (choices.first['message'] as Map?)?['content'] as String?;
-      if (content == null || content.trim().isEmpty) {
-        throw const TranslationException('AI 返回内容为空');
-      }
       return content;
     } on Object catch (e) {
       // B7：网络/超时类底层异常归一化后上抛，原始细节入日志。

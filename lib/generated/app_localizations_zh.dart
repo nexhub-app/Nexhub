@@ -8056,4 +8056,7 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get comicTranslateBackfillDesc =>
       '译文以描边文字回填到气泡内（按气泡宽度换行、字号自适应）。竖排页降级为横排居中。';
+
+  @override
+  String get aiBackupSection => '备用接口（主接口故障时自动切换）';
 }

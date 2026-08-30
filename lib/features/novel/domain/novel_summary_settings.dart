@@ -39,18 +39,30 @@ class NovelSummarySettings {
   static const String _kTrModel = 'novel_translation_api_model_v1';
   static const String _kTrLang = 'novel_translation_lang_v1';
   static const String _kTrBatch = 'novel_translation_batch_v1';
+  // F9 备用端点（留空 = 不启用备用）。
+  static const String _kTrBaseBak = 'novel_translation_api_base_bak_v1';
+  static const String _kTrKeyBak = 'novel_translation_api_key_bak_v1';
+  static const String _kTrModelBak = 'novel_translation_api_model_bak_v1';
 
   // ── 漫画翻译功能级接口与选项（视觉模型，留空回落通用）──
   static const String _kComicBase = 'comic_translation_api_base_v1';
   static const String _kComicKey = 'comic_translation_api_key_v1';
   static const String _kComicModel = 'comic_translation_api_model_v1';
   static const String _kComicLang = 'comic_translation_lang_v1';
+  // F9 备用端点。
+  static const String _kComicBaseBak = 'comic_translation_api_base_bak_v1';
+  static const String _kComicKeyBak = 'comic_translation_api_key_bak_v1';
+  static const String _kComicModelBak = 'comic_translation_api_model_bak_v1';
 
   // ── 视频字幕翻译功能级接口与选项（留空回落通用）──
   static const String _kMediaBase = 'media_translation_api_base_v1';
   static const String _kMediaKey = 'media_translation_api_key_v1';
   static const String _kMediaModel = 'media_translation_api_model_v1';
   static const String _kMediaLang = 'media_translation_lang_v1';
+  // F9 备用端点。
+  static const String _kMediaBaseBak = 'media_translation_api_base_bak_v1';
+  static const String _kMediaKeyBak = 'media_translation_api_key_bak_v1';
+  static const String _kMediaModelBak = 'media_translation_api_model_bak_v1';
 
   // ─────────────────── 速览模式 ───────────────────
 
@@ -150,6 +162,27 @@ class NovelSummarySettings {
     await _writeConfig(p, _kTrBase, _kTrKey, _kTrModel, cfg);
   }
 
+  /// 翻译备用配置（F9；baseUrl 为空 = 未启用备用端点）。
+  Future<NovelSummaryConfig> getTranslationBackupConfig() async {
+    final p = await SharedPreferences.getInstance();
+    return _readConfig(p, _kTrBaseBak, _kTrKeyBak, _kTrModelBak);
+  }
+
+  Future<void> saveTranslationBackupConfig(NovelSummaryConfig cfg) async {
+    final p = await SharedPreferences.getInstance();
+    await _writeConfig(p, _kTrBaseBak, _kTrKeyBak, _kTrModelBak, cfg);
+  }
+
+  /// 翻译端点列表（F9）：[主端点（功能级回落通用）, 备用端点（如配置）]。
+  Future<List<NovelSummaryConfig>> getTranslationEndpoints() async {
+    final primary = await getTranslationConfig();
+    final backup = await getTranslationBackupConfig();
+    return <NovelSummaryConfig>[
+      primary,
+      if (backup.baseUrl.trim().isNotEmpty) backup,
+    ];
+  }
+
   /// 翻译目标语言（提示词用语，默认中文）。
   Future<String> getTranslationTargetLanguage() async {
     final p = await SharedPreferences.getInstance();
@@ -187,6 +220,27 @@ class NovelSummarySettings {
     await _writeConfig(p, _kComicBase, _kComicKey, _kComicModel, cfg);
   }
 
+  /// 漫画翻译备用配置（F9；baseUrl 为空 = 未启用备用端点）。
+  Future<NovelSummaryConfig> getComicTranslationBackupConfig() async {
+    final p = await SharedPreferences.getInstance();
+    return _readConfig(p, _kComicBaseBak, _kComicKeyBak, _kComicModelBak);
+  }
+
+  Future<void> saveComicTranslationBackupConfig(NovelSummaryConfig cfg) async {
+    final p = await SharedPreferences.getInstance();
+    await _writeConfig(p, _kComicBaseBak, _kComicKeyBak, _kComicModelBak, cfg);
+  }
+
+  /// 漫画翻译端点列表（F9）。
+  Future<List<NovelSummaryConfig>> getComicTranslationEndpoints() async {
+    final primary = await getComicTranslationConfig();
+    final backup = await getComicTranslationBackupConfig();
+    return <NovelSummaryConfig>[
+      primary,
+      if (backup.baseUrl.trim().isNotEmpty) backup,
+    ];
+  }
+
   /// 漫画翻译目标语言（提示词用语；空回落小说翻译的目标语言）。
   Future<String> getComicTranslationTargetLanguage() async {
     final p = await SharedPreferences.getInstance();
@@ -213,6 +267,27 @@ class NovelSummarySettings {
   Future<void> saveMediaTranslationConfig(NovelSummaryConfig cfg) async {
     final p = await SharedPreferences.getInstance();
     await _writeConfig(p, _kMediaBase, _kMediaKey, _kMediaModel, cfg);
+  }
+
+  /// 视频翻译备用配置（F9；baseUrl 为空 = 未启用备用端点）。
+  Future<NovelSummaryConfig> getMediaTranslationBackupConfig() async {
+    final p = await SharedPreferences.getInstance();
+    return _readConfig(p, _kMediaBaseBak, _kMediaKeyBak, _kMediaModelBak);
+  }
+
+  Future<void> saveMediaTranslationBackupConfig(NovelSummaryConfig cfg) async {
+    final p = await SharedPreferences.getInstance();
+    await _writeConfig(p, _kMediaBaseBak, _kMediaKeyBak, _kMediaModelBak, cfg);
+  }
+
+  /// 视频翻译端点列表（F9）。
+  Future<List<NovelSummaryConfig>> getMediaTranslationEndpoints() async {
+    final primary = await getMediaTranslationConfig();
+    final backup = await getMediaTranslationBackupConfig();
+    return <NovelSummaryConfig>[
+      primary,
+      if (backup.baseUrl.trim().isNotEmpty) backup,
+    ];
   }
 
   /// 视频字幕翻译目标语言（提示词用语；空回落小说翻译的目标语言）。

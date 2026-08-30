@@ -15457,6 +15457,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Render translations inside speech bubbles with stroked text, bubble-width wrapping and adaptive font size. Vertical text pages degrade to horizontal centered layout.'**
   String get comicTranslateBackfillDesc;
+
+  /// No description provided for @aiBackupSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup endpoint (auto failover)'**
+  String get aiBackupSection;
 }
 
 class _AppLocalizationsDelegate

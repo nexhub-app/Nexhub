@@ -8253,4 +8253,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get comicTranslateBackfillDesc =>
       'Render translations inside speech bubbles with stroked text, bubble-width wrapping and adaptive font size. Vertical text pages degrade to horizontal centered layout.';
+
+  @override
+  String get aiBackupSection => 'Backup endpoint (auto failover)';
 }

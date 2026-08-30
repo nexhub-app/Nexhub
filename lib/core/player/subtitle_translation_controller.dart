@@ -28,6 +28,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../ai/endpoint_router.dart';
 import '../ai/glossary_manager.dart';
 import '../ai/prompt_builder.dart';
 import '../ai/translation_exception.dart';
@@ -358,20 +359,25 @@ class SubtitleTranslationController extends ChangeNotifier {
     try {
       final Uint8List? frame = await c.player.screenshot();
       if (frame == null || frame.isEmpty) return;
-      final cfg = await _resolveConfig();
-      if (cfg == null) {
+      final endpoints = await _resolveEndpoints();
+      if (endpoints.isEmpty) {
         throw const TranslationException('未配置 AI 接口：请先在 设置 → AI 配置 中填写'
             '通用接口或视频翻译专用接口');
       }
       await _ensureLang();
-      final segments = await _client.recognizeImage(
-        config: cfg,
-        imageBytes: frame,
-        mimeType: 'image/png',
-        systemPrompt: PromptBuilder.videoOcrSystemPrompt(
-          lang: _targetLang,
-          glossary: _glossaryEntries ?? const <GlossaryEntry>[],
-          style: await _options.effectiveStyle(null),
+      final glossary = _glossaryEntries ?? const <GlossaryEntry>[];
+      final ocrStyle = await _options.effectiveStyle(null);
+      final segments = await AiEndpointRouter.execute<List<VisionTextSegment>>(
+        endpoints,
+        (cfg) => _client.recognizeImage(
+          config: cfg,
+          imageBytes: frame,
+          mimeType: 'image/png',
+          systemPrompt: PromptBuilder.videoOcrSystemPrompt(
+            lang: _targetLang,
+            glossary: glossary,
+            style: ocrStyle,
+          ),
         ),
       );
       if (!_enabled) return;
@@ -454,8 +460,8 @@ class SubtitleTranslationController extends ChangeNotifier {
     );
     notifyListeners();
     try {
-      final cfg = await _resolveConfig();
-      if (cfg == null) {
+      final endpoints = await _resolveEndpoints();
+      if (endpoints.isEmpty) {
         throw const TranslationException('未配置 AI 接口：请先在 设置 → AI 配置 中填写'
             '通用接口或视频翻译专用接口');
       }
@@ -473,13 +479,16 @@ class SubtitleTranslationController extends ChangeNotifier {
         cot: await _options.getCotEnabled(),
       );
       final result = await _translateWithRetry(
-        () => _client.translateBatch(
-          config: cfg,
-          targetLang: _targetLang,
-          texts: <String>[text],
-          history: List<TranslationContextPair>.of(_history),
-          lightweight: lightweight,
-          systemPrompt: system,
+        () => AiEndpointRouter.execute<List<String>>(
+          endpoints,
+          (cfg) => _client.translateBatch(
+            config: cfg,
+            targetLang: _targetLang,
+            texts: <String>[text],
+            history: List<TranslationContextPair>.of(_history),
+            lightweight: lightweight,
+            systemPrompt: system,
+          ),
         ),
       );
       final translated = result.first.trim();
@@ -559,16 +568,15 @@ class SubtitleTranslationController extends ChangeNotifier {
     throw StateError('unreachable');
   }
 
-  /// 解析视频翻译接口配置（功能级留空回落通用；未配置返回 null）。
-  Future<AiEndpointConfig?> _resolveConfig() async {
-    final NovelSummaryConfig cfg =
-        await NovelSummarySettings.instance.getMediaTranslationConfig();
-    if (cfg.baseUrl.trim().isEmpty) return null;
-    return AiEndpointConfig(
-      baseUrl: cfg.baseUrl,
-      apiKey: cfg.apiKey,
-      model: cfg.model,
-    );
+  /// 解析视频翻译端点列表（F9：主 + 备用；功能级留空回落通用）。
+  Future<List<AiEndpointConfig>> _resolveEndpoints() async {
+    final List<NovelSummaryConfig> cfgs =
+        await NovelSummarySettings.instance.getMediaTranslationEndpoints();
+    return <AiEndpointConfig>[
+      for (final c in cfgs)
+        if (c.baseUrl.trim().isNotEmpty)
+          AiEndpointConfig(baseUrl: c.baseUrl, apiKey: c.apiKey, model: c.model),
+    ];
   }
 
   void _resetState() {

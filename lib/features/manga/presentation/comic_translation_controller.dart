@@ -27,6 +27,7 @@ import 'package:flutter/widgets.dart' show Size;
 // ignore: depend_on_referenced_packages
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+import '../../../core/ai/endpoint_router.dart';
 import '../../../core/ai/glossary_manager.dart';
 import '../../../core/ai/image_resizer.dart';
 import '../../../core/ai/prompt_builder.dart';
@@ -311,8 +312,14 @@ class ComicTranslationController extends ChangeNotifier {
   Future<({List<VisionTextSegment> segments, Size naturalSize})>
       _translatePage(String url, String chapterKey, int pageIndex) async {
     final settings = NovelSummarySettings.instance;
-    final NovelSummaryConfig cfg = await settings.getComicTranslationConfig();
-    if (cfg.baseUrl.trim().isEmpty) {
+    final List<NovelSummaryConfig> endpointCfgs =
+        await settings.getComicTranslationEndpoints();
+    final endpoints = <AiEndpointConfig>[
+      for (final c in endpointCfgs)
+        if (c.baseUrl.trim().isNotEmpty)
+          AiEndpointConfig(baseUrl: c.baseUrl, apiKey: c.apiKey, model: c.model),
+    ];
+    if (endpoints.isEmpty) {
       throw const TranslationException('未配置 AI 接口：请先在 设置 → AI 配置 中填写'
           '通用接口或漫画翻译专用接口（需支持视觉的模型）');
     }
@@ -358,16 +365,15 @@ class ComicTranslationController extends ChangeNotifier {
         mime = 'image/png';
       }
     }
-    final segments = await _client.recognizeImage(
-      config: AiEndpointConfig(
-        baseUrl: cfg.baseUrl,
-        apiKey: cfg.apiKey,
-        model: cfg.model,
+    final segments = await AiEndpointRouter.execute<List<VisionTextSegment>>(
+      endpoints,
+      (cfg) => _client.recognizeImage(
+        config: cfg,
+        imageBytes: sendBytes,
+        mimeType: mime,
+        systemPrompt: systemPrompt,
+        maxSide: _kMaxSide,
       ),
-      imageBytes: sendBytes,
-      mimeType: mime,
-      systemPrompt: systemPrompt,
-      maxSide: _kMaxSide,
     );
     // F1：术语冲突检测（仅日志，不阻断显示）。
     if (glossary.isNotEmpty && segments.isNotEmpty) {

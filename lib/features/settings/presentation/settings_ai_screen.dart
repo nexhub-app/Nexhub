@@ -80,6 +80,17 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
 
   final TranslationOptionsStore _trOptions = TranslationOptionsStore();
 
+  // F9 备用端点（主接口故障时自动切换；留空 = 不启用）。
+  final _trBaseBakCtrl = TextEditingController();
+  final _trKeyBakCtrl = TextEditingController();
+  final _trModelBakCtrl = TextEditingController();
+  final _comicBaseBakCtrl = TextEditingController();
+  final _comicKeyBakCtrl = TextEditingController();
+  final _comicModelBakCtrl = TextEditingController();
+  final _mediaBaseBakCtrl = TextEditingController();
+  final _mediaKeyBakCtrl = TextEditingController();
+  final _mediaModelBakCtrl = TextEditingController();
+
   // 漫画翻译（视觉 OCR+翻译）
   final _comicBaseCtrl = TextEditingController();
   final _comicKeyCtrl = TextEditingController();
@@ -186,6 +197,10 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     final mKey = mediaCfg.apiKey == defaultCfg.apiKey ? '' : mediaCfg.apiKey;
     final mModel = mediaCfg.model == defaultCfg.model ? '' : mediaCfg.model;
     final mediaLang = await _settings.getMediaTranslationTargetLanguage();
+    // F9 备用端点回显（仅回显功能级备用；与主端点相同则留空）。
+    final trBak = await _settings.getTranslationBackupConfig();
+    final comicBak = await _settings.getComicTranslationBackupConfig();
+    final mediaBak = await _settings.getMediaTranslationBackupConfig();
 
     if (!mounted) return;
     setState(() {
@@ -223,6 +238,17 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       _mediaKeyCtrl.text = mKey;
       _mediaModelCtrl.text = mModel;
       _mediaLangCtrl.text = mediaLang;
+
+      _trBaseBakCtrl.text = trBak.baseUrl == trCfg.baseUrl ? '' : trBak.baseUrl;
+      _trKeyBakCtrl.text = trBak.apiKey == trCfg.apiKey ? '' : trBak.apiKey;
+      _trModelBakCtrl.text = trBak.model == trCfg.model ? '' : trBak.model;
+      _comicBaseBakCtrl.text =
+          comicBak.baseUrl == comicCfg.baseUrl ? '' : comicBak.baseUrl;
+      _comicKeyBakCtrl.text = comicBak.apiKey == comicCfg.apiKey ? '' : comicBak.apiKey;
+      _comicModelBakCtrl.text = comicBak.model == comicCfg.model ? '' : comicBak.model;
+      _mediaBaseBakCtrl.text = mediaBak.baseUrl == mediaCfg.baseUrl ? '' : mediaBak.baseUrl;
+      _mediaKeyBakCtrl.text = mediaBak.apiKey == mediaCfg.apiKey ? '' : mediaBak.apiKey;
+      _mediaModelBakCtrl.text = mediaBak.model == mediaCfg.model ? '' : mediaBak.model;
     });
     // 配图模型与尺寸单独加载（避免阻塞首帧）。
     final illModel = await _settings.getIllustrationModel();
@@ -258,6 +284,15 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     _mediaKeyCtrl.dispose();
     _mediaModelCtrl.dispose();
     _mediaLangCtrl.dispose();
+    _trBaseBakCtrl.dispose();
+    _trKeyBakCtrl.dispose();
+    _trModelBakCtrl.dispose();
+    _comicBaseBakCtrl.dispose();
+    _comicKeyBakCtrl.dispose();
+    _comicModelBakCtrl.dispose();
+    _mediaBaseBakCtrl.dispose();
+    _mediaKeyBakCtrl.dispose();
+    _mediaModelBakCtrl.dispose();
     super.dispose();
   }
 
@@ -308,6 +343,24 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       ));
       await _settings.saveMediaTranslationTargetLanguage(
           _mediaLangCtrl.text.trim());
+      // F9：备用端点（与主端点相同视为未启用 → 存空）。
+      String orEmptyIfSame(String backup, String primary) =>
+          backup.trim() == primary.trim() ? '' : backup.trim();
+      await _settings.saveTranslationBackupConfig(NovelSummaryConfig(
+        baseUrl: orEmptyIfSame(_trBaseBakCtrl.text, _trBaseCtrl.text),
+        apiKey: orEmptyIfSame(_trKeyBakCtrl.text, _trKeyCtrl.text),
+        model: orEmptyIfSame(_trModelBakCtrl.text, _trModelCtrl.text),
+      ));
+      await _settings.saveComicTranslationBackupConfig(NovelSummaryConfig(
+        baseUrl: orEmptyIfSame(_comicBaseBakCtrl.text, _comicBaseCtrl.text),
+        apiKey: orEmptyIfSame(_comicKeyBakCtrl.text, _comicKeyCtrl.text),
+        model: orEmptyIfSame(_comicModelBakCtrl.text, _comicModelCtrl.text),
+      ));
+      await _settings.saveMediaTranslationBackupConfig(NovelSummaryConfig(
+        baseUrl: orEmptyIfSame(_mediaBaseBakCtrl.text, _mediaBaseCtrl.text),
+        apiKey: orEmptyIfSame(_mediaKeyBakCtrl.text, _mediaKeyCtrl.text),
+        model: orEmptyIfSame(_mediaModelBakCtrl.text, _mediaModelCtrl.text),
+      ));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.aiSaved)),
@@ -559,6 +612,11 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                     ),
                   ],
                 ),
+                _BackupFields(
+                  baseCtrl: _trBaseBakCtrl,
+                  keyCtrl: _trKeyBakCtrl,
+                  modelCtrl: _trModelBakCtrl,
+                ),
               ],
             ),
             SettingsCard(
@@ -590,6 +648,11 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                     border: const OutlineInputBorder(),
                   ),
                 ),
+                _BackupFields(
+                  baseCtrl: _comicBaseBakCtrl,
+                  keyCtrl: _comicKeyBakCtrl,
+                  modelCtrl: _comicModelBakCtrl,
+                ),
               ],
             ),
             SettingsCard(
@@ -620,6 +683,11 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                     hintText: l10n.translationTargetLangHint,
                     border: const OutlineInputBorder(),
                   ),
+                ),
+                _BackupFields(
+                  baseCtrl: _mediaBaseBakCtrl,
+                  keyCtrl: _mediaKeyBakCtrl,
+                  modelCtrl: _mediaModelBakCtrl,
                 ),
               ],
             ),
@@ -735,6 +803,57 @@ class _ApiFields extends StatelessWidget {
             hintText: modelHint,
             border: const OutlineInputBorder(),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// F9 备用接口输入组：默认折叠，展开后填写备用 baseUrl / key / model。
+class _BackupFields extends StatefulWidget {
+  final TextEditingController baseCtrl;
+  final TextEditingController keyCtrl;
+  final TextEditingController modelCtrl;
+
+  const _BackupFields({
+    required this.baseCtrl,
+    required this.keyCtrl,
+    required this.modelCtrl,
+  });
+
+  @override
+  State<_BackupFields> createState() => _BackupFieldsState();
+}
+
+class _BackupFieldsState extends State<_BackupFields> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        TextButton.icon(
+          onPressed: () => setState(() => _expanded = !_expanded),
+          icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more,
+              size: 18),
+          label: Text(l10n.aiBackupSection,
+              style: const TextStyle(fontSize: 13)),
+        ),
+        AnimatedCrossFade(
+          duration: const Duration(milliseconds: 180),
+          crossFadeState: _expanded
+              ? CrossFadeState.showFirst
+              : CrossFadeState.showSecond,
+          firstChild: _ApiFields(
+            baseCtrl: widget.baseCtrl,
+            keyCtrl: widget.keyCtrl,
+            modelCtrl: widget.modelCtrl,
+            baseHint: l10n.aiBaseUrlHint,
+            modelHint: l10n.aiModelHint,
+          ),
+          secondChild: const SizedBox.shrink(),
         ),
       ],
     );
