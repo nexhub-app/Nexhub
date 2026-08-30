@@ -7,12 +7,21 @@
 """
 import json
 import os
+from pathlib import Path
 
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "assets", "icon", "icon.png")
 LIGHT_BLUE = (0x5B, 0x9B, 0xD5, 255)
+
+
+def out_path(*parts):
+    """拼接仓库内输出路径（Path），并校验结果不逃出项目根目录。"""
+    path = Path(os.path.abspath(os.path.join(ROOT, *parts)))
+    if os.path.commonpath([ROOT, str(path)]) != ROOT:
+        raise ValueError("path escapes project root: %s" % path)
+    return path
 
 
 def load():
@@ -76,8 +85,8 @@ def gen_android(im):
            '    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n'
            '</adaptive-icon>\n')
     for name in ("ic_launcher.xml", "ic_launcher_round.xml"):
-        with open(os.path.join(anydpi, name), "w", encoding="utf-8") as f:
-            f.write(xml)
+        out_path("android", "app", "src", "main", "res",
+                 "mipmap-anydpi-v26", name).write_text(xml, encoding="utf-8")
     print("wrote android mipmap icons + adaptive xml")
 
 
@@ -102,8 +111,9 @@ def gen_appiconset(im, base):
                        "idiom": "universal", "filename": name})
     contents = {"images": images,
                 "info": {"version": 1, "author": "xcode"}}
-    with open(os.path.join(out, "Contents.json"), "w", encoding="utf-8") as f:
-        json.dump(contents, f, indent=2)
+    out_path(base, "Assets.xcassets", "AppIcon.appiconset",
+             "Contents.json").write_text(
+        json.dumps(contents, indent=2), encoding="utf-8")
     print("wrote", base, "AppIcon.appiconset")
 
 
@@ -126,9 +136,8 @@ def gen_web(im):
              "sizes": "512x512", "type": "image/png"},
         ],
     }
-    with open(os.path.join(ROOT, "web", "manifest.json"), "w",
-              encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2)
+    out_path("web", "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8")
     print("wrote web icons + manifest.json")
 
 
