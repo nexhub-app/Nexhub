@@ -334,7 +334,10 @@ class HttpFetcher {
   Future<void> loadPersistedCookies() async {
     try {
       final persisted = await CookieStore.load();
-      _cookieJar.addAll(persisted);
+      for (final e in persisted.entries) {
+        final normalized = _normalizeCookieHeader(e.value);
+        if (normalized.isNotEmpty) _cookieJar[e.key] = normalized;
+      }
     } catch (e, st) {
       debugPrint('loadPersistedCookies failed: $e\n$st');
     }
@@ -1107,18 +1110,47 @@ class HttpFetcher {
     }
   }
 
-  /// WebView 验证完成后把共享 Cookie 同步进 Fetcher（含父域子域匹配）。
+  /// 将任意 Cookie 文本归一化为标准 `name=value; name=value` 头值。
   ///
-  /// 同步后自增 [cookieVersion] 并广播，触发封面图加载层立即用新 Cookie 重取
-  /// 之前失败的封面（满足「回灌 Cookie 后自动刷新封面」诉求）。
+  /// 兼容常见粘贴/导出格式：标准 `name=value; name=value`、浏览器「复制为
+  /// fetch/PowerShell 头」的 `name: value` 换行格式、以及换行分隔的
+  /// `name=value` 列表。解析规则：以 `;` 或换行切条目；每个条目取**首个**
+  /// `=` 或 `:` 作键值分隔（值内的 `=`/`:` 保持完整不二次拆分）；丢弃无键名、
+  /// 值为空或字面 ``null`` 的条目（如导出里 `igneous: null` 表示该项未设置）。
+  /// 对已是标准格式的合法输入幂等，故 WebView/浏览器回灌等已正确格式的调用方
+  /// 无需改动。
+  String _normalizeCookieHeader(String raw) {
+    final sb = StringBuffer();
+    for (final seg in raw.split(RegExp(r'[;\n]'))) {
+      final s = seg.trim();
+      if (s.isEmpty) continue;
+      final sep = s.indexOf(RegExp(r'[=:]'));
+      if (sep <= 0) continue; // 无键名（纯值/损坏片段）跳过
+      final name = s.substring(0, sep).trim();
+      final value = s.substring(sep + 1).trim();
+      if (name.isEmpty || value.isEmpty) continue;
+      if (value.toLowerCase() == 'null') continue; // 字面 null 视为未设置
+      if (sb.isNotEmpty) sb.write('; ');
+      sb.write('$name=$value');
+    }
+    return sb.toString();
+  }
+
+  /// WebView/粘贴/浏览器回灌等共享入口：把 Cookie 头写入内存 jar 并落盘。
+  ///
+  /// 写入前先经 [_normalizeCookieHeader] 归一化，避免用户粘贴的非标准格式
+  /// （如 `name: value` 换行）被原样存入后，在后续请求里触发
+  /// `Invalid HTTP header field value` 并导致整次请求失败、内容解析为空。
   void syncCookies(String host, String cookieHeader) {
-    _cookieJar[host] = cookieHeader;
+    final normalized = _normalizeCookieHeader(cookieHeader);
+    if (normalized.isEmpty) return;
+    _cookieJar[host] = normalized;
     _cookieVersion++;
     if (!_cookieVersionController.isClosed) {
       _cookieVersionController.add(_cookieVersion);
     }
     // 落盘持久化（TTL 7 天），避免重启后重新验证。UA 一并存，回灌时配套校验。
-    unawaited(CookieStore.save(host, cookieHeader, _uaForHost(host)));
+    unawaited(CookieStore.save(host, normalized, _uaForHost(host)));
   }
 
   String? getCookieHeader(String host) => _cookieJar[host];
