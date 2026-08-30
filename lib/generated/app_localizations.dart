@@ -13514,6 +13514,24 @@ abstract class AppLocalizations {
   /// **'Requires source-site login first'**
   String get favoriteWebRequiresLogin;
 
+  /// Label for the default (un-categorized) web favorite folder
+  ///
+  /// In en, this message translates to:
+  /// **'Default folder'**
+  String get webFavoriteDefaultFolder;
+
+  /// Toast shown after a gallery is added to web favorites
+  ///
+  /// In en, this message translates to:
+  /// **'Added to web favorites'**
+  String get webFavoriteAdded;
+
+  /// Toast shown when adding to web favorites fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to add to web favorites'**
+  String get webFavoriteAddFailed;
+
   /// Age rating badge: all ages
   ///
   /// In en, this message translates to:

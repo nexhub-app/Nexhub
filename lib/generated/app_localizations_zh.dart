@@ -7029,6 +7029,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get favoriteWebRequiresLogin => '需先登录源站';
 
   @override
+  String get webFavoriteDefaultFolder => '默认收藏夹';
+
+  @override
+  String get webFavoriteAdded => '已加入网络收藏';
+
+  @override
+  String get webFavoriteAddFailed => '加入网络收藏失败';
+
+  @override
   String get ageRatingGeneral => '全年龄';
 
   @override

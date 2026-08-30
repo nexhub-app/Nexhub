@@ -8,7 +8,10 @@ import '../models/media_item.dart';
 import '../models/plugin_config.dart';
 import '../history/media_watched_manager.dart';
 import '../resolver/parse_diagnostics.dart';
+import '../resolver/script_resolver.dart';
+import '../scraper/http_fetcher.dart';
 import '../scraper/verification_navigator.dart';
+import '../services/config_loader.dart';
 import '../services/source_repository.dart';
 import '../settings/layout_settings.dart';
 import '../novel/novel_progress_manager.dart';
@@ -27,6 +30,7 @@ import 'online_home_section.dart';
 import 'online_schedule_section.dart';
 import 'layout_picker_button.dart';
 import 'source_image.dart';
+import 'source_url_browse_screen.dart';
 
 /// 拉取某源在指定分类 / 页码下的内容列表。
 typedef FetchItems = Future<List<MediaItem>> Function(
@@ -168,6 +172,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
 
   // 网络收藏数据（源站书架；进入该 Tab 时按需抓取，见 [_loadWebFavorite]）
   List<MediaItem> _webFavoriteItems = <MediaItem>[];
+  // 网络收藏文件夹列表（源声明 `folders:true` 时由解析器解析得到）。
+  List<WebFavoriteFolder> _webFavoriteFolders = <WebFavoriteFolder>[];
   bool _webFavoriteLoading = false;
   String? _webFavoriteError;
 
@@ -904,6 +910,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       _scheduleItems = <MediaItem>[];
       _scheduleLoading = false;
       _webFavoriteItems = <MediaItem>[];
+      _webFavoriteFolders = <WebFavoriteFolder>[];
       _webFavoriteLoading = false;
       _webFavoriteError = null;
       _rankItems = <MediaItem>[];
@@ -1488,7 +1495,68 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         message: l10n.emptyContent,
       );
     }
-    return _buildMediaItemGrid(l10n, _webFavoriteItems);
+    final hasFolders = _webFavoriteFolders.isNotEmpty;
+    return Column(
+      children: <Widget>[
+        if (hasFolders) _buildWebFavoriteFolderChips(l10n, source, wf!),
+        Expanded(child: _buildMediaItemGrid(l10n, _webFavoriteItems)),
+      ],
+    );
+  }
+
+  /// 网络收藏文件夹切换条：横向滚动 chip。「全部」为当前内联视图；
+  /// 点文件夹跳转该文件夹 URL 的浏览页（复用 [SourceUrlBrowseScreen] 解析/分页）。
+  Widget _buildWebFavoriteFolderChips(
+    AppLocalizations l10n,
+    PluginConfig source,
+    WebFavoriteConfig wf,
+  ) {
+    return SizedBox(
+      height: 52,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceLg,
+          vertical: 6,
+        ),
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(l10n.imageFavoriteAllFolders),
+              selected: true,
+              onSelected: (_) {},
+            ),
+          ),
+          ..._webFavoriteFolders.map(
+            (WebFavoriteFolder f) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ActionChip(
+                label: Text(
+                  f.title.isEmpty ? l10n.webFavoriteDefaultFolder : f.title,
+                ),
+                onPressed: () => _openWebFavoriteFolder(source, f),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 点击文件夹：跳转该文件夹 URL 的浏览页（复用 [SourceUrlBrowseScreen]）。
+  void _openWebFavoriteFolder(PluginConfig source, WebFavoriteFolder f) {
+    final url = _resolveWebFavoriteUrl(source, f.url);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SourceUrlBrowseScreen(
+          source: source,
+          title: f.title.isEmpty ? (source.webFavorite?.title ?? '') : f.title,
+          seedUrl: url,
+          onItemTap: widget.onItemTap,
+        ),
+      ),
+    );
   }
 
   /// 网络收藏（route 列表）懒加载：进入该 Tab 时按需抓取源站书架。
@@ -1508,23 +1576,100 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     if (_webFavoriteItems.isNotEmpty || _webFavoriteLoading) return;
     setState(() => _webFavoriteLoading = true);
     try {
-      final items = await widget.fetchItems(
-        source,
-        category: '',
-        page: 1,
-        vars: <String, String>{
-          'page': '1',
-          if (wf.route != null) '__route': wf.route!,
-        },
-      );
-      if (!mounted) return;
-      setState(() {
-        _webFavoriteItems = items.take(200).toList(growable: false);
-        _webFavoriteLoading = false;
-      });
+      if (wf.folders) {
+        await _loadWebFavoriteWithFolders(source, wf);
+      } else {
+        final items = await widget.fetchItems(
+          source,
+          category: '',
+          page: 1,
+          vars: <String, String>{
+            'page': '1',
+            if (wf.route != null) '__route': wf.route!,
+          },
+        );
+        if (!mounted) return;
+        setState(() {
+          _webFavoriteItems = items.take(200).toList(growable: false);
+          _webFavoriteLoading = false;
+        });
+      }
     } on Object {
       if (mounted) setState(() => _webFavoriteLoading = false);
     }
+  }
+
+  /// 多文件夹模式：直接抓收藏页 HTML，解析文件夹列表 + 「全部」列表。
+  Future<void> _loadWebFavoriteWithFolders(
+    PluginConfig source,
+    WebFavoriteConfig wf,
+  ) async {
+    final routeUrl = wf.route != null && source.routes.containsKey(wf.route)
+        ? source.routes[wf.route]!.url
+        : (wf.url ?? '');
+    final url = _resolveWebFavoriteUrl(source, routeUrl);
+    final html =
+        await HttpFetcher.instance.getHtml(url, referer: source.site.baseUrl);
+    if (!mounted) return;
+    if (html.isEmpty) {
+      setState(() => _webFavoriteLoading = false);
+      return;
+    }
+    // 解析文件夹列表（失败不影响列表展示）。
+    try {
+      final fr = await ScriptResolver().resolveFromHtml(
+        source,
+        'folders',
+        html,
+        vars: <String, String>{
+          'baseUrl': ConfigLoader.instance.getActiveMirror(source),
+          'page': '1',
+        },
+      );
+      if (fr is List) {
+        final list = <WebFavoriteFolder>[];
+        for (final e in fr) {
+          if (e is Map) {
+            list.add(WebFavoriteFolder(
+              (e['title'] ?? '').toString(),
+              (e['url'] ?? '').toString(),
+              (e['value'] ?? '').toString(),
+            ));
+          }
+        }
+        _webFavoriteFolders = list;
+      }
+    } on Object {
+      _webFavoriteFolders = const <WebFavoriteFolder>[];
+    }
+    // 解析「全部」列表（与源列表解析器一致）。
+    final entry = _webFavoriteListEntry(source);
+    final items = await ScriptResolver().resolveFromHtml(
+      source,
+      entry,
+      html,
+      vars: <String, String>{
+        'baseUrl': ConfigLoader.instance.getActiveMirror(source),
+        'page': '1',
+      },
+    );
+    if (!mounted) return;
+    setState(() {
+      _webFavoriteItems = items is List<MediaItem>
+          ? items.take(200).toList(growable: false)
+          : const <MediaItem>[];
+      _webFavoriteLoading = false;
+    });
+  }
+
+  /// 选取源的「列表解析入口」（与 [SourceUrlBrowseScreen] 一致）。
+  static String _webFavoriteListEntry(PluginConfig source) {
+    for (final k in const <String>['explore', 'category', 'search', 'latest']) {
+      if (source.parser.overrides?.containsKey(k) ?? false) return k;
+      if (source.selectors?.containsKey(k) ?? false) return k;
+      if (source.routes.containsKey(k)) return k;
+    }
+    return 'search';
   }
 
   /// 通用 MediaItem 网格/列表渲染（网络收藏列表复用，避免与分类 Tab 的

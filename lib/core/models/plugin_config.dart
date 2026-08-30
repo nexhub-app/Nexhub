@@ -120,6 +120,15 @@ class WebFavoriteConfig {
   /// 是否需要先登录源站（仅用于提示，不阻断操作）。
   final bool requireLogin;
 
+  /// 是否启用「多文件夹」：为 true 时，从收藏页 HTML 用源的
+  /// `parser.overrides.folders` 解析出文件夹列表（标题 + 链接 + favcat 序号），
+  /// 网络收藏 Tab 顶栏出现文件夹切换条；「加入网络收藏」也会弹出文件夹选择。
+  final bool folders;
+
+  /// 选夹添加配置：声明后「加入网络收藏」会弹出文件夹选择并 POST 到源站，
+  /// 而非单纯打开网页。完全声明式，不内置任何站点逻辑。
+  final WebFavoriteAddConfig? add;
+
   const WebFavoriteConfig({
     this.enabled = true,
     this.title,
@@ -128,6 +137,8 @@ class WebFavoriteConfig {
     this.addRoute,
     this.addUrl,
     this.requireLogin = false,
+    this.folders = false,
+    this.add,
   });
 
   factory WebFavoriteConfig.fromJson(Map<String, dynamic> json) =>
@@ -139,6 +150,11 @@ class WebFavoriteConfig {
         addRoute: json['addRoute'] as String?,
         addUrl: json['addUrl'] as String?,
         requireLogin: json['requireLogin'] as bool? ?? false,
+        folders: json['folders'] as bool? ?? false,
+        add: json['add'] is Map
+            ? WebFavoriteAddConfig.fromJson(
+                Map<String, dynamic>.from(json['add'] as Map))
+            : null,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -149,6 +165,68 @@ class WebFavoriteConfig {
         if (addRoute != null) 'addRoute': addRoute,
         if (addUrl != null) 'addUrl': addUrl,
         'requireLogin': requireLogin,
+        if (folders) 'folders': folders,
+        if (add != null) 'add': add!.toJson(),
+      };
+}
+
+/// 网络收藏文件夹（源站书架分组），由源的 `parser.overrides.folders` 解析得到。
+class WebFavoriteFolder {
+  /// 显示名（如 e-hentai 用户自定义收藏夹名）。
+  final String title;
+
+  /// 该文件夹的浏览链接（相对基址或绝对地址）。
+  final String url;
+
+  /// favcat 序号（用于「加入收藏」POST 的 `{folder}` 占位符替换）。
+  final String value;
+
+  const WebFavoriteFolder(this.title, this.url, this.value);
+}
+
+/// 选夹添加配置（声明式）：「加入网络收藏」时弹出文件夹选择，POST 到 [url]。
+///
+/// [url] 支持 `{detailUrl}` `{id}` `{title}` `{folder}` 占位符；
+/// [fields] 表单字段同样支持 `{folder}`（运行时替换为选中的 favcat 序号）。
+/// 例（e-hentai）：
+/// `{"url":"{detailUrl}","method":"POST","contentType":"form",
+/// "fields":{"favcat":"{folder}","favnote":"","apply":"Add to Favorites"}}`。
+class WebFavoriteAddConfig {
+  /// 提交地址模板（支持占位符）。
+  final String? url;
+
+  /// 提交方法，目前仅支持 `POST`。
+  final String method;
+
+  /// 内容类型：`form` = application/x-www-form-urlencoded。
+  final String contentType;
+
+  /// 表单字段；值里的 `{folder}` 会被替换为选中的 favcat 序号。
+  final Map<String, String> fields;
+
+  const WebFavoriteAddConfig({
+    this.url,
+    this.method = 'POST',
+    this.contentType = 'form',
+    this.fields = const <String, String>{},
+  });
+
+  factory WebFavoriteAddConfig.fromJson(Map<String, dynamic> json) =>
+      WebFavoriteAddConfig(
+        url: json['url'] as String?,
+        method: json['method'] as String? ?? 'POST',
+        contentType: json['contentType'] as String? ?? 'form',
+        fields: (json['fields'] as Map?)?.map(
+              (k, v) => MapEntry(k as String, v as String),
+            ) ??
+            const <String, String>{},
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        if (url != null) 'url': url,
+        'method': method,
+        'contentType': contentType,
+        'fields': fields,
       };
 }
 

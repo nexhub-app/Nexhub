@@ -7185,6 +7185,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favoriteWebRequiresLogin => 'Requires source-site login first';
 
   @override
+  String get webFavoriteDefaultFolder => 'Default folder';
+
+  @override
+  String get webFavoriteAdded => 'Added to web favorites';
+
+  @override
+  String get webFavoriteAddFailed => 'Failed to add to web favorites';
+
+  @override
   String get ageRatingGeneral => 'General';
 
   @override

@@ -13,6 +13,9 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/media_item.dart';
 import '../models/plugin_config.dart';
+import '../resolver/script_resolver.dart';
+import '../scraper/http_fetcher.dart';
+import '../services/config_loader.dart';
 import 'detail_action_utils.dart';
 
 /// 弹出收藏菜单：本地收藏 + 网络收藏（二选一）。
@@ -71,14 +74,143 @@ Future<void> showFavoriteSheet({
 }
 
 /// 加入源站网络收藏：优先 `addUrl` / `addRoute`（带占位符），否则退化打开收藏页。
+///
+/// 若源声明了 `webFavorite.add`（选夹添加），则弹出文件夹选择并 POST 到源站。
 Future<void> addWebFavorite(
   BuildContext context,
   PluginConfig source,
   MediaItem item,
 ) async {
+  final wf = source.webFavorite;
+  if (wf == null) {
+    openInAppBrowser(context, source.site.baseUrl);
+    return;
+  }
+  // 声明了「选夹添加」→ 弹文件夹选择并 POST；否则退化打开收藏页（原行为）。
+  if (wf.add != null) {
+    await _addWebFavoriteWithFolder(context, source, item, wf);
+    return;
+  }
   final url = resolveAddWebFavoriteUrl(source, item);
   if (url.isEmpty) return;
   openInAppBrowser(context, url);
+}
+
+/// 选夹添加流程：抓取收藏页解析文件夹列表 → 弹选择 sheet → POST 到源站。
+Future<void> _addWebFavoriteWithFolder(
+  BuildContext context,
+  PluginConfig source,
+  MediaItem item,
+  WebFavoriteConfig wf,
+) async {
+  final l10n = AppLocalizations.of(context);
+  final add = wf.add!;
+  List<WebFavoriteFolder> folders;
+  try {
+    folders = await fetchWebFavoriteFolders(source);
+  } on Object {
+    folders = const <WebFavoriteFolder>[];
+  }
+  if (!context.mounted) return;
+
+  // 第一项为空值占位 = 源站「默认收藏夹」（favcat 空，不加特定夹）。
+  final options = <WebFavoriteFolder>[
+    const WebFavoriteFolder('', '', ''),
+    ...folders,
+  ];
+
+  final WebFavoriteFolder? choice = await showModalBottomSheet<WebFavoriteFolder>(
+    context: context,
+    isScrollControlled: true,
+    builder: (BuildContext ctx) => SafeArea(
+      child: ConstrainedBox(
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                title: Text(l10n.selectFolder),
+                subtitle: Text(l10n.favoriteWeb),
+              ),
+              ...options.map(
+                (WebFavoriteFolder f) => ListTile(
+                  leading: const Icon(Icons.folder_outlined),
+                  title: Text(
+                    f.value.isEmpty ? l10n.webFavoriteDefaultFolder : f.title,
+                  ),
+                  onTap: () => Navigator.of(ctx).pop(f),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+  if (choice == null) return;
+
+  final folderValue = choice.value;
+  final target =
+      _fillPlaceholders(source, add.url ?? source.site.baseUrl, item, folderValue);
+  final fields = <String, String>{};
+  add.fields.forEach((k, v) => fields[k] = v.replaceAll('{folder}', folderValue));
+  try {
+    await HttpFetcher.instance
+        .postForm(target, data: fields, referer: source.site.baseUrl);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.webFavoriteAdded)));
+    }
+  } on Object catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${l10n.webFavoriteAddFailed}: $e')),
+      );
+    }
+  }
+}
+
+/// 从收藏页 HTML 解析文件夹列表（需源声明 `folders:true` 且提供
+/// `parser.overrides.folders` 解析器）。失败返回空列表。
+Future<List<WebFavoriteFolder>> fetchWebFavoriteFolders(
+  PluginConfig source,
+) async {
+  final wf = source.webFavorite;
+  if (wf == null || !wf.folders) return const <WebFavoriteFolder>[];
+  final String baseUrl;
+  if (wf.route != null && source.routes.containsKey(wf.route)) {
+    baseUrl = _resolveAbsoluteUrl(source, source.routes[wf.route]!.url);
+  } else if (wf.url != null && wf.url!.isNotEmpty) {
+    baseUrl = _resolveAbsoluteUrl(source, wf.url!);
+  } else {
+    baseUrl = source.site.baseUrl;
+  }
+  final html =
+      await HttpFetcher.instance.getHtml(baseUrl, referer: source.site.baseUrl);
+  if (html.isEmpty) return const <WebFavoriteFolder>[];
+  final r = await ScriptResolver().resolveFromHtml(
+    source,
+    'folders',
+    html,
+    vars: <String, String>{
+      'baseUrl': ConfigLoader.instance.getActiveMirror(source),
+      'page': '1',
+    },
+  );
+  if (r is! List) return const <WebFavoriteFolder>[];
+  final out = <WebFavoriteFolder>[];
+  for (final e in r) {
+    if (e is Map) {
+      out.add(WebFavoriteFolder(
+        (e['title'] ?? '').toString(),
+        (e['url'] ?? '').toString(),
+        (e['value'] ?? '').toString(),
+      ));
+    }
+  }
+  return out;
 }
 
 /// 计算「加入网络收藏」的目标 URL（声明式，无站点硬编码）。
@@ -105,12 +237,18 @@ String resolveAddWebFavoriteUrl(PluginConfig source, MediaItem item) {
   return source.site.baseUrl;
 }
 
-/// 填充 `{id}` / `{detailUrl}` / `{title}` 占位符并解析为绝对地址。
-String _fillPlaceholders(PluginConfig source, String template, MediaItem item) {
+/// 填充 `{id}` / `{detailUrl}` / `{title}` / `{folder}` 占位符并解析为绝对地址。
+String _fillPlaceholders(
+  PluginConfig source,
+  String template,
+  MediaItem item, [
+  String folder = '',
+]) {
   final filled = template
       .replaceAll('{id}', item.id)
       .replaceAll('{detailUrl}', item.detailUrl ?? '')
-      .replaceAll('{title}', Uri.encodeComponent(item.title));
+      .replaceAll('{title}', Uri.encodeComponent(item.title))
+      .replaceAll('{folder}', folder);
   return _resolveAbsoluteUrl(source, filled);
 }
 

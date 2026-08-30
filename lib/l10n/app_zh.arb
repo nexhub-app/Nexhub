@@ -3693,6 +3693,18 @@
   "@favoriteWebRequiresLogin": {
     "description": "Note shown when web favorite requires login"
   },
+  "webFavoriteDefaultFolder": "默认收藏夹",
+  "@webFavoriteDefaultFolder": {
+    "description": "Label for the default (un-categorized) web favorite folder"
+  },
+  "webFavoriteAdded": "已加入网络收藏",
+  "@webFavoriteAdded": {
+    "description": "Toast shown after a gallery is added to web favorites"
+  },
+  "webFavoriteAddFailed": "加入网络收藏失败",
+  "@webFavoriteAddFailed": {
+    "description": "Toast shown when adding to web favorites fails"
+  },
   "ageRatingGeneral": "全年龄",
   "@ageRatingGeneral": {
     "description": "Age rating badge: all ages"

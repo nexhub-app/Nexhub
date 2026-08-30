@@ -3737,6 +3737,18 @@
   "@favoriteWebRequiresLogin": {
     "description": "Note shown when web favorite requires login"
   },
+  "webFavoriteDefaultFolder": "Default folder",
+  "@webFavoriteDefaultFolder": {
+    "description": "Label for the default (un-categorized) web favorite folder"
+  },
+  "webFavoriteAdded": "Added to web favorites",
+  "@webFavoriteAdded": {
+    "description": "Toast shown after a gallery is added to web favorites"
+  },
+  "webFavoriteAddFailed": "Failed to add to web favorites",
+  "@webFavoriteAddFailed": {
+    "description": "Toast shown when adding to web favorites fails"
+  },
   "ageRatingGeneral": "General",
   "@ageRatingGeneral": {
     "description": "Age rating badge: all ages"
