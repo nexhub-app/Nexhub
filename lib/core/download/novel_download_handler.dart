@@ -19,6 +19,7 @@ import '../local/local_novel_parser.dart' show kNexhubImgMarker;
 import '../novel/novel_chinese_converter.dart';
 import '../novel/novel_export_template.dart';
 import '../novel/novel_highlight_manager.dart';
+import '../ai/translation_options_store.dart';
 import '../novel/novel_translation_manager.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/media_api_service.dart';
@@ -298,8 +299,10 @@ class NovelDownloadHandler implements DownloadHandler {
       // F5：已缓存译文附带为书末附录章节（仅当开启且存在翻译缓存时）。
       if (includeTranslations) {
         final translations = await _loadTranslations();
-        final html =
-            NovelDownloadHandler.translationsToEpubHtml(translations);
+        final html = NovelDownloadHandler.translationsToEpubHtml(
+          translations,
+          layout: await _exportLayout(),
+        );
         if (html != null) {
           epubChapters.add(EpubChapter(
             title: NovelDownloadHandler.translationsTitle,
@@ -347,10 +350,22 @@ class NovelDownloadHandler implements DownloadHandler {
         final path =
             fs.join(workDir, '${NovelDownloadHandler.translationsTitle}.txt');
         await fs.writeString(
-            path, NovelDownloadHandler.translationsToTxt(translations));
+            path,
+            NovelDownloadHandler.translationsToTxt(translations,
+                layout: await _exportLayout()));
       }
     }
     return DownloadResult(workPath: workDir, chapterFilePaths: chapterFilePaths);
+  }
+
+  /// F10：译文附录排版模式（译文优先 / 原文优先 / 双语对照）。
+  /// 读取失败回落「译文优先」。
+  Future<String> _exportLayout() async {
+    try {
+      return await TranslationOptionsStore().getNovelExportLayout();
+    } on Object {
+      return 'translationFirst';
+    }
   }
 
   String _pad5(int n) => n.toString().padLeft(5, '0');
@@ -457,10 +472,41 @@ class NovelDownloadHandler implements DownloadHandler {
   /// 译文导出标题（EPUB 章节名 / TXT 文件名共用）。
   static const String translationsTitle = '_段落翻译';
 
+  /// F10 排版：把「原文/译文」序列按排版模式展平为段落列表。
+  ///
+  /// - translationFirst（默认）：仅译文（原文优先模式在无原文时同样回落）；
+  /// - sourceFirst：仅原文；
+  /// - bilingual：逐段「原文 + 译文」。
+  static List<String> _layoutParagraphs(
+    NovelChapterTranslation t,
+    String layout,
+  ) {
+    final sources = t.sources;
+    final hasSources =
+        sources != null && sources.length == t.translations.length;
+    switch (layout) {
+      case 'sourceFirst':
+        if (!hasSources) return t.translations;
+        return sources;
+      case 'bilingual':
+        final out = <String>[];
+        for (var i = 0; i < t.translations.length; i++) {
+          if (hasSources && sources![i].trim().isNotEmpty) {
+            out.add(sources[i]);
+          }
+          out.add(t.translations[i]);
+        }
+        return out;
+      default:
+        return t.translations;
+    }
+  }
+
   /// 把译文缓存渲染为 EPUB 附录 HTML：每章一节（章名加粗），段内
-  /// 「原文 + 译文」两行对照；空列表返回 null（不追加附录）。
+  /// 按 F10 排版模式输出；空列表返回 null（不追加附录）。
   static String? translationsToEpubHtml(
-      List<NovelChapterTranslation> translations) {
+      List<NovelChapterTranslation> translations,
+      {String layout = 'translationFirst'}) {
     final parts = <String>[];
     for (final t in translations) {
       if (t.translations.isEmpty) continue;
@@ -468,8 +514,8 @@ class NovelDownloadHandler implements DownloadHandler {
       buf.write('<span style="font-weight:bold">'
           '${_escape(t.chapterTitle.isEmpty ? t.chapterId : t.chapterTitle)}'
           '</span><br/>');
-      for (var i = 0; i < t.translations.length; i++) {
-        buf.write('<p>${_escape(t.translations[i])}</p>');
+      for (final paragraph in _layoutParagraphs(t, layout)) {
+        buf.write('<p>${_escape(paragraph)}</p>');
       }
       parts.add(buf.toString());
     }
@@ -477,9 +523,10 @@ class NovelDownloadHandler implements DownloadHandler {
     return '<hr/>${parts.join('<hr/>')}';
   }
 
-  /// 译文缓存的 TXT 版本：每节「【章名】+ 逐行译文」，节间空行分隔。
-  static String translationsToTxt(
-      List<NovelChapterTranslation> translations) {
+  /// 译文缓存的 TXT 版本：每节「【章名】+ 逐行（按 F10 排版模式）」，
+  /// 节间空行分隔。
+  static String translationsToTxt(List<NovelChapterTranslation> translations,
+      {String layout = 'translationFirst'}) {
     final buffer = StringBuffer();
     buffer.writeln('书内段落译文（F5 导出附录）');
     buffer.writeln('======================');
@@ -488,8 +535,8 @@ class NovelDownloadHandler implements DownloadHandler {
       final title =
           t.chapterTitle.isNotEmpty ? t.chapterTitle : t.chapterId;
       buffer.writeln('【$title】');
-      for (final line in t.translations) {
-        buffer.writeln(line);
+      for (final paragraph in _layoutParagraphs(t, layout)) {
+        buffer.writeln(paragraph);
       }
       buffer.writeln();
     }

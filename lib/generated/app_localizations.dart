@@ -15463,6 +15463,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Backup endpoint (auto failover)'**
   String get aiBackupSection;
+
+  /// No description provided for @comicTranslationExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export translations (JSON)'**
+  String get comicTranslationExport;
+
+  /// No description provided for @comicTranslationImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import translations'**
+  String get comicTranslationImport;
+
+  /// No description provided for @comicTranslationImportOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {imported} pages, skipped {skipped} existing'**
+  String comicTranslationImportOk(Object imported, Object skipped);
+
+  /// No description provided for @comicTranslationImportFail.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed: invalid translations file'**
+  String get comicTranslationImportFail;
+
+  /// No description provided for @offlineExportAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Export all completed (bilingual SRT)'**
+  String get offlineExportAll;
 }
 
 class _AppLocalizationsDelegate

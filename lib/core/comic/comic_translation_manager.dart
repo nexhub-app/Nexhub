@@ -184,4 +184,107 @@ class ComicTranslationManager extends ChangeNotifier {
     notifyListeners();
     return keys.length;
   }
+
+  // ── F10 翻译缓存导出 / 导入（translations.json，跨设备复用不再计费）──
+
+  /// 从缓存键解析四段标识（comicId|chapterKey|pageIndex|lang）。
+  ///
+  /// chapterKey 自身可能含 `|`，按「首段=comicId、末两段=pageIndex/lang、
+  /// 中间整体=chapterKey」从两端解析。
+  static (String comicId, String chapterKey, int pageIndex, String lang)?
+      _parseKey(String key) {
+    final parts = key.split('|');
+    if (parts.length < 4) return null;
+    final lang = parts.last;
+    final pageIndex = int.tryParse(parts[parts.length - 2]);
+    if (pageIndex == null) return null;
+    final comicId = parts.first;
+    final chapterKey = parts.sublist(1, parts.length - 2).join('|');
+    return (comicId, chapterKey, pageIndex, lang);
+  }
+
+  /// 导出全部漫画翻译缓存为 JSON 字符串（按作品分块）：
+  /// `{"version":1,"comics":{"<comicId>":{"pages":[{chapterKey,pageIndex,
+  /// imageUrl,lang,segments,updatedAt}]}}}`。
+  Future<String> exportJson() async {
+    final box = await _ensureBox();
+    final comics = <String, List<Map<String, dynamic>>>{};
+    for (final key in box.keys) {
+      if (key is! String) continue;
+      final parsed = _parseKey(key);
+      if (parsed == null) continue;
+      final raw = box.get(key);
+      if (raw is! String || raw.isEmpty) continue;
+      try {
+        final t =
+            ComicPageTranslation.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+        comics
+            .putIfAbsent(parsed.$1, () => <Map<String, dynamic>>[])
+            .add(<String, dynamic>{
+          'chapterKey': parsed.$2,
+          'pageIndex': parsed.$3,
+          'lang': parsed.$4,
+          'imageUrl': t.imageUrl,
+          'segments': <Map<String, dynamic>>[
+            for (final s in t.segments) s.toJson(),
+          ],
+          'updatedAt': t.updatedAt,
+        });
+      } on Object {
+        // 损坏数据忽略。
+      }
+    }
+    return jsonEncode(<String, dynamic>{
+      'version': 1,
+      'comics': comics,
+    });
+  }
+
+  /// 导入漫画翻译缓存（合并策略：已存在的缓存键跳过，不覆盖不重复请求）。
+  /// 返回 (导入条数, 跳过条数)。格式非法时抛 [FormatException]。
+  Future<(int, int)> importJson(String raw) async {
+    final box = await _ensureBox();
+    final dynamic decoded = jsonDecode(raw);
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException('翻译数据格式应为对象');
+    }
+    final comics = decoded['comics'];
+    if (comics is! Map<String, dynamic>) {
+      throw const FormatException('缺少 comics 字段');
+    }
+    var imported = 0;
+    var skipped = 0;
+    for (final entry in comics.entries) {
+      final comicId = entry.key;
+      final pages = entry.value;
+      if (pages is! List) continue;
+      for (final page in pages) {
+        if (page is! Map) continue;
+        final m = page.cast<String, dynamic>();
+        final chapterKey = m['chapterKey'] as String? ?? '';
+        final pageIndex = (m['pageIndex'] as num?)?.toInt();
+        final lang = m['lang'] as String? ?? 'zh';
+        if (pageIndex == null) continue;
+        final key = keyFor(comicId, chapterKey, pageIndex, lang: lang);
+        if (box.containsKey(key)) {
+          skipped++;
+          continue;
+        }
+        final segments = <VisionTextSegment>[
+          for (final s in (m['segments'] as List<dynamic>? ?? const <dynamic>[]))
+            if (s is Map<String, dynamic>) VisionTextSegment.fromJson(s),
+        ];
+        final t = ComicPageTranslation(
+          imageUrl: m['imageUrl'] as String? ?? '',
+          lang: lang,
+          segments: segments,
+          updatedAt: (m['updatedAt'] as num?)?.toInt() ?? 0,
+        );
+        await box.put(key, jsonEncode(t.toJson()));
+        imported++;
+      }
+    }
+    if (imported > 0) notifyListeners();
+    return (imported, skipped);
+  }
 }

@@ -8059,4 +8059,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiBackupSection => '备用接口（主接口故障时自动切换）';
+
+  @override
+  String get comicTranslationExport => '导出翻译数据';
+
+  @override
+  String get comicTranslationImport => '导入翻译数据';
+
+  @override
+  String comicTranslationImportOk(Object imported, Object skipped) {
+    return '已导入 $imported 页，跳过已有 $skipped 页';
+  }
+
+  @override
+  String get comicTranslationImportFail => '导入失败：翻译数据文件格式非法';
+
+  @override
+  String get offlineExportAll => '导出全部已完成（双语 SRT）';
 }

@@ -8256,4 +8256,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiBackupSection => 'Backup endpoint (auto failover)';
+
+  @override
+  String get comicTranslationExport => 'Export translations (JSON)';
+
+  @override
+  String get comicTranslationImport => 'Import translations';
+
+  @override
+  String comicTranslationImportOk(Object imported, Object skipped) {
+    return 'Imported $imported pages, skipped $skipped existing';
+  }
+
+  @override
+  String get comicTranslationImportFail =>
+      'Import failed: invalid translations file';
+
+  @override
+  String get offlineExportAll => 'Export all completed (bilingual SRT)';
 }

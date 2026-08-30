@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
 import '../../../core/ai/translation_exception.dart';
+import '../../../core/utils/app_log.dart';
 import '../../../core/ai/vision_translation_client.dart';
 import '../../../core/player/player_controller.dart';
 import '../../../core/player/subtitle_offline_pipeline.dart';
@@ -765,6 +766,15 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                   icon: const Icon(Icons.translate, size: 16),
                   label: Text(l10n.offlineRetranslate),
                 ),
+                // F10：批量导出全部已完成任务的双语 SRT。
+                TextButton.icon(
+                  onPressed: _doneJobCount > 1
+                      ? () => unawaited(_exportAllOffline())
+                      : null,
+                  icon: const Icon(Icons.file_copy_outlined, size: 16),
+                  label: Text(l10n.offlineExportAll,
+                      style: const TextStyle(fontSize: 12)),
+                ),
               ],
             ],
           ],
@@ -776,6 +786,29 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   /// 任务列表缓存（面板打开期间增量维护，进度经 pipeline 监听刷新）。
   final Map<String, SubtitleOfflineJob> _jobsById =
       <String, SubtitleOfflineJob>{};
+
+  /// 已完成任务数（≥2 时显示批量导出入口，F10）。
+  int get _doneJobCount => _jobsById.values
+      .where((j) => j.status == SubtitleJobStatus.done)
+      .length;
+
+  /// F10：批量导出全部已完成任务的双语 SRT（系统分享多选文件）。
+  Future<void> _exportAllOffline() async {
+    final done = _jobsById.values
+        .where((j) => j.status == SubtitleJobStatus.done)
+        .toList(growable: false);
+    final paths = <XFile>[];
+    for (final job in done) {
+      try {
+        final path = await _offlinePipeline.export(job: job, ass: false);
+        paths.add(XFile(path));
+      } on Object catch (e) {
+        AppLog.instance.w('[字幕离线] 批量导出单任务失败: $e');
+      }
+    }
+    if (paths.isEmpty || !mounted) return;
+    await Share.shareXFiles(paths);
+  }
 
   Future<void> _refreshJobs() async {
     try {

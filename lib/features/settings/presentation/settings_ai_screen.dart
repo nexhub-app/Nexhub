@@ -13,6 +13,11 @@
 /// 供设置搜索以 `ai.*` / `translation.*` 滚动定位到具体卡片。
 library;
 
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/ai/prompt_builder.dart';
@@ -79,6 +84,8 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
   String _trExportLayout = 'translationFirst';
 
   final TranslationOptionsStore _trOptions = TranslationOptionsStore();
+
+  bool _comicImporting = false;
 
   // F9 备用端点（主接口故障时自动切换；留空 = 不启用）。
   final _trBaseBakCtrl = TextEditingController();
@@ -158,6 +165,53 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       );
     } finally {
       if (mounted) setState(() => _clearingCache = false);
+    }
+  }
+
+  /// F10：导出全部漫画翻译缓存为 translations.json 并分享。
+  Future<void> _exportComicTranslations(AppLocalizations l10n) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    try {
+      final json = await ComicTranslationManager().exportJson();
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File(
+          '$dir/nexhub/translations_comic_${DateTime.now().millisecondsSinceEpoch}.json');
+      await file.create(recursive: true);
+      await file.writeAsString(json);
+      await Share.shareXFiles(<XFile>[XFile(file.path)]);
+    } on Object catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
+  /// F10：导入漫画翻译缓存（合并：已存在键跳过；导入后命中缓存不再请求）。
+  Future<void> _importComicTranslations(AppLocalizations l10n) async {
+    if (_comicImporting) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const <String>['json', 'txt'],
+    );
+    final path = result?.files.single.path;
+    if (path == null || !mounted) return;
+    setState(() => _comicImporting = true);
+    try {
+      final raw = await File(path).readAsString();
+      final (imported, skipped) =
+          await ComicTranslationManager().importJson(raw);
+      if (!mounted) return;
+      messenger?.showSnackBar(
+        SnackBar(content: Text(l10n.comicTranslationImportOk(imported, skipped))),
+      );
+    } on Object {
+      if (!mounted) return;
+      messenger?.showSnackBar(
+        SnackBar(content: Text(l10n.comicTranslationImportFail)),
+      );
+    } finally {
+      if (mounted) setState(() => _comicImporting = false);
     }
   }
 
@@ -652,6 +706,33 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                   baseCtrl: _comicBaseBakCtrl,
                   keyCtrl: _comicKeyBakCtrl,
                   modelCtrl: _comicModelBakCtrl,
+                ),
+                const SizedBox(height: AppTokens.spaceMd),
+                // F10：翻译数据导出/导入（跨设备复用，不再重复计费）。
+                Wrap(
+                  spacing: AppTokens.spaceSm,
+                  runSpacing: AppTokens.spaceXs,
+                  children: <Widget>[
+                    OutlinedButton.icon(
+                      onPressed: () => _exportComicTranslations(l10n),
+                      icon: const Icon(Icons.ios_share, size: 16),
+                      label: Text(l10n.comicTranslationExport),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _comicImporting
+                          ? null
+                          : () => _importComicTranslations(l10n),
+                      icon: _comicImporting
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2))
+                          : const Icon(Icons.file_download_outlined,
+                              size: 16),
+                      label: Text(l10n.comicTranslationImport),
+                    ),
+                  ],
                 ),
               ],
             ),
