@@ -477,10 +477,11 @@ class _WorkPagerPageState extends State<_WorkPagerPage> {
       if (_index >= _items.length) _index = _items.length - 1;
     });
     widget.onChanged();
+    // 必须在 pop() 之前捕获 ScaffoldMessenger，否则清空后 pop 再访问 context 会崩溃。
+    final messenger = ScaffoldMessenger.of(context);
+    final msg = l10n.imageFavoriteDeleted;
     if (_items.isEmpty && mounted) Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.imageFavoriteDeleted)),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _shareCurrent() async {

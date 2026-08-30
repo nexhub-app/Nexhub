@@ -151,6 +151,10 @@ class SourceAuthManager extends ChangeNotifier {
     add(source.site.baseUrl);
     add(ConfigLoader.instance.getActiveMirror(source));
     add(source.comments?.login?.url);
+    for (final d in source.network?.cookieDomains ?? const <String>[]) {
+      final h = d.startsWith('.') ? d.substring(1) : d;
+      if (h.isNotEmpty) hosts.add(h);
+    }
     return hosts.toList();
   }
 

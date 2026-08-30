@@ -17,6 +17,7 @@ class SourceNetworkConfig {
   final ProxyConfig? proxy;
   final DnsConfig? dns;
   final List<HostsEntry>? hosts;
+  final List<String>? cookieDomains;
   final SniConfig? sni;
   final EchConfig? ech;
 
@@ -24,6 +25,7 @@ class SourceNetworkConfig {
     this.proxy,
     this.dns,
     this.hosts,
+    this.cookieDomains,
     this.sni,
     this.ech,
   });
@@ -33,6 +35,7 @@ class SourceNetworkConfig {
       proxy == null &&
       dns == null &&
       hosts == null &&
+      cookieDomains == null &&
       sni == null &&
       ech == null;
 
@@ -40,6 +43,7 @@ class SourceNetworkConfig {
     ProxyConfig? proxy,
     DnsConfig? dns,
     List<HostsEntry>? hosts,
+    List<String>? cookieDomains,
     SniConfig? sni,
     EchConfig? ech,
   }) =>
@@ -47,6 +51,7 @@ class SourceNetworkConfig {
         proxy: proxy ?? this.proxy,
         dns: dns ?? this.dns,
         hosts: hosts ?? this.hosts,
+        cookieDomains: cookieDomains ?? this.cookieDomains,
         sni: sni ?? this.sni,
         ech: ech ?? this.ech,
       );
@@ -56,6 +61,7 @@ class SourceNetworkConfig {
         if (dns != null) 'dns': dns!.toJson(),
         if (hosts != null)
           'hosts': hosts!.map((e) => e.toJson()).toList(),
+        if (cookieDomains != null) 'cookieDomains': cookieDomains!,
         if (sni != null) 'sni': sni!.toJson(),
         if (ech != null) 'ech': ech!.toJson(),
       };
@@ -90,6 +96,14 @@ class SourceNetworkConfig {
         hosts = null;
       }
     }
+    List<String>? cookieDomains;
+    if (json['cookieDomains'] is List) {
+      cookieDomains = (json['cookieDomains'] as List)
+          .whereType<String>()
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
     SniConfig? sni;
     if (json['sni'] is Map) {
       try {
@@ -110,6 +124,7 @@ class SourceNetworkConfig {
       proxy: proxy,
       dns: dns,
       hosts: hosts,
+      cookieDomains: cookieDomains,
       sni: sni,
       ech: ech,
     );

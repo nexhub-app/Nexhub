@@ -58,6 +58,10 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
 
     add(widget.source.comments?.login?.url);
     add(widget.source.site.baseUrl);
+    for (final d in widget.source.network?.cookieDomains ?? const <String>[]) {
+      final h = d.startsWith('.') ? d.substring(1) : d;
+      if (h.isNotEmpty) hosts.add(h);
+    }
     return hosts.toList();
   }
 
@@ -91,69 +95,17 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
     final l10n = AppLocalizations.of(context);
     final auth = context.read<SourceAuthManager>();
     final messenger = ScaffoldMessenger.of(context);
-    final controller = TextEditingController();
+    final successMsg = l10n.loginSuccess;
     final text = await showDialog<String>(
       context: context,
-      builder: (BuildContext ctx) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceLg,
-          vertical: AppTokens.spaceXl,
-        ),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Padding(
-            padding: const EdgeInsets.all(AppTokens.spaceLg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text(
-                  l10n.pasteCookie,
-                  style: Theme.of(ctx).textTheme.titleLarge,
-                ),
-                const SizedBox(height: AppTokens.spaceMd),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  minLines: 3,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText: l10n.cookieInputHint,
-                    hintText: l10n.cookieHint,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppTokens.spaceLg),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: <Widget>[
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: Text(l10n.cancel),
-                    ),
-                    const SizedBox(width: AppTokens.spaceSm),
-                    FilledButton(
-                      onPressed: () =>
-                          Navigator.of(ctx).pop(controller.text.trim()),
-                      child: Text(l10n.confirm),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      builder: (BuildContext ctx) => const _PasteCookieDialog(),
     );
-    controller.dispose();
     if (text == null || text.isEmpty) return;
     for (final host in _hosts()) {
       HttpFetcher.instance.syncCookies(host, text);
     }
     await auth.refreshLoginState(widget.source);
-    messenger.showSnackBar(SnackBar(content: Text(l10n.loginSuccess)));
+    messenger.showSnackBar(SnackBar(content: Text(successMsg)));
   }
 
   /// 退出登录：清除该源相关 host 的 Cookie。
@@ -241,3 +193,82 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
 
 /// 登录方式选项卡片已抽到 [source_login_widgets.dart] 的 [LoginOptionCard]，
 /// 本页直接复用，不再重复定义。
+
+/// 粘贴 Cookie 输入对话框（本页专用，保留桌面端紧凑布局）。
+///
+/// 控制器由本 State 持有：待对话框（含退场动画）完全卸载后才释放，避免在
+/// 退场动画期间释放仍被 [EditableText] 使用的控制器，触发「used after
+/// being disposed」并连锁引发 build scope 崩溃。
+class _PasteCookieDialog extends StatefulWidget {
+  const _PasteCookieDialog();
+
+  @override
+  State<_PasteCookieDialog> createState() => _PasteCookieDialogState();
+}
+
+class _PasteCookieDialogState extends State<_PasteCookieDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppTokens.spaceLg,
+        vertical: AppTokens.spaceXl,
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                l10n.pasteCookie,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: AppTokens.spaceMd),
+              TextField(
+                controller: _controller,
+                autofocus: true,
+                minLines: 3,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: l10n.cookieInputHint,
+                  hintText: l10n.cookieHint,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppTokens.spaceLg),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: <Widget>[
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(l10n.cancel),
+                  ),
+                  const SizedBox(width: AppTokens.spaceSm),
+                  FilledButton(
+                    onPressed: () =>
+                        Navigator.of(context).pop(_controller.text.trim()),
+                    child: Text(l10n.confirm),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

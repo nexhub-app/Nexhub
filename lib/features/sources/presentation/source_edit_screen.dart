@@ -65,8 +65,11 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
       }
       context.read<SourceRepository>().replaceSource(config);
       if (mounted) {
+        // 必须在 pop() 之前捕获 ScaffoldMessenger，pop 后再用 context 访问会
+        // 触发「wrong build scope / _dependents.isEmpty」等崩溃。
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(content: Text(l10n.sourceEditSaved)),
         );
       }

@@ -185,6 +185,10 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
     add(_currentPageUrl);
     add(_loginUrl);
     add(widget.source.site.baseUrl);
+    for (final d in widget.source.network?.cookieDomains ?? const <String>[]) {
+      final h = d.startsWith('.') ? d.substring(1) : d;
+      if (h.isNotEmpty) add('https://$h');
+    }
     return uris.values.toList();
   }
 

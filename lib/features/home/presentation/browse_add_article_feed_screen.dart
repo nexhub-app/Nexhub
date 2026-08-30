@@ -81,10 +81,11 @@ class _BrowseAddArticleFeedScreenState extends State<BrowseAddArticleFeedScreen>
             description: _descCtl.text.trim().isEmpty ? null : _descCtl.text.trim(),
           );
       if (mounted) {
+        // 必须在 pop() 之前捕获，避免 pop 后 context 失效导致崩溃。
+        final messenger = ScaffoldMessenger.of(context);
+        final msg = AppLocalizations.of(context).rssFeedSaved;
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).rssFeedSaved)),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());

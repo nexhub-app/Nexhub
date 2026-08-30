@@ -57,6 +57,10 @@ class _SourceLoginSheet extends StatelessWidget {
 
     add(source.comments?.login?.url);
     add(source.site.baseUrl);
+    for (final d in source.network?.cookieDomains ?? const <String>[]) {
+      final h = d.startsWith('.') ? d.substring(1) : d;
+      if (h.isNotEmpty) hosts.add(h);
+    }
     return hosts.toList();
   }
 
@@ -86,45 +90,20 @@ class _SourceLoginSheet extends StatelessWidget {
 
   /// 粘贴 Cookie：多行输入对话框，确认后对源相关 host 手动回灌。
   Future<void> _pasteCookie(BuildContext context) async {
-    final l10n = AppLocalizations.of(context);
     final auth = context.read<SourceAuthManager>();
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final controller = TextEditingController();
+    final successMsg = AppLocalizations.of(context).loginSuccess;
     final text = await showDialog<String>(
       context: context,
-      builder: (BuildContext ctx) => AppAlertDialog(
-        title: Text(l10n.pasteCookie),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 4,
-          decoration: InputDecoration(
-            hintText: l10n.cookieHint,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            ),
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: Text(l10n.confirm),
-          ),
-        ],
-      ),
+      builder: (BuildContext ctx) => const _PasteCookieDialog(),
     );
-    controller.dispose();
     if (text == null || text.isEmpty) return;
     for (final host in _hosts()) {
       HttpFetcher.instance.syncCookies(host, text);
     }
     await auth.refreshLoginState(source);
-    messenger.showSnackBar(SnackBar(content: Text(l10n.loginSuccess)));
+    messenger.showSnackBar(SnackBar(content: Text(successMsg)));
     if (context.mounted) navigator.pop();
   }
 
@@ -233,3 +212,54 @@ class _SourceLoginSheet extends StatelessWidget {
 /// 手动 API Key 输入卡片与登录方式卡片已抽到 [source_login_widgets.dart]，
 /// 本文件仅保留底部面板的布局与登录动作（网页登录 / 粘贴 Cookie / 退出）。
 /// 两处共用 [ApiKeyTile] 与 [LoginOptionCard]，保证行为一致、避免重复维护。
+
+/// 粘贴 Cookie 输入对话框。
+///
+/// 控制器由本 State 持有：待对话框（含退场动画）完全卸载后才释放，避免在
+/// 退场动画期间释放仍被 [EditableText] 使用的控制器，触发「used after being
+/// disposed」并连锁引发 build scope 崩溃。
+class _PasteCookieDialog extends StatefulWidget {
+  const _PasteCookieDialog();
+
+  @override
+  State<_PasteCookieDialog> createState() => _PasteCookieDialogState();
+}
+
+class _PasteCookieDialogState extends State<_PasteCookieDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    return AppAlertDialog(
+      title: Text(l10n.pasteCookie),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLines: 4,
+        decoration: InputDecoration(
+          hintText: l10n.cookieHint,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: Text(l10n.confirm),
+        ),
+      ],
+    );
+  }
+}

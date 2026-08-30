@@ -2314,45 +2314,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
  /// （Hive `novel_content_edits`），随后重载本章使编辑生效。
   Future<void> _showContentEditor() async {
     final l10n = AppLocalizations.of(context);
-    final controller = TextEditingController(
-      text: NovelContentEditManager.encodeBlocksToEditableText(_rawParagraphs),
-    );
-    final bool? saved = await showDialog<bool>(
+    final String? editedText = await showDialog<String>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        title: Text(l10n.novelContentEdit),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: MediaQuery.of(ctx).size.height * 0.55,
-          child: TextField(
-            controller: controller,
-            maxLines: null,
-            expands: true,
-            textAlignVertical: TextAlignVertical.top,
-            style: const TextStyle(fontSize: 14, height: 1.5),
-            decoration: InputDecoration(
-              hintText: l10n.novelContentEditHint,
-              border: const OutlineInputBorder(),
-              isDense: true,
-            ),
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.confirm),
-          ),
-        ],
+      builder: (BuildContext ctx) => _NovelContentEditDialog(
+        initialText:
+            NovelContentEditManager.encodeBlocksToEditableText(_rawParagraphs),
+        hintText: l10n.novelContentEditHint,
       ),
     );
-  // 先取文本再销毁控制器（dispose 后读 text 会抛断言）。
-    final String editedText = controller.text;
-    controller.dispose();
-    if (saved != true || !mounted) return;
+    if (editedText == null || !mounted) return;
 
     final List<NovelBlock> blocks =
         NovelContentEditManager.parseEditableText(editedText);
@@ -10776,6 +10746,76 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// N7 整章正文编辑对话框。
+///
+/// 控制器由本 State 持有：待对话框（含退场动画）完全卸载后才释放，避免在
+/// 退场动画期间释放仍被 [EditableText] 使用的控制器，触发「used after
+/// being disposed」并连锁引发 build scope 崩溃。取消返回 null，确认返回
+/// 编辑后的全文。
+class _NovelContentEditDialog extends StatefulWidget {
+  const _NovelContentEditDialog({
+    required this.initialText,
+    required this.hintText,
+  });
+
+  final String initialText;
+  final String hintText;
+
+  @override
+  State<_NovelContentEditDialog> createState() =>
+      _NovelContentEditDialogState();
+}
+
+class _NovelContentEditDialogState extends State<_NovelContentEditDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l10n.novelContentEdit),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: MediaQuery.of(context).size.height * 0.55,
+        child: TextField(
+          controller: _controller,
+          maxLines: null,
+          expands: true,
+          textAlignVertical: TextAlignVertical.top,
+          style: const TextStyle(fontSize: 14, height: 1.5),
+          decoration: InputDecoration(
+            hintText: widget.hintText,
+            border: const OutlineInputBorder(),
+            isDense: true,
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: Text(l10n.confirm),
+        ),
+      ],
     );
   }
 }
