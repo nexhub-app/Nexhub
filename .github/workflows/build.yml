@@ -177,6 +177,28 @@ jobs:
           cache: true
       - name: 获取依赖
         run: flutter pub get 2>&1
+      - name: 修补插件 proguard 配置以兼容 AGP 9
+        # AGP 9.0 起彻底移除了 getDefaultProguardFile('proguard-android.txt')，
+        # 仍调用它的旧插件（如 flutter_inappwebview_android 1.1.3，官方 issue #2852 未发版修复）
+        # 会在评估期直接 FAILURE。这里在构建前把 pub 缓存里所有插件 android/build.gradle 中的
+        # proguard-android.txt 替换为官方推荐的 proguard-android-optimize.txt。
+        # 仅改 pub 缓存，不触碰仓库源码；应用 release 已关闭 minify，库模块行为不受影响。
+        shell: bash
+        run: |
+          PUB_CACHE_DIR="${PUB_CACHE:-$HOME/.pub-cache}"
+          count=0
+          while IFS= read -r f; do
+            if grep -q "proguard-android\.txt" "$f"; then
+              sed -i 's/proguard-android\.txt/proguard-android-optimize.txt/g' "$f"
+              echo "patched: $f"
+              count=$((count+1))
+            fi
+          done < <(find "$PUB_CACHE_DIR" -path '*/android/build.gradle' 2>/dev/null)
+          if [ "$count" -eq 0 ]; then
+            echo "未发现需要修补的 proguard-android.txt（插件可能已兼容 AGP 9），跳过"
+          else
+            echo "共修补 $count 个插件 build.gradle"
+          fi
       - name: 生成多语言文件 (gen-l10n)
         run: |
           flutter gen-l10n 2>&1
