@@ -157,6 +157,11 @@
 #       但 pub 缓存里的目录实为 `cargokit-<版本号>`，所以一个都没匹配到、静默「跳过」，
 #       Gradle 9 下照样崩。修正为 `cargokit*`，并加上「找不到 / 打不上就 sys.exit(1) 显式失败」
 #       的防静默逻辑（避免上游改结构后在 Gradle 深处报一个看不懂的错）。
+#     - **第二版补丁仍漏改关键块的坑**：第 65 行那处真正执行 cargo 构建的 exec 块里含 GString
+#       `"${buildDir}/build_tool"`，其 `{ }` 花括号让只认 `[^{}]*` 的正则提前断裂、整个块匹配失败，
+#       结果只改了第 60 行的 chmod 块、构建块仍是 Gradle 9 不支持的闭包写法 → 照挂。修正为先用
+#       `\x00…\x00` 占位符屏蔽 `${...}` 再匹配、匹配完还原，并给 plugin.gradle 补 `Action` /
+#       `ExecSpec` 的 import 兜底。
 #     - **移除条件**：irondash 发布 Gradle 9 兼容版（cargokit 改写 exec 调用）后，本步可删除。
 # =============================================================================
 
@@ -227,6 +232,9 @@ jobs:
           pub_cache_dir = os.environ.get('PUB_CACHE_DIR') or os.environ.get('PUB_CACHE') or os.path.expanduser('~/.pub-cache')
           # 注意：pub 缓存里目录名为 cargokit-<版本号>（如 cargokit-1.5.1），
           # 不能用精确的 'cargokit'，否则 glob 匹配不到任何文件、静默跳过。
+          # 第二处 exec 块里含 GString "${buildDir}"，其 { } 花括号会让只认 [^{}]* 的正则
+          # 在匹配时提前断裂，导致该关键构建块漏改、Gradle 9 下照挂。故先用占位符屏蔽
+          # ${...} 再匹配，匹配后还原。
           pattern = re.compile(r'project\.exec\s*\{([^{}]*)\}', re.S)
           def repl(m):
               body = m.group(1)
@@ -235,18 +243,26 @@ jobs:
               new_body = '\n'.join(lines)
               return ('project.exec(new Action<ExecSpec>() {\n'
                       '    void execute(ExecSpec spec) {\n' + new_body + '\n    }\n})')
+          gs_re = re.compile(r'\$\{[^}]*\}')
           for path in glob.glob(os.path.join(pub_cache_dir, '**', 'cargokit*', 'gradle', 'plugin.gradle'), recursive=True):
               found += 1
               with open(path, 'r', encoding='utf-8') as f:
                   src = f.read()
               if 'new Action<ExecSpec>()' in src:
                   continue  # 已修补，跳过
-              new_src, n = pattern.subn(repl, src)
+              # 屏蔽 GString 的 ${...} 花括号，避免正则 [^{}]* 提前断裂、漏改关键构建块
+              protected_src = gs_re.sub(lambda mm: '\x00' + mm.group(0)[2:-1] + '\x00', src)
+              new_protected, n = pattern.subn(repl, protected_src)
               if n == 0:
                   # 文件存在但闭包结构已变化，无法自动修补：显式失败，避免后续在
                   # Gradle 深处报一个莫名其妙的 "Could not find method exec()"。
                   print(f"!! cargokit plugin.gradle 结构已变化，无法自动修补: {path}")
                   sys.exit(1)
+              # 还原 ${...}
+              new_src = re.sub('\x00([^\x00]*)\x00', lambda mm: '${' + mm.group(1) + '}', new_protected)
+              # 确保 Action / ExecSpec 在脚本插件中可解析（默认未必导入）
+              if 'import org.gradle.api.Action' not in new_src:
+                  new_src = 'import org.gradle.api.Action\nimport org.gradle.api.tasks.ExecSpec\n' + new_src
               with open(path, 'w', encoding='utf-8') as f:
                   f.write(new_src)
               patched += n
