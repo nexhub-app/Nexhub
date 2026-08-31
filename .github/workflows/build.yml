@@ -260,7 +260,19 @@ jobs:
               with open(path, 'r', encoding='utf-8') as f:
                   src = f.read()
               if 'providers.exec' in src:
-                  continue  # 已修补，跳过
+                  continue  # 已是最终形式（project.providers.exec），跳过
+              if 'project.exec { spec ->' in src:
+                  # 兼容旧版补丁的残留产物：body 已带 spec. 前缀，只需把方法调用前缀
+                  # 换成 providers.exec 即可（不匹配下方 (?!spec\b) 的 pattern，单独处理）。
+                  new_src = src.replace('project.exec { spec ->', 'project.providers.exec { spec ->')
+                  if 'spec.' not in new_src:
+                      print(f"!! 旧版补丁产物升级失败，疑似结构已变: {path}")
+                      sys.exit(1)
+                  with open(path, 'w', encoding='utf-8') as f:
+                      f.write(new_src)
+                  patched += 1
+                  print(f"upgraded legacy patch -> providers.exec: {path}")
+                  continue
               # 屏蔽 GString 的 ${...} 花括号，避免正则 [^{}]* 提前断裂、漏改关键构建块
               protected_src = gs_re.sub(lambda mm: '\x00' + mm.group(0)[2:-1] + '\x00', src)
               new_protected, n = pattern.subn(repl, protected_src)
@@ -285,6 +297,60 @@ jobs:
               print("cargokit plugin.gradle 已包含 Gradle 9 兼容写法（无需修补）")
           else:
               print(f"共修补 {patched} 处 cargokit exec 调用")
+          PY
+      - name: 修补插件 JVM target 一致性问题（Kotlin 2.2+ fatal diagnostic）
+        # Kotlin 2.2+ 把「Java 与 Kotlin 编译 target 不一致」从警告升级为致命错误：
+        #   Inconsistent JVM-target compatibility detected for tasks
+        #   'compileReleaseJavaWithJavac' (11) and 'compileReleaseKotlin' (1.8).
+        # flutter_js 0.8.7 只设了 kotlinOptions { jvmTarget = 1.8 }、没设 compileOptions，
+        # Java 侧用 AGP/Flutter 默认（11），两边不一致即 FAIL。这里给这类插件补一个与
+        # 其 jvmTarget 匹配的 compileOptions（Java 也编译到 1.8），让两边对齐。
+        # 通用处理：遍历 pub 缓存所有插件 android/build.gradle，凡有 kotlinOptions.jvmTarget
+        # 但 android 块里没有 compileOptions 的，就补上。幂等：已有 compileOptions 则跳过。
+        # 仅改 pub 缓存，不触碰仓库源码；上游发布修复后可移除本步。
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PUB_CACHE_DIR="${PUB_CACHE:-$HOME/.pub-cache}"
+          python3 - <<'PY'
+          import glob, os, re, sys
+          patched = 0
+          found = 0
+          pub_cache_dir = os.environ.get('PUB_CACHE_DIR') or os.environ.get('PUB_CACHE') or os.path.expanduser('~/.pub-cache')
+          # 匹配 kotlinOptions { ... jvmTarget = ... } 块，并提取 JavaVersion 常量（如 VERSION_1_8）
+          ko_re = re.compile(r'kotlinOptions\s*\{[^{}]*?jvmTarget\s*=\s*(?:JavaVersion\.)?(VERSION_\d+(?:_\d+)?)(?:\.toString\(\))?[^{}]*\}', re.S)
+          for path in glob.glob(os.path.join(pub_cache_dir, '**', '*', 'android', 'build.gradle'), recursive=True):
+              with open(path, 'r', encoding='utf-8') as f:
+                  src = f.read()
+              if 'compileOptions' in src:
+                  continue  # 已有 Java target 设置（无论是否与 Kotlin 一致都由作者负责），跳过
+              m = ko_re.search(src)
+              if not m:
+                  continue  # 没设 jvmTarget 或结构不符，不需要处理
+              found += 1
+              version = m.group(1)  # 形如 VERSION_1_8
+              # 在匹配到的 kotlinOptions 块所在行之前插入 compileOptions（与 jvmTarget 同版本），
+              # 复用该行的缩进，保证插入位置准确。
+              line_start = src.rfind('\n', 0, m.start()) + 1
+              indent = re.match(r'[ \t]*', src[line_start:]).group(0)
+              insert = (
+                  f"{indent}compileOptions {{\n"
+                  f"{indent}    sourceCompatibility JavaVersion.{version}\n"
+                  f"{indent}    targetCompatibility JavaVersion.{version}\n"
+                  f"{indent}}}\n"
+              )
+              new_src = src[:line_start] + insert + src[line_start:]
+              if 'compileOptions' not in new_src:
+                  print(f"!! 无法插入 compileOptions: {path}")
+                  sys.exit(1)
+              with open(path, 'w', encoding='utf-8') as f:
+                  f.write(new_src)
+              patched += 1
+              print(f"patched JVM target ({version}): {path}")
+          if found == 0:
+              print("未发现需要修补 JVM target 的插件（上游可能已修复）")
+          else:
+              print(f"共修补 {patched} 个插件的 JVM target")
           PY
       - name: 生成多语言文件 (gen-l10n)
         run: |
