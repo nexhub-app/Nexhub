@@ -208,11 +208,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PUB_CACHE_DIR="${PUB_CACHE:-$HOME/.pub-cache}"
+          export PUB_CACHE_DIR="${PUB_CACHE:-$HOME/.pub-cache}"
           python3 - <<'PY'
           import glob, os, re
           patched = 0
-          for path in glob.glob(os.path.join(os.environ['PUB_CACHE_DIR'], '**', 'cargokit', 'gradle', 'plugin.gradle'), recursive=True):
+          pub_cache_dir = os.environ.get('PUB_CACHE_DIR') or os.environ.get('PUB_CACHE') or os.path.expanduser('~/.pub-cache')
+          for path in glob.glob(os.path.join(pub_cache_dir, '**', 'cargokit', 'gradle', 'plugin.gradle'), recursive=True):
               with open(path, 'r', encoding='utf-8') as f:
                   src = f.read()
               if 'new Action<ExecSpec>()' in src:
