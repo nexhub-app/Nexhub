@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.0-beta.5-announce",
+    "date": "2026-08-31",
+    "title": "NexHub 2.0.0-beta.5 预发布测试版",
+    "titleEn": "NexHub 2.0.0-beta.5 (pre-release beta)",
+    "body": "NexHub 2.0.0-beta.5 预发布测试版来了！本次集中修复网络收藏的多文件夹体验与源网络档案覆盖范围：网络收藏现在能正确切换文件夹、两级导航（文件夹→作品）不再卡死，文件夹卡片还显示条目数；评论、标签浏览、收藏列表三处现在也会正确应用你在源里配置的 SNI / 钉 IP / 自定义 DNS，之前这些页面因没走源网络配置而连不上的问题已修复。这是 beta 测试版，可能有个别 bug，欢迎升级并反馈。无破坏性数据变更，可直接覆盖安装。",
+    "bodyEn": "NexHub 2.0.0-beta.5 (pre-release beta) is here! This release fixes the multi-folder web-favorite experience and broadens source network-profile coverage: web favorites now switch folders correctly and the two-level navigation (folders → items) no longer gets stuck, and folder cards show item counts; comments, tag browsing and favorite lists now correctly apply the SNI / pinned-IP / custom-DNS you configured in the source — the connection failures on those pages are fixed. This is a beta — some bugs may remain; upgrade and report issues. No breaking data changes — just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.0-beta.4-announce",
     "date": "2026-08-31",
     "title": "NexHub 2.0.0-beta.4 预发布测试版",
