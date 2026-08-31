@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.0-beta.4-announce",
+    "date": "2026-08-31",
+    "title": "NexHub 2.0.0-beta.4 预发布测试版",
+    "titleEn": "NexHub 2.0.0-beta.4 (pre-release beta)",
+    "body": "NexHub 2.0.0-beta.4 预发布测试版来了！本次重点打磨跨语言翻译的可靠性与可用性：翻译接口主备容灾 + 健康熔断，章节翻译支持断点续译，术语表注入让专有名词翻译一致，可选润色与证据审校，译文可一键导出复用；漫画页翻译气泡回填更准、视频整片字幕离线翻译可导出双语字幕。同时加固网络连通性（同站串行防限流、网络收藏修复、Cookie 登录归一化）、收藏（详情页可收藏 + 图片收藏持久化）、下载与更新通道，并默认隐藏 18+ 源、全应用补齐触感反馈。这是 beta 测试版，可能有个别 bug，欢迎升级并反馈。无破坏性数据变更，可直接覆盖安装。",
+    "bodyEn": "NexHub 2.0.0-beta.4 (pre-release beta) is here! This release hardens cross-language translation reliability and usability: primary/backup translation endpoints with a health circuit breaker, resumable chapter translation via checkpoints, glossary injection for consistent terms, optional polish and evidence-driven review, and one-tap export of reusable translations; manga page-translation bubbles backfill more accurately and whole-video offline subtitle translation can export bilingual subtitles. Network connectivity is further hardened (per-host serialization to avoid rate-limiting, web-favorite fixes, normalized cookie login), favorites (detail-page favorite + image-favorite persistence), download and update channels, plus 18+ sources hidden by default and haptic feedback app-wide. This is a beta — some bugs may remain; upgrade and report issues. No breaking data changes — just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.0-beta.3-announce",
     "date": "2026-08-30",
     "title": "NexHub 2.0.0-beta.3 预发布测试版",
