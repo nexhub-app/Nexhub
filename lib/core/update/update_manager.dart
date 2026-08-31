@@ -800,13 +800,14 @@ class UpdateManager extends ChangeNotifier {
     return best;
   }
 
-  /// 获取下载目录（应用文档目录；不可用时降级临时目录）。
+  /// 获取下载目录（临时/cache 目录；FileProvider 在 [file_paths.xml] 中已配置
+  /// [cache-path]，Android 7+ 可据此生成 content:// URI 交给系统安装器）。
+  /// 不可用则降级系统临时目录。
   Future<Directory> _getDownloadDirectory() async {
     try {
-      final Directory appDoc = await getApplicationDocumentsDirectory();
-      return appDoc;
+      return await getTemporaryDirectory();
     } on Object {
-      // 忽略，降级临时目录
+      // 忽略，降级系统临时目录
     }
     return Directory.systemTemp;
   }
