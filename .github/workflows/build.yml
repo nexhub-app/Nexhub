@@ -261,23 +261,53 @@ jobs:
           # Provider，真正执行命令）。(?!\s*\.result) 防重复追加。(?!spec\b) 分支兼容已带 spec 的旧产物。
           pattern = re.compile(r'project(?:\.providers)?\.exec\s*\{(?!\s*\.result)([^{}]*)\}(?!\s*\.result)', re.S)
           method_re = re.compile(r'^(\s+)(commandLine|executable|args|environment|workingDir|standardOutput|errorOutput|ignoreExitValue|standardInput|setStandardOutput|setErrorOutput)(\s)')
+          # 注意3（第二个坑）：providers.exec 的 value-source 隔离机制要求 ExecSpec 参数
+          # **可序列化**。cargokit 直接把 java.nio.file.Path / File 对象传给 executable /
+          # environment / commandLine（旧 project.exec 会自动 toString，新 API 不会），
+          # .result.get() 时抛 "Could not serialize value of type UnixPath/WindowsPath"。
+          # 故对 cargokit 模板里固定的三个对象参数补 .toString()（模板固定，safe）。
+          obj_to_string = [
+              ('spec.executable path', 'spec.executable path.toString()'),
+              ("spec.commandLine 'chmod', '+x', path",
+               "spec.commandLine 'chmod', '+x', path.toString()"),
+              ('"CARGOKIT_ROOT_PROJECT_DIR", rootProjectDir',
+               '"CARGOKIT_ROOT_PROJECT_DIR", rootProjectDir.toString()'),
+              ('"CARGOKIT_MANIFEST_DIR", manifestDir',
+               '"CARGOKIT_MANIFEST_DIR", manifestDir.toString()'),
+          ]
+          def defang_object_args(body):
+              for old, new in obj_to_string:
+                  body = body.replace(old, new)
+              return body
           def repl(m):
               body = m.group(1)
               if re.search(r'spec\s*->', body):
-                  # 旧版补丁残留：body 已带 spec. 前缀，只需把方法调用前缀换成 providers.exec 并补
-                  # .result.get()（body 保持原样，避免 spec. 被重复加前缀）。
-                  return 'project.providers.exec {' + body + '}.result.get()'
+                  # 旧版补丁残留：body 已带 spec. 前缀，只需补 .result.get() 并修正对象参数
+                  return 'project.providers.exec {' + defang_object_args(body) + '}.result.get()'
               new_lines = []
               for line in body.split('\n'):
                   new_lines.append(method_re.sub(r'\1spec.\2\3', line))
-              return 'project.providers.exec { spec ->' + '\n'.join(new_lines) + '}.result.get()'
+              return 'project.providers.exec { spec ->' + defang_object_args('\n'.join(new_lines)) + '}.result.get()'
           gs_re = re.compile(r'\$\{[^}]*\}')
           for path in glob.glob(os.path.join(pub_cache_dir, '**', 'cargokit*', 'gradle', 'plugin.gradle'), recursive=True):
               found += 1
               with open(path, 'r', encoding='utf-8') as f:
                   src = f.read()
+              if '.result.get()' in src and 'executable path.toString()' in src:
+                  continue  # 已是最终形式（providers.exec + result.get() + toString），跳过
               if '.result.get()' in src:
-                  continue  # 已是最终形式（providers.exec + result.get()），跳过
+                  # 兼容上一轮残留产物：已有 providers.exec { ... }.result.get() 但缺
+                  # .toString()（否则序列化错误再次出现）。只需补对象参数的 toString，
+                  # 结构已是终态，无需经 pattern 重构。
+                  new_src = defang_object_args(src)
+                  if 'path.toString()' not in new_src or new_src == src:
+                      print(f"!! 上轮残留升级失败，结构不符: {path}")
+                      sys.exit(1)
+                  with open(path, 'w', encoding='utf-8') as f:
+                      f.write(new_src)
+                  patched += 1
+                  print(f"upgraded legacy result.get() -> +toString: {path}")
+                  continue
               # 屏蔽 GString 的 ${...} 花括号，避免正则 [^{}]* 提前断裂、漏改关键构建块
               protected_src = gs_re.sub(lambda mm: '\x00' + mm.group(0)[2:-1] + '\x00', src)
               new_protected, n = pattern.subn(repl, protected_src)
