@@ -147,6 +147,17 @@
 #       两个 linuxdeploy 调用均加 `--appimage-extract-and-run` 规避 FUSE；整体 `set +e` 且
 #       末尾 `exit 0`，确保 AppImage 打不出也不影响发布（tar.gz/deb 仍在）；新增
 #       `linux-appimage-log` artifact（if:always()）上传 `appimage_build.log` 便于失败复现。
+#   v27（当前，v2.0.0-beta.4 修复）：
+#     - **Android 编译在 cargokit 原生构建任务必挂**：`:irondash_engine_context:
+#       cargokitCargoBuild…` 报 `Could not find method exec()`。根因是 Gradle 9 移除了
+#       `Project.exec(Closure)` 重载，而 irondash 0.5.5 自带的 cargokit（gradle/plugin.gradle
+#       第 60/65 行）仍用 `project.exec { … }` 闭包；本地能过只是因为 Rust 产物已缓存、该
+#       task 被跳过（UP-TO-DATE），CI 为 clean 构建必跑到这行。
+#     - **第一版补丁没生效的坑**：glob 写成精确的 `cargokit`（路径段必须正好叫 cargokit），
+#       但 pub 缓存里的目录实为 `cargokit-<版本号>`，所以一个都没匹配到、静默「跳过」，
+#       Gradle 9 下照样崩。修正为 `cargokit*`，并加上「找不到 / 打不上就 sys.exit(1) 显式失败」
+#       的防静默逻辑（避免上游改结构后在 Gradle 深处报一个看不懂的错）。
+#     - **移除条件**：irondash 发布 Gradle 9 兼容版（cargokit 改写 exec 调用）后，本步可删除。
 # =============================================================================
 
 name: Build & Release NexHub
@@ -210,36 +221,41 @@ jobs:
           set -euo pipefail
           export PUB_CACHE_DIR="${PUB_CACHE:-$HOME/.pub-cache}"
           python3 - <<'PY'
-          import glob, os, re
+          import glob, os, re, sys
           patched = 0
+          found = 0
           pub_cache_dir = os.environ.get('PUB_CACHE_DIR') or os.environ.get('PUB_CACHE') or os.path.expanduser('~/.pub-cache')
-          for path in glob.glob(os.path.join(pub_cache_dir, '**', 'cargokit', 'gradle', 'plugin.gradle'), recursive=True):
+          # 注意：pub 缓存里目录名为 cargokit-<版本号>（如 cargokit-1.5.1），
+          # 不能用精确的 'cargokit'，否则 glob 匹配不到任何文件、静默跳过。
+          pattern = re.compile(r'project\.exec\s*\{([^{}]*)\}', re.S)
+          def repl(m):
+              body = m.group(1)
+              lines = [re.sub(r'^(\s+)(commandLine|executable|args|environment)(\s)', r'\1spec.\2\3', line)
+                       for line in body.split('\n')]
+              new_body = '\n'.join(lines)
+              return ('project.exec(new Action<ExecSpec>() {\n'
+                      '    void execute(ExecSpec spec) {\n' + new_body + '\n    }\n})')
+          for path in glob.glob(os.path.join(pub_cache_dir, '**', 'cargokit*', 'gradle', 'plugin.gradle'), recursive=True):
+              found += 1
               with open(path, 'r', encoding='utf-8') as f:
                   src = f.read()
               if 'new Action<ExecSpec>()' in src:
                   continue  # 已修补，跳过
-              # 匹配 project.exec { ... }（闭包体不含花括号，可安全匹配）
-              pattern = re.compile(r'project\.exec\s*\{([^{}]*)\}', re.S)
-              def repl(m):
-                  body = m.group(1)
-                  lines = []
-                  for line in body.split('\n'):
-                      # 给 ExecSpec 方法调用加 spec. 前缀
-                      lines.append(re.sub(r'^(\s+)(commandLine|executable|args|environment)(\s)', r'\1spec.\2\3', line))
-                  new_body = '\n'.join(lines)
-                  return ('project.exec(new Action<ExecSpec>() {\n'
-                          '    void execute(ExecSpec spec) {\n'
-                          + new_body + '\n'
-                          '    }\n'
-                          '})')
               new_src, n = pattern.subn(repl, src)
-              if n > 0:
-                  with open(path, 'w', encoding='utf-8') as f:
-                      f.write(new_src)
-                  patched += n
-                  print(f"patched ({n} exec blocks): {path}")
+              if n == 0:
+                  # 文件存在但闭包结构已变化，无法自动修补：显式失败，避免后续在
+                  # Gradle 深处报一个莫名其妙的 "Could not find method exec()"。
+                  print(f"!! cargokit plugin.gradle 结构已变化，无法自动修补: {path}")
+                  sys.exit(1)
+              with open(path, 'w', encoding='utf-8') as f:
+                  f.write(new_src)
+              patched += n
+              print(f"patched ({n} exec blocks): {path}")
+          if found == 0:
+              print("!! 未在 pub 缓存中找到任何 cargokit plugin.gradle，无法修补 Gradle 9 兼容问题")
+              sys.exit(1)
           if patched == 0:
-              print("未发现需要修补的 cargokit plugin.gradle（可能已兼容 Gradle 9），跳过")
+              print("cargokit plugin.gradle 已包含 Gradle 9 兼容写法（无需修补）")
           else:
               print(f"共修补 {patched} 处 cargokit exec 调用")
           PY
