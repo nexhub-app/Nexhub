@@ -13,6 +13,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/media_item.dart';
 import '../models/plugin_config.dart';
+import '../network/network_config_service.dart';
 import '../resolver/script_resolver.dart';
 import '../scraper/http_fetcher.dart';
 import '../services/config_loader.dart';
@@ -157,8 +158,13 @@ Future<void> _addWebFavoriteWithFolder(
   final fields = <String, String>{};
   add.fields.forEach((k, v) => fields[k] = v.replaceAll('{folder}', folderValue));
   try {
-    await HttpFetcher.instance
-        .postForm(target, data: fields, referer: source.site.baseUrl);
+    await HttpFetcher.instance.postForm(
+      target,
+      data: fields,
+      referer: source.site.baseUrl,
+      // 同列表抓取：带上源的网络档案，否则源的 IP 钉死 / 免 SNI 不生效。
+      net: NetworkConfigService.instance.effectiveFor(source),
+    );
     if (context.mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(l10n.webFavoriteAdded)));
@@ -187,8 +193,12 @@ Future<List<WebFavoriteFolder>> fetchWebFavoriteFolders(
   } else {
     baseUrl = source.site.baseUrl;
   }
-  final html =
-      await HttpFetcher.instance.getHtml(baseUrl, referer: source.site.baseUrl);
+  final html = await HttpFetcher.instance.getHtml(
+    baseUrl,
+    referer: source.site.baseUrl,
+    // 与列表抓取一致：必须带上源的网络档案，否则源的 IP 钉死 / 免 SNI 不生效。
+    net: NetworkConfigService.instance.effectiveFor(source),
+  );
   if (html.isEmpty) return const <WebFavoriteFolder>[];
   final r = await ScriptResolver().resolveFromHtml(
     source,
@@ -203,10 +213,15 @@ Future<List<WebFavoriteFolder>> fetchWebFavoriteFolders(
   final out = <WebFavoriteFolder>[];
   for (final e in r) {
     if (e is Map) {
+      final rawCount = e['count'];
+      final int? count = rawCount is int
+          ? rawCount
+          : (int.tryParse(rawCount?.toString() ?? ''));
       out.add(WebFavoriteFolder(
         (e['title'] ?? '').toString(),
         (e['url'] ?? '').toString(),
         (e['value'] ?? '').toString(),
+        count: count,
       ));
     }
   }

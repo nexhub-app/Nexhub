@@ -11,6 +11,8 @@ library;
 import 'dart:convert';
 
 import '../models/plugin_config.dart';
+import '../network/model/effective_network_profile.dart';
+import '../network/network_config_service.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/verification_detector.dart';
 import '../services/config_loader.dart';
@@ -62,11 +64,16 @@ class CommentAuthRequiredException implements Exception {
 }
 
 /// 评论 HTTP 抽象：默认实现委托 [HttpFetcher.instance]，测试注入 fake。
+///
+/// [net] 为源的有效网络档案（[NetworkConfigService.effectiveFor]）：必须透传，
+/// 否则源的 IP 钉死 / 免 SNI / 自定义 DNS 不生效，请求会以「Network is
+/// unreachable」失败（表现为同源其他请求正常、只有评论挂）。
 abstract class CommentHttpClient {
   Future<String> getText(
     String url, {
     Map<String, String>? headers,
     String? referer,
+    EffectiveNetworkProfile? net,
   });
 
   Future<String> postText(
@@ -74,6 +81,7 @@ abstract class CommentHttpClient {
     Map<String, String>? headers,
     Object? data,
     String? referer,
+    EffectiveNetworkProfile? net,
   });
 
   Future<String> postFormText(
@@ -81,6 +89,7 @@ abstract class CommentHttpClient {
     Map<String, String>? headers,
     Map<String, String>? data,
     String? referer,
+    EffectiveNetworkProfile? net,
   });
 }
 
@@ -92,8 +101,10 @@ class _FetcherCommentClient implements CommentHttpClient {
     String url, {
     Map<String, String>? headers,
     String? referer,
+    EffectiveNetworkProfile? net,
   }) =>
-      HttpFetcher.instance.getHtml(url, headers: headers, referer: referer);
+      HttpFetcher.instance
+          .getHtml(url, headers: headers, referer: referer, net: net);
 
   @override
   Future<String> postText(
@@ -101,9 +112,10 @@ class _FetcherCommentClient implements CommentHttpClient {
     Map<String, String>? headers,
     Object? data,
     String? referer,
+    EffectiveNetworkProfile? net,
   }) =>
       HttpFetcher.instance
-          .post(url, headers: headers, data: data, referer: referer);
+          .post(url, headers: headers, data: data, referer: referer, net: net);
 
   @override
   Future<String> postFormText(
@@ -111,9 +123,15 @@ class _FetcherCommentClient implements CommentHttpClient {
     Map<String, String>? headers,
     Map<String, String>? data,
     String? referer,
+    EffectiveNetworkProfile? net,
   }) =>
-      HttpFetcher.instance
-          .postForm(url, headers: headers, data: data, referer: referer);
+      HttpFetcher.instance.postForm(
+        url,
+        headers: headers,
+        data: data,
+        referer: referer,
+        net: net,
+      );
 }
 
 class CommentApiService {
@@ -216,6 +234,9 @@ class CommentApiService {
       activeBaseUrl: base,
       vars: vars,
     );
+    // 必须带上源的网络档案：源的 IP 钉死 / 免 SNI / 自定义 DNS 只有传了 net
+    // 才生效，否则评论请求会走默认通道而连接失败。
+    final net = NetworkConfigService.instance.effectiveFor(source);
     try {
       if (route.method.toLowerCase() == 'post') {
         final params = _filledParams(route, vars);
@@ -227,6 +248,7 @@ class CommentApiService {
             headers: route.headers,
             data: params,
             referer: base,
+            net: net,
           );
         }
         return await _client.postFormText(
@@ -234,9 +256,15 @@ class CommentApiService {
           headers: route.headers,
           data: params,
           referer: base,
+          net: net,
         );
       }
-      return await _client.getText(url, headers: route.headers, referer: base);
+      return await _client.getText(
+        url,
+        headers: route.headers,
+        referer: base,
+        net: net,
+      );
     } on HttpStatusException catch (e) {
       // 401/403：未登录或会话失效 → 引导登录（302 由 Dio 自动跟随，
       // 登录墙重定向最终多表现为 401/403 或登录页 HTML）。

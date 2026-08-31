@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/comments/comment_api_service.dart';
 import 'package:nexhub/core/models/plugin_config.dart';
+import 'package:nexhub/core/network/model/effective_network_profile.dart';
 import 'package:nexhub/core/scraper/verification_detector.dart';
 
 /// 记录一次 fake 请求的方法/URL/头/体。
@@ -35,6 +36,7 @@ class FakeCommentClient implements CommentHttpClient {
     String url, {
     Map<String, String>? headers,
     String? referer,
+    EffectiveNetworkProfile? net,
   }) {
     requests.add(FakeRequest('GET', url, headers: headers));
     return _pop();
@@ -46,6 +48,7 @@ class FakeCommentClient implements CommentHttpClient {
     Map<String, String>? headers,
     Object? data,
     String? referer,
+    EffectiveNetworkProfile? net,
   }) {
     requests.add(FakeRequest('POST', url, headers: headers, data: data));
     return _pop();
@@ -57,6 +60,7 @@ class FakeCommentClient implements CommentHttpClient {
     Map<String, String>? headers,
     Map<String, String>? data,
     String? referer,
+    EffectiveNetworkProfile? net,
   }) {
     requests.add(FakeRequest('FORM', url, headers: headers, data: data));
     return _pop();

@@ -9410,6 +9410,12 @@ abstract class AppLocalizations {
   /// **'All folders'**
   String get imageFavoriteAllFolders;
 
+  /// No description provided for @backToFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to folders'**
+  String get backToFolders;
+
   /// No description provided for @imageFavoriteFiltersToggle.
   ///
   /// In en, this message translates to:

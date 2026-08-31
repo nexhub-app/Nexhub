@@ -190,7 +190,15 @@ class WebFavoriteFolder {
   /// favcat 序号（用于「加入收藏」POST 的 `{folder}` 占位符替换）。
   final String value;
 
-  const WebFavoriteFolder(this.title, this.url, this.value);
+  /// 该文件夹内的条目数（源解析可选返回，为 null 时 UI 不显示）。
+  final int? count;
+
+  const WebFavoriteFolder(
+    this.title,
+    this.url,
+    this.value, {
+    this.count,
+  });
 }
 
 /// 选夹添加配置（声明式）：「加入网络收藏」时弹出文件夹选择，POST 到 [url]。

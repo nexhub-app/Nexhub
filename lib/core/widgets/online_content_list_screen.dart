@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/category_entry.dart';
 import '../models/media_item.dart';
 import '../models/plugin_config.dart';
+import '../network/network_config_service.dart';
 import '../history/media_watched_manager.dart';
 import '../resolver/parse_diagnostics.dart';
 import '../resolver/script_resolver.dart';
@@ -174,6 +175,17 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   List<MediaItem> _webFavoriteItems = <MediaItem>[];
   // 网络收藏文件夹列表（源声明 `folders:true` 时由解析器解析得到）。
   List<WebFavoriteFolder> _webFavoriteFolders = <WebFavoriteFolder>[];
+  // 当前选中的网络收藏文件夹（null = 「全部」，即收藏 route 的基础地址）。
+  // 之前点文件夹是 push 一个新页面，收藏 Tab 自身永远停在「全部」，
+  // 表现就是「无法切换文件夹」；现在改为两级导航（先出文件夹列表，再进作品）。
+  WebFavoriteFolder? _webFavoriteFolder;
+  // 是否停在第一级「文件夹列表」视图。true = 文件夹列表；false = 第二级作品列表。
+  // 必须用独立标志区分：第一级（未选）与第二级「全部」都用 _webFavoriteFolder==null 表示，
+  // 否则点「全部」会被守卫误判为「已选中」而跳过（见 [_enterWebFavoriteFolder]）。
+  bool _webFavoriteAtFolderList = true;
+  // 第一级「文件夹列表」自身的加载/错误态（区别于第二级作品列表的 _webFavoriteLoading）。
+  bool _webFavoriteFoldersLoading = false;
+  String? _webFavoriteFoldersError;
   bool _webFavoriteLoading = false;
   String? _webFavoriteError;
 
@@ -911,6 +923,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       _scheduleLoading = false;
       _webFavoriteItems = <MediaItem>[];
       _webFavoriteFolders = <WebFavoriteFolder>[];
+      _webFavoriteFolder = null;
+      _webFavoriteAtFolderList = true;
+      _webFavoriteFoldersLoading = false;
+      _webFavoriteFoldersError = null;
       _webFavoriteLoading = false;
       _webFavoriteError = null;
       _rankItems = <MediaItem>[];
@@ -1478,85 +1494,201 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       );
     }
 
-    // route 列表：懒加载 + 网格/列表展示。
-    if (_webFavoriteLoading) {
-      return const Center(child: AppLoadingIndicator());
+    // route 列表：两级导航。
+    //   未选文件夹 → 先展示「文件夹列表」（含「全部」）；
+    //   已选文件夹 → 展示该文件夹的作品，顶部带「‹ 返回文件夹」面包屑。
+    final Widget body;
+    if (_webFavoriteAtFolderList) {
+      // 第一级：文件夹列表（懒加载中 / 错误 / 空 都用文件夹列表的专属态）。
+      if (_webFavoriteFoldersLoading) {
+        body = const Center(child: AppLoadingIndicator());
+      } else if (_webFavoriteFoldersError != null) {
+        body = AppErrorState(
+          message: _webFavoriteFoldersError!,
+          onRetry: () => _loadWebFavorite(),
+          retryLabel: l10n.retry,
+        );
+      } else if (_webFavoriteFolders.isEmpty) {
+        // 源没声明文件夹（或解析为空）：退化为直接展示作品列表。
+        body = _buildWebFavoriteWorksBody(l10n);
+      } else {
+        body = _buildWebFavoriteFolderList(l10n, source, wf!);
+      }
+    } else {
+      // 第二级：作品列表。
+      body = _buildWebFavoriteWorksBody(l10n);
     }
-    if (_webFavoriteError != null) {
-      return AppErrorState(
-        message: _webFavoriteError!,
-        onRetry: () => _loadWebFavorite(),
-        retryLabel: l10n.retry,
-      );
-    }
-    if (_webFavoriteItems.isEmpty) {
-      return AppEmptyState(
-        icon: Icons.bookmark_outline,
-        message: l10n.emptyContent,
-      );
-    }
-    final hasFolders = _webFavoriteFolders.isNotEmpty;
-    return Column(
-      children: <Widget>[
-        if (hasFolders) _buildWebFavoriteFolderChips(l10n, source, wf!),
-        Expanded(child: _buildMediaItemGrid(l10n, _webFavoriteItems)),
-      ],
-    );
+    return body;
   }
 
-  /// 网络收藏文件夹切换条：横向滚动 chip。「全部」为当前内联视图；
-  /// 点文件夹跳转该文件夹 URL 的浏览页（复用 [SourceUrlBrowseScreen] 解析/分页）。
-  Widget _buildWebFavoriteFolderChips(
+  /// 第二级作品列表的「加载/错误/空/网格」四态（文件夹已选中时调用）。
+  ///
+  /// 顶部额外带「‹ 返回文件夹」面包屑：点它清空选中，回到第一级文件夹列表。
+  /// 注意：返回按钮必须**始终保留**在 Column 里——之前在「空列表」分支直接
+  /// `return AppEmptyState` 把整列跳过了，导致空文件夹没有回退入口（用户反馈点无收藏
+  /// 文件夹后回不去）。
+  Widget _buildWebFavoriteWorksBody(AppLocalizations l10n) {
+    final scheme = Theme.of(context).colorScheme;
+    final List<Widget> children = <Widget>[];
+    // 仅当确实存在文件夹列表时，才提供返回入口（退化场景无第一级可回）。
+    if (_webFavoriteFolders.isNotEmpty) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.spaceLg,
+            AppTokens.spaceMd,
+            AppTokens.spaceLg,
+            0,
+          ),
+          child: InkWell(
+            onTap: _webFavoriteLoading
+                ? null
+                : () {
+                    setState(() {
+                      _webFavoriteAtFolderList = true;
+                      _webFavoriteFolder = null;
+                      _webFavoriteItems = <MediaItem>[];
+                      _webFavoriteError = null;
+                    });
+                    _loadWebFavorite();
+                  },
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(Icons.chevron_left, size: 18, color: scheme.primary),
+                  const SizedBox(width: 2),
+                  Text(
+                    l10n.backToFolders,
+                    style: TextStyle(color: scheme.primary),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_webFavoriteLoading) {
+      children.add(const Expanded(child: Center(child: AppLoadingIndicator())));
+    } else if (_webFavoriteError != null) {
+      children.add(
+        Expanded(
+          child: AppErrorState(
+            message: _webFavoriteError!,
+            onRetry: () => _reloadWebFavorite(),
+            retryLabel: l10n.retry,
+          ),
+        ),
+      );
+    } else if (_webFavoriteItems.isEmpty) {
+      children.add(
+        Expanded(
+          child: AppEmptyState(
+            icon: Icons.bookmark_outline,
+            message: l10n.emptyContent,
+          ),
+        ),
+      );
+    } else {
+      children.add(
+        Expanded(child: _buildMediaItemGrid(l10n, _webFavoriteItems)),
+      );
+    }
+    return Column(children: children);
+  }
+
+  /// 第一级：网络收藏文件夹列表（纵向卡片）。
+  ///
+  /// 首项「全部」= 收藏 route 基础地址；其余 = 源解析出的文件夹（带条目数）。
+  /// 点任意项进入第二级（就地切换，不 push 新页）。
+  Widget _buildWebFavoriteFolderList(
     AppLocalizations l10n,
     PluginConfig source,
     WebFavoriteConfig wf,
   ) {
-    return SizedBox(
-      height: 52,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceLg,
-          vertical: 6,
+    final enabled = !_webFavoriteFoldersLoading;
+    return ListView(
+      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      children: <Widget>[
+        _WebFavoriteFolderTile(
+          title: l10n.imageFavoriteAllFolders,
+          count: null,
+          selected: !_webFavoriteAtFolderList && _webFavoriteFolder == null,
+          enabled: enabled,
+          onTap: () => _enterWebFavoriteFolder(source, wf, null),
         ),
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(l10n.imageFavoriteAllFolders),
-              selected: true,
-              onSelected: (_) {},
-            ),
+        for (final f in _webFavoriteFolders)
+          _WebFavoriteFolderTile(
+            title: f.title.isEmpty ? l10n.webFavoriteDefaultFolder : f.title,
+            count: f.count,
+            selected: !_webFavoriteAtFolderList &&
+                _webFavoriteFolder != null &&
+                _webFavoriteFolder!.value == f.value &&
+                _webFavoriteFolder!.url == f.url,
+            enabled: enabled,
+            onTap: () => _enterWebFavoriteFolder(source, wf, f),
           ),
-          ..._webFavoriteFolders.map(
-            (WebFavoriteFolder f) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ActionChip(
-                label: Text(
-                  f.title.isEmpty ? l10n.webFavoriteDefaultFolder : f.title,
-                ),
-                onPressed: () => _openWebFavoriteFolder(source, f),
-              ),
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 
-  /// 点击文件夹：跳转该文件夹 URL 的浏览页（复用 [SourceUrlBrowseScreen]）。
-  void _openWebFavoriteFolder(PluginConfig source, WebFavoriteFolder f) {
-    final url = _resolveWebFavoriteUrl(source, f.url);
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => SourceUrlBrowseScreen(
-          source: source,
-          title: f.title.isEmpty ? (source.webFavorite?.title ?? '') : f.title,
-          seedUrl: url,
-          onItemTap: widget.onItemTap,
-        ),
-      ),
-    );
+  /// 进入某个收藏文件夹（null = 全部）：记录选中 → 清空列表 → 重新抓取。
+  ///
+  /// 两级导航：从第一级文件夹列表点任意项都进入第二级。第二级内若重复点当前已选
+  /// 文件夹则跳过（防连点重复请求）；第一级点「全部」不会因 `_webFavoriteFolder==null`
+  /// 与「全部」的 null 撞车而被误判为已选中。
+  void _enterWebFavoriteFolder(
+    PluginConfig source,
+    WebFavoriteConfig wf,
+    WebFavoriteFolder? f,
+  ) {
+    if (_webFavoriteFoldersLoading) return;
+    // 仅当已处于第二级、且选中的文件夹与当前一致时才跳过。
+    // （第一级时 _webFavoriteAtFolderList==true，必然进入第二级，无论 f 是否为 null。）
+    if (!_webFavoriteAtFolderList) {
+      final current = _webFavoriteFolder;
+      if (current?.url == f?.url && current?.value == f?.value) return;
+    }
+    setState(() {
+      _webFavoriteAtFolderList = false;
+      _webFavoriteFolder = f;
+      _webFavoriteItems = <MediaItem>[];
+      _webFavoriteError = null;
+    });
+    _reloadWebFavorite();
+  }
+
+  /// 按当前选中文件夹重新抓取网络收藏列表（切换文件夹 / 错误重试共用）。
+  ///
+  /// 与 [_loadWebFavorite] 的区别：不走「已有数据就跳过」的懒加载守卫，
+  /// 每次调用都真抓一次。
+  Future<void> _reloadWebFavorite() async {
+    final source = _source;
+    if (source == null || !mounted) return;
+    final wf = source.webFavorite;
+    if (wf == null || !wf.enabled) return;
+    if (_webFavoriteLoading) return;
+    setState(() {
+      _webFavoriteLoading = true;
+      _webFavoriteError = null;
+    });
+    try {
+      if (wf.folders) {
+        await _loadWebFavoriteWithFolders(source, wf);
+      } else {
+        await _loadWebFavoriteSimple(source, wf);
+      }
+    } on Object catch (e) {
+      debugPrint('[OnlineContentList] 网络收藏加载失败: $e');
+      if (!mounted) return;
+      setState(() {
+        _webFavoriteLoading = false;
+        _webFavoriteError = AppLocalizations.of(context).loadFailed;
+      });
+    }
   }
 
   /// 网络收藏（route 列表）懒加载：进入该 Tab 时按需抓取源站书架。
@@ -1573,44 +1705,49 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         (wf.url ?? '').isNotEmpty) {
       return;
     }
+    // 懒加载守卫：已有数据 / 正在加载就跳过（切文件夹与错误重试走
+    // [_reloadWebFavorite]，不受此守卫限制）。
     if (_webFavoriteItems.isNotEmpty || _webFavoriteLoading) return;
-    setState(() {
-      _webFavoriteLoading = true;
-      // 重试/重新进入时清掉上一次的错误，否则会一直卡在错误页。
-      _webFavoriteError = null;
-    });
-    try {
-      if (wf.folders) {
-        await _loadWebFavoriteWithFolders(source, wf);
-      } else {
-        await _loadWebFavoriteSimple(source, wf);
-      }
-    } on Object catch (e) {
-      // 之前这里静默吞异常，用户只看到空白页、无从判断是超时还是真没收藏。
-      // 现在记录错误态并给出「重试」入口（AppErrorState）。
-      debugPrint('[OnlineContentList] 网络收藏加载失败: $e');
-      if (!mounted) return;
+    // 第一级（文件夹列表视图）进入时先点亮文件夹列表的加载态，避免首次进入白屏。
+    if (_webFavoriteAtFolderList) {
       setState(() {
-        _webFavoriteLoading = false;
-        _webFavoriteError = AppLocalizations.of(context).loadFailed;
+        _webFavoriteFoldersLoading = true;
+        _webFavoriteFoldersError = null;
       });
     }
+    // 异常会被 [_reloadWebFavorite] 捕获并落到错误态（带「重试」入口），
+    // 不再静默吞掉——否则用户只看到空白页、无从判断是超时还是真没收藏。
+    await _reloadWebFavorite();
   }
 
-  /// 多文件夹模式：直接抓收藏页 HTML，解析文件夹列表 + 「全部」列表。
+  /// 多文件夹模式：抓当前文件夹（默认「全部」）的收藏页 HTML，
+  /// 解析文件夹列表 + 该页的作品列表。
   Future<void> _loadWebFavoriteWithFolders(
     PluginConfig source,
     WebFavoriteConfig wf,
   ) async {
-    final routeUrl = wf.route != null && source.routes.containsKey(wf.route)
-        ? source.routes[wf.route]!.url
-        : (wf.url ?? '');
-    final url = _resolveWebFavoriteUrl(source, routeUrl);
+    final url = _webFavoriteTargetUrl(source, wf);
     final html =
-        await HttpFetcher.instance.getHtml(url, referer: source.site.baseUrl);
+        await HttpFetcher.instance.getHtml(
+          url,
+          referer: source.site.baseUrl,
+          // 必须带上源的网络档案：源 network 块里的 IP 钉死 / 免 SNI / 自定义 DNS
+          // 只有传了 net 才生效，否则这些请求会走默认通道而连接失败。
+          net: NetworkConfigService.instance.effectiveFor(source),
+        );
     if (!mounted) return;
     if (html.isEmpty) {
-      setState(() => _webFavoriteLoading = false);
+      // 第一级（文件夹列表视图）这是文件夹列表加载失败；第二级（已选文件夹）
+      // 这是作品加载失败。两层都给对应错误态。
+      if (_webFavoriteAtFolderList) {
+        setState(() {
+          _webFavoriteFoldersLoading = false;
+          _webFavoriteFoldersError =
+              AppLocalizations.of(context).loadFailed;
+        });
+      } else {
+        setState(() => _webFavoriteLoading = false);
+      }
       return;
     }
     // 解析文件夹列表（失败不影响列表展示）。
@@ -1628,19 +1765,31 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         final list = <WebFavoriteFolder>[];
         for (final e in fr) {
           if (e is Map) {
+            final rawCount = e['count'];
+            final int? count = rawCount is int
+                ? rawCount
+                : (int.tryParse(rawCount?.toString() ?? ''));
             list.add(WebFavoriteFolder(
               (e['title'] ?? '').toString(),
               (e['url'] ?? '').toString(),
               (e['value'] ?? '').toString(),
+              count: count,
             ));
           }
         }
-        _webFavoriteFolders = list;
+        // 解析为空时保留上一次的文件夹列表：切到某个文件夹后若该页侧栏结构
+        // 略有差异导致解析不到，切换条不应整条消失（否则又切不回来了）。
+        if (list.isNotEmpty) _webFavoriteFolders = list;
       }
     } on Object {
-      _webFavoriteFolders = const <WebFavoriteFolder>[];
+      // 同理：解析异常不清空已有文件夹列表。
     }
-    // 解析「全部」列表（与源列表解析器一致）。
+    // 第一级（文件夹列表视图）结束文件夹列表的加载态；「第二级」时
+    // _webFavoriteLoading 会在下方作品解析后统一结束。
+    if (_webFavoriteAtFolderList) {
+      setState(() => _webFavoriteFoldersLoading = false);
+    }
+    // 解析当前页的作品列表（与源列表解析器一致）。
     final entry = _webFavoriteListEntry(source, wf);
     final items = await ScriptResolver().resolveFromHtml(
       source,
@@ -1669,12 +1818,15 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     PluginConfig source,
     WebFavoriteConfig wf,
   ) async {
-    final routeUrl = wf.route != null && source.routes.containsKey(wf.route)
-        ? source.routes[wf.route]!.url
-        : (wf.url ?? '');
-    final url = _resolveWebFavoriteUrl(source, routeUrl);
+    final url = _webFavoriteTargetUrl(source, wf);
     final html =
-        await HttpFetcher.instance.getHtml(url, referer: source.site.baseUrl);
+        await HttpFetcher.instance.getHtml(
+          url,
+          referer: source.site.baseUrl,
+          // 必须带上源的网络档案：源 network 块里的 IP 钉死 / 免 SNI / 自定义 DNS
+          // 只有传了 net 才生效，否则这些请求会走默认通道而连接失败。
+          net: NetworkConfigService.instance.effectiveFor(source),
+        );
     if (!mounted) return;
     if (html.isEmpty) {
       setState(() => _webFavoriteLoading = false);
@@ -1754,6 +1906,20 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         );
       },
     );
+  }
+
+  /// 当前要抓取的网络收藏地址：
+  /// - 选中了文件夹 → 该文件夹声明的 URL（如 `/favorites.php?favcat=3`）；
+  /// - 「全部」 → 收藏 route 的地址，route 缺失时回退 [WebFavoriteConfig.url]。
+  String _webFavoriteTargetUrl(PluginConfig source, WebFavoriteConfig wf) {
+    final folder = _webFavoriteFolder;
+    if (folder != null && folder.url.isNotEmpty) {
+      return _resolveWebFavoriteUrl(source, folder.url);
+    }
+    final routeUrl = wf.route != null && source.routes.containsKey(wf.route)
+        ? source.routes[wf.route]!.url
+        : (wf.url ?? '');
+    return _resolveWebFavoriteUrl(source, routeUrl);
   }
 
   /// 将源声明的相对 URL 解析为绝对地址（相对基址直接拼接，绝对地址原样返回）。
@@ -2359,4 +2525,77 @@ enum _SectionStatus {
   loaded,
   /// 抓取失败。
   error,
+}
+
+/// 网络收藏第一级：单个文件夹的列表项（纵向卡片）。
+///
+/// 展示文件夹名 + 条目数（若有）；选中态用主色填充；加载中整行禁用点击。
+class _WebFavoriteFolderTile extends StatelessWidget {
+  const _WebFavoriteFolderTile({
+    required this.title,
+    required this.count,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String title;
+  final int? count;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final bg = selected ? scheme.primaryContainer : scheme.surfaceContainerHighest;
+    final fg = selected ? scheme.onPrimaryContainer : scheme.onSurface;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTokens.spaceLg,
+              vertical: 14,
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.folder_outlined, color: fg),
+                const SizedBox(width: AppTokens.spaceMd),
+                Expanded(
+                  child: Text(title, style: TextStyle(color: fg)),
+                ),
+                if (count != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? scheme.primary.withAlpha(40)
+                          : scheme.onSurface.withAlpha(18),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      count.toString(),
+                      style: TextStyle(color: fg, fontSize: 12),
+                    ),
+                  ),
+                Icon(
+                  Icons.chevron_right,
+                  color: fg.withAlpha(140),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

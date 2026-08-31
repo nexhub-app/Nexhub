@@ -4856,6 +4856,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageFavoriteAllFolders => '全部';
 
   @override
+  String get backToFolders => '返回文件夹';
+
+  @override
   String get imageFavoriteFiltersToggle => '收起 / 展开筛选';
 
   @override

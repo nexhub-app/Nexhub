@@ -12,6 +12,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/media_item.dart';
 import '../models/plugin_config.dart';
+import '../network/network_config_service.dart';
 import '../resolver/builtin_resolver.dart';
 import '../resolver/script_resolver.dart';
 import '../scraper/http_fetcher.dart';
@@ -77,8 +78,13 @@ class _SourceUrlBrowseScreenState extends State<SourceUrlBrowseScreen> {
     setState(() => _loading = true);
     try {
       final url = _pageUrl(widget.seedUrl, _page);
-      final html = await HttpFetcher.instance
-          .getHtml(url, referer: widget.source.antiHotlinking.referer);
+      final html = await HttpFetcher.instance.getHtml(
+        url,
+        referer: widget.source.antiHotlinking.referer,
+        // 必须带上源的网络档案：源的 IP 钉死 / 免 SNI / 自定义 DNS 只有传了 net
+        // 才生效，否则会出现「同一域名其他请求正常、这条却 Network unreachable」。
+        net: NetworkConfigService.instance.effectiveFor(widget.source),
+      );
       final List<MediaItem> pageItems = html.isEmpty
           ? const <MediaItem>[]
           : await _parse(source: widget.source, url: url, html: html, page: _page);

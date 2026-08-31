@@ -663,6 +663,11 @@ class ScriptResolver implements SourceResolver {
         // 源自建的「镜像列表」路由：返回 [{name,domain,baseUrl}] 原样透传，
         // 供镜像页自动获取，不做 MediaItem 强转（源即插件，不写死站点逻辑）。
         return _toRawList(result);
+      case 'folders':
+        // 网络收藏文件夹列表：返回 [{title,url,value,...}]，同样是「原样透传」
+        // 给 UI 自己解释的结构，绝不能套 MediaItem 强转（否则 `e is Map` 恒 false、
+        // 文件夹列表永远为空 → 切换条/列表都不显示）。
+        return _toRawList(result);
       default:
         return _toItems(result, sourceId: sourceId);
     }

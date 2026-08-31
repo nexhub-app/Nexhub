@@ -4955,6 +4955,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageFavoriteAllFolders => 'All folders';
 
   @override
+  String get backToFolders => 'Back to folders';
+
+  @override
   String get imageFavoriteFiltersToggle => 'Collapse / expand filters';
 
   @override

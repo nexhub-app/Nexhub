@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/auth/source_auth_manager.dart';
 import 'package:nexhub/core/comments/comment_api_service.dart';
 import 'package:nexhub/core/models/plugin_config.dart';
+import 'package:nexhub/core/network/model/effective_network_profile.dart';
 import 'package:nexhub/core/widgets/comment_section.dart';
 import 'package:nexhub/core/widgets/content_detail_shell.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -39,6 +40,7 @@ class FakeCommentClient implements CommentHttpClient {
     String url, {
     Map<String, String>? headers,
     String? referer,
+    EffectiveNetworkProfile? net,
   }) =>
       _pop();
 
@@ -48,6 +50,7 @@ class FakeCommentClient implements CommentHttpClient {
     Map<String, String>? headers,
     Object? data,
     String? referer,
+    EffectiveNetworkProfile? net,
   }) =>
       _pop();
 
@@ -57,6 +60,7 @@ class FakeCommentClient implements CommentHttpClient {
     Map<String, String>? headers,
     Map<String, String>? data,
     String? referer,
+    EffectiveNetworkProfile? net,
   }) =>
       _pop();
 }
