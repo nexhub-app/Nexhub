@@ -218,8 +218,10 @@ jobs:
       - name: 修补 cargokit exec 调用以兼容 Gradle 9
         # Gradle 9 移除了 Project.exec(Closure) 重载，irondash 0.5.5 自带的 cargokit
         # (gradle/plugin.gradle) 仍用 project.exec { ... } 闭包，会在执行期报
-        # "Could not find method exec()"。这里把闭包重写为 Gradle 8/9 通用的
-        # exec(new Action<ExecSpec>() { void execute(ExecSpec spec) { spec.xxx } }) 形式。
+        # "Could not find method exec()"。这里改写为 Gradle 9 可用的 Groovy SAM 闭包
+        # project.exec { spec -> spec.xxx } 形式（spec 类型由 Project.exec(Action) 推断）。
+        # 关键：plugin.gradle 作为脚本插件，其编译 classpath 不含 Gradle API 类，
+        # 故不能用 new Action<ExecSpec>() 这种显式类型引用（会报 unable to resolve class）。
         # 仅改 pub 缓存，不触碰仓库源码；irondash 发布修复后可移除本步。
         shell: bash
         run: |
@@ -235,20 +237,20 @@ jobs:
           # 第二处 exec 块里含 GString "${buildDir}"，其 { } 花括号会让只认 [^{}]* 的正则
           # 在匹配时提前断裂，导致该关键构建块漏改、Gradle 9 下照挂。故先用占位符屏蔽
           # ${...} 再匹配，匹配后还原。
-          pattern = re.compile(r'project\.exec\s*\{([^{}]*)\}', re.S)
+          pattern = re.compile(r'project\.exec\s*\{(?!spec\b)([^{}]*)\}', re.S)
+          method_re = re.compile(r'^(\s+)(commandLine|executable|args|environment|workingDir|standardOutput|errorOutput|ignoreExitValue|standardInput|setStandardOutput|setErrorOutput)(\s)')
           def repl(m):
               body = m.group(1)
-              lines = [re.sub(r'^(\s+)(commandLine|executable|args|environment)(\s)', r'\1spec.\2\3', line)
-                       for line in body.split('\n')]
-              new_body = '\n'.join(lines)
-              return ('project.exec(new Action<ExecSpec>() {\n'
-                      '    void execute(ExecSpec spec) {\n' + new_body + '\n    }\n})')
+              new_lines = []
+              for line in body.split('\n'):
+                  new_lines.append(method_re.sub(r'\1spec.\2\3', line))
+              return 'project.exec { spec ->' + '\n'.join(new_lines) + '}'
           gs_re = re.compile(r'\$\{[^}]*\}')
           for path in glob.glob(os.path.join(pub_cache_dir, '**', 'cargokit*', 'gradle', 'plugin.gradle'), recursive=True):
               found += 1
               with open(path, 'r', encoding='utf-8') as f:
                   src = f.read()
-              if 'new Action<ExecSpec>()' in src:
+              if 'spec ->' in src:
                   continue  # 已修补，跳过
               # 屏蔽 GString 的 ${...} 花括号，避免正则 [^{}]* 提前断裂、漏改关键构建块
               protected_src = gs_re.sub(lambda mm: '\x00' + mm.group(0)[2:-1] + '\x00', src)
@@ -260,9 +262,9 @@ jobs:
                   sys.exit(1)
               # 还原 ${...}
               new_src = re.sub('\x00([^\x00]*)\x00', lambda mm: '${' + mm.group(1) + '}', new_protected)
-              # 确保 Action / ExecSpec 在脚本插件中可解析（默认未必导入）
-              if 'import org.gradle.api.Action' not in new_src:
-                  new_src = 'import org.gradle.api.Action\nimport org.gradle.api.tasks.ExecSpec\n' + new_src
+              if 'spec.' not in new_src:
+                  print(f"!! 修补后未生成任何 spec. 调用，疑似正则失效: {path}")
+                  sys.exit(1)
               with open(path, 'w', encoding='utf-8') as f:
                   f.write(new_src)
               patched += n
