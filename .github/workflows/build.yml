@@ -150,9 +150,9 @@
 #   v27（当前，v2.0.0-beta.4 修复）：
 #     - **Android 编译在 cargokit 原生构建任务必挂**：`:irondash_engine_context:
 #       cargokitCargoBuild…` 报 `Could not find method exec()`。根因是 Gradle 9 移除了
-#       `Project.exec(Closure)` 重载，而 irondash 0.5.5 自带的 cargokit（gradle/plugin.gradle
-#       第 60/65 行）仍用 `project.exec { … }` 闭包；本地能过只是因为 Rust 产物已缓存、该
-#       task 被跳过（UP-TO-DATE），CI 为 clean 构建必跑到这行。
+#       `Project.exec(...)` 整个方法（不止 Closure 重载，Action 重载也没有了），而 irondash 0.5.5
+#       自带的 cargokit（gradle/plugin.gradle 第 60/65 行）仍用 `project.exec { … }` 闭包；
+#       本地能过只是因为 Rust 产物已缓存、该 task 被跳过（UP-TO-DATE），CI 为 clean 构建必跑到这行。
 #     - **第一版补丁没生效的坑**：glob 写成精确的 `cargokit`（路径段必须正好叫 cargokit），
 #       但 pub 缓存里的目录实为 `cargokit-<版本号>`，所以一个都没匹配到、静默「跳过」，
 #       Gradle 9 下照样崩。修正为 `cargokit*`，并加上「找不到 / 打不上就 sys.exit(1) 显式失败」
@@ -160,9 +160,13 @@
 #     - **第二版补丁仍漏改关键块的坑**：第 65 行那处真正执行 cargo 构建的 exec 块里含 GString
 #       `"${buildDir}/build_tool"`，其 `{ }` 花括号让只认 `[^{}]*` 的正则提前断裂、整个块匹配失败，
 #       结果只改了第 60 行的 chmod 块、构建块仍是 Gradle 9 不支持的闭包写法 → 照挂。修正为先用
-#       `\x00…\x00` 占位符屏蔽 `${...}` 再匹配、匹配完还原，并给 plugin.gradle 补 `Action` /
-#       `ExecSpec` 的 import 兜底。
-#     - **移除条件**：irondash 发布 Gradle 9 兼容版（cargokit 改写 exec 调用）后，本步可删除。
+#       `\x00…\x00` 占位符屏蔽 `${...}` 再匹配、匹配完还原。
+#     - **第三版方向仍错**：把 `project.exec { … }` 改写成 `project.exec { spec -> … }`（Groovy
+#       SAM 闭包）仍失败——因为方法 `Project.exec` 本身已被 Gradle 9 移除，只是换个闭包写法照样
+#       调用不存在的方法。正确替代是 Gradle 8.1+ 的 `ProviderFactory.exec`，即 `project.providers.exec
+#       { spec -> … }`；且脚本插件 classpath 不含 Gradle API 类，故不能用 `new Action<ExecSpec>()`
+#       显式类型引用（会报 unable to resolve class），只能靠 SAM 闭包让 spec 类型由方法签名推断。
+#     - **移除条件**：irondash 发布 Gradle 9 兼容版（cargokit 改用 project.providers.exec）后，本步可删除。
 # =============================================================================
 
 name: Build & Release NexHub
@@ -216,12 +220,15 @@ jobs:
             echo "共修补 $count 个插件 build.gradle"
           fi
       - name: 修补 cargokit exec 调用以兼容 Gradle 9
-        # Gradle 9 移除了 Project.exec(Closure) 重载，irondash 0.5.5 自带的 cargokit
-        # (gradle/plugin.gradle) 仍用 project.exec { ... } 闭包，会在执行期报
-        # "Could not find method exec()"。这里改写为 Gradle 9 可用的 Groovy SAM 闭包
-        # project.exec { spec -> spec.xxx } 形式（spec 类型由 Project.exec(Action) 推断）。
+        # Gradle 9 移除了 Project.exec(...) 方法本身（不止 Closure 重载，Action 重载也没有了），
+        # irondash 0.5.5 自带的 cargokit (gradle/plugin.gradle) 仍用 project.exec { ... }，
+        # 执行期必报 "Could not find method exec()"。Gradle 8.1+ 的正确替代是
+        # ProviderFactory.exec，即 project.providers.exec { spec -> spec.xxx }。
+        # 注意：之前一版补丁只把 project.exec { 改成 project.exec { spec ->，方向错了——
+        # 方法本身已不存在，构建照样失败；必须替换为 project.providers.exec。
         # 关键：plugin.gradle 作为脚本插件，其编译 classpath 不含 Gradle API 类，
-        # 故不能用 new Action<ExecSpec>() 这种显式类型引用（会报 unable to resolve class）。
+        # 故不能用 new Action<ExecSpec>() 这种显式类型引用（会报 unable to resolve class），
+        # 只能靠 Groovy 对 providers.exec(Action) 的 SAM 闭包适配（spec 类型由参数推断）。
         # 仅改 pub 缓存，不触碰仓库源码；irondash 发布修复后可移除本步。
         shell: bash
         run: |
@@ -237,6 +244,8 @@ jobs:
           # 第二处 exec 块里含 GString "${buildDir}"，其 { } 花括号会让只认 [^{}]* 的正则
           # 在匹配时提前断裂，导致该关键构建块漏改、Gradle 9 下照挂。故先用占位符屏蔽
           # ${...} 再匹配，匹配后还原。
+          # 匹配 project.exec { ... }：整体改写为 project.providers.exec { spec -> ... }，
+          # 并把块内 ExecSpec 方法调用加 spec. 前缀。(?!spec\b) 防重复处理已改写过的块。
           pattern = re.compile(r'project\.exec\s*\{(?!spec\b)([^{}]*)\}', re.S)
           method_re = re.compile(r'^(\s+)(commandLine|executable|args|environment|workingDir|standardOutput|errorOutput|ignoreExitValue|standardInput|setStandardOutput|setErrorOutput)(\s)')
           def repl(m):
@@ -244,13 +253,13 @@ jobs:
               new_lines = []
               for line in body.split('\n'):
                   new_lines.append(method_re.sub(r'\1spec.\2\3', line))
-              return 'project.exec { spec ->' + '\n'.join(new_lines) + '}'
+              return 'project.providers.exec { spec ->' + '\n'.join(new_lines) + '}'
           gs_re = re.compile(r'\$\{[^}]*\}')
           for path in glob.glob(os.path.join(pub_cache_dir, '**', 'cargokit*', 'gradle', 'plugin.gradle'), recursive=True):
               found += 1
               with open(path, 'r', encoding='utf-8') as f:
                   src = f.read()
-              if 'spec ->' in src:
+              if 'providers.exec' in src:
                   continue  # 已修补，跳过
               # 屏蔽 GString 的 ${...} 花括号，避免正则 [^{}]* 提前断裂、漏改关键构建块
               protected_src = gs_re.sub(lambda mm: '\x00' + mm.group(0)[2:-1] + '\x00', src)
