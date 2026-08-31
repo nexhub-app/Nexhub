@@ -166,7 +166,14 @@
 #       调用不存在的方法。正确替代是 Gradle 8.1+ 的 `ProviderFactory.exec`，即 `project.providers.exec
 #       { spec -> … }`；且脚本插件 classpath 不含 Gradle API 类，故不能用 `new Action<ExecSpec>()`
 #       显式类型引用（会报 unable to resolve class），只能靠 SAM 闭包让 spec 类型由方法签名推断。
-#     - **移除条件**：irondash 发布 Gradle 9 兼容版（cargokit 改用 project.providers.exec）后，本步可删除。
+#     - **第四版（最终）补上惰性 Provider 的坑**：`project.providers.exec { … }` 只创建 ExecSpec、
+#       返回一个**惰性 Provider**，命令并不会真正执行——cargokit 任务会"成功"但零产出（Rust .so
+#       从未编译），APK 因此缺 `libirondash_engine_context_native.so`，运行时 `System.loadLibrary`
+#       抛 `UnsatisfiedLinkError` 白屏秒退。最终写法是 `project.providers.exec { spec -> … }.result.get()`，
+#       用 `.result.get()` 消费 Provider、强制同步执行并等待命令完成。补丁兼容三态（原始
+#       `project.exec`、旧 `project.exec { spec ->`、上一版 `project.providers.exec { spec ->`），
+#       幂等判定也收紧为检测 `.result.get()`，免得旧的错误产物被跳过。
+#     - **移除条件**：irondash 发布 Gradle 9 兼容版（cargokit 改用 `project.providers.exec { … }.result.get()`）后，本步可删除。
 # =============================================================================
 
 name: Build & Release NexHub
@@ -222,10 +229,15 @@ jobs:
       - name: 修补 cargokit exec 调用以兼容 Gradle 9
         # Gradle 9 移除了 Project.exec(...) 方法本身（不止 Closure 重载，Action 重载也没有了），
         # irondash 0.5.5 自带的 cargokit (gradle/plugin.gradle) 仍用 project.exec { ... }，
-        # 执行期必报 "Could not find method exec()"。Gradle 8.1+ 的正确替代是
+        # 执行期必报 "Could not find method exec()"。Gradle 8.1+ 的替代是
         # ProviderFactory.exec，即 project.providers.exec { spec -> spec.xxx }。
-        # 注意：之前一版补丁只把 project.exec { 改成 project.exec { spec ->，方向错了——
-        # 方法本身已不存在，构建照样失败；必须替换为 project.providers.exec。
+        # 注意1：之前一版补丁只把 project.exec { 改成 project.exec { spec ->，方向错了——
+        #   方法本身已不存在，构建照样失败；必须替换为 project.providers.exec。
+        # 注意2（关键坑）：providers.exec 返回的是**惰性 Provider**，仅创建 ExecSpec 不会
+        #   真正执行命令！必须补 `.result.get()` 消费 Provider 才会运行 run_build_tool.sh
+        #   下载/编译 Rust .so。只换 providers.exec 而不 get() 会让 cargokit 任务"成功"但
+        #   零产出（Gradle 日志：Task has not declared any outputs）、APK 缺 irondash .so、
+        #   运行时 UnsatisfiedLinkError 白屏秒退。此前一版正是栽在这里。
         # 关键：plugin.gradle 作为脚本插件，其编译 classpath 不含 Gradle API 类，
         # 故不能用 new Action<ExecSpec>() 这种显式类型引用（会报 unable to resolve class），
         # 只能靠 Groovy 对 providers.exec(Action) 的 SAM 闭包适配（spec 类型由参数推断）。
@@ -244,35 +256,28 @@ jobs:
           # 第二处 exec 块里含 GString "${buildDir}"，其 { } 花括号会让只认 [^{}]* 的正则
           # 在匹配时提前断裂，导致该关键构建块漏改、Gradle 9 下照挂。故先用占位符屏蔽
           # ${...} 再匹配，匹配后还原。
-          # 匹配 project.exec { ... }：整体改写为 project.providers.exec { spec -> ... }，
-          # 并把块内 ExecSpec 方法调用加 spec. 前缀。(?!spec\b) 防重复处理已改写过的块。
-          pattern = re.compile(r'project\.exec\s*\{(?!spec\b)([^{}]*)\}', re.S)
+          # 匹配 project.exec { ... } 或 project.providers.exec { ... }（兼容历版补丁残留）：
+          # 统一改写为 project.providers.exec { spec -> ... }.result.get()（result.get() 消费惰性
+          # Provider，真正执行命令）。(?!\s*\.result) 防重复追加。(?!spec\b) 分支兼容已带 spec 的旧产物。
+          pattern = re.compile(r'project(?:\.providers)?\.exec\s*\{(?!\s*\.result)([^{}]*)\}(?!\s*\.result)', re.S)
           method_re = re.compile(r'^(\s+)(commandLine|executable|args|environment|workingDir|standardOutput|errorOutput|ignoreExitValue|standardInput|setStandardOutput|setErrorOutput)(\s)')
           def repl(m):
               body = m.group(1)
+              if re.search(r'spec\s*->', body):
+                  # 旧版补丁残留：body 已带 spec. 前缀，只需把方法调用前缀换成 providers.exec 并补
+                  # .result.get()（body 保持原样，避免 spec. 被重复加前缀）。
+                  return 'project.providers.exec {' + body + '}.result.get()'
               new_lines = []
               for line in body.split('\n'):
                   new_lines.append(method_re.sub(r'\1spec.\2\3', line))
-              return 'project.providers.exec { spec ->' + '\n'.join(new_lines) + '}'
+              return 'project.providers.exec { spec ->' + '\n'.join(new_lines) + '}.result.get()'
           gs_re = re.compile(r'\$\{[^}]*\}')
           for path in glob.glob(os.path.join(pub_cache_dir, '**', 'cargokit*', 'gradle', 'plugin.gradle'), recursive=True):
               found += 1
               with open(path, 'r', encoding='utf-8') as f:
                   src = f.read()
-              if 'providers.exec' in src:
-                  continue  # 已是最终形式（project.providers.exec），跳过
-              if 'project.exec { spec ->' in src:
-                  # 兼容旧版补丁的残留产物：body 已带 spec. 前缀，只需把方法调用前缀
-                  # 换成 providers.exec 即可（不匹配下方 (?!spec\b) 的 pattern，单独处理）。
-                  new_src = src.replace('project.exec { spec ->', 'project.providers.exec { spec ->')
-                  if 'spec.' not in new_src:
-                      print(f"!! 旧版补丁产物升级失败，疑似结构已变: {path}")
-                      sys.exit(1)
-                  with open(path, 'w', encoding='utf-8') as f:
-                      f.write(new_src)
-                  patched += 1
-                  print(f"upgraded legacy patch -> providers.exec: {path}")
-                  continue
+              if '.result.get()' in src:
+                  continue  # 已是最终形式（providers.exec + result.get()），跳过
               # 屏蔽 GString 的 ${...} 花括号，避免正则 [^{}]* 提前断裂、漏改关键构建块
               protected_src = gs_re.sub(lambda mm: '\x00' + mm.group(0)[2:-1] + '\x00', src)
               new_protected, n = pattern.subn(repl, protected_src)
@@ -283,8 +288,8 @@ jobs:
                   sys.exit(1)
               # 还原 ${...}
               new_src = re.sub('\x00([^\x00]*)\x00', lambda mm: '${' + mm.group(1) + '}', new_protected)
-              if 'spec.' not in new_src:
-                  print(f"!! 修补后未生成任何 spec. 调用，疑似正则失效: {path}")
+              if '.result.get()' not in new_src or 'spec.' not in new_src:
+                  print(f"!! 修补后未见 result.get()/spec. 调用，疑似正则失效: {path}")
                   sys.exit(1)
               with open(path, 'w', encoding='utf-8') as f:
                   f.write(new_src)
