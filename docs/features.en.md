@@ -254,3 +254,19 @@ The video player has built-in danmaku, creating a "watching together" feel:
 - **Danmaku source**: can connect to open danmaku networks like DandanPlay, auto-matching the danmaku pool by title / episode; some sources require a signed-in danmaku account before pulling / sending;
 - **Rendering detail**: since beta.2 it includes an anti-overlap track algorithm, stable danmaku position after seek, and per-video subtitle memory; after signing in to DandanPlay you can send danmaku;
 - The danmaku toggle and basic style are adjustable in the player "more" menu / settings; films without a danmaku source show no danmaku layer.
+## 2.28 Translation Advancements (v2.0.0-beta.3+)
+
+On top of the three translation pipelines (novel paragraphs / manga pages / video subtitles), a cross-module advanced toolkit:
+
+- **Glossary & name consistency**: an editor under Settings → AI configuration maintains "term → preferred translation + accepted aliases" with JSON import/export; entries are injected into all three pipelines so character names stay consistent across a book; deviations are logged as conflicts;
+- **Context injection**: subtitle requests carry recent dialogue pairs, novel chunked requests carry the previous chunk tail, manga page requests carry a short previous-page summary;
+- **Style presets & deliberate translation**: one style preset (standard / colloquial / elegant / internet slang) applies to all three modules; the deliberate (chain-of-thought) toggle is off by default;
+- **Whole-book prescan (novel)**: triggered from the translation panel; per-chapter summaries are batched and merged into a ~200-word book overview, resumable when interrupted; later translations automatically receive the book context and current-chapter recap;
+- **Checkpoint resume (novel)**: long chapters persist a checkpoint after every chunk; "Resume translation" continues from where it stopped without re-billing finished chunks;
+- **Optional polish**: once enabled in settings, finished chapters can be polished in a second pass; results live in a separate slot and the panel toggles between first-pass and polished text;
+- **Translation review reports**: Settings → AI configuration → review runs local zero-cost checks (glossary consistency / missing translations / suspicious literal style) with per-finding evidence; reports are stored and exportable as JSON;
+- **Offline whole-video translation (phase 1)**: pick an external subtitle file (SRT / VTT / ASS) in the subtitle panel, translate the whole track in checkpointed batches, then export bilingual SRT/ASS and upload to WebDAV, with batch export for all finished jobs; **limitation**: embedded subtitle tracks cannot be extracted in full, use external subtitle files;
+- **Multi-provider failover**: each of novel / manga / video translation accepts a backup endpoint; connection failures, timeouts and 429 rate limits fail over within a single request, and an endpoint failing twice in a row is suspended for 5 minutes (session memory);
+- **Export enhancements**: manga translations export/import as JSON (cache hits after import, no re-billing); the novel appendix honors the translation-first / source-first / bilingual layout setting.
+
+> The glossary is stored per book + language; the global table applies everywhere, including subtitle translation where no book identity exists. Review reports are local heuristics only (no extra request cost); deeper pronoun-breakage review requires model re-reading and is not included yet.

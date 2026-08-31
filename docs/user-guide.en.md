@@ -27,7 +27,8 @@ Because the app **ships with no sources**, it's empty on first launch — you mu
 - **Filter**: some sources provide tag / category filters for quick targeting;
 - **Collection groups / ratings / comments**: add favorite entries to groups, give local ratings and short comments, and join site comments on supported sources;
 - **Bangumi sync**: optionally log in to a Bangumi account to sync collections / progress / ratings;
-- **Network config**: adjust proxy, DNS, Hosts, etc. in Settings when connections fail or a proxy is needed (per-source override supported).
+- **Network config**: adjust proxy, DNS, Hosts, etc. in Settings when connections fail or a proxy is needed (per-source override supported);
+- **AI translation**: fill in an endpoint under Settings → AI configuration to use novel bilingual translation, manga page translation and live subtitle translation; advanced capabilities (glossary, book prescan, checkpoint resume, polish, review reports, offline whole-video translation and bilingual subtitle export) are described in "Core features · Translation advancements".
 
 ## 3.4 FAQ
 
