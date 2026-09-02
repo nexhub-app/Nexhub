@@ -43,6 +43,8 @@ import './settings_cloud_sync_screen.dart';
 import './settings_bangumi_screen.dart';
 import './settings_rss_notifications_screen.dart';
 import './settings_rsshub_screen.dart';
+import '../../rss/presentation/rss_feed_list_screen.dart';
+import '../../rss/presentation/rss_favorites_screen.dart';
 import '../../sources/presentation/source_manager_screen.dart';
 import '../../home/presentation/browse_web_scrape_screen.dart';
 import '../../stats/presentation/stats_overview_screen.dart';
@@ -1139,7 +1141,7 @@ class SettingsScreen extends StatelessWidget {
 
       // ───────────────── 配置与网络 ─────────────────
       _SettingEntry(
-        icon: Icons.rss_feed,
+        icon: Icons.tune_outlined,
         title: l10n.settingsCatContent,
         desc: l10n.settingsCatContentDesc,
         keywords: const <String>['配置', '网络', '内容', '源', 'ai', 'AI', '爬取', '翻译'],
@@ -1257,7 +1259,7 @@ class SettingsScreen extends StatelessWidget {
       _SettingEntry(
         icon: Icons.extension_outlined,
         title: l10n.sourceManagementTitle,
-        desc: l10n.subscriptionManagementDesc,
+        desc: l10n.sourceManagementDesc,
         keywords: const <String>[
           '源',
           '源管理',
@@ -1625,6 +1627,34 @@ class SettingsScreen extends StatelessWidget {
         builder: (_) => const SettingsBangumiScreen(),
       ),
       // 订阅 / RSS 相关：
+      _SettingEntry(
+        icon: Icons.rss_feed_outlined,
+        title: l10n.rssFeedListTitle,
+        desc: l10n.rssGlobalSubscriptionDesc,
+        keywords: const <String>[
+          'rss',
+          '订阅',
+          '订阅源',
+          '订阅列表',
+          'feed',
+          '信息源'
+        ],
+        builder: (_) => const RssFeedListScreen(moduleType: null),
+      ),
+      _SettingEntry(
+        icon: Icons.bookmark_outline,
+        title: l10n.rssFavorites,
+        desc: l10n.rssFavoritesDesc,
+        keywords: const <String>[
+          'rss',
+          '收藏',
+          'rss收藏',
+          '星标',
+          'favorites',
+          '已收藏文章'
+        ],
+        builder: (_) => const RssFavoritesScreen(),
+      ),
       _SettingEntry(
         icon: Icons.notifications_outlined,
         title: l10n.rssNotificationsTitle,

@@ -9,9 +9,9 @@ import '../../../core/widgets/app_animations.dart';
 
 import 'browse_local_screen.dart';
 import 'browse_network_screen.dart';
-import 'browse_rss_screen.dart';
 import 'browse_sniffer_screen.dart';
 import 'browse_web_scrape_screen.dart';
+import '../../rss/presentation/rss_feed_list_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 浏览页入口项数据模型。
@@ -154,7 +154,9 @@ class BrowsePage extends StatelessWidget {
         iconColor: scheme.onErrorContainer,
         onTap: () => Navigator.of(context).push(
               AppPageRoute<void>(
-                builder: (_) => const BrowseRssScreen(),
+                // 浏览页 RSS 显示全局订阅（未绑定模块的订阅源），
+                // 与设置页「RSS 订阅」入口同源。
+                builder: (_) => const RssFeedListScreen(moduleType: null),
               ),
             ),
       ),

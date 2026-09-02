@@ -106,5 +106,16 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- 网页链接跳转（url_launcher 打开 http/https）：Android 11+ 包可见性
+             要求显式声明可处理的 VIEW 意图，否则 queryIntentActivities 返回空，
+             launchUrl 抛 PlatformException「Couldn't launch url」（对应 A3 链接跳转）。 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
     </queries>
 </manifest>

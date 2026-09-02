@@ -25,7 +25,6 @@ import '../../core/network/network_config_service.dart';
 import '../../core/network/source_network_override_store.dart';
 import '../../core/novel/novel_toc_store.dart';
 import '../../core/resolver/resolver_registry.dart';
-import '../../core/rss/browse_article_feed_manager.dart';
 import '../../core/rss/rss_manager.dart';
 import '../../core/rss/rss_update_checker.dart';
 import '../../core/history/media_watched_manager.dart';
@@ -65,7 +64,6 @@ class InitResult {
   final FavoritesManager favoritesManager;
   final HistoryManager historyManager;
   final RssManager rssManager;
-  final BrowseArticleFeedManager browseArticleFeedManager;
   final RssUpdateChecker rssUpdateChecker;
   final MediaWatchedManager mediaWatchedManager;
   final MediaPlaybackPositionManager mediaPlaybackPositionManager;
@@ -75,7 +73,7 @@ class InitResult {
   final BangumiSyncService bangumiSyncService;
   final NetworkConfigService networkConfigService;
 
-  const InitResult({
+    const InitResult({
     required this.sourceRepo,
     required this.registry,
     required this.mediaService,
@@ -83,7 +81,6 @@ class InitResult {
     required this.favoritesManager,
     required this.historyManager,
     required this.rssManager,
-    required this.browseArticleFeedManager,
     required this.rssUpdateChecker,
     required this.mediaWatchedManager,
     required this.mediaPlaybackPositionManager,
@@ -234,8 +231,6 @@ class _SplashScreenState extends State<SplashScreen> {
     await historyManager.init();
     final rssManager = RssManager();
     await rssManager.init();
-    final browseArticleFeedManager = BrowseArticleFeedManager();
-    await browseArticleFeedManager.init();
     final rssUpdateChecker = RssUpdateChecker(rssManager: rssManager);
     await rssUpdateChecker.init();
     final mediaWatchedManager = MediaWatchedManager();
@@ -278,7 +273,6 @@ class _SplashScreenState extends State<SplashScreen> {
       favoritesManager: favoritesManager,
       historyManager: historyManager,
       rssManager: rssManager,
-      browseArticleFeedManager: browseArticleFeedManager,
       rssUpdateChecker: rssUpdateChecker,
       mediaWatchedManager: mediaWatchedManager,
       mediaPlaybackPositionManager: mediaPlaybackPositionManager,
@@ -348,8 +342,6 @@ class _SplashScreenState extends State<SplashScreen> {
                   value: result.historyManager),
               ChangeNotifierProvider<RssManager>.value(
                   value: result.rssManager),
-              ChangeNotifierProvider<BrowseArticleFeedManager>.value(
-                  value: result.browseArticleFeedManager),
               ChangeNotifierProvider<RssUpdateChecker>.value(
                   value: result.rssUpdateChecker),
               ChangeNotifierProvider<MediaWatchedManager>.value(

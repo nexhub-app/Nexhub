@@ -57,6 +57,7 @@ const Map<BackupCategory, List<String>> kBackupCategoryBoxes =
     'sources',
     'book_sources',
     'rss_feeds',
+    'rss_feed_cache_v1',
     'article_feeds',
     'source_mirrors',
     'chapter_fetch_times',
@@ -68,6 +69,7 @@ const Map<BackupCategory, List<String>> kBackupCategoryBoxes =
     'comic_bookmarks',
     'novel_bookmarks',
     'bangumi_subject_links',
+    'rss_article_state_v1',
   ],
   BackupCategory.progress: <String>[
     'media_progress',

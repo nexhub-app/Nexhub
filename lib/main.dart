@@ -11,6 +11,7 @@ import 'core/debug/crash_log.dart';
 import 'core/utils/app_log.dart';
 import 'features/splash/splash_screen.dart';
 import 'core/player/audio_playback_service.dart';
+import 'core/rss/rss_notification_service.dart';
 import 'core/theme/app_tokens.dart';
 
 /// Entry point: defers all initialization to [SplashScreen] so the user sees
@@ -100,6 +101,13 @@ void main() {
       await AudioPlaybackService.instance.initialize();
     } on Object catch (e, st) {
       debugPrint('AudioPlaybackService.initialize failed: $e\n$st');
+    }
+
+    // RSS 更新 OS 系统通知（P2-3）。平台降级：Web/Windows 无后端，内部跳过。
+    try {
+      await RssNotificationService.instance.init();
+    } on Object catch (e, st) {
+      debugPrint('RssNotificationService.init failed: $e\n$st');
     }
 
     runApp(const SplashScreen());

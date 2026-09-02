@@ -84,6 +84,10 @@ dependencies:
   media_kit: ^1.2.6
   media_kit_video: ^2.0.1
   media_kit_libs_video: ^1.0.7
+  # 系统通知（OS 通知）。注意：Windows 平台 flutter_local_notifications 无官方后端，
+  # 故代码中做平台降级——仅 Android / iOS / Linux / macOS 发 OS 通知，Windows 跳过并
+  # 保留应用内未读 badge（与 RssUpdateChecker 既有设计一致）。
+  flutter_local_notifications: ^17.2.0
   # 投屏（Chromecast，纯 Dart 实现，无需 Google Cast SDK）
   cast: ^2.1.0
   # bonsoir 是 cast 的传递依赖；cast 2.1.0 只声明 bonsoir: '>=3.0.0'（无上限），

@@ -1,11 +1,12 @@
 /// RSSHub 设置页 —— 实例选择、自定义实例配置（多条管理 + 测试连接 + 删除）、故障排除。
 library;
 
-import 'package:dio/dio.dart';
+import 'package:dio/dio.dart' show Options;
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import '../../../core/settings/rsshub_config.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../../core/widgets/app_card.dart';
 import './widgets/settings_search_target.dart';
@@ -109,16 +110,23 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
   }
 
   /// 测试实例连通性（HEAD 请求，5 秒超时），记录延迟毫秒数（项 10）。
+  ///
+  /// 走 [HttpFetcher] 的默认档案 Dio（含全局代理/SNI/DNS/hosts 配置），
+  /// 不再用裸 Dio（B10：此前裸 Dio 绕过网络配置，需代理/SNI 的实例测速永远失败）。
   Future<void> _testConnection(String url) async {
     setState(() => _testStatus[url] = 'testing');
     final stopwatch = Stopwatch()..start();
     try {
-      final dio = Dio(BaseOptions(
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 5),
-        followRedirects: true,
-      ));
-      final response = await dio.head<dynamic>(url);
+      final dio = HttpFetcher.instance.dio;
+      final response = await dio.head<dynamic>(
+        url,
+        options: Options(
+          sendTimeout: const Duration(seconds: 5),
+          receiveTimeout: const Duration(seconds: 5),
+          followRedirects: true,
+          validateStatus: (_) => true,
+        ),
+      );
       stopwatch.stop();
       final success = response.statusCode != null &&
           response.statusCode! >= 200 &&

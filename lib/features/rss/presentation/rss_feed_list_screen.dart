@@ -7,6 +7,8 @@
 /// 也用于浏览页全局 RSS（moduleType = null）。
 library;
 
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -19,8 +21,12 @@ import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../../../core/widgets/app_animations.dart';
 import 'rss_feed_detail_screen.dart';
 import 'rss_add_subscription_screen.dart';
+import 'rss_opml_screen.dart';
+import 'rss_discovery_screen.dart';
+import 'rss_search_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
@@ -38,6 +44,13 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
   /// 测速结果：feedId → 延迟毫秒（-1 = 失败，null = 测试中）。
   final Map<String, int?> _speeds = {};
   bool _testingAll = false;
+  /// 本地兜底隐藏集合：unbind 后立即从本屏（分类视图）过滤，确保「移回全局」
+  /// 后一定从分类列表消失，不依赖 notifyListeners/watch 时序（bug 兜底）。
+  final Set<String> _hiddenIds = {};
+
+  /// 当前选中的分组筛选（null = 全部；'' = 未分组；其他 = 分组名）。
+  /// 仅全局视图（moduleType == null）下生效，因分组是跨模块标签语义。
+  String? _activeGroup;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +58,30 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
     final scheme = Theme.of(context).colorScheme;
     final manager = context.watch<RssManager>();
     final checker = context.watch<RssUpdateChecker>();
-    final feeds = manager.feedsFor(widget.moduleType);
+    // 全局视图（moduleType == null）显示全部订阅：绑定到分类的订阅不消失，
+    // 同时出现在对应模块分类页（feedsFor 按 moduleType 过滤）。分类视图仅显示本分类订阅。
+    final feeds = widget.moduleType == null
+        ? manager.feeds
+        : manager.feedsFor(widget.moduleType);
+    // 分类视图（moduleType != null）应用本地隐藏兜底：unbind 的 feed 立即从本屏移除；
+    // 全局视图（moduleType == null）显示全部订阅，不做隐藏。
+    final visibleFeeds = widget.moduleType == null
+        ? feeds
+        : feeds.where((f) => !_hiddenIds.contains(f.id)).toList();
+
+    // 全局视图下按分组筛选（分组是跨模块标签，分类视图不启用以免语义混乱）。
+    final bool groupFilterOn = widget.moduleType == null &&
+        _activeGroup != null &&
+        manager.allGroups.isNotEmpty;
+    final feedsToShow = groupFilterOn
+        ? (_activeGroup!.isEmpty
+            ? visibleFeeds.where((f) => f.groups.isEmpty).toList()
+            : visibleFeeds.where((f) => f.groups.contains(_activeGroup)).toList())
+        : visibleFeeds;
+
+    // 全局视图分组条：全部 / 各分组 / 未分组（水平可滚动）。无分组时不显示。
+    final bool canShowGroupBar =
+        widget.moduleType == null && manager.allGroups.isNotEmpty;
 
     // 根据类型选择不同的空状态图标
     final IconData emptyIcon = switch (widget.moduleType) {
@@ -59,7 +95,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
       appBar: AppBar(
         title: Text(l10n.rssFeedListTitle),
         actions: <Widget>[
-          if (feeds.isNotEmpty)
+          if (visibleFeeds.isNotEmpty)
             IconButton(
               icon: _testingAll
                   ? const SizedBox(
@@ -71,20 +107,73 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
               tooltip: l10n.rssTestAllSpeed,
               onPressed: _testingAll ? null : () => _testAllSpeed(manager),
             ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: l10n.moreActions,
+            onSelected: (action) => _onTopMenu(action, context, manager),
+            itemBuilder: (ctx) => <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(
+                value: 'opml_import',
+                child: ListTile(
+                  leading: const Icon(Icons.upload_file_outlined),
+                  title: Text(l10n.rssImportOpml),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'opml_export',
+                child: ListTile(
+                  leading: const Icon(Icons.download_outlined),
+                  title: Text(l10n.rssExportOpml),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'discover',
+                child: ListTile(
+                  leading: const Icon(Icons.language_outlined),
+                  title: Text(l10n.rssDiscoverTitle),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'global_search',
+                child: ListTile(
+                  leading: const Icon(Icons.search_outlined),
+                  title: Text(l10n.rssSearchTitle),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              if (widget.moduleType == null)
+                PopupMenuItem<String>(
+                  value: 'manage_groups',
+                  child: ListTile(
+                    leading: const Icon(Icons.folder_outlined),
+                    title: Text(l10n.rssGroupManage),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
-      body: feeds.isEmpty
+      body: visibleFeeds.isEmpty
           ? AppEmptyState(
               icon: emptyIcon,
               message: l10n.emptyRssSubscribe,
             )
           : ListView.separated(
               padding: const EdgeInsets.all(AppTokens.spaceMd),
-              itemCount: feeds.length,
+              itemCount: feedsToShow.length + (canShowGroupBar ? 1 : 0),
               separatorBuilder: (_, __) =>
                   const SizedBox(height: AppTokens.spaceSm),
               itemBuilder: (context, i) {
-                final feed = feeds[i];
+                // 第一项：分组筛选条（水平可滚动芯片）。
+                if (canShowGroupBar && i == 0) {
+                  return _buildGroupBar(context, manager, l10n, scheme);
+                }
+                final int feedIndex = i - (canShowGroupBar ? 1 : 0);
+                final feed = feedsToShow[feedIndex];
                 final newCount = checker.newCountFor(feed.id);
                 return AppCard(
                   onTap: () {
@@ -104,17 +193,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                       horizontal: AppTokens.spaceLg,
                       vertical: AppTokens.spaceXs,
                     ),
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: scheme.primaryContainer.withValues(alpha: 0.5),
-                        borderRadius:
-                            BorderRadius.circular(AppTokens.radiusSm),
-                      ),
-                      child:
-                          Icon(Icons.rss_feed, color: scheme.primary, size: 22),
-                    ),
+                    leading: _feedLeadingIcon(feed, scheme),
                     title: Text(
                       feed.title,
                       maxLines: 1,
@@ -166,21 +245,69 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                 )
                         else
                           const SizedBox.shrink(),
-                        // 测速指示器
-                        _buildSpeedIndicator(feed, scheme),
-                        IconButton(
-                          icon: Icon(Icons.edit_outlined,
+                        // 溢出菜单：聚合 绑定/移回/测速/编辑/删除，避免行内按钮过多（手机端杂乱）。
+                        PopupMenuButton<String>(
+                          icon: Icon(Icons.more_vert,
                               color: scheme.onSurfaceVariant),
-                          tooltip: l10n.editRoute,
-                          onPressed: () =>
-                              _showEditDialog(context, manager, feed),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete_outline,
-                              color: scheme.onSurfaceVariant),
-                          tooltip: l10n.delete,
-                          onPressed: () => _confirmDelete(
-                              context, manager, feed.id, feed.title),
+                          tooltip: l10n.moreActions,
+                          onSelected: (action) =>
+                              _onFeedMenuItem(action, context, manager, feed),
+                          itemBuilder: (ctx) => <PopupMenuEntry<String>>[
+                            if (widget.moduleType == null &&
+                                feed.moduleType == null)
+                              PopupMenuItem<String>(
+                                value: 'bind',
+                                child: ListTile(
+                                  leading: const Icon(Icons.playlist_add_outlined),
+                                  title: Text(l10n.rssBindModuleTitle),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            if (widget.moduleType != null)
+                              PopupMenuItem<String>(
+                                value: 'unbind',
+                                child: ListTile(
+                                  leading:
+                                      const Icon(Icons.playlist_remove_outlined),
+                                  title: Text(l10n.rssUnbindGlobal),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            PopupMenuItem<String>(
+                              value: 'speed',
+                              child: ListTile(
+                                leading: const Icon(Icons.speed),
+                                title: Text(l10n.rssTestSpeed),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'edit',
+                              child: ListTile(
+                                leading: const Icon(Icons.edit_outlined),
+                                title: Text(l10n.editRoute),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'groups',
+                              child: ListTile(
+                                leading: const Icon(Icons.folder_outlined),
+                                title: Text(l10n.rssSetGroups),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'delete',
+                              child: ListTile(
+                                leading: Icon(Icons.delete_outline,
+                                    color: scheme.error),
+                                title: Text(l10n.delete,
+                                    style: TextStyle(color: scheme.error)),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -206,20 +333,37 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
     return '${feed.description ?? feed.url} · ${l10n.rssSpeedMs(speed)}';
   }
 
-  /// 单条订阅源的测速指示器。
-  Widget _buildSpeedIndicator(RssFeed feed, ColorScheme scheme) {
-    final speed = _speeds[feed.id];
-    if (speed == null) return const SizedBox.shrink();
-    if (speed < 0) {
-      return Icon(Icons.error_outline, color: scheme.error, size: 20);
-    }
-    final color = speed < 500
-        ? scheme.primary
-        : speed < 2000
-            ? scheme.tertiary
-            : scheme.outline;
-    return Icon(Icons.check_circle_outline, color: color, size: 20);
+  /// 订阅列表项左侧图标：优先显示站点 favicon（B8 修复），加载失败/无图时
+  /// 回退到通用 RSS 图标。favicon 经 [RssFeed.effectiveIconUrl] 解析
+  /// （自带 iconUrl 优先，否则站点根 /favicon.ico）。
+  Widget _feedLeadingIcon(RssFeed feed, ColorScheme scheme) {
+    final icon = feed.effectiveIconUrl;
+    if (icon == null) return _rssIconChip(scheme);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+      child: Image.network(
+        icon,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        // 加载中先显示通用图标占位。
+        loadingBuilder: (_, child, progress) =>
+            progress == null ? child : _rssIconChip(scheme),
+        // 加载失败（404 / WAF / 超时）回退到通用图标，不报错。
+        errorBuilder: (_, __, ___) => _rssIconChip(scheme),
+      ),
+    );
   }
+
+  Widget _rssIconChip(ColorScheme scheme) => Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: scheme.primaryContainer.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        ),
+        child: Icon(Icons.rss_feed, color: scheme.primary, size: 22),
+      );
 
   /// 一键测速全部订阅源（P8.2.3 §廿二）。
   Future<void> _testAllSpeed(RssManager manager) async {
@@ -339,5 +483,492 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
         ],
       ),
     );
+  }
+
+  /// 订阅项溢出菜单分发：bind / unbind / speed / edit / delete。
+  Future<void> _onFeedMenuItem(
+    String action,
+    BuildContext context,
+    RssManager manager,
+    RssFeed feed,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    switch (action) {
+      case 'bind':
+        _showBindDialog(context, manager, feed);
+      case 'unbind':
+        // 三重保险：unbindFeed（按 id/url 兜底改内存+notify）→ notifyChanged
+        // （强制 watch 重建）→ setState（本屏强制重绘），确保一定从分类列表移除。
+        try {
+          await manager.unbindFeed(feed.id, feed.url);
+        } on Object {
+          // 忽略异常，依赖下方兜底刷新。
+        }
+        manager.notifyChanged();
+        dev.log('[RSS] unbind feed=${feed.id} 处理后分类剩 '
+            '${manager.feedsFor(widget.moduleType).length} 条');
+        // 本地兜底：立即从本屏（分类视图）隐藏该订阅，确保一定消失。
+        if (mounted) {
+          setState(() {
+            _hiddenIds.add(feed.id);
+          });
+        }
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.rssUnbindGlobal)),
+          );
+        }
+      case 'speed':
+        final ms = await manager.testFeedSpeed(feed);
+        setState(() => _speeds[feed.id] = ms);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(ms < 0 ? l10n.rssSpeedFailed : l10n.rssSpeedMs(ms)),
+            ),
+          );
+        }
+      case 'edit':
+        _showEditDialog(context, manager, feed);
+      case 'groups':
+        _showGroupAssign(context, manager, feed);
+      case 'delete':
+        _confirmDelete(context, manager, feed.id, feed.title);
+    }
+  }
+
+  /// 将全局订阅绑定到某个模块（小说/漫画/视频）。
+  ///
+  /// 绑定后该订阅从全局视图消失、出现在对应模块分类页（feedsFor 按 moduleType 过滤）。
+  void _showBindDialog(
+    BuildContext context,
+    RssManager manager,
+    RssFeed feed,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final options = <SourceType, String>{
+      SourceType.novelSource: l10n.rssBindToNovel,
+      SourceType.animeSource: l10n.rssBindToAnime,
+      SourceType.mangaSource: l10n.rssBindToManga,
+    };
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AppAlertDialog(
+        title: Text(l10n.rssBindModuleTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: options.entries
+              .map((e) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.playlist_add_outlined),
+                    title: Text(e.value),
+                    onTap: () async {
+                      await manager.updateFeed(feed.copyWith(moduleType: e.key));
+                      // 若该 feed 此前被本地隐藏（unbind 兜底），绑定后解除隐藏。
+                      if (mounted) {
+                        setState(() {
+                          _hiddenIds.remove(feed.id);
+                        });
+                      }
+                      if (dialogContext.mounted) {
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(
+                          SnackBar(content: Text(e.value)),
+                        );
+                        Navigator.of(dialogContext).pop();
+                      }
+                    },
+                  ))
+              .toList(),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 顶部「更多」菜单分发：OPML 导入/导出 / 网站发现 / 管理分组。
+  void _onTopMenu(String action, BuildContext context, RssManager manager) {
+    switch (action) {
+      case 'opml_import':
+      case 'opml_export':
+        Navigator.of(context).push(
+          AppPageRoute<void>(builder: (_) => const RssOpmlScreen()),
+        );
+      case 'discover':
+        Navigator.of(context).push(
+          AppPageRoute<void>(builder: (_) => const RssDiscoveryScreen()),
+        );
+      case 'global_search':
+        Navigator.of(context).push(
+          AppPageRoute<void>(builder: (_) => const RssSearchScreen()),
+        );
+      case 'manage_groups':
+        _showManageGroups(context, manager);
+    }
+  }
+
+  /// 分组筛选条（水平可滚动芯片）：全部 / 各分组 / 未分组。
+  Widget _buildGroupBar(
+    BuildContext context,
+    RssManager manager,
+    AppLocalizations l10n,
+    ColorScheme scheme,
+  ) {
+    final groups = manager.allGroups;
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.only(bottom: AppTokens.spaceXs),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: <Widget>[
+          _groupChip(l10n.rssGroupAll, _activeGroup == null, scheme, () {
+            setState(() => _activeGroup = null);
+          }),
+          for (final g in groups)
+            _groupChip(g, _activeGroup == g, scheme, () {
+              setState(() => _activeGroup = g);
+            }),
+          _groupChip(l10n.rssGroupUngrouped, _activeGroup == '', scheme, () {
+            setState(() => _activeGroup = '');
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _groupChip(
+    String label,
+    bool selected,
+    ColorScheme scheme,
+    VoidCallback onTap,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(right: AppTokens.spaceSm),
+      child: AppTapScale(
+        scale: 0.94,
+        duration: AppTokens.durFast,
+        child: FilterChip(
+          label: Text(label),
+          selected: selected,
+          onSelected: (_) => onTap(),
+        ),
+      ),
+    );
+  }
+
+  /// 为单个订阅指定分组（多选覆盖式）+ 快捷新建分组。
+  void _showGroupAssign(BuildContext context, RssManager manager, RssFeed feed) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final selected = <String>{...feed.groups};
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            final groups = manager.allGroups;
+            return AppSheetBody(
+              child: SafeArea(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.85,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppTokens.spaceMd,
+                          AppTokens.spaceSm,
+                          AppTokens.spaceMd,
+                          0,
+                        ),
+                        child: Text(
+                          '${l10n.rssSetGroups} · ${feed.title}',
+                          style: Theme.of(context).textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      if (groups.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+                          child: Text(
+                            l10n.rssGroupEmpty,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          child: Wrap(
+                            spacing: AppTokens.spaceSm,
+                            runSpacing: AppTokens.spaceXs,
+                            children: <Widget>[
+                              for (final g in groups)
+                                FilterChip(
+                                  label: Text(g),
+                                  selected: selected.contains(g),
+                                  onSelected: (on) => setSheet(() {
+                                    on ? selected.add(g) : selected.remove(g);
+                                  }),
+                                ),
+                              ActionChip(
+                                avatar: const Icon(Icons.add, size: 16),
+                                label: Text(l10n.rssGroupAdd),
+                                onPressed: () async {
+                                  final name = await _promptGroupName(context, l10n);
+                                  if (name != null) {
+                                    await manager.renameGroup(name, name);
+                                    setSheet(() => selected.add(name));
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      Padding(
+                        padding: const EdgeInsets.all(AppTokens.spaceMd),
+                        child: FilledButton(
+                          onPressed: () async {
+                            await manager.setFeedGroups(feed.id, selected.toList());
+                            if (ctx.mounted) Navigator.of(ctx).pop();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(l10n.rssGroupSetDone)),
+                              );
+                            }
+                          },
+                          child: Text(l10n.confirm),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 管理分组：列出全部分组，支持重命名 / 删除 / 新建。
+  void _showManageGroups(BuildContext context, RssManager manager) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            final groups = manager.allGroups;
+            return AppSheetBody(
+              child: SafeArea(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.85,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Padding(
+                        padding: const EdgeInsets.all(AppTokens.spaceMd),
+                        child: Row(
+                          children: <Widget>[
+                            Text(l10n.rssGroupManage,
+                                style: Theme.of(context).textTheme.titleMedium),
+                            const Spacer(),
+                            TextButton.icon(
+                              icon: const Icon(Icons.add, size: 18),
+                              label: Text(l10n.rssGroupAdd),
+                              onPressed: () async {
+                                // 就地新建：分组已有一等公民注册表（RssManager
+                                // 独立持久化），空分组也能存在，无需先挂到某个
+                                // 订阅上——此前这里只弹提示把用户踢去订阅项，
+                                // 点了「新建」却看不到任何反馈。
+                                final name =
+                                    await _promptGroupName(context, l10n);
+                                if (name == null || name.isEmpty) return;
+                                final bool created =
+                                    await manager.createGroup(name);
+                                if (!ctx.mounted) return;
+                                // 刷新面板列表（新分组立即出现在下方）。
+                                setSheet(() {});
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(created
+                                          ? l10n.rssGroupSetDone
+                                          : l10n.rssGroupAddExists(name)),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      Flexible(
+                        child: groups.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.all(AppTokens.spaceMd),
+                                child: Text(
+                                  l10n.rssGroupEmpty,
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: scheme.onSurfaceVariant),
+                                ),
+                              )
+                            : ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: groups.length,
+                                itemBuilder: (lctx, i) {
+                                  final g = groups[i];
+                                  final count = manager.feedsInGroup(g).length;
+                                  return Entrance(
+                                    index: i < 8 ? i : 8,
+                                    onceKey: 'mgrp:$g',
+                                    child: ListTile(
+                                      leading: const Icon(Icons.folder_outlined),
+                                      title: Text(g),
+                                      subtitle: Text(l10n.rssGroupFeedCount(count)),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: <Widget>[
+                                          IconButton(
+                                            icon: const Icon(Icons.edit_outlined),
+                                            tooltip: l10n.rssGroupRename,
+                                            onPressed: () async {
+                                              final newName =
+                                                  await _promptGroupName(context, l10n,
+                                                      initial: g);
+                                              if (newName != null && newName != g) {
+                                                await manager.renameGroup(g, newName);
+                                                setSheet(() {});
+                                              }
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: Icon(Icons.delete_outline,
+                                                color: scheme.error),
+                                            tooltip: l10n.rssGroupDelete,
+                                            onPressed: () async {
+                                              final ok = await _confirmDeleteGroup(
+                                                  context, manager, g, l10n);
+                                              if (ok) setSheet(() {});
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// 输入分组名（新建 / 重命名共用）。返回 null 表示取消。
+  Future<String?> _promptGroupName(
+    BuildContext context,
+    AppLocalizations l10n, {
+    String? initial,
+  }) async {
+    final ctrl = TextEditingController(text: initial ?? '');
+    return showDialog<String>(
+      context: context,
+      builder: (dialogCtx) {
+        final l10n = AppLocalizations.of(dialogCtx);
+        return AlertDialog(
+          title: Text(initial == null ? l10n.rssGroupAdd : l10n.rssGroupRename),
+          content: TextField(
+            controller: ctrl,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: l10n.rssGroupName,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: Text(l10n.cancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                final v = ctrl.text.trim();
+                if (v.isEmpty) return;
+                Navigator.of(dialogCtx).pop(v);
+              },
+              child: Text(l10n.ok),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 删除分组确认：仅移除分组标记，不删订阅。
+  Future<bool> _confirmDeleteGroup(
+    BuildContext context,
+    RssManager manager,
+    String name,
+    AppLocalizations l10n,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AppAlertDialog(
+        title: Text(l10n.rssGroupDelete),
+        content: Text(l10n.rssGroupDeleteConfirm(name)),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await manager.deleteGroup(name);
+      if (mounted && _activeGroup == name) {
+        setState(() => _activeGroup = null);
+      }
+      return true;
+    }
+    return false;
   }
 }

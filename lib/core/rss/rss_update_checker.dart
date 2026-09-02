@@ -2,14 +2,14 @@
 ///
 /// 定期轮询已订阅的 RSS 源，对比上次记录的最新条目标题，
 /// 检测到新条目时通过 [ChangeNotifier] 驱动 UI 显示未读数 badge，
-/// 并通过回调触发应用内通知（SnackBar）。
+/// 并在启用时发送 OS 系统通知（P2-3，见 [RssNotificationService]）。
 ///
 /// 设计说明：
 /// - 仅前台轮询（Timer.periodic），不引入 workmanager。
-/// - 不依赖 flutter_local_notifications（不支持 Windows），
-///   通知方式由调用方决定（应用内 SnackBar / banner / 等）。
+/// - OS 通知经 [RssNotificationService]（flutter_local_notifications）发送，
+///   **平台降级**：Web/Windows 无官方后端，自动跳过、仅保留应用内未读 badge。
 /// - 持久化每条 feed 的 lastItemTitle + lastCheckedAt + newCount，
-///   key = `rss_feed_states_v1`。
+///   key = `rss_feed_states_v1`；系统通知开关存于 `rss_update_settings_v1`。
 library;
 
 import 'dart:async';
@@ -20,11 +20,15 @@ import 'package:flutter/foundation.dart';
 import '../comic/models/reader_preferences.dart';
 import 'rss_feed.dart';
 import 'rss_manager.dart';
+import 'rss_notification_service.dart';
 
 /// 单条 RSS 订阅源的检测状态。
 class RssFeedState {
-  /// 最新已记录的条目标题（用于去重对比）。
+  /// 最新已记录的条目标题（用于去重对比，保留向后兼容旧数据）。
   final String? lastItemTitle;
+
+  /// 上次检测时已见条目的稳定键集合（优先用 [seenKeys]，[lastItemTitle] 仅旧数据）。
+  final List<String> seenKeys;
 
   /// 上次检测时间（毫秒时间戳）。
   final int? lastCheckedAt;
@@ -34,29 +38,37 @@ class RssFeedState {
 
   const RssFeedState({
     this.lastItemTitle,
+    this.seenKeys = const <String>[],
     this.lastCheckedAt,
     this.newCount = 0,
   });
 
   RssFeedState copyWith({
     String? lastItemTitle,
+    List<String>? seenKeys,
     int? lastCheckedAt,
     int? newCount,
   }) =>
       RssFeedState(
         lastItemTitle: lastItemTitle ?? this.lastItemTitle,
+        seenKeys: seenKeys ?? this.seenKeys,
         lastCheckedAt: lastCheckedAt ?? this.lastCheckedAt,
         newCount: newCount ?? this.newCount,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'lastItemTitle': lastItemTitle,
+        'seenKeys': seenKeys,
         'lastCheckedAt': lastCheckedAt,
         'newCount': newCount,
       };
 
   factory RssFeedState.fromJson(Map<String, dynamic> json) => RssFeedState(
         lastItemTitle: json['lastItemTitle'] as String?,
+        seenKeys: (json['seenKeys'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            const <String>[],
         lastCheckedAt: json['lastCheckedAt'] as int?,
         newCount: json['newCount'] as int? ?? 0,
       );
@@ -103,10 +115,14 @@ class RssUpdateChecker extends ChangeNotifier {
   final Map<String, RssFeedState> _states = {};
   bool _enabled = false;
   RssUpdateInterval _interval = RssUpdateInterval.hour1;
+  bool _systemNotification = false;
   Timer? _timer;
 
   /// 是否启用更新检测。
   bool get enabled => _enabled;
+
+  /// 是否在支持的平台发 OS 系统通知（P2-3）。Windows/Web 无后端，实际不发送。
+  bool get systemNotification => _systemNotification;
 
   /// 当前轮询间隔。
   RssUpdateInterval get interval => _interval;
@@ -155,6 +171,16 @@ class RssUpdateChecker extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 设置是否发送 OS 系统通知（P2-3）。开启时请求权限（Android 13+）。
+  Future<void> setSystemNotification(bool value) async {
+    _systemNotification = value;
+    if (value) {
+      await RssNotificationService.instance.requestPermission();
+    }
+    await _saveSettings();
+    notifyListeners();
+  }
+
   /// 标记某条 feed 的未读数清零（用户查看后调用）。
   Future<void> markRead(String feedId) async {
     final s = _states[feedId];
@@ -166,60 +192,75 @@ class RssUpdateChecker extends ChangeNotifier {
 
   /// 立即执行一次检测（忽略定时器）。
   Future<void> checkAllFeeds() async {
+    final before = totalNewCount;
     for (final feed in rssManager.feeds) {
       await _checkFeed(feed);
     }
     await _saveStates();
     notifyListeners();
+    // 聚合发一条 OS 通知（P2-3）：仅统计新增未读数，避免每条 feed 各弹一条。
+    if (_systemNotification) {
+      final delta = totalNewCount - before;
+      if (delta > 0) {
+        await RssNotificationService.instance.showNewArticles(count: delta);
+      }
+    }
   }
 
   /// 检测单条 feed 的新条目。
   ///
-  /// 对比当前最新条目标题与上次记录的 lastItemTitle，
-  /// 若不同则计算新条目数（直到遇到 lastItemTitle 为止）。
+  /// 以条目的稳定键（[RssItem.url]，缺失时回退标题）判断新条目，避免标题
+  /// 变更/重排导致误判（B7）。从列表顶部往下数，遇到第一个已在「已见集合」
+  /// 中的键即停止，之前的都算新；若整个列表都是新键（源正常轮换旧条目），
+  /// 限制新条目上限，避免每次刷新把全部标为新造成未读刷屏。
   Future<void> _checkFeed(RssFeed feed) async {
     try {
       final parsed = await rssManager.fetchFeed(feed);
       final items = parsed.items;
       if (items.isEmpty) return;
 
-      final currentLatest = items.first.title;
+      String itemKey(RssItem i) => i.url.isNotEmpty ? i.url : i.title;
+      final currentKeys = items.map(itemKey).toList();
       final prevState = _states[feed.id];
-      final lastKnown = prevState?.lastItemTitle;
+      final prevSeen = prevState?.seenKeys ?? const <String>[];
 
-      // 首次记录：不报新条目，仅记录当前最新
-      if (lastKnown == null) {
+      // 首次记录：不报新条目，仅记录当前已见键集合
+      if (prevSeen.isEmpty && prevState?.lastItemTitle == null) {
         _states[feed.id] = RssFeedState(
-          lastItemTitle: currentLatest,
+          lastItemTitle: items.first.title,
+          seenKeys: currentKeys,
           lastCheckedAt: DateTime.now().millisecondsSinceEpoch,
           newCount: 0,
         );
         return;
       }
 
-      // 最新标题相同：无新条目
-      if (currentLatest == lastKnown) {
-        _states[feed.id] = prevState!.copyWith(
-          lastCheckedAt: DateTime.now().millisecondsSinceEpoch,
-        );
-        return;
-      }
-
-      // 计算新条目数：从最新开始往后找，直到遇到 lastKnown 或列表结束
+      // 计算新条目数：从顶部往下，遇到第一个已见键即停止
+      final prevSeenSet = Set<String>.from(prevSeen);
       int newCount = 0;
-      for (final item in items) {
-        if (item.title == lastKnown) break;
+      for (final k in currentKeys) {
+        if (prevSeenSet.contains(k)) break;
         newCount++;
       }
 
-      // 若 lastKnown 不在当前列表中（可能被源清理），视为全部新条目
-      if (newCount == items.length) {
-        newCount = items.length;
-      }
+      // 防止轮换/全量更新导致未读刷屏：新条目上限为列表长度的一半（至少 1）。
+      const int kMaxNewRatio = 2;
+      final int cap = (currentKeys.length / kMaxNewRatio).ceil();
+      if (newCount > cap) newCount = cap;
 
       final prevNewCount = prevState?.newCount ?? 0;
+      // 合并已见集合（保留上限，避免无限增长）。
+      final mergedSeen = <String>{
+        ...prevSeenSet,
+        ...currentKeys,
+      };
+      final trimmedSeen = mergedSeen.length > 500
+          ? currentKeys
+          : mergedSeen.toList();
+
       _states[feed.id] = RssFeedState(
-        lastItemTitle: currentLatest,
+        lastItemTitle: items.first.title,
+        seenKeys: trimmedSeen,
         lastCheckedAt: DateTime.now().millisecondsSinceEpoch,
         newCount: prevNewCount + newCount,
       );
@@ -271,6 +312,7 @@ class RssUpdateChecker extends ChangeNotifier {
     try {
       final map = jsonDecode(raw) as Map<String, dynamic>;
       _enabled = map['enabled'] as bool? ?? false;
+      _systemNotification = map['systemNotification'] as bool? ?? false;
       final intervalIndex = map['interval'] as int? ?? 2;
       _interval = RssUpdateInterval.values
           .elementAtOrNull(intervalIndex) ??
@@ -283,6 +325,7 @@ class RssUpdateChecker extends ChangeNotifier {
   Future<void> _saveSettings() async {
     final map = <String, dynamic>{
       'enabled': _enabled,
+      'systemNotification': _systemNotification,
       'interval': _interval.index,
     };
     await _backend.set(_settingsKey, jsonEncode(map));

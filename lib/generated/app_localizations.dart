@@ -158,6 +158,12 @@ abstract class AppLocalizations {
   /// **'Source Management'**
   String get sourceManagementTitle;
 
+  /// No description provided for @sourceManagementDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Import, enable and reorder content sources'**
+  String get sourceManagementDesc;
+
   /// No description provided for @downloadSettingsTitle.
   ///
   /// In en, this message translates to:
@@ -3337,6 +3343,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'RSSHub Settings'**
   String get rsshubSettingsTitle;
+
+  /// No description provided for @rsshubSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a preset or self-hosted instance'**
+  String get rsshubSettingsDesc;
 
   /// No description provided for @rssNotifications.
   ///
@@ -7064,6 +7076,12 @@ abstract class AppLocalizations {
   /// **'Test all speeds'**
   String get rssTestAllSpeed;
 
+  /// Single RSS feed speed test menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Test speed'**
+  String get rssTestSpeed;
+
   /// No description provided for @rssSpeedFailed.
   ///
   /// In en, this message translates to:
@@ -10631,7 +10649,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsCatContentDesc.
   ///
   /// In en, this message translates to:
-  /// **'Sources, scraping, AI & network'**
+  /// **'Sources, RSS subscriptions, scraping, AI & network'**
   String get settingsCatContentDesc;
 
   /// No description provided for @aiSettingsTitle.
@@ -15499,6 +15517,538 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export all completed (bilingual SRT)'**
   String get offlineExportAll;
+
+  /// RSS subscriptions also honor this network settings page (proxy/DNS/SNI/Hosts)
+  ///
+  /// In en, this message translates to:
+  /// **'RSS subscriptions also apply this page\'s proxy, DNS, SNI and Hosts settings: global network configured here takes effect for both RSS fetching and RSSHub speed tests.'**
+  String get networkRssAppliesNote;
+
+  /// Global RSS subscriptions shared with the Browse tab
+  ///
+  /// In en, this message translates to:
+  /// **'Global RSS subscriptions shared with the Browse tab'**
+  String get rssGlobalSubscriptionDesc;
+
+  /// Dialog title for binding an RSS feed to a module
+  ///
+  /// In en, this message translates to:
+  /// **'Bind to module'**
+  String get rssBindModuleTitle;
+
+  /// Bind RSS feed to novel module
+  ///
+  /// In en, this message translates to:
+  /// **'Bind to novel'**
+  String get rssBindToNovel;
+
+  /// Bind RSS feed to anime/video module
+  ///
+  /// In en, this message translates to:
+  /// **'Bind to video'**
+  String get rssBindToAnime;
+
+  /// Bind RSS feed to manga module
+  ///
+  /// In en, this message translates to:
+  /// **'Bind to manga'**
+  String get rssBindToManga;
+
+  /// Unbind RSS feed back to global subscriptions
+  ///
+  /// In en, this message translates to:
+  /// **'Unbind to global'**
+  String get rssUnbindGlobal;
+
+  /// Added to favorites
+  ///
+  /// In en, this message translates to:
+  /// **'Added to favorites'**
+  String get rssArticleFavorited;
+
+  /// Removed from favorites
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from favorites'**
+  String get rssArticleUnfavorited;
+
+  /// RSS favorites page title and entry
+  ///
+  /// In en, this message translates to:
+  /// **'RSS Favorites'**
+  String get rssFavorites;
+
+  /// RSS favorites entry subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Favorited RSS articles'**
+  String get rssFavoritesDesc;
+
+  /// RSS favorites empty state
+  ///
+  /// In en, this message translates to:
+  /// **'No favorites yet'**
+  String get rssFavoritesEmpty;
+
+  /// Mark all articles as read
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all as read'**
+  String get rssMarkAllRead;
+
+  /// Marked all as read snackbar
+  ///
+  /// In en, this message translates to:
+  /// **'Marked all as read'**
+  String get rssMarkedAllRead;
+
+  /// Offline cache banner on RSS detail when network fetch failed
+  ///
+  /// In en, this message translates to:
+  /// **'Offline cache (last fetched)'**
+  String get rssOfflineCached;
+
+  /// Filter: show all articles
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get rssShowAll;
+
+  /// Filter: show only unread articles
+  ///
+  /// In en, this message translates to:
+  /// **'Unread'**
+  String get rssShowUnread;
+
+  /// Star button tooltip: favorite this article
+  ///
+  /// In en, this message translates to:
+  /// **'Add to favorites'**
+  String get rssStarAdd;
+
+  /// Star button tooltip: unfavorite this article
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from favorites'**
+  String get rssStarRemove;
+
+  /// Discover feeds: add selected button
+  ///
+  /// In en, this message translates to:
+  /// **'Add selected ({count})'**
+  String rssDiscoverAddSelected(Object count);
+
+  /// Discover feeds: added toast
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} feeds'**
+  String rssDiscoverAdded(Object count);
+
+  /// Discover feeds: button label
+  ///
+  /// In en, this message translates to:
+  /// **'Find feeds'**
+  String get rssDiscoverButton;
+
+  /// Discover feeds: page description
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a site address to find its RSS / Atom feeds'**
+  String get rssDiscoverDesc;
+
+  /// Discover feeds: failure toast
+  ///
+  /// In en, this message translates to:
+  /// **'Discovery failed: {error}'**
+  String rssDiscoverFailed(Object error);
+
+  /// Discover feeds: found count
+  ///
+  /// In en, this message translates to:
+  /// **'Found {count} feeds'**
+  String rssDiscoverFound(Object count);
+
+  /// Discover feeds: source = page link
+  ///
+  /// In en, this message translates to:
+  /// **'Declared by page'**
+  String get rssDiscoverFromLink;
+
+  /// Discover feeds: source = common path probe
+  ///
+  /// In en, this message translates to:
+  /// **'Common path'**
+  String get rssDiscoverFromProbe;
+
+  /// Discover feeds: URL input hint
+  ///
+  /// In en, this message translates to:
+  /// **'https://example.com'**
+  String get rssDiscoverInputHint;
+
+  /// Discover feeds: invalid URL
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid URL'**
+  String get rssDiscoverInvalidUrl;
+
+  /// Discover feeds: none found
+  ///
+  /// In en, this message translates to:
+  /// **'No feeds found'**
+  String get rssDiscoverNone;
+
+  /// Discover feeds: probing
+  ///
+  /// In en, this message translates to:
+  /// **'Probing common paths…'**
+  String get rssDiscoverProbing;
+
+  /// Discover feeds: screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Discover feeds from a site'**
+  String get rssDiscoverTitle;
+
+  /// Export OPML: menu entry
+  ///
+  /// In en, this message translates to:
+  /// **'Export as OPML'**
+  String get rssExportOpml;
+
+  /// Groups: new (from feed)
+  ///
+  /// In en, this message translates to:
+  /// Groups: new (manage-groups sheet / feed menu)
+  ///
+  /// In en, this message translates to:
+  /// **'New group'**
+  String get rssGroupAdd;
+
+  /// Groups: duplicate-name hint when creating
+  ///
+  /// In en, this message translates to:
+  /// **'Group \"{name}\" already exists'**
+  String rssGroupAddExists(String name);
+
+  /// Attachment: audio load failed
+  ///
+  /// In en, this message translates to:
+  /// **'Audio failed to load'**
+  String get rssAudioFailed;
+
+  /// Attachment: external fallback when load fails
+  ///
+  /// In en, this message translates to:
+  /// **'Open in external app'**
+  String get rssOpenExternally;
+
+  /// Attachment: video load failed
+  ///
+  /// In en, this message translates to:
+  /// **'Video failed to load'**
+  String get rssVideoFailed;
+
+  /// Attachment: play video
+  ///
+  /// In en, this message translates to:
+  /// **'Play video'**
+  String get rssVideoPlay;
+
+  /// Inline frame: open in in-app browser
+  ///
+  /// In en, this message translates to:
+  /// **'Open in built-in browser'**
+  String get rssIframeOpen;
+
+  /// Article: fetch full page content
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch full page'**
+  String get rssFetchFullText;
+
+  /// Article: fetching in progress
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching…'**
+  String get rssFetching;
+
+  /// Article: fetch failed
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch failed'**
+  String get rssFetchFullTextFailed;
+
+  /// Article: no content extracted
+  ///
+  /// In en, this message translates to:
+  /// **'Could not extract content'**
+  String get rssFetchFullTextEmpty;
+
+  /// Image viewer: saved
+  ///
+  /// In en, this message translates to:
+  /// **'Image saved'**
+  String get rssImageSaved;
+
+  /// Image viewer: save failed
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed'**
+  String get rssImageSaveFailed;
+
+  /// Article: hint when a link scheme is blocked
+  ///
+  /// In en, this message translates to:
+  /// **'This link is not supported'**
+  String get rssLinkUnsupported;
+
+  /// Groups: all
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get rssGroupAll;
+
+  /// Groups: delete
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group'**
+  String get rssGroupDelete;
+
+  /// Groups: delete confirm
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group \"{name}\"? Subscriptions stay; only the tag is removed.'**
+  String rssGroupDeleteConfirm(Object name);
+
+  /// Groups: empty state
+  ///
+  /// In en, this message translates to:
+  /// **'No groups yet'**
+  String get rssGroupEmpty;
+
+  /// Groups: feed count
+  ///
+  /// In en, this message translates to:
+  /// **'{count} feeds'**
+  String rssGroupFeedCount(Object count);
+
+  /// Groups: manage
+  ///
+  /// In en, this message translates to:
+  /// **'Manage groups'**
+  String get rssGroupManage;
+
+  /// Groups: rename
+  ///
+  /// In en, this message translates to:
+  /// **'Rename group'**
+  String get rssGroupRename;
+
+  /// Groups: updated
+  ///
+  /// In en, this message translates to:
+  /// **'Groups updated'**
+  String get rssGroupSetDone;
+
+  /// Groups: ungrouped
+  ///
+  /// In en, this message translates to:
+  /// **'Ungrouped'**
+  String get rssGroupUngrouped;
+
+  /// Import OPML: menu entry
+  ///
+  /// In en, this message translates to:
+  /// **'Import OPML'**
+  String get rssImportOpml;
+
+  /// OPML import: group badge
+  ///
+  /// In en, this message translates to:
+  /// **'Group: {name}'**
+  String rssOpmlCategory(Object name);
+
+  /// OPML import: confirm button
+  ///
+  /// In en, this message translates to:
+  /// **'Import selected'**
+  String get rssOpmlConfirmImport;
+
+  /// OPML import: nothing to import
+  ///
+  /// In en, this message translates to:
+  /// **'No subscriptions to import'**
+  String get rssOpmlEmpty;
+
+  /// OPML export: subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Export all subscriptions to standard OPML'**
+  String get rssOpmlExportDesc;
+
+  /// OPML export: subtitle 2
+  ///
+  /// In en, this message translates to:
+  /// **'Create an OPML backup and share it'**
+  String get rssOpmlExportDesc2;
+
+  /// OPML export: section title
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get rssOpmlExportTitle;
+
+  /// OPML import: section description
+  ///
+  /// In en, this message translates to:
+  /// **'Import subscriptions from a file or pasted text'**
+  String get rssOpmlImportDesc;
+
+  /// OPML import: from file
+  ///
+  /// In en, this message translates to:
+  /// **'Import from file'**
+  String get rssOpmlImportFile;
+
+  /// OPML import: from file hint
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a local .opml / .xml file'**
+  String get rssOpmlImportFileDesc;
+
+  /// OPML import: preview title
+  ///
+  /// In en, this message translates to:
+  /// **'Import preview'**
+  String get rssOpmlImportPreviewTitle;
+
+  /// OPML import: paste text
+  ///
+  /// In en, this message translates to:
+  /// **'Import from pasted text'**
+  String get rssOpmlImportText;
+
+  /// OPML import: paste text hint
+  ///
+  /// In en, this message translates to:
+  /// **'Paste OPML content directly'**
+  String get rssOpmlImportTextDesc;
+
+  /// OPML import: section title
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get rssOpmlImportTitle;
+
+  /// OPML parse failed
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse OPML: {error}'**
+  String rssOpmlParseFailed(Object error);
+
+  /// OPML import preview: selected/total
+  ///
+  /// In en, this message translates to:
+  /// **'Selected {selected} / {total} total'**
+  String rssOpmlPreviewSummary(Object selected, Object total);
+
+  /// OPML import preview: selected/total with skipped
+  ///
+  /// In en, this message translates to:
+  /// **'Selected {selected} / {total} total (skipped {skipped} invalid nodes)'**
+  String rssOpmlPreviewSummarySkipped(
+      Object selected, Object skipped, Object total);
+
+  /// Set groups: button/title
+  ///
+  /// In en, this message translates to:
+  /// **'Set groups'**
+  String get rssSetGroups;
+
+  /// OPML Import & Export: screen title
+  ///
+  /// In en, this message translates to:
+  /// **'OPML Import & Export'**
+  String get rssOpmlTitle;
+
+  /// OPML export: entry title
+  ///
+  /// In en, this message translates to:
+  /// **'Export as OPML'**
+  String get rssOpmlExport;
+
+  /// OPML import: paste hint
+  ///
+  /// In en, this message translates to:
+  /// **'Paste OPML content here'**
+  String get rssOpmlPasteHint;
+
+  /// OPML import: imported toast
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} subscriptions'**
+  String rssOpmlImported(Object count);
+
+  /// Groups: name label
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get rssGroupName;
+
+  /// Global RSS search: screen title
+  ///
+  /// In en, this message translates to:
+  /// **'RSS Search'**
+  String get rssSearchTitle;
+
+  /// Global RSS search: input hint
+  ///
+  /// In en, this message translates to:
+  /// **'Search articles in your subscriptions'**
+  String get rssSearchHint;
+
+  /// Global RSS search: no result for query
+  ///
+  /// In en, this message translates to:
+  /// **'No matching articles'**
+  String get rssSearchNoResult;
+
+  /// Global RSS search: building cache index
+  ///
+  /// In en, this message translates to:
+  /// **'Building index…'**
+  String get rssSearchBuilding;
+
+  /// Global RSS search: no cached articles
+  ///
+  /// In en, this message translates to:
+  /// **'No cached articles yet. Open a feed first.'**
+  String get rssSearchEmpty;
+
+  /// Global RSS search: result count (shown / total)
+  ///
+  /// In en, this message translates to:
+  /// **'Matched {shown} of {total}'**
+  String rssSearchCount(Object shown, Object total);
+
+  /// RSS article detail: attachments section title (non-audio enclosures like video/file)
+  ///
+  /// In en, this message translates to:
+  /// **'Attachments'**
+  String get rssAttachments;
+
+  /// RSS update notification setting: toggle to send OS notification
+  ///
+  /// In en, this message translates to:
+  /// **'System notification'**
+  String get rssSystemNotification;
+
+  /// RSS update notification setting: subtitle noting platform support
+  ///
+  /// In en, this message translates to:
+  /// **'Send OS notification on new articles (Android/iOS/Linux/macOS)'**
+  String get rssSystemNotificationSubtitle;
 }
 
 class _AppLocalizationsDelegate

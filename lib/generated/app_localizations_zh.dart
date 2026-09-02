@@ -39,6 +39,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceManagementTitle => '源管理';
 
   @override
+  String get sourceManagementDesc => '导入、启用与排序内容源';
+
+  @override
   String get downloadSettingsTitle => '下载';
 
   @override
@@ -1684,6 +1687,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get rsshubSettingsTitle => 'RSSHub 设置';
+
+  @override
+  String get rsshubSettingsDesc => '选择预置实例或自建实例地址';
 
   @override
   String get rssNotifications => 'RSS 更新通知';
@@ -3623,6 +3629,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rssTestAllSpeed => '一键测速';
 
   @override
+  String get rssTestSpeed => '测速';
+
+  @override
   String get rssSpeedFailed => '测速失败';
 
   @override
@@ -5507,7 +5516,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsCatContent => '配置与网络';
 
   @override
-  String get settingsCatContentDesc => '源管理、网页爬取、AI 与网络设置';
+  String get settingsCatContentDesc => '源管理、RSS 订阅、网页爬取、AI 与网络设置';
 
   @override
   String get aiSettingsTitle => 'AI 配置';
@@ -8079,4 +8088,295 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get offlineExportAll => '导出全部已完成（双语 SRT）';
+
+  @override
+  String get networkRssAppliesNote =>
+      'RSS 订阅同样应用本页的代理、DNS、SNI 与 Hosts 配置：已在此页配置的全局网络，对 RSS 抓取与 RSSHub 测速一并生效。';
+
+  @override
+  String get rssGlobalSubscriptionDesc => '与浏览页同源的全局 RSS 订阅源';
+
+  @override
+  String get rssBindModuleTitle => '绑定到模块';
+
+  @override
+  String get rssBindToNovel => '绑定到小说';
+
+  @override
+  String get rssBindToAnime => '绑定到视频';
+
+  @override
+  String get rssBindToManga => '绑定到漫画';
+
+  @override
+  String get rssUnbindGlobal => '移回全局订阅';
+
+  @override
+  String get rssArticleFavorited => '已收藏';
+
+  @override
+  String get rssArticleUnfavorited => '已取消收藏';
+
+  @override
+  String get rssFavorites => 'RSS 收藏';
+
+  @override
+  String get rssFavoritesDesc => '已收藏的 RSS 文章';
+
+  @override
+  String get rssFavoritesEmpty => '暂无收藏';
+
+  @override
+  String get rssMarkAllRead => '全部标为已读';
+
+  @override
+  String get rssMarkedAllRead => '已全部标为已读';
+
+  @override
+  String get rssOfflineCached => '正在显示离线缓存（上次抓取）';
+
+  @override
+  String get rssShowAll => '全部';
+
+  @override
+  String get rssShowUnread => '未读';
+
+  @override
+  String get rssStarAdd => '收藏';
+
+  @override
+  String get rssStarRemove => '取消收藏';
+
+  @override
+  String rssDiscoverAddSelected(Object count) {
+    return '添加所选（$count）';
+  }
+
+  @override
+  String rssDiscoverAdded(Object count) {
+    return '已添加 $count 个订阅';
+  }
+
+  @override
+  String get rssDiscoverButton => '查找订阅源';
+
+  @override
+  String get rssDiscoverDesc => '输入站点地址，自动查找 RSS / Atom 源';
+
+  @override
+  String rssDiscoverFailed(Object error) {
+    return '查找失败：$error';
+  }
+
+  @override
+  String rssDiscoverFound(Object count) {
+    return '找到 $count 个订阅源';
+  }
+
+  @override
+  String get rssDiscoverFromLink => '页面声明';
+
+  @override
+  String get rssDiscoverFromProbe => '常见路径';
+
+  @override
+  String get rssDiscoverInputHint => 'https://example.com';
+
+  @override
+  String get rssDiscoverInvalidUrl => '请输入有效的网址';
+
+  @override
+  String get rssDiscoverNone => '没有找到订阅源';
+
+  @override
+  String get rssDiscoverProbing => '正在探测常见路径…';
+
+  @override
+  String get rssDiscoverTitle => '从网站发现订阅';
+
+  @override
+  String get rssExportOpml => '导出 OPML';
+
+  @override
+  String get rssGroupAdd => '新建分组';
+
+  @override
+  String rssGroupAddExists(String name) => '分组「$name」已存在';
+
+  @override
+  String get rssAudioFailed => '音频加载失败';
+
+  @override
+  String get rssOpenExternally => '用外部应用打开';
+
+  @override
+  String get rssVideoFailed => '视频加载失败';
+
+  @override
+  String get rssVideoPlay => '播放视频';
+
+  @override
+  String get rssIframeOpen => '在内置浏览器打开';
+
+  @override
+  String get rssFetchFullText => '抓取整页';
+
+  @override
+  String get rssFetching => '正在抓取…';
+
+  @override
+  String get rssFetchFullTextFailed => '抓取失败';
+
+  @override
+  String get rssFetchFullTextEmpty => '未能提取到正文';
+
+  @override
+  String get rssImageSaved => '图片已保存';
+
+  @override
+  String get rssImageSaveFailed => '保存失败';
+
+  @override
+  String get rssLinkUnsupported => '该链接不受支持';
+
+  @override
+  String get rssGroupAll => '全部';
+
+  @override
+  String get rssGroupDelete => '删除分组';
+
+  @override
+  String rssGroupDeleteConfirm(Object name) {
+    return '删除分组「$name」？订阅不会被删除，仅移除该分组标记。';
+  }
+
+  @override
+  String get rssGroupEmpty => '还没有分组';
+
+  @override
+  String rssGroupFeedCount(Object count) {
+    return '$count 个订阅';
+  }
+
+  @override
+  String get rssGroupManage => '管理分组';
+
+  @override
+  String get rssGroupRename => '重命名分组';
+
+  @override
+  String get rssGroupSetDone => '分组已更新';
+
+  @override
+  String get rssGroupUngrouped => '未分组';
+
+  @override
+  String get rssImportOpml => '导入 OPML';
+
+  @override
+  String rssOpmlCategory(Object name) {
+    return '分组：$name';
+  }
+
+  @override
+  String get rssOpmlConfirmImport => '导入所选';
+
+  @override
+  String get rssOpmlEmpty => '没有可导入的订阅';
+
+  @override
+  String get rssOpmlExportDesc => '将全部订阅导出为标准 OPML';
+
+  @override
+  String get rssOpmlExportDesc2 => '生成 OPML 备份并分享';
+
+  @override
+  String get rssOpmlExportTitle => '导出';
+
+  @override
+  String get rssOpmlImportDesc => '从文件或文本批量导入订阅';
+
+  @override
+  String get rssOpmlImportFile => '从文件导入';
+
+  @override
+  String get rssOpmlImportFileDesc => '选择本机的 .opml / .xml 文件';
+
+  @override
+  String get rssOpmlImportPreviewTitle => '导入预览';
+
+  @override
+  String get rssOpmlImportText => '粘贴文本导入';
+
+  @override
+  String get rssOpmlImportTextDesc => '直接粘贴 OPML 内容';
+
+  @override
+  String get rssOpmlImportTitle => '导入';
+
+  @override
+  String rssOpmlParseFailed(Object error) {
+    return 'OPML 解析失败：$error';
+  }
+
+  @override
+  String rssOpmlPreviewSummary(Object selected, Object total) {
+    return '已选 $selected / 共 $total 条';
+  }
+
+  @override
+  String rssOpmlPreviewSummarySkipped(
+      Object selected, Object skipped, Object total) {
+    return '已选 $selected / 共 $total 条（跳过 $skipped 个无效节点）';
+  }
+
+  @override
+  String get rssSetGroups => '设置分组';
+
+  @override
+  String get rssOpmlTitle => 'OPML 导入导出';
+
+  @override
+  String get rssOpmlExport => '导出为 OPML';
+
+  @override
+  String get rssOpmlPasteHint => '在此粘贴 OPML 内容';
+
+  @override
+  String rssOpmlImported(Object count) {
+    return '已导入 $count 条订阅';
+  }
+
+  @override
+  String get rssGroupName => '分组名称';
+
+  @override
+  String get rssSearchTitle => 'RSS 搜索';
+
+  @override
+  String get rssSearchHint => '搜索已订阅源的文章';
+
+  @override
+  String get rssSearchNoResult => '没有匹配的文章';
+
+  @override
+  String get rssSearchBuilding => '正在建立索引…';
+
+  @override
+  String get rssSearchEmpty => '还没有可搜索的缓存（先打开订阅源）';
+
+  @override
+  String rssSearchCount(Object shown, Object total) {
+    return '命中 $shown / 共 $total 条';
+  }
+
+  @override
+  String get rssAttachments => '附件';
+
+  @override
+  String get rssSystemNotification => '系统通知';
+
+  @override
+  String get rssSystemNotificationSubtitle =>
+      '有新文章时发送系统通知（Android/iOS/Linux/macOS；Windows 不支持，仅应用内提醒）';
 }

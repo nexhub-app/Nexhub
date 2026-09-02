@@ -13,6 +13,7 @@
   "settingsTitle": "Settings",
   "settingsTagline": "Craft your personal media space",
   "sourceManagementTitle": "Source Management",
+  "sourceManagementDesc": "Import, enable and reorder content sources",
   "downloadSettingsTitle": "Download",
   "downloadManagementTitle": "Download Management",
   "aboutTitle": "About",
@@ -825,6 +826,7 @@
   "rsshubInstance": "RSSHub Instance",
   "rsshubInstanceDesc": "Self-hosted RSSHub address",
   "rsshubSettingsTitle": "RSSHub Settings",
+  "rsshubSettingsDesc": "Choose a preset or self-hosted instance",
   "rssNotifications": "RSS update notifications",
   "rssNotificationsDesc": "Detect new items in subscriptions",
   "rssNotificationsTitle": "RSS Update Notifications",
@@ -1875,6 +1877,10 @@
   "unknown": "Unknown",
   "rssFeedListTitle": "RSS subscriptions",
   "rssTestAllSpeed": "Test all speeds",
+  "rssTestSpeed": "Test speed",
+  "@rssTestSpeed": {
+    "description": "Single RSS feed speed test menu item"
+  },
   "rssSpeedFailed": "Speed test failed",
   "rssSpeedMs": "{ms}ms",
   "@rssSpeedMs": {
@@ -2984,7 +2990,7 @@
   "settingsCatPlayback": "Playback & Reading",
   "settingsCatPlaybackDesc": "Player, comic, novel & danmaku display",
   "settingsCatContent": "Config & Network",
-  "settingsCatContentDesc": "Sources, scraping, AI & network",
+  "settingsCatContentDesc": "Sources, RSS subscriptions, scraping, AI & network",
   "aiSettingsTitle": "AI Settings",
   "aiSettingsDesc": "Manage AI endpoints & features (summary / illustration / translation)",
   "aiCommonApiSection": "Common API",
@@ -4482,5 +4488,357 @@
   "comicTranslationImport": "Import translations",
   "comicTranslationImportOk": "Imported {imported} pages, skipped {skipped} existing",
   "comicTranslationImportFail": "Import failed: invalid translations file",
-  "offlineExportAll": "Export all completed (bilingual SRT)"
+  "offlineExportAll": "Export all completed (bilingual SRT)",
+  "networkRssAppliesNote": "RSS subscriptions also apply this page's proxy, DNS, SNI and Hosts settings: global network configured here takes effect for both RSS fetching and RSSHub speed tests.",
+  "@networkRssAppliesNote": {
+    "description": "RSS subscriptions also honor this network settings page (proxy/DNS/SNI/Hosts)"
+  },
+  "rssGlobalSubscriptionDesc": "Global RSS subscriptions shared with the Browse tab",
+  "@rssGlobalSubscriptionDesc": {
+    "description": "Global RSS subscriptions shared with the Browse tab"
+  },
+  "rssBindModuleTitle": "Bind to module",
+  "@rssBindModuleTitle": {
+    "description": "Dialog title for binding an RSS feed to a module"
+  },
+  "rssBindToNovel": "Bind to novel",
+  "@rssBindToNovel": {
+    "description": "Bind RSS feed to novel module"
+  },
+  "rssBindToAnime": "Bind to video",
+  "@rssBindToAnime": {
+    "description": "Bind RSS feed to anime/video module"
+  },
+  "rssBindToManga": "Bind to manga",
+  "@rssBindToManga": {
+    "description": "Bind RSS feed to manga module"
+  },
+  "rssUnbindGlobal": "Unbind to global",
+  "@rssUnbindGlobal": {
+    "description": "Unbind RSS feed back to global subscriptions"
+  },
+  "rssArticleFavorited": "Added to favorites",
+  "@rssArticleFavorited": {
+    "description": "Added to favorites"
+  },
+  "rssArticleUnfavorited": "Removed from favorites",
+  "@rssArticleUnfavorited": {
+    "description": "Removed from favorites"
+  },
+  "rssFavorites": "RSS Favorites",
+  "@rssFavorites": {
+    "description": "RSS favorites page title and entry"
+  },
+  "rssFavoritesDesc": "Favorited RSS articles",
+  "@rssFavoritesDesc": {
+    "description": "RSS favorites entry subtitle"
+  },
+  "rssFavoritesEmpty": "No favorites yet",
+  "@rssFavoritesEmpty": {
+    "description": "RSS favorites empty state"
+  },
+  "rssMarkAllRead": "Mark all as read",
+  "@rssMarkAllRead": {
+    "description": "Mark all articles as read"
+  },
+  "rssMarkedAllRead": "Marked all as read",
+  "@rssMarkedAllRead": {
+    "description": "Marked all as read snackbar"
+  },
+  "rssOfflineCached": "Offline cache (last fetched)",
+  "@rssOfflineCached": {
+    "description": "Offline cache banner on RSS detail when network fetch failed"
+  },
+  "rssShowAll": "All",
+  "@rssShowAll": {
+    "description": "Filter: show all articles"
+  },
+  "rssShowUnread": "Unread",
+  "@rssShowUnread": {
+    "description": "Filter: show only unread articles"
+  },
+  "rssStarAdd": "Add to favorites",
+  "@rssStarAdd": {
+    "description": "Star button tooltip: favorite this article"
+  },
+  "rssStarRemove": "Remove from favorites",
+  "@rssStarRemove": {
+    "description": "Star button tooltip: unfavorite this article"
+  },
+  "rssDiscoverAddSelected": "Add selected ({count})",
+  "@rssDiscoverAddSelected": {
+    "description": "Discover feeds: add selected button"
+  },
+  "rssDiscoverAdded": "Added {count} feeds",
+  "@rssDiscoverAdded": {
+    "description": "Discover feeds: added toast"
+  },
+  "rssDiscoverButton": "Find feeds",
+  "@rssDiscoverButton": {
+    "description": "Discover feeds: button label"
+  },
+  "rssDiscoverDesc": "Enter a site address to find its RSS / Atom feeds",
+  "@rssDiscoverDesc": {
+    "description": "Discover feeds: page description"
+  },
+  "rssDiscoverFailed": "Discovery failed: {error}",
+  "@rssDiscoverFailed": {
+    "description": "Discover feeds: failure toast"
+  },
+  "rssDiscoverFound": "Found {count} feeds",
+  "@rssDiscoverFound": {
+    "description": "Discover feeds: found count"
+  },
+  "rssDiscoverFromLink": "Declared by page",
+  "@rssDiscoverFromLink": {
+    "description": "Discover feeds: source = page link"
+  },
+  "rssDiscoverFromProbe": "Common path",
+  "@rssDiscoverFromProbe": {
+    "description": "Discover feeds: source = common path probe"
+  },
+  "rssDiscoverInputHint": "https://example.com",
+  "@rssDiscoverInputHint": {
+    "description": "Discover feeds: URL input hint"
+  },
+  "rssDiscoverInvalidUrl": "Enter a valid URL",
+  "@rssDiscoverInvalidUrl": {
+    "description": "Discover feeds: invalid URL"
+  },
+  "rssDiscoverNone": "No feeds found",
+  "@rssDiscoverNone": {
+    "description": "Discover feeds: none found"
+  },
+  "rssDiscoverProbing": "Probing common paths…",
+  "@rssDiscoverProbing": {
+    "description": "Discover feeds: probing"
+  },
+  "rssDiscoverTitle": "Discover feeds from a site",
+  "@rssDiscoverTitle": {
+    "description": "Discover feeds: screen title"
+  },
+  "rssExportOpml": "Export as OPML",
+  "@rssExportOpml": {
+    "description": "Export OPML: menu entry"
+  },
+  "rssGroupAdd": "New group",
+  "@rssGroupAdd": {
+    "description": "Groups: new (manage-groups sheet / feed menu)"
+  },
+  "rssGroupAddExists": "Group \"{name}\" already exists",
+  "@rssGroupAddExists": {
+    "description": "Groups: duplicate-name hint when creating"
+  },
+  "rssAudioFailed": "Audio failed to load",
+  "@rssAudioFailed": {
+    "description": "Attachment: audio load failed"
+  },
+  "rssOpenExternally": "Open in external app",
+  "@rssOpenExternally": {
+    "description": "Attachment: external fallback when load fails"
+  },
+  "rssVideoFailed": "Video failed to load",
+  "@rssVideoFailed": {
+    "description": "Attachment: video load failed"
+  },
+  "rssVideoPlay": "Play video",
+  "@rssVideoPlay": {
+    "description": "Attachment: play video"
+  },
+  "rssIframeOpen": "Open in built-in browser",
+  "@rssIframeOpen": {
+    "description": "Inline frame: open in in-app browser"
+  },
+  "rssFetchFullText": "Fetch full page",
+  "@rssFetchFullText": {
+    "description": "Article: fetch full page content"
+  },
+  "rssFetching": "Fetching…",
+  "@rssFetching": {
+    "description": "Article: fetching in progress"
+  },
+  "rssFetchFullTextFailed": "Fetch failed",
+  "@rssFetchFullTextFailed": {
+    "description": "Article: fetch failed"
+  },
+  "rssFetchFullTextEmpty": "Could not extract content",
+  "@rssFetchFullTextEmpty": {
+    "description": "Article: no content extracted"
+  },
+  "rssImageSaved": "Image saved",
+  "@rssImageSaved": {
+    "description": "Image viewer: saved"
+  },
+  "rssImageSaveFailed": "Save failed",
+  "@rssImageSaveFailed": {
+    "description": "Image viewer: save failed"
+  },
+  "rssLinkUnsupported": "This link is not supported",
+  "@rssLinkUnsupported": {
+    "description": "Article: hint when a link scheme is blocked"
+  },
+  "rssGroupAll": "All",
+  "@rssGroupAll": {
+    "description": "Groups: all"
+  },
+  "rssGroupDelete": "Delete group",
+  "@rssGroupDelete": {
+    "description": "Groups: delete"
+  },
+  "rssGroupDeleteConfirm": "Delete group \"{name}\"? Subscriptions stay; only the tag is removed.",
+  "@rssGroupDeleteConfirm": {
+    "description": "Groups: delete confirm"
+  },
+  "rssGroupEmpty": "No groups yet",
+  "@rssGroupEmpty": {
+    "description": "Groups: empty state"
+  },
+  "rssGroupFeedCount": "{count} feeds",
+  "@rssGroupFeedCount": {
+    "description": "Groups: feed count"
+  },
+  "rssGroupManage": "Manage groups",
+  "@rssGroupManage": {
+    "description": "Groups: manage"
+  },
+  "rssGroupRename": "Rename group",
+  "@rssGroupRename": {
+    "description": "Groups: rename"
+  },
+  "rssGroupSetDone": "Groups updated",
+  "@rssGroupSetDone": {
+    "description": "Groups: updated"
+  },
+  "rssGroupUngrouped": "Ungrouped",
+  "@rssGroupUngrouped": {
+    "description": "Groups: ungrouped"
+  },
+  "rssImportOpml": "Import OPML",
+  "@rssImportOpml": {
+    "description": "Import OPML: menu entry"
+  },
+  "rssOpmlCategory": "Group: {name}",
+  "@rssOpmlCategory": {
+    "description": "OPML import: group badge"
+  },
+  "rssOpmlConfirmImport": "Import selected",
+  "@rssOpmlConfirmImport": {
+    "description": "OPML import: confirm button"
+  },
+  "rssOpmlEmpty": "No subscriptions to import",
+  "@rssOpmlEmpty": {
+    "description": "OPML import: nothing to import"
+  },
+  "rssOpmlExportDesc": "Export all subscriptions to standard OPML",
+  "@rssOpmlExportDesc": {
+    "description": "OPML export: subtitle"
+  },
+  "rssOpmlExportDesc2": "Create an OPML backup and share it",
+  "@rssOpmlExportDesc2": {
+    "description": "OPML export: subtitle 2"
+  },
+  "rssOpmlExportTitle": "Export",
+  "@rssOpmlExportTitle": {
+    "description": "OPML export: section title"
+  },
+  "rssOpmlImportDesc": "Import subscriptions from a file or pasted text",
+  "@rssOpmlImportDesc": {
+    "description": "OPML import: section description"
+  },
+  "rssOpmlImportFile": "Import from file",
+  "@rssOpmlImportFile": {
+    "description": "OPML import: from file"
+  },
+  "rssOpmlImportFileDesc": "Pick a local .opml / .xml file",
+  "@rssOpmlImportFileDesc": {
+    "description": "OPML import: from file hint"
+  },
+  "rssOpmlImportPreviewTitle": "Import preview",
+  "@rssOpmlImportPreviewTitle": {
+    "description": "OPML import: preview title"
+  },
+  "rssOpmlImportText": "Import from pasted text",
+  "@rssOpmlImportText": {
+    "description": "OPML import: paste text"
+  },
+  "rssOpmlImportTextDesc": "Paste OPML content directly",
+  "@rssOpmlImportTextDesc": {
+    "description": "OPML import: paste text hint"
+  },
+  "rssOpmlImportTitle": "Import",
+  "@rssOpmlImportTitle": {
+    "description": "OPML import: section title"
+  },
+  "rssOpmlParseFailed": "Failed to parse OPML: {error}",
+  "@rssOpmlParseFailed": {
+    "description": "OPML parse failed"
+  },
+  "rssOpmlPreviewSummary": "Selected {selected} / {total} total",
+  "@rssOpmlPreviewSummary": {
+    "description": "OPML import preview: selected/total"
+  },
+  "rssOpmlPreviewSummarySkipped": "Selected {selected} / {total} total (skipped {skipped} invalid nodes)",
+  "@rssOpmlPreviewSummarySkipped": {
+    "description": "OPML import preview: selected/total with skipped"
+  },
+  "rssSetGroups": "Set groups",
+  "@rssSetGroups": {
+    "description": "Set groups: button/title"
+  },
+  "rssOpmlTitle": "OPML Import & Export",
+  "@rssOpmlTitle": {
+    "description": "OPML Import & Export: screen title"
+  },
+  "rssOpmlExport": "Export as OPML",
+  "@rssOpmlExport": {
+    "description": "OPML export: entry title"
+  },
+  "rssOpmlPasteHint": "Paste OPML content here",
+  "@rssOpmlPasteHint": {
+    "description": "OPML import: paste hint"
+  },
+  "rssOpmlImported": "Imported {count} subscriptions",
+  "@rssOpmlImported": {
+    "description": "OPML import: imported toast"
+  },
+  "rssGroupName": "Group name",
+  "@rssGroupName": {
+    "description": "Groups: name label"
+  },
+  "rssSearchTitle": "RSS Search",
+  "@rssSearchTitle": {
+    "description": "Global RSS search: screen title"
+  },
+  "rssSearchHint": "Search articles in your subscriptions",
+  "@rssSearchHint": {
+    "description": "Global RSS search: input hint"
+  },
+  "rssSearchNoResult": "No matching articles",
+  "@rssSearchNoResult": {
+    "description": "Global RSS search: no result for query"
+  },
+  "rssSearchBuilding": "Building index…",
+  "@rssSearchBuilding": {
+    "description": "Global RSS search: building cache index"
+  },
+  "rssSearchEmpty": "No cached articles yet. Open a feed first.",
+  "@rssSearchEmpty": {
+    "description": "Global RSS search: no cached articles"
+  },
+  "rssSearchCount": "Matched {shown} of {total}",
+  "@rssSearchCount": {
+    "description": "Global RSS search: result count (shown / total)"
+  },
+  "rssAttachments": "Attachments",
+  "@rssAttachments": {
+    "description": "RSS article detail: attachments section title (non-audio enclosures like video/file)"
+  },
+  "rssSystemNotification": "System notification",
+  "@rssSystemNotification": {
+    "description": "RSS update notification setting: toggle to send OS notification"
+  },
+  "rssSystemNotificationSubtitle": "Send OS notification on new articles (Android/iOS/Linux/macOS)",
+  "@rssSystemNotificationSubtitle": {
+    "description": "RSS update notification setting: subtitle noting platform support"
+  }
 }

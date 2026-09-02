@@ -32,6 +32,13 @@ class SourceImage extends StatelessWidget {
   /// `min(2560, 屏幕物理像素 × 2)` 以限制长条漫的解码内存；null = 不限幅。
   final int? decodeCapWidthPx;
 
+  /// 显式指定的 Referer（优先于源配置里的 [AntiHotlinkingConfig.referer]）。
+  ///
+  /// 用于「图片所在页面已知」的场景：RSS 正文内嵌图、文章详情页封面等。
+  /// 这类图片的正确 Referer 是**文章页地址**，而不是图片自身域名——部分站点
+  /// 按 Referer 校验，只带图片自身 origin 会被判为盗链返回 403。
+  final String? refererOverride;
+
   /// 图片成功解码后回调（一次）。条漫阅读器借此在图片加载完成后移除占位高度，
   /// 避免 ConstrainedBox(minHeight) 在真实图高偏小时残留空白带（割裂感）。
   final VoidCallback? onLoadComplete;
@@ -53,6 +60,7 @@ class SourceImage extends StatelessWidget {
     this.placeholder,
     this.enableRetry = true,
     this.decodeCapWidthPx,
+    this.refererOverride,
     this.onLoadComplete,
     this.onImageInfo,
   });
@@ -80,6 +88,7 @@ class SourceImage extends StatelessWidget {
     final hasFields = (siteHeaders != null && siteHeaders.isNotEmpty) ||
         (ahHeaders != null && ahHeaders.isNotEmpty) ||
         (referer != null && referer.isNotEmpty) ||
+        (refererOverride != null && refererOverride!.isNotEmpty) ||
         (ua != null && ua.isNotEmpty) ||
         (cookies != null && cookies.isNotEmpty);
     if (!hasFields) return null;
@@ -88,6 +97,10 @@ class SourceImage extends StatelessWidget {
     if (siteHeaders != null) m.addAll(siteHeaders);
     if (referer != null && referer.isNotEmpty) {
       m['Referer'] = referer;
+    }
+    // 调用方显式指定的 Referer 覆盖源配置（文章页地址比图片域名更准确）。
+    if (refererOverride != null && refererOverride!.isNotEmpty) {
+      m['Referer'] = refererOverride!;
     }
     if (ua != null && ua.isNotEmpty) {
       m['User-Agent'] = ua;

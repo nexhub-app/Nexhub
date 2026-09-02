@@ -10,6 +10,7 @@
   "settingsTitle": "设置",
   "settingsTagline": "打造专属你的媒体空间",
   "sourceManagementTitle": "源管理",
+  "sourceManagementDesc": "导入、启用与排序内容源",
   "downloadSettingsTitle": "下载",
   "downloadManagementTitle": "下载管理",
   "aboutTitle": "关于",
@@ -812,6 +813,7 @@
   "rsshubInstance": "RSSHub Instance",
   "rsshubInstanceDesc": "自部署 RSSHub 地址",
   "rsshubSettingsTitle": "RSSHub 设置",
+  "rsshubSettingsDesc": "选择预置实例或自建实例地址",
   "rssNotifications": "RSS 更新通知",
   "rssNotificationsDesc": "检测订阅源新条目",
   "rssNotificationsTitle": "RSS 更新通知",
@@ -1851,6 +1853,10 @@
   "unknown": "未知",
   "rssFeedListTitle": "RSS 订阅",
   "rssTestAllSpeed": "一键测速",
+  "rssTestSpeed": "测速",
+  "@rssTestSpeed": {
+    "description": "Single RSS feed speed test menu item"
+  },
   "rssSpeedFailed": "测速失败",
   "rssSpeedMs": "{ms}ms",
   "@rssSpeedMs": {
@@ -2961,7 +2967,7 @@
   "settingsCatPlayback": "播放与阅读",
   "settingsCatPlaybackDesc": "播放器、漫画、小说与弹幕显示",
   "settingsCatContent": "配置与网络",
-  "settingsCatContentDesc": "源管理、网页爬取、AI 与网络设置",
+  "settingsCatContentDesc": "源管理、RSS 订阅、网页爬取、AI 与网络设置",
   "aiSettingsTitle": "AI 配置",
   "aiSettingsDesc": "统一管理 AI 接口与智能功能（速览 / 配图 / 翻译）",
   "aiCommonApiSection": "通用 API 配置",
@@ -4438,5 +4444,357 @@
   "comicTranslationImport": "导入翻译数据",
   "comicTranslationImportOk": "已导入 {imported} 页，跳过已有 {skipped} 页",
   "comicTranslationImportFail": "导入失败：翻译数据文件格式非法",
-  "offlineExportAll": "导出全部已完成（双语 SRT）"
+  "offlineExportAll": "导出全部已完成（双语 SRT）",
+  "networkRssAppliesNote": "RSS 订阅同样应用本页的代理、DNS、SNI 与 Hosts 配置：已在此页配置的全局网络，对 RSS 抓取与 RSSHub 测速一并生效。",
+  "@networkRssAppliesNote": {
+    "description": "RSS subscriptions also honor this network settings page (proxy/DNS/SNI/Hosts)"
+  },
+  "rssGlobalSubscriptionDesc": "与浏览页同源的全局 RSS 订阅源",
+  "@rssGlobalSubscriptionDesc": {
+    "description": "Global RSS subscriptions shared with the Browse tab"
+  },
+  "rssBindModuleTitle": "绑定到模块",
+  "@rssBindModuleTitle": {
+    "description": "Dialog title for binding an RSS feed to a module"
+  },
+  "rssBindToNovel": "绑定到小说",
+  "@rssBindToNovel": {
+    "description": "Bind RSS feed to novel module"
+  },
+  "rssBindToAnime": "绑定到视频",
+  "@rssBindToAnime": {
+    "description": "Bind RSS feed to anime/video module"
+  },
+  "rssBindToManga": "绑定到漫画",
+  "@rssBindToManga": {
+    "description": "Bind RSS feed to manga module"
+  },
+  "rssUnbindGlobal": "移回全局订阅",
+  "@rssUnbindGlobal": {
+    "description": "Unbind RSS feed back to global subscriptions"
+  },
+  "rssArticleFavorited": "已收藏",
+  "@rssArticleFavorited": {
+    "description": "已收藏"
+  },
+  "rssArticleUnfavorited": "已取消收藏",
+  "@rssArticleUnfavorited": {
+    "description": "已取消收藏"
+  },
+  "rssFavorites": "RSS 收藏",
+  "@rssFavorites": {
+    "description": "RSS 收藏页标题与入口"
+  },
+  "rssFavoritesDesc": "已收藏的 RSS 文章",
+  "@rssFavoritesDesc": {
+    "description": "RSS 收藏入口副标题"
+  },
+  "rssFavoritesEmpty": "暂无收藏",
+  "@rssFavoritesEmpty": {
+    "description": "RSS 收藏空状态"
+  },
+  "rssMarkAllRead": "全部标为已读",
+  "@rssMarkAllRead": {
+    "description": "将所有文章标为已读"
+  },
+  "rssMarkedAllRead": "已全部标为已读",
+  "@rssMarkedAllRead": {
+    "description": "已全部标为已读提示"
+  },
+  "rssOfflineCached": "正在显示离线缓存（上次抓取）",
+  "@rssOfflineCached": {
+    "description": "RSS 详情页抓取失败时的离线缓存提示"
+  },
+  "rssShowAll": "全部",
+  "@rssShowAll": {
+    "description": "筛选：显示全部文章"
+  },
+  "rssShowUnread": "未读",
+  "@rssShowUnread": {
+    "description": "筛选：仅显示未读文章"
+  },
+  "rssStarAdd": "收藏",
+  "@rssStarAdd": {
+    "description": "星标按钮提示：收藏这篇文章"
+  },
+  "rssStarRemove": "取消收藏",
+  "@rssStarRemove": {
+    "description": "星标按钮提示：取消收藏这篇文章"
+  },
+  "rssDiscoverAddSelected": "添加所选（{count}）",
+  "@rssDiscoverAddSelected": {
+    "description": "从网站发现订阅：添加所选订阅"
+  },
+  "rssDiscoverAdded": "已添加 {count} 个订阅",
+  "@rssDiscoverAdded": {
+    "description": "从网站发现订阅：已添加提示"
+  },
+  "rssDiscoverButton": "查找订阅源",
+  "@rssDiscoverButton": {
+    "description": "从网站发现订阅：按钮文案"
+  },
+  "rssDiscoverDesc": "输入站点地址，自动查找 RSS / Atom 源",
+  "@rssDiscoverDesc": {
+    "description": "从网站发现订阅：页面说明"
+  },
+  "rssDiscoverFailed": "查找失败：{error}",
+  "@rssDiscoverFailed": {
+    "description": "从网站发现订阅：失败提示"
+  },
+  "rssDiscoverFound": "找到 {count} 个订阅源",
+  "@rssDiscoverFound": {
+    "description": "从网站发现订阅：找到数量"
+  },
+  "rssDiscoverFromLink": "页面声明",
+  "@rssDiscoverFromLink": {
+    "description": "从网站发现订阅：来自页面声明"
+  },
+  "rssDiscoverFromProbe": "常见路径",
+  "@rssDiscoverFromProbe": {
+    "description": "从网站发现订阅：来自常见路径探测"
+  },
+  "rssDiscoverInputHint": "https://example.com",
+  "@rssDiscoverInputHint": {
+    "description": "从网站发现订阅：地址输入提示"
+  },
+  "rssDiscoverInvalidUrl": "请输入有效的网址",
+  "@rssDiscoverInvalidUrl": {
+    "description": "从网站发现订阅：无效地址"
+  },
+  "rssDiscoverNone": "没有找到订阅源",
+  "@rssDiscoverNone": {
+    "description": "从网站发现订阅：未找到"
+  },
+  "rssDiscoverProbing": "正在探测常见路径…",
+  "@rssDiscoverProbing": {
+    "description": "从网站发现订阅：正在探测"
+  },
+  "rssDiscoverTitle": "从网站发现订阅",
+  "@rssDiscoverTitle": {
+    "description": "从网站发现订阅：页面标题"
+  },
+  "rssExportOpml": "导出 OPML",
+  "@rssExportOpml": {
+    "description": "导出 OPML：入口文案"
+  },
+  "rssGroupAdd": "新建分组",
+  "@rssGroupAdd": {
+    "description": "分组：新建（管理分组面板 / 订阅项内共用）"
+  },
+  "rssGroupAddExists": "分组「{name}」已存在",
+  "@rssGroupAddExists": {
+    "description": "分组：新建时重名提示"
+  },
+  "rssAudioFailed": "音频加载失败",
+  "@rssAudioFailed": {
+    "description": "文章附件：音频加载失败"
+  },
+  "rssOpenExternally": "用外部应用打开",
+  "@rssOpenExternally": {
+    "description": "文章附件：加载失败时的外链兜底"
+  },
+  "rssVideoFailed": "视频加载失败",
+  "@rssVideoFailed": {
+    "description": "文章附件：视频加载失败"
+  },
+  "rssVideoPlay": "播放视频",
+  "@rssVideoPlay": {
+    "description": "文章附件：播放视频"
+  },
+  "rssIframeOpen": "在内置浏览器打开",
+  "@rssIframeOpen": {
+    "description": "文章内嵌框架：用内置浏览器打开"
+  },
+  "rssFetchFullText": "抓取整页",
+  "@rssFetchFullText": {
+    "description": "文章详情：抓取整页正文"
+  },
+  "rssFetching": "正在抓取…",
+  "@rssFetching": {
+    "description": "文章详情：抓取中"
+  },
+  "rssFetchFullTextFailed": "抓取失败",
+  "@rssFetchFullTextFailed": {
+    "description": "文章详情：抓取失败"
+  },
+  "rssFetchFullTextEmpty": "未能提取到正文",
+  "@rssFetchFullTextEmpty": {
+    "description": "文章详情：未提取到正文"
+  },
+  "rssImageSaved": "图片已保存",
+  "@rssImageSaved": {
+    "description": "图片查看器：保存成功"
+  },
+  "rssImageSaveFailed": "保存失败",
+  "@rssImageSaveFailed": {
+    "description": "图片查看器：保存失败"
+  },
+  "rssLinkUnsupported": "该链接不受支持",
+  "@rssLinkUnsupported": {
+    "description": "文章详情：拦截不受支持的链接协议时的提示"
+  },
+  "rssGroupAll": "全部",
+  "@rssGroupAll": {
+    "description": "分组：全部"
+  },
+  "rssGroupDelete": "删除分组",
+  "@rssGroupDelete": {
+    "description": "分组：删除"
+  },
+  "rssGroupDeleteConfirm": "删除分组「{name}」？订阅不会被删除，仅移除该分组标记。",
+  "@rssGroupDeleteConfirm": {
+    "description": "分组：删除确认"
+  },
+  "rssGroupEmpty": "还没有分组",
+  "@rssGroupEmpty": {
+    "description": "分组：空状态"
+  },
+  "rssGroupFeedCount": "{count} 个订阅",
+  "@rssGroupFeedCount": {
+    "description": "分组：订阅计数"
+  },
+  "rssGroupManage": "管理分组",
+  "@rssGroupManage": {
+    "description": "分组：管理"
+  },
+  "rssGroupRename": "重命名分组",
+  "@rssGroupRename": {
+    "description": "分组：重命名"
+  },
+  "rssGroupSetDone": "分组已更新",
+  "@rssGroupSetDone": {
+    "description": "分组：已更新"
+  },
+  "rssGroupUngrouped": "未分组",
+  "@rssGroupUngrouped": {
+    "description": "分组：未分组"
+  },
+  "rssImportOpml": "导入 OPML",
+  "@rssImportOpml": {
+    "description": "导入 OPML：入口文案"
+  },
+  "rssOpmlCategory": "分组：{name}",
+  "@rssOpmlCategory": {
+    "description": "OPML 导入：分组角标"
+  },
+  "rssOpmlConfirmImport": "导入所选",
+  "@rssOpmlConfirmImport": {
+    "description": "OPML 导入：确认按钮"
+  },
+  "rssOpmlEmpty": "没有可导入的订阅",
+  "@rssOpmlEmpty": {
+    "description": "OPML 导入：无可导入"
+  },
+  "rssOpmlExportDesc": "将全部订阅导出为标准 OPML",
+  "@rssOpmlExportDesc": {
+    "description": "OPML 导出：入口副标题"
+  },
+  "rssOpmlExportDesc2": "生成 OPML 备份并分享",
+  "@rssOpmlExportDesc2": {
+    "description": "OPML 导出：入口副标题2"
+  },
+  "rssOpmlExportTitle": "导出",
+  "@rssOpmlExportTitle": {
+    "description": "OPML 导出：区块标题"
+  },
+  "rssOpmlImportDesc": "从文件或文本批量导入订阅",
+  "@rssOpmlImportDesc": {
+    "description": "OPML 导入：区块说明"
+  },
+  "rssOpmlImportFile": "从文件导入",
+  "@rssOpmlImportFile": {
+    "description": "OPML 导入：从文件"
+  },
+  "rssOpmlImportFileDesc": "选择本机的 .opml / .xml 文件",
+  "@rssOpmlImportFileDesc": {
+    "description": "OPML 导入：从文件说明"
+  },
+  "rssOpmlImportPreviewTitle": "导入预览",
+  "@rssOpmlImportPreviewTitle": {
+    "description": "OPML 导入：预览标题"
+  },
+  "rssOpmlImportText": "粘贴文本导入",
+  "@rssOpmlImportText": {
+    "description": "OPML 导入：粘贴文本"
+  },
+  "rssOpmlImportTextDesc": "直接粘贴 OPML 内容",
+  "@rssOpmlImportTextDesc": {
+    "description": "OPML 导入：粘贴文本说明"
+  },
+  "rssOpmlImportTitle": "导入",
+  "@rssOpmlImportTitle": {
+    "description": "OPML 导入：区块标题"
+  },
+  "rssOpmlParseFailed": "OPML 解析失败：{error}",
+  "@rssOpmlParseFailed": {
+    "description": "OPML 解析失败"
+  },
+  "rssOpmlPreviewSummary": "已选 {selected} / 共 {total} 条",
+  "@rssOpmlPreviewSummary": {
+    "description": "OPML 导入预览：已选/共"
+  },
+  "rssOpmlPreviewSummarySkipped": "已选 {selected} / 共 {total} 条（跳过 {skipped} 个无效节点）",
+  "@rssOpmlPreviewSummarySkipped": {
+    "description": "OPML 导入预览：已选/共（含跳过）"
+  },
+  "rssSetGroups": "设置分组",
+  "@rssSetGroups": {
+    "description": "设置分组：按钮/标题"
+  },
+  "rssOpmlTitle": "OPML 导入导出",
+  "@rssOpmlTitle": {
+    "description": "OPML 导入导出：页面标题"
+  },
+  "rssOpmlExport": "导出为 OPML",
+  "@rssOpmlExport": {
+    "description": "OPML 导出：入口标题"
+  },
+  "rssOpmlPasteHint": "在此粘贴 OPML 内容",
+  "@rssOpmlPasteHint": {
+    "description": "OPML 导入：粘贴框提示"
+  },
+  "rssOpmlImported": "已导入 {count} 条订阅",
+  "@rssOpmlImported": {
+    "description": "OPML 导入：已导入提示"
+  },
+  "rssGroupName": "分组名称",
+  "@rssGroupName": {
+    "description": "分组：名称输入标签"
+  },
+  "rssSearchTitle": "RSS 搜索",
+  "@rssSearchTitle": {
+    "description": "全局 RSS 搜索：页面标题"
+  },
+  "rssSearchHint": "搜索已订阅源的文章",
+  "@rssSearchHint": {
+    "description": "全局 RSS 搜索：输入框提示"
+  },
+  "rssSearchNoResult": "没有匹配的文章",
+  "@rssSearchNoResult": {
+    "description": "全局 RSS 搜索：无匹配结果"
+  },
+  "rssSearchBuilding": "正在建立索引…",
+  "@rssSearchBuilding": {
+    "description": "全局 RSS 搜索：正在建立缓存索引"
+  },
+  "rssSearchEmpty": "还没有可搜索的缓存（先打开订阅源）",
+  "@rssSearchEmpty": {
+    "description": "全局 RSS 搜索：无缓存文章"
+  },
+  "rssSearchCount": "命中 {shown} / 共 {total} 条",
+  "@rssSearchCount": {
+    "description": "全局 RSS 搜索：结果计数（命中 / 共）"
+  },
+  "rssAttachments": "附件",
+  "@rssAttachments": {
+    "description": "RSS 文章详情：附件区块标题（非音频附件，如视频/文件）"
+  },
+  "rssSystemNotification": "系统通知",
+  "@rssSystemNotification": {
+    "description": "RSS 更新通知设置：是否发送系统通知开关"
+  },
+  "rssSystemNotificationSubtitle": "有新文章时发送系统通知（Android/iOS/Linux/macOS；Windows 不支持，仅应用内提醒）",
+  "@rssSystemNotificationSubtitle": {
+    "description": "RSS 更新通知设置：副标题，说明平台支持范围"
+  }
 }

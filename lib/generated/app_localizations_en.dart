@@ -39,6 +39,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sourceManagementTitle => 'Source Management';
 
   @override
+  String get sourceManagementDesc =>
+      'Import, enable and reorder content sources';
+
+  @override
   String get downloadSettingsTitle => 'Download';
 
   @override
@@ -1712,6 +1716,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rsshubSettingsTitle => 'RSSHub Settings';
+
+  @override
+  String get rsshubSettingsDesc => 'Choose a preset or self-hosted instance';
 
   @override
   String get rssNotifications => 'RSS update notifications';
@@ -3692,6 +3699,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rssTestAllSpeed => 'Test all speeds';
 
   @override
+  String get rssTestSpeed => 'Test speed';
+
+  @override
   String get rssSpeedFailed => 'Speed test failed';
 
   @override
@@ -5617,7 +5627,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsCatContent => 'Config & Network';
 
   @override
-  String get settingsCatContentDesc => 'Sources, scraping, AI & network';
+  String get settingsCatContentDesc =>
+      'Sources, RSS subscriptions, scraping, AI & network';
 
   @override
   String get aiSettingsTitle => 'AI Settings';
@@ -8277,4 +8288,298 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offlineExportAll => 'Export all completed (bilingual SRT)';
+
+  @override
+  String get networkRssAppliesNote =>
+      'RSS subscriptions also apply this page\'s proxy, DNS, SNI and Hosts settings: global network configured here takes effect for both RSS fetching and RSSHub speed tests.';
+
+  @override
+  String get rssGlobalSubscriptionDesc =>
+      'Global RSS subscriptions shared with the Browse tab';
+
+  @override
+  String get rssBindModuleTitle => 'Bind to module';
+
+  @override
+  String get rssBindToNovel => 'Bind to novel';
+
+  @override
+  String get rssBindToAnime => 'Bind to video';
+
+  @override
+  String get rssBindToManga => 'Bind to manga';
+
+  @override
+  String get rssUnbindGlobal => 'Unbind to global';
+
+  @override
+  String get rssArticleFavorited => 'Added to favorites';
+
+  @override
+  String get rssArticleUnfavorited => 'Removed from favorites';
+
+  @override
+  String get rssFavorites => 'RSS Favorites';
+
+  @override
+  String get rssFavoritesDesc => 'Favorited RSS articles';
+
+  @override
+  String get rssFavoritesEmpty => 'No favorites yet';
+
+  @override
+  String get rssMarkAllRead => 'Mark all as read';
+
+  @override
+  String get rssMarkedAllRead => 'Marked all as read';
+
+  @override
+  String get rssOfflineCached => 'Offline cache (last fetched)';
+
+  @override
+  String get rssShowAll => 'All';
+
+  @override
+  String get rssShowUnread => 'Unread';
+
+  @override
+  String get rssStarAdd => 'Add to favorites';
+
+  @override
+  String get rssStarRemove => 'Remove from favorites';
+
+  @override
+  String rssDiscoverAddSelected(Object count) {
+    return 'Add selected ($count)';
+  }
+
+  @override
+  String rssDiscoverAdded(Object count) {
+    return 'Added $count feeds';
+  }
+
+  @override
+  String get rssDiscoverButton => 'Find feeds';
+
+  @override
+  String get rssDiscoverDesc =>
+      'Enter a site address to find its RSS / Atom feeds';
+
+  @override
+  String rssDiscoverFailed(Object error) {
+    return 'Discovery failed: $error';
+  }
+
+  @override
+  String rssDiscoverFound(Object count) {
+    return 'Found $count feeds';
+  }
+
+  @override
+  String get rssDiscoverFromLink => 'Declared by page';
+
+  @override
+  String get rssDiscoverFromProbe => 'Common path';
+
+  @override
+  String get rssDiscoverInputHint => 'https://example.com';
+
+  @override
+  String get rssDiscoverInvalidUrl => 'Enter a valid URL';
+
+  @override
+  String get rssDiscoverNone => 'No feeds found';
+
+  @override
+  String get rssDiscoverProbing => 'Probing common paths…';
+
+  @override
+  String get rssDiscoverTitle => 'Discover feeds from a site';
+
+  @override
+  String get rssExportOpml => 'Export as OPML';
+
+  @override
+  String get rssGroupAdd => 'New group';
+
+  @override
+  String rssGroupAddExists(String name) => 'Group \"$name\" already exists';
+
+  @override
+  String get rssAudioFailed => 'Audio failed to load';
+
+  @override
+  String get rssOpenExternally => 'Open in external app';
+
+  @override
+  String get rssVideoFailed => 'Video failed to load';
+
+  @override
+  String get rssVideoPlay => 'Play video';
+
+  @override
+  String get rssIframeOpen => 'Open in built-in browser';
+
+  @override
+  String get rssFetchFullText => 'Fetch full page';
+
+  @override
+  String get rssFetching => 'Fetching…';
+
+  @override
+  String get rssFetchFullTextFailed => 'Fetch failed';
+
+  @override
+  String get rssFetchFullTextEmpty => 'Could not extract content';
+
+  @override
+  String get rssImageSaved => 'Image saved';
+
+  @override
+  String get rssImageSaveFailed => 'Save failed';
+
+  @override
+  String get rssLinkUnsupported => 'This link is not supported';
+
+  @override
+  String get rssGroupAll => 'All';
+
+  @override
+  String get rssGroupDelete => 'Delete group';
+
+  @override
+  String rssGroupDeleteConfirm(Object name) {
+    return 'Delete group \"$name\"? Subscriptions stay; only the tag is removed.';
+  }
+
+  @override
+  String get rssGroupEmpty => 'No groups yet';
+
+  @override
+  String rssGroupFeedCount(Object count) {
+    return '$count feeds';
+  }
+
+  @override
+  String get rssGroupManage => 'Manage groups';
+
+  @override
+  String get rssGroupRename => 'Rename group';
+
+  @override
+  String get rssGroupSetDone => 'Groups updated';
+
+  @override
+  String get rssGroupUngrouped => 'Ungrouped';
+
+  @override
+  String get rssImportOpml => 'Import OPML';
+
+  @override
+  String rssOpmlCategory(Object name) {
+    return 'Group: $name';
+  }
+
+  @override
+  String get rssOpmlConfirmImport => 'Import selected';
+
+  @override
+  String get rssOpmlEmpty => 'No subscriptions to import';
+
+  @override
+  String get rssOpmlExportDesc => 'Export all subscriptions to standard OPML';
+
+  @override
+  String get rssOpmlExportDesc2 => 'Create an OPML backup and share it';
+
+  @override
+  String get rssOpmlExportTitle => 'Export';
+
+  @override
+  String get rssOpmlImportDesc =>
+      'Import subscriptions from a file or pasted text';
+
+  @override
+  String get rssOpmlImportFile => 'Import from file';
+
+  @override
+  String get rssOpmlImportFileDesc => 'Pick a local .opml / .xml file';
+
+  @override
+  String get rssOpmlImportPreviewTitle => 'Import preview';
+
+  @override
+  String get rssOpmlImportText => 'Import from pasted text';
+
+  @override
+  String get rssOpmlImportTextDesc => 'Paste OPML content directly';
+
+  @override
+  String get rssOpmlImportTitle => 'Import';
+
+  @override
+  String rssOpmlParseFailed(Object error) {
+    return 'Failed to parse OPML: $error';
+  }
+
+  @override
+  String rssOpmlPreviewSummary(Object selected, Object total) {
+    return 'Selected $selected / $total total';
+  }
+
+  @override
+  String rssOpmlPreviewSummarySkipped(
+      Object selected, Object skipped, Object total) {
+    return 'Selected $selected / $total total (skipped $skipped invalid nodes)';
+  }
+
+  @override
+  String get rssSetGroups => 'Set groups';
+
+  @override
+  String get rssOpmlTitle => 'OPML Import & Export';
+
+  @override
+  String get rssOpmlExport => 'Export as OPML';
+
+  @override
+  String get rssOpmlPasteHint => 'Paste OPML content here';
+
+  @override
+  String rssOpmlImported(Object count) {
+    return 'Imported $count subscriptions';
+  }
+
+  @override
+  String get rssGroupName => 'Group name';
+
+  @override
+  String get rssSearchTitle => 'RSS Search';
+
+  @override
+  String get rssSearchHint => 'Search articles in your subscriptions';
+
+  @override
+  String get rssSearchNoResult => 'No matching articles';
+
+  @override
+  String get rssSearchBuilding => 'Building index…';
+
+  @override
+  String get rssSearchEmpty => 'No cached articles yet. Open a feed first.';
+
+  @override
+  String rssSearchCount(Object shown, Object total) {
+    return 'Matched $shown of $total';
+  }
+
+  @override
+  String get rssAttachments => 'Attachments';
+
+  @override
+  String get rssSystemNotification => 'System notification';
+
+  @override
+  String get rssSystemNotificationSubtitle =>
+      'Send OS notification on new articles (Android/iOS/Linux/macOS)';
 }

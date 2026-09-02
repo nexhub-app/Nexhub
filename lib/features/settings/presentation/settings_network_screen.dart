@@ -377,6 +377,13 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
+        const SizedBox(height: AppTokens.spaceSm),
+        // RSS 同样应用本页配置（B13/P0-6）：消除「已配网络却仍失败」的误导。
+        Text(
+          l10n.networkRssAppliesNote,
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(

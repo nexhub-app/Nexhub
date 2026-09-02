@@ -974,6 +974,64 @@ class HttpFetcher {
     }
   }
 
+  /// 取原始字节（不解码）：供需要自行按字符集解码的调用方，如 RSS 解析器按
+  /// `<?xml encoding=?>` 声明解码，避免非 UTF-8 feed 乱码（B12 修复）。
+  ///
+  /// 与 [fetch] 同路径（同 host 节流 / 隐身延迟 / 验证检测 / Cookie 注入 / net 隔离），
+  /// 但返回的原始字节（`List<int>`）交给调用方解码，而非走共享 `_decodeBody`。
+  /// 返回的映射含 `status`(int) / `headers`(Map<String,String>) / `bytes`(List<int>)。
+  /// 304 Not Modified 时 `status` 为 304、`bytes` 为空列表，由调用方复用本地缓存。
+  Future<Map<String, dynamic>> fetchBytes(
+    String url, {
+    String method = 'GET',
+    Map<String, String>? headers,
+    String? body,
+    String? referer,
+    bool stealth = true,
+    EffectiveNetworkProfile? net,
+  }) async {
+    _validateScheme(url);
+    await _gateRequest(url, stealth);
+    try {
+      final merged = _mergeHeaders(referer, headers, url);
+      final resp = await _dioFor(net).request<List<int>>(
+        url,
+        data: body,
+        options: Options(
+          method: method,
+          headers: merged,
+          responseType: ResponseType.bytes,
+          validateStatus: (_) => true,
+        ),
+      );
+      final int status = resp.statusCode ?? 0;
+      final bytes = resp.data ?? const <int>[];
+      // 验证检测需要字符串 body；RSS 响应体不大，用 utf8(allowMalformed) 近似，
+      // 仅作验证特征匹配，不影响返回给调用方的原始字节。
+      final probe = bytes.isEmpty ? '' : utf8.decode(bytes, allowMalformed: true);
+      if (VerificationDetector.isVerificationRequired(
+        statusCode: status,
+        body: probe,
+        headers: _responseHeaders(resp),
+      )) {
+        _recordAndThrowVerify(url, merged, probe, status);
+      }
+      _checkNonVerificationError(url, status, probe);
+      _storeCookies(url, resp);
+      final respHeaders = <String, String>{};
+      resp.headers.map.forEach((k, v) {
+        respHeaders[k] = v.join(', ');
+      });
+      return <String, dynamic>{
+        'status': status,
+        'headers': respHeaders,
+        'bytes': bytes,
+      };
+    } finally {
+      _requestSemaphore.release();
+    }
+  }
+
   /// 校验 URL scheme 仅允许 http/https（沙箱安全约束）。
   void _validateScheme(String url) {
     final lower = url.toLowerCase();

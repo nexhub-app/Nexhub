@@ -71,6 +71,26 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppTokens.spaceMd),
 
+            // ── 系统通知（OS 通知，P2-3）──
+            AppCard(
+              child: AppListTile(
+                leading: Icon(
+                  Icons.notification_important_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: Text(l10n.rssSystemNotification),
+                subtitle: Text(l10n.rssSystemNotificationSubtitle),
+                trailing: Switch(
+                  value: checker.systemNotification,
+                  onChanged: (v) {
+                    AppHaptics.selectionClick();
+                    checker.setSystemNotification(v);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+
             // ── 立即检测 ──
             AppCard(
               child: AppListTile(

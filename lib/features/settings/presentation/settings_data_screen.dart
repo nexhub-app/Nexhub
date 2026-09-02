@@ -11,6 +11,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import '../../stats/presentation/stats_overview_screen.dart';
 import '../../manga/presentation/image_favorite_gallery_screen.dart';
+import '../../rss/presentation/rss_favorites_screen.dart';
 import './settings_categories_screen.dart';
 import './settings_download_screen.dart';
 import './settings_import_export_screen.dart';
@@ -78,6 +79,17 @@ class SettingsDataScreen extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 AppPageRoute<void>(
                   builder: (_) => const ImageFavoriteGalleryScreen(),
+                ),
+              ),
+            ),
+            AppListTile(
+              leading: const SettingsLeadingIcon(icon:Icons.bookmark_outline),
+              title: Text(l10n.rssFavorites),
+              subtitle: Text(l10n.rssFavoritesDesc),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                AppPageRoute<void>(
+                  builder: (_) => const RssFavoritesScreen(),
                 ),
               ),
             ),
