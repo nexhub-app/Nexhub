@@ -28,6 +28,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/utils/app_log.dart';
 import '../../browser/presentation/http_browser_screen.dart';
+import 'rss_inline_video_player.dart' show RssVideoControls;
 
 /// 判断视频地址是否为可原生解码的直链媒体（按路径后缀，忽略 query）。
 /// 非直链（嵌入页）由调用方路由到内置浏览器。
@@ -77,6 +78,7 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
   late final Player _player;
   late final VideoController _controller;
   bool _failed = false;
+  bool _immersive = false;
   Timer? _loadTimer;
   StreamSubscription<String>? _errorSub;
   StreamSubscription<Duration>? _durSub;
@@ -156,25 +158,41 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title ?? 'Video'),
-        actions: <Widget>[
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            tooltip: l10n.share,
-            onPressed: () => unawaited(
-              Share.share('${widget.title ?? ''}\n${widget.url}'),
+      appBar: _immersive
+          ? null
+          : AppBar(
+              title: Text(widget.title ?? 'Video'),
+              actions: <Widget>[
+                IconButton(
+                  icon: const Icon(Icons.share_outlined),
+                  tooltip: l10n.share,
+                  onPressed: () => unawaited(
+                    Share.share('${widget.title ?? ''}\n${widget.url}'),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
       body: ColoredBox(
         color: Colors.black,
         child: Stack(
-          alignment: Alignment.center,
+          fit: StackFit.expand,
           children: <Widget>[
-            Video(controller: _controller),
-            if (_failed) _buildFailure(context, l10n),
+            // 关闭 media_kit 默认控制栏（布局异常且无进度/时长），
+            // 统一走应用自定义控制条（RssVideoControls，底部 + 可全屏）。
+            Video(
+              controller: _controller,
+              controls: NoVideoControls,
+              fit: BoxFit.contain,
+            ),
+            if (_failed)
+              _buildFailure(context, l10n)
+            else
+              RssVideoControls(
+                controller: _controller,
+                onToggleFullscreen: () => setState(() {
+                  _immersive = !_immersive;
+                }),
+              ),
           ],
         ),
       ),

@@ -332,7 +332,17 @@ class _RssVideoControlsState extends State<RssVideoControls> {
   @override
   void initState() {
     super.initState();
+    // 关键：Player 可能在控制条挂载前就已 open，duration/position 流的早期
+    // 事件会错过（广播流错过即丢），必须从 player.state 读初始值，
+    // 否则总时长永远 00:00、进度条无法拖动。
     _muted = _player.state.volume <= 0.001;
+    _position = _player.state.position;
+    _duration = _player.state.duration;
+    _playing = _player.state.playing;
+    _speed = _player.state.rate;
+    _dragValue = _duration.inMilliseconds > 0
+        ? _position.inMilliseconds.toDouble()
+        : 0;
     _posSub = _player.stream.position.listen((Duration d) {
       if (!_seeking && mounted) setState(() => _position = d);
     });
@@ -423,6 +433,18 @@ class _RssVideoControlsState extends State<RssVideoControls> {
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
+          // 缓冲指示（同步主视频播放器）：缓冲时中央显示 spinner。
+          if (_buffering && _controlsVisible)
+            const Center(
+              child: SizedBox(
+                width: 36,
+                height: 36,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white70,
+                ),
+              ),
+            ),
           if (_controlsVisible)
             // 点击区域下沿控制条。
             Align(
@@ -454,7 +476,16 @@ class _RssVideoControlsState extends State<RssVideoControls> {
                         style: const TextStyle(color: Colors.white, fontSize: 12)),
                     Expanded(
                       child: Slider(
-                        value: _dragValue,
+                        // 播放中跟随 _position（否则进度条永远停在 0 无法拖动）；
+                        // 拖动时用 _dragValue 暂存，松手才 seek。
+                        value: _duration.inMilliseconds <= 0
+                            ? 0
+                            : (_seeking
+                                    ? _dragValue
+                                    : _position.inMilliseconds
+                                        .toDouble()
+                                        .clamp(0.0, _duration.inMilliseconds.toDouble()))
+                                .clamp(0.0, _duration.inMilliseconds.toDouble()),
                         min: 0,
                         max: _duration.inMilliseconds > 0
                             ? _duration.inMilliseconds.toDouble()
