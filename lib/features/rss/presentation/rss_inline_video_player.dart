@@ -46,8 +46,12 @@ class RssInlineVideoPlayer extends StatefulWidget {
 class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
   static const Duration _loadTimeout = Duration(seconds: 20);
 
-  late final Player _player;
-  late final VideoController _controller;
+  /// 用户点击播放后才创建（与旧「点击播放按钮」行为一致）：页面 build 时
+  /// 不自动 open，避免与正文抓取等请求并发、以及多个内嵌视频同时创建
+  /// Player 的时序竞态（此前自动 open 表现为 mpv 报 tcp 连接失败）。
+  Player? _player;
+  VideoController? _controller;
+  bool _started = false;
   bool _failed = false;
   Timer? _loadTimer;
   StreamSubscription<String>? _errorSub;
@@ -57,9 +61,16 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
   void initState() {
     super.initState();
     MediaKit.ensureInitialized();
-    _player = Player();
-    _controller = VideoController(_player);
-    _durSub = _player.stream.duration.listen((Duration d) {
+  }
+
+  Future<void> _startPlayback() async {
+    if (_started) return;
+    final Player player = Player();
+    final VideoController controller = VideoController(player);
+    _player = player;
+    _controller = controller;
+    _started = true;
+    _durSub = player.stream.duration.listen((Duration d) {
       if (!mounted) return;
       if (d > Duration.zero) {
         _loadTimer?.cancel();
@@ -67,23 +78,26 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
         if (_failed) setState(() => _failed = false);
       }
     });
-    _errorSub = _player.stream.error.listen((String message) {
+    _errorSub = player.stream.error.listen((String message) {
       AppLog.instance.w('RSS 内嵌视频内核报错: ${widget.url} — $message');
       if (!mounted) return;
       _loadTimer?.cancel();
       _loadTimer = null;
       setState(() => _failed = true);
     });
-    unawaited(_open());
+    if (mounted) setState(() {});
+    await _open();
   }
 
   Future<void> _open() async {
-    if (mounted) setState(() => _failed = false);
+    final Player? player = _player;
+    if (player == null || !mounted) return;
+    setState(() => _failed = false);
     // fire-and-forget：Player 刚创建时 await setProperty 有内核未就绪的时序
     // 风险，绝不能阻塞 open（否则表现为永远 0 进度 → 超时判失败）。
-    unawaited(applyAppProxyToPlayer(_player));
+    unawaited(applyAppProxyToPlayer(player));
     unawaited(_setNetworkTimeout());
-    _player.open(
+    player.open(
       Media(
         widget.url,
         httpHeaders: buildMediaHeaders(
@@ -96,7 +110,7 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
     _loadTimer?.cancel();
     _loadTimer = Timer(_loadTimeout, () {
       if (!mounted) return;
-      if (_player.state.duration > Duration.zero || _player.state.playing) {
+      if (player.state.duration > Duration.zero || player.state.playing) {
         return;
       }
       AppLog.instance.w('RSS 内嵌视频加载超时(20s 无时长未起播): ${widget.url}');
@@ -105,7 +119,7 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
   }
 
   Future<void> _setNetworkTimeout() async {
-    final Object? platform = _player.platform;
+    final Object? platform = _player?.platform;
     if (platform is! NativePlayer) return;
     try {
       await platform.setProperty('network-timeout', '60');
@@ -115,13 +129,14 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
   }
 
   Future<void> _openFullscreen() async {
-    if (!mounted) return;
+    final VideoController? controller = _controller;
+    if (!mounted || controller == null) return;
     // 全屏复用同一 controller（进度不丢）；全屏页退出不释放 Player，
     // 由本组件持有直到 dispose。
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => RssVideoFullscreen(
-          controller: _controller,
+          controller: controller,
           url: widget.url,
           title: widget.title,
           pageUrl: widget.pageUrl,
@@ -135,7 +150,7 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
     _loadTimer?.cancel();
     _errorSub?.cancel();
     _durSub?.cancel();
-    _player.dispose();
+    _player?.dispose();
     super.dispose();
   }
 
@@ -147,27 +162,33 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
         child: ColoredBox(
           color: Colors.black,
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              Video(
-                controller: _controller,
-                controls: NoVideoControls,
-                fit: BoxFit.contain,
-              ),
-              if (_failed)
-                _FailureOverlay(
-                  onRetry: () => unawaited(_open()),
-                  onBrowser: () => _openInAppBrowser(context),
-                  onExternal: () => _openExternally(context),
+          child: !_started
+              // 未点击：16:9 占位 + 播放按钮（与旧按钮版一致，点击才建连）。
+              ? _PlayPlaceholder(
+                  onPlay: () => unawaited(_startPlayback()),
                 )
-              else
-                RssVideoControls(
-                  controller: _controller,
-                  onToggleFullscreen: () => unawaited(_openFullscreen()),
+              : Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    Video(
+                      controller: _controller!,
+                      controls: NoVideoControls,
+                      fit: BoxFit.contain,
+                    ),
+                    if (_failed)
+                      _FailureOverlay(
+                        onRetry: () => unawaited(_open()),
+                        onBrowser: () => _openInAppBrowser(context),
+                        onExternal: () => _openExternally(context),
+                      )
+                    else
+                      RssVideoControls(
+                        controller: _controller!,
+                        onToggleFullscreen: () =>
+                            unawaited(_openFullscreen()),
+                      ),
+                  ],
                 ),
-            ],
-          ),
         ),
       ),
     );
@@ -493,6 +514,31 @@ class _RssVideoControlsState extends State<RssVideoControls> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// 未点击播放前的 16:9 占位：黑底 + 居中播放按钮（与旧「点击播放按钮」
+/// 行为一致——点击才建连，避免页面打开即自动 open 的时序竞态）。
+class _PlayPlaceholder extends StatelessWidget {
+  final VoidCallback onPlay;
+
+  const _PlayPlaceholder({required this.onPlay});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black,
+      child: InkWell(
+        onTap: onPlay,
+        child: const Center(
+          child: Icon(
+            Icons.play_circle_outline,
+            size: 56,
+            color: Colors.white70,
+          ),
+        ),
       ),
     );
   }

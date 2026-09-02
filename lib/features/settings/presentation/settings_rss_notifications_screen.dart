@@ -72,6 +72,26 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppTokens.spaceMd),
 
+            // ── 充电时自动检测（触发条件：充电）──
+            AppCard(
+              child: AppListTile(
+                leading: Icon(
+                  Icons.battery_charging_full_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: Text(l10n.rssChargeCheck),
+                subtitle: Text(l10n.rssChargeCheckSubtitle),
+                trailing: Switch(
+                  value: checker.chargeCheck,
+                  onChanged: (v) {
+                    AppHaptics.selectionClick();
+                    checker.setChargeCheck(v);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+
             // ── 系统通知（OS 通知，P2-3）──
             AppCard(
               child: AppListTile(

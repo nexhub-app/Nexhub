@@ -255,9 +255,21 @@ class RssArticleStore {
   /// 抓取文章全文并缓存（之后断网亦可离线阅读）。url 为空跳过。
   /// 返回是否成功取得正文，供调用方区分「已更新 / 抓取失败」给出反馈
   /// （此前失败被静默吞掉，用户点了按钮毫无反应，分不清是抓着还是挂了）。
+  ///
+  /// 防止频繁抓取：已有缓存且距上次抓取不足 [_fullTextMinInterval] 时直接
+  /// 复用缓存（不再请求原站）；超过间隔或从未抓过才重新抓取。
+  static const Duration _fullTextMinInterval = Duration(minutes: 10);
   Future<bool> fetchFullText(String feedId, RssItem item) async {
     if (item.url.isEmpty) return false;
     final k = RssArticleRecord.key(feedId, item.url, item.title);
+    final prev = _states[k];
+    if (prev?.content != null && prev!.content!.isNotEmpty) {
+      final cachedAt = prev.cachedAt ?? 0;
+      if (DateTime.now().millisecondsSinceEpoch - cachedAt <
+          _fullTextMinInterval.inMilliseconds) {
+        return prev.content!.trim().isNotEmpty;
+      }
+    }
     try {
       final html = await HttpFetcher.instance.getHtml(
         item.url,

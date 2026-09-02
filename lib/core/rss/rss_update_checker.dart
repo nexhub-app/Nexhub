@@ -15,6 +15,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
 
 import '../comic/models/reader_preferences.dart';
@@ -122,6 +123,7 @@ class RssUpdateChecker extends ChangeNotifier {
   /// 并同步在文章库标记已读（信息降噪，关键词为空 = 功能关闭）。
   List<String> _autoReadKeywords = const <String>[];
   Timer? _timer;
+  StreamSubscription<BatteryState>? _batterySub;
 
   /// 是否启用更新检测。
   bool get enabled => _enabled;
@@ -173,7 +175,12 @@ class RssUpdateChecker extends ChangeNotifier {
   Future<void> init() async {
     await _loadStates();
     await _loadSettings();
-    if (_enabled) _startTimer();
+    if (_enabled) {
+      _startTimer();
+      _setupBatteryCheck();
+      // 打开应用即检查一次（触发条件：打开应用），不等首个周期。
+      unawaited(checkAllFeeds());
+    }
     notifyListeners();
   }
 
@@ -182,11 +189,46 @@ class RssUpdateChecker extends ChangeNotifier {
     _enabled = value;
     if (value) {
       _startTimer();
+      _setupBatteryCheck();
     } else {
       _stopTimer();
+      await _teardownBatteryCheck();
     }
     await _saveSettings();
     notifyListeners();
+  }
+
+  /// 充电时自动检测开关（触发条件：充电）。
+  bool _chargeCheck = false;
+  bool get chargeCheck => _chargeCheck;
+
+  /// 设置充电时自动检测。
+  Future<void> setChargeCheck(bool value) async {
+    _chargeCheck = value;
+    if (_enabled) {
+      if (value) {
+        _setupBatteryCheck();
+      } else {
+        await _teardownBatteryCheck();
+      }
+    }
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  /// 订阅电池状态：进入充电状态即触发一次全量检测。
+  void _setupBatteryCheck() {
+    if (!_chargeCheck) return;
+    _batterySub ??= Battery().onBatteryStateChanged.listen((BatteryState s) {
+      if (s == BatteryState.charging || s == BatteryState.full) {
+        unawaited(checkAllFeeds());
+      }
+    });
+  }
+
+  Future<void> _teardownBatteryCheck() async {
+    await _batterySub?.cancel();
+    _batterySub = null;
   }
 
   /// 设置轮询间隔。
@@ -247,6 +289,14 @@ class RssUpdateChecker extends ChangeNotifier {
       final parsed = await rssManager.fetchFeed(feed);
       final items = parsed.items;
       if (items.isEmpty) return;
+
+      // 新内容拉取后写入本地缓存（列表/详情优先读缓存，断网/慢网也能秒开；
+      // 详情页手动刷新才绕过缓存重新抓取）。
+      try {
+        await RssArticleStore.instance.cacheFeed(feed.id, items);
+      } on Object {
+        // 缓存写入失败不影响本次检测。
+      }
 
       String itemKey(RssItem i) => i.url.isNotEmpty ? i.url : i.title;
       final currentKeys = items.map(itemKey).toList();
@@ -353,6 +403,7 @@ class RssUpdateChecker extends ChangeNotifier {
           (map['autoReadKeywords'] as List<dynamic>? ?? const [])
               .whereType<String>()
               .toList(growable: false);
+      _chargeCheck = map['chargeCheck'] as bool? ?? false;
     } catch (_) {
       // 损坏数据忽略
     }
@@ -364,6 +415,7 @@ class RssUpdateChecker extends ChangeNotifier {
       'systemNotification': _systemNotification,
       'interval': _interval.index,
       'autoReadKeywords': _autoReadKeywords,
+      'chargeCheck': _chargeCheck,
     };
     await _backend.set(_settingsKey, jsonEncode(map));
   }
@@ -371,6 +423,7 @@ class RssUpdateChecker extends ChangeNotifier {
   @override
   void dispose() {
     _stopTimer();
+    _teardownBatteryCheck();
     super.dispose();
   }
 }

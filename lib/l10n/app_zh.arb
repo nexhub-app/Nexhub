@@ -4850,5 +4850,13 @@
   "alignLeft": "左对齐",
   "alignCenter": "居中",
   "alignRight": "右对齐",
-  "colorFollowDefault": "跟随默认"
+  "colorFollowDefault": "跟随默认",
+  "rssChargeCheck": "充电时自动检测",
+  "@rssChargeCheck": {
+    "description": "RSS 更新通知设置：充电时触发一次更新检测"
+  },
+  "rssChargeCheckSubtitle": "接入充电器后自动检测一次新内容（触发条件：充电）",
+  "@rssChargeCheckSubtitle": {
+    "description": "RSS 更新通知设置：充电触发的说明文案"
+  }
 }

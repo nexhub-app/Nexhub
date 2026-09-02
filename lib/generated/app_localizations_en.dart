@@ -8743,4 +8743,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get colorFollowDefault => 'Follow default';
+
+  @override
+  String get rssChargeCheck => 'Check on charging';
+
+  @override
+  String get rssChargeCheckSubtitle =>
+      'Auto-check for new content once the charger is connected (trigger: charging)';
 }

@@ -121,12 +121,11 @@ class NetworkClientBuilder {
           tlsDirect ? SniPolicy.resolve(profile.sni, uri.host) : null;
 
       // DNS/Hosts 定向 TCP：解析结果为空时回退原域名交给系统解析。
-      Future<ConnectionTask<Socket>> tcpTask() =>
-          DnsResolver.instance
-              .resolve(targetHost, profile.dns, profile.hosts)
-              .then((addresses) => addresses.isEmpty
-                  ? Socket.startConnect(targetHost, targetPort)
-                  : Socket.startConnect(addresses.first, targetPort));
+      Future<ConnectionTask<Socket>> tcpTask() => DnsResolver.instance
+          .resolve(targetHost, profile.dns, profile.hosts)
+          .then((addresses) => addresses.isEmpty
+              ? Socket.startConnect(targetHost, targetPort)
+              : _connectFirstReachable(targetHost, targetPort, addresses));
 
       if (!tlsDirect) return tcpTask();
 
@@ -152,6 +151,38 @@ class NetworkClientBuilder {
         return ConnectionTask.fromSocket(secured, raw.cancel);
       });
     };
+  }
+
+  /// 从解析结果中逐个尝试连接，直到成功；全部失败则回退系统解析原域名直连。
+  ///
+  /// 修复「浏览器能开、应用超时」：DNS 常返回多个 IP（CDN / 多线机房），
+  /// 其中部分地址不可达（被投毒 / 机房屏蔽 / 仅某个 IP 可达）。此前只连
+  /// `addresses.first`，第一个不可达就整体连接超时；这里按顺序逐个尝试，
+  /// 任意一个成功即建连成功（与浏览器的多 IP 回退行为一致）。
+  static Future<ConnectionTask<Socket>> _connectFirstReachable(
+    String host,
+    int port,
+    List<InternetAddress> addresses,
+  ) async {
+    Object? lastErr;
+    for (final addr in addresses) {
+      try {
+        final task = await Socket.startConnect(addr, port);
+        // 等待本次连接结果：成功即返回（调用方后续 await socket 已完成）；
+        // 失败则记录并尝试下一个地址。
+        await task.socket;
+        return task;
+      } on Object catch (e) {
+        lastErr = e;
+      }
+    }
+    // 全部候选失败：回退系统解析原域名直连（行为同旧路径，尽量不丢）。
+    try {
+      return await Socket.startConnect(host, port);
+    } on Object catch (e) {
+      // 兜底失败：抛出原始（更可读）的连接错误。
+      throw lastErr ?? e;
+    }
   }
 }
 

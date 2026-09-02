@@ -4894,5 +4894,13 @@
   "alignLeft": "Left",
   "alignCenter": "Center",
   "alignRight": "Right",
-  "colorFollowDefault": "Follow default"
+  "colorFollowDefault": "Follow default",
+  "rssChargeCheck": "Check on charging",
+  "@rssChargeCheck": {
+    "description": "RSS update notification setting: trigger a check when charging"
+  },
+  "rssChargeCheckSubtitle": "Auto-check for new content once the charger is connected (trigger: charging)",
+  "@rssChargeCheckSubtitle": {
+    "description": "RSS update notification setting: subtitle for the charging trigger"
+  }
 }

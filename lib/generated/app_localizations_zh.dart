@@ -8539,4 +8539,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get colorFollowDefault => '跟随默认';
+
+  @override
+  String get rssChargeCheck => '充电时自动检测';
+
+  @override
+  String get rssChargeCheckSubtitle => '接入充电器后自动检测一次新内容（触发条件：充电）';
 }

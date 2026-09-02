@@ -16358,6 +16358,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Follow default'**
   String get colorFollowDefault;
+
+  /// RSS update notification setting: trigger a check when charging
+  ///
+  /// In en, this message translates to:
+  /// **'Check on charging'**
+  String get rssChargeCheck;
+
+  /// RSS update notification setting: subtitle for the charging trigger
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-check for new content once the charger is connected (trigger: charging)'**
+  String get rssChargeCheckSubtitle;
 }
 
 class _AppLocalizationsDelegate

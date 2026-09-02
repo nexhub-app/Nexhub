@@ -120,6 +120,15 @@ class _RssFeedDetailScreenState extends State<RssFeedDetailScreen> {
       });
     }
     await _store.init();
+    // 旧内容优先缓存到本地（除非在详情页面刷新）：有缓存先立即展示，
+    // 避免慢网/断网时列表空白；随后后台刷新替换为最新内容。
+    final cached = _store.getFeedItems(widget.feed.id);
+    if (cached.isNotEmpty && mounted) {
+      setState(() {
+        _parsed = ParsedFeed(title: widget.feed.title, items: cached);
+        _loading = false;
+      });
+    }
     try {
       final result = await manager.fetchFeed(widget.feed);
       if (mounted) {
@@ -131,18 +140,23 @@ class _RssFeedDetailScreenState extends State<RssFeedDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final cached = _store.getFeedItems(widget.feed.id);
-        if (cached.isNotEmpty) {
-          setState(() {
-            _parsed = ParsedFeed(title: widget.feed.title, items: cached);
-            _loading = false;
-            _offline = true;
-          });
+        if (_parsed != null) {
+          // 已有缓存展示中（可能正是上面刚展示的）：保持，仅标记离线态。
+          setState(() => _offline = true);
         } else {
-          setState(() {
-            _error = e.toString();
-            _loading = false;
-          });
+          final cached = _store.getFeedItems(widget.feed.id);
+          if (cached.isNotEmpty) {
+            setState(() {
+              _parsed = ParsedFeed(title: widget.feed.title, items: cached);
+              _loading = false;
+              _offline = true;
+            });
+          } else {
+            setState(() {
+              _error = e.toString();
+              _loading = false;
+            });
+          }
         }
       }
     }
