@@ -2726,6 +2726,13 @@ abstract class AppLocalizations {
   /// **'Night Mode'**
   String get articleNightMode;
 
+  String get articleContentWidth;
+  String get articleJustify;
+  String get articleParagraphSpacing;
+  String get articleWidthNarrow;
+  String get articleWidthNormal;
+  String get articleWidthWide;
+
   /// No description provided for @mirrorListTitle.
   ///
   /// In en, this message translates to:
@@ -15716,9 +15723,6 @@ abstract class AppLocalizations {
   /// **'Export as OPML'**
   String get rssExportOpml;
 
-  /// Groups: new (from feed)
-  ///
-  /// In en, this message translates to:
   /// Groups: new (manage-groups sheet / feed menu)
   ///
   /// In en, this message translates to:
@@ -15729,7 +15733,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Group \"{name}\" already exists'**
-  String rssGroupAddExists(String name);
+  String rssGroupAddExists(Object name);
 
   /// Attachment: audio load failed
   ///
@@ -15755,6 +15759,13 @@ abstract class AppLocalizations {
   /// **'Play video'**
   String get rssVideoPlay;
 
+  String get rssFetchWebsite;
+  String get rssFetching;
+  String get rssListLayout;
+  String get rssLayoutList;
+  String get rssLayoutCard;
+  String get rssLayoutCompact;
+
   /// Inline frame: open in in-app browser
   ///
   /// In en, this message translates to:
@@ -15769,10 +15780,6 @@ abstract class AppLocalizations {
 
   /// Article: fetching in progress
   ///
-  /// In en, this message translates to:
-  /// **'Fetching…'**
-  String get rssFetching;
-
   /// Article: fetch failed
   ///
   /// In en, this message translates to:

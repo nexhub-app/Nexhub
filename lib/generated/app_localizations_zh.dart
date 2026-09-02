@@ -1354,6 +1354,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get articleNightMode => '夜间模式';
 
   @override
+  String get articleContentWidth => '内容宽度';
+  @override
+  String get articleJustify => '两端对齐';
+  @override
+  String get articleParagraphSpacing => '段间距';
+  @override
+  String get articleWidthNarrow => '窄';
+  @override
+  String get articleWidthNormal => '标准';
+  @override
+  String get articleWidthWide => '宽';
+
+  @override
   String get mirrorListTitle => '镜像列表';
 
   @override
@@ -8201,7 +8214,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rssGroupAdd => '新建分组';
 
   @override
-  String rssGroupAddExists(String name) => '分组「$name」已存在';
+  String rssGroupAddExists(Object name) {
+    return '分组「$name」已存在';
+  }
 
   @override
   String get rssAudioFailed => '音频加载失败';
@@ -8216,13 +8231,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rssVideoPlay => '播放视频';
 
   @override
+  String get rssFetchWebsite => '拉取网站解析';
+  @override
+  String get rssFetching => '已抓取整文';
+  @override
+  String get rssListLayout => '列表样式';
+  @override
+  String get rssLayoutList => '列表';
+  @override
+  String get rssLayoutCard => '卡片';
+  @override
+  String get rssLayoutCompact => '紧凑';
+
+  @override
   String get rssIframeOpen => '在内置浏览器打开';
 
   @override
   String get rssFetchFullText => '抓取整页';
 
-  @override
-  String get rssFetching => '正在抓取…';
 
   @override
   String get rssFetchFullTextFailed => '抓取失败';

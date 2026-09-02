@@ -15,27 +15,61 @@ class ArticleReadingPreferences {
   final double lineHeight;
   final bool isNightMode;
 
+  /// 正文两端对齐（justify）。默认左对齐。
+  final bool justify;
+
+  /// 段落间距（px）。默认 8。
+  final double paragraphSpacing;
+
+  /// 内容最大宽度档位：0=窄(480) / 1=标准(680) / 2=宽(840)。默认 1。
+  final int contentWidthMode;
+
   const ArticleReadingPreferences({
     this.fontSize = 16.0,
     this.lineHeight = 1.6,
     this.isNightMode = false,
+    this.justify = false,
+    this.paragraphSpacing = 8.0,
+    this.contentWidthMode = 1,
   });
+
+  /// 内容最大宽度（逻辑像素），按 [contentWidthMode] 映射。
+  double get contentMaxWidth {
+    switch (contentWidthMode) {
+      case 0:
+        return 480.0;
+      case 2:
+        return 840.0;
+      case 1:
+      default:
+        return 680.0;
+    }
+  }
 
   ArticleReadingPreferences copyWith({
     double? fontSize,
     double? lineHeight,
     bool? isNightMode,
+    bool? justify,
+    double? paragraphSpacing,
+    int? contentWidthMode,
   }) =>
       ArticleReadingPreferences(
         fontSize: fontSize ?? this.fontSize,
         lineHeight: lineHeight ?? this.lineHeight,
         isNightMode: isNightMode ?? this.isNightMode,
+        justify: justify ?? this.justify,
+        paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
+        contentWidthMode: contentWidthMode ?? this.contentWidthMode,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'fontSize': fontSize,
         'lineHeight': lineHeight,
         'isNightMode': isNightMode,
+        'justify': justify,
+        'paragraphSpacing': paragraphSpacing,
+        'contentWidthMode': contentWidthMode,
       };
 
   factory ArticleReadingPreferences.fromJson(Map<String, dynamic> json) =>
@@ -43,6 +77,9 @@ class ArticleReadingPreferences {
         fontSize: (json['fontSize'] as num?)?.toDouble() ?? 16.0,
         lineHeight: (json['lineHeight'] as num?)?.toDouble() ?? 1.6,
         isNightMode: json['isNightMode'] as bool? ?? false,
+        justify: json['justify'] as bool? ?? false,
+        paragraphSpacing: (json['paragraphSpacing'] as num?)?.toDouble() ?? 8.0,
+        contentWidthMode: json['contentWidthMode'] as int? ?? 1,
       );
 }
 
@@ -100,6 +137,24 @@ class ArticleReadingPreferencesNotifier extends ChangeNotifier {
 
   void toggleNightMode() {
     _prefs = _prefs.copyWith(isNightMode: !_prefs.isNightMode);
+    _save();
+    notifyListeners();
+  }
+
+  void setJustify(bool value) {
+    _prefs = _prefs.copyWith(justify: value);
+    _save();
+    notifyListeners();
+  }
+
+  void setParagraphSpacing(double value) {
+    _prefs = _prefs.copyWith(paragraphSpacing: value);
+    _save();
+    notifyListeners();
+  }
+
+  void setContentWidthMode(int mode) {
+    _prefs = _prefs.copyWith(contentWidthMode: mode);
     _save();
     notifyListeners();
   }

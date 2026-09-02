@@ -21,13 +21,18 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/rss/rss_feed.dart';
+import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// 文章内的播客音频播放控件。
 class RssPodcastPlayer extends StatefulWidget {
   final List<RssEnclosure> enclosures;
 
-  const RssPodcastPlayer({super.key, required this.enclosures});
+  /// 文章页地址：作为 Referer 注入音频请求头，绕过防盗链（否则媒体内核
+  /// 直连常被 403 / 永远 0:00）。
+  final String? pageUrl;
+
+  const RssPodcastPlayer({super.key, required this.enclosures, this.pageUrl});
 
   @override
   State<RssPodcastPlayer> createState() => _RssPodcastPlayerState();
@@ -104,6 +109,14 @@ class _RssPodcastPlayerState extends State<RssPodcastPlayer> {
     _failed = false;
   }
 
+  /// 音频请求头：Referer=文章页，UA=浏览器 UA。防盗链音频缺这俩直接 0:00。
+  Map<String, String>? _buildHeaders() {
+    final page = widget.pageUrl;
+    if (page == null || page.isEmpty) return null;
+    final ua = HttpFetcher.instance.userAgentForUrl(_current.url);
+    return <String, String>{'Referer': page, 'User-Agent': ua};
+  }
+
   void _openCurrent() {
     final List<RssEnclosure> list = _audio;
     if (list.isEmpty) return;
@@ -112,7 +125,7 @@ class _RssPodcastPlayerState extends State<RssPodcastPlayer> {
       _position = Duration.zero;
       _duration = Duration.zero;
     });
-    _player.open(Media(_current.url), play: false);
+    _player.open(Media(_current.url, httpHeaders: _buildHeaders()), play: false);
     // 兜底计时：部分失败不抛 error，只是永远停在 0 进度——到点仍未拿到时长
     // 且未起播就按失败处理，避免用户对着 0:00 干等。
     _loadTimer?.cancel();

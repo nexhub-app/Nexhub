@@ -638,6 +638,12 @@
   "articleFontSize": "Font Size",
   "articleLineHeight": "Line Height",
   "articleNightMode": "Night Mode",
+  "articleContentWidth": "Content width",
+  "articleJustify": "Justify text",
+  "articleParagraphSpacing": "Paragraph spacing",
+  "articleWidthNarrow": "Narrow",
+  "articleWidthNormal": "Normal",
+  "articleWidthWide": "Wide",
   "mirrorListTitle": "Mirror List",
   "mirrorTesting": "Testing…",
   "mirrorTestResultMs": "{ms} ms",
@@ -4645,6 +4651,12 @@
   "@rssVideoPlay": {
     "description": "Attachment: play video"
   },
+  "rssFetchWebsite": "Fetch from website",
+  "rssFetching": "Full text fetched",
+  "rssListLayout": "List layout",
+  "rssLayoutList": "List",
+  "rssLayoutCard": "Cards",
+  "rssLayoutCompact": "Compact",
   "rssIframeOpen": "Open in built-in browser",
   "@rssIframeOpen": {
     "description": "Inline frame: open in in-app browser"

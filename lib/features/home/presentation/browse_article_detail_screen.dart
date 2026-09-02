@@ -2,7 +2,9 @@
 ///
 /// Renders the article HTML body in-app via [flutter_html] instead of stripping
 /// tags to plain text. Supports reading settings (font size / line height /
-/// night mode) persisted through [ArticleReadingPreferencesNotifier].
+/// night mode / justify / paragraph spacing / content width) persisted through
+/// [ArticleReadingPreferencesNotifier]. A top-bar button triggers on-demand
+/// full-text fetch from the source website.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,6 +16,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/article/article_reading_preferences.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/rss/rss_feed.dart';
+import '../../../core/rss/rss_article_store.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -24,9 +27,33 @@ import '../../../features/rss/presentation/rss_video_player.dart';
 import '../../rss/presentation/rss_podcast_player.dart';
 
 /// Single RSS article detail reader page.
-class BrowseArticleDetailScreen extends StatelessWidget {
+class BrowseArticleDetailScreen extends StatefulWidget {
   final RssItem item;
-  const BrowseArticleDetailScreen({super.key, required this.item});
+
+  /// 订阅源 ID（按需拉取网站解析用）。来自搜索/收藏等非订阅入口时为 null，
+  /// 此时顶栏隐藏「拉取网站解析」按钮。
+  final String? feedId;
+
+  const BrowseArticleDetailScreen({
+    super.key,
+    required this.item,
+    this.feedId,
+  });
+
+  @override
+  State<BrowseArticleDetailScreen> createState() =>
+      _BrowseArticleDetailScreenState();
+}
+
+class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
+  late RssItem _item;
+  bool _fetching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _item = widget.item;
+  }
 
   String _formatDate(DateTime? dt) {
     if (dt == null) return '-';
@@ -38,7 +65,7 @@ class BrowseArticleDetailScreen extends StatelessWidget {
 
   Future<void> _openInBrowser(BuildContext context, AppLocalizations l10n) async {
     try {
-      await launchUrl(Uri.parse(item.url), mode: LaunchMode.externalApplication);
+      await launchUrl(Uri.parse(_item.url), mode: LaunchMode.externalApplication);
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -46,6 +73,28 @@ class BrowseArticleDetailScreen extends StatelessWidget {
         );
       }
     }
+  }
+
+  /// 按文章页地址把相对/协议相对地址绝对化（封面与画廊 rel 解析共用）。
+  String _abs(String raw) {
+    final Uri? base = Uri.tryParse(_item.url);
+    if (base == null) return raw;
+    return base.resolve(raw).toString();
+  }
+
+  /// 从 <img> 标签属性里挑出真图地址：优先懒加载属性（data-src /
+  /// data-original / data-lazy-src），回退 src；跳过 data: 内联占位图。
+  String? _pickImgUrl(Map<String, String> attrs) {
+    for (final k in const [
+      'data-src',
+      'data-original',
+      'data-lazy-src',
+      'src',
+    ]) {
+      final v = attrs[k];
+      if (v != null && v.isNotEmpty && !v.startsWith('data:')) return v;
+    }
+    return null;
   }
 
   /// 文章内链接点击：仅放行 http/https 外链，拦截 javascript:/data:/tel:/file:
@@ -80,7 +129,7 @@ class BrowseArticleDetailScreen extends StatelessWidget {
   Uri? _resolveUrl(String raw) {
     final String s = raw.trim();
     if (s.isEmpty) return null;
-    final Uri? base = Uri.tryParse(item.url);
+    final Uri? base = Uri.tryParse(_item.url);
     // 协议相对：//host/path → 继承文章页协议（缺省 https）。
     if (s.startsWith('//')) {
       return Uri.tryParse('${base?.scheme ?? 'https'}:$s');
@@ -128,7 +177,7 @@ class BrowseArticleDetailScreen extends StatelessWidget {
                         l10n.articleReadingSettings,
                         style: Theme.of(ctx).textTheme.titleMedium,
                       ),
-                      const SizedBox(height: AppTokens.spaceMd),
+                      const SizedBox(height: AppTokens.spaceSm),
                       Text(l10n.articleFontSize),
                       Row(
                         children: <Widget>[
@@ -168,6 +217,48 @@ class BrowseArticleDetailScreen extends StatelessWidget {
                           notifier.toggleNightMode();
                         },
                       ),
+                      const Divider(),
+                      // —— 排版样式（P1-4 增强）——
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.articleJustify),
+                        value: prefs.justify,
+                        onChanged: (_) {
+                          AppHaptics.selectionClick();
+                          notifier.setJustify(!prefs.justify);
+                        },
+                      ),
+                      Text(l10n.articleParagraphSpacing),
+                      Slider(
+                        min: 0,
+                        max: 24,
+                        divisions: 12,
+                        value: prefs.paragraphSpacing,
+                        label: prefs.paragraphSpacing.toStringAsFixed(0),
+                        onChangeStart: (_) => AppHaptics.light(),
+                        onChanged: notifier.setParagraphSpacing,
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      Text(l10n.articleContentWidth),
+                      SegmentedButton<int>(
+                        segments: <ButtonSegment<int>>[
+                          ButtonSegment(
+                            value: 0,
+                            label: Text(l10n.articleWidthNarrow),
+                          ),
+                          ButtonSegment(
+                            value: 1,
+                            label: Text(l10n.articleWidthNormal),
+                          ),
+                          ButtonSegment(
+                            value: 2,
+                            label: Text(l10n.articleWidthWide),
+                          ),
+                        ],
+                        selected: <int>{prefs.contentWidthMode},
+                        onSelectionChanged: (Set<int> s) =>
+                            notifier.setContentWidthMode(s.first),
+                      ),
                     ],
                   ),
                 ),
@@ -179,13 +270,42 @@ class BrowseArticleDetailScreen extends StatelessWidget {
     );
   }
 
+  /// 按需拉取网站解析：抓取文章原站全文并刷新正文。
+  Future<void> _fetchFull(BuildContext context, AppLocalizations l10n) async {
+    final feedId = widget.feedId;
+    if (feedId == null || feedId.isEmpty || _fetching) return;
+    setState(() => _fetching = true);
+    try {
+      await RssArticleStore.instance.fetchFullText(feedId, _item);
+      final content =
+          RssArticleStore.instance.getContent(feedId, _item) ?? _item.content;
+      if (!mounted) return;
+      setState(() {
+        _item = _item.copyWith(content: content);
+        _fetching = false;
+      });
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.rssFetching)),
+        );
+      }
+    } on Object {
+      if (mounted) setState(() => _fetching = false);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.loadFailed)),
+        );
+      }
+    }
+  }
+
   /// 文章附件区：音频（播客）走播放器，其余（视频/文件）以「打开附件」链接。
   Widget _buildEnclosureWidgets(BuildContext context, AppLocalizations l10n) {
-    final audio = item.enclosures
+    final audio = _item.enclosures
         .where((e) => e.type == null || (e.type?.startsWith('audio') ?? false))
         .toList();
-    final video = item.enclosures.where((e) => e.isVideo).toList();
-    final others = item.enclosures
+    final video = _item.enclosures.where((e) => e.isVideo).toList();
+    final others = _item.enclosures
         .where((e) =>
             e.type != null &&
             !(e.type?.startsWith('audio') ?? false) &&
@@ -194,7 +314,7 @@ class BrowseArticleDetailScreen extends StatelessWidget {
 
     final children = <Widget>[];
     if (audio.isNotEmpty) {
-      children.add(RssPodcastPlayer(enclosures: audio));
+      children.add(RssPodcastPlayer(enclosures: audio, pageUrl: _item.url));
     }
     if (video.isNotEmpty) {
       children.add(
@@ -287,7 +407,7 @@ class BrowseArticleDetailScreen extends StatelessWidget {
         builder: (_) => RssImageGallery(
           images: images,
           initialIndex: index,
-          pageUrl: item.url,
+          pageUrl: _item.url,
         ),
       ),
     );
@@ -297,24 +417,37 @@ class BrowseArticleDetailScreen extends StatelessWidget {
   void _openVideo(BuildContext context, String url) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => RssVideoPlayer(url: url, title: item.title),
+        builder: (_) => RssVideoPlayer(url: url, title: _item.title),
       ),
     );
   }
 
-  /// 从正文 HTML 提取所有 `<img>` 的 src，按文章页地址绝对化（用于全屏画廊）。
+  /// 从正文 HTML 提取所有图片地址（懒加载属性优先），按文章页地址绝对化
+  /// （用于全屏画廊）。
   List<String> _extractImageUrls(String html) {
     if (html.isEmpty) return const <String>[];
-    final Uri? base = Uri.tryParse(item.url);
-    final matches = RegExp(
-      r'''<img[^>]+src=["']([^"']+)["']''',
-      caseSensitive: false,
-    ).allMatches(html);
+    final Uri? base = Uri.tryParse(_item.url);
+    final tags = RegExp(r'<img\b[^>]*>', caseSensitive: false).allMatches(html);
     final List<String> urls = <String>[];
-    for (final m in matches) {
-      final raw = m.group(1);
-      if (raw == null || raw.isEmpty) continue;
-      final abs = base != null ? base.resolve(raw).toString() : raw;
+    for (final t in tags) {
+      final tag = t.group(0)!;
+      String? best;
+      for (final attr in const [
+        'data-src',
+        'data-original',
+        'data-lazy-src',
+        'src',
+      ]) {
+        final m = RegExp('$attr=["\']([^"\']+)["\']', caseSensitive: false)
+            .firstMatch(tag);
+        final v = m?.group(1);
+        if (v != null && v.isNotEmpty && !v.startsWith('data:')) {
+          best = v;
+          break;
+        }
+      }
+      if (best == null) continue;
+      final abs = base != null ? base.resolve(best).toString() : best;
       if (!urls.contains(abs)) urls.add(abs);
     }
     return urls;
@@ -323,7 +456,7 @@ class BrowseArticleDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    final String html = item.content ?? item.description ?? '';
+    final String html = _item.content ?? _item.description ?? '';
     final List<String> imgUrls = _extractImageUrls(html);
 
     return Consumer<ArticleReadingPreferencesNotifier>(
@@ -333,26 +466,41 @@ class BrowseArticleDetailScreen extends StatelessWidget {
         final Color? bg = isNight ? Colors.grey[900] : null;
         final Color textColor = isNight ? Colors.grey[100]! : Theme.of(context).textTheme.bodyLarge!.color!;
         final Color metaColor = isNight ? Colors.grey[400]! : Theme.of(context).textTheme.bodySmall!.color!;
+        final TextAlign? justify = prefs.justify ? TextAlign.justify : null;
 
         final Map<String, Style> htmlStyle = <String, Style>{
           'body': Style(
             fontSize: FontSize(prefs.fontSize),
             lineHeight: LineHeight(prefs.lineHeight),
             color: textColor,
+            textAlign: justify,
             margin: Margins.zero,
           ),
           'p': Style(
             fontSize: FontSize(prefs.fontSize),
             lineHeight: LineHeight(prefs.lineHeight),
             color: textColor,
+            textAlign: justify,
+            margin: Margins(bottom: Margin(prefs.paragraphSpacing)),
           ),
         };
+
+        final canFetch =
+            widget.feedId != null && widget.feedId!.isNotEmpty && !_fetching;
 
         return Scaffold(
           backgroundColor: bg,
           appBar: AppBar(
-            title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Text(_item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
             actions: <Widget>[
+              if (canFetch || _fetching)
+                AppIconButton(
+                  icon: _fetching
+                      ? Icons.hourglass_top
+                      : Icons.cloud_download_outlined,
+                  tooltip: l10n.rssFetchWebsite,
+                  onPressed: canFetch ? () => _fetchFull(context, l10n) : null,
+                ),
               AppIconButton(
                 icon: Icons.text_fields_outlined,
                 tooltip: l10n.articleReadingSettings,
@@ -373,22 +521,22 @@ class BrowseArticleDetailScreen extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.all(AppTokens.spaceLg),
             children: <Widget>[
-              if (item.author != null || item.publishedAt != null)
+              if (_item.author != null || _item.publishedAt != null)
                 Row(
                   children: <Widget>[
-                    if (item.author != null)
+                    if (_item.author != null)
                       Expanded(
-                        child: Text('${l10n.articleDetailAuthor}：${item.author}',
+                        child: Text('${l10n.articleDetailAuthor}：${_item.author}',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
                                 ?.copyWith(color: metaColor)),
                       ),
-                    if (item.publishedAt != null)
+                    if (_item.publishedAt != null)
                       AnimatedBuilder(
                         animation: GeneralSettingsStore.instance,
                         builder: (context, _) => Text(
-                          '${l10n.articleDetailPublishedAt}：${_formatDate(item.publishedAt)}',
+                          '${l10n.articleDetailPublishedAt}：${_formatDate(_item.publishedAt)}',
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -397,72 +545,78 @@ class BrowseArticleDetailScreen extends StatelessWidget {
                       ),
                   ],
                 ),
-              if (item.author != null || item.publishedAt != null)
+              if (_item.author != null || _item.publishedAt != null)
                 const SizedBox(height: AppTokens.spaceMd),
-              if (item.coverUrl != null)
+              if (_item.coverUrl != null)
                 GestureDetector(
-                  onTap: () => _openGallery(context, <String>[item.coverUrl!], 0),
+                  onTap: () => _openGallery(context, <String>[_abs(_item.coverUrl!)], 0),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                     // 封面同样走 SourceImage（带文章页 Referer + 重试）：
                     // AppCoverImage 无源配置时不注入 Referer，防盗链站点拿不到封面。
+                    // 相对地址先按文章页地址绝对化，否则会被当成本地文件。
                     child: SourceImage(
-                      url: item.coverUrl,
+                      url: _abs(_item.coverUrl!),
                       fit: BoxFit.cover,
-                      refererOverride: item.url.isNotEmpty ? item.url : null,
+                      refererOverride: _item.url.isNotEmpty ? _item.url : null,
                     ),
                   ),
                 ),
-              if (item.coverUrl != null) const SizedBox(height: AppTokens.spaceMd),
+              if (_item.coverUrl != null) const SizedBox(height: AppTokens.spaceMd),
               if (html.isNotEmpty)
-                Html(
-                  data: html,
-                  style: htmlStyle,
-                  // 渲染时彻底丢弃危险/追踪标签（B6 HTML 消毒）；
-                  // iframe 不在此丢弃——改由下方 Extension 渲染为「播放视频」按钮，
-                  // 否则嵌入视频（YouTube/B 站等）会被整段跳过无法播放。
-                  doNotRenderTheseTags: const <String>{
-                    'script',
-                    'object',
-                    'embed',
-                    'form',
-                  },
-                  // 自定义标签渲染：正文图片改走 [SourceImage]，默认的
-                  // `Image.network` 不带 Referer / UA，防盗链站点一律 403。
-                  extensions: <HtmlExtension>[
-                    TagExtension(
-                      tagsToExtend: <String>{'img'},
-                      builder: (ExtensionContext ext) => _HtmlImage(
-                        src: ext.attributes['src'] ?? '',
-                        pageUrl: item.url,
-                        images: imgUrls,
-                      ),
-                    ),
-                    // iframe 嵌入视频：不渲染原始 iframe（XSS/追踪风险），改为
-                    // 「播放视频」按钮，点击用应用内 WebView 播放（B4）。
-                    TagExtension(
-                      tagsToExtend: <String>{'iframe'},
-                      builder: (ExtensionContext ext) {
-                        final src = ext.attributes['src'] ?? '';
-                        if (src.isEmpty) return const SizedBox.shrink();
-                        final Uri? base = Uri.tryParse(item.url);
-                        final String url =
-                            base != null ? base.resolve(src).toString() : src;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: AppTokens.spaceSm),
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.play_circle_outline),
-                            label: Text(l10n.rssVideoPlay),
-                            onPressed: () => _openVideo(context, url),
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: prefs.contentMaxWidth),
+                    child: Html(
+                      data: html,
+                      style: htmlStyle,
+                      // 渲染时彻底丢弃危险/追踪标签（B6 HTML 消毒）；
+                      // iframe 不在此丢弃——改由下方 Extension 渲染为「播放视频」按钮，
+                      // 否则嵌入视频（YouTube/B 站等）会被整段跳过无法播放。
+                      doNotRenderTheseTags: const <String>{
+                        'script',
+                        'object',
+                        'embed',
+                        'form',
+                      },
+                      // 自定义标签渲染：正文图片改走 [SourceImage]，默认的
+                      // `Image.network` 不带 Referer / UA，防盗链站点一律 403。
+                      extensions: <HtmlExtension>[
+                        TagExtension(
+                          tagsToExtend: <String>{'img'},
+                          builder: (ExtensionContext ext) => _HtmlImage(
+                            src: _pickImgUrl(ext.attributes),
+                            pageUrl: _item.url,
+                            images: imgUrls,
                           ),
-                        );
+                        ),
+                        // iframe 嵌入视频：不渲染原始 iframe（XSS/追踪风险），改为
+                        // 「播放视频」按钮，点击用应用内 WebView 播放（B4）。
+                        TagExtension(
+                          tagsToExtend: <String>{'iframe'},
+                          builder: (ExtensionContext ext) {
+                            final src = ext.attributes['src'] ?? '';
+                            if (src.isEmpty) return const SizedBox.shrink();
+                            final Uri? base = Uri.tryParse(_item.url);
+                            final String url =
+                                base != null ? base.resolve(src).toString() : src;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: AppTokens.spaceSm),
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.play_circle_outline),
+                                label: Text(l10n.rssVideoPlay),
+                                onPressed: () => _openVideo(context, url),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                      onLinkTap: (String? url, Map<String, String> attributes, _) {
+                        _openLinkSafely(context, url);
                       },
                     ),
-                  ],
-                  onLinkTap: (String? url, Map<String, String> attributes, _) {
-                    _openLinkSafely(context, url);
-                  },
+                  ),
                 )
               else
                 AppEmptyState(icon: Icons.article_outlined, message: l10n.articleDetailEmpty),
@@ -485,7 +639,7 @@ class BrowseArticleDetailScreen extends StatelessWidget {
 /// 另外把相对图片地址按文章页地址解析为绝对地址——feed 正文里
 /// `src="/img/a.png"` 这类相对写法相当常见，不解析必然加载不出来。
 class _HtmlImage extends StatelessWidget {
-  final String src;
+  final String? src;
   final String pageUrl;
   final List<String> images;
 
@@ -497,9 +651,9 @@ class _HtmlImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (src.isEmpty) return const SizedBox.shrink();
+    if (src == null || src!.isEmpty) return const SizedBox.shrink();
     final Uri? base = Uri.tryParse(pageUrl);
-    final String url = base != null ? base.resolve(src).toString() : src;
+    final String url = base != null ? base.resolve(src!).toString() : src!;
     final int index = images.indexOf(url);
     return GestureDetector(
       onTap: () {

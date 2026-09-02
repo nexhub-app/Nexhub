@@ -329,12 +329,28 @@ class RssItem {
   }
 
   /// 从 description 中提取第一张图片作为封面。
+  ///
+  /// 优先取懒加载属性（`data-src` / `data-original` / `data-lazy-src`，
+  /// 大量站点把真图藏在这些属性里、`src` 只是 1x1 占位图），回退到 `src`；
+  /// `data:` 内联占位图直接跳过（否则取到的是透明占位而非真封面）。
+  /// 返回的地址可能是相对地址——展示侧需按文章页地址绝对化。
   static String? extractCoverFromHtml(String html) {
-    final imgMatch = RegExp(
-            r"""<img[^>]+src=["']([^"']+)["']""",
-            caseSensitive: false)
-        .firstMatch(html);
-    return imgMatch?.group(1);
+    final tagMatch =
+        RegExp(r'<img\b[^>]*>', caseSensitive: false).firstMatch(html);
+    if (tagMatch == null) return null;
+    final tag = tagMatch.group(0)!;
+    for (final attr in const [
+      'data-src',
+      'data-original',
+      'data-lazy-src',
+      'src',
+    ]) {
+      final m = RegExp('$attr=["\']([^"\']+)["\']', caseSensitive: false)
+          .firstMatch(tag);
+      final v = m?.group(1);
+      if (v != null && v.isNotEmpty && !v.startsWith('data:')) return v;
+    }
+    return null;
   }
 }
 

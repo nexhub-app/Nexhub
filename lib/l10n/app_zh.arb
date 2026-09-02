@@ -625,6 +625,12 @@
   "articleFontSize": "字号",
   "articleLineHeight": "行距",
   "articleNightMode": "夜间模式",
+  "articleContentWidth": "内容宽度",
+  "articleJustify": "两端对齐",
+  "articleParagraphSpacing": "段间距",
+  "articleWidthNarrow": "窄",
+  "articleWidthNormal": "标准",
+  "articleWidthWide": "宽",
   "mirrorListTitle": "镜像列表",
   "mirrorTesting": "测速中…",
   "mirrorTestResultMs": "{ms} ms",
@@ -4601,6 +4607,12 @@
   "@rssVideoPlay": {
     "description": "文章附件：播放视频"
   },
+  "rssFetchWebsite": "拉取网站解析",
+  "rssFetching": "已抓取整文",
+  "rssListLayout": "列表样式",
+  "rssLayoutList": "列表",
+  "rssLayoutCard": "卡片",
+  "rssLayoutCompact": "紧凑",
   "rssIframeOpen": "在内置浏览器打开",
   "@rssIframeOpen": {
     "description": "文章内嵌框架：用内置浏览器打开"

@@ -1379,6 +1379,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get articleNightMode => 'Night Mode';
 
   @override
+  String get articleContentWidth => 'Content width';
+  @override
+  String get articleJustify => 'Justify text';
+  @override
+  String get articleParagraphSpacing => 'Paragraph spacing';
+  @override
+  String get articleWidthNarrow => 'Narrow';
+  @override
+  String get articleWidthNormal => 'Normal';
+  @override
+  String get articleWidthWide => 'Wide';
+
+  @override
   String get mirrorListTitle => 'Mirror List';
 
   @override
@@ -8403,7 +8416,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rssGroupAdd => 'New group';
 
   @override
-  String rssGroupAddExists(String name) => 'Group \"$name\" already exists';
+  String rssGroupAddExists(Object name) {
+    return 'Group \"$name\" already exists';
+  }
 
   @override
   String get rssAudioFailed => 'Audio failed to load';
@@ -8418,13 +8433,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rssVideoPlay => 'Play video';
 
   @override
+  String get rssFetchWebsite => 'Fetch from website';
+  @override
+  String get rssFetching => 'Full text fetched';
+  @override
+  String get rssListLayout => 'List layout';
+  @override
+  String get rssLayoutList => 'List';
+  @override
+  String get rssLayoutCard => 'Cards';
+  @override
+  String get rssLayoutCompact => 'Compact';
+
+  @override
   String get rssIframeOpen => 'Open in built-in browser';
 
   @override
   String get rssFetchFullText => 'Fetch full page';
 
-  @override
-  String get rssFetching => 'Fetching…';
 
   @override
   String get rssFetchFullTextFailed => 'Fetch failed';
