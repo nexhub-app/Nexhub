@@ -14,6 +14,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:nexhub/core/network/dio_image_file_service.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
@@ -145,23 +146,30 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
     }
   }
 
-  static const String _kCacheDirName = 'libCachedImageData';
+  /// 图片缓存目录：旧默认缓存（libCachedImageData，历史遗留仍在盘上）与
+  /// 新统一缓存（nexCachedImageData，DioImageFileService 下载）。
+  static const List<String> _kCacheDirNames = <String>[
+    'libCachedImageData',
+    'nexCachedImageData',
+  ];
 
-  /// 统计 cached_network_image 磁盘缓存占用（临时目录 libCachedImageData）。
-  /// 目录不存在（从未缓存过 / 平台差异）时返回 0。
+  /// 统计图片磁盘缓存占用（两个缓存目录求和）。
+  /// 目录不存在（从未缓存过 / 平台差异）时按 0 计。
   Future<int> _computeImageCacheSize() async {
     try {
       final tmp = await getTemporaryDirectory();
-      final dir = Directory('${tmp.path}/$_kCacheDirName');
-      if (!dir.existsSync()) return 0;
       int total = 0;
-      await for (final entity
-          in dir.list(recursive: true, followLinks: false)) {
-        if (entity is File) {
-          try {
-            total += await entity.length();
-          } on Object {
-            // 单文件统计失败忽略。
+      for (final name in _kCacheDirNames) {
+        final dir = Directory('${tmp.path}/$name');
+        if (!dir.existsSync()) continue;
+        await for (final entity
+            in dir.list(recursive: true, followLinks: false)) {
+          if (entity is File) {
+            try {
+              total += await entity.length();
+            } on Object {
+              // 单文件统计失败忽略。
+            }
           }
         }
       }
@@ -186,6 +194,9 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
     if (!ok || !context.mounted) return;
     try {
       await DefaultCacheManager().emptyCache();
+    } catch (_) {}
+    try {
+      await NexImageCacheManager.instance.emptyCache();
     } catch (_) {}
     PaintingBinding.instance.imageCache.clear();
     PaintingBinding.instance.imageCache.clearLiveImages();

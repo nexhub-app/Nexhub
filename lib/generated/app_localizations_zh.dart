@@ -1355,16 +1355,36 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get articleContentWidth => '内容宽度';
+
   @override
   String get articleJustify => '两端对齐';
+
   @override
   String get articleParagraphSpacing => '段间距';
+
   @override
   String get articleWidthNarrow => '窄';
+
   @override
   String get articleWidthNormal => '标准';
+
   @override
   String get articleWidthWide => '宽';
+
+  @override
+  String get articleFontFamily => '字体族';
+
+  @override
+  String get fontSystem => '系统';
+
+  @override
+  String get fontSerif => '衬线';
+
+  @override
+  String get fontMono => '等宽';
+
+  @override
+  String get articleLetterSpacing => '字间距';
 
   @override
   String get mirrorListTitle => '镜像列表';
@@ -3141,12 +3161,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get customFont => '自定义字体';
-
-  @override
-  String get fontSystem => '系统';
-
-  @override
-  String get fontSerif => '衬线';
 
   @override
   String get fontMonospace => '等宽';
@@ -8232,16 +8246,63 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get rssFetchWebsite => '拉取网站解析';
+
   @override
-  String get rssFetching => '已抓取整文';
+  String get rssFetchSucceeded => '已更新为网站正文';
+
   @override
   String get rssListLayout => '列表样式';
+
   @override
   String get rssLayoutList => '列表';
+
   @override
   String get rssLayoutCard => '卡片';
+
   @override
   String get rssLayoutCompact => '紧凑';
+
+  @override
+  String get rssLayoutMagazine => '大图';
+
+  @override
+  String get rssSort => '排序';
+
+  @override
+  String get rssSortNewest => '最新在前';
+
+  @override
+  String get rssSortOldest => '最旧在前';
+
+  @override
+  String get rssSortUnreadFirst => '未读优先';
+
+  @override
+  String get rssPrevArticle => '上一篇';
+
+  @override
+  String get rssNextArticle => '下一篇';
+
+  @override
+  String get rssAutoReadTitle => '关键词自动已读';
+
+  @override
+  String get rssAutoReadDesc => '刷新时标题命中关键词的新文章自动标记为已读，不计入未读数';
+
+  @override
+  String get rssAutoReadAdd => '添加关键词';
+
+  @override
+  String get rssAutoReadEmpty => '暂无关键词';
+
+  @override
+  String get rssAutoReadHint => '输入标题包含的关键词';
+
+  @override
+  String get rssOpenInBrowser => '在浏览器打开';
+
+  @override
+  String get rssAutoFetchFullText => '自动抓取全文';
 
   @override
   String get rssIframeOpen => '在内置浏览器打开';
@@ -8249,6 +8310,8 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get rssFetchFullText => '抓取整页';
 
+  @override
+  String get rssFetching => '正在抓取…';
 
   @override
   String get rssFetchFullTextFailed => '抓取失败';
@@ -8405,4 +8468,75 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get rssSystemNotificationSubtitle =>
       '有新文章时发送系统通知（Android/iOS/Linux/macOS；Windows 不支持，仅应用内提醒）';
+
+  @override
+  String get articleMargin => '左右边距';
+
+  @override
+  String get articleFontUnderline => '下划线';
+
+  @override
+  String get articleUnderlineDashed => '下划线虚线';
+
+  @override
+  String get articleUnderlineThickness => '下划线宽度';
+
+  @override
+  String get articleUnderlineColor => '下划线颜色';
+
+  @override
+  String get articleBackground => '背景';
+
+  @override
+  String get articleTextColor => '文字颜色';
+
+  @override
+  String get articleEmphasisColor => '强调色';
+
+  @override
+  String get articleShadow => '文字阴影';
+
+  @override
+  String get articleShadowBlur => '阴影模糊';
+
+  @override
+  String get articleShadowOffsetX => '阴影 X 偏移';
+
+  @override
+  String get articleShadowOffsetY => '阴影 Y 偏移';
+
+  @override
+  String get articleChooseFont => '选择自定义字体';
+
+  @override
+  String get articleClearFont => '清除字体';
+
+  @override
+  String articleFontCurrent(Object file) {
+    return '当前：$file';
+  }
+
+  @override
+  String get articleTitleScale => '标题字号';
+
+  @override
+  String get articleTitleBold => '标题加粗';
+
+  @override
+  String get articleTitleColor => '标题颜色';
+
+  @override
+  String get articleTitleAlign => '标题对齐';
+
+  @override
+  String get alignLeft => '左对齐';
+
+  @override
+  String get alignCenter => '居中';
+
+  @override
+  String get alignRight => '右对齐';
+
+  @override
+  String get colorFollowDefault => '跟随默认';
 }

@@ -15,13 +15,16 @@ class RssFeed {
   final String? description;
   final String? siteUrl;
   final String? iconUrl;
+
   /// 条件 GET 校验值（HTTP `ETag`），由抓取响应回写，下次请求带
   /// `If-None-Match` 以拿到 304 省流量（P2-1）。
   final String? etag;
+
   /// 条件 GET 校验值（HTTP `Last-Modified`），与 [etag] 正交，二者任一命中
   /// 即返回 304（P2-1）。
   final String? lastModified;
   final SourceType? moduleType;
+
   /// 用户自定义分组（文件夹 / 标签）。
   ///
   /// 与 [moduleType] 是两个正交维度：[moduleType] 是「绑定到哪个内容模块」
@@ -29,6 +32,11 @@ class RssFeed {
   /// 一份订阅可以同时属于多个分组。
   final List<String> groups;
   final int addedAt;
+
+  /// 打开文章时是否自动抓取原站全文（按源开关，对标 ReadYou 的
+  /// full content）。默认开（保持既有行为）；对摘要即正文/原站抓取易失败
+  /// 的源可关闭。仅影响**自动**抓取，详情页手动「拉取网站解析」不受限。
+  final bool autoFetchFullText;
 
   const RssFeed({
     required this.id,
@@ -42,6 +50,7 @@ class RssFeed {
     this.moduleType,
     this.groups = const <String>[],
     required this.addedAt,
+    this.autoFetchFullText = true,
   });
 
   RssFeed copyWith({
@@ -54,6 +63,7 @@ class RssFeed {
     String? lastModified,
     SourceType? moduleType,
     List<String>? groups,
+    bool? autoFetchFullText,
   }) =>
       RssFeed(
         id: id,
@@ -67,6 +77,7 @@ class RssFeed {
         moduleType: moduleType ?? this.moduleType,
         groups: groups ?? this.groups,
         addedAt: addedAt,
+        autoFetchFullText: autoFetchFullText ?? this.autoFetchFullText,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -81,6 +92,7 @@ class RssFeed {
         'moduleType': moduleType?.apiName,
         'groups': groups,
         'addedAt': addedAt,
+        'autoFetchFullText': autoFetchFullText,
       };
 
   factory RssFeed.fromJson(Map<String, dynamic> json) => RssFeed(
@@ -94,11 +106,12 @@ class RssFeed {
         lastModified: json['lastModified'] as String?,
         moduleType: SourceType.parse(json['moduleType'] as String?),
         // 向后兼容：旧备份没有 groups 字段 → 空列表。
-        groups: (json['groups'] as List<dynamic>?)
-                ?.whereType<String>()
-                .toList() ??
-            const <String>[],
+        groups:
+            (json['groups'] as List<dynamic>?)?.whereType<String>().toList() ??
+                const <String>[],
         addedAt: json['addedAt'] as int? ?? 0,
+        // 向后兼容：旧数据无此字段 → 默认开（既有行为）。
+        autoFetchFullText: json['autoFetchFullText'] as bool? ?? true,
       );
 
   /// 用于 UI 展示的图标地址：优先用解析到的 [iconUrl]，缺失时回退到站点根
@@ -142,14 +155,32 @@ class RssEnclosure {
 
   /// 常见音频扩展名（MIME 缺失或不明确时按 URL 后缀兜底判定）。
   static const List<String> _audioExt = <String>[
-    '.mp3', '.m4a', '.aac', '.ogg', '.oga', '.opus',
-    '.wav', '.flac', '.wma', '.aiff', '.alac',
+    '.mp3',
+    '.m4a',
+    '.aac',
+    '.ogg',
+    '.oga',
+    '.opus',
+    '.wav',
+    '.flac',
+    '.wma',
+    '.aiff',
+    '.alac',
   ];
 
   /// 常见视频扩展名（同上，用于 [isVideo]）。
   static const List<String> _videoExt = <String>[
-    '.mp4', '.m4v', '.webm', '.mkv', '.mov', '.avi',
-    '.flv', '.wmv', '.m3u8', '.ts', '.ogv',
+    '.mp4',
+    '.m4v',
+    '.webm',
+    '.mkv',
+    '.mov',
+    '.avi',
+    '.flv',
+    '.wmv',
+    '.m3u8',
+    '.ts',
+    '.ogv',
   ];
 
   /// 用于后缀判定的 URL 路径（去查询串、小写）。
@@ -164,24 +195,32 @@ class RssEnclosure {
   /// （JSON Feed 的 `attachments` 常不写 `mime_type`，此前这类附件被整批
   /// 丢弃、播放器永远 0:00）→ MIME 写了别的但实际是音频后缀（如
   /// `application/octet-stream` + `.mp3`）也纳入。
+  ///
+  /// MIME 为空时按 URL 后缀与 [isVideo] 划分归属：视频后缀（.mp4/.m3u8 等）
+  /// 归视频、不进本判定——否则同一个视频附件会被播客播放器抢走，表现为
+  /// 「视频无法播放」（mpv 播视频流失败）且视频列表里看不到它。
   bool get isAudio {
     final String t = type?.toLowerCase().trim() ?? '';
-    if (t.isEmpty) return true;
     if (t.startsWith('audio')) return true;
     if (t.startsWith('video')) return false;
     final String p = _urlPathForExt;
+    if (t.isEmpty) {
+      if (_videoExt.any(p.endsWith)) return false;
+      return true;
+    }
     return _audioExt.any(p.endsWith);
   }
 
   /// 是否为视频附件（交给内置视频播放器）。
   ///
-  /// MIME 为空时**不**判为视频：与 [isAudio] 的「未知→当音频」保守策略保持
-  /// 一致，避免同一份附件被两边同时认领。
+  /// MIME 以 `video/` 开头直接成立；MIME 缺失或为非媒体类型（如
+  /// `application/octet-stream`）时按 URL 后缀兜底，视频后缀即视频。
+  /// 此前 MIME 为空一律返回 `false`，配合 [isAudio] 的保守策略把视频附件
+  /// 抢成音频——视频既不出现在视频列表，又进播客播放器播不了。
   bool get isVideo {
     final String t = type?.toLowerCase().trim() ?? '';
     if (t.startsWith('video')) return true;
     if (t.startsWith('audio')) return false;
-    if (t.isEmpty) return false;
     final String p = _urlPathForExt;
     return _videoExt.any(p.endsWith);
   }
@@ -292,9 +331,18 @@ class RssItem {
 
   static String _monthToInt(String month) {
     const months = <String, String>{
-      'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
-      'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
-      'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12',
+      'Jan': '01',
+      'Feb': '02',
+      'Mar': '03',
+      'Apr': '04',
+      'May': '05',
+      'Jun': '06',
+      'Jul': '07',
+      'Aug': '08',
+      'Sep': '09',
+      'Oct': '10',
+      'Nov': '11',
+      'Dec': '12',
     };
     return months[month] ?? '01';
   }
@@ -304,17 +352,34 @@ class RssItem {
     // 命名时区 → UTC 偏移（B4：此前未知命名时区默认 'Z' 导致数小时偏差）。
     // 仅覆盖常见缩写；夏令时(EDT/PDT/CEST 等)已按夏令时偏移处理。
     const named = <String, String>{
-      'UT': 'Z', 'Z': 'Z',
-      'EST': '-05:00', 'EDT': '-04:00',
-      'CST': '-06:00', 'CDT': '-05:00',
-      'MST': '-07:00', 'MDT': '-06:00',
-      'PST': '-08:00', 'PDT': '-07:00',
-      'CET': '+01:00', 'CEST': '+02:00',
-      'EET': '+02:00', 'EEST': '+03:00',
-      'BST': '+01:00', 'WET': '+00:00', 'WEST': '+01:00',
-      'JST': '+09:00', 'KST': '+09:00', 'CSTChina': '+08:00',
-      'AEST': '+10:00', 'AEDT': '+11:00', 'NZST': '+12:00', 'NZDT': '+13:00',
-      'IST': '+05:30', 'MSK': '+03:00', 'HKT': '+08:00', 'SGT': '+08:00',
+      'UT': 'Z',
+      'Z': 'Z',
+      'EST': '-05:00',
+      'EDT': '-04:00',
+      'CST': '-06:00',
+      'CDT': '-05:00',
+      'MST': '-07:00',
+      'MDT': '-06:00',
+      'PST': '-08:00',
+      'PDT': '-07:00',
+      'CET': '+01:00',
+      'CEST': '+02:00',
+      'EET': '+02:00',
+      'EEST': '+03:00',
+      'BST': '+01:00',
+      'WET': '+00:00',
+      'WEST': '+01:00',
+      'JST': '+09:00',
+      'KST': '+09:00',
+      'CSTChina': '+08:00',
+      'AEST': '+10:00',
+      'AEDT': '+11:00',
+      'NZST': '+12:00',
+      'NZDT': '+13:00',
+      'IST': '+05:30',
+      'MSK': '+03:00',
+      'HKT': '+08:00',
+      'SGT': '+08:00',
     };
     final mapped = named[tz.toUpperCase()];
     if (mapped != null) return mapped;

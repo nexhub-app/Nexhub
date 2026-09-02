@@ -7,10 +7,16 @@
 /// full-text fetch from the source website.
 library;
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:nexhub/generated/app_localizations.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/article/article_reading_preferences.dart';
@@ -18,12 +24,17 @@ import '../../../core/settings/general_settings.dart';
 import '../../../core/rss/rss_feed.dart';
 import '../../../core/rss/rss_article_store.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/reader_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/source_image.dart';
+import '../../../features/rss/presentation/rss_image_actions.dart';
 import '../../../features/rss/presentation/rss_image_gallery.dart';
-import '../../../features/rss/presentation/rss_video_player.dart';
+import '../../../features/rss/presentation/rss_inline_video_player.dart';
+import '../../../features/rss/presentation/rss_video_player.dart'
+    show isDirectMediaUrl, RssVideoPlayer;
+import '../../browser/presentation/http_browser_screen.dart';
 import '../../rss/presentation/rss_podcast_player.dart';
 
 /// Single RSS article detail reader page.
@@ -34,10 +45,17 @@ class BrowseArticleDetailScreen extends StatefulWidget {
   /// 此时顶栏隐藏「拉取网站解析」按钮。
   final String? feedId;
 
+  /// 上下篇导航上下文：来源列表页的全部条目与当前条目下标。
+  /// 列表长度 ≤ 1 时不显示底部「上一篇 / 下一篇」导航条。
+  final List<RssItem> contextItems;
+  final int contextIndex;
+
   const BrowseArticleDetailScreen({
     super.key,
     required this.item,
     this.feedId,
+    this.contextItems = const <RssItem>[],
+    this.contextIndex = -1,
   });
 
   @override
@@ -48,11 +66,42 @@ class BrowseArticleDetailScreen extends StatefulWidget {
 class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
   late RssItem _item;
   bool _fetching = false;
+  late int _navIndex;
+  final ScrollController _scrollCtrl = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _item = widget.item;
+    _navIndex = widget.contextIndex;
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  /// 当前文章的缓存键 feedId（无订阅入口时用 adhoc，仅影响离线缓存归档）。
+  String get _effectiveFeedId =>
+      (widget.feedId == null || widget.feedId!.isEmpty)
+          ? 'adhoc'
+          : widget.feedId!;
+
+  /// 上下篇切换：标记已读 → 取缓存正文 → 替换正文并滚回顶部。
+  Future<void> _navigateTo(RssItem item) async {
+    final String feedId = _effectiveFeedId;
+    unawaited(RssArticleStore.instance.markRead(feedId, item));
+    final String? content =
+        RssArticleStore.instance.getContent(feedId, item) ?? item.content;
+    if (!mounted) return;
+    setState(() {
+      _item = item.copyWith(content: content ?? item.content);
+      _navIndex = widget.contextItems.indexOf(item);
+    });
+    if (_scrollCtrl.hasClients) {
+      _scrollCtrl.jumpTo(0);
+    }
   }
 
   String _formatDate(DateTime? dt) {
@@ -63,9 +112,11 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
     );
   }
 
-  Future<void> _openInBrowser(BuildContext context, AppLocalizations l10n) async {
+  Future<void> _openInBrowser(
+      BuildContext context, AppLocalizations l10n) async {
     try {
-      await launchUrl(Uri.parse(_item.url), mode: LaunchMode.externalApplication);
+      await launchUrl(Uri.parse(_item.url),
+          mode: LaunchMode.externalApplication);
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -155,7 +206,8 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
       isScrollControlled: true,
       builder: (BuildContext ctx) {
         return Consumer<ArticleReadingPreferencesNotifier>(
-          builder: (BuildContext ctx, ArticleReadingPreferencesNotifier notifier, _) {
+          builder: (BuildContext ctx,
+              ArticleReadingPreferencesNotifier notifier, _) {
             final prefs = notifier.prefs;
             return ConstrainedBox(
               constraints: BoxConstraints(
@@ -193,8 +245,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                               onChanged: notifier.setFontSize,
                             ),
                           ),
-                          const Text('A',
-                              style: TextStyle(fontSize: 22)),
+                          const Text('A', style: TextStyle(fontSize: 22)),
                         ],
                       ),
                       const SizedBox(height: AppTokens.spaceSm),
@@ -259,6 +310,341 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         onSelectionChanged: (Set<int> s) =>
                             notifier.setContentWidthMode(s.first),
                       ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      Text(l10n.articleFontFamily),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      SegmentedButton<int>(
+                        segments: <ButtonSegment<int>>[
+                          ButtonSegment(
+                            value: 0,
+                            label: Text(l10n.fontSystem),
+                          ),
+                          ButtonSegment(
+                            value: 1,
+                            label: Text(l10n.fontSerif),
+                          ),
+                          ButtonSegment(
+                            value: 2,
+                            label: Text(l10n.fontMono),
+                          ),
+                        ],
+                        selected: <int>{prefs.fontFamilyMode},
+                        onSelectionChanged: (Set<int> s) {
+                          AppHaptics.selectionClick();
+                          notifier.setFontFamilyMode(s.first);
+                        },
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      Text(l10n.articleLetterSpacing),
+                      Slider(
+                        min: -1,
+                        max: 3,
+                        divisions: 8,
+                        value: prefs.letterSpacing,
+                        label: prefs.letterSpacing.toStringAsFixed(1),
+                        onChangeStart: (_) => AppHaptics.light(),
+                        onChanged: notifier.setLetterSpacing,
+                      ),
+                      const Divider(),
+                      // —— 布局与文字样式（对齐小说阅读器）——
+                      Text(l10n.articleMargin),
+                      Slider(
+                        min: 0,
+                        max: 48,
+                        divisions: 12,
+                        value: prefs.margin,
+                        label: prefs.margin.toStringAsFixed(0),
+                        onChangeStart: (_) => AppHaptics.light(),
+                        onChanged: notifier.setMargin,
+                      ),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceXs,
+                        runSpacing: 4,
+                        children: <Widget>[
+                          FilterChip(
+                            label: Text(l10n.fontBold),
+                            selected: prefs.fontBold,
+                            onSelected: notifier.setFontBold,
+                          ),
+                          FilterChip(
+                            label: Text(l10n.fontItalic),
+                            selected: prefs.fontItalic,
+                            onSelected: notifier.setFontItalic,
+                          ),
+                          FilterChip(
+                            label: Text(l10n.articleFontUnderline),
+                            selected: prefs.fontUnderline,
+                            onSelected: notifier.setFontUnderline,
+                          ),
+                          if (prefs.fontUnderline)
+                            FilterChip(
+                              label: Text(l10n.articleUnderlineDashed),
+                              selected: prefs.underlineDashed,
+                              onSelected: notifier.setUnderlineDashed,
+                            ),
+                        ],
+                      ),
+                      if (prefs.fontUnderline) ...<Widget>[
+                        const SizedBox(height: AppTokens.spaceSm),
+                        Text(l10n.articleUnderlineThickness),
+                        Slider(
+                          min: 0.5,
+                          max: 4,
+                          divisions: 7,
+                          value: prefs.underlineThickness,
+                          label: prefs.underlineThickness.toStringAsFixed(1),
+                          onChangeStart: (_) => AppHaptics.light(),
+                          onChanged: notifier.setUnderlineThickness,
+                        ),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: _ArticleColorSwatch(
+                            color: prefs.underlineColor,
+                          ),
+                          title: Text(l10n.articleUnderlineColor),
+                          trailing: const Icon(Icons.palette_outlined),
+                          onTap: () async {
+                            final int? v = await _pickArticleColor(ctx,
+                                title: l10n.articleUnderlineColor);
+                            if (v == null || !ctx.mounted) return;
+                            if (v == -1) {
+                              notifier.setUnderlineColor(null);
+                            } else {
+                              notifier.setUnderlineColor(v);
+                            }
+                          },
+                        ),
+                      ],
+                      const Divider(),
+                      // —— 背景与颜色 ——
+                      Text(l10n.articleBackground),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: <Widget>[
+                          for (int i = 0;
+                              i < ReaderTokens.bgPresets.length;
+                              i++)
+                            InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: () {
+                                AppHaptics.selectionClick();
+                                notifier.setBgPresetIndex(i);
+                              },
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: ReaderTokens.bgPresets[i],
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: prefs.bgPresetIndex == i
+                                        ? Theme.of(ctx).colorScheme.primary
+                                        : Colors.grey.shade400,
+                                    width: prefs.bgPresetIndex == i ? 3 : 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: _ArticleColorSwatch(color: prefs.customBgColor),
+                        title: Text(l10n.articleTextColor),
+                        subtitle: Text(l10n.articleBackground),
+                        trailing: const Icon(Icons.palette_outlined),
+                        onTap: () async {
+                          final int? v = await _pickArticleColor(ctx,
+                              title: l10n.articleBackground);
+                          if (v == null || !ctx.mounted) return;
+                          if (v == -1) {
+                            notifier.setCustomBgColor(null);
+                          } else {
+                            notifier.setCustomBgColor(v);
+                          }
+                        },
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading:
+                            _ArticleColorSwatch(color: prefs.customTextColor),
+                        title: Text(l10n.articleTextColor),
+                        trailing: const Icon(Icons.palette_outlined),
+                        onTap: () async {
+                          final int? v = await _pickArticleColor(ctx,
+                              title: l10n.articleTextColor);
+                          if (v == null || !ctx.mounted) return;
+                          if (v == -1) {
+                            notifier.setCustomTextColor(null);
+                          } else {
+                            notifier.setCustomTextColor(v);
+                          }
+                        },
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading:
+                            _ArticleColorSwatch(color: prefs.emphasisColor),
+                        title: Text(l10n.articleEmphasisColor),
+                        trailing: const Icon(Icons.palette_outlined),
+                        onTap: () async {
+                          final int? v = await _pickArticleColor(ctx,
+                              title: l10n.articleEmphasisColor);
+                          if (v == null || !ctx.mounted) return;
+                          if (v == -1) {
+                            notifier.setEmphasisColor(null);
+                          } else {
+                            notifier.setEmphasisColor(v);
+                          }
+                        },
+                      ),
+                      const Divider(),
+                      // —— 阴影 ——
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.articleShadow),
+                        value: prefs.shadow,
+                        onChanged: (bool v) {
+                          AppHaptics.selectionClick();
+                          notifier.setShadow(v);
+                        },
+                      ),
+                      if (prefs.shadow) ...<Widget>[
+                        Text(l10n.articleShadowBlur),
+                        Slider(
+                          min: 0,
+                          max: 12,
+                          divisions: 12,
+                          value: prefs.shadowBlur,
+                          label: prefs.shadowBlur.toStringAsFixed(1),
+                          onChangeStart: (_) => AppHaptics.light(),
+                          onChanged: notifier.setShadowBlur,
+                        ),
+                        Text(l10n.articleShadowOffsetX),
+                        Slider(
+                          min: -6,
+                          max: 6,
+                          divisions: 12,
+                          value: prefs.shadowOffsetX,
+                          label: prefs.shadowOffsetX.toStringAsFixed(0),
+                          onChangeStart: (_) => AppHaptics.light(),
+                          onChanged: notifier.setShadowOffsetX,
+                        ),
+                        Text(l10n.articleShadowOffsetY),
+                        Slider(
+                          min: -6,
+                          max: 6,
+                          divisions: 12,
+                          value: prefs.shadowOffsetY,
+                          label: prefs.shadowOffsetY.toStringAsFixed(0),
+                          onChangeStart: (_) => AppHaptics.light(),
+                          onChanged: notifier.setShadowOffsetY,
+                        ),
+                      ],
+                      const Divider(),
+                      // —— 自定义字体 ——
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.font_download_outlined),
+                        title: Text(l10n.articleChooseFont),
+                        subtitle: prefs.customFontPath != null
+                            ? Text(
+                                prefs.customFontPath!
+                                    .split(RegExp(r'[/\\]'))
+                                    .last,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              )
+                            : null,
+                        trailing: prefs.customFontPath != null
+                            ? IconButton(
+                                icon: const Icon(Icons.delete_outline),
+                                tooltip: l10n.articleClearFont,
+                                onPressed: () =>
+                                    notifier.setCustomFontPath(null),
+                              )
+                            : null,
+                        onTap: () async {
+                          String? path;
+                          try {
+                            final FilePickerResult? result = await FilePicker
+                                .platform
+                                .pickFiles(
+                                  type: FileType.custom,
+                                  allowedExtensions: <String>['ttf', 'otf'],
+                                );
+                            path = result?.files.single.path;
+                          } on Object {
+                            path = null;
+                          }
+                          if (path == null || !ctx.mounted) return;
+                          await _loadCustomFont(path);
+                          notifier.setCustomFontPath(path);
+                        },
+                      ),
+                      const Divider(),
+                      // —— 标题样式 ——
+                      Text(l10n.articleTitleScale),
+                      Slider(
+                        min: 0.8,
+                        max: 1.6,
+                        divisions: 8,
+                        value: prefs.titleFontScale,
+                        label: prefs.titleFontScale.toStringAsFixed(2),
+                        onChangeStart: (_) => AppHaptics.light(),
+                        onChanged: notifier.setTitleFontScale,
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.articleTitleBold),
+                        value: prefs.titleBold,
+                        onChanged: (bool v) {
+                          AppHaptics.selectionClick();
+                          notifier.setTitleBold(v);
+                        },
+                      ),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Text(l10n.articleTitleAlign),
+                      SegmentedButton<int>(
+                        segments: <ButtonSegment<int>>[
+                          ButtonSegment(
+                            value: 0,
+                            label: Text(l10n.alignLeft),
+                          ),
+                          ButtonSegment(
+                            value: 1,
+                            label: Text(l10n.alignCenter),
+                          ),
+                          ButtonSegment(
+                            value: 2,
+                            label: Text(l10n.alignRight),
+                          ),
+                        ],
+                        selected: <int>{prefs.titleAlign},
+                        onSelectionChanged: (Set<int> s) =>
+                            notifier.setTitleAlign(s.first),
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: _ArticleColorSwatch(color: prefs.titleColor),
+                        title: Text(l10n.articleTitleColor),
+                        trailing: const Icon(Icons.palette_outlined),
+                        onTap: () async {
+                          final int? v = await _pickArticleColor(ctx,
+                              title: l10n.articleTitleColor);
+                          if (v == null || !ctx.mounted) return;
+                          if (v == -1) {
+                            notifier.setTitleColor(null);
+                          } else {
+                            notifier.setTitleColor(v);
+                          }
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -270,46 +656,94 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
     );
   }
 
-  /// 按需拉取网站解析：抓取文章原站全文并刷新正文。
+  /// 按需拉取网站解析：抓取文章原站全文（启发式正文识别）并刷新正文。
+  /// 成功/失败都有明确反馈（此前失败被静默吞掉，抓完还弹「正在抓取」）。
   Future<void> _fetchFull(BuildContext context, AppLocalizations l10n) async {
-    final feedId = widget.feedId;
-    if (feedId == null || feedId.isEmpty || _fetching) return;
+    if (_fetching) return;
+    // 搜索/收藏等未带 feedId 的入口用伪 id 作缓存键（仅影响离线缓存归档，
+    // 不影响本次展示），保证按钮在所有入口都可用。
+    final String feedId = (widget.feedId == null || widget.feedId!.isEmpty)
+        ? 'adhoc'
+        : widget.feedId!;
     setState(() => _fetching = true);
+    bool ok = false;
     try {
-      await RssArticleStore.instance.fetchFullText(feedId, _item);
-      final content =
-          RssArticleStore.instance.getContent(feedId, _item) ?? _item.content;
-      if (!mounted) return;
-      setState(() {
-        _item = _item.copyWith(content: content);
-        _fetching = false;
-      });
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.rssFetching)),
-        );
+      ok = await RssArticleStore.instance.fetchFullText(feedId, _item);
+      if (ok) {
+        final String? content =
+            RssArticleStore.instance.getContent(feedId, _item);
+        if (content != null && mounted) {
+          setState(() => _item = _item.copyWith(content: content));
+        }
       }
-    } on Object {
+    } finally {
       if (mounted) setState(() => _fetching = false);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.loadFailed)),
-        );
-      }
     }
+    if (!mounted || !context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(ok ? l10n.rssFetchSucceeded : l10n.loadFailed)),
+      );
+  }
+
+  /// 底部「上一篇 / 下一篇」导航条：仅当来源列表多于一条时显示。
+  /// 切换不重建页面（保留阅读偏好与滚动状态语义），标记已读 + 滚回顶部。
+  Widget? _buildArticleNavBar(BuildContext context, AppLocalizations l10n) {
+    final items = widget.contextItems;
+    if (items.length <= 1 || _navIndex < 0) return null;
+    final scheme = Theme.of(context).colorScheme;
+    final bool hasPrev = _navIndex > 0;
+    final bool hasNext = _navIndex < items.length - 1;
+    if (!hasPrev && !hasNext) return null;
+    return BottomAppBar(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTokens.spaceSm,
+        vertical: AppTokens.spaceXs,
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed:
+                  hasPrev ? () => _navigateTo(items[_navIndex - 1]) : null,
+              icon: const Icon(Icons.skip_previous_outlined, size: 18),
+              label: Text(l10n.rssPrevArticle,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm),
+            child: Text(
+              '${_navIndex + 1}/${items.length}',
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed:
+                  hasNext ? () => _navigateTo(items[_navIndex + 1]) : null,
+              icon: const Icon(Icons.skip_next_outlined, size: 18),
+              label: Text(l10n.rssNextArticle,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 文章附件区：音频（播客）走播放器，其余（视频/文件）以「打开附件」链接。
   Widget _buildEnclosureWidgets(BuildContext context, AppLocalizations l10n) {
-    final audio = _item.enclosures
-        .where((e) => e.type == null || (e.type?.startsWith('audio') ?? false))
-        .toList();
+    // 统一走 [RssEnclosure.isAudio]/[isVideo] 判定（含 MIME 缺失时按后缀归属），
+    // 不再按 type 是否为 null 自造一套——否则 MIME 缺失的视频附件会被当音频。
+    final audio = _item.enclosures.where((e) => e.isAudio).toList();
     final video = _item.enclosures.where((e) => e.isVideo).toList();
     final others = _item.enclosures
-        .where((e) =>
-            e.type != null &&
-            !(e.type?.startsWith('audio') ?? false) &&
-            !e.isVideo)
+        .where((e) => !e.isAudio && !e.isVideo)
         .toList();
 
     final children = <Widget>[];
@@ -413,11 +847,121 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
     );
   }
 
-  /// 打开应用内视频播放器（B4 视频播放：enclosure 视频 / iframe 嵌入视频）。
+  /// 打开视频（B4）：直链媒体走 media_kit 原生播放器；嵌入页（B站/YouTube
+  /// 等 iframe 地址）走应用内置浏览器——内嵌 InAppWebView 在 Windows 桌面
+  /// 极易白屏，且内置浏览器带外部回退、与应用浏览链路一致。
   void _openVideo(BuildContext context, String url) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => RssVideoPlayer(url: url, title: _item.title),
+    if (isDirectMediaUrl(url)) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => RssVideoPlayer(
+            url: url,
+            title: _item.title,
+            pageUrl: _item.url,
+          ),
+        ),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => HttpBrowserScreen(initialUrl: url),
+        ),
+      );
+    }
+  }
+
+  /// 已加载过的自定义字族（幂等，避免重复 load 报错）。
+  static final Set<String> _loadedFonts = <String>{};
+
+  /// 从字体文件路径加载并注册字族（.ttf/.otf），渲染时经
+  /// [ArticleReadingPreferences.customLoadedFontFamily] 间接引用。
+  Future<void> _loadCustomFont(String path) async {
+    if (_loadedFonts.contains(path)) return;
+    try {
+      final File file = File(path);
+      if (!await file.exists()) return;
+      final Uint8List bytes = await file.readAsBytes();
+      final FontLoader loader =
+          FontLoader(ArticleReadingPreferences.customLoadedFontFamily);
+      loader.addFont(Future<ByteData>.value(ByteData.sublistView(bytes)));
+      await loader.load();
+      _loadedFonts.add(path);
+    } on Object {
+      // 加载失败不阻塞阅读，字族回退系统默认。
+    }
+  }
+
+  /// 标题 h1-h6 样式：相对正文的倍数 × [ArticleReadingPreferences.titleFontScale]，
+  /// 加粗 / 颜色 / 对齐可配（对齐小说阅读器标题排版）。
+  Map<String, Style> _buildTitleStyles(
+    ArticleReadingPreferences prefs,
+    Color titleColor,
+  ) {
+    const List<double> scales = <double>[2.0, 1.5, 1.17, 1.0, 0.83, 0.67];
+    final TextAlign? align = prefs.titleAlign == 1
+        ? TextAlign.center
+        : (prefs.titleAlign == 2 ? TextAlign.right : null);
+    final Map<String, Style> out = <String, Style>{};
+    for (var i = 0; i < scales.length; i++) {
+      out['h${i + 1}'] = Style(
+        fontSize: FontSize(prefs.fontSize * prefs.titleFontScale * scales[i]),
+        fontWeight: prefs.titleBold ? FontWeight.bold : null,
+        color: titleColor,
+        textAlign: align,
+      );
+    }
+    return out;
+  }
+
+  /// 颜色选择对话框：返回 `-1`=跟随默认、`>=0`=选中的 ARGB、`null`=取消。
+  Future<int?> _pickArticleColor(
+    BuildContext ctx, {
+    required String title,
+  }) async {
+    final AppLocalizations l10n = AppLocalizations.of(ctx);
+    const List<int> palette = <int>[
+      0xFF000000, 0xFFFFFFFF, 0xFF9E9E9E, 0xFF616161,
+      0xFFF44336, 0xFFE91E63, 0xFF9C27B0, 0xFF673AB7,
+      0xFF3F51B5, 0xFF2196F3, 0xFF03A9F4, 0xFF00BCD4,
+      0xFF009688, 0xFF4CAF50, 0xFF8BC34A, 0xFFFFEB3B,
+      0xFFFFC107, 0xFFFF9800, 0xFFFF5722, 0xFF795548,
+    ];
+    return showDialog<int>(
+      context: ctx,
+      builder: (BuildContext dctx) => SimpleDialog(
+        title: Text(title, textAlign: TextAlign.center),
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
+              children: <Widget>[
+                for (final int c in palette)
+                  InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.of(dctx).pop(c),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Color(c),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey.shade400),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
+          TextButton.icon(
+            onPressed: () => Navigator.of(dctx).pop(-1),
+            icon: const Icon(Icons.restart_alt, size: 18),
+            label: Text(l10n.colorFollowDefault),
+          ),
+        ],
       ),
     );
   }
@@ -448,6 +992,10 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
       }
       if (best == null) continue;
       final abs = base != null ? base.resolve(best).toString() : best;
+      // 视频地址不当图片：部分站点用 `<img src="xxx.mp4">` 承载视频帧，
+      // 若放进图片画廊，点击只会打开图片查看器（视频被当图片、无法播放）。
+      // 这类地址交给 [RssVideoPlayer] / 内置浏览器，而不是画廊。
+      if (isDirectMediaUrl(abs)) continue;
       if (!urls.contains(abs)) urls.add(abs);
     }
     return urls;
@@ -460,38 +1008,89 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
     final List<String> imgUrls = _extractImageUrls(html);
 
     return Consumer<ArticleReadingPreferencesNotifier>(
-      builder: (BuildContext context, ArticleReadingPreferencesNotifier notifier, _) {
+      builder: (BuildContext context,
+          ArticleReadingPreferencesNotifier notifier, _) {
         final prefs = notifier.prefs;
         final bool isNight = prefs.isNightMode;
-        final Color? bg = isNight ? Colors.grey[900] : null;
-        final Color textColor = isNight ? Colors.grey[100]! : Theme.of(context).textTheme.bodyLarge!.color!;
-        final Color metaColor = isNight ? Colors.grey[400]! : Theme.of(context).textTheme.bodySmall!.color!;
+        // 背景：自定义背景色优先，否则背景预设；夜间向黑压暗（对齐小说）。
+        final Color bgBase = prefs.customBgColor != null
+            ? Color(prefs.customBgColor!)
+            : ReaderTokens.bgPresets[prefs.bgPresetIndex
+                .clamp(0, ReaderTokens.bgPresets.length - 1)];
+        final Color bg = isNight
+            ? Color.lerp(bgBase, Colors.black, ReaderTokens.nightDarkenFactor)!
+            : bgBase;
+        // 正文色：自定义文字色优先，否则按背景亮度自动黑/白。
+        final Color textColor = prefs.customTextColor != null
+            ? Color(prefs.customTextColor!)
+            : (bg.computeLuminance() > 0.5 ? Colors.black87 : Colors.white);
+        final Color metaColor = textColor.withValues(alpha: 0.7);
         final TextAlign? justify = prefs.justify ? TextAlign.justify : null;
 
+        // 自定义字体文件：已选则 fire-and-forget 加载（幂等），渲染用注册字族。
+        final String? fontPath = prefs.customFontPath;
+        if (fontPath != null && fontPath.isNotEmpty) {
+          unawaited(_loadCustomFont(fontPath));
+        }
+
+        final Color titleColor = prefs.titleColor != null
+            ? Color(prefs.titleColor!)
+            : (prefs.emphasisColor != null
+                ? Color(prefs.emphasisColor!)
+                : textColor);
+
+        final Style baseStyle = Style(
+          fontSize: FontSize(prefs.fontSize),
+          lineHeight: LineHeight(prefs.lineHeight),
+          color: textColor,
+          textAlign: justify,
+          fontFamily: prefs.fontFamily,
+          letterSpacing: prefs.letterSpacing,
+          fontWeight: prefs.fontBold ? FontWeight.bold : null,
+          fontStyle: prefs.fontItalic ? FontStyle.italic : null,
+          textDecoration:
+              prefs.fontUnderline ? TextDecoration.underline : null,
+          textDecorationColor: prefs.underlineColor != null
+              ? Color(prefs.underlineColor!)
+              : null,
+          textDecorationStyle: prefs.underlineDashed
+              ? TextDecorationStyle.dashed
+              : TextDecorationStyle.solid,
+          textDecorationThickness: prefs.underlineThickness,
+          textShadow: prefs.shadow
+              ? <Shadow>[
+                  Shadow(
+                    color: textColor.withValues(alpha: 0.5),
+                    blurRadius: prefs.shadowBlur,
+                    offset: Offset(prefs.shadowOffsetX, prefs.shadowOffsetY),
+                  ),
+                ]
+              : null,
+        );
+
         final Map<String, Style> htmlStyle = <String, Style>{
-          'body': Style(
-            fontSize: FontSize(prefs.fontSize),
-            lineHeight: LineHeight(prefs.lineHeight),
-            color: textColor,
-            textAlign: justify,
+          'body': baseStyle.copyWith(
             margin: Margins.zero,
+            padding: HtmlPaddings.only(
+              inlineStart: prefs.margin,
+              inlineEnd: prefs.margin,
+            ),
           ),
-          'p': Style(
-            fontSize: FontSize(prefs.fontSize),
-            lineHeight: LineHeight(prefs.lineHeight),
-            color: textColor,
-            textAlign: justify,
+          'p': baseStyle.copyWith(
             margin: Margins(bottom: Margin(prefs.paragraphSpacing)),
           ),
+          // 标题 h1-h6：相对正文倍数 × titleFontScale，颜色/对齐/加粗可配。
+          ..._buildTitleStyles(prefs, titleColor),
         };
 
-        final canFetch =
-            widget.feedId != null && widget.feedId!.isNotEmpty && !_fetching;
+        // 所有入口都可用：无 feedId 时以 adhoc 键抓取（不入订阅源离线缓存）。
+        final bool canFetch = _item.url.isNotEmpty && !_fetching;
 
         return Scaffold(
           backgroundColor: bg,
           appBar: AppBar(
-            title: Text(_item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title:
+                Text(_item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
             actions: <Widget>[
               if (canFetch || _fetching)
                 AppIconButton(
@@ -507,6 +1106,15 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                 onPressed: () => _showReadingSettingsSheet(context),
               ),
               AppIconButton(
+                icon: Icons.share_outlined,
+                tooltip: l10n.share,
+                onPressed: () {
+                  unawaited(
+                    Share.share('${_item.title}\n${_item.url}'),
+                  );
+                },
+              ),
+              AppIconButton(
                 icon: Icons.open_in_browser_outlined,
                 tooltip: l10n.articleDetailReadFull,
                 onPressed: () => _openInBrowser(context, l10n),
@@ -518,7 +1126,9 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
             icon: const Icon(Icons.open_in_new_outlined),
             label: Text(l10n.articleDetailReadFull),
           ),
+          bottomNavigationBar: _buildArticleNavBar(context, l10n),
           body: ListView(
+            controller: _scrollCtrl,
             padding: const EdgeInsets.all(AppTokens.spaceLg),
             children: <Widget>[
               if (_item.author != null || _item.publishedAt != null)
@@ -526,7 +1136,8 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                   children: <Widget>[
                     if (_item.author != null)
                       Expanded(
-                        child: Text('${l10n.articleDetailAuthor}：${_item.author}',
+                        child: Text(
+                            '${l10n.articleDetailAuthor}：${_item.author}',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
@@ -549,7 +1160,8 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                 const SizedBox(height: AppTokens.spaceMd),
               if (_item.coverUrl != null)
                 GestureDetector(
-                  onTap: () => _openGallery(context, <String>[_abs(_item.coverUrl!)], 0),
+                  onTap: () =>
+                      _openGallery(context, <String>[_abs(_item.coverUrl!)], 0),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                     // 封面同样走 SourceImage（带文章页 Referer + 重试）：
@@ -562,11 +1174,13 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                     ),
                   ),
                 ),
-              if (_item.coverUrl != null) const SizedBox(height: AppTokens.spaceMd),
+              if (_item.coverUrl != null)
+                const SizedBox(height: AppTokens.spaceMd),
               if (html.isNotEmpty)
                 Center(
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: prefs.contentMaxWidth),
+                    constraints:
+                        BoxConstraints(maxWidth: prefs.contentMaxWidth),
                     child: Html(
                       data: html,
                       style: htmlStyle,
@@ -590,6 +1204,53 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                             images: imgUrls,
                           ),
                         ),
+                        // <video> 标签：flutter_html 3.0 对 video 渲染支持有限，
+                        // 直接改为「播放视频」按钮（取 src 或首个 <source src>），
+                        // 点击走视频播放器 / 内置浏览器，避免被当作图片/空白跳过。
+                        TagExtension(
+                          tagsToExtend: <String>{'video'},
+                          builder: (ExtensionContext ext) {
+                            String src = ext.attributes['src'] ?? '';
+                            if (src.isEmpty) {
+                              for (final child in ext.elementChildren) {
+                                if (child.localName == 'source') {
+                                  final s = child.attributes['src'];
+                                  if (s != null && s.isNotEmpty) {
+                                    src = s;
+                                    break;
+                                  }
+                                }
+                              }
+                            }
+                            if (src.isEmpty) return const SizedBox.shrink();
+                            final Uri? base = Uri.tryParse(_item.url);
+                            final String url = base != null
+                                ? base.resolve(src).toString()
+                                : src;
+                            // 直链媒体直接内嵌播放（16:9，带控制条/全屏）；
+                            // 非直链（页面型地址）退回「播放视频」按钮走浏览器。
+                            if (isDirectMediaUrl(url)) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: AppTokens.spaceSm),
+                                child: RssInlineVideoPlayer(
+                                  url: url,
+                                  title: _item.title,
+                                  pageUrl: _item.url,
+                                ),
+                              );
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: AppTokens.spaceSm),
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.play_circle_outline),
+                                label: Text(l10n.rssVideoPlay),
+                                onPressed: () => _openVideo(context, url),
+                              ),
+                            );
+                          },
+                        ),
                         // iframe 嵌入视频：不渲染原始 iframe（XSS/追踪风险），改为
                         // 「播放视频」按钮，点击用应用内 WebView 播放（B4）。
                         TagExtension(
@@ -598,8 +1259,9 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                             final src = ext.attributes['src'] ?? '';
                             if (src.isEmpty) return const SizedBox.shrink();
                             final Uri? base = Uri.tryParse(_item.url);
-                            final String url =
-                                base != null ? base.resolve(src).toString() : src;
+                            final String url = base != null
+                                ? base.resolve(src).toString()
+                                : src;
                             return Padding(
                               padding: const EdgeInsets.symmetric(
                                   vertical: AppTokens.spaceSm),
@@ -612,14 +1274,17 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                           },
                         ),
                       ],
-                      onLinkTap: (String? url, Map<String, String> attributes, _) {
+                      onLinkTap:
+                          (String? url, Map<String, String> attributes, _) {
                         _openLinkSafely(context, url);
                       },
                     ),
                   ),
                 )
               else
-                AppEmptyState(icon: Icons.article_outlined, message: l10n.articleDetailEmpty),
+                AppEmptyState(
+                    icon: Icons.article_outlined,
+                    message: l10n.articleDetailEmpty),
               _buildEnclosureWidgets(context, l10n),
             ],
           ),
@@ -654,8 +1319,23 @@ class _HtmlImage extends StatelessWidget {
     if (src == null || src!.isEmpty) return const SizedBox.shrink();
     final Uri? base = Uri.tryParse(pageUrl);
     final String url = base != null ? base.resolve(src!).toString() : src!;
+    // 部分站点用 `<img src="xxx.mp4">` 承载视频帧：直链视频直接内嵌播放，
+    // 不再当图片渲染（点击只会打开图片查看器）也不再跳按钮页。
+    if (isDirectMediaUrl(url)) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
+        child: RssInlineVideoPlayer(
+          url: url,
+          pageUrl: pageUrl,
+        ),
+      );
+    }
     final int index = images.indexOf(url);
     return GestureDetector(
+      // 长按：保存 / 复制 / 分享（对齐漫画阅读器图片功能）。
+      onLongPress: () => unawaited(
+        showRssImageActions(context, url: url, pageUrl: pageUrl),
+      ),
       onTap: () {
         if (images.isEmpty) return;
         Navigator.of(context).push(
@@ -679,6 +1359,29 @@ class _HtmlImage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 阅读设置面板里颜色选择项的左侧色块：`null`（跟随默认）显示自动图标占位。
+class _ArticleColorSwatch extends StatelessWidget {
+  final int? color;
+
+  const _ArticleColorSwatch({this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: color != null ? Color(color!) : null,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.grey.shade400),
+      ),
+      child: color == null
+          ? const Icon(Icons.brightness_auto, size: 16, color: Colors.grey)
+          : null,
     );
   }
 }

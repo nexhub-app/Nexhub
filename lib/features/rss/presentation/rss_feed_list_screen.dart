@@ -22,6 +22,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_animations.dart';
+import '../../../core/widgets/source_image.dart';
 import 'rss_feed_detail_screen.dart';
 import 'rss_add_subscription_screen.dart';
 import 'rss_opml_screen.dart';
@@ -44,6 +45,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
   /// 测速结果：feedId → 延迟毫秒（-1 = 失败，null = 测试中）。
   final Map<String, int?> _speeds = {};
   bool _testingAll = false;
+
   /// 本地兜底隐藏集合：unbind 后立即从本屏（分类视图）过滤，确保「移回全局」
   /// 后一定从分类列表消失，不依赖 notifyListeners/watch 时序（bug 兜底）。
   final Set<String> _hiddenIds = {};
@@ -76,7 +78,9 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
     final feedsToShow = groupFilterOn
         ? (_activeGroup!.isEmpty
             ? visibleFeeds.where((f) => f.groups.isEmpty).toList()
-            : visibleFeeds.where((f) => f.groups.contains(_activeGroup)).toList())
+            : visibleFeeds
+                .where((f) => f.groups.contains(_activeGroup))
+                .toList())
         : visibleFeeds;
 
     // 全局视图分组条：全部 / 各分组 / 未分组（水平可滚动）。无分组时不显示。
@@ -112,19 +116,12 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
             tooltip: l10n.moreActions,
             onSelected: (action) => _onTopMenu(action, context, manager),
             itemBuilder: (ctx) => <PopupMenuEntry<String>>[
+              // OPML 导入/导出在同一页，这里只留一个入口（此前两项各开同一页）。
               PopupMenuItem<String>(
-                value: 'opml_import',
+                value: 'opml',
                 child: ListTile(
-                  leading: const Icon(Icons.upload_file_outlined),
-                  title: Text(l10n.rssImportOpml),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'opml_export',
-                child: ListTile(
-                  leading: const Icon(Icons.download_outlined),
-                  title: Text(l10n.rssExportOpml),
+                  leading: const Icon(Icons.import_export_outlined),
+                  title: Text(l10n.rssOpmlTitle),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -175,141 +172,158 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                 final int feedIndex = i - (canShowGroupBar ? 1 : 0);
                 final feed = feedsToShow[feedIndex];
                 final newCount = checker.newCountFor(feed.id);
-                return AppCard(
-                  onTap: () {
-                    // 进入详情时清零未读数
-                    if (newCount > 0) {
-                      checker.markRead(feed.id);
-                    }
-                    Navigator.of(context).push(
-                      AppPageRoute<void>(
-                        builder: (_) => RssFeedDetailScreen(feed: feed),
-                      ),
-                    );
-                  },
-                  padding: EdgeInsets.zero,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppTokens.spaceLg,
-                      vertical: AppTokens.spaceXs,
-                    ),
-                    leading: _feedLeadingIcon(feed, scheme),
-                    title: Text(
-                      feed.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      _speedSubtitle(feed, l10n),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        if (newCount > 0)
-                          // 隐私设置「隐藏通知内容」：只显示中性圆点，
-                          // 不暴露未读具体数量，防旁人窥屏。
-                          GeneralSettingsStore
-                                  .instance
-                                  .settings
-                                  .hideNotificationContent
-                              ? Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    color: scheme.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                )
-                              : Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: scheme.primary,
-                                    borderRadius: BorderRadius.circular(
-                                        AppTokens.radiusFull),
-                                  ),
-                                  child: Text(
-                                    '$newCount',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(color: scheme.onPrimary),
-                                  ),
-                                )
-                        else
-                          const SizedBox.shrink(),
-                        // 溢出菜单：聚合 绑定/移回/测速/编辑/删除，避免行内按钮过多（手机端杂乱）。
-                        PopupMenuButton<String>(
-                          icon: Icon(Icons.more_vert,
-                              color: scheme.onSurfaceVariant),
-                          tooltip: l10n.moreActions,
-                          onSelected: (action) =>
-                              _onFeedMenuItem(action, context, manager, feed),
-                          itemBuilder: (ctx) => <PopupMenuEntry<String>>[
-                            if (widget.moduleType == null &&
-                                feed.moduleType == null)
-                              PopupMenuItem<String>(
-                                value: 'bind',
-                                child: ListTile(
-                                  leading: const Icon(Icons.playlist_add_outlined),
-                                  title: Text(l10n.rssBindModuleTitle),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            if (widget.moduleType != null)
-                              PopupMenuItem<String>(
-                                value: 'unbind',
-                                child: ListTile(
-                                  leading:
-                                      const Icon(Icons.playlist_remove_outlined),
-                                  title: Text(l10n.rssUnbindGlobal),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            PopupMenuItem<String>(
-                              value: 'speed',
-                              child: ListTile(
-                                leading: const Icon(Icons.speed),
-                                title: Text(l10n.rssTestSpeed),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                            PopupMenuItem<String>(
-                              value: 'edit',
-                              child: ListTile(
-                                leading: const Icon(Icons.edit_outlined),
-                                title: Text(l10n.editRoute),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                            PopupMenuItem<String>(
-                              value: 'groups',
-                              child: ListTile(
-                                leading: const Icon(Icons.folder_outlined),
-                                title: Text(l10n.rssSetGroups),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                            PopupMenuItem<String>(
-                              value: 'delete',
-                              child: ListTile(
-                                leading: Icon(Icons.delete_outline,
-                                    color: scheme.error),
-                                title: Text(l10n.delete,
-                                    style: TextStyle(color: scheme.error)),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ],
+                return Entrance(
+                  // 首屏逐条交错入场（最多 8 条），滚动回来不重播。
+                  index: feedIndex < 8 ? feedIndex : 8,
+                  offset: 12,
+                  fromScale: 0.98,
+                  onceKey: 'rssfeed:${feed.id}',
+                  child: AppCard(
+                    onTap: () {
+                      // 进入详情时清零未读数
+                      if (newCount > 0) {
+                        checker.markRead(feed.id);
+                      }
+                      Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          builder: (_) => RssFeedDetailScreen(feed: feed),
                         ),
-                      ],
+                      );
+                    },
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppTokens.spaceLg,
+                        vertical: AppTokens.spaceXs,
+                      ),
+                      leading: _feedLeadingIcon(feed, scheme),
+                      title: Text(
+                        feed.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        _speedSubtitle(feed, l10n),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          if (newCount > 0)
+                            // 隐私设置「隐藏通知内容」：只显示中性圆点，
+                            // 不暴露未读具体数量，防旁人窥屏。
+                            GeneralSettingsStore
+                                    .instance.settings.hideNotificationContent
+                                ? Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: scheme.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  )
+                                : AnimatedSwitcher(
+                                    // 未读数变化时缩放淡入，灵动反馈。
+                                    duration: AppTokens.durBase,
+                                    switchInCurve: AppCurves.spring,
+                                    switchOutCurve: Curves.easeOutCubic,
+                                    transitionBuilder: (Widget child,
+                                            Animation<double> anim) =>
+                                        ScaleTransition(
+                                            scale: anim, child: child),
+                                    child: Container(
+                                      key: ValueKey<int>(newCount),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: scheme.primary,
+                                        borderRadius: BorderRadius.circular(
+                                            AppTokens.radiusFull),
+                                      ),
+                                      child: Text(
+                                        '$newCount',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(color: scheme.onPrimary),
+                                      ),
+                                    ),
+                                  )
+                          else
+                            const SizedBox.shrink(),
+                          // 溢出菜单：聚合 绑定/移回/测速/编辑/删除，避免行内按钮过多（手机端杂乱）。
+                          PopupMenuButton<String>(
+                            icon: Icon(Icons.more_vert,
+                                color: scheme.onSurfaceVariant),
+                            tooltip: l10n.moreActions,
+                            onSelected: (action) =>
+                                _onFeedMenuItem(action, context, manager, feed),
+                            itemBuilder: (ctx) => <PopupMenuEntry<String>>[
+                              if (widget.moduleType == null &&
+                                  feed.moduleType == null)
+                                PopupMenuItem<String>(
+                                  value: 'bind',
+                                  child: ListTile(
+                                    leading:
+                                        const Icon(Icons.playlist_add_outlined),
+                                    title: Text(l10n.rssBindModuleTitle),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              if (widget.moduleType != null)
+                                PopupMenuItem<String>(
+                                  value: 'unbind',
+                                  child: ListTile(
+                                    leading: const Icon(
+                                        Icons.playlist_remove_outlined),
+                                    title: Text(l10n.rssUnbindGlobal),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                              PopupMenuItem<String>(
+                                value: 'speed',
+                                child: ListTile(
+                                  leading: const Icon(Icons.speed),
+                                  title: Text(l10n.rssTestSpeed),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'edit',
+                                child: ListTile(
+                                  leading: const Icon(Icons.edit_outlined),
+                                  title: Text(l10n.editRoute),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'groups',
+                                child: ListTile(
+                                  leading: const Icon(Icons.folder_outlined),
+                                  title: Text(l10n.rssSetGroups),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'delete',
+                                child: ListTile(
+                                  leading: Icon(Icons.delete_outline,
+                                      color: scheme.error),
+                                  title: Text(l10n.delete,
+                                      style: TextStyle(color: scheme.error)),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -329,28 +343,31 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
   String _speedSubtitle(RssFeed feed, AppLocalizations l10n) {
     final speed = _speeds[feed.id];
     if (speed == null) return feed.description ?? feed.url;
-    if (speed < 0) return '${feed.description ?? feed.url} · ${l10n.rssSpeedFailed}';
+    if (speed < 0)
+      return '${feed.description ?? feed.url} · ${l10n.rssSpeedFailed}';
     return '${feed.description ?? feed.url} · ${l10n.rssSpeedMs(speed)}';
   }
 
   /// 订阅列表项左侧图标：优先显示站点 favicon（B8 修复），加载失败/无图时
   /// 回退到通用 RSS 图标。favicon 经 [RssFeed.effectiveIconUrl] 解析
   /// （自带 iconUrl 优先，否则站点根 /favicon.ico）。
+  ///
+  /// 走 [SourceImage] 而非裸 `Image.network`：后者不带 UA/Referer 也不走
+  /// 应用代理（Dio 统一下载），防盗链站点与代理环境下大量 favicon 加载
+  /// 失败回退默认图。失败静默回退芯片图标（不显示重试 UI）。
   Widget _feedLeadingIcon(RssFeed feed, ColorScheme scheme) {
     final icon = feed.effectiveIconUrl;
     if (icon == null) return _rssIconChip(scheme);
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-      child: Image.network(
-        icon,
+      child: SourceImage(
+        url: icon,
         width: 40,
         height: 40,
         fit: BoxFit.cover,
-        // 加载中先显示通用图标占位。
-        loadingBuilder: (_, child, progress) =>
-            progress == null ? child : _rssIconChip(scheme),
-        // 加载失败（404 / WAF / 超时）回退到通用图标，不报错。
-        errorBuilder: (_, __, ___) => _rssIconChip(scheme),
+        enableRetry: false,
+        placeholder: _rssIconChip(scheme),
+        errorWidget: _rssIconChip(scheme),
       ),
     );
   }
@@ -563,7 +580,8 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                     leading: const Icon(Icons.playlist_add_outlined),
                     title: Text(e.value),
                     onTap: () async {
-                      await manager.updateFeed(feed.copyWith(moduleType: e.key));
+                      await manager
+                          .updateFeed(feed.copyWith(moduleType: e.key));
                       // 若该 feed 此前被本地隐藏（unbind 兜底），绑定后解除隐藏。
                       if (mounted) {
                         setState(() {
@@ -590,11 +608,10 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
     );
   }
 
-  /// 顶部「更多」菜单分发：OPML 导入/导出 / 网站发现 / 管理分组。
+  /// 顶部「更多」菜单分发：OPML 导入导出 / 网站发现 / 管理分组。
   void _onTopMenu(String action, BuildContext context, RssManager manager) {
     switch (action) {
-      case 'opml_import':
-      case 'opml_export':
+      case 'opml':
         Navigator.of(context).push(
           AppPageRoute<void>(builder: (_) => const RssOpmlScreen()),
         );
@@ -661,7 +678,8 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
   }
 
   /// 为单个订阅指定分组（多选覆盖式）+ 快捷新建分组。
-  void _showGroupAssign(BuildContext context, RssManager manager, RssFeed feed) {
+  void _showGroupAssign(
+      BuildContext context, RssManager manager, RssFeed feed) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     final selected = <String>{...feed.groups};
@@ -669,7 +687,8 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
       ),
       builder: (sheetCtx) {
         return StatefulBuilder(
@@ -702,13 +721,15 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                       const SizedBox(height: AppTokens.spaceMd),
                       if (groups.isEmpty)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+                          padding:
+                              const EdgeInsets.only(bottom: AppTokens.spaceSm),
                           child: Text(
                             l10n.rssGroupEmpty,
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
                           ),
                         ),
                       Flexible(
@@ -729,7 +750,8 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                 avatar: const Icon(Icons.add, size: 16),
                                 label: Text(l10n.rssGroupAdd),
                                 onPressed: () async {
-                                  final name = await _promptGroupName(context, l10n);
+                                  final name =
+                                      await _promptGroupName(context, l10n);
                                   if (name != null) {
                                     await manager.renameGroup(name, name);
                                     setSheet(() => selected.add(name));
@@ -745,7 +767,8 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                         padding: const EdgeInsets.all(AppTokens.spaceMd),
                         child: FilledButton(
                           onPressed: () async {
-                            await manager.setFeedGroups(feed.id, selected.toList());
+                            await manager.setFeedGroups(
+                                feed.id, selected.toList());
                             if (ctx.mounted) Navigator.of(ctx).pop();
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -775,7 +798,8 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
       ),
       builder: (sheetCtx) {
         return StatefulBuilder(
@@ -831,14 +855,16 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                       Flexible(
                         child: groups.isEmpty
                             ? Padding(
-                                padding: const EdgeInsets.all(AppTokens.spaceMd),
+                                padding:
+                                    const EdgeInsets.all(AppTokens.spaceMd),
                                 child: Text(
                                   l10n.rssGroupEmpty,
                                   textAlign: TextAlign.center,
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall
-                                      ?.copyWith(color: scheme.onSurfaceVariant),
+                                      ?.copyWith(
+                                          color: scheme.onSurfaceVariant),
                                 ),
                               )
                             : ListView.builder(
@@ -851,21 +877,27 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                     index: i < 8 ? i : 8,
                                     onceKey: 'mgrp:$g',
                                     child: ListTile(
-                                      leading: const Icon(Icons.folder_outlined),
+                                      leading:
+                                          const Icon(Icons.folder_outlined),
                                       title: Text(g),
-                                      subtitle: Text(l10n.rssGroupFeedCount(count)),
+                                      subtitle:
+                                          Text(l10n.rssGroupFeedCount(count)),
                                       trailing: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: <Widget>[
                                           IconButton(
-                                            icon: const Icon(Icons.edit_outlined),
+                                            icon:
+                                                const Icon(Icons.edit_outlined),
                                             tooltip: l10n.rssGroupRename,
                                             onPressed: () async {
                                               final newName =
-                                                  await _promptGroupName(context, l10n,
+                                                  await _promptGroupName(
+                                                      context, l10n,
                                                       initial: g);
-                                              if (newName != null && newName != g) {
-                                                await manager.renameGroup(g, newName);
+                                              if (newName != null &&
+                                                  newName != g) {
+                                                await manager.renameGroup(
+                                                    g, newName);
                                                 setSheet(() {});
                                               }
                                             },
@@ -875,8 +907,12 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                                 color: scheme.error),
                                             tooltip: l10n.rssGroupDelete,
                                             onPressed: () async {
-                                              final ok = await _confirmDeleteGroup(
-                                                  context, manager, g, l10n);
+                                              final ok =
+                                                  await _confirmDeleteGroup(
+                                                      context,
+                                                      manager,
+                                                      g,
+                                                      l10n);
                                               if (ok) setSheet(() {});
                                             },
                                           ),

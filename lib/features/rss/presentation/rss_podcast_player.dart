@@ -20,8 +20,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/media/media_kit_network.dart';
 import '../../../core/rss/rss_feed.dart';
-import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// 文章内的播客音频播放控件。
@@ -70,6 +70,8 @@ class _RssPodcastPlayerState extends State<RssPodcastPlayer> {
     // 幂等：main 已调用过，重复调用安全。
     MediaKit.ensureInitialized();
     _player = Player();
+    // libmpv 自主联网不吃应用代理，须显式注入（否则代理环境音频永远 0:00）。
+    applyAppProxyToPlayer(_player);
     _posSub = _player.stream.position.listen((Duration d) {
       if (mounted) setState(() => _position = d);
     });
@@ -109,14 +111,6 @@ class _RssPodcastPlayerState extends State<RssPodcastPlayer> {
     _failed = false;
   }
 
-  /// 音频请求头：Referer=文章页，UA=浏览器 UA。防盗链音频缺这俩直接 0:00。
-  Map<String, String>? _buildHeaders() {
-    final page = widget.pageUrl;
-    if (page == null || page.isEmpty) return null;
-    final ua = HttpFetcher.instance.userAgentForUrl(_current.url);
-    return <String, String>{'Referer': page, 'User-Agent': ua};
-  }
-
   void _openCurrent() {
     final List<RssEnclosure> list = _audio;
     if (list.isEmpty) return;
@@ -125,7 +119,19 @@ class _RssPodcastPlayerState extends State<RssPodcastPlayer> {
       _position = Duration.zero;
       _duration = Duration.zero;
     });
-    _player.open(Media(_current.url, httpHeaders: _buildHeaders()), play: false);
+    // 代理注入 + 防盗链头一起上：缺代理则代理环境连不上，缺 Referer/UA 则
+    // 防盗链源拒之门外，两者表现都是无声无息的 0:00。
+    applyAppProxyToPlayer(_player);
+    _player.open(
+      Media(
+        _current.url,
+        httpHeaders: buildMediaHeaders(
+          pageUrl: widget.pageUrl,
+          mediaUrl: _current.url,
+        ),
+      ),
+      play: false,
+    );
     // 兜底计时：部分失败不抛 error，只是永远停在 0 进度——到点仍未拿到时长
     // 且未起播就按失败处理，避免用户对着 0:00 干等。
     _loadTimer?.cancel();

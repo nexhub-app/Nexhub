@@ -11,6 +11,9 @@ library;
 
 import 'dart:convert';
 
+import 'package:html/dom.dart' as html_dom;
+import 'package:html/parser.dart' as html_parser;
+
 import '../comic/models/reader_preferences.dart';
 import '../network/network_config_service.dart';
 import '../scraper/http_fetcher.dart';
@@ -250,23 +253,28 @@ class RssArticleStore {
   }
 
   /// 抓取文章全文并缓存（之后断网亦可离线阅读）。url 为空跳过。
-  Future<void> fetchFullText(String feedId, RssItem item) async {
+  /// 返回是否成功取得正文，供调用方区分「已更新 / 抓取失败」给出反馈
+  /// （此前失败被静默吞掉，用户点了按钮毫无反应，分不清是抓着还是挂了）。
+  Future<bool> fetchFullText(String feedId, RssItem item) async {
+    if (item.url.isEmpty) return false;
     final k = RssArticleRecord.key(feedId, item.url, item.title);
-    if (item.url.isEmpty) return;
     try {
       final html = await HttpFetcher.instance.getHtml(
         item.url,
         net: NetworkConfigService.instance.globalProfile,
       );
       final readable = extractReadableHtml(html);
+      if (readable.trim().isEmpty) return false;
       final prev = _states[k] ?? _recordFromItem(feedId, item);
       _states[k] = prev.copyWith(
         content: readable,
         cachedAt: DateTime.now().millisecondsSinceEpoch,
       );
       await _persistState();
+      return true;
     } on Object {
       // 抓取失败不影响已有内容
+      return false;
     }
   }
 
@@ -357,8 +365,94 @@ class RssArticleStore {
             const <RssEnclosure>[],
       );
 
-  /// 从 HTML 抽取可读正文（保留图片/链接，去除脚本/样式/导航/页眉/页脚/侧栏）。
+  /// 从 HTML 抽取可读正文：启发式 Readability 评分，保留图片/链接/标题，
+  /// 去除脚本/样式/导航/页眉/页脚/侧栏/评论区/推荐位等非正文区块。
+  ///
+  /// 流程（package:html 解析，容错残缺 HTML5）：
+  /// 1. 整类剔除噪音标签（script/style/iframe/表单控件 + nav/header/footer/aside）；
+  /// 2. 按 class/id 关键词剔除疑似噪音容器（评论/侧栏/推荐/分享/广告等）；
+  /// 3. 候选容器（article/main/[role=main] + 正文关键词 class/id）按
+  ///    「纯文本量 + 图片加权 − 链接密度惩罚」评分取最优；
+  /// 4. 无明显正文容器或解析失败时回退正则清洗的整个 body（老行为）。
   static String extractReadableHtml(String html) {
+    try {
+      final html_dom.Document doc = html_parser.parse(html);
+      final html_dom.Element? body = doc.body;
+      if (body == null) return _extractReadableHtmlFallback(html);
+
+      // 1) 噪音标签整类剔除（渲染型/交互型/结构型）。
+      body.querySelectorAll(
+        'script, style, noscript, iframe, object, embed, form, button, '
+        'input, select, textarea, svg, canvas, nav, header, footer, aside, '
+        'link, meta',
+      ).forEach((html_dom.Element e) => e.remove());
+
+      // 2) class/id 关键词疑似噪音容器。
+      // 注意关键词均为「区块语义」而非「正文语义」：header/footer 会误伤
+      // .post-header（丢标题/署名），但标题已在顶栏展示，可接受。
+      final RegExp junk = RegExp(
+        r'(nav|menu|sidebar|side-bar|comment|footer|header|banner|advert|'
+        r'ads?-|-ads|promo|share|social|related|recommend|breadcrumb|'
+        r'pagination|pager|popup|modal|tooltip|subscribe|newsletter|login|'
+        r'signup|donate|copyright|widget|archive|taglist|jump|seo)',
+        caseSensitive: false,
+      );
+      for (final html_dom.Element e
+          in List<html_dom.Element>.from(body.querySelectorAll(
+        'div, section, ul, ol, dl',
+      ))) {
+        final String sig = '${e.id} ${e.classes.join(' ')}';
+        if (sig.trim().isNotEmpty && junk.hasMatch(sig)) e.remove();
+      }
+
+      // 3) 候选容器评分。
+      final RegExp contentKeyword = RegExp(
+        r'(article|content|post|entry|story|main|body|text)',
+        caseSensitive: false,
+      );
+      final List<html_dom.Element> candidates = <html_dom.Element>[];
+      void addCandidate(html_dom.Element e) {
+        if (!candidates.contains(e) && e.parent != null) candidates.add(e);
+      }
+
+      body.querySelectorAll('article, main, [role="main"], [itemprop="articleBody"]')
+          .forEach(addCandidate);
+      body.querySelectorAll('div, section').forEach((html_dom.Element e) {
+        final String sig = '${e.id} ${e.classes.join(' ')}';
+        if (contentKeyword.hasMatch(sig)) addCandidate(e);
+      });
+
+      html_dom.Element best = body;
+      double bestScore = -1;
+      for (final html_dom.Element e in candidates) {
+        final String text = e.text.replaceAll(RegExp(r'\s+'), '');
+        final int textLen = text.length;
+        if (textLen == 0) continue;
+        final int imgs = e.querySelectorAll('img').length;
+        // 链接文本占比过高 → 目录/索引/聚合页，不是正文。
+        int linkTextLen = 0;
+        for (final html_dom.Element a in e.querySelectorAll('a')) {
+          linkTextLen += a.text.replaceAll(RegExp(r'\s+'), '').length;
+        }
+        final double linkDensity = textLen == 0 ? 1.0 : linkTextLen / textLen;
+        double score = textLen + (imgs > 10 ? 10 : imgs) * 150;
+        if (linkDensity > 0.3) score *= 0.4;
+        if (score > bestScore) {
+          bestScore = score;
+          best = e;
+        }
+      }
+
+      // 正文量过低（评分阈值）：识别不可靠，回退整 body 保底。
+      if (identical(best, body) || bestScore < 300) return body.innerHtml;
+      return best.innerHtml;
+    } on Object {
+      return _extractReadableHtmlFallback(html);
+    }
+  }
+
+  /// 兜底：package:html 解析失败（极端残缺文档）时的正则清洗，即老实现。
+  static String _extractReadableHtmlFallback(String html) {
     var s = html;
     s = s.replaceAll(RegExp(r'<!--[\s\S]*?-->', caseSensitive: false), '');
     s = s.replaceAll(

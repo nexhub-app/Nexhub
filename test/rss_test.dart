@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/comic/models/reader_preferences.dart';
 import 'package:nexhub/core/models/plugin_config.dart';
+import 'package:nexhub/core/rss/rss_article_store.dart';
 import 'package:nexhub/core/rss/rss_feed.dart';
 import 'package:nexhub/core/rss/rss_manager.dart';
 import 'package:nexhub/core/rss/rss_parser.dart';
@@ -231,6 +232,142 @@ void main() {
       expect(modified.title, 'Modified');
       expect(modified.id, feed.id);
       expect(modified.url, feed.url);
+    });
+  });
+
+  group('RssArticleStore.extractReadableHtml（启发式正文识别）', () {
+    String paragraph(String tag) =>
+        '这是文章正文段落（$tag），含有相当长度的中文正文文本，用来让正文容器在启发式评分中胜出，'
+        '同时保证与导航/侧栏的链接密度差距足够大。' * 3;
+
+    String pageHtml(String para) => '''<!DOCTYPE html>
+<html>
+<head><title>站点标题</title><script>var t=1;</script></head>
+<body>
+  <nav class="main-nav"><a href="/">首页</a><a href="/cat">分类</a></nav>
+  <div class="sidebar">侧栏推荐 <a href="/x">链接1</a><a href="/y">链接2</a></div>
+  <article class="post-content">
+    <h1>文章标题</h1>
+    <p>$para</p>
+    <img src="/img/a.jpg" alt="a" />
+    <p>$para 正文第二段，包含足够长的文本内容用于评分。</p>
+  </article>
+  <footer class="site-footer">版权所有 © 示例站点</footer>
+</body>
+</html>''';
+
+    test('选中正文容器并剔除导航/侧栏/页脚', () {
+      final html = pageHtml(paragraph('p'));
+      final out = RssArticleStore.extractReadableHtml(html);
+      expect(out, contains('文章标题'));
+      expect(out, contains('img'));
+      expect(out, isNot(contains('侧栏推荐')));
+      expect(out, isNot(contains('版权所有')));
+      expect(out, isNot(contains('<script')));
+    });
+
+    test('剔除噪音标签（script/iframe/form）', () {
+      final out = RssArticleStore.extractReadableHtml(
+        '<body><form><input name="q"/></form><iframe src="https://x"></iframe>'
+        '<script>alert(1)</script><p>正文内容保持不变</p></body>',
+      );
+      expect(out, contains('正文内容保持不变'));
+      expect(out, isNot(contains('<script')));
+      expect(out, isNot(contains('<iframe')));
+      expect(out, isNot(contains('<form')));
+    });
+
+    test('极端残缺 HTML 回退正则清洗且不抛异常', () {
+      final out = RssArticleStore.extractReadableHtml(
+        '<p>未闭合的正文 <b>加粗',
+      );
+      expect(out, contains('正文'));
+    });
+  });
+
+  group('RssParser Media RSS 附件', () {
+    test('解析 media:content 视频附件（含 media:group 内嵌）', () {
+      const rssXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Video Feed</title>
+    <link>https://example.com</link>
+    <description>videos</description>
+    <item>
+      <title>V1</title>
+      <link>https://example.com/v1</link>
+      <media:group>
+        <media:content url="https://cdn.example.com/v1.mp4" type="video/mp4" fileSize="1048576"/>
+      </media:group>
+    </item>
+    <item>
+      <title>V2</title>
+      <link>https://example.com/v2</link>
+      <media:content url="https://cdn.example.com/v2.m3u8" type="application/vnd.apple.mpegurl"/>
+    </item>
+  </channel>
+</rss>''';
+
+      final feed = RssParser.parse(rssXml);
+      final first = feed.items[0].enclosures;
+      expect(first.length, 1);
+      expect(first.single.url, 'https://cdn.example.com/v1.mp4');
+      expect(first.single.type, 'video/mp4');
+      expect(first.single.isVideo, isTrue);
+      expect(first.single.isAudio, isFalse);
+
+      final second = feed.items[1].enclosures;
+      expect(second.single.url, 'https://cdn.example.com/v2.m3u8');
+      expect(second.single.isVideo, isTrue);
+    });
+
+    test('media:content 与 enclosure 同址时去重', () {
+      const rssXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Dup Feed</title>
+    <link>https://example.com</link>
+    <description>d</description>
+    <item>
+      <title>D1</title>
+      <link>https://example.com/d1</link>
+      <enclosure url="https://cdn.example.com/d1.mp4" type="video/mp4" length="10"/>
+      <media:content url="https://cdn.example.com/d1.mp4" type="video/mp4"/>
+    </item>
+  </channel>
+</rss>''';
+
+      final feed = RssParser.parse(rssXml);
+      expect(feed.items.single.enclosures.length, 1);
+    });
+  });
+
+  group('RssEnclosure 分类', () {
+    test('MIME 缺失的视频附件按后缀归为视频而非音频', () {
+      const v = RssEnclosure(
+        url: 'https://cdn.example.com/video.mp4',
+        type: null,
+      );
+      expect(v.isVideo, isTrue);
+      expect(v.isAudio, isFalse);
+    });
+
+    test('MIME 为 video/* 的视频附件', () {
+      const v = RssEnclosure(
+        url: 'https://cdn.example.com/x?token=abc',
+        type: 'video/mp4',
+      );
+      expect(v.isVideo, isTrue);
+      expect(v.isAudio, isFalse);
+    });
+
+    test('MIME 缺失且非视频后缀仍保守归为音频', () {
+      const a = RssEnclosure(
+        url: 'https://cdn.example.com/ep.mp3',
+        type: null,
+      );
+      expect(a.isAudio, isTrue);
+      expect(a.isVideo, isFalse);
     });
   });
 }

@@ -18,6 +18,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../comic/models/reader_preferences.dart';
+import 'rss_article_store.dart';
 import 'rss_feed.dart';
 import 'rss_manager.dart';
 import 'rss_notification_service.dart';
@@ -116,6 +117,10 @@ class RssUpdateChecker extends ChangeNotifier {
   bool _enabled = false;
   RssUpdateInterval _interval = RssUpdateInterval.hour1;
   bool _systemNotification = false;
+
+  /// 标题关键词自动已读：刷新时命中任一关键词的新文章不计入未读数，
+  /// 并同步在文章库标记已读（信息降噪，关键词为空 = 功能关闭）。
+  List<String> _autoReadKeywords = const <String>[];
   Timer? _timer;
 
   /// 是否启用更新检测。
@@ -127,6 +132,31 @@ class RssUpdateChecker extends ChangeNotifier {
   /// 当前轮询间隔。
   RssUpdateInterval get interval => _interval;
 
+  /// 自动已读关键词（只读快照）。
+  List<String> get autoReadKeywords => List.unmodifiable(_autoReadKeywords);
+
+  /// 标题是否命中自动已读关键词（大小写不敏感的包含匹配）。
+  bool matchesAutoRead(String? title) {
+    if (title == null || title.isEmpty || _autoReadKeywords.isEmpty) {
+      return false;
+    }
+    final t = title.toLowerCase();
+    for (final k in _autoReadKeywords) {
+      if (k.isNotEmpty && t.contains(k.toLowerCase())) return true;
+    }
+    return false;
+  }
+
+  /// 设置自动已读关键词（自动去空白、去空项；空列表 = 关闭）。
+  Future<void> setAutoReadKeywords(List<String> keywords) async {
+    _autoReadKeywords = keywords
+        .map((k) => k.trim())
+        .where((k) => k.isNotEmpty)
+        .toList(growable: false);
+    await _saveSettings();
+    notifyListeners();
+  }
+
   /// 所有 feed 的状态（只读）。
   Map<String, RssFeedState> get states => Map.unmodifiable(_states);
 
@@ -134,8 +164,7 @@ class RssUpdateChecker extends ChangeNotifier {
   int newCountFor(String feedId) => _states[feedId]?.newCount ?? 0;
 
   /// 总未读数（所有 feed 之和）。
-  int get totalNewCount =>
-      _states.values.fold(0, (sum, s) => sum + s.newCount);
+  int get totalNewCount => _states.values.fold(0, (sum, s) => sum + s.newCount);
 
   /// 新条目检测回调（由 UI 层订阅以触发 SnackBar / badge）。
   VoidCallback? onNewItemsDetected;
@@ -235,11 +264,16 @@ class RssUpdateChecker extends ChangeNotifier {
         return;
       }
 
-      // 计算新条目数：从顶部往下，遇到第一个已见键即停止
+      // 计算新条目数：从顶部往下，遇到第一个已见键即停止。
+      // 命中自动已读关键词的条目不计入未读，并同步标记文章库已读。
       final prevSeenSet = Set<String>.from(prevSeen);
       int newCount = 0;
-      for (final k in currentKeys) {
-        if (prevSeenSet.contains(k)) break;
+      for (final item in items) {
+        if (prevSeenSet.contains(itemKey(item))) break;
+        if (matchesAutoRead(item.title)) {
+          unawaited(RssArticleStore.instance.markRead(feed.id, item));
+          continue;
+        }
         newCount++;
       }
 
@@ -254,9 +288,8 @@ class RssUpdateChecker extends ChangeNotifier {
         ...prevSeenSet,
         ...currentKeys,
       };
-      final trimmedSeen = mergedSeen.length > 500
-          ? currentKeys
-          : mergedSeen.toList();
+      final trimmedSeen =
+          mergedSeen.length > 500 ? currentKeys : mergedSeen.toList();
 
       _states[feed.id] = RssFeedState(
         lastItemTitle: items.first.title,
@@ -314,9 +347,12 @@ class RssUpdateChecker extends ChangeNotifier {
       _enabled = map['enabled'] as bool? ?? false;
       _systemNotification = map['systemNotification'] as bool? ?? false;
       final intervalIndex = map['interval'] as int? ?? 2;
-      _interval = RssUpdateInterval.values
-          .elementAtOrNull(intervalIndex) ??
+      _interval = RssUpdateInterval.values.elementAtOrNull(intervalIndex) ??
           RssUpdateInterval.hour1;
+      _autoReadKeywords =
+          (map['autoReadKeywords'] as List<dynamic>? ?? const [])
+              .whereType<String>()
+              .toList(growable: false);
     } catch (_) {
       // 损坏数据忽略
     }
@@ -327,6 +363,7 @@ class RssUpdateChecker extends ChangeNotifier {
       'enabled': _enabled,
       'systemNotification': _systemNotification,
       'interval': _interval.index,
+      'autoReadKeywords': _autoReadKeywords,
     };
     await _backend.set(_settingsKey, jsonEncode(map));
   }

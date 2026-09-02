@@ -230,8 +230,12 @@ class RssParser {
     return fields;
   }
 
-  /// 解析条目附件：RSS 2.0 / RDF 的 `<enclosure url type length>`，
-  /// 以及 Atom 的 `<link rel="enclosure" href type length>`。
+  /// 解析条目附件：RSS 2.0 / RDF 的 `<enclosure url type length>`、
+  /// Atom 的 `<link rel="enclosure" href type length>`，以及 Media RSS 的
+  /// `<media:content url type>`（含 `<media:group>` 内嵌）。
+  ///
+  /// 此前只认 enclosure / link——大量视频源用 media 命名空间承载真实视频
+  /// 地址，导致视频整批「拉取不到」。
   static List<RssEnclosure> _parseEnclosures(XmlElement item) {
     final list = <RssEnclosure>[];
     for (final enc in item.findElements('enclosure')) {
@@ -251,6 +255,21 @@ class RssParser {
         url: href,
         type: link.getAttribute('type'),
         length: int.tryParse(link.getAttribute('length') ?? ''),
+      ));
+    }
+    // Media RSS：<media:content>（含 <media:group> 内嵌，递归查找覆盖）。
+    // 按 url 去重——同一地址在 enclosure 与 media:content 里重复出现时保留
+    // 先解析到的，避免同一视频在附件区渲染两份。
+    final seen = <String>{for (final e in list) e.url};
+    for (final mc in item.findAllElements('media:content')) {
+      final url = mc.getAttribute('url');
+      if (url == null || url.isEmpty || seen.contains(url)) continue;
+      seen.add(url);
+      list.add(RssEnclosure(
+        url: url,
+        type: mc.getAttribute('type'),
+        length: int.tryParse(mc.getAttribute('fileSize') ?? ''),
+        title: mc.getAttribute('title'),
       ));
     }
     return list;

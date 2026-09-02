@@ -4,21 +4,25 @@
 /// 即「搜已加载过的内容」，离线也能用；未抓取过的源不会出现命中（引导用户先打开该源）。
 ///
 /// 与 feed 详情页的「本源搜索」互补：本页是跨源汇总，详情页是单源内过滤。
+/// 列表排版与订阅源详情页共享同一套样式与偏好（rss_article_tiles）。
 library;
 
 import 'package:flutter/material.dart';
-import 'package:nexhub/generated/app_localizations.dart';
+import 'package:nexhub/core/comic/models/reader_preferences.dart'
+    show PrefsBackend, SharedPrefsBackend;
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'package:nexhub/core/theme/app_tokens.dart';
+import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/rss/rss_article_store.dart';
 import 'package:nexhub/core/rss/rss_feed.dart';
 import 'package:nexhub/core/rss/rss_manager.dart';
-import 'package:nexhub/core/theme/app_tokens.dart';
 import 'package:nexhub/core/widgets/app_animations.dart';
 import 'package:nexhub/core/widgets/app_empty_state.dart';
 import 'package:nexhub/core/widgets/app_search_field.dart';
 import 'package:provider/provider.dart';
 
 import '../../home/presentation/browse_article_detail_screen.dart';
+import 'rss_article_tiles.dart';
 
 /// 一条聚合搜索结果：来自哪个订阅源 + 哪篇文章。
 class _SearchHit {
@@ -36,13 +40,16 @@ class RssSearchScreen extends StatefulWidget {
 
 class _RssSearchScreenState extends State<RssSearchScreen> {
   final TextEditingController _ctrl = TextEditingController();
+  final PrefsBackend _prefsBackend = const SharedPrefsBackend();
   String _query = '';
   bool _loading = true;
   List<_SearchHit> _all = const <_SearchHit>[];
+  int _listLayout = RssListLayoutMode.list;
 
   @override
   void initState() {
     super.initState();
+    _loadLayout();
     _buildIndex();
   }
 
@@ -50,6 +57,17 @@ class _RssSearchScreenState extends State<RssSearchScreen> {
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadLayout() async {
+    final int mode = await RssListLayoutMode.load(_prefsBackend);
+    if (mounted) setState(() => _listLayout = mode);
+  }
+
+  Future<void> _setLayout(int mode) async {
+    if (_listLayout == mode) return;
+    setState(() => _listLayout = mode);
+    await RssListLayoutMode.save(_prefsBackend, mode);
   }
 
   /// 聚合所有订阅源的本地缓存条目（一次性建内存索引）。
@@ -76,13 +94,56 @@ class _RssSearchScreenState extends State<RssSearchScreen> {
     if (q.isEmpty) return _all;
     return _all.where((h) {
       final hay = '${h.item.title} ${_stripHtml(h.item.description ?? '')} '
-          '${h.feed.title}'.toLowerCase();
+              '${h.feed.title}'
+          .toLowerCase();
       return hay.contains(q);
     }).toList();
   }
 
-  String _stripHtml(String html) =>
-      html.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+  String _stripHtml(String html) => html
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  /// 相对封面地址按文章页绝对化（与详情页一致，否则相对地址加载不出）。
+  String _abs(String raw, String baseUrl) {
+    final Uri? base = Uri.tryParse(baseUrl);
+    if (base == null) return raw;
+    return base.resolve(raw).toString();
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _toggleFavorite(_SearchHit hit) async {
+    await RssArticleStore.instance.toggleFavorite(hit.feed.id, hit.item);
+    if (mounted) setState(() {});
+  }
+
+  /// 打开命中文章并携带结果列表作为上下篇导航上下文。
+  Future<void> _open(
+      _SearchHit hit, int index, List<_SearchHit> results) async {
+    final navItems = results.map<RssItem>((h) => h.item).toList();
+    await RssArticleStore.instance.markRead(hit.feed.id, hit.item);
+    final content =
+        RssArticleStore.instance.getContent(hit.feed.id, hit.item) ??
+            hit.item.content;
+    if (!mounted) return;
+    Navigator.of(context).push(
+      AppPageRoute<void>(
+        builder: (_) => BrowseArticleDetailScreen(
+          item: hit.item.copyWith(content: content),
+          feedId: hit.feed.id,
+          contextItems: navItems,
+          contextIndex: index,
+        ),
+      ),
+    );
+    if (hit.feed.autoFetchFullText) {
+      RssArticleStore.instance.fetchFullText(hit.feed.id, hit.item);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +152,12 @@ class _RssSearchScreenState extends State<RssSearchScreen> {
     final results = _results;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.rssSearchTitle)),
+      appBar: AppBar(
+        title: Text(l10n.rssSearchTitle),
+        actions: <Widget>[
+          RssListLayoutAction(layout: _listLayout, onSelected: _setLayout),
+        ],
+      ),
       body: Column(
         children: <Widget>[
           Padding(
@@ -155,38 +221,36 @@ class _RssSearchScreenState extends State<RssSearchScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.all(AppTokens.spaceMd),
                         itemCount: results.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, __) =>
+                            _listLayout == RssListLayoutMode.list
+                                ? const Divider(height: 1)
+                                : const SizedBox.shrink(),
                         itemBuilder: (_, i) {
                           final hit = results[i];
+                          final store = RssArticleStore.instance;
                           return Entrance(
                             index: i < 8 ? i : 8,
                             onceKey: 'rsssrch:${hit.feed.id}:${hit.item.url}',
-                            child: ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: scheme.primaryContainer
-                                      .withValues(alpha: 0.5),
-                                  borderRadius:
-                                      BorderRadius.circular(AppTokens.radiusSm),
-                                ),
-                                child: Icon(Icons.rss_feed,
-                                    color: scheme.primary, size: 18),
+                            child: buildRssArticleTile(
+                              context,
+                              _listLayout,
+                              RssArticleTileData(
+                                item: hit.item,
+                                read: store.isRead(hit.feed.id, hit.item),
+                                favorite:
+                                    store.isFavorite(hit.feed.id, hit.item),
+                                coverUrl: hit.item.coverUrl != null &&
+                                        hit.item.url.isNotEmpty
+                                    ? _abs(hit.item.coverUrl!, hit.item.url)
+                                    : hit.item.coverUrl,
+                                excerpt: _stripHtml(hit.item.description ?? ''),
+                                sourceLabel: hit.feed.title,
+                                dateText: hit.item.publishedAt != null
+                                    ? _formatDate(hit.item.publishedAt!)
+                                    : null,
+                                onOpen: () => _open(hit, i, results),
+                                onToggleFavorite: () => _toggleFavorite(hit),
                               ),
-                              title: Text(hit.item.title,
-                                  maxLines: 1, overflow: TextOverflow.ellipsis),
-                              subtitle: Text(
-                                '${hit.feed.title} · ${_stripHtml(hit.item.description ?? '')}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                              ),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () => _open(hit),
                             ),
                           );
                         },
@@ -195,19 +259,5 @@ class _RssSearchScreenState extends State<RssSearchScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _open(_SearchHit hit) async {
-    await RssArticleStore.instance.markRead(hit.feed.id, hit.item);
-    final content =
-        RssArticleStore.instance.getContent(hit.feed.id, hit.item) ?? hit.item.content;
-    if (!mounted) return;
-    Navigator.of(context).push(
-      AppPageRoute<void>(
-        builder: (_) =>
-            BrowseArticleDetailScreen(item: hit.item.copyWith(content: content)),
-      ),
-    );
-    RssArticleStore.instance.fetchFullText(hit.feed.id, hit.item);
   }
 }

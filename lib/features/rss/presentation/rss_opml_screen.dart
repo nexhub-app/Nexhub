@@ -48,8 +48,8 @@ class _RssOpmlScreenState extends State<RssOpmlScreen> {
       text = await File(path).readAsString();
     } on Object catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.rssOpmlParseFailed(e.toString()))));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.rssOpmlParseFailed(e.toString()))));
       return;
     }
     _parseAndPreview(context, text, l10n);
@@ -100,8 +100,8 @@ class _RssOpmlScreenState extends State<RssOpmlScreen> {
       parsed = RssOpml.parse(text);
     } on Object catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l10n.rssOpmlParseFailed(e.toString()))));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.rssOpmlParseFailed(e.toString()))));
       return;
     }
     if (parsed.isEmpty) {
@@ -116,7 +116,8 @@ class _RssOpmlScreenState extends State<RssOpmlScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
       ),
       builder: (_) => _OpmlImportPreviewSheet(
         entries: parsed.entries,
@@ -169,64 +170,75 @@ class _RssOpmlScreenState extends State<RssOpmlScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppTokens.spaceMd),
         children: <Widget>[
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(l10n.rssOpmlImportTitle,
-                    style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: AppTokens.spaceXs),
-                Text(l10n.rssOpmlImportDesc,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant)),
-                const SizedBox(height: AppTokens.spaceSm),
-                AppListTile(
-                  leading: const SettingsLeadingIcon(icon: Icons.upload_file_outlined),
-                  title: Text(l10n.rssOpmlImportFile),
-                  subtitle: Text(l10n.rssOpmlImportFileDesc),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _importFromFile(context),
-                ),
-                AppListTile(
-                  leading: const SettingsLeadingIcon(icon: Icons.paste_outlined),
-                  title: Text(l10n.rssOpmlImportText),
-                  subtitle: Text(l10n.rssOpmlImportTextDesc),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _importFromText(context),
-                ),
-              ],
+          Entrance(
+            index: 0,
+            offset: 12,
+            child: AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(l10n.rssOpmlImportTitle,
+                      style: Theme.of(context).textTheme.titleSmall),
+                  const SizedBox(height: AppTokens.spaceXs),
+                  Text(l10n.rssOpmlImportDesc,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                  const SizedBox(height: AppTokens.spaceSm),
+                  AppListTile(
+                    leading: const SettingsLeadingIcon(
+                        icon: Icons.upload_file_outlined),
+                    title: Text(l10n.rssOpmlImportFile),
+                    subtitle: Text(l10n.rssOpmlImportFileDesc),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _importFromFile(context),
+                  ),
+                  AppListTile(
+                    leading:
+                        const SettingsLeadingIcon(icon: Icons.paste_outlined),
+                    title: Text(l10n.rssOpmlImportText),
+                    subtitle: Text(l10n.rssOpmlImportTextDesc),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _importFromText(context),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: AppTokens.spaceMd),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(l10n.rssOpmlExportTitle,
-                    style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: AppTokens.spaceXs),
-                Text(l10n.rssOpmlExportDesc,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant)),
-                const SizedBox(height: AppTokens.spaceSm),
-                AppListTile(
-                  leading: const SettingsLeadingIcon(icon: Icons.download_outlined),
-                  title: Text(l10n.rssOpmlExport),
-                  subtitle: Text(l10n.rssOpmlExportDesc2),
-                  trailing: _exporting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.chevron_right),
-                  onTap: _exporting ? null : () => _export(context),
-                ),
-              ],
+          Entrance(
+            index: 1,
+            offset: 12,
+            child: AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(l10n.rssOpmlExportTitle,
+                      style: Theme.of(context).textTheme.titleSmall),
+                  const SizedBox(height: AppTokens.spaceXs),
+                  Text(l10n.rssOpmlExportDesc,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant)),
+                  const SizedBox(height: AppTokens.spaceSm),
+                  AppListTile(
+                    leading: const SettingsLeadingIcon(
+                        icon: Icons.download_outlined),
+                    title: Text(l10n.rssOpmlExport),
+                    subtitle: Text(l10n.rssOpmlExportDesc2),
+                    trailing: _exporting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.chevron_right),
+                    onTap: _exporting ? null : () => _export(context),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -248,7 +260,8 @@ class _OpmlImportPreviewSheet extends StatefulWidget {
   });
 
   @override
-  State<_OpmlImportPreviewSheet> createState() => _OpmlImportPreviewSheetState();
+  State<_OpmlImportPreviewSheet> createState() =>
+      _OpmlImportPreviewSheetState();
 }
 
 class _OpmlImportPreviewSheetState extends State<_OpmlImportPreviewSheet> {
@@ -272,7 +285,7 @@ class _OpmlImportPreviewSheetState extends State<_OpmlImportPreviewSheet> {
       await widget.manager.addFeed(
         url: entry.xmlUrl,
         title: entry.title,
-        groups: entry.category != null ? <String>[entry.category!] : const <String>[],
+        groups: entry.categories,
       );
       imported++;
     }
@@ -317,9 +330,10 @@ class _OpmlImportPreviewSheetState extends State<_OpmlImportPreviewSheet> {
                 ),
                 child: Text(
                   widget.skipped > 0
-                      ? l10n.rssOpmlPreviewSummarySkipped(
-                          _selected.length, widget.entries.length, widget.skipped)
-                      : l10n.rssOpmlPreviewSummary(_selected.length, widget.entries.length),
+                      ? l10n.rssOpmlPreviewSummarySkipped(_selected.length,
+                          widget.entries.length, widget.skipped)
+                      : l10n.rssOpmlPreviewSummary(
+                          _selected.length, widget.entries.length),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -342,9 +356,10 @@ class _OpmlImportPreviewSheetState extends State<_OpmlImportPreviewSheet> {
                               ? _selected.add(e.xmlUrl)
                               : _selected.remove(e.xmlUrl);
                         }),
-                        title: Text(e.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: e.category != null
-                            ? Text(l10n.rssOpmlCategory(e.category!),
+                        title: Text(e.title,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: e.categories.isNotEmpty
+                            ? Text(l10n.rssOpmlCategory(e.categories.join('、')),
                                 maxLines: 1, overflow: TextOverflow.ellipsis)
                             : null,
                         controlAffinity: ListTileControlAffinity.leading,

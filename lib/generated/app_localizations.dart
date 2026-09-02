@@ -2726,12 +2726,71 @@ abstract class AppLocalizations {
   /// **'Night Mode'**
   String get articleNightMode;
 
+  /// No description provided for @articleContentWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Content width'**
   String get articleContentWidth;
+
+  /// No description provided for @articleJustify.
+  ///
+  /// In en, this message translates to:
+  /// **'Justify text'**
   String get articleJustify;
+
+  /// No description provided for @articleParagraphSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Paragraph spacing'**
   String get articleParagraphSpacing;
+
+  /// No description provided for @articleWidthNarrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Narrow'**
   String get articleWidthNarrow;
+
+  /// No description provided for @articleWidthNormal.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal'**
   String get articleWidthNormal;
+
+  /// No description provided for @articleWidthWide.
+  ///
+  /// In en, this message translates to:
+  /// **'Wide'**
   String get articleWidthWide;
+
+  /// No description provided for @articleFontFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'Font Family'**
+  String get articleFontFamily;
+
+  /// No description provided for @fontSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get fontSystem;
+
+  /// No description provided for @fontSerif.
+  ///
+  /// In en, this message translates to:
+  /// **'Serif'**
+  String get fontSerif;
+
+  /// No description provided for @fontMono.
+  ///
+  /// In en, this message translates to:
+  /// **'Mono'**
+  String get fontMono;
+
+  /// No description provided for @articleLetterSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Letter Spacing'**
+  String get articleLetterSpacing;
 
   /// No description provided for @mirrorListTitle.
   ///
@@ -6128,18 +6187,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Custom Font'**
   String get customFont;
-
-  /// No description provided for @fontSystem.
-  ///
-  /// In en, this message translates to:
-  /// **'System'**
-  String get fontSystem;
-
-  /// No description provided for @fontSerif.
-  ///
-  /// In en, this message translates to:
-  /// **'Serif'**
-  String get fontSerif;
 
   /// No description provided for @fontMonospace.
   ///
@@ -15759,12 +15806,125 @@ abstract class AppLocalizations {
   /// **'Play video'**
   String get rssVideoPlay;
 
+  /// No description provided for @rssFetchWebsite.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch from website'**
   String get rssFetchWebsite;
-  String get rssFetching;
+
+  /// No description provided for @rssFetchSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Article updated from website'**
+  String get rssFetchSucceeded;
+
+  /// No description provided for @rssListLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'List layout'**
   String get rssListLayout;
+
+  /// No description provided for @rssLayoutList.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
   String get rssLayoutList;
+
+  /// No description provided for @rssLayoutCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards'**
   String get rssLayoutCard;
+
+  /// No description provided for @rssLayoutCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact'**
   String get rssLayoutCompact;
+
+  /// No description provided for @rssLayoutMagazine.
+  ///
+  /// In en, this message translates to:
+  /// **'Magazine'**
+  String get rssLayoutMagazine;
+
+  /// No description provided for @rssSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get rssSort;
+
+  /// No description provided for @rssSortNewest.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest first'**
+  String get rssSortNewest;
+
+  /// No description provided for @rssSortOldest.
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest first'**
+  String get rssSortOldest;
+
+  /// No description provided for @rssSortUnreadFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread first'**
+  String get rssSortUnreadFirst;
+
+  /// No description provided for @rssPrevArticle.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get rssPrevArticle;
+
+  /// No description provided for @rssNextArticle.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get rssNextArticle;
+
+  /// No description provided for @rssAutoReadTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-read keywords'**
+  String get rssAutoReadTitle;
+
+  /// No description provided for @rssAutoReadDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'New articles whose title matches a keyword are marked as read and excluded from the unread count'**
+  String get rssAutoReadDesc;
+
+  /// No description provided for @rssAutoReadAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add keyword'**
+  String get rssAutoReadAdd;
+
+  /// No description provided for @rssAutoReadEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No keywords yet'**
+  String get rssAutoReadEmpty;
+
+  /// No description provided for @rssAutoReadHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyword contained in the article title'**
+  String get rssAutoReadHint;
+
+  /// No description provided for @rssOpenInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get rssOpenInBrowser;
+
+  /// No description provided for @rssAutoFetchFullText.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-fetch full text'**
+  String get rssAutoFetchFullText;
 
   /// Inline frame: open in in-app browser
   ///
@@ -15780,6 +15940,10 @@ abstract class AppLocalizations {
 
   /// Article: fetching in progress
   ///
+  /// In en, this message translates to:
+  /// **'Fetching…'**
+  String get rssFetching;
+
   /// Article: fetch failed
   ///
   /// In en, this message translates to:
@@ -16056,6 +16220,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send OS notification on new articles (Android/iOS/Linux/macOS)'**
   String get rssSystemNotificationSubtitle;
+
+  /// No description provided for @articleMargin.
+  ///
+  /// In en, this message translates to:
+  /// **'Margin'**
+  String get articleMargin;
+
+  /// No description provided for @articleFontUnderline.
+  ///
+  /// In en, this message translates to:
+  /// **'Underline'**
+  String get articleFontUnderline;
+
+  /// No description provided for @articleUnderlineDashed.
+  ///
+  /// In en, this message translates to:
+  /// **'Dashed underline'**
+  String get articleUnderlineDashed;
+
+  /// No description provided for @articleUnderlineThickness.
+  ///
+  /// In en, this message translates to:
+  /// **'Underline width'**
+  String get articleUnderlineThickness;
+
+  /// No description provided for @articleUnderlineColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Underline color'**
+  String get articleUnderlineColor;
+
+  /// No description provided for @articleBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Background'**
+  String get articleBackground;
+
+  /// No description provided for @articleTextColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Text color'**
+  String get articleTextColor;
+
+  /// No description provided for @articleEmphasisColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent color'**
+  String get articleEmphasisColor;
+
+  /// No description provided for @articleShadow.
+  ///
+  /// In en, this message translates to:
+  /// **'Text shadow'**
+  String get articleShadow;
+
+  /// No description provided for @articleShadowBlur.
+  ///
+  /// In en, this message translates to:
+  /// **'Shadow blur'**
+  String get articleShadowBlur;
+
+  /// No description provided for @articleShadowOffsetX.
+  ///
+  /// In en, this message translates to:
+  /// **'Shadow X offset'**
+  String get articleShadowOffsetX;
+
+  /// No description provided for @articleShadowOffsetY.
+  ///
+  /// In en, this message translates to:
+  /// **'Shadow Y offset'**
+  String get articleShadowOffsetY;
+
+  /// No description provided for @articleChooseFont.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose font file'**
+  String get articleChooseFont;
+
+  /// No description provided for @articleClearFont.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear font'**
+  String get articleClearFont;
+
+  /// No description provided for @articleFontCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current: {file}'**
+  String articleFontCurrent(Object file);
+
+  /// No description provided for @articleTitleScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Title size'**
+  String get articleTitleScale;
+
+  /// No description provided for @articleTitleBold.
+  ///
+  /// In en, this message translates to:
+  /// **'Bold title'**
+  String get articleTitleBold;
+
+  /// No description provided for @articleTitleColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Title color'**
+  String get articleTitleColor;
+
+  /// No description provided for @articleTitleAlign.
+  ///
+  /// In en, this message translates to:
+  /// **'Title alignment'**
+  String get articleTitleAlign;
+
+  /// No description provided for @alignLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get alignLeft;
+
+  /// No description provided for @alignCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get alignCenter;
+
+  /// No description provided for @alignRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get alignRight;
+
+  /// No description provided for @colorFollowDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow default'**
+  String get colorFollowDefault;
 }
 
 class _AppLocalizationsDelegate

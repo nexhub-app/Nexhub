@@ -5,9 +5,13 @@
 /// 图片走 [SourceImage]，带上**文章页** Referer，防盗链站点也能正常加载。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/widgets/source_image.dart';
+import 'rss_image_actions.dart';
 
 /// 全屏图片画廊：左右滑动切换文章内所有图片，双指缩放/拖拽平移。
 class RssImageGallery extends StatefulWidget {
@@ -54,6 +58,33 @@ class _RssImageGalleryState extends State<RssImageGallery> {
         title: Text('${_current + 1} / ${widget.images.length}'),
         elevation: 0,
         actions: <Widget>[
+          // 保存 / 分享当前图（对齐漫画阅读器图片功能）。
+          Builder(
+            builder: (BuildContext ctx) => IconButton(
+              icon: const Icon(Icons.download_outlined),
+              tooltip: AppLocalizations.of(ctx).saveImage,
+              onPressed: () => unawaited(
+                showRssImageActions(
+                  ctx,
+                  url: widget.images[_current],
+                  pageUrl: widget.pageUrl,
+                ),
+              ),
+            ),
+          ),
+          Builder(
+            builder: (BuildContext ctx) => IconButton(
+              icon: const Icon(Icons.share_outlined),
+              tooltip: AppLocalizations.of(ctx).shareImage,
+              onPressed: () => unawaited(
+                showRssImageActions(
+                  ctx,
+                  url: widget.images[_current],
+                  pageUrl: widget.pageUrl,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.close),
             tooltip: MaterialLocalizations.of(context).closeButtonTooltip,

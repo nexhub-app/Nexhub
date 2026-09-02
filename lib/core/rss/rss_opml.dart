@@ -25,15 +25,19 @@ class OpmlEntry {
   /// 站点主页地址（可选）。
   final String? htmlUrl;
 
-  /// 所属分组名（来自父级 outline，可为 null）。
-  final String? category;
+  /// 所属分组（标签语义）：OPML 里同一订阅可能出现在多个分组节点下，
+  /// 解析时按 xmlUrl 聚合到同一条目（否则往返导入只保留首个分组）。
+  final List<String> categories;
 
   const OpmlEntry({
     required this.title,
     required this.xmlUrl,
     this.htmlUrl,
-    this.category,
+    this.categories = const <String>[],
   });
+
+  /// 首个分组（兼容旧的单分组读取方，可为 null）。
+  String? get category => categories.isEmpty ? null : categories.first;
 }
 
 /// 导入预览用的解析结果。
@@ -53,26 +57,26 @@ class OpmlParseResult {
 class RssOpml {
   RssOpml._();
 
-  /// 常见 feed MIME 类型（用于判断一条候选链接是不是订阅源）。
-  static const Set<String> _feedTypes = <String>{
-    'application/rss+xml',
-    'application/atom+xml',
-    'application/rdf+xml',
-    'application/rss',
-    'application/atom',
-    'text/xml',
-    'application/xml',
-  };
-
   /// 解析 OPML 文本。
   ///
   /// 递归遍历 `<body>` 下的 `<outline>` 树：
   /// - 有非空 `xmlUrl` → 记为一条订阅；
   /// - 无 `xmlUrl` → 视为分组节点，递归其子节点并把 `text`/`title` 作为分类名。
   ///
+  /// 容错（导入显示「无可导入的内容」的修复要点）：
+  /// - **`type` 属性不作否决条件**。OPML 惯例写短词 `type="rss"`（Feedly /
+  ///   Inoreader / FreshRSS / ReadYou 等主流导出皆如此），此前误按 MIME 集合
+  ///   校验，`rss` 不在集合里 → 每条订阅都被跳过 → 永远「无可导入」；
+  /// - 属性名大小写容错：部分工具写 `xmlurl` / `TEXT` 等（XML 属性大小写
+  ///   敏感，精确匹配会拿空）；
+  /// - 剥 UTF-8 BOM（Windows 记事本保存的文件带 BOM，xml 包解析会失败）；
+  /// - feed 节点自带子 outline 时一并递归（少数导出把子源挂在 feed 节点下）。
+  ///
   /// 解析失败（非 XML / 无 body）时抛出 `FormatException`，由调用方提示用户。
-  static OpmlParseResult parse(String text) {
-    if (text.trim().isEmpty) {
+  static OpmlParseResult parse(String rawText) {
+    // BOM 剥除：XmlDocument.parse 对 \uFEFF 开头的文本抛 FormatException。
+    final text = rawText.replaceFirst('\uFEFF', '').trim();
+    if (text.isEmpty) {
       throw const FormatException('OPML is empty');
     }
     final doc = XmlDocument.parse(text);
@@ -82,15 +86,26 @@ class RssOpml {
     }
 
     final entries = <OpmlEntry>[];
-    final seen = <String>{};
+    final indexByUrl = <String, int>{};
     var skipped = 0;
+
+    // 属性读取：精确名优先，回退为「局部名小写比对」（xmlurl vs xmlUrl）。
+    String? attr(XmlElement e, String name) {
+      final exact = e.getAttribute(name);
+      if (exact != null) return exact;
+      final lower = name.toLowerCase();
+      for (final a in e.attributes) {
+        if (a.name.local.toLowerCase() == lower) return a.value;
+      }
+      return null;
+    }
 
     void walk(XmlElement node, String? category) {
       for (final child in node.findElements('outline')) {
-        final url = child.getAttribute('xmlUrl')?.trim() ?? '';
-        final label = (child.getAttribute('text')?.trim().isNotEmpty ?? false)
-            ? child.getAttribute('text')!.trim()
-            : (child.getAttribute('title')?.trim() ?? '');
+        final url = attr(child, 'xmlUrl')?.trim() ?? '';
+        final text = attr(child, 'text')?.trim() ?? '';
+        final title = attr(child, 'title')?.trim() ?? '';
+        final label = text.isNotEmpty ? text : title;
 
         if (url.isEmpty) {
           // 分组节点：带上自己的名字递归（名字为空则沿用上层分类）。
@@ -103,20 +118,33 @@ class RssOpml {
           continue;
         }
 
-        // 只收 feed 类型；type 缺失时宽容放行（不少导出工具不写 type）。
-        final type = child.getAttribute('type')?.trim().toLowerCase() ?? '';
-        if (type.isNotEmpty && !_feedTypes.contains(type)) {
-          skipped++;
+        // 同一 xmlUrl 的多个出现聚合为一条目（分组取并集、去重、保序）。
+        final int? existingIdx = indexByUrl[url];
+        final String? cat =
+            (category != null && category.isNotEmpty) ? category : null;
+        if (existingIdx != null) {
+          final prev = entries[existingIdx];
+          if (cat != null && !prev.categories.contains(cat)) {
+            entries[existingIdx] = OpmlEntry(
+              title: prev.title,
+              xmlUrl: prev.xmlUrl,
+              htmlUrl: prev.htmlUrl,
+              categories: <String>[...prev.categories, cat],
+            );
+          }
           continue;
         }
+        indexByUrl[url] = entries.length;
+        entries.add(OpmlEntry(
+          title: label.isNotEmpty ? label : url,
+          xmlUrl: url,
+          htmlUrl: attr(child, 'htmlUrl'),
+          categories: cat != null ? <String>[cat] : const <String>[],
+        ));
 
-        if (seen.add(url)) {
-          entries.add(OpmlEntry(
-            title: label.isNotEmpty ? label : url,
-            xmlUrl: url,
-            htmlUrl: child.getAttribute('htmlUrl'),
-            category: category,
-          ));
+        // feed 节点自带子级：一并递归（子源沿用当前分类）。
+        if (child.findElements('outline').isNotEmpty) {
+          walk(child, category);
         }
       }
     }
@@ -189,8 +217,18 @@ class RssOpml {
   static String _rfc822(DateTime dt) {
     const days = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const months = <String>[
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final offset = dt.timeZoneOffset;
     final sign = offset.isNegative ? '-' : '+';

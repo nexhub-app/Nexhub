@@ -24,6 +24,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
     final checker = context.watch<RssUpdateChecker>();
 
     return Scaffold(
@@ -101,10 +102,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
                 title: Text(l10n.rssCheckNow),
                 // 隐私「隐藏通知内容」开启时只显示中性文案，不暴露具体数量。
                 subtitle: Text(
-                  GeneralSettingsStore
-                          .instance
-                          .settings
-                          .hideNotificationContent
+                  GeneralSettingsStore.instance.settings.hideNotificationContent
                       ? l10n.rssNewContentGeneric
                       : l10n.rssTotalNewCount(checker.totalNewCount),
                 ),
@@ -116,6 +114,82 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
                     );
                   }
                 },
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+
+            // ── 关键词自动已读（信息降噪）──
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  AppListTile(
+                    leading: Icon(
+                      Icons.auto_delete_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: Text(l10n.rssAutoReadTitle),
+                    subtitle: Text(l10n.rssAutoReadDesc),
+                  ),
+                  if (checker.autoReadKeywords.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppTokens.spaceLg,
+                        0,
+                        AppTokens.spaceLg,
+                        AppTokens.spaceSm,
+                      ),
+                      child: Text(
+                        l10n.rssAutoReadEmpty,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                      ),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppTokens.spaceMd,
+                        0,
+                        AppTokens.spaceMd,
+                        AppTokens.spaceXs,
+                      ),
+                      child: Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceXs,
+                        children: <Widget>[
+                          for (final k in checker.autoReadKeywords)
+                            InputChip(
+                              label: Text(k),
+                              onDeleted: () {
+                                AppHaptics.selectionClick();
+                                checker.setAutoReadKeywords(
+                                  checker.autoReadKeywords
+                                      .where((e) => e != k)
+                                      .toList(),
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppTokens.spaceMd,
+                      AppTokens.spaceXs,
+                      AppTokens.spaceMd,
+                      AppTokens.spaceSm,
+                    ),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text(l10n.rssAutoReadAdd),
+                        onPressed: () => _promptKeyword(context, checker),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: AppTokens.spaceMd),
@@ -151,6 +225,47 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
       case RssUpdateInterval.hours4:
         return l10n.interval4h;
     }
+  }
+
+  /// 输入自动已读关键词（空输入取消）。
+  Future<void> _promptKeyword(
+    BuildContext context,
+    RssUpdateChecker checker,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final ctrl = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(l10n.rssAutoReadAdd),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: l10n.rssAutoReadHint,
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (v) {
+            Navigator.of(dialogCtx).pop();
+          },
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
+    final value = ctrl.text.trim();
+    if (value.isEmpty) return;
+    final existing = checker.autoReadKeywords;
+    if (existing.contains(value)) return;
+    await checker.setAutoReadKeywords(<String>[...existing, value]);
   }
 
   void _showIntervalPicker(

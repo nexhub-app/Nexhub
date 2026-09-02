@@ -112,6 +112,8 @@ dependencies:
   cached_network_image: ^3.4.1
   # 图片磁盘缓存管理（高级设置「图片缓存」占用统计与清理；cached_network_image 同款后端）
   flutter_cache_manager: ^3.4.2
+  # 图片下载统一走应用网络层（DioImageFileService 组装 StreamedResponse 用）
+  http: ^1.6.0
   # 剪贴板图片二进制复制（长按菜单「复制图片」，跨平台真复制，Rust 后端需 NDK）
   super_clipboard: ^0.9.1
   # 系统分享（详情页分享到微信/QQ/记事本等）

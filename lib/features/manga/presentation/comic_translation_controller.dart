@@ -3,7 +3,7 @@
 /// 职责：
 /// - 持有「翻译开关」与逐页翻译状态（按图片 URL 索引），翻页时由阅读器
 ///   调用 [ensureTranslated] 触发当前页翻译；
-/// - 图片获取：本地路径直接读文件；网络 URL 走 [DefaultCacheManager]
+/// - 图片获取：本地路径直接读文件；网络 URL 走 [NexImageCacheManager]
 ///   （命中磁盘缓存零流量，未命中带防盗链 headers 下载）；
 /// - 图片预处理：超过上限时经 [AiImageResizer] 下采样再编码，控制请求体积；
 /// - 调用 [VisionTranslationClient]（视觉模型一次完成 OCR + 翻译），
@@ -22,10 +22,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show Size;
-// flutter_cache_manager 是 cached_network_image 的传递依赖，此处直接使用
-// 其 DefaultCacheManager 复用阅读器同款图片磁盘缓存（同 URL 不重复下载）。
-// ignore: depend_on_referenced_packages
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+// NexImageCacheManager 复用阅读器同款图片磁盘缓存（同 URL 不重复下载）。
+import 'package:nexhub/core/network/dio_image_file_service.dart';
 
 import '../../../core/ai/endpoint_router.dart';
 import '../../../core/ai/glossary_manager.dart';
@@ -395,7 +393,9 @@ class ComicTranslationController extends ChangeNotifier {
   /// 取图片字节：网络 URL 走缓存管理器（含防盗链 headers），本地路径直读。
   Future<Uint8List> _loadImageBytes(String url) async {
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      final File file = await DefaultCacheManager().getSingleFile(
+      // 与 SourceImage 同一缓存（nexCachedImageData）：DefaultCacheManager
+      // 的 HttpClient 启动早期创建后不随网络档案更新（僵化直连）。
+      final File file = await NexImageCacheManager.instance.getSingleFile(
         url,
         headers: _buildHeaders(url),
       );

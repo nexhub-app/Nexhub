@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/plugin_config.dart';
+import '../network/dio_image_file_service.dart';
 import '../theme/app_tokens.dart';
 import '../scraper/http_fetcher.dart';
 import '../local/local_content_manager.dart' show isAndroidSafUri;
@@ -25,6 +26,10 @@ class SourceImage extends StatelessWidget {
   final String? heroTag;
   final double? radius;
   final Widget? placeholder;
+
+  /// 加载失败时的自定义替代视图（如 favicon 回退通用图标）。
+  /// 非 null 时替代内置的 broken-image + 重试 UI。
+  final Widget? errorWidget;
   final bool enableRetry;
 
   /// 解码位图宽上限（像素，P3 资源/内存）：非 null 时按比例下采样解码
@@ -58,6 +63,7 @@ class SourceImage extends StatelessWidget {
     this.heroTag,
     this.radius,
     this.placeholder,
+    this.errorWidget,
     this.enableRetry = true,
     this.decodeCapWidthPx,
     this.refererOverride,
@@ -193,6 +199,7 @@ class SourceImage extends StatelessWidget {
             fit: fit,
             decodeCapWidthPx: decodeCapWidthPx,
             placeholder: placeholder ?? _defaultPlaceholder(context),
+            errorWidget: errorWidget,
             enableRetry: enableRetry,
             onLoadComplete: onLoadComplete,
             onImageInfo: onImageInfo,
@@ -226,6 +233,7 @@ class _RetryableNetworkImage extends StatefulWidget {
   final double? height;
   final BoxFit fit;
   final Widget placeholder;
+  final Widget? errorWidget;
   final bool enableRetry;
   final int cookieVersion;
   final int? decodeCapWidthPx;
@@ -239,6 +247,7 @@ class _RetryableNetworkImage extends StatefulWidget {
     this.height,
     this.fit = BoxFit.cover,
     required this.placeholder,
+    this.errorWidget,
     this.enableRetry = true,
     this.cookieVersion = 0,
     this.decodeCapWidthPx,
@@ -287,7 +296,8 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
   void _notifyLoaded() {
     if (_notified) return;
     _notified = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoadComplete?.call());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => widget.onLoadComplete?.call());
   }
 
   @override
@@ -296,6 +306,10 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
       key: ValueKey<String>('${widget.url}-$_retryKey-${widget.cookieVersion}'),
       imageUrl: widget.url,
       httpHeaders: widget.headers,
+      // 统一走 Dio 网络层下载（NexImageCacheManager）：默认 HttpFileService 的
+      // HttpClient 在启动早期创建后终身僵化（代理/DNS 档案加载前直连），代理
+      // 环境下「文字正常、图片全挂」即源于此。
+      cacheManager: NexImageCacheManager.instance,
       cacheKey: '${widget.url}#v${widget.cookieVersion}',
       width: widget.width,
       height: widget.height,
@@ -304,7 +318,7 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
       placeholder: (c, u) => widget.placeholder,
       errorWidget: (c, u, e) {
         _notifyLoaded();
-        return _buildError(context);
+        return widget.errorWidget ?? _buildError(context);
       },
       imageBuilder: (ctx, provider) {
         _notifyLoaded();
@@ -313,8 +327,8 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
         ImageStreamListener? listener;
         listener = ImageStreamListener(
           (ImageInfo info, bool _) {
-            widget.onImageInfo
-                ?.call(info.image.width.toDouble(), info.image.height.toDouble());
+            widget.onImageInfo?.call(
+                info.image.width.toDouble(), info.image.height.toDouble());
             stream.removeListener(listener!);
           },
           onError: (Object error, StackTrace? stackTrace) =>
@@ -410,7 +424,8 @@ class _LocalFileImageState extends State<_LocalFileImage> {
   void _notifyLoaded() {
     if (_notified) return;
     _notified = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoadComplete?.call());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => widget.onLoadComplete?.call());
   }
 
   @override

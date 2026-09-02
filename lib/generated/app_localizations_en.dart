@@ -1380,16 +1380,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get articleContentWidth => 'Content width';
+
   @override
   String get articleJustify => 'Justify text';
+
   @override
   String get articleParagraphSpacing => 'Paragraph spacing';
+
   @override
   String get articleWidthNarrow => 'Narrow';
+
   @override
   String get articleWidthNormal => 'Normal';
+
   @override
   String get articleWidthWide => 'Wide';
+
+  @override
+  String get articleFontFamily => 'Font Family';
+
+  @override
+  String get fontSystem => 'System';
+
+  @override
+  String get fontSerif => 'Serif';
+
+  @override
+  String get fontMono => 'Mono';
+
+  @override
+  String get articleLetterSpacing => 'Letter Spacing';
 
   @override
   String get mirrorListTitle => 'Mirror List';
@@ -3201,12 +3221,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get customFont => 'Custom Font';
-
-  @override
-  String get fontSystem => 'System';
-
-  @override
-  String get fontSerif => 'Serif';
 
   @override
   String get fontMonospace => 'Monospace';
@@ -8434,16 +8448,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rssFetchWebsite => 'Fetch from website';
+
   @override
-  String get rssFetching => 'Full text fetched';
+  String get rssFetchSucceeded => 'Article updated from website';
+
   @override
   String get rssListLayout => 'List layout';
+
   @override
   String get rssLayoutList => 'List';
+
   @override
   String get rssLayoutCard => 'Cards';
+
   @override
   String get rssLayoutCompact => 'Compact';
+
+  @override
+  String get rssLayoutMagazine => 'Magazine';
+
+  @override
+  String get rssSort => 'Sort';
+
+  @override
+  String get rssSortNewest => 'Newest first';
+
+  @override
+  String get rssSortOldest => 'Oldest first';
+
+  @override
+  String get rssSortUnreadFirst => 'Unread first';
+
+  @override
+  String get rssPrevArticle => 'Previous';
+
+  @override
+  String get rssNextArticle => 'Next';
+
+  @override
+  String get rssAutoReadTitle => 'Auto-read keywords';
+
+  @override
+  String get rssAutoReadDesc =>
+      'New articles whose title matches a keyword are marked as read and excluded from the unread count';
+
+  @override
+  String get rssAutoReadAdd => 'Add keyword';
+
+  @override
+  String get rssAutoReadEmpty => 'No keywords yet';
+
+  @override
+  String get rssAutoReadHint => 'Keyword contained in the article title';
+
+  @override
+  String get rssOpenInBrowser => 'Open in browser';
+
+  @override
+  String get rssAutoFetchFullText => 'Auto-fetch full text';
 
   @override
   String get rssIframeOpen => 'Open in built-in browser';
@@ -8451,6 +8513,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rssFetchFullText => 'Fetch full page';
 
+  @override
+  String get rssFetching => 'Fetching…';
 
   @override
   String get rssFetchFullTextFailed => 'Fetch failed';
@@ -8608,4 +8672,75 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rssSystemNotificationSubtitle =>
       'Send OS notification on new articles (Android/iOS/Linux/macOS)';
+
+  @override
+  String get articleMargin => 'Margin';
+
+  @override
+  String get articleFontUnderline => 'Underline';
+
+  @override
+  String get articleUnderlineDashed => 'Dashed underline';
+
+  @override
+  String get articleUnderlineThickness => 'Underline width';
+
+  @override
+  String get articleUnderlineColor => 'Underline color';
+
+  @override
+  String get articleBackground => 'Background';
+
+  @override
+  String get articleTextColor => 'Text color';
+
+  @override
+  String get articleEmphasisColor => 'Accent color';
+
+  @override
+  String get articleShadow => 'Text shadow';
+
+  @override
+  String get articleShadowBlur => 'Shadow blur';
+
+  @override
+  String get articleShadowOffsetX => 'Shadow X offset';
+
+  @override
+  String get articleShadowOffsetY => 'Shadow Y offset';
+
+  @override
+  String get articleChooseFont => 'Choose font file';
+
+  @override
+  String get articleClearFont => 'Clear font';
+
+  @override
+  String articleFontCurrent(Object file) {
+    return 'Current: $file';
+  }
+
+  @override
+  String get articleTitleScale => 'Title size';
+
+  @override
+  String get articleTitleBold => 'Bold title';
+
+  @override
+  String get articleTitleColor => 'Title color';
+
+  @override
+  String get articleTitleAlign => 'Title alignment';
+
+  @override
+  String get alignLeft => 'Left';
+
+  @override
+  String get alignCenter => 'Center';
+
+  @override
+  String get alignRight => 'Right';
+
+  @override
+  String get colorFollowDefault => 'Follow default';
 }

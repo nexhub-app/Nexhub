@@ -4,10 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:super_clipboard/super_clipboard.dart';
-// flutter_cache_manager 是 cached_network_image 的传递依赖，此处直接使用
-// 其 DefaultCacheManager 以获取图片缓存文件，无需新增 pubspec 依赖。
-// ignore: depend_on_referenced_packages
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+// NexImageCacheManager 与 SourceImage 同一图片磁盘缓存（同 URL 不重复下载）。
+import 'package:nexhub/core/network/dio_image_file_service.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -21,7 +19,7 @@ import '../../../core/scraper/http_fetcher.dart';
 ///
 /// 设为封面：将图片 URL 复制到剪贴板并提示用户去详情页粘贴（简易方案，
 /// 完整方案需持久化到 ComicBookmarkManager，后续按需扩展）。
-/// 保存：从 [DefaultCacheManager] 取出图片（缓存未命中则触发下载，携带
+/// 保存：从 [NexImageCacheManager] 取出图片（缓存未命中则触发下载，携带
 /// 防盗链 headers），复制到应用文档目录的 `reader_images/` 子目录。
 /// 分享：`share_plus` 未在 pubspec 中声明依赖，回退为将图片本地路径
 /// 复制到剪贴板，由用户自行粘贴到目标应用。
@@ -236,7 +234,9 @@ Map<String, String>? _buildHeaders(PluginConfig? source, String? url) {
 Future<File?> _resolveImageFile(String url, PluginConfig? source) async {
   if (url.startsWith('http://') || url.startsWith('https://')) {
     try {
-      return await DefaultCacheManager()
+      // 与 SourceImage 同一缓存（nexCachedImageData）：DefaultCacheManager
+      // 的 HttpClient 启动早期创建后不随网络档案更新（僵化直连）。
+      return await NexImageCacheManager.instance
           .getSingleFile(url, headers: _buildHeaders(source, url));
     } on Object {
       return null;
