@@ -8750,4 +8750,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rssChargeCheckSubtitle =>
       'Auto-check for new content once the charger is connected (trigger: charging)';
+
+  @override
+  String get articleSecTypography => 'Typography';
+
+  @override
+  String get articleSecTextStyle => 'Text style';
+
+  @override
+  String get articleSecColor => 'Color & background';
+
+  @override
+  String get articleSecShadow => 'Shadow';
+
+  @override
+  String get articleSecFont => 'Font';
+
+  @override
+  String get articleSecTitle => 'Title';
 }

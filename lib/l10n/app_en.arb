@@ -4902,5 +4902,11 @@
   "rssChargeCheckSubtitle": "Auto-check for new content once the charger is connected (trigger: charging)",
   "@rssChargeCheckSubtitle": {
     "description": "RSS update notification setting: subtitle for the charging trigger"
-  }
+  },
+  "articleSecTypography": "Typography",
+  "articleSecTextStyle": "Text style",
+  "articleSecColor": "Color & background",
+  "articleSecShadow": "Shadow",
+  "articleSecFont": "Font",
+  "articleSecTitle": "Title"
 }

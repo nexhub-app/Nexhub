@@ -16370,6 +16370,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Auto-check for new content once the charger is connected (trigger: charging)'**
   String get rssChargeCheckSubtitle;
+
+  /// No description provided for @articleSecTypography.
+  ///
+  /// In en, this message translates to:
+  /// **'Typography'**
+  String get articleSecTypography;
+
+  /// No description provided for @articleSecTextStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Text style'**
+  String get articleSecTextStyle;
+
+  /// No description provided for @articleSecColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color & background'**
+  String get articleSecColor;
+
+  /// No description provided for @articleSecShadow.
+  ///
+  /// In en, this message translates to:
+  /// **'Shadow'**
+  String get articleSecShadow;
+
+  /// No description provided for @articleSecFont.
+  ///
+  /// In en, this message translates to:
+  /// **'Font'**
+  String get articleSecFont;
+
+  /// No description provided for @articleSecTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get articleSecTitle;
 }
 
 class _AppLocalizationsDelegate

@@ -8545,4 +8545,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get rssChargeCheckSubtitle => '接入充电器后自动检测一次新内容（触发条件：充电）';
+
+  @override
+  String get articleSecTypography => '排版';
+
+  @override
+  String get articleSecTextStyle => '文字样式';
+
+  @override
+  String get articleSecColor => '颜色与背景';
+
+  @override
+  String get articleSecShadow => '阴影';
+
+  @override
+  String get articleSecFont => '字体';
+
+  @override
+  String get articleSecTitle => '标题';
 }

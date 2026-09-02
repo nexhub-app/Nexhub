@@ -4858,5 +4858,11 @@
   "rssChargeCheckSubtitle": "接入充电器后自动检测一次新内容（触发条件：充电）",
   "@rssChargeCheckSubtitle": {
     "description": "RSS 更新通知设置：充电触发的说明文案"
-  }
+  },
+  "articleSecTypography": "排版",
+  "articleSecTextStyle": "文字样式",
+  "articleSecColor": "颜色与背景",
+  "articleSecShadow": "阴影",
+  "articleSecFont": "字体",
+  "articleSecTitle": "标题"
 }

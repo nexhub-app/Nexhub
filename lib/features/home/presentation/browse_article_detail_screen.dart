@@ -230,6 +230,8 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         style: Theme.of(ctx).textTheme.titleMedium,
                       ),
                       const SizedBox(height: AppTokens.spaceSm),
+                      // —— 排版 ——
+                      _ArticleSectionHeader(title: l10n.articleSecTypography),
                       Text(l10n.articleFontSize),
                       Row(
                         children: <Widget>[
@@ -259,17 +261,8 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         onChangeStart: (_) => AppHaptics.light(),
                         onChanged: notifier.setLineHeight,
                       ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(l10n.articleNightMode),
-                        value: prefs.isNightMode,
-                        onChanged: (_) {
-                          AppHaptics.selectionClick();
-                          notifier.toggleNightMode();
-                        },
-                      ),
-                      const Divider(),
-                      // —— 排版样式（P1-4 增强）——
+                      const SizedBox(height: AppTokens.spaceSm),
+                      // 夜间模式已同步应用主题，不再提供独立开关。
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(l10n.articleJustify),
@@ -346,7 +339,8 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         onChanged: notifier.setLetterSpacing,
                       ),
                       const Divider(),
-                      // —— 布局与文字样式（对齐小说阅读器）——
+                      // —— 文字样式 ——
+                      _ArticleSectionHeader(title: l10n.articleSecTextStyle),
                       Text(l10n.articleMargin),
                       Slider(
                         min: 0,
@@ -417,7 +411,8 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         ),
                       ],
                       const Divider(),
-                      // —— 背景与颜色 ——
+                      // —— 颜色与背景 ——
+                      _ArticleSectionHeader(title: l10n.articleSecColor),
                       Text(l10n.articleBackground),
                       const SizedBox(height: AppTokens.spaceXs),
                       Wrap(
@@ -504,6 +499,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                       ),
                       const Divider(),
                       // —— 阴影 ——
+                      _ArticleSectionHeader(title: l10n.articleSecShadow),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(l10n.articleShadow),
@@ -546,7 +542,8 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         ),
                       ],
                       const Divider(),
-                      // —— 自定义字体 ——
+                      // —— 字体 ——
+                      _ArticleSectionHeader(title: l10n.articleSecFont),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.font_download_outlined),
@@ -588,6 +585,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                       ),
                       const Divider(),
                       // —— 标题样式 ——
+                      _ArticleSectionHeader(title: l10n.articleSecTitle),
                       Text(l10n.articleTitleScale),
                       Slider(
                         min: 0.8,
@@ -1011,7 +1009,10 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
       builder: (BuildContext context,
           ArticleReadingPreferencesNotifier notifier, _) {
         final prefs = notifier.prefs;
-        final bool isNight = prefs.isNightMode;
+        // 夜间模式同步应用的夜间模式：跟随应用主题（ThemeController），
+        // 不再使用 RSS 独立的 isNightMode 开关。
+        final bool isNight =
+            Theme.of(context).brightness == Brightness.dark;
         // 背景：自定义背景色优先，否则背景预设；夜间向黑压暗（对齐小说）。
         final Color bgBase = prefs.customBgColor != null
             ? Color(prefs.customBgColor!)
@@ -1382,6 +1383,28 @@ class _ArticleColorSwatch extends StatelessWidget {
       child: color == null
           ? const Icon(Icons.brightness_auto, size: 16, color: Colors.grey)
           : null,
+    );
+  }
+}
+
+/// 阅读设置面板的分节标题。
+class _ArticleSectionHeader extends StatelessWidget {
+  final String title;
+
+  const _ArticleSectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTokens.spaceMd),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: scheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
     );
   }
 }
