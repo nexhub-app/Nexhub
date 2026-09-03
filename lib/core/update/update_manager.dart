@@ -644,15 +644,31 @@ class UpdateManager extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 确定目标目录：优先应用文档目录，否则临时目录
+      // 确定目标目录：优先应用文档目录，否则临时目录。
+      // 按发布 tag 建独立子目录：部分平台资产名固定不带版本号（如 Android
+      // 的 app-release.apk），若平铺在同一目录，上一版下载残留的旧包会被
+      // 下方「同名复用」逻辑误认成新包，导致显示下载完成却安装旧版本。
       final Directory base = await _getDownloadDirectory();
+      final String versionDirName =
+          release.tagName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final Directory versionDir = Directory(
+        '${base.path}${Platform.pathSeparator}updates'
+        '${Platform.pathSeparator}$versionDirName',
+      );
+      if (!versionDir.existsSync()) {
+        versionDir.createSync(recursive: true);
+      }
+      // 清理其他版本残留目录（旧版本安装包不再有用，best-effort 删除）。
+      _cleanStaleVersionDirs(base, keepDirName: versionDirName);
       final String targetPath =
-          '${base.path}${Platform.pathSeparator}${asset.name}';
+          '${versionDir.path}${Platform.pathSeparator}${asset.name}';
 
-      // 本地已存在同名安装包（此前已下载完成，失败残留会被 deleteOnError
-      // 清掉）：直接复用，不再重复下载。
+      // 本地已存在同名安装包（同一版本此前已下载完成，失败残留会被
+      // deleteOnError 清掉）：文件头校验通过后直接复用，不再重复下载。
       final File existing = File(targetPath);
-      if (existing.existsSync() && existing.lengthSync() > 0) {
+      if (existing.existsSync() &&
+          existing.lengthSync() > 0 &&
+          _looksLikeValidInstaller(existing)) {
         _progress = UpdateProgress(progress: 1.0, fileName: asset.name);
         _downloadedPath = targetPath;
         _status = UpdateStatus.done;
@@ -798,6 +814,67 @@ class UpdateManager extends ChangeNotifier {
     final ({String name, String prefix}) best = mirrors[bestIndex];
     _progress = _progress.copyWith(mirrorName: best.name);
     return best;
+  }
+
+  /// 清理下载目录下其他版本的残留子目录（best-effort，失败忽略）。
+  ///
+  /// 只删除 [base]/updates/ 下名字不等于 [keepDirName] 的子目录，
+  /// 不碰目录外任何文件，避免误删用户数据。
+  void _cleanStaleVersionDirs(Directory base, {required String keepDirName}) {
+    try {
+      final Directory updatesDir = Directory(
+        '${base.path}${Platform.pathSeparator}updates',
+      );
+      if (!updatesDir.existsSync()) return;
+      for (final FileSystemEntity e in updatesDir.listSync()) {
+        if (e is! Directory) continue;
+        if (e.path.endsWith(keepDirName)) continue;
+        try {
+          e.deleteSync(recursive: true);
+        } on Object {
+          // 单个目录删除失败不影响下载流程。
+        }
+      }
+    } on Object {
+      // 清理失败不影响下载。
+    }
+  }
+
+  /// 粗校验本地文件是否像完整安装包：按扩展名检查文件头魔数。
+  ///
+  /// 防御进程被杀等异常留下的截断残留（deleteOnError 只能清 Dio 抛错的
+  /// 下载，杀进程不走该路径）。仅覆盖魔数固定的格式：
+  /// - .apk（zip 包）：`PK\x03\x04`
+  /// - .exe（PE）：`MZ`
+  /// - .zip：`PK\x03\x04`
+  /// 其他扩展名（deb/dmg/AppImage 等）不做校验，直接视为可用。
+  bool _looksLikeValidInstaller(File f) {
+    final String n = f.path.toLowerCase();
+    bool hasMagic(List<int> magic) {
+      try {
+        final RandomAccessFile raf = f.openSync();
+        try {
+          final List<int> head = raf.readSync(magic.length);
+          if (head.length < magic.length) return false;
+          for (int i = 0; i < magic.length; i++) {
+            if (head[i] != magic[i]) return false;
+          }
+          return true;
+        } finally {
+          raf.closeSync();
+        }
+      } on Object {
+        return false;
+      }
+    }
+
+    if (n.endsWith('.apk') || n.endsWith('.zip')) {
+      return hasMagic(<int>[0x50, 0x4B, 0x03, 0x04]); // "PK\x03\x04"
+    }
+    if (n.endsWith('.exe')) {
+      return hasMagic(<int>[0x4D, 0x5A]); // "MZ"
+    }
+    return true;
   }
 
   /// 获取下载目录（临时/cache 目录；FileProvider 在 [file_paths.xml] 中已配置
