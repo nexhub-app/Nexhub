@@ -264,10 +264,8 @@ class _SettingsDandanplayAccountScreenState
                     const SizedBox(height: AppTokens.spaceSm),
                     Text(
                       _error!,
-                      style: TextStyle(
-                        color: theme.colorScheme.error,
-                        fontSize: 12,
-                      ),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.error),
                     ),
                   ],
                   const SizedBox(height: AppTokens.spaceMd),

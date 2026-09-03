@@ -76,6 +76,85 @@ class AppTheme {
     return _build(scheme);
   }
 
+  /// 统一文本主题：比 Material 3 默认字号整体偏小（约 -10%），
+  /// 行高针对中文阅读优化（正文 ≥1.5），字重用 3 档（w400/w500/w600）
+  /// 建立清晰层次，减少 M3 默认「字号偏大、行距松散」的 AI 感。
+  ///
+  /// 颜色取 [colorScheme] 角色：标题/正文用 [ColorScheme.onSurface]，
+  /// 辅助档（bodySmall / labelMedium / labelSmall）用 [ColorScheme.onSurfaceVariant]，
+  /// 深浅色自动适配，feature 代码仍只需 `Theme.of(context).textTheme`。
+  static TextTheme _textTheme(ColorScheme cs) {
+    final Color onSurface = cs.onSurface;
+    final Color onVariant = cs.onSurfaceVariant;
+    return TextTheme(
+      // ── 展示 / 大标题（页面首屏主标题，少用） ──
+      displayLarge: TextStyle(
+        fontSize: 50, fontWeight: FontWeight.w600, height: 1.12,
+        letterSpacing: -0.5, color: onSurface,
+      ),
+      displayMedium: TextStyle(
+        fontSize: 40, fontWeight: FontWeight.w600, height: 1.15,
+        letterSpacing: -0.4, color: onSurface,
+      ),
+      displaySmall: TextStyle(
+        fontSize: 32, fontWeight: FontWeight.w600, height: 1.2,
+        letterSpacing: -0.3, color: onSurface,
+      ),
+      // ── 标题（区块标题、卡片标题） ──
+      headlineLarge: TextStyle(
+        fontSize: 28, fontWeight: FontWeight.w600, height: 1.25,
+        letterSpacing: -0.2, color: onSurface,
+      ),
+      headlineMedium: TextStyle(
+        fontSize: 24, fontWeight: FontWeight.w600, height: 1.3,
+        color: onSurface,
+      ),
+      headlineSmall: TextStyle(
+        fontSize: 21, fontWeight: FontWeight.w600, height: 1.35,
+        color: onSurface,
+      ),
+      // ── 次级标题（AppBar 标题、列表项标题） ──
+      titleLarge: TextStyle(
+        fontSize: 19, fontWeight: FontWeight.w600, height: 1.4,
+        color: onSurface,
+      ),
+      titleMedium: TextStyle(
+        fontSize: 15, fontWeight: FontWeight.w600, height: 1.4,
+        color: onSurface,
+      ),
+      titleSmall: TextStyle(
+        fontSize: 13, fontWeight: FontWeight.w600, height: 1.4,
+        color: onSurface,
+      ),
+      // ── 正文 ──
+      bodyLarge: TextStyle(
+        fontSize: 15, fontWeight: FontWeight.w400, height: 1.5,
+        color: onSurface,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 13, fontWeight: FontWeight.w400, height: 1.5,
+        color: onSurface,
+      ),
+      bodySmall: TextStyle(
+        fontSize: 11, fontWeight: FontWeight.w400, height: 1.45,
+        color: onVariant,
+      ),
+      // ── 标签 / 按钮 / 徽章 ──
+      labelLarge: TextStyle(
+        fontSize: 13, fontWeight: FontWeight.w600, height: 1.4,
+        color: onSurface,
+      ),
+      labelMedium: TextStyle(
+        fontSize: 11, fontWeight: FontWeight.w600, height: 1.4,
+        color: onVariant,
+      ),
+      labelSmall: TextStyle(
+        fontSize: 10, fontWeight: FontWeight.w600, height: 1.4,
+        color: onVariant,
+      ),
+    );
+  }
+
   static ThemeData _build(ColorScheme colorScheme) {
     final bool isDark = colorScheme.brightness == Brightness.dark;
     return ThemeData(
@@ -83,12 +162,14 @@ class AppTheme {
       colorScheme: colorScheme,
       brightness: colorScheme.brightness,
       scaffoldBackgroundColor: colorScheme.surface,
+      textTheme: _textTheme(colorScheme),
       appBarTheme: AppBarTheme(
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: AppTokens.radiusSm,
         centerTitle: false,
+        titleTextStyle: _textTheme(colorScheme).titleLarge,
       ),
       cardTheme: CardThemeData(
         elevation: 0,

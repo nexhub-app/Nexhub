@@ -4498,6 +4498,7 @@ class _HeroSection extends StatelessWidget {
     return AnimatedBuilder(
       animation: store,
       builder: (BuildContext context, _) {
+        final ColorScheme scheme = Theme.of(context).colorScheme;
         return Stack(
           children: <Widget>[
             HeroCarousel(imageUrls: store.settings.heroImageUrls),
@@ -4530,8 +4531,10 @@ class _HeroSection extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: <Color>[
-                      Colors.black.withValues(alpha: 0.0),
-                      Colors.black.withValues(alpha: 0.55),
+                      // 图片叠加层遮罩：走 scheme.shadow（深浅色均黑系），
+                      // 保证在任意 Hero 图上文字可读；白字为图片叠加必要对比。
+                      scheme.shadow.withValues(alpha: 0.0),
+                      scheme.shadow.withValues(alpha: 0.55),
                     ],
                   ),
                 ),
@@ -4576,10 +4579,11 @@ class _HeroEditButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.black.withValues(alpha: 0.4),
+        color: scheme.shadow.withValues(alpha: 0.4),
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -4611,59 +4615,61 @@ class _CategoryCard extends StatelessWidget {
     final c = category;
     final TextTheme text = Theme.of(context).textTheme;
 
-    final Widget card = InkWell(
+    final Widget card = Material(
+      color: scheme.surfaceContainerLow,
       borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-      onTap: () {
-        // 进入设置分类：轻触反馈（符合 Material 触感规范）。
-        AppHaptics.selectionClick();
-        Navigator.of(context).push(
-          AppPageRoute<void>(builder: (_) => c.builder()),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: AppTokens.spaceMd,
-          horizontal: AppTokens.spaceSm,
-        ),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          AppHaptics.selectionClick();
+          Navigator.of(context).push(
+            AppPageRoute<void>(builder: (_) => c.builder()),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            vertical: AppTokens.spaceMd,
+            horizontal: AppTokens.spaceLg,
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                ),
+                child: Icon(c.icon, color: scheme.onPrimaryContainer, size: 24),
               ),
-              child: Icon(c.icon, color: scheme.onPrimaryContainer, size: 24),
-            ),
-            const SizedBox(width: AppTokens.spaceMd),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    c.title,
-                    style: text.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.3,
+              const SizedBox(width: AppTokens.spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      c.title,
+                      style: text.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    c.desc,
-                    style: text.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
+                    const SizedBox(height: AppTokens.spaceXs),
+                    Text(
+                      c.desc,
+                      style: text.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              color: scheme.onSurfaceVariant,
-              size: 20,
-            ),
-          ],
+              Icon(
+                Icons.chevron_right_rounded,
+                color: scheme.onSurfaceVariant,
+                size: 22,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -4671,11 +4677,11 @@ class _CategoryCard extends StatelessWidget {
     return Entrance(
       index: index,
       onceKey: 'settings_cat_$index',
-      offset: 10,
-      fromScale: 0.985,
-      duration: AppTokens.durBase,
+      offset: 16,
+      fromScale: 0.96,
+      duration: AppTokens.durSpring,
       child: AppTapScale(
-        scale: 0.975,
+        scale: 0.95,
         child: card,
       ),
     );

@@ -8,6 +8,7 @@ import '../models/bookshelf_filter.dart';
 import '../models/plugin_config.dart';
 import '../theme/app_tokens.dart';
 import 'app_animations.dart';
+import '../utils/app_haptics.dart';
 import 'app_empty_state.dart';
 import 'app_icon_button.dart';
 import 'app_segmented_tabs.dart';
@@ -164,23 +165,35 @@ class _LibraryShellState extends State<LibraryShell> {
           child: Text(_topTabLabel(l10n)),
         ),
         centerTitle: true,
+        leadingWidth: 96,
         leading: _currentTopTab == LibraryTopTab.library
-            ? IconButton(
-                icon: const Icon(Icons.search_outlined),
-                tooltip: l10n.search,
-                onPressed: widget.onSearch,
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  IconButton(
+                    icon: const Icon(Icons.search_outlined),
+                    tooltip: l10n.search,
+                    onPressed: () {
+                      AppHaptics.selectionClick();
+                      widget.onSearch();
+                    },
+                  ),
+                  // 导入入口紧邻搜索（左侧），符合「导入移至搜索旁」要求。
+                  if (widget.onEmptyAction != null &&
+                      _sub.first == LibrarySubTab.local)
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      tooltip: widget.emptyActionLabel ?? l10n.import,
+                      onPressed: () {
+                        AppHaptics.selectionClick();
+                        widget.onEmptyAction!();
+                      },
+                    ),
+                ],
               )
             : null,
         actions: <Widget>[
           if (_currentTopTab == LibraryTopTab.library) ...[
-            // 本地子段始终保留导入入口（顶栏图标，避免嵌套 Scaffold 时 FAB 被底栏遮挡看不到）。
-            if (widget.onEmptyAction != null &&
-                _sub.first == LibrarySubTab.local)
-              IconButton(
-                icon: const Icon(Icons.add),
-                tooltip: widget.emptyActionLabel ?? l10n.import,
-                onPressed: widget.onEmptyAction,
-              ),
             if (widget.historySourceType != null &&
                 _sub.first == LibrarySubTab.history)
               IconButton(

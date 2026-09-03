@@ -120,8 +120,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                 padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
                 child: SelectableText(
                   _entries[i],
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontFamily: 'monospace',
                     height: 1.4,
                   ),

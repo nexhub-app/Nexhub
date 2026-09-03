@@ -339,13 +339,13 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
             right: 0,
             bottom: 0,
             child: Container(
-              color: Colors.black54,
+              color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.54),
               padding: const EdgeInsets.all(AppTokens.spaceXs),
               child: Text(
                 file.name,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white),
               ),
             ),
           ),

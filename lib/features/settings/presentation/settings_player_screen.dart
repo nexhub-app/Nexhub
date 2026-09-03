@@ -100,7 +100,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.white24),
+                  border: Border.all(color: Theme.of(ctx).colorScheme.outlineVariant),
                 ),
               ),
             );

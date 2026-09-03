@@ -243,7 +243,7 @@ class _ListTile extends StatelessWidget {
                 d.favorite ? Icons.star_rounded : Icons.star_outline_rounded,
                 key: ValueKey<bool>(d.favorite),
                 color: d.favorite
-                    ? Colors.amber
+                    ? theme.colorScheme.tertiary
                     : theme.colorScheme.onSurfaceVariant,
               ),
             ),
@@ -325,7 +325,7 @@ class _CardTile extends StatelessWidget {
                   icon: Icon(
                     d.favorite ? Icons.star_rounded : Icons.star_outline_rounded,
                     color: d.favorite
-                        ? Colors.amber
+                        ? theme.colorScheme.tertiary
                         : theme.colorScheme.onSurfaceVariant,
                   ),
                   tooltip: d.favorite ? l10n.rssStarRemove : l10n.rssStarAdd,
@@ -369,7 +369,7 @@ class _CompactTile extends StatelessWidget {
           icon: Icon(
             d.favorite ? Icons.star_rounded : Icons.star_outline_rounded,
             color: d.favorite
-                ? Colors.amber
+                ? theme.colorScheme.tertiary
                 : theme.colorScheme.onSurfaceVariant,
             size: 18,
           ),
@@ -446,7 +446,7 @@ class _MagazineTile extends StatelessWidget {
                                 ? Icons.star_rounded
                                 : Icons.star_outline_rounded,
                             color: d.favorite
-                                ? Colors.amber
+                                ? theme.colorScheme.tertiary
                                 : theme.colorScheme.onSurfaceVariant,
                           ),
                           tooltip:

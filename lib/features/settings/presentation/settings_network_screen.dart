@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:nexhub/core/widgets/app_animations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/model/network_config.dart';
@@ -404,39 +405,47 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       key: const ValueKey<String>('network.proxy'),
       title: l10n.networkProxyTitle,
       children: <Widget>[
-        SegmentedButton<ProxyMode>(
-          selected: <ProxyMode>{_draft.proxy.mode},
-          onSelectionChanged: (s) => setState(() {
-            _draft = _draft.copyWith(
-                proxy: _draft.proxy.copyWith(mode: s.first));
-          }),
-          segments: <ButtonSegment<ProxyMode>>[
-            ButtonSegment(
-                value: ProxyMode.direct,
-                label: Text(l10n.networkProxyModeDirect)),
-            ButtonSegment(
-                value: ProxyMode.system,
-                label: Text(l10n.networkProxyModeSystem)),
-            ButtonSegment(
-                value: ProxyMode.manual,
-                label: Text(l10n.networkProxyModeManual)),
-          ],
-        ),
-        if (_draft.proxy.mode == ProxyMode.manual) ...<Widget>[
-          SegmentedButton<ProxyProtocol>(
-            selected: <ProxyProtocol>{_draft.proxy.protocol},
+        AppValuePulse(
+          trigger: _draft.proxy.mode,
+          from: 0.93,
+          child: SegmentedButton<ProxyMode>(
+            selected: <ProxyMode>{_draft.proxy.mode},
             onSelectionChanged: (s) => setState(() {
               _draft = _draft.copyWith(
-                  proxy: _draft.proxy.copyWith(protocol: s.first));
+                  proxy: _draft.proxy.copyWith(mode: s.first));
             }),
-            segments: <ButtonSegment<ProxyProtocol>>[
+            segments: <ButtonSegment<ProxyMode>>[
               ButtonSegment(
-                  value: ProxyProtocol.http,
-                  label: Text(l10n.networkProxyProtocolHttp)),
+                  value: ProxyMode.direct,
+                  label: Text(l10n.networkProxyModeDirect)),
               ButtonSegment(
-                  value: ProxyProtocol.socks5,
-                  label: Text(l10n.networkProxyProtocolSocks5)),
+                  value: ProxyMode.system,
+                  label: Text(l10n.networkProxyModeSystem)),
+              ButtonSegment(
+                  value: ProxyMode.manual,
+                  label: Text(l10n.networkProxyModeManual)),
             ],
+          ),
+        ),
+        if (_draft.proxy.mode == ProxyMode.manual) ...<Widget>[
+          AppValuePulse(
+            trigger: _draft.proxy.protocol,
+            from: 0.93,
+            child: SegmentedButton<ProxyProtocol>(
+              selected: <ProxyProtocol>{_draft.proxy.protocol},
+              onSelectionChanged: (s) => setState(() {
+                _draft = _draft.copyWith(
+                    proxy: _draft.proxy.copyWith(protocol: s.first));
+              }),
+              segments: <ButtonSegment<ProxyProtocol>>[
+                ButtonSegment(
+                    value: ProxyProtocol.http,
+                    label: Text(l10n.networkProxyProtocolHttp)),
+                ButtonSegment(
+                    value: ProxyProtocol.socks5,
+                    label: Text(l10n.networkProxyProtocolSocks5)),
+              ],
+            ),
           ),
           _field(_proxyHostCtrl, l10n.networkProxyHost, Icons.dns_outlined),
           _field(_proxyPortCtrl, l10n.networkProxyPort, Icons.numbers,
@@ -457,23 +466,27 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       key: const ValueKey<String>('network.dns'),
       title: l10n.networkDnsTitle,
       children: <Widget>[
-        SegmentedButton<DnsMode>(
-          selected: <DnsMode>{_draft.dns.mode},
-          onSelectionChanged: (s) => setState(() {
-            _draft = _draft.copyWith(dns: _draft.dns.copyWith(mode: s.first));
-          }),
-          segments: <ButtonSegment<DnsMode>>[
-            ButtonSegment(
-                value: DnsMode.system,
-                label: Text(l10n.networkDnsModeSystem)),
-            ButtonSegment(
-                value: DnsMode.custom,
-                label: Text(l10n.networkDnsModeCustom)),
-            ButtonSegment(
-                value: DnsMode.doh, label: Text(l10n.networkDnsModeDoh)),
-            ButtonSegment(
-                value: DnsMode.dot, label: Text(l10n.networkDnsModeDot)),
-          ],
+        AppValuePulse(
+          trigger: _draft.dns.mode,
+          from: 0.93,
+          child: SegmentedButton<DnsMode>(
+            selected: <DnsMode>{_draft.dns.mode},
+            onSelectionChanged: (s) => setState(() {
+              _draft = _draft.copyWith(dns: _draft.dns.copyWith(mode: s.first));
+            }),
+            segments: <ButtonSegment<DnsMode>>[
+              ButtonSegment(
+                  value: DnsMode.system,
+                  label: Text(l10n.networkDnsModeSystem)),
+              ButtonSegment(
+                  value: DnsMode.custom,
+                  label: Text(l10n.networkDnsModeCustom)),
+              ButtonSegment(
+                  value: DnsMode.doh, label: Text(l10n.networkDnsModeDoh)),
+              ButtonSegment(
+                  value: DnsMode.dot, label: Text(l10n.networkDnsModeDot)),
+            ],
+          ),
         ),
         if (_draft.dns.mode == DnsMode.custom)
           _stringListEditor(

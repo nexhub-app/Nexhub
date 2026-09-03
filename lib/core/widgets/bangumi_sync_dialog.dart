@@ -499,10 +499,10 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                   padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceMd),
                 ),
                 icon: _saving
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary),
                       )
                     : const Icon(Icons.sync, size: 18),
                 label: Text(

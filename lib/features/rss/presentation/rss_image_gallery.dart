@@ -50,10 +50,11 @@ class _RssImageGalleryState extends State<RssImageGallery> {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: scheme.shadow,
       appBar: AppBar(
-        backgroundColor: Colors.black.withValues(alpha: 0.55),
+        backgroundColor: scheme.shadow.withValues(alpha: 0.55),
         foregroundColor: Colors.white,
         title: Text('${_current + 1} / ${widget.images.length}'),
         elevation: 0,

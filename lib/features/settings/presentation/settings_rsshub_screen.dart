@@ -370,8 +370,8 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
               ),
               child: Text(
                 l10n.presetInstanceOfficial,
-                style: TextStyle(
-                    fontSize: 10, color: Theme.of(context).colorScheme.primary),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary),
               ),
             ),
           if (isSelected)
@@ -450,19 +450,14 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
               : AppStatusColors.fail(scheme);
       latencyWidget = Text(
         l10n.rsshubLatencyMs(status),
-        style: TextStyle(
-          fontSize: 12,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
           color: latencyColor,
-          fontWeight: FontWeight.w600,
         ),
       );
     } else if (status == false) {
       latencyWidget = Text(
         l10n.rsshubLatencyFailed,
-        style: TextStyle(
-          fontSize: 12,
-          color: scheme.outline,
-        ),
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.outline),
       );
     }
 

@@ -128,36 +128,44 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                 title: l10n.appearanceThemeSection,
                 backgroundColor: scheme.surfaceContainerLow,
                 children: <Widget>[
-                  AppSegmentedTabs<ThemeMode>(
-                    selected: <ThemeMode>{controller.mode},
-                    onSelectionChanged: (Set<ThemeMode> s) =>
-                        controller.setMode(s.first),
-                    segments: <ButtonSegment<ThemeMode>>[
-                      ButtonSegment<ThemeMode>(
-                          value: ThemeMode.light,
-                          label: Text(l10n.themeLight),
-                          icon: const Icon(Icons.light_mode)),
-                      ButtonSegment<ThemeMode>(
-                          value: ThemeMode.dark,
-                          label: Text(l10n.themeDark),
-                          icon: const Icon(Icons.dark_mode)),
-                      ButtonSegment<ThemeMode>(
-                          value: ThemeMode.system,
-                          label: Text(l10n.themeSystem),
-                          icon: const Icon(Icons.brightness_auto)),
-                    ],
+                  AppValuePulse(
+                    trigger: controller.mode,
+                    from: 0.93,
+                    child: AppSegmentedTabs<ThemeMode>(
+                      selected: <ThemeMode>{controller.mode},
+                      onSelectionChanged: (Set<ThemeMode> s) =>
+                          controller.setMode(s.first),
+                      segments: <ButtonSegment<ThemeMode>>[
+                        ButtonSegment<ThemeMode>(
+                            value: ThemeMode.light,
+                            label: Text(l10n.themeLight),
+                            icon: const Icon(Icons.light_mode)),
+                        ButtonSegment<ThemeMode>(
+                            value: ThemeMode.dark,
+                            label: Text(l10n.themeDark),
+                            icon: const Icon(Icons.dark_mode)),
+                        ButtonSegment<ThemeMode>(
+                            value: ThemeMode.system,
+                            label: Text(l10n.themeSystem),
+                            icon: const Icon(Icons.brightness_auto)),
+                      ],
+                    ),
                   ),
                   const Divider(height: AppTokens.spaceLg),
                   AppListTile(
                     leading:
                         const SettingsLeadingIcon(icon: Icons.auto_awesome),
                     title: Text(l10n.useMonet),
-                    trailing: Switch(
-                      value: controller.useMonet,
-                      onChanged: (_) {
-                        AppHaptics.selectionClick();
-                        controller.setUseMonet(!controller.useMonet);
-                      },
+                    trailing: AppValuePulse(
+                      trigger: controller.useMonet,
+                      from: 0.94,
+                      child: Switch(
+                        value: controller.useMonet,
+                        onChanged: (_) {
+                          AppHaptics.selectionClick();
+                          controller.setUseMonet(!controller.useMonet);
+                        },
+                      ),
                     ),
                   ),
                 ],
@@ -309,24 +317,28 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                 title: l10n.settingsGroupLanguage,
                 backgroundColor: scheme.surfaceContainerLow,
                 children: <Widget>[
-                  AppSegmentedTabs<LocaleOption>(
-                    selected: <LocaleOption>{localeController.option},
-                    onSelectionChanged: (Set<LocaleOption> s) =>
-                        localeController.setOption(s.first),
-                    segments: <ButtonSegment<LocaleOption>>[
-                      ButtonSegment<LocaleOption>(
-                          value: LocaleOption.system,
-                          label: Text(l10n.languageFollowSystem),
-                          icon: const Icon(Icons.brightness_auto)),
-                      ButtonSegment<LocaleOption>(
-                          value: LocaleOption.chinese,
-                          label: Text(l10n.languageChinese),
-                          icon: const Icon(Icons.translate)),
-                      ButtonSegment<LocaleOption>(
-                          value: LocaleOption.english,
-                          label: Text(l10n.languageEnglish),
-                          icon: const Icon(Icons.language)),
-                    ],
+                  AppValuePulse(
+                    trigger: localeController.option,
+                    from: 0.93,
+                    child: AppSegmentedTabs<LocaleOption>(
+                      selected: <LocaleOption>{localeController.option},
+                      onSelectionChanged: (Set<LocaleOption> s) =>
+                          localeController.setOption(s.first),
+                      segments: <ButtonSegment<LocaleOption>>[
+                        ButtonSegment<LocaleOption>(
+                            value: LocaleOption.system,
+                            label: Text(l10n.languageFollowSystem),
+                            icon: const Icon(Icons.brightness_auto)),
+                        ButtonSegment<LocaleOption>(
+                            value: LocaleOption.chinese,
+                            label: Text(l10n.languageChinese),
+                            icon: const Icon(Icons.translate)),
+                        ButtonSegment<LocaleOption>(
+                            value: LocaleOption.english,
+                            label: Text(l10n.languageEnglish),
+                            icon: const Icon(Icons.language)),
+                      ],
+                    ),
                   ),
                 ],
               ),

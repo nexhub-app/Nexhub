@@ -115,7 +115,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
                 expands: true,
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   contentPadding: EdgeInsets.all(AppTokens.spaceMd),

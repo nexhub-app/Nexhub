@@ -457,7 +457,7 @@ class _DownloadTaskTile extends StatelessWidget {
             child: CircleAvatar(
               radius: 12,
               backgroundColor: scheme.primary,
-              child: const Icon(Icons.check, size: 16, color: Colors.white),
+              child: Icon(Icons.check, size: 16, color: scheme.onPrimary),
             ),
           ),
       ],

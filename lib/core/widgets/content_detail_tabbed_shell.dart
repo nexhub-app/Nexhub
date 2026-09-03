@@ -878,7 +878,7 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
                                     ),
                                     Shadow(
                                       blurRadius: 5,
-                                      color: Colors.black
+                                      color: scheme.shadow
                                           .withValues(alpha: 0.25),
                                     ),
                                   ],

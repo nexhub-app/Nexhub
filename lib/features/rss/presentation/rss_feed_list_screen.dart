@@ -96,64 +96,11 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
     };
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.rssFeedListTitle),
-        actions: <Widget>[
-          if (visibleFeeds.isNotEmpty)
-            IconButton(
-              icon: _testingAll
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.speed),
-              tooltip: l10n.rssTestAllSpeed,
-              onPressed: _testingAll ? null : () => _testAllSpeed(manager),
-            ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            tooltip: l10n.moreActions,
-            onSelected: (action) => _onTopMenu(action, context, manager),
-            itemBuilder: (ctx) => <PopupMenuEntry<String>>[
-              // OPML 导入/导出在同一页，这里只留一个入口（此前两项各开同一页）。
-              PopupMenuItem<String>(
-                value: 'opml',
-                child: ListTile(
-                  leading: const Icon(Icons.import_export_outlined),
-                  title: Text(l10n.rssOpmlTitle),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'discover',
-                child: ListTile(
-                  leading: const Icon(Icons.language_outlined),
-                  title: Text(l10n.rssDiscoverTitle),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'global_search',
-                child: ListTile(
-                  leading: const Icon(Icons.search_outlined),
-                  title: Text(l10n.rssSearchTitle),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              if (widget.moduleType == null)
-                PopupMenuItem<String>(
-                  value: 'manage_groups',
-                  child: ListTile(
-                    leading: const Icon(Icons.folder_outlined),
-                    title: Text(l10n.rssGroupManage),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
+      appBar: widget.moduleType == null
+          ? AppBar(
+              // 全局视图保留顶栏（返回导航）；标题与测速/更多按要求删去。
+            )
+          : null,
       body: visibleFeeds.isEmpty
           ? AppEmptyState(
               icon: emptyIcon,

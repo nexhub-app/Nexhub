@@ -29,8 +29,8 @@ class SettingsLeadingIcon extends StatelessWidget {
   const SettingsLeadingIcon({
     super.key,
     required this.icon,
-    this.iconSize = 20,
-    this.containerSize = 40,
+    this.iconSize = 22,
+    this.containerSize = 44,
   });
 
   @override
@@ -41,7 +41,7 @@ class SettingsLeadingIcon extends StatelessWidget {
       height: containerSize,
       decoration: BoxDecoration(
         color: scheme.primaryContainer,
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
       ),
       child: Icon(icon, color: scheme.onPrimaryContainer, size: iconSize),
     );
@@ -241,14 +241,16 @@ class _SettingsCardState extends State<SettingsCard> {
     return Entrance(
       onceKey: onceKey,
       index: widget.index,
-      offset: 10,
+      offset: 16,
+      fromScale: 0.97,
+      duration: AppTokens.durSpring,
       child: Container(
-        margin: widget.margin ?? const EdgeInsets.only(bottom: AppTokens.spaceMd),
+        margin: widget.margin ?? const EdgeInsets.only(bottom: AppTokens.spaceLg),
         child: Material(
           color: widget.backgroundColor ?? theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(AppTokens.radiusMd),
           child: Padding(
-            padding: const EdgeInsets.all(AppTokens.spaceMd),
+            padding: const EdgeInsets.all(AppTokens.spaceLg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: columnChildren,
@@ -352,7 +354,7 @@ class SettingsSwitchTile extends StatelessWidget {
     // 切换时整行轻微弹性脉冲（力度收敛，避免大面积晃动）。
     return AppValuePulse(
       trigger: value,
-      from: 0.985,
+      from: 0.94,
       child: SwitchListTile(
         title: Text(title),
         subtitle: subtitle != null ? Text(subtitle!) : null,
@@ -397,7 +399,7 @@ class SettingsSegmentedTile<T extends Object> extends StatelessWidget {
         // 选项切换时轻微弹性脉冲。
         AppValuePulse(
           trigger: selected.isEmpty ? null : selected.first,
-          from: 0.97,
+          from: 0.93,
           child: SegmentedButton<T>(
             selected: selected,
             onSelectionChanged: (selection) {

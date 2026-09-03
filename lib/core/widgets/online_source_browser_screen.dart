@@ -90,25 +90,11 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
             ),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: AppTokens.spaceXs),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: <Widget>[
-                  Text(
-                    source.site.baseUrl,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: AppTokens.spaceXs),
-                  Row(
-                    children: <Widget>[
-                      _buildStatusChip(source, scheme, l10n),
-                      const SizedBox(width: AppTokens.spaceXs),
-                      _buildAgeChip(source, scheme, l10n),
-                    ],
-                  ),
+                  _buildStatusChip(source, scheme, l10n),
+                  const SizedBox(width: AppTokens.spaceXs),
+                  _buildAgeChip(source, scheme, l10n),
                 ],
               ),
             ),

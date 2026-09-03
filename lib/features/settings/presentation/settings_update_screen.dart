@@ -635,14 +635,13 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
           subtitle: latency != null
               ? Text(
                   latency < 0 ? l10n.updateMirrorTimeout : '${latency}ms',
-                  style: TextStyle(
-                    color: latency < 0
-                        ? scheme.error
-                        : latency < 1000
-                            ? scheme.primary
-                            : scheme.onSurfaceVariant,
-                    fontSize: 12,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: latency < 0
+                            ? scheme.error
+                            : latency < 1000
+                                ? scheme.primary
+                                : scheme.onSurfaceVariant,
+                      ),
                 )
               : null,
           secondary: selected ? const Icon(Icons.check_circle) : null,

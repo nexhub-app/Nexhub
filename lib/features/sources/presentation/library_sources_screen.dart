@@ -17,7 +17,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/models/plugin_config.dart';
 import '../../../core/scraper/http_fetcher.dart';
@@ -387,14 +386,6 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     await _importSelected();
   }
 
-  /// 外链打开 rawUrl（备用，方便用户手动复制）。
-  Future<void> _openRawUrl(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null && uri.scheme.startsWith('http')) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
@@ -576,10 +567,10 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
           ? Chip(
               label: Text(
                 l10n.libraryUpdateAvailable,
-                style: TextStyle(
-                  color: scheme.onPrimaryContainer,
-                  fontSize: 11,
-                ),
+                style: Theme.of(context)
+                    .textTheme
+                    .labelMedium
+                    ?.copyWith(color: scheme.onPrimaryContainer),
               ),
               backgroundColor: scheme.primaryContainer,
               visualDensity: VisualDensity.compact,
@@ -620,19 +611,6 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
                       updateAvailable ? FontWeight.w600 : FontWeight.normal,
                 ),
           ),
-          if (entry.rawUrl != null && entry.rawUrl!.isNotEmpty)
-            InkWell(
-              onTap: () => _openRawUrl(entry.rawUrl!),
-              child: Text(
-                entry.rawUrl!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.primary,
-                      decoration: TextDecoration.underline,
-                    ),
-              ),
-            ),
           Text(
             'id: ${entry.id}',
             maxLines: 1,
@@ -667,9 +645,9 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
       ),
     };
     return Chip(
-      label: Text(label, style: const TextStyle(fontSize: 11)),
+      label: Text(label, style: Theme.of(context).textTheme.labelMedium),
       backgroundColor: bg,
-      labelStyle: TextStyle(color: fg, fontSize: 11),
+      labelStyle: Theme.of(context).textTheme.labelMedium?.copyWith(color: fg),
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       side: BorderSide.none,

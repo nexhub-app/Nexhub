@@ -271,12 +271,12 @@ class _AppNavItemState extends State<_AppNavItem> {
             const SizedBox(height: _kLabelGap),
             AnimatedDefaultTextStyle(
               duration: AppTokens.durFast,
-              style: TextStyle(
-                fontSize: 12,
-                color: widget.selected ? active : inactive,
-                fontWeight:
-                    widget.selected ? FontWeight.w600 : FontWeight.w400,
-              ),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: widget.selected ? active : inactive,
+                    fontWeight:
+                        widget.selected ? FontWeight.w600 : FontWeight.w400,
+                  ) ??
+                  const TextStyle(),
               child: Text(widget.destination.label),
             ),
           ],

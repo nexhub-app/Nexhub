@@ -3,6 +3,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_nav_bar.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../manga/presentation/comic_home_screen.dart';
 import '../../media/presentation/media_home_screen.dart';
 import '../../novel/presentation/novel_home_screen.dart';
@@ -72,7 +73,10 @@ class _HomeScreenState extends State<HomeScreen> {
           children: <Widget>[
             AppNavBar(
               selectedIndex: _index,
-              onDestinationSelected: (int i) => setState(() => _index = i),
+              onDestinationSelected: (int i) {
+                replayEntrances();
+                setState(() => _index = i);
+              },
               destinations: destinations,
             ),
             const VerticalDivider(width: 1),
@@ -89,18 +93,17 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _AnimatedTabView(index: _index, children: _pages),
       bottomNavigationBar: AppNavBar(
         selectedIndex: _index,
-        onDestinationSelected: (int i) => setState(() => _index = i),
+        onDestinationSelected: (int i) {
+          replayEntrances();
+          setState(() => _index = i);
+        },
         destinations: destinations,
       ),
     );
   }
 }
 
-/// 底栏 / 侧栏 Tab 内容的灵动切换视图。
-///
-/// 内部仍用 [IndexedStack] 保留全部 Tab 状态（不重建页面）；仅在
-/// `index` 变化时对新显示的内容整体播放一次「淡入 + 轻微上滑」动画。
-/// 首帧不播动画，避免启动闪烁。
+/// 底栏 / 侧栏 Tab 内容视图：瞬切，保留全部 Tab 状态（滚动位置/输入）。
 class _AnimatedTabView extends StatelessWidget {
   const _AnimatedTabView({required this.index, required this.children});
 
@@ -109,8 +112,6 @@ class _AnimatedTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 用户要求底部标签页切换「干脆瞬切、零延迟」。直接以终态呈现，
-    // 保留 IndexedStack 以避免切换时各页面状态（滚动位置/输入）被重建。
     return IndexedStack(index: index, children: children);
   }
 }

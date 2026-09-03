@@ -14,7 +14,6 @@ import 'package:nexhub/core/theme/app_tokens.dart';
 import 'package:nexhub/core/widgets/app_animations.dart';
 import '../../novel/domain/novel_review_service.dart';
 import '../../novel/domain/novel_summary_settings.dart';
-import 'widgets/settings_widgets.dart';
 
 class TranslationReviewScreen extends StatefulWidget {
   const TranslationReviewScreen({super.key});
@@ -146,9 +145,10 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                     ),
                     Text(
                       l10n.reviewFindingCount(report.findings.length),
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.outline),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Theme.of(context).colorScheme.outline),
                     ),
                   ],
                 ),
@@ -159,9 +159,10 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                       horizontal: AppTokens.spaceMd),
                   child: Text(
                     l10n.reviewTruncated,
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.error),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: Theme.of(context).colorScheme.error),
                   ),
                 ),
               const Divider(height: 1),
@@ -183,12 +184,12 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                                 children: <Widget>[
                                   Row(
                                     children: <Widget>[
-                                      _typeChip(f.type, l10n, scheme),
+                                      _typeChip(f.type, l10n, scheme, Theme.of(context).textTheme),
                                       const SizedBox(width: AppTokens.spaceSm),
                                       Expanded(
                                         child: Text(
                                           '${f.chapterTitle} · #${f.paragraphIndex + 1}',
-                                          style: const TextStyle(fontSize: 11),
+                                          style: Theme.of(context).textTheme.labelMedium,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -197,14 +198,16 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                                   ),
                                   const SizedBox(height: AppTokens.spaceXs),
                                   Text(f.detail,
-                                      style: const TextStyle(fontSize: 12)),
+                                      style: Theme.of(context).textTheme.bodySmall),
                                   if (f.source.isNotEmpty) ...<Widget>[
                                     const SizedBox(height: AppTokens.spaceXs),
                                     Text(f.source,
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            fontSize: 12, height: 1.4)),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(height: 1.4)),
                                   ],
                                   if (f.translation.isNotEmpty) ...<Widget>[
                                     const SizedBox(height: 2),
@@ -212,12 +215,14 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                                       f.translation,
                                       maxLines: 3,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          height: 1.4,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                              height: 1.4,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary),
                                     ),
                                   ],
                                 ],
@@ -234,7 +239,8 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
     );
   }
 
-  Widget _typeChip(String type, AppLocalizations l10n, ColorScheme scheme) {
+  Widget _typeChip(
+      String type, AppLocalizations l10n, ColorScheme scheme, TextTheme text) {
     final label = switch (type) {
       ReviewFindingType.glossary => l10n.reviewTypeGlossary,
       ReviewFindingType.missing => l10n.reviewTypeMissing,
@@ -242,12 +248,13 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
       _ => type,
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceXxs),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
       ),
-      child: Text(label, style: const TextStyle(fontSize: 11)),
+      child: Text(label, style: text.labelMedium),
     );
   }
 

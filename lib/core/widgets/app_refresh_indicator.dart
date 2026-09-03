@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'app_loading_indicator.dart';
 
 /// 主题化的下拉刷新指示器。
 ///

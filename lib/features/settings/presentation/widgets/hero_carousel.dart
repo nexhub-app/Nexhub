@@ -207,13 +207,14 @@ class _PageIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTokens.spaceSm,
         vertical: AppTokens.spaceXxs,
       ),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.35),
+        color: scheme.shadow.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(AppTokens.radiusFull),
       ),
       child: Row(

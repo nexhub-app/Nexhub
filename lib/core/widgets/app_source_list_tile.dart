@@ -40,12 +40,14 @@ class AppSourceListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
 
     Widget statusChip() {
       if (deprecated) {
         return Chip(
           label: Text(deprecatedLabel,
-              style: TextStyle(color: scheme.onErrorContainer, fontSize: 11)),
+              style: textTheme.labelMedium
+                  ?.copyWith(color: scheme.onErrorContainer)),
           backgroundColor: scheme.errorContainer,
           visualDensity: VisualDensity.compact,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -55,7 +57,8 @@ class AppSourceListTile extends StatelessWidget {
       if (!enabled) {
         return Chip(
           label: Text(disabledLabel,
-              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 11)),
+              style: textTheme.labelMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant)),
           backgroundColor: scheme.surfaceContainerHighest,
           visualDensity: VisualDensity.compact,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -64,8 +67,8 @@ class AppSourceListTile extends StatelessWidget {
       }
       final Color healthy = AppStatusColors.ok(scheme);
       return Chip(
-        label:
-            Text(healthyLabel, style: TextStyle(color: healthy, fontSize: 11)),
+        label: Text(healthyLabel,
+            style: textTheme.labelMedium?.copyWith(color: healthy)),
         backgroundColor: AppStatusColors.containerOf(healthy),
         visualDensity: VisualDensity.compact,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -78,16 +81,10 @@ class AppSourceListTile extends StatelessWidget {
         backgroundColor: scheme.primaryContainer,
         child: Text(
           name.isNotEmpty ? name[0].toUpperCase() : '?',
-          style: TextStyle(color: scheme.onPrimaryContainer),
+          style: textTheme.titleMedium?.copyWith(color: scheme.onPrimaryContainer),
         ),
       ),
       title: Text(name),
-      subtitle: url != null
-          ? Text(url!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: scheme.onSurfaceVariant))
-          : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[

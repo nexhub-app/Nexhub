@@ -145,18 +145,18 @@ class AppCoverImage extends StatelessWidget {
         ),
       );
     }
-    const List<Color> palette = <Color>[
-      Colors.blue,
-      Colors.teal,
-      Colors.deepPurple,
-      Colors.orange,
-      Colors.green,
-      Colors.pink,
-      Colors.indigo,
-      Colors.brown,
+    // 占位色块全取主题派生色（容器色族 + 主色族），背景/前景成对取，
+    // 保证对比度且深浅色自适应，零 Material 默认色板，降低 AI 感。
+    final List<(Color, Color)> palette = <(Color, Color)>[
+      (scheme.primaryContainer, scheme.onPrimaryContainer),
+      (scheme.secondaryContainer, scheme.onSecondaryContainer),
+      (scheme.tertiaryContainer, scheme.onTertiaryContainer),
+      (scheme.primary, scheme.onPrimary),
+      (scheme.tertiary, scheme.onTertiary),
+      (scheme.secondary, scheme.onSecondary),
     ];
     final int hash = title!.codeUnits.fold(0, (int a, int b) => a + b);
-    final Color bg = palette[hash % palette.length];
+    final (Color bg, Color fg) = palette[hash % palette.length];
     return SizedBox(
       width: width,
       height: height,
@@ -165,11 +165,11 @@ class AppCoverImage extends StatelessWidget {
         child: Center(
           child: Text(
             ch,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: (width ?? 120) * 0.4,
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                  color: fg,
+                  fontSize: (width ?? 120) * 0.4,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ),
       ),

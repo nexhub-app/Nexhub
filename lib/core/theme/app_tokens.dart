@@ -80,6 +80,9 @@ class AppTokens {
   /// 翻页动画统一 450ms（见文档附录 C）。
   static const Duration durPageTurn = Duration(milliseconds: 450);
 
+  /// 慢入场时长：作品卡划入显现等需要从容感的入场，比 [durSpring] 更缓。
+  static const Duration durSlow = Duration(milliseconds: 600);
+
   // ─────────────────────── 组件固定尺寸 ───────────────────────
   static const double coverAspectRatio = 0.7; // 封面宽高比（漫画/小说）
 

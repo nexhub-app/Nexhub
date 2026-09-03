@@ -1217,13 +1217,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
         children: <Widget>[
           Text(config.name,
               style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppTokens.spaceXs),
-          Text(
-            config.site.baseUrl,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-          ),
           const SizedBox(height: AppTokens.spaceSm),
           if (isValid)
             Row(
@@ -1521,14 +1514,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                                 color: scheme.primary,
                               ),
                         ),
-                        Text(
-                          item.config?.site.baseUrl ?? '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
-                        ),
                         if (item.type != null)
                           Text(
                             '${l10n.sourceType}：${_typeLabel(item.type!, l10n)}',
@@ -1539,7 +1524,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                       ] else ...<Widget>[
                         Text(
                           item.error ?? l10n.sourceImportInvalid,
-                          style: TextStyle(color: scheme.error, fontSize: 12),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.error),
                         ),
                       ],
                     ],

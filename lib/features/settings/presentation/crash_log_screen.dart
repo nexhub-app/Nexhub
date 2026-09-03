@@ -115,9 +115,8 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
                   child: AppSheetBody(
                     child: SelectableText(
                       _log,
-                      style: const TextStyle(
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontFamily: 'monospace',
-                        fontSize: 12,
                         height: 1.5,
                       ),
                     ),

@@ -807,9 +807,7 @@ class _OnboardingChoiceRow<T> extends StatelessWidget {
                 options[i].label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontSize: 12,
-                ),
+                style: theme.textTheme.labelMedium,
               ),
               selected: options[i].value == selected,
               showCheckmark: false,

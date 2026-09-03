@@ -1171,8 +1171,8 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
                     onTap: () => _confirmDelete(ctx, item),
                     child: Container(
                       padding: const EdgeInsets.all(AppTokens.spaceXs),
-                      decoration: const BoxDecoration(
-                        color: Colors.black54,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.54),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.delete_outline,

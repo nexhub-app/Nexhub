@@ -920,7 +920,7 @@ class _BackupFieldsState extends State<_BackupFields> {
           icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more,
               size: 18),
           label: Text(l10n.aiBackupSection,
-              style: const TextStyle(fontSize: 13)),
+              style: Theme.of(context).textTheme.labelLarge),
         ),
         AnimatedCrossFade(
           duration: const Duration(milliseconds: 180),

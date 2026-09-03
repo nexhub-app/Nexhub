@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 
 /// 应用统一「灵动」动效原语。
 ///
@@ -45,12 +46,14 @@ class AppTapScale extends StatefulWidget {
     this.scale = 0.90,
     this.duration,
     this.enable = true,
+    this.haptic = false,
   });
 
   final Widget child;
   final double scale; // 按下时的缩放比例（<1 缩小）
   final Duration? duration;
   final bool enable; // false 时直接透传子控件，不做任何动效
+  final bool haptic; // true 时按下触发轻触感反馈
 
   @override
   State<AppTapScale> createState() => _AppTapScaleState();
@@ -63,7 +66,10 @@ class _AppTapScaleState extends State<AppTapScale> {
   Widget build(BuildContext context) {
     if (!widget.enable) return widget.child;
     return Listener(
-      onPointerDown: (_) => setState(() => _pressed = true),
+      onPointerDown: (_) {
+        if (widget.haptic) AppHaptics.light();
+        setState(() => _pressed = true);
+      },
       onPointerUp: (_) => setState(() => _pressed = false),
       onPointerCancel: (_) => setState(() => _pressed = false),
       child: AnimatedScale(
@@ -82,6 +88,16 @@ class _AppTapScaleState extends State<AppTapScale> {
 /// 全局已播放过入场动画的 key 集合（按 key 去重，避免滚动时重复播放）。
 // ignore: prefer_const_declarations — 集合需可变（add/clear），不能用 const。
 final Set<String> _entrancePlayed = <String>{};
+
+/// 全局入场重播信号：切换 tab 时调 [replayEntrances]，所有已挂载的
+/// [Entrance] 监听此信号并重新播放入场动画（清缓存让新挂载也播）。
+final ValueNotifier<int> _entranceReplaySignal = ValueNotifier<int>(0);
+
+/// 切换 tab 时调用：清入场缓存 + 触发所有已挂载 Entrance 重播向上淡入。
+void replayEntrances() {
+  _entrancePlayed.clear();
+  _entranceReplaySignal.value++;
+}
 
 /// 入场动画：淡入 + 轻微上滑（+ 可选回弹缩放）。
 ///
@@ -178,10 +194,19 @@ class _EntranceState extends State<Entrance>
     } else {
       _ctrl.value = 1.0; // 已播放过：直接终态，不播动画
     }
+    // 监听全局重播信号（切换 tab 时重新向上淡入）。
+    _entranceReplaySignal.addListener(_handleReplay);
+  }
+
+  void _handleReplay() {
+    if (!mounted) return;
+    setState(() => _play = true);
+    _ctrl.forward(from: 0);
   }
 
   @override
   void dispose() {
+    _entranceReplaySignal.removeListener(_handleReplay);
     _ctrl.dispose();
     super.dispose();
   }
@@ -494,4 +519,76 @@ class AppSheetBody extends StatelessWidget {
       child: child,
     );
   }
+}
+
+// ────────────────────── 灵动微交互便捷封装 ──────────────────────
+
+/// 灵动微交互命名空间：统一入口，消除重复样板。
+///
+/// 现有原语 [AppTapScale] / [Entrance] / [AppValuePulse] / [AppHoverLift] /
+/// [AppFloatyIcon] / [AppSheetBody] 已覆盖全部场景；本类只做**语义别名 +
+/// 样板消除**，让 feature 代码统一从 [AppMotion] 取用，少记几个类名、
+/// 保证全应用动效一致。不新增任何动画逻辑，零性能开销。
+///
+/// 推荐用法：
+/// ```dart
+/// // 可点卡片按压回弹
+/// AppMotion.tapScale(ContentCard(...))
+/// // 列表项交错入场
+/// AppMotion.entrance(child: tile, index: i, onceKey: 'feed_$i')
+/// // 开关 / 分段选中脉冲
+/// AppMotion.valuePulse(trigger: value, child: toggle)
+/// ```
+class AppMotion {
+  AppMotion._();
+
+  /// 按压回弹：按钮 / 图标 / 可点卡片按下轻微缩小、松开弹性复位。
+  static Widget tapScale(Widget child, {double scale = 0.90, Key? key}) =>
+      AppTapScale(key: key, scale: scale, child: child);
+
+  /// 入场：列表 / 卡片淡入 + 上滑 + 轻微放大。
+  /// 传 [index] 即按顺序交错入场（每项 80ms 延迟）；[onceKey] 防滚动重播。
+  static Widget entrance({
+    required Widget child,
+    int? index,
+    String? onceKey,
+    Duration delay = Duration.zero,
+  }) =>
+      Entrance(
+        index: index,
+        onceKey: onceKey,
+        delay: delay,
+        child: child,
+      );
+
+  /// 值脉冲：开关 / 分段 / 选中态取值变化时的弹性确认反馈。
+  static Widget valuePulse({
+    required Object? trigger,
+    required Widget child,
+    double from = 0.94,
+    Color? color,
+    Key? key,
+  }) =>
+      AppValuePulse(
+        key: key,
+        trigger: trigger,
+        from: from,
+        color: color,
+        child: child,
+      );
+
+  /// 空态 / 错误态浮动图标，让占位「活」一点。
+  static Widget floatyIcon({
+    required IconData icon,
+    double size = 64,
+    Color? color,
+  }) =>
+      AppFloatyIcon(icon: icon, size: size, color: color);
+
+  /// 底部弹层 / 抽屉内容入场：叠在 [showModalBottomSheet] 上滑之上。
+  static Widget sheetBody(Widget child) => AppSheetBody(child: child);
+
+  /// 悬停微抬（桌面端）：鼠标悬停时轻放大上浮，触摸端天然不触发。
+  static Widget hoverLift(Widget child, {bool enable = true, Key? key}) =>
+      AppHoverLift(key: key, enable: enable, child: child);
 }
