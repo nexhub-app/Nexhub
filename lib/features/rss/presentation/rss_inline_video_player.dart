@@ -17,9 +17,11 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/media/media_kit_network.dart';
+import '../../../core/player/widgets/seek_bar.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_log.dart';
 import '../../browser/presentation/http_browser_screen.dart';
@@ -53,14 +55,48 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
   VideoController? _controller;
   bool _started = false;
   bool _failed = false;
+  bool _retried = false;
   Timer? _loadTimer;
   StreamSubscription<String>? _errorSub;
   StreamSubscription<Duration>? _durSub;
+  StreamSubscription<Duration>? _posSub;
+  StreamSubscription<bool>? _completedSub;
+  Timer? _posSaveTimer;
+  static const String _posPrefsPrefix = 'rss_video_pos_v1:';
 
   @override
   void initState() {
     super.initState();
     MediaKit.ensureInitialized();
+  }
+
+  /// 进度记忆（重开续播）：按视频 URL 持久化播放位置，dispose 时保存；
+  /// 打开媒体后若上次未播完则 seek 到保存位置。播完清除记录。
+  Future<void> _restorePosition(Player player) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final int? saved = prefs.getInt('$_posPrefsPrefix${widget.url}');
+      if (saved == null || saved <= 0) return;
+      // 等 duration 就绪再 seek（媒体未就绪时 seek 无效）。
+      final Duration d = await player.stream.duration.first;
+      if (d > Duration.zero && saved < d.inMilliseconds - 2000) {
+        await player.seek(Duration(milliseconds: saved));
+      }
+    } on Object {
+      // 进度恢复失败不影响播放。
+    }
+  }
+
+  Future<void> _savePosition(Player player) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final int pos = player.state.position.inMilliseconds;
+      if (pos > 0) {
+        await prefs.setInt('$_posPrefsPrefix${widget.url}', pos);
+      }
+    } on Object {
+      // 忽略持久化失败。
+    }
   }
 
   Future<void> _startPlayback() async {
@@ -83,10 +119,38 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
       if (!mounted) return;
       _loadTimer?.cancel();
       _loadTimer = null;
+      // 自动重试一次（部分防盗链/瞬时失败重试可恢复）。
+      if (!_retried) {
+        _retried = true;
+        unawaited(_open());
+        return;
+      }
       setState(() => _failed = true);
+    });
+    // 播完：停止并清除进度记录（重开从头播）。
+    _completedSub = player.stream.completed.listen((bool c) {
+      if (!c || !mounted) return;
+      player.pause();
+      unawaited(_clearPosition());
+    });
+    // 进度记忆：播放中定期保存位置。
+    _posSub = player.stream.position.listen((Duration d) {
+      _posSaveTimer ??= Timer(const Duration(seconds: 5), () {
+        _posSaveTimer = null;
+        if (_player != null) unawaited(_savePosition(_player!));
+      });
     });
     if (mounted) setState(() {});
     await _open();
+  }
+
+  Future<void> _clearPosition() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('$_posPrefsPrefix${widget.url}');
+    } on Object {
+      // 忽略。
+    }
   }
 
   Future<void> _open() async {
@@ -107,6 +171,8 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
       ),
       play: true,
     );
+    // 进度记忆：媒体就绪后恢复上次位置（重开续播）。
+    unawaited(_restorePosition(player));
     _loadTimer?.cancel();
     _loadTimer = Timer(_loadTimeout, () {
       if (!mounted) return;
@@ -148,9 +214,16 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
   @override
   void dispose() {
     _loadTimer?.cancel();
+    _posSaveTimer?.cancel();
     _errorSub?.cancel();
     _durSub?.cancel();
-    _player?.dispose();
+    _posSub?.cancel();
+    _completedSub?.cancel();
+    final Player? player = _player;
+    if (player != null) {
+      unawaited(_savePosition(player));
+    }
+    player?.dispose();
     super.dispose();
   }
 
@@ -308,6 +381,7 @@ class RssVideoControls extends StatefulWidget {
 
 class _RssVideoControlsState extends State<RssVideoControls> {
   static const List<double> _speeds = <double>[0.5, 1.0, 1.5, 2.0];
+  static const List<String> _aspects = <String>['default', '16:9', '4:3', 'fill'];
 
   bool _playing = false;
   bool _buffering = false;
@@ -319,6 +393,16 @@ class _RssVideoControlsState extends State<RssVideoControls> {
   bool _seeking = false;
   double _dragValue = 0;
   Timer? _hideTimer;
+
+  // ── 手势 / 锁屏 / 比例（同步主视频播放器）──
+  bool _locked = false;
+  int _aspectIndex = 0;
+  int _doubleTapCount = 0;
+  DateTime _lastDoubleTap = DateTime.fromMillisecondsSinceEpoch(0);
+  String? _gestureText;
+  bool _gestureVisible = false;
+  Timer? _gestureTimer;
+  double _gestureStartValue = 0;
 
   StreamSubscription<Duration>? _posSub;
   StreamSubscription<Duration>? _durSub;
@@ -404,6 +488,93 @@ class _RssVideoControlsState extends State<RssVideoControls> {
     _scheduleHide();
   }
 
+  void _toggleLock() {
+    setState(() => _locked = !_locked);
+    if (_locked) {
+      // 锁定时隐藏控制条防误触。
+      _hideTimer?.cancel();
+      _controlsVisible = false;
+    }
+  }
+
+  void _cycleAspect() {
+    final int next = (_aspectIndex + 1) % _aspects.length;
+    _aspectIndex = next;
+    final String ratio = _aspects[next];
+    // mpv video-aspect-override：default 还原原始比例，fill 拉伸铺满。
+    final Object? platform = _player.platform;
+    if (platform is NativePlayer) {
+      unawaited(platform.setProperty(
+        'video-aspect-override',
+        ratio == 'default' ? '-1' : (ratio == 'fill' ? 'fill' : ratio),
+      ));
+    }
+    _showGesture(_aspects[next]);
+    _scheduleHide();
+  }
+
+  /// 显示中央手势指示器（双击快进/快退 / 横滑 seek 目标 / 比例切换）。
+  void _showGesture(String text) {
+    _gestureTimer?.cancel();
+    setState(() {
+      _gestureText = text;
+      _gestureVisible = true;
+    });
+    _gestureTimer = Timer(const Duration(milliseconds: 700), () {
+      if (mounted) setState(() => _gestureVisible = false);
+    });
+  }
+
+  /// 双击：左半屏快退 10s、右半屏快进 10s（连点累计 10/20/30s）。
+  void _handleDoubleTap(Offset localPosition) {
+    if (_locked || _duration == Duration.zero) return;
+    final bool right = localPosition.dx >= (context.size?.width ?? 0) / 2;
+    final now = DateTime.now();
+    final bool recent = now.difference(_lastDoubleTap) <
+        const Duration(milliseconds: 900);
+    _lastDoubleTap = now;
+    _doubleTapCount = recent ? _doubleTapCount + 1 : 1;
+    final int seconds = 10 * _doubleTapCount.clamp(1, 3);
+    final Duration target = right
+        ? (_position + Duration(seconds: seconds))
+        : (_position - Duration(seconds: seconds));
+    final Duration clamped = target < Duration.zero
+        ? Duration.zero
+        : (target > _duration ? _duration : target);
+    unawaited(_player.seek(clamped));
+    _showGesture('${right ? '+' : '-'}$seconds s');
+  }
+
+  /// 左右滑 seek（按宽度比例换算成 60s 范围）。
+  void _startHorizontalDrag(DragStartDetails d) {
+    _gestureStartValue = _position.inMilliseconds.toDouble();
+  }
+
+  void _updateHorizontalDrag(DragUpdateDetails d, double width) {
+    if (_duration == Duration.zero || width <= 0) return;
+    final double deltaMs = d.delta.dx / width * 60000;
+    final double target =
+        (_gestureStartValue + deltaMs).clamp(0, _duration.inMilliseconds.toDouble());
+    _showGesture(_fmt(Duration(milliseconds: target.round())));
+    if (!_seeking) {
+      setState(() {
+        _seeking = true;
+        _dragValue = target;
+      });
+    }
+  }
+
+  void _endHorizontalDrag() {
+    if (_seeking) {
+      unawaited(_player.seek(Duration(milliseconds: _dragValue.round())));
+      setState(() {
+        _seeking = false;
+        _position = Duration(milliseconds: _dragValue.round());
+      });
+    }
+    _scheduleHide();
+  }
+
   String _fmt(Duration d) {
     final int h = d.inHours;
     final int m = d.inMinutes.remainder(60);
@@ -430,6 +601,12 @@ class _RssVideoControlsState extends State<RssVideoControls> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _toggleControls,
+      // 手势（同步主视频播放器）：双击快进/快退、左右滑 seek。
+      onDoubleTapDown: (TapDownDetails d) => _handleDoubleTap(d.localPosition),
+      onHorizontalDragStart: _startHorizontalDrag,
+      onHorizontalDragUpdate: (DragUpdateDetails d) => _updateHorizontalDrag(
+          d, context.size?.width ?? MediaQuery.of(context).size.width),
+      onHorizontalDragEnd: (_) => _endHorizontalDrag(),
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
@@ -445,10 +622,43 @@ class _RssVideoControlsState extends State<RssVideoControls> {
                 ),
               ),
             ),
-          if (_controlsVisible)
-            // 点击区域下沿控制条。
-            Align(
-              alignment: Alignment.bottomCenter,
+          // 手势指示器（中央浮层）。
+          if (_gestureVisible)
+            IgnorePointer(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTokens.spaceMd,
+                    vertical: AppTokens.spaceSm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(AppTokens.spaceSm),
+                  ),
+                  child: Text(
+                    _gestureText ?? '',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ),
+              ),
+            ),
+          // 锁定时仅显示解锁按钮（右上角），控制条隐藏防误触。
+          if (_locked)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                icon: const Icon(Icons.lock_open_rounded, color: Colors.white),
+                tooltip: 'Unlock',
+                onPressed: _toggleLock,
+              ),
+            )
+          else if (_controlsVisible)
+            // 显式钉底：控制条始终贴视频下沿（修复「控制栏在中央」）。
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
               child: Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -475,38 +685,25 @@ class _RssVideoControlsState extends State<RssVideoControls> {
                     Text(_fmt(_position),
                         style: const TextStyle(color: Colors.white, fontSize: 12)),
                     Expanded(
-                      child: Slider(
-                        // 播放中跟随 _position（否则进度条永远停在 0 无法拖动）；
-                        // 拖动时用 _dragValue 暂存，松手才 seek。
-                        value: _duration.inMilliseconds <= 0
-                            ? 0
-                            : (_seeking
-                                    ? _dragValue
-                                    : _position.inMilliseconds
-                                        .toDouble()
-                                        .clamp(0.0, _duration.inMilliseconds.toDouble()))
-                                .clamp(0.0, _duration.inMilliseconds.toDouble()),
-                        min: 0,
-                        max: _duration.inMilliseconds > 0
-                            ? _duration.inMilliseconds.toDouble()
-                            : 1,
-                        onChangeStart: (double v) {
+                      child: SeekBar(
+                        position: _seeking
+                            ? Duration(milliseconds: _dragValue.round())
+                            : _position,
+                        duration: _duration,
+                        onDragStart: () {
+                          _hideTimer?.cancel();
                           setState(() {
                             _seeking = true;
-                            _dragValue = v;
+                            _dragValue = _position.inMilliseconds.toDouble();
                           });
                         },
-                        onChanged: (double v) {
-                          setState(() => _dragValue = v);
-                        },
-                        onChangeEnd: (double v) {
-                          _player.seek(Duration(milliseconds: v.toInt()));
+                        onDragEnd: _scheduleHide,
+                        onSeek: (Duration v) {
+                          _player.seek(v);
                           setState(() {
                             _seeking = false;
-                            _position =
-                                Duration(milliseconds: v.toInt());
+                            _position = v;
                           });
-                          _scheduleHide();
                         },
                       ),
                     ),
@@ -526,6 +723,19 @@ class _RssVideoControlsState extends State<RssVideoControls> {
                         style: const TextStyle(fontSize: 13),
                       ),
                     ),
+                    // 画面比例（默认 / 16:9 / 4:3 / 拉伸 循环）。
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                      ),
+                      onPressed: _cycleAspect,
+                      child: Text(
+                        _aspects[_aspectIndex],
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
                     IconButton(
                       icon: Icon(
                         _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
@@ -533,6 +743,12 @@ class _RssVideoControlsState extends State<RssVideoControls> {
                       ),
                       tooltip: _muted ? 'Unmute' : 'Mute',
                       onPressed: _toggleMute,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.lock_outline_rounded,
+                          color: Colors.white),
+                      tooltip: 'Lock',
+                      onPressed: _toggleLock,
                     ),
                     IconButton(
                       icon: const Icon(Icons.fullscreen_rounded,
