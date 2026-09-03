@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.0-beta.6-announce",
+    "date": "2026-09-02",
+    "title": "NexHub 2.0.0-beta.6 预发布测试版",
+    "titleEn": "NexHub 2.0.0-beta.6 (pre-release beta)",
+    "body": "NexHub 2.0.0-beta.6 预发布测试版来了！本次把 RSS 订阅从「一个简单的列表」升级为完整的阅读模块：离线缓存（含正文，断网可读）+ 全文抓取、已读置灰与跨源收藏页、分组管理与 OPML 导入导出、输入网址自动发现订阅、单源与全局跨源搜索；文章里图片可点开进画廊缩放保存，视频直接内嵌播放（手势 / 锁屏 / 比例 / 进度记忆与主播放器一致），带音频的播客源可直接播放。还修好了图片 403 加载失败、音频显示 0:00、抓取超时、内嵌视频偶发连不上等实机问题，并支持条件 GET 省流量、非 UTF-8 订阅不再乱码，DNS 解析出多个 IP 时逐个重试（修复「浏览器能开、应用超时」）。更新提醒新增系统通知开关与充电时自动检测。这是 beta 测试版，可能有个别 bug，欢迎升级并反馈。无破坏性数据变更，可直接覆盖安装。",
+    "bodyEn": "NexHub 2.0.0-beta.6 (pre-release beta) is here! RSS subscription grows from a simple list into a full reading module: offline caching (full text included, readable without network) + full-text fetch, read-state dimming and a cross-source favorites page, group management with OPML import/export, feed auto-discovery from a site URL, and per-feed plus global cross-feed search. Images in articles open into a pannable/zoomable gallery with save and share, videos play inline (gestures / control lock / aspect ratio / progress memory, matching the main player), and podcast feeds with audio enclosures play right on the article page. Real-device fixes land too: image 403 failures, audio showing 0:00, fetch timeouts and flaky inline video. Conditional GET saves traffic, non-UTF-8 feeds no longer garble, and DNS results with multiple IPs are tried in order (fixing 'browser opens it, app times out'). Update reminders gain a system-notification toggle and a while-charging check. This is a beta — some bugs may remain; upgrade and report issues. No breaking data changes — just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.0-beta.5-announce",
     "date": "2026-08-31",
     "title": "NexHub 2.0.0-beta.5 预发布测试版",
