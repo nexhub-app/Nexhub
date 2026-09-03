@@ -1042,7 +1042,10 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                   decoration: InputDecoration(
                     labelText: l10n.libraryNameHint,
                     hintText: l10n.libraryNameHint,
-                    border: const OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppTokens.radiusMd),
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppTokens.spaceSm),
