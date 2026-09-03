@@ -21,6 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/media/media_kit_network.dart';
+import '../../../core/player/player_controller.dart';
 import '../../../core/player/widgets/seek_bar.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_log.dart';
@@ -51,8 +52,11 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
   /// 用户点击播放后才创建（与旧「点击播放按钮」行为一致）：页面 build 时
   /// 不自动 open，避免与正文抓取等请求并发、以及多个内嵌视频同时创建
   /// Player 的时序竞态（此前自动 open 表现为 mpv 报 tcp 连接失败）。
-  Player? _player;
-  VideoController? _controller;
+  ///
+  /// 走主播放器同款 [PlayerController] 封装：复用其 open（HLS demuxer /
+  /// file:// 归一化 / 字幕记忆）、seek 宽限、stall 检测、解码降级等能力。
+  PlayerController? _pc;
+  VideoController? _vc;
   bool _started = false;
   bool _failed = false;
   bool _retried = false;
@@ -101,11 +105,14 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
 
   Future<void> _startPlayback() async {
     if (_started) return;
-    final Player player = Player();
-    final VideoController controller = VideoController(player);
-    _player = player;
-    _controller = controller;
+    // 与主播放器同款封装：PlayerController 负责 Player 生命周期、open
+    // （HLS demuxer / file:// 归一化 / 字幕记忆）、seek 宽限与 stall 检测。
+    final PlayerController pc = PlayerController();
+    final VideoController vc = VideoController(pc.player);
+    _pc = pc;
+    _vc = vc;
     _started = true;
+    final Player player = pc.player;
     _durSub = player.stream.duration.listen((Duration d) {
       if (!mounted) return;
       if (d > Duration.zero) {
@@ -137,7 +144,8 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
     _posSub = player.stream.position.listen((Duration d) {
       _posSaveTimer ??= Timer(const Duration(seconds: 5), () {
         _posSaveTimer = null;
-        if (_player != null) unawaited(_savePosition(_player!));
+        final PlayerController? pc = _pc;
+        if (pc != null) unawaited(_savePosition(pc.player));
       });
     });
     if (mounted) setState(() {});
@@ -154,29 +162,28 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
   }
 
   Future<void> _open() async {
-    final Player? player = _player;
-    if (player == null || !mounted) return;
+    final PlayerController? pc = _pc;
+    if (pc == null || !mounted) return;
     setState(() => _failed = false);
     // fire-and-forget：Player 刚创建时 await setProperty 有内核未就绪的时序
     // 风险，绝不能阻塞 open（否则表现为永远 0 进度 → 超时判失败）。
-    unawaited(applyAppProxyToPlayer(player));
+    unawaited(applyAppProxyToPlayer(pc.player));
     unawaited(_setNetworkTimeout());
-    player.open(
-      Media(
-        widget.url,
-        httpHeaders: buildMediaHeaders(
-          pageUrl: widget.pageUrl,
-          mediaUrl: widget.url,
-        ),
+    await pc.open(
+      widget.url,
+      headers: buildMediaHeaders(
+        pageUrl: widget.pageUrl,
+        mediaUrl: widget.url,
       ),
-      play: true,
     );
+    await pc.play();
     // 进度记忆：媒体就绪后恢复上次位置（重开续播）。
-    unawaited(_restorePosition(player));
+    unawaited(_restorePosition(pc.player));
     _loadTimer?.cancel();
     _loadTimer = Timer(_loadTimeout, () {
       if (!mounted) return;
-      if (player.state.duration > Duration.zero || player.state.playing) {
+      if (pc.player.state.duration > Duration.zero ||
+          pc.player.state.playing) {
         return;
       }
       AppLog.instance.w('RSS 内嵌视频加载超时(20s 无时长未起播): ${widget.url}');
@@ -185,7 +192,7 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
   }
 
   Future<void> _setNetworkTimeout() async {
-    final Object? platform = _player?.platform;
+    final Object? platform = _pc?.player.platform;
     if (platform is! NativePlayer) return;
     try {
       await platform.setProperty('network-timeout', '60');
@@ -195,14 +202,16 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
   }
 
   Future<void> _openFullscreen() async {
-    final VideoController? controller = _controller;
-    if (!mounted || controller == null) return;
+    final PlayerController? pc = _pc;
+    final VideoController? vc = _vc;
+    if (!mounted || pc == null || vc == null) return;
     // 全屏复用同一 controller（进度不丢）；全屏页退出不释放 Player，
     // 由本组件持有直到 dispose。
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => RssVideoFullscreen(
-          controller: controller,
+          controller: pc,
+          videoController: vc,
           url: widget.url,
           title: widget.title,
           pageUrl: widget.pageUrl,
@@ -219,11 +228,11 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
     _durSub?.cancel();
     _posSub?.cancel();
     _completedSub?.cancel();
-    final Player? player = _player;
-    if (player != null) {
-      unawaited(_savePosition(player));
+    final PlayerController? pc = _pc;
+    if (pc != null) {
+      unawaited(_savePosition(pc.player));
     }
-    player?.dispose();
+    pc?.dispose();
     super.dispose();
   }
 
@@ -244,7 +253,7 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
                   fit: StackFit.expand,
                   children: <Widget>[
                     Video(
-                      controller: _controller!,
+                      controller: _vc!,
                       controls: NoVideoControls,
                       fit: BoxFit.contain,
                     ),
@@ -256,7 +265,8 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
                       )
                     else
                       RssVideoControls(
-                        controller: _controller!,
+                        controller: _pc!,
+                        videoController: _vc!,
                         onToggleFullscreen: () =>
                             unawaited(_openFullscreen()),
                       ),
@@ -294,7 +304,12 @@ class _RssInlineVideoPlayerState extends State<RssInlineVideoPlayer> {
 
 /// 全屏播放页：复用同一 [VideoController]（进度不丢），不创建新 Player。
 class RssVideoFullscreen extends StatelessWidget {
-  final VideoController controller;
+  /// 主播放器同款 [PlayerController] 封装（控制走封装方法）。
+  final PlayerController controller;
+
+  /// 渲染用 [VideoController]（与 controller.player 绑定）。
+  final VideoController videoController;
+
   final String url;
   final String? title;
   final String? pageUrl;
@@ -302,6 +317,7 @@ class RssVideoFullscreen extends StatelessWidget {
   const RssVideoFullscreen({
     super.key,
     required this.controller,
+    required this.videoController,
     required this.url,
     this.title,
     this.pageUrl,
@@ -316,7 +332,7 @@ class RssVideoFullscreen extends StatelessWidget {
           fit: StackFit.expand,
           children: <Widget>[
             Video(
-              controller: controller,
+              controller: videoController,
               controls: NoVideoControls,
               fit: BoxFit.contain,
             ),
@@ -355,6 +371,7 @@ class RssVideoFullscreen extends StatelessWidget {
             ),
             RssVideoControls(
               controller: controller,
+              videoController: videoController,
               onToggleFullscreen: () => Navigator.of(context).pop(),
             ),
           ],
@@ -366,12 +383,18 @@ class RssVideoFullscreen extends StatelessWidget {
 
 /// 视频控制条（内嵌与全屏共用）：播放/暂停、进度拖动、时间、倍速、音量、全屏。
 class RssVideoControls extends StatefulWidget {
-  final VideoController controller;
+  /// 主播放器同款 [PlayerController] 封装（播放控制走封装方法）。
+  final PlayerController controller;
+
+  /// 渲染用 [VideoController]（与 controller.player 绑定）。
+  final VideoController videoController;
+
   final VoidCallback onToggleFullscreen;
 
   const RssVideoControls({
     super.key,
     required this.controller,
+    required this.videoController,
     required this.onToggleFullscreen,
   });
 
@@ -465,9 +488,9 @@ class _RssVideoControlsState extends State<RssVideoControls> {
 
   void _togglePlay() {
     if (_playing) {
-      _player.pause();
+      unawaited(widget.controller.pause());
     } else {
-      _player.play();
+      unawaited(widget.controller.play());
     }
     _scheduleHide();
   }
@@ -475,21 +498,18 @@ class _RssVideoControlsState extends State<RssVideoControls> {
   void _cycleSpeed() {
     final int i = _speeds.indexOf(_speed);
     final double next = _speeds[(i + 1) % _speeds.length];
-    _player.setRate(next);
+    unawaited(widget.controller.setPlaybackSpeed(next));
     _scheduleHide();
   }
 
   void _toggleMute() {
-    if (_muted) {
-      _player.setVolume(50.0);
-    } else {
-      _player.setVolume(0.0);
-    }
+    unawaited(widget.controller.setVolume(_muted ? 50.0 : 0.0));
     _scheduleHide();
   }
 
   void _toggleLock() {
-    setState(() => _locked = !_locked);
+    widget.controller.toggleLock();
+    setState(() => _locked = widget.controller.isLocked);
     if (_locked) {
       // 锁定时隐藏控制条防误触。
       _hideTimer?.cancel();
@@ -501,14 +521,8 @@ class _RssVideoControlsState extends State<RssVideoControls> {
     final int next = (_aspectIndex + 1) % _aspects.length;
     _aspectIndex = next;
     final String ratio = _aspects[next];
-    // mpv video-aspect-override：default 还原原始比例，fill 拉伸铺满。
-    final Object? platform = _player.platform;
-    if (platform is NativePlayer) {
-      unawaited(platform.setProperty(
-        'video-aspect-override',
-        ratio == 'default' ? '-1' : (ratio == 'fill' ? 'fill' : ratio),
-      ));
-    }
+    // 走 PlayerController 封装（内部映射为 mpv video-aspect-override）。
+    unawaited(widget.controller.setAspectRatio(ratio));
     _showGesture(_aspects[next]);
     _scheduleHide();
   }
@@ -541,7 +555,7 @@ class _RssVideoControlsState extends State<RssVideoControls> {
     final Duration clamped = target < Duration.zero
         ? Duration.zero
         : (target > _duration ? _duration : target);
-    unawaited(_player.seek(clamped));
+    unawaited(widget.controller.seek(clamped));
     _showGesture('${right ? '+' : '-'}$seconds s');
   }
 
@@ -566,7 +580,8 @@ class _RssVideoControlsState extends State<RssVideoControls> {
 
   void _endHorizontalDrag() {
     if (_seeking) {
-      unawaited(_player.seek(Duration(milliseconds: _dragValue.round())));
+      unawaited(widget.controller.seek(
+          Duration(milliseconds: _dragValue.round())));
       setState(() {
         _seeking = false;
         _position = Duration(milliseconds: _dragValue.round());
@@ -699,7 +714,7 @@ class _RssVideoControlsState extends State<RssVideoControls> {
                         },
                         onDragEnd: _scheduleHide,
                         onSeek: (Duration v) {
-                          _player.seek(v);
+                          unawaited(widget.controller.seek(v));
                           setState(() {
                             _seeking = false;
                             _position = v;

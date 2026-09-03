@@ -24,6 +24,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/media/media_kit_network.dart';
+import '../../../core/player/player_controller.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/utils/app_log.dart';
@@ -75,8 +76,8 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
   /// 只表现为永远停在 0 进度，须按超时判失败。
   static const Duration _loadTimeout = Duration(seconds: 20);
 
-  late final Player _player;
-  late final VideoController _controller;
+  late final PlayerController _pc;
+  late final VideoController _vc;
   bool _failed = false;
   bool _immersive = false;
   Timer? _loadTimer;
@@ -87,9 +88,11 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
   void initState() {
     super.initState();
     MediaKit.ensureInitialized();
-    _player = Player();
-    _controller = VideoController(_player);
-    _durSub = _player.stream.duration.listen((Duration d) {
+    // 与主播放器同款封装：PlayerController 负责 Player 生命周期与 open。
+    _pc = PlayerController();
+    _vc = VideoController(_pc.player);
+    final Player player = _pc.player;
+    _durSub = player.stream.duration.listen((Duration d) {
       if (!mounted) return;
       if (d > Duration.zero) {
         _loadTimer?.cancel();
@@ -97,7 +100,7 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
         if (_failed) setState(() => _failed = false);
       }
     });
-    _errorSub = _player.stream.error.listen((String message) {
+    _errorSub = player.stream.error.listen((String message) {
       AppLog.instance.w('RSS 视频内核报错: ${widget.url} — $message');
       if (!mounted) return;
       _loadTimer?.cancel();
@@ -111,22 +114,21 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
     if (mounted) setState(() => _failed = false);
     // fire-and-forget：Player 刚创建时 await setProperty 有内核未就绪的
     // 时序风险，绝不能阻塞 open（否则表现为永远 0 进度 → 超时判失败）。
-    unawaited(applyAppProxyToPlayer(_player));
+    unawaited(applyAppProxyToPlayer(_pc.player));
     unawaited(_setNetworkTimeout());
-    _player.open(
-      Media(
-        widget.url,
-        httpHeaders: buildMediaHeaders(
-          pageUrl: widget.pageUrl,
-          mediaUrl: widget.url,
-        ),
+    await _pc.open(
+      widget.url,
+      headers: buildMediaHeaders(
+        pageUrl: widget.pageUrl,
+        mediaUrl: widget.url,
       ),
-      play: true,
     );
+    await _pc.play();
     _loadTimer?.cancel();
     _loadTimer = Timer(_loadTimeout, () {
       if (!mounted) return;
-      if (_player.state.duration > Duration.zero || _player.state.playing) {
+      if (_pc.player.state.duration > Duration.zero ||
+          _pc.player.state.playing) {
         return;
       }
       AppLog.instance.w('RSS 视频加载超时(20s 无时长未起播): ${widget.url}');
@@ -136,7 +138,7 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
 
   /// 松散网络下放宽 mpv 网络超时（与影视播放器 MediaKitBackend 同值）。
   Future<void> _setNetworkTimeout() async {
-    final Object? platform = _player.platform;
+    final Object? platform = _pc.player.platform;
     if (platform is! NativePlayer) return;
     try {
       await platform.setProperty('network-timeout', '60');
@@ -150,7 +152,7 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
     _loadTimer?.cancel();
     _errorSub?.cancel();
     _durSub?.cancel();
-    _player.dispose();
+    _pc.dispose();
     super.dispose();
   }
 
@@ -180,7 +182,7 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
             // 关闭 media_kit 默认控制栏（布局异常且无进度/时长），
             // 统一走应用自定义控制条（RssVideoControls，底部 + 可全屏）。
             Video(
-              controller: _controller,
+              controller: _vc,
               controls: NoVideoControls,
               fit: BoxFit.contain,
             ),
@@ -188,7 +190,8 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
               _buildFailure(context, l10n)
             else
               RssVideoControls(
-                controller: _controller,
+                controller: _pc,
+                videoController: _vc,
                 onToggleFullscreen: () => setState(() {
                   _immersive = !_immersive;
                 }),
