@@ -27,7 +27,6 @@ class AppUrlInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -37,6 +36,11 @@ class AppUrlInputBar extends StatelessWidget {
             decoration: InputDecoration(
               hintText: hintText,
               labelText: labelText,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppTokens.spaceMd,
+                vertical: AppTokens.spaceSm,
+              ),
               prefixIcon: const Icon(Icons.link),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppTokens.radiusMd),
@@ -47,27 +51,25 @@ class AppUrlInputBar extends StatelessWidget {
             onSubmitted: isLoading ? null : (v) => onSubmit(v.trim()),
           ),
         ),
-        const SizedBox(width: AppTokens.spaceMd),
+        const SizedBox(width: AppTokens.spaceSm),
         SizedBox(
-          width: 132,
-          child: FilledButton.icon(
+          width: 100,
+          child: FilledButton(
             style: FilledButton.styleFrom(
-              minimumSize: const Size(132, 56),
+              minimumSize: const Size(100, 44),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm),
             ),
             onPressed: isLoading
                 ? null
                 : () => onSubmit(controller?.text.trim() ?? ''),
-            icon: isLoading
-                ? SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: scheme.onPrimary,
-                    ),
+            child: isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.arrow_forward),
-            label: Text(submitLabel),
+                : Text(submitLabel),
           ),
         ),
       ],

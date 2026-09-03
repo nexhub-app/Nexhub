@@ -108,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
 /// 所有 Tab 页面常驻 [Stack]（保留状态）；切换时新页滑入、旧页滑出：
 /// - 底部导航（窄屏 < [AppTokens.desktopBreakpoint]）：左右滑动；
 /// - 侧边导航（宽屏 ≥ 断点）：上下滑动。
+/// 仅渲染当前页 + 上一切换页（[Offstage] 隐藏中间页，优化绘制性能）。
 class _AnimatedTabView extends StatefulWidget {
   const _AnimatedTabView({required this.index, required this.children});
 
@@ -119,6 +120,16 @@ class _AnimatedTabView extends StatefulWidget {
 }
 
 class _AnimatedTabViewState extends State<_AnimatedTabView> {
+  int? _oldIndex;
+
+  @override
+  void didUpdateWidget(covariant _AnimatedTabView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.index != widget.index) {
+      _oldIndex = oldWidget.index;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isWide =
@@ -127,17 +138,20 @@ class _AnimatedTabViewState extends State<_AnimatedTabView> {
       fit: StackFit.expand,
       children: List<Widget>.generate(widget.children.length, (int i) {
         final bool active = i == widget.index;
-        // 非当前页滑出屏幕：宽屏纵向（上/下），窄屏横向（左/右）。
+        final bool render = active || i == _oldIndex;
         final Offset hidden = isWide
             ? Offset(0, i < widget.index ? -1 : 1)
             : Offset(i < widget.index ? -1 : 1, 0);
-        return IgnorePointer(
-          ignoring: !active,
-          child: AnimatedSlide(
-            offset: active ? Offset.zero : hidden,
-            duration: AppTokens.durSpring,
-            curve: AppCurves.smooth,
-            child: widget.children[i],
+        return Offstage(
+          offstage: !render,
+          child: IgnorePointer(
+            ignoring: !active,
+            child: AnimatedSlide(
+              offset: active ? Offset.zero : hidden,
+              duration: AppTokens.durSpring,
+              curve: AppCurves.smooth,
+              child: widget.children[i],
+            ),
           ),
         );
       }),

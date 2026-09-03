@@ -84,7 +84,7 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
             ),
             title: Text(
               source.name,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
             ),

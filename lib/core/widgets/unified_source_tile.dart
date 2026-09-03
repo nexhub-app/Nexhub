@@ -80,8 +80,10 @@ class UnifiedSourceTile extends StatelessWidget {
       children: <Widget>[
         Text(
           name,
-          style: isHidden ? TextStyle(color: scheme.onSurfaceVariant) : null,
-          maxLines: 2,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: isHidden ? scheme.onSurfaceVariant : null,
+              ),
+          maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         if (ageRating != null || showNotLoggedIn) ...<Widget>[
@@ -143,9 +145,9 @@ class UnifiedSourceTile extends StatelessWidget {
       ),
     };
     return Chip(
-      label: Text(label, style: const TextStyle(fontSize: 11)),
+      label: Text(label),
       backgroundColor: bg,
-      labelStyle: TextStyle(color: fg, fontSize: 11),
+      labelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(color: fg),
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       side: BorderSide.none,
@@ -156,9 +158,12 @@ class UnifiedSourceTile extends StatelessWidget {
   Widget _notLoggedInChip(BuildContext context, ColorScheme scheme) {
     final l10n = AppLocalizations.of(context);
     return Chip(
-      label: Text(l10n.sourceNotLoggedIn,
-          style: TextStyle(color: scheme.onErrorContainer, fontSize: 11)),
+      label: Text(l10n.sourceNotLoggedIn),
       backgroundColor: scheme.errorContainer,
+      labelStyle: Theme.of(context)
+          .textTheme
+          .labelSmall
+          ?.copyWith(color: scheme.onErrorContainer),
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       side: BorderSide.none,

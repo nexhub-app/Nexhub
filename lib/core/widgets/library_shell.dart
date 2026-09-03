@@ -178,7 +178,6 @@ class _LibraryShellState extends State<LibraryShell> {
                       widget.onSearch();
                     },
                   ),
-                  // 导入入口紧邻搜索（左侧），符合「导入移至搜索旁」要求。
                   if (widget.onEmptyAction != null &&
                       _sub.first == LibrarySubTab.local)
                     IconButton(
@@ -189,18 +188,18 @@ class _LibraryShellState extends State<LibraryShell> {
                         widget.onEmptyAction!();
                       },
                     ),
+                  if (widget.historySourceType != null &&
+                      _sub.first == LibrarySubTab.history)
+                    IconButton(
+                      icon: const Icon(Icons.delete_sweep_outlined),
+                      tooltip: l10n.clearHistory,
+                      onPressed: _confirmClearHistory,
+                    ),
                 ],
               )
             : null,
         actions: <Widget>[
           if (_currentTopTab == LibraryTopTab.library) ...[
-            if (widget.historySourceType != null &&
-                _sub.first == LibrarySubTab.history)
-              IconButton(
-                icon: const Icon(Icons.delete_sweep_outlined),
-                tooltip: l10n.clearHistory,
-                onPressed: _confirmClearHistory,
-              ),
             AppIconButton(
               icon: Icons.filter_list_outlined,
               tooltip: l10n.filter,
