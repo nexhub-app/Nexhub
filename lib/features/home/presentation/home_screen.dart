@@ -103,16 +103,45 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// 底栏 / 侧栏 Tab 内容视图：瞬切，保留全部 Tab 状态（滚动位置/输入）。
-class _AnimatedTabView extends StatelessWidget {
+/// 底栏 / 侧栏 Tab 内容滑动切换视图。
+///
+/// 所有 Tab 页面常驻 [Stack]（保留状态）；切换时新页滑入、旧页滑出：
+/// - 底部导航（窄屏 < [AppTokens.desktopBreakpoint]）：左右滑动；
+/// - 侧边导航（宽屏 ≥ 断点）：上下滑动。
+class _AnimatedTabView extends StatefulWidget {
   const _AnimatedTabView({required this.index, required this.children});
 
   final int index;
   final List<Widget> children;
 
   @override
+  State<_AnimatedTabView> createState() => _AnimatedTabViewState();
+}
+
+class _AnimatedTabViewState extends State<_AnimatedTabView> {
+  @override
   Widget build(BuildContext context) {
-    return IndexedStack(index: index, children: children);
+    final bool isWide =
+        MediaQuery.sizeOf(context).width >= AppTokens.desktopBreakpoint;
+    return Stack(
+      fit: StackFit.expand,
+      children: List<Widget>.generate(widget.children.length, (int i) {
+        final bool active = i == widget.index;
+        // 非当前页滑出屏幕：宽屏纵向（上/下），窄屏横向（左/右）。
+        final Offset hidden = isWide
+            ? Offset(0, i < widget.index ? -1 : 1)
+            : Offset(i < widget.index ? -1 : 1, 0);
+        return IgnorePointer(
+          ignoring: !active,
+          child: AnimatedSlide(
+            offset: active ? Offset.zero : hidden,
+            duration: AppTokens.durSpring,
+            curve: AppCurves.smooth,
+            child: widget.children[i],
+          ),
+        );
+      }),
+    );
   }
 }
 

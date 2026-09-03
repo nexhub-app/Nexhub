@@ -114,12 +114,6 @@ class UnifiedSourceTile extends StatelessWidget {
           ),
         ),
         title: titleWidget,
-        subtitle: url != null
-            ? Text(url!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: scheme.onSurfaceVariant))
-            : null,
         trailing: _buildTrailing(scheme),
         onTap: onTap,
         contentPadding:
