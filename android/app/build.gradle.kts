@@ -33,6 +33,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications 的 AAR 元数据要求 app 启用 core library desugaring
+        // （checkReleaseAarMetadata 会直接 FAILURE），否则构建报
+        // "requires core library desugaring to be enabled for :app"。
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -95,5 +99,8 @@ flutter {
 // 源 WebView 网络跟随：ProxyController（API 28+）把源域名导到本地正向代理，
 // 绕开 DNS 污染。androidx.webkit 提供 ProxyConfig / ProxyController。
 dependencies {
+    // 上面 isCoreLibraryDesugaringEnabled 所需的 desugar 运行时库
+    // （版本需 >= flutter_local_notifications 元数据要求的最低值，2.1.5 满足）。
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("androidx.webkit:webkit:1.12.0")
 }
