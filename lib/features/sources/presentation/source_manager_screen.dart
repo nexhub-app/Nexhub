@@ -638,10 +638,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           Material(
             color: scheme.surface,
             child: TabBar(
-              // 窄屏可滚动，避免图标+文案被挤压重叠（项 1 一并改内层分类栏）。
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              // 切换分类时轻震一下（onTap 不影响 DefaultTabController 自动切换）。
+              // 3 分类等宽平分（小说/媒体/漫画）。
               onTap: (_) => AppHaptics.selectionClick(),
               tabs: <Widget>[
                 Tab(icon: const Icon(Icons.book), text: l10n.sourceCategoryNovel),

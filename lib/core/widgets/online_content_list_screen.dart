@@ -1214,6 +1214,12 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       ),
       child: Row(
         children: <Widget>[
+          if (widget.onSearch != null)
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: l10n.search,
+              onPressed: widget.onSearch,
+            ),
           Expanded(
             child: TabBar(
               controller: _tabController,
@@ -1314,37 +1320,25 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         color: scheme.surface,
         boxShadow: AppShadows.card(scheme),
       ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: widget.sources.asMap().entries.map((e) {
-                  final int i = e.key;
-                  final s = e.value;
-                  final selected = s.id == _source?.id;
-                  return Padding(
-                    key: selected ? _chipKey(i, s.id) : null,
-                    padding: const EdgeInsets.only(right: AppTokens.spaceSm),
-                    child: _SourceChip(
-                      label: s.name,
-                      selected: selected,
-                      onTap: () => _onSource(s),
-                    ),
-                  );
-                }).toList(),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: widget.sources.asMap().entries.map((e) {
+            final int i = e.key;
+            final s = e.value;
+            final selected = s.id == _source?.id;
+            return Padding(
+              key: selected ? _chipKey(i, s.id) : null,
+              padding: const EdgeInsets.only(right: AppTokens.spaceSm),
+              child: _SourceChip(
+                label: s.name,
+                selected: selected,
+                onTap: () => _onSource(s),
               ),
-            ),
-          ),
-          if (widget.onSearch != null)
-            IconButton(
-              icon: const Icon(Icons.search),
-              tooltip: l10n.search,
-              onPressed: widget.onSearch,
-            ),
-        ],
+            );
+          }).toList(),
+        ),
       ),
     );
   }

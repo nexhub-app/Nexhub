@@ -96,11 +96,51 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
     };
 
     return Scaffold(
-      appBar: widget.moduleType == null
-          ? AppBar(
-              // 全局视图保留顶栏（返回导航）；标题与测速/更多按要求删去。
-            )
-          : null,
+      appBar: AppBar(
+        title: Text(l10n.rssFeedListTitle),
+        actions: <Widget>[
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: l10n.moreActions,
+            onSelected: (action) => _onTopMenu(action, context, manager),
+            itemBuilder: (ctx) => <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(
+                value: 'opml',
+                child: ListTile(
+                  leading: const Icon(Icons.import_export_outlined),
+                  title: Text(l10n.rssOpmlTitle),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'discover',
+                child: ListTile(
+                  leading: const Icon(Icons.language_outlined),
+                  title: Text(l10n.rssDiscoverTitle),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'global_search',
+                child: ListTile(
+                  leading: const Icon(Icons.search_outlined),
+                  title: Text(l10n.rssSearchTitle),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              if (widget.moduleType == null)
+                PopupMenuItem<String>(
+                  value: 'manage_groups',
+                  child: ListTile(
+                    leading: const Icon(Icons.folder_outlined),
+                    title: Text(l10n.rssGroupManage),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
       body: visibleFeeds.isEmpty
           ? AppEmptyState(
               icon: emptyIcon,
