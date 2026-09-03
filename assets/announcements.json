@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.0-beta.8-announce",
+    "date": "2026-09-03",
+    "title": "NexHub 2.0.0-beta.8 预发布测试版",
+    "titleEn": "NexHub 2.0.0-beta.8 (pre-release beta)",
+    "body": "NexHub 2.0.0-beta.8 预发布测试版来了！本次集中打磨界面手感：新增统一的微交互动画（卡片划入、数值脉冲、刷新指示器等），整体偏小字号、收紧间距；首页 / 分类支持滑动切换导航，源列表去掉冗余 URL 行、在线浏览的搜索与筛选对齐、RSS 顶栏恢复。无破坏性数据变更，可直接覆盖安装。另外想跟大家说一声：过去两三个月我几乎每天高强度开发（常一天十小时以上），现在有点累了，想先休息一段时间；NexHub 不会停更，后续我仍会持续维护（修 bug、保稳定），只是功能上可能不会有大的新增，节奏会慢一些。感谢一路的陪伴。",
+    "bodyEn": "NexHub 2.0.0-beta.8 (pre-release beta) is here! This release focuses on UI and interaction polish: unified micro-interaction animations (card slide-in, value pulse, refresh indicator), smaller fonts and tighter spacing; swipe-to-switch navigation on home/categories, a cleaner source list (redundant URL row removed), symmetric search/filter in the online browser, and the RSS top bar restored. No breaking data changes — just overwrite-install. A note from the author: after two to three months of near-daily, high-intensity development (often ten-plus hours a day), I'm a bit tired and want to take a break for a while. NexHub is not abandoned — I'll keep maintaining it (bug fixes, stability), but feature growth may slow down for a bit. Thanks for all the company along the way.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.0-beta.7-announce",
     "date": "2026-09-03",
     "title": "NexHub 2.0.0-beta.7 预发布测试版",
