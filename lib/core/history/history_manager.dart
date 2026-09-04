@@ -308,10 +308,16 @@ class HistoryManager extends ChangeNotifier {
   /// 遍历所有已加载的历史条目，对无本地缓存（或缓存文件已丢失）的远程封面
   /// 重新下载；已缓存的有效条目跳过。任何失败均静默忽略，不影响历史功能。
   Future<void> _backfillMissingCovers() async {
-    for (final list in _cache.values) {
-      for (final entry in list) {
-        await _cacheCoverFor(entry);
-      }
+    // 先快照再遍历：_cacheCoverFor 回写会经 _replaceEntryInCache 对 _cache
+    // 中的 List 原地赋值（list[idx] = updated）。在 await 异步间隙内直接
+    // for-in 同一 List 会抛「Concurrent modification during iteration」
+    // 未捕获异常并崩掉 isolate（启动时历史条目越多越易触发）。
+    // 快照持有的是元素引用，遍历安全；回写只影响原 List 不影响快照。
+    final snapshot = <HistoryEntry>[
+      for (final list in _cache.values) ...list,
+    ];
+    for (final entry in snapshot) {
+      await _cacheCoverFor(entry);
     }
   }
 
