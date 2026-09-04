@@ -215,9 +215,9 @@ class _ImageFavoriteGalleryScreenState
     );
   }
 
-  /// 分享：本地文件发文件（截图），网络链接发文本链接。
+  /// 分享：本地缓存/本地文件发文件（收藏已落盘或截图），网络链接发文本链接。
   Future<void> _share(ImageFavorite favorite) async {
-    final String url = favorite.imageUrl;
+    final String url = imageFavoriteDisplayUrl(favorite);
     try {
       if (!url.startsWith('http')) {
         final File file = File(url);
@@ -264,15 +264,7 @@ class _ImageFavoriteGalleryScreenState
       setState(() {
         _favorites = _favorites
             .map((f) => f.key == favorite.key
-                ? ImageFavorite(
-                    source: f.source,
-                    comicId: f.comicId,
-                    chapterIndex: f.chapterIndex,
-                    chapterTitle: title.trim(),
-                    pageIndex: f.pageIndex,
-                    imageUrl: f.imageUrl,
-                    createdAt: f.createdAt,
-                  )
+                ? f.copyWith(chapterTitle: title.trim())
                 : f)
             .toList();
       });
@@ -422,16 +414,7 @@ class _ImageFavoriteGalleryScreenState
   }
 
   ImageFavorite _withFolder(ImageFavorite f, String folder) =>
-      ImageFavorite(
-        source: f.source,
-        comicId: f.comicId,
-        chapterIndex: f.chapterIndex,
-        chapterTitle: f.chapterTitle,
-        pageIndex: f.pageIndex,
-        imageUrl: f.imageUrl,
-        createdAt: f.createdAt,
-        folder: folder,
-      );
+      f.copyWith(folder: folder);
 
   // ─────────────── 多选模式 ───────────────
 
@@ -542,16 +525,7 @@ class _ImageFavoriteGalleryScreenState
     setState(() {
       _favorites = _favorites
           .map((f) => f.key == t.key
-              ? ImageFavorite(
-                  source: f.source,
-                  comicId: f.comicId,
-                  chapterIndex: f.chapterIndex,
-                  chapterTitle: title.trim(),
-                  pageIndex: f.pageIndex,
-                  imageUrl: f.imageUrl,
-                  createdAt: f.createdAt,
-                  folder: f.folder,
-                )
+              ? f.copyWith(chapterTitle: title.trim())
               : f)
           .toList();
       _selected.clear();
@@ -1120,7 +1094,7 @@ class _ImageFavoriteGalleryScreenState
             fit: StackFit.expand,
             children: <Widget>[
               SourceImage(
-                url: favorite.imageUrl,
+                url: imageFavoriteDisplayUrl(favorite),
                 heroTag: favorite.key,
                 fit: BoxFit.cover,
               ),

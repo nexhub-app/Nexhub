@@ -19,6 +19,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 
 import '../../../core/utils/app_haptics.dart';
+import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/comic/comic_bookmark_manager.dart';
 import '../../../core/comic/comic_progress_manager.dart';
 import '../../../core/comic/image_favorite_manager.dart';
@@ -217,6 +218,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   final Map<int, List<String>> _preload = <int, List<String>>{};
   /// 正在预加载的章节下标集合（防止同一章重复发起请求）。
   final Set<int> _preloading = <int>{};
+
+  /// 图片 URL → Referer（取图反盗链用）。
+  ///
+  /// 部分站点按「图片 ↔ 所属章节页」绑定校验 Referer（如 GraphQL 漫画源的
+  /// /api/image/{kid} 只认 `章节页 URL`，固定 antiHotlinking.referer 返回 400）。
+  /// 加载/预载章节时按浏览器 referrer-policy 推导并登记（同源发完整章节页
+  /// URL、跨域发 origin，见 [HttpFetcher.refererForSubresource]）。
+  final Map<String, String> _urlReferers = <String, String>{};
 
   /// 渲染后抽取请求（webview-html 模式，如 manga_goda / manga_baozimh 的
   /// images 脚本路由）：非 null 时显示「抓取本页渲染内容」引导，抓取后回填
@@ -1069,6 +1078,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         ),
       );
     }
+    if (added) {
+      // 收藏即缓存到本地（取消收藏时才删文件，清理缓存不清理；
+      // Referer 用章节页推导值——部分源按图片↔章节页绑定校验）。
+      unawaited(_imageFavMgr.attachLocalCache(url, referer: _refererFor(url)));
+    }
   }
 
   /// 打开图片收藏图库（REQ-C2 · 问题 3：漫画入口仅显示漫画收藏）。
@@ -1458,6 +1472,20 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   // ─────────────────────── 数据加载 ───────────────────────
 
+  /// 登记一批图片的取图 Referer（章节页 URL 推导，见 [_urlReferers] 注释）。
+  /// best-effort：章节页 URL 非法（本地章节等）时静默跳过。
+  void _registerImageReferers(List<String> urls, String chapterPageUrl) {
+    for (final String u in urls) {
+      final String? referer =
+          HttpFetcher.refererForSubresource(chapterPageUrl, u);
+      if (referer != null && referer.isNotEmpty) _urlReferers[u] = referer;
+    }
+  }
+
+  /// 查询某图片 URL 的取图 Referer（未登记返回 null → 回退源 antiHotlinking）。
+  String? _refererFor(String imageUrl) => _urlReferers[imageUrl];
+
+
   Future<void> _loadChapter(int index,
       {int restorePage = 0, bool restoreToLast = false}) async {
     final int token = _loadSession.next();
@@ -1478,6 +1506,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             chapterId: chapter.id,
             renderedHtml: _renderedHtmlByChapter[index],
           );
+      // 登记本章图片的取图 Referer（章节页 URL 推导，见 _urlReferers 注释）。
+      _registerImageReferers(imgs, chapter.url);
+      // 翻译控制器 OCR 拉图同源指纹：同步当前章节页 URL 供 Referer 推导。
+      _translation.updateChapterPageUrl(chapter.url);
       // 期间若又发起了更新的加载（快速翻章），丢弃本次过期结果，
       // 避免旧章节的图片覆盖到新 _chapterIndex 上导致显示错乱。
       if (!_loadSession.isValid(token) || !mounted) return;
@@ -1945,6 +1977,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         .then((imgs) {
           if (!mounted) return;
           _preload[index] = imgs;
+          // 预载章图片同样登记 Referer（seam 无缝列表会直接显示邻章图片）。
+          _registerImageReferers(
+              imgs, widget.chapters[index].url);
           // 预载完成后重建段式连续模型：邻段条目新近可用。若完成的是【上一章】，
           // 前插会把当前章扁平索引整体后移，需记录锚点并重放以保持视口不跳变
           // （Bug 6：首页向下阅读被误拉回上一话末页）；追加下一章段时重放为同索引。
@@ -4498,6 +4533,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                         context: context,
                         url: _images[_currentPage.clamp(0, _images.length - 1)],
                         source: _source,
+                        referer: _refererFor(
+                            _images[_currentPage.clamp(0, _images.length - 1)]),
                         comicId: widget.comicId,
                         sourceType: SourceType.mangaSource,
                         onBookmarkChapter: _toggleChapterBookmarkFromMenu,
@@ -4520,6 +4557,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                         context: context,
                         url: _images[_currentPage.clamp(0, _images.length - 1)],
                         source: _source,
+                        referer: _refererFor(
+                            _images[_currentPage.clamp(0, _images.length - 1)]),
                         comicId: widget.comicId,
                         sourceType: SourceType.mangaSource,
                         onBookmarkChapter: _toggleChapterBookmarkFromMenu,
@@ -4858,6 +4897,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             prefs: _prefs,
             zoomController: _zoomController,
             source: _source,
+            refererResolver: _refererFor,
             rotationQuarterTurns: _pageRotations[i] ?? 0,
             cropEdge: _prefs.cropEdge,
             translation: _translation,
@@ -4900,6 +4940,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     url: _images[i],
                     prefs: _prefs,
                     source: _source,
+                    refererResolver: _refererFor,
                     rotationQuarterTurns: _pageRotations[i] ?? 0,
                     cropEdge: _prefs.cropEdge,
                     translation: _translation,
@@ -4950,6 +4991,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               prefs: _prefs,
               zoomController: _zoomController,
               source: _source,
+              refererResolver: _refererFor,
               rotationQuarterTurns: _pageRotations[a] ?? 0,
               cropEdge: _prefs.cropEdge,
               translation: _translation,
@@ -4965,6 +5007,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               prefs: _prefs,
               zoomController: _zoomController,
               source: _source,
+              refererResolver: _refererFor,
               rotationQuarterTurns: _pageRotations[b] ?? 0,
               cropEdge: _prefs.cropEdge,
               translation: _translation,
@@ -5046,7 +5089,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                 child: SizedBox(
                   height: 140,
-                  child: SourceImage(url: nextPreviewUrl, source: _source),
+                  child: SourceImage(
+                    url: nextPreviewUrl,
+                    source: _source,
+                    refererOverride: _refererFor(nextPreviewUrl),
+                  ),
                 ),
               ),
             ],
@@ -5457,6 +5504,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             url: url,
             prefs: _prefs,
             source: _source,
+            refererResolver: _refererFor,
             rotationQuarterTurns: _pageRotations[pageIdx] ?? 0,
             cropEdge: _prefs.cropEdge,
             // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
@@ -6221,6 +6269,11 @@ class MangaPageImage extends StatefulWidget {
   /// 未命中（该图从未加载过）返回 null，由调用方回退经验值。
   final double? Function(String url, double maxWidth)? realHeightResolver;
 
+  /// 查询某图片 URL 的取图 Referer（章节页 URL 推导；null 回退源
+  /// antiHotlinking.referer）。部分站点按「图片 ↔ 所属章节页」绑定校验
+  /// Referer，固定站点级 Referer 取不到图。
+  final String? Function(String url)? refererResolver;
+
   /// 漫画翻译控制器（漫画翻译功能）。非 null 且开关打开时，在该页图片上
   /// 叠加译文覆盖层（气泡按千分比坐标映射到显示矩形）。
   final ComicTranslationController? translation;
@@ -6241,6 +6294,7 @@ class MangaPageImage extends StatefulWidget {
     this.onUrlLoaded,
     this.onImageInfo,
     this.realHeightResolver,
+    this.refererResolver,
     this.translation,
     this.translationRetry,
   });
@@ -6320,6 +6374,7 @@ class _MangaPageImageState extends State<MangaPageImage> {
     final Widget imgSource = SourceImage(
       url: widget.url,
       source: widget.source,
+      refererOverride: widget.refererResolver?.call(widget.url),
       fit: fit,
       width: width,
       decodeCapWidthPx: decodeCapWidthPx,

@@ -284,6 +284,35 @@ class HttpFetcher {
   /// 取该 host 实际使用的 UA（供调用方在注册/覆盖前查询）。
   String userAgentForHost(String host) => _uaForHost(host);
 
+  /// 按浏览器 referrer-policy 默认行为推导「子资源 Referer」。
+  ///
+  /// 浏览器加载页面内图片等子资源时：同源 → 发送完整页面 URL；跨域 → 只发送
+  /// 页面 origin（strict-origin-when-cross-origin）。部分站点（如按 kid↔章节
+  /// 绑定校验 Referer 的 GraphQL 漫画站）必须携带**所属章节页** Referer 才能
+  /// 取图，固定 antiHotlinking.referer 无法满足——调用方（阅读器/下载器）在
+  /// 已知「图片所属页面 URL」时用本方法推导，取不到返回 null（回退源配置）。
+  static String? refererForSubresource(String? pageUrl, String resourceUrl) {
+    if (pageUrl == null || pageUrl.isEmpty) return null;
+    if (!pageUrl.startsWith('http://') && !pageUrl.startsWith('https://')) {
+      return null;
+    }
+    final Uri? page = Uri.tryParse(pageUrl);
+    if (page == null || page.host.isEmpty) return null;
+    final Uri? res = Uri.tryParse(resourceUrl);
+    if (res == null || res.host.isEmpty) return null;
+    final bool sameOrigin = res.scheme == page.scheme &&
+        res.host == page.host &&
+        res.port == page.port;
+    if (sameOrigin) return pageUrl;
+    try {
+      return page.origin;
+    } on Object {
+      // origin 对非 http(s) 会抛异常，但上面已过滤；兜底手拼。
+      return '${page.scheme}://${page.host}';
+    }
+  }
+
+
   /// 完整浏览器 UA：优先用户配置的全局默认 UA；否则 Android 返回与系统 Chrome
   /// 一致的**移动版** UA，其他平台返回内置桌面 UA。
   ///

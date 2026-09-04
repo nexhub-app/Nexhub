@@ -223,7 +223,8 @@ class _MasonryItem extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                SourceImage(url: favorite.imageUrl, fit: BoxFit.cover),
+                SourceImage(
+                    url: imageFavoriteDisplayUrl(favorite), fit: BoxFit.cover),
                 Positioned(
                   left: AppTokens.spaceXs,
                   bottom: showMeta ? 28 : AppTokens.spaceXs,
@@ -355,7 +356,7 @@ class _WorkStackCardState extends State<_WorkStackCard> {
                       onPageChanged: (int i) => setState(() => _page = i),
                       itemBuilder: (BuildContext ctx, int index) {
                         return SourceImage(
-                          url: items[index].imageUrl,
+                          url: imageFavoriteDisplayUrl(items[index]),
                           fit: BoxFit.cover,
                           radius: AppTokens.radiusMd,
                         );
@@ -421,7 +422,8 @@ class _WorkStackCardState extends State<_WorkStackCard> {
       opacity: opacity,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        child: SourceImage(url: f.imageUrl, fit: BoxFit.cover),
+        child: SourceImage(
+            url: imageFavoriteDisplayUrl(f), fit: BoxFit.cover),
       ),
     );
   }
@@ -487,7 +489,8 @@ class _WorkPagerPageState extends State<_WorkPagerPage> {
   Future<void> _shareCurrent() async {
     if (_items.isEmpty) return;
     final ImageFavorite f = _items[_index];
-    final String url = f.imageUrl;
+    // 已缓存到本地的收藏直接发文件（离线可用）。
+    final String url = imageFavoriteDisplayUrl(f);
     try {
       if (!url.startsWith('http')) {
         final File file = File(url);
@@ -548,7 +551,7 @@ class _WorkPagerPageState extends State<_WorkPagerPage> {
                     maxScale: 5,
                     child: Center(
                       child: SourceImage(
-                        url: _items[index].imageUrl,
+                        url: imageFavoriteDisplayUrl(_items[index]),
                         width: MediaQuery.sizeOf(ctx).width,
                         height: MediaQuery.sizeOf(ctx).height,
                         fit: BoxFit.contain,
@@ -582,11 +585,11 @@ class _ImageFavoriteViewer extends StatelessWidget {
           child: Center(
             child: Hero(
               tag: favorite.key,
-              child: SourceImage(
-                url: favorite.imageUrl,
-                width: size.width,
-                height: size.height,
-                fit: BoxFit.contain,
+            child: SourceImage(
+              url: imageFavoriteDisplayUrl(favorite),
+              width: size.width,
+              height: size.height,
+              fit: BoxFit.contain,
               ),
             ),
           ),

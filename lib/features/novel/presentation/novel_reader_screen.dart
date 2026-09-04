@@ -10672,6 +10672,10 @@ class _NovelImageFavoriteViewerState extends State<_NovelImageFavoriteViewer> {
     );
     if (!mounted) return;
     setState(() => _isFavorite = added);
+    if (added) {
+      // 收藏即缓存到本地（取消收藏时才删文件，清理缓存不清理）。
+      unawaited(_manager.attachLocalCache(widget.url));
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(

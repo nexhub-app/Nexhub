@@ -79,7 +79,10 @@ class ComicDownloadHandler implements DownloadHandler {
         final idxList = [for (var j = 0; j < images.length; j++) j];
         var writtenThis = 0;
         await runPool(concurrency, idxList, (j) async {
-          final bytes = await _fetchImageBytes(images[j]);
+          final bytes = await _fetchImageBytes(
+            images[j],
+            referer: HttpFetcher.refererForSubresource(ch.url, images[j]),
+          );
           if (bytes != null) {
             await fs.writeBytes(
               fs.join(chDir, '${_pad(j + 1)}.$ext'),
@@ -121,7 +124,10 @@ class ComicDownloadHandler implements DownloadHandler {
       final pageBytes = List<Uint8List?>.filled(images.length, null);
       final idxList = [for (var j = 0; j < images.length; j++) j];
       await runPool(concurrency, idxList, (j) async {
-        pageBytes[j] = await _fetchImageBytes(images[j]);
+        pageBytes[j] = await _fetchImageBytes(
+          images[j],
+          referer: HttpFetcher.refererForSubresource(ch.url, images[j]),
+        );
       }, onItemDone: (completed, total) {
         onProgress?.call(i, chapters.length, completed / total);
       });
@@ -188,15 +194,18 @@ class ComicDownloadHandler implements DownloadHandler {
     }
   }
 
-  Future<Uint8List?> _fetchImageBytes(String url) async {
+  Future<Uint8List?> _fetchImageBytes(String url, {String? referer}) async {
     try {
       // 必须带与在线取图一致的防盗链头（Referer/Cookie/UA），否则防盗链源
       // 回 HTML 错误页（200）→ 存成 .jpg 后解码失败 → "图片已损坏"。
       // Accept 显式去掉 image/avif：Flutter 内置解码器不支持 AVIF，声明了
       // avif 的协商 CDN 会返回 AVIF → 下载的图打不开（在线走缓存管理器无此头）。
+      // referer（章节页 URL 推导）非空时优先——部分站点按「图片↔所属章节页」
+      // 绑定校验 Referer，固定站点级 Referer 会被拒（400/403）。
       final Map<String, String> headers = <String, String>{
         ...?source.fetchHeadersFor(url),
         'Accept': 'image/jpeg,image/png,image/webp,image/gif,*/*;q=0.8',
+        if (referer != null && referer.isNotEmpty) 'Referer': referer,
       };
       final bytes =
           await HttpFetcher.instance.getBytes(url, headers: headers);

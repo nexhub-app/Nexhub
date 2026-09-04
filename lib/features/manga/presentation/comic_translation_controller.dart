@@ -113,6 +113,13 @@ class ComicTranslationController extends ChangeNotifier {
   /// 阅读器加载到源配置后更新（initState 时源尚未就绪）。
   void updateSource(PluginConfig? s) => _source = s;
 
+  /// 当前章节页 URL（阅读器翻章时更新）：OCR 拉图 Referer 按浏览器
+  /// referrer-policy 从它推导（部分站点按图片↔章节页绑定校验 Referer）。
+  String? _chapterPageUrl;
+
+  /// 阅读器翻章时同步当前章节页 URL（best-effort，空值回退源级 Referer）。
+  void updateChapterPageUrl(String? url) => _chapterPageUrl = url;
+
   bool _enabled = false;
   bool _langLoaded = false;
   String _targetLang = 'zh';
@@ -412,7 +419,8 @@ class ComicTranslationController extends ChangeNotifier {
     final site = source?.site;
     final ahHeaders = ah?.headers;
     final siteHeaders = site?.headers;
-    final referer = ah?.referer;
+    final referer = HttpFetcher.refererForSubresource(_chapterPageUrl, url) ??
+        ah?.referer;
     final siteUa = site?.userAgent;
     final ua = (siteUa != null && siteUa.isNotEmpty)
         ? siteUa

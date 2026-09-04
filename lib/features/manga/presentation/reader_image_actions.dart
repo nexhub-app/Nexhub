@@ -27,6 +27,9 @@ Future<void> showReaderImageActions({
   required BuildContext context,
   required String url,
   PluginConfig? source,
+  /// 该图所属章节页 URL 推导的 Referer（部分站点按图片↔章节页绑定校验，
+  /// 见 [HttpFetcher.refererForSubresource]）。null 回退源 antiHotlinking.referer。
+  String? referer,
   required String comicId,
   required SourceType sourceType,
   /// 章节书签入口（REQ-C1）：非空时显示「收藏此章」，点击调用后关闭面板。
@@ -100,7 +103,7 @@ Future<void> showReaderImageActions({
                 title: Text(l10n.copyImage),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  unawaited(_copyImage(context, url, source));
+                  unawaited(_copyImage(context, url, source, referer));
                 },
               ),
               ListTile(
@@ -108,7 +111,7 @@ Future<void> showReaderImageActions({
                 title: Text(l10n.saveImage),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  unawaited(_saveImage(context, url, source));
+                  unawaited(_saveImage(context, url, source, referer));
                 },
               ),
               ListTile(
@@ -116,7 +119,7 @@ Future<void> showReaderImageActions({
                 title: Text(l10n.shareImage),
                 onTap: () {
                   Navigator.of(ctx).pop();
-                  unawaited(_shareImage(context, url, source));
+                  unawaited(_shareImage(context, url, source, referer));
                 },
               ),
               ListTile(
@@ -161,11 +164,12 @@ Future<void> _copyImage(
   BuildContext context,
   String url,
   PluginConfig? source,
+  String? referer,
 ) async {
   final AppLocalizations l10n = AppLocalizations.of(context);
   final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
-  final File? file = await _resolveImageFile(url, source);
+  final File? file = await _resolveImageFile(url, source, referer);
   if (file == null) {
     messenger.showSnackBar(SnackBar(content: Text(l10n.imageLoadFailed)));
     return;
@@ -196,7 +200,9 @@ Future<void> _copyImage(
 }
 
 /// 构造与 [SourceImage] 一致的防盗链 headers。
-Map<String, String>? _buildHeaders(PluginConfig? source, String? url) {
+/// [referer] 非空时覆盖源 antiHotlinking.referer（章节页绑定型防盗链）。
+Map<String, String>? _buildHeaders(PluginConfig? source, String? url,
+    {String? referer}) {
   final AntiHotlinkingConfig? ah = source?.antiHotlinking;
   final SiteConfig? site = source?.site;
   final Map<String, String>? ahHeaders = ah?.headers;
@@ -231,13 +237,14 @@ Map<String, String>? _buildHeaders(PluginConfig? source, String? url) {
 }
 
 /// 解析图片本地文件：HTTP URL 走缓存管理器（必要时下载），本地路径直接返回。
-Future<File?> _resolveImageFile(String url, PluginConfig? source) async {
+Future<File?> _resolveImageFile(
+    String url, PluginConfig? source, String? referer) async {
   if (url.startsWith('http://') || url.startsWith('https://')) {
     try {
       // 与 SourceImage 同一缓存（nexCachedImageData）：DefaultCacheManager
       // 的 HttpClient 启动早期创建后不随网络档案更新（僵化直连）。
       return await NexImageCacheManager.instance
-          .getSingleFile(url, headers: _buildHeaders(source, url));
+          .getSingleFile(url, headers: _buildHeaders(source, url, referer: referer));
     } on Object {
       return null;
     }
@@ -257,11 +264,12 @@ Future<void> _saveImage(
   BuildContext context,
   String url,
   PluginConfig? source,
+  String? referer,
 ) async {
   final AppLocalizations l10n = AppLocalizations.of(context);
   final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
-  final File? file = await _resolveImageFile(url, source);
+  final File? file = await _resolveImageFile(url, source, referer);
   if (file == null) {
     messenger.showSnackBar(SnackBar(content: Text(l10n.imageLoadFailed)));
     return;
@@ -283,11 +291,12 @@ Future<void> _shareImage(
   BuildContext context,
   String url,
   PluginConfig? source,
+  String? referer,
 ) async {
   final AppLocalizations l10n = AppLocalizations.of(context);
   final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger == null) return;
-  final File? file = await _resolveImageFile(url, source);
+  final File? file = await _resolveImageFile(url, source, referer);
   if (file == null) {
     messenger.showSnackBar(SnackBar(content: Text(l10n.imageLoadFailed)));
     return;
