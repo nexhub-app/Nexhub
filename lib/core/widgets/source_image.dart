@@ -181,8 +181,11 @@ class SourceImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final String? u = url;
     final double? r = radius;
-    // 监听 Cookie 版本流：验证回灌 Cookie 后立刻用含版本的新 cacheKey 重取
-    // 之前因缺 Cookie 而加载失败的封面（满足「回灌后自动刷新封面」）。
+    // 监听 Cookie 版本流：验证回灌 Cookie 后通知重取之前失败的封面。
+    // 注意：版本自增只影响「加载失败过」的图片（见 _RetryableNetworkImageState
+    // 的 _everFailed），已成功加载的图片不受 Cookie 变化影响——部分站点
+    // （负载均衡粘滞 Cookie 每次响应轮换）会频繁自增版本，若全量重建缓存键
+    // 会导致「图片不停刷新」。
     final Widget clipped = StreamBuilder<int>(
       stream: HttpFetcher.instance.cookieVersionStream,
       initialData: HttpFetcher.instance.cookieVersion,
@@ -275,6 +278,15 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
   Timer? _timer;
   bool _notified = false;
 
+  /// 是否经历过一次加载失败。
+  ///
+  /// Cookie 版本号（[widget.cookieVersion]）**只对失败过的图片生效**：
+  /// 版本自增仅用于「验证回灌 Cookie 后重取之前因缺 Cookie 而失败的图」，
+  /// 加载成功的图永不因 Cookie 变化重下。否则部分站点（负载均衡会话粘滞
+  /// Cookie 如 SERVERID 每次响应轮换节点）会让每次页面请求都自增版本，
+  /// 触发全部已加载图片换 cacheKey 重下 → 「图片不停刷新」死循环。
+  bool _everFailed = false;
+
   /// 实际加载的 URL：`.avif` 加载/解码失败时自动降级为 `.webp` 变体重试。
   ///
   /// 背景：Flutter 内置解码器不支持 AVIF（仅 Android 12+ 走系统解码器），
@@ -300,6 +312,7 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
       _avifFallbackTried = false;
       _retryCount = 0;
       _retrying = false;
+      _everFailed = false;
     }
   }
 
@@ -355,20 +368,28 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
   @override
   Widget build(BuildContext context) {
     return CachedNetworkImage(
-      key: ValueKey<String>('$_effectiveUrl-$_retryKey-${widget.cookieVersion}'),
+      // key 不含 cookieVersion：版本自增仅应改变缓存键触发失败图重取，
+      // 不应重挂整个 widget 状态（会丢 _everFailed/_retryCount 记录）。
+      key: ValueKey<String>('$_effectiveUrl-$_retryKey'),
       imageUrl: _effectiveUrl,
       httpHeaders: widget.headers,
       // 统一走 Dio 网络层下载（NexImageCacheManager）：默认 HttpFileService 的
       // HttpClient 在启动早期创建后终身僵化（代理/DNS 档案加载前直连），代理
       // 环境下「文字正常、图片全挂」即源于此。
       cacheManager: NexImageCacheManager.instance,
-      cacheKey: '$_effectiveUrl#v${widget.cookieVersion}',
+      // 仅失败过的图把版本并入缓存键：版本自增 → 新缓存键 → 重取
+      // （验证回灌 Cookie 自动刷新失败封面）。成功过的图缓存键恒定，
+      // 任何 Cookie 轮换都不再触发已加载图片重下。
+      cacheKey: _everFailed
+          ? '$_effectiveUrl#v${widget.cookieVersion}'
+          : _effectiveUrl,
       width: widget.width,
       height: widget.height,
       fit: widget.fit,
       memCacheWidth: widget.decodeCapWidthPx,
       placeholder: (c, u) => widget.placeholder,
       errorWidget: (c, u, e) {
+        _everFailed = true;
         _notifyLoaded();
         // avif 图在「不支持该格式的平台」上表现为解码失败：自动降级 .webp 重取。
         _maybeFallbackAvif();
