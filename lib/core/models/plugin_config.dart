@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../network/model/source_network_config.dart';
+import '../utils/image_decrypt_registry.dart';
 
 /// 源内容类型，决定解析/浏览/详情/播放的统一语义。
 enum SourceType {
@@ -754,6 +755,44 @@ class AntiHotlinkingConfig {
       );
 }
 
+/// 源声明式图片字节变换配置（`imageTransform` 段）。
+///
+/// 部分源站对**图片字节本身**加密（浏览器端由站点自带 JS 解密渲染），
+/// 无论怎么配防盗链头拿到的都是密文。此类源在本段声明「按 host 匹配 +
+/// 解密方式」，引擎在图片下载层统一解密（见 [ImageBytesDecryptRegistry]）。
+/// 密钥/算法全部来自源 JSON，引擎不写死任何站点逻辑（源即插件）。
+class ImageTransformConfig {
+  /// 需要解密的图片 CDN host 列表（精确 host 匹配，忽略大小写）。
+  final List<String> matchHosts;
+
+  /// 解密规则。当前支持 `algo: "aes-cbc"` +
+  /// `ivSource: "prefixBytes"`（密文文件前 ivLength 字节为 IV）+ PKCS7。
+  final Map<String, dynamic> decrypt;
+
+  const ImageTransformConfig({
+    this.matchHosts = const <String>[],
+    this.decrypt = const <String, dynamic>{},
+  });
+
+  factory ImageTransformConfig.fromJson(Map<String, dynamic>? json) {
+    final dynamic decryptRaw = json?['decrypt'];
+    return ImageTransformConfig(
+      matchHosts: (json?['matchHosts'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList(growable: false) ??
+          const <String>[],
+      decrypt: decryptRaw is Map
+          ? Map<String, dynamic>.from(decryptRaw)
+          : const <String, dynamic>{},
+    );
+  }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'matchHosts': matchHosts,
+        'decrypt': decrypt,
+      };
+}
+
 /// WebView 验证配置。
 class WebviewConfig {
   final bool adblock;
@@ -1037,6 +1076,8 @@ class PluginConfig {
   final WebFavoriteConfig? webFavorite;
   /// 源声明式 CDN 图床发现（可选 `cdn` 段）。为 null → 脚本回退 i3/t3 旧行为。
   final CdnConfig? cdn;
+  /// 源声明式图片字节变换（可选 `imageTransform` 段）。为 null → 图片按原文加载。
+  final ImageTransformConfig? imageTransform;
   /// 源年龄分级（可选 `ageRating` 字段，缺省 [SourceAgeRating.general]）。
   final SourceAgeRating ageRating;
   /// 源版本号（整数，缺省 1）。导入时 **≥ 已安装版本** 才覆盖（高版本升级 /
@@ -1071,6 +1112,7 @@ class PluginConfig {
         this.announcement,
         this.webFavorite,
         this.cdn,
+        this.imageTransform,
         this.ageRating = SourceAgeRating.general,
         this.version = 1,
       });
@@ -1138,7 +1180,7 @@ class PluginConfig {
         routesMap[k.toString()] = RouteConfig.fromJson(v);
       });
     }
-    return PluginConfig(
+    final config = PluginConfig(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       author: json['author'] as String?,
@@ -1189,9 +1231,23 @@ class PluginConfig {
       cdn: json['cdn'] is Map
           ? CdnConfig.fromJson(Map<String, dynamic>.from(json['cdn'] as Map))
           : null,
+      imageTransform: json['imageTransform'] is Map
+          ? ImageTransformConfig.fromJson(
+              Map<String, dynamic>.from(json['imageTransform'] as Map))
+          : null,
       ageRating: SourceAgeRating.parse(json['ageRating']),
       version: _coerceVersion(json['version']),
     );
+    // 解析到 imageTransform 即按 host 注册图片解密规则（幂等；源更新自然覆盖）。
+    // fromJson 是所有源进 App 的唯一入口（内置解析 / Hive 回灌 / 导入更新）。
+    final ImageTransformConfig? it = config.imageTransform;
+    if (it != null && it.matchHosts.isNotEmpty) {
+      final ImageDecryptRule? rule = imageDecryptRuleFromJson(it.decrypt);
+      if (rule != null) {
+        ImageBytesDecryptRegistry.register(hosts: it.matchHosts, rule: rule);
+      }
+    }
+    return config;
   }
 
   /// 从 JSON 字符串构造。
@@ -1234,6 +1290,7 @@ class PluginConfig {
         if (announcement != null) 'announcement': announcement!.toJson(),
         if (webFavorite != null) 'webFavorite': webFavorite!.toJson(),
         if (cdn != null) 'cdn': cdn!.toJson(),
+        if (imageTransform != null) 'imageTransform': imageTransform!.toJson(),
         'ageRating': ageRating.apiName,
       };
 

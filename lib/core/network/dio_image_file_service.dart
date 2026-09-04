@@ -26,6 +26,7 @@ import 'package:http/http.dart' as http;
 
 import '../scraper/http_fetcher.dart';
 import '../utils/app_log.dart';
+import '../utils/image_decrypt_registry.dart';
 import 'network_config_service.dart';
 
 /// 全应用统一图片缓存管理器（SourceImage 专用入口）。
@@ -55,6 +56,15 @@ class DioImageFileService extends FileService {
   static const Duration _headerTimeout = Duration(seconds: 30);
 
   static int _loggedFailures = 0;
+
+  /// 聚合完整字节流（仅解密分支使用：AES-CBC 需要 IV + 完整密文体）。
+  static Future<Uint8List> _collect(Stream<List<int>> stream) async {
+    final BytesBuilder b = BytesBuilder(copy: false);
+    await for (final List<int> chunk in stream) {
+      b.add(chunk);
+    }
+    return b.takeBytes();
+  }
 
   @override
   Future<FileServiceResponse> get(
@@ -116,6 +126,20 @@ class DioImageFileService extends FileService {
       if (statusCode < 200 || statusCode >= 300) {
         throw HttpException('HTTP $statusCode',
             uri: Uri.tryParse(url));
+      }
+      // 源声明式图片解密（imageTransform）：命中注册 host 时缓冲全量字节解密
+      // 后再交给缓存层（磁盘缓存的是明文，保存/分享自动继承）。未命中的源
+      // 走原流式路径，零额外开销。
+      final Uri? uri = Uri.tryParse(url);
+      if (uri != null && ImageBytesDecryptRegistry.matchFor(uri) != null) {
+        final Uint8List cipher = await _collect(body.stream);
+        final Uint8List plain = ImageBytesDecryptRegistry.decrypt(uri, cipher);
+        return HttpGetResponse(http.StreamedResponse(
+          Stream<Uint8List>.value(plain),
+          statusCode,
+          contentLength: plain.length,
+          headers: responseHeaders,
+        ));
       }
       // 下游取消（缓存被丢弃/重试）时同步掐断底层下载，避免连接空转。
       body.onCancel = () => sub?.cancel();

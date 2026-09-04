@@ -185,6 +185,8 @@ class HivePluginConfig {
   final Map<String, dynamic>? webFavorite;
   @HiveField(19)
   final String? ageRating;
+  @HiveField(20)
+  final Map<String, dynamic>? imageTransform;
 
   HivePluginConfig({
     required this.id,
@@ -207,6 +209,7 @@ class HivePluginConfig {
     this.engine,
     this.webFavorite,
     this.ageRating,
+    this.imageTransform,
   });
 
   factory HivePluginConfig.fromPluginConfig(PluginConfig config) => HivePluginConfig(
@@ -233,6 +236,7 @@ class HivePluginConfig {
         engine: config.engine,
         webFavorite: config.webFavorite?.toJson(),
         ageRating: config.ageRating.apiName,
+        imageTransform: config.imageTransform?.toJson(),
       );
 
   PluginConfig toPluginConfig() => PluginConfig.fromJson({
@@ -256,6 +260,7 @@ class HivePluginConfig {
         'engine': engine,
         if (webFavorite != null) 'webFavorite': webFavorite,
         if (ageRating != null) 'ageRating': ageRating,
+        if (imageTransform != null) 'imageTransform': imageTransform,
       });
 }
 

@@ -165,6 +165,7 @@ class HivePluginConfigAdapter extends TypeAdapter<HivePluginConfig> {
       engine: fields[17] as String?,
       webFavorite: (fields[18] as Map?)?.cast<String, dynamic>(),
       ageRating: fields[19] as String?,
+      imageTransform: (fields[20] as Map?)?.cast<String, dynamic>(),
     );
   }
 
@@ -211,7 +212,9 @@ class HivePluginConfigAdapter extends TypeAdapter<HivePluginConfig> {
       ..writeByte(18)
       ..write(obj.webFavorite)
       ..writeByte(19)
-      ..write(obj.ageRating);
+      ..write(obj.ageRating)
+      ..writeByte(20)
+      ..write(obj.imageTransform);
   }
 
   @override

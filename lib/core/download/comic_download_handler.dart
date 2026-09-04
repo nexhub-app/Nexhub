@@ -10,6 +10,7 @@ import '../models/plugin_config.dart';
 import '../scraper/http_fetcher.dart';
 import '../scraper/media_api_service.dart';
 import '../utils/app_log.dart';
+import '../utils/image_decrypt_registry.dart';
 import 'cbz_builder.dart';
 import 'download_file_system.dart';
 import 'download_handler.dart';
@@ -200,6 +201,11 @@ class ComicDownloadHandler implements DownloadHandler {
       final bytes =
           await HttpFetcher.instance.getBytes(url, headers: headers);
       if (bytes.isEmpty || _looksLikeHtml(bytes)) return null;
+      // 源声明式图片解密（imageTransform）：下载即落明文，本地阅读无需再解。
+      final Uri? uri = Uri.tryParse(url);
+      if (uri != null && ImageBytesDecryptRegistry.matchFor(uri) != null) {
+        return ImageBytesDecryptRegistry.decrypt(uri, Uint8List.fromList(bytes));
+      }
       return Uint8List.fromList(bytes);
     } catch (_) {
       return null;

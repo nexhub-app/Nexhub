@@ -106,8 +106,17 @@ class CryptoUtils {
     return String.fromCharCodes(out);
   }
 
-  /// AES-CBC + PKCS7 解密。
+  /// AES-CBC + PKCS7 解密（明文按 UTF-8 文本返回）。
   static String aesCbcDecrypt(
+    List<int> cipher, {
+    required List<int> key,
+    required List<int> iv,
+  }) {
+    return utf8.decode(aesCbcDecryptBytes(cipher, key: key, iv: iv));
+  }
+
+  /// AES-CBC + PKCS7 解密，返回原始字节（图片等二进制密文用）。
+  static List<int> aesCbcDecryptBytes(
     List<int> cipher, {
     required List<int> key,
     required List<int> iv,
@@ -124,8 +133,7 @@ class CryptoUtils {
         null,
       ),
     );
-    final out = cipherImpl.process(Uint8List.fromList(cipher));
-    return utf8.decode(out);
+    return cipherImpl.process(Uint8List.fromList(cipher)).toList();
   }
 
   /// AES-CBC + PKCS7 加密，返回密文字节。
