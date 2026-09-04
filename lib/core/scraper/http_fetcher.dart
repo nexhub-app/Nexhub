@@ -764,6 +764,12 @@ class HttpFetcher {
   }
 
   /// 取 JSON（自动解析）。
+  ///
+  /// 请求按 JSON API 语义携带 `Accept: application/json`：部分站点按 Accept
+  /// 协商响应——对「文档型」请求（Accept: text/html）返回引号被 HTML 转义
+  /// （`&quot;code&quot;: 200`）的 HTML 包裹体，jsonDecode 必然失败，表现为
+  /// 「搜索/章节等 JSON 路由恒为空」（同一 URL 用浏览器 XHR 头则返回干净 JSON）。
+  /// 调用方传 headers 时仍可覆盖。
   Future<dynamic> getJson(
     String url, {
     Map<String, String>? headers,
@@ -771,8 +777,16 @@ class HttpFetcher {
     bool stealth = true,
     EffectiveNetworkProfile? net,
   }) async {
-    final text =
-        await getHtml(url, headers: headers, referer: referer, stealth: stealth, net: net);
+    final text = await getHtml(
+      url,
+      headers: <String, String>{
+        'Accept': 'application/json, text/plain, */*',
+        ...?headers,
+      },
+      referer: referer,
+      stealth: stealth,
+      net: net,
+    );
     return _decodeJson(text);
   }
 
@@ -788,7 +802,10 @@ class HttpFetcher {
   }) async {
     final text = await post(
       url,
-      headers: headers,
+      headers: <String, String>{
+        'Accept': 'application/json, text/plain, */*',
+        ...?headers,
+      },
       data: data,
       referer: referer,
       stealth: stealth,
@@ -1471,15 +1488,42 @@ class HttpFetcher {
   dynamic _decodeJson(String text) {
     // 去除 BOM / 首尾空白；失败时退一步截取首个 { 到末个 }。
     final trimmed = text.trim();
+    final Object firstError;
     try {
       return jsonDecode(trimmed);
-    } on Object {
-      final start = trimmed.indexOf('{');
-      final end = trimmed.lastIndexOf('}');
-      if (start >= 0 && end > start) {
-        return jsonDecode(trimmed.substring(start, end + 1));
-      }
-      rethrow;
+    } on Object catch (e) {
+      firstError = e;
     }
+    // HTML 实体反转义重试：部分站点（按 Accept 协商）把 JSON 的引号转义成
+    // `&quot;` 等实体后返回，直接解析必败。整段反转义后若恰为合法 JSON 则采用。
+    // 仅在直接解析失败后才走此分支，响应本就是合法 JSON 时零影响。
+    if (trimmed.contains('&quot;') ||
+        trimmed.contains('&#x27;') ||
+        trimmed.contains('&#39;')) {
+      final unescaped = trimmed
+          .replaceAll('&quot;', '"')
+          .replaceAll('&#x27;', "'")
+          .replaceAll('&#39;', "'")
+          .replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>')
+          .replaceAll('&amp;', '&');
+      try {
+        return jsonDecode(unescaped);
+      } on Object {
+        // 反转义后仍非整体 JSON：交给下方 {..} 截取兜底（用反转义文本）。
+        final start = unescaped.indexOf('{');
+        final end = unescaped.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+          return jsonDecode(unescaped.substring(start, end + 1));
+        }
+      }
+    }
+    final start = trimmed.indexOf('{');
+    final end = trimmed.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return jsonDecode(trimmed.substring(start, end + 1));
+    }
+    // 所有兜底均失败：抛出首次解析的真实异常（保留原始错误信息）。
+    throw firstError;
   }
 }
