@@ -759,11 +759,21 @@ class WebviewConfig {
   final bool adblock;
   final int timeoutSeconds;
 
-  const WebviewConfig({this.adblock = true, this.timeoutSeconds = 20});
+  /// 源声明的 WebView 专用 UA（如移动 Chrome UA）。无头渲染抓取
+  /// （SilentHtmlCapture）用它替代默认桌面 UA，供「仅移动端可见」的页面
+  /// 按移动浏览器渲染。null 时维持引擎默认。
+  final String? extraUserAgent;
+
+  const WebviewConfig({
+    this.adblock = true,
+    this.timeoutSeconds = 20,
+    this.extraUserAgent,
+  });
 
   factory WebviewConfig.fromJson(Map<String, dynamic>? json) => WebviewConfig(
         adblock: json?['adblock'] as bool? ?? true,
         timeoutSeconds: json?['timeoutSeconds'] as int? ?? 20,
+        extraUserAgent: json?['extraUserAgent'] as String?,
       );
 }
 

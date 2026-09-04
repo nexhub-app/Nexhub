@@ -1102,6 +1102,14 @@ class HttpFetcher {
     merged.remove('Sec-Fetch-User');
     merged.remove('Sec-Fetch-Site');
     merged.remove('Upgrade-Insecure-Requests');
+    // 图片请求 Accept 不声明 image/avif：Flutter 内置解码器不支持 AVIF（仅
+    // Android 12+ 走系统解码器），协商型 CDN 会按 Accept 返回 AVIF → 在线
+    // 解码失败显示重试。与 [comic_download_handler] 的下载头对齐；按扩展名
+    // 返回的 CDN 不受 Accept 影响。调用方显式给了 Accept 时尊重调用方。
+    if (fetchDest == 'image' && !(headers?.containsKey('Accept') ?? false)) {
+      merged['Accept'] =
+          'image/webp,image/apng,image/jpeg,image/png,image/*,*/*;q=0.8';
+    }
     final resp = await _dioFor(net).get<List<int>>(
       url,
       options: Options(
@@ -1161,6 +1169,12 @@ class HttpFetcher {
     merged.remove('Sec-Fetch-User');
     merged.remove('Sec-Fetch-Site');
     merged.remove('Upgrade-Insecure-Requests');
+    // 图片请求 Accept 不声明 image/avif（同 [getBytes]）：协商型 CDN 会按
+    // Accept 返回 AVIF → Flutter 解码失败。调用方显式给了 Accept 时尊重调用方。
+    if (fetchDest == 'image' && !(headers?.containsKey('Accept') ?? false)) {
+      merged['Accept'] =
+          'image/webp,image/apng,image/jpeg,image/png,image/*,*/*;q=0.8';
+    }
     final resp = await _dioFor(net).get<ResponseBody>(
       url,
       options: Options(

@@ -125,9 +125,11 @@ class SourceImage extends StatelessWidget {
           : synced;
     }
     // 图片请求头修正：源 site.headers 常带 `Accept: application/json`（用于
-    // API），漏到图片请求会让部分 CDN 按「伪装的图片请求」拒绝；改为图片专用 Accept。
+    // API），漏到图片请求会让部分 CDN 按「伪装的图片请求」拒绝；改为图片专用
+    // Accept。注意不声明 image/avif：Flutter 内置解码器不支持 AVIF，协商型
+    // CDN 会按 Accept 返回 AVIF → 解码失败（与下载器/HttpFetcher 图片头对齐）。
     if (m['Accept']?.contains('application/json') ?? false) {
-      m['Accept'] = 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8';
+      m['Accept'] = 'image/webp,image/apng,image/jpeg,image/png,image/*,*/*;q=0.8';
     }
     // 默认补同源 Referer：优先源站 origin（部分防盗链 CDN 只认源站同源，
     // 用图片 CDN 的独立域名会被直接断连接 → 图片全空），取不到再回退
@@ -273,10 +275,60 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
   Timer? _timer;
   bool _notified = false;
 
+  /// 实际加载的 URL：`.avif` 加载/解码失败时自动降级为 `.webp` 变体重试。
+  ///
+  /// 背景：Flutter 内置解码器不支持 AVIF（仅 Android 12+ 走系统解码器），
+  /// Windows/桌面端对 .avif 图「HTTP 200 下载成功 → Invalid image data 解码
+  /// 失败 → 显示重试」。部分图床按扩展名钉死返回 AVIF（Accept 协商无效），
+  /// 但同一资源路径存在 `.webp` 变体。故加载失败且 URL 以 .avif 结尾时，
+  /// 自动改用 .webp 重取一次：安卓上 avif 能正常解码（不触发本回退，保持
+  /// 更优压缩率）；webp 变体不存在的站点则与原先一样停在错误态（无回归）。
+  late String _effectiveUrl = widget.url;
+  bool _avifFallbackTried = false;
+
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RetryableNetworkImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _effectiveUrl = widget.url;
+      _avifFallbackTried = false;
+      _retryCount = 0;
+      _retrying = false;
+    }
+  }
+
+  /// `.avif`（可带 query）→ `.webp` 变体；非 avif URL 返回 null。
+  static String? _avifToWebp(String url) {
+    if (!RegExp(r'\.avif(\?.*)?$', caseSensitive: false).hasMatch(url)) {
+      return null;
+    }
+    return url.replaceFirstMapped(
+      RegExp(r'\.avif(\?.*)?$', caseSensitive: false),
+      (Match m) => '.webp${m.group(1) ?? ''}',
+    );
+  }
+
+  /// 加载/解码失败时尝试一次 avif→webp 降级（errorWidget 在 build 期回调，
+  /// 用 postFrame 推迟 setState）。
+  void _maybeFallbackAvif() {
+    if (_avifFallbackTried) return;
+    final String? swapped = _avifToWebp(_effectiveUrl);
+    if (swapped == null) return;
+    _avifFallbackTried = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        _effectiveUrl = swapped;
+        _retryCount = 0;
+        _retryKey += 1;
+      });
+    });
   }
 
   void _retry() {
@@ -303,14 +355,14 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
   @override
   Widget build(BuildContext context) {
     return CachedNetworkImage(
-      key: ValueKey<String>('${widget.url}-$_retryKey-${widget.cookieVersion}'),
-      imageUrl: widget.url,
+      key: ValueKey<String>('$_effectiveUrl-$_retryKey-${widget.cookieVersion}'),
+      imageUrl: _effectiveUrl,
       httpHeaders: widget.headers,
       // 统一走 Dio 网络层下载（NexImageCacheManager）：默认 HttpFileService 的
       // HttpClient 在启动早期创建后终身僵化（代理/DNS 档案加载前直连），代理
       // 环境下「文字正常、图片全挂」即源于此。
       cacheManager: NexImageCacheManager.instance,
-      cacheKey: '${widget.url}#v${widget.cookieVersion}',
+      cacheKey: '$_effectiveUrl#v${widget.cookieVersion}',
       width: widget.width,
       height: widget.height,
       fit: widget.fit,
@@ -318,6 +370,8 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
       placeholder: (c, u) => widget.placeholder,
       errorWidget: (c, u, e) {
         _notifyLoaded();
+        // avif 图在「不支持该格式的平台」上表现为解码失败：自动降级 .webp 重取。
+        _maybeFallbackAvif();
         return widget.errorWidget ?? _buildError(context);
       },
       imageBuilder: (ctx, provider) {

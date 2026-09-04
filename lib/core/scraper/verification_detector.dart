@@ -162,7 +162,12 @@ class VerificationDetector {
       if (body != null &&
           _hasPassiveCf(body) &&
           _isLikelyChallengeShell(body)) {
-        return true;
+        // 短页但结构完整（非空标题 + 图片/导航链接）是真实内容页，不是挑战壳：
+        // 某些站点章节页本就只有几 KB（正文图片经 JS 懒加载，如嗶哩漫画 ~7.7KB），
+        // 若按「被动标记 + 短壳」误判会把真章节页当验证页抛异常 → 图片永远解析
+        // 失败。真正的 CF 等待页（Just a moment / Attention Required）含主动
+        // 挑战标记，已在上方分支被拦截，不会走到这里。
+        if (!_looksLikeRealContentPage(body)) return true;
       }
       if (_isWafBlock(body, headers)) return true;
     }
@@ -188,6 +193,32 @@ class VerificationDetector {
     final trimmed = body.trim();
     if (trimmed.isEmpty) return false;
     return trimmed.length <= 8192;
+  }
+
+  /// 小体积但结构完整的真实内容页判定：非空 `<title>` 文本，且至少含一个
+  /// `<img>` 标签或 3 个 `<a>` 链接。
+  ///
+  /// 误伤代价分析：真正的 CF 挑战页（Just a moment / Attention Required /
+  /// verify you are human）均含主动挑战标记，在更早的分支已被拦截，不会走到
+  /// 这里。本豁免最坏情况是把「伪装成内容页的挑战壳」交给解析器 → 解析 0 条
+  /// → 空列表（与完全不做检测一致），不会触发验证死循环。
+  static bool _looksLikeRealContentPage(String body) {
+    final titleMatch = RegExp(
+      r'<title[^>]*>([^<]{1,300})</title',
+      caseSensitive: false,
+    ).firstMatch(body);
+    if (titleMatch == null) return false;
+    if (titleMatch.group(1)!.trim().isEmpty) return false;
+    final lower = body.toLowerCase();
+    if (lower.contains('<img')) return true;
+    var anchors = 0;
+    var idx = lower.indexOf('<a ');
+    while (idx >= 0) {
+      anchors++;
+      if (anchors >= 3) return true;
+      idx = lower.indexOf('<a ', idx + 3);
+    }
+    return false;
   }
 
   /// 判断是否为 WAF/反爬「拦截应答」（应走内置浏览器过验证，而非当空内容）。

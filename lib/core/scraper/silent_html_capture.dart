@@ -20,6 +20,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -90,13 +91,26 @@ class SilentHtmlCapture {
   ///
   /// 返回 null 表示不应静默处理（命中挑战页 / 加载失败 / WebView 不可用），
   /// 由调用方回退可见验证页。同 URL 并发调用共享同一次抓取结果。
+  ///
+  /// [userAgent]：可选钉定 UA。默认用完整桌面浏览器 UA；源声明
+  /// `webviewConfig.extraUserAgent`（如移动 Chrome UA）时由调用方传入，
+  /// 供「仅移动端可见」的页面按移动浏览器渲染。
+  ///
+  /// [scrollToLoad]：渲染稳定后逐屏滚动到页底再抓取。用于懒加载站点——
+  /// 部分页面（如漫画阅读页）的图片由站点 JS 在滚动进视口时才注入 DOM，
+  /// 无头 WebView 不滚动 → HTML 里完全没有图片 URL。开启后滚动触发注入，
+  /// 滚动到底且页面高度/图片数连续稳定后返回。由源的 meta `__webviewScroll`
+  /// 显式开启，不影响未声明的源。
   static Future<String?> capture(
     String url, {
     Map<String, String>? headers,
+    String? userAgent,
+    bool scrollToLoad = false,
   }) {
     final existing = _inFlight[url];
     if (existing != null) return existing;
-    final future = _run(url, headers).whenComplete(() {
+    final future = _run(url, headers, userAgent, scrollToLoad)
+        .whenComplete(() {
       _inFlight.remove(url);
       debugPrint('[SilentHtmlCapture] capture whenComplete 完成 url=$url');
     });
@@ -104,7 +118,12 @@ class SilentHtmlCapture {
     return future;
   }
 
-  static Future<String?> _run(String url, Map<String, String>? headers) async {
+  static Future<String?> _run(
+    String url,
+    Map<String, String>? headers,
+    String? userAgent,
+    bool scrollToLoad,
+  ) async {
     // 剥离源声明里可能存在的极简 UA 请求头（如 `Mozilla/5.0`）：统一交给
     // initialSettings 的完整浏览器 UA 接管，避免请求头覆盖设置值后 CF 以
     // 「非合法浏览器」拒绝（600010）。
@@ -113,15 +132,24 @@ class SilentHtmlCapture {
         if (e.key.toLowerCase() != 'user-agent') e.key: e.value,
     };
 
-    // 钉完整浏览器 UA（对齐可见验证页 initState 的 _applyFullBrowserUa）：
-    // 必须在创建 WebView 前注册，userAgentForUrl 才能取到钉住的 UA。
+    // 钉浏览器 UA（对齐可见验证页 initState 的 _applyFullBrowserUa）：
+    // 默认路径钉完整桌面 UA 并注册到 host（userAgentForUrl 优先取用，
+    // 后续直连请求同 UA，保证下发的 cf_clearance 与请求 UA 一致）。
+    // 调用方显式传入 [userAgent]（如源声明的移动 Chrome UA）时**只作用于
+    // 本次 WebView**（initialSettings 直设），不注册到 host——否则会把该站
+    // 后续所有直连请求的 UA 拉成移动 UA，可能让站点切换页面模板、破坏既有
+    // 解析（桌面/移动模板 DOM 不同）。
+    String? effectiveUa;
     try {
       final host = Uri.tryParse(url)?.host;
       if (host != null && host.isNotEmpty) {
-        HttpFetcher.instance.registerHostUserAgent(
-          host,
-          HttpFetcher.instance.fullBrowserUserAgent(),
-        );
+        if (userAgent != null && userAgent.isNotEmpty) {
+          effectiveUa = userAgent;
+        } else {
+          final fullUa = HttpFetcher.instance.fullBrowserUserAgent();
+          HttpFetcher.instance.registerHostUserAgent(host, fullUa);
+          effectiveUa = fullUa;
+        }
       }
     } on Object {
       // UA 覆盖失败不影响主流程。
@@ -139,7 +167,8 @@ class SilentHtmlCapture {
         initialSettings: InAppWebViewSettings(
           javaScriptEnabled: true,
           // 与可见验证页一致：完整浏览器 UA，保证已下发的 cf_clearance 有效。
-          userAgent: HttpFetcher.instance.userAgentForUrl(url),
+          // 调用方传入自定义 UA（源声明移动 UA）时以其为准。
+          userAgent: effectiveUa ?? HttpFetcher.instance.userAgentForUrl(url),
         ),
         onWebViewCreated: (controller) {
           if (!created.isCompleted) created.complete(controller);
@@ -154,6 +183,10 @@ class SilentHtmlCapture {
       await Future<void>.delayed(_renderSettle);
 
       final controller = await created.future;
+      // 懒加载触发：逐屏滚动注入视口外资源（图片等），到底且稳定后再抓取。
+      if (scrollToLoad) {
+        await _scrollToLoad(controller);
+      }
       final deadline = DateTime.now().add(_challengeWait);
       // 多数站点列表/详情由 JS 异步挂载：若首次轮询即回传「未命中挑战但卡片
       // 尚未渲染」的壳，解析侧会拿到 0 条 → 用户只见空白/一直转圈。故改为
@@ -245,6 +278,78 @@ class SilentHtmlCapture {
   static Future<String?> _safeGetHtml(InAppWebViewController controller) async {
     try {
       return await controller.getHtml();
+    } on Object {
+      return null;
+    }
+  }
+
+  /// 懒加载滚动：单步 0.8 屏、每步 350ms；到底且「页面高度 + 已加载图片数」
+  /// 连续 2 轮不变即提前结束。上限 60 步（≈48 屏），防无限滚动页拖死。
+  static const int _scrollMaxSteps = 60;
+  static const Duration _scrollStepDelay = Duration(milliseconds: 350);
+
+  /// 逐屏滚动触发懒加载注入（best-effort：JS 执行失败直接跳过，不影响主流程）。
+  static Future<void> _scrollToLoad(InAppWebViewController controller) async {
+    int? prevHeight;
+    int? prevLoaded;
+    var stableRounds = 0;
+    const probe = '''
+(function() {
+  window.scrollBy(0, Math.round(window.innerHeight * 0.8));
+  var imgs = document.images;
+  var loaded = 0;
+  for (var k = 0; k < imgs.length; k++) {
+    var s = imgs[k].currentSrc || imgs[k].src || '';
+    if (s.indexOf('http') === 0) loaded++;
+  }
+  return JSON.stringify({
+    h: document.body ? document.body.scrollHeight : 0,
+    loaded: loaded,
+    y: window.scrollY
+  });
+})()
+''';
+    try {
+      for (var i = 0; i < _scrollMaxSteps; i++) {
+        final raw = await _evalJs(controller, probe);
+        Map<String, dynamic>? m;
+        if (raw is String && raw.isNotEmpty) {
+          try {
+            m = (jsonDecode(raw) as Map).cast<String, dynamic>();
+          } on Object {
+            m = null;
+          }
+        }
+        final h = (m?['h'] as num?)?.toInt() ?? 0;
+        final loaded = (m?['loaded'] as num?)?.toInt() ?? 0;
+        final y = (m?['y'] as num?)?.toInt() ?? 0;
+        final atBottom = y > 0 && h > 0 && (h - y) < 1200;
+        final stable = prevHeight == h && prevLoaded == loaded;
+        if (atBottom && stable) {
+          stableRounds++;
+          if (stableRounds >= 2) break;
+        } else {
+          stableRounds = 0;
+        }
+        prevHeight = h;
+        prevLoaded = loaded;
+        await Future<void>.delayed(_scrollStepDelay);
+      }
+      // 注入完成后留一小段余量，等最后一批图片请求发出/挂载。
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      debugPrint(
+          '[SilentHtmlCapture] 懒加载滚动完成 steps<=${_scrollMaxSteps}');
+    } on Object catch (e) {
+      debugPrint('[SilentHtmlCapture] 懒加载滚动失败(忽略): $e');
+    }
+  }
+
+  static Future<Object?> _evalJs(
+    InAppWebViewController controller,
+    String source,
+  ) async {
+    try {
+      return await controller.evaluateJavascript(source: source);
     } on Object {
       return null;
     }

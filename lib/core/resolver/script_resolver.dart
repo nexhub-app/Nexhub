@@ -14,13 +14,16 @@ import '../models/media_item.dart';
 import '../models/plugin_config.dart';
 import '../network/model/effective_network_profile.dart';
 import '../network/network_config_service.dart';
+import '../network/runtime/webview_source_network.dart';
 import '../scraper/http_fetcher.dart';
+import '../scraper/silent_html_capture.dart';
 import '../scraper/verification_detector.dart';
 import '../auth/source_auth_header.dart';
 import '../services/config_loader.dart';
 import 'js_context.dart';
 import 'parse_diagnostics.dart';
 import 'source_resolver.dart';
+import 'webview_resolver.dart';
 
 /// 源声明式 CDN 图床发现（与 mirrors 路由同源思路，不写死站点逻辑）。
 ///
@@ -266,6 +269,10 @@ class ScriptResolver implements SourceResolver {
     } on SourceResolveException catch (e) {
       ParseDiagnostics.log(source.id, '❌ 解析异常: ${e.message}');
       rethrow;
+    } on WebViewHtmlRequest {
+      // 脚本经 meta 协议声明 __webview 且无头渲染失败：原样上抛，供 UI 层
+      // 走「抓取本页渲染内容」可见流程（不得包装成 SourceResolveException）。
+      rethrow;
     } catch (e) {
       ParseDiagnostics.log(source.id, '❌ 未知异常: $e');
       throw SourceResolveException(
@@ -297,6 +304,9 @@ class ScriptResolver implements SourceResolver {
     try {
       return await _runScriptWithRaw(source, apiName, html, engine);
     } on SourceResolveException {
+      rethrow;
+    } on WebViewHtmlRequest {
+      // 与 resolve() 对齐：可见抓取请求原样上抛，不包装成 SourceResolveException。
       rethrow;
     } catch (e) {
       throw SourceResolveException(
@@ -411,7 +421,106 @@ class ScriptResolver implements SourceResolver {
           ParseDiagnostics.log(
               source.id, '📡 meta协议($fetchMethod): $apiName → 预取 $fetchUrl');
 
-          if (processor.isNotEmpty && (fetchUrl.isNotEmpty || fetchUrls.isNotEmpty)) {
+          // 通用扩展：`__webview: true` → 脚本需要 JS 渲染后的完整页面
+          // （plain HTTP 只能拿到未渲染/拒显壳）。先无头 WebView 静默渲染抓取
+          // （对齐 WebViewResolver webview-html 模式的「静默优先」体验）：UA 取
+          // 源 webviewConfig.extraUserAgent（源声明移动 UA 时按移动浏览器渲染）。
+          // 渲染失败或处理器解析仍为空 → 抛 [WebViewHtmlRequest]，由阅读器既有
+          // 「抓取本页渲染内容」可见流程回灌重试（resolveFromHtml）。
+          final wantsWebview =
+              meta['__webview'] == true && fetchUrl.isNotEmpty;
+          if (wantsWebview && processor.isNotEmpty) {
+            // 源声明 `__webviewScroll: true` → 渲染后逐屏滚动触发懒加载注入
+            // （图片由站点 JS 在滚动进视口时才写入 DOM 的页面）。
+            final wantsScroll = meta['__webviewScroll'] == true;
+            await WebviewSourceNetwork.instance.applyForSource(source);
+            String? rendered;
+            try {
+              rendered = await SilentHtmlCapture.capture(
+                fetchUrl,
+                headers: fetchHeaders.isNotEmpty ? fetchHeaders : null,
+                userAgent: source.webviewConfig.extraUserAgent,
+                scrollToLoad: wantsScroll,
+              );
+            } finally {
+              await WebviewSourceNetwork.instance.releaseForSource();
+            }
+            debugPrint(
+                '[ScriptResolver] webview 渲染抓取: url=$fetchUrl, len=${rendered?.length ?? "null"}');
+            ParseDiagnostics.log(
+                source.id, '📺 webview渲染($apiName): ${rendered?.length ?? 0} 字符');
+            if (rendered == null || rendered.isEmpty) {
+              // 无头渲染失败（挑战页/加载失败/WebView 不可用）→ 升级可见抓取。
+              throw WebViewHtmlRequest(
+                sourceId: source.id,
+                apiName: apiName,
+                url: fetchUrl,
+                headers: source.site.headers,
+              );
+            }
+            final processResult = await engine
+                .run(script, processor, <dynamic>[rendered])
+                .timeout(const Duration(seconds: 10));
+            result = _decodeEngineResult(processResult);
+            final listLen = result is List ? result.length : 0;
+            if (listLen > 0) {
+              ParseDiagnostics.log(
+                  source.id, '✅ webview渲染解析成功: List[$listLen]');
+            } else {
+              // 渲染成功但解析仍空 → 先用已暖会话（无头 WebView 已同步 cookie）
+              // 再直连抓取一次：部分站点对「带会话的普通 HTTP」返回内嵌完整
+              // 数据的服务端变体，而冷请求/无头渲染只拿到懒加载壳。直连结果
+              // 交给同一处理器；仍为空才升级可见抓取。
+              debugPrint(
+                  '[ScriptResolver] webview 渲染后解析为空，尝试暖会话直连兜底');
+              ParseDiagnostics.log(source.id, '🔁 webview抽空→暖直连再试: $fetchUrl');
+              String? warmHtml;
+              try {
+                final referer = source.antiHotlinking.referer ?? fetchUrl;
+                final net =
+                    NetworkConfigService.instance.effectiveFor(source);
+                warmHtml = await HttpFetcher.instance.getHtml(
+                  fetchUrl,
+                  headers: fetchHeaders.isNotEmpty ? fetchHeaders : null,
+                  referer: referer,
+                  net: net,
+                );
+              } catch (e) {
+                debugPrint('[ScriptResolver] 暖会话直连失败: $e');
+              }
+              var warmLen = warmHtml?.length ?? 0;
+              ParseDiagnostics.log(
+                  source.id, '📥 暖直连: $warmLen 字符');
+              if (warmHtml != null && warmHtml.isNotEmpty) {
+                try {
+                  final warmResult = await engine
+                      .run(script, processor, <dynamic>[warmHtml])
+                      .timeout(const Duration(seconds: 10));
+                  final warmDecoded = _decodeEngineResult(warmResult);
+                  final warmLen2 =
+                      warmDecoded is List ? warmDecoded.length : 0;
+                  if (warmLen2 > 0) {
+                    result = warmDecoded;
+                    ParseDiagnostics.log(
+                        source.id, '✅ 暖直连解析成功: List[$warmLen2]');
+                  }
+                } catch (e) {
+                  debugPrint('[ScriptResolver] 暖直连处理器异常: $e');
+                }
+              }
+              if (result is! List || result.isEmpty) {
+                // 暖直连也没有结果 → 升级可见抓取。
+                debugPrint('[ScriptResolver] 暖直连仍为空，升级可见抓取');
+                throw WebViewHtmlRequest(
+                  sourceId: source.id,
+                  apiName: apiName,
+                  url: fetchUrl,
+                  headers: source.site.headers,
+                );
+              }
+            }
+          } else if (processor.isNotEmpty &&
+              (fetchUrl.isNotEmpty || fetchUrls.isNotEmpty)) {
             try {
               // Step 2: Dart 侧预取（使用源的防盗链/UA 配置 + 源级网络覆盖）
               final referer =
