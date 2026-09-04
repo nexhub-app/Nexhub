@@ -1,6 +1,6 @@
 **English** | [简体中文](./README.md)
 
-> Latest release: **v2.0.0-beta.8 (pre-release beta)** — UI and interaction polish: unified design tokens and micro-interaction animations, tighter font sizes and spacing, smoother navigation and source-list experience. The previous stable release is **v1.2.0** (major stability fixes for local download / import + reader experience improvements). The project is under continuous development. Contributions and ideas are welcome via Pull Requests / issues. See [RELEASE_NOTES](./RELEASE_NOTES.md) for the full changelog.
+> Latest release: **v2.0.0 (stable)**. The previous release is **v2.0.0-beta.8** (pre-release beta, containing all new capabilities in this release). The project is under continuous development. Contributions and ideas are welcome via Pull Requests / issues. See [RELEASE_NOTES](./RELEASE_NOTES.md) for the full changelog.
 
 # NexHub
 

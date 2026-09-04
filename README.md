@@ -1,6 +1,6 @@
 **[简体中文](./README.md)** | [English](./README.en.md)
 
-> 当前最新版 **v2.0.0-beta.8（预发布测试版）**——集中打磨界面手感：统一设计令牌与微交互动画、收紧字号间距、理顺导航与源列表体验。上一稳定版为 **v1.2.0**（本地内容下载 / 导入稳定性大修 + 三大阅读器体验增强）。项目持续迭代中，欢迎通过 Pull Request / issues 贡献代码和想法。完整更新历史见 [RELEASE_NOTES](./RELEASE_NOTES.md)。
+> 当前最新版 **v2.0.0（正式版）**。上一版本为 **v2.0.0-beta.8**（预发布测试版，含本次全部新增能力）。项目持续迭代中，欢迎通过 Pull Request / issues 贡献代码和想法。完整更新历史见 [RELEASE_NOTES](./RELEASE_NOTES.md)。
 
 # NexHub
 

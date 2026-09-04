@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.0-announce",
+    "date": "2026-09-04",
+    "title": "NexHub 2.0.0 正式版",
+    "titleEn": "NexHub 2.0.0 (stable release)",
+    "body": "NexHub 2.0.0 正式版来了！经过 beta.1 → beta.8 八轮打磨，基础功能完整、可安全升级：底层与三大阅读器、RSS 订阅、网络配置、源解析能力都已充分验证。本次正式版相较 beta.8 还新增了「源声明式图片字节解密 imageTransform」（部分图床对图片字节本身加密，现在源可在 imageTransform 段声明解密方式，引擎统一解密，支持 aes-cbc/aes-ecb/rc4/xor 等）、章节页 Referer 推导取图、图片收藏本地缓存、通用渲染与图片兼容增强、抓取层 JSON 协商、Cookie 轮换站点图片修复、启动回填本地封面崩溃修复。沿用同一签名密钥，可直接覆盖安装。另外想跟大家说一声：过去两三个月我几乎每天高强度开发（常一天十小时以上），现在有点累了，想先休息一段时间；NexHub 不会停更，后续我仍会持续维护（修 bug、保稳定），只是功能上可能不会有大的新增，节奏会慢一些。感谢一路的陪伴。",
+    "bodyEn": "NexHub 2.0.0 (stable) is here! After eight beta rounds (beta.1 → beta.8), the foundation is solid and safe to upgrade: the engine, the three readers, RSS, network config and source parsing are all well exercised. Compared to beta.8, this stable build also adds source-declared image-byte decryption (imageTransform — for CDNs that encrypt the image bytes themselves, sources can now declare the decryption in an imageTransform block and the engine decrypts uniformly, supporting aes-cbc/aes-ecb/rc4/xor), Referer-derived image fetch on chapter pages, local caching for image favorites, broader rendering/image compatibility, JSON negotiation in the fetch layer, a fix for image-flip-flopping on cookie-rotation sites, and a startup crash fix when restoring local covers. Same signing key — just overwrite-install. A note from the author: after two to three months of near-daily, high-intensity development (often ten-plus hours a day), I'm a bit tired and want to take a break for a while. NexHub is not abandoned — I'll keep maintaining it (bug fixes, stability), but feature growth may slow down for a bit. Thanks for all the company along the way.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.0-beta.8-announce",
     "date": "2026-09-03",
     "title": "NexHub 2.0.0-beta.8 预发布测试版",
