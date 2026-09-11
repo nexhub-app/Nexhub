@@ -209,9 +209,18 @@ class WebFavoriteFolder {
 /// 例（e-hentai）：
 /// `{"url":"{detailUrl}","method":"POST","contentType":"form",
 /// "fields":{"favcat":"{folder}","favnote":"","apply":"Add to Favorites"}}`。
+///
+/// JSON API 类源站（提交前要先换 id、要带鉴权头、要读响应判成功）无法用静态
+/// 表单描述，此时改用 [route]：指向 `routes` 中的一个脚本端点，由源脚本自行
+/// 完成多步请求（可复用 meta 协议的链式跳转与 `comments.login` 鉴权头）。
 class WebFavoriteAddConfig {
   /// 提交地址模板（支持占位符）。
   final String? url;
+
+  /// 脚本端点键（`routes` 中的键）。非空时优先于 [url]，走脚本解析器执行。
+  ///
+  /// 脚本收到的 vars 含 `id` / `title` / `detailUrl` / `baseUrl`。
+  final String? route;
 
   /// 提交方法，目前仅支持 `POST`。
   final String method;
@@ -224,6 +233,7 @@ class WebFavoriteAddConfig {
 
   const WebFavoriteAddConfig({
     this.url,
+    this.route,
     this.method = 'POST',
     this.contentType = 'form',
     this.fields = const <String, String>{},
@@ -232,6 +242,7 @@ class WebFavoriteAddConfig {
   factory WebFavoriteAddConfig.fromJson(Map<String, dynamic> json) =>
       WebFavoriteAddConfig(
         url: json['url'] as String?,
+        route: json['route'] as String?,
         method: json['method'] as String? ?? 'POST',
         contentType: json['contentType'] as String? ?? 'form',
         fields: (json['fields'] as Map?)?.map(
@@ -242,6 +253,7 @@ class WebFavoriteAddConfig {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         if (url != null) 'url': url,
+        if (route != null) 'route': route,
         'method': method,
         'contentType': contentType,
         'fields': fields,
@@ -1426,6 +1438,22 @@ class PluginConfig {
             .toString();
       }
     }
+    // {detailUrl} 直通：模板仅为 {detailUrl} 且值已是绝对地址（HTML 源的列表
+    // a@href 常直接给绝对链接）时直接返回。否则模板会先被 activeBaseUrl 前缀，
+    // 再替换出 `https://base/http://real` 双 host 坏链，详情/选集必 404。
+    // 与上方 video 路由 {url} 特判同一思路，对所有源通用，不针对特定站点。
+    if (url.trim() == '{detailUrl}') {
+      final du = vars['detailUrl'];
+      if (du != null && du.isNotEmpty) {
+        if (du.startsWith('http://') || du.startsWith('https://')) {
+          return _upgradeSameHostHttps(du, activeBaseUrl);
+        }
+        final base = activeBaseUrl.endsWith('/')
+            ? activeBaseUrl.substring(0, activeBaseUrl.length - 1)
+            : activeBaseUrl;
+        return du.startsWith('/') ? '$base$du' : '$base/$du';
+      }
+    }
     if (url.startsWith('http://') || url.startsWith('https://')) {
       // 绝对 URL：替换 host 指向新镜像（保留 path/query）
       url = _replaceHost(url, activeBaseUrl);
@@ -1465,11 +1493,13 @@ class PluginConfig {
       }
       url = url.replaceAll('{$k}', value);
     });
-    // 占位符偏移：`{page-1}` / `{page+1}` 这类写法。
-    // 用途：相当多站点的分页参数从 0 开始（第 1 页是 `page=0`），而引擎统一
+    // 占位符数值运算：`{page-1}` / `{page+1}` / `{page*30-30}` 这类写法。
+    // 用途一：相当多站点的分页参数从 0 开始（第 1 页是 `page=0`），而引擎统一
     // 从 1 开始计数。没有偏移语法时源只能自造变量名（引擎不认）或干脆错位
-    // ——表现为「永远看不到第 1 页 / 翻页重复」。这是通用需求，故在占位符
-    // 解析层支持，不针对任何站点。
+    // ——表现为「永远看不到第 1 页 / 翻页重复」。
+    // 用途二：JSON API 普遍用 offset 分页（`offset=(page-1)*limit`），而页码
+    // 占位符只有页号，需要一次乘法才能在 URL 里直接算出 offset。这是通用需求
+    // （分页是绝大多数列表端点的标配），故在占位符解析层支持，不针对任何站点。
     url = _applyPlaceholderOffsets(url, vars);
     // 兼容旧版「采集api」导出的源：详情/选集路由常用 {season_id}/{sid}/{avid}
     // 占位，而新解析器统一用 {id}。旧应用能正常解析正是靠这些别名映射。
@@ -1491,7 +1521,7 @@ class PluginConfig {
     if (apiName == 'detail' && url.contains('{')) {
       final detailUrl = vars['detailUrl'];
       if (detailUrl != null && detailUrl.isNotEmpty) {
-        url = detailUrl;
+        url = _upgradeSameHostHttps(detailUrl, activeBaseUrl);
       }
     }
     // 播放/剧集兜底：若仍有未替换占位符（如 video 路由 /play{season_id}-1-
@@ -1522,19 +1552,37 @@ class PluginConfig {
     return url;
   }
 
-  /// 处理 `{name±N}` 形式的占位符偏移（如 `{page-1}`）。
+  /// 处理 `{name±N}` / `{name*N±M}` 形式的占位符数值运算（如 `{page-1}`、
+  /// `{page*30-30}`）。
+  ///
+  /// 运算符只支持 `+` `-` `*` `/` 后接非负整数，按书写顺序从左到右依次求值
+  /// （不做优先级，语义直观可预测）。左折叠即可覆盖两类真实需求：
+  /// - 0 基分页：`{page-1}`；
+  /// - offset 分页：`{page*30-30}`（第 n 页 → offset=(n-1)*30）。
   ///
   /// 仅对「变量值为纯整数」时生效；非数值（如关键词）保持原样交由后续
-  /// cleanup 处理，避免误伤。偏移后为负则夹到 0。
+  /// cleanup 处理，避免误伤。结果为负则夹到 0（站点不接受负页码 / 负 offset）。
   static String _applyPlaceholderOffsets(
       String url, Map<String, String> vars) {
-    final re = RegExp(r'\{([A-Za-z_][A-Za-z0-9_]*)([+-])(\d+)\}');
+    final re = RegExp(r'\{([A-Za-z_][A-Za-z0-9_]*)((?:[*/+-]\d+)+)\}');
     return url.replaceAllMapped(re, (m) {
       final raw = vars[m.group(1)];
       final base = int.tryParse(raw?.trim() ?? '');
       if (base == null) return m.group(0)!; // 非数值：原样保留
-      final delta = int.parse(m.group(3)!);
-      final value = m.group(2) == '-' ? base - delta : base + delta;
+      var value = base;
+      for (final step in RegExp(r'([*/+-])(\d+)').allMatches(m.group(2)!)) {
+        final n = int.parse(step.group(2)!);
+        final op = step.group(1)!;
+        if (op == '+') {
+          value = value + n;
+        } else if (op == '-') {
+          value = value - n;
+        } else if (op == '*') {
+          value = value * n;
+        } else if (op == '/' && n != 0) {
+          value = value ~/ n;
+        }
+      }
       return (value < 0 ? 0 : value).toString();
     });
   }
@@ -1564,6 +1612,24 @@ class PluginConfig {
       // URL 解析失败，返回原 URL
       return originalUrl;
     }
+  }
+
+  /// 同源 http→https 升级：站点列表页常给 `http://` 绝对链接，而多数站点
+  /// http 端口不通/劣化（实测 http 直连超时、https 正常），进详情/选集必超时。
+  /// 仅当 detailUrl 的 host 与当前基址一致且基址是 https 时升级；外链 host
+  /// 不动（可能是真 http 资源）。
+  static String _upgradeSameHostHttps(String url, String activeBaseUrl) {
+    if (!url.startsWith('http://')) return url;
+    try {
+      final base = Uri.parse(activeBaseUrl);
+      final du = Uri.parse(url);
+      if (base.scheme == 'https' && du.host == base.host) {
+        return url.replaceFirst('http://', 'https://');
+      }
+    } catch (_) {
+      // URL 解析失败，返回原 URL
+    }
+    return url;
   }
 
   /// 路由查找：`comments.` 前缀指向 [comments] 段声明的评论路由，

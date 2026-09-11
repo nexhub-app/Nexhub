@@ -1812,6 +1812,16 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     PluginConfig source,
     WebFavoriteConfig wf,
   ) async {
+    // JSON API 类收藏列表（如 App API 源站）：直接走脚本路由解析器，既能带
+    // 路由级请求头（platform/version），又能经 sourceAuthHeader 注入登录令牌
+    // （收藏列表接口需鉴权）。HTML 类源站维持原 getHtml 路径不变。
+    if (wf.route != null &&
+        wf.route!.isNotEmpty &&
+        source.routes.containsKey(wf.route) &&
+        (source.responseTypeFor(wf.route!) ?? 'json') == 'json') {
+      await _loadWebFavoriteViaRoute(source, wf);
+      return;
+    }
     final url = _webFavoriteTargetUrl(source, wf);
     final html =
         await HttpFetcher.instance.getHtml(
@@ -1834,6 +1844,32 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       vars: <String, String>{
         'baseUrl': ConfigLoader.instance.getActiveMirror(source),
         'page': '1',
+      },
+    );
+    if (!mounted) return;
+    setState(() {
+      _webFavoriteItems = items is List<MediaItem>
+          ? items.take(200).toList(growable: false)
+          : const <MediaItem>[];
+      _webFavoriteLoading = false;
+    });
+  }
+
+  /// JSON API 收藏列表：经 [ScriptResolver] 路由解析器抓取并解析（自带鉴权头）。
+  ///
+  /// 与 HTML 路径（`getHtml` + `resolveFromHtml`）不同，路由解析器会应用路由声明
+  /// 的响应头与 `comments.login` 令牌，因此适用于需要鉴权的 App API 收藏接口。
+  /// 收藏列表为有限集合，不分页，最多取 200 条。
+  Future<void> _loadWebFavoriteViaRoute(
+    PluginConfig source,
+    WebFavoriteConfig wf,
+  ) async {
+    final items = await ScriptResolver().resolve(
+      source,
+      wf.route!,
+      vars: <String, String>{
+        'page': '1',
+        'baseUrl': ConfigLoader.instance.getActiveMirror(source),
       },
     );
     if (!mounted) return;

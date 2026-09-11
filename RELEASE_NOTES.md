@@ -33,6 +33,24 @@
 
 ## 📝 更新日志（倒序 · 最新在前）
 
+### 📝 更新日志（v2.0.0 → v2.0.1）
+
+> ✅ **正式版**。相对 v2.0.0 共 7 个文件改动，集中在**源解析健壮性、网络收藏脚本通道、视频解析稳定性**。无破坏性数据变更，可直接覆盖安装（沿用同一签名密钥）。
+
+### 🔧 源解析与网络收藏
+- **路由占位符数值运算**（`lib/core/models/plugin_config.dart`）：数值型占位符支持 `{page-1}` / `{page+1}` / `{page*30-30}`，运算符 `+` `-` `*` `/` 后接非负整数、按书写顺序从左到右求值（无优先级），结果负则夹 0。0 基分页用 `{page-1}`，JSON API 的 `offset` 分页用 `{page*30-30}` 一次算出。非数值占位符不处理。
+- **网络收藏列表脚本通道**（`online_content_list_screen.dart` + `script_resolver.dart`）：`webFavorite.route` 指向 JSON 脚本端点时，经 `ScriptResolver` 抓取收藏列表并注入 `comments.login` 令牌，最多 200 条；HTML 源站维持原 `getHtml` 路径。
+- **加入收藏脚本通道**（`web_favorite_action.dart`）：`webFavorite.add.route` 指向脚本端点时由源脚本完成多步请求 + 鉴权（先取作品 id 再 POST）；未登录提示先去源账号设置粘贴 Token；返回非空列表视为成功。
+- **meta 协议链式多跳**（`script_resolver.dart`）：处理器返回仍是 meta 描述符时再走一跳（上限 4 跳），用于「先取 id 再提交」两步接口；单跳脚本无副作用。
+- **`{detailUrl}` 直通 + 同源 http→https 升级**（`plugin_config.dart`）：模板恰为 `{detailUrl}` 且值为绝对地址时直接返回，避免 `https://base/http://real` 双 host 坏链；列表页同源 `http://` 绝对链接升级为 `https://`，规避 http 直连超时。
+
+### 🎬 视频解析
+- **脚本型视频路由优先**（`video_player_screen.dart`）：`hybrid` + 视频覆盖层 `type=='script'` 的源走脚本确定性解析，省去嗅探最坏 12s 等待、避开 Windows 内嵌浏览器崩溃高发区；脚本失败落回通用嗅探。
+- **跨域直链 Referer 修正**（`video_player_screen.dart`）：抽取直链与源站不同域时改用捕获页自身 Referer，减少第三方解析站 / CDN 的 403。
+
+### 📚 开发者文档
+- `docs/developer-guide.md` / `docs/developer-guide.en.md`：占位符说明更新为「数值运算」，补充 `{page*30-30}` 与 `+ - * /` 左到右求值规则。
+
 ### 📝 更新日志（v2.0.0-beta.8 → v2.0.0）
 
 > ✅ **正式版**。相对 beta.8 共 6 个提交，集中在**漫画图片加载与源解析健壮性**，并新增源声明式图片字节解密能力 `imageTransform`。无破坏性数据变更，可直接覆盖安装（沿用同一签名密钥）。

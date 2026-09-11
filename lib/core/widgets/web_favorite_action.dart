@@ -16,6 +16,7 @@ import '../models/plugin_config.dart';
 import '../network/network_config_service.dart';
 import '../resolver/script_resolver.dart';
 import '../scraper/http_fetcher.dart';
+import '../auth/source_key_store.dart';
 import '../services/config_loader.dart';
 import 'detail_action_utils.dart';
 
@@ -87,6 +88,16 @@ Future<void> addWebFavorite(
     openInAppBrowser(context, source.site.baseUrl);
     return;
   }
+  // 源声明了「脚本添加」（add.route）→ 交由源脚本完成（可多步请求 + 鉴权）。
+  // JSON API 类源站的收藏接口通常需要「先换 id 再 POST」并携带登录令牌，静态
+  // 表单描述不了，故优先走脚本通道；脚本执行结果由源自行判定并抛错。
+  final scriptRoute = wf.add?.route;
+  if (scriptRoute != null &&
+      scriptRoute.isNotEmpty &&
+      source.routes.containsKey(scriptRoute)) {
+    await _addWebFavoriteViaScript(context, source, item, scriptRoute);
+    return;
+  }
   // 声明了「选夹添加」→ 弹文件夹选择并 POST；否则退化打开收藏页（原行为）。
   if (wf.add != null) {
     await _addWebFavoriteWithFolder(context, source, item, wf);
@@ -98,6 +109,67 @@ Future<void> addWebFavorite(
 }
 
 /// 选夹添加流程：抓取收藏页解析文件夹列表 → 弹选择 sheet → POST 到源站。
+  /// 脚本通道「加入网络收藏」：源声明 `add.route` 时走此路径。
+  ///
+  /// 与 [WebFavoriteAddConfig.add] 的静态表单不同，脚本通道支持「多步请求 +
+  /// 动态参数 + 鉴权」——典型如 App API 源站：先 GET 详情拿作品 uuid，再 POST
+  /// 收藏接口并携带 `comments.login` 声明的令牌（经 sourceAuthHeader 注入请求头，
+  /// 同时脚本可用 `context.token` 拼到表单体，兼容只认 body 的服务端）。两步都经
+  /// meta 协议在 Dart 侧完成，脚本保持纯同步。
+  ///
+  /// 成功判定：resolve 返回非空列表（脚本末步处理器产出 `[{"id":"1"}]` 哨兵）；
+  /// 空列表 / 抛错均视为失败，弹对应 SnackBar。
+  Future<void> _addWebFavoriteViaScript(
+    BuildContext context,
+    PluginConfig source,
+    MediaItem item,
+    String route,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    // 未登录（无令牌）→ 提示先去源账号设置粘贴 Token，不发起请求。
+    final login = source.comments?.login;
+    final token = login != null && login.sendTokenAs == 'key'
+        ? SourceKeyStore.get(source.id, login.apiKeyParam ?? 'apiKey')
+        : null;
+    if (token == null || token.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.favoriteWebRequiresLogin)),
+        );
+      }
+      return;
+    }
+    try {
+      final result = await ScriptResolver().resolve(
+        source,
+        route,
+        vars: <String, String>{
+          'id': item.id,
+          'title': item.title,
+          'detailUrl': item.detailUrl ?? '',
+          'baseUrl': ConfigLoader.instance.getActiveMirror(source),
+          'token': token,
+        },
+      );
+      if (context.mounted) {
+        if (result is List && result.isNotEmpty) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(l10n.webFavoriteAdded)));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.webFavoriteAddFailed)),
+          );
+        }
+      }
+    } on Object catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${l10n.webFavoriteAddFailed}: $e')),
+        );
+      }
+    }
+  }
+
 Future<void> _addWebFavoriteWithFolder(
   BuildContext context,
   PluginConfig source,

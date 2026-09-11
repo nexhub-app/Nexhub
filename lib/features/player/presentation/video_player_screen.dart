@@ -682,6 +682,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final isOuter = renderedHtml == null;
     if (isOuter) _resolveProgress.value = 0.05;
     try {
+      // 0) 脚本型视频路由（hybrid + video override type=='script'）脚本自带
+      //    确定性解析（直连抓播放页 + 字符串抽取），无需 WebView 嗅探。
+      //    优先走脚本：省去嗅探最坏 12s 的等待，也避开 Windows 内嵌浏览器
+      //    频繁创建/销毁的崩溃高发区（Lost connection to device）。
+      //    脚本失败（站点改版/网络异常）再落回下方通用嗅探链路，安全网不丢。
+      if (isOuter &&
+          source.parser.type == 'hybrid' &&
+          source.parser.overrides?['video']?.type == 'script') {
+        if (isOuter) _resolveProgress.value = 0.5;
+        try {
+          return await service.fetchVideoUrl(source, episodeUrl);
+        } on Object {
+          // 脚本解析失败 → 落回嗅探优先的通用流程（下方步骤 1/2）。
+        }
+      }
       // 1) 自动嗅探优先（网站视频通用捕获，与源无关）
       final pageUrl = _absolutePageUrl(source, episodeUrl);
       if (pageUrl != null) {
@@ -743,8 +758,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final type = url.toLowerCase().contains('m3u8') ? 'm3u8' : null;
     final headers = _videoHeadersFor(source);
     final ref = outcome.extractedReferer;
-    if (!headers.containsKey('Referer') && ref != null && ref.isNotEmpty) {
-      headers['Referer'] = ref;
+    if (ref != null && ref.isNotEmpty) {
+      // 抽取直链与源站不同域时（第三方解析站/CDN），源站防盗链 Referer 对该域
+      // 无效甚至致 403（解析站按 Referer 白名单校验分片请求）——改用捕获页面
+      // 自身的 Referer，与浏览器在该页直接播放时的请求头一致。
+      final urlHost = Uri.tryParse(url)?.host ?? '';
+      final sourceHost =
+          Uri.tryParse(source.site.baseUrl ?? '')?.host ?? '';
+      final refHost = Uri.tryParse(ref)?.host ?? '';
+      final crossHost = urlHost.isNotEmpty &&
+          sourceHost.isNotEmpty &&
+          urlHost != sourceHost &&
+          refHost.isNotEmpty;
+      if (crossHost || !headers.containsKey('Referer')) {
+        headers['Referer'] = ref;
+      }
     }
     return VideoResult(
       url: url,

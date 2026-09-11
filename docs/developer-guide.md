@@ -254,7 +254,7 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 **采集 API 接口说明**——「采集 API」指一个源对外暴露的「抓取接口集合」，即 `routes` 里定义的一个个端点（search / latest / detail / video / images …）：
 
 - 每个端点先在 `routes` 里定义 url（支持 `{keyword}` / `{page}` / `{id}` / `{url}` / `{detailUrl}` 占位符）、method、responseType、headers、params；
-  - **占位符偏移**：数值型占位符可写 `{page-1}` / `{page+1}`（引擎统一从 1 开始计数，站点从 0 开始时用 `-1`）。值为非数值时不处理，偏移后为负则夹到 0。典型用途：0 基分页站点（第 1 页是 `page=0`）；
+  - **占位符数值运算**：数值型占位符可写 `{page-1}` / `{page+1}` / `{page*30-30}`（只支持 `+` `-` `*` `/` 后接非负整数，按书写顺序从左到右求值，不做优先级）。引擎统一从 1 开始计数，站点从 0 开始时用 `-1`；JSON API 的 offset 分页用 `{page*30-30}` 一次算出偏移量。值为非数值时不处理，结果为负则夹到 0；
   - **批量预取**：需要「逐个跟进 N 个页面」时，脚本返回 `{ __meta:true, __fetchUrls:[...], __fetchResponseType:'text', __processor:'处理函数名' }`，引擎在 Dart 侧并发抓取（默认并发 6，可用 `__fetchConcurrency` 调整，上限 16），把响应数组交给 `__processor` 同步处理；单条失败该位置为 `null`，不中断整批；
 - 抽取方式由 `parser.overrides.<端点>` 决定：`builtin` / `xpath` / `jsonpath` / `css` / `script` / `webview` / `webview-html`；
 - 声明式端点用 `selectors.<端点>` 指定选择器；脚本端点用 `overrides.<端点>.script` 提供函数；

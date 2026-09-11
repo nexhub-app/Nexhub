@@ -1,6 +1,6 @@
 **[简体中文](./README.md)** | [English](./README.en.md)
 
-> 当前最新版 **v2.0.0（正式版）**。上一版本为 **v2.0.0-beta.8**（预发布测试版，含本次全部新增能力）。项目持续迭代中，欢迎通过 Pull Request / issues 贡献代码和想法。完整更新历史见 [RELEASE_NOTES](./RELEASE_NOTES.md)。
+> 当前最新版 **v2.0.1（正式版）**。上一版本为 **v2.0.0**（正式版）。项目持续迭代中，欢迎通过 Pull Request / issues 贡献代码和想法。完整更新历史见 [RELEASE_NOTES](./RELEASE_NOTES.md)。
 
 # NexHub
 

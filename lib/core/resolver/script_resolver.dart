@@ -222,9 +222,13 @@ class ScriptResolver implements SourceResolver {
       // 上抛成 SourceResolveException 让列表报错——兜底为空串，交由脚本自抓取。
       dynamic raw;
       try {
+        // 通用：路由级预取也附加源声明式鉴权头（comments.login）。
+        // 受保护路由（如源站收藏列表）必须在首次抓取就带令牌，否则 401；
+        // 无 login 声明的源 sourceAuthHeader 返回 null，零影响。
+        final authHeader = sourceAuthHeader(source);
         raw = rt == 'json'
-            ? await engine.bridge.httpGetJson(url)
-            : await engine.bridge.httpGet(url);
+            ? await engine.bridge.httpGetJson(url, headers: authHeader)
+            : await engine.bridge.httpGet(url, headers: authHeader);
         final rawLen = raw is String ? raw.length : (raw is List ? raw.length : -1);
         ParseDiagnostics.log(source.id, '预取成功: 拿到 ${rawLen} 字符/项');
         debugPrint('[ScriptResolver] 预取成功: rawLength=${raw is String ? raw.length : (raw is List ? raw.length : "non-string/list")}');
@@ -373,10 +377,22 @@ class ScriptResolver implements SourceResolver {
       //   Step 3 (sync): 用预取数据调用处理器函数(__processChapters 等) → 返回最终结果
       //
       // 对已有同步脚本的影响：零。result 不是 Map 或不含 __meta 键时完全跳过。
-      if (result is Map) {
+      //
+      // 链式：处理器返回的结果若仍是 meta 描述符，则再走一跳（Step 2→3 循环），
+      // 用于「先取 id 再提交」这类两步接口（如收藏要先 GET 作品详情拿 uuid、
+      // 再 POST collect）。上限 4 跳，避免脚本写错时反复打站点。
+      // 单跳脚本（现有全部源）处理器直接返回数据，循环一次即退出，无副作用。
+      var hop = 0;
+      const maxMetaHops = 4;
+      while (result is Map &&
+          (result as Map<dynamic, dynamic>)['__meta'] == true &&
+          ((result as Map<dynamic, dynamic>)['__fetchUrl'] is String ||
+              (result as Map<dynamic, dynamic>)['__fetchUrls'] is List) &&
+          hop < maxMetaHops) {
+        hop++;
         final meta = result as Map<dynamic, dynamic>;
-        if (meta['__meta'] == true &&
-            (meta['__fetchUrl'] is String || meta['__fetchUrls'] is List)) {
+        {
+          // 裸块：沿用原单跳处理体的缩进，diff 最小化。
           final fetchUrl = meta['__fetchUrl'] as String? ?? '';
           final processor = meta['__processor'] as String? ?? '';
           // meta 协议扩展字段（通用，仍不写死任何站点逻辑）：

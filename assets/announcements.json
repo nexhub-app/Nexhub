@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.1-announce",
+    "date": "2026-09-11",
+    "title": "NexHub 2.0.1 正式版",
+    "titleEn": "NexHub 2.0.1 (stable release)",
+    "body": "NexHub 2.0.1 正式版来了！它建立在 2.0.0 正式版之上，基础功能完整、可安全升级，本次聚焦源解析健壮性、网络收藏脚本通道与视频解析稳定性：路由占位符支持数值运算（{page-1} / {page*30-30}），0 基分页与 JSON API 的 offset 分页都能在 URL 里一次算好；网络收藏新增「脚本通道」——收藏列表与加入收藏均可走源脚本端点，支持多步请求与登录令牌注入，适配需鉴权的 App API 类源站；详情/选集链接修正 {detailUrl} 直通与同源 http→https 升级；视频解析脚本型路由优先确定性解析，省去最长 12s 嗅探并避开 Windows 内嵌浏览器崩溃区。沿用同一签名密钥，可直接覆盖安装。",
+    "bodyEn": "NexHub 2.0.1 (stable) is here! Built on 2.0.0 (stable), it's solid and safe to upgrade. This release focuses on source-parsing robustness, the web-favorites script channel, and video-resolution stability: route placeholders now support numeric arithmetic ({page-1} / {page*30-30}) so both 0-based and JSON-API offset pagination can be computed directly in the URL; web favorites gain a 'script channel' — both the favorites list and the add-to-favorites action can run through a source script endpoint with multi-step requests and login-token injection, fitting auth-required App API sources; detail/episode links get {detailUrl} pass-through and same-host http→https upgrade; video resolution prefers a deterministic script path, dropping the up-to-12s sniffing wait and avoiding the Windows embedded-browser crash zone. Same signing key — just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.0-announce",
     "date": "2026-09-04",
     "title": "NexHub 2.0.0 正式版",

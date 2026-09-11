@@ -1,6 +1,6 @@
 **English** | [简体中文](./README.md)
 
-> Latest release: **v2.0.0 (stable)**. The previous release is **v2.0.0-beta.8** (pre-release beta, containing all new capabilities in this release). The project is under continuous development. Contributions and ideas are welcome via Pull Requests / issues. See [RELEASE_NOTES](./RELEASE_NOTES.md) for the full changelog.
+> Latest release: **v2.0.1 (stable)**. The previous release is **v2.0.0** (stable). The project is under continuous development. Contributions and ideas are welcome via Pull Requests / issues. See [RELEASE_NOTES](./RELEASE_NOTES.md) for the full changelog.
 
 # NexHub
 
