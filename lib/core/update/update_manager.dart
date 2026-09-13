@@ -43,7 +43,17 @@ class UpdateAsset {
   final String name;
   final String browserDownloadUrl;
 
-  const UpdateAsset({required this.name, required this.browserDownloadUrl});
+  /// 发布资产的字节大小（GitHub Releases API 的 `size`；0 表示未知）。
+  ///
+  /// 用于下载后校验完整性：镜像站/代理中断、返回被截断的分片时，落盘文件
+  /// 会小于该值，据此判为损坏并自动换下一个候选源重下。
+  final int size;
+
+  const UpdateAsset({
+    required this.name,
+    required this.browserDownloadUrl,
+    this.size = 0,
+  });
 }
 
 /// 更新状态。
@@ -260,6 +270,13 @@ class UpdateManager extends ChangeNotifier {
   String? _lastError;
   bool _silentMode = false;
   String? _downloadedPath;
+
+  /// 已下载安装包的期望字节数（GitHub API 的资产 size；0 = 未知）。
+  ///
+  /// 下载完成时记录，[installDownloaded] 发起安装前再校验一次——下载完成
+  /// 到点安装之间文件仍可能损坏（如 Android cache 目录被系统回收后重建、
+  /// 磁盘错误），此期间没有任何下载回调可以拦截。
+  int _downloadedExpectedSize = 0;
   UpdateSettings _settings = const UpdateSettings.defaults();
   final Dio _dio = Dio();
 
@@ -344,6 +361,7 @@ class UpdateManager extends ChangeNotifier {
           .map((a) => UpdateAsset(
                 name: a['name'] as String? ?? '',
                 browserDownloadUrl: a['browser_download_url'] as String? ?? '',
+                size: (a['size'] as num?)?.toInt() ?? 0,
               ))
           .toList();
       _latestRelease = UpdateReleaseInfo(
@@ -664,13 +682,20 @@ class UpdateManager extends ChangeNotifier {
           '${versionDir.path}${Platform.pathSeparator}${asset.name}';
 
       // 本地已存在同名安装包（同一版本此前已下载完成，失败残留会被
-      // deleteOnError 清掉）：文件头校验通过后直接复用，不再重复下载。
+      // deleteOnError 清掉）：完整性校验通过后直接复用，不再重复下载。
+      //
+      // 校验含三层（任一不过即视为坏残留，继续走正常下载覆盖它）：
+      // 1. 非空；2. 与 GitHub API 报告的资产大小一致（防截断残留——中途
+      // 杀进程留下的半个 APK 文件头仍是合法的 `PK\x03\x04`，仅查魔数挡不住）；
+      // 3. 文件头魔数（防镜像返回 HTML 错误页被写进 .apk）。
       final File existing = File(targetPath);
       if (existing.existsSync() &&
           existing.lengthSync() > 0 &&
+          (asset.size <= 0 || existing.lengthSync() == asset.size) &&
           _looksLikeValidInstaller(existing)) {
         _progress = UpdateProgress(progress: 1.0, fileName: asset.name);
         _downloadedPath = targetPath;
+        _downloadedExpectedSize = asset.size;
         _status = UpdateStatus.done;
         notifyListeners();
         return targetPath;
@@ -710,12 +735,16 @@ class UpdateManager extends ChangeNotifier {
       Object? lastError;
       for (final ({String name, String url}) c in candidates) {
         try {
+          int received = 0;
+          int total = 0;
           await _dio.download(
             c.url,
             targetPath,
             deleteOnError: true,
-            onReceiveProgress: (int received, int total) {
-              final double p = total > 0 ? received / total : 0.0;
+            onReceiveProgress: (int r, int t) {
+              received = r;
+              total = t;
+              final double p = t > 0 ? r / t : 0.0;
               _progress = _progress.copyWith(
                 progress: p.clamp(0.0, 1.0),
                 mirrorName: c.name,
@@ -724,13 +753,52 @@ class UpdateManager extends ChangeNotifier {
               notifyListeners();
             },
           );
+          // 下载「成功」后必须校验完整性（历史上 dio 对服务器提前断流且
+          // HTTP 正常结束的情形不抛错，会静默产出缺尾的 APK——zip 中央目录
+          // 在文件尾，缺了就是「无法解压」，而文件头依然是合法的 PK）：
+          // 1. 流截断：Content-Length 已知但实收不足；
+          // 2. 大小不符：与 GitHub API 报告的资产字节数比对（对镜像返回的
+          //    HTML 错误页/限流页同样致命——那类响应长度几乎必然对不上）；
+          // 3. 文件头魔数：兜底拦下「内容被污染但长度碰巧一致」的极端情况。
+          // 任一不过：删掉坏文件、记为该候选失败，自动换下一个镜像重下。
+          if (total > 0 && received < total) {
+            throw Exception(
+              'download truncated: $received / $total bytes (${c.name})',
+            );
+          }
+          final File done = File(targetPath);
+          if (asset.size > 0 && (!done.existsSync() ||
+              done.lengthSync() != asset.size)) {
+            final int actual =
+                done.existsSync() ? done.lengthSync() : -1;
+            try {
+              if (done.existsSync()) done.deleteSync();
+            } on Object {
+              // 删除失败不阻断换源重试（下次下载会覆盖）。
+            }
+            throw Exception(
+              'download size mismatch: expect ${asset.size}, got $actual (${c.name})',
+            );
+          }
+          if (!_looksLikeValidInstaller(done)) {
+            try {
+              if (done.existsSync()) done.deleteSync();
+            } on Object {
+              // 同上，best-effort。
+            }
+            throw Exception(
+              'downloaded file is not a valid installer (${c.name})',
+            );
+          }
           _progress = _progress.copyWith(progress: 1.0, mirrorName: c.name);
           _downloadedPath = targetPath;
+          _downloadedExpectedSize = asset.size;
           _status = UpdateStatus.done;
           notifyListeners();
           return targetPath;
         } on Object catch (e) {
-          // 当前候选失败（HTTP 4xx/5xx 或网络错误）：重置进度换下一个。
+          // 当前候选失败（HTTP 4xx/5xx、网络错误或完整性校验不过）：
+          // 重置进度换下一个。
           lastError = e;
           _progress = _progress.copyWith(progress: 0.0);
           notifyListeners();
@@ -900,6 +968,20 @@ class UpdateManager extends ChangeNotifier {
       _lastError = 'No downloaded installer found';
       return false;
     }
+    // 安装前二次完整性校验（防御纵深）：下载完成到点安装之间文件仍可能
+    // 损坏（Android cache 回收、磁盘错误等）。大小或魔数不符时拒绝安装
+    // 并引导重下——把坏包交给系统安装器只会得到「无法解压/解析失败」。
+    final File installer = File(path);
+    final int actual = installer.lengthSync();
+    if (_downloadedExpectedSize > 0 && actual != _downloadedExpectedSize) {
+      _lastError =
+          'installer file incomplete ($actual / $_downloadedExpectedSize bytes), please re-download';
+      return false;
+    }
+    if (!_looksLikeValidInstaller(installer)) {
+      _lastError = 'installer file is corrupted, please re-download';
+      return false;
+    }
     _status = UpdateStatus.installing;
     notifyListeners();
 
@@ -942,6 +1024,7 @@ class UpdateManager extends ChangeNotifier {
     _progress = const UpdateProgress();
     _lastError = null;
     _downloadedPath = null;
+    _downloadedExpectedSize = 0;
     notifyListeners();
   }
 }
