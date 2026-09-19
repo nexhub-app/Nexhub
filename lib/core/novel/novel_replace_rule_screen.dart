@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/novel/novel_replace_rule.dart';
 import '../../core/novel/novel_rule_cache.dart';
 import '../utils/app_haptics.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// 替换规则管理页面入口：从阅读器设置进入。
 class NovelReplaceRuleScreen extends StatefulWidget {
@@ -466,6 +467,8 @@ class _ReplaceRuleEditScreenState extends State<_ReplaceRuleEditScreen> {
                 ListTile(
                   title: const Text('作用范围'),
                   trailing: DropdownButton<String>(
+                    elevation: 0,
+                    borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                     value: _scope,
                     underline: const SizedBox(),
                     items: const [

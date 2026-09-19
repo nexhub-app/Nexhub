@@ -11,10 +11,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nexhub/core/network/dio_image_file_service.dart';
+import 'package:nexhub/core/platform/image_saver.dart';
 import 'package:nexhub/core/scraper/http_fetcher.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
 /// 构造与 [SourceImage] 一致的防盗链请求头。
@@ -50,7 +51,7 @@ String _pickExt(String url) {
   return ext;
 }
 
-/// 长按正文图片弹菜单：保存到本地 / 复制图片 / 分享（复制路径）。
+/// 长按正文图片弹菜单：保存到公共外部存储 / 复制图片 / 分享。
 Future<void> showRssImageActions(
   BuildContext context, {
   required String url,
@@ -114,13 +115,14 @@ Future<void> _saveImage(
     return;
   }
   try {
-    final Directory dir = await getApplicationDocumentsDirectory();
+    final Uint8List bytes = await file.readAsBytes();
     final String name =
-        '${DateTime.now().millisecondsSinceEpoch}${_pickExt(url)}';
-    final String dest = p.join(dir.path, 'reader_images', name);
-    await Directory(p.dirname(dest)).create(recursive: true);
-    await file.copy(dest);
-    messenger.showSnackBar(SnackBar(content: Text(l10n.imageSavedTo(dest))));
+        'nexhub_${DateTime.now().millisecondsSinceEpoch}${_pickExt(url)}';
+    final String savedTo = await ImageSaver.saveImage(
+      bytes: bytes,
+      fileName: name,
+    );
+    messenger.showSnackBar(SnackBar(content: Text(l10n.imageSavedTo(savedTo))));
   } on Object {
     messenger.showSnackBar(SnackBar(content: Text(l10n.imageSaveFailed)));
   }
@@ -175,7 +177,10 @@ Future<void> _shareImage(
     messenger.showSnackBar(SnackBar(content: Text(l10n.imageLoadFailed)));
     return;
   }
-  // share_plus 未引入依赖，回退为复制本地路径到剪贴板。
-  await Clipboard.setData(ClipboardData(text: file.path));
-  messenger.showSnackBar(SnackBar(content: Text(l10n.imagePathCopied)));
+  try {
+    // 拉起系统分享面板，把本地图片文件分享给微信/QQ/记事本等目标应用。
+    await Share.shareXFiles(<XFile>[XFile(file.path)]);
+  } on Object {
+    messenger.showSnackBar(SnackBar(content: Text(l10n.shareFailed)));
+  }
 }

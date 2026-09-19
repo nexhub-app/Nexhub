@@ -460,6 +460,8 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           children: <Widget>[
             Text(l10n.subtitleAssOverride, style: theme.textTheme.bodyMedium),
             DropdownButton<String>(
+              elevation: 0,
+              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               value: _subAssMode,
               items: const <DropdownMenuItem<String>>[
                 DropdownMenuItem(value: 'yes', child: Text('是')),

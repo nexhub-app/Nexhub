@@ -4,18 +4,22 @@ import android.app.PendingIntent
 import android.app.PictureInPictureParams
 import android.app.RemoteAction
 import android.content.BroadcastReceiver
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
 import android.graphics.drawable.Icon
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.MediaStore
 import android.util.Log
 import android.util.Rational
 import android.view.KeyEvent
@@ -144,6 +148,37 @@ class MainActivity : FlutterFragmentActivity() {
                     } catch (e: Exception) {
                         result.success(null)
                     }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Method channel: 保存图片到公共外部存储相册（长按图片菜单「保存」）。
+        // Android 10+（分区存储）经 MediaStore 写公共相册 Pictures/NexHub，
+        // 无需任何存储权限；Android 9- 直写公共 Pictures 目录，运行时
+        // WRITE_EXTERNAL_STORAGE 由 Dart 侧（permission_handler）先申请。
+        // 写盘放独立线程，避免大图阻塞主线程造成掉帧/ANR。
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "nexhub/media_store"
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "sdkInt" -> result.success(Build.VERSION.SDK_INT)
+                "saveImage" -> {
+                    val bytes = call.argument<ByteArray>("bytes")
+                    val fileName = call.argument<String>("fileName")
+                    val mime = call.argument<String>("mime") ?: "image/jpeg"
+                    if (bytes == null || fileName == null) {
+                        result.error("bad_args", "bytes/fileName is null", null)
+                        return@setMethodCallHandler
+                    }
+                    Thread {
+                        try {
+                            result.success(saveImageToPublicPictures(bytes, fileName, mime))
+                        } catch (e: Exception) {
+                            result.error("save_failed", e.message, null)
+                        }
+                    }.start()
                 }
                 else -> result.notImplemented()
             }
@@ -320,6 +355,52 @@ class MainActivity : FlutterFragmentActivity() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(intent)
+    }
+
+    /**
+     * 把图片字节写入公共外部存储相册 Pictures/NexHub，返回对外可见路径。
+     * Android 10+：MediaStore insert（IS_PENDING 两段式写入），分区存储免权限。
+     * Android 9-：直写 Environment.DIRECTORY_PICTURES 并触发媒体扫描
+     * （WRITE_EXTERNAL_STORAGE 已由 Dart 侧运行时申请）。
+     */
+    private fun saveImageToPublicPictures(bytes: ByteArray, fileName: String, mime: String): String {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Images.Media.MIME_TYPE, mime)
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/NexHub")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+            val resolver = contentResolver
+            val uri = resolver.insert(
+                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                values
+            ) ?: throw IllegalStateException("MediaStore insert failed")
+            try {
+                resolver.openOutputStream(uri)?.use { it.write(bytes) }
+                    ?: throw IllegalStateException("openOutputStream failed")
+                values.clear()
+                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                resolver.update(uri, values, null, null)
+            } catch (e: Exception) {
+                // 写入失败清理半成品占位记录，避免相册出现 0 字节幽灵图。
+                runCatching { resolver.delete(uri, null, null) }
+                throw e
+            }
+            return "Pictures/NexHub/$fileName"
+        }
+        @Suppress("DEPRECATION")
+        val dir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+            "NexHub"
+        )
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw IllegalStateException("mkdirs failed: ${dir.path}")
+        }
+        val out = File(dir, fileName)
+        out.writeBytes(bytes)
+        MediaScannerConnection.scanFile(this, arrayOf(out.absolutePath), arrayOf(mime), null)
+        return out.absolutePath
     }
 
     /**

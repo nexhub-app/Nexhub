@@ -147,6 +147,8 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           leading: const Icon(Icons.memory),
           title: Text(l10n.playerDecodeMode),
           trailing: DropdownButton<String>(
+            elevation: 0,
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
             value: _controller.currentHwdec,
             // 收起时只显短名，避免 hw+ 的提示后缀撑爆 trailing 宽度。
             selectedItemBuilder: (BuildContext _) => <Widget>[
@@ -196,6 +198,8 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           title: Text(l10n.playerUpscaleShader),
           subtitle: Text(l10n.playerUpscaleShaderHint),
           trailing: DropdownButton<String>(
+            elevation: 0,
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
             value: _playerSettings.upscaleShader.name,
             items: <DropdownMenuItem<String>>[
               DropdownMenuItem<String>(
@@ -229,6 +233,8 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           leading: const Icon(Icons.graphic_eq),
           title: Text(l10n.playerAudioChannel),
           trailing: DropdownButton<String>(
+            elevation: 0,
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
             value: _controller.currentAudioChannel,
             items: <DropdownMenuItem<String>>[
               DropdownMenuItem<String>(

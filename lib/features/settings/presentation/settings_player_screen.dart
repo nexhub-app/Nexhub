@@ -396,6 +396,8 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           DropdownButton<String>(
+                            elevation: 0,
+                            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                             value: _settings.subtitleAssMode,
                             items: const <DropdownMenuItem<String>>[
                               DropdownMenuItem(value: 'yes', child: Text('Yes')),

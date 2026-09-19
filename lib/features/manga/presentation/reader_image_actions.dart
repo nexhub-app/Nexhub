@@ -3,12 +3,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 // NexImageCacheManager 与 SourceImage 同一图片磁盘缓存（同 URL 不重复下载）。
 import 'package:nexhub/core/network/dio_image_file_service.dart';
+import 'package:nexhub/core/platform/image_saver.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/favorites/favorites_manager.dart';
@@ -20,9 +21,10 @@ import '../../../core/scraper/http_fetcher.dart';
 /// 设为封面：将图片 URL 复制到剪贴板并提示用户去详情页粘贴（简易方案，
 /// 完整方案需持久化到 ComicBookmarkManager，后续按需扩展）。
 /// 保存：从 [NexImageCacheManager] 取出图片（缓存未命中则触发下载，携带
-/// 防盗链 headers），复制到应用文档目录的 `reader_images/` 子目录。
-/// 分享：`share_plus` 未在 pubspec 中声明依赖，回退为将图片本地路径
-/// 复制到剪贴板，由用户自行粘贴到目标应用。
+/// 防盗链 headers），经 [ImageSaver] 写入公共外部存储（Android 10+ 落
+/// `Pictures/NexHub` 相册，免权限；桌面落系统下载目录）。
+/// 分享：`share_plus` 拉起系统分享面板，把本地图片文件分享到
+/// 微信/QQ/记事本等目标应用。
 Future<void> showReaderImageActions({
   required BuildContext context,
   required String url,
@@ -207,7 +209,10 @@ Map<String, String>? _buildHeaders(PluginConfig? source, String? url,
   final SiteConfig? site = source?.site;
   final Map<String, String>? ahHeaders = ah?.headers;
   final Map<String, String>? siteHeaders = site?.headers;
-  final String? referer = ah?.referer;
+  // 章节页绑定型 Referer 优先（调用方按「图片↔所属章节页」推导传入）；
+  // 为空回退源级 antiHotlinking.referer。
+  final String? effectiveReferer =
+      (referer != null && referer.isNotEmpty) ? referer : ah?.referer;
   // UA 兜底：与 [SourceImage] 一致——CDN（如 baozimh 家族 6wm.top）无 UA
   // 直接 403，源未配 site.userAgent 时回退到 HttpFetcher 的浏览器 UA。
   final String? siteUa = site?.userAgent;
@@ -217,15 +222,15 @@ Map<String, String>? _buildHeaders(PluginConfig? source, String? url,
   final String? cookies = site?.cookies;
   final bool hasFields = (siteHeaders != null && siteHeaders.isNotEmpty) ||
       (ahHeaders != null && ahHeaders.isNotEmpty) ||
-      (referer != null && referer.isNotEmpty) ||
+      (effectiveReferer != null && effectiveReferer.isNotEmpty) ||
       (ua.isNotEmpty) ||
       (cookies != null && cookies.isNotEmpty);
   if (!hasFields) return null;
   final Map<String, String> m = <String, String>{};
   if (ahHeaders != null) m.addAll(ahHeaders);
   if (siteHeaders != null) m.addAll(siteHeaders);
-  if (referer != null && referer.isNotEmpty) {
-    m['Referer'] = referer;
+  if (effectiveReferer != null && effectiveReferer.isNotEmpty) {
+    m['Referer'] = effectiveReferer;
   }
   if (ua.isNotEmpty) {
     m['User-Agent'] = ua;
@@ -275,13 +280,14 @@ Future<void> _saveImage(
     return;
   }
   try {
-    final Directory dir = await getApplicationDocumentsDirectory();
+    final Uint8List bytes = await file.readAsBytes();
     final String name =
-        '${DateTime.now().millisecondsSinceEpoch}${_pickExt(url)}';
-    final String dest = p.join(dir.path, 'reader_images', name);
-    await Directory(p.dirname(dest)).create(recursive: true);
-    await file.copy(dest);
-    messenger.showSnackBar(SnackBar(content: Text(l10n.imageSavedTo(dest))));
+        'nexhub_${DateTime.now().millisecondsSinceEpoch}${_pickExt(url)}';
+    final String savedTo = await ImageSaver.saveImage(
+      bytes: bytes,
+      fileName: name,
+    );
+    messenger.showSnackBar(SnackBar(content: Text(l10n.imageSavedTo(savedTo))));
   } on Object {
     messenger.showSnackBar(SnackBar(content: Text(l10n.imageSaveFailed)));
   }
@@ -301,7 +307,10 @@ Future<void> _shareImage(
     messenger.showSnackBar(SnackBar(content: Text(l10n.imageLoadFailed)));
     return;
   }
-  // share_plus 未引入依赖，回退为复制本地路径到剪贴板。
-  await Clipboard.setData(ClipboardData(text: file.path));
-  messenger.showSnackBar(SnackBar(content: Text(l10n.imagePathCopied)));
+  try {
+    // 拉起系统分享面板，把本地图片文件分享给微信/QQ/记事本等目标应用。
+    await Share.shareXFiles(<XFile>[XFile(file.path)]);
+  } on Object {
+    messenger.showSnackBar(SnackBar(content: Text(l10n.shareFailed)));
+  }
 }

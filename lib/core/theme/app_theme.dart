@@ -250,6 +250,28 @@ class AppTheme {
         ),
         elevation: 0,
       ),
+      // 底部列表弹层（showModalBottomSheet）：全局去阴影 + 圆角。
+      // M3 默认 modal 底部弹层带 elevation 1 的投影且仅在显式传 shape 时有
+      // 圆角；未传 shape 的弹层靠 theme 兜底。clipBehavior 让 ListTile 等
+      // 贴边内容裁剪进圆角内，避免方角溢出。
+      bottomSheetTheme: const BottomSheetThemeData(
+        elevation: 0,
+        modalElevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppTokens.radiusLg),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+      ),
+      // 浮层菜单（PopupMenuButton 三点菜单等）：同列表弹窗设计语言，
+      // 去阴影 + 圆角（M3 默认 4dp 圆角 + elevation 3 投影）。
+      popupMenuTheme: const PopupMenuThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(AppTokens.radiusMd)),
+        ),
+      ),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: colorScheme.primary),
       visualDensity: VisualDensity.adaptivePlatformDensity,
       pageTransitionsTheme: const PageTransitionsTheme(

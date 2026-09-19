@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Directory;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -24,6 +26,7 @@ import '../../core/models/hive_adapters.dart';
 import '../../core/network/network_config_service.dart';
 import '../../core/network/source_network_override_store.dart';
 import '../../core/novel/novel_toc_store.dart';
+import '../../core/utils/app_log.dart';
 import '../../core/resolver/resolver_registry.dart';
 import '../../core/rss/rss_manager.dart';
 import '../../core/rss/rss_update_checker.dart';
@@ -198,6 +201,22 @@ class _SplashScreenState extends State<SplashScreen> {
             .save(downloadSettings.copyWith(downloadPath: normalized));
       }
     }
+    // 启动自修复（Android 10+ 分区存储）：历史版本经 file_picker 持久化过的
+    // 「真实路径」（如 /storage/emulated/0/Download/NexHub）在分区存储下
+    // dart:io 不可写（open failed: EACCES），表现为每次下载都失败且无法自愈。
+    // 这类路径（/storage/、/sdcard 下且不在应用私有 Android/data 目录内）
+    // 一律重置为平台默认目录；用户仍可在下载设置重选（现在的选择器走 SAF）。
+    if (!kIsWeb &&
+        !configured.startsWith('content://') &&
+        configured.isNotEmpty &&
+        configured != 'D:/Downloads' &&
+        await _isUnwritableScopedStoragePath(configured)) {
+      AppLog.instance
+          .w('[下载路径自修复] "$configured" 在分区存储下不可写，重置为平台默认目录');
+      configured = await defaultDownloadPath();
+      await DownloadSettingsStore()
+          .save(downloadSettings.copyWith(downloadPath: configured));
+    }
     final DownloadFileSystem downloadFs;
     if (configured.startsWith('content://')) {
       downloadFs = SafFileSystem(configured);
@@ -314,6 +333,34 @@ class _SplashScreenState extends State<SplashScreen> {
     // 触发自动下载（内部按 autoDownload / wifiOnlyAutoDownload /
     // inAppDownload 设置决定是否真正下载）。
     await manager.maybeAutoDownload(release);
+  }
+
+  /// 判断路径是否为「分区存储（Android 10+）下 dart:io 不可写」的公共存储
+  /// 真实路径。
+  ///
+  /// 判定（仅 Android 调用）：路径位于公共外部存储（`/storage/`、`/sdcard`）
+  /// 且不在应用私有外部目录（`getExternalStorageDirectory()`，即
+  /// `Android/data/<pkg>/`）内。这类路径自 targetSdk 30 起普通应用一律
+  /// EACCES，Persisted 下来只会让每次下载都失败。应用私有目录（含
+  /// `Android/data` 与内部 `getApplicationDocumentsDirectory`，后者不在
+  /// `/storage/` 下）以及任何非公共存储路径均返回 false。
+  Future<bool> _isUnwritableScopedStoragePath(String path) async {
+    final String p = path.replaceAll('\\', '/');
+    const publicPrefixes = <String>['/storage/', '/sdcard/'];
+    final bool isPublic =
+        publicPrefixes.any((pre) => p.startsWith(pre) || p == pre);
+    if (!isPublic) return false;
+    // /sdcard 是 /storage/emulated/0 的符号链接，统一到 /storage/ 比较。
+    final String normalized = p.startsWith('/sdcard/')
+        ? '/storage/emulated/0/${p.substring('/sdcard/'.length)}'
+        : p;
+    try {
+      final Directory? appExt = await getExternalStorageDirectory();
+      if (appExt != null && normalized.startsWith(appExt.path)) return false;
+    } on Object {
+      // 取不到私有目录时按保守处理：公共存储路径一律视为不可写。
+    }
+    return true;
   }
 
   @override

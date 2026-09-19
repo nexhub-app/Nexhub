@@ -540,6 +540,8 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       title: l10n.networkDohTitle,
       children: <Widget>[
         DropdownButtonFormField<String>(
+          elevation: 0,
+          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
           value: presetKey.isEmpty ? null : presetKey,
           decoration: InputDecoration(
             labelText: l10n.networkDohPreset,
