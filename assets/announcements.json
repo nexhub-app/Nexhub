@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.2-announce",
+    "date": "2026-09-20",
+    "title": "NexHub 2.0.2 正式版",
+    "titleEn": "NexHub 2.0.2 (stable release)",
+    "body": "NexHub 2.0.2 正式版来了！它建立在 2.0.1 正式版之上，基础功能完整、可安全升级，本次聚焦下载 / 更新通道可靠性与图片保存、分享体验：应用内更新下载完成后做三重校验（流截断 / 字节数比对 / 文件头魔数），坏包自动换镜像重下，杜绝「无法解压」坏包被静默交付；Android 高版本下载路径修复，存储不可用时回落应用私有目录；漫画 / RSS 长按「保存」经系统相册落地（Android 10+ 免权限），「分享」改为系统面板真分享图片文件；全局列表弹窗去阴影加圆角。沿用同一签名密钥，可直接覆盖安装。",
+    "bodyEn": "NexHub 2.0.2 (stable) is here! Built on 2.0.1 (stable), it's solid and safe to upgrade. This release focuses on download/update reliability and image save/share: in-app updates now run triple integrity checks (stream truncation / byte count / file magic) after download, auto-switching mirrors on a bad package so 'cannot parse' broken installs are never silently delivered; Android high-version download paths fall back to the app's private directory when storage is unavailable; manga/RSS long-press 'Save' lands in the system gallery (no permission on Android 10+), and 'Share' now truly shares the image file via the system panel; global sheet/menu popups lose their shadow and gain rounded corners. Same signing key — just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.1-announce",
     "date": "2026-09-11",
     "title": "NexHub 2.0.1 正式版",
