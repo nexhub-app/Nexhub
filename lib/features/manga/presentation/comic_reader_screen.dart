@@ -2675,7 +2675,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _zoomController.value = Matrix4.identity();
     } else {
       // 中心原点坐标系：仅含 scale 的矩阵 = 以视口中心为锚点的同倍数缩放。
-      _zoomController.value = Matrix4.identity()..scale(s);
+      _zoomController.value = Matrix4.identity()..scaleByDouble(s, s, s, 1.0);
     }
   }
 
@@ -3335,8 +3335,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // T = anchor*(1-target)。webtoon 的 anchor 纵向为 0（纵向滚动交还列表）。
     _animateZoomTo(
       Matrix4.identity()
-        ..translate(anchor.dx * (1 - target), anchor.dy * (1 - target))
-        ..scale(target),
+        ..translateByDouble(
+          anchor.dx * (1 - target), anchor.dy * (1 - target), 0.0, 1.0)
+        ..scaleByDouble(target, target, target, 1.0),
     );
   }
 
@@ -3442,8 +3443,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         : pos;
     final Offset anchor = _toTransformAnchor(focal, vp);
     _zoomController.value = Matrix4.identity()
-      ..translate(anchor.dx * (1 - 1.75), anchor.dy * (1 - 1.75))
-      ..scale(1.75);
+      ..translateByDouble(
+        anchor.dx * (1 - 1.75), anchor.dy * (1 - 1.75), 0.0, 1.0)
+      ..scaleByDouble(1.75, 1.75, 1.75, 1.0);
   }
 
   /// 长按缩放退出（REQ-B2）：恢复原样。
@@ -4186,7 +4188,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (realFactor == 1.0) return;
     // 键盘锚点取屏幕中心：左上原点输入换算到中心原点（Transform 系）即 (0,0)。
     _zoomController.value = Matrix4.identity()
-      ..scale(realFactor)
+      ..scaleByDouble(realFactor, realFactor, realFactor, 1.0)
       ..multiply(m);
   }
 
@@ -4210,8 +4212,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final double dx = c.dx * (1 - realFactor);
     final double dy = c.dy * (1 - realFactor);
     _zoomController.value = Matrix4.identity()
-      ..translate(dx, dy)
-      ..scale(realFactor)
+      ..translateByDouble(dx, dy, 0.0, 1.0)
+      ..scaleByDouble(realFactor, realFactor, realFactor, 1.0)
       ..multiply(m);
   }
 
@@ -4261,7 +4263,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final Matrix4 m = _zoomController.value;
     final double beforeX = m.getTranslation().x;
     final double beforeY = m.getTranslation().y;
-    final Matrix4 moved = Matrix4.copy(m)..leftTranslate(delta.dx, delta.dy);
+    final Matrix4 moved = Matrix4.copy(m)..leftTranslateByDouble(delta.dx, delta.dy, 0.0, 1.0);
     final Matrix4 clamped = webtoon
         ? _clampWebtoonZoomMatrix(moved, vp, _currentWebtoonContentHeight(vp))
         : _clampZoomMatrix(moved, vp);
@@ -4309,7 +4311,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final Matrix4 m = _zoomController.value;
     final double beforeX = m.getTranslation().x;
     final double beforeY = m.getTranslation().y;
-    final Matrix4 moved = Matrix4.copy(m)..leftTranslate(dx * stepX, dy * stepY);
+    final Matrix4 moved = Matrix4.copy(m)
+      ..leftTranslateByDouble(dx * stepX, dy * stepY, 0.0, 1.0);
     final Matrix4 clamped = webtoon
         ? _clampWebtoonZoomMatrix(moved, vp, _currentWebtoonContentHeight(vp))
         : _clampZoomMatrix(moved, vp);
@@ -4402,8 +4405,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final double dx = c.dx * (1 - realFactor);
     final double dy = c.dy * (1 - realFactor);
     _zoomController.value = Matrix4.identity()
-      ..translate(dx, dy)
-      ..scale(realFactor)
+      ..translateByDouble(dx, dy, 0.0, 1.0)
+      ..scaleByDouble(realFactor, realFactor, realFactor, 1.0)
       ..multiply(m);
   }
 

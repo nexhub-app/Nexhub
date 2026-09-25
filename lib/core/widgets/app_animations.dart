@@ -263,7 +263,7 @@ class _AppHoverLiftState extends State<AppHoverLift> {
         duration: AppTokens.durFast,
         curve: Curves.easeOutCubic,
         transform: Matrix4.identity()
-          ..translate(0.0, _hovered ? -widget.lift : 0.0),
+          ..translateByDouble(0.0, _hovered ? -widget.lift : 0.0, 0.0, 1.0),
         child: AnimatedScale(
           scale: _hovered ? widget.scale : 1.0,
           duration: AppTokens.durFast,

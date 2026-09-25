@@ -411,8 +411,6 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
             ),
           Radio<String>(
             value: m.baseUrl,
-            groupValue: _activeBaseUrl,
-            onChanged: (_) => _select(m.baseUrl),
           ),
         ],
       ),
@@ -429,12 +427,22 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
     final hasPublishPage =
         widget.source.site.publishPageUrl?.trim().isNotEmpty ?? false;
 
-    final entries = <Widget>[
-      ...declared.map((m) => _buildTile(m, isCustom: false)),
-      if (declared.isNotEmpty && custom.isNotEmpty)
-        const Divider(height: 1),
-      ...custom.map((m) => _buildTile(m, isCustom: true)),
-    ];
+    final entries = RadioGroup<String>(
+      groupValue: _activeBaseUrl,
+      onChanged: (v) {
+        if (v != null) _select(v);
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          ...declared.map((m) => _buildTile(m, isCustom: false)),
+          if (declared.isNotEmpty && custom.isNotEmpty)
+            const Divider(height: 1),
+          ...custom.map((m) => _buildTile(m, isCustom: true)),
+        ],
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -468,12 +476,12 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
           ),
         ],
       ),
-      body: entries.isEmpty
+      body: (declared.isEmpty && custom.isEmpty)
           ? AppEmptyState(icon: Icons.dns, message: l10n.mirrorNoMirrors)
           : ListView(
               padding: const EdgeInsets.all(AppTokens.spaceLg),
               children: <Widget>[
-                ...entries,
+                entries,
                 const SizedBox(height: AppTokens.spaceLg),
                 Container(
                   padding: const EdgeInsets.all(AppTokens.spaceMd),

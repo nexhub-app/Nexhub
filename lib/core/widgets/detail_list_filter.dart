@@ -283,20 +283,28 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
                 _buildSection(
                   title: l10n.sortSectionTitle,
                   children: <Widget>[
-                    for (final key in DetailSortKey.values)
-                      if (widget.isMultiSource || key != DetailSortKey.source)
-                        RadioListTile<DetailSortKey>(
-                          value: key,
-                          groupValue: _sort.key,
-                          // MD3「Selected」：单选选中 → tick。
-                          onChanged: (v) {
-                            AppHaptics.tick();
-                            setState(() {
-                              _sort = _sort.copyWith(key: v);
-                            });
-                          },
-                          title: Text(_sortKeyLabel(key, l10n)),
-                        ),
+                    RadioGroup<DetailSortKey>(
+                      groupValue: _sort.key,
+                      // MD3「Selected」：单选选中 → tick。
+                      onChanged: (v) {
+                        AppHaptics.tick();
+                        setState(() {
+                          _sort = _sort.copyWith(key: v);
+                        });
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          for (final key in DetailSortKey.values)
+                            if (widget.isMultiSource ||
+                                key != DetailSortKey.source)
+                              RadioListTile<DetailSortKey>(
+                                value: key,
+                                title: Text(_sortKeyLabel(key, l10n)),
+                              ),
+                        ],
+                      ),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: AppTokens.spaceSm),

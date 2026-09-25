@@ -91,7 +91,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
               unawaited(_saveEpisodeSetting('autoPlayNext', v));
               Navigator.pop(ctx);
             },
-            activeColor: Theme.of(ctx).colorScheme.primary,
+            activeThumbColor: Theme.of(ctx).colorScheme.primary,
           ),
         ),
       ),
@@ -113,7 +113,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
               unawaited(_saveEpisodeSetting('longPressSpeedUp', v));
               Navigator.pop(ctx);
             },
-            activeColor: Theme.of(ctx).colorScheme.primary,
+            activeThumbColor: Theme.of(ctx).colorScheme.primary,
           ),
         ),
       ),

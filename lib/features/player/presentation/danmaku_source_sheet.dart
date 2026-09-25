@@ -128,71 +128,86 @@ class _DanmakuSourceSheetState extends State<DanmakuSourceSheet> {
                   ),
                 ),
               ),
-              _optionTile(
-                context: context,
-                l10n: l10n,
-                theme: theme,
-                source: DanmakuSourceType.dandanplay,
-                icon: Icons.cloud_outlined,
-                title: l10n.danmakuSourceDandanplay,
-                description: l10n.danmakuSourceDandanplayDesc,
-              ),
-              _optionTile(
-                context: context,
-                l10n: l10n,
-                theme: theme,
-                source: DanmakuSourceType.bilibili,
-                icon: Icons.live_tv_outlined,
-                title: l10n.danmakuSourceBilibili,
-                description: l10n.danmakuSourceBilibiliDesc,
-              ),
-              // #6 A4-#6: 自定义 URL 选项
-              _optionTile(
-                context: context,
-                l10n: l10n,
-                theme: theme,
-                source: DanmakuSourceType.customUrl,
-                icon: Icons.link_outlined,
-                title: l10n.danmakuCustomUrl,
-                description: l10n.danmakuCustomUrlDesc,
-              ),
-              // 当选中 customUrl 时显示 URL 输入框
-              if (_selected == DanmakuSourceType.customUrl)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTokens.spaceLg,
-                    vertical: AppTokens.spaceXs,
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: TextField(
-                          controller: _urlController,
-                          decoration: InputDecoration(
-                            isDense: true,
-                            hintText: l10n.danmakuCustomUrlHint,
-                            border: const OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.url,
-                          onSubmitted: (_) => _submitCustomUrl(),
+              RadioGroup<DanmakuSourceType>(
+                groupValue: _selected,
+                // MD3「Selected」：单选选中 → tick。
+                onChanged: (DanmakuSourceType? next) {
+                  if (next != null) {
+                    AppHaptics.tick();
+                    _select(next);
+                  }
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    _optionTile(
+                      context: context,
+                      l10n: l10n,
+                      theme: theme,
+                      source: DanmakuSourceType.dandanplay,
+                      icon: Icons.cloud_outlined,
+                      title: l10n.danmakuSourceDandanplay,
+                      description: l10n.danmakuSourceDandanplayDesc,
+                    ),
+                    _optionTile(
+                      context: context,
+                      l10n: l10n,
+                      theme: theme,
+                      source: DanmakuSourceType.bilibili,
+                      icon: Icons.live_tv_outlined,
+                      title: l10n.danmakuSourceBilibili,
+                      description: l10n.danmakuSourceBilibiliDesc,
+                    ),
+                    // #6 A4-#6: 自定义 URL 选项
+                    _optionTile(
+                      context: context,
+                      l10n: l10n,
+                      theme: theme,
+                      source: DanmakuSourceType.customUrl,
+                      icon: Icons.link_outlined,
+                      title: l10n.danmakuCustomUrl,
+                      description: l10n.danmakuCustomUrlDesc,
+                    ),
+                    // 当选中 customUrl 时显示 URL 输入框
+                    if (_selected == DanmakuSourceType.customUrl)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppTokens.spaceLg,
+                          vertical: AppTokens.spaceXs,
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: TextField(
+                                controller: _urlController,
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  hintText: l10n.danmakuCustomUrlHint,
+                                  border: const OutlineInputBorder(),
+                                ),
+                                keyboardType: TextInputType.url,
+                                onSubmitted: (_) => _submitCustomUrl(),
+                              ),
+                            ),
+                            const SizedBox(width: AppTokens.spaceSm),
+                            FilledButton(
+                              onPressed: _submitCustomUrl,
+                              child: Text(l10n.confirm),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: AppTokens.spaceSm),
-                      FilledButton(
-                        onPressed: _submitCustomUrl,
-                        child: Text(l10n.confirm),
-                      ),
-                    ],
-                  ),
+                    _optionTile(
+                      context: context,
+                      l10n: l10n,
+                      theme: theme,
+                      source: DanmakuSourceType.off,
+                      icon: Icons.comments_disabled_outlined,
+                      title: l10n.danmakuSourceOff,
+                      description: l10n.danmakuSourceOffDesc,
+                    ),
+                  ],
                 ),
-              _optionTile(
-                context: context,
-                l10n: l10n,
-                theme: theme,
-                source: DanmakuSourceType.off,
-                icon: Icons.comments_disabled_outlined,
-                title: l10n.danmakuSourceOff,
-                description: l10n.danmakuSourceOffDesc,
               ),
               const SizedBox(height: AppTokens.spaceMd),
             ],
@@ -244,13 +259,6 @@ class _DanmakuSourceSheetState extends State<DanmakuSourceSheet> {
   }) {
     return RadioListTile<DanmakuSourceType>(
       value: source,
-      groupValue: _selected,
-      onChanged: (DanmakuSourceType? next) {
-        if (next != null) {
-          AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
-          _select(next);
-        }
-      },
       secondary: Icon(icon, color: theme.colorScheme.primary),
       title: Text(title),
       subtitle: Text(

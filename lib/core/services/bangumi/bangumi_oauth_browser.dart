@@ -76,7 +76,7 @@ Future<String?> openBangumiOAuthBrowser({
         // 截获 code 后的程序化 pop 也会触发 onPopInvoked，但因 handled 已置位，
         // completeCode(null) 被守卫忽略，不会覆盖已完成的 code。
         canPop: true,
-        onPopInvoked: (bool didPop) {
+        onPopInvokedWithResult: (bool didPop, Object? result) {
           if (didPop) completeCode(null);
         },
         child: Dialog(

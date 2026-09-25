@@ -417,20 +417,22 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
           builder: (ctx) => AppAlertDialog(
             title: Text(label),
             content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  for (final c in NovelHeaderFooterContent.values)
-                    RadioListTile<NovelHeaderFooterContent>(
-                      title: Text(_hfContentLabel(l10n, c)),
-                      value: c,
-                      groupValue: value,
-                      onChanged: (v) {
-                        AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
-                        Navigator.of(ctx).pop(v);
-                      },
-                    ),
-                ],
+              child: RadioGroup<NovelHeaderFooterContent>(
+                groupValue: value,
+                onChanged: (v) {
+                  AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
+                  Navigator.of(ctx).pop(v);
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    for (final c in NovelHeaderFooterContent.values)
+                      RadioListTile<NovelHeaderFooterContent>(
+                        title: Text(_hfContentLabel(l10n, c)),
+                        value: c,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

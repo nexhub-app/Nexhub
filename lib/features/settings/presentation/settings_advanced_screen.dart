@@ -241,33 +241,34 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                 style: Theme.of(ctx).textTheme.titleMedium,
               ),
               const SizedBox(height: AppTokens.spaceSm),
-              // 自动
-              RadioListTile<String>(
-                value: '',
+              // MD3「Selected」：单选选中 → tick。
+              RadioGroup<String>(
                 groupValue: current,
-                title: Text(l10n.userAgentAuto),
-                subtitle: Text(l10n.userAgentAutoHint),
                 onChanged: (v) {
-                  AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
+                  AppHaptics.tick();
                   _setUserAgent(v ?? '');
                   Navigator.pop(ctx);
                 },
-              ),
-              for (final p in _kUaPresets)
-                RadioListTile<String>(
-                  value: p.ua,
-                  groupValue: current,
-                  title: Text(
-                    p.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onChanged: (v) {
-                    AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
-                    _setUserAgent(v ?? '');
-                    Navigator.pop(ctx);
-                  },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    RadioListTile<String>(
+                      value: '',
+                      title: Text(l10n.userAgentAuto),
+                      subtitle: Text(l10n.userAgentAutoHint),
+                    ),
+                    for (final p in _kUaPresets)
+                      RadioListTile<String>(
+                        value: p.ua,
+                        title: Text(
+                          p.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
                 ),
+              ),
               const Divider(height: AppTokens.spaceLg),
               TextField(
                 controller: customCtrl,

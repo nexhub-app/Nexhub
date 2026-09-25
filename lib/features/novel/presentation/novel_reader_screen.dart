@@ -208,44 +208,47 @@ Future<int?> _pickSleepMinutes({
       builder: (ctx2, setDialogState) => AppAlertDialog(
         title: Text(l10n.ttsSleepTimer),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (final m in presets)
-                RadioListTile<int>(
-                  title: Text(
-                      m == 0 ? l10n.ttsSleepOff : l10n.minuteUnit(m)),
-                  value: m,
-                  groupValue: customActive ? -1 : current,
-                  onChanged: (v) {
-                    AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
-                    Navigator.of(ctx).pop(v);
-                  },
-                ),
-              RadioListTile<int>(
-                title: Text(l10n.ttsSleepCustom),
-                value: -1,
-                groupValue: customActive ? -1 : current,
-                onChanged: (_) {
-                  AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
-                  setDialogState(() => customActive = true);
-                },
-              ),
-              if (customActive)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppTokens.spaceSm, left: AppTokens.spaceMd, right: AppTokens.spaceMd),
-                  child: TextField(
-                    autofocus: true,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: l10n.ttsSleepCustomMinutes,
-                      suffixText: l10n.minuteUnit(1),
-                    ),
-                    onChanged: (v) =>
-                        setDialogState(() => customValue = int.tryParse(v.trim())),
+          child: RadioGroup<int>(
+            groupValue: customActive ? -1 : current,
+            // MD3「Selected」：单选选中 → tick。预设项直接以所选分钟数关闭
+            // 对话框；「自定义」项转入输入态。
+            onChanged: (v) {
+              AppHaptics.tick();
+              if (v == -1) {
+                setDialogState(() => customActive = true);
+              } else {
+                Navigator.of(ctx).pop(v);
+              }
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (final m in presets)
+                  RadioListTile<int>(
+                    title: Text(
+                        m == 0 ? l10n.ttsSleepOff : l10n.minuteUnit(m)),
+                    value: m,
                   ),
+                RadioListTile<int>(
+                  title: Text(l10n.ttsSleepCustom),
+                  value: -1,
                 ),
-            ],
+                if (customActive)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppTokens.spaceSm, left: AppTokens.spaceMd, right: AppTokens.spaceMd),
+                    child: TextField(
+                      autofocus: true,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: l10n.ttsSleepCustomMinutes,
+                        suffixText: l10n.minuteUnit(1),
+                      ),
+                      onChanged: (v) =>
+                          setDialogState(() => customValue = int.tryParse(v.trim())),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
         actions: <Widget>[
@@ -3120,7 +3123,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 SizedBox(
                   width: 200,
                   child: _SimpleColorSlider(
-                    value: customColor.value,
+                    value: customColor.toARGB32(),
                     onChanged: (c) {
                       customColor = Color(c);
                     },
@@ -3128,7 +3131,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 ),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(customColor.value),
+                  onPressed: () => Navigator.of(ctx).pop(customColor.toARGB32()),
                   child: Text(l10n.customColorApply),
                 ),
               ],
@@ -3381,7 +3384,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               ),
             ),
       // 三个按钮一排：更换封面 | 取消 | 分享
-            ButtonBar(
+            OverflowBar(
               alignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 TextButton.icon(
@@ -6145,23 +6148,26 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 style: Theme.of(sheetCtx).textTheme.titleMedium,
               ),
             ),
-            RadioListTile<_AggChapterMode>(
-              value: _AggChapterMode.fileExpanded,
+            RadioGroup<_AggChapterMode>(
               groupValue: _aggMode,
               onChanged: (v) => Navigator.of(sheetCtx).pop(v),
-              title: Text(l10n.aggModeFileExpanded),
-            ),
-            RadioListTile<_AggChapterMode>(
-              value: _AggChapterMode.epubLast,
-              groupValue: _aggMode,
-              onChanged: (v) => Navigator.of(sheetCtx).pop(v),
-              title: Text(l10n.aggModeEpubLast),
-            ),
-            RadioListTile<_AggChapterMode>(
-              value: _AggChapterMode.collapsed,
-              groupValue: _aggMode,
-              onChanged: (v) => Navigator.of(sheetCtx).pop(v),
-              title: Text(l10n.aggModeCollapsed),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  RadioListTile<_AggChapterMode>(
+                    value: _AggChapterMode.fileExpanded,
+                    title: Text(l10n.aggModeFileExpanded),
+                  ),
+                  RadioListTile<_AggChapterMode>(
+                    value: _AggChapterMode.epubLast,
+                    title: Text(l10n.aggModeEpubLast),
+                  ),
+                  RadioListTile<_AggChapterMode>(
+                    value: _AggChapterMode.collapsed,
+                    title: Text(l10n.aggModeCollapsed),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: AppTokens.spaceSm),
           ],
@@ -9804,7 +9810,7 @@ class _NovelInlineSettings extends StatelessWidget {
     required VoidCallback onClear,
     required String clearTooltip,
   }) {
-    final displayed = Color(current ?? fallback.value);
+    final displayed = Color(current ?? fallback.toARGB32());
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(title),
@@ -9849,7 +9855,7 @@ class _NovelInlineSettings extends StatelessWidget {
                   },
                 ),
               );
-              if (result != null) onPicked(result.value);
+              if (result != null) onPicked(result.toARGB32());
             },
             child: Container(
               width: 32,
@@ -9958,17 +9964,19 @@ class _NovelInlineSettings extends StatelessWidget {
           builder: (ctx) => AppAlertDialog(
             title: Text(label),
             content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  for (final c in NovelHeaderFooterContent.values)
-                    RadioListTile<NovelHeaderFooterContent>(
-                      title: Text(_hfContentLabel(c, l10n)),
-                      value: c,
-                      groupValue: value,
-                      onChanged: (v) => Navigator.of(ctx).pop(v),
-                    ),
-                ],
+              child: RadioGroup<NovelHeaderFooterContent>(
+                groupValue: value,
+                onChanged: (v) => Navigator.of(ctx).pop(v),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    for (final c in NovelHeaderFooterContent.values)
+                      RadioListTile<NovelHeaderFooterContent>(
+                        title: Text(_hfContentLabel(c, l10n)),
+                        value: c,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -10594,7 +10602,7 @@ class _SimpleColorSliderState extends State<_SimpleColorSlider> {
     _a = c.a;
   }
 
-  int get _currentValue => Color.from(alpha: _a, red: _r, green: _g, blue: _b).value;
+  int get _currentValue => Color.from(alpha: _a, red: _r, green: _g, blue: _b).toARGB32();
 
   @override
   Widget build(BuildContext context) {
