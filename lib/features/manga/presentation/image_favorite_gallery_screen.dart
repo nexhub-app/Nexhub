@@ -18,7 +18,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/core/comic/image_favorite_manager.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/settings/general_settings.dart';

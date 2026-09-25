@@ -5,7 +5,7 @@ import 'package:canvas_danmaku/base_danmaku_painter.dart';
 import 'package:canvas_danmaku/models/danmaku_content_item.dart';
 import 'package:canvas_danmaku/models/danmaku_item.dart';
 import 'package:canvas_danmaku/utils/utils.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 final class SpecialDanmakuPainter extends BaseDanmakuPainter {
   SpecialDanmakuPainter({

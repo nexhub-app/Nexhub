@@ -6,7 +6,7 @@
 /// 列表排版与订阅源详情页共享同一套样式与偏好（rss_article_tiles）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 

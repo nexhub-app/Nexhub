@@ -6,7 +6,7 @@
 /// FilterChip Wrap 多选 + 快捷新建，确认调 [FavoritesManager.setEntryGroups]。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

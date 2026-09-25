@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';

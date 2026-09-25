@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../theme/app_tokens.dart';
 
 /// 带动效的搜索框：聚焦时边框变主色、加粗、底色轻微上染，平滑过渡。

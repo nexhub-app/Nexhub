@@ -7,7 +7,7 @@
 /// 源未声明 comments 时仅展示 Bangumi 吐槽子页，默认选中。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/plugin_config.dart';

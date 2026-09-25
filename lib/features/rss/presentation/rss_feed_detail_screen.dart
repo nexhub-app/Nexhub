@@ -7,7 +7,7 @@
 /// - 顶部「全部标为已读」+ 筛选（全部 / 未读 / 收藏）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';

@@ -5,7 +5,7 @@
 /// 入口：详情页 Bangumi 卡片评分区、设置页「浏览 Bangumi 收藏」列表项。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';

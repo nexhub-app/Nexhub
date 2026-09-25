@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
@@ -6502,9 +6502,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           ? Center(child: Text(l10n.slotsHidden))
                           : ReorderableListView(
                               buildDefaultDragHandles: false,
-                              onReorder: (int oldI, int newI) {
+                              onReorderItem: (int oldI, int newI) {
                                 setSheetState(() {
-                                  if (newI > oldI) newI -= 1;
                                   final item = working.removeAt(oldI);
                                   working.insert(newI, item);
                                 });

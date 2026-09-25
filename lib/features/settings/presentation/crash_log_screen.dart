@@ -4,7 +4,7 @@
 /// 支持刷新 / 复制全部 / 清空。空态提示用户先复现问题。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 

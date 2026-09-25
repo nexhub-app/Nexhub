@@ -1,7 +1,7 @@
 /// 替换规则管理页面（美化版）：列表 + 编辑 + 书籍级开关。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../core/novel/novel_replace_rule.dart';
 import '../../core/novel/novel_rule_cache.dart';
 import '../utils/app_haptics.dart';
@@ -177,9 +177,8 @@ class _NovelReplaceRuleScreenState extends State<NovelReplaceRuleScreen> {
     return ReorderableListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
       itemCount: rules.length,
-      onReorder: (oldIndex, newIndex) {
+      onReorderItem: (oldIndex, newIndex) {
         setState(() {
-          if (newIndex > oldIndex) newIndex--;
           final item = rules.removeAt(oldIndex);
           rules.insert(newIndex, item);
           for (int i = 0; i < rules.length; i++) {

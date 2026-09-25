@@ -2,7 +2,7 @@
 library;
 
 import 'package:dio/dio.dart' show Options;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import '../../../core/settings/rsshub_config.dart';
 import '../../../core/theme/app_tokens.dart';

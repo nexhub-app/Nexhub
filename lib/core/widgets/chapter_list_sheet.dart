@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 

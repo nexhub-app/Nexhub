@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:canvas_danmaku/canvas_danmaku.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 abstract base class BaseDanmakuPainter extends CustomPainter {
   final int length;

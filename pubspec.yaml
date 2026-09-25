@@ -14,10 +14,10 @@ dependencies:
     sdk: flutter
   intl: ^0.20.2
   # 莫奈取色（Material You 系统动态色 / 从壁纸提取的和谐调色板）
-  # 1.9.0 解钉（2026-09-25）：1.9.0 已支持 AGP 9 + Kotlin DSL + minSdk 24，
-  # 与现构建链（Gradle 9.1.0 + AGP 9.0.1 + Kotlin 2.3.20）兼容，钉死前提失效。
-  # 停在 1.x：2.0.0 起依赖 material_ui 1.0，随 material_ui 迁移阶段一并升级。
-  dynamic_color: ^1.9.0
+  # 2026-09-25 两步解钉：1.8.1 → 1.9.0（AGP 9/Kotlin DSL 兼容，钉死前提失效）
+  # → 2.1.0（material_ui 迁移配套：2.x 的 DynamicColorBuilder 基于 material_ui，
+  # 与 1.x 的类型链不兼容；dynamic_color 2.0.0 起依赖 material_ui 1.0）。
+  dynamic_color: ^2.1.0
   # 运行时主题状态（亮/暗/跟随 + 自定义主色 + 莫奈开关）
   provider: ^6.1.2
   # 自定义主题色选择器
@@ -140,7 +140,10 @@ dependencies:
   # 处理音频打断（来电暂停恢复）与拔耳机暂停。
   audio_service: ^0.18.15
   audio_session: ^0.2.2
+  material_ui: ^1.4.0
 
+  characters: any
+  meta: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -151,6 +154,7 @@ dev_dependencies:
   hive_generator: ^2.0.1
   build_runner: ^2.4.11
 
+  path_provider_platform_interface: any
 flutter:
   uses-material-design: true
   # l10n 代码生成必须开启：flutter build 的 gen_localizations 步骤强制要求

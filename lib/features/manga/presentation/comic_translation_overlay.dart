@@ -8,7 +8,7 @@
 /// - 加载中 / 失败态显示小徽标（失败可重试），不出现在覆盖层外的任何位置。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/ai/backfill_layout.dart';
 import '../../../core/ai/vision_translation_client.dart' show VisionTextSegment;

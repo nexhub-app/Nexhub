@@ -12,7 +12,7 @@ import 'dart:isolate' show Isolate;
 import 'package:file_picker/file_picker.dart' hide FilePickerWindows;
 import 'package:file_picker/src/windows/file_picker_windows.dart';
 import 'package:saf/saf.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

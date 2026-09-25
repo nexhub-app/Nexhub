@@ -1,7 +1,7 @@
 /// 已下载内容页 —— 新版设计：支持按类型筛选（全部/小说/媒体/漫画/已删除）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

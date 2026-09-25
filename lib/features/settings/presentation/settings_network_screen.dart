@@ -9,7 +9,7 @@
 /// Dart TLS 栈限制运行时未接通，卡片内说明替代路径。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/widgets/app_animations.dart';

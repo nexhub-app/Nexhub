@@ -7,7 +7,7 @@
 /// 链接的 HTML（服务端渲染，结构与首页一致）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/media_item.dart';

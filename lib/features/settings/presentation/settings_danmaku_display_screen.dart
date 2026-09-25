@@ -9,7 +9,7 @@
 /// 渲染层读取（`DanmakuSettings` 中对应 enum 字段仍保留以做向后兼容）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/danmaku/danmaku_settings.dart';

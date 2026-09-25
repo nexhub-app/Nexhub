@@ -6,7 +6,7 @@
 /// 供唯一详情页 [ContentDetailScreen] 复用。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../settings/general_settings.dart';

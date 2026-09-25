@@ -14,7 +14,7 @@
 /// 块的源后直接沿用源自带配置，用户无需重新配置；保存后固化为用户覆盖。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 

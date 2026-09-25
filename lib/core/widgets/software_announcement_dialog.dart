@@ -4,7 +4,7 @@
 /// 内容来自远程多源 JSON（见 [SoftwareAnnouncementService]），而非某个源 JSON。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 

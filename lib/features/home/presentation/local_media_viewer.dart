@@ -5,7 +5,7 @@ import 'package:nexhub/core/local/archive_extractor.dart';
 import 'package:nexhub/core/local/saf_bridge.dart';
 import 'package:nexhub/core/local/text_encoding.dart';
 import 'package:nexhub/core/player/player_controller.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 

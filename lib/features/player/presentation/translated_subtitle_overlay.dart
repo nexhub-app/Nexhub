@@ -7,7 +7,7 @@
 /// - 翻译中显示 subtle 进度点；整层 IgnorePointer，不与播放手势竞争。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../core/player/subtitle_translation_controller.dart';
 

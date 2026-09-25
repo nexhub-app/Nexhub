@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../theme/app_tokens.dart';
 
 /// 顶部 Tab 项定义（图标 + 文字，文字来自 l10n）。

@@ -9,7 +9,7 @@
 /// 调用方保留原「已读完」提示行为。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../features/manga/presentation/comic_reader_screen.dart';

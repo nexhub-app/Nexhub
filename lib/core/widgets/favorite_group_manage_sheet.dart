@@ -5,7 +5,7 @@
 /// 样式对齐 [bookshelf_filter_sheet.dart]（拖条 / 顶圆角 / titleMedium 标题）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -209,10 +209,9 @@ class _GroupManageSheet extends StatelessWidget {
                     shrinkWrap: true,
                     buildDefaultDragHandles: false,
                     itemCount: groups.length,
-                    onReorder: (oldIndex, newIndex) {
+                    onReorderItem: (oldIndex, newIndex) {
                       final List<String> ids =
                           groups.map((g) => g.id).toList();
-                      if (newIndex > oldIndex) newIndex--;
                       final String moved = ids.removeAt(oldIndex);
                       ids.insert(newIndex, moved);
                       manager.reorderGroups(ids, type: sourceType);

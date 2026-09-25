@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../theme/app_tokens.dart';
 
 /// 统一卡片容器（token 圆角 + 阴影）。点击态可选。

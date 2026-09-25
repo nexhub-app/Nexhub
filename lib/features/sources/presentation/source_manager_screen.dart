@@ -10,7 +10,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -740,9 +740,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           },
         );
       },
-      onReorder: (int oldIndex, int newIndex) {
+      onReorderItem: (int oldIndex, int newIndex) {
         final ids = sources.map((s) => s.id).toList();
-        if (newIndex > oldIndex) newIndex--;
         final moved = ids.removeAt(oldIndex);
         ids.insert(newIndex, moved);
         repo.setSourceOrder(ids);

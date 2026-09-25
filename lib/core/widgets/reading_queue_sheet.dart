@@ -7,7 +7,7 @@
 ///   （小说 / 漫画），打开后自动移出队列（读完即完成），并记录为最近队列。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../features/novel/presentation/novel_reader_screen.dart';

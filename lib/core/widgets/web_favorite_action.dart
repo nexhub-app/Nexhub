@@ -8,7 +8,7 @@
 /// （填充 `{id}` `{detailUrl}` `{title}` 占位符），不内置任何站点逻辑。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/media_item.dart';

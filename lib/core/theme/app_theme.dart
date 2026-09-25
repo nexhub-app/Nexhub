@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'app_tokens.dart';
 
 /// 应用主题工厂。
@@ -223,13 +223,6 @@ class AppTheme {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
         iconColor: colorScheme.onSurfaceVariant,
-      ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        selectedItemColor: colorScheme.primary,
-        unselectedItemColor: colorScheme.onSurfaceVariant,
-        backgroundColor: colorScheme.surface,
-        elevation: 0,
-        type: BottomNavigationBarType.fixed,
       ),
       dividerTheme: DividerThemeData(
         color: colorScheme.outlineVariant,

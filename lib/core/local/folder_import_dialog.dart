@@ -4,7 +4,7 @@
 /// 「合并为整本/整部」还是「逐文件分别导入」。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 import 'package:nexhub/core/widgets/app_segmented_tabs.dart';
 import 'package:nexhub/core/theme/app_tokens.dart';

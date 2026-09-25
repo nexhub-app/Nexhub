@@ -8,7 +8,7 @@
 /// （[FavoriteGroup] 多分组标签模型，与站点题材 [FavoriteEntry.category] 区分）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -90,9 +90,8 @@ class _SettingsCategoriesScreenState extends State<SettingsCategoriesScreen> {
                       AppTokens.spaceLg,
                     ),
                     itemCount: groups.length,
-                    onReorder: (oldIndex, newIndex) {
+                    onReorderItem: (oldIndex, newIndex) {
                       final ids = groups.map((g) => g.id).toList();
-                      if (newIndex > oldIndex) newIndex--;
                       final moved = ids.removeAt(oldIndex);
                       ids.insert(newIndex, moved);
                       manager.reorderGroups(ids, type: _type);

@@ -5,7 +5,7 @@
 /// 原文/译文/位置证据。报告存 Hive 并落 JSON 文件（nexhub/reviews/）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/ai/glossary_manager.dart';
 import 'package:nexhub/core/novel/novel_review_manager.dart';

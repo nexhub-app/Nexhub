@@ -10,7 +10,7 @@
 /// 桌面端（WebView 不可用）直接隐藏「网页登录」入口，无需改用其他方式。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

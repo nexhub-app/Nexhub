@@ -1,5 +1,5 @@
 import 'package:canvas_danmaku/canvas_danmaku.dart' as cd;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'danmaku.dart';
 

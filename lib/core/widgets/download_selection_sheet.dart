@@ -15,7 +15,7 @@
 /// * 顶部补一条拖拽指示条，符合 Material 3 bottom sheet 规范。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/episode.dart';

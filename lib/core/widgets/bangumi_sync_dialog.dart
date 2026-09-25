@@ -13,7 +13,7 @@
 /// （未收藏时 client 自动回退 POST）；动漫逐集用 markEpisodesWatched 标记差集。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

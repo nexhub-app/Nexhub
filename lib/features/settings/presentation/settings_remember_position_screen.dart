@@ -4,7 +4,7 @@
 /// [GeneralSettings.rememberPosition]，与汇总页共用同一份数据）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/settings/general_settings.dart';

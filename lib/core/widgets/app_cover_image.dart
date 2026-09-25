@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../local/local_content_manager.dart' show isAndroidSafUri;
 import '../local/saf_bridge.dart' show resolveSafUri;
 import '../models/plugin_config.dart';

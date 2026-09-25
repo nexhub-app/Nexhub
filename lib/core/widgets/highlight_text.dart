@@ -4,7 +4,7 @@
 /// 不修改原文大小写；query 为空时退化为普通 [Text]，对既有调用零影响。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class HighlightText extends StatelessWidget {
   final String text;

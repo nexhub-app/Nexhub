@@ -4,7 +4,7 @@
 /// 内含预览 + 网格/列表切换 + 滑块 + 显示选项。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import 'layout_picker_dialog.dart';

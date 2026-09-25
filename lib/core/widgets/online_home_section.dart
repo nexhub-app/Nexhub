@@ -4,7 +4,7 @@
 /// 点击卡片进详情页；点击"查看全部"跳到对应分类 Tab。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

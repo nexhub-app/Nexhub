@@ -7,7 +7,7 @@
 /// 入口：详情页 Bangumi 卡片「手动绑定」、书架收藏卡片长按菜单。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

@@ -22,7 +22,7 @@ import 'dart:isolate' show Isolate;
 import 'package:file_picker/file_picker.dart' hide FilePickerWindows;
 import 'package:file_picker/src/windows/file_picker_windows.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/core/local/import_permission.dart';
 import 'package:nexhub/core/platform/platform_service.dart';
 import 'package:nexhub/core/services/bangumi/bangumi_auth.dart';

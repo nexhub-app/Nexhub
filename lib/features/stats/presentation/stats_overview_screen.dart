@@ -13,7 +13,7 @@
 /// 通过 [ListenableBuilder] 自动刷新 —— 阅读器 commit 后本页即时更新。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/stats/stats_models.dart';

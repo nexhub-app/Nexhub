@@ -12,7 +12,7 @@ library;
 import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';

@@ -4,7 +4,7 @@
 /// 提供「排序 + 分类 + 状态 + 进度」四段筛选，点"应用"回传新的 [BookshelfFilter]。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../favorites/favorite_group.dart';

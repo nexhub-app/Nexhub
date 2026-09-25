@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:ui' show lerpDouble;
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
@@ -151,8 +151,7 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
                           },
                         );
                       },
-                      onReorder: (int oldIndex, int newIndex) {
-                          if (newIndex > oldIndex) newIndex--;
+                      onReorderItem: (int oldIndex, int newIndex) {
                           final next = List<String>.from(_urls);
                           final item = next.removeAt(oldIndex);
                           next.insert(newIndex, item);

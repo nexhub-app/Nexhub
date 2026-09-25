@@ -2,7 +2,7 @@
 /// Material 3 / 极简风格一致。用于加载态占位（替代纯灰块），营造灵动感。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../theme/app_tokens.dart';
 
 /// 单个微光块。宽高通过 [width]/[height] 控制；[borderRadius] 默认 8。

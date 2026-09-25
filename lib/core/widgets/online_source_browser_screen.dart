@@ -6,7 +6,7 @@
 /// 解决「无法浏览在线的源」的问题：用户可在此页直观地看到并选择要浏览的源。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

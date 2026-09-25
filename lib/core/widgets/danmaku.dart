@@ -1,5 +1,5 @@
 import 'package:canvas_danmaku/canvas_danmaku.dart' as cd;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// 单条弹幕（数据模型，与 canvas_danmaku 解耦）。
 class DanmakuItem {

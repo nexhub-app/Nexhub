@@ -6,7 +6,7 @@
 /// 重播）；已登录且源声明 post 路由时 FAB 写评论。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

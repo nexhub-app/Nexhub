@@ -9,7 +9,7 @@
 /// 网络请求一律走全局网络档案（B1 铁律）：`HttpFetcher.getHtml(url, net: globalProfile)`。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

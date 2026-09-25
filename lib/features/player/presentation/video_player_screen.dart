@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:canvas_danmaku/canvas_danmaku.dart' as cd;
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:hive/hive.dart';

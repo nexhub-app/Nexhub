@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// 阅读器专用 Token（漫画 / 小说共用）。
 ///

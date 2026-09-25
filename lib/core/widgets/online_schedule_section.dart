@@ -7,7 +7,7 @@
 /// 标题 / 作者显示），并在布局变化时实时刷新（[ListenableBuilder]）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/media_item.dart';

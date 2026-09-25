@@ -4,7 +4,7 @@
 /// 公告内容完全由源 JSON 声明，app 不写死任何站点文案（契合「源即插件」理念）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 

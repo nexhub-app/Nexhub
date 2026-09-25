@@ -6,7 +6,7 @@ import 'package:nexhub/core/local/archive_extractor.dart';
 import 'package:nexhub/core/local/local_content_manager.dart'
     show isAndroidSafUri, isImageFile;
 import 'package:nexhub/core/local/saf_bridge.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';

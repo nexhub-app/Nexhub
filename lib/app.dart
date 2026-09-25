@@ -1,7 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:provider/provider.dart';
 import 'package:saf/saf.dart';
@@ -28,15 +27,17 @@ class App extends StatelessWidget {
         return MaterialApp(
           title: 'nexhub',
           debugShowCheckedModeBanner: false,
+          // 桥接仍基于框架 flutter/material 的第三方包（flutter_js / inappwebview / media_kit）
+          builder: (BuildContext context, Widget? child) {
+            return MaterialUiCompatibilityBridge(child: child!);
+          },
           theme: controller.lightTheme(lightDynamic),
           darkTheme: controller.darkTheme(darkDynamic),
           themeMode: controller.mode,
           locale: localeController.effectiveLocale,
           localizationsDelegates: const [
             AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
+            ...GlobalMaterialLocalizations.delegates,
           ],
           supportedLocales: const <Locale>[
             Locale('zh'),

@@ -5,7 +5,7 @@
 /// 点击列表项唤起 [showBangumiSubjectSheet] 查看来自 Bangumi 的条目信息。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 

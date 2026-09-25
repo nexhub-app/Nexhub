@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../theme/app_tokens.dart';
 
 /// 统一 URL 输入条：文本框 + 提交按钮 + loading 态。

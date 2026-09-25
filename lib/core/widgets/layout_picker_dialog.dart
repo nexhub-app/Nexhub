@@ -12,7 +12,7 @@
 /// - 网格与封面（圆角/标题字号）、显示选项（标题/作者/进度）两种模式下共用。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../settings/layout_settings.dart';

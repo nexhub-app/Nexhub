@@ -20,7 +20,7 @@
 /// - 页面 body 用 `ListView` 或 `SingleChildScrollView` 均可，无需改造。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 
 /// 等待被消费的「待滚动 Key id」。搜索设置页跳转前 set；新页面 initState 后 consume。

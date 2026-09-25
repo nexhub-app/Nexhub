@@ -8,7 +8,7 @@
 /// 非默认筛选/排序/显示设置时按钮上显示角标 dot。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../history/chapter_fetch_time_manager.dart';

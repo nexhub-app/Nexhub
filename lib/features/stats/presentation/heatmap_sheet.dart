@@ -11,7 +11,7 @@
 /// 按 [scope] 取分桶（null = 全部）时长。调用方已传 `isScrollControlled: true`。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/stats/stats_models.dart';

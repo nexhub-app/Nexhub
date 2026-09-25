@@ -6,7 +6,7 @@
 /// - 全局隐身：随机延迟 + UA 轮换（从设置主页「通用」组迁移至此）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/settings/general_settings.dart';

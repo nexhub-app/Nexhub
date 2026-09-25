@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../widgets/app_animations.dart';
 
 /// 播放器控制按钮。

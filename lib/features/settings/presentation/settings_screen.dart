@@ -6,7 +6,7 @@
 /// 克制而统一。整体风格取自 Linear / Vercel 的编辑式留白美学。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_animations.dart';

@@ -15,7 +15,7 @@ library;
 import 'dart:async';
 import 'dart:developer';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 

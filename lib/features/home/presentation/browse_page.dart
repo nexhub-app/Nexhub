@@ -1,7 +1,7 @@
 /// 浏览首页：图文宫格式布局，提供五大入口（本地文件、网络文件、网页爬取、嗅探、RSS 订阅）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/theme/app_tokens.dart';
