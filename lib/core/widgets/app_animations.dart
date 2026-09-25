@@ -137,7 +137,9 @@ class _EntranceState extends State<Entrance>
   late final Animation<double> _opacity;
   late final Animation<Offset> _slide;
   late final Animation<double> _scale;
-  late final bool _play;
+  // 不能是 final：切 tab 重播（[_handleReplay]）时会在 initState 初始化之后
+  // 再次赋值 true；late final 二次赋值抛 LateInitializationError。
+  late bool _play;
 
   @override
   void initState() {

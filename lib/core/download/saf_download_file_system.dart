@@ -199,9 +199,13 @@ class SafFileSystem implements DownloadFileSystem {
     if (lower.endsWith('.mkv')) return 'video/x-matroska';
     if (lower.endsWith('.mov')) return 'video/quicktime';
     if (lower.endsWith('.epub')) return 'application/epub+zip';
-    if (lower.endsWith('.cbz') || lower.endsWith('.zip')) {
-      return 'application/zip';
-    }
+    // .cbz 不在 Android 系统 MimeMap 内：配 application/zip 会被 provider 的
+    // splitFileName 判定「扩展名与 MIME 不匹配」，创建时自动追加规范扩展名
+    // 变成 xxx.cbz.zip（且部分 ROM 对后续 rename 回 .cbz 也会失败，见
+    // 下载失败的 SafIoException）。octet-stream 与未知扩展名天然匹配，
+    // 创建即得正确文件名，无需改名。
+    if (lower.endsWith('.cbz')) return 'application/octet-stream';
+    if (lower.endsWith('.zip')) return 'application/zip';
     if (lower.endsWith('.pdf')) return 'application/pdf';
     if (lower.endsWith('.txt')) return 'text/plain';
     if (lower.endsWith('.json')) return 'application/json';
@@ -296,15 +300,7 @@ class SafFileSystem implements DownloadFileSystem {
     if (written.name != name) {
       AppLog.instance.w('[SAF 文件名修正] 创建为 "${written.name}"，'
           '重命名为 "$name"（dir=$dirUri）');
-      final SafDocumentFile renamed = await _saf.rename(written.uri, name);
-      if (renamed.name != name) {
-        AppLog.instance.e('[SAF 重命名后仍不符] 期望 "$name"，实际 '
-            '"${renamed.name}"（uri=${renamed.uri}）');
-        throw FileSystemException(
-          '写入后文件名与预期不符（期望 "$name"，实际 "${renamed.name}"）',
-          path,
-        );
-      }
+      await _renameCreatedDoc(written, name, rootUri, segs, path);
     }
     // 写入后回读验证：用与读取端完全相同的定位方式（list + 按名匹配）确认
     // 文件可见，下载时即暴露，而不是等到打开才报"未找到文档"。
@@ -324,6 +320,55 @@ class SafFileSystem implements DownloadFileSystem {
       if (e is FileSystemException) rethrow;
       AppLog.instance.w('[写入后回读异常] dirUri=$dirUri name=$name: $e');
     }
+  }
+
+  /// 把刚创建的文档改名到目标名（带防御与重试）。
+  ///
+  /// 部分创建时被 provider 追加扩展名的文档（如 .cbz → .cbz.zip）需改名修正：
+  /// 1. 先清理同名目标文档——AOSP renameDocument 在目标已存在时直接抛
+  ///    "Already exists"，删除是改名的前提（正常流程上方已删旧，这里兜底）。
+  /// 2. rename 失败（部分 ROM 对新建文档瞬时失败 / 拒绝改扩展名）短暂等待
+  ///    后重试一次；仍失败抛带两个文件名的 [FileSystemException]，
+  ///    而不是裸的 SafIoException。
+  Future<void> _renameCreatedDoc(
+    SafDocumentFile written,
+    String name,
+    String rootUri,
+    List<String> segs,
+    String path,
+  ) async {
+    final SafDocumentFile? stale = await _resolveDocOrNull(rootUri, segs);
+    if (stale != null && stale.uri != written.uri) {
+      try {
+        await _saf.delete(stale.uri);
+      } on Object catch (e) {
+        AppLog.instance.w('[SAF 重命名前置清理失败] ${stale.name}: $e');
+      }
+    }
+    Object? firstError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+      try {
+        final SafDocumentFile renamed = await _saf.rename(written.uri, name);
+        if (renamed.name != name) {
+          throw FileSystemException(
+            '写入后文件名与预期不符（期望 "$name"，实际 "${renamed.name}"）',
+            path,
+          );
+        }
+        return;
+      } on Object catch (e) {
+        firstError = e;
+        AppLog.instance.w('[SAF 重命名失败(第${attempt + 1}次)] "$name": $e');
+      }
+    }
+    throw FileSystemException(
+      'SAF 改名失败：provider 拒绝把 "${written.name}" 改名为 "$name"'
+      '（$firstError）',
+      path,
+    );
   }
 
   /// 删除 [dirUri] 下与 [name] 同源的历史残留（文件名以 `$name.` 开头但

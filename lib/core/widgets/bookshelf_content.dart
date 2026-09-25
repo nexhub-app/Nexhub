@@ -140,8 +140,8 @@ class BookshelfContent extends StatelessWidget {
         return sorted;
       case LibrarySubTab.history:
         final manager = context.read<HistoryManager>();
-        final categories = manager
-            .historyFor(sourceType)
+        final categories = _ageVisibleHistory(
+                context.read<SourceRepository>(), manager.historyFor(sourceType))
             .map((e) => e.category)
             .whereType<String>()
             .toSet()
@@ -335,6 +335,24 @@ class _LocalBookshelf extends StatelessWidget {
 
 // ── 历史记录书架 ────────────────────────────────────────
 
+/// 年龄限制过滤：开启年龄限制时隐藏 R18（mature）源的历史条目。
+///
+/// 与浏览/搜索入口同一套判定（[SourceRepository.isAgeBlocked]）：
+/// sourceId 为空（本地/导入内容）或源已卸载、无法判定的条目保持可见。
+/// 过滤只在展示层生效，不改动持久化数据——关闭年龄限制后条目自动恢复。
+List<HistoryEntry> _ageVisibleHistory(
+  SourceRepository repo,
+  Iterable<HistoryEntry> entries,
+) {
+  if (!repo.ageRestrictionEnabled) return entries.toList();
+  return entries.where((e) {
+    final sid = e.sourceId;
+    if (sid == null || sid.isEmpty) return true;
+    final cfg = repo.getById(sid);
+    return cfg == null || !repo.isAgeBlocked(cfg);
+  }).toList();
+}
+
 class _HistoryBookshelf extends StatelessWidget {
   final SourceType sourceType;
   final void Function(MediaItem item)? onItemTap;
@@ -353,11 +371,15 @@ class _HistoryBookshelf extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final manager = context.watch<HistoryManager>();
-    final repo = context.read<SourceRepository>();
+    // watch 而非 read：年龄限制开关切换（SourceRepository 广播）时历史列表
+    // 即时刷新，R18 源条目自动隐藏/恢复。
+    final repo = context.watch<SourceRepository>();
     // historyFor() 返回 List.unmodifiable（只读）。后续 _sortHistoryEntries 会
     // 原地 .sort() 修改列表；若不先复制成可变列表，无筛选时排序会抛
     // UnsupportedError，在 release APK 下表现为整屏灰（默认 ErrorWidget）。
     var entries = manager.historyFor(sourceType).toList();
+    // 年龄限制开启时自动隐藏 R18 源的历史条目。
+    entries = _ageVisibleHistory(repo, entries);
 
     // 分类筛选。
     if (filter.category != null) {
