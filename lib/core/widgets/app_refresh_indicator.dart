@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../utils/app_haptics.dart';
+
 /// 主题化的下拉刷新指示器。
 ///
 /// 当前 Flutter 3.32 的 [RefreshIndicator] 不支持自定义 indicator builder，
@@ -21,7 +23,11 @@ class AppRefreshIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return RefreshIndicator(
-      onRefresh: onRefresh,
+      // MD3「Gesture threshold」：越过下拉触发阈值、开始刷新的一刻轻震。
+      onRefresh: () {
+        AppHaptics.gestureThreshold();
+        return onRefresh();
+      },
       color: scheme.primary,
       backgroundColor: scheme.surfaceContainerHighest,
       strokeWidth: 3,

@@ -1228,6 +1228,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 长按开始：切到自定义倍速（功能4，受 longPressSpeedUp 开关控制）。
   void _onLongPressSpeedStart() {
+    // MD3「Thunk」：长按进入倍速模式。
+    AppHaptics.thunk();
     if (_controller.isLocked) return;
     if (!_playerSettings.longPressSpeedUp) return;
     _speedBeforeLongPress = _controller.playbackSpeed;
@@ -1716,7 +1718,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                     Switch(
                       value: auto,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         setDlg(() => auto = v);
                       },
                     ),
@@ -3076,6 +3078,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   void _openDanmakuSource() async {
+    // MD3「Thunk」：长按打开弹幕源设置。
+    AppHaptics.thunk();
     // 面板打开期间持有控制栏，禁止自动隐藏。
     _acquirePanelHold();
     try {

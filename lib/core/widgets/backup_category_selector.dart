@@ -78,7 +78,7 @@ class BackupCategorySelector extends StatelessWidget {
             title: Text(backupCategoryLabel(l10n, c)),
             value: selected.contains(c),
             onChanged: (v) {
-              AppHaptics.selectionClick();
+              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
               final next = Set<BackupCategory>.from(selected);
               if (v == true) {
                 next.add(c);

@@ -26,6 +26,7 @@ import '../../../core/network/network_config_service.dart';
 import '../../../core/network/source_network_override_store.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../settings/presentation/widgets/settings_widgets.dart';
 
 /// DoH 预设端点（与全局页保持一致）。
@@ -650,11 +651,15 @@ class _SourceNetworkOverrideScreenState
       children: <Widget>[
         Checkbox(
           value: entry.enabled,
-          onChanged: (v) => setState(() {
-            final next = List<HostsEntry>.of(list);
-            next[index] = entry.copyWith(enabled: v ?? true);
-            _hosts = next;
-          }),
+          // MD3「Toggle on/off」：启用/停用按开/关区分触感。
+          onChanged: (v) {
+            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+            setState(() {
+              final next = List<HostsEntry>.of(list);
+              next[index] = entry.copyWith(enabled: v ?? true);
+              _hosts = next;
+            });
+          },
         ),
         Expanded(child: Text('${entry.ip}  →  ${entry.host}')),
         IconButton(

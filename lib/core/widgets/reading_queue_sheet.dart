@@ -21,6 +21,7 @@ import '../reader/reading_queue_store.dart';
 import '../scraper/media_api_service.dart';
 import '../services/source_repository.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'app_empty_state.dart';
 import 'source_image.dart';
 
@@ -270,6 +271,7 @@ class _ReadingQueueSheetState extends State<_ReadingQueueSheet> {
                                 widget.pageContext, w, widget.store);
                           },
                           onLongPress: () async {
+                            AppHaptics.thunk(); // MD3「Thunk」：长按移出阅读队列。
                             await widget.store.removeAt(index);
                             await _reload();
                           },

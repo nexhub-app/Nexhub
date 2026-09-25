@@ -395,6 +395,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                         selected: <UpdateChannel>{_settings.updateChannel},
                         onSelectionChanged: (Set<UpdateChannel> set) {
                           if (set.isEmpty) return;
+                          AppHaptics.tick(); // MD3「Selected」：分段单选 → tick。
                           _save(_settings.copyWith(updateChannel: set.first));
                         },
                         segments: <ButtonSegment<UpdateChannel>>[
@@ -436,7 +437,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                     trailing: Switch(
                       value: _settings.autoCheck,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         _save(_settings.copyWith(autoCheck: v));
                       },
                     ),
@@ -453,7 +454,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                     trailing: Switch(
                       value: _settings.autoDownload,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         _save(_settings.copyWith(autoDownload: v));
                       },
                     ),
@@ -469,7 +470,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                       trailing: Switch(
                         value: _settings.wifiOnlyAutoDownload,
                         onChanged: (v) {
-                          AppHaptics.selectionClick();
+                          v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                           _save(
                             _settings.copyWith(wifiOnlyAutoDownload: v),
                           );
@@ -488,7 +489,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                     trailing: Switch(
                       value: _settings.inAppDownload,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         _save(_settings.copyWith(inAppDownload: v));
                       },
                     ),
@@ -521,7 +522,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                     trailing: Switch(
                       value: _settings.autoSwitchMirror,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         _save(_settings.copyWith(autoSwitchMirror: v));
                       },
                     ),
@@ -656,7 +657,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
       groupValue: _settings.mirrorIndex,
       onChanged: (v) {
         if (v != null && v != _settings.mirrorIndex) {
-          AppHaptics.selectionClick();
+          AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
           _save(_settings.copyWith(mirrorIndex: v));
         }
       },
@@ -874,7 +875,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               Switch(
                 value: _silent,
                 onChanged: (v) {
-                  AppHaptics.selectionClick();
+                  v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                   setState(() => _silent = v);
                 },
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

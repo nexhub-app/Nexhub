@@ -4,6 +4,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/danmaku/danmaku_source.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/app_haptics.dart';
 
 /// 弹幕源选择面板（底部弹出 Sheet）。
 ///
@@ -245,7 +246,10 @@ class _DanmakuSourceSheetState extends State<DanmakuSourceSheet> {
       value: source,
       groupValue: _selected,
       onChanged: (DanmakuSourceType? next) {
-        if (next != null) _select(next);
+        if (next != null) {
+          AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
+          _select(next);
+        }
       },
       secondary: Icon(icon, color: theme.colorScheme.primary),
       title: Text(title),

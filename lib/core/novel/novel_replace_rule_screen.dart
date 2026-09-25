@@ -459,7 +459,7 @@ class _ReplaceRuleEditScreenState extends State<_ReplaceRuleEditScreen> {
                   subtitle: Text(_isRegex ? '按正则模式匹配替换' : '按纯文本精确匹配'),
                   value: _isRegex,
                   onChanged: (v) {
-                    AppHaptics.selectionClick();
+                    v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                     setState(() => _isRegex = v);
                   },
                 ),
@@ -486,7 +486,7 @@ class _ReplaceRuleEditScreenState extends State<_ReplaceRuleEditScreen> {
                   title: const Text('启用'),
                   value: _isEnabled,
                   onChanged: (v) {
-                    AppHaptics.selectionClick();
+                    v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                     setState(() => _isEnabled = v);
                   },
                 ),

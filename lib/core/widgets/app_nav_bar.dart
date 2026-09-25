@@ -83,8 +83,8 @@ class AppNavBar extends StatelessWidget {
                       destination: destinations[i],
                       selected: i == selectedIndex,
                       onTap: () {
-                        // 底部导航切换：轻触反馈。
-                        AppHaptics.selectionClick();
+                        // MD3「Selected」：导航项单选 → tick。
+                        AppHaptics.tick();
                         onDestinationSelected(i);
                       },
                     ),
@@ -128,8 +128,8 @@ Widget _buildRail(BuildContext context) {
                   destination: destinations[i],
                   selected: i == selectedIndex,
                   onTap: () {
-                    // 侧栏导航切换：轻触反馈。
-                    AppHaptics.selectionClick();
+                    // MD3「Selected」：导航项单选 → tick。
+                    AppHaptics.tick();
                     onDestinationSelected(i);
                   },
                 ),

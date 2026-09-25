@@ -342,7 +342,7 @@ class _DownloadSelectionSheetState extends State<_DownloadSelectionSheet> {
                     return CheckboxListTile(
                       value: _selected.contains(i),
                       onChanged: (bool? v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         setState(() {
                           if (v == true) {
                             _selected.add(i);

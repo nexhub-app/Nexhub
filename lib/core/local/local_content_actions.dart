@@ -30,6 +30,7 @@ import 'package:nexhub/features/manga/presentation/comic_reader_screen.dart';
 import 'package:nexhub/features/novel/presentation/novel_reader_screen.dart';
 import 'package:nexhub/features/player/presentation/video_player_screen.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import '../utils/app_haptics.dart';
 
 /// 收集本地漫画图片路径：目录→按名排序的图片列表；单图文件→单元素列表。
 /// 不含 cbz/zip（交给漫画阅读器内部解压）。无图片返回空列表。
@@ -651,6 +652,8 @@ Future<void> deleteLocalEntry(BuildContext context, LocalContentEntry e) async {
 ///
 /// 用底部抽屉承载，符合应用弹层规范（[isScrollControlled] + 限高）。
 void showLocalEntryActions(BuildContext context, LocalContentEntry e) {
+    // MD3「Thunk」：长按呼出条目操作菜单。
+    AppHaptics.thunk();
   final l10n = AppLocalizations.of(context);
   showModalBottomSheet<void>(
     context: context,
@@ -698,6 +701,8 @@ void showDownloadedEntryActions(
   DownloadTask t, {
   required VoidCallback onOpen,
 }) {
+  // MD3「Thunk」：长按呼出条目操作菜单。
+  AppHaptics.thunk();
   final l10n = AppLocalizations.of(context);
   showModalBottomSheet<void>(
     context: context,

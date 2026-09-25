@@ -323,7 +323,7 @@ class _ReaderImageFilterPanelState extends State<ReaderImageFilterPanel> {
           title: Text(l10n.readerGrayscale),
           value: _grayscale,
           onChanged: (bool v) {
-            AppHaptics.selectionClick();
+            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
             setState(() => _grayscale = v);
             widget.onGrayscaleChanged(v);
           },
@@ -333,7 +333,7 @@ class _ReaderImageFilterPanelState extends State<ReaderImageFilterPanel> {
           title: Text(l10n.filterInverted),
           value: _inverted,
           onChanged: (bool v) {
-            AppHaptics.selectionClick();
+            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
             setState(() => _inverted = v);
             widget.onInvertedChanged(v);
           },

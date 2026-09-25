@@ -44,7 +44,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
               trailing: Switch(
                 value: checker.enabled,
                 onChanged: (v) {
-                  AppHaptics.selectionClick();
+                  v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                   checker.setEnabled(v);
                 },
               ),
@@ -84,7 +84,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
                 trailing: Switch(
                   value: checker.chargeCheck,
                   onChanged: (v) {
-                    AppHaptics.selectionClick();
+                    v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                     checker.setChargeCheck(v);
                   },
                 ),
@@ -104,7 +104,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
                 trailing: Switch(
                   value: checker.systemNotification,
                   onChanged: (v) {
-                    AppHaptics.selectionClick();
+                    v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                     checker.setSystemNotification(v);
                   },
                 ),

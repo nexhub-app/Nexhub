@@ -103,7 +103,7 @@ class MainActivity : FlutterFragmentActivity() {
             }
         }
 
-        // Method channel: 按钮/开关触觉反馈（原生 Vibrator 直接震动，
+        // Method channel: MD3 触觉反馈（原生 Vibrator 直接播放官方触感原语，
         // 不依赖系统「触摸反馈」设置——Flutter 的 HapticFeedback 在部分
         // 设备/系统设置下被静默，导致手机上感觉不到震动）。
         MethodChannel(
@@ -111,12 +111,9 @@ class MainActivity : FlutterFragmentActivity() {
             HAPTIC_CHANNEL
         ).setMethodCallHandler { call, result ->
             when (call.method) {
-                "vibrate" -> {
+                "effect" -> {
                     try {
-                        val intensity = call.argument<Int>("intensity") ?: 1
-                        val duration = call.argument<Int>("duration") ?: 30
-                        val pulses = call.argument<Int>("pulses") ?: 1
-                        vibrate(intensity, duration, pulses)
+                        vibrateEffect(call.argument<String>("effect") ?: "click")
                         result.success(null)
                     } catch (e: Exception) {
                         result.error("vibrate_failed", e.message, null)
@@ -404,59 +401,144 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     /**
-     * 触觉反馈：直接经 Vibrator 震动（不依赖系统「触摸反馈」设置）。
-     * [intensity] 0=轻 1=中 2=重；[duration] 单次震动时长毫秒；
-     * [pulses] >1 时用多脉冲波形（短间隔重复），更易被感知。
-     * Android O+ 用 VibrationEffect(createOneShot/createWaveform+振幅)，旧版本退化。
+     * MD3 触觉反馈：按语义模式播放官方触感原语（不依赖系统「触摸反馈」设置）。
+     *
+     * 优先级（Material 官方触感指南推荐顺序）：
+     * 1. Android 12+（S）且电机支持组合原语 → `VibrationEffect.Composition`
+     *    的 PRIMITIVE_TICK/CLICK/THUD（OEM 电机驱动调校，手感最佳）；
+     * 2. Android 10+（Q）→ `createPredefined` 的官方预置效果
+     *    （EFFECT_TICK/CLICK/HEAVY_CLICK/DOUBLE_CLICK）；
+     * 3. Android 8-9 → 等幅单脉冲近似；8 以下退化为定时长震动。
+     *
+     * 模式对照（m3.material.io/foundations/designing-haptics）：
+     * - tick：离散刻度/单选（滑块分档、分段按钮、导航项、chip）；
+     * - click / toggleOn：点按确认、开关开启（开强关弱）；
+     * - thunk：重按（长按开始、拖拽拿起、破坏性确认）；
+     * - confirm：任务成功（上行双击）；reject：失败（下行重击）；
+     * - gestureThreshold：手势越阈（下拉刷新触发）。
      */
-    private fun vibrate(intensity: Int, duration: Int, pulses: Int) {
-        val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator?
-        }
-        if (vibrator == null || !vibrator.hasVibrator()) return
+    private fun vibrateEffect(effect: String) {
+        val vibrator = obtainVibrator() ?: return
         // 每次先 cancel 清掉可能滞留的上一次波形：连续高频触感（开关/翻页/点按）
-        // 时若不清理，部分 ROM 会把后续 createOneShot/createWaveform 追加到已有
-        // 队列，表现为「只有第一次有震动，之后再点没反应」。
+        // 时若不清理，部分 ROM 会把后续效果追加到已有队列，表现为「只有第一次
+        // 有震动，之后再点没反应」。
         vibrator.cancel()
-        val safeDuration = duration.coerceIn(5, 500)
-        val safePulses = pulses.coerceIn(1, 4)
-        val amp = when (intensity.coerceIn(0, 2)) {
-            0 -> 150
-            1 -> 220
-            else -> 255
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (safePulses > 1) {
-                // 多脉冲：震动 d → 停 80ms → 再震 …（timings/amplitudes 等长）
-                val timings = mutableListOf<Long>()
-                val amps = mutableListOf<Int>()
-                for (i in 0 until safePulses) {
-                    if (i > 0) { timings.add(80); amps.add(0) }
-                    timings.add(safeDuration.toLong()); amps.add(amp)
-                }
-                vibrator.vibrate(
-                    VibrationEffect.createWaveform(
-                        timings.toLongArray(), amps.toIntArray(), -1
-                    )
+        when (effect) {
+            "tick" ->
+                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_TICK) {
+                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.7f)
+                    }
+                ) predefinedOr(vibrator, VibrationEffect.EFFECT_TICK, 10, 150)
+            "click", "toggleOn" ->
+                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_CLICK) {
+                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1.0f)
+                    }
+                ) predefinedOr(vibrator, VibrationEffect.EFFECT_CLICK, 18, 220)
+            "toggleOff" ->
+                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_TICK) {
+                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.45f)
+                    }
+                ) predefinedOr(vibrator, VibrationEffect.EFFECT_TICK, 8, 120)
+            "thunk" ->
+                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_THUD) {
+                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f)
+                    }
+                ) predefinedOr(vibrator, VibrationEffect.EFFECT_HEAVY_CLICK, 35, 255)
+            "confirm" ->
+                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_TICK, VibrationEffect.Composition.PRIMITIVE_CLICK) {
+                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.6f)
+                            .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1.0f, 70)
+                    }
+                ) predefinedOr(
+                    vibrator, VibrationEffect.EFFECT_DOUBLE_CLICK, 0, 0,
+                    waveform = longArrayOf(0, 25, 60, 25), amps = intArrayOf(0, 180, 0, 255)
                 )
-            } else {
-                vibrator.vibrate(VibrationEffect.createOneShot(safeDuration.toLong(), amp))
-            }
+            "reject" ->
+                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_THUD, VibrationEffect.Composition.PRIMITIVE_TICK) {
+                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f)
+                            .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f, 70)
+                    }
+                ) predefinedOr(
+                    vibrator, null, 0, 0,
+                    waveform = longArrayOf(0, 30, 70, 25), amps = intArrayOf(0, 255, 0, 140)
+                )
+            "gestureThreshold" ->
+                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_TICK) {
+                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 1.0f)
+                    }
+                ) predefinedOr(vibrator, VibrationEffect.EFFECT_TICK, 12, 200)
+            else ->
+                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_CLICK) {
+                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1.0f)
+                    }
+                ) predefinedOr(vibrator, VibrationEffect.EFFECT_CLICK, 18, 220)
+        }
+    }
+
+    /** 取系统振动器（S+ 走 VibratorManager，旧版本走已废弃的 VibratorService）。 */
+    private fun obtainVibrator(): Vibrator? {
+        val v: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)
+                ?.defaultVibrator
         } else {
             @Suppress("DEPRECATION")
-            if (safePulses > 1) {
-                val timings = mutableListOf<Long>()
-                for (i in 0 until safePulses) {
-                    if (i > 0) timings.add(80)
-                    timings.add(safeDuration.toLong())
-                }
-                vibrator.vibrate(timings.toLongArray(), -1)
-            } else {
-                vibrator.vibrate(safeDuration.toLong())
-            }
+            getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+        return if (v != null && v.hasVibrator()) v else null
+    }
+
+    /** S+ 且电机支持给定组合原语时按 [block] 组合播放；否则返回 false 走降级。 */
+    private fun compose(
+        vibrator: Vibrator,
+        vararg primitives: Int,
+        block: (VibrationEffect.Composition) -> Unit
+    ): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
+        return try {
+            if (!vibrator.areAllPrimitivesSupported(*primitives)) return false
+            val composition = VibrationEffect.startComposition()
+            block(composition)
+            vibrator.vibrate(composition.compose())
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 组合原语降级路径：Q+ 播放官方预置效果 [effectId]（[waveform] 双脉冲
+     * 模式优先用波形以区分上行/下行手感）；26-28 用振幅波形/单脉冲近似；
+     * 8 以下退化为定时长震动。
+     */
+    private fun predefinedOr(
+        vibrator: Vibrator,
+        effectId: Int?,
+        ms: Int,
+        amp: Int,
+        waveform: LongArray? = null,
+        amps: IntArray? = null
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            effectId != null && waveform == null
+        ) {
+            vibrator.vibrate(VibrationEffect.createPredefined(effectId))
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            waveform != null && amps != null
+        ) {
+            vibrator.vibrate(VibrationEffect.createWaveform(waveform, amps, -1))
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && ms > 0) {
+            vibrator.vibrate(VibrationEffect.createOneShot(ms.toLong(), amp))
+            return
+        }
+        @Suppress("DEPRECATION")
+        if (waveform != null) {
+            vibrator.vibrate(waveform, -1)
+        } else {
+            vibrator.vibrate(maxOf(ms, 10).toLong())
         }
     }
 

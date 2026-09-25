@@ -276,7 +276,7 @@ class UnifiedSourceTile extends StatelessWidget {
             Switch(
               value: enabled,
               onChanged: (v) {
-                AppHaptics.selectionClick();
+                v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                 onToggle!(v);
               },
             ),
@@ -322,7 +322,7 @@ class UnifiedSourceTile extends StatelessWidget {
           Switch(
             value: enabled,
             onChanged: (v) {
-              AppHaptics.selectionClick();
+              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
               onToggle!(v);
             },
           ),

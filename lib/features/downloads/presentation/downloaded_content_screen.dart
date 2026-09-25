@@ -14,6 +14,7 @@ import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/layout_picker_button.dart';
 import '../../../core/settings/layout_settings.dart';
+import '../../../core/utils/app_haptics.dart';
 import 'downloaded_group_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
@@ -279,6 +280,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
       },
       onLongPress: () {
         if (!_selectMode && !isArchivedTab) {
+          AppHaptics.thunk(); // MD3「Thunk」：长按进入多选模式。
           setState(() {
             _selectMode = true;
             _selectedKeys.add(group.contentId);

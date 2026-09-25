@@ -189,7 +189,7 @@ class _FolderFileSelectSheetState extends State<_FolderFileSelectSheet> {
                 value: checked,
                 controlAffinity: ListTileControlAffinity.leading,
                 onChanged: (v) {
-                  AppHaptics.selectionClick();
+                  v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                   setState(() {
                     if (v == true) {
                       _selected.add(file);

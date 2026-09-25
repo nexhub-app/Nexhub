@@ -83,7 +83,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           trailing: Switch(
             value: _controller.autoPlayNext,
             onChanged: (v) {
-              AppHaptics.selectionClick();
+              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
               setState(() {
                 _controller.autoPlayNext = v;
                 _playerSettings = _playerSettings.copyWith(autoPlayNext: v);
@@ -105,7 +105,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           trailing: Switch(
             value: _playerSettings.longPressSpeedUp,
             onChanged: (v) {
-              AppHaptics.selectionClick();
+              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
               setState(() {
                 _playerSettings =
                     _playerSettings.copyWith(longPressSpeedUp: v);

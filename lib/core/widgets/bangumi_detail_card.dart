@@ -713,7 +713,7 @@ class _BangumiSyncPanelState extends State<_BangumiSyncPanel> {
             title: Text(l10n.bangumiHideCollection),
             value: _private,
             onChanged: (bool v) {
-              AppHaptics.selectionClick();
+              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
               setState(() => _private = v);
             },
             dense: true,

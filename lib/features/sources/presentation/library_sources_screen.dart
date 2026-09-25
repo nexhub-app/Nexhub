@@ -551,7 +551,7 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     return CheckboxListTile(
       value: selected,
       onChanged: (v) {
-        AppHaptics.selectionClick();
+        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
         setState(() {
           final s = <int>{..._selectedIndices};
           if (v == true) {

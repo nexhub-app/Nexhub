@@ -162,7 +162,7 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                       child: Switch(
                         value: controller.useMonet,
                         onChanged: (_) {
-                          AppHaptics.selectionClick();
+                          _ == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                           controller.setUseMonet(!controller.useMonet);
                         },
                       ),

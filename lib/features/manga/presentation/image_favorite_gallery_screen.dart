@@ -29,6 +29,7 @@ import 'package:nexhub/core/widgets/source_image.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../core/utils/app_haptics.dart';
 
 part 'image_favorite_gallery_parts.dart';
 
@@ -374,6 +375,8 @@ class _ImageFavoriteGalleryScreenState
 
   /// 删除文件夹（确认后移除列表；其中图片回到「未分类」，不删除图片）。
   Future<void> _deleteFolder(String folder) async {
+    // MD3「Thunk」：长按删除文件夹（破坏性确认）。
+    AppHaptics.thunk();
     final AppLocalizations l10n = AppLocalizations.of(context);
     final bool? ok = await showDialog<bool>(
       context: context,
@@ -419,6 +422,8 @@ class _ImageFavoriteGalleryScreenState
   // ─────────────── 多选模式 ───────────────
 
   void _toggleSelect(ImageFavorite f) {
+    // MD3「Thunk」：长按进入多选模式。
+    AppHaptics.thunk();
     setState(() {
       if (!_selected.add(f.key)) _selected.remove(f.key);
     });

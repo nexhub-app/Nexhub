@@ -556,7 +556,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             title: Text(l10n.cloudSyncAutoSync),
             value: config.autoSync,
             onChanged: (v) async {
-              AppHaptics.selectionClick();
+              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
               await service.updateConfig(
                 config.copyWith(autoSync: v),
                 null,
@@ -599,7 +599,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             subtitle: Text(l10n.cloudSyncAutoUploadNovelExportsDesc),
             value: config.autoUploadNovelExports,
             onChanged: (v) async {
-              AppHaptics.selectionClick();
+              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
               await service.updateConfig(
                 config.copyWith(autoUploadNovelExports: v),
                 null,

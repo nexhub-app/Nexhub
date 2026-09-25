@@ -425,7 +425,10 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                       title: Text(_hfContentLabel(l10n, c)),
                       value: c,
                       groupValue: value,
-                      onChanged: (v) => Navigator.of(ctx).pop(v),
+                      onChanged: (v) {
+                        AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
+                        Navigator.of(ctx).pop(v);
+                      },
                     ),
                 ],
               ),

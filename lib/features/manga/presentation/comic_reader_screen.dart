@@ -4553,7 +4553,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                       !_prefs.showLongPressMenu ||
                       _prefs.enableLongPressToZoom)
                   ? null
-                  : () => showReaderImageActions(
+                  : () {
+                      AppHaptics.thunk(); // MD3「Thunk」：长按呼出图片操作菜单。
+                      showReaderImageActions(
                         context: context,
                         url: _images[_currentPage.clamp(0, _images.length - 1)],
                         source: _source,
@@ -4565,7 +4567,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                         onFavoriteImage: _toggleCurrentPageImageFavorite,
                         onToggleTranslation: _toggleCurrentPageTranslation,
                         translationEnabled: _prefs.translationEnabled,
-                      ),
+                      );
+                    },
               // 长按缩放（REQ-B2）：开启时长按定点放大 1.75x、松手恢复；
               // 关闭时由上方 onLongPress 保持「长按弹菜单」行为。
               onLongPressAt: _prefs.enableLongPressToZoom

@@ -626,7 +626,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
               visualDensity: VisualDensity.compact,
               value: _selectedPreviewIndices.contains(i),
               onChanged: (v) {
-                AppHaptics.selectionClick();
+                v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                 setState(() {
                   final set = <int>{..._selectedPreviewIndices};
                   if (v == true) {

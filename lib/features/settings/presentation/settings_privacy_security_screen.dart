@@ -141,7 +141,7 @@ class _AgeRestrictionSectionState extends State<_AgeRestrictionSection> {
           ),
           value: _s.ageRestrictionEnabled,
           onChanged: (bool v) async {
-            AppHaptics.selectionClick();
+            v ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
             if (!v) {
               final agreed = await _showAgeRestrictionDisclaimer(l10n);
               if (!agreed) return;

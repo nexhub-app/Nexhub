@@ -21,6 +21,7 @@ import '../../../core/network/network_config_service.dart';
 import '../../../core/network/runtime/dns_resolver.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
+import '../../../core/utils/app_haptics.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
 
@@ -603,11 +604,15 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       children: <Widget>[
         Checkbox(
           value: entry.enabled,
-          onChanged: (v) => setState(() {
-            final list = List<HostsEntry>.of(_draft.hosts);
-            list[index] = entry.copyWith(enabled: v ?? true);
-            _draft = _draft.copyWith(hosts: list);
-          }),
+          // MD3「Toggle on/off」：启用/停用按开/关区分触感。
+          onChanged: (v) {
+            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+            setState(() {
+              final list = List<HostsEntry>.of(_draft.hosts);
+              list[index] = entry.copyWith(enabled: v ?? true);
+              _draft = _draft.copyWith(hosts: list);
+            });
+          },
         ),
         Expanded(child: Text('${entry.ip}  →  ${entry.host}')),
         IconButton(

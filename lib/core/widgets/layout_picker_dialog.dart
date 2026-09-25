@@ -636,7 +636,7 @@ class _SwitchTile extends StatelessWidget {
       trailing: Switch(
         value: value,
         onChanged: (v) {
-          AppHaptics.selectionClick();
+          v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
           onChanged(v);
         },
       ),

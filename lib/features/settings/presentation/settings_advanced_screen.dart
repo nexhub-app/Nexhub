@@ -23,6 +23,7 @@ import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/settings/advanced_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
+import '../../../core/utils/app_haptics.dart';
 import 'crash_log_screen.dart';
 import 'log_viewer_screen.dart';
 import 'widgets/settings_widgets.dart';
@@ -247,6 +248,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                 title: Text(l10n.userAgentAuto),
                 subtitle: Text(l10n.userAgentAutoHint),
                 onChanged: (v) {
+                  AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
                   _setUserAgent(v ?? '');
                   Navigator.pop(ctx);
                 },
@@ -261,6 +263,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   onChanged: (v) {
+                    AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
                     _setUserAgent(v ?? '');
                     Navigator.pop(ctx);
                   },

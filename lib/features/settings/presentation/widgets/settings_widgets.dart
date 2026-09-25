@@ -274,7 +274,7 @@ class _SettingsCardState extends State<SettingsCard> {
 }
 
 /// 带当前显示值的滑块。
-class SettingsSliderTile extends StatelessWidget {
+class SettingsSliderTile extends StatefulWidget {
   final String label;
   final double value;
   final double min;
@@ -295,6 +295,27 @@ class SettingsSliderTile extends StatelessWidget {
   });
 
   @override
+  State<SettingsSliderTile> createState() => _SettingsSliderTileState();
+}
+
+/// 有状态以记录拖动中已震过的档位，保证 MD3「逐档一次 tick」。
+class _SettingsSliderTileState extends State<SettingsSliderTile> {
+  int? _lastStep;
+
+  void _onDrag(double v) {
+    final int divisions = widget.divisions;
+    if (divisions > 0) {
+      final int step =
+          ((v - widget.min) / (widget.max - widget.min) * divisions).round();
+      if (step != _lastStep) {
+        _lastStep = step;
+        AppHaptics.tick();
+      }
+    }
+    widget.onChanged(v);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
@@ -305,13 +326,13 @@ class SettingsSliderTile extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+              Expanded(child: Text(widget.label, style: theme.textTheme.bodyMedium)),
               // 数值变化时轻弹一下，给「正在调」的即时反馈。
               AppValuePulse(
-                trigger: display,
+                trigger: widget.display,
                 from: 0.7,
                 child: Text(
-                  display,
+                  widget.display,
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.colorScheme.primary),
                 ),
@@ -319,14 +340,17 @@ class SettingsSliderTile extends StatelessWidget {
             ],
           ),
           Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: divisions,
-            onChanged: onChanged,
-            // 起拖轻震一下、松手轻震确认（拖动过程中不震，避免高频振动打扰）。
-            onChangeStart: (_) => AppHaptics.light(),
-            onChangeEnd: (_) => AppHaptics.selectionClick(),
+            value: widget.value,
+            min: widget.min,
+            max: widget.max,
+            divisions: widget.divisions,
+            onChanged: _onDrag,
+            // MD3「Tick」：拖动跨过每一档刻度轻震一次（单档一次，不高频打扰），
+            // 松手再轻震确认。官方规范：滑块按分档逐档 tick。
+            onChangeEnd: (_) {
+              _lastStep = null;
+              AppHaptics.tick();
+            },
           ),
         ],
       ),
@@ -359,9 +383,9 @@ class SettingsSwitchTile extends StatelessWidget {
         title: Text(title),
         subtitle: subtitle != null ? Text(subtitle!) : null,
         value: value,
-        // 切换瞬间轻震（AppValuePulse 的弹性动画偏视觉，震动补触觉）。
+        // MD3「Toggle on/off」：开强关弱，与官方开关触感一致。
         onChanged: (v) {
-          AppHaptics.selectionClick();
+          v ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
           onChanged(v);
         },
         contentPadding: EdgeInsets.zero,
@@ -403,7 +427,8 @@ class SettingsSegmentedTile<T extends Object> extends StatelessWidget {
           child: SegmentedButton<T>(
             selected: selected,
             onSelectionChanged: (selection) {
-              AppHaptics.selectionClick();
+              // MD3「Selected」：单选组选中 → tick。
+              AppHaptics.tick();
               onSelectionChanged(selection);
             },
             segments: segments,
@@ -453,7 +478,8 @@ class SettingsChoiceChips<T> extends StatelessWidget {
                   label: Text(opt.label),
                   selected: opt.value == selected,
                   onSelected: (_) {
-                    AppHaptics.selectionClick();
+                    // MD3「Selected」：chip 选中 → tick。
+                    AppHaptics.tick();
                     onSelected(opt.value);
                   },
                 ),

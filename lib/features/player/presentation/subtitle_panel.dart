@@ -591,7 +591,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
       title: Text(l10n.subtitleShow),
       value: widget.controller.subtitleVisible,
       onChanged: (bool v) {
-        AppHaptics.selectionClick();
+        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
         widget.controller.setSubtitleVisible(v);
         unawaited(widget.controller.saveSubtitleState());
       },
@@ -625,7 +625,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                   style: theme.textTheme.bodySmall),
               value: t.enabled,
               onChanged: (bool v) {
-                AppHaptics.selectionClick();
+                v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                 unawaited(t.setEnabled(v));
               },
             ),
@@ -636,7 +636,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                 title: Text(l10n.subTransShowOriginal),
                 value: t.showOriginal,
                 onChanged: (bool v) {
-                  AppHaptics.selectionClick();
+                  v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                   unawaited(t.setShowOriginal(v));
                 },
               ),
@@ -648,7 +648,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                     style: theme.textTheme.bodySmall),
                 value: t.ocrFallback,
                 onChanged: (bool v) {
-                  AppHaptics.selectionClick();
+                  v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                   unawaited(t.setOcrFallback(v));
                 },
               ),

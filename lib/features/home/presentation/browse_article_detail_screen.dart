@@ -268,7 +268,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         title: Text(l10n.articleJustify),
                         value: prefs.justify,
                         onChanged: (_) {
-                          AppHaptics.selectionClick();
+                          _ == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                           notifier.setJustify(!prefs.justify);
                         },
                       ),
@@ -505,7 +505,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         title: Text(l10n.articleShadow),
                         value: prefs.shadow,
                         onChanged: (bool v) {
-                          AppHaptics.selectionClick();
+                          v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                           notifier.setShadow(v);
                         },
                       ),
@@ -601,7 +601,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         title: Text(l10n.articleTitleBold),
                         value: prefs.titleBold,
                         onChanged: (bool v) {
-                          AppHaptics.selectionClick();
+                          v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                           notifier.setTitleBold(v);
                         },
                       ),

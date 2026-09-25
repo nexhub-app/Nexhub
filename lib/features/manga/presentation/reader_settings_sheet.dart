@@ -102,7 +102,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
           : null,
       value: value,
       onChanged: (v) {
-        AppHaptics.selectionClick();
+        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
         onChanged(v);
       },
     );

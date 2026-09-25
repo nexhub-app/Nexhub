@@ -529,7 +529,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                         child: Switch(
                           value: _useRegex,
                           onChanged: (v) {
-                            AppHaptics.selectionClick();
+                            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                             setState(() => _useRegex = v);
                           },
                           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

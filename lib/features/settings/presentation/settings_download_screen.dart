@@ -538,7 +538,7 @@ class _WifiOnlySettingState extends State<_WifiOnlySetting> {
       trailing: Switch(
         value: _value,
         onChanged: (v) {
-          AppHaptics.selectionClick();
+          v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
           setState(() => _value = v);
           _save(v);
         },
@@ -584,7 +584,7 @@ class _AutoDeleteSettingState extends State<_AutoDeleteSetting> {
       trailing: Switch(
         value: _value,
         onChanged: (v) {
-          AppHaptics.selectionClick();
+          v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
           setState(() => _value = v);
           _save(v);
         },

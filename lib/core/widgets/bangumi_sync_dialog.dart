@@ -480,7 +480,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                     Switch(
                       value: _private,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         setState(() => _private = v);
                       },
                     ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 
 /// 顶部分段切换（M3 风格等宽分段按钮）。
 ///
@@ -31,7 +32,11 @@ class AppSegmentedTabs<T> extends StatelessWidget {
     if (!equalWidth || segments.isEmpty) {
       return SegmentedButton<T>(
         selected: selected,
-        onSelectionChanged: onSelectionChanged,
+        // MD3「Selected」：单选组选中 → tick。
+        onSelectionChanged: (Set<T> selection) {
+          AppHaptics.tick();
+          onSelectionChanged(selection);
+        },
         segments: segments,
       );
     }
@@ -97,7 +102,11 @@ class AppSegmentedTabs<T> extends StatelessWidget {
                       isFirst: isFirst,
                       isLast: isLast,
                       compact: compact,
-                      onTap: () => onSelectionChanged(<T>{value}),
+                      onTap: () {
+                        // MD3「Selected」：分段单选 → tick。
+                        AppHaptics.tick();
+                        onSelectionChanged(<T>{value});
+                      },
                     ),
                   );
                 }).toList(),

@@ -19,6 +19,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/app_url_input_bar.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../shuyuan_adapter.dart';
 import '../shuyuan_source_service.dart';
 
@@ -401,6 +402,9 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
               value: isSelected,
               onChanged: isValid
                   ? (bool? value) {
+                      value == true
+                          ? AppHaptics.toggleOn()
+                          : AppHaptics.toggleOff();
                       setState(() {
                         if (value == true) {
                           _selectedUrls.add(source.bookSourceUrl);

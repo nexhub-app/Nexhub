@@ -217,13 +217,19 @@ Future<int?> _pickSleepMinutes({
                       m == 0 ? l10n.ttsSleepOff : l10n.minuteUnit(m)),
                   value: m,
                   groupValue: customActive ? -1 : current,
-                  onChanged: (v) => Navigator.of(ctx).pop(v),
+                  onChanged: (v) {
+                    AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
+                    Navigator.of(ctx).pop(v);
+                  },
                 ),
               RadioListTile<int>(
                 title: Text(l10n.ttsSleepCustom),
                 value: -1,
                 groupValue: customActive ? -1 : current,
-                onChanged: (_) => setDialogState(() => customActive = true),
+                onChanged: (_) {
+                  AppHaptics.tick(); // MD3「Selected」：单选选中 → tick。
+                  setDialogState(() => customActive = true);
+                },
               ),
               if (customActive)
                 Padding(
@@ -1770,6 +1776,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
  ///
  /// 块为整段多行文本，精确折行 x 命中留待后续；先满足「滚动模式可划线」。
   void _onSelLongPressStartScroll(int blockIndex, String text) {
+    // MD3「Thunk」：长按开始文本选择。
+    AppHaptics.thunk();
     _longPressEngaged = true;
     final start = _selectionController.globalOffsetForBlock(
       _paragraphs,
@@ -2124,6 +2132,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
  /// 角标图操作菜单（I7）：自定义 / 恢复默认；操作完成后刷新列表。
   Future<void> _showBadgeActions(BuildContext sheetCtx, NovelBookmark bm) async {
+    // MD3「Thunk」：长按呼出书签操作菜单。
+    AppHaptics.thunk();
     final l10n = AppLocalizations.of(sheetCtx);
     final String? action = await showModalBottomSheet<String>(
       context: sheetCtx,
@@ -5789,7 +5799,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           ),
                           value: selected[i],
                           onChanged: (v) {
-                            AppHaptics.selectionClick();
+                            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                             setSt(() => selected[i] = v ?? false);
                           },
                           secondary: done
@@ -7662,6 +7672,8 @@ class _NovelPageWidget extends StatelessWidget {
 
  /// 长按选区起始：记录锚点全局偏移并标记选区激活（让翻页手势让出指针）。
   void _onSelLongPressStart(int lineIndexInPage, LongPressStartDetails d) {
+    // MD3「Thunk」：长按开始文本选择。
+    AppHaptics.thunk();
     final item = lines[lineIndexInPage];
     if (item is! NovelTextLineItem) return;
     final ci = item.line.hitTestCharOffset(d.localPosition.dx);
@@ -8715,7 +8727,7 @@ class _NovelInlineSettings extends StatelessWidget {
                           title: Text(l10n.novelShowChapterTitle),
                           value: prefs.showChapterTitleInBody,
                           onChanged: (v) {
-                            AppHaptics.selectionClick();
+                            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                             onChanged(
                                 prefs.copyWith(showChapterTitleInBody: v));
                           },
@@ -8756,7 +8768,7 @@ class _NovelInlineSettings extends StatelessWidget {
                             title: Text(l10n.novelTitleBold),
                             value: prefs.titleBold,
                             onChanged: (v) {
-                              AppHaptics.selectionClick();
+                              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                               onChanged(prefs.copyWith(titleBold: v));
                             },
                           ),
@@ -8772,7 +8784,7 @@ class _NovelInlineSettings extends StatelessWidget {
                             title: Text(l10n.novelTitleSegmentMode),
                             value: prefs.titleSegmentMode,
                             onChanged: (v) {
-                              AppHaptics.selectionClick();
+                              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                               onChanged(
                                   prefs.copyWith(titleSegmentMode: v));
                             },
@@ -9019,7 +9031,7 @@ class _NovelInlineSettings extends StatelessWidget {
                           title: Text(l10n.novelTextShadow),
                           value: prefs.shadow,
                           onChanged: (v) {
-                            AppHaptics.selectionClick();
+                            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                             onChanged(prefs.copyWith(shadow: v));
                           },
                         ),
@@ -9285,7 +9297,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       subtitle: Text(l10n.novelTwoPageModeDesc),
                       value: prefs.twoPageMode,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         onChanged(prefs.copyWith(twoPageMode: v));
                       },
                     ),
@@ -9313,7 +9325,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       title: Text(l10n.autoPageSmooth),
                       value: prefs.autoPageSmooth,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         onChanged(prefs.copyWith(autoPageSmooth: v));
                       },
                     ),
@@ -9323,7 +9335,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       title: Text(l10n.novelWheelInverted),
                       value: prefs.scrollWheelInverted,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         onChanged(
                             prefs.copyWith(scrollWheelInverted: v));
                       },
@@ -9335,7 +9347,7 @@ class _NovelInlineSettings extends StatelessWidget {
                         title: Text(l10n.readerVolumeKeyPageTurn),
                         value: prefs.volumeKeyPageTurn,
                         onChanged: (v) {
-                          AppHaptics.selectionClick();
+                          v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                           onChanged(
                               prefs.copyWith(volumeKeyPageTurn: v));
                         },
@@ -9390,7 +9402,7 @@ class _NovelInlineSettings extends StatelessWidget {
                                 title: Text(l10n.novelTtsBackground),
                                 value: prefs.ttsBackground,
                                 onChanged: (v) {
-                                  AppHaptics.selectionClick();
+                                  v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                                   onChanged(
                                       prefs.copyWith(ttsBackground: v));
                                 },
@@ -9575,7 +9587,7 @@ class _NovelInlineSettings extends StatelessWidget {
                     title: Text(l10n.preDownloadEnabled),
                     value: d.enabled,
                     onChanged: (v) {
-                      AppHaptics.selectionClick();
+                      v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                       setDialogState(
                           () => draft = draft!.copyWith(enabled: v));
                     },

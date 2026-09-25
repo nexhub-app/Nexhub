@@ -17,6 +17,7 @@ import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../../core/widgets/app_url_input_bar.dart';
+import '../../../core/utils/app_haptics.dart';
 import '../../../features/verification/presentation/webview_verification_screen.dart';
 import 'local_media_viewer.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
@@ -198,6 +199,8 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
   // ── 多选模式 ──
 
   void _enterSelection(int i) {
+    // MD3「Thunk」：长按进入多选模式。
+    AppHaptics.thunk();
     setState(() {
       _selectionMode = true;
       _selectedIndices
@@ -207,6 +210,10 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
   }
 
   void _toggleSelection(int i) {
+    // MD3「Toggle on/off」：多选勾选按开/关区分触感。
+    _selectedIndices.contains(i)
+        ? AppHaptics.toggleOff()
+        : AppHaptics.toggleOn();
     setState(() {
       if (_selectedIndices.contains(i)) {
         _selectedIndices.remove(i);

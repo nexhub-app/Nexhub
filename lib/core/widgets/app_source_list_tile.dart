@@ -104,7 +104,7 @@ class AppSourceListTile extends StatelessWidget {
               child: Switch(
                 value: enabled,
                 onChanged: (v) {
-                  AppHaptics.selectionClick();
+                  v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                   onToggle!(v);
                 },
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

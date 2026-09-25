@@ -1487,6 +1487,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                   leading: Checkbox(
                     value: isSelected && item.isValid,
                     onChanged: item.isValid ? (v) {
+                      v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                       setState(() {
                         if (v == true) {
                           _selectedPreviewIndices.add(i);

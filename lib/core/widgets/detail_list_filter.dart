@@ -249,7 +249,7 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
                     CheckboxListTile(
                       value: _filter.downloaded,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         setState(() {
                           _filter = _filter.copyWith(downloaded: v);
                         });
@@ -259,7 +259,7 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
                     CheckboxListTile(
                       value: _filter.unread,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         setState(() {
                           _filter = _filter.copyWith(unread: v);
                         });
@@ -269,7 +269,7 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
                     CheckboxListTile(
                       value: _filter.bookmarked,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         setState(() {
                           _filter = _filter.copyWith(bookmarked: v);
                         });
@@ -288,9 +288,13 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
                         RadioListTile<DetailSortKey>(
                           value: key,
                           groupValue: _sort.key,
-                          onChanged: (v) => setState(() {
-                            _sort = _sort.copyWith(key: v);
-                          }),
+                          // MD3「Selected」：单选选中 → tick。
+                          onChanged: (v) {
+                            AppHaptics.tick();
+                            setState(() {
+                              _sort = _sort.copyWith(key: v);
+                            });
+                          },
                           title: Text(_sortKeyLabel(key, l10n)),
                         ),
                     Padding(
@@ -326,7 +330,7 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
                       CheckboxListTile(
                         value: _display.sourceTitle,
                         onChanged: (v) {
-                          AppHaptics.selectionClick();
+                          v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                           setState(() {
                             _display = _display.copyWith(sourceTitle: v);
                           });
@@ -336,7 +340,7 @@ class _DetailListFilterSheetState extends State<DetailListFilterSheet> {
                     CheckboxListTile(
                       value: _display.number,
                       onChanged: (v) {
-                        AppHaptics.selectionClick();
+                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
                         setState(() {
                           _display = _display.copyWith(number: v);
                         });

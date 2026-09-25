@@ -25,6 +25,7 @@ import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/progress_card.dart' show formatRelativeTime;
+import '../../../core/utils/app_haptics.dart';
 import 'heatmap_sheet.dart';
 
 /// 统计页（从设置主页「统计」入口进入）。
@@ -93,6 +94,8 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
   }
 
   Future<void> _confirmClear(WorkReadingStats stat) async {
+    // MD3「Thunk」：长按清空统计（破坏性确认）。
+    AppHaptics.thunk();
     final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,

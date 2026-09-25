@@ -45,6 +45,7 @@ import 'library_shell.dart';
 import '../reader/reading_queue_store.dart';
 import 'reading_queue_sheet.dart';
 import '../theme/app_tokens.dart';
+import '../utils/app_haptics.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
 
 class BookshelfContent extends StatelessWidget {
@@ -538,6 +539,8 @@ void _showFavoriteActionsMenu(
   required SourceType sourceType,
   required MediaItem item,
 }) {
+  // MD3「Thunk」：长按呼出操作菜单。
+  AppHaptics.thunk();
   final l10n = AppLocalizations.of(context);
   showModalBottomSheet<void>(
     context: context,
