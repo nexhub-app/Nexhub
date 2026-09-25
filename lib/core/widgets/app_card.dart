@@ -18,24 +18,31 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    final Widget content = Container(
-      padding: padding ?? const EdgeInsets.all(AppTokens.spaceMd),
-      decoration: BoxDecoration(
-        color: color ?? scheme.surfaceContainerLow,
+    // 背景色由 Material 直接承载：ListTile 等墨水组件嵌在卡内时，
+    // 最近 Material 祖先须先于带背景的容器出现（3.44 debug 断言），墨水落点才正确。
+    final Widget content = Material(
+      color: color ?? scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        boxShadow: AppShadows.card(scheme),
       ),
-      child: child,
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(AppTokens.spaceMd),
+        child: child,
+      ),
     );
     return onTap != null
-        ? Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-              child: content,
-            ),
+        ? InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+            child: content,
           )
-        : content;
+        : Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+              boxShadow: AppShadows.card(scheme),
+            ),
+            child: content,
+          );
   }
 }

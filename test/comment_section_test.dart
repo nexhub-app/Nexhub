@@ -9,7 +9,6 @@ library;
 import 'dart:convert';
 
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/auth/source_auth_manager.dart';
 import 'package:nexhub/core/comments/comment_api_service.dart';
@@ -162,9 +161,7 @@ Widget wrap({required SourceAuthManager auth, required Widget child}) =>
         supportedLocales: const <Locale>[Locale('zh'), Locale('en')],
         localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
           AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
+          ...GlobalMaterialLocalizations.delegates,
         ],
         home: Scaffold(body: SingleChildScrollView(child: child)),
       ),

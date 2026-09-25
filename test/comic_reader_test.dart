@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:material_ui/material_ui.dart';
 import 'package:hive/hive.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/favorites/favorites_manager.dart';
 import 'package:nexhub/core/comic/models/reader_preferences.dart';
@@ -83,9 +82,7 @@ void main() {
               supportedLocales: <Locale>[Locale('zh'), Locale('en')],
               localizationsDelegates: <LocalizationsDelegate<dynamic>>[
                 AppLocalizations.delegate,
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
+                ...GlobalMaterialLocalizations.delegates,
               ],
               home: ComicReaderScreen(
                 comicId: 'm1',

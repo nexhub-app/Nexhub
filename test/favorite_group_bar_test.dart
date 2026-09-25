@@ -6,7 +6,6 @@
 library;
 
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/favorites/favorites_manager.dart';
 import 'package:nexhub/core/models/plugin_config.dart';
@@ -26,9 +25,7 @@ Widget wrap({required FavoritesManager manager, required Widget child}) =>
         supportedLocales: const <Locale>[Locale('zh'), Locale('en')],
         localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
           AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
+          ...GlobalMaterialLocalizations.delegates,
         ],
         home: Scaffold(body: child),
       ),

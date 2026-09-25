@@ -6,7 +6,6 @@
 library;
 
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/history/history_manager.dart';
 import 'package:nexhub/core/models/bookshelf_filter.dart';
@@ -60,9 +59,7 @@ Widget _wrap(SourceRepository repo, HistoryManager history) =>
         supportedLocales: const <Locale>[Locale('zh'), Locale('en')],
         localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
           AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
+          ...GlobalMaterialLocalizations.delegates,
         ],
         home: const Scaffold(
           body: BookshelfContent(

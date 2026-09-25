@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'package:nexhub/core/local/local_content_manager.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/favorites/favorites_manager.dart';
 import 'package:nexhub/core/models/plugin_config.dart';
@@ -83,9 +82,7 @@ void main() {
             supportedLocales: const <Locale>[Locale('zh'), Locale('en')],
             localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
               AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
+              ...GlobalMaterialLocalizations.delegates,
             ],
             home: ComicReaderScreen(
               // key 区分「多次进入」：同位置同类型会复用 State（_init 不重跑），

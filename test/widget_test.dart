@@ -1,6 +1,5 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/download/download_file_system.dart';
 import 'package:nexhub/core/download/download_manager.dart';
@@ -71,9 +70,7 @@ void main() {
           locale: const Locale('zh'),
           localizationsDelegates: const [
             AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
+            ...GlobalMaterialLocalizations.delegates,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
           theme: ThemeData(useMaterial3: true),

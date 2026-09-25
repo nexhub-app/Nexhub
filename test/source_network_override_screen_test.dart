@@ -7,7 +7,6 @@
 library;
 
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/models/plugin_config.dart';
 import 'package:nexhub/core/network/network_config_service.dart';
@@ -33,9 +32,7 @@ Widget _wrap(PluginConfig source) => MaterialApp(
       supportedLocales: const <Locale>[Locale('zh'), Locale('en')],
       localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
         AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
+        ...GlobalMaterialLocalizations.delegates,
       ],
       home: SourceNetworkOverrideScreen(source: source),
     );

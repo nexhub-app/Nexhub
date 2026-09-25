@@ -10,7 +10,6 @@ import 'package:nexhub/core/scraper/media_api_service.dart';
 import 'package:nexhub/core/services/source_repository.dart';
 import 'package:nexhub/features/manga/presentation/comic_reader_screen.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -63,9 +62,7 @@ Widget _wrapReader({
           supportedLocales: <Locale>[Locale('zh'), Locale('en')],
           localizationsDelegates: <LocalizationsDelegate<dynamic>>[
             AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
+            ...GlobalMaterialLocalizations.delegates,
           ],
           home: ComicReaderScreen(
             comicId: 'm1',
