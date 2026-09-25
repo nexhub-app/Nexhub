@@ -5,7 +5,7 @@
 /// sourceId 为空 / 源已卸载（无法判定）的条目不受影响。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/history/history_manager.dart';

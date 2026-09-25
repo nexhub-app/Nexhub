@@ -6,7 +6,7 @@
 /// （每个已挂载的 Entrance 都抛一次，日志成串报错且重播失效）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/widgets/app_animations.dart';
 

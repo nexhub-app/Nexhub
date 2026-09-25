@@ -6,7 +6,7 @@
 /// - 保存：沿用值固化为用户覆盖（写入 [SourceNetworkOverrideStore]）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/models/plugin_config.dart';

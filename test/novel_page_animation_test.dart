@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/novel/novel_page_animation.dart';
 import 'package:nexhub/features/novel/presentation/novel_animated_page_view.dart';

@@ -1,7 +1,7 @@
 // 全局列表弹窗样式基线：底部弹层与浮层菜单去阴影 + 圆角。
 // 需求：「所有的列表弹窗都要删去阴影，增加圆角」——在主题层统一兜底，
 // 各 showModalBottomSheet / PopupMenuButton 调用点未显式传样式时自动继承。
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/theme/app_theme.dart';
 import 'package:nexhub/core/theme/app_tokens.dart';

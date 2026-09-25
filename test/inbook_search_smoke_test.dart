@@ -1,6 +1,6 @@
 // 冒烟测试：渲染书内搜索底部抽屉，验证打开阶段（build）不抛异常。
 // 用于在无 logcat 的情况下复现「小说阅读器点击搜索按钮就卡退」。
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/models/episode.dart';

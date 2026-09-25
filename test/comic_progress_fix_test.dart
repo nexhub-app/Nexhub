@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:hive/hive.dart';
 import 'package:nexhub/core/favorites/favorites_manager.dart';
 import 'package:nexhub/core/models/episode.dart';

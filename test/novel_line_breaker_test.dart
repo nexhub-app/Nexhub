@@ -1,7 +1,7 @@
 ///  / A5 中文禁则断行器渲染级单测（需 TextPainter，flutter_test 环境）。
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/novel/novel_line_breaker.dart';
 
