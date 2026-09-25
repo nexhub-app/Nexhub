@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.0.3-announce",
+    "date": "2026-09-25",
+    "title": "NexHub 2.0.3 正式版",
+    "titleEn": "NexHub 2.0.3 (stable release)",
+    "body": "NexHub 2.0.3 正式版来了！它建立在 2.0.2 正式版之上，基础功能完整、可安全升级，本次聚焦引擎健壮性、MD3 官方触感反馈与下载/界面稳定性：JS 沙箱预置 atob/btoa，源脚本可直接调用、无需内嵌 polyfill，meta 多跳解析更稳；震动反馈按 Material 3 官方语义重构，开关/滑块/单选/下拉刷新/长按约 200 处统一映射；修复 SAF 下载 .cbz 扩展名改写失败、切 tab 入场动画重播崩溃，年龄限制开启时书架历史自动隐藏 R18 条目。沿用同一签名密钥，可直接覆盖安装。🌕 中秋快乐！月圆人安，愿你追番读漫皆顺心。",
+    "bodyEn": "NexHub 2.0.3 (stable) is here! Built on 2.0.2 (stable), it's solid and safe to upgrade. This release focuses on engine robustness, MD3 haptics, and download/UI stability: the JS sandbox now presets atob/btoa so source scripts can call them directly without embedding a polyfill, and meta multi-hop parsing is more stable; vibration feedback follows the Material 3 official semantics, with ~200 call sites (toggles/sliders/radios/refresh/long-press) uniformly mapped; SAF .cbz extension-rewrite download failures and the tab-switch entrance-animation replay crash are fixed, and the bookshelf history auto-hides R18 entries when age restriction is on. Same signing key — just overwrite-install. 🌕 Happy Mid-Autumn! May the full moon bring peace, and may your anime, manga and reading all go smoothly.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.2-announce",
     "date": "2026-09-20",
     "title": "NexHub 2.0.2 正式版",
