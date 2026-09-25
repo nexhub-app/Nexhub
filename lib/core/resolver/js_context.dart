@@ -93,6 +93,39 @@ abstract class JsEngine {
 
 /// 预置给源脚本的 context（JS 侧）。方法经 flutterBridge 回调宿主，Promise 异步返回。
 const String _jsContextPrelude = '''
+// atob/btoa polyfill：QuickJS 沙箱无浏览器全局，直接调 atob 会 ReferenceError
+// 且常被脚本自身 try/catch 吞掉 → 视频解析「静默空」。语义对齐源脚本内嵌版：
+// atob 剥离非 base64 字符与尾部 `=` 后宽松解码；btoa 对 >0xFF 码位按 &255 截断
+// （浏览器此时抛错，沙箱内宽松更实用）。源脚本自带同名声明会原样覆盖本版，
+// 新源可不再内嵌 polyfill（省 ~400 字节/源）。
+var __b64a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function atob(s){
+  s = String(s).replace(/[^A-Za-z0-9+\\/=]/g, '').replace(/=+\$/, '');
+  var o = '';
+  for (var i = 0; i < s.length; i += 4) {
+    var a = __b64a.indexOf(s.charAt(i)), b = __b64a.indexOf(s.charAt(i + 1));
+    var c = i + 2 < s.length ? __b64a.indexOf(s.charAt(i + 2)) : -1;
+    var d = i + 3 < s.length ? __b64a.indexOf(s.charAt(i + 3)) : -1;
+    if (c < 0) c = 0;
+    if (d < 0) d = 0;
+    o += String.fromCharCode((a << 2) | (b >> 4));
+    if (i + 2 < s.length) o += String.fromCharCode(((b & 15) << 4) | (c >> 2));
+    if (i + 3 < s.length) o += String.fromCharCode(((c & 3) << 6) | d);
+  }
+  return o;
+}
+function btoa(s){
+  s = String(s);
+  var o = '';
+  for (var i = 0; i < s.length; i += 3) {
+    var b0 = s.charCodeAt(i) & 255, b1 = s.charCodeAt(i + 1) & 255, b2 = s.charCodeAt(i + 2) & 255;
+    var h1 = i + 1 < s.length, h2 = i + 2 < s.length;
+    o += __b64a.charAt(b0 >> 2) + __b64a.charAt(((b0 & 3) << 4) | (b1 >> 4));
+    o += h1 ? __b64a.charAt(((b1 & 15) << 2) | (b2 >> 6)) : '=';
+    o += h2 ? __b64a.charAt(b2 & 63) : '=';
+  }
+  return o;
+}
 var __pending = {};
 var __execResult = null;
 var __execResultResolved = null;
@@ -218,6 +251,16 @@ class FlutterJsEngine implements JsEngine {
   @override
   final JsHostBridge bridge;
   late final JavascriptRuntime _runtime;
+
+  /// 本实例已完整评估过的脚本（按内容去重）。
+  ///
+  /// 引擎实例与单次解析同生命周期（ScriptResolver 每次 resolve 新建、finally
+  /// dispose）。meta 多跳链的每个 hop 都会以**同一脚本**调用 [run]（入口 +
+  /// 各跳 `__processor`，含 webview/暖直连兜底处理器）：若每跳都重放整脚本，
+  /// 顶层 `var X='init'` 初始化器会重跑、清掉上一跳写入全局的跨跳状态 →
+  /// 多跳链永远拿不到 hop1 数据。同一脚本只在首跳评估一次后，链上经顶层
+  /// `var` 共享的状态才符合源编写文档承诺的「同一 JsEngine 内全局持续可见」。
+  final Set<String> _loadedScripts = <String>{};
 
   /// 当前源 ID（生产环境中 bridge 必为 [DartJsHostBridge]，含 source）。
   /// 用于在调试记录本中标记诊断信息归属哪个源。
@@ -587,7 +630,13 @@ class FlutterJsEngine implements JsEngine {
   @override
   Future<dynamic> run(String script, String function, List<dynamic> args) async {
     debugPrint('[JsContext] run() 开始: function=$function, argsCount=${args.length}, scriptLength=${script.length}');
-    await _runtime.evaluateAsync(script);
+    if (_loadedScripts.add(script)) {
+      final evalRes = await _runtime.evaluateAsync(script);
+      if (evalRes.isError) {
+        // 语法错误等评估失败不缓存：后续 run 仍会重试评估（对齐旧行为）。
+        _loadedScripts.remove(script);
+      }
+    }
     // 单参时裸传 args.first（如 HTML 字符串），避免脚本收到 ["<html>"] 这种
     // 数组包装——golden 脚本多声明 `function parseX(raw, context)`，期望 raw 为字符串。
     // 多参时按原样 JSON 数组传参。统一追加 context 作为末参（沙箱能力入口）。
