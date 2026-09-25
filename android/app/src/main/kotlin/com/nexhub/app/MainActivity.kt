@@ -16,9 +16,6 @@ import android.os.Build
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import android.provider.MediaStore
 import android.util.Log
 import android.util.Rational
@@ -97,26 +94,6 @@ class MainActivity : FlutterFragmentActivity() {
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("install_failed", e.message, null)
-                    }
-                }
-                else -> result.notImplemented()
-            }
-        }
-
-        // Method channel: MD3 触觉反馈（原生 Vibrator 直接播放官方触感原语，
-        // 不依赖系统「触摸反馈」设置——Flutter 的 HapticFeedback 在部分
-        // 设备/系统设置下被静默，导致手机上感觉不到震动）。
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            HAPTIC_CHANNEL
-        ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "effect" -> {
-                    try {
-                        vibrateEffect(call.argument<String>("effect") ?: "click")
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error("vibrate_failed", e.message, null)
                     }
                 }
                 else -> result.notImplemented()
@@ -400,154 +377,11 @@ class MainActivity : FlutterFragmentActivity() {
         return out.absolutePath
     }
 
-    /**
-     * MD3 触觉反馈：按语义模式播放官方触感原语（不依赖系统「触摸反馈」设置）。
-     *
-     * 优先级（Material 官方触感指南推荐顺序）：
-     * 1. Android 12+（S）且电机支持组合原语 → `VibrationEffect.Composition`
-     *    的 PRIMITIVE_TICK/CLICK/THUD（OEM 电机驱动调校，手感最佳）；
-     * 2. Android 10+（Q）→ `createPredefined` 的官方预置效果
-     *    （EFFECT_TICK/CLICK/HEAVY_CLICK/DOUBLE_CLICK）；
-     * 3. Android 8-9 → 等幅单脉冲近似；8 以下退化为定时长震动。
-     *
-     * 模式对照（m3.material.io/foundations/designing-haptics）：
-     * - tick：离散刻度/单选（滑块分档、分段按钮、导航项、chip）；
-     * - click / toggleOn：点按确认、开关开启（开强关弱）；
-     * - thunk：重按（长按开始、拖拽拿起、破坏性确认）；
-     * - confirm：任务成功（上行双击）；reject：失败（下行重击）；
-     * - gestureThreshold：手势越阈（下拉刷新触发）。
-     */
-    private fun vibrateEffect(effect: String) {
-        val vibrator = obtainVibrator() ?: return
-        // 每次先 cancel 清掉可能滞留的上一次波形：连续高频触感（开关/翻页/点按）
-        // 时若不清理，部分 ROM 会把后续效果追加到已有队列，表现为「只有第一次
-        // 有震动，之后再点没反应」。
-        vibrator.cancel()
-        when (effect) {
-            "tick" ->
-                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_TICK) {
-                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.7f)
-                    }
-                ) predefinedOr(vibrator, VibrationEffect.EFFECT_TICK, 10, 150)
-            "click", "toggleOn" ->
-                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_CLICK) {
-                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1.0f)
-                    }
-                ) predefinedOr(vibrator, VibrationEffect.EFFECT_CLICK, 18, 220)
-            "toggleOff" ->
-                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_TICK) {
-                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.45f)
-                    }
-                ) predefinedOr(vibrator, VibrationEffect.EFFECT_TICK, 8, 120)
-            "thunk" ->
-                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_THUD) {
-                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f)
-                    }
-                ) predefinedOr(vibrator, VibrationEffect.EFFECT_HEAVY_CLICK, 35, 255)
-            "confirm" ->
-                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_TICK, VibrationEffect.Composition.PRIMITIVE_CLICK) {
-                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.6f)
-                            .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1.0f, 70)
-                    }
-                ) predefinedOr(
-                    vibrator, VibrationEffect.EFFECT_DOUBLE_CLICK, 0, 0,
-                    waveform = longArrayOf(0, 25, 60, 25), amps = intArrayOf(0, 180, 0, 255)
-                )
-            "reject" ->
-                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_THUD, VibrationEffect.Composition.PRIMITIVE_TICK) {
-                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f)
-                            .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.5f, 70)
-                    }
-                ) predefinedOr(
-                    vibrator, null, 0, 0,
-                    waveform = longArrayOf(0, 30, 70, 25), amps = intArrayOf(0, 255, 0, 140)
-                )
-            "gestureThreshold" ->
-                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_TICK) {
-                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 1.0f)
-                    }
-                ) predefinedOr(vibrator, VibrationEffect.EFFECT_TICK, 12, 200)
-            else ->
-                if (!compose(vibrator, VibrationEffect.Composition.PRIMITIVE_CLICK) {
-                        it.addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1.0f)
-                    }
-                ) predefinedOr(vibrator, VibrationEffect.EFFECT_CLICK, 18, 220)
-        }
-    }
-
-    /** 取系统振动器（S+ 走 VibratorManager，旧版本走已废弃的 VibratorService）。 */
-    private fun obtainVibrator(): Vibrator? {
-        val v: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)
-                ?.defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-        }
-        return if (v != null && v.hasVibrator()) v else null
-    }
-
-    /** S+ 且电机支持给定组合原语时按 [block] 组合播放；否则返回 false 走降级。 */
-    private fun compose(
-        vibrator: Vibrator,
-        vararg primitives: Int,
-        block: (VibrationEffect.Composition) -> Unit
-    ): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
-        return try {
-            if (!vibrator.areAllPrimitivesSupported(*primitives)) return false
-            val composition = VibrationEffect.startComposition()
-            block(composition)
-            vibrator.vibrate(composition.compose())
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    /**
-     * 组合原语降级路径：Q+ 播放官方预置效果 [effectId]（[waveform] 双脉冲
-     * 模式优先用波形以区分上行/下行手感）；26-28 用振幅波形/单脉冲近似；
-     * 8 以下退化为定时长震动。
-     */
-    private fun predefinedOr(
-        vibrator: Vibrator,
-        effectId: Int?,
-        ms: Int,
-        amp: Int,
-        waveform: LongArray? = null,
-        amps: IntArray? = null
-    ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            effectId != null && waveform == null
-        ) {
-            vibrator.vibrate(VibrationEffect.createPredefined(effectId))
-            return
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            waveform != null && amps != null
-        ) {
-            vibrator.vibrate(VibrationEffect.createWaveform(waveform, amps, -1))
-            return
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && ms > 0) {
-            vibrator.vibrate(VibrationEffect.createOneShot(ms.toLong(), amp))
-            return
-        }
-        @Suppress("DEPRECATION")
-        if (waveform != null) {
-            vibrator.vibrate(waveform, -1)
-        } else {
-            vibrator.vibrate(maxOf(ms, 10).toLong())
-        }
-    }
-
     // ──  系统 PiP 窗口动作（Android O+）──────────────────────────────
 
     companion object {
         private const val PIP_CHANNEL = "nexhub/pip"
         private const val PIP_EVENTS = "nexhub/pip_events"
-        private const val HAPTIC_CHANNEL = "nexhub/haptic"
         private const val PIP_ACTION = "com.nexhub.app.PIP_ACTION"
         private const val EXTRA_ACTION_ID = "actionId"
         // PendingIntent 请求码基址：每个动作 +index，保持稳定复用（FLAG_UPDATE_CURRENT）。

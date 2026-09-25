@@ -1925,6 +1925,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           ..showSnackBar(
             SnackBar(
               duration: Duration(seconds: seconds + 1),
+              // 3.38 起带 action 的 SnackBar 默认常驻（persist 隐式为 true），
+              // 显式关闭以恢复「到时自动消失」，避免手动切集/退出后残留。
+              persist: false,
               content: ValueListenableBuilder<int>(
                 valueListenable: _autoNextCountdownLeft,
                 builder: (BuildContext ctx, int left, Widget? child) =>
@@ -2068,6 +2071,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           ..showSnackBar(
             SnackBar(
               duration: Duration(seconds: seconds + 1),
+              // 3.38 起带 action 的 SnackBar 默认常驻（persist 隐式为 true），
+              // 显式关闭以恢复「到时自动消失」，避免手动切集/退出后残留。
+              persist: false,
               content: ValueListenableBuilder<int>(
                 valueListenable: _autoNextCountdownLeft,
                 builder: (BuildContext c, int left, Widget? child) =>
