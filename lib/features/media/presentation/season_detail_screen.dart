@@ -10,6 +10,7 @@ import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../player/presentation/video_player_screen.dart';
@@ -42,8 +43,10 @@ class _SeasonDetailScreenState extends State<SeasonDetailScreen> {
 
   /// 验证异常状态（非 null 时显示验证引导 UI）。
   VerificationRequiredException? _verificationError;
+
   /// 渲染后抽取请求（webview-html 模式）：非 null 时显示「抓取本页渲染内容」引导。
   WebViewHtmlRequest? _htmlCaptureRequest;
+
   /// 渲染后回灌的整页 HTML（重试抓取时复用源选择器解析）。
   String? _renderedHtml;
 
@@ -207,8 +210,8 @@ class _SeasonDetailScreenState extends State<SeasonDetailScreen> {
       itemBuilder: (BuildContext _, int i) {
         final Episode ep = episodes[i];
         return Material(
-          color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          color: AppTheme.cardContainer(scheme),
+          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: () => _openEpisode(ep),

@@ -11,6 +11,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
+import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_log.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -68,7 +69,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
   Future<void> _clear(AppLocalizations l10n) async {
     final bool ok = await showDialog<bool>(
           context: context,
-          builder: (ctx) => AlertDialog(
+          builder: (ctx) => AppAlertDialog(
             title: Text(l10n.crashLogClear),
             content: Text(l10n.confirmActionHint),
             actions: <Widget>[

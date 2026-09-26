@@ -42,7 +42,8 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
 
   Future<void> _load() async {
     try {
-      _lang = await NovelSummarySettings.instance.getTranslationTargetLanguage();
+      _lang =
+          await NovelSummarySettings.instance.getTranslationTargetLanguage();
       await _translations.init();
       await _reports.init();
       final books = await _translations.listNovelIds();
@@ -50,8 +51,7 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
       final chapterCounts = <String, int>{};
       final findingCounts = <String, int>{};
       for (final id in books) {
-        final chapters =
-            await _translations.listForNovel(id, lang: _lang);
+        final chapters = await _translations.listForNovel(id, lang: _lang);
         chapterCounts[id] = chapters.length;
         if (reviewed.contains(id)) {
           final report = await _reports.load(id, lang: _lang);
@@ -145,18 +145,16 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                     ),
                     Text(
                       l10n.reviewFindingCount(report.findings.length),
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: Theme.of(context).colorScheme.outline),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline),
                     ),
                   ],
                 ),
               ),
               if (report.truncated)
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppTokens.spaceMd),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
                   child: Text(
                     l10n.reviewTruncated,
                     style: Theme.of(context)
@@ -184,12 +182,15 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                                 children: <Widget>[
                                   Row(
                                     children: <Widget>[
-                                      _typeChip(f.type, l10n, scheme, Theme.of(context).textTheme),
+                                      _typeChip(f.type, l10n, scheme,
+                                          Theme.of(context).textTheme),
                                       const SizedBox(width: AppTokens.spaceSm),
                                       Expanded(
                                         child: Text(
                                           '${f.chapterTitle} · #${f.paragraphIndex + 1}',
-                                          style: Theme.of(context).textTheme.labelMedium,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelMedium,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -198,7 +199,9 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                                   ),
                                   const SizedBox(height: AppTokens.spaceXs),
                                   Text(f.detail,
-                                      style: Theme.of(context).textTheme.bodySmall),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall),
                                   if (f.source.isNotEmpty) ...<Widget>[
                                     const SizedBox(height: AppTokens.spaceXs),
                                     Text(f.source,
@@ -274,7 +277,7 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                     child: Text(
                       l10n.reviewBooksEmpty,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: scheme.outline),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   ),
                 )
@@ -285,8 +288,7 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                     final id = books[i];
                     final findings = _findingCounts[id];
                     return Card(
-                      margin:
-                          const EdgeInsets.only(bottom: AppTokens.spaceSm),
+                      margin: const EdgeInsets.only(bottom: AppTokens.spaceSm),
                       child: ListTile(
                         title: Text(
                           id,
@@ -298,14 +300,14 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                               ? l10n.reviewBookChapters(_chapterCounts[id] ?? 0)
                               : l10n.reviewBookFindings(findings),
                           style: TextStyle(
-                              fontSize: 12, color: scheme.outline),
+                              fontSize: 12, color: scheme.onSurfaceVariant),
                         ),
                         trailing: _reviewing
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.chevron_right_rounded),
                         onTap: _reviewing ? null : () => _reviewBook(id),

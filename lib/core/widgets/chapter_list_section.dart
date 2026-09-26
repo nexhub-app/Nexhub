@@ -15,6 +15,7 @@ import '../history/chapter_fetch_time_manager.dart';
 import '../models/episode.dart';
 import '../settings/general_settings.dart';
 import '../theme/app_tokens.dart';
+import '../theme/app_theme.dart';
 import 'app_animations.dart';
 import 'app_empty_state.dart';
 import 'app_loading_indicator.dart';
@@ -206,7 +207,8 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     if (_rangeStart != null) {
       final base = result.isNotEmpty ? result.first : 0;
       result = result
-          .where((i) => i >= base + _rangeStart! && i < base + _rangeStart! + _rangeSize)
+          .where((i) =>
+              i >= base + _rangeStart! && i < base + _rangeStart! + _rangeSize)
           .toList();
     }
 
@@ -222,15 +224,19 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     final f = _filterQuery.filter;
     if (!f.isEmpty) {
       result = result.where((i) {
-        if (f.unread && widget.isChapterRead != null && widget.isChapterRead!(i)) {
+        if (f.unread &&
+            widget.isChapterRead != null &&
+            widget.isChapterRead!(i)) {
           return false;
         }
         if (f.downloaded &&
-            (widget.isChapterDownloaded == null || !widget.isChapterDownloaded!(i))) {
+            (widget.isChapterDownloaded == null ||
+                !widget.isChapterDownloaded!(i))) {
           return false;
         }
         if (f.bookmarked &&
-            (widget.isChapterBookmarked == null || !widget.isChapterBookmarked!(i))) {
+            (widget.isChapterBookmarked == null ||
+                !widget.isChapterBookmarked!(i))) {
           return false;
         }
         return true;
@@ -325,7 +331,8 @@ class _ChapterListSectionState extends State<ChapterListSection> {
         _buildSearchBar(context, l10n, scheme),
       ];
       if (showChips) {
-        children.add(_buildLineChips(context, l10n, scheme, lines.keys.toList()));
+        children
+            .add(_buildLineChips(context, l10n, scheme, lines.keys.toList()));
       }
       // 区间 chips：线路与区间可共存（需求2）。
       children.add(_buildRangeChips(context, l10n, scheme, viewCount));
@@ -341,9 +348,8 @@ class _ChapterListSectionState extends State<ChapterListSection> {
             _query.isEmpty &&
             _filterQuery.filter.isEmpty &&
             processed.length > _collapseHead + _collapseTail;
-        final head = groupCollapse
-            ? processed.sublist(0, _collapseHead)
-            : processed;
+        final head =
+            groupCollapse ? processed.sublist(0, _collapseHead) : processed;
         final tail = groupCollapse
             ? processed.sublist(processed.length - _collapseTail)
             : const <int>[];
@@ -355,8 +361,8 @@ class _ChapterListSectionState extends State<ChapterListSection> {
         if (showChips && _selectedLine == null) {
           children.add(
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppTokens.spaceLg, AppTokens.spaceMd, AppTokens.spaceLg, AppTokens.spaceSm),
+              padding: const EdgeInsets.fromLTRB(AppTokens.spaceLg,
+                  AppTokens.spaceMd, AppTokens.spaceLg, AppTokens.spaceSm),
               child: Text(
                 l10n.episodesWithLine(entry.key),
                 style: Theme.of(context).textTheme.titleMedium,
@@ -405,9 +411,8 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     final List<int> tailIndices = collapseActive
         ? indices.sublist(indices.length - _collapseTail)
         : const <int>[];
-    final int hiddenCount = collapseActive
-        ? indices.length - _collapseHead - _collapseTail
-        : 0;
+    final int hiddenCount =
+        collapseActive ? indices.length - _collapseHead - _collapseTail : 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -691,19 +696,17 @@ class _ChapterListSectionState extends State<ChapterListSection> {
 
           String label = ep.title;
           if (display.number) {
-            final numStr =
-                ep.number != null ? '${ep.number}' : '${i + 1}';
+            final numStr = ep.number != null ? '${ep.number}' : '${i + 1}';
             label = '$numStr. ${ep.title}';
           }
 
           final Widget card = Container(
             decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest,
+              color: AppTheme.cardContainer(scheme),
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
               border: hasProgress
                   ? Border.all(
-                      color: scheme.primary.withValues(alpha: 0.5),
-                      width: 1.5)
+                      color: scheme.primary.withValues(alpha: 0.5), width: 1.5)
                   : null,
             ),
             child: Stack(
@@ -717,10 +720,9 @@ class _ChapterListSectionState extends State<ChapterListSection> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style:
-                          Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
                     ),
                   ),
                 ),
@@ -773,7 +775,9 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       if (widget.onToggleRead != null)
         ListTile(
           leading: Icon(
-            isRead ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            isRead
+                ? Icons.check_circle_rounded
+                : Icons.radio_button_unchecked_rounded,
           ),
           title: Text(l10n.chapterRead),
           onTap: () {
@@ -839,9 +843,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       // 显示序号前缀
       String titleText = ep.title;
       if (display.number) {
-        final numStr = ep.number != null
-            ? '${ep.number}'
-            : '${i + 1}';
+        final numStr = ep.number != null ? '${ep.number}' : '${i + 1}';
         titleText = '$numStr. ${ep.title}';
       }
 
@@ -860,7 +862,9 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       final Widget tile = ListTile(
         leading: widget.isChapterRead != null
             ? Icon(
-                isRead ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                isRead
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
                 size: 20,
                 color: isRead ? scheme.primary : scheme.outline,
               )
@@ -893,7 +897,9 @@ class _ChapterListSectionState extends State<ChapterListSection> {
                     widget.isChapterDownloaded?.call(i) ?? false;
                 return IconButton(
                   icon: Icon(
-                    downloaded ? Icons.download_done_rounded : Icons.download_rounded,
+                    downloaded
+                        ? Icons.download_done_rounded
+                        : Icons.download_rounded,
                     size: 20,
                     color: downloaded ? scheme.primary : null,
                   ),
@@ -929,9 +935,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       );
 
       // 已读条目降低不透明度
-      final Widget row = isRead
-          ? Opacity(opacity: 0.5, child: tile)
-          : tile;
+      final Widget row = isRead ? Opacity(opacity: 0.5, child: tile) : tile;
       tiles.add(
         Entrance(
           onceKey: '$idKey-$i',

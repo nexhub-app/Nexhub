@@ -1646,7 +1646,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final saved = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogCtx) => StatefulBuilder(
-        builder: (BuildContext ctx, StateSetter setDlg) => AlertDialog(
+        builder: (BuildContext ctx, StateSetter setDlg) => AppAlertDialog(
           // 弹窗占据更多屏幕宽度与高度（垂直边距收紧），内容显示区域更大。
           insetPadding:
               const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

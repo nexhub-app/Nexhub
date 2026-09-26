@@ -16,6 +16,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/rss/rss_manager.dart';
 import '../../../core/rss/rss_opml.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -61,7 +62,7 @@ class _RssOpmlScreenState extends State<RssOpmlScreen> {
     final ctrl = TextEditingController();
     final text = await showDialog<String>(
       context: context,
-      builder: (dialogCtx) => AlertDialog(
+      builder: (dialogCtx) => AppAlertDialog(
         title: Text(l10n.rssOpmlImportText),
         content: TextField(
           controller: ctrl,

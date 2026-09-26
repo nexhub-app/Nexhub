@@ -19,6 +19,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/platform/platform_service.dart';
 import '../../../core/scraper/http_fetcher.dart';
@@ -132,7 +133,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
       if (!mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => AppAlertDialog(
           title: Text(l10n.cookieNotFoundHint),
           content: SingleChildScrollView(child: Text(summary)),
           actions: <Widget>[

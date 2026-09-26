@@ -44,7 +44,8 @@ typedef FetchItems = Future<List<MediaItem>> Function(
 });
 
 /// 拉取某源的分类（可选；返回空则隐藏分类栏）。
-typedef FetchCategories = Future<List<CategoryEntry>> Function(PluginConfig source);
+typedef FetchCategories = Future<List<CategoryEntry>> Function(
+    PluginConfig source);
 
 /// 解析某源的首页板块（共创式；返回空则回退单块「最新更新」）。
 ///
@@ -116,14 +117,17 @@ class OnlineContentListScreen extends StatefulWidget {
   final IconData emptyIcon;
 
   @override
-  State<OnlineContentListScreen> createState() => _OnlineContentListScreenState();
+  State<OnlineContentListScreen> createState() =>
+      _OnlineContentListScreenState();
 }
 
 class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     with TickerProviderStateMixin {
   PluginConfig? _source;
+
   /// 本页已弹过公告的源 id 集合（避免同一源反复弹窗）。
   final Set<String> _announcedIds = <String>{};
+
   /// 用户选择「以后再不显示」的公告（按 源id@更新时间 去重），跨会话持久化；
   /// 源作者发布新公告（updatedAt 变化）时 key 不同，仍会弹出。
   final Set<String> _dismissedAnnouncements = <String>{};
@@ -139,19 +143,19 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   /// 用「序号」做后缀，可保证同一源列表里即使出现同名/重复源（如某源同时存在于
   /// 内置与已导入列表），各 chip 的 key 仍唯一，不会触发「Duplicate keys found」崩溃。
   final Map<String, GlobalKey> _chipKeys = <String, GlobalKey>{};
-  GlobalKey _chipKey(int index, String id) =>
-      _chipKeys.putIfAbsent('$id#$index', () => GlobalKey(debugLabel: 'src-$id-$index'));
+  GlobalKey _chipKey(int index, String id) => _chipKeys.putIfAbsent(
+      '$id#$index', () => GlobalKey(debugLabel: 'src-$id-$index'));
 
   // 各分类 Tab 的独立状态（用 category id 作为 key）。
-  final Map<String, _CategoryTabState> _tabStates = <String, _CategoryTabState>{};
+  final Map<String, _CategoryTabState> _tabStates =
+      <String, _CategoryTabState>{};
 
   // 按源缓存的动态筛选分组（key = source.id）；切源时清空。
   final Map<String, List<FilterGroupConfig>> _filterGroupsCache =
       <String, List<FilterGroupConfig>>{};
 
   // 按源缓存的首页板块数据（key = section.id → 该板块 items）。
-  Map<String, List<MediaItem>> _homeSectionItems =
-      <String, List<MediaItem>>{};
+  Map<String, List<MediaItem>> _homeSectionItems = <String, List<MediaItem>>{};
   // 当前源解析出的首页板块配置（顺序即竖向堆叠顺序）。
   List<HomeSectionConfig> _homeSections = <HomeSectionConfig>[];
 
@@ -191,8 +195,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
 
   // 首页板块懒加载：每个板块的加载状态（未加载 / 加载中 / 已加载 / 失败）。
   // 方案 A：只抓取进入视口的板块，其余滑到/点开才抓（配合 HttpFetcher 信号量限流）。
-  final Map<String, _SectionStatus> _sectionStatus =
-      <String, _SectionStatus>{};
+  final Map<String, _SectionStatus> _sectionStatus = <String, _SectionStatus>{};
   // 各板块的 GlobalKey（用于滚动时计算是否在视口内）。
   final Map<String, GlobalKey> _sectionKeys = <String, GlobalKey>{};
   // 首页板块抓取串行链：保证同一首页内多个板块**顺序**抓取（一次一个），
@@ -326,7 +329,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       // 可选 Tab 依次为：周期表 → 网络收藏，之后才是动态分类，排行在最后。
       final catStart = _catStart;
       final rankIdx = catStart + _categories.length;
-      if (_hasScheduleData && idx == 1 && _scheduleItems.isEmpty && !_scheduleLoading) {
+      if (_hasScheduleData &&
+          idx == 1 &&
+          _scheduleItems.isEmpty &&
+          !_scheduleLoading) {
         // 进入周期表 Tab：按需抓取周期表数据（懒加载）。
         _ensureScheduleData();
       } else if (idx == _webFavoriteTabIndex) {
@@ -353,7 +359,9 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       final cats = await widget.fetchCategories!(_source!);
       if (mounted) {
         setState(() {
-          _categories..clear()..addAll(cats);
+          _categories
+            ..clear()
+            ..addAll(cats);
           _tabStates.clear();
           _rebuildTabController();
         });
@@ -467,8 +475,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   }) async {
     // 懒加载：板块数据不再在此统一抓取，改为进入视口按需抓取（见 [_ensureSection]）。
     // 周期表数据由 [_ensureScheduleData] 在进入周期表 Tab 时按需抓取。
-    final sections = widget.resolveHomeSections?.call(source) ??
-        const <HomeSectionConfig>[];
+    final sections =
+        widget.resolveHomeSections?.call(source) ?? const <HomeSectionConfig>[];
     return _HomeSectionsResult(
       sections: sections,
       items: const <String, List<MediaItem>>{},
@@ -512,8 +520,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     setState(() => _sectionStatus[sec.id] = _SectionStatus.loading);
     // 串行入队：后续板块在前一个完成（含网络耗时 + HttpFetcher 同站间隔）后
     // 才开始，避免同一时刻向同一站点并发多个请求。
-    _sectionFetchChain =
-        (_sectionFetchChain ?? Future<void>.value()).then((_) => _fetchSection(source, sec));
+    _sectionFetchChain = (_sectionFetchChain ?? Future<void>.value())
+        .then((_) => _fetchSection(source, sec));
   }
 
   /// 串行链中的单个板块抓取（由 [_ensureSection] 入队调用）。
@@ -565,8 +573,9 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
           );
           if (!mounted) return;
           if (source != _source) return;
-          final limited =
-              sec.limit > 0 ? list.take(sec.limit).toList(growable: false) : list;
+          final limited = sec.limit > 0
+              ? list.take(sec.limit).toList(growable: false)
+              : list;
           setState(() {
             _homeSectionItems[sec.id] = limited;
             _sectionStatus[sec.id] = _SectionStatus.loaded;
@@ -664,7 +673,6 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     }
     return vars;
   }
-
 
   /// 加载排行数据。
   Future<void> _loadRank() async {
@@ -771,8 +779,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     // 按分类默认筛选值（如国漫需 sort=hits、year=2026）：用户未选的占位由源声明补齐，
     // 用户选中值优先覆盖默认，避免 show 路由拼出空 sort/year 段导致服务端不匹配、筛选无结果。
     // source.filters 可能为 null（源未声明 filters 时走兜底生成），空 map 即不补默认。
-    final defaults =
-        source.filters?.defaultsFor(state.categoryId) ?? const <String, String>{};
+    final defaults = source.filters?.defaultsFor(state.categoryId) ??
+        const <String, String>{};
     final merged = <String, String>{
       ...defaults,
       ...filterVars, // 用户选中覆盖默认
@@ -1171,8 +1179,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                   tooltip: l10n.refreshList,
                   onPressed: () {
                     _loadHome();
-                    _tabStates.forEach((_, s) =>
-                        _loadCategoryPage(s, reset: true));
+                    _tabStates
+                        .forEach((_, s) => _loadCategoryPage(s, reset: true));
                     if (_hasRank) _loadRank();
                   },
                 ),
@@ -1209,7 +1217,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       decoration: BoxDecoration(
         color: scheme.surface,
         border: Border(
-          bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+          bottom:
+              BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
         ),
       ),
       child: Row(
@@ -1318,7 +1327,6 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       ),
       decoration: BoxDecoration(
         color: scheme.surface,
-        boxShadow: AppShadows.card(scheme),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -1374,24 +1382,23 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         children: <Widget>[
           const SizedBox(height: AppTokens.spaceSm),
           for (final sec in _homeSections) ...<Widget>[
-            if (sec.style != 'schedule')
-              ...<Widget>[
-                OnlineHomeSection(
-                  key: _sectionKeys.putIfAbsent(sec.id, () => GlobalKey()),
-                  title: _sectionTitle(l10n, sec),
-                  items: _homeSectionItems[sec.id] ?? const <MediaItem>[],
-                  onItemTap: widget.onItemTap,
-                  onViewAll: _sectionViewAll(sec),
-                  heroPrefix: 'home-${sec.id}',
-                  loading: _sectionStatus[sec.id] != _SectionStatus.loaded &&
-                      _sectionStatus[sec.id] != _SectionStatus.error,
-                  errorMessage: _sectionStatus[sec.id] == _SectionStatus.error
-                      ? l10n.loadFailed
-                      : null,
-                  onRetry: () => _ensureSection(sec),
-                ),
-                const SizedBox(height: AppTokens.spaceMd),
-              ],
+            if (sec.style != 'schedule') ...<Widget>[
+              OnlineHomeSection(
+                key: _sectionKeys.putIfAbsent(sec.id, () => GlobalKey()),
+                title: _sectionTitle(l10n, sec),
+                items: _homeSectionItems[sec.id] ?? const <MediaItem>[],
+                onItemTap: widget.onItemTap,
+                onViewAll: _sectionViewAll(sec),
+                heroPrefix: 'home-${sec.id}',
+                loading: _sectionStatus[sec.id] != _SectionStatus.loaded &&
+                    _sectionStatus[sec.id] != _SectionStatus.error,
+                errorMessage: _sectionStatus[sec.id] == _SectionStatus.error
+                    ? l10n.loadFailed
+                    : null,
+                onRetry: () => _ensureSection(sec),
+              ),
+              const SizedBox(height: AppTokens.spaceMd),
+            ],
           ],
         ],
       ),
@@ -1415,9 +1422,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     if (sec.style == 'schedule') return null;
     if (_categories.isEmpty) return null;
     final catId = sec.params['category'];
-    final idx = catId != null
-        ? _categories.indexWhere((c) => c.id == catId)
-        : -1;
+    final idx =
+        catId != null ? _categories.indexWhere((c) => c.id == catId) : -1;
     return () {
       final catStart = _catStart;
       _tabController.animateTo(catStart + (idx >= 0 ? idx : 0));
@@ -1467,7 +1473,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(Icons.bookmark_rounded, size: 48, color: scheme.onSurfaceVariant),
+              Icon(Icons.bookmark_rounded,
+                  size: 48, color: scheme.onSurfaceVariant),
               const SizedBox(height: AppTokens.spaceMd),
               Text(
                 wf!.title ?? l10n.onlineTabWebFavorite,
@@ -1552,7 +1559,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(Icons.chevron_left_rounded, size: 18, color: scheme.primary),
+                  Icon(Icons.chevron_left_rounded,
+                      size: 18, color: scheme.primary),
                   const SizedBox(width: 2),
                   Text(
                     l10n.backToFolders,
@@ -1721,14 +1729,13 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     WebFavoriteConfig wf,
   ) async {
     final url = _webFavoriteTargetUrl(source, wf);
-    final html =
-        await HttpFetcher.instance.getHtml(
-          url,
-          referer: source.site.baseUrl,
-          // 必须带上源的网络档案：源 network 块里的 IP 钉死 / 免 SNI / 自定义 DNS
-          // 只有传了 net 才生效，否则这些请求会走默认通道而连接失败。
-          net: NetworkConfigService.instance.effectiveFor(source),
-        );
+    final html = await HttpFetcher.instance.getHtml(
+      url,
+      referer: source.site.baseUrl,
+      // 必须带上源的网络档案：源 network 块里的 IP 钉死 / 免 SNI / 自定义 DNS
+      // 只有传了 net 才生效，否则这些请求会走默认通道而连接失败。
+      net: NetworkConfigService.instance.effectiveFor(source),
+    );
     if (!mounted) return;
     if (html.isEmpty) {
       // 第一级（文件夹列表视图）这是文件夹列表加载失败；第二级（已选文件夹）
@@ -1736,8 +1743,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       if (_webFavoriteAtFolderList) {
         setState(() {
           _webFavoriteFoldersLoading = false;
-          _webFavoriteFoldersError =
-              AppLocalizations.of(context).loadFailed;
+          _webFavoriteFoldersError = AppLocalizations.of(context).loadFailed;
         });
       } else {
         setState(() => _webFavoriteLoading = false);
@@ -1823,14 +1829,13 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       return;
     }
     final url = _webFavoriteTargetUrl(source, wf);
-    final html =
-        await HttpFetcher.instance.getHtml(
-          url,
-          referer: source.site.baseUrl,
-          // 必须带上源的网络档案：源 network 块里的 IP 钉死 / 免 SNI / 自定义 DNS
-          // 只有传了 net 才生效，否则这些请求会走默认通道而连接失败。
-          net: NetworkConfigService.instance.effectiveFor(source),
-        );
+    final html = await HttpFetcher.instance.getHtml(
+      url,
+      referer: source.site.baseUrl,
+      // 必须带上源的网络档案：源 network 块里的 IP 钉死 / 免 SNI / 自定义 DNS
+      // 只有传了 net 才生效，否则这些请求会走默认通道而连接失败。
+      net: NetworkConfigService.instance.effectiveFor(source),
+    );
     if (!mounted) return;
     if (html.isEmpty) {
       setState(() => _webFavoriteLoading = false);
@@ -1901,8 +1906,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   /// 分页状态耦合）。无分页（源站书架为有限集合）。
   Widget _buildMediaItemGrid(AppLocalizations l10n, List<MediaItem> items) {
     final layout = _layoutStore.settings;
-    final cross =
-        layout.layoutMode == LayoutMode.list ? 1 : layout.gridColumns;
+    final cross = layout.layoutMode == LayoutMode.list ? 1 : layout.gridColumns;
     final spacing = layout.gridSpacing;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints c) {
@@ -2023,7 +2027,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(AppTokens.spaceSm),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.1),
+              color: Theme.of(context)
+                  .colorScheme
+                  .errorContainer
+                  .withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppTokens.radiusSm),
             ),
             child: Text(
@@ -2042,10 +2049,14 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(AppTokens.spaceMd),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.15),
+              color: Theme.of(context)
+                  .colorScheme
+                  .errorContainer
+                  .withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               border: Border.all(
-                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
+                color:
+                    Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
               ),
             ),
             child: Column(
@@ -2096,10 +2107,14 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(AppTokens.spaceMd),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.15),
+              color: Theme.of(context)
+                  .colorScheme
+                  .errorContainer
+                  .withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               border: Border.all(
-                color: Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
+                color:
+                    Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
               ),
             ),
             child: Column(
@@ -2155,13 +2170,15 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         return GridView.builder(
           controller: state.scroll
             ..removeListener(state.scrollListener)
-            ..addListener(state.scrollListener = () => _onCategoryScroll(state)),
+            ..addListener(
+                state.scrollListener = () => _onCategoryScroll(state)),
           padding: const EdgeInsets.all(AppTokens.spaceLg),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: cross,
             mainAxisSpacing: spacing,
             crossAxisSpacing: spacing,
-            childAspectRatio: itemW / (itemW / AppTokens.coverAspectRatio + _textAreaHeight(layout)),
+            childAspectRatio: itemW /
+                (itemW / AppTokens.coverAspectRatio + _textAreaHeight(layout)),
           ),
           itemCount: state.items.length + (state.hasMore ? 1 : 0),
           itemBuilder: (BuildContext c, int i) {
@@ -2184,14 +2201,16 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     if (layout.showTitle) lines += layout.titleMaxLines.toDouble();
     if (layout.showAuthor) lines += 1.0;
     // 进度条/徽标额外占一行（进度条3px + 间距约9px ≈ 1行高）
-    if (layout.showProgress && layout.progressDisplay == ProgressDisplayMode.bar) {
+    if (layout.showProgress &&
+        layout.progressDisplay == ProgressDisplayMode.bar) {
       lines += 0.3;
     }
     return lineHeight * lines + 12;
   }
 
   /// 列表模式构建器（单列 ListTile 风格）。
-  Widget _buildCategoryList(AppLocalizations l10n, _CategoryTabState state, double width) {
+  Widget _buildCategoryList(
+      AppLocalizations l10n, _CategoryTabState state, double width) {
     return ListView.builder(
       controller: state.scroll
         ..removeListener(state.scrollListener)
@@ -2227,7 +2246,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
             height: isCompact ? 56 : 78,
             child: AppCoverImage(
               coverUrl: item.coverUrl,
-              source: context.read<SourceRepository>().getById(item.sourceId ?? ''),
+              source:
+                  context.read<SourceRepository>().getById(item.sourceId ?? ''),
               title: item.title,
               width: isCompact ? 40 : 56,
               height: isCompact ? 56 : 78,
@@ -2246,16 +2266,17 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                 overflow: TextOverflow.ellipsis,
               )
             : null,
-        subtitle: (layout.showAuthor && (item.author != null || item.status != null))
-            ? Text(
-                item.author ?? item.status ?? '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              )
-            : null,
+        subtitle:
+            (layout.showAuthor && (item.author != null || item.status != null))
+                ? Text(
+                    item.author ?? item.status ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  )
+                : null,
         trailing: layout.showProgress
             ? FutureBuilder<double?>(
                 future: _progressFutures.putIfAbsent(
@@ -2279,7 +2300,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   }
 
   /// 构建网格内容卡片（应用布局设置 + 进度显示）。
-  Widget _buildContentCard(AppLocalizations l10n, MediaItem item, double itemW) {
+  Widget _buildContentCard(
+      AppLocalizations l10n, MediaItem item, double itemW) {
     final layout = _layoutStore.settings;
     // 以「条目 + 是否显示进度」为键缓存，确保用户切换「显示进度」开关后能重新计算。
     final String progKey = '${item.id}#${layout.showProgress}';
@@ -2295,7 +2317,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         title: item.title,
         coverUrl: item.coverUrl,
         source: context.read<SourceRepository>().getById(item.sourceId ?? ''),
-        subtitle: (layout.showAuthor && item.status != null) ? item.status : null,
+        subtitle:
+            (layout.showAuthor && item.status != null) ? item.status : null,
         meta: (layout.showAuthor && item.author != null) ? item.author : null,
         width: itemW,
         heroTag: '${widget.title}-${item.id}',
@@ -2331,8 +2354,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         final p = await NovelProgressManager().get(item.id);
         if (p != null) {
           if (p.totalChapters != null && p.totalChapters! > 0) {
-            return ((p.chapterIndex + 1) / p.totalChapters!)
-                .clamp(0.0, 1.0);
+            return ((p.chapterIndex + 1) / p.totalChapters!).clamp(0.0, 1.0);
           }
           if (p.chapterIndex > 0) return 0.02;
         }
@@ -2344,8 +2366,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         final p = await ComicProgressManager().get(item.id);
         if (p != null) {
           if (p.totalChapters != null && p.totalChapters! > 0) {
-            return ((p.chapterIndex + 1) / p.totalChapters!)
-                .clamp(0.0, 1.0);
+            return ((p.chapterIndex + 1) / p.totalChapters!).clamp(0.0, 1.0);
           }
           if (p.chapterIndex > 0) return 0.02;
         }
@@ -2421,7 +2442,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                           width: 40,
                           height: 56,
                           fit: BoxFit.cover,
-                          placeholder: const Icon(Icons.movie_rounded, size: 20),
+                          placeholder:
+                              const Icon(Icons.movie_rounded, size: 20),
                         ),
                       )
                     : const Icon(Icons.movie_rounded, size: 20),
@@ -2440,13 +2462,9 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                     if (item.status != null && item.status!.isNotEmpty)
                       Text(
                         item.status!,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                   ],
                 ),
@@ -2490,11 +2508,11 @@ class _SourceChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? scheme.primaryContainer : scheme.surface,
           borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-          border: Border.all(
-            color: selected
-                ? scheme.primary
-                : scheme.outlineVariant.withValues(alpha: 0.8),
-          ),
+          border: selected
+              ? null
+              : Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.8),
+                ),
         ),
         child: Text(
           label,
@@ -2523,6 +2541,7 @@ class _CategoryTabState {
   int page = 1;
   bool loading = false;
   bool hasMore = true;
+
   /// 是否已成功拉取过首屏：用于「进入分类 Tab 才拉取」的去重，
   /// 避免 [_buildTabViews] 一次性并发拉取所有分类页占满主线程（筛选卡顿根因）。
   bool loaded = false;
@@ -2551,8 +2570,10 @@ class _HomeSectionsResult {
 enum _SectionStatus {
   /// 抓取中。
   loading,
+
   /// 已抓取成功。
   loaded,
+
   /// 抓取失败。
   error,
 }
@@ -2578,7 +2599,8 @@ class _WebFavoriteFolderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final bg = selected ? scheme.primaryContainer : scheme.surfaceContainerHighest;
+    final bg =
+        selected ? scheme.primaryContainer : scheme.surfaceContainerHighest;
     final fg = selected ? scheme.onPrimaryContainer : scheme.onSurface;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),

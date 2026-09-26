@@ -121,17 +121,11 @@ class _FormatOption extends StatelessWidget {
       color: selected ? scheme.primaryContainer : null,
       child: ListTile(
         onTap: onTap,
-        title: Text(
-          label,
-          style: TextStyle(
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
+        title: Text(label),
         subtitle: Text(subtitle),
         trailing: selected
             ? Icon(Icons.check_circle_rounded, color: scheme.primary)
-            : Icon(Icons.radio_button_unchecked_rounded,
-                color: scheme.outline),
+            : Icon(Icons.radio_button_unchecked_rounded, color: scheme.outline),
       ),
     );
   }

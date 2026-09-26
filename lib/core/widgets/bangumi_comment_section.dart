@@ -17,6 +17,7 @@ import '../services/bangumi/bangumi_proxy_config.dart';
 import '../services/bangumi/bangumi_sync_service.dart';
 import '../services/bangumi/subject_link_store.dart';
 import '../theme/app_tokens.dart';
+import '../theme/app_theme.dart';
 
 /// Bangumi 吐槽区（根据官方 v0 评论接口增加，只读）。
 class BangumiCommentSection extends StatefulWidget {
@@ -89,16 +90,26 @@ class _BangumiCommentSectionState extends State<BangumiCommentSection> {
       }
 
       if (subjectId == null) {
-        setState(() { _loading = false; _noSubject = true; });
+        setState(() {
+          _loading = false;
+          _noSubject = true;
+        });
         return;
       }
 
       final comments = await service.client.fetchSubjectComments(subjectId);
       if (!mounted) return;
-      setState(() { _comments = comments; _loading = false; });
+      setState(() {
+        _comments = comments;
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _loading = false; _failed = true; _errorMessage = e.toString(); });
+      setState(() {
+        _loading = false;
+        _failed = true;
+        _errorMessage = e.toString();
+      });
     }
   }
 
@@ -111,14 +122,20 @@ class _BangumiCommentSectionState extends State<BangumiCommentSection> {
     if (_loading) {
       return const Padding(
         padding: EdgeInsets.all(AppTokens.spaceLg),
-        child: Center(child: SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2))),
+        child: Center(
+            child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2))),
       );
     }
     if (_noSubject) {
       return Padding(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(l10n.bangumiNoMatch, style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+          Text(l10n.bangumiNoMatch,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant)),
           const SizedBox(height: AppTokens.spaceSm),
           OutlinedButton(onPressed: _load, child: Text(l10n.retry)),
         ]),
@@ -128,10 +145,17 @@ class _BangumiCommentSectionState extends State<BangumiCommentSection> {
       return Padding(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(l10n.bangumiCommentsLoadFailed, style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+          Text(l10n.bangumiCommentsLoadFailed,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant)),
           if (_errorMessage != null)
-            Padding(padding: const EdgeInsets.only(top: AppTokens.spaceXs), child:
-              Text(_errorMessage!, style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant), maxLines:3, overflow:TextOverflow.ellipsis)),
+            Padding(
+                padding: const EdgeInsets.only(top: AppTokens.spaceXs),
+                child: Text(_errorMessage!,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis)),
           const SizedBox(height: AppTokens.spaceSm),
           OutlinedButton(onPressed: _load, child: Text(l10n.retry)),
         ]),
@@ -140,12 +164,15 @@ class _BangumiCommentSectionState extends State<BangumiCommentSection> {
     if (_comments.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
-        child: Text(l10n.bangumiCommentsEmpty, style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+        child: Text(l10n.bangumiCommentsEmpty,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: scheme.onSurfaceVariant)),
       );
     }
     // 紧凑布局：减小外边距让评论更紧凑
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd, vertical: AppTokens.spaceXs),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceMd, vertical: AppTokens.spaceXs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -153,7 +180,8 @@ class _BangumiCommentSectionState extends State<BangumiCommentSection> {
             Padding(
               padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
               child: Text(l10n.bangumiGuessMatch(_guessedName!),
-                style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
             ),
           for (final c in _comments)
             Padding(
@@ -178,7 +206,8 @@ class _BangumiCommentTile extends StatelessWidget {
     try {
       final dt = DateTime.parse(isoStr);
       final diff = DateTime.now().difference(dt);
-      if (diff.inDays > 365) return '${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}';
+      if (diff.inDays > 365)
+        return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
       if (diff.inDays > 30) return '${diff.inDays ~/ 30}个月前';
       if (diff.inDays > 0) return '${diff.inDays}天前';
       if (diff.inHours > 0) return '${diff.inHours}小时前';
@@ -205,8 +234,11 @@ class _BangumiCommentTileBody extends StatefulWidget {
   final BangumiComment comment;
   final String? avatar;
   final String timeStr;
-  const _BangumiCommentTileBody({required this.comment, this.avatar, required this.timeStr});
-  @override State<_BangumiCommentTileBody> createState() => _BangumiCommentTileBodyState();
+  const _BangumiCommentTileBody(
+      {required this.comment, this.avatar, required this.timeStr});
+  @override
+  State<_BangumiCommentTileBody> createState() =>
+      _BangumiCommentTileBodyState();
 }
 
 class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
@@ -228,8 +260,8 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+        color: AppTheme.cardContainer(scheme),
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
       ),
       // 紧凑内边距：上下左右都缩小
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
@@ -252,13 +284,15 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
                 CircleAvatar(
                   radius: 11,
                   backgroundColor: scheme.primaryContainer,
-                  child: Icon(Icons.person_rounded, size: 13, color: scheme.onPrimaryContainer),
+                  child: Icon(Icons.person_rounded,
+                      size: 13, color: scheme.onPrimaryContainer),
                 ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(widget.comment.displayName,
-                  style: theme.textTheme.labelSmall,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                    style: theme.textTheme.labelSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
               ),
               // 评分星标
               if (hasRating)
@@ -266,8 +300,8 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
                   Icon(Icons.star_rounded, size: 12, color: scheme.primary),
                   const SizedBox(width: AppTokens.spaceXxs),
                   Text('${widget.comment.rating}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: scheme.primary, fontWeight: FontWeight.bold)),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                          color: scheme.primary, fontWeight: FontWeight.bold)),
                 ]),
             ],
           ),
@@ -276,9 +310,14 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
           const SizedBox(height: AppTokens.spaceXs),
           if (needsFold)
             AnimatedCrossFade(
-              firstChild: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
+              firstChild: Text(text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall),
               secondChild: Text(text, style: theme.textTheme.bodySmall),
-              crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              crossFadeState: _expanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
               duration: const Duration(milliseconds: 200),
             )
           else
@@ -290,11 +329,14 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
               alignment: Alignment.centerLeft,
               child: TextButton(
                 onPressed: () => setState(() => _expanded = !_expanded),
-                style: TextButton.styleFrom(visualDensity: VisualDensity.compact,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceXs)),
+                style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppTokens.spaceXs)),
                 child: Text(_expanded ? l10n.collapse : l10n.expand,
-                  style: theme.textTheme.labelSmall?.copyWith(color: scheme.primary)),
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: scheme.primary)),
               ),
             ),
 
@@ -303,8 +345,8 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
             Padding(
               padding: const EdgeInsets.only(top: 3),
               child: Text(widget.timeStr,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant, fontSize: 11)),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant, fontSize: 11)),
             ),
         ],
       ),

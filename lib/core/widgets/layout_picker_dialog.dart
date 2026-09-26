@@ -17,6 +17,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../settings/layout_settings.dart';
 import '../theme/app_tokens.dart';
+import '../theme/app_theme.dart';
 import '../utils/app_haptics.dart';
 import 'app_card.dart';
 
@@ -83,7 +84,7 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                   Text(
                     l10n.layoutSettings,
                     style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const Spacer(),
@@ -223,8 +224,7 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                     icon: Icons.person_rounded,
                     label: l10n.layoutShowAuthor,
                     value: _current.showAuthor,
-                    onChanged: (v) =>
-                        _commit(_current.copyWith(showAuthor: v)),
+                    onChanged: (v) => _commit(_current.copyWith(showAuthor: v)),
                   ),
                   _SwitchTile(
                     icon: Icons.pie_chart_rounded,
@@ -237,8 +237,8 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                     _segmentedRow<ProgressDisplayMode>(
                       label: l10n.layoutProgressDisplay,
                       selected: <ProgressDisplayMode>{_current.progressDisplay},
-                      onSelectionChanged: (s) => _commit(
-                          _current.copyWith(progressDisplay: s.first)),
+                      onSelectionChanged: (s) =>
+                          _commit(_current.copyWith(progressDisplay: s.first)),
                       segments: <ButtonSegment<ProgressDisplayMode>>[
                         ButtonSegment<ProgressDisplayMode>(
                           value: ProgressDisplayMode.bar,
@@ -252,7 +252,6 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                     ),
                 ],
               ),
-
             ],
           ),
         ),
@@ -346,21 +345,22 @@ class _PreviewCard extends StatelessWidget {
     final int cross = isList ? 1 : settings.gridColumns.clamp(1, 4);
     final double radius = settings.coverRadius.clamp(0, 16);
     // 预览区间距按比例缩小，避免过大或过小
-    final double spacing = (settings.gridSpacing.clamp(4, 24) * 0.5).clamp(2, 12);
+    final double spacing =
+        (settings.gridSpacing.clamp(4, 24) * 0.5).clamp(2, 12);
 
     return Container(
       padding: const EdgeInsets.all(AppTokens.spaceMd),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.3)),
+        color: AppTheme.cardContainer(scheme),
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.preview_rounded, size: 14, color: scheme.onSurfaceVariant),
+              Icon(Icons.preview_rounded,
+                  size: 14, color: scheme.onSurfaceVariant),
               const SizedBox(width: AppTokens.spaceXs),
               Text(
                 isList
@@ -400,7 +400,8 @@ class _PreviewCard extends StatelessWidget {
                 showTitle: settings.showTitle,
                 showAuthor: settings.showAuthor,
                 showProgress: settings.showProgress,
-                progressAsBar: settings.progressDisplay == ProgressDisplayMode.bar,
+                progressAsBar:
+                    settings.progressDisplay == ProgressDisplayMode.bar,
                 isList: isList,
               ),
             ),
@@ -460,8 +461,7 @@ class _PreviewItem extends StatelessWidget {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                if (showTitle && showAuthor)
-                  const SizedBox(height: 4),
+                if (showTitle && showAuthor) const SizedBox(height: 4),
                 if (showAuthor)
                   Container(
                     width: 32,
@@ -518,8 +518,7 @@ class _PreviewItem extends StatelessWidget {
           ),
         ],
         if (showAuthor && showTitle) const SizedBox(height: 2),
-        if (showAuthor && !showTitle)
-          const SizedBox(height: 3),
+        if (showAuthor && !showTitle) const SizedBox(height: 3),
         if (showAuthor)
           Container(
             width: 20,

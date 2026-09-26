@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/update/update_manager.dart';
 import '../../../core/utils/app_haptics.dart';
@@ -280,7 +281,7 @@ class _AboutScreenState extends State<AboutScreen> {
     if (!mounted) return;
     showDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.acknowledgements),
         content: SingleChildScrollView(
           child: Column(

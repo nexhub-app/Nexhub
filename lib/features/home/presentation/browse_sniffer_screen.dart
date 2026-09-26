@@ -27,6 +27,7 @@ import 'package:nexhub/core/sniffer/sniffer_engine.dart' show SnifferEngine;
 import 'package:nexhub/core/sniffer/sniffer_models.dart'
     show MediaKind, SniffFilter, SniffedMedia;
 import 'package:nexhub/core/theme/app_tokens.dart';
+import 'package:nexhub/core/theme/app_theme.dart';
 import 'package:nexhub/core/utils/app_haptics.dart';
 import 'package:nexhub/core/widgets/app_url_input_bar.dart';
 import 'package:nexhub/features/player/presentation/video_player_screen.dart';
@@ -62,6 +63,7 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
   InAppWebViewController? _controller;
   bool _loading = false;
   bool _pageLoaded = false;
+
   /// 页内沉浸式播放模式：blob/mse 串流无法在外部播放器打开时，将当前 WebView 作为播放器铺满屏幕。
   bool _inPagePlay = false;
 
@@ -347,7 +349,9 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
         title: Text(l10n.snifferTitle),
         actions: <Widget>[
           IconButton(
-            icon: Icon(_deep ? Icons.auto_fix_high_rounded : Icons.auto_fix_high_rounded),
+            icon: Icon(_deep
+                ? Icons.auto_fix_high_rounded
+                : Icons.auto_fix_high_rounded),
             tooltip: l10n.snifferDeep,
             color: _deep ? scheme.primary : null,
             onPressed: () {
@@ -373,20 +377,20 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
       body: Column(
         children: <Widget>[
           if (!_inPagePlay)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTokens.spaceMd,
-              AppTokens.spaceMd,
-              AppTokens.spaceMd,
-              AppTokens.spaceXs,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTokens.spaceMd,
+                AppTokens.spaceMd,
+                AppTokens.spaceMd,
+                AppTokens.spaceXs,
+              ),
+              child: AppUrlInputBar(
+                controller: _addressController,
+                hintText: l10n.snifferAddressHint,
+                submitLabel: l10n.snifferGo,
+                onSubmit: _navigate,
+              ),
             ),
-            child: AppUrlInputBar(
-              controller: _addressController,
-              hintText: l10n.snifferAddressHint,
-              submitLabel: l10n.snifferGo,
-              onSubmit: _navigate,
-            ),
-          ),
           // 浏览器主体
           Expanded(
             flex: _inPagePlay ? 1 : 3,
@@ -406,7 +410,8 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                     // 拖到近乎卡死（表现为一直加载）。被动捕获靠 JS 钩子 +
                     // onLoadResource 已足够；Referer 播放时用页面地址兜底。
                     // https 页面里的 http 串流不拦（嗅探工具需要最大召回）。
-                    mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                    mixedContentMode:
+                        MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
                     // 暗色主题下让 WebView 背景透明，避免初始化/页面底色为白块
                     // （与已注入的 _kDarkModeCss 配合，露出 App 的暗色 surface）。
                     transparentBackground: true,
@@ -418,7 +423,8 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                       if (isDark)
                         UserScript(
                           source: _kDarkModeCss,
-                          injectionTime: UserScriptInjectionTime.AT_DOCUMENT_END,
+                          injectionTime:
+                              UserScriptInjectionTime.AT_DOCUMENT_END,
                         ),
                     ],
                   ),
@@ -438,7 +444,9 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                   // onLoadStop 在部分重定向 / SPA 页面上可能迟迟不触发，
                   // 用加载进度到 100 兜底清掉加载态，避免转圈卡死。
                   onProgressChanged: (controller, progress) {
-                    if (progress >= 100 && mounted && (_loading || !_pageLoaded)) {
+                    if (progress >= 100 &&
+                        mounted &&
+                        (_loading || !_pageLoaded)) {
                       _stopLoadWatchdog();
                       setState(() {
                         _loading = false;
@@ -494,46 +502,42 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
           ),
           // 嗅探结果
           if (!_inPagePlay)
-          Expanded(
-            flex: 2,
-            child: Container(
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                border: Border(
-                  top: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.5),
-                  ),
+            Expanded(
+              flex: 2,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.cardContainer(scheme),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppTokens.spaceMd,
+                        AppTokens.spaceSm,
+                        AppTokens.spaceMd,
+                        AppTokens.spaceXs,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            l10n.snifferHint,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                          ),
+                          const SizedBox(height: AppTokens.spaceXs),
+                          _buildFilterChips(l10n, scheme),
+                        ],
+                      ),
+                    ),
+                    Expanded(child: _buildResultList(l10n, scheme)),
+                  ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppTokens.spaceMd,
-                      AppTokens.spaceSm,
-                      AppTokens.spaceMd,
-                      AppTokens.spaceXs,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          l10n.snifferHint,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
-                        ),
-                        const SizedBox(height: AppTokens.spaceXs),
-                        _buildFilterChips(l10n, scheme),
-                      ],
-                    ),
-                  ),
-                  Expanded(child: _buildResultList(l10n, scheme)),
-                ],
-              ),
             ),
-          ),
           if (_inPagePlay) _buildInPagePlayBar(l10n, scheme),
         ],
       ),
@@ -553,12 +557,7 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
         AppTokens.spaceMd,
       ),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        border: Border(
-          top: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.5),
-          ),
-        ),
+        color: AppTheme.cardContainer(scheme),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -684,7 +683,9 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
                 tooltip: l10n.snifferSave,
                 onPressed: () => _saveUrl(
                   media.url,
-                  (media.referer?.isNotEmpty == true) ? media.referer : _pageUrl,
+                  (media.referer?.isNotEmpty == true)
+                      ? media.referer
+                      : _pageUrl,
                 ),
               ),
             ],

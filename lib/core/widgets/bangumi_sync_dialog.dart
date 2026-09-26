@@ -14,6 +14,7 @@
 library;
 
 import 'package:material_ui/material_ui.dart';
+import 'app_alert_dialog.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -39,8 +40,9 @@ Future<void> showBangumiSyncDialog(
     isScrollControlled: true,
     useSafeArea: true,
     constraints: const BoxConstraints(maxWidth: 720),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    shape: RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(AppTokens.radiusLg)),
     ),
     builder: (BuildContext ctx) => _BangumiSyncDialog(
       client: client,
@@ -67,7 +69,8 @@ class _BangumiSyncDialog extends StatefulWidget {
     required this.sourceType,
   });
 
-  @override State<_BangumiSyncDialog> createState() => _BangumiSyncDialogState();
+  @override
+  State<_BangumiSyncDialog> createState() => _BangumiSyncDialogState();
 }
 
 class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
@@ -77,6 +80,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   int _rate = 0;
   String _comment = '';
   int _type = BangumiCollectionType.wish;
+
   /// 用户是否手动改过收藏状态（手动优先于自动判定）。
   bool _typeTouched = false;
   bool _private = false;
@@ -109,7 +113,8 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   bool get _isAnime => widget.sourceType == SourceType.animeSource;
 
   /// 当前条目是否为书籍（漫画 / 小说，走 ep_status + vol_status）。
-  bool get _isBook => widget.sourceType == SourceType.mangaSource ||
+  bool get _isBook =>
+      widget.sourceType == SourceType.mangaSource ||
       widget.sourceType == SourceType.novelSource;
 
   BangumiSyncService get _service => context.read<BangumiSyncService>();
@@ -222,8 +227,8 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   Future<void> _save() async {
     if (!_service.auth.isLoggedIn) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).bangumiSyncLoginHint)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context).bangumiSyncLoginHint)));
       }
       return;
     }
@@ -257,8 +262,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
         final selected = <int>{..._selectedEpisodeIds};
         final quick = _int(_quickCtrl);
         if (quick > 0 && eps.isNotEmpty) {
-          final sorted = [...eps]
-            ..sort((a, b) => a.sort.compareTo(b.sort));
+          final sorted = [...eps]..sort((a, b) => a.sort.compareTo(b.sort));
           for (int i = 0; i < quick && i < sorted.length; i++) {
             selected.add(sorted[i].id);
           }
@@ -295,19 +299,19 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).bangumiSyncSaved)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context).bangumiSyncSaved)));
         Navigator.of(context).pop();
       }
     } on BangumiApiException {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).bangumiSyncFailed)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context).bangumiSyncFailed)));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).bangumiSyncFailed)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context).bangumiSyncFailed)));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -315,32 +319,39 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   }
 
   /// 打星行（1-10）+ 当前分提示。
-  Widget _buildStarRating(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
-      Row(children: <Widget>[
-        for (int i = 1; i <= 10; i++)
-          Expanded(
-            child: InkWell(
-              onTap: () => setState(() => _rate = (_rate == i ? 0 : i)),
-              borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
-                child: Icon(
-                  i <= _rate ? Icons.star_rounded : Icons.star_border_rounded,
-                  size: 22,
-                  color: i <= _rate ? scheme.primary : scheme.outline,
+  Widget _buildStarRating(
+      ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(children: <Widget>[
+            for (int i = 1; i <= 10; i++)
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _rate = (_rate == i ? 0 : i)),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
+                    child: Icon(
+                      i <= _rate
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      size: 22,
+                      color: i <= _rate ? scheme.primary : scheme.outline,
+                    ),
+                  ),
                 ),
               ),
+          ]),
+          if (_rate > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: AppTokens.spaceXxs),
+              child: Text(l10n.bangumiRatingValue(_rate),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
             ),
-          ),
-      ]),
-      if (_rate > 0)
-        Padding(
-          padding: const EdgeInsets.only(top: AppTokens.spaceXxs),
-          child: Text(l10n.bangumiRatingValue(_rate),
-            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-        ),
-    ]);
+        ]);
   }
 
   @override
@@ -374,7 +385,8 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
             Expanded(
               child: Text(
                 titleText,
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -401,8 +413,10 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
             )
           else ...<Widget>[
             const SizedBox(height: AppTokens.spaceMd),
-            if (_isAnime) _buildAnimeSection(theme, scheme, l10n)
-            else _buildBookSection(theme, scheme, l10n),
+            if (_isAnime)
+              _buildAnimeSection(theme, scheme, l10n)
+            else
+              _buildBookSection(theme, scheme, l10n),
             const Divider(height: AppTokens.spaceLg),
 
             // 高级选项（评分 / 吐槽 / 状态 / 公开私密）
@@ -412,20 +426,24 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                 tilePadding: EdgeInsets.zero,
                 childrenPadding:
                     const EdgeInsets.only(bottom: AppTokens.spaceMd),
-                leading: Icon(Icons.tune_rounded, size: 20, color: scheme.primary),
+                leading:
+                    Icon(Icons.tune_rounded, size: 20, color: scheme.primary),
                 title: Text(
                   l10n.bangumiSyncAdvancedOptions,
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
                   l10n.bangumiSyncAdvancedHint,
-                  style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
                 children: <Widget>[
                   Row(children: <Widget>[
                     Icon(Icons.star_rounded, size: 18, color: scheme.primary),
                     const SizedBox(width: AppTokens.spaceXs),
-                    Text(l10n.bangumiSyncRating, style: theme.textTheme.titleSmall),
+                    Text(l10n.bangumiSyncRating,
+                        style: theme.textTheme.titleSmall),
                     const Spacer(),
                     if (_rate > 0)
                       TextButton.icon(
@@ -446,11 +464,13 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                       labelText: l10n.bangumiSyncComment,
                       alignLabelWithHint: true,
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTokens.radiusMd)),
+                          borderRadius:
+                              BorderRadius.circular(AppTokens.radiusMd)),
                     ),
                   ),
                   const SizedBox(height: AppTokens.spaceMd),
-                  Text(l10n.bangumiCollectionStatus, style: theme.textTheme.titleSmall),
+                  Text(l10n.bangumiCollectionStatus,
+                      style: theme.textTheme.titleSmall),
                   const SizedBox(height: AppTokens.spaceXs),
                   Wrap(
                     spacing: AppTokens.spaceXs,
@@ -480,7 +500,9 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                     Switch(
                       value: _private,
                       onChanged: (v) {
-                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                        v == true
+                            ? AppHaptics.toggleOn()
+                            : AppHaptics.toggleOff();
                         setState(() => _private = v);
                       },
                     ),
@@ -496,13 +518,16 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
               child: FilledButton.icon(
                 onPressed: _saving ? null : _save,
                 style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceMd),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppTokens.spaceMd),
                 ),
                 icon: _saving
                     ? SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.onPrimary),
                       )
                     : const Icon(Icons.sync_rounded, size: 18),
                 label: Text(
@@ -518,44 +543,52 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   }
 
   /// 书籍（漫画 / 小说）：Chap. + Vol. 步进 + 更新。
-  Widget _buildBookSection(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildBookSection(
+      ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
     final (done, total) = _progress();
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
-      Row(children: <Widget>[
-        Icon(Icons.bookmark_rounded, size: 18, color: scheme.primary),
-        const SizedBox(width: AppTokens.spaceXs),
-        Text(l10n.bangumiSyncMyCompletion,
-          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-        const Spacer(),
-        Text(
-          total > 0 ? '$done / $total' : '$done / ${l10n.bangumiSyncUnknown}',
-          style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-        ),
-      ]),
-      const SizedBox(height: AppTokens.spaceSm),
-      _buildProgressBar(theme, scheme, done, total),
-      const SizedBox(height: AppTokens.spaceMd),
-      Row(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
-        _buildStepper(theme, scheme, l10n.bangumiSyncChapLabel, _chapCtrl),
-        const SizedBox(width: AppTokens.spaceMd),
-        _buildStepper(theme, scheme, l10n.bangumiSyncVolLabel, _volCtrl),
-        const SizedBox(width: AppTokens.spaceMd),
-        FilledButton.icon(
-          onPressed: _saving ? null : _save,
-          style: FilledButton.styleFrom(
-            backgroundColor: scheme.primaryContainer,
-            foregroundColor: scheme.onPrimaryContainer,
-          ),
-          icon: _saving
-              ? const SizedBox(
-                  width: 16, height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.refresh_rounded, size: 18),
-          label: Text(l10n.bangumiSyncUpdate),
-        ),
-      ]),
-    ]);
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(children: <Widget>[
+            Icon(Icons.bookmark_rounded, size: 18, color: scheme.primary),
+            const SizedBox(width: AppTokens.spaceXs),
+            Text(l10n.bangumiSyncMyCompletion,
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Text(
+              total > 0
+                  ? '$done / $total'
+                  : '$done / ${l10n.bangumiSyncUnknown}',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ]),
+          const SizedBox(height: AppTokens.spaceSm),
+          _buildProgressBar(theme, scheme, done, total),
+          const SizedBox(height: AppTokens.spaceMd),
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
+            _buildStepper(theme, scheme, l10n.bangumiSyncChapLabel, _chapCtrl),
+            const SizedBox(width: AppTokens.spaceMd),
+            _buildStepper(theme, scheme, l10n.bangumiSyncVolLabel, _volCtrl),
+            const SizedBox(width: AppTokens.spaceMd),
+            FilledButton.icon(
+              onPressed: _saving ? null : _save,
+              style: FilledButton.styleFrom(
+                backgroundColor: scheme.primaryContainer,
+                foregroundColor: scheme.onPrimaryContainer,
+              ),
+              icon: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(l10n.bangumiSyncUpdate),
+            ),
+          ]),
+        ]);
   }
 
   /// 单个 Chap./Vol. 步进控件：标签 + 数字输入 + `+` 按钮。
@@ -570,7 +603,8 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
         SizedBox(
           width: 46,
           child: Text(label,
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
         ),
         Expanded(
           child: TextField(
@@ -591,7 +625,8 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                 borderSide: BorderSide(color: scheme.primary, width: 2),
               ),
             ),
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
         IconButton(
@@ -605,84 +640,99 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   }
 
   /// 动漫：数字网格 + 分页 + 周/时/分 + 更新。
-  Widget _buildAnimeSection(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildAnimeSection(
+      ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
     final (done, total) = _progress();
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
-      Row(children: <Widget>[
-        Icon(Icons.playlist_play_rounded, size: 18, color: scheme.primary),
-        const SizedBox(width: AppTokens.spaceXs),
-        Text(l10n.bangumiSyncAnimeGridTitle,
-          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-        const Spacer(),
-        Text(
-          total > 0 ? '$done / $total' : '$done / ${l10n.bangumiSyncUnknown}',
-          style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-        ),
-      ]),
-      const SizedBox(height: AppTokens.spaceXs),
-      Text(l10n.bangumiSyncAnimeGridHint,
-        style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-      const SizedBox(height: AppTokens.spaceSm),
-      _buildEpisodeGrid(theme, scheme, l10n),
-      const SizedBox(height: AppTokens.spaceSm),
-      _buildPageNav(theme, scheme, l10n),
-      const SizedBox(height: AppTokens.spaceMd),
-      // 快速「标记前 N 集已看」+ 更新
-      Row(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
-        Expanded(
-          child: TextField(
-            controller: _quickCtrl,
-            keyboardType: TextInputType.number,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              isDense: true,
-              labelText: l10n.bangumiSyncWatchedEpisodes,
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceSm),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                borderSide: BorderSide(color: scheme.outline),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                borderSide: BorderSide(color: scheme.primary, width: 2),
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(children: <Widget>[
+            Icon(Icons.playlist_play_rounded, size: 18, color: scheme.primary),
+            const SizedBox(width: AppTokens.spaceXs),
+            Text(l10n.bangumiSyncAnimeGridTitle,
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Text(
+              total > 0
+                  ? '$done / $total'
+                  : '$done / ${l10n.bangumiSyncUnknown}',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ]),
+          const SizedBox(height: AppTokens.spaceXs),
+          Text(l10n.bangumiSyncAnimeGridHint,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant)),
+          const SizedBox(height: AppTokens.spaceSm),
+          _buildEpisodeGrid(theme, scheme, l10n),
+          const SizedBox(height: AppTokens.spaceSm),
+          _buildPageNav(theme, scheme, l10n),
+          const SizedBox(height: AppTokens.spaceMd),
+          // 快速「标记前 N 集已看」+ 更新
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: <Widget>[
+            Expanded(
+              child: TextField(
+                controller: _quickCtrl,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  isDense: true,
+                  labelText: l10n.bangumiSyncWatchedEpisodes,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppTokens.spaceSm,
+                      vertical: AppTokens.spaceSm),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                    borderSide: BorderSide(color: scheme.outline),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                    borderSide: BorderSide(color: scheme.primary, width: 2),
+                  ),
+                ),
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ),
-        const SizedBox(width: AppTokens.spaceMd),
-        FilledButton.icon(
-          onPressed: _saving ? null : _save,
-          style: FilledButton.styleFrom(
-            backgroundColor: scheme.primaryContainer,
-            foregroundColor: scheme.onPrimaryContainer,
-          ),
-          icon: _saving
-              ? const SizedBox(
-                  width: 16, height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.refresh_rounded, size: 18),
-          label: Text(l10n.bangumiSyncUpdate),
-        ),
-      ]),
-      const SizedBox(height: AppTokens.spaceMd),
-      _buildScheduleBar(theme, scheme, l10n),
-    ]);
+            const SizedBox(width: AppTokens.spaceMd),
+            FilledButton.icon(
+              onPressed: _saving ? null : _save,
+              style: FilledButton.styleFrom(
+                backgroundColor: scheme.primaryContainer,
+                foregroundColor: scheme.onPrimaryContainer,
+              ),
+              icon: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(l10n.bangumiSyncUpdate),
+            ),
+          ]),
+          const SizedBox(height: AppTokens.spaceMd),
+          _buildScheduleBar(theme, scheme, l10n),
+        ]);
   }
 
-  Widget _buildEpisodeGrid(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildEpisodeGrid(
+      ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
     final eps = _episodes;
     if (eps == null) {
       if (_loadingEpisodes) {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
           child: Row(children: <Widget>[
-            const SizedBox(width: 16, height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2)),
             const SizedBox(width: AppTokens.spaceSm),
-            Text(l10n.loading, style: TextStyle(color: scheme.onSurfaceVariant)),
+            Text(l10n.loading,
+                style: TextStyle(color: scheme.onSurfaceVariant)),
           ]),
         );
       }
@@ -690,20 +740,20 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
           child: Text(l10n.bangumiSyncLoadEpisodesFailed(_episodesLoadError!),
-            style: TextStyle(color: scheme.error, fontSize: 12)),
+              style: TextStyle(color: scheme.error, fontSize: 12)),
         );
       }
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
         child: Text(l10n.bangumiSyncNoEpisodeList(_detail?.eps ?? 0),
-          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
       );
     }
     if (eps.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
         child: Text(l10n.bangumiSyncNoEpisodeList(_detail?.eps ?? 0),
-          style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12)),
       );
     }
     final totalPages = (eps.length / _epPageSize).ceil();
@@ -748,15 +798,16 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
           ),
         ),
         child: Text('${ep.sort.round()}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          )),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            )),
       ),
     );
   }
 
-  Widget _buildPageNav(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildPageNav(
+      ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
     final eps = _episodes;
     if (eps == null || eps.isEmpty) return const SizedBox.shrink();
     final totalPages = (eps.length / _epPageSize).ceil();
@@ -770,12 +821,15 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
       ),
       Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
         Text('$start–$end',
-          style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(fontWeight: FontWeight.w600)),
         Text(l10n.bangumiSyncPageOf(_epPage + 1, totalPages),
-          style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant)),
       ]),
       IconButton(
-        onPressed: _epPage < totalPages - 1 ? () => setState(() => _epPage++) : null,
+        onPressed:
+            _epPage < totalPages - 1 ? () => setState(() => _epPage++) : null,
         icon: const Icon(Icons.navigate_next_rounded),
         visualDensity: VisualDensity.compact,
       ),
@@ -786,9 +840,11 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   ///
   /// 值来自 [_airSchedule]（手动覆盖优先，否则由 infobox / air_date 自动解析）；
   /// 整条可点击，弹出编辑器手动设置，解决「三格永远是 —、无法设置」的问题。
-  Widget _buildScheduleBar(ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildScheduleBar(
+      ThemeData theme, ColorScheme scheme, AppLocalizations l10n) {
     const String dash = '—';
-    final List<String> narrow = MaterialLocalizations.of(context).narrowWeekdays;
+    final List<String> narrow =
+        MaterialLocalizations.of(context).narrowWeekdays;
     final BangumiAirSchedule s = _airSchedule;
     // narrowWeekdays 以周日为首（index 0），ISO 周一=1…周日=7 → weekday % 7。
     final String week = s.weekday != null ? narrow[s.weekday! % 7] : dash;
@@ -832,7 +888,8 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                   ],
                 ),
               ),
-              Icon(Icons.edit_rounded, size: 16, color: scheme.onSurfaceVariant),
+              Icon(Icons.edit_rounded,
+                  size: 16, color: scheme.onSurfaceVariant),
             ]),
           ),
         ),
@@ -855,19 +912,22 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
   }
 
   /// 进度条 + 文本百分比。
-  Widget _buildProgressBar(ThemeData theme, ColorScheme scheme, int done, int total) {
+  Widget _buildProgressBar(
+      ThemeData theme, ColorScheme scheme, int done, int total) {
     final ratio = total > 0 ? (done / total).clamp(0.0, 1.0) : 0.0;
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
-      ClipRRect(
-        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-        child: LinearProgressIndicator(
-          value: ratio,
-          minHeight: 8,
-          backgroundColor: scheme.surfaceContainerHighest,
-          valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
-        ),
-      ),
-    ]);
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 8,
+              backgroundColor: scheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+            ),
+          ),
+        ]);
   }
 }
 
@@ -910,10 +970,10 @@ class _AirScheduleEditorState extends State<_AirScheduleEditor> {
     final theme = Theme.of(context);
     final narrow = material.narrowWeekdays;
     final String timeText = _hour != null
-        ? material.formatTimeOfDay(
-            TimeOfDay(hour: _hour!, minute: _minute ?? 0))
+        ? material
+            .formatTimeOfDay(TimeOfDay(hour: _hour!, minute: _minute ?? 0))
         : '—';
-    return AlertDialog(
+    return AppAlertDialog(
       title: Text(l10n.bangumiSyncScheduleTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -951,8 +1011,7 @@ class _AirScheduleEditorState extends State<_AirScheduleEditor> {
       ),
       actions: <Widget>[
         TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(BangumiAirSchedule.empty),
+          onPressed: () => Navigator.of(context).pop(BangumiAirSchedule.empty),
           child: Text(l10n.clear),
         ),
         TextButton(

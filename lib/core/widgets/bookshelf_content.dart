@@ -133,16 +133,15 @@ class BookshelfContent extends StatelessWidget {
           if (c != null) categories.add(c);
         }
         final importedKinds = _kindsForSourceType(sourceType);
-        for (final e
-            in lm.items.where((e) => importedKinds.contains(e.kind))) {
+        for (final e in lm.items.where((e) => importedKinds.contains(e.kind))) {
           categories.add(_importedCategory(e));
         }
         final sorted = categories.toList()..sort();
         return sorted;
       case LibrarySubTab.history:
         final manager = context.read<HistoryManager>();
-        final categories = _ageVisibleHistory(
-                context.read<SourceRepository>(), manager.historyFor(sourceType))
+        final categories = _ageVisibleHistory(context.read<SourceRepository>(),
+                manager.historyFor(sourceType))
             .map((e) => e.category)
             .whereType<String>()
             .toSet()
@@ -197,16 +196,12 @@ class _LocalBookshelf extends StatelessWidget {
     // 分类筛选：本地段以实际产物格式（下载任务取真实扩展名，导入项取文件扩展名）
     // 作为分类，仅命中所选格式。
     if (filter.category != null) {
-      tasks = tasks
-          .where((t) => _taskCategory(t) == filter.category)
-          .toList();
+      tasks = tasks.where((t) => _taskCategory(t) == filter.category).toList();
     }
 
     // 进度筛选：cross-ref 历史记录判断是否在看。
-    final Set<String> historyIds = historyManager
-        .historyFor(sourceType)
-        .map((e) => e.id)
-        .toSet();
+    final Set<String> historyIds =
+        historyManager.historyFor(sourceType).map((e) => e.id).toSet();
     tasks = tasks.where((t) {
       switch (filter.progress) {
         case BookshelfProgress.reading:
@@ -271,12 +266,12 @@ class _LocalBookshelf extends StatelessWidget {
               'localPath': t.localPath,
             'localKind': _kindForFormat(t.format)?.name,
             // 逐章/集路径：供阅读器按话/集打开与切换（修复"翻话/切集不过去"）。
-            if (t.chapterFilePaths != null &&
-                t.chapterFilePaths!.isNotEmpty)
+            if (t.chapterFilePaths != null && t.chapterFilePaths!.isNotEmpty)
               'chapterFilePaths': t.chapterFilePaths!,
           },
         );
-    final Map<String, List<DownloadTask>> byContent = <String, List<DownloadTask>>{};
+    final Map<String, List<DownloadTask>> byContent =
+        <String, List<DownloadTask>>{};
     for (final t in tasks) {
       final key = '${t.sourceId ?? ''}|${t.contentId}';
       (byContent[key] ??= <DownloadTask>[]).add(t);
@@ -418,7 +413,8 @@ class _HistoryBookshelf extends StatelessWidget {
                 coverUrl: e.localCoverPath ?? e.coverUrl,
                 source: e.sourceId != null ? repo.getById(e.sourceId!) : null,
                 onTap: () => onItemTap?.call(e.toMediaItem()),
-                onDelete: () => manager.removeHistory(e.id, sourceType: sourceType),
+                onDelete: () =>
+                    manager.removeHistory(e.id, sourceType: sourceType),
               ))
           .toList(),
       sort: filter.sort,
@@ -472,16 +468,16 @@ class _FavoriteBookshelf extends StatelessWidget {
     // 分组筛选（多选并集：命中任一分组即显示；哨兵 kUngroupedId = 未分组）。
     // 「全部」视图已在取数阶段排除仅属隐藏分类的收藏，此处不再处理。
     if (filter.groupIds.isNotEmpty) {
-      entries = entries.where((e) =>
-          (filter.groupIds.contains(kUngroupedId) && e.groupIds.isEmpty) ||
-          e.groupIds.any(filter.groupIds.contains)).toList();
+      entries = entries
+          .where((e) =>
+              (filter.groupIds.contains(kUngroupedId) && e.groupIds.isEmpty) ||
+              e.groupIds.any(filter.groupIds.contains))
+          .toList();
     }
 
     // 进度筛选：cross-ref 历史记录。
-    final Set<String> historyIds = historyManager
-        .historyFor(sourceType)
-        .map((e) => e.id)
-        .toSet();
+    final Set<String> historyIds =
+        historyManager.historyFor(sourceType).map((e) => e.id).toSet();
     entries = entries.where((e) {
       switch (filter.progress) {
         case BookshelfProgress.reading:
@@ -583,7 +579,8 @@ void _showFavoriteActionsMenu(
                 },
               ),
               // X-2 待读队列：加入队列 / 打开队列（仅在线作品；本地作品隐藏）。
-              if (item.sourceId != null && item.sourceId!.isNotEmpty) ...<Widget>[
+              if (item.sourceId != null &&
+                  item.sourceId!.isNotEmpty) ...<Widget>[
                 ListTile(
                   leading: const Icon(Icons.playlist_add_rounded),
                   title: Text(l10n.readingQueueAdd),
@@ -656,7 +653,8 @@ void _sortTasks(
     case BookshelfSort.director:
     case BookshelfSort.actors:
       // 下载任务无作者 / 中文书名 / 导演 / 主演字段，均回退标题。
-      tasks.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+      tasks.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
     case BookshelfSort.manual:
       tasks.sort((a, b) => _manualCompare(
           sourceType, a.contentId, a.title, b.contentId, b.title));
@@ -681,8 +679,8 @@ void _sortLocalEntries(
       entries.sort(
           (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
     case BookshelfSort.manual:
-      entries.sort((a, b) =>
-          _manualCompare(sourceType, a.id, a.title, b.id, b.title));
+      entries.sort(
+          (a, b) => _manualCompare(sourceType, a.id, a.title, b.id, b.title));
   }
 }
 
@@ -771,8 +769,8 @@ void _sortHistoryEntries(
           .toLowerCase()
           .compareTo((b.actors ?? b.title).toLowerCase()));
     case BookshelfSort.manual:
-      entries.sort((a, b) =>
-          _manualCompare(sourceType, a.id, a.title, b.id, b.title));
+      entries.sort(
+          (a, b) => _manualCompare(sourceType, a.id, a.title, b.id, b.title));
   }
 }
 
@@ -810,8 +808,8 @@ void _sortFavoriteEntries(
           .toLowerCase()
           .compareTo((b.actors ?? b.title).toLowerCase()));
     case BookshelfSort.manual:
-      entries.sort((a, b) =>
-          _manualCompare(sourceType, a.id, a.title, b.id, b.title));
+      entries.sort(
+          (a, b) => _manualCompare(sourceType, a.id, a.title, b.id, b.title));
   }
 }
 
@@ -1151,64 +1149,70 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
       builder: (ctx0, badgeSnap) {
         final (int unread, bool isNew)? badge = badgeSnap.data;
         return FutureBuilder<double?>(
-      future: layout.showProgress ? _computeProgress(item) : Future<double?>.value(null),
-      builder: (ctx2, snap) {
-        Widget card = ContentCard(
-          coverUrl: item.coverUrl,
-          title: item.title,
-          subtitle:
-              (layout.showAuthor && item.author != null) ? item.author : null,
-          source: item.source,
-          onTap: item.onTap,
-          width: itemW,
-          progress: snap.data,
-        );
-        // 长按/右键入口（ContentCard 未暴露 onLongPress，外层手势兼容 InkWell）。
-        if (item.onLongPress != null) {
-          card = GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onLongPress: item.onLongPress,
-            onSecondaryTap: item.onLongPress,
-            child: card,
-          );
-        }
-        // 历史记录：右上角悬浮删除按钮（仅历史书架传入 onDelete）。
-        return Stack(
-          clipBehavior: Clip.none,
-          children: <Widget>[
-            card,
-            // M3：小说收藏未读/新章角标（数字；isNew 红色标识有新章）。
-            if (badge != null)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: _buildUnreadBadge(ctx2, badge.$1, badge.$2),
-              ),
-            if (item.onDelete != null)
-              Positioned(
-                top: 4,
-                left: 4,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius:
-                        BorderRadius.circular(AppTokens.radiusFull),
-                    onTap: () => _confirmDelete(ctx, item),
-                    child: Container(
-                      padding: const EdgeInsets.all(AppTokens.spaceXs),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.54),
-                        shape: BoxShape.circle,
+          future: layout.showProgress
+              ? _computeProgress(item)
+              : Future<double?>.value(null),
+          builder: (ctx2, snap) {
+            Widget card = ContentCard(
+              coverUrl: item.coverUrl,
+              title: item.title,
+              subtitle: (layout.showAuthor && item.author != null)
+                  ? item.author
+                  : null,
+              source: item.source,
+              onTap: item.onTap,
+              width: itemW,
+              progress: snap.data,
+            );
+            // 长按/右键入口（ContentCard 未暴露 onLongPress，外层手势兼容 InkWell）。
+            if (item.onLongPress != null) {
+              card = GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onLongPress: item.onLongPress,
+                onSecondaryTap: item.onLongPress,
+                child: card,
+              );
+            }
+            // 历史记录：右上角悬浮删除按钮（仅历史书架传入 onDelete）。
+            return Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                card,
+                // M3：小说收藏未读/新章角标（数字；isNew 红色标识有新章）。
+                if (badge != null)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: _buildUnreadBadge(ctx2, badge.$1, badge.$2),
+                  ),
+                if (item.onDelete != null)
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius:
+                            BorderRadius.circular(AppTokens.radiusFull),
+                        onTap: () => _confirmDelete(ctx, item),
+                        child: Container(
+                          padding: const EdgeInsets.all(AppTokens.spaceXs),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .shadow
+                                .withValues(alpha: 0.54),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.delete_rounded,
+                              size: 18, color: Colors.white),
+                        ),
                       ),
-                      child: const Icon(Icons.delete_rounded,
-                          size: 18, color: Colors.white),
                     ),
                   ),
-                ),
-              ),
-          ],
-        );
-      },
+              ],
+            );
+          },
         );
       },
     );
@@ -1232,7 +1236,7 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
         textAlign: TextAlign.center,
         style: Theme.of(ctx).textTheme.labelSmall?.copyWith(
               color: scheme.onPrimary,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               fontSize: 10,
               height: 1.3,
             ),
@@ -1274,7 +1278,8 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
     // 本地/下载项：总数以「已下载章节数」为准，不能用在线总章数（会远大于
     // 已下载量，导致未读角标显示成整本小说的章节数）。与影视角标对齐。
     if (item.chapterCount > 0) {
-      final isNew = _hasNewChapter(item.chapterCount, item.lastSeenChapterCount);
+      final isNew =
+          _hasNewChapter(item.chapterCount, item.lastSeenChapterCount);
       if (readPos > 0) {
         final unread = item.chapterCount - readPos;
         return unread > 0 ? (unread, isNew) : null;
@@ -1310,7 +1315,8 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
     // 本地/下载项：总数以「已下载章节数」为准（与小说、影视角标对齐），
     // 否则会误用在线总章数导致未读数被放大。
     if (item.chapterCount > 0) {
-      final isNew = _hasNewChapter(item.chapterCount, item.lastSeenChapterCount);
+      final isNew =
+          _hasNewChapter(item.chapterCount, item.lastSeenChapterCount);
       if (readPos > 0) {
         final unread = item.chapterCount - readPos;
         return unread > 0 ? (unread, isNew) : null;
@@ -1338,9 +1344,8 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
     final watcher = _readWatchedManager(ctx);
     if (watcher == null) return null;
     final watched = watcher.watchedCount(item.id);
-    final total = item.chapterCount > 0
-        ? item.chapterCount
-        : item.lastSeenChapterCount;
+    final total =
+        item.chapterCount > 0 ? item.chapterCount : item.lastSeenChapterCount;
     if (total <= 0) return null;
     final isNew = _hasNewChapter(total, item.lastSeenChapterCount);
     final unread = total - watched;
@@ -1362,89 +1367,84 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
   Widget _buildRow(_BookshelfItem item, LayoutSettings layout, bool isCompact) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     Widget card = AppCard(
-        onTap: item.onTap,
-        padding: EdgeInsets.zero,
-        child: ListTile(
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: AppTokens.spaceMd,
-            vertical: isCompact ? AppTokens.spaceXs : AppTokens.spaceSm,
-          ),
-          leading: ClipRRect(
-            borderRadius:
-                BorderRadius.circular(layout.coverRadius.toDouble()),
-            child: SizedBox(
+      onTap: item.onTap,
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceMd,
+          vertical: isCompact ? AppTokens.spaceXs : AppTokens.spaceSm,
+        ),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(layout.coverRadius.toDouble()),
+          child: SizedBox(
+            width: isCompact ? 40 : 56,
+            height: isCompact ? 56 : 78,
+            child: AppCoverImage(
+              coverUrl: item.coverUrl,
+              source: item.source,
+              title: item.title,
               width: isCompact ? 40 : 56,
               height: isCompact ? 56 : 78,
-              child: AppCoverImage(
-                coverUrl: item.coverUrl,
-                source: item.source,
-                title: item.title,
-                width: isCompact ? 40 : 56,
-                height: isCompact ? 56 : 78,
-                radius: layout.coverRadius,
-              ),
+              radius: layout.coverRadius,
             ),
           ),
-          title: layout.showTitle
-              ? Text(
-                  item.title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(fontSize: layout.titleFontSize),
-                  maxLines: layout.titleMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : null,
-          subtitle: (layout.showAuthor &&
-                  item.author != null &&
-                  item.author!.isNotEmpty)
-              ? Text(
-                  item.author!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                )
-              : null,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (layout.showProgress)
-                FutureBuilder<double?>(
-                  future: _computeProgress(item),
-                  builder: (ctx, snap) {
-                    final double? p = snap.data;
-                    if (p == null || p <= 0) {
-                      return const SizedBox.shrink();
-                    }
-                    return Padding(
-                      padding:
-                          const EdgeInsets.only(right: AppTokens.spaceSm),
-                      child: Text(
-                        '${(p * 100).round()}%',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                      ),
-                    );
-                  },
-                ),
-              if (item.onDelete != null)
-                IconButton(
-                  icon: const Icon(Icons.delete_rounded),
-                  tooltip: AppLocalizations.of(context).delete,
-                  onPressed: () => _confirmDelete(context, item),
-                ),
-            ],
-          ),
         ),
-      );
+        title: layout.showTitle
+            ? Text(
+                item.title,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(fontSize: layout.titleFontSize),
+                maxLines: layout.titleMaxLines,
+                overflow: TextOverflow.ellipsis,
+              )
+            : null,
+        subtitle: (layout.showAuthor &&
+                item.author != null &&
+                item.author!.isNotEmpty)
+            ? Text(
+                item.author!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              )
+            : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (layout.showProgress)
+              FutureBuilder<double?>(
+                future: _computeProgress(item),
+                builder: (ctx, snap) {
+                  final double? p = snap.data;
+                  if (p == null || p <= 0) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(right: AppTokens.spaceSm),
+                    child: Text(
+                      '${(p * 100).round()}%',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    ),
+                  );
+                },
+              ),
+            if (item.onDelete != null)
+              IconButton(
+                icon: const Icon(Icons.delete_rounded),
+                tooltip: AppLocalizations.of(context).delete,
+                onPressed: () => _confirmDelete(context, item),
+              ),
+          ],
+        ),
+      ),
+    );
     // 长按/右键入口（AppCard 未暴露 onLongPress，外层手势兼容）。
     if (item.onLongPress != null) {
       card = GestureDetector(

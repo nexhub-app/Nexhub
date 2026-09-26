@@ -472,7 +472,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Text(
                     data.title,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           fontSize: compact ? 20 : null,
                         ),
                     textAlign: TextAlign.center,
@@ -660,7 +660,8 @@ class _ThemePreview extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Icon(Icons.more_vert_rounded, size: 18, color: scheme.onSurfaceVariant),
+              Icon(Icons.more_vert_rounded,
+                  size: 18, color: scheme.onSurfaceVariant),
             ],
           ),
           const SizedBox(height: AppTokens.spaceMd),
@@ -673,7 +674,8 @@ class _ThemePreview extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                Icon(Icons.check_circle_rounded, size: 16, color: scheme.primary),
+                Icon(Icons.check_circle_rounded,
+                    size: 16, color: scheme.primary),
                 const SizedBox(width: AppTokens.spaceXs),
                 Expanded(
                   child: Text(
@@ -874,7 +876,8 @@ class _PermissionRow extends StatelessWidget {
             ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(Icons.check_circle_rounded, size: 18, color: scheme.primary),
+                  Icon(Icons.check_circle_rounded,
+                      size: 18, color: scheme.primary),
                   const SizedBox(width: AppTokens.spaceXs),
                   Text(
                     l10n.onboardingPermissionItemGranted,

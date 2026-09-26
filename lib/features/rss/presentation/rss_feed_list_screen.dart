@@ -932,7 +932,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
       context: context,
       builder: (dialogCtx) {
         final l10n = AppLocalizations.of(dialogCtx);
-        return AlertDialog(
+        return AppAlertDialog(
           title: Text(initial == null ? l10n.rssGroupAdd : l10n.rssGroupRename),
           content: TextField(
             controller: ctrl,

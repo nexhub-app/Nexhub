@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
+import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/debug/crash_log.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
@@ -54,7 +55,7 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
   Future<void> _clearAll(AppLocalizations l10n) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.crashLogClear),
         content: Text(l10n.confirmActionHint),
         actions: <Widget>[

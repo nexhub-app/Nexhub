@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -23,7 +24,8 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
   @override
   void initState() {
     super.initState();
-    _urls = List<String>.from(GeneralSettingsStore.instance.settings.heroImageUrls);
+    _urls =
+        List<String>.from(GeneralSettingsStore.instance.settings.heroImageUrls);
     final store = GeneralSettingsStore.instance;
     if (!store.loaded) {
       store.load().then((s) {
@@ -36,7 +38,8 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
 
   Future<void> _save(List<String> next) async {
     setState(() => _urls = next);
-    final s = GeneralSettingsStore.instance.settings.copyWith(heroImageUrls: next);
+    final s =
+        GeneralSettingsStore.instance.settings.copyWith(heroImageUrls: next);
     await GeneralSettingsStore.instance.save(s);
   }
 
@@ -101,19 +104,21 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
             Expanded(
               child: _urls.isEmpty
                   ? _Empty(scheme: scheme, hint: l10n.heroEmptyHint)
-: ReorderableListView(
+                  : ReorderableListView(
                       padding: const EdgeInsets.all(AppTokens.spaceLg),
                       buildDefaultDragHandles: false,
                       // 美化拖动动画：缓出曲线 + 上浮 + 主色描边 + 双层阴影
                       // 与源管理页保持一致风格。
-                      proxyDecorator:
-                          (Widget child, int index, Animation<double> animation) {
+                      proxyDecorator: (Widget child, int index,
+                          Animation<double> animation) {
                         return AnimatedBuilder(
                           animation: animation,
                           builder: (context, _) {
-                            final double t = Curves.easeOut.transform(animation.value);
+                            final double t =
+                                Curves.easeOut.transform(animation.value);
                             final double scale = lerpDouble(1.0, 1.04, t)!;
-                            final ColorScheme scheme = Theme.of(context).colorScheme;
+                            final ColorScheme scheme =
+                                Theme.of(context).colorScheme;
                             return Transform.translate(
                               offset: Offset(0, -3 * t),
                               child: Transform.scale(
@@ -152,43 +157,43 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
                         );
                       },
                       onReorderItem: (int oldIndex, int newIndex) {
-                          final next = List<String>.from(_urls);
-                          final item = next.removeAt(oldIndex);
-                          next.insert(newIndex, item);
-                          _save(next);
-                        },
-                        children: <Widget>[
-                          for (int i = 0; i < _urls.length; i++)
-                            Padding(
-                              key: ValueKey<String>(_urls[i]),
-                              padding:
-                                  const EdgeInsets.only(bottom: AppTokens.spaceSm),
-                              child: Row(
-                                children: <Widget>[
-                                  ReorderableDragStartListener(
-                                    index: i,
-                                    child: Padding(
-                                      padding:
-                                          const EdgeInsets.only(right: AppTokens.spaceXs),
-                                      child: Icon(
-                                        Icons.drag_indicator_rounded,
-                                        color: scheme.onSurfaceVariant
-                                            .withValues(alpha: 0.5),
-                                        size: 20,
-                                      ),
+                        final next = List<String>.from(_urls);
+                        final item = next.removeAt(oldIndex);
+                        next.insert(newIndex, item);
+                        _save(next);
+                      },
+                      children: <Widget>[
+                        for (int i = 0; i < _urls.length; i++)
+                          Padding(
+                            key: ValueKey<String>(_urls[i]),
+                            padding: const EdgeInsets.only(
+                                bottom: AppTokens.spaceSm),
+                            child: Row(
+                              children: <Widget>[
+                                ReorderableDragStartListener(
+                                  index: i,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                        right: AppTokens.spaceXs),
+                                    child: Icon(
+                                      Icons.drag_indicator_rounded,
+                                      color: scheme.onSurfaceVariant
+                                          .withValues(alpha: 0.5),
+                                      size: 20,
                                     ),
                                   ),
-                                  Expanded(
-                                    child: _HeroItem(
-                                      url: _urls[i],
-                                      onRemove: () => _remove(i),
-                                    ),
+                                ),
+                                Expanded(
+                                  child: _HeroItem(
+                                    url: _urls[i],
+                                    onRemove: () => _remove(i),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
+                    ),
             ),
             SafeArea(
               top: false,
@@ -252,9 +257,8 @@ class _HeroItem extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-        border: Border.all(color: scheme.outlineVariant),
+        color: AppTheme.cardContainer(scheme),
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
       ),
       child: Row(
         children: <Widget>[

@@ -60,8 +60,7 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
         .toList();
   }
 
-  int _monthTotal(List<int> secs) =>
-      secs.fold(0, (sum, s) => sum + s);
+  int _monthTotal(List<int> secs) => secs.fold(0, (sum, s) => sum + s);
 
   void _prevMonth() => setState(() {
         _month = DateTime(_month.year, _month.month - 1, 1);
@@ -78,9 +77,7 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
     if (sec <= 0) {
       return scheme.surfaceContainerHighest.withValues(alpha: 0.55);
     }
-    final t = maxSec > 0
-        ? ((sec / maxSec).clamp(0.25, 1.0)).toDouble()
-        : 0.35;
+    final t = maxSec > 0 ? ((sec / maxSec).clamp(0.25, 1.0)).toDouble() : 0.35;
     return Color.alphaBlend(
       scheme.primary.withValues(alpha: 0.22 + 0.78 * t),
       scheme.surface,
@@ -114,7 +111,7 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
                 maxLines: 1,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: color,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
               ),
             ),
@@ -140,8 +137,10 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
       child: Row(
         children: <Widget>[
           item(l10n.heatmapActiveDays, '$activeDays', scheme.primary),
-          item(l10n.statsHeatmapTotal, _fmtDuration(l10n, total), scheme.tertiary),
-          item(l10n.heatmapMaxDaily, _fmtDuration(l10n, maxSec), scheme.secondary),
+          item(l10n.statsHeatmapTotal, _fmtDuration(l10n, total),
+              scheme.tertiary),
+          item(l10n.heatmapMaxDaily, _fmtDuration(l10n, maxSec),
+              scheme.secondary),
           item(l10n.heatmapStreak, '$streak', scheme.error),
         ],
       ),
@@ -180,7 +179,7 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
           ? _cellColor(scheme, sec, maxSec)
           : scheme.surfaceContainerHighest.withValues(alpha: 0.45);
       final fg = hasRecord
-          ? Colors.white
+          ? scheme.onPrimary
           : scheme.onSurfaceVariant.withValues(alpha: 0.75);
       return Tooltip(
         message: tooltip,
@@ -195,7 +194,7 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
             '$day',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: fg,
-                  fontWeight: hasRecord ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: hasRecord ? FontWeight.w600 : FontWeight.w500,
                 ),
           ),
         ),
@@ -279,8 +278,7 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
     final secs = _dailySec();
     final total = _monthTotal(secs);
     final now = DateTime.now();
-    final isCurrentMonth =
-        _month.year == now.year && _month.month == now.month;
+    final isCurrentMonth = _month.year == now.year && _month.month == now.month;
 
     return SafeArea(
       child: ConstrainedBox(
@@ -304,8 +302,10 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
                     Expanded(
                       child: Text(
                         l10n.statsHeatmap,
-                        style: Theme.of(context).textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w700),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
                     IconButton(
@@ -385,8 +385,8 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
                               ? scheme.surfaceContainerHighest
                                   .withValues(alpha: 0.55)
                               : Color.alphaBlend(
-                                  scheme.primary.withValues(alpha: 
-                                      0.22 + 0.78 * t),
+                                  scheme.primary
+                                      .withValues(alpha: 0.22 + 0.78 * t),
                                   scheme.surface,
                                 ),
                           borderRadius:

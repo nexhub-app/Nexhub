@@ -42,9 +42,10 @@ class _TranslationGlossaryScreenState extends State<TranslationGlossaryScreen> {
 
   Future<void> _load() async {
     try {
-      _lang = await NovelSummarySettings.instance.getTranslationTargetLanguage();
-      final list = await _manager.effectiveEntries(
-          GlossaryManager.globalWorkId, _lang);
+      _lang =
+          await NovelSummarySettings.instance.getTranslationTargetLanguage();
+      final list =
+          await _manager.effectiveEntries(GlossaryManager.globalWorkId, _lang);
       if (!mounted) return;
       setState(() {
         _entries = list;
@@ -57,8 +58,8 @@ class _TranslationGlossaryScreenState extends State<TranslationGlossaryScreen> {
   }
 
   Future<void> _upsert(GlossaryEntry entry) async {
-    final list = await _manager.saveEntry(
-        GlossaryManager.globalWorkId, _lang, entry);
+    final list =
+        await _manager.saveEntry(GlossaryManager.globalWorkId, _lang, entry);
     if (!mounted) return;
     setState(() => _entries = list);
   }
@@ -92,7 +93,8 @@ class _TranslationGlossaryScreenState extends State<TranslationGlossaryScreen> {
   Future<void> _showEditor([GlossaryEntry? existing]) async {
     final l10n = AppLocalizations.of(context);
     final termCtrl = TextEditingController(text: existing?.term ?? '');
-    final preferredCtrl = TextEditingController(text: existing?.preferred ?? '');
+    final preferredCtrl =
+        TextEditingController(text: existing?.preferred ?? '');
     final aliasesCtrl = TextEditingController(
       text: existing?.aliases.join('、') ?? '',
     );
@@ -147,13 +149,14 @@ class _TranslationGlossaryScreenState extends State<TranslationGlossaryScreen> {
           ),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: termCtrl,
-            builder: (context, term, _) => ValueListenableBuilder<TextEditingValue>(
+            builder: (context, term, _) =>
+                ValueListenableBuilder<TextEditingValue>(
               valueListenable: preferredCtrl,
               builder: (context, pref, _) => FilledButton(
-                onPressed: term.text.trim().isNotEmpty &&
-                        pref.text.trim().isNotEmpty
-                    ? () => Navigator.pop(ctx, true)
-                    : null,
+                onPressed:
+                    term.text.trim().isNotEmpty && pref.text.trim().isNotEmpty
+                        ? () => Navigator.pop(ctx, true)
+                        : null,
                 child: Text(l10n.save),
               ),
             ),
@@ -228,11 +231,8 @@ class _TranslationGlossaryScreenState extends State<TranslationGlossaryScreen> {
                 Expanded(
                   child: Text(
                     l10n.glossaryTargetLang(_lang),
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(
-                            color: Theme.of(context).colorScheme.outline),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.outline),
                   ),
                 ),
                 IconButton(
@@ -254,14 +254,14 @@ class _TranslationGlossaryScreenState extends State<TranslationGlossaryScreen> {
                 : _entries.isEmpty
                     ? Center(
                         child: Padding(
-                          padding:
-                              const EdgeInsets.all(AppTokens.spaceXl),
+                          padding: const EdgeInsets.all(AppTokens.spaceXl),
                           child: Text(
                             l10n.glossaryEmpty,
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color:
-                                  Theme.of(context).colorScheme.outline,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                         ),

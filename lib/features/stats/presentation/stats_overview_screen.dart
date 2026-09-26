@@ -16,6 +16,7 @@ library;
 import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
+import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/stats/stats_models.dart';
 import '../../../core/stats/stats_repository.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -99,7 +100,7 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
     final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppAlertDialog(
         title: Text(l10n.statsClearTitle),
         content: Text(
           l10n.statsClearBody(stat.title ?? stat.workId),
@@ -150,10 +151,8 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
             child: Text(
               title,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
                   ),
             ),
           ),
@@ -183,7 +182,8 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
   }
 
   /// 总览段：总时长 / 作品数 / 会话次数。
-  Widget _buildOverviewSection(AppLocalizations l10n, List<WorkReadingStats> list) {
+  Widget _buildOverviewSection(
+      AppLocalizations l10n, List<WorkReadingStats> list) {
     final scheme = Theme.of(context).colorScheme;
     var totalSec = 0;
     var sessions = 0;
@@ -229,7 +229,8 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
     if (all.isNotEmpty) {
       var minMs = all.first.lastReadAtMs;
       for (final s in all) {
-        if (s.lastReadAtMs > 0 && s.lastReadAtMs < minMs) minMs = s.lastReadAtMs;
+        if (s.lastReadAtMs > 0 && s.lastReadAtMs < minMs)
+          minMs = s.lastReadAtMs;
       }
       if (minMs > 0) {
         final start = DateTime.fromMillisecondsSinceEpoch(minMs);
@@ -340,12 +341,9 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
                   ),
                   isDense: true,
                   border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppTokens.radiusFull),
+                    borderRadius: BorderRadius.circular(AppTokens.radiusFull),
                     borderSide: BorderSide(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .outlineVariant,
+                      color: Theme.of(context).colorScheme.outlineVariant,
                     ),
                   ),
                 ),
@@ -357,10 +355,9 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
   }
 
   /// 单个作品行（封面 + 名称 + 最后阅读 + 总时长）。
-  Widget _buildWorkTile(WorkReadingStats stat, AppLocalizations l10n, int index) {
-    final name = stat.title?.isNotEmpty == true
-        ? stat.title!
-        : stat.workId;
+  Widget _buildWorkTile(
+      WorkReadingStats stat, AppLocalizations l10n, int index) {
+    final name = stat.title?.isNotEmpty == true ? stat.title! : stat.workId;
     final readAt = stat.lastReadAtMs > 0
         ? DateTime.fromMillisecondsSinceEpoch(stat.lastReadAtMs)
         : null;
@@ -516,7 +513,7 @@ class _StatMetric extends StatelessWidget {
                 maxLines: 1,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: color,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
               ),
             ),

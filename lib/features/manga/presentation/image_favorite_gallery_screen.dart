@@ -44,7 +44,8 @@ enum _GalleryLayout { grid, masonry }
 
 /// 图片收藏图库页。
 class ImageFavoriteGalleryScreen extends StatefulWidget {
-  const ImageFavoriteGalleryScreen({super.key, this.manager, this.sourceFilter});
+  const ImageFavoriteGalleryScreen(
+      {super.key, this.manager, this.sourceFilter});
 
   /// 可注入的管理器（便于测试 / 复用同一实例）；默认新建。
   final ImageFavoriteManager? manager;
@@ -160,8 +161,9 @@ class _ImageFavoriteGalleryScreenState
       case _GallerySort.oldest:
         list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       case _GallerySort.title:
-        list.sort((a, b) => a.chapterTitle.toLowerCase().compareTo(
-            b.chapterTitle.toLowerCase()));
+        list.sort((a, b) => a.chapterTitle
+            .toLowerCase()
+            .compareTo(b.chapterTitle.toLowerCase()));
     }
     return list;
   }
@@ -189,7 +191,7 @@ class _ImageFavoriteGalleryScreenState
     final AppLocalizations l10n = AppLocalizations.of(context);
     final bool? ok = await showDialog<bool>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.deleteConfirmTitle),
         content: Text(l10n.imageFavoriteDeleteConfirm),
         actions: <Widget>[
@@ -239,7 +241,7 @@ class _ImageFavoriteGalleryScreenState
         TextEditingController(text: favorite.chapterTitle);
     final String? title = await showDialog<String>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.imageFavoriteRename),
         content: TextField(
           controller: controller,
@@ -342,7 +344,7 @@ class _ImageFavoriteGalleryScreenState
     final TextEditingController controller = TextEditingController();
     final String? name = await showDialog<String>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.imageFavoriteNewFolder),
         content: TextField(
           controller: controller,
@@ -380,7 +382,7 @@ class _ImageFavoriteGalleryScreenState
     final AppLocalizations l10n = AppLocalizations.of(context);
     final bool? ok = await showDialog<bool>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.imageFavoriteDeleteFolder),
         content: Text(l10n.imageFavoriteDeleteFolderConfirm(folder)),
         actions: <Widget>[
@@ -402,16 +404,14 @@ class _ImageFavoriteGalleryScreenState
         await _manager.moveToFolder(f.key, '');
       }
     }
-    final List<String> next =
-        _folders.where((f) => f != folder).toList();
+    final List<String> next = _folders.where((f) => f != folder).toList();
     await _manager.saveFolders(next);
     if (!mounted) return;
     setState(() {
       _folders = next;
       if (_folderFilter == folder) _folderFilter = null;
       _favorites = _favorites
-          .map((f) =>
-              f.folder == folder ? _withFolder(f, '') : f)
+          .map((f) => f.folder == folder ? _withFolder(f, '') : f)
           .toList();
     });
   }
@@ -445,7 +445,7 @@ class _ImageFavoriteGalleryScreenState
     final AppLocalizations l10n = AppLocalizations.of(context);
     final bool? ok = await showDialog<bool>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.deleteConfirmTitle),
         content: Text(l10n.imageFavoriteDeleteMulti(_selected.length)),
         actions: <Widget>[
@@ -466,9 +466,7 @@ class _ImageFavoriteGalleryScreenState
     }
     if (!mounted) return;
     setState(() {
-      _favorites = _favorites
-          .where((f) => !_selected.contains(f.key))
-          .toList();
+      _favorites = _favorites.where((f) => !_selected.contains(f.key)).toList();
       _selected.clear();
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -505,7 +503,7 @@ class _ImageFavoriteGalleryScreenState
         TextEditingController(text: t.chapterTitle);
     final String? title = await showDialog<String>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.imageFavoriteRename),
         content: TextField(
           controller: controller,
@@ -529,9 +527,8 @@ class _ImageFavoriteGalleryScreenState
     if (!mounted) return;
     setState(() {
       _favorites = _favorites
-          .map((f) => f.key == t.key
-              ? f.copyWith(chapterTitle: title.trim())
-              : f)
+          .map((f) =>
+              f.key == t.key ? f.copyWith(chapterTitle: title.trim()) : f)
           .toList();
       _selected.clear();
     });
@@ -548,27 +545,31 @@ class _ImageFavoriteGalleryScreenState
     final AppLocalizations l10n = AppLocalizations.of(context);
     final String? folder = await showDialog<String>(
       context: context,
-      builder: (BuildContext ctx) => SimpleDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.imageFavoriteMoveTo),
-        children: <Widget>[
-          for (final String f in const <String>[''] + _folders)
-            SimpleDialogOption(
-              onPressed: () => Navigator.of(ctx).pop(f),
-              child: Text(
-                f.isEmpty ? l10n.imageFavoriteUnfiled : f,
-                style: const TextStyle(fontSize: 14),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            for (final String f in const <String>[''] + _folders)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(f.isEmpty ? l10n.imageFavoriteUnfiled : f),
+                onTap: () => Navigator.of(ctx).pop(f),
               ),
+            const Divider(height: 1),
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                l10n.imageFavoriteNewFolder,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              onTap: () => Navigator.of(ctx).pop('__new__'),
             ),
-          const Divider(height: 1),
-          SimpleDialogOption(
-            onPressed: () => Navigator.of(ctx).pop('__new__'),
-            child: Text(
-              l10n.imageFavoriteNewFolder,
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
     if (folder == null) return;
@@ -577,13 +578,12 @@ class _ImageFavoriteGalleryScreenState
       final TextEditingController controller = TextEditingController();
       final String? name = await showDialog<String>(
         context: context,
-        builder: (BuildContext ctx) => AlertDialog(
+        builder: (BuildContext ctx) => AppAlertDialog(
           title: Text(l10n.imageFavoriteNewFolder),
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration:
-                InputDecoration(hintText: l10n.imageFavoriteFolderHint),
+            decoration: InputDecoration(hintText: l10n.imageFavoriteFolderHint),
           ),
           actions: <Widget>[
             TextButton(
@@ -623,9 +623,8 @@ class _ImageFavoriteGalleryScreenState
   /// 批量分享：本地文件合并发送文件，网络链接发送文本。
   Future<void> _batchShare() async {
     if (_selected.isEmpty) return;
-    final List<ImageFavorite> items = _favorites
-        .where((f) => _selected.contains(f.key))
-        .toList();
+    final List<ImageFavorite> items =
+        _favorites.where((f) => _selected.contains(f.key)).toList();
     final List<String> local = items
         .map((f) => f.imageUrl)
         .where((u) => !u.startsWith('http'))
@@ -677,9 +676,8 @@ class _ImageFavoriteGalleryScreenState
           }
           final bool isAll = index == 0;
           final String f = isAll ? '' : _folders[index - 1];
-          final bool selected = isAll
-              ? _folderFilter == null
-              : _folderFilter == f;
+          final bool selected =
+              isAll ? _folderFilter == null : _folderFilter == f;
           return Padding(
             padding: const EdgeInsets.only(right: AppTokens.spaceXs),
             child: GestureDetector(
@@ -697,8 +695,7 @@ class _ImageFavoriteGalleryScreenState
                 selected: selected,
                 enabled: true,
                 onTap: () {
-                  setState(() =>
-                      _folderFilter = isAll ? null : f);
+                  setState(() => _folderFilter = isAll ? null : f);
                   // 手机适配：选中的文件夹自动滚动到行中央。
                   unawaited(_folderItemScroll.scrollTo(
                     index: index,
@@ -777,7 +774,7 @@ class _ImageFavoriteGalleryScreenState
   }
 
   Widget _buildTimeRange(AppLocalizations l10n) {
-    final List<( _TimeRange, String)> options = <( _TimeRange, String)>[
+    final List<(_TimeRange, String)> options = <(_TimeRange, String)>[
       (_TimeRange.all, l10n.imageFavoriteTimeAll),
       (_TimeRange.today, l10n.imageFavoriteTimeToday),
       (_TimeRange.week, l10n.imageFavoriteTimeWeek),
@@ -1070,9 +1067,9 @@ class _ImageFavoriteGalleryScreenState
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeIn,
       child: KeyedSubtree(
-        key: ValueKey<String>(
-            '${_layout.name}-$_groupByWork-${_timeRange.name}-'
-            '${_sourceFilter?.apiName ?? 'all'}-$_query-${_sort.name}'),
+        key:
+            ValueKey<String>('${_layout.name}-$_groupByWork-${_timeRange.name}-'
+                '${_sourceFilter?.apiName ?? 'all'}-$_query-${_sort.name}'),
         child: child,
       ),
     );
@@ -1109,8 +1106,7 @@ class _ImageFavoriteGalleryScreenState
                   child: IgnorePointer(
                     child: Container(
                       decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(AppTokens.radiusSm),
+                        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                         border: Border.all(
                           color: checked
                               ? Theme.of(context).colorScheme.primary
@@ -1186,9 +1182,7 @@ class _ImageFavoriteGalleryScreenState
                               ? Theme.of(context).colorScheme.primary
                               : Colors.black.withValues(alpha: 0.45),
                           border: Border.all(
-                            color: checked
-                                ? Colors.white
-                                : Colors.white54,
+                            color: checked ? Colors.white : Colors.white54,
                             width: 1.5,
                           ),
                         ),
@@ -1205,8 +1199,8 @@ class _ImageFavoriteGalleryScreenState
                           onTap: () => _confirmDelete(favorite),
                           child: const Padding(
                             padding: EdgeInsets.all(2),
-                            child:
-                                Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                            child: Icon(Icons.close_rounded,
+                                size: 16, color: Colors.white),
                           ),
                         ),
                       ),

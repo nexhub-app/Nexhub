@@ -8,6 +8,7 @@
 library;
 
 import 'package:material_ui/material_ui.dart';
+import 'app_alert_dialog.dart';
 import 'package:provider/provider.dart';
 
 import '../../features/novel/presentation/novel_reader_screen.dart';
@@ -62,7 +63,7 @@ Future<void> openReadingFromQueue(
   showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (BuildContext ctx) => AlertDialog(
+    builder: (BuildContext ctx) => AppAlertDialog(
       content: Row(
         children: <Widget>[
           const SizedBox(

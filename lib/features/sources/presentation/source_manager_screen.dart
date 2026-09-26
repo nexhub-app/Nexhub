@@ -20,12 +20,12 @@ import '../../../core/services/config_loader.dart';
 import '../../../core/services/source_library_subscription.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/utils/app_haptics.dart';
-import '../../../core/local/local_content_manager.dart'
-    show isAndroidSafUri;
+import '../../../core/local/local_content_manager.dart' show isAndroidSafUri;
 import '../../../core/local/saf_bridge.dart'
     show listFolderSourceFilesSaf, pickFolderPath, readSourceText, safBaseName;
 import '../../../core/utils/app_log.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -144,7 +144,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   }
 
   // ── 网络导入逻辑 ──
-  Future<void>_fetchFromUrl() async {
+  Future<void> _fetchFromUrl() async {
     final url = _urlController.text.trim();
     if (url.isEmpty) return;
     final repo = context.read<SourceRepository>();
@@ -276,7 +276,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     );
     if (result == null || result.files.isEmpty) return;
 
-    _processPickedPaths(result.files.map((f) => f.path).whereType<String>().toList());
+    _processPickedPaths(
+        result.files.map((f) => f.path).whereType<String>().toList());
   }
 
   /// 选择文件夹导入。
@@ -312,15 +313,18 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           AppLog.instance.e('[源导入] 目录不存在或不可访问: $dirPath');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(AppLocalizations.of(context).folderScanFailed)),
+              SnackBar(
+                  content: Text(AppLocalizations.of(context).folderScanFailed)),
             );
           }
           return;
         }
         files = <String>[];
-        await for (final entity in dir.list(recursive: true, followLinks: false)) {
+        await for (final entity
+            in dir.list(recursive: true, followLinks: false)) {
           if (entity is File) {
-            final ext = p.extension(entity.path).toLowerCase().replaceFirst('.', '');
+            final ext =
+                p.extension(entity.path).toLowerCase().replaceFirst('.', '');
             if (const ['json', 'txt', 'xml'].contains(ext)) {
               files.add(entity.path);
             }
@@ -334,7 +338,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       AppLog.instance.eWithStack('[源导入] 文件夹扫描失败 $dirPath', e, st);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).folderScanFailed)),
+          SnackBar(
+              content: Text(AppLocalizations.of(context).folderScanFailed)),
         );
       }
       return;
@@ -428,7 +433,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     if (_importAgeBlockedCount > 0 &&
         shownItems.where((e) => e.isValid).isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).ageRestrictionImportMatureBlocked)),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .ageRestrictionImportMatureBlocked)),
       );
       return;
     }
@@ -487,7 +494,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     final selected = _previewItems
         .asMap()
         .entries
-        .where((e) => _selectedPreviewIndices.contains(e.key) && e.value.isValid)
+        .where(
+            (e) => _selectedPreviewIndices.contains(e.key) && e.value.isValid)
         .map((e) => e.value)
         .toList();
 
@@ -496,7 +504,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       try {
         context.read<SourceRepository>().addSource(item.config!);
         successCount++;
-      } on Object { /* 单个失败不影响其他 */ }
+      } on Object {/* 单个失败不影响其他 */}
     }
 
     if (mounted) {
@@ -533,7 +541,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
         actions: <Widget>[
           IconButton(
             icon: Icon(
-              _showHidden ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+              _showHidden
+                  ? Icons.visibility_rounded
+                  : Icons.visibility_off_rounded,
             ),
             tooltip: l10n.sourceShowHidden,
             onPressed: () => setState(() => _showHidden = !_showHidden),
@@ -541,64 +551,64 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
         ],
       ),
       body: _buildBody(l10n, scheme, filteredSources),
-
     );
   }
 
   /// 构建主体内容（Tab 栏 + 内容区），供嵌入模式和完整模式共用。
-  Widget _buildBody(AppLocalizations l10n, ColorScheme scheme, List<PluginConfig> filteredSources) {
+  Widget _buildBody(AppLocalizations l10n, ColorScheme scheme,
+      List<PluginConfig> filteredSources) {
     return Column(
       children: <Widget>[
         // 顶部 Tab 切换（M3 等宽分段）
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTokens.spaceLg,
-              vertical: AppTokens.spaceSm,
-            ),
-            child: AppSegmentedTabs<_SourceTab>(
-              selected: <_SourceTab>{_tab},
-              onSelectionChanged: (sel) {
-                if (sel.isNotEmpty) {
-                  setState(() => _tab = sel.first);
-                }
-              },
-              segments: <ButtonSegment<_SourceTab>>[
-                ButtonSegment<_SourceTab>(
-                  value: _SourceTab.list,
-                  icon: const Icon(Icons.list_rounded),
-                  label: Text(l10n.sourceListTab),
-                ),
-                ButtonSegment<_SourceTab>(
-                  value: _SourceTab.library,
-                  icon: const Icon(Icons.cloud_rounded),
-                  label: Text(l10n.libraryBookmarks),
-                ),
-                ButtonSegment<_SourceTab>(
-                  value: _SourceTab.network,
-                  icon: const Icon(Icons.cloud_download_rounded),
-                  label: Text(l10n.networkImportTab),
-                ),
-                ButtonSegment<_SourceTab>(
-                  value: _SourceTab.local,
-                  icon: const Icon(Icons.file_present_rounded),
-                  label: Text(l10n.localImportTab),
-                ),
-              ],
-            ),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTokens.spaceLg,
+            vertical: AppTokens.spaceSm,
           ),
-
-          const Divider(height: 1),
-
-          // Tab 内容
-          Expanded(
-            child: <Widget>[
-              _buildListTab(l10n, filteredSources, scheme),
-              _buildLibraryTab(l10n, scheme),
-              _buildNetworkImportTab(l10n, scheme),
-              _buildLocalImportTab(l10n, scheme),
-            ][_tab.index],
+          child: AppSegmentedTabs<_SourceTab>(
+            selected: <_SourceTab>{_tab},
+            onSelectionChanged: (sel) {
+              if (sel.isNotEmpty) {
+                setState(() => _tab = sel.first);
+              }
+            },
+            segments: <ButtonSegment<_SourceTab>>[
+              ButtonSegment<_SourceTab>(
+                value: _SourceTab.list,
+                icon: const Icon(Icons.list_rounded),
+                label: Text(l10n.sourceListTab),
+              ),
+              ButtonSegment<_SourceTab>(
+                value: _SourceTab.library,
+                icon: const Icon(Icons.cloud_rounded),
+                label: Text(l10n.libraryBookmarks),
+              ),
+              ButtonSegment<_SourceTab>(
+                value: _SourceTab.network,
+                icon: const Icon(Icons.cloud_download_rounded),
+                label: Text(l10n.networkImportTab),
+              ),
+              ButtonSegment<_SourceTab>(
+                value: _SourceTab.local,
+                icon: const Icon(Icons.file_present_rounded),
+                label: Text(l10n.localImportTab),
+              ),
+            ],
           ),
-        ],
+        ),
+
+        const Divider(height: 1),
+
+        // Tab 内容
+        Expanded(
+          child: <Widget>[
+            _buildListTab(l10n, filteredSources, scheme),
+            _buildLibraryTab(l10n, scheme),
+            _buildNetworkImportTab(l10n, scheme),
+            _buildLocalImportTab(l10n, scheme),
+          ][_tab.index],
+        ),
+      ],
     );
   }
 
@@ -641,9 +651,15 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               // 3 分类等宽平分（小说/媒体/漫画）。
               onTap: (_) => AppHaptics.selectionClick(),
               tabs: <Widget>[
-                Tab(icon: const Icon(Icons.book_rounded), text: l10n.sourceCategoryNovel),
-                Tab(icon: const Icon(Icons.movie_rounded), text: l10n.sourceCategoryMedia),
-                Tab(icon: const Icon(Icons.image_rounded), text: l10n.sourceCategoryComic),
+                Tab(
+                    icon: const Icon(Icons.book_rounded),
+                    text: l10n.sourceCategoryNovel),
+                Tab(
+                    icon: const Icon(Icons.movie_rounded),
+                    text: l10n.sourceCategoryMedia),
+                Tab(
+                    icon: const Icon(Icons.image_rounded),
+                    text: l10n.sourceCategoryComic),
               ],
             ),
           ),
@@ -760,7 +776,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                   child: Padding(
                     padding: const EdgeInsets.only(right: AppTokens.spaceXs),
                     child: Icon(Icons.drag_indicator_rounded,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
                             .withValues(alpha: 0.45),
                         size: 20),
                   ),
@@ -769,63 +787,66 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                   child: AppCard(
                     padding: EdgeInsets.zero,
                     child: UnifiedSourceTile(
-                name: s.name,
-                url: s.site.baseUrl,
-                enabled: s.isEnabled,
-                deprecated: s.isDeprecated,
-                ageRating: s.ageRating,
-                isHidden: s.isHidden,
-                // 项 2：仅对声明了登录入口、且当前未登录的源显示「未登录」。
-                showNotLoggedIn:
-                    s.comments?.supportsLogin == true && !auth.isLoggedIn(s),
-                deprecatedLabel: l10n.deprecated,
-                mirrorSettingsTooltip: l10n.mirrorSettings,
-                hideTooltip: l10n.sourceHide,
-                unhideTooltip: l10n.sourceShowHidden,
-                editTooltip: l10n.sourceEdit,
-                deleteTooltip: l10n.sourceDelete,
-                migrateTooltip: l10n.sourceMigrate,
-                networkOverrideTooltip: l10n.sourceNetworkOverride,
-                loginTooltip: l10n.sourceLogin,
-                // 源管理页：操作收进「更多」菜单，更清爽
-                useMoreMenu: true,
-                moreMenuTooltip: l10n.moreActions,
-                isIncognito: ConfigLoader.instance.isIncognito(s),
-                incognitoTooltip: l10n.incognitoMode,
-                onIncognitoToggle: (bool value) async {
-                  await ConfigLoader.instance.setIncognito(s.id, value);
-                  if (mounted) setState(() {});
-                },
-                onToggle: (bool value) =>
-                    context.read<SourceRepository>().setEnabled(s.id, value),
-                onMirrorSettings: () => Navigator.of(context).push(
-                  AppPageRoute<void>(
-                    builder: (_) => SourceMirrorScreen(source: s),
+                      name: s.name,
+                      url: s.site.baseUrl,
+                      enabled: s.isEnabled,
+                      deprecated: s.isDeprecated,
+                      ageRating: s.ageRating,
+                      isHidden: s.isHidden,
+                      // 项 2：仅对声明了登录入口、且当前未登录的源显示「未登录」。
+                      showNotLoggedIn: s.comments?.supportsLogin == true &&
+                          !auth.isLoggedIn(s),
+                      deprecatedLabel: l10n.deprecated,
+                      mirrorSettingsTooltip: l10n.mirrorSettings,
+                      hideTooltip: l10n.sourceHide,
+                      unhideTooltip: l10n.sourceShowHidden,
+                      editTooltip: l10n.sourceEdit,
+                      deleteTooltip: l10n.sourceDelete,
+                      migrateTooltip: l10n.sourceMigrate,
+                      networkOverrideTooltip: l10n.sourceNetworkOverride,
+                      loginTooltip: l10n.sourceLogin,
+                      // 源管理页：操作收进「更多」菜单，更清爽
+                      useMoreMenu: true,
+                      moreMenuTooltip: l10n.moreActions,
+                      isIncognito: ConfigLoader.instance.isIncognito(s),
+                      incognitoTooltip: l10n.incognitoMode,
+                      onIncognitoToggle: (bool value) async {
+                        await ConfigLoader.instance.setIncognito(s.id, value);
+                        if (mounted) setState(() {});
+                      },
+                      onToggle: (bool value) => context
+                          .read<SourceRepository>()
+                          .setEnabled(s.id, value),
+                      onMirrorSettings: () => Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          builder: (_) => SourceMirrorScreen(source: s),
+                        ),
+                      ),
+                      onNetworkOverride: () => Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          builder: (_) =>
+                              SourceNetworkOverrideScreen(source: s),
+                        ),
+                      ),
+                      onLogin: () => Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          builder: (_) => SourceLoginScreen(source: s),
+                        ),
+                      ),
+                      onHide: () => context
+                          .read<SourceRepository>()
+                          .setHidden(s.id, !s.isHidden),
+                      onEdit: () => _showEditDialog(s),
+                      onDelete: () => _showDeleteConfirm(s),
+                      onMigrate: s.migrationMessage != null
+                          ? () => _showMigrateDialog(s)
+                          : null,
+                    ),
                   ),
                 ),
-                onNetworkOverride: () => Navigator.of(context).push(
-                  AppPageRoute<void>(
-                    builder: (_) => SourceNetworkOverrideScreen(source: s),
-                  ),
-                ),
-                onLogin: () => Navigator.of(context).push(
-                  AppPageRoute<void>(
-                    builder: (_) => SourceLoginScreen(source: s),
-                  ),
-                ),
-                onHide: () =>
-                    context.read<SourceRepository>().setHidden(s.id, !s.isHidden),
-                onEdit: () => _showEditDialog(s),
-                onDelete: () => _showDeleteConfirm(s),
-                onMigrate: s.migrationMessage != null
-                    ? () => _showMigrateDialog(s)
-                    : null,
-              ),
+              ],
             ),
-                  ),
-                ],
-              ),
-            ),
+          ),
       ],
     );
   }
@@ -1003,7 +1024,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                             OutlinedButton.icon(
                               onPressed: () =>
                                   _openLibraryHomepage(lib.homepage),
-                              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                              icon: const Icon(Icons.open_in_new_rounded,
+                                  size: 18),
                               label: Text(l10n.openHomepage),
                             ),
                           if (!lib.isOfficial)
@@ -1039,8 +1061,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                     labelText: l10n.libraryNameHint,
                     hintText: l10n.libraryNameHint,
                     border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppTokens.radiusMd),
+                      borderRadius: BorderRadius.circular(AppTokens.radiusMd),
                     ),
                   ),
                 ),
@@ -1056,7 +1077,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
             ),
           ),
         ),
-
       ],
     );
   }
@@ -1214,13 +1234,13 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(config.name,
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(config.name, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppTokens.spaceSm),
           if (isValid)
             Row(
               children: <Widget>[
-                Icon(Icons.check_circle_rounded, color: scheme.primary, size: 18),
+                Icon(Icons.check_circle_rounded,
+                    color: scheme.primary, size: 18),
                 const SizedBox(width: AppTokens.spaceXs),
                 Text(l10n.sourceImportValid),
               ],
@@ -1236,13 +1256,11 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
             ),
             ..._validationErrors.map(
               (e) => Padding(
-                padding: EdgeInsets.only(
-                    left: AppTokens.spaceMd, top: 2),
+                padding: EdgeInsets.only(left: AppTokens.spaceMd, top: 2),
                 child: Text('• $e',
-                    style:
-                        Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.error,
-                            )),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.error,
+                        )),
               ),
             ),
           ],
@@ -1366,7 +1384,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.lock_rounded, size: 16, color: scheme.onErrorContainer),
+                  Icon(Icons.lock_rounded,
+                      size: 16, color: scheme.onErrorContainer),
                   const SizedBox(width: AppTokens.spaceXs),
                   Expanded(
                     child: Text(
@@ -1446,17 +1465,18 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               horizontal: AppTokens.spaceMd,
               vertical: AppTokens.spaceSm,
             ),
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            color: AppTheme.cardContainer(scheme),
             child: Row(
               children: <Widget>[
-                Icon(Icons.filter_alt_rounded, size: 16,
-                    color: scheme.onSurfaceVariant),
+                Icon(Icons.filter_alt_rounded,
+                    size: 16, color: scheme.onSurfaceVariant),
                 const SizedBox(width: AppTokens.spaceXs),
                 Expanded(
                   child: Text(
                     _skippedByTypeCount > 0
                         ? l10n.importTypeFiltered(_skippedByTypeCount)
-                        : l10n.importTypeOnly(_typeLabel(widget.filterType!, l10n)),
+                        : l10n.importTypeOnly(
+                            _typeLabel(widget.filterType!, l10n)),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),
@@ -1485,24 +1505,28 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                   ),
                   leading: Checkbox(
                     value: isSelected && item.isValid,
-                    onChanged: item.isValid ? (v) {
-                      v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                      setState(() {
-                        if (v == true) {
-                          _selectedPreviewIndices.add(i);
-                        } else {
-                          _selectedPreviewIndices.remove(i);
-                        }
-                      });
-                    } : null,
+                    onChanged: item.isValid
+                        ? (v) {
+                            v == true
+                                ? AppHaptics.toggleOn()
+                                : AppHaptics.toggleOff();
+                            setState(() {
+                              if (v == true) {
+                                _selectedPreviewIndices.add(i);
+                              } else {
+                                _selectedPreviewIndices.remove(i);
+                              }
+                            });
+                          }
+                        : null,
                   ),
                   title: Text(
                     item.fileName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+                          fontWeight: FontWeight.w500,
+                        ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1510,27 +1534,36 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                       if (item.isValid) ...<Widget>[
                         Text(
                           item.config?.name ?? '',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: scheme.primary,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: scheme.primary,
+                                  ),
                         ),
                         if (item.type != null)
                           Text(
                             '${l10n.sourceType}：${_typeLabel(item.type!, l10n)}',
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
                                   color: scheme.onSurfaceVariant,
                                 ),
                           ),
                       ] else ...<Widget>[
                         Text(
                           item.error ?? l10n.sourceImportInvalid,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.error),
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: scheme.error),
                         ),
                       ],
                     ],
                   ),
                   trailing: Icon(
-                    item.isValid ? Icons.check_circle_rounded : Icons.error_rounded,
+                    item.isValid
+                        ? Icons.check_circle_rounded
+                        : Icons.error_rounded,
                     color: item.isValid
                         ? AppStatusColors.ok(scheme)
                         : scheme.error,
@@ -1547,7 +1580,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           padding: const EdgeInsets.all(AppTokens.spaceMd),
           decoration: BoxDecoration(
             border: Border(
-              top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3)),
+              top: BorderSide(
+                  color: scheme.outlineVariant.withValues(alpha: 0.3)),
             ),
           ),
           child: Row(
@@ -1558,9 +1592,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               ),
               const Spacer(),
               FilledButton.icon(
-                onPressed: _selectedPreviewIndices.isNotEmpty
-                    ? _confirmImport
-                    : null,
+                onPressed:
+                    _selectedPreviewIndices.isNotEmpty ? _confirmImport : null,
                 icon: const Icon(Icons.file_download_rounded, size: 18),
                 label: Text(l10n.confirmImport),
               ),
@@ -1611,7 +1644,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     final ok = repo.removeSource(source.id);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ok ? l10n.sourceDeleted : l10n.sourceDeleteFailed)),
+        SnackBar(
+            content: Text(ok ? l10n.sourceDeleted : l10n.sourceDeleteFailed)),
       );
     }
   }
