@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import '../theme/app_tokens.dart';
 import '../utils/app_haptics.dart';
+import 'app_glass_bar.dart';
 
 /// 统一设计常量（仅本组件内部使用）。
 const double _kPillW = 36; // 选中胶囊宽度（只罩图标）
@@ -48,15 +49,15 @@ class AppNavBar extends StatelessWidget {
     return _buildBar(context);
   }
 
-  /// 窄屏：底部横向导航。
+  /// 窄屏：底部横向导航（毛玻璃质感，底色来自主框架氛围层）。
   Widget _buildBar(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final int n = destinations.length;
-    return Material(
-      color: cs.surface,
-      elevation: 2,
-      // 安全区移到固定高度之外：底部导航栏总高 = 固定高 + 系统手势条，
-      // 内容始终位于手势条上方，不再被遮挡（修复退出全屏后底栏被挡）。
+    return AppGlassBar(
+      // 发丝顶边替代原 elevation 阴影：半透明栏上投影会透出模糊内容。
+      border: Border(
+        top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.4)),
+      ),
       child: SafeArea(
         top: false,
         child: SizedBox(
@@ -99,13 +100,13 @@ class AppNavBar extends StatelessWidget {
   }
 
 /// 宽屏：左侧竖向导航（同套视觉与动效），项固定高度、顶部集中排列，
-/// 避免整屏均分导致过散。
+/// 避免整屏均分导致过散。毛玻璃质感：模糊栏后氛围底色（不穿透内容），
+/// 与内容区的分隔仍由主框架的 VerticalDivider 承担。
 Widget _buildRail(BuildContext context) {
   final ColorScheme cs = Theme.of(context).colorScheme;
   final int n = destinations.length;
   const double itemH = AppTokens.navRailItemHeight;
-  return Material(
-    color: cs.surface,
+  return AppGlassBar(
     child: SizedBox(
       width: AppTokens.navRailWidth,
       child: LayoutBuilder(

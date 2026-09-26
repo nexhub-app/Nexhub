@@ -1,5 +1,4 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter/foundation.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -37,9 +36,6 @@ class NovelHomeScreen extends StatelessWidget {
         builder: (_) => const CollectApiImportScreen(),
       ));
     }
-
-    // 源管理预览模式时通知外层 LibraryShell 隐藏 FAB（避免遮挡确认条）。
-    final fabSuppressed = ValueNotifier<bool>(false);
 
     return LibraryShell(
       title: l10n.tabLibrary,
@@ -144,27 +140,23 @@ class NovelHomeScreen extends StatelessWidget {
       ),
       subscribeBody:
           const RssFeedListScreen(moduleType: SourceType.novelSource),
-      sourcesBody: _NovelSourcesBody(
+      sourcesBody: const _NovelSourcesBody(
         filterType: SourceType.novelSource,
-        fabSuppressed: fabSuppressed,
       ),
       categoryProvider: (LibrarySubTab subTab) =>
           BookshelfContent.categoriesFor(
               context, SourceType.novelSource, subTab),
       historySourceType: SourceType.novelSource,
       favoriteSourceType: SourceType.novelSource,
-      fabSuppressedNotifier: fabSuppressed,
     );
   }
 }
 
 class _NovelSourcesBody extends StatelessWidget {
   final SourceType filterType;
-  final ValueNotifier<bool> fabSuppressed;
 
   const _NovelSourcesBody({
     required this.filterType,
-    required this.fabSuppressed,
   });
 
   @override
@@ -172,7 +164,6 @@ class _NovelSourcesBody extends StatelessWidget {
     return SourceManagerScreen(
       filterType: filterType,
       embedded: true,
-      onPreviewModeChanged: (v) => fabSuppressed.value = v,
     );
   }
 }

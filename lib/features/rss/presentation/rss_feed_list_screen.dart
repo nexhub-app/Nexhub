@@ -22,6 +22,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_animations.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import '../../../core/widgets/source_image.dart';
 import 'rss_feed_detail_screen.dart';
 import 'rss_add_subscription_screen.dart';
@@ -147,7 +148,10 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
               message: l10n.emptyRssSubscribe,
             )
           : ListView.separated(
-              padding: const EdgeInsets.all(AppTokens.spaceMd),
+              // 文字列表：移动端避让玻璃底栏。
+              padding:
+                  const EdgeInsets.all(AppTokens.spaceMd) +
+                  context.glassBarInset,
               itemCount: feedsToShow.length + (canShowGroupBar ? 1 : 0),
               separatorBuilder: (_, __) =>
                   const SizedBox(height: AppTokens.spaceSm),

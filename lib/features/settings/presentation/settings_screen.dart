@@ -10,6 +10,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_animations.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import '../../../core/settings/general_settings.dart';
@@ -71,7 +72,9 @@ class SettingsScreen extends StatelessWidget {
       ],
       // Legado MD3 观感：分类入口合并进一张连体卡（组内发丝分隔线）。
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        // 文字列表：移动端避让玻璃底栏。
+        padding:
+            const EdgeInsets.all(AppTokens.spaceLg) + context.glassBarInset,
         children: <Widget>[
           const _HeroSection(),
           const SizedBox(height: AppTokens.spaceLg),

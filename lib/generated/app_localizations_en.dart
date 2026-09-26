@@ -475,6 +475,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get useMonet => 'Use dynamic color (Monet)';
 
   @override
+  String get glassEffectTitle => 'Frosted glass bars';
+
+  @override
+  String get glassEffectDesc =>
+      'Translucent blurred nav rail/bar with content scrolling behind; turn off on low-end devices';
+
+  @override
+  String get glassBlurStrength => 'Blur strength';
+
+  @override
+  String get glassBarOpacity => 'Bar opacity';
+
+  @override
   String get customColor => 'Custom Color';
 
   @override

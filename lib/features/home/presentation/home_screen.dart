@@ -12,10 +12,13 @@ import 'browse_page.dart';
 
 /// 底部导航顺序：浏览 → 小说 → 媒体 → 漫画 → 设置，默认浏览为首页。
 ///
-/// 桌面端（≥ [AppTokens.desktopBreakpoint]）使用 [Row] +
-/// [NavigationRail] + [IndexedStack] 布局；移动端使用 [Scaffold]
-/// 底导 + [IndexedStack]。[IndexedStack] 保持所有 Tab 页面状态，
-/// 避免切换时重建。
+/// 桌面端（≥ [AppTokens.desktopBreakpoint]）为原版 [Row] + 侧栏 +
+/// [IndexedStack] 布局；移动端使用 [Scaffold] 玻璃底导（`extendBody`
+/// 内容延伸到栏后，滚动时从玻璃底栏后穿透）+ [IndexedStack]。
+/// [IndexedStack] 保持所有 Tab 页面状态，避免切换时重建。
+///
+/// 移动端主框架最底层铺一层 [_AmbientSurface] 氛围底：玻璃底栏后面
+/// 除滚动穿过的内容外，无内容处透出这层带主题色晕的底色，模糊后仍有层次。
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -65,40 +68,83 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: const Icon(Icons.settings_rounded), label: l10n.navSettings),
     ];
 
-    // 桌面端：NavigationRail + IndexedStack 横向布局。
+    // 桌面端：侧栏为毛玻璃质感——模糊栏后的氛围底色（不穿透内容），
+    // 布局保持原版并排（不再叠加分隔线，玻璃栏边缘即分界）。
     if (width >= AppTokens.desktopBreakpoint) {
-      return Scaffold(
-        body: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            AppNavBar(
-              selectedIndex: _index,
-              onDestinationSelected: (int i) {
-                replayEntrances();
-                setState(() => _index = i);
-              },
-              destinations: destinations,
-            ),
-            const VerticalDivider(width: 1),
-            Expanded(
-              child: _AnimatedTabView(index: _index, children: _pages),
-            ),
-          ],
+      return _AmbientSurface(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              AppNavBar(
+                selectedIndex: _index,
+                onDestinationSelected: (int i) {
+                  replayEntrances();
+                  setState(() => _index = i);
+                },
+                destinations: destinations,
+              ),
+              Expanded(
+                child: _AnimatedTabView(index: _index, children: _pages),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    // 移动端：底导 + IndexedStack。
-    return Scaffold(
-      body: _AnimatedTabView(index: _index, children: _pages),
-      bottomNavigationBar: AppNavBar(
-        selectedIndex: _index,
-        onDestinationSelected: (int i) {
-          replayEntrances();
-          setState(() => _index = i);
-        },
-        destinations: destinations,
+    // 移动端：玻璃底导 + IndexedStack。extendBody 让内容延伸到底栏后面
+    // （底栏高度经 MediaQuery 注入 body），滚动时封面等内容从玻璃底栏后
+    // 穿过，模糊透视；收尾条目靠各列表的底部避让滚出遮挡区。
+    return _AmbientSurface(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        extendBody: true,
+        body: _AnimatedTabView(index: _index, children: _pages),
+        bottomNavigationBar: AppNavBar(
+          selectedIndex: _index,
+          onDestinationSelected: (int i) {
+            replayEntrances();
+            setState(() => _index = i);
+          },
+          destinations: destinations,
+        ),
       ),
+    );
+  }
+}
+
+/// 玻璃栏位的氛围底色。
+///
+/// 毛玻璃的本质是「模糊栏位身后已有的像素」：若栏后是单一 surface 纯色，
+/// 模糊结果与实色无异。这里在主框架最底层铺一条纵向渐变——主题 surface
+/// 上叠加两段主题色晕（上段 primary、下段 tertiary 的淡化过渡），
+/// 侧栏通高与移动端底栏都能透出清晰的色彩层次。各 Tab 页面自身不透明，
+/// 内容区视觉与原来完全一致。
+class _AmbientSurface extends StatelessWidget {
+  const _AmbientSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            cs.surface,
+            Color.lerp(cs.surface, cs.primaryContainer, 0.5)!,
+            cs.surface,
+            Color.lerp(cs.surface, cs.tertiaryContainer, 0.45)!,
+          ],
+          stops: const <double>[0.0, 0.18, 0.5, 1.0],
+        ),
+      ),
+      child: child,
     );
   }
 }

@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/detail_action_utils.dart';
 import '../../../core/services/source_repository.dart';
@@ -57,7 +58,8 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
+      // 行首图标可点：移动端避让玻璃底栏。
+      padding: const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
       itemCount: sources.length,
       itemBuilder: (context, i) {
         final source = sources[i];

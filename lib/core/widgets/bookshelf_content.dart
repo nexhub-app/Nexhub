@@ -38,6 +38,7 @@ import '../comic/comic_progress_manager.dart';
 import 'app_card.dart';
 import 'app_cover_image.dart';
 import 'app_empty_state.dart';
+import 'app_glass_bar.dart';
 import 'bangumi_bind_sheet.dart';
 import 'content_card.dart';
 import 'favorite_group_assign_sheet.dart';
@@ -1001,7 +1002,12 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
         if (_manual) {
           // SDK 无 ReorderableGridView：用 LongPressDraggable + DragTarget 实现网格拖拽重排。
           return GridView.builder(
-            padding: const EdgeInsets.all(AppTokens.spaceMd),
+            padding: EdgeInsets.fromLTRB(
+              AppTokens.spaceMd,
+              AppTokens.spaceMd,
+              AppTokens.spaceMd,
+              AppTokens.spaceMd + MediaQuery.paddingOf(ctx).bottom,
+            ),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: cross,
               crossAxisSpacing: spacing,
@@ -1038,7 +1044,12 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
           crossAxisSpacing: spacing,
           mainAxisSpacing: spacing,
           childAspectRatio: ratio,
-          padding: const EdgeInsets.all(AppTokens.spaceMd),
+          padding: EdgeInsets.fromLTRB(
+            AppTokens.spaceMd,
+            AppTokens.spaceMd,
+            AppTokens.spaceMd,
+            AppTokens.spaceMd + MediaQuery.paddingOf(ctx).bottom,
+          ),
           children: children,
         );
       },
@@ -1053,7 +1064,8 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
       // 手动排序：对齐「源管理」拖拽视觉——左侧拖动手柄 + 自定义 decorator。
       // 关闭默认右侧手柄，改用左侧 drag_indicator 图标触发拖拽。
       return ReorderableListView.builder(
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        // 行首是拖拽手柄，移动端需避让玻璃底栏保证可点。
+        padding: const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
         itemCount: _items.length,
         onReorderItem: _onReorderItem,
         buildDefaultDragHandles: false,
@@ -1084,7 +1096,7 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
+      padding: const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
       itemCount: _items.length,
       itemBuilder: (context, i) => _buildRow(_items[i], layout, isCompact),
     );

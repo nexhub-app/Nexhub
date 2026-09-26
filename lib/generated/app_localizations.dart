@@ -986,6 +986,30 @@ abstract class AppLocalizations {
   /// **'Use dynamic color (Monet)'**
   String get useMonet;
 
+  /// No description provided for @glassEffectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Frosted glass bars'**
+  String get glassEffectTitle;
+
+  /// No description provided for @glassEffectDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Translucent blurred nav rail/bar with content scrolling behind; turn off on low-end devices'**
+  String get glassEffectDesc;
+
+  /// No description provided for @glassBlurStrength.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur strength'**
+  String get glassBlurStrength;
+
+  /// No description provided for @glassBarOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Bar opacity'**
+  String get glassBarOpacity;
+
   /// No description provided for @customColor.
   ///
   /// In en, this message translates to:

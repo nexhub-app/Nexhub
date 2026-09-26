@@ -25,12 +25,13 @@ import '../../../core/local/saf_bridge.dart'
     show listFolderSourceFilesSaf, pickFolderPath, readSourceText, safBaseName;
 import '../../../core/utils/app_log.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_url_input_bar.dart';
 import '../../../core/widgets/unified_source_tile.dart';
+import 'source_import_preview_screen.dart';
 import 'source_mirror_screen.dart';
 import 'source_network_override_screen.dart';
 import 'source_login_screen.dart';
@@ -52,15 +53,10 @@ class SourceManagerScreen extends StatefulWidget {
   /// 仅输出 Tab 栏 + 内容区 Column，供各模块首页的 sourcesBody 使用。
   final bool embedded;
 
-  /// 预览模式变化回调。嵌入模式下，外层 [LibraryShell] 用此回调
-  /// 在预览期间隐藏自己的 FAB（避免遮挡底部的确认条）。
-  final void Function(bool isPreview)? onPreviewModeChanged;
-
   const SourceManagerScreen({
     super.key,
     this.filterType,
     this.embedded = false,
-    this.onPreviewModeChanged,
   });
 
   @override
@@ -87,12 +83,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
 
   // 本地导入状态
   String? _pickedFileName;
-  List<_ImportPreviewItem> _previewItems = <_ImportPreviewItem>[];
-  Set<int> _selectedPreviewIndices = <int>{};
-  bool _previewMode = false;
-
-  // 类型筛选时被跳过的其他类型源数量（用于预览提示横幅）
-  int _skippedByTypeCount = 0;
 
   // 库（library）tab 状态
   final TextEditingController _libraryUrlController = TextEditingController();
@@ -154,7 +144,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       _networkError = null;
       _networkPreview = null;
       _validationErrors = <String>[];
-      _skippedByTypeCount = 0;
       _importAgeBlockedCount = 0;
     });
 
@@ -196,7 +185,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               ? l10n.ageRestrictionImportMatureBlocked
               : (skippedByType > 0
                   ? l10n.importNoMatchingType(
-                      _typeLabel(widget.filterType!, l10n),
+                      importTypeLabel(widget.filterType!, l10n),
                       skippedByType,
                     )
                   : l10n.sourceUnrecognized);
@@ -210,27 +199,34 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           _networkPreview = importable.first;
           _validationErrors = const <String>[];
           _networkLoading = false;
-          _skippedByTypeCount = skippedByType;
         });
       } else {
-        // 多源：复用本地导入的批量勾选预览
-        setState(() {
-          _previewItems = importable
-              .map((c) => _ImportPreviewItem(
-                    path: '',
-                    fileName: url,
-                    config: c,
-                    type: c.type,
-                    isValid: true,
-                  ))
-              .toList();
-          _selectedPreviewIndices = <int>{
-            for (int i = 0; i < importable.length; i++) i
-          };
-          _previewMode = true;
-          _networkLoading = false;
-          _skippedByTypeCount = skippedByType;
-        });
+        // 多源：推入独立导入预览页批量勾选，确认后直接入库。
+        final items = importable
+            .map((c) => ImportPreviewItem(
+                  path: '',
+                  fileName: url,
+                  config: c,
+                  type: c.type,
+                  isValid: true,
+                ))
+            .toList();
+        if (!mounted) return;
+        final selected =
+            await Navigator.of(context).push<List<ImportPreviewItem>>(
+          AppPageRoute<List<ImportPreviewItem>>(
+            builder: (_) => SourceImportPreviewScreen(
+              items: items,
+              filterType: widget.filterType,
+              skippedByTypeCount: skippedByType,
+              ageBlockedCount: ageBlocked.length,
+            ),
+          ),
+        );
+        if (!mounted) return;
+        setState(() => _networkLoading = false);
+        if (selected == null || selected.isEmpty) return;
+        _importSelected(selected);
       }
     } catch (e) {
       if (mounted) {
@@ -362,7 +358,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   /// 处理选中的文件路径列表：解析预览 → 弹出勾选对话框 → 导入选中项。
   Future<void> _processPickedPaths(List<String> paths) async {
     final repo = context.read<SourceRepository>();
-    final items = <_ImportPreviewItem>[];
+    final items = <ImportPreviewItem>[];
     _importAgeBlockedCount = 0;
     for (final path in paths) {
       final fileName =
@@ -373,7 +369,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
         // 通用书源格式 / XML 等，一个文件可解析出多个源。
         final configs = SourceRepository.parseMixedSources(text);
         if (configs.isEmpty) {
-          items.add(_ImportPreviewItem(
+          items.add(ImportPreviewItem(
             path: path,
             fileName: fileName,
             config: null,
@@ -388,7 +384,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               _importAgeBlockedCount++;
               continue;
             }
-            items.add(_ImportPreviewItem(
+            items.add(ImportPreviewItem(
               path: path,
               fileName: fileName,
               config: c,
@@ -399,7 +395,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
         }
       } on Object catch (e) {
         AppLog.instance.e('[源导入] 读取/解析失败 $fileName: $e');
-        items.add(_ImportPreviewItem(
+        items.add(ImportPreviewItem(
           path: path,
           fileName: fileName,
           config: null,
@@ -412,9 +408,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
 
     // 专属类型页（filterType != null）：只保留该类型的源，其他类型直接忽略。
     int skippedByType = 0;
-    List<_ImportPreviewItem> shownItems = items;
+    List<ImportPreviewItem> shownItems = items;
     if (widget.filterType != null) {
-      final kept = <_ImportPreviewItem>[];
+      final kept = <ImportPreviewItem>[];
       for (final it in items) {
         if (it.config != null && it.type != widget.filterType) {
           // 有效但类型不符 → 直接忽略，计入跳过数
@@ -454,7 +450,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n.importNoMatchingType(
-            _typeLabel(widget.filterType!, l10n),
+            importTypeLabel(widget.filterType!, l10n),
             skippedByType,
           )),
         ),
@@ -462,43 +458,25 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       return;
     }
 
-    setState(() {
-      _previewItems = shownItems;
-      _selectedPreviewIndices = shownItems
-          .asMap()
-          .entries
-          .where((e) => e.value.isValid)
-          .map((e) => e.key)
-          .toSet();
-      _previewMode = true;
-      _pickedFileName = null;
-      _skippedByTypeCount = skippedByType;
-    });
-    widget.onPreviewModeChanged?.call(true);
+    // 推入独立预览页勾选，确认后回传选中项并入库。
+    // 页面盖住整个屏幕，外层 FAB / 导航不再需要联动隐藏。
+    setState(() => _pickedFileName = null);
+    final selected = await Navigator.of(context).push<List<ImportPreviewItem>>(
+      AppPageRoute<List<ImportPreviewItem>>(
+        builder: (_) => SourceImportPreviewScreen(
+          items: shownItems,
+          filterType: widget.filterType,
+          skippedByTypeCount: skippedByType,
+          ageBlockedCount: _importAgeBlockedCount,
+        ),
+      ),
+    );
+    if (selected == null || selected.isEmpty || !mounted) return;
+    _importSelected(selected);
   }
 
-  /// 将 SourceType 映射为本地化分类标签。
-  String _typeLabel(SourceType type, AppLocalizations l10n) {
-    switch (type) {
-      case SourceType.novelSource:
-        return l10n.sourceCategoryNovel;
-      case SourceType.animeSource:
-        return l10n.sourceCategoryMedia;
-      case SourceType.mangaSource:
-        return l10n.sourceCategoryComic;
-    }
-  }
-
-  /// 确认导入选中的预览项。
-  void _confirmImport() {
-    final selected = _previewItems
-        .asMap()
-        .entries
-        .where(
-            (e) => _selectedPreviewIndices.contains(e.key) && e.value.isValid)
-        .map((e) => e.value)
-        .toList();
-
+  /// 确认导入选中的预览项（由独立预览页回传）。
+  void _importSelected(List<ImportPreviewItem> selected) {
     int successCount = 0;
     for (final item in selected) {
       try {
@@ -508,14 +486,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     }
 
     if (mounted) {
-      setState(() {
-        _previewItems = <_ImportPreviewItem>[];
-        _selectedPreviewIndices = <int>{};
-        _previewMode = false;
-        _skippedByTypeCount = 0;
-      });
-      widget.onPreviewModeChanged?.call(false);
-
       final l10n = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -707,7 +677,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     final SourceAuthManager auth = context.watch<SourceAuthManager>();
     final SourceRepository repo = context.watch<SourceRepository>();
     return ReorderableListView(
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
+      // 行首是拖拽手柄，移动端需避让玻璃底栏。
+      padding: const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
       header: const SizedBox.shrink(),
       // 禁用默认右侧拖动手柄，改用左侧自定义拖拽指示器（项 3）
       buildDefaultDragHandles: false,
@@ -954,7 +925,8 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     final subs = context.watch<SourceLibrarySubscription>();
     final libs = subs.all();
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      // 文字列表：移动端避让玻璃底栏。
+      padding: const EdgeInsets.all(AppTokens.spaceLg) + context.glassBarInset,
       children: <Widget>[
         // 已订阅源库列表
         Text(l10n.libraryBookmarks,
@@ -1118,12 +1090,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   // Tab 2: 网络导入
   // ═══════════════════════════════════════════════════════════════════════
   Widget _buildNetworkImportTab(AppLocalizations l10n, ColorScheme scheme) {
-    // 多源导入时复用本地导入的批量勾选预览
-    if (_previewMode && _previewItems.isNotEmpty) {
-      return _buildImportPreview(l10n, scheme);
-    }
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      // 文字列表：移动端避让玻璃底栏。
+      padding: const EdgeInsets.all(AppTokens.spaceLg) + context.glassBarInset,
       children: <Widget>[
         Text(
           l10n.networkImportHint,
@@ -1278,14 +1247,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Tab 3: 本地导入（文件/文件夹 + 预览勾选）
+  // Tab 3: 本地导入（文件/文件夹，扫描后推入独立预览页勾选）
   // ═══════════════════════════════════════════════════════════════════════
   Widget _buildLocalImportTab(AppLocalizations l10n, ColorScheme scheme) {
-    // 预览模式：显示已扫描的源列表 + 勾选 + 确认
-    if (_previewMode && _previewItems.isNotEmpty) {
-      return _buildImportPreview(l10n, scheme);
-    }
-
     // 默认模式：选择文件或文件夹
     return Center(
       child: Padding(
@@ -1358,252 +1322,6 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     );
   }
 
-  /// 预览勾选界面。
-  Widget _buildImportPreview(AppLocalizations l10n, ColorScheme scheme) {
-    final validCount = _previewItems.where((e) => e.isValid).length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        if (_importAgeBlockedCount > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTokens.spaceMd,
-              AppTokens.spaceMd,
-              AppTokens.spaceMd,
-              0,
-            ),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTokens.spaceMd,
-                vertical: AppTokens.spaceSm,
-              ),
-              decoration: BoxDecoration(
-                color: scheme.errorContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Icon(Icons.lock_rounded,
-                      size: 16, color: scheme.onErrorContainer),
-                  const SizedBox(width: AppTokens.spaceXs),
-                  Expanded(
-                    child: Text(
-                      l10n.ageBlockedImportHint(_importAgeBlockedCount),
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: scheme.onErrorContainer),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        // 标题栏
-        Padding(
-          padding: const EdgeInsets.all(AppTokens.spaceMd),
-          child: Row(
-            children: <Widget>[
-              IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, size: 20),
-                onPressed: () {
-                  setState(() {
-                    _previewMode = false;
-                    _previewItems = <_ImportPreviewItem>[];
-                    _selectedPreviewIndices = <int>{};
-                    _skippedByTypeCount = 0;
-                  });
-                  widget.onPreviewModeChanged?.call(false);
-                },
-                tooltip: l10n.cancel,
-              ),
-              Expanded(
-                child: Text(
-                  l10n.importPreviewTitle(_previewItems.length),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              if (validCount > 0)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    TextButton(
-                      onPressed: () {
-                        // 全选有效项
-                        setState(() {
-                          _selectedPreviewIndices = _previewItems
-                              .asMap()
-                              .entries
-                              .where((e) => e.value.isValid)
-                              .map((e) => e.key)
-                              .toSet();
-                        });
-                      },
-                      child: Text(l10n.selectAll),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        // 全不选
-                        setState(() {
-                          _selectedPreviewIndices = <int>{};
-                        });
-                      },
-                      child: Text(l10n.deselectAll),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-
-        // 类型筛选提示：在专属类型页导入时，仅导入该类型源
-        if (widget.filterType != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTokens.spaceMd,
-              vertical: AppTokens.spaceSm,
-            ),
-            color: AppTheme.cardContainer(scheme),
-            child: Row(
-              children: <Widget>[
-                Icon(Icons.filter_alt_rounded,
-                    size: 16, color: scheme.onSurfaceVariant),
-                const SizedBox(width: AppTokens.spaceXs),
-                Expanded(
-                  child: Text(
-                    _skippedByTypeCount > 0
-                        ? l10n.importTypeFiltered(_skippedByTypeCount)
-                        : l10n.importTypeOnly(
-                            _typeLabel(widget.filterType!, l10n)),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-        const Divider(height: 1),
-
-        // 文件列表（带复选框）
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(AppTokens.spaceSm),
-            itemCount: _previewItems.length,
-            itemBuilder: (context, i) {
-              final item = _previewItems[i];
-              final isSelected = _selectedPreviewIndices.contains(i);
-              return Card(
-                margin: const EdgeInsets.only(bottom: AppTokens.spaceXs),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppTokens.spaceSm,
-                    vertical: AppTokens.spaceXs,
-                  ),
-                  leading: Checkbox(
-                    value: isSelected && item.isValid,
-                    onChanged: item.isValid
-                        ? (v) {
-                            v == true
-                                ? AppHaptics.toggleOn()
-                                : AppHaptics.toggleOff();
-                            setState(() {
-                              if (v == true) {
-                                _selectedPreviewIndices.add(i);
-                              } else {
-                                _selectedPreviewIndices.remove(i);
-                              }
-                            });
-                          }
-                        : null,
-                  ),
-                  title: Text(
-                    item.fileName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      if (item.isValid) ...<Widget>[
-                        Text(
-                          item.config?.name ?? '',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: scheme.primary,
-                                  ),
-                        ),
-                        if (item.type != null)
-                          Text(
-                            '${l10n.sourceType}：${_typeLabel(item.type!, l10n)}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                          ),
-                      ] else ...<Widget>[
-                        Text(
-                          item.error ?? l10n.sourceImportInvalid,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: scheme.error),
-                        ),
-                      ],
-                    ],
-                  ),
-                  trailing: Icon(
-                    item.isValid
-                        ? Icons.check_circle_rounded
-                        : Icons.error_rounded,
-                    color: item.isValid
-                        ? AppStatusColors.ok(scheme)
-                        : scheme.error,
-                    size: 20,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        // 底部操作栏
-        Container(
-          padding: const EdgeInsets.all(AppTokens.spaceMd),
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                  color: scheme.outlineVariant.withValues(alpha: 0.3)),
-            ),
-          ),
-          child: Row(
-            children: <Widget>[
-              Text(
-                l10n.importSelectedCount(_selectedPreviewIndices.length),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const Spacer(),
-              FilledButton.icon(
-                onPressed:
-                    _selectedPreviewIndices.isNotEmpty ? _confirmImport : null,
-                icon: const Icon(Icons.file_download_rounded, size: 18),
-                label: Text(l10n.confirmImport),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   // ─────────────────────── 编辑/删除/迁移（P6.1.1/P6.1.2） ───────────────────────
 
   /// 编辑源：打开独立的全字段编辑页（JSON 编辑，可设置所有模块的所有字段）。
@@ -1667,23 +1385,4 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       ),
     );
   }
-}
-
-/// 本地导入预览项 —— 扫描到的单个源文件信息。
-class _ImportPreviewItem {
-  final String path;
-  final String fileName;
-  final PluginConfig? config;
-  final SourceType? type;
-  final bool isValid;
-  final String? error;
-
-  _ImportPreviewItem({
-    required this.path,
-    required this.fileName,
-    required this.config,
-    this.type,
-    required this.isValid,
-    this.error,
-  });
 }

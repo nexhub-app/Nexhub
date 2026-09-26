@@ -99,6 +99,17 @@ class AppTokens {
   /// 侧边导航栏（Rail）固定宽度（≥桌面断点时使用）。
   static const double navRailWidth = 80;
 
+  // ─────────────────────── 毛玻璃（Glass bars） ───────────────────────
+  /// 玻璃栏位（侧栏/底栏）高斯模糊强度（sigma）。
+  static const double blurSigma = 18;
+
+  /// 玻璃栏位半透明底色不透明度（浅色主题）。
+  ///
+  /// 值越高栏位越"实"：需保证栏上图标文字对比度，同时让身后的
+  /// 滚动内容隐约可见。深色主题背景本就偏暗，用更低的值让模糊更可感。
+  static const double glassTintLight = 0.78;
+  static const double glassTintDark = 0.60;
+
   // ─────────────────────── 响应式断点 ───────────────────────
   /// 桌面布局断点（≥ 此宽度使用 NavigationRail）。
   static const double desktopBreakpoint = 840;

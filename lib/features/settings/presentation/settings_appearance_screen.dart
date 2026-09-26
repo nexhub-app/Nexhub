@@ -244,6 +244,77 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                       },
                     ),
                   ),
+                  // 界面毛玻璃效果：开关 + 模糊强度 / 不透明度自定义，
+                  // 监听通用设置即时生效（侧栏与底栏共用这套参数）。
+                  ListenableBuilder(
+                    listenable: GeneralSettingsStore.instance,
+                    builder: (context, _) {
+                      final GeneralSettingsStore store =
+                          GeneralSettingsStore.instance;
+                      final bool glassOn = store.settings.glassEffectEnabled;
+                      const Divider hairline = Divider(
+                        height: 1,
+                        thickness: 1,
+                        indent: AppTokens.spaceLg,
+                        endIndent: AppTokens.spaceLg,
+                      );
+                      return Column(
+                        children: <Widget>[
+                          SettingsTile(
+                            icon: Icons.blur_on_rounded,
+                            title: l10n.glassEffectTitle,
+                            subtitle: l10n.glassEffectDesc,
+                            trailing: Switch(
+                              value: glassOn,
+                              onChanged: (bool v) {
+                                v ? AppHaptics.toggleOn()
+                                 : AppHaptics.toggleOff();
+                                store.setGlassEffectEnabled(v);
+                              },
+                            ),
+                          ),
+                          if (glassOn) ...<Widget>[
+                            hairline,
+                            SettingsTile(
+                              icon: Icons.blur_linear_rounded,
+                              title: l10n.glassBlurStrength,
+                              subtitle:
+                                  '${store.settings.glassBlurSigma.round()}',
+                              trailing: SizedBox(
+                                width: 160,
+                                child: Slider(
+                                  min: 0,
+                                  max: 40,
+                                  divisions: 8,
+                                  value: store.settings.glassBlurSigma
+                                      .clamp(0.0, 40.0),
+                                  onChanged: store.setGlassBlurSigma,
+                                ),
+                              ),
+                            ),
+                            hairline,
+                            SettingsTile(
+                              icon: Icons.opacity_rounded,
+                              title: l10n.glassBarOpacity,
+                              subtitle:
+                                  '${(store.settings.glassBarOpacity * 100).round()}%',
+                              trailing: SizedBox(
+                                width: 160,
+                                child: Slider(
+                                  min: 0.4,
+                                  max: 0.95,
+                                  divisions: 11,
+                                  value: store.settings.glassBarOpacity
+                                      .clamp(0.4, 0.95),
+                                  onChanged: store.setGlassBarOpacity,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
                   SettingsTile(
                     icon: Icons.palette_rounded,
                     title: l10n.paletteStyleTitle,

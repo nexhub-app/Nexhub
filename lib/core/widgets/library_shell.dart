@@ -55,12 +55,6 @@ class LibraryShell extends StatefulWidget {
   /// Floating action button, shown only while the sources tab is active.
   final Widget? floatingActionButton;
 
-  /// Optional [ValueNotifier] to dynamically suppress [floatingActionButton].
-  /// When provided, the FAB is hidden while [ValueNotifier.value] is true.
-  /// Used by embedded [SourceManagerScreen] to hide the outer FAB during
-  /// import preview (where the bottom confirm bar would be occluded).
-  final ValueNotifier<bool>? fabSuppressedNotifier;
-
   /// Search tap handler. Required — every module wires its own search page.
   final VoidCallback onSearch;
 
@@ -101,7 +95,6 @@ class LibraryShell extends StatefulWidget {
     this.subscribeBody,
     this.sourcesBody,
     this.floatingActionButton,
-    this.fabSuppressedNotifier,
     this.categoryProvider,
     this.showSubTabs = true,
     this.historySourceType,
@@ -150,10 +143,7 @@ class _LibraryShellState extends State<LibraryShell> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
-    // 监听 fabSuppressedNotifier，预览模式变化时即时隐藏/恢复 FAB。
-    return ListenableBuilder(
-      listenable: widget.fabSuppressedNotifier ?? const _NoopListenable(),
-      builder: (context, _) => Scaffold(
+    return Scaffold(
       appBar: AppBar(
         title: ValueListenableBuilder<double>(
           valueListenable: _titleShrink,
@@ -238,15 +228,13 @@ class _LibraryShellState extends State<LibraryShell> {
         ),
       ),
       floatingActionButton: _buildFab(l10n),
-    ),
     );
   }
 
   Widget? _buildFab(AppLocalizations l10n) {
     // 仅源管理 top tab 显示 FAB（collect API 导入）；本地导入入口改由顶栏图标提供。
     if (_currentTopTab == LibraryTopTab.sources &&
-        widget.floatingActionButton != null &&
-        !(widget.fabSuppressedNotifier?.value ?? false)) {
+        widget.floatingActionButton != null) {
       return widget.floatingActionButton;
     }
     return null;
@@ -505,14 +493,4 @@ class _TopTabItem extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 空操作 [Listenable]，当 [fabSuppressedNotifier] 为 null 时使用，
-/// 避免 [ListenableBuilder] 因 listenable 为 null 崩溃。
-class _NoopListenable implements Listenable {
-  const _NoopListenable();
-  @override
-  void addListener(VoidCallback listener) {}
-  @override
-  void removeListener(VoidCallback listener) {}
 }

@@ -37,9 +37,6 @@ class ComicHomeScreen extends StatelessWidget {
       ));
     }
 
-    // 源管理预览模式时通知外层 LibraryShell 隐藏 FAB（避免遮挡确认条）。
-    final fabSuppressed = ValueNotifier<bool>(false);
-
     return LibraryShell(
       title: l10n.tabLibrary,
       emptyIcon: Icons.auto_stories_rounded,
@@ -147,27 +144,23 @@ class ComicHomeScreen extends StatelessWidget {
       ),
       subscribeBody:
           const RssFeedListScreen(moduleType: SourceType.mangaSource),
-      sourcesBody: _ComicSourcesBody(
+      sourcesBody: const _ComicSourcesBody(
         filterType: SourceType.mangaSource,
-        fabSuppressed: fabSuppressed,
       ),
       categoryProvider: (LibrarySubTab subTab) =>
           BookshelfContent.categoriesFor(
               context, SourceType.mangaSource, subTab),
       historySourceType: SourceType.mangaSource,
       favoriteSourceType: SourceType.mangaSource,
-      fabSuppressedNotifier: fabSuppressed,
     );
   }
 }
 
 class _ComicSourcesBody extends StatelessWidget {
   final SourceType filterType;
-  final ValueNotifier<bool> fabSuppressed;
 
   const _ComicSourcesBody({
     required this.filterType,
-    required this.fabSuppressed,
   });
 
   @override
@@ -175,7 +168,6 @@ class _ComicSourcesBody extends StatelessWidget {
     return SourceManagerScreen(
       filterType: filterType,
       embedded: true,
-      onPreviewModeChanged: (v) => fabSuppressed.value = v,
     );
   }
 }

@@ -99,6 +99,19 @@ class GeneralSettings {
   /// 只显示中性的「新内容」提示，避免旁人窥屏时泄露订阅内容多少。
   final bool hideNotificationContent;
 
+  /// 是否开启界面毛玻璃效果（默认开启）。
+  ///
+  /// 开启时，桌面侧边导航栏与移动端底部导航栏变为半透明高斯模糊。
+  /// 关闭即恢复实色栏位。
+  final bool glassEffectEnabled;
+
+  /// 玻璃栏位模糊强度（sigma，0–40，默认 18）。0 表示仅半透明、无模糊。
+  final double glassBlurSigma;
+
+  /// 玻璃栏位不透明度（0.40–0.95，默认 0.78，越低越通透）。
+  /// 深色主题在应用时自动减去一档偏移（见 [AppTokens.glassTintDark]）。
+  final double glassBarOpacity;
+
   /// Hero 轮播背景图 URL 列表（默认二次元图，可自定本地/网络）。
   final List<String> heroImageUrls;
 
@@ -112,6 +125,9 @@ class GeneralSettings {
     this.rememberPosition = true,
     this.ageRestrictionEnabled = true,
     this.hideNotificationContent = false,
+    this.glassEffectEnabled = true,
+    this.glassBlurSigma = 18.0,
+    this.glassBarOpacity = 0.78,
     this.heroImageUrls = kDefaultHeroImageUrls,
     this.onboardingCompleted = false,
   });
@@ -123,6 +139,9 @@ class GeneralSettings {
     bool? rememberPosition,
     bool? ageRestrictionEnabled,
     bool? hideNotificationContent,
+    bool? glassEffectEnabled,
+    double? glassBlurSigma,
+    double? glassBarOpacity,
     List<String>? heroImageUrls,
     bool? onboardingCompleted,
   }) =>
@@ -136,6 +155,9 @@ class GeneralSettings {
             ageRestrictionEnabled ?? this.ageRestrictionEnabled,
         hideNotificationContent:
             hideNotificationContent ?? this.hideNotificationContent,
+        glassEffectEnabled: glassEffectEnabled ?? this.glassEffectEnabled,
+        glassBlurSigma: glassBlurSigma ?? this.glassBlurSigma,
+        glassBarOpacity: glassBarOpacity ?? this.glassBarOpacity,
         heroImageUrls: heroImageUrls ?? this.heroImageUrls,
         onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       );
@@ -147,6 +169,9 @@ class GeneralSettings {
         'rememberPosition': rememberPosition,
         'ageRestrictionEnabled': ageRestrictionEnabled,
         'hideNotificationContent': hideNotificationContent,
+        'glassEffectEnabled': glassEffectEnabled,
+        'glassBlurSigma': glassBlurSigma,
+        'glassBarOpacity': glassBarOpacity,
         'heroImageUrls': heroImageUrls,
         'onboardingCompleted': onboardingCompleted,
       };
@@ -178,6 +203,14 @@ class GeneralSettings {
           (json['ageRestrictionEnabled'] as bool?) ?? true,
       hideNotificationContent:
           (json['hideNotificationContent'] as bool?) ?? false,
+      // 缺省（老用户升级）回落 true：默认启用毛玻璃，低端机可手动关闭。
+      glassEffectEnabled: (json['glassEffectEnabled'] as bool?) ?? true,
+      glassBlurSigma:
+          ((json['glassBlurSigma'] as num?)?.toDouble() ?? 18.0)
+              .clamp(0.0, 40.0),
+      glassBarOpacity:
+          ((json['glassBarOpacity'] as num?)?.toDouble() ?? 0.78)
+              .clamp(0.40, 0.95),
       heroImageUrls: (json['heroImageUrls'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
@@ -233,6 +266,29 @@ class GeneralSettingsStore extends ChangeNotifier {
 
   /// 「已看」阈值百分比（已裁剪到 50–100）。
   int get watchedThresholdPercent => _settings.watchedThresholdPercent;
+
+  /// 是否开启界面毛玻璃效果。
+  bool get glassEffectEnabled => _settings.glassEffectEnabled;
+
+  /// 设置界面毛玻璃效果（持久化、广播）。
+  Future<void> setGlassEffectEnabled(bool value) async {
+    if (value == _settings.glassEffectEnabled) return;
+    await save(_settings.copyWith(glassEffectEnabled: value));
+  }
+
+  /// 设置玻璃栏位模糊强度（0–40，持久化、广播）。
+  Future<void> setGlassBlurSigma(double value) async {
+    final double clamped = value.clamp(0.0, 40.0);
+    if (clamped == _settings.glassBlurSigma) return;
+    await save(_settings.copyWith(glassBlurSigma: clamped));
+  }
+
+  /// 设置玻璃栏位不透明度（0.40–0.95，持久化、广播）。
+  Future<void> setGlassBarOpacity(double value) async {
+    final double clamped = value.clamp(0.40, 0.95);
+    if (clamped == _settings.glassBarOpacity) return;
+    await save(_settings.copyWith(glassBarOpacity: clamped));
+  }
 
   /// 设置「已看」阈值百分比（自动裁剪到 50–100 并持久化、广播）。
   Future<void> setWatchedThresholdPercent(int value) async {

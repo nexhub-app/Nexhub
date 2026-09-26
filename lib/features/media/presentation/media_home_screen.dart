@@ -1,5 +1,4 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter/foundation.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -39,9 +38,6 @@ class MediaHomeScreen extends StatelessWidget {
         builder: (_) => const CollectApiImportScreen(),
       ));
     }
-
-    // 源管理预览模式时通知外层 LibraryShell 隐藏 FAB（避免遮挡确认条）。
-    final fabSuppressed = ValueNotifier<bool>(false);
 
     return LibraryShell(
       title: l10n.tabLibrary,
@@ -131,27 +127,23 @@ class MediaHomeScreen extends StatelessWidget {
       ),
       subscribeBody:
           const RssFeedListScreen(moduleType: SourceType.animeSource),
-      sourcesBody: _MediaSourcesBody(
+      sourcesBody: const _MediaSourcesBody(
         filterType: SourceType.animeSource,
-        fabSuppressed: fabSuppressed,
       ),
       categoryProvider: (LibrarySubTab subTab) =>
           BookshelfContent.categoriesFor(
               context, SourceType.animeSource, subTab),
       historySourceType: SourceType.animeSource,
       favoriteSourceType: SourceType.animeSource,
-      fabSuppressedNotifier: fabSuppressed,
     );
   }
 }
 
 class _MediaSourcesBody extends StatelessWidget {
   final SourceType filterType;
-  final ValueNotifier<bool> fabSuppressed;
 
   const _MediaSourcesBody({
     required this.filterType,
-    required this.fabSuppressed,
   });
 
   @override
@@ -159,7 +151,6 @@ class _MediaSourcesBody extends StatelessWidget {
     return SourceManagerScreen(
       filterType: filterType,
       embedded: true,
-      onPreviewModeChanged: (v) => fabSuppressed.value = v,
     );
   }
 }

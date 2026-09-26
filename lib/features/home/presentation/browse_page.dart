@@ -179,7 +179,13 @@ class BrowsePage extends StatelessWidget {
         title: Text(l10n.browsePageTitle),
       ),
       body: GridView.builder(
-        padding: const EdgeInsets.all(AppTokens.spaceSm),
+        // 移动端保留底部避让，收尾卡片能滚出玻璃底栏遮挡区。
+        padding: EdgeInsets.fromLTRB(
+          AppTokens.spaceSm,
+          AppTokens.spaceSm,
+          AppTokens.spaceSm,
+          AppTokens.spaceSm + MediaQuery.paddingOf(context).bottom,
+        ),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 160,
           childAspectRatio: 0.95,

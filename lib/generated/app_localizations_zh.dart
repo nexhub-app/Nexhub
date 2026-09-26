@@ -465,6 +465,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get useMonet => '使用动态取色（莫奈）';
 
   @override
+  String get glassEffectTitle => '界面毛玻璃效果';
+
+  @override
+  String get glassEffectDesc => '侧栏/底栏半透明模糊，内容从栏后滚过；低端设备可关闭';
+
+  @override
+  String get glassBlurStrength => '模糊强度';
+
+  @override
+  String get glassBarOpacity => '栏位不透明度';
+
+  @override
   String get customColor => '自定义颜色';
 
   @override
