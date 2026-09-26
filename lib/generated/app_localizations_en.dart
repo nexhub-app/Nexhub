@@ -2508,6 +2508,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subtitleOffset => 'Offset';
 
   @override
+  String get subtitlePosTop => 'Top';
+
+  @override
+  String get subtitlePosCenter => 'Center';
+
+  @override
+  String get subtitlePosBottom => 'Bottom';
+
+  @override
+  String get subtitleAssYes => 'Yes';
+
+  @override
+  String get subtitleAssNo => 'No';
+
+  @override
+  String get subtitleAssStrip => 'Strip';
+
+  @override
+  String get subtitleAssForce => 'Force';
+
+  @override
   String get subtitleShow => 'Show subtitles';
 
   @override

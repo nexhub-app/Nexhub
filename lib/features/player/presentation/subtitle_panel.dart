@@ -17,6 +17,7 @@ import '../../../core/settings/player_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../novel/domain/novel_summary_settings.dart';
 
 /// 字幕面板（底部抽屉）。
@@ -38,7 +39,7 @@ class SubtitlePanel extends StatefulWidget {
 
   final PlayerController controller;
 
- /// 全局播放器默认设置：面板样式项的初始值来源（打通设置页默认值）。
+  /// 全局播放器默认设置：面板样式项的初始值来源（打通设置页默认值）。
   final PlayerSettings? defaults;
 
   /// 视频实时翻译控制器；null 时不显示翻译区块（如测试环境）。
@@ -47,7 +48,7 @@ class SubtitlePanel extends StatefulWidget {
   /// 当前播放媒体路径（F6 离线整片翻译的任务标识；空时不显示该区块）。
   final String? videoPath;
 
- /// 以 modal bottom sheet 形式展示字幕面板。
+  /// 以 modal bottom sheet 形式展示字幕面板。
   static Future<void> show(
     BuildContext context, {
     required PlayerController controller,
@@ -78,7 +79,7 @@ class SubtitlePanel extends StatefulWidget {
 }
 
 class _SubtitlePanelState extends State<SubtitlePanel> {
- /// 当前可用字幕轨道（过滤掉 'auto' / 'no' 占位项，仅展示真实轨道）。
+  /// 当前可用字幕轨道（过滤掉 'auto' / 'no' 占位项，仅展示真实轨道）。
   List<SubtitleTrack> _tracks = const <SubtitleTrack>[];
 
   StreamSubscription<Tracks>? _tracksSub;
@@ -88,8 +89,8 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   String? _offlineJobId;
   bool _offlineStarting = false;
 
- // ── 字幕样式状态（本地 UI 状态，onChangeEnd 时写入 mpv） ──
- // 初始值取自全局播放器默认设置（widget.defaults），与设置页打通。
+  // ── 字幕样式状态（本地 UI 状态，onChangeEnd 时写入 mpv） ──
+  // 初始值取自全局播放器默认设置（widget.defaults），与设置页打通。
   late double _subFontSize;
   late double _subScale;
   late double _subBorderSize;
@@ -103,7 +104,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   @override
   void initState() {
     super.initState();
-  // 样式初值取自控制器（已恢复的 记忆或默认回落值），与记忆打通。
+    // 样式初值取自控制器（已恢复的 记忆或默认回落值），与记忆打通。
     final c = widget.controller;
     _subFontSize = c.subFontSize;
     _subScale = c.subScale;
@@ -127,7 +128,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     super.dispose();
   }
 
- /// 更新可用字幕轨道列表（过滤占位项），并同步当前选中轨道的显示状态。
+  /// 更新可用字幕轨道列表（过滤占位项），并同步当前选中轨道的显示状态。
   void _refreshTracks(List<SubtitleTrack> tracks) {
     final real = tracks
         .where((SubtitleTrack t) => t.id != 'auto' && t.id != 'no')
@@ -135,7 +136,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     if (mounted) setState(() => _tracks = real);
   }
 
- /// 生成轨道展示标签：优先 title，其次 language，最后回退到「轨道 N」。
+  /// 生成轨道展示标签：优先 title，其次 language，最后回退到「轨道 N」。
   String _trackLabel(SubtitleTrack track, AppLocalizations l10n) {
     if (track.title != null && track.title!.trim().isNotEmpty) {
       return track.title!.trim();
@@ -160,36 +161,38 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
         children: <Widget>[
           _header(context, l10n, theme),
           Flexible(
-            child: AnimatedBuilder(
-              animation: widget.controller,
-              builder: (BuildContext context, _) {
-                return ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTokens.spaceLg,
-                    vertical: AppTokens.spaceSm,
-                  ),
-                  children: <Widget>[
-                    _trackSection(l10n, theme),
-                    const Divider(height: 1),
-                    _styleSection(l10n, theme),
-                    const SizedBox(height: AppTokens.spaceMd),
-                    _offsetSection(l10n, theme),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    _visibleSection(l10n, theme),
-                    if (widget.translator != null) ...<Widget>[
-                      const SizedBox(height: AppTokens.spaceXs),
+            child: AppSheetBody(
+              child: AnimatedBuilder(
+                animation: widget.controller,
+                builder: (BuildContext context, _) {
+                  return ListView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTokens.spaceLg,
+                      vertical: AppTokens.spaceSm,
+                    ),
+                    children: <Widget>[
+                      _trackSection(l10n, theme),
                       const Divider(height: 1),
-                      _translationSection(l10n, theme),
-                    ],
-                    if ((widget.videoPath ?? '').isNotEmpty) ...<Widget>[
+                      _styleSection(l10n, theme),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      _offsetSection(l10n, theme),
                       const SizedBox(height: AppTokens.spaceXs),
-                      const Divider(height: 1),
-                      _offlineSection(l10n, theme),
+                      _visibleSection(l10n, theme),
+                      if (widget.translator != null) ...<Widget>[
+                        const SizedBox(height: AppTokens.spaceXs),
+                        const Divider(height: 1),
+                        _translationSection(l10n, theme),
+                      ],
+                      if ((widget.videoPath ?? '').isNotEmpty) ...<Widget>[
+                        const SizedBox(height: AppTokens.spaceXs),
+                        const Divider(height: 1),
+                        _offlineSection(l10n, theme),
+                      ],
+                      const SizedBox(height: AppTokens.spaceLg),
                     ],
-                    const SizedBox(height: AppTokens.spaceLg),
-                  ],
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -226,17 +229,18 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   Widget _trackSection(AppLocalizations l10n, ThemeData theme) {
     final current = widget.controller.currentSubtitleTrack;
     final visible = widget.controller.subtitleVisible;
-  // 当前生效的轨道：显示开关关闭时视为未选中。
+    // 当前生效的轨道：显示开关关闭时视为未选中。
     final selected = visible ? current : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-    // #5 A4-#5: 加载外部字幕文件
+        // #5 A4-#5: 加载外部字幕文件
         ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.file_open_rounded, color: theme.colorScheme.primary),
+          leading:
+              Icon(Icons.file_open_rounded, color: theme.colorScheme.primary),
           title: Text(l10n.loadExternalSubtitle),
           onTap: () => _pickExternalSubtitle(l10n),
         ),
@@ -254,7 +258,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
               unawaited(widget.controller.saveSubtitleState());
             },
           ),
-    // 关闭字幕
+        // 关闭字幕
         ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
@@ -281,8 +285,8 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     );
   }
 
- /// #5 A4-#5: 通过 file_picker 选择本地 .srt/.vtt/.ass 字幕文件，
- /// 使用 SubtitleTrack.uri 加载到播放器。
+  /// #5 A4-#5: 通过 file_picker 选择本地 .srt/.vtt/.ass 字幕文件，
+  /// 使用 SubtitleTrack.uri 加载到播放器。
   Future<void> _pickExternalSubtitle(AppLocalizations l10n) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
@@ -308,24 +312,32 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     }
   }
 
- /// 字幕样式设置：字号 / 颜色 / 边框 / 阴影 / 缩放 / 位置 / ASS覆盖。
+  /// 字幕样式设置：字号 / 颜色 / 边框 / 阴影 / 缩放 / 位置 / ASS覆盖。
   Widget _styleSection(AppLocalizations l10n, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-    // 标题
+        // 标题
         Padding(
           padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
           child: Text(
             l10n.subtitleStyleTitle,
-            style: theme.textTheme.titleSmall,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-    // 字号滑块
+        // 字号滑块
         Row(
           children: <Widget>[
-            Expanded(child: Text(l10n.subtitleFontSize, style: theme.textTheme.bodyMedium)),
-            Text('${_subFontSize.toInt()}', style: theme.textTheme.bodySmall),
+            Expanded(
+                child: Text(l10n.subtitleFontSize,
+                    style: theme.textTheme.bodyMedium)),
+            Text('${_subFontSize.toInt()}',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                )),
           ],
         ),
         Slider(
@@ -340,11 +352,16 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             unawaited(widget.controller.saveSubtitleState());
           },
         ),
-    // 缩放
+        // 缩放
         Row(
           children: <Widget>[
-            Expanded(child: Text(l10n.subtitleScale, style: theme.textTheme.bodyMedium)),
-            Text(_subScale.toStringAsFixed(2), style: theme.textTheme.bodySmall),
+            Expanded(
+                child: Text(l10n.subtitleScale,
+                    style: theme.textTheme.bodyMedium)),
+            Text(_subScale.toStringAsFixed(2),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                )),
           ],
         ),
         Slider(
@@ -359,11 +376,16 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             unawaited(widget.controller.saveSubtitleState());
           },
         ),
-    // 边框宽度
+        // 边框宽度
         Row(
           children: <Widget>[
-            Expanded(child: Text(l10n.subtitleBorderSize, style: theme.textTheme.bodyMedium)),
-            Text('${_subBorderSize.toStringAsFixed(1)}px', style: theme.textTheme.bodySmall),
+            Expanded(
+                child: Text(l10n.subtitleBorderSize,
+                    style: theme.textTheme.bodyMedium)),
+            Text('${_subBorderSize.toStringAsFixed(1)}px',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                )),
           ],
         ),
         Slider(
@@ -378,11 +400,16 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             unawaited(widget.controller.saveSubtitleState());
           },
         ),
-    // 阴影偏移
+        // 阴影偏移
         Row(
           children: <Widget>[
-            Expanded(child: Text(l10n.subtitleShadowOffset, style: theme.textTheme.bodyMedium)),
-            Text('${_subShadowOffset.toStringAsFixed(1)}px', style: theme.textTheme.bodySmall),
+            Expanded(
+                child: Text(l10n.subtitleShadowOffset,
+                    style: theme.textTheme.bodyMedium)),
+            Text('${_subShadowOffset.toStringAsFixed(1)}px',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                )),
           ],
         ),
         Slider(
@@ -400,23 +427,26 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
 
         const SizedBox(height: AppTokens.spaceXs),
 
-    // 颜色选择行（文字颜色 + 边框颜色 + 阴影颜色）
+        // 颜色选择行（文字颜色 + 边框颜色 + 阴影颜色）
         Wrap(
           spacing: AppTokens.spaceSm,
           runSpacing: AppTokens.spaceXs,
           children: <Widget>[
             ActionChip(
-              avatar: CircleAvatar(backgroundColor: _bgrToColor(_subColor), radius: 8),
+              avatar: CircleAvatar(
+                  backgroundColor: _bgrToColor(_subColor), radius: 8),
               label: Text(l10n.subtitleTextColor),
               onPressed: () => _pickColor(l10n, isText: true),
             ),
             ActionChip(
-              avatar: CircleAvatar(backgroundColor: _bgrToColor(_subBorderColor), radius: 8),
+              avatar: CircleAvatar(
+                  backgroundColor: _bgrToColor(_subBorderColor), radius: 8),
               label: Text(l10n.subtitleBorderColorLabel),
               onPressed: () => _pickColor(l10n, isBorder: true),
             ),
             ActionChip(
-              avatar: CircleAvatar(backgroundColor: _bgrToColor(_subShadowColor), radius: 8),
+              avatar: CircleAvatar(
+                  backgroundColor: _bgrToColor(_subShadowColor), radius: 8),
               label: Text(l10n.subtitleShadowColorLabel),
               onPressed: () => _pickColor(l10n, isShadow: true),
             ),
@@ -425,17 +455,30 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
 
         const SizedBox(height: AppTokens.spaceSm),
 
-    // 位置选择
+        // 位置选择
         Row(
           children: <Widget>[
-            Expanded(child: Text(l10n.subtitlePosition, style: theme.textTheme.bodyMedium)),
+            Expanded(
+                child: Text(l10n.subtitlePosition,
+                    style: theme.textTheme.bodyMedium)),
           ],
         ),
         SegmentedButton<String>(
-          segments: const <ButtonSegment<String>>[
-            ButtonSegment(value: 'top', label: Text('顶部'), icon: Icon(Icons.vertical_align_top_rounded, size: 16)),
-            ButtonSegment(value: 'center', label: Text('居中'), icon: Icon(Icons.vertical_align_center_rounded, size: 16)),
-            ButtonSegment(value: 'bottom', label: Text('底部'), icon: Icon(Icons.vertical_align_bottom_rounded, size: 16)),
+          segments: <ButtonSegment<String>>[
+            ButtonSegment(
+                value: 'top',
+                label: Text(l10n.subtitlePosTop),
+                icon: const Icon(Icons.vertical_align_top_rounded, size: 16)),
+            ButtonSegment(
+                value: 'center',
+                label: Text(l10n.subtitlePosCenter),
+                icon:
+                    const Icon(Icons.vertical_align_center_rounded, size: 16)),
+            ButtonSegment(
+                value: 'bottom',
+                label: Text(l10n.subtitlePosBottom),
+                icon:
+                    const Icon(Icons.vertical_align_bottom_rounded, size: 16)),
           ],
           selected: {_subPosition},
           onSelectionChanged: (Set<String> s) {
@@ -447,14 +490,15 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           showSelectedIcon: false,
           style: ButtonStyle(
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm)),
+            padding: WidgetStateProperty.all(
+                const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm)),
             visualDensity: VisualDensity.compact,
           ),
         ),
 
         const SizedBox(height: AppTokens.spaceSm),
 
-    // ASS/SSA 覆盖模式
+        // ASS/SSA 覆盖模式
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
@@ -463,11 +507,14 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
               elevation: 0,
               borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               value: _subAssMode,
-              items: const <DropdownMenuItem<String>>[
-                DropdownMenuItem(value: 'yes', child: Text('是')),
-                DropdownMenuItem(value: 'no', child: Text('否')),
-                DropdownMenuItem(value: 'strip', child: Text('剥离')),
-                DropdownMenuItem(value: 'force', child: Text('强制')),
+              items: <DropdownMenuItem<String>>[
+                DropdownMenuItem(
+                    value: 'yes', child: Text(l10n.subtitleAssYes)),
+                DropdownMenuItem(value: 'no', child: Text(l10n.subtitleAssNo)),
+                DropdownMenuItem(
+                    value: 'strip', child: Text(l10n.subtitleAssStrip)),
+                DropdownMenuItem(
+                    value: 'force', child: Text(l10n.subtitleAssForce)),
               ],
               onChanged: (v) {
                 if (v != null) {
@@ -486,22 +533,29 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     );
   }
 
- /// 颜色选择器（弹出预设颜色网格）。
-  Future<void> _pickColor(AppLocalizations l10n, {bool isText = false, bool isBorder = false, bool isShadow = false}) async {
+  /// 颜色选择器（弹出预设颜色网格）。
+  Future<void> _pickColor(AppLocalizations l10n,
+      {bool isText = false,
+      bool isBorder = false,
+      bool isShadow = false}) async {
     final colors = <String>[
-   'FFFFFF', // 白
-   'FFFF00', // 黄
-   '00FF00', // 绿
-   '00FFFF', // 青
-   'FF0000', // 红
-   'FF00FF', // 品红
-   '0000FF', // 蓝
-   '000000', // 黑
+      'FFFFFF', // 白
+      'FFFF00', // 黄
+      '00FF00', // 绿
+      '00FFFF', // 青
+      'FF0000', // 红
+      'FF00FF', // 品红
+      '0000FF', // 蓝
+      '000000', // 黑
     ];
     final selected = await showDialog<String>(
       context: context,
       builder: (ctx) => AppAlertDialog(
-        title: Text(isText ? l10n.subtitleTextColor : isBorder ? l10n.subtitleBorderColorLabel : l10n.subtitleShadowColorLabel),
+        title: Text(isText
+            ? l10n.subtitleTextColor
+            : isBorder
+                ? l10n.subtitleBorderColorLabel
+                : l10n.subtitleShadowColorLabel),
         content: Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -514,15 +568,18 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                 height: 36,
                 decoration: BoxDecoration(
                   color: color,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.white24),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusXs + 2),
+                  border: Border.all(
+                    color: Theme.of(ctx).colorScheme.outlineVariant,
+                  ),
                 ),
               ),
             );
           }).toList(),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: Text(l10n.cancel)),
         ],
       ),
     );
@@ -542,10 +599,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     }
   }
 
- /// BGR 十六进制字符串转 Color（mpv 使用 BGR 格式）。
+  /// BGR 十六进制字符串转 Color（mpv 使用 BGR 格式）。
   static Color _bgrToColor(String hex) {
     final val = int.tryParse(hex, radix: 16) ?? 0xFFFFFFFF;
-  // mpv sub-color 是 BGR(AABBGGRR)，Flutter Color 是 ARGB(0xAARRGGBB)
+    // mpv sub-color 是 BGR(AABBGGRR)，Flutter Color 是 ARGB(0xAARRGGBB)
     final r = (val >> 16) & 0xFF;
     final g = (val >> 8) & 0xFF;
     final b = val & 0xFF;
@@ -577,7 +634,8 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           divisions: 100,
           onChangeStart: (_) => AppHaptics.light(),
           onChanged: (double v) {
-            widget.controller.setSubtitleDelay(Duration(milliseconds: (v * 1000).round()));
+            widget.controller
+                .setSubtitleDelay(Duration(milliseconds: (v * 1000).round()));
             unawaited(widget.controller.saveSubtitleState());
           },
         ),
@@ -614,7 +672,10 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
               padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
               child: Text(
                 l10n.subTransSectionTitle,
-                style: theme.textTheme.titleSmall,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             SwitchListTile(
@@ -665,15 +726,17 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     return ListenableBuilder(
       listenable: _offlinePipeline,
       builder: (BuildContext context, _) {
-        final job =
-            _offlineJobId == null ? null : _jobsById[_offlineJobId!];
+        final job = _offlineJobId == null ? null : _jobsById[_offlineJobId!];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
               child: Text(l10n.offlineTranslateTitle,
-                  style: theme.textTheme.titleSmall),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  )),
             ),
             if (job == null)
               Padding(
@@ -715,8 +778,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                     IconButton(
                       tooltip: l10n.offlineCancel,
                       icon: const Icon(Icons.close_rounded, size: 18),
-                      onPressed: () =>
-                          _offlinePipeline.cancel(job.id),
+                      onPressed: () => _offlinePipeline.cancel(job.id),
                     ),
                 ],
               ),
@@ -744,21 +806,18 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                     OutlinedButton.icon(
                       onPressed: () =>
                           unawaited(_exportOffline(job, ass: false)),
-                      icon: const Icon(Icons.file_download_rounded,
-                          size: 16),
+                      icon: const Icon(Icons.file_download_rounded, size: 16),
                       label: Text(l10n.offlineExportSrt),
                     ),
                     OutlinedButton.icon(
                       onPressed: () =>
                           unawaited(_exportOffline(job, ass: true)),
-                      icon: const Icon(Icons.file_download_rounded,
-                          size: 16),
+                      icon: const Icon(Icons.file_download_rounded, size: 16),
                       label: Text(l10n.offlineExportAss),
                     ),
                     OutlinedButton.icon(
                       onPressed: () => unawaited(_uploadOffline(job)),
-                      icon: const Icon(Icons.cloud_upload_rounded,
-                          size: 16),
+                      icon: const Icon(Icons.cloud_upload_rounded, size: 16),
                       label: Text(l10n.offlineUpload),
                     ),
                   ],
@@ -790,9 +849,8 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
       <String, SubtitleOfflineJob>{};
 
   /// 已完成任务数（≥2 时显示批量导出入口，F10）。
-  int get _doneJobCount => _jobsById.values
-      .where((j) => j.status == SubtitleJobStatus.done)
-      .length;
+  int get _doneJobCount =>
+      _jobsById.values.where((j) => j.status == SubtitleJobStatus.done).length;
 
   /// F10：批量导出全部已完成任务的双语 SRT（系统分享多选文件）。
   Future<void> _exportAllOffline() async {
@@ -838,7 +896,8 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     await _startOfflineJob(path, l10n);
   }
 
-  Future<void> _startOfflineJob(String subtitlePath, AppLocalizations l10n) async {
+  Future<void> _startOfflineJob(
+      String subtitlePath, AppLocalizations l10n) async {
     setState(() => _offlineStarting = true);
     try {
       final settings = NovelSummarySettings.instance;
@@ -879,7 +938,8 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   }
 
   /// 导出双语字幕并调起系统分享。
-  Future<void> _exportOffline(SubtitleOfflineJob job, {required bool ass}) async {
+  Future<void> _exportOffline(SubtitleOfflineJob job,
+      {required bool ass}) async {
     try {
       final path = await _offlinePipeline.export(job: job, ass: ass);
       if (!mounted) return;

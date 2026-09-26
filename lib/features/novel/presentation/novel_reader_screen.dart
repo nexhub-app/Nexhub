@@ -24,12 +24,10 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/comic/models/reader_preferences.dart'
     show ReaderTapZoneLayout, TapZoneInvert;
 import '../../../core/comic/image_favorite_manager.dart';
-import '../../../core/novel/novel_replace_rule.dart'
-    show NovelReplaceRuleSet;
+import '../../../core/novel/novel_replace_rule.dart' show NovelReplaceRuleSet;
 import '../../../core/novel/novel_highlight_rule.dart'
     show NovelHighlightRuleSet;
-import '../../../core/novel/novel_rule_cache.dart'
-    show NovelRuleCache;
+import '../../../core/novel/novel_rule_cache.dart' show NovelRuleCache;
 import '../../../core/novel/novel_replace_rule_screen.dart'
     show NovelReplaceRuleScreen;
 import '../../../core/favorites/favorites_manager.dart';
@@ -51,7 +49,8 @@ import '../../../core/novel/novel_pre_download_preferences.dart';
 import '../../../core/novel/novel_pre_downloader.dart';
 import '../../../core/reader/tap_zone_resolver.dart';
 import '../../../core/reader/reading_queue_store.dart';
-import '../../../core/widgets/reading_queue_sheet.dart' show openReadingQueueSheet;
+import '../../../core/widgets/reading_queue_sheet.dart'
+    show openReadingQueueSheet;
 import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/scraper/media_api_service.dart';
@@ -64,6 +63,7 @@ import '../../../core/stats/reading_session_recorder.dart';
 import '../../../core/stats/stats_models.dart';
 import '../../../core/stats/stats_repository.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/reader_tokens.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/chapter_list_sheet.dart';
@@ -128,26 +128,26 @@ class NovelReaderScreen extends StatefulWidget {
   final List<Episode> chapters;
   final int initialChapterIndex;
 
- /// 本地模式：本地 TXT 文件路径（跳过在线源解析，直接读取）。
+  /// 本地模式：本地 TXT 文件路径（跳过在线源解析，直接读取）。
   final String? localTextPath;
 
- /// 本地模式：本地 EPUB 文件路径（经 [LocalNovelParser] 解析为章节后渲染）。
+  /// 本地模式：本地 EPUB 文件路径（经 [LocalNovelParser] 解析为章节后渲染）。
   final String? localEpubPath;
 
- /// 本地聚合模式（B 阶段）：文件夹导入，多文件合成一整本，每个文件 = 一章。
- /// 传文件绝对路径列表；[chapters] 为对应的合成章节（每文件一章）。
- /// 与 [localTextPath]/[localEpubPath] 互斥，优先于单文件本地模式。
+  /// 本地聚合模式（B 阶段）：文件夹导入，多文件合成一整本，每个文件 = 一章。
+  /// 传文件绝对路径列表；[chapters] 为对应的合成章节（每文件一章）。
+  /// 与 [localTextPath]/[localEpubPath] 互斥，优先于单文件本地模式。
   final List<String>? localChapterPaths;
 
- /// 详情页 URL（用于收藏时透传，避免历史/收藏详情灰屏）。
+  /// 详情页 URL（用于收藏时透传，避免历史/收藏详情灰屏）。
   final String? detailUrl;
 
- /// 封面 URL（用于收藏时透传，避免收藏书架缺封面）。
+  /// 封面 URL（用于收藏时透传，避免收藏书架缺封面）。
   final String? coverUrl;
 
- /// 是否恢复上次阅读进度：true 时从 [NovelProgressManager] 加载保存的
- /// chapterIndex / currentPage；false 时使用 [initialChapterIndex]（详情页
- /// 章节列表点击场景）。默认 true（与本地模式等场景保持原行为兼容）。
+  /// 是否恢复上次阅读进度：true 时从 [NovelProgressManager] 加载保存的
+  /// chapterIndex / currentPage；false 时使用 [initialChapterIndex]（详情页
+  /// 章节列表点击场景）。默认 true（与本地模式等场景保持原行为兼容）。
   final bool restoreProgress;
 
   const NovelReaderScreen({
@@ -225,8 +225,7 @@ Future<int?> _pickSleepMinutes({
               children: <Widget>[
                 for (final m in presets)
                   RadioListTile<int>(
-                    title: Text(
-                        m == 0 ? l10n.ttsSleepOff : l10n.minuteUnit(m)),
+                    title: Text(m == 0 ? l10n.ttsSleepOff : l10n.minuteUnit(m)),
                     value: m,
                   ),
                 RadioListTile<int>(
@@ -235,7 +234,10 @@ Future<int?> _pickSleepMinutes({
                 ),
                 if (customActive)
                   Padding(
-                    padding: const EdgeInsets.only(top: AppTokens.spaceSm, left: AppTokens.spaceMd, right: AppTokens.spaceMd),
+                    padding: const EdgeInsets.only(
+                        top: AppTokens.spaceSm,
+                        left: AppTokens.spaceMd,
+                        right: AppTokens.spaceMd),
                     child: TextField(
                       autofocus: true,
                       keyboardType: TextInputType.number,
@@ -243,8 +245,8 @@ Future<int?> _pickSleepMinutes({
                         labelText: l10n.ttsSleepCustomMinutes,
                         suffixText: l10n.minuteUnit(1),
                       ),
-                      onChanged: (v) =>
-                          setDialogState(() => customValue = int.tryParse(v.trim())),
+                      onChanged: (v) => setDialogState(
+                          () => customValue = int.tryParse(v.trim())),
                     ),
                   ),
               ],
@@ -301,15 +303,19 @@ Future<List<dynamic>> _parseTxtChaptersIsolate(
   var text = decodeTextBytes(bytes);
   if (text.startsWith('\uFEFF')) text = text.substring(1);
   text = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-  final chapters = LocalNovelParser.splitTxtChapters(text, fallbackTitle: args.$2);
- // 段落 → 可序列化字符串：下载器内联插图以 [kNexhubImgMarker] 占位行写入，
- // 原样保留，交由主线程 build 阶段（_loadLocalText 的 singleTxt 分支）识别为
- // 本地插图 [NovelImageBlock]；不再包成 [0,para]/[1,img] 块——消费端
- // `List<String>.from(c[1])` 与 build 循环均按纯字符串处理，否则会触发
- // `type 'List<dynamic>' is not a subtype of type 'String'`。
+  final chapters =
+      LocalNovelParser.splitTxtChapters(text, fallbackTitle: args.$2);
+  // 段落 → 可序列化字符串：下载器内联插图以 [kNexhubImgMarker] 占位行写入，
+  // 原样保留，交由主线程 build 阶段（_loadLocalText 的 singleTxt 分支）识别为
+  // 本地插图 [NovelImageBlock]；不再包成 [0,para]/[1,img] 块——消费端
+  // `List<String>.from(c[1])` 与 build 循环均按纯字符串处理，否则会触发
+  // `type 'List<dynamic>' is not a subtype of type 'String'`。
   return <dynamic>[
     for (final ch in chapters)
-      <dynamic>[ch.title, <dynamic>[for (final para in ch.content) para]],
+      <dynamic>[
+        ch.title,
+        <dynamic>[for (final para in ch.content) para]
+      ],
   ];
 }
 
@@ -321,43 +327,52 @@ enum _AggChapterMode { fileExpanded, epubLast, collapsed }
 Future<List<dynamic>> _parsePortableIsolate(String path) async {
   final book = await PortableBookParser.parse(path);
   return <dynamic>[
-    <dynamic>[book.title, <dynamic>[for (final c in book.chapters[0].content) c]],
+    <dynamic>[
+      book.title,
+      <dynamic>[for (final c in book.chapters[0].content) c]
+    ],
   ];
 }
 
 class _NovelReaderScreenState extends State<NovelReaderScreen>
     with WidgetsBindingObserver {
   final NovelReaderPreferencesStore _store = NovelReaderPreferencesStore();
- /// 本书显式单独设置过的字段名（[NovelReaderPreferences.toJson] 键）。
- /// 只有这些字段覆盖全局默认，其余实时跟随总设置。
+
+  /// 本书显式单独设置过的字段名（[NovelReaderPreferences.toJson] 键）。
+  /// 只有这些字段覆盖全局默认，其余实时跟随总设置。
   Set<String> _overrideKeys = <String>{};
   final NovelProgressManager _progress = NovelProgressManager();
 
- /// 下载管理器（initState 缓存引用，dispose 阶段 context 已不可用）。
+  /// 下载管理器（initState 缓存引用，dispose 阶段 context 已不可用）。
   DownloadManager? _downloadManager;
- /// 收藏管理器（dispose 阶段查排除分类用）。
+
+  /// 收藏管理器（dispose 阶段查排除分类用）。
   FavoritesManager? _favorites;
   final NovelBookmarkManager _bookmarks = NovelBookmarkManager();
   final ScreenBrightness _brightnessPlugin = ScreenBrightness();
 
- /// / N6 选区控制器：维护活动选区与已存划线的章节全局偏移锚点，
- /// 并负责渲染层（[_NovelPageWidget]）的实时刷新。
+  /// / N6 选区控制器：维护活动选区与已存划线的章节全局偏移锚点，
+  /// 并负责渲染层（[_NovelPageWidget]）的实时刷新。
   final NovelSelectionController _selectionController =
       NovelSelectionController();
- /// 选区工具条是否可见（长按选区结束后显示）。
+
+  /// 选区工具条是否可见（长按选区结束后显示）。
   bool _showSelectionToolbar = false;
- /// 长按选区手势进行中（按下到松手之间）：用于阻止翻页拖拽抢走长按指针，
- /// 避免「长按选中一闪即逝」被横向翻页手势打断。
+
+  /// 长按选区手势进行中（按下到松手之间）：用于阻止翻页拖拽抢走长按指针，
+  /// 避免「长按选中一闪即逝」被横向翻页手势打断。
   bool _longPressEngaged = false;
- /// 刚由长按确认选区的时刻（null = 无待吞 tap）。用于吞掉长按松手后**极短
- /// 窗口内**（[_kSelectionTapSinkWindow]）跟随的 tap-up，避免误清空刚建立的
- /// 选区；窗口之外的点击照常收起工具条——否则会吞掉用户退出工具栏的第一下
- /// （表现为「要点两下才退出」）。
+
+  /// 刚由长按确认选区的时刻（null = 无待吞 tap）。用于吞掉长按松手后**极短
+  /// 窗口内**（[_kSelectionTapSinkWindow]）跟随的 tap-up，避免误清空刚建立的
+  /// 选区；窗口之外的点击照常收起工具条——否则会吞掉用户退出工具栏的第一下
+  /// （表现为「要点两下才退出」）。
   DateTime? _selectionJustConfirmedAt;
- /// 长按确认选区后，允许吞掉紧随 tap 的时间窗口。
-  static const Duration _kSelectionTapSinkWindow =
-      Duration(milliseconds: 250);
- /// 划线色板（ARGB，含 50% 透明度，与活动选区同调）。
+
+  /// 长按确认选区后，允许吞掉紧随 tap 的时间窗口。
+  static const Duration _kSelectionTapSinkWindow = Duration(milliseconds: 250);
+
+  /// 划线色板（ARGB，含 50% 透明度，与活动选区同调）。
   static const List<int> _highlightPalette = <int>[
     0x80FFFF00,
     0x8000FF00,
@@ -369,66 +384,74 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   late NovelReaderPreferences _prefs;
   int _chapterIndex = 0;
- /// 本地加载代次守卫：快速翻章 / 初始与切换并发时，丢弃过期结果，
- /// 避免较慢的初始解析覆盖已切换的章节（表现为「切换章还是同一章」）。
+
+  /// 本地加载代次守卫：快速翻章 / 初始与切换并发时，丢弃过期结果，
+  /// 避免较慢的初始解析覆盖已切换的章节（表现为「切换章还是同一章」）。
   final AsyncSession _loadSession = AsyncSession();
   int _savedPage = 0;
 
- /// 待恢复的「章内字符偏移」。
- ///
- /// 进入阅读器时若存档带有字符偏移，则优先用偏移恢复阅读位置，
- /// 而非页码——因为页码随字号/边距/排版变化而漂移，字符偏移恒定。
- /// 该值在 [_buildReader] 分页就绪后消费一次并清 null；为 null 时回退页码。
+  /// 待恢复的「章内字符偏移」。
+  ///
+  /// 进入阅读器时若存档带有字符偏移，则优先用偏移恢复阅读位置，
+  /// 而非页码——因为页码随字号/边距/排版变化而漂移，字符偏移恒定。
+  /// 该值在 [_buildReader] 分页就绪后消费一次并清 null；为 null 时回退页码。
   int? _savedCharOffset;
 
- /// 网络拉取的原始图文块（未做繁简转换）。
+  /// 网络拉取的原始图文块（未做繁简转换）。
   List<NovelBlock> _rawParagraphs = const <NovelBlock>[];
- /// 实际渲染的图文块（应用繁简转换 + 替换规则后）。
+
+  /// 实际渲染的图文块（应用繁简转换 + 替换规则后）。
   List<NovelBlock> _paragraphs = const <NovelBlock>[];
 
- /// 当前书籍的替换规则（惰性加载，在 [_loadChapter] 中填充）。
+  /// 当前书籍的替换规则（惰性加载，在 [_loadChapter] 中填充）。
   NovelReplaceRuleSet? _replaceRuleSet;
- /// 当前书籍的高亮规则（惰性加载，在 [_loadChapter] 中填充）。
+
+  /// 当前书籍的高亮规则（惰性加载，在 [_loadChapter] 中填充）。
   NovelHighlightRuleSet? _highlightRuleSet;
 
- /// N7 内容编辑：正文编辑持久化管理器 + 「当前章是否被编辑过」标记
- /// （控制菜单「内容编辑 / 恢复原文」入口与已编辑角标）。
+  /// N7 内容编辑：正文编辑持久化管理器 + 「当前章是否被编辑过」标记
+  /// （控制菜单「内容编辑 / 恢复原文」入口与已编辑角标）。
   final NovelContentEditManager _contentEdits = NovelContentEditManager();
   bool _currentChapterEdited = false;
 
- /// 仅文本块列表（供 TTS 朗读，跳过插图；索引与排版段落序号一致）。
-  List<String> get _paragraphTexts =>
-      [for (final b in _paragraphs) if (b is NovelTextBlock) b.text];
+  /// 仅文本块列表（供 TTS 朗读，跳过插图；索引与排版段落序号一致）。
+  List<String> get _paragraphTexts => [
+        for (final b in _paragraphs)
+          if (b is NovelTextBlock) b.text
+      ];
   NovelPaginationResult? _pagination;
- /// 当前 [_pagination] 对应的章节下标。用于检测「跨章后分页是否需刷新」：
- /// 相邻两章页数可能相同，仅比较页数长度无法触发刷新（会残留上一章的分页）。
+
+  /// 当前 [_pagination] 对应的章节下标。用于检测「跨章后分页是否需刷新」：
+  /// 相邻两章页数可能相同，仅比较页数长度无法触发刷新（会残留上一章的分页）。
   int _paginationChapterIndex = -1;
- /// 分页缓存签名：仅当影响分页的输入（正文版本 / 偏好版本 / 章节下标 / 可用
- /// 尺寸 / 系统字号缩放 / 文字方向 / 章节标题 / 书名）真正变化时才重新分页。
- /// 否则直接在 build（含翻页动画每帧触发的父层重建、_onPageChanged 触发的重建）
- /// 中复用缓存，避免整章重新分页造成的卡顿，也避免翻页动画被重型计算抢占而
- /// 看起来「无动画」。
+
+  /// 分页缓存签名：仅当影响分页的输入（正文版本 / 偏好版本 / 章节下标 / 可用
+  /// 尺寸 / 系统字号缩放 / 文字方向 / 章节标题 / 书名）真正变化时才重新分页。
+  /// 否则直接在 build（含翻页动画每帧触发的父层重建、_onPageChanged 触发的重建）
+  /// 中复用缓存，避免整章重新分页造成的卡顿，也避免翻页动画被重型计算抢占而
+  /// 看起来「无动画」。
   String? _paginationSig;
- /// 偏好版本号：任何阅读设置（字号/行距/段距/边距/字体/标题样式…）变化都自增，
- /// 作为分页缓存签名的一部分，确保改设置后分页立即刷新。
+
+  /// 偏好版本号：任何阅读设置（字号/行距/段距/边距/字体/标题样式…）变化都自增，
+  /// 作为分页缓存签名的一部分，确保改设置后分页立即刷新。
   int _prefsVersion = 0;
 
- /// G3 整本分页校准：本会话内已见过的「章节 → 页数」缓存。每次某章完成
- /// 分页即记录；整本页码 tip 由它跨章累计（会话级，不持久化——页数随
- /// 排版偏好与屏幕尺寸变化，跨会话复用反而失真）。
+  /// G3 整本分页校准：本会话内已见过的「章节 → 页数」缓存。每次某章完成
+  /// 分页即记录；整本页码 tip 由它跨章累计（会话级，不持久化——页数随
+  /// 排版偏好与屏幕尺寸变化，跨会话复用反而失真）。
   final Map<int, int> _chapterPageCounts = <int, int>{};
 
- /// A7 双页模式：当前章是否以双页呈现（与最近一次分页的判定一致，
- /// 由 build 的 LayoutBuilder 按偏好 + 宽高比计算后写入）。
+  /// A7 双页模式：当前章是否以双页呈现（与最近一次分页的判定一致，
+  /// 由 build 的 LayoutBuilder 按偏好 + 宽高比计算后写入）。
   bool _twoPageActive = false;
 
- /// 双页模式两页间的中缝宽度（逻辑像素）。
+  /// 双页模式两页间的中缝宽度（逻辑像素）。
   static const double _kTwoPageGutter = 16;
 
- /// 计算整本页码文案（G3）：
- /// - 全部章节数已知 → `第 X 页 / 共 Y 页`（精确校准）；
- /// - 部分已知 → `全书第 X+ 页`（`+` 表示后续章节尚未校准，估算值）；
- /// - 无任何分页数据 → 空串（槽位退化为空）。
+  /// 计算整本页码文案（G3）：
+  /// - 全部章节数已知 → `第 X 页 / 共 Y 页`（精确校准）；
+  /// - 部分已知 → `全书第 X+ 页`（`+` 表示后续章节尚未校准，估算值）；
+  /// - 无任何分页数据 → 空串（槽位退化为空）。
   String _bookPageLabelFor(int page) {
     if (_chapterPageCounts.isEmpty) return '';
     var before = 0;
@@ -445,68 +468,70 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         totalChapters > 0 && _chapterPageCounts.length >= totalChapters;
     return allKnown ? '第 $x 页 / 共 $totalPages 页' : '全书第 $x+ 页';
   }
+
   bool _loading = true;
   String? _error;
   bool _isResolveError = false;
 
- /// 正文抓取撞验证（如 Cloudflare 临时挑战）时记录异常：错误视图的重试
- /// 按钮改走验证页（回灌 Cookie 后重载本章），而非死错误无验证入口。
+  /// 正文抓取撞验证（如 Cloudflare 临时挑战）时记录异常：错误视图的重试
+  /// 按钮改走验证页（回灌 Cookie 后重载本章），而非死错误无验证入口。
   VerificationRequiredException? _verificationError;
 
- /// 正文抓取被反爬拦截且源声明 useWebview 时记录 [WebViewHtmlRequest]：错误
- /// 视图提供「抓取本章渲染内容」入口，打开真浏览器取回渲染后 HTML 回灌解析，
- /// 而非走无效的手动 Cookie 验证（Dart HTTP 的 TLS 指纹被 Cloudflare 拒）。
+  /// 正文抓取被反爬拦截且源声明 useWebview 时记录 [WebViewHtmlRequest]：错误
+  /// 视图提供「抓取本章渲染内容」入口，打开真浏览器取回渲染后 HTML 回灌解析，
+  /// 而非走无效的手动 Cookie 验证（Dart HTTP 的 TLS 指纹被 Cloudflare 拒）。
   WebViewHtmlRequest? _htmlCaptureRequest;
 
- /// 本地单文件（EPUB / TXT）：整本解析一次后缓存的章节列表，以及对应的
- /// 章节导航列表（供目录/上下章）。逐章加载：`_loadLocalText` 每次
- /// 只把 [_localParsedChapters] 中当前章节的段落装进分页，翻章时重新分页
- /// 当前章，与在线小说阅读体验一致。
- /// TXT 走 [LocalNovelParser.splitTxtChapters] 行级切分（/）。
+  /// 本地单文件（EPUB / TXT）：整本解析一次后缓存的章节列表，以及对应的
+  /// 章节导航列表（供目录/上下章）。逐章加载：`_loadLocalText` 每次
+  /// 只把 [_localParsedChapters] 中当前章节的段落装进分页，翻章时重新分页
+  /// 当前章，与在线小说阅读体验一致。
+  /// TXT 走 [LocalNovelParser.splitTxtChapters] 行级切分（/）。
   List<LocalNovelChapter>? _localParsedChapters;
   List<Episode>? _parsedChapterEpisodes;
 
- /// 打开本地单文件（EPUB / TXT）时保存的进度章节（解析完成后才应用，
- /// 因为解析前还不知道章节总数）。
+  /// 打开本地单文件（EPUB / TXT）时保存的进度章节（解析完成后才应用，
+  /// 因为解析前还不知道章节总数）。
   int? _restoreParsedChapterIndex;
 
- /// 聚合本地模式（多文件合成一本）的章节排序方式：
- /// - [fileExpanded]：按文件名顺序，EPUB 内部章节在其文件位置就地展开；
- /// - [epubLast]：TXT 文件章节在前，EPUB 内部章节统一排最后；
- /// - [collapsed]：每文件一章（EPUB 不展开，保留原行为）。
- ///
- /// 阅读时可在顶栏「更多」菜单随时切换，切换后重建目录并回到当前章节。
+  /// 聚合本地模式（多文件合成一本）的章节排序方式：
+  /// - [fileExpanded]：按文件名顺序，EPUB 内部章节在其文件位置就地展开；
+  /// - [epubLast]：TXT 文件章节在前，EPUB 内部章节统一排最后；
+  /// - [collapsed]：每文件一章（EPUB 不展开，保留原行为）。
+  ///
+  /// 阅读时可在顶栏「更多」菜单随时切换，切换后重建目录并回到当前章节。
   _AggChapterMode _aggMode = _AggChapterMode.fileExpanded;
 
- /// 聚合模式构建后的完整章节目录（TXT 每文件一章 + EPUB 展开内部章节）。
- /// null 表示尚未构建（首次加载章节前由 [_ensureAggregatedChapters] 异步构建）。
+  /// 聚合模式构建后的完整章节目录（TXT 每文件一章 + EPUB 展开内部章节）。
+  /// null 表示尚未构建（首次加载章节前由 [_ensureAggregatedChapters] 异步构建）。
   List<Episode>? _expandedChapters;
 
- /// 聚合模式已解析的 EPUB 缓存（path -> 整本），展开目录与逐章读取共用。
-  final Map<String, LocalNovelBook> _aggEpubBooks =
-      <String, LocalNovelBook>{};
- /// 聚合模式已解析的 TXT 缓存（path -> 整本），展开内部章节与逐章读取共用。
- /// 与 [_aggEpubBooks] 同构，实现「TXT 目录导入内部章节细化（和 epub 一样）」。
+  /// 聚合模式已解析的 EPUB 缓存（path -> 整本），展开目录与逐章读取共用。
+  final Map<String, LocalNovelBook> _aggEpubBooks = <String, LocalNovelBook>{};
+
+  /// 聚合模式已解析的 TXT 缓存（path -> 整本），展开内部章节与逐章读取共用。
+  /// 与 [_aggEpubBooks] 同构，实现「TXT 目录导入内部章节细化（和 epub 一样）」。
   final Map<String, LocalNovelBook> _aggTxtBooks = <String, LocalNovelBook>{};
- /// 聚合模式 TXT 章节路由：episode.id -> (文件 path, 内部章节下标 ci)。
- /// ci = -1 表示整文件（无内部章节）。用精确字符串匹配路由，规避文件路径含
- /// 分隔符导致的解析歧义；续读进度按 index 存储，合成 id 不影响续读。
+
+  /// 聚合模式 TXT 章节路由：episode.id -> (文件 path, 内部章节下标 ci)。
+  /// ci = -1 表示整文件（无内部章节）。用精确字符串匹配路由，规避文件路径含
+  /// 分隔符导致的解析歧义；续读进度按 index 存储，合成 id 不影响续读。
   final Map<String, (String, int)> _aggTxtEpisodeMeta =
       <String, (String, int)>{};
   bool _aggBuilding = false;
 
- /// 是否为本地文件模式（Task O4.B.3）。
+  /// 是否为本地文件模式（Task O4.B.3）。
   bool get _isLocalMode =>
       widget.localTextPath != null ||
       widget.localEpubPath != null ||
       widget.localChapterPaths != null;
 
- /// 本地聚合模式（B 阶段）：多个文本/EPUB 文件合成一整本，每个文件 = 一章。
+  /// 本地聚合模式（B 阶段）：多个文本/EPUB 文件合成一整本，每个文件 = 一章。
   bool get _isAggregatedLocal =>
       widget.localChapterPaths != null && widget.localChapterPaths!.isNotEmpty;
 
- /// 实际可用的章节列表：聚合本地用构建后的展开目录（EPUB 拆成多章），
- /// 单 EPUB 用解析出的章节，其余用传入的 [widget.chapters]。
+  /// 实际可用的章节列表：聚合本地用构建后的展开目录（EPUB 拆成多章），
+  /// 单 EPUB 用解析出的章节，其余用传入的 [widget.chapters]。
   List<Episode> get _effectiveChapters {
     if (_isAggregatedLocal && _expandedChapters != null) {
       return _expandedChapters!;
@@ -521,22 +546,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   bool _uiVisible = false;
   int _contentVersion = 0;
 
- /// 搜索关键词（用于正文高亮）。搜索跳转后设置，3 秒后清除。
+  /// 搜索关键词（用于正文高亮）。搜索跳转后设置，3 秒后清除。
   String? _searchKeyword;
- /// 正则搜索模式下的已编译表达式（正文高亮用；普通子串搜索为 null）。
+
+  /// 正则搜索模式下的已编译表达式（正文高亮用；普通子串搜索为 null）。
   RegExp? _searchRegex;
   Timer? _searchHighlightTimer;
 
- /// scroll 模式下当前滚动比例（0..1），用于同步底部进度滑条。
+  /// scroll 模式下当前滚动比例（0..1），用于同步底部进度滑条。
   double _scrollFraction = 0;
 
- /// 是否正在把视图恢复到保存的页码（滚动模式）。
- ///
- /// 恢复期间的滚动位置是过渡值（通常为 0），照常写盘会把上次的阅读位置
- /// 冲成第一页 —— 这是「记住阅读进度没作用」的根因之一。
+  /// 是否正在把视图恢复到保存的页码（滚动模式）。
+  ///
+  /// 恢复期间的滚动位置是过渡值（通常为 0），照常写盘会把上次的阅读位置
+  /// 冲成第一页 —— 这是「记住阅读进度没作用」的根因之一。
   bool _restoringPage = false;
 
- // ─────────────────────── 亮度手势 ───────────────────────
+  // ─────────────────────── 亮度手势 ───────────────────────
   double _brightness = 0.5;
   double? _brightnessDragStart;
   double _brightnessDragDelta = 0;
@@ -544,78 +570,84 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   StreamSubscription<double>? _brightnessSub;
   bool _brightnessChangedByUs = false;
 
- // ─────────────────────── N4 下滑切书签手势 ───────────────────────
- /// 下滑书签手势进行中（页面随指下移的视觉反馈）。
+  // ─────────────────────── N4 下滑切书签手势 ───────────────────────
+  /// 下滑书签手势进行中（页面随指下移的视觉反馈）。
   bool _bookmarkSwipeActive = false;
- /// 本次下滑手势已被取消（上滑回拖到阈值之上）：松手不落盘、不移除书签。
+
+  /// 本次下滑手势已被取消（上滑回拖到阈值之上）：松手不落盘、不移除书签。
   bool _bookmarkSwipeCancelled = false;
- /// 手势待定态：已开始但方向尚未确定（可能横向翻页误触，需方向判定）。
+
+  /// 手势待定态：已开始但方向尚未确定（可能横向翻页误触，需方向判定）。
   bool _bookmarkSwipePending = false;
- /// 手势累计纵向位移（向下为正，px）。
+
+  /// 手势累计纵向位移（向下为正，px）。
   double _bookmarkSwipeDy = 0;
- /// 手势累计横向位移（方向判定用）。
+
+  /// 手势累计横向位移（方向判定用）。
   double _bookmarkSwipeDx = 0;
- /// 触发落盘所需的下滑距离（屏高比例）。
+
+  /// 触发落盘所需的下滑距离（屏高比例）。
   static const double _bookmarkSwipeThresholdRatio = 0.18;
 
- /// N4 判定：下滑手势（dy > 0）且纵向位移明显大于横向（absY > absX * 1.5，
- /// 对标判定 ratio），由亮度手势（仅左 1/3 屏生效）之外的区域触发。
- /// 滚动模式不启用——滚动本身即纵向手势，会与列表滚动冲突。
+  /// N4 判定：下滑手势（dy > 0）且纵向位移明显大于横向（absY > absX * 1.5，
+  /// 对标判定 ratio），由亮度手势（仅左 1/3 屏生效）之外的区域触发。
+  /// 滚动模式不启用——滚动本身即纵向手势，会与列表滚动冲突。
   bool get _bookmarkSwipeEnabled => !_prefs.pageAnimation.isScroll;
 
- // ─────────────────────── 页眉/页脚 time/battery ───────────────────────
+  // ─────────────────────── 页眉/页脚 time/battery ───────────────────────
   String _currentTime = '';
- int _batteryLevel = -1; // -1 = unknown
+  int _batteryLevel = -1; // -1 = unknown
   late final Timer _timeTimer;
   StreamSubscription<BatteryState>? _batterySubscription;
 
- // ─────────────────────── 内联设置面板 ───────────────────────
+  // ─────────────────────── 内联设置面板 ───────────────────────
   bool _showInlineSettings = false;
 
- // ─────────────────────── 设置搜索（常用置顶 + 过滤） ───────────────────────
-  final TextEditingController _settingsSearchController = TextEditingController();
+  // ─────────────────────── 设置搜索（常用置顶 + 过滤） ───────────────────────
+  final TextEditingController _settingsSearchController =
+      TextEditingController();
 
- // ─────────────────────── 自动翻页（M3.5.2） ───────────────────────
+  // ─────────────────────── 自动翻页（M3.5.2） ───────────────────────
   Timer? _autoPageTimer;
   bool _autoPagePaused = false;
 
- /// 章节加载锁：防止快速连续按上一页/下一页触发并发章节切换
- /// （导致 _currentPage 被多次设为哨兵值 -1，累加后显示为 -2/-3 等负数）。
+  /// 章节加载锁：防止快速连续按上一页/下一页触发并发章节切换
+  /// （导致 _currentPage 被多次设为哨兵值 -1，累加后显示为 -2/-3 等负数）。
   bool _chapterLoading = false;
 
- // ─────────────────────── 收藏状态（P3.1） ───────────────────────
+  // ─────────────────────── 收藏状态（P3.1） ───────────────────────
   bool _isFav = false;
 
- // ─────────────────────── TTS 朗读（P3.1） ───────────────────────
+  // ─────────────────────── TTS 朗读（P3.1） ───────────────────────
   final NovelTtsController _tts = NovelTtsController();
 
- // ── X-5 朗读通知栏控制：audio_service 会话代次与标题快照 ──────────
- /// 当前 TTS 会话的 attach 代次；null = 未挂载通知栏会话。
+  // ── X-5 朗读通知栏控制：audio_service 会话代次与标题快照 ──────────
+  /// 当前 TTS 会话的 attach 代次；null = 未挂载通知栏会话。
   int? _ttsAudioToken;
 
- /// 上次 attach 时的通知标题（章节/作品变化时刷新媒体条目）。
+  /// 上次 attach 时的通知标题（章节/作品变化时刷新媒体条目）。
   String? _ttsAudioTitle;
 
- // ── X-4 阅读中预下载后续章节 ─────────────────────────
+  // ── X-4 阅读中预下载后续章节 ─────────────────────────
   final NovelPreDownloader _preDownloader = NovelPreDownloader();
 
- /// 预下载配置快照（initState 加载；设置页修改后重进阅读器生效）。
+  /// 预下载配置快照（initState 加载；设置页修改后重进阅读器生效）。
   NovelPreDownloadPreferences _preDownloadPrefs =
       const NovelPreDownloadPreferences();
 
- /// 已触发过预下载的章节索引（每章只触发一次）。
+  /// 已触发过预下载的章节索引（每章只触发一次）。
   int _preDownloadTriggeredFor = -1;
 
- /// 本地读完自动接续在线（无缝）：防重入标志。
+  /// 本地读完自动接续在线（无缝）：防重入标志。
   bool _localToOnlineTriggered = false;
 
- /// 滚动模式 TTS 跟随：当前朗读段挂此 key，帧后 ensureVisible 滚到可视区。
+  /// 滚动模式 TTS 跟随：当前朗读段挂此 key，帧后 ensureVisible 滚到可视区。
   final GlobalKey _ttsParagraphKey = GlobalKey();
 
- // ─────────────────────── 笔记（P3.1） ───────────────────────
+  // ─────────────────────── 笔记（P3.1） ───────────────────────
   final NovelNoteManager _notes = NovelNoteManager();
 
- // ── F3 全书预扫描：章节摘要 + 全书概述（后台可续） ──────────────
+  // ── F3 全书预扫描：章节摘要 + 全书概述（后台可续） ──────────────
   final NovelPrescanManager _prescanManager = NovelPrescanManager();
   final ValueNotifier<NovelPrescanUi> _prescanUi =
       ValueNotifier<NovelPrescanUi>(const NovelPrescanUi());
@@ -634,13 +666,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _tts.addListener(_onTtsChanged);
     _chapterIndex = widget.initialChapterIndex;
     _prefs = const NovelReaderPreferences();
-  // 读后自动删除：dispose 阶段判定「读完」用（context 已不可用，先缓存引用）。
+    // 读后自动删除：dispose 阶段判定「读完」用（context 已不可用，先缓存引用）。
     try {
       _downloadManager = context.read<DownloadManager>();
     } on Object {
       _downloadManager = null;
     }
-  // 排除分类判定同样在 dispose 阶段使用，缓存引用。
+    // 排除分类判定同样在 dispose 阶段使用，缓存引用。
     try {
       _favorites = context.read<FavoritesManager>();
     } on Object {
@@ -649,7 +681,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _initBrightness();
     _initTimeAndBattery();
     _init();
-  // 阅读时长统计：进入阅读器即开始，dispose 时一次性结算。
+    // 阅读时长统计：进入阅读器即开始，dispose 时一次性结算。
     if (widget.sourceId.isNotEmpty) {
       final initialTitle = widget.chapters.isNotEmpty &&
               widget.initialChapterIndex >= 0 &&
@@ -669,17 +701,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-  // 应用进入后台/被回收时立即落盘当前阅读位置，避免进度丢失
-  // （尤其翻章后那次落盘尚未完成即被切后台的场景）。
+    // 应用进入后台/被回收时立即落盘当前阅读位置，避免进度丢失
+    // （尤其翻章后那次落盘尚未完成即被切后台的场景）。
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       _persistProgressNow();
-   // 云同步增强：退后台即细粒度（逐书文件）静默上传当前进度，
-   // 多端「暂停即同步」；云端领先时不覆盖（防回退），失败静默。
+      // 云同步增强：退后台即细粒度（逐书文件）静默上传当前进度，
+      // 多端「暂停即同步」；云端领先时不覆盖（防回退），失败静默。
       unawaited(_pushProgressToCloud());
     }
-  // TTS 后台朗读开关：关闭时应用进入后台即暂停朗读；
-  // 开启时保持朗读（wakelock_plus 已持有唤醒锁）。
+    // TTS 后台朗读开关：关闭时应用进入后台即暂停朗读；
+    // 开启时保持朗读（wakelock_plus 已持有唤醒锁）。
     if (state == AppLifecycleState.paused &&
         !_tts.backgroundMode &&
         _tts.isPlaying) {
@@ -696,8 +728,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
     _fetchBatteryLevel();
     _batterySubscription = Battery().onBatteryStateChanged.listen(
-      (_) => _fetchBatteryLevel(),
-    );
+          (_) => _fetchBatteryLevel(),
+        );
   }
 
   void _updateTime() {
@@ -707,14 +739,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (mounted) setState(() => _currentTime = '$hour:$minute');
   }
 
- // battery_plus 6.x: BatteryState is an enum without a level field, so we
- // refetch the level via [Battery.batteryLevel] whenever the state changes.
+  // battery_plus 6.x: BatteryState is an enum without a level field, so we
+  // refetch the level via [Battery.batteryLevel] whenever the state changes.
   Future<void> _fetchBatteryLevel() async {
     try {
       final level = await Battery().batteryLevel;
       if (mounted) setState(() => _batteryLevel = level);
     } on Object {
-   // Some platforms may not support battery level; leave as -1.
+      // Some platforms may not support battery level; leave as -1.
     }
   }
 
@@ -740,31 +772,31 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   Future<void> _init() async {
     final defaults = await ReaderDefaultSettingsStore().load();
-  // 显式覆盖合并：只有用户单独设置过的字段覆盖全局默认，其余实时跟随总设置。
+    // 显式覆盖合并：只有用户单独设置过的字段覆盖全局默认，其余实时跟随总设置。
     _overrideKeys = await _store.getOverrideKeys(widget.novelId);
-    _prefs = (await _store.get(widget.novelId)).mergedWithKeys(
-        defaults.toNovelReaderPreferences(), _overrideKeys);
-  // 迁移：自动翻页不应在进入阅读器时默认启动。
-  // 之前误将默认值改为 30 导致已持久化数据残留非零值；
-  // 无论具体数值是多少，一律重置为 0（关闭），由用户手动开启。
-  // 仅做内存修正，不再整包落盘——旧实现会把合并结果全量写回，
-  // 使所有继承字段被误判为「本书单独设置」、从此脱离总设置。
+    _prefs = (await _store.get(widget.novelId))
+        .mergedWithKeys(defaults.toNovelReaderPreferences(), _overrideKeys);
+    // 迁移：自动翻页不应在进入阅读器时默认启动。
+    // 之前误将默认值改为 30 导致已持久化数据残留非零值；
+    // 无论具体数值是多少，一律重置为 0（关闭），由用户手动开启。
+    // 仅做内存修正，不再整包落盘——旧实现会把合并结果全量写回，
+    // 使所有继承字段被误判为「本书单独设置」、从此脱离总设置。
     if (_prefs.autoPageInterval > 0) {
       _prefs = _prefs.copyWith(autoPageInterval: 0);
     }
-  // 音量键翻页（N5）：偏好加载完成后按需挂载原生拦截。
+    // 音量键翻页（N5）：偏好加载完成后按需挂载原生拦截。
     unawaited(_syncVolumeKey());
-  // X-4：预下载配置加载（静态方法内部 try/catch，失败回落默认）。
+    // X-4：预下载配置加载（静态方法内部 try/catch，失败回落默认）。
     _preDownloadPrefs = await NovelPreDownloadPreferences.load();
-  // 重新注册自定义字体文件（正文 / 标题），否则重启后字体不生效。
+    // 重新注册自定义字体文件（正文 / 标题），否则重启后字体不生效。
     await _loadCustomFontsIfNeeded();
     final saved = await _progress.get(widget.novelId);
-  // 本地模式只有单「章」（整个文件），saved.chapterIndex 恒为 0；
-  // 在线模式需校验 chapterIndex 落在 chapters 范围内。
-  // restoreProgress=false 时（详情页章节列表明确点选）忽略保存值。
+    // 本地模式只有单「章」（整个文件），saved.chapterIndex 恒为 0；
+    // 在线模式需校验 chapterIndex 落在 chapters 范围内。
+    // restoreProgress=false 时（详情页章节列表明确点选）忽略保存值。
     if (widget.restoreProgress && saved != null) {
-   // 单文件本地书（EPUB / TXT）：解析前不知道章节总数，先记住章节下标，
-   // 解析完成后应用（见 _loadLocalText）；同时记住页码。
+      // 单文件本地书（EPUB / TXT）：解析前不知道章节总数，先记住章节下标，
+      // 解析完成后应用（见 _loadLocalText）；同时记住页码。
       if (_isLocalMode &&
           (widget.localEpubPath != null || widget.localTextPath != null)) {
         _restoreParsedChapterIndex = saved.chapterIndex;
@@ -793,8 +825,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 若用户选择了自定义字体文件（正文 / 标题），在启动与翻章前重新注册字族，
- /// 否则重启后字体不生效。已加载过的字族会被 [NovelReaderPreferences] 跳过。
+  /// 若用户选择了自定义字体文件（正文 / 标题），在启动与翻章前重新注册字族，
+  /// 否则重启后字体不生效。已加载过的字族会被 [NovelReaderPreferences] 跳过。
   Future<void> _loadCustomFontsIfNeeded() async {
     if (_prefs.customFontPath != null) {
       await NovelReaderPreferences.loadCustomFont(
@@ -810,16 +842,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 构建聚合本地模式的完整章节目录：TXT 每文件一章；EPUB 解析内部章节并按
- /// 当前排序模式展开（id 编码为 `<epubUri>|<内部索引>`）。首次加载章节前调用
- /// （[_loadLocalText] 聚合分支），构建结果缓存于 [_expandedChapters]。
+  /// 构建聚合本地模式的完整章节目录：TXT 每文件一章；EPUB 解析内部章节并按
+  /// 当前排序模式展开（id 编码为 `<epubUri>|<内部索引>`）。首次加载章节前调用
+  /// （[_loadLocalText] 聚合分支），构建结果缓存于 [_expandedChapters]。
   Future<void> _ensureAggregatedChapters() async {
     if (_expandedChapters != null || !_isAggregatedLocal) return;
-  if (_aggBuilding) return; // 防重入
+    if (_aggBuilding) return; // 防重入
     _aggBuilding = true;
     try {
       final paths = widget.localChapterPaths!;
-   // 1) 展开：txt 每文件一章；epub 拆成内部 N 章（id = '<uri>|<ci>'）。
+      // 1) 展开：txt 每文件一章；epub 拆成内部 N 章（id = '<uri>|<ci>'）。
       final all = <Episode>[];
       for (final path in paths) {
         if (path.toLowerCase().endsWith('.epub')) {
@@ -842,7 +874,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             _aggEpubBooks[path] = book;
           }
           if (book.chapters.isEmpty) {
-      // 空 epub 兜底为单章（标题=文件名），避免目录缺项。
+            // 空 epub 兜底为单章（标题=文件名），避免目录缺项。
             all.add(Episode(
               id: path,
               title: _chapterTitleFor(path),
@@ -860,13 +892,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             }
           }
         } else {
-     // TXT 与 EPUB 同构：解析整本并按内部章节展开（TXT 目录导入章节细化
-     // 「和 epub 一样」）。无内部章节的纯文本兜底为单章（标题=文件名）。
+          // TXT 与 EPUB 同构：解析整本并按内部章节展开（TXT 目录导入章节细化
+          // 「和 epub 一样」）。无内部章节的纯文本兜底为单章（标题=文件名）。
           LocalNovelBook? book = _aggTxtBooks[path];
           if (book == null) {
             final local = await resolveSafUri(path);
-      // fallback 用源文件标题（而非缓存路径 basename），避免下载的正文无标题
-      // 行时章节标题显示成 `saf_<hash>`（「标签变成 saf 的内容」）。
+            // fallback 用源文件标题（而非缓存路径 basename），避免下载的正文无标题
+            // 行时章节标题显示成 `saf_<hash>`（「标签变成 saf 的内容」）。
             final raw = await compute(
                 _parseTxtChaptersIsolate, (local, _chapterTitleFor(path)));
             book = LocalNovelBook(
@@ -908,11 +940,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           }
         }
       }
-   // 2) 按排序模式调整顺序。
+      // 2) 按排序模式调整顺序。
       List<Episode> ordered;
       switch (_aggMode) {
         case _AggChapterMode.fileExpanded:
-     ordered = all; // 构造顺序=文件顺序，epub 章节已在其文件位置展开
+          ordered = all; // 构造顺序=文件顺序，epub 章节已在其文件位置展开
         case _AggChapterMode.epubLast:
           ordered = <Episode>[
             ...all.where((e) => !e.id.contains('|')),
@@ -929,7 +961,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               ),
           ];
       }
-   // 3) 重新编号。
+      // 3) 重新编号。
       _expandedChapters = <Episode>[
         for (var i = 0; i < ordered.length; i++)
           ordered[i].copyWith(number: i + 1),
@@ -940,30 +972,30 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (mounted) setState(() {});
   }
 
- /// 本地章节标题：SAF content:// 文件 URI 先还原真实文件名再去扩展名。
+  /// 本地章节标题：SAF content:// 文件 URI 先还原真实文件名再去扩展名。
   String _chapterTitleFor(String path) {
     final rawName = isAndroidSafUri(path) ? safBaseName(path) : path;
     final t = p.basenameWithoutExtension(rawName);
     return t.isEmpty ? path : t;
   }
 
- /// 本地模式读取文件并分页（参考 local_media_viewer._readTextFile）。
- ///
- /// - TXT（[localTextPath]）：整文件作为扁平段落列表。
- /// - EPUB（[localEpubPath]）：经 [LocalNovelParser.parseEpub] 解析为章节，
- ///  章节标题与正文段落统一展平为 [NovelTextBlock]，复用同一套分页/渲染路径。
+  /// 本地模式读取文件并分页（参考 local_media_viewer._readTextFile）。
+  ///
+  /// - TXT（[localTextPath]）：整文件作为扁平段落列表。
+  /// - EPUB（[localEpubPath]）：经 [LocalNovelParser.parseEpub] 解析为章节，
+  ///  章节标题与正文段落统一展平为 [NovelTextBlock]，复用同一套分页/渲染路径。
   Future<void> _loadLocalText({int restorePage = 0}) async {
     final int token = _loadSession.next();
     if (mounted) setState(() => _loading = true);
     _stopAutoPage();
     try {
       final List<NovelBlock> blocks;
-   // 聚合本地模式：按展开目录取当前章节（TXT 文件 / EPUB 内部章节）；
-   // 其余本地模式取固定文件。
+      // 聚合本地模式：按展开目录取当前章节（TXT 文件 / EPUB 内部章节）；
+      // 其余本地模式取固定文件。
       String? localPath;
       var isEpub = false;
-   // 聚合模式 TXT 章节：resolveSafUri 会把 localPath 覆盖为缓存路径 `saf_<hash>`,
-   // 这里在覆盖前记住源文件标题，供 1047 分支做 fallback（避免标题成 saf 内容）。
+      // 聚合模式 TXT 章节：resolveSafUri 会把 localPath 覆盖为缓存路径 `saf_<hash>`,
+      // 这里在覆盖前记住源文件标题，供 1047 分支做 fallback（避免标题成 saf 内容）。
       String? sourceTitle;
       if (widget.localChapterPaths != null &&
           widget.localChapterPaths!.isNotEmpty) {
@@ -982,7 +1014,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         final ep = chs[_chapterIndex.clamp(0, chs.length - 1)];
         final sepIdx = ep.id.indexOf('|');
         if (sepIdx >= 0) {
-     // EPUB 内部章节（展开模式）：从缓存整本取该章内容直接渲染。
+          // EPUB 内部章节（展开模式）：从缓存整本取该章内容直接渲染。
           final book = _aggEpubBooks[ep.id.substring(0, sepIdx)];
           final ci = int.tryParse(ep.id.substring(sepIdx + 1)) ?? 0;
           if (book == null || book.chapters.isEmpty) {
@@ -1012,9 +1044,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           _setupControllers(restorePage: restorePage);
           return;
         }
-    // TXT 内部章节（聚合目录导入，和 EPUB 一样按内部章节展开）：从缓存解析
-    // 书取指定内部章节渲染；ci = -1 表示整文件（无内部章节，如 collapsed 模式），
-    // 展平全部内部章节。精确字符串匹配路由，规避文件路径含分隔符的歧义。
+        // TXT 内部章节（聚合目录导入，和 EPUB 一样按内部章节展开）：从缓存解析
+        // 书取指定内部章节渲染；ci = -1 表示整文件（无内部章节，如 collapsed 模式），
+        // 展平全部内部章节。精确字符串匹配路由，规避文件路径含分隔符的歧义。
         final txtMeta = _aggTxtEpisodeMeta[ep.id];
         if (txtMeta != null) {
           final book = _aggTxtBooks[txtMeta.$1];
@@ -1032,11 +1064,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           if (txtMeta.$2 < 0) {
             txtBlocks = <NovelBlock>[
               for (final ch in book.chapters) ...<NovelBlock>[
-                if (ch.title.isNotEmpty) NovelTextBlock(ch.title, isHeading: true),
+                if (ch.title.isNotEmpty)
+                  NovelTextBlock(ch.title, isHeading: true),
                 for (final p in ch.content)
                   if (p.trim().isNotEmpty)
                     p.startsWith(kNexhubImgMarker) &&
-                            p.substring(kNexhubImgMarker.length).trim().isNotEmpty
+                            p
+                                .substring(kNexhubImgMarker.length)
+                                .trim()
+                                .isNotEmpty
                         ? NovelImageBlock(
                             p.substring(kNexhubImgMarker.length).trim(),
                             source: _source,
@@ -1045,9 +1081,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               ],
             ];
           } else {
-            final ch = book.chapters[txtMeta.$2.clamp(0, book.chapters.length - 1)];
+            final ch =
+                book.chapters[txtMeta.$2.clamp(0, book.chapters.length - 1)];
             txtBlocks = <NovelBlock>[
-              if (ch.title.isNotEmpty) NovelTextBlock(ch.title, isHeading: true),
+              if (ch.title.isNotEmpty)
+                NovelTextBlock(ch.title, isHeading: true),
               for (final p in ch.content)
                 if (p.trim().isNotEmpty)
                   p.startsWith(kNexhubImgMarker) &&
@@ -1079,8 +1117,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       } else {
         localPath = widget.localTextPath;
       }
-   // 单文件（EPUB / TXT）翻章时已缓存解析结果，无需再读文件；
-   // 其余情况 SAF 落缓存再读。
+      // 单文件（EPUB / TXT）翻章时已缓存解析结果，无需再读文件；
+      // 其余情况 SAF 落缓存再读。
       final bool singleEpub = widget.localEpubPath != null && isEpub;
       final bool singleTxt = widget.localTextPath != null && !isEpub;
       final bool localParsed =
@@ -1091,10 +1129,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       if (localPath == null) return;
       if (isEpub) {
         if (singleEpub) {
-     // 单 EPUB（localEpubPath）：整本解析一次并缓存，之后逐章切片，
-     // 翻页/滚动只在本章内进行（与在线小说一致的阅读体验）。
+          // 单 EPUB（localEpubPath）：整本解析一次并缓存，之后逐章切片，
+          // 翻页/滚动只在本章内进行（与在线小说一致的阅读体验）。
           if (!localParsed) {
-      // 首次打开时在独立 isolate 解析整本（bug 116）。
+            // 首次打开时在独立 isolate 解析整本（bug 116）。
             final raw = await compute(_parseEpubIsolate, localPath);
             if (!mounted) return;
             final book = LocalNovelBook(
@@ -1129,7 +1167,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   number: ci + 1,
                 ),
             ];
-      // 进度恢复：解析完成后才知道章节总数，这里应用保存的章节下标。
+            // 进度恢复：解析完成后才知道章节总数，这里应用保存的章节下标。
             final restoreIdx = _restoreParsedChapterIndex;
             if (restoreIdx != null &&
                 restoreIdx >= 0 &&
@@ -1143,14 +1181,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           _chapterIndex = ci;
           final ch = chapters[ci];
           blocks = <NovelBlock>[
-      // 章节标题标记为 heading：渲染层用大字号+居中+加粗，一眼看到分界。
+            // 章节标题标记为 heading：渲染层用大字号+居中+加粗，一眼看到分界。
             if (ch.title.isNotEmpty) NovelTextBlock(ch.title, isHeading: true),
             for (final p in ch.content)
               if (p.trim().isNotEmpty) NovelTextBlock(p),
           ];
         } else {
-     // 聚合模式里的 EPUB 文件：每个文件 = 一章，整文件解析后展平
-     //（保持原行为，不缓存切片）。
+          // 聚合模式里的 EPUB 文件：每个文件 = 一章，整文件解析后展平
+          //（保持原行为，不缓存切片）。
           final raw = await compute(_parseEpubIsolate, localPath);
           if (!mounted || !_loadSession.isValid(token)) return;
           final book = LocalNovelBook(
@@ -1185,11 +1223,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           ];
         }
       } else if (singleTxt) {
-    // 单 TXT（localTextPath）：行级章节切分并缓存（/，段落仅以
-    // 单换行分隔的文件也能正确分章），逐章切片加载，与单 EPUB 同构。
+        // 单 TXT（localTextPath）：行级章节切分并缓存（/，段落仅以
+        // 单换行分隔的文件也能正确分章），逐章切片加载，与单 EPUB 同构。
         if (!localParsed) {
-     // fallback 用源文件标题（localTextPath），而非 resolveSafUri 后的缓存
-     // 路径 basename——否则无标题行的 TXT 章节会显示 `saf_<hash>`。
+          // fallback 用源文件标题（localTextPath），而非 resolveSafUri 后的缓存
+          // 路径 basename——否则无标题行的 TXT 章节会显示 `saf_<hash>`。
           final raw = isPortableBookFile(widget.localTextPath!)
               ? await compute(_parsePortableIsolate, localPath)
               : await compute(_parseTxtChaptersIsolate,
@@ -1222,7 +1260,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 number: ci + 1,
               ),
           ];
-     // 进度恢复：解析完成后才知道章节总数，这里应用保存的章节下标。
+          // 进度恢复：解析完成后才知道章节总数，这里应用保存的章节下标。
           final restoreIdx = _restoreParsedChapterIndex;
           if (restoreIdx != null &&
               restoreIdx >= 0 &&
@@ -1239,7 +1277,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           if (ch.title.isNotEmpty) NovelTextBlock(ch.title, isHeading: true),
           for (final para in ch.content)
             if (para.trim().isNotEmpty)
-       // 下载器占位行 → 本地插图；其余为正文段。
+              // 下载器占位行 → 本地插图；其余为正文段。
               para.startsWith(kNexhubImgMarker) &&
                       para.substring(kNexhubImgMarker.length).trim().isNotEmpty
                   ? NovelImageBlock(
@@ -1249,13 +1287,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   : NovelTextBlock(para),
         ];
       } else {
-    // 聚合模式的 TXT 章节文件：每个文件本身即一章；为满足「和 epub 一样」
-    // 的章节细化需求，文件内部仍按行级规则二次切分为子章节
-    // （splitTxtChapters：仅命中「第X章/节/回/卷…」等标题才切，无标题则
-    // 整文件作为单章，不会误拆单章内容），子章节标题作为 heading、插图标记
-    // 转为本地插图——与 epub 聚合分支同构。大 TXT 仍放独立 isolate 解析。
-    // fallback 用源文件标题（sourceTitle 已记录，覆盖前 ep.id 为源文件路径），
-    // 避免章节标题显示 `saf_<hash>`（「标签变成 saf 的内容」）。
+        // 聚合模式的 TXT 章节文件：每个文件本身即一章；为满足「和 epub 一样」
+        // 的章节细化需求，文件内部仍按行级规则二次切分为子章节
+        // （splitTxtChapters：仅命中「第X章/节/回/卷…」等标题才切，无标题则
+        // 整文件作为单章，不会误拆单章内容），子章节标题作为 heading、插图标记
+        // 转为本地插图——与 epub 聚合分支同构。大 TXT 仍放独立 isolate 解析。
+        // fallback 用源文件标题（sourceTitle 已记录，覆盖前 ep.id 为源文件路径），
+        // 避免章节标题显示 `saf_<hash>`（「标签变成 saf 的内容」）。
         final raw = await compute(
             _parseTxtChaptersIsolate, (localPath, sourceTitle ?? 'chapter'));
         if (!mounted || !_loadSession.isValid(token)) return;
@@ -1281,9 +1319,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             if (ch.title.isNotEmpty) NovelTextBlock(ch.title, isHeading: true),
             for (final para in ch.content)
               if (para.trim().isNotEmpty)
-        // 下载器占位行 → 本地插图；其余为正文段。
+                // 下载器占位行 → 本地插图；其余为正文段。
                 para.startsWith(kNexhubImgMarker) &&
-                        para.substring(kNexhubImgMarker.length).trim().isNotEmpty
+                        para
+                            .substring(kNexhubImgMarker.length)
+                            .trim()
+                            .isNotEmpty
                     ? NovelImageBlock(
                         para.substring(kNexhubImgMarker.length).trim(),
                         source: _source,
@@ -1315,13 +1356,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 刷新收藏状态。
+  /// 刷新收藏状态。
   void _refreshFavorite() {
     final fav = context.read<FavoritesManager>();
     _isFav = fav.isFavorite(widget.novelId, SourceType.novelSource);
   }
 
- /// 切换收藏。
+  /// 切换收藏。
   Future<void> _toggleFavorite() async {
     final l10n = AppLocalizations.of(context);
     final fav = context.read<FavoritesManager>();
@@ -1346,7 +1387,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 收藏按钮入口：源声明网络收藏时弹「本地/网络」双选项，否则直接本地收藏。
+  /// 收藏按钮入口：源声明网络收藏时弹「本地/网络」双选项，否则直接本地收藏。
   Future<void> _onFavoritePressed() async {
     final MediaItem item = MediaItem(
       id: widget.novelId,
@@ -1370,7 +1411,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 清除当前小说的阅读进度（三点菜单入口）。
+  /// 清除当前小说的阅读进度（三点菜单入口）。
   Future<void> _clearReadingProgress() async {
     final l10n = AppLocalizations.of(context);
     await _progress.clear(widget.novelId);
@@ -1391,12 +1432,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 重载当前章节（三点菜单入口）。
+  /// 重载当前章节（三点菜单入口）。
   Future<void> _reloadChapter() async {
     await _loadChapter(_chapterIndex);
   }
 
- /// 切换 TTS 朗读（三点菜单入口）。
+  /// 切换 TTS 朗读（三点菜单入口）。
   Future<void> _toggleTts() async {
     if (_tts.isPlaying) {
       await _tts.stop();
@@ -1410,7 +1451,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (mounted) setState(() {});
   }
 
- /// X-2：把当前作品加入待读队列（三点菜单入口）。
+  /// X-2：把当前作品加入待读队列（三点菜单入口）。
   Future<void> _addCurrentToReadingQueue() async {
     final l10n = AppLocalizations.of(context);
     await ReadingQueueStore().add(QueuedReading(
@@ -1429,7 +1470,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 显示笔记列表（三点菜单），包含独立笔记与划线摘录笔记。
+  /// 显示笔记列表（三点菜单），包含独立笔记与划线摘录笔记。
   Future<void> _showNoteList() async {
     final notes = await _notes.notesForNovel(widget.novelId);
     final highlights = await NovelHighlightManager().listFor(widget.novelId);
@@ -1466,8 +1507,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         final l10n = AppLocalizations.of(ctx);
         return SafeArea(
           child: ConstrainedBox(
-            constraints:
-                BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.85),
             child: merged.isEmpty
                 ? Center(child: Text(l10n.noNotes))
                 : ListView.builder(
@@ -1533,18 +1574,25 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             IconButton(
-                              icon: const Icon(Icons.edit_note_rounded, size: 20),
+                              icon:
+                                  const Icon(Icons.edit_note_rounded, size: 20),
                               onPressed: () {
                                 Navigator.of(ctx).pop();
                                 if (entry.isHighlightNote) {
-                 // 划线笔记：通过 highlight key 查找并编辑
-                                  NovelHighlightManager().getByKey(entry.deleteKey).then((hl) {
-                                    if (hl != null && mounted) _editHighlightNote(hl);
+                                  // 划线笔记：通过 highlight key 查找并编辑
+                                  NovelHighlightManager()
+                                      .getByKey(entry.deleteKey)
+                                      .then((hl) {
+                                    if (hl != null && mounted)
+                                      _editHighlightNote(hl);
                                   });
                                 } else {
-                 // 独立笔记：暂不支持编辑（可删除后重建）
+                                  // 独立笔记：暂不支持编辑（可删除后重建）
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(AppLocalizations.of(context).noteEditUnsupported)),
+                                    SnackBar(
+                                        content: Text(
+                                            AppLocalizations.of(context)
+                                                .noteEditUnsupported)),
                                   );
                                 }
                               },
@@ -1553,7 +1601,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                               icon: const Icon(Icons.delete_rounded, size: 20),
                               onPressed: () {
                                 if (entry.isHighlightNote) {
-                                  NovelHighlightManager().remove(entry.deleteKey);
+                                  NovelHighlightManager()
+                                      .remove(entry.deleteKey);
                                 } else {
                                   _notes.removeNote(entry.deleteKey);
                                 }
@@ -1579,12 +1628,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 显示标记列表（划线列表），支持查看、编辑笔记、删除、跳转
- /// （Phase 2 / N6，参照 [_showNoteList] 模式）。
- /// 同章+同引文+同效果的标记自动合并（保留最新颜色和笔记）。
+  /// 显示标记列表（划线列表），支持查看、编辑笔记、删除、跳转
+  /// （Phase 2 / N6，参照 [_showNoteList] 模式）。
+  /// 同章+同引文+同效果的标记自动合并（保留最新颜色和笔记）。
   Future<void> _showHighlightList() async {
     final highlights = await NovelHighlightManager().listFor(widget.novelId);
-  // 合并：同章+同引文+同效果 → 保留最新的一条
+    // 合并：同章+同引文+同效果 → 保留最新的一条
     final merged = <String, NovelHighlight>{};
     for (final h in highlights) {
       final key = '${h.chapterIndex}::${h.quote}::${h.effect}';
@@ -1617,27 +1666,27 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                       final isUnderline = h.effect != 'bg';
                       return ListTile(
                         leading: isUnderline
-                          ? Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: swatch.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
+                            ? Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: swatch.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Icon(
+                                  Icons.format_underline_rounded,
+                                  size: 16,
+                                  color: swatch,
+                                ),
+                              )
+                            : Container(
+                                width: 4,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: swatch,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
                               ),
-                              child: Icon(
-                                Icons.format_underline_rounded,
-                                size: 16,
-                                color: swatch,
-                              ),
-                            )
-                          : Container(
-                              width: 4,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: swatch,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
                         title: Text(
                           '${l10n.chapterN(h.chapterIndex + 1)} · ${h.chapterTitle}',
                           maxLines: 1,
@@ -1696,14 +1745,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                             _chapterIndex = h.chapterIndex;
                             _loadChapter(_chapterIndex);
                           }
-             // 使用搜索关键词跳转到选中文本位置
+                          // 使用搜索关键词跳转到选中文本位置
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (mounted) {
                               _searchKeyword = h.quote;
                               _searchRegex = null;
                               _startSearchHighlightTimer();
-               // 在分页模式下尝试跳转到包含引文的页面
-                              if (!_prefs.pageAnimation.isScroll && _pagination != null) {
+                              // 在分页模式下尝试跳转到包含引文的页面
+                              if (!_prefs.pageAnimation.isScroll &&
+                                  _pagination != null) {
                                 _jumpToQuote(h.quote);
                               }
                             }
@@ -1718,7 +1768,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 编辑单条划线的笔记（Phase 2 / N6 摘录）。
+  /// 编辑单条划线的笔记（Phase 2 / N6 摘录）。
   Future<void> _editHighlightNote(NovelHighlight hl) async {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
@@ -1772,12 +1822,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 滚动模式正文是否处于 TTS 朗读态（TTS 态不拦截长按选区）。
+  /// 滚动模式正文是否处于 TTS 朗读态（TTS 态不拦截长按选区）。
   bool _ttsActiveForBody() => _tts.state != NovelTtsState.stopped;
 
- /// 滚动模式长按起始：选中整块（章节全局偏移范围）。
- ///
- /// 块为整段多行文本，精确折行 x 命中留待后续；先满足「滚动模式可划线」。
+  /// 滚动模式长按起始：选中整块（章节全局偏移范围）。
+  ///
+  /// 块为整段多行文本，精确折行 x 命中留待后续；先满足「滚动模式可划线」。
   void _onSelLongPressStartScroll(int blockIndex, String text) {
     // MD3「Thunk」：长按开始文本选择。
     AppHaptics.thunk();
@@ -1793,7 +1843,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _selectionController.setSelection(start, end);
   }
 
- /// 滚动模式长按结束：解除选区激活；有选区则显示工具条。
+  /// 滚动模式长按结束：解除选区激活；有选区则显示工具条。
   void _onSelLongPressEndScroll() {
     _longPressEngaged = false;
     _selectionController.setSelecting(false);
@@ -1806,17 +1856,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   @override
   void dispose() {
-  // F3：离开阅读器中断预扫描（已完成章节已逐批落盘，重进可续扫）。
+    // F3：离开阅读器中断预扫描（已完成章节已逐批落盘，重进可续扫）。
     _prescanCancelled = true;
     _prescanUi.dispose();
-  // 退出阅读器前兜底落盘当前阅读位置（不依赖 context，见 _persistProgressNow）。
-  // 进度此前仅在阅读中写入，若翻章后的那次落盘尚未完成即被 pop，重进会
-  // 回放上一章末页；此处保证最后所在页/章被持久化。
+    // 退出阅读器前兜底落盘当前阅读位置（不依赖 context，见 _persistProgressNow）。
+    // 进度此前仅在阅读中写入，若翻章后的那次落盘尚未完成即被 pop，重进会
+    // 回放上一章末页；此处保证最后所在页/章被持久化。
     _persistProgressNow();
-  // 退出时把当前书进度静默上传到 WebDAV（best-effort；未配置/
-  // 网络失败/云端领先均静默忽略，不阻塞退出）。
+    // 退出时把当前书进度静默上传到 WebDAV（best-effort；未配置/
+    // 网络失败/云端领先均静默忽略，不阻塞退出）。
     unawaited(_pushProgressToCloud());
-  // 退出时一次性结算本次阅读会话（commit 内部 best-effort）。
+    // 退出时一次性结算本次阅读会话（commit 内部 best-effort）。
     if (widget.sourceId.isNotEmpty) {
       unawaited(ReadingSessionRecorder.instance.commit(
         workId: widget.novelId,
@@ -1827,21 +1877,21 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         source: SessionSource.novelReader,
       ));
     }
-  // 读后自动删除：读完（进度到最后一章）时清理该内容已下载文件。
+    // 读后自动删除：读完（进度到最后一章）时清理该内容已下载文件。
     unawaited(_maybeAutoDeleteDownloaded());
     WidgetsBinding.instance.removeObserver(this);
-  // 音量键翻页（N5）：退出阅读器恢复系统默认音量键行为。
+    // 音量键翻页（N5）：退出阅读器恢复系统默认音量键行为。
     unawaited(_volumeKeyListener.stop());
     _timeTimer.cancel();
     _batterySubscription?.cancel();
     _autoPageTimer?.cancel();
     _scrollController?.dispose();
     _brightnessSub?.cancel();
-  // 异步方法，异常在后续微任务抛出，同步 try/catch 抓不到；用 .catchError 兜底，
-  // 避免「Uncaught zone error」在 release 下升级为进程崩溃。
+    // 异步方法，异常在后续微任务抛出，同步 try/catch 抓不到；用 .catchError 兜底，
+    // 避免「Uncaught zone error」在 release 下升级为进程崩溃。
     _brightnessPlugin.resetScreenBrightness().catchError((Object _) {});
     _tts.removeListener(_onTtsChanged);
-  // X-5：退出阅读器释放通知栏媒体会话（若朗读仍在后台，系统通知随之移除）。
+    // X-5：退出阅读器释放通知栏媒体会话（若朗读仍在后台，系统通知随之移除）。
     if (_ttsAudioToken != null) {
       AudioPlaybackService.instance.detach(_ttsAudioToken!);
       _ttsAudioToken = null;
@@ -1853,7 +1903,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     super.dispose();
   }
 
- /// 读完自动删除（小说版）：最后一章已读且设置开启时清理下载。
+  /// 读完自动删除（小说版）：最后一章已读且设置开启时清理下载。
   Future<void> _maybeAutoDeleteDownloaded() async {
     try {
       final dm = _downloadManager;
@@ -1869,16 +1919,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       if (p.chapterIndex + 1 < p.totalChapters!) return;
       await dm.removeItemDownloads(widget.novelId, deleteFiles: true);
     } on Object {
-   // best-effort。
+      // best-effort。
     }
   }
 
- // ─────────────────────── 自动翻页（M3.5.2） ───────────────────────
+  // ─────────────────────── 自动翻页（M3.5.2） ───────────────────────
 
- /// 是否启用了自动翻页（间隔 > 0 即视为启用）。
+  /// 是否启用了自动翻页（间隔 > 0 即视为启用）。
   bool get _autoPageEnabled => _prefs.autoPageInterval > 0;
 
- /// 根据当前偏好与暂停状态启停定时器。
+  /// 根据当前偏好与暂停状态启停定时器。
   void _applyAutoPage() {
     _autoPageTimer?.cancel();
     _autoPageTimer = null;
@@ -1886,8 +1936,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (_paragraphs.isEmpty) return;
     final interval = _prefs.autoPageInterval;
     if (_prefs.autoPageSmooth) {
-   // O5 像素级平滑：50ms 一帧按比例推进，一整页耗时 = interval 秒。
-   // 滚动模式直接推进滚动像素；翻页模式驱动过渡进度（advanceAutoPage）。
+      // O5 像素级平滑：50ms 一帧按比例推进，一整页耗时 = interval 秒。
+      // 滚动模式直接推进滚动像素；翻页模式驱动过渡进度（advanceAutoPage）。
       const int tickMs = 50;
       final double deltaPerTick = tickMs / (interval * 1000);
       _autoPageTimer = Timer.periodic(
@@ -1902,7 +1952,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 平滑自动翻页单帧推进（O5）。
+  /// 平滑自动翻页单帧推进（O5）。
   void _autoPageTick(double delta) {
     if (_loading || _chapterLoading || !_autoPageEnabled || _autoPagePaused) {
       return;
@@ -1913,7 +1963,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       final pos = sc.position;
       if (pos.maxScrollExtent <= 0) return;
       if (sc.offset >= pos.maxScrollExtent - 0.5) {
-    // 已到本章底：进入下一章（切章会按项目约束停止自动翻页）。
+        // 已到本章底：进入下一章（切章会按项目约束停止自动翻页）。
         _goNextChapter();
         return;
       }
@@ -1926,30 +1976,30 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _pageKey.currentState?.advanceAutoPage(delta);
   }
 
- /// 完全停止自动翻页（切章 / dispose 时调用）。
+  /// 完全停止自动翻页（切章 / dispose 时调用）。
   void _stopAutoPage() {
     _autoPageTimer?.cancel();
     _autoPageTimer = null;
   }
 
- /// 暂停 / 恢复自动翻页（运行时切换，不影响偏好）。
+  /// 暂停 / 恢复自动翻页（运行时切换，不影响偏好）。
   void _toggleAutoPagePause() {
     setState(() => _autoPagePaused = !_autoPagePaused);
     if (_autoPagePaused) {
-   // 平滑模式下中止半程过渡，避免停留在过渡画面。
+      // 平滑模式下中止半程过渡，避免停留在过渡画面。
       _pageKey.currentState?.cancelAutoTurn();
     }
     _applyAutoPage();
   }
 
- // ─────────────────────── 书签（M3.5.4） ───────────────────────
+  // ─────────────────────── 书签（M3.5.4） ───────────────────────
 
- /// 在当前章节+页添加书签（可附带备注，）。
+  /// 在当前章节+页添加书签（可附带备注，）。
   Future<void> _addBookmark() async {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
-  // 本地模式无 chapters，用占位 chapterId/title 保存书签。
-  // 单 EPUB（已解析出章节）按真实章节记录，目录跳回书签可精确定位。
+    // 本地模式无 chapters，用占位 chapterId/title 保存书签。
+    // 单 EPUB（已解析出章节）按真实章节记录，目录跳回书签可精确定位。
     final String chapterId;
     final String chapterTitle;
     final String chapterLabel;
@@ -2030,7 +2080,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 打开书签列表 sheet；选中后跳转，长按删除。
+  /// 打开书签列表 sheet；选中后跳转，长按删除。
   Future<void> _showBookmarkList() async {
     final list = await _bookmarks.listFor(widget.novelId);
     if (!mounted) return;
@@ -2103,7 +2153,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           Navigator.of(ctx).pop();
                           _jumpToBookmark(bm);
                         },
-            // I7：长按弹出角标图操作（自定义 / 恢复默认）。
+                        // I7：长按弹出角标图操作（自定义 / 恢复默认）。
                         onLongPress: () => _showBadgeActions(ctx, bm),
                       );
                     },
@@ -2117,7 +2167,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 书签列表角标：自定义图优先，加载失败/未设置回退默认图标（I7）。
+  /// 书签列表角标：自定义图优先，加载失败/未设置回退默认图标（I7）。
   Widget _buildBookmarkLeading(NovelBookmark bm) {
     final path = bm.iconPath;
     if (path == null || path.isEmpty) return const Icon(Icons.bookmark_rounded);
@@ -2133,8 +2183,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 角标图操作菜单（I7）：自定义 / 恢复默认；操作完成后刷新列表。
-  Future<void> _showBadgeActions(BuildContext sheetCtx, NovelBookmark bm) async {
+  /// 角标图操作菜单（I7）：自定义 / 恢复默认；操作完成后刷新列表。
+  Future<void> _showBadgeActions(
+      BuildContext sheetCtx, NovelBookmark bm) async {
     // MD3「Thunk」：长按呼出书签操作菜单。
     AppHaptics.thunk();
     final l10n = AppLocalizations.of(sheetCtx);
@@ -2165,12 +2216,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     } else if (action == 'reset') {
       await _bookmarks.setBadge(bm.key, null);
     }
-  // 刷新书签列表（与删除后的重建流程一致）。
+    // 刷新书签列表（与删除后的重建流程一致）。
     if (!mounted) return;
     _showBookmarkList();
   }
 
- /// 选图并复制到应用目录后设为书签角标（I7）。取消选图为无操作。
+  /// 选图并复制到应用目录后设为书签角标（I7）。取消选图为无操作。
   Future<void> _pickBadgeImage(NovelBookmark bm) async {
     try {
       final result = await FilePicker.platform.pickFiles(type: FileType.image);
@@ -2179,18 +2230,18 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       final docs = await getApplicationDocumentsDirectory();
       final dir = Directory(p.join(docs.path, 'novel_badges'));
       if (!dir.existsSync()) dir.createSync(recursive: true);
-      final dest = p.join(
-          dir.path, '${DateTime.now().millisecondsSinceEpoch}${p.extension(path)}');
+      final dest = p.join(dir.path,
+          '${DateTime.now().millisecondsSinceEpoch}${p.extension(path)}');
       await File(path).copy(dest);
       await _bookmarks.setBadge(bm.key, dest);
     } on Object {
-   // 选图 / 复制失败静默忽略
+      // 选图 / 复制失败静默忽略
     }
   }
 
- /// 跳转到指定书签。
+  /// 跳转到指定书签。
   void _jumpToBookmark(NovelBookmark bm) {
-  // 本地模式只有单「章」，chapterIndex 恒为 0；仅校验非负即可。
+    // 本地模式只有单「章」，chapterIndex 恒为 0；仅校验非负即可。
     if (_isLocalMode) {
       if (bm.chapterIndex < 0) return;
       if (_prefs.pageAnimation.isScroll) {
@@ -2209,7 +2260,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       return;
     }
     if (bm.chapterIndex == _chapterIndex) {
-   // 同章节：仅切页。
+      // 同章节：仅切页。
       if (_prefs.pageAnimation.isScroll) {
         final sc = _scrollController;
         if (sc != null && sc.hasClients) {
@@ -2226,7 +2277,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _loadChapter(_chapterIndex, restorePage: bm.page);
   }
 
- /// O3 段落翻译：双语对照面板（缓存优先展示，可整章翻译并持久化）。
+  /// O3 段落翻译：双语对照面板（缓存优先展示，可整章翻译并持久化）。
   Future<void> _showTranslationSheet() async {
     final paragraphs = <String>[
       for (final b in _paragraphs)
@@ -2234,7 +2285,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           b.text,
     ];
     final chapter = widget.chapters[_chapterIndex];
-  // 目标语言取自翻译配置页（NovelSummarySettings）。
+    // 目标语言取自翻译配置页（NovelSummarySettings）。
     final targetLang =
         await NovelSummarySettings.instance.getTranslationTargetLanguage();
     if (!mounted) return;
@@ -2271,8 +2322,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text(AppLocalizations.of(context).novelTranslateNoApi)),
+              content: Text(AppLocalizations.of(context).novelTranslateNoApi)),
         );
       }
       return;
@@ -2308,16 +2358,18 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         for (final c in widget.chapters)
           if (data.summaryFor(c.id) == null) c,
       ];
-      for (var i = 0; i < pending.length; i += NovelPrescanService.chaptersPerBatch) {
+      for (var i = 0;
+          i < pending.length;
+          i += NovelPrescanService.chaptersPerBatch) {
         if (_prescanCancelled || !mounted) return;
-        final end = (i + NovelPrescanService.chaptersPerBatch)
-            .clamp(0, pending.length);
+        final end =
+            (i + NovelPrescanService.chaptersPerBatch).clamp(0, pending.length);
         final batch = pending.sublist(i, end);
         final inputs = <PrescanChapterInput>[];
         for (final c in batch) {
           final head = await _loadChapterHead(c, source);
-          inputs.add(PrescanChapterInput(
-              chapterId: c.id, title: c.title, head: head));
+          inputs.add(
+              PrescanChapterInput(chapterId: c.id, title: c.title, head: head));
         }
         try {
           final summaries = await summarizer.summarizeChapters(
@@ -2378,8 +2430,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   }
 
   /// 取一章开头片段（优先预下载缓存，失败返回空串——摘要退化为仅依据章节名）。
-  Future<String> _loadChapterHead(
-      Episode chapter, PluginConfig source) async {
+  Future<String> _loadChapterHead(Episode chapter, PluginConfig source) async {
     try {
       final List<NovelBlock>? cached =
           await _preDownloader.cached(widget.novelId, chapter.id);
@@ -2403,8 +2454,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// O4 AI 章节配图：云端生成一张本章插图，落盘后以插图占位行追加进
- /// N7 内容编辑记录并重载（图文混排显示；重复生成覆盖旧图）。
+  /// O4 AI 章节配图：云端生成一张本章插图，落盘后以插图占位行追加进
+  /// N7 内容编辑记录并重载（图文混排显示；重复生成覆盖旧图）。
   Future<void> _generateAiIllustration() async {
     final l10n = AppLocalizations.of(context);
     final bool? confirmed = await showDialog<bool>(
@@ -2440,7 +2491,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         chapterTitle: chapter.title,
         excerpt: excerpt,
       );
-   // 追加到内容编辑记录（无编辑则从当前原文初始化），复用 N7 覆盖管线。
+      // 追加到内容编辑记录（无编辑则从当前原文初始化），复用 N7 覆盖管线。
       final existing = await _contentEdits.load(widget.novelId, chapter.id);
       final baseText = NovelContentEditManager.encodeBlocksToEditableText(
         existing?.blocks ?? _rawParagraphs,
@@ -2468,10 +2519,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- // ─────────────────────── 数据加载 ───────────────────────
+  // ─────────────────────── 数据加载 ───────────────────────
 
- /// N7 内容编辑：若本章存在读者编辑记录则返回编辑块列表（并置已编辑标记），
- /// 否则原样返回抓取结果。
+  /// N7 内容编辑：若本章存在读者编辑记录则返回编辑块列表（并置已编辑标记），
+  /// 否则原样返回抓取结果。
   Future<List<NovelBlock>> _applyContentEditOverride(
     String chapterId,
     List<NovelBlock> fetched,
@@ -2484,14 +2535,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       }
       return edited ? edit!.blocks : fetched;
     } on Object {
-   // 编辑数据损坏时按无编辑处理，不影响正常阅读。
+      // 编辑数据损坏时按无编辑处理，不影响正常阅读。
       return fetched;
     }
   }
 
- /// N7 内容编辑：弹出整章正文编辑框。图片块以 `@@NEXHUB_IMG@@url` 占位行、
- /// 标题块以 `@@NEXHUB_TITLE@@` 前缀行呈现；保存后按「整章覆盖」语义落盘
- /// （Hive `novel_content_edits`），随后重载本章使编辑生效。
+  /// N7 内容编辑：弹出整章正文编辑框。图片块以 `@@NEXHUB_IMG@@url` 占位行、
+  /// 标题块以 `@@NEXHUB_TITLE@@` 前缀行呈现；保存后按「整章覆盖」语义落盘
+  /// （Hive `novel_content_edits`），随后重载本章使编辑生效。
   Future<void> _showContentEditor() async {
     final l10n = AppLocalizations.of(context);
     final String? editedText = await showDialog<String>(
@@ -2530,7 +2581,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     await _loadChapter(_chapterIndex, restorePage: _currentPage);
   }
 
- /// N7 内容编辑：移除本章的编辑记录并重载（恢复源站原文）。
+  /// N7 内容编辑：移除本章的编辑记录并重载（恢复源站原文）。
   Future<void> _restoreOriginalContent() async {
     final l10n = AppLocalizations.of(context);
     final bool? confirmed = await showDialog<bool>(
@@ -2551,7 +2602,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _contentEdits.remove(widget.novelId, widget.chapters[_chapterIndex].id);
+    await _contentEdits.remove(
+        widget.novelId, widget.chapters[_chapterIndex].id);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.novelContentEditRestored)),
@@ -2560,20 +2612,21 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   }
 
   Future<void> _loadChapter(int index, {int restorePage = 0}) async {
-  // 防并发：章节加载期间忽略新的切章请求（快速连按上一页/下一页时）。
+    // 防并发：章节加载期间忽略新的切章请求（快速连按上一页/下一页时）。
     if (_chapterLoading) return;
     _chapterLoading = true;
     if (mounted) setState(() => _loading = true);
-  // 切换章节时必须取消自动翻页定时器（项目约束）。
+    // 切换章节时必须取消自动翻页定时器（项目约束）。
     _stopAutoPage();
     try {
       final source = _repo.getById(widget.sourceId);
-      if (source == null) throw Exception('source not found: ${widget.sourceId}');
+      if (source == null)
+        throw Exception('source not found: ${widget.sourceId}');
       final chapter = widget.chapters[index];
       final List<NovelBlock> paragraphs;
-   // X-4：命中预下载缓存（离线/已预取章节）则跳过网络抓取，直接渲染。
-      final List<NovelBlock>? cached = await _preDownloader
-          .cached(widget.novelId, chapter.id);
+      // X-4：命中预下载缓存（离线/已预取章节）则跳过网络抓取，直接渲染。
+      final List<NovelBlock>? cached =
+          await _preDownloader.cached(widget.novelId, chapter.id);
       if (cached != null) {
         paragraphs = cached;
       } else {
@@ -2583,14 +2636,18 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           chapterUrl: chapter.url,
         );
       }
-      if (!mounted) { _chapterLoading = false; return; }
-   // N7 内容编辑：本章存在读者编辑记录时以编辑块整体覆盖抓取结果
-   // （替换规则 / 繁简转换仍在其后照常应用）。
+      if (!mounted) {
+        _chapterLoading = false;
+        return;
+      }
+      // N7 内容编辑：本章存在读者编辑记录时以编辑块整体覆盖抓取结果
+      // （替换规则 / 繁简转换仍在其后照常应用）。
       final List<NovelBlock> effective =
           await _applyContentEditOverride(chapter.id, paragraphs);
-   // 加载替换/高亮规则（排版期编译缓存，规则变更不重拉全书）。
+      // 加载替换/高亮规则（排版期编译缓存，规则变更不重拉全书）。
       _replaceRuleSet = await NovelRuleCache().getReplaceRules(widget.novelId);
-      _highlightRuleSet = await NovelRuleCache().getHighlightRules(widget.novelId);
+      _highlightRuleSet =
+          await NovelRuleCache().getHighlightRules(widget.novelId);
       setState(() {
         _rawParagraphs = effective;
         _paragraphs = _applyConvert(effective);
@@ -2600,23 +2657,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _contentVersion++;
       });
       _setupControllers(restorePage: restorePage);
-   // X-4：章节加载完成、分页就绪后检查一次预下载（单页章 / 直达章末场景，
-   // 不依赖用户翻页也能触发；postFrame 等 LayoutBuilder 算出分页）。
+      // X-4：章节加载完成、分页就绪后检查一次预下载（单页章 / 直达章末场景，
+      // 不依赖用户翻页也能触发；postFrame 等 LayoutBuilder 算出分页）。
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _maybePreDownload();
-    // X-4b：把后续 1~2 章正文后台填入 _preDownloader 缓存，使下次翻页在
-    // _loadChapter 处命中 cached() 而跳过主线程 fetchNovelContent（含
-    // flutter_js 同步解析），消除「网络翻页卡顿」。
+        // X-4b：把后续 1~2 章正文后台填入 _preDownloader 缓存，使下次翻页在
+        // _loadChapter 处命中 cached() 而跳过主线程 fetchNovelContent（含
+        // flutter_js 同步解析），消除「网络翻页卡顿」。
         _warmNextChapterCache();
       });
-   // 不在此处对哨兵值 -1 调用 _saveProgress（会存入非法页码）。
-   // 合法的页码会在 _buildReader 哨兵校正后，由后续翻页/渲染自动保存；
-   // 若 restorePage ≥ 0 则正常记录进度。
+      // 不在此处对哨兵值 -1 调用 _saveProgress（会存入非法页码）。
+      // 合法的页码会在 _buildReader 哨兵校正后，由后续翻页/渲染自动保存；
+      // 若 restorePage ≥ 0 则正常记录进度。
       if (restorePage >= 0) _saveProgress(restorePage);
     } on WebViewHtmlRequest catch (e) {
-   // 反爬拦截且源声明 useWebview：记录请求，由错误视图提供「抓取本章渲染
-   // 内容」入口（打开真浏览器取回渲染 HTML 回灌），而非无效的手动验证流程。
+      // 反爬拦截且源声明 useWebview：记录请求，由错误视图提供「抓取本章渲染
+      // 内容」入口（打开真浏览器取回渲染 HTML 回灌），而非无效的手动验证流程。
       if (mounted) {
         setState(() {
           _isResolveError = false;
@@ -2627,8 +2684,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         });
       }
     } on VerificationRequiredException catch (e) {
-   // 验证拦截：记录异常供错误视图提供"去验证"入口，修复"验证完成后
-   // 正文仍无法显示"的阅读器侧断链（此前落入通用分支成死错误）。
+      // 验证拦截：记录异常供错误视图提供"去验证"入口，修复"验证完成后
+      // 正文仍无法显示"的阅读器侧断链（此前落入通用分支成死错误）。
       if (mounted) {
         setState(() {
           _isResolveError = false;
@@ -2659,11 +2716,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _chapterLoading = false;
   }
 
- /// 用 WebView 取回的渲染后 HTML 重抓本章正文（源声明 useWebview 的反爬回灌路径）。
- ///
- /// 与 [_loadChapter] 仅差在把 [renderedHtml] 透传给 [MediaApiService
- /// .fetchNovelContent]，从而走 [ShuyuanNovelResolver.resolveRenderedHtml]
- /// 的 content 分支直接解析渲染 HTML，不再发起会被 Cloudflare 拒绝的直连请求。
+  /// 用 WebView 取回的渲染后 HTML 重抓本章正文（源声明 useWebview 的反爬回灌路径）。
+  ///
+  /// 与 [_loadChapter] 仅差在把 [renderedHtml] 透传给 [MediaApiService
+  /// .fetchNovelContent]，从而走 [ShuyuanNovelResolver.resolveRenderedHtml]
+  /// 的 content 分支直接解析渲染 HTML，不再发起会被 Cloudflare 拒绝的直连请求。
   Future<void> _loadChapterWithRenderedHtml(
     int index,
     String renderedHtml, {
@@ -2675,7 +2732,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _stopAutoPage();
     try {
       final source = _repo.getById(widget.sourceId);
-      if (source == null) throw Exception('source not found: ${widget.sourceId}');
+      if (source == null)
+        throw Exception('source not found: ${widget.sourceId}');
       if (index < 0 || index >= widget.chapters.length) {
         throw Exception('chapter index out of range: $index');
       }
@@ -2690,7 +2748,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _chapterLoading = false;
         return;
       }
-   // N7 内容编辑：同 [_loadChapter]，渲染 HTML 抓取结果同样可被编辑覆盖。
+      // N7 内容编辑：同 [_loadChapter]，渲染 HTML 抓取结果同样可被编辑覆盖。
       final List<NovelBlock> effectiveEdited =
           await _applyContentEditOverride(chapter.id, paragraphs);
       setState(() {
@@ -2738,12 +2796,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _chapterLoading = false;
   }
 
- /// 按当前繁简转换模式转换图文块：仅文本块做转换，插图块原样保留。
+  /// 按当前繁简转换模式转换图文块：仅文本块做转换，插图块原样保留。
   List<NovelBlock> _applyConvert(List<NovelBlock> input) {
-  // 1. 应用替换规则（书籍级替换规则引擎，排版期编译缓存）。
+    // 1. 应用替换规则（书籍级替换规则引擎，排版期编译缓存）。
     List<NovelBlock> replaced = input;
     final replaceRules = _replaceRuleSet;
-    if (replaceRules != null && replaceRules.enabled && replaceRules.rules.isNotEmpty) {
+    if (replaceRules != null &&
+        replaceRules.enabled &&
+        replaceRules.rules.isNotEmpty) {
       replaced = [
         for (final b in input)
           if (b is NovelTextBlock)
@@ -2752,7 +2812,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             b,
       ];
     }
-  // 2. 应用繁简转换。
+    // 2. 应用繁简转换。
     final mode = ChineseConvertMode.fromString(_prefs.chineseConvert);
     if (mode == ChineseConvertMode.none) return replaced;
     return [
@@ -2764,7 +2824,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     ];
   }
 
- /// 重新应用繁简转换（在 [NovelReaderPreferences.chineseConvert] 变更后调用）。
+  /// 重新应用繁简转换（在 [NovelReaderPreferences.chineseConvert] 变更后调用）。
   void _refreshConvert() {
     final next = _applyConvert(_rawParagraphs);
     if (next.length == _paragraphs.length) {
@@ -2793,35 +2853,35 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (_prefs.pageAnimation.isScroll) {
       _scrollController = ScrollController();
       _scrollController!.addListener(_onScrollChanged);
-   // 滚动模式此前只把 _currentPage 赋成 restorePage，却从未把滚动位置挪
-   // 过去，视图始终停在开头。这里按「等效页码 ↔ 滚动比例」恢复位置，
-   // 与 [_onScrollChanged] 的保存逻辑严格对称。
+      // 滚动模式此前只把 _currentPage 赋成 restorePage，却从未把滚动位置挪
+      // 过去，视图始终停在开头。这里按「等效页码 ↔ 滚动比例」恢复位置，
+      // 与 [_onScrollChanged] 的保存逻辑严格对称。
       _restoreScrollPosition(restorePage);
     }
-  // paged 模式由 NovelAnimatedPageView 内部管理页状态；
-  // _contentVersion 变更会触发 widget 重建并使用 initialPage。
+    // paged 模式由 NovelAnimatedPageView 内部管理页状态；
+    // _contentVersion 变更会触发 widget 重建并使用 initialPage。
     if (mounted) setState(() {});
   }
 
- /// scroll 模式滚动监听：记录阅读位置 + 更新 [_scrollFraction] 同步底部滑条。
- /// 仅在 UI 可见时刷新（隐藏时无需重绘）。
+  /// scroll 模式滚动监听：记录阅读位置 + 更新 [_scrollFraction] 同步底部滑条。
+  /// 仅在 UI 可见时刷新（隐藏时无需重绘）。
   void _onScrollChanged() {
-  // 恢复进度期间的过渡位置不回写，避免冲掉存档。
+    // 恢复进度期间的过渡位置不回写，避免冲掉存档。
     if (_restoringPage) return;
     final sc = _scrollController;
     if (sc == null || !sc.hasClients) return;
     final max = sc.position.maxScrollExtent;
     final frac = max > 0 ? (sc.offset / max).clamp(0.0, 1.0) : 0.0;
-  // 滚动模式此前完全不保存阅读位置（只有分页模式的 _onPageChanged 会存），
-  // 退出重进永远回到第一页。这里把滚动比例换算成与分页模式同语义的
-  // 「等效页码」后写盘，两种模式互相切换也不会错位。
+    // 滚动模式此前完全不保存阅读位置（只有分页模式的 _onPageChanged 会存），
+    // 退出重进永远回到第一页。这里把滚动比例换算成与分页模式同语义的
+    // 「等效页码」后写盘，两种模式互相切换也不会错位。
     final int total = _pagination?.pages.length ?? 0;
     if (total > 1) {
       final int idx = (frac * (total - 1)).round().clamp(0, total - 1);
       if (idx != _currentPage) {
         _currentPage = idx;
         _saveProgress(idx);
-    // X-4：滚动模式进度越过阈值同样触发预下载（每章一次）。
+        // X-4：滚动模式进度越过阈值同样触发预下载（每章一次）。
         if (mounted) _maybePreDownload();
       }
     }
@@ -2830,12 +2890,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (mounted && _uiVisible) setState(() {});
   }
 
- /// scroll 模式恢复滚动位置到「等效页码」[page]。
- ///
- /// 分页结果 [_pagination] 由 `LayoutBuilder` 在 layout 阶段才算出，
- /// ListView 的 `maxScrollExtent` 也要等首屏布局完成，所以这里带重试
- /// （最多约 2.4 秒）；超时放弃并解除写盘封锁，不影响正常阅读。
- /// [page] 为负表示哨兵「本章最后一页」，直接滚到底。
+  /// scroll 模式恢复滚动位置到「等效页码」[page]。
+  ///
+  /// 分页结果 [_pagination] 由 `LayoutBuilder` 在 layout 阶段才算出，
+  /// ListView 的 `maxScrollExtent` 也要等首屏布局完成，所以这里带重试
+  /// （最多约 2.4 秒）；超时放弃并解除写盘封锁，不影响正常阅读。
+  /// [page] 为负表示哨兵「本章最后一页」，直接滚到底。
   void _restoreScrollPosition(int page) {
     if (page == 0) return;
     _restoringPage = true;
@@ -2860,8 +2920,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         return;
       }
       final double max = sc.position.maxScrollExtent;
-      final double target =
-          page < 0 ? max : (page / (total - 1)) * max;
+      final double target = page < 0 ? max : (page / (total - 1)) * max;
       sc.jumpTo(target.clamp(0.0, max));
       if (page >= 0) _currentPage = page;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2873,29 +2932,29 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   }
 
   void _onPageChanged(int idx) {
-  // 恢复进度期间的过渡页码不回写，避免冲掉存档。
+    // 恢复进度期间的过渡页码不回写，避免冲掉存档。
     if (_restoringPage) return;
-  // 防御：page view 在极端时序下可能回调负数（如拖拽越界），
-  // 直接丢弃非法值，避免 _currentPage 被污染为 -1/-2/-3。
+    // 防御：page view 在极端时序下可能回调负数（如拖拽越界），
+    // 直接丢弃非法值，避免 _currentPage 被污染为 -1/-2/-3。
     if (idx < 0) return;
     if (idx == _currentPage) return;
-  // 翻页时收起选区工具条并清空活动选区。
+    // 翻页时收起选区工具条并清空活动选区。
     if (_showSelectionToolbar) {
       _selectionController.clearSelection();
       _showSelectionToolbar = false;
     }
     _currentPage = idx;
     _saveProgress(idx);
-  // X-4：阅读进度越过阈值时触发后台预下载后续章节（每章一次）。
+    // X-4：阅读进度越过阈值时触发后台预下载后续章节（每章一次）。
     if (mounted) _maybePreDownload();
-  // 翻页后刷新底部进度条 / 页码（底部栏位于 ListenableBuilder(_tts) 内，
-  // 翻页不经由 _tts 通知，必须主动 setState 才能实时更新进度。
+    // 翻页后刷新底部进度条 / 页码（底部栏位于 ListenableBuilder(_tts) 内，
+    // 翻页不经由 _tts 通知，必须主动 setState 才能实时更新进度。
     if (mounted) setState(() {});
   }
 
- /// X-4：当前章阅读进度越过阈值时，把后续 N 章加入正式下载（DownloadManager：
- /// 下载列表可见 + 本地文件落地，离线可读；与漫画自动下载同机制）。
- /// 每章只触发一次；开始/失败均有 SnackBar 可见反馈。
+  /// X-4：当前章阅读进度越过阈值时，把后续 N 章加入正式下载（DownloadManager：
+  /// 下载列表可见 + 本地文件落地，离线可读；与漫画自动下载同机制）。
+  /// 每章只触发一次；开始/失败均有 SnackBar 可见反馈。
   void _maybePreDownload() {
     if (!_preDownloadPrefs.enabled) return;
     if (_isLocalMode) return;
@@ -2909,10 +2968,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final AppLocalizations l10n = AppLocalizations.of(context);
     final DownloadManager? dm = _downloadManager;
     if (dm == null) return;
-  // 无后续章节可下：直接视为已处理。
+    // 无后续章节可下：直接视为已处理。
     if (widget.chapters.length <= currentIdx + 1) return;
-  // 已有该作品活跃下载批次（进行中/等待/暂停）则跳过，避免重复入队；
-  // 已完成/失败/取消批次不阻塞（手动下过前几章后新章仍能自动下）。
+    // 已有该作品活跃下载批次（进行中/等待/暂停）则跳过，避免重复入队；
+    // 已完成/失败/取消批次不阻塞（手动下过前几章后新章仍能自动下）。
     final bool hasActive = dm.tasks.any(
       (t) => t.contentId == widget.novelId && t.isActive,
     );
@@ -2925,7 +2984,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       coverUrl: widget.coverUrl,
       detailUrl: widget.detailUrl,
     );
-  // 过滤已下载 / 已排队章节：预下载 = 下载接下来「未下载」的 N 章。
+    // 过滤已下载 / 已排队章节：预下载 = 下载接下来「未下载」的 N 章。
     final Set<String> downloaded = dm.downloadedChapterTitles(widget.novelId);
     final Set<String> queued = dm.queuedChapterTitles(widget.novelId);
     final int count = _preDownloadPrefs.count;
@@ -2952,12 +3011,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.preDownloadStarted(selected.length))),
     );
-    unawaited(dm.addTask(
+    unawaited(dm
+        .addTask(
       item: item,
       chapters: widget.chapters,
       chapterIndices: selected,
-    ).then((_) {
-   // 成功入队：下载进度在下载管理可见，不再重复提示。
+    )
+        .then((_) {
+      // 成功入队：下载进度在下载管理可见，不再重复提示。
     }).catchError((Object e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2967,14 +3028,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }));
   }
 
- /// X-4b：章节加载完成后，后台把后续 1~2 章正文填入 [_preDownloader] 的内存 /
- /// Hive 缓存。这样下一次翻页在 [_loadChapter] 处命中 [cached()] 而跳过主线程
- /// 的 fetchNovelContent（含 flutter_js 同步解析），消除「网络翻页卡顿」。
- ///
- /// 与 [_maybePreDownload] 的落盘下载相互独立：本方法只填缓存、不写本地文件、
- /// 不出 SnackBar、不受预下载总开关限制（纯为翻页流畅度服务；总带宽约等于把
- /// 抓取时机提前，并不额外消耗）。[_preDownloader.preDownload] 自带内存 / 在途 /
- /// 落地三重去重，重复调用安全。
+  /// X-4b：章节加载完成后，后台把后续 1~2 章正文填入 [_preDownloader] 的内存 /
+  /// Hive 缓存。这样下一次翻页在 [_loadChapter] 处命中 [cached()] 而跳过主线程
+  /// 的 fetchNovelContent（含 flutter_js 同步解析），消除「网络翻页卡顿」。
+  ///
+  /// 与 [_maybePreDownload] 的落盘下载相互独立：本方法只填缓存、不写本地文件、
+  /// 不出 SnackBar、不受预下载总开关限制（纯为翻页流畅度服务；总带宽约等于把
+  /// 抓取时机提前，并不额外消耗）。[_preDownloader.preDownload] 自带内存 / 在途 /
+  /// 落地三重去重，重复调用安全。
   void _warmNextChapterCache() {
     if (_isLocalMode) return;
     final source = _repo.getById(widget.sourceId);
@@ -2991,13 +3052,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     ));
   }
 
- /// 把当前分页结果注入选区控制器，并异步加载本章已存划线（重新解析定位）。
- ///
- /// 仅在分页真正变化时（`sigChanged`）于帧后调用，避免在 build 期间
- /// 触发控制器通知（会触发 "setState during build"）。
+  /// 把当前分页结果注入选区控制器，并异步加载本章已存划线（重新解析定位）。
+  ///
+  /// 仅在分页真正变化时（`sigChanged`）于帧后调用，避免在 build 期间
+  /// 触发控制器通知（会触发 "setState during build"）。
   void _bindSelection() {
     if (_prefs.pageAnimation.isScroll) {
-   // 滚动模式：直接用章节 blocks 注入（与分页同源，文本流一致）。
+      // 滚动模式：直接用章节 blocks 注入（与分页同源，文本流一致）。
       _selectionController.setBlocks(_paragraphs);
     } else {
       final p = _pagination;
@@ -3019,7 +3080,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _selectionController.setPersistedHighlights(list);
   }
 
- /// 选区工具条：复制 / 整段 / 划线色板 / 取消（/ N6）。
+  /// 选区工具条：复制 / 整段 / 划线色板 / 取消（/ N6）。
   Widget _buildSelectionToolbar() {
     final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
@@ -3040,32 +3101,38 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             ),
             child: Row(
               children: <Widget>[
-                Expanded(child: _selToolbarButton(
+                Expanded(
+                    child: _selToolbarButton(
                   icon: Icons.copy_rounded,
                   label: l10n.selectionCopy,
                   onPressed: _selCopy,
                 )),
-                Expanded(child: _selToolbarButton(
+                Expanded(
+                    child: _selToolbarButton(
                   icon: Icons.subject_rounded,
                   label: l10n.selectionParagraph,
                   onPressed: _selParagraph,
                 )),
-                Expanded(child: _selToolbarButton(
+                Expanded(
+                    child: _selToolbarButton(
                   icon: Icons.palette_rounded,
                   label: l10n.selectionHighlight,
                   onPressed: () => _showColorPicker(),
                 )),
-                Expanded(child: _selToolbarButton(
+                Expanded(
+                    child: _selToolbarButton(
                   icon: Icons.format_underline_rounded,
                   label: l10n.selectionUnderline,
                   onPressed: () => _showUnderlinePicker(),
                 )),
-                Expanded(child: _selToolbarButton(
+                Expanded(
+                    child: _selToolbarButton(
                   icon: Icons.edit_note_rounded,
                   label: l10n.selectionNote,
                   onPressed: () => _selHighlightWithNote(),
                 )),
-                Expanded(child: _selToolbarButton(
+                Expanded(
+                    child: _selToolbarButton(
                   icon: Icons.share_rounded,
                   label: l10n.selectionShare,
                   onPressed: () => _selShare(),
@@ -3078,7 +3145,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 显示高亮颜色选择器弹窗（背景高亮效果），点击色块直接落盘。
+  /// 显示高亮颜色选择器弹窗（背景高亮效果），点击色块直接落盘。
   Future<void> _showColorPicker() async {
     final l10n = AppLocalizations.of(context);
     final result = await showDialog<int>(
@@ -3091,7 +3158,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-        // 预选色板
+                // 预选色板
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
@@ -3108,7 +3175,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           color: Color(c),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.3),
+                            color: Theme.of(ctx)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.3),
                             width: 1,
                           ),
                         ),
@@ -3117,7 +3187,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   }).toList(),
                 ),
                 const SizedBox(height: 16),
-        // 自定义颜色
+                // 自定义颜色
                 Text(l10n.customColor, style: const TextStyle(fontSize: 13)),
                 const SizedBox(height: 8),
                 SizedBox(
@@ -3131,7 +3201,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 ),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(customColor.toARGB32()),
+                  onPressed: () =>
+                      Navigator.of(ctx).pop(customColor.toARGB32()),
                   child: Text(l10n.customColorApply),
                 ),
               ],
@@ -3151,7 +3222,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 显示划线样式+颜色选择器弹窗，先选样式再选颜色，确认后落盘。
+  /// 显示划线样式+颜色选择器弹窗，先选样式再选颜色，确认后落盘。
   Future<void> _showUnderlinePicker() async {
     final l10n = AppLocalizations.of(context);
     HighlightEffect selectedEffect = HighlightEffect.underline;
@@ -3166,25 +3237,35 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-         // 样式选择
-                  Text(l10n.underlineStyle, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  // 样式选择
+                  Text(l10n.underlineStyle,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     alignment: WrapAlignment.center,
                     children: [
-                      for (final eff in [HighlightEffect.underline, HighlightEffect.wavy, HighlightEffect.dotted])
+                      for (final eff in [
+                        HighlightEffect.underline,
+                        HighlightEffect.wavy,
+                        HighlightEffect.dotted
+                      ])
                         ChoiceChip(
-                          label: Text(_effectLabel(eff, l10n), style: const TextStyle(fontSize: 12)),
+                          label: Text(_effectLabel(eff, l10n),
+                              style: const TextStyle(fontSize: 12)),
                           selected: eff == selectedEffect,
-                          onSelected: (_) => setDialogState(() => selectedEffect = eff),
+                          onSelected: (_) =>
+                              setDialogState(() => selectedEffect = eff),
                         ),
                     ],
                   ),
                   const SizedBox(height: 16),
-         // 颜色选择
-                  Text(l10n.underlineColor, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  // 颜色选择
+                  Text(l10n.underlineColor,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 12,
@@ -3202,7 +3283,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                             border: Border.all(
                               color: c == selectedColor
                                   ? Theme.of(ctx).colorScheme.primary
-                                  : Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.3),
+                                  : Theme.of(ctx)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.3),
                               width: c == selectedColor ? 3 : 1,
                             ),
                           ),
@@ -3211,17 +3295,21 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     }).toList(),
                   ),
                   const SizedBox(height: 12),
-         // 自定义颜色滑块
+                  // 自定义颜色滑块
                   Text(l10n.customColor, style: const TextStyle(fontSize: 12)),
                   const SizedBox(height: 4),
-         // 颜色预览
+                  // 颜色预览
                   Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
                       color: Color(selectedColor),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.3)),
+                      border: Border.all(
+                          color: Theme.of(ctx)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.3)),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -3241,7 +3329,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 child: Text(l10n.cancel),
               ),
               FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(MapEntry(selectedColor, selectedEffect)),
+                onPressed: () => Navigator.of(ctx)
+                    .pop(MapEntry(selectedColor, selectedEffect)),
                 child: Text(l10n.confirm),
               ),
             ],
@@ -3254,7 +3343,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 划线效果的中文标签。
+  /// 划线效果的中文标签。
   String _effectLabel(HighlightEffect eff, AppLocalizations l10n) {
     switch (eff) {
       case HighlightEffect.underline:
@@ -3287,7 +3376,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         children: <Widget>[
           Icon(icon, size: 16),
           const SizedBox(height: 1),
-          Text(label, style: const TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis, maxLines: 1),
+          Text(label,
+              style: const TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1),
         ],
       ),
     );
@@ -3300,14 +3392,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _selectionController.clearSelection();
     setState(() {
       _showSelectionToolbar = false;
-   _uiVisible = true; // 恢复控制面板
+      _uiVisible = true; // 恢复控制面板
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(AppLocalizations.of(context).selectionCopied)),
     );
   }
 
- /// 格式化时间戳为可读字符串（如 "2024-01-15 14:30"）。
+  /// 格式化时间戳为可读字符串（如 "2024-01-15 14:30"）。
   String _formatTimestamp(int ms) {
     if (ms <= 0) return '';
     final dt = DateTime.fromMillisecondsSinceEpoch(ms);
@@ -3316,11 +3408,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   String _pad(int n) => n.toString().padLeft(2, '0');
 
- /// 分享选区为带书封的渐变文艺卡（Phase 3 / N6）。
- ///
- /// 先预热书封（失败则用渐变占位），再弹预览 Dialog（含 RepaintBoundary），
- /// 用户点「分享」时把卡片栅格化为 PNG 临时文件经 [Share.shareXFiles] 分享。
- /// 支持自定义封面图片（从相册选择）。
+  /// 分享选区为带书封的渐变文艺卡（Phase 3 / N6）。
+  ///
+  /// 先预热书封（失败则用渐变占位），再弹预览 Dialog（含 RepaintBoundary），
+  /// 用户点「分享」时把卡片栅格化为 PNG 临时文件经 [Share.shareXFiles] 分享。
+  /// 支持自定义封面图片（从相册选择）。
   Future<void> _selShare() async {
     final quote = _selectionController.quote;
     if (quote.isEmpty) return;
@@ -3330,20 +3422,20 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         ? chs[_chapterIndex].title
         : '';
     String? cover = widget.coverUrl;
-  // 预热书封，避免卡片渲染时图未就绪导致空白。
+    // 预热书封，避免卡片渲染时图未就绪导致空白。
     if (cover != null && cover.isNotEmpty) {
       try {
         await precacheImage(NetworkImage(cover), context);
       } on Object {
-    // 占位渐变兜底
+        // 占位渐变兜底
       }
     }
     if (!mounted) return;
     final shareKey = GlobalKey();
     if (!mounted) return;
     final isMobile = MediaQuery.of(context).size.width < 600;
-  double coverScale = 1.0; // 封面缩放比例
-  // 用 StatefulBuilder 使自定义封面选择后实时更新预览
+    double coverScale = 1.0; // 封面缩放比例
+    // 用 StatefulBuilder 使自定义封面选择后实时更新预览
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -3363,7 +3455,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             ),
           ),
           actions: <Widget>[
-      // 封面大小调节滑块
+            // 封面大小调节滑块
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -3383,7 +3475,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 ],
               ),
             ),
-      // 三个按钮一排：更换封面 | 取消 | 分享
+            // 三个按钮一排：更换封面 | 取消 | 分享
             OverflowBar(
               alignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
@@ -3428,23 +3520,26 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 把 [shareKey] 对应的卡片栅格化为 PNG 并分享。
-  Future<void> _captureAndShare(GlobalKey shareKey, AppLocalizations l10n) async {
+  /// 把 [shareKey] 对应的卡片栅格化为 PNG 并分享。
+  Future<void> _captureAndShare(
+      GlobalKey shareKey, AppLocalizations l10n) async {
     try {
-      final boundary = shareKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      final boundary =
+          shareKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;
       final image = await boundary.toImage(pixelRatio: 2.0);
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
       if (bytes == null) return;
       final dir = await getTemporaryDirectory();
       final file = File(
-        p.join(dir.path, 'nexhub_share_${DateTime.now().millisecondsSinceEpoch}.png'),
+        p.join(dir.path,
+            'nexhub_share_${DateTime.now().millisecondsSinceEpoch}.png'),
       );
       await file.writeAsBytes(bytes.buffer.asUint8List());
       await Share.shareXFiles(
         <XFile>[XFile(file.path)],
-        text: '${widget.title} · ${_effectiveChapters.length > _chapterIndex && _chapterIndex >= 0 ? _effectiveChapters[_chapterIndex].title : ''}',
+        text:
+            '${widget.title} · ${_effectiveChapters.length > _chapterIndex && _chapterIndex >= 0 ? _effectiveChapters[_chapterIndex].title : ''}',
       );
     } on Object {
       if (mounted) {
@@ -3455,7 +3550,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 把活动选区扩展到整段（按锚点所在段落的章内全局起止偏移）。
+  /// 把活动选区扩展到整段（按锚点所在段落的章内全局起止偏移）。
   void _selParagraph() {
     final controller = _selectionController;
     if (!controller.hasSelection) return;
@@ -3466,8 +3561,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     controller.setSelectionRange(range.start, range.end);
   }
 
- /// 落盘当前活动选区为一条划线，返回新建的划线（不刷新 / 不收工具条）。
-  Future<NovelHighlight?> _persistSelectionAsHighlight(int color, {String effect = 'bg'}) async {
+  /// 落盘当前活动选区为一条划线，返回新建的划线（不刷新 / 不收工具条）。
+  Future<NovelHighlight?> _persistSelectionAsHighlight(int color,
+      {String effect = 'bg'}) async {
     final controller = _selectionController;
     final quote = controller.quote;
     if (quote.isEmpty) return null;
@@ -3491,7 +3587,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       effect: effect,
       createdAt: DateTime.now().millisecondsSinceEpoch,
     );
-  // 新的覆盖旧的：删除同章+同引文+同效果的旧标记
+    // 新的覆盖旧的：删除同章+同引文+同效果的旧标记
     final existing = await NovelHighlightManager().listFor(widget.novelId);
     final dupKey = '${_chapterIndex}::${quote}::${effect}';
     for (final e in existing) {
@@ -3503,11 +3599,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     return hl;
   }
 
- /// 落盘当前活动选区为一条划线，并刷新渲染。
+  /// 落盘当前活动选区为一条划线，并刷新渲染。
   Future<void> _selHighlight(int color, {String effect = 'bg'}) async {
     final hl = await _persistSelectionAsHighlight(color, effect: effect);
     if (hl == null) return;
-  // 直接添加已解析划线到控制器，跳过重定位（确保即时显示）。
+    // 直接添加已解析划线到控制器，跳过重定位（确保即时显示）。
     final controller = _selectionController;
     if (controller.hasSelection) {
       controller.addResolvedHighlight(
@@ -3522,31 +3618,33 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       );
     }
     _selectionController.clearSelection();
-    if (mounted) setState(() {
-      _showSelectionToolbar = false;
-      _uiVisible = true;
-    });
+    if (mounted)
+      setState(() {
+        _showSelectionToolbar = false;
+        _uiVisible = true;
+      });
   }
 
- /// 落盘为划线后立即打开笔记编辑（Phase 2 / N6 摘录）。
+  /// 落盘为划线后立即打开笔记编辑（Phase 2 / N6 摘录）。
   Future<void> _selHighlightWithNote() async {
     final hl = await _persistSelectionAsHighlight(_highlightPalette.first);
     if (hl == null) return;
     await _reloadHighlightsForChapter();
     _selectionController.clearSelection();
-    if (mounted) setState(() {
-      _showSelectionToolbar = false;
-      _uiVisible = true;
-    });
+    if (mounted)
+      setState(() {
+        _showSelectionToolbar = false;
+        _uiVisible = true;
+      });
     if (!mounted) return;
     await _editHighlightNote(hl);
   }
 
- /// 计算某页在章内的「起始字符偏移」（累计文本行长度，忽略插图）。
- ///
- /// 与 [_pageForCharOffset] 互为逆运算：保存时把当前页映射成偏移，
- /// 恢复时把偏移映射回页码。仅统计文本行长度，因为分页器的行文本并集
- /// 等于章内文本流，偏移对字号/边距/排版变化恒定。
+  /// 计算某页在章内的「起始字符偏移」（累计文本行长度，忽略插图）。
+  ///
+  /// 与 [_pageForCharOffset] 互为逆运算：保存时把当前页映射成偏移，
+  /// 恢复时把偏移映射回页码。仅统计文本行长度，因为分页器的行文本并集
+  /// 等于章内文本流，偏移对字号/边距/排版变化恒定。
   int _charOffsetForPage(int pageIndex) {
     final pages = _pagination?.pages;
     if (pages == null || pages.isEmpty) return 0;
@@ -3562,26 +3660,26 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     return offset;
   }
 
- /// 把章内字符偏移映射回页码（二分查找，O(页数) 预计算 + O(log 页数)）。
- ///
- /// 返回首个「起始字符偏移 ≤ [offset]」的页；[offset] ≤ 0 回退首页，
- /// 越界回退末页。与 [_charOffsetForPage] 对称，保证换排版后回到同一处文字。
+  /// 把章内字符偏移映射回页码（二分查找，O(页数) 预计算 + O(log 页数)）。
+  ///
+  /// 返回首个「起始字符偏移 ≤ [offset]」的页；[offset] ≤ 0 回退首页，
+  /// 越界回退末页。与 [_charOffsetForPage] 对称，保证换排版后回到同一处文字。
   int _pageForCharOffset(int offset) {
     final pages = _pagination?.pages;
     if (pages == null || pages.isEmpty) return 0;
     if (offset <= 0) return 0;
-  // 预计算每页起始偏移：starts[k] = 第 k 页首字符在章内文本流中的累计偏移。
-  // 必须覆盖到末页（k = length-1），否则末页偏移在二分时只能命中倒数第二页。
+    // 预计算每页起始偏移：starts[k] = 第 k 页首字符在章内文本流中的累计偏移。
+    // 必须覆盖到末页（k = length-1），否则末页偏移在二分时只能命中倒数第二页。
     final starts = <int>[0];
     var acc = 0;
     for (var i = 0; i < pages.length - 1; i++) {
       for (final item in pages[i]) {
         if (item is NovelTextLineItem) acc += item.line.text.length;
       }
-   starts.add(acc); // starts[i+1] = 第 i+1 页起始偏移
+      starts.add(acc); // starts[i+1] = 第 i+1 页起始偏移
     }
-  starts.add(acc); // 末页起始偏移，使二分可命中末页本身
-  // 二分找最后一个 starts[k] ≤ offset。
+    starts.add(acc); // 末页起始偏移，使二分可命中末页本身
+    // 二分找最后一个 starts[k] ≤ offset。
     var lo = 0;
     var hi = starts.length - 1;
     while (lo < hi) {
@@ -3596,8 +3694,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   }
 
   void _saveProgress(int page) {
-  // 本地模式无 chapters，用占位 chapterId 保存进度。
-  // 单 EPUB（已解析出章节）按真实章节保存，重开后能恢复到原章节原页。
+    // 本地模式无 chapters，用占位 chapterId 保存进度。
+    // 单 EPUB（已解析出章节）按真实章节保存，重开后能恢复到原章节原页。
     final String chapterId;
     String? chapterTitle;
     if (_isLocalMode && !_isAggregatedLocal && _parsedChapterEpisodes == null) {
@@ -3615,23 +3713,25 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       chapterId,
       page,
       _chapterIndex,
-   // 附带章内字符偏移，使进度在字号/边距/排版变化时仍回到同一处文字。
+      // 附带章内字符偏移，使进度在字号/边距/排版变化时仍回到同一处文字。
       charOffset: charOff,
-      totalChapters: (!_isLocalMode || _isAggregatedLocal || _parsedChapterEpisodes != null)
+      totalChapters: (!_isLocalMode ||
+              _isAggregatedLocal ||
+              _parsedChapterEpisodes != null)
           ? _effectiveChapters.length
           : null,
     );
-  // 更新收藏条目的 lastRead 时间戳（P8.1.3 §廿一 收藏切换不丢 lastRead）
+    // 更新收藏条目的 lastRead 时间戳（P8.1.3 §廿一 收藏切换不丢 lastRead）
     try {
       context.read<FavoritesManager>().updateLastRead(
             widget.novelId,
             SourceType.novelSource,
           );
     } catch (_) {
-   // FavoritesManager 不可用时静默忽略。
+      // FavoritesManager 不可用时静默忽略。
     }
-  // 写浏览历史：让「历史」Tab 看到最近读到的章节标题，
-  // 续读/继续阅读入口可基于 lastChapter 精确定位。
+    // 写浏览历史：让「历史」Tab 看到最近读到的章节标题，
+    // 续读/继续阅读入口可基于 lastChapter 精确定位。
     try {
       final history = context.read<HistoryManager>();
       final item = MediaItem(
@@ -3648,22 +3748,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         sourceType: SourceType.novelSource,
       ));
     } catch (_) {
-   // HistoryManager 不可用时静默忽略。
+      // HistoryManager 不可用时静默忽略。
     }
-  // 章节阅读进度达到「已看」阈值时标记该章已读（每章仅标记一次）。
+    // 章节阅读进度达到「已看」阈值时标记该章已读（每章仅标记一次）。
     _maybeMarkChapterWatched(page);
   }
 
- /// 退出/切后台时立即落盘当前阅读位置（不依赖 [context]）。
- ///
- /// 普通 [_saveProgress] 会读写 FavoritesManager/HistoryManager，dispose 后
- /// context 已失效会抛错；本方法只写 [NovelProgressManager]，避免该问题。
- /// 用于修复「翻到某章首页退出重进却回到上一章末页」：进度此前仅在阅读中
- /// 写入，翻章后的那次异步落盘若未及时完成（或被 mounted 守卫丢弃），
- /// 重进会回放上次会话的旧位置。
+  /// 退出/切后台时立即落盘当前阅读位置（不依赖 [context]）。
+  ///
+  /// 普通 [_saveProgress] 会读写 FavoritesManager/HistoryManager，dispose 后
+  /// context 已失效会抛错；本方法只写 [NovelProgressManager]，避免该问题。
+  /// 用于修复「翻到某章首页退出重进却回到上一章末页」：进度此前仅在阅读中
+  /// 写入，翻章后的那次异步落盘若未及时完成（或被 mounted 守卫丢弃），
+  /// 重进会回放上次会话的旧位置。
   void _persistProgressNow() {
-  // 内容尚未就绪（加载失败/初次进入未完成）时不写盘，避免用空状态覆盖
-  // 已有的有效进度。
+    // 内容尚未就绪（加载失败/初次进入未完成）时不写盘，避免用空状态覆盖
+    // 已有的有效进度。
     if (_paragraphs.isEmpty) return;
     final chapters = _effectiveChapters;
     if (chapters.isEmpty) return;
@@ -3682,10 +3782,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     ));
   }
 
- /// 把当前书阅读进度静默上传到 WebDAV（best-effort）。
- ///
- /// 触发点：阅读器退出（dispose）；云端领先时不覆盖（防回退），
- /// 本地领先/无远端记录时上传。未配置云同步 / 网络失败静默返回 false。
+  /// 把当前书阅读进度静默上传到 WebDAV（best-effort）。
+  ///
+  /// 触发点：阅读器退出（dispose）；云端领先时不覆盖（防回退），
+  /// 本地领先/无远端记录时上传。未配置云同步 / 网络失败静默返回 false。
   Future<bool> _pushProgressToCloud() async {
     try {
       final chapters = _effectiveChapters;
@@ -3709,13 +3809,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 章节阅读进度达到「已看」阈值时标记当前章已读。
- ///
- /// 阈值取自 [GeneralSettingsStore.watchedThresholdPercent]（默认 90）。
- /// 已读章节由 [MediaWatchedManager] 统一记录（与详情页 isRead 共用），
- /// `markWatched` 本身幂等，此处额外用 `isWatched` 跳过已读章节。
+  /// 章节阅读进度达到「已看」阈值时标记当前章已读。
+  ///
+  /// 阈值取自 [GeneralSettingsStore.watchedThresholdPercent]（默认 90）。
+  /// 已读章节由 [MediaWatchedManager] 统一记录（与详情页 isRead 共用），
+  /// `markWatched` 本身幂等，此处额外用 `isWatched` 跳过已读章节。
   void _maybeMarkChapterWatched(int page) {
-  if (_isLocalMode) return; // 本地模式只有单「章」，不标记已读。
+    if (_isLocalMode) return; // 本地模式只有单「章」，不标记已读。
     final total = _pagination?.pages.length ?? 0;
     if (total <= 0) return;
     final ratio = (page + 1) / total;
@@ -3726,25 +3826,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       if (watched.isWatched(widget.novelId, _chapterIndex)) return;
       unawaited(watched.markWatched(widget.novelId, _chapterIndex));
     } catch (_) {
-   // Manager 不可用时静默忽略。
+      // Manager 不可用时静默忽略。
     }
   }
 
- // ─────────────────────── 导航 ───────────────────────
+  // ─────────────────────── 导航 ───────────────────────
 
- /// 音量键翻页（N5，仅 Android）：音量上 = 上一页、音量下 = 下一页，
- /// 翻页/滚动模式均生效（复用 [_goNextPage]/[_goPrevPage] 的模式分派）。
+  /// 音量键翻页（N5，仅 Android）：音量上 = 上一页、音量下 = 下一页，
+  /// 翻页/滚动模式均生效（复用 [_goNextPage]/[_goPrevPage] 的模式分派）。
   final VolumeKeyListener _volumeKeyListener = VolumeKeyListener();
 
- /// 按偏好挂载/卸载音量键原生拦截。调用点：[_init]、[_onPrefsChanged]
- /// （偏好变化后即时生效）、dispose（恢复系统默认音量键行为）、
- /// TTS 状态变化（朗读中不拦截，音量键恢复系统调音量——问题 5 修复）。
+  /// 按偏好挂载/卸载音量键原生拦截。调用点：[_init]、[_onPrefsChanged]
+  /// （偏好变化后即时生效）、dispose（恢复系统默认音量键行为）、
+  /// TTS 状态变化（朗读中不拦截，音量键恢复系统调音量——问题 5 修复）。
   Future<void> _syncVolumeKey() async {
     final bool ttsActive = _tts.state != NovelTtsState.stopped;
-    final bool want = _prefs.volumeKeyPageTurn &&
-        !kIsWeb &&
-        Platform.isAndroid &&
-        !ttsActive;
+    final bool want =
+        _prefs.volumeKeyPageTurn && !kIsWeb && Platform.isAndroid && !ttsActive;
     try {
       if (want) {
         await _volumeKeyListener.start(
@@ -3758,7 +3856,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             '${ttsActive ? '（朗读中，音量键用于调节音量）' : ''}');
       }
     } on Object catch (e) {
-   // 原生通道未就绪/订阅异常：不阻塞阅读，写日志便于实机排查。
+      // 原生通道未就绪/订阅异常：不阻塞阅读，写日志便于实机排查。
       AppLog.instance.e('[小说音量键] 同步失败: $e');
     }
   }
@@ -3785,8 +3883,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final sc = _scrollController;
     if (sc == null || !sc.hasClients) return;
     final h = sc.position.viewportDimension;
-    final target =
-        (sc.offset + dir * h).clamp(0.0, sc.position.maxScrollExtent).toDouble();
+    final target = (sc.offset + dir * h)
+        .clamp(0.0, sc.position.maxScrollExtent)
+        .toDouble();
     sc.animateTo(target, duration: AppTokens.durFast, curve: Curves.easeInOut);
   }
 
@@ -3794,9 +3893,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final total = _effectiveChapters.length;
     if (_chapterIndex < total - 1) {
       _chapterIndex++;
-   // 翻到下一章即同步落盘「新章节 · 首页」，不等章节内容异步加载完成。
-   // 否则若此时退出（route pop），那次依赖 fetched/mounted 的落盘可能
-   // 未执行，重进会回放上一章末页（见 _persistProgressNow）。
+      // 翻到下一章即同步落盘「新章节 · 首页」，不等章节内容异步加载完成。
+      // 否则若此时退出（route pop），那次依赖 fetched/mounted 的落盘可能
+      // 未执行，重进会回放上一章末页（见 _persistProgressNow）。
       _currentPage = 0;
       _saveProgress(0);
       if (_isLocalMode) {
@@ -3806,14 +3905,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       }
       return;
     }
-  // 本地模式读完最后一章：无缝接入在线内容继续阅读。
+    // 本地模式读完最后一章：无缝接入在线内容继续阅读。
     if (_isLocalMode) {
       unawaited(_continueOnlineLocal());
     }
   }
 
- /// 本地内容读完自动接续在线（无缝）：抓在线目录 → 定位续读点 →
- /// pushReplacement 替换为在线阅读器。失败时提示并允许重试。
+  /// 本地内容读完自动接续在线（无缝）：抓在线目录 → 定位续读点 →
+  /// pushReplacement 替换为在线阅读器。失败时提示并允许重试。
   Future<void> _continueOnlineLocal() async {
     if (_localToOnlineTriggered) return;
     _localToOnlineTriggered = true;
@@ -3826,7 +3925,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       localChapters: _effectiveChapters,
       localLastIndex: _chapterIndex,
     );
-  // 切换未发生（无在线源 / 已是最新 / 抓取失败）：复位触发位以便重试。
+    // 切换未发生（无在线源 / 已是最新 / 抓取失败）：复位触发位以便重试。
     if (!switched && mounted) {
       setState(() => _localToOnlineTriggered = false);
     }
@@ -3835,8 +3934,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   void _goPrevChapter({bool toLastPage = false}) {
     if (_chapterIndex > 0) {
       _chapterIndex--;
-   // 同步把目标页写进内存：上一章首页(0) 或上一章末页(哨兵 -1，由
-   // _buildReader 的哨兵校正落盘)，保证翻章过程中状态一致、退出能正确回放。
+      // 同步把目标页写进内存：上一章首页(0) 或上一章末页(哨兵 -1，由
+      // _buildReader 的哨兵校正落盘)，保证翻章过程中状态一致、退出能正确回放。
       _currentPage = toLastPage ? -1 : 0;
       if (_isLocalMode) {
         _loadLocalText(restorePage: toLastPage ? -1 : 0);
@@ -3846,19 +3945,18 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// X-5：按 TTS 状态同步通知栏媒体会话（audio_service）。
- ///
- /// - 朗读中（playing / paused）：attach 会话并注册播放/暂停/上句/下句回调，
- ///  标题随章节变化刷新；暂停保持会话（通知栏可恢复）。
- /// - 停止：detach 会话、移除通知（播放页仍在栈上，下次朗读重新 attach）。
- ///
- /// 由 [_onTtsChanged] 统一驱动（state / currentIndex 变化都会触发）。
+  /// X-5：按 TTS 状态同步通知栏媒体会话（audio_service）。
+  ///
+  /// - 朗读中（playing / paused）：attach 会话并注册播放/暂停/上句/下句回调，
+  ///  标题随章节变化刷新；暂停保持会话（通知栏可恢复）。
+  /// - 停止：detach 会话、移除通知（播放页仍在栈上，下次朗读重新 attach）。
+  ///
+  /// 由 [_onTtsChanged] 统一驱动（state / currentIndex 变化都会触发）。
   void _syncTtsAudioService() {
     final bool stopped = _tts.state == NovelTtsState.stopped;
     final List<Episode> chs = _effectiveChapters;
-    final String chapterTitle = chs.isEmpty
-        ? ''
-        : chs[_chapterIndex.clamp(0, chs.length - 1)].title;
+    final String chapterTitle =
+        chs.isEmpty ? '' : chs[_chapterIndex.clamp(0, chs.length - 1)].title;
     final String title =
         chapterTitle.isEmpty ? widget.title : '${widget.title} · $chapterTitle';
     if (stopped) {
@@ -3875,11 +3973,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           id: 'tts:${widget.novelId}',
           title: title,
           artist: widget.title,
-     // TTS 无进度概念：不提供 position/duration 流，通知栏不显示进度条。
+          // TTS 无进度概念：不提供 position/duration 流，通知栏不显示进度条。
           playingStream: _ttsPlayingStream(_tts),
           onPlay: () => _tts.resume(),
           onPause: () => _tts.pause(),
-     onSeek: (_) async {}, // 无进度，seek 为 no-op。
+          onSeek: (_) async {}, // 无进度，seek 为 no-op。
           onNext: () => _tts.next(),
           onPrev: () => _tts.prev(),
         ),
@@ -3888,24 +3986,24 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// TTS 状态变化回调（currentIndex / state 变化）。
- ///
- /// - 高亮：build 直接读取 `_tts.currentIndex`，随本回调的 [setState] 自动刷新。
- /// - 自动定位：翻页模式下，朗读进度推进到某段落时，自动把页面翻到该段落所在页
- ///  （"自动定位到朗读的页面"）；滚动模式段落连续排版，交给高亮与用户手势。
+  /// TTS 状态变化回调（currentIndex / state 变化）。
+  ///
+  /// - 高亮：build 直接读取 `_tts.currentIndex`，随本回调的 [setState] 自动刷新。
+  /// - 自动定位：翻页模式下，朗读进度推进到某段落时，自动把页面翻到该段落所在页
+  ///  （"自动定位到朗读的页面"）；滚动模式段落连续排版，交给高亮与用户手势。
   void _onTtsChanged() {
     if (!mounted) return;
-  // X-5：通知栏会话同步（stopped 时 detach、playing/paused 时 attach/刷新标题）。
+    // X-5：通知栏会话同步（stopped 时 detach、playing/paused 时 attach/刷新标题）。
     _syncTtsAudioService();
-  // 问题 5：TTS 朗读中音量键恢复系统调音量（不翻页），状态变化时重新同步拦截。
+    // 问题 5：TTS 朗读中音量键恢复系统调音量（不翻页），状态变化时重新同步拦截。
     unawaited(_syncVolumeKey());
     if (_tts.state == NovelTtsState.stopped) return;
     final int idx = _tts.currentIndex;
     final pages = _pagination?.pages;
     if (pages == null || pages.isEmpty) return;
     if (_prefs.pageAnimation.isScroll) {
-   // 滚动模式（问题 6 对齐）：刷新高亮 + 自动滚动跟随当前朗读段，
-   // 由 itemBuilder 挂 _ttsParagraphKey 的段定位。
+      // 滚动模式（问题 6 对齐）：刷新高亮 + 自动滚动跟随当前朗读段，
+      // 由 itemBuilder 挂 _ttsParagraphKey 的段定位。
       setState(() {});
       _scheduleTtsParagraphScroll();
       return;
@@ -3921,12 +4019,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (target != null && target != _currentPage) {
       _pageKey.currentState?.jumpToPage(target);
     }
-  // 高亮随 currentIndex 变化刷新（即使未翻页也要重绘选中段）。
+    // 高亮随 currentIndex 变化刷新（即使未翻页也要重绘选中段）。
     setState(() {});
   }
 
- /// 滚动模式 TTS 跟随（问题 6）：帧后把当前朗读段滚动到可视区
- /// （约视口上 1/3，留出下文空间），随朗读进度自动滚动适应语速。
+  /// 滚动模式 TTS 跟随（问题 6）：帧后把当前朗读段滚动到可视区
+  /// （约视口上 1/3，留出下文空间），随朗读进度自动滚动适应语速。
   void _scheduleTtsParagraphScroll() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -3941,16 +4039,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           curve: Curves.easeInOut,
         );
       } on Object {
-    // ensureVisible 失败（如正在重建）忽略，下一段切换会再次触发。
+        // ensureVisible 失败（如正在重建）忽略，下一段切换会再次触发。
       }
     });
   }
 
- /// TTS 模式下点击某一段落：跳转到该段落开始朗读。
+  /// TTS 模式下点击某一段落：跳转到该段落开始朗读。
   void _onParagraphTapped(int globalParagraphIndex) {
     if (_paragraphs.isEmpty) return;
     final clamped = globalParagraphIndex.clamp(0, _paragraphs.length - 1);
-  // 找到该段落属于哪一页（通过分页数据）。
+    // 找到该段落属于哪一页（通过分页数据）。
     final pages = _pagination?.pages;
     if (pages != null) {
       for (int i = 0; i < pages.length; i++) {
@@ -3963,16 +4061,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         }
       }
     }
-  // 从点击的段落重新开始 TTS 朗读。
+    // 从点击的段落重新开始 TTS 朗读。
     if (_tts.isPlaying || _tts.isPaused) {
-      _tts.speak(_paragraphTexts, startIndex: clamped,
-          sleepTimer: _prefs.ttsSleepTimer);
+      _tts.speak(_paragraphTexts,
+          startIndex: clamped, sleepTimer: _prefs.ttsSleepTimer);
     } else {
-   // TTS 未启动时，直接从该段开始朗读。
+      // TTS 未启动时，直接从该段开始朗读。
       _tts.setBackground(_prefs.ttsBackground);
       _tts.setRate(_prefs.ttsSpeechRate);
-      _tts.speak(_paragraphTexts, startIndex: clamped,
-          sleepTimer: _prefs.ttsSleepTimer);
+      _tts.speak(_paragraphTexts,
+          startIndex: clamped, sleepTimer: _prefs.ttsSleepTimer);
     }
     setState(() {});
   }
@@ -3981,7 +4079,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     setState(() {
       _uiVisible = !_uiVisible;
       if (!_uiVisible) _showInlineSettings = false;
-   // 显示控制面板时自动收起选区工具条，避免被底栏遮挡。
+      // 显示控制面板时自动收起选区工具条，避免被底栏遮挡。
       if (_uiVisible && _showSelectionToolbar) {
         _selectionController.clearSelection();
         _showSelectionToolbar = false;
@@ -3993,32 +4091,29 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     setState(() => _showInlineSettings = !_showInlineSettings);
   }
 
- /// 滑块拖动中的轻量预览：只更新内存 [_prefs]，不 setState / 不重分页 /
- /// 不落盘——长章节整章重分页与偏好落盘都是重操作，逐拖动帧触发会连续
- /// 阻塞 UI 线程（「长内容设置字号卡退」的根因）。松手由 [_onPrefsChanged]
- /// 一次性应用（重分页 + 落盘）。滑块拇指/数值标签由 [_SliderRow] 本地
- /// 状态驱动，无需父级重建。
+  /// 滑块拖动中的轻量预览：只更新内存 [_prefs]，不 setState / 不重分页 /
+  /// 不落盘——长章节整章重分页与偏好落盘都是重操作，逐拖动帧触发会连续
+  /// 阻塞 UI 线程（「长内容设置字号卡退」的根因）。松手由 [_onPrefsChanged]
+  /// 一次性应用（重分页 + 落盘）。滑块拇指/数值标签由 [_SliderRow] 本地
+  /// 状态驱动，无需父级重建。
   void _onPrefsPreview(NovelReaderPreferences next) {
     _prefs = next;
   }
 
   Future<void> _onPrefsChanged(NovelReaderPreferences next) async {
     final animationChanged = next.pageAnimation != _prefs.pageAnimation;
-    final convertChanged =
-        next.chineseConvert != _prefs.chineseConvert;
-    final autoPageChanged =
-        next.autoPageInterval != _prefs.autoPageInterval;
-    final volumeKeyChanged =
-        next.volumeKeyPageTurn != _prefs.volumeKeyPageTurn;
-  // 记录本次真正改动的字段为「本书单独设置」，未动过的字段继续跟随总设置。
+    final convertChanged = next.chineseConvert != _prefs.chineseConvert;
+    final autoPageChanged = next.autoPageInterval != _prefs.autoPageInterval;
+    final volumeKeyChanged = next.volumeKeyPageTurn != _prefs.volumeKeyPageTurn;
+    // 记录本次真正改动的字段为「本书单独设置」，未动过的字段继续跟随总设置。
     _overrideKeys.addAll(novelPrefsChangedKeys(_prefs, next));
     _prefs = next;
     if (volumeKeyChanged) {
-   // 音量键开关即时生效（N5）。
+      // 音量键开关即时生效（N5）。
       unawaited(_syncVolumeKey());
     }
-  // 任何阅读设置变化都使分页缓存失效（字号/行距/段距/边距/字体等不会 bump
-  // _contentVersion，但会影响分页高度，必须靠 _prefsVersion 触发重新分页）。
+    // 任何阅读设置变化都使分页缓存失效（字号/行距/段距/边距/字体等不会 bump
+    // _contentVersion，但会影响分页高度，必须靠 _prefsVersion 触发重新分页）。
     _prefsVersion++;
     await _store.save(widget.novelId, next, overrideKeys: _overrideKeys);
     if (convertChanged && _rawParagraphs.isNotEmpty) {
@@ -4030,23 +4125,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       if (mounted) setState(() {});
     }
     if (autoPageChanged) {
-   // 间隔变更后若之前已暂停，保持暂停；否则按新间隔重启。
+      // 间隔变更后若之前已暂停，保持暂停；否则按新间隔重启。
       _applyAutoPage();
     }
   }
 
- // ─────────────────────── 点击区域（FR-4.2 五布局） ───────────────────────
+  // ─────────────────────── 点击区域（FR-4.2 五布局） ───────────────────────
 
   void _onTapUp(TapUpDetails details, Size size) {
     if (_showInlineSettings) {
       _toggleInlineSettings();
       return;
     }
-  // 选区工具条可见时，点按任意处收起工具条并清空选区。
+    // 选区工具条可见时，点按任意处收起工具条并清空选区。
     if (_showSelectionToolbar) {
-   // 吞掉长按松手后极短窗口内（250ms）紧随的那次 tap-up，避免刚建立的
-   // 选区被误清空（闪一下）；窗口之外的点击是用户主动收起，照常清空——
-   // 否则会吞掉用户退出工具栏的第一下，表现为「要点两下才退出」。
+      // 吞掉长按松手后极短窗口内（250ms）紧随的那次 tap-up，避免刚建立的
+      // 选区被误清空（闪一下）；窗口之外的点击是用户主动收起，照常清空——
+      // 否则会吞掉用户退出工具栏的第一下，表现为「要点两下才退出」。
       final DateTime? sinkAt = _selectionJustConfirmedAt;
       if (sinkAt != null &&
           DateTime.now().difference(sinkAt) < _kSelectionTapSinkWindow) {
@@ -4075,7 +4170,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 显示点按区域预览弹窗：半透明展示当前布局的各区域及对应操作。
+  /// 显示点按区域预览弹窗：半透明展示当前布局的各区域及对应操作。
   void _showTapZonePreview(AppLocalizations l10n) {
     final layout = _prefs.tapZoneLayout;
     final invert = _prefs.tapZoneInvert;
@@ -4085,11 +4180,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       context: context,
       builder: (BuildContext ctx) {
         return StatefulBuilder(
-          builder: (BuildContext ctx2, Function(void Function()) setDialogState) {
+          builder:
+              (BuildContext ctx2, Function(void Function()) setDialogState) {
             return AppAlertDialog(
               title: Text(l10n.tapZonePreview),
               content: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 280, maxHeight: 420),
+                constraints:
+                    const BoxConstraints(maxWidth: 280, maxHeight: 420),
                 child: _TapZonePreviewOverlay(
                   layout: layout,
                   invert: invert,
@@ -4110,7 +4207,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- // ─────────────────────── 亮度手势 ───────────────────────
+  // ─────────────────────── 亮度手势 ───────────────────────
 
   void _onBrightnessDragStart(DragStartDetails d) {
     final w = context.size?.width ?? MediaQuery.sizeOf(context).width;
@@ -4142,25 +4239,25 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     try {
       await _brightnessPlugin.setScreenBrightness(value);
     } on Object {
-   // 部分平台可能不支持亮度调节，静默忽略。
+      // 部分平台可能不支持亮度调节，静默忽略。
     }
   }
 
- // ─────────────────────── N4 下滑切书签手势 ───────────────────────
+  // ─────────────────────── N4 下滑切书签手势 ───────────────────────
 
- /// N4 下滑起点：仅分页模式启用；左 1/3 屏留给亮度手势。
- /// 方向判定延后到 update（DragStartDetails 无 velocity，且纵向拖拽在手势
- /// 竞技场中被横向翻页识别器让出时才回调——此时已是纵向手势，只需防误触）。
+  /// N4 下滑起点：仅分页模式启用；左 1/3 屏留给亮度手势。
+  /// 方向判定延后到 update（DragStartDetails 无 velocity，且纵向拖拽在手势
+  /// 竞技场中被横向翻页识别器让出时才回调——此时已是纵向手势，只需防误触）。
   void _onBookmarkSwipeStart(DragStartDetails d) {
     if (!_bookmarkSwipeEnabled) return;
     final w = context.size?.width ?? MediaQuery.sizeOf(context).width;
-  if (d.globalPosition.dx < w / 3) return; // 与亮度手势区域互斥
+    if (d.globalPosition.dx < w / 3) return; // 与亮度手势区域互斥
     _bookmarkSwipePending = true;
     _bookmarkSwipeActive = false;
     _bookmarkSwipeCancelled = false;
     _bookmarkSwipeDy = 0;
     _bookmarkSwipeDx = 0;
-  // 预取当前位置是否已有书签：决定本次下滑是添加还是取消（提示条文案同步）。
+    // 预取当前位置是否已有书签：决定本次下滑是添加还是取消（提示条文案同步）。
     unawaited(_refreshQuickBookmarkState());
   }
 
@@ -4169,12 +4266,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final dx = d.delta.dx;
     final dy = d.delta.dy;
     if (!_bookmarkSwipeActive) {
-   // 待定态：累计方向，直到明确「纵向且向下」才激活（对标 N4 判定：
-   // dy > 0 且 absY > absX * ratio，页面随指下移）。
+      // 待定态：累计方向，直到明确「纵向且向下」才激活（对标 N4 判定：
+      // dy > 0 且 absY > absX * ratio，页面随指下移）。
       _bookmarkSwipeDx += dx;
       _bookmarkSwipeDy += dy;
       if (_bookmarkSwipeDx.abs() > _bookmarkSwipeDy.abs() * 2) {
-    // 横向主导 → 用户实际想翻页，放弃。
+        // 横向主导 → 用户实际想翻页，放弃。
         _bookmarkSwipePending = false;
         _bookmarkSwipeActive = false;
         _bookmarkSwipeCancelled = false;
@@ -4182,7 +4279,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _bookmarkSwipeDx = 0;
         return;
       }
-   // 尚未过阈值时上滑回到原位即取消（允许反悔，回到原点）。
+      // 尚未过阈值时上滑回到原位即取消（允许反悔，回到原点）。
       if (_bookmarkSwipeDy <= 0) {
         _bookmarkSwipePending = false;
         _bookmarkSwipeActive = false;
@@ -4201,7 +4298,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       }
       return;
     }
-  // 激活态：累计位移（含向上回拖，dy 可能变负）；回拖到阈值线之上即取消。
+    // 激活态：累计位移（含向上回拖，dy 可能变负）；回拖到阈值线之上即取消。
     _bookmarkSwipeDy = _bookmarkSwipeDy + dy;
     final h = MediaQuery.sizeOf(context).height;
     final threshold = h * _bookmarkSwipeThresholdRatio;
@@ -4213,8 +4310,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (!_bookmarkSwipePending && !_bookmarkSwipeActive) return;
     final h = MediaQuery.sizeOf(context).height;
     final threshold = h * _bookmarkSwipeThresholdRatio;
-    final reached =
-        _bookmarkSwipeActive && _bookmarkSwipeDy >= threshold && !_bookmarkSwipeCancelled;
+    final reached = _bookmarkSwipeActive &&
+        _bookmarkSwipeDy >= threshold &&
+        !_bookmarkSwipeCancelled;
     _bookmarkSwipePending = false;
     _bookmarkSwipeActive = false;
     _bookmarkSwipeCancelled = false;
@@ -4226,12 +4324,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// N4 快捷切换（修订）：当前位置已有书签时下滑即取消该书签，
- /// 否则跳过备注弹窗直接保存当前页书签（与工具栏「加书签」弹窗路径
- /// 区分；下滑是快捷操作，打断弹窗反而碍事）。
+  /// N4 快捷切换（修订）：当前位置已有书签时下滑即取消该书签，
+  /// 否则跳过备注弹窗直接保存当前页书签（与工具栏「加书签」弹窗路径
+  /// 区分；下滑是快捷操作，打断弹窗反而碍事）。
   Future<void> _addBookmarkQuick() async {
     final l10n = AppLocalizations.of(context);
-  // 已有同章同页书签 → 取消之。
+    // 已有同章同页书签 → 取消之。
     final existing = await _bookmarks.listFor(widget.novelId);
     NovelBookmark? hit;
     for (final b in existing) {
@@ -4277,22 +4375,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 当前章节页是否已有快捷书签（决定下滑提示与行为：添加 / 取消）。
+  /// 当前章节页是否已有快捷书签（决定下滑提示与行为：添加 / 取消）。
   bool _currentPosHasBookmark = false;
 
- /// 异步刷新 [_currentPosHasBookmark]（手势开始时预取，Hive 缓存读取很快）。
+  /// 异步刷新 [_currentPosHasBookmark]（手势开始时预取，Hive 缓存读取很快）。
   Future<void> _refreshQuickBookmarkState() async {
     final list = await _bookmarks.listFor(widget.novelId);
     if (!mounted) return;
-    final has =
-        list.any((b) => b.chapterIndex == _chapterIndex && b.page == _currentPage);
+    final has = list
+        .any((b) => b.chapterIndex == _chapterIndex && b.page == _currentPage);
     if (has != _currentPosHasBookmark) {
       setState(() => _currentPosHasBookmark = has);
     }
   }
 
- /// N4 下滑切书签：顶部提示条。手势进行中显示「继续下滑添加书签」，
- /// 超过阈值后变「松开添加书签」。覆盖在页面上方（页面已随指下移露出背景）。
+  /// N4 下滑切书签：顶部提示条。手势进行中显示「继续下滑添加书签」，
+  /// 超过阈值后变「松开添加书签」。覆盖在页面上方（页面已随指下移露出背景）。
   Widget _buildBookmarkSwipeHint(Color bg, Color textColor) {
     final h = MediaQuery.sizeOf(context).height;
     final threshold = h * _bookmarkSwipeThresholdRatio;
@@ -4351,7 +4449,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- // ─────────────────────── 构建 ───────────────────────
+  // ─────────────────────── 构建 ───────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -4360,7 +4458,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final textColor = _prefs.resolveTextColor(bg);
     final l10n = AppLocalizations.of(context);
 
-  // TTS 状态变化时重建 Stack：TTS 激活时底部栏内嵌朗读控件（避免重叠）。
+    // TTS 状态变化时重建 Stack：TTS 激活时底部栏内嵌朗读控件（避免重叠）。
     return Scaffold(
       backgroundColor: bg,
       body: ListenableBuilder(
@@ -4394,8 +4492,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// TTS 内联控件（嵌入底部栏第二行，替代独立 TTS 栏，避免重叠）。
- /// 包含：上一句/暂停-停止/下一句/睡眠/后台 + 语速滑块。
+  /// TTS 内联控件（嵌入底部栏第二行，替代独立 TTS 栏，避免重叠）。
+  /// 包含：上一句/暂停-停止/下一句/睡眠/后台 + 语速滑块。
   Widget _buildTtsControlsInline(AppLocalizations l10n, Color bg) {
     final remaining = _tts.sleepRemaining;
     final rate = _tts.rate;
@@ -4414,7 +4512,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
-              icon: Icon(_tts.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 20),
+              icon: Icon(
+                  _tts.isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  size: 20),
               tooltip: l10n.ttsPauseOrResume,
               visualDensity: VisualDensity.compact,
               onPressed: () {
@@ -4452,7 +4554,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
-              icon: Icon(_tts.backgroundMode ? Icons.headset_rounded : Icons.headset_off_rounded, size: 18),
+              icon: Icon(
+                  _tts.backgroundMode
+                      ? Icons.headset_rounded
+                      : Icons.headset_off_rounded,
+                  size: 18),
               tooltip: l10n.novelTtsBackground,
               visualDensity: VisualDensity.compact,
               onPressed: () {
@@ -4504,7 +4610,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 睡眠定时选择（#5）：0 关闭 / 预设 / 自定义分钟。朗读控制栏入口。
+  /// 睡眠定时选择（#5）：0 关闭 / 预设 / 自定义分钟。朗读控制栏入口。
   Future<void> _showSleepTimerPicker() async {
     final l10n = AppLocalizations.of(context);
     final picked = await _pickSleepMinutes(
@@ -4514,18 +4620,19 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
     if (picked != null && mounted) {
       _tts.startSleepTimer(picked);
-   // 与设置面板一致：写回 _prefs（持久化），避免重启后丢失。
+      // 与设置面板一致：写回 _prefs（持久化），避免重启后丢失。
       _onPrefsChanged(_prefs.copyWith(ttsSleepTimer: picked));
     }
   }
 
   Widget _buildContent(AppLocalizations l10n, Color bg, Color textColor) {
     if (_loading) {
-   // 加载态底色用当前背景色，避免深色模式下白色底板刺眼（项 7 双保险）。
-      return Container(color: bg, child: const Center(child: AppLoadingIndicator()));
+      // 加载态底色用当前背景色，避免深色模式下白色底板刺眼（项 7 双保险）。
+      return Container(
+          color: bg, child: const Center(child: AppLoadingIndicator()));
     }
     if (_error != null) {
-   // 验证拦截态：重试按钮改走验证页，完成后重载本章（Cookie 已回灌）。
+      // 验证拦截态：重试按钮改走验证页，完成后重载本章（Cookie 已回灌）。
       final verifyError = _verificationError;
       if (verifyError != null && !_isLocalMode) {
         return _CenterMessage(
@@ -4543,7 +4650,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           },
         );
       }
-   // 反爬拦截态（源声明 useWebview）：打开真浏览器抓取本章渲染后 HTML 回灌解析。
+      // 反爬拦截态（源声明 useWebview）：打开真浏览器抓取本章渲染后 HTML 回灌解析。
       final captureRequest = _htmlCaptureRequest;
       if (captureRequest != null && !_isLocalMode) {
         return _CenterMessage(
@@ -4574,14 +4681,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       );
     }
     if (_paragraphs.isEmpty) {
-      return _CenterMessage(icon: Icons.article_rounded, message: l10n.noContent);
+      return _CenterMessage(
+          icon: Icons.article_rounded, message: l10n.noContent);
     }
     return _buildReader(bg, textColor);
   }
 
   Widget _buildReader(Color bg, Color textColor) {
-  // 正文页眉/标题取「实际章节列表」：单 EPUB 用解析出的章节，其余用传入章节，
-  // 保证本地 EPUB 也能在正文显示当前章节标题（修复「分章后看不到章名」）。
+    // 正文页眉/标题取「实际章节列表」：单 EPUB 用解析出的章节，其余用传入章节，
+    // 保证本地 EPUB 也能在正文显示当前章节标题（修复「分章后看不到章名」）。
     final bodyChapters = _effectiveChapters;
     final String chapterTitleForBody = bodyChapters.isEmpty
         ? ''
@@ -4590,15 +4698,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       builder: (BuildContext context, BoxConstraints constraints) {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
-    // 分页缓存签名：仅在这些输入真正变化时重新分页，否则复用上一次结果。
-    // 关键：翻页动画每帧只触发 NovelAnimatedPageView 自身重建（其 State 内的
-    // setState），不会重建到这里；但 _onPageChanged → setState 与
-    // FavoritesManager 通知都会触发本 reader 重建 → 若每次都重新分页整章，
-    // 会在翻页瞬间产生明显卡顿，并使翻页动画被重型计算抢占、看起来「无动画」。
+        // 分页缓存签名：仅在这些输入真正变化时重新分页，否则复用上一次结果。
+        // 关键：翻页动画每帧只触发 NovelAnimatedPageView 自身重建（其 State 内的
+        // setState），不会重建到这里；但 _onPageChanged → setState 与
+        // FavoritesManager 通知都会触发本 reader 重建 → 若每次都重新分页整章，
+        // 会在翻页瞬间产生明显卡顿，并使翻页动画被重型计算抢占、看起来「无动画」。
         final scaler = MediaQuery.textScalerOf(context);
         final dir = Directionality.of(context);
-    // A7 双页模式：翻页模式 + 用户开启 + 宽屏（宽 > 高）时生效——
-    // 每页按半宽排版，屏幕左右并排显示两页（对齐实体书摊开形态）。
+        // A7 双页模式：翻页模式 + 用户开启 + 宽屏（宽 > 高）时生效——
+        // 每页按半宽排版，屏幕左右并排显示两页（对齐实体书摊开形态）。
         final bool twoPage = _prefs.twoPageMode &&
             !_prefs.pageAnimation.isScroll &&
             constraints.maxWidth > constraints.maxHeight;
@@ -4607,7 +4715,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         final bool sigChanged = _paginationSig != sig;
         final int prevChapterIndex = _paginationChapterIndex;
         if (_pagination == null || sigChanged) {
-     // 双页时按半宽减中缝分页；单页沿用全宽。
+          // 双页时按半宽减中缝分页；单页沿用全宽。
           final BoxConstraints layoutConstraints = twoPage
               ? BoxConstraints(
                   maxWidth: (constraints.maxWidth - _kTwoPageGutter) / 2,
@@ -4625,9 +4733,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           _paginationSig = sig;
           _paginationChapterIndex = _chapterIndex;
           _twoPageActive = twoPage;
-     // G3：本章页数入整本校准缓存（覆盖旧值——同章重新分页以新值为准）。
+          // G3：本章页数入整本校准缓存（覆盖旧值——同章重新分页以新值为准）。
           _chapterPageCounts[_chapterIndex] = _pagination!.pages.length;
-     // 分页真正变化时（章节 / 偏好 / 尺寸），帧后注入选区控制器并加载划线。
+          // 分页真正变化时（章节 / 偏好 / 尺寸），帧后注入选区控制器并加载划线。
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && _paginationChapterIndex == _chapterIndex) {
               _bindSelection();
@@ -4635,37 +4743,37 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           });
         }
 
-    // 章内字符偏移恢复（抗字号/边距/排版变化）。
-    // 仅在有待恢复偏移且分页已就绪时执行一次；用偏移把阅读位置
-    // 重新映射成当前分页下的页码（或滚动模式的等效页），而非旧的页码。
-    // 消费后立即清 null，避免后续 build（如旋转屏幕）重复跳页。
+        // 章内字符偏移恢复（抗字号/边距/排版变化）。
+        // 仅在有待恢复偏移且分页已就绪时执行一次；用偏移把阅读位置
+        // 重新映射成当前分页下的页码（或滚动模式的等效页），而非旧的页码。
+        // 消费后立即清 null，避免后续 build（如旋转屏幕）重复跳页。
         if (_savedCharOffset != null) {
           final resolved = _pageForCharOffset(_savedCharOffset!);
           _currentPage = resolved;
           if (_prefs.pageAnimation.isScroll) {
             _restoreScrollPosition(resolved);
           }
-     // 用当前分页（已就绪）与当前章节，把恢复出的位置重新落盘。
-     // 否则若本次进入未触发任何翻页事件（initial page / 纯恢复），
-     // 持久化进度会停留在上次会话的旧值，退出重进会回放旧位置
-     //（表现为「翻到首页 → 重进却落到上一章末页」）。
+          // 用当前分页（已就绪）与当前章节，把恢复出的位置重新落盘。
+          // 否则若本次进入未触发任何翻页事件（initial page / 纯恢复），
+          // 持久化进度会停留在上次会话的旧值，退出重进会回放旧位置
+          //（表现为「翻到首页 → 重进却落到上一章末页」）。
           _saveProgress(resolved);
           _savedCharOffset = null;
-     // 搜索跳转到达：命中页此刻才渲染就绪，现在启动高亮计时器
-     // （普通进度恢复时无关键词，不会走到这里）。
+          // 搜索跳转到达：命中页此刻才渲染就绪，现在启动高亮计时器
+          // （普通进度恢复时无关键词，不会走到这里）。
           if (_searchKeyword != null || _searchRegex != null) {
             _startSearchHighlightTimer();
           }
         }
 
-    // 检测分页结果是否变化（跨章/改偏好/旋转屏幕时变化）。
-    // _pagination 可能在本帧的 layout 阶段才被 LayoutBuilder 赋值，
-    // 而 _buildProgressSlider 已在 build 阶段读取了旧值。需要 schedule 一帧
-    // 让进度条重建以获取最新分页数据（详见 _loadChapter 时序注释）。
-    // 注意：相邻两章页数可能相同，仅比较页数长度不够，必须同时检测章节下标变化，
-    // 否则会残留上一章的分页（总页数/当前页显示正确但内容错位）。
-    // 这里用「缓存前的旧章节下标」判断跨章，并用 sigChanged 覆盖「同章但
-    // 改了字号/边距等导致分页变化」的情况，确保进度条/分页始终与最新输入一致。
+        // 检测分页结果是否变化（跨章/改偏好/旋转屏幕时变化）。
+        // _pagination 可能在本帧的 layout 阶段才被 LayoutBuilder 赋值，
+        // 而 _buildProgressSlider 已在 build 阶段读取了旧值。需要 schedule 一帧
+        // 让进度条重建以获取最新分页数据（详见 _loadChapter 时序注释）。
+        // 注意：相邻两章页数可能相同，仅比较页数长度不够，必须同时检测章节下标变化，
+        // 否则会残留上一章的分页（总页数/当前页显示正确但内容错位）。
+        // 这里用「缓存前的旧章节下标」判断跨章，并用 sigChanged 覆盖「同章但
+        // 改了字号/边距等导致分页变化」的情况，确保进度条/分页始终与最新输入一致。
         final chapterChanged = prevChapterIndex != _chapterIndex;
         final paginationChanged = chapterChanged || sigChanged;
 
@@ -4677,35 +4785,36 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         }
 
         final pages = _pagination!.pages;
-    // 哨兵值：restorePage=-1 表示「恢复到本章最后一页」（上一页越界时）。
+        // 哨兵值：restorePage=-1 表示「恢复到本章最后一页」（上一页越界时）。
         if (_currentPage < 0 && pages.isNotEmpty) {
           _currentPage = pages.length - 1;
-     // 上一章末页（回上一话）也要落盘，否则退出后该位置丢失，
-     // 重进会回放更早的存档（表现为「回到上一章末页」失效）。
+          // 上一章末页（回上一话）也要落盘，否则退出后该位置丢失，
+          // 重进会回放更早的存档（表现为「回到上一章末页」失效）。
           _saveProgress(_currentPage);
         }
-    // 同步校正：如果当前页超出范围（比如跨章后 page view 通过
-    // didUpdateWidget 重置了 internal index 但未回调 onPageChanged），
-    // 强制对齐到合法范围。
+        // 同步校正：如果当前页超出范围（比如跨章后 page view 通过
+        // didUpdateWidget 重置了 internal index 但未回调 onPageChanged），
+        // 强制对齐到合法范围。
         if (_currentPage >= pages.length && pages.isNotEmpty) {
           _currentPage = pages.length - 1;
         }
         final bodyChapters2 = _effectiveChapters;
         final chapterTitle = bodyChapters2.isEmpty
             ? ''
-            : bodyChapters2[_chapterIndex.clamp(0, bodyChapters2.length - 1)].title;
+            : bodyChapters2[_chapterIndex.clamp(0, bodyChapters2.length - 1)]
+                .title;
 
-    // 分页数据变化时 schedule 一帧刷新，让底部进度条获取最新的
-    // total/pages/currentPage（LayoutBuilder 的 builder 在 layout 阶段执行，
-    // 晚于 _buildProgressSlider 的 build 阶段读取）。
+        // 分页数据变化时 schedule 一帧刷新，让底部进度条获取最新的
+        // total/pages/currentPage（LayoutBuilder 的 builder 在 layout 阶段执行，
+        // 晚于 _buildProgressSlider 的 build 阶段读取）。
         if (paginationChanged && mounted) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) setState(() {});
           });
         }
 
-    // N4 下滑切书签：手势进行中页面随指下移（露出上方背景），
-    // 顶部显示提示条；松手超过阈值即落盘书签并复位。
+        // N4 下滑切书签：手势进行中页面随指下移（露出上方背景），
+        // 顶部显示提示条；松手超过阈值即落盘书签并复位。
         final double swipeDy = _bookmarkSwipeActive ? _bookmarkSwipeDy : 0;
         return Stack(
           children: <Widget>[
@@ -4713,116 +4822,120 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               child: Transform.translate(
                 offset: Offset(0, swipeDy),
                 child: Builder(builder: (context) {
-        // A7 双页：呈现层把「页」映射为「跨页（spread）」——一个屏幕位
-        // 显示左右两页；进度/存档仍以左页页码为准（onPageChanged 处换算）。
-                final bool twoPage = _twoPageActive && pages.length > 1;
-                final int displayCount =
-                    twoPage ? (pages.length + 1) ~/ 2 : pages.length;
-                final int initialDisplay =
-                    twoPage ? (_currentPage ~/ 2).clamp(0, displayCount - 1) : _currentPage;
-                Widget buildSinglePage(BuildContext ctx, int p) {
-                  final page = pages[p];
-                  return _NovelPageWidget(
-                    lines: page,
-                    prefs: _prefs,
-                    bg: bg,
-                    textColor: textColor,
-                    animation: _prefs.pageAnimation,
-                    chapterTitle: chapterTitle,
-                    bookName: widget.title,
-                    pageIndex: p,
-                    totalPages: pages.length,
-                    time: _currentTime,
-                    batteryLevel: _batteryLevel,
-                    headerCenter: _prefs.headerCenter,
-                    footerCenter: _prefs.footerCenter,
-                    headerFooterColor: _prefs.headerFooterColor,
-                    headerFooterMargin: _prefs.headerFooterMargin,
-                    ttsCurrentIndex: _tts.currentIndex,
-                    ttsActive: _tts.state != NovelTtsState.stopped,
-                    searchKeyword: _searchKeyword,
-                    searchRegex: _searchRegex,
-                    onParagraphTap: _onParagraphTapped,
-                    onImageTap: (url, src) => _showImageViewer(url, src ?? _source),
-                    source: _source,
-                    bookPageLabel: (p2) => _bookPageLabelFor(p2),
-                    selectionController: _selectionController,
-                    onSelectionConfirmed: () {
-                      if (mounted) {
-                        _selectionJustConfirmedAt = DateTime.now();
-                        setState(() {
-                          _showSelectionToolbar = true;
-             _uiVisible = false; // 显示工具栏时隐藏控制面板
-                        });
-                      }
-                    },
-                    onSelectionActiveChanged: (engaged) {
-           // 长按选区激活期间置位 _longPressEngaged，使翻页手势让出指针，
-           // 避免选区拖拽被翻页抢走（「长按一闪即逝」的根因）。
-           // 注意：这里绝不能 setState——置位字段后拖拽手势经
-           // `selectionActive` 闭包读取的是最新字段值，无需重建；而一旦
-           // setState 重建整棵阅读器树，pageBuilder 会重新构建每个文本行
-           // 的 RawGestureDetector，识别器被替换、进行中的长按即刻中断
-           // （表现：选中闪一下就消失）。
-                      _longPressEngaged = engaged;
-                    },
-                  );
-                }
+                  // A7 双页：呈现层把「页」映射为「跨页（spread）」——一个屏幕位
+                  // 显示左右两页；进度/存档仍以左页页码为准（onPageChanged 处换算）。
+                  final bool twoPage = _twoPageActive && pages.length > 1;
+                  final int displayCount =
+                      twoPage ? (pages.length + 1) ~/ 2 : pages.length;
+                  final int initialDisplay = twoPage
+                      ? (_currentPage ~/ 2).clamp(0, displayCount - 1)
+                      : _currentPage;
+                  Widget buildSinglePage(BuildContext ctx, int p) {
+                    final page = pages[p];
+                    return _NovelPageWidget(
+                      lines: page,
+                      prefs: _prefs,
+                      bg: bg,
+                      textColor: textColor,
+                      animation: _prefs.pageAnimation,
+                      chapterTitle: chapterTitle,
+                      bookName: widget.title,
+                      pageIndex: p,
+                      totalPages: pages.length,
+                      time: _currentTime,
+                      batteryLevel: _batteryLevel,
+                      headerCenter: _prefs.headerCenter,
+                      footerCenter: _prefs.footerCenter,
+                      headerFooterColor: _prefs.headerFooterColor,
+                      headerFooterMargin: _prefs.headerFooterMargin,
+                      ttsCurrentIndex: _tts.currentIndex,
+                      ttsActive: _tts.state != NovelTtsState.stopped,
+                      searchKeyword: _searchKeyword,
+                      searchRegex: _searchRegex,
+                      onParagraphTap: _onParagraphTapped,
+                      onImageTap: (url, src) =>
+                          _showImageViewer(url, src ?? _source),
+                      source: _source,
+                      bookPageLabel: (p2) => _bookPageLabelFor(p2),
+                      selectionController: _selectionController,
+                      onSelectionConfirmed: () {
+                        if (mounted) {
+                          _selectionJustConfirmedAt = DateTime.now();
+                          setState(() {
+                            _showSelectionToolbar = true;
+                            _uiVisible = false; // 显示工具栏时隐藏控制面板
+                          });
+                        }
+                      },
+                      onSelectionActiveChanged: (engaged) {
+                        // 长按选区激活期间置位 _longPressEngaged，使翻页手势让出指针，
+                        // 避免选区拖拽被翻页抢走（「长按一闪即逝」的根因）。
+                        // 注意：这里绝不能 setState——置位字段后拖拽手势经
+                        // `selectionActive` 闭包读取的是最新字段值，无需重建；而一旦
+                        // setState 重建整棵阅读器树，pageBuilder 会重新构建每个文本行
+                        // 的 RawGestureDetector，识别器被替换、进行中的长按即刻中断
+                        // （表现：选中闪一下就消失）。
+                        _longPressEngaged = engaged;
+                      },
+                    );
+                  }
 
-                return NovelAnimatedPageView(
-                key: _pageKey,
-                contentVersion: _contentVersion,
-                animation: _prefs.pageAnimation,
-                pageCount: displayCount,
-                initialPage: initialDisplay,
-                background: bg,
-                selectionActive: () =>
-                    _longPressEngaged ||
-                    _selectionController.hasSelection ||
-                    _selectionController.isSelecting,
-                pageBuilder: (BuildContext ctx, int displayIndex) {
-                  if (!twoPage) return buildSinglePage(ctx, displayIndex);
-                  final int left = displayIndex * 2;
-                  final int right = left + 1;
-                  return Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: left < pages.length
-                            ? buildSinglePage(ctx, left)
-              : Container(color: bg), // 奇数页末跨页的右侧留空
-                      ),
-                      const SizedBox(width: _kTwoPageGutter),
-                      Expanded(
-                        child: right < pages.length
-                            ? buildSinglePage(ctx, right)
-                            : Container(color: bg),
-                      ),
-                    ],
+                  return NovelAnimatedPageView(
+                    key: _pageKey,
+                    contentVersion: _contentVersion,
+                    animation: _prefs.pageAnimation,
+                    pageCount: displayCount,
+                    initialPage: initialDisplay,
+                    background: bg,
+                    selectionActive: () =>
+                        _longPressEngaged ||
+                        _selectionController.hasSelection ||
+                        _selectionController.isSelecting,
+                    pageBuilder: (BuildContext ctx, int displayIndex) {
+                      if (!twoPage) return buildSinglePage(ctx, displayIndex);
+                      final int left = displayIndex * 2;
+                      final int right = left + 1;
+                      return Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: left < pages.length
+                                ? buildSinglePage(ctx, left)
+                                : Container(color: bg), // 奇数页末跨页的右侧留空
+                          ),
+                          const SizedBox(width: _kTwoPageGutter),
+                          Expanded(
+                            child: right < pages.length
+                                ? buildSinglePage(ctx, right)
+                                : Container(color: bg),
+                          ),
+                        ],
+                      );
+                    },
+                    scrollBuilder: _prefs.pageAnimation.isScroll
+                        ? (BuildContext ctx) =>
+                            _buildScrollContent(bg, textColor)
+                        : null,
+                    onPageChanged: twoPage
+                        ? (int spreadIdx) {
+                            // 双页以「左页」作为当前逻辑页（与漫画双页语义一致）。
+                            _onPageChanged(
+                                (spreadIdx * 2).clamp(0, pages.length - 1));
+                          }
+                        : _onPageChanged,
+                    onRequestNextChapter: _goNextChapter,
+                    onRequestPrevChapter: () =>
+                        _goPrevChapter(toLastPage: true),
+                    onTapUp: _onTapUp,
+                    onVerticalDragStart: _onBrightnessDragStart,
+                    onVerticalDragUpdate: _onBrightnessDragUpdate,
+                    onVerticalDragEnd: _onBrightnessDragEnd,
+                    // N4 下滑切书签：主区域纵向下滑（滚动模式由
+                    // animated_page_view 内部 _isScroll 判断自动禁用）。
+                    onBookmarkSwipeStart: _onBookmarkSwipeStart,
+                    onBookmarkSwipeUpdate: _onBookmarkSwipeUpdate,
+                    onBookmarkSwipeEnd: _onBookmarkSwipeEnd,
+                    scrollWheelInverted: _prefs.scrollWheelInverted,
                   );
-                },
-                scrollBuilder: _prefs.pageAnimation.isScroll
-                    ? (BuildContext ctx) => _buildScrollContent(bg, textColor)
-                    : null,
-                onPageChanged: twoPage
-                    ? (int spreadIdx) {
-            // 双页以「左页」作为当前逻辑页（与漫画双页语义一致）。
-                        _onPageChanged(
-                            (spreadIdx * 2).clamp(0, pages.length - 1));
-                      }
-                    : _onPageChanged,
-                onRequestNextChapter: _goNextChapter,
-                onRequestPrevChapter: () => _goPrevChapter(toLastPage: true),
-                onTapUp: _onTapUp,
-                onVerticalDragStart: _onBrightnessDragStart,
-                onVerticalDragUpdate: _onBrightnessDragUpdate,
-                onVerticalDragEnd: _onBrightnessDragEnd,
-        // N4 下滑切书签：主区域纵向下滑（滚动模式由
-        // animated_page_view 内部 _isScroll 判断自动禁用）。
-                onBookmarkSwipeStart: _onBookmarkSwipeStart,
-                onBookmarkSwipeUpdate: _onBookmarkSwipeUpdate,
-                onBookmarkSwipeEnd: _onBookmarkSwipeEnd,
-                scrollWheelInverted: _prefs.scrollWheelInverted,
-              );
                 }),
               ),
             ),
@@ -4841,18 +4954,19 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final scrollChapters = _effectiveChapters;
     final String scrollChapterTitle = scrollChapters.isEmpty
         ? ''
-        : scrollChapters[_chapterIndex.clamp(0, scrollChapters.length - 1)].title;
-    final bool showTitle = _prefs.showChapterTitleInBody &&
-        scrollChapterTitle.isNotEmpty;
-  // 显示标题时列表首项为标题，其后为图文块。
+        : scrollChapters[_chapterIndex.clamp(0, scrollChapters.length - 1)]
+            .title;
+    final bool showTitle =
+        _prefs.showChapterTitleInBody && scrollChapterTitle.isNotEmpty;
+    // 显示标题时列表首项为标题，其后为图文块。
     final int itemCount = _paragraphs.length + (showTitle ? 1 : 0);
 
     return GestureDetector(
-   // 滚动模式：点按空白处收起选区工具条或切换控制面板。
+      // 滚动模式：点按空白处收起选区工具条或切换控制面板。
       onTap: () {
         if (_showSelectionToolbar) {
-     // 吞掉长按松手后极短窗口内（250ms）紧随的那次 tap，避免误清空
-     // 刚建立的选区（闪一下）；窗口之外照常收起（点一下即退）。
+          // 吞掉长按松手后极短窗口内（250ms）紧随的那次 tap，避免误清空
+          // 刚建立的选区（闪一下）；窗口之外照常收起（点一下即退）。
           final DateTime? sinkAt = _selectionJustConfirmedAt;
           if (sinkAt != null &&
               DateTime.now().difference(sinkAt) < _kSelectionTapSinkWindow) {
@@ -4872,154 +4986,155 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           horizontal: _prefs.margin,
           vertical: _prefs.margin,
         ),
-    // 预构建视口外一段内容，滚动/插图撑高时减少白屏与掉帧。
+        // 预构建视口外一段内容，滚动/插图撑高时减少白屏与掉帧。
         scrollCacheExtent: ScrollCacheExtent.pixels(600),
         itemCount: itemCount,
-      itemBuilder: (BuildContext ctx, int i) {
-        if (showTitle && i == 0) {
-          return _buildChapterTitleWidget(
-            _prefs,
-            scrollChapterTitle,
-            widget.title,
+        itemBuilder: (BuildContext ctx, int i) {
+          if (showTitle && i == 0) {
+            return _buildChapterTitleWidget(
+              _prefs,
+              scrollChapterTitle,
+              widget.title,
+            );
+          }
+          final int idx = showTitle ? i - 1 : i;
+          final block = _paragraphs[idx];
+          // 插图块：滚动模式图文混排，固定比例缩略显示，点开看大图。
+          // / A10：banner 模式铺满整行（按源 style 或全宽，高度自适应）；
+          // card 模式按正文宽 72% 卡片式缩列 + [scrollImageAlign] 水平对齐。
+          if (block is NovelImageBlock) {
+            final double bodyW =
+                MediaQuery.of(ctx).size.width - _prefs.margin * 2;
+            // / A10：banner 模式自适应完整显示（按图片真实宽高比撑高，
+            // 加载前以 2:1 占位）；card 模式按正文宽 72% 卡片式缩列 +
+            // [scrollImageAlign] 水平对齐。两种模式均不再裁切。
+            final bool card =
+                _prefs.scrollImageMode == NovelScrollImageMode.card;
+            final Widget image = card
+                ? SourceImage(
+                    url: block.url,
+                    source: block.source ?? _source,
+                    width: bodyW * 0.72,
+                    fit: BoxFit.fitWidth,
+                    radius: 8,
+                  )
+                : _AdaptiveScrollImage(
+                    url: block.url,
+                    source: block.source ?? _source,
+                    width: bodyW,
+                  );
+            final Widget aligned = card
+                ? Align(
+                    alignment: switch (_prefs.scrollImageAlign) {
+                      NovelScrollImageAlign.left => Alignment.centerLeft,
+                      NovelScrollImageAlign.right => Alignment.centerRight,
+                      NovelScrollImageAlign.center => Alignment.center,
+                    },
+                    child: image,
+                  )
+                : image;
+            return Padding(
+              padding: EdgeInsets.only(bottom: _prefs.paragraphSpacing),
+              child: GestureDetector(
+                onTap: () =>
+                    _showImageViewer(block.url, block.source ?? _source),
+                child: aligned,
+              ),
+            );
+          }
+          final String text = block is NovelTextBlock ? block.text : '';
+          // 章节标题块：居中 + 大字号 + 加粗 + 加大上下间距，让滚动浏览时
+          // 一眼能看到「第N章」的章节分界（本地 EPUB 修复）。
+          final isHeading = block is NovelTextBlock && block.isHeading;
+          final baseStyle = _prefs.resolveBodyTextStyle(textColor);
+          final headingStyle = isHeading
+              ? baseStyle.copyWith(
+                  fontSize: (baseStyle.fontSize ?? 16) * 1.4,
+                  fontWeight: FontWeight.w700,
+                  height: 1.5,
+                )
+              : baseStyle;
+          final Widget bodyText = _buildHighlightedBodyText(
+            text,
+            baseStyle,
+            headingStyle,
+            isHeading,
           );
-        }
-        final int idx = showTitle ? i - 1 : i;
-        final block = _paragraphs[idx];
-    // 插图块：滚动模式图文混排，固定比例缩略显示，点开看大图。
-    // / A10：banner 模式铺满整行（按源 style 或全宽，高度自适应）；
-    // card 模式按正文宽 72% 卡片式缩列 + [scrollImageAlign] 水平对齐。
-        if (block is NovelImageBlock) {
-          final double bodyW =
-              MediaQuery.of(ctx).size.width - _prefs.margin * 2;
-     // / A10：banner 模式自适应完整显示（按图片真实宽高比撑高，
-     // 加载前以 2:1 占位）；card 模式按正文宽 72% 卡片式缩列 +
-     // [scrollImageAlign] 水平对齐。两种模式均不再裁切。
-          final bool card = _prefs.scrollImageMode == NovelScrollImageMode.card;
-          final Widget image = card
-              ? SourceImage(
-                  url: block.url,
-                  source: block.source ?? _source,
-                  width: bodyW * 0.72,
-                  fit: BoxFit.fitWidth,
-                  radius: 8,
-                )
-              : _AdaptiveScrollImage(
-                  url: block.url,
-                  source: block.source ?? _source,
-                  width: bodyW,
-                );
-          final Widget aligned = card
-              ? Align(
-                  alignment: switch (_prefs.scrollImageAlign) {
-                    NovelScrollImageAlign.left => Alignment.centerLeft,
-                    NovelScrollImageAlign.right => Alignment.centerRight,
-                    NovelScrollImageAlign.center => Alignment.center,
-                  },
-                  child: image,
-                )
-              : image;
+          // 滚动模式选区：非 TTS 态文本块包长按手势，复用与分页同源的
+          // 章节全局字符偏移坐标系（[NovelSelectionController.setBlocks]）。
+          // 块为整段多行文本，Phase 4 长按直接选整块（精确折行 x 命中留待后续），
+          // 拖拽扩选由工具条「整段」按钮覆盖（与分页行内限制一致）。
+          // TTS 态（问题 6 对齐）：当前朗读段高亮强调 + 点按段落跳转朗读 +
+          // 自动滚动跟随（段挂 key，_onTtsChanged 帧后 ensureVisible）。
+          final Widget wrapped;
+          if (_ttsActiveForBody()) {
+            final bool isCurrent = idx == _tts.currentIndex;
+            final Widget text = isCurrent
+                ? Container(
+                    decoration: BoxDecoration(
+                      color:
+                          _prefs.resolveTextColor(bg).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppTokens.radiusXs),
+                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: bodyText,
+                  )
+                : bodyText;
+            final Widget tappable = GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              excludeFromSemantics: true,
+              onTap: () => _onParagraphTapped(idx),
+              child: isCurrent
+                  ? KeyedSubtree(key: _ttsParagraphKey, child: text)
+                  : text,
+            );
+            wrapped = tappable;
+          } else {
+            // 滚动模式选区：长按手势识别器必须「稳定」，不能包在监听 selectionController
+            // 的 AnimatedBuilder 内——否则 setSelection 触发的 notifyListeners 会重建
+            // RawGestureDetector、新建识别器，进行中的长按被打断（表现为「长按闪一下」）。
+            // 这里把识别器放在外层（StatefulWidget 稳定持有识别器实例），仅内层文本随
+            // 选区变化重建。
+            final Widget selected = _StableLongPressDetector(
+              onLongPressStart: (_) => _onSelLongPressStartScroll(idx, text),
+              onLongPressEnd: _onSelLongPressEndScroll,
+              child: AnimatedBuilder(
+                animation: _selectionController,
+                builder: (ctx, _) {
+                  final spans = _selectionController.blockSpans(
+                    _paragraphs,
+                    idx,
+                    text,
+                  );
+                  return spans.isEmpty
+                      ? bodyText
+                      : buildSelectionRichText(
+                          text,
+                          isHeading ? headingStyle : baseStyle,
+                          spans,
+                          softWrap: true,
+                        );
+                },
+              ),
+            );
+            wrapped = selected;
+          }
           return Padding(
-            padding: EdgeInsets.only(bottom: _prefs.paragraphSpacing),
-            child: GestureDetector(
-              onTap: () =>
-                  _showImageViewer(block.url, block.source ?? _source),
-              child: aligned,
+            padding: EdgeInsets.only(
+              top: isHeading ? _prefs.paragraphSpacing * 2 : 0,
+              bottom: isHeading
+                  ? _prefs.paragraphSpacing * 2
+                  : _prefs.paragraphSpacing,
             ),
+            child: wrapped,
           );
-        }
-        final String text =
-            block is NovelTextBlock ? block.text : '';
-    // 章节标题块：居中 + 大字号 + 加粗 + 加大上下间距，让滚动浏览时
-    // 一眼能看到「第N章」的章节分界（本地 EPUB 修复）。
-        final isHeading = block is NovelTextBlock && block.isHeading;
-        final baseStyle = _prefs.resolveBodyTextStyle(textColor);
-        final headingStyle = isHeading
-            ? baseStyle.copyWith(
-                fontSize: (baseStyle.fontSize ?? 16) * 1.4,
-                fontWeight: FontWeight.w700,
-                height: 1.5,
-              )
-            : baseStyle;
-        final Widget bodyText = _buildHighlightedBodyText(
-          text,
-          baseStyle,
-          headingStyle,
-          isHeading,
-        );
-    // 滚动模式选区：非 TTS 态文本块包长按手势，复用与分页同源的
-    // 章节全局字符偏移坐标系（[NovelSelectionController.setBlocks]）。
-    // 块为整段多行文本，Phase 4 长按直接选整块（精确折行 x 命中留待后续），
-    // 拖拽扩选由工具条「整段」按钮覆盖（与分页行内限制一致）。
-    // TTS 态（问题 6 对齐）：当前朗读段高亮强调 + 点按段落跳转朗读 +
-    // 自动滚动跟随（段挂 key，_onTtsChanged 帧后 ensureVisible）。
-        final Widget wrapped;
-        if (_ttsActiveForBody()) {
-          final bool isCurrent = idx == _tts.currentIndex;
-          final Widget text = isCurrent
-              ? Container(
-                  decoration: BoxDecoration(
-                    color: _prefs.resolveTextColor(bg).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppTokens.radiusXs),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 4, vertical: 2),
-                  child: bodyText,
-                )
-              : bodyText;
-          final Widget tappable = GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            excludeFromSemantics: true,
-            onTap: () => _onParagraphTapped(idx),
-            child: isCurrent
-                ? KeyedSubtree(key: _ttsParagraphKey, child: text)
-                : text,
-          );
-          wrapped = tappable;
-        } else {
-    // 滚动模式选区：长按手势识别器必须「稳定」，不能包在监听 selectionController
-    // 的 AnimatedBuilder 内——否则 setSelection 触发的 notifyListeners 会重建
-    // RawGestureDetector、新建识别器，进行中的长按被打断（表现为「长按闪一下」）。
-    // 这里把识别器放在外层（StatefulWidget 稳定持有识别器实例），仅内层文本随
-    // 选区变化重建。
-        final Widget selected = _StableLongPressDetector(
-          onLongPressStart: (_) => _onSelLongPressStartScroll(idx, text),
-          onLongPressEnd: _onSelLongPressEndScroll,
-          child: AnimatedBuilder(
-            animation: _selectionController,
-            builder: (ctx, _) {
-              final spans = _selectionController.blockSpans(
-                _paragraphs,
-                idx,
-                text,
-              );
-              return spans.isEmpty
-                  ? bodyText
-                  : buildSelectionRichText(
-                      text,
-                      isHeading ? headingStyle : baseStyle,
-                      spans,
-                      softWrap: true,
-                    );
-            },
-          ),
-        );
-          wrapped = selected;
-        }
-        return Padding(
-          padding: EdgeInsets.only(
-            top: isHeading ? _prefs.paragraphSpacing * 2 : 0,
-            bottom: isHeading
-                ? _prefs.paragraphSpacing * 2
-                : _prefs.paragraphSpacing,
-          ),
-          child: wrapped,
-        );
-      },
+        },
       ),
     );
   }
 
- /// 构建正文文本（带搜索关键词高亮；正则模式按表达式匹配）。
+  /// 构建正文文本（带搜索关键词高亮；正则模式按表达式匹配）。
   Widget _buildHighlightedBodyText(
     String text,
     TextStyle baseStyle,
@@ -5027,10 +5142,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     bool isHeading,
   ) {
     final style = isHeading ? headingStyle : baseStyle;
-  // / A6：滚动模式正文两端对齐（与分页模式 justify 语义一致）；
-  // 标题行恒居中（章节分界视觉），其余正文按 [NovelTextAlignMode] 取
-  // 自然左对齐或 justify。原生 TextAlign.justify 对整段多行文本生效，
-  // 与分页模式的逐行字距均摊策略各自独立（两模式渲染路径不同）。
+    // / A6：滚动模式正文两端对齐（与分页模式 justify 语义一致）；
+    // 标题行恒居中（章节分界视觉），其余正文按 [NovelTextAlignMode] 取
+    // 自然左对齐或 justify。原生 TextAlign.justify 对整段多行文本生效，
+    // 与分页模式的逐行字距均摊策略各自独立（两模式渲染路径不同）。
     final align = isHeading
         ? TextAlign.center
         : (_prefs.textAlignMode == NovelTextAlignMode.justify
@@ -5055,16 +5170,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 全屏查看插图：支持缩放/平移，防盗链 headers 由 [SourceImage] 注入。
+  /// 全屏查看插图：支持缩放/平移，防盗链 headers 由 [SourceImage] 注入。
   void _showImageViewer(String url, PluginConfig? source) {
     if (url.isEmpty) return;
     final List<Episode> chs = _effectiveChapters;
-    final String chapterTitle = chs.isEmpty
-        ? ''
-        : chs[_chapterIndex.clamp(0, chs.length - 1)].title;
+    final String chapterTitle =
+        chs.isEmpty ? '' : chs[_chapterIndex.clamp(0, chs.length - 1)].title;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-    // X-3：插图大图查看器带「收藏入统一图库」按钮（来源 = 小说）。
+        // X-3：插图大图查看器带「收藏入统一图库」按钮（来源 = 小说）。
         builder: (BuildContext ctx) => _NovelImageFavoriteViewer(
           url: url,
           source: source,
@@ -5076,8 +5190,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 顶栏标题：两行——书名 + 「第N章/共M章 · 章名」。
- /// 本地模式无章节列表，第二行显示「本地文件」。
+  /// 顶栏标题：两行——书名 + 「第N章/共M章 · 章名」。
+  /// 本地模式无章节列表，第二行显示「本地文件」。
   Widget _buildTopBarTitle(AppLocalizations l10n, Episode? chapter) {
     const TextStyle titleStyle = TextStyle(
       fontWeight: FontWeight.w600,
@@ -5141,19 +5255,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         ? null
         : barChapters[_chapterIndex.clamp(0, barChapters.length - 1)];
     final String? chapterUrl = chapter?.url;
-    final String? absoluteChapterUrl = (chapterUrl != null &&
-            chapterUrl.isNotEmpty)
-        ? (_source != null && _source!.site.baseUrl.isNotEmpty
-            ? _source!.site.baseUrl + chapterUrl
-            : chapterUrl)
-        : null;
+    final String? absoluteChapterUrl =
+        (chapterUrl != null && chapterUrl.isNotEmpty)
+            ? (_source != null && _source!.site.baseUrl.isNotEmpty
+                ? _source!.site.baseUrl + chapterUrl
+                : chapterUrl)
+            : null;
     return SafeArea(
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: <Color>[bg.withValues(alpha: 0.95), bg.withValues(alpha: 0)],
+            colors: <Color>[
+              bg.withValues(alpha: 0.95),
+              bg.withValues(alpha: 0)
+            ],
           ),
         ),
         padding: const EdgeInsets.symmetric(
@@ -5170,13 +5287,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             Expanded(
               child: _buildTopBarTitle(l10n, chapter),
             ),
-      // 收藏按钮（P3.1）
+            // 收藏按钮（P3.1）
             IconButton(
-              icon: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded),
+              icon: Icon(_isFav
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded),
               tooltip: l10n.favorite,
               onPressed: _onFavoritePressed,
             ),
-      // 重载本章（在线重载当前章节；本地重新读取文本）
+            // 重载本章（在线重载当前章节；本地重新读取文本）
             IconButton(
               icon: const Icon(Icons.refresh_rounded),
               tooltip: l10n.reloadChapter,
@@ -5188,16 +5307,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 }
               },
             ),
-      // 清除阅读记录（回到本书开头）
+            // 清除阅读记录（回到本书开头）
             IconButton(
               icon: const Icon(Icons.cleaning_services_rounded),
               tooltip: l10n.clearReadingProgress,
               onPressed: _clearReadingProgress,
             ),
-      // 其余工具（目录 / 自动翻页 / 设置 / 书签 / 夜间 / 搜索）已移至底部工具栏，
-      // 可在「配置底部按钮」中自定义；顶栏仅保留返回 / 标题 / 收藏 / 更多。
-      // 三点菜单（P3.1）：WebView 打开章节 / 浏览器打开 / 分享 / 书签列表 /
-      // 配置底部工具栏 / 笔记 / 翻页动画
+            // 其余工具（目录 / 自动翻页 / 设置 / 书签 / 夜间 / 搜索）已移至底部工具栏，
+            // 可在「配置底部按钮」中自定义；顶栏仅保留返回 / 标题 / 收藏 / 更多。
+            // 三点菜单（P3.1）：WebView 打开章节 / 浏览器打开 / 分享 / 书签列表 /
+            // 配置底部工具栏 / 笔记 / 翻页动画
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert_rounded),
               tooltip: l10n.moreActions,
@@ -5248,7 +5367,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 }
               },
               itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
-        // WebView / 浏览器 / 分享：本地模式无在线 URL，隐藏。
+                // WebView / 浏览器 / 分享：本地模式无在线 URL，隐藏。
                 if (!_isLocalMode) ...<PopupMenuEntry<String>>[
                   PopupMenuItem<String>(
                     value: 'webview',
@@ -5282,7 +5401,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   ),
                   const PopupMenuDivider(),
                 ],
-        // X-2 待读队列：加入队列 / 打开队列（非本地模式才显示）。
+                // X-2 待读队列：加入队列 / 打开队列（非本地模式才显示）。
                 if (!_isLocalMode) ...<PopupMenuEntry<String>>[
                   PopupMenuItem<String>(
                     value: 'addToReadingQueue',
@@ -5303,7 +5422,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     ),
                   ),
                 ],
-        // 书签列表
+                // 书签列表
                 PopupMenuItem<String>(
                   value: 'bookmarkList',
                   child: ListTile(
@@ -5313,7 +5432,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     dense: true,
                   ),
                 ),
-        // 阅读速览（总结本章内容：离线摘要 / 云端 AI）
+                // 阅读速览（总结本章内容：离线摘要 / 云端 AI）
                 PopupMenuItem<String>(
                   value: 'summary',
                   child: ListTile(
@@ -5323,7 +5442,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     dense: true,
                   ),
                 ),
-        // O4 AI 章节配图（云端生图；聚合本地模式不提供）
+                // O4 AI 章节配图（云端生图；聚合本地模式不提供）
                 if (!_isAggregatedLocal)
                   PopupMenuItem<String>(
                     value: 'aiIllustration',
@@ -5334,7 +5453,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                       dense: true,
                     ),
                   ),
-        // 聚合本地模式：章节排序（EPUB 展开位置）
+                // 聚合本地模式：章节排序（EPUB 展开位置）
                 if (_isAggregatedLocal) ...<PopupMenuEntry<String>>[
                   const PopupMenuDivider(),
                   PopupMenuItem<String>(
@@ -5347,9 +5466,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     ),
                   ),
                 ],
-        // N7 内容编辑：直接修改本章正文并持久化（聚合本地模式除外——
-        // 本地书正文来自文件本身，覆盖语义不适用）。已编辑时追加
-        // 「恢复原文」入口并在标题旁显示角标。
+                // N7 内容编辑：直接修改本章正文并持久化（聚合本地模式除外——
+                // 本地书正文来自文件本身，覆盖语义不适用）。已编辑时追加
+                // 「恢复原文」入口并在标题旁显示角标。
                 if (!_isAggregatedLocal) ...<PopupMenuEntry<String>>[
                   PopupMenuItem<String>(
                     value: 'contentEdit',
@@ -5380,7 +5499,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                       ),
                     ),
                 ],
-        // 配置底部工具栏
+                // 配置底部工具栏
                 PopupMenuItem<String>(
                   value: 'configureBottomToolbar',
                   child: ListTile(
@@ -5391,7 +5510,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   ),
                 ),
                 const PopupMenuDivider(),
-        // 划线列表（/ Phase 2）
+                // 划线列表（/ Phase 2）
                 PopupMenuItem<String>(
                   value: 'highlights',
                   child: ListTile(
@@ -5401,7 +5520,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     dense: true,
                   ),
                 ),
-        // 笔记列表（P3.1）
+                // 笔记列表（P3.1）
                 PopupMenuItem<String>(
                   value: 'notes',
                   child: ListTile(
@@ -5411,7 +5530,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     dense: true,
                   ),
                 ),
-        // 翻页动画快捷（P3）：弹出 6 种动画选择。
+                // 翻页动画快捷（P3）：弹出 6 种动画选择。
                 PopupMenuItem<String>(
                   value: 'pageAnimation',
                   child: ListTile(
@@ -5429,7 +5548,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
-  Widget _buildBottomBar(AppLocalizations l10n, Color bg, {bool ttsActive = false}) {
+  Widget _buildBottomBar(AppLocalizations l10n, Color bg,
+      {bool ttsActive = false}) {
     return SafeArea(
       top: false,
       child: Container(
@@ -5437,7 +5557,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: <Color>[bg.withValues(alpha: 0.95), bg.withValues(alpha: 0)],
+            colors: <Color>[
+              bg.withValues(alpha: 0.95),
+              bg.withValues(alpha: 0)
+            ],
           ),
         ),
         padding: const EdgeInsets.symmetric(
@@ -5459,24 +5582,23 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- // ─────────────────────── 章内进度滑条 ───────────────────────
+  // ─────────────────────── 章内进度滑条 ───────────────────────
 
   Widget _buildProgressSlider(AppLocalizations l10n) {
     final total = _pagination?.pages.length ?? 0;
     final isScroll = _prefs.pageAnimation.isScroll;
-  // 翻页按钮可用性：章内有可翻页 OR 存在相邻章。
-  // 用户需求：即使本章只有一页，上一页/下一页仍应可用——分别去往
-  // 上一章最后一页 / 下一章第一页（由 page view 边界回调处理，连贯翻页）。
-  // 本地模式（单文件无章间导航）或加载中则禁用按钮避免竞态。
-  // 单 EPUB（已解析出章节）按真实章节数启用章间导航。
-    final bool hasPrev = !_loading &&
-        (_currentPage > 0 || _chapterIndex > 0);
+    // 翻页按钮可用性：章内有可翻页 OR 存在相邻章。
+    // 用户需求：即使本章只有一页，上一页/下一页仍应可用——分别去往
+    // 上一章最后一页 / 下一章第一页（由 page view 边界回调处理，连贯翻页）。
+    // 本地模式（单文件无章间导航）或加载中则禁用按钮避免竞态。
+    // 单 EPUB（已解析出章节）按真实章节数启用章间导航。
+    final bool hasPrev = !_loading && (_currentPage > 0 || _chapterIndex > 0);
     final bool hasNext = !_loading &&
         (_currentPage < total - 1 ||
             _chapterIndex < _effectiveChapters.length - 1 ||
-      // 本地模式末页时允许按钮可点（触发下一章/在线续读）。
+            // 本地模式末页时允许按钮可点（触发下一章/在线续读）。
             _isLocalMode);
-  // 滑块仅在多页时允许拖动跳页；单页时禁用（无跳页意义）但保留布局。
+    // 滑块仅在多页时允许拖动跳页；单页时禁用（无跳页意义）但保留布局。
     final bool sliderInteractive = isScroll || total > 1;
     final int divisions = total > 1 ? total - 1 : 1;
     double value;
@@ -5488,8 +5610,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       rightLabel = '';
     } else {
       value = total > 1 ? _currentPage / (total - 1) : 0.0;
-   // 防护：_currentPage 可能在章节切换瞬间为哨兵值 -1（toLastPage），
-   // clamp 到合法范围避免闪现 "0"。
+      // 防护：_currentPage 可能在章节切换瞬间为哨兵值 -1（toLastPage），
+      // clamp 到合法范围避免闪现 "0"。
       final displayPage = _currentPage.clamp(0, total > 0 ? total - 1 : 0);
       leftLabel = '${displayPage + 1}';
       rightLabel = total > 0 ? '$total' : '';
@@ -5520,7 +5642,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     if (isScroll) {
                       setState(() => _scrollFraction = v);
                     } else {
-           // paged 模式拖动即跳页（实时）。
+                      // paged 模式拖动即跳页（实时）。
                       final target =
                           (v * (total - 1)).round().clamp(0, total - 1);
                       if (target != _currentPage) {
@@ -5550,7 +5672,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// scroll 模式：按拖动比例跳转到对应滚动位置。
+  /// scroll 模式：按拖动比例跳转到对应滚动位置。
   void _onSeekScroll(double fraction) {
     final sc = _scrollController;
     if (sc == null || !sc.hasClients) return;
@@ -5562,15 +5684,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- // ─────────────────────── 底部工具栏 ───────────────────────
+  // ─────────────────────── 底部工具栏 ───────────────────────
 
   Widget _buildBottomToolbar(AppLocalizations l10n) {
-  // #3：书签列表与「配置底部工具栏」齿轮已从底部工具栏移除，仅保留用户
-  // 可配置的槽位。配置入口移至内联设置面板（见 _NovelInlineSettings）。
+    // #3：书签列表与「配置底部工具栏」齿轮已从底部工具栏移除，仅保留用户
+    // 可配置的槽位。配置入口移至内联设置面板（见 _NovelInlineSettings）。
     final slots = _prefs.bottomToolbarSlots.take(6).where((tool) {
       if (tool == NovelBottomTool.bookmarkList) return false;
-   // 本地模式无章节导航时隐藏 toc / prevChapter / nextChapter。
-   // 聚合本地模式（多文件合成一整本）与单 EPUB（已解析出章节）保留。
+      // 本地模式无章节导航时隐藏 toc / prevChapter / nextChapter。
+      // 聚合本地模式（多文件合成一整本）与单 EPUB（已解析出章节）保留。
       final hasChapters =
           _isAggregatedLocal || (_parsedChapterEpisodes?.isNotEmpty ?? false);
       if (_isLocalMode && !hasChapters) {
@@ -5580,14 +5702,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       }
       return true;
     }).toList();
-  // 注意：无需在此包裹 ListenableBuilder(_tts)，因为父级 build() 已经用
-  // ListenableBuilder(_tts) 包裹了整个 Stack（含本栏），_tts 状态变更时
-  // 整个底部栏都会自动重建，TTS 图标（record_voice_over / stop）随之刷新。
+    // 注意：无需在此包裹 ListenableBuilder(_tts)，因为父级 build() 已经用
+    // ListenableBuilder(_tts) 包裹了整个 Stack（含本栏），_tts 状态变更时
+    // 整个底部栏都会自动重建，TTS 图标（record_voice_over / stop）随之刷新。
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: <Widget>[
-        for (final tool in slots)
-          _buildToolButton(l10n, tool),
+        for (final tool in slots) _buildToolButton(l10n, tool),
       ],
     );
   }
@@ -5611,7 +5732,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       case NovelBottomTool.nextChapter:
         return Icons.skip_next_rounded;
       case NovelBottomTool.nightMode:
-    // 夜间开启时用实心月，关闭时用描边。
+        // 夜间开启时用实心月，关闭时用描边。
         return isNight ? Icons.dark_mode_rounded : Icons.light_mode_rounded;
       case NovelBottomTool.autoPage:
         return _autoPageEnabled
@@ -5626,7 +5747,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       case NovelBottomTool.search:
         return Icons.search_rounded;
       case NovelBottomTool.tts:
-        return _tts.isPlaying ? Icons.stop_rounded : Icons.record_voice_over_rounded;
+        return _tts.isPlaying
+            ? Icons.stop_rounded
+            : Icons.record_voice_over_rounded;
     }
   }
 
@@ -5669,7 +5792,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         if (_autoPageEnabled) {
           _toggleAutoPagePause();
         } else {
-     // 未启用自动翻页时，打开设置面板让用户设定间隔。
+          // 未启用自动翻页时，打开设置面板让用户设定间隔。
           _toggleInlineSettings();
         }
       case NovelBottomTool.settings:
@@ -5685,8 +5808,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 夜间快捷切换：在「跟随应用」与「始终夜间」间切换（项 6）。
- /// 背景预设不变；其余（始终日间）由设置面板三选一控制。
+  /// 夜间快捷切换：在「跟随应用」与「始终夜间」间切换（项 6）。
+  /// 背景预设不变；其余（始终日间）由设置面板三选一控制。
   void _toggleNightMode() {
     final next = _prefs.themeFollow == NovelThemeFollow.alwaysDark
         ? NovelThemeFollow.followApp
@@ -5694,8 +5817,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _onPrefsChanged(_prefs.copyWith(themeFollow: next));
   }
 
- /// 缓存本书到本地（离线阅读）：复用全局 [DownloadManager] 提交整本下载任务。
- /// 本地模式（localTextPath）无在线源，入口已禁用；章节为空则提示。
+  /// 缓存本书到本地（离线阅读）：复用全局 [DownloadManager] 提交整本下载任务。
+  /// 本地模式（localTextPath）无在线源，入口已禁用；章节为空则提示。
   Future<void> _startNovelDownload({List<int>? selectedIndices}) async {
     final l10n = AppLocalizations.of(context);
     if (widget.chapters.isEmpty) {
@@ -5705,16 +5828,17 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       return;
     }
     final dl = context.read<DownloadManager>();
-  // 逐章比对：只缓存尚未下载的章节；全部下载完成才提示「已下载」。
-  // 旧实现用 isItemDownloaded（下过任意一章即为 true）整体拦截，
-  // 导致部分缓存后无法补齐剩余章节。selectedIndices 非空时直接采用
-  // （来自「缓存」弹窗的自定义勾选），否则默认补齐未下载章节。
+    // 逐章比对：只缓存尚未下载的章节；全部下载完成才提示「已下载」。
+    // 旧实现用 isItemDownloaded（下过任意一章即为 true）整体拦截，
+    // 导致部分缓存后无法补齐剩余章节。selectedIndices 非空时直接采用
+    // （来自「缓存」弹窗的自定义勾选），否则默认补齐未下载章节。
     final Set<String> downloadedTitles =
         dl.downloadedChapterTitles(widget.novelId);
-    final List<int> indices = selectedIndices ?? <int>[
-      for (int i = 0; i < widget.chapters.length; i++)
-        if (!downloadedTitles.contains(widget.chapters[i].title)) i
-    ];
+    final List<int> indices = selectedIndices ??
+        <int>[
+          for (int i = 0; i < widget.chapters.length; i++)
+            if (!downloadedTitles.contains(widget.chapters[i].title)) i
+        ];
     if (indices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.alreadyDownloaded)),
@@ -5741,14 +5865,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 缓存章节多选弹窗：默认勾选「尚未缓存」的章节，用户可任意勾选 / 取消
- /// （含全选 / 全不选），确认后只缓存选中章节。已缓存章节用图标标记但不
- /// 强制勾选——用户可重复缓存以补齐缺失。
+  /// 缓存章节多选弹窗：默认勾选「尚未缓存」的章节，用户可任意勾选 / 取消
+  /// （含全选 / 全不选），确认后只缓存选中章节。已缓存章节用图标标记但不
+  /// 强制勾选——用户可重复缓存以补齐缺失。
   Future<void> _showCacheChaptersDialog() async {
     final l10n = AppLocalizations.of(context);
     final dl = context.read<DownloadManager>();
-    final Set<String> downloaded =
-        dl.downloadedChapterTitles(widget.novelId);
+    final Set<String> downloaded = dl.downloadedChapterTitles(widget.novelId);
     final chapters = widget.chapters;
     final selected = <bool>[
       for (final c in chapters) !downloaded.contains(c.title)
@@ -5802,7 +5925,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           ),
                           value: selected[i],
                           onChanged: (v) {
-                            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                            v == true
+                                ? AppHaptics.toggleOn()
+                                : AppHaptics.toggleOff();
                             setSt(() => selected[i] = v ?? false);
                           },
                           secondary: done
@@ -5837,8 +5962,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 恢复本书默认设置：清除单独设置记录，当前会话直接应用全局默认，
- /// 与下次打开时的合并结果保持一致（旧实现停留在类默认值且未清覆盖记录）。
+  /// 恢复本书默认设置：清除单独设置记录，当前会话直接应用全局默认，
+  /// 与下次打开时的合并结果保持一致（旧实现停留在类默认值且未清覆盖记录）。
   Future<void> _resetBookPrefs() async {
     final l10n = AppLocalizations.of(context);
     _overrideKeys = <String>{};
@@ -5847,16 +5972,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       const NovelReaderPreferences(),
       overrideKeys: _overrideKeys,
     );
-    NovelReaderPreferences restored =
-        const NovelReaderPreferences();
+    NovelReaderPreferences restored = const NovelReaderPreferences();
     try {
       final defaults = await ReaderDefaultSettingsStore().load();
       restored = defaults.toNovelReaderPreferences();
     } on Object {
-   // 全局默认加载失败时退回类默认值。
+      // 全局默认加载失败时退回类默认值。
     }
     setState(() => _prefs = restored);
-  // 排版相关默认可能变化：使分页缓存失效并重建控制器（同 _onPrefsChanged）。
+    // 排版相关默认可能变化：使分页缓存失效并重建控制器（同 _onPrefsChanged）。
     _prefsVersion++;
     _contentVersion++;
     if (_paragraphs.isNotEmpty) {
@@ -5869,7 +5993,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 翻页动画快捷选择（更多菜单入口）：弹窗列出 6 种动画，选中即应用。
+  /// 翻页动画快捷选择（更多菜单入口）：弹窗列出 6 种动画，选中即应用。
   Future<void> _showPageAnimationPicker() async {
     final l10n = AppLocalizations.of(context);
     final current = _prefs.pageAnimation;
@@ -5898,22 +6022,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 打开章节列表（顶栏与底部工具栏共用）。传入本书书签章节，供目录内书签标记与筛选。
+  /// 打开章节列表（顶栏与底部工具栏共用）。传入本书书签章节，供目录内书签标记与筛选。
   Future<void> _showChapterList() async {
     final bookmarks = await _bookmarks.listFor(widget.novelId);
     final bookmarkedChapters = bookmarks.map((b) => b.chapterIndex).toSet();
-  // 与详情页共享目录源：把当前快照写回（保留更长），再读取「更完整」的那份，
-  // 这样阅读器目录能实时反映详情页渐进加载出的完整目录。
+    // 与详情页共享目录源：把当前快照写回（保留更长），再读取「更完整」的那份，
+    // 这样阅读器目录能实时反映详情页渐进加载出的完整目录。
     final tocStore = context.read<NovelTocStore>();
     final chapters = _effectiveChapters;
     tocStore.setChapters(widget.sourceId, widget.novelId, chapters);
-  // M3：回写「已见章节数」，书架新章角标随查看目录清除。
+    // M3：回写「已见章节数」，书架新章角标随查看目录清除。
     if (chapters.isNotEmpty) {
       unawaited(context.read<FavoritesManager>().updateLastSeenChapters(
           widget.novelId, SourceType.novelSource, chapters.length));
     }
-  // 本地书目录智能分卷分组：以最近的「卷/部」级标题作为分节名（TXT 行级
-  // 切分保留了卷标题章；无任何卷级标题时返回 null，目录保持平铺）。
+    // 本地书目录智能分卷分组：以最近的「卷/部」级标题作为分节名（TXT 行级
+    // 切分保留了卷标题章；无任何卷级标题时返回 null，目录保持平铺）。
     final sections = _isLocalMode ? _computeVolumeSections(chapters) : null;
     final index = await showChapterList(
       context,
@@ -5927,7 +6051,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (index != null && index != _chapterIndex && mounted) {
       _chapterIndex = index;
       if (_isLocalMode) {
-    // 本地（聚合多文件 / 单 EPUB）：切换到该章并重新分页当前章。
+        // 本地（聚合多文件 / 单 EPUB）：切换到该章并重新分页当前章。
         await _loadLocalText();
       } else {
         _loadChapter(_chapterIndex);
@@ -5935,10 +6059,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 计算本地书的分卷分节名（目录智能分类）：每章归属其之前最近的
- /// 「卷/部」级标题（[LocalNovelParser.isVolumeTitle]），卷标题章自身
- /// 开启新分节。全书无任何卷级标题时返回 null（目录保持平铺）；首个
- /// 卷标题之前的章节不归属任何分节（无分节头）。
+  /// 计算本地书的分卷分节名（目录智能分类）：每章归属其之前最近的
+  /// 「卷/部」级标题（[LocalNovelParser.isVolumeTitle]），卷标题章自身
+  /// 开启新分节。全书无任何卷级标题时返回 null（目录保持平铺）；首个
+  /// 卷标题之前的章节不归属任何分节（无分节头）。
   List<String?>? _computeVolumeSections(List<Episode> chapters) {
     if (chapters.isEmpty) return null;
     final sections = List<String?>.filled(chapters.length, null);
@@ -5955,9 +6079,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     return hasVolume ? sections : null;
   }
 
- // ─────────────────────── 阅读速览 ───────────────────────
+  // ─────────────────────── 阅读速览 ───────────────────────
 
- /// 秒数 → 本地化时长文案（X 小时 Y 分钟 / X 小时 / Y 分钟）。
+  /// 秒数 → 本地化时长文案（X 小时 Y 分钟 / X 小时 / Y 分钟）。
   String _formatReadDuration(AppLocalizations l10n, int seconds) {
     if (seconds <= 0) return l10n.novelDurationMin(0);
     final h = seconds ~/ 3600;
@@ -5967,11 +6091,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     return l10n.novelDurationMin(m);
   }
 
- /// 阅读总结（统计摘要卡）：进度 / 当前位置 / 累计与今日阅读时长 /
- /// 阅读次数 / 按历史均速预估的读完剩余时长 / 本章字数。
- /// 统计数据来自阅读会话记录（本地无源书可能无统计数据，降级隐藏该组）。
- /// 阅读数据（统计卡）：进度 / 当前位置 / 累计与今日阅读时长 /
- /// 阅读次数 / 读完剩余预估 / 本章字数。无统计数据时降级提示。
+  /// 阅读总结（统计摘要卡）：进度 / 当前位置 / 累计与今日阅读时长 /
+  /// 阅读次数 / 按历史均速预估的读完剩余时长 / 本章字数。
+  /// 统计数据来自阅读会话记录（本地无源书可能无统计数据，降级隐藏该组）。
+  /// 阅读数据（统计卡）：进度 / 当前位置 / 累计与今日阅读时长 /
+  /// 阅读次数 / 读完剩余预估 / 本章字数。无统计数据时降级提示。
   Widget _buildReadingStatsWidget(AppLocalizations l10n) {
     final chapters = _effectiveChapters;
     final total = chapters.length;
@@ -6000,14 +6124,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         total > read) {
       final avgPerChapter = stats.totalDurationSec / read;
       final remainingSec = (avgPerChapter * (total - read)).round();
-      remaining = l10n.novelSummaryRemaining(
-          _formatReadDuration(l10n, remainingSec));
+      remaining =
+          l10n.novelSummaryRemaining(_formatReadDuration(l10n, remainingSec));
     }
 
     final curChars = _paragraphs.fold<int>(
-        0,
-        (sum, b) =>
-            sum + (b is NovelTextBlock ? b.text.trim().length : 0));
+        0, (sum, b) => sum + (b is NovelTextBlock ? b.text.trim().length : 0));
 
     final chapterTitle = chapters.isNotEmpty
         ? chapters[_chapterIndex.clamp(0, chapters.length - 1)].title
@@ -6047,7 +6169,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               icon: Icons.text_fields_rounded),
         ],
         if (stats != null && stats.totalDurationSec > 0) ...<Widget>[
-          const Divider(height: 1, indent: AppTokens.spaceLg,
+          const Divider(
+              height: 1,
+              indent: AppTokens.spaceLg,
               endIndent: AppTokens.spaceLg),
           row(
             l10n.novelSummaryTotalRead,
@@ -6082,24 +6206,22 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- /// 阅读速览（N5 改名 + 重定位）：总结「当前章节内容」。
- /// - 离线摘要：本地抽取式，无需网络/配置，秒出。
- /// - 云端总结：调用用户配置的 OpenAI 兼容 /chat/completions 接口。
- /// 底部保留「阅读数据」统计卡（见 [_buildReadingStatsWidget]）。
+  /// 阅读速览（N5 改名 + 重定位）：总结「当前章节内容」。
+  /// - 离线摘要：本地抽取式，无需网络/配置，秒出。
+  /// - 云端总结：调用用户配置的 OpenAI 兼容 /chat/completions 接口。
+  /// 底部保留「阅读数据」统计卡（见 [_buildReadingStatsWidget]）。
   Future<void> _showReadingOverview() async {
     final l10n = AppLocalizations.of(context);
     final service = NovelSummaryService();
     final settings = NovelSummarySettings.instance;
 
-  // 当前章正文（仅文本块拼接）。
-    final chapterText = _paragraphs
-        .whereType<NovelTextBlock>()
-        .map((b) => b.text)
-        .join('\n');
+    // 当前章正文（仅文本块拼接）。
+    final chapterText =
+        _paragraphs.whereType<NovelTextBlock>().map((b) => b.text).join('\n');
 
     final NovelOverviewMode initialMode = await settings.getMode();
 
-  // 离线摘要同步计算，进入即展示。
+    // 离线摘要同步计算，进入即展示。
     final String localResult = chapterText.trim().isNotEmpty
         ? service.localSummary(
             chapterText,
@@ -6129,9 +6251,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
-
- /// 聚合本地模式：切换章节排序方式（EPUB 内部章节的展开位置）。
- /// 切换后重建展开目录并回到当前章节（目录结构变化，页码按新章节重分）。
+  /// 聚合本地模式：切换章节排序方式（EPUB 内部章节的展开位置）。
+  /// 切换后重建展开目录并回到当前章节（目录结构变化，页码按新章节重分）。
   Future<void> _showAggChapterModePicker() async {
     final l10n = AppLocalizations.of(context);
     final picked = await showModalBottomSheet<_AggChapterMode>(
@@ -6183,14 +6304,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 构建本地模式的章节正文块 loader（供书内搜索按章拉取）。
- ///
- /// - 单文件（EPUB/TXT）：直接从已整本解析的 [_localParsedChapters] 切片；
- /// - 聚合导入（localChapterPaths）：按 [_effectiveChapters] 的展开目录逐章
- ///  路由（EPUB 内部章 / TXT 内部章 / 整文件），缓存未命中时按需解析文件。
- ///
- /// 块结构与渲染路径（[_loadLocalText]）保持同构（标题 heading + 插图标记
- /// 转换），使搜索的章内字符偏移与分页偏移同口径。
+  /// 构建本地模式的章节正文块 loader（供书内搜索按章拉取）。
+  ///
+  /// - 单文件（EPUB/TXT）：直接从已整本解析的 [_localParsedChapters] 切片；
+  /// - 聚合导入（localChapterPaths）：按 [_effectiveChapters] 的展开目录逐章
+  ///  路由（EPUB 内部章 / TXT 内部章 / 整文件），缓存未命中时按需解析文件。
+  ///
+  /// 块结构与渲染路径（[_loadLocalText]）保持同构（标题 heading + 插图标记
+  /// 转换），使搜索的章内字符偏移与分页偏移同口径。
   Future<List<NovelBlock>> Function(int)? _localSearchChapterLoader() {
     if (!_isLocalMode) return null;
     if (_isAggregatedLocal) {
@@ -6208,7 +6329,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     };
   }
 
- /// 单文件模式：由已解析章节构建正文块（与 [_loadLocalText] 渲染块同构）。
+  /// 单文件模式：由已解析章节构建正文块（与 [_loadLocalText] 渲染块同构）。
   List<NovelBlock> _localBlocksForParsedChapter(LocalNovelChapter ch) {
     return <NovelBlock>[
       if (ch.title.isNotEmpty) NovelTextBlock(ch.title, isHeading: true),
@@ -6217,7 +6338,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     ];
   }
 
- /// 段落 → 正文块：下载器插图占位行转本地插图，其余为文本段。
+  /// 段落 → 正文块：下载器插图占位行转本地插图，其余为文本段。
   NovelBlock _localParagraphToBlock(String para) {
     final img = para.startsWith(kNexhubImgMarker)
         ? para.substring(kNexhubImgMarker.length).trim()
@@ -6228,11 +6349,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     return NovelTextBlock(para);
   }
 
- /// 聚合模式：按 episode.id 路由取该章正文块。
- ///
- /// - `path|ci`：EPUB 内部章节；
- /// - `_aggTxtEpisodeMeta[id]`：TXT 内部章节（ci<0 为整文件展平）；
- /// - 其余（collapsed 模式的整文件章）：按扩展名整书展平。
+  /// 聚合模式：按 episode.id 路由取该章正文块。
+  ///
+  /// - `path|ci`：EPUB 内部章节；
+  /// - `_aggTxtEpisodeMeta[id]`：TXT 内部章节（ci<0 为整文件展平）；
+  /// - 其余（collapsed 模式的整文件章）：按扩展名整书展平。
   Future<List<NovelBlock>> _localBlocksForAggEpisode(Episode ep) async {
     final sepIdx = ep.id.indexOf('|');
     if (sepIdx >= 0) {
@@ -6248,17 +6369,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       final book = await _aggBookForPath(txtMeta.$1, isEpub: false);
       if (book == null || book.chapters.isEmpty) return const <NovelBlock>[];
       if (txtMeta.$2 < 0) {
-    // 整文件（无内部章节）：展平全部内部章节（与渲染路径一致）。
+        // 整文件（无内部章节）：展平全部内部章节（与渲染路径一致）。
         return <NovelBlock>[
           for (final ch in book.chapters) ..._localBlocksForParsedChapter(ch),
         ];
       }
-      final ch =
-          book.chapters[txtMeta.$2.clamp(0, book.chapters.length - 1)];
+      final ch = book.chapters[txtMeta.$2.clamp(0, book.chapters.length - 1)];
       return _localBlocksForParsedChapter(ch);
     }
-  // collapsed 模式：episode.id 即文件路径，整书展平（EPUB 走展平、TXT 走
-  // 内部章节展平——与 [_loadLocalText] 对应分支同构）。
+    // collapsed 模式：episode.id 即文件路径，整书展平（EPUB 走展平、TXT 走
+    // 内部章节展平——与 [_loadLocalText] 对应分支同构）。
     final isEpub = ep.id.toLowerCase().endsWith('.epub');
     final book = await _aggBookForPath(ep.id, isEpub: isEpub);
     if (book == null || book.chapters.isEmpty) return const <NovelBlock>[];
@@ -6267,7 +6387,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     ];
   }
 
- /// 聚合模式按需取整本书（优先命中已有缓存，未缓存则现场解析）。
+  /// 聚合模式按需取整本书（优先命中已有缓存，未缓存则现场解析）。
   Future<LocalNovelBook?> _aggBookForPath(String path,
       {required bool isEpub}) async {
     if (isEpub) {
@@ -6313,9 +6433,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     return book;
   }
 
- /// 打开书内搜索（顶栏与底部工具栏共用；本地模式可用）。
+  /// 打开书内搜索（顶栏与底部工具栏共用；本地模式可用）。
   Future<void> _showInBookSearch() async {
-  // 源不存在且非本地模式时直接提示。
+    // 源不存在且非本地模式时直接提示。
     if (_source == null && !_isLocalMode) {
       if (mounted) {
         final l10n = AppLocalizations.of(context);
@@ -6325,7 +6445,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       }
       return;
     }
-  // 本地模式：等待加载完成后再打开搜索
+    // 本地模式：等待加载完成后再打开搜索
     if (_isLocalMode && _loading) {
       if (mounted) {
         final l10n = AppLocalizations.of(context);
@@ -6345,13 +6465,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       }
       return;
     }
-  // 本地模式：按需加载章节正文块的 loader（单文件与聚合导入统一走此路径，
-  // 修复聚合导入（localChapterPaths）下本地内容不进搜索导致全书搜索无结果）。
+    // 本地模式：按需加载章节正文块的 loader（单文件与聚合导入统一走此路径，
+    // 修复聚合导入（localChapterPaths）下本地内容不进搜索导致全书搜索无结果）。
     final localLoader = _localSearchChapterLoader();
     try {
       final tocStore = context.read<NovelTocStore>();
       tocStore.setChapters(widget.sourceId, widget.novelId, chapters);
-   // M3：与目录一致，回写「已见章节数」。
+      // M3：与目录一致，回写「已见章节数」。
       if (chapters.isNotEmpty) {
         unawaited(context.read<FavoritesManager>().updateLastSeenChapters(
             widget.novelId, SourceType.novelSource, chapters.length));
@@ -6363,28 +6483,28 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         service: _service,
         source: _isLocalMode ? null : _source,
         novelId: widget.novelId,
-    // 搜索与屏显用同一繁简口径：正文转换后匹配，繁文书也能用简体关键词搜到。
+        // 搜索与屏显用同一繁简口径：正文转换后匹配，繁文书也能用简体关键词搜到。
         convertMode: ChineseConvertMode.fromString(_prefs.chineseConvert),
         localChapterLoader: localLoader,
       );
       if (result == null || !mounted) return;
-   // 设置搜索关键词高亮（普通模式为关键词、正则模式为表达式）。
-   // 计时器延迟到「命中页渲染就绪」后再启动：跨章命中要经历网络
-   // 拉取 + 分页，慢网下若在点击瞬间启动，高亮会在页面渲染完成前
-   // 就被清除（表现为跳转后看不到任何强调）。
+      // 设置搜索关键词高亮（普通模式为关键词、正则模式为表达式）。
+      // 计时器延迟到「命中页渲染就绪」后再启动：跨章命中要经历网络
+      // 拉取 + 分页，慢网下若在点击瞬间启动，高亮会在页面渲染完成前
+      // 就被清除（表现为跳转后看不到任何强调）。
       _searchHighlightTimer?.cancel();
       _searchKeyword = result.keyword;
       _searchRegex = result.regex;
       if (result.chapterIndex != _chapterIndex) {
-    // 跨章：携带命中偏移加载目标章，分页就绪后由 恢复路径把偏移
-    // 映射回页码（_buildReader 消费 _savedCharOffset 时启动计时器），
-    // 落到命中页。
+        // 跨章：携带命中偏移加载目标章，分页就绪后由 恢复路径把偏移
+        // 映射回页码（_buildReader 消费 _savedCharOffset 时启动计时器），
+        // 落到命中页。
         _savedCharOffset = result.charOffset;
         _chapterIndex = result.chapterIndex;
         _loadChapter(_chapterIndex);
         return;
       }
-   // 同章：分页已就绪，直接把偏移映射成页码跳转（与书签跳页同构）。
+      // 同章：分页已就绪，直接把偏移映射成页码跳转（与书签跳页同构）。
       final resolved = _pageForCharOffset(result.charOffset);
       if (_prefs.pageAnimation.isScroll) {
         final sc = _scrollController;
@@ -6399,7 +6519,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       _saveProgress(resolved);
       _startSearchHighlightTimer();
     } catch (e, st) {
-   // 兜底：避免未预期异常（如源/存储异常）在手势回调中未被捕获导致阅读器整体卡退。
+      // 兜底：避免未预期异常（如源/存储异常）在手势回调中未被捕获导致阅读器整体卡退。
       debugPrint('[novel_reader] 书内搜索失败: $e\n$st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -6409,11 +6529,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 启动/重启搜索高亮计时器：3 秒后清除正文中的搜索命中强调。
- ///
- /// 在「命中页真正渲染就绪」时调用（同章跳页后 / 跨章偏移恢复消费时），
- /// 而非点击搜索结果瞬间——跨章命中要经历网络拉取 + 分页，慢网下若在
- /// 点击时启动，高亮会在页面渲染完成前就被清除。
+  /// 启动/重启搜索高亮计时器：3 秒后清除正文中的搜索命中强调。
+  ///
+  /// 在「命中页真正渲染就绪」时调用（同章跳页后 / 跨章偏移恢复消费时），
+  /// 而非点击搜索结果瞬间——跨章命中要经历网络拉取 + 分页，慢网下若在
+  /// 点击时启动，高亮会在页面渲染完成前就被清除。
   void _startSearchHighlightTimer() {
     _searchHighlightTimer?.cancel();
     _searchHighlightTimer = Timer(const Duration(seconds: 3), () {
@@ -6426,7 +6546,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     });
   }
 
- /// 跳转到包含引文文本的页面（分页模式）。
+  /// 跳转到包含引文文本的页面（分页模式）。
   void _jumpToQuote(String quote) {
     final pages = _pagination?.pages;
     if (pages == null || quote.isEmpty) return;
@@ -6443,10 +6563,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
- /// 底部工具栏配置 sheet：勾选 / 排序槽位（最多 6 个）。
+  /// 底部工具栏配置 sheet：勾选 / 排序槽位（最多 6 个）。
   Future<void> _showBottomToolbarConfig() async {
     final l10n = AppLocalizations.of(context);
-  // 书签列表为固定按钮，不进入可配置列表。
+    // 书签列表为固定按钮，不进入可配置列表。
     List<NovelBottomTool> working = List<NovelBottomTool>.of(
         _prefs.bottomToolbarSlots)
       ..removeWhere((NovelBottomTool t) => t == NovelBottomTool.bookmarkList);
@@ -6459,8 +6579,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           builder: (BuildContext ctx, StateSetter setSheetState) {
             final hidden = NovelBottomTool.values
                 .where((NovelBottomTool t) =>
-                    t != NovelBottomTool.bookmarkList &&
-                    !working.contains(t))
+                    t != NovelBottomTool.bookmarkList && !working.contains(t))
                 .toList();
             return SafeArea(
               child: Container(
@@ -6479,9 +6598,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           children: <Widget>[
                             TextButton(
                               onPressed: () => Navigator.of(ctx).pop(),
-                              child: Text(
-                                  MaterialLocalizations.of(ctx)
-                                      .cancelButtonLabel),
+                              child: Text(MaterialLocalizations.of(ctx)
+                                  .cancelButtonLabel),
                             ),
                             FilledButton(
                               onPressed: () {
@@ -6490,8 +6608,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                                 Navigator.of(ctx).pop();
                               },
                               child: Text(
-                                  MaterialLocalizations.of(ctx)
-                                      .okButtonLabel),
+                                  MaterialLocalizations.of(ctx).okButtonLabel),
                             ),
                           ],
                         ),
@@ -6525,15 +6642,15 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                                       children: <Widget>[
                                         IconButton(
                                           icon: const Icon(Icons.close_rounded),
-                                          tooltip:
-                                              MaterialLocalizations.of(ctx)
-                                                  .deleteButtonTooltip,
+                                          tooltip: MaterialLocalizations.of(ctx)
+                                              .deleteButtonTooltip,
                                           onPressed: () => setSheetState(
                                               () => working.removeAt(i)),
                                         ),
                                         ReorderableDragStartListener(
                                           index: i,
-                                          child: const Icon(Icons.drag_handle_rounded),
+                                          child: const Icon(
+                                              Icons.drag_handle_rounded),
                                         ),
                                       ],
                                     ),
@@ -6559,8 +6676,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                               avatar: Icon(_toolIcon(t), size: 18),
                               onPressed: working.length >= 6
                                   ? null
-                                  : () => setSheetState(
-                                      () => working.add(t)),
+                                  : () => setSheetState(() => working.add(t)),
                             ),
                         ],
                       ),
@@ -6575,7 +6691,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- // ─────────────────────── 亮度指示器 ───────────────────────
+  // ─────────────────────── 亮度指示器 ───────────────────────
 
   Widget _buildBrightnessIndicator(AppLocalizations l10n) {
     final percent = (_brightness * 100).round();
@@ -6614,15 +6730,21 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
- // ─────────────────────── 内联设置面板 ───────────────────────
+  // ─────────────────────── 内联设置面板 ───────────────────────
 
   Widget _buildInlineSettings(
       AppLocalizations l10n, Color bg, Color textColor) {
     final isDesktop =
         MediaQuery.sizeOf(context).width >= AppTokens.desktopBreakpoint;
 
-    final panel = Container(
+    final panel = Material(
+      // 面板外壳 = 阅读纸色（原设计，与阅读页融为一体，不随主题染色）；
+      // 强调色只留给面板内的卡片。
       color: bg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: _NovelInlineSettings(
         prefs: _prefs,
         brightness: _brightness,
@@ -6639,11 +6761,11 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         onShowTapZonePreview: () => _showTapZonePreview(l10n),
         novelId: widget.novelId,
         novelName: widget.title,
-    // 问题 4：预下载配置保存后刷新阅读器内的快照，触发判定即时生效。
+        // 问题 4：预下载配置保存后刷新阅读器内的快照，触发判定即时生效。
         onPreDownloadChanged: () async {
           _preDownloadPrefs = await NovelPreDownloadPreferences.load();
         },
-    // AI 功能组：速览 / 翻译 / 配图入口。
+        // AI 功能组：速览 / 翻译 / 配图入口。
         onOpenSummary: _showReadingOverview,
         onTranslate: _showTranslationSheet,
         onGenerateIllustration: _generateAiIllustration,
@@ -6714,7 +6836,7 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
     await widget.settings.setMode(m);
   }
 
- /// 跳转 AI 配置页（速览模式 / 通用与速览接口统一在 AI 配置页管理）。
+  /// 跳转 AI 配置页（速览模式 / 通用与速览接口统一在 AI 配置页管理）。
   void _openAiSettings() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const SettingsAiScreen()),
@@ -6722,7 +6844,7 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
   }
 
   Future<void> _generate() async {
-  // 统一读取「速览」功能级配置（独立接口优先，回落通用 AI 配置）。
+    // 统一读取「速览」功能级配置（独立接口优先，回落通用 AI 配置）。
     final cfg = await widget.settings.getSummaryConfig();
     if (cfg.baseUrl.trim().isEmpty) {
       setState(() {
@@ -6764,7 +6886,7 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
         children: <Widget>[
           Text(l10n.novelReadingSummary, style: theme.textTheme.titleLarge),
           const SizedBox(height: AppTokens.spaceMd),
-     // 总结方式切换。
+          // 总结方式切换。
           SegmentedButton<NovelOverviewMode>(
             segments: <ButtonSegment<NovelOverviewMode>>[
               ButtonSegment<NovelOverviewMode>(
@@ -6780,10 +6902,9 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
             onSelectionChanged: (s) => _setMode(s.first),
           ),
           const SizedBox(height: AppTokens.spaceMd),
-          Text(l10n.overviewChapterSummary,
-              style: theme.textTheme.titleMedium),
+          Text(l10n.overviewChapterSummary, style: theme.textTheme.titleMedium),
           const SizedBox(height: AppTokens.spaceSm),
-     // 摘要内容。
+          // 摘要内容。
           if (_mode == NovelOverviewMode.local)
             if (widget.localResult.isEmpty)
               Text(
@@ -6803,8 +6924,7 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                SelectableText(_apiResult!,
-                    style: theme.textTheme.bodyMedium),
+                SelectableText(_apiResult!, style: theme.textTheme.bodyMedium),
                 const SizedBox(height: AppTokens.spaceSm),
                 Wrap(
                   spacing: AppTokens.spaceSm,
@@ -6845,7 +6965,7 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
                 ),
               ],
             ),
-     // AI 配置入口（接口与速览配置统一在 AI 配置页管理）。
+          // AI 配置入口（接口与速览配置统一在 AI 配置页管理）。
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
@@ -6854,7 +6974,7 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
               label: Text(l10n.aiSettingsTitle),
             ),
           ),
-     // 阅读数据（保留原统计卡）。
+          // 阅读数据（保留原统计卡）。
           ExpansionTile(
             title: Text(l10n.statsOverviewTitle),
             initiallyExpanded: true,
@@ -6865,11 +6985,13 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
     );
   }
 }
+
 class _CenterMessage extends StatelessWidget {
   final IconData icon;
   final String message;
   final VoidCallback? onRetry;
-  const _CenterMessage({required this.icon, required this.message, this.onRetry});
+  const _CenterMessage(
+      {required this.icon, required this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -6951,9 +7073,9 @@ Widget _buildChapterTitleWidget(
       textAlign: textAlign,
     );
   }
- // SizedBox(width: double.infinity) 让 titleBlock 占满父宽度，
- // 确保 titleAlign = center / right 时 Column / Text 真正居中 / 右对齐
- // （父级 Column 是 crossAxisAlignment.start，不占满宽度会导致对齐失效）。
+  // SizedBox(width: double.infinity) 让 titleBlock 占满父宽度，
+  // 确保 titleAlign = center / right 时 Column / Text 真正居中 / 右对齐
+  // （父级 Column 是 crossAxisAlignment.start，不占满宽度会导致对齐失效）。
   return Padding(
     padding: EdgeInsets.only(
       top: prefs.titleTopMargin,
@@ -7000,7 +7122,7 @@ class _DashedUnderlineText extends StatelessWidget {
   final String text;
   final TextStyle style;
 
- /// 下划线样式（/ B6 扩展：wavy / dotted 走本组件自定义绘制）。
+  /// 下划线样式（/ B6 扩展：wavy / dotted 走本组件自定义绘制）。
   final NovelUnderlineStyle underlineStyle;
   final double dashLength;
   final double dashGap;
@@ -7068,17 +7190,17 @@ Widget buildSelectionRichText(
   TextOverflow overflow = TextOverflow.clip,
 }) {
   final n = text.length;
- // 逐字符效果信息：背景色 + 装饰样式 + 划线颜色（独立存储，可同时存在）
+  // 逐字符效果信息：背景色 + 装饰样式 + 划线颜色（独立存储，可同时存在）
   final List<int?> bg = List<int?>.filled(n, null);
   final List<HighlightEffect?> effects = List<HighlightEffect?>.filled(n, null);
- final List<int?> uc = List<int?>.filled(n, null); // underline color
- // 先铺已存划线（低优先级），再覆盖活动选区（高优先级）。
+  final List<int?> uc = List<int?>.filled(n, null); // underline color
+  // 先铺已存划线（低优先级），再覆盖活动选区（高优先级）。
   for (final s in spans.where((s) => !s.isActive)) {
     for (var i = s.start; i < s.end && i < n; i++) {
       if (s.effect == HighlightEffect.bg) {
         bg[i] = s.color;
       } else {
-    // 划线效果：存储效果类型和颜色（不设背景色）
+        // 划线效果：存储效果类型和颜色（不设背景色）
         effects[i] = s.effect;
         uc[i] = s.color;
       }
@@ -7101,7 +7223,8 @@ Widget buildSelectionRichText(
     final eff = effects[i];
     final underlineColor = uc[i];
     var j = i + 1;
-    while (j < n && bg[j] == c && effects[j] == eff && uc[j] == underlineColor) {
+    while (
+        j < n && bg[j] == c && effects[j] == eff && uc[j] == underlineColor) {
       j++;
     }
     TextStyle? style;
@@ -7120,7 +7243,8 @@ Widget buildSelectionRichText(
       style = baseStyle.copyWith(
         decoration: decoration,
         decorationStyle: decorationStyle,
-        decorationColor: Color(underlineColor ?? 0x80FF0000).withValues(alpha: 0.8),
+        decorationColor:
+            Color(underlineColor ?? 0x80FF0000).withValues(alpha: 0.8),
         decorationThickness: 1.5,
       );
     }
@@ -7141,7 +7265,7 @@ Widget buildSelectionRichText(
 }
 
 class _DashedUnderlinePainter extends CustomPainter {
- /// 下划线样式：dashed / wavy / dotted（/ B6）。
+  /// 下划线样式：dashed / wavy / dotted（/ B6）。
   final NovelUnderlineStyle style;
   final List<LineMetrics> lines;
   final double dashLength;
@@ -7165,7 +7289,7 @@ class _DashedUnderlinePainter extends CustomPainter {
       ..strokeWidth = thickness
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.butt;
-  // 基线下方偏移：约字号 × 0.18，与 Flutter 原生下划线位置接近。
+    // 基线下方偏移：约字号 × 0.18，与 Flutter 原生下划线位置接近。
     final double underlineOffset =
         lines.isNotEmpty ? (lines.first.height * 0.18).clamp(1.0, 4.0) : 2.0;
     final double step = dashLength + dashGap;
@@ -7174,9 +7298,10 @@ class _DashedUnderlinePainter extends CustomPainter {
       final double lineEnd = line.left + line.width;
       switch (style) {
         case NovelUnderlineStyle.wavy:
-     // 波浪线：正弦半波折线，波幅 ≈ max(2, 字号×0.12)，波长 = dashLength。
-          final amp =
-              lines.isNotEmpty ? (lines.first.height * 0.10).clamp(2.0, 4.0) : 3.0;
+          // 波浪线：正弦半波折线，波幅 ≈ max(2, 字号×0.12)，波长 = dashLength。
+          final amp = lines.isNotEmpty
+              ? (lines.first.height * 0.10).clamp(2.0, 4.0)
+              : 3.0;
           final wl = dashLength <= 0 ? 6.0 : dashLength * 2;
           final path = ui.Path();
           var x = line.left;
@@ -7195,7 +7320,7 @@ class _DashedUnderlinePainter extends CustomPainter {
           }
           canvas.drawPath(path, paint);
         case NovelUnderlineStyle.dotted:
-     // 点线：以 dashLength 为点径、dashGap 为间隔画圆点。
+          // 点线：以 dashLength 为点径、dashGap 为间隔画圆点。
           final r = (dashLength <= 0 ? 1.0 : dashLength) / 2;
           final dotPaint = Paint()
             ..color = color
@@ -7206,7 +7331,7 @@ class _DashedUnderlinePainter extends CustomPainter {
             x += r * 2 + (dashGap <= 0 ? 2.0 : dashGap);
           }
         case NovelUnderlineStyle.solid || NovelUnderlineStyle.dashed:
-     // 实线段序列（dashed 按 dashLength/dashGap；solid 单段铺满）。
+          // 实线段序列（dashed 按 dashLength/dashGap；solid 单段铺满）。
           double x = line.left;
           while (x < lineEnd) {
             final double segEnd = (x + dashLength).clamp(line.left, lineEnd);
@@ -7238,7 +7363,7 @@ class _JustifiedLineText extends StatelessWidget {
   final String text;
   final TextStyle baseStyle;
 
- /// 目标行宽（分页时的正文可用宽度）。
+  /// 目标行宽（分页时的正文可用宽度）。
   final double targetWidth;
 
   const _JustifiedLineText({
@@ -7264,12 +7389,12 @@ class _JustifiedLineText extends StatelessWidget {
         final naturalW = tp.maxIntrinsicWidth;
         final lineHeight = tp.height;
         tp.dispose();
-    // 剩余空间不足 0.5px 或超宽（不应发生，断行已保证）时不拉伸。
+        // 剩余空间不足 0.5px 或超宽（不应发生，断行已保证）时不拉伸。
         final extra = constraints.maxWidth - naturalW;
         if (extra < 0.5) {
           return Text(text, style: baseStyle, softWrap: false, maxLines: 1);
         }
-    // 字符间隙均摊：(n-1) 个间隙。
+        // 字符间隙均摊：(n-1) 个间隙。
         final gap = extra / (text.length - 1);
         return SizedBox(
           width: constraints.maxWidth,
@@ -7343,34 +7468,44 @@ class _NovelPageWidget extends StatelessWidget {
   final NovelHeaderFooterContent footerCenter;
   final int? headerFooterColor;
   final double headerFooterMargin;
- /// TTS 当前朗读段落索引（-1 表示未朗读 / TTS 未启动）。
+
+  /// TTS 当前朗读段落索引（-1 表示未朗读 / TTS 未启动）。
   final int ttsCurrentIndex;
- /// TTS 是否处于激活状态（playing 或 paused）。
+
+  /// TTS 是否处于激活状态（playing 或 paused）。
   final bool ttsActive;
- /// 点击段落回调：传入段落在 paragraphs 中的全局索引。
- /// TTS 模式下点击某行时回调：返回该行所属段落下标。
- /// （TextColumn 精确字符坐标保留在 NovelLine.charLefts 中，
- /// 供未来长按选区等场景使用；tap 时默认命中段落首字符即可。）
+
+  /// 点击段落回调：传入段落在 paragraphs 中的全局索引。
+  /// TTS 模式下点击某行时回调：返回该行所属段落下标。
+  /// （TextColumn 精确字符坐标保留在 NovelLine.charLefts 中，
+  /// 供未来长按选区等场景使用；tap 时默认命中段落首字符即可。）
   final void Function(int paragraphIndex)? onParagraphTap;
- /// 插图点击回调：打开大图查看器（传入图片 URL 与书源）。
+
+  /// 插图点击回调：打开大图查看器（传入图片 URL 与书源）。
   final void Function(String url, PluginConfig? source)? onImageTap;
- /// 当前章节所属书源（插图块未携带 source 时，作为防盗链 headers 兜底）。
+
+  /// 当前章节所属书源（插图块未携带 source 时，作为防盗链 headers 兜底）。
   final PluginConfig? source;
- /// 书内搜索关键词（非空且行内命中时，正文行渲染为高亮富文本）。
+
+  /// 书内搜索关键词（非空且行内命中时，正文行渲染为高亮富文本）。
   final String? searchKeyword;
- /// 正则搜索模式下的已编译表达式（与 [searchKeyword] 二选一生效，
- /// 非空时优先按正则匹配高亮）。
+
+  /// 正则搜索模式下的已编译表达式（与 [searchKeyword] 二选一生效，
+  /// 非空时优先按正则匹配高亮）。
   final RegExp? searchRegex;
- /// 选区控制器：渲染活动选区 + 已存划线背景。
+
+  /// 选区控制器：渲染活动选区 + 已存划线背景。
   final NovelSelectionController selectionController;
- /// 长按选区结束后（有非空选区）回调，用于显示工具条。
+
+  /// 长按选区结束后（有非空选区）回调，用于显示工具条。
   final VoidCallback? onSelectionConfirmed;
- /// 长按选区激活状态变化回调（开始 = true / 结束 = false），由阅读器 State
- /// 用以置位 [_longPressEngaged]，使翻页手势在选区拖拽期间让出指针。
+
+  /// 长按选区激活状态变化回调（开始 = true / 结束 = false），由阅读器 State
+  /// 用以置位 [_longPressEngaged]，使翻页手势在选区拖拽期间让出指针。
   final void Function(bool engaged)? onSelectionActiveChanged;
 
- /// G3 整本页码：给定章内页码，返回跨章累计的全书页位文案
- /// （由阅读器状态基于会话分页缓存计算；null/空串表示不可用）。
+  /// G3 整本页码：给定章内页码，返回跨章累计的全书页位文案
+  /// （由阅读器状态基于会话分页缓存计算；null/空串表示不可用）。
   final String Function(int page)? bookPageLabel;
 
   const _NovelPageWidget({
@@ -7405,12 +7540,12 @@ class _NovelPageWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textStyle = prefs.resolveBodyTextStyle(textColor);
-  // 章节标题样式：与分页测量共用 [NovelPaginator.headingStyleOf]——
-  // 两处样式必须逐字段一致，否则标题行会按不同字宽断行/计高，
-  // 表现为右侧字符被裁或页底溢出（「字符显示不全」）。
+    // 章节标题样式：与分页测量共用 [NovelPaginator.headingStyleOf]——
+    // 两处样式必须逐字段一致，否则标题行会按不同字宽断行/计高，
+    // 表现为右侧字符被裁或页底溢出（「字符显示不全」）。
     final headingStyle = NovelPaginator.headingStyleOf(textStyle);
 
-  // 页眉页脚颜色：自定义优先，否则跟随正文色半透明。
+    // 页眉页脚颜色：自定义优先，否则跟随正文色半透明。
     final hfColor = headerFooterColor != null
         ? Color(headerFooterColor!)
         : textColor.withValues(alpha: 0.5);
@@ -7426,13 +7561,13 @@ class _NovelPageWidget extends StatelessWidget {
 
     return Container(
       color: bg,
-   // 仅纵向用正文边距；页眉页脚用各自的 [headerFooterMargin]，正文用
-   // [prefs.margin]，互不干扰（#8）。
+      // 仅纵向用正文边距；页眉页脚用各自的 [headerFooterMargin]，正文用
+      // [prefs.margin]，互不干扰（#8）。
       padding: EdgeInsets.symmetric(vertical: prefs.margin),
       child: Column(
-    // stretch：强制正文滚动区占满整页宽度。否则 Column 默认 center 会让
-    // SingleChildScrollView 收缩包裹到内容宽度并被水平居中，实际左右留白
-    // 变成 margin + 剩余空间的一半，随每页最长行宽漂移（边距不守设定值）。
+        // stretch：强制正文滚动区占满整页宽度。否则 Column 默认 center 会让
+        // SingleChildScrollView 收缩包裹到内容宽度并被水平居中，实际左右留白
+        // 变成 margin + 剩余空间的一半，随每页最长行宽漂移（边距不守设定值）。
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Padding(
@@ -7451,10 +7586,10 @@ class _NovelPageWidget extends StatelessWidget {
           ),
           const SizedBox(height: AppTokens.spaceSm),
           Expanded(
-      // LayoutBuilder 作为 Expanded 的直接子节点，拿到的是「有界」的滚动区高度
-      // （由外层 Expanded 约束）。SingleChildScrollView 内部 Column 是无界高度，
-      // 因此插图绝不能用 Expanded（会抛 "RenderFlex unbounded" 并使整页崩溃）；
-      // 这里用具体高度的 SizedBox 承载插图，既填满滚动区又不触发 flex 崩溃。
+            // LayoutBuilder 作为 Expanded 的直接子节点，拿到的是「有界」的滚动区高度
+            // （由外层 Expanded 约束）。SingleChildScrollView 内部 Column 是无界高度，
+            // 因此插图绝不能用 Expanded（会抛 "RenderFlex unbounded" 并使整页崩溃）；
+            // 这里用具体高度的 SizedBox 承载插图，既填满滚动区又不触发 flex 崩溃。
             child: LayoutBuilder(
               builder: (BuildContext ctx, BoxConstraints scrollC) {
                 final double scrollH = scrollC.maxHeight;
@@ -7463,22 +7598,22 @@ class _NovelPageWidget extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   clipBehavior: Clip.hardEdge,
                   padding: EdgeInsets.symmetric(horizontal: prefs.margin),
-         // 注意：此处不再用 AnimatedBuilder(selectionController) 包裹——
-         // 否则选区变化会重建整页、连带重建每行 RawGestureDetector，长按
-         // 进行中即被打断（「长按闪一下」）。选区高亮改由 _buildLine 内
-         // 的局部 AnimatedBuilder 处理，只重绘本行文本。
+                  // 注意：此处不再用 AnimatedBuilder(selectionController) 包裹——
+                  // 否则选区变化会重建整页、连带重建每行 RawGestureDetector，长按
+                  // 进行中即被打断（「长按闪一下」）。选区高亮改由 _buildLine 内
+                  // 的局部 AnimatedBuilder 处理，只重绘本行文本。
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-           // 章节大标题仅在第一页顶部渲染（#7，含对齐 / 分段模式）。
+                      // 章节大标题仅在第一页顶部渲染（#7，含对齐 / 分段模式）。
                       if (pageIndex == 0)
                         _buildChapterTitleWidget(
                           prefs,
                           chapterTitle,
                           bookName,
                         ),
-                      ..._buildPageLines(context, headingStyle, textStyle, imgW,
-                          scrollH),
+                      ..._buildPageLines(
+                          context, headingStyle, textStyle, imgW, scrollH),
                     ],
                   ),
                 );
@@ -7505,10 +7640,10 @@ class _NovelPageWidget extends StatelessWidget {
     );
   }
 
- /// 构建单行文本（按行渲染）：搜索高亮 + TTS 高亮 + 点击跳转。
- ///
- /// 每行已是适配宽度的视觉行，首行自带 `　　` 缩进；段距由上层在
- /// [isLastLine] 后统一添加，这里只负责单行的文字与高亮。
+  /// 构建单行文本（按行渲染）：搜索高亮 + TTS 高亮 + 点击跳转。
+  ///
+  /// 每行已是适配宽度的视觉行，首行自带 `　　` 缩进；段距由上层在
+  /// [isLastLine] 后统一添加，这里只负责单行的文字与高亮。
   Widget _buildLine(
     BuildContext context,
     NovelLine line,
@@ -7517,22 +7652,23 @@ class _NovelPageWidget extends StatelessWidget {
     double? targetWidth,
   }) {
     final isCurrent = ttsActive && line.paragraphIndex == ttsCurrentIndex;
-  // 选区背景（活动选区 + 已存划线）：优先于搜索高亮渲染（优先级
-  // 活动选区 > 已存高亮 > 搜索）。仅当本行确有选区/划线时才走富文本路径，
-  // 否则保持原渲染（搜索 / 虚线下划线 / 纯文本），不影响分页测量。
+    // 选区背景（活动选区 + 已存划线）：优先于搜索高亮渲染（优先级
+    // 活动选区 > 已存高亮 > 搜索）。仅当本行确有选区/划线时才走富文本路径，
+    // 否则保持原渲染（搜索 / 虚线下划线 / 纯文本），不影响分页测量。
     final Widget? searchHit =
         _buildSearchHighlight(context, line.text, textStyle);
-  // / A6 两端对齐：仅分页模式（本 Widget 即分页页）、正文非标题行、
-  // 非段末行时生效——把不满一行的行按「字距均摊」拉伸
-  // 到整行宽（与原生 textAlign: justify 视觉等价，且不受单行富文本
-  // justify 失效影响）。末行/标题/高亮行保持自然排版。
-  // 选区渲染移入下方 AnimatedBuilder：长按选区时只重建本行文本、不重建外层
-  // RawGestureDetector，否则识别器被重建、长按进行中即被打断（「长按闪一下」）。
-    final bool justifyLineBase = prefs.textAlignMode == NovelTextAlignMode.justify &&
-        !line.isHeading &&
-        !line.isLastLine &&
-        searchHit == null &&
-        !(prefs.fontUnderline && prefs.needsCustomUnderlinePaint);
+    // / A6 两端对齐：仅分页模式（本 Widget 即分页页）、正文非标题行、
+    // 非段末行时生效——把不满一行的行按「字距均摊」拉伸
+    // 到整行宽（与原生 textAlign: justify 视觉等价，且不受单行富文本
+    // justify 失效影响）。末行/标题/高亮行保持自然排版。
+    // 选区渲染移入下方 AnimatedBuilder：长按选区时只重建本行文本、不重建外层
+    // RawGestureDetector，否则识别器被重建、长按进行中即被打断（「长按闪一下」）。
+    final bool justifyLineBase =
+        prefs.textAlignMode == NovelTextAlignMode.justify &&
+            !line.isHeading &&
+            !line.isLastLine &&
+            searchHit == null &&
+            !(prefs.fontUnderline && prefs.needsCustomUnderlinePaint);
     final Widget baseWidget;
     if (searchHit != null) {
       baseWidget = searchHit;
@@ -7558,8 +7694,8 @@ class _NovelPageWidget extends StatelessWidget {
       baseWidget = Text(
         line.text,
         style: textStyle,
-    // 每行已是按宽度精确测量出的单行文本，禁止再次折行/省略，
-    // 保证渲染与分页器测量一致（按行排版）。
+        // 每行已是按宽度精确测量出的单行文本，禁止再次折行/省略，
+        // 保证渲染与分页器测量一致（按行排版）。
         softWrap: false,
         maxLines: 1,
         overflow: TextOverflow.clip,
@@ -7580,28 +7716,27 @@ class _NovelPageWidget extends StatelessWidget {
                   color: prefs.resolveTextColor(bg).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppTokens.radiusXs),
                 ),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 4, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: tw,
               )
             : tw;
       },
     );
 
-  // TTS 激活时，点按任意行即跳转到该段落开始朗读（按所属段落）。
-  // 仅 TTS 激活才包裹手势：非朗读态下点按文本照常由外层翻页。
-  //
-  // 用 onTap（而非 onLongPress）：朗读场景下「点哪读哪」是主交互，用户期望
-  // 轻点段落即跳转；长按反而难发现。内层 TapGestureRecognizer 与外层 onTapUp
-  // 同在嵌套竞技场中，内层命中即胜出、外层 onTapUp 不再触发——因此点文本不会
-  // 翻页、也不会切换 UI，只跳转朗读位置；点边距/留白仍走外层翻页。该包裹仅在
-  // ttsActive 时存在，故非朗读态点击文本照常播放翻页动画（旧「翻页动画消失」问题
-  // 不复现）。
-  //
-  // excludeFromSemantics:true —— 不为每行生成无障碍语义节点。朗读时文本由 TTS
-  // 引擎直接发声，逐行语义节点既冗余，又会在每段切换时随整页重建被反复创建/销毁，
-  // 导致无障碍树（AXTree）节点堆积，触发 "will not be in the tree" 刷屏；排除后
-  // 该问题消除，且不影响朗读与手势响应。
+    // TTS 激活时，点按任意行即跳转到该段落开始朗读（按所属段落）。
+    // 仅 TTS 激活才包裹手势：非朗读态下点按文本照常由外层翻页。
+    //
+    // 用 onTap（而非 onLongPress）：朗读场景下「点哪读哪」是主交互，用户期望
+    // 轻点段落即跳转；长按反而难发现。内层 TapGestureRecognizer 与外层 onTapUp
+    // 同在嵌套竞技场中，内层命中即胜出、外层 onTapUp 不再触发——因此点文本不会
+    // 翻页、也不会切换 UI，只跳转朗读位置；点边距/留白仍走外层翻页。该包裹仅在
+    // ttsActive 时存在，故非朗读态点击文本照常播放翻页动画（旧「翻页动画消失」问题
+    // 不复现）。
+    //
+    // excludeFromSemantics:true —— 不为每行生成无障碍语义节点。朗读时文本由 TTS
+    // 引擎直接发声，逐行语义节点既冗余，又会在每段切换时随整页重建被反复创建/销毁，
+    // 导致无障碍树（AXTree）节点堆积，触发 "will not be in the tree" 刷屏；排除后
+    // 该问题消除，且不影响朗读与手势响应。
     if (ttsActive && onParagraphTap != null) {
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -7613,11 +7748,11 @@ class _NovelPageWidget extends StatelessWidget {
     return content;
   }
 
- /// 把本页所有行构建为 Widget 列表（含文本行的长按选区手势与插图渲染）。
- ///
- /// 文本行在非 TTS 态下包裹长按选区手势（长按=选区，短按仍由外层翻页手势
- /// 处理——二者在竞技场自然分离）；TTS 态下不包裹，避免与「点哪读哪」的
- /// 段落跳转冲突。
+  /// 把本页所有行构建为 Widget 列表（含文本行的长按选区手势与插图渲染）。
+  ///
+  /// 文本行在非 TTS 态下包裹长按选区手势（长按=选区，短按仍由外层翻页手势
+  /// 处理——二者在竞技场自然分离）；TTS 态下不包裹，避免与「点哪读哪」的
+  /// 段落跳转冲突。
   List<Widget> _buildPageLines(
     BuildContext context,
     TextStyle headingStyle,
@@ -7649,8 +7784,8 @@ class _NovelPageWidget extends StatelessWidget {
           result.add(SizedBox(height: prefs.paragraphSpacing));
         }
       } else if (item is NovelImageItem) {
-    // 翻页模式插图独占一页：占满可用高度居中显示。点按即打开大图查看器
-    // （与滚动模式一致）；长按同样可打开，二者不冲突（长按不会触发 onTap）。
+        // 翻页模式插图独占一页：占满可用高度居中显示。点按即打开大图查看器
+        // （与滚动模式一致）；长按同样可打开，二者不冲突（长按不会触发 onTap）。
         result.add(
           SizedBox(
             width: imgW,
@@ -7675,7 +7810,7 @@ class _NovelPageWidget extends StatelessWidget {
     return result;
   }
 
- /// 长按选区起始：记录锚点全局偏移并标记选区激活（让翻页手势让出指针）。
+  /// 长按选区起始：记录锚点全局偏移并标记选区激活（让翻页手势让出指针）。
   void _onSelLongPressStart(int lineIndexInPage, LongPressStartDetails d) {
     // MD3「Thunk」：长按开始文本选择。
     AppHaptics.thunk();
@@ -7690,15 +7825,15 @@ class _NovelPageWidget extends StatelessWidget {
     onSelectionActiveChanged?.call(true);
     selectionController.setSelecting(true);
     selectionController.setSelectionAnchor(global);
-  // 长按即选中锚点所在的「词/句」（标点/空白切分），拖拽时由 move 重定义选区。
+    // 长按即选中锚点所在的「词/句」（标点/空白切分），拖拽时由 move 重定义选区。
     final word = selectionController.wordRangeAt(global);
     if (word != null) selectionController.setSelection(word.start, word.end);
   }
 
- /// 长按拖拽中：以锚点为起点、当前落点为终点更新活动选区。
- ///
- /// Phase 0 仅支持行内选区：纵向移出本行时 [hitTestCharOffset] 自然夹紧到
- /// 行首/行尾；跨行整段由工具条「整段」按钮覆盖。
+  /// 长按拖拽中：以锚点为起点、当前落点为终点更新活动选区。
+  ///
+  /// Phase 0 仅支持行内选区：纵向移出本行时 [hitTestCharOffset] 自然夹紧到
+  /// 行首/行尾；跨行整段由工具条「整段」按钮覆盖。
   void _onSelLongPressMove(int lineIndexInPage, LongPressMoveUpdateDetails d) {
     final anchor = selectionController.selectionAnchor;
     if (anchor == null) return;
@@ -7710,16 +7845,16 @@ class _NovelPageWidget extends StatelessWidget {
       lineIndexInPage,
       ci,
     );
-  // 关键：手指轻微抖动时 hitTest 会命中同一个字符（global == anchor），
-  // 若直接 setSelection(anchor, anchor) 会走 a==b → clearSelection，
-  // 把长按刚建立的整词/句选区清空（真机「工具栏不出现」的根因：
-  // longPressStart hasSel=true → move 微抖 → clearSelection → end hasSel=false）。
-  // 仅在落点确实变化时才更新选区，微抖动保持原选区不动。
+    // 关键：手指轻微抖动时 hitTest 会命中同一个字符（global == anchor），
+    // 若直接 setSelection(anchor, anchor) 会走 a==b → clearSelection，
+    // 把长按刚建立的整词/句选区清空（真机「工具栏不出现」的根因：
+    // longPressStart hasSel=true → move 微抖 → clearSelection → end hasSel=false）。
+    // 仅在落点确实变化时才更新选区，微抖动保持原选区不动。
     if (global == anchor) return;
     selectionController.setSelection(anchor, global);
   }
 
- /// 长按结束：解除选区激活；若有非空选区则通知外层显示工具条。
+  /// 长按结束：解除选区激活；若有非空选区则通知外层显示工具条。
   void _onSelLongPressEnd() {
     onSelectionActiveChanged?.call(false);
     selectionController.setSelecting(false);
@@ -7729,11 +7864,11 @@ class _NovelPageWidget extends StatelessWidget {
     }
   }
 
- /// 搜索关键词命中行 → 高亮富文本；未命中返回 null（走原渲染路径）。
- ///
- /// [searchRegex] 非空时按正则匹配（优先），否则按关键词大小写不敏感
- /// 子串匹配。行文本与分页测量逐字一致，Text.rich 仅给命中片段附加
- /// 背景色/加粗，约束保持 softWrap:false + 单行 + clip，不影响按行排版。
+  /// 搜索关键词命中行 → 高亮富文本；未命中返回 null（走原渲染路径）。
+  ///
+  /// [searchRegex] 非空时按正则匹配（优先），否则按关键词大小写不敏感
+  /// 子串匹配。行文本与分页测量逐字一致，Text.rich 仅给命中片段附加
+  /// 背景色/加粗，约束保持 softWrap:false + 单行 + clip，不影响按行排版。
   Widget? _buildSearchHighlight(
     BuildContext context,
     String text,
@@ -7752,7 +7887,7 @@ class _NovelPageWidget extends StatelessWidget {
     if (spans == null) return null;
     return Text.rich(
       TextSpan(style: textStyle, children: spans),
-   // 与未命中行的 Text 约束一致：不折行/不省略，保证渲染与测量相同。
+      // 与未命中行的 Text 约束一致：不折行/不省略，保证渲染与测量相同。
       softWrap: false,
       maxLines: 1,
       overflow: TextOverflow.clip,
@@ -7794,13 +7929,14 @@ class _NovelPageWidget extends StatelessWidget {
     final centerText = resolve(center);
     final rightText = resolve(right);
 
-  // 中间槽位为空（none 或空串）时退化为左右两槽，保持 spaceBetween。
+    // 中间槽位为空（none 或空串）时退化为左右两槽，保持 spaceBetween。
     if (center == NovelHeaderFooterContent.none || centerText.isEmpty) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
           Flexible(
-            child: Text(leftText, style: style, overflow: TextOverflow.ellipsis),
+            child:
+                Text(leftText, style: style, overflow: TextOverflow.ellipsis),
           ),
           Flexible(
             child:
@@ -7818,7 +7954,8 @@ class _NovelPageWidget extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm),
           child: Text(centerText,
-              style: style, textAlign: TextAlign.center,
+              style: style,
+              textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis),
         ),
         Expanded(
@@ -7852,30 +7989,36 @@ class _TapZonePreviewOverlay extends StatelessWidget {
     required this.l10n,
   });
 
- // 各操作对应的颜色（半透明）。
- static const Color _prevColor = Color(0x332196F3);  // 蓝
- static const Color _nextColor = Color(0x334CAF50);  // 绿
- static const Color _toggleColor = Color(0x33FF9800); // 橙
+  // 各操作对应的颜色（半透明）。
+  static const Color _prevColor = Color(0x332196F3); // 蓝
+  static const Color _nextColor = Color(0x334CAF50); // 绿
+  static const Color _toggleColor = Color(0x33FF9800); // 橙
 
   String _labelFor(TapZoneAction action) {
     switch (action) {
-      case TapZoneAction.prev: return l10n.tapZonePrev;
-      case TapZoneAction.next: return l10n.tapZoneNext;
-      case TapZoneAction.toggle: return l10n.tapZoneToggle;
+      case TapZoneAction.prev:
+        return l10n.tapZonePrev;
+      case TapZoneAction.next:
+        return l10n.tapZoneNext;
+      case TapZoneAction.toggle:
+        return l10n.tapZoneToggle;
     }
   }
 
   Color _colorFor(TapZoneAction action) {
     switch (action) {
-      case TapZoneAction.prev: return _prevColor;
-      case TapZoneAction.next: return _nextColor;
-      case TapZoneAction.toggle: return _toggleColor;
+      case TapZoneAction.prev:
+        return _prevColor;
+      case TapZoneAction.next:
+        return _nextColor;
+      case TapZoneAction.toggle:
+        return _toggleColor;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-  // 跟随容器自适应：窄屏下对话框宽度不足 280 时按实际宽度缩放，避免预览被截断。
+    // 跟随容器自适应：窄屏下对话框宽度不足 280 时按实际宽度缩放，避免预览被截断。
     return LayoutBuilder(
       builder: (ctx, constraints) {
         final double w =
@@ -7886,7 +8029,7 @@ class _TapZonePreviewOverlay extends StatelessWidget {
         return ClipRect(
           child: Stack(
             children: <Widget>[
-       // 背景网格（模拟阅读页面）
+              // 背景网格（模拟阅读页面）
               Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
@@ -7894,7 +8037,7 @@ class _TapZonePreviewOverlay extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                 ),
               ),
-       // 各区域色块 + 标签
+              // 各区域色块 + 标签
               for (final entry in regions)
                 Positioned.fromRect(
                   rect: entry.key,
@@ -7931,10 +8074,10 @@ class _TapZonePreviewOverlay extends StatelessWidget {
     );
   }
 
- /// 解析当前设置下的有效区域（考虑反转），返回 [Rect → Action] 映射。
- /// [w] / [h] 为预览区域实际尺寸（随容器自适应，避免窄屏下被截断）。
+  /// 解析当前设置下的有效区域（考虑反转），返回 [Rect → Action] 映射。
+  /// [w] / [h] 为预览区域实际尺寸（随容器自适应，避免窄屏下被截断）。
   List<MapEntry<Rect, TapZoneAction>> _resolvedRegions(double w, double h) {
-  // 原始区域定义（来自 TapZoneResolver._regions 的逻辑副本）。
+    // 原始区域定义（来自 TapZoneResolver._regions 的逻辑副本）。
     final raw = _rawRegions(layout);
     final result = <MapEntry<Rect, TapZoneAction>>[];
     for (final r in raw) {
@@ -7953,39 +8096,39 @@ class _TapZonePreviewOverlay extends StatelessWidget {
     return result;
   }
 
- /// 返回原始区域列表（比例坐标 0..1），同 TapZoneResolver._regions。
+  /// 返回原始区域列表（比例坐标 0..1），同 TapZoneResolver._regions。
   static List<_RawRegion> _rawRegions(ReaderTapZoneLayout layout) {
     switch (layout) {
       case ReaderTapZoneLayout.leftRight:
         return const <_RawRegion>[
-     _RawRegion(0, 0, 0.45, 1),  // prev
-     _RawRegion(0.45, 0, 0.1, 1), // toggle
-     _RawRegion(0.55, 0, 0.45, 1), // next
+          _RawRegion(0, 0, 0.45, 1), // prev
+          _RawRegion(0.45, 0, 0.1, 1), // toggle
+          _RawRegion(0.55, 0, 0.45, 1), // next
         ];
       case ReaderTapZoneLayout.lShape:
-    // 两个 L 形 + 中心 toggle（与 TapZoneResolver 保持一致）。
+        // 两个 L 形 + 中心 toggle（与 TapZoneResolver 保持一致）。
         return const <_RawRegion>[
-     _RawRegion(0, 0, 0.33, 1),    // prev 左列（全高）
-     _RawRegion(0.67, 0, 0.33, 1),   // next 右列（全高）
-     _RawRegion(0.33, 0, 0.34, 0.33), // next 上中条
-     _RawRegion(0.33, 0.67, 0.34, 0.33), // prev 下中条
-     _RawRegion(0.33, 0.33, 0.34, 0.34), // toggle 中心
+          _RawRegion(0, 0, 0.33, 1), // prev 左列（全高）
+          _RawRegion(0.67, 0, 0.33, 1), // next 右列（全高）
+          _RawRegion(0.33, 0, 0.34, 0.33), // next 上中条
+          _RawRegion(0.33, 0.67, 0.34, 0.33), // prev 下中条
+          _RawRegion(0.33, 0.33, 0.34, 0.34), // toggle 中心
         ];
       case ReaderTapZoneLayout.kindle:
         return const <_RawRegion>[
-     _RawRegion(0, 0, 1, 0.15),  // toggle (顶部)
-     _RawRegion(0, 0.15, 0.35, 0.85),// prev (左侧)
-     _RawRegion(0.35, 0.15, 0.65, 0.85),// next (右侧)
+          _RawRegion(0, 0, 1, 0.15), // toggle (顶部)
+          _RawRegion(0, 0.15, 0.35, 0.85), // prev (左侧)
+          _RawRegion(0.35, 0.15, 0.65, 0.85), // next (右侧)
         ];
       case ReaderTapZoneLayout.bothSides:
         return const <_RawRegion>[
-     _RawRegion(0, 0.15, 0.33, 0.7), // next (左上)
-     _RawRegion(0.67, 0.15, 0.33, 0.7),// next (右上)
-     _RawRegion(0.33, 0.7, 0.34, 0.3), // prev (底部中间)
-     _RawRegion(0.33, 0, 0.34, 0.15),  // toggle (顶部)
+          _RawRegion(0, 0.15, 0.33, 0.7), // next (左上)
+          _RawRegion(0.67, 0.15, 0.33, 0.7), // next (右上)
+          _RawRegion(0.33, 0.7, 0.34, 0.3), // prev (底部中间)
+          _RawRegion(0.33, 0, 0.34, 0.15), // toggle (顶部)
         ];
       case ReaderTapZoneLayout.off:
-    return const <_RawRegion>[_RawRegion(0, 0, 1, 1)]; // 全 toggle
+        return const <_RawRegion>[_RawRegion(0, 0, 1, 1)]; // 全 toggle
     }
   }
 }
@@ -8003,53 +8146,197 @@ class _RawRegion {
 /// 内联弹窗里任意具体设置项（如「预下载」「标题加粗」「双击缩放」）
 /// 通过搜索直达对应分组。
 const List<String> _kNovelSecColorTerms = <String>[
-  '颜色', '背景', '亮度', '夜间', '文字色', '强调色', '背景色',
-  '正文颜色', '自定义背景色', '跟随背景', '自动配色', '标题色',
+  '颜色',
+  '背景',
+  '亮度',
+  '夜间',
+  '文字色',
+  '强调色',
+  '背景色',
+  '正文颜色',
+  '自定义背景色',
+  '跟随背景',
+  '自动配色',
+  '标题色',
 ];
 const List<String> _kNovelSecTextTerms = <String>[
-  '字号', '行距', '段距', '边距', '字距', '字体大小', '行高', '段落',
+  '字号',
+  '行距',
+  '段距',
+  '边距',
+  '字距',
+  '字体大小',
+  '行高',
+  '段落',
 ];
 const List<String> _kNovelSecFontTerms = <String>[
-  '粗体', '斜体', '下划线', '字体', '字体文件', '字族', '字重', '加粗',
-  '自定义字体', '等宽', '衬线', '系统', '100-900',
+  '粗体',
+  '斜体',
+  '下划线',
+  '字体',
+  '字体文件',
+  '字族',
+  '字重',
+  '加粗',
+  '自定义字体',
+  '等宽',
+  '衬线',
+  '系统',
+  '100-900',
 ];
 const List<String> _kNovelSecTypographyTerms = <String>[
-  '对齐', '两端对齐', '断行', '中文', '禁则', '下划线', '实线', '虚线', '波浪',
-  '点线', '插图', '滚动', '图片', '通栏', '卡片', '排版',
-  '逐字断行', '原生折行', '插图对齐', '居中', '靠左', '靠右', '卡片式',
-  '对齐方式', '下划线样式', '波浪线', '自然',
+  '对齐',
+  '两端对齐',
+  '断行',
+  '中文',
+  '禁则',
+  '下划线',
+  '实线',
+  '虚线',
+  '波浪',
+  '点线',
+  '插图',
+  '滚动',
+  '图片',
+  '通栏',
+  '卡片',
+  '排版',
+  '逐字断行',
+  '原生折行',
+  '插图对齐',
+  '居中',
+  '靠左',
+  '靠右',
+  '卡片式',
+  '对齐方式',
+  '下划线样式',
+  '波浪线',
+  '自然',
 ];
 const List<String> _kNovelSecTitleTerms = <String>[
-  '章节标题', '标题', '位置', '字体', '分段', '字号',
-  '显示', '加粗', '颜色', '边距', '上边距', '下边距', '强调色', '倍数', '倍率',
-  '行距', '间距', '分段模式', '对齐', '隐藏',
+  '章节标题',
+  '标题',
+  '位置',
+  '字体',
+  '分段',
+  '字号',
+  '显示',
+  '加粗',
+  '颜色',
+  '边距',
+  '上边距',
+  '下边距',
+  '强调色',
+  '倍数',
+  '倍率',
+  '行距',
+  '间距',
+  '分段模式',
+  '对齐',
+  '隐藏',
 ];
 const List<String> _kNovelSecHeaderFooterTerms = <String>[
-  '页眉', '页脚', '时间', '电量', '页数', '进度',
-  '左侧', '右侧', '中间', '颜色', '边距',
+  '页眉',
+  '页脚',
+  '时间',
+  '电量',
+  '页数',
+  '进度',
+  '左侧',
+  '右侧',
+  '中间',
+  '颜色',
+  '边距',
 ];
 const List<String> _kNovelSecShadowUnderlineTerms = <String>[
-  '阴影', '下划线', '颜色', '虚线', '阴影色',
-  '文字阴影', '模糊', '半径', '偏移', '水平', '垂直', '线宽', '实线段长',
-  '间隙', '比例', '自动', '半透明',
+  '阴影',
+  '下划线',
+  '颜色',
+  '虚线',
+  '阴影色',
+  '文字阴影',
+  '模糊',
+  '半径',
+  '偏移',
+  '水平',
+  '垂直',
+  '线宽',
+  '实线段长',
+  '间隙',
+  '比例',
+  '自动',
+  '半透明',
 ];
 const List<String> _kNovelSecPageTerms = <String>[
-  '翻页', '动画', '点击', '自动翻页', '手势', '分区',
-  '间隔', '平滑', '双页', '模式', '滚轮', '反转', '点击区域', '翻转', '音量键',
-  '预览', '点按', '左右', '上下', '全部', '关闭',
+  '翻页',
+  '动画',
+  '点击',
+  '自动翻页',
+  '手势',
+  '分区',
+  '间隔',
+  '平滑',
+  '双页',
+  '模式',
+  '滚轮',
+  '反转',
+  '点击区域',
+  '翻转',
+  '音量键',
+  '预览',
+  '点按',
+  '左右',
+  '上下',
+  '全部',
+  '关闭',
 ];
 const List<String> _kNovelSecTtsTerms = <String>[
-  '朗读', '语速', '睡眠', '后台', '语音',
-  '定时', '剩余', '分钟', '秒',
+  '朗读',
+  '语速',
+  '睡眠',
+  '后台',
+  '语音',
+  '定时',
+  '剩余',
+  '分钟',
+  '秒',
 ];
 const List<String> _kNovelSecMiscTerms = <String>[
-  '简繁', '替换', '净化', '正则', '缓存', '恢复', '配置', '工具栏', '转换',
-  '繁简转换', '繁转简', '简转繁', '不转换', '预下载', '章节数', '阈值',
-  '恢复默认', '本书', '替换规则',
+  '简繁',
+  '替换',
+  '净化',
+  '正则',
+  '缓存',
+  '恢复',
+  '配置',
+  '工具栏',
+  '转换',
+  '繁简转换',
+  '繁转简',
+  '简转繁',
+  '不转换',
+  '预下载',
+  '章节数',
+  '阈值',
+  '恢复默认',
+  '本书',
+  '替换规则',
 ];
 const List<String> _kNovelSecAiTerms = <String>[
-  'ai', '速览', '总结', '摘要', '翻译', '双语', '配图', '生图', '云端', '离线',
-  'gpt', '模型', '接口', '密钥',
+  'ai',
+  '速览',
+  '总结',
+  '摘要',
+  '翻译',
+  '双语',
+  '配图',
+  '生图',
+  '云端',
+  '离线',
+  'gpt',
+  '模型',
+  '接口',
+  '密钥',
 ];
 
 class _NovelInlineSettings extends StatelessWidget {
@@ -8068,9 +8355,10 @@ class _NovelInlineSettings extends StatelessWidget {
   final VoidCallback? onShowTapZonePreview;
   final String novelId;
   final String novelName;
- /// 问题 4：预下载配置保存后的回调（阅读器刷新快照，触发判定即时效）。
+
+  /// 问题 4：预下载配置保存后的回调（阅读器刷新快照，触发判定即时效）。
   final VoidCallback? onPreDownloadChanged;
- // ── AI 功能组入口回调（打开速览 / 翻译 / 生成配图）──
+  // ── AI 功能组入口回调（打开速览 / 翻译 / 生成配图）──
   final VoidCallback? onOpenSummary;
   final VoidCallback? onTranslate;
   final VoidCallback? onGenerateIllustration;
@@ -8106,1468 +8394,1481 @@ class _NovelInlineSettings extends StatelessWidget {
       final hay = <String>[title, ...terms].join(' ').toLowerCase();
       return hay.contains(q);
     }
-    final bool hasSearchMatch = groupMatches(l10n.novelSectionColor,
-            _kNovelSecColorTerms)
-        || groupMatches(l10n.novelSectionText, _kNovelSecTextTerms)
-        || groupMatches(l10n.novelSectionFont, _kNovelSecFontTerms)
-        || groupMatches(l10n.novelTypographyGroup, _kNovelSecTypographyTerms)
-        || groupMatches(l10n.novelSectionTitle, _kNovelSecTitleTerms)
-        || groupMatches(l10n.novelSectionHeaderFooter,
-            _kNovelSecHeaderFooterTerms)
-        || groupMatches(l10n.novelSectionShadowUnderline,
-            _kNovelSecShadowUnderlineTerms)
-        || groupMatches(l10n.novelSectionPage, _kNovelSecPageTerms)
-        || groupMatches(l10n.novelSectionTts, _kNovelSecTtsTerms)
-        || groupMatches(l10n.novelSectionMisc, _kNovelSecMiscTerms)
-        || groupMatches(l10n.novelSectionAi, _kNovelSecAiTerms);
+
+    final bool hasSearchMatch = groupMatches(
+            l10n.novelSectionColor, _kNovelSecColorTerms) ||
+        groupMatches(l10n.novelSectionText, _kNovelSecTextTerms) ||
+        groupMatches(l10n.novelSectionFont, _kNovelSecFontTerms) ||
+        groupMatches(l10n.novelTypographyGroup, _kNovelSecTypographyTerms) ||
+        groupMatches(l10n.novelSectionTitle, _kNovelSecTitleTerms) ||
+        groupMatches(
+            l10n.novelSectionHeaderFooter, _kNovelSecHeaderFooterTerms) ||
+        groupMatches(
+            l10n.novelSectionShadowUnderline, _kNovelSecShadowUnderlineTerms) ||
+        groupMatches(l10n.novelSectionPage, _kNovelSecPageTerms) ||
+        groupMatches(l10n.novelSectionTts, _kNovelSecTtsTerms) ||
+        groupMatches(l10n.novelSectionMisc, _kNovelSecMiscTerms) ||
+        groupMatches(l10n.novelSectionAi, _kNovelSecAiTerms);
     return Material(
-      elevation: 4,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+      color: Colors.transparent,
+      child: Column(
+        children: <Widget>[
+          // 搜索行：搜索框 + 底部工具栏配置入口并置，为内容区省出标题行空间。
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTokens.spaceLg,
+              vertical: AppTokens.spaceSm,
             ),
-          ),
-        ),
-        child: Column(
-          children: <Widget>[
-      // 搜索行：搜索框 + 底部工具栏配置入口并置，为内容区省出标题行空间。
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTokens.spaceLg,
-                vertical: AppTokens.spaceSm,
-              ),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: TextField(
-                      controller: searchController,
-                      onChanged: onSearchChanged,
-                      decoration: InputDecoration(
-                        hintText: l10n.novelSettingsSearch,
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: onSearchChanged,
+                    decoration: InputDecoration(
+                      hintText: l10n.novelSettingsSearch,
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      isDense: true,
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
                     ),
                   ),
-                  if (onConfigureToolbar != null) ...<Widget>[
-                    const SizedBox(width: AppTokens.spaceSm),
-                    IconButton(
-                      icon: const Icon(Icons.view_module_rounded),
-                      tooltip: l10n.configureBottomToolbar,
-                      onPressed: onConfigureToolbar,
-                    ),
-                  ],
+                ),
+                if (onConfigureToolbar != null) ...<Widget>[
+                  const SizedBox(width: AppTokens.spaceSm),
+                  IconButton(
+                    icon: const Icon(Icons.view_module_rounded),
+                    tooltip: l10n.configureBottomToolbar,
+                    onPressed: onConfigureToolbar,
+                  ),
                 ],
-              ),
+              ],
             ),
-      // 可滚动内容
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppTokens.spaceLg),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-          // 常用置顶：最常改的快捷项（搜索时隐藏，避免与过滤重叠）
-                    if (searchController.text.trim().isEmpty)
-                      _buildCommonCard(context, l10n),
+          ),
+          // 可滚动内容
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTokens.spaceLg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  // 常用置顶：最常改的快捷项（搜索时隐藏，避免与过滤重叠）
+                  if (searchController.text.trim().isEmpty)
+                    _buildCommonCard(context, l10n),
 
-          // ── 颜色与背景组 ──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelSectionColor,
-                      searchQuery: searchController.text,
-                      leading: Icons.palette_rounded,
-                      searchTerms: _kNovelSecColorTerms,
-                      children: <Widget>[
-          // 亮度（从「翻页与交互」组上移，最常调）
-                    _SliderRow(
-                      label: l10n.novelBrightness,
-                      value: brightness,
-                      min: 0.0,
-                      max: 1.0,
-                      divisions: 20,
-                      onChanged: onBrightnessChanged,
-                    ),
-                    const SizedBox(height: AppTokens.spaceMd),
-          // 夜间模式跟随策略（项 6）：三选一
-                    _buildThemeFollowSelector(context, l10n, prefs, onChanged),
-                    const SizedBox(height: AppTokens.spaceMd),
-          // 背景预设
-                    Text(l10n.readerBackground,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        for (int i = 0; i < ReaderTokens.bgPresets.length; i++)
-                          ChoiceChip(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Container(
-                                  width: 14,
-                                  height: 14,
-                                  decoration: BoxDecoration(
-                                    color: _swatchColor(ReaderTokens.bgPresets[i]),
-                                    border: Border.all(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outline
-                                          .withValues(alpha: 0.6),
-                                    ),
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(_bgLabel(i, l10n)),
-                              ],
-                            ),
-                            selected: prefs.bgPresetIndex == i &&
-                                prefs.customBgColor == null,
-                            onSelected: (_) => onChanged(prefs.copyWith(
-                              bgPresetIndex: i,
-                              customBgColor: null,
-                            )),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceSm),
-          // 自定义背景色
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(l10n.customBgColor),
-                      trailing: GestureDetector(
-                        onTap: () async {
-             // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
-                          Color? pickedColor;
-                          final Color initial = prefs.customBgColor != null
-                              ? Color(prefs.customBgColor!)
-                              : ReaderTokens.bgPresets[prefs.bgPresetIndex
-                                  .clamp(0, ReaderTokens.bgPresets.length - 1)];
-                          final color = await showDialog<Color>(
-                            context: context,
-                            builder: (ctx) => StatefulBuilder(
-                              builder: (ctx2, setDialogState) => AppAlertDialog(
-                                title: Text(l10n.customBgColor),
-                                content: SingleChildScrollView(
-                                  child: ColorPicker(
-                                    pickerColor: pickedColor ?? initial,
-                                    onColorChanged: (c) => setDialogState(() => pickedColor = c),
-                                  ),
-                                ),
-                                actions: <Widget>[
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(ctx).pop(),
-                                    child: Text(
-                                      MaterialLocalizations.of(ctx)
-                                          .cancelButtonLabel,
-                                    ),
-                                  ),
-                                  FilledButton(
-                                    onPressed: () =>
-                                        Navigator.of(ctx).pop(
-                                            pickedColor ?? initial),
-                                    child: Text(
-                                      MaterialLocalizations.of(ctx)
-                                          .okButtonLabel,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                          if (color != null) {
-                            onChanged(prefs.copyWith(
-                                customBgColor: color.toARGB32()));
-                          }
-                        },
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: _swatchColor(prefs.customBgColor != null
-                                ? Color(prefs.customBgColor!)
-                                : ReaderTokens.bgPresets[
-                                    prefs.bgPresetIndex.clamp(
-                                        0, ReaderTokens.bgPresets.length - 1)]),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppTokens.spaceSm),
-          // 正文颜色（自定义；可清除为跟随背景）
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(l10n.novelTextColor),
-                      subtitle: prefs.customTextColor == null
-                          ? Text(l10n.novelTextColorFollowBg)
-                          : null,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          if (prefs.customTextColor != null)
-                            IconButton(
-                              icon: const Icon(Icons.backspace_rounded),
-                              tooltip: l10n.novelTextColorFollowBg,
-                              onPressed: () => onChanged(
-                                  prefs.copyWith(customTextColor: null)),
-                            ),
-                          GestureDetector(
-                            onTap: () async {
-               // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
-                              Color? pickedColor;
-                              final Color initial =
-                                  prefs.customTextColor != null
-                                      ? Color(prefs.customTextColor!)
-                                      : const Color(0xFF1A1A1A);
-                              final color = await showDialog<Color>(
-                                context: context,
-                                builder: (ctx) => StatefulBuilder(
-                                  builder: (ctx2, setDialogState) =>
-                                      AppAlertDialog(
-                                    title: Text(l10n.novelTextColor),
-                                    content: SingleChildScrollView(
-                                      child: ColorPicker(
-                                        pickerColor: pickedColor ?? initial,
-                                        onColorChanged: (c) => setDialogState(() => pickedColor = c),
-                                      ),
-                                    ),
-                                    actions: <Widget>[
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(ctx).pop(),
-                                        child: Text(
-                                          MaterialLocalizations.of(ctx)
-                                              .cancelButtonLabel,
-                                        ),
-                                      ),
-                                      FilledButton(
-                                        onPressed: () => Navigator.of(ctx).pop(
-                                            pickedColor ?? initial),
-                                        child: Text(
-                                          MaterialLocalizations.of(ctx)
-                                              .okButtonLabel,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                              if (color != null) {
-                                onChanged(prefs.copyWith(
-                                    customTextColor: color.toARGB32()));
-                              }
-                            },
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: prefs.customTextColor != null
-                                    ? Color(prefs.customTextColor!)
-                                    : const Color(0xFF1A1A1A),
-                                border: Border.all(
-                                  color: Theme.of(context).colorScheme.outline,
-                                ),
-                                borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppTokens.spaceSm),
-          // 强调色（从「字体文件」组移入；可清除为默认）
-                    _colorTile(
-                      context: context,
-                      l10n: l10n,
-                      title: l10n.novelEmphasisColor,
-                      subtitle: prefs.emphasisColor == null
-                          ? l10n.novelEmphasisColorAuto
-                          : null,
-                      current: prefs.emphasisColor,
-                      fallback: ReaderTokens.emphasisDefault,
-                      onPicked: (c) =>
-                          onChanged(prefs.copyWith(emphasisColor: c)),
-                      onClear: () =>
-                          onChanged(prefs.copyWith(emphasisColor: null)),
-                      clearTooltip: l10n.novelEmphasisColorAuto,
-                    ),
-                      ],
-                    ),
-          // ── 文字组 ──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelSectionText,
-                      initiallyExpanded: true,
-                      searchQuery: searchController.text,
-                      leading: Icons.text_fields_rounded,
-                      searchTerms: _kNovelSecTextTerms,
-                      children: <Widget>[
-                    _SliderRow(
-                      label: l10n.novelFontSize,
-                      value: prefs.fontSize,
-                      min: 12,
-                      max: 32,
-                      divisions: 20,
-                      unit: 'sp',
-                      onChanged: (v) => onPreview?.call(
-                          prefs.copyWith(fontSize: v)),
-                      onChangeEnd: (v) =>
-                          onChanged(prefs.copyWith(fontSize: v)),
-                    ),
-                    _SliderRow(
-                      label: l10n.novelLineHeight,
-                      value: prefs.lineHeight,
-                      min: 1.2,
-                      max: 3.0,
-                      divisions: 18,
-                      onChanged: (v) => onPreview?.call(
-                          prefs.copyWith(lineHeight: v)),
-                      onChangeEnd: (v) =>
-                          onChanged(prefs.copyWith(lineHeight: v)),
-                    ),
-                    _SliderRow(
-                      label: l10n.novelParagraphSpacing,
-                      value: prefs.paragraphSpacing,
-                      min: 4,
-                      max: 48,
-                      divisions: 22,
-                      unit: 'px',
-                      onChanged: (v) => onPreview?.call(
-                          prefs.copyWith(paragraphSpacing: v)),
-                      onChangeEnd: (v) => onChanged(
-                          prefs.copyWith(paragraphSpacing: v)),
-                    ),
-                    _SliderRow(
-                      label: l10n.novelMargin,
-                      value: prefs.margin,
-                      min: 8,
-                      max: 64,
-                      divisions: 14,
-                      unit: 'px',
-                      onChanged: (v) =>
-                          onPreview?.call(prefs.copyWith(margin: v)),
-                      onChangeEnd: (v) =>
-                          onChanged(prefs.copyWith(margin: v)),
-                    ),
-                    _SliderRow(
-                      label: l10n.novelLetterSpacing,
-                      value: prefs.letterSpacing,
-                      min: 0,
-                      max: 8,
-                      divisions: 16,
-                      unit: 'px',
-                      onChanged: (v) => onPreview?.call(
-                          prefs.copyWith(letterSpacing: v)),
-                      onChangeEnd: (v) =>
-                          onChanged(prefs.copyWith(letterSpacing: v)),
-                    ),
-                      ],
-                    ),
-          // ── 字体样式组 ──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelSectionFont,
-                      searchQuery: searchController.text,
-                      leading: Icons.font_download_rounded,
-                      searchTerms: _kNovelSecFontTerms,
-                      children: <Widget>[
-          // 字体样式（加粗 / 斜体 / 下划线，可共存）
-                    Text(l10n.novelFontStyle,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        FilterChip(
-                          label: Text(l10n.fontBold),
-             // 加粗是唯一开关：开启后按下方字重滑块渲染，
-             // 关闭即恢复默认字重，可随时关掉。
-                          selected: prefs.fontBold,
-                          onSelected: (v) =>
-                              onChanged(prefs.copyWith(fontBold: v)),
-                        ),
-                        FilterChip(
-                          label: Text(l10n.fontItalic),
-                          selected: prefs.fontItalic,
-                          onSelected: (v) =>
-                              onChanged(prefs.copyWith(fontItalic: v)),
-                        ),
-                        FilterChip(
-                          label: Text(l10n.fontUnderline),
-                          selected: prefs.fontUnderline,
-                          onSelected: (v) =>
-                              onChanged(prefs.copyWith(fontUnderline: v)),
-                        ),
-                      ],
-                    ),
-          // 加粗字重滑块（100–900）：仅加粗开启时显示并生效。
-          // divisions 取 8 使滑块停在整百档位，与 resolveBodyTextStyle
-          // 的 switch 精确匹配，避免中间值落到 default 的 w900。
-                    if (prefs.fontBold) ...<Widget>[
-                      const SizedBox(height: AppTokens.spaceSm),
+                  // ── 颜色与背景组 ──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelSectionColor,
+                    searchQuery: searchController.text,
+                    leading: Icons.palette_rounded,
+                    searchTerms: _kNovelSecColorTerms,
+                    children: <Widget>[
+                      // 亮度（从「翻页与交互」组上移，最常调）
                       _SliderRow(
-                        label: l10n.novelFontWeightFine,
-                        value: prefs.fontWeightValue.toDouble(),
-                        min: 100,
-                        max: 900,
-                        divisions: 8,
-                        unit: '',
-                        onChanged: (v) => onPreview?.call(
-                            prefs.copyWith(fontWeightValue: v.round())),
-                        onChangeEnd: (v) => onChanged(
-                            prefs.copyWith(fontWeightValue: v.round())),
+                        label: l10n.novelBrightness,
+                        value: brightness,
+                        min: 0.0,
+                        max: 1.0,
+                        divisions: 20,
+                        onChanged: onBrightnessChanged,
                       ),
-                    ],
-          // 自定义字体（M3.5.3）
-                    const SizedBox(height: AppTokens.spaceMd),
-                    Text(l10n.customFont,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        ChoiceChip(
-                          label: Text(l10n.fontSystem),
-                          selected: prefs.fontFamily == null,
-                          onSelected: (_) =>
-                              onChanged(prefs.copyWith(fontFamily: null)),
-                        ),
-                        ChoiceChip(
-                          label: Text(l10n.fontSerif),
-                          selected: prefs.fontFamily == 'serif',
-                          onSelected: (_) =>
-                              onChanged(prefs.copyWith(fontFamily: 'serif')),
-                        ),
-                        ChoiceChip(
-                          label: Text(l10n.fontMonospace),
-                          selected: prefs.fontFamily == 'monospace',
-                          onSelected: (_) => onChanged(
-                              prefs.copyWith(fontFamily: 'monospace')),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceMd),
-                    _fontFileTile(
-                      context: context,
-                      l10n: l10n,
-                      title: false,
-                    ),
-                      ],
-                    ),
-          // ── 排版样式组（与总设置页「排版增强」同步）──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelTypographyGroup,
-                      searchQuery: searchController.text,
-                      leading: Icons.format_align_left_rounded,
-                      initiallyExpanded: true,
-                      searchTerms: _kNovelSecTypographyTerms,
-                      children: <Widget>[
-            // 对齐方式（与总设置同步；仅分页模式两端对齐生效）
-                        Text(l10n.novelTextAlignMode,
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        const SizedBox(height: AppTokens.spaceXs),
-                        Wrap(
-                          spacing: AppTokens.spaceSm,
-                          runSpacing: AppTokens.spaceSm,
-                          children: <Widget>[
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // 夜间模式跟随策略（项 6）：三选一
+                      _buildThemeFollowSelector(
+                          context, l10n, prefs, onChanged),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // 背景预设
+                      Text(l10n.readerBackground,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          for (int i = 0;
+                              i < ReaderTokens.bgPresets.length;
+                              i++)
                             ChoiceChip(
-                              label: Text(l10n.novelTextAlignStart),
-                              selected: prefs.textAlignMode ==
-                                  NovelTextAlignMode.start,
-                              onSelected: (_) => onChanged(prefs.copyWith(
-                                  textAlignMode: NovelTextAlignMode.start)),
-                            ),
-                            ChoiceChip(
-                              label: Text(l10n.novelTextAlignJustify),
-                              selected: prefs.textAlignMode ==
-                                  NovelTextAlignMode.justify,
-                              onSelected: (_) => onChanged(prefs.copyWith(
-                                  textAlignMode: NovelTextAlignMode.justify)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppTokens.spaceMd),
-            // 中文断行模式
-                        Text(l10n.novelLineBreakMode,
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        const SizedBox(height: AppTokens.spaceXs),
-                        Wrap(
-                          spacing: AppTokens.spaceSm,
-                          runSpacing: AppTokens.spaceSm,
-                          children: <Widget>[
-                            ChoiceChip(
-                              label: Text(l10n.novelLineBreakStandard),
-                              selected: prefs.lineBreakMode ==
-                                  NovelLineBreakMode.standard,
-                              onSelected: (_) => onChanged(prefs.copyWith(
-                                  lineBreakMode: NovelLineBreakMode.standard)),
-                            ),
-                            ChoiceChip(
-                              label: Text(l10n.novelLineBreakCjkStrict),
-                              selected: prefs.lineBreakMode ==
-                                  NovelLineBreakMode.cjkStrict,
-                              onSelected: (_) => onChanged(prefs.copyWith(
-                                  lineBreakMode: NovelLineBreakMode.cjkStrict)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppTokens.spaceMd),
-            // 下划线样式
-                        Text(l10n.novelUnderlineStyle,
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        const SizedBox(height: AppTokens.spaceXs),
-                        Wrap(
-                          spacing: AppTokens.spaceSm,
-                          runSpacing: AppTokens.spaceSm,
-                          children: <Widget>[
-                            for (final s in NovelUnderlineStyle.values)
-                              ChoiceChip(
-                                label: Text(switch (s) {
-                                  NovelUnderlineStyle.solid =>
-                                    l10n.novelUnderlineStyleSolid,
-                                  NovelUnderlineStyle.dashed =>
-                                    l10n.novelUnderlineStyleDashed,
-                                  NovelUnderlineStyle.wavy =>
-                                    l10n.novelUnderlineStyleWavy,
-                                  NovelUnderlineStyle.dotted =>
-                                    l10n.novelUnderlineStyleDotted,
-                                }),
-                                selected: prefs.underlineStyle == s,
-                                onSelected: (_) => onChanged(
-                                    prefs.copyWith(underlineStyle: s)),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: AppTokens.spaceMd),
-            // 滚动插图样式
-                        Text(l10n.novelScrollImageMode,
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        const SizedBox(height: AppTokens.spaceXs),
-                        Wrap(
-                          spacing: AppTokens.spaceSm,
-                          runSpacing: AppTokens.spaceSm,
-                          children: <Widget>[
-                            ChoiceChip(
-                              label: Text(l10n.novelScrollImageModeBanner),
-                              selected: prefs.scrollImageMode ==
-                                  NovelScrollImageMode.banner,
-                              onSelected: (_) => onChanged(prefs.copyWith(
-                                  scrollImageMode: NovelScrollImageMode.banner)),
-                            ),
-                            ChoiceChip(
-                              label: Text(l10n.novelScrollImageModeCard),
-                              selected: prefs.scrollImageMode ==
-                                  NovelScrollImageMode.card,
-                              onSelected: (_) => onChanged(prefs.copyWith(
-                                  scrollImageMode: NovelScrollImageMode.card)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppTokens.spaceMd),
-            // 插图对齐（仅 card 模式生效）
-                        Text(l10n.novelScrollImageAlign,
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        const SizedBox(height: AppTokens.spaceXs),
-                        Wrap(
-                          spacing: AppTokens.spaceSm,
-                          runSpacing: AppTokens.spaceSm,
-                          children: <Widget>[
-                            ChoiceChip(
-                              label: Text(l10n.novelScrollImageAlignLeft),
-                              selected: prefs.scrollImageAlign ==
-                                  NovelScrollImageAlign.left,
-                              onSelected: (_) => onChanged(prefs.copyWith(
-                                  scrollImageAlign: NovelScrollImageAlign.left)),
-                            ),
-                            ChoiceChip(
-                              label: Text(l10n.novelScrollImageAlignCenter),
-                              selected: prefs.scrollImageAlign ==
-                                  NovelScrollImageAlign.center,
-                              onSelected: (_) => onChanged(prefs.copyWith(
-                                  scrollImageAlign:
-                                      NovelScrollImageAlign.center)),
-                            ),
-                            ChoiceChip(
-                              label: Text(l10n.novelScrollImageAlignRight),
-                              selected: prefs.scrollImageAlign ==
-                                  NovelScrollImageAlign.right,
-                              onSelected: (_) => onChanged(prefs.copyWith(
-                                  scrollImageAlign:
-                                      NovelScrollImageAlign.right)),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-          // ── 章节标题组 ──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelSectionTitle,
-                      searchQuery: searchController.text,
-                      leading: Icons.title_rounded,
-                      searchTerms: _kNovelSecTitleTerms,
-                      children: <Widget>[
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(l10n.novelShowChapterTitle),
-                          value: prefs.showChapterTitleInBody,
-                          onChanged: (v) {
-                            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                            onChanged(
-                                prefs.copyWith(showChapterTitleInBody: v));
-                          },
-                        ),
-                        if (prefs.showChapterTitleInBody) ...<Widget>[
-                          Text(
-                            l10n.novelTitlePosition,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: AppTokens.spaceXs),
-                          Wrap(
-                            spacing: AppTokens.spaceSm,
-                            runSpacing: AppTokens.spaceSm,
-                            children: <Widget>[
-                              for (final a in NovelTitleAlign.values)
-                                ChoiceChip(
-                                  label: Text(_titleAlignLabel(a, l10n)),
-                                  selected: prefs.titleAlign == a,
-                                  onSelected: (_) => onChanged(
-                                      prefs.copyWith(titleAlign: a)),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: AppTokens.spaceMd),
-                          _SliderRow(
-                            label: l10n.novelTitleFontScale,
-                            value: prefs.titleFontScale,
-                            min: 1.0,
-                            max: 2.5,
-                            divisions: 15,
-                            onChanged: (v) => onPreview?.call(
-                                prefs.copyWith(titleFontScale: v)),
-                            onChangeEnd: (v) => onChanged(
-                                prefs.copyWith(titleFontScale: v)),
-                          ),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(l10n.novelTitleBold),
-                            value: prefs.titleBold,
-                            onChanged: (v) {
-                              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                              onChanged(prefs.copyWith(titleBold: v));
-                            },
-                          ),
-                          _fontFileTile(
-                            context: context,
-                            l10n: l10n,
-                            title: true,
-                          ),
-                          const Divider(height: 1),
-                          const SizedBox(height: AppTokens.spaceSm),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(l10n.novelTitleSegmentMode),
-                            value: prefs.titleSegmentMode,
-                            onChanged: (v) {
-                              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                              onChanged(
-                                  prefs.copyWith(titleSegmentMode: v));
-                            },
-                          ),
-                          if (prefs.titleSegmentMode) ...<Widget>[
-                            _SliderRow(
-                              label: l10n.novelTitleSubScale,
-                              value: prefs.titleSubScale,
-                              min: 0.4,
-                              max: 1.5,
-                              divisions: 22,
-                              onChanged: (v) => onPreview?.call(
-                                  prefs.copyWith(titleSubScale: v)),
-                              onChangeEnd: (v) => onChanged(
-                                  prefs.copyWith(titleSubScale: v)),
-                            ),
-                            _SliderRow(
-                              label: l10n.novelTitleSegmentSpacing,
-                              value: prefs.titleSegmentSpacing,
-                              min: 0,
-                              max: 32,
-                              divisions: 32,
-                              unit: 'px',
-                              onChanged: (v) => onPreview?.call(
-                                  prefs.copyWith(titleSegmentSpacing: v)),
-                              onChangeEnd: (v) => onChanged(
-                                  prefs.copyWith(titleSegmentSpacing: v)),
-                            ),
-                            _SliderRow(
-                              label: l10n.novelTitleSubLineSpacing,
-                              value: prefs.titleSubLineSpacing,
-                              min: 1.0,
-                              max: 2.5,
-                              divisions: 30,
-                              onChanged: (v) => onPreview?.call(
-                                  prefs.copyWith(titleSubLineSpacing: v)),
-                              onChangeEnd: (v) => onChanged(
-                                  prefs.copyWith(titleSubLineSpacing: v)),
-                            ),
-                            _SliderRow(
-                              label: l10n.novelTitleTopMargin,
-                              value: prefs.titleTopMargin,
-                              min: 0,
-                              max: 48,
-                              divisions: 48,
-                              unit: 'px',
-                              onChanged: (v) => onPreview?.call(
-                                  prefs.copyWith(titleTopMargin: v)),
-                              onChangeEnd: (v) => onChanged(
-                                  prefs.copyWith(titleTopMargin: v)),
-                            ),
-                            _SliderRow(
-                              label: l10n.novelTitleBottomMargin,
-                              value: prefs.titleBottomMargin,
-                              min: 0,
-                              max: 48,
-                              divisions: 48,
-                              unit: 'px',
-                              onChanged: (v) => onPreview?.call(
-                                  prefs.copyWith(titleBottomMargin: v)),
-                              onChangeEnd: (v) => onChanged(
-                                  prefs.copyWith(titleBottomMargin: v)),
-                            ),
-                          ],
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(l10n.novelTitleColor),
-                            subtitle: prefs.titleColor == null
-                                ? Text(l10n.novelTitleColorAuto)
-                                : null,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                if (prefs.titleColor != null)
-                                  IconButton(
-                                    icon: const Icon(Icons.backspace_rounded),
-                                    tooltip: l10n.novelTitleColorAuto,
-                                    onPressed: () => onChanged(
-                                        prefs.copyWith(titleColor: null)),
-                                  ),
-                                GestureDetector(
-                                  onTap: () async {
-                  // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
-                                    Color? pickedColor;
-                                    final Color initial =
-                                        prefs.titleColor != null
-                                            ? Color(prefs.titleColor!)
-                                            : ReaderTokens.emphasisDefault;
-                                    final color = await showDialog<Color>(
-                                      context: context,
-                                      builder: (ctx) => StatefulBuilder(
-                                        builder: (ctx2, setDialogState) =>
-                                            AppAlertDialog(
-                                          title: Text(l10n.novelTitleColor),
-                                          content: SingleChildScrollView(
-                                            child: ColorPicker(
-                                              pickerColor: pickedColor ?? initial,
-                                              onColorChanged: (c) => setDialogState(() => pickedColor = c),
-                                            ),
-                                          ),
-                                          actions: <Widget>[
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.of(ctx).pop(),
-                                              child: Text(
-                                                MaterialLocalizations.of(ctx)
-                                                    .cancelButtonLabel,
-                                              ),
-                                            ),
-                                            FilledButton(
-                                              onPressed: () =>
-                                                  Navigator.of(ctx).pop(
-                                                      pickedColor ?? initial),
-                                              child: Text(
-                                                MaterialLocalizations.of(ctx)
-                                                    .okButtonLabel,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                    if (color != null) {
-                                      onChanged(prefs.copyWith(
-                                          titleColor: color.toARGB32()));
-                                    }
-                                  },
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Container(
+                                    width: 14,
+                                    height: 14,
                                     decoration: BoxDecoration(
-                                      color: prefs.titleColor != null
-                                          ? Color(prefs.titleColor!)
-                                          : ReaderTokens.emphasisDefault,
+                                      color: _swatchColor(
+                                          ReaderTokens.bgPresets[i]),
                                       border: Border.all(
                                         color: Theme.of(context)
                                             .colorScheme
-                                            .outline,
+                                            .outline
+                                            .withValues(alpha: 0.6),
                                       ),
-                                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                                      borderRadius: BorderRadius.circular(3),
                                     ),
                                   ),
+                                  const SizedBox(width: 6),
+                                  Text(_bgLabel(i, l10n)),
+                                ],
+                              ),
+                              selected: prefs.bgPresetIndex == i &&
+                                  prefs.customBgColor == null,
+                              onSelected: (_) => onChanged(prefs.copyWith(
+                                bgPresetIndex: i,
+                                customBgColor: null,
+                              )),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      // 自定义背景色
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.customBgColor),
+                        trailing: GestureDetector(
+                          onTap: () async {
+                            // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
+                            Color? pickedColor;
+                            final Color initial = prefs.customBgColor != null
+                                ? Color(prefs.customBgColor!)
+                                : ReaderTokens.bgPresets[prefs.bgPresetIndex
+                                    .clamp(
+                                        0, ReaderTokens.bgPresets.length - 1)];
+                            final color = await showDialog<Color>(
+                              context: context,
+                              builder: (ctx) => StatefulBuilder(
+                                builder: (ctx2, setDialogState) =>
+                                    AppAlertDialog(
+                                  title: Text(l10n.customBgColor),
+                                  content: SingleChildScrollView(
+                                    child: ColorPicker(
+                                      pickerColor: pickedColor ?? initial,
+                                      onColorChanged: (c) =>
+                                          setDialogState(() => pickedColor = c),
+                                    ),
+                                  ),
+                                  actions: <Widget>[
+                                    TextButton(
+                                      onPressed: () => Navigator.of(ctx).pop(),
+                                      child: Text(
+                                        MaterialLocalizations.of(ctx)
+                                            .cancelButtonLabel,
+                                      ),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () => Navigator.of(ctx)
+                                          .pop(pickedColor ?? initial),
+                                      child: Text(
+                                        MaterialLocalizations.of(ctx)
+                                            .okButtonLabel,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
+                            );
+                            if (color != null) {
+                              onChanged(prefs.copyWith(
+                                  customBgColor: color.toARGB32()));
+                            }
+                          },
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: _swatchColor(prefs.customBgColor != null
+                                  ? Color(prefs.customBgColor!)
+                                  : ReaderTokens.bgPresets[prefs.bgPresetIndex
+                                      .clamp(0,
+                                          ReaderTokens.bgPresets.length - 1)]),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                              borderRadius:
+                                  BorderRadius.circular(AppTokens.radiusSm),
                             ),
                           ),
+                        ),
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      // 正文颜色（自定义；可清除为跟随背景）
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.novelTextColor),
+                        subtitle: prefs.customTextColor == null
+                            ? Text(l10n.novelTextColorFollowBg)
+                            : null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            if (prefs.customTextColor != null)
+                              IconButton(
+                                icon: const Icon(Icons.backspace_rounded),
+                                tooltip: l10n.novelTextColorFollowBg,
+                                onPressed: () => onChanged(
+                                    prefs.copyWith(customTextColor: null)),
+                              ),
+                            GestureDetector(
+                              onTap: () async {
+                                // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
+                                Color? pickedColor;
+                                final Color initial =
+                                    prefs.customTextColor != null
+                                        ? Color(prefs.customTextColor!)
+                                        : const Color(0xFF1A1A1A);
+                                final color = await showDialog<Color>(
+                                  context: context,
+                                  builder: (ctx) => StatefulBuilder(
+                                    builder: (ctx2, setDialogState) =>
+                                        AppAlertDialog(
+                                      title: Text(l10n.novelTextColor),
+                                      content: SingleChildScrollView(
+                                        child: ColorPicker(
+                                          pickerColor: pickedColor ?? initial,
+                                          onColorChanged: (c) => setDialogState(
+                                              () => pickedColor = c),
+                                        ),
+                                      ),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(ctx).pop(),
+                                          child: Text(
+                                            MaterialLocalizations.of(ctx)
+                                                .cancelButtonLabel,
+                                          ),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () => Navigator.of(ctx)
+                                              .pop(pickedColor ?? initial),
+                                          child: Text(
+                                            MaterialLocalizations.of(ctx)
+                                                .okButtonLabel,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                                if (color != null) {
+                                  onChanged(prefs.copyWith(
+                                      customTextColor: color.toARGB32()));
+                                }
+                              },
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: prefs.customTextColor != null
+                                      ? Color(prefs.customTextColor!)
+                                      : const Color(0xFF1A1A1A),
+                                  border: Border.all(
+                                    color:
+                                        Theme.of(context).colorScheme.outline,
+                                  ),
+                                  borderRadius:
+                                      BorderRadius.circular(AppTokens.radiusSm),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      // 强调色（从「字体文件」组移入；可清除为默认）
+                      _colorTile(
+                        context: context,
+                        l10n: l10n,
+                        title: l10n.novelEmphasisColor,
+                        subtitle: prefs.emphasisColor == null
+                            ? l10n.novelEmphasisColorAuto
+                            : null,
+                        current: prefs.emphasisColor,
+                        fallback: ReaderTokens.emphasisDefault,
+                        onPicked: (c) =>
+                            onChanged(prefs.copyWith(emphasisColor: c)),
+                        onClear: () =>
+                            onChanged(prefs.copyWith(emphasisColor: null)),
+                        clearTooltip: l10n.novelEmphasisColorAuto,
+                      ),
+                    ],
+                  ),
+                  // ── 文字组 ──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelSectionText,
+                    initiallyExpanded: true,
+                    searchQuery: searchController.text,
+                    leading: Icons.text_fields_rounded,
+                    searchTerms: _kNovelSecTextTerms,
+                    children: <Widget>[
+                      _SliderRow(
+                        label: l10n.novelFontSize,
+                        value: prefs.fontSize,
+                        min: 12,
+                        max: 32,
+                        divisions: 20,
+                        unit: 'sp',
+                        onChanged: (v) =>
+                            onPreview?.call(prefs.copyWith(fontSize: v)),
+                        onChangeEnd: (v) =>
+                            onChanged(prefs.copyWith(fontSize: v)),
+                      ),
+                      _SliderRow(
+                        label: l10n.novelLineHeight,
+                        value: prefs.lineHeight,
+                        min: 1.2,
+                        max: 3.0,
+                        divisions: 18,
+                        onChanged: (v) =>
+                            onPreview?.call(prefs.copyWith(lineHeight: v)),
+                        onChangeEnd: (v) =>
+                            onChanged(prefs.copyWith(lineHeight: v)),
+                      ),
+                      _SliderRow(
+                        label: l10n.novelParagraphSpacing,
+                        value: prefs.paragraphSpacing,
+                        min: 4,
+                        max: 48,
+                        divisions: 22,
+                        unit: 'px',
+                        onChanged: (v) => onPreview
+                            ?.call(prefs.copyWith(paragraphSpacing: v)),
+                        onChangeEnd: (v) =>
+                            onChanged(prefs.copyWith(paragraphSpacing: v)),
+                      ),
+                      _SliderRow(
+                        label: l10n.novelMargin,
+                        value: prefs.margin,
+                        min: 8,
+                        max: 64,
+                        divisions: 14,
+                        unit: 'px',
+                        onChanged: (v) =>
+                            onPreview?.call(prefs.copyWith(margin: v)),
+                        onChangeEnd: (v) =>
+                            onChanged(prefs.copyWith(margin: v)),
+                      ),
+                      _SliderRow(
+                        label: l10n.novelLetterSpacing,
+                        value: prefs.letterSpacing,
+                        min: 0,
+                        max: 8,
+                        divisions: 16,
+                        unit: 'px',
+                        onChanged: (v) =>
+                            onPreview?.call(prefs.copyWith(letterSpacing: v)),
+                        onChangeEnd: (v) =>
+                            onChanged(prefs.copyWith(letterSpacing: v)),
+                      ),
+                    ],
+                  ),
+                  // ── 字体样式组 ──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelSectionFont,
+                    searchQuery: searchController.text,
+                    leading: Icons.font_download_rounded,
+                    searchTerms: _kNovelSecFontTerms,
+                    children: <Widget>[
+                      // 字体样式（加粗 / 斜体 / 下划线，可共存）
+                      Text(l10n.novelFontStyle,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          FilterChip(
+                            label: Text(l10n.fontBold),
+                            // 加粗是唯一开关：开启后按下方字重滑块渲染，
+                            // 关闭即恢复默认字重，可随时关掉。
+                            selected: prefs.fontBold,
+                            onSelected: (v) =>
+                                onChanged(prefs.copyWith(fontBold: v)),
+                          ),
+                          FilterChip(
+                            label: Text(l10n.fontItalic),
+                            selected: prefs.fontItalic,
+                            onSelected: (v) =>
+                                onChanged(prefs.copyWith(fontItalic: v)),
+                          ),
+                          FilterChip(
+                            label: Text(l10n.fontUnderline),
+                            selected: prefs.fontUnderline,
+                            onSelected: (v) =>
+                                onChanged(prefs.copyWith(fontUnderline: v)),
+                          ),
                         ],
+                      ),
+                      // 加粗字重滑块（100–900）：仅加粗开启时显示并生效。
+                      // divisions 取 8 使滑块停在整百档位，与 resolveBodyTextStyle
+                      // 的 switch 精确匹配，避免中间值落到 default 的 w900。
+                      if (prefs.fontBold) ...<Widget>[
+                        const SizedBox(height: AppTokens.spaceSm),
+                        _SliderRow(
+                          label: l10n.novelFontWeightFine,
+                          value: prefs.fontWeightValue.toDouble(),
+                          min: 100,
+                          max: 900,
+                          divisions: 8,
+                          unit: '',
+                          onChanged: (v) => onPreview?.call(
+                              prefs.copyWith(fontWeightValue: v.round())),
+                          onChangeEnd: (v) => onChanged(
+                              prefs.copyWith(fontWeightValue: v.round())),
+                        ),
                       ],
-                    ),
-          // ── 页眉页脚组 ──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelSectionHeaderFooter,
-                      searchQuery: searchController.text,
-                      leading: Icons.view_headline_rounded,
-                      searchTerms: _kNovelSecHeaderFooterTerms,
-                      children: <Widget>[
-                        _buildHfSlotPicker(
-                          context: context,
-                          l10n: l10n,
-                          l10n.novelHeaderLeft,
-                          prefs.headerLeft,
-                          (v) => onChanged(prefs.copyWith(headerLeft: v)),
+                      // 自定义字体（M3.5.3）
+                      const SizedBox(height: AppTokens.spaceMd),
+                      Text(l10n.customFont,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          ChoiceChip(
+                            label: Text(l10n.fontSystem),
+                            selected: prefs.fontFamily == null,
+                            onSelected: (_) =>
+                                onChanged(prefs.copyWith(fontFamily: null)),
+                          ),
+                          ChoiceChip(
+                            label: Text(l10n.fontSerif),
+                            selected: prefs.fontFamily == 'serif',
+                            onSelected: (_) =>
+                                onChanged(prefs.copyWith(fontFamily: 'serif')),
+                          ),
+                          ChoiceChip(
+                            label: Text(l10n.fontMonospace),
+                            selected: prefs.fontFamily == 'monospace',
+                            onSelected: (_) => onChanged(
+                                prefs.copyWith(fontFamily: 'monospace')),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      _fontFileTile(
+                        context: context,
+                        l10n: l10n,
+                        title: false,
+                      ),
+                    ],
+                  ),
+                  // ── 排版样式组（与总设置页「排版增强」同步）──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelTypographyGroup,
+                    searchQuery: searchController.text,
+                    leading: Icons.format_align_left_rounded,
+                    initiallyExpanded: true,
+                    searchTerms: _kNovelSecTypographyTerms,
+                    children: <Widget>[
+                      // 对齐方式（与总设置同步；仅分页模式两端对齐生效）
+                      Text(l10n.novelTextAlignMode,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          ChoiceChip(
+                            label: Text(l10n.novelTextAlignStart),
+                            selected:
+                                prefs.textAlignMode == NovelTextAlignMode.start,
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                textAlignMode: NovelTextAlignMode.start)),
+                          ),
+                          ChoiceChip(
+                            label: Text(l10n.novelTextAlignJustify),
+                            selected: prefs.textAlignMode ==
+                                NovelTextAlignMode.justify,
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                textAlignMode: NovelTextAlignMode.justify)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // 中文断行模式
+                      Text(l10n.novelLineBreakMode,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          ChoiceChip(
+                            label: Text(l10n.novelLineBreakStandard),
+                            selected: prefs.lineBreakMode ==
+                                NovelLineBreakMode.standard,
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                lineBreakMode: NovelLineBreakMode.standard)),
+                          ),
+                          ChoiceChip(
+                            label: Text(l10n.novelLineBreakCjkStrict),
+                            selected: prefs.lineBreakMode ==
+                                NovelLineBreakMode.cjkStrict,
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                lineBreakMode: NovelLineBreakMode.cjkStrict)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // 下划线样式
+                      Text(l10n.novelUnderlineStyle,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          for (final s in NovelUnderlineStyle.values)
+                            ChoiceChip(
+                              label: Text(switch (s) {
+                                NovelUnderlineStyle.solid =>
+                                  l10n.novelUnderlineStyleSolid,
+                                NovelUnderlineStyle.dashed =>
+                                  l10n.novelUnderlineStyleDashed,
+                                NovelUnderlineStyle.wavy =>
+                                  l10n.novelUnderlineStyleWavy,
+                                NovelUnderlineStyle.dotted =>
+                                  l10n.novelUnderlineStyleDotted,
+                              }),
+                              selected: prefs.underlineStyle == s,
+                              onSelected: (_) =>
+                                  onChanged(prefs.copyWith(underlineStyle: s)),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // 滚动插图样式
+                      Text(l10n.novelScrollImageMode,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          ChoiceChip(
+                            label: Text(l10n.novelScrollImageModeBanner),
+                            selected: prefs.scrollImageMode ==
+                                NovelScrollImageMode.banner,
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                scrollImageMode: NovelScrollImageMode.banner)),
+                          ),
+                          ChoiceChip(
+                            label: Text(l10n.novelScrollImageModeCard),
+                            selected: prefs.scrollImageMode ==
+                                NovelScrollImageMode.card,
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                scrollImageMode: NovelScrollImageMode.card)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // 插图对齐（仅 card 模式生效）
+                      Text(l10n.novelScrollImageAlign,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          ChoiceChip(
+                            label: Text(l10n.novelScrollImageAlignLeft),
+                            selected: prefs.scrollImageAlign ==
+                                NovelScrollImageAlign.left,
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                scrollImageAlign: NovelScrollImageAlign.left)),
+                          ),
+                          ChoiceChip(
+                            label: Text(l10n.novelScrollImageAlignCenter),
+                            selected: prefs.scrollImageAlign ==
+                                NovelScrollImageAlign.center,
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                scrollImageAlign:
+                                    NovelScrollImageAlign.center)),
+                          ),
+                          ChoiceChip(
+                            label: Text(l10n.novelScrollImageAlignRight),
+                            selected: prefs.scrollImageAlign ==
+                                NovelScrollImageAlign.right,
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                scrollImageAlign: NovelScrollImageAlign.right)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  // ── 章节标题组 ──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelSectionTitle,
+                    searchQuery: searchController.text,
+                    leading: Icons.title_rounded,
+                    searchTerms: _kNovelSecTitleTerms,
+                    children: <Widget>[
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.novelShowChapterTitle),
+                        value: prefs.showChapterTitleInBody,
+                        onChanged: (v) {
+                          v == true
+                              ? AppHaptics.toggleOn()
+                              : AppHaptics.toggleOff();
+                          onChanged(prefs.copyWith(showChapterTitleInBody: v));
+                        },
+                      ),
+                      if (prefs.showChapterTitleInBody) ...<Widget>[
+                        Text(
+                          l10n.novelTitlePosition,
+                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
-                        _buildHfSlotPicker(
-                          context: context,
-                          l10n: l10n,
-                          l10n.novelHeaderCenter,
-                          prefs.headerCenter,
-                          (v) => onChanged(prefs.copyWith(headerCenter: v)),
+                        const SizedBox(height: AppTokens.spaceXs),
+                        Wrap(
+                          spacing: AppTokens.spaceSm,
+                          runSpacing: AppTokens.spaceSm,
+                          children: <Widget>[
+                            for (final a in NovelTitleAlign.values)
+                              ChoiceChip(
+                                label: Text(_titleAlignLabel(a, l10n)),
+                                selected: prefs.titleAlign == a,
+                                onSelected: (_) =>
+                                    onChanged(prefs.copyWith(titleAlign: a)),
+                              ),
+                          ],
                         ),
-                        _buildHfSlotPicker(
+                        const SizedBox(height: AppTokens.spaceMd),
+                        _SliderRow(
+                          label: l10n.novelTitleFontScale,
+                          value: prefs.titleFontScale,
+                          min: 1.0,
+                          max: 2.5,
+                          divisions: 15,
+                          onChanged: (v) => onPreview
+                              ?.call(prefs.copyWith(titleFontScale: v)),
+                          onChangeEnd: (v) =>
+                              onChanged(prefs.copyWith(titleFontScale: v)),
+                        ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(l10n.novelTitleBold),
+                          value: prefs.titleBold,
+                          onChanged: (v) {
+                            v == true
+                                ? AppHaptics.toggleOn()
+                                : AppHaptics.toggleOff();
+                            onChanged(prefs.copyWith(titleBold: v));
+                          },
+                        ),
+                        _fontFileTile(
                           context: context,
                           l10n: l10n,
-                          l10n.novelHeaderRight,
-                          prefs.headerRight,
-                          (v) => onChanged(prefs.copyWith(headerRight: v)),
+                          title: true,
                         ),
                         const Divider(height: 1),
                         const SizedBox(height: AppTokens.spaceSm),
-                        _buildHfSlotPicker(
-                          context: context,
-                          l10n: l10n,
-                          l10n.novelFooterLeft,
-                          prefs.footerLeft,
-                          (v) => onChanged(prefs.copyWith(footerLeft: v)),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(l10n.novelTitleSegmentMode),
+                          value: prefs.titleSegmentMode,
+                          onChanged: (v) {
+                            v == true
+                                ? AppHaptics.toggleOn()
+                                : AppHaptics.toggleOff();
+                            onChanged(prefs.copyWith(titleSegmentMode: v));
+                          },
                         ),
-                        _buildHfSlotPicker(
-                          context: context,
-                          l10n: l10n,
-                          l10n.novelFooterCenter,
-                          prefs.footerCenter,
-                          (v) => onChanged(prefs.copyWith(footerCenter: v)),
+                        if (prefs.titleSegmentMode) ...<Widget>[
+                          _SliderRow(
+                            label: l10n.novelTitleSubScale,
+                            value: prefs.titleSubScale,
+                            min: 0.4,
+                            max: 1.5,
+                            divisions: 22,
+                            onChanged: (v) => onPreview
+                                ?.call(prefs.copyWith(titleSubScale: v)),
+                            onChangeEnd: (v) =>
+                                onChanged(prefs.copyWith(titleSubScale: v)),
+                          ),
+                          _SliderRow(
+                            label: l10n.novelTitleSegmentSpacing,
+                            value: prefs.titleSegmentSpacing,
+                            min: 0,
+                            max: 32,
+                            divisions: 32,
+                            unit: 'px',
+                            onChanged: (v) => onPreview
+                                ?.call(prefs.copyWith(titleSegmentSpacing: v)),
+                            onChangeEnd: (v) => onChanged(
+                                prefs.copyWith(titleSegmentSpacing: v)),
+                          ),
+                          _SliderRow(
+                            label: l10n.novelTitleSubLineSpacing,
+                            value: prefs.titleSubLineSpacing,
+                            min: 1.0,
+                            max: 2.5,
+                            divisions: 30,
+                            onChanged: (v) => onPreview
+                                ?.call(prefs.copyWith(titleSubLineSpacing: v)),
+                            onChangeEnd: (v) => onChanged(
+                                prefs.copyWith(titleSubLineSpacing: v)),
+                          ),
+                          _SliderRow(
+                            label: l10n.novelTitleTopMargin,
+                            value: prefs.titleTopMargin,
+                            min: 0,
+                            max: 48,
+                            divisions: 48,
+                            unit: 'px',
+                            onChanged: (v) => onPreview
+                                ?.call(prefs.copyWith(titleTopMargin: v)),
+                            onChangeEnd: (v) =>
+                                onChanged(prefs.copyWith(titleTopMargin: v)),
+                          ),
+                          _SliderRow(
+                            label: l10n.novelTitleBottomMargin,
+                            value: prefs.titleBottomMargin,
+                            min: 0,
+                            max: 48,
+                            divisions: 48,
+                            unit: 'px',
+                            onChanged: (v) => onPreview
+                                ?.call(prefs.copyWith(titleBottomMargin: v)),
+                            onChangeEnd: (v) =>
+                                onChanged(prefs.copyWith(titleBottomMargin: v)),
+                          ),
+                        ],
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(l10n.novelTitleColor),
+                          subtitle: prefs.titleColor == null
+                              ? Text(l10n.novelTitleColorAuto)
+                              : null,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              if (prefs.titleColor != null)
+                                IconButton(
+                                  icon: const Icon(Icons.backspace_rounded),
+                                  tooltip: l10n.novelTitleColorAuto,
+                                  onPressed: () => onChanged(
+                                      prefs.copyWith(titleColor: null)),
+                                ),
+                              GestureDetector(
+                                onTap: () async {
+                                  // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
+                                  Color? pickedColor;
+                                  final Color initial = prefs.titleColor != null
+                                      ? Color(prefs.titleColor!)
+                                      : ReaderTokens.emphasisDefault;
+                                  final color = await showDialog<Color>(
+                                    context: context,
+                                    builder: (ctx) => StatefulBuilder(
+                                      builder: (ctx2, setDialogState) =>
+                                          AppAlertDialog(
+                                        title: Text(l10n.novelTitleColor),
+                                        content: SingleChildScrollView(
+                                          child: ColorPicker(
+                                            pickerColor: pickedColor ?? initial,
+                                            onColorChanged: (c) =>
+                                                setDialogState(
+                                                    () => pickedColor = c),
+                                          ),
+                                        ),
+                                        actions: <Widget>[
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(),
+                                            child: Text(
+                                              MaterialLocalizations.of(ctx)
+                                                  .cancelButtonLabel,
+                                            ),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () => Navigator.of(ctx)
+                                                .pop(pickedColor ?? initial),
+                                            child: Text(
+                                              MaterialLocalizations.of(ctx)
+                                                  .okButtonLabel,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                  if (color != null) {
+                                    onChanged(prefs.copyWith(
+                                        titleColor: color.toARGB32()));
+                                  }
+                                },
+                                child: Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: prefs.titleColor != null
+                                        ? Color(prefs.titleColor!)
+                                        : ReaderTokens.emphasisDefault,
+                                    border: Border.all(
+                                      color:
+                                          Theme.of(context).colorScheme.outline,
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                        AppTokens.radiusSm),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        _buildHfSlotPicker(
-                          context: context,
-                          l10n: l10n,
-                          l10n.novelFooterRight,
-                          prefs.footerRight,
-                          (v) => onChanged(prefs.copyWith(footerRight: v)),
+                      ],
+                    ],
+                  ),
+                  // ── 页眉页脚组 ──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelSectionHeaderFooter,
+                    searchQuery: searchController.text,
+                    leading: Icons.view_headline_rounded,
+                    searchTerms: _kNovelSecHeaderFooterTerms,
+                    children: <Widget>[
+                      _buildHfSlotPicker(
+                        context: context,
+                        l10n: l10n,
+                        l10n.novelHeaderLeft,
+                        prefs.headerLeft,
+                        (v) => onChanged(prefs.copyWith(headerLeft: v)),
+                      ),
+                      _buildHfSlotPicker(
+                        context: context,
+                        l10n: l10n,
+                        l10n.novelHeaderCenter,
+                        prefs.headerCenter,
+                        (v) => onChanged(prefs.copyWith(headerCenter: v)),
+                      ),
+                      _buildHfSlotPicker(
+                        context: context,
+                        l10n: l10n,
+                        l10n.novelHeaderRight,
+                        prefs.headerRight,
+                        (v) => onChanged(prefs.copyWith(headerRight: v)),
+                      ),
+                      const Divider(height: 1),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      _buildHfSlotPicker(
+                        context: context,
+                        l10n: l10n,
+                        l10n.novelFooterLeft,
+                        prefs.footerLeft,
+                        (v) => onChanged(prefs.copyWith(footerLeft: v)),
+                      ),
+                      _buildHfSlotPicker(
+                        context: context,
+                        l10n: l10n,
+                        l10n.novelFooterCenter,
+                        prefs.footerCenter,
+                        (v) => onChanged(prefs.copyWith(footerCenter: v)),
+                      ),
+                      _buildHfSlotPicker(
+                        context: context,
+                        l10n: l10n,
+                        l10n.novelFooterRight,
+                        prefs.footerRight,
+                        (v) => onChanged(prefs.copyWith(footerRight: v)),
+                      ),
+                      const Divider(height: 1),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      _colorTile(
+                        context: context,
+                        l10n: l10n,
+                        title: l10n.novelHeaderFooterColor,
+                        subtitle: prefs.headerFooterColor == null
+                            ? l10n.novelTextColorFollowBg
+                            : null,
+                        current: prefs.headerFooterColor,
+                        fallback: const Color(0xFF1A1A1A),
+                        onPicked: (c) =>
+                            onChanged(prefs.copyWith(headerFooterColor: c)),
+                        onClear: () =>
+                            onChanged(prefs.copyWith(headerFooterColor: null)),
+                        clearTooltip: l10n.novelTextColorFollowBg,
+                      ),
+                      _SliderRow(
+                        label: l10n.novelHeaderFooterMargin,
+                        value: prefs.headerFooterMargin,
+                        min: 0,
+                        max: 48,
+                        divisions: 48,
+                        unit: 'px',
+                        onChanged: (v) => onPreview
+                            ?.call(prefs.copyWith(headerFooterMargin: v)),
+                        onChangeEnd: (v) =>
+                            onChanged(prefs.copyWith(headerFooterMargin: v)),
+                      ),
+                    ],
+                  ),
+                  // ── 阴影与下划线组 ──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelSectionShadowUnderline,
+                    searchQuery: searchController.text,
+                    leading: Icons.format_color_text_rounded,
+                    searchTerms: _kNovelSecShadowUnderlineTerms,
+                    children: <Widget>[
+                      // 文字阴影开关（从「颜色与背景」组移入）
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.novelTextShadow),
+                        value: prefs.shadow,
+                        onChanged: (v) {
+                          v == true
+                              ? AppHaptics.toggleOn()
+                              : AppHaptics.toggleOff();
+                          onChanged(prefs.copyWith(shadow: v));
+                        },
+                      ),
+                      // 阴影颜色（仅在开启阴影时可调；可清除为跟随正文色）
+                      if (prefs.shadow)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(l10n.novelShadowColor),
+                          subtitle: prefs.shadowColor == null
+                              ? Text(l10n.novelShadowColorAuto)
+                              : null,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              if (prefs.shadowColor != null)
+                                IconButton(
+                                  icon: const Icon(Icons.backspace_rounded),
+                                  tooltip: l10n.novelShadowColorAuto,
+                                  onPressed: () => onChanged(
+                                      prefs.copyWith(shadowColor: null)),
+                                ),
+                              GestureDetector(
+                                onTap: () async {
+                                  // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
+                                  Color? pickedColor;
+                                  final Color initial =
+                                      prefs.shadowColor != null
+                                          ? Color(prefs.shadowColor!)
+                                          : const Color(0x4D000000);
+                                  final color = await showDialog<Color>(
+                                    context: context,
+                                    builder: (ctx) => StatefulBuilder(
+                                      builder: (ctx2, setDialogState) =>
+                                          AppAlertDialog(
+                                        title: Text(l10n.novelShadowColor),
+                                        content: SingleChildScrollView(
+                                          child: ColorPicker(
+                                            pickerColor: pickedColor ?? initial,
+                                            onColorChanged: (c) =>
+                                                setDialogState(
+                                                    () => pickedColor = c),
+                                          ),
+                                        ),
+                                        actions: <Widget>[
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(),
+                                            child: Text(
+                                              MaterialLocalizations.of(ctx)
+                                                  .cancelButtonLabel,
+                                            ),
+                                          ),
+                                          FilledButton(
+                                            onPressed: () => Navigator.of(ctx)
+                                                .pop(pickedColor ?? initial),
+                                            child: Text(
+                                              MaterialLocalizations.of(ctx)
+                                                  .okButtonLabel,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                  if (color != null) {
+                                    onChanged(prefs.copyWith(
+                                        shadowColor: color.toARGB32()));
+                                  }
+                                },
+                                child: Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: prefs.shadowColor != null
+                                        ? Color(prefs.shadowColor!)
+                                        : const Color(0x4D000000),
+                                    border: Border.all(
+                                      color:
+                                          Theme.of(context).colorScheme.outline,
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                        AppTokens.radiusSm),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const Divider(height: 1),
-                        const SizedBox(height: AppTokens.spaceSm),
+                      if (prefs.shadow) ...<Widget>[
+                        _SliderRow(
+                          label: l10n.novelShadowBlur,
+                          value: prefs.shadowBlur,
+                          min: 0,
+                          max: 8,
+                          divisions: 32,
+                          unit: 'px',
+                          onChanged: (v) =>
+                              onPreview?.call(prefs.copyWith(shadowBlur: v)),
+                          onChangeEnd: (v) =>
+                              onChanged(prefs.copyWith(shadowBlur: v)),
+                        ),
+                        _SliderRow(
+                          label: l10n.novelShadowOffsetX,
+                          value: prefs.shadowOffsetX,
+                          min: -8,
+                          max: 8,
+                          divisions: 32,
+                          unit: 'px',
+                          onChanged: (v) =>
+                              onPreview?.call(prefs.copyWith(shadowOffsetX: v)),
+                          onChangeEnd: (v) =>
+                              onChanged(prefs.copyWith(shadowOffsetX: v)),
+                        ),
+                        _SliderRow(
+                          label: l10n.novelShadowOffsetY,
+                          value: prefs.shadowOffsetY,
+                          min: -8,
+                          max: 8,
+                          divisions: 32,
+                          unit: 'px',
+                          onChanged: (v) =>
+                              onPreview?.call(prefs.copyWith(shadowOffsetY: v)),
+                          onChangeEnd: (v) =>
+                              onChanged(prefs.copyWith(shadowOffsetY: v)),
+                        ),
+                      ],
+                      const Divider(height: 1),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      // fontUnderline 开关已移至「字体样式」组，
+                      // 这里保留下划线颜色 / 线宽 / 段长 / 间隙；
+                      // 下划线样式（solid/dashed/wavy/dotted）已独立到「排版样式」组。
+                      if (prefs.fontUnderline) ...<Widget>[
                         _colorTile(
                           context: context,
                           l10n: l10n,
-                          title: l10n.novelHeaderFooterColor,
-                          subtitle: prefs.headerFooterColor == null
-                              ? l10n.novelTextColorFollowBg
+                          title: l10n.novelUnderlineColor,
+                          subtitle: prefs.underlineColor == null
+                              ? l10n.novelUnderlineColorAuto
                               : null,
-                          current: prefs.headerFooterColor,
+                          current: prefs.underlineColor,
                           fallback: const Color(0xFF1A1A1A),
-                          onPicked: (c) => onChanged(
-                              prefs.copyWith(headerFooterColor: c)),
+                          onPicked: (c) =>
+                              onChanged(prefs.copyWith(underlineColor: c)),
                           onClear: () =>
-                              onChanged(prefs.copyWith(headerFooterColor: null)),
-                          clearTooltip: l10n.novelTextColorFollowBg,
+                              onChanged(prefs.copyWith(underlineColor: null)),
+                          clearTooltip: l10n.novelUnderlineColorAuto,
                         ),
                         _SliderRow(
-                          label: l10n.novelHeaderFooterMargin,
-                          value: prefs.headerFooterMargin,
-                          min: 0,
-                          max: 48,
-                          divisions: 48,
+                          label: l10n.novelUnderlineThickness,
+                          value: prefs.underlineThickness,
+                          min: 0.5,
+                          max: 6,
+                          divisions: 22,
                           unit: 'px',
-                          onChanged: (v) => onPreview?.call(
-                              prefs.copyWith(headerFooterMargin: v)),
-                          onChangeEnd: (v) => onChanged(
-                              prefs.copyWith(headerFooterMargin: v)),
+                          onChanged: (v) => onPreview
+                              ?.call(prefs.copyWith(underlineThickness: v)),
+                          onChangeEnd: (v) =>
+                              onChanged(prefs.copyWith(underlineThickness: v)),
                         ),
-                      ],
-                    ),
-          // ── 阴影与下划线组 ──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelSectionShadowUnderline,
-                      searchQuery: searchController.text,
-                      leading: Icons.format_color_text_rounded,
-                      searchTerms: _kNovelSecShadowUnderlineTerms,
-                      children: <Widget>[
-            // 文字阴影开关（从「颜色与背景」组移入）
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(l10n.novelTextShadow),
-                          value: prefs.shadow,
-                          onChanged: (v) {
-                            v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                            onChanged(prefs.copyWith(shadow: v));
-                          },
-                        ),
-            // 阴影颜色（仅在开启阴影时可调；可清除为跟随正文色）
-                        if (prefs.shadow)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(l10n.novelShadowColor),
-                            subtitle: prefs.shadowColor == null
-                                ? Text(l10n.novelShadowColorAuto)
-                                : null,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                if (prefs.shadowColor != null)
-                                  IconButton(
-                                    icon: const Icon(Icons.backspace_rounded),
-                                    tooltip: l10n.novelShadowColorAuto,
-                                    onPressed: () => onChanged(
-                                        prefs.copyWith(shadowColor: null)),
-                                  ),
-                                GestureDetector(
-                                  onTap: () async {
-                  // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
-                                    Color? pickedColor;
-                                    final Color initial = prefs.shadowColor !=
-                                            null
-                                        ? Color(prefs.shadowColor!)
-                                        : const Color(0x4D000000);
-                                    final color = await showDialog<Color>(
-                                      context: context,
-                                      builder: (ctx) => StatefulBuilder(
-                                        builder: (ctx2, setDialogState) =>
-                                            AppAlertDialog(
-                                          title: Text(l10n.novelShadowColor),
-                                          content: SingleChildScrollView(
-                                            child: ColorPicker(
-                                              pickerColor: pickedColor ?? initial,
-                                              onColorChanged: (c) => setDialogState(() => pickedColor = c),
-                                            ),
-                                          ),
-                                          actions: <Widget>[
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.of(ctx).pop(),
-                                              child: Text(
-                                                MaterialLocalizations.of(ctx)
-                                                    .cancelButtonLabel,
-                                              ),
-                                            ),
-                                            FilledButton(
-                                              onPressed: () =>
-                                                  Navigator.of(ctx).pop(
-                                                      pickedColor ?? initial),
-                                              child: Text(
-                                                MaterialLocalizations.of(ctx)
-                                                    .okButtonLabel,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                    if (color != null) {
-                                      onChanged(prefs.copyWith(
-                                          shadowColor: color.toARGB32()));
-                                    }
-                                  },
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: prefs.shadowColor != null
-                                          ? Color(prefs.shadowColor!)
-                                          : const Color(0x4D000000),
-                                      border: Border.all(
-                                        color:
-                                            Theme.of(context).colorScheme.outline,
-                                      ),
-                                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (prefs.shadow) ...<Widget>[
+                        if (prefs.underlineStyle ==
+                            NovelUnderlineStyle.dashed) ...<Widget>[
                           _SliderRow(
-                            label: l10n.novelShadowBlur,
-                            value: prefs.shadowBlur,
+                            label: l10n.novelUnderlineDashLength,
+                            value: prefs.underlineDashLength,
+                            min: 1,
+                            max: 16,
+                            divisions: 30,
+                            unit: 'px',
+                            onChanged: (v) => onPreview
+                                ?.call(prefs.copyWith(underlineDashLength: v)),
+                            onChangeEnd: (v) => onChanged(
+                                prefs.copyWith(underlineDashLength: v)),
+                          ),
+                          _SliderRow(
+                            label: l10n.novelUnderlineDashGap,
+                            value: prefs.underlineDashGap,
                             min: 0,
-                            max: 8,
+                            max: 16,
                             divisions: 32,
                             unit: 'px',
-                            onChanged: (v) => onPreview?.call(
-                                prefs.copyWith(shadowBlur: v)),
+                            onChanged: (v) => onPreview
+                                ?.call(prefs.copyWith(underlineDashGap: v)),
                             onChangeEnd: (v) =>
-                                onChanged(prefs.copyWith(shadowBlur: v)),
-                          ),
-                          _SliderRow(
-                            label: l10n.novelShadowOffsetX,
-                            value: prefs.shadowOffsetX,
-                            min: -8,
-                            max: 8,
-                            divisions: 32,
-                            unit: 'px',
-                            onChanged: (v) => onPreview?.call(
-                                prefs.copyWith(shadowOffsetX: v)),
-                            onChangeEnd: (v) => onChanged(
-                                prefs.copyWith(shadowOffsetX: v)),
-                          ),
-                          _SliderRow(
-                            label: l10n.novelShadowOffsetY,
-                            value: prefs.shadowOffsetY,
-                            min: -8,
-                            max: 8,
-                            divisions: 32,
-                            unit: 'px',
-                            onChanged: (v) => onPreview?.call(
-                                prefs.copyWith(shadowOffsetY: v)),
-                            onChangeEnd: (v) => onChanged(
-                                prefs.copyWith(shadowOffsetY: v)),
+                                onChanged(prefs.copyWith(underlineDashGap: v)),
                           ),
                         ],
-                        const Divider(height: 1),
-                        const SizedBox(height: AppTokens.spaceSm),
-            // fontUnderline 开关已移至「字体样式」组，
-            // 这里保留下划线颜色 / 线宽 / 段长 / 间隙；
-            // 下划线样式（solid/dashed/wavy/dotted）已独立到「排版样式」组。
-                        if (prefs.fontUnderline) ...<Widget>[
-                          _colorTile(
-                            context: context,
-                            l10n: l10n,
-                            title: l10n.novelUnderlineColor,
-                            subtitle: prefs.underlineColor == null
-                                ? l10n.novelUnderlineColorAuto
-                                : null,
-                            current: prefs.underlineColor,
-                            fallback: const Color(0xFF1A1A1A),
-                            onPicked: (c) =>
-                                onChanged(prefs.copyWith(underlineColor: c)),
-                            onClear: () =>
-                                onChanged(prefs.copyWith(underlineColor: null)),
-                            clearTooltip: l10n.novelUnderlineColorAuto,
-                          ),
-                          _SliderRow(
-                            label: l10n.novelUnderlineThickness,
-                            value: prefs.underlineThickness,
-                            min: 0.5,
-                            max: 6,
-                            divisions: 22,
-                            unit: 'px',
-                            onChanged: (v) => onPreview?.call(
-                                prefs.copyWith(underlineThickness: v)),
-                            onChangeEnd: (v) => onChanged(
-                                prefs.copyWith(underlineThickness: v)),
-                          ),
-                          if (prefs.underlineStyle ==
-                              NovelUnderlineStyle.dashed) ...<Widget>[
-                            _SliderRow(
-                              label: l10n.novelUnderlineDashLength,
-                              value: prefs.underlineDashLength,
-                              min: 1,
-                              max: 16,
-                              divisions: 30,
-                              unit: 'px',
-                              onChanged: (v) => onPreview?.call(
-                                  prefs.copyWith(underlineDashLength: v)),
-                              onChangeEnd: (v) => onChanged(
-                                  prefs.copyWith(underlineDashLength: v)),
+                      ],
+                    ],
+                  ),
+                  // ── 翻页与交互组 ──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelSectionPage,
+                    searchQuery: searchController.text,
+                    leading: Icons.gesture_rounded,
+                    searchTerms: _kNovelSecPageTerms,
+                    children: <Widget>[
+                      // 翻页动画
+                      Text(l10n.novelPageAnimation,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          for (final anim in NovelPageAnimation.values)
+                            ChoiceChip(
+                              label: Text(_animLabel(anim, l10n)),
+                              selected: prefs.pageAnimation == anim,
+                              onSelected: (_) => onChanged(
+                                  prefs.copyWith(pageAnimation: anim)),
                             ),
-                            _SliderRow(
-                              label: l10n.novelUnderlineDashGap,
-                              value: prefs.underlineDashGap,
-                              min: 0,
-                              max: 16,
-                              divisions: 32,
-                              unit: 'px',
-                              onChanged: (v) => onPreview?.call(
-                                  prefs.copyWith(underlineDashGap: v)),
-                              onChangeEnd: (v) => onChanged(
-                                  prefs.copyWith(underlineDashGap: v)),
-                            ),
-                          ],
                         ],
-                      ],
-                    ),
-          // ── 翻页与交互组 ──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelSectionPage,
-                      searchQuery: searchController.text,
-                      leading: Icons.gesture_rounded,
-                      searchTerms: _kNovelSecPageTerms,
-                      children: <Widget>[
-          // 翻页动画
-                    Text(l10n.novelPageAnimation,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        for (final anim in NovelPageAnimation.values)
-                          ChoiceChip(
-                            label: Text(_animLabel(anim, l10n)),
-                            selected: prefs.pageAnimation == anim,
-                            onSelected: (_) =>
-                                onChanged(prefs.copyWith(pageAnimation: anim)),
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // 点击分区布局（FR-4.2，5 布局）
+                      Row(
+                        children: <Widget>[
+                          Text(l10n.readerTapZone,
+                              style: Theme.of(context).textTheme.bodyMedium),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: onShowTapZonePreview,
+                            child: Text(l10n.tapZonePreview),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceMd),
-          // 点击分区布局（FR-4.2，5 布局）
-                    Row(
-                      children: <Widget>[
-                        Text(l10n.readerTapZone,
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: onShowTapZonePreview,
-                          child: Text(l10n.tapZonePreview),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        for (final layout in ReaderTapZoneLayout.values)
-                          ChoiceChip(
-                            label: Text(_tapLayoutLabel(l10n, layout)),
-                            selected: prefs.tapZoneLayout == layout,
-                            onSelected: (_) => onChanged(
-                                prefs.copyWith(tapZoneLayout: layout)),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceMd),
-          // 点击分区方向反转（FR-4.2）
-                    Text(l10n.readerTapInvert,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        for (final invert in TapZoneInvert.values)
-                          ChoiceChip(
-                            label: Text(_tapInvertLabel(l10n, invert)),
-                            selected: prefs.tapZoneInvert == invert,
-                            onSelected: (_) => onChanged(
-                                prefs.copyWith(tapZoneInvert: invert)),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceMd),
-          // A7 双页模式：翻页模式宽屏左右并排两页（与总设置同步）。
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(l10n.novelTwoPageMode),
-                      subtitle: Text(l10n.novelTwoPageModeDesc),
-                      value: prefs.twoPageMode,
-                      onChanged: (v) {
-                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                        onChanged(prefs.copyWith(twoPageMode: v));
-                      },
-                    ),
-          // 自动翻页间隔（M3.5.2）
-                    Text(l10n.autoPageInterval,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        for (final v in const <int>[0, 3, 5, 10, 15])
-                          ChoiceChip(
-                            label: Text(v == 0 ? l10n.autoPageOff : '${v}s'),
-                            selected: prefs.autoPageInterval == v,
-                            onSelected: (_) => onChanged(
-                                prefs.copyWith(autoPageInterval: v)),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceMd),
-          // 平滑自动翻页（O5）：按像素/过渡进度连续推进整页。
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(l10n.autoPageSmooth),
-                      value: prefs.autoPageSmooth,
-                      onChanged: (v) {
-                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                        onChanged(prefs.copyWith(autoPageSmooth: v));
-                      },
-                    ),
-          // 鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(l10n.novelWheelInverted),
-                      value: prefs.scrollWheelInverted,
-                      onChanged: (v) {
-                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                        onChanged(
-                            prefs.copyWith(scrollWheelInverted: v));
-                      },
-                    ),
-          // 音量键翻页（N5，仅 Android 有物理音量键翻页语义）。
-                    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android)
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          for (final layout in ReaderTapZoneLayout.values)
+                            ChoiceChip(
+                              label: Text(_tapLayoutLabel(l10n, layout)),
+                              selected: prefs.tapZoneLayout == layout,
+                              onSelected: (_) => onChanged(
+                                  prefs.copyWith(tapZoneLayout: layout)),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // 点击分区方向反转（FR-4.2）
+                      Text(l10n.readerTapInvert,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          for (final invert in TapZoneInvert.values)
+                            ChoiceChip(
+                              label: Text(_tapInvertLabel(l10n, invert)),
+                              selected: prefs.tapZoneInvert == invert,
+                              onSelected: (_) => onChanged(
+                                  prefs.copyWith(tapZoneInvert: invert)),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // A7 双页模式：翻页模式宽屏左右并排两页（与总设置同步）。
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: Text(l10n.readerVolumeKeyPageTurn),
-                        value: prefs.volumeKeyPageTurn,
+                        title: Text(l10n.novelTwoPageMode),
+                        subtitle: Text(l10n.novelTwoPageModeDesc),
+                        value: prefs.twoPageMode,
                         onChanged: (v) {
-                          v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                          onChanged(
-                              prefs.copyWith(volumeKeyPageTurn: v));
+                          v == true
+                              ? AppHaptics.toggleOn()
+                              : AppHaptics.toggleOff();
+                          onChanged(prefs.copyWith(twoPageMode: v));
                         },
                       ),
-                      ],
-                    ),
-          // ── 朗读组 ──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelSectionTts,
-                      searchQuery: searchController.text,
-                      leading: Icons.record_voice_over_rounded,
-                      searchTerms: _kNovelSecTtsTerms,
-                      children: <Widget>[
-                        ListenableBuilder(
-                          listenable: tts,
-                          builder: (BuildContext ctx, Widget? _) => Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              _SliderRow(
-                                label: l10n.ttsRate,
-                                value: tts.rate,
-                                min: 0.5,
-                                max: 2.0,
-                                divisions: 30,
-                                onChanged: (v) {
-                                  tts.setRate(v);
-                                  onPreview?.call(
-                                      prefs.copyWith(ttsSpeechRate: v));
-                                },
-                                onChangeEnd: (v) => onChanged(
-                                    prefs.copyWith(ttsSpeechRate: v)),
-                              ),
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.timer_rounded),
-                                title: Text(l10n.ttsSleepTimer),
-                                subtitle: tts.sleepRemaining != null
-                                    ? Text(l10n.ttsSleepRemaining(
-                                        tts.sleepRemaining!.inMinutes,
-                                        tts.sleepRemaining!.inSeconds % 60))
-                                    : null,
-                                trailing: const Icon(Icons.chevron_right_rounded),
-                                onTap: () => _pickSleepTimer(
-                                  context: context,
-                                  l10n: l10n,
-                                ),
-                              ),
-                              SwitchListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(l10n.novelTtsBackground),
-                                value: prefs.ttsBackground,
-                                onChanged: (v) {
-                                  v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                                  onChanged(
-                                      prefs.copyWith(ttsBackground: v));
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-          // ── 高级组 ──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelSectionMisc,
-                      searchQuery: searchController.text,
-                      leading: Icons.tune_rounded,
-                      searchTerms: _kNovelSecMiscTerms,
-                      children: <Widget>[
-          // 繁简转换（M3.5.1）
-                    Text(l10n.chineseConverter,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Wrap(
-                      spacing: AppTokens.spaceSm,
-                      runSpacing: AppTokens.spaceSm,
-                      children: <Widget>[
-                        ChoiceChip(
-                          label: Text(l10n.noConvert),
-                          selected: prefs.chineseConvert == 'none',
-                          onSelected: (_) => onChanged(
-                              prefs.copyWith(chineseConvert: 'none')),
-                        ),
-                        ChoiceChip(
-                          label: Text(l10n.traditionalToSimplified),
-                          selected: prefs.chineseConvert ==
-                              'traditionalToSimplified',
-                          onSelected: (_) => onChanged(prefs.copyWith(
-                              chineseConvert: 'traditionalToSimplified')),
-                        ),
-                        ChoiceChip(
-                          label: Text(l10n.simplifiedToTraditional),
-                          selected: prefs.chineseConvert ==
-                              'simplifiedToTraditional',
-                          onSelected: (_) => onChanged(prefs.copyWith(
-                              chineseConvert: 'simplifiedToTraditional')),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceMd),
-                    const Divider(height: 1),
-                    const SizedBox(height: AppTokens.spaceMd),
-          // 替换规则（书籍级正文净化）
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.cleaning_services_rounded),
-                      title: const Text('替换规则'),
-                      subtitle: const Text('正文净化，正则/纯文本替换'),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => NovelReplaceRuleScreen(
-                              bookId: novelId,
-                              bookName: novelName,
+                      // 自动翻页间隔（M3.5.2）
+                      Text(l10n.autoPageInterval,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          for (final v in const <int>[0, 3, 5, 10, 15])
+                            ChoiceChip(
+                              label: Text(v == 0 ? l10n.autoPageOff : '${v}s'),
+                              selected: prefs.autoPageInterval == v,
+                              onSelected: (_) => onChanged(
+                                  prefs.copyWith(autoPageInterval: v)),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: AppTokens.spaceSm),
-          // 阅读中预下载（问题 4）：开关/阈值/数量配置弹窗。
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.download_for_offline_rounded),
-                      title: Text(l10n.novelSectionPreDownload),
-                      subtitle: Text(l10n.preDownloadEnabled),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _showPreDownloadDialog(context, l10n),
-                    ),
-                    const SizedBox(height: AppTokens.spaceSm),
-          // 缓存本书到本地（离线阅读）
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.download_rounded),
-                      title: Text(l10n.novelCacheBook),
-                      onTap: onCache,
-                    ),
-          // 恢复本书默认设置（清除按书覆盖，回到全局默认）
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.restart_alt_rounded),
-                      title: Text(l10n.novelResetBookPrefs),
-                      onTap: onResetBook,
-                    ),
-                      ],
-                    ),
-          // ── AI 功能组（章节速览 / 翻译 / AI 配图入口，可搜索）──
-                    _buildSettingsGroup(
-                      context,
-                      l10n.novelSectionAi,
-                      searchQuery: searchController.text,
-                      leading: Icons.auto_awesome_rounded,
-                      searchTerms: _kNovelSecAiTerms,
-                      children: <Widget>[
-                        ListTile(
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // 平滑自动翻页（O5）：按像素/过渡进度连续推进整页。
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.autoPageSmooth),
+                        value: prefs.autoPageSmooth,
+                        onChanged: (v) {
+                          v == true
+                              ? AppHaptics.toggleOn()
+                              : AppHaptics.toggleOff();
+                          onChanged(prefs.copyWith(autoPageSmooth: v));
+                        },
+                      ),
+                      // 鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(l10n.novelWheelInverted),
+                        value: prefs.scrollWheelInverted,
+                        onChanged: (v) {
+                          v == true
+                              ? AppHaptics.toggleOn()
+                              : AppHaptics.toggleOff();
+                          onChanged(prefs.copyWith(scrollWheelInverted: v));
+                        },
+                      ),
+                      // 音量键翻页（N5，仅 Android 有物理音量键翻页语义）。
+                      if (!kIsWeb &&
+                          defaultTargetPlatform == TargetPlatform.android)
+                        SwitchListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.insights_rounded),
-                          title: Text(l10n.novelAiOpenSummary),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: onOpenSummary,
+                          title: Text(l10n.readerVolumeKeyPageTurn),
+                          value: prefs.volumeKeyPageTurn,
+                          onChanged: (v) {
+                            v == true
+                                ? AppHaptics.toggleOn()
+                                : AppHaptics.toggleOff();
+                            onChanged(prefs.copyWith(volumeKeyPageTurn: v));
+                          },
                         ),
-                        const SizedBox(height: AppTokens.spaceSm),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.translate_rounded),
-                          title: Text(l10n.novelAiOpenTranslation),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: onTranslate,
-                        ),
-                        const SizedBox(height: AppTokens.spaceSm),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.auto_awesome_rounded),
-                          title: Text(l10n.novelAiIllustrate),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: onGenerateIllustration,
-                        ),
-                      ],
-                    ),
-                    if (searchController.text.trim().isNotEmpty &&
-                        !hasSearchMatch)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: AppTokens.spaceLg),
-                        child: Center(
-                          child: Column(
-                            children: <Widget>[
-                              Icon(Icons.search_off_rounded,
-                                  size: 40,
-                                  color: Theme.of(context).hintColor),
-                              const SizedBox(height: AppTokens.spaceSm),
-                              Text(
-                                l10n.novelSettingsNoResult,
-                                style: Theme.of(context).textTheme.bodyMedium,
+                    ],
+                  ),
+                  // ── 朗读组 ──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelSectionTts,
+                    searchQuery: searchController.text,
+                    leading: Icons.record_voice_over_rounded,
+                    searchTerms: _kNovelSecTtsTerms,
+                    children: <Widget>[
+                      ListenableBuilder(
+                        listenable: tts,
+                        builder: (BuildContext ctx, Widget? _) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            _SliderRow(
+                              label: l10n.ttsRate,
+                              value: tts.rate,
+                              min: 0.5,
+                              max: 2.0,
+                              divisions: 30,
+                              onChanged: (v) {
+                                tts.setRate(v);
+                                onPreview
+                                    ?.call(prefs.copyWith(ttsSpeechRate: v));
+                              },
+                              onChangeEnd: (v) =>
+                                  onChanged(prefs.copyWith(ttsSpeechRate: v)),
+                            ),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.timer_rounded),
+                              title: Text(l10n.ttsSleepTimer),
+                              subtitle: tts.sleepRemaining != null
+                                  ? Text(l10n.ttsSleepRemaining(
+                                      tts.sleepRemaining!.inMinutes,
+                                      tts.sleepRemaining!.inSeconds % 60))
+                                  : null,
+                              trailing: const Icon(Icons.chevron_right_rounded),
+                              onTap: () => _pickSleepTimer(
+                                context: context,
+                                l10n: l10n,
                               ),
-                            ],
-                          ),
+                            ),
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(l10n.novelTtsBackground),
+                              value: prefs.ttsBackground,
+                              onChanged: (v) {
+                                v == true
+                                    ? AppHaptics.toggleOn()
+                                    : AppHaptics.toggleOff();
+                                onChanged(prefs.copyWith(ttsBackground: v));
+                              },
+                            ),
+                          ],
                         ),
                       ),
-                  ],
-                ),
+                    ],
+                  ),
+                  // ── 高级组 ──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelSectionMisc,
+                    searchQuery: searchController.text,
+                    leading: Icons.tune_rounded,
+                    searchTerms: _kNovelSecMiscTerms,
+                    children: <Widget>[
+                      // 繁简转换（M3.5.1）
+                      Text(l10n.chineseConverter,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      const SizedBox(height: AppTokens.spaceXs),
+                      Wrap(
+                        spacing: AppTokens.spaceSm,
+                        runSpacing: AppTokens.spaceSm,
+                        children: <Widget>[
+                          ChoiceChip(
+                            label: Text(l10n.noConvert),
+                            selected: prefs.chineseConvert == 'none',
+                            onSelected: (_) => onChanged(
+                                prefs.copyWith(chineseConvert: 'none')),
+                          ),
+                          ChoiceChip(
+                            label: Text(l10n.traditionalToSimplified),
+                            selected: prefs.chineseConvert ==
+                                'traditionalToSimplified',
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                chineseConvert: 'traditionalToSimplified')),
+                          ),
+                          ChoiceChip(
+                            label: Text(l10n.simplifiedToTraditional),
+                            selected: prefs.chineseConvert ==
+                                'simplifiedToTraditional',
+                            onSelected: (_) => onChanged(prefs.copyWith(
+                                chineseConvert: 'simplifiedToTraditional')),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      const Divider(height: 1),
+                      const SizedBox(height: AppTokens.spaceMd),
+                      // 替换规则（书籍级正文净化）
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.cleaning_services_rounded),
+                        title: const Text('替换规则'),
+                        subtitle: const Text('正文净化，正则/纯文本替换'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => NovelReplaceRuleScreen(
+                                bookId: novelId,
+                                bookName: novelName,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      // 阅读中预下载（问题 4）：开关/阈值/数量配置弹窗。
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.download_for_offline_rounded),
+                        title: Text(l10n.novelSectionPreDownload),
+                        subtitle: Text(l10n.preDownloadEnabled),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => _showPreDownloadDialog(context, l10n),
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      // 缓存本书到本地（离线阅读）
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.download_rounded),
+                        title: Text(l10n.novelCacheBook),
+                        onTap: onCache,
+                      ),
+                      // 恢复本书默认设置（清除按书覆盖，回到全局默认）
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.restart_alt_rounded),
+                        title: Text(l10n.novelResetBookPrefs),
+                        onTap: onResetBook,
+                      ),
+                    ],
+                  ),
+                  // ── AI 功能组（章节速览 / 翻译 / AI 配图入口，可搜索）──
+                  _buildSettingsGroup(
+                    context,
+                    l10n.novelSectionAi,
+                    searchQuery: searchController.text,
+                    leading: Icons.auto_awesome_rounded,
+                    searchTerms: _kNovelSecAiTerms,
+                    children: <Widget>[
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.insights_rounded),
+                        title: Text(l10n.novelAiOpenSummary),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: onOpenSummary,
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.translate_rounded),
+                        title: Text(l10n.novelAiOpenTranslation),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: onTranslate,
+                      ),
+                      const SizedBox(height: AppTokens.spaceSm),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.auto_awesome_rounded),
+                        title: Text(l10n.novelAiIllustrate),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: onGenerateIllustration,
+                      ),
+                    ],
+                  ),
+                  if (searchController.text.trim().isNotEmpty &&
+                      !hasSearchMatch)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: AppTokens.spaceLg),
+                      child: Center(
+                        child: Column(
+                          children: <Widget>[
+                            Icon(Icons.search_off_rounded,
+                                size: 40, color: Theme.of(context).hintColor),
+                            const SizedBox(height: AppTokens.spaceSm),
+                            Text(
+                              l10n.novelSettingsNoResult,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
- /// 问题 4：预下载配置弹窗（开关 / 触发阈值 / 章节数），保存后通知阅读器。
+  /// 问题 4：预下载配置弹窗（开关 / 触发阈值 / 章节数），保存后通知阅读器。
   Future<void> _showPreDownloadDialog(
       BuildContext context, AppLocalizations l10n) async {
     final NovelPreDownloadPreferences initial =
@@ -9592,9 +9893,10 @@ class _NovelInlineSettings extends StatelessWidget {
                     title: Text(l10n.preDownloadEnabled),
                     value: d.enabled,
                     onChanged: (v) {
-                      v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                      setDialogState(
-                          () => draft = draft!.copyWith(enabled: v));
+                      v == true
+                          ? AppHaptics.toggleOn()
+                          : AppHaptics.toggleOff();
+                      setDialogState(() => draft = draft!.copyWith(enabled: v));
                     },
                   ),
                   if (d.enabled) ...<Widget>[
@@ -9605,8 +9907,8 @@ class _NovelInlineSettings extends StatelessWidget {
                       min: 50,
                       max: 99,
                       divisions: 49,
-                      onChanged: (v) => setDialogState(() => draft =
-                          draft!.copyWith(thresholdPercent: v.round())),
+                      onChanged: (v) => setDialogState(() =>
+                          draft = draft!.copyWith(thresholdPercent: v.round())),
                     ),
                     _SliderRow(
                       label: l10n.preDownloadCount,
@@ -9614,8 +9916,8 @@ class _NovelInlineSettings extends StatelessWidget {
                       min: 1,
                       max: 10,
                       divisions: 9,
-                      onChanged: (v) => setDialogState(() => draft =
-                          draft!.copyWith(count: v.round())),
+                      onChanged: (v) => setDialogState(
+                          () => draft = draft!.copyWith(count: v.round())),
                     ),
                   ],
                 ],
@@ -9641,20 +9943,15 @@ class _NovelInlineSettings extends StatelessWidget {
     );
   }
 
- /// 常用置顶卡片：字号 / 亮度 / 背景 / 夜间 / 翻页动画 快捷入口。
+  /// 常用置顶卡片：字号 / 亮度 / 背景 / 夜间 / 翻页动画 快捷入口。
   Widget _buildCommonCard(BuildContext context, AppLocalizations l10n) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
-      child: Card(
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.22),
+      child: Material(
+        color: AppTheme.cardContainer(theme.colorScheme),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(
-            color: theme.colorScheme.primary.withValues(alpha: 0.22),
-          ),
+          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
         ),
         clipBehavior: Clip.antiAlias,
         child: Padding(
@@ -9665,12 +9962,14 @@ class _NovelInlineSettings extends StatelessWidget {
               Row(
                 children: <Widget>[
                   Icon(Icons.star_rounded,
-                      size: 18, color: theme.colorScheme.primary),
-                  const SizedBox(width: 6),
+                      size: 22, color: theme.colorScheme.primary),
+                  const SizedBox(width: AppTokens.spaceSm),
                   Text(
                     l10n.novelSettingsCommon,
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -9682,8 +9981,7 @@ class _NovelInlineSettings extends StatelessWidget {
                 max: 32,
                 divisions: 20,
                 unit: 'sp',
-                onChanged: (v) =>
-                    onPreview?.call(prefs.copyWith(fontSize: v)),
+                onChanged: (v) => onPreview?.call(prefs.copyWith(fontSize: v)),
                 onChangeEnd: (v) => onChanged(prefs.copyWith(fontSize: v)),
               ),
               _SliderRow(
@@ -9744,8 +10042,8 @@ class _NovelInlineSettings extends StatelessWidget {
                     ChoiceChip(
                       label: Text(_animLabel(anim, l10n)),
                       selected: prefs.pageAnimation == anim,
-                      onSelected: (_) => onChanged(
-                          prefs.copyWith(pageAnimation: anim)),
+                      onSelected: (_) =>
+                          onChanged(prefs.copyWith(pageAnimation: anim)),
                     ),
                 ],
               ),
@@ -9756,15 +10054,15 @@ class _NovelInlineSettings extends StatelessWidget {
     );
   }
 
- /// 颜色选择瓦片：点击色块弹出取色器，右侧有「清除（恢复默认）」按钮。
- /// 预览色块：夜间模式下在原始色基础上压暗，与 [NovelReaderPreferences
- /// .resolveBackgroundColor] 的夜间处理保持一致，做到「所见即所得」。
+  /// 颜色选择瓦片：点击色块弹出取色器，右侧有「清除（恢复默认）」按钮。
+  /// 预览色块：夜间模式下在原始色基础上压暗，与 [NovelReaderPreferences
+  /// .resolveBackgroundColor] 的夜间处理保持一致，做到「所见即所得」。
   Color _swatchColor(Color c) {
     if (prefs.themeFollow != NovelThemeFollow.alwaysDark) return c;
     return Color.lerp(c, Colors.black, ReaderTokens.nightDarkenFactor) ?? c;
   }
 
- /// 夜间模式跟随策略三选一（项 6）：跟随应用 / 始终夜间 / 始终日间。
+  /// 夜间模式跟随策略三选一（项 6）：跟随应用 / 始终夜间 / 始终日间。
   Widget _buildThemeFollowSelector(
     BuildContext context,
     AppLocalizations l10n,
@@ -9820,9 +10118,9 @@ class _NovelInlineSettings extends StatelessWidget {
         children: <Widget>[
           GestureDetector(
             onTap: () async {
-      // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回；
-      // onColorChanged 同步写入局部变量，避免滑块回弹。
-            Color? pickedColor;
+              // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回；
+              // onColorChanged 同步写入局部变量，避免滑块回弹。
+              Color? pickedColor;
               final Color initial = displayed;
               final result = await showDialog<Color>(
                 context: context,
@@ -9833,7 +10131,8 @@ class _NovelInlineSettings extends StatelessWidget {
                       content: SingleChildScrollView(
                         child: ColorPicker(
                           pickerColor: pickedColor ?? initial,
-                          onColorChanged: (c) => setDialogState(() => pickedColor = c),
+                          onColorChanged: (c) =>
+                              setDialogState(() => pickedColor = c),
                         ),
                       ),
                       actions: <Widget>[
@@ -9879,7 +10178,7 @@ class _NovelInlineSettings extends StatelessWidget {
     );
   }
 
- /// 字体文件选择瓦片：从本机选取 .ttf/.otf 字体并加载（[title]=true 时作用于标题字体）。
+  /// 字体文件选择瓦片：从本机选取 .ttf/.otf 字体并加载（[title]=true 时作用于标题字体）。
   Widget _fontFileTile({
     required BuildContext context,
     required AppLocalizations l10n,
@@ -9893,8 +10192,8 @@ class _NovelInlineSettings extends StatelessWidget {
       leading: const Icon(Icons.font_download_rounded),
       title: Text(label),
       subtitle: currentPath != null
-          ? Text(l10n.novelFontFileCurrent(
-              currentPath.split(RegExp(r'[/\\]')).last))
+          ? Text(l10n
+              .novelFontFileCurrent(currentPath.split(RegExp(r'[/\\]')).last))
           : null,
       trailing: currentPath != null
           ? IconButton(
@@ -9911,11 +10210,11 @@ class _NovelInlineSettings extends StatelessWidget {
         String? path;
         try {
           if (Platform.isAndroid) {
-      // 读外部字体文件可能需要存储权限；被拒也继续尝试（部分设备用系统选择器即可）。
+            // 读外部字体文件可能需要存储权限；被拒也继续尝试（部分设备用系统选择器即可）。
             try {
               await Permission.storage.request();
             } on Object {
-       // 忽略权限请求异常
+              // 忽略权限请求异常
             }
           }
           final result = await FilePicker.platform.pickFiles(
@@ -9940,13 +10239,13 @@ class _NovelInlineSettings extends StatelessWidget {
                 : prefs.copyWith(customFontPath: path),
           );
         } on Object {
-     // 加载失败静默忽略
+          // 加载失败静默忽略
         }
       },
     );
   }
 
- /// 页眉/页脚单槽内容选择器：点按弹出单选菜单（无/书名/标题/时间/电量/页数/进度…）。
+  /// 页眉/页脚单槽内容选择器：点按弹出单选菜单（无/书名/标题/时间/电量/页数/进度…）。
   Widget _buildHfSlotPicker(
     String label,
     NovelHeaderFooterContent value,
@@ -9986,7 +10285,7 @@ class _NovelInlineSettings extends StatelessWidget {
     );
   }
 
- /// 标题对齐方式标签（左/中/右/隐藏）。
+  /// 标题对齐方式标签（左/中/右/隐藏）。
   String _titleAlignLabel(NovelTitleAlign a, AppLocalizations l10n) {
     return switch (a) {
       NovelTitleAlign.left => l10n.novelTitleAlignLeft,
@@ -9996,10 +10295,10 @@ class _NovelInlineSettings extends StatelessWidget {
     };
   }
 
- /// 朗读睡眠定时选择（分钟；0 = 关闭）。
- /// 预设 0/15/30/45/60/90 分钟，并提供「自定义」可输入任意分钟数
- /// （满足「自定义朗读时间」需求）。返回选中的分钟数（null = 取消）。
- /// 朗读睡眠定时选择（分钟；0 = 关闭）。设置面板入口。
+  /// 朗读睡眠定时选择（分钟；0 = 关闭）。
+  /// 预设 0/15/30/45/60/90 分钟，并提供「自定义」可输入任意分钟数
+  /// （满足「自定义朗读时间」需求）。返回选中的分钟数（null = 取消）。
+  /// 朗读睡眠定时选择（分钟；0 = 关闭）。设置面板入口。
   Future<void> _pickSleepTimer({
     required BuildContext context,
     required AppLocalizations l10n,
@@ -10010,8 +10309,8 @@ class _NovelInlineSettings extends StatelessWidget {
       current: tts.sleepRemaining?.inMinutes ?? 0,
     );
     if (picked == null) return;
-  // 同时写回 prefs（持久化）并启动 controller 定时器，
-  // 修复 Bug-3：选了不写回 prefs 导致重启后丢失。
+    // 同时写回 prefs（持久化）并启动 controller 定时器，
+    // 修复 Bug-3：选了不写回 prefs 导致重启后丢失。
     tts.startSleepTimer(picked);
     onChanged(prefs.copyWith(ttsSleepTimer: picked));
   }
@@ -10088,7 +10387,7 @@ Widget _buildSettingsGroup(
   String searchQuery = '',
   required List<Widget> children,
 }) {
- // 搜索过滤：query 非空时，仅当组标题或别名命中才显示本组。
+  // 搜索过滤：query 非空时，仅当组标题或别名命中才显示本组。
   final q = searchQuery.trim().toLowerCase();
   if (q.isNotEmpty) {
     final hay = <String>[title, ...searchTerms].join(' ').toLowerCase();
@@ -10097,16 +10396,10 @@ Widget _buildSettingsGroup(
   final theme = Theme.of(context);
   return Padding(
     padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
-    child: Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: theme.colorScheme.surfaceContainerHighest
-          .withValues(alpha: 0.45),
+    child: Material(
+      color: AppTheme.cardContainer(theme.colorScheme),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: theme.dividerColor.withValues(alpha: 0.18),
-        ),
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
       ),
       clipBehavior: Clip.antiAlias,
       child: Theme(
@@ -10118,7 +10411,7 @@ Widget _buildSettingsGroup(
           ),
           leading: leading == null
               ? null
-              : Icon(leading, size: 20, color: theme.colorScheme.primary),
+              : Icon(leading, size: 22, color: theme.colorScheme.primary),
           childrenPadding: const EdgeInsets.fromLTRB(
             AppTokens.spaceMd,
             0,
@@ -10129,8 +10422,10 @@ Widget _buildSettingsGroup(
           initiallyExpanded: initiallyExpanded,
           title: Text(
             title,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           children: children,
         ),
@@ -10171,47 +10466,57 @@ class _SliderRow extends StatefulWidget {
 }
 
 class _SliderRowState extends State<_SliderRow> {
- /// 拖动中的本地值（null = 未在拖动，显示父级值）。
+  /// 拖动中的本地值（null = 未在拖动，显示父级值）。
   double? _dragValue;
 
   @override
   Widget build(BuildContext context) {
     final double v = _dragValue ?? widget.value;
+    // 视觉与设置设计系统的 SettingsSliderTile 对齐：标签在上一行、
+    // 当前值 primary 加粗右对齐、滑块全宽；拖动本地值/松手提交逻辑保留。
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          SizedBox(
-            width: 96,
-            child:
-                Text(widget.label, style: Theme.of(context).textTheme.bodyMedium),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  widget.label,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppTokens.spaceSm),
+              Text(
+                widget.unit != null
+                    ? '${v.toStringAsFixed(v < 10 ? 1 : 0)}${widget.unit}'
+                    : v.toStringAsFixed(1),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+              ),
+            ],
           ),
-          Expanded(
-            child: Slider(
-              value: v,
-              min: widget.min,
-              max: widget.max,
-              divisions: widget.divisions,
-              onChangeStart: (_) => AppHaptics.light(),
-              onChanged: (nv) {
-                setState(() => _dragValue = nv);
-                widget.onChanged(nv);
-              },
-              onChangeEnd: (nv) {
-                setState(() => _dragValue = null);
-                widget.onChangeEnd?.call(nv);
-              },
-            ),
-          ),
-          SizedBox(
-            width: 56,
-            child: Text(
-              widget.unit != null
-                  ? '${v.toStringAsFixed(v < 10 ? 1 : 0)}${widget.unit}'
-                  : v.toStringAsFixed(1),
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.end,
-            ),
+          Slider(
+            value: v,
+            min: widget.min,
+            max: widget.max,
+            divisions: widget.divisions,
+            onChangeStart: (_) => AppHaptics.light(),
+            onChanged: (nv) {
+              setState(() => _dragValue = nv);
+              widget.onChanged(nv);
+            },
+            onChangeEnd: (nv) {
+              setState(() => _dragValue = null);
+              widget.onChangeEnd?.call(nv);
+            },
           ),
         ],
       ),
@@ -10238,11 +10543,12 @@ class _AdaptiveScrollImage extends StatefulWidget {
 }
 
 class _AdaptiveScrollImageState extends State<_AdaptiveScrollImage> {
- double? _ratio; // 高/宽；null = 尚未解码，按 2:1 占位。
+  double? _ratio; // 高/宽；null = 尚未解码，按 2:1 占位。
 
   @override
   Widget build(BuildContext context) {
-    final double h = _ratio != null ? widget.width * _ratio! : widget.width * 0.5;
+    final double h =
+        _ratio != null ? widget.width * _ratio! : widget.width * 0.5;
     return SourceImage(
       url: widget.url,
       source: widget.source,
@@ -10271,7 +10577,7 @@ class _AdaptiveScrollImageState extends State<_AdaptiveScrollImage> {
 class _TolerantLongPressGestureRecognizer extends LongPressGestureRecognizer {
   _TolerantLongPressGestureRecognizer({this.preAcceptTolerance = 40});
 
- /// 接受前允许的漂移上限（逻辑像素）。
+  /// 接受前允许的漂移上限（逻辑像素）。
   final double preAcceptTolerance;
 
   @override
@@ -10315,18 +10621,17 @@ class _StableLongPressDetectorState extends State<_StableLongPressDetector> {
   @override
   void initState() {
     super.initState();
-  // 只创建一次：识别器实例恒定，长按期间外层如何重建都不会被替换/重置。
+    // 只创建一次：识别器实例恒定，长按期间外层如何重建都不会被替换/重置。
     _gestures = <Type, GestureRecognizerFactory>{
-      _TolerantLongPressGestureRecognizer:
-          GestureRecognizerFactoryWithHandlers<
-              _TolerantLongPressGestureRecognizer>(
+      _TolerantLongPressGestureRecognizer: GestureRecognizerFactoryWithHandlers<
+          _TolerantLongPressGestureRecognizer>(
         () => _TolerantLongPressGestureRecognizer(),
-    // initializer 每次 _syncAll 都会执行；回调读取 widget 最新配置，
-    // 因此组件重建（换行/换块）后长按仍绑定到新的行/块。
+        // initializer 每次 _syncAll 都会执行；回调读取 widget 最新配置，
+        // 因此组件重建（换行/换块）后长按仍绑定到新的行/块。
         (_TolerantLongPressGestureRecognizer instance) {
           instance.onLongPressStart = (d) => widget.onLongPressStart?.call(d);
-          instance.onLongPressMoveUpdate = (d) =>
-              widget.onLongPressMoveUpdate?.call(d);
+          instance.onLongPressMoveUpdate =
+              (d) => widget.onLongPressMoveUpdate?.call(d);
           instance.onLongPressEnd = (_) => widget.onLongPressEnd?.call();
         },
       ),
@@ -10392,7 +10697,7 @@ class _NovelShareCard extends StatelessWidget {
       ],
     );
     final Widget cover = (coverUrl != null && coverUrl!.isNotEmpty)
-    ? (coverUrl!.startsWith('http://') || coverUrl!.startsWith('https://')
+        ? (coverUrl!.startsWith('http://') || coverUrl!.startsWith('https://')
             ? Image.network(
                 coverUrl!,
                 fit: BoxFit.cover,
@@ -10422,7 +10727,7 @@ class _NovelShareCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-     // 书封 + 渐变叠层
+          // 书封 + 渐变叠层
           ClipRRect(
             borderRadius: BorderRadius.circular(radius),
             child: Stack(
@@ -10471,7 +10776,7 @@ class _NovelShareCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: spacing),
-     // 引文
+          // 引文
           Expanded(
             child: Container(
               width: double.infinity,
@@ -10497,7 +10802,7 @@ class _NovelShareCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: gap),
-     // 章节 + 落款
+          // 章节 + 落款
           if (chapterTitle.isNotEmpty)
             Text(
               chapterTitle,
@@ -10546,7 +10851,8 @@ class _MergedNoteEntry {
   final String note;
   final int createdAt;
   final bool isHighlightNote;
- /// 用于删除操作的实际 key（独立笔记用 NovelNote.id，划线笔记用 highlight.key）。
+
+  /// 用于删除操作的实际 key（独立笔记用 NovelNote.id，划线笔记用 highlight.key）。
   final String deleteKey;
 
   const _MergedNoteEntry({
@@ -10602,17 +10908,42 @@ class _SimpleColorSliderState extends State<_SimpleColorSlider> {
     _a = c.a;
   }
 
-  int get _currentValue => Color.from(alpha: _a, red: _r, green: _g, blue: _b).toARGB32();
+  int get _currentValue =>
+      Color.from(alpha: _a, red: _r, green: _g, blue: _b).toARGB32();
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        _slider('R', _r, (v) => setState(() { _r = v; widget.onChanged(_currentValue); })),
-        _slider('G', _g, (v) => setState(() { _g = v; widget.onChanged(_currentValue); })),
-        _slider('B', _b, (v) => setState(() { _b = v; widget.onChanged(_currentValue); })),
-        _slider('A', _a, (v) => setState(() { _a = v; widget.onChanged(_currentValue); })),
+        _slider(
+            'R',
+            _r,
+            (v) => setState(() {
+                  _r = v;
+                  widget.onChanged(_currentValue);
+                })),
+        _slider(
+            'G',
+            _g,
+            (v) => setState(() {
+                  _g = v;
+                  widget.onChanged(_currentValue);
+                })),
+        _slider(
+            'B',
+            _b,
+            (v) => setState(() {
+                  _b = v;
+                  widget.onChanged(_currentValue);
+                })),
+        _slider(
+            'A',
+            _a,
+            (v) => setState(() {
+                  _a = v;
+                  widget.onChanged(_currentValue);
+                })),
       ],
     );
   }
@@ -10620,7 +10951,9 @@ class _SimpleColorSliderState extends State<_SimpleColorSlider> {
   Widget _slider(String label, double value, ValueChanged<double> onChanged) {
     return Row(
       children: <Widget>[
-        SizedBox(width: 16, child: Text(label, style: const TextStyle(fontSize: 11))),
+        SizedBox(
+            width: 16,
+            child: Text(label, style: const TextStyle(fontSize: 11))),
         Expanded(
           child: Slider(
             value: value,
@@ -10631,11 +10964,13 @@ class _SimpleColorSliderState extends State<_SimpleColorSlider> {
             onChanged: onChanged,
           ),
         ),
-        SizedBox(width: 36, child: Text(
-          (value * 255).round().toString(),
-          style: const TextStyle(fontSize: 10),
-          textAlign: TextAlign.right,
-        )),
+        SizedBox(
+            width: 36,
+            child: Text(
+              (value * 255).round().toString(),
+              style: const TextStyle(fontSize: 10),
+              textAlign: TextAlign.right,
+            )),
       ],
     );
   }
@@ -10744,7 +11079,6 @@ class _NovelImageFavoriteViewerState extends State<_NovelImageFavoriteViewer> {
   }
 }
 
-
 /// F3 预扫描的 UI 状态快照（阅读器 → 翻译面板经 [ValueNotifier] 共享）。
 class NovelPrescanUi {
   final bool running;
@@ -10761,7 +11095,8 @@ class NovelPrescanUi {
     this.ready = false,
   });
 
-  NovelPrescanUi copyWith({bool? running, int? done, int? total, bool? ready}) =>
+  NovelPrescanUi copyWith(
+          {bool? running, int? done, int? total, bool? ready}) =>
       NovelPrescanUi(
         running: running ?? this.running,
         done: done ?? this.done,
@@ -10769,8 +11104,7 @@ class NovelPrescanUi {
         ready: ready ?? this.ready,
       );
 
-  NovelPrescanUi copyWithRunning(bool running) =>
-      copyWith(running: running);
+  NovelPrescanUi copyWithRunning(bool running) => copyWith(running: running);
 }
 
 /// O3 段落翻译双语面板：原文/译文逐段对照；缓存命中直接展示，
@@ -10794,7 +11128,7 @@ class _NovelTranslationSheet extends StatefulWidget {
   final String chapterTitle;
   final List<String> paragraphs;
 
- /// 翻译目标语言（取自翻译配置页；兼作缓存 lang 标记）。
+  /// 翻译目标语言（取自翻译配置页；兼作缓存 lang 标记）。
   final String targetLanguage;
   final NovelTranslationManager manager;
 
@@ -10931,8 +11265,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
         widget.chapterId,
         lang: widget.targetLanguage,
       );
-      final enabled =
-          await TranslationOptionsStore().getPolishEnabled();
+      final enabled = await TranslationOptionsStore().getPolishEnabled();
       if (mounted) {
         setState(() {
           _polished = polished?.translations;
@@ -10979,11 +11312,10 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
     // F3：作品语境（全书概述 + 本章前情摘要）注入 system prompt。
     String? bookContext;
     try {
-      final prescan = await (widget.prescanManager ??
-              NovelPrescanManager())
+      final prescan = await (widget.prescanManager ?? NovelPrescanManager())
           .load(widget.novelId, lang: widget.targetLanguage);
-      bookContext = NovelPrescanManager.novelBookContext(
-          prescan, widget.chapterId);
+      bookContext =
+          NovelPrescanManager.novelBookContext(prescan, widget.chapterId);
     } on Object {
       bookContext = null; // 语境读取失败不影响翻译。
     }
@@ -11076,8 +11408,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
             Expanded(
               child: Text(
                 l10n.prescanProgress(ui.done, ui.total),
-                style: TextStyle(
-                    fontSize: 12, color: scheme.onSurfaceVariant),
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               ),
             ),
           ],
@@ -11092,13 +11423,11 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
             bottom: AppTokens.spaceXs),
         child: Row(
           children: <Widget>[
-            Icon(Icons.auto_stories_rounded,
-                size: 14, color: scheme.primary),
+            Icon(Icons.auto_stories_rounded, size: 14, color: scheme.primary),
             const SizedBox(width: AppTokens.spaceXs),
             Text(
               l10n.prescanReady,
-              style: TextStyle(
-                  fontSize: 12, color: scheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -11112,8 +11441,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
         child: TextButton.icon(
           onPressed: widget.onStartPrescan,
           icon: const Icon(Icons.travel_explore_rounded, size: 16),
-          label: Text(l10n.prescanStart,
-              style: const TextStyle(fontSize: 12)),
+          label: Text(l10n.prescanStart, style: const TextStyle(fontSize: 12)),
         ),
       ),
     );
@@ -11139,8 +11467,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
             ),
           ],
           selected: <bool>{_showPolished},
-          onSelectionChanged: (s) =>
-              setState(() => _showPolished = s.first),
+          onSelectionChanged: (s) => setState(() => _showPolished = s.first),
         ),
       );
     }
@@ -11161,8 +11488,8 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                   const SizedBox(width: AppTokens.spaceSm),
                   Text(
                     _polishProgress ?? l10n.novelTranslating,
-                    style: TextStyle(
-                        fontSize: 12, color: scheme.onSurfaceVariant),
+                    style:
+                        TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                   ),
                 ],
               )
@@ -11196,18 +11523,15 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                     ),
                   ),
                   FilledButton.icon(
-                    onPressed:
-                        _translating || widget.paragraphs.isEmpty
-                            ? null
-                            : () => _translate(
-                                resume: _translations == null &&
-                                    _hasCheckpoint),
+                    onPressed: _translating || widget.paragraphs.isEmpty
+                        ? null
+                        : () => _translate(
+                            resume: _translations == null && _hasCheckpoint),
                     icon: _translating
                         ? const SizedBox(
                             width: 14,
                             height: 14,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.translate_rounded, size: 18),
                     label: Text(_translations == null
                         ? (_hasCheckpoint
@@ -11220,37 +11544,34 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
             ),
             if (_translating && _progress != null)
               Padding(
-                padding:
-                    const EdgeInsets.only(bottom: AppTokens.spaceXs),
-                child: Text(l10n.novelTranslateProgress(_progress!, _progressTotal),
+                padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
+                child: Text(
+                    l10n.novelTranslateProgress(_progress!, _progressTotal),
                     style: TextStyle(
                         fontSize: 12, color: scheme.onSurfaceVariant)),
               ),
-            if (!_translating &&
-                _translations == null &&
-                _hasCheckpoint)
+            if (!_translating && _translations == null && _hasCheckpoint)
               Padding(
-                padding:
-                    const EdgeInsets.only(bottom: AppTokens.spaceXs),
+                padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
                 child: Text(
                   l10n.novelTranslateResumable(
                     _checkpoint!.where((t) => t.isNotEmpty).length,
                     widget.paragraphs.length,
                   ),
-                  style: TextStyle(
-                      fontSize: 12, color: scheme.onSurfaceVariant),
+                  style:
+                      TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                 ),
               ),
             _prescanRow(l10n, scheme),
             // F5：润色入口与初译/润色对照切换。
-            if (!_translating &&
-                _translations != null &&
-                _polishEnabled)
+            if (!_translating && _translations != null && _polishEnabled)
               _polishRow(l10n, scheme),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(
-                    bottom: AppTokens.spaceXs, left: AppTokens.spaceMd, right: AppTokens.spaceMd),
+                    bottom: AppTokens.spaceXs,
+                    left: AppTokens.spaceMd,
+                    right: AppTokens.spaceMd),
                 child: Text(
                   _error!,
                   style: TextStyle(fontSize: 12, color: scheme.error),
@@ -11268,8 +11589,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                       ),
                     )
                   : ListView.builder(
-                      padding:
-                          const EdgeInsets.all(AppTokens.spaceMd),
+                      padding: const EdgeInsets.all(AppTokens.spaceMd),
                       itemCount: widget.paragraphs.length,
                       itemBuilder: (context, i) {
                         final t = i <
@@ -11278,15 +11598,14 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                                         const <String>[])
                                     .length
                             ? (_displayTranslations ??
-                                    _checkpoint ??
-                                    const <String>[])[i]
+                                _checkpoint ??
+                                const <String>[])[i]
                             : '';
                         return Padding(
-                          padding: const EdgeInsets.only(
-                              bottom: AppTokens.spaceMd),
+                          padding:
+                              const EdgeInsets.only(bottom: AppTokens.spaceMd),
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(widget.paragraphs[i],
                                   style: const TextStyle(

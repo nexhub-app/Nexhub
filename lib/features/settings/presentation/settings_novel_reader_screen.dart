@@ -464,7 +464,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   SettingsCard(
                     key: const ValueKey<String>('novel.common'),
                     title: l10n.novelSettingsCommon,
-                    expandable: false,
+                    initiallyExpanded: false,
                     backgroundColor: Theme.of(context)
                         .colorScheme
                         .primaryContainer
@@ -618,6 +618,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 1. 阅读基础 ──
                   SettingsCard(
                     key: const ValueKey<String>('novel.text'),
+                    initiallyExpanded: false,
                     index: 0,
                     title: l10n.novelSectionText,
                     children: <Widget>[
@@ -681,6 +682,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 2. 字体样式 ──
                   SettingsCard(
                     key: const ValueKey<String>('novel.font'),
+                    initiallyExpanded: false,
                     index: 1,
                     title: l10n.novelSectionFont,
                     children: <Widget>[
@@ -807,6 +809,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 2b. 排版增强──
                   SettingsCard(
                     key: const ValueKey<String>('novel.typography'),
+                    initiallyExpanded: false,
                     index: 1,
                     title: l10n.novelTypographyGroup,
                     children: <Widget>[
@@ -983,6 +986,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 3. 颜色与背景 ──
                   SettingsCard(
                     key: const ValueKey<String>('novel.color'),
+                    initiallyExpanded: false,
                     index: 2,
                     title: l10n.novelSectionColor,
                     children: <Widget>[
@@ -1118,6 +1122,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 4. 阴影与下划线 ──
                   SettingsCard(
                     key: const ValueKey<String>('novel.shadowUnderline'),
+                    initiallyExpanded: false,
                     index: 3,
                     title: l10n.novelSectionShadowUnderline,
                     children: <Widget>[
@@ -1268,6 +1273,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 5. 章节标题 ──
                   SettingsCard(
                     key: const ValueKey<String>('novel.title'),
+                    initiallyExpanded: false,
                     index: 4,
                     title: l10n.novelSectionTitle,
                     children: <Widget>[
@@ -1428,6 +1434,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 6. 页眉页脚 ──
                   SettingsCard(
                     key: const ValueKey<String>('novel.headerFooter'),
+                    initiallyExpanded: false,
                     index: 5,
                     title: l10n.novelSectionHeaderFooter,
                     children: <Widget>[
@@ -1533,6 +1540,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 7. 翻页与手势 ──
                   SettingsCard(
                     key: const ValueKey<String>('novel.page'),
+                    initiallyExpanded: false,
                     index: 6,
                     title: l10n.novelSectionPage,
                     children: <Widget>[
@@ -1687,6 +1695,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 8. 底部工具栏 ──
                   SettingsCard(
                     key: const ValueKey<String>('novel.toolbar'),
+                    initiallyExpanded: false,
                     index: 7,
                     title: l10n.novelSectionToolbar,
                     children: <Widget>[
@@ -1732,6 +1741,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 9. 朗读设置 ──
                   SettingsCard(
                     key: const ValueKey<String>('novel.tts'),
+                    initiallyExpanded: false,
                     index: 8,
                     title: l10n.novelSectionTts,
                     children: <Widget>[
@@ -1872,6 +1882,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 10. 其他 ──
                   SettingsCard(
                     key: const ValueKey<String>('novel.misc'),
+                    initiallyExpanded: false,
                     index: 9,
                     title: l10n.novelSectionMisc,
                     children: <Widget>[
@@ -1946,6 +1957,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 10b. 阅读中预下载（X-4 跨类型对齐）──
                   SettingsCard(
                     key: const ValueKey<String>('novel.predownload'),
+                    initiallyExpanded: false,
                     index: 10,
                     title: l10n.novelSectionPreDownload,
                     children: <Widget>[
@@ -1987,6 +1999,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                   // ── 10c. 导出模板（F4：EPUB 自定义样式/封面/简介）──
                   SettingsCard(
                     key: const ValueKey<String>('novel.exportTemplate'),
+                    initiallyExpanded: false,
                     index: 11,
                     title: l10n.novelExportTemplate,
                     children: <Widget>[

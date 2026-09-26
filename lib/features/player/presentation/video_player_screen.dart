@@ -234,6 +234,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// Sleep timer for auto-pausing playback.
   Timer? _sleepTimer;
 
+  /// 当前按分钟定时的分钟数（面板回显选中态；按集数模式见 _sleepEpisodesRemaining）。
+  int? _sleepTimerMinutes;
+
   /// 睡眠定时「按集数」模式：再播 N 集后暂停（0 = 未启用）。
   /// 与按分钟模式互斥，跨集保留（配合 ）；播完一集递减，归零暂停。
   int _sleepEpisodesRemaining = 0;
@@ -763,8 +766,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // 无效甚至致 403（解析站按 Referer 白名单校验分片请求）——改用捕获页面
       // 自身的 Referer，与浏览器在该页直接播放时的请求头一致。
       final urlHost = Uri.tryParse(url)?.host ?? '';
-      final sourceHost =
-          Uri.tryParse(source.site.baseUrl ?? '')?.host ?? '';
+      final sourceHost = Uri.tryParse(source.site.baseUrl ?? '')?.host ?? '';
       final refHost = Uri.tryParse(ref)?.host ?? '';
       final crossHost = urlHost.isNotEmpty &&
           sourceHost.isNotEmpty &&
@@ -1718,7 +1720,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                     Switch(
                       value: auto,
                       onChanged: (v) {
-                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                        v == true
+                            ? AppHaptics.toggleOn()
+                            : AppHaptics.toggleOff();
                         setDlg(() => auto = v);
                       },
                     ),
@@ -2652,8 +2656,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final url = _playUrl;
     if (url == null || url.isEmpty) return;
     _controller.openReadyTimeout = _readyTimeout;
-    AppLog.instance.w(
-        '[] open 后 ${_readyTimeout.inSeconds}s 元数据未就绪，自动重试一次：$url');
+    AppLog.instance
+        .w('[] open 后 ${_readyTimeout.inSeconds}s 元数据未就绪，自动重试一次：$url');
     try {
       await _reopenAndResume(url, _playHeaders, _lastGoodPosition);
     } on Object {
@@ -3162,10 +3166,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       ),
                       Text(
                         '${current}x',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                       ),
                       const SizedBox(width: AppTokens.spaceSm),
                       IconButton(
@@ -3183,8 +3186,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                         .map((s) => ListTile(
                               dense: true,
                               title: Center(child: Text('${s}x')),
-                              tileColor: (s == current)
-                                  ? Theme.of(ctx).colorScheme.primaryContainer
+                              // 选中态统一：primary 色 check（与设置页弹层一致）。
+                              trailing: (s == current)
+                                  ? Icon(Icons.check_rounded,
+                                      color: Theme.of(ctx).colorScheme.primary)
                                   : null,
                               onTap: () {
                                 unawaited(_controller.setPlaybackSpeed(s));
@@ -3227,8 +3232,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 ...options.map((s) => ListTile(
                       dense: true,
                       title: Center(child: Text('${s}x')),
-                      tileColor: s == _playerSettings.longPressSpeed
-                          ? Theme.of(sheetCtx).colorScheme.primaryContainer
+                      trailing: s == _playerSettings.longPressSpeed
+                          ? Icon(Icons.check_rounded,
+                              color: Theme.of(sheetCtx).colorScheme.primary)
                           : null,
                       onTap: () => Navigator.pop(sheetCtx, s),
                     )),
@@ -3736,7 +3742,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   child: Center(
                     child: _ControlButton(
                       key: const Key('player_lock_edge'),
-                      icon: _controller.isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                      icon: _controller.isLocked
+                          ? Icons.lock_rounded
+                          : Icons.lock_open_rounded,
                       tooltip: _controller.isLocked
                           ? l10n.playerUnlock
                           : l10n.playerLock,
@@ -3925,7 +3933,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             if (widget.favoriteType != null)
               topBarBtn(
                 key: const Key('player_favorite'),
-                icon: _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                icon: _isFav
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
                 color: _isFav ? Colors.redAccent : Colors.white,
                 tooltip: l10n.favorite,
                 onPressed: _onFavoritePressed,
@@ -4023,7 +4033,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 // 播放 / 暂停
                 _ControlButton(
                   key: const Key('player_play_pause_bottom'),
-                  icon: _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  icon: _isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
                   tooltip: _isPlaying ? l10n.pause : l10n.play,
                   onTap: () {
                     // 用户手动重播则取消进行中的连播倒计时。

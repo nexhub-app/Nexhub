@@ -2470,6 +2470,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get subtitleOffset => '偏移';
 
   @override
+  String get subtitlePosTop => '顶部';
+
+  @override
+  String get subtitlePosCenter => '居中';
+
+  @override
+  String get subtitlePosBottom => '底部';
+
+  @override
+  String get subtitleAssYes => '是';
+
+  @override
+  String get subtitleAssNo => '否';
+
+  @override
+  String get subtitleAssStrip => '剥离';
+
+  @override
+  String get subtitleAssForce => '强制';
+
+  @override
   String get subtitleShow => '显示字幕';
 
   @override

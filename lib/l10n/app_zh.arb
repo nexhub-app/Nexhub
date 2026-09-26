@@ -1186,6 +1186,13 @@
   "@subtitleOffset": {
     "description": "Subtitle offset slider label"
   },
+  "subtitlePosTop": "顶部",
+  "subtitlePosCenter": "居中",
+  "subtitlePosBottom": "底部",
+  "subtitleAssYes": "是",
+  "subtitleAssNo": "否",
+  "subtitleAssStrip": "剥离",
+  "subtitleAssForce": "强制",
   "subtitleShow": "显示字幕",
   "@subtitleShow": {
     "description": "Subtitle visibility switch label"

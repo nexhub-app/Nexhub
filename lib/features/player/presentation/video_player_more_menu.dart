@@ -52,19 +52,30 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 _menuHeader(l10n),
-                for (final _PlayerMenuEntry entry in entries) ...<Widget>[
-                  if (entry.dividerBefore) const Divider(height: 1),
-                  entry.builder(ctx),
-                ],
-            const SizedBox(height: AppTokens.spaceSm),
-          ],
+                // 条目 leading 图标统一 primary（与 SettingsTile 约定一致）。
+                IconTheme.merge(
+                  data: IconThemeData(
+                    color: Theme.of(ctx).colorScheme.primary,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      for (final _PlayerMenuEntry entry in entries) ...<Widget>[
+                        if (entry.dividerBefore) const Divider(height: 1),
+                        entry.builder(ctx),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-  ),
-)
-      // 菜单关闭后释放控制栏租约，重启自动隐藏倒计时。
-      .whenComplete(_releasePanelHold);
+    )
+        // 菜单关闭后释放控制栏租约，重启自动隐藏倒计时。
+        .whenComplete(_releasePanelHold);
   }
 
   /// 构建全部菜单条目（未过滤，渲染时按能力 / 条件显隐）。
@@ -91,7 +102,6 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
               unawaited(_saveEpisodeSetting('autoPlayNext', v));
               Navigator.pop(ctx);
             },
-            activeThumbColor: Theme.of(ctx).colorScheme.primary,
           ),
         ),
       ),
@@ -107,13 +117,11 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
             onChanged: (v) {
               v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
               setState(() {
-                _playerSettings =
-                    _playerSettings.copyWith(longPressSpeedUp: v);
+                _playerSettings = _playerSettings.copyWith(longPressSpeedUp: v);
               });
               unawaited(_saveEpisodeSetting('longPressSpeedUp', v));
               Navigator.pop(ctx);
             },
-            activeThumbColor: Theme.of(ctx).colorScheme.primary,
           ),
         ),
       ),
@@ -146,48 +154,41 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
         builder: (BuildContext ctx) => ListTile(
           leading: const Icon(Icons.memory_rounded),
           title: Text(l10n.playerDecodeMode),
-          trailing: DropdownButton<String>(
-            elevation: 0,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            value: _controller.currentHwdec,
-            // 收起时只显短名，避免 hw+ 的提示后缀撑爆 trailing 宽度。
-            selectedItemBuilder: (BuildContext _) => <Widget>[
-              Text(l10n.playerDecodeAuto),
-              Text(l10n.playerDecodeSw),
-              Text(l10n.playerDecodeHw),
-              Text(l10n.playerDecodeHwPlus),
-            ],
-            items: <DropdownMenuItem<String>>[
-              DropdownMenuItem<String>(
-                  value: 'auto', child: Text(l10n.playerDecodeAuto)),
-              DropdownMenuItem<String>(
-                  value: 'sw', child: Text(l10n.playerDecodeSw)),
-              DropdownMenuItem<String>(
-                  value: 'hw', child: Text(l10n.playerDecodeHw)),
-              // hw+（auto-copy）绕开硬解直通纹理路径，是花屏设备的首选。
-              DropdownMenuItem<String>(
-                  value: 'hw+',
-                  child: Text(
-                      '${l10n.playerDecodeHwPlus} · ${l10n.playerDecodeHwPlusHint}')),
-            ],
-            onChanged: (String? v) {
-              Navigator.pop(ctx);
-              // 与自动降级一致：设完 hwdec 后必须 re-open，否则对已在播的
-              // 解码器不生效（用户切“软解”看不到任何变化）。
-              if (v == null) return;
-              unawaited(_applyHwdecAndReopen(v));
-              _playerSettings = _playerSettings.copyWith(
-                decodeMode: DecodeMode.values.firstWhere(
-                  (e) => e.name == v || (e.name == 'hwPlus' && v == 'hw+'),
-                  orElse: () => DecodeMode.auto,
+          subtitle: Text(_hwdecLabel(l10n, _controller.currentHwdec)),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () {
+            Navigator.pop(ctx);
+            _showPlayerOptionSheet(
+              l10n: l10n,
+              title: l10n.playerDecodeMode,
+              current: _controller.currentHwdec,
+              options: <(String, String)>[
+                ('auto', l10n.playerDecodeAuto),
+                ('sw', l10n.playerDecodeSw),
+                ('hw', l10n.playerDecodeHw),
+                // hw+（auto-copy）绕开硬解直通纹理路径，是花屏设备的首选。
+                (
+                  'hw+',
+                  '${l10n.playerDecodeHwPlus} · ${l10n.playerDecodeHwPlusHint}'
                 ),
-              );
-              unawaited(_saveEpisodeSetting(
-                'decodeMode',
-                _playerSettings.decodeMode.name,
-              ));
-            },
-          ),
+              ],
+              onPick: (String v) {
+                // 与自动降级一致：设完 hwdec 后必须 re-open，否则对已在播的
+                // 解码器不生效（用户切“软解”看不到任何变化）。
+                unawaited(_applyHwdecAndReopen(v));
+                _playerSettings = _playerSettings.copyWith(
+                  decodeMode: DecodeMode.values.firstWhere(
+                    (e) => e.name == v || (e.name == 'hwPlus' && v == 'hw+'),
+                    orElse: () => DecodeMode.auto,
+                  ),
+                );
+                unawaited(_saveEpisodeSetting(
+                  'decodeMode',
+                  _playerSettings.decodeMode.name,
+                ));
+              },
+            );
+          },
         ),
       ),
       // 超分辨率 shader 档位（无清晰度源时提升观感）
@@ -196,34 +197,31 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
         builder: (BuildContext ctx) => ListTile(
           leading: const Icon(Icons.auto_awesome_rounded),
           title: Text(l10n.playerUpscaleShader),
-          subtitle: Text(l10n.playerUpscaleShaderHint),
-          trailing: DropdownButton<String>(
-            elevation: 0,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            value: _playerSettings.upscaleShader.name,
-            items: <DropdownMenuItem<String>>[
-              DropdownMenuItem<String>(
-                  value: 'off', child: Text(l10n.playerUpscaleShaderOff)),
-              DropdownMenuItem<String>(
-                  value: 'performance',
-                  child: Text(l10n.playerUpscaleShaderPerformance)),
-              DropdownMenuItem<String>(
-                  value: 'quality',
-                  child: Text(l10n.playerUpscaleShaderQuality)),
-            ],
-            onChanged: (String? v) {
-              Navigator.pop(ctx);
-              if (v == null) return;
-              final mode = UpscaleShaderMode.values.firstWhere(
-                (e) => e.name == v,
-                orElse: () => UpscaleShaderMode.off,
-              );
-              // glsl-shaders 运行时替换，即时生效无需 re-open。
-              unawaited(_controller.setUpscaleShader(mode));
-              _playerSettings = _playerSettings.copyWith(upscaleShader: mode);
-              unawaited(_saveEpisodeSetting('upscaleShader', mode.name));
-            },
-          ),
+          subtitle: Text(_upscaleLabel(l10n, _playerSettings.upscaleShader)),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () {
+            Navigator.pop(ctx);
+            _showPlayerOptionSheet(
+              l10n: l10n,
+              title: l10n.playerUpscaleShader,
+              current: _playerSettings.upscaleShader.name,
+              options: <(String, String)>[
+                ('off', l10n.playerUpscaleShaderOff),
+                ('performance', l10n.playerUpscaleShaderPerformance),
+                ('quality', l10n.playerUpscaleShaderQuality),
+              ],
+              onPick: (String v) {
+                final mode = UpscaleShaderMode.values.firstWhere(
+                  (e) => e.name == v,
+                  orElse: () => UpscaleShaderMode.off,
+                );
+                // glsl-shaders 运行时替换，即时生效无需 re-open。
+                unawaited(_controller.setUpscaleShader(mode));
+                _playerSettings = _playerSettings.copyWith(upscaleShader: mode);
+                unawaited(_saveEpisodeSetting('upscaleShader', mode.name));
+              },
+            );
+          },
         ),
       ),
       // 音频通道
@@ -232,40 +230,37 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
         builder: (BuildContext ctx) => ListTile(
           leading: const Icon(Icons.graphic_eq_rounded),
           title: Text(l10n.playerAudioChannel),
-          trailing: DropdownButton<String>(
-            elevation: 0,
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-            value: _controller.currentAudioChannel,
-            items: <DropdownMenuItem<String>>[
-              DropdownMenuItem<String>(
-                  value: 'auto', child: Text(l10n.playerDecodeAuto)),
-              DropdownMenuItem<String>(
-                  value: 'auto-safe',
-                  child: Text(l10n.playerAudioAutoProtect)),
-              DropdownMenuItem<String>(
-                  value: 'stereo', child: Text(l10n.playerAudioStereo)),
-              DropdownMenuItem<String>(
-                  value: 'mono', child: Text(l10n.playerAudioMono)),
-              DropdownMenuItem<String>(
-                  value: 'reverse-stereo',
-                  child: Text(l10n.playerAudioReverseStereo)),
-            ],
-            onChanged: (String? v) {
-              Navigator.pop(ctx);
-              if (v == null) return;
-              unawaited(_controller.setAudioChannel(v));
-              _playerSettings = _playerSettings.copyWith(
-                audioChannel: AudioChannel.values.firstWhere(
-                  (e) => e.name == v,
-                  orElse: () => AudioChannel.auto,
-                ),
-              );
-              unawaited(_saveEpisodeSetting(
-                'audioChannel',
-                _playerSettings.audioChannel.name,
-              ));
-            },
-          ),
+          subtitle:
+              Text(_audioChannelLabel(l10n, _controller.currentAudioChannel)),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () {
+            Navigator.pop(ctx);
+            _showPlayerOptionSheet(
+              l10n: l10n,
+              title: l10n.playerAudioChannel,
+              current: _controller.currentAudioChannel,
+              options: <(String, String)>[
+                ('auto', l10n.playerDecodeAuto),
+                ('auto-safe', l10n.playerAudioAutoProtect),
+                ('stereo', l10n.playerAudioStereo),
+                ('mono', l10n.playerAudioMono),
+                ('reverse-stereo', l10n.playerAudioReverseStereo),
+              ],
+              onPick: (String v) {
+                unawaited(_controller.setAudioChannel(v));
+                _playerSettings = _playerSettings.copyWith(
+                  audioChannel: AudioChannel.values.firstWhere(
+                    (e) => e.name == v,
+                    orElse: () => AudioChannel.auto,
+                  ),
+                );
+                unawaited(_saveEpisodeSetting(
+                  'audioChannel',
+                  _playerSettings.audioChannel.name,
+                ));
+              },
+            );
+          },
         ),
       ),
       _PlayerMenuEntry(
@@ -404,6 +399,85 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
     ];
   }
 
+  /// 与设置页「行 + 选中 check」弹层同款的播放器单选弹层。
+  Future<void> _showPlayerOptionSheet({
+    required AppLocalizations l10n,
+    required String title,
+    required String current,
+    required List<(String, String)> options,
+    required ValueChanged<String> onPick,
+  }) async {
+    // 弹层打开期间持有控制栏，禁止自动隐藏。
+    _acquirePanelHold();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext ctx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTokens.spaceLg,
+                    AppTokens.spaceMd,
+                    AppTokens.spaceLg,
+                    AppTokens.spaceSm,
+                  ),
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                for (final (String value, String label) in options)
+                  ListTile(
+                    title: Text(label),
+                    trailing: value == current
+                        ? Icon(Icons.check_rounded,
+                            color: Theme.of(ctx).colorScheme.primary)
+                        : null,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      onPick(value);
+                    },
+                  ),
+                const SizedBox(height: AppTokens.spaceSm),
+              ],
+            ),
+          ),
+        ),
+      ),
+      // 弹层关闭后释放控制栏租约。
+    ).whenComplete(_releasePanelHold);
+  }
+
+  String _hwdecLabel(AppLocalizations l10n, String v) => switch (v) {
+        'sw' => l10n.playerDecodeSw,
+        'hw' => l10n.playerDecodeHw,
+        'hw+' => l10n.playerDecodeHwPlus,
+        _ => l10n.playerDecodeAuto,
+      };
+
+  String _upscaleLabel(AppLocalizations l10n, UpscaleShaderMode m) =>
+      switch (m) {
+        UpscaleShaderMode.performance => l10n.playerUpscaleShaderPerformance,
+        UpscaleShaderMode.quality => l10n.playerUpscaleShaderQuality,
+        _ => l10n.playerUpscaleShaderOff,
+      };
+
+  String _audioChannelLabel(AppLocalizations l10n, String v) => switch (v) {
+        'auto-safe' => l10n.playerAudioAutoProtect,
+        'stereo' => l10n.playerAudioStereo,
+        'mono' => l10n.playerAudioMono,
+        'reverse-stereo' => l10n.playerAudioReverseStereo,
+        _ => l10n.playerDecodeAuto,
+      };
+
   Widget _menuHeader(AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -423,9 +497,8 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           // 投屏入口（打开设备选择面板）。
           IconButton(
             icon: Icon(Icons.cast_rounded,
-                color: _isCasting
-                    ? Theme.of(context).colorScheme.primary
-                    : null),
+                color:
+                    _isCasting ? Theme.of(context).colorScheme.primary : null),
             tooltip: l10n.cast,
             onPressed: () {
               Navigator.pop(context);

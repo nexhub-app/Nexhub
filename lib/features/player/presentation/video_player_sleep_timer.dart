@@ -13,63 +13,88 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
               BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
           child: SingleChildScrollView(
             child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.timer_off_rounded),
-              title: Text(l10n.playerTimerOff),
-              onTap: () {
-                Navigator.pop(ctx);
-                _sleepTimer?.cancel();
-                _sleepTimer = null;
-                // 关闭定时同时清按集计数。
-                _sleepEpisodesRemaining = 0;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.playerTimerCanceled)),
-                );
-              },
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTokens.spaceLg,
+                    AppTokens.spaceMd,
+                    AppTokens.spaceLg,
+                    AppTokens.spaceSm,
+                  ),
+                  child: Text(
+                    l10n.playerTimer,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                // 与设置页「行 + 选中 check」弹层语言一致。
+                ListTile(
+                  title: Text(l10n.playerTimerOff),
+                  trailing:
+                      (_sleepTimer == null && _sleepEpisodesRemaining == 0)
+                          ? Icon(Icons.check_rounded,
+                              color: Theme.of(context).colorScheme.primary)
+                          : null,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _sleepTimer?.cancel();
+                    _sleepTimer = null;
+                    _sleepTimerMinutes = null;
+                    // 关闭定时同时清按集计数。
+                    _sleepEpisodesRemaining = 0;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(l10n.playerTimerCanceled)),
+                    );
+                  },
+                ),
+                for (final m in <int>[15, 30, 45, 60, 90])
+                  ListTile(
+                    title: Text(l10n.playerTimerMinutes(m)),
+                    trailing: _sleepTimerMinutes == m
+                        ? Icon(Icons.check_rounded,
+                            color: Theme.of(context).colorScheme.primary)
+                        : null,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _setSleepTimer(m, l10n);
+                    },
+                  ),
+                // 睡眠定时「按集数」模式（与按分钟互斥，跨集保留）。
+                for (final n in <int>[1, 2, 3])
+                  ListTile(
+                    title: Text(l10n.playerTimerEpisodes(n)),
+                    trailing: _sleepEpisodesRemaining == n
+                        ? Icon(Icons.check_rounded,
+                            color: Theme.of(context).colorScheme.primary)
+                        : null,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _setSleepEpisodes(n, l10n);
+                    },
+                  ),
+                ListTile(
+                  title: Text(l10n.playerTimerCustom),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showCustomSleepTimerDialog(l10n);
+                  },
+                ),
+                const SizedBox(height: AppTokens.spaceSm),
+              ],
             ),
-            for (final m in <int>[15, 30, 45, 60, 90])
-              ListTile(
-                leading: const Icon(Icons.timer_rounded),
-                title: Text(l10n.playerTimerMinutes(m)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _setSleepTimer(m, l10n);
-                },
-              ),
-            // 睡眠定时「按集数」模式（与按分钟互斥，跨集保留）。
-            for (final n in <int>[1, 2, 3])
-              ListTile(
-                leading: const Icon(Icons.video_library_rounded),
-                title: Text(l10n.playerTimerEpisodes(n)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _setSleepEpisodes(n, l10n);
-                },
-              ),
-            ListTile(
-              leading: const Icon(Icons.edit_rounded),
-              title: Text(l10n.playerTimerCustom),
-              onTap: () {
-                Navigator.pop(ctx);
-                _showCustomSleepTimerDialog(l10n);
-              },
-            ),
-            const SizedBox(height: AppTokens.spaceSm),
-          ],
+          ),
         ),
       ),
-    ),
-  ),
-)
-      // 面板关闭后释放控制栏租约。
-      .whenComplete(_releasePanelHold);
+    )
+        // 面板关闭后释放控制栏租约。
+        .whenComplete(_releasePanelHold);
   }
 
   void _setSleepTimer(int minutes, AppLocalizations l10n) {
     // 按分钟模式与按集数模式互斥。
     _sleepEpisodesRemaining = 0;
+    _sleepTimerMinutes = minutes;
     _sleepTimer?.cancel();
     _sleepTimer = Timer(Duration(minutes: minutes), () {
       _controller.pause();
@@ -102,6 +127,7 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
   /// 与按分钟模式互斥（取消分钟 Timer）；计数跨集保留（已保证切集不取消
   /// 定时器），由 [_onCompleted] 播完一集递减，归零时暂停并提示。
   void _setSleepEpisodes(int count, AppLocalizations l10n) {
+    _sleepTimerMinutes = null;
     _sleepTimer?.cancel();
     _sleepTimer = null;
     _sleepEpisodesRemaining = count;

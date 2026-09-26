@@ -43,7 +43,8 @@ import '../../../core/download/local_to_online.dart';
 import '../../../core/download/download_settings.dart';
 import '../../../core/async_session.dart';
 import '../../../core/reader/reading_queue_store.dart';
-import '../../../core/widgets/reading_queue_sheet.dart' show openReadingQueueSheet;
+import '../../../core/widgets/reading_queue_sheet.dart'
+    show openReadingQueueSheet;
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/stats/reading_session_recorder.dart';
@@ -216,6 +217,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 避免快速翻章时旧章节覆盖新章节（竞态导致「显示的章节与 _chapterIndex 不一致」）。
   final AsyncSession _loadSession = AsyncSession();
   final Map<int, List<String>> _preload = <int, List<String>>{};
+
   /// 正在预加载的章节下标集合（防止同一章重复发起请求）。
   final Set<int> _preloading = <int>{};
 
@@ -238,6 +240,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   PageController? _pageController;
   ItemScrollController? _itemScrollController;
   ItemPositionsListener? _itemPositionsListener;
+
   /// 条漫模式待恢复的页码（_setupControllers 设置，_buildWebtoon 首次渲染后清除）。
   int? _pendingWebtoonRestore;
 
@@ -330,7 +333,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _currentPageNotifier.value = v;
     // 漫画翻译开启时，翻到新页自动触发该页 OCR+翻译（内部有缓存/去重守卫，
     // 高频调用无副作用；webtoon 滚动中反复触发同一页直接命中状态检查返回）。
-    if (_prefs.translationEnabled && _images.isNotEmpty && v >= 0 && v < _images.length) {
+    if (_prefs.translationEnabled &&
+        _images.isNotEmpty &&
+        v >= 0 &&
+        v < _images.length) {
       unawaited(_translation.ensureTranslated(
         _images[v],
         chapterKey: _translationChapterKey,
@@ -381,7 +387,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 长按 / 右键菜单「翻译本页 / 关闭翻译」：toggle 当前书翻译开关并落盘
   ///（与底栏工具栏同款持久化路径），开关打开时立即对当前页发起翻译。
   Future<void> _toggleCurrentPageTranslation() async {
-    final next = _prefs.copyWith(translationEnabled: !_prefs.translationEnabled);
+    final next =
+        _prefs.copyWith(translationEnabled: !_prefs.translationEnabled);
     await _applySettings(next, persist: true);
   }
 
@@ -415,6 +422,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   // ── 系统亮度双轨（REQ-C3）──
   final ScreenBrightness _brightnessPlugin = ScreenBrightness();
+
   /// 是否为负亮度（压暗 + 黑遮罩）模式，避免两轨互相覆盖。
   bool _dimBrightnessActive = false;
 
@@ -1072,9 +1080,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       setState(() => _isPageImageFav = added);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(added
-              ? l10n.imageFavoriteAdded
-              : l10n.imageFavoriteRemoved),
+          content:
+              Text(added ? l10n.imageFavoriteAdded : l10n.imageFavoriteRemoved),
         ),
       );
     }
@@ -1114,7 +1121,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       setState(() => _isFav = !wasFavorite);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(wasFavorite ? l10n.favoriteRemoved : l10n.favoriteAdded),
+          content:
+              Text(wasFavorite ? l10n.favoriteRemoved : l10n.favoriteAdded),
         ),
       );
     }
@@ -1155,7 +1163,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
-              leading: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded),
+              leading: Icon(_isFav
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded),
               title: Text(l10n.favorite),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -1166,7 +1176,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             if (!_isLocalMode || widget.chapters.isNotEmpty)
               ListTile(
                 leading: Icon(
-                  _chapterBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                  _chapterBookmarked
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
                   color: _chapterBookmarked ? Colors.amber : null,
                 ),
                 title: Text(l10n.readerChapterBookmark),
@@ -1177,7 +1189,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               ),
             ListTile(
               leading: Icon(
-                _isPageImageFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                _isPageImageFav
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
                 color: _isPageImageFav ? Colors.amber : null,
               ),
               title: Text(l10n.readerFavoriteImage),
@@ -1216,9 +1230,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 顶栏书签 toggle：已书签则取消，否则添加当前章书签（REQ-C1）。
   Future<void> _toggleChapterBookmark() async {
     final l10n = AppLocalizations.of(context);
-    final chapter = widget.chapters.isEmpty
-        ? null
-        : widget.chapters[_chapterIndex];
+    final chapter =
+        widget.chapters.isEmpty ? null : widget.chapters[_chapterIndex];
     final bool added;
     try {
       added = await _bookmarks.toggleChapter(
@@ -1236,7 +1249,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          added ? l10n.readerChapterBookmarked : l10n.readerChapterBookmarkRemoved,
+          added
+              ? l10n.readerChapterBookmarked
+              : l10n.readerChapterBookmarkRemoved,
         ),
       ),
     );
@@ -1485,7 +1500,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 查询某图片 URL 的取图 Referer（未登记返回 null → 回退源 antiHotlinking）。
   String? _refererFor(String imageUrl) => _urlReferers[imageUrl];
 
-
   Future<void> _loadChapter(int index,
       {int restorePage = 0, bool restoreToLast = false}) async {
     final int token = _loadSession.next();
@@ -1494,7 +1508,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (mounted) setState(() => _loading = true);
     try {
       final source = _repo.getById(widget.sourceId);
-      if (source == null) throw Exception('source not found: ${widget.sourceId}');
+      if (source == null)
+        throw Exception('source not found: ${widget.sourceId}');
       _source = source;
       // 翻译控制器的防盗链 headers 需要源配置（源异步加载后补传）。
       _translation.updateSource(source);
@@ -1637,7 +1652,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       // 保持一致，保证进度条 / 保存值与可见页面对齐。
       final int logicalPage;
       if (_isDoublePage) {
-        logicalPage = _doublePageLeftPageFor(initial).clamp(0, _images.length - 1);
+        logicalPage =
+            _doublePageLeftPageFor(initial).clamp(0, _images.length - 1);
       } else if (_isGalleryMode) {
         logicalPage = (initial * _galleryCount).clamp(0, _images.length - 1);
       } else {
@@ -1779,9 +1795,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 「章分割/过渡」条目。当前页取视口内最顶部可见项，再经 [_resolveSeamIndex]
     // 映射回真实页索引；分隔条目/邻段页一律先按「读取中页」处理，防止滚动回调在
     // 越界预加载期把越界页码写进当前章存档（由重锚时统一修正）。
-    final int flatIdx = visible
-        .map((p) => p.index)
-        .reduce((a, b) => a < b ? a : b);
+    final int flatIdx =
+        visible.map((p) => p.index).reduce((a, b) => a < b ? a : b);
     // 跨段边界自动重锚：视口顶部已滚入邻段页条目（而非章分割条目）即无缝切章。
     // 重锚成功后本回调立即返回（重锚期间索引换算不可信，进度由重锚收尾统一写盘）；
     // 未真正重锚（越界/目标未就绪）时回落到常规进度处理。
@@ -1820,8 +1835,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 未到底时最后一项底边仍在视口下方（trailingEdge>1），不触发，故进度不会提前满格。
     // seam 模式下「最后一项」是扁平列表末条目（可能落在下一段），此时以邻段页为准；
     // 非 seam 模式下回落到真实页末位。
-    final int lastIndex =
-        _seamActive && _seamItemCount > 0 ? _seamItemCount - 1 : _images.length - 1;
+    final int lastIndex = _seamActive && _seamItemCount > 0
+        ? _seamItemCount - 1
+        : _images.length - 1;
     bool atVeryEnd = false;
     if (lastIndex >= 0 && _hasRealSizedItem(positions)) {
       for (final p in positions) {
@@ -1978,8 +1994,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           if (!mounted) return;
           _preload[index] = imgs;
           // 预载章图片同样登记 Referer（seam 无缝列表会直接显示邻章图片）。
-          _registerImageReferers(
-              imgs, widget.chapters[index].url);
+          _registerImageReferers(imgs, widget.chapters[index].url);
           // 预载完成后重建段式连续模型：邻段条目新近可用。若完成的是【上一章】，
           // 前插会把当前章扁平索引整体后移，需记录锚点并重放以保持视口不跳变
           // （Bug 6：首页向下阅读被误拉回上一话末页）；追加下一章段时重放为同索引。
@@ -1998,8 +2013,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   Future<void> _preloadChapterLocal(int index) async {
     if (index < 0 || index >= widget.chapters.length) return;
     if (_preload.containsKey(index) || _preloading.contains(index)) return;
-    if (widget.localArchivePaths == null &&
-        widget.localChapterDirs == null) {
+    if (widget.localArchivePaths == null && widget.localChapterDirs == null) {
       return; // 仅聚合本地 / 本地下载目录有相邻章概念。
     }
     _preloading.add(index);
@@ -2007,8 +2021,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       List<String> imgs;
       if (widget.localArchivePaths != null &&
           widget.localArchivePaths!.isNotEmpty) {
-        final archive =
-            await resolveSafUri(widget.localArchivePaths![index]);
+        final archive = await resolveSafUri(widget.localArchivePaths![index]);
         if (archive.toLowerCase().endsWith('.pdf')) {
           imgs = await extractPdfPages(archive);
         } else {
@@ -2258,9 +2271,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 目标章：显式指定（目录点选，不应用跳章过滤）优先；否则沿 [dir] 方向过滤
     // （跳过已读/被过滤/重复章）后的可导航章——条漫连续阅读在「下一章已读」时
     // 直接连到下一未读章。
-    final int target = targetOverride ??
-        _resolveChapterTarget(dir) ??
-        (_chapterIndex + dir);
+    final int target =
+        targetOverride ?? _resolveChapterTarget(dir) ?? (_chapterIndex + dir);
     if (target < 0 || target >= widget.chapters.length) return false;
     // 重锚目标章的图片必须已就绪（当前章或预载缓存），否则整章加载兜底。
     final List<String> targetImgs = target == _chapterIndex
@@ -2342,8 +2354,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (mounted) setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_loadSession.isValid(token)) return;
-      if (isc != null && isc.isAttached &&
-          jumpIndex >= 0 && jumpIndex < _seamItemCount) {
+      if (isc != null &&
+          isc.isAttached &&
+          jumpIndex >= 0 &&
+          jumpIndex < _seamItemCount) {
         // jumpTo 为确定性瞬移：重锚后把视口钉到换算出的扁平条目 + 对齐系数，
         // 同一内容回到原屏幕位置（或落到目标章首页/末页）。
         isc.jumpTo(index: jumpIndex, alignment: jumpAlign);
@@ -2435,7 +2449,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       }
     }
     _rebuildSeam();
-    _currentPage = _currentPage.clamp(0, _images.isEmpty ? 0 : _images.length - 1);
+    _currentPage =
+        _currentPage.clamp(0, _images.isEmpty ? 0 : _images.length - 1);
     _scheduleProgressSave(_currentPage);
     if (anchorPage != null) {
       final isc = _itemScrollController;
@@ -2527,9 +2542,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 缺省用当前章。目标章图片不在内存（[_preload] 已取走）时无法得知总页数，跳过。
   void _maybeMarkChapterWatched(int page, {int? chapterIndex}) {
     final int ci = chapterIndex ?? _chapterIndex;
-    final int total = ci == _chapterIndex
-        ? _images.length
-        : (_preload[ci]?.length ?? -1);
+    final int total =
+        ci == _chapterIndex ? _images.length : (_preload[ci]?.length ?? -1);
     if (total <= 0) return;
     final ratio = (page + 1) / total;
     final threshold = GeneralSettingsStore.instance.watchedThresholdPercent;
@@ -2600,11 +2614,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       );
       _autoDownloadTriggeredChapter = _chapterIndex;
       unawaited(
-        dm.addTask(
+        dm
+            .addTask(
           item: item,
           chapters: widget.chapters,
           chapterIndices: indices,
-        ).then((_) {
+        )
+            .then((_) {
           // 成功入队不提示（非阻塞、静默）。
         }).catchError((Object _) {
           // 失败静默：不打断阅读。
@@ -2864,10 +2880,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// / [ReaderPreferences.einkRefreshDuration] 决定。
   void _triggerEinkRefresh() {
     if (!mounted) return;
-    final Color color = _effectivePrefs.einkRefreshStyle ==
-            ReaderEInkRefreshStyle.black
-        ? Colors.black
-        : Colors.white;
+    final Color color =
+        _effectivePrefs.einkRefreshStyle == ReaderEInkRefreshStyle.black
+            ? Colors.black
+            : Colors.white;
     _runFlash(
       color,
       Duration(
@@ -2909,7 +2925,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     // paged 段式连续模型（章末过渡卡 / 章首衔接）：目标章已预载 → 直接交换
     // 图片并重锚到新章首页，无白屏、无网络等待。（仅相邻章走过渡卡衔接。）
-    if (_pagedSeamActive && next == _chapterIndex + 1 &&
+    if (_pagedSeamActive &&
+        next == _chapterIndex + 1 &&
         _pagedAdvance(next, toLast: false)) {
       return;
     }
@@ -3013,8 +3030,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final Set<int> duplicates = _duplicateChapterIndices();
     var i = _chapterIndex + dir;
     while (i >= 0 && i < widget.chapters.length) {
-      final bool isRead =
-          skipRead && (watched?.contains(i) ?? false);
+      final bool isRead = skipRead && (watched?.contains(i) ?? false);
       final bool isFiltered = skipFiltered && _isFilteredChapter(i);
       final bool isDuplicate = skipDuplicate && duplicates.contains(i);
       if (!isRead && !isFiltered && !isDuplicate) return i;
@@ -3026,9 +3042,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 已读章节索引集合（MediaWatchedManager 未注册时返回 null → 不参与已读跳过）。
   Set<int>? _watchedReadIndices() {
     try {
-      return context.read<MediaWatchedManager>().watchedList(
+      return context
+          .read<MediaWatchedManager>()
+          .watchedList(
             widget.comicId,
-          ).toSet();
+          )
+          .toSet();
     } on Object {
       return null;
     }
@@ -3158,7 +3177,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                const Icon(Icons.drag_handle_rounded, size: 16, color: Colors.white70),
+                const Icon(Icons.drag_handle_rounded,
+                    size: 16, color: Colors.white70),
                 const SizedBox(height: 4),
                 Text(
                   label,
@@ -3186,8 +3206,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 执行序列：交换 [_images]/[_preload] → 预载新邻章 → 清页旋转表 → 重置缩放 →
   /// [_setupControllers] 以目标页重建 PageController（每章独立 Key，initialPage 必定
   /// 生效，确定性瞬移到目标页，无中间态/无白屏）→ 写盘进度。
-  bool _pagedAdvance(int target,
-      {required bool toLast, int? page}) {
+  bool _pagedAdvance(int target, {required bool toLast, int? page}) {
     if (_pagedReanchoring) return false;
     if (target < 0 || target >= widget.chapters.length) return false;
     if (target == _chapterIndex) return false;
@@ -3315,9 +3334,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final Size vp = MediaQuery.of(context).size;
     // 缩放锚点来源（REQ-B11 zoomStart）：双击时按设置决定横向锚点位置，
     // 纵轴沿用触点（保留 P0「按触点」触感，不破坏竖屏 webtoon 语义）。
-    final Offset anchor = focal == null
-        ? Offset.zero
-        : _anchorFromZoomStart(focal, vp);
+    final Offset anchor =
+        focal == null ? Offset.zero : _anchorFromZoomStart(focal, vp);
     // 三态循环：放大态 → 恢复原样；防缩小时 1x ↔ 放大两态；缩小态 → 放大；
     // 原样 → 缩小（第一次双击，固定 0.5x）。
     final double target;
@@ -3336,7 +3354,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _animateZoomTo(
       Matrix4.identity()
         ..translateByDouble(
-          anchor.dx * (1 - target), anchor.dy * (1 - target), 0.0, 1.0)
+            anchor.dx * (1 - target), anchor.dy * (1 - target), 0.0, 1.0)
         ..scaleByDouble(target, target, target, 1.0),
     );
   }
@@ -3354,15 +3372,15 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _zoomController.value = target;
       return;
     }
-    final bool sysNoAnim =
-        MediaQuery.of(context).disableAnimations || _prefs.doubleTapAnimSpeed <= 0;
+    final bool sysNoAnim = MediaQuery.of(context).disableAnimations ||
+        _prefs.doubleTapAnimSpeed <= 0;
     final int ms = sysNoAnim ? 0 : _prefs.doubleTapAnimSpeed;
     if (ms <= 0) {
       _zoomController.value = target;
       return;
     }
-    final AnimationController c = _zoomAnimController ??=
-        AnimationController(vsync: this);
+    final AnimationController c =
+        _zoomAnimController ??= AnimationController(vsync: this);
     _stopZoomAnimation();
     c.duration = Duration(milliseconds: ms);
     _zoomAnimating = true;
@@ -3437,14 +3455,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void _enterLongPressZoom(Offset pos) {
     if (!_prefs.doubleTapZoom) return;
     final Size vp = MediaQuery.of(context).size;
-    final Offset focal = _prefs.longPressZoomPosition ==
-            LongPressZoomPosition.center
-        ? Offset(vp.width / 2, vp.height / 2)
-        : pos;
+    final Offset focal =
+        _prefs.longPressZoomPosition == LongPressZoomPosition.center
+            ? Offset(vp.width / 2, vp.height / 2)
+            : pos;
     final Offset anchor = _toTransformAnchor(focal, vp);
     _zoomController.value = Matrix4.identity()
       ..translateByDouble(
-        anchor.dx * (1 - 1.75), anchor.dy * (1 - 1.75), 0.0, 1.0)
+          anchor.dx * (1 - 1.75), anchor.dy * (1 - 1.75), 0.0, 1.0)
       ..scaleByDouble(1.75, 1.75, 1.75, 1.0);
   }
 
@@ -3616,8 +3634,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void _volumeKeyAction(int dir) {
     if (_prefs.readingMode.isWebtoon) {
       final ScrollOffsetController? soc = _webtoonOffsetController;
-      final double vp =
-          _webtoonViewport ?? MediaQuery.of(context).size.height;
+      final double vp = _webtoonViewport ?? MediaQuery.of(context).size.height;
       if (soc != null) {
         final double px =
             vp * _prefs.volumeKeyPageTurnDistancePercent / 100 * dir;
@@ -3673,9 +3690,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _lastAutoPageInterval = null;
     }
     // 自动滚动：仅条漫模式 + 开关开启生效。
-    final bool wantScroll = _prefs.readingMode.isWebtoon &&
-        _prefs.autoScroll &&
-        !_autoScrollPaused;
+    final bool wantScroll =
+        _prefs.readingMode.isWebtoon && _prefs.autoScroll && !_autoScrollPaused;
     if (wantScroll && _autoScrollTicker == null) {
       _autoScrollElapsed = Duration.zero;
       _autoScrollPendingPx = 0;
@@ -3740,7 +3756,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       } else {
         _flushPendingProgress(_currentPage);
       }
-      unawaited(_store.save(widget.comicId, _prefs, overrideKeys: _overrideKeys));
+      unawaited(
+          _store.save(widget.comicId, _prefs, overrideKeys: _overrideKeys));
       unawaited(_commitDeviceOverride());
     }
     if (_autoScrollPaused == background) return;
@@ -3824,9 +3841,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
     _fetchBatteryLevel();
     _batterySubscription ??= Battery().onBatteryStateChanged.listen(
-      (_) => _fetchBatteryLevel(),
-      onError: (Object _) {},
-    );
+          (_) => _fetchBatteryLevel(),
+          onError: (Object _) {},
+        );
   }
 
   /// 停止时间/电量浮层的定时刷新与电量监听（关闭浮层 / 退出阅读器时调用）。
@@ -3887,8 +3904,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       } else {
         // 负值：压暗系统亮度 + 黑遮罩。
         _dimBrightnessActive = true;
-        unawaited(
-            _brightnessPlugin.setScreenBrightness(0.0).catchError((Object _) {}));
+        unawaited(_brightnessPlugin
+            .setScreenBrightness(0.0)
+            .catchError((Object _) {}));
       }
       if (mounted) setState(() {});
     } on Object {
@@ -4124,7 +4142,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       return _handleKeyEvent(event) == KeyEventResult.handled;
     }
     final FocusNode? focus = FocusManager.instance.primaryFocus;
-    if (focus != null && focus.context != null &&
+    if (focus != null &&
+        focus.context != null &&
         focus.context!.findAncestorStateOfType<EditableTextState>() != null) {
       return false;
     }
@@ -4263,7 +4282,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final Matrix4 m = _zoomController.value;
     final double beforeX = m.getTranslation().x;
     final double beforeY = m.getTranslation().y;
-    final Matrix4 moved = Matrix4.copy(m)..leftTranslateByDouble(delta.dx, delta.dy, 0.0, 1.0);
+    final Matrix4 moved = Matrix4.copy(m)
+      ..leftTranslateByDouble(delta.dx, delta.dy, 0.0, 1.0);
     final Matrix4 clamped = webtoon
         ? _clampWebtoonZoomMatrix(moved, vp, _currentWebtoonContentHeight(vp))
         : _clampZoomMatrix(moved, vp);
@@ -4319,8 +4339,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _zoomController.value = clamped;
     final double afterX = clamped.getTranslation().x;
     final double afterY = clamped.getTranslation().y;
-    final bool panned = (afterX - beforeX).abs() > 0.001 ||
-        (afterY - beforeY).abs() > 0.001;
+    final bool panned =
+        (afterX - beforeX).abs() > 0.001 || (afterY - beforeY).abs() > 0.001;
     // 平移被夹紧（已到底）→ 翻页 / 滚动；否则仅平移。
     if (!panned) _arrowPageTurn(dx, dy, webtoon);
   }
@@ -4484,230 +4504,233 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       behavior: _NoOverscrollBehavior(),
       child: Scaffold(
         backgroundColor: bg,
-      body: Focus(
-        // 键盘快捷键由 HardwareKeyboard 全局监听（见 initState），不再依赖本节点焦点，
-        // 故不设 autofocus / onKeyEvent，避免抢焦点干扰设置面板内的输入控件。
-        focusNode: _readerFocus,
-        child: Stack(
-        children: <Widget>[
-          _buildContent(l10n),
-          if (!_loading && _error == null && _images.isNotEmpty)
-            ReaderTapZones(
-              key: _tapZonesKey,
-              layout: _prefs.tapZoneLayout,
-              tapZoneInvert: _prefs.tapZoneInvert,
-              isVertical: _prefs.readingMode.isWebtoon ||
-                  _prefs.readingMode == ReadingMode.singleVertical,
-              isWebtoon: _prefs.readingMode.isWebtoon,
-              isRTL: _prefs.readingMode == ReadingMode.singleRTL,
-              onPrev: _goPrevPage,
-              onNext: _goNextPage,
-              onDragPage: (next) => next ? _goNextPage() : _goPrevPage(),
-              // 双击回退（REQ-B3：单击即时 + 双击回退）：双击缩放前撤销前一次
-              // 单击已触发的翻页——上次是下一页则回上一页，反之回下一页。
-              onUndoPageTurn: (next) =>
-                  next ? _goPrevPage() : _goNextPage(),
-              onToggleUi: () {
-                setState(() => _uiVisible = !_uiVisible);
-              },
-              onZoom: _toggleZoom,
-              onZoomAt: (pos) => _toggleZoom(pos),
-              // 缩放感知：放大态单指单击不触发翻页/导航（P0 手势 bug）。
-              isZoomed: () => _zoomController.value.getMaxScaleOnAxis() > 1.001,
-              // 手势交互态（Bug3 根治）：scale ≠ 1.0（含放大与缩小）时单指单击不
-              // 派发翻页，避免双击第一击的翻页把 0.5x 缩放态清掉（三态 0.5→2 失效）。
-              isZoomInteractive: () =>
-                  (_zoomController.value.getMaxScaleOnAxis() - 1.0).abs() >
-                  0.001,
-              // 屏幕级捏合（C2 根治）：覆盖层统一跟踪双指，条漫跨页也生效。
-              onPinchUpdate: _onPinchUpdate,
-              onPinchEnd: _onPinchEnd,
-              // 放大态单指平移。
-              onPanUpdate: _onPanUpdate,
-              // 滚轮 / 触控板滚动（缩放或翻页）。
-              onPointerSignal: _onPointerScroll,
-              // 触控板捏合 / 双指平移（C2 桌面：precision touchpad 独立事件流）。
-              onTrackpadZoom: _onTrackpadZoom,
-              onTrackpadPan: _onTrackpadPan,
-              // 桌面右键：弹出图片操作菜单（保存 / 分享 / 设封面），与长按同款。
-              onSecondaryTap: (_images.isEmpty)
-                  ? null
-                  : () => showReaderImageActions(
-                        context: context,
-                        url: _images[_currentPage.clamp(0, _images.length - 1)],
-                        source: _source,
-                        referer: _refererFor(
-                            _images[_currentPage.clamp(0, _images.length - 1)]),
-                        comicId: widget.comicId,
-                        sourceType: SourceType.mangaSource,
-                        onBookmarkChapter: _toggleChapterBookmarkFromMenu,
-                        onFavoriteImage: _toggleCurrentPageImageFavorite,
-                        onToggleTranslation: _toggleCurrentPageTranslation,
-                        translationEnabled: _prefs.translationEnabled,
-                      ),
-              onTapIntercept: () {
-                if (_showInlineSettings) {
-                  _toggleInlineSettings();
-                  return true;
-                }
-                return false;
-              },
-              onLongPress: (_images.isEmpty ||
-                      !_prefs.showLongPressMenu ||
-                      _prefs.enableLongPressToZoom)
-                  ? null
-                  : () {
-                      AppHaptics.thunk(); // MD3「Thunk」：长按呼出图片操作菜单。
-                      showReaderImageActions(
-                        context: context,
-                        url: _images[_currentPage.clamp(0, _images.length - 1)],
-                        source: _source,
-                        referer: _refererFor(
-                            _images[_currentPage.clamp(0, _images.length - 1)]),
-                        comicId: widget.comicId,
-                        sourceType: SourceType.mangaSource,
-                        onBookmarkChapter: _toggleChapterBookmarkFromMenu,
-                        onFavoriteImage: _toggleCurrentPageImageFavorite,
-                        onToggleTranslation: _toggleCurrentPageTranslation,
-                        translationEnabled: _prefs.translationEnabled,
-                      );
-                    },
-              // 长按缩放（REQ-B2）：开启时长按定点放大 1.75x、松手恢复；
-              // 关闭时由上方 onLongPress 保持「长按弹菜单」行为。
-              onLongPressAt: _prefs.enableLongPressToZoom
-                  ? _enterLongPressZoom
-                  : null,
-              onLongPressRelease: _prefs.enableLongPressToZoom
-                  ? _exitLongPressZoom
-                  : null,
-              // 控制栏区域保护：点在顶部/底部控制栏上时交给按钮自身处理，不触发翻页。
-              isToolbarRegion: (pos) => _isInToolbarRegion(pos),
-            ),
-          // P2：缩放比例指示（放大 >1.001 时顶部居中显示当前倍数，1.2s 后淡出）。
-          // 自包含监听 [_zoomController]（ValueListenableBuilder 只重建徽标本体，
-          // 不触发整屏 setState）。
-          if (_images.isNotEmpty)
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + AppTokens.spaceLg,
-              left: 0,
-              right: 0,
-              child: IgnorePointer(
-                child: Center(
-                  child: _ZoomFactorBadge(controller: _zoomController),
+        body: Focus(
+          // 键盘快捷键由 HardwareKeyboard 全局监听（见 initState），不再依赖本节点焦点，
+          // 故不设 autofocus / onKeyEvent，避免抢焦点干扰设置面板内的输入控件。
+          focusNode: _readerFocus,
+          child: Stack(
+            children: <Widget>[
+              _buildContent(l10n),
+              if (!_loading && _error == null && _images.isNotEmpty)
+                ReaderTapZones(
+                  key: _tapZonesKey,
+                  layout: _prefs.tapZoneLayout,
+                  tapZoneInvert: _prefs.tapZoneInvert,
+                  isVertical: _prefs.readingMode.isWebtoon ||
+                      _prefs.readingMode == ReadingMode.singleVertical,
+                  isWebtoon: _prefs.readingMode.isWebtoon,
+                  isRTL: _prefs.readingMode == ReadingMode.singleRTL,
+                  onPrev: _goPrevPage,
+                  onNext: _goNextPage,
+                  onDragPage: (next) => next ? _goNextPage() : _goPrevPage(),
+                  // 双击回退（REQ-B3：单击即时 + 双击回退）：双击缩放前撤销前一次
+                  // 单击已触发的翻页——上次是下一页则回上一页，反之回下一页。
+                  onUndoPageTurn: (next) =>
+                      next ? _goPrevPage() : _goNextPage(),
+                  onToggleUi: () {
+                    setState(() => _uiVisible = !_uiVisible);
+                  },
+                  onZoom: _toggleZoom,
+                  onZoomAt: (pos) => _toggleZoom(pos),
+                  // 缩放感知：放大态单指单击不触发翻页/导航（P0 手势 bug）。
+                  isZoomed: () =>
+                      _zoomController.value.getMaxScaleOnAxis() > 1.001,
+                  // 手势交互态（Bug3 根治）：scale ≠ 1.0（含放大与缩小）时单指单击不
+                  // 派发翻页，避免双击第一击的翻页把 0.5x 缩放态清掉（三态 0.5→2 失效）。
+                  isZoomInteractive: () =>
+                      (_zoomController.value.getMaxScaleOnAxis() - 1.0).abs() >
+                      0.001,
+                  // 屏幕级捏合（C2 根治）：覆盖层统一跟踪双指，条漫跨页也生效。
+                  onPinchUpdate: _onPinchUpdate,
+                  onPinchEnd: _onPinchEnd,
+                  // 放大态单指平移。
+                  onPanUpdate: _onPanUpdate,
+                  // 滚轮 / 触控板滚动（缩放或翻页）。
+                  onPointerSignal: _onPointerScroll,
+                  // 触控板捏合 / 双指平移（C2 桌面：precision touchpad 独立事件流）。
+                  onTrackpadZoom: _onTrackpadZoom,
+                  onTrackpadPan: _onTrackpadPan,
+                  // 桌面右键：弹出图片操作菜单（保存 / 分享 / 设封面），与长按同款。
+                  onSecondaryTap: (_images.isEmpty)
+                      ? null
+                      : () => showReaderImageActions(
+                            context: context,
+                            url: _images[
+                                _currentPage.clamp(0, _images.length - 1)],
+                            source: _source,
+                            referer: _refererFor(_images[
+                                _currentPage.clamp(0, _images.length - 1)]),
+                            comicId: widget.comicId,
+                            sourceType: SourceType.mangaSource,
+                            onBookmarkChapter: _toggleChapterBookmarkFromMenu,
+                            onFavoriteImage: _toggleCurrentPageImageFavorite,
+                            onToggleTranslation: _toggleCurrentPageTranslation,
+                            translationEnabled: _prefs.translationEnabled,
+                          ),
+                  onTapIntercept: () {
+                    if (_showInlineSettings) {
+                      _toggleInlineSettings();
+                      return true;
+                    }
+                    return false;
+                  },
+                  onLongPress: (_images.isEmpty ||
+                          !_prefs.showLongPressMenu ||
+                          _prefs.enableLongPressToZoom)
+                      ? null
+                      : () {
+                          AppHaptics.thunk(); // MD3「Thunk」：长按呼出图片操作菜单。
+                          showReaderImageActions(
+                            context: context,
+                            url: _images[
+                                _currentPage.clamp(0, _images.length - 1)],
+                            source: _source,
+                            referer: _refererFor(_images[
+                                _currentPage.clamp(0, _images.length - 1)]),
+                            comicId: widget.comicId,
+                            sourceType: SourceType.mangaSource,
+                            onBookmarkChapter: _toggleChapterBookmarkFromMenu,
+                            onFavoriteImage: _toggleCurrentPageImageFavorite,
+                            onToggleTranslation: _toggleCurrentPageTranslation,
+                            translationEnabled: _prefs.translationEnabled,
+                          );
+                        },
+                  // 长按缩放（REQ-B2）：开启时长按定点放大 1.75x、松手恢复；
+                  // 关闭时由上方 onLongPress 保持「长按弹菜单」行为。
+                  onLongPressAt:
+                      _prefs.enableLongPressToZoom ? _enterLongPressZoom : null,
+                  onLongPressRelease:
+                      _prefs.enableLongPressToZoom ? _exitLongPressZoom : null,
+                  // 控制栏区域保护：点在顶部/底部控制栏上时交给按钮自身处理，不触发翻页。
+                  isToolbarRegion: (pos) => _isInToolbarRegion(pos),
                 ),
-              ),
-            ),
-          if (_flashLayerActive)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Container(
-                  color: _flashColor.withValues(alpha: _flashOpacity),
-                ),
-              ),
-            ),
-          if (_transitionVisible)
-            Center(
-              child: IgnorePointer(
-                child: AnimatedOpacity(
-                  opacity: _transitionVisible ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Card(
-                    color: Colors.black54,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 12),
-                      child: Text(
-                        _transitionTitle,
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 18),
-                      ),
+              // P2：缩放比例指示（放大 >1.001 时顶部居中显示当前倍数，1.2s 后淡出）。
+              // 自包含监听 [_zoomController]（ValueListenableBuilder 只重建徽标本体，
+              // 不触发整屏 setState）。
+              if (_images.isNotEmpty)
+                Positioned(
+                  top: MediaQuery.paddingOf(context).top + AppTokens.spaceLg,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: _ZoomFactorBadge(controller: _zoomController),
                     ),
                   ),
                 ),
-              ),
-            ),
-          // 条漫跳章过渡横幅已移除（2026-08-20）：滚到章末由「直接自动连读」
-          // 取代（见 _onWebtoonScroll），不再需要点击/延时确认。
-          if (_uiVisible)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: _buildTopBar(l10n, bg),
-            ),
-          if (_uiVisible)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _buildBottomBar(l10n),
-            ),
-          if (_uiVisible && _prefs.progressBarOnRight && _images.isNotEmpty)
-            _buildRightProgressBar(l10n),
-          if (_uiVisible && _prefs.showClockBattery)
-            _buildClockBatteryOverlay(l10n),
-          // 章节导航滑块（REQ-C10）：ui 可见 + 设置开启时显示，拖动预览章节。
-          if (_uiVisible &&
-              !_isLocalMode &&
-              _effectivePrefs.showChapterSlider)
-            _buildChapterSlider(l10n),
-          // 章节导航滑块预览浮层（REQ-C10）：拖动时在顶部预览章节标题。
-          if (_uiVisible && _sliderPreviewChapter != null)
-            Positioned(
-              top: 40,
-              left: 0,
-              right: 0,
-              child: IgnorePointer(
-                child: Center(
-                  child: Card(
-                    color: Colors.black54,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                      child: Text(
-                        _sliderPreviewChapter! < widget.chapters.length
-                            ? widget.chapters[_sliderPreviewChapter!].title
-                            : '',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
+              if (_flashLayerActive)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      color: _flashColor.withValues(alpha: _flashOpacity),
+                    ),
+                  ),
+                ),
+              if (_transitionVisible)
+                Center(
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: _transitionVisible ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Card(
+                        color: Colors.black54,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          child: Text(
+                            _transitionTitle,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 18),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          if (_showInlineSettings) _buildInlineSettings(l10n),
-          // 亮度双轨的负值遮罩（REQ-C3）：压暗系统亮度到最低后叠加黑遮罩，
-          // 透明度随 |readerBrightness|。置于最上层使整个阅读区域一起变暗，
-          // 拖动滑块时即时生效；IgnorePointer 不拦截点击/翻页。
-          if (_dimBrightnessActive && _effectivePrefs.readerBrightness < 0)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Container(
-                  color: Colors.black.withValues(
-                    alpha: (-_effectivePrefs.readerBrightness).clamp(0.0, 1.0),
+              // 条漫跳章过渡横幅已移除（2026-08-20）：滚到章末由「直接自动连读」
+              // 取代（见 _onWebtoonScroll），不再需要点击/延时确认。
+              if (_uiVisible)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildTopBar(l10n, bg),
+                ),
+              if (_uiVisible)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildBottomBar(l10n),
+                ),
+              if (_uiVisible && _prefs.progressBarOnRight && _images.isNotEmpty)
+                _buildRightProgressBar(l10n),
+              if (_uiVisible && _prefs.showClockBattery)
+                _buildClockBatteryOverlay(l10n),
+              // 章节导航滑块（REQ-C10）：ui 可见 + 设置开启时显示，拖动预览章节。
+              if (_uiVisible &&
+                  !_isLocalMode &&
+                  _effectivePrefs.showChapterSlider)
+                _buildChapterSlider(l10n),
+              // 章节导航滑块预览浮层（REQ-C10）：拖动时在顶部预览章节标题。
+              if (_uiVisible && _sliderPreviewChapter != null)
+                Positioned(
+                  top: 40,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    child: Center(
+                      child: Card(
+                        color: Colors.black54,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          child: Text(
+                            _sliderPreviewChapter! < widget.chapters.length
+                                ? widget.chapters[_sliderPreviewChapter!].title
+                                : '',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          // 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于
-          // [readerBrightness] 的暖色（纸感 0xFF2A1800）半透明覆盖，减少蓝光，
-          // 不干预系统亮度；可与负值黑遮罩叠加（偏色 + 压暗）。
-          if (_effectivePrefs.nightLightEnabled)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Container(
-                  color: ReaderTokens.nightLightColor.withValues(
-                    alpha: _effectivePrefs.nightLightOpacity.clamp(0.0, 1.0),
+              if (_showInlineSettings) _buildInlineSettings(l10n),
+              // 亮度双轨的负值遮罩（REQ-C3）：压暗系统亮度到最低后叠加黑遮罩，
+              // 透明度随 |readerBrightness|。置于最上层使整个阅读区域一起变暗，
+              // 拖动滑块时即时生效；IgnorePointer 不拦截点击/翻页。
+              if (_dimBrightnessActive && _effectivePrefs.readerBrightness < 0)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      color: Colors.black.withValues(
+                        alpha:
+                            (-_effectivePrefs.readerBrightness).clamp(0.0, 1.0),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-        ],
-      ),
-      ),
+              // 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于
+              // [readerBrightness] 的暖色（纸感 0xFF2A1800）半透明覆盖，减少蓝光，
+              // 不干预系统亮度；可与负值黑遮罩叠加（偏色 + 压暗）。
+              if (_effectivePrefs.nightLightEnabled)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      color: ReaderTokens.nightLightColor.withValues(
+                        alpha:
+                            _effectivePrefs.nightLightOpacity.clamp(0.0, 1.0),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -4721,7 +4744,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         MediaQuery.sizeOf(context).width >= AppTokens.desktopBreakpoint;
 
     final panel = Material(
-      elevation: 4,
+      elevation: 0,
+      // 面板外壳 = 中性表面色（不带强调染色）；强调色只留给面板内的卡片。
+      color: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: buildComicSettingsSheet(
         initial: _prefs,
         // REQ-C9 三层覆盖：内联面板即时预览写入设备/会话层（不落盘），
@@ -4777,7 +4806,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       );
     }
     if (_images.isEmpty) {
-      return _CenterMessage(icon: Icons.image_not_supported_rounded, message: l10n.noImages);
+      return _CenterMessage(
+          icon: Icons.image_not_supported_rounded, message: l10n.noImages);
     }
     if (_prefs.readingMode.isWebtoon) return _buildWebtoon();
     final Widget paged = _buildPaged();
@@ -4804,9 +4834,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 仅首章生效：进度条 / 跨页映射（[_doublePageSpreadFor] / [_doublePageLeftPageFor]）
   /// 均按「每章首页为常规跨页」设计，扩展到其它章会造成进度条与跨页计数错位。
   bool get _showFirstPageSingle =>
-      _prefs.showSingleImageOnFirstPage &&
-      _chapterIndex == 0 &&
-      _isDoublePage;
+      _prefs.showSingleImageOnFirstPage && _chapterIndex == 0 && _isDoublePage;
 
   /// 逻辑单页 → 跨页序号（REQ-C13 首屏单图映射）。
   ///
@@ -5002,23 +5030,23 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               cropEdge: _prefs.cropEdge,
               translation: _translation,
               translationRetry: _translationRetryPage,
-                ),
+            ),
           ),
         ];
         if (bImg != null) {
           rowChildren.add(
             Expanded(
-            child: MangaPageImage(
-              url: bImg,
-              prefs: _prefs,
-              zoomController: _zoomController,
-              source: _source,
-              refererResolver: _refererFor,
-              rotationQuarterTurns: _pageRotations[b] ?? 0,
-              cropEdge: _prefs.cropEdge,
-              translation: _translation,
-              translationRetry: _translationRetryPage,
-                ),
+              child: MangaPageImage(
+                url: bImg,
+                prefs: _prefs,
+                zoomController: _zoomController,
+                source: _source,
+                refererResolver: _refererFor,
+                rotationQuarterTurns: _pageRotations[b] ?? 0,
+                cropEdge: _prefs.cropEdge,
+                translation: _translation,
+                translationRetry: _translationRetryPage,
+              ),
             ),
           );
         }
@@ -5058,8 +5086,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final List<String> nextImgs = _preload[nextIndex] ?? const <String>[];
     final String? nextPreviewUrl = nextImgs.isNotEmpty ? nextImgs.first : null;
     // 章节评论入口（REQ-C12）：源声明 comments 段时提供「评论」按钮。
-    final bool hasComments =
-        !_isLocalMode && _source?.comments != null;
+    final bool hasComments = !_isLocalMode && _source?.comments != null;
     return Container(
       color: bg,
       alignment: Alignment.center,
@@ -5356,8 +5383,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         }
       }
       // 视口高度优先用滚动通知实测值，缺失时退回本组件尺寸。
-      final double viewport =
-          _webtoonViewport ?? (context.size?.height ?? 0.0);
+      final double viewport = _webtoonViewport ?? (context.size?.height ?? 0.0);
       if (leading != null && trailing != null && viewport > 0) {
         // itemTrailingEdge 是末页**底边**在视口中的比例，≤1+容差即已贴底：收尾。
         if (trailing <= 1.0 + 2e-3) {
@@ -5466,73 +5492,69 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       child: ScrollablePositionedList.separated(
         key: ValueKey('webtoon-$_chapterIndex'),
         itemScrollController: isc,
-      // 相对像素滚动：供「回到上一话末页」收尾时把末页底边精确补到视口底。
-      scrollOffsetController: _webtoonOffsetController,
-      itemPositionsListener: ipl,
-      initialScrollIndex: restoreIndex,
-      // keep 无缝重锚的首帧对齐（真实阅读位置常在页面中部，edge 为负）：
-      // 切章换 key 重建时直接落在最终位置，避免「首帧对齐 0 → jumpTo 钉回」闪帧。
-      initialAlignment: restoreAlign,
-      // 连续滚动（条漫）：未放大 ClampingScrollPhysics 平滑滚动、边界夹紧无回弹；
-      // 放大态（_zoomed）切 NeverScrollableScrollPhysics：禁【拖动】滚动（拖动
-      // 交给外层矩阵平移 = 上下左右都能拖图），滚轮改由 [_onPointerScroll] 手动
-      // animateScroll(0 时长瞬移) 滚动列表（Scrollable 因 physics 不再处理滚轮信号）。
-      // 注意：physics 必须用 _zoomed（_onZoomChanged 在放大态切换时 setState），
-      // 不能直接读 _zoomController.value（list 在 AnimatedBuilder 外构建，不随缩放重建）。
-      physics: _zoomed
-          ? const NeverScrollableScrollPhysics()
-          : const ClampingScrollPhysics(),
-      padding: EdgeInsets.zero,
-      itemCount:
-          _seamActive && _seamItemCount > 0 ? _seamItemCount : _images.length,
-      separatorBuilder: (_, __) => SizedBox(height: gap),
-      itemBuilder: (ctx, i) {
-        // 段式连续模型（REQ-A1 跨章无缝续读）：扁平列表由「真实页 + 章分割/过渡
-        // 条目」组成。章分割条目（页映射为 -1）渲染章节标题卡，越过即进入新段。
-        if (_seamActive && _seamItemCount > 0 && _seamPageMap[i] < 0) {
-          return _buildSeamSeparator(i, gap);
-        }
-        final String url = _seamActive && _seamItemCount > 0
-            ? _seamImages[i]
-            : _images[i];
-        final int pageIdx = _seamActive && _seamItemCount > 0
-            ? _seamPageMap[i]
-            : i;
-        return Container(
-          // 条漫（gap==0）相邻图之间常有子像素接缝（"细白条"）：每张图向下重叠 1px
-          // 彻底闭合接缝，深浅主题下都不会露出底色线条。带间距模式（gap>0）保持原样。
-          // 注意：3.47+ Container.margin 断言拒绝负值（isNonNegative），改用 Transform
-          // 位移实现同样效果，避免断言崩溃。
-          transform: gap == 0
-              ? Matrix4.translationValues(0, 1, 0)
-              : null,
-          child: MangaPageImage(
-            url: url,
-            prefs: _prefs,
-            source: _source,
-            refererResolver: _refererFor,
-            rotationQuarterTurns: _pageRotations[pageIdx] ?? 0,
-            cropEdge: _prefs.cropEdge,
-            // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
-            // 每页一起放大、间距等比，天然不重叠（C2 复测「每张照片放大导致重叠」）。
-            zoomEnabled: () => false,
-            // 阅读器级加载记录：item 被 SPL 回收重建后仍按真实高度渲染，
-            // 消除「占位→真实」高度突变导致的反向翻页回弹/闪烁。
-            urlLoaded: (url) => _webtoonLoadedUrls.contains(url),
-            onUrlLoaded: (url) => _webtoonLoadedUrls.add(url),
-            // 缓存真实自然尺寸（L3：占位高 / 纵向夹取基于真实高度）。
-            onImageInfo: (url, w, h) => _realImageDims[url] = Size(w, h),
-            realHeightResolver: (url, maxWidth) {
-              final Size? dims = _realImageDims[url];
-              if (dims == null || dims.width <= 0) return null;
-              // fitWidth 下布局高度 = 自然高 × (视口宽 / 自然宽)。
-              return dims.height * maxWidth / dims.width;
-            },
-            translation: _translation,
-            translationRetry: _translationRetryPage,
-          ),
-        );
-      },
+        // 相对像素滚动：供「回到上一话末页」收尾时把末页底边精确补到视口底。
+        scrollOffsetController: _webtoonOffsetController,
+        itemPositionsListener: ipl,
+        initialScrollIndex: restoreIndex,
+        // keep 无缝重锚的首帧对齐（真实阅读位置常在页面中部，edge 为负）：
+        // 切章换 key 重建时直接落在最终位置，避免「首帧对齐 0 → jumpTo 钉回」闪帧。
+        initialAlignment: restoreAlign,
+        // 连续滚动（条漫）：未放大 ClampingScrollPhysics 平滑滚动、边界夹紧无回弹；
+        // 放大态（_zoomed）切 NeverScrollableScrollPhysics：禁【拖动】滚动（拖动
+        // 交给外层矩阵平移 = 上下左右都能拖图），滚轮改由 [_onPointerScroll] 手动
+        // animateScroll(0 时长瞬移) 滚动列表（Scrollable 因 physics 不再处理滚轮信号）。
+        // 注意：physics 必须用 _zoomed（_onZoomChanged 在放大态切换时 setState），
+        // 不能直接读 _zoomController.value（list 在 AnimatedBuilder 外构建，不随缩放重建）。
+        physics: _zoomed
+            ? const NeverScrollableScrollPhysics()
+            : const ClampingScrollPhysics(),
+        padding: EdgeInsets.zero,
+        itemCount:
+            _seamActive && _seamItemCount > 0 ? _seamItemCount : _images.length,
+        separatorBuilder: (_, __) => SizedBox(height: gap),
+        itemBuilder: (ctx, i) {
+          // 段式连续模型（REQ-A1 跨章无缝续读）：扁平列表由「真实页 + 章分割/过渡
+          // 条目」组成。章分割条目（页映射为 -1）渲染章节标题卡，越过即进入新段。
+          if (_seamActive && _seamItemCount > 0 && _seamPageMap[i] < 0) {
+            return _buildSeamSeparator(i, gap);
+          }
+          final String url =
+              _seamActive && _seamItemCount > 0 ? _seamImages[i] : _images[i];
+          final int pageIdx =
+              _seamActive && _seamItemCount > 0 ? _seamPageMap[i] : i;
+          return Container(
+            // 条漫（gap==0）相邻图之间常有子像素接缝（"细白条"）：每张图向下重叠 1px
+            // 彻底闭合接缝，深浅主题下都不会露出底色线条。带间距模式（gap>0）保持原样。
+            // 注意：3.47+ Container.margin 断言拒绝负值（isNonNegative），改用 Transform
+            // 位移实现同样效果，避免断言崩溃。
+            transform: gap == 0 ? Matrix4.translationValues(0, 1, 0) : null,
+            child: MangaPageImage(
+              url: url,
+              prefs: _prefs,
+              source: _source,
+              refererResolver: _refererFor,
+              rotationQuarterTurns: _pageRotations[pageIdx] ?? 0,
+              cropEdge: _prefs.cropEdge,
+              // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
+              // 每页一起放大、间距等比，天然不重叠（C2 复测「每张照片放大导致重叠」）。
+              zoomEnabled: () => false,
+              // 阅读器级加载记录：item 被 SPL 回收重建后仍按真实高度渲染，
+              // 消除「占位→真实」高度突变导致的反向翻页回弹/闪烁。
+              urlLoaded: (url) => _webtoonLoadedUrls.contains(url),
+              onUrlLoaded: (url) => _webtoonLoadedUrls.add(url),
+              // 缓存真实自然尺寸（L3：占位高 / 纵向夹取基于真实高度）。
+              onImageInfo: (url, w, h) => _realImageDims[url] = Size(w, h),
+              realHeightResolver: (url, maxWidth) {
+                final Size? dims = _realImageDims[url];
+                if (dims == null || dims.width <= 0) return null;
+                // fitWidth 下布局高度 = 自然高 × (视口宽 / 自然宽)。
+                return dims.height * maxWidth / dims.width;
+              },
+              translation: _translation,
+              translationRetry: _translationRetryPage,
+            ),
+          );
+        },
       ),
     );
     // 条漫整体缩放：把 [_zoomController] 矩阵应用到【整个列表】（缩放作用于整个
@@ -5597,11 +5619,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         ? l10n.chapterN((next?.chapterIndex ?? _chapterIndex) + 1)
         : '${l10n.chapterN(next.chapterIndex + 1)} · ${next.title}';
     final bool dark = Theme.of(context).brightness == Brightness.dark;
-    final Color bg = gap > 0
-        ? _prefs.resolveBackgroundColor(dark)
-        : Colors.black;
-    final Color fg = gap > 0 ? (dark ? Colors.white70 : Colors.black54) : Colors.white70;
-    final Color line = gap > 0 ? (dark ? Colors.white24 : Colors.black26) : Colors.white24;
+    final Color bg =
+        gap > 0 ? _prefs.resolveBackgroundColor(dark) : Colors.black;
+    final Color fg =
+        gap > 0 ? (dark ? Colors.white70 : Colors.black54) : Colors.white70;
+    final Color line =
+        gap > 0 ? (dark ? Colors.white24 : Colors.black26) : Colors.white24;
     return Container(
       transform: gap == 0 ? Matrix4.translationValues(0, 1, 0) : null,
       color: bg,
@@ -5641,12 +5664,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final bool dark = Theme.of(context).brightness == Brightness.dark;
     final Color fg = dark ? Colors.white : Colors.black;
-    final String batteryText = _batteryLevel < 0
-        ? ''
-        : l10n.readerClockBatteryPercent(_batteryLevel);
-    final String text = batteryText.isEmpty
-        ? _currentTime
-        : '$_currentTime  $batteryText';
+    final String batteryText =
+        _batteryLevel < 0 ? '' : l10n.readerClockBatteryPercent(_batteryLevel);
+    final String text =
+        batteryText.isEmpty ? _currentTime : '$_currentTime  $batteryText';
     final Widget chip = IgnorePointer(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -5691,20 +5712,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   Widget _buildTopBar(AppLocalizations l10n, Color bg) {
-    final chapter = widget.chapters.isEmpty
-        ? null
-        : widget.chapters[_chapterIndex];
+    final chapter =
+        widget.chapters.isEmpty ? null : widget.chapters[_chapterIndex];
     final String? chapterUrl = chapter?.url;
     // 章节链接拼接：源返回相对路径时补 baseUrl；已是绝对 URL（http 开头）
     // 时直接使用，避免拼出 `https://a.comhttps://b.com/...` 的非法地址。
-    final String? absoluteChapterUrl = (chapterUrl != null &&
-            chapterUrl.isNotEmpty)
-        ? (chapterUrl.startsWith('http') ||
-                _source == null ||
-                _source!.site.baseUrl.isEmpty
-            ? chapterUrl
-            : _source!.site.baseUrl + chapterUrl)
-        : null;
+    final String? absoluteChapterUrl =
+        (chapterUrl != null && chapterUrl.isNotEmpty)
+            ? (chapterUrl.startsWith('http') ||
+                    _source == null ||
+                    _source!.site.baseUrl.isEmpty
+                ? chapterUrl
+                : _source!.site.baseUrl + chapterUrl)
+            : null;
     // 本地模式标题：文件名 · 本地文件（无章节概念）。
     final String titleText = _isLocalMode
         ? '${widget.title} · ${l10n.localFileLabel}'
@@ -5718,147 +5738,150 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         // 桌面端控件光标反馈（REQ-B8）：控制栏按钮 hover 显示 click 光标。
         cursor: SystemMouseCursors.click,
         child: Container(
-        key: _topBarKey,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: <Color>[scrim.withValues(alpha: 0.95), scrim.withValues(alpha: 0)],
+          key: _topBarKey,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[
+                scrim.withValues(alpha: 0.95),
+                scrim.withValues(alpha: 0)
+              ],
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTokens.spaceMd,
+            vertical: AppTokens.spaceSm,
+          ),
+          child: Row(
+            children: <Widget>[
+              IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              Expanded(
+                child: Text(
+                  titleText,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings_rounded),
+                tooltip: l10n.readerSettings,
+                onPressed: _openSettings,
+              ),
+              // 章节列表按钮：本地单文件模式（无章节表）隐藏；多话模式（在线 /
+              // 归档聚合 / 下载目录聚合）都保留目录切话入口。
+              if (!_isLocalMode || widget.chapters.length > 1)
+                IconButton(
+                  icon: const Icon(Icons.toc_rounded),
+                  tooltip: l10n.chapterList,
+                  onPressed: () async {
+                    final index = await showChapterList(
+                      context,
+                      widget.chapters,
+                      _chapterIndex,
+                      bookmarkedIndices: await _bookmarkedIndices(),
+                    );
+                    if (index != null && index != _chapterIndex && mounted) {
+                      // 统一走 _jumpToChapter：回到之前读的话时恢复到离开页
+                      // （_chapterPageCache），且 localChapterDirs 下载聚合模式走
+                      // 本地取图而非在线 fetchImages。此前这里手动
+                      // `_chapterIndex = index; _loadLocalImages()` /
+                      // `_loadChapter()` 不带 restorePage，目录切回已读话永远落
+                      // 首页（进度丢失），下载目录模式还误走在线加载。
+                      _jumpToChapter(index);
+                    }
+                  },
+                ),
+              // WebView / 浏览器 / 分享菜单：本地模式无在线 URL，隐藏。
+              if (!_isLocalMode)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert_rounded),
+                  tooltip: l10n.moreActions,
+                  onSelected: (String value) {
+                    switch (value) {
+                      // X-2 待读队列：不需要章节 URL，先于 webview 守卫处理。
+                      case 'addToReadingQueue':
+                        _addCurrentToReadingQueue();
+                        return;
+                      case 'readingQueue':
+                        openReadingQueueSheet(context);
+                        return;
+                    }
+                    if (absoluteChapterUrl == null) return;
+                    switch (value) {
+                      case 'webview':
+                        openInAppBrowser(context, absoluteChapterUrl);
+                      case 'browser':
+                        openInExternalBrowser(context, absoluteChapterUrl);
+                      case 'share':
+                        shareContent(
+                          context,
+                          '${widget.title} - ${chapter?.title ?? ''}',
+                          absoluteChapterUrl,
+                        );
+                    }
+                  },
+                  itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
+                    // X-2 待读队列：加入队列 / 打开队列。
+                    PopupMenuItem<String>(
+                      value: 'addToReadingQueue',
+                      child: ListTile(
+                        leading: const Icon(Icons.playlist_add_rounded),
+                        title: Text(l10n.readingQueueAdd),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'readingQueue',
+                      child: ListTile(
+                        leading: const Icon(Icons.playlist_play_rounded),
+                        title: Text(l10n.readingQueueOpen),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem<String>(
+                      value: 'webview',
+                      enabled: absoluteChapterUrl != null,
+                      child: ListTile(
+                        leading: const Icon(Icons.public_rounded),
+                        title: Text(l10n.openInAppBrowser),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'browser',
+                      enabled: absoluteChapterUrl != null,
+                      child: ListTile(
+                        leading: const Icon(Icons.open_in_new_rounded),
+                        title: Text(l10n.openInBrowser),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'share',
+                      enabled: absoluteChapterUrl != null,
+                      child: ListTile(
+                        leading: const Icon(Icons.share_rounded),
+                        title: Text(l10n.share),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
           ),
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceMd,
-          vertical: AppTokens.spaceSm,
-        ),
-        child: Row(
-          children: <Widget>[
-            IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            Expanded(
-              child: Text(
-                titleText,
-                style: Theme.of(context).textTheme.titleMedium,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.settings_rounded),
-              tooltip: l10n.readerSettings,
-              onPressed: _openSettings,
-            ),
-            // 章节列表按钮：本地单文件模式（无章节表）隐藏；多话模式（在线 /
-            // 归档聚合 / 下载目录聚合）都保留目录切话入口。
-            if (!_isLocalMode || widget.chapters.length > 1)
-              IconButton(
-                icon: const Icon(Icons.toc_rounded),
-                tooltip: l10n.chapterList,
-                onPressed: () async {
-                  final index = await showChapterList(
-                    context,
-                    widget.chapters,
-                    _chapterIndex,
-                    bookmarkedIndices: await _bookmarkedIndices(),
-                  );
-                  if (index != null && index != _chapterIndex && mounted) {
-                    // 统一走 _jumpToChapter：回到之前读的话时恢复到离开页
-                    // （_chapterPageCache），且 localChapterDirs 下载聚合模式走
-                    // 本地取图而非在线 fetchImages。此前这里手动
-                    // `_chapterIndex = index; _loadLocalImages()` /
-                    // `_loadChapter()` 不带 restorePage，目录切回已读话永远落
-                    // 首页（进度丢失），下载目录模式还误走在线加载。
-                    _jumpToChapter(index);
-                  }
-                },
-              ),
-            // WebView / 浏览器 / 分享菜单：本地模式无在线 URL，隐藏。
-            if (!_isLocalMode)
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded),
-                tooltip: l10n.moreActions,
-                onSelected: (String value) {
-                  switch (value) {
-                    // X-2 待读队列：不需要章节 URL，先于 webview 守卫处理。
-                    case 'addToReadingQueue':
-                      _addCurrentToReadingQueue();
-                      return;
-                    case 'readingQueue':
-                      openReadingQueueSheet(context);
-                      return;
-                  }
-                  if (absoluteChapterUrl == null) return;
-                  switch (value) {
-                    case 'webview':
-                      openInAppBrowser(context, absoluteChapterUrl);
-                    case 'browser':
-                      openInExternalBrowser(context, absoluteChapterUrl);
-                    case 'share':
-                      shareContent(
-                        context,
-                        '${widget.title} - ${chapter?.title ?? ''}',
-                        absoluteChapterUrl,
-                      );
-                  }
-                },
-                itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
-                  // X-2 待读队列：加入队列 / 打开队列。
-                  PopupMenuItem<String>(
-                    value: 'addToReadingQueue',
-                    child: ListTile(
-                      leading: const Icon(Icons.playlist_add_rounded),
-                      title: Text(l10n.readingQueueAdd),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'readingQueue',
-                    child: ListTile(
-                      leading: const Icon(Icons.playlist_play_rounded),
-                      title: Text(l10n.readingQueueOpen),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-                  PopupMenuItem<String>(
-                    value: 'webview',
-                    enabled: absoluteChapterUrl != null,
-                    child: ListTile(
-                      leading: const Icon(Icons.public_rounded),
-                      title: Text(l10n.openInAppBrowser),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'browser',
-                    enabled: absoluteChapterUrl != null,
-                    child: ListTile(
-                      leading: const Icon(Icons.open_in_new_rounded),
-                      title: Text(l10n.openInBrowser),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'share',
-                    enabled: absoluteChapterUrl != null,
-                    child: ListTile(
-                      leading: const Icon(Icons.share_rounded),
-                      title: Text(l10n.share),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ),
       ),
     );
   }
@@ -5872,31 +5895,31 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         // 桌面端控件光标反馈（REQ-B8）：控制栏按钮 hover 显示 click 光标。
         cursor: SystemMouseCursors.click,
         child: Container(
-        key: _bottomBarKey,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: <Color>[
-              scrim.withValues(alpha: 0.95),
-              scrim.withValues(alpha: 0),
+          key: _bottomBarKey,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+              colors: <Color>[
+                scrim.withValues(alpha: 0.95),
+                scrim.withValues(alpha: 0),
+              ],
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTokens.spaceMd,
+            vertical: AppTokens.spaceSm,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              // 章内进度滑条（仅底横形态；右竖形态由 _buildRightProgressBar 单独覆盖）。
+              _buildProgressBar(l10n),
+              const SizedBox(height: AppTokens.spaceXs),
+              _buildBottomToolbar(l10n),
             ],
           ),
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceMd,
-          vertical: AppTokens.spaceSm,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // 章内进度滑条（仅底横形态；右竖形态由 _buildRightProgressBar 单独覆盖）。
-            _buildProgressBar(l10n),
-            const SizedBox(height: AppTokens.spaceXs),
-            _buildBottomToolbar(l10n),
-          ],
-        ),
-      ),
       ),
     );
   }
@@ -5923,9 +5946,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           builder: (context, page, _) {
             final int currentIndex =
                 doubleMode ? _doublePageSpreadFor(page) : page;
-            final double value = total > 1
-                ? (currentIndex / (total - 1)).clamp(0.0, 1.0)
-                : 0.0;
+            final double value =
+                total > 1 ? (currentIndex / (total - 1)).clamp(0.0, 1.0) : 0.0;
             return Row(
               children: <Widget>[
                 IconButton(
@@ -5936,8 +5958,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 Expanded(
                   child: Slider(
                     value: value,
-                    onChangeStart:
-                        total > 1 ? (_) => AppHaptics.light() : null,
+                    onChangeStart: total > 1 ? (_) => AppHaptics.light() : null,
                     onChanged: total > 1
                         ? (v) {
                             final target = doubleMode
@@ -5987,9 +6008,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     int totalImages,
   ) {
     final int first = _doublePageLeftPageFor(spreadIndex) + 1;
-    final int last = spreadIndex == 0 && _showFirstPageSingle
-        ? first
-        : first + 1;
+    final int last =
+        spreadIndex == 0 && _showFirstPageSingle ? first : first + 1;
     final int clamped = last.clamp(1, totalImages).toInt();
     return l10n.readerDoublePageIndicator(first, clamped, totalImages);
   }
@@ -5999,9 +6019,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 首屏单图（REQ-C13）时 spread 0/1/2 → 1 / 2-3 / 4-5；常规双页保持 1-2 / 3-4。
   String _doublePageRangeText(int spreadIndex, int totalImages) {
     final int first = _doublePageLeftPageFor(spreadIndex) + 1;
-    final int last = spreadIndex == 0 && _showFirstPageSingle
-        ? first
-        : first + 1;
+    final int last =
+        spreadIndex == 0 && _showFirstPageSingle ? first : first + 1;
     final int clamped = last.clamp(1, totalImages).toInt();
     return '$first-$clamped';
   }
@@ -6110,13 +6129,15 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         ),
         // 收藏按钮：点击弹出底部菜单（收藏作品 / 收藏当前页图片 / 图片收藏图库）。
         IconButton(
-          icon: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded),
+          icon: Icon(
+              _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded),
           tooltip: l10n.favorite,
           onPressed: _showFavoriteMenu,
         ),
         const Spacer(),
         IconButton(
-          icon: Icon(_prefs.cropEdge ? Icons.crop_rounded : Icons.crop_free_rounded),
+          icon: Icon(
+              _prefs.cropEdge ? Icons.crop_rounded : Icons.crop_free_rounded),
           tooltip: l10n.readerCropEdge,
           onPressed: () => _onPrefsChanged(
             _prefs.copyWith(cropEdge: !_prefs.cropEdge),
@@ -6194,7 +6215,6 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         ReadingMode.webtoon => l10n.readerModeWebtoon,
         ReadingMode.webtoonWithGap => l10n.readerModeWebtoonWithGap,
       };
-
 }
 
 /// 居中的提示信息（错误 / 空）。
@@ -6202,7 +6222,8 @@ class _CenterMessage extends StatelessWidget {
   final IconData icon;
   final String message;
   final VoidCallback? onRetry;
-  const _CenterMessage({required this.icon, required this.message, this.onRetry});
+  const _CenterMessage(
+      {required this.icon, required this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -6352,8 +6373,7 @@ class _MangaPageImageState extends State<MangaPageImage> {
     // 这是消除空白带（割裂感）的关键：若保留 ConstrainedBox(minHeight)，当真实图高
     // 偏小（中等长度图）时图片下方会残留 minHeight 空白（加载完成后占位约束移除，
     // 图片按真实高度显示，不残留空白带）。
-    final bool reserveWebtoonHeight =
-        widget.prefs.readingMode.isWebtoon &&
+    final bool reserveWebtoonHeight = widget.prefs.readingMode.isWebtoon &&
         widget.prefs.initialZoom == ReaderInitialZoom.fitWidth &&
         !widget.cropEdge;
 
@@ -6390,8 +6410,7 @@ class _MangaPageImageState extends State<MangaPageImage> {
         widget.onUrlLoaded?.call(widget.url);
         if (mounted) setState(() => _imageLoaded = true);
       },
-      onImageInfo: (w, h) =>
-          widget.onImageInfo?.call(widget.url, w, h),
+      onImageInfo: (w, h) => widget.onImageInfo?.call(widget.url, w, h),
     );
 
     // 仅未加载时占位：加载完成后直接用真实图高，不再受 minHeight 约束。
@@ -6432,8 +6451,7 @@ class _MangaPageImageState extends State<MangaPageImage> {
     // 漫画翻译覆盖层：叠加在滤镜后的图片上、旋转包裹内（页面旋转时译文
     // 跟随图片方向），随缩放矩阵一起变换。不盖住滤镜效果之外的任何手势
     // （气泡层内部 IgnorePointer，仅失败徽标可点重试）。
-    final Widget imgWithTranslation =
-        _buildTranslationOverlay(context, img);
+    final Widget imgWithTranslation = _buildTranslationOverlay(context, img);
     // 旋转包裹在 img 外：仅对该页生效，不影响其他页。
     final rotated = RotatedBox(
       quarterTurns: widget.rotationQuarterTurns,
@@ -6592,8 +6610,7 @@ class _ZoomFactorBadgeState extends State<_ZoomFactorBadge> {
       opacity: _visible ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 200),
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.black54,
           borderRadius: BorderRadius.circular(12),
@@ -6638,7 +6655,8 @@ Matrix4 _clampZoomMatrix(Matrix4 m, Size vp) {
 /// 横向按图片宽度（≈ 视口宽 × s）精确夹取、贴边即停；纵向在列表滚动到边界时
 /// 转矩阵平移（放大内容的屏幕外部分），精确上界需列表总高，用「视口高 × 缩放
 /// 余量」大值兜底——保证放大后能拖到长条图的任意纵向位置。
-Matrix4 _clampWebtoonZoomMatrix(Matrix4 m, Size vp, [double? realContentHeight]) {
+Matrix4 _clampWebtoonZoomMatrix(Matrix4 m, Size vp,
+    [double? realContentHeight]) {
   final double s = m.getMaxScaleOnAxis();
   if (s <= 1.001) {
     m.setTranslationRaw(0, 0, 0);
@@ -6647,9 +6665,10 @@ Matrix4 _clampWebtoonZoomMatrix(Matrix4 m, Size vp, [double? realContentHeight])
   final double maxX = (s - 1) * vp.width / 2;
   // 纵向：已知当前页真实布局高度（fitWidth 下 height × s）则精确夹取到长条图
   // 任意纵向位置；未知（该页从未加载）回退经验值（视口高 × 8）。
-  final double maxY = realContentHeight != null && realContentHeight * s > vp.height
-      ? (realContentHeight * s - vp.height) / 2
-      : (s - 1) * vp.height * 8;
+  final double maxY =
+      realContentHeight != null && realContentHeight * s > vp.height
+          ? (realContentHeight * s - vp.height) / 2
+          : (s - 1) * vp.height * 8;
   double tx = m.getTranslation().x;
   double ty = m.getTranslation().y;
   tx = tx.clamp(-maxX, maxX);
@@ -6675,4 +6694,3 @@ class _NoOverscrollBehavior extends ScrollBehavior {
   ) =>
       child;
 }
-

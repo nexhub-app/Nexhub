@@ -1,11 +1,12 @@
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/comic/models/reader_preferences.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/utils/app_haptics.dart';
+import '../../../core/widgets/app_alert_dialog.dart';
+import '../../settings/presentation/widgets/settings_widgets.dart';
 import 'reader_image_filter.dart';
 import 'reader_tap_zones.dart';
 
@@ -84,7 +85,13 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(label, style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
           const SizedBox(height: AppTokens.spaceSm),
           child,
         ],
@@ -94,17 +101,12 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
 
   Widget _switchTile(String label, bool value, ValueChanged<bool> onChanged,
       {String? subtitle}) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      subtitle: subtitle != null
-          ? Text(subtitle, style: const TextStyle(fontSize: 12))
-          : null,
+    // 统一走设置设计系统的开关行（AppValuePulse + 触感封装）。
+    return SettingsSwitchTile(
+      title: label,
+      subtitle: subtitle,
       value: value,
-      onChanged: (v) {
-        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-        onChanged(v);
-      },
+      onChanged: onChanged,
     );
   }
 
@@ -370,8 +372,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         return ChoiceChip(
           label: Text(_l(p.l10nKey())),
           selected: _draft.longPressZoomPosition == p,
-          onSelected: (_) =>
-              _update(_draft.copyWith(longPressZoomPosition: p)),
+          onSelected: (_) => _update(_draft.copyWith(longPressZoomPosition: p)),
         );
       }).toList(),
     );
@@ -416,8 +417,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
             max: 20,
             divisions: 19,
             displayValue: '${_draft.autoPageTurningInterval.clamp(1, 20)}s',
-            onChanged: (v) => _update(
-                _draft.copyWith(autoPageTurningInterval: v.round())),
+            onChanged: (v) =>
+                _update(_draft.copyWith(autoPageTurningInterval: v.round())),
           ),
       ],
     );
@@ -456,18 +457,36 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
       ComicSleepTimerMode.chapters => l10n.readerSleepTimerChapters(st!.value),
       _ => l10n.readerSleepTimerOff,
     };
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.bedtime_rounded),
-      title: Text(l10n.readerSleepTimer),
-      subtitle: Text(summary),
-      trailing: const Icon(Icons.chevron_right_rounded),
+    return SettingsTile(
+      icon: Icons.bedtime_rounded,
+      title: l10n.readerSleepTimer,
+      subtitle: summary,
       onTap: () => _showSleepTimerPicker(l10n),
     );
   }
 
   /// 睡眠定时选择底部弹层：关闭 / 预设分钟 / 按话数 / 自定义分钟。
   void _showSleepTimerPicker(AppLocalizations l10n) {
+    final ComicSleepTimerState? cur = widget.sleepTimer;
+    final bool offSelected = cur == null ||
+        (cur.mode != ComicSleepTimerMode.minutes &&
+            cur.mode != ComicSleepTimerMode.chapters);
+    Widget option({
+      required String label,
+      required bool selected,
+      required VoidCallback onTap,
+    }) {
+      return ListTile(
+        title: Text(label),
+        trailing: selected
+            ? Icon(Icons.check_rounded,
+                color: Theme.of(context).colorScheme.primary, size: 22)
+            : null,
+        onTap: onTap,
+      );
+    }
+
+    // 与设置页「行 + 选中 check」弹层语言一致。
     showModalBottomSheet<void>(
       context: context,
       // 内容行数较多，矮窗口下必须可滚动（否则 RenderFlex 溢出）。
@@ -480,10 +499,23 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                ListTile(
-                  leading: const Icon(Icons.timer_off_rounded),
-                  title: Text(l10n.readerSleepTimerOff),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTokens.spaceLg,
+                    AppTokens.spaceMd,
+                    AppTokens.spaceLg,
+                    AppTokens.spaceSm,
+                  ),
+                  child: Text(
+                    l10n.readerSleepTimer,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                option(
+                  label: l10n.readerSleepTimerOff,
+                  selected: offSelected,
                   onTap: () {
                     Navigator.pop(ctx);
                     widget.onSleepTimerChanged
@@ -491,9 +523,10 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                   },
                 ),
                 for (final m in <int>[15, 30, 45, 60, 90])
-                  ListTile(
-                    leading: const Icon(Icons.timer_rounded),
-                    title: Text(l10n.playerTimerMinutes(m)),
+                  option(
+                    label: l10n.playerTimerMinutes(m),
+                    selected: cur?.mode == ComicSleepTimerMode.minutes &&
+                        cur?.value == m,
                     onTap: () {
                       Navigator.pop(ctx);
                       widget.onSleepTimerChanged
@@ -501,18 +534,19 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     },
                   ),
                 for (final n in <int>[1, 2, 3])
-                  ListTile(
-                    leading: const Icon(Icons.menu_book_rounded),
-                    title: Text(l10n.readerSleepTimerChapters(n)),
+                  option(
+                    label: l10n.readerSleepTimerChapters(n),
+                    selected: cur?.mode == ComicSleepTimerMode.chapters &&
+                        cur?.value == n,
                     onTap: () {
                       Navigator.pop(ctx);
                       widget.onSleepTimerChanged
                           ?.call(ComicSleepTimerState.chapters(n));
                     },
                   ),
-                ListTile(
-                  leading: const Icon(Icons.edit_rounded),
-                  title: Text(l10n.playerTimerCustom),
+                option(
+                  label: l10n.playerTimerCustom,
+                  selected: false,
                   onTap: () {
                     Navigator.pop(ctx);
                     _showCustomSleepTimerDialog(l10n);
@@ -532,7 +566,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     final TextEditingController controller = TextEditingController();
     showDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
+      builder: (BuildContext ctx) => AppAlertDialog(
         title: Text(l10n.readerSleepTimer),
         content: TextField(
           controller: controller,
@@ -593,8 +627,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
             max: 40,
             divisions: 40,
             displayValue: '${_draft.clockBatteryMargin.round()}',
-            onChanged: (v) =>
-                _update(_draft.copyWith(clockBatteryMargin: v)),
+            onChanged: (v) => _update(_draft.copyWith(clockBatteryMargin: v)),
           ),
           _SliderRow(
             label: l10n.readerClockOpacity,
@@ -603,8 +636,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
             max: 1.0,
             divisions: 9,
             displayValue: _draft.clockBatteryOpacity.toStringAsFixed(1),
-            onChanged: (v) =>
-                _update(_draft.copyWith(clockBatteryOpacity: v)),
+            onChanged: (v) => _update(_draft.copyWith(clockBatteryOpacity: v)),
           ),
           _SliderRow(
             label: l10n.readerClockFontSize,
@@ -613,8 +645,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
             max: 24,
             divisions: 14,
             displayValue: '${_draft.clockBatteryFontSize.round()}',
-            onChanged: (v) =>
-                _update(_draft.copyWith(clockBatteryFontSize: v)),
+            onChanged: (v) => _update(_draft.copyWith(clockBatteryFontSize: v)),
           ),
         ],
       ],
@@ -676,8 +707,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
           max: 3.0,
           divisions: 25,
           displayValue: '${_draft.readerScrollSpeed.toStringAsFixed(1)}x',
-          onChanged: (v) =>
-              _update(_draft.copyWith(readerScrollSpeed: v)),
+          onChanged: (v) => _update(_draft.copyWith(readerScrollSpeed: v)),
         ),
       ],
     );
@@ -726,15 +756,10 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
-      child: Card(
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.22),
+      child: Material(
+        color: AppTheme.cardContainer(theme.colorScheme),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(
-            color: theme.colorScheme.primary.withValues(alpha: 0.22),
-          ),
+          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
         ),
         clipBehavior: Clip.antiAlias,
         child: Padding(
@@ -745,12 +770,14 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
               Row(
                 children: <Widget>[
                   Icon(Icons.star_rounded,
-                      size: 18, color: theme.colorScheme.primary),
-                  const SizedBox(width: 6),
+                      size: 22, color: theme.colorScheme.primary),
+                  const SizedBox(width: AppTokens.spaceSm),
                   Text(
                     l10n.readerCommonSettings,
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -776,7 +803,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                   (v) => _update(_draft.copyWith(fullscreen: v))),
               _switchTile(l10n.readerKeepScreenOn, _draft.keepScreenOn,
                   (v) => _update(_draft.copyWith(keepScreenOn: v))),
-              _switchTile(l10n.readerProgressBarOnRight,
+              _switchTile(
+                  l10n.readerProgressBarOnRight,
                   _draft.progressBarOnRight,
                   (v) => _update(_draft.copyWith(progressBarOnRight: v))),
             ],
@@ -818,9 +846,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                 hintText: l10n.readerSearchSettings,
                 prefixIcon: const Icon(Icons.search_rounded),
                 isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                border: const OutlineInputBorder(),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 8,
@@ -847,23 +873,61 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     initiallyExpanded: true,
                     searchQuery: q,
                     searchTerms: const <String>[
-                      '翻页', '点击', '阅读模式', '单页', '竖排', '长条', '条漫',
-                      '方向', '屏幕', '横屏', '竖屏', '背景', '侧边距', '缩放',
-                      '双击', '点按', '区域', 'tap', 'webtoon', '方向', 'page',
-                      '锚点', '长按缩放', '翻页动画', '音量键', '音量',
-                      'zoom', 'anchor', 'fade', 'volume', 'auto',
-                      '双击缩放动画', '初始缩放', '长按缩放锚点', '屏幕方向',
-                      '翻页过渡动画', '左右留白', '点击翻转', '点击区域',
-                      '双击缩放', '缩放锚点', '动画速度',
+                      '翻页',
+                      '点击',
+                      '阅读模式',
+                      '单页',
+                      '竖排',
+                      '长条',
+                      '条漫',
+                      '方向',
+                      '屏幕',
+                      '横屏',
+                      '竖屏',
+                      '背景',
+                      '侧边距',
+                      '缩放',
+                      '双击',
+                      '点按',
+                      '区域',
+                      'tap',
+                      'webtoon',
+                      '方向',
+                      'page',
+                      '锚点',
+                      '长按缩放',
+                      '翻页动画',
+                      '音量键',
+                      '音量',
+                      'zoom',
+                      'anchor',
+                      'fade',
+                      'volume',
+                      'auto',
+                      '双击缩放动画',
+                      '初始缩放',
+                      '长按缩放锚点',
+                      '屏幕方向',
+                      '翻页过渡动画',
+                      '左右留白',
+                      '点击翻转',
+                      '点击区域',
+                      '双击缩放',
+                      '缩放锚点',
+                      '动画速度',
                     ],
                     children: <Widget>[
                       _section(context, l10n.readerMode, _buildReadingMode()),
-                      _section(context, l10n.readerBackground, _buildBackground()),
-                      _section(context, l10n.readerOrientation, _buildOrientation()),
+                      _section(
+                          context, l10n.readerBackground, _buildBackground()),
+                      _section(
+                          context, l10n.readerOrientation, _buildOrientation()),
                       _section(context, l10n.readerTapZone, _buildTapZone()),
-                      _section(context, l10n.readerTapInvert, _buildTapInvert()),
+                      _section(
+                          context, l10n.readerTapInvert, _buildTapInvert()),
                       Padding(
-                        padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+                        padding:
+                            const EdgeInsets.only(bottom: AppTokens.spaceMd),
                         child: _SliderRow(
                           label: l10n.readerSideMargin,
                           value: _draft.sideMargin,
@@ -871,16 +935,20 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                           max: 0.5,
                           divisions: 50,
                           displayValue: '${(_draft.sideMargin * 100).round()}%',
-                          onChanged: (v) => _update(_draft.copyWith(sideMargin: v)),
+                          onChanged: (v) =>
+                              _update(_draft.copyWith(sideMargin: v)),
                         ),
                       ),
                       _switchTile(l10n.readerZoom, _draft.doubleTapZoom,
                           (v) => _update(_draft.copyWith(doubleTapZoom: v))),
-                      _section(context, l10n.readerInitialZoom, _buildInitialZoom()),
+                      _section(
+                          context, l10n.readerInitialZoom, _buildInitialZoom()),
                       // 缩放锚点（REQ-B11）
-                      _section(context, l10n.readerZoomStart, _buildZoomStart()),
+                      _section(
+                          context, l10n.readerZoomStart, _buildZoomStart()),
                       // 长按缩放（REQ-B2）：开启时显示锚点选择
-                      _switchTile(l10n.readerLongPressZoom,
+                      _switchTile(
+                          l10n.readerLongPressZoom,
                           _draft.enableLongPressToZoom,
                           (v) => _update(
                               _draft.copyWith(enableLongPressToZoom: v))),
@@ -918,17 +986,35 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     leading: Icons.tune_rounded,
                     searchQuery: q,
                     searchTerms: const <String>[
-                      '亮度', '对比度', '色温', '灰度', '反色', '滤镜', '画面',
-                      '颜色', '饱和', '色调', 'filter', 'brightness', 'contrast',
-                      '阅读亮度', '色彩配置', '夜览', '夜览强度', '暖色', '盖层',
+                      '亮度',
+                      '对比度',
+                      '色温',
+                      '灰度',
+                      '反色',
+                      '滤镜',
+                      '画面',
+                      '颜色',
+                      '饱和',
+                      '色调',
+                      'filter',
+                      'brightness',
+                      'contrast',
+                      '阅读亮度',
+                      '色彩配置',
+                      '夜览',
+                      '夜览强度',
+                      '暖色',
+                      '盖层',
                     ],
                     children: <Widget>[
                       _buildImageFilter(),
                       // 色彩配置（ICC 校色近似）：矩阵预设
-                      _section(context, l10n.readerColorProfile, _buildColorProfile()),
+                      _section(context, l10n.readerColorProfile,
+                          _buildColorProfile()),
                       // 阅读亮度（REQ-C3）：独立于滤镜，控制系统亮度/黑色遮罩。
                       Padding(
-                        padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+                        padding:
+                            const EdgeInsets.only(bottom: AppTokens.spaceMd),
                         child: _SliderRow(
                           label: l10n.readerBrightness,
                           value: _draft.readerBrightness,
@@ -942,8 +1028,11 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                         ),
                       ),
                       // 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于阅读亮度。
-                      _switchTile(l10n.readerNightLight, _draft.nightLightEnabled,
-                          (v) => _update(_draft.copyWith(nightLightEnabled: v))),
+                      _switchTile(
+                          l10n.readerNightLight,
+                          _draft.nightLightEnabled,
+                          (v) =>
+                              _update(_draft.copyWith(nightLightEnabled: v))),
                       if (_draft.nightLightEnabled)
                         Padding(
                           padding:
@@ -956,8 +1045,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                             divisions: 15,
                             displayValue:
                                 '${(_draft.nightLightOpacity * 100).round()}%',
-                            onChanged: (v) => _update(
-                                _draft.copyWith(nightLightOpacity: v)),
+                            onChanged: (v) =>
+                                _update(_draft.copyWith(nightLightOpacity: v)),
                           ),
                         ),
                     ],
@@ -971,41 +1060,79 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     leading: Icons.timeline_rounded,
                     searchQuery: q,
                     searchTerms: const <String>[
-                      '页码', '进度', '进度条', '全屏', '常亮', '旋转', '双页',
-                      '分屏', '长按', '防缩', '章节', '过渡', '显示', 'page',
-                      'fullscreen', 'screen', '自动滚动', '滚动速度',
-                      'auto scroll', 'scroll speed', '自动翻页',
-                      '翻页间隔', '首屏单图', '单图', 'auto page turn',
-                      '章节滑块', 'chapter slider',
-                      '裁边', '显示页码', '进度条在右侧', '章节导航滑块',
-                      '章节过渡', '章分割过渡', '屏幕常亮', '长按菜单', '预加载数量',
-                      '防止缩小', '旋转页面', '跨章无缝续读', '双页拆分',
+                      '页码',
+                      '进度',
+                      '进度条',
+                      '全屏',
+                      '常亮',
+                      '旋转',
+                      '双页',
+                      '分屏',
+                      '长按',
+                      '防缩',
+                      '章节',
+                      '过渡',
+                      '显示',
+                      'page',
+                      'fullscreen',
+                      'screen',
+                      '自动滚动',
+                      '滚动速度',
+                      'auto scroll',
+                      'scroll speed',
+                      '自动翻页',
+                      '翻页间隔',
+                      '首屏单图',
+                      '单图',
+                      'auto page turn',
+                      '章节滑块',
+                      'chapter slider',
+                      '裁边',
+                      '显示页码',
+                      '进度条在右侧',
+                      '章节导航滑块',
+                      '章节过渡',
+                      '章分割过渡',
+                      '屏幕常亮',
+                      '长按菜单',
+                      '预加载数量',
+                      '防止缩小',
+                      '旋转页面',
+                      '跨章无缝续读',
+                      '双页拆分',
                       '条漫解码限幅',
                     ],
                     children: <Widget>[
                       _switchTile(l10n.readerCropEdge, _draft.cropEdge,
                           (v) => _update(_draft.copyWith(cropEdge: v))),
-                      _switchTile(l10n.readerShowPageNumber, _draft.showPageNumber,
+                      _switchTile(
+                          l10n.readerShowPageNumber,
+                          _draft.showPageNumber,
                           (v) => _update(_draft.copyWith(showPageNumber: v))),
-                      _switchTile(l10n.readerProgressBarOnRight,
+                      _switchTile(
+                          l10n.readerProgressBarOnRight,
                           _draft.progressBarOnRight,
-                          (v) => _update(_draft.copyWith(progressBarOnRight: v))),
-                      _switchTile(l10n.readerShowChapterSlider,
+                          (v) =>
+                              _update(_draft.copyWith(progressBarOnRight: v))),
+                      _switchTile(
+                          l10n.readerShowChapterSlider,
                           _draft.showChapterSlider,
-                          (v) => _update(
-                              _draft.copyWith(showChapterSlider: v))),
+                          (v) =>
+                              _update(_draft.copyWith(showChapterSlider: v))),
                       _switchTile(l10n.readerKeepScreenOn, _draft.keepScreenOn,
                           (v) => _update(_draft.copyWith(keepScreenOn: v))),
                       _switchTile(l10n.readerRotatePage, _draft.rotateLandscape,
                           (v) => _update(_draft.copyWith(rotateLandscape: v))),
                       _switchTile(
-                          l10n.readerSplitDoublePage, _draft.splitDoublePage, (v) {
+                          l10n.readerSplitDoublePage, _draft.splitDoublePage,
+                          (v) {
                         ReaderPreferences next =
                             _draft.copyWith(splitDoublePage: v);
                         if (v &&
                             _draft.readingMode != ReadingMode.singleLTR &&
                             _draft.readingMode != ReadingMode.singleRTL) {
-                          next = next.copyWith(readingMode: ReadingMode.singleLTR);
+                          next =
+                              next.copyWith(readingMode: ReadingMode.singleLTR);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(l10n.readerSplitDoublePageHint),
@@ -1016,19 +1143,27 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                         _update(next);
                       }),
                       // 首屏单图（REQ-C13）：双页模式第一章首页单独显示，其后恢复双页。
-                      _switchTile(l10n.readerShowSingleImageOnFirstPage,
+                      _switchTile(
+                          l10n.readerShowSingleImageOnFirstPage,
                           _draft.showSingleImageOnFirstPage,
                           (v) => _update(
                               _draft.copyWith(showSingleImageOnFirstPage: v))),
                       _switchTile(l10n.readerFullscreen, _draft.fullscreen,
                           (v) => _update(_draft.copyWith(fullscreen: v))),
-                      _switchTile(l10n.readerLongPressMenu, _draft.showLongPressMenu,
-                          (v) => _update(_draft.copyWith(showLongPressMenu: v))),
-                      _switchTile(l10n.readerPreventShrink, _draft.preventShrink,
+                      _switchTile(
+                          l10n.readerLongPressMenu,
+                          _draft.showLongPressMenu,
+                          (v) =>
+                              _update(_draft.copyWith(showLongPressMenu: v))),
+                      _switchTile(
+                          l10n.readerPreventShrink,
+                          _draft.preventShrink,
                           (v) => _update(_draft.copyWith(preventShrink: v))),
-                      _switchTile(l10n.readerChapterTransition,
+                      _switchTile(
+                          l10n.readerChapterTransition,
                           _draft.showChapterTransition,
-                          (v) => _update(_draft.copyWith(showChapterTransition: v))),
+                          (v) => _update(
+                              _draft.copyWith(showChapterTransition: v))),
                       _SliderRow(
                         label: l10n.readerPreloadCount,
                         value: _draft.preloadImageCount.toDouble(),
@@ -1036,20 +1171,23 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                         max: 16,
                         divisions: 15,
                         displayValue: '${_draft.preloadImageCount}',
-                        onChanged: (v) =>
-                            _update(_draft.copyWith(preloadImageCount: v.round())),
+                        onChanged: (v) => _update(
+                            _draft.copyWith(preloadImageCount: v.round())),
                       ),
-                      _switchTile(l10n.readerSeamlessReading,
+                      _switchTile(
+                          l10n.readerSeamlessReading,
                           _draft.seamlessReading,
                           (v) => _update(_draft.copyWith(seamlessReading: v))),
                       // 章分割/过渡条目仅对 webtoon（条漫）连续模式生效。
-                      _switchTile(l10n.readerChapterSeparator,
+                      _switchTile(
+                          l10n.readerChapterSeparator,
                           _draft.showChapterSeparator,
                           (v) => _update(
                               _draft.copyWith(showChapterSeparator: v))),
                       // 条漫解码限幅（P3 资源/内存）：连续模式解码位图下采样，
                       // 限制长条漫原图的全尺寸解码内存。
-                      _switchTile(l10n.readerWebtoonDecodeLimit,
+                      _switchTile(
+                          l10n.readerWebtoonDecodeLimit,
                           _draft.webtoonLimitDecodeSize,
                           (v) => _update(
                               _draft.copyWith(webtoonLimitDecodeSize: v))),
@@ -1058,7 +1196,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       // 自动滚动（REQ-B10，条漫）：开关 + 滚动速度。
                       _buildAutoScroll(),
                       // 漫画翻译：开启后对当前页 OCR+翻译并以气泡覆盖层显示。
-                      _switchTile(l10n.comicTranslateSettingLabel,
+                      _switchTile(
+                          l10n.comicTranslateSettingLabel,
                           _draft.translationEnabled,
                           (v) =>
                               _update(_draft.copyWith(translationEnabled: v))),
@@ -1067,8 +1206,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                         l10n.comicTranslateBackfillLabel,
                         _draft.translationBackfill,
                         subtitle: l10n.comicTranslateBackfillDesc,
-                        (v) =>
-                            _update(_draft.copyWith(translationBackfill: v)),
+                        (v) => _update(_draft.copyWith(translationBackfill: v)),
                       ),
                     ],
                   ),
@@ -1081,8 +1219,15 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     leading: Icons.bedtime_rounded,
                     searchQuery: q,
                     searchTerms: const <String>[
-                      '睡眠', '定时', '暂停', '分钟', '话数', 'sleep', 'timer',
-                      'minute', 'chapter',
+                      '睡眠',
+                      '定时',
+                      '暂停',
+                      '分钟',
+                      '话数',
+                      'sleep',
+                      'timer',
+                      'minute',
+                      'chapter',
                     ],
                     children: <Widget>[
                       _buildSleepTimer(),
@@ -1097,8 +1242,19 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     leading: Icons.access_time_rounded,
                     searchQuery: q,
                     searchTerms: const <String>[
-                      '时间', '电量', '浮层', '时钟', '电池', '位置', '边距',
-                      '透明度', '字号', 'clock', 'battery', 'overlay', 'time',
+                      '时间',
+                      '电量',
+                      '浮层',
+                      '时钟',
+                      '电池',
+                      '位置',
+                      '边距',
+                      '透明度',
+                      '字号',
+                      'clock',
+                      'battery',
+                      'overlay',
+                      'time',
                     ],
                     children: <Widget>[
                       _buildClockBattery(),
@@ -1113,9 +1269,19 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     leading: Icons.grid_view_rounded,
                     searchQuery: q,
                     searchTerms: const <String>[
-                      '多图', '间距', '竖屏', '横屏', '每屏',
-                      'multi', 'spacing', 'page', 'single', 'image',
-                      'portrait', 'landscape', 'screen',
+                      '多图',
+                      '间距',
+                      '竖屏',
+                      '横屏',
+                      '每屏',
+                      'multi',
+                      'spacing',
+                      'page',
+                      'single',
+                      'image',
+                      'portrait',
+                      'landscape',
+                      'screen',
                     ],
                     children: <Widget>[
                       _buildMultiImageSpacing(),
@@ -1153,34 +1319,15 @@ class _SliderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
-      child: Row(
-        children: <Widget>[
-          SizedBox(
-            width: 96,
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          Expanded(
-            child: Slider(
-              value: value,
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChangeStart: (_) => AppHaptics.light(),
-              onChanged: onChanged,
-            ),
-          ),
-          SizedBox(
-            width: 64,
-            child: Text(
-              displayValue,
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.end,
-            ),
-          ),
-        ],
-      ),
+    // 统一走设置设计系统的滑块行（标签上、primary 值右、全宽滑块、逐档 tick）。
+    return SettingsSliderTile(
+      label: label,
+      value: value,
+      min: min,
+      max: max,
+      divisions: divisions,
+      display: displayValue,
+      onChanged: onChanged,
     );
   }
 }
@@ -1211,15 +1358,10 @@ Widget _buildSettingsGroup(
   final theme = Theme.of(context);
   return Padding(
     padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
-    child: Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+    child: Material(
+      color: AppTheme.cardContainer(theme.colorScheme),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: theme.dividerColor.withValues(alpha: 0.18),
-        ),
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
       ),
       clipBehavior: Clip.antiAlias,
       child: Theme(
@@ -1231,7 +1373,7 @@ Widget _buildSettingsGroup(
           ),
           leading: leading == null
               ? null
-              : Icon(leading, size: 20, color: theme.colorScheme.primary),
+              : Icon(leading, size: 22, color: theme.colorScheme.primary),
           childrenPadding: const EdgeInsets.fromLTRB(
             AppTokens.spaceMd,
             0,
@@ -1243,16 +1385,20 @@ Widget _buildSettingsGroup(
           title: description == null || description.isEmpty
               ? Text(
                   title,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
                       title,
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: AppTokens.spaceXxs),
                     Text(

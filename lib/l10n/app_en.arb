@@ -1199,6 +1199,13 @@
   "@subtitleOffset": {
     "description": "Subtitle offset slider label"
   },
+  "subtitlePosTop": "Top",
+  "subtitlePosCenter": "Center",
+  "subtitlePosBottom": "Bottom",
+  "subtitleAssYes": "Yes",
+  "subtitleAssNo": "No",
+  "subtitleAssStrip": "Strip",
+  "subtitleAssForce": "Force",
   "subtitleShow": "Show subtitles",
   "@subtitleShow": {
     "description": "Subtitle visibility switch label"

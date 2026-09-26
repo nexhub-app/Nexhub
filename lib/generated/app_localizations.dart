@@ -4862,6 +4862,48 @@ abstract class AppLocalizations {
   /// **'Offset'**
   String get subtitleOffset;
 
+  /// No description provided for @subtitlePosTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Top'**
+  String get subtitlePosTop;
+
+  /// No description provided for @subtitlePosCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Center'**
+  String get subtitlePosCenter;
+
+  /// No description provided for @subtitlePosBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom'**
+  String get subtitlePosBottom;
+
+  /// No description provided for @subtitleAssYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get subtitleAssYes;
+
+  /// No description provided for @subtitleAssNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get subtitleAssNo;
+
+  /// No description provided for @subtitleAssStrip.
+  ///
+  /// In en, this message translates to:
+  /// **'Strip'**
+  String get subtitleAssStrip;
+
+  /// No description provided for @subtitleAssForce.
+  ///
+  /// In en, this message translates to:
+  /// **'Force'**
+  String get subtitleAssForce;
+
   /// Subtitle visibility switch label
   ///
   /// In en, this message translates to:
