@@ -112,7 +112,7 @@ class _ApiKeyTileState extends State<ApiKeyTile> {
                 suffixIcon: ValueListenableBuilder<bool>(
                   valueListenable: _saved,
                   builder: (_, saved, __) => saved
-                      ? Icon(Icons.check_circle,
+                      ? Icon(Icons.check_circle_rounded,
                           color: theme.colorScheme.primary)
                       : const SizedBox.shrink(),
                 ),
@@ -121,7 +121,7 @@ class _ApiKeyTileState extends State<ApiKeyTile> {
             const SizedBox(height: AppTokens.spaceSm),
             FilledButton.icon(
               onPressed: _saving ? null : () => _save(context),
-              icon: const Icon(Icons.save),
+              icon: const Icon(Icons.save_rounded),
               label: Text(l10n.apiKeySave),
             ),
             ValueListenableBuilder<String?>(
@@ -200,7 +200,7 @@ class LoginOptionCard extends StatelessWidget {
             ),
           ),
           Icon(
-            Icons.chevron_right,
+            Icons.chevron_right_rounded,
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ],

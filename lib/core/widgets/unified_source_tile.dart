@@ -214,24 +214,24 @@ class UnifiedSourceTile extends StatelessWidget {
   List<PopupMenuEntry<String>> _buildMenuItems(BuildContext context) =>
       <PopupMenuEntry<String>>[
         if (onMirrorSettings != null)
-          _menuItem('mirror', Icons.settings_ethernet, mirrorSettingsTooltip),
+          _menuItem('mirror', Icons.settings_ethernet_rounded, mirrorSettingsTooltip),
         if (onNetworkOverride != null)
-          _menuItem('network', Icons.lan_outlined, networkOverrideTooltip),
+          _menuItem('network', Icons.lan_rounded, networkOverrideTooltip),
         if (onLogin != null)
-          _menuItem('login', Icons.login_outlined, loginTooltip),
+          _menuItem('login', Icons.login_rounded, loginTooltip),
         if (onIncognitoToggle != null)
           _menuItem(
               'incognito',
-              isIncognito ? Icons.privacy_tip : Icons.privacy_tip_outlined,
+              isIncognito ? Icons.privacy_tip_rounded : Icons.privacy_tip_rounded,
               incognitoTooltip),
-        if (onEdit != null) _menuItem('edit', Icons.edit_outlined, editTooltip),
+        if (onEdit != null) _menuItem('edit', Icons.edit_rounded, editTooltip),
         if (onDelete != null)
-          _menuItem('delete', Icons.delete_outline, deleteTooltip),
+          _menuItem('delete', Icons.delete_rounded, deleteTooltip),
         if (onHide != null)
-          _menuItem('hide', isHidden ? Icons.visibility : Icons.visibility_off_outlined,
+          _menuItem('hide', isHidden ? Icons.visibility_rounded : Icons.visibility_off_rounded,
               isHidden ? unhideTooltip : hideTooltip),
         if (onMigrate != null)
-          _menuItem('migrate', Icons.upgrade, migrateTooltip),
+          _menuItem('migrate', Icons.upgrade_rounded, migrateTooltip),
       ];
 
   void _onMenuSelected(String value) {
@@ -282,7 +282,7 @@ class UnifiedSourceTile extends StatelessWidget {
             ),
           if (_hasMenuActions)
             PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert, color: scheme.onSurfaceVariant),
+              icon: Icon(Icons.more_vert_rounded, color: scheme.onSurfaceVariant),
               tooltip: moreMenuTooltip,
               itemBuilder: _buildMenuItems,
               onSelected: _onMenuSelected,
@@ -296,25 +296,25 @@ class UnifiedSourceTile extends StatelessWidget {
         if (deprecated) _deprecatedChip(scheme),
         if (onEdit != null)
           AppIconButton(
-            icon: Icons.edit_outlined,
+            icon: Icons.edit_rounded,
             tooltip: editTooltip,
             onPressed: onEdit,
           ),
         if (onDelete != null)
           AppIconButton(
-            icon: Icons.delete_outline,
+            icon: Icons.delete_rounded,
             tooltip: deleteTooltip,
             onPressed: onDelete,
           ),
         if (onHide != null)
           AppIconButton(
-            icon: isHidden ? Icons.visibility : Icons.visibility_off_outlined,
+            icon: isHidden ? Icons.visibility_rounded : Icons.visibility_off_rounded,
             tooltip: isHidden ? unhideTooltip : hideTooltip,
             onPressed: onHide,
           ),
         if (onMirrorSettings != null)
           AppIconButton(
-            icon: Icons.settings_ethernet,
+            icon: Icons.settings_ethernet_rounded,
             tooltip: mirrorSettingsTooltip,
             onPressed: onMirrorSettings,
           ),

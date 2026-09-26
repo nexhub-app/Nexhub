@@ -87,17 +87,17 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
         title: Text(l10n.crashLogTitle),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             tooltip: l10n.refresh,
             onPressed: _reload,
           ),
           IconButton(
-            icon: const Icon(Icons.copy_all_outlined),
+            icon: const Icon(Icons.copy_all_rounded),
             tooltip: l10n.crashLogCopyAll,
             onPressed: _log.isEmpty ? null : () => _copyAll(l10n),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(Icons.delete_rounded),
             tooltip: l10n.crashLogClear,
             onPressed: _log.isEmpty ? null : () => _clearAll(l10n),
           ),
@@ -107,7 +107,7 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _log.isEmpty
               ? AppEmptyState(
-                  icon: Icons.check_circle_outline,
+                  icon: Icons.check_circle_rounded,
                   message: l10n.crashLogEmpty,
                 )
               : SingleChildScrollView(

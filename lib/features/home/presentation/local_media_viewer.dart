@@ -247,7 +247,7 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
         );
       case LocalMediaKind.images:
         if (_images.isEmpty) {
-          return AppEmptyState(icon: Icons.image, message: l10n.browseLocalEmpty);
+          return AppEmptyState(icon: Icons.image_rounded, message: l10n.browseLocalEmpty);
         }
         return Stack(
           children: <Widget>[
@@ -293,7 +293,7 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
         );
       case LocalMediaKind.text:
         if (_text == null || _text!.isEmpty) {
-          return AppEmptyState(icon: Icons.article, message: l10n.browseLocalEmpty);
+          return AppEmptyState(icon: Icons.article_rounded, message: l10n.browseLocalEmpty);
         }
         return SingleChildScrollView(
           padding: const EdgeInsets.all(AppTokens.spaceLg),

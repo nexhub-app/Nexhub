@@ -458,10 +458,10 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     };
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.bedtime_outlined),
+      leading: const Icon(Icons.bedtime_rounded),
       title: Text(l10n.readerSleepTimer),
       subtitle: Text(summary),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () => _showSleepTimerPicker(l10n),
     );
   }
@@ -482,7 +482,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 ListTile(
-                  leading: const Icon(Icons.timer_off),
+                  leading: const Icon(Icons.timer_off_rounded),
                   title: Text(l10n.readerSleepTimerOff),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -492,7 +492,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                 ),
                 for (final m in <int>[15, 30, 45, 60, 90])
                   ListTile(
-                    leading: const Icon(Icons.timer),
+                    leading: const Icon(Icons.timer_rounded),
                     title: Text(l10n.playerTimerMinutes(m)),
                     onTap: () {
                       Navigator.pop(ctx);
@@ -502,7 +502,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                   ),
                 for (final n in <int>[1, 2, 3])
                   ListTile(
-                    leading: const Icon(Icons.menu_book_outlined),
+                    leading: const Icon(Icons.menu_book_rounded),
                     title: Text(l10n.readerSleepTimerChapters(n)),
                     onTap: () {
                       Navigator.pop(ctx);
@@ -511,7 +511,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     },
                   ),
                 ListTile(
-                  leading: const Icon(Icons.edit),
+                  leading: const Icon(Icons.edit_rounded),
                   title: Text(l10n.playerTimerCustom),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -744,7 +744,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Icon(Icons.star_outline,
+                  Icon(Icons.star_rounded,
                       size: 18, color: theme.colorScheme.primary),
                   const SizedBox(width: 6),
                   Text(
@@ -816,7 +816,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: l10n.readerSearchSettings,
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search_rounded),
                 isDense: true,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -843,7 +843,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     context,
                     l10n.readerGroupPageTap,
                     description: l10n.readerGroupPageTapDesc,
-                    leading: Icons.swipe,
+                    leading: Icons.swipe_rounded,
                     initiallyExpanded: true,
                     searchQuery: q,
                     searchTerms: const <String>[
@@ -915,7 +915,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     context,
                     l10n.readerGroupViewFilter,
                     description: l10n.readerGroupViewFilterDesc,
-                    leading: Icons.tune,
+                    leading: Icons.tune_rounded,
                     searchQuery: q,
                     searchTerms: const <String>[
                       '亮度', '对比度', '色温', '灰度', '反色', '滤镜', '画面',
@@ -968,7 +968,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     context,
                     l10n.readerGroupProgress,
                     description: l10n.readerGroupProgressDesc,
-                    leading: Icons.timeline,
+                    leading: Icons.timeline_rounded,
                     searchQuery: q,
                     searchTerms: const <String>[
                       '页码', '进度', '进度条', '全屏', '常亮', '旋转', '双页',
@@ -1078,7 +1078,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     context,
                     l10n.readerSleepTimer,
                     description: l10n.readerSleepTimerDesc,
-                    leading: Icons.bedtime_outlined,
+                    leading: Icons.bedtime_rounded,
                     searchQuery: q,
                     searchTerms: const <String>[
                       '睡眠', '定时', '暂停', '分钟', '话数', 'sleep', 'timer',
@@ -1094,7 +1094,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     context,
                     l10n.readerGroupOverlay,
                     description: l10n.readerGroupOverlayDesc,
-                    leading: Icons.access_time,
+                    leading: Icons.access_time_rounded,
                     searchQuery: q,
                     searchTerms: const <String>[
                       '时间', '电量', '浮层', '时钟', '电池', '位置', '边距',
@@ -1110,7 +1110,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     context,
                     l10n.readerGroupMulti,
                     description: l10n.readerGroupMultiDesc,
-                    leading: Icons.grid_view,
+                    leading: Icons.grid_view_rounded,
                     searchQuery: q,
                     searchTerms: const <String>[
                       '多图', '间距', '竖屏', '横屏', '每屏',

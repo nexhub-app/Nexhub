@@ -24,7 +24,7 @@ class SearchLayoutToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AppIconButton(
-        icon: isGrid ? Icons.grid_view : Icons.view_list,
+        icon: isGrid ? Icons.grid_view_rounded : Icons.view_list_rounded,
         tooltip: isGrid ? gridTooltip : listTooltip,
         onPressed: () => onChanged(!isGrid),
       );
@@ -143,7 +143,7 @@ class _ModuleSearchScreenState extends State<ModuleSearchScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: AppIconButton(
-          icon: Icons.arrow_back,
+          icon: Icons.arrow_back_rounded,
           tooltip: widget.leadingTooltip ?? l10n.back,
           onPressed: widget.onLeading ?? () => Navigator.maybePop(context),
         ),
@@ -177,10 +177,10 @@ class _ModuleSearchScreenState extends State<ModuleSearchScreen> {
               focusNode: _focusNode,
               autofocus: widget.searchController.text.isEmpty,
               hint: widget.hint,
-              prefixIcon: const Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: widget.searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
+                      icon: const Icon(Icons.clear_rounded, size: 18),
                       onPressed: () {
                         widget.searchController.clear();
                         widget.onQueryChanged('');

@@ -29,7 +29,7 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
   const OnlineSourceBrowserScreen({
     super.key,
     required this.sourceType,
-    this.emptyIcon = Icons.language_outlined,
+    this.emptyIcon = Icons.language_rounded,
     required this.onSourceTap,
     this.onAddSource,
     this.onEnableRecommended,
@@ -99,7 +99,7 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
               ),
             ),
             trailing: IconButton(
-              icon: const Icon(Icons.open_in_new),
+              icon: const Icon(Icons.open_in_new_rounded),
               tooltip: l10n.openSourceWebsite,
               onPressed: () =>
                   openInAppBrowser(context, source.site.baseUrl),
@@ -179,8 +179,8 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
   }
 
   static IconData _sourceIcon(SourceType type) {
-    if (type == SourceType.novelSource) return Icons.menu_book_outlined;
-    if (type == SourceType.animeSource) return Icons.movie_outlined;
-    return Icons.auto_stories_outlined; // mangaSource
+    if (type == SourceType.novelSource) return Icons.menu_book_rounded;
+    if (type == SourceType.animeSource) return Icons.movie_rounded;
+    return Icons.auto_stories_rounded; // mangaSource
   }
 }

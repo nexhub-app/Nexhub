@@ -340,14 +340,14 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close_rounded),
           tooltip: l10n.cancel,
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(l10n.snifferTitle),
         actions: <Widget>[
           IconButton(
-            icon: Icon(_deep ? Icons.auto_fix_high : Icons.auto_fix_high_outlined),
+            icon: Icon(_deep ? Icons.auto_fix_high_rounded : Icons.auto_fix_high_rounded),
             tooltip: l10n.snifferDeep,
             color: _deep ? scheme.primary : null,
             onPressed: () {
@@ -357,7 +357,7 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.delete_sweep_outlined),
+            icon: const Icon(Icons.delete_sweep_rounded),
             tooltip: l10n.snifferClear,
             onPressed: _engine.count == 0
                 ? null
@@ -577,7 +577,7 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
             children: <Widget>[
               Expanded(
                 child: FilledButton.icon(
-                  icon: const Icon(Icons.copy),
+                  icon: const Icon(Icons.copy_rounded),
                   label: Text(l10n.snifferCopyPageLink),
                   onPressed: () {
                     if (pageUrl.isEmpty) return;
@@ -590,7 +590,7 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
               ),
               const SizedBox(width: AppTokens.spaceSm),
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close_rounded),
                 tooltip: l10n.close,
                 onPressed: () {
                   if (mounted) setState(() => _inPagePlay = false);
@@ -670,17 +670,17 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               IconButton(
-                icon: const Icon(Icons.copy, size: 20),
+                icon: const Icon(Icons.copy_rounded, size: 20),
                 tooltip: l10n.snifferCopy,
                 onPressed: () => _copyUrl(media.url),
               ),
               IconButton(
-                icon: const Icon(Icons.play_arrow, size: 20),
+                icon: const Icon(Icons.play_arrow_rounded, size: 20),
                 tooltip: l10n.snifferPlay,
                 onPressed: () => _playUrl(media),
               ),
               IconButton(
-                icon: const Icon(Icons.download, size: 20),
+                icon: const Icon(Icons.download_rounded, size: 20),
                 tooltip: l10n.snifferSave,
                 onPressed: () => _saveUrl(
                   media.url,

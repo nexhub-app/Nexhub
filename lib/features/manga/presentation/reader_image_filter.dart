@@ -401,7 +401,7 @@ class _ReaderImageFilterPanelState extends State<ReaderImageFilterPanel> {
               widget.onInvertedChanged(false);
               widget.onGrayscaleChanged(false);
             },
-            icon: const Icon(Icons.restart_alt, size: 18),
+            icon: const Icon(Icons.restart_alt_rounded, size: 18),
             label: Text(l10n.resetFilter),
           ),
         ),

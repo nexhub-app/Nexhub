@@ -45,21 +45,21 @@ class _DanmakuToggle extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         _miniBtn(
-          icon: isOn ? Icons.comment : Icons.comment_outlined,
+          icon: isOn ? Icons.comment_rounded : Icons.comment_rounded,
           color: isOn ? theme.colorScheme.primary : Colors.white54,
           tooltip: l10n.danmaku,
           onTap: onToggle,
         ),
         if (isOn && onSend != null)
           _miniBtn(
-            icon: Icons.send_outlined,
+            icon: Icons.send_rounded,
             color: Colors.white70,
             tooltip: l10n.danmakuSend ?? 'Send danmaku',
             onTap: onSend,
           ),
         if (isOn && onSettings != null)
           _miniBtn(
-            icon: Icons.tune,
+            icon: Icons.tune_rounded,
             color: Colors.white70,
             tooltip: l10n.danmakuSettings,
             onTap: onSettings,

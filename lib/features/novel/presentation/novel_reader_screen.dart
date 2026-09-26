@@ -1478,8 +1478,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                       return ListTile(
                         leading: Icon(
                           entry.isHighlightNote
-                              ? Icons.highlight_alt
-                              : Icons.notes,
+                              ? Icons.highlight_alt_rounded
+                              : Icons.notes_rounded,
                           size: 20,
                           color: entry.isHighlightNote
                               ? Theme.of(ctx).colorScheme.primary
@@ -1533,7 +1533,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             IconButton(
-                              icon: const Icon(Icons.edit_note_outlined, size: 20),
+                              icon: const Icon(Icons.edit_note_rounded, size: 20),
                               onPressed: () {
                                 Navigator.of(ctx).pop();
                                 if (entry.isHighlightNote) {
@@ -1550,7 +1550,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                               },
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 20),
+                              icon: const Icon(Icons.delete_rounded, size: 20),
                               onPressed: () {
                                 if (entry.isHighlightNote) {
                                   NovelHighlightManager().remove(entry.deleteKey);
@@ -1625,7 +1625,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Icon(
-                                Icons.format_underline,
+                                Icons.format_underline_rounded,
                                 size: 16,
                                 color: swatch,
                               ),
@@ -1673,14 +1673,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             IconButton(
-                              icon: const Icon(Icons.edit_note_outlined),
+                              icon: const Icon(Icons.edit_note_rounded),
                               onPressed: () {
                                 Navigator.of(ctx).pop();
                                 _editHighlightNote(h);
                               },
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete_outline),
+                              icon: const Icon(Icons.delete_rounded),
                               onPressed: () async {
                                 await NovelHighlightManager().remove(h.key);
                                 if (!mounted) return;
@@ -2090,7 +2090,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           overflow: TextOverflow.ellipsis,
                         ),
                         trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
+                          icon: const Icon(Icons.delete_rounded),
                           tooltip: l10n.deleteBookmark,
                           onPressed: () async {
                             await _bookmarks.remove(bm.key);
@@ -2120,7 +2120,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
  /// 书签列表角标：自定义图优先，加载失败/未设置回退默认图标（I7）。
   Widget _buildBookmarkLeading(NovelBookmark bm) {
     final path = bm.iconPath;
-    if (path == null || path.isEmpty) return const Icon(Icons.bookmark);
+    if (path == null || path.isEmpty) return const Icon(Icons.bookmark_rounded);
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppTokens.radiusSm),
       child: Image.file(
@@ -2128,7 +2128,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         width: 28,
         height: 28,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Icon(Icons.bookmark),
+        errorBuilder: (_, __, ___) => const Icon(Icons.bookmark_rounded),
       ),
     );
   }
@@ -2145,13 +2145,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
-              leading: const Icon(Icons.image_outlined),
+              leading: const Icon(Icons.image_rounded),
               title: Text(l10n.bookmarkBadgeCustom),
               onTap: () => Navigator.of(c).pop('custom'),
             ),
             if (bm.iconPath != null && bm.iconPath!.isNotEmpty)
               ListTile(
-                leading: const Icon(Icons.refresh),
+                leading: const Icon(Icons.refresh_rounded),
                 title: Text(l10n.bookmarkBadgeReset),
                 onTap: () => Navigator.of(c).pop('reset'),
               ),
@@ -3041,32 +3041,32 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             child: Row(
               children: <Widget>[
                 Expanded(child: _selToolbarButton(
-                  icon: Icons.copy_outlined,
+                  icon: Icons.copy_rounded,
                   label: l10n.selectionCopy,
                   onPressed: _selCopy,
                 )),
                 Expanded(child: _selToolbarButton(
-                  icon: Icons.subject_outlined,
+                  icon: Icons.subject_rounded,
                   label: l10n.selectionParagraph,
                   onPressed: _selParagraph,
                 )),
                 Expanded(child: _selToolbarButton(
-                  icon: Icons.palette_outlined,
+                  icon: Icons.palette_rounded,
                   label: l10n.selectionHighlight,
                   onPressed: () => _showColorPicker(),
                 )),
                 Expanded(child: _selToolbarButton(
-                  icon: Icons.format_underline,
+                  icon: Icons.format_underline_rounded,
                   label: l10n.selectionUnderline,
                   onPressed: () => _showUnderlinePicker(),
                 )),
                 Expanded(child: _selToolbarButton(
-                  icon: Icons.edit_note_outlined,
+                  icon: Icons.edit_note_rounded,
                   label: l10n.selectionNote,
                   onPressed: () => _selHighlightWithNote(),
                 )),
                 Expanded(child: _selToolbarButton(
-                  icon: Icons.share_outlined,
+                  icon: Icons.share_rounded,
                   label: l10n.selectionShare,
                   onPressed: () => _selShare(),
                 )),
@@ -3368,7 +3368,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: <Widget>[
-                  const Icon(Icons.photo_size_select_small, size: 16),
+                  const Icon(Icons.photo_size_select_small_rounded, size: 16),
                   Expanded(
                     child: Slider(
                       value: coverScale,
@@ -3379,7 +3379,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                       onChanged: (v) => setDialogState(() => coverScale = v),
                     ),
                   ),
-                  const Icon(Icons.photo_size_select_large, size: 16),
+                  const Icon(Icons.photo_size_select_large_rounded, size: 16),
                 ],
               ),
             ),
@@ -3388,7 +3388,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               alignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 TextButton.icon(
-                  icon: const Icon(Icons.image_outlined, size: 18),
+                  icon: const Icon(Icons.image_rounded, size: 18),
                   label: Text(l10n.shareChangeCover),
                   onPressed: () async {
                     final result = await FilePicker.platform.pickFiles(
@@ -4326,9 +4326,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 Icon(
                   ready
                       ? (_currentPosHasBookmark
-                          ? Icons.bookmark_remove
-                          : Icons.bookmark_added)
-                      : Icons.bookmark_add_outlined,
+                          ? Icons.bookmark_remove_rounded
+                          : Icons.bookmark_added_rounded)
+                      : Icons.bookmark_add_rounded,
                   size: 18,
                   color: ready
                       ? const Color(0xFF16A34A)
@@ -4406,7 +4406,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: <Widget>[
             IconButton(
-              icon: const Icon(Icons.skip_previous, size: 20),
+              icon: const Icon(Icons.skip_previous_rounded, size: 20),
               tooltip: l10n.ttsPrevSentence,
               visualDensity: VisualDensity.compact,
               onPressed: () => _tts.prev(),
@@ -4414,7 +4414,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
-              icon: Icon(_tts.isPlaying ? Icons.pause : Icons.play_arrow, size: 20),
+              icon: Icon(_tts.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 20),
               tooltip: l10n.ttsPauseOrResume,
               visualDensity: VisualDensity.compact,
               onPressed: () {
@@ -4428,7 +4428,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
-              icon: const Icon(Icons.stop, size: 20),
+              icon: const Icon(Icons.stop_rounded, size: 20),
               tooltip: l10n.ttsExit,
               visualDensity: VisualDensity.compact,
               onPressed: () => _tts.stop(),
@@ -4436,7 +4436,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
-              icon: const Icon(Icons.skip_next, size: 20),
+              icon: const Icon(Icons.skip_next_rounded, size: 20),
               tooltip: l10n.ttsNextSentence,
               visualDensity: VisualDensity.compact,
               onPressed: () => _tts.next(),
@@ -4444,7 +4444,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
-              icon: const Icon(Icons.timer_outlined, size: 18),
+              icon: const Icon(Icons.timer_rounded, size: 18),
               tooltip: l10n.ttsSleepTimer,
               visualDensity: VisualDensity.compact,
               onPressed: _showSleepTimerPicker,
@@ -4452,7 +4452,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
             IconButton(
-              icon: Icon(_tts.backgroundMode ? Icons.headset : Icons.headset_off, size: 18),
+              icon: Icon(_tts.backgroundMode ? Icons.headset_rounded : Icons.headset_off_rounded, size: 18),
               tooltip: l10n.novelTtsBackground,
               visualDensity: VisualDensity.compact,
               onPressed: () {
@@ -4467,7 +4467,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         ),
         Row(
           children: <Widget>[
-            const Icon(Icons.speed, size: 16),
+            const Icon(Icons.speed_rounded, size: 16),
             const SizedBox(width: AppTokens.spaceXs),
             Expanded(
               child: Slider(
@@ -4529,7 +4529,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       final verifyError = _verificationError;
       if (verifyError != null && !_isLocalMode) {
         return _CenterMessage(
-          icon: Icons.error_outline,
+          icon: Icons.error_rounded,
           message: l10n.errorVerification,
           onRetry: () async {
             final shouldRetry = await navigateToVerification(
@@ -4547,7 +4547,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       final captureRequest = _htmlCaptureRequest;
       if (captureRequest != null && !_isLocalMode) {
         return _CenterMessage(
-          icon: Icons.error_outline,
+          icon: Icons.error_rounded,
           message: l10n.captureHint,
           onRetry: () async {
             final outcome = await navigateToHtmlCapture(
@@ -4564,7 +4564,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         );
       }
       return _CenterMessage(
-        icon: Icons.error_outline,
+        icon: Icons.error_rounded,
         message: _isLocalMode
             ? l10n.localFileLoadFailed
             : (_isResolveError ? l10n.resolveFailed(_error!) : l10n.loadFailed),
@@ -4574,7 +4574,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       );
     }
     if (_paragraphs.isEmpty) {
-      return _CenterMessage(icon: Icons.article_outlined, message: l10n.noContent);
+      return _CenterMessage(icon: Icons.article_rounded, message: l10n.noContent);
     }
     return _buildReader(bg, textColor);
   }
@@ -4671,7 +4671,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
         if (_pagination!.isEmpty) {
           return _CenterMessage(
-            icon: Icons.article_outlined,
+            icon: Icons.article_rounded,
             message: AppLocalizations.of(context).noContent,
           );
         }
@@ -5163,7 +5163,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         child: Row(
           children: <Widget>[
             IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back_rounded),
               tooltip: MaterialLocalizations.of(context).backButtonTooltip,
               onPressed: () => Navigator.of(context).pop(),
             ),
@@ -5172,13 +5172,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             ),
       // 收藏按钮（P3.1）
             IconButton(
-              icon: Icon(_isFav ? Icons.favorite : Icons.favorite_border),
+              icon: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded),
               tooltip: l10n.favorite,
               onPressed: _onFavoritePressed,
             ),
       // 重载本章（在线重载当前章节；本地重新读取文本）
             IconButton(
-              icon: const Icon(Icons.refresh),
+              icon: const Icon(Icons.refresh_rounded),
               tooltip: l10n.reloadChapter,
               onPressed: () {
                 if (_isLocalMode) {
@@ -5190,7 +5190,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             ),
       // 清除阅读记录（回到本书开头）
             IconButton(
-              icon: const Icon(Icons.cleaning_services_outlined),
+              icon: const Icon(Icons.cleaning_services_rounded),
               tooltip: l10n.clearReadingProgress,
               onPressed: _clearReadingProgress,
             ),
@@ -5199,7 +5199,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       // 三点菜单（P3.1）：WebView 打开章节 / 浏览器打开 / 分享 / 书签列表 /
       // 配置底部工具栏 / 笔记 / 翻页动画
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
+              icon: const Icon(Icons.more_vert_rounded),
               tooltip: l10n.moreActions,
               onSelected: (String value) {
                 switch (value) {
@@ -5254,7 +5254,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     value: 'webview',
                     enabled: absoluteChapterUrl != null,
                     child: ListTile(
-                      leading: const Icon(Icons.public),
+                      leading: const Icon(Icons.public_rounded),
                       title: Text(l10n.openInAppBrowser),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5264,7 +5264,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     value: 'browser',
                     enabled: absoluteChapterUrl != null,
                     child: ListTile(
-                      leading: const Icon(Icons.open_in_new),
+                      leading: const Icon(Icons.open_in_new_rounded),
                       title: Text(l10n.openInBrowser),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5274,7 +5274,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     value: 'share',
                     enabled: absoluteChapterUrl != null,
                     child: ListTile(
-                      leading: const Icon(Icons.share_outlined),
+                      leading: const Icon(Icons.share_rounded),
                       title: Text(l10n.share),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5287,7 +5287,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   PopupMenuItem<String>(
                     value: 'addToReadingQueue',
                     child: ListTile(
-                      leading: const Icon(Icons.playlist_add),
+                      leading: const Icon(Icons.playlist_add_rounded),
                       title: Text(l10n.readingQueueAdd),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5296,7 +5296,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   PopupMenuItem<String>(
                     value: 'readingQueue',
                     child: ListTile(
-                      leading: const Icon(Icons.playlist_play),
+                      leading: const Icon(Icons.playlist_play_rounded),
                       title: Text(l10n.readingQueueOpen),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5307,7 +5307,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 PopupMenuItem<String>(
                   value: 'bookmarkList',
                   child: ListTile(
-                    leading: const Icon(Icons.bookmark_border),
+                    leading: const Icon(Icons.bookmark_border_rounded),
                     title: Text(l10n.novelMenuBookmarkList),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
@@ -5317,7 +5317,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 PopupMenuItem<String>(
                   value: 'summary',
                   child: ListTile(
-                    leading: const Icon(Icons.insights_outlined),
+                    leading: const Icon(Icons.insights_rounded),
                     title: Text(l10n.novelReadingSummary),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
@@ -5328,7 +5328,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   PopupMenuItem<String>(
                     value: 'aiIllustration',
                     child: ListTile(
-                      leading: const Icon(Icons.auto_awesome_outlined),
+                      leading: const Icon(Icons.auto_awesome_rounded),
                       title: Text(l10n.novelAiIllustrate),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5340,7 +5340,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   PopupMenuItem<String>(
                     value: 'aggSort',
                     child: ListTile(
-                      leading: const Icon(Icons.swap_vert),
+                      leading: const Icon(Icons.swap_vert_rounded),
                       title: Text(l10n.chapterSortMode),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5354,7 +5354,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   PopupMenuItem<String>(
                     value: 'contentEdit',
                     child: ListTile(
-                      leading: const Icon(Icons.edit_outlined),
+                      leading: const Icon(Icons.edit_rounded),
                       title: Text(l10n.novelContentEdit),
                       trailing: _currentChapterEdited
                           ? Text(
@@ -5373,7 +5373,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     PopupMenuItem<String>(
                       value: 'contentEditRestore',
                       child: ListTile(
-                        leading: const Icon(Icons.restore),
+                        leading: const Icon(Icons.restore_rounded),
                         title: Text(l10n.novelContentEditRestore),
                         contentPadding: EdgeInsets.zero,
                         dense: true,
@@ -5384,7 +5384,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 PopupMenuItem<String>(
                   value: 'configureBottomToolbar',
                   child: ListTile(
-                    leading: const Icon(Icons.tune),
+                    leading: const Icon(Icons.tune_rounded),
                     title: Text(l10n.novelMenuConfigureToolbar),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
@@ -5395,7 +5395,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 PopupMenuItem<String>(
                   value: 'highlights',
                   child: ListTile(
-                    leading: const Icon(Icons.format_color_fill_outlined),
+                    leading: const Icon(Icons.format_color_fill_rounded),
                     title: Text(l10n.highlightList),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
@@ -5405,7 +5405,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 PopupMenuItem<String>(
                   value: 'notes',
                   child: ListTile(
-                    leading: const Icon(Icons.edit_note),
+                    leading: const Icon(Icons.edit_note_rounded),
                     title: Text(l10n.noteList),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
@@ -5415,7 +5415,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                 PopupMenuItem<String>(
                   value: 'pageAnimation',
                   child: ListTile(
-                    leading: const Icon(Icons.auto_stories_outlined),
+                    leading: const Icon(Icons.auto_stories_rounded),
                     title: Text(l10n.novelPageAnimation),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
@@ -5497,7 +5497,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     return Row(
       children: <Widget>[
         IconButton(
-          icon: const Icon(Icons.chevron_left),
+          icon: const Icon(Icons.chevron_left_rounded),
           tooltip: l10n.prevPage,
           visualDensity: VisualDensity.compact,
           onPressed: hasPrev ? _goPrevPage : null,
@@ -5541,7 +5541,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.chevron_right),
+          icon: const Icon(Icons.chevron_right_rounded),
           tooltip: l10n.nextPage,
           visualDensity: VisualDensity.compact,
           onPressed: hasNext ? _goNextPage : null,
@@ -5605,28 +5605,28 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final isNight = _prefs.themeFollow == NovelThemeFollow.alwaysDark;
     switch (tool) {
       case NovelBottomTool.toc:
-        return Icons.toc;
+        return Icons.toc_rounded;
       case NovelBottomTool.prevChapter:
-        return Icons.skip_previous;
+        return Icons.skip_previous_rounded;
       case NovelBottomTool.nextChapter:
-        return Icons.skip_next;
+        return Icons.skip_next_rounded;
       case NovelBottomTool.nightMode:
     // 夜间开启时用实心月，关闭时用描边。
-        return isNight ? Icons.dark_mode : Icons.light_mode_outlined;
+        return isNight ? Icons.dark_mode_rounded : Icons.light_mode_rounded;
       case NovelBottomTool.autoPage:
         return _autoPageEnabled
-            ? (_autoPagePaused ? Icons.play_arrow : Icons.pause)
-            : Icons.play_circle_outline;
+            ? (_autoPagePaused ? Icons.play_arrow_rounded : Icons.pause_rounded)
+            : Icons.play_circle_rounded;
       case NovelBottomTool.settings:
-        return Icons.tune;
+        return Icons.tune_rounded;
       case NovelBottomTool.bookmark:
-        return Icons.bookmark_add_outlined;
+        return Icons.bookmark_add_rounded;
       case NovelBottomTool.bookmarkList:
-        return Icons.bookmarks_outlined;
+        return Icons.bookmarks_rounded;
       case NovelBottomTool.search:
-        return Icons.search;
+        return Icons.search_rounded;
       case NovelBottomTool.tts:
-        return _tts.isPlaying ? Icons.stop : Icons.record_voice_over;
+        return _tts.isPlaying ? Icons.stop_rounded : Icons.record_voice_over_rounded;
     }
   }
 
@@ -5806,7 +5806,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                             setSt(() => selected[i] = v ?? false);
                           },
                           secondary: done
-                              ? const Icon(Icons.cloud_done_outlined, size: 18)
+                              ? const Icon(Icons.cloud_done_rounded, size: 18)
                               : null,
                         );
                       },
@@ -6035,16 +6035,16 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           row(
             l10n.novelSummaryProgress(read, total),
             total > 0 ? '${(read / total * 100).toStringAsFixed(0)}%' : '',
-            icon: Icons.timeline,
+            icon: Icons.timeline_rounded,
           ),
           if (chapterTitle.isNotEmpty && pages > 0)
             row(
               l10n.novelSummaryPosition(chapterTitle, page, pages),
               '',
-              icon: Icons.menu_book_outlined,
+              icon: Icons.menu_book_rounded,
             ),
           row(l10n.novelSummaryCurrentChars(curChars), '',
-              icon: Icons.text_fields),
+              icon: Icons.text_fields_rounded),
         ],
         if (stats != null && stats.totalDurationSec > 0) ...<Widget>[
           const Divider(height: 1, indent: AppTokens.spaceLg,
@@ -6052,21 +6052,21 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           row(
             l10n.novelSummaryTotalRead,
             _formatReadDuration(l10n, stats.totalDurationSec),
-            icon: Icons.schedule,
+            icon: Icons.schedule_rounded,
           ),
           if (today != null && today.novelDurationSec > 0)
             row(
               l10n.novelSummaryToday,
               _formatReadDuration(l10n, today.novelDurationSec),
-              icon: Icons.today,
+              icon: Icons.today_rounded,
             ),
           row(
             l10n.novelSummarySessionsValue(stats.sessionCount),
             '',
-            icon: Icons.repeat,
+            icon: Icons.repeat_rounded,
           ),
           if (remaining != null)
-            row(remaining, '', icon: Icons.hourglass_bottom),
+            row(remaining, '', icon: Icons.hourglass_bottom_rounded),
         ] else
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -6524,7 +6524,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                                       mainAxisSize: MainAxisSize.min,
                                       children: <Widget>[
                                         IconButton(
-                                          icon: const Icon(Icons.close),
+                                          icon: const Icon(Icons.close_rounded),
                                           tooltip:
                                               MaterialLocalizations.of(ctx)
                                                   .deleteButtonTooltip,
@@ -6533,7 +6533,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                                         ),
                                         ReorderableDragStartListener(
                                           index: i,
-                                          child: const Icon(Icons.drag_handle),
+                                          child: const Icon(Icons.drag_handle_rounded),
                                         ),
                                       ],
                                     ),
@@ -6590,7 +6590,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             const Icon(
-              Icons.brightness_6,
+              Icons.brightness_6_rounded,
               color: Colors.white,
               size: 32,
             ),
@@ -6811,14 +6811,14 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
                   children: <Widget>[
                     TextButton.icon(
                       onPressed: _generate,
-                      icon: const Icon(Icons.refresh),
+                      icon: const Icon(Icons.refresh_rounded),
                       label: Text(l10n.overviewRetry),
                     ),
                     TextButton.icon(
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: _apiResult!));
                       },
-                      icon: const Icon(Icons.copy),
+                      icon: const Icon(Icons.copy_rounded),
                       label: Text(l10n.overviewCopy),
                     ),
                   ],
@@ -6840,7 +6840,7 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
                   ),
                 FilledButton.icon(
                   onPressed: _generate,
-                  icon: const Icon(Icons.auto_awesome),
+                  icon: const Icon(Icons.auto_awesome_rounded),
                   label: Text(l10n.overviewGenerate),
                 ),
               ],
@@ -6850,7 +6850,7 @@ class _ReadingOverviewPanelState extends State<_ReadingOverviewPanel> {
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
               onPressed: _openAiSettings,
-              icon: const Icon(Icons.auto_awesome),
+              icon: const Icon(Icons.auto_awesome_rounded),
               label: Text(l10n.aiSettingsTitle),
             ),
           ),
@@ -6887,7 +6887,7 @@ class _CenterMessage extends StatelessWidget {
               const SizedBox(height: AppTokens.spaceMd),
               FilledButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(Icons.refresh_rounded),
                 label: Text(AppLocalizations.of(context).retry),
               ),
             ],
@@ -8146,7 +8146,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       onChanged: onSearchChanged,
                       decoration: InputDecoration(
                         hintText: l10n.novelSettingsSearch,
-                        prefixIcon: const Icon(Icons.search),
+                        prefixIcon: const Icon(Icons.search_rounded),
                         isDense: true,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -8161,7 +8161,7 @@ class _NovelInlineSettings extends StatelessWidget {
                   if (onConfigureToolbar != null) ...<Widget>[
                     const SizedBox(width: AppTokens.spaceSm),
                     IconButton(
-                      icon: const Icon(Icons.view_module_outlined),
+                      icon: const Icon(Icons.view_module_rounded),
                       tooltip: l10n.configureBottomToolbar,
                       onPressed: onConfigureToolbar,
                     ),
@@ -8186,7 +8186,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       context,
                       l10n.novelSectionColor,
                       searchQuery: searchController.text,
-                      leading: Icons.palette,
+                      leading: Icons.palette_rounded,
                       searchTerms: _kNovelSecColorTerms,
                       children: <Widget>[
           // 亮度（从「翻页与交互」组上移，最常调）
@@ -8323,7 +8323,7 @@ class _NovelInlineSettings extends StatelessWidget {
                         children: <Widget>[
                           if (prefs.customTextColor != null)
                             IconButton(
-                              icon: const Icon(Icons.backspace_outlined),
+                              icon: const Icon(Icons.backspace_rounded),
                               tooltip: l10n.novelTextColorFollowBg,
                               onPressed: () => onChanged(
                                   prefs.copyWith(customTextColor: null)),
@@ -8416,7 +8416,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       l10n.novelSectionText,
                       initiallyExpanded: true,
                       searchQuery: searchController.text,
-                      leading: Icons.text_fields,
+                      leading: Icons.text_fields_rounded,
                       searchTerms: _kNovelSecTextTerms,
                       children: <Widget>[
                     _SliderRow(
@@ -8485,7 +8485,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       context,
                       l10n.novelSectionFont,
                       searchQuery: searchController.text,
-                      leading: Icons.font_download_outlined,
+                      leading: Icons.font_download_rounded,
                       searchTerms: _kNovelSecFontTerms,
                       children: <Widget>[
           // 字体样式（加粗 / 斜体 / 下划线，可共存）
@@ -8578,7 +8578,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       context,
                       l10n.novelTypographyGroup,
                       searchQuery: searchController.text,
-                      leading: Icons.format_align_left,
+                      leading: Icons.format_align_left_rounded,
                       initiallyExpanded: true,
                       searchTerms: _kNovelSecTypographyTerms,
                       children: <Widget>[
@@ -8724,7 +8724,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       context,
                       l10n.novelSectionTitle,
                       searchQuery: searchController.text,
-                      leading: Icons.title,
+                      leading: Icons.title_rounded,
                       searchTerms: _kNovelSecTitleTerms,
                       children: <Widget>[
                         SwitchListTile(
@@ -8865,7 +8865,7 @@ class _NovelInlineSettings extends StatelessWidget {
                               children: <Widget>[
                                 if (prefs.titleColor != null)
                                   IconButton(
-                                    icon: const Icon(Icons.backspace_outlined),
+                                    icon: const Icon(Icons.backspace_rounded),
                                     tooltip: l10n.novelTitleColorAuto,
                                     onPressed: () => onChanged(
                                         prefs.copyWith(titleColor: null)),
@@ -8944,7 +8944,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       context,
                       l10n.novelSectionHeaderFooter,
                       searchQuery: searchController.text,
-                      leading: Icons.view_headline,
+                      leading: Icons.view_headline_rounded,
                       searchTerms: _kNovelSecHeaderFooterTerms,
                       children: <Widget>[
                         _buildHfSlotPicker(
@@ -9027,7 +9027,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       context,
                       l10n.novelSectionShadowUnderline,
                       searchQuery: searchController.text,
-                      leading: Icons.format_color_text,
+                      leading: Icons.format_color_text_rounded,
                       searchTerms: _kNovelSecShadowUnderlineTerms,
                       children: <Widget>[
             // 文字阴影开关（从「颜色与背景」组移入）
@@ -9053,7 +9053,7 @@ class _NovelInlineSettings extends StatelessWidget {
                               children: <Widget>[
                                 if (prefs.shadowColor != null)
                                   IconButton(
-                                    icon: const Icon(Icons.backspace_outlined),
+                                    icon: const Icon(Icons.backspace_rounded),
                                     tooltip: l10n.novelShadowColorAuto,
                                     onPressed: () => onChanged(
                                         prefs.copyWith(shadowColor: null)),
@@ -9229,7 +9229,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       context,
                       l10n.novelSectionPage,
                       searchQuery: searchController.text,
-                      leading: Icons.gesture,
+                      leading: Icons.gesture_rounded,
                       searchTerms: _kNovelSecPageTerms,
                       children: <Widget>[
           // 翻页动画
@@ -9364,7 +9364,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       context,
                       l10n.novelSectionTts,
                       searchQuery: searchController.text,
-                      leading: Icons.record_voice_over,
+                      leading: Icons.record_voice_over_rounded,
                       searchTerms: _kNovelSecTtsTerms,
                       children: <Widget>[
                         ListenableBuilder(
@@ -9389,14 +9389,14 @@ class _NovelInlineSettings extends StatelessWidget {
                               ),
                               ListTile(
                                 contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.timer_outlined),
+                                leading: const Icon(Icons.timer_rounded),
                                 title: Text(l10n.ttsSleepTimer),
                                 subtitle: tts.sleepRemaining != null
                                     ? Text(l10n.ttsSleepRemaining(
                                         tts.sleepRemaining!.inMinutes,
                                         tts.sleepRemaining!.inSeconds % 60))
                                     : null,
-                                trailing: const Icon(Icons.chevron_right),
+                                trailing: const Icon(Icons.chevron_right_rounded),
                                 onTap: () => _pickSleepTimer(
                                   context: context,
                                   l10n: l10n,
@@ -9422,7 +9422,7 @@ class _NovelInlineSettings extends StatelessWidget {
                       context,
                       l10n.novelSectionMisc,
                       searchQuery: searchController.text,
-                      leading: Icons.tune,
+                      leading: Icons.tune_rounded,
                       searchTerms: _kNovelSecMiscTerms,
                       children: <Widget>[
           // 繁简转换（M3.5.1）
@@ -9461,10 +9461,10 @@ class _NovelInlineSettings extends StatelessWidget {
           // 替换规则（书籍级正文净化）
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.cleaning_services_outlined),
+                      leading: const Icon(Icons.cleaning_services_rounded),
                       title: const Text('替换规则'),
                       subtitle: const Text('正文净化，正则/纯文本替换'),
-                      trailing: const Icon(Icons.chevron_right),
+                      trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () {
                         Navigator.push(
                           context,
@@ -9481,24 +9481,24 @@ class _NovelInlineSettings extends StatelessWidget {
           // 阅读中预下载（问题 4）：开关/阈值/数量配置弹窗。
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.download_for_offline_outlined),
+                      leading: const Icon(Icons.download_for_offline_rounded),
                       title: Text(l10n.novelSectionPreDownload),
                       subtitle: Text(l10n.preDownloadEnabled),
-                      trailing: const Icon(Icons.chevron_right),
+                      trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => _showPreDownloadDialog(context, l10n),
                     ),
                     const SizedBox(height: AppTokens.spaceSm),
           // 缓存本书到本地（离线阅读）
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.download_outlined),
+                      leading: const Icon(Icons.download_rounded),
                       title: Text(l10n.novelCacheBook),
                       onTap: onCache,
                     ),
           // 恢复本书默认设置（清除按书覆盖，回到全局默认）
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.restart_alt),
+                      leading: const Icon(Icons.restart_alt_rounded),
                       title: Text(l10n.novelResetBookPrefs),
                       onTap: onResetBook,
                     ),
@@ -9509,30 +9509,30 @@ class _NovelInlineSettings extends StatelessWidget {
                       context,
                       l10n.novelSectionAi,
                       searchQuery: searchController.text,
-                      leading: Icons.auto_awesome,
+                      leading: Icons.auto_awesome_rounded,
                       searchTerms: _kNovelSecAiTerms,
                       children: <Widget>[
                         ListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.insights_outlined),
+                          leading: const Icon(Icons.insights_rounded),
                           title: Text(l10n.novelAiOpenSummary),
-                          trailing: const Icon(Icons.chevron_right),
+                          trailing: const Icon(Icons.chevron_right_rounded),
                           onTap: onOpenSummary,
                         ),
                         const SizedBox(height: AppTokens.spaceSm),
                         ListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.translate),
+                          leading: const Icon(Icons.translate_rounded),
                           title: Text(l10n.novelAiOpenTranslation),
-                          trailing: const Icon(Icons.chevron_right),
+                          trailing: const Icon(Icons.chevron_right_rounded),
                           onTap: onTranslate,
                         ),
                         const SizedBox(height: AppTokens.spaceSm),
                         ListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.auto_awesome_outlined),
+                          leading: const Icon(Icons.auto_awesome_rounded),
                           title: Text(l10n.novelAiIllustrate),
-                          trailing: const Icon(Icons.chevron_right),
+                          trailing: const Icon(Icons.chevron_right_rounded),
                           onTap: onGenerateIllustration,
                         ),
                       ],
@@ -9545,7 +9545,7 @@ class _NovelInlineSettings extends StatelessWidget {
                         child: Center(
                           child: Column(
                             children: <Widget>[
-                              Icon(Icons.search_off,
+                              Icon(Icons.search_off_rounded,
                                   size: 40,
                                   color: Theme.of(context).hintColor),
                               const SizedBox(height: AppTokens.spaceSm),
@@ -9664,7 +9664,7 @@ class _NovelInlineSettings extends StatelessWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Icon(Icons.star_outline,
+                  Icon(Icons.star_rounded,
                       size: 18, color: theme.colorScheme.primary),
                   const SizedBox(width: 6),
                   Text(
@@ -9870,7 +9870,7 @@ class _NovelInlineSettings extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(Icons.delete_rounded),
             tooltip: clearTooltip,
             onPressed: onClear,
           ),
@@ -9890,7 +9890,7 @@ class _NovelInlineSettings extends StatelessWidget {
     final label = title ? l10n.novelTitleFontFile : l10n.novelChooseFontFile;
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.font_download_outlined),
+      leading: const Icon(Icons.font_download_rounded),
       title: Text(label),
       subtitle: currentPath != null
           ? Text(l10n.novelFontFileCurrent(
@@ -9898,7 +9898,7 @@ class _NovelInlineSettings extends StatelessWidget {
           : null,
       trailing: currentPath != null
           ? IconButton(
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_rounded),
               tooltip: l10n.novelClearFontFile,
               onPressed: () => onChanged(
                 title
@@ -10717,8 +10717,8 @@ class _NovelImageFavoriteViewerState extends State<_NovelImageFavoriteViewer> {
             tooltip: AppLocalizations.of(context).imageFavoriteAdd,
             icon: Icon(
               _isFavorite == true
-                  ? Icons.star
-                  : Icons.star_border,
+                  ? Icons.star_rounded
+                  : Icons.star_border_rounded,
               color: Colors.white,
             ),
             onPressed: _toggleFavorite,
@@ -11092,7 +11092,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
             bottom: AppTokens.spaceXs),
         child: Row(
           children: <Widget>[
-            Icon(Icons.auto_stories,
+            Icon(Icons.auto_stories_rounded,
                 size: 14, color: scheme.primary),
             const SizedBox(width: AppTokens.spaceXs),
             Text(
@@ -11111,7 +11111,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
             left: AppTokens.spaceMd, bottom: AppTokens.spaceXs),
         child: TextButton.icon(
           onPressed: widget.onStartPrescan,
-          icon: const Icon(Icons.travel_explore, size: 16),
+          icon: const Icon(Icons.travel_explore_rounded, size: 16),
           label: Text(l10n.prescanStart,
               style: const TextStyle(fontSize: 12)),
         ),
@@ -11168,7 +11168,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
               )
             : TextButton.icon(
                 onPressed: _polish,
-                icon: const Icon(Icons.auto_fix_high, size: 16),
+                icon: const Icon(Icons.auto_fix_high_rounded, size: 16),
                 label: Text(l10n.polishAction,
                     style: const TextStyle(fontSize: 12)),
               ),
@@ -11208,7 +11208,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                             height: 14,
                             child:
                                 CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.translate, size: 18),
+                        : const Icon(Icons.translate_rounded, size: 18),
                     label: Text(_translations == null
                         ? (_hasCheckpoint
                             ? l10n.novelTranslateResume

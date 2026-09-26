@@ -352,7 +352,7 @@ class RssVideoFullscreen extends StatelessWidget {
                 child: Row(
                   children: <Widget>[
                     IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
                       tooltip:
                           MaterialLocalizations.of(context).closeButtonTooltip,
                       onPressed: () => Navigator.of(context).pop(),
@@ -688,7 +688,7 @@ class _RssVideoControlsState extends State<RssVideoControls> {
                     IconButton(
                       icon: Icon(
                         _buffering
-                            ? Icons.hourglass_top
+                            ? Icons.hourglass_top_rounded
                             : (_playing
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded),
@@ -796,7 +796,7 @@ class _PlayPlaceholder extends StatelessWidget {
         onTap: onPlay,
         child: const Center(
           child: Icon(
-            Icons.play_circle_outline,
+            Icons.play_circle_rounded,
             size: 56,
             color: Colors.white70,
           ),
@@ -836,7 +836,7 @@ class _FailureOverlay extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(Icons.error_outline, size: 18, color: scheme.error),
+                Icon(Icons.error_rounded, size: 18, color: scheme.error),
                 const SizedBox(width: AppTokens.spaceXs),
                 Flexible(
                   child: Text(
@@ -854,17 +854,17 @@ class _FailureOverlay extends StatelessWidget {
               children: <Widget>[
                 TextButton.icon(
                   onPressed: onRetry,
-                  icon: const Icon(Icons.refresh, size: 18),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: Text(l10n.retry),
                 ),
                 TextButton.icon(
                   onPressed: onBrowser,
-                  icon: const Icon(Icons.language_outlined, size: 18),
+                  icon: const Icon(Icons.language_rounded, size: 18),
                   label: Text(l10n.rssOpenInBrowser),
                 ),
                 TextButton.icon(
                   onPressed: onExternal,
-                  icon: const Icon(Icons.open_in_new_outlined, size: 18),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
                   label: Text(l10n.rssOpenExternally),
                 ),
               ],

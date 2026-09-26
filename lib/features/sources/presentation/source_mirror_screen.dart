@@ -390,7 +390,7 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
               ),
             )
           else if (failed)
-            Icon(Icons.error_outline, color: scheme.error, size: 16)
+            Icon(Icons.error_rounded, color: scheme.error, size: 16)
           else if (speed != null)
             Text(
               l10n.mirrorTestResultMs(speed),
@@ -399,13 +399,13 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
           else
             const SizedBox.shrink(),
           AppIconButton(
-            icon: Icons.speed,
+            icon: Icons.speed_rounded,
             tooltip: l10n.mirrorTest,
             onPressed: () => _testSpeed(m.baseUrl),
           ),
           if (isCustom)
             AppIconButton(
-              icon: Icons.delete_outline,
+              icon: Icons.delete_rounded,
               tooltip: l10n.mirrorDelete,
               onPressed: () => _deleteCustomMirror(m.baseUrl),
             ),
@@ -450,7 +450,7 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
         actions: <Widget>[
           if (widget.source.comments?.supportsLogin == true)
             AppIconButton(
-              icon: Icons.login_outlined,
+              icon: Icons.login_rounded,
               tooltip: l10n.sourceLogin,
               onPressed: () => Navigator.of(context).push(
                 AppPageRoute<void>(
@@ -460,24 +460,24 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
             ),
           if (hasPublishPage)
             AppIconButton(
-              icon: Icons.cloud_download_outlined,
+              icon: Icons.cloud_download_rounded,
               tooltip: l10n.mirrorExtractFromPublish,
               onPressed: () => _autoExtractFromPublish(manual: true),
             ),
           AppIconButton(
-            icon: Icons.speed,
+            icon: Icons.speed_rounded,
             tooltip: l10n.mirrorTestAll,
             onPressed: _testingAll ? null : _testAll,
           ),
           AppIconButton(
-            icon: Icons.add,
+            icon: Icons.add_rounded,
             tooltip: l10n.mirrorAddCustom,
             onPressed: _showAddCustomMirrorDialog,
           ),
         ],
       ),
       body: (declared.isEmpty && custom.isEmpty)
-          ? AppEmptyState(icon: Icons.dns, message: l10n.mirrorNoMirrors)
+          ? AppEmptyState(icon: Icons.dns_rounded, message: l10n.mirrorNoMirrors)
           : ListView(
               padding: const EdgeInsets.all(AppTokens.spaceLg),
               children: <Widget>[
@@ -491,7 +491,7 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
                   ),
                   child: Row(
                     children: <Widget>[
-                      Icon(Icons.lock,
+                      Icon(Icons.lock_rounded,
                           size: 16, color: scheme.onSurfaceVariant),
                       const SizedBox(width: AppTokens.spaceSm),
                       Expanded(

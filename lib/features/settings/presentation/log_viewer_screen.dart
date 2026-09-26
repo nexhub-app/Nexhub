@@ -98,19 +98,19 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
         actions: <Widget>[
           IconButton(
             tooltip: l10n.crashLogCopyAll,
-            icon: const Icon(Icons.copy_all_outlined),
+            icon: const Icon(Icons.copy_all_rounded),
             onPressed: () => _copyAll(l10n),
           ),
           IconButton(
             tooltip: l10n.crashLogClear,
-            icon: const Icon(Icons.delete_sweep_outlined),
+            icon: const Icon(Icons.delete_sweep_rounded),
             onPressed: () => _clear(l10n),
           ),
         ],
       ),
       body: _entries.isEmpty
           ? AppEmptyState(
-              icon: Icons.article_outlined,
+              icon: Icons.article_rounded,
               message: l10n.logEmpty,
             )
           : ListView.builder(

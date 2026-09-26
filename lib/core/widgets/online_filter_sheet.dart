@@ -268,7 +268,7 @@ class _OnlineFilterSheetState extends State<_OnlineFilterSheet> {
                     style: theme.textTheme.titleMedium,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close_rounded),
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ],
@@ -660,7 +660,7 @@ class _DynamicFilterSheetState extends State<_DynamicFilterSheet> {
                 children: <Widget>[
                   Text(l10n.filterTitle, style: theme.textTheme.titleMedium),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close_rounded),
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ],

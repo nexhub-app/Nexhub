@@ -16,7 +16,7 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
-              leading: const Icon(Icons.timer_off),
+              leading: const Icon(Icons.timer_off_rounded),
               title: Text(l10n.playerTimerOff),
               onTap: () {
                 Navigator.pop(ctx);
@@ -31,7 +31,7 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
             ),
             for (final m in <int>[15, 30, 45, 60, 90])
               ListTile(
-                leading: const Icon(Icons.timer),
+                leading: const Icon(Icons.timer_rounded),
                 title: Text(l10n.playerTimerMinutes(m)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -41,7 +41,7 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
             // 睡眠定时「按集数」模式（与按分钟互斥，跨集保留）。
             for (final n in <int>[1, 2, 3])
               ListTile(
-                leading: const Icon(Icons.video_library),
+                leading: const Icon(Icons.video_library_rounded),
                 title: Text(l10n.playerTimerEpisodes(n)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -49,7 +49,7 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
                 },
               ),
             ListTile(
-              leading: const Icon(Icons.edit),
+              leading: const Icon(Icons.edit_rounded),
               title: Text(l10n.playerTimerCustom),
               onTap: () {
                 Navigator.pop(ctx);

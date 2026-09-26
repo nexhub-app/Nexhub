@@ -106,7 +106,7 @@ class _SearchSuggestionsState extends State<SearchSuggestions> {
                       if (history.isNotEmpty)
                         TextButton.icon(
                           onPressed: _confirmClear,
-                          icon: const Icon(Icons.delete_outline, size: 18),
+                          icon: const Icon(Icons.delete_rounded, size: 18),
                           label: Text(l10n.clearSearchHistory),
                         ),
                     ],

@@ -519,7 +519,7 @@ class _ErrorView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.error_outline,
+                Icons.error_rounded,
                 size: 64,
                 color: theme.colorScheme.error,
               ),
@@ -532,7 +532,7 @@ class _ErrorView extends StatelessWidget {
               const SizedBox(height: AppTokens.spaceXl),
               FilledButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(Icons.refresh_rounded),
                 label: Text(l10n.retry),
               ),
             ],

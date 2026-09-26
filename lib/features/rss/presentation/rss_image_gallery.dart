@@ -62,7 +62,7 @@ class _RssImageGalleryState extends State<RssImageGallery> {
           // 保存 / 分享当前图（对齐漫画阅读器图片功能）。
           Builder(
             builder: (BuildContext ctx) => IconButton(
-              icon: const Icon(Icons.download_outlined),
+              icon: const Icon(Icons.download_rounded),
               tooltip: AppLocalizations.of(ctx).saveImage,
               onPressed: () => unawaited(
                 showRssImageActions(
@@ -75,7 +75,7 @@ class _RssImageGalleryState extends State<RssImageGallery> {
           ),
           Builder(
             builder: (BuildContext ctx) => IconButton(
-              icon: const Icon(Icons.share_outlined),
+              icon: const Icon(Icons.share_rounded),
               tooltip: AppLocalizations.of(ctx).shareImage,
               onPressed: () => unawaited(
                 showRssImageActions(
@@ -87,7 +87,7 @@ class _RssImageGalleryState extends State<RssImageGallery> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
             onPressed: () => Navigator.of(context).pop(),
           ),

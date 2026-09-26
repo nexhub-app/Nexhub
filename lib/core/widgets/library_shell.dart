@@ -171,7 +171,7 @@ class _LibraryShellState extends State<LibraryShell> {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   IconButton(
-                    icon: const Icon(Icons.search_outlined),
+                    icon: const Icon(Icons.search_rounded),
                     tooltip: l10n.search,
                     onPressed: () {
                       AppHaptics.selectionClick();
@@ -181,7 +181,7 @@ class _LibraryShellState extends State<LibraryShell> {
                   if (widget.onEmptyAction != null &&
                       _sub.first == LibrarySubTab.local)
                     IconButton(
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(Icons.add_rounded),
                       tooltip: widget.emptyActionLabel ?? l10n.import,
                       onPressed: () {
                         AppHaptics.selectionClick();
@@ -191,7 +191,7 @@ class _LibraryShellState extends State<LibraryShell> {
                   if (widget.historySourceType != null &&
                       _sub.first == LibrarySubTab.history)
                     IconButton(
-                      icon: const Icon(Icons.delete_sweep_outlined),
+                      icon: const Icon(Icons.delete_sweep_rounded),
                       tooltip: l10n.clearHistory,
                       onPressed: _confirmClearHistory,
                     ),
@@ -201,7 +201,7 @@ class _LibraryShellState extends State<LibraryShell> {
         actions: <Widget>[
           if (_currentTopTab == LibraryTopTab.library) ...[
             AppIconButton(
-              icon: Icons.filter_list_outlined,
+              icon: Icons.filter_list_rounded,
               tooltip: l10n.filter,
               onPressed: _openFilterSheet,
               color: _filter.isDefault ? null : scheme.primary,
@@ -370,7 +370,7 @@ class _LibraryShellState extends State<LibraryShell> {
         children: <Widget>[
           Expanded(
             child: _TopTabItem(
-              icon: Icons.menu_book_outlined,
+              icon: Icons.menu_book_rounded,
               label: widget.libraryTabLabel ?? l10n.tabLibrary,
               selected: _currentTopTab == LibraryTopTab.library,
               onTap: () => _selectTop(LibraryTopTab.library),
@@ -379,7 +379,7 @@ class _LibraryShellState extends State<LibraryShell> {
           ),
           Expanded(
             child: _TopTabItem(
-              icon: Icons.language_outlined,
+              icon: Icons.language_rounded,
               label: l10n.tabOnline,
               selected: _currentTopTab == LibraryTopTab.online,
               onTap: () => _selectTop(LibraryTopTab.online),
@@ -388,7 +388,7 @@ class _LibraryShellState extends State<LibraryShell> {
           ),
           Expanded(
             child: _TopTabItem(
-              icon: Icons.rss_feed_outlined,
+              icon: Icons.rss_feed_rounded,
               label: l10n.tabSubscribe,
               selected: _currentTopTab == LibraryTopTab.subscribe,
               onTap: () => _selectTop(LibraryTopTab.subscribe),
@@ -397,7 +397,7 @@ class _LibraryShellState extends State<LibraryShell> {
           ),
           Expanded(
             child: _TopTabItem(
-              icon: Icons.extension_outlined,
+              icon: Icons.extension_rounded,
               label: l10n.tabSources,
               selected: _currentTopTab == LibraryTopTab.sources,
               onTap: () => _selectTop(LibraryTopTab.sources),

@@ -3,7 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
-import '../../../core/widgets/app_list_tile.dart';
+
 import './widgets/settings_widgets.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/scraper/http_fetcher.dart';
@@ -32,48 +32,48 @@ class SettingsPrivacySecurityScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppTokens.spaceLg),
             children: <Widget>[
-              AppListTile(
-                key: const ValueKey<String>('privacy.settings'),
-                leading:
-                    const SettingsLeadingIcon(icon: Icons.privacy_tip_outlined),
-                title: Text(l10n.privacySettingsTitle),
-                subtitle: Text(l10n.privacySettingsDesc),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(
-                  AppPageRoute<void>(
-                    builder: (_) => const SettingsPrivacyScreen(),
+              SettingsGroup(
+                header: l10n.settingsCatPrivacy,
+                children: <Widget>[
+                  SettingsTile(
+                    key: const ValueKey<String>('privacy.settings'),
+                    icon: Icons.privacy_tip_rounded,
+                    title: l10n.privacySettingsTitle,
+                    subtitle: l10n.privacySettingsDesc,
+                    onTap: () => Navigator.of(context).push(
+                      AppPageRoute<void>(
+                        builder: (_) => const SettingsPrivacyScreen(),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              AppListTile(
-                key: const ValueKey<String>('privacy.advanced'),
-                leading: const SettingsLeadingIcon(icon: Icons.tune),
-                title: Text(l10n.advancedSettingsTitle),
-                subtitle: Text(l10n.advancedSettingsDesc),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(
-                  AppPageRoute<void>(
-                    builder: (_) => const SettingsAdvancedScreen(),
+                  SettingsTile(
+                    key: const ValueKey<String>('privacy.advanced'),
+                    icon: Icons.tune_rounded,
+                    title: l10n.advancedSettingsTitle,
+                    subtitle: l10n.advancedSettingsDesc,
+                    onTap: () => Navigator.of(context).push(
+                      AppPageRoute<void>(
+                        builder: (_) => const SettingsAdvancedScreen(),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              KeyedSubtree(
-                key: const ValueKey<String>('privacy.ageRestriction'),
-                child: const _AgeRestrictionSection(),
-              ),
-              AppListTile(
-                key: const ValueKey<String>('privacy.clearCache'),
-                leading: const SettingsLeadingIcon(
-                    icon: Icons.cleaning_services_outlined),
-                title: Text(l10n.clearCache),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  HttpFetcher.instance.clearCookies();
-                  PaintingBinding.instance.imageCache.clear();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l10n.cacheCleared)),
-                  );
-                },
+                  const KeyedSubtree(
+                    key: ValueKey<String>('privacy.ageRestriction'),
+                    child: _AgeRestrictionSection(),
+                  ),
+                  SettingsTile(
+                    key: const ValueKey<String>('privacy.clearCache'),
+                    icon: Icons.cleaning_services_rounded,
+                    title: l10n.clearCache,
+                    onTap: () {
+                      HttpFetcher.instance.clearCookies();
+                      PaintingBinding.instance.imageCache.clear();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(l10n.cacheCleared)),
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -128,29 +128,24 @@ class _AgeRestrictionSectionState extends State<_AgeRestrictionSection> {
       animation: GeneralSettingsStore.instance,
       builder: (_, __) {
         _s = GeneralSettingsStore.instance.settings;
-        return SwitchListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
-          secondary: const SettingsLeadingIcon(icon:Icons.no_adult_content),
-          title: Text(l10n.ageRestriction),
-          subtitle: Text(
-            l10n.ageRestrictionHint,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+        return SettingsTile(
+          icon: Icons.no_adult_content_rounded,
+          title: l10n.ageRestriction,
+          subtitle: l10n.ageRestrictionHint,
+          trailing: Switch(
+            value: _s.ageRestrictionEnabled,
+            onChanged: (bool v) async {
+              v ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+              if (!v) {
+                final agreed = await _showAgeRestrictionDisclaimer(l10n);
+                if (!agreed) return;
+              }
+              _update(_s.copyWith(ageRestrictionEnabled: v));
+              if (mounted) {
+                context.read<SourceRepository>().setAgeRestrictionEnabled(v);
+              }
+            },
           ),
-          value: _s.ageRestrictionEnabled,
-          onChanged: (bool v) async {
-            v ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-            if (!v) {
-              final agreed = await _showAgeRestrictionDisclaimer(l10n);
-              if (!agreed) return;
-            }
-            _update(_s.copyWith(ageRestrictionEnabled: v));
-            if (mounted) {
-              context.read<SourceRepository>().setAgeRestrictionEnabled(v);
-            }
-          },
         );
       },
     );
@@ -225,10 +220,10 @@ class _AgeRestrictionDisclaimerDialogState
         vertical: AppTokens.spaceLg,
       ),
       titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      contentPadding: const EdgeInsets.fromLTRB(AppTokens.spaceXl, AppTokens.spaceMd,
-          AppTokens.spaceXl, AppTokens.spaceLg),
-      actionsPadding: const EdgeInsets.fromLTRB(AppTokens.spaceLg, AppTokens.spaceNone,
-          AppTokens.spaceLg, AppTokens.spaceMd),
+      contentPadding: const EdgeInsets.fromLTRB(AppTokens.spaceXl,
+          AppTokens.spaceMd, AppTokens.spaceXl, AppTokens.spaceLg),
+      actionsPadding: const EdgeInsets.fromLTRB(AppTokens.spaceLg,
+          AppTokens.spaceNone, AppTokens.spaceLg, AppTokens.spaceMd),
       title: Text(l10n.ageRestrictionDisclaimerTitle),
       content: ConstrainedBox(
         constraints: BoxConstraints(

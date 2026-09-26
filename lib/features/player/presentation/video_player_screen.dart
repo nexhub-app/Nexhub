@@ -2237,7 +2237,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       ),
                       if (showResume)
                         ListTile(
-                          leading: const Icon(Icons.play_circle_fill),
+                          leading: const Icon(Icons.play_circle_fill_rounded),
                           title:
                               Text(l10n.playerQueueResumeLast(current!.title)),
                           onTap: () {
@@ -2270,7 +2270,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                         ),
                       if (local.isNotEmpty)
                         ListTile(
-                          leading: const Icon(Icons.delete_sweep),
+                          leading: const Icon(Icons.delete_sweep_rounded),
                           title: Text(l10n.playerQueueCleared),
                           onTap: () {
                             setStateLocal(() => local.clear());
@@ -2303,8 +2303,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               width: 40,
               height: 56,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const Icon(Icons.movie))
-          : const Icon(Icons.movie),
+              errorBuilder: (_, __, ___) => const Icon(Icons.movie_rounded))
+          : const Icon(Icons.movie_rounded),
       title: Text(w.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: w.episodeTitle != null
           ? Text(w.episodeTitle!, maxLines: 1, overflow: TextOverflow.ellipsis)
@@ -2313,18 +2313,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.arrow_upward),
+            icon: const Icon(Icons.arrow_upward_rounded),
             tooltip: l10n.playerQueueMoveUp,
             onPressed: index > 0 ? () => onMove(index, index - 1) : null,
           ),
           IconButton(
-            icon: const Icon(Icons.arrow_downward),
+            icon: const Icon(Icons.arrow_downward_rounded),
             tooltip: l10n.playerQueueMoveDown,
             onPressed:
                 index < total - 1 ? () => onMove(index, index + 1) : null,
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             tooltip: l10n.playerQueueRemove,
             onPressed: onRemove,
           ),
@@ -3169,7 +3169,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       ),
                       const SizedBox(width: AppTokens.spaceSm),
                       IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(Icons.close_rounded),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
@@ -3660,7 +3660,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   bottom: _uiVisible ? 96 : 28,
                   child: _SkipChip(
                       label: l10n.playerSkipOp,
-                      icon: Icons.fast_forward,
+                      icon: Icons.fast_forward_rounded,
                       onTap: _skipIntro),
                 ),
               if (!_controller.isLocked && !pipMode && _showSkipEdButton)
@@ -3669,7 +3669,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   bottom: _uiVisible ? 96 : 28,
                   child: _SkipChip(
                       label: l10n.playerSkipEd,
-                      icon: Icons.fast_forward,
+                      icon: Icons.fast_forward_rounded,
                       onTap: _skipOutro),
                 ),
 
@@ -3736,7 +3736,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   child: Center(
                     child: _ControlButton(
                       key: const Key('player_lock_edge'),
-                      icon: _controller.isLocked ? Icons.lock : Icons.lock_open,
+                      icon: _controller.isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
                       tooltip: _controller.isLocked
                           ? l10n.playerUnlock
                           : l10n.playerLock,
@@ -3754,7 +3754,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                   child: Center(
                     child: _ControlButton(
                       key: const Key('player_screenshot_edge'),
-                      icon: Icons.camera_alt,
+                      icon: Icons.camera_alt_rounded,
                       tooltip: l10n.playerScreenshot,
                       onTap: () => unawaited(_captureAndSaveScreenshot(l10n)),
                     ),
@@ -3884,7 +3884,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           children: <Widget>[
             topBarBtn(
               key: const Key('player_back'),
-              icon: Icons.arrow_back,
+              icon: Icons.arrow_back_rounded,
               onPressed: () => Navigator.of(context).pop(),
             ),
             // 滚动媒体名 + 集数（长标题自动横向滚动）
@@ -3901,7 +3901,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             // 投屏
             topBarBtn(
               key: const Key('player_cast'),
-              icon: Icons.cast,
+              icon: Icons.cast_rounded,
               color: _isCasting ? Colors.amber : Colors.white,
               tooltip: l10n.playerCast,
               onPressed: () => _showCastSheet(l10n),
@@ -3910,8 +3910,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             topBarBtn(
               key: const Key('player_subtitle'),
               icon: _controller.subtitleVisible
-                  ? Icons.subtitles
-                  : Icons.subtitles_outlined,
+                  ? Icons.subtitles_rounded
+                  : Icons.subtitles_rounded,
               tooltip: l10n.playerSubtitle,
               onPressed: () => SubtitlePanel.show(
                 context,
@@ -3925,7 +3925,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             if (widget.favoriteType != null)
               topBarBtn(
                 key: const Key('player_favorite'),
-                icon: _isFav ? Icons.favorite : Icons.favorite_border,
+                icon: _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                 color: _isFav ? Colors.redAccent : Colors.white,
                 tooltip: l10n.favorite,
                 onPressed: _onFavoritePressed,
@@ -3933,7 +3933,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             // 更多（已瘦身：解码 / 音频 / 媒体信息 / 外部播放 / 定时关闭 / 分享 / PiP / 连播）
             topBarBtn(
               key: const Key('player_more'),
-              icon: Icons.more_vert,
+              icon: Icons.more_vert_rounded,
               tooltip: l10n.playerMore,
               onPressed: () => _showMoreMenu(l10n),
             ),
@@ -4016,14 +4016,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 if (hasPrev)
                   _ControlButton(
                     key: const Key('player_prev_ep'),
-                    icon: Icons.skip_previous,
+                    icon: Icons.skip_previous_rounded,
                     tooltip: l10n.playerPreviousEpisode,
                     onTap: _goPrevEpisode,
                   ),
                 // 播放 / 暂停
                 _ControlButton(
                   key: const Key('player_play_pause_bottom'),
-                  icon: _isPlaying ? Icons.pause : Icons.play_arrow,
+                  icon: _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                   tooltip: _isPlaying ? l10n.pause : l10n.play,
                   onTap: () {
                     // 用户手动重播则取消进行中的连播倒计时。
@@ -4040,7 +4040,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 if (hasNext)
                   _ControlButton(
                     key: const Key('player_next_ep'),
-                    icon: Icons.skip_next,
+                    icon: Icons.skip_next_rounded,
                     tooltip: l10n.playerNextEpisode,
                     onTap: _goNextEpisode,
                   ),
@@ -4058,7 +4058,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 // 倍速（弹出选择面板）
                 _ControlButton(
                   key: const Key('player_quick_speed'),
-                  icon: Icons.speed,
+                  icon: Icons.speed_rounded,
                   tooltip:
                       '${l10n.playerPlaybackSpeed} ${_controller.playbackSpeed}x',
                   onTap: () => _showSpeedPicker(l10n),
@@ -4066,7 +4066,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 // 比例（循环 default / 4:3 / 16:9 / fill）
                 _ControlButton(
                   key: const Key('player_quick_aspect'),
-                  icon: Icons.aspect_ratio,
+                  icon: Icons.aspect_ratio_rounded,
                   tooltip: l10n.playerAspectRatio,
                   onTap: () {
                     const ratios = <String>['default', '4:3', '16:9', 'fill'];
@@ -4090,7 +4090,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 if (widget.episodes != null && widget.episodes!.length > 1)
                   _ControlButton(
                     key: const Key('player_quick_episodes'),
-                    icon: Icons.video_library,
+                    icon: Icons.video_library_rounded,
                     tooltip: l10n.playerEpisodes,
                     onTap: () => _showLineSheet(l10n),
                   ),
@@ -4098,8 +4098,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 _ControlButton(
                   key: const Key('player_quick_fullscreen'),
                   icon: _controller.isFullscreen
-                      ? Icons.fullscreen_exit
-                      : Icons.fullscreen,
+                      ? Icons.fullscreen_exit_rounded
+                      : Icons.fullscreen_rounded,
                   tooltip: _controller.isFullscreen
                       ? l10n.playerExitFullscreen
                       : l10n.playerFullscreen,

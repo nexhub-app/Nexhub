@@ -76,8 +76,8 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
         builder: (BuildContext ctx) => ListTile(
           leading: Icon(
             _controller.autoPlayNext
-                ? Icons.play_circle
-                : Icons.play_circle_outline,
+                ? Icons.play_circle_rounded
+                : Icons.play_circle_rounded,
           ),
           title: Text(l10n.playerAutoPlayNext),
           trailing: Switch(
@@ -99,8 +99,8 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
           leading: Icon(_playerSettings.longPressSpeedUp
-              ? Icons.fast_forward
-              : Icons.fast_forward_outlined),
+              ? Icons.fast_forward_rounded
+              : Icons.fast_forward_rounded),
           title: Text(l10n.playerLongPressSpeedUp),
           trailing: Switch(
             value: _playerSettings.longPressSpeedUp,
@@ -119,7 +119,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       ),
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.speed),
+          leading: const Icon(Icons.speed_rounded),
           title: Text(l10n.playerLongPressSpeed),
           subtitle: Text('${_playerSettings.longPressSpeed}x'),
           enabled: _playerSettings.longPressSpeedUp,
@@ -132,7 +132,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       // 画中画（从顶栏移入更多菜单）
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.picture_in_picture),
+          leading: const Icon(Icons.picture_in_picture_rounded),
           title: Text(l10n.playerPip),
           onTap: () {
             Navigator.pop(ctx);
@@ -144,7 +144,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       _PlayerMenuEntry(
         requiresCapability: PlayerCapability.hwdec,
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.memory),
+          leading: const Icon(Icons.memory_rounded),
           title: Text(l10n.playerDecodeMode),
           trailing: DropdownButton<String>(
             elevation: 0,
@@ -194,7 +194,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       _PlayerMenuEntry(
         requiresCapability: PlayerCapability.upscaleShader,
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.auto_awesome),
+          leading: const Icon(Icons.auto_awesome_rounded),
           title: Text(l10n.playerUpscaleShader),
           subtitle: Text(l10n.playerUpscaleShaderHint),
           trailing: DropdownButton<String>(
@@ -230,7 +230,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       _PlayerMenuEntry(
         requiresCapability: PlayerCapability.audioChannel,
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.graphic_eq),
+          leading: const Icon(Icons.graphic_eq_rounded),
           title: Text(l10n.playerAudioChannel),
           trailing: DropdownButton<String>(
             elevation: 0,
@@ -270,7 +270,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       ),
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.bedtime),
+          leading: const Icon(Icons.bedtime_rounded),
           title: Text(l10n.playerTimer),
           onTap: () {
             Navigator.pop(ctx);
@@ -282,7 +282,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       _PlayerMenuEntry(
         requiresCapability: PlayerCapability.propertyQuery,
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.info_outline),
+          leading: const Icon(Icons.info_rounded),
           title: Text(l10n.mediaInfo),
           onTap: () {
             Navigator.pop(ctx);
@@ -294,7 +294,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       _PlayerMenuEntry(
         requiresCapability: PlayerCapability.propertyQuery,
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.query_stats),
+          leading: const Icon(Icons.query_stats_rounded),
           title: Text(l10n.playerStats),
           onTap: () {
             Navigator.pop(ctx);
@@ -305,7 +305,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       // #4 A4-#4: 外部播放
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.open_in_new),
+          leading: const Icon(Icons.open_in_new_rounded),
           title: Text(l10n.playExternal),
           onTap: () {
             Navigator.pop(ctx);
@@ -316,7 +316,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       // #4 A4-#4: 分享（复用 _share）
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.share_outlined),
+          leading: const Icon(Icons.share_rounded),
           title: Text(l10n.share),
           onTap: () {
             Navigator.pop(ctx);
@@ -327,7 +327,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       // 截图保存路径设置
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.folder_open),
+          leading: const Icon(Icons.folder_open_rounded),
           title: Text(l10n.screenshotPathSetting),
           subtitle: _customScreenshotDir != null
               ? Text(_customScreenshotDir!,
@@ -342,7 +342,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       // 跳过片头/片尾设置
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.skip_next),
+          leading: const Icon(Icons.skip_next_rounded),
           title: Text(l10n.playerSkipOpEd),
           subtitle: (_skipOpEndSec != null || _skipEdStartSec != null)
               ? Text(
@@ -361,7 +361,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       // 重置该视频的单独设置（恢复跟随全局默认）
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.settings_backup_restore),
+          leading: const Icon(Icons.settings_backup_restore_rounded),
           title: Text(l10n.playerResetEpisodeSettings),
           onTap: () {
             Navigator.pop(ctx);
@@ -373,7 +373,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       _PlayerMenuEntry(
         dividerBefore: true,
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.playlist_add),
+          leading: const Icon(Icons.playlist_add_rounded),
           title: Text(l10n.playerAddToQueue),
           onTap: () {
             Navigator.pop(ctx);
@@ -383,7 +383,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       ),
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.playlist_play),
+          leading: const Icon(Icons.playlist_play_rounded),
           title: Text(l10n.playerPlayNext),
           onTap: () {
             Navigator.pop(ctx);
@@ -393,7 +393,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
       ),
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
-          leading: const Icon(Icons.queue_music),
+          leading: const Icon(Icons.queue_music_rounded),
           title: Text(l10n.playerQueue),
           onTap: () {
             Navigator.pop(ctx);
@@ -422,7 +422,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           ),
           // 投屏入口（打开设备选择面板）。
           IconButton(
-            icon: Icon(Icons.cast,
+            icon: Icon(Icons.cast_rounded,
                 color: _isCasting
                     ? Theme.of(context).colorScheme.primary
                     : null),
@@ -433,7 +433,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             onPressed: () => Navigator.of(context).maybePop(),
           ),
         ],

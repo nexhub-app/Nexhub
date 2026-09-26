@@ -370,7 +370,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
       appBar: AppBar(
         title: Text(l10n.updateSettings),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.maybePop(context),
         ),
       ),
@@ -402,12 +402,12 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                           ButtonSegment<UpdateChannel>(
                             value: UpdateChannel.stable,
                             label: Text(l10n.updateChannelStable),
-                            icon: const Icon(Icons.shield_outlined),
+                            icon: const Icon(Icons.shield_rounded),
                           ),
                           ButtonSegment<UpdateChannel>(
                             value: UpdateChannel.beta,
                             label: Text(l10n.updateChannelBeta),
-                            icon: const Icon(Icons.science_outlined),
+                            icon: const Icon(Icons.science_rounded),
                           ),
                         ],
                       ),
@@ -430,7 +430,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                   AppListTile(
                     key: const ValueKey<String>('update.autoCheck'),
                     leading: const SettingsLeadingIcon(
-                      icon: Icons.notifications_active_outlined,
+                      icon: Icons.notifications_active_rounded,
                     ),
                     title: Text(l10n.updateAutoCheck),
                     subtitle: Text(l10n.updateAutoCheckDesc),
@@ -447,7 +447,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                   AppListTile(
                     key: const ValueKey<String>('update.autoDownload'),
                     leading: const SettingsLeadingIcon(
-                      icon: Icons.download_for_offline_outlined,
+                      icon: Icons.download_for_offline_rounded,
                     ),
                     title: Text(l10n.updateAutoDownload),
                     subtitle: Text(l10n.updateAutoDownloadDesc),
@@ -463,7 +463,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                     AppListTile(
                       key: const ValueKey<String>('update.wifiOnly'),
                       leading: const SettingsLeadingIcon(
-                        icon: Icons.wifi,
+                        icon: Icons.wifi_rounded,
                       ),
                       title: Text(l10n.updateWifiOnlyAutoDownload),
                       subtitle: Text(l10n.updateWifiOnlyAutoDownloadDesc),
@@ -482,7 +482,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                   AppListTile(
                     key: const ValueKey<String>('update.inAppDownload'),
                     leading: const SettingsLeadingIcon(
-                      icon: Icons.storage_outlined,
+                      icon: Icons.storage_rounded,
                     ),
                     title: Text(l10n.updateInAppDownload),
                     subtitle: Text(l10n.updateInAppDownloadDesc),
@@ -516,7 +516,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                   const SizedBox(height: AppTokens.spaceSm),
                   AppListTile(
                     key: const ValueKey<String>('update.mirrorAutoSwitch'),
-                    leading: const Icon(Icons.bolt),
+                    leading: const Icon(Icons.bolt_rounded),
                     title: Text(l10n.updateAutoSwitchMirror),
                     subtitle: Text(l10n.updateAutoSwitchMirrorDesc),
                     trailing: Switch(
@@ -557,7 +557,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                       final int idx = e.key;
                       final UpdateMirror m = e.value;
                       return ListTile(
-                        leading: const Icon(Icons.dns_outlined),
+                        leading: const Icon(Icons.dns_rounded),
                         title: Text(m.name),
                         subtitle: Text(
                           m.baseUrl,
@@ -565,7 +565,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
+                          icon: const Icon(Icons.delete_rounded),
                           tooltip: l10n.delete,
                           onPressed: () => _removeCustomMirror(idx),
                         ),
@@ -574,13 +574,13 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                   const SizedBox(height: AppTokens.spaceSm),
                   OutlinedButton.icon(
                     onPressed: _addCustomMirror,
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(Icons.add_rounded),
                     label: Text(l10n.updateAddMirror),
                   ),
                   const SizedBox(height: AppTokens.spaceMd),
                   OutlinedButton.icon(
                     onPressed: _probeAllMirrors,
-                    icon: const Icon(Icons.speed),
+                    icon: const Icon(Icons.speed_rounded),
                     label: Text(l10n.updateTestMirrors),
                   ),
 
@@ -590,7 +590,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                   FilledButton.icon(
                     key: const ValueKey<String>('update.check'),
                     onPressed: _checkForUpdate,
-                    icon: const Icon(Icons.system_update_alt),
+                    icon: const Icon(Icons.system_update_alt_rounded),
                     label: Text(l10n.checkUpdate),
                   ),
                   const SizedBox(height: AppTokens.spaceSm),
@@ -645,7 +645,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                       ),
                 )
               : null,
-          secondary: selected ? const Icon(Icons.check_circle) : null,
+          secondary: selected ? const Icon(Icons.check_circle_rounded) : null,
         ),
       );
       if (i < mirrors.length - 1) {
@@ -682,7 +682,7 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
             setState(() => _mirrorExpanded = !_mirrorExpanded);
           },
           icon: Icon(
-            _mirrorExpanded ? Icons.expand_less : Icons.expand_more,
+            _mirrorExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
             size: 20,
           ),
           label: Text(
@@ -820,7 +820,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               const SizedBox(height: AppTokens.spaceMd),
               Row(
                 children: <Widget>[
-                  Icon(Icons.cloud_download_outlined,
+                  Icon(Icons.cloud_download_rounded,
                       size: 18, color: scheme.onSurfaceVariant),
                   const SizedBox(width: AppTokens.spaceXs),
                   Text(
@@ -844,7 +844,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               if (_downloaded) ...<Widget>[
                 Row(
                   children: <Widget>[
-                    Icon(Icons.check_circle_outline,
+                    Icon(Icons.check_circle_rounded,
                         color: scheme.primary, size: 20),
                     const SizedBox(width: AppTokens.spaceXs),
                     Text(

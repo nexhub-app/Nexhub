@@ -334,7 +334,7 @@ extension _VideoLines on _VideoPlayerScreenState {
                       child: filteredIndices.isEmpty
                           ? _buildLineHint(
                               ctx,
-                              icon: Icons.error_outline,
+                              icon: Icons.error_rounded,
                               text: l10n.playerLineEmpty,
                             )
                           : ListView.builder(
@@ -439,7 +439,7 @@ extension _VideoLines on _VideoPlayerScreenState {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              Icon(Icons.radio_button_checked,
+                              Icon(Icons.radio_button_checked_rounded,
                                   size: 16,
                                   color:
                                       Theme.of(ctx).colorScheme.primary),

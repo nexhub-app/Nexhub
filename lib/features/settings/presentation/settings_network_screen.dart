@@ -352,13 +352,13 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.save),
+                : const Icon(Icons.save_rounded),
             label: Text(l10n.save),
           ),
           const SizedBox(height: AppTokens.spaceMd),
           OutlinedButton.icon(
             onPressed: () => _reset(l10n),
-            icon: const Icon(Icons.restore),
+            icon: const Icon(Icons.restore_rounded),
             label: Text(l10n.networkReset),
           ),
           const SizedBox(height: AppTokens.spaceXl),
@@ -393,7 +393,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
               Uri.parse('https://nexhub-app.github.io/website/docs.html'),
               mode: LaunchMode.externalApplication,
             ),
-            icon: const Icon(Icons.help_outline, size: 18),
+            icon: const Icon(Icons.help_rounded, size: 18),
             label: Text(l10n.networkHelpDoc),
           ),
         ),
@@ -448,12 +448,12 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
               ],
             ),
           ),
-          _field(_proxyHostCtrl, l10n.networkProxyHost, Icons.dns_outlined),
-          _field(_proxyPortCtrl, l10n.networkProxyPort, Icons.numbers,
+          _field(_proxyHostCtrl, l10n.networkProxyHost, Icons.dns_rounded),
+          _field(_proxyPortCtrl, l10n.networkProxyPort, Icons.numbers_rounded,
               number: true),
           _field(_proxyUserCtrl, l10n.networkProxyUsername,
-              Icons.person_outline),
-          _field(_proxyPassCtrl, l10n.networkProxyPassword, Icons.lock_outline,
+              Icons.person_rounded),
+          _field(_proxyPassCtrl, l10n.networkProxyPassword, Icons.lock_rounded,
               obscure: true, onChanged: (_) => _passwordDirty = true),
           _testButton(l10n.networkTestProxy, _testingProxy,
               () => _testProxy(l10n)),
@@ -521,11 +521,11 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
                 SnackBar(content: Text(l10n.networkCacheCleared)),
               );
             },
-            icon: const Icon(Icons.cleaning_services_outlined, size: 18),
+            icon: const Icon(Icons.cleaning_services_rounded, size: 18),
             label: Text(l10n.networkClearCache),
           ),
         ),
-        _field(_dnsTestHostCtrl, l10n.networkDnsTestHost, Icons.travel_explore),
+        _field(_dnsTestHostCtrl, l10n.networkDnsTestHost, Icons.travel_explore_rounded),
         _testButton(l10n.networkTestDns, _testingDns, () => _testDns(l10n)),
       ],
     );
@@ -547,7 +547,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           decoration: InputDecoration(
             labelText: l10n.networkDohPreset,
             border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.public),
+            prefixIcon: const Icon(Icons.public_rounded),
           ),
           items: <DropdownMenuItem<String>>[
             for (final e in _dohPresets.entries)
@@ -558,7 +558,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
             setState(() => _dohUrlCtrl.text = _dohPresets[key] ?? '');
           },
         ),
-        _field(_dohUrlCtrl, l10n.networkDohUrl, Icons.link),
+        _field(_dohUrlCtrl, l10n.networkDohUrl, Icons.link_rounded),
         _testButton(l10n.networkTestDoh, _testingDoh, () => _testDoh(l10n)),
       ],
     );
@@ -569,8 +569,8 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       key: const ValueKey<String>('network.dot'),
       title: l10n.networkDotTitle,
       children: <Widget>[
-        _field(_dotHostCtrl, l10n.networkDotHost, Icons.dns_outlined),
-        _field(_dotPortCtrl, l10n.networkDotPort, Icons.numbers, number: true),
+        _field(_dotHostCtrl, l10n.networkDotHost, Icons.dns_rounded),
+        _field(_dotPortCtrl, l10n.networkDotPort, Icons.numbers_rounded, number: true),
         _testButton(l10n.networkTestDns, _testingDns, () => _testDns(l10n)),
       ],
     );
@@ -591,7 +591,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           alignment: Alignment.centerLeft,
           child: OutlinedButton.icon(
             onPressed: () => _addHost(l10n),
-            icon: const Icon(Icons.add, size: 18),
+            icon: const Icon(Icons.add_rounded, size: 18),
             label: Text(l10n.networkAddHost),
           ),
         ),
@@ -616,7 +616,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
         ),
         Expanded(child: Text('${entry.ip}  →  ${entry.host}')),
         IconButton(
-          icon: const Icon(Icons.delete_outline),
+          icon: const Icon(Icons.delete_rounded),
           onPressed: () => setState(() {
             final list = List<HostsEntry>.of(_draft.hosts)..removeAt(index);
             _draft = _draft.copyWith(hosts: list);
@@ -708,10 +708,10 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           }),
         ),
         if (_draft.sni.enabled) ...<Widget>[
-          _field(_sniDefaultCtrl, l10n.networkSniDefault, Icons.vpn_lock),
+          _field(_sniDefaultCtrl, l10n.networkSniDefault, Icons.vpn_lock_rounded),
           _domainSniEditor(l10n),
           _field(_sniTestHostCtrl, l10n.networkSniTestHost,
-              Icons.travel_explore),
+              Icons.travel_explore_rounded),
           _testButton(l10n.networkTestSni, _testingSni, () => _testSni(l10n)),
         ],
       ],
@@ -737,7 +737,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           }),
         ),
         if (_draft.ech.enabled)
-          _field(_echCtrl, l10n.networkEchConfigList, Icons.enhanced_encryption),
+          _field(_echCtrl, l10n.networkEchConfigList, Icons.enhanced_encryption_rounded),
       ],
     );
   }
@@ -760,7 +760,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
               children: <Widget>[
                 Expanded(child: Text('${entry.key}  →  ${entry.value}')),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(Icons.delete_rounded),
                   onPressed: () => setState(() {
                     final next = Map<String, String>.of(_draft.sni.domainSni)
                       ..remove(entry.key);
@@ -774,7 +774,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           alignment: Alignment.centerLeft,
           child: OutlinedButton.icon(
             onPressed: () => _addSniMapping(l10n),
-            icon: const Icon(Icons.add, size: 18),
+            icon: const Icon(Icons.add_rounded, size: 18),
             label: Text(l10n.networkSniAddDomain),
           ),
         ),
@@ -887,7 +887,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(Icons.network_check, size: 18),
+            : const Icon(Icons.network_check_rounded, size: 18),
         label: Text(label),
       ),
     );
@@ -918,7 +918,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
               children: <Widget>[
                 Expanded(child: Text(values[i])),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(Icons.delete_rounded),
                   onPressed: () =>
                       onChanged(List<String>.of(values)..removeAt(i)),
                 ),
@@ -965,7 +965,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
                 onChanged(<String>[...values, added]);
               }
             },
-            icon: const Icon(Icons.add, size: 18),
+            icon: const Icon(Icons.add_rounded, size: 18),
             label: Text(addLabel),
           ),
         ),

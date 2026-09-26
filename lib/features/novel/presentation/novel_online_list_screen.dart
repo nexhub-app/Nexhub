@@ -37,7 +37,7 @@ class NovelOnlineListScreen extends StatelessWidget {
       onAddSource: onAddSource,
       onEnableRecommended: onEnableRecommended,
       verificationHandler: handleVerificationRequest,
-      emptyIcon: Icons.menu_book_outlined,
+      emptyIcon: Icons.menu_book_rounded,
       fetchItems: (PluginConfig source,
               {String? category,
               int page = 1,

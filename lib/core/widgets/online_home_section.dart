@@ -91,7 +91,7 @@ class OnlineHomeSection extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       Text(l10n.viewAll),
-                      const Icon(Icons.chevron_right, size: 16),
+                      const Icon(Icons.chevron_right_rounded, size: 16),
                     ],
                   ),
                 ),

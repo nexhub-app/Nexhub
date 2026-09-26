@@ -167,7 +167,7 @@ class _SourceLoginSheet extends StatelessWidget {
                 Row(
                   children: <Widget>[
                     Icon(
-                      Icons.check_circle,
+                      Icons.check_circle_rounded,
                       size: 20,
                       color: theme.colorScheme.primary,
                     ),
@@ -188,7 +188,7 @@ class _SourceLoginSheet extends StatelessWidget {
               ],
               if (hasWebLogin && webLoginSupported) ...<Widget>[
                 LoginOptionCard(
-                  icon: Icons.public,
+                  icon: Icons.public_rounded,
                   title: l10n.webLogin,
                   subtitle: l10n.webLoginDesc,
                   onTap: () => _webLogin(context),
@@ -196,7 +196,7 @@ class _SourceLoginSheet extends StatelessWidget {
                 const SizedBox(height: AppTokens.spaceSm),
               ],
               if (hasWebLogin) LoginOptionCard(
-                icon: Icons.cookie_outlined,
+                icon: Icons.cookie_rounded,
                 title: l10n.pasteCookie,
                 subtitle: l10n.pasteCookieDesc,
                 onTap: () => _pasteCookie(context),

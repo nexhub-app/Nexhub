@@ -195,10 +195,10 @@ class _BrowseWebScrapeScreenState extends State<BrowseWebScrapeScreen> {
     }
     final result = _result;
     if (result == null) {
-      return AppEmptyState(icon: Icons.travel_explore, message: l10n.scrapeUrlHint);
+      return AppEmptyState(icon: Icons.travel_explore_rounded, message: l10n.scrapeUrlHint);
     }
     if (result.isEmpty) {
-      return AppEmptyState(icon: Icons.search_off, message: l10n.scrapeNoResults);
+      return AppEmptyState(icon: Icons.search_off_rounded, message: l10n.scrapeNoResults);
     }
 
     final title = result.pageTitle ?? l10n.scrapeResultTitle;
@@ -221,11 +221,11 @@ class _BrowseWebScrapeScreenState extends State<BrowseWebScrapeScreen> {
         Text(l10n.scrapeResultLinks, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AppTokens.spaceSm),
         ..._result!.links.map((link) => ListTile(
-              leading: const Icon(Icons.link),
+              leading: const Icon(Icons.link_rounded),
               title: Text(link.text.isEmpty ? link.url : link.text, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: Text(link.url, maxLines: 1, overflow: TextOverflow.ellipsis),
               trailing: IconButton(
-                icon: const Icon(Icons.open_in_new),
+                icon: const Icon(Icons.open_in_new_rounded),
                 tooltip: l10n.openInBrowser,
                 onPressed: () => _launch(link.url),
               ),
@@ -237,7 +237,7 @@ class _BrowseWebScrapeScreenState extends State<BrowseWebScrapeScreen> {
         if (_result!.paragraphs.isNotEmpty)
           FilledButton.icon(
             onPressed: () => _openNovelText(title),
-            icon: const Icon(Icons.menu_book_outlined),
+            icon: const Icon(Icons.menu_book_rounded),
             label: Text(l10n.scrapeOpenInReader),
           ),
         const SizedBox(height: AppTokens.spaceMd),
@@ -254,7 +254,7 @@ class _BrowseWebScrapeScreenState extends State<BrowseWebScrapeScreen> {
         const SizedBox(height: AppTokens.spaceSm),
         FilledButton.icon(
           onPressed: () => _openImages(title),
-          icon: const Icon(Icons.visibility_outlined),
+          icon: const Icon(Icons.visibility_rounded),
           label: Text(l10n.scrapeOpenInReader),
         ),
         const SizedBox(height: AppTokens.spaceMd),
@@ -279,12 +279,12 @@ class _BrowseWebScrapeScreenState extends State<BrowseWebScrapeScreen> {
         const SizedBox(height: AppTokens.spaceSm),
         FilledButton.icon(
           onPressed: () => _openVideoInApp(_result!.videoUrls.first, l10n),
-          icon: const Icon(Icons.play_arrow_outlined),
+          icon: const Icon(Icons.play_arrow_rounded),
           label: Text(l10n.scrapeOpenInPlayer),
         ),
         const SizedBox(height: AppTokens.spaceMd),
         ..._result!.videoUrls.map((u) => ListTile(
-              leading: const Icon(Icons.play_circle_outline),
+              leading: const Icon(Icons.play_circle_rounded),
               title: Text(u, maxLines: 1, overflow: TextOverflow.ellipsis),
               onTap: () => _openVideoInApp(u, l10n),
             )),

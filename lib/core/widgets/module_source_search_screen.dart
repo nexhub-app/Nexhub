@@ -780,11 +780,11 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
     }
 
     if (_needSource) {
-      return AppEmptyState(icon: Icons.source, message: l10n.searchSelectSource);
+      return AppEmptyState(icon: Icons.source_rounded, message: l10n.searchSelectSource);
     }
 
     if (_results.isEmpty) {
-      return AppEmptyState(icon: Icons.search, message: l10n.emptySearch);
+      return AppEmptyState(icon: Icons.search_rounded, message: l10n.emptySearch);
     }
 
     // 滚动触底自动加载下一页（仅当有源声明 {page} 且上一页非空时生效），
@@ -952,7 +952,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
                       );
                     },
                   )
-                : const Icon(Icons.chevron_right),
+                : const Icon(Icons.chevron_right_rounded),
             onTap: () => widget.onItemTap(item, 'search-${item.id}-list'),
           ),
         );

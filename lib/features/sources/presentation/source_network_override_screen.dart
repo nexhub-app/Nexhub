@@ -277,13 +277,13 @@ class _SourceNetworkOverrideScreenState
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.save),
+                : const Icon(Icons.save_rounded),
             label: Text(l10n.save),
           ),
           const SizedBox(height: AppTokens.spaceMd),
           OutlinedButton.icon(
             onPressed: () => _clear(l10n),
-            icon: const Icon(Icons.restore),
+            icon: const Icon(Icons.restore_rounded),
             label: Text(l10n.sourceNetworkClear),
           ),
           const SizedBox(height: AppTokens.spaceXl),
@@ -371,11 +371,11 @@ class _SourceNetworkOverrideScreenState
                     label: Text(l10n.networkProxyProtocolSocks5)),
               ],
             ),
-            _field(_proxyHostCtrl, l10n.networkProxyHost, Icons.dns_outlined),
-            _field(_proxyPortCtrl, l10n.networkProxyPort, Icons.numbers,
+            _field(_proxyHostCtrl, l10n.networkProxyHost, Icons.dns_rounded),
+            _field(_proxyPortCtrl, l10n.networkProxyPort, Icons.numbers_rounded,
                 number: true),
             _field(_proxyUserCtrl, l10n.networkProxyUsername,
-                Icons.person_outline),
+                Icons.person_rounded),
           ],
         ],
       ],
@@ -434,7 +434,7 @@ class _SourceNetworkOverrideScreenState
               decoration: InputDecoration(
                 labelText: l10n.networkDohPreset,
                 border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.public),
+                prefixIcon: const Icon(Icons.public_rounded),
               ),
               items: <DropdownMenuItem<String>>[
                 for (final e in _dohPresets.entries)
@@ -445,11 +445,11 @@ class _SourceNetworkOverrideScreenState
                 setState(() => _dohUrlCtrl.text = _dohPresets[key] ?? '');
               },
             ),
-            _field(_dohUrlCtrl, l10n.networkDohUrl, Icons.link),
+            _field(_dohUrlCtrl, l10n.networkDohUrl, Icons.link_rounded),
           ],
           if (d.mode == DnsMode.dot) ...<Widget>[
-            _field(_dotHostCtrl, l10n.networkDotHost, Icons.dns_outlined),
-            _field(_dotPortCtrl, l10n.networkDotPort, Icons.numbers,
+            _field(_dotHostCtrl, l10n.networkDotHost, Icons.dns_rounded),
+            _field(_dotPortCtrl, l10n.networkDotPort, Icons.numbers_rounded,
                 number: true),
           ],
         ],
@@ -475,10 +475,10 @@ class _SourceNetworkOverrideScreenState
               () => _sni = v ? const SniConfig(enabled: true) : null),
         ),
         if (s != null) ...<Widget>[
-          _field(_sniDefaultCtrl, l10n.networkSniDefault, Icons.vpn_lock),
+          _field(_sniDefaultCtrl, l10n.networkSniDefault, Icons.vpn_lock_rounded),
           _domainSniEditor(l10n),
           _field(_sniTestHostCtrl, l10n.networkSniTestHost,
-              Icons.travel_explore),
+              Icons.travel_explore_rounded),
           _testButton(l10n.networkTestSni, _testingSni, () => _testSni(l10n)),
         ],
       ],
@@ -504,7 +504,7 @@ class _SourceNetworkOverrideScreenState
         ),
         if (e != null)
           _field(_echCtrl, l10n.networkEchConfigList,
-              Icons.enhanced_encryption),
+              Icons.enhanced_encryption_rounded),
       ],
     );
   }
@@ -528,7 +528,7 @@ class _SourceNetworkOverrideScreenState
               children: <Widget>[
                 Expanded(child: Text('${entry.key}  →  ${entry.value}')),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(Icons.delete_rounded),
                   onPressed: () => setState(() {
                     final next = Map<String, String>.of(s!.domainSni)
                       ..remove(entry.key);
@@ -541,7 +541,7 @@ class _SourceNetworkOverrideScreenState
           alignment: Alignment.centerLeft,
           child: OutlinedButton.icon(
             onPressed: () => _addSniMapping(l10n),
-            icon: const Icon(Icons.add, size: 18),
+            icon: const Icon(Icons.add_rounded, size: 18),
             label: Text(l10n.networkSniAddDomain),
           ),
         ),
@@ -636,7 +636,7 @@ class _SourceNetworkOverrideScreenState
             alignment: Alignment.centerLeft,
             child: OutlinedButton.icon(
               onPressed: () => _addHost(l10n),
-              icon: const Icon(Icons.add, size: 18),
+              icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(l10n.networkAddHost),
             ),
           ),
@@ -663,7 +663,7 @@ class _SourceNetworkOverrideScreenState
         ),
         Expanded(child: Text('${entry.ip}  →  ${entry.host}')),
         IconButton(
-          icon: const Icon(Icons.delete_outline),
+          icon: const Icon(Icons.delete_rounded),
           onPressed: () => setState(() {
             _hosts = List<HostsEntry>.of(list)..removeAt(index);
           }),
@@ -747,7 +747,7 @@ class _SourceNetworkOverrideScreenState
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(Icons.network_check, size: 18),
+            : const Icon(Icons.network_check_rounded, size: 18),
         label: Text(label),
       ),
     );
@@ -802,7 +802,7 @@ class _SourceNetworkOverrideScreenState
               children: <Widget>[
                 Expanded(child: Text(values[i])),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(Icons.delete_rounded),
                   onPressed: () =>
                       onChanged(List<String>.of(values)..removeAt(i)),
                 ),
@@ -849,7 +849,7 @@ class _SourceNetworkOverrideScreenState
                 onChanged(<String>[...values, added]);
               }
             },
-            icon: const Icon(Icons.add, size: 18),
+            icon: const Icon(Icons.add_rounded, size: 18),
             label: Text(addLabel),
           ),
         ),

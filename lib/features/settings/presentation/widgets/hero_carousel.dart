@@ -97,7 +97,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
             ),
             child: Center(
               child: Icon(
-                Icons.image_outlined,
+                Icons.image_rounded,
                 size: 48,
                 color: scheme.onPrimaryContainer.withValues(alpha: 0.4),
               ),
@@ -251,7 +251,7 @@ class _ErrorPlaceholder extends StatelessWidget {
       color: scheme.surfaceContainerHighest,
       child: Center(
         child: Icon(
-          Icons.broken_image_outlined,
+          Icons.broken_image_rounded,
           size: 40,
           color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
         ),

@@ -169,7 +169,7 @@ class _RssDiscoveryScreenState extends State<RssDiscoveryScreen> {
         padding: const EdgeInsets.all(AppTokens.spaceMd),
         children: <Widget>[
           AppListTile(
-            leading: const SettingsLeadingIcon(icon: Icons.language_outlined),
+            leading: const SettingsLeadingIcon(icon: Icons.language_rounded),
             title: Text(l10n.rssDiscoverDesc),
           ),
           const SizedBox(height: AppTokens.spaceSm),
@@ -179,7 +179,7 @@ class _RssDiscoveryScreenState extends State<RssDiscoveryScreen> {
               controller: _urlCtrl,
               decoration: InputDecoration(
                 hintText: l10n.rssDiscoverInputHint,
-                prefixIcon: const Icon(Icons.link),
+                prefixIcon: const Icon(Icons.link_rounded),
                 border: const OutlineInputBorder(),
                 suffixIcon: _busy
                     ? const Padding(

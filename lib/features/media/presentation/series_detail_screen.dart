@@ -31,7 +31,7 @@ class SeriesDetailScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(series.title)),
       body: seasons.isEmpty
-          ? AppEmptyState(icon: Icons.tv_off_outlined, message: l10n.emptyContent)
+          ? AppEmptyState(icon: Icons.tv_off_rounded, message: l10n.emptyContent)
           : GridView.builder(
               padding: const EdgeInsets.all(AppTokens.spaceLg),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

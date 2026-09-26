@@ -54,15 +54,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final double width = MediaQuery.sizeOf(context).width;
     final List<NavigationDestination> destinations = <NavigationDestination>[
       NavigationDestination(
-          icon: const Icon(Icons.explore), label: l10n.navBrowse),
+          icon: const Icon(Icons.explore_rounded), label: l10n.navBrowse),
       NavigationDestination(
-          icon: const Icon(Icons.menu_book), label: l10n.navNovel),
+          icon: const Icon(Icons.menu_book_rounded), label: l10n.navNovel),
       NavigationDestination(
-          icon: const Icon(Icons.movie), label: l10n.navMedia),
+          icon: const Icon(Icons.movie_rounded), label: l10n.navMedia),
       NavigationDestination(
-          icon: const Icon(Icons.auto_stories), label: l10n.navComic),
+          icon: const Icon(Icons.auto_stories_rounded), label: l10n.navComic),
       NavigationDestination(
-          icon: const Icon(Icons.settings), label: l10n.navSettings),
+          icon: const Icon(Icons.settings_rounded), label: l10n.navSettings),
     ];
 
     // 桌面端：NavigationRail + IndexedStack 横向布局。

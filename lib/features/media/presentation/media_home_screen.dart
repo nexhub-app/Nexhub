@@ -46,7 +46,7 @@ class MediaHomeScreen extends StatelessWidget {
     return LibraryShell(
       title: l10n.tabLibrary,
       libraryTabLabel: l10n.tabMediaLibrary,
-      emptyIcon: Icons.movie,
+      emptyIcon: Icons.movie_rounded,
       emptyMessage: l10n.emptyLocalMedia,
       emptyActionLabel: l10n.emptyLocalMediaAction,
       onEmptyAction: () => Navigator.of(context).push(
@@ -80,7 +80,7 @@ class MediaHomeScreen extends StatelessWidget {
         sourceType: SourceType.animeSource,
         subTab: subTab,
         filter: filter,
-        emptyIcon: Icons.movie,
+        emptyIcon: Icons.movie_rounded,
         emptyMessage: l10n.emptyLocalMedia,
         emptyActionLabel: l10n.emptyLocalMediaAction,
         onEmptyAction: () => Navigator.of(context).push(

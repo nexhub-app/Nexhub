@@ -209,7 +209,7 @@ class _RssPodcastPlayerState extends State<RssPodcastPlayer> {
           children: <Widget>[
             Row(
               children: <Widget>[
-                Icon(Icons.podcasts_outlined, color: scheme.primary),
+                Icon(Icons.podcasts_rounded, color: scheme.primary),
                 const SizedBox(width: AppTokens.spaceSm),
                 Expanded(
                   child: Text(
@@ -251,8 +251,8 @@ class _RssPodcastPlayerState extends State<RssPodcastPlayer> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : Icon(_playing
-                          ? Icons.pause_circle_filled
-                          : Icons.play_circle_fill),
+                          ? Icons.pause_circle_filled_rounded
+                          : Icons.play_circle_fill_rounded),
                   iconSize: 36,
                   color: scheme.primary,
                   onPressed: _togglePlay,
@@ -318,7 +318,7 @@ class _RssPodcastPlayerState extends State<RssPodcastPlayer> {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.error_outline, size: 18, color: scheme.error),
+              Icon(Icons.error_rounded, size: 18, color: scheme.error),
               const SizedBox(width: AppTokens.spaceXs),
               Expanded(
                 child: Text(
@@ -333,13 +333,13 @@ class _RssPodcastPlayerState extends State<RssPodcastPlayer> {
             children: <Widget>[
               TextButton.icon(
                 onPressed: _openCurrent,
-                icon: const Icon(Icons.refresh, size: 18),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: Text(l10n.retry),
               ),
               const SizedBox(width: AppTokens.spaceXs),
               TextButton.icon(
                 onPressed: () => _openExternally(context, _current.url),
-                icon: const Icon(Icons.open_in_new_outlined, size: 18),
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
                 label: Text(l10n.rssOpenExternally),
               ),
             ],

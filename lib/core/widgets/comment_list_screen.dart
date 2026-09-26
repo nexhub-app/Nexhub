@@ -202,7 +202,7 @@ class _CommentListScreenState extends State<CommentListScreen> {
       floatingActionButton: canPost
           ? FloatingActionButton.extended(
               onPressed: _writeComment,
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(Icons.edit_rounded),
               label: Text(l10n.writeComment),
             )
           : null,

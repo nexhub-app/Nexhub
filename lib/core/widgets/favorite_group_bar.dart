@@ -98,7 +98,7 @@ class _FavoriteGroupBarState extends State<FavoriteGroupBar> {
             padding: const EdgeInsets.only(right: AppTokens.spaceSm),
             child: ActionChip(
               key: _manageKey,
-              avatar: const Icon(Icons.tune_outlined, size: 16),
+              avatar: const Icon(Icons.tune_rounded, size: 16),
               label: Text(l10n.manageGroups),
               onPressed: () {
                 _scrollToCenter(_manageKey);

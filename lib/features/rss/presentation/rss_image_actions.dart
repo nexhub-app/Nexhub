@@ -67,7 +67,7 @@ Future<void> showRssImageActions(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           ListTile(
-            leading: Icon(Icons.download_outlined, color: scheme.primary),
+            leading: Icon(Icons.download_rounded, color: scheme.primary),
             title: Text(l10n.saveImage),
             onTap: () {
               Navigator.of(ctx).pop();
@@ -75,7 +75,7 @@ Future<void> showRssImageActions(
             },
           ),
           ListTile(
-            leading: Icon(Icons.copy_outlined, color: scheme.primary),
+            leading: Icon(Icons.copy_rounded, color: scheme.primary),
             title: Text(l10n.copyImage),
             onTap: () {
               Navigator.of(ctx).pop();
@@ -83,7 +83,7 @@ Future<void> showRssImageActions(
             },
           ),
           ListTile(
-            leading: Icon(Icons.share_outlined, color: scheme.primary),
+            leading: Icon(Icons.share_rounded, color: scheme.primary),
             title: Text(l10n.shareImage),
             onTap: () {
               Navigator.of(ctx).pop();
@@ -91,7 +91,7 @@ Future<void> showRssImageActions(
             },
           ),
           ListTile(
-            leading: Icon(Icons.close, color: scheme.onSurfaceVariant),
+            leading: Icon(Icons.close_rounded, color: scheme.onSurfaceVariant),
             title: Text(l10n.cancel),
             onTap: () => Navigator.of(ctx).pop(),
           ),

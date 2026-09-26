@@ -183,7 +183,7 @@ class _OAuthDialogBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: Row(
         children: <Widget>[
-          Icon(Icons.verified_user_outlined,
+          Icon(Icons.verified_user_rounded,
               color: scheme.onPrimaryContainer, size: 20),
           const SizedBox(width: 8),
           Expanded(
@@ -196,7 +196,7 @@ class _OAuthDialogBar extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             tooltip: closeTooltip,
             color: scheme.onPrimaryContainer,
             style: IconButton.styleFrom(

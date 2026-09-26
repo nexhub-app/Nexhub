@@ -42,7 +42,7 @@ class ComicHomeScreen extends StatelessWidget {
 
     return LibraryShell(
       title: l10n.tabLibrary,
-      emptyIcon: Icons.auto_stories,
+      emptyIcon: Icons.auto_stories_rounded,
       emptyMessage: l10n.emptyLocalComic,
       emptyActionLabel: l10n.emptyLocalComicAction,
       onEmptyAction: () => Navigator.of(context).push(
@@ -76,7 +76,7 @@ class ComicHomeScreen extends StatelessWidget {
         sourceType: SourceType.mangaSource,
         subTab: subTab,
         filter: filter,
-        emptyIcon: Icons.auto_stories,
+        emptyIcon: Icons.auto_stories_rounded,
         emptyMessage: l10n.emptyLocalComic,
         emptyActionLabel: l10n.emptyLocalComicAction,
         onEmptyAction: () => Navigator.of(context).push(

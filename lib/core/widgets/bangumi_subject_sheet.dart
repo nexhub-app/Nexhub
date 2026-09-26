@@ -118,7 +118,7 @@ class _BangumiSubjectSheetState extends State<_BangumiSubjectSheet> {
                     height: 90,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.image_not_supported),
+                        const Icon(Icons.image_not_supported_rounded),
                   ),
                 ),
               const SizedBox(width: AppTokens.spaceMd),
@@ -184,7 +184,7 @@ class _BangumiSubjectSheetState extends State<_BangumiSubjectSheet> {
               Uri.parse('https://bgm.tv/subject/${detail.id}'),
               mode: LaunchMode.externalApplication,
             ),
-            icon: const Icon(Icons.open_in_new, size: 16),
+            icon: const Icon(Icons.open_in_new_rounded, size: 16),
             label: Text(l10n.bangumiViewOnWeb),
           ),
         ],
@@ -218,7 +218,7 @@ class _RatingRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Icon(Icons.star, color: theme.colorScheme.primary, size: 28),
+        Icon(Icons.star_rounded, color: theme.colorScheme.primary, size: 28),
         const SizedBox(width: AppTokens.spaceXs),
         Text(
           rating.score.toStringAsFixed(1),

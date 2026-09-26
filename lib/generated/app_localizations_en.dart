@@ -481,6 +481,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get presetColor => 'Preset colors';
 
   @override
+  String get paletteStyleTitle => 'Palette style';
+
+  @override
+  String get paletteStyleDesc => 'Color algorithm variant for the current seed';
+
+  @override
+  String get paletteStyleTonalSpot => 'Tonal spot';
+
+  @override
+  String get paletteStyleFidelity => 'Fidelity';
+
+  @override
+  String get paletteStyleContent => 'Content';
+
+  @override
+  String get paletteStyleNeutral => 'Neutral';
+
+  @override
+  String get paletteStyleMonochrome => 'Monochrome';
+
+  @override
+  String get paletteStyleVibrant => 'Vibrant';
+
+  @override
+  String get paletteStyleExpressive => 'Expressive';
+
+  @override
+  String get paletteStyleRainbow => 'Rainbow';
+
+  @override
+  String get paletteStyleFruitSalad => 'Fruit salad';
+
+  @override
+  String get appearanceThemeMode => 'Theme mode';
+
+  @override
   String get appearanceThemeSection => 'Theme';
 
   @override

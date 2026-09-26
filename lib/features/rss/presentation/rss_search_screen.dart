@@ -170,10 +170,10 @@ class _RssSearchScreenState extends State<RssSearchScreen> {
             child: AppSearchField(
               controller: _ctrl,
               hint: l10n.rssSearchHint,
-              prefixIcon: const Icon(Icons.search, size: 20),
+              prefixIcon: const Icon(Icons.search_rounded, size: 20),
               suffixIcon: _query.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
+                      icon: const Icon(Icons.clear_rounded, size: 18),
                       onPressed: () {
                         _ctrl.clear();
                         setState(() => _query = '');
@@ -200,7 +200,7 @@ class _RssSearchScreenState extends State<RssSearchScreen> {
                 ),
                 const Spacer(),
                 TextButton.icon(
-                  icon: const Icon(Icons.refresh, size: 16),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
                   label: Text(l10n.retry),
                   onPressed: _buildIndex,
                 ),
@@ -213,7 +213,7 @@ class _RssSearchScreenState extends State<RssSearchScreen> {
                 ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                 : results.isEmpty
                     ? AppEmptyState(
-                        icon: Icons.search_off_outlined,
+                        icon: Icons.search_off_rounded,
                         message: _query.trim().isNotEmpty
                             ? l10n.rssSearchNoResult
                             : l10n.rssSearchEmpty,

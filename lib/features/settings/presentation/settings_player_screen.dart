@@ -472,7 +472,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
                           ),
                           const SizedBox(width: AppTokens.spaceSm),
                           IconButton(
-                            icon: const Icon(Icons.folder_open),
+                            icon: const Icon(Icons.folder_open_rounded),
                             tooltip: l10n.screenshotPathSetting,
                             onPressed: () async {
                               final dir = await FilePicker.platform.getDirectoryPath();

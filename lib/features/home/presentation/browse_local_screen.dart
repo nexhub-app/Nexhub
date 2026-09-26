@@ -372,10 +372,10 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
   }
 
   IconData _iconFor(LocalMediaKind kind) => switch (kind) {
-        LocalMediaKind.video => Icons.movie_outlined,
-        LocalMediaKind.images => Icons.auto_stories_outlined,
-        LocalMediaKind.text => Icons.menu_book_outlined,
-        LocalMediaKind.pdf => Icons.picture_as_pdf_outlined,
+        LocalMediaKind.video => Icons.movie_rounded,
+        LocalMediaKind.images => Icons.auto_stories_rounded,
+        LocalMediaKind.text => Icons.menu_book_rounded,
+        LocalMediaKind.pdf => Icons.picture_as_pdf_rounded,
       };
 
   /// 按 [file.kind] 与扩展名分流到专用阅读器或兜底 [LocalMediaViewer]（Task O4.B.4）。
@@ -600,7 +600,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         title: Text(l10n.browseLocalTitle),
         actions: <Widget>[
           AppIconButton(
-            icon: Icons.folder_outlined,
+            icon: Icons.folder_rounded,
             tooltip: l10n.browseLocalSelectFolder,
             onPressed: _pickFolder,
           ),
@@ -615,7 +615,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
                 height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Icon(Icons.file_open_outlined),
+            : const Icon(Icons.file_open_rounded),
         label: Text(l10n.browseLocalScan),
       ),
       ),
@@ -636,7 +636,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
           ),
           Expanded(
             child: _files.isEmpty
-                ? AppEmptyState(icon: Icons.folder_open_outlined, message: l10n.browseLocalEmpty)
+                ? AppEmptyState(icon: Icons.folder_open_rounded, message: l10n.browseLocalEmpty)
                 : GridView.builder(
                     padding: const EdgeInsets.all(AppTokens.spaceLg),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

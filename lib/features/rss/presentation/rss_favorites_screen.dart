@@ -95,7 +95,7 @@ class _RssFavoritesScreenState extends State<RssFavoritesScreen> {
           ? const Center(child: AppLoadingIndicator())
           : _items.isEmpty
               ? AppEmptyState(
-                  icon: Icons.bookmark_outline, message: l10n.rssFavoritesEmpty)
+                  icon: Icons.bookmark_rounded, message: l10n.rssFavoritesEmpty)
               : ListView.separated(
                   padding: const EdgeInsets.all(AppTokens.spaceMd),
                   itemCount: _items.length,

@@ -85,15 +85,15 @@ class _SourceBadge extends StatelessWidget {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final (IconData icon, String label) = switch (source) {
       ImageFavoriteSource.comic => (
-          Icons.menu_book_outlined,
+          Icons.menu_book_rounded,
           l10n.imageFavoriteSourceComic,
         ),
       ImageFavoriteSource.player => (
-          Icons.play_circle_outline,
+          Icons.play_circle_rounded,
           l10n.imageFavoriteSourcePlayer,
         ),
       ImageFavoriteSource.novel => (
-          Icons.auto_stories_outlined,
+          Icons.auto_stories_rounded,
           l10n.imageFavoriteSourceNovel,
         ),
     };
@@ -526,14 +526,14 @@ class _WorkPagerPageState extends State<_WorkPagerPage> {
           IconButton(
             tooltip: l10n.imageFavoriteShowTime,
             icon: Icon(
-              Icons.share_outlined,
+              Icons.share_rounded,
               color: Colors.white,
             ),
             onPressed: _shareCurrent,
           ),
           IconButton(
             tooltip: l10n.delete,
-            icon: const Icon(Icons.delete_outline, color: Colors.white),
+            icon: const Icon(Icons.delete_rounded, color: Colors.white),
             onPressed: _deleteCurrent,
           ),
         ],

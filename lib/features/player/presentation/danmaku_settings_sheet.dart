@@ -117,7 +117,7 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
                 children: <Widget>[
                   if (widget.onMatch != null)
                     ListTile(
-                      leading: const Icon(Icons.sync_alt_outlined),
+                      leading: const Icon(Icons.sync_alt_rounded),
                       title: Text(l10n.danmakuMatchEpisode),
                       subtitle: Text(l10n.danmakuSearchHint),
                       onTap: () {
@@ -237,7 +237,7 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             onPressed: () => Navigator.of(context).maybePop(),
             tooltip: l10n.close,
           ),
@@ -271,7 +271,7 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
               ),
               const SizedBox(width: AppTokens.spaceSm),
               IconButton.filled(
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.add_rounded),
                 onPressed: _addKeyword,
                 tooltip: l10n.danmakuAddKeyword,
               ),

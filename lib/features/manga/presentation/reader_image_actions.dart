@@ -62,7 +62,7 @@ Future<void> showReaderImageActions({
             children: <Widget>[
               if (onBookmarkChapter != null)
                 ListTile(
-                  leading: Icon(Icons.bookmark_border, color: scheme.primary),
+                  leading: Icon(Icons.bookmark_border_rounded, color: scheme.primary),
                   title: Text(l10n.readerChapterBookmark),
                   onTap: () {
                     Navigator.of(ctx).pop();
@@ -71,7 +71,7 @@ Future<void> showReaderImageActions({
                 ),
               if (onFavoriteImage != null)
                 ListTile(
-                  leading: Icon(Icons.favorite_border, color: scheme.primary),
+                  leading: Icon(Icons.favorite_border_rounded, color: scheme.primary),
                   title: Text(l10n.readerFavoriteImage),
                   onTap: () {
                     Navigator.of(ctx).pop();
@@ -81,7 +81,7 @@ Future<void> showReaderImageActions({
               if (onToggleTranslation != null)
                 ListTile(
                   leading: Icon(
-                    translationEnabled ? Icons.translate : Icons.g_translate,
+                    translationEnabled ? Icons.translate_rounded : Icons.g_translate_rounded,
                     color: scheme.primary,
                   ),
                   title: Text(translationEnabled
@@ -93,7 +93,7 @@ Future<void> showReaderImageActions({
                   },
                 ),
               ListTile(
-                leading: Icon(Icons.image_outlined, color: scheme.primary),
+                leading: Icon(Icons.image_rounded, color: scheme.primary),
                 title: Text(l10n.setAsCover),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -101,7 +101,7 @@ Future<void> showReaderImageActions({
                 },
               ),
               ListTile(
-                leading: Icon(Icons.copy_outlined, color: scheme.primary),
+                leading: Icon(Icons.copy_rounded, color: scheme.primary),
                 title: Text(l10n.copyImage),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -109,7 +109,7 @@ Future<void> showReaderImageActions({
                 },
               ),
               ListTile(
-                leading: Icon(Icons.download_outlined, color: scheme.primary),
+                leading: Icon(Icons.download_rounded, color: scheme.primary),
                 title: Text(l10n.saveImage),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -117,7 +117,7 @@ Future<void> showReaderImageActions({
                 },
               ),
               ListTile(
-                leading: Icon(Icons.share_outlined, color: scheme.primary),
+                leading: Icon(Icons.share_rounded, color: scheme.primary),
                 title: Text(l10n.shareImage),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -126,7 +126,7 @@ Future<void> showReaderImageActions({
               ),
               ListTile(
                 leading:
-                    Icon(Icons.close, color: scheme.onSurfaceVariant),
+                    Icon(Icons.close_rounded, color: scheme.onSurfaceVariant),
                 title: Text(l10n.cancel),
                 onTap: () => Navigator.of(ctx).pop(),
               ),

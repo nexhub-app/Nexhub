@@ -171,7 +171,7 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
                                       padding:
                                           const EdgeInsets.only(right: AppTokens.spaceXs),
                                       child: Icon(
-                                        Icons.drag_indicator,
+                                        Icons.drag_indicator_rounded,
                                         color: scheme.onSurfaceVariant
                                             .withValues(alpha: 0.5),
                                         size: 20,
@@ -205,7 +205,7 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
                     Expanded(
                       child: FilledButton.tonalIcon(
                         onPressed: _addFromUrl,
-                        icon: const Icon(Icons.link),
+                        icon: const Icon(Icons.link_rounded),
                         label: Text(l10n.heroAddFromUrl),
                       ),
                     ),
@@ -213,7 +213,7 @@ class _SettingsHeroScreenState extends State<SettingsHeroScreen> {
                     Expanded(
                       child: FilledButton.tonalIcon(
                         onPressed: _addFromDevice,
-                        icon: const Icon(Icons.photo_library_outlined),
+                        icon: const Icon(Icons.photo_library_rounded),
                         label: Text(l10n.heroAddFromDevice),
                       ),
                     ),
@@ -290,7 +290,7 @@ class _HeroItem extends StatelessWidget {
           ),
           IconButton(
             onPressed: onRemove,
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(Icons.delete_rounded),
             tooltip: l10n.heroRemoveTooltip,
             color: scheme.error,
             visualDensity: VisualDensity.compact,
@@ -316,7 +316,7 @@ class _Empty extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
-              Icons.collections_outlined,
+              Icons.collections_rounded,
               size: 64,
               color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),

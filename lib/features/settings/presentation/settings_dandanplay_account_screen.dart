@@ -177,7 +177,7 @@ class _SettingsDandanplayAccountScreenState
               children: <Widget>[
                 AppListTile(
                   leading: const SettingsLeadingIcon(
-                    icon: Icons.chat_bubble_outline,
+                    icon: Icons.chat_bubble_rounded,
                   ),
                   title: Text(l10n.danmakuAccountSection),
                   subtitle: Text(loggedIn

@@ -143,7 +143,7 @@ class _BangumiBindSheetState extends State<_BangumiBindSheet> {
             if (_link != null) ...<Widget>[
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.link),
+                leading: const Icon(Icons.link_rounded),
                 title: Text(l10n.bangumiBoundTo(_link!.subjectId)),
                 trailing: TextButton(
                   onPressed: _unbind,
@@ -166,7 +166,7 @@ class _BangumiBindSheetState extends State<_BangumiBindSheet> {
                           ),
                         )
                       : IconButton(
-                          icon: const Icon(Icons.search),
+                          icon: const Icon(Icons.search_rounded),
                           onPressed: _search,
                         ),
                 ),
@@ -202,10 +202,10 @@ class _BangumiBindSheetState extends State<_BangumiBindSheet> {
                                   height: 44,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) =>
-                                      const Icon(Icons.image_not_supported),
+                                      const Icon(Icons.image_not_supported_rounded),
                                 ),
                               )
-                            : const Icon(Icons.tv),
+                            : const Icon(Icons.tv_rounded),
                         title: Text(
                           subject.displayName,
                           maxLines: 1,

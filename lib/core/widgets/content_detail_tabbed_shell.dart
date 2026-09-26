@@ -148,7 +148,7 @@ class ContentDetailTabbedShell extends StatefulWidget {
     this.bangumiSourceType,
     this.appBarActions,
     this.onRefresh,
-    this.fallbackIcon = Icons.movie_outlined,
+    this.fallbackIcon = Icons.movie_rounded,
     this.banner,
   });
 
@@ -240,22 +240,22 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
         s.contains('complete') ||
         s.contains('finish') ||
         s.contains('end')) {
-      return Icons.check_circle;
+      return Icons.check_circle_rounded;
     }
     if (s.contains('连载') ||
         s.contains('更新') ||
         s.contains('ongoing') ||
         s.contains('serial') ||
         s.contains('publish')) {
-      return Icons.autorenew;
+      return Icons.autorenew_rounded;
     }
     if (s.contains('停') ||
         s.contains('暂') ||
         s.contains('pause') ||
         s.contains('hiatus')) {
-      return Icons.pause_circle_outline;
+      return Icons.pause_circle_rounded;
     }
-    return Icons.info_outline;
+    return Icons.info_rounded;
   }
 
   Color _statusColor(ColorScheme scheme, String status) {
@@ -414,7 +414,7 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
                       contentId: widget.bangumiContentId!,
                       sourceType: widget.bangumiSourceType!,
                     ),
-                    icon: const Icon(Icons.sync, size: 18),
+                    icon: const Icon(Icons.sync_rounded, size: 18),
                     label: Text(l10n.bangumiSync),
                   ),
           )
@@ -429,13 +429,13 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
       if (hasUrl)
         _CircleIconButton(
           tooltip: l10n.openInAppBrowser,
-          icon: Icons.travel_explore,
+          icon: Icons.travel_explore_rounded,
           onPressed: () => openInAppBrowser(context, url),
         ),
       if (hasUrl)
         _CircleIconButton(
           tooltip: l10n.openInBrowser,
-          icon: Icons.open_in_new,
+          icon: Icons.open_in_new_rounded,
           onPressed: () => openInExternalBrowser(context, url),
         ),
     ];
@@ -509,7 +509,7 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
           const SizedBox(height: AppTokens.spaceSm),
           Row(
             children: <Widget>[
-              Icon(Icons.source_outlined,
+              Icon(Icons.source_rounded,
                   size: 14, color: scheme.onSurfaceVariant),
               const SizedBox(width: AppTokens.spaceXs),
               Flexible(

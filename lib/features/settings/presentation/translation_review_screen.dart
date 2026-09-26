@@ -307,7 +307,7 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2),
                               )
-                            : const Icon(Icons.chevron_right),
+                            : const Icon(Icons.chevron_right_rounded),
                         onTap: _reviewing ? null : () => _reviewBook(id),
                       ),
                     );

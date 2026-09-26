@@ -244,7 +244,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
                   borderRadius: BorderRadius.circular(AppTokens.radiusLg),
                 ),
                 child: Icon(
-                  Icons.upload_file_outlined,
+                  Icons.upload_file_rounded,
                   size: 40,
                   color: scheme.primary,
                 ),
@@ -272,7 +272,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.photo_album_outlined),
+                      : const Icon(Icons.photo_album_rounded),
                   label: Text(l10n.importComicPickFile),
                 ),
               ),
@@ -283,7 +283,7 @@ class _ImportComicScreenState extends State<ImportComicScreen> {
                 width: 200,
                 child: OutlinedButton.icon(
                   onPressed: _picking ? null : _pickDirectory,
-                  icon: const Icon(Icons.folder_outlined, size: 18),
+                  icon: const Icon(Icons.folder_rounded, size: 18),
                   label: Text(l10n.importComicPickFolder),
                 ),
               ),

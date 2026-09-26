@@ -101,7 +101,7 @@ class ContentDetailShell extends StatefulWidget {
     this.commentsSection,
     this.appBarActions,
     this.onRefresh,
-    this.fallbackIcon = Icons.movie_outlined,
+    this.fallbackIcon = Icons.movie_rounded,
   });
 
   @override
@@ -119,8 +119,8 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
     );
   }
 
-  /// 连载状态 → 图标映射。已完结类走 [Icons.check_circle]，连载中类走
-  /// [Icons.autorenew]，其余（停更/暂停）走 [Icons.pause_circle_outline]。
+  /// 连载状态 → 图标映射。已完结类走 [Icons.check_circle_rounded]，连载中类走
+  /// [Icons.autorenew_rounded]，其余（停更/暂停）走 [Icons.pause_circle_rounded]。
   IconData _statusIcon(String status) {
     final s = status.toLowerCase();
     if (s.contains('完') ||
@@ -128,22 +128,22 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
         s.contains('complete') ||
         s.contains('finish') ||
         s.contains('end')) {
-      return Icons.check_circle;
+      return Icons.check_circle_rounded;
     }
     if (s.contains('连载') ||
         s.contains('更新') ||
         s.contains('ongoing') ||
         s.contains('serial') ||
         s.contains('publish')) {
-      return Icons.autorenew;
+      return Icons.autorenew_rounded;
     }
     if (s.contains('停') ||
         s.contains('暂') ||
         s.contains('pause') ||
         s.contains('hiatus')) {
-      return Icons.pause_circle_outline;
+      return Icons.pause_circle_rounded;
     }
-    return Icons.info_outline;
+    return Icons.info_rounded;
   }
 
   /// 连载状态 → 颜色映射。已完结用主色，连载中用绿色系（tertiary），
@@ -201,8 +201,8 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
 
   /// 操作行：页面自有按钮（续看 / 系列 / 等） + 详情页公用浏览按钮。
   ///
-  /// 当 [detailUrl] 非空时自动追加「在应用内浏览」([Icons.travel_explore]) 与
-  /// 「在浏览器打开」([Icons.open_in_new]) 两个带文字的 [OutlinedButton.icon]，
+  /// 当 [detailUrl] 非空时自动追加「在应用内浏览」([Icons.travel_explore_rounded]) 与
+  /// 「在浏览器打开」([Icons.open_in_new_rounded]) 两个带文字的 [OutlinedButton.icon]，
   /// 恢复用户习惯的样式，并下沉到骨架层供三详情页复用。
   List<Widget> _buildActionButtons(BuildContext context, AppLocalizations l10n) {
     final List<Widget> buttons = <Widget>[...widget.actions];
@@ -213,14 +213,14 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
       buttons.add(
         OutlinedButton.icon(
           onPressed: () => openInAppBrowser(context, detailUrl),
-          icon: const Icon(Icons.travel_explore),
+          icon: const Icon(Icons.travel_explore_rounded),
           label: Text(l10n.openInAppBrowser),
         ),
       );
       buttons.add(
         OutlinedButton.icon(
           onPressed: () => openInExternalBrowser(context, detailUrl),
-          icon: const Icon(Icons.open_in_new),
+          icon: const Icon(Icons.open_in_new_rounded),
           label: Text(l10n.openInBrowser),
         ),
       );
@@ -345,7 +345,7 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
           const SizedBox(height: AppTokens.spaceSm),
           Row(
             children: <Widget>[
-              Icon(Icons.source_outlined,
+              Icon(Icons.source_rounded,
                   size: 14, color: scheme.onSurfaceVariant),
               const SizedBox(width: AppTokens.spaceXs),
               Flexible(
@@ -478,7 +478,7 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
     final List<Widget> tiles = <Widget>[
       _sectionEntry(
         context,
-        icon: Icons.format_list_numbered,
+        icon: Icons.format_list_numbered_rounded,
         title: widget.chaptersTitle ?? l10n.chapterList,
         sheetChild: widget.chaptersList,
       ),
@@ -486,7 +486,7 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
     if (widget.bangumiSection != null) {
       tiles.add(_sectionEntry(
         context,
-        icon: Icons.star_outline,
+        icon: Icons.star_rounded,
         title: l10n.bangumiRatingSync,
         sheetChild: widget.bangumiSection!,
       ));
@@ -494,7 +494,7 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
     if (widget.commentsSection != null) {
       tiles.add(_sectionEntry(
         context,
-        icon: Icons.mode_comment_outlined,
+        icon: Icons.mode_comment_rounded,
         title: l10n.comments,
         sheetChild: widget.commentsSection!,
       ));
@@ -502,7 +502,7 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
     if (widget.recommendations != null) {
       tiles.add(_sectionEntry(
         context,
-        icon: Icons.recommend_outlined,
+        icon: Icons.recommend_rounded,
         title: l10n.recommendations,
         sheetChild: widget.recommendations!,
       ));
@@ -536,7 +536,7 @@ class _ContentDetailShellState extends State<ContentDetailShell> {
     return ListTile(
       leading: Icon(icon, color: scheme.primary),
       title: Text(title),
-      trailing: Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+      trailing: Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
       onTap: () => _openSectionSheet(context, sheetChild),
     );
   }
@@ -752,7 +752,7 @@ class _DetailSectionSheet extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerRight,
                       child: IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(Icons.close_rounded),
                         iconSize: 20,
                         onPressed: () => Navigator.of(context).pop(),
                       ),

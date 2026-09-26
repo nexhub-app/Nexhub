@@ -1007,7 +1007,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       ),
       child: Row(
         children: <Widget>[
-          Icon(Icons.error_outline, size: 18, color: scheme.error),
+          Icon(Icons.error_rounded, size: 18, color: scheme.error),
           const SizedBox(width: AppTokens.spaceSm),
           Expanded(
             child: Text(
@@ -1224,42 +1224,42 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       onCoverTap: () => _showCoverViewer(context),
       onRefresh: _onRefresh,
       fallbackIcon: switch (_sourceType) {
-        SourceType.mangaSource => Icons.menu_book,
-        SourceType.novelSource => Icons.auto_stories_outlined,
-        SourceType.animeSource => Icons.movie_outlined,
+        SourceType.mangaSource => Icons.menu_book_rounded,
+        SourceType.novelSource => Icons.auto_stories_rounded,
+        SourceType.animeSource => Icons.movie_rounded,
       },
       banner: showWarning ? _buildWarningBanner(l10n, episodes.length) : null,
       appBarActions: <Widget>[
         IconButton(
-          icon: Icon(isFav ? Icons.bookmark : Icons.bookmark_border),
+          icon: Icon(isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
           tooltip: l10n.subTabFavorite,
           onPressed: _onFavoritePressed,
         ),
         IconButton(
-          icon: Icon(isDl ? Icons.download_done : Icons.download_outlined),
+          icon: Icon(isDl ? Icons.download_done_rounded : Icons.download_rounded),
           tooltip: l10n.download,
           // 始终可点：未全部下载时继续挑选剩余章节，已全部下载时
           // 由 _startDownload 给出「已下载」提示。
           onPressed: _startDownload,
         ),
         IconButton(
-          icon: const Icon(Icons.share_outlined),
+          icon: const Icon(Icons.share_rounded),
           tooltip: l10n.share,
           onPressed: _share,
         ),
         IconButton(
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(Icons.refresh_rounded),
           tooltip: l10n.refreshMetadata,
           onPressed: _refreshMetadata,
         ),
         if (isFav)
           IconButton(
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(Icons.delete_rounded),
             tooltip: l10n.removeFromFavorites,
             onPressed: _removeFromFavorites,
           ),
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert),
+          icon: const Icon(Icons.more_vert_rounded),
           tooltip: l10n.moreActions,
           onSelected: (String value) => _handlePopupAction(value, l10n),
           itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -1267,7 +1267,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               value: 'setAsShelfCover',
               child: Row(
                 children: <Widget>[
-                  const Icon(Icons.image_outlined),
+                  const Icon(Icons.image_rounded),
                   const SizedBox(width: AppTokens.spaceSm),
                   Text(l10n.setAsShelfCover),
                 ],
@@ -1277,7 +1277,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               value: 'openDownloadManager',
               child: Row(
                 children: <Widget>[
-                  const Icon(Icons.folder_open_outlined),
+                  const Icon(Icons.folder_open_rounded),
                   const SizedBox(width: AppTokens.spaceSm),
                   Text(l10n.openDownloadManager),
                 ],
@@ -1289,7 +1289,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 value: 'uploadToWebdav',
                 child: Row(
                   children: <Widget>[
-                    const Icon(Icons.cloud_upload_outlined),
+                    const Icon(Icons.cloud_upload_rounded),
                     const SizedBox(width: AppTokens.spaceSm),
                     Text(l10n.uploadToWebdav),
                   ],
@@ -1320,8 +1320,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 episodes[_continueIndex], _continueIndex,
                 restoreProgress: true),
             icon: Icon(_isChapterBased
-                ? Icons.auto_stories_outlined
-                : Icons.play_arrow),
+                ? Icons.auto_stories_rounded
+                : Icons.play_arrow_rounded),
             label: Text(
                 _isChapterBased ? l10n.continueReading : l10n.continueWatching),
           )
@@ -1330,8 +1330,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             onPressed:
                 episodes.isEmpty ? null : () => _openContent(episodes.first, 0),
             icon: Icon(_isChapterBased
-                ? Icons.auto_stories_outlined
-                : Icons.play_arrow),
+                ? Icons.auto_stories_rounded
+                : Icons.play_arrow_rounded),
             label: Text(_isChapterBased ? l10n.readChapter : l10n.play),
           ),
         // 系列入口：仅当 detail 路由返回了季列表时显示。
@@ -1343,7 +1343,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 builder: (_) => SeriesDetailScreen(series: _fetchedDetail),
               ),
             ),
-            icon: const Icon(Icons.tv),
+            icon: const Icon(Icons.tv_rounded),
             label: Text(l10n.seriesTitle),
           ),
       ],

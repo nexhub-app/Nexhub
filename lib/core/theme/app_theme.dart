@@ -33,20 +33,59 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData light({ColorScheme? scheme, Color? seed}) {
+  /// 卡面填充槽位（Legado MD3 观感的「单一真源」）：
+  /// 容器基准浅色取 surfaceContainerLowest、深色取 surfaceContainerHighest
+  /// （卡面比页面底色亮一档），再叠一层 [ColorScheme.primaryContainer]——
+  /// 强调色的**亮档**变体（浅色模式约 tone 90 的饱和浅桃色）：
+  /// 亮而明显带色，且随壁纸 / 调色板风格自动偏色。用 primary 本体染色会
+  /// 「越浓越暗」，用 primaryContainer 则亮度与浓度解耦。
+  /// cardTheme / AppCard / Settings* 组件统一取本值。
+  static Color cardContainer(ColorScheme scheme) {
+    final Color base = scheme.brightness == Brightness.dark
+        ? scheme.surfaceContainerHighest
+        : scheme.surfaceContainerLowest;
+    return Color.alphaBlend(
+      scheme.primaryContainer.withValues(alpha: 0.45),
+      base,
+    );
+  }
+
+  /// 浅色主题。
+  ///
+  /// - 传入 [scheme]（莫奈系统动态色）时直接使用（系统动态色本身即
+  ///   tonalSpot 算法的结果）；此时 [variant] / [contrastLevel] 不参与。
+  /// - 否则用 [seed]（缺省青春蓝）经 `ColorScheme.fromSeed` 生成，
+  ///   [variant] 为调色板风格变体（[PaletteStyle.variant]），
+  ///   [contrastLevel] 对应 Android 14+ 的无障碍对比度档位（预留，默认 0）。
+  static ThemeData light({
+    ColorScheme? scheme,
+    Color? seed,
+    DynamicSchemeVariant variant = DynamicSchemeVariant.tonalSpot,
+    double contrastLevel = 0.0,
+  }) {
     final ColorScheme colorScheme = scheme ??
         ColorScheme.fromSeed(
           seedColor: seed ?? AppTokens.seedYouthfulPrimary,
           brightness: Brightness.light,
+          dynamicSchemeVariant: variant,
+          contrastLevel: contrastLevel,
         );
     return _build(colorScheme);
   }
 
-  static ThemeData dark({ColorScheme? scheme, Color? seed}) {
+  /// 深色主题。参数含义同 [light]。
+  static ThemeData dark({
+    ColorScheme? scheme,
+    Color? seed,
+    DynamicSchemeVariant variant = DynamicSchemeVariant.tonalSpot,
+    double contrastLevel = 0.0,
+  }) {
     final ColorScheme colorScheme = scheme ??
         ColorScheme.fromSeed(
           seedColor: seed ?? AppTokens.seedYouthfulPrimary,
           brightness: Brightness.dark,
+          dynamicSchemeVariant: variant,
+          contrastLevel: contrastLevel,
         );
     return _build(colorScheme);
   }
@@ -89,74 +128,107 @@ class AppTheme {
     return TextTheme(
       // ── 展示 / 大标题（页面首屏主标题，少用） ──
       displayLarge: TextStyle(
-        fontSize: 50, fontWeight: FontWeight.w600, height: 1.12,
-        letterSpacing: -0.5, color: onSurface,
+        fontSize: 50,
+        fontWeight: FontWeight.w600,
+        height: 1.12,
+        letterSpacing: -0.5,
+        color: onSurface,
       ),
       displayMedium: TextStyle(
-        fontSize: 40, fontWeight: FontWeight.w600, height: 1.15,
-        letterSpacing: -0.4, color: onSurface,
+        fontSize: 40,
+        fontWeight: FontWeight.w600,
+        height: 1.15,
+        letterSpacing: -0.4,
+        color: onSurface,
       ),
       displaySmall: TextStyle(
-        fontSize: 32, fontWeight: FontWeight.w600, height: 1.2,
-        letterSpacing: -0.3, color: onSurface,
+        fontSize: 32,
+        fontWeight: FontWeight.w600,
+        height: 1.2,
+        letterSpacing: -0.3,
+        color: onSurface,
       ),
       // ── 标题（区块标题、卡片标题） ──
       headlineLarge: TextStyle(
-        fontSize: 28, fontWeight: FontWeight.w600, height: 1.25,
-        letterSpacing: -0.2, color: onSurface,
+        fontSize: 28,
+        fontWeight: FontWeight.w600,
+        height: 1.25,
+        letterSpacing: -0.2,
+        color: onSurface,
       ),
       headlineMedium: TextStyle(
-        fontSize: 24, fontWeight: FontWeight.w600, height: 1.3,
+        fontSize: 24,
+        fontWeight: FontWeight.w600,
+        height: 1.3,
         color: onSurface,
       ),
       headlineSmall: TextStyle(
-        fontSize: 21, fontWeight: FontWeight.w600, height: 1.35,
+        fontSize: 21,
+        fontWeight: FontWeight.w600,
+        height: 1.35,
         color: onSurface,
       ),
       // ── 次级标题（AppBar 标题、列表项标题） ──
       titleLarge: TextStyle(
-        fontSize: 19, fontWeight: FontWeight.w600, height: 1.4,
+        fontSize: 19,
+        fontWeight: FontWeight.w600,
+        height: 1.4,
         color: onSurface,
       ),
       titleMedium: TextStyle(
-        fontSize: 15, fontWeight: FontWeight.w600, height: 1.4,
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        height: 1.4,
         color: onSurface,
       ),
       titleSmall: TextStyle(
-        fontSize: 13, fontWeight: FontWeight.w600, height: 1.4,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        height: 1.4,
         color: onSurface,
       ),
       // ── 正文 ──
       bodyLarge: TextStyle(
-        fontSize: 15, fontWeight: FontWeight.w400, height: 1.5,
+        fontSize: 15,
+        fontWeight: FontWeight.w400,
+        height: 1.5,
         color: onSurface,
       ),
       bodyMedium: TextStyle(
-        fontSize: 13, fontWeight: FontWeight.w400, height: 1.5,
+        fontSize: 13,
+        fontWeight: FontWeight.w400,
+        height: 1.5,
         color: onSurface,
       ),
       bodySmall: TextStyle(
-        fontSize: 11, fontWeight: FontWeight.w400, height: 1.45,
+        fontSize: 11,
+        fontWeight: FontWeight.w400,
+        height: 1.45,
         color: onVariant,
       ),
       // ── 标签 / 按钮 / 徽章 ──
       labelLarge: TextStyle(
-        fontSize: 13, fontWeight: FontWeight.w600, height: 1.4,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        height: 1.4,
         color: onSurface,
       ),
       labelMedium: TextStyle(
-        fontSize: 11, fontWeight: FontWeight.w600, height: 1.4,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        height: 1.4,
         color: onVariant,
       ),
       labelSmall: TextStyle(
-        fontSize: 10, fontWeight: FontWeight.w600, height: 1.4,
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        height: 1.4,
         color: onVariant,
       ),
     );
   }
 
   static ThemeData _build(ColorScheme colorScheme) {
-    final bool isDark = colorScheme.brightness == Brightness.dark;
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
@@ -174,13 +246,16 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         clipBehavior: Clip.antiAlias,
-        color: isDark
-            ? colorScheme.surfaceContainerHighest
-            : colorScheme.surfaceContainerLow,
+        color: cardContainer(colorScheme),
+        // 柔和填充卡（Legado MD3 观感）：无描边无投影，色值完全由
+        // ColorScheme 派生（暖壁纸 → 暖卡面），靠色阶与圆角划界。
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          borderRadius: BorderRadius.circular(AppTokens.radiusLg),
         ),
       ),
+      // 图标体系统一：默认尺寸 22、默认色 onSurfaceVariant（三级文字层次的
+      // 「图标/副标题」档）。强调色/反色场景由各组件主题或显式 color 覆盖。
+      iconTheme: IconThemeData(size: 22, color: colorScheme.onSurfaceVariant),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           shape: RoundedRectangleBorder(
@@ -223,6 +298,7 @@ class AppTheme {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
         iconColor: colorScheme.onSurfaceVariant,
+        // 图标尺寸由全局 iconTheme(size: 22) 统一，ListTile 不再单设。
       ),
       dividerTheme: DividerThemeData(
         color: colorScheme.outlineVariant,
@@ -265,7 +341,8 @@ class AppTheme {
           borderRadius: BorderRadius.all(Radius.circular(AppTokens.radiusMd)),
         ),
       ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: colorScheme.primary),
+      progressIndicatorTheme:
+          ProgressIndicatorThemeData(color: colorScheme.primary),
       visualDensity: VisualDensity.adaptivePlatformDensity,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: <TargetPlatform, PageTransitionsBuilder>{

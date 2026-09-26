@@ -93,7 +93,7 @@ class AppSourceListTile extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: AppTokens.spaceSm),
               child: AppIconButton(
-                icon: Icons.settings_ethernet,
+                icon: Icons.settings_ethernet_rounded,
                 tooltip: mirrorSettingsTooltip,
                 onPressed: onMirrorSettings,
               ),

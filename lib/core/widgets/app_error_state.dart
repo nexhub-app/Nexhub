@@ -30,7 +30,7 @@ class AppErrorState extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               AppFloatyIcon(
-                icon: Icons.error_outline,
+                icon: Icons.error_rounded,
                 size: 64,
                 color: scheme.error.withValues(alpha: 0.8),
               ),
@@ -53,13 +53,13 @@ class AppErrorState extends StatelessWidget {
                     if (onRetry != null)
                       FilledButton.icon(
                         onPressed: onRetry,
-                        icon: const Icon(Icons.refresh),
+                        icon: const Icon(Icons.refresh_rounded),
                         label: Text(retryLabel ?? ''),
                       ),
                     if (onSecondaryAction != null)
                       OutlinedButton.icon(
                         onPressed: onSecondaryAction,
-                        icon: const Icon(Icons.verified_user_outlined),
+                        icon: const Icon(Icons.verified_user_rounded),
                         label: Text(secondaryActionLabel ?? ''),
                       ),
                   ],

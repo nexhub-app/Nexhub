@@ -20,7 +20,7 @@ class LayoutPickerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return IconButton(
-      icon: const Icon(Icons.view_module),
+      icon: const Icon(Icons.view_module_rounded),
       tooltip: l10n.layoutOpenSettings,
       onPressed: () async {
         if (onOpenSettings != null) {

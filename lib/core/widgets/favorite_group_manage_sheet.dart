@@ -223,7 +223,7 @@ class _GroupManageSheet extends StatelessWidget {
                         contentPadding: EdgeInsets.zero,
                         leading: ReorderableDragStartListener(
                           index: i,
-                          child: const Icon(Icons.drag_handle),
+                          child: const Icon(Icons.drag_handle_rounded),
                         ),
                         title: Text(
                           g.hidden
@@ -247,8 +247,8 @@ class _GroupManageSheet extends StatelessWidget {
                             IconButton(
                               visualDensity: VisualDensity.compact,
                               icon: Icon(g.hidden
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined),
+                                  ? Icons.visibility_off_rounded
+                                  : Icons.visibility_rounded),
                               tooltip: g.hidden
                                   ? l10n.showCategory
                                   : l10n.hideCategory,
@@ -257,13 +257,13 @@ class _GroupManageSheet extends StatelessWidget {
                             ),
                             IconButton(
                               visualDensity: VisualDensity.compact,
-                              icon: const Icon(Icons.edit_outlined),
+                              icon: const Icon(Icons.edit_rounded),
                               tooltip: l10n.renameGroup,
                               onPressed: () => _rename(context, g),
                             ),
                             IconButton(
                               visualDensity: VisualDensity.compact,
-                              icon: const Icon(Icons.delete_outline),
+                              icon: const Icon(Icons.delete_rounded),
                               tooltip: l10n.deleteGroup,
                               onPressed: () => _delete(context, g),
                             ),
@@ -275,7 +275,7 @@ class _GroupManageSheet extends StatelessWidget {
                 ),
               const SizedBox(height: AppTokens.spaceMd),
               FilledButton.icon(
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.add_rounded),
                 label: Text(l10n.newGroup),
                 onPressed: () => _create(context),
               ),

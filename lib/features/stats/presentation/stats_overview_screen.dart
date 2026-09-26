@@ -199,19 +199,19 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
           value: _formatDuration(l10n, totalSec),
           label: l10n.statsTotalDuration,
           color: scheme.primary,
-          icon: Icons.timer_outlined,
+          icon: Icons.timer_rounded,
         ),
         (
           value: '${list.length}',
           label: l10n.statsWorkCount,
           color: scheme.tertiary,
-          icon: Icons.menu_book_outlined,
+          icon: Icons.menu_book_rounded,
         ),
         (
           value: '$sessions',
           label: l10n.statsSessionCount,
           color: scheme.secondary,
-          icon: Icons.repeat,
+          icon: Icons.repeat_rounded,
         ),
       ],
     );
@@ -253,19 +253,19 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
           value: '$days7',
           label: l10n.stats7dActive,
           color: scheme.primary,
-          icon: Icons.calendar_view_week,
+          icon: Icons.calendar_view_week_rounded,
         ),
         (
           value: '$days30',
           label: l10n.stats30dActive,
           color: scheme.tertiary,
-          icon: Icons.calendar_month_outlined,
+          icon: Icons.calendar_month_rounded,
         ),
         (
           value: '$activeDays',
           label: l10n.statsActiveDays,
           color: scheme.secondary,
-          icon: Icons.local_fire_department_outlined,
+          icon: Icons.local_fire_department_rounded,
         ),
       ],
     );
@@ -294,19 +294,19 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
           value: _formatDuration(l10n, avg),
           label: l10n.statsAvgSession,
           color: scheme.primary,
-          icon: Icons.av_timer_outlined,
+          icon: Icons.av_timer_rounded,
         ),
         (
           value: _formatDuration(l10n, maxSec),
           label: l10n.statsMaxDaily,
           color: scheme.tertiary,
-          icon: Icons.emoji_events_outlined,
+          icon: Icons.emoji_events_rounded,
         ),
         (
           value: '$streak',
           label: l10n.statsStreak,
           color: scheme.secondary,
-          icon: Icons.whatshot_outlined,
+          icon: Icons.whatshot_rounded,
         ),
       ],
     );
@@ -330,9 +330,9 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
                 autofocus: true,
                 decoration: InputDecoration(
                   hintText: l10n.statsSearchHint,
-                  prefixIcon: const Icon(Icons.search),
+                  prefixIcon: const Icon(Icons.search_rounded),
                   suffixIcon: IconButton(
-                    icon: const Icon(Icons.clear),
+                    icon: const Icon(Icons.clear_rounded),
                     onPressed: () {
                       _searchController.clear();
                       setState(() => _query = '');
@@ -409,12 +409,12 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
       actions: <Widget>[
         IconButton(
           tooltip: l10n.statsSearchHint,
-          icon: Icon(_searching ? Icons.close : Icons.search),
+          icon: Icon(_searching ? Icons.close_rounded : Icons.search_rounded),
           onPressed: _toggleSearch,
         ),
         IconButton(
           tooltip: l10n.statsHeatmap,
-          icon: const Icon(Icons.grid_view),
+          icon: const Icon(Icons.grid_view_rounded),
           onPressed: _openHeatmap,
         ),
       ],
@@ -440,17 +440,17 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
                   ButtonSegment(
                     value: StatsMediaType.novel,
                     label: Text(l10n.navNovel),
-                    icon: const Icon(Icons.menu_book),
+                    icon: const Icon(Icons.menu_book_rounded),
                   ),
                   ButtonSegment(
                     value: StatsMediaType.media,
                     label: Text(l10n.navMedia),
-                    icon: const Icon(Icons.movie),
+                    icon: const Icon(Icons.movie_rounded),
                   ),
                   ButtonSegment(
                     value: StatsMediaType.comic,
                     label: Text(l10n.navComic),
-                    icon: const Icon(Icons.auto_stories),
+                    icon: const Icon(Icons.auto_stories_rounded),
                   ),
                 ],
               ),
@@ -555,7 +555,7 @@ class _EmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Icon(
-            Icons.insights,
+            Icons.insights_rounded,
             size: 56,
             color: AppStatusColors.containerOf(accent),
           ),

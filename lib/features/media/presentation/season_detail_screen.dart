@@ -182,7 +182,7 @@ class _SeasonDetailScreenState extends State<SeasonDetailScreen> {
           final episodes = snap.data ?? <Episode>[];
           if (episodes.isEmpty) {
             return AppEmptyState(
-              icon: Icons.tv_outlined,
+              icon: Icons.tv_rounded,
               message: l10n.emptyContent,
             );
           }
@@ -219,7 +219,7 @@ class _SeasonDetailScreenState extends State<SeasonDetailScreen> {
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.play_circle_outline,
+                  Icon(Icons.play_circle_rounded,
                       size: 24, color: scheme.primary),
                   const SizedBox(width: AppTokens.spaceXs),
                   Expanded(

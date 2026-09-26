@@ -312,7 +312,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
         children: <Widget>[
           if (current != null)
             IconButton(
-              icon: const Icon(Icons.backspace_outlined),
+              icon: const Icon(Icons.backspace_rounded),
               tooltip: clearTooltip,
               onPressed: onClear,
             ),
@@ -343,7 +343,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
     final label = isTitle ? l10n.novelTitleFontFile : l10n.novelChooseFontFile;
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.font_download_outlined),
+      leading: const Icon(Icons.font_download_rounded),
       title: Text(label),
       subtitle: currentPath != null
           ? Text(l10n.novelFontFileCurrent(
@@ -351,7 +351,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
           : null,
       trailing: currentPath != null
           ? IconButton(
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_rounded),
               tooltip: l10n.novelClearFontFile,
               onPressed: () => _update(
                 isTitle
@@ -451,7 +451,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
         title: Text(l10n.novelReaderSettingsTitle),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.restore),
+            icon: const Icon(Icons.restore_rounded),
             tooltip: l10n.restoreDefault,
             onPressed: _confirmReset,
           ),
@@ -1590,7 +1590,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                         const Spacer(),
                         TextButton.icon(
                           onPressed: () => _showTapZonePreview(context, l10n),
-                          icon: const Icon(Icons.visibility_outlined, size: 18),
+                          icon: const Icon(Icons.visibility_rounded, size: 18),
                           label: Text(l10n.tapZonePreview),
                         ),
                       ],
@@ -1685,7 +1685,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     ),
                     const SizedBox(height: AppTokens.spaceSm),
                     TextButton.icon(
-                      icon: const Icon(Icons.restore),
+                      icon: const Icon(Icons.restore_rounded),
                       label: Text(l10n.restoreDefault),
                       onPressed: () {
                         _update(_settings.copyWith(

@@ -49,13 +49,13 @@ Future<void> showFavoriteSheet({
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               ListTile(
-                leading: Icon(Icons.favorite, color: scheme.primary),
+                leading: Icon(Icons.favorite_rounded, color: scheme.primary),
                 title: Text(l10n.favoriteLocal),
                 subtitle: Text(l10n.favoriteLocalHint),
                 onTap: () => Navigator.of(ctx).pop('local'),
               ),
               ListTile(
-                leading: Icon(Icons.cloud_done_outlined, color: scheme.primary),
+                leading: Icon(Icons.cloud_done_rounded, color: scheme.primary),
                 title: Text(l10n.favoriteWeb),
                 subtitle: source.webFavorite?.requireLogin == true
                     ? Text(l10n.favoriteWebRequiresLogin)
@@ -209,7 +209,7 @@ Future<void> _addWebFavoriteWithFolder(
               ),
               ...options.map(
                 (WebFavoriteFolder f) => ListTile(
-                  leading: const Icon(Icons.folder_outlined),
+                  leading: const Icon(Icons.folder_rounded),
                   title: Text(
                     f.value.isEmpty ? l10n.webFavoriteDefaultFolder : f.title,
                   ),

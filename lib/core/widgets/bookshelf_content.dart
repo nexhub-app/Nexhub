@@ -402,7 +402,7 @@ class _HistoryBookshelf extends StatelessWidget {
 
     if (entries.isEmpty) {
       return AppEmptyState(
-        icon: Icons.history,
+        icon: Icons.history_rounded,
         message: AppLocalizations.of(context).emptyHistory,
         actionLabel: emptyActionLabel,
         onAction: onEmptyAction,
@@ -498,7 +498,7 @@ class _FavoriteBookshelf extends StatelessWidget {
 
     if (entries.isEmpty) {
       return AppEmptyState(
-        icon: Icons.favorite_border,
+        icon: Icons.favorite_border_rounded,
         message: AppLocalizations.of(context).emptyFavorites,
         actionLabel: emptyActionLabel,
         onAction: onEmptyAction,
@@ -559,7 +559,7 @@ void _showFavoriteActionsMenu(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.folder_outlined),
+                leading: const Icon(Icons.folder_rounded),
                 title: Text(l10n.setGroups),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -571,7 +571,7 @@ void _showFavoriteActionsMenu(
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.live_tv_outlined),
+                leading: const Icon(Icons.live_tv_rounded),
                 title: Text(l10n.bangumiBindAndRate),
                 onTap: () {
                   Navigator.of(ctx).pop();
@@ -585,7 +585,7 @@ void _showFavoriteActionsMenu(
               // X-2 待读队列：加入队列 / 打开队列（仅在线作品；本地作品隐藏）。
               if (item.sourceId != null && item.sourceId!.isNotEmpty) ...<Widget>[
                 ListTile(
-                  leading: const Icon(Icons.playlist_add),
+                  leading: const Icon(Icons.playlist_add_rounded),
                   title: Text(l10n.readingQueueAdd),
                   onTap: () async {
                     Navigator.of(ctx).pop();
@@ -605,7 +605,7 @@ void _showFavoriteActionsMenu(
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.playlist_play),
+                  leading: const Icon(Icons.playlist_play_rounded),
                   title: Text(l10n.readingQueueOpen),
                   onTap: () {
                     Navigator.of(ctx).pop();
@@ -1070,7 +1070,7 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
                 child: Padding(
                   padding: const EdgeInsets.only(right: AppTokens.spaceXs),
                   child: Icon(
-                    Icons.drag_indicator,
+                    Icons.drag_indicator_rounded,
                     size: 20,
                     color: Theme.of(context)
                         .colorScheme
@@ -1200,7 +1200,7 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
                         color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.54),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.delete_outline,
+                      child: const Icon(Icons.delete_rounded,
                           size: 18, color: Colors.white),
                     ),
                   ),
@@ -1437,7 +1437,7 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
                 ),
               if (item.onDelete != null)
                 IconButton(
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(Icons.delete_rounded),
                   tooltip: AppLocalizations.of(context).delete,
                   onPressed: () => _confirmDelete(context, item),
                 ),

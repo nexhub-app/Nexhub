@@ -1,7 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
-import '../../../core/widgets/app_list_tile.dart';
 import './widgets/settings_widgets.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
@@ -14,6 +13,8 @@ import './settings_network_screen.dart';
 import './settings_ai_screen.dart';
 
 /// 配置与网络汇总页：源管理 / RSS 订阅 / 网页爬取 / AI 配置 / 网络设置入口。
+///
+/// 版面：每行一张独立描边小卡（[SettingsTile]），行间 4px，见 R3/R5。
 class SettingsContentScreen extends StatelessWidget {
   const SettingsContentScreen({super.key});
 
@@ -29,83 +30,86 @@ class SettingsContentScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(AppTokens.spaceLg),
           children: <Widget>[
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.extension_outlined),
-              title: Text(l10n.sourceManagementTitle),
-              subtitle: Text(l10n.sourceManagementDesc),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SourceManagerScreen(),
+            SettingsGroup(
+              header: l10n.settingsCatContent,
+              children: <Widget>[
+                SettingsTile(
+                  icon: Icons.extension_rounded,
+                  title: l10n.sourceManagementTitle,
+                  subtitle: l10n.sourceManagementDesc,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SourceManagerScreen(),
+                    ),
+                  ),
                 ),
-              ),
+                // ── RSS 订阅（全局）：与浏览页同源，显示未绑定模块的全局订阅 ──
+                SettingsTile(
+                  icon: Icons.rss_feed_rounded,
+                  title: l10n.rssFeedListTitle,
+                  subtitle: l10n.rssGlobalSubscriptionDesc,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const RssFeedListScreen(moduleType: null),
+                    ),
+                  ),
+                ),
+                SettingsTile(
+                  icon: Icons.hub_rounded,
+                  title: l10n.rsshubSettingsTitle,
+                  subtitle: l10n.rsshubSettingsDesc,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsRssHubScreen(),
+                    ),
+                  ),
+                ),
+                SettingsTile(
+                  icon: Icons.notifications_rounded,
+                  title: l10n.rssNotificationsTitle,
+                  subtitle: l10n.rssNotificationEnabledSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsRssNotificationsScreen(),
+                    ),
+                  ),
+                ),
+                SettingsTile(
+                  icon: Icons.travel_explore_rounded,
+                  title: l10n.webScrapeSetting,
+                  subtitle: l10n.webScrapeSettingSameAsBrowse,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const BrowseWebScrapeScreen(),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            // ── RSS 订阅（全局）：与浏览页同源，显示未绑定模块的全局订阅 ──
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.rss_feed_outlined),
-              title: Text(l10n.rssFeedListTitle),
-              subtitle: Text(l10n.rssGlobalSubscriptionDesc),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const RssFeedListScreen(moduleType: null),
+            SettingsGroup(
+              header: l10n.aiSettingsEntry,
+              children: <Widget>[
+                SettingsTile(
+                  icon: Icons.auto_awesome_rounded,
+                  title: l10n.aiSettingsEntry,
+                  subtitle: l10n.aiSettingsEntryDesc,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsAiScreen(),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.hub_outlined),
-              title: Text(l10n.rsshubSettingsTitle),
-              subtitle: Text(l10n.rsshubSettingsDesc),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsRssHubScreen(),
+                SettingsTile(
+                  icon: Icons.lan_rounded,
+                  title: l10n.networkSettingsTitle,
+                  subtitle: l10n.networkSettingsDesc,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsNetworkScreen(),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.notifications_outlined),
-              title: Text(l10n.rssNotificationsTitle),
-              subtitle: Text(l10n.rssNotificationEnabledSubtitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsRssNotificationsScreen(),
-                ),
-              ),
-            ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.travel_explore),
-              title: Text(l10n.webScrapeSetting),
-              subtitle: Text(l10n.webScrapeSettingSameAsBrowse),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const BrowseWebScrapeScreen(),
-                ),
-              ),
-            ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.auto_awesome),
-              title: Text(l10n.aiSettingsEntry),
-              subtitle: Text(l10n.aiSettingsEntryDesc),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsAiScreen(),
-                ),
-              ),
-            ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.lan_outlined),
-              title: Text(l10n.networkSettingsTitle),
-              subtitle: Text(l10n.networkSettingsDesc),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsNetworkScreen(),
-                ),
-              ),
+              ],
             ),
           ],
         ),

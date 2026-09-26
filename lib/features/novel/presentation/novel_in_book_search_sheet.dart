@@ -481,7 +481,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                         controller: _controller,
                         decoration: InputDecoration(
                           hintText: l10n.searchInBook,
-                          prefixIcon: const Icon(Icons.search),
+                          prefixIcon: const Icon(Icons.search_rounded),
                           border: const OutlineInputBorder(),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -595,7 +595,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.clear_all, size: 18),
+                            icon: const Icon(Icons.clear_all_rounded, size: 18),
                             tooltip: l10n.clearHistory,
                             onPressed: _clearHistory,
                             padding: EdgeInsets.zero,
@@ -654,7 +654,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                                 ),
                                 onPressed: _togglePause,
                                 icon: Icon(
-                                  _paused ? Icons.play_arrow : Icons.pause,
+                                  _paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
                                   size: 16,
                                 ),
                                 label: Text(
@@ -708,8 +708,8 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
                                           onPressed: _togglePause,
                                           icon: Icon(
                                             _paused
-                                                ? Icons.play_arrow
-                                                : Icons.pause,
+                                                ? Icons.play_arrow_rounded
+                                                : Icons.pause_rounded,
                                             size: 14,
                                           ),
                                           label: Text(

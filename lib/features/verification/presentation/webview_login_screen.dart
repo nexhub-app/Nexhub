@@ -90,7 +90,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
       floatingActionButton: _supported
           ? FloatingActionButton.extended(
               onPressed: _onGetCookie,
-              icon: const Icon(Icons.cookie),
+              icon: const Icon(Icons.cookie_rounded),
               label: Text(l10n.getCookie),
             )
           : null,
@@ -156,7 +156,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
-              Icons.web_asset_off,
+              Icons.web_asset_off_rounded,
               size: 48,
               color: theme.colorScheme.onSurfaceVariant,
             ),

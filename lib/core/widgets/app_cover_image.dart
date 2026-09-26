@@ -59,7 +59,7 @@ class AppCoverImage extends StatelessWidget {
       height: height,
       child: Container(
         color: scheme.surfaceContainerHighest,
-        child: Icon(Icons.image_outlined,
+        child: Icon(Icons.image_rounded,
             color: scheme.onSurfaceVariant.withValues(alpha: 0.5)),
       ),
     );
@@ -140,7 +140,7 @@ class AppCoverImage extends StatelessWidget {
         height: height,
         child: Container(
           color: scheme.surfaceContainerHighest,
-          child: Icon(Icons.image_outlined,
+          child: Icon(Icons.image_rounded,
               color: scheme.onSurfaceVariant.withValues(alpha: 0.5)),
         ),
       );

@@ -70,7 +70,7 @@ Future<void> showSoftwareAnnouncements(
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.campaign_outlined, color: scheme.primary),
+                  Icon(Icons.campaign_rounded, color: scheme.primary),
                   const SizedBox(width: AppTokens.spaceSm),
                   Expanded(
                     child: Text(

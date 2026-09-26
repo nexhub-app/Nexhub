@@ -185,10 +185,10 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
   }
 
   IconData _iconFor(LocalMediaKind kind) => switch (kind) {
-        LocalMediaKind.video => Icons.movie_outlined,
-        LocalMediaKind.images => Icons.auto_stories_outlined,
-        LocalMediaKind.text => Icons.menu_book_outlined,
-        LocalMediaKind.pdf => Icons.picture_as_pdf_outlined,
+        LocalMediaKind.video => Icons.movie_rounded,
+        LocalMediaKind.images => Icons.auto_stories_rounded,
+        LocalMediaKind.text => Icons.menu_book_rounded,
+        LocalMediaKind.pdf => Icons.picture_as_pdf_rounded,
       };
 
   @override
@@ -217,7 +217,7 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
         children: <Widget>[
           FloatingActionButton.extended(
             onPressed: _picking ? null : _pickFolder,
-            icon: const Icon(Icons.folder_outlined),
+            icon: const Icon(Icons.folder_rounded),
             label: Text(l10n.importNovelPickFolder),
           ),
           const SizedBox(height: AppTokens.spaceMd),
@@ -229,7 +229,7 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.file_open_outlined),
+                : const Icon(Icons.file_open_rounded),
             label: Text(l10n.contentImportSelectFile),
           ),
         ],
@@ -248,9 +248,9 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
                   Text(l10n.contentImportSupportedFormats,
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: AppTokens.spaceMd),
-                  _formatRow(l10n.contentImportNovelFormats, Icons.menu_book_outlined),
-                  _formatRow(l10n.contentImportComicFormats, Icons.auto_stories_outlined),
-                  _formatRow(l10n.contentImportMediaFormats, Icons.movie_outlined),
+                  _formatRow(l10n.contentImportNovelFormats, Icons.menu_book_rounded),
+                  _formatRow(l10n.contentImportComicFormats, Icons.auto_stories_rounded),
+                  _formatRow(l10n.contentImportMediaFormats, Icons.movie_rounded),
                 ],
               ),
             ),
@@ -259,14 +259,14 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
           Text(l10n.contentImportHistory, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppTokens.spaceMd),
           if (items.isEmpty)
-            AppEmptyState(icon: Icons.inbox_outlined, message: l10n.contentImportEmpty)
+            AppEmptyState(icon: Icons.inbox_rounded, message: l10n.contentImportEmpty)
           else
             ...items.map((e) => AppListTile(
                   leading: Icon(_iconFor(e.kind), color: scheme.primary),
                   title: Text(e.title),
                   subtitle: Text(e.path, maxLines: 1, overflow: TextOverflow.ellipsis),
                   trailing: PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert_outlined),
+                    icon: const Icon(Icons.more_vert_rounded),
                     tooltip: l10n.contentImportActions,
                     onSelected: (action) {
                       switch (action) {
@@ -282,7 +282,7 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
                       PopupMenuItem<String>(
                         value: 'open',
                         child: ListTile(
-                          leading: const Icon(Icons.open_in_new_outlined),
+                          leading: const Icon(Icons.open_in_new_rounded),
                           title: Text(l10n.contentImportOpened),
                           contentPadding: EdgeInsets.zero,
                         ),
@@ -290,7 +290,7 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
                       PopupMenuItem<String>(
                         value: 'rename',
                         child: ListTile(
-                          leading: const Icon(Icons.edit_outlined),
+                          leading: const Icon(Icons.edit_rounded),
                           title: Text(l10n.renameGroup),
                           contentPadding: EdgeInsets.zero,
                         ),
@@ -298,7 +298,7 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
                       PopupMenuItem<String>(
                         value: 'delete',
                         child: ListTile(
-                          leading: const Icon(Icons.delete_outline),
+                          leading: const Icon(Icons.delete_rounded),
                           title: Text(l10n.delete),
                           contentPadding: EdgeInsets.zero,
                         ),

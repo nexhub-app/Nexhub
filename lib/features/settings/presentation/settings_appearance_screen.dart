@@ -1,4 +1,7 @@
-/// 外观与语言汇总页：主题 / 配色 / 启动与显示 / 语言。
+/// 外观与语言汇总页：主题 / 配色 / 背景图 / 启动与显示 / 语言。
+///
+/// Legado MD3 观感：每行一张独立描边小卡（[SettingsTile]），分组小标题
+/// （[SettingsGroup]）；单选类设置走底部弹层（与 Legado 的行 + 弹层一致）。
 ///
 /// body 使用 SettingsAutoScroll 包裹，使设置搜索可按 ValueKey 精确定位到
 /// 具体的「主题」「配色」「启动」「语言」等组；ListView 内的子项在首帧时
@@ -10,11 +13,10 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../../core/theme/palette_style.dart';
 import '../../../core/locale/locale_controller.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/widgets/app_animations.dart';
-import '../../../core/widgets/app_list_tile.dart';
-import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/utils/app_haptics.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
@@ -87,6 +89,87 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
     );
   }
 
+  /// 底部弹层单选：设置页统一的「行 + 弹层」选择交互（Legado MD3 观感）。
+  ///
+  /// 选中项右侧 primary 色 check_rounded，其余行无图标——交互/选中态才用 primary。
+  Future<void> _showRadioSheet<T>({
+    required BuildContext context,
+    required String title,
+    required List<(T, String)> options,
+    required T selected,
+    required ValueChanged<T> onSelected,
+  }) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTokens.spaceLg,
+                AppTokens.spaceMd,
+                AppTokens.spaceLg,
+                AppTokens.spaceSm,
+              ),
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            // 选项多时（调色板风格 9 项）会超过弹层最大高度：
+            // Flexible + SingleChildScrollView 让选项区在空间不足时内部滚动，
+            // 空间充足时仍随内容收紧（mainAxisSize.min），两态都正确。
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    for (final (T value, String label) in options)
+                      ListTile(
+                        title: Text(label),
+                        trailing: value == selected
+                            ? Icon(Icons.check_rounded,
+                                color: scheme.primary, size: 22)
+                            : null,
+                        onTap: () {
+                          AppHaptics.tick();
+                          Navigator.pop(ctx);
+                          onSelected(value);
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _modeLabel(AppLocalizations l10n, ThemeMode m) => switch (m) {
+        ThemeMode.light => l10n.themeLight,
+        ThemeMode.dark => l10n.themeDark,
+        ThemeMode.system => l10n.themeSystem,
+      };
+
+  String _paletteStyleLabel(AppLocalizations l10n, PaletteStyle s) =>
+      switch (s) {
+        PaletteStyle.tonalSpot => l10n.paletteStyleTonalSpot,
+        PaletteStyle.fidelity => l10n.paletteStyleFidelity,
+        PaletteStyle.content => l10n.paletteStyleContent,
+        PaletteStyle.neutral => l10n.paletteStyleNeutral,
+        PaletteStyle.monochrome => l10n.paletteStyleMonochrome,
+        PaletteStyle.vibrant => l10n.paletteStyleVibrant,
+        PaletteStyle.expressive => l10n.paletteStyleExpressive,
+        PaletteStyle.rainbow => l10n.paletteStyleRainbow,
+        PaletteStyle.fruitSalad => l10n.paletteStyleFruitSalad,
+      };
+
   String _launchLabel(AppLocalizations l10n, LaunchTab t) => switch (t) {
         LaunchTab.browse => l10n.navBrowse,
         LaunchTab.novel => l10n.navNovel,
@@ -95,7 +178,8 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
         LaunchTab.settings => l10n.navSettings,
       };
 
-  String _dateFormatLabel(AppLocalizations l10n, AppDateFormat d) => switch (d) {
+  String _dateFormatLabel(AppLocalizations l10n, AppDateFormat d) =>
+      switch (d) {
         AppDateFormat.defaultFormat => l10n.dateFormatDefault,
         AppDateFormat.mmddyy => l10n.dateFormatMmDdYy,
         AppDateFormat.ddmmyy => l10n.dateFormatDdMmYy,
@@ -103,6 +187,12 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
         AppDateFormat.ddmmmyyyy => l10n.dateFormatDdMmmYyyy,
         AppDateFormat.mmmdd => l10n.dateFormatMmmDd,
         AppDateFormat.yyyyOnly => l10n.dateFormatYyyy,
+      };
+
+  String _localeLabel(AppLocalizations l10n, LocaleOption o) => switch (o) {
+        LocaleOption.system => l10n.languageFollowSystem,
+        LocaleOption.chinese => l10n.languageChinese,
+        LocaleOption.english => l10n.languageEnglish,
       };
 
   @override
@@ -123,130 +213,131 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
             padding: const EdgeInsets.all(AppTokens.spaceLg),
             children: <Widget>[
               // ── 主题 ──
-              SettingsCard(
+              SettingsGroup(
                 key: const ValueKey<String>('appearance.theme'),
-                title: l10n.appearanceThemeSection,
-                backgroundColor: scheme.surfaceContainerLow,
+                header: l10n.appearanceThemeSection,
                 children: <Widget>[
-                  AppValuePulse(
-                    trigger: controller.mode,
-                    from: 0.93,
-                    child: AppSegmentedTabs<ThemeMode>(
-                      selected: <ThemeMode>{controller.mode},
-                      onSelectionChanged: (Set<ThemeMode> s) =>
-                          controller.setMode(s.first),
-                      segments: <ButtonSegment<ThemeMode>>[
-                        ButtonSegment<ThemeMode>(
-                            value: ThemeMode.light,
-                            label: Text(l10n.themeLight),
-                            icon: const Icon(Icons.light_mode)),
-                        ButtonSegment<ThemeMode>(
-                            value: ThemeMode.dark,
-                            label: Text(l10n.themeDark),
-                            icon: const Icon(Icons.dark_mode)),
-                        ButtonSegment<ThemeMode>(
-                            value: ThemeMode.system,
-                            label: Text(l10n.themeSystem),
-                            icon: const Icon(Icons.brightness_auto)),
+                  SettingsTile(
+                    icon: Icons.brightness_6_rounded,
+                    title: l10n.appearanceThemeMode,
+                    subtitle: _modeLabel(l10n, controller.mode),
+                    onTap: () => _showRadioSheet<ThemeMode>(
+                      context: context,
+                      title: l10n.appearanceThemeMode,
+                      options: <(ThemeMode, String)>[
+                        (ThemeMode.light, l10n.themeLight),
+                        (ThemeMode.dark, l10n.themeDark),
+                        (ThemeMode.system, l10n.themeSystem),
                       ],
+                      selected: controller.mode,
+                      onSelected: controller.setMode,
                     ),
                   ),
-                  const Divider(height: AppTokens.spaceLg),
-                  AppListTile(
-                    leading:
-                        const SettingsLeadingIcon(icon: Icons.auto_awesome),
-                    title: Text(l10n.useMonet),
-                    trailing: AppValuePulse(
-                      trigger: controller.useMonet,
-                      from: 0.94,
-                      child: Switch(
-                        value: controller.useMonet,
-                        onChanged: (_) {
-                          _ == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                          controller.setUseMonet(!controller.useMonet);
-                        },
-                      ),
+                  SettingsTile(
+                    icon: Icons.auto_awesome_rounded,
+                    title: l10n.useMonet,
+                    trailing: Switch(
+                      value: controller.useMonet,
+                      onChanged: (bool v) {
+                        v ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                        controller.setUseMonet(v);
+                      },
+                    ),
+                  ),
+                  SettingsTile(
+                    icon: Icons.palette_rounded,
+                    title: l10n.paletteStyleTitle,
+                    subtitle: _paletteStyleLabel(l10n, controller.paletteStyle),
+                    onTap: () => _showRadioSheet<PaletteStyle>(
+                      context: context,
+                      title: l10n.paletteStyleTitle,
+                      options: <(PaletteStyle, String)>[
+                        for (final PaletteStyle s in PaletteStyle.values)
+                          (s, _paletteStyleLabel(l10n, s)),
+                      ],
+                      selected: controller.paletteStyle,
+                      onSelected: controller.setPaletteStyle,
                     ),
                   ),
                 ],
               ),
 
               // ── 配色 ──
-              SettingsCard(
+              SettingsGroup(
                 key: const ValueKey<String>('appearance.colors'),
-                title: l10n.appearanceColorsSection,
-                backgroundColor: scheme.surfaceContainerLow,
+                header: l10n.appearanceColorsSection,
                 children: <Widget>[
-                  Wrap(
-                    spacing: AppTokens.spaceSm,
-                    runSpacing: AppTokens.spaceSm,
-                    children: AppTokens.presetSeeds.map((preset) {
-                      final Color color = preset.$1;
-                      final String name = preset.$2;
-                      final bool selected =
-                          !controller.useMonet && controller.seed == color;
-                      return Tooltip(
-                        message: name,
-                        child: GestureDetector(
-                          onTap: () {
-                            controller.setUseMonet(false);
-                            controller.setSeed(color);
-                          },
-                          child: AnimatedContainer(
-                            duration: AppTokens.durBase,
-                            curve: AppCurves.smooth,
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: selected
-                                    ? scheme.primary
-                                    : scheme.outlineVariant,
-                                width: selected ? 3 : 1,
+                  // 预设色板：色点直接平铺（取色场景直选比收进弹层更直观），
+                  // 作为组卡内的一个区块（上下由发丝分隔线区隔），不再是卡中卡。
+                  Padding(
+                    padding: const EdgeInsets.all(AppTokens.spaceLg),
+                    child: Wrap(
+                      spacing: AppTokens.spaceMd,
+                      runSpacing: AppTokens.spaceMd,
+                      children: AppTokens.presetSeeds.map((preset) {
+                        final Color color = preset.$1;
+                        final String name = preset.$2;
+                        final bool selected =
+                            !controller.useMonet && controller.seed == color;
+                        return Tooltip(
+                          message: name,
+                          child: GestureDetector(
+                            onTap: () {
+                              AppHaptics.selectionClick();
+                              controller.setUseMonet(false);
+                              controller.setSeed(color);
+                            },
+                            child: AnimatedContainer(
+                              duration: AppTokens.durBase,
+                              curve: AppCurves.smooth,
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: selected
+                                      ? scheme.primary
+                                      : scheme.outlineVariant,
+                                  width: selected ? 3 : 1,
+                                ),
                               ),
+                              child: selected
+                                  ? Icon(Icons.check_rounded,
+                                      color:
+                                          ThemeData.estimateBrightnessForColor(
+                                                      color) ==
+                                                  Brightness.dark
+                                              ? Colors.white
+                                              : Colors.black,
+                                      size: 20)
+                                  : null,
                             ),
-                            child: selected
-                                ? Icon(Icons.check,
-                                    color:
-                                        ThemeData.estimateBrightnessForColor(
-                                                    color) ==
-                                                Brightness.dark
-                                            ? Colors.white
-                                            : Colors.black,
-                                    size: 20)
-                                : null,
                           ),
-                        ),
-                      );
-                    }).toList(),
+                        );
+                      }).toList(),
+                    ),
                   ),
-                  const Divider(height: AppTokens.spaceLg),
-                  AppListTile(
+                  SettingsTile(
                     key: const ValueKey<String>('appearance.customColor'),
-                    leading:
-                        const SettingsLeadingIcon(icon: Icons.color_lens),
-                    title: Text(l10n.customColor),
+                    icon: Icons.colorize_rounded,
+                    title: l10n.customColor,
                     trailing: CircleAvatar(
                         backgroundColor: controller.seed, radius: 14),
-                    onTap: () =>
-                        _openColorPicker(context, controller, l10n),
+                    onTap: () => _openColorPicker(context, controller, l10n),
                   ),
                 ],
               ),
 
               // ── 背景图（Hero） ──
-              SettingsCard(
+              SettingsGroup(
                 key: const ValueKey<String>('appearance.hero'),
-                title: l10n.appearanceHeroSection,
-                backgroundColor: scheme.surfaceContainerLow,
+                header: l10n.appearanceHeroSection,
                 children: <Widget>[
-                  AppListTile(
-                    leading: const SettingsLeadingIcon(icon: Icons.image),
-                    title: Text(l10n.heroSettingsTitle),
-                    subtitle: Text(l10n.heroEmptyHint),
-                    trailing: const Icon(Icons.chevron_right),
+                  SettingsTile(
+                    icon: Icons.image_rounded,
+                    title: l10n.heroSettingsTitle,
+                    subtitle: l10n.heroEmptyHint,
                     onTap: () => Navigator.of(context).push(
                       AppPageRoute<void>(
                         builder: (_) => const SettingsHeroScreen(),
@@ -257,54 +348,51 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
               ),
 
               // ── 启动与显示 ──
-              SettingsCard(
+              SettingsGroup(
                 key: const ValueKey<String>('appearance.startup'),
-                title: l10n.appearanceStartupSection,
-                backgroundColor: scheme.surfaceContainerLow,
+                header: l10n.appearanceStartupSection,
                 children: <Widget>[
                   AnimatedBuilder(
                     animation: GeneralSettingsStore.instance,
                     builder: (_, __) {
                       _s = GeneralSettingsStore.instance.settings;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            l10n.launchScreenTitle,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: AppTokens.spaceSm),
-                          Wrap(
-                            spacing: AppTokens.spaceSm,
-                            runSpacing: AppTokens.spaceXs,
-                            children: LaunchTab.values.map((t) {
-                              return ChoiceChip(
-                                label: Text(_launchLabel(l10n, t)),
-                                selected: _s.launchTab == t,
-                                onSelected: (_) =>
-                                    _update(_s.copyWith(launchTab: t)),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: AppTokens.spaceMd),
-                          Text(
-                            l10n.dateFormatTitle,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: AppTokens.spaceSm),
-                          Wrap(
-                            spacing: AppTokens.spaceSm,
-                            runSpacing: AppTokens.spaceXs,
-                            children: AppDateFormat.values.map((d) {
-                              return ChoiceChip(
-                                label: Text(_dateFormatLabel(l10n, d)),
-                                selected: _s.dateFormat == d,
-                                onSelected: (_) =>
-                                    _update(_s.copyWith(dateFormat: d)),
-                              );
-                            }).toList(),
-                          ),
-                        ],
+                      return SettingsTile(
+                        icon: Icons.rocket_launch_rounded,
+                        title: l10n.launchScreenTitle,
+                        subtitle: _launchLabel(l10n, _s.launchTab),
+                        onTap: () => _showRadioSheet<LaunchTab>(
+                          context: context,
+                          title: l10n.launchScreenTitle,
+                          options: <(LaunchTab, String)>[
+                            for (final LaunchTab t in LaunchTab.values)
+                              (t, _launchLabel(l10n, t)),
+                          ],
+                          selected: _s.launchTab,
+                          onSelected: (LaunchTab t) =>
+                              _update(_s.copyWith(launchTab: t)),
+                        ),
+                      );
+                    },
+                  ),
+                  AnimatedBuilder(
+                    animation: GeneralSettingsStore.instance,
+                    builder: (_, __) {
+                      _s = GeneralSettingsStore.instance.settings;
+                      return SettingsTile(
+                        icon: Icons.calendar_today_rounded,
+                        title: l10n.dateFormatTitle,
+                        subtitle: _dateFormatLabel(l10n, _s.dateFormat),
+                        onTap: () => _showRadioSheet<AppDateFormat>(
+                          context: context,
+                          title: l10n.dateFormatTitle,
+                          options: <(AppDateFormat, String)>[
+                            for (final AppDateFormat d in AppDateFormat.values)
+                              (d, _dateFormatLabel(l10n, d)),
+                          ],
+                          selected: _s.dateFormat,
+                          onSelected: (AppDateFormat d) =>
+                              _update(_s.copyWith(dateFormat: d)),
+                        ),
                       );
                     },
                   ),
@@ -312,32 +400,25 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
               ),
 
               // ── 语言 ──
-              SettingsCard(
+              SettingsGroup(
                 key: const ValueKey<String>('appearance.language'),
-                title: l10n.settingsGroupLanguage,
-                backgroundColor: scheme.surfaceContainerLow,
+                header: l10n.settingsGroupLanguage,
                 children: <Widget>[
-                  AppValuePulse(
-                    trigger: localeController.option,
-                    from: 0.93,
-                    child: AppSegmentedTabs<LocaleOption>(
-                      selected: <LocaleOption>{localeController.option},
-                      onSelectionChanged: (Set<LocaleOption> s) =>
-                          localeController.setOption(s.first),
-                      segments: <ButtonSegment<LocaleOption>>[
-                        ButtonSegment<LocaleOption>(
-                            value: LocaleOption.system,
-                            label: Text(l10n.languageFollowSystem),
-                            icon: const Icon(Icons.brightness_auto)),
-                        ButtonSegment<LocaleOption>(
-                            value: LocaleOption.chinese,
-                            label: Text(l10n.languageChinese),
-                            icon: const Icon(Icons.translate)),
-                        ButtonSegment<LocaleOption>(
-                            value: LocaleOption.english,
-                            label: Text(l10n.languageEnglish),
-                            icon: const Icon(Icons.language)),
+                  SettingsTile(
+                    icon: Icons.translate_rounded,
+                    title: l10n.settingsGroupLanguage,
+                    subtitle: _localeLabel(l10n, localeController.option),
+                    onTap: () => _showRadioSheet<LocaleOption>(
+                      context: context,
+                      title: l10n.settingsGroupLanguage,
+                      options: <(LocaleOption, String)>[
+                        (LocaleOption.system, l10n.languageFollowSystem),
+                        (LocaleOption.chinese, l10n.languageChinese),
+                        (LocaleOption.english, l10n.languageEnglish),
                       ],
+                      selected: localeController.option,
+                      onSelected: (LocaleOption o) =>
+                          localeController.setOption(o),
                     ),
                   ),
                 ],

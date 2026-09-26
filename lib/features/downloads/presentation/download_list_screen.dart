@@ -63,7 +63,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
         actions: <Widget>[
           if (!_selectMode) ...<Widget>[
             PopupMenuButton<_DownloadStatusFilter>(
-              icon: const Icon(Icons.filter_list),
+              icon: const Icon(Icons.filter_list_rounded),
               tooltip: l10n.filter,
               onSelected: (_DownloadStatusFilter value) =>
                   setState(() => _statusFilter = value),
@@ -82,20 +82,20 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
             const LayoutPickerButton(),
             if (filteredTasks.isNotEmpty)
               IconButton(
-                icon: const Icon(Icons.delete_sweep_outlined),
+                icon: const Icon(Icons.delete_sweep_rounded),
                 tooltip: l10n.clearAll,
                 onPressed: () =>
                     _confirmClearAll(context, manager, l10n),
               ),
             if (filteredTasks.isNotEmpty)
               IconButton(
-                icon: const Icon(Icons.checklist),
+                icon: const Icon(Icons.checklist_rounded),
                 tooltip: l10n.select,
                 onPressed: () => setState(() => _selectMode = true),
               ),
           ] else ...<Widget>[
             IconButton(
-              icon: const Icon(Icons.select_all),
+              icon: const Icon(Icons.select_all_rounded),
               tooltip: l10n.selectAll,
               onPressed: _selectedKeys.length == filteredTasks.length
                   ? null
@@ -105,28 +105,28 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
                       }),
             ),
             IconButton(
-              icon: const Icon(Icons.pause),
+              icon: const Icon(Icons.pause_rounded),
               tooltip: l10n.batchPause,
               onPressed: _selectedKeys.isEmpty
                   ? null
                   : () => _batchPause(manager),
             ),
             IconButton(
-              icon: const Icon(Icons.play_arrow),
+              icon: const Icon(Icons.play_arrow_rounded),
               tooltip: l10n.batchResume,
               onPressed: _selectedKeys.isEmpty
                   ? null
                   : () => _batchResume(manager),
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_rounded),
               tooltip: l10n.deleteSelected,
               onPressed: _selectedKeys.isEmpty
                   ? null
                   : () => _confirmBatchDelete(context, manager, l10n),
             ),
             IconButton(
-              icon: const Icon(Icons.close),
+              icon: const Icon(Icons.close_rounded),
               tooltip: l10n.cancel,
               onPressed: () => setState(() {
                 _selectMode = false;
@@ -171,7 +171,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
           Expanded(
             child: filteredTasks.isEmpty
                 ? AppEmptyState(
-                    icon: Icons.download_outlined,
+                    icon: Icons.download_rounded,
                     message: l10n.noDownloads,
                   )
                 : ListView.separated(
@@ -225,7 +225,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
       child: Row(
         children: <Widget>[
           if (selected)
-            Icon(Icons.check, size: 18, color: scheme.primary)
+            Icon(Icons.check_rounded, size: 18, color: scheme.primary)
           else
             const SizedBox(width: 18),
           const SizedBox(width: AppTokens.spaceSm),
@@ -398,25 +398,25 @@ class _DownloadTaskTile extends StatelessWidget {
                   // 操作按钮：下载中→暂停；已暂停→继续；失败→重试（项 5）
                   if (task.status == DownloadStatus.downloading)
                     _ActionButton(
-                      icon: Icons.pause,
+                      icon: Icons.pause_rounded,
                       label: l10n.downloadPause,
                       onPressed: () => manager.pauseTask(task.id),
                     )
                   else if (task.status == DownloadStatus.paused)
                     _ActionButton(
-                      icon: Icons.play_arrow,
+                      icon: Icons.play_arrow_rounded,
                       label: l10n.downloadResume,
                       onPressed: () => manager.resumeTask(task.id),
                     )
                   else if (task.status == DownloadStatus.failed)
                     _ActionButton(
-                      icon: Icons.refresh,
+                      icon: Icons.refresh_rounded,
                       label: l10n.retry,
                       onPressed: () => manager.retryTask(task.id),
                     ),
                   // 取消/移除：始终可用（可移除记录，不删文件）
                   _ActionButton(
-                    icon: Icons.cancel_outlined,
+                    icon: Icons.cancel_rounded,
                     label: l10n.cancel,
                     isDestructive: true,
                     onPressed: () =>
@@ -457,7 +457,7 @@ class _DownloadTaskTile extends StatelessWidget {
             child: CircleAvatar(
               radius: 12,
               backgroundColor: scheme.primary,
-              child: Icon(Icons.check, size: 16, color: scheme.onPrimary),
+              child: Icon(Icons.check_rounded, size: 16, color: scheme.onPrimary),
             ),
           ),
       ],

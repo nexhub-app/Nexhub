@@ -89,10 +89,10 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
 
     // 根据类型选择不同的空状态图标
     final IconData emptyIcon = switch (widget.moduleType) {
-      SourceType.novelSource => Icons.menu_book_outlined,
-      SourceType.animeSource => Icons.movie_outlined,
-      SourceType.mangaSource => Icons.auto_stories_outlined,
-      _ => Icons.rss_feed_outlined,
+      SourceType.novelSource => Icons.menu_book_rounded,
+      SourceType.animeSource => Icons.movie_rounded,
+      SourceType.mangaSource => Icons.auto_stories_rounded,
+      _ => Icons.rss_feed_rounded,
     };
 
     return Scaffold(
@@ -100,14 +100,14 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
         title: Text(l10n.rssFeedListTitle),
         actions: <Widget>[
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
+            icon: const Icon(Icons.more_vert_rounded),
             tooltip: l10n.moreActions,
             onSelected: (action) => _onTopMenu(action, context, manager),
             itemBuilder: (ctx) => <PopupMenuEntry<String>>[
               PopupMenuItem<String>(
                 value: 'opml',
                 child: ListTile(
-                  leading: const Icon(Icons.import_export_outlined),
+                  leading: const Icon(Icons.import_export_rounded),
                   title: Text(l10n.rssOpmlTitle),
                   contentPadding: EdgeInsets.zero,
                 ),
@@ -115,7 +115,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
               PopupMenuItem<String>(
                 value: 'discover',
                 child: ListTile(
-                  leading: const Icon(Icons.language_outlined),
+                  leading: const Icon(Icons.language_rounded),
                   title: Text(l10n.rssDiscoverTitle),
                   contentPadding: EdgeInsets.zero,
                 ),
@@ -123,7 +123,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
               PopupMenuItem<String>(
                 value: 'global_search',
                 child: ListTile(
-                  leading: const Icon(Icons.search_outlined),
+                  leading: const Icon(Icons.search_rounded),
                   title: Text(l10n.rssSearchTitle),
                   contentPadding: EdgeInsets.zero,
                 ),
@@ -132,7 +132,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                 PopupMenuItem<String>(
                   value: 'manage_groups',
                   child: ListTile(
-                    leading: const Icon(Icons.folder_outlined),
+                    leading: const Icon(Icons.folder_rounded),
                     title: Text(l10n.rssGroupManage),
                     contentPadding: EdgeInsets.zero,
                   ),
@@ -246,7 +246,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                             const SizedBox.shrink(),
                           // 溢出菜单：聚合 绑定/移回/测速/编辑/删除，避免行内按钮过多（手机端杂乱）。
                           PopupMenuButton<String>(
-                            icon: Icon(Icons.more_vert,
+                            icon: Icon(Icons.more_vert_rounded,
                                 color: scheme.onSurfaceVariant),
                             tooltip: l10n.moreActions,
                             onSelected: (action) =>
@@ -258,7 +258,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                   value: 'bind',
                                   child: ListTile(
                                     leading:
-                                        const Icon(Icons.playlist_add_outlined),
+                                        const Icon(Icons.playlist_add_rounded),
                                     title: Text(l10n.rssBindModuleTitle),
                                     contentPadding: EdgeInsets.zero,
                                   ),
@@ -268,7 +268,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                   value: 'unbind',
                                   child: ListTile(
                                     leading: const Icon(
-                                        Icons.playlist_remove_outlined),
+                                        Icons.playlist_remove_rounded),
                                     title: Text(l10n.rssUnbindGlobal),
                                     contentPadding: EdgeInsets.zero,
                                   ),
@@ -276,7 +276,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                               PopupMenuItem<String>(
                                 value: 'speed',
                                 child: ListTile(
-                                  leading: const Icon(Icons.speed),
+                                  leading: const Icon(Icons.speed_rounded),
                                   title: Text(l10n.rssTestSpeed),
                                   contentPadding: EdgeInsets.zero,
                                 ),
@@ -284,7 +284,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                               PopupMenuItem<String>(
                                 value: 'edit',
                                 child: ListTile(
-                                  leading: const Icon(Icons.edit_outlined),
+                                  leading: const Icon(Icons.edit_rounded),
                                   title: Text(l10n.editRoute),
                                   contentPadding: EdgeInsets.zero,
                                 ),
@@ -292,7 +292,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                               PopupMenuItem<String>(
                                 value: 'groups',
                                 child: ListTile(
-                                  leading: const Icon(Icons.folder_outlined),
+                                  leading: const Icon(Icons.folder_rounded),
                                   title: Text(l10n.rssSetGroups),
                                   contentPadding: EdgeInsets.zero,
                                 ),
@@ -300,7 +300,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                               PopupMenuItem<String>(
                                 value: 'delete',
                                 child: ListTile(
-                                  leading: Icon(Icons.delete_outline,
+                                  leading: Icon(Icons.delete_rounded,
                                       color: scheme.error),
                                   title: Text(l10n.delete,
                                       style: TextStyle(color: scheme.error)),
@@ -321,7 +321,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
         onPressed: () => _navigateToAdd(context),
         backgroundColor: scheme.secondaryContainer,
         foregroundColor: scheme.onSecondaryContainer,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add_rounded),
       ),
     );
   }
@@ -366,7 +366,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
           color: scheme.primaryContainer.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(AppTokens.radiusSm),
         ),
-        child: Icon(Icons.rss_feed, color: scheme.primary, size: 22),
+        child: Icon(Icons.rss_feed_rounded, color: scheme.primary, size: 22),
       );
 
   /// 一键测速全部订阅源（P8.2.3 §廿二）。
@@ -564,7 +564,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
           children: options.entries
               .map((e) => ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.playlist_add_outlined),
+                    leading: const Icon(Icons.playlist_add_rounded),
                     title: Text(e.value),
                     onTap: () async {
                       await manager
@@ -734,7 +734,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                   }),
                                 ),
                               ActionChip(
-                                avatar: const Icon(Icons.add, size: 16),
+                                avatar: const Icon(Icons.add_rounded, size: 16),
                                 label: Text(l10n.rssGroupAdd),
                                 onPressed: () async {
                                   final name =
@@ -810,7 +810,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                 style: Theme.of(context).textTheme.titleMedium),
                             const Spacer(),
                             TextButton.icon(
-                              icon: const Icon(Icons.add, size: 18),
+                              icon: const Icon(Icons.add_rounded, size: 18),
                               label: Text(l10n.rssGroupAdd),
                               onPressed: () async {
                                 // 就地新建：分组已有一等公民注册表（RssManager
@@ -865,7 +865,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                     onceKey: 'mgrp:$g',
                                     child: ListTile(
                                       leading:
-                                          const Icon(Icons.folder_outlined),
+                                          const Icon(Icons.folder_rounded),
                                       title: Text(g),
                                       subtitle:
                                           Text(l10n.rssGroupFeedCount(count)),
@@ -874,7 +874,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                         children: <Widget>[
                                           IconButton(
                                             icon:
-                                                const Icon(Icons.edit_outlined),
+                                                const Icon(Icons.edit_rounded),
                                             tooltip: l10n.rssGroupRename,
                                             onPressed: () async {
                                               final newName =
@@ -890,7 +890,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
                                             },
                                           ),
                                           IconButton(
-                                            icon: Icon(Icons.delete_outline,
+                                            icon: Icon(Icons.delete_rounded,
                                                 color: scheme.error),
                                             tooltip: l10n.rssGroupDelete,
                                             onPressed: () async {

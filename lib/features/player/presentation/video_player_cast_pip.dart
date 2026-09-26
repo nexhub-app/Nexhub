@@ -46,7 +46,7 @@ extension _VideoCastPip on _VideoPlayerScreenState {
                     ),
                     if (_isCasting)
                       ListTile(
-                        leading: const Icon(Icons.cast_connected),
+                        leading: const Icon(Icons.cast_connected_rounded),
                         title:
                             Text(l10n.castingTo(_castService.deviceName ?? '')),
                         trailing: TextButton(
@@ -69,7 +69,7 @@ extension _VideoCastPip on _VideoPlayerScreenState {
                       ),
                     for (final CastDevice d in devices)
                       ListTile(
-                        leading: const Icon(Icons.tv),
+                        leading: const Icon(Icons.tv_rounded),
                         title: Text(d.name),
                         onTap: () {
                           Navigator.pop(ctx);
@@ -365,7 +365,7 @@ extension _VideoCastPip on _VideoPlayerScreenState {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: <Widget>[
                       _pipControlButton(
-                        icon: Icons.close,
+                        icon: Icons.close_rounded,
                         onTap: () => unawaited(_exitDesktopPip()),
                       ),
                     ],
@@ -400,7 +400,7 @@ extension _VideoCastPip on _VideoPlayerScreenState {
                       Row(
                         children: <Widget>[
                           _pipControlButton(
-                            icon: _isPlaying ? Icons.pause : Icons.play_arrow,
+                            icon: _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                             size: 30,
                             onTap: _togglePlayPause,
                           ),

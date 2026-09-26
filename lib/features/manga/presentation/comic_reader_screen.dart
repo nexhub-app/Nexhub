@@ -1155,7 +1155,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
-              leading: Icon(_isFav ? Icons.favorite : Icons.favorite_border),
+              leading: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded),
               title: Text(l10n.favorite),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -1166,7 +1166,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             if (!_isLocalMode || widget.chapters.isNotEmpty)
               ListTile(
                 leading: Icon(
-                  _chapterBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                  _chapterBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
                   color: _chapterBookmarked ? Colors.amber : null,
                 ),
                 title: Text(l10n.readerChapterBookmark),
@@ -1177,7 +1177,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               ),
             ListTile(
               leading: Icon(
-                _isPageImageFav ? Icons.favorite : Icons.favorite_border,
+                _isPageImageFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                 color: _isPageImageFav ? Colors.amber : null,
               ),
               title: Text(l10n.readerFavoriteImage),
@@ -1187,7 +1187,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
+              leading: const Icon(Icons.photo_library_rounded),
               title: Text(l10n.readerImageFavorite),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -3158,7 +3158,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                const Icon(Icons.drag_handle, size: 16, color: Colors.white70),
+                const Icon(Icons.drag_handle_rounded, size: 16, color: Colors.white70),
                 const SizedBox(height: 4),
                 Text(
                   label,
@@ -4762,14 +4762,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // useWebview 脚本源：需先抓取渲染后 HTML 才能解析图片（见 _captureAndRetry）。
     if (_htmlCaptureRequest != null) {
       return _CenterMessage(
-        icon: Icons.cloud_download_outlined,
+        icon: Icons.cloud_download_rounded,
         message: l10n.captureHint,
         onRetry: _captureAndRetry,
       );
     }
     if (_error != null) {
       return _CenterMessage(
-        icon: Icons.error_outline,
+        icon: Icons.error_rounded,
         message: _isLocalMode ? l10n.localFileLoadFailed : l10n.loadFailed,
         onRetry: _isLocalMode
             ? () => _loadLocalImages(restorePage: _currentPage)
@@ -4777,7 +4777,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       );
     }
     if (_images.isEmpty) {
-      return _CenterMessage(icon: Icons.image_not_supported, message: l10n.noImages);
+      return _CenterMessage(icon: Icons.image_not_supported_rounded, message: l10n.noImages);
     }
     if (_prefs.readingMode.isWebtoon) return _buildWebtoon();
     final Widget paged = _buildPaged();
@@ -5068,7 +5068,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.menu_book, color: fg, size: 40),
+            Icon(Icons.menu_book_rounded, color: fg, size: 40),
             const SizedBox(height: 16),
             Text(
               l10n.nextChapter,
@@ -5134,7 +5134,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                       ? widget.chapters[nextIndex].id
                       : widget.chapters[_chapterIndex].id,
                 ),
-                icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                icon: const Icon(Icons.chat_bubble_rounded, size: 16),
                 label: Text(l10n.comments),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: fg,
@@ -5733,7 +5733,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         child: Row(
           children: <Widget>[
             IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back_rounded),
               tooltip: MaterialLocalizations.of(context).backButtonTooltip,
               onPressed: () => Navigator.of(context).pop(),
             ),
@@ -5746,7 +5746,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.settings),
+              icon: const Icon(Icons.settings_rounded),
               tooltip: l10n.readerSettings,
               onPressed: _openSettings,
             ),
@@ -5754,7 +5754,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             // 归档聚合 / 下载目录聚合）都保留目录切话入口。
             if (!_isLocalMode || widget.chapters.length > 1)
               IconButton(
-                icon: const Icon(Icons.toc),
+                icon: const Icon(Icons.toc_rounded),
                 tooltip: l10n.chapterList,
                 onPressed: () async {
                   final index = await showChapterList(
@@ -5777,7 +5777,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             // WebView / 浏览器 / 分享菜单：本地模式无在线 URL，隐藏。
             if (!_isLocalMode)
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
+                icon: const Icon(Icons.more_vert_rounded),
                 tooltip: l10n.moreActions,
                 onSelected: (String value) {
                   switch (value) {
@@ -5808,7 +5808,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   PopupMenuItem<String>(
                     value: 'addToReadingQueue',
                     child: ListTile(
-                      leading: const Icon(Icons.playlist_add),
+                      leading: const Icon(Icons.playlist_add_rounded),
                       title: Text(l10n.readingQueueAdd),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5817,7 +5817,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   PopupMenuItem<String>(
                     value: 'readingQueue',
                     child: ListTile(
-                      leading: const Icon(Icons.playlist_play),
+                      leading: const Icon(Icons.playlist_play_rounded),
                       title: Text(l10n.readingQueueOpen),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5828,7 +5828,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     value: 'webview',
                     enabled: absoluteChapterUrl != null,
                     child: ListTile(
-                      leading: const Icon(Icons.public),
+                      leading: const Icon(Icons.public_rounded),
                       title: Text(l10n.openInAppBrowser),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5838,7 +5838,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     value: 'browser',
                     enabled: absoluteChapterUrl != null,
                     child: ListTile(
-                      leading: const Icon(Icons.open_in_new),
+                      leading: const Icon(Icons.open_in_new_rounded),
                       title: Text(l10n.openInBrowser),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5848,7 +5848,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     value: 'share',
                     enabled: absoluteChapterUrl != null,
                     child: ListTile(
-                      leading: const Icon(Icons.share_outlined),
+                      leading: const Icon(Icons.share_rounded),
                       title: Text(l10n.share),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
@@ -5929,7 +5929,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             return Row(
               children: <Widget>[
                 IconButton(
-                  icon: const Icon(Icons.chevron_left),
+                  icon: const Icon(Icons.chevron_left_rounded),
                   tooltip: l10n.prevPage,
                   onPressed: _goPrevPage,
                 ),
@@ -5965,7 +5965,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     ),
                   ),
                 IconButton(
-                  icon: const Icon(Icons.chevron_right),
+                  icon: const Icon(Icons.chevron_right_rounded),
                   tooltip: l10n.nextPage,
                   onPressed: _goNextPage,
                 ),
@@ -6036,7 +6036,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     IconButton(
-                      icon: const Icon(Icons.expand_less),
+                      icon: const Icon(Icons.expand_less_rounded),
                       tooltip: l10n.prevPage,
                       onPressed: _goPrevPage,
                     ),
@@ -6085,7 +6085,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                         ),
                       ),
                     IconButton(
-                      icon: const Icon(Icons.expand_more),
+                      icon: const Icon(Icons.expand_more_rounded),
                       tooltip: l10n.nextPage,
                       onPressed: _goNextPage,
                     ),
@@ -6110,25 +6110,25 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         ),
         // 收藏按钮：点击弹出底部菜单（收藏作品 / 收藏当前页图片 / 图片收藏图库）。
         IconButton(
-          icon: Icon(_isFav ? Icons.favorite : Icons.favorite_border),
+          icon: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded),
           tooltip: l10n.favorite,
           onPressed: _showFavoriteMenu,
         ),
         const Spacer(),
         IconButton(
-          icon: Icon(_prefs.cropEdge ? Icons.crop : Icons.crop_free),
+          icon: Icon(_prefs.cropEdge ? Icons.crop_rounded : Icons.crop_free_rounded),
           tooltip: l10n.readerCropEdge,
           onPressed: () => _onPrefsChanged(
             _prefs.copyWith(cropEdge: !_prefs.cropEdge),
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.rotate_right),
+          icon: const Icon(Icons.rotate_right_rounded),
           tooltip: l10n.readerRotatePage,
           onPressed: _rotateCurrentPage,
         ),
         IconButton(
-          icon: const Icon(Icons.tune),
+          icon: const Icon(Icons.tune_rounded),
           tooltip: l10n.readerSettings,
           onPressed: _openSettings,
         ),
@@ -6137,11 +6137,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   IconData _readingModeIcon(ReadingMode mode) => switch (mode) {
-        ReadingMode.singleLTR => Icons.arrow_forward,
-        ReadingMode.singleRTL => Icons.arrow_back,
-        ReadingMode.singleVertical => Icons.arrow_downward,
-        ReadingMode.webtoon => Icons.view_stream,
-        ReadingMode.webtoonWithGap => Icons.view_agenda,
+        ReadingMode.singleLTR => Icons.arrow_forward_rounded,
+        ReadingMode.singleRTL => Icons.arrow_back_rounded,
+        ReadingMode.singleVertical => Icons.arrow_downward_rounded,
+        ReadingMode.webtoon => Icons.view_stream_rounded,
+        ReadingMode.webtoonWithGap => Icons.view_agenda_rounded,
       };
 
   /// 阅读模式选择：弹出白色底部面板，用 ChoiceChip 列出 5 种模式
@@ -6220,7 +6220,7 @@ class _CenterMessage extends StatelessWidget {
               const SizedBox(height: AppTokens.spaceMd),
               FilledButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(Icons.refresh_rounded),
                 label: Text(AppLocalizations.of(context).retry),
               ),
             ],

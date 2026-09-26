@@ -141,7 +141,7 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
           if (auth.isLoggedIn) ...<Widget>[
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.account_circle),
+              leading: const Icon(Icons.account_circle_rounded),
               title: Text(l10n.bangumiLoggedInAs(auth.displayName ?? '')),
               subtitle: (auth.username != null && auth.username!.isNotEmpty)
                   ? Text('@${auth.username}')
@@ -161,7 +161,7 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.login),
+                  : const Icon(Icons.login_rounded),
               label: Text(l10n.bangumiLoginWithOAuth),
             ),
             const SizedBox(height: AppTokens.spaceSm),
@@ -183,7 +183,7 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
               decoration: InputDecoration(
                 labelText: l10n.bangumiTokenHint,
                 border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.key),
+                prefixIcon: const Icon(Icons.key_rounded),
               ),
               obscureText: true,
             ),
@@ -196,7 +196,7 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.verified_user),
+                  : const Icon(Icons.verified_user_rounded),
               label: Text(l10n.bangumiTokenVerify),
             ),
             const SizedBox(height: AppTokens.spaceSm),
@@ -205,7 +205,7 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
                 Uri.parse('https://next.bgm.tv/demo/access-token'),
                 mode: LaunchMode.externalApplication,
               ),
-              icon: const Icon(Icons.open_in_new, size: 16),
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
               label: Text(l10n.bangumiGetToken),
             ),
           ],
@@ -220,12 +220,12 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
               ButtonSegment<BangumiProxyMode>(
                 value: BangumiProxyMode.direct,
                 label: Text(l10n.bangumiProxyDirect),
-                icon: const Icon(Icons.lan),
+                icon: const Icon(Icons.lan_rounded),
               ),
               ButtonSegment<BangumiProxyMode>(
                 value: BangumiProxyMode.mirror,
                 label: Text(l10n.bangumiProxyMirror),
-                icon: const Icon(Icons.dns),
+                icon: const Icon(Icons.dns_rounded),
               ),
             ],
             selected: <BangumiProxyMode>{_proxyMode},
@@ -241,7 +241,7 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
                 labelText: l10n.bangumiProxyMainSite,
                 hintText: 'next.bgm.tv',
                 border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.home_outlined),
+                prefixIcon: const Icon(Icons.home_rounded),
               ),
             ),
             const SizedBox(height: AppTokens.spaceMd),
@@ -251,7 +251,7 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
                 labelText: l10n.bangumiProxyApi,
                 hintText: 'api.bgm.tv',
                 border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.cloud_outlined),
+                prefixIcon: const Icon(Icons.cloud_rounded),
               ),
             ),
             const SizedBox(height: AppTokens.spaceMd),
@@ -261,14 +261,14 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
                 labelText: l10n.bangumiProxyImage,
                 hintText: 'lain.bgm.tv',
                 border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.image_outlined),
+                prefixIcon: const Icon(Icons.image_rounded),
               ),
             ),
           ],
           const SizedBox(height: AppTokens.spaceMd),
           FilledButton.icon(
             onPressed: () => _saveProxy(l10n),
-            icon: const Icon(Icons.save),
+            icon: const Icon(Icons.save_rounded),
             label: Text(l10n.save),
           ),
           // ───── 浏览 Bangumi 收藏（登录后可用）─────

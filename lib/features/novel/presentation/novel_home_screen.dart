@@ -43,7 +43,7 @@ class NovelHomeScreen extends StatelessWidget {
 
     return LibraryShell(
       title: l10n.tabLibrary,
-      emptyIcon: Icons.menu_book,
+      emptyIcon: Icons.menu_book_rounded,
       emptyMessage: l10n.emptyLocalNovel,
       emptyActionLabel: l10n.emptyLocalNovelAction,
       onEmptyAction: () => Navigator.of(context).push(
@@ -77,7 +77,7 @@ class NovelHomeScreen extends StatelessWidget {
         sourceType: SourceType.novelSource,
         subTab: subTab,
         filter: filter,
-        emptyIcon: Icons.menu_book,
+        emptyIcon: Icons.menu_book_rounded,
         emptyMessage: l10n.emptyLocalNovel,
         emptyActionLabel: l10n.emptyLocalNovelAction,
         onEmptyAction: () => Navigator.of(context).push(

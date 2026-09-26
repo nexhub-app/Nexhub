@@ -533,7 +533,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
         actions: <Widget>[
           IconButton(
             icon: Icon(
-              _showHidden ? Icons.visibility : Icons.visibility_off_outlined,
+              _showHidden ? Icons.visibility_rounded : Icons.visibility_off_rounded,
             ),
             tooltip: l10n.sourceShowHidden,
             onPressed: () => setState(() => _showHidden = !_showHidden),
@@ -565,22 +565,22 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               segments: <ButtonSegment<_SourceTab>>[
                 ButtonSegment<_SourceTab>(
                   value: _SourceTab.list,
-                  icon: const Icon(Icons.list),
+                  icon: const Icon(Icons.list_rounded),
                   label: Text(l10n.sourceListTab),
                 ),
                 ButtonSegment<_SourceTab>(
                   value: _SourceTab.library,
-                  icon: const Icon(Icons.cloud_outlined),
+                  icon: const Icon(Icons.cloud_rounded),
                   label: Text(l10n.libraryBookmarks),
                 ),
                 ButtonSegment<_SourceTab>(
                   value: _SourceTab.network,
-                  icon: const Icon(Icons.cloud_download_outlined),
+                  icon: const Icon(Icons.cloud_download_rounded),
                   label: Text(l10n.networkImportTab),
                 ),
                 ButtonSegment<_SourceTab>(
                   value: _SourceTab.local,
-                  icon: const Icon(Icons.file_present_outlined),
+                  icon: const Icon(Icons.file_present_rounded),
                   label: Text(l10n.localImportTab),
                 ),
               ],
@@ -614,7 +614,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     if (widget.filterType != null) {
       if (sources.isEmpty) {
         return AppEmptyState(
-          icon: Icons.extension,
+          icon: Icons.extension_rounded,
           message: l10n.sourceListEmpty,
           actionLabel: l10n.addSource,
           onAction: () => setState(() => _tab = _SourceTab.network),
@@ -641,9 +641,9 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               // 3 分类等宽平分（小说/媒体/漫画）。
               onTap: (_) => AppHaptics.selectionClick(),
               tabs: <Widget>[
-                Tab(icon: const Icon(Icons.book), text: l10n.sourceCategoryNovel),
-                Tab(icon: const Icon(Icons.movie), text: l10n.sourceCategoryMedia),
-                Tab(icon: const Icon(Icons.image), text: l10n.sourceCategoryComic),
+                Tab(icon: const Icon(Icons.book_rounded), text: l10n.sourceCategoryNovel),
+                Tab(icon: const Icon(Icons.movie_rounded), text: l10n.sourceCategoryMedia),
+                Tab(icon: const Icon(Icons.image_rounded), text: l10n.sourceCategoryComic),
               ],
             ),
           ),
@@ -672,7 +672,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   ) {
     if (sources.isEmpty) {
       return AppEmptyState(
-        icon: Icons.extension,
+        icon: Icons.extension_rounded,
         message: l10n.sourceCategoryEmpty(categoryLabel),
         actionLabel: l10n.addSource,
         onAction: () => setState(() => _tab = _SourceTab.network),
@@ -759,7 +759,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                   index: sources.indexOf(s),
                   child: Padding(
                     padding: const EdgeInsets.only(right: AppTokens.spaceXs),
-                    child: Icon(Icons.drag_indicator,
+                    child: Icon(Icons.drag_indicator_rounded,
                         color: Theme.of(context).colorScheme.onSurfaceVariant
                             .withValues(alpha: 0.45),
                         size: 20),
@@ -996,21 +996,21 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                                     LibrarySourcesScreen(library: lib),
                               ),
                             ),
-                            icon: const Icon(Icons.list_alt, size: 18),
+                            icon: const Icon(Icons.list_alt_rounded, size: 18),
                             label: Text(l10n.viewLibrarySources),
                           ),
                           if (lib.homepage != null)
                             OutlinedButton.icon(
                               onPressed: () =>
                                   _openLibraryHomepage(lib.homepage),
-                              icon: const Icon(Icons.open_in_new, size: 18),
+                              icon: const Icon(Icons.open_in_new_rounded, size: 18),
                               label: Text(l10n.openHomepage),
                             ),
                           if (!lib.isOfficial)
                             OutlinedButton.icon(
                               onPressed: () => _unsubscribeLibrary(lib),
                               icon: const Icon(
-                                Icons.bookmark_remove_outlined,
+                                Icons.bookmark_remove_rounded,
                                 size: 18,
                               ),
                               label: Text(l10n.unsubscribeLibrary),
@@ -1075,10 +1075,10 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       child: AppCard(
         onTap: () => _enableRecommended(l10n),
         child: ListTile(
-          leading: const Icon(Icons.playlist_add_check),
+          leading: const Icon(Icons.playlist_add_check_rounded),
           title: Text(l10n.enableRecommendedSources),
           subtitle: Text(l10n.enableRecommendedSourcesHint),
-          trailing: const Icon(Icons.chevron_right),
+          trailing: const Icon(Icons.chevron_right_rounded),
         ),
       ),
     );
@@ -1118,7 +1118,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           controller: _urlController,
           decoration: InputDecoration(
             hintText: l10n.networkImportPasteHint,
-            prefixIcon: const Icon(Icons.link),
+            prefixIcon: const Icon(Icons.link_rounded),
             border: const OutlineInputBorder(),
             suffixIcon: _networkLoading
                 ? const SizedBox(
@@ -1127,7 +1127,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : IconButton(
-                    icon: const Icon(Icons.check),
+                    icon: const Icon(Icons.check_rounded),
                     onPressed: _fetchFromUrl,
                   ),
           ),
@@ -1148,10 +1148,10 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           controller: _collectApiUrlController,
           decoration: InputDecoration(
             hintText: l10n.collectApiUrlHint,
-            prefixIcon: const Icon(Icons.cloud_upload_outlined),
+            prefixIcon: const Icon(Icons.cloud_upload_rounded),
             border: const OutlineInputBorder(),
             suffixIcon: IconButton(
-              icon: const Icon(Icons.arrow_forward),
+              icon: const Icon(Icons.arrow_forward_rounded),
               tooltip: l10n.collectApiImportTitle,
               onPressed: _openCollectApiImport,
             ),
@@ -1220,7 +1220,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           if (isValid)
             Row(
               children: <Widget>[
-                Icon(Icons.check_circle, color: scheme.primary, size: 18),
+                Icon(Icons.check_circle_rounded, color: scheme.primary, size: 18),
                 const SizedBox(width: AppTokens.spaceXs),
                 Text(l10n.sourceImportValid),
               ],
@@ -1228,7 +1228,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           else ...<Widget>[
             Row(
               children: <Widget>[
-                Icon(Icons.error_outline, color: scheme.error, size: 18),
+                Icon(Icons.error_rounded, color: scheme.error, size: 18),
                 const SizedBox(width: AppTokens.spaceXs),
                 Text(l10n.sourceImportInvalid,
                     style: TextStyle(color: scheme.error)),
@@ -1276,7 +1276,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
-              Icons.description_outlined,
+              Icons.description_rounded,
               size: 64,
               color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),
@@ -1305,12 +1305,12 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               children: <Widget>[
                 FilledButton.icon(
                   onPressed: _pickLocalFile,
-                  icon: const Icon(Icons.file_open, size: 18),
+                  icon: const Icon(Icons.file_open_rounded, size: 18),
                   label: Text(l10n.selectFile),
                 ),
                 OutlinedButton.icon(
                   onPressed: _pickLocalFolder,
-                  icon: const Icon(Icons.folder_outlined, size: 18),
+                  icon: const Icon(Icons.folder_rounded, size: 18),
                   label: Text(l10n.selectFolder),
                 ),
               ],
@@ -1366,7 +1366,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.lock_outline, size: 16, color: scheme.onErrorContainer),
+                  Icon(Icons.lock_rounded, size: 16, color: scheme.onErrorContainer),
                   const SizedBox(width: AppTokens.spaceXs),
                   Expanded(
                     child: Text(
@@ -1387,7 +1387,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           child: Row(
             children: <Widget>[
               IconButton(
-                icon: const Icon(Icons.arrow_back, size: 20),
+                icon: const Icon(Icons.arrow_back_rounded, size: 20),
                 onPressed: () {
                   setState(() {
                     _previewMode = false;
@@ -1449,7 +1449,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
             color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
             child: Row(
               children: <Widget>[
-                Icon(Icons.filter_alt_outlined, size: 16,
+                Icon(Icons.filter_alt_rounded, size: 16,
                     color: scheme.onSurfaceVariant),
                 const SizedBox(width: AppTokens.spaceXs),
                 Expanded(
@@ -1530,7 +1530,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                     ],
                   ),
                   trailing: Icon(
-                    item.isValid ? Icons.check_circle : Icons.error_outline,
+                    item.isValid ? Icons.check_circle_rounded : Icons.error_rounded,
                     color: item.isValid
                         ? AppStatusColors.ok(scheme)
                         : scheme.error,
@@ -1561,7 +1561,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
                 onPressed: _selectedPreviewIndices.isNotEmpty
                     ? _confirmImport
                     : null,
-                icon: const Icon(Icons.file_download_outlined, size: 18),
+                icon: const Icon(Icons.file_download_rounded, size: 18),
                 label: Text(l10n.confirmImport),
               ),
             ],

@@ -90,7 +90,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
         actions: <Widget>[
           FilledButton.icon(
             onPressed: _save,
-            icon: const Icon(Icons.save_outlined),
+            icon: const Icon(Icons.save_rounded),
             label: Text(l10n.save),
           ),
           const SizedBox(width: AppTokens.spaceSm),

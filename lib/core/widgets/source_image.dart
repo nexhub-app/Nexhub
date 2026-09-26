@@ -171,7 +171,7 @@ class SourceImage extends StatelessWidget {
       height: height,
       color: scheme.surfaceContainerHighest,
       child: Icon(
-        Icons.image_outlined,
+        Icons.image_rounded,
         color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
       ),
     );
@@ -434,7 +434,7 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.broken_image, color: scheme.onSurfaceVariant),
+            Icon(Icons.broken_image_rounded, color: scheme.onSurfaceVariant),
             if (widget.enableRetry) ...<Widget>[
               const SizedBox(height: AppTokens.spaceXs),
               if (_retrying)
@@ -449,7 +449,7 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
               else if (!exhausted)
                 TextButton.icon(
                   onPressed: _retry,
-                  icon: const Icon(Icons.refresh, size: 18),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: Text(l10n.retry),
                 ),
             ],

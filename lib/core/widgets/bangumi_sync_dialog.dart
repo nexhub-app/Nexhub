@@ -326,7 +326,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
                 child: Icon(
-                  i <= _rate ? Icons.star : Icons.star_border,
+                  i <= _rate ? Icons.star_rounded : Icons.star_border_rounded,
                   size: 22,
                   color: i <= _rate ? scheme.primary : scheme.outline,
                 ),
@@ -381,7 +381,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
             ),
             if (!_loading)
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close_rounded),
                 visualDensity: VisualDensity.compact,
                 onPressed: () => Navigator.of(context).pop(),
               ),
@@ -412,7 +412,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                 tilePadding: EdgeInsets.zero,
                 childrenPadding:
                     const EdgeInsets.only(bottom: AppTokens.spaceMd),
-                leading: Icon(Icons.tune, size: 20, color: scheme.primary),
+                leading: Icon(Icons.tune_rounded, size: 20, color: scheme.primary),
                 title: Text(
                   l10n.bangumiSyncAdvancedOptions,
                   style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
@@ -423,14 +423,14 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                 ),
                 children: <Widget>[
                   Row(children: <Widget>[
-                    Icon(Icons.star_outline, size: 18, color: scheme.primary),
+                    Icon(Icons.star_rounded, size: 18, color: scheme.primary),
                     const SizedBox(width: AppTokens.spaceXs),
                     Text(l10n.bangumiSyncRating, style: theme.textTheme.titleSmall),
                     const Spacer(),
                     if (_rate > 0)
                       TextButton.icon(
                         onPressed: () => setState(() => _rate = 0),
-                        icon: const Icon(Icons.clear, size: 16),
+                        icon: const Icon(Icons.clear_rounded, size: 16),
                         label: Text(l10n.clear),
                       ),
                   ]),
@@ -469,7 +469,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                   ),
                   const SizedBox(height: AppTokens.spaceMd),
                   Row(children: <Widget>[
-                    Icon(_private ? Icons.lock : Icons.public,
+                    Icon(_private ? Icons.lock_rounded : Icons.public_rounded,
                         size: 18, color: scheme.primary),
                     const SizedBox(width: AppTokens.spaceXs),
                     Text(
@@ -504,7 +504,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary),
                       )
-                    : const Icon(Icons.sync, size: 18),
+                    : const Icon(Icons.sync_rounded, size: 18),
                 label: Text(
                   l10n.bangumiSync,
                   style: const TextStyle(fontWeight: FontWeight.w600),
@@ -522,7 +522,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
     final (done, total) = _progress();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
       Row(children: <Widget>[
-        Icon(Icons.bookmark_outline, size: 18, color: scheme.primary),
+        Icon(Icons.bookmark_rounded, size: 18, color: scheme.primary),
         const SizedBox(width: AppTokens.spaceXs),
         Text(l10n.bangumiSyncMyCompletion,
           style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
@@ -551,7 +551,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                   width: 16, height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Icon(Icons.refresh, size: 18),
+              : const Icon(Icons.refresh_rounded, size: 18),
           label: Text(l10n.bangumiSyncUpdate),
         ),
       ]),
@@ -596,7 +596,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
         ),
         IconButton(
           onPressed: () => _increment(ctrl),
-          icon: const Icon(Icons.add),
+          icon: const Icon(Icons.add_rounded),
           tooltip: AppLocalizations.of(context).bangumiSyncIncrement,
           visualDensity: VisualDensity.compact,
         ),
@@ -609,7 +609,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
     final (done, total) = _progress();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
       Row(children: <Widget>[
-        Icon(Icons.playlist_play, size: 18, color: scheme.primary),
+        Icon(Icons.playlist_play_rounded, size: 18, color: scheme.primary),
         const SizedBox(width: AppTokens.spaceXs),
         Text(l10n.bangumiSyncAnimeGridTitle,
           style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
@@ -663,7 +663,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                   width: 16, height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Icon(Icons.refresh, size: 18),
+              : const Icon(Icons.refresh_rounded, size: 18),
           label: Text(l10n.bangumiSyncUpdate),
         ),
       ]),
@@ -765,7 +765,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
     return Row(mainAxisAlignment: MainAxisAlignment.center, children: <Widget>[
       IconButton(
         onPressed: _epPage > 0 ? () => setState(() => _epPage--) : null,
-        icon: const Icon(Icons.navigate_before),
+        icon: const Icon(Icons.navigate_before_rounded),
         visualDensity: VisualDensity.compact,
       ),
       Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
@@ -776,7 +776,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
       ]),
       IconButton(
         onPressed: _epPage < totalPages - 1 ? () => setState(() => _epPage++) : null,
-        icon: const Icon(Icons.navigate_next),
+        icon: const Icon(Icons.navigate_next_rounded),
         visualDensity: VisualDensity.compact,
       ),
     ]);
@@ -832,7 +832,7 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
                   ],
                 ),
               ),
-              Icon(Icons.edit_outlined, size: 16, color: scheme.onSurfaceVariant),
+              Icon(Icons.edit_rounded, size: 16, color: scheme.onSurfaceVariant),
             ]),
           ),
         ),
@@ -939,7 +939,7 @@ class _AirScheduleEditorState extends State<_AirScheduleEditor> {
           const SizedBox(height: AppTokens.spaceSm),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.schedule),
+            leading: const Icon(Icons.schedule_rounded),
             title: Text(
                 '${l10n.bangumiSyncScheduleHour} / ${l10n.bangumiSyncScheduleMinute}'),
             trailing: Text(timeText,

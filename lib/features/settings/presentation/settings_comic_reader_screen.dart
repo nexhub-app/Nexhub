@@ -203,7 +203,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
         title: Text(l10n.comicReaderSettingsTitle),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.restore),
+            icon: const Icon(Icons.restore_rounded),
             tooltip: l10n.restoreDefault,
             onPressed: _confirmReset,
           ),

@@ -13,6 +13,7 @@ library;
 
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/app_haptics.dart';
 import '../../../../core/widgets/app_animations.dart';
@@ -150,7 +151,8 @@ class _SettingsCardState extends State<SettingsCard> {
     if (hasTitle) {
       columnChildren.add(
         InkWell(
-          onTap: canExpand ? () => setState(() => _expanded = !_expanded) : null,
+          onTap:
+              canExpand ? () => setState(() => _expanded = !_expanded) : null,
           borderRadius: BorderRadius.circular(AppTokens.radiusSm),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
@@ -186,7 +188,7 @@ class _SettingsCardState extends State<SettingsCard> {
                     duration: AppTokens.durBase,
                     curve: AppCurves.smooth,
                     child: Icon(
-                      Icons.expand_more,
+                      Icons.expand_more_rounded,
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -245,10 +247,16 @@ class _SettingsCardState extends State<SettingsCard> {
       fromScale: 0.97,
       duration: AppTokens.durSpring,
       child: Container(
-        margin: widget.margin ?? const EdgeInsets.only(bottom: AppTokens.spaceLg),
+        margin:
+            widget.margin ?? const EdgeInsets.only(bottom: AppTokens.spaceLg),
         child: Material(
-          color: widget.backgroundColor ?? theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+          color: widget.backgroundColor ??
+              AppTheme.cardContainer(theme.colorScheme),
+          // 柔和填充卡（Legado MD3 观感）：无描边无投影，靠色阶划界。
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+          ),
+          clipBehavior: Clip.antiAlias,
           child: Padding(
             padding: const EdgeInsets.all(AppTokens.spaceLg),
             child: Column(
@@ -326,7 +334,8 @@ class _SettingsSliderTileState extends State<SettingsSliderTile> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Expanded(child: Text(widget.label, style: theme.textTheme.bodyMedium)),
+              Expanded(
+                  child: Text(widget.label, style: theme.textTheme.bodyMedium)),
               // 数值变化时轻弹一下，给「正在调」的即时反馈。
               AppValuePulse(
                 trigger: widget.display,
@@ -552,5 +561,145 @@ class SettingsExpand extends StatelessWidget {
               ),
       ),
     );
+  }
+}
+
+/// 设置分组（Legado MD3 观感）：分组小标题 + **一张连体卡**。
+///
+/// 同一组的设置行合并进同一张圆角卡（「同一类连在一起」），行与行之间
+/// 用 outlineVariant 发丝分隔线区隔；卡面比页面底色亮一档
+/// （[AppTheme.cardContainer]）。小标题用 primary 强调色，左缘与行内图标对齐；
+/// [header] 传 null 则只渲染卡（无标题）。
+///
+/// 行本身用 [SettingsTile]（不再自带卡底），键（搜索定位 ValueKey）可挂在
+/// [SettingsGroup] 或具体行上。
+class SettingsGroup extends StatelessWidget {
+  final String? header;
+  final List<Widget> children;
+
+  const SettingsGroup({super.key, this.header, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final List<Widget> cardChildren = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      if (i > 0) {
+        cardChildren.add(
+          // 发丝分隔线：随主题 outlineVariant，与行内图标左缘对齐后两侧留白。
+          const Divider(
+            height: 1,
+            thickness: 1,
+            indent: AppTokens.spaceLg,
+            endIndent: AppTokens.spaceLg,
+          ),
+        );
+      }
+      cardChildren.add(children[i]);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (header != null)
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppTokens.spaceLg,
+              top: AppTokens.spaceLg,
+              bottom: AppTokens.spaceSm,
+            ),
+            child: Text(
+              header!,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ),
+        Material(
+          color: AppTheme.cardContainer(theme.colorScheme),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(children: cardChildren),
+        ),
+      ],
+    );
+  }
+}
+
+/// 设置行：组卡内的一行（自身不带卡底，Material 祖先由 [SettingsGroup] 提供）。
+///
+/// - 行高：有副标题最小 76、无副标题最小 64，内容垂直居中；
+/// - 强调色层次：图标与分组小标题同为 primary（Legado 截图的锈棕图标），
+///   标题 onSurface、副标题 onSurfaceVariant、chevron 再浅一档；
+/// - [trailing] 缺省且 [onTap] 非空时，自动渲染 chevron_right_rounded；
+///   需要放开关等自定义控件时显式传 [trailing] 且不传 [onTap]。
+class SettingsTile extends StatelessWidget {
+  final IconData? icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const SettingsTile({
+    super.key,
+    this.icon,
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme text = Theme.of(context).textTheme;
+
+    final Widget row = ConstrainedBox(
+      constraints: BoxConstraints(minHeight: subtitle == null ? 64 : 76),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceLg,
+          vertical: AppTokens.spaceMd,
+        ),
+        child: Row(
+          children: <Widget>[
+            if (icon != null) ...<Widget>[
+              Icon(icon, size: 22, color: scheme.primary),
+              const SizedBox(width: AppTokens.spaceLg),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Text(title, style: text.titleMedium),
+                  if (subtitle != null) ...<Widget>[
+                    const SizedBox(height: AppTokens.spaceXxs),
+                    Text(
+                      subtitle!,
+                      style: text.bodyMedium
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // chevron 比标题浅一档；仅交互/选中态用 primary 由图标承担。
+            if (trailing != null)
+              trailing!
+            else if (onTap != null)
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (onTap == null) return row;
+    return InkWell(onTap: onTap, child: row);
   }
 }

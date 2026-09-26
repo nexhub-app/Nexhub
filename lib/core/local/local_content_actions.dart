@@ -663,7 +663,7 @@ void showLocalEntryActions(BuildContext context, LocalContentEntry e) {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           ListTile(
-            leading: const Icon(Icons.open_in_new_outlined),
+            leading: const Icon(Icons.open_in_new_rounded),
             title: Text(l10n.contentImportOpened),
             onTap: () {
               Navigator.of(ctx).pop();
@@ -671,7 +671,7 @@ void showLocalEntryActions(BuildContext context, LocalContentEntry e) {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.edit_outlined),
+            leading: const Icon(Icons.edit_rounded),
             title: Text(l10n.renameGroup),
             onTap: () {
               Navigator.of(ctx).pop();
@@ -679,7 +679,7 @@ void showLocalEntryActions(BuildContext context, LocalContentEntry e) {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.delete_outline),
+            leading: const Icon(Icons.delete_rounded),
             title: Text(l10n.delete),
             onTap: () {
               Navigator.of(ctx).pop();
@@ -712,7 +712,7 @@ void showDownloadedEntryActions(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           ListTile(
-            leading: const Icon(Icons.open_in_new_outlined),
+            leading: const Icon(Icons.open_in_new_rounded),
             title: Text(l10n.contentImportOpened),
             onTap: () {
               Navigator.of(ctx).pop();
@@ -720,7 +720,7 @@ void showDownloadedEntryActions(
             },
           ),
           ListTile(
-            leading: const Icon(Icons.edit_outlined),
+            leading: const Icon(Icons.edit_rounded),
             title: Text(l10n.renameGroup),
             onTap: () {
               Navigator.of(ctx).pop();
@@ -728,7 +728,7 @@ void showDownloadedEntryActions(
             },
           ),
           ListTile(
-            leading: const Icon(Icons.delete_outline),
+            leading: const Icon(Icons.delete_rounded),
             title: Text(l10n.delete),
             onTap: () {
               Navigator.of(ctx).pop();

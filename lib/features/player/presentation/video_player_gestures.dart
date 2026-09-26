@@ -84,7 +84,7 @@ extension _VideoGestures on _VideoPlayerScreenState {
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      const Icon(Icons.cancel, color: Colors.white, size: 28),
+                      const Icon(Icons.cancel_rounded, color: Colors.white, size: 28),
                       const SizedBox(height: 4),
                       Text(
                         _gestureIndicatorText ?? '',

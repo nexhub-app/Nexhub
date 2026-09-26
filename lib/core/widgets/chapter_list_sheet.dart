@@ -184,14 +184,14 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
                         final tile = ListTile(
                         leading: isCurrent
                             ? Icon(
-                                Icons.play_arrow,
+                                Icons.play_arrow_rounded,
                                 color: theme.colorScheme.primary,
                               )
                             : (isBookmarked
                                 ? Tooltip(
                                     message: l10n.bookmarkedHint,
                                     child: Icon(
-                                      Icons.bookmark,
+                                      Icons.bookmark_rounded,
                                       size: 18,
                                       color: theme.colorScheme.primary,
                                     ),
@@ -258,7 +258,7 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: l10n.searchChapter,
-                      prefixIcon: const Icon(Icons.search, size: 20),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
                       isDense: true,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -275,7 +275,7 @@ class _ChapterListBodyState extends State<_ChapterListBody> {
                   tooltip: l10n.regexSearch,
                   isSelected: _regex,
                   color: _regex ? Theme.of(context).colorScheme.primary : null,
-                  icon: const Icon(Icons.alternate_email),
+                  icon: const Icon(Icons.alternate_email_rounded),
                   onPressed: () => setState(() => _regex = !_regex),
                 ),
               ],

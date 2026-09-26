@@ -233,7 +233,7 @@ class _BangumiFullTabState extends State<BangumiFullTab>
         child: Row(children: [
           Expanded(child: Text(msg, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant))),
-          TextButton.icon(onPressed: cb, icon: const Icon(Icons.link,size:16), label: Text(action)),
+          TextButton.icon(onPressed: cb, icon: const Icon(Icons.link_rounded,size:16), label: Text(action)),
         ]),
       );
 
@@ -247,8 +247,8 @@ class _BangumiFullTabState extends State<BangumiFullTab>
               leading: c.image != null ? ClipRRect(
                 borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                 child: Image.network(c.image!, width:36,height:50,fit:BoxFit.cover,
-                  errorBuilder:(_,__,___)=>const Icon(Icons.tv)),
-              ) : const Icon(Icons.tv, size:36),
+                  errorBuilder:(_,__,___)=>const Icon(Icons.tv_rounded)),
+              ) : const Icon(Icons.tv_rounded, size:36),
               title: Text(c.displayName, maxLines:1, overflow:TextOverflow.ellipsis),
               subtitle: Text([
                 if(c.name!=c.displayName) c.name,
@@ -257,7 +257,7 @@ class _BangumiFullTabState extends State<BangumiFullTab>
               trailing: TextButton(onPressed:()=>_bindCandidate(c), child:Text(l10n.bangumiBindSubject)),
             ),
           const SizedBox(height: AppTokens.spaceSm),
-          OutlinedButton.icon(onPressed:_rebind, icon:const Icon(Icons.search,size:16), label:Text(l10n.bangumiManualBind)),
+          OutlinedButton.icon(onPressed:_rebind, icon:const Icon(Icons.search_rounded,size:16), label:Text(l10n.bangumiManualBind)),
         ]),
       );
 
@@ -295,7 +295,7 @@ class _BangumiFullTabState extends State<BangumiFullTab>
                     // ── 详情内容（可折叠子区）──
                     _animate(
                       _CollapseTile(
-                        icon: Icons.info_outline,
+                        icon: Icons.info_rounded,
                         title: l10n.bangumiDetail,
                         expanded: _detailExpanded,
                         onChanged: (v) => setState(() => _detailExpanded = v),
@@ -308,7 +308,7 @@ class _BangumiFullTabState extends State<BangumiFullTab>
                       const SizedBox(height: AppTokens.spaceSm),
                       _animate(
                         _CollapseTile(
-                          icon: Icons.sell_outlined,
+                          icon: Icons.sell_rounded,
                           title: l10n.bangumiTags,
                           expanded: _tagsExpanded,
                           onChanged: (v) => setState(() => _tagsExpanded = v),
@@ -331,7 +331,7 @@ class _BangumiFullTabState extends State<BangumiFullTab>
                       const SizedBox(height: AppTokens.spaceSm),
                       _animate(
                         _CollapseTile(
-                          icon: Icons.people_outline,
+                          icon: Icons.people_rounded,
                           title: l10n.bangumiCharacters,
                           expanded: _charsExpanded,
                           onChanged: (v) => setState(() => _charsExpanded = v),
@@ -353,7 +353,7 @@ class _BangumiFullTabState extends State<BangumiFullTab>
                       const SizedBox(height: AppTokens.spaceSm),
                       _animate(
                         _CollapseTile(
-                          icon: Icons.movie_creation_outlined,
+                          icon: Icons.movie_creation_rounded,
                           title: l10n.bangumiStaff,
                           expanded: _staffExpanded,
                           onChanged: (v) => setState(() => _staffExpanded = v),
@@ -375,7 +375,7 @@ class _BangumiFullTabState extends State<BangumiFullTab>
                       const SizedBox(height: AppTokens.spaceSm),
                       _animate(
                         _CollapseTile(
-                          icon: Icons.link,
+                          icon: Icons.link_rounded,
                           title: l10n.bangumiRelated,
                           expanded: _relatedExpanded,
                           onChanged: (v) => setState(() => _relatedExpanded = v),
@@ -430,12 +430,12 @@ class _BangumiHeaderCard extends StatelessWidget {
               ),
               errorWidget: (_, __, ___) => Container(
                 width: 72, height: 96, color: scheme.surfaceContainerHighest,
-                child: const Center(child: Icon(Icons.tv, size: 28)),
+                child: const Center(child: Icon(Icons.tv_rounded, size: 28)),
               ),
             ),
           )
         : Container(width: 72, height: 96, color: scheme.surfaceContainerHighest,
-            child: const Center(child: Icon(Icons.tv, size: 28)));
+            child: const Center(child: Icon(Icons.tv_rounded, size: 28)));
 
     final coverAnimated = TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0.92, end: 1),
@@ -464,17 +464,17 @@ class _BangumiHeaderCard extends StatelessWidget {
                   Expanded(child: Text(detail.displayName,
                     style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                     maxLines: 2, overflow: TextOverflow.ellipsis)),
-                  IconButton(icon: const Icon(Icons.open_in_new, size: 18),
+                  IconButton(icon: const Icon(Icons.open_in_new_rounded, size: 18),
                     tooltip: l10n.bangumiViewOnWeb, visualDensity: VisualDensity.compact,
                     onPressed: onOpenWeb),
-                  IconButton(icon: const Icon(Icons.link, size: 18),
+                  IconButton(icon: const Icon(Icons.link_rounded, size: 18),
                     tooltip: l10n.bangumiManualBind, visualDensity: VisualDensity.compact,
                     onPressed: onRebind),
                 ]),
                 const SizedBox(height: AppTokens.spaceXs),
                 if (rating.hasScore)
                   Row(children: [
-                    Icon(Icons.star, color: scheme.primary, size: 18),
+                    Icon(Icons.star_rounded, color: scheme.primary, size: 18),
                     const SizedBox(width: AppTokens.spaceXs),
                     Text(rating.score.toStringAsFixed(1),
                       style: theme.textTheme.titleSmall?.copyWith(
@@ -540,7 +540,7 @@ class _CollapseTile extends StatelessWidget {
             AnimatedRotation(
               turns: expanded ? 0.5 : 0,
               duration: const Duration(milliseconds: 240),
-              child: Icon(Icons.expand_more, color: scheme.onSurfaceVariant, size: 20),
+              child: Icon(Icons.expand_more_rounded, color: scheme.onSurfaceVariant, size: 20),
             ),
           ]),
         ),
@@ -590,7 +590,7 @@ class _DetailBodyState extends State<_DetailBody> {
               color: scheme.primary, fontWeight: FontWeight.bold)),
           const SizedBox(width: AppTokens.spaceMd),
           if (widget.rating.rank > 0) ...<Widget>[
-            Icon(Icons.emoji_events_outlined, size: 16, color: scheme.tertiary),
+            Icon(Icons.emoji_events_rounded, size: 16, color: scheme.tertiary),
             const SizedBox(width: AppTokens.spaceXs),
             Text(l10n.bangumiRank(widget.rating.rank),
               style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
@@ -620,20 +620,20 @@ class _DetailBodyState extends State<_DetailBody> {
       if (d.eps > 0 || d.airDate != null) ...<Widget>[
         const SizedBox(height: AppTokens.spaceSm),
         Wrap(spacing: AppTokens.spaceMd, runSpacing: AppTokens.spaceSm, children: <Widget>[
-          if (d.eps > 0) _MetaChip(icon: Icons.movie_outlined, label: l10n.bangumiEps(d.eps)),
-          if (d.airDate != null) _MetaChip(icon: Icons.event_outlined, label: l10n.bangumiAirDate(d.airDate!)),
-          _MetaChip(icon: Icons.category_outlined, label: _typeLabel(d.type, l10n)),
+          if (d.eps > 0) _MetaChip(icon: Icons.movie_rounded, label: l10n.bangumiEps(d.eps)),
+          if (d.airDate != null) _MetaChip(icon: Icons.event_rounded, label: l10n.bangumiAirDate(d.airDate!)),
+          _MetaChip(icon: Icons.category_rounded, label: _typeLabel(d.type, l10n)),
         ]),
       ],
       // 收藏统计
       if (col.total > 0) ...<Widget>[
         const SizedBox(height: AppTokens.spaceSm),
         Wrap(spacing: AppTokens.spaceLg, runSpacing: AppTokens.spaceSm, children: <Widget>[
-          if (col.wish > 0) _CollectionChip(icon: Icons.favorite_border, label: l10n.bangumiCollectionWish(col.wish), count: col.wish, color: scheme.tertiary),
-          if (col.doing > 0) _CollectionChip(icon: Icons.play_circle_outline, label: l10n.bangumiCollectionDoing(col.doing), count: col.doing, color: scheme.primary),
-          if (col.collect > 0) _CollectionChip(icon: Icons.check_circle_outline, label: l10n.bangumiCollectionCollect(col.collect), count: col.collect, color: scheme.secondary),
-          if (col.onHold > 0) _CollectionChip(icon: Icons.pause_circle_outline, label: '${col.onHold} ${l10n.bangumiStateOnHold}', count: col.onHold, color: scheme.outline),
-          if (col.dropped > 0) _CollectionChip(icon: Icons.cancel_outlined, label: '${col.dropped} ${l10n.bangumiStateDropped}', count: col.dropped, color: scheme.error),
+          if (col.wish > 0) _CollectionChip(icon: Icons.favorite_border_rounded, label: l10n.bangumiCollectionWish(col.wish), count: col.wish, color: scheme.tertiary),
+          if (col.doing > 0) _CollectionChip(icon: Icons.play_circle_rounded, label: l10n.bangumiCollectionDoing(col.doing), count: col.doing, color: scheme.primary),
+          if (col.collect > 0) _CollectionChip(icon: Icons.check_circle_rounded, label: l10n.bangumiCollectionCollect(col.collect), count: col.collect, color: scheme.secondary),
+          if (col.onHold > 0) _CollectionChip(icon: Icons.pause_circle_rounded, label: '${col.onHold} ${l10n.bangumiStateOnHold}', count: col.onHold, color: scheme.outline),
+          if (col.dropped > 0) _CollectionChip(icon: Icons.cancel_rounded, label: '${col.dropped} ${l10n.bangumiStateDropped}', count: col.dropped, color: scheme.error),
         ]),
       ],
     ]);
@@ -711,9 +711,9 @@ class _CharacterTile extends StatelessWidget {
           placeholder: (_, __) => Container(color: theme.colorScheme.surfaceContainerHighest,
             child: const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 1.5)))),
           errorWidget: (_, __, ___) => Container(color: theme.colorScheme.surfaceContainerHighest,
-            child: const Center(child: Icon(Icons.person_outline))),
+            child: const Center(child: Icon(Icons.person_rounded))),
         ) : Container(color: theme.colorScheme.surfaceContainerHighest,
-          child: const Center(child: Icon(Icons.person_outline))),
+          child: const Center(child: Icon(Icons.person_rounded))),
       )),
       const SizedBox(height: AppTokens.spaceXs),
       Text(char.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelSmall),
@@ -737,9 +737,9 @@ class _StaffTile extends StatelessWidget {
           placeholder: (_, __) => Container(color: scheme.surfaceContainerHighest,
             child: const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 1.5)))),
           errorWidget: (_, __, ___) => Container(color: scheme.surfaceContainerHighest,
-            child: const Center(child: Icon(Icons.person_outline))),
+            child: const Center(child: Icon(Icons.person_rounded))),
         ) : Container(color: scheme.surfaceContainerHighest,
-          child: const Center(child: Icon(Icons.person_outline))),
+          child: const Center(child: Icon(Icons.person_rounded))),
       )),
       const SizedBox(height: AppTokens.spaceXs),
       Text(staff.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.labelSmall),
@@ -765,9 +765,9 @@ class _RelatedTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTokens.radiusSm),
         child: CachedNetworkImage(imageUrl: BangumiProxyConfig.instance.resolveImageUrl(related.image!), width: 40, height: 54, fit: BoxFit.cover,
           placeholder: (_, __) => const SizedBox(width: 40, height: 54, child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 1.5)))),
-          errorWidget: (_, __, ___) => const Icon(Icons.tv, size: 40),
+          errorWidget: (_, __, ___) => const Icon(Icons.tv_rounded, size: 40),
         ),
-      ) : const Icon(Icons.tv, size: 40),
+      ) : const Icon(Icons.tv_rounded, size: 40),
       title: Text(related.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Row(children: [
         if (related.relation != null) ...<Widget>[
@@ -781,7 +781,7 @@ class _RelatedTile extends StatelessWidget {
         if (related.score == null && related.relation == null)
           Text(_typeLabel(related.type, l10n), style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
       ]),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: onTap,
     );
   }

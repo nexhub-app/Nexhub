@@ -210,7 +210,7 @@ class _SettingsImportExportScreenState
                         Navigator.pop(sheetCtx);
                         _showFolderThenExport();
                       },
-                icon: const Icon(Icons.file_upload_outlined),
+                icon: const Icon(Icons.file_upload_rounded),
                 label: Text(l10n.exportData),
               ),
               if (_selected.isEmpty)
@@ -256,15 +256,15 @@ class _SettingsImportExportScreenState
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   ListTile(
-                    leading: const Icon(Icons.folder_special),
+                    leading: const Icon(Icons.folder_special_rounded),
                     title: Text(l10n.exportFolderDefault),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => Navigator.pop(ctx, 'default'),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.save_outlined),
+                    leading: const Icon(Icons.save_rounded),
                     title: Text(l10n.exportFolderCustom),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => Navigator.pop(ctx, 'custom'),
                   ),
                 ],
@@ -301,17 +301,17 @@ class _SettingsImportExportScreenState
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   ListTile(
-                    leading: const Icon(Icons.folder_special),
+                    leading: const Icon(Icons.folder_special_rounded),
                     title: Text(l10n.exportFolderDefault),
                     subtitle:
                         _exportFolder.isNotEmpty ? Text(_exportFolder) : null,
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => Navigator.pop(ctx, 'default'),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.save_outlined),
+                    leading: const Icon(Icons.save_rounded),
                     title: Text(l10n.exportFolderCustom),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => Navigator.pop(ctx, 'custom'),
                   ),
                 ],
@@ -378,19 +378,19 @@ class _SettingsImportExportScreenState
         children: <Widget>[
           _ImportExportGroupHeader(label: l10n.importData),
           AppListTile(
-            leading: const Icon(Icons.file_open_outlined),
+            leading: const Icon(Icons.file_open_rounded),
             title: Text(l10n.importData),
             subtitle: Text(l10n.importDataDesc),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => _pickImportFile(),
           ),
           const SizedBox(height: AppTokens.spaceXl),
           _ImportExportGroupHeader(label: l10n.exportData),
           AppListTile(
-            leading: const Icon(Icons.download_outlined),
+            leading: const Icon(Icons.download_rounded),
             title: Text(l10n.exportData),
             subtitle: Text(l10n.exportDataDesc),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => _showExportSheet(),
           ),
           const SizedBox(height: AppTokens.spaceXl),
@@ -414,7 +414,7 @@ class _SettingsImportExportScreenState
               child: Row(
                 children: <Widget>[
                   Icon(
-                    Icons.info_outline,
+                    Icons.info_rounded,
                     size: 18,
                     color: Theme.of(context).colorScheme.primary,
                   ),

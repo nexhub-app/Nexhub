@@ -160,7 +160,7 @@ class _GroupAssignSheetState extends State<_GroupAssignSheet> {
                         ),
                       // 快捷新建分组入口。
                       ActionChip(
-                        avatar: const Icon(Icons.add, size: 16),
+                        avatar: const Icon(Icons.add_rounded, size: 16),
                         label: Text(l10n.newGroup),
                         onPressed: _quickCreate,
                       ),

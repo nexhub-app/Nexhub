@@ -214,7 +214,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             onPressed: () => Navigator.of(context).maybePop(),
             tooltip: l10n.close,
           ),
@@ -236,7 +236,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
         ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.file_open_outlined, color: theme.colorScheme.primary),
+          leading: Icon(Icons.file_open_rounded, color: theme.colorScheme.primary),
           title: Text(l10n.loadExternalSubtitle),
           onTap: () => _pickExternalSubtitle(l10n),
         ),
@@ -247,7 +247,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
             contentPadding: EdgeInsets.zero,
             title: Text(_trackLabel(track, l10n)),
             trailing: selected?.id == track.id
-                ? Icon(Icons.check, color: theme.colorScheme.primary)
+                ? Icon(Icons.check_rounded, color: theme.colorScheme.primary)
                 : null,
             onTap: () {
               widget.controller.setSubtitleTrack(track);
@@ -260,7 +260,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
           contentPadding: EdgeInsets.zero,
           title: Text(l10n.subtitleNone),
           trailing: selected == null
-              ? Icon(Icons.check, color: theme.colorScheme.primary)
+              ? Icon(Icons.check_rounded, color: theme.colorScheme.primary)
               : null,
           onTap: () {
             widget.controller.setSubtitleTrack(null);
@@ -433,9 +433,9 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
         ),
         SegmentedButton<String>(
           segments: const <ButtonSegment<String>>[
-            ButtonSegment(value: 'top', label: Text('顶部'), icon: Icon(Icons.vertical_align_top, size: 16)),
-            ButtonSegment(value: 'center', label: Text('居中'), icon: Icon(Icons.vertical_align_center, size: 16)),
-            ButtonSegment(value: 'bottom', label: Text('底部'), icon: Icon(Icons.vertical_align_bottom, size: 16)),
+            ButtonSegment(value: 'top', label: Text('顶部'), icon: Icon(Icons.vertical_align_top_rounded, size: 16)),
+            ButtonSegment(value: 'center', label: Text('居中'), icon: Icon(Icons.vertical_align_center_rounded, size: 16)),
+            ButtonSegment(value: 'bottom', label: Text('底部'), icon: Icon(Icons.vertical_align_bottom_rounded, size: 16)),
           ],
           selected: {_subPosition},
           onSelectionChanged: (Set<String> s) {
@@ -692,7 +692,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                             child: CircularProgressIndicator(strokeWidth: 2))
                         : OutlinedButton.icon(
                             onPressed: _pickSubtitleAndStart,
-                            icon: const Icon(Icons.movie_filter_outlined,
+                            icon: const Icon(Icons.movie_filter_rounded,
                                 size: 18),
                             label: Text(l10n.offlinePickSubtitle),
                           ),
@@ -714,7 +714,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                   if (job.status == SubtitleJobStatus.running)
                     IconButton(
                       tooltip: l10n.offlineCancel,
-                      icon: const Icon(Icons.close, size: 18),
+                      icon: const Icon(Icons.close_rounded, size: 18),
                       onPressed: () =>
                           _offlinePipeline.cancel(job.id),
                     ),
@@ -732,7 +732,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                         fontSize: 12, color: theme.colorScheme.error)),
                 TextButton.icon(
                   onPressed: () => unawaited(_resumeOfflineJob(job)),
-                  icon: const Icon(Icons.refresh, size: 16),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
                   label: Text(l10n.offlineResume),
                 ),
               ],
@@ -744,20 +744,20 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                     OutlinedButton.icon(
                       onPressed: () =>
                           unawaited(_exportOffline(job, ass: false)),
-                      icon: const Icon(Icons.file_download_outlined,
+                      icon: const Icon(Icons.file_download_rounded,
                           size: 16),
                       label: Text(l10n.offlineExportSrt),
                     ),
                     OutlinedButton.icon(
                       onPressed: () =>
                           unawaited(_exportOffline(job, ass: true)),
-                      icon: const Icon(Icons.file_download_outlined,
+                      icon: const Icon(Icons.file_download_rounded,
                           size: 16),
                       label: Text(l10n.offlineExportAss),
                     ),
                     OutlinedButton.icon(
                       onPressed: () => unawaited(_uploadOffline(job)),
-                      icon: const Icon(Icons.cloud_upload_outlined,
+                      icon: const Icon(Icons.cloud_upload_rounded,
                           size: 16),
                       label: Text(l10n.offlineUpload),
                     ),
@@ -765,7 +765,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                 ),
                 OutlinedButton.icon(
                   onPressed: () => unawaited(_resumeOfflineJob(job)),
-                  icon: const Icon(Icons.translate, size: 16),
+                  icon: const Icon(Icons.translate_rounded, size: 16),
                   label: Text(l10n.offlineRetranslate),
                 ),
                 // F10：批量导出全部已完成任务的双语 SRT。
@@ -773,7 +773,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                   onPressed: _doneJobCount > 1
                       ? () => unawaited(_exportAllOffline())
                       : null,
-                  icon: const Icon(Icons.file_copy_outlined, size: 16),
+                  icon: const Icon(Icons.file_copy_rounded, size: 16),
                   label: Text(l10n.offlineExportAll,
                       style: const TextStyle(fontSize: 12)),
                 ),

@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/update/update_manager.dart';
 import '../../../core/utils/app_haptics.dart';
-import '../../../core/widgets/app_list_tile.dart';
+
 import './widgets/settings_widgets.dart';
 import './settings_update_screen.dart';
 
@@ -140,7 +140,7 @@ class _AboutScreenState extends State<AboutScreen> {
       appBar: AppBar(
         title: Text(l10n.aboutAppTitle),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.maybePop(context),
         ),
       ),
@@ -181,70 +181,62 @@ class _AboutScreenState extends State<AboutScreen> {
 
           const SizedBox(height: AppTokens.spaceXl),
 
-          // ── Description ──
-          AppListTile(
-            leading: const SettingsLeadingIcon(icon:Icons.info_outline),
-            title: Text(l10n.aboutApp),
-            subtitle: Text(l10n.aboutDescription),
-          ),
-
-          const SizedBox(height: AppTokens.spaceLg),
-
-          // ── Licenses / libraries ──
-          AppListTile(
-            leading: const SettingsLeadingIcon(icon:Icons.description_outlined),
-            title: Text(l10n.openSourceLicenses),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => showLicensePage(
-              context: context,
-              applicationName: 'NexHub',
-              applicationVersion: versionText,
-              applicationIcon: const SizedBox(
-                width: 48,
-                height: 48,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.all(Radius.circular(AppTokens.radiusMd)),
-                  child: Image(
-                    image: AssetImage('assets/icon/icon.png'),
-                    fit: BoxFit.cover,
+          // ── 条目统一为独立描边小卡（R3/R5）──
+          SettingsGroup(
+            header: l10n.aboutAppTitle,
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.info_rounded,
+                title: l10n.aboutApp,
+                subtitle: l10n.aboutDescription,
+              ),
+              SettingsTile(
+                icon: Icons.description_rounded,
+                title: l10n.openSourceLicenses,
+                onTap: () => showLicensePage(
+                  context: context,
+                  applicationName: 'NexHub',
+                  applicationVersion: versionText,
+                  applicationIcon: const SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: ClipRRect(
+                      borderRadius:
+                          BorderRadius.all(Radius.circular(AppTokens.radiusMd)),
+                      child: Image(
+                        image: AssetImage('assets/icon/icon.png'),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          AppListTile(
-            leading: const SettingsLeadingIcon(icon:Icons.inventory_2_outlined),
-            title: Text(l10n.thirdPartyLibraries),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => showLicensePage(
-              context: context,
-              applicationName: 'NexHub',
-              applicationVersion: versionText,
-            ),
-          ),
-
-        AppListTile(
-          leading: const SettingsLeadingIcon(icon:Icons.favorite_outline),
-          title: Text(l10n.acknowledgements),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => _showAcknowledgements(l10n),
-        ),
-
-        const SizedBox(height: AppTokens.spaceLg),
-
-        // ── Repository / update ──
-          AppListTile(
-            leading: const SettingsLeadingIcon(icon:Icons.code),
-            title: Text(l10n.projectRepository),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _openRepository,
-          ),
-          AppListTile(
-            leading: const SettingsLeadingIcon(icon:Icons.system_update_alt),
-            title: Text(l10n.updateSettings),
-            subtitle: Text(l10n.updateSettingsDesc),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _openUpdateSettings(),
+              SettingsTile(
+                icon: Icons.inventory_2_rounded,
+                title: l10n.thirdPartyLibraries,
+                onTap: () => showLicensePage(
+                  context: context,
+                  applicationName: 'NexHub',
+                  applicationVersion: versionText,
+                ),
+              ),
+              SettingsTile(
+                icon: Icons.favorite_rounded,
+                title: l10n.acknowledgements,
+                onTap: () => _showAcknowledgements(l10n),
+              ),
+              SettingsTile(
+                icon: Icons.code_rounded,
+                title: l10n.projectRepository,
+                onTap: _openRepository,
+              ),
+              SettingsTile(
+                icon: Icons.system_update_alt_rounded,
+                title: l10n.updateSettings,
+                subtitle: l10n.updateSettingsDesc,
+                onTap: () => _openUpdateSettings(),
+              ),
+            ],
           ),
         ],
       ),

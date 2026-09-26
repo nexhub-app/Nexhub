@@ -38,7 +38,7 @@ class MediaOnlineListScreen extends StatelessWidget {
       onAddSource: onAddSource,
       onEnableRecommended: onEnableRecommended,
       verificationHandler: handleVerificationRequest,
-      emptyIcon: Icons.movie_outlined,
+      emptyIcon: Icons.movie_rounded,
       fetchItems: (PluginConfig source,
               {String? category,
               int page = 1,

@@ -270,7 +270,7 @@ class _DanmakuMatchSheetState extends State<DanmakuMatchSheet> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             tooltip: l10n.close,
             onPressed: () => Navigator.of(context).maybePop(),
           ),

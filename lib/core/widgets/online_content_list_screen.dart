@@ -93,7 +93,7 @@ class OnlineContentListScreen extends StatefulWidget {
     this.onEnableRecommended,
     this.verificationHandler,
     this.initialGrid = true,
-    this.emptyIcon = Icons.video_library,
+    this.emptyIcon = Icons.video_library_rounded,
   });
 
   final String title;
@@ -995,7 +995,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       builder: (ctx) => AppAlertDialog(
         title: Row(
           children: <Widget>[
-            Icon(Icons.campaign_outlined, color: scheme.primary),
+            Icon(Icons.campaign_rounded, color: scheme.primary),
             const SizedBox(width: AppTokens.spaceSm),
             Expanded(child: Text(ann.title)),
           ],
@@ -1129,7 +1129,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       return Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () => Navigator.maybePop(context),
           ),
           title: Text(l10n.onlineBrowse),
@@ -1153,7 +1153,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.maybePop(context),
         ),
         title: Text(_source?.name ?? l10n.onlineBrowse),
@@ -1161,13 +1161,13 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
             ? null
             : <Widget>[
                 IconButton(
-                  icon: const Icon(Icons.public),
+                  icon: const Icon(Icons.public_rounded),
                   tooltip: l10n.openSourceWebsite,
                   onPressed: () =>
                       openInAppBrowser(context, _source!.site.baseUrl),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(Icons.refresh_rounded),
                   tooltip: l10n.refreshList,
                   onPressed: () {
                     _loadHome();
@@ -1216,7 +1216,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         children: <Widget>[
           if (widget.onSearch != null)
             IconButton(
-              icon: const Icon(Icons.search),
+              icon: const Icon(Icons.search_rounded),
               tooltip: l10n.search,
               onPressed: widget.onSearch,
             ),
@@ -1252,7 +1252,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
               final applied = state.filter.toVars().isNotEmpty;
               return IconButton(
                 icon: Icon(
-                  Icons.filter_list,
+                  Icons.filter_list_rounded,
                   color: applied ? scheme.primary : null,
                 ),
                 tooltip: l10n.filter,
@@ -1431,7 +1431,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     }
     if (_scheduleItems.isEmpty) {
       return AppEmptyState(
-        icon: Icons.calendar_today_outlined,
+        icon: Icons.calendar_today_rounded,
         message: l10n.emptyContent,
       );
     }
@@ -1467,7 +1467,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(Icons.bookmark_outline, size: 48, color: scheme.onSurfaceVariant),
+              Icon(Icons.bookmark_rounded, size: 48, color: scheme.onSurfaceVariant),
               const SizedBox(height: AppTokens.spaceMd),
               Text(
                 wf!.title ?? l10n.onlineTabWebFavorite,
@@ -1475,7 +1475,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
               ),
               const SizedBox(height: AppTokens.spaceSm),
               FilledButton.icon(
-                icon: const Icon(Icons.open_in_browser),
+                icon: const Icon(Icons.open_in_browser_rounded),
                 label: Text(l10n.openInBrowser),
                 onPressed: () => openInAppBrowser(
                   context,
@@ -1552,7 +1552,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(Icons.chevron_left, size: 18, color: scheme.primary),
+                  Icon(Icons.chevron_left_rounded, size: 18, color: scheme.primary),
                   const SizedBox(width: 2),
                   Text(
                     l10n.backToFolders,
@@ -1581,7 +1581,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       children.add(
         Expanded(
           child: AppEmptyState(
-            icon: Icons.bookmark_outline,
+            icon: Icons.bookmark_rounded,
             message: l10n.emptyContent,
           ),
         ),
@@ -2369,7 +2369,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     }
     if (_rankItems.isEmpty) {
       return AppEmptyState(
-        icon: Icons.emoji_events_outlined,
+        icon: Icons.emoji_events_rounded,
         message: l10n.emptyContent,
       );
     }
@@ -2421,10 +2421,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                           width: 40,
                           height: 56,
                           fit: BoxFit.cover,
-                          placeholder: const Icon(Icons.movie, size: 20),
+                          placeholder: const Icon(Icons.movie_rounded, size: 20),
                         ),
                       )
-                    : const Icon(Icons.movie, size: 20),
+                    : const Icon(Icons.movie_rounded, size: 20),
               ),
               const SizedBox(width: AppTokens.spaceMd),
               Expanded(
@@ -2451,7 +2451,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              const Icon(Icons.chevron_right_rounded),
             ],
           ),
         );
@@ -2595,7 +2595,7 @@ class _WebFavoriteFolderTile extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                Icon(Icons.folder_outlined, color: fg),
+                Icon(Icons.folder_rounded, color: fg),
                 const SizedBox(width: AppTokens.spaceMd),
                 Expanded(
                   child: Text(title, style: TextStyle(color: fg)),
@@ -2618,7 +2618,7 @@ class _WebFavoriteFolderTile extends StatelessWidget {
                     ),
                   ),
                 Icon(
-                  Icons.chevron_right,
+                  Icons.chevron_right_rounded,
                   color: fg.withAlpha(140),
                 ),
               ],

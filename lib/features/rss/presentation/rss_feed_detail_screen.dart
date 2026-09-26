@@ -273,19 +273,19 @@ class _RssFeedDetailScreenState extends State<RssFeedDetailScreen> {
             maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.done_all_outlined),
+            icon: const Icon(Icons.done_all_rounded),
             tooltip: l10n.rssMarkAllRead,
             onPressed: _onMarkAllRead,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             tooltip: l10n.retry,
             onPressed: _loadFeed,
           ),
           // 按源开关：打开文章时自动抓取原站全文（手动「拉取网站解析」不受限）。
           IconButton(
             icon: Icon(
-              Icons.read_more_outlined,
+              Icons.read_more_rounded,
               color: widget.feed.autoFetchFullText
                   ? scheme.primary
                   : scheme.onSurfaceVariant,
@@ -303,7 +303,7 @@ class _RssFeedDetailScreenState extends State<RssFeedDetailScreen> {
           ),
           // 列表排序：最新在前 / 最旧在前 / 未读优先。
           PopupMenuButton<int>(
-            icon: const Icon(Icons.sort_outlined),
+            icon: const Icon(Icons.sort_rounded),
             tooltip: l10n.rssSort,
             onSelected: _setSortMode,
             itemBuilder: (BuildContext context) => <PopupMenuEntry<int>>[
@@ -317,7 +317,7 @@ class _RssFeedDetailScreenState extends State<RssFeedDetailScreen> {
                   child: Row(
                     children: <Widget>[
                       if (_sortMode == e.key)
-                        const Icon(Icons.check, size: 18)
+                        const Icon(Icons.check_rounded, size: 18)
                       else
                         const SizedBox(width: 18),
                       const SizedBox(width: AppTokens.spaceSm),
@@ -345,10 +345,10 @@ class _RssFeedDetailScreenState extends State<RssFeedDetailScreen> {
             child: AppSearchField(
               controller: _searchCtrl,
               hint: l10n.rssSearchHint,
-              prefixIcon: const Icon(Icons.search, size: 20),
+              prefixIcon: const Icon(Icons.search_rounded, size: 20),
               suffixIcon: _query.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
+                      icon: const Icon(Icons.clear_rounded, size: 18),
                       onPressed: () {
                         _searchCtrl.clear();
                         setState(() => _query = '');
@@ -433,7 +433,7 @@ class _RssFeedDetailScreenState extends State<RssFeedDetailScreen> {
     final items = _visibleItems;
     if (items.isEmpty) {
       return AppEmptyState(
-        icon: Icons.article_outlined,
+        icon: Icons.article_rounded,
         message: _query.trim().isNotEmpty
             ? l10n.rssSearchNoResult
             : l10n.emptyRssItems,

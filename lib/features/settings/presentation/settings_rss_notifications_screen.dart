@@ -36,7 +36,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
           AppCard(
             child: AppListTile(
               leading: Icon(
-                Icons.notifications_outlined,
+                Icons.notifications_rounded,
                 color: Theme.of(context).colorScheme.primary,
               ),
               title: Text(l10n.rssNotificationEnabled),
@@ -59,12 +59,12 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
                 children: <Widget>[
                   AppListTile(
                     leading: Icon(
-                      Icons.schedule,
+                      Icons.schedule_rounded,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     title: Text(l10n.rssUpdateInterval),
                     subtitle: Text(_intervalLabel(l10n, checker.interval)),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _showIntervalPicker(context, checker),
                   ),
                 ],
@@ -76,7 +76,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
             AppCard(
               child: AppListTile(
                 leading: Icon(
-                  Icons.battery_charging_full_outlined,
+                  Icons.battery_charging_full_rounded,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text(l10n.rssChargeCheck),
@@ -96,7 +96,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
             AppCard(
               child: AppListTile(
                 leading: Icon(
-                  Icons.notification_important_outlined,
+                  Icons.notification_important_rounded,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text(l10n.rssSystemNotification),
@@ -116,7 +116,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
             AppCard(
               child: AppListTile(
                 leading: Icon(
-                  Icons.refresh,
+                  Icons.refresh_rounded,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text(l10n.rssCheckNow),
@@ -145,7 +145,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
                 children: <Widget>[
                   AppListTile(
                     leading: Icon(
-                      Icons.auto_delete_outlined,
+                      Icons.auto_delete_rounded,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     title: Text(l10n.rssAutoReadTitle),
@@ -203,7 +203,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
-                        icon: const Icon(Icons.add, size: 18),
+                        icon: const Icon(Icons.add_rounded, size: 18),
                         label: Text(l10n.rssAutoReadAdd),
                         onPressed: () => _promptKeyword(context, checker),
                       ),
@@ -307,7 +307,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
               children: <Widget>[
                 if (checker.interval == i)
                   Icon(
-                    Icons.check,
+                    Icons.check_rounded,
                     color: Theme.of(context).colorScheme.primary,
                   )
                 else

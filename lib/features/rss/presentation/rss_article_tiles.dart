@@ -60,14 +60,14 @@ class RssListLayoutAction extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     return PopupMenuButton<int>(
-      icon: const Icon(Icons.view_agenda_outlined),
+      icon: const Icon(Icons.view_agenda_rounded),
       tooltip: l10n.rssListLayout,
       onSelected: onSelected,
       itemBuilder: (BuildContext context) => <PopupMenuEntry<int>>[
-        _item(0, Icons.list, l10n.rssLayoutList),
-        _item(1, Icons.view_agenda_outlined, l10n.rssLayoutCard),
-        _item(2, Icons.view_headline_outlined, l10n.rssLayoutCompact),
-        _item(3, Icons.image_outlined, l10n.rssLayoutMagazine),
+        _item(0, Icons.list_rounded, l10n.rssLayoutList),
+        _item(1, Icons.view_agenda_rounded, l10n.rssLayoutCard),
+        _item(2, Icons.view_headline_rounded, l10n.rssLayoutCompact),
+        _item(3, Icons.image_rounded, l10n.rssLayoutMagazine),
       ],
     );
   }
@@ -162,7 +162,7 @@ Widget _metaRow(RssArticleTileData d, ThemeData theme) {
   return Row(
     children: <Widget>[
       if (who != null && who.isNotEmpty) ...<Widget>[
-        Icon(Icons.person_outline, size: 12, color: color),
+        Icon(Icons.person_rounded, size: 12, color: color),
         const SizedBox(width: AppTokens.spaceXxs),
         Flexible(
           child: Text(
@@ -175,7 +175,7 @@ Widget _metaRow(RssArticleTileData d, ThemeData theme) {
         const SizedBox(width: AppTokens.spaceSm),
       ],
       if (d.dateText != null) ...<Widget>[
-        Icon(Icons.schedule, size: 12, color: color),
+        Icon(Icons.schedule_rounded, size: 12, color: color),
         const SizedBox(width: AppTokens.spaceXxs),
         Text(
           d.dateText!,

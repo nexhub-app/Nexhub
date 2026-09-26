@@ -62,17 +62,17 @@ class _SettingsCategoriesScreenState extends State<SettingsCategoriesScreen> {
                 ButtonSegment<SourceType>(
                   value: SourceType.novelSource,
                   label: Text(l10n.navNovel),
-                  icon: const Icon(Icons.menu_book),
+                  icon: const Icon(Icons.menu_book_rounded),
                 ),
                 ButtonSegment<SourceType>(
                   value: SourceType.animeSource,
                   label: Text(l10n.navMedia),
-                  icon: const Icon(Icons.movie),
+                  icon: const Icon(Icons.movie_rounded),
                 ),
                 ButtonSegment<SourceType>(
                   value: SourceType.mangaSource,
                   label: Text(l10n.navComic),
-                  icon: const Icon(Icons.auto_stories),
+                  icon: const Icon(Icons.auto_stories_rounded),
                 ),
               ],
             ),
@@ -106,7 +106,7 @@ class _SettingsCategoriesScreenState extends State<SettingsCategoriesScreen> {
                           contentPadding: EdgeInsets.zero,
                           leading: ReorderableDragStartListener(
                             index: i,
-                            child: const Icon(Icons.drag_handle),
+                            child: const Icon(Icons.drag_handle_rounded),
                           ),
                           title: Text(
                             g.hidden
@@ -134,8 +134,8 @@ class _SettingsCategoriesScreenState extends State<SettingsCategoriesScreen> {
                                 visualDensity: VisualDensity.compact,
                                 icon: Icon(
                                   g.hidden
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
                                 ),
                                 tooltip: g.hidden
                                     ? l10n.showCategory
@@ -145,13 +145,13 @@ class _SettingsCategoriesScreenState extends State<SettingsCategoriesScreen> {
                               ),
                               IconButton(
                                 visualDensity: VisualDensity.compact,
-                                icon: const Icon(Icons.edit_outlined),
+                                icon: const Icon(Icons.edit_rounded),
                                 tooltip: l10n.renameGroup,
                                 onPressed: () => _rename(context, g),
                               ),
                               IconButton(
                                 visualDensity: VisualDensity.compact,
-                                icon: const Icon(Icons.delete_outline),
+                                icon: const Icon(Icons.delete_rounded),
                                 tooltip: l10n.deleteGroup,
                                 onPressed: () => _delete(context, g),
                               ),
@@ -170,7 +170,7 @@ class _SettingsCategoriesScreenState extends State<SettingsCategoriesScreen> {
               AppTokens.spaceLg,
             ),
             child: FilledButton.icon(
-              icon: const Icon(Icons.add),
+              icon: const Icon(Icons.add_rounded),
               label: Text(l10n.newGroup),
               onPressed: () => _create(context),
             ),
@@ -246,7 +246,7 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
-              Icons.folder_open_outlined,
+              Icons.folder_open_rounded,
               size: 56,
               color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),

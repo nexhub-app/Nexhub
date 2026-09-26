@@ -310,7 +310,7 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
                     ),
                     IconButton(
                       tooltip: l10n.statsPrevMonth,
-                      icon: const Icon(Icons.chevron_left),
+                      icon: const Icon(Icons.chevron_left_rounded),
                       onPressed: _prevMonth,
                     ),
                     Text(
@@ -324,13 +324,13 @@ class _HeatmapSheetState extends State<HeatmapSheet> {
                     ),
                     IconButton(
                       tooltip: l10n.statsNextMonth,
-                      icon: const Icon(Icons.chevron_right),
+                      icon: const Icon(Icons.chevron_right_rounded),
                       onPressed: isCurrentMonth ? null : _nextMonth,
                     ),
                     const SizedBox(width: AppTokens.spaceXs),
                     IconButton(
                       tooltip: l10n.cancel,
-                      icon: const Icon(Icons.close),
+                      icon: const Icon(Icons.close_rounded),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],

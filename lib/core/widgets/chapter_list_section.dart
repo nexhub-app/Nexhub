@@ -293,7 +293,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       return Padding(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
         child: AppEmptyState(
-          icon: Icons.video_library_outlined,
+          icon: Icons.video_library_rounded,
           message: l10n.emptyContent,
         ),
       );
@@ -418,7 +418,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
           Padding(
             padding: const EdgeInsets.all(AppTokens.spaceLg),
             child: AppEmptyState(
-              icon: Icons.search_off_outlined,
+              icon: Icons.search_off_rounded,
               message: l10n.noChaptersFound,
             ),
           )
@@ -465,7 +465,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
             child: AppSearchField(
               controller: _searchCtrl,
               hint: l10n.searchChapter,
-              prefixIcon: const Icon(Icons.search, size: 20),
+              prefixIcon: const Icon(Icons.search_rounded, size: 20),
               onChanged: (v) => setState(() => _query = v),
             ),
           ),
@@ -474,7 +474,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
             children: <Widget>[
               IconButton(
                 tooltip: l10n.filterTitle,
-                icon: const Icon(Icons.tune, size: 22),
+                icon: const Icon(Icons.tune_rounded, size: 22),
                 onPressed: () async {
                   final result = await DetailListFilterSheet.show(
                     context,
@@ -507,7 +507,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
           if (widget.enableGridMode)
             IconButton(
               icon: Icon(
-                _isGridMode ? Icons.view_list : Icons.grid_view,
+                _isGridMode ? Icons.view_list_rounded : Icons.grid_view_rounded,
                 size: 22,
               ),
               tooltip: _isGridMode ? l10n.listView : l10n.gridView,
@@ -653,7 +653,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       child: Center(
         child: TextButton.icon(
           onPressed: () => setState(() => _chaptersExpanded = true),
-          icon: const Icon(Icons.unfold_more),
+          icon: const Icon(Icons.unfold_more_rounded),
           label: Text(l10n.expandRemainingChapters(hiddenCount)),
         ),
       ),
@@ -773,7 +773,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       if (widget.onToggleRead != null)
         ListTile(
           leading: Icon(
-            isRead ? Icons.check_circle : Icons.radio_button_unchecked,
+            isRead ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
           ),
           title: Text(l10n.chapterRead),
           onTap: () {
@@ -783,7 +783,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
         ),
       if (widget.onToggleBookmark != null)
         ListTile(
-          leading: const Icon(Icons.bookmark),
+          leading: const Icon(Icons.bookmark_rounded),
           title: Text(l10n.chapterBookmark),
           onTap: () {
             Navigator.of(context).pop();
@@ -792,7 +792,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
         ),
       if (widget.onDownloadChapter != null)
         ListTile(
-          leading: const Icon(Icons.download),
+          leading: const Icon(Icons.download_rounded),
           title: Text(l10n.downloadSingleChapter),
           onTap: () {
             Navigator.of(context).pop();
@@ -860,7 +860,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       final Widget tile = ListTile(
         leading: widget.isChapterRead != null
             ? Icon(
-                isRead ? Icons.check_circle : Icons.radio_button_unchecked,
+                isRead ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
                 size: 20,
                 color: isRead ? scheme.primary : scheme.outline,
               )
@@ -882,7 +882,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
               Padding(
                 padding: const EdgeInsets.only(right: AppTokens.spaceXs),
                 child: Icon(
-                  Icons.fiber_manual_record,
+                  Icons.fiber_manual_record_rounded,
                   size: 10,
                   color: scheme.primary,
                 ),
@@ -893,7 +893,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
                     widget.isChapterDownloaded?.call(i) ?? false;
                 return IconButton(
                   icon: Icon(
-                    downloaded ? Icons.download_done : Icons.download_outlined,
+                    downloaded ? Icons.download_done_rounded : Icons.download_rounded,
                     size: 20,
                     color: downloaded ? scheme.primary : null,
                   ),
@@ -908,8 +908,8 @@ class _ChapterListSectionState extends State<ChapterListSection> {
                 icon: Icon(
                   widget.isChapterBookmarked != null &&
                           widget.isChapterBookmarked!(i)
-                      ? Icons.bookmark
-                      : Icons.bookmark_border,
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
                   size: 20,
                 ),
                 tooltip: l10n.chapterBookmark,
@@ -918,7 +918,7 @@ class _ChapterListSectionState extends State<ChapterListSection> {
             if (widget.onToggleRead != null)
               IconButton(
                 icon: Icon(
-                  isRead ? Icons.visibility : Icons.visibility_outlined,
+                  isRead ? Icons.visibility_rounded : Icons.visibility_rounded,
                   size: 20,
                 ),
                 tooltip: l10n.chapterRead,

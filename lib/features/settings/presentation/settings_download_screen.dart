@@ -49,10 +49,10 @@ class SettingsDownloadScreen extends StatelessWidget {
           _DownloadSectionHeader(label: l10n.downloadListTab),
           AppListTile(
             key: const ValueKey<String>('download.list'),
-            leading: const Icon(Icons.download),
+            leading: const Icon(Icons.download_rounded),
             title: Text(l10n.downloadListTitle),
             subtitle: Text(l10n.downloads),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => Navigator.of(context).push(
               AppPageRoute<void>(
                 builder: (_) => const DownloadListScreen(),
@@ -61,9 +61,9 @@ class SettingsDownloadScreen extends StatelessWidget {
           ),
           AppListTile(
             key: const ValueKey<String>('download.downloaded'),
-            leading: const Icon(Icons.download_done_outlined),
+            leading: const Icon(Icons.download_done_rounded),
             title: Text(l10n.downloadedContent),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => Navigator.of(context).push(
               AppPageRoute<void>(
                 builder: (_) => const DownloadedContentScreen(),
@@ -192,14 +192,14 @@ class _MaxConcurrentSettingState extends State<_MaxConcurrentSetting> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AppListTile(
-      leading: const Icon(Icons.sync),
+      leading: const Icon(Icons.sync_rounded),
       title: Text(l10n.maxConcurrentDownloads),
       subtitle: Text('$_value'),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.remove_circle_outline, size: 20),
+            icon: const Icon(Icons.remove_circle_rounded, size: 20),
             onPressed: _value > 1
                 ? () {
                     setState(() => _value--);
@@ -208,7 +208,7 @@ class _MaxConcurrentSettingState extends State<_MaxConcurrentSetting> {
                 : null,
           ),
           IconButton(
-            icon: const Icon(Icons.add_circle_outline, size: 20),
+            icon: const Icon(Icons.add_circle_rounded, size: 20),
             onPressed: _value < 10
                 ? () {
                     setState(() => _value++);
@@ -249,14 +249,14 @@ class _ThreadCountSettingState extends State<_ThreadCountSetting> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AppListTile(
-      leading: const Icon(Icons.layers),
+      leading: const Icon(Icons.layers_rounded),
       title: Text(l10n.threadCount),
       subtitle: Text('$_value'),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.remove_circle_outline, size: 20),
+            icon: const Icon(Icons.remove_circle_rounded, size: 20),
             onPressed: _value > 1
                 ? () {
                     setState(() => _value--);
@@ -265,7 +265,7 @@ class _ThreadCountSettingState extends State<_ThreadCountSetting> {
                 : null,
           ),
           IconButton(
-            icon: const Icon(Icons.add_circle_outline, size: 20),
+            icon: const Icon(Icons.add_circle_rounded, size: 20),
             onPressed: _value < 16
                 ? () {
                     setState(() => _value++);
@@ -388,10 +388,10 @@ class _DownloadPathSettingState extends State<_DownloadPathSetting> {
     final String subtitle =
         _displayName.isNotEmpty ? _displayName : _path;
     return AppListTile(
-      leading: const Icon(Icons.folder_outlined),
+      leading: const Icon(Icons.folder_rounded),
       title: Text(l10n.downloadPath),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: _pickPath,
     );
   }
@@ -438,14 +438,14 @@ class _DownloaderTypeSettingState extends State<_DownloaderTypeSetting> {
               children: <Widget>[
                 Icon(
                   _type == DownloaderType.internal
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
                   color: _type == DownloaderType.internal
                       ? Theme.of(ctx).colorScheme.primary
                       : Theme.of(ctx).colorScheme.outline,
                 ),
                 const SizedBox(width: AppTokens.spaceSm),
-                const Icon(Icons.system_update, size: 20),
+                const Icon(Icons.system_update_rounded, size: 20),
                 const SizedBox(width: AppTokens.spaceXs),
                 Text(l10n.downloaderInternal),
               ],
@@ -457,14 +457,14 @@ class _DownloaderTypeSettingState extends State<_DownloaderTypeSetting> {
               children: <Widget>[
                 Icon(
                   _type == DownloaderType.external
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
                   color: _type == DownloaderType.external
                       ? Theme.of(ctx).colorScheme.primary
                       : Theme.of(ctx).colorScheme.outline,
                 ),
                 const SizedBox(width: AppTokens.spaceSm),
-                const Icon(Icons.open_in_new, size: 20),
+                const Icon(Icons.open_in_new_rounded, size: 20),
                 const SizedBox(width: AppTokens.spaceXs),
                 Text(l10n.downloaderExternal),
               ],
@@ -487,10 +487,10 @@ class _DownloaderTypeSettingState extends State<_DownloaderTypeSetting> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AppListTile(
-      leading: const Icon(Icons.cloud_download),
+      leading: const Icon(Icons.cloud_download_rounded),
       title: Text(l10n.downloaderType),
       subtitle: Text(_label(l10n)),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () => _showDialog(l10n),
     );
   }
@@ -532,7 +532,7 @@ class _WifiOnlySettingState extends State<_WifiOnlySetting> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AppListTile(
-      leading: const Icon(Icons.wifi),
+      leading: const Icon(Icons.wifi_rounded),
       title: Text(l10n.downloadWifiOnly),
       subtitle: Text(l10n.downloadWifiOnlyHint),
       trailing: Switch(
@@ -578,7 +578,7 @@ class _AutoDeleteSettingState extends State<_AutoDeleteSetting> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AppListTile(
-      leading: const Icon(Icons.delete_sweep_outlined),
+      leading: const Icon(Icons.delete_sweep_rounded),
       title: Text(l10n.downloadAutoDelete),
       subtitle: Text(l10n.downloadAutoDeleteHint),
       trailing: Switch(
@@ -643,7 +643,7 @@ class _AutoDeleteExcludeSettingState extends State<_AutoDeleteExcludeSetting> {
       };
       return ListTile(
         leading: Icon(
-          selected ? Icons.check_circle : Icons.label_outline,
+          selected ? Icons.check_circle_rounded : Icons.label_rounded,
           color: selected ? scheme.primary : scheme.outline,
         ),
         title: Text(
@@ -655,7 +655,7 @@ class _AutoDeleteExcludeSettingState extends State<_AutoDeleteExcludeSetting> {
         ),
         subtitle: Text(moduleLabel),
         trailing: Icon(
-          selected ? Icons.check_circle : Icons.radio_button_unchecked,
+          selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
           color: selected ? scheme.primary : scheme.outline,
         ),
         onTap: () {
@@ -728,10 +728,10 @@ class _AutoDeleteExcludeSettingState extends State<_AutoDeleteExcludeSetting> {
     final l10n = AppLocalizations.of(context);
     final fav = context.watch<FavoritesManager>();
     return AppListTile(
-      leading: const Icon(Icons.filter_alt_outlined),
+      leading: const Icon(Icons.filter_alt_rounded),
       title: Text(l10n.downloadAutoDeleteExclude),
       subtitle: Text(_subtitle(l10n, fav)),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () => _showPicker(l10n, fav),
     );
   }
@@ -764,7 +764,7 @@ class _PreDownloadSettingState extends State<_PreDownloadSetting> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return AppListTile(
-      leading: const Icon(Icons.download_for_offline_outlined),
+      leading: const Icon(Icons.download_for_offline_rounded),
       title: Text(l10n.downloadPreDownload),
       subtitle: Text(_value == 0
           ? l10n.downloadPreDownloadOff
@@ -773,7 +773,7 @@ class _PreDownloadSettingState extends State<_PreDownloadSetting> {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.remove_circle_outline, size: 20),
+            icon: const Icon(Icons.remove_circle_rounded, size: 20),
             onPressed: _value > 0
                 ? () {
                     setState(() => _value--);
@@ -782,7 +782,7 @@ class _PreDownloadSettingState extends State<_PreDownloadSetting> {
                 : null,
           ),
           IconButton(
-            icon: const Icon(Icons.add_circle_outline, size: 20),
+            icon: const Icon(Icons.add_circle_rounded, size: 20),
             onPressed: _value < 25
                 ? () {
                     setState(() => _value++);
@@ -812,10 +812,10 @@ class _ComicFormatSetting extends StatelessWidget {
         };
 
     return AppListTile(
-      leading: const Icon(Icons.auto_stories),
+      leading: const Icon(Icons.auto_stories_rounded),
       title: Text(l10n.comicFormatSelectTitle),
       subtitle: Text(subtitle(prefs.comicFormat)),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () => _showSheet(context, prefs, l10n),
     );
   }
@@ -837,8 +837,8 @@ class _ComicFormatSetting extends StatelessWidget {
                 fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                 color: selected ? scheme.primary : null)),
         trailing: selected
-            ? Icon(Icons.check_circle, color: scheme.primary)
-            : Icon(Icons.radio_button_unchecked, color: scheme.outline),
+            ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+            : Icon(Icons.radio_button_unchecked_rounded, color: scheme.outline),
         onTap: () {
           manager.setFormatPrefs(
             prefs.copyWith(comicFormat: fmt),
@@ -870,9 +870,9 @@ class _ComicFormatSetting extends StatelessWidget {
                   ),
                 ),
                 const Divider(height: 1),
-                option(DownloadFormat.jpg, l10n.comicFormatJpg, Icons.image),
-                option(DownloadFormat.png, l10n.comicFormatPng, Icons.photo),
-                option(DownloadFormat.cbz, l10n.comicFormatCbz, Icons.archive),
+                option(DownloadFormat.jpg, l10n.comicFormatJpg, Icons.image_rounded),
+                option(DownloadFormat.png, l10n.comicFormatPng, Icons.photo_rounded),
+                option(DownloadFormat.cbz, l10n.comicFormatCbz, Icons.archive_rounded),
                 const SizedBox(height: AppTokens.spaceSm),
               ],
             ),
@@ -897,10 +897,10 @@ class _NovelFormatSetting extends StatelessWidget {
         };
 
     return AppListTile(
-      leading: const Icon(Icons.menu_book),
+      leading: const Icon(Icons.menu_book_rounded),
       title: Text(l10n.novelFormatSelectTitle),
       subtitle: Text(subtitle(prefs.novelFormat)),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () => _showSheet(context, prefs, l10n),
     );
   }
@@ -922,8 +922,8 @@ class _NovelFormatSetting extends StatelessWidget {
                 fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                 color: selected ? scheme.primary : null)),
         trailing: selected
-            ? Icon(Icons.check_circle, color: scheme.primary)
-            : Icon(Icons.radio_button_unchecked, color: scheme.outline),
+            ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+            : Icon(Icons.radio_button_unchecked_rounded, color: scheme.outline),
         onTap: () {
           manager.setFormatPrefs(
             prefs.copyWith(novelFormat: fmt),
@@ -955,8 +955,8 @@ class _NovelFormatSetting extends StatelessWidget {
                   ),
                 ),
                 const Divider(height: 1),
-                option(DownloadFormat.txt, l10n.novelFormatTxt, Icons.description),
-                option(DownloadFormat.epub, l10n.novelFormatEpub, Icons.book),
+                option(DownloadFormat.txt, l10n.novelFormatTxt, Icons.description_rounded),
+                option(DownloadFormat.epub, l10n.novelFormatEpub, Icons.book_rounded),
                 const SizedBox(height: AppTokens.spaceSm),
               ],
             ),

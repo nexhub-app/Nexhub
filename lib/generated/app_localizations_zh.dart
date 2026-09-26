@@ -471,6 +471,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get presetColor => '预设颜色';
 
   @override
+  String get paletteStyleTitle => '调色板风格';
+
+  @override
+  String get paletteStyleDesc => '同一主色下的配色算法变体';
+
+  @override
+  String get paletteStyleTonalSpot => '标准';
+
+  @override
+  String get paletteStyleFidelity => '保真';
+
+  @override
+  String get paletteStyleContent => '内容';
+
+  @override
+  String get paletteStyleNeutral => '中性';
+
+  @override
+  String get paletteStyleMonochrome => '单色';
+
+  @override
+  String get paletteStyleVibrant => '鲜艳';
+
+  @override
+  String get paletteStyleExpressive => '表现力';
+
+  @override
+  String get paletteStyleRainbow => '彩虹';
+
+  @override
+  String get paletteStyleFruitSalad => '水果沙拉';
+
+  @override
+  String get appearanceThemeMode => '主题模式';
+
+  @override
   String get appearanceThemeSection => '主题';
 
   @override

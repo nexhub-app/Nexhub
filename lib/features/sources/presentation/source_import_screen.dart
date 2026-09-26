@@ -343,7 +343,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
           ] else if (_tab == _ImportTab.file) ...<Widget>[
             FilledButton.icon(
               onPressed: _loading ? null : _pickFile,
-              icon: const Icon(Icons.file_open),
+              icon: const Icon(Icons.file_open_rounded),
               label: Text(l10n.sourceImportFilePicker),
             ),
             if (_pickedFileName != null) ...<Widget>[
@@ -366,7 +366,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
             const SizedBox(height: AppTokens.spaceMd),
             FilledButton.icon(
               onPressed: _loading ? null : () => _tryParse(_jsonController.text),
-              icon: const Icon(Icons.check_circle_outline),
+              icon: const Icon(Icons.check_circle_rounded),
               label: Text(l10n.sourceImportValidate),
             ),
           ] else ...<Widget>[
@@ -390,7 +390,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
               ),
               child: Row(
                 children: <Widget>[
-                  Icon(Icons.lock_outline,
+                  Icon(Icons.lock_rounded,
                       size: 16, color: scheme.onErrorContainer),
                   const SizedBox(width: AppTokens.spaceXs),
                   Expanded(
@@ -499,20 +499,20 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
               children: <Widget>[
                 FilledButton.icon(
                   onPressed: _loading ? null : () => _importLibrary(lib.url),
-                  icon: const Icon(Icons.download_outlined, size: 18),
+                  icon: const Icon(Icons.download_rounded, size: 18),
                   label: Text(l10n.fetchLibraryAndImport),
                 ),
                 if (lib.homepage != null)
                   OutlinedButton.icon(
                     onPressed: () => _openHomepage(lib.homepage!),
-                    icon: const Icon(Icons.open_in_new, size: 18),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 18),
                     label: Text(l10n.openHomepage),
                   ),
                 if (!lib.isOfficial)
                   OutlinedButton.icon(
                     onPressed: () =>
                         context.read<SourceLibrarySubscription>().remove(lib.id),
-                    icon: const Icon(Icons.bookmark_remove_outlined, size: 18),
+                    icon: const Icon(Icons.bookmark_remove_rounded, size: 18),
                     label: Text(l10n.unsubscribeLibrary),
                   ),
               ],
@@ -590,7 +590,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
             const SizedBox(height: AppTokens.spaceSm),
             Row(
               children: <Widget>[
-                Icon(Icons.check_circle, color: scheme.primary, size: 18),
+                Icon(Icons.check_circle_rounded, color: scheme.primary, size: 18),
                 const SizedBox(width: AppTokens.spaceXs),
                 Text(l10n.sourceImportValid),
               ],

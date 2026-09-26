@@ -143,7 +143,7 @@ class _DownloadedGroupScreenState extends State<DownloadedGroupScreen> {
       return Scaffold(
         appBar: AppBar(title: Text(l10n.downloadedContent)),
         body: const AppEmptyState(
-          icon: Icons.download_done_outlined,
+          icon: Icons.download_done_rounded,
           message: '',
         ),
       );
@@ -158,7 +158,7 @@ class _DownloadedGroupScreenState extends State<DownloadedGroupScreen> {
         title: Text(lead.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: <Widget>[
           AppIconButton(
-            icon: Icons.delete_outline,
+            icon: Icons.delete_rounded,
             tooltip: l10n.delete,
             onPressed: () => _confirmDelete(context, manager, l10n),
           ),
@@ -248,7 +248,7 @@ class _DownloadedGroupScreenState extends State<DownloadedGroupScreen> {
                     title: Text(_titleFor(path),
                         maxLines: 2, overflow: TextOverflow.ellipsis),
                     trailing: AppIconButton(
-                      icon: Icons.open_in_new_outlined,
+                      icon: Icons.open_in_new_rounded,
                       tooltip: l10n.downloadedGroupOpen,
                       onPressed: () => _open(context, lead, i),
                     ),

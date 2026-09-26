@@ -74,7 +74,7 @@ class _PluginManagementScreenState extends State<PluginManagementScreen> {
       appBar: AppBar(title: Text(l10n.pluginManagement)),
       body: all.isEmpty
           ? AppEmptyState(
-              icon: Icons.extension,
+              icon: Icons.extension_rounded,
               message: l10n.emptySources,
               actionLabel: l10n.addSource,
               onAction: _openImport,
@@ -89,7 +89,7 @@ class _PluginManagementScreenState extends State<PluginManagementScreen> {
                       Expanded(
                         child: FilledButton.icon(
                           onPressed: _openImport,
-                          icon: const Icon(Icons.add),
+                          icon: const Icon(Icons.add_rounded),
                           label: Text(l10n.addSource),
                         ),
                       ),
@@ -97,7 +97,7 @@ class _PluginManagementScreenState extends State<PluginManagementScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _exportPlugins,
-                          icon: const Icon(Icons.upload_outlined),
+                          icon: const Icon(Icons.upload_rounded),
                           label: Text(l10n.exportPlugins),
                         ),
                       ),

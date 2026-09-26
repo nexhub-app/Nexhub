@@ -125,7 +125,7 @@ class _NovelReplaceRuleScreenState extends State<NovelReplaceRuleScreen> {
           if (_ruleSet != null)
             IconButton(
               icon: Icon(
-                _ruleSet!.enabled ? Icons.toggle_on : Icons.toggle_off_outlined,
+                _ruleSet!.enabled ? Icons.toggle_on_rounded : Icons.toggle_off_rounded,
                 color: _ruleSet!.enabled ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
               ),
               tooltip: _ruleSet!.enabled ? '已启用' : '已禁用',
@@ -138,7 +138,7 @@ class _NovelReplaceRuleScreenState extends State<NovelReplaceRuleScreen> {
           : _buildList(theme),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _addRule,
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
         label: const Text('添加规则'),
       ),
     );
@@ -152,7 +152,7 @@ class _NovelReplaceRuleScreenState extends State<NovelReplaceRuleScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              _ruleSet!.enabled ? Icons.cleaning_services_outlined : Icons.toggle_off_outlined,
+              _ruleSet!.enabled ? Icons.cleaning_services_rounded : Icons.toggle_off_rounded,
               size: 64,
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),
@@ -213,7 +213,7 @@ class _NovelReplaceRuleScreenState extends State<NovelReplaceRuleScreen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Icon(
-                        Icons.drag_handle,
+                        Icons.drag_handle_rounded,
                         color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                         size: 24,
                       ),
@@ -221,7 +221,7 @@ class _NovelReplaceRuleScreenState extends State<NovelReplaceRuleScreen> {
                   ),
                   // 启用指示
                   Icon(
-                    rule.isEnabled ? Icons.check_circle : Icons.cancel_outlined,
+                    rule.isEnabled ? Icons.check_circle_rounded : Icons.cancel_rounded,
                     color: rule.isEnabled ? Colors.green : Colors.grey,
                     size: 20,
                   ),
@@ -296,7 +296,7 @@ class _NovelReplaceRuleScreenState extends State<NovelReplaceRuleScreen> {
                   const SizedBox(width: 4),
                   // 删除
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20),
+                    icon: const Icon(Icons.delete_rounded, size: 20),
                     color: theme.colorScheme.error,
                     onPressed: () => _deleteRule(index),
                     visualDensity: VisualDensity.compact,
@@ -384,7 +384,7 @@ class _ReplaceRuleEditScreenState extends State<_ReplaceRuleEditScreen> {
         actions: [
           TextButton.icon(
             onPressed: _save,
-            icon: const Icon(Icons.check, size: 18),
+            icon: const Icon(Icons.check_rounded, size: 18),
             label: const Text('保存'),
           ),
         ],

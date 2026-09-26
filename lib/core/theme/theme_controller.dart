@@ -4,8 +4,9 @@ import 'package:material_ui/material_ui.dart';
 import '../comic/models/reader_preferences.dart';
 import 'app_tokens.dart';
 import 'app_theme.dart';
+import 'palette_style.dart';
 
-/// 运行时主题状态（亮 / 暗 / 跟随 + 自定义主色 + 莫奈开关）。
+/// 运行时主题状态（亮 / 暗 / 跟随 + 自定义主色 + 莫奈开关 + 调色板风格）。
 ///
 /// 使用方式（见 lib/app.dart）：
 /// ```dart
@@ -16,9 +17,16 @@ import 'app_theme.dart';
 /// ```
 ///
 /// 莫奈取色（Monet / Material You）：当 [useMonet] 为 true 且系统提供了动态
-/// ColorScheme 时，优先使用系统动态色；否则回退到 [seed] 生成的浅蓝主题。
+/// ColorScheme 时，以系统动态色为准——风格为 [PaletteStyle.tonalSpot] 时
+/// 直接使用系统 scheme；其余风格取系统 scheme 的 primary 作 seed，按所选
+/// [PaletteStyle] 重新 `fromSeed`，实现「壁纸 + 风格」组合。
+/// 否则回退到 [seed] 生成的浅蓝主题。
 ///
-/// 持久化：三项状态（mode / seed / useMonet）整体 JSON 存入
+/// 优先级（从高到低）：玄色手工主题 > 莫奈动态色 > 自定义 seed。
+/// 玄色是唯一的手工主题，一旦选中即覆盖前两者（历史 bug：莫奈分支在前，
+/// 导致「选玄色 + 开莫奈」时玄色不生效）。
+///
+/// 持久化：状态（mode / seed / useMonet / paletteStyle）整体 JSON 存入
 /// SharedPreferences（key: [storageKey]）。冷启动时由 splash 在初始化管线
 /// **之前** 调用 [load] 恢复，避免加载页先用默认「跟随系统」主题渲染，
 /// 在用户已选深色而系统为浅色时闪出白底。
@@ -30,10 +38,12 @@ class ThemeController extends ChangeNotifier {
     ThemeMode mode = ThemeMode.system,
     Color seed = AppTokens.seedYouthfulPrimary,
     bool useMonet = true,
+    PaletteStyle paletteStyle = PaletteStyle.tonalSpot,
     PrefsBackend? backend,
   })  : _mode = mode,
         _seed = seed,
         _useMonet = useMonet,
+        _paletteStyle = paletteStyle,
         _backend = backend ?? const SharedPrefsBackend();
 
   final PrefsBackend _backend;
@@ -41,6 +51,7 @@ class ThemeController extends ChangeNotifier {
   ThemeMode _mode;
   Color _seed;
   bool _useMonet;
+  PaletteStyle _paletteStyle;
   bool _loaded = false;
 
   ThemeMode get mode => _mode;
@@ -50,6 +61,9 @@ class ThemeController extends ChangeNotifier {
 
   /// 是否优先使用系统莫奈动态色。
   bool get useMonet => _useMonet;
+
+  /// 调色板风格（莫奈与自定义 seed 路径共同生效；玄色除外）。
+  PaletteStyle get paletteStyle => _paletteStyle;
 
   /// 持久化状态是否已恢复完成。
   bool get loaded => _loaded;
@@ -79,6 +93,14 @@ class ThemeController extends ChangeNotifier {
         final int? seedValue = (map['seed'] as num?)?.toInt();
         if (seedValue != null) _seed = Color(seedValue);
         _useMonet = (map['useMonet'] as bool?) ?? _useMonet;
+        // 旧版本数据无 paletteStyle 字段 → 保持默认 tonalSpot（向后兼容）。
+        final String? styleName = map['paletteStyle'] as String?;
+        if (styleName != null) {
+          _paletteStyle = PaletteStyle.values.firstWhere(
+            (PaletteStyle e) => e.name == styleName,
+            orElse: () => _paletteStyle,
+          );
+        }
       } on Object {
         // 脏数据：忽略，保持默认。
       }
@@ -96,6 +118,7 @@ class ThemeController extends ChangeNotifier {
           'mode': _mode.name,
           'seed': _seed.toARGB32(),
           'useMonet': _useMonet,
+          'paletteStyle': _paletteStyle.name,
         }),
       );
     } on Object {
@@ -125,22 +148,44 @@ class ThemeController extends ChangeNotifier {
     _persist();
   }
 
+  /// 切换调色板风格（莫奈 / 自定义 seed 两条路径都即时生效）。
+  void setPaletteStyle(PaletteStyle style) {
+    if (_paletteStyle == style) return;
+    _paletteStyle = style;
+    notifyListeners();
+    _persist();
+  }
+
   /// 当前是否选中「玄色」专属主题（近黑底 + 赤强调色）。
   bool get isXuanSe => _seed == AppTokens.seedXuanSe;
 
   ThemeData lightTheme([ColorScheme? systemScheme]) {
-    if (_useMonet && systemScheme != null) {
-      return AppTheme.light(scheme: systemScheme);
-    }
+    // 玄色优先：显式手工主题不被莫奈动态色覆盖。
     if (isXuanSe) return AppTheme.xuanSe();
-    return AppTheme.light(seed: _seed);
+    if (_useMonet && systemScheme != null) {
+      if (_paletteStyle == PaletteStyle.tonalSpot) {
+        return AppTheme.light(scheme: systemScheme);
+      }
+      // 壁纸 + 风格：取系统动态色 primary 作 seed，按所选风格重建配色。
+      return AppTheme.light(
+        seed: systemScheme.primary,
+        variant: _paletteStyle.variant,
+      );
+    }
+    return AppTheme.light(seed: _seed, variant: _paletteStyle.variant);
   }
 
   ThemeData darkTheme([ColorScheme? systemScheme]) {
-    if (_useMonet && systemScheme != null) {
-      return AppTheme.dark(scheme: systemScheme);
-    }
     if (isXuanSe) return AppTheme.xuanSe();
-    return AppTheme.dark(seed: _seed);
+    if (_useMonet && systemScheme != null) {
+      if (_paletteStyle == PaletteStyle.tonalSpot) {
+        return AppTheme.dark(scheme: systemScheme);
+      }
+      return AppTheme.dark(
+        seed: systemScheme.primary,
+        variant: _paletteStyle.variant,
+      );
+    }
+    return AppTheme.dark(seed: _seed, variant: _paletteStyle.variant);
   }
 }

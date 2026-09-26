@@ -252,7 +252,7 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
                 CircleAvatar(
                   radius: 11,
                   backgroundColor: scheme.primaryContainer,
-                  child: Icon(Icons.person, size: 13, color: scheme.onPrimaryContainer),
+                  child: Icon(Icons.person_rounded, size: 13, color: scheme.onPrimaryContainer),
                 ),
               const SizedBox(width: 6),
               Expanded(
@@ -263,7 +263,7 @@ class _BangumiCommentTileBodyState extends State<_BangumiCommentTileBody> {
               // 评分星标
               if (hasRating)
                 Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.star, size: 12, color: scheme.primary),
+                  Icon(Icons.star_rounded, size: 12, color: scheme.primary),
                   const SizedBox(width: AppTokens.spaceXxs),
                   Text('${widget.comment.rating}',
                     style: theme.textTheme.labelSmall?.copyWith(

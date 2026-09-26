@@ -298,7 +298,7 @@ class _ImageFavoriteGalleryScreenState
             ),
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(Icons.share_outlined),
+              leading: const Icon(Icons.share_rounded),
               title: Text(l10n.share),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -306,7 +306,7 @@ class _ImageFavoriteGalleryScreenState
               },
             ),
             ListTile(
-              leading: const Icon(Icons.edit_outlined),
+              leading: const Icon(Icons.edit_rounded),
               title: Text(l10n.imageFavoriteRename),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -314,7 +314,7 @@ class _ImageFavoriteGalleryScreenState
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline),
+              leading: const Icon(Icons.delete_rounded),
               title: Text(l10n.delete),
               onTap: () {
                 Navigator.of(ctx).pop();
@@ -667,7 +667,7 @@ class _ImageFavoriteGalleryScreenState
             return Padding(
               padding: const EdgeInsets.only(right: AppTokens.spaceXs),
               child: _PlainChip(
-                icon: Icons.create_new_folder_outlined,
+                icon: Icons.create_new_folder_rounded,
                 label: l10n.imageFavoriteNewFolder,
                 selected: false,
                 enabled: true,
@@ -687,10 +687,10 @@ class _ImageFavoriteGalleryScreenState
               onLongPress: isAll ? null : () => _deleteFolder(f),
               child: _PlainChip(
                 icon: isAll
-                    ? Icons.photo_library_outlined
+                    ? Icons.photo_library_rounded
                     : (f.isEmpty
-                        ? Icons.layers_clear_outlined
-                        : Icons.folder_outlined),
+                        ? Icons.layers_clear_rounded
+                        : Icons.folder_rounded),
                 label: isAll
                     ? l10n.imageFavoriteAllFolders
                     : (f.isEmpty ? l10n.imageFavoriteUnfiled : f),
@@ -739,21 +739,21 @@ class _ImageFavoriteGalleryScreenState
     final bool locked = widget.sourceFilter != null;
     final List<(ImageFavoriteSource?, String, IconData)> options =
         <(ImageFavoriteSource?, String, IconData)>[
-      (null, l10n.imageFavoriteAll, Icons.photo_library_outlined),
+      (null, l10n.imageFavoriteAll, Icons.photo_library_rounded),
       (
         ImageFavoriteSource.comic,
         l10n.imageFavoriteSourceComic,
-        Icons.menu_book_outlined,
+        Icons.menu_book_rounded,
       ),
       (
         ImageFavoriteSource.player,
         l10n.imageFavoriteSourcePlayer,
-        Icons.play_circle_outline,
+        Icons.play_circle_rounded,
       ),
       (
         ImageFavoriteSource.novel,
         l10n.imageFavoriteSourceNovel,
-        Icons.auto_stories_outlined,
+        Icons.auto_stories_rounded,
       ),
     ];
     return SingleChildScrollView(
@@ -822,12 +822,12 @@ class _ImageFavoriteGalleryScreenState
               segments: <ButtonSegment<_GalleryLayout>>[
                 ButtonSegment<_GalleryLayout>(
                   value: _GalleryLayout.grid,
-                  icon: const Icon(Icons.grid_view, size: 16),
+                  icon: const Icon(Icons.grid_view_rounded, size: 16),
                   label: Text(l10n.imageFavoriteLayoutGrid),
                 ),
                 ButtonSegment<_GalleryLayout>(
                   value: _GalleryLayout.masonry,
-                  icon: const Icon(Icons.view_quilt_outlined, size: 16),
+                  icon: const Icon(Icons.view_quilt_rounded, size: 16),
                   label: Text(l10n.imageFavoriteLayoutMasonry),
                 ),
               ],
@@ -837,7 +837,7 @@ class _ImageFavoriteGalleryScreenState
             ),
             const SizedBox(width: AppTokens.spaceXs),
             _PlainChip(
-              icon: Icons.layers_outlined,
+              icon: Icons.layers_rounded,
               label: l10n.imageFavoriteGroupByWork,
               selected: _groupByWork,
               enabled: true,
@@ -845,7 +845,7 @@ class _ImageFavoriteGalleryScreenState
             ),
             const SizedBox(width: AppTokens.spaceXs),
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_horiz),
+              icon: const Icon(Icons.more_horiz_rounded),
               tooltip: l10n.imageFavoriteDisplayOptions,
               onSelected: (String v) {
                 switch (v) {
@@ -906,7 +906,7 @@ class _ImageFavoriteGalleryScreenState
         onChanged: (String v) => setState(() => _query = v),
         decoration: InputDecoration(
           hintText: l10n.imageFavoriteSearchHint,
-          prefixIcon: const Icon(Icons.search),
+          prefixIcon: const Icon(Icons.search_rounded),
           isDense: true,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
@@ -933,32 +933,32 @@ class _ImageFavoriteGalleryScreenState
             ? <Widget>[
                 IconButton(
                   tooltip: l10n.imageFavoriteSelectAll,
-                  icon: const Icon(Icons.select_all),
+                  icon: const Icon(Icons.select_all_rounded),
                   onPressed: _selectAllVisible,
                 ),
                 IconButton(
                   tooltip: l10n.share,
-                  icon: const Icon(Icons.share_outlined),
+                  icon: const Icon(Icons.share_rounded),
                   onPressed: _batchShare,
                 ),
                 IconButton(
                   tooltip: l10n.imageFavoriteRename,
-                  icon: const Icon(Icons.edit_outlined),
+                  icon: const Icon(Icons.edit_rounded),
                   onPressed: _batchRename,
                 ),
                 IconButton(
                   tooltip: l10n.imageFavoriteMoveTo,
-                  icon: const Icon(Icons.drive_file_move_outline),
+                  icon: const Icon(Icons.drive_file_move_rounded),
                   onPressed: _batchMove,
                 ),
                 IconButton(
                   tooltip: l10n.delete,
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(Icons.delete_rounded),
                   onPressed: _batchDelete,
                 ),
                 IconButton(
                   tooltip: l10n.cancel,
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close_rounded),
                   onPressed: _exitSelection,
                 ),
               ]
@@ -976,8 +976,8 @@ class _ImageFavoriteGalleryScreenState
                       tooltip: l10n.imageFavoriteFiltersToggle,
                       icon: Icon(
                         _filtersCollapsed
-                            ? Icons.expand_more
-                            : Icons.expand_less,
+                            ? Icons.expand_more_rounded
+                            : Icons.expand_less_rounded,
                       ),
                       onPressed: () => setState(
                           () => _filtersCollapsed = !_filtersCollapsed),
@@ -1015,7 +1015,7 @@ class _ImageFavoriteGalleryScreenState
     final Widget child;
     if (visible.isEmpty) {
       child = AppEmptyState(
-        icon: Icons.photo_library_outlined,
+        icon: Icons.photo_library_rounded,
         message: _favorites.isEmpty
             ? l10n.imageFavoriteEmpty
             : l10n.imageFavoriteNoMatch,
@@ -1193,7 +1193,7 @@ class _ImageFavoriteGalleryScreenState
                           ),
                         ),
                         child: checked
-                            ? const Icon(Icons.check,
+                            ? const Icon(Icons.check_rounded,
                                 size: 14, color: Colors.white)
                             : null,
                       )
@@ -1206,7 +1206,7 @@ class _ImageFavoriteGalleryScreenState
                           child: const Padding(
                             padding: EdgeInsets.all(2),
                             child:
-                                Icon(Icons.close, size: 16, color: Colors.white),
+                                Icon(Icons.close_rounded, size: 16, color: Colors.white),
                           ),
                         ),
                       ),

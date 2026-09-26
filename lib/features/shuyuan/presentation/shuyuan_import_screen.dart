@@ -200,7 +200,7 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
             ),
             child: Row(
               children: <Widget>[
-                Icon(Icons.info_outline,
+                Icon(Icons.info_rounded,
                     size: 16, color: scheme.onSurfaceVariant),
                 const SizedBox(width: AppTokens.spaceXs),
                 Expanded(
@@ -224,17 +224,17 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
               segments: <ButtonSegment<_ShuyuanImportMode>>[
                 ButtonSegment<_ShuyuanImportMode>(
                   value: _ShuyuanImportMode.url,
-                  icon: const Icon(Icons.link, size: 18),
+                  icon: const Icon(Icons.link_rounded, size: 18),
                   label: Text(l10n.shuyuanImportFromUrl),
                 ),
                 ButtonSegment<_ShuyuanImportMode>(
                   value: _ShuyuanImportMode.file,
-                  icon: const Icon(Icons.file_present_outlined, size: 18),
+                  icon: const Icon(Icons.file_present_rounded, size: 18),
                   label: Text(l10n.shuyuanImportFromFile),
                 ),
                 ButtonSegment<_ShuyuanImportMode>(
                   value: _ShuyuanImportMode.json,
-                  icon: const Icon(Icons.code, size: 18),
+                  icon: const Icon(Icons.code_rounded, size: 18),
                   label: Text(l10n.shuyuanImportFromJson),
                 ),
               ],
@@ -263,7 +263,7 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
                 padding: const EdgeInsets.all(AppTokens.spaceLg),
                 child: FilledButton.icon(
                   onPressed: _saveAll,
-                  icon: const Icon(Icons.save_alt),
+                  icon: const Icon(Icons.save_alt_rounded),
                   label: Text(
                     l10n.shuyuanImportSelected(_selectedUrls.length),
                   ),
@@ -330,7 +330,7 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
       children: <Widget>[
         FilledButton.icon(
           onPressed: _loading ? null : _pickFile,
-          icon: const Icon(Icons.file_open),
+          icon: const Icon(Icons.file_open_rounded),
           label: Text(l10n.shuyuanImportFilePicker),
         ),
         if (_pickedFileName != null) ...<Widget>[
@@ -356,7 +356,7 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
           maxLines: 10,
           decoration: InputDecoration(
             hintText: l10n.shuyuanImportJsonHint,
-            prefixIcon: const Icon(Icons.code),
+            prefixIcon: const Icon(Icons.code_rounded),
             border: const OutlineInputBorder(),
           ),
         ),
@@ -365,7 +365,7 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
           alignment: Alignment.centerRight,
           child: FilledButton.icon(
             onPressed: _loading ? null : _parseJson,
-            icon: const Icon(Icons.play_arrow),
+            icon: const Icon(Icons.play_arrow_rounded),
             label: Text(l10n.shuyuanImportParse),
           ),
         ),
@@ -417,8 +417,8 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
             ),
             Icon(
               isValid
-                  ? Icons.check_circle
-                  : (novelSupported ? Icons.error_outline : Icons.block),
+                  ? Icons.check_circle_rounded
+                  : (novelSupported ? Icons.error_rounded : Icons.block_rounded),
               size: 20,
               color: isValid
                   ? scheme.primary
@@ -483,7 +483,7 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Icon(
-              Icons.menu_book_outlined,
+              Icons.menu_book_rounded,
               size: 64,
               color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
             ),

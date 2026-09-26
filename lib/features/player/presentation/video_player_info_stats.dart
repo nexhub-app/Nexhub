@@ -41,7 +41,7 @@ extension _VideoInfoStats on _VideoPlayerScreenState {
                       const Text('URL: '),
                       Expanded(child: Text(url, softWrap: true)),
                       IconButton(
-                        icon: const Icon(Icons.copy, size: 18),
+                        icon: const Icon(Icons.copy_rounded, size: 18),
                         tooltip: l10n.snifferCopy,
                         onPressed: () =>
                             unawaited(Clipboard.setData(ClipboardData(text: url))),

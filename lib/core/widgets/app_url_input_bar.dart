@@ -41,7 +41,7 @@ class AppUrlInputBar extends StatelessWidget {
                 horizontal: AppTokens.spaceMd,
                 vertical: AppTokens.spaceSm,
               ),
-              prefixIcon: const Icon(Icons.link),
+              prefixIcon: const Icon(Icons.link_rounded),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(AppTokens.radiusMd),
               ),

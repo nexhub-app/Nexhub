@@ -323,12 +323,12 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                 key: const ValueKey<String>('advanced.crashLog'),
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
-                  Icons.bug_report_outlined,
+                  Icons.bug_report_rounded,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text(l10n.crashLog),
                 subtitle: Text(l10n.crashLogDesc),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const CrashLogScreen(),
@@ -339,12 +339,12 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                 key: const ValueKey<String>('advanced.runtimeLog'),
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
-                  Icons.article_outlined,
+                  Icons.article_rounded,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text(l10n.runtimeLog),
                 subtitle: Text(l10n.runtimeLogDesc),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const LogViewerScreen(),
@@ -363,31 +363,31 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                 key: const ValueKey<String>('advanced.clearCookies'),
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
-                  Icons.cookie_outlined,
+                  Icons.cookie_rounded,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text(l10n.clearCookies),
                 subtitle: Text(l10n.clearCookiesDesc),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => _clearCookies(context, l10n),
               ),
               ListTile(
                 key: const ValueKey<String>('advanced.clearWebview'),
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
-                  Icons.cleaning_services_outlined,
+                  Icons.cleaning_services_rounded,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text(l10n.clearWebviewData),
                 subtitle: Text(l10n.clearWebviewDataDesc),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => _clearWebviewData(context, l10n),
               ),
               ListTile(
                 key: const ValueKey<String>('advanced.imageCache'),
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
-                  Icons.image_outlined,
+                  Icons.image_rounded,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text(l10n.advancedImageCache),
@@ -396,7 +396,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                       ? l10n.advancedImageCacheDesc
                       : '${l10n.advancedImageCacheDesc} · $_imageCacheSizeText',
                 ),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => _clearImageCache(context, l10n),
               ),
             ],
@@ -411,7 +411,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                 key: const ValueKey<String>('advanced.userAgent'),
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(
-                  Icons.person_pin_circle_outlined,
+                  Icons.person_pin_circle_rounded,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 title: Text(l10n.defaultUserAgent),
@@ -420,7 +420,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => _pickUserAgent(context, l10n),
               ),
             ],

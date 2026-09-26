@@ -166,7 +166,7 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
               title: Text(widget.title ?? 'Video'),
               actions: <Widget>[
                 IconButton(
-                  icon: const Icon(Icons.share_outlined),
+                  icon: const Icon(Icons.share_rounded),
                   tooltip: l10n.share,
                   onPressed: () => unawaited(
                     Share.share('${widget.title ?? ''}\n${widget.url}'),
@@ -217,7 +217,7 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(Icons.error_outline, size: 18, color: scheme.error),
+              Icon(Icons.error_rounded, size: 18, color: scheme.error),
               const SizedBox(width: AppTokens.spaceXs),
               Text(l10n.rssVideoFailed,
                   style: Theme.of(context).textTheme.bodyMedium),
@@ -236,17 +236,17 @@ class _RssVideoPlayerState extends State<RssVideoPlayer> {
                   AppHaptics.light();
                   unawaited(_open());
                 },
-                icon: const Icon(Icons.refresh, size: 18),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
                 label: Text(l10n.retry),
               ),
               TextButton.icon(
                 onPressed: () => unawaited(_openInAppBrowser(context)),
-                icon: const Icon(Icons.language_outlined, size: 18),
+                icon: const Icon(Icons.language_rounded, size: 18),
                 label: Text(l10n.rssOpenInBrowser),
               ),
               TextButton.icon(
                 onPressed: () => unawaited(_openExternally(context)),
-                icon: const Icon(Icons.open_in_new_outlined, size: 18),
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
                 label: Text(l10n.rssOpenExternally),
               ),
             ],

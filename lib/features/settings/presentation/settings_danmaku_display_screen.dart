@@ -196,7 +196,7 @@ class _SettingsDanmakuDisplayScreenState
               ),
               const SizedBox(width: AppTokens.spaceSm),
               IconButton.filled(
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.add_rounded),
                 onPressed: _addKeyword,
                 tooltip: l10n.danmakuAddKeyword,
               ),

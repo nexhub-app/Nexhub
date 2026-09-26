@@ -357,7 +357,7 @@ class _DownloadSelectionSheetState extends State<_DownloadSelectionSheet> {
                       secondary: downloaded
                           ? Tooltip(
                               message: l10n.alreadyDownloaded,
-                              child: Icon(Icons.download_done,
+                              child: Icon(Icons.download_done_rounded,
                                   size: 20, color: scheme.primary),
                             )
                           : null,

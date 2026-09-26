@@ -246,7 +246,7 @@ class _BangumiDetailCardState extends State<BangumiDetailCard> {
             ),
             TextButton.icon(
               onPressed: onAction,
-              icon: const Icon(Icons.link, size: 16),
+              icon: const Icon(Icons.link_rounded, size: 16),
               label: Text(actionLabel),
             ),
           ],
@@ -278,10 +278,10 @@ class _BangumiDetailCardState extends State<BangumiDetailCard> {
                           height: 44,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.tv),
+                              const Icon(Icons.tv_rounded),
                         ),
                       )
-                    : const Icon(Icons.tv),
+                    : const Icon(Icons.tv_rounded),
                 title: Text(
                   c.displayName,
                   maxLines: 1,
@@ -303,7 +303,7 @@ class _BangumiDetailCardState extends State<BangumiDetailCard> {
             const SizedBox(height: AppTokens.spaceSm),
             OutlinedButton.icon(
               onPressed: _rebind,
-              icon: const Icon(Icons.search, size: 16),
+              icon: const Icon(Icons.search_rounded, size: 16),
               label: Text(l10n.bangumiManualBind),
             ),
           ],
@@ -361,11 +361,11 @@ class _BangumiDetailCardState extends State<BangumiDetailCard> {
                     width: 48,
                     height: 64,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.tv),
+                    errorBuilder: (_, __, ___) => const Icon(Icons.tv_rounded),
                   ),
                 )
               else
-                const Icon(Icons.tv),
+                const Icon(Icons.tv_rounded),
               const SizedBox(width: AppTokens.spaceSm),
               Expanded(
                 child: Text(
@@ -374,14 +374,14 @@ class _BangumiDetailCardState extends State<BangumiDetailCard> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.open_in_new, size: 18),
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
                 tooltip: l10n.bangumiViewOnWeb,
                 visualDensity: VisualDensity.compact,
                 onPressed: () =>
                     showBangumiSubjectSheet(context, subjectId: detail.id),
               ),
               IconButton(
-                icon: const Icon(Icons.link, size: 18),
+                icon: const Icon(Icons.link_rounded, size: 18),
                 tooltip: l10n.bangumiManualBind,
                 visualDensity: VisualDensity.compact,
                 onPressed: _rebind,
@@ -393,7 +393,7 @@ class _BangumiDetailCardState extends State<BangumiDetailCard> {
           if (rating.hasScore)
             Row(
               children: <Widget>[
-                Icon(Icons.star, color: scheme.primary, size: 22),
+                Icon(Icons.star_rounded, color: scheme.primary, size: 22),
                 const SizedBox(width: AppTokens.spaceXs),
                 Text(
                   rating.score.toStringAsFixed(1),
@@ -447,19 +447,19 @@ class _BangumiDetailCardState extends State<BangumiDetailCard> {
                 if (col.wish > 0)
                   _StatChip(
                     label: l10n.bangumiCollectionWish(col.wish),
-                    icon: Icons.favorite_outline,
+                    icon: Icons.favorite_rounded,
                     scheme: scheme,
                   ),
                 if (col.doing > 0)
                   _StatChip(
                     label: l10n.bangumiCollectionDoing(col.doing),
-                    icon: Icons.play_circle_outline,
+                    icon: Icons.play_circle_rounded,
                     scheme: scheme,
                   ),
                 if (col.collect > 0)
                   _StatChip(
                     label: l10n.bangumiCollectionCollect(col.collect),
-                    icon: Icons.check_circle_outline,
+                    icon: Icons.check_circle_rounded,
                     scheme: scheme,
                   ),
               ],
@@ -728,7 +728,7 @@ class _BangumiSyncPanelState extends State<_BangumiSyncPanel> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.remove),
+                icon: const Icon(Icons.remove_rounded),
                 onPressed: _progress > 0
                     ? () => setState(() => _progress--)
                     : null,
@@ -742,7 +742,7 @@ class _BangumiSyncPanelState extends State<_BangumiSyncPanel> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.add_rounded),
                 onPressed: () => setState(() => _progress++),
               ),
             ],
@@ -799,7 +799,7 @@ class _BangumiSyncPanelState extends State<_BangumiSyncPanel> {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.cloud_download, size: 16),
+                      : const Icon(Icons.cloud_download_rounded, size: 16),
                   label: Text(l10n.bangumiPullFromRemote),
                 ),
               ),
@@ -813,7 +813,7 @@ class _BangumiSyncPanelState extends State<_BangumiSyncPanel> {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.sync, size: 16),
+                      : const Icon(Icons.sync_rounded, size: 16),
                   label: Text(l10n.bangumiSaveSync),
                 ),
               ),

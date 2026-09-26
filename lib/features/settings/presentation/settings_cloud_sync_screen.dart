@@ -407,7 +407,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
           children: <Widget>[
             Row(
               children: <Widget>[
-                Icon(Icons.insights,
+                Icon(Icons.insights_rounded,
                     size: 18, color: theme.colorScheme.primary),
                 const SizedBox(width: AppTokens.spaceSm),
                 Text(l10n.cloudSyncStatusSection,
@@ -424,7 +424,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
               const SizedBox(height: AppTokens.spaceXs),
               Row(
                 children: <Widget>[
-                  Icon(Icons.schedule, size: 16, color: theme.hintColor),
+                  Icon(Icons.schedule_rounded, size: 16, color: theme.hintColor),
                   const SizedBox(width: AppTokens.spaceSm),
                   Expanded(
                     child: Text(
@@ -467,8 +467,8 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
         ? AppStatusColors.ok(theme.colorScheme)
         : AppStatusColors.fail(theme.colorScheme);
     final IconData statusIcon = e.noChanges
-        ? Icons.check_circle_outline
-        : (ok ? Icons.check_circle : Icons.error);
+        ? Icons.check_circle_rounded
+        : (ok ? Icons.check_circle_rounded : Icons.error_rounded);
     final String timeText =
         e.timestamp != null ? _formatTime(e.timestamp!) : '';
     return Row(
@@ -510,7 +510,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             decoration: InputDecoration(
               labelText: l10n.cloudSyncWebdavUrl,
               border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.link),
+              prefixIcon: const Icon(Icons.link_rounded),
             ),
             keyboardType: TextInputType.url,
           ),
@@ -520,7 +520,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             decoration: InputDecoration(
               labelText: l10n.cloudSyncWebdavUsername,
               border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.person),
+              prefixIcon: const Icon(Icons.person_rounded),
             ),
           ),
           const SizedBox(height: AppTokens.spaceMd),
@@ -529,7 +529,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             decoration: InputDecoration(
               labelText: l10n.cloudSyncWebdavPassword,
               border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.lock),
+              prefixIcon: const Icon(Icons.lock_rounded),
             ),
             obscureText: true,
           ),
@@ -542,13 +542,13 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.wifi_find),
+                : const Icon(Icons.wifi_find_rounded),
             label: Text(l10n.cloudSyncTestConnection),
           ),
           const SizedBox(height: AppTokens.spaceSm),
           OutlinedButton.icon(
             onPressed: _saving ? null : () => _saveConfig(l10n),
-            icon: const Icon(Icons.save),
+            icon: const Icon(Icons.save_rounded),
             label: Text(l10n.cloudSyncSaveConfig),
           ),
           const SizedBox(height: AppTokens.spaceLg),
@@ -631,14 +631,14 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.cloud_sync),
+                : const Icon(Icons.cloud_sync_rounded),
             label: Text(l10n.cloudSyncSyncNow),
           ),
           const SizedBox(height: AppTokens.spaceSm),
           // 逐书进度冲突裁决同步（含确认框）。
           OutlinedButton.icon(
             onPressed: _syncing ? null : () => _syncNovelProgress(l10n),
-            icon: const Icon(Icons.menu_book_outlined, size: 18),
+            icon: const Icon(Icons.menu_book_rounded, size: 18),
             label: Text(l10n.novelProgressSyncNow),
           ),
           const SizedBox(height: AppTokens.spaceMd),
@@ -679,7 +679,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.cloud_download_outlined),
+                : const Icon(Icons.cloud_download_rounded),
             label: Text(l10n.pullNow),
           ),
           const SizedBox(height: AppTokens.spaceSm),
@@ -693,7 +693,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.merge_type),
+                : const Icon(Icons.merge_type_rounded),
             label: Text(l10n.cloudSyncResolveConflicts),
           ),
 
@@ -715,7 +715,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
               child: Row(
                 children: <Widget>[
                   Icon(
-                    Icons.error_outline,
+                    Icons.error_rounded,
                     color: Theme.of(context).colorScheme.error,
                   ),
                   const SizedBox(width: AppTokens.spaceSm),
@@ -735,9 +735,9 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
 
           const SizedBox(height: AppTokens.spaceXl),
           AppListTile(
-            leading: const Icon(Icons.swap_vert),
+            leading: const Icon(Icons.swap_vert_rounded),
             title: Text(l10n.dataImportExport),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => Navigator.of(context).push(
               AppPageRoute<void>(
                 builder: (_) => const SettingsImportExportScreen(),
@@ -903,7 +903,7 @@ class _ConflictResolveSheetState extends State<_ConflictResolveSheet> {
                   ?.copyWith(fontWeight: FontWeight.w600)),
           Row(
             children: <Widget>[
-              Icon(Icons.phone_android, size: 12, color: theme.hintColor),
+              Icon(Icons.phone_android_rounded, size: 12, color: theme.hintColor),
               const SizedBox(width: AppTokens.spaceXs),
               Expanded(
                 child: Text(
@@ -915,7 +915,7 @@ class _ConflictResolveSheetState extends State<_ConflictResolveSheet> {
           ),
           Row(
             children: <Widget>[
-              Icon(Icons.cloud, size: 12, color: theme.hintColor),
+              Icon(Icons.cloud_rounded, size: 12, color: theme.hintColor),
               const SizedBox(width: AppTokens.spaceXs),
               Expanded(
                 child: Text(

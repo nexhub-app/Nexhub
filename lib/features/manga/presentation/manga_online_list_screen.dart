@@ -37,7 +37,7 @@ class MangaOnlineListScreen extends StatelessWidget {
       onAddSource: onAddSource,
       onEnableRecommended: onEnableRecommended,
       verificationHandler: handleVerificationRequest,
-      emptyIcon: Icons.auto_stories_outlined,
+      emptyIcon: Icons.auto_stories_rounded,
       fetchItems: (PluginConfig source,
               {String? category,
               int page = 1,

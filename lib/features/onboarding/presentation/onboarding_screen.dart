@@ -100,25 +100,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _PermissionEntry(
           title: l10n.onboardingPermissionStorage,
           desc: l10n.onboardingPermissionStorageDesc,
-          icon: Icons.folder_outlined,
+          icon: Icons.folder_rounded,
           permission: Permission.storage,
         ),
         _PermissionEntry(
           title: l10n.onboardingPermissionPhotos,
           desc: l10n.onboardingPermissionPhotosDesc,
-          icon: Icons.photo_outlined,
+          icon: Icons.photo_rounded,
           permission: Permission.photos,
         ),
         _PermissionEntry(
           title: l10n.onboardingPermissionVideos,
           desc: l10n.onboardingPermissionVideosDesc,
-          icon: Icons.videocam_outlined,
+          icon: Icons.videocam_rounded,
           permission: Permission.videos,
         ),
         _PermissionEntry(
           title: l10n.onboardingPermissionAudio,
           desc: l10n.onboardingPermissionAudioDesc,
-          icon: Icons.audiotrack_outlined,
+          icon: Icons.audiotrack_rounded,
           permission: Permission.audio,
         ),
       ];
@@ -132,23 +132,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ) {
     return <_OnboardingPageData>[
       _OnboardingPageData(
-        icon: Icons.rocket_launch_outlined,
+        icon: Icons.rocket_launch_rounded,
         title: l10n.onboardingWelcomeTitle,
         body: l10n.onboardingWelcomeBody,
       ),
       _OnboardingPageData(
-        icon: Icons.tune_outlined,
+        icon: Icons.tune_rounded,
         title: l10n.onboardingSettingsTitle,
         body: l10n.onboardingSettingsBody,
         customBody: _buildSettingsBody(context, l10n),
       ),
       _OnboardingPageData(
-        icon: Icons.extension_outlined,
+        icon: Icons.extension_rounded,
         title: l10n.onboardingSourcesTitle,
         body: l10n.onboardingSourcesBody,
       ),
       _OnboardingPageData(
-        icon: Icons.sync_outlined,
+        icon: Icons.sync_rounded,
         title: l10n.onboardingBangumiTitle,
         body: l10n.onboardingBangumiBody,
         action: (ctx, loc) => FilledButton.icon(
@@ -161,12 +161,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               // 忽略：用户可在设置页稍后登录。
             }
           },
-          icon: const Icon(Icons.login),
+          icon: const Icon(Icons.login_rounded),
           label: Text(loc.onboardingBangumiLogin),
         ),
       ),
       _OnboardingPageData(
-        icon: Icons.security_outlined,
+        icon: Icons.security_rounded,
         title: l10n.onboardingPermissionTitle,
         body: l10n.onboardingPermissionBody,
         customBody: _buildPermissionBody(context, l10n),
@@ -267,17 +267,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             _ChoiceOption<ThemeMode>(
               value: ThemeMode.system,
               label: l10n.themeSystem,
-              icon: Icons.brightness_auto_outlined,
+              icon: Icons.brightness_auto_rounded,
             ),
             _ChoiceOption<ThemeMode>(
               value: ThemeMode.light,
               label: l10n.themeLight,
-              icon: Icons.light_mode_outlined,
+              icon: Icons.light_mode_rounded,
             ),
             _ChoiceOption<ThemeMode>(
               value: ThemeMode.dark,
               label: l10n.themeDark,
-              icon: Icons.dark_mode_outlined,
+              icon: Icons.dark_mode_rounded,
             ),
           ],
           selected: themeController.mode,
@@ -374,8 +374,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     _refreshGranted();
                   },
             icon: Icon(anyGranted
-                ? Icons.check_circle_outline
-                : Icons.lock_open_outlined),
+                ? Icons.check_circle_rounded
+                : Icons.lock_open_rounded),
             label: Text(l10n.onboardingGrantPermission),
           ),
           const SizedBox(height: AppTokens.spaceSm),
@@ -395,7 +395,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Icon(Icons.check_circle_outline, color: scheme.primary),
+                Icon(Icons.check_circle_rounded, color: scheme.primary),
                 const SizedBox(width: AppTokens.spaceSm),
                 Flexible(
                   child: Text(
@@ -591,7 +591,7 @@ class _DownloadPathSectionState extends State<_DownloadPathSection> {
           ),
           child: Row(
             children: <Widget>[
-              Icon(Icons.folder_outlined,
+              Icon(Icons.folder_rounded,
                   size: 20, color: scheme.onSurfaceVariant),
               const SizedBox(width: AppTokens.spaceSm),
               Expanded(
@@ -660,7 +660,7 @@ class _ThemePreview extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Icon(Icons.more_vert, size: 18, color: scheme.onSurfaceVariant),
+              Icon(Icons.more_vert_rounded, size: 18, color: scheme.onSurfaceVariant),
             ],
           ),
           const SizedBox(height: AppTokens.spaceMd),
@@ -673,7 +673,7 @@ class _ThemePreview extends StatelessWidget {
             ),
             child: Row(
               children: <Widget>[
-                Icon(Icons.check_circle, size: 16, color: scheme.primary),
+                Icon(Icons.check_circle_rounded, size: 16, color: scheme.primary),
                 const SizedBox(width: AppTokens.spaceXs),
                 Expanded(
                   child: Text(
@@ -770,7 +770,7 @@ class _SeedDot extends StatelessWidget {
             ),
           ),
           child: selected
-              ? Icon(Icons.check, size: 18, color: scheme.onPrimary)
+              ? Icon(Icons.check_rounded, size: 18, color: scheme.onPrimary)
               : null,
         ),
       ),
@@ -874,7 +874,7 @@ class _PermissionRow extends StatelessWidget {
             ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(Icons.check_circle, size: 18, color: scheme.primary),
+                  Icon(Icons.check_circle_rounded, size: 18, color: scheme.primary),
                   const SizedBox(width: AppTokens.spaceXs),
                   Text(
                     l10n.onboardingPermissionItemGranted,

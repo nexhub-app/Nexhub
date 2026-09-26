@@ -188,18 +188,18 @@ class _RssOpmlScreenState extends State<RssOpmlScreen> {
                   const SizedBox(height: AppTokens.spaceSm),
                   AppListTile(
                     leading: const SettingsLeadingIcon(
-                        icon: Icons.upload_file_outlined),
+                        icon: Icons.upload_file_rounded),
                     title: Text(l10n.rssOpmlImportFile),
                     subtitle: Text(l10n.rssOpmlImportFileDesc),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _importFromFile(context),
                   ),
                   AppListTile(
                     leading:
-                        const SettingsLeadingIcon(icon: Icons.paste_outlined),
+                        const SettingsLeadingIcon(icon: Icons.paste_rounded),
                     title: Text(l10n.rssOpmlImportText),
                     subtitle: Text(l10n.rssOpmlImportTextDesc),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _importFromText(context),
                   ),
                 ],
@@ -225,7 +225,7 @@ class _RssOpmlScreenState extends State<RssOpmlScreen> {
                   const SizedBox(height: AppTokens.spaceSm),
                   AppListTile(
                     leading: const SettingsLeadingIcon(
-                        icon: Icons.download_outlined),
+                        icon: Icons.download_rounded),
                     title: Text(l10n.rssOpmlExport),
                     subtitle: Text(l10n.rssOpmlExportDesc2),
                     trailing: _exporting
@@ -234,7 +234,7 @@ class _RssOpmlScreenState extends State<RssOpmlScreen> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.chevron_right),
+                        : const Icon(Icons.chevron_right_rounded),
                     onTap: _exporting ? null : () => _export(context),
                   ),
                 ],

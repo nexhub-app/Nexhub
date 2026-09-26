@@ -998,6 +998,78 @@ abstract class AppLocalizations {
   /// **'Preset colors'**
   String get presetColor;
 
+  /// No description provided for @paletteStyleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Palette style'**
+  String get paletteStyleTitle;
+
+  /// No description provided for @paletteStyleDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Color algorithm variant for the current seed'**
+  String get paletteStyleDesc;
+
+  /// No description provided for @paletteStyleTonalSpot.
+  ///
+  /// In en, this message translates to:
+  /// **'Tonal spot'**
+  String get paletteStyleTonalSpot;
+
+  /// No description provided for @paletteStyleFidelity.
+  ///
+  /// In en, this message translates to:
+  /// **'Fidelity'**
+  String get paletteStyleFidelity;
+
+  /// No description provided for @paletteStyleContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Content'**
+  String get paletteStyleContent;
+
+  /// No description provided for @paletteStyleNeutral.
+  ///
+  /// In en, this message translates to:
+  /// **'Neutral'**
+  String get paletteStyleNeutral;
+
+  /// No description provided for @paletteStyleMonochrome.
+  ///
+  /// In en, this message translates to:
+  /// **'Monochrome'**
+  String get paletteStyleMonochrome;
+
+  /// No description provided for @paletteStyleVibrant.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibrant'**
+  String get paletteStyleVibrant;
+
+  /// No description provided for @paletteStyleExpressive.
+  ///
+  /// In en, this message translates to:
+  /// **'Expressive'**
+  String get paletteStyleExpressive;
+
+  /// No description provided for @paletteStyleRainbow.
+  ///
+  /// In en, this message translates to:
+  /// **'Rainbow'**
+  String get paletteStyleRainbow;
+
+  /// No description provided for @paletteStyleFruitSalad.
+  ///
+  /// In en, this message translates to:
+  /// **'Fruit salad'**
+  String get paletteStyleFruitSalad;
+
+  /// No description provided for @appearanceThemeMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme mode'**
+  String get appearanceThemeMode;
+
   /// No description provided for @appearanceThemeSection.
   ///
   /// In en, this message translates to:

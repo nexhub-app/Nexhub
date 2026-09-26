@@ -107,7 +107,7 @@ class _CommentSectionState extends State<CommentSection> {
           ? TextButton.icon(
               key: const ValueKey<String>('write'),
               onPressed: _writeComment,
-              icon: const Icon(Icons.edit_outlined, size: 18),
+              icon: const Icon(Icons.edit_rounded, size: 18),
               label: Text(l10n.writeComment),
             )
           : const SizedBox.shrink(key: ValueKey<String>('none'));
@@ -116,7 +116,7 @@ class _CommentSectionState extends State<CommentSection> {
         key: const ValueKey<String>('login'),
         onPressed: () =>
             showSourceLoginSheet(context, source: widget.source),
-        icon: const Icon(Icons.login, size: 18),
+        icon: const Icon(Icons.login_rounded, size: 18),
         label: Text(l10n.loginToComment),
       );
     }
@@ -455,7 +455,7 @@ class _CommentTileState extends State<CommentTile> {
       radius: 16,
       backgroundColor: theme.colorScheme.primaryContainer,
       child: Icon(
-        Icons.person,
+        Icons.person_rounded,
         size: 18,
         color: theme.colorScheme.onPrimaryContainer,
       ),
@@ -522,7 +522,7 @@ class _CommentTileState extends State<CommentTile> {
                       child: child,
                     ),
                     child: Icon(
-                      _liked ? Icons.favorite : Icons.favorite_border,
+                      _liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                       key: ValueKey<bool>(_liked),
                       size: 16,
                       color: _liked ? theme.colorScheme.primary : muted,
@@ -548,14 +548,14 @@ class _CommentTileState extends State<CommentTile> {
               foregroundColor: muted,
             ),
             onPressed: _reply,
-            icon: const Icon(Icons.chat_bubble_outline, size: 16),
+            icon: const Icon(Icons.chat_bubble_rounded, size: 16),
             label: Text(l10n.replyComment),
           ),
         ],
         const Spacer(),
         if (_routes['report'] != null)
           PopupMenuButton<String>(
-            icon: Icon(Icons.more_horiz, size: 18, color: muted),
+            icon: Icon(Icons.more_horiz_rounded, size: 18, color: muted),
             onSelected: (_) => _report(l10n),
             itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
               PopupMenuItem<String>(

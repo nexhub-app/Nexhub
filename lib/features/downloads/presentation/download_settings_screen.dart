@@ -29,7 +29,7 @@ class DownloadSettingsScreen extends StatelessWidget {
         children: <Widget>[
           // ── 漫画格式 ──
           _SectionHeader(
-            icon: Icons.auto_stories,
+            icon: Icons.auto_stories_rounded,
             title: l10n.comicDownloadFormat,
           ),
           const SizedBox(height: AppTokens.spaceSm),
@@ -53,7 +53,7 @@ class DownloadSettingsScreen extends StatelessWidget {
 
           // ── 小说格式 ──
           _SectionHeader(
-            icon: Icons.menu_book,
+            icon: Icons.menu_book_rounded,
             title: l10n.novelDownloadFormat,
           ),
           const SizedBox(height: AppTokens.spaceSm),
@@ -129,8 +129,8 @@ class _FormatOption extends StatelessWidget {
         ),
         subtitle: Text(subtitle),
         trailing: selected
-            ? Icon(Icons.check_circle, color: scheme.primary)
-            : Icon(Icons.radio_button_unchecked,
+            ? Icon(Icons.check_circle_rounded, color: scheme.primary)
+            : Icon(Icons.radio_button_unchecked_rounded,
                 color: scheme.outline),
       ),
     );

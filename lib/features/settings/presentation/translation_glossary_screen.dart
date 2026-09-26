@@ -237,12 +237,12 @@ class _TranslationGlossaryScreenState extends State<TranslationGlossaryScreen> {
                 ),
                 IconButton(
                   tooltip: l10n.glossaryImport,
-                  icon: const Icon(Icons.upload_file),
+                  icon: const Icon(Icons.upload_file_rounded),
                   onPressed: _import,
                 ),
                 IconButton(
                   tooltip: l10n.glossaryExport,
-                  icon: const Icon(Icons.ios_share),
+                  icon: const Icon(Icons.ios_share_rounded),
                   onPressed: _entries.isEmpty ? null : _export,
                 ),
               ],
@@ -289,7 +289,7 @@ class _TranslationGlossaryScreenState extends State<TranslationGlossaryScreen> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                               trailing: IconButton(
-                                icon: const Icon(Icons.delete_outline),
+                                icon: const Icon(Icons.delete_rounded),
                                 onPressed: () => _remove(e),
                               ),
                               onTap: () => _showEditor(e),
@@ -303,7 +303,7 @@ class _TranslationGlossaryScreenState extends State<TranslationGlossaryScreen> {
               padding: const EdgeInsets.all(AppTokens.spaceLg),
               child: FilledButton.icon(
                 onPressed: () => _showEditor(),
-                icon: const Icon(Icons.add),
+                icon: const Icon(Icons.add_rounded),
                 label: Text(l10n.glossaryAdd),
               ),
             ),

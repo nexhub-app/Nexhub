@@ -397,7 +397,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                             color: prefs.underlineColor,
                           ),
                           title: Text(l10n.articleUnderlineColor),
-                          trailing: const Icon(Icons.palette_outlined),
+                          trailing: const Icon(Icons.palette_rounded),
                           onTap: () async {
                             final int? v = await _pickArticleColor(ctx,
                                 title: l10n.articleUnderlineColor);
@@ -451,7 +451,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         leading: _ArticleColorSwatch(color: prefs.customBgColor),
                         title: Text(l10n.articleTextColor),
                         subtitle: Text(l10n.articleBackground),
-                        trailing: const Icon(Icons.palette_outlined),
+                        trailing: const Icon(Icons.palette_rounded),
                         onTap: () async {
                           final int? v = await _pickArticleColor(ctx,
                               title: l10n.articleBackground);
@@ -468,7 +468,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         leading:
                             _ArticleColorSwatch(color: prefs.customTextColor),
                         title: Text(l10n.articleTextColor),
-                        trailing: const Icon(Icons.palette_outlined),
+                        trailing: const Icon(Icons.palette_rounded),
                         onTap: () async {
                           final int? v = await _pickArticleColor(ctx,
                               title: l10n.articleTextColor);
@@ -485,7 +485,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         leading:
                             _ArticleColorSwatch(color: prefs.emphasisColor),
                         title: Text(l10n.articleEmphasisColor),
-                        trailing: const Icon(Icons.palette_outlined),
+                        trailing: const Icon(Icons.palette_rounded),
                         onTap: () async {
                           final int? v = await _pickArticleColor(ctx,
                               title: l10n.articleEmphasisColor);
@@ -546,7 +546,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                       _ArticleSectionHeader(title: l10n.articleSecFont),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.font_download_outlined),
+                        leading: const Icon(Icons.font_download_rounded),
                         title: Text(l10n.articleChooseFont),
                         subtitle: prefs.customFontPath != null
                             ? Text(
@@ -559,7 +559,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                             : null,
                         trailing: prefs.customFontPath != null
                             ? IconButton(
-                                icon: const Icon(Icons.delete_outline),
+                                icon: const Icon(Icons.delete_rounded),
                                 tooltip: l10n.articleClearFont,
                                 onPressed: () =>
                                     notifier.setCustomFontPath(null),
@@ -631,7 +631,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                         contentPadding: EdgeInsets.zero,
                         leading: _ArticleColorSwatch(color: prefs.titleColor),
                         title: Text(l10n.articleTitleColor),
-                        trailing: const Icon(Icons.palette_outlined),
+                        trailing: const Icon(Icons.palette_rounded),
                         onTap: () async {
                           final int? v = await _pickArticleColor(ctx,
                               title: l10n.articleTitleColor);
@@ -705,7 +705,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
             child: OutlinedButton.icon(
               onPressed:
                   hasPrev ? () => _navigateTo(items[_navIndex - 1]) : null,
-              icon: const Icon(Icons.skip_previous_outlined, size: 18),
+              icon: const Icon(Icons.skip_previous_rounded, size: 18),
               label: Text(l10n.rssPrevArticle,
                   maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
@@ -724,7 +724,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
             child: OutlinedButton.icon(
               onPressed:
                   hasNext ? () => _navigateTo(items[_navIndex + 1]) : null,
-              icon: const Icon(Icons.skip_next_outlined, size: 18),
+              icon: const Icon(Icons.skip_next_rounded, size: 18),
               label: Text(l10n.rssNextArticle,
                   maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
@@ -759,7 +759,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    const Icon(Icons.play_circle_outline),
+                    const Icon(Icons.play_circle_rounded),
                     const SizedBox(width: AppTokens.spaceSm),
                     Text(l10n.rssAttachments,
                         style: Theme.of(context).textTheme.titleSmall),
@@ -769,7 +769,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                 for (final enc in video)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.play_arrow_outlined),
+                    leading: const Icon(Icons.play_arrow_rounded),
                     title: Text(enc.title ?? enc.url),
                     subtitle: enc.type != null ? Text(enc.type!) : null,
                     onTap: () => _openVideo(context, enc.url),
@@ -791,7 +791,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    const Icon(Icons.attachment_outlined),
+                    const Icon(Icons.attachment_rounded),
                     const SizedBox(width: AppTokens.spaceSm),
                     Text(l10n.rssAttachments,
                         style: Theme.of(context).textTheme.titleSmall),
@@ -801,7 +801,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                 for (final enc in others)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.open_in_new_outlined),
+                    leading: const Icon(Icons.open_in_new_rounded),
                     title: Text(enc.title ?? enc.url),
                     subtitle: enc.type != null ? Text(enc.type!) : null,
                     onTap: () => _openAttachment(context, enc.url),
@@ -956,7 +956,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
           const SizedBox(height: AppTokens.spaceSm),
           TextButton.icon(
             onPressed: () => Navigator.of(dctx).pop(-1),
-            icon: const Icon(Icons.restart_alt, size: 18),
+            icon: const Icon(Icons.restart_alt_rounded, size: 18),
             label: Text(l10n.colorFollowDefault),
           ),
         ],
@@ -1096,18 +1096,18 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
               if (canFetch || _fetching)
                 AppIconButton(
                   icon: _fetching
-                      ? Icons.hourglass_top
-                      : Icons.cloud_download_outlined,
+                      ? Icons.hourglass_top_rounded
+                      : Icons.cloud_download_rounded,
                   tooltip: l10n.rssFetchWebsite,
                   onPressed: canFetch ? () => _fetchFull(context, l10n) : null,
                 ),
               AppIconButton(
-                icon: Icons.text_fields_outlined,
+                icon: Icons.text_fields_rounded,
                 tooltip: l10n.articleReadingSettings,
                 onPressed: () => _showReadingSettingsSheet(context),
               ),
               AppIconButton(
-                icon: Icons.share_outlined,
+                icon: Icons.share_rounded,
                 tooltip: l10n.share,
                 onPressed: () {
                   unawaited(
@@ -1116,7 +1116,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                 },
               ),
               AppIconButton(
-                icon: Icons.open_in_browser_outlined,
+                icon: Icons.open_in_browser_rounded,
                 tooltip: l10n.articleDetailReadFull,
                 onPressed: () => _openInBrowser(context, l10n),
               ),
@@ -1124,7 +1124,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => _openInBrowser(context, l10n),
-            icon: const Icon(Icons.open_in_new_outlined),
+            icon: const Icon(Icons.open_in_new_rounded),
             label: Text(l10n.articleDetailReadFull),
           ),
           bottomNavigationBar: _buildArticleNavBar(context, l10n),
@@ -1245,7 +1245,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                               padding: const EdgeInsets.symmetric(
                                   vertical: AppTokens.spaceSm),
                               child: OutlinedButton.icon(
-                                icon: const Icon(Icons.play_circle_outline),
+                                icon: const Icon(Icons.play_circle_rounded),
                                 label: Text(l10n.rssVideoPlay),
                                 onPressed: () => _openVideo(context, url),
                               ),
@@ -1267,7 +1267,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                               padding: const EdgeInsets.symmetric(
                                   vertical: AppTokens.spaceSm),
                               child: OutlinedButton.icon(
-                                icon: const Icon(Icons.play_circle_outline),
+                                icon: const Icon(Icons.play_circle_rounded),
                                 label: Text(l10n.rssVideoPlay),
                                 onPressed: () => _openVideo(context, url),
                               ),
@@ -1284,7 +1284,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                 )
               else
                 AppEmptyState(
-                    icon: Icons.article_outlined,
+                    icon: Icons.article_rounded,
                     message: l10n.articleDetailEmpty),
               _buildEnclosureWidgets(context, l10n),
             ],
@@ -1381,7 +1381,7 @@ class _ArticleColorSwatch extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade400),
       ),
       child: color == null
-          ? const Icon(Icons.brightness_auto, size: 16, color: Colors.grey)
+          ? const Icon(Icons.brightness_auto_rounded, size: 16, color: Colors.grey)
           : null,
     );
   }

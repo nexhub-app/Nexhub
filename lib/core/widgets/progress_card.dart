@@ -129,7 +129,7 @@ class ProgressCard extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: _StatColumn(
-                  icon: Icons.menu_book_outlined,
+                  icon: Icons.menu_book_rounded,
                   value: total.toDouble(),
                   format: (double v) => v.round().toString(),
                   label: totalLabel,
@@ -138,8 +138,8 @@ class ProgressCard extends StatelessWidget {
               Expanded(
                 child: _StatColumn(
                   icon: _completed
-                      ? Icons.check_circle
-                      : Icons.check_circle_outline,
+                      ? Icons.check_circle_rounded
+                      : Icons.check_circle_rounded,
                   value: read.toDouble(),
                   format: (double v) => v.round().toString(),
                   label: readLabel,
@@ -147,7 +147,7 @@ class ProgressCard extends StatelessWidget {
               ),
               Expanded(
                 child: _StatColumn(
-                  icon: Icons.percent,
+                  icon: Icons.percent_rounded,
                   value: _percent * 100,
                   format: (double v) => '${v.toStringAsFixed(1)}%',
                   label: l10n.progressLabel,
@@ -179,7 +179,7 @@ class ProgressCard extends StatelessWidget {
             Row(
               children: <Widget>[
                 Icon(
-                  Icons.schedule,
+                  Icons.schedule_rounded,
                   size: 14,
                   color: scheme.onSurfaceVariant,
                 ),

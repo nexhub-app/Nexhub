@@ -102,7 +102,7 @@ class _RssAddSubscriptionScreenState extends State<RssAddSubscriptionScreen> {
             controller: _urlController,
             decoration: InputDecoration(
               hintText: l10n.addSubscription,
-              prefixIcon: const Icon(Icons.link),
+              prefixIcon: const Icon(Icons.link_rounded),
               border: const OutlineInputBorder(),
             ),
             keyboardType: TextInputType.url,
@@ -133,7 +133,7 @@ class _RssAddSubscriptionScreenState extends State<RssAddSubscriptionScreen> {
             const SizedBox(height: AppTokens.spaceSm),
             ...routes.map((route) => ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.add, size: 20),
+                  leading: const Icon(Icons.add_rounded, size: 20),
                   title: Text(route.label),
                   subtitle: Text(
                     route.path,
@@ -148,7 +148,7 @@ class _RssAddSubscriptionScreenState extends State<RssAddSubscriptionScreen> {
                       shape: BoxShape.circle,
                       border: Border.all(color: scheme.outline),
                     ),
-                    child: Icon(Icons.add, size: 16, color: scheme.onSurfaceVariant),
+                    child: Icon(Icons.add_rounded, size: 16, color: scheme.onSurfaceVariant),
                   ),
                   onTap: () => _useRoute(route.path, manager),
                 )),

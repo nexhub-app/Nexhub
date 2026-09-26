@@ -88,7 +88,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
             const LayoutPickerButton(),
             // 筛选：与顶部类型 Tab 联动的弹窗式快速筛选（底部弹窗风格）。
             IconButton(
-              icon: const Icon(Icons.filter_list),
+              icon: const Icon(Icons.filter_list_rounded),
               tooltip: l10n.filter,
               onPressed: () => showDownloadedFilterSheet(
                 context,
@@ -103,21 +103,21 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
           ],
           if (_selectMode) ...<Widget>[
             IconButton(
-              icon: const Icon(Icons.select_all),
+              icon: const Icon(Icons.select_all_rounded),
               tooltip: l10n.selectAll,
               onPressed: () => setState(() {
                 _selectedKeys.addAll(groups.map((g) => g.contentId).toSet());
               }),
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_rounded),
               tooltip: l10n.delete,
               onPressed: _selectedKeys.isEmpty
                   ? null
                   : () => _confirmDelete(context, manager, l10n),
             ),
             IconButton(
-              icon: const Icon(Icons.close),
+              icon: const Icon(Icons.close_rounded),
               tooltip: l10n.cancel,
               onPressed: () => setState(() {
                 _selectMode = false;
@@ -128,7 +128,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
               !isArchivedTab) ...<Widget>[
             // Archived tab uses per-card action buttons instead of select mode.
             IconButton(
-              icon: const Icon(Icons.checklist),
+              icon: const Icon(Icons.checklist_rounded),
               tooltip: l10n.select,
               onPressed: () => setState(() => _selectMode = true),
             ),
@@ -177,8 +177,8 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
             child: groups.isEmpty
                 ? AppEmptyState(
                     icon: isArchivedTab
-                        ? Icons.archive_outlined
-                        : Icons.download_done_outlined,
+                        ? Icons.archive_rounded
+                        : Icons.download_done_rounded,
                     message:
                         isArchivedTab ? l10n.archivedEmpty : l10n.emptyDownloaded,
                   )
@@ -575,7 +575,7 @@ class _DownloadedCard extends StatelessWidget {
               child: CircleAvatar(
                 radius: 12,
                 backgroundColor: scheme.primary,
-                child: Icon(Icons.check, size: 16, color: scheme.onPrimary),
+                child: Icon(Icons.check_rounded, size: 16, color: scheme.onPrimary),
               ),
             ),
         ],
@@ -592,7 +592,7 @@ class _DownloadedCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.restore),
+            icon: const Icon(Icons.restore_rounded),
             tooltip: l10n.restore,
             iconSize: 20,
             padding: EdgeInsets.zero,
@@ -600,7 +600,7 @@ class _DownloadedCard extends StatelessWidget {
             onPressed: onRestore,
           ),
           IconButton(
-            icon: const Icon(Icons.delete_forever),
+            icon: const Icon(Icons.delete_forever_rounded),
             tooltip: l10n.deletePermanently,
             iconSize: 20,
             padding: EdgeInsets.zero,
@@ -709,7 +709,7 @@ class _DownloadedFilterSheetState extends State<_DownloadedFilterSheet> {
                 children: <Widget>[
                   Text(l10n.filter, style: theme.textTheme.titleMedium),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close_rounded),
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                 ],
@@ -796,7 +796,7 @@ class _FilterRow extends StatelessWidget {
                 ),
               ),
             ),
-            if (selected) Icon(Icons.check, size: 18, color: scheme.primary),
+            if (selected) Icon(Icons.check_rounded, size: 18, color: scheme.primary),
           ],
         ),
       ),

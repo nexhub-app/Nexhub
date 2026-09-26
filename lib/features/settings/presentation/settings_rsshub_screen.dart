@@ -252,7 +252,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.speed),
+                      : const Icon(Icons.speed_rounded),
                   label: Text(
                       _testingAll ? l10n.rsshubTestingAll : l10n.rsshubTestAll),
                 ),
@@ -275,10 +275,10 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
               controller: _newCustomController,
               decoration: InputDecoration(
                 hintText: 'https://rsshub.example.com',
-                prefixIcon: const Icon(Icons.link),
+                prefixIcon: const Icon(Icons.link_rounded),
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add_rounded),
                   tooltip: l10n.add,
                   onPressed: _addCustomInstance,
                 ),
@@ -310,7 +310,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
               OutlinedButton.icon(
                 onPressed: _restoreDefault,
                 key: const ValueKey<String>('rsshub.restore'),
-                icon: const Icon(Icons.restore),
+                icon: const Icon(Icons.restore_rounded),
                 label: Text(l10n.restoreDefault),
               ),
             ],
@@ -349,7 +349,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
             .colorScheme
             .primaryContainer
             .withValues(alpha: 0.5),
-        child: Icon(Icons.rss_feed,
+        child: Icon(Icons.rss_feed_rounded,
             size: 18, color: Theme.of(context).colorScheme.primary),
       ),
       title: Text(instance.name),
@@ -375,10 +375,10 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
               ),
             ),
           if (isSelected)
-            Icon(Icons.check_circle,
+            Icon(Icons.check_circle_rounded,
                 color: Theme.of(context).colorScheme.primary, size: 20)
           else
-            Icon(Icons.radio_button_unchecked,
+            Icon(Icons.radio_button_unchecked_rounded,
                 color: Theme.of(context).colorScheme.outline, size: 20),
         ],
       ),
@@ -394,7 +394,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
     return AppListTile(
       leading: CircleAvatar(
         backgroundColor: scheme.secondaryContainer.withValues(alpha: 0.5),
-        child: Icon(Icons.rss_feed, size: 18, color: scheme.secondary),
+        child: Icon(Icons.rss_feed_rounded, size: 18, color: scheme.secondary),
       ),
       title: Text(url),
       subtitle: Text(l10n.customInstance),
@@ -404,14 +404,14 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
           _buildTestButton(url, status),
           const SizedBox(width: AppTokens.spaceXs),
           IconButton(
-            icon: Icon(Icons.delete_outline, size: 20, color: scheme.error),
+            icon: Icon(Icons.delete_rounded, size: 20, color: scheme.error),
             tooltip: l10n.delete,
             onPressed: () => _removeCustomInstance(url),
           ),
           if (isSelected)
-            Icon(Icons.check_circle, color: scheme.primary, size: 20)
+            Icon(Icons.check_circle_rounded, color: scheme.primary, size: 20)
           else
-            Icon(Icons.radio_button_unchecked, color: scheme.outline, size: 20),
+            Icon(Icons.radio_button_unchecked_rounded, color: scheme.outline, size: 20),
         ],
       ),
       onTap: () => _selectInstance(url, isCustom: true),
@@ -464,10 +464,10 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
     final iconButton = IconButton(
       icon: Icon(
         status is int
-            ? Icons.check_circle_outline
+            ? Icons.check_circle_rounded
             : status == false
-                ? Icons.error_outline
-                : Icons.wifi_find_outlined,
+                ? Icons.error_rounded
+                : Icons.wifi_find_rounded,
         size: 20,
         color: status is int
             ? AppStatusColors.ok(scheme)

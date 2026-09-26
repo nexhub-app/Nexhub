@@ -397,7 +397,7 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
           if (_hasUpdatable)
             IconButton(
               tooltip: l10n.libraryUpdateAll,
-              icon: const Icon(Icons.system_update_alt),
+              icon: const Icon(Icons.system_update_alt_rounded),
               onPressed: _loading || _importing
                   ? null
                   : () {
@@ -407,7 +407,7 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
             ),
           IconButton(
             tooltip: l10n.retry,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: _loading || _importing
                 ? null
                 : () {
@@ -437,7 +437,7 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.file_download_outlined),
+                      : const Icon(Icons.file_download_rounded),
                   label: Text(l10n.importSelectedCount(_selectedIndices.length)),
                 ),
               ),

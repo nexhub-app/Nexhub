@@ -111,7 +111,7 @@ class BrowsePage extends StatelessWidget {
 
     final List<_BrowseEntry> entries = <_BrowseEntry>[
       _BrowseEntry(
-        icon: Icons.folder_outlined,
+        icon: Icons.folder_rounded,
         title: l10n.browseLocalFiles,
         subtitle: l10n.browseLocalFilesSubtitle,
         color: scheme.primaryContainer,
@@ -123,7 +123,7 @@ class BrowsePage extends StatelessWidget {
             ),
       ),
       _BrowseEntry(
-        icon: Icons.cloud_download_outlined,
+        icon: Icons.cloud_download_rounded,
         title: l10n.browseNetworkFiles,
         subtitle: l10n.browseNetworkFilesSubtitle,
         color: scheme.secondaryContainer,
@@ -135,7 +135,7 @@ class BrowsePage extends StatelessWidget {
             ),
       ),
       _BrowseEntry(
-        icon: Icons.travel_explore_outlined,
+        icon: Icons.travel_explore_rounded,
         title: l10n.browseWebScrape,
         subtitle: l10n.browseWebScrapeSubtitle,
         color: scheme.tertiaryContainer,
@@ -147,7 +147,7 @@ class BrowsePage extends StatelessWidget {
             ),
       ),
       _BrowseEntry(
-        icon: Icons.rss_feed_outlined,
+        icon: Icons.rss_feed_rounded,
         title: l10n.browseRss,
         subtitle: l10n.browseRssSubtitle,
         color: scheme.errorContainer,
@@ -161,7 +161,7 @@ class BrowsePage extends StatelessWidget {
             ),
       ),
       _BrowseEntry(
-        icon: Icons.cable_outlined,
+        icon: Icons.cable_rounded,
         title: l10n.browseSniff,
         subtitle: l10n.browseSniffSubtitle,
         color: scheme.secondaryContainer,

@@ -43,7 +43,7 @@ class SourceAnnouncementBanner extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: AppTokens.spaceXxs),
             child: Icon(
-              Icons.campaign_outlined,
+              Icons.campaign_rounded,
               size: 20,
               color: scheme.onPrimaryContainer,
             ),
@@ -89,7 +89,7 @@ class SourceAnnouncementBanner extends StatelessWidget {
           ),
           if (onDismiss != null)
             IconButton(
-              icon: Icon(Icons.close, size: 18, color: scheme.onPrimaryContainer),
+              icon: Icon(Icons.close_rounded, size: 18, color: scheme.onPrimaryContainer),
               onPressed: onDismiss,
               tooltip: l10n.close,
             ),

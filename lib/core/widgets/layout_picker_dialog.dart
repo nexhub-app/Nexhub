@@ -78,7 +78,7 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
               // ── 标题栏 ──
               Row(
                 children: <Widget>[
-                  Icon(Icons.tune, size: 22, color: scheme.primary),
+                  Icon(Icons.tune_rounded, size: 22, color: scheme.primary),
                   const SizedBox(width: AppTokens.spaceSm),
                   Text(
                     l10n.layoutSettings,
@@ -88,7 +88,7 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 20),
+                    icon: const Icon(Icons.close_rounded, size: 20),
                     onPressed: () => Navigator.of(context).maybePop(),
                     tooltip: l10n.close ?? 'Close',
                   ),
@@ -112,12 +112,12 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                       ButtonSegment<LayoutMode>(
                         value: LayoutMode.grid,
                         label: Text(l10n.bookshelfLayoutGrid),
-                        icon: const Icon(Icons.grid_view, size: 18),
+                        icon: const Icon(Icons.grid_view_rounded, size: 18),
                       ),
                       ButtonSegment<LayoutMode>(
                         value: LayoutMode.list,
                         label: Text(l10n.bookshelfLayoutList),
-                        icon: const Icon(Icons.view_list, size: 18),
+                        icon: const Icon(Icons.view_list_rounded, size: 18),
                       ),
                     ],
                   ),
@@ -130,7 +130,7 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                 children: <Widget>[
                   if (_current.layoutMode == LayoutMode.grid) ...<Widget>[
                     _SliderTile(
-                      icon: Icons.view_column,
+                      icon: Icons.view_column_rounded,
                       label: l10n.layoutGridColumns,
                       value: _current.gridColumns.toDouble(),
                       min: 1,
@@ -140,7 +140,7 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                           _commit(_current.copyWith(gridColumns: v.toInt())),
                     ),
                     _SliderTile(
-                      icon: Icons.horizontal_distribute,
+                      icon: Icons.horizontal_distribute_rounded,
                       label: l10n.layoutGridSpacing,
                       value: _current.gridSpacing.clamp(4, 24),
                       min: 4,
@@ -175,7 +175,7 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                 title: l10n.layoutGridCoverGroup,
                 children: <Widget>[
                   _SliderTile(
-                    icon: Icons.rounded_corner,
+                    icon: Icons.rounded_corner_rounded,
                     label: l10n.layoutCoverRadius,
                     value: _current.coverRadius.clamp(0, 24),
                     min: 0,
@@ -185,7 +185,7 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                         _commit(_current.copyWith(coverRadius: v)),
                   ),
                   _SliderTile(
-                    icon: Icons.text_fields,
+                    icon: Icons.text_fields_rounded,
                     label: l10n.layoutTitleFontSize,
                     value: _current.titleFontSize.clamp(12, 18),
                     min: 12,
@@ -202,7 +202,7 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                 title: l10n.layoutDisplayGroup,
                 children: <Widget>[
                   _SwitchTile(
-                    icon: Icons.title,
+                    icon: Icons.title_rounded,
                     label: l10n.layoutShowTitle,
                     value: _current.showTitle,
                     onChanged: (v) => _commit(_current.copyWith(showTitle: v)),
@@ -220,14 +220,14 @@ class _LayoutPickerSheetState extends State<_LayoutPickerSheet> {
                       ),
                     ),
                   _SwitchTile(
-                    icon: Icons.person_outline,
+                    icon: Icons.person_rounded,
                     label: l10n.layoutShowAuthor,
                     value: _current.showAuthor,
                     onChanged: (v) =>
                         _commit(_current.copyWith(showAuthor: v)),
                   ),
                   _SwitchTile(
-                    icon: Icons.pie_chart_outline,
+                    icon: Icons.pie_chart_rounded,
                     label: l10n.layoutShowProgress,
                     value: _current.showProgress,
                     onChanged: (v) =>
@@ -360,7 +360,7 @@ class _PreviewCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(Icons.preview, size: 14, color: scheme.onSurfaceVariant),
+              Icon(Icons.preview_rounded, size: 14, color: scheme.onSurfaceVariant),
               const SizedBox(width: AppTokens.spaceXs),
               Text(
                 isList
@@ -675,7 +675,7 @@ class _StepperInline extends StatelessWidget {
         IconButton(
           iconSize: 18,
           constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          icon: const Icon(Icons.remove, size: 16),
+          icon: const Icon(Icons.remove_rounded, size: 16),
           onPressed: value > minValue ? () => onChanged(value - 1) : null,
         ),
         Container(
@@ -692,7 +692,7 @@ class _StepperInline extends StatelessWidget {
         IconButton(
           iconSize: 18,
           constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          icon: const Icon(Icons.add, size: 16),
+          icon: const Icon(Icons.add_rounded, size: 16),
           onPressed: value < maxValue ? () => onChanged(value + 1) : null,
         ),
       ],

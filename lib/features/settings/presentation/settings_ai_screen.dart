@@ -623,7 +623,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                           builder: (_) => const TranslationGlossaryScreen()),
                     );
                   },
-                  icon: const Icon(Icons.menu_book_outlined),
+                  icon: const Icon(Icons.menu_book_rounded),
                   label: Text(l10n.glossaryOpen),
                 ),
                 const SizedBox(height: AppTokens.spaceSm),
@@ -634,7 +634,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                           builder: (_) => const TranslationReviewScreen()),
                     );
                   },
-                  icon: const Icon(Icons.fact_check_outlined),
+                  icon: const Icon(Icons.fact_check_rounded),
                   label: Text(l10n.reviewOpen),
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
@@ -715,7 +715,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                   children: <Widget>[
                     OutlinedButton.icon(
                       onPressed: () => _exportComicTranslations(l10n),
-                      icon: const Icon(Icons.ios_share, size: 16),
+                      icon: const Icon(Icons.ios_share_rounded, size: 16),
                       label: Text(l10n.comicTranslationExport),
                     ),
                     OutlinedButton.icon(
@@ -728,7 +728,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                               height: 14,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2))
-                          : const Icon(Icons.file_download_outlined,
+                          : const Icon(Icons.file_download_rounded,
                               size: 16),
                       label: Text(l10n.comicTranslationImport),
                     ),
@@ -792,7 +792,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                           height: 16,
                           child:
                               CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.delete_sweep_outlined),
+                      : const Icon(Icons.delete_sweep_rounded),
                   label: Text(l10n.translationCacheClear),
                 ),
               ],
@@ -805,7 +805,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.save),
+                  : const Icon(Icons.save_rounded),
               label: Text(l10n.save),
             ),
             const SizedBox(height: AppTokens.spaceXl),
@@ -917,7 +917,7 @@ class _BackupFieldsState extends State<_BackupFields> {
       children: <Widget>[
         TextButton.icon(
           onPressed: () => setState(() => _expanded = !_expanded),
-          icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more,
+          icon: Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
               size: 18),
           label: Text(l10n.aiBackupSection,
               style: Theme.of(context).textTheme.labelLarge),

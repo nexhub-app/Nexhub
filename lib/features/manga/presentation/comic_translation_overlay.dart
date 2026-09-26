@@ -124,7 +124,7 @@ class ComicTranslationOverlay extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 child: const Padding(
                   padding: EdgeInsets.all(3),
-                  child: Icon(Icons.refresh, size: 14),
+                  child: Icon(Icons.refresh_rounded, size: 14),
                 ),
               ),
             ],

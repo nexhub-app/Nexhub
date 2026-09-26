@@ -259,7 +259,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Icon(
-                Icons.browse_gallery_outlined,
+                Icons.browse_gallery_rounded,
                 size: 72,
                 color: scheme.primary.withValues(alpha: 0.7),
               ),
@@ -278,7 +278,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
                     Uri.parse(widget.initialUrl!),
                     mode: LaunchMode.externalApplication,
                   ),
-                  icon: const Icon(Icons.open_in_browser),
+                  icon: const Icon(Icons.open_in_browser_rounded),
                   label: Text(l10n.openInBrowser),
                 ),
             ],
@@ -294,7 +294,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
       appBar: AppBar(
         titleSpacing: AppTokens.spaceSm,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close_rounded),
           tooltip: l10n.cancel,
           onPressed: () => Navigator.of(context).pop(false),
         ),
@@ -302,7 +302,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
         actions: isCompact
             ? <Widget>[
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
+                  icon: const Icon(Icons.more_vert_rounded),
                   tooltip: l10n.browserTitle,
                   onSelected: (String value) {
                     switch (value) {
@@ -326,7 +326,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
                       value: 'copy',
                       child: Row(
                         children: <Widget>[
-                          const Icon(Icons.link_outlined, size: 20),
+                          const Icon(Icons.link_rounded, size: 20),
                           const SizedBox(width: AppTokens.spaceMd),
                           Text(l10n.browserCopyLink),
                         ],
@@ -336,7 +336,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
                       value: 'share',
                       child: Row(
                         children: <Widget>[
-                          const Icon(Icons.share_outlined, size: 20),
+                          const Icon(Icons.share_rounded, size: 20),
                           const SizedBox(width: AppTokens.spaceMd),
                           Text(l10n.browserShare),
                         ],
@@ -346,7 +346,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
                       value: 'verify',
                       child: Row(
                         children: <Widget>[
-                          const Icon(Icons.verified_user_outlined, size: 20),
+                          const Icon(Icons.verified_user_rounded, size: 20),
                           const SizedBox(width: AppTokens.spaceMd),
                           Text(l10n.browserUseAsVerification),
                         ],
@@ -356,7 +356,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
                       value: 'sniffer',
                       child: Row(
                         children: <Widget>[
-                          const Icon(Icons.cable_outlined, size: 20),
+                          const Icon(Icons.cable_rounded, size: 20),
                           const SizedBox(width: AppTokens.spaceMd),
                           Text(l10n.browserOpenSniffer),
                         ],
@@ -367,22 +367,22 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
               ]
             : <Widget>[
                 IconButton(
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const Icon(Icons.arrow_back_rounded),
                   tooltip: l10n.browserBack,
                   onPressed: _canGoBack ? _goBack : null,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.arrow_forward),
+                  icon: const Icon(Icons.arrow_forward_rounded),
                   tooltip: l10n.browserForward,
                   onPressed: _canGoForward ? _goForward : null,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(Icons.refresh_rounded),
                   tooltip: l10n.browserRefresh,
                   onPressed: _refresh,
                 ),
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
+                  icon: const Icon(Icons.more_vert_rounded),
                   tooltip: l10n.browserTitle,
                   onSelected: (String value) {
                     switch (value) {
@@ -406,7 +406,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
                       value: 'copy',
                       child: Row(
                         children: <Widget>[
-                          const Icon(Icons.link_outlined, size: 20),
+                          const Icon(Icons.link_rounded, size: 20),
                           const SizedBox(width: AppTokens.spaceMd),
                           Text(l10n.browserCopyLink),
                         ],
@@ -416,7 +416,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
                       value: 'share',
                       child: Row(
                         children: <Widget>[
-                          const Icon(Icons.share_outlined, size: 20),
+                          const Icon(Icons.share_rounded, size: 20),
                           const SizedBox(width: AppTokens.spaceMd),
                           Text(l10n.browserShare),
                         ],
@@ -426,7 +426,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
                       value: 'verify',
                       child: Row(
                         children: <Widget>[
-                          const Icon(Icons.verified_user_outlined, size: 20),
+                          const Icon(Icons.verified_user_rounded, size: 20),
                           const SizedBox(width: AppTokens.spaceMd),
                           Text(l10n.browserUseAsVerification),
                         ],
@@ -436,7 +436,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
                       value: 'sniffer',
                       child: Row(
                         children: <Widget>[
-                          const Icon(Icons.cable_outlined, size: 20),
+                          const Icon(Icons.cable_rounded, size: 20),
                           const SizedBox(width: AppTokens.spaceMd),
                           Text(l10n.browserOpenSniffer),
                         ],
@@ -546,7 +546,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: <Widget>[
             IconButton(
-              icon: const Icon(Icons.arrow_back, size: 16),
+              icon: const Icon(Icons.arrow_back_rounded, size: 16),
               iconSize: 18,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
               padding: EdgeInsets.zero,
@@ -554,7 +554,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
               onPressed: _canGoBack ? _goBack : null,
             ),
             IconButton(
-              icon: const Icon(Icons.refresh, size: 16),
+              icon: const Icon(Icons.refresh_rounded, size: 16),
               iconSize: 18,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
               padding: EdgeInsets.zero,
@@ -562,7 +562,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
               onPressed: _refresh,
             ),
             IconButton(
-              icon: const Icon(Icons.verified_user_outlined, size: 16),
+              icon: const Icon(Icons.verified_user_rounded, size: 16),
               iconSize: 18,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
               padding: EdgeInsets.zero,
@@ -570,7 +570,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
               onPressed: _useAsVerification,
             ),
             IconButton(
-              icon: const Icon(Icons.cable_outlined, size: 16),
+              icon: const Icon(Icons.cable_rounded, size: 16),
               iconSize: 18,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
               padding: EdgeInsets.zero,
@@ -578,7 +578,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
               onPressed: _openSniffer,
             ),
             IconButton(
-              icon: const Icon(Icons.arrow_forward, size: 16),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 16),
               iconSize: 18,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
               padding: EdgeInsets.zero,
@@ -600,7 +600,7 @@ class _HttpBrowserScreenState extends State<HttpBrowserScreen> {
       textInputAction: TextInputAction.go,
       decoration: InputDecoration(
         hintText: l10n.browserAddressHint,
-        prefixIcon: const Icon(Icons.search, size: 20),
+        prefixIcon: const Icon(Icons.search_rounded, size: 20),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTokens.radiusFull),
         ),

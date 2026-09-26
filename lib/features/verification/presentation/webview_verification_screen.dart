@@ -577,7 +577,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
       appBar: AppBar(
         title: Text(l10n.snifferResolveTitle),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close_rounded),
           onPressed: () => Navigator.of(context).pop(
             const WebViewExtractionOutcome(
               result: VerificationResult.cancelled,
@@ -703,7 +703,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
         appBar: AppBar(
           title: Text(l10n.verificationRequired),
           leading: IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             onPressed: () => Navigator.of(context).pop(
               const WebViewExtractionOutcome(
                 result: VerificationResult.cancelled,
@@ -712,7 +712,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
           ),
           actions: <Widget>[
             IconButton(
-              icon: const Icon(Icons.open_in_browser),
+              icon: const Icon(Icons.open_in_browser_rounded),
               tooltip: l10n.openInBrowser,
               onPressed: _openInBrowser,
             ),
@@ -832,7 +832,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                   else
                     FilledButton.icon(
                       onPressed: _pageLoaded ? _runExtraction : null,
-                      icon: const Icon(Icons.auto_fix_high),
+                      icon: const Icon(Icons.auto_fix_high_rounded),
                       label: Text(l10n.extractFromPage),
                     ),
                   const SizedBox(height: AppTokens.spaceSm),
@@ -903,7 +903,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
             children: <Widget>[
               Expanded(
                 child: FilledButton.icon(
-                  icon: const Icon(Icons.copy),
+                  icon: const Icon(Icons.copy_rounded),
                   label: Text(l10n.snifferCopyPageLink),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: pageUrl));
@@ -915,7 +915,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
               ),
               const SizedBox(width: AppTokens.spaceSm),
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close_rounded),
                 tooltip: l10n.close,
                 onPressed: () => Navigator.of(context).pop(
                   const WebViewExtractionOutcome(
@@ -953,7 +953,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
         appBar: AppBar(
           title: Text(l10n.verificationRequired),
           leading: IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             onPressed: () => Navigator.of(context).pop(
               const WebViewExtractionOutcome(
                 result: VerificationResult.cancelled,
@@ -962,7 +962,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
           ),
           actions: <Widget>[
             IconButton(
-              icon: const Icon(Icons.open_in_browser),
+              icon: const Icon(Icons.open_in_browser_rounded),
               tooltip: l10n.openInBrowser,
               onPressed: _openInBrowser,
             ),
@@ -1074,7 +1074,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                   else
                     FilledButton.icon(
                       onPressed: _pageLoaded ? _captureHtml : null,
-                      icon: const Icon(Icons.auto_fix_high),
+                      icon: const Icon(Icons.auto_fix_high_rounded),
                       label: Text(l10n.captureFromPage),
                     ),
                   const SizedBox(height: AppTokens.spaceSm),
@@ -1167,7 +1167,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
         appBar: AppBar(
           title: Text(l10n.verificationRequired),
           leading: IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             onPressed: () =>
                 Navigator.of(context).pop(VerificationResult.cancelled),
           ),
@@ -1179,7 +1179,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Icon(
-                  Icons.verified_user_outlined,
+                  Icons.verified_user_rounded,
                   size: 72,
                   color: scheme.primary.withValues(alpha: 0.7),
                 ),
@@ -1221,20 +1221,20 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                 const SizedBox(height: AppTokens.spaceXl),
                 FilledButton.icon(
                   onPressed: _openInBrowser,
-                  icon: const Icon(Icons.open_in_browser),
+                  icon: const Icon(Icons.open_in_browser_rounded),
                   label: Text(l10n.openInBrowser),
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
                 FilledButton.tonalIcon(
                   onPressed: _openInternalBrowser,
-                  icon: const Icon(Icons.travel_explore),
+                  icon: const Icon(Icons.travel_explore_rounded),
                   label: Text(l10n.openInternalBrowser),
                 ),
                 if (_browserOpened) ...<Widget>[
                   const SizedBox(height: AppTokens.spaceMd),
                   FilledButton.tonalIcon(
                     onPressed: _finish,
-                    icon: const Icon(Icons.check_circle_outline),
+                    icon: const Icon(Icons.check_circle_rounded),
                     label: Text(l10n.verificationDone),
                   ),
                 ],

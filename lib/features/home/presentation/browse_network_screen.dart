@@ -186,13 +186,13 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
   }
 
   IconData _iconFor(_NetEntry e) {
-    if (e.isDir) return Icons.folder_outlined;
+    if (e.isDir) return Icons.folder_rounded;
     return switch (e.kind) {
-      LocalMediaKind.video => Icons.movie_outlined,
-      LocalMediaKind.images => Icons.image_outlined,
-      LocalMediaKind.text => Icons.description_outlined,
-      LocalMediaKind.pdf => Icons.picture_as_pdf_outlined,
-      null => Icons.insert_drive_file_outlined,
+      LocalMediaKind.video => Icons.movie_rounded,
+      LocalMediaKind.images => Icons.image_rounded,
+      LocalMediaKind.text => Icons.description_rounded,
+      LocalMediaKind.pdf => Icons.picture_as_pdf_rounded,
+      null => Icons.insert_drive_file_rounded,
     };
   }
 
@@ -324,12 +324,12 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
         actions: <Widget>[
           if (_selectionMode) ...<Widget>[
             AppIconButton(
-              icon: Icons.select_all_outlined,
+              icon: Icons.select_all_rounded,
               tooltip: l10n.selectAll,
               onPressed: _selectAllFiles,
             ),
             AppIconButton(
-              icon: Icons.close,
+              icon: Icons.close_rounded,
               tooltip: l10n.cancel,
               onPressed: _exitSelection,
             ),
@@ -363,12 +363,12 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
                 children: <Widget>[
                   TextButton.icon(
                     onPressed: _selectedIndices.isEmpty ? null : _openSelected,
-                    icon: const Icon(Icons.open_in_new),
+                    icon: const Icon(Icons.open_in_new_rounded),
                     label: Text(l10n.browseNetworkOpenSelected),
                   ),
                   TextButton.icon(
                     onPressed: _selectedIndices.isEmpty ? null : _downloadSelected,
-                    icon: const Icon(Icons.download_outlined),
+                    icon: const Icon(Icons.download_rounded),
                     label: Text(l10n.browseNetworkDownloadSelected),
                   ),
                 ],
@@ -384,7 +384,7 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
       child: Row(
         children: <Widget>[
           AppIconButton(
-            icon: Icons.arrow_upward,
+            icon: Icons.arrow_upward_rounded,
             tooltip: l10n.browseNetworkParentDir,
             onPressed: _goUp,
           ),
@@ -443,10 +443,10 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
       );
     }
     if (_currentUrl.isEmpty) {
-      return AppEmptyState(icon: Icons.cloud_outlined, message: l10n.browseNetworkUrlHint);
+      return AppEmptyState(icon: Icons.cloud_rounded, message: l10n.browseNetworkUrlHint);
     }
     if (_entries.isEmpty) {
-      return AppEmptyState(icon: Icons.folder_open_outlined, message: l10n.browseNetworkEmpty);
+      return AppEmptyState(icon: Icons.folder_open_rounded, message: l10n.browseNetworkEmpty);
     }
     return ListView.separated(
       padding: const EdgeInsets.all(AppTokens.spaceLg),
@@ -464,7 +464,7 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
             leading: Icon(_iconFor(e)),
             title: Text(e.name),
             trailing: e.isDir
-                ? const Icon(Icons.folder_outlined, color: Colors.transparent)
+                ? const Icon(Icons.folder_rounded, color: Colors.transparent)
                 : Checkbox(
                     value: isSelected,
                     onChanged: (v) => _toggleSelection(i),
@@ -477,7 +477,7 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
         // 普通模式：长按进入多选；点击进入目录或打开文件
         Widget? trailing;
         if (e.isDir) {
-          trailing = const Icon(Icons.chevron_right);
+          trailing = const Icon(Icons.chevron_right_rounded);
         } else if (isDownloading) {
           trailing = const SizedBox(
             width: 20,
@@ -485,7 +485,7 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
             child: CircularProgressIndicator(strokeWidth: 2),
           );
         } else if (isDownloaded) {
-          trailing = Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary, size: 20);
+          trailing = Icon(Icons.check_circle_rounded, color: Theme.of(context).colorScheme.primary, size: 20);
         }
 
         return AppListTile(

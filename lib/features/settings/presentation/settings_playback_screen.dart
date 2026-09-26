@@ -1,7 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
-import '../../../core/widgets/app_list_tile.dart';
 import './widgets/settings_widgets.dart';
 import './widgets/settings_search_target.dart';
 import '../../../core/widgets/layout_picker_dialog.dart';
@@ -16,6 +15,8 @@ import './settings_remember_position_screen.dart';
 
 /// 播放与阅读汇总页：5 个模块入口（播放器 / 漫画 / 小说 / 布局 / 弹幕显示）
 /// + 播放进度（已看阈值 / 记住位置）子入口。
+///
+/// 版面：每行一张独立描边小卡（[SettingsTile]），分组小标题（[SettingsGroup]）。
 class SettingsPlaybackScreen extends StatelessWidget {
   const SettingsPlaybackScreen({super.key});
 
@@ -32,65 +33,55 @@ class SettingsPlaybackScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppTokens.spaceLg),
             children: <Widget>[
-              SettingsCard(
+              SettingsGroup(
                 key: const ValueKey<String>('playback_modules'),
-                title: l10n.playbackModulesSection,
+                header: l10n.playbackModulesSection,
                 children: <Widget>[
-                  AppListTile(
+                  SettingsTile(
                     key: const ValueKey<String>('playback.player'),
-                    leading:
-                        const SettingsLeadingIcon(icon: Icons.play_circle_outline),
-                    title: Text(l10n.playerSettingsTitle),
-                    subtitle: Text(l10n.playerSettingsDesc),
-                    trailing: const Icon(Icons.chevron_right),
+                    icon: Icons.play_circle_rounded,
+                    title: l10n.playerSettingsTitle,
+                    subtitle: l10n.playerSettingsDesc,
                     onTap: () => Navigator.of(context).push(
                       AppPageRoute<void>(
                         builder: (_) => const SettingsPlayerScreen(),
                       ),
                     ),
                   ),
-                  AppListTile(
+                  SettingsTile(
                     key: const ValueKey<String>('playback.novel'),
-                    leading:
-                        const SettingsLeadingIcon(icon: Icons.menu_book_outlined),
-                    title: Text(l10n.novelReaderSettingsTitle),
-                    subtitle: Text(l10n.novelReaderSettingsDesc),
-                    trailing: const Icon(Icons.chevron_right),
+                    icon: Icons.menu_book_rounded,
+                    title: l10n.novelReaderSettingsTitle,
+                    subtitle: l10n.novelReaderSettingsDesc,
                     onTap: () => Navigator.of(context).push(
                       AppPageRoute<void>(
                         builder: (_) => const SettingsNovelReaderScreen(),
                       ),
                     ),
                   ),
-                  AppListTile(
+                  SettingsTile(
                     key: const ValueKey<String>('playback.comic'),
-                    leading: const SettingsLeadingIcon(
-                        icon: Icons.auto_stories_outlined),
-                    title: Text(l10n.comicReaderSettingsTitle),
-                    subtitle: Text(l10n.comicReaderSettingsDesc),
-                    trailing: const Icon(Icons.chevron_right),
+                    icon: Icons.auto_stories_rounded,
+                    title: l10n.comicReaderSettingsTitle,
+                    subtitle: l10n.comicReaderSettingsDesc,
                     onTap: () => Navigator.of(context).push(
                       AppPageRoute<void>(
                         builder: (_) => const SettingsComicReaderScreen(),
                       ),
                     ),
                   ),
-                  AppListTile(
+                  SettingsTile(
                     key: const ValueKey<String>('playback.layout'),
-                    leading: const SettingsLeadingIcon(
-                        icon: Icons.view_quilt_outlined),
-                    title: Text(l10n.layoutSettings),
-                    subtitle: Text(l10n.layoutSettingsDesc),
-                    trailing: const Icon(Icons.chevron_right),
+                    icon: Icons.view_quilt_rounded,
+                    title: l10n.layoutSettings,
+                    subtitle: l10n.layoutSettingsDesc,
                     onTap: () => showLayoutPickerDialog(context),
                   ),
-                  AppListTile(
+                  SettingsTile(
                     key: const ValueKey<String>('playback.danmaku'),
-                    leading: const SettingsLeadingIcon(
-                        icon: Icons.subtitles_outlined),
-                    title: Text(l10n.danmakuDisplaySettingsTitle),
-                    subtitle: Text(l10n.danmakuDisplaySettingsDesc),
-                    trailing: const Icon(Icons.chevron_right),
+                    icon: Icons.subtitles_rounded,
+                    title: l10n.danmakuDisplaySettingsTitle,
+                    subtitle: l10n.danmakuDisplaySettingsDesc,
                     onTap: () => Navigator.of(context).push(
                       AppPageRoute<void>(
                         builder: (_) => const SettingsDanmakuDisplayScreen(),
@@ -99,28 +90,26 @@ class SettingsPlaybackScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              SettingsCard(
+              SettingsGroup(
                 key: const ValueKey<String>('playback_progress'),
-                title: l10n.playbackProgressGroup,
+                header: l10n.playbackProgressGroup,
                 children: <Widget>[
-                  AppListTile(
+                  SettingsTile(
                     key: const ValueKey<String>('playback.watched'),
-                    leading: const SettingsLeadingIcon(icon: Icons.percent),
-                    title: Text(l10n.watchedThreshold),
-                    subtitle: Text(l10n.watchedThresholdHint),
-                    trailing: const Icon(Icons.chevron_right),
+                    icon: Icons.percent_rounded,
+                    title: l10n.watchedThreshold,
+                    subtitle: l10n.watchedThresholdHint,
                     onTap: () => Navigator.of(context).push(
                       AppPageRoute<void>(
                         builder: (_) => const SettingsWatchedThresholdScreen(),
                       ),
                     ),
                   ),
-                  AppListTile(
+                  SettingsTile(
                     key: const ValueKey<String>('playback.remember'),
-                    leading: const SettingsLeadingIcon(icon: Icons.history),
-                    title: Text(l10n.rememberPosition),
-                    subtitle: Text(l10n.rememberPositionHint),
-                    trailing: const Icon(Icons.chevron_right),
+                    icon: Icons.history_rounded,
+                    title: l10n.rememberPosition,
+                    subtitle: l10n.rememberPositionHint,
                     onTap: () => Navigator.of(context).push(
                       AppPageRoute<void>(
                         builder: (_) => const SettingsRememberPositionScreen(),

@@ -89,7 +89,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
         const SizedBox(height: AppTokens.spaceMd),
         if (sources.isEmpty)
           AppEmptyState(
-            icon: Icons.extension_outlined,
+            icon: Icons.extension_rounded,
             message: l10n.sourceListEmpty,
             actionLabel: l10n.selectFolder,
             onAction: _pickLocalFolder,
@@ -121,7 +121,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
           children: <Widget>[
             Expanded(
               child: FilledButton.icon(
-                icon: const Icon(Icons.file_present_outlined),
+                icon: const Icon(Icons.file_present_rounded),
                 label: Text(l10n.localImportPickFile),
                 onPressed: _previewMode ? null : _pickLocalFile,
               ),
@@ -129,7 +129,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
             const SizedBox(width: AppTokens.spaceSm),
             Expanded(
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.folder_outlined),
+                icon: const Icon(Icons.folder_rounded),
                 label: Text(l10n.selectFolder),
                 onPressed: _previewMode ? null : _pickLocalFolder,
               ),
@@ -330,7 +330,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
             ),
             child: Row(
               children: <Widget>[
-                Icon(Icons.lock_outline, size: 16, color: scheme.onErrorContainer),
+                Icon(Icons.lock_rounded, size: 16, color: scheme.onErrorContainer),
                 const SizedBox(width: AppTokens.spaceXs),
                 Expanded(
                   child: Text(
@@ -347,7 +347,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
         Row(
           children: <Widget>[
             IconButton(
-              icon: const Icon(Icons.arrow_back),
+              icon: const Icon(Icons.arrow_back_rounded),
               tooltip: l10n.back,
               onPressed: () => setState(() {
                 _previewMode = false;
@@ -389,7 +389,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
                 .withValues(alpha: 0.5),
             child: Row(
               children: <Widget>[
-                Icon(Icons.filter_alt_outlined, size: 16,
+                Icon(Icons.filter_alt_rounded, size: 16,
                     color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: AppTokens.spaceXs),
                 Expanded(
@@ -405,7 +405,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
           ),
         if (_previewItems.isEmpty)
           AppEmptyState(
-            icon: Icons.folder_open_outlined,
+            icon: Icons.folder_open_rounded,
             message: l10n.localImportHint,
           )
         else
@@ -436,7 +436,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
           }),
         const SizedBox(height: AppTokens.spaceMd),
         FilledButton.icon(
-          icon: const Icon(Icons.check),
+          icon: const Icon(Icons.check_rounded),
           label: Text(l10n.confirmImport),
           onPressed: _selectedPreviewIndices.isEmpty ? null : _confirmImport,
         ),

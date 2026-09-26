@@ -2,7 +2,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
-import '../../../core/widgets/app_list_tile.dart';
 import './widgets/settings_widgets.dart';
 import '../../../core/services/cloud_sync_service.dart';
 import '../../../core/settings/general_settings.dart';
@@ -25,6 +24,8 @@ import '../../../core/danmaku/dandanplay_auth.dart';
 /// 通用设置项（启动界面 / 日期格式 / 已看阈值 / 记住位置 / 年龄限制）
 /// 已迁出至对应分类页（外观与语言 / 播放与阅读 / 隐私与安全），
 /// 此处不再承载全局偏好。
+///
+/// 版面：每行一张独立描边小卡（[SettingsTile]），行间 4px，见 R3/R5。
 class SettingsDataScreen extends StatelessWidget {
   const SettingsDataScreen({super.key});
 
@@ -40,89 +41,93 @@ class SettingsDataScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(AppTokens.spaceLg),
           children: <Widget>[
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.bar_chart),
-              title: Text(l10n.statsOverviewTitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const StatsOverviewScreen(),
+            SettingsGroup(
+              header: l10n.settingsCatData,
+              children: <Widget>[
+                SettingsTile(
+                  icon: Icons.bar_chart_rounded,
+                  title: l10n.statsOverviewTitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const StatsOverviewScreen(),
+                    ),
+                  ),
                 ),
-              ),
+                SettingsTile(
+                  icon: Icons.folder_rounded,
+                  title: l10n.categoriesManageTitle,
+                  subtitle: l10n.categoriesManageDesc,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsCategoriesScreen(),
+                    ),
+                  ),
+                ),
+                SettingsTile(
+                  icon: Icons.download_rounded,
+                  title: l10n.downloadManagementTitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsDownloadScreen(),
+                    ),
+                  ),
+                ),
+                SettingsTile(
+                  icon: Icons.photo_library_rounded,
+                  title: l10n.imageFavoriteGalleryTitle,
+                  subtitle: l10n.imageFavoriteGalleryDesc,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const ImageFavoriteGalleryScreen(),
+                    ),
+                  ),
+                ),
+                SettingsTile(
+                  icon: Icons.bookmark_rounded,
+                  title: l10n.rssFavorites,
+                  subtitle: l10n.rssFavoritesDesc,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const RssFavoritesScreen(),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.folder_outlined),
-              title: Text(l10n.categoriesManageTitle),
-              subtitle: Text(l10n.categoriesManageDesc),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsCategoriesScreen(),
+            SettingsGroup(
+              header: l10n.dataImportExport,
+              children: <Widget>[
+                SettingsTile(
+                  icon: Icons.swap_vert_rounded,
+                  title: l10n.dataImportExport,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsImportExportScreen(),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.download),
-              title: Text(l10n.downloadManagementTitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsDownloadScreen(),
+                _CloudSyncTile(
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsCloudSyncScreen(),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.photo_library_outlined),
-              title: Text(l10n.imageFavoriteGalleryTitle),
-              subtitle: Text(l10n.imageFavoriteGalleryDesc),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const ImageFavoriteGalleryScreen(),
+                _BangumiTile(
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsBangumiScreen(),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.bookmark_outline),
-              title: Text(l10n.rssFavorites),
-              subtitle: Text(l10n.rssFavoritesDesc),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const RssFavoritesScreen(),
+                _DandanplayTile(
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const SettingsDandanplayAccountScreen(),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.swap_vert),
-              title: Text(l10n.dataImportExport),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsImportExportScreen(),
-                ),
-              ),
-            ),
-            _CloudSyncTile(
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsCloudSyncScreen(),
-                ),
-              ),
-            ),
-            _BangumiTile(
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsBangumiScreen(),
-                ),
-              ),
-            ),
-            _DandanplayTile(
-              onTap: () => Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => const SettingsDandanplayAccountScreen(),
-                ),
-              ),
+              ],
             ),
           ],
         ),
@@ -161,11 +166,10 @@ class _CloudSyncTile extends StatelessWidget {
               );
               subtitle = l10n.cloudSyncLastSyncTime(formatted);
             }
-            return AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.cloud_sync),
-              title: Text(l10n.cloudSync),
-              subtitle: Text(subtitle),
-              trailing: const Icon(Icons.chevron_right),
+            return SettingsTile(
+              icon: Icons.cloud_sync_rounded,
+              title: l10n.cloudSync,
+              subtitle: subtitle,
               onTap: onTap,
             );
           },
@@ -204,11 +208,10 @@ class _BangumiTile extends StatelessWidget {
               );
               subtitle = l10n.bangumiLastSync(formatted);
             }
-            return AppListTile(
-              leading: const SettingsLeadingIcon(icon:Icons.live_tv),
-              title: Text(l10n.bangumiSettings),
-              subtitle: Text(subtitle),
-              trailing: const Icon(Icons.chevron_right),
+            return SettingsTile(
+              icon: Icons.live_tv_rounded,
+              title: l10n.bangumiSettings,
+              subtitle: subtitle,
               onTap: onTap,
             );
           },
@@ -236,11 +239,10 @@ class _DandanplayTile extends StatelessWidget {
             final subtitle = auth.isLoggedIn
                 ? l10n.danmakuAccountLoggedInAs(auth.displayName ?? '')
                 : l10n.loginStatusLoggedOut;
-            return AppListTile(
-              leading: const SettingsLeadingIcon(icon: Icons.chat_bubble_outline),
-              title: Text(l10n.danmakuAccountSection),
-              subtitle: Text(subtitle),
-              trailing: const Icon(Icons.chevron_right),
+            return SettingsTile(
+              icon: Icons.chat_bubble_rounded,
+              title: l10n.danmakuAccountSection,
+              subtitle: subtitle,
               onTap: onTap,
             );
           },

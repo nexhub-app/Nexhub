@@ -225,7 +225,7 @@ class _ReadingQueueSheetState extends State<_ReadingQueueSheet> {
                       child: Text(l10n.readingQueueClear),
                     ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close_rounded),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -235,7 +235,7 @@ class _ReadingQueueSheetState extends State<_ReadingQueueSheet> {
             Expanded(
               child: _queue.isEmpty
                   ? AppEmptyState(
-                      icon: Icons.playlist_add,
+                      icon: Icons.playlist_add_rounded,
                       message: l10n.readingQueueEmpty,
                     )
                   : ListView.separated(
