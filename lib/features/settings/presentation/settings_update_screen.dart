@@ -21,7 +21,6 @@ import '../../../core/update/update_manager.dart';
 import '../../../core/update/update_settings.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
-import '../../../core/widgets/app_list_tile.dart';
 import './widgets/settings_search_target.dart';
 import './widgets/settings_widgets.dart';
 
@@ -424,75 +423,75 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppTokens.spaceXs),
+                  const SizedBox(height: AppTokens.spaceLg),
 
-                  // ── 自动检查更新 ──
-                  AppListTile(
-                    key: const ValueKey<String>('update.autoCheck'),
-                    leading: const SettingsLeadingIcon(
-                      icon: Icons.notifications_active_rounded,
-                    ),
-                    title: Text(l10n.updateAutoCheck),
-                    subtitle: Text(l10n.updateAutoCheckDesc),
-                    trailing: Switch(
-                      value: _settings.autoCheck,
-                      onChanged: (v) {
-                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                        _save(_settings.copyWith(autoCheck: v));
-                      },
-                    ),
-                  ),
-
-                  // ── 自动下载更新 ──
-                  AppListTile(
-                    key: const ValueKey<String>('update.autoDownload'),
-                    leading: const SettingsLeadingIcon(
-                      icon: Icons.download_for_offline_rounded,
-                    ),
-                    title: Text(l10n.updateAutoDownload),
-                    subtitle: Text(l10n.updateAutoDownloadDesc),
-                    trailing: Switch(
-                      value: _settings.autoDownload,
-                      onChanged: (v) {
-                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                        _save(_settings.copyWith(autoDownload: v));
-                      },
-                    ),
-                  ),
-                  if (_settings.autoDownload)
-                    AppListTile(
-                      key: const ValueKey<String>('update.wifiOnly'),
-                      leading: const SettingsLeadingIcon(
-                        icon: Icons.wifi_rounded,
+                  // ── 自动更新行为 ──
+                  SettingsGroup(
+                    children: <Widget>[
+                      SettingsTile(
+                        key: const ValueKey<String>('update.autoCheck'),
+                        icon: Icons.notifications_active_rounded,
+                        title: l10n.updateAutoCheck,
+                        subtitle: l10n.updateAutoCheckDesc,
+                        trailing: Switch(
+                          value: _settings.autoCheck,
+                          onChanged: (v) {
+                            v == true
+                                ? AppHaptics.toggleOn()
+                                : AppHaptics.toggleOff();
+                            _save(_settings.copyWith(autoCheck: v));
+                          },
+                        ),
                       ),
-                      title: Text(l10n.updateWifiOnlyAutoDownload),
-                      subtitle: Text(l10n.updateWifiOnlyAutoDownloadDesc),
-                      trailing: Switch(
-                        value: _settings.wifiOnlyAutoDownload,
-                        onChanged: (v) {
-                          v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                          _save(
-                            _settings.copyWith(wifiOnlyAutoDownload: v),
-                          );
-                        },
+                      SettingsTile(
+                        key: const ValueKey<String>('update.autoDownload'),
+                        icon: Icons.download_for_offline_rounded,
+                        title: l10n.updateAutoDownload,
+                        subtitle: l10n.updateAutoDownloadDesc,
+                        trailing: Switch(
+                          value: _settings.autoDownload,
+                          onChanged: (v) {
+                            v == true
+                                ? AppHaptics.toggleOn()
+                                : AppHaptics.toggleOff();
+                            _save(_settings.copyWith(autoDownload: v));
+                          },
+                        ),
                       ),
-                    ),
-
-                  // ── 应用内下载 ──
-                  AppListTile(
-                    key: const ValueKey<String>('update.inAppDownload'),
-                    leading: const SettingsLeadingIcon(
-                      icon: Icons.storage_rounded,
-                    ),
-                    title: Text(l10n.updateInAppDownload),
-                    subtitle: Text(l10n.updateInAppDownloadDesc),
-                    trailing: Switch(
-                      value: _settings.inAppDownload,
-                      onChanged: (v) {
-                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                        _save(_settings.copyWith(inAppDownload: v));
-                      },
-                    ),
+                      if (_settings.autoDownload)
+                        SettingsTile(
+                          key: const ValueKey<String>('update.wifiOnly'),
+                          icon: Icons.wifi_rounded,
+                          title: l10n.updateWifiOnlyAutoDownload,
+                          subtitle: l10n.updateWifiOnlyAutoDownloadDesc,
+                          trailing: Switch(
+                            value: _settings.wifiOnlyAutoDownload,
+                            onChanged: (v) {
+                              v == true
+                                  ? AppHaptics.toggleOn()
+                                  : AppHaptics.toggleOff();
+                              _save(
+                                _settings.copyWith(wifiOnlyAutoDownload: v),
+                              );
+                            },
+                          ),
+                        ),
+                      SettingsTile(
+                        key: const ValueKey<String>('update.inAppDownload'),
+                        icon: Icons.storage_rounded,
+                        title: l10n.updateInAppDownload,
+                        subtitle: l10n.updateInAppDownloadDesc,
+                        trailing: Switch(
+                          value: _settings.inAppDownload,
+                          onChanged: (v) {
+                            v == true
+                                ? AppHaptics.toggleOn()
+                                : AppHaptics.toggleOff();
+                            _save(_settings.copyWith(inAppDownload: v));
+                          },
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: AppTokens.spaceLg),
@@ -514,21 +513,26 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
                         ),
                   ),
                   const SizedBox(height: AppTokens.spaceSm),
-                  AppListTile(
-                    key: const ValueKey<String>('update.mirrorAutoSwitch'),
-                    leading: const Icon(Icons.bolt_rounded),
-                    title: Text(l10n.updateAutoSwitchMirror),
-                    subtitle: Text(l10n.updateAutoSwitchMirrorDesc),
-                    trailing: Switch(
-                      value: _settings.autoSwitchMirror,
-                      onChanged: (v) {
-                        v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                        _save(_settings.copyWith(autoSwitchMirror: v));
-                      },
-                    ),
+                  SettingsGroup(
+                    children: <Widget>[
+                      SettingsTile(
+                        key: const ValueKey<String>('update.mirrorAutoSwitch'),
+                        icon: Icons.bolt_rounded,
+                        title: l10n.updateAutoSwitchMirror,
+                        subtitle: l10n.updateAutoSwitchMirrorDesc,
+                        trailing: Switch(
+                          value: _settings.autoSwitchMirror,
+                          onChanged: (v) {
+                            v == true
+                                ? AppHaptics.toggleOn()
+                                : AppHaptics.toggleOff();
+                            _save(_settings.copyWith(autoSwitchMirror: v));
+                          },
+                        ),
+                      ),
+                      _buildMirrorTiles(l10n),
+                    ],
                   ),
-                  const SizedBox(height: AppTokens.spaceSm),
-                  _buildMirrorTiles(l10n),
                   const SizedBox(height: AppTokens.spaceMd),
                   // 自定义镜像
                   Text(
@@ -682,7 +686,9 @@ class _SettingsUpdateScreenState extends State<SettingsUpdateScreen> {
             setState(() => _mirrorExpanded = !_mirrorExpanded);
           },
           icon: Icon(
-            _mirrorExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+            _mirrorExpanded
+                ? Icons.expand_less_rounded
+                : Icons.expand_more_rounded,
             size: 20,
           ),
           label: Text(

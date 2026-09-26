@@ -22,7 +22,7 @@ import '../../../core/services/novel_progress_sync_service.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/app_list_tile.dart';
+import 'widgets/settings_widgets.dart';
 import '../../../core/widgets/backup_category_selector.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import './settings_import_export_screen.dart';
@@ -424,7 +424,8 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
               const SizedBox(height: AppTokens.spaceXs),
               Row(
                 children: <Widget>[
-                  Icon(Icons.schedule_rounded, size: 16, color: theme.hintColor),
+                  Icon(Icons.schedule_rounded,
+                      size: 16, color: theme.hintColor),
                   const SizedBox(width: AppTokens.spaceSm),
                   Expanded(
                     child: Text(
@@ -552,16 +553,18 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             label: Text(l10n.cloudSyncSaveConfig),
           ),
           const SizedBox(height: AppTokens.spaceLg),
-          SwitchListTile(
-            title: Text(l10n.cloudSyncAutoSync),
-            value: config.autoSync,
-            onChanged: (v) async {
-              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-              await service.updateConfig(
-                config.copyWith(autoSync: v),
-                null,
-              );
-            },
+          SettingsTile(
+            title: l10n.cloudSyncAutoSync,
+            trailing: Switch(
+              value: config.autoSync,
+              onChanged: (v) async {
+                v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                await service.updateConfig(
+                  config.copyWith(autoSync: v),
+                  null,
+                );
+              },
+            ),
           ),
           const SizedBox(height: AppTokens.spaceSm),
           SegmentedButton<SyncFrequency>(
@@ -593,19 +596,21 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
           const SizedBox(height: AppTokens.spaceLg),
 
           // ── F6：小说导出自动上传 WebDAV ──
-          SwitchListTile(
+          SettingsTile(
             key: const ValueKey<String>('cloud.novelAutoUpload'),
-            title: Text(l10n.cloudSyncAutoUploadNovelExports),
-            subtitle: Text(l10n.cloudSyncAutoUploadNovelExportsDesc),
-            value: config.autoUploadNovelExports,
-            onChanged: (v) async {
-              v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-              await service.updateConfig(
-                config.copyWith(autoUploadNovelExports: v),
-                null,
-              );
-              if (context.mounted) setState(() {});
-            },
+            title: l10n.cloudSyncAutoUploadNovelExports,
+            subtitle: l10n.cloudSyncAutoUploadNovelExportsDesc,
+            trailing: Switch(
+              value: config.autoUploadNovelExports,
+              onChanged: (v) async {
+                v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                await service.updateConfig(
+                  config.copyWith(autoUploadNovelExports: v),
+                  null,
+                );
+                if (context.mounted) setState(() {});
+              },
+            ),
           ),
           const SizedBox(height: AppTokens.spaceSm),
 
@@ -734,15 +739,18 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
           ],
 
           const SizedBox(height: AppTokens.spaceXl),
-          AppListTile(
-            leading: const Icon(Icons.swap_vert_rounded),
-            title: Text(l10n.dataImportExport),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const SettingsImportExportScreen(),
+          SettingsGroup(
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.swap_vert_rounded,
+                title: l10n.dataImportExport,
+                onTap: () => Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    builder: (_) => const SettingsImportExportScreen(),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -903,7 +911,8 @@ class _ConflictResolveSheetState extends State<_ConflictResolveSheet> {
                   ?.copyWith(fontWeight: FontWeight.w600)),
           Row(
             children: <Widget>[
-              Icon(Icons.phone_android_rounded, size: 12, color: theme.hintColor),
+              Icon(Icons.phone_android_rounded,
+                  size: 12, color: theme.hintColor),
               const SizedBox(width: AppTokens.spaceXs),
               Expanded(
                 child: Text(

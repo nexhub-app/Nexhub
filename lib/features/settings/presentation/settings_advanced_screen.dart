@@ -108,7 +108,8 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
         false;
   }
 
-  Future<void> _clearCookies(BuildContext context, AppLocalizations l10n) async {
+  Future<void> _clearCookies(
+      BuildContext context, AppLocalizations l10n) async {
     final ok = await _confirm(context, l10n, l10n.clearCookies);
     if (!ok || !context.mounted) return;
     HttpFetcher.instance.clearCookies();
@@ -209,12 +210,10 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
     unawaited(_refreshImageCacheSize());
   }
 
-
   void _pickUserAgent(BuildContext context, AppLocalizations l10n) {
     final current = _s.defaultUserAgent;
     final TextEditingController customCtrl = TextEditingController(
-      text: current.isNotEmpty &&
-              !_kUaPresets.any((p) => p.ua == current)
+      text: current.isNotEmpty && !_kUaPresets.any((p) => p.ua == current)
           ? current
           : '',
     );
@@ -232,8 +231,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
               left: AppTokens.spaceLg,
               right: AppTokens.spaceLg,
               top: AppTokens.spaceLg,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom +
-                  AppTokens.spaceLg,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + AppTokens.spaceLg,
             ),
             children: <Widget>[
               Text(
@@ -297,144 +295,108 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final uaLabel = _s.defaultUserAgent.isEmpty
-        ? l10n.userAgentAuto
-        : _s.defaultUserAgent;
+    final uaLabel =
+        _s.defaultUserAgent.isEmpty ? l10n.userAgentAuto : _s.defaultUserAgent;
     return AppShrinkTitleScaffold(
       title: Text(l10n.advancedSettingsTitle),
       body: SettingsAutoScroll(
         child: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
-        children: <Widget>[
-          // ── 日志 ──
-          SettingsCard(
-            key: const ValueKey<String>('advanced.log'),
-            title: l10n.advancedLogGroup,
-            index: 0,
-            children: <Widget>[
-              SettingsSwitchTile(
-                key: const ValueKey<String>('advanced.detailedLogging'),
-                title: l10n.detailedLogging,
-                subtitle: l10n.detailedLoggingHint,
-                value: _s.detailedLogging,
-                onChanged: _setDetailedLogging,
-              ),
-              ListTile(
-                key: const ValueKey<String>('advanced.crashLog'),
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.bug_report_rounded,
-                  color: Theme.of(context).colorScheme.primary,
+          padding: const EdgeInsets.all(AppTokens.spaceMd),
+          children: <Widget>[
+            // ── 日志 ──
+            SettingsCard(
+              key: const ValueKey<String>('advanced.log'),
+              title: l10n.advancedLogGroup,
+              index: 0,
+              children: <Widget>[
+                SettingsSwitchTile(
+                  key: const ValueKey<String>('advanced.detailedLogging'),
+                  title: l10n.detailedLogging,
+                  subtitle: l10n.detailedLoggingHint,
+                  value: _s.detailedLogging,
+                  onChanged: _setDetailedLogging,
                 ),
-                title: Text(l10n.crashLog),
-                subtitle: Text(l10n.crashLogDesc),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const CrashLogScreen(),
+                SettingsTile(
+                  key: const ValueKey<String>('advanced.crashLog'),
+                  icon: Icons.bug_report_rounded,
+                  title: l10n.crashLog,
+                  subtitle: l10n.crashLogDesc,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const CrashLogScreen(),
+                    ),
                   ),
                 ),
-              ),
-              ListTile(
-                key: const ValueKey<String>('advanced.runtimeLog'),
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.article_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: Text(l10n.runtimeLog),
-                subtitle: Text(l10n.runtimeLogDesc),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const LogViewerScreen(),
+                SettingsTile(
+                  key: const ValueKey<String>('advanced.runtimeLog'),
+                  icon: Icons.article_rounded,
+                  title: l10n.runtimeLog,
+                  subtitle: l10n.runtimeLogDesc,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const LogViewerScreen(),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          // ── 数据清理 ──
-          SettingsCard(
-            key: const ValueKey<String>('advanced.clean'),
-            title: l10n.advancedCleanGroup,
-            index: 1,
-            children: <Widget>[
-              ListTile(
-                key: const ValueKey<String>('advanced.clearCookies'),
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.cookie_rounded,
-                  color: Theme.of(context).colorScheme.primary,
+              ],
+            ),
+            // ── 数据清理 ──
+            SettingsCard(
+              key: const ValueKey<String>('advanced.clean'),
+              title: l10n.advancedCleanGroup,
+              index: 1,
+              children: <Widget>[
+                SettingsTile(
+                  key: const ValueKey<String>('advanced.clearCookies'),
+                  icon: Icons.cookie_rounded,
+                  title: l10n.clearCookies,
+                  subtitle: l10n.clearCookiesDesc,
+                  onTap: () => _clearCookies(context, l10n),
                 ),
-                title: Text(l10n.clearCookies),
-                subtitle: Text(l10n.clearCookiesDesc),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => _clearCookies(context, l10n),
-              ),
-              ListTile(
-                key: const ValueKey<String>('advanced.clearWebview'),
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.cleaning_services_rounded,
-                  color: Theme.of(context).colorScheme.primary,
+                SettingsTile(
+                  key: const ValueKey<String>('advanced.clearWebview'),
+                  icon: Icons.cleaning_services_rounded,
+                  title: l10n.clearWebviewData,
+                  subtitle: l10n.clearWebviewDataDesc,
+                  onTap: () => _clearWebviewData(context, l10n),
                 ),
-                title: Text(l10n.clearWebviewData),
-                subtitle: Text(l10n.clearWebviewDataDesc),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => _clearWebviewData(context, l10n),
-              ),
-              ListTile(
-                key: const ValueKey<String>('advanced.imageCache'),
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.image_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: Text(l10n.advancedImageCache),
-                subtitle: Text(
-                  _imageCacheSizeText.isEmpty
+                SettingsTile(
+                  key: const ValueKey<String>('advanced.imageCache'),
+                  icon: Icons.image_rounded,
+                  title: l10n.advancedImageCache,
+                  subtitle: _imageCacheSizeText.isEmpty
                       ? l10n.advancedImageCacheDesc
                       : '${l10n.advancedImageCacheDesc} · $_imageCacheSizeText',
+                  onTap: () => _clearImageCache(context, l10n),
                 ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => _clearImageCache(context, l10n),
-              ),
-            ],
-          ),
-          // ── 请求指纹 ──
-          SettingsCard(
-            key: const ValueKey<String>('advanced.request'),
-            title: l10n.advancedRequestGroup,
-            index: 2,
-            children: <Widget>[
-              ListTile(
-                key: const ValueKey<String>('advanced.userAgent'),
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  Icons.person_pin_circle_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: Text(l10n.defaultUserAgent),
-                subtitle: Text(
-                  uaLabel,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => _pickUserAgent(context, l10n),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm),
-            child: Text(
-              l10n.advancedPageHint,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+              ],
             ),
-          ),
-        ],
+            // ── 请求指纹 ──
+            SettingsCard(
+              key: const ValueKey<String>('advanced.request'),
+              title: l10n.advancedRequestGroup,
+              index: 2,
+              children: <Widget>[
+                SettingsTile(
+                  key: const ValueKey<String>('advanced.userAgent'),
+                  icon: Icons.person_pin_circle_rounded,
+                  title: l10n.defaultUserAgent,
+                  subtitle: uaLabel,
+                  onTap: () => _pickUserAgent(context, l10n),
+                ),
+              ],
+            ),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm),
+              child: Text(
+                l10n.advancedPageHint,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ),
+          ],
         ),
       ),
     );

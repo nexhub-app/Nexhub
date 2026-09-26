@@ -16,7 +16,8 @@ import '../../../core/services/backup_archive.dart';
 import '../../../core/settings/data_export_config.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
-import '../../../core/widgets/app_list_tile.dart';
+import '../../../core/theme/app_theme.dart';
+import 'widgets/settings_widgets.dart';
 import '../../../core/widgets/backup_category_selector.dart';
 
 class SettingsImportExportScreen extends StatefulWidget {
@@ -178,7 +179,8 @@ class _SettingsImportExportScreenState
             left: AppTokens.spaceLg,
             right: AppTokens.spaceLg,
             top: AppTokens.spaceMd,
-            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppTokens.spaceLg,
+            bottom:
+                MediaQuery.of(sheetCtx).viewInsets.bottom + AppTokens.spaceLg,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -218,10 +220,7 @@ class _SettingsImportExportScreenState
                   padding: const EdgeInsets.only(top: AppTokens.spaceSm),
                   child: Text(
                     l10n.backupScopeNone,
-                    style: Theme.of(sheetCtx)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(
+                    style: Theme.of(sheetCtx).textTheme.bodySmall?.copyWith(
                           color: Theme.of(sheetCtx).colorScheme.error,
                         ),
                   ),
@@ -376,40 +375,37 @@ class _SettingsImportExportScreenState
       body: ListView(
         padding: const EdgeInsets.all(AppTokens.spaceLg),
         children: <Widget>[
-          _ImportExportGroupHeader(label: l10n.importData),
-          AppListTile(
-            leading: const Icon(Icons.file_open_rounded),
-            title: Text(l10n.importData),
-            subtitle: Text(l10n.importDataDesc),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => _pickImportFile(),
+          SettingsGroup(
+            header: l10n.importData,
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.file_open_rounded,
+                title: l10n.importData,
+                subtitle: l10n.importDataDesc,
+                onTap: () => _pickImportFile(),
+              ),
+            ],
           ),
-          const SizedBox(height: AppTokens.spaceXl),
-          _ImportExportGroupHeader(label: l10n.exportData),
-          AppListTile(
-            leading: const Icon(Icons.download_rounded),
-            title: Text(l10n.exportData),
-            subtitle: Text(l10n.exportDataDesc),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => _showExportSheet(),
+          const SizedBox(height: AppTokens.spaceLg),
+          SettingsGroup(
+            header: l10n.exportData,
+            children: <Widget>[
+              SettingsTile(
+                icon: Icons.download_rounded,
+                title: l10n.exportData,
+                subtitle: l10n.exportDataDesc,
+                onTap: () => _showExportSheet(),
+              ),
+            ],
           ),
-          const SizedBox(height: AppTokens.spaceXl),
+          const SizedBox(height: AppTokens.spaceLg),
           Padding(
             padding: const EdgeInsets.all(AppTokens.spaceMd),
             child: Container(
               padding: const EdgeInsets.all(AppTokens.spaceMd),
               decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-                border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outlineVariant
-                      .withValues(alpha: 0.3),
-                ),
+                color: AppTheme.cardContainer(Theme.of(context).colorScheme),
+                borderRadius: BorderRadius.circular(AppTokens.radiusLg),
               ),
               child: Row(
                 children: <Widget>[
@@ -441,22 +437,3 @@ class _SettingsImportExportScreenState
 // ─────────────────────────────────────────────────────────────────────────────
 // Reusable group header for import/export sections.
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _ImportExportGroupHeader extends StatelessWidget {
-  final String label;
-  const _ImportExportGroupHeader({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
-}

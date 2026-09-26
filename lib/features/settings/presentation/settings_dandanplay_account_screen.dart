@@ -15,7 +15,6 @@ import '../../../core/danmaku/dandanplay_auth.dart';
 import '../../../core/settings/danmaku_config.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
-import '../../../core/widgets/app_list_tile.dart';
 import './widgets/settings_widgets.dart';
 
 class SettingsDandanplayAccountScreen extends StatefulWidget {
@@ -175,14 +174,12 @@ class _SettingsDandanplayAccountScreenState
             return ListView(
               padding: const EdgeInsets.all(AppTokens.spaceLg),
               children: <Widget>[
-                AppListTile(
-                  leading: const SettingsLeadingIcon(
-                    icon: Icons.chat_bubble_rounded,
-                  ),
-                  title: Text(l10n.danmakuAccountSection),
-                  subtitle: Text(loggedIn
+                SettingsTile(
+                  icon: Icons.chat_bubble_rounded,
+                  title: l10n.danmakuAccountSection,
+                  subtitle: loggedIn
                       ? l10n.danmakuAccountLoggedInAs(auth.displayName ?? '')
-                      : l10n.loginStatusLoggedOut),
+                      : l10n.loginStatusLoggedOut,
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
                 if (!_appConfigured)

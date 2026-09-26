@@ -17,6 +17,7 @@ import '../../../core/services/bangumi/bangumi_oauth_config.dart';
 import '../../../core/services/bangumi/bangumi_proxy_config.dart';
 import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'widgets/settings_widgets.dart';
 import '../../../core/widgets/bangumi_collection_browser.dart';
 
 class SettingsBangumiScreen extends StatefulWidget {
@@ -139,12 +140,11 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
           Text(l10n.bangumiAccount, style: theme.textTheme.titleMedium),
           const SizedBox(height: AppTokens.spaceMd),
           if (auth.isLoggedIn) ...<Widget>[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.account_circle_rounded),
-              title: Text(l10n.bangumiLoggedInAs(auth.displayName ?? '')),
+            SettingsTile(
+              icon: Icons.account_circle_rounded,
+              title: l10n.bangumiLoggedInAs(auth.displayName ?? ''),
               subtitle: (auth.username != null && auth.username!.isNotEmpty)
-                  ? Text('@${auth.username}')
+                  ? '@${auth.username}'
                   : null,
               trailing: TextButton(
                 onPressed: () => auth.logout(),

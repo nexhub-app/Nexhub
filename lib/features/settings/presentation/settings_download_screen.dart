@@ -25,10 +25,10 @@ import '../../../core/favorites/favorite_group.dart';
 import '../../../core/favorites/favorites_manager.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/app_list_tile.dart';
 import '../../downloads/presentation/download_list_screen.dart';
 import '../../downloads/presentation/downloaded_content_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
 
 /// 下载管理主页面。
@@ -43,98 +43,102 @@ class SettingsDownloadScreen extends StatelessWidget {
       appBar: AppBar(title: Text(l10n.downloadManagementTitle)),
       body: SettingsAutoScroll(
         child: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
-        children: <Widget>[
-          // ── 下载列表 ──
-          _DownloadSectionHeader(label: l10n.downloadListTab),
-          AppListTile(
-            key: const ValueKey<String>('download.list'),
-            leading: const Icon(Icons.download_rounded),
-            title: Text(l10n.downloadListTitle),
-            subtitle: Text(l10n.downloads),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const DownloadListScreen(),
-              ),
+          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          children: <Widget>[
+            // ── 下载列表 ──
+            SettingsGroup(
+              header: l10n.downloadListTab,
+              children: <Widget>[
+                SettingsTile(
+                  key: const ValueKey<String>('download.list'),
+                  icon: Icons.download_rounded,
+                  title: l10n.downloadListTitle,
+                  subtitle: l10n.downloads,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const DownloadListScreen(),
+                    ),
+                  ),
+                ),
+                SettingsTile(
+                  key: const ValueKey<String>('download.downloaded'),
+                  icon: Icons.download_done_rounded,
+                  title: l10n.downloadedContent,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const DownloadedContentScreen(),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          AppListTile(
-            key: const ValueKey<String>('download.downloaded'),
-            leading: const Icon(Icons.download_done_rounded),
-            title: Text(l10n.downloadedContent),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => const DownloadedContentScreen(),
-              ),
+
+            // ── 下载设置 ──
+            SettingsGroup(
+              header: l10n.downloadSettingsTitle,
+              children: <Widget>[
+                // 最大同时下载数
+                KeyedSubtree(
+                  key: const ValueKey<String>('download.concurrent'),
+                  child: _MaxConcurrentSetting(),
+                ),
+
+                // 线程数
+                KeyedSubtree(
+                  key: const ValueKey<String>('download.thread'),
+                  child: _ThreadCountSetting(),
+                ),
+
+                // 下载路径
+                KeyedSubtree(
+                  key: const ValueKey<String>('download.path'),
+                  child: _DownloadPathSetting(),
+                ),
+
+                // 下载器类型（项 12：弹窗选择）
+                KeyedSubtree(
+                  key: const ValueKey<String>('download.downloaderType'),
+                  child: _DownloaderTypeSetting(),
+                ),
+
+                // 仅 WiFi 下载（需求 4：开关）
+                KeyedSubtree(
+                  key: const ValueKey<String>('download.wifiOnly'),
+                  child: _WifiOnlySetting(),
+                ),
+
+                // 读后自动删除（开关）
+                KeyedSubtree(
+                  key: const ValueKey<String>('download.autoDelete'),
+                  child: _AutoDeleteSetting(),
+                ),
+
+                // 自动删除排除分类（多选）
+                KeyedSubtree(
+                  key: const ValueKey<String>('download.autoDeleteExclude'),
+                  child: _AutoDeleteExcludeSetting(),
+                ),
+
+                // 预下载后续剧集（0-5）
+                KeyedSubtree(
+                  key: const ValueKey<String>('download.preDownload'),
+                  child: _PreDownloadSetting(),
+                ),
+
+                // 漫画格式（项 13：弹窗选择）
+                KeyedSubtree(
+                  key: const ValueKey<String>('download.comicFormat'),
+                  child: _ComicFormatSetting(),
+                ),
+
+                // 小说格式（项 13：弹窗选择）
+                KeyedSubtree(
+                  key: const ValueKey<String>('download.novelFormat'),
+                  child: _NovelFormatSetting(),
+                ),
+              ],
             ),
-          ),
-
-          // ── 下载设置 ──
-          const SizedBox(height: AppTokens.spaceXl),
-          _DownloadSectionHeader(label: l10n.downloadSettingsTitle),
-
-          // 最大同时下载数
-          KeyedSubtree(
-            key: const ValueKey<String>('download.concurrent'),
-            child: _MaxConcurrentSetting(),
-          ),
-
-          // 线程数
-          KeyedSubtree(
-            key: const ValueKey<String>('download.thread'),
-            child: _ThreadCountSetting(),
-          ),
-
-          // 下载路径
-          KeyedSubtree(
-            key: const ValueKey<String>('download.path'),
-            child: _DownloadPathSetting(),
-          ),
-
-          // 下载器类型（项 12：弹窗选择）
-          KeyedSubtree(
-            key: const ValueKey<String>('download.downloaderType'),
-            child: _DownloaderTypeSetting(),
-          ),
-
-          // 仅 WiFi 下载（需求 4：开关）
-          KeyedSubtree(
-            key: const ValueKey<String>('download.wifiOnly'),
-            child: _WifiOnlySetting(),
-          ),
-
-          // 读后自动删除（开关）
-          KeyedSubtree(
-            key: const ValueKey<String>('download.autoDelete'),
-            child: _AutoDeleteSetting(),
-          ),
-
-          // 自动删除排除分类（多选）
-          KeyedSubtree(
-            key: const ValueKey<String>('download.autoDeleteExclude'),
-            child: _AutoDeleteExcludeSetting(),
-          ),
-
-          // 预下载后续剧集（0-5）
-          KeyedSubtree(
-            key: const ValueKey<String>('download.preDownload'),
-            child: _PreDownloadSetting(),
-          ),
-
-          // 漫画格式（项 13：弹窗选择）
-          KeyedSubtree(
-            key: const ValueKey<String>('download.comicFormat'),
-            child: _ComicFormatSetting(),
-          ),
-
-          // 小说格式（项 13：弹窗选择）
-          KeyedSubtree(
-            key: const ValueKey<String>('download.novelFormat'),
-            child: _NovelFormatSetting(),
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -145,30 +149,10 @@ class SettingsDownloadScreen extends StatelessWidget {
 // 可复用组件 —— 禁止复制粘贴重复实现
 // ════════════════════════════════════════════════════════════════════════════════
 
-class _DownloadSectionHeader extends StatelessWidget {
-  final String label;
-  const _DownloadSectionHeader({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
-}
-
 /// 最大同时下载数设置项（持久化）。
 class _MaxConcurrentSetting extends StatefulWidget {
   @override
-  State<_MaxConcurrentSetting> createState() =>
-      _MaxConcurrentSettingState();
+  State<_MaxConcurrentSetting> createState() => _MaxConcurrentSettingState();
 }
 
 class _MaxConcurrentSettingState extends State<_MaxConcurrentSetting> {
@@ -191,10 +175,10 @@ class _MaxConcurrentSettingState extends State<_MaxConcurrentSetting> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return AppListTile(
-      leading: const Icon(Icons.sync_rounded),
-      title: Text(l10n.maxConcurrentDownloads),
-      subtitle: Text('$_value'),
+    return SettingsTile(
+      icon: Icons.sync_rounded,
+      title: l10n.maxConcurrentDownloads,
+      subtitle: '$_value',
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -248,10 +232,10 @@ class _ThreadCountSettingState extends State<_ThreadCountSetting> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return AppListTile(
-      leading: const Icon(Icons.layers_rounded),
-      title: Text(l10n.threadCount),
-      subtitle: Text('$_value'),
+    return SettingsTile(
+      icon: Icons.layers_rounded,
+      title: l10n.threadCount,
+      subtitle: '$_value',
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -385,13 +369,11 @@ class _DownloadPathSettingState extends State<_DownloadPathSetting> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final String subtitle =
-        _displayName.isNotEmpty ? _displayName : _path;
-    return AppListTile(
-      leading: const Icon(Icons.folder_rounded),
-      title: Text(l10n.downloadPath),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right_rounded),
+    final String subtitle = _displayName.isNotEmpty ? _displayName : _path;
+    return SettingsTile(
+      icon: Icons.folder_rounded,
+      title: l10n.downloadPath,
+      subtitle: subtitle,
       onTap: _pickPath,
     );
   }
@@ -400,8 +382,7 @@ class _DownloadPathSettingState extends State<_DownloadPathSetting> {
 /// 下载器类型设置项（项 12：弹窗选择，持久化）。
 class _DownloaderTypeSetting extends StatefulWidget {
   @override
-  State<_DownloaderTypeSetting> createState() =>
-      _DownloaderTypeSettingState();
+  State<_DownloaderTypeSetting> createState() => _DownloaderTypeSettingState();
 }
 
 class _DownloaderTypeSettingState extends State<_DownloaderTypeSetting> {
@@ -486,11 +467,10 @@ class _DownloaderTypeSettingState extends State<_DownloaderTypeSetting> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return AppListTile(
-      leading: const Icon(Icons.cloud_download_rounded),
-      title: Text(l10n.downloaderType),
-      subtitle: Text(_label(l10n)),
-      trailing: const Icon(Icons.chevron_right_rounded),
+    return SettingsTile(
+      icon: Icons.cloud_download_rounded,
+      title: l10n.downloaderType,
+      subtitle: _label(l10n),
       onTap: () => _showDialog(l10n),
     );
   }
@@ -531,10 +511,10 @@ class _WifiOnlySettingState extends State<_WifiOnlySetting> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return AppListTile(
-      leading: const Icon(Icons.wifi_rounded),
-      title: Text(l10n.downloadWifiOnly),
-      subtitle: Text(l10n.downloadWifiOnlyHint),
+    return SettingsTile(
+      icon: Icons.wifi_rounded,
+      title: l10n.downloadWifiOnly,
+      subtitle: l10n.downloadWifiOnlyHint,
       trailing: Switch(
         value: _value,
         onChanged: (v) {
@@ -577,10 +557,10 @@ class _AutoDeleteSettingState extends State<_AutoDeleteSetting> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return AppListTile(
-      leading: const Icon(Icons.delete_sweep_rounded),
-      title: Text(l10n.downloadAutoDelete),
-      subtitle: Text(l10n.downloadAutoDeleteHint),
+    return SettingsTile(
+      icon: Icons.delete_sweep_rounded,
+      title: l10n.downloadAutoDelete,
+      subtitle: l10n.downloadAutoDeleteHint,
       trailing: Switch(
         value: _value,
         onChanged: (v) {
@@ -655,7 +635,9 @@ class _AutoDeleteExcludeSettingState extends State<_AutoDeleteExcludeSetting> {
         ),
         subtitle: Text(moduleLabel),
         trailing: Icon(
-          selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+          selected
+              ? Icons.check_circle_rounded
+              : Icons.radio_button_unchecked_rounded,
           color: selected ? scheme.primary : scheme.outline,
         ),
         onTap: () {
@@ -727,11 +709,10 @@ class _AutoDeleteExcludeSettingState extends State<_AutoDeleteExcludeSetting> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final fav = context.watch<FavoritesManager>();
-    return AppListTile(
-      leading: const Icon(Icons.filter_alt_rounded),
-      title: Text(l10n.downloadAutoDeleteExclude),
-      subtitle: Text(_subtitle(l10n, fav)),
-      trailing: const Icon(Icons.chevron_right_rounded),
+    return SettingsTile(
+      icon: Icons.filter_alt_rounded,
+      title: l10n.downloadAutoDeleteExclude,
+      subtitle: _subtitle(l10n, fav),
       onTap: () => _showPicker(l10n, fav),
     );
   }
@@ -763,12 +744,12 @@ class _PreDownloadSettingState extends State<_PreDownloadSetting> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return AppListTile(
-      leading: const Icon(Icons.download_for_offline_rounded),
-      title: Text(l10n.downloadPreDownload),
-      subtitle: Text(_value == 0
+    return SettingsTile(
+      icon: Icons.download_for_offline_rounded,
+      title: l10n.downloadPreDownload,
+      subtitle: _value == 0
           ? l10n.downloadPreDownloadOff
-          : l10n.downloadEpisodesCount(_value)),
+          : l10n.downloadEpisodesCount(_value),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -811,11 +792,10 @@ class _ComicFormatSetting extends StatelessWidget {
           _ => l10n.comicFormatCbz,
         };
 
-    return AppListTile(
-      leading: const Icon(Icons.auto_stories_rounded),
-      title: Text(l10n.comicFormatSelectTitle),
-      subtitle: Text(subtitle(prefs.comicFormat)),
-      trailing: const Icon(Icons.chevron_right_rounded),
+    return SettingsTile(
+      icon: Icons.auto_stories_rounded,
+      title: l10n.comicFormatSelectTitle,
+      subtitle: subtitle(prefs.comicFormat),
       onTap: () => _showSheet(context, prefs, l10n),
     );
   }
@@ -870,9 +850,12 @@ class _ComicFormatSetting extends StatelessWidget {
                   ),
                 ),
                 const Divider(height: 1),
-                option(DownloadFormat.jpg, l10n.comicFormatJpg, Icons.image_rounded),
-                option(DownloadFormat.png, l10n.comicFormatPng, Icons.photo_rounded),
-                option(DownloadFormat.cbz, l10n.comicFormatCbz, Icons.archive_rounded),
+                option(DownloadFormat.jpg, l10n.comicFormatJpg,
+                    Icons.image_rounded),
+                option(DownloadFormat.png, l10n.comicFormatPng,
+                    Icons.photo_rounded),
+                option(DownloadFormat.cbz, l10n.comicFormatCbz,
+                    Icons.archive_rounded),
                 const SizedBox(height: AppTokens.spaceSm),
               ],
             ),
@@ -896,11 +879,10 @@ class _NovelFormatSetting extends StatelessWidget {
           _ => l10n.novelFormatEpub,
         };
 
-    return AppListTile(
-      leading: const Icon(Icons.menu_book_rounded),
-      title: Text(l10n.novelFormatSelectTitle),
-      subtitle: Text(subtitle(prefs.novelFormat)),
-      trailing: const Icon(Icons.chevron_right_rounded),
+    return SettingsTile(
+      icon: Icons.menu_book_rounded,
+      title: l10n.novelFormatSelectTitle,
+      subtitle: subtitle(prefs.novelFormat),
       onTap: () => _showSheet(context, prefs, l10n),
     );
   }
@@ -955,8 +937,10 @@ class _NovelFormatSetting extends StatelessWidget {
                   ),
                 ),
                 const Divider(height: 1),
-                option(DownloadFormat.txt, l10n.novelFormatTxt, Icons.description_rounded),
-                option(DownloadFormat.epub, l10n.novelFormatEpub, Icons.book_rounded),
+                option(DownloadFormat.txt, l10n.novelFormatTxt,
+                    Icons.description_rounded),
+                option(DownloadFormat.epub, l10n.novelFormatEpub,
+                    Icons.book_rounded),
                 const SizedBox(height: AppTokens.spaceSm),
               ],
             ),

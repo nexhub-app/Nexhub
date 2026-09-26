@@ -6,8 +6,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import '../../../core/settings/rsshub_config.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'widgets/settings_widgets.dart';
 import '../../../core/scraper/http_fetcher.dart';
-import '../../../core/widgets/app_list_tile.dart';
 import '../../../core/widgets/app_card.dart';
 import './widgets/settings_search_target.dart';
 
@@ -222,11 +222,11 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
                     )),
             const SizedBox(height: AppTokens.spaceSm),
             AppCard(
-              child: ListTile(
-                title: Text(_currentUrl),
-                subtitle: Text(_selectedPresetUrl == null
+              child: SettingsTile(
+                title: _currentUrl,
+                subtitle: _selectedPresetUrl == null
                     ? l10n.customInstance
-                    : l10n.presetInstanceOfficial),
+                    : l10n.presetInstanceOfficial,
               ),
             ),
 
@@ -259,7 +259,12 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
               ],
             ),
             const SizedBox(height: AppTokens.spaceSm),
-            ..._kPresetInstances.map((instance) => _buildPresetTile(instance)),
+            SettingsGroup(
+              children: <Widget>[
+                for (final instance in _kPresetInstances)
+                  _buildPresetTile(instance),
+              ],
+            ),
 
             // ── 自定义实例 ──
             const SizedBox(height: AppTokens.spaceXl),
@@ -301,8 +306,12 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
                 ),
               )
             else
-              ..._customInstances
-                  .map((url) => _buildCustomTile(url, l10n, scheme)),
+              SettingsGroup(
+                children: <Widget>[
+                  for (final url in _customInstances)
+                    _buildCustomTile(url, l10n, scheme),
+                ],
+              ),
 
             // 自定义实例区域的"恢复默认"按钮
             if (_customInstances.isNotEmpty) ...<Widget>[
@@ -343,17 +352,10 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
     final isSelected = _selectedPresetUrl == instance.url;
     final status = _testStatus[instance.url];
 
-    return AppListTile(
-      leading: CircleAvatar(
-        backgroundColor: Theme.of(context)
-            .colorScheme
-            .primaryContainer
-            .withValues(alpha: 0.5),
-        child: Icon(Icons.rss_feed_rounded,
-            size: 18, color: Theme.of(context).colorScheme.primary),
-      ),
-      title: Text(instance.name),
-      subtitle: Text(instance.url),
+    return SettingsTile(
+      icon: Icons.rss_feed_rounded,
+      title: instance.name,
+      subtitle: instance.url,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -370,8 +372,10 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
               ),
               child: Text(
                 l10n.presetInstanceOfficial,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary),
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.primary),
               ),
             ),
           if (isSelected)
@@ -391,13 +395,10 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
     final isSelected = _currentUrl == url && _selectedPresetUrl == null;
     final status = _testStatus[url];
 
-    return AppListTile(
-      leading: CircleAvatar(
-        backgroundColor: scheme.secondaryContainer.withValues(alpha: 0.5),
-        child: Icon(Icons.rss_feed_rounded, size: 18, color: scheme.secondary),
-      ),
-      title: Text(url),
-      subtitle: Text(l10n.customInstance),
+    return SettingsTile(
+      icon: Icons.rss_feed_rounded,
+      title: url,
+      subtitle: l10n.customInstance,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -411,7 +412,8 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
           if (isSelected)
             Icon(Icons.check_circle_rounded, color: scheme.primary, size: 20)
           else
-            Icon(Icons.radio_button_unchecked_rounded, color: scheme.outline, size: 20),
+            Icon(Icons.radio_button_unchecked_rounded,
+                color: scheme.outline, size: 20),
         ],
       ),
       onTap: () => _selectInstance(url, isCustom: true),
@@ -451,13 +453,16 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
       latencyWidget = Text(
         l10n.rsshubLatencyMs(status),
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: latencyColor,
-        ),
+              color: latencyColor,
+            ),
       );
     } else if (status == false) {
       latencyWidget = Text(
         l10n.rsshubLatencyFailed,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.outline),
+        style: Theme.of(context)
+            .textTheme
+            .bodySmall
+            ?.copyWith(color: scheme.outline),
       );
     }
 
