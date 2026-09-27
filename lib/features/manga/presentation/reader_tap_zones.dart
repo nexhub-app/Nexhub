@@ -50,7 +50,7 @@ class ReaderTapZones extends StatefulWidget {
   /// 在指定位置缩放（桌面 Shift+左键 兜底双击缩放）。为 null 时由调用方回退到 [onZoom]。
   final void Function(Offset)? onZoomAt;
 
-  /// 缩放状态读取：放大态（scale > 1）时单指单击不触发翻页 / 导航（P0 手势 bug #4）。
+  /// 缩放状态读取：放大态（scale > 1）时单指单击不触发翻页 / 导航（手势 bug #4）。
   /// 为 null 时按未放大处理。
   final bool Function()? isZoomed;
 
@@ -65,7 +65,7 @@ class ReaderTapZones extends StatefulWidget {
 
   /// 双指捏合更新回调：以双指中点为焦点、以起始距离为基准的累计比例 [scaleFactor]
   /// （0 表示尚未达到 2 指，不会回调）。屏幕级手动跟踪指针实现，不依赖每页的
-  /// GestureDetector——条漫模式双指落在不同页时依然生效（C2 根治）。
+  /// GestureDetector——条漫模式双指落在不同页时依然生效（根治）。
   final void Function(double scaleFactor, Offset focal)? onPinchUpdate;
 
   /// 双指捏合结束回调（任一指抬起 / 全部抬起时触发一次）。
@@ -80,7 +80,7 @@ class ReaderTapZones extends StatefulWidget {
 
   /// 触控板（precision touchpad）捏合更新回调：trackpad 手势是独立事件流
   /// （[PointerPanZoomUpdateEvent]，kind=trackpad），不产生触摸 PointerDown 事件，
-  /// 必须走 [Listener.onPointerPanZoomUpdate] 才能收到（C2 桌面触摸板捏合）。
+  /// 必须走 [Listener.onPointerPanZoomUpdate] 才能收到（桌面触摸板捏合）。
   /// [scale] 为累计缩放比例（相对手势开始）、[focal] 为手势焦点（左上原点局部坐标）。
   final void Function(double scale, Offset focal)? onTrackpadZoom;
 
@@ -93,15 +93,15 @@ class ReaderTapZones extends StatefulWidget {
   /// 长按回调（用于弹出图片「保存 / 分享」菜单等）。为 null 时不检测长按。
   final VoidCallback? onLongPress;
 
-  /// 长按回调（带触点坐标，REQ-B2 长按缩放）。非 null 时优先于 [onLongPress]，
+  /// 长按回调（带触点坐标， 长按缩放）。非 null 时优先于 [onLongPress]，
   /// 传入按下位置（左上原点坐标），用于「按触点 / 按屏幕中心」的定点缩放。
   final void Function(Offset)? onLongPressAt;
 
-  /// 长按松手回调（REQ-B2 长按缩放退出）：长按已触发（[onLongPressAt] / [onLongPress]
+  /// 长按松手回调（长按缩放退出）：长按已触发（[onLongPressAt] / [onLongPress]
   /// 执行过）且手指抬起/取消时调用一次。为 null 时不回调。
   final VoidCallback? onLongPressRelease;
 
-  /// 双击回退回调（REQ-B3：单击即时 + 双击回退）：单击翻页【立即】执行，若在
+  /// 双击回退回调（单击即时 + 双击回退）：单击翻页【立即】执行，若在
   /// 双击窗口内出现第二次点击，则先撤销前一次单击已触发的翻页（prev/next），
   /// 再执行双击缩放。参数 [next] 为被撤销的单击方向（true=上一击是下一页）。
   /// 中心 toggle 区单击不翻页，无需回退。为 null 时不回退。
@@ -168,7 +168,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
 
   /// 当前按下的所有指针（用于识别双指等多指手势）。首根落下的指针记为 [_activePointer]
   /// 用于单击/双击/拖拽判定；后续落下的指针把 [_multiTouch] 置真，覆盖层不再派发翻页，
-  /// 把缩放手势完全交给底层图片自身的 scale 识别器（修复 C2「捏合被误判为翻页」）。
+  /// 把缩放手势完全交给底层图片自身的 scale 识别器（修复 「捏合被误判为翻页」）。
   final Set<int> _activePointers = <int>{};
   bool _multiTouch = false;
 
@@ -205,7 +205,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
   bool _longPressHeld = false;
 
   // 单击派发延迟定时器：单击命中后延迟一个双击窗口再派发，若期间出现双击则取消，
-  // 从而「双击仅缩放、不触发导航」（P0 手势 bug #5）。为 null 表示无待派发单击。
+  // 从而「双击仅缩放、不触发导航」（手势 bug #5）。为 null 表示无待派发单击。
   Timer? _tapTimer;
 
   static const double _tapSlop = 18.0; // 移动超过此值不算 tap
@@ -297,7 +297,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
   }
 
   void _onPointerDown(PointerDownEvent e) {
-    // 桌面右键：直接弹出图片操作菜单（保存 / 分享 / 设封面），长按的桌面等价入口（P0 #10）。
+    // 桌面右键：直接弹出图片操作菜单（保存 / 分享 / 设封面），长按的桌面等价入口（#10）。
     // 不进入单击 / 双击 / 长按流程，避免误触发翻页。
     if (e.kind == PointerDeviceKind.mouse &&
         e.buttons == kSecondaryMouseButton) {
@@ -320,7 +320,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
       // 第二根及以上手指落下：标记多指手势（如双指捏合），取消长按判定。
       _multiTouch = true;
       _longPressTimer?.cancel();
-      // 屏幕级捏合开始：记录双指起始距离与中点（C2 根治——不依赖每页 GestureDetector，
+      // 屏幕级捏合开始：记录双指起始距离与中点（根治——不依赖每页 GestureDetector，
       // 条漫模式下双指落在不同页也能识别）。
       _pinching = true;
       final List<Offset> pts = _pinchPoints.values.toList();
@@ -416,7 +416,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
         _downTime = null;
         _downShift = false;
         _longPressFired = false;
-        // 长按缩放中落下第二根手指：全部抬起时同样退出（REQ-B2）。
+        // 长按缩放中落下第二根手指：全部抬起时同样退出。
         if (_longPressHeld) {
           _longPressHeld = false;
           widget.onLongPressRelease?.call();
@@ -443,14 +443,14 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
       // 长按已触发（菜单 / 长按缩放）：取消可能 pending 的单击派发，避免长按后误翻页。
       _tapTimer?.cancel();
       _lastTapAction = null;
-      // 长按缩放：松手退出（REQ-B2）。
+      // 长按缩放：松手退出。
       if (held) widget.onLongPressRelease?.call();
       return;
     }
     // 缩放状态：放大态单指手势交由图片自身的平移 / 捏合处理，覆盖层不再派发翻页 / 导航。
     final bool zoomed = widget.isZoomed?.call() ?? false;
     // 拖拽（滑动）优先：移动超过 slop 视为拖拽，不触发单击导航 / 缩放。
-    // 放大态下拖拽由图片平移处理，覆盖层不翻页（P0 手势 bug #4）。
+    // 放大态下拖拽由图片平移处理，覆盖层不翻页（手势 bug #4）。
     if (move > _tapSlop) {
       _lastTapAction = null;
       if (!zoomed && !widget.isWebtoon) {
@@ -506,7 +506,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
 
     final size = _currentSize ?? MediaQuery.sizeOf(context);
 
-    // 双击检测优先于热区：双击【任意处】仅缩放、不翻页（验收 C4），不要求命中
+    // 双击检测优先于热区：双击【任意处】仅缩放、不翻页（验收），不要求命中
     // 热区——否则双击图片中央等热区外位置会无反应（桌面用户反馈「双击缩放没有作用」）。
     final now = DateTime.now();
     final isDouble = _lastTapTime != null &&
@@ -514,9 +514,9 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
         _lastTapPos != null &&
         (_lastTapPos! - e.localPosition).distance <= _doubleTapSlop;
     if (isDouble) {
-      // 双击：先撤销前一次单击已触发的翻页（单击即时 + 双击回退，REQ-B3），再执行
-      // 缩放（仅缩放、抑制本次导航，P0 手势 bug #5）。中心 toggle 区单击不翻页，
-      // [_lastTapAction] 为 toggle 时无需回退。用点击点作锚定（P0 #6）。
+      // 双击：先撤销前一次单击已触发的翻页（单击即时 + 双击回退），再执行
+      // 缩放（仅缩放、抑制本次导航， 手势 bug #5）。中心 toggle 区单击不翻页，
+      // [_lastTapAction] 为 toggle 时无需回退。用点击点作锚定（#6）。
       if (_lastTapAction != null && _lastTapAction != _TapAction.toggle) {
         widget.onUndoPageTurn?.call(_lastTapAction == _TapAction.next);
       }
@@ -567,7 +567,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     }
 
     // 手势交互态（scale ≠ 1.0，既含放大 >1 也含缩小 <1）：单指单击不派发导航
-    // （也不 toggle UI），避免与图片平移 / 双击缩放打架（P0 #4 / 双击三态循环）。
+    // （也不 toggle UI），避免与图片平移 / 双击缩放打架（#4 / 双击三态循环）。
     // 缩小态（<1）同样视为交互态——这是 Bug3「双击缩放三态消失」的根治：双击
     // 第一击若不拦截，会派发翻页，[onPrev]/[onNext] 的 _resetZoom 把 0.5x 缩放态
     // 清掉，导致三态循环 0.5→2 失效（永远只能缩小）。
@@ -581,7 +581,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
       return;
     }
 
-    // 非双击：单击【即时】派发（REQ-B3，不再延迟 300ms），并记录本次动作供
+    // 非双击：单击【即时】派发（不再延迟 300ms），并记录本次动作供
     // 双击窗口内的「回退翻页」判定（记【反转后】的真实动作，方向判断才准确）。
     // 若随后出现第二次点击，上面 isDouble 分支会撤销本次翻页并执行缩放。
     _lastTapTime = now;
@@ -686,7 +686,7 @@ class _ReaderTapZonesState extends State<ReaderTapZones> {
     // 热区的同时，把【拖拽 / 滚动】事件透传给底层 PageView / ListView：
     // - opaque 会独占命中，导致翻页滑动、条漫滚动等手势全部失效；
     // - translucent 仍能接收指针（单击照常分发 prev/next/toggle、双击缩放），
-    //   同时底层可滚动内容照常响应拖拽。
+    // 同时底层可滚动内容照常响应拖拽。
     //
     // LayoutBuilder 记录自身尺寸到 state，让热区命中使用「覆盖层几何」而非
     // 屏幕尺寸（修复 AppBar/BottomBar 占用高度时点击位置偏移、点不到的问题）。

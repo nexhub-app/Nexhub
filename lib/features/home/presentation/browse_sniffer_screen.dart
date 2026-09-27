@@ -4,7 +4,7 @@
 /// 入口。采用「网络拦截 + DOM 检测 + API 钩子」方法论（clean-room 借鉴猫抓等
 /// 开源嗅探，不引入其代码）：
 /// - 文档起始注入 JS 钩子（fetch/XHR/HTMLMediaElement/MediaSource/
-///   URL.createObjectURL），经 `callHandler('sniffer')` 回传 Dart；
+/// URL.createObjectURL），经 `callHandler('sniffer')` 回传 Dart；
 /// - `onLoadResource` 被动兜底扩大召回；
 /// - 加载完成后执行 DOM 深度扫描；
 /// - 规则（assets/sniffer/sniffer_rules.json）过滤广告 / 缩略图 / beacon。

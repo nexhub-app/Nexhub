@@ -49,7 +49,7 @@ class ReaderTokens {
   static const Color emphasisDefault = Color(0xFFF43F5E);
 
   /// 墨水屏背景预设索引（bgPresets 末位， 引入）。
-  /// B3 主题化：选中该预设时文字 / 强调色联动切换为墨水屏配套色，
+  /// 主题化：选中该预设时文字 / 强调色联动切换为墨水屏配套色，
   /// 见 [NovelReaderPreferences.isEInkBackground]。
   static const int eInkPresetIndex = 11;
 

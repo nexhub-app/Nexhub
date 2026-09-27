@@ -35,16 +35,16 @@ const List<String> kStorageBoxNames = <String>[
   'settings',
   'novel_bookmarks',
   'novel_highlights',
-  // 小说正文内容编辑（N7：读者直接改正文并持久化，整章覆盖语义）
+  // 小说正文内容编辑（读者直接改正文并持久化，整章覆盖语义）
   'novel_content_edits',
-  // 小说段落翻译缓存（O3 双语面板 / F5 导出附带）
+  // 小说段落翻译缓存（双语面板 / 导出附带）
   'novel_translations',
   // 漫画页翻译缓存（漫画翻译功能：comicId|章|页|语言 → 区域译文 JSON）
   'comic_translations',
   // 视频字幕翻译缓存（视频实时翻译：lang|md5(原文) → 译文 JSON）
   'subtitle_translations',
   'comic_bookmarks',
-  // 漫画阅读器收藏的图片（图库页数据，REQ-C2）
+  // 漫画阅读器收藏的图片（图库页数据，REQ-）
   ImageFavoriteManager.boxName, // 'image_favorites'
   'media_watched',
   'media_playback_position',

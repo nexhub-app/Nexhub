@@ -1,5 +1,5 @@
 /// Tests for [HistoryEntry] field passthrough to [MediaItem] and JSON
-/// backward compatibility (F3 defect 3: history gray screen root cause).
+/// backward compatibility ( defect 3: history gray screen root cause).
 ///
 /// Verifies that `detailUrl` / `coverUrl` / `sourceId` survive the
 /// `HistoryEntry -> MediaItem` conversion so [ContentDetailScreen] can
@@ -264,7 +264,7 @@ void main() {
     });
   });
 
-  group('HistoryManager hidden（REQ-C8 软删除）', () {
+  group('HistoryManager hidden（软删除）', () {
     HistoryManager newManager() => HistoryManager(backend: InMemoryBackend());
 
     Future<void> add(

@@ -1,4 +1,4 @@
-/// 中文拼音序比较器自测（M2）：GBK 一级字库近似拼音序、ASCII 前置、回退安全。
+/// 中文拼音序比较器自测：GBK 一级字库近似拼音序、ASCII 前置、回退安全。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/utils/chinese_collation.dart';
 

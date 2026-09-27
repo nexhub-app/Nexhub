@@ -1,4 +1,4 @@
-/// RSS 更新通知设置页（文档 §10.2 + 16.13 RSS 更新通知）。
+/// RSS 更新通知设置页（文档 + 16.13 RSS 更新通知）。
 ///
 /// 提供：
 /// - 启用/禁用 RSS 更新检测开关
@@ -70,7 +70,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
                     },
                   ),
                 ),
-                // ── 系统通知（OS 通知，P2-3）──
+                // ── 系统通知（OS 通知，-3）──
                 SettingsTile(
                   icon: Icons.notification_important_rounded,
                   title: l10n.rssSystemNotification,

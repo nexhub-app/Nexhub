@@ -3,17 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/novel/novel_page_animation.dart';
 import 'package:nexhub/features/novel/presentation/novel_animated_page_view.dart';
 
-/// P9.1.5 — 小说翻页动画测试。
+/// — 小说翻页动画测试。
 ///
-/// 覆盖 `TASK_clone_all_features.md` §十三 两项要求：
+/// 覆盖 `TASK_clone_all_features.md` 两项要求：
 /// - **6 效果不丢帧**：对 [NovelPageAnimation] 全部 6 种效果逐一构建并执行
-///   nextPage / previousPage 翻页，pumpAndSettle 后无异常、页索引正确。widget
-///   测试环境下"不丢帧"等价于"动画代码路径可构建且可完成不抛错"。
+/// nextPage / previousPage 翻页，pumpAndSettle 后无异常、页索引正确。widget
+/// 测试环境下"不丢帧"等价于"动画代码路径可构建且可完成不抛错"。
 /// - **pageContentKey 缓存**：[NovelReaderScreen] 用
-///   `ValueKey<String>('novel_page_$_contentVersion')` 作为 [NovelAnimatedPageView]
-///   的 key。同 key 重建（仅动画/偏好变更）应保留页状态；key 变更（章节切换/
-///   内容重载）应重置到 initialPage。此处直接对 [NovelAnimatedPageView] 验证该
-///   语义。
+/// `ValueKey<String>('novel_page_$_contentVersion')` 作为 [NovelAnimatedPageView]
+/// 的 key。同 key 重建（仅动画/偏好变更）应保留页状态；key 变更（章节切换/
+/// 内容重载）应重置到 initialPage。此处直接对 [NovelAnimatedPageView] 验证该
+/// 语义。
 void main() {
   group('NovelPageAnimation enum', () {
     test('fromString parses all 6 effects', () {
@@ -139,7 +139,7 @@ void main() {
       });
     }
 
-    // ── 回归：连续翻页不再卡死（#1/#2 根因修复） ──
+    // ── 回归：连续翻页不再卡死（#1/根因修复） ──
     // 翻页动画在第一次翻页后控制器停在 value=1.0，下一次 _animateTo 复位
     // value=0 会同步触发 incidental dismissed，旧逻辑把它当成回弹而回退页面、
     // 清空 _animating，导致「翻一次就卡死」。修复后连续翻页应逐页推进。

@@ -1,6 +1,6 @@
 /// 本地导入所需的运行时存储/媒体权限申请。
 ///
-/// 实现 spec F2.C：Android 端在 file_picker 调用前申请 READ_MEDIA_*（13+）
+/// 实现：Android 端在 file_picker 调用前申请 READ_MEDIA_*（13+）
 /// 或 READ_EXTERNAL_STORAGE（<=12）；桌面 / iOS / Web 由 file_picker 原生文档选择器
 /// 处理，无需运行时权限，直接返回 true。平台判定收敛到 [PlatformService]。
 library;

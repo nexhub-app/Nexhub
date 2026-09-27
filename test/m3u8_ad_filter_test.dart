@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/resolver/m3u8_ad_filter.dart';
 import 'package:nexhub/core/resolver/m3u8_parser.dart';
 
-/// filterAds / M3u8AdFilter 单元测试（M2.3.6）。
+/// filterAds / M3u8AdFilter 单元测试。
 ///
 /// 覆盖场景：无广告、URL 关键词广告、时长过短广告、discontinuity 短组广告、
 /// 全广告保底回退、禁用规则、playlist 字符串版过滤。

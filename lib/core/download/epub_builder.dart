@@ -1,4 +1,4 @@
-/// EPUB 构建器（文档 §8.4 / §10.1）。
+/// EPUB 构建器（文档 /）。
 ///
 /// 构建最小合法 EPUB 2.0 结构：
 /// - `mimetype`（不压缩，首条）
@@ -60,12 +60,12 @@ class EpubBuilder {
   /// [images] 为内嵌图片资源（可选）：写入 `OEBPS/<href>` 并注册 manifest，
   /// 供章节 XHTML 内的 `<img>` 引用（图文小说导出不再丢图）。
   ///
-  /// F4 自定义模板：
+  /// 自定义模板：
   /// - [css] 非空时写入 `OEBPS/style.css`，所有章节 XHTML `<head>` 注入引用；
   /// - [coverImage] 非空时生成书首封面页 `cover.xhtml`（spine 首项），
-  ///   并按 EPUB 2 惯例写入 `<meta name="cover">`；
+  /// 并按 EPUB 2 惯例写入 `<meta name="cover">`；
   /// - [introHtml] 非空时在封面后生成简介页 `intro.xhtml`（占位符已由调用方
-  ///   替换、HTML 已转义）。
+  /// 替换、HTML 已转义）。
   static Uint8List build({
     required EpubMetadata metadata,
     required List<EpubChapter> chapters,
@@ -114,7 +114,7 @@ class EpubBuilder {
       archive.addFile(ArchiveFile(path, img.data.length, img.data));
     }
 
-    // 7. F4 模板产物：style.css / cover.xhtml / intro.xhtml / 封面图。
+    // 7. 模板产物：style.css / cover.xhtml / intro.xhtml / 封面图。
     if (hasCss) {
       final cssData = _u8(css);
       archive.addFile(ArchiveFile('OEBPS/style.css', cssData.length, cssData));
@@ -281,7 +281,7 @@ class EpubBuilder {
       buf.writeln('    </navPoint>');
     }
 
-    // F4：封面 / 简介页与 spine 顺序一致地出现在目录最前。
+    // 封面 / 简介页与 spine 顺序一致地出现在目录最前。
     if (hasCover) navPoint('navCover', 'Cover', 'cover.xhtml');
     if (hasIntro) navPoint('navIntro', 'Intro', 'intro.xhtml');
     for (var i = 0; i < chapters.length; i++) {
@@ -306,7 +306,7 @@ ${ch.content}
 </html>''';
   }
 
-  /// F4 静态页（封面 / 简介）共用 XHTML 模板。
+  /// 静态页（封面 / 简介）共用 XHTML 模板。
   static String _staticPageXhtml({
     required String title,
     required String body,

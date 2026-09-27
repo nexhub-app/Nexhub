@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/novel/novel_reader_preferences.dart';
 
 void main() {
-  group('A7 双页模式偏好', () {
+  group('双页模式偏好', () {
     test('默认关闭；JSON 往返保持', () {
       const prefs = NovelReaderPreferences();
       expect(prefs.twoPageMode, isFalse);

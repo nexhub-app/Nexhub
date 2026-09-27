@@ -1,13 +1,13 @@
-/// 漫画译文「气泡内回填」排版引擎（F7 漫画排版回填）。
+/// 漫画译文「气泡内回填」排版引擎（漫画排版回填）。
 ///
 /// 纯函数、零渲染依赖（宽度用字符类别估算：全角/CJK ≈ 字号，
 /// 半角拉丁/数字 ≈ 0.55 字号），保证同一会话内字号/换行确定性一致：
 /// - **按 bbox 宽度换行**：CJK 逐字断行（禁则处理：行首禁排收尾标点、
-///   行尾禁排起始标点），拉丁单词保持完整；
+/// 行尾禁排起始标点），拉丁单词保持完整；
 /// - **字号自适应**：在 [maxFont]–[minFont] 区间二分搜索「换行后总高度
-///   恰好放进 bbox」的字号；
+/// 恰好放进 bbox」的字号；
 /// - **竖排降级**：竖排（日漫）气泡 v1 一律横排居中渲染（产品说明中
-///   标注限制），由渲染层处理，本引擎不做方向变换；
+/// 标注限制），由渲染层处理，本引擎不做方向变换；
 /// - 渲染层对每行再包 FittedBox 兜底，估算误差不会导致溢出。
 library;
 
@@ -193,7 +193,7 @@ abstract final class BackfillLayout {
     return BackfillLayoutResult(fontSize: best, lines: bestLines);
   }
 
-  /// 竖排启发式（F7 v1 降级标记）：bbox 高宽比大且原文含 CJK 时疑似竖排。
+  /// 竖排启发式（v1 降级标记）：bbox 高宽比大且原文含 CJK 时疑似竖排。
   /// 仅用于 UI 提示与统计，回填渲染一律横排居中。
   static bool looksVertical({required double boxW, required double boxH, required String sourceText}) {
     if (boxW <= 0 || boxH <= 0) return false;

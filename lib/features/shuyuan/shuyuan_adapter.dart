@@ -5,7 +5,7 @@
 /// 与旧版（xiaoshuo_adapter）差异：
 /// - `PluginType.novelSource` → `SourceType.novelSource`
 /// - `parser` 字段在新 PluginConfig 中为必填，默认 `ParserConfig(type: 'builtin')`
-///   但被 ResolverRegistry 识别为 xiaoshuo 源时改走 ShuyuanNovelResolver
+/// 但被 ResolverRegistry 识别为 xiaoshuo 源时改走 ShuyuanNovelResolver
 /// - 不再把书源规则强制降级为 CSS 选择器，而是原样保留完整规则
 library;
 

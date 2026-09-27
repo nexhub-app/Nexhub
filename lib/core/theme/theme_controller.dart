@@ -11,8 +11,8 @@ import 'palette_style.dart';
 /// 使用方式（见 lib/app.dart）：
 /// ```dart
 /// ChangeNotifierProvider<ThemeController>.value(
-///   value: ThemeController(),
-///   child: const App(),
+/// value: ThemeController(),
+/// child: const App(),
 /// )
 /// ```
 ///

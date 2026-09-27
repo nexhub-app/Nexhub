@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/resolver/m3u8_parser.dart';
 
-/// parseM3u8 / M3u8Parser 单元测试（M2.3.6）。
+/// parseM3u8 / M3u8Parser 单元测试。
 ///
 /// 覆盖场景：master playlist、简单 media playlist、带广告（discontinuity）、
 /// 相对 URL 解析、data URI 嵌套、resolveUrl 静态方法。

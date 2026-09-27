@@ -378,7 +378,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
         LocalMediaKind.pdf => Icons.picture_as_pdf_rounded,
       };
 
-  /// 按 [file.kind] 与扩展名分流到专用阅读器或兜底 [LocalMediaViewer]（Task O4.B.4）。
+  /// 按 [file.kind] 与扩展名分流到专用阅读器或兜底 [LocalMediaViewer]（Task .B.4）。
   ///
   /// - 漫画 .cbz/.cbr/.cbt/.zip/.rar/.7z/.cb7 → [ComicReaderScreen]（本地多格式解压取图）
   /// - 单图 / 目录 → [ComicReaderScreen]（散图）或 [LocalMediaViewer]（兜底）
@@ -577,7 +577,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
     }
   }
 
-  /// 兜底：打开 [LocalMediaViewer]（保持 O4.A 既有行为）。
+  /// 兜底：打开 [LocalMediaViewer]（保持 .A 既有行为）。
   void _openLocalMediaViewer(_LocalFile file) {
     Navigator.of(context).push(
       AppPageRoute<void>(

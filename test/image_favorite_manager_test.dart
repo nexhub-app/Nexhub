@@ -25,7 +25,7 @@ void main() {
     await dir.delete(recursive: true);
   });
 
-  test('添加 / 列出 / 判断收藏（REQ-C2）', () async {
+  test('添加 / 列出 / 判断收藏', () async {
     final fav = ImageFavorite(
       comicId: 'c1',
       chapterIndex: 2,
@@ -44,7 +44,7 @@ void main() {
     expect(await manager.isFavoriteByUrl('https://example.com/other.jpg'), false);
   });
 
-  test('toggle 添加与取消（REQ-C2）', () async {
+  test('toggle 添加与取消', () async {
     expect(
       await manager.toggle(
         comicId: 'c1',

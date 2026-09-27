@@ -3,7 +3,7 @@
 ///
 /// 对应需求：点作者/标签 = 在网站上点该作者/标签页（浏览式列表），
 /// 而非关键词搜索。绕开站点拼音代号限制（不再用中文名拼搜索 URL），
-/// 且源侧零改动——goda/baozimh 的列表解析脚本本就解析任意含 /manga/
+/// 且源侧零改动——部分源的列表解析脚本本就解析任意含 /manga/
 /// 链接的 HTML（服务端渲染，结构与首页一致）。
 library;
 
@@ -24,7 +24,7 @@ import 'content_card.dart';
 /// 用真实页面网址直接浏览该页内容（作者页 / 标签页 / 任意列表页）。
 ///
 /// [seedUrl] 为详情页抓到的真实落地页链接（如
-/// `https://godamh.com/manga-author/pi-ka-pi`）。内部按页码追加翻页段，
+/// `https://<示例域名>/manga-author/pi-ka-pi`）。内部按页码追加翻页段，
 /// 用源的列表解析器解析（脚本源走 [ScriptResolver.resolveFromHtml]，
 /// 声明式源走 [BuiltinResolver.resolveFromUrl]），下滑自动加载更多。
 class SourceUrlBrowseScreen extends StatefulWidget {

@@ -1,4 +1,4 @@
-/// 小说书签管理器（M3.5.4）。
+/// 小说书签管理器。
 ///
 /// 按书 + 章节保存书签到 Hive box `novel_bookmarks`。
 /// 支持添加 / 删除 / 跳转 / 列出当前书的所有书签。
@@ -31,7 +31,7 @@ class NovelBookmark {
   /// 可选备注。
   final String? note;
 
-  /// 自定义角标图路径（I7，应用目录内的本地图片绝对路径；null=默认图标）。
+  /// 自定义角标图路径（应用目录内的本地图片绝对路径；null=默认图标）。
   final String? iconPath;
 
   const NovelBookmark({
@@ -114,7 +114,7 @@ class NovelBookmarkManager {
     await box.delete(key);
   }
 
-  /// 更新书签自定义角标图（I7）。[iconPath] 为应用目录内的图片绝对路径，
+  /// 更新书签自定义角标图。[iconPath] 为应用目录内的图片绝对路径，
   /// 传 null 恢复默认图标；书签不存在或数据损坏时静默忽略。
   Future<void> setBadge(String key, String? iconPath) async {
     final box = await _openBox();

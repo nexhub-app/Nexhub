@@ -1,4 +1,4 @@
-/// 收藏管理器（文档 §10.2）。
+/// 收藏管理器（文档）。
 ///
 /// 三模块共用，按 [SourceType] 隔离收藏列表。
 /// 持久化到 [PrefsBackend]，UI 通过 [ChangeNotifier] 驱动。
@@ -22,7 +22,7 @@ class FavoriteEntry {
   final SourceType sourceType;
   final String? author;
 
-  /// 中文书名（M2 中文书名排序用）。多数作品 title 即中文名，本字段用于
+  /// 中文书名（中文书名排序用）。多数作品 title 即中文名，本字段用于
   /// 「原书名 + 中文译名」并存的外语源作品；为空时排序回退到 [title]。
   final String? titleZh;
 
@@ -36,14 +36,14 @@ class FavoriteEntry {
   final String? detailUrl;
   final int favoritedAt;
 
-  /// 最后阅读时间（毫秒），0 表示未读过（P8.1.3 §廿一 收藏切换不丢 dateAdded/lastRead）。
+  /// 最后阅读时间（毫秒），0 表示未读过（收藏切换不丢 dateAdded/lastRead）。
   final int lastRead;
 
-  /// 源站最新章/更新时间（毫秒，M2「最新章」排序用；0=未知）。
+  /// 源站最新章/更新时间（毫秒，「最新章」排序用；0=未知）。
   /// 来自详情页解析的 updatedAt（小说源的 updateTime 字段），进详情页时回填。
   final int updatedAt;
 
-  /// 上次查看目录时的章节总数（M3 新章提示用；0=未记录）。
+  /// 上次查看目录时的章节总数（新章提示用；0=未记录）。
   /// 详情页/阅读器加载目录时回写；当前目录总数超过该值即视为「有新章」。
   final int lastSeenChapterCount;
 
@@ -197,7 +197,7 @@ class FavoriteEntry {
         myComment: myComment ?? this.myComment,
       );
 
-  /// 返回一个更新了「源站最新章时间」的副本（M2 最新章排序，详情页回填）。
+  /// 返回一个更新了「源站最新章时间」的副本（最新章排序，详情页回填）。
   FavoriteEntry withUpdatedAt(int millis) => FavoriteEntry(
         id: id,
         title: title,
@@ -220,7 +220,7 @@ class FavoriteEntry {
         myComment: myComment,
       );
 
-  /// 返回一个更新了「已见章节数」的副本（M3 新章提示，目录加载回写）。
+  /// 返回一个更新了「已见章节数」的副本（新章提示，目录加载回写）。
   FavoriteEntry withLastSeenChapterCount(int count) => FavoriteEntry(
         id: id,
         title: title,
@@ -401,7 +401,7 @@ class FavoritesManager extends ChangeNotifier {
   bool isFavorite(String contentId, SourceType type) =>
       _cache[type]?.any((e) => e.id == contentId) ?? false;
 
-  /// 切换收藏状态。重新收藏时保留原始 favoritedAt（P8.1.3 §廿一 不丢 dateAdded）。
+  /// 切换收藏状态。重新收藏时保留原始 favoritedAt（不丢 dateAdded）。
   ///
   /// [type] 显式指定归属模块：条目自身缺 `sourceType`（脚本源解析的 MediaItem
   /// 均为 null）时，调用方（详情页）按源配置反查出的类型才是正确归属——
@@ -448,7 +448,7 @@ class FavoritesManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 更新某收藏条目的「已见章节数」（M3 新章提示，详情页/阅读器目录加载回写）。
+  /// 更新某收藏条目的「已见章节数」（新章提示，详情页/阅读器目录加载回写）。
   ///
   /// 仅更新已存在条目；[count] 非正数时为无操作。回写后书架上
   /// 「当前目录总数 > 已见数」的新章角标即消失。
@@ -468,7 +468,7 @@ class FavoritesManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 更新某收藏条目的「源站最新章时间」（M2 最新章排序，详情页刷新回填）。
+  /// 更新某收藏条目的「源站最新章时间」（最新章排序，详情页刷新回填）。
   ///
   /// 仅更新已存在条目（不自动创建）；[updatedAtMs] 非正数或与现值相同
   /// 时为无操作。

@@ -34,10 +34,10 @@ Future<void> showReaderImageActions({
   String? referer,
   required String comicId,
   required SourceType sourceType,
-  /// 章节书签入口（REQ-C1）：非空时显示「收藏此章」，点击调用后关闭面板。
+  /// 章节书签入口（REQ-）：非空时显示「收藏此章」，点击调用后关闭面板。
   /// 由阅读器传入 toggle 当前章书签的回调。
   Future<bool> Function()? onBookmarkChapter,
-  /// 图片收藏入口（REQ-C2）：非空时显示「收藏此图」，点击调用后关闭面板。
+  /// 图片收藏入口（REQ-）：非空时显示「收藏此图」，点击调用后关闭面板。
   /// 由阅读器传入 toggle 当前页图片收藏的回调。
   Future<void> Function()? onFavoriteImage,
   /// 漫画翻译入口：非空时显示「翻译本页 / 关闭翻译」，点击调用后关闭面板。
@@ -213,7 +213,7 @@ Map<String, String>? _buildHeaders(PluginConfig? source, String? url,
   // 为空回退源级 antiHotlinking.referer。
   final String? effectiveReferer =
       (referer != null && referer.isNotEmpty) ? referer : ah?.referer;
-  // UA 兜底：与 [SourceImage] 一致——CDN（如 baozimh 家族 6wm.top）无 UA
+  // UA 兜底：与 [SourceImage] 一致——CDN（如某源家族 CDN 域）无 UA
   // 直接 403，源未配 site.userAgent 时回退到 HttpFetcher 的浏览器 UA。
   final String? siteUa = site?.userAgent;
   final ua = (siteUa != null && siteUa.isNotEmpty)

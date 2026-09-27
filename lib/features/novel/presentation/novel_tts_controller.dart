@@ -1,4 +1,4 @@
-/// 小说阅读器 TTS 朗读控制器（P3.1）。
+/// 小说阅读器 TTS 朗读控制器。
 ///
 /// 封装 flutter_tts，提供逐段朗读、暂停/恢复/停止、自动翻段功能。
 /// 朗读状态通过 [notifyListeners] 广播，阅读器据此更新 UI。
@@ -30,7 +30,7 @@ class NovelTtsController extends ChangeNotifier {
   int _currentIndex = 0;
   List<String> _paragraphs = const <String>[];
 
-  ///  在线引擎的活跃播放会话（朗读中非空，用于取消）。
+  /// 在线引擎的活跃播放会话（朗读中非空，用于取消）。
   NovelHttpTtsPlayer? _onlinePlayer;
 
   double _rate = 1.0;

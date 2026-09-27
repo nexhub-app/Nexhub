@@ -9,26 +9,26 @@
 ///
 /// ```json
 /// "imageTransform": {
-///   "matchHosts": ["cdn.example.com", "cdn-mirror.example.com"],
-///   "decrypt": {
-///     "algo": "aes-cbc",
-///     "key": "16字节密钥原文",
-///     "keyEncoding": "utf8",
-///     "ivSource": "prefixBytes",
-///     "ivLength": 16,
-///     "padding": "pkcs7"
-///   }
+/// "matchHosts": ["cdn.example.com", "cdn-mirror.example.com"],
+/// "decrypt": {
+/// "algo": "aes-cbc",
+/// "key": "16字节密钥原文",
+/// "keyEncoding": "utf8",
+/// "ivSource": "prefixBytes",
+/// "ivLength": 16,
+/// "padding": "pkcs7"
+/// }
 /// }
 /// ```
 ///
 /// 支持的算法（覆盖社区常见的图片字节加密方式）：
 ///
-/// | algo       | 说明 | IV | padding |
+/// | algo | 说明 | IV | padding |
 /// |------------|------|----|---------|
-/// | `aes-cbc`  | AES-CBC | `prefixBytes`（文件头 N 字节为 IV，最常见）/ `fixed`（源声明 `iv` 字段）/ `none`（全零 IV） | `pkcs7`（缺省）/ `none`（不去填充，密文长度恒为 16 倍数） |
-/// | `aes-ecb`  | AES-ECB | 无（`prefixBytes` 语义退化为「跳过文件头 N 字节」） | 同上 |
-/// | `rc4`      | RC4 流密码（整文件作为密文体） | 同上（可跳过文件头） | 无 |
-/// | `xor`      | 重复密钥 XOR（key 循环异或） | 同上（可跳过文件头） | 无 |
+/// | `aes-cbc` | AES-CBC | `prefixBytes`（文件头 N 字节为 IV，最常见）/ `fixed`（源声明 `iv` 字段）/ `none`（全零 IV） | `pkcs7`（缺省）/ `none`（不去填充，密文长度恒为 16 倍数） |
+/// | `aes-ecb` | AES-ECB | 无（`prefixBytes` 语义退化为「跳过文件头 N 字节」） | 同上 |
+/// | `rc4` | RC4 流密码（整文件作为密文体） | 同上（可跳过文件头） | 无 |
+/// | `xor` | 重复密钥 XOR（key 循环异或） | 同上（可跳过文件头） | 无 |
 ///
 /// `keyEncoding` / `ivEncoding`：`utf8`（缺省）/ `base64` / `hex`。
 /// `matchHosts` 必须枚举**所有**可能下发图片的 CDN host（部分站点按
@@ -36,7 +36,7 @@
 ///
 /// 生效点（统一走 [matchFor] / [decrypt]）：
 /// - [DioImageFileService]（SourceImage 全部图片：封面列表/详情封面/阅读器正文，
-///   解密后的明文进磁盘缓存，save/share 自动继承）；
+/// 解密后的明文进磁盘缓存，save/share 自动继承）；
 /// - 漫画离线下载 [comic_download_handler]（下载即解密，本地阅读无需再解）。
 ///
 /// 注册时机：[PluginConfig.fromJson] 解析到 `imageTransform` 块时按 host

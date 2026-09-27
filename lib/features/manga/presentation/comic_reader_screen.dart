@@ -69,7 +69,7 @@ import 'image_favorite_gallery_screen.dart';
 import 'comic_translation_controller.dart';
 import 'comic_translation_overlay.dart';
 
-/// 段式连续模型（REQ-A1 跨章无缝续读）的段。
+/// 段式连续模型（跨章无缝续读）的段。
 ///
 /// 每个段 = 一个章节，被拍平到连续列表中。
 /// 仅 webtoon（条漫）连续模式 + [ReaderPreferences.seamlessReading] 开启时使用。
@@ -93,7 +93,7 @@ class _SeamSegment {
   int get endFlatIndex => startOffset + pageCount - 1;
 }
 
-/// 段式连续模型重锚后的落点（REQ-A1 跨章无缝续读）。
+/// 段式连续模型重锚后的落点（跨章无缝续读）。
 enum _SeamAdvanceTarget {
   /// 保持视口：重锚前视口内同一内容钉回原屏幕位置（滚动越界触发）。
   keep,
@@ -110,7 +110,7 @@ enum _SeamAdvanceTarget {
 /// 支持 5 种阅读模式、点击区域布局、双击/滚轮缩放、进度自动保存、
 /// 末页前预加载下一章。复用统一 Token 与 [ReaderPreferences]。
 ///
-/// 本地模式（Task O4.B.1）：传入 [localImages] 或 [localCbzPath] 时进入本地模式，
+/// 本地模式（Task .B.1）：传入 [localImages] 或 [localCbzPath] 时进入本地模式，
 /// 跳过在线源解析，直接渲染本地图片。本地模式下隐藏章节列表 / WebView / 分享等
 /// 在线专属 UI，保留书签、进度、点击区域、图像滤镜。调用方需将 [comicId] 设为
 /// `'local_${file.path.hashCode}'` 以隔离本地与在线进度。
@@ -229,7 +229,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// URL、跨域发 origin，见 [HttpFetcher.refererForSubresource]）。
   final Map<String, String> _urlReferers = <String, String>{};
 
-  /// 渲染后抽取请求（webview-html 模式，如 manga_goda / manga_baozimh 的
+  /// 渲染后抽取请求（webview-html 模式，部分脚本源的
   /// images 脚本路由）：非 null 时显示「抓取本页渲染内容」引导，抓取后回填
   /// 渲染 HTML 重试（修复 useWebview 脚本源「漫画图片解析不到内容」）。
   WebViewHtmlRequest? _htmlCaptureRequest;
@@ -401,11 +401,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   bool _isFav = false;
   bool _showInlineSettings = false;
 
-  /// 章节书签管理器与当前章书签状态（REQ-C1 章节书签）。
+  /// 章节书签管理器与当前章书签状态（章节书签）。
   final ComicBookmarkManager _bookmarks = ComicBookmarkManager();
   bool _chapterBookmarked = false;
 
-  /// 图片收藏管理器与当前页图片收藏状态（REQ-C2 图片收藏图库）。
+  /// 图片收藏管理器与当前页图片收藏状态（图片收藏图库）。
   final ImageFavoriteManager _imageFavMgr = ImageFavoriteManager();
   bool _isPageImageFav = false;
 
@@ -414,25 +414,25 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// initState 显式构造（源配置异步加载后经 updateSource 补传）。
   late final ComicTranslationController _translation;
 
-  // ── 时间 / 电量浮层（REQ-C5）──
+  // ── 时间 / 电量浮层──
   String _currentTime = '';
   int _batteryLevel = -1; // -1 = unknown
   Timer? _timeTimer;
   StreamSubscription<Object?>? _batterySubscription;
 
-  // ── 系统亮度双轨（REQ-C3）──
+  // ── 系统亮度双轨──
   final ScreenBrightness _brightnessPlugin = ScreenBrightness();
 
   /// 是否为负亮度（压暗 + 黑遮罩）模式，避免两轨互相覆盖。
   bool _dimBrightnessActive = false;
 
-  /// 已触发自动下载的章节索引（REQ-C7）：每章仅触发一次，避免翻页重复入队。
+  /// 已触发自动下载的章节索引：每章仅触发一次，避免翻页重复入队。
   int _autoDownloadTriggeredChapter = -1;
 
   /// 本地读完自动接续在线（无缝）：防重入标志。
   bool _localToOnlineTriggered = false;
 
-  // ── 三层设置覆盖（REQ-C9）──
+  // ── 三层设置覆盖──
   /// 设备/会话层运行时覆盖：优先级最高、退出阅读器不持久化。
   ///
   /// null 表示无设备层覆盖（回落 [ReaderPreferences.mergedWithKeys] 后的作品层 [_prefs]）。
@@ -447,7 +447,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   ReaderPreferences get _effectivePrefs =>
       getReaderSetting(_prefs, _devicePrefs, (p) => p);
 
-  // ── 章节导航滑块（REQ-C10）──
+  // ── 章节导航滑块──
   /// 拖动章节滑块时预览的章节索引（null = 未在拖动）。
   int? _sliderPreviewChapter;
 
@@ -459,7 +459,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 每页旋转的 quarterTurns（0/1/2/3），仅在用户主动旋转时记录。
   final Map<int, int> _pageRotations = <int, int>{};
 
-  /// 段式连续模型（REQ-A1 跨章无缝续读）下的段列表，按阅读顺序排列。
+  /// 段式连续模型（跨章无缝续读）下的段列表，按阅读顺序排列。
   ///
   /// 仅 webtoon（条漫）连续模式 + [ReaderPreferences.seamlessReading] 开启时使用；
   /// 其余情况保持空列表，走传统「整章加载」路径。重建见 [_rebuildSeam]。
@@ -489,16 +489,16 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   Timer? _saveProgressDebounce;
 
   /// 防抖窗口内待落盘的页码：dispose 时若仍有 pending 写入未执行，立即 flush，
-  /// 避免「翻页后 1s 内退出」导致进度未落盘、下次回退（P0 数据丢失 bug）。
+  /// 避免「翻页后 1s 内退出」导致进度未落盘、下次回退（数据丢失 bug）。
   int? _pendingSavePage;
 
-  /// 阅读器键盘焦点节点：用于捕获桌面键盘快捷键（方向键翻页 / F11 全屏等，P0）。
+  /// 阅读器键盘焦点节点：用于捕获桌面键盘快捷键（方向键翻页 / F11 全屏等）。
   final FocusNode _readerFocus = FocusNode();
 
   /// 翻页闪光动画控制器与覆盖层状态。
   late final AnimationController _flashController;
 
-  /// E-Ink 刷新（L3）：按翻页间隔累计的页数计数器与上次计入的页码。
+  /// E-Ink 刷新：按翻页间隔累计的页数计数器与上次计入的页码。
   int _einkPageCount = 0;
   int _einkLastPage = -1;
 
@@ -509,11 +509,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   Color _flashColor = Colors.black;
 
   /// 闪光覆盖层是否处于播放中。渲染条件据此判断，与 [_prefs.flashEnabled] 解耦：
-  /// E-Ink 定期刷新（L3）在普通闪光关闭时也能全屏闪烁清残影（此前被
+  /// E-Ink 定期刷新在普通闪光关闭时也能全屏闪烁清残影（此前被
   /// `if (_prefs.flashEnabled)` 吞掉导致「没有作用」）。
   bool _flashLayerActive = false;
 
-  // ── REQ-B7 翻页过渡动画 + 双击缩放动画 ──────────────────────────
+  // ── 翻页过渡动画 + 双击缩放动画 ──────────────────────────
 
   /// 双击 / 长按缩放动画控制器（[ReaderPreferences.doubleTapAnimSpeed] 毫秒）。
   /// 动画期间 [_zoomAnimating] 为 true，抑制其他手势写入缩放矩阵，避免抖动。
@@ -535,12 +535,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   double _pageFadeOpacity = 1.0;
   Timer? _pageFadeTimer;
 
-  // ── REQ-B1 音量键翻页（仅 Android）──────────────────────────────
+  // ── 音量键翻页（仅 Android）──────────────────────────────
 
   /// 原生音量键拦截器（Android onKeyDown 方案）：彻底消费按键事件，阻止系统音量条。
   final VolumeKeyListener _volumeKeyListener = VolumeKeyListener();
 
-  // ── REQ-B6 自动滚动 / 自动翻页 + 后台暂停 ───────────────────────
+  // ── 自动滚动 / 自动翻页 + 后台暂停 ───────────────────────
 
   /// 自动翻页定时器（paged 模式，间隔 [_prefs.autoPageTurningInterval] 秒）。
   Timer? _autoPageTurnTimer;
@@ -558,7 +558,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 自动滚动分块窗口（毫秒）：像素先累积，达到该窗口时长才发起一次
   /// [ScrollOffsetController.animateScroll]，动画时长与窗口一致，速度仍为
   /// `60px/s × readerScrollSpeed`。避免每帧新建/取消 DrivenScrollActivity 造成的
-  /// 帧边界抖动（条漫图片顶端到达屏幕顶端时「卡一下」的根治，REQ-B10）。
+  /// 帧边界抖动（条漫图片顶端到达屏幕顶端时「卡一下」的根治）。
   static const int _autoScrollChunkMs = 120;
 
   /// 距上次发起自动滚动动画以来累积的待滚动像素（尚未滚动部分）。
@@ -575,7 +575,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 图片收藏异步刷新，避免自动滚动在页边界处因全量重建而卡顿。
   bool _autoScrolling = false;
 
-  // ── X-1 睡眠定时（跨类型对齐：播放器  / 小说 TTS）────────────────
+  // ── 睡眠定时（跨类型对齐：播放器 / 小说 TTS）────────────────
 
   /// 按分钟定时：到时暂停阅读（一次性 Timer）。
   Timer? _sleepTimer;
@@ -656,7 +656,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
   }
 
-  /// X-2：把当前作品加入待读队列（顶栏更多菜单入口）。
+  /// 把当前作品加入待读队列（顶栏更多菜单入口）。
   Future<void> _addCurrentToReadingQueue() async {
     final l10n = AppLocalizations.of(context);
     await ReadingQueueStore().add(QueuedReading(
@@ -690,7 +690,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   MediaApiService get _service => context.read<MediaApiService>();
   SourceRepository get _repo => context.read<SourceRepository>();
 
-  /// 是否为本地文件模式（Task O4.B.1）。
+  /// 是否为本地文件模式（Task .B.1）。
   bool get _isLocalMode =>
       widget.localImages != null ||
       widget.localCbzPath != null ||
@@ -702,7 +702,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   bool get _isAggregatedLocal =>
       widget.localArchivePaths != null && widget.localArchivePaths!.isNotEmpty;
 
-  /// 段式连续模型（REQ-A1 跨章无缝续读）是否生效。
+  /// 段式连续模型（跨章无缝续读）是否生效。
   ///
   /// 满足条件：webtoon（条漫）连续模式 + [ReaderPreferences.seamlessReading] 开启 +
   /// 存在相邻章（多章作品；聚合本地/本地下载目录含章节概念，同样支持无缝）。
@@ -715,7 +715,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       widget.localCbzPath == null &&
       widget.localPdfPath == null;
 
-  /// paged 段式连续模型（REQ-A1 跨章无缝续读 · paged 分支）是否生效。
+  /// paged 段式连续模型（跨章无缝续读 · paged 分支）是否生效。
   ///
   /// 满足条件：paged 单页/双页模式 + [ReaderPreferences.seamlessReading] 开启 +
   /// 存在相邻章（多章作品；聚合本地/本地下载目录含章节概念，同样支持无缝）。
@@ -736,17 +736,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// PDF 临时渲染缓存目录（逐页 JPEG）。退出阅读器时清理。
   String? _pdfCacheDir;
 
-  /// 归档（CBZ/CBR/7z…）解压出的临时目录集合（P3 资源回收）。每次
+  /// 归档（CBZ/CBR/7z…）解压出的临时目录集合（资源回收）。每次
   /// [extractArchiveImagesToDir] 产生一个按源归档隔离的子目录，退出阅读器时
   /// 整目录递归删除——此前解压产物平铺在系统临时目录、只靠 OS 兜底清理。
   final List<String> _archiveTempDirs = <String>[];
 
   /// 桌面平台（Windows / Linux / macOS，非 Web）：启用 window_manager 真实全屏与
-  /// 键盘快捷键（P0）。移动端走 SystemChrome。
+  /// 键盘快捷键。移动端走 SystemChrome。
   bool get _isDesktop =>
       !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
-  /// 进入阅读器期间上调 Flutter 图片缓存预算（P3 资源/内存）：按设备物理内存
+  /// 进入阅读器期间上调 Flutter 图片缓存预算（资源/内存）：按设备物理内存
   /// 100–500MB；退出阅读器在 dispose 恢复默认 100MB，不挤占其他页面。
   void _applyImageCacheBudget() {
     unawaited(() async {
@@ -761,7 +761,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     super.initState();
     // 监听窗口尺寸变化（全屏切换 / 拖动窗口边角）：视口尺寸变化后，缩放矩阵的
     // 平移夹取上界随之改变，若不重算，已放大/已平移的图片在进出全屏时会出现位置
-    // 偏移（验收 B3）。didChangeMetrics 里重夹矩阵修复之。
+    // 偏移（验收）。didChangeMetrics 里重夹矩阵修复之。
     WidgetsBinding.instance.addObserver(this);
     _translation = ComicTranslationController(comicId: widget.comicId);
     _flashController = AnimationController(
@@ -815,9 +815,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 进度恢复分两种情形：
     // - restoreProgress=true（「继续阅读」入口）：章 + 页都恢复。
     // - restoreProgress=false（详情页明确点选某话）：不改章，但**若点选的正是上次
-    //   在读的那一话，仍恢复页码**。否则「读到第 5 页 → 退出 → 点同一话进来」永远
-    //   从第 1 页开始，用户会认为进度根本没保存（P0 数据丢失的实际观感来源）。
-    //   受全局「记住阅读位置」开关约束，关闭时不恢复。
+    // 在读的那一话，仍恢复页码**。否则「读到第 5 页 → 退出 → 点同一话进来」永远
+    // 从第 1 页开始，用户会认为进度根本没保存（数据丢失的实际观感来源）。
+    // 受全局「记住阅读位置」开关约束，关闭时不恢复。
     final saved = await _progress.get(widget.comicId);
     // 单文件本地模式（无章节表，章恒为 0）同样恢复到已读页；多章模式要求存档章
     // 在章节表内（列表变短时丢弃旧进度）。此前 `chapterIndex < chapters.length`
@@ -843,7 +843,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     _syncTranslation();
     _refreshFavorite();
-    // 自动收藏（L3 漫画）：打开作品即加入收藏。已收藏跳过，避免 toggle 误移除。
+    // 自动收藏（漫画）：打开作品即加入收藏。已收藏跳过，避免 toggle 误移除。
     if (_effectivePrefs.isAutoFavorite &&
         _favorites != null &&
         !_favorites!.isFavorite(widget.comicId, SourceType.mangaSource)) {
@@ -871,7 +871,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 注意：window_manager 的 ensureInitialized 已在 main() 的 runApp 之前完成
     // （运行期再调会冻结渲染管道），此处只管应用状态，不再初始化。
     _applyWakelock();
-    // 阅读亮度（REQ-C3）与时间/电量浮层（REQ-C5）：初始偏好已就绪。
+    // 阅读亮度与时间/电量浮层：初始偏好已就绪。
     _applyBrightness();
     if (_prefs.showClockBattery) _initTimeAndBattery();
     // 初始偏好已就绪：按偏好挂载音量键监听 / 启动自动翻页 / 自动滚动。
@@ -882,7 +882,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     } else {
       await _loadChapter(_chapterIndex, restorePage: _savedPage);
     }
-    // 进入阅读器「不自动全屏」：验收 D1 要求进入时不强制 OS 全屏（也避免
+    // 进入阅读器「不自动全屏」：验收 要求进入时不强制 OS 全屏（也避免
     // window_manager 的 setFullScreen 在初始化期同步调用卡死渲染管道）。全屏只在
     // 用户按 F11 / 设置面板开关时切换（见 [_handleKeyEvent] / [didUpdateWidget]）。
   }
@@ -946,9 +946,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         _loading = false;
         _error = null;
       });
-      // 章节图片就绪后刷新当前页图片收藏状态（REQ-C2）。
+      // 章节图片就绪后刷新当前页图片收藏状态。
       unawaited(_refreshPageImageFav());
-      // 进入新章节（X-1 睡眠定时按话数计数；首次加载由 _sleepPrimeLoaded 排除）。
+      // 进入新章节（睡眠定时按话数计数；首次加载由 _sleepPrimeLoaded 排除）。
       _onChapterEntered();
       // 预载提前（本地聚合）：章节加载完成即预载过滤后的相邻目标章（跳过已读/
       // 被过滤章）。本地解压慢，若等滚到章末才触发预载（_maybePreload），
@@ -987,7 +987,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// SAF 感知：若 [path] 为 Android content:// URI，先经 [resolveSafUri] 落到应用
   /// 缓存再解压（C 阶段：手机端 SAF 文件夹导入）；
   /// 解压产物落在独立子目录并登记到 [_archiveTempDirs]，退出阅读器时整体删除
-  /// （P3 资源回收，不再滞留系统临时目录）。
+  /// （资源回收，不再滞留系统临时目录）。
   Future<List<String>> _extractCbz(String path) async {
     final local = await resolveSafUri(path);
     final ex = await extractArchiveImagesToDir(local);
@@ -1092,7 +1092,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 打开图片收藏图库（REQ-C2 · 问题 3：漫画入口仅显示漫画收藏）。
+  /// 打开图片收藏图库（漫画入口仅显示漫画收藏）。
   void _openImageFavoriteGallery() {
     Navigator.of(context).push(
       AppPageRoute<void>(
@@ -1227,7 +1227,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 顶栏书签 toggle：已书签则取消，否则添加当前章书签（REQ-C1）。
+  /// 顶栏书签 toggle：已书签则取消，否则添加当前章书签。
   Future<void> _toggleChapterBookmark() async {
     final l10n = AppLocalizations.of(context);
     final chapter =
@@ -1257,7 +1257,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
   }
 
-  /// 已书签章节索引集合（供目录面板过滤/标注，REQ-C1）。
+  /// 已书签章节索引集合（供目录面板过滤/标注）。
   Future<Set<int>> _bookmarkedIndices() async {
     try {
       final list = await _bookmarks.listFor(widget.comicId);
@@ -1267,7 +1267,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 长按图片菜单「收藏此章」回调（REQ-C1）：本地单文件无章节概念时入口置空。
+  /// 长按图片菜单「收藏此章」回调：本地单文件无章节概念时入口置空。
   Future<bool> _toggleChapterBookmarkFromMenu() async {
     if (_isLocalMode && widget.chapters.isEmpty) return false;
     await _toggleChapterBookmark();
@@ -1305,17 +1305,17 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _currentPageNotifier.dispose();
     _transitionTimer?.cancel();
     _skipTransitionTimer?.cancel();
-    // REQ-B6/B7/B8 清理：翻页淡入定时器、自动翻页定时器、自动滚动 Ticker 与音量键监听。
+    // 清理：翻页淡入定时器、自动翻页定时器、自动滚动 Ticker 与音量键监听。
     _pageFadeTimer?.cancel();
     _autoPageTurnTimer?.cancel();
     _autoScrollTicker?.stop();
-    // X-1 睡眠定时清理。
+    // 睡眠定时清理。
     _sleepTimer?.cancel();
     // 停止原生音量键拦截，恢复系统默认音量键行为。
     unawaited(_volumeKeyListener.stop());
     // 移除全局键盘监听（必须在 dispose 里，否则离页后快捷键仍会触发本页翻页）。
     HardwareKeyboard.instance.removeHandler(_onGlobalKey);
-    // P0 数据丢失修复：防抖窗口内若有 pending 写入，先立即落盘再取消定时器——否则
+    // 数据丢失修复：防抖窗口内若有 pending 写入，先立即落盘再取消定时器——否则
     // 「翻页后 1s 内退出」会丢失本次进度，下次回退到旧页。
     if (_saveProgressDebounce?.isActive ?? false) {
       final page = _pendingSavePage ?? _currentPage;
@@ -1328,7 +1328,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       // 不再检查 _restoringPage：恢复期间 _currentPage 保持进入时设定的恢复目标页
       // （滚动/翻页回写已被 _restoringPage 屏蔽，_setupControllers 已赋值），保存它
       // 不会污染存档；而跳过保存会在「退全屏/切屏重锚（_restoringPage 短暂为 true）
-      // 后立刻退出」时丢掉全部进度（B1/B2/B4「阅读位置全部丢失」的直接根因）。
+      // 后立刻退出」时丢掉全部进度（「阅读位置全部丢失」的直接根因）。
       // 仅 _images 为空（章节还没加载完成）时不存，保留旧存档。
       if (_images.isNotEmpty) {
         _flushPendingProgress(_currentPage);
@@ -1357,7 +1357,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       Future<void>.delayed(Duration.zero, () async {
         try {
           // 仅在确实处于 OS 全屏时才退出——否则 setFullScreen(false) 也会做无谓的
-          // 窗口样式重建（SetWindowLongPtr + SetWindowPos），可能触发冻结（A2/A4）。
+          // 窗口样式重建（SetWindowLongPtr + SetWindowPos），可能触发冻结。
           if (await WindowManager.instance.isFullScreen()) {
             await _requestOsFullscreen(false);
           }
@@ -1374,7 +1374,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     // 退出时兜底保存偏好，确保设置退出后仍保留。
     unawaited(_store.save(widget.comicId, _prefs, overrideKeys: _overrideKeys));
-    // REQ-C5 / REQ-C3 清理：停止时间/电量浮层，恢复系统原亮度。
+    // 清理：停止时间/电量浮层，恢复系统原亮度。
     _stopTimeAndBattery();
     _resetBrightness();
     // 退出时清理 PDF 临时渲染缓存（逐页 JPEG），避免占用磁盘。
@@ -1389,7 +1389,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         }),
       );
     }
-    // P3 资源回收：删除本次会话解压的全部归档临时目录（CBZ/CBR/7z…），
+    // 资源回收：删除本次会话解压的全部归档临时目录（CBZ/CBR/7z…），
     // 与 PDF 缓存同策略——阅读器退出即不残留磁盘产物。去重后逐个 best-effort 删除。
     if (_archiveTempDirs.isNotEmpty) {
       final dirs = _archiveTempDirs.toSet().toList(growable: false);
@@ -1405,7 +1405,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         }),
       );
     }
-    // P3 资源/内存：离开阅读器把 Flutter 图片缓存预算恢复为默认（100MB），
+    // 资源/内存：离开阅读器把 Flutter 图片缓存预算恢复为默认（100MB），
     // 不让阅读期间按设备内存上调的预算（100–500MB）挤占书架/详情页。
     try {
       PaintingBinding.instance.imageCache.maximumSizeBytes =
@@ -1438,7 +1438,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   /// 窗口尺寸变化（全屏切换 / resize）：缩放矩阵平移夹取上界随视口尺寸而变，
-  /// 旧矩阵在新视口下会偏移或越界。下一帧重夹一次，修复进出全屏时的位置偏移（B3）。
+  /// 旧矩阵在新视口下会偏移或越界。下一帧重夹一次，修复进出全屏时的位置偏移。
   /// 缩放矩阵是「中心原点」坐标系（见 [MangaPageImage] 的 Transform alignment），
   /// 重夹逻辑与 [MangaPageImageState._clampMatrix] 共用 [_clampZoomMatrix]。
   @override
@@ -1447,7 +1447,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (!mounted) return;
     // 同步置位（必须在 postFrame 之前）：视口尺寸变化时，布局 / 滚动阶段的
     // onPageChanged 会先于帧回调触发并污染 _currentPage（页宽变了，像素偏移对应
-    // 到别的页），若等帧回调才屏蔽就来不及了（B3 进度条跳页）。
+    // 到别的页），若等帧回调才屏蔽就来不及了（进度条跳页）。
     final bool wasRestoring = _restoringPage;
     _restoringPage = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1459,7 +1459,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               Matrix4.copy(m), vp, _currentWebtoonContentHeight(vp))
           : _clampZoomMatrix(Matrix4.copy(m), vp);
       // 视口尺寸变化（全屏切换 / 拖窗口边角）后，PageView 的像素偏移对应页索引会
-      // 漂移（页宽变了），进度条会跳到别的页（B3）。重新把当前页锚回视口。
+      // 漂移（页宽变了），进度条会跳到别的页。重新把当前页锚回视口。
       if (_images.isNotEmpty) {
         _anchorCurrentPage(_currentPage);
       }
@@ -1503,7 +1503,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   Future<void> _loadChapter(int index,
       {int restorePage = 0, bool restoreToLast = false}) async {
     final int token = _loadSession.next();
-    // 翻章后刷新顶栏章节书签状态（REQ-C1）。
+    // 翻章后刷新顶栏章节书签状态。
     unawaited(_refreshChapterBookmark());
     if (mounted) setState(() => _loading = true);
     try {
@@ -1542,14 +1542,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         _loading = false;
         _error = null;
       });
-      // 章节图片就绪后刷新当前页图片收藏状态（REQ-C2）。
+      // 章节图片就绪后刷新当前页图片收藏状态。
       unawaited(_refreshPageImageFav());
-      // 进入新章节（X-1 睡眠定时按话数计数；首次加载由 _sleepPrimeLoaded 排除）。
+      // 进入新章节（睡眠定时按话数计数；首次加载由 _sleepPrimeLoaded 排除）。
       _onChapterEntered();
       // 预载提前：章节加载完成即预载过滤后的相邻目标章（跳过已读/被过滤章），
       // 让 seam 无缝列表在用户滚到边界前就绪，章末/章首直接无缝衔接。
       _preloadAdjacentTargets();
-      // 切章时重置缩放/平移，避免上一话的缩放状态残留到新章（P0 手势 bug）。
+      // 切章时重置缩放/平移，避免上一话的缩放状态残留到新章（手势 bug）。
       _resetZoom();
       _setupControllers(restorePage: deferToLast ? 0 : rp);
       if (deferToLast) {
@@ -1559,7 +1559,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         _saveProgress(rp);
       }
     } on WebViewHtmlRequest catch (req) {
-      // useWebview 脚本源（manga_goda / manga_baozimh 等）需在内嵌 WebView
+      // useWebview 脚本源（部分源）需在内嵌 WebView
       // 加载章节页、等待 JS 渲染后取回整页 HTML，再回灌给脚本解析图片。
       // 捕获请求后展示「抓取本页渲染内容」引导，用户触发回填并重试。
       if (!_loadSession.isValid(token) || !mounted) return;
@@ -1604,7 +1604,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   void _setupControllers({int restorePage = 0, bool wasDoublePage = false}) {
-    // P3 缓存清理策略：预载图列表与渲染 HTML 缓存此前只增不减，长阅读会话
+    // 缓存清理策略：预载图列表与渲染 HTML 缓存此前只增不减，长阅读会话
     // （数百章）会持续吃内存。按当前章保留 ±2 章窗口（seam 无缝续读仅用 ±1，
     // 窗口留一档余量），窗口外的条目直接淘汰；重读时按原路径重新抓取/解压。
     final int lo = _chapterIndex - 2;
@@ -1757,7 +1757,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _scheduleProgressSave(idx);
       // 索引变化时刷新进度条（页码/滑条），否则点按翻页后进度条不更新。
       if (mounted) setState(() {});
-      // 翻页后刷新当前页图片收藏状态（REQ-C2）。
+      // 翻页后刷新当前页图片收藏状态。
       unawaited(_refreshPageImageFav());
     }
     _maybePreload(idx);
@@ -1791,7 +1791,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         .where((p) => p.itemLeadingEdge < 1 && p.itemTrailingEdge > 0)
         .toList();
     if (visible.isEmpty) return;
-    // 段式连续模型（REQ-A1 跨章无缝续读）：扁平列表里每条 item 对应「真实页」或
+    // 段式连续模型（跨章无缝续读）：扁平列表里每条 item 对应「真实页」或
     // 「章分割/过渡」条目。当前页取视口内最顶部可见项，再经 [_resolveSeamIndex]
     // 映射回真实页索引；分隔条目/邻段页一律先按「读取中页」处理，防止滚动回调在
     // 越界预加载期把越界页码写进当前章存档（由重锚时统一修正）。
@@ -1803,7 +1803,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (_seamActive && _seam.isNotEmpty) {
       final _SeamSegment? seg = _seamSegmentAt(flatIdx);
       if (seg != null && seg.chapterIndex > _chapterIndex) {
-        // 跳章过滤（REQ-C11）：滚入下一段时若相邻章应被跳过（已读/被筛选/重复），
+        // 跳章过滤：滚入下一段时若相邻章应被跳过（已读/被筛选/重复），
         // 不无缝重锚到相邻章，而是直接整章加载到过滤后的目标章，避免条漫下
         // 「跳章过滤不生效」。
         final int? resolved = _resolveChapterTarget(1);
@@ -1848,7 +1848,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         }
       }
     }
-    // 条漫跳章过滤边界（REQ-C11）：当前章已是 seam 最后一段（下一章因已读/
+    // 条漫跳章过滤边界：当前章已是 seam 最后一段（下一章因已读/
     // 被筛选/未预载未纳入无缝列表），无缝列表已到头——滚到章末不再直接整章跳转，
     // 而是显示「下一章：{标题}」过渡提示（短暂停留或点击后跳转），改善连续性感知。
     // 条漫「直接连着读」（参照库语义）：滚到章末、且下一可导航章尚未纳入无缝
@@ -1893,7 +1893,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final int ci = _chapterIndex;
     _chapterPageCache[ci] = page;
     unawaited(_progress.saveChapterPage(widget.comicId, ci, page));
-    // 记录 pending 页码，dispose 时若有未触发的写入可立即 flush（P0 数据丢失修复）。
+    // 记录 pending 页码，dispose 时若有未触发的写入可立即 flush（数据丢失修复）。
     _pendingSavePage = page;
     _saveProgressDebounce?.cancel();
     _saveProgressDebounce = Timer(const Duration(seconds: 1), () {
@@ -2046,7 +2046,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 重建段式连续模型（REQ-A1 跨章无缝续读）。
+  /// 重建段式连续模型（跨章无缝续读）。
   ///
   /// 段 = 当前章 + 已预载的相邻章（上/下各至多 1 段），按阅读顺序拍平为连续列表；
   /// 段与段之间按 [ReaderPreferences.showChapterSeparator] 插入「章分割/过渡」条目。
@@ -2064,7 +2064,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     final List<_SeamSegment> segments = <_SeamSegment>[];
     // 上一章段：仅当已预载才纳入（未预载则边界回退走整章加载）。段定位用
-    // 跳章过滤（REQ-C11）后的目标章：相邻章会被跳过（已读/被筛除/重复）时，
+    // 跳章过滤后的目标章：相邻章会被跳过（已读/被筛除/重复）时，
     // 直接把过滤后的目标章段接在当前章前，条漫向上滚可无缝回到上一未读章。
     final int? resolvedPrev = _resolveChapterTarget(-1);
     if (resolvedPrev != null && resolvedPrev != _chapterIndex) {
@@ -2222,7 +2222,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   ///
   /// - 非 seam 模式：扁平索引 == 真实页索引（含到底修正）。
   /// - seam 模式：扁平条目在当前段内 → 页索引；在章分割条目 / 邻段页 → 保持当前页
-  ///   （越界预加载期不把越界页码写进当前章存档，重锚时统一修正）。
+  /// （越界预加载期不把越界页码写进当前章存档，重锚时统一修正）。
   int _resolveSeamIndex(int flatIdx, {bool atVeryEnd = false}) {
     if (!_seamActive || _seam.isEmpty) {
       final int last = _images.isEmpty ? 0 : _images.length - 1;
@@ -2254,7 +2254,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// [dir] = +1 进入下一段（下一章），-1 进入上一段（上一章）。
   /// [reposition] 决定重锚后的落点：
   /// - [_SeamAdvanceTarget.keep]（默认，滚动越界触发）：把重锚前视口内同一内容
-  ///   钉回原屏幕位置，位置不跳变；
+  /// 钉回原屏幕位置，位置不跳变；
   /// - first：跳到新当前段首页（用于「下一章」按钮/快捷键）；
   /// - last：跳到新当前段末页（用于「上一章」按钮/快捷键）。
   ///
@@ -2299,9 +2299,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _preload[oldChapter] = _images;
       _images = targetImgs;
       _chapterIndex = target;
-      // 睡眠定时按话数计数（X-1；seam 无缝切章同样算「读完一话进入下一话」）。
+      // 睡眠定时按话数计数（；seam 无缝切章同样算「读完一话进入下一话」）。
       _onChapterEntered();
-      // 翻章后刷新顶栏章节书签状态（REQ-C1）。
+      // 翻章后刷新顶栏章节书签状态。
       unawaited(_refreshChapterBookmark());
       // 预载新一层的可导航章（沿原方向过滤后的目标；越界时自动忽略）。
       final int? nextTarget = _resolveChapterTarget(dir);
@@ -2327,7 +2327,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     // 重锚落点即当前阅读页：keep = 锚点页（目标章内相对页），first = 首页，last = 末页，
     // targetPage = 显式指定的页（「回到上一话」恢复到离开页）。
     // 提前校正 _currentPage，避免重锚后到滚动回调收敛前这一小段窗口把旧章页码
-    // 误当作新章页码写盘（A1.6 进度/页码在连续模型下正确）。
+    // 误当作新章页码写盘（进度/页码在连续模型下正确）。
     final int lastPage = _images.isEmpty ? 0 : _images.length - 1;
     final int page = targetPage ??
         switch (reposition) {
@@ -2488,7 +2488,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _chapterIndex,
       totalChapters: widget.chapters.length,
     );
-    // 更新收藏条目的 lastRead 时间戳（P8.1.3 §廿一 收藏切换不丢 lastRead）
+    // 更新收藏条目的 lastRead 时间戳（收藏切换不丢 lastRead）
     try {
       context.read<FavoritesManager>().updateLastRead(
             widget.comicId,
@@ -2520,9 +2520,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     // 章节阅读进度达到「已看」阈值时标记该章已读（每章仅标记一次）。
     _maybeMarkChapterWatched(page);
-    // 阅读中自动下载后续章节（REQ-C7）：进度越过 25% 时后台入队，失败静默。
+    // 阅读中自动下载后续章节：进度越过 25% 时后台入队，失败静默。
     _maybeAutoDownload(page);
-    // E-Ink 刷新（L3）：按翻页间隔累计页数，跨页变化时 +1，达到间隔触发一次全屏闪烁。
+    // E-Ink 刷新：按翻页间隔累计页数，跨页变化时 +1，达到间隔触发一次全屏闪烁。
     if (_effectivePrefs.einkRefreshEnabled && page != _einkLastPage) {
       _einkLastPage = page;
       _einkPageCount++;
@@ -2557,16 +2557,16 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 阅读中自动下载后续章节（REQ-C7）。
+  /// 阅读中自动下载后续章节。
   ///
   /// 两个触发源，共用同一组前置条件（非本地模式 + 存在后续章节 + 本章进度越过
   /// 25% + 本章尚未触发过 + 该作品没有正在/已激活的下载批次）：
   /// - 阅读器面板的 [ReaderPreferences.autoDownloadChapters] 开启：`chapterIndex+1`
-  ///   起的全部后续章节作为单个任务入队；
+  /// 起的全部后续章节作为单个任务入队；
   /// - 下载设置的「预下载后续内容数」（[DownloadSettings.preDownloadCount] > 0）：
-  ///   预下载后续 N 话（与视频播放器同一语义，逐话入队、跳过已下载/已排队）。
-  ///   此前漫画阅读器完全忽略该设置——设置里开了预下载，看漫画却什么都不下，
-  ///   下载列表始终为空的直接根因。
+  /// 预下载后续 N 话（与视频播放器同一语义，逐话入队、跳过已下载/已排队）。
+  /// 此前漫画阅读器完全忽略该设置——设置里开了预下载，看漫画却什么都不下，
+  /// 下载列表始终为空的直接根因。
   /// 任何失败静默忽略，不打断阅读。
   void _maybeAutoDownload(int page) {
     final dm = _downloadManager;
@@ -2661,7 +2661,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   // ─────────────────────── 导航 ───────────────────────
 
   /// 翻页时重置共享缩放控制器：所有 MangaPageImage 共用同一个 [_zoomController]，
-  /// 若不重置，上一页的缩放 + 平移会原样带到下一页，表现为「位置错乱」（P0 手势 bug）。
+  /// 若不重置，上一页的缩放 + 平移会原样带到下一页，表现为「位置错乱」（手势 bug）。
   /// 同时清空捏合起手矩阵基准 [_pinchBaseMatrix]——否则放大 → 翻页 → 再捏合时，
   /// 基准残留放大矩阵，`realFactor` 恒为 1 导致捏合无效果。
   void _resetZoom() {
@@ -2703,7 +2703,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _webtoonStep(1);
       return;
     }
-    // REQ-B7 翻页过渡动画（fade）：翻页后整页淡入。
+    // 翻页过渡动画（fade）：翻页后整页淡入。
     _runPageFade();
     final pc = _pageController;
     if (pc == null || !pc.hasClients) return;
@@ -2748,7 +2748,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _webtoonStep(-1);
       return;
     }
-    // REQ-B7 翻页过渡动画（fade）：翻页后整页淡入。
+    // 翻页过渡动画（fade）：翻页后整页淡入。
     _runPageFade();
     final pc = _pageController;
     if (pc == null || !pc.hasClients) return;
@@ -2780,7 +2780,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 边界夹紧（内容不足以再滚一页），同样兜底换章。该检查用定时器驱动，必定执行。
   void _webtoonStep(int dir) {
     if (_images.isEmpty) return;
-    // 段式连续模型（REQ-A1 跨章无缝续读）：扁平索引 ≠ 页索引，单步翻页交由
+    // 段式连续模型（跨章无缝续读）：扁平索引 ≠ 页索引，单步翻页交由
     // [_seamStep] 换算（含越界无缝重锚），非 seam 走下方传统页索引路径。
     if (_seamActive && _seamStep(dir)) return;
     final int last = _images.length - 1;
@@ -2875,7 +2875,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     });
   }
 
-  /// E-Ink 刷新（L3）：墨水屏防残影，按翻页间隔自动全屏闪烁一次。
+  /// E-Ink 刷新：墨水屏防残影，按翻页间隔自动全屏闪烁一次。
   /// 复用 [_runFlash] 与闪光覆盖层，颜色/时长由 [ReaderPreferences.einkRefreshStyle]
   /// / [ReaderPreferences.einkRefreshDuration] 决定。
   void _triggerEinkRefresh() {
@@ -2930,7 +2930,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         _pagedAdvance(next, toLast: false)) {
       return;
     }
-    // 跳过过滤（REQ-C11）或相邻章未预载：整章加载目标章。
+    // 跳过过滤或相邻章未预载：整章加载目标章。
     _triggerChapterTransition(widget.chapters[next].title);
     _chapterIndex = next;
     if (_isLocalMode) {
@@ -2989,7 +2989,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             : _pagedAdvance(prev, toLast: true))) {
       return;
     }
-    // 跳过过滤（REQ-C11）或相邻章未预载：整章加载目标章。
+    // 跳过过滤或相邻章未预载：整章加载目标章。
     _triggerChapterTransition(widget.chapters[prev].title);
     _chapterIndex = prev;
     // 回到上一话：有进度记录 → 恢复到离开页；否则落到【最后一页】（未读过从头读）。
@@ -3008,7 +3008,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  // ─────────────────────── REQ-C11 跳章过滤 ───────────────────────
+  // ─────────────────────── 跳章过滤 ───────────────────────
 
   /// 计算从当前章沿 [dir]（±1）方向的下一个可导航章节索引（应用跳章过滤）。
   ///
@@ -3068,13 +3068,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     return dups;
   }
 
-  /// 被筛选章节判定：空 / 纯空白标题的章节视为被筛除的占位条目（REQ-C11）。
+  /// 被筛选章节判定：空 / 纯空白标题的章节视为被筛除的占位条目。
   bool _isFilteredChapter(int index) {
     if (index < 0 || index >= widget.chapters.length) return false;
     return widget.chapters[index].title.trim().isEmpty;
   }
 
-  /// 直接跳转到指定章节（目录面板 / 章节滑块共用，REQ-C10）。
+  /// 直接跳转到指定章节（目录面板 / 章节滑块共用）。
   void _jumpToChapter(int index) {
     // 跳章前收起跳章过渡提示。
     _hideSkipTransition();
@@ -3125,9 +3125,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  // ─────────────────────── REQ-C10 章节导航滑块 ───────────────────────
+  // ─────────────────────── 章节导航滑块 ───────────────────────
 
-  /// 章节导航滑块（REQ-C10）：阅读器右缘的竖向拖动条。
+  /// 章节导航滑块：阅读器右缘的竖向拖动条。
   ///
   /// 拖动时按位置换算章节并 haptic 反馈 + 顶部预览当前章节标题；松手跳章。
   /// 仅多章节作品显示（单文件本地无章节概念隐藏）。
@@ -3196,7 +3196,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
   }
 
-  /// paged 段式连续模型重锚（REQ-A1 跨章无缝续读 · paged 分支）：把「当前章」前移/
+  /// paged 段式连续模型重锚（跨章无缝续读 · paged 分支）：把「当前章」前移/
   /// 后移到目标相邻章。
   ///
   /// [target] 为目标章索引；[toLast] 决定落点：true = 跳到新章末页（「上一章」），
@@ -3218,9 +3218,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _preload[oldChapter] = _images;
     _images = targetImgs;
     _chapterIndex = target;
-    // 睡眠定时按话数计数（X-1；paged 无缝重锚切章同样算「读完一话进入下一话」）。
+    // 睡眠定时按话数计数（；paged 无缝重锚切章同样算「读完一话进入下一话」）。
     _onChapterEntered();
-    // 翻章后刷新顶栏章节书签状态（REQ-C1）。
+    // 翻章后刷新顶栏章节书签状态。
     unawaited(_refreshChapterBookmark());
     // 预载新一层的相邻章（越界时自动忽略）。
     final int dir = target > oldChapter ? 1 : -1;
@@ -3315,9 +3315,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   ///
   /// 实现要点：
   /// - 每次双击【绝对设置】目标矩阵（不乘旧矩阵），直接到达目标态——避免
-  ///   「乘旧矩阵」的浮点累积导致循环错乱。
+  /// 「乘旧矩阵」的浮点累积导致循环错乱。
   /// - Transform/AnimatedBuilder 以「视口中心」为原点（等价 alignment: center），
-  ///   而 focal 是「左上原点」坐标；[_toTransformAnchor] 负责换算。
+  /// 而 focal 是「左上原点」坐标；[_toTransformAnchor] 负责换算。
   void _toggleZoom([Offset? focal]) {
     // 双击缩放开关：关闭时任何触发路径（双击 / 定点双击 / Shift+左键兜底）均不缩放。
     if (!_prefs.doubleTapZoom) return;
@@ -3332,8 +3332,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final m = _zoomController.value;
     final cur = m.getMaxScaleOnAxis();
     final Size vp = MediaQuery.of(context).size;
-    // 缩放锚点来源（REQ-B11 zoomStart）：双击时按设置决定横向锚点位置，
-    // 纵轴沿用触点（保留 P0「按触点」触感，不破坏竖屏 webtoon 语义）。
+    // 缩放锚点来源（zoomStart）：双击时按设置决定横向锚点位置，
+    // 纵轴沿用触点（保留 「按触点」触感，不破坏竖屏 webtoon 语义）。
     final Offset anchor =
         focal == null ? Offset.zero : _anchorFromZoomStart(focal, vp);
     // 三态循环：放大态 → 恢复原样；防缩小时 1x ↔ 放大两态；缩小态 → 放大；
@@ -3359,7 +3359,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
   }
 
-  /// 缩放矩阵过渡动画（REQ-B7 双击缩放动画）。
+  /// 缩放矩阵过渡动画（双击缩放动画）。
   ///
   /// 时长取 [ReaderPreferences.doubleTapAnimSpeed]（默认 500ms），并随系统
   /// [MediaQuery.disableAnimations]（减弱动态效果）按比例缩放；系统关闭动画或
@@ -3433,10 +3433,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _zoomAnimTarget = null;
   }
 
-  /// 按 [ReaderPreferences.zoomStart] 计算双击缩放锚点（REQ-B11）。
-  /// - [ZoomStart.center]（默认）：沿用触点横坐标（保留 P0「按触点」锚定）；
+  /// 按 [ReaderPreferences.zoomStart] 计算双击缩放锚点。
+  /// - [ZoomStart.center]（默认）：沿用触点横坐标（保留 「按触点」锚定）；
   /// - [ZoomStart.left] / [ZoomStart.right]：锚点 x 取视口左右 1/4 / 3/4 处，
-  ///   方便放大 2 页跨页时聚焦到对应侧。
+  /// 方便放大 2 页跨页时聚焦到对应侧。
   /// 纵轴始终沿用触点 y，返回中心原点坐标系坐标。
   Offset _anchorFromZoomStart(Offset tap, Size vp) {
     final double x = switch (_prefs.zoomStart) {
@@ -3447,7 +3447,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     return _toTransformAnchor(Offset(x, tap.dy), vp);
   }
 
-  /// 长按缩放（REQ-B2）：开启 [ReaderPreferences.enableLongPressToZoom] 后，
+  /// 长按缩放：开启 [ReaderPreferences.enableLongPressToZoom] 后，
   /// 长按以 [ReaderPreferences.longPressZoomPosition] 为锚点放大到 1.75x。
   /// - [LongPressZoomPosition.press]：按触点放大；
   /// - [LongPressZoomPosition.center]：按屏幕中心放大。
@@ -3466,7 +3466,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       ..scaleByDouble(1.75, 1.75, 1.75, 1.0);
   }
 
-  /// 长按缩放退出（REQ-B2）：恢复原样。
+  /// 长按缩放退出：恢复原样。
   void _exitLongPressZoom() {
     _zoomController.value = Matrix4.identity();
   }
@@ -3476,7 +3476,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void _onZoomChanged() {
     final zoomed = _zoomController.value.getMaxScaleOnAxis() > 1.001;
     if (zoomed != _zoomed && mounted) setState(() => _zoomed = zoomed);
-    // 缩放状态变化时清零边缘滑动累计（REQ-B9），避免残留累计在新缩放态下误触发。
+    // 缩放状态变化时清零边缘滑动累计，避免残留累计在新缩放态下误触发。
     _edgeSwipeAccum = Offset.zero;
   }
 
@@ -3513,10 +3513,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 注意：先同步更新 [_prefs]（不单独 setState），再由 [_setupControllers]
   /// 一次性 setState，避免「新 prefs + 旧控制器」的中间帧导致进度条/页码不同步。
   ///
-  /// REQ-C9 三层设置覆盖的写入路径：
+  /// 三层设置覆盖的写入路径：
   /// - [persist] = true：写入作品层并持久化（底栏工具栏等明确落盘的操作），清除设备层；
   /// - [persist] = false：写入设备/会话层（[_devicePrefs]，内联面板即时预览），
-  ///   会话内落到 [_prefs] 保证渲染即时生效，关闭面板时经 [_commitDeviceOverride] 提交。
+  /// 会话内落到 [_prefs] 保证渲染即时生效，关闭面板时经 [_commitDeviceOverride] 提交。
   Future<void> _applySettings(ReaderPreferences next,
       {required bool persist}) async {
     if (!mounted) return;
@@ -3571,7 +3571,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (mounted) setState(() {});
   }
 
-  /// 设备/会话层预览写入（REQ-C9）：内联设置面板的 onChanged 回调。
+  /// 设备/会话层预览写入：内联设置面板的 onChanged 回调。
   ///
   /// 写入设备层（退出阅读器前不持久化），但会话内落到 [_prefs] 保证渲染/控制器
   /// 即时预览；关闭面板时由 [_commitDeviceOverride] 提交到作品层持久化。
@@ -3591,7 +3591,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   Future<void> _onPrefsChanged(ReaderPreferences next) =>
       _applySettings(next, persist: true);
 
-  // ─────────────────────── REQ-B8 音量键翻页 ───────────────────────
+  // ─────────────────────── 音量键翻页 ───────────────────────
 
   /// 按当前偏好同步音量键监听：仅 Android 且开启 [ReaderPreferences.volumeKeyPageTurn]
   /// 时通过 [VolumeKeyListener] 挂载原生 onKeyDown 拦截（彻底消费按键事件，阻止系统
@@ -3659,7 +3659,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  // ─────────────────── REQ-B6/B9/B10 自动翻页与自动滚动 ───────────────────
+  // ─────────────────── 自动翻页与自动滚动 ───────────────────
 
   /// 自动滚动基准速度（像素/秒）：乘以 [ReaderPreferences.readerScrollSpeed] 得到
   /// 实际滚动速度（默认 1.0 → 60 px/s，条漫常见阅读节奏）。
@@ -3744,7 +3744,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     final bool background = state != AppLifecycleState.resumed;
-    // P3 进程被杀恢复：退后台（paused/detached）时系统随时可能杀掉进程，
+    // 进程被杀恢复：退后台（paused/detached）时系统随时可能杀掉进程，
     // dispose 兜底不会执行。此刻把防抖中的进度与偏好立即落盘，保证重开应用
     // 能从最后位置继续（章节/页码恢复走既有的 [ComicProgressManager] 存档链路）。
     if (background && !_restoringPage && _images.isNotEmpty) {
@@ -3773,7 +3773,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 翻页淡入（REQ-B7 [ReaderPageAnimation.fade]）：翻页后透明度 0 → 1 淡入。
+  /// 翻页淡入（[ReaderPageAnimation.fade]）：翻页后透明度 0 → 1 淡入。
   /// 用 [_pageFadeOpacity] 驱动 [AnimatedOpacity]，不改 PageView 翻页结构。
   void _runPageFade() {
     if (!_prefs.readingMode.isPaged ||
@@ -3829,7 +3829,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  // ── 时间 / 电量浮层（REQ-C5）──
+  // ── 时间 / 电量浮层──
 
   /// 启动时间/电量浮层的定时刷新与电量监听。仅在开启浮层时调用。
   void _initTimeAndBattery() {
@@ -3875,7 +3875,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  // ── 系统亮度双轨（REQ-C3）──
+  // ── 系统亮度双轨──
 
   /// 应用阅读亮度：
   /// - [readerBrightness] > 0：正值写入系统亮度（0.0–1.0）。
@@ -3887,7 +3887,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 外层 try/catch 捕不到、`unawaited` 也不吞——必须 catchError 兜底静默降级
   /// （UI 遮罩仍生效，仅系统亮度不干预），否则成为 Uncaught zone error。
   void _applyBrightness() {
-    // REQ-C9：亮度按三层覆盖后的实际生效值应用（设备层可临时覆盖）。
+    // 亮度按三层覆盖后的实际生效值应用（设备层可临时覆盖）。
     final double v = _effectivePrefs.readerBrightness;
     if (v == 0.0) {
       _dimBrightnessActive = false;
@@ -3924,7 +3924,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 与 [_applyOrientation] 协同：orientation 改 preferredOrientations，不动 system UI mode。
   ///
   /// 桌面端（Windows / Linux / macOS）[SystemChrome] 的 system UI mode 是 no-op，
-  /// 永不进入 OS 全屏；故桌面改用 [window_manager] 直接控制窗口全屏（P0 桌面 bug）。
+  /// 永不进入 OS 全屏；故桌面改用 [window_manager] 直接控制窗口全屏（桌面 bug）。
   /// 桌面端设置 OS 全屏的统一入口。
   ///
   /// window_manager 0.3.9 在 Windows 上的 [SetFullScreen] 内部用**阻塞式**
@@ -3947,7 +3947,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       if (_isDesktop) {
         // 桌面：真实 OS 全屏（隐藏标题栏 / 任务栏）。调用点：① 设置面板改 fullscreen
         // 开关（[didUpdateWidget]）；② F11 手动触发（[_toggleFullscreen]）。进入阅读器
-        // 不再自动全屏（验收 D1），故 [_init] 不调用本方法，避免 window_manager 的
+        // 不再自动全屏（验收），故 [_init] 不调用本方法，避免 window_manager 的
         // setFullScreen 在初始化期同步调用卡死渲染管道。退阅读器时 [dispose] 延迟离开
         // OS 全屏（setFullScreen 与渲染管道竞争，故用 Future.delayed(zero) 推迟到
         // teardown 之后，避开冻结窗口）。
@@ -3982,7 +3982,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 键盘快捷键（P0）：方向键 / PageUp·Down 翻页，F11 全屏，Esc 关菜单 / 退出全屏，
+  /// 键盘快捷键：方向键 / PageUp·Down 翻页，F11 全屏，Esc 关菜单 / 退出全屏，
   /// 空格切换 UI，+/- 缩放，N·P 切换上一话 / 下一话。
   ///
   /// 不依赖 [Focus] 焦点链：通过 [_onGlobalKey] 用 [HardwareKeyboard] 全局监听，
@@ -4023,7 +4023,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       setState(() => _uiVisible = !_uiVisible);
       return KeyEventResult.handled;
     }
-    // Ctrl+方向键 = 跳章（REQ-B4）：下/右 = 下一章，上/左 = 上一章。
+    // Ctrl+方向键 = 跳章：下/右 = 下一章，上/左 = 上一章。
     if (HardwareKeyboard.instance.isControlPressed &&
         (key == LogicalKeyboardKey.arrowUp ||
             key == LogicalKeyboardKey.arrowDown ||
@@ -4036,13 +4036,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       return KeyEventResult.handled;
     }
 
-    // 放大态方向键语义（REQ-B4/B9）：方向键先平移（步长 ≈ 视口 1/3），
+    // 放大态方向键语义：方向键先平移（步长 ≈ 视口 1/3），
     // 平移到底后再翻页/滚动。
     final bool zoomed = _zoomController.value.getMaxScaleOnAxis() > 1.001;
     final bool webtoon = _prefs.readingMode.isWebtoon;
 
     // 方向键 / WASD / 小键盘 2 4 6 8 / PageUp·Down 翻页（条漫模式下走单步滚动）。
-    // WASD 与数字小键盘 2468（REQ-B4）：W/8/上=上一页或向上滚动，S/2/下=下一页或向下滚动；
+    // WASD 与数字小键盘 2468：W/8/上=上一页或向上滚动，S/2/下=下一页或向下滚动；
     // A/D/4/6 在条漫模式忽略、翻页模式横向翻页。
     // 上（W/8/↑/PageUp）。
     if (key == LogicalKeyboardKey.arrowUp ||
@@ -4134,7 +4134,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       // 栈顶有模态层（章节列表 / 对话框 / 右键菜单等 push 的 route）时，Esc 交还
       // Navigator / Shortcuts 关闭模态层——否则本处把 Esc 吞掉（误触发退全屏），
-      // 模态层收不到 Esc 关不掉（D3），且未全屏时误触发窗口样式重建（冻结）。
+      // 模态层收不到 Esc 关不掉，且未全屏时误触发窗口样式重建（冻结）。
       final Route<dynamic>? route = ModalRoute.of(context);
       if (route != null && !route.isCurrent) {
         return false;
@@ -4152,7 +4152,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 切换桌面 OS 全屏（F11 触发）。移动端无 window_manager，忽略。
   ///
-  /// B3：切换前固定当前页，切换期间用 [_restoringPage] 屏蔽滚动 / 翻页回写
+  /// 切换前固定当前页，切换期间用 [_restoringPage] 屏蔽滚动 / 翻页回写
   /// （onPageChanged 在视口变宽时会把像素偏移对应到别的页，污染 [_currentPage]
   /// 与存档），切换完成、窗口布局稳定后再把视口重锚回该页——进度条不跳页。
   Future<void> _toggleFullscreen() async {
@@ -4213,7 +4213,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 双指捏合（屏幕级，[ReaderTapZones.onPinchUpdate] 回调）。以起手矩阵为基准、
   /// 双指中点为锚点，按累计比例 [scaleFactor] 缩放并夹紧到 [minScale, maxScale]。
-  /// C2 根治：手势在覆盖层统一跟踪（不依赖每页 GestureDetector），条漫模式下
+  /// 根治：手势在覆盖层统一跟踪（不依赖每页 GestureDetector），条漫模式下
   /// 双指落在不同页也能识别缩放。
   Matrix4? _pinchBaseMatrix;
 
@@ -4240,7 +4240,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     _pinchBaseMatrix = null;
   }
 
-  /// 触控板捏合（C2 桌面）：Windows precision touchpad 的捏合手势走
+  /// 触控板捏合（桌面）：Windows precision touchpad 的捏合手势走
   /// [PointerPanZoomUpdateEvent]（[ReaderTapZones.onTrackpadZoom] 透传），
   /// [scale] 为累计比例、[focal] 为手势焦点——语义与触摸双指捏合完全一致，
   /// 直接复用 [_onPinchUpdate]（以起手矩阵为基准、锚点换算同一套）。
@@ -4271,7 +4271,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     return dims.height * vp.width / dims.width;
   }
 
-  /// REQ-B9 放大态边缘滑动切页：平移被边界夹紧（贴边且继续向边外滑）时，
+  /// 放大态边缘滑动切页：平移被边界夹紧（贴边且继续向边外滑）时，
   /// 累计该方向滑动，超过 [_edgeSwipeThreshold] 触发翻页 / 滚动（webtoon 换章），
   /// 与键盘方向键（[_handleZoomedArrow]）语义一致。
   void _onPanUpdate(Offset delta) {
@@ -4310,13 +4310,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
   }
 
-  /// 放大态边缘滑动累计（REQ-B9）：贴边后继续向边外滑的累计距离（像素）。
+  /// 放大态边缘滑动累计：贴边后继续向边外滑的累计距离（像素）。
   Offset _edgeSwipeAccum = Offset.zero;
 
   /// 边缘滑动切页阈值（像素）：超过即触发一次翻页 / 滚动。
   static const double _edgeSwipeThreshold = 56.0;
 
-  /// 放大态方向键（REQ-B4/B9）：方向键先按方向平移图片（步长 ≈ 视口 1/3），
+  /// 放大态方向键：方向键先按方向平移图片（步长 ≈ 视口 1/3），
   /// 平移到底（矩阵被夹紧、位置不再变化）后再翻页 / 滚动——与放大态边缘滑动切页
   /// 语义一致。条漫纵向同样走矩阵平移（与放大态拖动 [_onPanUpdate] 一致）。
   /// [dx]/[dy] 为方向向量（各取 ±1，互斥）。
@@ -4362,7 +4362,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 缩放或翻页。
   void _onPointerScroll(PointerScrollEvent e) {
     // Ctrl+滚轮 = 缩放：Windows 触控板驱动把「捏合缩放手势」映射为 Ctrl+滚轮
-    // （系统设置 → 触控板 → 缩放），非 precision 触控板捏合的通用兼容路径（C2 桌面）。
+    // （系统设置 → 触控板 → 缩放），非 precision 触控板捏合的通用兼容路径（桌面）。
     if (HardwareKeyboard.instance.isControlPressed) {
       // 消费信号：阻止事件继续传给底层 Scrollable（否则缩放的同时列表也滚动）。
       GestureBinding.instance.pointerSignalResolver.register(e, (_) {});
@@ -4374,7 +4374,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     // 条漫（webtoon）：
     // 消费信号并【手动】滚动列表（ScrollOffsetController.animateScroll），以便应用
-    // readerScrollSpeed 滚动速度倍率（REQ-B5：速度 2.0 → 滚动距离 2 倍）。放大态
+    // readerScrollSpeed 滚动速度倍率（速度 2.0 → 滚动距离 2 倍）。放大态
     // 列表拖动已被 physics（NeverScrollableScrollPhysics）禁用，原生 Scrollable 收到
     // 滚轮信号会因 shouldAcceptUserOffset=false 直接丢弃（flutter scrollable.dart:955），
     // 故放大态也必须走此手动路径。
@@ -4523,7 +4523,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   onPrev: _goPrevPage,
                   onNext: _goNextPage,
                   onDragPage: (next) => next ? _goNextPage() : _goPrevPage(),
-                  // 双击回退（REQ-B3：单击即时 + 双击回退）：双击缩放前撤销前一次
+                  // 双击回退（单击即时 + 双击回退）：双击缩放前撤销前一次
                   // 单击已触发的翻页——上次是下一页则回上一页，反之回下一页。
                   onUndoPageTurn: (next) =>
                       next ? _goPrevPage() : _goNextPage(),
@@ -4532,7 +4532,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   },
                   onZoom: _toggleZoom,
                   onZoomAt: (pos) => _toggleZoom(pos),
-                  // 缩放感知：放大态单指单击不触发翻页/导航（P0 手势 bug）。
+                  // 缩放感知：放大态单指单击不触发翻页/导航（手势 bug）。
                   isZoomed: () =>
                       _zoomController.value.getMaxScaleOnAxis() > 1.001,
                   // 手势交互态（Bug3 根治）：scale ≠ 1.0（含放大与缩小）时单指单击不
@@ -4540,14 +4540,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   isZoomInteractive: () =>
                       (_zoomController.value.getMaxScaleOnAxis() - 1.0).abs() >
                       0.001,
-                  // 屏幕级捏合（C2 根治）：覆盖层统一跟踪双指，条漫跨页也生效。
+                  // 屏幕级捏合（根治）：覆盖层统一跟踪双指，条漫跨页也生效。
                   onPinchUpdate: _onPinchUpdate,
                   onPinchEnd: _onPinchEnd,
                   // 放大态单指平移。
                   onPanUpdate: _onPanUpdate,
                   // 滚轮 / 触控板滚动（缩放或翻页）。
                   onPointerSignal: _onPointerScroll,
-                  // 触控板捏合 / 双指平移（C2 桌面：precision touchpad 独立事件流）。
+                  // 触控板捏合 / 双指平移（桌面：precision touchpad 独立事件流）。
                   onTrackpadZoom: _onTrackpadZoom,
                   onTrackpadPan: _onTrackpadPan,
                   // 桌面右键：弹出图片操作菜单（保存 / 分享 / 设封面），与长按同款。
@@ -4595,7 +4595,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                             translationEnabled: _prefs.translationEnabled,
                           );
                         },
-                  // 长按缩放（REQ-B2）：开启时长按定点放大 1.75x、松手恢复；
+                  // 长按缩放：开启时长按定点放大 1.75x、松手恢复；
                   // 关闭时由上方 onLongPress 保持「长按弹菜单」行为。
                   onLongPressAt:
                       _prefs.enableLongPressToZoom ? _enterLongPressZoom : null,
@@ -4604,7 +4604,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   // 控制栏区域保护：点在顶部/底部控制栏上时交给按钮自身处理，不触发翻页。
                   isToolbarRegion: (pos) => _isInToolbarRegion(pos),
                 ),
-              // P2：缩放比例指示（放大 >1.001 时顶部居中显示当前倍数，1.2s 后淡出）。
+              // 缩放比例指示（放大 >1.001 时顶部居中显示当前倍数，1.2s 后淡出）。
               // 自包含监听 [_zoomController]（ValueListenableBuilder 只重建徽标本体，
               // 不触发整屏 setState）。
               if (_images.isNotEmpty)
@@ -4667,12 +4667,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                 _buildRightProgressBar(l10n),
               if (_uiVisible && _prefs.showClockBattery)
                 _buildClockBatteryOverlay(l10n),
-              // 章节导航滑块（REQ-C10）：ui 可见 + 设置开启时显示，拖动预览章节。
+              // 章节导航滑块：ui 可见 + 设置开启时显示，拖动预览章节。
               if (_uiVisible &&
                   !_isLocalMode &&
                   _effectivePrefs.showChapterSlider)
                 _buildChapterSlider(l10n),
-              // 章节导航滑块预览浮层（REQ-C10）：拖动时在顶部预览章节标题。
+              // 章节导航滑块预览浮层：拖动时在顶部预览章节标题。
               if (_uiVisible && _sliderPreviewChapter != null)
                 Positioned(
                   top: 40,
@@ -4700,7 +4700,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   ),
                 ),
               if (_showInlineSettings) _buildInlineSettings(l10n),
-              // 亮度双轨的负值遮罩（REQ-C3）：压暗系统亮度到最低后叠加黑遮罩，
+              // 亮度双轨的负值遮罩：压暗系统亮度到最低后叠加黑遮罩，
               // 透明度随 |readerBrightness|。置于最上层使整个阅读区域一起变暗，
               // 拖动滑块时即时生效；IgnorePointer 不拦截点击/翻页。
               if (_dimBrightnessActive && _effectivePrefs.readerBrightness < 0)
@@ -4714,7 +4714,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     ),
                   ),
                 ),
-              // 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于
+              // 夜览暖色盖层（亮度双轨扩展）：独立于
               // [readerBrightness] 的暖色（纸感 0xFF2A1800）半透明覆盖，减少蓝光，
               // 不干预系统亮度；可与负值黑遮罩叠加（偏色 + 压暗）。
               if (_effectivePrefs.nightLightEnabled)
@@ -4753,14 +4753,14 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       clipBehavior: Clip.antiAlias,
       child: buildComicSettingsSheet(
         initial: _prefs,
-        // REQ-C9 三层覆盖：内联面板即时预览写入设备/会话层（不落盘），
+        // 三层覆盖：内联面板即时预览写入设备/会话层（不落盘），
         // 关闭面板时 [_commitDeviceOverride] 提交到作品层持久化。
         onChanged: _applyDeviceOverride,
         onClose: () {
           unawaited(_commitDeviceOverride());
           _toggleInlineSettings();
         },
-        // X-1 睡眠定时：会话级状态回显 + 选择回调（阅读器持有 Timer 生命周期）。
+        // 睡眠定时：会话级状态回显 + 选择回调（阅读器持有 Timer 生命周期）。
         sleepTimer: _sleepTimerState,
         onSleepTimerChanged: _applySleepTimer,
       ),
@@ -4811,7 +4811,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     if (_prefs.readingMode.isWebtoon) return _buildWebtoon();
     final Widget paged = _buildPaged();
-    // REQ-B7 翻页过渡动画（fade）：用 AnimatedOpacity 驱动整页淡入（见 [_runPageFade]）。
+    // 翻页过渡动画（fade）：用 AnimatedOpacity 驱动整页淡入（见 [_runPageFade]）。
     if (_prefs.pageAnimation == ReaderPageAnimation.fade) {
       return AnimatedOpacity(
         opacity: _pageFadeOpacity,
@@ -4830,13 +4830,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       (_prefs.readingMode == ReadingMode.singleLTR ||
           _prefs.readingMode == ReadingMode.singleRTL);
 
-  /// 首屏单图（REQ-C13）：双页模式【第一章】首页单独显示，其后恢复双页。
+  /// 首屏单图：双页模式【第一章】首页单独显示，其后恢复双页。
   /// 仅首章生效：进度条 / 跨页映射（[_doublePageSpreadFor] / [_doublePageLeftPageFor]）
   /// 均按「每章首页为常规跨页」设计，扩展到其它章会造成进度条与跨页计数错位。
   bool get _showFirstPageSingle =>
       _prefs.showSingleImageOnFirstPage && _chapterIndex == 0 && _isDoublePage;
 
-  /// 逻辑单页 → 跨页序号（REQ-C13 首屏单图映射）。
+  /// 逻辑单页 → 跨页序号（首屏单图映射）。
   ///
   /// 常规双页：spread = page ~/ 2。首屏单图生效时：第 0 页独占 spread 0，
   /// 其后 spread k（k≥1）承载 (2k-1, 2k) 两页 → page≥1 时 spread = (page+1) ~/ 2。
@@ -4846,7 +4846,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     return (page + 1) ~/ 2;
   }
 
-  /// 跨页序号 → 逻辑左页（REQ-C13 首屏单图映射）。
+  /// 跨页序号 → 逻辑左页（首屏单图映射）。
   ///
   /// 常规双页：left = spread * 2。首屏单图：spread 0 → 0，spread k（k≥1）→ 2k-1。
   int _doublePageLeftPageFor(int spread) {
@@ -4855,7 +4855,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     return spread * 2 - 1;
   }
 
-  /// 每屏多图 gallery（REQ-C4）：按当前屏幕方向取竖/横每屏图片数（1–5）。
+  /// 每屏多图 gallery：按当前屏幕方向取竖/横每屏图片数（1–5）。
   /// 测试/无 MediaQuery 环境按竖屏处理。
   int get _galleryCount {
     final MediaQueryData? mq = MediaQuery.maybeOf(context);
@@ -4867,7 +4867,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   }
 
   /// 每屏多图 gallery 是否生效：paged 模式且每屏图片数 > 1。
-  /// 与双页拆分并存时 gallery 优先（见 REQ-C4）。
+  /// 与双页拆分并存时 gallery 优先（见）。
   bool get _isGalleryMode => _prefs.readingMode.isPaged && _galleryCount > 1;
 
   /// 跨页（spread）数量：双页模式下 PageView 的 itemCount。
@@ -4942,7 +4942,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
   }
 
-  /// 每屏多图 gallery（REQ-C4）：paged 模式下每屏纵向堆叠 N 张图（1–5）。
+  /// 每屏多图 gallery：paged 模式下每屏纵向堆叠 N 张图（1–5）。
   ///
   /// 每屏 = 一个 PageView 页，翻页以屏为单位。标记进度时取当前屏首图索引。
   /// 与双页拆分并存时 gallery 优先。图片按屏高等比压缩（Column + Expanded）。
@@ -5009,7 +5009,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         if (_showPagedNextCard && spreadIdx >= _spreadCount) {
           return _buildPagedNextCard();
         }
-        // 首屏单图（REQ-C13）：第一跨页只放第 0 页，其后恢复双页。
+        // 首屏单图：第一跨页只放第 0 页，其后恢复双页。
         final bool firstSingle = _showFirstPageSingle && spreadIdx == 0;
         // 跨页左页索引统一经 _doublePageLeftPageFor 计算：首屏单图关闭时
         // spread 0 左页为 0（旧手写 `spreadIdx * 2 - 1` 在此时算出 -1 →
@@ -5065,7 +5065,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
   }
 
-  /// paged 段式连续模型（REQ-A1 跨章无缝续读 · paged 分支）的「章末过渡卡」页。
+  /// paged 段式连续模型（跨章无缝续读 · paged 分支）的「章末过渡卡」页。
   ///
   /// 展示「下一章」标题 + 继续提示；越过该卡（末页再翻一页 / 下一张按钮）即无缝
   /// 进入下一章首页（见 [_goNextPage] / [_goNextChapter]，经 [_pagedAdvance] 重锚）。
@@ -5082,10 +5082,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final String label = nextTitle == null || nextTitle.isEmpty
         ? l10n.chapterN(nextIndex + 1)
         : '${l10n.chapterN(nextIndex + 1)} · $nextTitle';
-    // 下一章首图预览（REQ-C12）：已预载时取首图缩略图；未预载则不显示。
+    // 下一章首图预览：已预载时取首图缩略图；未预载则不显示。
     final List<String> nextImgs = _preload[nextIndex] ?? const <String>[];
     final String? nextPreviewUrl = nextImgs.isNotEmpty ? nextImgs.first : null;
-    // 章节评论入口（REQ-C12）：源声明 comments 段时提供「评论」按钮。
+    // 章节评论入口：源声明 comments 段时提供「评论」按钮。
     final bool hasComments = !_isLocalMode && _source?.comments != null;
     return Container(
       color: bg,
@@ -5175,7 +5175,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
   }
 
-  /// 章节评论弹层（REQ-C12）：源支持章节评论时，以底部弹层内嵌评论区。
+  /// 章节评论弹层：源支持章节评论时，以底部弹层内嵌评论区。
   void _showChapterComments(AppLocalizations l10n, String chapterId) {
     final PluginConfig? source = _source;
     if (source == null || source.comments == null) return;
@@ -5201,7 +5201,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final isc = _itemScrollController;
     final ipl = _itemPositionsListener;
     if (isc == null || ipl == null) return const SizedBox.shrink();
-    // 页间距（REQ-C14）：优先采用可调的 readerPageSpacing（0–50px，0=不设），
+    // 页间距：优先采用可调的 readerPageSpacing（0–50px，0=不设），
     // 未设时回退 webtoonWithGap 预设间距；普通条漫（webtoon）默认 0 无缝拼接。
     final double gap;
     if (_prefs.readerPageSpacing > 0) {
@@ -5213,7 +5213,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     }
     // 恢复标记消费后回退到 _currentPage（二者在进入本章首帧时一致），避免后续
     // 重建时把 initialScrollIndex 误置 0；didUpdateWidget 虽不重应用该值，仍保持稳健。
-    // 段式连续模型（REQ-A1 跨章无缝续读）：扁平列表的 initialScrollIndex 是全局
+    // 段式连续模型（跨章无缝续读）：扁平列表的 initialScrollIndex 是全局
     // 扁平索引（页索引需经 [_seamFlatIndexOf] 换算，前插上一段后不再等于页索引）。
     final int restorePage = _pendingWebtoonRestore ?? _currentPage;
     final restoreIndex = _seamActive && _seamItemCount > 0
@@ -5243,12 +5243,12 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         final int last = _images.isEmpty ? 0 : _images.length - 1;
         if (toLast && last > 0 && isc.isAttached) {
           // 「回到上一话末页」的两段式落点：
-          //   阶段 1：等列表里出现真实尺寸的图（图片开始加载）后，先 jumpTo(末页) 把视口
-          //     跳到底部。ScrollablePositionedList 在目标未构建时走「双列表切换」按索引
-          //     锚定，落点准；之后列表被夹在底部，图片陆续加载使整章变高，滚位移自动跟随到底。
-          //   阶段 2：持续轮询「列表最大滚动范围 maxScrollExtent」（由滚动通知实时捕获）
-          //     是否稳定——连续多次不变即整章图片已加载完、高度不再增长——再精确滚到底收尾。
-          //     此信号直接反映整章内容高度，不受「末项在视口外未被构建」影响，比盯末项边缘可靠。
+          // 阶段 1：等列表里出现真实尺寸的图（图片开始加载）后，先 jumpTo(末页) 把视口
+          // 跳到底部。ScrollablePositionedList 在目标未构建时走「双列表切换」按索引
+          // 锚定，落点准；之后列表被夹在底部，图片陆续加载使整章变高，滚位移自动跟随到底。
+          // 阶段 2：持续轮询「列表最大滚动范围 maxScrollExtent」（由滚动通知实时捕获）
+          // 是否稳定——连续多次不变即整章图片已加载完、高度不再增长——再精确滚到底收尾。
+          // 此信号直接反映整章内容高度，不受「末项在视口外未被构建」影响，比盯末项边缘可靠。
           // 全程 _restoringPage 保持为 true，中途图片加载的位置抖动不回写，故不回弹。
           // 加 3s 超时兜底，慢网/图片加载失败也不卡死。
           final int lastIdx = last;
@@ -5393,7 +5393,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
           return;
         }
         // 末页高 = (trailing − leading) × 视口高；使末页底贴底的 alignment：
-        //   A = 1 − 末页高/视口高 = 1 − (trailing − leading)
+        // A = 1 − 末页高/视口高 = 1 − (trailing − leading)
         // 长条漫下 A 为负（合法），把末页顶边推到视口上方、底贴底。跳定是瞬移，
         // 不排队动画，故不会在用户紧随其后的滚动中造成回弹。
         if (corrections < 6) {
@@ -5513,7 +5513,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             _seamActive && _seamItemCount > 0 ? _seamItemCount : _images.length,
         separatorBuilder: (_, __) => SizedBox(height: gap),
         itemBuilder: (ctx, i) {
-          // 段式连续模型（REQ-A1 跨章无缝续读）：扁平列表由「真实页 + 章分割/过渡
+          // 段式连续模型（跨章无缝续读）：扁平列表由「真实页 + 章分割/过渡
           // 条目」组成。章分割条目（页映射为 -1）渲染章节标题卡，越过即进入新段。
           if (_seamActive && _seamItemCount > 0 && _seamPageMap[i] < 0) {
             return _buildSeamSeparator(i, gap);
@@ -5536,13 +5536,13 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
               rotationQuarterTurns: _pageRotations[pageIdx] ?? 0,
               cropEdge: _prefs.cropEdge,
               // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
-              // 每页一起放大、间距等比，天然不重叠（C2 复测「每张照片放大导致重叠」）。
+              // 每页一起放大、间距等比，天然不重叠（复测「每张照片放大导致重叠」）。
               zoomEnabled: () => false,
               // 阅读器级加载记录：item 被 SPL 回收重建后仍按真实高度渲染，
               // 消除「占位→真实」高度突变导致的反向翻页回弹/闪烁。
               urlLoaded: (url) => _webtoonLoadedUrls.contains(url),
               onUrlLoaded: (url) => _webtoonLoadedUrls.add(url),
-              // 缓存真实自然尺寸（L3：占位高 / 纵向夹取基于真实高度）。
+              // 缓存真实自然尺寸（占位高 / 纵向夹取基于真实高度）。
               onImageInfo: (url, w, h) => _realImageDims[url] = Size(w, h),
               realHeightResolver: (url, maxWidth) {
                 final Size? dims = _realImageDims[url];
@@ -5567,11 +5567,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     //
     // 【为什么不用 InteractiveViewer / 裸 Transform】：
     // - 裸 Transform + AnimatedBuilder：缩放矩阵变化必然 rebuild，画面跟手；
-    //   Stack 默认 Clip.hardEdge 裁剪视口外溢出（等效下方 ClipRect），属正常视口。
+    // Stack 默认 Clip.hardEdge 裁剪视口外溢出（等效下方 ClipRect），属正常视口。
     // - InteractiveViewer：内部 GestureDetector(HitTestBehavior.opaque) 的
-    //   ScaleGestureRecognizer 会参与手势竞技场、抢走单指拖动 → 放大后列表滚不动
-    //   （"显示区域只在放大的区域"）；且该版本无 _onTransformationControllerChange，
-    //   外部改矩阵后 1x↔0.5x 不触发 rebuild → 缩放画面不刷新、三态循环错乱。
+    // ScaleGestureRecognizer 会参与手势竞技场、抢走单指拖动 → 放大后列表滚不动
+    // （"显示区域只在放大的区域"）；且该版本无 _onTransformationControllerChange，
+    // 外部改矩阵后 1x↔0.5x 不触发 rebuild → 缩放画面不刷新、三态循环错乱。
     return AnimatedBuilder(
       animation: _zoomController,
       builder: (context, _) => ClipRect(
@@ -5600,7 +5600,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
   }
 
-  /// 段式连续模型的「章分割/过渡」条目（REQ-A1 跨章无缝续读）。
+  /// 段式连续模型的「章分割/过渡」条目（跨章无缝续读）。
   ///
   /// 渲染为章节标题卡：显示被引入的下一章序号与标题，让读者越过章边界时明确感知
   /// 已进入新章节。分隔条目位于其引入段的紧前方（startOffset == flatIdx + 1）。
@@ -5656,7 +5656,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     );
   }
 
-  /// 时间 / 电量浮层（REQ-C5）：控制栏可见时显示，随控制栏显隐。
+  /// 时间 / 电量浮层：控制栏可见时显示，随控制栏显隐。
   ///
   /// 位置（[ClockBatteryPosition] 四角）与边距、透明度、字号均由偏好控制；
   /// 电量不可用（-1，部分平台/测试环境）时仅显示时间。
@@ -5735,7 +5735,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     final Color scrim = Theme.of(context).colorScheme.surface;
     return SafeArea(
       child: MouseRegion(
-        // 桌面端控件光标反馈（REQ-B8）：控制栏按钮 hover 显示 click 光标。
+        // 桌面端控件光标反馈：控制栏按钮 hover 显示 click 光标。
         cursor: SystemMouseCursors.click,
         child: Container(
           key: _topBarKey,
@@ -5804,7 +5804,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                   tooltip: l10n.moreActions,
                   onSelected: (String value) {
                     switch (value) {
-                      // X-2 待读队列：不需要章节 URL，先于 webview 守卫处理。
+                      // 待读队列：不需要章节 URL，先于 webview 守卫处理。
                       case 'addToReadingQueue':
                         _addCurrentToReadingQueue();
                         return;
@@ -5827,7 +5827,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
                     }
                   },
                   itemBuilder: (BuildContext ctx) => <PopupMenuEntry<String>>[
-                    // X-2 待读队列：加入队列 / 打开队列。
+                    // 待读队列：加入队列 / 打开队列。
                     PopupMenuItem<String>(
                       value: 'addToReadingQueue',
                       child: ListTile(
@@ -5892,7 +5892,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     return SafeArea(
       top: false,
       child: MouseRegion(
-        // 桌面端控件光标反馈（REQ-B8）：控制栏按钮 hover 显示 click 光标。
+        // 桌面端控件光标反馈：控制栏按钮 hover 显示 click 光标。
         cursor: SystemMouseCursors.click,
         child: Container(
           key: _bottomBarKey,
@@ -6000,7 +6000,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 双页跨页页码标签，例如 1-2 / 10。
   ///
-  /// 首屏单图（REQ-C13）时 spread 从 0 开始为 1 / 2-3 / 4-5…（spread0 只含第 1 页），
+  /// 首屏单图时 spread 从 0 开始为 1 / 2-3 / 4-5…（spread0 只含第 1 页），
   /// 常规双页保持 1-2 / 3-4… 语义；页号从 1 起，末页按 [totalImages] 夹紧。
   String _doublePageIndicatorText(
     AppLocalizations l10n,
@@ -6016,7 +6016,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
 
   /// 双页跨页范围文本（不含总数），例如 1-2。
   ///
-  /// 首屏单图（REQ-C13）时 spread 0/1/2 → 1 / 2-3 / 4-5；常规双页保持 1-2 / 3-4。
+  /// 首屏单图时 spread 0/1/2 → 1 / 2-3 / 4-5；常规双页保持 1-2 / 3-4。
   String _doublePageRangeText(int spreadIndex, int totalImages) {
     final int first = _doublePageLeftPageFor(spreadIndex) + 1;
     final int last =
@@ -6258,7 +6258,7 @@ class _CenterMessage extends StatelessWidget {
 /// 增强：[rotationQuarterTurns] 让用户对单页 90° 旋转（不影响其他页）；
 /// [cropEdge] 为 true 时改用 [BoxFit.cover] / 居中裁切去四周留白（简单版）。
 
-/// 条漫连续模式解码位图的宽上限（像素，P3 资源/内存 enableResize）。
+/// 条漫连续模式解码位图的宽上限（像素， 资源/内存 enableResize）。
 const int _kWebtoonDecodeCapSide = 2560;
 
 class MangaPageImage extends StatefulWidget {
@@ -6275,7 +6275,7 @@ class MangaPageImage extends StatefulWidget {
 
   /// 是否应用缩放矩阵（默认恒 true）。条漫模式下**只有当前页放大**（其余页恒等）：
   /// item 高度不随缩放变化，若每页各自放大，相邻页的放大内容会互相重叠
-  /// （C2 复测 bug「每张照片放大导致照片重叠」）。返回 false 的 item 用恒等矩阵。
+  /// （复测 bug「每张照片放大导致照片重叠」）。返回 false 的 item 用恒等矩阵。
   final bool Function()? zoomEnabled;
 
   /// 查询某 URL 是否已在本话内加载完成（阅读器级记录，跨 item 回收重建存活）。
@@ -6383,7 +6383,7 @@ class _MangaPageImageState extends State<MangaPageImage> {
     final bool showRealHeight =
         (widget.urlLoaded?.call(widget.url) ?? false) || _imageLoaded;
 
-    // P3 解码限幅（连续模式 enableResize）：条漫模式下把解码位图宽下采样到
+    // 解码限幅（连续模式 enableResize）：条漫模式下把解码位图宽下采样到
     // min(2560, 屏幕物理像素 × 2)——长条漫原图常达数千 px 宽，全尺寸解码一张
     // 可占数十 MB 内存，连续滚动极易触发低机卡顿/OOM。×2 系数为捏合放大保留
     // 一档细节；上限 2560 对齐参考实现的 BaseImageProvider 限幅。paged 单页
@@ -6464,10 +6464,10 @@ class _MangaPageImageState extends State<MangaPageImage> {
     //
     // 注意：捏合 / 平移 / 滚轮等手势已全部上提到阅读器屏幕级（ReaderTapZones 覆盖层
     // 统一跟踪，见 ComicReaderScreenState._onPinchUpdate/_onPanUpdate/_onPointerScroll），
-    // 本组件只负责渲染——条漫模式下双指落在不同页也能识别缩放（C2 根治），且不再有
+    // 本组件只负责渲染——条漫模式下双指落在不同页也能识别缩放（根治），且不再有
     // 每页 GestureDetector 与覆盖层/滚动的手势竞争。
     //
-    // 桌面端鼠标光标反馈（REQ-B8）：图片 hover 显示 click 光标，放大态显示 grab 光标。
+    // 桌面端鼠标光标反馈：图片 hover 显示 click 光标，放大态显示 grab 光标。
     final bool isZoomed = _tc.value.getMaxScaleOnAxis() > 1.001;
     final Widget zoomed = AnimatedBuilder(
       animation: _tc,
@@ -6551,7 +6551,7 @@ class _MangaPageImageState extends State<MangaPageImage> {
   }
 }
 
-/// 缩放比例指示徽标（P2）：监听共享 [TransformationController]，放大
+/// 缩放比例指示徽标：监听共享 [TransformationController]，放大
 /// （>1.001）时显示「2.3×」，停止缩放 1.2s 后淡出；回到 1x 立即隐藏。
 /// 经 ValueListenableBuilder 只重建徽标本体，捏合逐帧变化不触发整屏重建。
 class _ZoomFactorBadge extends StatefulWidget {

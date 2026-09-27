@@ -1,5 +1,5 @@
 /// Tests for [BookshelfFilter] value object and data model field expansion
-/// (P5.1 书架筛选实装 — 方案乙：全段筛选).
+/// ( 书架筛选实装 — 方案乙：全段筛选).
 library;
 
 import 'package:flutter_test/flutter_test.dart';

@@ -631,9 +631,9 @@ class SettingsGroup extends StatelessWidget {
 ///
 /// - 行高：有副标题最小 76、无副标题最小 64，内容垂直居中；
 /// - 强调色层次：图标与分组小标题同为 primary（Legado 截图的锈棕图标），
-///   标题 onSurface、副标题 onSurfaceVariant、chevron 再浅一档；
+/// 标题 onSurface、副标题 onSurfaceVariant、chevron 再浅一档；
 /// - [trailing] 缺省且 [onTap] 非空时，自动渲染 chevron_right_rounded；
-///   需要放开关等自定义控件时显式传 [trailing] 且不传 [onTap]。
+/// 需要放开关等自定义控件时显式传 [trailing] 且不传 [onTap]。
 class SettingsTile extends StatelessWidget {
   final IconData? icon;
   final String title;

@@ -124,7 +124,7 @@ M3u8ParseResult parseM3u8(String text, {String? baseUrl}) {
 /// HLS M3U8 解析器。
 ///
 /// 支持 Master Playlist（`#EXT-X-STREAM-INF`）、Media Playlist
-///（`#EXTINF` / `#EXT-X-KEY` / `#EXT-X-DISCONTINUITY`），并对嵌套 M3U8
+/// （`#EXTINF` / `#EXT-X-KEY` / `#EXT-X-DISCONTINUITY`），并对嵌套 M3U8
 /// 与 `data:` URI 做有限递归展开。
 class M3u8Parser {
   static const String _masterTag = '#EXT-X-STREAM-INF';

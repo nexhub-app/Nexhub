@@ -479,7 +479,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                       ),
                       const SizedBox(height: AppTokens.spaceMd),
 
-                      // 缩放锚点（REQ-B11）
+                      // 缩放锚点
                       _chipSection(
                         context,
                         l10n.readerZoomStart,
@@ -496,7 +496,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                       ),
                       const SizedBox(height: AppTokens.spaceMd),
 
-                      // 长按缩放（REQ-B2）：开启时显示锚点选择
+                      // 长按缩放：开启时显示锚点选择
                       SettingsSwitchTile(
                         key: const ValueKey<String>('comic.longPressZoom'),
                         title: l10n.readerLongPressZoom,
@@ -527,7 +527,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                       ),
                       const SizedBox(height: AppTokens.spaceMd),
 
-                      // 翻页过渡动画（REQ-B7）
+                      // 翻页过渡动画
                       _chipSection(
                         context,
                         l10n.readerPageAnimation,
@@ -545,7 +545,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                       ),
                       const SizedBox(height: AppTokens.spaceMd),
 
-                      // 双击缩放动画时长（REQ-B7）
+                      // 双击缩放动画时长
                       SettingsSliderTile(
                         key: const ValueKey<String>('comic.doubleTapSpeed'),
                         label: l10n.readerDoubleTapAnimSpeed,
@@ -559,7 +559,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                       ),
                       const SizedBox(height: AppTokens.spaceMd),
 
-                      // 自动翻页（REQ-B9，paged 模式）
+                      // 自动翻页（paged 模式）
                       SettingsSwitchTile(
                         key: const ValueKey<String>('comic.autoPageTurning'),
                         title: l10n.readerAutoPageTurning,
@@ -596,7 +596,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         ),
                       ),
 
-                      // 音量键翻页（REQ-B8，仅 Android）
+                      // 音量键翻页（仅 Android）
                       if (_showVolumeKey) ...<Widget>[
                         const SizedBox(height: AppTokens.spaceMd),
                         SettingsSwitchTile(
@@ -660,7 +660,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         onGrayscaleChanged: (v) =>
                             _update(_settings.copyWith(comicGrayscale: v)),
                       ),
-                      // 阅读亮度（REQ-C3）：正值写系统、负值叠加遮罩。
+                      // 阅读亮度：正值写系统、负值叠加遮罩。
                       SettingsSliderTile(
                         key: const ValueKey<String>('comic.brightness'),
                         label: l10n.readerBrightness,
@@ -673,7 +673,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         onChanged: (v) => _update(
                             _settings.copyWith(comicReaderBrightness: v)),
                       ),
-                      // 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于阅读亮度。
+                      // 夜览暖色盖层（亮度双轨扩展）：独立于阅读亮度。
                       SettingsSwitchTile(
                         key: const ValueKey<String>('comic.nightLight'),
                         title: l10n.readerNightLight,
@@ -889,7 +889,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         onChanged: (v) => _update(
                             _settings.copyWith(comicShowChapterSeparator: v)),
                       ),
-                      // 条漫解码限幅（P3 资源/内存）：连续模式解码位图下采样，
+                      // 条漫解码限幅（资源/内存）：连续模式解码位图下采样，
                       // 限制长条漫原图的全尺寸解码内存。
                       SettingsSwitchTile(
                         key: const ValueKey<String>('comic.webtoonLimit'),
@@ -898,7 +898,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                         onChanged: (v) => _update(
                             _settings.copyWith(comicWebtoonLimitDecodeSize: v)),
                       ),
-                      // 自动滚动（REQ-B10，条漫）：开关 + 滚动速度。
+                      // 自动滚动（条漫）：开关 + 滚动速度。
                       SettingsSwitchTile(
                         key: const ValueKey<String>('comic.autoScroll'),
                         title: l10n.readerAutoScroll,

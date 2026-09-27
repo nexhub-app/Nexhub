@@ -2,12 +2,12 @@
 ///
 /// 采用内嵌 [InAppWebView]（应用内网页视图）。用户在视图内完成登录后：
 /// - 手动回灌：点击底部浮动按钮「获取 Cookie」，从 WebView 共享 Cookie 存储
-///   读取该源相关域的 Cookie 并同步到 [HttpFetcher]（内存 jar + CookieStore 落盘），
-///   随后关闭页面、由调用方经 SourceAuthManager.refreshLoginState 重新评估登录态。
+/// 读取该源相关域的 Cookie 并同步到 [HttpFetcher]（内存 jar + CookieStore 落盘），
+/// 随后关闭页面、由调用方经 SourceAuthManager.refreshLoginState 重新评估登录态。
 /// - 点击时短重试：Android 的 WebView 把登录响应里的 `set-cookie` 异步提交到
-///   系统 `CookieManager`，单次读取常常早于刷新（旧版靠 2s 轮询能取到、单次
-///   点击取不到的根因）。现改为用户主动点击，但点击后在 ~1.2s 内做最多 4 次
-///   短重试容忍刷新延迟；仍是手动触发、非后台轮询，登录态未变不会持续重载。
+/// 系统 `CookieManager`，单次读取常常早于刷新（旧版靠 2s 轮询能取到、单次
+/// 点击取不到的根因）。现改为用户主动点击，但点击后在 ~1.2s 内做最多 4 次
+/// 短重试容忍刷新延迟；仍是手动触发、非后台轮询，登录态未变不会持续重载。
 ///
 /// 桌面端（InAppWebView 不可用）回退为提示使用「粘贴 Cookie」方式。
 library;
@@ -201,10 +201,10 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
   /// 常早于刷新，导致「登录了但点获取 Cookie 取不到 / 仍显示未登录」——旧版靠
   /// 2s 轮询能取到正是因为这个延迟）。每次尝试内部按优先级读取：
   /// ① 实时控制器 Cookie：直接读 [InAppWebViewController] 当前 WebView 的存储，
-  ///    最即时，登录刚完成即可拿到会话；
+  /// 最即时，登录刚完成即可拿到会话；
   /// ② 系统 CookieManager 直读：经原生通道 `nexhub/system_cookie` 读
-  ///    `android.webkit.CookieManager.getCookie(url)`（对齐常见原生客户端
-  ///    登录后轮询系统 CookieManager 的做法）；
+  /// `android.webkit.CookieManager.getCookie(url)`（对齐常见原生客户端
+  /// 登录后轮询系统 CookieManager 的做法）；
   /// ③ flutter_inappwebview CookieManager 逐域兜底；
   /// ④ 全量 [getAllCookies] 兜底：覆盖登录页停在子域 / Path 非 / 等情况。
   /// 读取**不早退**：任一路径拿到即用 [HttpFetcher.syncCookies] 回灌；随后按

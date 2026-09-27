@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/novel/novel_chinese_converter.dart';
 
-/// E2 — 小说繁简转换：短语级最长匹配 + 排除词表。
+/// — 小说繁简转换：短语级最长匹配 + 排除词表。
 ///
 /// 验证逐字转换之外的两个能力：
 /// - **歧义纠偏**：一对多/单向误转词组（乾/後/里/发 等）按正确义项转换。

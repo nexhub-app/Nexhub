@@ -5,7 +5,7 @@
 /// - 详细日志开关（HttpFetcher 打印每个请求 / 响应）
 /// - 清除爬取 Cookie
 /// - 清除 WebView Cookie 与缓存
-/// - 图片磁盘缓存（占用统计 + 一键清理，P3 资源/内存）
+/// - 图片磁盘缓存（占用统计 + 一键清理， 资源/内存）
 /// - 默认 UA（预设 + 自定义）
 library;
 
@@ -66,7 +66,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
         if (mounted) setState(() => _s = s);
       });
     }
-    // 图片磁盘缓存占用（P3 资源/内存）：进入页面异步统计。
+    // 图片磁盘缓存占用（资源/内存）：进入页面异步统计。
     _refreshImageCacheSize();
   }
 
@@ -138,7 +138,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
     }
   }
 
-  // ── 图片磁盘缓存管理（P3 资源/内存）─────────────────────────────
+  // ── 图片磁盘缓存管理（资源/内存）─────────────────────────────
   String _imageCacheSizeText = '';
 
   Future<void> _refreshImageCacheSize() async {

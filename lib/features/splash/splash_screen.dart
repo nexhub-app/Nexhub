@@ -168,7 +168,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final sourceRepo = SourceRepository();
     await sourceRepo.loadBuiltins();
     await sourceRepo.loadImported();
-    // 加载持久化的镜像选择（P8.2.2 §廿二）
+    // 加载持久化的镜像选择
     await ConfigLoader.instance.init();
     // 持久化 Cookie 回填：冷启动后从本地 Hive 读取已验证站点的会话 Cookie，
     // 避免每次冷启动都重新过验证（「反复验证 → 高频请求 → IP 被封」首要根因）。
@@ -313,7 +313,7 @@ class _SplashScreenState extends State<SplashScreen> {
   /// 检测到新版本时：
   /// - 始终缓存到 UpdateManager（About 页可显示）；
   /// - 若用户开启了「自动下载更新」，且满足 WiFi（如需）与应用内下载条件，
-  ///   则静默下载安装包，不打断首次进入应用。
+  /// 则静默下载安装包，不打断首次进入应用。
   Future<void> _autoCheckUpdate() async {
     final settings = await UpdateSettingsStore().load();
     if (!settings.autoCheck) return;

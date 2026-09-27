@@ -1,20 +1,20 @@
-/// 小说阅读进度 WebDAV 云同步服务（/  细粒度增强）。
+/// 小说阅读进度 WebDAV 云同步服务（/ 细粒度增强）。
 ///
 /// 远端存储（两代并存，读取时细粒度优先、整文件兜底迁移）：
 /// - ** 逐书细粒度**：`nexhub/progress/<编码后 novelId>.json`，
-///   一本书一个 JSON 文件；单书 push/pull 只碰自己那一个文件，
-///   阅读器退后台/切章即可低开销同步；
-/// -  整文件：WebDAV 根下的 `nexhub/novel-progress.json`
-///   （novelId → 快照 map，与整包 ZIP 备份并存）。全量 [syncAll] 仍会
-///   维护一份整文件快照，兼容旧版本客户端与首次迁移种子。
+/// 一本书一个 JSON 文件；单书 push/pull 只碰自己那一个文件，
+/// 阅读器退后台/切章即可低开销同步；
+/// - 整文件：WebDAV 根下的 `nexhub/novel-progress.json`
+/// （novelId → 快照 map，与整包 ZIP 备份并存）。全量 [syncAll] 仍会
+/// 维护一份整文件快照，兼容旧版本客户端与首次迁移种子。
 ///
 /// 同步语义（纯函数裁决见 `novel_progress_conflict.dart`）：
 /// - **本地领先**（localWins）→ 直接把本地快照合并进上传集合；
 /// - **云端领先且本地有记录**（remoteWins + 本地非空）→ 列入
-///   [NovelProgressSyncResult.requireConfirmation]，由调用方弹确认框后
-///   经 [applyRemote] 写回本地（防多端回退覆盖）；
+/// [NovelProgressSyncResult.requireConfirmation]，由调用方弹确认框后
+/// 经 [applyRemote] 写回本地（防多端回退覆盖）；
 /// - **云端领先且本地无记录**（remoteWins + 本地为空）→ 自动应用云端
-///   （首次换机/重装的无冲突恢复）；
+/// （首次换机/重装的无冲突恢复）；
 /// - **双维度一致**（equal）→ 两端不动。
 ///
 /// 触发点：阅读器退出 / 退后台静默上传当前书（[pushOne]）、阅读器启动

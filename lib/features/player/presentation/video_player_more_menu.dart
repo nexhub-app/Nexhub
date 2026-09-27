@@ -4,7 +4,7 @@ part of 'video_player_screen.dart';
 ///
 /// 菜单项不再是命令式堆叠的 [ListTile]，而是带显隐谓词的数据描述：
 /// - [requiresCapability]：内核能力要求（`PlayerCapability`），后端不支持时隐藏，
-///   适配多内核 / 平台降级（NoOp、Web 无 mpv 属性能力）；
+/// 适配多内核 / 平台降级（NoOp、Web 无 mpv 属性能力）；
 /// - [visibilityPredicate]：与能力无关的运行时显隐条件（如直链模式无下一集）。
 /// 渲染前统一过滤，交互逻辑（开关 / 下拉 / 弹层）保留在 [builder] 内。
 class _PlayerMenuEntry {
@@ -273,7 +273,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           },
         ),
       ),
-      // #4 A4-#4: 媒体信息（mpv 只读属性查询）
+      // #4 -#4: 媒体信息（mpv 只读属性查询）
       _PlayerMenuEntry(
         requiresCapability: PlayerCapability.propertyQuery,
         builder: (BuildContext ctx) => ListTile(
@@ -297,7 +297,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           },
         ),
       ),
-      // #4 A4-#4: 外部播放
+      // #4 -#4: 外部播放
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
           leading: const Icon(Icons.open_in_new_rounded),
@@ -308,7 +308,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           },
         ),
       ),
-      // #4 A4-#4: 分享（复用 _share）
+      // #4 -#4: 分享（复用 _share）
       _PlayerMenuEntry(
         builder: (BuildContext ctx) => ListTile(
           leading: const Icon(Icons.share_rounded),
@@ -364,7 +364,7 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
           },
         ),
       ),
-      // ──  播放队列（跨作品）──
+      // ── 播放队列（跨作品）──
       _PlayerMenuEntry(
         dividerBefore: true,
         builder: (BuildContext ctx) => ListTile(

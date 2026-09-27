@@ -142,7 +142,7 @@ class PlayerController extends ChangeNotifier {
     _pendingLine = line;
   }
 
- // ─────────────────────── 静音 / 全屏（P8.3.4 §廿四） ───────────────────────
+ // ─────────────────────── 静音 / 全屏 ───────────────────────
 
  /// 是否静音。
   bool _isMuted = false;
@@ -219,7 +219,7 @@ class PlayerController extends ChangeNotifier {
     return now.difference(_lastSeekAt) < seekGracePeriod;
   }
 
- // ─────────────────────── Stall 检测（P4.1.4） ───────────────────────
+ // ─────────────────────── Stall 检测 ───────────────────────
   StreamSubscription<Duration>? _stallPositionSub;
   StreamSubscription<bool>? _stallPlayingSub;
   Timer? _stallCheckTimer;
@@ -407,7 +407,7 @@ class PlayerController extends ChangeNotifier {
   if (url.startsWith('file://')) return url;
   if (url.startsWith('content://')) {
    // 到这一步还拿到 content:// 说明上层 SAF 解析漏了（书架/下载直传），
-   // 绝不能把它交给 media_kit——mpv 读不了 content://，会"瞬间打开成功"
+   // 绝不能把它交给 media_kit——mpv 读不了 content:// 会"瞬间打开成功"
    // 但实际什么都没加载（UI 无限转圈且无任何错误）。直接抛明确错误。
       throw ArgumentError(
     'content:// 不能直接交给 media_kit：请先经 SAF 解析为真实文件',
@@ -1032,7 +1032,7 @@ class PlayerController extends ChangeNotifier {
   // 取消字幕记忆恢复订阅。
     _activeTrackRestoreSub?.cancel();
     _activeTrackRestoreTimer?.cancel();
-  // 退出时始终还原方向与系统 UI（P8.3.4 §廿四）。
+  // 退出时始终还原方向与系统 UI。
   // 无论是否经过全屏切换，进入播放页时 _applyLockOrientation 可能已锁定方向
   // （默认 lockOrientation=landscape），必须在此无条件解除。
     try {

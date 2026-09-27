@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/resolver/image_extractor.dart';
 
-/// Unit tests for ImageExtractor (NexHub V2 spec section 16.2):
+/// Unit tests for ImageExtractor (NexHub spec section 16.2):
 /// lazy-load recovery, ad filtering, format guessing, dedup, abs URL
 /// completion and paged URL extraction.
 void main() {

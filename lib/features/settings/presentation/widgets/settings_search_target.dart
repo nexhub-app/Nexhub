@@ -5,18 +5,18 @@
 ///
 /// 用法：
 /// 1. 各设置页把每个有意义的可设置项包一个 `ValueKey<String>(id)`，
-///    id 在全应用内唯一（推荐命名空间：`appearance.colors`、`playback.danmaku`）。
+/// id 在全应用内唯一（推荐命名空间：`appearance.colors`、`playback.danmaku`）。
 /// 2. 把页面 body 用 [SettingsAutoScroll] 包裹（替换原 ListView 外层）。
 /// 3. 搜索注册表中的 [SettingEntry.scrollKeyId] 设成目标 id；搜索结果
-///    跳转前调用 [requestSettingsScroll]，目标页 initState 后自动滚到该 Key。
+/// 跳转前调用 [requestSettingsScroll]，目标页 initState 后自动滚到该 Key。
 ///
 /// 实现要点：
 /// - 用全局变量 [pendingSettingsScrollKeyId] 暂存 id（避免给每个屏加构造参数）。
 /// - [SettingsAutoScroll] 在首帧后查找子树里匹配的 [ValueKey]，未命中则
-///   扫掠整个滚动范围的多个锚点强制构建懒列表的全部子项后重试。扫掠期间列表
-///   仅布局、不绘制（[Offstage]），因此用户看不到跳变。
+/// 扫掠整个滚动范围的多个锚点强制构建懒列表的全部子项后重试。扫掠期间列表
+/// 仅布局、不绘制（[Offstage]），因此用户看不到跳变。
 /// - 命中后改用 viewport 直接算偏移把目标顶对齐，并以弹性曲线平滑滑入视口，
-///   到站后再给目标项叠加一次柔和的高亮脉冲，引导视线、增强「灵动感」。
+/// 到站后再给目标项叠加一次柔和的高亮脉冲，引导视线、增强「灵动感」。
 /// - 页面 body 用 `ListView` 或 `SingleChildScrollView` 均可，无需改造。
 library;
 

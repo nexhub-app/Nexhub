@@ -20,7 +20,7 @@ class JsEngine {
     return _runtime!;
   }
 
-  /// 注入全局预置脚本（E5）：书源 JS 内可直接调用 `t2s(str)` / `s2t(str)`
+  /// 注入全局预置脚本：书源 JS 内可直接调用 `t2s(str)` / `s2t(str)`
   /// 做繁简转换（短语级最长匹配 + 字符级回退，与阅读器正文转换同表同语义）。
   /// QuickJS 同一运行时的全局声明跨 eval 持久，注入一次即可。
   void _injectPrelude() {
@@ -41,7 +41,7 @@ class JsEngine {
   ///
   /// 返回值规整（对齐书源脚本语义）：
   /// - 脚本异常 / 返回 `undefined` / `null` → 空串（书源表达式里无意义，
-  ///   避免 URL 等场景出现字面量 "null"）；
+  /// 避免 URL 等场景出现字面量 "null"）；
   /// - QuickJS 把整数表达式返回为 double（`19.0`）时去掉小数位；
   /// - 其余按字符串原样返回。
   ///

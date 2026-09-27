@@ -1,4 +1,4 @@
-/// 本地书文件名书名/作者自动解析自测（D8）：
+/// 本地书文件名书名/作者自动解析自测：
 /// 四种命名模式命中、扩展名截断、清洗规则、未命中回退。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/local/local_novel_parser.dart';

@@ -26,7 +26,7 @@ import '../utils/app_log.dart';
 /// 回调在 handler 收到系统媒体控件指令时被调用（通知栏按钮 / 锁屏 / 耳机线控 /
 /// 蓝牙）。所有回调由播放页提供，本层不感知 PlayerController。
 ///
-/// X-5：TTS 朗读等「无进度」会话可传 null 的 [positionStream] / [durationStream]
+/// TTS 朗读等「无进度」会话可传 null 的 [positionStream] / [durationStream]
 /// （通知栏不显示进度条，仅标题 + 播放/暂停/上一句/下一句控件）。
 class AudioPlaybackSession {
   const AudioPlaybackSession({
@@ -94,7 +94,7 @@ class _PlaybackHandler extends BaseAudioHandler with SeekHandler {
     ));
     // 初始 playing 态未知，先按暂停图标出通知（流首事件很快纠正）。
     _pushState(playing: false, position: Duration.zero);
-    // X-5：duration/position 流可为 null（TTS 无进度），此时不订阅进度推送。
+    // duration/position 流可为 null（TTS 无进度），此时不订阅进度推送。
     final Stream<Duration>? durationStream = session.durationStream;
     if (durationStream != null) {
       _durationSub = durationStream.listen((d) {

@@ -1,13 +1,13 @@
-/// 在线 HTTP TTS 引擎（/ C3-C7）。
+/// 在线 HTTP TTS 引擎。
 ///
 /// 职责（与播放解耦，核心逻辑可单测）：
 /// - **模板渲染**：[renderUrl] 把 `{text}` / `{voice}` / `{rate}` 占位符
-///   替换为实际值（文本 URL 编码防止非法字符破坏端点语义）；
+/// 替换为实际值（文本 URL 编码防止非法字符破坏端点语义）；
 /// - **预下载队列**：[HttpTtsPreloader] 用 Dio GET 音频字节，
-///   Semaphore 并发上限 1-8（[NovelHttpTtsConfig.concurrency]）；
+/// Semaphore 并发上限 1-8（[NovelHttpTtsConfig.concurrency]）；
 /// - **失败降级**：连续失败达 [NovelHttpTtsConfig.maxConsecutiveFailures]
-///   时返回失败标记停止本轮（C6）；单句失败可配置「静音占位」跳过继续
-///   （C7），返回 null 表示该句无音频（调用方以静默跳过占位）。
+/// 时返回失败标记停止本轮；单句失败可配置「静音占位」跳过继续
+/// 返回 null 表示该句无音频（调用方以静默跳过占位）。
 ///
 /// 播放层不在本引擎内：引擎产出「可播放音频 URL / 字节」，由 TTS 控制器
 /// 决定用 media_kit 还是其它播放器顺序播放。
@@ -37,7 +37,7 @@ class TtsSynthesisResult {
 /// 语义：
 /// - 并发上限 = [config.concurrency]（Semaphore，1-8）；
 /// - 任一句失败 → 按配置降级：静音占位（跳过继续）/ 立即停止；
-/// - 连续失败 ≥ [config.maxConsecutiveFailures] → 停止本轮（C6）。
+/// - 连续失败 ≥ [config.maxConsecutiveFailures] → 停止本轮。
 class HttpTtsPreloader {
   HttpTtsPreloader({
     required this.config,

@@ -4,12 +4,12 @@
 /// 内部存储（原实现写 `getApplicationDocumentsDirectory/reader_images`，
 /// Android 上落在 `/data/user/0/<pkg>/`，用户在相册里根本找不到）：
 /// - Android 10+（API 29+，分区存储）：经 MethodChannel 走 MediaStore 写入
-///   公共相册 `Pictures/NexHub`，无需任何存储权限；
+/// 公共相册 `Pictures/NexHub`，无需任何存储权限；
 /// - Android 9-（API 24-28）：先经 permission_handler 运行时申请
-///   WRITE_EXTERNAL_STORAGE（manifest 已按 maxSdkVersion=28 声明），再由原生
-///   直写公共 `Pictures/NexHub` 并触发媒体扫描；
+/// WRITE_EXTERNAL_STORAGE（manifest 已按 maxSdkVersion=28 声明），再由原生
+/// 直写公共 `Pictures/NexHub` 并触发媒体扫描；
 /// - 桌面（Windows/macOS/Linux）：系统「下载」目录（`getDownloadsDirectory`，
-///   不可用时回退应用文档目录）；
+/// 不可用时回退应用文档目录）；
 /// - iOS / Web：维持旧行为——应用文档目录（iOS 相册授权流程不在此展开）。
 library;
 

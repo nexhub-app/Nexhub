@@ -92,7 +92,7 @@ List<Episode> buildLocalChapterList(List<String> paths) {
 /// 路由规则（与浏览本地 [BrowseLocalScreen._openFile] 保持一致）：
 /// - PDF → 漫画阅读器（逐页渲染成图）。
 /// - 漫画图片（文件夹散图 / 单图 / .cbz/.cbr/.cbt/.zip/.rar/.7z/.cb7）→ 漫画阅读器
-///   （多格式解压，[extractArchiveImages] 支持 RAR 系与 7z）；目录走 [LocalMediaViewer]。
+/// （多格式解压，[extractArchiveImages] 支持 RAR 系与 7z）；目录走 [LocalMediaViewer]。
 /// - 小说 .txt → 小说阅读器；.epub → 小说阅读器（解析章节）；其余文本格式走通用查看器。
 /// - 其它 → 通用 [LocalMediaViewer]。
 Future<void> openLocalEntry(BuildContext context, LocalContentEntry e) async {
@@ -348,8 +348,8 @@ Future<void> openDownloadedWorkFolder(
 
   // 无聚合文件（扫描失败 / 空目录 / 单文件导入）：
   // - SAF 作品文件夹：先尝试收集「纯散图」（无归档/其它文件时整目录交给阅读器，
-  //   与真实路径 openLocalEntry → gatherLocalComicImages 行为一致）；仍无内容
-  //   才提示。绝不把文件夹当文件去 resolveSafUri（会报"该路径是一个文件夹"）。
+  // 与真实路径 openLocalEntry → gatherLocalComicImages 行为一致）；仍无内容
+  // 才提示。绝不把文件夹当文件去 resolveSafUri（会报"该路径是一个文件夹"）。
   // - 真实路径：保留原 openLocalEntry 单文件/散图回退（兼容单文件导入）。
   if (!isAndroidSafUri(workDir)) {
     await openLocalEntry(

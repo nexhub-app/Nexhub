@@ -1,8 +1,8 @@
-/// 小说导出自定义模板（F4：fonts.css / 封面 / 简介）。
+/// 小说导出自定义模板（fonts.css / 封面 / 简介）。
 ///
 /// 全局生效的 EPUB 导出模板配置：
 /// - [customCss]：注入 `OEBPS/style.css` 并在每章 XHTML `<head>` 引用，
-///   用户可自定义正文字体族（fonts.css 场景）、行距、页边距等；
+/// 用户可自定义正文字体族（fonts.css 场景）、行距、页边距等；
 /// - [intro]：书籍简介页内容，支持 `{book}` / `{author}` 占位符；
 /// - [includeCover]：把网络封面嵌入 EPUB 并生成书首封面页；
 /// - [includeIntro]：在封面后追加简介页。

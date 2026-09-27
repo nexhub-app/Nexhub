@@ -14,7 +14,7 @@ import 'reader_tap_zones.dart';
 /// 直接嵌入阅读界面（桌面端右侧 / 移动端底部）。
 ///
 /// [onClose] 为关闭图标回调（内联场景用它关闭面板）。
-/// [sleepTimer] / [onSleepTimerChanged]：会话级睡眠定时（X-1 跨类型对齐，
+/// [sleepTimer] / [onSleepTimerChanged]：会话级睡眠定时（跨类型对齐，
 /// 非偏好字段，由阅读器持有 Timer 生命周期，面板仅做选择交互）。
 Widget buildComicSettingsSheet({
   required ReaderPreferences initial,
@@ -175,26 +175,26 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         return l10n.readerZoomFitHeight;
       case 'readerZoomOriginal':
         return l10n.readerZoomOriginal;
-      // zoom anchor (REQ-B11)
+      // zoom anchor ()
       case 'readerZoomStartLeft':
         return l10n.readerZoomStartLeft;
       case 'readerZoomStartCenter':
         return l10n.readerZoomStartCenter;
       case 'readerZoomStartRight':
         return l10n.readerZoomStartRight;
-      // long-press zoom anchor (REQ-B2)
+      // long-press zoom anchor ()
       case 'readerLongPressAtPress':
         return l10n.readerLongPressAtPress;
       case 'readerLongPressAtCenter':
         return l10n.readerLongPressAtCenter;
-      // page animation (REQ-B7)
+      // page animation ()
       case 'readerPageAnimNone':
         return l10n.readerPageAnimNone;
       case 'readerPageAnimSlide':
         return l10n.readerPageAnimSlide;
       case 'readerPageAnimFade':
         return l10n.readerPageAnimFade;
-      // clock/battery position (REQ-C5)
+      // clock/battery position ()
       case 'readerClockPosTopLeft':
         return l10n.readerClockPosTopLeft;
       case 'readerClockPosTopRight':
@@ -348,7 +348,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  /// 缩放锚点（REQ-B11）：双击 / 长按缩放的锚点来源。
+  /// 缩放锚点：双击 / 长按缩放的锚点来源。
   Widget _buildZoomStart() {
     return Wrap(
       spacing: AppTokens.spaceSm,
@@ -363,7 +363,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  /// 长按缩放锚点（REQ-B2）：按触点 / 按屏幕中心。
+  /// 长按缩放锚点：按触点 / 按屏幕中心。
   Widget _buildLongPressZoomPosition() {
     return Wrap(
       spacing: AppTokens.spaceSm,
@@ -378,7 +378,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  /// 翻页过渡动画（REQ-B7）：无动画 / 滑入 / 淡入淡出。
+  /// 翻页过渡动画：无动画 / 滑入 / 淡入淡出。
   Widget _buildPageAnimation() {
     return Wrap(
       spacing: AppTokens.spaceSm,
@@ -393,7 +393,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  /// 自动翻页（REQ-B9）：开关 + 间隔滑块（仅 paged 模式有意义，条漫自动滚动走
+  /// 自动翻页：开关 + 间隔滑块（仅 paged 模式有意义，条漫自动滚动走
   /// [_buildAutoScroll]）。
   Widget _buildAutoPageTurning() {
     final l10n = AppLocalizations.of(context);
@@ -424,7 +424,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  /// 音量键翻页（REQ-B8，仅 Android）：开关 + 条漫滚动距离滑块。
+  /// 音量键翻页（仅 Android）：开关 + 条漫滚动距离滑块。
   Widget _buildVolumeKey() {
     final l10n = AppLocalizations.of(context);
     return Column(
@@ -447,8 +447,8 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  /// 睡眠定时（X-1 跨类型对齐）：按分钟 / 按话数。会话级状态，由阅读器持有
-  /// Timer 生命周期，此处只做选择交互（播放器  picker 同构）。
+  /// 睡眠定时（跨类型对齐）：按分钟 / 按话数。会话级状态，由阅读器持有
+  /// Timer 生命周期，此处只做选择交互（播放器 picker 同构）。
   Widget _buildSleepTimer() {
     final l10n = AppLocalizations.of(context);
     final ComicSleepTimerState? st = widget.sleepTimer;
@@ -595,7 +595,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  /// 时间/电量浮层（REQ-C5）。
+  /// 时间/电量浮层。
   Widget _buildClockBattery() {
     final l10n = AppLocalizations.of(context);
     return Column(
@@ -652,7 +652,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  /// 多图/间距（REQ-C4 / REQ-C13 / REQ-C14）。
+  /// 多图/间距（/ /）。
   Widget _buildMultiImageSpacing() {
     final l10n = AppLocalizations.of(context);
     return Column(
@@ -692,7 +692,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  /// 自动滚动（REQ-B10，条漫）：开关 + 滚动速度倍率滑块。
+  /// 自动滚动（条漫）：开关 + 滚动速度倍率滑块。
   Widget _buildAutoScroll() {
     final l10n = AppLocalizations.of(context);
     return Column(
@@ -943,10 +943,10 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                           (v) => _update(_draft.copyWith(doubleTapZoom: v))),
                       _section(
                           context, l10n.readerInitialZoom, _buildInitialZoom()),
-                      // 缩放锚点（REQ-B11）
+                      // 缩放锚点
                       _section(
                           context, l10n.readerZoomStart, _buildZoomStart()),
-                      // 长按缩放（REQ-B2）：开启时显示锚点选择
+                      // 长按缩放：开启时显示锚点选择
                       _switchTile(
                           l10n.readerLongPressZoom,
                           _draft.enableLongPressToZoom,
@@ -955,10 +955,10 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       if (_draft.enableLongPressToZoom)
                         _section(context, l10n.readerLongPressZoomPosition,
                             _buildLongPressZoomPosition()),
-                      // 翻页过渡动画（REQ-B7）
+                      // 翻页过渡动画
                       _section(context, l10n.readerPageAnimation,
                           _buildPageAnimation()),
-                      // 双击缩放动画时长（REQ-B7）
+                      // 双击缩放动画时长
                       Padding(
                         padding:
                             const EdgeInsets.only(bottom: AppTokens.spaceMd),
@@ -973,7 +973,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                               _draft.copyWith(doubleTapAnimSpeed: v.round())),
                         ),
                       ),
-                      // 音量键翻页（REQ-B8，仅 Android）
+                      // 音量键翻页（仅 Android）
                       if (_showVolumeKey) _buildVolumeKey(),
                     ],
                   ),
@@ -1011,7 +1011,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       // 色彩配置（ICC 校色近似）：矩阵预设
                       _section(context, l10n.readerColorProfile,
                           _buildColorProfile()),
-                      // 阅读亮度（REQ-C3）：独立于滤镜，控制系统亮度/黑色遮罩。
+                      // 阅读亮度：独立于滤镜，控制系统亮度/黑色遮罩。
                       Padding(
                         padding:
                             const EdgeInsets.only(bottom: AppTokens.spaceMd),
@@ -1027,7 +1027,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                               _update(_draft.copyWith(readerBrightness: v)),
                         ),
                       ),
-                      // 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于阅读亮度。
+                      // 夜览暖色盖层（亮度双轨扩展）：独立于阅读亮度。
                       _switchTile(
                           l10n.readerNightLight,
                           _draft.nightLightEnabled,
@@ -1142,7 +1142,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                         }
                         _update(next);
                       }),
-                      // 首屏单图（REQ-C13）：双页模式第一章首页单独显示，其后恢复双页。
+                      // 首屏单图：双页模式第一章首页单独显示，其后恢复双页。
                       _switchTile(
                           l10n.readerShowSingleImageOnFirstPage,
                           _draft.showSingleImageOnFirstPage,
@@ -1184,16 +1184,16 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                           _draft.showChapterSeparator,
                           (v) => _update(
                               _draft.copyWith(showChapterSeparator: v))),
-                      // 条漫解码限幅（P3 资源/内存）：连续模式解码位图下采样，
+                      // 条漫解码限幅（资源/内存）：连续模式解码位图下采样，
                       // 限制长条漫原图的全尺寸解码内存。
                       _switchTile(
                           l10n.readerWebtoonDecodeLimit,
                           _draft.webtoonLimitDecodeSize,
                           (v) => _update(
                               _draft.copyWith(webtoonLimitDecodeSize: v))),
-                      // 自动翻页（REQ-B9，paged）：开关 + 间隔。
+                      // 自动翻页（paged）：开关 + 间隔。
                       _buildAutoPageTurning(),
-                      // 自动滚动（REQ-B10，条漫）：开关 + 滚动速度。
+                      // 自动滚动（条漫）：开关 + 滚动速度。
                       _buildAutoScroll(),
                       // 漫画翻译：开启后对当前页 OCR+翻译并以气泡覆盖层显示。
                       _switchTile(
@@ -1201,7 +1201,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                           _draft.translationEnabled,
                           (v) =>
                               _update(_draft.copyWith(translationEnabled: v))),
-                      // F7 排版回填：译文以描边文字回填气泡内（自适应字号）。
+                      // 排版回填：译文以描边文字回填气泡内（自适应字号）。
                       _switchTile(
                         l10n.comicTranslateBackfillLabel,
                         _draft.translationBackfill,
@@ -1211,7 +1211,7 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                     ],
                   ),
 
-                  // ── 睡眠定时（X-1）────────────────────────────
+                  // ── 睡眠定时────────────────────────────
                   _buildSettingsGroup(
                     context,
                     l10n.readerSleepTimer,

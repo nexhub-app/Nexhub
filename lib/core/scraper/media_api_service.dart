@@ -1,6 +1,6 @@
 /// 媒体 API 服务（Facade）。
 ///
-/// 仅委托 [ResolverRegistry]，不再包含任何站点特定逻辑（spec：移除 _decryptGugu3Url 等）。
+/// 仅委托 [ResolverRegistry]，不再包含任何站点特定逻辑。
 /// 站点解析能力全部下沉到 Builtin/Script/WebView Resolver 或源内嵌脚本。
 library;
 
@@ -39,10 +39,10 @@ class MediaApiService {
   }) async {
     // 通用路由覆盖钩子（共创式）：调用方可在 `vars` 里放特殊键 `__route`，
     // 覆盖按 category 推断出的 [apiName]。用途：
-    //   1. 动态筛选：某筛选分组声明了独立路由（如 baozimh 的 `tagSearch`），
-    //      选中标签后需切到该路由而非默认 `category`；
-    //   2. 首页多板块：某板块声明 `route`（如 `latest` / `rank` / `explore`），
-    //      让首页各榜单各自走对应路由。
+    // 1. 动态筛选：某筛选分组声明了独立路由（如某源的 `tagSearch`），
+    // 选中标签后需切到该路由而非默认 `category`；
+    // 2. 首页多板块：某板块声明 `route`（如 `latest` / `rank` / `explore`），
+    // 让首页各榜单各自走对应路由。
     // 该键只是「传输约定」，替换 apiName 后即从 vars 剔除，绝不透传给源 URL，
     // 因此对既有源零影响，也无需任何站点特定逻辑。
     var effectiveApi = apiName;
@@ -58,7 +58,7 @@ class MediaApiService {
     }
     // 渲染后抽取回灌：WebView 取回的渲染 HTML 复用源选择器或脚本解析，
     // 不再重新触发 WebViewResolver（否则会无限循环渲染、列表永远为空）。
-    // hybrid + script override 源（如 manga_baozimh）需要把 HTML 喂给脚本
+    // hybrid + script override 源（如某示例源）需要把 HTML 喂给脚本
     // 而不是按 selectors 解析；其余声明式源沿用 BuiltinResolver。
     if (renderedHtml != null && renderedHtml.isNotEmpty) {
       // 记录渲染来源 URL，使 WebViewHtmlCache 按「源+路由+URL」维度缓存，
@@ -134,10 +134,10 @@ class MediaApiService {
   ///
   /// 综合策略：
   /// 1. 静态分类：当源在 `category.categoryEntries` 声明了静态分类列表时，
-  ///    直接返回该列表（适用于无 MacCMS API 的 HTML/JSON 爬虫源）；
+  /// 直接返回该列表（适用于无 MacCMS API 的 HTML/JSON 爬虫源）；
   /// 2. MacCMS 采集 API 动态分类：当源声明 `category.dynamicCategories` 且存在
-  ///    `ac=list`/`ac=videolist` 风格路由时，取回该路由 JSON 的 `class` 数组，
-  ///    交由 [CollectApiParser.parseCategories] 解析为 [CategoryEntry] 列表；
+  /// `ac=list`/`ac=videolist` 风格路由时，取回该路由 JSON 的 `class` 数组，
+  /// 交由 [CollectApiParser.parseCategories] 解析为 [CategoryEntry] 列表；
   /// 3. 其余情况返回空列表（分类栏随之隐藏）。
   ///
   /// 说明：解析器契约 [SourceResolver.resolve] 只返回结构化业务对象（如
@@ -146,10 +146,10 @@ class MediaApiService {
   /// 不含任何站点特定逻辑。
   Future<List<CategoryEntry>> fetchCategories(PluginConfig source) async {
     // 0. 书源（通用书源格式 / shuyuan）：分类声明在 selectors['xiaoshuo'].exploreUrl，
-    //    形如「玄幻小说::https://...\n修真小说::https://...」、JSON 数组或
-    //    `<js>` 动态生成。优先经书源引擎（registry 注入）完整解析——静态正则
-    //    解析会跳过含 `<js>` 的 exploreUrl，导致这类源没有任何分类 Tab；
-    //    引擎不可用或解析为空时回退静态解析。
+    // 形如「玄幻小说::https://...\n修真小说::https://...」、JSON 数组或
+    // `<js>` 动态生成。优先经书源引擎（registry 注入）完整解析——静态正则
+    // 解析会跳过含 `<js>` 的 exploreUrl，导致这类源没有任何分类 Tab；
+    // 引擎不可用或解析为空时回退静态解析。
     final xiaoshuo = source.selectors?['xiaoshuo'];
     if (xiaoshuo is Map) {
       final engineEntries =
@@ -162,7 +162,7 @@ class MediaApiService {
       }
     }
 
-    // 1. 声明式静态分类：selectors.category.categories（如 goda 漫画）。
+    // 1. 声明式静态分类：selectors.category.categories（如某漫画源）。
     final selCat = source.selectors?['category'];
     if (selCat is Map<String, dynamic>) {
       final cats = selCat['categories'];
@@ -179,7 +179,7 @@ class MediaApiService {
       }
 
       // 2. 声明式 MacCMS 动态分类：selectors.category.dynamicCategories
-      //    （如 hhzyapi 动漫），走既有采集 API 动态分类路径。
+      // （如 hhzyapi 动漫），走既有采集 API 动态分类路径。
       final dyn = selCat['dynamicCategories'];
       final dynamicCategories = dyn is bool
           ? dyn
@@ -213,7 +213,7 @@ class MediaApiService {
   ///
   /// - 源声明了 `homeSections` → 原样返回（顺序即竖向堆叠顺序）。
   /// - 未声明 → 回退单块「最新更新」（有 latest 路由用 latest，否则 explore），
-  ///   与旧版首页行为一致，保证既有源零改动仍可用。
+  /// 与旧版首页行为一致，保证既有源零改动仍可用。
   ///
   /// 说明：板块的实际内容抓取仍由调用方（UI）复用 [fetchApiResults] 完成，
   /// 以复用其 WebView 验证 / 渲染回灌流程；此处只负责解析板块配置，不发网络。
@@ -288,9 +288,9 @@ class MediaApiService {
   ///
   /// - 源声明了 `filters.groups` → 原样返回。
   /// - 未声明 → 从「标签」自动兜底生成筛选分组（**不含分类组**，
-  ///   因为分类已作为 Tab 栏显示，筛选项再重复就多余了）：
-  ///   1. 标签组：仅当源含 `tagSearch` 路由且 `selectors.category.tags` 非空时生成，
-  ///      param 从 tagSearch 路由占位符推断（缺省 `keyword`）。
+  /// 因为分类已作为 Tab 栏显示，筛选项再重复就多余了）：
+  /// 1. 标签组：仅当源含 `tagSearch` 路由且 `selectors.category.tags` 非空时生成，
+  /// param 从 tagSearch 路由占位符推断（缺省 `keyword`）。
   ///
   /// 兜底分组 `title` 留空，由 UI 按 `id` 映射到 l10n 文案（避免 Dart 硬编码中文）。
   Future<List<FilterGroupConfig>> resolveFilterGroups(
@@ -324,8 +324,8 @@ class MediaApiService {
         final label = (t['name'] ?? t['title'] ?? '').toString();
         if (label.isEmpty) continue;
         // 标签筛选的 value 必须用站点真实 slug（注入 tagSearch 路由的 {keyword}），
-        // 例如 goda 的「古风」真实 slug 是 "gufeng"（无连字符），而非 "gu-feng"；
-        // 带连字符或中文名的地址在 goda 上返回空壳，导致「筛选解析不到内容/不准确」。
+        // 例如某源「古风」真实 slug 是 "gufeng"（无连字符），而非 "gu-feng"；
+        // 带连字符或中文名的地址在某些源上返回空壳，导致「筛选解析不到内容/不准确」。
         // label 用中文显示名，保证面板上看到的是人话。
         final id = (t['id'] ?? '').toString();
         final value = id.isNotEmpty ? id : label;
@@ -594,7 +594,7 @@ class MediaApiService {
     required String chapterId,
     String? renderedHtml,
   }) async {
-    // 章节 id 通常为 "mid@cid" 形式（goda/baozimh 等），从中提取数值型 mid/cid；
+    // 章节 id 通常为 "mid@cid" 形式（部分源），从中提取数值型 mid/cid；
     // 同时保留原始 chapterId 供源脚本按需回退使用。
     String mid = comicId;
     String cid = chapterId;
@@ -713,7 +713,7 @@ class MediaApiService {
     return const [];
   }
 
-  /// 判断源对指定 API 是否为 hybrid + script override（如 manga_baozimh）。
+  /// 判断源对指定 API 是否为 hybrid + script override（如某示例源）。
   ///
   /// 此类源的脚本期望把渲染后 HTML 作为 `raw` 参数传入（替代脚本内
   /// `ctx.http.get(url)` 抓未渲染 HTML 的路径），因此回灌 renderedHtml 时
@@ -728,9 +728,9 @@ class MediaApiService {
   /// 渲染后 HTML 回灌分流：按源类型选择 resolver。
   ///
   /// - hybrid + script override → [ScriptResolver.resolveFromHtml]
-  ///   （把 HTML 作为 `raw` 喂给脚本入口）。
+  /// （把 HTML 作为 `raw` 喂给脚本入口）。
   /// - 其余（builtin/xpath/jsonpath/css 等）→ [BuiltinResolver.resolveFromHtml]
-  ///   （按 selectors 解析）。
+  /// （按 selectors 解析）。
   ///
   /// 不再触发 `WebViewResolver` 或 `ScriptResolver.resolve`，避免回灌循环。
   Future<dynamic> _resolveFromRenderedHtml(
@@ -753,13 +753,12 @@ class MediaApiService {
     }
     // 回灌分流：
     // - hybrid + script override → [ScriptResolver.resolveFromHtml]（把渲染后
-    //   HTML 作为 `raw` 喂给脚本入口）；
-    // - 顶层 `parser.type == 'script'`（非 hybrid，如 pms_cycani / pms_gugu3
-    //   等动漫脚本源）同样必须走脚本解析：这类源 useWebview 触发 WebView 取回
-    //   渲染 HTML 后，若误路由到 [BuiltinResolver]，会因脚本源无可用 selectors
-    //   而解析为空列表（「媒体解析不到内容」的根因之一）。故此处一并覆盖。
+    // HTML 作为 `raw` 喂给脚本入口）；
+    // - 顶层 `parser.type == 'script'`（非 hybrid 的动漫脚本源）同样必须走脚本解析：这类源 useWebview 触发 WebView 取回
+    // 渲染 HTML 后，若误路由到 [BuiltinResolver]，会因脚本源无可用 selectors
+    // 而解析为空列表（「媒体解析不到内容」的根因之一）。故此处一并覆盖。
     // - 其余（builtin/xpath/jsonpath/css 等声明式源）→ [BuiltinResolver
-    //   .resolveFromHtml] 按 selectors 解析渲染后 HTML。
+    // .resolveFromHtml] 按 selectors 解析渲染后 HTML。
     final useScript =
         source.parser.type == 'script' || _isHybridScriptSource(source, apiName);
     if (useScript) {

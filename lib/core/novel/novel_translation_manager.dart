@@ -1,8 +1,8 @@
-/// 小说段落翻译缓存管理器（O3 / F5）。
+/// 小说段落翻译缓存管理器。
 ///
 /// 按 书 + 章 + 目标语言 缓存整章译文（与原始文本块索引对齐的字符串列表）
 /// 到 Hive box `novel_translations`。阅读器双语面板读取展示；导出层
-/// （[F5] 翻译缓存随导出附带）按书枚举生成附录。
+/// （翻译缓存随导出附带）按书枚举生成附录。
 library;
 
 import 'dart:async';
@@ -23,7 +23,7 @@ class NovelChapterTranslation {
   /// 与章节文本块索引对齐的译文列表。
   final List<String> translations;
 
-  /// 与 [translations] 对齐的原文列表（F5/F10：润色对照、审查证据、
+  /// 与 [translations] 对齐的原文列表（润色对照、审查证据、
   /// 双语导出用；旧缓存无此字段为 null，导出按「译文优先」降级）。
   final List<String>? sources;
   final int updatedAt;
@@ -71,7 +71,7 @@ class NovelTranslationManager extends ChangeNotifier {
   static const String boxName = 'novel_translations';
   static const String defaultLang = 'zh';
 
-  /// 缓存条数上限（B5）：save 后惰性裁剪，按 updatedAt 升序淘汰最旧条目。
+  /// 缓存条数上限：save 后惰性裁剪，按 updatedAt 升序淘汰最旧条目。
   static const int defaultMaxEntries = 5000;
 
   Box<dynamic>? _box;
@@ -95,7 +95,7 @@ class NovelTranslationManager extends ChangeNotifier {
           {String lang = defaultLang}) =>
       '$novelId|$chapterId|$lang';
 
-  // ── F4 断点续译：分块检查点 ──
+  // ── 断点续译：分块检查点 ──
 
   /// 检查点键后缀（与正式缓存同 box，避免导出/展示把半成品当完整章节）。
   static const String checkpointSuffix = '|checkpoint';
@@ -148,7 +148,7 @@ class NovelTranslationManager extends ChangeNotifier {
     return box.containsKey(checkpointKeyFor(novelId, chapterId, lang: lang));
   }
 
-  // ── F5 多阶段质量：润色独立槽位 ──
+  // ── 多阶段质量：润色独立槽位 ──
 
   /// 润色结果键前缀（独立于初译缓存；重译章节后旧润色结果失效删除）。
   static const String polishedSuffix = '|polished';
@@ -187,7 +187,7 @@ class NovelTranslationManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 枚举有章节译文的全部作品（去重），供翻译审查入口（F5）。
+  /// 枚举有章节译文的全部作品（去重），供翻译审查入口。
   Future<List<String>> listNovelIds() async {
     final box = await _ensureBox();
     final ids = <String>{};
@@ -216,7 +216,7 @@ class NovelTranslationManager extends ChangeNotifier {
     final box = await _ensureBox();
     await box.put(keyFor(t.novelId, t.chapterId, lang: t.lang),
         jsonEncode(t.toJson()));
-    // B5：保存后惰性裁剪，防止长期使用磁盘无限膨胀。
+    // 保存后惰性裁剪，防止长期使用磁盘无限膨胀。
     unawaited(trimToLimit(defaultMaxEntries));
     notifyListeners();
   }
@@ -241,9 +241,9 @@ class NovelTranslationManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 枚举某本书全部有译文的章节（按更新时间倒序），供导出附带（F5）。
+  /// 枚举某本书全部有译文的章节（按更新时间倒序），供导出附带。
   ///
-  /// F4 检查点键（`…|checkpoint` / `…|tmp`）不属于完整章节译文，跳过。
+  /// 检查点键（`…|checkpoint` / `…|tmp`）不属于完整章节译文，跳过。
   Future<List<NovelChapterTranslation>> listForNovel(String novelId,
       {String lang = defaultLang}) async {
     final box = await _ensureBox();
@@ -271,10 +271,10 @@ class NovelTranslationManager extends ChangeNotifier {
     return result;
   }
 
-  /// 当前缓存条数（B5，设置页展示用；box 未打开返回 0）。
+  /// 当前缓存条数（设置页展示用；box 未打开返回 0）。
   int count() => Hive.isBoxOpen(boxName) ? Hive.box(boxName).length : 0;
 
-  /// 容量裁剪（B5）：按 updatedAt 升序淘汰超出 [maxEntries] 的最旧条目。
+  /// 容量裁剪：按 updatedAt 升序淘汰超出 [maxEntries] 的最旧条目。
   /// 无时间戳的记录按 0 处理（最先淘汰）。返回删除条数。
   Future<int> trimToLimit(int maxEntries) async {
     if (maxEntries <= 0) return 0;
@@ -303,7 +303,7 @@ class NovelTranslationManager extends ChangeNotifier {
     return victims.length;
   }
 
-  /// 清空全部缓存（B5 设置页「清除翻译缓存」入口）。返回删除条数。
+  /// 清空全部缓存（设置页「清除翻译缓存」入口）。返回删除条数。
   Future<int> clearAll() async {
     final box = await _ensureBox();
     final n = box.length;

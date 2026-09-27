@@ -25,7 +25,7 @@ void main() {
     await dir.delete(recursive: true);
   });
 
-  test('添加 / 列出 / 判断书签（REQ-C1）', () async {
+  test('添加 / 列出 / 判断书签', () async {
     final bm = ComicBookmark(
       comicId: 'c1',
       chapterIndex: 3,
@@ -42,7 +42,7 @@ void main() {
     expect(await manager.listFor('other'), isEmpty);
   });
 
-  test('按章节删除与 toggle（REQ-C1）', () async {
+  test('按章节删除与 toggle', () async {
     expect(await manager.toggleChapter('c1', 2,
         chapterId: 'ch2', chapterTitle: '第2话'), true);
     expect(await manager.hasBookmark('c1', 2), true);

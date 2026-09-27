@@ -1,4 +1,4 @@
-/// 翻译链路统一异常：message 为用户可读文案（B7 错误归一化）。
+/// 翻译链路统一异常：message 为用户可读文案（错误归一化）。
 ///
 /// 三个翻译模块（小说段落 / 漫画页 / 视频字幕）的 catch 处统一经
 /// [TranslationException.from] 归一化——底层 DioException / Timeout 的
@@ -13,7 +13,7 @@ class TranslationException implements Exception {
   /// 用户可读文案。
   final String message;
 
-  /// 错误类别（F9 失败路由：仅 connection/timeout/rateLimit 触发端点切换）。
+  /// 错误类别（失败路由：仅 connection/timeout/rateLimit 触发端点切换）。
   final TranslationKind kind;
 
   @override

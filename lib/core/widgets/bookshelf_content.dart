@@ -1,4 +1,4 @@
-/// 书架内容组件（文档 §10.2 书架 Tab）。
+/// 书架内容组件（文档 书架 Tab）。
 ///
 /// 在 LibraryShell 的 library 顶部 Tab 下渲染，
 /// 根据 sub-tab（本地 / 历史 / 收藏）显示不同数据源：
@@ -106,11 +106,11 @@ class BookshelfContent extends StatelessWidget {
   /// Returns the distinct categories present in the given sub-tab's data.
   ///
   /// - local: actual file extensions present (mp4/mkv/ts、cbz/zip/7z、pdf、
-  ///   txt/epub、m3u8……), derived from downloaded tasks and imported items.
-  ///   Coarse labels like `video` are never shown — the label comes from the
-  ///   real product extension.
+  /// txt/epub、m3u8……), derived from downloaded tasks and imported items.
+  /// Coarse labels like `video` are never shown — the label comes from the
+  /// real product extension.
   /// - history / favorite: non-null [HistoryEntry.category] /
-  ///   [FavoriteEntry.category] values
+  /// [FavoriteEntry.category] values
   ///
   /// Used by [LibraryShell.categoryProvider] to populate the filter sheet's
   /// category section. Safe to call outside build (uses [context.read]).
@@ -217,7 +217,7 @@ class _LocalBookshelf extends StatelessWidget {
     // 排序。
     _sortTasks(tasks, filter.sort, sourceType);
 
-    // 导入的本地内容（R3 修复）：按 sourceType 映射 LocalMediaKind 后过滤。
+    // 导入的本地内容（修复）：按 sourceType 映射 LocalMediaKind 后过滤。
     // 漫画源同时接受 images 与 pdf。
     final importedKinds = _kindsForSourceType(sourceType);
     var imported = importedKinds.isEmpty
@@ -299,7 +299,7 @@ class _LocalBookshelf extends StatelessWidget {
       ));
     }
 
-    // 导入的本地内容（R3 修复：书架入口补 path 字段）。
+    // 导入的本地内容（修复：书架入口补 path 字段）。
     items.addAll(imported.map((e) => _BookshelfItem(
           id: e.id,
           title: e.title,
@@ -579,7 +579,7 @@ void _showFavoriteActionsMenu(
                   );
                 },
               ),
-              // X-2 待读队列：加入队列 / 打开队列（仅在线作品；本地作品隐藏）。
+              // 待读队列：加入队列 / 打开队列（仅在线作品；本地作品隐藏）。
               if (item.sourceId != null &&
                   item.sourceId!.isNotEmpty) ...<Widget>[
                 ListTile(
@@ -784,7 +784,7 @@ void _sortFavoriteEntries(
     case BookshelfSort.recent:
       entries.sort((a, b) => b.favoritedAt.compareTo(a.favoritedAt));
     case BookshelfSort.latestChapter:
-      // 最新章时间（M2 语义修正）：优先源站更新时间 updatedAt
+      // 最新章时间（语义修正）：优先源站更新时间 updatedAt
       // （详情页刷新回填），无记录时回退最后阅读时间、再回退收藏时间。
       int chapterTimeOf(FavoriteEntry e) => e.updatedAt > 0
           ? e.updatedAt
@@ -796,7 +796,7 @@ void _sortFavoriteEntries(
           .toLowerCase()
           .compareTo((b.author ?? b.title).toLowerCase()));
     case BookshelfSort.titleZh:
-      // 中文书名按拼音序比较（M2）：GBK 一级字库近似拼音序，
+      // 中文书名按拼音序比较：GBK 一级字库近似拼音序，
       // 替代此前的码元序（码元序对汉字是部首笔画序，不符合直觉）。
       entries.sort((a, b) =>
           compareZhPinyin(a.titleZh ?? a.title, b.titleZh ?? b.title));
@@ -818,9 +818,9 @@ void _sortFavoriteEntries(
 
 /// 本地/下载项的「本地已有章数」：
 /// - 逐章产物（漫画/动漫/视频，[DownloadTask.chapterFilePaths] 多文件）→
-///   以实际落盘文件数为准（即真正可在本机阅读的章数）。
+/// 以实际落盘文件数为准（即真正可在本机阅读的章数）。
 /// - 整本单文件（小说 epub/txt，[chapterFilePaths] 仅 1 项或无）→ 回退到
-///   章节总数（整本书已在本机，章数即全量）。
+/// 章节总数（整本书已在本机，章数即全量）。
 /// 用于未读角标分母，避免把"下载任务记录的章名数"当成本地已有数。
 int _localChapterCount(DownloadTask t) {
   final files = t.chapterFilePaths;
@@ -841,7 +841,7 @@ class _BookshelfItem {
   /// 长按回调（仅收藏书架传入，弹出分组指定面板）。
   final VoidCallback? onLongPress;
 
-  /// 上次查看目录时的章节总数（M3 新章提示；仅收藏条目传入，0=未记录）。
+  /// 上次查看目录时的章节总数（新章提示；仅收藏条目传入，0=未记录）。
   final int lastSeenChapterCount;
 
   /// 源 id（仅收藏/下载段需要：目录缓存与进度按源路由时使用）。
@@ -1190,7 +1190,7 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
               clipBehavior: Clip.none,
               children: <Widget>[
                 card,
-                // M3：小说收藏未读/新章角标（数字；isNew 红色标识有新章）。
+                // 小说收藏未读/新章角标（数字；isNew 红色标识有新章）。
                 if (badge != null)
                   Positioned(
                     top: 4,
@@ -1230,7 +1230,7 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
     );
   }
 
-  /// 未读/新章角标控件（M3）：胶囊数字；新章用 error 色。
+  /// 未读/新章角标控件：胶囊数字；新章用 error 色。
   Widget _buildUnreadBadge(BuildContext ctx, int count, bool isNew) {
     final scheme = Theme.of(ctx).colorScheme;
     final text = count > 99 ? '99+' : '$count';
@@ -1256,7 +1256,7 @@ class _BookshelfGridState extends State<_BookshelfGrid> {
     );
   }
 
-  /// 收藏/历史条目的未读/新章角标数据（M3）。返回 `(未读数, 是否有新章)`，
+  /// 收藏/历史条目的未读/新章角标数据。返回 `(未读数, 是否有新章)`，
   /// null 表示不显示。
   ///
   /// 三模块统一入口：按 [SourceType] 分发到小说 / 漫画 / 影视各自的进度源。

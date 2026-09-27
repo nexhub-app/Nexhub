@@ -1,9 +1,9 @@
 /// Bangumi 账户与收藏浏览设置页。
 ///
 /// - 账户登录：个人 Access Token 输入与验证（token 存 secure storage）、
-///   登录状态展示与登出；
+/// 登录状态展示与登出；
 /// - 浏览 Bangumi 收藏：登录后按五状态（想看 / 在看 / 看过 / 搁置 / 抛弃）
-///   筛选查看远端收藏条目信息（[BangumiCollectionBrowser]）。
+/// 筛选查看远端收藏条目信息（[BangumiCollectionBrowser]）。
 /// 单条同步与绑定 / 评分入口下沉到详情页 Bangumi 卡片与书架长按菜单。
 library;
 

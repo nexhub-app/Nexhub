@@ -1,6 +1,6 @@
 // Unit tests for BuiltinResolver HTML path with nested (per-apiName) selectors.
 //
-// Mirrors the pms_fsdm-style selectors shape: each API (latest / detail /
+// Mirrors the demo-style selectors shape: each API (latest / detail /
 // episodes / ...) is a sub-map under `selectors.<apiName>` with its own
 // `list` / `id` / `title` / `cover` / `url` fields expressed as XPath or
 // `css@attr` selectors. The flat legacy shape (`{episodes: "div.chapter a"}`)
@@ -12,8 +12,8 @@ import 'package:nexhub/core/resolver/builtin_resolver.dart';
 
 PluginConfig _source(Map<String, dynamic> selectors) {
   return PluginConfig.fromJson(<String, dynamic>{
-    'id': 'pms_fsdm_test',
-    'name': 'pms_fsdm_test',
+    'id': 'demo_test',
+    'name': 'demo_test',
     'type': 'animeSource',
     'responseType': 'html',
     'site': {
@@ -31,7 +31,7 @@ PluginConfig _source(Map<String, dynamic> selectors) {
 }
 
 void main() {
-  group('BuiltinResolver HTML - nested selectors (pms_fsdm-style)', () {
+  group('BuiltinResolver HTML - nested selectors (demo-style)', () {
     test('latest list: extracts id/title/cover via per-apiName sub-map',
         () async {
       final source = _source(<String, dynamic>{

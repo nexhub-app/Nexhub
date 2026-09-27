@@ -1,4 +1,4 @@
-/// 全书预扫描持久化（F3：章节摘要 + 全书概述注入）。
+/// 全书预扫描持久化（章节摘要 + 全书概述注入）。
 ///
 /// 按 书 + 语言 维度把预扫描产物存到 Hive box `novel_prescans`：
 /// - 每章 1–2 句摘要（按章落盘，中断可续）；
@@ -181,7 +181,7 @@ class NovelPrescanManager extends ChangeNotifier {
     );
   }
 
-  /// 组装注入提示词的作品语境（F3）：《书名》概述 + 本章摘要。
+  /// 组装注入提示词的作品语境：《书名》概述 + 本章摘要。
   /// 无可用语境时返回 null。
   static String? novelBookContext(
     NovelPrescanData? data,

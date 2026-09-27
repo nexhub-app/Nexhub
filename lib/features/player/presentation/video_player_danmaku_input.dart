@@ -168,11 +168,11 @@ extension _VideoDanmakuInput on _VideoPlayerScreenState {
   /// 上传弹幕到弹弹play（本地显示后后台执行）。
   ///
   /// - 集数校验：解析不到 dandanplay episodeId（源为 bilibili / 自定义 URL /
-  ///   匹配失败）时不上传，提示仅本地显示；
+  /// 匹配失败）时不上传，提示仅本地显示；
   /// - 时长校验：发送位置超出视频时长时不上传；
   /// - 登录态：未登录不再弹登录框（项 9 / 弹幕重构），仅本地显示并提示去
-  ///   设置「数据与账号」或首启引导页登录；已登录才上传；凭据未配置 /
-  ///   账号密码错误 / 上传失败均以 SnackBar 提示。
+  /// 设置「数据与账号」或首启引导页登录；已登录才上传；凭据未配置 /
+  /// 账号密码错误 / 上传失败均以 SnackBar 提示。
   Future<void> _uploadDanmaku(
     String text,
     Duration time,

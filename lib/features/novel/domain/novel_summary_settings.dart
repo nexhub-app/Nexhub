@@ -7,7 +7,7 @@ import 'novel_summary_service.dart';
 /// 从「单一配置」升级为「通用 + 功能级独立接口」的层级结构（需求：统一管理 AI 配置）：
 /// - **通用配置**（default）：所有 AI 功能共享的兜底 baseUrl/apiKey/model；
 /// - **功能级覆盖**：章节速览 / AI 配图 / 双语翻译 / 漫画翻译 / 视频字幕翻译
-///   各自可配置独立接口（baseUrl/apiKey/model），某项留空时回落到通用配置。
+/// 各自可配置独立接口（baseUrl/apiKey/model），某项留空时回落到通用配置。
 ///
 /// 底层走 SharedPreferences（与现有弹幕凭据一致；API 密钥明文存本机，不外发）。
 /// 旧的 `novel_overview_api_*` 键继续作为「通用配置」的存储，保证已有配置平滑迁移。
@@ -39,7 +39,7 @@ class NovelSummarySettings {
   static const String _kTrModel = 'novel_translation_api_model_v1';
   static const String _kTrLang = 'novel_translation_lang_v1';
   static const String _kTrBatch = 'novel_translation_batch_v1';
-  // F9 备用端点（留空 = 不启用备用）。
+  // 备用端点（留空 = 不启用备用）。
   static const String _kTrBaseBak = 'novel_translation_api_base_bak_v1';
   static const String _kTrKeyBak = 'novel_translation_api_key_bak_v1';
   static const String _kTrModelBak = 'novel_translation_api_model_bak_v1';
@@ -49,7 +49,7 @@ class NovelSummarySettings {
   static const String _kComicKey = 'comic_translation_api_key_v1';
   static const String _kComicModel = 'comic_translation_api_model_v1';
   static const String _kComicLang = 'comic_translation_lang_v1';
-  // F9 备用端点。
+  // 备用端点。
   static const String _kComicBaseBak = 'comic_translation_api_base_bak_v1';
   static const String _kComicKeyBak = 'comic_translation_api_key_bak_v1';
   static const String _kComicModelBak = 'comic_translation_api_model_bak_v1';
@@ -59,7 +59,7 @@ class NovelSummarySettings {
   static const String _kMediaKey = 'media_translation_api_key_v1';
   static const String _kMediaModel = 'media_translation_api_model_v1';
   static const String _kMediaLang = 'media_translation_lang_v1';
-  // F9 备用端点。
+  // 备用端点。
   static const String _kMediaBaseBak = 'media_translation_api_base_bak_v1';
   static const String _kMediaKeyBak = 'media_translation_api_key_bak_v1';
   static const String _kMediaModelBak = 'media_translation_api_model_bak_v1';
@@ -162,7 +162,7 @@ class NovelSummarySettings {
     await _writeConfig(p, _kTrBase, _kTrKey, _kTrModel, cfg);
   }
 
-  /// 翻译备用配置（F9；baseUrl 为空 = 未启用备用端点）。
+  /// 翻译备用配置（；baseUrl 为空 = 未启用备用端点）。
   Future<NovelSummaryConfig> getTranslationBackupConfig() async {
     final p = await SharedPreferences.getInstance();
     return _readConfig(p, _kTrBaseBak, _kTrKeyBak, _kTrModelBak);
@@ -173,7 +173,7 @@ class NovelSummarySettings {
     await _writeConfig(p, _kTrBaseBak, _kTrKeyBak, _kTrModelBak, cfg);
   }
 
-  /// 翻译端点列表（F9）：[主端点（功能级回落通用）, 备用端点（如配置）]。
+  /// 翻译端点列表：[主端点（功能级回落通用）, 备用端点（如配置）]。
   Future<List<NovelSummaryConfig>> getTranslationEndpoints() async {
     final primary = await getTranslationConfig();
     final backup = await getTranslationBackupConfig();
@@ -220,7 +220,7 @@ class NovelSummarySettings {
     await _writeConfig(p, _kComicBase, _kComicKey, _kComicModel, cfg);
   }
 
-  /// 漫画翻译备用配置（F9；baseUrl 为空 = 未启用备用端点）。
+  /// 漫画翻译备用配置（；baseUrl 为空 = 未启用备用端点）。
   Future<NovelSummaryConfig> getComicTranslationBackupConfig() async {
     final p = await SharedPreferences.getInstance();
     return _readConfig(p, _kComicBaseBak, _kComicKeyBak, _kComicModelBak);
@@ -231,7 +231,7 @@ class NovelSummarySettings {
     await _writeConfig(p, _kComicBaseBak, _kComicKeyBak, _kComicModelBak, cfg);
   }
 
-  /// 漫画翻译端点列表（F9）。
+  /// 漫画翻译端点列表。
   Future<List<NovelSummaryConfig>> getComicTranslationEndpoints() async {
     final primary = await getComicTranslationConfig();
     final backup = await getComicTranslationBackupConfig();
@@ -269,7 +269,7 @@ class NovelSummarySettings {
     await _writeConfig(p, _kMediaBase, _kMediaKey, _kMediaModel, cfg);
   }
 
-  /// 视频翻译备用配置（F9；baseUrl 为空 = 未启用备用端点）。
+  /// 视频翻译备用配置（；baseUrl 为空 = 未启用备用端点）。
   Future<NovelSummaryConfig> getMediaTranslationBackupConfig() async {
     final p = await SharedPreferences.getInstance();
     return _readConfig(p, _kMediaBaseBak, _kMediaKeyBak, _kMediaModelBak);
@@ -280,7 +280,7 @@ class NovelSummarySettings {
     await _writeConfig(p, _kMediaBaseBak, _kMediaKeyBak, _kMediaModelBak, cfg);
   }
 
-  /// 视频翻译端点列表（F9）。
+  /// 视频翻译端点列表。
   Future<List<NovelSummaryConfig>> getMediaTranslationEndpoints() async {
     final primary = await getMediaTranslationConfig();
     final backup = await getMediaTranslationBackupConfig();

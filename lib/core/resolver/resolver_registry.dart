@@ -45,15 +45,15 @@ class ResolverRegistry {
   ///
   /// 优先级：
   /// 1. `useWebview==true` 且 [ParserConfig.type] ∈ [_declarativeTypes]
-  ///    （builtin/xpath/jsonpath/css）**且为视频路由** → `'webview'`
-  ///    （触发 [WebViewHtmlRequest]，由 UI 渲染后回灌 HTML 给
-  ///    [BuiltinResolver] 解析视频）。非视频路由不进此分支。
+  /// （builtin/xpath/jsonpath/css）**且为视频路由** → `'webview'`
+  /// （触发 [WebViewHtmlRequest]，由 UI 渲染后回灌 HTML 给
+  /// [BuiltinResolver] 解析视频）。非视频路由不进此分支。
   /// 2. `useWebview==true` 且 hybrid + override.type=='script' → `'script'`
-  ///    （保留脚本路径，[ScriptResolver] 内部自抓取，无需 WebView）。
+  /// （保留脚本路径，[ScriptResolver] 内部自抓取，无需 WebView）。
   /// 3. `useWebview==true` 且 hybrid + override.type ∈ {webview, webview-html}
-  ///    → `'webview'`。
+  /// → `'webview'`。
   /// 4. 其余沿用原 default 行为（声明式/无 override 的 hybrid 路由走
-  ///    [BuiltinResolver] 直连 HTTP）。
+  /// [BuiltinResolver] 直连 HTTP）。
   String effectiveResolverType(PluginConfig source, String apiName) {
     // 视频路由判定：对齐旧应用 WebViewResolver.canResolve（video/episode/
     // *video*）。useWebview 仅对视频路由启用 WebView；非视频路由一律直连
@@ -64,7 +64,7 @@ class ResolverRegistry {
         lower == 'video' || lower == 'episode' || lower.contains('video');
 
     // 优先级 1：声明式源 + useWebview + 视频路由 → 'webview'。覆盖
-    // pms_girigirilove / pms_fsdm（xpath）等声明式源的视频嗅探；非视频路由
+    // 部分声明式源的视频嗅探；非视频路由
     // 不进此分支，改走下方 builtin（直连 HTTP 抓服务端渲染 HTML）。
     if (source.useWebview &&
         _declarativeTypes.contains(source.parser.type) &&
@@ -85,7 +85,7 @@ class ResolverRegistry {
       if (override?.type == 'webview' || override?.type == 'webview-html') {
         return 'webview';
       }
-      // 无 script/webview override 的 hybrid 路由（如次元城动漫 cycani 的
+      // 无 script/webview override 的 hybrid 路由（如部分动漫源的
       // latest/detail/episodes）按声明式（CSS/XPath）选择器解析，直接走
       // BuiltinResolver 抓 HTTP。这类 MacCMS 源为服务端渲染，直连即可拿到
       // 完整 HTML；此前强制 WebView 渲染回灌反而会触发内嵌浏览器在反爬页上

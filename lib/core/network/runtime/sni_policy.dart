@@ -26,7 +26,7 @@ class SniPolicy {
   ///
   /// 匹配规则：
   /// 1. [SniConfig.domainSni] 键大小写不敏感；键以 `.` 开头时匹配「以此结尾的
-  ///    子域」（如键 `.example.org` 命中 `a.example.org`）；
+  /// 子域」（如键 `.example.org` 命中 `a.example.org`）；
   /// 2. 未命中 → [SniConfig.defaultSni]；
   /// 3. [SniConfig.enabled] 为 false 时恒返回 null。
   static String? resolve(SniConfig sni, String host) {

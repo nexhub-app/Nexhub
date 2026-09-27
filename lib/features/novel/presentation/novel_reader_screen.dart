@@ -102,7 +102,7 @@ import '../../../core/ai/translation_exception.dart';
 import '../../../core/ai/translation_options_store.dart';
 import '../../../core/novel/novel_prescan_manager.dart';
 import '../../settings/presentation/settings_ai_screen.dart';
-// N7 内容编辑：正文编辑持久化管理器（Hive `novel_content_edits`）。
+// 内容编辑：正文编辑持久化管理器（Hive `novel_content_edits`）。
 
 /// 小说阅读器（Phase 4 — Task 19/20）。
 ///
@@ -111,7 +111,7 @@ import '../../settings/presentation/settings_ai_screen.dart';
 /// 左侧 1/3 竖向拖拽亮度调节、内联设置面板（桌面右侧 ~360px / 移动底部 ~55%）、
 /// 章节导航、进度自动保存。
 ///
-/// 本地模式（Task O4.B.3）：传入 [localTextPath]（TXT）或 [localEpubPath]（EPUB）
+/// 本地模式（Task .B.3）：传入 [localTextPath]（TXT）或 [localEpubPath]（EPUB）
 /// 时进入本地模式，跳过在线源解析，直接读取本地文本文件（兼容 UTF-8 BOM / UTF-8 /
 /// latin1；EPUB 经 [LocalNovelParser] 解析章节）。本地模式下隐藏切换章节 / 切换源 /
 /// WebView / 书内搜索等在线专属 UI，保留翻页动画、TTS、书签笔记（用
@@ -169,7 +169,7 @@ class NovelReaderScreen extends StatefulWidget {
   State<NovelReaderScreen> createState() => _NovelReaderScreenState();
 }
 
-/// X-5：TTS 播放状态流（供通知栏会话订阅）。
+/// TTS 播放状态流（供通知栏会话订阅）。
 ///
 /// 以 [NovelTtsController] 的 listener 广播 isPlaying 变化：仅在有变化时推送
 /// （段落切换等无关事件不触发通知刷新）；onCancel 时解除监听。
@@ -322,7 +322,7 @@ Future<List<dynamic>> _parseTxtChaptersIsolate(
 /// 聚合本地模式的章节排序方式（见 [_NovelReaderScreenState._aggMode]）。
 enum _AggChapterMode { fileExpanded, epubLast, collapsed }
 
-/// D7：在独立 isolate 解析便携文档（Mobi/PDF 文本层）为章节结构，
+/// 在独立 isolate 解析便携文档（Mobi/PDF 文本层）为章节结构，
 /// 返回形状与 [_parseTxtChaptersIsolate] 一致（`[title, [para,…]]` 列表）。
 Future<List<dynamic>> _parsePortableIsolate(String path) async {
   final book = await PortableBookParser.parse(path);
@@ -351,7 +351,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   final NovelBookmarkManager _bookmarks = NovelBookmarkManager();
   final ScreenBrightness _brightnessPlugin = ScreenBrightness();
 
-  /// / N6 选区控制器：维护活动选区与已存划线的章节全局偏移锚点，
+  /// 选区控制器：维护活动选区与已存划线的章节全局偏移锚点，
   /// 并负责渲染层（[_NovelPageWidget]）的实时刷新。
   final NovelSelectionController _selectionController =
       NovelSelectionController();
@@ -409,7 +409,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 当前书籍的高亮规则（惰性加载，在 [_loadChapter] 中填充）。
   NovelHighlightRuleSet? _highlightRuleSet;
 
-  /// N7 内容编辑：正文编辑持久化管理器 + 「当前章是否被编辑过」标记
+  /// 内容编辑：正文编辑持久化管理器 + 「当前章是否被编辑过」标记
   /// （控制菜单「内容编辑 / 恢复原文」入口与已编辑角标）。
   final NovelContentEditManager _contentEdits = NovelContentEditManager();
   bool _currentChapterEdited = false;
@@ -436,19 +436,19 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 作为分页缓存签名的一部分，确保改设置后分页立即刷新。
   int _prefsVersion = 0;
 
-  /// G3 整本分页校准：本会话内已见过的「章节 → 页数」缓存。每次某章完成
+  /// 整本分页校准：本会话内已见过的「章节 → 页数」缓存。每次某章完成
   /// 分页即记录；整本页码 tip 由它跨章累计（会话级，不持久化——页数随
   /// 排版偏好与屏幕尺寸变化，跨会话复用反而失真）。
   final Map<int, int> _chapterPageCounts = <int, int>{};
 
-  /// A7 双页模式：当前章是否以双页呈现（与最近一次分页的判定一致，
+  /// 双页模式：当前章是否以双页呈现（与最近一次分页的判定一致，
   /// 由 build 的 LayoutBuilder 按偏好 + 宽高比计算后写入）。
   bool _twoPageActive = false;
 
   /// 双页模式两页间的中缝宽度（逻辑像素）。
   static const double _kTwoPageGutter = 16;
 
-  /// 计算整本页码文案（G3）：
+  /// 计算整本页码文案：
   /// - 全部章节数已知 → `第 X 页 / 共 Y 页`（精确校准）；
   /// - 部分已知 → `全书第 X+ 页`（`+` 表示后续章节尚未校准，估算值）；
   /// - 无任何分页数据 → 空串（槽位退化为空）。
@@ -520,7 +520,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       <String, (String, int)>{};
   bool _aggBuilding = false;
 
-  /// 是否为本地文件模式（Task O4.B.3）。
+  /// 是否为本地文件模式（Task .B.3）。
   bool get _isLocalMode =>
       widget.localTextPath != null ||
       widget.localEpubPath != null ||
@@ -570,7 +570,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   StreamSubscription<double>? _brightnessSub;
   bool _brightnessChangedByUs = false;
 
-  // ─────────────────────── N4 下滑切书签手势 ───────────────────────
+  // ─────────────────────── 下滑切书签手势 ───────────────────────
   /// 下滑书签手势进行中（页面随指下移的视觉反馈）。
   bool _bookmarkSwipeActive = false;
 
@@ -589,7 +589,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 触发落盘所需的下滑距离（屏高比例）。
   static const double _bookmarkSwipeThresholdRatio = 0.18;
 
-  /// N4 判定：下滑手势（dy > 0）且纵向位移明显大于横向（absY > absX * 1.5，
+  /// 判定：下滑手势（dy > 0）且纵向位移明显大于横向（absY > absX * 1.5，
   /// 对标判定 ratio），由亮度手势（仅左 1/3 屏生效）之外的区域触发。
   /// 滚动模式不启用——滚动本身即纵向手势，会与列表滚动冲突。
   bool get _bookmarkSwipeEnabled => !_prefs.pageAnimation.isScroll;
@@ -607,7 +607,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   final TextEditingController _settingsSearchController =
       TextEditingController();
 
-  // ─────────────────────── 自动翻页（M3.5.2） ───────────────────────
+  // ─────────────────────── 自动翻页 ───────────────────────
   Timer? _autoPageTimer;
   bool _autoPagePaused = false;
 
@@ -615,20 +615,20 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// （导致 _currentPage 被多次设为哨兵值 -1，累加后显示为 -2/-3 等负数）。
   bool _chapterLoading = false;
 
-  // ─────────────────────── 收藏状态（P3.1） ───────────────────────
+  // ─────────────────────── 收藏状态 ───────────────────────
   bool _isFav = false;
 
-  // ─────────────────────── TTS 朗读（P3.1） ───────────────────────
+  // ─────────────────────── TTS 朗读 ───────────────────────
   final NovelTtsController _tts = NovelTtsController();
 
-  // ── X-5 朗读通知栏控制：audio_service 会话代次与标题快照 ──────────
+  // ── 朗读通知栏控制：audio_service 会话代次与标题快照 ──────────
   /// 当前 TTS 会话的 attach 代次；null = 未挂载通知栏会话。
   int? _ttsAudioToken;
 
   /// 上次 attach 时的通知标题（章节/作品变化时刷新媒体条目）。
   String? _ttsAudioTitle;
 
-  // ── X-4 阅读中预下载后续章节 ─────────────────────────
+  // ── 阅读中预下载后续章节 ─────────────────────────
   final NovelPreDownloader _preDownloader = NovelPreDownloader();
 
   /// 预下载配置快照（initState 加载；设置页修改后重进阅读器生效）。
@@ -644,10 +644,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 滚动模式 TTS 跟随：当前朗读段挂此 key，帧后 ensureVisible 滚到可视区。
   final GlobalKey _ttsParagraphKey = GlobalKey();
 
-  // ─────────────────────── 笔记（P3.1） ───────────────────────
+  // ─────────────────────── 笔记 ───────────────────────
   final NovelNoteManager _notes = NovelNoteManager();
 
-  // ── F3 全书预扫描：章节摘要 + 全书概述（后台可续） ──────────────
+  // ── 全书预扫描：章节摘要 + 全书概述（后台可续） ──────────────
   final NovelPrescanManager _prescanManager = NovelPrescanManager();
   final ValueNotifier<NovelPrescanUi> _prescanUi =
       ValueNotifier<NovelPrescanUi>(const NovelPrescanUi());
@@ -784,9 +784,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (_prefs.autoPageInterval > 0) {
       _prefs = _prefs.copyWith(autoPageInterval: 0);
     }
-    // 音量键翻页（N5）：偏好加载完成后按需挂载原生拦截。
+    // 音量键翻页：偏好加载完成后按需挂载原生拦截。
     unawaited(_syncVolumeKey());
-    // X-4：预下载配置加载（静态方法内部 try/catch，失败回落默认）。
+    // 预下载配置加载（静态方法内部 try/catch，失败回落默认）。
     _preDownloadPrefs = await NovelPreDownloadPreferences.load();
     // 重新注册自定义字体文件（正文 / 标题），否则重启后字体不生效。
     await _loadCustomFontsIfNeeded();
@@ -983,7 +983,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   ///
   /// - TXT（[localTextPath]）：整文件作为扁平段落列表。
   /// - EPUB（[localEpubPath]）：经 [LocalNovelParser.parseEpub] 解析为章节，
-  ///  章节标题与正文段落统一展平为 [NovelTextBlock]，复用同一套分页/渲染路径。
+  /// 章节标题与正文段落统一展平为 [NovelTextBlock]，复用同一套分页/渲染路径。
   Future<void> _loadLocalText({int restorePage = 0}) async {
     final int token = _loadSession.next();
     if (mounted) setState(() => _loading = true);
@@ -1451,7 +1451,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (mounted) setState(() {});
   }
 
-  /// X-2：把当前作品加入待读队列（三点菜单入口）。
+  /// 把当前作品加入待读队列（三点菜单入口）。
   Future<void> _addCurrentToReadingQueue() async {
     final l10n = AppLocalizations.of(context);
     await ReadingQueueStore().add(QueuedReading(
@@ -1629,7 +1629,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   }
 
   /// 显示标记列表（划线列表），支持查看、编辑笔记、删除、跳转
-  /// （Phase 2 / N6，参照 [_showNoteList] 模式）。
+  /// （Phase 2 /，参照 [_showNoteList] 模式）。
   /// 同章+同引文+同效果的标记自动合并（保留最新颜色和笔记）。
   Future<void> _showHighlightList() async {
     final highlights = await NovelHighlightManager().listFor(widget.novelId);
@@ -1768,7 +1768,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
-  /// 编辑单条划线的笔记（Phase 2 / N6 摘录）。
+  /// 编辑单条划线的笔记（Phase 2 / 摘录）。
   Future<void> _editHighlightNote(NovelHighlight hl) async {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
@@ -1856,7 +1856,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   @override
   void dispose() {
-    // F3：离开阅读器中断预扫描（已完成章节已逐批落盘，重进可续扫）。
+    // 离开阅读器中断预扫描（已完成章节已逐批落盘，重进可续扫）。
     _prescanCancelled = true;
     _prescanUi.dispose();
     // 退出阅读器前兜底落盘当前阅读位置（不依赖 context，见 _persistProgressNow）。
@@ -1880,7 +1880,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 读后自动删除：读完（进度到最后一章）时清理该内容已下载文件。
     unawaited(_maybeAutoDeleteDownloaded());
     WidgetsBinding.instance.removeObserver(this);
-    // 音量键翻页（N5）：退出阅读器恢复系统默认音量键行为。
+    // 音量键翻页：退出阅读器恢复系统默认音量键行为。
     unawaited(_volumeKeyListener.stop());
     _timeTimer.cancel();
     _batterySubscription?.cancel();
@@ -1891,7 +1891,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     // 避免「Uncaught zone error」在 release 下升级为进程崩溃。
     _brightnessPlugin.resetScreenBrightness().catchError((Object _) {});
     _tts.removeListener(_onTtsChanged);
-    // X-5：退出阅读器释放通知栏媒体会话（若朗读仍在后台，系统通知随之移除）。
+    // 退出阅读器释放通知栏媒体会话（若朗读仍在后台，系统通知随之移除）。
     if (_ttsAudioToken != null) {
       AudioPlaybackService.instance.detach(_ttsAudioToken!);
       _ttsAudioToken = null;
@@ -1923,7 +1923,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  // ─────────────────────── 自动翻页（M3.5.2） ───────────────────────
+  // ─────────────────────── 自动翻页 ───────────────────────
 
   /// 是否启用了自动翻页（间隔 > 0 即视为启用）。
   bool get _autoPageEnabled => _prefs.autoPageInterval > 0;
@@ -1936,7 +1936,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (_paragraphs.isEmpty) return;
     final interval = _prefs.autoPageInterval;
     if (_prefs.autoPageSmooth) {
-      // O5 像素级平滑：50ms 一帧按比例推进，一整页耗时 = interval 秒。
+      // 像素级平滑：50ms 一帧按比例推进，一整页耗时 = interval 秒。
       // 滚动模式直接推进滚动像素；翻页模式驱动过渡进度（advanceAutoPage）。
       const int tickMs = 50;
       final double deltaPerTick = tickMs / (interval * 1000);
@@ -1952,7 +1952,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// 平滑自动翻页单帧推进（O5）。
+  /// 平滑自动翻页单帧推进。
   void _autoPageTick(double delta) {
     if (_loading || _chapterLoading || !_autoPageEnabled || _autoPagePaused) {
       return;
@@ -1992,9 +1992,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _applyAutoPage();
   }
 
-  // ─────────────────────── 书签（M3.5.4） ───────────────────────
+  // ─────────────────────── 书签 ───────────────────────
 
-  /// 在当前章节+页添加书签（可附带备注，）。
+  /// 在当前章节+页添加书签（可附带备注）。
   Future<void> _addBookmark() async {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
@@ -2153,7 +2153,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                           Navigator.of(ctx).pop();
                           _jumpToBookmark(bm);
                         },
-                        // I7：长按弹出角标图操作（自定义 / 恢复默认）。
+                        // 长按弹出角标图操作（自定义 / 恢复默认）。
                         onLongPress: () => _showBadgeActions(ctx, bm),
                       );
                     },
@@ -2167,7 +2167,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
-  /// 书签列表角标：自定义图优先，加载失败/未设置回退默认图标（I7）。
+  /// 书签列表角标：自定义图优先，加载失败/未设置回退默认图标。
   Widget _buildBookmarkLeading(NovelBookmark bm) {
     final path = bm.iconPath;
     if (path == null || path.isEmpty) return const Icon(Icons.bookmark_rounded);
@@ -2183,7 +2183,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
-  /// 角标图操作菜单（I7）：自定义 / 恢复默认；操作完成后刷新列表。
+  /// 角标图操作菜单：自定义 / 恢复默认；操作完成后刷新列表。
   Future<void> _showBadgeActions(
       BuildContext sheetCtx, NovelBookmark bm) async {
     // MD3「Thunk」：长按呼出书签操作菜单。
@@ -2221,7 +2221,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _showBookmarkList();
   }
 
-  /// 选图并复制到应用目录后设为书签角标（I7）。取消选图为无操作。
+  /// 选图并复制到应用目录后设为书签角标。取消选图为无操作。
   Future<void> _pickBadgeImage(NovelBookmark bm) async {
     try {
       final result = await FilePicker.platform.pickFiles(type: FileType.image);
@@ -2277,7 +2277,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _loadChapter(_chapterIndex, restorePage: bm.page);
   }
 
-  /// O3 段落翻译：双语对照面板（缓存优先展示，可整章翻译并持久化）。
+  /// 段落翻译：双语对照面板（缓存优先展示，可整章翻译并持久化）。
   Future<void> _showTranslationSheet() async {
     final paragraphs = <String>[
       for (final b in _paragraphs)
@@ -2307,7 +2307,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     if (mounted) setState(() {});
   }
 
-  /// F3 全书预扫描：对每章开头生成 1–2 句摘要，全部完成后汇总全书概述。
+  /// 全书预扫描：对每章开头生成 1–2 句摘要，全部完成后汇总全书概述。
   ///
   /// 按批落盘（断点续扫）：离开阅读器 / 再次进入后重开即从缺摘要章节继续；
   /// 作品更新（章节列表变化）时按 chapterId 保留仍有效的摘要、概述重算。
@@ -2389,7 +2389,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             ],
             updatedAt: DateTime.now().millisecondsSinceEpoch,
           );
-          // F3：逐批落盘——中断后从缺摘要章节续扫。
+          // 逐批落盘——中断后从缺摘要章节续扫。
           await _prescanManager.save(data);
         } on Object catch (e) {
           AppLog.instance.w('[预扫描] 批量摘要失败，已保留已完成章节: $e');
@@ -2454,8 +2454,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// O4 AI 章节配图：云端生成一张本章插图，落盘后以插图占位行追加进
-  /// N7 内容编辑记录并重载（图文混排显示；重复生成覆盖旧图）。
+  /// AI 章节配图：云端生成一张本章插图，落盘后以插图占位行追加进
+  /// 内容编辑记录并重载（图文混排显示；重复生成覆盖旧图）。
   Future<void> _generateAiIllustration() async {
     final l10n = AppLocalizations.of(context);
     final bool? confirmed = await showDialog<bool>(
@@ -2491,7 +2491,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         chapterTitle: chapter.title,
         excerpt: excerpt,
       );
-      // 追加到内容编辑记录（无编辑则从当前原文初始化），复用 N7 覆盖管线。
+      // 追加到内容编辑记录（无编辑则从当前原文初始化），复用 覆盖管线。
       final existing = await _contentEdits.load(widget.novelId, chapter.id);
       final baseText = NovelContentEditManager.encodeBlocksToEditableText(
         existing?.blocks ?? _rawParagraphs,
@@ -2521,7 +2521,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   // ─────────────────────── 数据加载 ───────────────────────
 
-  /// N7 内容编辑：若本章存在读者编辑记录则返回编辑块列表（并置已编辑标记），
+  /// 内容编辑：若本章存在读者编辑记录则返回编辑块列表（并置已编辑标记），
   /// 否则原样返回抓取结果。
   Future<List<NovelBlock>> _applyContentEditOverride(
     String chapterId,
@@ -2540,7 +2540,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// N7 内容编辑：弹出整章正文编辑框。图片块以 `@@NEXHUB_IMG@@url` 占位行、
+  /// 内容编辑：弹出整章正文编辑框。图片块以 `@@NEXHUB_IMG@@url` 占位行、
   /// 标题块以 `@@NEXHUB_TITLE@@` 前缀行呈现；保存后按「整章覆盖」语义落盘
   /// （Hive `novel_content_edits`），随后重载本章使编辑生效。
   Future<void> _showContentEditor() async {
@@ -2581,7 +2581,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     await _loadChapter(_chapterIndex, restorePage: _currentPage);
   }
 
-  /// N7 内容编辑：移除本章的编辑记录并重载（恢复源站原文）。
+  /// 内容编辑：移除本章的编辑记录并重载（恢复源站原文）。
   Future<void> _restoreOriginalContent() async {
     final l10n = AppLocalizations.of(context);
     final bool? confirmed = await showDialog<bool>(
@@ -2624,7 +2624,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         throw Exception('source not found: ${widget.sourceId}');
       final chapter = widget.chapters[index];
       final List<NovelBlock> paragraphs;
-      // X-4：命中预下载缓存（离线/已预取章节）则跳过网络抓取，直接渲染。
+      // 命中预下载缓存（离线/已预取章节）则跳过网络抓取，直接渲染。
       final List<NovelBlock>? cached =
           await _preDownloader.cached(widget.novelId, chapter.id);
       if (cached != null) {
@@ -2640,7 +2640,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _chapterLoading = false;
         return;
       }
-      // N7 内容编辑：本章存在读者编辑记录时以编辑块整体覆盖抓取结果
+      // 内容编辑：本章存在读者编辑记录时以编辑块整体覆盖抓取结果
       // （替换规则 / 繁简转换仍在其后照常应用）。
       final List<NovelBlock> effective =
           await _applyContentEditOverride(chapter.id, paragraphs);
@@ -2657,12 +2657,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _contentVersion++;
       });
       _setupControllers(restorePage: restorePage);
-      // X-4：章节加载完成、分页就绪后检查一次预下载（单页章 / 直达章末场景，
+      // 章节加载完成、分页就绪后检查一次预下载（单页章 / 直达章末场景，
       // 不依赖用户翻页也能触发；postFrame 等 LayoutBuilder 算出分页）。
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _maybePreDownload();
-        // X-4b：把后续 1~2 章正文后台填入 _preDownloader 缓存，使下次翻页在
+        // 把后续 1~2 章正文后台填入 _preDownloader 缓存，使下次翻页在
         // _loadChapter 处命中 cached() 而跳过主线程 fetchNovelContent（含
         // flutter_js 同步解析），消除「网络翻页卡顿」。
         _warmNextChapterCache();
@@ -2748,7 +2748,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         _chapterLoading = false;
         return;
       }
-      // N7 内容编辑：同 [_loadChapter]，渲染 HTML 抓取结果同样可被编辑覆盖。
+      // 内容编辑：同 [_loadChapter]，渲染 HTML 抓取结果同样可被编辑覆盖。
       final List<NovelBlock> effectiveEdited =
           await _applyContentEditOverride(chapter.id, paragraphs);
       setState(() {
@@ -2881,7 +2881,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       if (idx != _currentPage) {
         _currentPage = idx;
         _saveProgress(idx);
-        // X-4：滚动模式进度越过阈值同样触发预下载（每章一次）。
+        // 滚动模式进度越过阈值同样触发预下载（每章一次）。
         if (mounted) _maybePreDownload();
       }
     }
@@ -2945,14 +2945,14 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
     _currentPage = idx;
     _saveProgress(idx);
-    // X-4：阅读进度越过阈值时触发后台预下载后续章节（每章一次）。
+    // 阅读进度越过阈值时触发后台预下载后续章节（每章一次）。
     if (mounted) _maybePreDownload();
     // 翻页后刷新底部进度条 / 页码（底部栏位于 ListenableBuilder(_tts) 内，
     // 翻页不经由 _tts 通知，必须主动 setState 才能实时更新进度。
     if (mounted) setState(() {});
   }
 
-  /// X-4：当前章阅读进度越过阈值时，把后续 N 章加入正式下载（DownloadManager：
+  /// 当前章阅读进度越过阈值时，把后续 N 章加入正式下载（DownloadManager：
   /// 下载列表可见 + 本地文件落地，离线可读；与漫画自动下载同机制）。
   /// 每章只触发一次；开始/失败均有 SnackBar 可见反馈。
   void _maybePreDownload() {
@@ -3028,7 +3028,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }));
   }
 
-  /// X-4b：章节加载完成后，后台把后续 1~2 章正文填入 [_preDownloader] 的内存 /
+  /// 章节加载完成后，后台把后续 1~2 章正文填入 [_preDownloader] 的内存 /
   /// Hive 缓存。这样下一次翻页在 [_loadChapter] 处命中 [cached()] 而跳过主线程
   /// 的 fetchNovelContent（含 flutter_js 同步解析），消除「网络翻页卡顿」。
   ///
@@ -3080,7 +3080,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _selectionController.setPersistedHighlights(list);
   }
 
-  /// 选区工具条：复制 / 整段 / 划线色板 / 取消（/ N6）。
+  /// 选区工具条：复制 / 整段 / 划线色板 / 取消。
   Widget _buildSelectionToolbar() {
     final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
@@ -3408,7 +3408,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   String _pad(int n) => n.toString().padLeft(2, '0');
 
-  /// 分享选区为带书封的渐变文艺卡（Phase 3 / N6）。
+  /// 分享选区为带书封的渐变文艺卡（Phase 3 /）。
   ///
   /// 先预热书封（失败则用渐变占位），再弹预览 Dialog（含 RepaintBoundary），
   /// 用户点「分享」时把卡片栅格化为 PNG 临时文件经 [Share.shareXFiles] 分享。
@@ -3625,7 +3625,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
       });
   }
 
-  /// 落盘为划线后立即打开笔记编辑（Phase 2 / N6 摘录）。
+  /// 落盘为划线后立即打开笔记编辑（Phase 2 / 摘录）。
   Future<void> _selHighlightWithNote() async {
     final hl = await _persistSelectionAsHighlight(_highlightPalette.first);
     if (hl == null) return;
@@ -3721,7 +3721,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           ? _effectiveChapters.length
           : null,
     );
-    // 更新收藏条目的 lastRead 时间戳（P8.1.3 §廿一 收藏切换不丢 lastRead）
+    // 更新收藏条目的 lastRead 时间戳（收藏切换不丢 lastRead）
     try {
       context.read<FavoritesManager>().updateLastRead(
             widget.novelId,
@@ -3832,13 +3832,13 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
 
   // ─────────────────────── 导航 ───────────────────────
 
-  /// 音量键翻页（N5，仅 Android）：音量上 = 上一页、音量下 = 下一页，
+  /// 音量键翻页（仅 Android）：音量上 = 上一页、音量下 = 下一页，
   /// 翻页/滚动模式均生效（复用 [_goNextPage]/[_goPrevPage] 的模式分派）。
   final VolumeKeyListener _volumeKeyListener = VolumeKeyListener();
 
   /// 按偏好挂载/卸载音量键原生拦截。调用点：[_init]、[_onPrefsChanged]
   /// （偏好变化后即时生效）、dispose（恢复系统默认音量键行为）、
-  /// TTS 状态变化（朗读中不拦截，音量键恢复系统调音量——问题 5 修复）。
+  /// TTS 状态变化（朗读中不拦截，音量键恢复系统调音量）。
   Future<void> _syncVolumeKey() async {
     final bool ttsActive = _tts.state != NovelTtsState.stopped;
     final bool want =
@@ -3945,10 +3945,10 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// X-5：按 TTS 状态同步通知栏媒体会话（audio_service）。
+  /// 按 TTS 状态同步通知栏媒体会话（audio_service）。
   ///
   /// - 朗读中（playing / paused）：attach 会话并注册播放/暂停/上句/下句回调，
-  ///  标题随章节变化刷新；暂停保持会话（通知栏可恢复）。
+  /// 标题随章节变化刷新；暂停保持会话（通知栏可恢复）。
   /// - 停止：detach 会话、移除通知（播放页仍在栈上，下次朗读重新 attach）。
   ///
   /// 由 [_onTtsChanged] 统一驱动（state / currentIndex 变化都会触发）。
@@ -3990,19 +3990,19 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   ///
   /// - 高亮：build 直接读取 `_tts.currentIndex`，随本回调的 [setState] 自动刷新。
   /// - 自动定位：翻页模式下，朗读进度推进到某段落时，自动把页面翻到该段落所在页
-  ///  （"自动定位到朗读的页面"）；滚动模式段落连续排版，交给高亮与用户手势。
+  /// （"自动定位到朗读的页面"）；滚动模式段落连续排版，交给高亮与用户手势。
   void _onTtsChanged() {
     if (!mounted) return;
-    // X-5：通知栏会话同步（stopped 时 detach、playing/paused 时 attach/刷新标题）。
+    // 通知栏会话同步（stopped 时 detach、playing/paused 时 attach/刷新标题）。
     _syncTtsAudioService();
-    // 问题 5：TTS 朗读中音量键恢复系统调音量（不翻页），状态变化时重新同步拦截。
+    // TTS 朗读中音量键恢复系统调音量（不翻页），状态变化时重新同步拦截。
     unawaited(_syncVolumeKey());
     if (_tts.state == NovelTtsState.stopped) return;
     final int idx = _tts.currentIndex;
     final pages = _pagination?.pages;
     if (pages == null || pages.isEmpty) return;
     if (_prefs.pageAnimation.isScroll) {
-      // 滚动模式（问题 6 对齐）：刷新高亮 + 自动滚动跟随当前朗读段，
+      // 滚动模式：刷新高亮 + 自动滚动跟随当前朗读段，
       // 由 itemBuilder 挂 _ttsParagraphKey 的段定位。
       setState(() {});
       _scheduleTtsParagraphScroll();
@@ -4023,7 +4023,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     setState(() {});
   }
 
-  /// 滚动模式 TTS 跟随（问题 6）：帧后把当前朗读段滚动到可视区
+  /// 滚动模式 TTS 跟随：帧后把当前朗读段滚动到可视区
   /// （约视口上 1/3，留出下文空间），随朗读进度自动滚动适应语速。
   void _scheduleTtsParagraphScroll() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -4109,7 +4109,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     _overrideKeys.addAll(novelPrefsChangedKeys(_prefs, next));
     _prefs = next;
     if (volumeKeyChanged) {
-      // 音量键开关即时生效（N5）。
+      // 音量键开关即时生效。
       unawaited(_syncVolumeKey());
     }
     // 任何阅读设置变化都使分页缓存失效（字号/行距/段距/边距/字体等不会 bump
@@ -4243,9 +4243,9 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  // ─────────────────────── N4 下滑切书签手势 ───────────────────────
+  // ─────────────────────── 下滑切书签手势 ───────────────────────
 
-  /// N4 下滑起点：仅分页模式启用；左 1/3 屏留给亮度手势。
+  /// 下滑起点：仅分页模式启用；左 1/3 屏留给亮度手势。
   /// 方向判定延后到 update（DragStartDetails 无 velocity，且纵向拖拽在手势
   /// 竞技场中被横向翻页识别器让出时才回调——此时已是纵向手势，只需防误触）。
   void _onBookmarkSwipeStart(DragStartDetails d) {
@@ -4266,7 +4266,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final dx = d.delta.dx;
     final dy = d.delta.dy;
     if (!_bookmarkSwipeActive) {
-      // 待定态：累计方向，直到明确「纵向且向下」才激活（对标 N4 判定：
+      // 待定态：累计方向，直到明确「纵向且向下」才激活（对标 判定：
       // dy > 0 且 absY > absX * ratio，页面随指下移）。
       _bookmarkSwipeDx += dx;
       _bookmarkSwipeDy += dy;
@@ -4324,7 +4324,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// N4 快捷切换（修订）：当前位置已有书签时下滑即取消该书签，
+  /// 快捷切换（修订）：当前位置已有书签时下滑即取消该书签，
   /// 否则跳过备注弹窗直接保存当前页书签（与工具栏「加书签」弹窗路径
   /// 区分；下滑是快捷操作，打断弹窗反而碍事）。
   Future<void> _addBookmarkQuick() async {
@@ -4389,7 +4389,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     }
   }
 
-  /// N4 下滑切书签：顶部提示条。手势进行中显示「继续下滑添加书签」，
+  /// 下滑切书签：顶部提示条。手势进行中显示「继续下滑添加书签」，
   /// 超过阈值后变「松开添加书签」。覆盖在页面上方（页面已随指下移露出背景）。
   Widget _buildBookmarkSwipeHint(Color bg, Color textColor) {
     final h = MediaQuery.sizeOf(context).height;
@@ -4705,7 +4705,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         // 会在翻页瞬间产生明显卡顿，并使翻页动画被重型计算抢占、看起来「无动画」。
         final scaler = MediaQuery.textScalerOf(context);
         final dir = Directionality.of(context);
-        // A7 双页模式：翻页模式 + 用户开启 + 宽屏（宽 > 高）时生效——
+        // 双页模式：翻页模式 + 用户开启 + 宽屏（宽 > 高）时生效——
         // 每页按半宽排版，屏幕左右并排显示两页（对齐实体书摊开形态）。
         final bool twoPage = _prefs.twoPageMode &&
             !_prefs.pageAnimation.isScroll &&
@@ -4733,7 +4733,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           _paginationSig = sig;
           _paginationChapterIndex = _chapterIndex;
           _twoPageActive = twoPage;
-          // G3：本章页数入整本校准缓存（覆盖旧值——同章重新分页以新值为准）。
+          // 本章页数入整本校准缓存（覆盖旧值——同章重新分页以新值为准）。
           _chapterPageCounts[_chapterIndex] = _pagination!.pages.length;
           // 分页真正变化时（章节 / 偏好 / 尺寸），帧后注入选区控制器并加载划线。
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -4813,7 +4813,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           });
         }
 
-        // N4 下滑切书签：手势进行中页面随指下移（露出上方背景），
+        // 下滑切书签：手势进行中页面随指下移（露出上方背景），
         // 顶部显示提示条；松手超过阈值即落盘书签并复位。
         final double swipeDy = _bookmarkSwipeActive ? _bookmarkSwipeDy : 0;
         return Stack(
@@ -4822,7 +4822,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
               child: Transform.translate(
                 offset: Offset(0, swipeDy),
                 child: Builder(builder: (context) {
-                  // A7 双页：呈现层把「页」映射为「跨页（spread）」——一个屏幕位
+                  // 双页：呈现层把「页」映射为「跨页（spread）」——一个屏幕位
                   // 显示左右两页；进度/存档仍以左页页码为准（onPageChanged 处换算）。
                   final bool twoPage = _twoPageActive && pages.length > 1;
                   final int displayCount =
@@ -4929,7 +4929,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     onVerticalDragStart: _onBrightnessDragStart,
                     onVerticalDragUpdate: _onBrightnessDragUpdate,
                     onVerticalDragEnd: _onBrightnessDragEnd,
-                    // N4 下滑切书签：主区域纵向下滑（滚动模式由
+                    // 下滑切书签：主区域纵向下滑（滚动模式由
                     // animated_page_view 内部 _isScroll 判断自动禁用）。
                     onBookmarkSwipeStart: _onBookmarkSwipeStart,
                     onBookmarkSwipeUpdate: _onBookmarkSwipeUpdate,
@@ -5000,12 +5000,12 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           final int idx = showTitle ? i - 1 : i;
           final block = _paragraphs[idx];
           // 插图块：滚动模式图文混排，固定比例缩略显示，点开看大图。
-          // / A10：banner 模式铺满整行（按源 style 或全宽，高度自适应）；
+          // banner 模式铺满整行（按源 style 或全宽，高度自适应）；
           // card 模式按正文宽 72% 卡片式缩列 + [scrollImageAlign] 水平对齐。
           if (block is NovelImageBlock) {
             final double bodyW =
                 MediaQuery.of(ctx).size.width - _prefs.margin * 2;
-            // / A10：banner 模式自适应完整显示（按图片真实宽高比撑高，
+            // banner 模式自适应完整显示（按图片真实宽高比撑高，
             // 加载前以 2:1 占位）；card 模式按正文宽 72% 卡片式缩列 +
             // [scrollImageAlign] 水平对齐。两种模式均不再裁切。
             final bool card =
@@ -5064,7 +5064,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
           // 章节全局字符偏移坐标系（[NovelSelectionController.setBlocks]）。
           // 块为整段多行文本，Phase 4 长按直接选整块（精确折行 x 命中留待后续），
           // 拖拽扩选由工具条「整段」按钮覆盖（与分页行内限制一致）。
-          // TTS 态（问题 6 对齐）：当前朗读段高亮强调 + 点按段落跳转朗读 +
+          // TTS 态：当前朗读段高亮强调 + 点按段落跳转朗读 +
           // 自动滚动跟随（段挂 key，_onTtsChanged 帧后 ensureVisible）。
           final Widget wrapped;
           if (_ttsActiveForBody()) {
@@ -5142,7 +5142,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     bool isHeading,
   ) {
     final style = isHeading ? headingStyle : baseStyle;
-    // / A6：滚动模式正文两端对齐（与分页模式 justify 语义一致）；
+    // 滚动模式正文两端对齐（与分页模式 justify 语义一致）；
     // 标题行恒居中（章节分界视觉），其余正文按 [NovelTextAlignMode] 取
     // 自然左对齐或 justify。原生 TextAlign.justify 对整段多行文本生效，
     // 与分页模式的逐行字距均摊策略各自独立（两模式渲染路径不同）。
@@ -5178,7 +5178,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         chs.isEmpty ? '' : chs[_chapterIndex.clamp(0, chs.length - 1)].title;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        // X-3：插图大图查看器带「收藏入统一图库」按钮（来源 = 小说）。
+        // 插图大图查看器带「收藏入统一图库」按钮（来源 = 小说）。
         builder: (BuildContext ctx) => _NovelImageFavoriteViewer(
           url: url,
           source: source,
@@ -5287,7 +5287,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             Expanded(
               child: _buildTopBarTitle(l10n, chapter),
             ),
-            // 收藏按钮（P3.1）
+            // 收藏按钮
             IconButton(
               icon: Icon(_isFav
                   ? Icons.favorite_rounded
@@ -5315,7 +5315,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
             ),
             // 其余工具（目录 / 自动翻页 / 设置 / 书签 / 夜间 / 搜索）已移至底部工具栏，
             // 可在「配置底部按钮」中自定义；顶栏仅保留返回 / 标题 / 收藏 / 更多。
-            // 三点菜单（P3.1）：WebView 打开章节 / 浏览器打开 / 分享 / 书签列表 /
+            // 三点菜单：WebView 打开章节 / 浏览器打开 / 分享 / 书签列表 /
             // 配置底部工具栏 / 笔记 / 翻页动画
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert_rounded),
@@ -5401,7 +5401,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                   ),
                   const PopupMenuDivider(),
                 ],
-                // X-2 待读队列：加入队列 / 打开队列（非本地模式才显示）。
+                // 待读队列：加入队列 / 打开队列（非本地模式才显示）。
                 if (!_isLocalMode) ...<PopupMenuEntry<String>>[
                   PopupMenuItem<String>(
                     value: 'addToReadingQueue',
@@ -5442,7 +5442,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     dense: true,
                   ),
                 ),
-                // O4 AI 章节配图（云端生图；聚合本地模式不提供）
+                // AI 章节配图（云端生图；聚合本地模式不提供）
                 if (!_isAggregatedLocal)
                   PopupMenuItem<String>(
                     value: 'aiIllustration',
@@ -5466,7 +5466,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     ),
                   ),
                 ],
-                // N7 内容编辑：直接修改本章正文并持久化（聚合本地模式除外——
+                // 内容编辑：直接修改本章正文并持久化（聚合本地模式除外——
                 // 本地书正文来自文件本身，覆盖语义不适用）。已编辑时追加
                 // 「恢复原文」入口并在标题旁显示角标。
                 if (!_isAggregatedLocal) ...<PopupMenuEntry<String>>[
@@ -5520,7 +5520,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     dense: true,
                   ),
                 ),
-                // 笔记列表（P3.1）
+                // 笔记列表
                 PopupMenuItem<String>(
                   value: 'notes',
                   child: ListTile(
@@ -5530,7 +5530,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
                     dense: true,
                   ),
                 ),
-                // 翻页动画快捷（P3）：弹出 6 种动画选择。
+                // 翻页动画快捷：弹出 6 种动画选择。
                 PopupMenuItem<String>(
                   value: 'pageAnimation',
                   child: ListTile(
@@ -6031,7 +6031,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final tocStore = context.read<NovelTocStore>();
     final chapters = _effectiveChapters;
     tocStore.setChapters(widget.sourceId, widget.novelId, chapters);
-    // M3：回写「已见章节数」，书架新章角标随查看目录清除。
+    // 回写「已见章节数」，书架新章角标随查看目录清除。
     if (chapters.isNotEmpty) {
       unawaited(context.read<FavoritesManager>().updateLastSeenChapters(
           widget.novelId, SourceType.novelSource, chapters.length));
@@ -6206,7 +6206,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     );
   }
 
-  /// 阅读速览（N5 改名 + 重定位）：总结「当前章节内容」。
+  /// 阅读速览（改名 + 重定位）：总结「当前章节内容」。
   /// - 离线摘要：本地抽取式，无需网络/配置，秒出。
   /// - 云端总结：调用用户配置的 OpenAI 兼容 /chat/completions 接口。
   /// 底部保留「阅读数据」统计卡（见 [_buildReadingStatsWidget]）。
@@ -6308,7 +6308,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   ///
   /// - 单文件（EPUB/TXT）：直接从已整本解析的 [_localParsedChapters] 切片；
   /// - 聚合导入（localChapterPaths）：按 [_effectiveChapters] 的展开目录逐章
-  ///  路由（EPUB 内部章 / TXT 内部章 / 整文件），缓存未命中时按需解析文件。
+  /// 路由（EPUB 内部章 / TXT 内部章 / 整文件），缓存未命中时按需解析文件。
   ///
   /// 块结构与渲染路径（[_loadLocalText]）保持同构（标题 heading + 插图标记
   /// 转换），使搜索的章内字符偏移与分页偏移同口径。
@@ -6471,7 +6471,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     try {
       final tocStore = context.read<NovelTocStore>();
       tocStore.setChapters(widget.sourceId, widget.novelId, chapters);
-      // M3：与目录一致，回写「已见章节数」。
+      // 与目录一致，回写「已见章节数」。
       if (chapters.isNotEmpty) {
         unawaited(context.read<FavoritesManager>().updateLastSeenChapters(
             widget.novelId, SourceType.novelSource, chapters.length));
@@ -6761,7 +6761,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
         onShowTapZonePreview: () => _showTapZonePreview(l10n),
         novelId: widget.novelId,
         novelName: widget.title,
-        // 问题 4：预下载配置保存后刷新阅读器内的快照，触发判定即时生效。
+        // 预下载配置保存后刷新阅读器内的快照，触发判定即时生效。
         onPreDownloadChanged: () async {
           _preDownloadPrefs = await NovelPreDownloadPreferences.load();
         },
@@ -7122,7 +7122,7 @@ class _DashedUnderlineText extends StatelessWidget {
   final String text;
   final TextStyle style;
 
-  /// 下划线样式（/ B6 扩展：wavy / dotted 走本组件自定义绘制）。
+  /// 下划线样式（扩展：wavy / dotted 走本组件自定义绘制）。
   final NovelUnderlineStyle underlineStyle;
   final double dashLength;
   final double dashGap;
@@ -7265,7 +7265,7 @@ Widget buildSelectionRichText(
 }
 
 class _DashedUnderlinePainter extends CustomPainter {
-  /// 下划线样式：dashed / wavy / dotted（/ B6）。
+  /// 下划线样式：dashed / wavy / dotted。
   final NovelUnderlineStyle style;
   final List<LineMetrics> lines;
   final double dashLength;
@@ -7353,7 +7353,7 @@ class _DashedUnderlinePainter extends CustomPainter {
   }
 }
 
-/// 两端对齐单行文本（/ A6）。
+/// 两端对齐单行文本。
 ///
 /// 分页模式下每行已是精确测量的视觉行，但行宽通常略小于可用宽度；
 /// justify 模式把「剩余空间」均摊到字符间隙，使左右两端对齐。
@@ -7504,7 +7504,7 @@ class _NovelPageWidget extends StatelessWidget {
   /// 用以置位 [_longPressEngaged]，使翻页手势在选区拖拽期间让出指针。
   final void Function(bool engaged)? onSelectionActiveChanged;
 
-  /// G3 整本页码：给定章内页码，返回跨章累计的全书页位文案
+  /// 整本页码：给定章内页码，返回跨章累计的全书页位文案
   /// （由阅读器状态基于会话分页缓存计算；null/空串表示不可用）。
   final String Function(int page)? bookPageLabel;
 
@@ -7657,7 +7657,7 @@ class _NovelPageWidget extends StatelessWidget {
     // 否则保持原渲染（搜索 / 虚线下划线 / 纯文本），不影响分页测量。
     final Widget? searchHit =
         _buildSearchHighlight(context, line.text, textStyle);
-    // / A6 两端对齐：仅分页模式（本 Widget 即分页页）、正文非标题行、
+    // 两端对齐：仅分页模式（本 Widget 即分页页）、正文非标题行、
     // 非段末行时生效——把不满一行的行按「字距均摊」拉伸
     // 到整行宽（与原生 textAlign: justify 视觉等价，且不受单行富文本
     // justify 失效影响）。末行/标题/高亮行保持自然排版。
@@ -8356,7 +8356,7 @@ class _NovelInlineSettings extends StatelessWidget {
   final String novelId;
   final String novelName;
 
-  /// 问题 4：预下载配置保存后的回调（阅读器刷新快照，触发判定即时效）。
+  /// 预下载配置保存后的回调（阅读器刷新快照，触发判定即时效）。
   final VoidCallback? onPreDownloadChanged;
   // ── AI 功能组入口回调（打开速览 / 翻译 / 生成配图）──
   final VoidCallback? onOpenSummary;
@@ -8532,7 +8532,7 @@ class _NovelInlineSettings extends StatelessWidget {
                         title: Text(l10n.customBgColor),
                         trailing: GestureDetector(
                           onTap: () async {
-                            // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
+                            // 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
                             Color? pickedColor;
                             final Color initial = prefs.customBgColor != null
                                 ? Color(prefs.customBgColor!)
@@ -8615,7 +8615,7 @@ class _NovelInlineSettings extends StatelessWidget {
                               ),
                             GestureDetector(
                               onTap: () async {
-                                // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
+                                // 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
                                 Color? pickedColor;
                                 final Color initial =
                                     prefs.customTextColor != null
@@ -8824,7 +8824,7 @@ class _NovelInlineSettings extends StatelessWidget {
                               prefs.copyWith(fontWeightValue: v.round())),
                         ),
                       ],
-                      // 自定义字体（M3.5.3）
+                      // 自定义字体
                       const SizedBox(height: AppTokens.spaceMd),
                       Text(l10n.customFont,
                           style: Theme.of(context).textTheme.bodyMedium),
@@ -9163,7 +9163,7 @@ class _NovelInlineSettings extends StatelessWidget {
                                 ),
                               GestureDetector(
                                 onTap: () async {
-                                  // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
+                                  // 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
                                   Color? pickedColor;
                                   final Color initial = prefs.titleColor != null
                                       ? Color(prefs.titleColor!)
@@ -9353,7 +9353,7 @@ class _NovelInlineSettings extends StatelessWidget {
                                 ),
                               GestureDetector(
                                 onTap: () async {
-                                  // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
+                                  // 修复：确认式取色（OK/Cancel），仅用户点确定时写回，避免非手势 pop 崩溃。
                                   Color? pickedColor;
                                   final Color initial =
                                       prefs.shadowColor != null
@@ -9590,7 +9590,7 @@ class _NovelInlineSettings extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: AppTokens.spaceMd),
-                      // A7 双页模式：翻页模式宽屏左右并排两页（与总设置同步）。
+                      // 双页模式：翻页模式宽屏左右并排两页（与总设置同步）。
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(l10n.novelTwoPageMode),
@@ -9603,7 +9603,7 @@ class _NovelInlineSettings extends StatelessWidget {
                           onChanged(prefs.copyWith(twoPageMode: v));
                         },
                       ),
-                      // 自动翻页间隔（M3.5.2）
+                      // 自动翻页间隔
                       Text(l10n.autoPageInterval,
                           style: Theme.of(context).textTheme.bodyMedium),
                       const SizedBox(height: AppTokens.spaceXs),
@@ -9621,7 +9621,7 @@ class _NovelInlineSettings extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: AppTokens.spaceMd),
-                      // 平滑自动翻页（O5）：按像素/过渡进度连续推进整页。
+                      // 平滑自动翻页：按像素/过渡进度连续推进整页。
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(l10n.autoPageSmooth),
@@ -9645,7 +9645,7 @@ class _NovelInlineSettings extends StatelessWidget {
                           onChanged(prefs.copyWith(scrollWheelInverted: v));
                         },
                       ),
-                      // 音量键翻页（N5，仅 Android 有物理音量键翻页语义）。
+                      // 音量键翻页（仅 Android 有物理音量键翻页语义）。
                       if (!kIsWeb &&
                           defaultTargetPlatform == TargetPlatform.android)
                         SwitchListTile(
@@ -9728,7 +9728,7 @@ class _NovelInlineSettings extends StatelessWidget {
                     leading: Icons.tune_rounded,
                     searchTerms: _kNovelSecMiscTerms,
                     children: <Widget>[
-                      // 繁简转换（M3.5.1）
+                      // 繁简转换
                       Text(l10n.chineseConverter,
                           style: Theme.of(context).textTheme.bodyMedium),
                       const SizedBox(height: AppTokens.spaceXs),
@@ -9781,7 +9781,7 @@ class _NovelInlineSettings extends StatelessWidget {
                         },
                       ),
                       const SizedBox(height: AppTokens.spaceSm),
-                      // 阅读中预下载（问题 4）：开关/阈值/数量配置弹窗。
+                      // 阅读中预下载：开关/阈值/数量配置弹窗。
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.download_for_offline_rounded),
@@ -9868,7 +9868,7 @@ class _NovelInlineSettings extends StatelessWidget {
     );
   }
 
-  /// 问题 4：预下载配置弹窗（开关 / 触发阈值 / 章节数），保存后通知阅读器。
+  /// 预下载配置弹窗（开关 / 触发阈值 / 章节数），保存后通知阅读器。
   Future<void> _showPreDownloadDialog(
       BuildContext context, AppLocalizations l10n) async {
     final NovelPreDownloadPreferences initial =
@@ -10118,7 +10118,7 @@ class _NovelInlineSettings extends StatelessWidget {
         children: <Widget>[
           GestureDetector(
             onTap: () async {
-              // #6 修复：确认式取色（OK/Cancel），仅用户点确定时写回；
+              // 修复：确认式取色（OK/Cancel），仅用户点确定时写回；
               // onColorChanged 同步写入局部变量，避免滑块回弹。
               Color? pickedColor;
               final Color initial = displayed;
@@ -10376,7 +10376,7 @@ String _tapInvertLabel(AppLocalizations l10n, TapZoneInvert invert) {
   }
 }
 
-/// 设置面板可折叠分组（P1-C）：标题一行 + 可展开内容，内置箭头动画。
+/// 设置面板可折叠分组（-C）：标题一行 + 可展开内容，内置箭头动画。
 /// 去掉 ExpansionTile 默认的上下分割线，样式与设置面板统一。
 Widget _buildSettingsGroup(
   BuildContext context,
@@ -10648,7 +10648,7 @@ class _StableLongPressDetectorState extends State<_StableLongPressDetector> {
   }
 }
 
-/// 分享卡片：带书封的渐变文艺卡（Phase 3 / N6）。
+/// 分享卡片：带书封的渐变文艺卡（Phase 3 /）。
 ///
 /// 1080×1440（3:4）竖卡（桌面端完整尺寸，手机端紧凑版）：顶部书封 + 渐变叠层，
 /// 中部引文大字号，底部书名 / 章节 / 落款。书封缺省时用渐变占位。
@@ -10976,7 +10976,7 @@ class _SimpleColorSliderState extends State<_SimpleColorSlider> {
   }
 }
 
-/// 小说插图大图查看器（X-3 统一图片收藏图库）。
+/// 小说插图大图查看器（统一图片收藏图库）。
 ///
 /// 黑底 + InteractiveViewer 缩放；AppBar 提供「收藏 / 取消收藏」按钮，收藏写入
 /// 与漫画共用的 Hive `image_favorites` box（来源 = novel，按 URL 去重）。
@@ -11079,7 +11079,7 @@ class _NovelImageFavoriteViewerState extends State<_NovelImageFavoriteViewer> {
   }
 }
 
-/// F3 预扫描的 UI 状态快照（阅读器 → 翻译面板经 [ValueNotifier] 共享）。
+/// 预扫描的 UI 状态快照（阅读器 → 翻译面板经 [ValueNotifier] 共享）。
 class NovelPrescanUi {
   final bool running;
   final int done;
@@ -11107,9 +11107,9 @@ class NovelPrescanUi {
   NovelPrescanUi copyWithRunning(bool running) => copyWith(running: running);
 }
 
-/// O3 段落翻译双语面板：原文/译文逐段对照；缓存命中直接展示，
+/// 段落翻译双语面板：原文/译文逐段对照；缓存命中直接展示，
 /// 「翻译本章」走云端 AI（批量优先、分块回退），完成后持久化缓存。
-/// F3：可触发全书预扫描（章节摘要+全书概述），翻译时自动注入作品语境。
+/// 可触发全书预扫描（章节摘要+全书概述），翻译时自动注入作品语境。
 class _NovelTranslationSheet extends StatefulWidget {
   const _NovelTranslationSheet({
     required this.novelId,
@@ -11132,7 +11132,7 @@ class _NovelTranslationSheet extends StatefulWidget {
   final String targetLanguage;
   final NovelTranslationManager manager;
 
-  /// F3 全书预扫描（null 时隐藏预扫描入口，如测试环境）。
+  /// 全书预扫描（null 时隐藏预扫描入口，如测试环境）。
   final NovelPrescanManager? prescanManager;
   final ValueNotifier<NovelPrescanUi>? prescanUi;
   final VoidCallback? onStartPrescan;
@@ -11148,13 +11148,13 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
   String _progressTotal = '';
   String? _error;
 
-  /// F4 断点续译：未完成章节的分块检查点（空串位 = 待译段）。
+  /// 断点续译：未完成章节的分块检查点（空串位 = 待译段）。
   List<String>? _checkpoint;
 
   /// 防竞态：重试续译时旧任务的检查点回调不再落盘。
   int _runSeq = 0;
 
-  // ── F5 多阶段质量：润色（独立槽位，可对照切换）──
+  // ── 多阶段质量：润色（独立槽位，可对照切换）──
   List<String>? _polished;
   bool _showPolished = false;
   bool _polishing = false;
@@ -11249,7 +11249,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
       if (mounted) setState(() => _translations = cached.translations);
       return;
     }
-    // F4：无完整缓存时读取分块检查点，展示已完成段并提供「继续翻译」。
+    // 无完整缓存时读取分块检查点，展示已完成段并提供「继续翻译」。
     final partial = await widget.manager.loadCheckpoint(
       widget.novelId,
       widget.chapterId,
@@ -11258,7 +11258,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
     if (partial != null && mounted) {
       setState(() => _checkpoint = partial.translations);
     }
-    // F5：润色结果与功能开关（重进面板恢复对照切换）。
+    // 润色结果与功能开关（重进面板恢复对照切换）。
     try {
       final polished = await widget.manager.loadPolished(
         widget.novelId,
@@ -11275,7 +11275,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
     } on Object {
       // 润色状态读取失败不影响面板。
     }
-    // F3：打开面板时同步预扫描状态（此前会话已生成的概述立即显示注入标记）。
+    // 打开面板时同步预扫描状态（此前会话已生成的概述立即显示注入标记）。
     final prescanManager = widget.prescanManager;
     if (prescanManager != null && widget.prescanUi != null) {
       try {
@@ -11309,7 +11309,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
     final existing = resume && _checkpoint != null
         ? List<String>.of(_checkpoint!)
         : const <String>[];
-    // F3：作品语境（全书概述 + 本章前情摘要）注入 system prompt。
+    // 作品语境（全书概述 + 本章前情摘要）注入 system prompt。
     String? bookContext;
     try {
       final prescan = await (widget.prescanManager ?? NovelPrescanManager())
@@ -11327,7 +11327,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
         workId: widget.novelId,
         existing: existing,
         bookContext: bookContext,
-        // F4：每个分块完成即落盘检查点，中断后可从断点续译。
+        // 每个分块完成即落盘检查点，中断后可从断点续译。
         onChunkPersisted: (snapshot) {
           if (seq != _runSeq) return;
           _checkpoint = snapshot;
@@ -11378,14 +11378,14 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
         });
       }
     } on Object catch (e) {
-      // B7 归一化后的可读文案；已完成分块保留在检查点，可重试续译。
+      // 归一化后的可读文案；已完成分块保留在检查点，可重试续译。
       if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _translating = false);
     }
   }
 
-  /// F3 预扫描行：入口按钮 / 进度 / 完成标记。
+  /// 预扫描行：入口按钮 / 进度 / 完成标记。
   Widget _prescanRow(AppLocalizations l10n, ColorScheme scheme) {
     if (widget.onStartPrescan == null || widget.prescanUi == null) {
       return const SizedBox.shrink();
@@ -11447,7 +11447,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
     );
   }
 
-  /// F5 润色行：润色按钮（带进度）/ 已润色时初译/润色切换。
+  /// 润色行：润色按钮（带进度）/ 已润色时初译/润色切换。
   Widget _polishRow(AppLocalizations l10n, ColorScheme scheme) {
     if (_polished != null) {
       return Padding(
@@ -11563,7 +11563,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
                 ),
               ),
             _prescanRow(l10n, scheme),
-            // F5：润色入口与初译/润色对照切换。
+            // 润色入口与初译/润色对照切换。
             if (!_translating && _translations != null && _polishEnabled)
               _polishRow(l10n, scheme),
             if (_error != null)
@@ -11631,7 +11631,7 @@ class _NovelTranslationSheetState extends State<_NovelTranslationSheet> {
   }
 }
 
-/// N7 整章正文编辑对话框。
+/// 整章正文编辑对话框。
 ///
 /// 控制器由本 State 持有：待对话框（含退场动画）完全卸载后才释放，避免在
 /// 退场动画期间释放仍被 [EditableText] 使用的控制器，触发「used after

@@ -230,7 +230,7 @@ class LocalNovelParser {
   ///
   /// - 首个标题前的正文 ≥ [_kPrefaceMinChars] 时独立为「前言」章；
   /// - 全书零标题命中 → 按 [_kHardSplitChars] 在段落边界兜底硬切
-  ///   （总量不足两块时保持整本单章，标题用 [fallbackTitle]）；
+  /// （总量不足两块时保持整本单章，标题用 [fallbackTitle]）；
   /// - 超过 [_kMaxChapterChars] 的章按段落边界二次切分，命名「标题(N)」。
   static List<LocalNovelChapter> splitTxtChapters(
     String text, {
@@ -443,7 +443,7 @@ class LocalNovelParser {
       // - EPUB2：`toc.ncx`（NCX 导航文件，可能被不规范地放进 spine）；
       // - EPUB3：`epub:type` 含 `toc` / `landmarks`（比 properties 更权威的标识）；
       // - 文件名形似 toc/nav/contents 的视觉目录页（Word/Sigil/Calibre 常生成且
-      //   未标注 properties="nav"），需用内容探测二次确认，避免误伤正文章节。
+      // 未标注 properties="nav"），需用内容探测二次确认，避免误伤正文章节。
       final propsM =
           RegExp(r'\bproperties="([^"]+)"', caseSensitive: false).firstMatch(tag);
       final epubTypeM =
@@ -684,8 +684,8 @@ class LocalNovelParser {
   /// 解析单个内容文件为章节列表（统一切分）。
   ///
   /// 切分依据（并集，保证粒度）：
-  ///  - 文件内标题标签（h1-h6）及 class 含 chapter/part 的 p/div；
-  ///  - 若 [tocEntries] 非空，额外用目录条目（锚点 / 标题文字定位）增强标题。
+  /// - 文件内标题标签（h1-h6）及 class 含 chapter/part 的 p/div；
+  /// - 若 [tocEntries] 非空，额外用目录条目（锚点 / 标题文字定位）增强标题。
   ///
   /// 即使 [tocEntries] 退化（仅 1 条或缺失），只要文件内有标题就能正常分章；
   /// 既无标题也无目录时，整文件作为单章返回（标题取首个目录条目或文件名）。

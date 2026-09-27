@@ -559,7 +559,7 @@ class HttpFetcher {
 
   /// 将响应字节按字符集解码为字符串。
   ///
-  /// 对齐旧版可解析实现：国内大量漫画/小说/动漫源（如 goda、baozimh 部分镜像）
+  /// 对齐旧版可解析实现：国内大量漫画/小说/动漫源（含部分国内镜像）
   /// 以 **GBK/GB2312/GB18030** 编码返回正文。若直接用 Dio 的 `ResponseType.plain`
   /// 走 UTF-8 解码，中文会变成乱码（烫疽 类字符），正则选择器匹配不到 → 列表空。
   /// 故统一取字节后：先按 Content-Type / <meta charset> 声明的字符集解码；
@@ -791,7 +791,7 @@ class HttpFetcher {
   }
 
   /// POST 并返回解析后的 JSON（自动解析响应体）。
-  /// 用于 meta 协议的 POST 预取分支（如 komiic 的 GraphQL 查询）。
+  /// 用于 meta 协议的 POST 预取分支（如部分源的 GraphQL 查询）。
   Future<dynamic> postJson(
     String url, {
     Map<String, String>? headers,
@@ -927,7 +927,7 @@ class HttpFetcher {
 
   /// 表单（application/x-www-form-urlencoded）POST，返回 HTML 文本。
   /// 对应 JS 沙箱 `context.http.postForm(url, params)`：params 为键值对，
-  /// 编码为 `k=v&...` 并以该 Content-Type 发送（golden 源 gugu3 视频解析用到）。
+  /// 编码为 `k=v&...` 并以该 Content-Type 发送（部分源视频解析用到）。
   Future<String> postForm(
     String url, {
     Map<String, String>? headers,
@@ -1021,7 +1021,7 @@ class HttpFetcher {
   }
 
   /// 取原始字节（不解码）：供需要自行按字符集解码的调用方，如 RSS 解析器按
-  /// `<?xml encoding=?>` 声明解码，避免非 UTF-8 feed 乱码（B12 修复）。
+  /// `<?xml encoding=?>` 声明解码，避免非 UTF-8 feed 乱码（修复）。
   ///
   /// 与 [fetch] 同路径（同 host 节流 / 隐身延迟 / 验证检测 / Cookie 注入 / net 隔离），
   /// 但返回的原始字节（`List<int>`）交给调用方解码，而非走共享 `_decodeBody`。
@@ -1116,11 +1116,11 @@ class HttpFetcher {
   ///
   /// [fetchDest]：二进制资产请求的 `Sec-Fetch-Dest`（image/video）。必须显式声明
   /// 为资产而非文档：[_mergeHeaders] 默认的 `Sec-Fetch-Dest: document`（页面导航
-  /// 头）会令 WAF 判定「伪装的图片请求」→ 统一返回占位图（如 goda 的 5.8KB
+  /// 头）会令 WAF 判定「伪装的图片请求」→ 统一返回占位图（如某源的 5.8KB
   /// 拦截图）。在线取图走缓存管理器不发这些头，故正常。
   ///
   /// 重定向处理：关掉 Dio 自动跟随，改为**手动解析 3xx 的 Location 直连**。
-  /// 实测部分 CDN（如 goda 的 `t40-*.g-mh.online` → `c-nd3-1.6wm.top`）在 Dio
+  /// 实测部分 CDN（如某源旧 CDN 域切换到新 CDN 域）在 Dio
   /// 自动跟随重定向时会返回 403 拦截页（自动跟随的请求头/指纹被 WAF 判定异常），
   /// 而手动解析 Location 后用同一套头直连最终地址可正常取到图片（200）。
   Future<List<int>> getBytes(String url,
@@ -1144,7 +1144,7 @@ class HttpFetcher {
       if (fetchDest != null) 'Sec-Fetch-Mode': 'no-cors',
     }, url);
     // 资产请求移除「导航专用头」：浏览器加载图片/视频时不发送这些，留着会被
-    // WAF 判定为伪装的图片请求 → 统一返回占位图（goda 5.8KB 拦截图）。
+    // WAF 判定为伪装的图片请求 → 统一返回占位图（某源 5.8KB 拦截图）。
     merged.remove('Sec-Fetch-User');
     merged.remove('Sec-Fetch-Site');
     merged.remove('Upgrade-Insecure-Requests');

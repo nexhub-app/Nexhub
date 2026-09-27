@@ -47,7 +47,7 @@ class AppHaptics {
   /// MD3「Gesture threshold」：手势越过触发阈值。下拉刷新开始刷新的一刻。
   static Future<void> gestureThreshold() => HapticFeedback.lightImpact();
 
-  // ──  旧语义兼容（既有调用点渐进迁移到上方 MD3 模式）──────────────
+  // ── 旧语义兼容（既有调用点渐进迁移到上方 MD3 模式）──────────────
 
   /// 通用点按/导航反馈 → MD3 [click]。
   static Future<void> selectionClick() => click();

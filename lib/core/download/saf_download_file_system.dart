@@ -326,10 +326,10 @@ class SafFileSystem implements DownloadFileSystem {
   ///
   /// 部分创建时被 provider 追加扩展名的文档（如 .cbz → .cbz.zip）需改名修正：
   /// 1. 先清理同名目标文档——AOSP renameDocument 在目标已存在时直接抛
-  ///    "Already exists"，删除是改名的前提（正常流程上方已删旧，这里兜底）。
+  /// "Already exists"，删除是改名的前提（正常流程上方已删旧，这里兜底）。
   /// 2. rename 失败（部分 ROM 对新建文档瞬时失败 / 拒绝改扩展名）短暂等待
-  ///    后重试一次；仍失败抛带两个文件名的 [FileSystemException]，
-  ///    而不是裸的 SafIoException。
+  /// 后重试一次；仍失败抛带两个文件名的 [FileSystemException]，
+  /// 而不是裸的 SafIoException。
   Future<void> _renameCreatedDoc(
     SafDocumentFile written,
     String name,

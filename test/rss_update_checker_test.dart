@@ -1,4 +1,4 @@
-/// Tests for [RssUpdateChecker] (P5.2 / 16.13 RSS 更新通知).
+/// Tests for [RssUpdateChecker] ( / 16.13 RSS 更新通知).
 library;
 
 import 'package:flutter_test/flutter_test.dart';

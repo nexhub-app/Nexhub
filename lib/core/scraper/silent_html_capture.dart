@@ -8,15 +8,15 @@
 ///
 /// 关键细节（对齐可见验证页 WebViewVerificationScreen 的既有行为）：
 /// - 验证域 host 钉完整浏览器 UA：cf_clearance 绑定 UA+IP，headless WebView
-///   与后续 HttpFetcher 重试必须同 UA，否则 Cookie 失效 → 反复弹验证；
+/// 与后续 HttpFetcher 重试必须同 UA，否则 Cookie 失效 → 反复弹验证；
 /// - onLoadStop 后等待渲染稳定再轮询 `getHtml()`（列表/详情由 JS 异步挂载）；
 /// - 抓到的 HTML 经 [VerificationDetector] 挑战特征检测：非挑战页 → 回传；
 /// - 命中挑战页（cf 5 秒盾等）→ 继续轮询一小段观察窗，给非交互式挑战自动
-///   通过/重定向的机会；超时仍为挑战页 → 返回 null，由调用方回退可见验证页；
+/// 通过/重定向的机会；超时仍为挑战页 → 返回 null，由调用方回退可见验证页；
 /// - 成功后同步 WebView 会话 Cookie 给 HttpFetcher，后续直连重试带同一会话；
 /// - 同 URL 并发抓取按单飞合并（9 个 homeSection 重复请求同一路由只抓一次）；
-///   不同 URL 各自独立抓取——回灌的是页面正文，按 host 合并会让同 host 不同
-///   路由（show 筛选 / search 关键词）串味。
+/// 不同 URL 各自独立抓取——回灌的是页面正文，按 host 合并会让同 host 不同
+/// 路由（show 筛选 / search 关键词）串味。
 library;
 
 import 'dart:async';

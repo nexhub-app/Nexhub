@@ -3,7 +3,7 @@ import 'package:nexhub/core/novel/novel_chinese_converter.dart';
 import 'package:nexhub/features/shuyuan/analyze/js_engine.dart';
 
 void main() {
-  group('chineseConverterJsPrelude（E5 书源 JS 繁简函数）', () {
+  group('chineseConverterJsPrelude（ 书源 JS 繁简函数）', () {
     test('预置脚本包含全局函数定义与映射数据', () {
       expect(chineseConverterJsPrelude, contains('global.t2s'));
       expect(chineseConverterJsPrelude, contains('global.s2t'));

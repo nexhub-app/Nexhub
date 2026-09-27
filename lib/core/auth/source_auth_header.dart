@@ -3,7 +3,7 @@
 /// 返回 null 表示无需附加（仅靠 HttpFetcher 自动注入的 Cookie，如 sessionid）。
 /// 完全由源配置驱动，不写死任何站点逻辑：
 /// - `sendTokenAs: "bearer"` → `Authorization: Bearer <checkCookie 对应 Cookie 值>`。
-/// - `sendTokenAs: "key"`    → `Authorization: <authScheme 默认 Key> <SourceKeyStore 中手动填写的 apiKey>`。
+/// - `sendTokenAs: "key"` → `Authorization: <authScheme 默认 Key> <SourceKeyStore 中手动填写的 apiKey>`。
 ///
 /// [SourceAuthManager]（登录态探测）与 [ScriptResolver]（meta 协议预取）共用本函数，
 /// 避免鉴权头拼接逻辑在两处漂移。

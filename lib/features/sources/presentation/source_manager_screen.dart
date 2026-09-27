@@ -529,7 +529,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       List<PluginConfig> filteredSources) {
     return Column(
       children: <Widget>[
-        // 顶部 Tab 切换（M3 等宽分段）
+        // 顶部 Tab 切换（等宽分段）
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppTokens.spaceLg,
@@ -1322,7 +1322,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
     );
   }
 
-  // ─────────────────────── 编辑/删除/迁移（P6.1.1/P6.1.2） ───────────────────────
+  // ─────────────────────── 编辑/删除/迁移 ───────────────────────
 
   /// 编辑源：打开独立的全字段编辑页（JSON 编辑，可设置所有模块的所有字段）。
   Future<void> _showEditDialog(PluginConfig source) async {

@@ -2,8 +2,8 @@
 ///
 /// 把 [ComicPageTranslationState] 里的千分比坐标区域渲染到图片显示矩形上：
 /// - 坐标映射：由视口尺寸 + 图片宽高比 + 阅读器适配模式（fitWidth / fitHeight /
-///   original / 裁边 cover）推导「图片实际显示矩形」，再按千分比插值定位每个
-///   气泡框——与阅读器的 [MangaPageImage] 显示逻辑保持一致；
+/// original / 裁边 cover）推导「图片实际显示矩形」，再按千分比插值定位每个
+/// 气泡框——与阅读器的 [MangaPageImage] 显示逻辑保持一致；
 /// - 覆盖层整体包在 IgnorePointer 内（由调用方包裹），不遮挡阅读器手势；
 /// - 加载中 / 失败态显示小徽标（失败可重试），不出现在覆盖层外的任何位置。
 library;
@@ -75,7 +75,7 @@ class ComicTranslationOverlay extends StatelessWidget {
   /// 重试回调（错误态徽标点击）。为 null 时错误徽标不可点。
   final VoidCallback? onRetry;
 
-  /// F7 排版回填：true 时以「气泡内回填」渲染（描边文字 + bbox 宽度
+  /// 排版回填：true 时以「气泡内回填」渲染（描边文字 + bbox 宽度
   /// 换行 + 字号自适应），false 时为半透明覆盖层模式。
   final bool backfill;
 
@@ -214,7 +214,7 @@ class ComicTranslationOverlay extends StatelessWidget {
     );
   }
 
-  /// F7 气泡内回填渲染：不铺底色，描边文字保证任意气泡底色可读；
+  /// 气泡内回填渲染：不铺底色，描边文字保证任意气泡底色可读；
   /// 按 bbox 宽度换行、字号自适应（竖排页降级横排居中，产品说明见文档）。
   Widget _bubbleBackfill(Rect box, String text, VisionTextSegment seg) {
     final result = BackfillLayout.layout(

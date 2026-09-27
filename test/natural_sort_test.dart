@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/utils/natural_sort.dart';
 
 void main() {
-  test('纯数字文件名按数值排序（REQ-C0）', () {
+  test('纯数字文件名按数值排序', () {
     final list = <String>['10.jpg', '2.jpg', '1.jpg', '3.jpg']
       ..sort(naturalCompare);
     expect(list, <String>['1.jpg', '2.jpg', '3.jpg', '10.jpg']);

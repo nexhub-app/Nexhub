@@ -47,7 +47,7 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
     try {
       // Android SAF 无法按 txt/epub 之外的扩展名稳定过滤（cbz/mkv 等无标准 MIME
       // 会被隐藏），统一用 FileType.any 再由 classifyByPath 校验；桌面保留 custom。
-      // D9：桌面侧扩展名加入压缩包（zip/cbz/7z/rar…），归档内 txt/epub 批量导入。
+      // 桌面侧扩展名加入压缩包（zip/cbz/7z/rar…），归档内 txt/epub 批量导入。
       final isAndroid = PlatformService.instance.isAndroid;
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
@@ -56,7 +56,7 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
             ? null
             : const <String>[
                 'txt', 'epub', 'zip', 'cbz', 'rar', '7z', 'cb7',
-                // D7 便携文档：Mobi 系与 PDF（文本层）。
+                // 便携文档：Mobi 系与 PDF（文本层）。
                 'mobi', 'prc', 'azw', 'pdf',
               ],
       );
@@ -75,10 +75,10 @@ class _ImportNovelScreenState extends State<ImportNovelScreen> {
         // 直接按 path 分类会失败（"无法打开 TXT" 根因）。改按显示名 f.name
         // （含 .txt/.epub 扩展名）分类，path 作为兜底。
         final kind = classifyByPath(f.name) ?? classifyByPath(f.path!);
-        // D7 便携文档（Mobi/PDF 文本层）：按小说入库，打开时由阅读器解析。
+        // 便携文档（Mobi/PDF 文本层）：按小说入库，打开时由阅读器解析。
         final bool isPortable = isPortableBookFile(f.path!) ||
             isPortableBookFile(f.name);
-        // D9 压缩包批量导入：解压归档内 txt/epub 逐本入库（持久目录，
+        // 压缩包批量导入：解压归档内 txt/epub 逐本入库（持久目录，
         // 文件名解析书名/作者）。非小说归档（无 txt/epub 条目）报错跳过。
         if (kind != LocalMediaKind.text &&
             !isPortable &&

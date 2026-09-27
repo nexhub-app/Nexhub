@@ -53,18 +53,18 @@ class VerificationNavigator {
   ///
   /// Returns `true` when:
   /// - verification succeeded and [retry] completed without throwing. The
-  ///   caller may clear its error state (the retry callback is expected to
-  ///   clear it on success).
+  /// caller may clear its error state (the retry callback is expected to
+  /// clear it on success).
   /// - verification succeeded but [retry] threw. [onErrorText] has been
-  ///   invoked with the retry error text, so the caller MUST NOT overwrite
-  ///   the error state.
+  /// invoked with the retry error text, so the caller MUST NOT overwrite
+  /// the error state.
   ///
   /// Returns `false` when:
   /// - [error] is not a verification exception, or [verifyHandler] is null.
-  ///   The caller sets the original `e.toString()` (or a localized message).
+  /// The caller sets the original `e.toString()` (or a localized message).
   /// - the [BuildContext] is no longer mounted.
   /// - the user cancelled verification. The caller sets a localized
-  ///   "verification required" message.
+  /// "verification required" message.
   static Future<bool> handleVerificationAndRetry(
     BuildContext context,
     Object error,

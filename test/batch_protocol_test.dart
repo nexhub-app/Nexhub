@@ -1,4 +1,4 @@
-/// 批量译文协议（B9 收敛后的单份实现）的编解码测试。
+/// 批量译文协议（收敛后的单份实现）的编解码测试。
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -56,7 +56,7 @@ void main() {
     });
   });
 
-  group('旧入口委托兼容（B9）', () {
+  group('旧入口委托兼容（）', () {
     test('NovelTranslationService.parseBatched 与 BatchProtocol.decode 等价', () {
       const raw = '<<<1>>>A\n<<<2>>>B\n';
       expect(

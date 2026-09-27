@@ -1,4 +1,4 @@
-/// 平台能力抽象层（规格 §15）。
+/// 平台能力抽象层（规格）。
 ///
 /// 所有平台相关判定（桌面/移动/Web/HarmonyOS NEXT）与未来平台分支统一收敛于此，
 /// feature 与 core 业务代码不得直接写 `Platform.isXxx` / `defaultTargetPlatform` 分支。

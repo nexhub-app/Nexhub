@@ -837,7 +837,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
     }
   }
 
-  /// 打开全屏图片画廊（B2 图片查看器）。
+  /// 打开全屏图片画廊（图片查看器）。
   void _openGallery(BuildContext context, List<String> images, int index) {
     if (images.isEmpty) return;
     Navigator.of(context).push(
@@ -851,7 +851,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
     );
   }
 
-  /// 打开视频（B4）：直链媒体走 media_kit 原生播放器；嵌入页（B站/YouTube
+  /// 打开视频：直链媒体走 media_kit 原生播放器；嵌入页（B站/YouTube
   /// 等 iframe 地址）走应用内置浏览器——内嵌 InAppWebView 在 Windows 桌面
   /// 极易白屏，且内置浏览器带外部回退、与应用浏览链路一致。
   void _openVideo(BuildContext context, String url) {
@@ -1202,7 +1202,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                     child: Html(
                       data: html,
                       style: htmlStyle,
-                      // 渲染时彻底丢弃危险/追踪标签（B6 HTML 消毒）；
+                      // 渲染时彻底丢弃危险/追踪标签（HTML 消毒）；
                       // iframe 不在此丢弃——改由下方 Extension 渲染为「播放视频」按钮，
                       // 否则嵌入视频（YouTube/B 站等）会被整段跳过无法播放。
                       doNotRenderTheseTags: const <String>{
@@ -1270,7 +1270,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
                           },
                         ),
                         // iframe 嵌入视频：不渲染原始 iframe（XSS/追踪风险），改为
-                        // 「播放视频」按钮，点击用应用内 WebView 播放（B4）。
+                        // 「播放视频」按钮，点击用应用内 WebView 播放。
                         TagExtension(
                           tagsToExtend: <String>{'iframe'},
                           builder: (ExtensionContext ext) {

@@ -1,4 +1,4 @@
-/// RSS 文章内图片全屏查看器（B2 图片查看器：点击放大 + 多图滑动画廊）。
+/// RSS 文章内图片全屏查看器（图片查看器：点击放大 + 多图滑动画廊）。
 ///
 /// 用 Flutter 内置 [InteractiveViewer] + [PageView] 实现，零额外依赖
 /// （替代 photo_view 包，避免引入新依赖带来的 pubspec.lock 变动风险）。

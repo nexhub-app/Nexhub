@@ -88,17 +88,17 @@ enum SourceAgeRating {
 ///
 /// ```json
 /// "webFavorite": {
-///   "title": "我的书架",
-///   "route": "webFavorite",
-///   "url": "/user/bookshelf",
-///   "addUrl": "/user/favorite/add?id={id}",
-///   "requireLogin": true
+/// "title": "我的书架",
+/// "route": "webFavorite",
+/// "url": "/user/bookshelf",
+/// "addUrl": "/user/favorite/add?id={id}",
+/// "requireLogin": true
 /// }
 /// ```
 ///
 /// - [route] / [addRoute] 指向 `routes` 中的键，由解析器按常规管线抓取；
 /// - [url] / [addUrl] 为网页入口，未提供 route 时以内置浏览器打开，
-///   支持 `{id}` `{detailUrl}` `{title}` 占位符。
+/// 支持 `{id}` `{detailUrl}` `{title}` 占位符。
 class WebFavoriteConfig {
   /// 总开关。声明了该段即默认启用；置 false 可临时停用而不删配置。
   final bool enabled;
@@ -751,8 +751,8 @@ class SourceFilterConfig {
 class AntiHotlinkingConfig {
   final String? referer;
   final Map<String, String>? headers;
-  /// 部分源（如 pms_fsdm / pms_cycani 等）要求携带特定 User-Agent 才能绕开
-  /// 反盗链（C1）。旧模型只读了 referer，丢失 userAgent 导致这类源请求被拒。
+  /// 部分源要求携带特定 User-Agent 才能绕开
+  /// 反盗链。旧模型只读了 referer，丢失 userAgent 导致这类源请求被拒。
   final String? userAgent;
 
   const AntiHotlinkingConfig({this.referer, this.headers, this.userAgent});
@@ -833,21 +833,21 @@ class WebviewConfig {
 /// - [url]：WebView 登录页地址。
 /// - [checkCookie]：Cookie 中出现该键名即视为已登录（快速判断）。
 /// - [checkUrl] + [loggedInSelector]：可选的探测端点二次确认
-///   （GET checkUrl，选择器命中非空即登录有效）。
+/// （GET checkUrl，选择器命中非空即登录有效）。
 /// - [sendTokenAs]：受保护请求（收藏/个人页等）如何附加 Authorization 头。
-///   完全由源声明驱动，不写死站点：
-///   - null/其他  → 不额外追加，仅靠 HttpFetcher 自动注入的 Cookie（如 sessionid）。
-///   - "bearer"   → 追加 `Authorization: Bearer <checkCookie 对应 Cookie 值>`
-///     （少数源用此格式）。
-///   - "key"      → 追加 `Authorization: <authScheme 默认 Key> <手动填写的 apiKey>`。
-///     值的来源是用户在登录面板粘贴、持久化在 [SourceKeyStore] 的密钥
-///     （key 名见 [apiKeyParam]），而非 Cookie——适合「登录只给
-///     access_token、收藏却要单独 API Key」的站点（其 v2 API 明确「用 Key
-///     <api_key>，不是 Bearer」，401 报文已证实）。
+/// 完全由源声明驱动，不写死站点：
+/// - null/其他 → 不额外追加，仅靠 HttpFetcher 自动注入的 Cookie（如 sessionid）。
+/// - "bearer" → 追加 `Authorization: Bearer <checkCookie 对应 Cookie 值>`
+/// （少数源用此格式）。
+/// - "key" → 追加 `Authorization: <authScheme 默认 Key> <手动填写的 apiKey>`。
+/// 值的来源是用户在登录面板粘贴、持久化在 [SourceKeyStore] 的密钥
+/// （key 名见 [apiKeyParam]），而非 Cookie——适合「登录只给
+/// access_token、收藏却要单独 API Key」的站点（其 v2 API 明确「用 Key
+/// <api_key>，不是 Bearer」，401 报文已证实）。
 /// - [authScheme]：仅 [sendTokenAs]=='key' 时生效，Authorization 头前缀
-///   （默认 "Key"）。用于兼容不同前缀的源，不写死。
+/// （默认 "Key"）。用于兼容不同前缀的源，不写死。
 /// - [apiKeyParam]：仅 [sendTokenAs]=='key' 时生效，手动密钥在 [SourceKeyStore]
-///   中的参数名（默认 "apiKey"），按 `sourceId:apiKeyParam` 存储。
+/// 中的参数名（默认 "apiKey"），按 `sourceId:apiKeyParam` 存储。
 class CommentsLoginConfig {
   final String? url;
   final String? checkCookie;
@@ -892,10 +892,10 @@ class CommentsLoginConfig {
 /// 评论配置（可选 comments 段）——源声明评论路由与登录方式。
 ///
 /// - [routes]：复用 [RouteConfig]，仅 `list` 必需；`replies` / `post` /
-///   `reply` / `like` / `report` 均可选——未声明的操作对应按钮不渲染。
+/// `reply` / `like` / `report` 均可选——未声明的操作对应按钮不渲染。
 /// - [selectors]：声明式选择器（JSONPath / CSS / XPath，与顶层 selectors
-///   同引擎）：items / commentId / author / avatar / content / time /
-///   likeCount / replyCount / success 等。
+/// 同引擎）：items / commentId / author / avatar / content / time /
+/// likeCount / replyCount / success 等。
 /// - [login]：登录方式声明，缺省表示源不支持登录（只读评论）。
 /// - [provider]：预留扩展点，默认 `source`；`bangumi` 本期仅解析不实现。
 ///
@@ -1150,7 +1150,7 @@ class PluginConfig {
     if (referer != null && referer.isNotEmpty) m['Referer'] = referer;
     if (ua != null && ua.isNotEmpty) m['User-Agent'] = ua;
     if (cookies != null && cookies.isNotEmpty) m['Cookie'] = cookies;
-    // 默认补 Referer：优先源站 origin（goda 的图 CDN 要求 godamh.com 同源，
+    // 默认补 Referer：优先源站 origin（某源图 CDN 要求同源域名，
     // 否则间歇性 403），源站取不到再回退图片 URL 自身 origin。
     if (!m.containsKey('Referer')) {
       final String? origin = _fallbackRefererOrigin(url);
@@ -1398,7 +1398,7 @@ class PluginConfig {
 
   /// 解析路由 URL：替换 {page}/{keyword}/{id}/{category}/{cid}/{mid}/{chapterId}
   /// 等占位符，相对路径按 activeBaseUrl 补全；绝对 URL 替换 host 指向新镜像
-  /// （P8.2.2 §廿二 镜像切换后 route 指向新镜像）。
+  /// （镜像切换后 route 指向新镜像）。
   String resolveRouteUrl(
     String apiName, {
     required String activeBaseUrl,

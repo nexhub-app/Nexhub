@@ -160,7 +160,7 @@ class DandanplayService implements DanmakuSource {
   ///
   /// 对应 `POST /api/v2/login`（官方账号服务器）：
   /// - 请求体含 `{userName, password, appId, unixTimestamp, hash}`，
-  ///   其中 `hash = md5(AppId + Password + Timestamp + UserName + AppSecret)`；
+  /// 其中 `hash = md5(AppId + Password + Timestamp + UserName + AppSecret)`；
   /// - 响应携带用户级 token（后续发送弹幕以 `Authorization: Bearer` 携带）
   /// 与用户信息。
   ///
@@ -203,10 +203,10 @@ class DandanplayService implements DanmakuSource {
   ///
   /// 对应 `POST /api/v2/register`（官方账号服务器）：
   /// - 请求体在登录字段基础上增加 `email` 与 `screenName`，并复用同一套
-  ///   `hash = md5(AppId + Password + Timestamp + UserName + AppSecret)` 与
-  ///   应用级签名头；
+  /// `hash = md5(AppId + Password + Timestamp + UserName + AppSecret)` 与
+  /// 应用级签名头；
   /// - 成功响应与登录一致（`LoginResponse`，携带 token + 用户信息），可直接
-  ///   复用 [DandanplayLoginResult] 并自动登录。
+  /// 复用 [DandanplayLoginResult] 并自动登录。
   ///
   /// 凭据未配置 / 参数校验失败（用户名已存在、邮箱格式错误等）原样抛出
   /// [StateError]，由 UI 提示。

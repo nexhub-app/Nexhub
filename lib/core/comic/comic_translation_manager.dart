@@ -67,7 +67,7 @@ class ComicTranslationManager extends ChangeNotifier {
 
   static const String boxName = 'comic_translations';
 
-  /// 缓存条数上限（B5）：save 后惰性裁剪，按 updatedAt 升序淘汰最旧条目，
+  /// 缓存条数上限：save 后惰性裁剪，按 updatedAt 升序淘汰最旧条目，
   /// 防止长期使用磁盘无限膨胀。
   static const int defaultMaxEntries = 5000;
 
@@ -130,7 +130,7 @@ class ComicTranslationManager extends ChangeNotifier {
     }
   }
 
-  /// 容量裁剪（B5）：按 updatedAt 升序淘汰超出 [maxEntries] 的最旧条目。
+  /// 容量裁剪：按 updatedAt 升序淘汰超出 [maxEntries] 的最旧条目。
   /// 无时间戳的记录按 0 处理（最先淘汰）。返回删除条数。
   Future<int> trimToLimit(int maxEntries) async {
     if (maxEntries <= 0) return 0;
@@ -159,11 +159,11 @@ class ComicTranslationManager extends ChangeNotifier {
     return victims.length;
   }
 
-  /// 当前缓存条数（B5，设置页展示用；box 未打开返回 0）。
+  /// 当前缓存条数（设置页展示用；box 未打开返回 0）。
   int count() =>
       Hive.isBoxOpen(boxName) ? Hive.box(boxName).length : 0;
 
-  /// 清空全部缓存（B5 设置页「清除翻译缓存」入口）。返回删除条数。
+  /// 清空全部缓存（设置页「清除翻译缓存」入口）。返回删除条数。
   Future<int> clearAll() async {
     final box = await _ensureBox();
     final n = box.length;
@@ -185,7 +185,7 @@ class ComicTranslationManager extends ChangeNotifier {
     return keys.length;
   }
 
-  // ── F10 翻译缓存导出 / 导入（translations.json，跨设备复用不再计费）──
+  // ── 翻译缓存导出 / 导入（translations.json，跨设备复用不再计费）──
 
   /// 从缓存键解析四段标识（comicId|chapterKey|pageIndex|lang）。
   ///

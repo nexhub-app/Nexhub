@@ -2,7 +2,7 @@
 ///
 /// - token / 用户名存 [FlutterSecureStorage]（对齐 [BangumiAuth] 的存储策略）；
 /// - 登录经 `DandanplayService.login`（POST /api/v2/login，应用签名 + 账号
-///   密码 hash），成功后 token 供发送弹幕以 `Authorization: Bearer` 携带；
+/// 密码 hash），成功后 token 供发送弹幕以 `Authorization: Bearer` 携带；
 /// - 全应用单例（`instance`），播放器弹幕输入与全局设置页共用同一登录态。
 ///
 /// 注意：token 有效期由服务器控制（默认约 90 天）；过期时发送请求会被拒绝，

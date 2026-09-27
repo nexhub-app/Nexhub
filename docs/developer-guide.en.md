@@ -126,7 +126,7 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 
 | Field | Description |
 | --- | --- |
-| `id` | Required, unique id (e.g. `manga_goda`); same-id sources upgrade/skip by `version` |
+| `id` | Required, unique id (e.g. `manga_demo`); same-id sources upgrade/skip by `version` |
 | `name` | Required, display name |
 | `author` | Optional, source author name (shown on the source detail page, for attribution) |
 | `version` | Integer version (default 1); same-id sources upgrade/skip by version |
@@ -422,18 +422,18 @@ Below is the source-authoring tutorial tiered by difficulty, consistent with the
 
 ```json
 {
-  "id": "manga_goda",
+  "id": "manga_demo",
   "name": "GoDa Manga",
   "version": 4,
   "type": "mangaSource",
   "responseType": "html",
   "useWebview": true,
   "site": {
-    "domain": "godamh.com",
-    "baseUrl": "https://godamh.com",
+    "domain": "demo.example",
+    "baseUrl": "https://demo.example",
     "mirrors": [
-      { "name": "godamh.com", "domain": "godamh.com", "baseUrl": "https://godamh.com" },
-      { "name": "m.baozimh.one", "domain": "m.baozimh.one", "baseUrl": "https://m.baozimh.one" }
+      { "name": "demo.example", "domain": "demo.example", "baseUrl": "https://demo.example" },
+      { "name": "m.demo.example", "domain": "m.demo.example", "baseUrl": "https://m.demo.example" }
     ]
   },
   "parser": {

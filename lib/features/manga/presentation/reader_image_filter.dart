@@ -18,8 +18,8 @@ class ReaderImageFilter {
   /// 构造 4x5 颜色矩阵（行主序，长度 20，供 [ColorFilter.matrix] 使用）。
   ///
   /// [brightness] -1.0~1.0，正值提亮、负值变暗。
-  /// [contrast]   -1.0~1.0，正值增强、负值减弱（-1 退化为中灰）。
-  /// [colorTemp]  -1.0~1.0，正值偏暖（R↑B↓）、负值偏冷（R↓B↑）。
+  /// [contrast] -1.0~1.0，正值增强、负值减弱（-1 退化为中灰）。
+  /// [colorTemp] -1.0~1.0，正值偏暖（R↑B↓）、负值偏冷（R↓B↑）。
   static List<double> matrix({
     double brightness = 0.0,
     double contrast = 0.0,
@@ -96,7 +96,7 @@ class ReaderImageFilter {
       saturation == 0.0 &&
       hue == 0.0;
 
-  /// 色彩配置预设矩阵（L3 ICC 校色近似）：Flutter 原生 ICC displayProfile 支持
+  /// 色彩配置预设矩阵（ICC 校色近似）：Flutter 原生 ICC displayProfile 支持
   /// 有限，用固定 4x5 颜色矩阵近似常见显示风格。仅在 [profile] != none 时应用，
   /// 与手动滤镜（亮度/对比度/色温/饱和度/色相）叠加生效。
   static List<double> profileMatrix(ReaderColorProfile profile) {
@@ -228,7 +228,7 @@ class ReaderImageFiltered extends StatelessWidget {
         child: result,
       );
     }
-    // 色彩配置预设（L3 ICC 校色近似）：在手动滤镜之上叠加固定色彩矩阵。
+    // 色彩配置预设（ICC 校色近似）：在手动滤镜之上叠加固定色彩矩阵。
     if (colorProfile != ReaderColorProfile.none) {
       result = ColorFiltered(
         colorFilter: ColorFilter.matrix(

@@ -303,7 +303,7 @@ void main() {
         0.7);
   });
 
-  test('getReaderSetting resolves three tiers (REQ-C9)', () {
+  test('getReaderSetting resolves three tiers', () {
     const work = ReaderPreferences(background: ReaderBackgroundColor.white);
     const device = ReaderPreferences(background: ReaderBackgroundColor.gray);
     // device 层未设置 → 取作品层。

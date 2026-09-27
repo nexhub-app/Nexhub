@@ -4,7 +4,7 @@ import 'package:nexhub/core/models/plugin_config.dart';
 import 'package:nexhub/core/reader/reading_queue_store.dart';
 
 void main() {
-  group('ReadingQueueStore（X-2 待读队列）', () {
+  group('ReadingQueueStore（待读队列）', () {
     late InMemoryBackend backend;
     late ReadingQueueStore store;
 

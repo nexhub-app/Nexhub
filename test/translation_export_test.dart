@@ -1,7 +1,7 @@
-/// F10（导出增强）单元测试。
+/// （导出增强）单元测试。
 ///
 /// - 漫画翻译缓存导出/导入：JSON 回环、导入合并跳过已有键、
-///   chapterKey 含 `|` 的键往返无损、导入后 load 命中（不再发请求）；
+/// chapterKey 含 `|` 的键往返无损、导入后 load 命中（不再发请求）；
 /// - 小说译文附录排版：译文优先 / 原文优先 / 双语对照（无原文回落）。
 library;
 
@@ -31,7 +31,7 @@ NovelChapterTranslation _chapter({
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('F10 漫画翻译缓存导出/导入', () {
+  group('漫画翻译缓存导出/导入', () {
     late Directory tempDir;
 
     setUp(() async {
@@ -114,7 +114,7 @@ void main() {
     });
   });
 
-  group('F10 小说译文附录排版', () {
+  group('小说译文附录排版', () {
     test('translationFirst 仅译文；sourceFirst 仅原文；bilingual 逐段对照', () {
       final t = _chapter(sources: const <String>['原甲', '原乙']);
       final html = NovelDownloadHandler.translationsToEpubHtml(<NovelChapterTranslation>[t],

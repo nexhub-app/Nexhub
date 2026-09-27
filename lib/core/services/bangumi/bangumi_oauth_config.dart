@@ -4,7 +4,7 @@
 /// 1. App 引导用户在系统浏览器访问 `https://bgm.tv/oauth/authorize`；
 /// 2. 用户授权后 Bangumi 跳回 `redirectUri`（深链 `nexhub://oauth/callback`）；
 /// 3. App 用回调里的 `code` 向 `https://bgm.tv/oauth/access_token` 换取
-///    `access_token` + `refresh_token`。
+/// `access_token` + `refresh_token`。
 ///
 /// **凭据不写死在源码里**（公开仓库会泄露）。[clientId] / [clientSecret] 通过
 /// 编译期 `--dart-define` 注入，默认空字符串；本地构建请用仓库根的

@@ -6,7 +6,7 @@
 /// 3. 静默下载（后台下载不打断使用，完成后提示安装）。
 /// 4. 下载进度上报（百分比回调）。
 /// 5. 平台安装：Windows 启动安装包；macOS 挂载 dmg；Linux 启动安装包；
-///    Android 调用系统安装器。
+/// Android 调用系统安装器。
 library;
 
 import 'dart:async';
@@ -396,7 +396,7 @@ class UpdateManager extends ChangeNotifier {
   /// `v2.0.0-beta.1 → v2.0.0-beta.2` 这类同核心版本的迭代）：
   /// - 正式版 > 预发布版（`2.0.0` > `2.0.0-beta.1`）；
   /// - 两者均为预发布时，按 `.` 拆分逐段比较：纯数字段按数值比较
-  ///   （`beta.2` > `beta.1`），数字段小于字母段（SemVer 规范）。
+  /// （`beta.2` > `beta.1`），数字段小于字母段（SemVer 规范）。
   bool isNewer(String a, String b) {
     final List<String> pa = _splitSemver(a);
     final List<String> pb = _splitSemver(b);
@@ -524,13 +524,13 @@ class UpdateManager extends ChangeNotifier {
   /// 策略：
   /// 1. 先 HEAD 请求，`validateStatus` 接受任意响应码以便读取状态；
   /// 2. 探测真实安装包路径（URL 含 `/releases/download/`）时要求 2xx/3xx
-  ///    ——镜像对安装包返回 403/404 说明无法代理下载，即使响应快也不能选；
-  ///    探测普通页面（如 release 页）时保持宽松，4xx/5xx 仅说明路径不被
-  ///    代理，不代表镜像不可达；
+  /// ——镜像对安装包返回 403/404 说明无法代理下载，即使响应快也不能选；
+  /// 探测普通页面（如 release 页）时保持宽松，4xx/5xx 仅说明路径不被
+  /// 代理，不代表镜像不可达；
   /// 3. HEAD 被拒（部分镜像只支持 GET）或状态不达标时降级为 Range GET
-  ///    （只取前 1KB），避免下载完整文件；
+  /// （只取前 1KB），避免下载完整文件；
   /// 4. 仅 DNS/连接/超时等网络层错误，或（安装包路径下）持续的 4xx/5xx
-  ///    才判定为不可用。
+  /// 才判定为不可用。
   Future<int?> _probeUrl(String url, {int timeoutMs = 6000}) async {
     final Stopwatch sw = Stopwatch()..start();
     final Duration timeout = Duration(milliseconds: timeoutMs);
@@ -758,7 +758,7 @@ class UpdateManager extends ChangeNotifier {
           // 在文件尾，缺了就是「无法解压」，而文件头依然是合法的 PK）：
           // 1. 流截断：Content-Length 已知但实收不足；
           // 2. 大小不符：与 GitHub API 报告的资产字节数比对（对镜像返回的
-          //    HTML 错误页/限流页同样致命——那类响应长度几乎必然对不上）；
+          // HTML 错误页/限流页同样致命——那类响应长度几乎必然对不上）；
           // 3. 文件头魔数：兜底拦下「内容被污染但长度碰巧一致」的极端情况。
           // 任一不过：删掉坏文件、记为该候选失败，自动换下一个镜像重下。
           if (total > 0 && received < total) {

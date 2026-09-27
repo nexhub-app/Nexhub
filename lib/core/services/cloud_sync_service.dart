@@ -2,14 +2,14 @@
 ///
 /// 数据范围（spec J.2）：
 /// 1. 书源/媒体源/订阅源：book_sources / rss_feeds / article_feeds / sources
-///    / source_mirrors / chapter_fetch_times / source_library_* Hive box
+/// / source_mirrors / chapter_fetch_times / source_library_* Hive box
 /// 2. 书签/收藏/书架：favorites / comic_bookmarks / novel_bookmarks /
-///    bangumi_subject_links Hive box
+/// bangumi_subject_links Hive box
 /// 3. 阅读/播放历史与进度：media_watched / media_playback_position /
-///    comic_progress / novel_progress / media_progress Hive box
+/// comic_progress / novel_progress / media_progress Hive box
 /// 4. 其它：download_tasks / danmaku_cache / settings Hive box
 /// 5. 阅读器/播放器偏好：PlayerSettings / ReaderDefaultSettings / LayoutSettings
-///    / DanmakuSettings 持久化的 SharedPreferences
+/// / DanmakuSettings 持久化的 SharedPreferences
 ///
 /// ⚠️ 备份白名单统一从 [kStorageBoxNames] 读取（单一事实源），与 splash
 /// 启动时打开的 box 严格 1:1 —— 任何 box 增删只需改 storage_boxes.dart。
@@ -121,7 +121,7 @@ class CloudSyncConfig {
   /// 各 box（及 `__prefs__`）的内容 sha256，用于增量同步。
   final Map<String, String>? boxHashes;
 
-  /// F6：小说导出完成后自动把 EPUB 产物上传到 WebDAV `nexhub/exports/`。
+  /// 小说导出完成后自动把 EPUB 产物上传到 WebDAV `nexhub/exports/`。
   /// 独立于整包备份的 autoSync（导出上传与备份节奏无关）。
   final bool autoUploadNovelExports;
 
@@ -638,9 +638,9 @@ class CloudSyncService extends ChangeNotifier {
   /// [merge] = true 合并（保留本地其它键）；false 覆盖（先清空目标 box 再写入）。
   /// [scope] 非空时只恢复这些分类对应的 box。
   /// [conflictChoices] 非空（冲突解决模式）：键为 box 名，值为「是否采用云端」。
-  ///   - true：该 box 整体以云端为准（清空后写入云端数据）。
-  ///   - false：跳过该 box（保留本地）。
-  ///   - 未列出：按 [merge] 合并（云端键覆盖本地同键，保留本地独有键）。
+  /// - true：该 box 整体以云端为准（清空后写入云端数据）。
+  /// - false：跳过该 box（保留本地）。
+  /// - 未列出：按 [merge] 合并（云端键覆盖本地同键，保留本地独有键）。
   Future<bool> pullRemote({
     bool merge = true,
     Set<BackupCategory>? scope,

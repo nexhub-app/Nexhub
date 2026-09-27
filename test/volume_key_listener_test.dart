@@ -5,7 +5,7 @@ import 'package:nexhub/core/utils/volume_key_listener.dart';
 
 /// Bug1 音量键翻页修复测试：
 /// - start() 必须先订阅事件流（触发原生 EventChannel.onListen → 设置 volumeEventSink）
-///   再开启原生拦截，消除 enable 与事件通道订阅的竞态；
+/// 再开启原生拦截，消除 enable 与事件通道订阅的竞态；
 /// - 'volume_down' / 'volume_up' 事件正确路由到对应回调（阅读器侧 down→next、up→prev）；
 /// - enableInterception 抛异常时写日志并 rethrow（不再被 unawaited 静默吞掉）。
 void main() {

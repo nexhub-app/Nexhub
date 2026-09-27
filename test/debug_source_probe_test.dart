@@ -2,12 +2,12 @@
 ///
 /// 目的：在 Windows 上定位 Bug②（普通源解析不到 / 采集api源详情页空）。
 /// 运行：
-///   flutter test test/debug_source_probe_test.dart
+/// flutter test test/debug_source_probe_test.dart
 /// 只跑某个源（按 id，逗号分隔）：
-///   PROBE_ONLY_ID=pms_fsdm,pms_aowu flutter test test/debug_source_probe_test.dart
+/// PROBE_ONLY_ID=demo_a,demo_b flutter test test/debug_source_probe_test.dart
 /// 直接喂一个源 JSON 文件（例如「采集api生成」导出的真实源，它存在
 /// SharedPreferences 里、flutter test 加载不到）：
-///   PROBE_SOURCE_FILE=C:/Users/xxx/my_source.json flutter test test/debug_source_probe_test.dart
+/// PROBE_SOURCE_FILE=C:/Users/xxx/my_source.json flutter test test/debug_source_probe_test.dart
 ///
 /// 输出是一段带分隔符的报告，请整段贴回给开发者，便于定位。
 library;

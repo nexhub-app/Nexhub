@@ -78,9 +78,9 @@ class VerificationDetector {
   /// 主动挑战标记：仅出现在真正的验证/反爬挑战页（5秒盾、滑块、CAPTCHA、
   /// Cloudflare 真实「Just a moment」页），正常内容页绝不会出现。命中即判为验证页。
   ///
-  /// 注意：避免把整段域名（如 `fsdm02`）作为特征——源站正常页面里也会在
+  /// 注意：避免把整段域名作为特征——源站正常页面里也会在
   /// URL/脚本/链接中出现自己的域名，会导致整站正常响应被误判为验证页，
-  /// 进而触发验证循环（用户看到「需要验证」但验证完仍打不开）。fsdm02 的
+  /// 进而触发验证循环（用户看到「需要验证」但验证完仍打不开）。相关源的
   /// 滑块验证页已经通过 `/_guard/html.js` / `/_guard/slide.js` 精确识别。
   static const List<String> _activeChallengeMarkers = <String>[
     '__cf_chl',
@@ -105,7 +105,7 @@ class VerificationDetector {
 
   /// 被动 CF 标记：Cloudflare 为「每一个」经它代理的页面注入（包括正常内容页，
   /// 例如 `/cdn-cgi/challenge-platform/scripts/jsd/main.js` 这段 bot 检测脚本）。
-  /// goda 这类站点的正常 200 大页面（47–62KB）就包含它。单凭它命中会误伤 →
+  /// 部分站点的正常 200 大页面（47–62KB）就包含它。单凭它命中会误伤 →
   /// 验证死循环。因此被动标记只在 body「极短（真实挑战页通常只有几 KB 的等待/
   /// 重定向壳）」时才结合判定，正常大内容页直接放行。
   static const List<String> _passiveCfMarkers = <String>[
@@ -116,7 +116,7 @@ class VerificationDetector {
   /// WAF/反爬「拦截应答」的精确 body 特征：整段 body 去掉首尾空白后**全字匹配**
   /// （大小写不敏感）才算命中。
   ///
-  /// 背景：cycani / girigirilove 等站点挂在「Edge WAF」后面（响应头 Server 形如
+  /// 背景：部分站点挂在「Edge WAF」后面（响应头 Server 形如
   /// `Edge/1.1.18`）。当它判定请求疑似机器人时，会返回 HTTP 200，但 body 只有一个
   /// 极短的拦截词——实测就是 `closed`。旧逻辑只认 Cloudflare/滑块特征，于是把
   /// `closed` 当成「正常内容」丢给解析器 → 解析出 0 条 → 用户只看到空白列表，
@@ -158,7 +158,7 @@ class VerificationDetector {
       // 主动挑战标记（仅真实挑战页有）→ 直接判。
       if (body != null && _hasActiveChallenge(body)) return true;
       // 被动 CF 标记（正常页也有）→ 仅当 body 极短（挑战壳）时才判，
-      // 放行 goda 这类 47–62KB 的正常大页面。
+      // 放行部分源 47–62KB 的正常大页面。
       if (body != null &&
           _hasPassiveCf(body) &&
           _isLikelyChallengeShell(body)) {
@@ -186,7 +186,7 @@ class VerificationDetector {
   }
 
   /// 真实 CF 挑战页特征：体积极小（仅为「等待 5 秒 / 重定向」壳，通常 < 8KB），
-  /// 不像正常大内容（goda 正常页 47–62KB，远超过阈值，不会误伤）。
+  /// 不像正常大内容（部分源正常页 47–62KB，远超过阈值，不会误伤）。
   ///
   /// 仅作为「被动 CF 标记」的辅助闸门：body 既含被动标记又极短 → 才判为挑战。
   static bool _isLikelyChallengeShell(String body) {
@@ -226,7 +226,7 @@ class VerificationDetector {
   /// 两条命中路径：
   /// 1) body 去空白后全字命中 [_wafBlockBodies]（如整段就是 `closed`）；
   /// 2) 响应头 Server 命中已知 WAF 签名，且 body「短且不像正常内容」
-  ///    （极短、且不是以 `{`/`[`/`<` 开头的 JSON/HTML）——覆盖拦截词变体或空 body。
+  /// （极短、且不是以 `{`/`[`/`<` 开头的 JSON/HTML）——覆盖拦截词变体或空 body。
   static bool _isWafBlock(String? body, Map<String, String>? headers) {
     final trimmed = (body ?? '').trim();
     final lower = trimmed.toLowerCase();

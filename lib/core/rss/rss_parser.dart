@@ -1,4 +1,4 @@
-/// RSS / Atom / RDF(RSS 1.0) / JSON Feed 解析器（文档 §10.2）。
+/// RSS / Atom / RDF(RSS 1.0) / JSON Feed 解析器（文档）。
 ///
 /// 支持 RSS 2.0、Atom 1.0、RDF(RSS 1.0) 三种 XML 格式与 JSON Feed 1.1。
 /// 使用 `xml` 包解析 XML，`dart:convert` 解析 JSON Feed。
@@ -405,7 +405,7 @@ class RssParser {
       }
     }
     // Atom：<content> 为全文，<summary> 为摘要（无 content 时回退）。
-    // 此前只取 summary 导致 Atom 源永远只显示摘要（B3）。
+    // 此前只取 summary 导致 Atom 源永远只显示摘要。
     final content = _text(entry, 'content');
     final summary = _text(entry, 'summary') ?? content;
     final author = _text(entry, 'author', child: 'name') ?? _text(entry, 'author');

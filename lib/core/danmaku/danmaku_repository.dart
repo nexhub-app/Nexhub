@@ -82,7 +82,7 @@ class DanmakuRepository {
     List<ParsedDanmakuItem> result = const <ParsedDanmakuItem>[];
 
     // 0. danmakuUrl 直链（最高优先级，用户显式配置）：串行先试，成功即返回。
-    //    直链通常就是 CDN/静态文件，比后续源更快，无需并行竞争。
+    // 直链通常就是 CDN/静态文件，比后续源更快，无需并行竞争。
     if (danmakuUrl != null && danmakuUrl.isNotEmpty) {
       try {
         final body = await _urlFetcher(danmakuUrl);
@@ -93,9 +93,9 @@ class DanmakuRepository {
     }
 
     // 1+2. 弹弹play 与 Bilibili 并行竞争：两者任一成功即用，互不等待。
-    //     旧实现串行回退——弹弹play 服务器慢时（连接/超时可达 15-20s）
-    //     要等它彻底失败才轮到 Bilibili，表现为「弹幕过一会才出现」。
-    //     并行后整体耗时 = 最快成功的源；配合下方缩短的超时，最坏 ~10s。
+    // 旧实现串行回退——弹弹play 服务器慢时（连接/超时可达 15-20s）
+    // 要等它彻底失败才轮到 Bilibili，表现为「弹幕过一会才出现」。
+    // 并行后整体耗时 = 最快成功的源；配合下方缩短的超时，最坏 ~10s。
     if (result.isEmpty) {
       final bool canDandan =
           dandanplayEpisodeId != null && _dandanplay.isAvailable;

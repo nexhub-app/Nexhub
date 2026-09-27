@@ -39,7 +39,7 @@ enum LocalMediaKind {
 
 /// 按扩展名识别本地文件媒体类型（目录交给 [classifyFolderByContent]）。
 ///
-/// 白名单覆盖 spec F2.A 并扩展示例常见格式：漫画 cbz/cbr/cbt/zip/rar/7z/cb7、
+/// 白名单覆盖核心场景并扩展示例常见格式：漫画 cbz/cbr/cbt/zip/rar/7z/cb7、
 /// 小说 txt/epub/umd/mobi/fb2/md/azw3、视频 mp4/mkv/mov/webm/avi/flv/m4v/ts/
 /// wmv/mpg/mpeg/rmvb、图片 jpg/jpeg/png/webp/gif/bmp。扩展名匹配大小写不敏感。
 LocalMediaKind? classifyByPath(String path) {
@@ -116,7 +116,7 @@ final Set<String> _failedVideoCoverTries = <String>{};
 
 /// 递归扫描目录，按里面真实文件的多数扩展名决定 [LocalMediaKind]。
 ///
-/// 实现 spec F2.D：不再一刀切标 images。混合目录按多数决定；空目录或全未识别
+/// 实现：不再一刀切标 images。混合目录按多数决定；空目录或全未识别
 /// 返回 null。目录不可读时抛 [FileSystemException]，由调用方走 l10n 提示。
 /// 注意：Android SAF URI（content://）无法用 dart:io 列举，会抛
 /// [FileSystemException]；调用方应先用 [isAndroidSafUri] 拦截并给出明确提示。
@@ -236,7 +236,7 @@ List<String> listFolderFilesByKind(String dir, LocalMediaKind kind) {
 ///
 /// - 散图（jpg/png/webp/gif/bmp）：整部漫画的一页页，导入为单条（路径=文件夹）。
 /// - 归档（cbz/cbr/cbt/zip/rar/7z/cb7/pdf）：每个文件 = 一话，导入为聚合条目
-///   （[LocalContentEntry.filePaths]），对应 B 阶段第 5 点。
+/// （[LocalContentEntry.filePaths]），对应 B 阶段第 5 点。
 /// 目录不可读抛 [FileSystemException]，由调用方走 l10n 提示。
 ({List<String> rawImages, List<String> archives, List<String> others})
     scanComicFolder(String dir) {
@@ -284,7 +284,7 @@ List<String> listFolderFilesByKind(String dir, LocalMediaKind kind) {
 /// - 图片目录：返回按名排序后的第一张松散图片。
 /// - 文件夹内的 .cbz/.zip：取目录内排序第一的压缩包，解压其首图作为封面。
 /// - .cbz / .zip 文件：仅解压第一张图到应用私有目录 `local_covers/` 并引用，
-///   避免每次进列表都全量解压（落盘缓存）。
+/// 避免每次进列表都全量解压（落盘缓存）。
 /// - 视频 / 文本（非 images）：无封面，返回 null。
 /// 任何异常均返回 null（封面回退占位图），不阻断导入流程。
 Future<String?> computeLocalCover(String path, LocalMediaKind kind) async {
@@ -570,7 +570,7 @@ class LocalContentEntry {
 
 /// 本地导入历史管理（SharedPreferences 持久化）。
 ///
-/// 继承 [ChangeNotifier] 以便书架等 UI 订阅导入列表变化（R3 修复）：
+/// 继承 [ChangeNotifier] 以便书架等 UI 订阅导入列表变化（修复）：
 /// 之前的实现由各导入页本地实例化且未调用 [init]，导致 `add` 写入时
 /// `_items` 为空 → `_persist` 覆盖旧记录，重启后导入历史丢失。
 /// 现统一在 splash 创建单例、注册为 Provider，导入页通过 `context.read` 复用。

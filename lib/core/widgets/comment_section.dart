@@ -5,10 +5,10 @@
 /// 完全不渲染任何评论 UI 元素。
 ///
 /// - 头部：评论计数 + 写评论（已登录且声明 post 路由）/「登录后评论」入口，
-///   登录态切换用 [AnimatedSwitcher]。
+/// 登录态切换用 [AnimatedSwitcher]。
 /// - 预览最多 3 条顶层评论，超出显示「查看全部」→ push [CommentListScreen]。
 /// - [CommentTile] 供本区与全量评论页共用：点赞/回复/举报按 comments.routes
-///   声明条件渲染；未登录点击引导登录；内联回复缩进展示可展开。
+/// 声明条件渲染；未登录点击引导登录；内联回复缩进展示可展开。
 library;
 
 import 'package:cached_network_image/cached_network_image.dart';

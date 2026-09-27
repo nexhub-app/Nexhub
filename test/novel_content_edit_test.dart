@@ -7,7 +7,7 @@ import 'package:nexhub/core/models/novel_block.dart';
 import 'package:nexhub/core/novel/novel_content_edit_manager.dart';
 
 void main() {
-  group('N7 内容编辑：可编辑文本序列化', () {
+  group('内容编辑：可编辑文本序列化', () {
     test('块列表 → 编辑文本 → 块列表 往返保持', () {
       final blocks = <NovelBlock>[
         const NovelTextBlock('第十二章 风起', isHeading: true),
@@ -60,7 +60,7 @@ void main() {
     });
   });
 
-  group('N7 内容编辑：管理器持久化', () {
+  group('内容编辑：管理器持久化', () {
     late Directory tempDir;
     late NovelContentEditManager manager;
 

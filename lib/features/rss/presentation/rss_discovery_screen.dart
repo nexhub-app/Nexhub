@@ -6,7 +6,7 @@
 /// 3. 若首页没声明，按常见路径（/feed、/rss.xml…）逐个探测并用解析器验证；
 /// 4. 列出候选（可多选）直接添加订阅。
 ///
-/// 网络请求一律走全局网络档案（B1 铁律）：`HttpFetcher.getHtml(url, net: globalProfile)`。
+/// 网络请求一律走全局网络档案（铁律）：`HttpFetcher.getHtml(url, net: globalProfile)`。
 library;
 
 import 'package:material_ui/material_ui.dart';

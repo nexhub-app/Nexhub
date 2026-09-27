@@ -1,7 +1,7 @@
 part of 'video_player_screen.dart';
 
 extension _VideoInfoStats on _VideoPlayerScreenState {
-  /// #4 A4-#4: 显示媒体信息（标题/源/剧集/当前 URL/播放进度）。
+  /// #4 -#4: 显示媒体信息（标题/源/剧集/当前 URL/播放进度）。
   void _showMediaInfo(AppLocalizations l10n) {
     final url = _playUrl ?? widget.episode.url;
     final pos = _position.inSeconds;
@@ -205,5 +205,5 @@ extension _VideoInfoStats on _VideoPlayerScreenState {
     );
   }
 
-  /// #4 A4-#4: 使用外部播放器打开当前 URL。
+  /// #4 -#4: 使用外部播放器打开当前 URL。
 }

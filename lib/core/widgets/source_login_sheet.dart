@@ -2,9 +2,9 @@
 ///
 /// 由评论区「登录后评论」等入口唤起，提供两种登录方式：
 /// - 「网页登录」：push [WebViewLoginScreen]，在站点页面完成登录后自动
-///   捕获会话 Cookie（桌面端不支持内嵌 WebView 时提示改用粘贴方式）。
+/// 捕获会话 Cookie（桌面端不支持内嵌 WebView 时提示改用粘贴方式）。
 /// - 「粘贴 Cookie」：[AppAlertDialog] + 多行输入框，确认后对源相关 host
-///   调 [HttpFetcher.syncCookies] 手动回灌。
+/// 调 [HttpFetcher.syncCookies] 手动回灌。
 ///
 /// 已登录时顶部显示登录状态与「退出登录」（经 [SourceAuthManager.logout]
 /// 清除该源相关 host 的 Cookie）。

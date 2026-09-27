@@ -14,7 +14,7 @@ import './settings_ai_screen.dart';
 
 /// 配置与网络汇总页：源管理 / RSS 订阅 / 网页爬取 / AI 配置 / 网络设置入口。
 ///
-/// 版面：每行一张独立描边小卡（[SettingsTile]），行间 4px，见 R3/R5。
+/// 版面：每行一张独立描边小卡（[SettingsTile]），行间 4px，见。
 class SettingsContentScreen extends StatelessWidget {
   const SettingsContentScreen({super.key});
 

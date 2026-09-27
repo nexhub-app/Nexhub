@@ -182,7 +182,7 @@ class _AboutScreenState extends State<AboutScreen> {
 
           const SizedBox(height: AppTokens.spaceXl),
 
-          // ── 条目统一为独立描边小卡（R3/R5）──
+          // ── 条目统一为独立描边小卡──
           SettingsGroup(
             header: l10n.aboutAppTitle,
             children: <Widget>[

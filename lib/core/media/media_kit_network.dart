@@ -4,10 +4,10 @@
 /// Dio 的代理 / DNS / SNI 配置。代理环境下「RSS 文字正常、音频永远 0:00」
 /// 的直接原因即此——页面请求走了应用代理，媒体请求却是裸直连。
 /// - 代理：把全局网络档案的代理写入 mpv 的 `http-proxy` 属性（manual 模式；
-///   system 模式与桌面 HttpClient 行为一致，交给 mpv 自读 http_proxy 环境变量；
-///   direct 模式写空值即直连）；
+/// system 模式与桌面 HttpClient 行为一致，交给 mpv 自读 http_proxy 环境变量；
+/// direct 模式写空值即直连）；
 /// - 防盗链头：Referer / UA 由调用方经 `Media(httpHeaders:)` 传入（见
-///   [buildMediaHeaders]），mpv 会随每个媒体请求携带。
+/// [buildMediaHeaders]），mpv 会随每个媒体请求携带。
 library;
 
 import 'package:media_kit/media_kit.dart';

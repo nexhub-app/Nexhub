@@ -4,7 +4,7 @@ import 'package:nexhub/core/novel/novel_reader_preferences.dart';
 import 'package:nexhub/core/theme/reader_tokens.dart';
 
 void main() {
-  group('B3 墨水屏背景主题化', () {
+  group('墨水屏背景主题化', () {
     test('选中墨水屏预设（末位索引）时 isEInkBackground 为真', () {
       const prefs = NovelReaderPreferences(
         bgPresetIndex: ReaderTokens.eInkPresetIndex,

@@ -294,14 +294,14 @@ void main() {
     <link>https://example.com</link>
     <description>videos</description>
     <item>
-      <title>V1</title>
+      <title>文章一</title>
       <link>https://example.com/v1</link>
       <media:group>
         <media:content url="https://cdn.example.com/v1.mp4" type="video/mp4" fileSize="1048576"/>
       </media:group>
     </item>
     <item>
-      <title>V2</title>
+      <title>文章二</title>
       <link>https://example.com/v2</link>
       <media:content url="https://cdn.example.com/v2.m3u8" type="application/vnd.apple.mpegurl"/>
     </item>
@@ -329,7 +329,7 @@ void main() {
     <link>https://example.com</link>
     <description>d</description>
     <item>
-      <title>D1</title>
+      <title>文章三</title>
       <link>https://example.com/d1</link>
       <enclosure url="https://cdn.example.com/d1.mp4" type="video/mp4" length="10"/>
       <media:content url="https://cdn.example.com/d1.mp4" type="video/mp4"/>

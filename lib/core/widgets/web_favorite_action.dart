@@ -23,7 +23,7 @@ import 'detail_action_utils.dart';
 /// 弹出收藏菜单：本地收藏 + 网络收藏（二选一）。
 ///
 /// - 源未声明 `webFavorite`（`hasWebFavoriteAdd` 为 false）→ 直接执行
-///   [toggleLocalFavorite]，交互与旧版完全一致；
+/// [toggleLocalFavorite]，交互与旧版完全一致；
 /// - 源已声明 → 底部菜单提供「本地收藏」「加入网络收藏」两项。
 Future<void> showFavoriteSheet({
   required BuildContext context,

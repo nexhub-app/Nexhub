@@ -1,11 +1,11 @@
 /// 源驱动评论服务：按源 JSON 可选 `comments` 段声明的路由与选择器拉取/发布评论。
 ///
 /// - 路由经 [PluginConfig.resolveRouteUrl] 的 `comments.` 命名空间解析，
-///   占位符替换 / 镜像切换 / 相对路径补全与主路由完全一致。
+/// 占位符替换 / 镜像切换 / 相对路径补全与主路由完全一致。
 /// - 选择器与顶层 selectors 同引擎：JSON 走 [JsonPath]，HTML 走 [HtmlUtils]
-///   （CSS / `a@href` / XPath）。
+/// （CSS / `a@href` / XPath）。
 /// - 服务无状态；HTTP 层经 [CommentHttpClient] 注入，测试可用 fake 替换
-///   （[HttpFetcher] 为私有构造单例，无法直接 mock）。
+/// （[HttpFetcher] 为私有构造单例，无法直接 mock）。
 library;
 
 import 'dart:convert';
@@ -321,7 +321,7 @@ class CommentApiService {
   /// - selectors.success 未声明 → HTTP 2xx（未抛异常）即成功；
   /// - 声明 success（JSONPath/CSS）→ 命中值非空即成功；
   /// - 另声明 selectors.successValue → 命中值需与其字符串相等
-  ///   （适配 `$.code` == "0" 才算成功一类站点）。
+  /// （适配 `$.code` == "0" 才算成功一类站点）。
   bool _isSuccess(CommentsConfig cfg, String text) {
     final sel = cfg.selectors?['success'];
     if (sel is! String || sel.isEmpty) return true;

@@ -1,8 +1,8 @@
-/// F3（全书预扫描：章节摘要 + 全书概述注入）单元测试。
+/// （全书预扫描：章节摘要 + 全书概述注入）单元测试。
 ///
 /// - 摘要服务：编号协议批量生成、批次上限、概述请求；
 /// - 管理器：save/load 回环、章节更新合并（保留有效摘要、概述失效）、
-///   作品语境（novelBookContext）组装。
+/// 作品语境（novelBookContext）组装。
 library;
 
 import 'dart:convert';
@@ -85,7 +85,7 @@ void main() {
 
   // 让 PrescanChapterInput 的 cfg 类型测试可用：直接复用真实
   // NovelSummaryConfig（同包内可见）。
-  group('F3 预扫描服务', () {
+  group('预扫描服务', () {
     late _EchoAdapter adapter;
 
     setUp(() {
@@ -133,7 +133,7 @@ void main() {
     });
   });
 
-  group('F3 预扫描管理器', () {
+  group('预扫描管理器', () {
     late Directory tempDir;
 
     setUp(() async {

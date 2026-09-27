@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/local/local_content_manager.dart';
 
-/// spec F2.3.2：覆盖 classifyByPath 各格式识别 + 未识别返回 null + 大小写不敏感。
+/// 覆盖 classifyByPath 各格式识别 + 未识别返回 null + 大小写不敏感。
 ///
 /// 注意：LocalMediaKind 枚举有 video/images/text/pdf 四种；
 /// 漫画（cbz/cbr/zip/rar）映射到 images，小说（txt/epub/umd）映射到 text。
@@ -82,7 +82,7 @@ void main() {
   });
 
   group('classifyByPath - directory', () {
-    // F2 后目录由 classifyFolderByContent 处理；classifyByPath 对目录返回 null。
+    // 后目录由 classifyFolderByContent 处理；classifyByPath 对目录返回 null。
     test('treats trailing slash path as null (handled by classifyFolderByContent)',
         () {
       expect(classifyByPath('some/folder/'), isNull);

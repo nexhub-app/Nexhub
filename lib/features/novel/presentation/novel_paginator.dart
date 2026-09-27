@@ -4,13 +4,13 @@
 /// `textBottomJustify` 底部对齐，末页保留自然排版）：
 ///
 /// 1. **StaticLayout 按宽度折行（重要）**：用 [TextPainter]（等价 Android
-///    `StaticLayout`）以 `maxWidth` 为约束把段落拆成适配宽度的视觉行
-///    （[TextPainter.computeLineMetrics]），**不是按段落整段装箱**——这是排版
-///    关键：各页顶到页底、行数一致、段落可跨页断行。
+/// `StaticLayout`）以 `maxWidth` 为约束把段落拆成适配宽度的视觉行
+/// （[TextPainter.computeLineMetrics]），**不是按段落整段装箱**——这是排版
+/// 关键：各页顶到页底、行数一致、段落可跨页断行。
 /// 2. **逐字符列(TextColumn)定位**：每行记录每个字符的 x 坐标
-///    （[NovelLine.charLefts]，由 [TextPainter.getBoxesForSelection] 复用段落级
-///    [TextPainter] 一次算出），逐字符定位（列式记录每个字符 x 坐标），
-///    供「点哪读哪」精确命中。
+/// （[NovelLine.charLefts]，由 [TextPainter.getBoxesForSelection] 复用段落级
+/// [TextPainter] 一次算出），逐字符定位（列式记录每个字符 x 坐标），
+/// 供「点哪读哪」精确命中。
 /// 3. **可见高度填满 → 翻页**：逐行贪心装入页面，填满 [height] 才翻页。
 library;
 
@@ -218,8 +218,8 @@ class NovelPaginator {
     final scaler = MediaQuery.textScalerOf(context);
 
     // 1) 把每个块拆成页项（文本行 or 插图项），保留原顺序。
-    //    文本块用与正文渲染同一 TextPainter 布局，保证断行点一致；
-    //    插图块转为 [NovelImageItem]，翻页时独占一页。
+    // 文本块用与正文渲染同一 TextPainter 布局，保证断行点一致；
+    // 插图块转为 [NovelImageItem]，翻页时独占一页。
     final allItems = <NovelPageItem>[];
     var textBlockIndex = 0;
     for (var bi = 0; bi < blocks.length; bi++) {
@@ -233,7 +233,7 @@ class NovelPaginator {
         List<NovelLine> lines;
         if (prefs.lineBreakMode == NovelLineBreakMode.cjkStrict &&
             !block.isHeading) {
-          //  / A5：中文逐字断行 + 禁首禁尾。标题行仍走原生折行
+          // 中文逐字断行 + 禁首禁尾。标题行仍走原生折行
           // （标题短、居中展示，禁则意义不大且需与渲染层保持一致）。
           lines = _breakParagraphStrict(
             block.text,
@@ -271,8 +271,8 @@ class NovelPaginator {
     }
 
     // 2) 精确行高（底层用 Paint.fontMetrics 度量，我们用 TextPainter.height）。
-    //    对中文文本，TextPainter.height 已包含 ascent + descent + 行间距因子，
-    //    与渲染引擎实际绘制高度一致。所有正文行等高。
+    // 对中文文本，TextPainter.height 已包含 ascent + descent + 行间距因子，
+    // 与渲染引擎实际绘制高度一致。所有正文行等高。
     final measureTp = TextPainter(
       text: TextSpan(text: '中', style: style),
       textDirection: dir,
@@ -329,13 +329,13 @@ class NovelPaginator {
 
     // 4) 逐行贪心装箱 + 寡行控制（填满一页才翻页）。
     //
-    //    核心逻辑：每行高度统一为 lineHeight；段落末行额外加段距。
-    //    当一行装不下当前页时，检查把它推到下一页是否会产生「寡行」
-    //    （即下一页开头只有 1~2 行属于同一段落）。若是，则回退到该段落
-    //    在当前页的起始位置，把整个段落剩余部分一起推到下一页，
-    //    避免「某页顶部出现孤立的一两行」这种视觉不均。
+    // 核心逻辑：每行高度统一为 lineHeight；段落末行额外加段距。
+    // 当一行装不下当前页时，检查把它推到下一页是否会产生「寡行」
+    // （即下一页开头只有 1~2 行属于同一段落）。若是，则回退到该段落
+    // 在当前页的起始位置，把整个段落剩余部分一起推到下一页，
+    // 避免「某页顶部出现孤立的一两行」这种视觉不均。
     //
-    //    结果：每页顶到页底、各页行数一致、段落可跨页断行、无孤立寡行。
+    // 结果：每页顶到页底、各页行数一致、段落可跨页断行、无孤立寡行。
     const int minWidowLines = 3; // 下页同段至少保留此数行才允许在当前行后断页
     final pages = <NovelPage>[];
     var current = <NovelPageItem>[];
@@ -444,12 +444,12 @@ class NovelPaginator {
   ///
   /// 实现：
   /// - **StaticLayout 按宽度折行**：[TextPainter] 以 `maxWidth` 布局，用
-  ///   [TextPainter.computeLineMetrics] 得到每行的高度，再用
-  ///   [TextPainter.getPositionForOffset] 在每行垂直中心、左边缘探测起始字符
-  ///   偏移，从而切出整行文本（与渲染断行点完全一致）。
+  /// [TextPainter.computeLineMetrics] 得到每行的高度，再用
+  /// [TextPainter.getPositionForOffset] 在每行垂直中心、左边缘探测起始字符
+  /// 偏移，从而切出整行文本（与渲染断行点完全一致）。
   /// - **逐字符列(charLefts) 计算**：每行逐字符用 [TextPainter.getOffsetForCaret]
-  ///   取左边缘 x 坐标，供长按选区精确命中测试（[hitTestCharOffset]）。
-  ///   开销 O(总字符数)，典型章节数百行可接受；大章节（数万行）亦在合理范围。
+  /// 取左边缘 x 坐标，供长按选区精确命中测试（[hitTestCharOffset]）。
+  /// 开销 O(总字符数)，典型章节数百行可接受；大章节（数万行）亦在合理范围。
   static List<NovelLine> _breakParagraph(
     String para,
     int paraIndex,
@@ -508,7 +508,7 @@ class NovelPaginator {
     return lines;
   }
 
-  ///  / A5：中文逐字断行 + 禁首禁尾标点路径。
+  /// 中文逐字断行 + 禁首禁尾标点路径。
   ///
   /// 复用 [NovelLineBreaker] 的禁则切行结果，适配为 [NovelLine]
   /// （charLefts 已由断行器按整行布局重测，命中测试语义一致）。

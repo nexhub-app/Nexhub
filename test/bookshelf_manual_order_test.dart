@@ -1,4 +1,4 @@
-/// 书架手动排序存储测试（M2 手动排序）。
+/// 书架手动排序存储测试（手动排序）。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/comic/models/reader_preferences.dart'
     show InMemoryBackend;

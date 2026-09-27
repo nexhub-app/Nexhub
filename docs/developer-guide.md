@@ -126,7 +126,7 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 
 | 字段 | 说明 |
 | --- | --- |
-| `id` | 必填，唯一标识（如 `manga_goda`）；同名源按 `version` 升级 / 跳过 |
+| `id` | 必填，唯一标识（如 `manga_demo`）；同名源按 `version` 升级 / 跳过 |
 | `name` | 必填，显示名称 |
 | `author` | 可选，源作者名（显示在源详情中，方便溯源与致谢） |
 | `version` | 整数版本号（默认 1）；同名源按版本号升级 / 跳过 |
@@ -422,18 +422,18 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 
 ```json
 {
-  "id": "manga_goda",
+  "id": "manga_demo",
   "name": "GoDa漫画",
   "version": 4,
   "type": "mangaSource",
   "responseType": "html",
   "useWebview": true,
   "site": {
-    "domain": "godamh.com",
-    "baseUrl": "https://godamh.com",
+    "domain": "demo.example",
+    "baseUrl": "https://demo.example",
     "mirrors": [
-      { "name": "godamh.com", "domain": "godamh.com", "baseUrl": "https://godamh.com" },
-      { "name": "m.baozimh.one", "domain": "m.baozimh.one", "baseUrl": "https://m.baozimh.one" }
+      { "name": "demo.example", "domain": "demo.example", "baseUrl": "https://demo.example" },
+      { "name": "m.demo.example", "domain": "m.demo.example", "baseUrl": "https://m.demo.example" }
     ]
   },
   "parser": {

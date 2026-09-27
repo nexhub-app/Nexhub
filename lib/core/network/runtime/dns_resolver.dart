@@ -53,7 +53,7 @@ class DnsResolver {
     if (literal != null) return <InternetAddress>[literal];
 
     // ① Hosts 优先。同一主机配了多条时全部收集并打乱，避免总是撞同一个地址
-    //    （某个地址失效时还有其他候选）。
+    // （某个地址失效时还有其他候选）。
     final pinned = <InternetAddress>[];
     for (final h in hosts) {
       if (!h.enabled) continue;

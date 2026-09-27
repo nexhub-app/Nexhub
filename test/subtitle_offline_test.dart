@@ -1,4 +1,4 @@
-/// F6（视频离线管线一期）单元测试：字幕文件解析 / 双语生成 / 任务编排。
+/// （视频离线管线一期）单元测试：字幕文件解析 / 双语生成 / 任务编排。
 library;
 
 import 'dart:async';
@@ -76,7 +76,7 @@ class _EchoClient extends VisionTranslationClient {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('F6 字幕文件解析', () {
+  group('字幕文件解析', () {
     test('SRT：多行 cue / 标签剥离 / 序号无关', () {
       final cues = SubtitleFile.parse(_srtSample);
       expect(cues, hasLength(3));
@@ -104,7 +104,7 @@ void main() {
     });
   });
 
-  group('F6 双语字幕生成', () {
+  group('双语字幕生成', () {
     test('双语 SRT：时间轴不变、原译相邻；未译仅原文', () {
       final cues = SubtitleFile.parse(_srtSample);
       cues[0].translation = '你好';
@@ -126,7 +126,7 @@ void main() {
     });
   });
 
-  group('F6 离线管线', () {
+  group('离线管线', () {
     late Directory tempDir;
     late Directory subDir;
     late _EchoClient client;

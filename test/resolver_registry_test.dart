@@ -83,9 +83,9 @@ void main() {
   });
 
   group('ResolverRegistry.effectiveResolverType useWebview routing', () {
-    test('pms_fsdm style (useWebview + xpath) -> webview', () {
+    test('demo style (useWebview + xpath) -> webview', () {
       final source = build(<String, dynamic>{
-        'id': 'pms_fsdm', 'name': 'pms_fsdm', 'type': 'animeSource',
+        'id': 'pms_demo', 'name': 'pms_demo', 'type': 'animeSource',
         'site': {'baseUrl': 'https://x.com'},
         'useWebview': true,
         'parser': {'type': 'xpath'},
@@ -97,9 +97,9 @@ void main() {
       );
     });
 
-    test('manga_baozimh style (useWebview + hybrid + script override) -> script', () {
+    test('manga_demo style (useWebview + hybrid + script override) -> script', () {
       final source = build(<String, dynamic>{
-        'id': 'manga_baozimh', 'name': 'manga_baozimh', 'type': 'mangaSource',
+        'id': 'manga_demo', 'name': 'manga_demo', 'type': 'mangaSource',
         'site': {'baseUrl': 'https://x.com'},
         'useWebview': true,
         'parser': {

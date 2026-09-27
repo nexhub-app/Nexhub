@@ -7,7 +7,7 @@ import 'package:nexhub/core/novel/novel_translation_manager.dart';
 import 'package:nexhub/features/novel/domain/novel_translation_service.dart';
 
 void main() {
-  group('O3 批量译文协议', () {
+  group('批量译文协议', () {
     test('encodeBatch 生成编号分隔格式', () {
       final encoded = NovelTranslationService.encodeBatch(<String>['甲', '乙']);
       expect(encoded, contains('<<<1>>>'));
@@ -42,7 +42,7 @@ void main() {
     });
   });
 
-  group('F5/O3 翻译缓存管理器与导出渲染', () {
+  group('/ 翻译缓存管理器与导出渲染', () {
     late Directory tempDir;
 
     setUp(() async {

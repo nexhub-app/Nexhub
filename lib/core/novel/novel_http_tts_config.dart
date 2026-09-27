@@ -1,8 +1,8 @@
-/// 在线 HTTP TTS 配置（/ C3）。
+/// 在线 HTTP TTS 配置。
 ///
 /// 用户自建或第三方 TTS 服务端点模板：URL 中支持占位符
 /// `{text}`（U 编码）、`{voice}`（音色 id）、`{rate}`（语速 0.5-2.0）。
-/// 可选角色 → 音色映射（多角色 C5：分句器判出的角色名映射到具体 voice id，
+/// 可选角色 → 音色映射（多角色：分句器判出的角色名映射到具体 voice id，
 /// 未匹配角色回退默认音色）。
 /// 持久化于 SharedPreferences（key: `novel_http_tts_config_v1`）。
 library;
@@ -23,7 +23,7 @@ class NovelHttpTtsConfig {
   /// 默认音色 id（模板 {voice} 未映射角色时的回退值）。
   final String defaultVoice;
 
-  /// 角色 → 音色 id 映射（C5 多角色）。
+  /// 角色 → 音色 id 映射（多角色）。
   final Map<String, String> voiceByRole;
 
   /// 预下载并发数（1-8，Semaphore 上限）。
@@ -32,7 +32,7 @@ class NovelHttpTtsConfig {
   /// 连续合成失败达到此数后停止本轮朗读（默认 3）。
   final int maxConsecutiveFailures;
 
-  /// 单句失败时是否「静音占位降级」（C7）：跳过该句但继续朗读剩余句。
+  /// 单句失败时是否「静音占位降级」：跳过该句但继续朗读剩余句。
   final bool silentPlaceholderOnFailure;
 
   const NovelHttpTtsConfig({
@@ -67,7 +67,7 @@ class NovelHttpTtsConfig {
     );
   }
 
-  /// 按角色解析音色（C5）：命中映射表取专属音色，否则回退默认音色。
+  /// 按角色解析音色：命中映射表取专属音色，否则回退默认音色。
   String voiceForRole(String role) {
     if (role.isEmpty) return defaultVoice;
     return voiceByRole[role] ?? defaultVoice;

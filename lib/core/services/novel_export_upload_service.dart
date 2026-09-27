@@ -1,4 +1,4 @@
-/// 小说导出产物 WebDAV 上传服务（F6：exportToWebDav）。
+/// 小说导出产物 WebDAV 上传服务（exportToWebDav）。
 ///
 /// 与整包备份 / 进度同步共享 WebDAV 配置（[CloudSyncConfigStore]），
 /// 把导出的 EPUB 单文件上传到远端 `nexhub/exports/` 目录。上传为

@@ -1,10 +1,10 @@
-/// 图片收藏管理器（REQ-C2 图片收藏图库 · X-3 统一图库扩展）。
+/// 图片收藏管理器（图片收藏图库 · 统一图库扩展）。
 ///
 /// 镜像 [ComicBookmarkManager] 结构，按 作品 + 章节 + 页码 保存图片收藏到
 /// Hive box `image_favorites`。支持添加 / 删除 / 切换 / 列出全部收藏，
 /// 并按 createdAt 倒序返回（图库最新收藏在前）。
 ///
-/// X-3 跨类型对齐扩展：漫画之外，播放器截图与小说插图也收藏入同一图库——
+/// 跨类型对齐扩展：漫画之外，播放器截图与小说插图也收藏入同一图库——
 /// [ImageFavoriteSource] 区分来源；无「章节+页码」位置概念的条目（截图 /
 /// 插图）走 [toggleByUrl]，以 `来源::img::URL` 为唯一键去重，漫画条目维持
 /// 原有 `comicId::chapterIndex::pageIndex` 键格式（存量数据兼容）。
@@ -26,7 +26,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../scraper/http_fetcher.dart';
 
-/// 收藏来源模块（X-3 统一图库）。
+/// 收藏来源模块（统一图库）。
 enum ImageFavoriteSource {
   comic,
   player,
@@ -72,7 +72,7 @@ class ImageFavorite {
   /// 创建时间（毫秒）。
   final int createdAt;
 
-  /// 自定义文件夹（'' = 未分类；问题 4 文件夹管理）。
+  /// 自定义文件夹（'' = 未分类；文件夹管理）。
   final String folder;
 
   const ImageFavorite({
@@ -138,7 +138,7 @@ class ImageFavorite {
 
   /// 复合 key：
   /// - 漫画：`comicId::chapterIndex::pageIndex`（兼容存量，同一作品同一章同一页
-  ///   只保留一份）；
+  /// 只保留一份）；
   /// - 截图/插图（无位置概念）：`来源::img::imageUrl`，按图片地址去重。
   String get key {
     if (source == ImageFavoriteSource.comic) {
@@ -195,7 +195,7 @@ class ImageFavoriteManager {
     await box.delete(key);
   }
 
-  /// 重命名条目标题（问题 3：长按菜单「重命名标题」）。
+  /// 重命名条目标题（长按菜单「重命名标题」）。
   ///
   /// 更新 chapterTitle 字段并落盘；找不到该 key / 空标题时返回 false。
   Future<bool> updateTitle(String key, String title) async {
@@ -337,7 +337,7 @@ class ImageFavoriteManager {
     return null;
   }
 
-  /// 按 URL 切换收藏状态（X-3：播放器截图 / 小说插图，无章节+页码位置概念）。
+  /// 按 URL 切换收藏状态（播放器截图 / 小说插图，无章节+页码位置概念）。
   ///
   /// 以 `来源::img::imageUrl` 为唯一键去重：同一来源同一图片地址只保留一份。
   /// [workId] 为作品 ID（展示/定位用）；[workTitle] 为作品标题；[label] 为

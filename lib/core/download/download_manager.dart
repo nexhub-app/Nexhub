@@ -1,13 +1,13 @@
-/// 下载管理器（文档 §10.1 / §10.3）。
+/// 下载管理器（文档 /）。
 ///
 /// 核心职责：
 /// 1. 管理任务生命周期（addTask / cancel / pause / resume）。
 /// 2. 持久化任务列表到 [DownloadStorage]。
 /// 3. 每个任务写入 `.meta.json` 到下载目录，用于孤儿恢复。
-/// 4. 清除记录精确规则（§10.3）：
-///    - `clearAll(false)` → 仅移除未完成任务（逐个 cancel 中止在途下载），
-///      已完成任务保留，已下载内容页立即可读。
-///    - `clearAll(true)` → 删文件 + meta.json，所有记录清除。
+/// 4. 清除记录精确规则：
+/// - `clearAll(false)` → 仅移除未完成任务（逐个 cancel 中止在途下载），
+/// 已完成任务保留，已下载内容页立即可读。
+/// - `clearAll(true)` → 删文件 + meta.json，所有记录清除。
 /// 5. 下载列表页过滤 completed 只显活跃；已下载内容页只显 completed。
 ///
 /// 使用 [ChangeNotifier] 驱动 UI 更新。
@@ -352,7 +352,7 @@ class DownloadManager extends ChangeNotifier {
   ///
   /// - `completed` 任务：其 [DownloadTask.chapterTitles] 全部计入；
   /// - 进行中 / 暂停任务：按 [DownloadTask.downloadedChapters] 计入已完成的前 N 个
-  ///   （handler 按选中顺序串行下载）；
+  /// （handler 按选中顺序串行下载）；
   /// - `cancelled` 任务不计入。
   ///
   /// 归档（archived）任务的文件仍在磁盘上，因此同样计入。
@@ -435,7 +435,7 @@ class DownloadManager extends ChangeNotifier {
   ///
   /// 持久化到 [DownloadSettingsStore]，并按路径形态重建文件系统根：
   /// - `content://` 树 URI（Android SAF 用户目录）→ 用 [SafFileSystem] 写入，
-  ///   使下载真正落到用户指定的系统文件夹（修复 107/108）；
+  /// 使下载真正落到用户指定的系统文件夹（修复 107/108）；
   /// - 普通文件路径 → 用 [PathProviderFileSystem] 重建根路径。
   Future<void> setDownloadBasePath(String path) async {
     // pickDirectory 返回规范化 `tree/<id>/document/<id>`（4 段），saf 包的
@@ -857,12 +857,12 @@ class DownloadManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 清除全部记录（§10.3）。
+  /// 清除全部记录。
   ///
   /// [deleteFiles] = false → 清空全部任务记录（含已完成）并清存储，不删除磁盘文件；
-  ///   随后 [recoverOrphanedDownloads] 从磁盘 meta.json 恢复已完成任务，
-  ///   「已下载内容页」继续显示已完成内容；「下载列表页」过滤 completed 后
-  ///   不显示已下载记录（下载列表 = 下载队列）。
+  /// 随后 [recoverOrphanedDownloads] 从磁盘 meta.json 恢复已完成任务，
+  /// 「已下载内容页」继续显示已完成内容；「下载列表页」过滤 completed 后
+  /// 不显示已下载记录（下载列表 = 下载队列）。
   /// [deleteFiles] = true → 删文件 + meta.json，所有记录全部清除。
   Future<void> clearAll({required bool deleteFiles}) async {
     if (deleteFiles) {
@@ -922,7 +922,7 @@ class DownloadManager extends ChangeNotifier {
   ///
   /// - 根目录：旧布局 `<taskId>.meta.json`（兼容历史数据）；
   /// - 子目录：新布局 `根/类型/作品名/<taskId>.meta.json`。作品目录只下探两层
-  ///   （类型 → 作品名），避免扫到作品目录内章节产物目录。
+  /// （类型 → 作品名），避免扫到作品目录内章节产物目录。
   Future<List<String>> _findMetaJsonPaths() async {
     final List<String> out = <String>[];
     final rootEntries = await fs.listFiles(fs.basePath);
@@ -1337,7 +1337,7 @@ class DownloadManager extends ChangeNotifier {
       await _writeMetaJson(completed);
       await _persist();
       notifyListeners();
-      // F6：小说 EPUB 导出自动上传 WebDAV（开关开启时；best-effort 后台执行，
+      // 小说 EPUB 导出自动上传 WebDAV（开关开启时；best-effort 后台执行，
       // 失败仅记日志，不影响本地下载结果）。TXT 逐章产物不整包上传。
       if (task.sourceType == SourceType.novelSource) {
         unawaited(_maybeUploadNovelExports(completed));
@@ -1373,7 +1373,7 @@ class DownloadManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// F6：小说导出自动上传 WebDAV。读取云同步配置的
+  /// 小说导出自动上传 WebDAV。读取云同步配置的
   /// `autoUploadNovelExports` 开关，把本次任务的 EPUB 单文件逐个上传到
   /// `nexhub/exports/`。任何失败只记日志（后台旁路，不阻塞下载完成态）。
   Future<void> _maybeUploadNovelExports(DownloadTask completed) async {
@@ -1464,9 +1464,9 @@ class DownloadManager extends ChangeNotifier {
           convertMode: novelConvertMode,
           // 导出附带划线 / 批注附录。
           includeHighlights: true,
-          // F5：导出附带已缓存的章节译文（O3 段落翻译）。
+          // 导出附带已缓存的章节译文（段落翻译）。
           includeTranslations: true,
-          // F4：全局导出模板（CSS/封面/简介）+ 网络封面（嵌入 EPUB 封面页）。
+          // 全局导出模板（CSS/封面/简介）+ 网络封面（嵌入 EPUB 封面页）。
           coverUrl: novelCoverUrl,
         );
       case SourceType.animeSource:
@@ -1649,7 +1649,7 @@ class DownloadManager extends ChangeNotifier {
     try {
       await fs.writeString(metaPath, task.toJsonString());
     } on Exception {
-      // 旧布局的 localPath 可以直接是单文件产物（见 §1530 注释），此时
+      // 旧布局的 localPath 可以直接是单文件产物（见 注释），此时
       // `<file>/<id>.meta.json` 无法作为目录创建（Windows 抛 errno 183）。
       // meta 退回下载根目录：根布局 `<taskId>.meta.json` 仍能被
       // [_findMetaJsonPaths] 识别，恢复流程不受影响。

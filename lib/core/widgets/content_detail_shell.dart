@@ -17,7 +17,7 @@ import 'source_image.dart';
 ///
 /// 各内容模块详情页复用，禁止重复造轮子。
 ///
-/// M16.5 详情页全面增强：改为 [StatefulWidget]，新增 [SliverAppBar] +
+/// 详情页全面增强：改为 [StatefulWidget]，新增 [SliverAppBar] +
 /// [FlexibleSpaceBar] Hero 大图 + 渐变遮罩；简介改 [AppCard] 包裹可展开/收起；
 /// [RefreshIndicator] 包裹；新增 [appBarActions] / [onRefresh] / [fallbackIcon]。
 class ContentDetailShell extends StatefulWidget {
@@ -67,7 +67,7 @@ class ContentDetailShell extends StatefulWidget {
   /// 源未声明 comments 配置段时传 null，不渲染评论入口。
   final Widget? commentsSection;
 
-  // ─── 新增参数（M16.5）───
+  // ─── 新增参数───
 
   /// SliverAppBar 右侧操作按钮（收藏 / 下载 / 分享 / 刷新 / 删除等）。
   final List<Widget>? appBarActions;

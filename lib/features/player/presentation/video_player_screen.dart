@@ -109,7 +109,7 @@ const List<Color> _danmakuPresetColors = <Color>[
 /// - 弹幕覆盖层按视频进度注入（[DanmakuController] + [DanmakuOverlay]）
 /// - 弹幕来源：弹弹play（签名 + 搜索匹配）→ Bilibili fallback
 ///
-/// 本地模式（Task O4.B.2）：传入 [localUri] 时进入本地模式，跳过在线源解析，
+/// 本地模式（Task .B.2）：传入 [localUri] 时进入本地模式，跳过在线源解析，
 /// 直接用 [Player] + [VideoController] 打开本地文件。本地模式下隐藏切换线路 /
 /// 下一集等在线专属按钮，保留弹幕（可选）、进度记忆（用 [itemId] =
 /// `'local_${file.path.hashCode}'`）、播放器设置。调用方需将 [itemId] 设为
@@ -206,10 +206,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// SharedPreferences 中保存弹幕源选择的键。
   static const String _kDanmakuSourceKey = 'danmaku_source';
 
-  /// #6 A4-#6: 自定义弹幕 URL（持久化键 `danmaku_custom_url`）。
+  /// #6 -#6: 自定义弹幕 URL（持久化键 `danmaku_custom_url`）。
   String _customDanmakuUrl = '';
 
-  /// #6 A4-#6: SharedPreferences 中保存自定义 URL 的键。
+  /// #6 -#6: SharedPreferences 中保存自定义 URL 的键。
   static const String _kDanmakuCustomUrlKey = 'danmaku_custom_url';
 
   /// 旧方案遗留键（文件 + SharedPreferencesAsync）。仅用于一次性迁移，
@@ -289,7 +289,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 重新解析并重新打开播放器（拿到未过期的新直链）。
   bool _reconnectExhausted = false;
 
-  // ─────────────── 缓存策略降级 /  分级重试 ───────────────
+  // ─────────────── 缓存策略降级 / 分级重试 ───────────────
 
   /// demuxer 缓存档位解析器（移动网络 / 低内存自动降级）。
   final DemuxerCachePolicyResolver _cachePolicyResolver =
@@ -372,10 +372,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   bool _isBuffering = false;
   StreamSubscription<bool>? _bufferingSub;
 
-  /// 实时缓冲网速文本（，缓冲时显示在转圈下方；null = 不可用）。
+  /// 实时缓冲网速文本（缓冲时显示在转圈下方；null = 不可用）。
   String? _bufferingSpeedText;
 
-  /// 网速轮询定时器（，仅缓冲期间运行，500ms 读一次 mpv `cache-speed`）。
+  /// 网速轮询定时器（仅缓冲期间运行，500ms 读一次 mpv `cache-speed`）。
   Timer? _speedProbeTimer;
 
   /// 开始轮询网速：读 mpv `cache-speed`（KB/s）格式化为 MB/s 显示。
@@ -419,7 +419,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
-  /// 播放状态订阅（P8.3.x §加载指示器）：订阅底层 playing 流同步 [_isPlaying]，
+  /// 播放状态订阅（.x §加载指示器）：订阅底层 playing 流同步 [_isPlaying]，
   /// 避免「视频已开始播放但中央大播放按钮仍显示」「缓冲转圈不消失」等 UI 滞后。
   StreamSubscription<bool>? _playingSub;
 
@@ -447,7 +447,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 长按加速前的原倍速，松手恢复。
   double _speedBeforeLongPress = 1.0;
 
-  // ─────────────────────── 手势 / 亮度 / 音量（P8.3.4 §廿四 + 视频还原） ───────────────────────
+  // ─────────────────────── 手势 / 亮度 / 音量（+ 视频还原） ───────────────────────
 
   /// 当前手势轴（横滑 / 左竖滑 / 右竖滑），锁定后直到 onEnd 才重置。
   _GestureAxis _dragAxis = _GestureAxis.none;
@@ -512,7 +512,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 但重建频率显著下降。
   DateTime? _lastPositionUiAt;
 
-  // ──  跳过片头片尾（按作品记忆，经 EpisodePlayerSettingsStore）──
+  // ── 跳过片头片尾（按作品记忆，经 EpisodePlayerSettingsStore）──
 
   /// 片头结束点（秒，null = 未设置）。位置进入 [2s, opEnd-1s] 显示
   /// 「跳过片头」按钮；开启自动跳过时直接 seek 过去。
@@ -564,12 +564,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   final CastService _castService = CastService();
   bool _isCasting = false;
 
-  //  投屏位置同步与断开事件订阅。
+  // 投屏位置同步与断开事件订阅。
   StreamSubscription<Duration>? _castPositionSub;
   StreamSubscription<Object>? _castErrorSub;
   Duration _castPosition = Duration.zero;
 
-  /// 键盘焦点节点（P8.3.4 §廿四 键盘快捷键）。
+  /// 键盘焦点节点（键盘快捷键）。
   final FocusNode _focusNode = FocusNode();
 
   /// 屏幕亮度插件实例（手势调节系统亮度）。
@@ -686,10 +686,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (isOuter) _resolveProgress.value = 0.05;
     try {
       // 0) 脚本型视频路由（hybrid + video override type=='script'）脚本自带
-      //    确定性解析（直连抓播放页 + 字符串抽取），无需 WebView 嗅探。
-      //    优先走脚本：省去嗅探最坏 12s 的等待，也避开 Windows 内嵌浏览器
-      //    频繁创建/销毁的崩溃高发区（Lost connection to device）。
-      //    脚本失败（站点改版/网络异常）再落回下方通用嗅探链路，安全网不丢。
+      // 确定性解析（直连抓播放页 + 字符串抽取），无需 WebView 嗅探。
+      // 优先走脚本：省去嗅探最坏 12s 的等待，也避开 Windows 内嵌浏览器
+      // 频繁创建/销毁的崩溃高发区（Lost connection to device）。
+      // 脚本失败（站点改版/网络异常）再落回下方通用嗅探链路，安全网不丢。
       if (isOuter &&
           source.parser.type == 'hybrid' &&
           source.parser.overrides?['video']?.type == 'script') {
@@ -819,7 +819,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 第三次冲突杀进程（Lost connection to device）。
     // 重试路径：上一次 _init 已创建播放器但中途失败（如 open 超时），旧实例
     // 尚未释放。先释放旧实例（写入 pendingDisposal），再等其原生释放完成后再建新实例，
-    // 避免旧 Player 泄漏、及「新建 surface 与旧 surface 冲突」崩溃（P0 ）。
+    // 避免旧 Player 泄漏、及「新建 surface 与旧 surface 冲突」崩溃。
     // 关键：先等待上一次播放器的原生 VideoOutput 释放完成，再把「新 Player」
     // 创建出来。Player 的 mpv 上下文与原生视频纹理是崩溃高发点，必须保证
     // 「旧播放器完全销毁」先于「新播放器创建」，否则连续多次打开会在第三次
@@ -872,7 +872,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       // 本地 / 直链模式：跳过在线源解析，直接打开给定地址。
       // 直链带防盗链请求头（嗅探到的 m3u8 常需 Referer，缺了会被 CDN 403）。
       String direct = widget.directUrl ?? widget.localUri!;
-      // SAF / content:// 文档 URI 不能直接交给 media_kit（mpv 读不了 content://，
+      // SAF / content:// 文档 URI 不能直接交给 media_kit（mpv 读不了 content:// 
       // 会既不报错也不完成 → UI 无限转圈）。统一在此落为应用私有真实文件再打开，
       // 这样「下载页」（编码 SAF 路径）与「浏览页」（file_picker 的 content://）
       // 走同一可靠路径。
@@ -905,7 +905,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         throw Exception('本地视频打开超时（media_kit 未能在 30 秒内载入，'
             '可能是文件位置 media_kit 无法读取）');
       }
-      // 直链 / 本地模式打开后自动播放（与在线分支对齐，修复「打开即暂停」，P0 ）。
+      // 直链 / 本地模式打开后自动播放（与在线分支对齐，修复「打开即暂停」）。
       _controller.play();
       // 分级超时等待元数据，超时自动 re-open 一次自愈。
       unawaited(_retryOpenOnceIfStalled());
@@ -965,10 +965,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
 
     // 退页守卫：open() 期间可能已退场，后续订阅 / 弹幕加载 / setState 须在
-    // _disposed 复查后执行，避免对失活元素调用 setState（P0 ）。
+    // _disposed 复查后执行，避免对失活元素调用 setState。
     if (_disposed || !mounted) return;
 
-    // 恢复上次播放位置（P8.1.2 §廿一 续读进度跨章节恢复）。
+    // 恢复上次播放位置（续读进度跨章节恢复）。
     // 不 await：[_seekWhenReady] 需要等底层 duration 就绪（可能 1~10 秒），
     // 阻塞 _init 会让整页一直转圈。恢复完成前 [_positionRestoreDone] 为 false，
     // 位置写盘被挡住，不存在「被 0 覆盖」的竞态。
@@ -1036,7 +1036,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } on Object {
       // 读取失败，使用默认路径
     }
-    // 退页守卫：await SharedPreferences 期间可能已退场（P0 ）。
+    // 退页守卫：await SharedPreferences 期间可能已退场。
     if (_disposed || !mounted) return;
 
     // 尝试加载弹幕（本地 / 直链模式无剧集元数据，跳过自动匹配；
@@ -1045,7 +1045,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _loadDanmaku();
     }
 
-    // 刷新收藏状态（P9.1.7 §16.1 顶栏收藏按钮）
+    // 刷新收藏状态（顶栏收藏按钮）
     _refreshFavorite();
 
     // 注册后台媒体通知（播放/暂停/进度/锁屏控制）。
@@ -1064,7 +1064,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   /// 加载播放器设置：全局默认 + 该剧集单独覆盖（覆盖字段优先）。
-  /// 同时读取跳过片头/片尾区间（，独立于 PlayerSettings 字段，单独
+  /// 同时读取跳过片头/片尾区间（独立于 PlayerSettings 字段，单独
   /// 存在该剧集覆盖存储里）。
   Future<void> _loadPlayerSettings() async {
     try {
@@ -1293,7 +1293,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           orElse: () => DanmakuSourceType.dandanplay,
         );
       }
-      // #6 A4-#6: 同步加载自定义 URL。
+      // #6 -#6: 同步加载自定义 URL。
       _customDanmakuUrl = prefs.getString(_kDanmakuCustomUrlKey) ?? '';
       // 恢复弹幕显示设置：与全局「弹幕显示设置」页共用同一存储（单一数据源）。
       _danmakuSettings = await _loadDanmakuSettings();
@@ -1414,7 +1414,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 加载当前集弹幕（首载入口， 统一走 [_loadDanmakuFor]）。
   Future<void> _loadDanmaku() => _loadDanmakuFor(widget.episode);
 
-  /// 加载指定剧集弹幕（首载 / 切集共用，）。
+  /// 加载指定剧集弹幕（首载 / 切集共用）。
   ///
   /// 与旧的 `_loadDanmakuForEpisode` 相比补齐了与首载 [_loadDanmaku] 对称的
   /// 行为：自定义 URL 源为空时清空跳过、凭据未配置时给出提示，不再静默失败。
@@ -2474,11 +2474,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   ///
   /// 关键点：
   /// 1) 重连前用 [_lastGoodPosition]（可信非零进度）作为恢复点；open() 会把播放器重置到
-  ///    起点且短暂的 position 事件可能为 0，若直接用 [_position] 可能被瞬间的 0 覆盖而从头播放。
+  /// 起点且短暂的 position 事件可能为 0，若直接用 [_position] 可能被瞬间的 0 覆盖而从头播放。
   /// 2) open 后 m3u8 元数据可能尚未就绪，立即 seek 会落空；故先 [_waitUntilReady] 等元数据，
-  ///    再采用「seek + 短暂等待 + 校验，接近 0 则重试」的稳健策略。
+  /// 再采用「seek + 短暂等待 + 校验，接近 0 则重试」的稳健策略。
   /// 3) 重连的 seek 经 [PlayerController.seek] 更新 lastSeekAt，使重连后的重新缓冲处于 seek
-  ///    宽限期内，避免「重连→卡顿→再重连」的死循环。
+  /// 宽限期内，避免「重连→卡顿→再重连」的死循环。
   /// 自动重连（stall 恢复）。
   ///
   /// 关键修复（修正前一轮）：前一轮改为"中途重建播放器"反而必现黑屏（进度对但无画面），
@@ -2502,7 +2502,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _reconnecting = false;
       if (_reconnectAttempts >= _kMaxReconnectAttempts &&
           !_reconnectExhausted) {
-        //  故障回退：当前线路重连耗尽，仍有未尝试的候选线路则自动切换下一条，
+        // 故障回退：当前线路重连耗尽，仍有未尝试的候选线路则自动切换下一条，
         // 而非直接弹「链接失效」让用户手点。所有候选都试过才放弃。
         final failedIndex = _controller.currentLineIndex;
         _triedLineIndices.add(failedIndex);
@@ -2694,7 +2694,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 睡眠定时跨集保留：切集不取消定时器——用户设的「30 分钟后暂停」
     // 在连播场景下应继续生效，否则换集后定时被静默清除。仅「关闭定时」
     // （_showSleepTimerPicker 的关闭项）与退出播放器（dispose）才取消。
-    // 保存当前集播放位置（P8.1.2）
+    // 保存当前集播放位置
     _saveCurrentPosition();
     // 新一集的续播恢复尚未开始：先关闸，防止新媒体 open 时的 position=0
     // 覆盖这一集原有的存档。
@@ -2809,7 +2809,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       }
     } on Object catch (e) {
       // 切集失败：界面若停在「新集」但画面仍是旧集，须回滚索引并提示，
-      // 避免用户误以为已切换成功（P0 ）。
+      // 避免用户误以为已切换成功。
       AppLog.instance.eWithStack('[切集失败] index=$index', e);
       if (!_loadSession.isValid(token)) return;
       if (mounted) {
@@ -2982,7 +2982,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
-  /// 切换收藏状态（P9.1.7 §16.1 顶栏收藏按钮）。
+  /// 切换收藏状态（顶栏收藏按钮）。
   Future<void> _toggleFavorite() async {
     final type = widget.favoriteType;
     if (type == null) return;
@@ -3038,7 +3038,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     );
   }
 
-  // ─────────────────────── 键盘快捷键（P8.3.4 §廿四） ───────────────────────
+  // ─────────────────────── 键盘快捷键 ───────────────────────
 
   Future<void> _onSeek(Duration position) async {
     await _controller.seek(position);
@@ -3447,7 +3447,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         onRetry: _manualRetry,
       );
     }
-    // 包裹 Focus 以响应键盘快捷键（P8.3.4 §廿四）。
+    // 包裹 Focus 以响应键盘快捷键。
     // pipMode：Android 系统 PiP 或桌面 PiP——小窗内抑制完整控制层
     // （顶栏/底栏/中央按钮/边缘按钮/弹幕），桌面 PiP 换用紧凑控件层。
     final bool pipMode = _inPip || _desktopPipActive;
@@ -3832,7 +3832,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// `video-aspect-override`，容器比例不变导致视觉不生效（fill 时上下黑边
   /// 依旧）。现由比例设置直接驱动容器：
   /// - default：容器铺满（SizedBox.expand），Video 内部 contain 按视频原始比例
-  ///   居中显示，无多余黑边；
+  /// 居中显示，无多余黑边；
   /// - 4:3 / 16:9：固定比例容器 + contain，黑边被裁剪到容器外侧；
   /// - fill：容器铺满 + BoxFit.fill 拉伸填满（与 mpv keepaspect=no 双保险）。
   Widget _buildVideoSurface() {
@@ -3929,7 +3929,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 videoPath: _playUrl,
               ),
             ),
-            // 收藏按钮（P9.1.7 §16.1 顶栏收藏，仅 favoriteType 提供时显示）
+            // 收藏按钮（顶栏收藏，仅 favoriteType 提供时显示）
             if (widget.favoriteType != null)
               topBarBtn(
                 key: const Key('player_favorite'),

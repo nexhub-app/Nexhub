@@ -339,7 +339,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
     return '${feed.description ?? feed.url} · ${l10n.rssSpeedMs(speed)}';
   }
 
-  /// 订阅列表项左侧图标：优先显示站点 favicon（B8 修复），加载失败/无图时
+  /// 订阅列表项左侧图标：优先显示站点 favicon（修复），加载失败/无图时
   /// 回退到通用 RSS 图标。favicon 经 [RssFeed.effectiveIconUrl] 解析
   /// （自带 iconUrl 优先，否则站点根 /favicon.ico）。
   ///
@@ -373,7 +373,7 @@ class _RssFeedListScreenState extends State<RssFeedListScreen> {
         child: Icon(Icons.rss_feed_rounded, color: scheme.primary, size: 22),
       );
 
-  /// 一键测速全部订阅源（P8.2.3 §廿二）。
+  /// 一键测速全部订阅源。
   Future<void> _testAllSpeed(RssManager manager) async {
     setState(() {
       _testingAll = true;

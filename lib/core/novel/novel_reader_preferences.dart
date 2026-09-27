@@ -42,19 +42,19 @@ const Object _kNovelPrefsColorUnset = Object();
 /// titleCustomFontPath），区分「未传入」与「显式传 null（清除文件）」。
 const Object _kNovelPrefsPathUnset = Object();
 
-/// 中文排版断行模式（/ A5）。
+/// 中文排版断行模式。
 ///
 /// - [standard] — Flutter TextPainter 原生折行（现状，宽松）。
 /// - [cjkStrict] — 逐字符断行 + 禁首禁尾标点：行首禁排闭合标点
-///   （」』）】…、，。！？等），行尾禁排开启标点（（「『等）；
-///   禁则处理采用「悬挂」（行尾标点突出至边距外）优先、放不下整体提前换行。
+/// （」』）】…、，。！？等），行尾禁排开启标点（（「『等）；
+/// 禁则处理采用「悬挂」（行尾标点突出至边距外）优先、放不下整体提前换行。
 enum NovelLineBreakMode { standard, cjkStrict;
 
   static NovelLineBreakMode fromString(String? raw) =>
       raw == 'cjkStrict' ? NovelLineBreakMode.cjkStrict : NovelLineBreakMode.standard;
 }
 
-/// 正文两端对齐模式（/ A6）。
+/// 正文两端对齐模式。
 ///
 /// 仅作用于分页模式渲染：[justify] 把不满一行的正文行拉伸到整行宽
 /// （末行与标题行除外）；[start] 维持原生左对齐。
@@ -64,7 +64,7 @@ enum NovelTextAlignMode { start, justify;
       raw == 'justify' ? NovelTextAlignMode.justify : NovelTextAlignMode.start;
 }
 
-/// 下划线样式（/ B6 扩展）。
+/// 下划线样式（扩展）。
 enum NovelUnderlineStyle { solid, dashed, wavy, dotted;
 
   static NovelUnderlineStyle fromString(String? raw) => switch (raw) {
@@ -75,18 +75,18 @@ enum NovelUnderlineStyle { solid, dashed, wavy, dotted;
       };
 }
 
-/// 滚动模式插图展示模式（/ A10）。
+/// 滚动模式插图展示模式。
 ///
 /// - [banner] — 铺满整行完整显示（按源 style 或全宽），高度自适应。
 /// - [card] — 卡片式：按正文宽度比例缩列完整显示，配合 [NovelScrollImageAlign]
-///   做水平对齐，图文混排更接近「图文并排」的观感。
+/// 做水平对齐，图文混排更接近「图文并排」的观感。
 enum NovelScrollImageMode { banner, card;
 
   static NovelScrollImageMode fromString(String? raw) =>
       raw == 'card' ? NovelScrollImageMode.card : NovelScrollImageMode.banner;
 }
 
-/// 滚动模式插图水平对齐（/ A10；仅 card 模式生效）。
+/// 滚动模式插图水平对齐（；仅 card 模式生效）。
 enum NovelScrollImageAlign { left, center, right;
 
   static NovelScrollImageAlign fromString(String? raw) => switch (raw) {
@@ -108,7 +108,7 @@ enum NovelHeaderFooterContent {
   pageAndProgress,
   timeAndBattery,
 
-  /// 整本页码（G3）：跨章累计的全书页位（已读章节数来自本会话分页缓存；
+  /// 整本页码：跨章累计的全书页位（已读章节数来自本会话分页缓存；
   /// 未全部校准时以「+」标注估算）。
   bookPageNumber;
 
@@ -325,7 +325,7 @@ class NovelReaderPreferences {
   /// 自动翻页间隔（秒；0 = 关闭，常用值 3/5/10/15）。
   final int autoPageInterval;
 
-  /// 自动翻页平滑模式（O5）：开启后按像素 / 过渡进度连续推进，
+  /// 自动翻页平滑模式：开启后按像素 / 过渡进度连续推进，
   /// 一整页的推进耗时 = [autoPageInterval] 秒；关闭为定时整页跳转。
   final bool autoPageSmooth;
 
@@ -349,7 +349,7 @@ class NovelReaderPreferences {
   /// 底部工具栏槽位（有序，最多 6 个；超出截断）。
   final List<NovelBottomTool> bottomToolbarSlots;
 
-  // ─────────────── #5 朗读设置 ───────────────
+  // ─────────────── 朗读设置 ───────────────
   /// 朗读语速（0.5–2.0，1.0 = 正常）。
   final double ttsSpeechRate;
 
@@ -360,7 +360,7 @@ class NovelReaderPreferences {
   /// 监听，见 `NovelTtsController`）；false 时进入后台即暂停。
   final bool ttsBackground;
 
-  // ─────────────── #6 字体 / 颜色 / 阴影 / 下划线 ───────────────
+  // ─────────────── 字体 / 颜色 / 阴影 / 下划线 ───────────────
   /// 自定义字体文件路径（.ttf / .otf；null = 不指定，用 [fontFamily]）。
   final String? customFontPath;
 
@@ -379,7 +379,7 @@ class NovelReaderPreferences {
   /// 下划线是否虚线。
   final bool underlineDashed;
 
-  /// A7 双页模式：翻页模式下横屏/宽屏时左右并排显示两页（每页按半宽分页）。
+  /// 双页模式：翻页模式下横屏/宽屏时左右并排显示两页（每页按半宽分页）。
   /// 滚动模式与竖屏自动失效；仅改变呈现，进度仍以「左页」页码为准。
   final bool twoPageMode;
 
@@ -392,7 +392,7 @@ class NovelReaderPreferences {
   /// 下划线虚线间隙（像素；仅 [underlineDashed] 时参考）。
   final double underlineDashGap;
 
-  // ─────────────── #7 标题显示 / 字体 / 分段 ───────────────
+  // ─────────────── 标题显示 / 字体 / 分段 ───────────────
   /// 章节标题对齐方式（左 / 中 / 右）。
   final NovelTitleAlign titleAlign;
 
@@ -420,7 +420,7 @@ class NovelReaderPreferences {
   /// 标题区下边距（像素）。
   final double titleBottomMargin;
 
-  // ─────────────── #8 页眉 / 页脚 ───────────────
+  // ─────────────── 页眉 / 页脚 ───────────────
   /// 页眉中间槽位。
   final NovelHeaderFooterContent headerCenter;
 
@@ -433,13 +433,13 @@ class NovelReaderPreferences {
   /// 页眉页脚左右边距（像素）。
   final double headerFooterMargin;
 
-  // ─────────────── #9 滚轮翻页 ───────────────
+  // ─────────────── 滚轮翻页 ───────────────
   /// 鼠标滚轮翻页方向反转：true 时「向上滚 = 下一页」（自然滚动习惯），
   /// false 时「向下滚 = 下一页」（默认，与翻页按钮 / 点击分区一致）。
   /// 仅作用于翻页模式（paged）；滚动模式由底层 Scrollable 接管滚轮。
   final bool scrollWheelInverted;
 
-  // ─────────────── #10 排版增强 ───────────────
+  // ─────────────── 排版增强 ───────────────
   /// 加粗字重滑块（100–900）：仅 [fontBold] 开启时生效，关闭加粗即恢复
   /// 默认字重。加粗开关与字重只有一个数据源，杜绝「开了开关看不到变化 /
   /// 关了开关关不掉」的双字段覆盖问题。
@@ -454,7 +454,7 @@ class NovelReaderPreferences {
   /// 下划线样式：实线 / 虚线 / 波浪 / 点线。dashed 兼容旧 [underlineDashed]。
   final NovelUnderlineStyle underlineStyle;
 
-  // ─────────────── #11 滚动模式图文增强 ───────────────
+  // ─────────────── 滚动模式图文增强 ───────────────
   /// 滚动模式插图展示模式：banner 铺满整行 / card 卡片式缩列。
   final NovelScrollImageMode scrollImageMode;
 
@@ -498,11 +498,11 @@ class NovelReaderPreferences {
     this.tapZoneLayout = ReaderTapZoneLayout.lShape,
     this.themeFollow = NovelThemeFollow.followApp,
     this.bottomToolbarSlots = NovelBottomTool.defaults,
-    // #5 朗读
+    // 朗读
     this.ttsSpeechRate = 1.0,
     this.ttsSleepTimer = 0,
     this.ttsBackground = false,
-    // #6 字体/阴影/下划线
+    // 字体/阴影/下划线
     this.customFontPath,
     this.shadowBlur = 0.5,
     this.shadowOffsetX = 0.5,
@@ -513,7 +513,7 @@ class NovelReaderPreferences {
     this.underlineThickness = 1.0,
     this.underlineDashLength = 4.0,
     this.underlineDashGap = 2.0,
-    // #7 标题
+    // 标题
     this.titleAlign = NovelTitleAlign.left,
     this.titleFontFamily,
     this.titleCustomFontPath,
@@ -523,18 +523,18 @@ class NovelReaderPreferences {
     this.titleSubLineSpacing = 1.3,
     this.titleTopMargin = 0.0,
     this.titleBottomMargin = 0.0,
-    // #8 页眉页脚
+    // 页眉页脚
     this.headerCenter = NovelHeaderFooterContent.none,
     this.footerCenter = NovelHeaderFooterContent.none,
     this.headerFooterColor,
     this.headerFooterMargin = 12.0,
     this.scrollWheelInverted = false,
-    // #10 排版增强
+    // 排版增强
     this.fontWeightValue = 700,
     this.textAlignMode = NovelTextAlignMode.start,
     this.lineBreakMode = NovelLineBreakMode.standard,
     this.underlineStyle = NovelUnderlineStyle.solid,
-    // #11 滚动模式图文增强
+    // 滚动模式图文增强
     this.scrollImageMode = NovelScrollImageMode.banner,
     this.scrollImageAlign = NovelScrollImageAlign.center,
   });
@@ -572,11 +572,11 @@ class NovelReaderPreferences {
     ReaderTapZoneLayout? tapZoneLayout,
     NovelThemeFollow? themeFollow,
     List<NovelBottomTool>? bottomToolbarSlots,
-    // #5 朗读
+    // 朗读
     double? ttsSpeechRate,
     int? ttsSleepTimer,
     bool? ttsBackground,
-    // #6 字体/阴影/下划线
+    // 字体/阴影/下划线
     Object? customFontPath = _kNovelPrefsPathUnset,
     double? shadowBlur,
     double? shadowOffsetX,
@@ -587,7 +587,7 @@ class NovelReaderPreferences {
     double? underlineThickness,
     double? underlineDashLength,
     double? underlineDashGap,
-    // #7 标题
+    // 标题
     NovelTitleAlign? titleAlign,
     Object? titleFontFamily = _kNovelPrefsFontFamilySentinel,
     Object? titleCustomFontPath = _kNovelPrefsPathUnset,
@@ -597,18 +597,18 @@ class NovelReaderPreferences {
     double? titleSubLineSpacing,
     double? titleTopMargin,
     double? titleBottomMargin,
-    // #8 页眉页脚
+    // 页眉页脚
     NovelHeaderFooterContent? headerCenter,
     NovelHeaderFooterContent? footerCenter,
     Object? headerFooterColor = _kNovelPrefsColorUnset,
     double? headerFooterMargin,
     bool? scrollWheelInverted,
-    // #10 排版增强
+    // 排版增强
     int? fontWeightValue,
     NovelTextAlignMode? textAlignMode,
     NovelLineBreakMode? lineBreakMode,
     NovelUnderlineStyle? underlineStyle,
-    // #11 滚动模式图文增强
+    // 滚动模式图文增强
     NovelScrollImageMode? scrollImageMode,
     NovelScrollImageAlign? scrollImageAlign,
   }) {
@@ -660,11 +660,11 @@ class NovelReaderPreferences {
       themeFollow: themeFollow ?? this.themeFollow,
       bottomToolbarSlots:
           bottomToolbarSlots ?? this.bottomToolbarSlots,
-      // #5 朗读
+      // 朗读
       ttsSpeechRate: ttsSpeechRate ?? this.ttsSpeechRate,
       ttsSleepTimer: ttsSleepTimer ?? this.ttsSleepTimer,
       ttsBackground: ttsBackground ?? this.ttsBackground,
-      // #6 字体/阴影/下划线
+      // 字体/阴影/下划线
       customFontPath: identical(customFontPath, _kNovelPrefsPathUnset)
           ? this.customFontPath
           : customFontPath as String?,
@@ -679,7 +679,7 @@ class NovelReaderPreferences {
       underlineThickness: underlineThickness ?? this.underlineThickness,
       underlineDashLength: underlineDashLength ?? this.underlineDashLength,
       underlineDashGap: underlineDashGap ?? this.underlineDashGap,
-      // #7 标题
+      // 标题
       titleAlign: titleAlign ?? this.titleAlign,
       titleFontFamily: identical(titleFontFamily, _kNovelPrefsFontFamilySentinel)
           ? this.titleFontFamily
@@ -694,7 +694,7 @@ class NovelReaderPreferences {
       titleSubLineSpacing: titleSubLineSpacing ?? this.titleSubLineSpacing,
       titleTopMargin: titleTopMargin ?? this.titleTopMargin,
       titleBottomMargin: titleBottomMargin ?? this.titleBottomMargin,
-      // #8 页眉页脚
+      // 页眉页脚
       headerCenter: headerCenter ?? this.headerCenter,
       footerCenter: footerCenter ?? this.footerCenter,
       headerFooterColor: identical(headerFooterColor, _kNovelPrefsColorUnset)
@@ -702,12 +702,12 @@ class NovelReaderPreferences {
           : headerFooterColor as int?,
       headerFooterMargin: headerFooterMargin ?? this.headerFooterMargin,
       scrollWheelInverted: scrollWheelInverted ?? this.scrollWheelInverted,
-      // #10 排版增强
+      // 排版增强
       fontWeightValue: fontWeightValue ?? this.fontWeightValue,
       textAlignMode: textAlignMode ?? this.textAlignMode,
       lineBreakMode: lineBreakMode ?? this.lineBreakMode,
       underlineStyle: underlineStyle ?? this.underlineStyle,
-      // #11 滚动模式图文增强
+      // 滚动模式图文增强
       scrollImageMode: scrollImageMode ?? this.scrollImageMode,
       scrollImageAlign: scrollImageAlign ?? this.scrollImageAlign,
     );
@@ -797,7 +797,7 @@ class NovelReaderPreferences {
           listEquals(bottomToolbarSlots, def.bottomToolbarSlots)
               ? base.bottomToolbarSlots
               : bottomToolbarSlots,
-      // #5 朗读
+      // 朗读
       ttsSpeechRate: identical(ttsSpeechRate, def.ttsSpeechRate)
           ? base.ttsSpeechRate
           : ttsSpeechRate,
@@ -807,7 +807,7 @@ class NovelReaderPreferences {
       ttsBackground: identical(ttsBackground, def.ttsBackground)
           ? base.ttsBackground
           : ttsBackground,
-      // #6 字体/阴影/下划线
+      // 字体/阴影/下划线
       customFontPath: identical(customFontPath, def.customFontPath)
           ? base.customFontPath
           : customFontPath,
@@ -837,7 +837,7 @@ class NovelReaderPreferences {
       underlineDashGap: identical(underlineDashGap, def.underlineDashGap)
           ? base.underlineDashGap
           : underlineDashGap,
-      // #7 标题
+      // 标题
       titleAlign:
           identical(titleAlign, def.titleAlign) ? base.titleAlign : titleAlign,
       titleFontFamily: identical(titleFontFamily, def.titleFontFamily)
@@ -864,7 +864,7 @@ class NovelReaderPreferences {
       titleBottomMargin: identical(titleBottomMargin, def.titleBottomMargin)
           ? base.titleBottomMargin
           : titleBottomMargin,
-      // #8 页眉页脚
+      // 页眉页脚
       headerCenter: identical(headerCenter, def.headerCenter)
           ? base.headerCenter
           : headerCenter,
@@ -880,7 +880,7 @@ class NovelReaderPreferences {
       scrollWheelInverted: identical(scrollWheelInverted, def.scrollWheelInverted)
           ? base.scrollWheelInverted
           : scrollWheelInverted,
-      // #10 排版增强
+      // 排版增强
       fontWeightValue: identical(fontWeightValue, def.fontWeightValue)
           ? base.fontWeightValue
           : fontWeightValue,
@@ -893,7 +893,7 @@ class NovelReaderPreferences {
       underlineStyle: identical(underlineStyle, def.underlineStyle)
           ? base.underlineStyle
           : underlineStyle,
-      // #11 滚动模式图文增强
+      // 滚动模式图文增强
       scrollImageMode: identical(scrollImageMode, def.scrollImageMode)
           ? base.scrollImageMode
           : scrollImageMode,
@@ -955,7 +955,7 @@ class NovelReaderPreferences {
 
   /// 解析强调色。
   ///
-  /// B3 墨水屏主题化：选中墨水屏背景预设且未显式自定义强调色时，
+  /// 墨水屏主题化：选中墨水屏背景预设且未显式自定义强调色时，
   /// 联动使用墨水屏配套强调色（朱批暗红），避免高饱和荧光色破坏纸感。
   Color resolveEmphasisColor() {
     if (emphasisColor != null) return Color(emphasisColor!);
@@ -963,7 +963,7 @@ class NovelReaderPreferences {
     return ReaderTokens.emphasisDefault;
   }
 
-  /// 当前是否处于「墨水屏背景主题」（B3）：未自定义背景色且选中的是
+  /// 当前是否处于「墨水屏背景主题」：未自定义背景色且选中的是
   /// 墨水屏预设。仅作为文字 / 强调色联动的判定依据，不改变持久值；
   /// 夜间压暗后的背景由各 resolve 方法按亮度另行回退。
   bool get isEInkBackground =>
@@ -973,7 +973,7 @@ class NovelReaderPreferences {
 
   /// 正文文字颜色（[customTextColor] 优先；否则按背景亮度自动取黑/白）。
   ///
-  /// B3 墨水屏主题化：选中墨水屏背景且未自定义文字色时，日间（浅色背景）
+  /// 墨水屏主题化：选中墨水屏背景且未自定义文字色时，日间（浅色背景）
   /// 使用炭灰正文色模拟墨水屏观感；夜间压暗后仍回退亮色文字保证可读。
   Color resolveTextColor(Color bg) {
     if (customTextColor != null) return Color(customTextColor!);
@@ -997,7 +997,7 @@ class NovelReaderPreferences {
   /// 字体样式真实生效且可共存。
   /// [autoTextColor] 为按背景亮度推导的默认色，[customTextColor] 非空时覆盖。
   ///
-  /// 下划线（/ B6）：solid 实线走原生 `TextDecoration.underline`；
+  /// 下划线：solid 实线走原生 `TextDecoration.underline`；
   /// dashed/wavy/dotted 交由上层 `_NovelPageWidget` 的 `CustomPaint` 自定义
   /// 绘制（原生 `TextDecorationStyle` 不支持自定义段长/间隙/波幅），
   /// 此时本样式不设 decoration。
@@ -1122,11 +1122,11 @@ class NovelReaderPreferences {
         'themeFollow': themeFollow.name,
         'bottomToolbarSlots':
             bottomToolbarSlots.map((NovelBottomTool t) => t.name).toList(),
-        // #5 朗读
+        // 朗读
         'ttsSpeechRate': ttsSpeechRate,
         'ttsSleepTimer': ttsSleepTimer,
         'ttsBackground': ttsBackground,
-        // #6 字体/阴影/下划线
+        // 字体/阴影/下划线
         if (customFontPath != null) 'customFontPath': customFontPath,
         'shadowBlur': shadowBlur,
         'shadowOffsetX': shadowOffsetX,
@@ -1137,7 +1137,7 @@ class NovelReaderPreferences {
         'underlineThickness': underlineThickness,
         'underlineDashLength': underlineDashLength,
         'underlineDashGap': underlineDashGap,
-        // #7 标题
+        // 标题
         'titleAlign': titleAlign.name,
         if (titleFontFamily != null) 'titleFontFamily': titleFontFamily,
         if (titleCustomFontPath != null)
@@ -1148,18 +1148,18 @@ class NovelReaderPreferences {
         'titleSubLineSpacing': titleSubLineSpacing,
         'titleTopMargin': titleTopMargin,
         'titleBottomMargin': titleBottomMargin,
-        // #8 页眉页脚
+        // 页眉页脚
         'headerCenter': headerCenter.name,
         'footerCenter': footerCenter.name,
         if (headerFooterColor != null) 'headerFooterColor': headerFooterColor,
         'headerFooterMargin': headerFooterMargin,
         'scrollWheelInverted': scrollWheelInverted,
-        // #10 排版增强
+        // 排版增强
         'fontWeightValue': fontWeightValue,
         'textAlignMode': textAlignMode.name,
         'lineBreakMode': lineBreakMode.name,
         'underlineStyle': underlineStyle.name,
-        // #11 滚动模式图文增强
+        // 滚动模式图文增强
         'scrollImageMode': scrollImageMode.name,
         'scrollImageAlign': scrollImageAlign.name,
       };
@@ -1206,11 +1206,11 @@ class NovelReaderPreferences {
       themeFollow: NovelThemeFollow.fromString(json['themeFollow'] as String?),
       bottomToolbarSlots: _parseBottomToolbarSlots(
           json['bottomToolbarSlots']),
-      // #5 朗读
+      // 朗读
       ttsSpeechRate: (json['ttsSpeechRate'] as num?)?.toDouble() ?? 1.0,
       ttsSleepTimer: (json['ttsSleepTimer'] as num?)?.toInt() ?? 0,
       ttsBackground: json['ttsBackground'] as bool? ?? false,
-      // #6 字体/阴影/下划线
+      // 字体/阴影/下划线
       customFontPath: json['customFontPath'] as String?,
       shadowBlur: (json['shadowBlur'] as num?)?.toDouble() ?? 0.5,
       shadowOffsetX: (json['shadowOffsetX'] as num?)?.toDouble() ?? 0.5,
@@ -1223,7 +1223,7 @@ class NovelReaderPreferences {
       underlineDashLength:
           (json['underlineDashLength'] as num?)?.toDouble() ?? 4.0,
       underlineDashGap: (json['underlineDashGap'] as num?)?.toDouble() ?? 2.0,
-      // #7 标题
+      // 标题
       titleAlign: NovelTitleAlign.fromString(json['titleAlign'] as String?),
       titleFontFamily: json['titleFontFamily'] as String?,
       titleCustomFontPath: json['titleCustomFontPath'] as String?,
@@ -1236,7 +1236,7 @@ class NovelReaderPreferences {
       titleTopMargin: (json['titleTopMargin'] as num?)?.toDouble() ?? 0.0,
       titleBottomMargin:
           (json['titleBottomMargin'] as num?)?.toDouble() ?? 0.0,
-      // #8 页眉页脚
+      // 页眉页脚
       headerCenter: NovelHeaderFooterContent.fromString(
           json['headerCenter'] as String?),
       footerCenter: NovelHeaderFooterContent.fromString(
@@ -1245,7 +1245,7 @@ class NovelReaderPreferences {
       headerFooterMargin:
           (json['headerFooterMargin'] as num?)?.toDouble() ?? 12.0,
       scrollWheelInverted: json['scrollWheelInverted'] as bool? ?? false,
-      // #10 排版增强
+      // 排版增强
       fontBold: _legacyFontBold(json),
       fontWeightValue:
           ((json['fontWeightValue'] as num?)?.toInt() ?? 700).clamp(100, 900),
@@ -1255,7 +1255,7 @@ class NovelReaderPreferences {
           json['lineBreakMode'] as String?),
       underlineStyle: NovelUnderlineStyle.fromString(
           json['underlineStyle'] as String?),
-      // #11 滚动模式图文增强
+      // 滚动模式图文增强
       scrollImageMode: NovelScrollImageMode.fromString(
           json['scrollImageMode'] as String?),
       scrollImageAlign: NovelScrollImageAlign.fromString(

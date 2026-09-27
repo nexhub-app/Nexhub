@@ -1,4 +1,4 @@
-/// 小说下载处理器（文档 §8.4 / §10.1）。
+/// 小说下载处理器（文档 /）。
 ///
 /// 按章节拉取正文段落与插图 → 逐章落盘为纯文本 TXT。目录组织参考通用离线
 /// 阅读器：每部作品一个文件夹，内部每章一个 `NNNNN_章节标题.txt`（序号取自
@@ -69,19 +69,19 @@ class NovelDownloadHandler implements DownloadHandler {
   /// TXT 追加一个划线文件）。默认关闭，调用方显式开启。
   final bool includeHighlights;
 
-  /// F5：是否把已缓存的章节译文（O3 段落翻译）作为附录附带进导出。
+  /// 是否把已缓存的章节译文（段落翻译）作为附录附带进导出。
   /// 仅包含有译文的章节；默认关闭，调用方显式开启。
   final bool includeTranslations;
 
-  /// F4：导出模板（显式传入优先；为 null 时下载开始时从
+  /// 导出模板（显式传入优先；为 null 时下载开始时从
   /// [templateStore] 异步载入全局模板）。
   final NovelExportTemplate? exportTemplate;
 
-  /// F4：网络封面地址（嵌入 EPUB 封面页用；与落盘的 cover.jpg 无关，
+  /// 网络封面地址（嵌入 EPUB 封面页用；与落盘的 cover.jpg 无关，
   /// 因为封面在 handler.download 之后才写盘，EPUB 构建期需自行获取）。
   final String? coverUrl;
 
-  /// F4：模板存储（默认全局单例，测试可注入内存实现）。
+  /// 模板存储（默认全局单例，测试可注入内存实现）。
   final NovelExportTemplateStore? templateStore;
 
   @override
@@ -200,10 +200,10 @@ class NovelDownloadHandler implements DownloadHandler {
 
     // EPUB 格式：保持整本单文件 legacy（逐章 TXT 为默认推荐格式）。
     if (format == DownloadFormat.epub) {
-      // F4：解析导出模板（显式传入优先，否则读全局存储）。
+      // 解析导出模板（显式传入优先，否则读全局存储）。
       final NovelExportTemplate tpl = exportTemplate ??
           await (templateStore ?? NovelExportTemplateStore.instance).load();
-      // F4：封面字节（模板开启 + 有网络封面时获取；失败降级为无封面页）。
+      // 封面字节（模板开启 + 有网络封面时获取；失败降级为无封面页）。
       EpubImage? coverImage;
       if (tpl.includeCover && coverUrl != null && coverUrl!.isNotEmpty) {
         try {
@@ -296,7 +296,7 @@ class NovelDownloadHandler implements DownloadHandler {
         }
       }
 
-      // F5：已缓存译文附带为书末附录章节（仅当开启且存在翻译缓存时）。
+      // 已缓存译文附带为书末附录章节（仅当开启且存在翻译缓存时）。
       if (includeTranslations) {
         final translations = await _loadTranslations();
         final html = NovelDownloadHandler.translationsToEpubHtml(
@@ -343,7 +343,7 @@ class NovelDownloadHandler implements DownloadHandler {
             highlightsPath, NovelDownloadHandler.highlightsToTxt(highlights));
       }
     }
-    // F5：已缓存译文附带为独立文件（不进入 chapterFilePaths）。
+    // 已缓存译文附带为独立文件（不进入 chapterFilePaths）。
     if (includeTranslations) {
       final translations = await _loadTranslations();
       if (translations.isNotEmpty) {
@@ -358,7 +358,7 @@ class NovelDownloadHandler implements DownloadHandler {
     return DownloadResult(workPath: workDir, chapterFilePaths: chapterFilePaths);
   }
 
-  /// F10：译文附录排版模式（译文优先 / 原文优先 / 双语对照）。
+  /// 译文附录排版模式（译文优先 / 原文优先 / 双语对照）。
   /// 读取失败回落「译文优先」。
   Future<String> _exportLayout() async {
     try {
@@ -444,7 +444,7 @@ class NovelDownloadHandler implements DownloadHandler {
 
   // ─────────────────── 划线附带 ───────────────────
 
-  /// F4：把模板简介文本渲染为简介页 HTML 片段：`{book}` / `{author}`
+  /// 把模板简介文本渲染为简介页 HTML 片段：`{book}` / `{author}`
   /// 占位符替换后按空行分段、逐段转义为 `<p>`。
   static String renderIntroHtml(String intro,
       {required String bookTitle, String? author}) {
@@ -460,7 +460,7 @@ class NovelDownloadHandler implements DownloadHandler {
     return paragraphs.join('\n');
   }
 
-  /// F5：读取本书全部章节译文缓存（异常返回空列表，不影响导出主流程）。
+  /// 读取本书全部章节译文缓存（异常返回空列表，不影响导出主流程）。
   Future<List<NovelChapterTranslation>> _loadTranslations() async {
     try {
       return await NovelTranslationManager().listForNovel(novelId);
@@ -472,7 +472,7 @@ class NovelDownloadHandler implements DownloadHandler {
   /// 译文导出标题（EPUB 章节名 / TXT 文件名共用）。
   static const String translationsTitle = '_段落翻译';
 
-  /// F10 排版：把「原文/译文」序列按排版模式展平为段落列表。
+  /// 排版：把「原文/译文」序列按排版模式展平为段落列表。
   ///
   /// - translationFirst（默认）：仅译文（原文优先模式在无原文时同样回落）；
   /// - sourceFirst：仅原文；
@@ -503,7 +503,7 @@ class NovelDownloadHandler implements DownloadHandler {
   }
 
   /// 把译文缓存渲染为 EPUB 附录 HTML：每章一节（章名加粗），段内
-  /// 按 F10 排版模式输出；空列表返回 null（不追加附录）。
+  /// 按 排版模式输出；空列表返回 null（不追加附录）。
   static String? translationsToEpubHtml(
       List<NovelChapterTranslation> translations,
       {String layout = 'translationFirst'}) {
@@ -523,12 +523,12 @@ class NovelDownloadHandler implements DownloadHandler {
     return '<hr/>${parts.join('<hr/>')}';
   }
 
-  /// 译文缓存的 TXT 版本：每节「【章名】+ 逐行（按 F10 排版模式）」，
+  /// 译文缓存的 TXT 版本：每节「【章名】+ 逐行（按 排版模式）」，
   /// 节间空行分隔。
   static String translationsToTxt(List<NovelChapterTranslation> translations,
       {String layout = 'translationFirst'}) {
     final buffer = StringBuffer();
-    buffer.writeln('书内段落译文（F5 导出附录）');
+    buffer.writeln('书内段落译文（导出附录）');
     buffer.writeln('======================');
     buffer.writeln();
     for (final t in translations) {

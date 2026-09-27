@@ -38,7 +38,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
     final manager = context.watch<DownloadManager>();
     // 基础列表 = 未归档且未完成任务（下载列表 = 下载队列）：
     // - 排除已完成任务：已完成内容在「已下载内容页」展示，
-    //   「清除记录」后不应再在下载列表出现已下载记录。
+    // 「清除记录」后不应再在下载列表出现已下载记录。
     // - 保留失败任务，否则下载错误完全看不见。
     final allTasks = manager.tasks
         .where((t) => !t.archived && !t.isCompleted)

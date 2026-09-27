@@ -34,7 +34,7 @@ extension _VideoScreenshot on _VideoPlayerScreenState {
       final File file = File(p.join(baseDir.path, fileName));
       await file.writeAsBytes(bytes);
       if (mounted) {
-        // X-3：截图保存后提供「收藏到图库」快捷入口（统一图片收藏图库）。
+        // 截图保存后提供「收藏到图库」快捷入口（统一图片收藏图库）。
         final String path = file.path;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -55,7 +55,7 @@ extension _VideoScreenshot on _VideoPlayerScreenState {
     }
   }
 
-  /// X-3：把刚保存的截图收藏进统一图片图库（来源 = 播放器）。
+  /// 把刚保存的截图收藏进统一图片图库（来源 = 播放器）。
   Future<void> _favoriteScreenshot(String path, AppLocalizations l10n) async {
     final String label = _episodeTitle.isEmpty
         ? widget.title

@@ -55,7 +55,7 @@ class App extends StatelessWidget {
 /// 位于 [App] 的 [MaterialApp] 之内，故 [Theme] / [AppLocalizations] /
 /// 各 Provider 均已就绪：
 /// - 未完成首次引导 → 展示 [OnboardingScreen]，走完回调置
-///   `GeneralSettings.onboardingCompleted = true` 后切到主界面；
+/// `GeneralSettings.onboardingCompleted = true` 后切到主界面；
 /// - 已完成引导 → 直接进 [HomeScreen]，若有未读软件公告则首帧后弹窗（项 8）。
 class _AppBootstrap extends StatefulWidget {
   const _AppBootstrap();

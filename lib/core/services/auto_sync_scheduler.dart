@@ -7,8 +7,8 @@
 ///
 /// 限制：
 /// - 仅在前台 / 最近应用 / 系统未杀进程时有效。杀进程后需要重新启动 App
-///   才恢复。Android 上要更严格的"后台也跑"得用 workmanager / job scheduler；
-///   本类保持简单，复杂后台任务留作后续工作。
+/// 才恢复。Android 上要更严格的"后台也跑"得用 workmanager / job scheduler；
+/// 本类保持简单，复杂后台任务留作后续工作。
 /// - 重复启动是 no-op；同进程内只有一个 Timer 实例。
 library;
 
@@ -32,9 +32,9 @@ class AutoSyncScheduler {
   /// 启动调度器。`service` 必须是已 `init()` 过的实例（否则取不到 config）。
   ///
   /// 通常在 [SplashScreen] 的 init 末尾、CloudSyncService.init 之后调用：
-  ///   final svc = CloudSyncService();
-  ///   await svc.init();
-  ///   AutoSyncScheduler.instance.start(svc);
+  /// final svc = CloudSyncService();
+  /// await svc.init();
+  /// AutoSyncScheduler.instance.start(svc);
   Future<void> start(CloudSyncService service) async {
     if (_running) return;
     _service = service;

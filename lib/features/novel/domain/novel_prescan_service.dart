@@ -1,11 +1,11 @@
-/// 全书预扫描服务（F3）：章节摘要批量生成 + 全书概述汇总。
+/// 全书预扫描服务：章节摘要批量生成 + 全书概述汇总。
 ///
 /// 纯云端调用层（编排/落盘由调用方完成）：
 /// - **章节摘要**：多个章节片段按 [BatchProtocol] 编号拼成一次请求
-///   （每批最多 [_kChaptersPerBatch] 章），返回逐章 1–2 句摘要；
+/// （每批最多 [_kChaptersPerBatch] 章），返回逐章 1–2 句摘要；
 /// - **全书概述**：全部章节摘要汇总为一段约 200 字的概述；
 /// - 接口读取翻译功能级配置（与小说翻译同端点）；异常经
-///   [TranslationException] 归一化，原始细节入 [AppLog]。
+/// [TranslationException] 归一化，原始细节入 [AppLog]。
 library;
 
 import 'package:dio/dio.dart';

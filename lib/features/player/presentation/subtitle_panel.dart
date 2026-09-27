@@ -45,7 +45,7 @@ class SubtitlePanel extends StatefulWidget {
   /// 视频实时翻译控制器；null 时不显示翻译区块（如测试环境）。
   final SubtitleTranslationController? translator;
 
-  /// 当前播放媒体路径（F6 离线整片翻译的任务标识；空时不显示该区块）。
+  /// 当前播放媒体路径（离线整片翻译的任务标识；空时不显示该区块）。
   final String? videoPath;
 
   /// 以 modal bottom sheet 形式展示字幕面板。
@@ -84,7 +84,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
 
   StreamSubscription<Tracks>? _tracksSub;
 
-  // ── F6 离线整片翻译 ──
+  // ── 离线整片翻译 ──
   final SubtitleOfflinePipeline _offlinePipeline = SubtitleOfflinePipeline();
   String? _offlineJobId;
   bool _offlineStarting = false;
@@ -235,7 +235,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        // #5 A4-#5: 加载外部字幕文件
+        // #5 -#5: 加载外部字幕文件
         ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
@@ -285,7 +285,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     );
   }
 
-  /// #5 A4-#5: 通过 file_picker 选择本地 .srt/.vtt/.ass 字幕文件，
+  /// #5 -#5: 通过 file_picker 选择本地 .srt/.vtt/.ass 字幕文件，
   /// 使用 SubtitleTrack.uri 加载到播放器。
   Future<void> _pickExternalSubtitle(AppLocalizations l10n) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
@@ -720,7 +720,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
     );
   }
 
-  /// F6 整片翻译（离线）：选外挂字幕文件 → 整片批量翻译（断点续跑）→
+  /// 整片翻译（离线）：选外挂字幕文件 → 整片批量翻译（断点续跑）→
   /// 双语 SRT/ASS 导出（系统分享）与 WebDAV 上传。
   Widget _offlineSection(AppLocalizations l10n, ThemeData theme) {
     return ListenableBuilder(
@@ -827,7 +827,7 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
                   icon: const Icon(Icons.translate_rounded, size: 16),
                   label: Text(l10n.offlineRetranslate),
                 ),
-                // F10：批量导出全部已完成任务的双语 SRT。
+                // 批量导出全部已完成任务的双语 SRT。
                 TextButton.icon(
                   onPressed: _doneJobCount > 1
                       ? () => unawaited(_exportAllOffline())
@@ -848,11 +848,11 @@ class _SubtitlePanelState extends State<SubtitlePanel> {
   final Map<String, SubtitleOfflineJob> _jobsById =
       <String, SubtitleOfflineJob>{};
 
-  /// 已完成任务数（≥2 时显示批量导出入口，F10）。
+  /// 已完成任务数（≥2 时显示批量导出入口）。
   int get _doneJobCount =>
       _jobsById.values.where((j) => j.status == SubtitleJobStatus.done).length;
 
-  /// F10：批量导出全部已完成任务的双语 SRT（系统分享多选文件）。
+  /// 批量导出全部已完成任务的双语 SRT（系统分享多选文件）。
   Future<void> _exportAllOffline() async {
     final done = _jobsById.values
         .where((j) => j.status == SubtitleJobStatus.done)

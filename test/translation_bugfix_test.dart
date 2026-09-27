@@ -1,13 +1,13 @@
-/// 翻译功能 B1–B9 修复的回归测试（见 ku/translate/translation-bugs-and-roadmap.md）。
+/// 翻译功能 – 修复的回归测试（见 ku/translate/translation-bugs-and-roadmap.md）。
 ///
-/// - B1 视频 OCR 防重入：上一次视觉请求未返回时新 tick 不再并发发起；
-/// - B2 漫画翻译并发信号量：连续 5 页并发请求峰值 ≤ 2；
-/// - B3 小说 one-shot 预算保护：超大章直接分块、不发必然截断的整章请求；
-/// - B4 字幕单句重试：先失败 2 次再成功，调用数 == 3 且译文就位；
-/// - B5 缓存容量上限：三个 box 的 trimToLimit / 清空；
-/// - B6 图片缩放：解码尺寸 / 长边下采样（codec 释放收口在工具类）；
-/// - B7 错误归一化：连接 / 超时 / 其他 → 可读文案；
-/// - B8 OCR 兜底轨道检测：有字幕轨不触发 OCR，无轨 / 换轨后恢复。
+/// - 视频 OCR 防重入：上一次视觉请求未返回时新 tick 不再并发发起；
+/// - 漫画翻译并发信号量：连续 5 页并发请求峰值 ≤ 2；
+/// - 小说 one-shot 预算保护：超大章直接分块、不发必然截断的整章请求；
+/// - 字幕单句重试：先失败 2 次再成功，调用数 == 3 且译文就位；
+/// - 缓存容量上限：三个 box 的 trimToLimit / 清空；
+/// - 图片缩放：解码尺寸 / 长边下采样（codec 释放收口在工具类）；
+/// - 错误归一化：连接 / 超时 / 其他 → 可读文案；
+/// - OCR 兜底轨道检测：有字幕轨不触发 OCR，无轨 / 换轨后恢复。
 library;
 
 import 'dart:async';
@@ -44,7 +44,7 @@ class _FakeVisionClient extends VisionTranslationClient {
   int concurrentRecognize = 0;
   int maxConcurrentRecognize = 0;
 
-  /// 非 null 时阻塞进行中的识别调用（B1 防重入测试用）。
+  /// 非 null 时阻塞进行中的识别调用（防重入测试用）。
   Completer<void>? recognizeGate;
   int recognizeDelayMs;
   final int failTranslateTimes;
@@ -95,7 +95,7 @@ class _FakeVisionClient extends VisionTranslationClient {
     return <String>[for (final t in texts) '[$t]'];
   }
 
-  /// F2 测试观测：最近一次请求注入的对话历史与 system prompt。
+  /// 测试观测：最近一次请求注入的对话历史与 system prompt。
   List<TranslationContextPair> lastHistory = const <TranslationContextPair>[];
   String? lastSystemPrompt;
 }
@@ -126,7 +126,7 @@ class _FakePlayerController {
   Stream<int> get tracksStream => tracks.stream;
 }
 
-/// 记录请求体并按批量协议回声译文的假 HTTP 适配器（B3 用）。
+/// 记录请求体并按批量协议回声译文的假 HTTP 适配器（用）。
 class _EchoAdapter implements HttpClientAdapter {
   final List<int> markerCounts = <int>[];
   @override
@@ -139,7 +139,7 @@ class _EchoAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     final dynamic data = options.data;
-    // F2 起批量正文前可能注入历史对话，取最后一条 user 消息作为批量输入。
+    // 起批量正文前可能注入历史对话，取最后一条 user 消息作为批量输入。
     final String userContent = (data['messages'] as List<dynamic>)
         .cast<Map<dynamic, dynamic>>()
         .lastWhere((m) => m['role'] == 'user')['content'] as String;
@@ -197,9 +197,9 @@ Future<void> _waitFor(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // ─────────────────────────── B7 ───────────────────────────
+  // ─────────────────────────── ───────────────────────────
 
-  group('B7 错误归一化', () {
+  group('错误归一化', () {
     test('连接类异常 → 网络连接失败', () {
       final e = TranslationException.from(Exception('SocketException: failed'));
       expect(e.message, '网络连接失败，请检查网络后重试');
@@ -225,9 +225,9 @@ void main() {
     });
   });
 
-  // ─────────────────────────── B6 ───────────────────────────
+  // ─────────────────────────── ───────────────────────────
 
-  group('B6 图片缩放工具', () {
+  group('图片缩放工具', () {
     test('decodeSize 返回自然尺寸', () async {
       final size = await AiImageResizer.decodeSize(await _png(300, 200));
       expect(size.width, 300);
@@ -252,11 +252,11 @@ void main() {
     });
   });
 
-  // ─────────────────────────── B9（协议测试见 batch_protocol_test.dart）─────
+  // ─────────────────────────── （协议测试见 batch_protocol_test.dart）─────
 
-  // ─────────────────────────── B3 ───────────────────────────
+  // ─────────────────────────── ───────────────────────────
 
-  group('B3 小说 one-shot 预算保护', () {
+  group('小说 one-shot 预算保护', () {
     late _EchoAdapter adapter;
     late Directory tempDir;
 
@@ -265,7 +265,7 @@ void main() {
         'novel_overview_api_base_v1': 'http://test.local',
       });
       adapter = _EchoAdapter();
-      // F1 起 translateParagraphs 会读取术语表（Hive），需先初始化。
+      // 起 translateParagraphs 会读取术语表（Hive），需先初始化。
       tempDir = await Directory.systemTemp.createTemp('nexhub_b3_test');
       Hive.init(tempDir.path);
     });
@@ -310,9 +310,9 @@ void main() {
     });
   });
 
-  // ─────────────────────────── B2 ───────────────────────────
+  // ─────────────────────────── ───────────────────────────
 
-  group('B2 漫画翻译并发信号量', () {
+  group('漫画翻译并发信号量', () {
     late Directory tempDir;
     setUp(() async {
       SharedPreferences.setMockInitialValues(<String, String>{
@@ -368,9 +368,9 @@ void main() {
     });
   });
 
-  // ─────────────────────── B1 / B4 / B8 ───────────────────────
+  // ─────────────────────── / / ───────────────────────
 
-  group('B1/B4/B8 视频字幕实时翻译', () {
+  group('// 视频字幕实时翻译', () {
     late Uint8List frame;
 
     setUp(() async {
@@ -382,7 +382,7 @@ void main() {
           '${Directory.systemTemp.path}/nexhub_b1_test_${DateTime.now().microsecondsSinceEpoch}');
     });
 
-    test('B1：OCR 请求未返回时新 tick 不重入（间隔已过仍只发一次）', () async {
+    test('：OCR 请求未返回时新 tick 不重入（间隔已过仍只发一次）', () async {
       final fakeClient = _FakeVisionClient();
       final pc = _FakePlayerController(frame)..backend.subText = '';
       final controller = SubtitleTranslationController(client: fakeClient);
@@ -406,7 +406,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(fakeClient.recognizeCalls, 1);
 
-      // 释放 gate：OCR #1 完成；再过 10s 的新 tick 才允许 OCR #2。
+      // 释放 gate：OCR 完成；再过 10s 的新 tick 才允许 OCR #2。
       fakeClient.recognizeGate!.complete();
       await _waitFor(() => controller.state.translatedText != null);
       now = now.add(const Duration(seconds: 10));
@@ -415,7 +415,7 @@ void main() {
       expect(fakeClient.maxConcurrentRecognize, 1);
     });
 
-    test('B8：有字幕轨零 OCR；换轨为无轨后恢复 OCR', () async {
+    test('：有字幕轨零 OCR；换轨为无轨后恢复 OCR', () async {
       final fakeClient = _FakeVisionClient();
       final pc = _FakePlayerController(frame)
         ..backend.subText = ''
@@ -442,7 +442,7 @@ void main() {
       await _waitFor(() => fakeClient.recognizeCalls == 1);
     });
 
-    test('B4：单句翻译瞬时失败重试（2 次失败后成功）', () async {
+    test('：单句翻译瞬时失败重试（2 次失败后成功）', () async {
       final fakeClient = _FakeVisionClient(failTranslateTimes: 2);
       final pc = _FakePlayerController(frame)..backend.subText = 'こんにちは';
       final controller = SubtitleTranslationController(client: fakeClient);
@@ -454,9 +454,9 @@ void main() {
     });
   });
 
-  // ─────────────────────────── B5 ───────────────────────────
+  // ─────────────────────────── ───────────────────────────
 
-  group('B5 翻译缓存容量上限', () {
+  group('翻译缓存容量上限', () {
     late Directory tempDir;
 
     setUp(() async {

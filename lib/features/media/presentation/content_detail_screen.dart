@@ -10,9 +10,9 @@
 /// 本文件把它们合并为**唯一详情页**，模块差异通过下面两个维度表达：
 ///
 /// 1. [UnifiedProgressRepository] / [UnifiedBookmarkRepository]：按 [SourceType]
-///    分发的进度与书签抽象（见 `core/progress`、`core/bookmark`）。
+/// 分发的进度与书签抽象（见 `core/progress`、`core/bookmark`）。
 /// 2. 页内能力开关（[_isAnime] / [_isManga] / [_isNovel]）：控制线路分组、
-///    网格选集、播放位置、渐进目录、TOC 缓存等模块特有行为。
+/// 网格选集、播放位置、渐进目录、TOC 缓存等模块特有行为。
 ///
 /// UI 骨架改用 [ContentDetailTabbedShell]：Hero 大图（滚动收起 + 吸顶）→
 /// 标签页（详情 / Bangumi / 选集 / 评论 / 推荐）→ 标签内容。
@@ -345,7 +345,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       )
           .then((MediaItem detail) {
         if (mounted) setState(() => _fetchedDetail = _mergeDetail(detail));
-        // M2：详情解析出源站更新时间时回填收藏条目，供书架「最新章」排序。
+        // 详情解析出源站更新时间时回填收藏条目，供书架「最新章」排序。
         if (detail.updatedAt != null && mounted) {
           context
               .read<FavoritesManager>()
@@ -417,7 +417,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       _tocNovelId!,
       _chapters,
     );
-    // M3：回写「已见章节数」到收藏条目，书架据此判定/清除新章角标。
+    // 回写「已见章节数」到收藏条目，书架据此判定/清除新章角标。
     if (_chapters.isNotEmpty) {
       unawaited(context
           .read<FavoritesManager>()
@@ -781,7 +781,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     }
   }
 
-  /// F6：把本书已下载的 EPUB 导出产物手动上传到 WebDAV `nexhub/exports/`。
+  /// 把本书已下载的 EPUB 导出产物手动上传到 WebDAV `nexhub/exports/`。
   /// 仅小说详情页展示；未配置 WebDAV 时提示先去配置。
   Future<void> _uploadExportsToWebdav(AppLocalizations l10n) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -1283,7 +1283,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 ],
               ),
             ),
-            // F6：小说已导出的 EPUB 上传到 WebDAV（手动触发）。
+            // 小说已导出的 EPUB 上传到 WebDAV（手动触发）。
             if (_isNovel)
               PopupMenuItem<String>(
                 value: 'uploadToWebdav',

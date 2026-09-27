@@ -2,16 +2,16 @@
 ///
 /// 职责：
 /// - 持有「翻译开关」与逐页翻译状态（按图片 URL 索引），翻页时由阅读器
-///   调用 [ensureTranslated] 触发当前页翻译；
+/// 调用 [ensureTranslated] 触发当前页翻译；
 /// - 图片获取：本地路径直接读文件；网络 URL 走 [NexImageCacheManager]
-///   （命中磁盘缓存零流量，未命中带防盗链 headers 下载）；
+/// （命中磁盘缓存零流量，未命中带防盗链 headers 下载）；
 /// - 图片预处理：超过上限时经 [AiImageResizer] 下采样再编码，控制请求体积；
 /// - 调用 [VisionTranslationClient]（视觉模型一次完成 OCR + 翻译），
-///   结果经 [ComicTranslationManager] 持久化（`comicId|章|页|语言` 键）；
-/// - **并发信号量**（B2）：快速连续翻页时网络请求并发上限 2，防止瞬时打爆
-///   接口限流；缓存命中路径不占槽位；
-/// - 错误归一化（B7）：catch 处统一转 [TranslationException] 可读文案，
-///   原始异常细节仅入 [AppLog]。
+/// 结果经 [ComicTranslationManager] 持久化（`comicId|章|页|语言` 键）；
+/// - **并发信号量**：快速连续翻页时网络请求并发上限 2，防止瞬时打爆
+/// 接口限流；缓存命中路径不占槽位；
+/// - 错误归一化：catch 处统一转 [TranslationException] 可读文案，
+/// 原始异常细节仅入 [AppLog]。
 ///
 /// 状态以 [Listenable]（ChangeNotifier）暴露，[MangaPageImage] 内嵌的
 /// 覆盖层监听后按千分比坐标把译文渲染到原图对应位置上。
@@ -93,7 +93,7 @@ class ComicTranslationController extends ChangeNotifier {
   /// 原始字节直接发送的上限：超过才走解码下采样（绝大多数漫画页 < 4MB）。
   static const int _kDirectSendLimitBytes = 6 * 1024 * 1024;
 
-  /// 全局并发上限（B2）：快速连续翻页时在途视觉请求最多 2 个，
+  /// 全局并发上限：快速连续翻页时在途视觉请求最多 2 个，
   /// 避免瞬时并发触发上游 429/限流。缓存命中不占槽位。
   static const int _kMaxConcurrent = 2;
 
@@ -103,7 +103,7 @@ class ComicTranslationController extends ChangeNotifier {
   final GlossaryManager _glossary;
   final TranslationOptionsStore _options;
 
-  /// 术语表生效条目（F1，会话内加载一次；语言回落主目标语言）。
+  /// 术语表生效条目（会话内加载一次；语言回落主目标语言）。
   List<GlossaryEntry>? _glossaryEntries;
 
   /// 网络图下载防盗链 headers 所需的源配置（阅读器异步加载源后补传）。
@@ -131,7 +131,7 @@ class ComicTranslationController extends ChangeNotifier {
   /// 进行中的请求（防同页重复触发）。
   final Set<String> _inFlight = <String>{};
 
-  // ── 并发信号量（B2）──
+  // ── 并发信号量──
   int _active = 0;
   final List<void Function()> _waiters = <void Function()>[];
 
@@ -211,7 +211,7 @@ class ComicTranslationController extends ChangeNotifier {
         }
         return;
       }
-      // 网络请求段受并发信号量约束（B2）。
+      // 网络请求段受并发信号量约束。
       final result =
           await _withSlot(() => _translatePage(url, chapterKey, pageIndex));
       final translation = ComicPageTranslation(
@@ -228,7 +228,7 @@ class ComicTranslationController extends ChangeNotifier {
       // 空结果（无文字页）同样缓存，避免翻回来重复请求。
       await _saveTranslation(chapterKey, pageIndex, translation);
     } on Object catch (e) {
-      // B7：用户可见文案归一化，原始细节仅入日志。
+      // 用户可见文案归一化，原始细节仅入日志。
       AppLog.instance.w('[漫画翻译] 页面翻译失败 url=$url: $e');
       _states[url] = (_states[url] ?? const ComicPageTranslationState())
           .copyWith(
@@ -254,7 +254,7 @@ class ComicTranslationController extends ChangeNotifier {
         lang: _targetLang,
         translation: translation,
       );
-      // B5：保存后惰性裁剪缓存容量。
+      // 保存后惰性裁剪缓存容量。
       unawaited(_manager.trimToLimit(ComicTranslationManager.defaultMaxEntries));
     } on Object {
       // 缓存写失败不影响显示。
@@ -287,7 +287,7 @@ class ComicTranslationController extends ChangeNotifier {
     await ensureTranslated(url, chapterKey: chapterKey, pageIndex: pageIndex);
   }
 
-  /// F2：前一页已译短摘要——读上一页缓存（跨会话可用），把识别原文拼成
+  /// 前一页已译短摘要——读上一页缓存（跨会话可用），把识别原文拼成
   /// 1–2 句（截断 160 字符封顶）；无上一页/缓存时返回 null。
   Future<String?> _prevPageSummary(String chapterKey, int pageIndex) async {
     if (pageIndex <= 0) return null;
@@ -334,7 +334,7 @@ class ComicTranslationController extends ChangeNotifier {
     _targetLang = lang;
     _langLoaded = true;
 
-    // F1/F8：术语表（作品级回落全局；语言回落主目标语言）+ 风格预设。
+    // 术语表（作品级回落全局；语言回落主目标语言）+ 风格预设。
     try {
       final master =
           await settings.getTranslationTargetLanguage();
@@ -362,7 +362,7 @@ class ComicTranslationController extends ChangeNotifier {
     Uint8List sendBytes = bytes;
     String mime = _guessMime(url);
     if (bytes.lengthInBytes > _kDirectSendLimitBytes) {
-      // 超大图：下采样重编码（B6：codec 释放已收口在 AiImageResizer）。
+      // 超大图：下采样重编码（codec 释放已收口在 AiImageResizer）。
       final Uint8List? resized =
           await AiImageResizer.resizeToLimit(bytes, maxSide: _kMaxSide);
       if (resized != null) {
@@ -380,7 +380,7 @@ class ComicTranslationController extends ChangeNotifier {
         maxSide: _kMaxSide,
       ),
     );
-    // F1：术语冲突检测（仅日志，不阻断显示）。
+    // 术语冲突检测（仅日志，不阻断显示）。
     if (glossary.isNotEmpty && segments.isNotEmpty) {
       try {
         for (final w in GlossaryManager.detectConflicts(

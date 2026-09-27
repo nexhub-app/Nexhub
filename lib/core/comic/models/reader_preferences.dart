@@ -191,7 +191,7 @@ ReaderInitialZoom _parseInitialZoom(Object? raw) {
   return ReaderInitialZoom.fitWidth;
 }
 
-/// 图片色彩配置预设（L3 ICC 校色近似）：在手动滤镜（色温/色相/饱和度）之外，
+/// 图片色彩配置预设（ICC 校色近似）：在手动滤镜（色温/色相/饱和度）之外，
 /// 提供一键套用的色彩风格。Flutter 原生 ICC displayProfile 支持有限，此处用
 /// 固定的 4x5 颜色矩阵近似常见显示特性（见 [ReaderImageFilter.profileMatrix]）。
 enum ReaderColorProfile {
@@ -234,7 +234,7 @@ ReaderColorProfile _parseColorProfile(Object? raw) {
   return ReaderColorProfile.none;
 }
 
-/// E-Ink 刷新闪烁样式（L3 E-Ink 刷新设置）。
+/// E-Ink 刷新闪烁样式（E-Ink 刷新设置）。
 enum ReaderEInkRefreshStyle {
   /// 白闪：全屏白覆盖后淡出（墨水屏清残影常见）。
   white,
@@ -288,7 +288,7 @@ enum MouseWheelAction {
       };
 }
 
-/// 缩放锚点（双击 / 长按缩放的锚点来源，REQ-B11）。
+/// 缩放锚点（双击 / 长按缩放的锚点来源）。
 enum ZoomStart {
   /// 屏幕左侧（左右 1/4 处）。
   left,
@@ -306,7 +306,7 @@ enum ZoomStart {
       };
 }
 
-/// 长按缩放锚点（REQ-B2）。
+/// 长按缩放锚点。
 enum LongPressZoomPosition {
   /// 按触点放大（默认）。
   press,
@@ -320,7 +320,7 @@ enum LongPressZoomPosition {
       };
 }
 
-/// 翻页过渡动画（REQ-B7）：paged 模式翻页时的视觉过渡。
+/// 翻页过渡动画：paged 模式翻页时的视觉过渡。
 enum ReaderPageAnimation {
   /// 无动画（瞬切）。
   none,
@@ -338,7 +338,7 @@ enum ReaderPageAnimation {
       };
 }
 
-/// 时间/电量浮层位置（REQ-C5）：四角。
+/// 时间/电量浮层位置：四角。
 enum ClockBatteryPosition {
   topLeft,
   topRight,
@@ -456,7 +456,7 @@ class ReaderPreferences {
   /// 单页旋转时强制横屏（与图片旋转 quarterTurns 解耦）。
   final bool rotateLandscape;
 
-  /// 双页拆分（占位字段，精细拼页逻辑属 P2）。
+  /// 双页拆分（占位字段，精细拼页逻辑属）。
   final bool splitDoublePage;
 
   /// 左右留白（页面左右内边距），取值范围 0.0~0.5，表示占屏幕宽度的比例。
@@ -512,7 +512,7 @@ class ReaderPreferences {
   /// 关闭时保持传统的「整章加载 + 过渡标题卡」行为。
   final bool seamlessReading;
 
-  /// 条漫（连续模式）解码限幅开关（P3 资源/内存）：开启时把解码位图宽下采样到
+  /// 条漫（连续模式）解码限幅开关（资源/内存）：开启时把解码位图宽下采样到
   /// `min(2560, 屏幕物理像素 × 2)`，避免超长条漫原图（数千 px 宽）全尺寸解码
   /// 挤爆内存。仅 webtoon 模式生效；paged 单页仍按原图解码保证放大细节。
   final bool webtoonLimitDecodeSize;
@@ -521,12 +521,12 @@ class ReaderPreferences {
   /// 仅对 webtoon（条漫）连续模式生效。
   final bool showChapterSeparator;
 
-  /// 是否显示章节导航滑块（REQ-C10）：阅读器左缘的竖向章节拖动条。
+  /// 是否显示章节导航滑块：阅读器左缘的竖向章节拖动条。
   /// 仅多章节作品显示；关闭后阅读器不再显示该滑块。
   final bool showChapterSlider;
 
   /// 鼠标滚轮滚动速度倍率（webtoon 连续滚动增量 × 本值），范围 0.5–3.0，默认 1.0。
-  /// paged 模式滚轮翻页行为不受影响（REQ-B5）。
+  /// paged 模式滚轮翻页行为不受影响。
   final double readerScrollSpeed;
 
   /// 音量键翻页开关（Android 拦截音量上/下翻页；其他平台并入键盘）。
@@ -535,17 +535,17 @@ class ReaderPreferences {
   /// 音量键在 webtoon（条漫）模式下的竖向滚动步长（占视口高度百分比），范围 10–100，默认 40。
   final int volumeKeyPageTurnDistancePercent;
 
-  /// 长按缩放开关（REQ-B2）：开启后长按图片进入 1.75x 缩放（再长按/松手退出）；
+  /// 长按缩放开关：开启后长按图片进入 1.75x 缩放（再长按/松手退出）；
   /// 关闭时保持长按弹菜单行为。
   final bool enableLongPressToZoom;
 
-  /// 长按缩放锚点（REQ-B2）：[press]=按触点，[center]=按屏幕中心。
+  /// 长按缩放锚点：[press]=按触点，[center]=按屏幕中心。
   final LongPressZoomPosition longPressZoomPosition;
 
-  /// 双击 / 长按缩放锚点来源（REQ-B11）：left / center / right。
+  /// 双击 / 长按缩放锚点来源：left / center / right。
   final ZoomStart zoomStart;
 
-  /// 自动翻页开关（REQ-B9）。与 [autoPageTurningInterval] 分开存储：关闭开关
+  /// 自动翻页开关。与 [autoPageTurningInterval] 分开存储：关闭开关
   /// 不清零间隔，重新开启时恢复上次设置的间隔（旧数据 0 时兜底 5）。
   final bool autoPageTurningEnabled;
 
@@ -556,40 +556,40 @@ class ReaderPreferences {
   /// 自动滚动开关（webtoon 平滑自动滚动，速度随 [readerScrollSpeed]）。
   final bool autoScroll;
 
-  /// paged 翻页过渡动画（REQ-B7）：none=瞬切 / slide=滑入 / fade=淡入淡出。
+  /// paged 翻页过渡动画：none=瞬切 / slide=滑入 / fade=淡入淡出。
   final ReaderPageAnimation pageAnimation;
 
-  /// 双击缩放动画时长（毫秒，REQ-B7），默认 500。随系统 [MediaQuery.disableAnimations] 比例。
+  /// 双击缩放动画时长（毫秒），默认 500。随系统 [MediaQuery.disableAnimations] 比例。
   final int doubleTapAnimSpeed;
 
-  /// webtoon 相邻页间距（像素，REQ-C14），范围 0–50，默认 0。
+  /// webtoon 相邻页间距（像素），范围 0–50，默认 0。
   final int readerPageSpacing;
 
-  /// 首屏单图（REQ-C13）：双页模式第一章第一页单独显示，其后恢复双页。
+  /// 首屏单图：双页模式第一章第一页单独显示，其后恢复双页。
   final bool showSingleImageOnFirstPage;
 
-  /// 时间/电量浮层（REQ-C5）。
+  /// 时间/电量浮层。
   final bool showClockBattery;
   final ClockBatteryPosition clockBatteryPosition;
   final double clockBatteryMargin;
   final double clockBatteryOpacity;
   final double clockBatteryFontSize;
 
-  /// 系统亮度（REQ-C3）：-1.0~1.0，0=不干预；正值写系统亮度、负值叠加黑色遮罩。
+  /// 系统亮度：-1.0~1.0，0=不干预；正值写系统亮度、负值叠加黑色遮罩。
   final double readerBrightness;
 
-  /// 夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立于 [readerBrightness] 的开关，
+  /// 夜览暖色盖层（亮度双轨扩展）：独立于 [readerBrightness] 的开关，
   /// 开启后在阅读区叠加暖色（0xFF2A1800）半透明盖层减少蓝光，不干预系统亮度。
   final bool nightLightEnabled;
 
   /// 夜览暖色盖层不透明度（0.1–0.85，夜览 toOpacity 范围），默认 0.4。
   final double nightLightOpacity;
 
-  /// 图片色彩配置预设（L3 ICC 校色近似）：none / srgb / warm / cool / manga / paper。
+  /// 图片色彩配置预设（ICC 校色近似）：none / srgb / warm / cool / manga / paper。
   /// 在手动滤镜之外叠加一层固定色彩矩阵（见 [ReaderImageFilter.profileMatrix]）。
   final ReaderColorProfile colorProfile;
 
-  /// E-Ink 刷新（L3）：墨水屏防残影，按翻页间隔自动做一次全屏闪烁清残影。
+  /// E-Ink 刷新：墨水屏防残影，按翻页间隔自动做一次全屏闪烁清残影。
   final bool einkRefreshEnabled;
 
   /// E-Ink 刷新间隔（翻页数），范围 1–50，默认 10。每翻过 N 页触发一次刷新。
@@ -601,13 +601,13 @@ class ReaderPreferences {
   /// E-Ink 刷新闪烁样式（white / black）。
   final ReaderEInkRefreshStyle einkRefreshStyle;
 
-  /// 自动收藏（L3 漫画）：打开作品即加入收藏（不重复操作，已收藏跳过）。
+  /// 自动收藏（漫画）：打开作品即加入收藏（不重复操作，已收藏跳过）。
   final bool isAutoFavorite;
 
-  /// 阅读中自动下载后续章节（REQ-C7）：进度越过当前章 25% 时后台入队。
+  /// 阅读中自动下载后续章节：进度越过当前章 25% 时后台入队。
   final bool autoDownloadChapters;
 
-  /// 跳章过滤（REQ-C11）：下/上一章时跳过已读 / 被筛选 / 标题重复章节。
+  /// 跳章过滤：下/上一章时跳过已读 / 被筛选 / 标题重复章节。
   final bool skipReadChapters;
   final bool skipFilteredChapters;
   final bool skipDuplicateChapters;
@@ -616,11 +616,11 @@ class ReaderPreferences {
   /// 译文以气泡覆盖层渲染在原图上。开关按作品持久化。
   final bool translationEnabled;
 
-  /// F7 排版回填：开启后译文以「气泡内回填」模式渲染（描边文字 +
+  /// 排版回填：开启后译文以「气泡内回填」模式渲染（描边文字 +
   /// 按 bbox 宽度换行 + 字号自适应），关闭时使用半透明覆盖层模式。
   final bool translationBackfill;
 
-  /// 每屏多图 gallery（REQ-C4）：竖/横屏一屏纵向堆叠张数，1–5，默认 1。
+  /// 每屏多图 gallery：竖/横屏一屏纵向堆叠张数，1–5，默认 1。
   final int readerScreenPicNumberForPortrait;
   final int readerScreenPicNumberForLandscape;
 
@@ -1140,11 +1140,11 @@ class ReaderPreferences {
   }
 }
 
-/// 三层设置覆盖取值（REQ-C9）：global（全局默认）→ work（作品）→ device（设备/会话）。
+/// 三层设置覆盖取值：global（全局默认）→ work（作品）→ device（设备/会话）。
 ///
 /// - [base]：已合并的「全局默认 + 作品」偏好（即 [ReaderPreferences.mergedWithKeys] 结果）；
 /// - [device]：当前运行时覆盖层（如按屏幕尺寸/方向的临时偏好，退出阅读器不持久化），
-///   可为 null（表示无设备层覆盖，此时回落 [base]）；
+/// 可为 null（表示无设备层覆盖，此时回落 [base]）；
 /// - [selector]：按字段取值（`(p) => p.readerBrightness` 等）。
 ///
 /// 优先级：device 非空且该字段在 device 层被设置时取 device；否则取 [base]。
@@ -1158,7 +1158,7 @@ T getReaderSetting<T>(
   return selector(device);
 }
 
-/// 漫画睡眠定时模式（X-1 跨类型对齐）。
+/// 漫画睡眠定时模式（跨类型对齐）。
 ///
 /// 会话级状态（不持久化到偏好）：按分钟到时暂停 / 按话数读完 N 话后暂停，
 /// 与播放器、小说 TTS 睡眠定时语义对齐。

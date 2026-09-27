@@ -2,7 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import '../theme/app_tokens.dart';
 import '../utils/app_haptics.dart';
 
-/// 顶部分段切换（M3 风格等宽分段按钮）。
+/// 顶部分段切换（风格等宽分段按钮）。
 ///
 /// 用于「本地 / 历史记录 / 收藏」等互斥单选项。
 ///

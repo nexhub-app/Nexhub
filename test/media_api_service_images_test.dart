@@ -194,7 +194,7 @@ void main() {
 
   group('renderedHtml dispatch (Task 4.4)', () {
     test('hybrid+script+useWebview source routes renderedHtml to ScriptResolver with HTML as raw', () async {
-      // 参考 manga_baozimh 配置：parser.type=hybrid + overrides[latest].type=script + useWebview=true。
+      // 参考 manga_demo 配置：parser.type=hybrid + overrides[latest].type=script + useWebview=true。
       final capturedFn = <String>[];
       final capturedArgs = <List<dynamic>>[];
       final resolver = ScriptResolver(
@@ -208,7 +208,7 @@ void main() {
               'id': '/manga/abc',
               'title': 'Test Manga',
               'cover': 'https://x/cover.png',
-              'detailUrl': 'https://m.baozimh.one/manga/abc',
+              'detailUrl': 'https://m.demo.test/manga/abc',
             },
           ],
         ),
@@ -218,12 +218,12 @@ void main() {
         scriptResolver: resolver,
       );
       final source = PluginConfig.fromJson(<String, dynamic>{
-        'id': 'manga_baozimh_test',
+        'id': 'manga_demo_test',
         'name': 'Bun Manga Test',
         'type': 'mangaSource',
         'responseType': 'html',
         'useWebview': true,
-        'site': {'baseUrl': 'https://m.baozimh.one'},
+        'site': {'baseUrl': 'https://m.demo.test'},
         'parser': {
           'type': 'hybrid',
           'overrides': {
@@ -254,22 +254,22 @@ void main() {
       expect(items.first.title, 'Test Manga');
       expect(items.first.id, '/manga/abc');
       expect(items.first.coverUrl, 'https://x/cover.png');
-      expect(items.first.detailUrl, 'https://m.baozimh.one/manga/abc');
+      expect(items.first.detailUrl, 'https://m.demo.test/manga/abc');
     });
 
     test('xpath+useWebview source routes renderedHtml to BuiltinResolver (non-empty results)', () async {
-      // 参考 pms_fsdm 配置：parser.type=xpath + useWebview=true。
+      // 参考示例源配置：parser.type=xpath + useWebview=true。
       // 回灌渲染后 HTML，验证 BuiltinResolver 按 XPath selectors 解析出非空结果。
       // 注：BuiltinResolver HTML 路径按扁平 selectors 读取（sel['list']/sel['id']/...），
       // 测试用扁平结构验证分流逻辑与 BuiltinResolver 解析能力。
       final localService = MediaApiService(ResolverRegistry.instance);
       final source = PluginConfig.fromJson(<String, dynamic>{
-        'id': 'pms_fsdm_test',
-        'name': 'Fsdm Test',
+        'id': 'demo_test',
+        'name': 'Demo Test',
         'type': 'animeSource',
         'responseType': 'html',
         'useWebview': true,
-        'site': {'baseUrl': 'https://www.fsdm02.com'},
+        'site': {'baseUrl': 'https://www.demo.example'},
         'parser': {'type': 'xpath'},
         'routes': {'latest': {'url': '/vodshow/1--------{page}---.html'}},
         'selectors': {

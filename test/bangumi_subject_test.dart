@@ -2,10 +2,10 @@
 ///
 /// 覆盖：
 /// - [BangumiSubjectRating] / [BangumiSubjectDetail] 的 JSON 解析（评分、
-///   分布、标签、封面回退、中文名回退）；
+/// 分布、标签、封面回退、中文名回退）；
 /// - [BangumiClient.fetchSubject] 走 `/v0/subjects/{id}` 并正确解析；
 /// - [BangumiClient.fetchUserCollections] 在传入 collectionType 时携带 `type`
-///   查询参数，未传入时省略。
+/// 查询参数，未传入时省略。
 library;
 
 import 'dart:convert';

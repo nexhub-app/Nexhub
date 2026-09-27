@@ -296,7 +296,7 @@ class ShuyuanNovelResolver
 
   /// PTCMS 筛选段取值：
   /// - 未选（null）/ 选「全部」(`all`/空) → 返回 null，省略该路径段（站点视为
-  ///   不限定该维度）；
+  /// 不限定该维度）；
   /// - 其余 → 原值（如文库 id、题材 id、finish/1|2、size/1..5、order/addtime/shits）。
   static String? _ptcmsSeg(String? raw) {
     if (raw == null) return null;

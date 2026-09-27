@@ -68,14 +68,14 @@ typedef ResolveFilters = Future<List<FilterGroupConfig>> Function(
 /// 这里，**禁止**各 feature 重复实现。各模块只需传入源集合、拉取回调、
 /// 点击行为即可。
 ///
-/// **#7 A4-#7 动态多 Tab 结构**：
+/// **#7 -动态多 Tab 结构**：
 /// ```
 /// [首页] [周期表?] [分类1] [分类2] ... [分类N] [排行?]
-///   固定    可选     ←─ fetchCategories 动态生成 ─→  可选
+/// 固定 可选 ←─ fetchCategories 动态生成 ─→ 可选
 /// ```
 /// - Tab 1 首页：最新更新 + 热门推荐 + 分类入口（回退两段无 Banner）
 /// - Tab 2 周期表?：仅当源有 latest route 且至少 1 条 item 有 updatedAt 时显示；
-///   7 天分组（无 updatedAt 时整个 Tab 隐藏）
+/// 7 天分组（无 updatedAt 时整个 Tab 隐藏）
 /// - Tab 3-N 动态分类：按 fetchCategories 生成，每个含筛选按钮 + 网格列表
 /// - Tab Last 排行：仅当源有 `rank` route 时显示
 class OnlineContentListScreen extends StatefulWidget {
@@ -652,10 +652,10 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   /// 构造某首页板块的请求 `vars`。
   ///
   /// - [HomeSectionConfig.route] 非 `latest` 时写入特殊键 `__route`，触发
-  ///   [MediaApiService.fetchApiResults] 的路由覆盖钩子，让各板块走各自路由；
+  /// [MediaApiService.fetchApiResults] 的路由覆盖钩子，让各板块走各自路由；
   /// - [HomeSectionConfig.params] 原样并入（如 `{'category': 'kr'}`）；
   /// - 安全兜底：某源 `latest` 路由 URL 含 `{category}` 占位符但本板块未提供
-  ///   category 时，补上默认分类（首个静态分类 id），避免生成畸形 URL。
+  /// category 时，补上默认分类（首个静态分类 id），避免生成畸形 URL。
   Map<String, String> _homeSectionVars(
       PluginConfig source, HomeSectionConfig sec) {
     final route = sec.route.isEmpty ? 'latest' : sec.route;
@@ -1455,7 +1455,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   /// 两种形态：
   /// - 源声明了列表 `route` → 进入 Tab 时懒加载（[_loadWebFavorite]），网格展示；
   /// - 仅声明网页 `url`（无 route）→ Tab 内提供「在浏览器打开」按钮，
-  ///   不在此拉取列表（列表数据在源站内，app 无法结构化获取）。
+  /// 不在此拉取列表（列表数据在源站内，app 无法结构化获取）。
   Widget _buildWebFavoriteTab(AppLocalizations l10n) {
     final source = _source;
     if (source == null) return const SizedBox.shrink();
@@ -1496,8 +1496,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     }
 
     // route 列表：两级导航。
-    //   未选文件夹 → 先展示「文件夹列表」（含「全部」）；
-    //   已选文件夹 → 展示该文件夹的作品，顶部带「‹ 返回文件夹」面包屑。
+    // 未选文件夹 → 先展示「文件夹列表」（含「全部」）；
+    // 已选文件夹 → 展示该文件夹的作品，顶部带「‹ 返回文件夹」面包屑。
     final Widget body;
     if (_webFavoriteAtFolderList) {
       // 第一级：文件夹列表（懒加载中 / 错误 / 空 都用文件夹列表的专属态）。
@@ -2332,8 +2332,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   ///
   /// - 影视/动漫：用 [MediaWatchedManager] 的精确已看集数比例。
   /// - 小说/漫画：用 [NovelProgressManager]/[ComicProgressManager] 的
-  ///   `chapterIndex` 占 `totalChapters` 的真实百分比；若尚未缓存总章数，
-  ///   仅以极小进度（0.02）标记「已开始」。
+  /// `chapterIndex` 占 `totalChapters` 的真实百分比；若尚未缓存总章数，
+  /// 仅以极小进度（0.02）标记「已开始」。
   Future<double?> _computeProgress(MediaItem item) async {
     final SourceType? type = item.sourceType;
 

@@ -30,7 +30,7 @@ void main() {
       );
     });
 
-    test('fsdm02 slider guard page requires verification', () {
+    test('demo slider guard page requires verification', () {
       const body = '<script src="/_guard/slide.js"></script>';
       expect(
         VerificationDetector.isVerificationRequired(statusCode: 200, body: body),
@@ -49,7 +49,7 @@ void main() {
     // ---- 笔趣阁（Cloudflare 反代）回归：正常页含被动标记不得误判 ----
 
     test(
-        'biquge-style normal page (passive CF marker + full of chapter links, '
+        'book-source-style normal page (passive CF marker + full of chapter links, '
         '>8KB) must NOT require verification', () {
       // 实测 m.biqubu3.com 正常页（首页 17KB / 书页 8.3KB / 章节页 12.8KB）均含
       // challenge-platform 被动标记；体积超过挑战壳长度闸门（8192）→ 必须
@@ -70,7 +70,7 @@ void main() {
       );
     });
 
-    test('200 short challenge shell with passive CF marker requires '
+    test('200 short challenge shell with passive CF marker requires'
         'verification', () {
       // 真正的 CF 临时挑战壳：只有几 KB 的等待/重定向壳 + 被动标记 → 判验证。
       const body = '<html><head>'
@@ -91,7 +91,7 @@ void main() {
       );
     });
 
-    // ---- WAF「拦截应答」检测（cycani / girigirilove: 200 + body="closed"）----
+    // ---- WAF「拦截应答」检测（部分源: 200 + body="closed"）----
 
     test('200 with body exactly "closed" requires verification (Edge WAF)', () {
       expect(

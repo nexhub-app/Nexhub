@@ -1,7 +1,7 @@
 /// 弹弹play 账号登录页（重构：账号体系从弹幕显示设置迁出至此）。
 ///
 /// - 用户级账号登录：用户名 + 密码 → [DandanplayAuth.login]
-///   （POST /api/v2/login，需应用级 AppId/AppSecret 已配置，否则给出友好提示）；
+/// （POST /api/v2/login，需应用级 AppId/AppSecret 已配置，否则给出友好提示）；
 /// - 登录态展示与登出；
 /// - 应用级凭据（AppId/AppSecret）维持编译期注入，本页不提供编辑入口。
 library;

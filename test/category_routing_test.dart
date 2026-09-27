@@ -9,9 +9,9 @@ import 'package:nexhub/core/scraper/media_api_service.dart';
 /// 覆盖：
 /// - [MediaApiService.routeForCategory] 的优先级逻辑；
 /// - [MediaApiService.fetchCategories] 读取 `selectors.category.categories`
-///   （goda 式静态分类）与书源 `selectors.xiaoshuo.exploreUrl`（biquge 式）
-///   两条无网络路径；以及 `selectors.category.dynamicCategories` 在无采集
-///   路由时安全回退为空列表（不触发网络）。
+/// （声明式静态分类）与书源 `selectors.xiaoshuo.exploreUrl`（书源式）
+/// 两条无网络路径；以及 `selectors.category.dynamicCategories` 在无采集
+/// 路由时安全回退为空列表（不触发网络）。
 void main() {
   group('MediaApiService.routeForCategory', () {
     final withCategoryRoute = PluginConfig.fromJson(<String, dynamic>{
@@ -80,12 +80,12 @@ void main() {
   group('MediaApiService.fetchCategories', () {
     final service = MediaApiService(ResolverRegistry.instance);
 
-    test('reads selectors.category.categories (goda-style)', () async {
+    test('reads selectors.category.categories (declarative-style)', () async {
       final source = PluginConfig.fromJson(<String, dynamic>{
-        'id': 'goda',
-        'name': 'goda',
+        'id': 'demo',
+        'name': 'demo',
         'type': 'mangaSource',
-        'site': {'baseUrl': 'https://godamh.com'},
+        'site': {'baseUrl': 'https://demo.example'},
         'parser': {'type': 'hybrid'},
         'routes': {
           'latest': {'url': '/'},
@@ -111,7 +111,7 @@ void main() {
       expect(cats[2].title, '国漫');
     });
 
-    test('parses shuyuan exploreUrl (biquge-style)', () async {
+    test('parses shuyuan exploreUrl (book-source-style)', () async {
       final source = PluginConfig.fromJson(<String, dynamic>{
         'id': 'xiaoshuo_bqg',
         'name': '笔趣阁',

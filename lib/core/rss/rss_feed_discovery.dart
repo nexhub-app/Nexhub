@@ -2,9 +2,9 @@
 ///
 /// 用户输入一个网站地址（如 `https://example.com`），本服务：
 /// 1. 抓首页 HTML，抽取 `<link rel="alternate" type="application/rss+xml">`
-///    这类 feed 声明标签，按站点地址把相对 href 解析成绝对地址；
+/// 这类 feed 声明标签，按站点地址把相对 href 解析成绝对地址；
 /// 2. 若首页没声明（不少站点漏写），再按常见 feed 路径探测
-///    （`/feed`、`/rss`、`/atom.xml` …），能解析成合法 feed 的才算候选。
+/// （`/feed`、`/rss`、`/atom.xml` …），能解析成合法 feed 的才算候选。
 ///
 /// 网络请求一律由调用方通过 [HttpFetcher] 发起并传入 `net`（代理/SNI/DNS/hosts
 /// 才生效），本类只做纯解析，不碰网络。

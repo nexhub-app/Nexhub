@@ -1,11 +1,11 @@
 /// 进行中会话记录器（短生命）。
 ///
 /// 用法（详情页 / 阅读器在生命周期里）：
-///   final recorder = ReadingSessionRecorder.instance;
-///   recorder.begin(workId, sourceId, StatsMediaType.comic);
-///   ... tick() 由 UI 周期性调用或进度保存时调用 ...
-///   recorder.tick(workId, ...);
-///   recorder.commit(workId, ...);   // 用户离开/暂停/切集
+/// final recorder = ReadingSessionRecorder.instance;
+/// recorder.begin(workId, sourceId, StatsMediaType.comic);
+/// ... tick() 由 UI 周期性调用或进度保存时调用 ...
+/// recorder.tick(workId, ...);
+/// recorder.commit(workId, ...); // 用户离开/暂停/切集
 ///
 /// 持久化：进行中状态每秒级被 tick 写入 SharedPreferences `reading_session_state_v1`，
 /// 下次 begin 时如果发现旧快照且时间戳未超过 24 小时，会复活"之前

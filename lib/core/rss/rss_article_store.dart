@@ -1,12 +1,12 @@
-/// RSS 文章本地状态与缓存（文档 §10.2 P1-3）。
+/// RSS 文章本地状态与缓存（文档 -3）。
 ///
 /// 两部分数据，均经 [PrefsBackend]（SharedPreferences）持久化，
 /// 与 RSS 子系统现有 `rss_feeds_v1` / `rss_feed_states_v1` 保持一致，不新增 Hive box：
 /// - `rss_feed_cache_v1`：每个订阅源最近一次抓到的条目元数据（有序），
-///   用于断网时仍能展示列表。
+/// 用于断网时仍能展示列表。
 /// - `rss_article_state_v1`：每篇文章的 `read` / `favorite` / 全文缓存 `content`
-///   及渲染所需元数据，键为 `feedId::itemUrl`（url 为空回退标题，
-///   与 [RssUpdateChecker] 的 seen 判定一致）。
+/// 及渲染所需元数据，键为 `feedId::itemUrl`（url 为空回退标题，
+/// 与 [RssUpdateChecker] 的 seen 判定一致）。
 library;
 
 import 'dart:convert';
@@ -384,7 +384,7 @@ class RssArticleStore {
   /// 1. 整类剔除噪音标签（script/style/iframe/表单控件 + nav/header/footer/aside）；
   /// 2. 按 class/id 关键词剔除疑似噪音容器（评论/侧栏/推荐/分享/广告等）；
   /// 3. 候选容器（article/main/[role=main] + 正文关键词 class/id）按
-  ///    「纯文本量 + 图片加权 − 链接密度惩罚」评分取最优；
+  /// 「纯文本量 + 图片加权 − 链接密度惩罚」评分取最优；
   /// 4. 无明显正文容器或解析失败时回退正则清洗的整个 body（老行为）。
   static String extractReadableHtml(String html) {
     try {

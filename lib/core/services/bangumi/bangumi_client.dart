@@ -334,10 +334,10 @@ class BangumiClient {
   ///
   /// 制作人员来源分两种环境，均兼容：
   /// - 真实 API：角色在 `/v0/subjects/{id}/characters`（返回 `{data:[...]}`），制作人员
-  ///   在独立端点 `/v0/subjects/{id}/persons`（返回裸数组，条目带 `career` 职业字段，
-  ///   `relation` 为该作职位）；
+  /// 在独立端点 `/v0/subjects/{id}/persons`（返回裸数组，条目带 `career` 职业字段，
+  /// `relation` 为该作职位）；
   /// - 合并代理：部分反代把制作人员混入 `/characters` 响应，同样以 `career` 字段识别
-  ///   （真实 API 的角色不含 `career`）。
+  /// （真实 API 的角色不含 `career`）。
   ///
   /// 两端点分别兜底（任一侧失败不影响另一侧），`/persons` 结果强制判为制作人员，
   /// 按 id 去重合并，避免重复请求与限流。

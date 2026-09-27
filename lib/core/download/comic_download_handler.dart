@@ -1,4 +1,4 @@
-/// 漫画下载处理器（文档 §7.5 / §10.1）。
+/// 漫画下载处理器（文档 /）。
 ///
 /// 按章节拉取图片 URL → 下载图片字节 → 打包 CBZ（或散图文件夹）。
 library;
@@ -147,7 +147,7 @@ class ComicDownloadHandler implements DownloadHandler {
         continue;
       }
       // 拦截图检测（沿用原整本逻辑，改为按话）：全部页平均 <20KB 基本可判定
-      // 源统一返回了占位图/错误页（如 goda 曾出现的 ~5.8KB 拦截图）。
+      // 源统一返回了占位图/错误页（如某源曾出现的 ~5.8KB 拦截图）。
       final int total =
           chPages.map((p) => p.bytes.length).fold(0, (a, b) => a + b);
       final double avg = total / chPages.length;

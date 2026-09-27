@@ -37,7 +37,7 @@ class AppTokens {
   static const List<(Color, String)> presetSeeds = <(Color, String)>[
     (seedLightBlue, '浅蓝'),
     (seedYouthfulPrimary, '青春蓝'),
-    (Color(0xFF6750A4), '默认紫'), // M3 默认紫
+    (Color(0xFF6750A4), '默认紫'), // 默认紫
     (Color(0xFF26A69A), '青绿'),
     (Color(0xFFEF6C00), '橙'),
     (seedChaHong, '茶红'),

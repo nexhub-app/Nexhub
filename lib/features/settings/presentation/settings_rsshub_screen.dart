@@ -112,7 +112,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
   /// 测试实例连通性（HEAD 请求，5 秒超时），记录延迟毫秒数（项 10）。
   ///
   /// 走 [HttpFetcher] 的默认档案 Dio（含全局代理/SNI/DNS/hosts 配置），
-  /// 不再用裸 Dio（B10：此前裸 Dio 绕过网络配置，需代理/SNI 的实例测速永远失败）。
+  /// 不再用裸 Dio（此前裸 Dio 绕过网络配置，需代理/SNI 的实例测速永远失败）。
   Future<void> _testConnection(String url) async {
     setState(() => _testStatus[url] = 'testing');
     final stopwatch = Stopwatch()..start();

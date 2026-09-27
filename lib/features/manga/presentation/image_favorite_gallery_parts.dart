@@ -9,7 +9,7 @@ part of 'image_favorite_gallery_screen.dart';
 // - _SourceBadge：来源角标。
 // 注意：part 文件无独立 import，所需库由主文件统一导入。
 
-/// 无对勾 chip：选中用底色 + 描边 + 加粗区分（问题 3：去掉选择对勾）。
+/// 无对勾 chip：选中用底色 + 描边 + 加粗区分（去掉选择对勾）。
 class _PlainChip extends StatelessWidget {
   final IconData? icon;
   final String label;
@@ -74,7 +74,7 @@ class _PlainChip extends StatelessWidget {
   }
 }
 
-/// 来源角标（X-3）：半透明黑底小图标 + 来源名。
+/// 来源角标：半透明黑底小图标 + 来源名。
 class _SourceBadge extends StatelessWidget {
   const _SourceBadge({required this.source});
 

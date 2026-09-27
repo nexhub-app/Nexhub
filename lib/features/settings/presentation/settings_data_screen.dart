@@ -25,7 +25,7 @@ import '../../../core/danmaku/dandanplay_auth.dart';
 /// 已迁出至对应分类页（外观与语言 / 播放与阅读 / 隐私与安全），
 /// 此处不再承载全局偏好。
 ///
-/// 版面：每行一张独立描边小卡（[SettingsTile]），行间 4px，见 R3/R5。
+/// 版面：每行一张独立描边小卡（[SettingsTile]），行间 4px，见。
 class SettingsDataScreen extends StatelessWidget {
   const SettingsDataScreen({super.key});
 

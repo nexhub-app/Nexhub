@@ -2,9 +2,9 @@
 ///
 /// 走 OpenAI 兼容 `chat/completions` 接口（与小说翻译同族协议）：
 /// - **视觉请求**：图片以 `data:` base64 随消息发送，模型同时完成
-///   文字识别（OCR）与翻译，返回带区域坐标的 JSON；
+/// 文字识别（OCR）与翻译，返回带区域坐标的 JSON；
 /// - **文本请求**：批量协议 `<<<N>>>` 序号分隔（对齐小说段落翻译），
-///   一次请求翻译多条短句（视频字幕逐句场景）。
+/// 一次请求翻译多条短句（视频字幕逐句场景）。
 ///
 /// 接口配置（baseUrl/apiKey/model）由调用方传入（各功能读取自己的
 /// 功能级配置并回落通用配置），本文件不依赖任何 feature 层代码。
@@ -18,7 +18,7 @@ import 'package:dio/dio.dart';
 import 'batch_protocol.dart';
 import 'prompt_builder.dart';
 
-/// 一对「原文→译文」语境（F2 上下文注入的对话历史单元）。
+/// 一对「原文→译文」语境（上下文注入的对话历史单元）。
 typedef TranslationContextPair = ({String source, String translation});
 
 /// 一段识别并翻译后的文字区域（坐标为相对图片宽高的千分比 0–1000）。
@@ -176,12 +176,12 @@ class VisionTranslationClient {
   /// 复用 [BatchProtocol]（`<<<N>>>` 编号分隔，与小说翻译同一份实现）；
   /// 解析失败/条数不齐时抛异常，由调用方决定回退策略（逐条重试等）。
   ///
-  /// - [history]（F2 上下文注入）：会话内最近若干句 {原文, 译文}，按时间
-  ///   升序注入为对话历史 messages（预算淘汰由调用方负责）；
-  /// - [lightweight]（F8 轻量格式）：要求纯文本逐行输出（无编号）省 token，
-  ///   解析靠顺序对位（[BatchProtocol.decodeLoose]），失败回退编号协议；
+  /// - [history]（上下文注入）：会话内最近若干句 {原文, 译文}，按时间
+  /// 升序注入为对话历史 messages（预算淘汰由调用方负责）；
+  /// - [lightweight]（轻量格式）：要求纯文本逐行输出（无编号）省 token，
+  /// 解析靠顺序对位（[BatchProtocol.decodeLoose]），失败回退编号协议；
   /// - [systemPrompt]：调用方经 [PromptBuilder] 组装好的完整提示词，
-  ///   传入时覆盖内置默认（术语/风格注入统一走该通道）。
+  /// 传入时覆盖内置默认（术语/风格注入统一走该通道）。
   Future<List<String>> translateBatch({
     required AiEndpointConfig config,
     required String targetLang,
@@ -198,7 +198,7 @@ class VisionTranslationClient {
         'content': systemPrompt ??
             PromptBuilder.subtitleSystemPrompt(lang: targetLang),
       },
-      // F2：前文语境作为对话历史注入（升序，最新一句紧邻本次请求）。
+      // 前文语境作为对话历史注入（升序，最新一句紧邻本次请求）。
       for (final h in history) ...<Map<String, dynamic>>[
         <String, dynamic>{
           'role': 'user',

@@ -1,4 +1,4 @@
-/// F5（多阶段质量：润色 + 证据驱动审查）单元测试。
+/// （多阶段质量：润色 + 证据驱动审查）单元测试。
 ///
 /// - 润色服务：编号协议批量回声、进度回调、输入长度校验；
 /// - 审查引擎：术语一致性 / 疑似漏译 / 疑似直译腔 三类证据（含位置）；
@@ -85,7 +85,7 @@ void main() {
     model: 'test-model',
   );
 
-  group('F5 润色服务', () {
+  group('润色服务', () {
     test('批量回声按块内序号；进度回调到总量', () async {
       final adapter = _EchoAdapter();
       final done = <int>[];
@@ -124,7 +124,7 @@ void main() {
     });
   });
 
-  group('F5 审查引擎', () {
+  group('审查引擎', () {
     test('术语一致性 / 漏译 / 直译腔 三类证据齐备', () {
       const glossary = <GlossaryEntry>[
         GlossaryEntry(id: '1', term: 'サクラ', preferred: '小樱'),
@@ -192,7 +192,7 @@ void main() {
     });
   });
 
-  group('F5 管理器', () {
+  group('管理器', () {
     late Directory tempDir;
 
     setUp(() async {

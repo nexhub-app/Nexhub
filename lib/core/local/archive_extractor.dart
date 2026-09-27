@@ -18,7 +18,7 @@ import 'local_content_manager.dart' show isImageFile;
 /// 单张图片解压内存上限（50MB），防解压炸弹。漫画页通常远小于此。
 const int _kMaxImageBytes = 50 << 20;
 
-/// 归档解压结果（P3 资源回收）：除排序后的图片路径外，附带本次解压的
+/// 归档解压结果（资源回收）：除排序后的图片路径外，附带本次解压的
 /// 独立临时目录，供阅读器退出时整目录删除（无需逐文件追踪）。
 class ArchiveImagesExtraction {
   const ArchiveImagesExtraction({required this.dir, required this.files});
@@ -107,7 +107,7 @@ Future<List<String>> extractArchiveImages(String path) async {
   }
 }
 
-/// 常见小说归档扩展名（D9 压缩包批量导入：zip/cbz 系 + koni_archive
+/// 常见小说归档扩展名（压缩包批量导入：zip/cbz 系 + koni_archive
 /// 支持的 tar/7z/rar 系）。小写比较。
 const List<String> kNovelArchiveExtensions = <String>[
   '.zip', '.cbz', '.tar', '.7z', '.cb7', '.rar', '.cbr',
@@ -129,7 +129,7 @@ bool _isNovelTextFile(String path) {
 const int _kMaxNovelFileBytes = 256 << 20;
 
 /// 解压归档内的小说文件（.txt/.epub）到应用支持目录的持久化子目录，
-/// 返回按归档内相对路径自然排序的文件路径列表（D9 压缩包批量导入）。
+/// 返回按归档内相对路径自然排序的文件路径列表（压缩包批量导入）。
 ///
 /// 与漫画图片解压不同：导入后这些文件**就是书库本体**（条目 path 直接指向
 /// 它们），因此落盘在 `getApplicationSupportDirectory()/novel_imports/`

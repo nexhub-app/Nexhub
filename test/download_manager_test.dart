@@ -736,7 +736,7 @@ void main() {
       const item = MediaItem(
         id: 'content_abc',
         title: '我的漫画作品',
-        sourceId: 'goda',
+        sourceId: 'demo',
         sourceType: SourceType.mangaSource,
       );
       final chapters = <Episode>[

@@ -82,7 +82,7 @@ class ComicHomeScreen extends StatelessWidget {
           ),
         ),
         onItemTap: (MediaItem item) async {
-          // R3 修复：本地导入/下载的漫画优先走阅读器本地模式，不再误跳在线详情页。
+          // 修复：本地导入/下载的漫画优先走阅读器本地模式，不再误跳在线详情页。
           final extra = item.extra;
           final localPath = extra == null ? null : extra['localPath'] as String?;
           final localKind = extra == null ? null : extra['localKind'] as String?;

@@ -21,9 +21,9 @@ import 'app_localizations_zh.dart';
 /// import 'generated/app_localizations.dart';
 ///
 /// return MaterialApp(
-///   localizationsDelegates: AppLocalizations.localizationsDelegates,
-///   supportedLocales: AppLocalizations.supportedLocales,
-///   home: MyApplicationHome(),
+/// localizationsDelegates: AppLocalizations.localizationsDelegates,
+/// supportedLocales: AppLocalizations.supportedLocales,
+/// home: MyApplicationHome(),
 /// );
 /// ```
 ///
@@ -34,12 +34,12 @@ import 'app_localizations_zh.dart';
 ///
 /// ```yaml
 /// dependencies:
-///   # Internationalization support.
-///   flutter_localizations:
-///     sdk: flutter
-///   intl: any # Use the pinned version from flutter_localizations
+/// # Internationalization support.
+/// flutter_localizations:
+/// sdk: flutter
+/// intl: any # Use the pinned version from flutter_localizations
 ///
-///   # Rest of dependencies
+/// # Rest of dependencies
 /// ```
 ///
 /// ## iOS Applications

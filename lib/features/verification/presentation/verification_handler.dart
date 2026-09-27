@@ -35,10 +35,10 @@ Future<bool> _singleFlight(String url, Future<bool> Function() action) {
 /// Routes a verification exception to the proper verification screen.
 ///
 /// - [WebViewExtractionRequest]: opens the embedded JS extraction view. When
-///   an address is extracted or the user explicitly requests a retry, returns
-///   `true`.
+/// an address is extracted or the user explicitly requests a retry, returns
+/// `true`.
 /// - [VerificationRequiredException]: opens the manual verification view.
-///   Returns `true` when the user reports verification done.
+/// Returns `true` when the user reports verification done.
 /// - [WebViewRequiredException]: same as above, using the exception url.
 ///
 /// Returns `false` when the user cancels or [error] is not a verification

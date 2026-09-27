@@ -7,12 +7,12 @@ import '../../../core/theme/app_tokens.dart';
 /// 小说翻页视图（Task 19）。
 ///
 /// 在单一组件中支持 6 种翻页效果（对应 [NovelPageAnimation]）：
-/// - [NovelPageAnimation.fade]       — 交叉淡入（默认动画）。
-/// - [NovelPageAnimation.cover]      — 新页从侧边滑入覆盖旧页。
-/// - [NovelPageAnimation.slide]      — 新旧页同时相向平移。
+/// - [NovelPageAnimation.fade] — 交叉淡入（默认动画）。
+/// - [NovelPageAnimation.cover] — 新页从侧边滑入覆盖旧页。
+/// - [NovelPageAnimation.slide] — 新旧页同时相向平移。
 /// - [NovelPageAnimation.simulation] — 简化仿真卷页，跟手拖拽。
-/// - [NovelPageAnimation.scroll]     — 垂直连续滚动（委托给 [scrollBuilder]）。
-/// - [NovelPageAnimation.none]       — 无动画即时切换。
+/// - [NovelPageAnimation.scroll] — 垂直连续滚动（委托给 [scrollBuilder]）。
+/// - [NovelPageAnimation.none] — 无动画即时切换。
 ///
 /// 动画时长统一为 [AppTokens.durPageTurn]（450ms）。simulation 模式下进度跟随手指，
 /// 松手后按阈值完成或回弹。State 通过 [nextPage] / [previousPage] / [jumpToPage]
@@ -65,7 +65,7 @@ class NovelAnimatedPageView extends StatefulWidget {
   /// 竖向拖拽结束回调（用于左侧 1/3 亮度手势）。
   final void Function(DragEndDetails)? onVerticalDragEnd;
 
-  /// N4 下滑切书签手势：主区域纵向下滑手势回调组。
+  /// 下滑切书签手势：主区域纵向下滑手势回调组。
   /// 三者非空时启用（与左侧 1/3 亮度手势区域互斥，见 _wrapGestures）。
   final void Function(DragStartDetails)? onBookmarkSwipeStart;
   final void Function(DragUpdateDetails)? onBookmarkSwipeUpdate;
@@ -124,7 +124,7 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
   double _dragDelta = 0;
   double _dragProgress = 0;
 
-  // ── 平滑自动翻页（O5）──
+  // ── 平滑自动翻页──
   /// none/scroll 模式的累计过渡比例（满 1 落页）。
   double _autoAccum = 0;
   /// 自定义动画模式是否正处于一次手动驱动的翻页过渡中。
@@ -286,16 +286,16 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
     if (mounted) setState(() {});
   }
 
-  // ─────────────────── 平滑自动翻页（O5） ───────────────────
+  // ─────────────────── 平滑自动翻页 ───────────────────
 
   /// 自动翻页推进一个增量 [delta]（本帧应推进的页面过渡比例，如
   /// 50ms 帧 / 间隔秒数）。返回 true 表示本次调用完成了一次落页。
   ///
   /// - none / scroll 动画：累计满 1 调用 [nextPage]（滚动视图的像素级
-  ///   平滑由外层直接驱动滚动控制器）；
+  /// 平滑由外层直接驱动滚动控制器）；
   /// - 自定义动画：复用拖拽跟手的过渡渲染管线，`_controller.value`
-  ///   由外部逐帧推进（手动 set value 不触发 status listener），跨过
-  ///   1.0 时自行复位过渡态并落页；到达本章末页时请求下一章。
+  /// 由外部逐帧推进（手动 set value 不触发 status listener），跨过
+  /// 1.0 时自行复位过渡态并落页；到达本章末页时请求下一章。
   bool advanceAutoPage(double delta) {
     if (delta <= 0 || _dragging) return false;
     if (_isNone || _isScroll) {
@@ -360,7 +360,7 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
   }
 
   void _animateTo(int target, {required bool forward}) {
-    // P3.1.2 修复：连续翻页时先 stop() 旧动画，避免控制器状态残留导致
+    // 修复：连续翻页时先 stop 旧动画，避免控制器状态残留导致
     // 下一次 forward() 在 value=1.0 的脏状态上启动，出现动画跳帧/卡顿。
     // 关键顺序：先复位控制器（stop + 清 _reversing + value=0），再赋值状态。
     // 否则 value=0 会同步触发 status listener 的 dismissed，在状态赋值前就把
@@ -597,7 +597,7 @@ class NovelAnimatedPageViewState extends State<NovelAnimatedPageView>
             ],
           )
         : base;
-    // N4 下滑切书签：主区域纵向下滑。与横向翻页手势共存于同一
+    // 下滑切书签：主区域纵向下滑。与横向翻页手势共存于同一
     // GestureDetector——Flutter 手势竞技场按位移方向自动裁决横/纵拖拽，
     // 横向滑动走翻页、纵向下滑走书签，无需额外分区。
     final bookmarkSwipeEnabled = !_isScroll &&

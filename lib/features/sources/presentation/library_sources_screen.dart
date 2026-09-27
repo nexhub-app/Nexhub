@@ -128,10 +128,10 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
       // 已是最新的源不预勾选，避免误触「导入选中」重复写库。
       //
       // ⚠️ id 归一化：不同源库的 manifest 写法不一致——
-      //   有的用「类型/名称」（如 novel/novel_linovelb），有的只用名称
-      //   （如 novel_linovelib），有的用 bookSourceUrl（完整 URL）。
-      //   PluginConfig.id 取的是源 JSON 本身的 id 字段（通常无类型前缀）。
-      //   因此比对时需依次尝试：精确匹配 → 去前缀 → 按名称兜底。
+      // 有的用「类型/名称」（如 novel/novel_linovelb），有的只用名称
+      // （如 novel_linovelib），有的用 bookSourceUrl（完整 URL）。
+      // PluginConfig.id 取的是源 JSON 本身的 id 字段（通常无类型前缀）。
+      // 因此比对时需依次尝试：精确匹配 → 去前缀 → 按名称兜底。
       final repo = context.read<SourceRepository>();
       final installed = <String, int>{};
       final selected = <int>{};

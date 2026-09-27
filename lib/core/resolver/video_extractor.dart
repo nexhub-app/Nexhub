@@ -107,9 +107,9 @@ class VideoExtractor {
   ///
   /// 两类通用模式，按优先级：
   /// 1. MacCMS 播放器变量：`var player_xxxx = {"url":"...","encrypt":N,...}`
-  ///    ——MacCMS 是国内影视/动漫站最常见的建站程序，其播放页统一把地址放在
-  ///    该 JSON 的 `url` 字段（`encrypt`：0/缺省=明文，1=urlencode，
-  ///    2=base64(urlencode)）。
+  /// ——MacCMS 是国内影视/动漫站最常见的建站程序，其播放页统一把地址放在
+  /// 该 JSON 的 `url` 字段（`encrypt`：0/缺省=明文，1=urlencode，
+  /// 2=base64(urlencode)）。
   /// 2. 任意脚本文本中的裸直链：`https?://....m3u8|mp4`（含 `\/` 转义形式）。
   static void _extractFromScripts(
     Document document,

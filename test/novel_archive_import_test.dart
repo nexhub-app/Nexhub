@@ -37,7 +37,7 @@ void main() {
     });
   });
 
-  group('D9 压缩包批量导入：归档识别与小说文件提取', () {
+  group('压缩包批量导入：归档识别与小说文件提取', () {
     test('isNovelArchiveFile 按扩展名识别（大小写不敏感）', () {
       expect(isNovelArchiveFile('/a/书.zip'), isTrue);
       expect(isNovelArchiveFile('/a/书.CBZ'), isTrue);

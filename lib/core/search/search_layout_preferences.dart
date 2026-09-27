@@ -1,4 +1,4 @@
-/// 搜索布局偏好（文档 §10.2 SearchLayoutPreferences）。
+/// 搜索布局偏好（文档 SearchLayoutPreferences）。
 ///
 /// 持久化网格/列表切换状态，按 [SourceType] 模块隔离。
 /// key = 'search_layout_{sourceType}'（如 search_layout_animeSource）。

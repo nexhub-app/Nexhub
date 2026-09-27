@@ -5,10 +5,10 @@
 /// `exists()` 却 `list()` 不出任何文件（静默空扫）——无法用于导入。因此安卓选
 /// 文件夹必须走 `saf.pickDirectory()`（ACTION_OPEN_DOCUMENT_TREE + 持久授权），
 /// 拿到 `content://` tree URI 后本层用 `saf` 包完成三件事：
-///  1. 枚举选中的目录树（递归列举子文档，得到 content:// URI 列表）；
-///  2. 把 content:// URI 解析为应用私有缓存里的真实文件路径（记忆化），从而复用
-///     B 阶段全部读取管线（koni_archive 解压、File/epub 解析等）零改动；
-///  3. 计算 SAF 条目的封面（首图 / PDF 首页）。
+/// 1. 枚举选中的目录树（递归列举子文档，得到 content:// URI 列表）；
+/// 2. 把 content:// URI 解析为应用私有缓存里的真实文件路径（记忆化），从而复用
+/// B 阶段全部读取管线（koni_archive 解压、File/epub 解析等）零改动；
+/// 3. 计算 SAF 条目的封面（首图 / PDF 首页）。
 ///
 /// 仅 Android 调用其方法；非 Android 不会 import 触发平台调用。
 library;
@@ -82,7 +82,7 @@ final Map<String, String> _resolvedCache = <String, String>{};
 /// Android provider 编码匹配失败）：
 /// 1. 纯字符串去掉 `/document/<id>` 后缀（4 段 → 2 段），保留原编码；
 /// 2. 对 `tree/<id>` 的 id 段做「解码 → 规范重编码」（`primary:Download/nexhub`
-///    → `primary%3ADownload%2Fnexhub`），与 Android 标准 tree URI 一致。
+/// → `primary%3ADownload%2Fnexhub`），与 Android 标准 tree URI 一致。
 String normalizeSafTreeUri(String uri) {
   // 1. 去掉 `/document/<id>` 后缀（仅在确实含 /tree/ 时）
   final int docIdx = uri.indexOf('/document/');
@@ -179,9 +179,9 @@ String _normalizeSafDocUri(String uri) {
 ///
 /// - 普通路径：原样返回（[isAndroidSafUri] 为假）。
 /// - 纯 content:// 文档 URI（本地导入）：直接落缓存。**必须是文件 URI**
-///   （含 `/document/<childId>`）；若是树根目录 URI，[saf.stat] 会判为目录而报错。
+/// （含 `/document/<childId>`）；若是树根目录 URI，[saf.stat] 会判为目录而报错。
 /// - 下载编码路径 `<treeUri>␟<rel>`（Android SAF 分区存储下的下载产物）：先按
-///   路径段定位真实文档 URI，再落缓存（修复 107/108 下载后打不开）。
+/// 路径段定位真实文档 URI，再落缓存（修复 107/108 下载后打不开）。
 Future<String> resolveSafUri(String uriOrPath) async {
   _ensureRegistered();
   if (!isAndroidSafUri(uriOrPath)) return uriOrPath;
@@ -348,7 +348,7 @@ Future<List<String>> gatherSafImages(String uriOrPath) async {
       dirUri = dirDoc.uri;
     }
   } else {
-    // 纯 content://：输入可能是文件夹（树 URI）或单图（文件 URI）。先按
+    // 纯 content:// 输入可能是文件夹（树 URI）或单图（文件 URI）。先按
     // 「保留 document」形态 stat——单图文件直接落缓存；是目录才转树根去列举，
     // 避免把文件 URI 剥成树根目录导致「单图变整目录」。
     final SafDocumentFile? st =
@@ -445,9 +445,9 @@ Future<List<String>> listSafChildNames(String folderUriOrPath) async {
 /// 输入可能是：
 /// - 纯 content:// 单文件 → 直接 [resolveSafUri] 落盘；
 /// - 编码路径 `<treeUri>␟<folder>/001.mp4`（章节文件）→ 按 `NNN.<videoExt>`
-///   在目录内精确/兜底匹配（HLS 产物 `.ts`、直链 `.mp4`）；
+/// 在目录内精确/兜底匹配（HLS 产物 `.ts`、直链 `.mp4`）；
 /// - 编码路径 `<treeUri>␟<folder>`（**任务文件夹**，书架/列表直传）→ 枚举目录
-///   取首个视频文件。
+/// 取首个视频文件。
 /// 任一情况都返回 [resolveSafUri] 落盘后的真实文件路径；找不到则回退对原路径
 /// [resolveSafUri]（目录场景会由 [_copySafToLocal] 的目录守卫报明确错误，
 /// 绝不把 content:// 交给 media_kit 静默"打开成功"）。

@@ -1,27 +1,27 @@
-// Unit tests for HtmlUtils XPath engine (V2 spec 6.1 / 16.4 function set).
+// Unit tests for HtmlUtils XPath engine ( spec 6.1 / 16.4 function set).
 //
 // Covers the legacy forms plus the new functions required by builtin sources
-// such as pms_fsdm.json / pms_gugu3.json:
-//   //tag, //tag[@attr], //tag[@attr='v'], //tag[contains(@attr,'v')],
-//   //tag/@attr, //tag/text(), following-sibling::tag,
-//   substring-before / substring-after (including nested combinations).
+// such as demo.json / demo2.json:
+// //tag, //tag[@attr], //tag[@attr='v'], //tag[contains(@attr,'v')],
+// //tag/@attr, //tag/text(), following-sibling::tag,
+// substring-before / substring-after (including nested combinations).
 //
 // All fixtures are ASCII on purpose (no user-visible l10n strings here).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/utils/html_utils.dart';
 
-// Sample HTML mirroring a pms_fsdm-style listing + detail page: list items
+// Sample HTML mirroring a demo-style listing + detail page: list items
 // carry /voddetail/{id}.html links, a detail block has an h1, a cover image,
 // and a Director label followed by sibling <a> actors.
 const String _html = '''
 <html><body>
 <ul class="list">
   <li class="item" data-id="123">
-    <a href="https://www.fsdm02.com/voddetail/123.html" title="Show A">Show A</a>
+    <a href="https://www.demo.example/voddetail/123.html" title="Show A">Show A</a>
     <img data-src="https://cdn/a.jpg" />
   </li>
   <li class="item" data-id="456">
-    <a href="https://www.fsdm02.com/voddetail/456.html" title="Show B">Show B</a>
+    <a href="https://www.demo.example/voddetail/456.html" title="Show B">Show B</a>
     <img data-src="https://cdn/b.jpg" />
   </li>
 </ul>
@@ -95,11 +95,11 @@ void main() {
     });
   });
 
-  group('HtmlUtils XPath - substring functions (pms_fsdm id selector)', () {
+  group('HtmlUtils XPath - substring functions (demo id selector)', () {
     test("substring-before(./a/@href, '/voddetail/')", () {
       expect(
         HtmlUtils.query(_html, "substring-before(./a/@href, '/voddetail/')"),
-        'https://www.fsdm02.com',
+        'https://www.demo.example',
       );
     });
 

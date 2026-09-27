@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nexhub/core/local/local_content_manager.dart';
 
-/// spec F2.3.3：覆盖 _pickFolder 递归真分类（通过公共核心函数 classifyFolderByContent）。
+/// 覆盖 _pickFolder 递归真分类（通过公共核心函数 classifyFolderByContent）。
 ///
 /// classifyFolderByContent 是从 browse_local_screen._pickFolder 抽出的可测顶层函数，
-/// 实现 spec F2.D：递归扫描目录，按真实文件多数扩展名决定 LocalMediaKind。
+/// 实现 spec .D：递归扫描目录，按真实文件多数扩展名决定 LocalMediaKind。
 /// 用 Directory.systemTemp 建临时目录，测完清理。
 void main() {
   late Directory tempRoot;

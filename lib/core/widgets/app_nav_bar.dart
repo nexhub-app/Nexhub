@@ -19,9 +19,9 @@ double _iconCenterOffset(double cellMain) =>
 ///
 /// 宽屏（≥ [AppTokens.desktopBreakpoint]）与窄屏共用**同一套视觉与动效**：
 /// - 选中指示为图标背后的**小圆角胶囊**（[AppTokens.navRailWidth] 内居中），
-///   选中项切换时胶囊**平滑滑动跟随**（[AnimatedPositioned]）。
+/// 选中项切换时胶囊**平滑滑动跟随**（[AnimatedPositioned]）。
 /// - **所有项**都有按压反馈：选中项图标弹性放大 1.18，未选中项按下轻微回弹 0.9；
-///   点击带 Material 水波纹；文字颜色/字重平滑过渡。
+/// 点击带 Material 水波纹；文字颜色/字重平滑过渡。
 /// 胶囊与图标配色：
 /// - 选中：`colorScheme.primary` 14% 淡主题色胶囊（不鲜艳）/ 图标文字 `primary`。
 /// - 预点击（未选中项悬停/按下）：`onSurfaceVariant` 半透明灰色胶囊（仅小胶囊，无大背景）。

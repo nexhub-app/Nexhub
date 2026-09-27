@@ -1,15 +1,15 @@
-/// 便携文档小说解析（D7）：Mobi / PDF 文本层。
+/// 便携文档小说解析：Mobi / PDF 文本层。
 ///
 /// 纯 Dart、零新依赖，尽力而为的文本抽取：
 /// - **Mobi (.mobi/.prc/.azw)**：PalmDB 记录表 + PalmDOC 头解包，
-///   支持「无压缩(1)」与「PalmDOC LZ77(2)」两种文本压缩；HUFF/CDIC
-///   （compression=17480）与加密记录抛出明确错误。正文按 TXT 规则切章。
+/// 支持「无压缩(1)」与「PalmDOC LZ77(2)」两种文本压缩；HUFF/CDIC
+/// （compression=17480）与加密记录抛出明确错误。正文按 TXT 规则切章。
 /// - **PDF (.pdf)**：扫描 `stream…endstream` 数据块，`/FlateDecode` 的用
-///   zlib 解压；从内容流提取 `Tj` / `TJ` 字面量字符串拼接为文本。
-///   CID 字体 / 扫描图像型 PDF 无法还原文字 → 得到的文本可能残缺或为空，
-///   为空时抛错由调用方提示。整本作为单章。
+/// zlib 解压；从内容流提取 `Tj` / `TJ` 字面量字符串拼接为文本。
+/// CID 字体 / 扫描图像型 PDF 无法还原文字 → 得到的文本可能残缺或为空，
+/// 为空时抛错由调用方提示。整本作为单章。
 /// - **UMD**：二进制协议缺乏可离线验证的样例，暂不实现——识别扩展名后
-///   抛 [UnsupportedError] 给出明确提示（避免猜测式解析静默产出乱码书）。
+/// 抛 [UnsupportedError] 给出明确提示（避免猜测式解析静默产出乱码书）。
 library;
 
 import 'dart:convert';

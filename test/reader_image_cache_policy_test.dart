@@ -3,7 +3,7 @@ import 'package:nexhub/core/comic/models/reader_preferences.dart';
 import 'package:nexhub/core/comic/reader_image_cache_policy.dart';
 
 void main() {
-  group('resolveComicImageCacheBytes（P3 图片缓存预算）', () {
+  group('resolveComicImageCacheBytes（ 图片缓存预算）', () {
     test('未知内存 / 非 Android 返回默认 100MB', () {
       expect(resolveComicImageCacheBytes(null), 100 << 20);
       expect(resolveComicImageCacheBytes(0), 100 << 20);
@@ -25,7 +25,7 @@ void main() {
     });
   });
 
-  group('ReaderPreferences.webtoonLimitDecodeSize（P3 解码限幅）', () {
+  group('ReaderPreferences.webtoonLimitDecodeSize（ 解码限幅）', () {
     test('默认开启，JSON 序列化往返保持', () {
       const prefs = ReaderPreferences();
       expect(prefs.webtoonLimitDecodeSize, isTrue);

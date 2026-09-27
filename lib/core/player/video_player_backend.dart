@@ -5,7 +5,7 @@ import 'player_capability.dart';
 /// 定义硬件解码、音频通道与画面比例等后端可调能力的统一接口，
 /// 具体实现由 [MediaKitBackend]（基于 media_kit / mpv）提供。
 ///
-///  扩展：[capabilities] 集供调用方探测后端能力，避免运行时
+/// 扩展：[capabilities] 集供调用方探测后端能力，避免运行时
 /// UnsupportedError；[NoOpPlayerBackend] 作为降级占位。
 abstract class VideoPlayerBackend {
   /// 后端支持的能力集合。

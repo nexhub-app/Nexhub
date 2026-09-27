@@ -595,7 +595,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
           ),
           const SizedBox(height: AppTokens.spaceLg),
 
-          // ── F6：小说导出自动上传 WebDAV ──
+          // ──：小说导出自动上传 WebDAV ──
           SettingsTile(
             key: const ValueKey<String>('cloud.novelAutoUpload'),
             title: l10n.cloudSyncAutoUploadNovelExports,

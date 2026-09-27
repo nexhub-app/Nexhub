@@ -1,4 +1,4 @@
-// Unit tests for JsonPath evaluator (M4.1 JSONPath expressiveness extension).
+// Unit tests for JsonPath evaluator ( JSONPath expressiveness extension).
 //
 // Covers nested paths, conditional filters, recursive descent `..`, array
 // slicing (positive/negative indices, ranges, step), edge cases (empty arrays,

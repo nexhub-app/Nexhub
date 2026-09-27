@@ -1,4 +1,4 @@
-/// 视频离线整片翻译管线（F6 一期）。
+/// 视频离线整片翻译管线（一期）。
 ///
 /// 面向「已有外挂字幕文件（srt/vtt/ass）」的视频：解析全轨 cue →
 /// 按 [BatchProtocol] 分块批量翻译（复用字幕逐句链路与提示词）→
@@ -266,7 +266,7 @@ class SubtitleOfflinePipeline extends ChangeNotifier {
     final id = job.id;
     try {
       var translations = List<String>.of(job.translations);
-      // F1/F8：全局术语表 + 风格（离线管线与实时字幕共用注入方式）。
+      // 全局术语表 + 风格（离线管线与实时字幕共用注入方式）。
       var glossary = const <GlossaryEntry>[];
       var style = TranslationStyle.standard;
       var lightweight = false;
@@ -306,7 +306,7 @@ class SubtitleOfflinePipeline extends ChangeNotifier {
         for (var i = 0; i < texts.length; i++) {
           translations[start + i] = result[i].trim();
         }
-        // F6：逐块检查点（不重复计费）。
+        // 逐块检查点（不重复计费）。
         await _save(job.copyWith(
           translations: List<String>.of(translations),
           updatedAt: DateTime.now().millisecondsSinceEpoch,

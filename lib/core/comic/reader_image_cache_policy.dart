@@ -1,4 +1,4 @@
-/// 漫画阅读器 Flutter 图片缓存预算（P3 资源/内存）。
+/// 漫画阅读器 Flutter 图片缓存预算（资源/内存）。
 ///
 /// 进入阅读器时按设备物理内存上调 `imageCache.maximumSizeBytes`
 /// （<3GB 维持默认 100MB / 3–6GB 200MB / ≥6GB 500MB），退出时恢复默认，

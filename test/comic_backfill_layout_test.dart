@@ -1,4 +1,4 @@
-/// F7（漫画排版回填）单元测试：CJK 断行 / 禁则 / 拉丁保词 / 自适应字号 /
+/// （漫画排版回填）单元测试：CJK 断行 / 禁则 / 拉丁保词 / 自适应字号 /
 /// 竖排启发式 / 偏好字段回环。
 library;
 
@@ -9,7 +9,7 @@ import 'package:nexhub/core/ai/backfill_layout.dart';
 import 'package:nexhub/core/comic/models/reader_preferences.dart';
 
 void main() {
-  group('F7 CJK 断行', () {
+  group('CJK 断行', () {
     test('全角宽度按字号估算，超宽换行', () {
       // 每字 10px，5 字宽 50。
       final lines = BackfillLayout.breakLine('一二三四五六七', 50, 10);
@@ -45,7 +45,7 @@ void main() {
     });
   });
 
-  group('F7 字号自适应', () {
+  group('字号自适应', () {
     test('文本越长字号越小；短文本可到大字号', () {
       final big = BackfillLayout.layout(
           text: '你好', boxW: 200, boxH: 60, maxFont: 48);
@@ -73,7 +73,7 @@ void main() {
     });
   });
 
-  group('F7 竖排启发式', () {
+  group('竖排启发式', () {
     test('高窄框 + CJK 文本判为疑似竖排', () {
       expect(
         BackfillLayout.looksVertical(
@@ -92,7 +92,7 @@ void main() {
     });
   });
 
-  group('F7 阅读器偏好字段', () {
+  group('阅读器偏好字段', () {
     test('translationBackfill JSON 回环（默认 false）', () {
       const prefs = ReaderPreferences();
       expect(prefs.translationBackfill, isFalse);

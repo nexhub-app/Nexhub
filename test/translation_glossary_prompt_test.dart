@@ -1,9 +1,9 @@
-/// F1（术语表）/ F8（提示词体系）单元测试。
+/// （术语表）/ （提示词体系）单元测试。
 ///
 /// - GlossaryManager：增删改、全局+作品合并、导入合并、冲突检测；
 /// - PromptBuilder：术语段/风格段/CoT/轻量格式/前页摘要分段拼接；
 /// - BatchProtocol.decodeLoose：无编号逐行解析（围栏剥除/编号行忽略/条数校验）；
-/// - 字幕控制器：术语表注入 system prompt、成功句入会话历史（F2）。
+/// - 字幕控制器：术语表注入 system prompt、成功句入会话历史。
 library;
 
 import 'dart:async';
@@ -23,9 +23,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // ─────────────────── F1：GlossaryManager ───────────────────
+  // ───────────────────：GlossaryManager ───────────────────
 
-  group('F1 GlossaryManager', () {
+  group('GlossaryManager', () {
     late Directory tempDir;
 
     setUp(() async {
@@ -152,9 +152,9 @@ void main() {
     });
   });
 
-  // ─────────────────── F8：PromptBuilder ───────────────────
+  // ───────────────────：PromptBuilder ───────────────────
 
-  group('F8 PromptBuilder', () {
+  group('PromptBuilder', () {
     test('小说提示词：段数声明 + 编号格式 + 术语段 + 风格段 + CoT', () {
       final p = PromptBuilder.novelSystemPrompt(
         lang: '中文',
@@ -182,7 +182,7 @@ void main() {
       expect(numbered, contains('每段译文前单独一行'));
     });
 
-    test('漫画提示词：基础段 + 前页摘要（F2）', () {
+    test('漫画提示词：基础段 + 前页摘要（）', () {
       final p = PromptBuilder.mangaSystemPrompt(
         lang: '中文',
         prevPageSummary: '主角遇到怪物；逃进洞穴',
@@ -205,9 +205,9 @@ void main() {
     });
   });
 
-  // ─────────────────── F8：BatchProtocol.decodeLoose ───────────────────
+  // ───────────────────：BatchProtocol.decodeLoose ───────────────────
 
-  group('F8 批量协议轻量解析', () {
+  group('批量协议轻量解析', () {
     test('纯文本逐行对位', () {
       expect(
         BatchProtocol.decodeLoose('你好\n世界\n再见', 3),
@@ -226,9 +226,9 @@ void main() {
     });
   });
 
-  // ─────────────────── F8：TranslationOptionsStore ───────────────────
+  // ───────────────────：TranslationOptionsStore ───────────────────
 
-  group('F8 TranslationOptionsStore', () {
+  group('TranslationOptionsStore', () {
     test('风格 / CoT / 轻量 / 导出排版 读写回环', () async {
       SharedPreferences.setMockInitialValues(<String, String>{});
       final s = TranslationOptionsStore();
@@ -273,9 +273,9 @@ void main() {
     });
   });
 
-  // ─────────────── F1+F2：字幕控制器注入链路 ───────────────
+  // ─────────────── +：字幕控制器注入链路 ───────────────
 
-  group('F1/F2 字幕翻译注入', () {
+  group('/ 字幕翻译注入', () {
     test('system prompt 注入术语表与风格；成功句进入会话历史', () async {
       SharedPreferences.setMockInitialValues(<String, String>{
         'novel_overview_api_base_v1': 'http://test.local',
@@ -312,11 +312,11 @@ void main() {
       await _drainMicrotasks();
 
       expect(client.translateCalls, 2);
-      // F1：system prompt 含术语。
+      // system prompt 含术语。
       expect(client.lastSystemPrompt, contains('サクラ→小樱'));
-      // F8：风格注入。
+      // 风格注入。
       expect(client.lastSystemPrompt, contains('口语化'));
-      // F2：第二句请求时历史含第一句。
+      // 第二句请求时历史含第一句。
       expect(client.lastHistory, hasLength(1));
       expect(client.lastHistory.single.source, 'サクラは走った');
       expect(client.lastHistory.single.translation, '[サクラは走った]');

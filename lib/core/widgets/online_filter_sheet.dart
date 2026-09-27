@@ -1,4 +1,4 @@
-/// 在线列表筛选 Sheet（Phase 1.2 #7 A4-#7）。
+/// 在线列表筛选 Sheet（Phase 1.2 #7 -#7）。
 ///
 /// 提供年份/地区/排序/状态四字段筛选 UI，应用后通过 [onApply] 回调
 /// 透传到 `fetchApiResults` 的 `vars`。源不支持的字段会被 resolver 忽略，
@@ -489,7 +489,7 @@ class DynamicFilterSelection {
 
 /// 动态筛选条件。
 ///
-/// [route] 为筛选触发的路由覆盖（如 baozimh 的 `tagSearch`）；为 null 表示
+/// [route] 为筛选触发的路由覆盖（如某源的 `tagSearch`）；为 null 表示
 /// 沿用分类 Tab 默认路由。[selections] 为已选项集合（跨路由互斥，故同一时刻
 /// 所有已选项共享同一 [route]）。
 class DynamicOnlineFilter {

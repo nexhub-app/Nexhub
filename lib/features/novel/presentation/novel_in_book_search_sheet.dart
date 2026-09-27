@@ -176,7 +176,7 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
   bool _paused = false;
   Completer<void>? _resumeCompleter;
 
-  /// 最近搜索关键词（H5，最新在前，全局共享，最多 10 条）。
+  /// 最近搜索关键词（最新在前，全局共享，最多 10 条）。
   static const String _kHistoryPrefKey = 'novel_inbook_search_history';
   static const int _kHistoryMax = 10;
   List<String> _history = const <String>[];

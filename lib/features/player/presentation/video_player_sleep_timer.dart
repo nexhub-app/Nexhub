@@ -173,5 +173,5 @@ extension _VideoSleepTimer on _VideoPlayerScreenState {
     Share.share(text);
   }
 
-  /// #4 A4-#4: 显示媒体信息（标题/源/剧集/当前 URL/播放进度）。
+  /// #4 -#4: 显示媒体信息（标题/源/剧集/当前 URL/播放进度）。
 }

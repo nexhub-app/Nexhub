@@ -180,7 +180,7 @@ class ScriptResolver implements SourceResolver {
     // [ResolverRegistry] 直接派发给 [WebViewResolver]，不会进到这里。
     //
     // 之前这里对 useWebview 源一律抛 WebViewHtmlRequest，导致脚本源（如
-    // manga_goda / manga_baozimh）每次点源都强制打开内嵌 InAppWebView 渲染后
+    // 部分脚本源）每次点源都强制打开内嵌 InAppWebView 渲染后
     // 抽页——而这些源脚本本身通过 `ctx.http.get/getJson` 自行抓取数据、并不
     // 消费回灌的渲染 HTML，于是 WebView 毫无意义，且 InAppWebView 在反爬站点
     // 上加载数秒后直接 native 崩溃（表现即「漫画点击源过几秒钟自动卡崩」）。
@@ -193,7 +193,7 @@ class ScriptResolver implements SourceResolver {
     ParseDiagnostics.log(source.id, 'resolve() 开始: apiName=$apiName, vars=$vars');
     debugPrint('[ScriptResolver] resolve() 开始: source=${source.id}, apiName=$apiName, vars=$vars');
     final engine = factory(source);
-    // 注入分页/分类/关键词等到 JS context，供脚本自拼 URL（如 goda 脚本依赖
+    // 注入分页/分类/关键词等到 JS context，供脚本自拼 URL（如某源脚本依赖
     // ctx.page / ctx.category 翻页与分类）。无相关变量的源为空操作，无副作用。
     engine.injectContext(vars);
     final base = ConfigLoader.instance.getActiveMirror(source);
@@ -217,7 +217,7 @@ class ScriptResolver implements SourceResolver {
       final rt = source.responseTypeFor(apiName) ?? 'json';
       ParseDiagnostics.log(source.id, '路由URL=$url (responseType=$rt)');
       debugPrint('[ScriptResolver] 预取: url=$url, responseType=$rt');
-      // 预取：多数脚本（如 goda 漫画）会自行 ctx.http.get 抓取，此处结果常被
+      // 预取：多数脚本（如某漫画源）会自行 ctx.http.get 抓取，此处结果常被
       // 忽略；即便站点反爬导致预取抛 VerificationRequiredException，也不应直接
       // 上抛成 SourceResolveException 让列表报错——兜底为空串，交由脚本自抓取。
       dynamic raw;
@@ -367,14 +367,14 @@ class ScriptResolver implements SourceResolver {
       // ══════════════════════════════════════════════════════════
       //
       // 背景：flutter_js 在真机上 evaluateAsync 对任何 Promise/async 均返回
-      //   "Instance of 'Future<dynamic>'" 字符串，handlePromise/isPromise 全部失效。
-      //   唯一能工作的异步通道是桥接自身的 __resolveBridge（解单个 HTTP 请求），
-      //   但不传播到脚本级 Promise 返回值。
+      // "Instance of 'Future<dynamic>'" 字符串，handlePromise/isPromise 全部失效。
+      // 唯一能工作的异步通道是桥接自身的 __resolveBridge（解单个 HTTP 请求），
+      // 但不传播到脚本级 Promise 返回值。
       //
       // 解决方案：需要异步数据的脚本改为两步同步模式：
-      //   Step 1 (sync): 脚本提取参数 + 返回 meta 描述符 {__meta:true, __fetchUrl, __processor}
-      //   Step 2 (Dart): ScriptResolver 检测到 meta → 用源配置(防盗链/UA)在 Dart 侧 HTTP 预取
-      //   Step 3 (sync): 用预取数据调用处理器函数(__processChapters 等) → 返回最终结果
+      // Step 1 (sync): 脚本提取参数 + 返回 meta 描述符 {__meta:true, __fetchUrl, __processor}
+      // Step 2 (Dart): ScriptResolver 检测到 meta → 用源配置(防盗链/UA)在 Dart 侧 HTTP 预取
+      // Step 3 (sync): 用预取数据调用处理器函数(__processChapters 等) → 返回最终结果
       //
       // 对已有同步脚本的影响：零。result 不是 Map 或不含 __meta 键时完全跳过。
       //
@@ -396,12 +396,12 @@ class ScriptResolver implements SourceResolver {
           final fetchUrl = meta['__fetchUrl'] as String? ?? '';
           final processor = meta['__processor'] as String? ?? '';
           // meta 协议扩展字段（通用，仍不写死任何站点逻辑）：
-          //   __fetchMethod  : 'get'(默认) | 'post'
-          //   __fetchBody    : POST body 字符串（通常为 JSON.stringify(query)）
-          //   __fetchHeaders : 请求头 Map（如 {'Content-Type':'application/json'}）
-          //   __fetchResponseType : 'json'(默认) | 'text' —— 预取返回原始文本而非 JSON
-          // 用于需要 POST 的源（如 komiic 的 GraphQL），以及需要抓取非 JSON 文本
-          // （如加密域名文件）的源。GET 源（goda/bun）不受影响。
+          // __fetchMethod : 'get'(默认) | 'post'
+          // __fetchBody : POST body 字符串（通常为 JSON.stringify(query)）
+          // __fetchHeaders : 请求头 Map（如 {'Content-Type':'application/json'}）
+          // __fetchResponseType : 'json'(默认) | 'text' —— 预取返回原始文本而非 JSON
+          // 用于需要 POST 的源（如部分源的 GraphQL），以及需要抓取非 JSON 文本
+          // （如加密域名文件）的源。GET 源不受影响。
           final fetchMethod =
               (meta['__fetchMethod'] as String? ?? 'get').toLowerCase();
           final fetchBody = meta['__fetchBody'] as String?;
@@ -423,8 +423,8 @@ class ScriptResolver implements SourceResolver {
           }
           // 通用：按源 `comments.login` 声明附加受保护请求鉴权头。
           // 由 sourceAuthHeader 统一处理两种模式（不写死站点）：
-          //   - sendTokenAs:"bearer" → Authorization: Bearer <checkCookie 值>
-          //   - sendTokenAs:"key"    → Authorization: <authScheme 默认 Key> <手动 apiKey>
+          // - sendTokenAs:"bearer" → Authorization: Bearer <checkCookie 值>
+          // - sendTokenAs:"key" → Authorization: <authScheme 默认 Key> <手动 apiKey>
           // 并非所有站点都用 Bearer——部分站点的 v2 API 明确「用 Key <api_key>，
           // 不是 Bearer」（401 报文已证实），故改用 "key" 模式，正确
           // 携带用户在登录面板粘贴的 API Key。完全由源的 login 配置驱动。

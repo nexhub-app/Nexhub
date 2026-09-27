@@ -55,7 +55,7 @@ Uint8List _buildMobi(String text, {int compression = 1}) {
 }
 
 void main() {
-  group('D7 便携文档解析', () {
+  group('便携文档解析', () {
     test('isPortableBookFile 扩展名识别', () {
       expect(isPortableBookFile('/a/书.mobi'), isTrue);
       expect(isPortableBookFile('/a/书.PRC'), isTrue);

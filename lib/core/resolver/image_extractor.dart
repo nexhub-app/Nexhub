@@ -1,6 +1,6 @@
 /// Image cleaning utilities for the built-in resolver's `images` route.
 ///
-/// Implements NexHub V2 spec section 16.2: lazy-load (`data-src`) recovery,
+/// Implements lazy-load (`data-src`) recovery,
 /// ad / placeholder / tracker filtering, dedup, format guessing, absolute URL
 /// completion and paged URL extraction. Pure functional, no Flutter widget
 /// dependencies, safe to call inside an isolate.
@@ -10,7 +10,7 @@ import 'package:html/dom.dart';
 
 import '../utils/html_utils.dart';
 
-/// Rules for [ImageExtractor.filterImages]. Defaults encode the V2 spec ad
+/// Rules for [ImageExtractor.filterImages]. Defaults encode the spec ad
 /// blocklist and the set of image formats kept by default.
 class ImageFilterRules {
   /// Lowercase substrings that mark a URL as non-content (ad / tracker /

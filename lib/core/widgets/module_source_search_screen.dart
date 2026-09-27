@@ -1,4 +1,4 @@
-/// 模块源搜索页（文档 §10.2 搜索统一）。
+/// 模块源搜索页（文档 搜索统一）。
 ///
 /// 跨全部活跃源搜索，按 [SourceType] 过滤。
 /// 小说/媒体/漫画三模块共用，布局偏好与书架/设置页共用 [LayoutSettingsStore] 单例。
@@ -104,10 +104,10 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
   bool _hasMore = false;
   /// 追加加载中标记（避免滚动回调重复触发）。
   bool _loadingMore = false;
-  /// 小说模块繁简转换（E4）：按全局阅读偏好的转换方向，仅作用于
+  /// 小说模块繁简转换：按全局阅读偏好的转换方向，仅作用于
   /// 搜索结果的标题/作者展示与本地匹配归一，不改写入库/收藏的原始数据。
   ChineseConvertMode _novelConvertMode = ChineseConvertMode.none;
-  /// 单源搜索简繁兜底（E4 扩展）：首搜为空、用简↔繁互转关键词命中后，
+  /// 单源搜索简繁兜底（扩展）：首搜为空、用简↔繁互转关键词命中后，
   /// 记录实际生效关键词，后续翻页沿用，避免「下一页又回到原词导致结果错位」。
   String? _networkKeyword;
 
@@ -118,7 +118,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
     _grid = LayoutSettingsStore.instance.settings.layoutMode == LayoutMode.grid;
     LayoutSettingsStore.instance.addListener(_onLayoutStoreChanged);
     _searchField = widget.searchField;
-    // E4：小说模块读取全局繁简转换偏好，用于结果标题/作者展示转换。
+    // 小说模块读取全局繁简转换偏好，用于结果标题/作者展示转换。
     if (widget.sourceType == SourceType.novelSource) {
       ReaderDefaultSettingsStore()
           .load()
@@ -176,7 +176,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
     }
   }
 
-  /// E4：按全局小说转换偏好转换展示文本（标题/作者/高亮关键词）。
+  /// 按全局小说转换偏好转换展示文本（标题/作者/高亮关键词）。
   String _convText(String? text) {
     if (text == null ||
         text.isEmpty ||
@@ -231,7 +231,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
 
       try {
         List<MediaItem> networkResults = await _fetchPage(trimmed, 1);
-        // 简繁兜底（E4 扩展）：单源搜索首次结果为空时，用简↔繁互转后的
+        // 简繁兜底（扩展）：单源搜索首次结果为空时，用简↔繁互转后的
         // 关键词向同一源再请求一次；命中则后续翻页也沿用转换后关键词。
         if (_scope == _SearchScope.single && networkResults.isEmpty) {
           final alt = _alternativeChineseKeyword(trimmed);
@@ -479,7 +479,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
   /// 本地内容搜索：导入记录 + 已下载作品，按标题/作者匹配关键词，
   /// 转成与网络结果同构的 [MediaItem]（extra 携带 localPath/filePaths，
   /// 供调用方本地打开）。与网络搜索的匹配语义一致（忽略大小写与空白）。
-  /// 小说模块额外做繁简双向归一（E4）：关键词与标题统一转简体后比对，
+  /// 小说模块额外做繁简双向归一：关键词与标题统一转简体后比对，
   /// 繁体关键词也能命中简体书名，反之亦然。
   List<MediaItem> _searchLocalContent(String query) {
     final q = query.trim().toLowerCase();

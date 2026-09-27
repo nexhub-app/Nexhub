@@ -1,4 +1,4 @@
-/// 书签角标自定义图自测（I7）：iconPath 序列化、copyWithIcon、setBadge 更新。
+/// 书签角标自定义图自测：iconPath 序列化、copyWithIcon、setBadge 更新。
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

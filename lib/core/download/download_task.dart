@@ -1,4 +1,4 @@
-/// 下载任务模型与状态枚举（文档 §10.1）。
+/// 下载任务模型与状态枚举（文档）。
 library;
 
 import 'dart:convert';
@@ -67,7 +67,7 @@ enum DownloadFormat {
 
 /// 下载任务——记录一次离线缓存请求的完整元数据。
 ///
-/// 按 spec §10.1：`coverUrl` 非 final（下载完成后可更新为本地路径）；
+/// 按 `coverUrl` 非 final（下载完成后可更新为本地路径）；
 /// `localPath` 指向最终产物（.cbz / .epub / .txt / 视频文件 / 散图文件夹）。
 class DownloadTask {
   final String id;

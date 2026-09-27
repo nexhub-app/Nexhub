@@ -4,7 +4,7 @@
 /// 提供三种操作：
 /// - 「网页登录」：仅移动端可见，push [WebViewLoginScreen]，完成后刷新登录态；
 /// - 「粘贴 Cookie」：自定义 [Dialog] + 紧凑 [Column]，确认后对源相关 host
-///   调 [HttpFetcher.syncCookies] 手动回灌；
+/// 调 [HttpFetcher.syncCookies] 手动回灌；
 /// - 「退出登录」：已登录时可见，经 [SourceAuthManager.logout] 清除 Cookie。
 ///
 /// 桌面端（WebView 不可用）直接隐藏「网页登录」入口，无需改用其他方式。

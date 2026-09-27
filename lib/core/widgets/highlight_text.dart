@@ -91,10 +91,10 @@ List<TextSpan> highlightSpans({
 ///
 /// 与 [highlightSpans] 的差异：
 /// - 面向阅读器正文行/段落渲染，**未命中返回 null**（调用方保持原渲染
-///   路径，如分页模式的虚线下划线变体）；
+/// 路径，如分页模式的虚线下划线变体）；
 /// - 支持正则模式（书内搜索「使用正则」开关）；
 /// - 命中样式由调用方给出（基础样式由外层 [TextSpan] 携带，普通片段
-///   不带样式、自然继承）。
+/// 不带样式、自然继承）。
 List<TextSpan>? searchHitSpans({
   required String text,
   String? query,

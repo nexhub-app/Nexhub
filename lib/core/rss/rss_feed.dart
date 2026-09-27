@@ -1,4 +1,4 @@
-/// RSS 订阅源与条目模型（文档 §10.2）。
+/// RSS 订阅源与条目模型（文档）。
 ///
 /// 支持 RSS 2.0 和 Atom 两种主流格式。
 library;
@@ -17,11 +17,11 @@ class RssFeed {
   final String? iconUrl;
 
   /// 条件 GET 校验值（HTTP `ETag`），由抓取响应回写，下次请求带
-  /// `If-None-Match` 以拿到 304 省流量（P2-1）。
+  /// `If-None-Match` 以拿到 304 省流量（-1）。
   final String? etag;
 
   /// 条件 GET 校验值（HTTP `Last-Modified`），与 [etag] 正交，二者任一命中
-  /// 即返回 304（P2-1）。
+  /// 即返回 304（-1）。
   final String? lastModified;
   final SourceType? moduleType;
 
@@ -115,7 +115,7 @@ class RssFeed {
       );
 
   /// 用于 UI 展示的图标地址：优先用解析到的 [iconUrl]，缺失时回退到站点根
-  /// `/favicon.ico`（修复 B8：此前 favicon 永不填充，订阅列表只显示通用 RSS 图标）。
+  /// `/favicon.ico`（修复：此前 favicon 永不填充，订阅列表只显示通用 RSS 图标）。
   String? get effectiveIconUrl {
     if (iconUrl != null && iconUrl!.isNotEmpty) return iconUrl;
     final uri = Uri.tryParse(url);
@@ -318,7 +318,7 @@ class RssItem {
         final iso = '$year-$month-${day}T$time${_tzToIso(tz)}';
         return DateTime.parse(iso);
       } else if (parts.length == 4) {
-        // 无显式时区（如 "07 Sep 2002 09:42:31"）：按本地时区解析（B4 兜底），
+        // 无显式时区（如 "07 Sep 2002 09:42:31"）：按本地时区解析（兜底），
         // 避免返回 null 导致列表不显示时间、无法排序。
         final iso = '$year-$month-${day}T$time';
         return DateTime.parse(iso);
@@ -349,7 +349,7 @@ class RssItem {
 
   static String _tzToIso(String tz) {
     if (tz == 'GMT' || tz == 'UTC' || tz == 'Z') return 'Z';
-    // 命名时区 → UTC 偏移（B4：此前未知命名时区默认 'Z' 导致数小时偏差）。
+    // 命名时区 → UTC 偏移（此前未知命名时区默认 'Z' 导致数小时偏差）。
     // 仅覆盖常见缩写；夏令时(EDT/PDT/CEST 等)已按夏令时偏移处理。
     const named = <String, String>{
       'UT': 'Z',

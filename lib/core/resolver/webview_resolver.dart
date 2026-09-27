@@ -2,7 +2,7 @@
 /// 抛出 [WebViewRequiredException] 通知 UI 打开 WebViewVerificationScreen 过验证，
 /// 取回 HTML + Cookie 后同步 HttpFetcher 重试。自身不内嵌 WebView 控件（UI 层职责）。
 ///
-/// M2.4 增强：若源在 `parser.script` / `parser.overrides[apiName].script`
+/// 增强：若源在 `parser.script` / `parser.overrides[apiName].script`
 /// 声明了 `jsExtractor` 脚本，则改为抛 [WebViewExtractionRequest] 携带脚本回传，
 /// UI 层在 [WebViewVerificationScreen] 内嵌 WebView 加载页面、完成验证后，
 /// 用 `evaluateJavascript(jsExtractor)` 抽取真实地址回传给调用方。
@@ -22,8 +22,7 @@ import 'source_resolver.dart';
 
 /// 本会话内「已捕获的渲染 HTML」缓存，按 `(sourceId, apiName)` 维度存储。
 ///
-/// 用途：修复「多个页面需要验证多次」。声明式 `useWebview` 源（如 girigirilove
-/// 次元城、pms_fsdm）每次 fetch 都会经 [WebViewResolver] 抛 [WebViewHtmlRequest]
+/// 用途：修复「多个页面需要验证多次」。声明式 `useWebview` 源每次 fetch 都会经 [WebViewResolver] 抛 [WebViewHtmlRequest]
 /// 触发内嵌浏览器验证——若不做缓存，刷新列表 / 重新进入详情 / 切到选集都会再弹一次
 /// 验证页，用户体验极差。
 ///
@@ -128,7 +127,7 @@ class WebViewExtractionRequest implements Exception {
 /// 加载页面、等待 JS 渲染完成后，用 `controller.getHtml()` 取回完整渲染后
 /// HTML，回传给调用方用既有 CSS/XPath 选择器解析。
 ///
-/// 用于 xgcartoon / baozimh 等「列表 / 详情由 JS 动态渲染」的源：不再为每个
+/// 用于「列表 / 详情由 JS 动态渲染」的源：不再为每个
 /// 源写抽取脚本，而是「渲染 → 取回整页 HTML → 复用既有选择器」一步到位。
 class WebViewHtmlRequest implements Exception {
   final String sourceId;
@@ -185,9 +184,9 @@ class WebViewResolver implements SourceResolver {
   /// - 顶层 `parser.type == 'webview-html'`；
   /// - hybrid / 其它模式下的路由级 override `type == 'webview-html'`；
   /// - `source.useWebview==true` 且 `parser.type ∈ {builtin, xpath, jsonpath,
-  ///   css, script, hybrid}` **且为视频路由**：对齐旧应用模型——useWebview
-  ///   仅对视频启用 WebView 渲染/嗅探，列表/详情/选集等非视频路由不强制
-  ///   WebView（否则反爬页上内嵌浏览器崩溃、反复弹验证、列表为空）。
+  /// css, script, hybrid}` **且为视频路由**：对齐旧应用模型——useWebview
+  /// 仅对视频启用 WebView 渲染/嗅探，列表/详情/选集等非视频路由不强制
+  /// WebView（否则反爬页上内嵌浏览器崩溃、反复弹验证、列表为空）。
   bool _isHtmlMode(PluginConfig source, String apiName) {
     // 视频路由判定：对齐旧应用 WebViewResolver.canResolve。
     final lower = apiName.toLowerCase();
@@ -222,7 +221,7 @@ class WebViewResolver implements SourceResolver {
     }
     // useWebview + hybrid + 视频路由：走「渲染后抽取」。声明式路由（latest/
     // detail/episodes）由 BuiltinResolver 按 selectors 解析；script override
-    // 路由（如 cycani 的 video）由 _resolveFromRenderedHtml 路由到
+    // video 等路由由 _resolveFromRenderedHtml 路由到
     // ScriptResolver 用渲染 HTML 当 raw 跑脚本。非视频路由不进此分支。
     if (source.useWebview && source.parser.type == 'hybrid' && isVideoRoute) {
       return true;
@@ -268,9 +267,9 @@ class WebViewResolver implements SourceResolver {
       // 「验证一次、后台静默抓取」：命中网页模式但本会话未捕获时，先尝试一次
       // 携带已持久化 Cookie 的直连抓取（走源自带 hosts / DoH 自定义网络）。
       // - Cookie 仍有效（首次验证成功后已 syncCookies 落盘）→ 返回真实 HTML，
-      //   静默解析、不再弹 WebView 验证页（对齐 Han1meViewer 的 verify-once 体验）。
+      // 静默解析、不再弹 WebView 验证页（对齐 Han1meViewer 的 verify-once 体验）。
       // - Cookie 过期 / 命中 Cloudflare 挑战 → [HttpFetcher] 抛
-      //   [VerificationRequiredException]，回退到可见 WebView 验证流程重新过验证。
+      // [VerificationRequiredException]，回退到可见 WebView 验证流程重新过验证。
       final silentHtml = await _trySilentHtmlFetch(source, apiName, url);
       if (silentHtml != null && silentHtml.isNotEmpty) {
         WebViewHtmlCache.set(source.id, apiName, silentHtml, url: url);
@@ -332,7 +331,7 @@ class WebViewResolver implements SourceResolver {
     }
     final jsExtractor = _pickJsExtractor(source, apiName);
     if (jsExtractor != null && jsExtractor.isNotEmpty) {
-      // M2.4：携带 jsExtractor 回传，UI 层在内嵌 WebView 中执行抽取。
+      // 携带 jsExtractor 回传，UI 层在内嵌 WebView 中执行抽取。
       throw WebViewExtractionRequest(
         sourceId: source.id,
         apiName: apiName,

@@ -2,16 +2,16 @@
 ///
 /// 按源无痕模式（per-source incognito）：
 /// - [isIncognito] 返回某源的无痕状态：优先运行时覆盖（用户在源管理页切换），
-///   否则回退到 `PluginConfig.stealthMode`（缺省 false）。
+/// 否则回退到 `PluginConfig.stealthMode`（缺省 false）。
 /// - [setIncognito] 写入运行时覆盖并持久化到 Hive box `source_stealth`
-///   （key=sourceId，value=bool）。开启后 HistoryManager 跳过该源历史写入，
-///   单源搜索跳过搜索记录；进度记忆不受影响。
+/// （key=sourceId，value=bool）。开启后 HistoryManager 跳过该源历史写入，
+/// 单源搜索跳过搜索记录；进度记忆不受影响。
 /// - [getStealthMode] / [setStealthMode] 为全局请求隐身延迟开关（供 HttpFetcher
-///   打散请求节拍），默认 true，不再是恒 true 的硬约束。
+/// 打散请求节拍），默认 true，不再是恒 true 的硬约束。
 ///
 /// 每个源可记录「当前激活镜像」，parser/route/baseUrl/referer 统一指向它。
 ///
-/// 镜像选择持久化到 Hive box `source_mirrors`（P8.2.2 §廿二）。
+/// 镜像选择持久化到 Hive box `source_mirrors`。
 /// 用户自定义镜像持久化到 Hive box `source_custom_mirrors`
 /// （key=sourceId，value=JSON-encoded `List<Map>` of mirrors）。
 library;
@@ -63,7 +63,7 @@ class ConfigLoader {
   /// 全局无痕开关在 [boxName] 中的保留键（不与任何 sourceId 冲突）。
   static const String globalIncognitoKey = '__global_incognito__';
 
-  /// 从 Hive 加载持久化的镜像选择（P8.2.2 §廿二）。
+  /// 从 Hive 加载持久化的镜像选择。
   Future<void> init() async {
     if (_loaded) return;
     _box = await Hive.openBox(boxName);
@@ -145,7 +145,7 @@ class ConfigLoader {
     return source.site.baseUrl;
   }
 
-  /// 设置镜像并持久化到 Hive（P8.2.2 §廿二）。
+  /// 设置镜像并持久化到 Hive。
   void setActiveMirror(String sourceId, String baseUrl) {
     _activeMirror[sourceId] = baseUrl;
     // fire-and-forget 持久化

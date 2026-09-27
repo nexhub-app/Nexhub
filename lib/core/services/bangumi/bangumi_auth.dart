@@ -3,7 +3,7 @@
 /// - token 与用户名存 [FlutterSecureStorage]；
 /// - `saveToken` 先调 `/v0/me` 校验有效性再落盘；
 /// - OAuth 完整形态见 [loginWithOAuth]：引导浏览器授权 → 深链回调取 code →
-///   换 access_token + refresh_token（均存安全存储，refresh 用以续期）。
+/// 换 access_token + refresh_token（均存安全存储，refresh 用以续期）。
 library;
 
 import 'dart:async';

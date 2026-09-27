@@ -1,15 +1,15 @@
-/// RSS 更新检测器（文档 §10.2 + 16.13 RSS 更新通知）。
+/// RSS 更新检测器（文档 + 16.13 RSS 更新通知）。
 ///
 /// 定期轮询已订阅的 RSS 源，对比上次记录的最新条目标题，
 /// 检测到新条目时通过 [ChangeNotifier] 驱动 UI 显示未读数 badge，
-/// 并在启用时发送 OS 系统通知（P2-3，见 [RssNotificationService]）。
+/// 并在启用时发送 OS 系统通知（-3，见 [RssNotificationService]）。
 ///
 /// 设计说明：
 /// - 仅前台轮询（Timer.periodic），不引入 workmanager。
 /// - OS 通知经 [RssNotificationService]（flutter_local_notifications）发送，
-///   **平台降级**：Web/Windows 无官方后端，自动跳过、仅保留应用内未读 badge。
+/// **平台降级**：Web/Windows 无官方后端，自动跳过、仅保留应用内未读 badge。
 /// - 持久化每条 feed 的 lastItemTitle + lastCheckedAt + newCount，
-///   key = `rss_feed_states_v1`；系统通知开关存于 `rss_update_settings_v1`。
+/// key = `rss_feed_states_v1`；系统通知开关存于 `rss_update_settings_v1`。
 library;
 
 import 'dart:async';
@@ -128,7 +128,7 @@ class RssUpdateChecker extends ChangeNotifier {
   /// 是否启用更新检测。
   bool get enabled => _enabled;
 
-  /// 是否在支持的平台发 OS 系统通知（P2-3）。Windows/Web 无后端，实际不发送。
+  /// 是否在支持的平台发 OS 系统通知（-3）。Windows/Web 无后端，实际不发送。
   bool get systemNotification => _systemNotification;
 
   /// 当前轮询间隔。
@@ -242,7 +242,7 @@ class RssUpdateChecker extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 设置是否发送 OS 系统通知（P2-3）。开启时请求权限（Android 13+）。
+  /// 设置是否发送 OS 系统通知（-3）。开启时请求权限（Android 13+）。
   Future<void> setSystemNotification(bool value) async {
     _systemNotification = value;
     if (value) {
@@ -269,7 +269,7 @@ class RssUpdateChecker extends ChangeNotifier {
     }
     await _saveStates();
     notifyListeners();
-    // 聚合发一条 OS 通知（P2-3）：仅统计新增未读数，避免每条 feed 各弹一条。
+    // 聚合发一条 OS 通知（-3）：仅统计新增未读数，避免每条 feed 各弹一条。
     if (_systemNotification) {
       final delta = totalNewCount - before;
       if (delta > 0) {
@@ -281,7 +281,7 @@ class RssUpdateChecker extends ChangeNotifier {
   /// 检测单条 feed 的新条目。
   ///
   /// 以条目的稳定键（[RssItem.url]，缺失时回退标题）判断新条目，避免标题
-  /// 变更/重排导致误判（B7）。从列表顶部往下数，遇到第一个已在「已见集合」
+  /// 变更/重排导致误判。从列表顶部往下数，遇到第一个已在「已见集合」
   /// 中的键即停止，之前的都算新；若整个列表都是新键（源正常轮换旧条目），
   /// 限制新条目上限，避免每次刷新把全部标为新造成未读刷屏。
   Future<void> _checkFeed(RssFeed feed) async {

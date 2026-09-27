@@ -41,14 +41,14 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
   late ReaderDefaultSettings _settings;
   bool _loaded = false;
 
-  /// X-4：阅读中预下载配置（独立于 [_settings] 聚合，直接读写）。
+  /// 阅读中预下载配置（独立于 [_settings] 聚合，直接读写）。
   NovelPreDownloadPreferences _preDownload =
       const NovelPreDownloadPreferences();
 
   /// 在线 HTTP TTS 配置（独立持久化，直接读写）。
   NovelHttpTtsConfig _httpTts = const NovelHttpTtsConfig();
 
-  /// F4：EPUB 导出模板（全局配置，直接读写）。
+  /// EPUB 导出模板（全局配置，直接读写）。
   NovelExportTemplate _exportTemplate = const NovelExportTemplate();
   final TextEditingController _exportCssController = TextEditingController();
   final TextEditingController _exportIntroController = TextEditingController();
@@ -88,13 +88,13 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
     super.dispose();
   }
 
-  /// F4：更新导出模板（开关类立即落盘）。
+  /// 更新导出模板（开关类立即落盘）。
   void _updateExportTemplate(NovelExportTemplate next) {
     setState(() => _exportTemplate = next);
     NovelExportTemplateStore.instance.save(next);
   }
 
-  /// F4：文本字段防抖保存（停顿 600ms 后写入）。
+  /// 文本字段防抖保存（停顿 600ms 后写入）。
   void _saveExportTemplateDebounced() {
     _exportSaveDebounce?.cancel();
     _exportSaveDebounce = Timer(const Duration(milliseconds: 600), () {
@@ -1544,7 +1544,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     index: 6,
                     title: l10n.novelSectionPage,
                     children: <Widget>[
-                      // A7 双页模式：翻页模式下宽屏左右并排两页。
+                      // 双页模式：翻页模式下宽屏左右并排两页。
                       SettingsSwitchTile(
                         key: const ValueKey<String>('novel.twoPage'),
                         title: l10n.novelTwoPageMode,
@@ -1671,7 +1671,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                             ),
                         ],
                       ),
-                      // 平滑自动翻页（O5）：按像素/过渡进度连续推进整页。
+                      // 平滑自动翻页：按像素/过渡进度连续推进整页。
                       SettingsSwitchTile(
                         key: const ValueKey<String>('novel.autoPageSmooth'),
                         title: l10n.autoPageSmooth,
@@ -1954,7 +1954,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     ],
                   ),
 
-                  // ── 10b. 阅读中预下载（X-4 跨类型对齐）──
+                  // ── 10b. 阅读中预下载（跨类型对齐）──
                   SettingsCard(
                     key: const ValueKey<String>('novel.predownload'),
                     initiallyExpanded: false,
@@ -1996,7 +1996,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
                     ],
                   ),
 
-                  // ── 10c. 导出模板（F4：EPUB 自定义样式/封面/简介）──
+                  // ── 10c. 导出模板（EPUB 自定义样式/封面/简介）──
                   SettingsCard(
                     key: const ValueKey<String>('novel.exportTemplate'),
                     initiallyExpanded: false,

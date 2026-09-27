@@ -411,9 +411,9 @@ class BookChapterList {
   /// 兜底比对。若 URL 中不含 /book_ 数字模式则返回 null（不判定为跨书）。
   ///
   /// 例：`/book_4656/1.html` → `book_4656`
-  ///     `/book_4656/`     → `book_4656`
-  ///     `https://m.biqubu3.com/book_4656/1.html` → `book_4656`
-  ///     `/search.php`    → null
+  /// `/book_4656/` → `book_4656`
+  /// `https://m.biqubu3.com/book_4656/1.html` → `book_4656`
+  /// `/search.php` → null
   static String? _extractBookDirSegment(String url) {
     final match = RegExp(r'/book_(\d+)').firstMatch(url);
     return match?.group(0)?.substring(1); // 去掉前导 '/' → "book_4656"

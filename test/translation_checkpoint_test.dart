@@ -1,7 +1,7 @@
-/// F4（批次级检查点与断点续译）单元测试。
+/// （批次级检查点与断点续译）单元测试。
 ///
 /// - 检查点存储：save/load/clear 回环、原子临时键不残留、listForNovel
-///   不把检查点当完整章节；
+/// 不把检查点当完整章节；
 /// - 续译路径：已完成块不重复请求；中途失败的快照已落盘，续跑补齐剩余段。
 library;
 
@@ -80,7 +80,7 @@ class _FailEchoAdapter implements HttpClientAdapter {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('F4 检查点存储', () {
+  group('检查点存储', () {
     late Directory tempDir;
 
     setUp(() async {
@@ -143,7 +143,7 @@ void main() {
     });
   });
 
-  group('F4 断点续译服务', () {
+  group('断点续译服务', () {
     late Directory tempDir;
 
     setUp(() async {

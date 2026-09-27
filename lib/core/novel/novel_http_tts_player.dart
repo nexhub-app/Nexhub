@@ -1,4 +1,4 @@
-/// 在线 TTS 播放管线（/ C3-C7）。
+/// 在线 TTS 播放管线。
 ///
 /// 流程：段落 → [segmentSpeech] 分句 → [HttpTtsPreloader] 受限并发预下载
 /// （无网络拉取能力时由业务侧重试/降级）→ 顺序播放每个成功句 → 全部播完
@@ -46,7 +46,7 @@ class NovelHttpTtsPlayer {
   final TtsSentencePlayer player;
   final HttpTtsPreloader _preloader;
 
-  /// 全部段落播完回调（自动续章 C6 的触发点）。
+  /// 全部段落播完回调（自动续章 的触发点）。
   void Function()? onCompleted;
 
   /// 当前句索引（调试 / UI 高亮）。
@@ -62,7 +62,7 @@ class NovelHttpTtsPlayer {
   /// 1. 逐段分句（[segmentSpeech]）；
   /// 2. 统一受限并发预下载（Semaphore 1-8）；
   /// 3. 按句调 [player] 播放字节；
-  /// 4. 连续失败达阈值 → 终止剩余（C6）；单句失败且允许占位 → 跳过（C7）。
+  /// 4. 连续失败达阈值 → 终止剩余；单句失败且允许占位 → 跳过。
   Future<void> speak(List<String> paragraphs) async {
     _cancelled = false;
     currentIndex = 0;
@@ -88,12 +88,12 @@ class NovelHttpTtsPlayer {
         // 合成失败：（顺带计入 `_preloader.consecutiveFailures`，见
         // synthesizeOne 内部递增）。
         if (!config.silentPlaceholderOnFailure) {
-          // C7 关闭静音占位 → 严格模式：单句失败立即终止本轮。
+          // 关闭静音占位 → 严格模式：单句失败立即终止本轮。
           return;
         }
-        // C6 连续失败达阈值 → 终止剩余（兜底，即使占位开启）。
+        // 连续失败达阈值 → 终止剩余（兜底，即使占位开启）。
         if (_preloader.halted) return;
-        // C7 静音占位：跳过该句继续。
+        // 静音占位：跳过该句继续。
         continue;
       }
       final ok = await player(bytes);

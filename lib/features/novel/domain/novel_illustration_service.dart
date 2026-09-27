@@ -1,9 +1,9 @@
-/// AI 章节配图服务（O4）。
+/// AI 章节配图服务。
 ///
 /// 复用阅读速览的 OpenAI 兼容配置（[NovelSummarySettings]），调用
 /// `/images/generations` 为当前章节生成一张插图，落盘到应用支持目录
 /// `novel_illustrations/<hash>.png` 并返回本地路径；由阅读器把该路径以
-/// [kNexhubImgMarker] 占位行追加进正文编辑记录（N7 内容编辑管线复用），
+/// [kNexhubImgMarker] 占位行追加进正文编辑记录（内容编辑管线复用），
 /// 重载章节即图文混排显示。
 library;
 
@@ -106,6 +106,6 @@ class NovelIllustrationService {
     return file.path;
   }
 
-  /// 把生成的本地插图路径编码为可编辑文本占位行（N7 编辑管线格式）。
+  /// 把生成的本地插图路径编码为可编辑文本占位行（编辑管线格式）。
   static String markerLineFor(String localPath) => '$kNexhubImgMarker$localPath';
 }

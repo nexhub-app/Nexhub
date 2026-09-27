@@ -1,4 +1,4 @@
-/// RSS 订阅管理器（文档 §10.2）。
+/// RSS 订阅管理器（文档）。
 ///
 /// 管理订阅源列表的 CRUD + 持久化，按 [SourceType] 隔离。
 /// 抓取和解析通过 [RssParser] + [HttpFetcher] 完成。
@@ -126,7 +126,7 @@ class RssManager extends ChangeNotifier {
     final id = feedIdFromUrl(url);
 
     // 去重：已存在同一 URL 的订阅时，若本次传入的 moduleType 不同则合并更新
-    // （B9：此前直接返回原订阅，无法为重绑模块而「重新添加」）。
+    // （此前直接返回原订阅，无法为重绑模块而「重新添加」）。
     final existingIdx = _feeds.indexWhere((f) => f.id == id);
     if (existingIdx >= 0) {
       final existing = _feeds[existingIdx];
@@ -139,7 +139,7 @@ class RssManager extends ChangeNotifier {
             }.toList();
       if (moduleType != existing.moduleType || merged != null) {
         // 仅合并分组（moduleType 传 null）时不动原有模块绑定，避免 OPML 导入
-        // 把已绑定模块的订阅意外打回全局；显式传 moduleType 时仍按 B9 重绑。
+        // 把已绑定模块的订阅意外打回全局；显式传 moduleType 时仍按 重绑。
         final effectiveModule =
             (merged != null && moduleType == null) ? existing.moduleType : moduleType;
         final updated =
@@ -324,11 +324,11 @@ class RssManager extends ChangeNotifier {
 
   /// 抓取并解析订阅源内容。
   ///
-  /// [net] 显式传全局网络档案，使代理/SNI/DNS/hosts 对 RSS 生效（B1 铁律）。
+  /// [net] 显式传全局网络档案，使代理/SNI/DNS/hosts 对 RSS 生效（铁律）。
   /// [force] 为 true 时不带条件请求头（强制整篇重新抓取），用于手动刷新绕过
   /// 304 缓存校验。
   ///
-  /// 条件 GET（P2-1）：若本订阅已缓存 [etag]/[lastModified]，则带上
+  /// 条件 GET（-1）：若本订阅已缓存 [etag]/[lastModified]，则带上
   /// `If-None-Match`/`If-Modified-Since`；服务端返回 304 时直接复用本地缓存条目，
   /// 省去重复下载。响应头里的 `ETag`/`Last-Modified` 会回写进订阅并持久化。
   Future<ParsedFeed> fetchFeed(RssFeed feed, {bool force = false}) async {
@@ -364,7 +364,7 @@ class RssManager extends ChangeNotifier {
       return ParsedFeed(title: feed.title, items: const <RssItem>[]);
     }
 
-    // 按 feed 声明的字符集解码原始字节（B12：非 UTF-8 feed 不乱码），
+    // 按 feed 声明的字符集解码原始字节（非 UTF-8 feed 不乱码），
     // 再交给解析器。此前走 HttpFetcher.fetch 的共享解码会漏掉 RSS 的
     // `<?xml encoding=?>` 声明，且不支持 Latin-1 等西欧编码。
     final rh =
@@ -421,7 +421,7 @@ class RssManager extends ChangeNotifier {
   }
 
   /// 解析 feed 图标地址：优先用 feed 自带的 [ParsedFeed.iconUrl]，缺失时回退到
-  /// 站点根 `/favicon.ico`（修复 B8：此前 favicon 永不填充）。
+  /// 站点根 `/favicon.ico`（修复：此前 favicon 永不填充）。
   static String? _resolveIconUrl(ParsedFeed parsed, String feedUrl) {
     if (parsed.iconUrl != null && parsed.iconUrl!.isNotEmpty) {
       return parsed.iconUrl;
@@ -432,10 +432,10 @@ class RssManager extends ChangeNotifier {
   }
 
   /// 把 feed 内条目的相对 URL（link / coverUrl / enclosure）按 feed 地址解析为
-  /// 绝对地址（B5）。
+  /// 绝对地址。
   ///
   /// 同时保留并解析附件地址——此前重建 [RssItem] 时漏传 [RssItem.enclosures]，
-  /// 导致播客附件在相对 URL 归一化后被静默丢弃（P2-3 附件功能依赖该字段）。
+  /// 导致播客附件在相对 URL 归一化后被静默丢弃（-3 附件功能依赖该字段）。
   ParsedFeed _normalizeFeedUrls(ParsedFeed parsed, String baseUrl) {
     final base = Uri.tryParse(baseUrl);
     if (base == null) return parsed;
@@ -481,7 +481,7 @@ class RssManager extends ChangeNotifier {
     );
   }
 
-  /// 按 feed 声明的字符集把原始字节解码为字符串（B12 修复：非 UTF-8 feed 不乱码）。
+  /// 按 feed 声明的字符集把原始字节解码为字符串（修复：非 UTF-8 feed 不乱码）。
   ///
   /// 字符集探测优先级（与 `HttpFetcher._detectCharset` 互补，额外识别 XML 声明）：
   /// ① HTTP Content-Type 的 `charset=`；② XML 声明 `<?xml ... encoding="..."?>`
@@ -566,7 +566,7 @@ class RssManager extends ChangeNotifier {
         c == 'iso-ir-100';
   }
 
-  /// 测速单个订阅源，返回延迟（毫秒）；失败返回 -1（P8.2.3 §廿二 RSS 一键测速）。
+  /// 测速单个订阅源，返回延迟（毫秒）；失败返回 -1（RSS 一键测速）。
   Future<int> testFeedSpeed(RssFeed feed) async {
     final sw = Stopwatch()..start();
     try {
@@ -583,7 +583,7 @@ class RssManager extends ChangeNotifier {
   }
 
   /// 测速全部订阅源，返回 `feedId → 延迟毫秒`（-1 表示失败）。
-  /// 每次测速完成后通过 [onProgress] 回调通知 UI 更新（P8.2.3 §廿二）。
+  /// 每次测速完成后通过 [onProgress] 回调通知 UI 更新。
   Future<Map<String, int>> testAllFeeds({
     void Function(String feedId, int latencyMs)? onProgress,
   }) async {

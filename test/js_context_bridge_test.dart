@@ -5,7 +5,7 @@ import 'package:nexhub/core/models/plugin_config.dart';
 import 'package:nexhub/core/resolver/js_context.dart';
 import 'package:nexhub/core/utils/crypto_utils.dart';
 
-/// Unit tests for the JS sandbox bridge (Task M1.4).
+/// Unit tests for the JS sandbox bridge .
 ///
 /// Covers the crypto / image / storage / utils / http extensions added to
 /// [DartJsHostBridge] and [CryptoUtils]. HTTP network methods are excluded

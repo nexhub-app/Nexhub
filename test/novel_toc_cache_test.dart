@@ -9,7 +9,7 @@ void main() {
   late Directory tempDir;
   late NovelTocCache cache;
 
-  const sourceId = 'novel_biquge';
+  const sourceId = 'novel_demo';
   // novelId 为完整 URL（超长 + 含非法文件名字符）→ 验证哈希文件名可落盘。
   const novelId = 'https://m.biqubu3.com/book_18093/?from=history&page=1';
 

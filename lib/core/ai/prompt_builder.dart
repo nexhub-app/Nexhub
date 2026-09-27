@@ -1,4 +1,4 @@
-/// 翻译提示词统一构建器（F1 术语注入 / F8 提示词体系化）。
+/// 翻译提示词统一构建器（术语注入 / 提示词体系化）。
 ///
 /// 三条翻译链路（小说批量 / 字幕逐句 / 漫画视觉）的 system prompt 由本类
 /// 按「基础指令 + 风格预设 + 术语表 + 作品语境 + 输出格式」分段拼接，
@@ -9,7 +9,7 @@ library;
 import 'glossary_manager.dart';
 import 'vision_translation_client.dart';
 
-/// 翻译风格预设（F8）：全局存 SharedPreferences，作品级覆盖存 Hive。
+/// 翻译风格预设：全局存 SharedPreferences，作品级覆盖存 Hive。
 enum TranslationStyle {
   /// 标准（默认）：忠实原文语气，不加修饰。
   standard,
@@ -31,7 +31,7 @@ enum TranslationStyle {
 
 /// 提示词构建器。
 abstract final class PromptBuilder {
-  /// 风格指令段（F8）。标准风格不追加任何文字（保持原提示词行为）。
+  /// 风格指令段。标准风格不追加任何文字（保持原提示词行为）。
   static String styleDirective(TranslationStyle style) => switch (style) {
         TranslationStyle.standard => '',
         TranslationStyle.colloquial =>
@@ -42,7 +42,7 @@ abstract final class PromptBuilder {
           '整体译文风格：贴近当下网络社区的表达习惯，可使用常见梗与缩写，但不生造。',
       };
 
-  /// 术语表注入段（F1）。无术语时返回空串。
+  /// 术语表注入段。无术语时返回空串。
   ///
   /// 条数与总长有上限（防提示词膨胀挤占正文预算）：最多取 40 条、
   /// 每条拼接待超长时截断后续。
@@ -86,7 +86,7 @@ abstract final class PromptBuilder {
 
   /// 字幕逐句/批量翻译 system prompt。
   ///
-  /// [lightweight] 为 true（F8 轻量格式）时不要求编号，靠换行顺序对位，
+  /// [lightweight] 为 true（轻量格式）时不要求编号，靠换行顺序对位，
   /// 省 token；解析走 [BatchProtocol.decodeLoose]，失败由调用方回退编号协议。
   static String subtitleSystemPrompt({
     required String lang,
@@ -111,7 +111,7 @@ abstract final class PromptBuilder {
 
   /// 漫画页视觉 OCR+翻译 system prompt。
   ///
-  /// [prevPageSummary]（F2）：前一页已译短摘要（由上一页 segments 拼成
+  /// [prevPageSummary]：前一页已译短摘要（由上一页 segments 拼成
   /// 1–2 句），供保持指代与语气连贯；成本封顶，不整页回灌。
   static String mangaSystemPrompt({
     required String lang,
@@ -160,27 +160,27 @@ abstract final class PromptBuilder {
       buf.write('\n作品背景（翻译时保持设定与译名一致）：$ctx');
     }
     if (cot) {
-      // 显式思维链（F8）：引导先理解再落笔，但不把推理过程写进输出。
+      // 显式思维链：引导先理解再落笔，但不把推理过程写进输出。
       buf.write('\n翻译每段前先在内部确认：语境与指代、术语表命中、语气；'
           '确认后再输出最终译文，不要输出思考过程。');
     }
   }
 
-  /// 全书预扫描——章节摘要 system prompt（F3）。
+  /// 全书预扫描——章节摘要 system prompt。
   static String prescanChapterSystemPrompt({required String lang}) =>
       '你是专业的文学编辑。用户会给出若干编号的章节片段（每段为该章开头的'
       '文字）。请为每个片段生成 1-2 句$lang摘要，概括该章的关键事件与出场'
       '人物。输出必须严格保持编号格式：每条摘要前单独一行 <<<序号>>>，'
       '不要添加任何解释。';
 
-  /// 全书预扫描——全书概述 system prompt（F3）。
+  /// 全书预扫描——全书概述 system prompt。
   static String prescanOverviewSystemPrompt({required String lang}) =>
       '你是专业的文学编辑。用户会给出《书名》与各章的摘要列表。'
       '请把它们汇总为一段约 200 字以内的$lang全书概述：'
       '交代主要人物、核心设定与主线走向，不要逐章罗列，'
       '不要输出标题或任何解释，只输出概述正文。';
 
-  /// 译文润色 system prompt（F5 多阶段质量）。
+  /// 译文润色 system prompt（多阶段质量）。
   ///
   /// 输入为「编号原文 + 编号初译」，输出仅润色后的编号译文。
   static String polishSystemPrompt({

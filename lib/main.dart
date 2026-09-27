@@ -103,7 +103,7 @@ void main() {
       debugPrint('AudioPlaybackService.initialize failed: $e\n$st');
     }
 
-    // RSS 更新 OS 系统通知（P2-3）。平台降级：Web/Windows 无后端，内部跳过。
+    // RSS 更新 OS 系统通知（-3）。平台降级：Web/Windows 无后端，内部跳过。
     try {
       await RssNotificationService.instance.init();
     } on Object catch (e, st) {

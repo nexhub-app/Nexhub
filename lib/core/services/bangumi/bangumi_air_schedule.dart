@@ -8,7 +8,7 @@
 /// 本文件提供两件事：
 /// 1. [BangumiAirSchedule.parse]：尽最大努力从条目详情里推断周 / 时 / 分；
 /// 2. [BangumiAirScheduleStore]：用户手动设置的覆盖值（按 subjectId 持久化到
-///    shared_preferences），优先级高于自动解析。
+/// shared_preferences），优先级高于自动解析。
 library;
 
 import 'package:shared_preferences/shared_preferences.dart';

@@ -46,9 +46,9 @@ class PublishPageMirrorExtractor {
   /// 从已抓取的 HTML 中提取候选镜像（纯解析，无网络依赖，便于测试）。
   ///
   /// - [selector] 为空时使用通用 URL 正则提取所有绝对 http(s) 链接，
-  ///   排除与发布页同 host 的链接，按 host 去重。
+  /// 排除与发布页同 host 的链接，按 host 去重。
   /// - [selector] 看起来像正则时（以 `/` 开头或含元字符），用它匹配 HTML，
-  ///   命中的字符串作为候选 URL（优先取首个捕获组）。
+  /// 命中的字符串作为候选 URL（优先取首个捕获组）。
   ///
   /// 返回结果按 baseUrl 去重，可能为空列表。
   List<MirrorConfig> extractFromHtml(

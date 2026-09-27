@@ -84,7 +84,7 @@ class _LocalMediaViewerState extends State<LocalMediaViewer> {
           if (_disposed) break;
           _controller = PlayerController();
           _videoController = VideoController(_controller!.player);
-          // media_kit 无法直读 content://，SAF 编码路径先落缓存再播放；普通路径原样返回。
+          // media_kit 无法直读 content:// SAF 编码路径先落缓存再播放；普通路径原样返回。
           final resolved = await resolveSafUri(widget.uri);
           // 文件校验 + 诊断：空文件 / 0 字节 / 非视频（如被源拦截的 HTML）无法播放，
           // 明确报错而非卡在缓冲；同时记日志便于排查。

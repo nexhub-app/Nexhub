@@ -220,11 +220,11 @@ class AnalyzeUrl {
   ///
   /// 占位符（`{{key}}` 等）替换的是**原始关键词**，编码统一延迟到此处：
   /// - GBK 系站点（charset=gbk/gb2312/gb18030）按 GBK 编码关键词，
-  ///   否则按 UTF-8 —— 此前恒定 UTF-8 预编码，GBK 站点收到乱码导致
-  ///   「搜索有请求但永远无结果」。
+  /// 否则按 UTF-8 —— 此前恒定 UTF-8 预编码，GBK 站点收到乱码导致
+  /// 「搜索有请求但永远无结果」。
   /// - POST form 补声明 `application/x-www-form-urlencoded`：多数站点
-  ///   （尤其 PHP `$_POST`）不按该 Content-Type 解析请求体，缺省时整个
-  ///   表单体被服务端丢弃 → POST 搜索全部为空。
+  /// （尤其 PHP `$_POST`）不按该 Content-Type 解析请求体，缺省时整个
+  /// 表单体被服务端丢弃 → POST 搜索全部为空。
   /// - 已编码值（合法 `%XX` 序列）不重复编码，避免把预编码源二次转义。
   void _encodeRequestParams() {
     final cs = _normalizeCharset(charset);
@@ -622,8 +622,8 @@ class AnalyzeUrl {
   /// 1. URL 选项中的 charset
   /// 2. HTTP Content-Type 中的 charset
   /// 3. HTML `<meta charset="...">` / `<meta http-equiv="Content-Type" ... charset=...>`
-  ///    声明（许多 GBK 系站点只写 meta，Content-Type 不带 charset，缺此探测会
-  ///    全部按 UTF-8 容错解码 → 中文乱码）
+  /// 声明（许多 GBK 系站点只写 meta，Content-Type 不带 charset，缺此探测会
+  /// 全部按 UTF-8 容错解码 → 中文乱码）
   /// 4. UTF-8 容错解码
   String _decodeBody(Uint8List bytes, String? optionCharset, String? contentType) {
     final effectiveCharset = _normalizeCharset(optionCharset) ??
@@ -698,8 +698,8 @@ class AnalyzeUrl {
   /// 覆盖两类场景：
   /// 1) Cloudflare 挑战页：用精确主动特征（零误杀），正常小说页不可能包含；
   /// 2) 非 Cloudflare 的站点自带验证系统（如 PTCMS 的「系统安全验证」）：
-  ///    用「标题/短体验证信号」综合判定，并对弱信号加长度闸门，避免把正常
-  ///    大内容页（含 footer「账号安全验证」链接等）误判为验证页。
+  /// 用「标题/短体验证信号」综合判定，并对弱信号加长度闸门，避免把正常
+  /// 大内容页（含 footer「账号安全验证」链接等）误判为验证页。
   ///
   /// 命中即抛 [VerificationRequiredException]，交由既有 WebView 验证回灌流程过验证，
   /// 而非静默返回空结果或抛普通异常被上层吞掉。

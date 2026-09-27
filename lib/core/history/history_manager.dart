@@ -1,4 +1,4 @@
-/// 浏览历史管理器（文档 §10.2 书架历史记录 Tab）。
+/// 浏览历史管理器（文档 书架历史记录 Tab）。
 ///
 /// 三模块共用，按 [SourceType] 隔离。
 /// 每模块保留最近 [maxPerModule] 条，超出自动淘汰。
@@ -46,7 +46,7 @@ class HistoryEntry {
   /// 优先于 [coverUrl] 使用；为空时回退远程 [coverUrl]。
   final String? localCoverPath;
 
-  /// 软删除标记（REQ-C8 历史 hidden 列）。
+  /// 软删除标记（历史 hidden 列）。
   ///
   /// 为 true 表示该条目被「清历史」隐藏：不出现在书架历史列表，但条目本身
   /// 与进度仍保留，用户重新进入该作品（详情/阅读器记录浏览）时自动复原为 false。
@@ -191,7 +191,7 @@ class HistoryManager extends ChangeNotifier {
   /// 获取某模块的历史列表（按浏览时间倒序）。
   ///
   /// 过滤掉已软删除（[HistoryEntry.hidden] == true）的条目，使其不再出现在
-  /// 书架/历史列表中（REQ-C8）。被隐藏的条目仍保留在内部缓存中（进度不丢），
+  /// 书架/历史列表中。被隐藏的条目仍保留在内部缓存中（进度不丢），
   /// 可经 [findById] 取到；用户重新进入该作品后自动复原可见。
   List<HistoryEntry> historyFor(SourceType type) {
     final list = _cache[type];
@@ -247,7 +247,7 @@ class HistoryManager extends ChangeNotifier {
     // 添加到末尾（最新的在后面，读取时 reversed）。
     // 新条目经 fromMediaItem 构建，hidden 恒为 false——因此已软删除（被清历史）
     // 的条目在用户重新进入该作品（详情/阅读器记录浏览）时会自动复原可见
-    // （REQ-C8：重读自动复原），进度与阅读位置不受影响。
+    // （重读自动复原），进度与阅读位置不受影响。
     final entry = HistoryEntry.fromMediaItem(
       item,
       lastChapter: lastChapter,
@@ -335,7 +335,7 @@ class HistoryManager extends ChangeNotifier {
     return ext.length <= 5 ? ext : '.jpg';
   }
 
-  /// 清除某模块的历史（REQ-C8：软删除）。
+  /// 清除某模块的历史（软删除）。
   ///
   /// 不再物理删除条目，而是将本模块全部条目批量置 [HistoryEntry.hidden] = true：
   /// 条目从书架/历史列表消失（[historyFor] 已过滤），但进度与数据保留，
@@ -434,7 +434,7 @@ class HistoryManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 物理清空全部历史（REQ-C8 保留的「物理清空」选项）。
+  /// 物理清空全部历史（保留的「物理清空」选项）。
   ///
   /// 与软删除（[clearHistory] / [hideAll]）不同：本方法直接删除所有条目，
   /// 进度与数据一并清除，不可恢复。谨慎调用。

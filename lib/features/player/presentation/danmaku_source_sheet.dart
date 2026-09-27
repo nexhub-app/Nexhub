@@ -87,7 +87,7 @@ class _DanmakuSourceSheetState extends State<DanmakuSourceSheet> {
     }
   }
 
-  /// #6 A4-#6: 提交自定义 URL。
+  /// #6 -#6: 提交自定义 URL。
   void _submitCustomUrl() {
     final url = _urlController.text.trim();
     widget.onCustomUrl?.call(url);
@@ -158,7 +158,7 @@ class _DanmakuSourceSheetState extends State<DanmakuSourceSheet> {
                       title: l10n.danmakuSourceBilibili,
                       description: l10n.danmakuSourceBilibiliDesc,
                     ),
-                    // #6 A4-#6: 自定义 URL 选项
+                    // #6 -#6: 自定义 URL 选项
                     _optionTile(
                       context: context,
                       l10n: l10n,

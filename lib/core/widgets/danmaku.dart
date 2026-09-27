@@ -35,7 +35,7 @@ class DanmakuItem {
 /// 秒索引 + 游标设计（修复 seek 后弹幕 flood 与 tick O(n) 全量扫描）：
 /// - [tick] 只遍历当前秒与游标之间的索引桶（每秒一次查表），不再扫描全部弹幕；
 /// - seek 后调用 [resetTo]，把游标拨回目标位置前 [lookbackSeconds] 秒，只补
-///   重放该窗口内的弹幕，避免「把整条时间轴上的弹幕一次性灌进屏幕」。
+/// 重放该窗口内的弹幕，避免「把整条时间轴上的弹幕一次性灌进屏幕」。
 class DanmakuController {
   DanmakuController([List<DanmakuItem>? items]) {
     if (items != null) setItems(items);

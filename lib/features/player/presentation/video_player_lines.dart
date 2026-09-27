@@ -14,9 +14,9 @@ extension _VideoLines on _VideoPlayerScreenState {
   /// 分组，每组取当前 `_episodeIndex` 在该组里的同 position 副本：
   /// - 当前选中 lineName：用 [video] 的已解析 URL 直接 open；
   /// - 其他 lineName：暂用对应 ep.url 占位（剧集页 URL，未解析），
-  ///  切到时由 [_changeEpisode] 重新解析（点该线路的某集才解析）；
-  ///  不可用则 url 为空，open 时 [PlayerController._openCurrentLine]
-  ///  会静默忽略。
+  /// 切到时由 [_changeEpisode] 重新解析（点该线路的某集才解析）；
+  /// 不可用则 url 为空，open 时 [PlayerController._openCurrentLine]
+  /// 会静默忽略。
   ///
   /// 单 line / 无 lineName 时按旧行为兜底为单条 "线路 1"，保持向后兼容。
 
@@ -27,9 +27,9 @@ extension _VideoLines on _VideoPlayerScreenState {
   /// 分组，每组取当前 `_episodeIndex` 在该组里的同 position 副本：
   /// - 当前选中 lineName：用 [video] 的已解析 URL 直接 open；
   /// - 其他 lineName：暂用对应 ep.url 占位（剧集页 URL，未解析），
-  ///  切到时由 [_changeEpisode] 重新解析（点该线路的某集才解析）；
-  ///  不可用则 url 为空，open 时 [PlayerController._openCurrentLine]
-  ///  会静默忽略。
+  /// 切到时由 [_changeEpisode] 重新解析（点该线路的某集才解析）；
+  /// 不可用则 url 为空，open 时 [PlayerController._openCurrentLine]
+  /// 会静默忽略。
   ///
   /// 单 line / 无 lineName 时按旧行为兜底为单条 "线路 1"，保持向后兼容。
   List<VideoLine> _buildLines(VideoResult video) {
@@ -204,8 +204,8 @@ extension _VideoLines on _VideoPlayerScreenState {
   /// 行为（Bug F 修复）：
   /// - 上半：剧集列表，只显示**当前选中线路**的集。
   /// - 下半：播放线路分组。点击线路**只切换上方要显示的集分组**——
-  ///  面板不关闭、也**不立即解析**；只有点完某一集，才由 [_changeEpisode]
-  ///  走视频嗅探解析并播放。
+  /// 面板不关闭、也**不立即解析**；只有点完某一集，才由 [_changeEpisode]
+  /// 走视频嗅探解析并播放。
   ///
   /// 线路分组键使用全集各 `Episode.lineName` 的**原始值**（而非
   /// [_controller.lines] 里被 canonicalize 过的名字），这样与上方剧集过滤

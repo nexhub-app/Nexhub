@@ -75,7 +75,7 @@ class BuiltinResolver implements SourceResolver {
     // 源级网络覆盖：计算一次有效档案，显式沿调用链下传（无 Zone）。
     final net = NetworkConfigService.instance.effectiveFor(source);
     final referer = source.antiHotlinking.referer ?? (baseUrl ?? url);
-    // C1：反盗链指定 UA（pms_fsdm / pms_xifanacg 等 xpath 源）。
+    // 反盗链指定 UA（部分 xpath 源）。
     final ua = source.antiHotlinking.userAgent;
     final Map<String, String>? ahHeaders =
         (ua != null && ua.isNotEmpty) ? <String, String>{'User-Agent': ua} : null;
@@ -717,8 +717,8 @@ class BuiltinResolver implements SourceResolver {
   }) {
     final sel = source.selectors ?? const <String, dynamic>{};
     // Extract sub-selectors per apiName (e.g. selectors.latest.{list,id,title,
-    // cover}), aligning with the JSON path's _subSel behaviour. pms_fsdm et
-    // al. group each API's selectors under its apiName; without extraction
+    // cover}), aligning with the JSON path's _subSel behaviour. certain sources
+    // group each API's selectors under its apiName; without extraction
     // sel['list'] / sel['id'] are null and downstream helpers fall back to
     // the default CSS selectors, producing empty MediaItem fields. When the
     // sub-map is absent (flat selector shape) we fall back to sel itself,
@@ -842,7 +842,7 @@ class BuiltinResolver implements SourceResolver {
 
   MediaItem _itemFromElement(Element el, Map<String, dynamic> sel, PluginConfig source) {
     // Lazily serialised only when an XPath field selector is encountered
-    // (pms_fsdm et al. use relative XPath like `./a/@title` which cannot be
+    // (some sources use relative XPath like `./a/@title` which cannot be
     // evaluated via querySelector). Cached to avoid re-serialising per field.
     String? elHtmlCache;
     String elHtml() => elHtmlCache ??= el.outerHtml;
@@ -944,11 +944,11 @@ class BuiltinResolver implements SourceResolver {
   ) {
     // Three selector shapes are supported:
     // 1. Sub-map already extracted by _parseHtml (top-level extraction):
-    //    sel = {list, title, id, url}
+    // sel = {list, title, id, url}
     // 2. Nested but not extracted: sel = {episodes: {list, title, id}} or
-    //    {chapters: {...}} (pms_fsdm-style when _parseHtml is bypassed).
+    // {chapters: {...}} (nested-shape style when _parseHtml is bypassed).
     // 3. Flat legacy shape: sel = {episodes: "div.chapter a"} or
-    //    {chapters: "..."} (string selector only).
+    // {chapters: "..."} (string selector only).
     final epSelRaw = sel['episodes'] ?? sel['chapters'];
     String listSel;
     Map<String, dynamic> fieldSel;
@@ -1026,11 +1026,11 @@ class BuiltinResolver implements SourceResolver {
 
   /// Episode element may itself be an <a> or contain one; unify href / title
   /// extraction. When [sel] declares id/title/url selectors (XPath or
-  /// `css@attr` form, as in pms_fsdm), they take precedence over the <a>
+  /// `css@attr` form, as in some sources), they take precedence over the <a>
   /// fallback so per-source extraction rules win.
   Episode _episodeFromElement(Element el, Map<String, dynamic> sel) {
     // Lazily serialised only when an XPath field selector is encountered
-    // (pms_fsdm uses relative XPath like `./@href`, `./text()` which cannot
+    // (some sources use relative XPath like `./@href`, `./text()` which cannot
     // be evaluated via querySelector). Cached to avoid re-serialising per
     // field.
     String? elHtmlCache;

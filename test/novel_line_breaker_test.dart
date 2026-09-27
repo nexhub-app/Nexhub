@@ -1,4 +1,4 @@
-///  / A5 中文禁则断行器渲染级单测（需 TextPainter，flutter_test 环境）。
+/// 中文禁则断行器渲染级单测（需 TextPainter，flutter_test 环境）。
 library;
 
 import 'package:material_ui/material_ui.dart';

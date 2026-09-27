@@ -6,7 +6,7 @@
 /// 格式要点（OPML 2.0）：
 /// - 根节点 `<opml version="2.0">`，含 `<head>`（标题）与 `<body>`。
 /// - `<body>` 下是 `<outline>` 树：带 `xmlUrl` 属性的即一条订阅；
-///   不带的视为分组节点，其 `text`/`title` 作为子条目的分类名。
+/// 不带的视为分组节点，其 `text`/`title` 作为子条目的分类名。
 /// - 属性可乱序、大小写敏感（规范用 `xmlUrl` / `htmlUrl` / `text` / `title` / `type`）。
 library;
 
@@ -65,10 +65,10 @@ class RssOpml {
   ///
   /// 容错（导入显示「无可导入的内容」的修复要点）：
   /// - **`type` 属性不作否决条件**。OPML 惯例写短词 `type="rss"`（Feedly /
-  ///   Inoreader / FreshRSS / ReadYou 等主流导出皆如此），此前误按 MIME 集合
-  ///   校验，`rss` 不在集合里 → 每条订阅都被跳过 → 永远「无可导入」；
+  /// Inoreader / FreshRSS / ReadYou 等主流导出皆如此），此前误按 MIME 集合
+  /// 校验，`rss` 不在集合里 → 每条订阅都被跳过 → 永远「无可导入」；
   /// - 属性名大小写容错：部分工具写 `xmlurl` / `TEXT` 等（XML 属性大小写
-  ///   敏感，精确匹配会拿空）；
+  /// 敏感，精确匹配会拿空）；
   /// - 剥 UTF-8 BOM（Windows 记事本保存的文件带 BOM，xml 包解析会失败）；
   /// - feed 节点自带子 outline 时一并递归（少数导出把子源挂在 feed 节点下）。
   ///

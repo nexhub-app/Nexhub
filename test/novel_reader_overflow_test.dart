@@ -2,10 +2,10 @@
 //
 // 两处历史根因（均已修复，此处防回归）：
 // 1. 分页器寡行回退后 `used = 0`，回退行高度从记账中丢失 → 整页超装
-//    一个段首块高度，页底行被 SingleChildScrollView 裁切（大溢出 68~222px）。
+// 一个段首块高度，页底行被 SingleChildScrollView 裁切（大溢出 68~222px）。
 // 2. 页眉/页脚高度探针未与环境 DefaultTextStyle 合并（Text 组件的合并
-//    语义会让主题 bodyMedium 的 height 渗入，行高 12 → 17），分页高估
-//    可用高度 ~10px，满页底部行被裁。
+// 语义会让主题 bodyMedium 的 height 渗入，行高 12 → 17），分页高估
+// 可用高度 ~10px，满页底部行被裁。
 //
 // 验证方式：逐页翻页，实测滚动视口高度 vs 内容列实际高度、正文行右缘
 // vs 视口右缘，任何一页超限即失败。
@@ -61,7 +61,7 @@ void main() {
     Hive.init(Directory.systemTemp.path);
     await Hive.openBox('novel_notes');
     await Hive.openBox('novel_bookmarks');
-    // X-4 预下载缓存 box：预打开避免阅读器 _loadChapter 内 Hive.openBox
+    // 预下载缓存 box：预打开避免阅读器 _loadChapter 内 Hive.openBox
     // 的后台任务阻塞 pumpAndSettle（与 novel_reader_test 同模式）。
     await Hive.openBox('novel_pre_downloads');
   });

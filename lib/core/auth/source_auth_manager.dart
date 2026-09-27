@@ -1,11 +1,11 @@
 /// 源登录态管理：按源 `comments.login` 声明判定并维护各源的登录状态。
 ///
 /// - 快速路径：该源相关 host 的 Cookie 头中出现 `login.checkCookie` 键名
-///   即视为已登录（同步判定，UI 直接可用）。
+/// 即视为已登录（同步判定，UI 直接可用）。
 /// - 可选确认：声明 `login.checkUrl` 时经 [refreshLoginState] 异步探测
-///   （`loggedInSelector` 命中非空即登录有效），结果缓存并广播。
+/// （`loggedInSelector` 命中非空即登录有效），结果缓存并广播。
 /// - 订阅 [HttpFetcher.cookieVersionStream]：Cookie 变化（WebView 回灌 /
-///   登出 / 过期清除）自动重新评估已关注源的登录态。
+/// 登出 / 过期清除）自动重新评估已关注源的登录态。
 ///
 /// 依赖均可经构造注入（测试免 Hive / 免真实网络）。
 library;

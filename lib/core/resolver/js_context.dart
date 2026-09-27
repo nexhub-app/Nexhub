@@ -41,7 +41,7 @@ abstract class JsHostBridge {
   String resolveUrl(String relative);
   void log(String msg);
 
-  // ---- crypto extensions (V2 spec 6.3) ----
+  // ---- crypto extensions  ----
   String sha1(String s);
   String sha256(String s);
   String sha512(String s);
@@ -57,7 +57,7 @@ abstract class JsHostBridge {
   String aesOfb(String key, String data, String iv,
       {bool encrypt = true, String encoding = 'base64'});
 
-  // ---- image (V2 spec 16.1, delegates to ImageExtractor) ----
+  // ---- image (delegates to ImageExtractor) ----
   List<String> extractImagesFromHtml(String html, {String? selector});
   List<String> extractLazyImagesFromHtml(String html, {String? selector});
   bool isValidImageUrl(String url);
@@ -196,7 +196,7 @@ var context = {
 };
 ''';
 
-/// 注入 context.baseUrl（当前激活镜像地址）到 JS 运行时（P8.2.2 §廿二）。
+/// 注入 context.baseUrl（当前激活镜像地址）到 JS 运行时。
 String _buildBaseUrlInjection(String baseUrl) {
   final escaped = jsonEncode(baseUrl);
   return 'context.baseUrl = $escaped;';
@@ -229,14 +229,14 @@ String _buildContextVarsInjection(Map<String, String> vars) {
 class FlutterJsEngine implements JsEngine {
   FlutterJsEngine(this.bridge, {String? baseUrl}) {
     _runtime = getJavascriptRuntime();
-    // 必须启用 Promise 处理：源脚本（如 goda/baozimh 的 parseList）大量使用
+    // 必须启用 Promise 处理：源脚本（如部分漫画源的 parseList）大量使用
     // `await ctx.http.get(...)`，即异步函数返回 Promise。未启用时 evaluateAsync
     // 不会 await，run() 拿到的只是 `[object Promise]`，导致脚本返回值永远为空
     // → 列表/详情/章节全空。对齐旧版 QuickJsRuntime2(..)..enableHandlePromises()。
     _runtime.enableHandlePromises();
     _runtime.onMessage('flutterBridge', _onMessage);
     _runtime.evaluate(_jsContextPrelude);
-    // 注入 context.baseUrl（当前激活镜像地址，P8.2.2 §廿二）
+    // 注入 context.baseUrl（当前激活镜像地址）
     if (baseUrl != null && baseUrl.isNotEmpty) {
       _runtime.evaluate(_buildBaseUrlInjection(baseUrl));
     }
@@ -316,10 +316,10 @@ class FlutterJsEngine implements JsEngine {
   /// 使 `.then()` 回调得以传播。
   ///
   /// 背景（真机日志铁证 2026-07-19T19:31）：
-  ///   QuickJS/flutter_js 在真机上，`_onMessage` 中 `evaluateAsync('__resolveBridge(...)')`
-  ///   虽然解析了 Promise，但后续注册的 `.then()` 链不触发——因为微任务队列未被泵动。
-  ///   追加一次空 evaluateAsync 可能在引擎内部触发微任务处理（类似浏览器的
-  ///   "after a macrotask completes" 行为）。
+  /// QuickJS/flutter_js 在真机上，`_onMessage` 中 `evaluateAsync('__resolveBridge(...)')`
+  /// 虽然解析了 Promise，但后续注册的 `.then()` 链不触发——因为微任务队列未被泵动。
+  /// 追加一次空 evaluateAsync 可能在引擎内部触发微任务处理（类似浏览器的
+  /// "after a macrotask completes" 行为）。
   void _pumpMicrotaskQueue() {
     // 用 try/catch 包裹：evaluateAsync 在 runtime disposed 后可能抛异常
     // （如 app 切后台/页面销毁时），不应影响正常的 bridge 错误处理路径。
@@ -649,32 +649,32 @@ class FlutterJsEngine implements JsEngine {
     // ══════════════════════════════════════════════════════════
     //
     // 问题背景（真机日志铁证，2026-07-19T19:04）:
-    //   flutter_js 的 evaluateAsync 在真机上**无法正确 await 任何顶层 Promise**：
-    //   - 旧写法 JSON.stringify(asyncFn(...)) → stringResult = "{}"（Promise 被 stringify 吞掉）
-    //   - v2 写法 (async()=>{await fn(...)})() → stringResult = "Instance of 'Future<dynamic>'"
-    //     （IIFE 把同步函数也变成 Promise → 同步函数也被搞坏了）
-    //   - 两者都导致列表/章节全空，即使脚本实际执行正确（goda found=18/54）
+    // flutter_js 的 evaluateAsync 在真机上**无法正确 await 任何顶层 Promise**：
+    // - 旧写法 JSON.stringify(asyncFn(...)) → stringResult = "{}"（Promise 被 stringify 吞掉）
+    // - v2 写法 (async()=>{await fn(...)})() → stringResult = "Instance of 'Future<dynamic>'"
+    // （IIFE 把同步函数也变成 Promise → 同步函数也被搞坏了）
+    // - 两者都导致列表/章节全空，即使脚本实际执行正确（实测 found=18/54）
     //
     // 根因：evaluateAsync 内部的消息泵/事件循环在真机环境下无法驱动 JS Promise 解析，
-    //       返回的是内部原始表示而非 resolved 值。enableHandlePromises + handlePromise
-    //       是仅有的可用异步通道，但它们需要"一个未被消费的 Promise 引用"才能工作。
+    // 返回的是内部原始表示而非 resolved 值。enableHandlePromises + handlePromise
+    // 是仅有的可用异步通道，但它们需要"一个未被消费的 Promise 引用"才能工作。
     //
     // 本策略分三阶段：
-    //   Phase 1: 执行函数，把返回值（或 Promise）存入全局变量 __execResult
-    //           → 同步函数：__execResult = 实际值（数组/对象/string/null）
-    //           → 异步函数：__execResult = Promise（未 resolve）
-    //   Phase 2: 检测 __execResult 是否为 Promise
-    //           → 非 Promise → 直接 JSON.stringify → 得到严格 JSON 字符串（完成）
-    //           → 是 Promise → 返回哨兵 "__ASYNC__"，进入 Phase 3
-    //   Phase 3: 对 __execResult（Promise）附加 .then/.catch，
-    //           将 JSON 化结果存入 __execResultResolved；
-    //           .then() 本身返回新 Promise → evaluateAsync 拿到它 → handlePromise 等待
-    //           落地后读 __execResultResolved → 最终 JSON 字符串
+    // Phase 1: 执行函数，把返回值（或 Promise）存入全局变量 __execResult
+    // → 同步函数：__execResult = 实际值（数组/对象/string/null）
+    // → 异步函数：__execResult = Promise（未 resolve）
+    // Phase 2: 检测 __execResult 是否为 Promise
+    // → 非 Promise → 直接 JSON.stringify → 得到严格 JSON 字符串（完成）
+    // → 是 Promise → 返回哨兵 "__ASYNC__"，进入 Phase 3
+    // Phase 3: 对 __execResult（Promise）附加 .then/.catch，
+    // 将 JSON 化结果存入 __execResultResolved；
+    // .then() 本身返回新 Promise → evaluateAsync 拿到它 → handlePromise 等待
+    // 落地后读 __execResultResolved → 最终 JSON 字符串
     //
     // 关键优势：
-    //   - 同步函数完全不碰 Promise / handlePromise（恢复 v1 的正常路径）
-    //   - 异步函数通过 .then() + handlePromise 专门通道获取结果
-    //   - 不修改任何源 JSON（纯引擎层修复）
+    // - 同步函数完全不碰 Promise / handlePromise（恢复 v1 的正常路径）
+    // - 异步函数通过 .then() + handlePromise 专门通道获取结果
+    // - 不修改任何源 JSON（纯引擎层修复）
 
     // ── Phase 1: 执行函数并存储原始返回值 ──
     final phase1 = '(function(){'
@@ -720,22 +720,22 @@ class FlutterJsEngine implements JsEngine {
       // ══════════════════════════════════════════════════════════
       //
       // 已确认事实（2026-07-19T19:31 日志铁证）：
-      //   1. Phase2 正确检测到 "__ASYNC__"（哨兵修复生效 ✅）
-      //   2. Phase3 进入后，evaluateAsync('__execResult.then(...)') 的
-      //      isPromise=false → handlePromise 无法使用
-      //   3. 轮询 __execResultResolved 8 秒全空 → .then() 回调从未触发
-      //   4. 根因：QuickJS/flutter_js 的微任务队列不在跨 evaluateAsync
-      //      调用间自动传播；_onMessage 中的 __resolveBridge 虽然执行了
-      //      （parseChapters 的 http.getJson 消息已发出），但 .then() 链
-      //      不在后续 evaluateAsync 中被泵动
+      // 1. Phase2 正确检测到 "__ASYNC__"（哨兵修复生效 ✅）
+      // 2. Phase3 进入后，evaluateAsync('__execResult.then(...)') 的
+      // isPromise=false → handlePromise 无法使用
+      // 3. 轮询 __execResultResolved 8 秒全空 → .then() 回调从未触发
+      // 4. 根因：QuickJS/flutter_js 的微任务队列不在跨 evaluateAsync
+      // 调用间自动传播；_onMessage 中的 __resolveBridge 虽然执行了
+      // （parseChapters 的 http.getJson 消息已发出），但 .then() 链
+      // 不在后续 evaluateAsync 中被泵动
       //
       // 本版本采用三策略逐级降级：
-      //   Strategy A: 直接对 __execResult 引用尝试 handlePromise
-      //              （变量引用可能携带 Promise 标记）
-      //   Strategy B: 用 async IIFE 重跑函数 + handlePromise
-      //              （已确认是 async 函数，不会误伤同步路径）
-      //   Strategy C: .then() 写全局 + _onMessage 微任务泵 + 轮询
-      //              （最后手段，依赖泵动机制）
+      // Strategy A: 直接对 __execResult 引用尝试 handlePromise
+      // （变量引用可能携带 Promise 标记）
+      // Strategy B: 用 async IIFE 重跑函数 + handlePromise
+      // （已确认是 async 函数，不会误伤同步路径）
+      // Strategy C: .then() 写全局 + _onMessage 微任务泵 + 轮询
+      // （最后手段，依赖泵动机制）
       debugPrint('[JsContext] Phase3: 检测到异步函数，启动多策略解析');
       ParseDiagnostics.log(sid ?? '', '⚠️ 异步脚本(Promise), 进入Phase3');
 
@@ -914,7 +914,7 @@ class DartJsHostBridge implements JsHostBridge {
   EffectiveNetworkProfile get _net =>
       NetworkConfigService.instance.effectiveFor(source);
 
-  /// 反盗链指定 UA（C1）：golden 源 pms_fsdm / pms_cycani 等通过
+  /// 反盗链指定 UA：部分源通过
   /// `antiHotlinking.userAgent` 要求携带特定 UA 才能绕开防盗链。
   /// 注入到请求头后会覆盖 HttpFetcher 默认指纹 UA（extra 在 _mergeHeaders
   /// 末尾展开，优先级最高）。
@@ -1205,7 +1205,7 @@ class DartJsHostBridge implements JsHostBridge {
 typedef JsEngineFactory = JsEngine Function(PluginConfig source);
 
 /// 默认引擎工厂：生产环境使用 quickjs。
-/// 注入 context.baseUrl 为当前激活镜像地址（P8.2.2 §廿二）。
+/// 注入 context.baseUrl 为当前激活镜像地址。
 JsEngine defaultEngineFactory(PluginConfig source) =>
     FlutterJsEngine(DartJsHostBridge(source),
         baseUrl: ConfigLoader.instance.getActiveMirror(source));

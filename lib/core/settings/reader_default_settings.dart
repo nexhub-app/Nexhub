@@ -160,11 +160,11 @@ class ReaderDefaultSettings {
   /// 仅对 webtoon（条漫）连续模式生效。
   final bool comicShowChapterSeparator;
 
-  /// 漫画：是否显示章节导航滑块（REQ-C10，阅读器左缘的竖向章节拖动条）。
+  /// 漫画：是否显示章节导航滑块（阅读器左缘的竖向章节拖动条）。
   /// 仅多章节作品显示；关闭后阅读器不再显示该滑块。
   final bool comicShowChapterSlider;
 
-  /// 漫画：条漫解码限幅（P3 资源/内存）：连续模式解码位图下采样，
+  /// 漫画：条漫解码限幅（资源/内存）：连续模式解码位图下采样，
   /// 限制长条漫原图的全尺寸解码内存。此前只有阅读器弹窗可配，补全局默认。
   final bool comicWebtoonLimitDecodeSize;
 
@@ -177,16 +177,16 @@ class ReaderDefaultSettings {
   /// 漫画：音量键在 webtoon（条漫）模式下的竖向滚动步长（占视口高度百分比），范围 10–100，默认 40。
   final int comicVolumeKeyPageTurnDistancePercent;
 
-  /// 漫画：长按缩放开关（REQ-B2）：开启后长按图片进入 1.75x 缩放；关闭时保持长按弹菜单。
+  /// 漫画：长按缩放开关：开启后长按图片进入 1.75x 缩放；关闭时保持长按弹菜单。
   final bool comicEnableLongPressToZoom;
 
-  /// 漫画：长按缩放锚点（REQ-B2）：[press]=按触点，[center]=按屏幕中心。
+  /// 漫画：长按缩放锚点：[press]=按触点，[center]=按屏幕中心。
   final LongPressZoomPosition comicLongPressZoomPosition;
 
-  /// 漫画：双击 / 长按缩放锚点来源（REQ-B11）：left / center / right。
+  /// 漫画：双击 / 长按缩放锚点来源：left / center / right。
   final ZoomStart comicZoomStart;
 
-  /// 漫画：自动翻页开关（REQ-B9）。与 [comicAutoPageTurningInterval] 分开存储：
+  /// 漫画：自动翻页开关。与 [comicAutoPageTurningInterval] 分开存储：
   /// 关闭开关不清零间隔，重新开启时恢复上次设置的间隔。
   final bool comicAutoPageTurningEnabled;
 
@@ -197,53 +197,53 @@ class ReaderDefaultSettings {
   /// 漫画：自动滚动开关（webtoon 平滑自动滚动，速度随 [comicReaderScrollSpeed]）。
   final bool comicAutoScroll;
 
-  /// 漫画：paged 翻页过渡动画（REQ-B7）：none=瞬切 / slide=滑入 / fade=淡入淡出。
+  /// 漫画：paged 翻页过渡动画：none=瞬切 / slide=滑入 / fade=淡入淡出。
   final ReaderPageAnimation comicPageAnimation;
 
-  /// 漫画：双击缩放动画时长（毫秒，REQ-B7），默认 500。
+  /// 漫画：双击缩放动画时长（毫秒），默认 500。
   final int comicDoubleTapAnimSpeed;
 
-  /// 漫画：webtoon 相邻页间距（像素，REQ-C14），范围 0–50，默认 0。
+  /// 漫画：webtoon 相邻页间距（像素），范围 0–50，默认 0。
   final int comicReaderPageSpacing;
 
-  /// 漫画：首屏单图（REQ-C13）：双页模式第一章第一页单独显示。
+  /// 漫画：首屏单图：双页模式第一章第一页单独显示。
   final bool comicShowSingleImageOnFirstPage;
 
-  /// 漫画：时间/电量浮层（REQ-C5）。
+  /// 漫画：时间/电量浮层。
   final bool comicShowClockBattery;
   final ClockBatteryPosition comicClockBatteryPosition;
   final double comicClockBatteryMargin;
   final double comicClockBatteryOpacity;
   final double comicClockBatteryFontSize;
 
-  /// 漫画：系统亮度（REQ-C3）：-1.0~1.0，0=不干预；正值写系统、负值遮罩。
+  /// 漫画：系统亮度：-1.0~1.0，0=不干预；正值写系统、负值遮罩。
   final double comicReaderBrightness;
 
-  /// 漫画：夜览暖色盖层（REQ-C3 亮度双轨扩展）：独立开关 + 暖色不透明度（0.1–0.85）。
+  /// 漫画：夜览暖色盖层（亮度双轨扩展）：独立开关 + 暖色不透明度（0.1–0.85）。
   final bool comicNightLightEnabled;
   final double comicNightLightOpacity;
 
-  /// 漫画：图片色彩配置预设（L3 ICC 校色近似）。
+  /// 漫画：图片色彩配置预设（ICC 校色近似）。
   final ReaderColorProfile comicColorProfile;
 
-  /// 漫画：E-Ink 刷新（L3）：墨水屏防残影，按翻页间隔自动全屏闪烁。
+  /// 漫画：E-Ink 刷新：墨水屏防残影，按翻页间隔自动全屏闪烁。
   final bool comicEinkRefreshEnabled;
   final int comicEinkRefreshInterval;
   final int comicEinkRefreshDuration;
   final ReaderEInkRefreshStyle comicEinkRefreshStyle;
 
-  /// 漫画：自动收藏（L3 漫画）：打开作品即加入收藏。
+  /// 漫画：自动收藏（漫画）：打开作品即加入收藏。
   final bool comicIsAutoFavorite;
 
-  /// 漫画：阅读中自动下载后续章节（REQ-C7）。
+  /// 漫画：阅读中自动下载后续章节。
   final bool comicAutoDownloadChapters;
 
-  /// 漫画：跳章过滤（REQ-C11）。
+  /// 漫画：跳章过滤。
   final bool comicSkipReadChapters;
   final bool comicSkipFilteredChapters;
   final bool comicSkipDuplicateChapters;
 
-  /// 漫画：每屏多图 gallery（REQ-C4）：竖/横屏一屏堆叠张数，1–5，默认 1。
+  /// 漫画：每屏多图 gallery：竖/横屏一屏堆叠张数，1–5，默认 1。
   final int comicReaderScreenPicNumberForPortrait;
   final int comicReaderScreenPicNumberForLandscape;
 
@@ -270,7 +270,7 @@ class ReaderDefaultSettings {
   final String novelTapZoneLayout;
   final int novelAutoPageInterval;
 
-  /// 小说自动翻页平滑模式（O5，映射到 NovelReaderPreferences.autoPageSmooth）。
+  /// 小说自动翻页平滑模式（映射到 NovelReaderPreferences.autoPageSmooth）。
   final bool novelAutoPageSmooth;
 
   /// 小说音量键翻页（仅 Android 生效；映射到
@@ -283,7 +283,7 @@ class ReaderDefaultSettings {
   final double novelShadowOffsetY;
   final int? novelUnderlineColor;
   final bool novelUnderlineDashed;
-  /// 小说：A7 双页模式（翻页模式宽屏左右并排两页）。
+  /// 小说： 双页模式（翻页模式宽屏左右并排两页）。
   final bool novelTwoPageMode;
   final double novelUnderlineThickness;
   final double novelUnderlineDashLength;
@@ -315,7 +315,7 @@ class ReaderDefaultSettings {
   /// 小说：鼠标滚轮翻页方向反转（仅翻页模式生效；滚动模式由底层滚动接管）。
   final bool novelScrollWheelInverted;
 
-  // ── 小说补充 v3（排版增强，与 NovelReaderPreferences #10 对齐）──
+  // ── 小说补充 v3（排版增强，与 NovelReaderPreferences 对齐）──
   /// 加粗字重滑块（100–900，仅加粗开启时生效）。
   final int novelFontWeightValue;
 
@@ -484,12 +484,12 @@ class ReaderDefaultSettings {
     this.novelTtsBackground = false,
     this.novelTtsSleepTimer = 0,
     this.novelScrollWheelInverted = false,
-    //  排版增强
+    // 排版增强
     this.novelFontWeightValue = 700,
     this.novelTextAlignMode = 'start',
     this.novelLineBreakMode = 'standard',
     this.novelUnderlineStyle = 'solid',
-    //  滚动模式图文增强
+    // 滚动模式图文增强
     this.novelScrollImageMode = 'banner',
     this.novelScrollImageAlign = 'center',
     this.comicFilterBrightness = 0.0,
@@ -625,12 +625,12 @@ class ReaderDefaultSettings {
     bool? novelTtsBackground,
     int? novelTtsSleepTimer,
     bool? novelScrollWheelInverted,
-    //  排版增强
+    // 排版增强
     int? novelFontWeightValue,
     String? novelTextAlignMode,
     String? novelLineBreakMode,
     String? novelUnderlineStyle,
-    //  滚动模式图文增强
+    // 滚动模式图文增强
     String? novelScrollImageMode,
     String? novelScrollImageAlign,
     double? comicFilterBrightness,
@@ -830,12 +830,12 @@ class ReaderDefaultSettings {
         novelTtsSleepTimer: novelTtsSleepTimer ?? this.novelTtsSleepTimer,
         novelScrollWheelInverted:
             novelScrollWheelInverted ?? this.novelScrollWheelInverted,
-    //  排版增强
+    // 排版增强
     novelFontWeightValue: novelFontWeightValue ?? this.novelFontWeightValue,
     novelTextAlignMode: novelTextAlignMode ?? this.novelTextAlignMode,
     novelLineBreakMode: novelLineBreakMode ?? this.novelLineBreakMode,
     novelUnderlineStyle: novelUnderlineStyle ?? this.novelUnderlineStyle,
-    //  滚动模式图文增强
+    // 滚动模式图文增强
     novelScrollImageMode:
         novelScrollImageMode ?? this.novelScrollImageMode,
     novelScrollImageAlign:
@@ -985,13 +985,13 @@ class ReaderDefaultSettings {
         'novelTtsBackground': novelTtsBackground,
         'novelTtsSleepTimer': novelTtsSleepTimer,
         'novelScrollWheelInverted': novelScrollWheelInverted,
-        //  排版增强
-        //  排版增强
+        // 排版增强
+        // 排版增强
         'novelFontWeightValue': novelFontWeightValue,
         'novelTextAlignMode': novelTextAlignMode,
         'novelLineBreakMode': novelLineBreakMode,
         'novelUnderlineStyle': novelUnderlineStyle,
-        //  滚动模式图文增强
+        // 滚动模式图文增强
         'novelScrollImageMode': novelScrollImageMode,
         'novelScrollImageAlign': novelScrollImageAlign,
         'comicFilterBrightness': comicFilterBrightness,
@@ -1306,7 +1306,7 @@ class ReaderDefaultSettings {
           (json['novelTtsSleepTimer'] as num?)?.toInt() ?? 0,
       novelScrollWheelInverted:
           json['novelScrollWheelInverted'] as bool? ?? false,
-      //  排版增强
+      // 排版增强
       novelFontWeightValue:
           ((json['novelFontWeightValue'] as num?)?.toInt() ?? 700)
               .clamp(100, 900),
@@ -1316,7 +1316,7 @@ class ReaderDefaultSettings {
           json['novelLineBreakMode'] as String? ?? 'standard',
       novelUnderlineStyle:
           json['novelUnderlineStyle'] as String? ?? 'solid',
-      //  滚动模式图文增强
+      // 滚动模式图文增强
       novelScrollImageMode:
           json['novelScrollImageMode'] as String? ?? 'banner',
       novelScrollImageAlign:
@@ -1534,7 +1534,7 @@ class ReaderDefaultSettings {
       ttsBackground: novelTtsBackground,
       ttsSleepTimer: novelTtsSleepTimer,
       scrollWheelInverted: novelScrollWheelInverted,
-      //  排版增强
+      // 排版增强
       fontWeightValue: novelFontWeightValue,
       textAlignMode: NovelTextAlignMode.values.firstWhere(
         (e) => e.name == novelTextAlignMode,
@@ -1548,7 +1548,7 @@ class ReaderDefaultSettings {
         (e) => e.name == novelUnderlineStyle,
         orElse: () => NovelUnderlineStyle.solid,
       ),
-      //  滚动模式图文增强
+      // 滚动模式图文增强
       scrollImageMode: NovelScrollImageMode.values.firstWhere(
         (e) => e.name == novelScrollImageMode,
         orElse: () => NovelScrollImageMode.banner,

@@ -6,11 +6,11 @@
 ///
 /// 解析优先级（对齐播放器 `_resolveVideoWithCapture`）：
 /// 1. 直连解析快路径 [MediaApiService.fetchVideoUrl]：多数源直接拿到直链 / m3u8，
-///    不加载 WebView，最快；
+/// 不加载 WebView，最快；
 /// 2. 若快路径抛出 [WebViewExtractionRequest]（jsExtractor）/ [WebViewHtmlRequest]
-///    （渲染后抽取）→ 拉起一个无界面 WebView 处理；抽取脚本返回
-///    `webview:<url>` 重定向指令时（MacCMS 加密源需跳中转域解密）跟随跳转
-///    并重跑脚本，与播放器验证页同策略；
+/// （渲染后抽取）→ 拉起一个无界面 WebView 处理；抽取脚本返回
+/// `webview:<url>` 重定向指令时（MacCMS 加密源需跳中转域解密）跟随跳转
+/// 并重跑脚本，与播放器验证页同策略；
 /// 3. 若快路径返回非媒体地址 / 抛其它异常 → 通用嗅探兜底（加载播放页捕获真实直链）。
 library;
 

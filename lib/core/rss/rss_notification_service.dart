@@ -1,4 +1,4 @@
-/// RSS 更新系统通知（OS 通知，P2-3）。
+/// RSS 更新系统通知（OS 通知，-3）。
 ///
 /// 封装 `flutter_local_notifications`：在支持的平台（Android / iOS / Linux / macOS）
 /// 上发送 RSS 更新 OS 通知；**平台降级**——Web 与 Windows 无官方后端，跳过 OS 通知、

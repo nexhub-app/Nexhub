@@ -95,7 +95,7 @@ class _SeasonDetailScreenState extends State<SeasonDetailScreen> {
     _load();
   }
 
-  /// 渲染后抽取完成后回填 HTML 并重试抓取（xgcartoon 等 webview-html 源）。
+  /// 渲染后抽取完成后回填 HTML 并重试抓取（部分 webview-html 源）。
   Future<void> _retryAfterHtmlCapture(String html) async {
     if (!mounted) return;
     setState(() {

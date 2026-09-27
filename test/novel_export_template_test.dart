@@ -11,7 +11,7 @@ import 'package:nexhub/core/services/novel_export_upload_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  group('F4 EpubBuilder 自定义模板', () {
+  group('EpubBuilder 自定义模板', () {
     final chapters = <EpubChapter>[
       const EpubChapter(title: '第一章', content: '<p>正文一</p>'),
       const EpubChapter(title: '第二章', content: '<p>正文二</p>'),
@@ -70,7 +70,7 @@ void main() {
     });
   });
 
-  group('F4 模板模型 / 简介渲染', () {
+  group('模板模型 / 简介渲染', () {
     test('renderIntroHtml 替换占位符、空行分段并转义', () {
       final html = NovelDownloadHandler.renderIntroHtml(
         '{book}\n\n作者：{author}\n\n<b>不是标签</b>',
@@ -107,7 +107,7 @@ void main() {
     });
   });
 
-  group('F6 云同步配置 autoUploadNovelExports', () {
+  group('云同步配置 autoUploadNovelExports', () {
     test('默认关闭，JSON 往返保持', () {
       const cfg = CloudSyncConfig();
       expect(cfg.autoUploadNovelExports, isFalse);
@@ -120,7 +120,7 @@ void main() {
     });
   });
 
-  group('F6 上传服务远端路径', () {
+  group('上传服务远端路径', () {
     test('remoteNameFor 取 basename 并替换非法字符', () {
       final service = NovelExportUploadService();
       expect(service.remoteNameFor('/a/b/书名:卷一.epub'),

@@ -6,9 +6,9 @@ import '../utils/app_haptics.dart';
 ///
 /// 设计语言（与底部导航栏保持一致）：
 /// - 弹簧回弹用 [AppCurves.spring]（比 [Curves.easeOutBack] 过冲更明显、更活泼），
-///   平滑滑动用 [AppCurves.smooth]（末段更缓、更顺滑）。
+/// 平滑滑动用 [AppCurves.smooth]（末段更缓、更顺滑）。
 /// - 时长走 [AppTokens.durFast] (150ms) / [AppTokens.durBase] (250ms) /
-///   [AppTokens.durSpring] (420ms，给弹簧回落留时间)。
+/// [AppTokens.durSpring] (420ms，给弹簧回落留时间)。
 /// - 入场：淡入 + 上滑 + 轻微放大弹入，支持按 key「只播一次」避免滚动重播。
 ///
 /// 用法：

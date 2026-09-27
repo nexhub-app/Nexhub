@@ -6,9 +6,9 @@ import 'package:flutter/services.dart';
 /// floating 包只提供进出 PiP、不支持窗口动作，故应用原生侧（MainActivity）扩展了
 /// 独立通道：
 /// - MethodChannel `nexhub/pip`：[setActions] 把「播放/暂停、弹幕、快进」动作列表
-///   下发到原生，原生构建 RemoteAction 并刷新 [android.app.PictureInPictureParams]；
+/// 下发到原生，原生构建 RemoteAction 并刷新 [android.app.PictureInPictureParams]；
 /// - EventChannel `nexhub/pip_events`：[actionStream] 接收原生回传的动作点击
-///   （形如 `action:play_pause`）。
+/// （形如 `action:play_pause`）。
 ///
 /// 其他平台（iOS / 桌面 / Web）无原生实现，所有调用安全降级为 no-op，不影响
 /// PiP 基础进出（该能力仅 Android 有）。

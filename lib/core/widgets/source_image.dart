@@ -32,7 +32,7 @@ class SourceImage extends StatelessWidget {
   final Widget? errorWidget;
   final bool enableRetry;
 
-  /// 解码位图宽上限（像素，P3 资源/内存）：非 null 时按比例下采样解码
+  /// 解码位图宽上限（像素， 资源/内存）：非 null 时按比例下采样解码
   /// （`ResizeImage` 语义，不放大小图）。条漫连续模式传入
   /// `min(2560, 屏幕物理像素 × 2)` 以限制长条漫的解码内存；null = 不限幅。
   final int? decodeCapWidthPx;
@@ -50,7 +50,7 @@ class SourceImage extends StatelessWidget {
 
   /// 图片自然尺寸回调（一次）：解码完成后回传原始像素宽高。
   /// 条漫阅读器借此缓存「真实图片高度」，未加载项也能用真实高度估算占位
-  /// （L3 体验项：占位高 / 纵向平移夹取均基于真实高度，经验值仅兜底）。
+  /// （体验项：占位高 / 纵向平移夹取均基于真实高度，经验值仅兜底）。
   final void Function(double width, double height)? onImageInfo;
 
   const SourceImage({
@@ -83,7 +83,7 @@ class SourceImage extends StatelessWidget {
     final ahHeaders = ah?.headers;
     final siteHeaders = site?.headers;
     final referer = ah?.referer;
-    // UA 兜底：部分 CDN（如 baozimh 家族 6wm.top）无 UA 直接 403，而部分源
+    // UA 兜底：部分 CDN（如某源家族 CDN 域）无 UA 直接 403，而部分源
     // 的 site.userAgent 未配置。此时回退到 HttpFetcher 的浏览器 UA，保证
     // 图片请求与页面/API 请求的指纹一致（不写死任何站点）。
     final String? siteUa = site?.userAgent;
@@ -520,7 +520,7 @@ class _LocalFileImageState extends State<_LocalFileImage> {
           stream.removeListener(listener!),
     );
     stream.addListener(listener!);
-    // 解码限幅（P3）：非 null 时用 ResizeImage 按比例下采样解码位图
+    // 解码限幅：非 null 时用 ResizeImage 按比例下采样解码位图
     // （不放大小图），限制长条漫原图的全尺寸解码内存。
     final ImageProvider provider = widget.decodeCapWidthPx == null
         ? FileImage(widget.file)
@@ -551,7 +551,7 @@ class _LocalFileImageState extends State<_LocalFileImage> {
 /// 为什么需要它：本地图片有两种来源——
 /// - 真实文件路径（桌面 / 非 SAF）：[Image.file] 直接可读；
 /// - Android SAF content://（或下载编码 `<treeUri>␟<rel>`）：[Image.file] 读不了，
-///   必须先经 [resolveSafUri] 落到应用私有缓存。
+/// 必须先经 [resolveSafUri] 落到应用私有缓存。
 ///
 /// 此前 [gatherSafImages] 在「打开漫画」时把整本图片逐张拷贝到缓存，图片多则卡
 /// 1~2s。改为**此处逐张懒解析**：只有真正要显示的图片（阅读器当前可见的几张）才

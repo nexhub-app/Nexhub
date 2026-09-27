@@ -178,7 +178,7 @@ extension _VideoCastPip on _VideoPlayerScreenState {
         }
         return;
       }
-      //  条件进入：投屏中 / 媒体未就绪时不进入（canEnterPiP 守卫）。
+      // 条件进入：投屏中 / 媒体未就绪时不进入（canEnterPiP 守卫）。
       if (_isCasting) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -197,7 +197,7 @@ extension _VideoCastPip on _VideoPlayerScreenState {
         }
         return;
       }
-      //  窗口三动作（播放/暂停、快退 10s、快进 30s）：进入前下发动作列表。
+      // 窗口三动作（播放/暂停、快退 10s、快进 30s）：进入前下发动作列表。
       await _configurePipActions(l10n);
       _pipActionSub ??=
           PipActionsBridge.instance.actionStream.listen(_onPipEvent);
@@ -473,7 +473,7 @@ extension _VideoCastPip on _VideoPlayerScreenState {
   /// PiP 事件统一处理（+ ）：
   /// - `action:<id>`：PiP 窗口动作按钮点击（播放/暂停、快退、快进）；
   /// - `pip:enabled` / `pip:disabled`：进出 PiP 的生命周期事件（原生
-  ///   onPictureInPictureModeChanged 推送，替代 floating 的 10ms 轮询流）。
+  /// onPictureInPictureModeChanged 推送，替代 floating 的 10ms 轮询流）。
   void _onPipEvent(String event) {
     if (_disposed || !mounted || !_controllerCreated) return;
     switch (event) {

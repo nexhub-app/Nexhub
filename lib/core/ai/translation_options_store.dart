@@ -1,9 +1,9 @@
-/// 翻译链路可选偏好存储（F8 风格预设 / CoT 开关 / F10 导出排版）。
+/// 翻译链路可选偏好存储（风格预设 / CoT 开关 / 导出排版）。
 ///
 /// - **风格预设**：全局存 SharedPreferences；作品级覆盖存 Hive box
-///   `translation_style_overrides`（键 novelId）——作品级优先于全局；
+/// `translation_style_overrides`（键 novelId）——作品级优先于全局；
 /// - **思维链（CoT）**：全局开关，默认关闭（控成本；仅低批量场景收益明显）；
-/// - **小说导出排版**（F10）：译文优先 / 原文优先 / 双语对照。
+/// - **小说导出排版**：译文优先 / 原文优先 / 双语对照。
 library;
 
 import 'package:hive/hive.dart';
@@ -25,7 +25,7 @@ class TranslationOptionsStore {
 
   Box<dynamic>? _styleBox;
 
-  // ─────────────────── 风格预设（F8）───────────────────
+  // ─────────────────── 风格预设───────────────────
 
   /// 全局风格预设（默认标准）。
   Future<TranslationStyle> getStyle() async {
@@ -74,7 +74,7 @@ class TranslationOptionsStore {
     return _styleBox!;
   }
 
-  // ─────────────────── 思维链（F8）───────────────────
+  // ─────────────────── 思维链───────────────────
 
   /// CoT 开关（默认关闭）。
   Future<bool> getCotEnabled() async {
@@ -87,7 +87,7 @@ class TranslationOptionsStore {
     await p.setString(_kCot, v ? '1' : '0');
   }
 
-  // ─────────────────── 字幕轻量格式（F8）───────────────────
+  // ─────────────────── 字幕轻量格式───────────────────
 
   /// 字幕逐句轻量输出（默认开启：省 token，解析失败自动回退编号协议）。
   Future<bool> getSubtitleLightweight() async {
@@ -100,7 +100,7 @@ class TranslationOptionsStore {
     await p.setString(_kSubtitleLightweight, v ? '1' : '0');
   }
 
-  // ─────────────────── 润色（F5）───────────────────
+  // ─────────────────── 润色───────────────────
 
   /// 翻译润色功能开关（默认关闭：润色会使目标章节产生一次额外请求）。
   Future<bool> getPolishEnabled() async {
@@ -113,7 +113,7 @@ class TranslationOptionsStore {
     await p.setString(_kPolish, v ? '1' : '0');
   }
 
-  // ─────────────────── 小说导出排版（F10）───────────────────
+  // ─────────────────── 小说导出排版───────────────────
 
   /// 小说译文附录排版：translationFirst=译文优先（现状），
   /// sourceFirst=原文优先，bilingual=双语对照。

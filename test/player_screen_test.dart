@@ -1,10 +1,10 @@
-// P9.1.7 player_screen_test：稳定 Key、连播/收藏回调。
+// player_screen_test：稳定 Key、连播/收藏回调。
 //
 // 完整 widget pump 受阻于 media_kit 原生依赖（Player() 构造需 libmpv），
 // 测试环境不可用。故拆分为可独立验证的单元：
 // 1. 收藏回调逻辑（FavoritesManager 集成）—— 播放器 _toggleFavorite 调用的同一 API
-// 2. 重新收藏保留 favoritedAt（P8.1.3 _removedFavoriteCache）
-// 3. updateLastRead 写入 lastRead 时间戳（P8.1.3）
+// 2. 重新收藏保留 favoritedAt（_removedFavoriteCache）
+// 3. updateLastRead 写入 lastRead 时间戳
 // 4. autoPlayNext 默认值 true（PlayerController.autoPlayNext 字段，源码层验证）
 // 5. 稳定 Key 常量存在于源码（引用 VideoPlayerScreen 类确保编译期存在）
 // 6. 播放统计 PlayerStats 解析与花屏自动降级纯函数（无需构造 Player）
@@ -23,7 +23,7 @@ import 'package:nexhub/core/player/player_controller.dart';
 import 'package:nexhub/features/player/presentation/video_player_screen.dart';
 
 void main() {
-  group('P9.1.7 player_screen', () {
+  group('player_screen', () {
     group('favorite callback (FavoritesManager integration)', () {
       late InMemoryBackend backend;
       late FavoritesManager favorites;
@@ -54,7 +54,7 @@ void main() {
         expect(favorites.favoritesFor(SourceType.animeSource), isEmpty);
       });
 
-      test('re-favorite preserves favoritedAt (P8.1.3)', () async {
+      test('re-favorite preserves favoritedAt ()', () async {
         const item = MediaItem(
           id: 'anime_1',
           title: 'Test Anime',
@@ -80,7 +80,7 @@ void main() {
             reason: 're-favorite should preserve original favoritedAt');
       });
 
-      test('updateLastRead sets lastRead timestamp (P8.1.3)', () async {
+      test('updateLastRead sets lastRead timestamp ()', () async {
         const item = MediaItem(
           id: 'anime_1',
           title: 'Test Anime',
@@ -139,7 +139,7 @@ void main() {
       });
     });
 
-    group(' 横滑上滑取消 seek', () {
+    group('横滑上滑取消 seek', () {
       // 整屏 pump 受阻于 media_kit（见文件头注释），无法直接测播放器手势。
       // 拆成两层验证：
       // 1) 真实手势管线验证框架行为前提（delta.dy 恒为 0）；

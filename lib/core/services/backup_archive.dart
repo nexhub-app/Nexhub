@@ -8,11 +8,11 @@
 /// 本模块把归档逻辑统一为单一 bundle 结构：
 /// ```json
 /// {
-///   "format": "nexhub-backup",
-///   "version": 1,
-///   "createdAt": 1700000000000,
-///   "boxes": { "<boxName>": { "<key>": <value>, ... }, ... },
-///   "preferences": { "<prefKey>": <value>, ... }   // 仅当选中「设置与偏好」
+/// "format": "nexhub-backup",
+/// "version": 1,
+/// "createdAt": 1700000000000,
+/// "boxes": { "<boxName>": { "<key>": <value>, ... }, ... },
+/// "preferences": { "<prefKey>": <value>, ... } // 仅当选中「设置与偏好」
 /// }
 /// ```
 /// 本地导出保存为单个 JSON 文件；云同步在 [CloudSyncService] 中把它再压成 ZIP。
@@ -240,15 +240,15 @@ Future<Map<String, Map<String, dynamic>>> _collectPrefsByCategory(
 /// bundle 结构：
 /// ```json
 /// {
-///   "format": "nexhub-backup",
-///   "version": 1,
-///   "createdAt": ...,
-///   "boxes": { "<boxName>": { ... }, ... },
-///   "preferences": { ... },              // 仅 settings 分类
-///   "prefs_by_category": {                // 每分类下的额外 prefs 键
-///     "<category>": { "<prefKey>": <value>, ... },
-///     ...
-///   }
+/// "format": "nexhub-backup",
+/// "version": 1,
+/// "createdAt": ...,
+/// "boxes": { "<boxName>": { ... }, ... },
+/// "preferences": { ... }, // 仅 settings 分类
+/// "prefs_by_category": { // 每分类下的额外 prefs 键
+/// "<category>": { "<prefKey>": <value>, ... },
+/// ...
+/// }
 /// }
 /// ```
 Future<Map<String, dynamic>> buildBackupBundle({

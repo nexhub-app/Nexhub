@@ -1,11 +1,11 @@
 /// HTML / CSS selector + XPath engine utilities.
 ///
 /// Shared by BuiltinResolver and js_context. XPath is powered by
-/// `xpath_selector_html_parser` and supports the full V2 spec function set:
+/// `xpath_selector_html_parser` and supports the full spec function set:
 /// `//tag`, `//tag[@attr]`, `//tag[@attr='v']`, `//tag[contains(@attr,'v')]`,
 /// `//tag/@attr`, `//tag/text()`, `following-sibling::tag`,
 /// top-level `substring-before(...)` / `substring-after(...)` and their
-/// nested combinations (e.g. pms_fsdm `id` selector).
+/// nested combinations (e.g. some sources' `id` selector).
 library;
 
 import 'package:html/dom.dart';

@@ -5,12 +5,12 @@ import 'app_tokens.dart';
 ///
 /// - `useMaterial3: true`。
 /// - 默认主色为蓝青（[AppTokens.seedYouthfulPrimary]，#0EA5E9）；[AppTokens.seedLightBlue] 仅作可选预设，
-///   可通过 `scheme` 注入莫奈动态色或自定义 seed 生成的 ColorScheme。
+/// 可通过 `scheme` 注入莫奈动态色或自定义 seed 生成的 ColorScheme。
 /// - `app.dart` 中：`theme: AppTheme.light()`、`darkTheme: AppTheme.dark()`，
-///   并删除任何内联 `ThemeData(colorSchemeSeed: ...)`。
+/// 并删除任何内联 `ThemeData(colorSchemeSeed: ...)`。
 /// 全局页面切换转场：无动画瞬间切换。
 ///
-/// 历史：先后尝试「滑入+回弹缩放」与「M3 fade-through 干净淡入」，
+/// 历史：先后尝试「滑入+回弹缩放」与「 fade-through 干净淡入」，
 /// 用户均认为拖沓/难看，最终明确选择「干脆不要转场」（2026-07-25）。
 /// 直接返回 child = 零动画瞬切，最快最干脆。
 /// 注意：若未来恢复带透明度的转场，exitFade 必须是 1→0 的反向映射
@@ -53,10 +53,10 @@ class AppTheme {
   /// 浅色主题。
   ///
   /// - 传入 [scheme]（莫奈系统动态色）时直接使用（系统动态色本身即
-  ///   tonalSpot 算法的结果）；此时 [variant] / [contrastLevel] 不参与。
+  /// tonalSpot 算法的结果）；此时 [variant] / [contrastLevel] 不参与。
   /// - 否则用 [seed]（缺省青春蓝）经 `ColorScheme.fromSeed` 生成，
-  ///   [variant] 为调色板风格变体（[PaletteStyle.variant]），
-  ///   [contrastLevel] 对应 Android 14+ 的无障碍对比度档位（预留，默认 0）。
+  /// [variant] 为调色板风格变体（[PaletteStyle.variant]），
+  /// [contrastLevel] 对应 Android 14+ 的无障碍对比度档位（预留，默认 0）。
   static ThemeData light({
     ColorScheme? scheme,
     Color? seed,
@@ -117,7 +117,7 @@ class AppTheme {
 
   /// 统一文本主题：比 Material 3 默认字号整体偏小（约 -10%），
   /// 行高针对中文阅读优化（正文 ≥1.5），字重用 3 档（w400/w500/w600）
-  /// 建立清晰层次，减少 M3 默认「字号偏大、行距松散」的 AI 感。
+  /// 建立清晰层次，减少 默认「字号偏大、行距松散」的 AI 感。
   ///
   /// 颜色取 [colorScheme] 角色：标题/正文用 [ColorScheme.onSurface]，
   /// 辅助档（bodySmall / labelMedium / labelSmall）用 [ColorScheme.onSurfaceVariant]，
@@ -320,7 +320,7 @@ class AppTheme {
         elevation: 0,
       ),
       // 底部列表弹层（showModalBottomSheet）：全局去阴影 + 圆角。
-      // M3 默认 modal 底部弹层带 elevation 1 的投影且仅在显式传 shape 时有
+      // 默认 modal 底部弹层带 elevation 1 的投影且仅在显式传 shape 时有
       // 圆角；未传 shape 的弹层靠 theme 兜底。clipBehavior 让 ListTile 等
       // 贴边内容裁剪进圆角内，避免方角溢出。
       bottomSheetTheme: const BottomSheetThemeData(
@@ -334,7 +334,7 @@ class AppTheme {
         clipBehavior: Clip.antiAlias,
       ),
       // 浮层菜单（PopupMenuButton 三点菜单等）：同列表弹窗设计语言，
-      // 去阴影 + 圆角（M3 默认 4dp 圆角 + elevation 3 投影）。
+      // 去阴影 + 圆角（默认 4dp 圆角 + elevation 3 投影）。
       popupMenuTheme: const PopupMenuThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(

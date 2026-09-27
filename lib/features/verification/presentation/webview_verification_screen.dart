@@ -1,4 +1,4 @@
-/// WebView 验证页面（文档 §6 验证流程）。
+/// WebView 验证页面（文档 验证流程）。
 ///
 /// 当 [VerificationRequiredException] 被捕获时，UI 层导航到此页面。
 /// 用户在浏览器中完成验证（Cloudflare / CAPTCHA / 滑块），返回后点击
@@ -7,7 +7,7 @@
 /// 在支持 WebView 的移动平台上可后续扩展为内嵌 WebView + Cookie 同步；
 /// 当前实现使用 [url_launcher] 打开系统浏览器作为通用回退方案。
 ///
-/// M2.4 增强：当传入 [WebViewExtractionRequest] 时切换为内嵌 [InAppWebView]
+/// 增强：当传入 [WebViewExtractionRequest] 时切换为内嵌 [InAppWebView]
 /// 模式，加载页面让用户完成验证，再点击「用此页抽取」按钮执行 [jsExtractor]
 /// 脚本抽取真实地址回传给调用方；抽取失败时回退到 [url_launcher] 手动流程。
 ///
@@ -83,7 +83,7 @@ class WebViewExtractionOutcome {
 /// WebView 验证页面。
 ///
 /// [verificationUrl] 是触发验证的 URL；[onRetry] 是验证完成后回调。
-/// [extractionRequest] 非空时启用 M2.4 内嵌抽取流程。
+/// [extractionRequest] 非空时启用 内嵌抽取流程。
 /// [htmlRequest] 非空时启用「渲染后抽取」流程（取回整页渲染 HTML）。
 class WebViewVerificationScreen extends StatefulWidget {
   final String verificationUrl;
@@ -164,7 +164,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
   /// 嗅探解析模式：是否已超时（切换底栏文案，并放开 blob 页内播放兜底）。
   bool _snifferTimedOut = false;
 
-  /// 是否启用 M2.4 内嵌抽取流程。
+  /// 是否启用 内嵌抽取流程。
   bool get _hasExtractionRequest => widget.extractionRequest != null;
 
   /// 是否启用「渲染后抽取」流程（取回整页渲染 HTML）。
@@ -272,7 +272,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
     }
   }
 
-  /// 打开内置浏览器完成验证（M3.1）。
+  /// 打开内置浏览器完成验证。
   ///
   /// 内置浏览器在「用此页完成验证」时会将最新 Cookie 同步到 [HttpFetcher]；
   /// 返回 `true` 时直接以 [VerificationResult.done] 结束，触发上层重试。
@@ -559,7 +559,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
     if (_hasHtmlRequest) {
       return _buildHtmlCaptureScaffold(context, l10n);
     }
-    // M2.4：有抽取请求时切换为内嵌 WebView 抽取视图。
+    // 有抽取请求时切换为内嵌 WebView 抽取视图。
     if (_hasExtractionRequest) {
       return _buildExtractionScaffold(context, l10n);
     }
@@ -691,7 +691,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
     );
   }
 
-  /// M2.4 内嵌抽取视图：InAppWebView 加载页面 + 底部「用此页抽取」操作栏。
+  /// 内嵌抽取视图：InAppWebView 加载页面 + 底部「用此页抽取」操作栏。
   Widget _buildExtractionScaffold(BuildContext context, AppLocalizations l10n) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return PopScope(
@@ -1274,7 +1274,7 @@ Future<bool> navigateToVerification(
   return used == true;
 }
 
-/// M2.4 便捷方法：导航到抽取页面并等待结果。
+/// 便捷方法：导航到抽取页面并等待结果。
 ///
 /// 调用方优先判断 [WebViewExtractionOutcome.hasExtractedUrl]：
 /// - 命中则直接使用 [WebViewExtractionOutcome.extractedUrl] 作为解析结果。

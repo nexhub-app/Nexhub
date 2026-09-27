@@ -87,7 +87,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
 
   bool _comicImporting = false;
 
-  // F9 备用端点（主接口故障时自动切换；留空 = 不启用）。
+  // 备用端点（主接口故障时自动切换；留空 = 不启用）。
   final _trBaseBakCtrl = TextEditingController();
   final _trKeyBakCtrl = TextEditingController();
   final _trModelBakCtrl = TextEditingController();
@@ -110,7 +110,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
   final _mediaModelCtrl = TextEditingController();
   final _mediaLangCtrl = TextEditingController();
 
-  // 翻译缓存（B5）：三个 box 的当前条数（清除后刷新）。
+  // 翻译缓存：三个 box 的当前条数（清除后刷新）。
   int _novelCacheCount = 0;
   int _comicCacheCount = 0;
   int _subtitleCacheCount = 0;
@@ -124,14 +124,14 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     _load();
   }
 
-  /// 刷新三个翻译缓存的条数展示（B5）。
+  /// 刷新三个翻译缓存的条数展示。
   void _refreshCacheCounts() {
     _novelCacheCount = NovelTranslationManager().count();
     _comicCacheCount = ComicTranslationManager().count();
     _subtitleCacheCount = SubtitleTranslationController().cacheCount();
   }
 
-  /// 一键清空三个翻译缓存（B5，二次确认后执行）。
+  /// 一键清空三个翻译缓存（二次确认后执行）。
   Future<void> _clearTranslationCaches(AppLocalizations l10n) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) return;
@@ -168,7 +168,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     }
   }
 
-  /// F10：导出全部漫画翻译缓存为 translations.json 并分享。
+  /// 导出全部漫画翻译缓存为 translations.json 并分享。
   Future<void> _exportComicTranslations(AppLocalizations l10n) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     try {
@@ -186,7 +186,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     }
   }
 
-  /// F10：导入漫画翻译缓存（合并：已存在键跳过；导入后命中缓存不再请求）。
+  /// 导入漫画翻译缓存（合并：已存在键跳过；导入后命中缓存不再请求）。
   Future<void> _importComicTranslations(AppLocalizations l10n) async {
     if (_comicImporting) return;
     final messenger = ScaffoldMessenger.maybeOf(context);
@@ -251,7 +251,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     final mKey = mediaCfg.apiKey == defaultCfg.apiKey ? '' : mediaCfg.apiKey;
     final mModel = mediaCfg.model == defaultCfg.model ? '' : mediaCfg.model;
     final mediaLang = await _settings.getMediaTranslationTargetLanguage();
-    // F9 备用端点回显（仅回显功能级备用；与主端点相同则留空）。
+    // 备用端点回显（仅回显功能级备用；与主端点相同则留空）。
     final trBak = await _settings.getTranslationBackupConfig();
     final comicBak = await _settings.getComicTranslationBackupConfig();
     final mediaBak = await _settings.getMediaTranslationBackupConfig();
@@ -397,7 +397,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       ));
       await _settings.saveMediaTranslationTargetLanguage(
           _mediaLangCtrl.text.trim());
-      // F9：备用端点（与主端点相同视为未启用 → 存空）。
+      // 备用端点（与主端点相同视为未启用 → 存空）。
       String orEmptyIfSame(String backup, String primary) =>
           backup.trim() == primary.trim() ? '' : backup.trim();
       await _settings.saveTranslationBackupConfig(NovelSummaryConfig(
@@ -575,7 +575,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                       ?.copyWith(color: Theme.of(context).colorScheme.outline),
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
-                // F8：翻译风格预设（三个模块共用）。
+                // 翻译风格预设（三个模块共用）。
                 SettingsChoiceChips<TranslationStyle>(
                   title: l10n.translationStyle,
                   selected: _trStyle,
@@ -599,14 +599,14 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                     ),
                   ],
                 ),
-                // F8：思维链（CoT）开关——默认关闭控成本。
+                // 思维链（CoT）开关——默认关闭控成本。
                 SettingsSwitchTile(
                   title: l10n.translationCot,
                   subtitle: l10n.translationCotHint,
                   value: _trCot,
                   onChanged: (v) => setState(() => _trCot = v),
                 ),
-                // F8：字幕轻量输出（无编号逐行，省 token）。
+                // 字幕轻量输出（无编号逐行，省 token）。
                 SettingsSwitchTile(
                   title: l10n.translationSubtitleLightweight,
                   subtitle: l10n.translationSubtitleLightweightHint,
@@ -615,7 +615,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                       setState(() => _trSubtitleLightweight = v),
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
-                // F1：术语表编辑器入口。
+                // 术语表编辑器入口。
                 OutlinedButton.icon(
                   onPressed: () async {
                     await Navigator.of(context).push(
@@ -638,7 +638,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                   label: Text(l10n.reviewOpen),
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
-                // F5：润色功能开关（默认关闭，逐章显式触发控成本）。
+                // 润色功能开关（默认关闭，逐章显式触发控成本）。
                 SettingsSwitchTile(
                   title: l10n.translationPolish,
                   subtitle: l10n.translationPolishHint,
@@ -646,7 +646,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                   onChanged: (v) => setState(() => _trPolish = v),
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
-                // F10：小说译文附录排版开关。
+                // 小说译文附录排版开关。
                 SettingsChoiceChips<String>(
                   title: l10n.translationExportLayout,
                   selected: _trExportLayout,
@@ -708,7 +708,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                   modelCtrl: _comicModelBakCtrl,
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
-                // F10：翻译数据导出/导入（跨设备复用，不再重复计费）。
+                // 翻译数据导出/导入（跨设备复用，不再重复计费）。
                 Wrap(
                   spacing: AppTokens.spaceSm,
                   runSpacing: AppTokens.spaceXs,
@@ -890,7 +890,7 @@ class _ApiFields extends StatelessWidget {
   }
 }
 
-/// F9 备用接口输入组：默认折叠，展开后填写备用 baseUrl / key / model。
+/// 备用接口输入组：默认折叠，展开后填写备用 baseUrl / key / model。
 class _BackupFields extends StatefulWidget {
   final TextEditingController baseCtrl;
   final TextEditingController keyCtrl;

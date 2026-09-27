@@ -33,7 +33,7 @@ class PlayerSettings {
   final PlayerAspectRatio aspectRatio;
   final double playbackSpeed;
   final bool autoPlayNext;
-  /// 自动选线路（，默认开启）：进入剧集时优先用「按集记忆」选过的线路；
+  /// 自动选线路（默认开启）：进入剧集时优先用「按集记忆」选过的线路；
   /// 播放卡死/失败后自动轮换到其它候选线路重试，不弹「链接失效」让用户手点。
   final bool autoSelectLine;
   /// 自动连播倒计时秒数：播完一集后弹「N 秒后播放下一集」可取消，
@@ -47,7 +47,7 @@ class PlayerSettings {
   final double longPressSpeed;
   final double defaultVolume;
   final String screenshotSavePath;
-  /// 隐藏控制栏后底部是否保留细进度条（，默认开启）。
+  /// 隐藏控制栏后底部是否保留细进度条（默认开启）。
   final bool showBottomProgress;
   final double subtitleScale;
   final double subtitleBorderSize;
@@ -59,7 +59,7 @@ class PlayerSettings {
   final String subtitleAssMode;
   final int subtitleDelayMs;
   final bool subtitleVisible;
-  /// 超分辨率 shader 档位（，默认关闭）。
+  /// 超分辨率 shader 档位（默认关闭）。
   final UpscaleShaderMode upscaleShader;
 
   const PlayerSettings({

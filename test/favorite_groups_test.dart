@@ -220,13 +220,13 @@ void main() {
     test('reorderGroups does not disturb other source types', () async {
       final a1 = await manager.createGroup('A', type: anime);
       final a2 = await manager.createGroup('B', type: anime);
-      await manager.createGroup('M1', type: manga);
-      await manager.createGroup('M2', type: manga);
+      await manager.createGroup('组一', type: manga);
+      await manager.createGroup('组二', type: manga);
       await manager.reorderGroups(<String>[a2!.id, a1!.id], type: anime);
       expect(manager.groupsFor(anime).map((g) => g.name).toList(),
           <String>['B', 'A']);
       expect(manager.groupsFor(manga).map((g) => g.name).toList(),
-          <String>['M1', 'M2']);
+          <String>['组一', '组二']);
     });
 
     test('setGroupHidden hides from groupsFor but keeps it manageable',
@@ -378,13 +378,13 @@ void main() {
 
       // a1：仅可见分类；a2：仅隐藏分类；a3：同时命中可见+隐藏；a4：未分组。
       await manager.toggleFavorite(const MediaItem(
-          id: 'a1', title: 'A1', sourceType: SourceType.animeSource));
+          id: 'a1', title: '标题A', sourceType: SourceType.animeSource));
       await manager.toggleFavorite(const MediaItem(
-          id: 'a2', title: 'A2', sourceType: SourceType.animeSource));
+          id: 'a2', title: '标题B', sourceType: SourceType.animeSource));
       await manager.toggleFavorite(const MediaItem(
-          id: 'a3', title: 'A3', sourceType: SourceType.animeSource));
+          id: 'a3', title: '标题C', sourceType: SourceType.animeSource));
       await manager.toggleFavorite(const MediaItem(
-          id: 'a4', title: 'A4', sourceType: SourceType.animeSource));
+          id: 'a4', title: '标题D', sourceType: SourceType.animeSource));
       await manager.setEntryGroups(
           'a1', SourceType.animeSource, <String>[gVisible.id]);
       await manager.setEntryGroups(

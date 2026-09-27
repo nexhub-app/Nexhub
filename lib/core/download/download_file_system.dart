@@ -1,4 +1,4 @@
-/// 下载文件系统抽象（文档 §10.1 / §10.3）。
+/// 下载文件系统抽象（文档 /）。
 ///
 /// 将平台文件操作抽象为接口，便于测试注入内存实现。
 /// 生产环境使用 [PathProviderFileSystem]；测试使用 [InMemoryFileSystem]。
@@ -12,11 +12,11 @@ import 'package:path_provider/path_provider.dart';
 /// 平台相关的默认下载基路径。
 ///
 /// - Android：优先应用私有外部存储 `<pkg>/files/Download`（可被 dart:io 直接
-///   写入，修复 108：旧默认 `D:/Downloads` 在 Android 上不存在，导致下载无法
-///   进行）。部分设备 / 副用户 / 工作资料下 `getExternalStorageDirectory()`
-///   返回 null，此时回落应用文档目录（内部存储，始终可写），**绝不**回落到
-///   Windows 专属的 `D:/Downloads`——那在 Android 上是相对路径，写入必然失败
-///   （Android 高版本「所有下载都失败」的根因之一）。
+/// 写入，修复 108：旧默认 `D:/Downloads` 在 Android 上不存在，导致下载无法
+/// 进行）。部分设备 / 副用户 / 工作资料下 `getExternalStorageDirectory()`
+/// 返回 null，此时回落应用文档目录（内部存储，始终可写），**绝不**回落到
+/// Windows 专属的 `D:/Downloads`——那在 Android 上是相对路径，写入必然失败
+/// （Android 高版本「所有下载都失败」的根因之一）。
 /// - 其它平台：沿用桌面默认 `D:/Downloads`。
 Future<String> defaultDownloadPath() async {
   if (Platform.isAndroid) {
