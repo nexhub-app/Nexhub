@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_ui/material_ui.dart';
@@ -77,7 +78,14 @@ class SourceImage extends StatelessWidget {
 
   /// 合并防盗链 headers：antiHotlinking.headers 起手 → site.headers →
   /// Referer / User-Agent / Cookie 字段（后者优先覆盖同名键）。
-  Map<String, String>? _buildHeaders() {
+  ///
+  /// 静态版：[resolveSourceImageBytes]（动态效果取字节）与 widget 共用，
+  /// 保证两边请求指纹完全一致（缓存命中 / 防盗链行为不因入口不同而分叉）。
+  static Map<String, String>? buildHeaders({
+    required String url,
+    PluginConfig? source,
+    String? refererOverride,
+  }) {
     final ah = source?.antiHotlinking;
     final site = source?.site;
     final ahHeaders = ah?.headers;
@@ -89,12 +97,12 @@ class SourceImage extends StatelessWidget {
     final String? siteUa = site?.userAgent;
     final ua = (siteUa != null && siteUa.isNotEmpty)
         ? siteUa
-        : HttpFetcher.instance.userAgentForUrl(url ?? '');
+        : HttpFetcher.instance.userAgentForUrl(url);
     final cookies = site?.cookies;
     final hasFields = (siteHeaders != null && siteHeaders.isNotEmpty) ||
         (ahHeaders != null && ahHeaders.isNotEmpty) ||
         (referer != null && referer.isNotEmpty) ||
-        (refererOverride != null && refererOverride!.isNotEmpty) ||
+        (refererOverride != null && refererOverride.isNotEmpty) ||
         (ua != null && ua.isNotEmpty) ||
         (cookies != null && cookies.isNotEmpty);
     if (!hasFields) return null;
@@ -105,8 +113,8 @@ class SourceImage extends StatelessWidget {
       m['Referer'] = referer;
     }
     // 调用方显式指定的 Referer 覆盖源配置（文章页地址比图片域名更准确）。
-    if (refererOverride != null && refererOverride!.isNotEmpty) {
-      m['Referer'] = refererOverride!;
+    if (refererOverride != null && refererOverride.isNotEmpty) {
+      m['Referer'] = refererOverride;
     }
     if (ua != null && ua.isNotEmpty) {
       m['User-Agent'] = ua;
@@ -135,7 +143,7 @@ class SourceImage extends StatelessWidget {
     // 用图片 CDN 的独立域名会被直接断连接 → 图片全空），取不到再回退
     // 图片 URL 自身 origin。
     if (!m.containsKey('Referer')) {
-      final String? origin = _fallbackRefererOrigin();
+      final String? origin = _fallbackRefererOrigin(url, source);
       if (origin != null) m['Referer'] = origin;
     }
     return m;
@@ -143,8 +151,7 @@ class SourceImage extends StatelessWidget {
 
   /// 图片兜底 Referer 的 origin：优先源站 [SiteConfig.baseUrl] 的 origin
   /// （大部分防盗链 CDN 只认源站同源），取不到再回退图片 URL 自身 origin。
-  String? _fallbackRefererOrigin() {
-    final String? rawUrl = url;
+  static String? _fallbackRefererOrigin(String url, PluginConfig? source) {
     final String? siteBase = source?.site.baseUrl;
     if (siteBase != null && siteBase.isNotEmpty) {
       try {
@@ -154,15 +161,18 @@ class SourceImage extends StatelessWidget {
         // 忽略，回退到图片 URL。
       }
     }
-    if (rawUrl != null) {
-      try {
-        return Uri.parse(rawUrl).origin;
-      } catch (_) {
-        return null;
-      }
+    try {
+      return Uri.parse(url).origin;
+    } catch (_) {
+      return null;
     }
-    return null;
   }
+
+  Map<String, String>? _buildHeaders() => buildHeaders(
+        url: url!,
+        source: source,
+        refererOverride: refererOverride,
+      );
 
   Widget _defaultPlaceholder(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -619,5 +629,51 @@ class _SafOrLocalImageState extends State<_SafOrLocalImage> {
       onLoadComplete: widget.onLoadComplete,
       onImageInfo: widget.onImageInfo,
     );
+  }
+}
+
+/// 解析源图片原始字节（漫画动态效果引擎的渲染输入）。
+///
+/// 与 [SourceImage] 完全同链路：
+/// - http(s)：经 [NexImageCacheManager] 取文件——阅读器已显示的页面必然
+///   已下载过，此处通常直接命中磁盘缓存（零网络请求）；未命中才经同一
+///   Dio 网络层下载并落缓存，headers 与 widget 侧同源（[SourceImage.buildHeaders]）；
+/// - 本地文件路径：直接读取；
+/// - Android SAF content://：经 [resolveSafUri] 解析到可读路径后读取。
+///
+/// 返回 null = 取字节失败（下载失败 / 文件缺失 / 解析异常），调用方据此
+/// 回退为静态显示。仅接受 http/https 与本地路径；其余 scheme 一律 null。
+Future<Uint8List?> resolveSourceImageBytes({
+  required String url,
+  PluginConfig? source,
+  String? refererOverride,
+}) async {
+  try {
+    final bool isHttp =
+        url.startsWith('http://') || url.startsWith('https://');
+    if (isHttp) {
+      final file = await NexImageCacheManager.instance.getSingleFile(
+        url,
+        headers: SourceImage.buildHeaders(
+          url: url,
+          source: source,
+          refererOverride: refererOverride,
+        ),
+      );
+      return await file.readAsBytes();
+    }
+    if (isAndroidSafUri(url)) {
+      final path = await resolveSafUri(url);
+      final f = File(path);
+      return f.existsSync() ? await f.readAsBytes() : null;
+    }
+    if (url.startsWith('file://')) {
+      final f = File(Uri.parse(url).toFilePath());
+      return f.existsSync() ? await f.readAsBytes() : null;
+    }
+    final f = File(url);
+    return f.existsSync() ? await f.readAsBytes() : null;
+  } on Object {
+    return null;
   }
 }

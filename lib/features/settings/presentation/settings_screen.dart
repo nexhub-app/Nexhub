@@ -27,6 +27,7 @@ import './about_screen.dart';
 import './settings_player_screen.dart';
 import './settings_novel_reader_screen.dart';
 import './settings_comic_reader_screen.dart';
+import './settings_motion_effects_screen.dart';
 import './settings_danmaku_display_screen.dart';
 import './settings_watched_threshold_screen.dart';
 import './settings_remember_position_screen.dart';
@@ -503,6 +504,23 @@ class SettingsScreen extends StatelessWidget {
           '翻页'
         ],
         builder: (_) => const SettingsComicReaderScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.animation_rounded,
+        title: l10n.motionEffectTitle,
+        desc: l10n.motionEffectDesc,
+        keywords: const <String>[
+          '动态效果',
+          '动效',
+          '漫画',
+          '视差',
+          '呼吸',
+          '粒子',
+          '樱花',
+          '预设',
+          'motion'
+        ],
+        builder: (_) => const SettingsMotionEffectsScreen(),
       ),
       // 漫画阅读器子页内具体项（滚动定位）：
       _SettingEntry(

@@ -7,6 +7,7 @@ library;
 import 'dart:convert';
 
 import '../comic/models/reader_preferences.dart';
+import '../comic/models/motion_effect_settings.dart';
 import '../novel/novel_page_animation.dart';
 import '../novel/novel_reader_preferences.dart';
 
@@ -199,6 +200,10 @@ class ReaderDefaultSettings {
 
   /// 漫画：paged 翻页过渡动画：none=瞬切 / slide=滑入 / fade=淡入淡出。
   final ReaderPageAnimation comicPageAnimation;
+
+  /// 漫画：页面动态效果（comic_motion：主开关 + 逐效果开关 + 参数覆盖 +
+  /// 全局质量）。翻页与条漫滚动模式均生效。
+  final MotionEffectSettings comicMotionEffects;
 
   /// 漫画：双击缩放动画时长（毫秒），默认 500。
   final int comicDoubleTapAnimSpeed;
@@ -405,6 +410,7 @@ class ReaderDefaultSettings {
     this.comicAutoPageTurningInterval = 0,
     this.comicAutoScroll = false,
     this.comicPageAnimation = ReaderPageAnimation.slide,
+    this.comicMotionEffects = const MotionEffectSettings(),
     this.comicDoubleTapAnimSpeed = 500,
     this.comicReaderPageSpacing = 0,
     this.comicShowSingleImageOnFirstPage = false,
@@ -546,6 +552,7 @@ class ReaderDefaultSettings {
     int? comicAutoPageTurningInterval,
     bool? comicAutoScroll,
     ReaderPageAnimation? comicPageAnimation,
+    MotionEffectSettings? comicMotionEffects,
     int? comicDoubleTapAnimSpeed,
     int? comicReaderPageSpacing,
     bool? comicShowSingleImageOnFirstPage,
@@ -704,6 +711,7 @@ class ReaderDefaultSettings {
             comicAutoPageTurningInterval ?? this.comicAutoPageTurningInterval,
         comicAutoScroll: comicAutoScroll ?? this.comicAutoScroll,
         comicPageAnimation: comicPageAnimation ?? this.comicPageAnimation,
+      comicMotionEffects: comicMotionEffects ?? this.comicMotionEffects,
         comicDoubleTapAnimSpeed:
             comicDoubleTapAnimSpeed ?? this.comicDoubleTapAnimSpeed,
         comicReaderPageSpacing:
@@ -904,6 +912,7 @@ class ReaderDefaultSettings {
         'comicAutoPageTurningInterval': comicAutoPageTurningInterval,
         'comicAutoScroll': comicAutoScroll,
         'comicPageAnimation': comicPageAnimation.name,
+        'comicMotionEffects': comicMotionEffects.toJson(),
         'comicDoubleTapAnimSpeed': comicDoubleTapAnimSpeed,
         'comicReaderPageSpacing': comicReaderPageSpacing,
         'comicShowSingleImageOnFirstPage': comicShowSingleImageOnFirstPage,
@@ -1159,6 +1168,8 @@ class ReaderDefaultSettings {
       comicAutoScroll: json['comicAutoScroll'] as bool? ?? false,
       comicPageAnimation:
           _parsePageAnimation(json['comicPageAnimation']),
+          comicMotionEffects:
+              MotionEffectSettings.fromJson(json['comicMotionEffects']),
       comicDoubleTapAnimSpeed:
           ((json['comicDoubleTapAnimSpeed'] as num?)?.toInt() ?? 500)
               .clamp(100, 1500),
@@ -1414,6 +1425,7 @@ class ReaderDefaultSettings {
       autoPageTurningInterval: comicAutoPageTurningInterval,
       autoScroll: comicAutoScroll,
       pageAnimation: comicPageAnimation,
+      motionEffects: comicMotionEffects,
       doubleTapAnimSpeed: comicDoubleTapAnimSpeed,
       readerPageSpacing: comicReaderPageSpacing,
       showSingleImageOnFirstPage: comicShowSingleImageOnFirstPage,

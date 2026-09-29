@@ -15,6 +15,7 @@ import '../../../core/widgets/app_alert_dialog.dart';
 import '../../manga/presentation/reader_image_filter.dart';
 import '../../manga/presentation/reader_tap_zones.dart';
 import 'widgets/settings_widgets.dart';
+import 'widgets/motion_effects_adjustments.dart';
 import 'widgets/settings_search_target.dart';
 
 /// 漫画阅读器默认设置页面。
@@ -313,6 +314,23 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     ],
                   ),
 
+                  // ── 动态效果（comic_motion 分层动效，独立分类）──
+                  SettingsCard(
+                    key: const ValueKey<String>('comic.motionEffects'),
+                    title: l10n.motionEffectTitle,
+                    description: l10n.motionEffectDesc,
+                    index: 1,
+                    initiallyExpanded: false,
+                    children: <Widget>[
+                      MotionEffectsAdjustments(
+                        settings: _settings.comicMotionEffects,
+                        onChanged: (next) => _update(_settings.copyWith(
+                            comicMotionEffects: next)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTokens.spaceMd),
+
                   // ── 翻页与点击 ──
                   SettingsCard(
                     key: const ValueKey<String>('comic.tapPage'),
@@ -543,7 +561,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           );
                         }).toList(),
                       ),
-                      const SizedBox(height: AppTokens.spaceMd),
+
 
                       // 双击缩放动画时长
                       SettingsSliderTile(

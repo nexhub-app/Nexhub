@@ -21,9 +21,9 @@ import 'app_localizations_zh.dart';
 /// import 'generated/app_localizations.dart';
 ///
 /// return MaterialApp(
-/// localizationsDelegates: AppLocalizations.localizationsDelegates,
-/// supportedLocales: AppLocalizations.supportedLocales,
-/// home: MyApplicationHome(),
+///   localizationsDelegates: AppLocalizations.localizationsDelegates,
+///   supportedLocales: AppLocalizations.supportedLocales,
+///   home: MyApplicationHome(),
 /// );
 /// ```
 ///
@@ -34,12 +34,12 @@ import 'app_localizations_zh.dart';
 ///
 /// ```yaml
 /// dependencies:
-/// # Internationalization support.
-/// flutter_localizations:
-/// sdk: flutter
-/// intl: any # Use the pinned version from flutter_localizations
+///   # Internationalization support.
+///   flutter_localizations:
+///     sdk: flutter
+///   intl: any # Use the pinned version from flutter_localizations
 ///
-/// # Rest of dependencies
+///   # Rest of dependencies
 /// ```
 ///
 /// ## iOS Applications
@@ -9121,6 +9121,534 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fade'**
   String get readerPageAnimFade;
+
+  /// No description provided for @motionEffectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Motion effects'**
+  String get motionEffectTitle;
+
+  /// No description provided for @motionEffectDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Render static comic pages into layered motion (parallax / breathing / particles / light / manga action). Works in paged and webtoon modes'**
+  String get motionEffectDesc;
+
+  /// No description provided for @motionEffectEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable motion effects'**
+  String get motionEffectEnabled;
+
+  /// No description provided for @motionEffectEnabledDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'About a second after you stop on a page (page turn or scroll settle) it is rendered in the background; toggle and tune each effect below'**
+  String get motionEffectEnabledDesc;
+
+  /// No description provided for @motionEffectStateOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get motionEffectStateOff;
+
+  /// No description provided for @motionEffectStateOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get motionEffectStateOn;
+
+  /// No description provided for @motionPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick presets'**
+  String get motionPresets;
+
+  /// No description provided for @motionPresetClassic.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get motionPresetClassic;
+
+  /// No description provided for @motionPresetSakura.
+  ///
+  /// In en, this message translates to:
+  /// **'Sakura'**
+  String get motionPresetSakura;
+
+  /// No description provided for @motionPresetNightRain.
+  ///
+  /// In en, this message translates to:
+  /// **'Night rain'**
+  String get motionPresetNightRain;
+
+  /// No description provided for @motionPresetStarryNight.
+  ///
+  /// In en, this message translates to:
+  /// **'Starry night'**
+  String get motionPresetStarryNight;
+
+  /// No description provided for @motionPresetBattle.
+  ///
+  /// In en, this message translates to:
+  /// **'Battle'**
+  String get motionPresetBattle;
+
+  /// No description provided for @motionQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality & smoothness'**
+  String get motionQuality;
+
+  /// No description provided for @motionFps.
+  ///
+  /// In en, this message translates to:
+  /// **'Frame rate'**
+  String get motionFps;
+
+  /// No description provided for @motionDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Loop duration'**
+  String get motionDuration;
+
+  /// No description provided for @motionResolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Render resolution cap'**
+  String get motionResolution;
+
+  /// No description provided for @motionQualityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher values look sharper but render slower and produce larger GIFs. Pages are rendered in the background shortly after you stop on them; zooming in temporarily falls back to the static image'**
+  String get motionQualityHint;
+
+  /// No description provided for @motionWebtoonModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Webtoon render timing'**
+  String get motionWebtoonModeTitle;
+
+  /// No description provided for @motionWebtoonModeDwell.
+  ///
+  /// In en, this message translates to:
+  /// **'On settle (battery saver)'**
+  String get motionWebtoonModeDwell;
+
+  /// No description provided for @motionWebtoonModeFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'Realtime follow (more battery)'**
+  String get motionWebtoonModeFollow;
+
+  /// No description provided for @motionWebtoonModeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'On settle: visible pages are rendered only after scrolling stops for about a second. Realtime follow: the render target switches as your view moves — a fast preview (fewer frames / lower resolution) appears while scrolling and is automatically upgraded to full quality once you stop, at higher CPU / battery cost'**
+  String get motionWebtoonModeHint;
+
+  /// No description provided for @motionEffectCountHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Each effect can be toggled independently and expanded to tune its parameters. Turning all off equals a static page'**
+  String get motionEffectCountHint;
+
+  /// No description provided for @motionGroupAmbient.
+  ///
+  /// In en, this message translates to:
+  /// **'Ambient basics'**
+  String get motionGroupAmbient;
+
+  /// No description provided for @motionGroupParticles.
+  ///
+  /// In en, this message translates to:
+  /// **'Particles & weather'**
+  String get motionGroupParticles;
+
+  /// No description provided for @motionGroupLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light & shadow'**
+  String get motionGroupLight;
+
+  /// No description provided for @motionGroupManga.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga action'**
+  String get motionGroupManga;
+
+  /// No description provided for @motionFxParallax.
+  ///
+  /// In en, this message translates to:
+  /// **'Parallax'**
+  String get motionFxParallax;
+
+  /// No description provided for @motionFxBreathing.
+  ///
+  /// In en, this message translates to:
+  /// **'Breathing'**
+  String get motionFxBreathing;
+
+  /// No description provided for @motionFxSlowPush.
+  ///
+  /// In en, this message translates to:
+  /// **'Slow push-in'**
+  String get motionFxSlowPush;
+
+  /// No description provided for @motionFxHeartbeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Heartbeat'**
+  String get motionFxHeartbeat;
+
+  /// No description provided for @motionFxToneShift.
+  ///
+  /// In en, this message translates to:
+  /// **'Tone shift'**
+  String get motionFxToneShift;
+
+  /// No description provided for @motionFxVignette.
+  ///
+  /// In en, this message translates to:
+  /// **'Vignette'**
+  String get motionFxVignette;
+
+  /// No description provided for @motionFxAmbient.
+  ///
+  /// In en, this message translates to:
+  /// **'Ambient particles'**
+  String get motionFxAmbient;
+
+  /// No description provided for @motionFxDust.
+  ///
+  /// In en, this message translates to:
+  /// **'Dust'**
+  String get motionFxDust;
+
+  /// No description provided for @motionFxRain.
+  ///
+  /// In en, this message translates to:
+  /// **'Rain'**
+  String get motionFxRain;
+
+  /// No description provided for @motionFxSnow.
+  ///
+  /// In en, this message translates to:
+  /// **'Snow'**
+  String get motionFxSnow;
+
+  /// No description provided for @motionFxSakura.
+  ///
+  /// In en, this message translates to:
+  /// **'Sakura petals'**
+  String get motionFxSakura;
+
+  /// No description provided for @motionFxLeaves.
+  ///
+  /// In en, this message translates to:
+  /// **'Falling leaves'**
+  String get motionFxLeaves;
+
+  /// No description provided for @motionFxBubbles.
+  ///
+  /// In en, this message translates to:
+  /// **'Bubbles'**
+  String get motionFxBubbles;
+
+  /// No description provided for @motionFxFireflies.
+  ///
+  /// In en, this message translates to:
+  /// **'Fireflies'**
+  String get motionFxFireflies;
+
+  /// No description provided for @motionFxEmbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Embers'**
+  String get motionFxEmbers;
+
+  /// No description provided for @motionFxMeteors.
+  ///
+  /// In en, this message translates to:
+  /// **'Meteors'**
+  String get motionFxMeteors;
+
+  /// No description provided for @motionFxFog.
+  ///
+  /// In en, this message translates to:
+  /// **'Fog'**
+  String get motionFxFog;
+
+  /// No description provided for @motionFxSmoke.
+  ///
+  /// In en, this message translates to:
+  /// **'Smoke'**
+  String get motionFxSmoke;
+
+  /// No description provided for @motionFxFlame.
+  ///
+  /// In en, this message translates to:
+  /// **'Flame'**
+  String get motionFxFlame;
+
+  /// No description provided for @motionFxGodRays.
+  ///
+  /// In en, this message translates to:
+  /// **'God rays'**
+  String get motionFxGodRays;
+
+  /// No description provided for @motionFxLightSweep.
+  ///
+  /// In en, this message translates to:
+  /// **'Light sweep'**
+  String get motionFxLightSweep;
+
+  /// No description provided for @motionFxShimmer.
+  ///
+  /// In en, this message translates to:
+  /// **'Shimmer'**
+  String get motionFxShimmer;
+
+  /// No description provided for @motionFxStarlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Starlight'**
+  String get motionFxStarlight;
+
+  /// No description provided for @motionFxLightning.
+  ///
+  /// In en, this message translates to:
+  /// **'Lightning'**
+  String get motionFxLightning;
+
+  /// No description provided for @motionFxImpactFlash.
+  ///
+  /// In en, this message translates to:
+  /// **'Impact flash'**
+  String get motionFxImpactFlash;
+
+  /// No description provided for @motionFxSpeedLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed lines'**
+  String get motionFxSpeedLines;
+
+  /// No description provided for @motionFxFocusLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus lines'**
+  String get motionFxFocusLines;
+
+  /// No description provided for @motionFxScreenTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen tone'**
+  String get motionFxScreenTone;
+
+  /// No description provided for @motionFxMangaShake.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen shake'**
+  String get motionFxMangaShake;
+
+  /// No description provided for @motionFxImpactRings.
+  ///
+  /// In en, this message translates to:
+  /// **'Impact rings'**
+  String get motionFxImpactRings;
+
+  /// No description provided for @motionFxBrushStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Brush streaks'**
+  String get motionFxBrushStreak;
+
+  /// No description provided for @motionFxMoodScript.
+  ///
+  /// In en, this message translates to:
+  /// **'Mood modulation'**
+  String get motionFxMoodScript;
+
+  /// No description provided for @motionParamAmplitude.
+  ///
+  /// In en, this message translates to:
+  /// **'Amplitude'**
+  String get motionParamAmplitude;
+
+  /// No description provided for @motionParamPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'Period (s)'**
+  String get motionParamPeriod;
+
+  /// No description provided for @motionParamVerticalRatio.
+  ///
+  /// In en, this message translates to:
+  /// **'Vertical ratio'**
+  String get motionParamVerticalRatio;
+
+  /// No description provided for @motionParamPushFrac.
+  ///
+  /// In en, this message translates to:
+  /// **'Push amount'**
+  String get motionParamPushFrac;
+
+  /// No description provided for @motionParamBeats.
+  ///
+  /// In en, this message translates to:
+  /// **'Beats'**
+  String get motionParamBeats;
+
+  /// No description provided for @motionParamIntensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Intensity'**
+  String get motionParamIntensity;
+
+  /// No description provided for @motionParamShift.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift'**
+  String get motionParamShift;
+
+  /// No description provided for @motionParamStrength.
+  ///
+  /// In en, this message translates to:
+  /// **'Depth'**
+  String get motionParamStrength;
+
+  /// No description provided for @motionParamCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Count'**
+  String get motionParamCount;
+
+  /// No description provided for @motionParamSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get motionParamSpeed;
+
+  /// No description provided for @motionParamOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Opacity'**
+  String get motionParamOpacity;
+
+  /// No description provided for @motionParamAngle.
+  ///
+  /// In en, this message translates to:
+  /// **'Angle'**
+  String get motionParamAngle;
+
+  /// No description provided for @motionParamSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get motionParamSize;
+
+  /// No description provided for @motionParamSpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Spins'**
+  String get motionParamSpin;
+
+  /// No description provided for @motionParamGlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Glow'**
+  String get motionParamGlow;
+
+  /// No description provided for @motionParamLengthFrac.
+  ///
+  /// In en, this message translates to:
+  /// **'Length'**
+  String get motionParamLengthFrac;
+
+  /// No description provided for @motionParamBlobs.
+  ///
+  /// In en, this message translates to:
+  /// **'Blobs'**
+  String get motionParamBlobs;
+
+  /// No description provided for @motionParamPuffs.
+  ///
+  /// In en, this message translates to:
+  /// **'Puffs'**
+  String get motionParamPuffs;
+
+  /// No description provided for @motionParamTongues.
+  ///
+  /// In en, this message translates to:
+  /// **'Tongues'**
+  String get motionParamTongues;
+
+  /// No description provided for @motionParamRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows'**
+  String get motionParamRows;
+
+  /// No description provided for @motionParamStrikes.
+  ///
+  /// In en, this message translates to:
+  /// **'Strikes'**
+  String get motionParamStrikes;
+
+  /// No description provided for @motionParamFlashes.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashes'**
+  String get motionParamFlashes;
+
+  /// No description provided for @motionParamPulses.
+  ///
+  /// In en, this message translates to:
+  /// **'Pulses'**
+  String get motionParamPulses;
+
+  /// No description provided for @motionParamLines.
+  ///
+  /// In en, this message translates to:
+  /// **'Lines'**
+  String get motionParamLines;
+
+  /// No description provided for @motionParamSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Spacing'**
+  String get motionParamSpacing;
+
+  /// No description provided for @motionParamDensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Density'**
+  String get motionParamDensity;
+
+  /// No description provided for @motionParamShakes.
+  ///
+  /// In en, this message translates to:
+  /// **'Shakes'**
+  String get motionParamShakes;
+
+  /// No description provided for @motionParamRings.
+  ///
+  /// In en, this message translates to:
+  /// **'Rings'**
+  String get motionParamRings;
+
+  /// No description provided for @motionParamStreaks.
+  ///
+  /// In en, this message translates to:
+  /// **'Streaks'**
+  String get motionParamStreaks;
+
+  /// No description provided for @motionParamHeightFrac.
+  ///
+  /// In en, this message translates to:
+  /// **'Height'**
+  String get motionParamHeightFrac;
 
   /// No description provided for @readerDoubleTapAnimSpeed.
   ///

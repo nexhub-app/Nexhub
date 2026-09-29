@@ -328,6 +328,22 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.19.1"
+  comic_motion:
+    dependency: "direct main"
+    description:
+      name: comic_motion
+      sha256: "3dd55eb6d91f07a613a9e01b4a8b54bca4ab7837b84d9153d60c7a9dc1ef47e1"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "1.3.1"
+  comic_motion_flutter:
+    dependency: "direct main"
+    description:
+      name: comic_motion_flutter
+      sha256: "007eb8d4c1b922617ca59f14d24f58524ce2bd2389b39591238f2b1c82db2017"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.1.0"
   connectivity_plus:
     dependency: "direct main"
     description:
@@ -1476,6 +1492,22 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "0.3.8"
+  sensors_plus:
+    dependency: transitive
+    description:
+      name: sensors_plus
+      sha256: "89e2bfc3d883743539ce5774a2b93df61effde40ff958ecad78cd66b1a8b8d52"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "6.1.2"
+  sensors_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: sensors_plus_platform_interface
+      sha256: "9e12a92569bf14ae04b2f086c3e087177a47e527b7666ae1bbe5f70f8450ab19"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "2.0.2"
   share_plus:
     dependency: "direct main"
     description:

@@ -11,6 +11,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../theme/reader_tokens.dart';
+import 'motion_effect_settings.dart';
 
 /// 漫画 5 种阅读模式（文档 7.1 最终态，移除旧 double）。
 enum ReadingMode {
@@ -559,6 +560,10 @@ class ReaderPreferences {
   /// paged 翻页过渡动画：none=瞬切 / slide=滑入 / fade=淡入淡出。
   final ReaderPageAnimation pageAnimation;
 
+  /// 页面动态效果（comic_motion 引擎投影：主开关 + 逐效果开关 + 参数覆盖
+  /// + 全局质量）。翻页与条漫滚动模式均生效；条漫滚动停止后才渲染。
+  final MotionEffectSettings motionEffects;
+
   /// 双击缩放动画时长（毫秒），默认 500。随系统 [MediaQuery.disableAnimations] 比例。
   final int doubleTapAnimSpeed;
 
@@ -674,6 +679,7 @@ class ReaderPreferences {
     this.autoPageTurningInterval = 0,
     this.autoScroll = false,
     this.pageAnimation = ReaderPageAnimation.slide,
+    this.motionEffects = const MotionEffectSettings(),
     this.doubleTapAnimSpeed = 500,
     this.readerPageSpacing = 0,
     this.showSingleImageOnFirstPage = false,
@@ -802,6 +808,8 @@ class ReaderPreferences {
           (((json['autoPageTurningInterval'] as num?)?.toInt() ?? 0) > 0),
       autoScroll: json['autoScroll'] as bool? ?? false,
       pageAnimation: _parsePageAnimation(json['pageAnimation']),
+      motionEffects:
+          MotionEffectSettings.fromJson(json['motionEffects']),
       doubleTapAnimSpeed:
           ((json['doubleTapAnimSpeed'] as num?)?.toInt() ?? 500)
               .clamp(100, 1500),
@@ -901,6 +909,7 @@ class ReaderPreferences {
         'autoPageTurningInterval': autoPageTurningInterval,
         'autoScroll': autoScroll,
         'pageAnimation': pageAnimation.name,
+        'motionEffects': motionEffects.toJson(),
         'doubleTapAnimSpeed': doubleTapAnimSpeed,
         'readerPageSpacing': readerPageSpacing,
         'showSingleImageOnFirstPage': showSingleImageOnFirstPage,
@@ -978,6 +987,7 @@ class ReaderPreferences {
     int? autoPageTurningInterval,
     bool? autoScroll,
     ReaderPageAnimation? pageAnimation,
+    MotionEffectSettings? motionEffects,
     int? doubleTapAnimSpeed,
     int? readerPageSpacing,
     bool? showSingleImageOnFirstPage,
@@ -1064,6 +1074,7 @@ class ReaderPreferences {
             autoPageTurningInterval ?? this.autoPageTurningInterval,
         autoScroll: autoScroll ?? this.autoScroll,
         pageAnimation: pageAnimation ?? this.pageAnimation,
+        motionEffects: motionEffects ?? this.motionEffects,
         doubleTapAnimSpeed: doubleTapAnimSpeed ?? this.doubleTapAnimSpeed,
         readerPageSpacing: readerPageSpacing ?? this.readerPageSpacing,
         showSingleImageOnFirstPage:
@@ -1236,6 +1247,9 @@ Set<String> comicPrefsChangedKeys(
     final bv = entry.value;
     if (av is List && bv is List) {
       if (!listEquals(av, bv)) changed.add(entry.key);
+    } else if (av is Map && bv is Map) {
+      // 嵌套对象（如 motionEffects）无结构相等：序列化后比较。
+      if (jsonEncode(av) != jsonEncode(bv)) changed.add(entry.key);
     } else if (av != bv) {
       changed.add(entry.key);
     }
