@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/comic/models/reader_preferences.dart';
+import '../../settings/presentation/widgets/motion_effects_adjustments.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
@@ -975,6 +976,33 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       ),
                       // 音量键翻页（仅 Android）
                       if (_showVolumeKey) _buildVolumeKey(),
+                    ],
+                  ),
+
+                  // ── 动态效果（独立分类，默认折叠）──────────────
+                  _buildSettingsGroup(
+                    context,
+                    l10n.motionEffectTitle,
+                    description: l10n.motionEffectDesc,
+                    leading: Icons.animation_rounded,
+                    initiallyExpanded: false,
+                    searchQuery: q,
+                    searchTerms: const <String>[
+                      '动态效果',
+                      '动效',
+                      '视差',
+                      '呼吸',
+                      '粒子',
+                      '樱花',
+                      '预设',
+                      'motion',
+                    ],
+                    children: <Widget>[
+                      MotionEffectsAdjustments(
+                        settings: _draft.motionEffects,
+                        onChanged: (next) =>
+                            _update(_draft.copyWith(motionEffects: next)),
+                      ),
                     ],
                   ),
 

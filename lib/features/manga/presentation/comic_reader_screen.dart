@@ -11,6 +11,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:comic_motion/comic_motion.dart'
+    show MemoryPipelineResult, MotionCancelToken, processBytesInBackground;
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -29,6 +31,9 @@ import '../../../core/theme/reader_tokens.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/utils/app_log.dart';
 import '../../../core/utils/volume_key_listener.dart';
+import '../../../core/comic/models/motion_effect_settings.dart';
+import 'package:comic_motion_flutter/comic_motion_flutter.dart'
+    show MotionGifView;
 import 'reader_settings_sheet.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/settings/reader_default_settings.dart';
@@ -118,6 +123,45 @@ enum _SeamAdvanceTarget {
 /// 聚合本地模式（B 阶段）：传入 [localArchivePaths]（多归档文件列表，每个文件 =
 /// 一话）时进入本地模式但保留章节列表/上下话导航；阅读器按 [chapterIndex] 解压对应
 /// 归档取图。与单文件本地模式区别仅在于支持多话切换。
+/// 动态效果缓存条目：渲染结果 + 是否完整画质。
+///
+/// 实时跟随模式两阶段渲染：滚动中先入快速版条目（[full] = false），
+/// 停止后的完整画质轮把条目升级为 full（重渲染替换），完整条目永不降级。
+class _MotionCacheEntry {
+  const _MotionCacheEntry(this.result, this.full);
+
+  final MemoryPipelineResult result;
+  final bool full;
+}
+
+/// 条漫动态效果的可见条目选取（纯函数，可单测）。
+///
+/// [items] 为 SPL 位置快照（视口比例坐标）；选取「自身可见比例 ≥
+/// [minVisibleFraction]」的条目（正在被阅读的页），按索引升序、最多
+/// [maxCount] 条返回。短图一屏多张时多页同时动；长条图取视口内的那一张。
+@visibleForTesting
+List<int> webtoonMotionFlatIndices(
+  List<({int index, double leading, double trailing})> items, {
+  double minVisibleFraction = 0.6,
+  int maxCount = 4,
+}) {
+  final List<int> picked = <int>[];
+  for (final item in items) {
+    final double height = item.trailing - item.leading;
+    if (height <= 0) continue;
+    final double visible =
+        (item.trailing > 1 ? 1 : item.trailing) -
+            (item.leading < 0 ? 0 : item.leading);
+    if (visible / height < minVisibleFraction) continue;
+    picked.add(item.index);
+  }
+  picked.sort();
+  if (picked.length > maxCount) {
+    picked.removeRange(maxCount, picked.length);
+  }
+  return picked;
+}
+
 class ComicReaderScreen extends StatefulWidget {
   final String comicId;
   final String title;
@@ -534,6 +578,42 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
   /// 翻页后从 0 淡入到 1，用 AnimatedOpacity 驱动，不改变 PageView 翻页结构。
   double _pageFadeOpacity = 1.0;
   Timer? _pageFadeTimer;
+
+  // ── 页面动态效果（comic_motion 引擎，paged 模式）──────────────────
+
+  /// 动态效果渲染结果缓存（URL → GIF + 首帧）。会话内小容量 LRU：
+  /// 翻回已渲染页零等待；上限 [_motionCacheMax] 控制内存占用。
+  final Map<String, _MotionCacheEntry> _motionCache =
+      <String, _MotionCacheEntry>{};
+
+  /// 驻留防抖定时器：翻页停留超过该时长才派发渲染（快速翻页不触发）。
+  Timer? _motionDebounce;
+
+  /// 在途渲染任务的取消令牌：翻页离开 / 设置变更 / 退出即取消。
+  MotionCancelToken? _motionToken;
+
+  /// 在途渲染的 URL（同页任务防重复派发）。
+  String? _motionJobUrl;
+
+  /// 在途渲染任务的画质（true = 完整画质）：完整轮接管后快速轮让位。
+  bool _motionJobFull = true;
+
+  /// 实时跟随快速轮定时器（200ms）：滚动中先出快速版。
+  Timer? _motionFollowTimer;
+
+  /// 渲染队列世代号：每次重估调度自增，旧世代循环自行退出，
+  /// 避免「快速轮 / 完整轮 / 旧页面」多队列互相顶撞。
+  int _motionJobsEpoch = 0;
+
+  /// 动态效果缓存上限（条数；每项 GIF + 首帧约 1–4MB）。
+  static const int _motionCacheMax = 4;
+
+  /// 动态效果驻留时长（毫秒）：翻页后停留多久才开始渲染当前屏。
+  static const int _motionDwellMs = 800;
+
+  /// 实时跟随模式的调度延迟（毫秒）：短防抖合并连续滚动事件，
+  /// 同时配合在途任务取消，让渲染始终追着当前视野。
+  static const int _motionFollowMs = 200;
 
   // ── 音量键翻页（仅 Android）──────────────────────────────
 
@@ -1413,6 +1493,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     } on Object {
       // 测试环境忽略。
     }
+    // 动态效果：取消在途渲染与防抖定时器，释放缓存字节。
+    _motionDebounce?.cancel();
+    _motionFollowTimer?.cancel();
+    _motionToken?.cancel();
+    _motionCache.clear();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -1729,6 +1814,10 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       _currentPage = restorePage.clamp(0, _images.length - 1);
       oldPageController?.dispose();
     }
+    // 动态效果：章节/模式就绪后重估当前屏渲染任务（推迟一帧等控制器挂载）。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _scheduleMotion();
+    });
     if (mounted) setState(() {});
   }
 
@@ -1761,6 +1850,8 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       unawaited(_refreshPageImageFav());
     }
     _maybePreload(idx);
+    // 动态效果：翻页停定后重估当前屏渲染任务（内部有驻留防抖）。
+    _scheduleMotion();
   }
 
   /// 列表中是否存在已按真实图片尺寸布局的项（高度明显大于占位）。
@@ -1883,6 +1974,9 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       }
     }
     _maybePreload(idx);
+    // 动态效果：滚动停定（防抖窗口无新滚动）后重估可见页渲染任务。
+    // 恢复进度 / seam 重锚期间本回调已提前返回，不会误调度。
+    _scheduleMotion();
   }
 
   /// 防抖进度保存：合并频繁翻页产生的写入，避免高频 IO。
@@ -3534,6 +3628,11 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     } else {
       _devicePrefs = next;
     }
+    if (prev.motionEffects != next.motionEffects) {
+      // 动态效果设置变更：重估渲染任务并立即刷新叠加层（关闭即撤下）。
+      _scheduleMotion();
+      if (mounted) setState(() {});
+    }
     _syncVolumeKey();
     _syncAutoMotion();
     if (!prev.autoDownloadChapters && next.autoDownloadChapters) {
@@ -3788,6 +3887,249 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
       setState(() => _pageFadeOpacity = 1.0);
       _pageFadeTimer = null;
     });
+  }
+
+  // ── 页面动态效果（comic_motion）─────────────────────────────
+
+  /// 当前屏展示的页 URL 集合（动态效果的渲染对象）。
+  /// paged 模式 = 当前屏页；webtoon 连续滚动模式 = 视口内「自身可见比例
+  /// 足够高」的条目（见 [webtoonMotionFlatIndices]），滚动停止后才渲染。
+  List<String> _visiblePageUrls() {
+    if (_images.isEmpty || _loading || _error != null) {
+      return const <String>[];
+    }
+    if (_prefs.readingMode.isWebtoon) {
+      final positions = _itemPositionsListener?.itemPositions.value;
+      if (positions == null || positions.isEmpty) return const <String>[];
+      final bool seam = _seamActive && _seamItemCount > 0;
+      final flats = webtoonMotionFlatIndices(<({int index, double leading, double trailing})>[
+        for (final p in positions)
+          if (!seam ||
+              p.index < 0 ||
+              p.index >= _seamPageMap.length ||
+              _seamPageMap[p.index] >= 0)
+            (
+              index: p.index,
+              leading: p.itemLeadingEdge,
+              trailing: p.itemTrailingEdge,
+            ),
+      ]);
+      final urls = <String>[];
+      for (final f in flats) {
+        final String? url = seam
+            ? (f >= 0 && f < _seamImages.length ? _seamImages[f] : null)
+            : (f >= 0 && f < _images.length ? _images[f] : null);
+        if (url != null && !urls.contains(url)) urls.add(url);
+      }
+      return urls;
+    }
+    if (_isGalleryMode) {
+      final pc = _pageController;
+      final int screen = (pc?.page?.round() ?? (_currentPage ~/ _galleryCount))
+          .clamp(0, _controllerPageCount - 1);
+      final int start = (screen * _galleryCount).clamp(0, _images.length - 1);
+      final int end = (start + _galleryCount).clamp(0, _images.length);
+      return <String>[for (int i = start; i < end; i++) _images[i]];
+    }
+    if (_isDoublePage) {
+      final pc = _pageController;
+      final int spread =
+          (pc?.page?.round() ?? _doublePageSpreadFor(_currentPage))
+              .clamp(0, _spreadCount - 1);
+      final int left = _doublePageLeftPageFor(spread);
+      final int end = (left + 2).clamp(0, _images.length);
+      return <String>[
+        for (int i = left; i < end; i++)
+          if (i >= 0) _images[i],
+      ];
+    }
+    return <String>[_images[_currentPage.clamp(0, _images.length - 1)]];
+  }
+
+  /// 重估动态效果：主开关开启时，为当前屏页面安排渲染（驻留
+  /// [_motionDwellMs] 防抖：paged 翻页停留 / 条漫滚动停止后触发）；
+  /// 条件不满足即取消在途任务并撤下叠加层。
+  void _scheduleMotion() {
+    _motionJobsEpoch++; // 旧世代渲染循环自行退出
+    _motionDebounce?.cancel();
+    _motionDebounce = null;
+    _motionFollowTimer?.cancel();
+    _motionFollowTimer = null;
+    final bool applicable = _prefs.motionEffects.enabled &&
+        _images.isNotEmpty &&
+        !_loading &&
+        _error == null &&
+        // 系统「减弱动态」开启：整体不渲染，保持静态。
+        !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
+    if (!applicable) {
+      _cancelMotionJob();
+      return;
+    }
+    // 条漫渲染时机模式：dwell = 停留渲染（省电默认，停定后一次性出完整画质）；
+    // follow = 实时跟随（中断式两阶段）：200ms 快速版先出图，停定后 800ms
+    // 完整画质轮升级替换；视野变化的在途任务立即取消，渲染追着当前页。
+    final bool follow = _prefs.readingMode.isWebtoon &&
+        _prefs.motionEffects.webtoonRenderMode ==
+            MotionWebtoonRenderMode.follow;
+    if (follow &&
+        _motionJobUrl != null &&
+        !_visiblePageUrls().contains(_motionJobUrl)) {
+      _cancelMotionJob();
+    }
+    if (follow) {
+      _motionFollowTimer = Timer(
+        const Duration(milliseconds: _motionFollowMs),
+        () => unawaited(_runMotionJobs(full: false)),
+      );
+    }
+    _motionDebounce = Timer(
+      const Duration(milliseconds: _motionDwellMs),
+      () => unawaited(_runMotionJobs(full: true)),
+    );
+  }
+
+  /// 取消在途渲染任务（不清缓存：已渲染结果继续复用）。
+  void _cancelMotionJob() {
+    _motionToken?.cancel();
+    _motionToken = null;
+    _motionJobUrl = null;
+  }
+
+  /// 依序渲染当前屏页面（串行：任何时刻至多一个渲染 isolate）。
+  ///
+  /// [full] = 完整画质（用户设置）；false = 快速版（实时跟随滚动中，
+  /// 见 [MotionEffectSettings.toFastEffectConfig]）。缓存里已有完整画质
+  /// 条目永不重渲染；快速条目只在完整轮升级，快速轮不重派已有条目。
+  Future<void> _runMotionJobs({required bool full}) async {
+    final int epoch = _motionJobsEpoch;
+    final List<String> urls = _visiblePageUrls();
+    for (final String url in urls) {
+      if (!mounted || epoch != _motionJobsEpoch) return;
+      // 完整画质任务在途时快速轮让位（滚动已停定，升级优先）。
+      if (!full && _motionJobFull && _motionJobUrl != null) return;
+      final _MotionCacheEntry? entry = _motionCache[url];
+      if (entry != null && (entry.full || !full)) continue;
+      await _renderMotionFor(url, full: full);
+      // 渲染期间可能已退出阅读器 / 已有新调度：不再继续队列。
+      if (!mounted || epoch != _motionJobsEpoch) return;
+    }
+  }
+
+  /// 渲染单页动态效果：取原始字节 → 后台 isolate 渲染 GIF → 入缓存并展示。
+  /// [full] = 完整画质；false = 快速版（实时跟随滚动中）。
+  /// 中断式：同页在途任务质量低于本次请求（快速 → 完整升级）时直接中断重派；
+  /// 失败静默回退静态显示（不提示不重试，下次驻留重新触发）。
+  Future<void> _renderMotionFor(String url, {required bool full}) async {
+    // 同页在途且质量不低于本次请求：不重复派发。
+    if (_motionJobUrl == url && (_motionJobFull || !full)) return;
+    _cancelMotionJob(); // 单任务槽：新任务中断在途（完整轮升级快速任务同理）
+    _motionJobUrl = url;
+    _motionJobFull = full;
+    final token = MotionCancelToken();
+    _motionToken = token;
+    try {
+      final Uint8List? bytes = await resolveSourceImageBytes(
+        url: url,
+        source: _source,
+        refererOverride: _refererFor(url),
+      );
+      if (token.isCancelled || !mounted || bytes == null) return;
+      // 快速翻页/滚动后已不在当前屏：放弃本次渲染（结果无处展示）。
+      if (!_visiblePageUrls().contains(url)) return;
+      final MemoryPipelineResult result = await processBytesInBackground(
+        input: bytes,
+        config: full
+            ? _prefs.motionEffects.toEffectConfig()
+            : _prefs.motionEffects.toFastEffectConfig(),
+        includeFirstFrame: true,
+        cancelToken: token,
+        timeout: const Duration(seconds: 90),
+        memoryBudgetMb: 256,
+      );
+      if (token.isCancelled || !mounted) return;
+      if (result.gifBytes == null) return;
+      _cacheMotionResult(url, result, full: full);
+      // 仍在当前屏 → 重建 itemBuilder 叠加动态层。
+      if (_visiblePageUrls().contains(url)) {
+        setState(() {});
+      }
+    } on Object {
+      // 引擎异常 / 取消：静默回退静态显示。
+    } finally {
+      if (identical(_motionToken, token)) _motionToken = null;
+      if (_motionJobUrl == url) _motionJobUrl = null;
+    }
+  }
+
+  /// 渲染结果入缓存（LRU：优先逐出不在当前屏的旧条目；逐出时快速版优先于
+  /// 完整版，完整版尽量多留）。
+  void _cacheMotionResult(String url, MemoryPipelineResult result,
+      {required bool full}) {
+    _motionCache.remove(url); // 重插入维持「最近使用」序
+    while (_motionCache.length >= _motionCacheMax) {
+      final Set<String> visible = _visiblePageUrls().toSet();
+      String? victim;
+      for (final String k in _motionCache.keys) {
+        if (!visible.contains(k)) {
+          victim = k;
+          if (_motionCache[k]!.full) continue; // 快速版优先逐出
+          break;
+        }
+      }
+      victim ??= _motionCache.keys.first;
+      _motionCache.remove(victim);
+    }
+    _motionCache[url] = _MotionCacheEntry(result, full);
+  }
+
+  /// 叠加页面动态效果：该页渲染结果已就绪、未放大、开关开启时，在静态页
+  /// 之上叠加 [MotionGifView]（同 fit / 同旋转 / 同滤镜，与原图显示矩形对齐；
+  /// GIF 与原图同宽高比）。IgnorePointer：动效层不拦截任何手势。
+  /// Stack 用 passthrough（paged 视口紧约束 / 条漫高度无界均成立），
+  /// 叠加层 [Positioned.fill] 随静态页的显示矩形铺满。
+  Widget _withPageMotion(String url, int rotation, Widget page) {
+    if (!_prefs.motionEffects.enabled || _zoomed) return page;
+    final MemoryPipelineResult? result = _motionCache[url]?.result;
+    final Uint8List? gif = result?.gifBytes;
+    if (result == null || gif == null) return page;
+    // 与静态页同 fit；original（BoxFit.none）用 contain 近似
+    // （GIF 已按 maxDimension 缩放，原尺寸铺放会缩小显示）。
+    final BoxFit fit = switch (_prefs.initialZoom) {
+      ReaderInitialZoom.fitWidth => BoxFit.fitWidth,
+      ReaderInitialZoom.fitHeight => BoxFit.fitHeight,
+      ReaderInitialZoom.original => BoxFit.contain,
+    };
+    final Widget motion = ReaderImageFiltered(
+      brightness: _prefs.filterBrightness,
+      contrast: _prefs.filterContrast,
+      colorTemp: _prefs.filterColorTemp,
+      saturation: _prefs.filterSaturation,
+      hue: _prefs.filterHue,
+      inverted: _prefs.filterInverted,
+      grayscale: _prefs.filterGrayscale,
+      colorProfile: _prefs.colorProfile,
+      // 滚出视口（双页/每屏多图模式）自动静帧省电，滚回恢复。
+      child: MotionGifView(
+        gifBytes: gif,
+        firstFramePng: result.firstFramePng,
+        fit: fit,
+        pauseWhenNotVisible: true,
+      ),
+    );
+    return Stack(
+      fit: StackFit.passthrough,
+      children: <Widget>[
+        page,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: RotatedBox(
+              quarterTurns: rotation,
+              child: motion,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   /// 给当前页旋转 90°（quarterTurns +1，模 4）。
@@ -4926,16 +5268,20 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         }
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: _sideMarginPx),
-          child: MangaPageImage(
-            url: _images[i],
-            prefs: _prefs,
-            zoomController: _zoomController,
-            source: _source,
-            refererResolver: _refererFor,
-            rotationQuarterTurns: _pageRotations[i] ?? 0,
-            cropEdge: _prefs.cropEdge,
-            translation: _translation,
-            translationRetry: _translationRetryPage,
+          child: _withPageMotion(
+            _images[i],
+            _pageRotations[i] ?? 0,
+            MangaPageImage(
+              url: _images[i],
+              prefs: _prefs,
+              zoomController: _zoomController,
+              source: _source,
+              refererResolver: _refererFor,
+              rotationQuarterTurns: _pageRotations[i] ?? 0,
+              cropEdge: _prefs.cropEdge,
+              translation: _translation,
+              translationRetry: _translationRetryPage,
+            ),
           ),
         );
       },
@@ -4970,15 +5316,19 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             children: <Widget>[
               for (int i = start; i < start + n && i < _images.length; i++)
                 Expanded(
-                  child: MangaPageImage(
-                    url: _images[i],
-                    prefs: _prefs,
-                    source: _source,
-                    refererResolver: _refererFor,
-                    rotationQuarterTurns: _pageRotations[i] ?? 0,
-                    cropEdge: _prefs.cropEdge,
-                    translation: _translation,
-                    translationRetry: _translationRetryPage,
+                  child: _withPageMotion(
+                    _images[i],
+                    _pageRotations[i] ?? 0,
+                    MangaPageImage(
+                      url: _images[i],
+                      prefs: _prefs,
+                      source: _source,
+                      refererResolver: _refererFor,
+                      rotationQuarterTurns: _pageRotations[i] ?? 0,
+                      cropEdge: _prefs.cropEdge,
+                      translation: _translation,
+                      translationRetry: _translationRetryPage,
+                    ),
                   ),
                 ),
             ],
@@ -5020,32 +5370,40 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
         final bImg = !firstSingle && b < _images.length ? _images[b] : null;
         final List<Widget> rowChildren = <Widget>[
           Expanded(
-            child: MangaPageImage(
-              url: aImg,
-              prefs: _prefs,
-              zoomController: _zoomController,
-              source: _source,
-              refererResolver: _refererFor,
-              rotationQuarterTurns: _pageRotations[a] ?? 0,
-              cropEdge: _prefs.cropEdge,
-              translation: _translation,
-              translationRetry: _translationRetryPage,
+            child: _withPageMotion(
+              aImg,
+              _pageRotations[a] ?? 0,
+              MangaPageImage(
+                url: aImg,
+                prefs: _prefs,
+                zoomController: _zoomController,
+                source: _source,
+                refererResolver: _refererFor,
+                rotationQuarterTurns: _pageRotations[a] ?? 0,
+                cropEdge: _prefs.cropEdge,
+                translation: _translation,
+                translationRetry: _translationRetryPage,
+              ),
             ),
           ),
         ];
         if (bImg != null) {
           rowChildren.add(
             Expanded(
-              child: MangaPageImage(
-                url: bImg,
-                prefs: _prefs,
-                zoomController: _zoomController,
-                source: _source,
-                refererResolver: _refererFor,
-                rotationQuarterTurns: _pageRotations[b] ?? 0,
-                cropEdge: _prefs.cropEdge,
-                translation: _translation,
-                translationRetry: _translationRetryPage,
+              child: _withPageMotion(
+                bImg,
+                _pageRotations[b] ?? 0,
+                MangaPageImage(
+                  url: bImg,
+                  prefs: _prefs,
+                  zoomController: _zoomController,
+                  source: _source,
+                  refererResolver: _refererFor,
+                  rotationQuarterTurns: _pageRotations[b] ?? 0,
+                  cropEdge: _prefs.cropEdge,
+                  translation: _translation,
+                  translationRetry: _translationRetryPage,
+                ),
               ),
             ),
           );
@@ -5528,30 +5886,35 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
             // 注意：3.47+ Container.margin 断言拒绝负值（isNonNegative），改用 Transform
             // 位移实现同样效果，避免断言崩溃。
             transform: gap == 0 ? Matrix4.translationValues(0, 1, 0) : null,
-            child: MangaPageImage(
-              url: url,
-              prefs: _prefs,
-              source: _source,
-              refererResolver: _refererFor,
-              rotationQuarterTurns: _pageRotations[pageIdx] ?? 0,
-              cropEdge: _prefs.cropEdge,
+            // 页面动态效果（条漫）：滚动停止后对可见页后台渲染并叠加。
+            child: _withPageMotion(
+              url,
+              _pageRotations[pageIdx] ?? 0,
+              MangaPageImage(
+                url: url,
+                prefs: _prefs,
+                source: _source,
+                refererResolver: _refererFor,
+                rotationQuarterTurns: _pageRotations[pageIdx] ?? 0,
+                cropEdge: _prefs.cropEdge,
               // 条漫缩放由外层整体 Transform 负责（见下），item 一律恒等——
-              // 每页一起放大、间距等比，天然不重叠（复测「每张照片放大导致重叠」）。
-              zoomEnabled: () => false,
-              // 阅读器级加载记录：item 被 SPL 回收重建后仍按真实高度渲染，
-              // 消除「占位→真实」高度突变导致的反向翻页回弹/闪烁。
-              urlLoaded: (url) => _webtoonLoadedUrls.contains(url),
-              onUrlLoaded: (url) => _webtoonLoadedUrls.add(url),
-              // 缓存真实自然尺寸（占位高 / 纵向夹取基于真实高度）。
-              onImageInfo: (url, w, h) => _realImageDims[url] = Size(w, h),
-              realHeightResolver: (url, maxWidth) {
-                final Size? dims = _realImageDims[url];
-                if (dims == null || dims.width <= 0) return null;
-                // fitWidth 下布局高度 = 自然高 × (视口宽 / 自然宽)。
-                return dims.height * maxWidth / dims.width;
-              },
-              translation: _translation,
-              translationRetry: _translationRetryPage,
+                // 每页一起放大、间距等比，天然不重叠（复测「每张照片放大导致重叠」）。
+                zoomEnabled: () => false,
+                // 阅读器级加载记录：item 被 SPL 回收重建后仍按真实高度渲染，
+                // 消除「占位→真实」高度突变导致的反向翻页回弹/闪烁。
+                urlLoaded: (url) => _webtoonLoadedUrls.contains(url),
+                onUrlLoaded: (url) => _webtoonLoadedUrls.add(url),
+                // 缓存真实自然尺寸（占位高 / 纵向夹取基于真实高度）。
+                onImageInfo: (url, w, h) => _realImageDims[url] = Size(w, h),
+                realHeightResolver: (url, maxWidth) {
+                  final Size? dims = _realImageDims[url];
+                  if (dims == null || dims.width <= 0) return null;
+                  // fitWidth 下布局高度 = 自然高 × (视口宽 / 自然宽)。
+                  return dims.height * maxWidth / dims.width;
+                },
+                translation: _translation,
+                translationRetry: _translationRetryPage,
+              ),
             ),
           );
         },

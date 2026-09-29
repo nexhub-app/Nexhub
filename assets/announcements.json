@@ -1,5 +1,16 @@
 [
   {
+    "id": "v2.1.0-beta.1-announce",
+    "date": "2026-09-29",
+    "title": "NexHub 2.1.0-beta.1 预发布测试版",
+    "titleEn": "NexHub 2.1.0-beta.1 (pre-release beta)",
+    "body": "NexHub 2.1.0-beta.1 预发布测试版来了！这是一次大版本跨越：全应用搬到 Material 3 设计系统（全动态取色 + 9 种调色板风格）、侧栏/底栏毛玻璃、本地/网络导入独立预览页；并新增漫画动态效果（分层动效引擎，让静态漫画页拥有视差/呼吸/天气/光效等表现，阅读器内可开关调节）。底层完成 material_ui 1.4.0 迁移与 dynamic_color 解钉，弃用 API 全量迁移。🌟 特别感谢 mobai0z0 贡献了漫画动态效果。⚠️ 漫画动态效果仍在打磨中、部分机型可能不稳定，后续版本会继续优化。无破坏性数据变更，沿用同一签名密钥可直接覆盖安装。",
+    "bodyEn": "NexHub 2.1.0-beta.1 (pre-release beta) is here! This is a major step: the whole UI moves to the Material 3 design system (fully dynamic color + 9 palette styles), with frosted side/top bars and a standalone local/network import preview page; plus brand-new comic dynamic effects (a layered-motion engine that brings static pages to life with parallax/breathing/weather/light, toggleable and tunable in the reader). Under the hood: material_ui 1.4.0 migration and dynamic_color unpinning, with deprecated APIs fully migrated. 🌟 Special thanks to mobai0z0 for the comic dynamic effects. ⚠️ The comic motion effects are still a work in progress and may be unstable on some devices; more polish is coming. No breaking data changes — same signing key, just overwrite-install.",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v2.0.3-announce",
     "date": "2026-09-25",
     "title": "NexHub 2.0.3 正式版",

@@ -4798,6 +4798,275 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerPageAnimFade => 'Fade';
 
   @override
+  String get motionEffectTitle => 'Motion effects';
+
+  @override
+  String get motionEffectDesc =>
+      'Render static comic pages into layered motion (parallax / breathing / particles / light / manga action). Works in paged and webtoon modes';
+
+  @override
+  String get motionEffectEnabled => 'Enable motion effects';
+
+  @override
+  String get motionEffectEnabledDesc =>
+      'About a second after you stop on a page (page turn or scroll settle) it is rendered in the background; toggle and tune each effect below';
+
+  @override
+  String get motionEffectStateOff => 'Off';
+
+  @override
+  String get motionEffectStateOn => 'On';
+
+  @override
+  String get motionPresets => 'Quick presets';
+
+  @override
+  String get motionPresetClassic => 'Classic';
+
+  @override
+  String get motionPresetSakura => 'Sakura';
+
+  @override
+  String get motionPresetNightRain => 'Night rain';
+
+  @override
+  String get motionPresetStarryNight => 'Starry night';
+
+  @override
+  String get motionPresetBattle => 'Battle';
+
+  @override
+  String get motionQuality => 'Quality & smoothness';
+
+  @override
+  String get motionFps => 'Frame rate';
+
+  @override
+  String get motionDuration => 'Loop duration';
+
+  @override
+  String get motionResolution => 'Render resolution cap';
+
+  @override
+  String get motionQualityHint =>
+      'Higher values look sharper but render slower and produce larger GIFs. Pages are rendered in the background shortly after you stop on them; zooming in temporarily falls back to the static image';
+
+  @override
+  String get motionWebtoonModeTitle => 'Webtoon render timing';
+
+  @override
+  String get motionWebtoonModeDwell => 'On settle (battery saver)';
+
+  @override
+  String get motionWebtoonModeFollow => 'Realtime follow (more battery)';
+
+  @override
+  String get motionWebtoonModeHint =>
+      'On settle: visible pages are rendered only after scrolling stops for about a second. Realtime follow: the render target switches as your view moves — a fast preview (fewer frames / lower resolution) appears while scrolling and is automatically upgraded to full quality once you stop, at higher CPU / battery cost';
+
+  @override
+  String get motionEffectCountHint =>
+      'Each effect can be toggled independently and expanded to tune its parameters. Turning all off equals a static page';
+
+  @override
+  String get motionGroupAmbient => 'Ambient basics';
+
+  @override
+  String get motionGroupParticles => 'Particles & weather';
+
+  @override
+  String get motionGroupLight => 'Light & shadow';
+
+  @override
+  String get motionGroupManga => 'Manga action';
+
+  @override
+  String get motionFxParallax => 'Parallax';
+
+  @override
+  String get motionFxBreathing => 'Breathing';
+
+  @override
+  String get motionFxSlowPush => 'Slow push-in';
+
+  @override
+  String get motionFxHeartbeat => 'Heartbeat';
+
+  @override
+  String get motionFxToneShift => 'Tone shift';
+
+  @override
+  String get motionFxVignette => 'Vignette';
+
+  @override
+  String get motionFxAmbient => 'Ambient particles';
+
+  @override
+  String get motionFxDust => 'Dust';
+
+  @override
+  String get motionFxRain => 'Rain';
+
+  @override
+  String get motionFxSnow => 'Snow';
+
+  @override
+  String get motionFxSakura => 'Sakura petals';
+
+  @override
+  String get motionFxLeaves => 'Falling leaves';
+
+  @override
+  String get motionFxBubbles => 'Bubbles';
+
+  @override
+  String get motionFxFireflies => 'Fireflies';
+
+  @override
+  String get motionFxEmbers => 'Embers';
+
+  @override
+  String get motionFxMeteors => 'Meteors';
+
+  @override
+  String get motionFxFog => 'Fog';
+
+  @override
+  String get motionFxSmoke => 'Smoke';
+
+  @override
+  String get motionFxFlame => 'Flame';
+
+  @override
+  String get motionFxGodRays => 'God rays';
+
+  @override
+  String get motionFxLightSweep => 'Light sweep';
+
+  @override
+  String get motionFxShimmer => 'Shimmer';
+
+  @override
+  String get motionFxStarlight => 'Starlight';
+
+  @override
+  String get motionFxLightning => 'Lightning';
+
+  @override
+  String get motionFxImpactFlash => 'Impact flash';
+
+  @override
+  String get motionFxSpeedLines => 'Speed lines';
+
+  @override
+  String get motionFxFocusLines => 'Focus lines';
+
+  @override
+  String get motionFxScreenTone => 'Screen tone';
+
+  @override
+  String get motionFxMangaShake => 'Screen shake';
+
+  @override
+  String get motionFxImpactRings => 'Impact rings';
+
+  @override
+  String get motionFxBrushStreak => 'Brush streaks';
+
+  @override
+  String get motionFxMoodScript => 'Mood modulation';
+
+  @override
+  String get motionParamAmplitude => 'Amplitude';
+
+  @override
+  String get motionParamPeriod => 'Period (s)';
+
+  @override
+  String get motionParamVerticalRatio => 'Vertical ratio';
+
+  @override
+  String get motionParamPushFrac => 'Push amount';
+
+  @override
+  String get motionParamBeats => 'Beats';
+
+  @override
+  String get motionParamIntensity => 'Intensity';
+
+  @override
+  String get motionParamShift => 'Shift';
+
+  @override
+  String get motionParamStrength => 'Depth';
+
+  @override
+  String get motionParamCount => 'Count';
+
+  @override
+  String get motionParamSpeed => 'Speed';
+
+  @override
+  String get motionParamOpacity => 'Opacity';
+
+  @override
+  String get motionParamAngle => 'Angle';
+
+  @override
+  String get motionParamSize => 'Size';
+
+  @override
+  String get motionParamSpin => 'Spins';
+
+  @override
+  String get motionParamGlow => 'Glow';
+
+  @override
+  String get motionParamLengthFrac => 'Length';
+
+  @override
+  String get motionParamBlobs => 'Blobs';
+
+  @override
+  String get motionParamPuffs => 'Puffs';
+
+  @override
+  String get motionParamTongues => 'Tongues';
+
+  @override
+  String get motionParamRows => 'Rows';
+
+  @override
+  String get motionParamStrikes => 'Strikes';
+
+  @override
+  String get motionParamFlashes => 'Flashes';
+
+  @override
+  String get motionParamPulses => 'Pulses';
+
+  @override
+  String get motionParamLines => 'Lines';
+
+  @override
+  String get motionParamSpacing => 'Spacing';
+
+  @override
+  String get motionParamDensity => 'Density';
+
+  @override
+  String get motionParamShakes => 'Shakes';
+
+  @override
+  String get motionParamRings => 'Rings';
+
+  @override
+  String get motionParamStreaks => 'Streaks';
+
+  @override
+  String get motionParamHeightFrac => 'Height';
+
+  @override
   String get readerDoubleTapAnimSpeed => 'Double-tap zoom animation';
 
   @override

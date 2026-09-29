@@ -4710,6 +4710,274 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerPageAnimFade => '淡入淡出';
 
   @override
+  String get motionEffectTitle => '动态效果';
+
+  @override
+  String get motionEffectDesc =>
+      '把静态漫画页渲染成分层动效（视差 / 呼吸 / 粒子 / 光效 / 漫画动势），翻页与条漫滚动模式均生效';
+
+  @override
+  String get motionEffectEnabled => '开启动态效果';
+
+  @override
+  String get motionEffectEnabledDesc =>
+      '翻页停留或条漫滚动停止约 1 秒后，当前页在后台自动渲染为动态页；下方可逐项开关与调参';
+
+  @override
+  String get motionEffectStateOff => '已关闭';
+
+  @override
+  String get motionEffectStateOn => '已开启';
+
+  @override
+  String get motionPresets => '快速预设';
+
+  @override
+  String get motionPresetClassic => '经典氛围';
+
+  @override
+  String get motionPresetSakura => '樱花';
+
+  @override
+  String get motionPresetNightRain => '夜雨';
+
+  @override
+  String get motionPresetStarryNight => '星夜';
+
+  @override
+  String get motionPresetBattle => '热血战斗';
+
+  @override
+  String get motionQuality => '画质与流畅度';
+
+  @override
+  String get motionFps => '帧率';
+
+  @override
+  String get motionDuration => '循环时长';
+
+  @override
+  String get motionResolution => '渲染分辨率上限';
+
+  @override
+  String get motionQualityHint =>
+      '数值越高越清晰，但渲染更慢、体积更大；动态页由后台生成，翻页停留片刻后自动呈现，放大查看时临时恢复静态';
+
+  @override
+  String get motionWebtoonModeTitle => '条漫渲染时机';
+
+  @override
+  String get motionWebtoonModeDwell => '停留渲染（省电）';
+
+  @override
+  String get motionWebtoonModeFollow => '实时跟随（更耗电）';
+
+  @override
+  String get motionWebtoonModeHint =>
+      '停留渲染：滚动停止约 1 秒后才渲染可见页，省电；实时跟随：视野变化立即切换渲染目标，滚动中先出快速版（降帧/降分辨率），停止后自动升级为完整画质，CPU / 电量开销更高';
+
+  @override
+  String get motionEffectCountHint => '每种效果可独立开关，展开可调参数；全部关闭等于静态显示';
+
+  @override
+  String get motionGroupAmbient => '基础氛围';
+
+  @override
+  String get motionGroupParticles => '粒子天气';
+
+  @override
+  String get motionGroupLight => '光影明暗';
+
+  @override
+  String get motionGroupManga => '漫画动势';
+
+  @override
+  String get motionFxParallax => '视差';
+
+  @override
+  String get motionFxBreathing => '呼吸缩放';
+
+  @override
+  String get motionFxSlowPush => '缓慢推近';
+
+  @override
+  String get motionFxHeartbeat => '心跳';
+
+  @override
+  String get motionFxToneShift => '色温流转';
+
+  @override
+  String get motionFxVignette => '暗角呼吸';
+
+  @override
+  String get motionFxAmbient => '氛围微粒';
+
+  @override
+  String get motionFxDust => '尘埃';
+
+  @override
+  String get motionFxRain => '落雨';
+
+  @override
+  String get motionFxSnow => '落雪';
+
+  @override
+  String get motionFxSakura => '樱花飘落';
+
+  @override
+  String get motionFxLeaves => '落叶';
+
+  @override
+  String get motionFxBubbles => '气泡';
+
+  @override
+  String get motionFxFireflies => '流萤';
+
+  @override
+  String get motionFxEmbers => '飞烬';
+
+  @override
+  String get motionFxMeteors => '流星';
+
+  @override
+  String get motionFxFog => '雾气';
+
+  @override
+  String get motionFxSmoke => '烟雾';
+
+  @override
+  String get motionFxFlame => '火焰';
+
+  @override
+  String get motionFxGodRays => '云隙光';
+
+  @override
+  String get motionFxLightSweep => '光扫';
+
+  @override
+  String get motionFxShimmer => '波光';
+
+  @override
+  String get motionFxStarlight => '星光';
+
+  @override
+  String get motionFxLightning => '闪电';
+
+  @override
+  String get motionFxImpactFlash => '闪光冲击';
+
+  @override
+  String get motionFxSpeedLines => '速度线';
+
+  @override
+  String get motionFxFocusLines => '集中线';
+
+  @override
+  String get motionFxScreenTone => '网点纸';
+
+  @override
+  String get motionFxMangaShake => '震屏';
+
+  @override
+  String get motionFxImpactRings => '冲击波环';
+
+  @override
+  String get motionFxBrushStreak => '飞白笔触';
+
+  @override
+  String get motionFxMoodScript => '情绪调制';
+
+  @override
+  String get motionParamAmplitude => '幅度';
+
+  @override
+  String get motionParamPeriod => '周期（秒）';
+
+  @override
+  String get motionParamVerticalRatio => '纵向占比';
+
+  @override
+  String get motionParamPushFrac => '推近幅度';
+
+  @override
+  String get motionParamBeats => '拍数';
+
+  @override
+  String get motionParamIntensity => '强度';
+
+  @override
+  String get motionParamShift => '偏移量';
+
+  @override
+  String get motionParamStrength => '深度';
+
+  @override
+  String get motionParamCount => '数量';
+
+  @override
+  String get motionParamSpeed => '速度';
+
+  @override
+  String get motionParamOpacity => '不透明度';
+
+  @override
+  String get motionParamAngle => '角度';
+
+  @override
+  String get motionParamSize => '大小';
+
+  @override
+  String get motionParamSpin => '自转圈数';
+
+  @override
+  String get motionParamGlow => '光晕';
+
+  @override
+  String get motionParamLengthFrac => '长度占比';
+
+  @override
+  String get motionParamBlobs => '雾团数';
+
+  @override
+  String get motionParamPuffs => '烟团数';
+
+  @override
+  String get motionParamTongues => '火苗数';
+
+  @override
+  String get motionParamRows => '波带数';
+
+  @override
+  String get motionParamStrikes => '闪电次数';
+
+  @override
+  String get motionParamFlashes => '闪光次数';
+
+  @override
+  String get motionParamPulses => '脉冲次数';
+
+  @override
+  String get motionParamLines => '线条数';
+
+  @override
+  String get motionParamSpacing => '网格间距';
+
+  @override
+  String get motionParamDensity => '疏密';
+
+  @override
+  String get motionParamShakes => '震动次数';
+
+  @override
+  String get motionParamRings => '环数';
+
+  @override
+  String get motionParamStreaks => '笔触数';
+
+  @override
+  String get motionParamHeightFrac => '高度占比';
+
+  @override
   String get readerDoubleTapAnimSpeed => '双击缩放动画';
 
   @override
