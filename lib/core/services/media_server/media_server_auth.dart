@@ -114,11 +114,13 @@ class MediaServerAuth extends ChangeNotifier {
   ///
   /// 登录随后通过 [login] 完成。地址重复时抛 [StateError]；
   /// 探测不可达时上抛异常由调用方提示。
-  Future<MediaServerInfo> addServer(String baseUrl) async {
-    final probe = _probe;
-    if (probe == null) {
-      throw StateError('media server probe not wired yet');
-    }
+  ///
+  /// [typeOverride] 非空时跳过自动识别（探测降级为尽力而为，仅用于预填
+  /// ServerName，失败不阻断添加），供「手动选择类型」路径使用。
+  Future<MediaServerInfo> addServer(
+    String baseUrl, {
+    ServerType? typeOverride,
+  }) async {
     final normalized = normalizeBaseUrl(baseUrl);
     if (normalized.isEmpty) {
       throw ArgumentError.value(baseUrl, 'baseUrl', 'empty');
@@ -127,22 +129,64 @@ class MediaServerAuth extends ChangeNotifier {
     if (_servers.any((s) => s.baseUrl == normalized)) {
       throw StateError('server already added: $normalized');
     }
-    final result = await probe(normalized);
-    final serverName = result.serverName;
+    MediaServerProbeResult? result;
+    final probe = _probe;
+    if (typeOverride != null) {
+      if (probe != null) {
+        try {
+          result = await probe(normalized);
+        } on Object {
+          result = null;
+        }
+      }
+    } else {
+      if (probe == null) {
+        throw StateError('media server probe not wired yet');
+      }
+      result = await probe(normalized);
+    }
+    final type = typeOverride ?? result?.type;
+    if (type == null) {
+      throw StateError('server type unresolved');
+    }
+    final serverName = result?.serverName;
     final info = MediaServerInfo(
       id: _generateId(),
-      type: result.type,
+      type: type,
       name: (serverName != null && serverName.isNotEmpty)
           ? serverName
           : normalized,
       baseUrl: normalized,
       serverName: serverName,
-      version: result.version,
+      version: result?.version,
     );
     await _persist(info);
     _servers.add(info);
     notifyListeners();
     return info;
+  }
+
+  /// 仅探测（添加向导「探测」按钮的预览用，不落库）。
+  Future<MediaServerProbeResult> probeAddress(String baseUrl) async {
+    final probe = _probe;
+    if (probe == null) {
+      throw StateError('media server probe not wired yet');
+    }
+    return probe(normalizeBaseUrl(baseUrl));
+  }
+
+  /// 重命名服务器别名。
+  Future<void> renameServer(String serverId, String name) async {
+    await init();
+    final index = _servers.indexWhere((s) => s.id == serverId);
+    if (index < 0) {
+      throw StateError('unknown server: $serverId');
+    }
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    _servers[index] = _servers[index].copyWith(name: trimmed);
+    await _persist(_servers[index]);
+    notifyListeners();
   }
 
   /// 登录服务器：成功后回写 userId / username 并持久化，token 存安全存储。

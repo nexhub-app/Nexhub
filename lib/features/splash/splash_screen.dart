@@ -38,6 +38,8 @@ import '../../core/services/bangumi/bangumi_client.dart';
 import '../../core/services/bangumi/bangumi_proxy_config.dart';
 import '../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../core/services/bangumi/subject_link_store.dart';
+import '../../core/services/media_server/media_server_auth.dart';
+import '../../core/services/media_server/media_server_client.dart';
 import '../../core/services/auto_sync_scheduler.dart';
 import '../../core/services/cloud_sync_service.dart';
 import '../../core/services/source_library_bookmarks.dart';
@@ -75,6 +77,9 @@ class InitResult {
   final CloudSyncService cloudSyncService;
   final BangumiAuth bangumiAuth;
   final BangumiSyncService bangumiSyncService;
+
+  /// 媒体服务器认证管理器（Emby / Jellyfin 多服务器档案）。
+  final MediaServerAuth mediaServerAuth;
   final NetworkConfigService networkConfigService;
 
   const InitResult({
@@ -92,6 +97,7 @@ class InitResult {
     required this.cloudSyncService,
     required this.bangumiAuth,
     required this.bangumiSyncService,
+    required this.mediaServerAuth,
     required this.networkConfigService,
   });
 }
@@ -277,6 +283,9 @@ class _SplashScreenState extends State<SplashScreen> {
       watched: mediaWatchedManager,
     );
     await bangumiSyncService.init();
+    // 媒体服务器：探测 / 登录接缝接真实 API 客户端（详见 core/services/media_server）。
+    final mediaServerAuth = MediaServerClientBase.createMediaServerAuth();
+    await mediaServerAuth.init();
     // 通用设置（启动界面 / 日期格式 / 年龄限制）需在首页构建前就绪。
     await GeneralSettingsStore.instance.load();
     // 年龄限制开关注入源仓库：开启时成人分级源不参与任何内容入口。
@@ -299,6 +308,7 @@ class _SplashScreenState extends State<SplashScreen> {
       cloudSyncService: cloudSyncService,
       bangumiAuth: bangumiAuth,
       bangumiSyncService: bangumiSyncService,
+      mediaServerAuth: mediaServerAuth,
       networkConfigService: NetworkConfigService.instance,
     );
   }
@@ -403,6 +413,8 @@ class _SplashScreenState extends State<SplashScreen> {
                   value: result.bangumiAuth),
               ChangeNotifierProvider<BangumiSyncService>.value(
                   value: result.bangumiSyncService),
+              ChangeNotifierProvider<MediaServerAuth>.value(
+                  value: result.mediaServerAuth),
               ChangeNotifierProvider<NetworkConfigService>.value(
                   value: result.networkConfigService),
               ChangeNotifierProvider<ArticleReadingPreferencesNotifier>(

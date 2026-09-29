@@ -17234,6 +17234,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Title'**
   String get articleSecTitle;
+
+  /// No description provided for @mediaServerSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Media servers'**
+  String get mediaServerSettings;
+
+  /// No description provided for @mediaServerSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Emby / Jellyfin server connections and sign-in'**
+  String get mediaServerSettingsDesc;
+
+  /// No description provided for @mediaServerSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect Emby / Jellyfin with two-way watch progress sync'**
+  String get mediaServerSettingsSubtitle;
+
+  /// mediaServerTileConnected
+  ///
+  /// In en, this message translates to:
+  /// **'{n} connected'**
+  String mediaServerTileConnected(Object n);
+
+  /// No description provided for @mediaServerAddServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Add server'**
+  String get mediaServerAddServer;
+
+  /// No description provided for @mediaServerAddressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Server address'**
+  String get mediaServerAddressLabel;
+
+  /// No description provided for @mediaServerAddressHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. http://192.168.1.10:8096'**
+  String get mediaServerAddressHint;
+
+  /// No description provided for @mediaServerDetect.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect'**
+  String get mediaServerDetect;
+
+  /// No description provided for @mediaServerDetecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Detecting…'**
+  String get mediaServerDetecting;
+
+  /// No description provided for @mediaServerTypeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get mediaServerTypeLabel;
+
+  /// mediaServerDetectedAs
+  ///
+  /// In en, this message translates to:
+  /// **'Detected: {name}'**
+  String mediaServerDetectedAs(Object name);
+
+  /// No description provided for @mediaServerManualTypeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Detection failed? Pick the type manually and sign in.'**
+  String get mediaServerManualTypeHint;
+
+  /// No description provided for @mediaServerUsernameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get mediaServerUsernameLabel;
+
+  /// No description provided for @mediaServerPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get mediaServerPasswordLabel;
+
+  /// No description provided for @mediaServerLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get mediaServerLogin;
+
+  /// No description provided for @mediaServerLoggingIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing in…'**
+  String get mediaServerLoggingIn;
+
+  /// No description provided for @mediaServerNotLoggedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in'**
+  String get mediaServerNotLoggedIn;
+
+  /// mediaServerLoggedInAs
+  ///
+  /// In en, this message translates to:
+  /// **'Account: {user}'**
+  String mediaServerLoggedInAs(Object user);
+
+  /// No description provided for @mediaServerStatusOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get mediaServerStatusOnline;
+
+  /// No description provided for @mediaServerStatusOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get mediaServerStatusOffline;
+
+  /// No description provided for @mediaServerStatusNeedRelogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-login required'**
+  String get mediaServerStatusNeedRelogin;
+
+  /// No description provided for @mediaServerStatusChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get mediaServerStatusChecking;
+
+  /// No description provided for @mediaServerRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get mediaServerRename;
+
+  /// No description provided for @mediaServerRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename server'**
+  String get mediaServerRenameTitle;
+
+  /// No description provided for @mediaServerRelogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-login'**
+  String get mediaServerRelogin;
+
+  /// mediaServerReloginTitle
+  ///
+  /// In en, this message translates to:
+  /// **'Re-login to \"{name}\"'**
+  String mediaServerReloginTitle(Object name);
+
+  /// No description provided for @mediaServerDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get mediaServerDelete;
+
+  /// No description provided for @mediaServerDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete server'**
+  String get mediaServerDeleteTitle;
+
+  /// mediaServerDeleteBody
+  ///
+  /// In en, this message translates to:
+  /// **'This removes the local configuration and credentials for \"{name}\". Your server\'s libraries and watch progress are not affected.'**
+  String mediaServerDeleteBody(Object name);
+
+  /// No description provided for @mediaServerEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No servers yet'**
+  String get mediaServerEmptyTitle;
+
+  /// No description provided for @mediaServerEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Supports Emby and Jellyfin. Enter a LAN or reverse-proxy address, sign in, then browse and play.'**
+  String get mediaServerEmptyHint;
+
+  /// mediaServerOperationFailed
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed: {error}'**
+  String mediaServerOperationFailed(Object error);
+
+  /// No description provided for @mediaServerAddressRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a server address first'**
+  String get mediaServerAddressRequired;
+
+  /// No description provided for @mediaServerCredentialsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a username and password'**
+  String get mediaServerCredentialsRequired;
 }
 
 class _AppLocalizationsDelegate

@@ -1679,8 +1679,6 @@
   "pauseAutoPage": "Pause Auto Page",
   "resumeAutoPage": "Resume Auto Page",
   "customFont": "Custom Font",
-  "fontSystem": "System",
-  "fontSerif": "Serif",
   "fontMonospace": "Monospace",
   "addBookmark": "Add Bookmark",
   "bookmarkList": "Bookmark List",
@@ -4557,7 +4555,9 @@
   "glossaryTargetLang": "Target language: {lang}",
   "@glossaryTargetLang": {
     "placeholders": {
-      "lang": {"type": "String"}
+      "lang": {
+        "type": "String"
+      }
     }
   },
   "glossaryEmpty": "No glossary entries yet. Add character names and proper nouns so translations stay consistent across chapters.",
@@ -4572,20 +4572,26 @@
   "glossaryImportOk": "Imported {count} entries",
   "@glossaryImportOk": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "glossaryImportFail": "Import failed: invalid glossary file",
   "glossaryDeleteConfirm": "Delete term “{term}”?",
   "@glossaryDeleteConfirm": {
     "placeholders": {
-      "term": {"type": "String"}
+      "term": {
+        "type": "String"
+      }
     }
   },
   "glossaryAliasesPreview": "Aliases: {aliases}",
   "@glossaryAliasesPreview": {
     "placeholders": {
-      "aliases": {"type": "String"}
+      "aliases": {
+        "type": "String"
+      }
     }
   },
   "glossaryOpen": "Glossary editor",
@@ -5053,5 +5059,75 @@
   "articleSecColor": "Color & background",
   "articleSecShadow": "Shadow",
   "articleSecFont": "Font",
-  "articleSecTitle": "Title"
+  "articleSecTitle": "Title",
+  "mediaServerSettings": "Media servers",
+  "mediaServerSettingsDesc": "Manage Emby / Jellyfin server connections and sign-in",
+  "mediaServerSettingsSubtitle": "Connect Emby / Jellyfin with two-way watch progress sync",
+  "mediaServerTileConnected": "{n} connected",
+  "@mediaServerTileConnected": {
+    "description": "mediaServerTileConnected",
+    "placeholders": {
+      "n": {}
+    }
+  },
+  "mediaServerAddServer": "Add server",
+  "mediaServerAddressLabel": "Server address",
+  "mediaServerAddressHint": "e.g. http://192.168.1.10:8096",
+  "mediaServerDetect": "Detect",
+  "mediaServerDetecting": "Detecting…",
+  "mediaServerTypeLabel": "Type",
+  "mediaServerDetectedAs": "Detected: {name}",
+  "@mediaServerDetectedAs": {
+    "description": "mediaServerDetectedAs",
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "mediaServerManualTypeHint": "Detection failed? Pick the type manually and sign in.",
+  "mediaServerUsernameLabel": "Username",
+  "mediaServerPasswordLabel": "Password",
+  "mediaServerLogin": "Sign in",
+  "mediaServerLoggingIn": "Signing in…",
+  "mediaServerNotLoggedIn": "Not signed in",
+  "mediaServerLoggedInAs": "Account: {user}",
+  "@mediaServerLoggedInAs": {
+    "description": "mediaServerLoggedInAs",
+    "placeholders": {
+      "user": {}
+    }
+  },
+  "mediaServerStatusOnline": "Online",
+  "mediaServerStatusOffline": "Offline",
+  "mediaServerStatusNeedRelogin": "Re-login required",
+  "mediaServerStatusChecking": "Checking…",
+  "mediaServerRename": "Rename",
+  "mediaServerRenameTitle": "Rename server",
+  "mediaServerRelogin": "Re-login",
+  "mediaServerReloginTitle": "Re-login to \"{name}\"",
+  "@mediaServerReloginTitle": {
+    "description": "mediaServerReloginTitle",
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "mediaServerDelete": "Delete",
+  "mediaServerDeleteTitle": "Delete server",
+  "mediaServerDeleteBody": "This removes the local configuration and credentials for \"{name}\". Your server's libraries and watch progress are not affected.",
+  "@mediaServerDeleteBody": {
+    "description": "mediaServerDeleteBody",
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "mediaServerEmptyTitle": "No servers yet",
+  "mediaServerEmptyHint": "Supports Emby and Jellyfin. Enter a LAN or reverse-proxy address, sign in, then browse and play.",
+  "mediaServerOperationFailed": "Operation failed: {error}",
+  "@mediaServerOperationFailed": {
+    "description": "mediaServerOperationFailed",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "mediaServerAddressRequired": "Enter a server address first",
+  "mediaServerCredentialsRequired": "Enter a username and password"
 }

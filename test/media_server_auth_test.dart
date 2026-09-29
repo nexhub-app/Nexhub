@@ -177,6 +177,59 @@ void main() {
       );
       expect(auth.servers, isEmpty);
     });
+
+    test('手选类型：探测失败也成功落库，类型取手选', () async {
+      final auth = MediaServerAuth(
+        storage: tokenStorage,
+        box: box,
+        prefs: prefs,
+        probe: fakeProbe(throwOn: const MediaServerApiException(null, 'down')),
+        authenticate: fakeLogin(),
+      );
+      final info =
+          await auth.addServer('http://nas:8096', typeOverride: ServerType.emby);
+      expect(info.type, ServerType.emby);
+      expect(info.serverName, isNull);
+      expect(info.name, 'http://nas:8096');
+    });
+
+    test('手选类型：探测成功预填 ServerName，类型仍取手选', () async {
+      final auth = buildAuth();
+      final info =
+          await auth.addServer('http://nas:8096', typeOverride: ServerType.emby);
+      expect(info.type, ServerType.emby);
+      expect(info.serverName, 'NAS 媒体库');
+    });
+  });
+
+  group('probeAddress', () {
+    test('仅预览不落库', () async {
+      final auth = buildAuth();
+      final r = await auth.probeAddress('http://nas:8096/');
+      expect(r.type, ServerType.jellyfin);
+      expect(auth.servers, isEmpty);
+    });
+  });
+
+  group('renameServer', () {
+    test('重命名持久化，重建实例后仍生效', () async {
+      final auth = buildAuth();
+      final info = await auth.addServer('http://nas:8096');
+      await auth.renameServer(info.id, '我的 NAS');
+      expect(auth.servers.single.name, '我的 NAS');
+
+      final auth2 = buildAuth();
+      await auth2.init();
+      expect(auth2.servers.single.name, '我的 NAS');
+    });
+
+    test('空名忽略 / 未知 id 报错', () async {
+      final auth = buildAuth();
+      final info = await auth.addServer('http://nas:8096');
+      await auth.renameServer(info.id, '   ');
+      expect(auth.servers.single.name, info.name);
+      expect(() => auth.renameServer('nope', 'x'), throwsStateError);
+    });
   });
 
   group('login', () {

@@ -17,6 +17,8 @@ import './settings_import_export_screen.dart';
 import './settings_cloud_sync_screen.dart';
 import './settings_bangumi_screen.dart';
 import './settings_dandanplay_account_screen.dart';
+import './media_server_manage_screen.dart';
+import '../../../core/services/media_server/media_server_auth.dart';
 import '../../../core/danmaku/dandanplay_auth.dart';
 import '../../../core/widgets/app_glass_bar.dart';
 
@@ -121,6 +123,13 @@ class SettingsDataScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                _MediaServerTile(
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const MediaServerManageScreen(),
+                    ),
+                  ),
+                ),
                 _DandanplayTile(
                   onTap: () => Navigator.of(context).push(
                     AppPageRoute<void>(
@@ -133,6 +142,31 @@ class SettingsDataScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MediaServerTile extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _MediaServerTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Consumer<MediaServerAuth>(
+      builder: (context, auth, _) {
+        final connected =
+            auth.servers.where((s) => s.loggedIn).length;
+        return SettingsTile(
+          icon: Icons.video_library_rounded,
+          title: l10n.mediaServerSettings,
+          subtitle: connected > 0
+              ? l10n.mediaServerTileConnected('$connected')
+              : l10n.mediaServerSettingsSubtitle,
+          onTap: onTap,
+        );
+      },
     );
   }
 }

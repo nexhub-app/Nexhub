@@ -44,6 +44,7 @@ import './settings_dandanplay_account_screen.dart';
 import './settings_update_screen.dart';
 import './settings_cloud_sync_screen.dart';
 import './settings_bangumi_screen.dart';
+import './media_server_manage_screen.dart';
 import './settings_rss_notifications_screen.dart';
 import './settings_rsshub_screen.dart';
 import '../../rss/presentation/rss_feed_list_screen.dart';
@@ -1673,6 +1674,22 @@ class SettingsScreen extends StatelessWidget {
         title: l10n.bangumiSettings,
         keywords: const <String>['bangumi', '番组', '评分', '同步', '账户', 'bgm'],
         builder: (_) => const SettingsBangumiScreen(),
+      ),
+      _SettingEntry(
+        icon: Icons.video_library_rounded,
+        title: l10n.mediaServerSettings,
+        desc: l10n.mediaServerSettingsDesc,
+        keywords: const <String>[
+          '媒体服务器',
+          'emby',
+          'jellyfin',
+          '服务器',
+          'nas',
+          '影音',
+          '家庭影院',
+          'media server'
+        ],
+        builder: (_) => const MediaServerManageScreen(),
       ),
       // 订阅 / RSS 相关：
       _SettingEntry(

@@ -9195,4 +9195,122 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get articleSecTitle => 'Title';
+
+  @override
+  String get mediaServerSettings => 'Media servers';
+
+  @override
+  String get mediaServerSettingsDesc =>
+      'Manage Emby / Jellyfin server connections and sign-in';
+
+  @override
+  String get mediaServerSettingsSubtitle =>
+      'Connect Emby / Jellyfin with two-way watch progress sync';
+
+  @override
+  String mediaServerTileConnected(Object n) {
+    return '$n connected';
+  }
+
+  @override
+  String get mediaServerAddServer => 'Add server';
+
+  @override
+  String get mediaServerAddressLabel => 'Server address';
+
+  @override
+  String get mediaServerAddressHint => 'e.g. http://192.168.1.10:8096';
+
+  @override
+  String get mediaServerDetect => 'Detect';
+
+  @override
+  String get mediaServerDetecting => 'Detecting…';
+
+  @override
+  String get mediaServerTypeLabel => 'Type';
+
+  @override
+  String mediaServerDetectedAs(Object name) {
+    return 'Detected: $name';
+  }
+
+  @override
+  String get mediaServerManualTypeHint =>
+      'Detection failed? Pick the type manually and sign in.';
+
+  @override
+  String get mediaServerUsernameLabel => 'Username';
+
+  @override
+  String get mediaServerPasswordLabel => 'Password';
+
+  @override
+  String get mediaServerLogin => 'Sign in';
+
+  @override
+  String get mediaServerLoggingIn => 'Signing in…';
+
+  @override
+  String get mediaServerNotLoggedIn => 'Not signed in';
+
+  @override
+  String mediaServerLoggedInAs(Object user) {
+    return 'Account: $user';
+  }
+
+  @override
+  String get mediaServerStatusOnline => 'Online';
+
+  @override
+  String get mediaServerStatusOffline => 'Offline';
+
+  @override
+  String get mediaServerStatusNeedRelogin => 'Re-login required';
+
+  @override
+  String get mediaServerStatusChecking => 'Checking…';
+
+  @override
+  String get mediaServerRename => 'Rename';
+
+  @override
+  String get mediaServerRenameTitle => 'Rename server';
+
+  @override
+  String get mediaServerRelogin => 'Re-login';
+
+  @override
+  String mediaServerReloginTitle(Object name) {
+    return 'Re-login to \"$name\"';
+  }
+
+  @override
+  String get mediaServerDelete => 'Delete';
+
+  @override
+  String get mediaServerDeleteTitle => 'Delete server';
+
+  @override
+  String mediaServerDeleteBody(Object name) {
+    return 'This removes the local configuration and credentials for \"$name\". Your server\'s libraries and watch progress are not affected.';
+  }
+
+  @override
+  String get mediaServerEmptyTitle => 'No servers yet';
+
+  @override
+  String get mediaServerEmptyHint =>
+      'Supports Emby and Jellyfin. Enter a LAN or reverse-proxy address, sign in, then browse and play.';
+
+  @override
+  String mediaServerOperationFailed(Object error) {
+    return 'Operation failed: $error';
+  }
+
+  @override
+  String get mediaServerAddressRequired => 'Enter a server address first';
+
+  @override
+  String get mediaServerCredentialsRequired => 'Enter a username and password';
 }

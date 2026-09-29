@@ -8985,4 +8985,118 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get articleSecTitle => '标题';
+
+  @override
+  String get mediaServerSettings => '媒体服务器';
+
+  @override
+  String get mediaServerSettingsDesc => '管理 Emby / Jellyfin 服务器连接与登录';
+
+  @override
+  String get mediaServerSettingsSubtitle => '连接 Emby / Jellyfin 观看进度双向同步';
+
+  @override
+  String mediaServerTileConnected(Object n) {
+    return '已连接 $n 台';
+  }
+
+  @override
+  String get mediaServerAddServer => '添加服务器';
+
+  @override
+  String get mediaServerAddressLabel => '服务器地址';
+
+  @override
+  String get mediaServerAddressHint => '例如 http://192.168.1.10:8096';
+
+  @override
+  String get mediaServerDetect => '探测';
+
+  @override
+  String get mediaServerDetecting => '探测中…';
+
+  @override
+  String get mediaServerTypeLabel => '类型';
+
+  @override
+  String mediaServerDetectedAs(Object name) {
+    return '已识别：$name';
+  }
+
+  @override
+  String get mediaServerManualTypeHint => '识别失败？可手动选择类型后直接登录';
+
+  @override
+  String get mediaServerUsernameLabel => '用户名';
+
+  @override
+  String get mediaServerPasswordLabel => '密码';
+
+  @override
+  String get mediaServerLogin => '登录';
+
+  @override
+  String get mediaServerLoggingIn => '登录中…';
+
+  @override
+  String get mediaServerNotLoggedIn => '未登录';
+
+  @override
+  String mediaServerLoggedInAs(Object user) {
+    return '账号：$user';
+  }
+
+  @override
+  String get mediaServerStatusOnline => '在线';
+
+  @override
+  String get mediaServerStatusOffline => '离线';
+
+  @override
+  String get mediaServerStatusNeedRelogin => '需重新登录';
+
+  @override
+  String get mediaServerStatusChecking => '检测中…';
+
+  @override
+  String get mediaServerRename => '重命名';
+
+  @override
+  String get mediaServerRenameTitle => '重命名服务器';
+
+  @override
+  String get mediaServerRelogin => '重新登录';
+
+  @override
+  String mediaServerReloginTitle(Object name) {
+    return '重新登录「$name」';
+  }
+
+  @override
+  String get mediaServerDelete => '删除';
+
+  @override
+  String get mediaServerDeleteTitle => '删除服务器';
+
+  @override
+  String mediaServerDeleteBody(Object name) {
+    return '将移除「$name」的本机配置与登录凭证；服务器上的媒体库与观看进度不受影响。';
+  }
+
+  @override
+  String get mediaServerEmptyTitle => '尚未添加服务器';
+
+  @override
+  String get mediaServerEmptyHint => '支持 Emby 与 Jellyfin。输入内网或反代地址，登录后即可浏览与播放。';
+
+  @override
+  String mediaServerOperationFailed(Object error) {
+    return '操作失败：$error';
+  }
+
+  @override
+  String get mediaServerAddressRequired => '请先填写服务器地址';
+
+  @override
+  String get mediaServerCredentialsRequired => '请填写用户名和密码';
 }

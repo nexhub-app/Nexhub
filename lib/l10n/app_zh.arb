@@ -1659,8 +1659,6 @@
   "pauseAutoPage": "暂停自动翻页",
   "resumeAutoPage": "恢复自动翻页",
   "customFont": "自定义字体",
-  "fontSystem": "系统",
-  "fontSerif": "衬线",
   "fontMonospace": "等宽",
   "addBookmark": "添加书签",
   "bookmarkList": "书签列表",
@@ -4513,7 +4511,9 @@
   "glossaryTargetLang": "目标语言：{lang}",
   "@glossaryTargetLang": {
     "placeholders": {
-      "lang": {"type": "String"}
+      "lang": {
+        "type": "String"
+      }
     }
   },
   "glossaryEmpty": "暂无术语。添加人名与专名后，翻译将全书保持同一译名。",
@@ -4528,20 +4528,26 @@
   "glossaryImportOk": "已导入 {count} 条术语",
   "@glossaryImportOk": {
     "placeholders": {
-      "count": {"type": "int"}
+      "count": {
+        "type": "int"
+      }
     }
   },
   "glossaryImportFail": "导入失败：术语表文件格式非法",
   "glossaryDeleteConfirm": "删除术语「{term}」？",
   "@glossaryDeleteConfirm": {
     "placeholders": {
-      "term": {"type": "String"}
+      "term": {
+        "type": "String"
+      }
     }
   },
   "glossaryAliasesPreview": "别名：{aliases}",
   "@glossaryAliasesPreview": {
     "placeholders": {
-      "aliases": {"type": "String"}
+      "aliases": {
+        "type": "String"
+      }
     }
   },
   "glossaryOpen": "术语表编辑器",
@@ -5009,5 +5015,75 @@
   "articleSecColor": "颜色与背景",
   "articleSecShadow": "阴影",
   "articleSecFont": "字体",
-  "articleSecTitle": "标题"
+  "articleSecTitle": "标题",
+  "mediaServerSettings": "媒体服务器",
+  "mediaServerSettingsDesc": "管理 Emby / Jellyfin 服务器连接与登录",
+  "mediaServerSettingsSubtitle": "连接 Emby / Jellyfin 观看进度双向同步",
+  "mediaServerTileConnected": "已连接 {n} 台",
+  "@mediaServerTileConnected": {
+    "description": "mediaServerTileConnected",
+    "placeholders": {
+      "n": {}
+    }
+  },
+  "mediaServerAddServer": "添加服务器",
+  "mediaServerAddressLabel": "服务器地址",
+  "mediaServerAddressHint": "例如 http://192.168.1.10:8096",
+  "mediaServerDetect": "探测",
+  "mediaServerDetecting": "探测中…",
+  "mediaServerTypeLabel": "类型",
+  "mediaServerDetectedAs": "已识别：{name}",
+  "@mediaServerDetectedAs": {
+    "description": "mediaServerDetectedAs",
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "mediaServerManualTypeHint": "识别失败？可手动选择类型后直接登录",
+  "mediaServerUsernameLabel": "用户名",
+  "mediaServerPasswordLabel": "密码",
+  "mediaServerLogin": "登录",
+  "mediaServerLoggingIn": "登录中…",
+  "mediaServerNotLoggedIn": "未登录",
+  "mediaServerLoggedInAs": "账号：{user}",
+  "@mediaServerLoggedInAs": {
+    "description": "mediaServerLoggedInAs",
+    "placeholders": {
+      "user": {}
+    }
+  },
+  "mediaServerStatusOnline": "在线",
+  "mediaServerStatusOffline": "离线",
+  "mediaServerStatusNeedRelogin": "需重新登录",
+  "mediaServerStatusChecking": "检测中…",
+  "mediaServerRename": "重命名",
+  "mediaServerRenameTitle": "重命名服务器",
+  "mediaServerRelogin": "重新登录",
+  "mediaServerReloginTitle": "重新登录「{name}」",
+  "@mediaServerReloginTitle": {
+    "description": "mediaServerReloginTitle",
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "mediaServerDelete": "删除",
+  "mediaServerDeleteTitle": "删除服务器",
+  "mediaServerDeleteBody": "将移除「{name}」的本机配置与登录凭证；服务器上的媒体库与观看进度不受影响。",
+  "@mediaServerDeleteBody": {
+    "description": "mediaServerDeleteBody",
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "mediaServerEmptyTitle": "尚未添加服务器",
+  "mediaServerEmptyHint": "支持 Emby 与 Jellyfin。输入内网或反代地址，登录后即可浏览与播放。",
+  "mediaServerOperationFailed": "操作失败：{error}",
+  "@mediaServerOperationFailed": {
+    "description": "mediaServerOperationFailed",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "mediaServerAddressRequired": "请先填写服务器地址",
+  "mediaServerCredentialsRequired": "请填写用户名和密码"
 }
