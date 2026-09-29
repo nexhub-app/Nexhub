@@ -1608,7 +1608,15 @@ class SettingsScreen extends StatelessWidget {
       _SettingEntry(
         icon: Icons.cloud_sync_rounded,
         title: l10n.cloudSync,
-        keywords: const <String>['云', '同步', 'cloud', 'webdav', '云端'],
+        keywords: const <String>[
+          '云',
+          '同步',
+          'cloud',
+          'webdav',
+          '云端',
+          'onedrive',
+          '微软网盘'
+        ],
         builder: (_) => const SettingsCloudSyncScreen(),
       ),
       _SettingEntry(

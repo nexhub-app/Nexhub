@@ -4358,6 +4358,94 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSyncSyncNow => 'Sync Now';
 
   @override
+  String get cloudSyncBackend => 'Backup backend';
+
+  @override
+  String get cloudSyncBackendWebdav => 'WebDAV';
+
+  @override
+  String get cloudSyncBackendOnedrive => 'OneDrive';
+
+  @override
+  String get cloudSyncErrorNoConfigOnedrive =>
+      'OneDrive not signed in; sign in first';
+
+  @override
+  String get onedriveLoginTitle => 'OneDrive Sign-in';
+
+  @override
+  String get onedriveLogin => 'Sign in to OneDrive';
+
+  @override
+  String get onedriveLogout => 'Sign out';
+
+  @override
+  String get onedriveLoggedOut => 'Signed out of OneDrive';
+
+  @override
+  String get onedriveLoggedIn => 'Signed in to OneDrive';
+
+  @override
+  String get onedriveAccountLabel => 'Account';
+
+  @override
+  String get onedriveLoginSuccess => 'OneDrive sign-in succeeded';
+
+  @override
+  String get onedriveLoginCancelled => 'OneDrive sign-in cancelled';
+
+  @override
+  String get onedriveAuthFailed => 'OneDrive authorization failed';
+
+  @override
+  String get onedriveAuthExpired => 'OneDrive session expired; sign in again';
+
+  @override
+  String get onedriveNotConfiguredTitle => 'OneDrive not configured';
+
+  @override
+  String get onedriveNotConfiguredBody =>
+      'OneDrive backup requires registering an app in the Azure portal to get a Client ID, injected at build time via --dart-define=ONEDRIVE_CLIENT_ID. Tap \"Setup guide\" below for detailed steps.';
+
+  @override
+  String get onedriveConfigGuide => 'Setup guide';
+
+  @override
+  String get onedriveGuideTitle => 'OneDrive backup setup guide';
+
+  @override
+  String get onedriveGuideBody =>
+      '1. Open portal.azure.com, go to \"Microsoft Entra ID → App registrations → New registration\".\n2. For account type, choose \"Accounts in any organizational directory and personal Microsoft accounts\".\n3. Under Redirect URI, add the \"Mobile and desktop applications\" platform with the address http://localhost.\n4. Set \"Allow public client flows\" to Yes.\n5. Under API permissions, add the Microsoft Graph delegated permission Files.ReadWrite.AppFolder (User.Read is included by default).\n6. Copy the Application (client) ID and inject it at build time:\nflutter run/build --dart-define=ONEDRIVE_CLIENT_ID=<your-id>\n\nBackups are stored in the app-specific OneDrive folder; the app has no access to the rest of your drive.';
+
+  @override
+  String get onedriveDeviceCodeLogin => 'Device code sign-in';
+
+  @override
+  String get onedriveDeviceCodeTitle => 'OneDrive device code sign-in';
+
+  @override
+  String onedriveDeviceCodeIntro(String verificationUri) {
+    return 'Open $verificationUri in a browser and enter this code:';
+  }
+
+  @override
+  String get onedriveOpenPage => 'Open sign-in page';
+
+  @override
+  String get onedriveCopy => 'Copy code';
+
+  @override
+  String get onedriveCopied => 'Code copied';
+
+  @override
+  String get onedriveWaitingAuth =>
+      'Waiting for authorization… finish signing in your browser';
+
+  @override
+  String get onedriveWebViewUnavailable =>
+      'No embedded browser on this platform; use device code sign-in';
+
+  @override
   String get novelProgressSyncNow => 'Sync reading progress';
 
   @override

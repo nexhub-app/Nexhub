@@ -4280,6 +4280,91 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSyncSyncNow => '立即同步';
 
   @override
+  String get cloudSyncBackend => '备份后端';
+
+  @override
+  String get cloudSyncBackendWebdav => 'WebDAV';
+
+  @override
+  String get cloudSyncBackendOnedrive => 'OneDrive';
+
+  @override
+  String get cloudSyncErrorNoConfigOnedrive => '尚未登录 OneDrive，请先登录';
+
+  @override
+  String get onedriveLoginTitle => 'OneDrive 登录';
+
+  @override
+  String get onedriveLogin => '登录 OneDrive';
+
+  @override
+  String get onedriveLogout => '退出登录';
+
+  @override
+  String get onedriveLoggedOut => '已退出 OneDrive 登录';
+
+  @override
+  String get onedriveLoggedIn => '已登录 OneDrive';
+
+  @override
+  String get onedriveAccountLabel => '账号';
+
+  @override
+  String get onedriveLoginSuccess => 'OneDrive 登录成功';
+
+  @override
+  String get onedriveLoginCancelled => '已取消 OneDrive 登录';
+
+  @override
+  String get onedriveAuthFailed => 'OneDrive 授权失败';
+
+  @override
+  String get onedriveAuthExpired => 'OneDrive 登录已过期，请重新登录';
+
+  @override
+  String get onedriveNotConfiguredTitle => '尚未配置 OneDrive';
+
+  @override
+  String get onedriveNotConfiguredBody =>
+      'OneDrive 备份需要在 Azure 门户注册应用获取 Client ID，并在构建时通过 --dart-define=ONEDRIVE_CLIENT_ID 注入。点击下方「配置教程」查看详细步骤。';
+
+  @override
+  String get onedriveConfigGuide => '配置教程';
+
+  @override
+  String get onedriveGuideTitle => 'OneDrive 备份配置教程';
+
+  @override
+  String get onedriveGuideBody =>
+      '1. 打开 portal.azure.com，进入「Microsoft Entra ID → 应用注册 → 新注册」。\n2. 账户类型选择「任何组织目录中的帐户和个人 Microsoft 帐户」。\n3. 「重定向 URI」平台选「移动和桌面应用程序」，地址填 http://localhost 。\n4. 「允许公共客户端流」设为「是」。\n5. 「API 权限」添加 Microsoft Graph 委托权限 Files.ReadWrite.AppFolder（User.Read 默认已有）。\n6. 记录「应用程序(客户端) ID」，构建时注入：\nflutter run/build --dart-define=ONEDRIVE_CLIENT_ID=<你的ID>\n\n备份存放在 OneDrive 的「应用」专用目录中，应用无权访问网盘其他文件。';
+
+  @override
+  String get onedriveDeviceCodeLogin => '设备码登录';
+
+  @override
+  String get onedriveDeviceCodeTitle => 'OneDrive 设备码登录';
+
+  @override
+  String onedriveDeviceCodeIntro(String verificationUri) {
+    return '在浏览器打开 $verificationUri，输入以下代码完成登录：';
+  }
+
+  @override
+  String get onedriveOpenPage => '打开授权页面';
+
+  @override
+  String get onedriveCopy => '复制代码';
+
+  @override
+  String get onedriveCopied => '验证码已复制';
+
+  @override
+  String get onedriveWaitingAuth => '等待授权中…请在浏览器完成登录';
+
+  @override
+  String get onedriveWebViewUnavailable => '当前平台无内嵌浏览器组件，请使用设备码登录';
+
+  @override
   String get novelProgressSyncNow => '同步阅读进度';
 
   @override

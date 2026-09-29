@@ -8336,6 +8336,168 @@ abstract class AppLocalizations {
   /// **'Sync Now'**
   String get cloudSyncSyncNow;
 
+  /// No description provided for @cloudSyncBackend.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup backend'**
+  String get cloudSyncBackend;
+
+  /// No description provided for @cloudSyncBackendWebdav.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV'**
+  String get cloudSyncBackendWebdav;
+
+  /// No description provided for @cloudSyncBackendOnedrive.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive'**
+  String get cloudSyncBackendOnedrive;
+
+  /// No description provided for @cloudSyncErrorNoConfigOnedrive.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive not signed in; sign in first'**
+  String get cloudSyncErrorNoConfigOnedrive;
+
+  /// No description provided for @onedriveLoginTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive Sign-in'**
+  String get onedriveLoginTitle;
+
+  /// No description provided for @onedriveLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to OneDrive'**
+  String get onedriveLogin;
+
+  /// No description provided for @onedriveLogout.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get onedriveLogout;
+
+  /// No description provided for @onedriveLoggedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed out of OneDrive'**
+  String get onedriveLoggedOut;
+
+  /// No description provided for @onedriveLoggedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in to OneDrive'**
+  String get onedriveLoggedIn;
+
+  /// No description provided for @onedriveAccountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get onedriveAccountLabel;
+
+  /// No description provided for @onedriveLoginSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive sign-in succeeded'**
+  String get onedriveLoginSuccess;
+
+  /// No description provided for @onedriveLoginCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive sign-in cancelled'**
+  String get onedriveLoginCancelled;
+
+  /// No description provided for @onedriveAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive authorization failed'**
+  String get onedriveAuthFailed;
+
+  /// No description provided for @onedriveAuthExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive session expired; sign in again'**
+  String get onedriveAuthExpired;
+
+  /// No description provided for @onedriveNotConfiguredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive not configured'**
+  String get onedriveNotConfiguredTitle;
+
+  /// No description provided for @onedriveNotConfiguredBody.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive backup requires registering an app in the Azure portal to get a Client ID, injected at build time via --dart-define=ONEDRIVE_CLIENT_ID. Tap \"Setup guide\" below for detailed steps.'**
+  String get onedriveNotConfiguredBody;
+
+  /// No description provided for @onedriveConfigGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup guide'**
+  String get onedriveConfigGuide;
+
+  /// No description provided for @onedriveGuideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive backup setup guide'**
+  String get onedriveGuideTitle;
+
+  /// No description provided for @onedriveGuideBody.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Open portal.azure.com, go to \"Microsoft Entra ID → App registrations → New registration\".\n2. For account type, choose \"Accounts in any organizational directory and personal Microsoft accounts\".\n3. Under Redirect URI, add the \"Mobile and desktop applications\" platform with the address http://localhost.\n4. Set \"Allow public client flows\" to Yes.\n5. Under API permissions, add the Microsoft Graph delegated permission Files.ReadWrite.AppFolder (User.Read is included by default).\n6. Copy the Application (client) ID and inject it at build time:\nflutter run/build --dart-define=ONEDRIVE_CLIENT_ID=<your-id>\n\nBackups are stored in the app-specific OneDrive folder; the app has no access to the rest of your drive.'**
+  String get onedriveGuideBody;
+
+  /// No description provided for @onedriveDeviceCodeLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Device code sign-in'**
+  String get onedriveDeviceCodeLogin;
+
+  /// No description provided for @onedriveDeviceCodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'OneDrive device code sign-in'**
+  String get onedriveDeviceCodeTitle;
+
+  /// No description provided for @onedriveDeviceCodeIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Open {verificationUri} in a browser and enter this code:'**
+  String onedriveDeviceCodeIntro(String verificationUri);
+
+  /// No description provided for @onedriveOpenPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Open sign-in page'**
+  String get onedriveOpenPage;
+
+  /// No description provided for @onedriveCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy code'**
+  String get onedriveCopy;
+
+  /// No description provided for @onedriveCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Code copied'**
+  String get onedriveCopied;
+
+  /// No description provided for @onedriveWaitingAuth.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for authorization… finish signing in your browser'**
+  String get onedriveWaitingAuth;
+
+  /// No description provided for @onedriveWebViewUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No embedded browser on this platform; use device code sign-in'**
+  String get onedriveWebViewUnavailable;
+
   /// No description provided for @novelProgressSyncNow.
   ///
   /// In en, this message translates to:
