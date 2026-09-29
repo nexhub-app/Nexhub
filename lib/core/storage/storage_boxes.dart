@@ -48,6 +48,8 @@ const List<String> kStorageBoxNames = <String>[
   ImageFavoriteManager.boxName, // 'image_favorites'
   'media_watched',
   'media_playback_position',
+  // 媒体服务器档案（服务器列表等非敏感字段；token 只在安全存储）
+  'media_servers',
   // 字幕记忆：按视频 URL 记忆外部字幕 / 激活轨道 / 样式
   'subtitle_memory',
   'source_mirrors',
