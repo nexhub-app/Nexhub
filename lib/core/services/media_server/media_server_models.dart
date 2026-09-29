@@ -170,6 +170,21 @@ class ServerLibrary {
   });
 }
 
+/// 分页列表结果（Items 列表 / Resume 通用）。
+class ServerItemPage {
+  final List<ServerMediaItem> items;
+
+  /// 服务器报告的总量（Latest 等裸数组响应时与 items.length 一致）。
+  final int total;
+  final int startIndex;
+
+  const ServerItemPage({
+    required this.items,
+    required this.total,
+    this.startIndex = 0,
+  });
+}
+
 /// 媒体条目（电影 / 剧集 / 集），独立于源的 MediaItem 通用模型。
 class ServerMediaItem {
   final String id;
