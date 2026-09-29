@@ -14,6 +14,7 @@ import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../manga/presentation/reader_image_filter.dart';
 import '../../manga/presentation/reader_tap_zones.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/motion_effects_adjustments.dart';
 import 'widgets/settings_search_target.dart';
@@ -213,7 +214,7 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
       body: _loaded
           ? SettingsAutoScroll(
               child: ListView(
-                padding: const EdgeInsets.all(AppTokens.spaceLg),
+                padding: context.pageInset(AppTokens.spaceLg),
                 children: <Widget>[
                   // ── 常用设置（置顶快捷项，与阅读器内联面板对齐）──
                   SettingsCard(
@@ -324,8 +325,8 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                     children: <Widget>[
                       MotionEffectsAdjustments(
                         settings: _settings.comicMotionEffects,
-                        onChanged: (next) => _update(_settings.copyWith(
-                            comicMotionEffects: next)),
+                        onChanged: (next) => _update(
+                            _settings.copyWith(comicMotionEffects: next)),
                       ),
                     ],
                   ),
@@ -561,7 +562,6 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           );
                         }).toList(),
                       ),
-
 
                       // 双击缩放动画时长
                       SettingsSliderTile(

@@ -4,6 +4,7 @@ import '../../../core/widgets/app_animations.dart';
 import './widgets/settings_widgets.dart';
 import './widgets/settings_search_target.dart';
 import '../../../core/widgets/layout_picker_dialog.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import './settings_player_screen.dart';
@@ -31,7 +32,7 @@ class SettingsPlaybackScreen extends StatelessWidget {
           fromScale: 0.985,
           duration: AppTokens.durBase,
           child: ListView(
-            padding: const EdgeInsets.all(AppTokens.spaceLg),
+            padding: context.pageInset(AppTokens.spaceLg),
             children: <Widget>[
               SettingsGroup(
                 key: const ValueKey<String>('playback_modules'),

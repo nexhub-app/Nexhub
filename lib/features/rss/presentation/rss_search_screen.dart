@@ -23,6 +23,7 @@ import 'package:provider/provider.dart';
 
 import '../../home/presentation/browse_article_detail_screen.dart';
 import 'rss_article_tiles.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 一条聚合搜索结果：来自哪个订阅源 + 哪篇文章。
 class _SearchHit {
@@ -219,7 +220,7 @@ class _RssSearchScreenState extends State<RssSearchScreen> {
                             : l10n.rssSearchEmpty,
                       )
                     : ListView.separated(
-                        padding: const EdgeInsets.all(AppTokens.spaceMd),
+                        padding: context.pageInset(AppTokens.spaceMd),
                         itemCount: results.length,
                         separatorBuilder: (_, __) =>
                             _listLayout == RssListLayoutMode.list

@@ -10,6 +10,7 @@ import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import 'season_detail_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 系列详情页：展示该系列下所有季的卡片网格，点击进入 [SeasonDetailScreen]。
 ///
@@ -33,7 +34,7 @@ class SeriesDetailScreen extends StatelessWidget {
       body: seasons.isEmpty
           ? AppEmptyState(icon: Icons.tv_off_rounded, message: l10n.emptyContent)
           : GridView.builder(
-              padding: const EdgeInsets.all(AppTokens.spaceLg),
+              padding: context.pageInset(AppTokens.spaceLg),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 childAspectRatio: 0.52,

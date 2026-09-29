@@ -15,6 +15,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../../../core/danmaku/danmaku_settings.dart';
 import '../../../core/danmaku/danmaku_settings_store.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
 
@@ -88,82 +89,84 @@ class _SettingsDanmakuDisplayScreenState
       body: _loaded
           ? SettingsAutoScroll(
               child: ListView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTokens.spaceLg,
-                vertical: AppTokens.spaceSm,
-              ),
-              children: <Widget>[
-                // ── 过滤与屏蔽 ──
-                SettingsCard(
-                  key: const ValueKey<String>('danmaku.filter'),
-                  index: 0,
-                  title: l10n.danmakuDisplayGroupFilter,
-                  children: <Widget>[
-                    _keywordSection(l10n),
-                    SettingsSliderTile(
-                      label: l10n.danmakuTimeOffset,
-                      value: _settings.timeOffset,
-                      min: -10,
-                      max: 10,
-                      divisions: 20,
-                      display: _settings.timeOffset.toStringAsFixed(1),
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(timeOffset: v)),
-                    ),
-                    SettingsSwitchTile(
-                      title: l10n.danmakuHideTop,
-                      value: _settings.hideTop,
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(hideTop: v)),
-                    ),
-                    SettingsSwitchTile(
-                      title: l10n.danmakuHideBottom,
-                      value: _settings.hideBottom,
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(hideBottom: v)),
-                    ),
-                    SettingsSwitchTile(
-                      title: l10n.danmakuHideScroll,
-                      value: _settings.hideScroll,
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(hideScroll: v)),
-                    ),
-                  ],
+                padding: EdgeInsets.fromLTRB(
+                  AppTokens.spaceLg,
+                  AppTokens.spaceSm,
+                  AppTokens.spaceLg,
+                  AppTokens.spaceSm + context.glassBarBottomInset,
                 ),
+                children: <Widget>[
+                  // ── 过滤与屏蔽 ──
+                  SettingsCard(
+                    key: const ValueKey<String>('danmaku.filter'),
+                    index: 0,
+                    title: l10n.danmakuDisplayGroupFilter,
+                    children: <Widget>[
+                      _keywordSection(l10n),
+                      SettingsSliderTile(
+                        label: l10n.danmakuTimeOffset,
+                        value: _settings.timeOffset,
+                        min: -10,
+                        max: 10,
+                        divisions: 20,
+                        display: _settings.timeOffset.toStringAsFixed(1),
+                        onChanged: (v) =>
+                            _update(_settings.copyWith(timeOffset: v)),
+                      ),
+                      SettingsSwitchTile(
+                        title: l10n.danmakuHideTop,
+                        value: _settings.hideTop,
+                        onChanged: (v) =>
+                            _update(_settings.copyWith(hideTop: v)),
+                      ),
+                      SettingsSwitchTile(
+                        title: l10n.danmakuHideBottom,
+                        value: _settings.hideBottom,
+                        onChanged: (v) =>
+                            _update(_settings.copyWith(hideBottom: v)),
+                      ),
+                      SettingsSwitchTile(
+                        title: l10n.danmakuHideScroll,
+                        value: _settings.hideScroll,
+                        onChanged: (v) =>
+                            _update(_settings.copyWith(hideScroll: v)),
+                      ),
+                    ],
+                  ),
 
-                // ── 外观 ──
-                // 注：「字体大小」原为分段按钮（小/中/大），
-                // canvas_danmaku 渲染层只读取 `fontSize`（double），分段选择从未生效。
-                // 现统一使用下方 12-28 滑块（更细自定义）；对应死字段已从模型移除，
-                // 旧 JSON 中的遗留键会被 fromJson 忽略。
-                SettingsCard(
-                  key: const ValueKey<String>('danmaku.appearance'),
-                  index: 1,
-                  title: l10n.danmakuDisplayGroupAppearance,
-                  children: <Widget>[
-                    SettingsSliderTile(
-                      label: l10n.danmakuOpacity,
-                      value: _settings.opacity,
-                      min: 0.1,
-                      max: 1.0,
-                      divisions: 9,
-                      display: '${(_settings.opacity * 100).round()}%',
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(opacity: v)),
-                    ),
-                    SettingsSliderTile(
-                      label: l10n.danmakuFontSize,
-                      value: _settings.fontSize,
-                      min: 12,
-                      max: 28,
-                      divisions: 16,
-                      display: _settings.fontSize.toStringAsFixed(0),
-                      onChanged: (v) =>
-                          _update(_settings.copyWith(fontSize: v)),
-                    ),
-                  ],
-                ),
-              ],
+                  // ── 外观 ──
+                  // 注：「字体大小」原为分段按钮（小/中/大），
+                  // canvas_danmaku 渲染层只读取 `fontSize`（double），分段选择从未生效。
+                  // 现统一使用下方 12-28 滑块（更细自定义）；对应死字段已从模型移除，
+                  // 旧 JSON 中的遗留键会被 fromJson 忽略。
+                  SettingsCard(
+                    key: const ValueKey<String>('danmaku.appearance'),
+                    index: 1,
+                    title: l10n.danmakuDisplayGroupAppearance,
+                    children: <Widget>[
+                      SettingsSliderTile(
+                        label: l10n.danmakuOpacity,
+                        value: _settings.opacity,
+                        min: 0.1,
+                        max: 1.0,
+                        divisions: 9,
+                        display: '${(_settings.opacity * 100).round()}%',
+                        onChanged: (v) =>
+                            _update(_settings.copyWith(opacity: v)),
+                      ),
+                      SettingsSliderTile(
+                        label: l10n.danmakuFontSize,
+                        value: _settings.fontSize,
+                        min: 12,
+                        max: 28,
+                        divisions: 16,
+                        display: _settings.fontSize.toStringAsFixed(0),
+                        onChanged: (v) =>
+                            _update(_settings.copyWith(fontSize: v)),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             )
           : const Center(child: CircularProgressIndicator()),

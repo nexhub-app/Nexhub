@@ -232,18 +232,21 @@ class _FolderFileSelectSheetState extends State<_FolderFileSelectSheet> {
                 ],
               ),
               const SizedBox(height: AppTokens.spaceMd),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _selected.isEmpty
-                      ? null
-                      : () => Navigator.of(context).pop(
-                            FolderFileSelectResult(
-                              _selected.toList(),
-                              _mode,
+              SafeArea(
+                top: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _selected.isEmpty
+                        ? null
+                        : () => Navigator.of(context).pop(
+                              FolderFileSelectResult(
+                                _selected.toList(),
+                                _mode,
+                              ),
                             ),
-                          ),
-                  child: Text(l10n.folderFileSelectConfirm(_selected.length)),
+                    child: Text(l10n.folderFileSelectConfirm(_selected.length)),
+                  ),
                 ),
               ),
             ],

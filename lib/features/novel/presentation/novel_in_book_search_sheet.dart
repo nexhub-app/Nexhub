@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
@@ -457,7 +458,8 @@ class _InBookSearchSheetState extends State<_InBookSearchSheet> {
     return AppSheetBody(
       child: Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+          bottom: math.max(MediaQuery.of(context).viewInsets.bottom,
+            MediaQuery.paddingOf(context).bottom),
         ),
         child: DraggableScrollableSheet(
           initialChildSize: sheetHeight,

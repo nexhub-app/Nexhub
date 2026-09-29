@@ -28,6 +28,7 @@ import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/progress_card.dart' show formatRelativeTime;
 import '../../../core/utils/app_haptics.dart';
 import 'heatmap_sheet.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 统计页（从设置主页「统计」入口进入）。
 class StatsOverviewScreen extends StatefulWidget {
@@ -455,11 +456,11 @@ class _StatsOverviewScreenState extends State<StatsOverviewScreen> {
             _buildSearchField(l10n),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   AppTokens.spaceLg,
                   AppTokens.spaceXs,
                   AppTokens.spaceLg,
-                  AppTokens.spaceXl,
+                  AppTokens.spaceXl + context.glassBarBottomInset,
                 ),
                 children: <Widget>[
                   _buildOverviewSection(l10n, list),

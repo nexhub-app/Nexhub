@@ -24,6 +24,7 @@ import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../manga/presentation/reader_tap_zones.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
 
@@ -458,7 +459,7 @@ class _SettingsNovelReaderScreenState extends State<SettingsNovelReaderScreen> {
       body: _loaded
           ? SettingsAutoScroll(
               child: ListView(
-                padding: const EdgeInsets.all(AppTokens.spaceLg),
+                padding: context.pageInset(AppTokens.spaceLg),
                 children: <Widget>[
                   // ── 常用设置（置顶快捷项，与阅读器内联面板对齐）──
                   SettingsCard(

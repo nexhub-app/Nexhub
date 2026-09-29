@@ -27,6 +27,7 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../downloads/presentation/download_list_screen.dart';
 import '../../downloads/presentation/downloaded_content_screen.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
@@ -43,7 +44,7 @@ class SettingsDownloadScreen extends StatelessWidget {
       appBar: AppBar(title: Text(l10n.downloadManagementTitle)),
       body: SettingsAutoScroll(
         child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          padding: context.pageInset(AppTokens.spaceLg),
           children: <Widget>[
             // ── 下载列表 ──
             SettingsGroup(

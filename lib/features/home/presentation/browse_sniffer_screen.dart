@@ -33,6 +33,7 @@ import 'package:nexhub/core/widgets/app_url_input_bar.dart';
 import 'package:nexhub/features/player/presentation/video_player_screen.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 黑夜模式下注入网页的暗色样式（反向滤镜 + 媒体二次反转发回原色）。
 ///
@@ -550,11 +551,11 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
     // 故改用 onLoadStart/Stop 同步维护的 _pageUrl。
     final pageUrl = _pageUrl;
     return Container(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppTokens.spaceMd,
         AppTokens.spaceSm,
         AppTokens.spaceMd,
-        AppTokens.spaceMd,
+        AppTokens.spaceMd + MediaQuery.paddingOf(context).bottom,
       ),
       decoration: BoxDecoration(
         color: AppTheme.cardContainer(scheme),
@@ -647,7 +648,12 @@ class _BrowseSnifferScreenState extends State<BrowseSnifferScreen> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
+      padding: EdgeInsets.fromLTRB(
+        AppTokens.spaceMd,
+        0,
+        AppTokens.spaceMd,
+        context.glassBarBottomInset,
+      ),
       itemCount: list.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {

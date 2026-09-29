@@ -17,6 +17,7 @@ import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import 'dart:async' show unawaited;
 import 'package:nexhub/core/local/local_content_actions.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 统一内容导入（浏览页占位功能之一）。
 ///
@@ -235,7 +236,7 @@ class _ContentImportScreenState extends State<ContentImportScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: context.pageInset(AppTokens.spaceLg),
         children: <Widget>[
           Card(
             elevation: 0,

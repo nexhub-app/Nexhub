@@ -23,6 +23,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/source_login_widgets.dart';
 import '../../verification/presentation/webview_login_screen.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 源登录全屏页。接收一个 [PluginConfig source]，展示登录态与登录操作。
 class SourceLoginScreen extends StatefulWidget {
@@ -135,7 +136,7 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.source.name)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: context.pageInset(AppTokens.spaceLg),
         children: <Widget>[
           // 登录状态卡片
           AppCard(
@@ -179,12 +180,13 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
             ),
             const SizedBox(height: AppTokens.spaceSm),
           ],
-          if (hasWebLogin) LoginOptionCard(
-            icon: Icons.cookie_rounded,
-            title: l10n.pasteCookie,
-            subtitle: l10n.pasteCookieDesc,
-            onTap: _pasteCookie,
-          ),
+          if (hasWebLogin)
+            LoginOptionCard(
+              icon: Icons.cookie_rounded,
+              title: l10n.pasteCookie,
+              subtitle: l10n.pasteCookieDesc,
+              onTap: _pasteCookie,
+            ),
         ],
       ),
     );

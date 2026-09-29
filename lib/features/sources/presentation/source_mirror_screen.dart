@@ -16,6 +16,7 @@ import '../../../core/widgets/app_form_field.dart';
 import '../../../core/widgets/app_icon_button.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import 'source_login_screen.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 镜像管理页：列出源的可用镜像，支持测速与切换。
 ///
@@ -477,9 +478,10 @@ class _SourceMirrorScreenState extends State<SourceMirrorScreen> {
         ],
       ),
       body: (declared.isEmpty && custom.isEmpty)
-          ? AppEmptyState(icon: Icons.dns_rounded, message: l10n.mirrorNoMirrors)
+          ? AppEmptyState(
+              icon: Icons.dns_rounded, message: l10n.mirrorNoMirrors)
           : ListView(
-              padding: const EdgeInsets.all(AppTokens.spaceLg),
+              padding: context.pageInset(AppTokens.spaceLg),
               children: <Widget>[
                 entries,
                 const SizedBox(height: AppTokens.spaceLg),

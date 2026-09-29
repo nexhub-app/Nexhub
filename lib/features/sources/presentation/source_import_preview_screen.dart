@@ -12,6 +12,7 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 导入预览项 —— 扫描到的单个候选源信息。
 class ImportPreviewItem {
@@ -71,11 +72,14 @@ class SourceImportPreviewScreen extends StatefulWidget {
       _SourceImportPreviewScreenState();
 }
 
-class _SourceImportPreviewScreenState
-    extends State<SourceImportPreviewScreen> {
+class _SourceImportPreviewScreenState extends State<SourceImportPreviewScreen> {
   /// 初始默认全选所有有效项。
-  late Set<int> _selected =
-      widget.items.asMap().entries.where((e) => e.value.isValid).map((e) => e.key).toSet();
+  late Set<int> _selected = widget.items
+      .asMap()
+      .entries
+      .where((e) => e.value.isValid)
+      .map((e) => e.key)
+      .toSet();
 
   int get _validCount => widget.items.where((e) => e.isValid).length;
 
@@ -158,7 +162,7 @@ class _SourceImportPreviewScreenState
           const Divider(height: 1),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.all(AppTokens.spaceSm),
+              padding: context.pageInset(AppTokens.spaceSm),
               itemCount: widget.items.length,
               itemBuilder: (context, i) {
                 final item = widget.items[i];
@@ -172,8 +176,7 @@ class _SourceImportPreviewScreenState
                     ),
                     leading: Checkbox(
                       value: isSelected && item.isValid,
-                      onChanged:
-                          item.isValid ? (v) => _toggle(i, v) : null,
+                      onChanged: item.isValid ? (v) => _toggle(i, v) : null,
                     ),
                     title: Text(
                       item.fileName,
@@ -231,7 +234,7 @@ class _SourceImportPreviewScreenState
           ),
           // 底部操作栏
           Container(
-            padding: const EdgeInsets.all(AppTokens.spaceMd),
+            padding: context.pageInset(AppTokens.spaceMd),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(

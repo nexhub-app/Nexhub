@@ -189,22 +189,27 @@ class _DownloadedGroupScreenState extends State<DownloadedGroupScreen> {
                         const SizedBox(height: AppTokens.spaceSm),
                         Text(
                           '${l10n.downloadedGroupChapters}：$totalChapters',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
                         ),
                         const SizedBox(height: AppTokens.spaceXs),
                         Text(
                           '${l10n.downloadedGroupFormat}：${lead.format.label}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
                         ),
                         if (batches.length > 1) ...<Widget>[
                           const SizedBox(height: AppTokens.spaceXs),
                           Text(
                             l10n.downloadBatches(batches.length),
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
                                   color: scheme.onSurfaceVariant,
                                 ),
                           ),
@@ -257,6 +262,11 @@ class _DownloadedGroupScreenState extends State<DownloadedGroupScreen> {
                 childCount: _scanFiles.length,
               ),
             ),
+          SliverPadding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.paddingOf(context).bottom + AppTokens.spaceMd,
+            ),
+          ),
         ],
       ),
     );

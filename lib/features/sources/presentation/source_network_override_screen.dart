@@ -28,6 +28,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../settings/presentation/widgets/settings_widgets.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// DoH 预设端点（与全局页保持一致）。
 const Map<String, String> _dohPresets = <String, String>{
@@ -225,8 +226,7 @@ class _SourceNetworkOverrideScreenState
     final cfg = _collect();
     final sni = cfg.sni;
     if (sni != null) {
-      final err =
-          NetworkValidators.validateSniValue(sni.defaultSni ?? '');
+      final err = NetworkValidators.validateSniValue(sni.defaultSni ?? '');
       if (err.isNotEmpty) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(_errText(l10n, err.first))));
@@ -261,7 +261,7 @@ class _SourceNetworkOverrideScreenState
     return Scaffold(
       appBar: AppBar(title: Text(l10n.sourceNetworkOverride)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: context.pageInset(AppTokens.spaceLg),
         children: <Widget>[
           _buildInfoCard(l10n),
           _buildProxyCard(l10n),
@@ -337,8 +337,8 @@ class _SourceNetworkOverrideScreenState
         _overrideToggle(
           l10n,
           enabled: p != null,
-          onChanged: (v) => setState(
-              () => _proxy = v ? ProxyConfig.defaults : null),
+          onChanged: (v) =>
+              setState(() => _proxy = v ? ProxyConfig.defaults : null),
         ),
         if (p != null) ...<Widget>[
           SegmentedButton<ProxyMode>(
@@ -471,11 +471,12 @@ class _SourceNetworkOverrideScreenState
         _overrideToggle(
           l10n,
           enabled: s != null,
-          onChanged: (v) => setState(
-              () => _sni = v ? const SniConfig(enabled: true) : null),
+          onChanged: (v) =>
+              setState(() => _sni = v ? const SniConfig(enabled: true) : null),
         ),
         if (s != null) ...<Widget>[
-          _field(_sniDefaultCtrl, l10n.networkSniDefault, Icons.vpn_lock_rounded),
+          _field(
+              _sniDefaultCtrl, l10n.networkSniDefault, Icons.vpn_lock_rounded),
           _domainSniEditor(l10n),
           _field(_sniTestHostCtrl, l10n.networkSniTestHost,
               Icons.travel_explore_rounded),
@@ -499,8 +500,8 @@ class _SourceNetworkOverrideScreenState
         _overrideToggle(
           l10n,
           enabled: e != null,
-          onChanged: (v) => setState(
-              () => _ech = v ? const EchConfig(enabled: true) : null),
+          onChanged: (v) =>
+              setState(() => _ech = v ? const EchConfig(enabled: true) : null),
         ),
         if (e != null)
           _field(_echCtrl, l10n.networkEchConfigList,
@@ -513,7 +514,8 @@ class _SourceNetworkOverrideScreenState
   Widget _domainSniEditor(AppLocalizations l10n) {
     final theme = Theme.of(context);
     final s = _sni;
-    final entries = s?.domainSni.entries.toList() ?? const <MapEntry<String, String>>[];
+    final entries =
+        s?.domainSni.entries.toList() ?? const <MapEntry<String, String>>[];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -609,8 +611,8 @@ class _SourceNetworkOverrideScreenState
       setState(() {
         final next = Map<String, String>.of(_sni?.domainSni ?? const {});
         next[added.key] = added.value;
-        _sni = (_sni ?? const SniConfig(enabled: true))
-            .copyWith(domainSni: next);
+        _sni =
+            (_sni ?? const SniConfig(enabled: true)).copyWith(domainSni: next);
       });
     }
   }
@@ -623,8 +625,7 @@ class _SourceNetworkOverrideScreenState
         _overrideToggle(
           l10n,
           enabled: h != null,
-          onChanged: (v) =>
-              setState(() => _hosts = v ? <HostsEntry>[] : null),
+          onChanged: (v) => setState(() => _hosts = v ? <HostsEntry>[] : null),
         ),
         if (h != null) ...<Widget>[
           if (h.isEmpty)

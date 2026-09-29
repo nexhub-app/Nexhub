@@ -90,4 +90,16 @@ extension GlassBarInset on BuildContext {
   /// 仅底部避让量（封面网格页：内容刻意滑到侧栏后面，只保证移动端
   /// 收尾条目能滚出底栏遮挡区）。
   double get glassBarBottomInset => MediaQuery.paddingOf(this).bottom;
+
+  /// 推入的二级路由页（无 extendBody 注入）主列表的标准四边 padding：
+  /// [all] 为设计留白，底部自动叠加系统导航条高度——edge-to-edge 下
+  /// 内容延伸到手势条后面，收尾条目须能完整滚出遮挡区。
+  /// （与 [glassBarInset] 的区别：后者面向主框架 Tab 页，底部含玻璃
+  /// 底栏高度；本方法面向全屏路由页，底部仅系统导航条。）
+  EdgeInsets pageInset(double all) => EdgeInsets.fromLTRB(
+        all,
+        all,
+        all,
+        all + MediaQuery.paddingOf(this).bottom,
+      );
 }

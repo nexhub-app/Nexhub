@@ -13,6 +13,7 @@
 /// （未收藏时 client 自动回退 POST）；动漫逐集用 markEpisodesWatched 标记差集。
 library;
 
+import 'dart:math' as math;
 import 'package:material_ui/material_ui.dart';
 import 'app_alert_dialog.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -374,7 +375,9 @@ class _BangumiSyncDialogState extends State<_BangumiSyncDialog> {
         left: AppTokens.spaceMd,
         right: AppTokens.spaceMd,
         top: AppTokens.spaceMd,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppTokens.spaceLg,
+        bottom: math.max(MediaQuery.of(context).viewInsets.bottom,
+              MediaQuery.paddingOf(context).bottom) +
+          AppTokens.spaceLg,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

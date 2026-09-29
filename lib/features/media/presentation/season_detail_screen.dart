@@ -16,6 +16,7 @@ import '../../../core/widgets/app_error_state.dart';
 import '../../player/presentation/video_player_screen.dart';
 import '../../verification/presentation/webview_verification_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 季详情页：展示某季的剧集网格，点击进入 [VideoPlayerScreen]。
 ///
@@ -199,7 +200,7 @@ class _SeasonDetailScreenState extends State<SeasonDetailScreen> {
   Widget _buildEpisodeGrid(BuildContext context, List<Episode> episodes) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return GridView.builder(
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      padding: context.pageInset(AppTokens.spaceLg),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 140,
         childAspectRatio: 2.0,

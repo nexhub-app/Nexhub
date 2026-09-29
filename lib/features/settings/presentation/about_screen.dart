@@ -9,6 +9,7 @@ import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/update/update_manager.dart';
 import '../../../core/utils/app_haptics.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 import './widgets/settings_widgets.dart';
 import './settings_update_screen.dart';
@@ -146,7 +147,7 @@ class _AboutScreenState extends State<AboutScreen> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: context.pageInset(AppTokens.spaceLg),
         children: <Widget>[
           // ── App identity block ──
           Center(

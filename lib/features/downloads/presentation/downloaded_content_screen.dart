@@ -18,6 +18,7 @@ import '../../../core/utils/app_haptics.dart';
 import 'downloaded_group_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 enum _DownloadedTab { all, novel, media, comic, archived }
 
@@ -63,9 +64,10 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
     // 已合并分组已在 DownloadManager 内按可见状态聚合；这里统一走分组入口。
     return _tab == _DownloadedTab.archived
         ? manager.groupedArchived()
-        : manager.groupedDownloaded()
-            .where((g) => filtered.any((t) => t.contentId == g.contentId &&
-                t.sourceId == g.sourceId))
+        : manager
+            .groupedDownloaded()
+            .where((g) => filtered.any(
+                (t) => t.contentId == g.contentId && t.sourceId == g.sourceId))
             .toList();
   }
 
@@ -124,8 +126,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
                 _selectedKeys.clear();
               }),
             ),
-          ] else if (groups.isNotEmpty &&
-              !isArchivedTab) ...<Widget>[
+          ] else if (groups.isNotEmpty && !isArchivedTab) ...<Widget>[
             // Archived tab uses per-card action buttons instead of select mode.
             IconButton(
               icon: const Icon(Icons.checklist_rounded),
@@ -179,8 +180,9 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
                     icon: isArchivedTab
                         ? Icons.archive_rounded
                         : Icons.download_done_rounded,
-                    message:
-                        isArchivedTab ? l10n.archivedEmpty : l10n.emptyDownloaded,
+                    message: isArchivedTab
+                        ? l10n.archivedEmpty
+                        : l10n.emptyDownloaded,
                   )
                 : ListenableBuilder(
                     listenable: LayoutSettingsStore.instance,
@@ -190,7 +192,7 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
                       if (layout.layoutMode == LayoutMode.list) {
                         // 列表模式：横向卡片
                         return ListView.separated(
-                          padding: const EdgeInsets.all(AppTokens.spaceMd),
+                          padding: context.pageInset(AppTokens.spaceMd),
                           itemCount: groups.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: AppTokens.spaceSm),
@@ -205,9 +207,8 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
                       }
                       // 网格模式：按设置列数/间距渲染，高宽比跟随标题/作者开关
                       return GridView.builder(
-                        padding: const EdgeInsets.all(AppTokens.spaceMd),
-                        gridDelegate:
-                            SliverGridDelegateWithFixedCrossAxisCount(
+                        padding: context.pageInset(AppTokens.spaceMd),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: layout.gridColumns.clamp(1, 8),
                           childAspectRatio: _gridAspectRatio(layout),
                           crossAxisSpacing: layout.gridSpacing,
@@ -235,8 +236,8 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
     // 封面区域固定占比约 0.65（3:2 封面+文字）
     final baseRatio = 0.65;
     if (layout.showTitle) return baseRatio; // 有标题时标准比例
-    if (layout.showAuthor) return 0.72;    // 无标题有作者，稍长
-    return 0.58;                           // 全隐藏，更偏方形（接近纯封面）
+    if (layout.showAuthor) return 0.72; // 无标题有作者，稍长
+    return 0.58; // 全隐藏，更偏方形（接近纯封面）
   }
 
   /// 已下载页筛选已改为文件底部的 [showDownloadedFilterSheet]（底部弹窗）。
@@ -291,7 +292,8 @@ class _DownloadedContentScreenState extends State<DownloadedContentScreen> {
           ? () => _restoreTask(context, manager, l10n, group.contentId)
           : null,
       onDeletePermanently: isArchivedTab
-          ? () => _confirmDeletePermanently(context, manager, l10n, group.contentId)
+          ? () =>
+              _confirmDeletePermanently(context, manager, l10n, group.contentId)
           : null,
     );
   }
@@ -454,7 +456,8 @@ class _DownloadedCard extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: scheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(AppTokens.radiusXs),
+                            borderRadius:
+                                BorderRadius.circular(AppTokens.radiusXs),
                           ),
                           child: Text(
                             l10n.statusArchived,
@@ -516,7 +519,8 @@ class _DownloadedCard extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: scheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(AppTokens.radiusXs),
+                            borderRadius:
+                                BorderRadius.circular(AppTokens.radiusXs),
                           ),
                           child: Text(
                             l10n.statusArchived,
@@ -575,7 +579,8 @@ class _DownloadedCard extends StatelessWidget {
               child: CircleAvatar(
                 radius: 12,
                 backgroundColor: scheme.primary,
-                child: Icon(Icons.check_rounded, size: 16, color: scheme.onPrimary),
+                child: Icon(Icons.check_rounded,
+                    size: 16, color: scheme.onPrimary),
               ),
             ),
         ],
@@ -586,7 +591,9 @@ class _DownloadedCard extends StatelessWidget {
   /// 底部元信息行：归档态显示「恢复 / 彻底删除」操作，普通态显示合并章节数。
   /// 同作品跨多批下载时，额外提示批次数量。
   /// [layout] 用于判断是否显示作者/章节数信息（showAuthor）。
-  Widget _metaRow(BuildContext context, ColorScheme scheme, AppLocalizations l10n, [LayoutSettings? layout]) {
+  Widget _metaRow(
+      BuildContext context, ColorScheme scheme, AppLocalizations l10n,
+      [LayoutSettings? layout]) {
     if (isArchived && onRestore != null && onDeletePermanently != null) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -665,8 +672,7 @@ class _DownloadedFilterSheet extends StatefulWidget {
   final ValueChanged<_DownloadedTab> onApply;
 
   @override
-  State<_DownloadedFilterSheet> createState() =>
-      _DownloadedFilterSheetState();
+  State<_DownloadedFilterSheet> createState() => _DownloadedFilterSheetState();
 }
 
 class _DownloadedFilterSheetState extends State<_DownloadedFilterSheet> {
@@ -696,8 +702,7 @@ class _DownloadedFilterSheetState extends State<_DownloadedFilterSheet> {
           left: AppTokens.spaceLg,
           right: AppTokens.spaceLg,
           top: AppTokens.spaceMd,
-          bottom:
-              MediaQuery.of(context).viewInsets.bottom + AppTokens.spaceMd,
+          bottom: MediaQuery.of(context).viewInsets.bottom + AppTokens.spaceMd,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -791,12 +796,12 @@ class _FilterRow extends StatelessWidget {
                 label,
                 style: TextStyle(
                   color: color,
-                  fontWeight:
-                      selected ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ),
-            if (selected) Icon(Icons.check_rounded, size: 18, color: scheme.primary),
+            if (selected)
+              Icon(Icons.check_rounded, size: 18, color: scheme.primary),
           ],
         ),
       ),

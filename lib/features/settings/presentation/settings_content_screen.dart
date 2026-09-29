@@ -7,6 +7,7 @@ import 'package:nexhub/core/navigation/app_page_route.dart';
 import '../../sources/presentation/source_manager_screen.dart';
 import '../../home/presentation/browse_web_scrape_screen.dart';
 import '../../rss/presentation/rss_feed_list_screen.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import './settings_rsshub_screen.dart';
 import './settings_rss_notifications_screen.dart';
 import './settings_network_screen.dart';
@@ -28,7 +29,7 @@ class SettingsContentScreen extends StatelessWidget {
         fromScale: 0.985,
         duration: AppTokens.durBase,
         child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          padding: context.pageInset(AppTokens.spaceLg),
           children: <Widget>[
             SettingsGroup(
               header: l10n.settingsCatContent,

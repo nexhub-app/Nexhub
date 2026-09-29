@@ -14,6 +14,7 @@ import 'package:nexhub/core/theme/app_tokens.dart';
 import 'package:nexhub/core/widgets/app_animations.dart';
 import '../../novel/domain/novel_review_service.dart';
 import '../../novel/domain/novel_summary_settings.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 class TranslationReviewScreen extends StatefulWidget {
   const TranslationReviewScreen({super.key});
@@ -282,7 +283,7 @@ class _TranslationReviewScreenState extends State<TranslationReviewScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(AppTokens.spaceLg),
+                  padding: context.pageInset(AppTokens.spaceLg),
                   itemCount: books.length,
                   itemBuilder: (context, i) {
                     final id = books[i];

@@ -14,6 +14,7 @@ import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/layout_picker_button.dart';
 import 'package:nexhub/core/widgets/app_alert_dialog.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 下载状态筛选（项 11）。null = 全部。
 enum _DownloadStatusFilter { all, completed, inProgress, failed }
@@ -40,9 +41,8 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
     // - 排除已完成任务：已完成内容在「已下载内容页」展示，
     // 「清除记录」后不应再在下载列表出现已下载记录。
     // - 保留失败任务，否则下载错误完全看不见。
-    final allTasks = manager.tasks
-        .where((t) => !t.archived && !t.isCompleted)
-        .toList();
+    final allTasks =
+        manager.tasks.where((t) => !t.archived && !t.isCompleted).toList();
 
     // 按类型 + 状态筛选
     List<DownloadTask> filteredTasks = _typeFilter == null
@@ -69,14 +69,13 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
                   setState(() => _statusFilter = value),
               itemBuilder: (BuildContext ctx) =>
                   <PopupMenuEntry<_DownloadStatusFilter>>[
+                _statusMenuItem(_DownloadStatusFilter.all, l10n.allLabel, ctx),
                 _statusMenuItem(
-                    _DownloadStatusFilter.all, l10n.allLabel, ctx),
-                _statusMenuItem(_DownloadStatusFilter.completed,
-                    l10n.statusCompleted, ctx),
+                    _DownloadStatusFilter.completed, l10n.statusCompleted, ctx),
                 _statusMenuItem(_DownloadStatusFilter.inProgress,
                     l10n.downloadStatusInProgress, ctx),
-                _statusMenuItem(_DownloadStatusFilter.failed,
-                    l10n.statusFailed, ctx),
+                _statusMenuItem(
+                    _DownloadStatusFilter.failed, l10n.statusFailed, ctx),
               ],
             ),
             const LayoutPickerButton(),
@@ -84,8 +83,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
               IconButton(
                 icon: const Icon(Icons.delete_sweep_rounded),
                 tooltip: l10n.clearAll,
-                onPressed: () =>
-                    _confirmClearAll(context, manager, l10n),
+                onPressed: () => _confirmClearAll(context, manager, l10n),
               ),
             if (filteredTasks.isNotEmpty)
               IconButton(
@@ -107,16 +105,14 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
             IconButton(
               icon: const Icon(Icons.pause_rounded),
               tooltip: l10n.batchPause,
-              onPressed: _selectedKeys.isEmpty
-                  ? null
-                  : () => _batchPause(manager),
+              onPressed:
+                  _selectedKeys.isEmpty ? null : () => _batchPause(manager),
             ),
             IconButton(
               icon: const Icon(Icons.play_arrow_rounded),
               tooltip: l10n.batchResume,
-              onPressed: _selectedKeys.isEmpty
-                  ? null
-                  : () => _batchResume(manager),
+              onPressed:
+                  _selectedKeys.isEmpty ? null : () => _batchResume(manager),
             ),
             IconButton(
               icon: const Icon(Icons.delete_rounded),
@@ -175,7 +171,7 @@ class _DownloadListScreenState extends State<DownloadListScreen> {
                     message: l10n.noDownloads,
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.all(AppTokens.spaceMd),
+                    padding: context.pageInset(AppTokens.spaceMd),
                     itemCount: filteredTasks.length,
                     separatorBuilder: (_, __) =>
                         const SizedBox(height: AppTokens.spaceSm),
@@ -457,7 +453,8 @@ class _DownloadTaskTile extends StatelessWidget {
             child: CircleAvatar(
               radius: 12,
               backgroundColor: scheme.primary,
-              child: Icon(Icons.check_rounded, size: 16, color: scheme.onPrimary),
+              child:
+                  Icon(Icons.check_rounded, size: 16, color: scheme.onPrimary),
             ),
           ),
       ],
@@ -476,20 +473,23 @@ class _StatusChip extends StatelessWidget {
 
     final (label, color) = switch (status) {
       DownloadStatus.pending => (l10n.statusPending, scheme.outline),
-      DownloadStatus.downloading =>
-        (l10n.statusDownloading, scheme.primary),
+      DownloadStatus.downloading => (l10n.statusDownloading, scheme.primary),
       DownloadStatus.paused => (l10n.statusPaused, scheme.tertiary),
       DownloadStatus.failed => (l10n.statusFailed, scheme.error),
-      DownloadStatus.completed =>
-        (l10n.statusCompleted, scheme.primaryContainer),
-      DownloadStatus.cancelled =>
-        (l10n.statusCancelled, scheme.outline),
-      DownloadStatus.waitingForWifi =>
-        (l10n.statusWaitingForWifi, scheme.secondary),
+      DownloadStatus.completed => (
+          l10n.statusCompleted,
+          scheme.primaryContainer
+        ),
+      DownloadStatus.cancelled => (l10n.statusCancelled, scheme.outline),
+      DownloadStatus.waitingForWifi => (
+          l10n.statusWaitingForWifi,
+          scheme.secondary
+        ),
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceXxs),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceSm, vertical: AppTokens.spaceXxs),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppTokens.radiusSm),

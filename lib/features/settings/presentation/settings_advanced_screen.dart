@@ -11,6 +11,7 @@ library;
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -24,6 +25,7 @@ import '../../../core/settings/advanced_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../../core/utils/app_haptics.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'crash_log_screen.dart';
 import 'log_viewer_screen.dart';
 import 'widgets/settings_widgets.dart';
@@ -231,7 +233,12 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
               left: AppTokens.spaceLg,
               right: AppTokens.spaceLg,
               top: AppTokens.spaceLg,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + AppTokens.spaceLg,
+              // 键盘弹起时贴键盘，收起时避让系统手势条。
+              bottom: math.max(
+                    MediaQuery.of(ctx).viewInsets.bottom,
+                    MediaQuery.of(ctx).padding.bottom,
+                  ) +
+                  AppTokens.spaceLg,
             ),
             children: <Widget>[
               Text(
@@ -301,7 +308,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
       title: Text(l10n.advancedSettingsTitle),
       body: SettingsAutoScroll(
         child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceMd),
+          padding: context.pageInset(AppTokens.spaceMd),
           children: <Widget>[
             // ── 日志 ──
             SettingsCard(

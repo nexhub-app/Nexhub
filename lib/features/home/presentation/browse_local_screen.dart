@@ -23,6 +23,7 @@ import '../../novel/presentation/novel_reader_screen.dart';
 import '../../player/presentation/video_player_screen.dart';
 import 'local_media_viewer.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 本地文件筛选维度（区别于 SourceType，语义更贴合本地媒体）。
 enum _LocalFilter { all, novel, comic, video }
@@ -638,7 +639,7 @@ class _BrowseLocalScreenState extends State<BrowseLocalScreen> {
             child: _files.isEmpty
                 ? AppEmptyState(icon: Icons.folder_open_rounded, message: l10n.browseLocalEmpty)
                 : GridView.builder(
-                    padding: const EdgeInsets.all(AppTokens.spaceLg),
+                    padding: context.pageInset(AppTokens.spaceLg),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       mainAxisSpacing: AppTokens.spaceMd,

@@ -22,6 +22,7 @@ import '../../../core/network/runtime/dns_resolver.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/utils/app_haptics.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
 
@@ -168,8 +169,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
     final cfg = _collect();
     final err = _validate(l10n, cfg);
     if (err != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(err)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
       return;
     }
     setState(() => _saving = true);
@@ -253,8 +253,8 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
     if (host.isEmpty) return;
     setState(() => _testingDns = true);
     final cfg = _collect();
-    final (ips, ms) = await NetworkConfigService.instance
-        .testDns(host, cfg.dns, cfg.hosts);
+    final (ips, ms) =
+        await NetworkConfigService.instance.testDns(host, cfg.dns, cfg.hosts);
     if (!mounted) return;
     setState(() => _testingDns = false);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -315,9 +315,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          ok
-              ? l10n.networkSniTestResult(name, ms)
-              : l10n.networkTestFailed,
+          ok ? l10n.networkSniTestResult(name, ms) : l10n.networkTestFailed,
           style: ok
               ? TextStyle(
                   color: _latencyColor(Theme.of(context).colorScheme, ms))
@@ -334,35 +332,35 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       appBar: AppBar(title: Text(l10n.networkSettingsTitle)),
       body: SettingsAutoScroll(
         child: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
-        children: <Widget>[
-          _buildInfoCard(l10n),
-          _buildProxyCard(l10n),
-          _buildDnsCard(l10n),
-          if (_draft.dns.mode == DnsMode.doh) _buildDohCard(l10n),
-          if (_draft.dns.mode == DnsMode.dot) _buildDotCard(l10n),
-          _buildHostsCard(l10n),
-          _buildSniCard(l10n),
-          _buildEchCard(l10n),
-          const SizedBox(height: AppTokens.spaceMd),
-          FilledButton.icon(
-            onPressed: _saving ? null : () => _save(l10n),
-            icon: _saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.save_rounded),
-            label: Text(l10n.save),
-          ),
-          const SizedBox(height: AppTokens.spaceMd),
-          OutlinedButton.icon(
-            onPressed: () => _reset(l10n),
-            icon: const Icon(Icons.restore_rounded),
-            label: Text(l10n.networkReset),
-          ),
-          const SizedBox(height: AppTokens.spaceXl),
-        ],
+          padding: context.pageInset(AppTokens.spaceLg),
+          children: <Widget>[
+            _buildInfoCard(l10n),
+            _buildProxyCard(l10n),
+            _buildDnsCard(l10n),
+            if (_draft.dns.mode == DnsMode.doh) _buildDohCard(l10n),
+            if (_draft.dns.mode == DnsMode.dot) _buildDotCard(l10n),
+            _buildHostsCard(l10n),
+            _buildSniCard(l10n),
+            _buildEchCard(l10n),
+            const SizedBox(height: AppTokens.spaceMd),
+            FilledButton.icon(
+              onPressed: _saving ? null : () => _save(l10n),
+              icon: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.save_rounded),
+              label: Text(l10n.save),
+            ),
+            const SizedBox(height: AppTokens.spaceMd),
+            OutlinedButton.icon(
+              onPressed: () => _reset(l10n),
+              icon: const Icon(Icons.restore_rounded),
+              label: Text(l10n.networkReset),
+            ),
+            const SizedBox(height: AppTokens.spaceXl),
+          ],
         ),
       ),
     );
@@ -412,8 +410,8 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           child: SegmentedButton<ProxyMode>(
             selected: <ProxyMode>{_draft.proxy.mode},
             onSelectionChanged: (s) => setState(() {
-              _draft = _draft.copyWith(
-                  proxy: _draft.proxy.copyWith(mode: s.first));
+              _draft =
+                  _draft.copyWith(proxy: _draft.proxy.copyWith(mode: s.first));
             }),
             segments: <ButtonSegment<ProxyMode>>[
               ButtonSegment(
@@ -451,12 +449,12 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           _field(_proxyHostCtrl, l10n.networkProxyHost, Icons.dns_rounded),
           _field(_proxyPortCtrl, l10n.networkProxyPort, Icons.numbers_rounded,
               number: true),
-          _field(_proxyUserCtrl, l10n.networkProxyUsername,
-              Icons.person_rounded),
+          _field(
+              _proxyUserCtrl, l10n.networkProxyUsername, Icons.person_rounded),
           _field(_proxyPassCtrl, l10n.networkProxyPassword, Icons.lock_rounded,
               obscure: true, onChanged: (_) => _passwordDirty = true),
-          _testButton(l10n.networkTestProxy, _testingProxy,
-              () => _testProxy(l10n)),
+          _testButton(
+              l10n.networkTestProxy, _testingProxy, () => _testProxy(l10n)),
         ],
       ],
     );
@@ -507,8 +505,7 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           subtitle: l10n.networkDnsCacheStatus(DnsResolver.instance.cacheSize),
           value: _draft.dns.cacheEnabled,
           onChanged: (v) => setState(() {
-            _draft =
-                _draft.copyWith(dns: _draft.dns.copyWith(cacheEnabled: v));
+            _draft = _draft.copyWith(dns: _draft.dns.copyWith(cacheEnabled: v));
           }),
         ),
         Align(
@@ -525,7 +522,8 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
             label: Text(l10n.networkClearCache),
           ),
         ),
-        _field(_dnsTestHostCtrl, l10n.networkDnsTestHost, Icons.travel_explore_rounded),
+        _field(_dnsTestHostCtrl, l10n.networkDnsTestHost,
+            Icons.travel_explore_rounded),
         _testButton(l10n.networkTestDns, _testingDns, () => _testDns(l10n)),
       ],
     );
@@ -570,7 +568,8 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
       title: l10n.networkDotTitle,
       children: <Widget>[
         _field(_dotHostCtrl, l10n.networkDotHost, Icons.dns_rounded),
-        _field(_dotPortCtrl, l10n.networkDotPort, Icons.numbers_rounded, number: true),
+        _field(_dotPortCtrl, l10n.networkDotPort, Icons.numbers_rounded,
+            number: true),
         _testButton(l10n.networkTestDns, _testingDns, () => _testDns(l10n)),
       ],
     );
@@ -708,7 +707,8 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           }),
         ),
         if (_draft.sni.enabled) ...<Widget>[
-          _field(_sniDefaultCtrl, l10n.networkSniDefault, Icons.vpn_lock_rounded),
+          _field(
+              _sniDefaultCtrl, l10n.networkSniDefault, Icons.vpn_lock_rounded),
           _domainSniEditor(l10n),
           _field(_sniTestHostCtrl, l10n.networkSniTestHost,
               Icons.travel_explore_rounded),
@@ -737,7 +737,8 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
           }),
         ),
         if (_draft.ech.enabled)
-          _field(_echCtrl, l10n.networkEchConfigList, Icons.enhanced_encryption_rounded),
+          _field(_echCtrl, l10n.networkEchConfigList,
+              Icons.enhanced_encryption_rounded),
       ],
     );
   }
@@ -863,10 +864,10 @@ class _SettingsNetworkScreenState extends State<SettingsNetworkScreen> {
         controller: ctrl,
         obscureText: obscure,
         onChanged: onChanged,
-        keyboardType:
-            number ? TextInputType.number : TextInputType.text,
-        inputFormatters:
-            number ? <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly] : null,
+        keyboardType: number ? TextInputType.number : TextInputType.text,
+        inputFormatters: number
+            ? <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly]
+            : null,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),

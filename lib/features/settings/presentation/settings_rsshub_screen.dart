@@ -9,6 +9,7 @@ import '../../../core/theme/app_tokens.dart';
 import 'widgets/settings_widgets.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import './widgets/settings_search_target.dart';
 
 /// 预置的 RSSHub 实例列表。
@@ -211,7 +212,7 @@ class _SettingsRssHubScreenState extends State<SettingsRssHubScreen> {
       appBar: AppBar(title: Text(l10n.rsshubSettingsTitle)),
       body: SettingsAutoScroll(
         child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          padding: context.pageInset(AppTokens.spaceLg),
           children: <Widget>[
             // ── 当前实例 ──
             Text(l10n.currentInstance,

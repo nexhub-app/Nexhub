@@ -15,6 +15,7 @@ import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/unified_source_tile.dart';
 import '../../sources/presentation/source_import_screen.dart';
 import '../../sources/presentation/source_mirror_screen.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
 /// 插件管理主页面（总管理：展示所有类型的源）。
@@ -22,8 +23,7 @@ class PluginManagementScreen extends StatefulWidget {
   const PluginManagementScreen({super.key});
 
   @override
-  State<PluginManagementScreen> createState() =>
-      _PluginManagementScreenState();
+  State<PluginManagementScreen> createState() => _PluginManagementScreenState();
 }
 
 class _PluginManagementScreenState extends State<PluginManagementScreen> {
@@ -106,7 +106,7 @@ class _PluginManagementScreenState extends State<PluginManagementScreen> {
                 ),
                 Expanded(
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(AppTokens.spaceMd),
+                    padding: context.pageInset(AppTokens.spaceMd),
                     itemCount: all.length,
                     itemBuilder: (ctx, i) {
                       final s = all[i];
@@ -127,8 +127,8 @@ class _PluginManagementScreenState extends State<PluginManagementScreen> {
                     },
                   ),
                 ),
-        ],
-      ),
+              ],
+            ),
     );
   }
 }

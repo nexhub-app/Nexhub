@@ -10,6 +10,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'widgets/settings_widgets.dart';
 
 /// 记住位置设置页。
@@ -52,7 +53,7 @@ class _SettingsRememberPositionScreenState
         fromScale: 0.985,
         duration: AppTokens.durBase,
         child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          padding: context.pageInset(AppTokens.spaceLg),
           children: <Widget>[
             SettingsCard(
               title: l10n.rememberPosition,

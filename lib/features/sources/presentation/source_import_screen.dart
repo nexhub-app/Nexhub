@@ -24,6 +24,7 @@ import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/app_url_input_bar.dart';
 import 'collect_api_import_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 enum _ImportTab { url, file, json, library }
 
@@ -44,6 +45,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
       TextEditingController();
   bool _loading = false;
   String? _error;
+
   /// 解析出的待导入源（批量，可能含小说/媒体/漫画）。
   List<PluginConfig> _previews = const <PluginConfig>[];
 
@@ -150,8 +152,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
       final text = await HttpFetcher.instance.getHtml(trimmed);
       final dynamic decoded = jsonDecode(text);
       final List<Map<String, dynamic>> entries;
-      if (decoded is Map<String, dynamic> &&
-          decoded['sources'] is List) {
+      if (decoded is Map<String, dynamic> && decoded['sources'] is List) {
         entries = (decoded['sources'] as List)
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
@@ -285,7 +286,9 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
     final importable = selected.where((c) => !repo.isAgeBlocked(c)).toList();
     if (importable.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).ageRestrictionImportMatureBlocked)),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                .ageRestrictionImportMatureBlocked)),
       );
       return;
     }
@@ -310,7 +313,7 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.importSource)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: context.pageInset(AppTokens.spaceLg),
         children: <Widget>[
           AppSegmentedTabs<_ImportTab>(
             selected: <_ImportTab>{_tab},
@@ -320,11 +323,14 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
               ButtonSegment<_ImportTab>(
                   value: _ImportTab.url, label: Text(l10n.sourceImportFromUrl)),
               ButtonSegment<_ImportTab>(
-                  value: _ImportTab.file, label: Text(l10n.sourceImportFromFile)),
+                  value: _ImportTab.file,
+                  label: Text(l10n.sourceImportFromFile)),
               ButtonSegment<_ImportTab>(
-                  value: _ImportTab.json, label: Text(l10n.sourceImportFromJson)),
+                  value: _ImportTab.json,
+                  label: Text(l10n.sourceImportFromJson)),
               ButtonSegment<_ImportTab>(
-                  value: _ImportTab.library, label: Text(l10n.importLibraryTab)),
+                  value: _ImportTab.library,
+                  label: Text(l10n.importLibraryTab)),
             ],
           ),
           const SizedBox(height: AppTokens.spaceLg),
@@ -365,7 +371,8 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
             ),
             const SizedBox(height: AppTokens.spaceMd),
             FilledButton.icon(
-              onPressed: _loading ? null : () => _tryParse(_jsonController.text),
+              onPressed:
+                  _loading ? null : () => _tryParse(_jsonController.text),
               icon: const Icon(Icons.check_circle_rounded),
               label: Text(l10n.sourceImportValidate),
             ),
@@ -510,8 +517,9 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
                   ),
                 if (!lib.isOfficial)
                   OutlinedButton.icon(
-                    onPressed: () =>
-                        context.read<SourceLibrarySubscription>().remove(lib.id),
+                    onPressed: () => context
+                        .read<SourceLibrarySubscription>()
+                        .remove(lib.id),
                     icon: const Icon(Icons.bookmark_remove_rounded, size: 18),
                     label: Text(l10n.unsubscribeLibrary),
                   ),
@@ -590,7 +598,8 @@ class _SourceImportScreenState extends State<SourceImportScreen> {
             const SizedBox(height: AppTokens.spaceSm),
             Row(
               children: <Widget>[
-                Icon(Icons.check_circle_rounded, color: scheme.primary, size: 18),
+                Icon(Icons.check_circle_rounded,
+                    color: scheme.primary, size: 18),
                 const SizedBox(width: AppTokens.spaceXs),
                 Text(l10n.sourceImportValid),
               ],

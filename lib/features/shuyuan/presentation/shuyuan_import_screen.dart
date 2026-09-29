@@ -22,6 +22,7 @@ import '../../../core/widgets/app_url_input_bar.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../shuyuan_adapter.dart';
 import '../shuyuan_source_service.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 书源导入方式。
 enum _ShuyuanImportMode { url, file, json }
@@ -276,7 +277,12 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
 
   Widget _buildInputArea(AppLocalizations l10n, ColorScheme scheme) {
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
+      padding: EdgeInsets.fromLTRB(
+        AppTokens.spaceLg,
+        0,
+        AppTokens.spaceLg,
+        context.glassBarBottomInset,
+      ),
       children: <Widget>[
         switch (_mode) {
           _ShuyuanImportMode.url => _buildUrlInput(l10n),
@@ -418,7 +424,9 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
             Icon(
               isValid
                   ? Icons.check_circle_rounded
-                  : (novelSupported ? Icons.error_rounded : Icons.block_rounded),
+                  : (novelSupported
+                      ? Icons.error_rounded
+                      : Icons.block_rounded),
               size: 20,
               color: isValid
                   ? scheme.primary
@@ -461,11 +469,15 @@ class _ShuyuanImportScreenState extends State<ShuyuanImportScreen> {
             Text(
               isValid
                   ? l10n.shuyuanImportValid
-                  : (novelSupported ? l10n.shuyuanImportInvalid : l10n.shuyuanImportTypeUnsupported),
+                  : (novelSupported
+                      ? l10n.shuyuanImportInvalid
+                      : l10n.shuyuanImportTypeUnsupported),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: isValid
                         ? scheme.primary
-                        : (novelSupported ? scheme.error : scheme.onSurfaceVariant),
+                        : (novelSupported
+                            ? scheme.error
+                            : scheme.onSurfaceVariant),
                   ),
             ),
           ],

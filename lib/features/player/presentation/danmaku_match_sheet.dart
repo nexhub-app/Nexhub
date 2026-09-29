@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:material_ui/material_ui.dart';
 import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -126,7 +127,8 @@ class _DanmakuMatchSheetState extends State<DanmakuMatchSheet> {
     return AppSheetBody(
       child: Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
+          bottom: math.max(MediaQuery.viewInsetsOf(context).bottom,
+            MediaQuery.paddingOf(context).bottom),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

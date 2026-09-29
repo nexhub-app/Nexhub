@@ -24,6 +24,7 @@ import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../../features/settings/presentation/widgets/settings_widgets.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 class RssOpmlScreen extends StatefulWidget {
   const RssOpmlScreen({super.key});
@@ -169,7 +170,7 @@ class _RssOpmlScreenState extends State<RssOpmlScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.rssOpmlTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        padding: context.pageInset(AppTokens.spaceMd),
         children: <Widget>[
           Entrance(
             index: 0,
@@ -225,8 +226,8 @@ class _RssOpmlScreenState extends State<RssOpmlScreen> {
                           ?.copyWith(color: scheme.onSurfaceVariant)),
                   const SizedBox(height: AppTokens.spaceSm),
                   AppListTile(
-                    leading: const SettingsLeadingIcon(
-                        icon: Icons.download_rounded),
+                    leading:
+                        const SettingsLeadingIcon(icon: Icons.download_rounded),
                     title: Text(l10n.rssOpmlExport),
                     subtitle: Text(l10n.rssOpmlExportDesc2),
                     trailing: _exporting

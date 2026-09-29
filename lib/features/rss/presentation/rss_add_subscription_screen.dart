@@ -17,6 +17,7 @@ import '../../../core/rss/rsshub_routes.dart';
 import '../../../core/rss/rss_manager.dart';
 import '../../../core/settings/rsshub_config.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 class RssAddSubscriptionScreen extends StatefulWidget {
   /// 绑定的模块类型
@@ -24,7 +25,8 @@ class RssAddSubscriptionScreen extends StatefulWidget {
   const RssAddSubscriptionScreen({super.key, this.moduleType});
 
   @override
-  State<RssAddSubscriptionScreen> createState() => _RssAddSubscriptionScreenState();
+  State<RssAddSubscriptionScreen> createState() =>
+      _RssAddSubscriptionScreenState();
 }
 
 class _RssAddSubscriptionScreenState extends State<RssAddSubscriptionScreen> {
@@ -89,7 +91,7 @@ class _RssAddSubscriptionScreenState extends State<RssAddSubscriptionScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.addSubscription)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: context.pageInset(AppTokens.spaceLg),
         children: <Widget>[
           // ── 订阅地址区域 ──
           Text(l10n.subscribeAddressLabel,
@@ -148,7 +150,8 @@ class _RssAddSubscriptionScreenState extends State<RssAddSubscriptionScreen> {
                       shape: BoxShape.circle,
                       border: Border.all(color: scheme.outline),
                     ),
-                    child: Icon(Icons.add_rounded, size: 16, color: scheme.onSurfaceVariant),
+                    child: Icon(Icons.add_rounded,
+                        size: 16, color: scheme.onSurfaceVariant),
                   ),
                   onTap: () => _useRoute(route.path, manager),
                 )),

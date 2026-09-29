@@ -13,6 +13,7 @@ import '../../../core/comic/models/motion_effect_settings.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'widgets/motion_effects_adjustments.dart';
 import 'widgets/settings_widgets.dart';
 
@@ -69,7 +70,7 @@ class _SettingsMotionEffectsScreenState
       body: !_loaded
           ? const Center(child: AppLoadingIndicator())
           : ListView(
-              padding: const EdgeInsets.all(AppTokens.spaceLg),
+              padding: context.pageInset(AppTokens.spaceLg),
               children: <Widget>[
                 SettingsCard(
                   key: const ValueKey<String>('motion.master'),
@@ -79,8 +80,8 @@ class _SettingsMotionEffectsScreenState
                   children: <Widget>[
                     MotionEffectsAdjustments(
                       settings: _settings.comicMotionEffects,
-                      onChanged: (next) => _update(
-                          _settings.copyWith(comicMotionEffects: next)),
+                      onChanged: (next) =>
+                          _update(_settings.copyWith(comicMotionEffects: next)),
                     ),
                   ],
                 ),

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:material_ui/material_ui.dart';
 import '../../../core/widgets/app_animations.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -95,7 +96,8 @@ class _DanmakuSettingsSheetState extends State<DanmakuSettingsSheet> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final bottomInset = math.max(MediaQuery.viewInsetsOf(context).bottom,
+        MediaQuery.paddingOf(context).bottom);
 
     return AppSheetBody(
       child: Padding(

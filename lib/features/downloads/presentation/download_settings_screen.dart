@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../../../core/download/download_manager.dart';
 import '../../../core/download/download_task.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 下载格式设置页。
 class DownloadSettingsScreen extends StatelessWidget {
@@ -25,7 +26,7 @@ class DownloadSettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.downloadSettings)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        padding: context.pageInset(AppTokens.spaceMd),
         children: <Widget>[
           // ── 漫画格式 ──
           _SectionHeader(

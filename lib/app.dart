@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:provider/provider.dart';
 import 'package:saf/saf.dart';
 import 'core/locale/locale_controller.dart';
+import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'core/download/download_manager.dart';
 import 'core/settings/general_settings.dart';
@@ -29,7 +31,13 @@ class App extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           // 桥接仍基于框架 flutter/material 的第三方包（flutter_js / inappwebview / media_kit）
           builder: (BuildContext context, Widget? child) {
-            return MaterialUiCompatibilityBridge(child: child!);
+            // 全局系统栏兜底：导航栏透明 + 图标亮度随主题（详见
+            // AppTheme.systemOverlayStyle）。放在 Navigator 之下，
+            // 无 AppBar 的页面也能生效；主题切换即时跟随。
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: AppTheme.systemOverlayStyle(Theme.of(context)),
+              child: MaterialUiCompatibilityBridge(child: child!),
+            );
           },
           theme: controller.lightTheme(lightDynamic),
           darkTheme: controller.darkTheme(darkDynamic),
@@ -79,7 +87,8 @@ class _AppBootstrapState extends State<_AppBootstrap> {
 
   void _onOnboardingDone() {
     GeneralSettingsStore.instance.save(
-      GeneralSettingsStore.instance.settings.copyWith(onboardingCompleted: true),
+      GeneralSettingsStore.instance.settings
+          .copyWith(onboardingCompleted: true),
     );
     setState(() => _onboardingDone = true);
     _maybeShowAnnouncements();

@@ -6,6 +6,7 @@
 library;
 
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:material_ui/material_ui.dart';
@@ -19,6 +20,7 @@ import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/theme/app_theme.dart';
 import 'widgets/settings_widgets.dart';
 import '../../../core/widgets/backup_category_selector.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 class SettingsImportExportScreen extends StatefulWidget {
   const SettingsImportExportScreen({super.key});
@@ -179,8 +181,12 @@ class _SettingsImportExportScreenState
             left: AppTokens.spaceLg,
             right: AppTokens.spaceLg,
             top: AppTokens.spaceMd,
-            bottom:
-                MediaQuery.of(sheetCtx).viewInsets.bottom + AppTokens.spaceLg,
+            // 键盘弹起时贴键盘，收起时避让系统手势条。
+            bottom: math.max(
+                  MediaQuery.of(sheetCtx).viewInsets.bottom,
+                  MediaQuery.of(sheetCtx).padding.bottom,
+                ) +
+                AppTokens.spaceLg,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -373,7 +379,7 @@ class _SettingsImportExportScreenState
     return Scaffold(
       appBar: AppBar(title: Text(l10n.dataImportExportTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: context.pageInset(AppTokens.spaceLg),
         children: <Widget>[
           SettingsGroup(
             header: l10n.importData,

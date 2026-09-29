@@ -40,6 +40,7 @@ import 'package:nexhub/core/navigation/app_page_route.dart';
 enum VerificationResult {
   /// 用户表示已完成验证，需要重试。
   done,
+
   /// 用户取消。
   cancelled,
 }
@@ -72,12 +73,10 @@ class WebViewExtractionOutcome {
   bool get shouldRetry => result == VerificationResult.done;
 
   /// 是否成功抽取到地址。
-  bool get hasExtractedUrl =>
-      extractedUrl != null && extractedUrl!.isNotEmpty;
+  bool get hasExtractedUrl => extractedUrl != null && extractedUrl!.isNotEmpty;
 
   /// 是否成功取回渲染后 HTML。
-  bool get hasRenderedHtml =>
-      renderedHtml != null && renderedHtml!.isNotEmpty;
+  bool get hasRenderedHtml => renderedHtml != null && renderedHtml!.isNotEmpty;
 }
 
 /// WebView 验证页面。
@@ -127,6 +126,7 @@ class WebViewVerificationScreen extends StatefulWidget {
 class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
   bool _browserOpened = false;
   InAppWebViewController? _webViewController;
+
   /// 重定向加载完成哨兵：[_runExtraction] 跳转到外域播放器页后，用此 completer
   /// 等待该页 `onLoadStop`，再执行抽取脚本。flutter_inappwebview v6 的
   /// [InAppWebViewController] 无 `addOnLoadStopCallback`，故复用控件
@@ -180,8 +180,8 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
     _loadHook();
     if (widget.snifferMode) {
       _snifferEngine.onUpdate = _onSnifferModeUpdate;
-      _snifferTimeout = Timer(widget.snifferTimeout ?? const Duration(seconds: 20),
-          () {
+      _snifferTimeout =
+          Timer(widget.snifferTimeout ?? const Duration(seconds: 20), () {
         if (!mounted || _snifferPopped) return;
         if (widget.snifferAutoPopOnTimeout) {
           // 首选嗅探超时：自动回传，让上层回退到手动解析（不阻塞用户）。
@@ -297,8 +297,8 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
     final host = Uri.tryParse(widget.verificationUrl)?.host;
     if (host != null && widget.exception?.headers != null) {
       // 将已有 Cookie 头写回 HttpFetcher 以保留已有会话。
-      final cookieHeader =
-          widget.exception!.headers?['Cookie'] ?? widget.exception!.headers?['cookie'];
+      final cookieHeader = widget.exception!.headers?['Cookie'] ??
+          widget.exception!.headers?['cookie'];
       if (cookieHeader != null) {
         HttpFetcher.instance.syncCookies(host, cookieHeader);
       }
@@ -404,8 +404,7 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
       if (mounted) {
         setState(() {
           _extracting = false;
-          _extractionError =
-              AppLocalizations.of(context).extractNoResult;
+          _extractionError = AppLocalizations.of(context).extractNoResult;
         });
       }
     } catch (e) {
@@ -603,7 +602,8 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                     useOnLoadResource: true,
                     // 过验证的 UA 必须与后续 HttpFetcher 重试的 UA 完全一致，
                     // 否则反爬把 Cookie 绑定到 UA+IP，UA 漂移→Cookie 失效→验证死循环。
-                    userAgent: HttpFetcher.instance.userAgentForUrl(widget.verificationUrl),
+                    userAgent: HttpFetcher.instance
+                        .userAgentForUrl(widget.verificationUrl),
                   ),
                   initialUserScripts: _hookJs != null && _hookJs!.isNotEmpty
                       ? UnmodifiableListView<UserScript>(
@@ -643,11 +643,11 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
           _webviewPlayMode
               ? _buildWebviewPlayBar(context, l10n, scheme)
               : Container(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: EdgeInsets.fromLTRB(
                     AppTokens.spaceMd,
                     AppTokens.spaceSm,
                     AppTokens.spaceMd,
-                    AppTokens.spaceMd,
+                    AppTokens.spaceMd + MediaQuery.paddingOf(context).bottom,
                   ),
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerHigh,
@@ -729,16 +729,17 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                       headers: widget.extractionRequest?.headers,
                     ),
                     initialSettings: InAppWebViewSettings(
-                    javaScriptEnabled: true,
-                    mediaPlaybackRequiresUserGesture: false,
-                    useShouldOverrideUrlLoading: true,
-                    useShouldInterceptRequest: true,
-                    // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
-                    useOnLoadResource: true,
-                    // 过验证的 UA 必须与后续 HttpFetcher 重试的 UA 完全一致，
-                    // 否则反爬把 Cookie 绑定到 UA+IP，UA 漂移→Cookie 失效→验证死循环。
-                    userAgent: HttpFetcher.instance.userAgentForUrl(widget.verificationUrl),
-                  ),
+                      javaScriptEnabled: true,
+                      mediaPlaybackRequiresUserGesture: false,
+                      useShouldOverrideUrlLoading: true,
+                      useShouldInterceptRequest: true,
+                      // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
+                      useOnLoadResource: true,
+                      // 过验证的 UA 必须与后续 HttpFetcher 重试的 UA 完全一致，
+                      // 否则反爬把 Cookie 绑定到 UA+IP，UA 漂移→Cookie 失效→验证死循环。
+                      userAgent: HttpFetcher.instance
+                          .userAgentForUrl(widget.verificationUrl),
+                    ),
                     initialUserScripts: _hookJs != null && _hookJs!.isNotEmpty
                         ? UnmodifiableListView<UserScript>(
                             <UserScript>[SnifferBridge.userScript(_hookJs!)],
@@ -748,14 +749,16 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                       _webViewController = controller;
                       _snifferBridge.attach(controller);
                     },
-                    shouldOverrideUrlLoading: (controller, navigationAction) async {
+                    shouldOverrideUrlLoading:
+                        (controller, navigationAction) async {
                       return NavigationActionPolicy.ALLOW;
                     },
                     onLoadResource: (controller, resource) =>
                         _snifferBridge.onResource(resource.url?.toString()),
                     shouldInterceptRequest: (controller, request) async {
                       final h = request.headers;
-                      final ref = h == null ? null : (h['referer'] ?? h['Referer']);
+                      final ref =
+                          h == null ? null : (h['referer'] ?? h['Referer']);
                       _snifferBridge.onRequest(request.url.toString(), ref);
                       return null;
                     },
@@ -785,81 +788,90 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
             _webviewPlayMode
                 ? _buildWebviewPlayBar(context, l10n, scheme)
                 : Container(
-              padding: const EdgeInsets.fromLTRB(
-                AppTokens.spaceMd,
-                AppTokens.spaceSm,
-                AppTokens.spaceMd,
-                AppTokens.spaceMd,
-              ),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                border: Border(
-                  top: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.5),
-                  ),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  if (_extractionError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-                      child: Text(
-                        _extractionError!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.error,
-                            ),
-                      ),
+                    padding: EdgeInsets.fromLTRB(
+                      AppTokens.spaceMd,
+                      AppTokens.spaceSm,
+                      AppTokens.spaceMd,
+                      AppTokens.spaceMd + MediaQuery.paddingOf(context).bottom,
                     ),
-                  if (_extracting)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          const SizedBox(width: AppTokens.spaceSm),
-                          Text(l10n.extracting),
-                        ],
-                      ),
-                    )
-                  else
-                    FilledButton.icon(
-                      onPressed: _pageLoaded ? _runExtraction : null,
-                      icon: const Icon(Icons.auto_fix_high_rounded),
-                      label: Text(l10n.extractFromPage),
-                    ),
-                  const SizedBox(height: AppTokens.spaceSm),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          l10n.extractHint,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHigh,
+                      border: Border(
+                        top: BorderSide(
+                          color: scheme.outlineVariant.withValues(alpha: 0.5),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: AppTokens.spaceSm),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(
-                      const WebViewExtractionOutcome(
-                        result: VerificationResult.done,
-                      ),
                     ),
-                    child: Text(l10n.verificationDone),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        if (_extractionError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                bottom: AppTokens.spaceSm),
+                            child: Text(
+                              _extractionError!,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: scheme.error,
+                                  ),
+                            ),
+                          ),
+                        if (_extracting)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: AppTokens.spaceSm),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: <Widget>[
+                                const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                                const SizedBox(width: AppTokens.spaceSm),
+                                Text(l10n.extracting),
+                              ],
+                            ),
+                          )
+                        else
+                          FilledButton.icon(
+                            onPressed: _pageLoaded ? _runExtraction : null,
+                            icon: const Icon(Icons.auto_fix_high_rounded),
+                            label: Text(l10n.extractFromPage),
+                          ),
+                        const SizedBox(height: AppTokens.spaceSm),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                l10n.extractHint,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppTokens.spaceSm),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(
+                            const WebViewExtractionOutcome(
+                              result: VerificationResult.done,
+                            ),
+                          ),
+                          child: Text(l10n.verificationDone),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -872,11 +884,11 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
     final pageUrl =
         _webViewController?.getUrl()?.toString() ?? widget.verificationUrl;
     return Container(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppTokens.spaceMd,
         AppTokens.spaceSm,
         AppTokens.spaceMd,
-        AppTokens.spaceMd,
+        AppTokens.spaceMd + MediaQuery.paddingOf(context).bottom,
       ),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHigh,
@@ -979,16 +991,17 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                       headers: widget.htmlRequest?.headers,
                     ),
                     initialSettings: InAppWebViewSettings(
-                    javaScriptEnabled: true,
-                    mediaPlaybackRequiresUserGesture: false,
-                    useShouldOverrideUrlLoading: true,
-                    useShouldInterceptRequest: true,
-                    // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
-                    useOnLoadResource: true,
-                    // 过验证的 UA 必须与后续 HttpFetcher 重试的 UA 完全一致，
-                    // 否则反爬把 Cookie 绑定到 UA+IP，UA 漂移→Cookie 失效→验证死循环。
-                    userAgent: HttpFetcher.instance.userAgentForUrl(widget.verificationUrl),
-                  ),
+                      javaScriptEnabled: true,
+                      mediaPlaybackRequiresUserGesture: false,
+                      useShouldOverrideUrlLoading: true,
+                      useShouldInterceptRequest: true,
+                      // 插件默认 false：不开这个开关 onLoadResource 永远不回调。
+                      useOnLoadResource: true,
+                      // 过验证的 UA 必须与后续 HttpFetcher 重试的 UA 完全一致，
+                      // 否则反爬把 Cookie 绑定到 UA+IP，UA 漂移→Cookie 失效→验证死循环。
+                      userAgent: HttpFetcher.instance
+                          .userAgentForUrl(widget.verificationUrl),
+                    ),
                     initialUserScripts: _hookJs != null && _hookJs!.isNotEmpty
                         ? UnmodifiableListView<UserScript>(
                             <UserScript>[SnifferBridge.userScript(_hookJs!)],
@@ -998,14 +1011,16 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                       _webViewController = controller;
                       _snifferBridge.attach(controller);
                     },
-                    shouldOverrideUrlLoading: (controller, navigationAction) async {
+                    shouldOverrideUrlLoading:
+                        (controller, navigationAction) async {
                       return NavigationActionPolicy.ALLOW;
                     },
                     onLoadResource: (controller, resource) =>
                         _snifferBridge.onResource(resource.url?.toString()),
                     shouldInterceptRequest: (controller, request) async {
                       final h = request.headers;
-                      final ref = h == null ? null : (h['referer'] ?? h['Referer']);
+                      final ref =
+                          h == null ? null : (h['referer'] ?? h['Referer']);
                       _snifferBridge.onRequest(request.url.toString(), ref);
                       return null;
                     },
@@ -1026,11 +1041,11 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
               ),
             ),
             Container(
-              padding: const EdgeInsets.fromLTRB(
+              padding: EdgeInsets.fromLTRB(
                 AppTokens.spaceMd,
                 AppTokens.spaceSm,
                 AppTokens.spaceMd,
-                AppTokens.spaceMd,
+                AppTokens.spaceMd + MediaQuery.paddingOf(context).bottom,
               ),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHigh,
@@ -1056,8 +1071,8 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                     ),
                   if (_extracting)
                     Padding(
-                      padding:
-                          const EdgeInsets.symmetric(vertical: AppTokens.spaceSm),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: AppTokens.spaceSm),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: <Widget>[
@@ -1083,9 +1098,10 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                       Expanded(
                         child: Text(
                           l10n.captureHint,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
                         ),
                       ),
                     ],
@@ -1240,8 +1256,8 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
                 ],
                 const SizedBox(height: AppTokens.spaceLg),
                 TextButton(
-                  onPressed: () => Navigator.of(context)
-                      .pop(VerificationResult.cancelled),
+                  onPressed: () =>
+                      Navigator.of(context).pop(VerificationResult.cancelled),
                   child: Text(l10n.cancel),
                 ),
               ],

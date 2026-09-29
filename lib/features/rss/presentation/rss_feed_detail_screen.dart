@@ -27,6 +27,7 @@ import '../../../core/widgets/app_refresh_indicator.dart';
 import '../../../core/widgets/app_search_field.dart';
 import '../../home/presentation/browse_article_detail_screen.dart';
 import 'rss_article_tiles.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 enum _RssFilter { all, unread, favorites }
 
@@ -445,7 +446,7 @@ class _RssFeedDetailScreenState extends State<RssFeedDetailScreen> {
         physics: const BouncingScrollPhysics(
           parent: AlwaysScrollableScrollPhysics(),
         ),
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        padding: context.pageInset(AppTokens.spaceMd),
         itemCount: items.length,
         separatorBuilder: (_, __) => _listLayout == 0
             ? const Divider(height: 1)

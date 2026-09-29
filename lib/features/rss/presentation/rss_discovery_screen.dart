@@ -21,6 +21,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/app_list_tile.dart';
 import '../../../features/settings/presentation/widgets/settings_widgets.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 class RssDiscoveryScreen extends StatefulWidget {
   const RssDiscoveryScreen({super.key});
@@ -166,7 +167,7 @@ class _RssDiscoveryScreenState extends State<RssDiscoveryScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.rssDiscoverTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        padding: context.pageInset(AppTokens.spaceMd),
         children: <Widget>[
           AppListTile(
             leading: const SettingsLeadingIcon(icon: Icons.language_rounded),
@@ -201,21 +202,23 @@ class _RssDiscoveryScreenState extends State<RssDiscoveryScreen> {
             padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
             child: FilledButton(
               onPressed: _busy ? null : () => _discover(context),
-              child: Text(_probing ? l10n.rssDiscoverProbing : l10n.rssDiscoverButton),
+              child: Text(
+                  _probing ? l10n.rssDiscoverProbing : l10n.rssDiscoverButton),
             ),
           ),
           if (_error != null) ...<Widget>[
             const SizedBox(height: AppTokens.spaceMd),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
-              child: Text(_error!,
-                  style: TextStyle(color: scheme.error)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
+              child: Text(_error!, style: TextStyle(color: scheme.error)),
             ),
           ],
           if (_candidates.isNotEmpty) ...<Widget>[
             const SizedBox(height: AppTokens.spaceMd),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
               child: Row(
                 children: <Widget>[
                   Text(l10n.rssDiscoverFound(_candidates.length),
@@ -263,9 +266,11 @@ class _RssDiscoveryScreenState extends State<RssDiscoveryScreen> {
             }),
             const SizedBox(height: AppTokens.spaceMd),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTokens.spaceMd),
               child: FilledButton(
-                onPressed: _selected.isEmpty ? null : () => _addSelected(context),
+                onPressed:
+                    _selected.isEmpty ? null : () => _addSelected(context),
                 child: Text(l10n.rssDiscoverAddSelected(_selected.length)),
               ),
             ),

@@ -19,6 +19,7 @@ import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'widgets/settings_widgets.dart';
 import '../../../core/widgets/bangumi_collection_browser.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 class SettingsBangumiScreen extends StatefulWidget {
   const SettingsBangumiScreen({super.key});
@@ -134,7 +135,7 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.bangumiSettings)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: context.pageInset(AppTokens.spaceLg),
         children: <Widget>[
           // ───── 账号区 ─────
           Text(l10n.bangumiAccount, style: theme.textTheme.titleMedium),

@@ -19,6 +19,7 @@ import '../../../core/settings/general_settings.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/utils/app_haptics.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import './widgets/settings_widgets.dart';
 import './widgets/settings_search_target.dart';
@@ -210,7 +211,7 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
           fromScale: 0.985,
           duration: AppTokens.durBase,
           child: ListView(
-            padding: const EdgeInsets.all(AppTokens.spaceLg),
+            padding: context.pageInset(AppTokens.spaceLg),
             children: <Widget>[
               // ── 主题 ──
               SettingsGroup(
@@ -267,8 +268,9 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                             trailing: Switch(
                               value: glassOn,
                               onChanged: (bool v) {
-                                v ? AppHaptics.toggleOn()
-                                 : AppHaptics.toggleOff();
+                                v
+                                    ? AppHaptics.toggleOn()
+                                    : AppHaptics.toggleOff();
                                 store.setGlassEffectEnabled(v);
                               },
                             ),

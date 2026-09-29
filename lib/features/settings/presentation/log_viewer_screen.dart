@@ -15,6 +15,7 @@ import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_log.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 class LogViewerScreen extends StatefulWidget {
   const LogViewerScreen({super.key});
@@ -115,16 +116,16 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
               message: l10n.logEmpty,
             )
           : ListView.builder(
-              padding: const EdgeInsets.all(AppTokens.spaceMd),
+              padding: context.pageInset(AppTokens.spaceMd),
               itemCount: _entries.length,
               itemBuilder: (context, i) => Padding(
                 padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
                 child: SelectableText(
                   _entries[i],
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontFamily: 'monospace',
-                    height: 1.4,
-                  ),
+                        fontFamily: 'monospace',
+                        height: 1.4,
+                      ),
                 ),
               ),
             ),

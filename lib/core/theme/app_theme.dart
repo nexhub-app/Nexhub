@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:material_ui/material_ui.dart';
 import 'app_tokens.dart';
 
@@ -32,6 +33,36 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
 
 class AppTheme {
   const AppTheme._();
+
+  /// 全局系统栏样式：状态栏与导航栏（手势条区域）透明、关闭系统对比度
+  /// 蒙层，两栏图标亮度随主题明暗切换。
+  ///
+  /// 挂在 `MaterialApp.builder` 的 `AnnotatedRegion` 上（`app.dart` /
+  /// `splash_screen.dart`），深浅色切换即时生效。AppBar 页面会推送自己的
+  /// 状态栏样式，但其导航栏字段为 null（引擎对 null 字段不修改），不会
+  /// 覆盖此处；阅读器/播放器全屏切换只动 SystemUiMode，退出后同样回到
+  /// 这份透明样式。
+  ///
+  /// 背景：Android 15+ 强制 edge-to-edge，导航栏恒透明、内容延伸到其后，
+  /// 颜色天然等于页面背景；Android 10-14 上需同时把
+  /// [SystemUiOverlayStyle.systemNavigationBarContrastEnforced] 关掉，
+  /// 否则系统会给透明导航栏叠一层对比度蒙层（灰黑半透明条），既与页面
+  /// 背景色不符，又把底部内容遮住一条。
+  static SystemUiOverlayStyle systemOverlayStyle(ThemeData theme) {
+    final Brightness bar = theme.brightness;
+    // 浅色背景配深色图标，深色背景配浅色图标（状态栏 Android 语义）。
+    final Brightness icon =
+        bar == Brightness.dark ? Brightness.light : Brightness.dark;
+    return SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: icon,
+      statusBarBrightness: bar,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: icon,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    );
+  }
 
   /// 卡面填充槽位（Legado MD3 观感的「单一真源」）：
   /// 容器基准浅色取 surfaceContainerLowest、深色取 surfaceContainerHighest

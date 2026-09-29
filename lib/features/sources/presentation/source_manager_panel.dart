@@ -22,6 +22,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/unified_source_tile.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'source_login_screen.dart';
 import 'source_mirror_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
@@ -83,7 +84,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
         .toList();
 
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
+      padding: context.pageInset(AppTokens.spaceMd),
       children: <Widget>[
         _buildImportBar(l10n),
         const SizedBox(height: AppTokens.spaceMd),
@@ -314,7 +315,7 @@ class _SourceManagerPanelState extends State<SourceManagerPanel> {
   Widget _buildImportPreview(AppLocalizations l10n) {
     final scheme = Theme.of(context).colorScheme;
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
+      padding: context.pageInset(AppTokens.spaceMd),
       children: <Widget>[
         if (_ageBlockedCount > 0)
           Container(

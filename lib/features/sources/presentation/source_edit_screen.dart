@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 源编辑页：接收 [PluginConfig source]，以可编辑 JSON 呈现全部字段。
 class SourceEditScreen extends StatefulWidget {
@@ -97,7 +98,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        padding: context.pageInset(AppTokens.spaceMd),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -115,7 +116,10 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
                 expands: true,
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontFamily: 'monospace'),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(fontFamily: 'monospace'),
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   contentPadding: EdgeInsets.all(AppTokens.spaceMd),

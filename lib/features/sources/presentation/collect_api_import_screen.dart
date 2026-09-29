@@ -18,6 +18,7 @@ import '../../../core/widgets/app_form_field.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../../core/widgets/app_url_input_bar.dart';
 import '../../../core/widgets/content_card.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 采集 API 导入页：识别 MacCMS 类采集接口，预览内容并生成源配置。
 class CollectApiImportScreen extends StatefulWidget {
@@ -78,7 +79,9 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
     if (url.isEmpty) return;
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasScheme) {
-      if (mounted) setState(() => _error = AppLocalizations.of(context).collectApiInvalidUrl);
+      if (mounted)
+        setState(
+            () => _error = AppLocalizations.of(context).collectApiInvalidUrl);
       return;
     }
     final origin = uri.origin;
@@ -149,7 +152,8 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
     if (_ageRating == SourceAgeRating.mature && repo.ageRestrictionEnabled) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context).ageRestrictionImportMatureBlocked),
+          content: Text(
+              AppLocalizations.of(context).ageRestrictionImportMatureBlocked),
         ),
       );
       return;
@@ -168,7 +172,7 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.collectApiImportTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: context.pageInset(AppTokens.spaceLg),
         children: <Widget>[
           AppUrlInputBar(
             controller: _urlController,
@@ -224,8 +228,7 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate:
-                    const SliverGridDelegateWithMaxCrossAxisExtent(
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 130,
                   childAspectRatio: AppTokens.coverAspectRatio,
                   crossAxisSpacing: AppTokens.spaceSm,
@@ -236,7 +239,9 @@ class _CollectApiImportScreenState extends State<CollectApiImportScreen> {
                   final item = _items[i];
                   return ContentCard(
                     coverUrl: item.coverUrl,
-                    source: ctx.read<SourceRepository>().getById(item.sourceId ?? ''),
+                    source: ctx
+                        .read<SourceRepository>()
+                        .getById(item.sourceId ?? ''),
                     title: item.title,
                     subtitle: item.status,
                     width: 120,

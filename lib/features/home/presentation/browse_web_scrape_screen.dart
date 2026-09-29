@@ -17,6 +17,7 @@ import '../../../core/widgets/app_url_input_bar.dart';
 import '../../../features/verification/presentation/webview_verification_screen.dart';
 import 'local_media_viewer.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 网页爬取（浏览页占位功能之一）。
 ///
@@ -204,7 +205,7 @@ class _BrowseWebScrapeScreenState extends State<BrowseWebScrapeScreen> {
     final title = result.pageTitle ?? l10n.scrapeResultTitle;
 
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      padding: context.pageInset(AppTokens.spaceLg),
       children: <Widget>[
         if (result.pageTitle != null)
           Text(result.pageTitle!, style: Theme.of(context).textTheme.titleLarge),

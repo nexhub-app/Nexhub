@@ -18,6 +18,7 @@ import './settings_cloud_sync_screen.dart';
 import './settings_bangumi_screen.dart';
 import './settings_dandanplay_account_screen.dart';
 import '../../../core/danmaku/dandanplay_auth.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 数据与账户汇总页：统计 / 分类 / 下载 / 备份 / 云同步 / Bangumi。
 ///
@@ -39,7 +40,7 @@ class SettingsDataScreen extends StatelessWidget {
         fromScale: 0.985,
         duration: AppTokens.durBase,
         child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          padding: context.pageInset(AppTokens.spaceLg),
           children: <Widget>[
             SettingsGroup(
               header: l10n.settingsCatData,

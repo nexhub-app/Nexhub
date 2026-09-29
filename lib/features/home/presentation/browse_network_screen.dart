@@ -21,6 +21,7 @@ import '../../../core/utils/app_haptics.dart';
 import '../../../features/verification/presentation/webview_verification_screen.dart';
 import 'local_media_viewer.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 网络文件浏览（浏览页占位功能之一）。
 ///
@@ -449,7 +450,7 @@ class _BrowseNetworkScreenState extends State<BrowseNetworkScreen> {
       return AppEmptyState(icon: Icons.folder_open_rounded, message: l10n.browseNetworkEmpty);
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      padding: context.pageInset(AppTokens.spaceLg),
       itemCount: _entries.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (ctx, i) {

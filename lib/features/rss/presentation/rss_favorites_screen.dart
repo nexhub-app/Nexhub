@@ -20,6 +20,7 @@ import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
 import '../../home/presentation/browse_article_detail_screen.dart';
 import 'rss_article_tiles.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 class RssFavoritesScreen extends StatefulWidget {
   const RssFavoritesScreen({super.key});
@@ -97,7 +98,7 @@ class _RssFavoritesScreenState extends State<RssFavoritesScreen> {
               ? AppEmptyState(
                   icon: Icons.bookmark_rounded, message: l10n.rssFavoritesEmpty)
               : ListView.separated(
-                  padding: const EdgeInsets.all(AppTokens.spaceMd),
+                  padding: context.pageInset(AppTokens.spaceMd),
                   itemCount: _items.length,
                   separatorBuilder: (_, __) =>
                       _listLayout == RssListLayoutMode.list

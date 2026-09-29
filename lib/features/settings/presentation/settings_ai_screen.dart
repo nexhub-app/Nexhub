@@ -30,6 +30,7 @@ import 'package:nexhub/core/novel/novel_translation_manager.dart';
 import 'package:nexhub/core/player/subtitle_translation_controller.dart';
 import '../../novel/domain/novel_summary_service.dart';
 import '../../novel/domain/novel_summary_settings.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'translation_glossary_screen.dart';
 import 'translation_review_screen.dart';
 import 'widgets/settings_widgets.dart';
@@ -203,7 +204,8 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
           await ComicTranslationManager().importJson(raw);
       if (!mounted) return;
       messenger?.showSnackBar(
-        SnackBar(content: Text(l10n.comicTranslationImportOk(imported, skipped))),
+        SnackBar(
+            content: Text(l10n.comicTranslationImportOk(imported, skipped))),
       );
     } on Object {
       if (!mounted) return;
@@ -242,12 +244,14 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
     final trExportLayout = await _trOptions.getNovelExportLayout();
     // 漫画翻译 / 视频翻译：同样只回显功能级填写内容（与通用一致时留空）。
     final comicCfg = await _settings.getComicTranslationConfig();
-    final cBase = comicCfg.baseUrl == defaultCfg.baseUrl ? '' : comicCfg.baseUrl;
+    final cBase =
+        comicCfg.baseUrl == defaultCfg.baseUrl ? '' : comicCfg.baseUrl;
     final cKey = comicCfg.apiKey == defaultCfg.apiKey ? '' : comicCfg.apiKey;
     final cModel = comicCfg.model == defaultCfg.model ? '' : comicCfg.model;
     final comicLang = await _settings.getComicTranslationTargetLanguage();
     final mediaCfg = await _settings.getMediaTranslationConfig();
-    final mBase = mediaCfg.baseUrl == defaultCfg.baseUrl ? '' : mediaCfg.baseUrl;
+    final mBase =
+        mediaCfg.baseUrl == defaultCfg.baseUrl ? '' : mediaCfg.baseUrl;
     final mKey = mediaCfg.apiKey == defaultCfg.apiKey ? '' : mediaCfg.apiKey;
     final mModel = mediaCfg.model == defaultCfg.model ? '' : mediaCfg.model;
     final mediaLang = await _settings.getMediaTranslationTargetLanguage();
@@ -298,11 +302,16 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       _trModelBakCtrl.text = trBak.model == trCfg.model ? '' : trBak.model;
       _comicBaseBakCtrl.text =
           comicBak.baseUrl == comicCfg.baseUrl ? '' : comicBak.baseUrl;
-      _comicKeyBakCtrl.text = comicBak.apiKey == comicCfg.apiKey ? '' : comicBak.apiKey;
-      _comicModelBakCtrl.text = comicBak.model == comicCfg.model ? '' : comicBak.model;
-      _mediaBaseBakCtrl.text = mediaBak.baseUrl == mediaCfg.baseUrl ? '' : mediaBak.baseUrl;
-      _mediaKeyBakCtrl.text = mediaBak.apiKey == mediaCfg.apiKey ? '' : mediaBak.apiKey;
-      _mediaModelBakCtrl.text = mediaBak.model == mediaCfg.model ? '' : mediaBak.model;
+      _comicKeyBakCtrl.text =
+          comicBak.apiKey == comicCfg.apiKey ? '' : comicBak.apiKey;
+      _comicModelBakCtrl.text =
+          comicBak.model == comicCfg.model ? '' : comicBak.model;
+      _mediaBaseBakCtrl.text =
+          mediaBak.baseUrl == mediaCfg.baseUrl ? '' : mediaBak.baseUrl;
+      _mediaKeyBakCtrl.text =
+          mediaBak.apiKey == mediaCfg.apiKey ? '' : mediaBak.apiKey;
+      _mediaModelBakCtrl.text =
+          mediaBak.model == mediaCfg.model ? '' : mediaBak.model;
     });
     // 配图模型与尺寸单独加载（避免阻塞首帧）。
     final illModel = await _settings.getIllustrationModel();
@@ -388,15 +397,15 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
         apiKey: _comicKeyCtrl.text.trim(),
         model: _comicModelCtrl.text.trim(),
       ));
-      await _settings.saveComicTranslationTargetLanguage(
-          _comicLangCtrl.text.trim());
+      await _settings
+          .saveComicTranslationTargetLanguage(_comicLangCtrl.text.trim());
       await _settings.saveMediaTranslationConfig(NovelSummaryConfig(
         baseUrl: _mediaBaseCtrl.text.trim(),
         apiKey: _mediaKeyCtrl.text.trim(),
         model: _mediaModelCtrl.text.trim(),
       ));
-      await _settings.saveMediaTranslationTargetLanguage(
-          _mediaLangCtrl.text.trim());
+      await _settings
+          .saveMediaTranslationTargetLanguage(_mediaLangCtrl.text.trim());
       // 备用端点（与主端点相同视为未启用 → 存空）。
       String orEmptyIfSame(String backup, String primary) =>
           backup.trim() == primary.trim() ? '' : backup.trim();
@@ -431,7 +440,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
       title: Text(l10n.aiSettingsTitle),
       body: SettingsAutoScroll(
         child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          padding: context.pageInset(AppTokens.spaceLg),
           children: <Widget>[
             SettingsCard(
               key: const ValueKey<String>('ai.common'),
@@ -611,8 +620,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                   title: l10n.translationSubtitleLightweight,
                   subtitle: l10n.translationSubtitleLightweightHint,
                   value: _trSubtitleLightweight,
-                  onChanged: (v) =>
-                      setState(() => _trSubtitleLightweight = v),
+                  onChanged: (v) => setState(() => _trSubtitleLightweight = v),
                 ),
                 const SizedBox(height: AppTokens.spaceMd),
                 // 术语表编辑器入口。
@@ -726,10 +734,8 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                           ? const SizedBox(
                               width: 14,
                               height: 14,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2))
-                          : const Icon(Icons.file_download_rounded,
-                              size: 16),
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.file_download_rounded, size: 16),
                       label: Text(l10n.comicTranslationImport),
                     ),
                   ],
@@ -790,8 +796,7 @@ class _SettingsAiScreenState extends State<SettingsAiScreen> {
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child:
-                              CircularProgressIndicator(strokeWidth: 2))
+                          child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.delete_sweep_rounded),
                   label: Text(l10n.translationCacheClear),
                 ),
@@ -917,16 +922,16 @@ class _BackupFieldsState extends State<_BackupFields> {
       children: <Widget>[
         TextButton.icon(
           onPressed: () => setState(() => _expanded = !_expanded),
-          icon: Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+          icon: Icon(
+              _expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
               size: 18),
           label: Text(l10n.aiBackupSection,
               style: Theme.of(context).textTheme.labelLarge),
         ),
         AnimatedCrossFade(
           duration: const Duration(milliseconds: 180),
-          crossFadeState: _expanded
-              ? CrossFadeState.showFirst
-              : CrossFadeState.showSecond,
+          crossFadeState:
+              _expanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
           firstChild: _ApiFields(
             baseCtrl: widget.baseCtrl,
             keyCtrl: widget.keyCtrl,

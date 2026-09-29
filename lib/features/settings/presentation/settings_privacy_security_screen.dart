@@ -9,6 +9,7 @@ import '../../../core/utils/app_haptics.dart';
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 import './settings_privacy_screen.dart';
@@ -30,7 +31,7 @@ class SettingsPrivacySecurityScreen extends StatelessWidget {
           fromScale: 0.985,
           duration: AppTokens.durBase,
           child: ListView(
-            padding: const EdgeInsets.all(AppTokens.spaceLg),
+            padding: context.pageInset(AppTokens.spaceLg),
             children: <Widget>[
               SettingsGroup(
                 header: l10n.settingsCatPrivacy,

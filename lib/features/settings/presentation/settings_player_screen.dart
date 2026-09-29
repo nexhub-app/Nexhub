@@ -10,6 +10,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../core/settings/player_settings.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
 
@@ -134,7 +135,7 @@ class _SettingsPlayerScreenState extends State<SettingsPlayerScreen> {
       body: _loaded
           ? SettingsAutoScroll(
               child: ListView(
-                padding: const EdgeInsets.all(AppTokens.spaceLg),
+                padding: context.pageInset(AppTokens.spaceLg),
                 children: <Widget>[
                   // ── 播放核心 ──
                   SettingsCard(

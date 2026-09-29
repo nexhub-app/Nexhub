@@ -13,6 +13,7 @@ import '../../../core/debug/crash_log.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 class CrashLogScreen extends StatefulWidget {
   const CrashLogScreen({super.key});
@@ -112,14 +113,14 @@ class _CrashLogScreenState extends State<CrashLogScreen> {
                   message: l10n.crashLogEmpty,
                 )
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(AppTokens.spaceMd),
+                  padding: context.pageInset(AppTokens.spaceMd),
                   child: AppSheetBody(
                     child: SelectableText(
                       _log,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
-                        height: 1.5,
-                      ),
+                            fontFamily: 'monospace',
+                            height: 1.5,
+                          ),
                     ),
                   ),
                 ),

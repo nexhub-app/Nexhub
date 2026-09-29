@@ -30,6 +30,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/utils/app_haptics.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 part 'image_favorite_gallery_parts.dart';
 
@@ -1020,7 +1021,7 @@ class _ImageFavoriteGalleryScreenState
     } else if (_groupByWork) {
       final List<List<ImageFavorite>> groups = _groups;
       child = ListView.separated(
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        padding: context.pageInset(AppTokens.spaceMd),
         itemCount: groups.length,
         separatorBuilder: (_, __) => const SizedBox(height: AppTokens.spaceMd),
         itemBuilder: (BuildContext ctx, int index) {
@@ -1048,7 +1049,7 @@ class _ImageFavoriteGalleryScreenState
       );
     } else {
       child = GridView.builder(
-        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        padding: context.pageInset(AppTokens.spaceMd),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: _columns,
           mainAxisSpacing: AppTokens.spaceSm,

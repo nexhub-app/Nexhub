@@ -37,6 +37,7 @@ import '../../../features/rss/presentation/rss_video_player.dart'
     show isDirectMediaUrl, RssVideoPlayer;
 import '../../browser/presentation/http_browser_screen.dart';
 import '../../rss/presentation/rss_podcast_player.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// Single RSS article detail reader page.
 class BrowseArticleDetailScreen extends StatefulWidget {
@@ -216,11 +217,11 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
               ),
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: EdgeInsets.fromLTRB(
                     AppTokens.spaceLg,
                     AppTokens.spaceSm,
                     AppTokens.spaceLg,
-                    AppTokens.spaceLg,
+                    AppTokens.spaceLg + MediaQuery.paddingOf(ctx).bottom,
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -1147,7 +1148,7 @@ class _BrowseArticleDetailScreenState extends State<BrowseArticleDetailScreen> {
           bottomNavigationBar: _buildArticleNavBar(context, l10n),
           body: ListView(
             controller: _scrollCtrl,
-            padding: const EdgeInsets.all(AppTokens.spaceLg),
+            padding: context.pageInset(AppTokens.spaceLg),
             children: <Widget>[
               if (_item.author != null || _item.publishedAt != null)
                 Row(

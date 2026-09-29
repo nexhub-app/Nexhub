@@ -15,6 +15,7 @@ import '../../../core/rss/rss_update_checker.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import './widgets/settings_widgets.dart';
 
 class SettingsRssNotificationsScreen extends StatelessWidget {
@@ -29,7 +30,7 @@ class SettingsRssNotificationsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.rssNotificationsTitle)),
       body: ListView(
-        padding: const EdgeInsets.all(AppTokens.spaceLg),
+        padding: context.pageInset(AppTokens.spaceLg),
         children: <Widget>[
           // ── 通知设置（连体组卡，行间发丝分隔线）──
           SettingsGroup(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Directory;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -52,6 +53,7 @@ import '../../core/theme/theme_controller.dart';
 import '../../core/update/update_manager.dart';
 import '../../core/update/update_settings.dart';
 import '../shuyuan/presentation/shuyuan_novel_resolver.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Holds all artifacts produced during app initialization.
@@ -75,7 +77,7 @@ class InitResult {
   final BangumiSyncService bangumiSyncService;
   final NetworkConfigService networkConfigService;
 
-    const InitResult({
+  const InitResult({
     required this.sourceRepo,
     required this.registry,
     required this.mediaService,
@@ -210,8 +212,7 @@ class _SplashScreenState extends State<SplashScreen> {
         configured.isNotEmpty &&
         configured != 'D:/Downloads' &&
         await _isUnwritableScopedStoragePath(configured)) {
-      AppLog.instance
-          .w('[下载路径自修复] "$configured" 在分区存储下不可写，重置为平台默认目录');
+      AppLog.instance.w('[下载路径自修复] "$configured" 在分区存储下不可写，重置为平台默认目录');
       configured = await defaultDownloadPath();
       await DownloadSettingsStore()
           .save(downloadSettings.copyWith(downloadPath: configured));
@@ -439,6 +440,14 @@ class _SplashScreenState extends State<SplashScreen> {
             theme: _themeController.lightTheme(),
             darkTheme: _themeController.darkTheme(),
             themeMode: _themeController.mode,
+            // 与 app.dart 一致的全局系统栏兜底：加载/报错页也保持
+            // 透明导航栏，避免启动期颜色跳变。
+            builder: (BuildContext context, Widget? child) {
+              return AnnotatedRegion<SystemUiOverlayStyle>(
+                value: AppTheme.systemOverlayStyle(Theme.of(context)),
+                child: child!,
+              );
+            },
             localizationsDelegates: const [
               AppLocalizations.delegate,
               ...GlobalMaterialLocalizations.delegates,

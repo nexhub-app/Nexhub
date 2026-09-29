@@ -18,6 +18,7 @@ import '../../../core/models/plugin_config.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/widgets/app_animations.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import '../../../core/widgets/app_segmented_tabs.dart';
 import '../../../core/widgets/favorite_group_manage_sheet.dart'
     show promptGroupName;
@@ -83,11 +84,11 @@ class _SettingsCategoriesScreenState extends State<SettingsCategoriesScreen> {
                 ? _EmptyState(l10n: l10n)
                 : ReorderableListView.builder(
                     buildDefaultDragHandles: false,
-                    padding: const EdgeInsets.fromLTRB(
+padding: EdgeInsets.fromLTRB(
                       AppTokens.spaceLg,
                       AppTokens.spaceXs,
                       AppTokens.spaceLg,
-                      AppTokens.spaceLg,
+                      AppTokens.spaceLg + context.glassBarBottomInset,
                     ),
                     itemCount: groups.length,
                     onReorderItem: (oldIndex, newIndex) {

@@ -10,6 +10,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 import 'widgets/settings_widgets.dart';
 
 /// 已看阈值设置页。
@@ -52,7 +53,7 @@ class _SettingsWatchedThresholdScreenState
         fromScale: 0.985,
         duration: AppTokens.durBase,
         child: ListView(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          padding: context.pageInset(AppTokens.spaceLg),
           children: <Widget>[
             SettingsCard(
               title: l10n.watchedThreshold,
@@ -74,8 +75,7 @@ class _SettingsWatchedThresholdScreenState
                   child: Text(
                     l10n.watchedThresholdHint,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                 ),

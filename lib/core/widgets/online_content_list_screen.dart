@@ -32,6 +32,7 @@ import 'online_schedule_section.dart';
 import 'layout_picker_button.dart';
 import 'source_image.dart';
 import 'source_url_browse_screen.dart';
+import 'app_glass_bar.dart';
 
 /// 拉取某源在指定分类 / 页码下的内容列表。
 typedef FetchItems = Future<List<MediaItem>> Function(
@@ -1469,7 +1470,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     if (isUrlOnly) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          padding: context.pageInset(AppTokens.spaceLg),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
@@ -1613,7 +1614,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   ) {
     final enabled = !_webFavoriteFoldersLoading;
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      padding: context.pageInset(AppTokens.spaceLg),
       children: <Widget>[
         _WebFavoriteFolderTile(
           title: l10n.imageFavoriteAllFolders,
@@ -1919,14 +1920,14 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         if (itemW < 96) itemW = 96;
         if (layout.layoutMode == LayoutMode.list) {
           return ListView.builder(
-            padding: const EdgeInsets.all(AppTokens.spaceLg),
+            padding: context.pageInset(AppTokens.spaceLg),
             itemCount: items.length,
             itemBuilder: (BuildContext c, int i) =>
                 _buildListItem(l10n, items[i]),
           );
         }
         return GridView.builder(
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          padding: context.pageInset(AppTokens.spaceLg),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: cross,
             mainAxisSpacing: spacing,
@@ -2014,7 +2015,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   }) {
     final showDiag = ParseDiagnostics.lastLog?.isNotEmpty == true;
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      padding: context.pageInset(AppTokens.spaceLg),
       children: <Widget>[
         AppErrorState(
           message: errorMessage,
@@ -2098,7 +2099,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
         ParseDiagnostics.lastLog != null &&
         ParseDiagnostics.lastLog!.isNotEmpty;
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      padding: context.pageInset(AppTokens.spaceLg),
       children: <Widget>[
         AppEmptyState(icon: widget.emptyIcon, message: message),
         if (showDiag) ...<Widget>[
@@ -2172,7 +2173,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
             ..removeListener(state.scrollListener)
             ..addListener(
                 state.scrollListener = () => _onCategoryScroll(state)),
-          padding: const EdgeInsets.all(AppTokens.spaceLg),
+          padding: context.pageInset(AppTokens.spaceLg),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: cross,
             mainAxisSpacing: spacing,
@@ -2215,7 +2216,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       controller: state.scroll
         ..removeListener(state.scrollListener)
         ..addListener(state.scrollListener = () => _onCategoryScroll(state)),
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      padding: context.pageInset(AppTokens.spaceLg),
       itemCount: state.items.length + (state.hasMore ? 1 : 0),
       itemBuilder: (BuildContext c, int i) {
         if (i >= state.items.length) {
@@ -2395,7 +2396,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(AppTokens.spaceLg),
+      padding: context.pageInset(AppTokens.spaceLg),
       itemCount: _rankItems.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppTokens.spaceMd),
       itemBuilder: (BuildContext c, int i) {

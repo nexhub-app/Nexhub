@@ -27,6 +27,7 @@ import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
+import '../../../core/widgets/app_glass_bar.dart';
 
 /// 源库查看页：列出库内全部源供用户勾选导入。
 class LibrarySourcesScreen extends StatefulWidget {
@@ -240,6 +241,7 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
         });
       }
     }
+
     await Future.wait(<Future<void>>[worker(), worker(), worker()]);
   }
 
@@ -438,7 +440,8 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.file_download_rounded),
-                  label: Text(l10n.importSelectedCount(_selectedIndices.length)),
+                  label:
+                      Text(l10n.importSelectedCount(_selectedIndices.length)),
                 ),
               ),
             ),
@@ -504,7 +507,7 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
     ];
 
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
+      padding: context.pageInset(AppTokens.spaceMd),
       children: <Widget>[
         for (final t in orderedTypes) ...<Widget>[
           Padding(
@@ -625,24 +628,25 @@ class _LibrarySourcesScreenState extends State<LibrarySourcesScreen> {
   }
 
   /// 年龄分级徽章：general=中性灰 / teen=琥珀 / mature=红（与设置页一致）。
-  Widget _ageChip(BuildContext context, ColorScheme scheme, SourceAgeRating rating) {
+  Widget _ageChip(
+      BuildContext context, ColorScheme scheme, SourceAgeRating rating) {
     final l10n = AppLocalizations.of(context);
     final (Color bg, Color fg, String label) = switch (rating) {
       SourceAgeRating.general => (
-        scheme.surfaceContainerHighest,
-        scheme.onSurfaceVariant,
-        l10n.ageRatingGeneral,
-      ),
+          scheme.surfaceContainerHighest,
+          scheme.onSurfaceVariant,
+          l10n.ageRatingGeneral,
+        ),
       SourceAgeRating.teen => (
-        scheme.tertiaryContainer,
-        scheme.onTertiaryContainer,
-        l10n.ageRatingTeen,
-      ),
+          scheme.tertiaryContainer,
+          scheme.onTertiaryContainer,
+          l10n.ageRatingTeen,
+        ),
       SourceAgeRating.mature => (
-        scheme.errorContainer,
-        scheme.onErrorContainer,
-        l10n.ageRatingMature,
-      ),
+          scheme.errorContainer,
+          scheme.onErrorContainer,
+          l10n.ageRatingMature,
+        ),
     };
     return Chip(
       label: Text(label, style: Theme.of(context).textTheme.labelMedium),

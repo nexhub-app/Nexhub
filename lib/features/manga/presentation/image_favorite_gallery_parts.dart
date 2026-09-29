@@ -156,7 +156,7 @@ class _MasonryGrid extends StatelessWidget {
       cols[i % columns].add(items[i]);
     }
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
+      padding: context.pageInset(AppTokens.spaceMd),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
