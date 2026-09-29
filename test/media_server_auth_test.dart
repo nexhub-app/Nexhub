@@ -247,15 +247,22 @@ void main() {
     });
 
     test('已登录但探测网络失败 → offline', () async {
+      var failProbe = false;
       final auth = MediaServerAuth(
         storage: tokenStorage,
         box: box,
         prefs: prefs,
-        probe: fakeProbe(throwOn: const MediaServerApiException(503, 'down')),
+        probe: (String baseUrl) async {
+          if (failProbe) {
+            throw const MediaServerApiException(503, 'down');
+          }
+          return const MediaServerProbeResult(type: ServerType.jellyfin);
+        },
         authenticate: fakeLogin(),
       );
       final info = await auth.addServer('http://nas:8096');
       await auth.login(info.id, 'alice', 'secret');
+      failProbe = true;
       expect(await auth.statusOf(info.id), MediaServerStatus.offline);
     });
 
