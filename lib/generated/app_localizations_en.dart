@@ -9373,4 +9373,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaServerGoAdd => 'Add a server';
+
+  @override
+  String get mediaServerCredentialsWrong =>
+      'Incorrect username or password. Please check and try again.';
+
+  @override
+  String get mediaServerManageAction => 'Add or manage media servers';
 }

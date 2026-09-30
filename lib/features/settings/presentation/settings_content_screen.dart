@@ -12,6 +12,7 @@ import './settings_rsshub_screen.dart';
 import './settings_rss_notifications_screen.dart';
 import './settings_network_screen.dart';
 import './settings_ai_screen.dart';
+import './media_server_manage_screen.dart';
 
 /// 配置与网络汇总页：源管理 / RSS 订阅 / 网页爬取 / AI 配置 / 网络设置入口。
 ///
@@ -41,6 +42,17 @@ class SettingsContentScreen extends StatelessWidget {
                   onTap: () => Navigator.of(context).push(
                     AppPageRoute<void>(
                       builder: (_) => const SourceManagerScreen(),
+                    ),
+                  ),
+                ),
+                // ── 媒体服务器（Emby / Jellyfin）配置入口 ──
+                SettingsTile(
+                  icon: Icons.video_library_rounded,
+                  title: l10n.mediaServerSettings,
+                  subtitle: l10n.mediaServerSettingsDesc,
+                  onTap: () => Navigator.of(context).push(
+                    AppPageRoute<void>(
+                      builder: (_) => const MediaServerManageScreen(),
                     ),
                   ),
                 ),

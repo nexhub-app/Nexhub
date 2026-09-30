@@ -242,6 +242,15 @@ class _MediaServerAddScreenState extends State<MediaServerAddScreen> {
       }
       if (!mounted) return;
       Navigator.of(context).pop();
+    } on MediaServerApiException catch (e) {
+      if (!mounted) return;
+      // 401 是凭据错误（实测复现：用户名多敲一个字符即 401），
+      // 给出可读提示而非原始异常，避免看起来像程序故障。
+      if (e.isUnauthorized) {
+        _showRaw(l10n.mediaServerCredentialsWrong);
+      } else {
+        _showError(e);
+      }
     } on Object catch (e) {
       if (mounted) _showError(e);
     } finally {
@@ -253,6 +262,13 @@ class _MediaServerAddScreenState extends State<MediaServerAddScreen> {
     final l10n = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.mediaServerOperationFailed('$message'))),
+    );
+  }
+
+  /// 直接展示一条可读提示（不经「操作失败：」包装）。
+  void _showRaw(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }

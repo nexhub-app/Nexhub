@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/models/bookshelf_filter.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
+import '../../../core/services/media_server/media_server_auth.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/widgets/bookshelf_content.dart';
 import '../../../core/local/local_content_actions.dart'
@@ -110,20 +111,25 @@ class MediaHomeScreen extends StatelessWidget {
           );
         },
       ),
-      onlineBody: OnlineSourceBrowserScreen(
-        sourceType: SourceType.animeSource,
-        // 方案 A：源列表顶部固定「媒体服务器」入口（仅影视模块）。
-        headerCard: const MediaServerEntryCard(),
-        onAddSource: navigateToCollectApiImport,
-        onEnableRecommended:
-            () => context.read<SourceRepository>().enableRecommendedSources(),
-        onSourceTap: (PluginConfig source) => Navigator.of(context).push(
-          AppPageRoute<void>(
-            builder: (_) => MediaOnlineListScreen(
-              initialSource: source,
-              onAddSource: navigateToCollectApiImport,
-              onEnableRecommended:
-                  () => context.read<SourceRepository>().enableRecommendedSources(),
+      onlineBody: Consumer<MediaServerAuth>(
+        builder: (context, mediaServerAuth, _) => OnlineSourceBrowserScreen(
+          sourceType: SourceType.animeSource,
+          // 每台已配置服务器一个入口行；未配置时列表完全隐藏（不占位）。
+          mediaServerTiles: <Widget>[
+            for (final s in mediaServerAuth.servers)
+              MediaServerBrowseTile(server: s),
+          ],
+          onAddSource: navigateToCollectApiImport,
+          onEnableRecommended:
+              () => context.read<SourceRepository>().enableRecommendedSources(),
+          onSourceTap: (PluginConfig source) => Navigator.of(context).push(
+            AppPageRoute<void>(
+              builder: (_) => MediaOnlineListScreen(
+                initialSource: source,
+                onAddSource: navigateToCollectApiImport,
+                onEnableRecommended: () =>
+                    context.read<SourceRepository>().enableRecommendedSources(),
+              ),
             ),
           ),
         ),
@@ -132,6 +138,7 @@ class MediaHomeScreen extends StatelessWidget {
           const RssFeedListScreen(moduleType: SourceType.animeSource),
       sourcesBody: const _MediaSourcesBody(
         filterType: SourceType.animeSource,
+        mediaServerSection: MediaServerSourceSection(),
       ),
       categoryProvider: (LibrarySubTab subTab) =>
           BookshelfContent.categoriesFor(
@@ -145,8 +152,12 @@ class MediaHomeScreen extends StatelessWidget {
 class _MediaSourcesBody extends StatelessWidget {
   final SourceType filterType;
 
+  /// 源列表顶部的媒体服务器配置区块（仅影视模块）。
+  final MediaServerSourceSection? mediaServerSection;
+
   const _MediaSourcesBody({
     required this.filterType,
+    this.mediaServerSection,
   });
 
   @override
@@ -154,6 +165,7 @@ class _MediaSourcesBody extends StatelessWidget {
     return SourceManagerScreen(
       filterType: filterType,
       embedded: true,
+      mediaServerSection: mediaServerSection,
     );
   }
 }

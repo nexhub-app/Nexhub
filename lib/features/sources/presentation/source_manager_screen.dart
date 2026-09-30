@@ -53,10 +53,15 @@ class SourceManagerScreen extends StatefulWidget {
   /// 仅输出 Tab 栏 + 内容区 Column，供各模块首页的 sourcesBody 使用。
   final bool embedded;
 
+  /// 源列表 tab 顶部前置区块（如影视模块的媒体服务器配置区块）。
+  /// 仅 [filterType] 非空的模块内列表生效；null = 无（其他模块不受影响）。
+  final Widget? mediaServerSection;
+
   const SourceManagerScreen({
     super.key,
     this.filterType,
     this.embedded = false,
+    this.mediaServerSection,
   });
 
   @override
@@ -592,18 +597,55 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   ) {
     // 若指定了 filterType（从模块设置页进入），直接显示单列表，不加分类 Tab。
     if (widget.filterType != null) {
+      final section = widget.mediaServerSection;
       if (sources.isEmpty) {
-        return AppEmptyState(
-          icon: Icons.extension_rounded,
-          message: l10n.sourceListEmpty,
-          actionLabel: l10n.addSource,
-          onAction: () => setState(() => _tab = _SourceTab.network),
-          secondaryActionLabel: l10n.enableRecommendedSources,
-          onSecondaryAction: () => _enableRecommended(l10n),
+        if (section == null) {
+          return AppEmptyState(
+            icon: Icons.extension_rounded,
+            message: l10n.sourceListEmpty,
+            actionLabel: l10n.addSource,
+            onAction: () => setState(() => _tab = _SourceTab.network),
+            secondaryActionLabel: l10n.enableRecommendedSources,
+            onSecondaryAction: () => _enableRecommended(l10n),
+          );
+        }
+        // 有前置区块（媒体服务器配置）时，空状态放在区块下方仍可达。
+        return Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTokens.spaceMd,
+                AppTokens.spaceXs,
+                AppTokens.spaceMd,
+                0,
+              ),
+              child: section,
+            ),
+            Expanded(
+              child: AppEmptyState(
+                icon: Icons.extension_rounded,
+                message: l10n.sourceListEmpty,
+                actionLabel: l10n.addSource,
+                onAction: () => setState(() => _tab = _SourceTab.network),
+                secondaryActionLabel: l10n.enableRecommendedSources,
+                onSecondaryAction: () => _enableRecommended(l10n),
+              ),
+            ),
+          ],
         );
       }
       return Column(
         children: <Widget>[
+          if (section != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTokens.spaceMd,
+                AppTokens.spaceXs,
+                AppTokens.spaceMd,
+                0,
+              ),
+              child: section,
+            ),
           Expanded(child: _buildSourceListView(l10n, sources)),
         ],
       );

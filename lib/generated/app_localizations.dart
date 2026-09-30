@@ -17540,6 +17540,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add a server'**
   String get mediaServerGoAdd;
+
+  /// No description provided for @mediaServerCredentialsWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect username or password. Please check and try again.'**
+  String get mediaServerCredentialsWrong;
+
+  /// No description provided for @mediaServerManageAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add or manage media servers'**
+  String get mediaServerManageAction;
 }
 
 class _AppLocalizationsDelegate

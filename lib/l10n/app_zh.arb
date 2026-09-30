@@ -5121,5 +5121,7 @@
       "m": {}
     }
   },
-  "mediaServerGoAdd": "去添加服务器"
+  "mediaServerGoAdd": "去添加服务器",
+  "mediaServerCredentialsWrong": "用户名或密码错误，请检查后重试",
+  "mediaServerManageAction": "添加 / 管理媒体服务器"
 }

@@ -1,5 +1,5 @@
 /// 媒体服务器浏览 UI 共享小组件：海报图（带鉴权头与占位）、区块标题、
-/// 在线源列表顶部的固定入口卡片（方案 A）。
+/// 在线列表 / 源管理中的服务器入口行与配置区块。
 library;
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -9,8 +9,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/navigation/app_page_route.dart';
 import '../../core/services/media_server/media_server_auth.dart';
+import '../../core/services/media_server/media_server_models.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/app_haptics.dart';
 import '../../core/widgets/app_card.dart';
+import '../settings/presentation/media_server_add_screen.dart';
+import '../settings/presentation/media_server_manage_screen.dart';
 import 'media_server_home_screen.dart';
 
 /// 海报图：统一附鉴权头（图片端点鉴权需求以实测为准，带上无害），
@@ -80,23 +84,39 @@ class MediaServerSectionHeader extends StatelessWidget {
   }
 }
 
-/// 「在线」tab 源列表顶部的固定「媒体服务器」入口卡片（方案 A）。
+/// 「在线」tab / 源管理列表中的单台服务器入口行（点击直接浏览该服务器）。
 ///
-/// 点击进入媒体服务器首页（服务器选择 / 继续观看 / 最新添加 / 媒体库网格）；
-/// 尚未连接时由首页引导前往添加。
-class MediaServerEntryCard extends StatelessWidget {
-  const MediaServerEntryCard({super.key});
+/// 未登录的服务器点击后进入重新登录向导；已登录直接进该服务器首页。
+class MediaServerBrowseTile extends StatelessWidget {
+  final MediaServerInfo server;
+
+  const MediaServerBrowseTile({super.key, required this.server});
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final auth = context.watch<MediaServerAuth>();
-    final connected = auth.servers.where((s) => s.loggedIn).length;
+    final loggedIn = server.loggedIn;
+    final subtitle = '${server.baseUrl} · ${server.type.name}'
+        '${loggedIn ? '' : ' · ${l10n.mediaServerNotLoggedIn}'}';
     return AppCard(
-      onTap: () => Navigator.of(context).push(
-        AppPageRoute<void>(builder: (_) => const MediaServerHomeScreen()),
-      ),
+      onTap: () {
+        AppHaptics.selectionClick();
+        if (loggedIn) {
+          Navigator.of(context).push(
+            AppPageRoute<void>(
+              builder: (_) =>
+                  MediaServerHomeScreen(initialServer: server),
+            ),
+          );
+        } else {
+          Navigator.of(context).push(
+            AppPageRoute<void>(
+              builder: (_) => MediaServerAddScreen(existing: server),
+            ),
+          );
+        }
+      },
       padding: EdgeInsets.zero,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
@@ -110,11 +130,11 @@ class MediaServerEntryCard extends StatelessWidget {
             color: scheme.tertiary.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(AppTokens.radiusSm),
           ),
-          child: Icon(Icons.video_library_rounded,
-              color: scheme.tertiary, size: 22),
+          child:
+              Icon(Icons.video_library_rounded, color: scheme.tertiary, size: 22),
         ),
         title: Text(
-          l10n.mediaServerSettings,
+          server.name,
           style: Theme.of(context)
               .textTheme
               .bodyMedium
@@ -123,9 +143,7 @@ class MediaServerEntryCard extends StatelessWidget {
         subtitle: Padding(
           padding: const EdgeInsets.only(top: AppTokens.spaceXs),
           child: Text(
-            connected > 0
-                ? l10n.mediaServerTileConnected('$connected')
-                : l10n.mediaServerSettingsSubtitle,
+            subtitle,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
@@ -135,6 +153,69 @@ class MediaServerEntryCard extends StatelessWidget {
         ),
         trailing: Icon(Icons.chevron_right_rounded, color: scheme.outline),
       ),
+    );
+  }
+}
+
+/// 「添加 / 管理媒体服务器」行（源管理列表的配置入口）。
+class MediaServerManageTile extends StatelessWidget {
+  const MediaServerManageTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      onTap: () {
+        AppHaptics.selectionClick();
+        Navigator.of(context).push(
+          AppPageRoute<void>(builder: (_) => const MediaServerManageScreen()),
+        );
+      },
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceLg,
+          vertical: AppTokens.spaceXs,
+        ),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+          ),
+          child: Icon(Icons.tune_rounded, color: scheme.onSurfaceVariant, size: 22),
+        ),
+        title: Text(
+          l10n.mediaServerManageAction,
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w500),
+        ),
+        trailing: Icon(Icons.chevron_right_rounded, color: scheme.outline),
+      ),
+    );
+  }
+}
+
+/// 源管理列表顶部的媒体服务器区块：每台服务器一行 + 管理 / 添加行。
+class MediaServerSourceSection extends StatelessWidget {
+  const MediaServerSourceSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<MediaServerAuth>();
+    return Column(
+      children: <Widget>[
+        for (final s in auth.servers)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+            child: MediaServerBrowseTile(server: s),
+          ),
+        const MediaServerManageTile(),
+      ],
     );
   }
 }

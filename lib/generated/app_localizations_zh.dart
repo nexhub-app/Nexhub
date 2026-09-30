@@ -9156,4 +9156,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mediaServerGoAdd => '去添加服务器';
+
+  @override
+  String get mediaServerCredentialsWrong => '用户名或密码错误，请检查后重试';
+
+  @override
+  String get mediaServerManageAction => '添加 / 管理媒体服务器';
 }

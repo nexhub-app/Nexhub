@@ -27,9 +27,10 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
   final VoidCallback? onAddSource;
   final VoidCallback? onEnableRecommended;
 
-  /// 列表顶部固定卡片（如媒体服务器入口）；非空时始终展示在源列表上方，
-  /// 源为空时也可见。仅需要的模块传入（当前为影视模块的媒体服务器入口）。
-  final Widget? headerCard;
+  /// 列表顶部前置的媒体服务器入口行（每台服务器一个）。
+  /// 未配置服务器时传空列表 / null → 完全隐藏（在线列表回到纯源列表）。
+  /// 仅需要的模块传入（当前为影视模块）。
+  final List<Widget>? mediaServerTiles;
 
   const OnlineSourceBrowserScreen({
     super.key,
@@ -38,7 +39,7 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
     required this.onSourceTap,
     this.onAddSource,
     this.onEnableRecommended,
-    this.headerCard,
+    this.mediaServerTiles,
   });
 
   @override
@@ -47,9 +48,10 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final repo = context.watch<SourceRepository>();
     final sources = repo.byType(sourceType);
+    final tiles = mediaServerTiles ?? const <Widget>[];
 
     final Widget body;
-    if (sources.isEmpty) {
+    if (sources.isEmpty && tiles.isEmpty) {
       body = AppEmptyState(
         icon: emptyIcon,
         message: l10n.emptySources,
@@ -65,9 +67,16 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
       body = ListView.builder(
         // 行首图标可点：移动端避让玻璃底栏。
         padding: const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
-        itemCount: sources.length,
+        itemCount: tiles.length + sources.length,
         itemBuilder: (context, i) {
-          final source = sources[i];
+          // 媒体服务器入口行前置（每台服务器一个；未配置时不占位）。
+          if (i < tiles.length) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
+              child: tiles[i],
+            );
+          }
+          final source = sources[i - tiles.length];
           return AppCard(
             onTap: () => _openSource(context, source),
             padding: EdgeInsets.zero,
@@ -117,22 +126,7 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
       );
     }
 
-    if (headerCard == null) return body;
-    return Column(
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppTokens.spaceMd,
-            AppTokens.spaceMd,
-            AppTokens.spaceMd,
-            0,
-          ) +
-              context.glassBarInset,
-          child: headerCard!,
-        ),
-        Expanded(child: body),
-      ],
-    );
+    return body;
   }
 
   Widget _buildStatusChip(PluginConfig source, ColorScheme scheme, AppLocalizations l10n) {

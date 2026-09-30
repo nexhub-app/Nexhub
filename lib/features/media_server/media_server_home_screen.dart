@@ -37,7 +37,10 @@ class _HomeData {
 }
 
 class MediaServerHomeScreen extends StatefulWidget {
-  const MediaServerHomeScreen({super.key});
+  const MediaServerHomeScreen({super.key, this.initialServer});
+
+  /// 从在线列表 / 源管理点入时直接定位到该服务器（多台时仍可页内切换）。
+  final MediaServerInfo? initialServer;
 
   @override
   State<MediaServerHomeScreen> createState() => _MediaServerHomeScreenState();
@@ -65,9 +68,14 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
   void _selectInitial() {
     if (!mounted) return;
     final auth = context.read<MediaServerAuth>();
-    final first = auth.servers.where((s) => s.loggedIn).toList();
-    if (first.isEmpty) return;
-    _switchTo(first.first);
+    final logged = auth.servers.where((s) => s.loggedIn).toList();
+    if (logged.isEmpty) return;
+    // 入口指定且仍有效则定位到该服务器，否则回落第一台已登录的。
+    final initial = widget.initialServer;
+    final target = (initial != null && logged.any((s) => s.id == initial.id))
+        ? initial
+        : logged.first;
+    _switchTo(target);
   }
 
   void _switchTo(MediaServerInfo server) {
