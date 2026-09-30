@@ -81,6 +81,27 @@ extension _VideoMoreMenu on _VideoPlayerScreenState {
   /// 构建全部菜单条目（未过滤，渲染时按能力 / 条件显隐）。
   List<_PlayerMenuEntry> _buildMoreMenuEntries(AppLocalizations l10n) {
     return <_PlayerMenuEntry>[
+      // ── 媒体服务器（仅该来源显示）：码率档位 + 音轨 ──
+      _PlayerMenuEntry(
+        visibilityPredicate: () => _isMediaServer,
+        builder: (BuildContext ctx) => ListTile(
+          leading: const Icon(Icons.speed_rounded),
+          title: Text(l10n.mediaServerBitrateTier),
+          subtitle: Text(
+            _bitrateLabel(l10n, MediaServerPlaybackSettings.instance.tier),
+          ),
+          onTap: () => _pickServerBitrate(ctx, l10n),
+        ),
+      ),
+      _PlayerMenuEntry(
+        visibilityPredicate: () => _isMediaServer,
+        builder: (BuildContext ctx) => ListTile(
+          leading: const Icon(Icons.graphic_eq_rounded),
+          title: Text(l10n.mediaServerAudioTrack),
+          subtitle: Text(_currentAudioTrackSubtitle(l10n)),
+          onTap: () => _pickServerAudioTrack(ctx, l10n),
+        ),
+      ),
       // 自动连播（本地 / 直链模式无下一集，隐藏）
       _PlayerMenuEntry(
         visibilityPredicate: () => !_isDirectMode,

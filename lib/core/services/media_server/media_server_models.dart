@@ -274,12 +274,53 @@ class ServerUserData {
   });
 }
 
+/// 播放方式（A1 三段决策树：直连 → 直接流 → 转码）。
+enum MediaServerPlayMethod {
+  directPlay,
+  directStream,
+  transcode;
+
+  /// 会话上报 /Sessions/Playing 的 PlayMethod 字段值。
+  String get reportName => switch (this) {
+        MediaServerPlayMethod.directPlay => 'DirectPlay',
+        MediaServerPlayMethod.directStream => 'DirectStream',
+        MediaServerPlayMethod.transcode => 'Transcode',
+      };
+}
+
+/// 媒体流信息（MediaStreams 中音轨子集，A3 音轨选择用）。
+class ServerMediaStream {
+  final int index;
+  final String? codec;
+  final String? displayTitle;
+  final String? language;
+  final bool isDefault;
+
+  const ServerMediaStream({
+    required this.index,
+    this.codec,
+    this.displayTitle,
+    this.language,
+    this.isDefault = false,
+  });
+
+  /// 展示名：显示标题优先，缺省回落「语言 + 编码」。
+  String label() {
+    if (displayTitle != null && displayTitle!.isNotEmpty) return displayTitle!;
+    final parts = <String>[
+      if (language != null && language!.isNotEmpty) language!,
+      if (codec != null && codec!.isNotEmpty) codec!.toUpperCase(),
+    ];
+    return parts.isEmpty ? 'Track $index' : parts.join(' · ');
+  }
+}
+
 /// 直连播放协商结果（PlaybackInfo 的归一化载荷）。
 class PlaybackInfoResult {
   /// 上报 /Sessions/Playing 时随 ItemId 一起带。
   final String playSessionId;
 
-  /// 拼好的完整直连 URL（DirectStreamUrl 为相对路径，须拼 baseUrl）。
+  /// 拼好的完整播放 URL（直连 / 直接流 / 转码 HLS，均已拼 baseUrl 并附鉴权）。
   final String playUrl;
 
   /// 播放请求头（含 token，喂给播放器 httpHeaders）。
@@ -287,8 +328,14 @@ class PlaybackInfoResult {
   final int? runTimeTicks;
   final String? container;
 
-  /// true → 首版直接报「需转码，暂不支持」。
-  final bool requiresTranscode;
+  /// 本次协商选定的播放方式。
+  final MediaServerPlayMethod playMethod;
+
+  /// 可选音轨列表（转码流切音轨需带 AudioStreamIndex 重新协商）。
+  final List<ServerMediaStream> audioStreams;
+
+  /// true → 走的是转码路径（调用方按码率档位决定放行或报错）。
+  bool get requiresTranscode => playMethod == MediaServerPlayMethod.transcode;
 
   const PlaybackInfoResult({
     required this.playSessionId,
@@ -296,7 +343,8 @@ class PlaybackInfoResult {
     required this.headers,
     this.runTimeTicks,
     this.container,
-    required this.requiresTranscode,
+    required this.playMethod,
+    this.audioStreams = const <ServerMediaStream>[],
   });
 }
 

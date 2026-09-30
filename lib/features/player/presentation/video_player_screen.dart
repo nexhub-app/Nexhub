@@ -5,6 +5,7 @@ import 'package:canvas_danmaku/canvas_danmaku.dart' as cd;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
+import 'package:media_kit/media_kit.dart' show AudioTrack;
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:hive/hive.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -48,6 +49,7 @@ import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/services/media_server/media_server_models.dart';
 import '../../../core/services/media_server/media_server_session.dart';
+import '../../../core/services/media_server/media_server_settings.dart';
 import '../../../core/stats/reading_session_recorder.dart';
 import '../../../core/stats/stats_models.dart';
 import '../../../core/stats/stats_repository.dart';
@@ -215,6 +217,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 当前集的上报会话（媒体服务器播放；切集时重建）。
   MediaServerPlaybackSession? _serverSession;
+
+  /// 当前集最近一次协商结果（A3 音轨选择的数据源）。
+  PlaybackInfoResult? _serverLastInfo;
+
+  /// 转码流当前音轨序号（null = 服务器默认）。
+  int? _serverAudioStreamIndex;
 
   /// 当前弹幕源（持久化到 SharedPreferences，键 `danmaku_source`）。
   DanmakuSourceType _danmakuSource = DanmakuSourceType.dandanplay;
@@ -1005,6 +1013,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       final pb = widget.mediaServerPlayback!;
       final info = pb.initialInfo;
       if (info != null) {
+        _serverLastInfo = info;
+        _serverAudioStreamIndex = null;
         _serverSession = MediaServerPlaybackSession(
           client: pb.client,
           itemId: pb.current.id,
@@ -1013,6 +1023,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               ? 0
               : (pb.current.userData?.playbackPositionTicks ?? 0),
           runTimeTicks: info.runTimeTicks ?? pb.current.runTimeTicks,
+          playMethod: info.playMethod,
         );
         unawaited(
           _serverSession!.start(positionMs: _serverSession!.initialPositionMs),
@@ -1935,6 +1946,223 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _lastServerPaused = paused;
     _lastServerReportedMs = posMs;
     unawaited(session.reportProgress(positionMs: posMs, paused: paused));
+  }
+
+  /// 媒体服务器会话内重协商（A2 码率切换 / A3 转码切音轨）：
+  /// 结算当前会话 → 按新参数 PlaybackInfo → 换源续播（保持当前进度）。
+  Future<void> _reopenMediaServerStream({
+    int? maxBitrate,
+    int? audioStreamIndex,
+  }) async {
+    final pb = widget.mediaServerPlayback;
+    if (pb == null) return;
+    final l10n = AppLocalizations.of(context);
+    final token = _loadSession.next();
+    final oldSession = _serverSession;
+    _serverSession = null;
+    if (oldSession != null) {
+      unawaited(oldSession.stop(positionMs: _position.inMilliseconds));
+    }
+    _positionRestoreDone = false;
+    final keepPositionMs = _position.inMilliseconds;
+    PlaybackInfoResult info;
+    try {
+      info = await pb.client.createPlaybackInfo(
+        pb.current.id,
+        maxStreamingBitrate: maxBitrate,
+        audioStreamIndex: audioStreamIndex,
+      );
+    } on Object catch (e) {
+      if (!_loadSession.isValid(token)) return;
+      _positionRestoreDone = true;
+      _safeSnackBar(l10n.mediaServerOperationFailed('$e'));
+      return;
+    }
+    if (!_loadSession.isValid(token)) return;
+    _serverLastInfo = info;
+    _serverAudioStreamIndex = audioStreamIndex;
+    _playUrl = info.playUrl;
+    _playHeaders = info.headers;
+    _controller.openReadyTimeout = _readyTimeout;
+    await _controller.open(info.playUrl, headers: info.headers);
+    _controller.play();
+    unawaited(_retryOpenOnceIfStalled());
+    if (!_loadSession.isValid(token)) return;
+    _serverSession = MediaServerPlaybackSession(
+      client: pb.client,
+      itemId: pb.current.id,
+      playSessionId: info.playSessionId,
+      initialPositionTicks: keepPositionMs * 10000,
+      runTimeTicks: info.runTimeTicks ?? pb.current.runTimeTicks,
+      playMethod: info.playMethod,
+    );
+    unawaited(_restoreSavedPosition());
+    unawaited(_serverSession!.start(positionMs: keepPositionMs));
+  }
+
+  /// 码率档位显示名。
+  String _bitrateLabel(AppLocalizations l10n, MediaServerBitrateTier tier) {
+    switch (tier) {
+      case MediaServerBitrateTier.auto:
+        return l10n.mediaServerBitrateAuto;
+      case MediaServerBitrateTier.original:
+        return l10n.mediaServerBitrateOriginal;
+      case MediaServerBitrateTier.m20:
+        return '20 Mbps';
+      case MediaServerBitrateTier.m10:
+        return '10 Mbps';
+      case MediaServerBitrateTier.m8:
+        return '8 Mbps';
+      case MediaServerBitrateTier.m4:
+        return '4 Mbps';
+      case MediaServerBitrateTier.m2:
+        return '2 Mbps';
+      case MediaServerBitrateTier.m1:
+        return '1 Mbps';
+      case MediaServerBitrateTier.p720:
+        return l10n.mediaServerBitrate720p;
+    }
+  }
+
+  /// 码率档位选择（more_menu / 管理页共用交互）。
+  Future<void> _pickServerBitrate(BuildContext ctx, AppLocalizations l10n) async {
+    final settings = MediaServerPlaybackSettings.instance;
+    await settings.load();
+    final picked = await showDialog<MediaServerBitrateTier>(
+      context: ctx,
+      builder: (dialogCtx) => SimpleDialog(
+        title: Text(l10n.mediaServerBitrateTier),
+        children: <Widget>[
+          RadioGroup<MediaServerBitrateTier>(
+            groupValue: settings.tier,
+            onChanged: (v) => Navigator.of(dialogCtx).pop(v),
+            child: Column(
+              children: <Widget>[
+                for (final t in MediaServerBitrateTier.values)
+                  RadioListTile<MediaServerBitrateTier>(
+                    value: t,
+                    title: Text(_bitrateLabel(l10n, t)),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked == null || picked == settings.tier) return;
+    await settings.setTier(picked);
+    if (ctx.mounted) Navigator.of(ctx).pop();
+    if (!mounted) return;
+    await _reopenMediaServerStream(maxBitrate: picked.maxBitrate);
+  }
+
+  /// 音轨显示名（mpv 轨道：标题 / 语言拼接）。
+  String _audioTrackLabel(AudioTrack t) {
+    final parts = <String>[
+      if (t.title != null && t.title!.isNotEmpty) t.title!,
+      if (t.language != null && t.language!.isNotEmpty) t.language!,
+    ];
+    return parts.isEmpty ? t.id : parts.join(' · ');
+  }
+
+  /// 音轨选择（more_menu）：转码流走服务器音轨重协商；直连走 mpv 内部切换。
+  Future<void> _pickServerAudioTrack(
+    BuildContext ctx,
+    AppLocalizations l10n,
+  ) async {
+    final isTranscode =
+        _serverSession?.playMethod == MediaServerPlayMethod.transcode;
+    if (isTranscode) {
+      final streams =
+          _serverLastInfo?.audioStreams ?? const <ServerMediaStream>[];
+      if (streams.isEmpty) return;
+      final picked = await showModalBottomSheet<int>(
+        context: ctx,
+        isScrollControlled: true,
+        builder: (sheetCtx) => SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(sheetCtx).size.height * 0.6,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              children: <Widget>[
+                for (final s in streams)
+                  ListTile(
+                    leading: (_serverAudioStreamIndex ?? _defaultAudioIndex()) ==
+                            s.index
+                        ? const Icon(Icons.check_rounded)
+                        : null,
+                    title: Text(s.label()),
+                    onTap: () => Navigator.of(sheetCtx).pop(s.index),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (picked == null || !mounted) return;
+      if (ctx.mounted) Navigator.of(ctx).pop();
+      await _reopenMediaServerStream(audioStreamIndex: picked);
+      return;
+    }
+    final tracks = _controller.audioTracks
+        .where((t) => t.id != 'auto' && t.id != 'no')
+        .toList();
+    if (tracks.isEmpty) return;
+    final current = _controller.currentAudioTrack;
+    final picked = await showModalBottomSheet<AudioTrack>(
+      context: ctx,
+      isScrollControlled: true,
+      builder: (sheetCtx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetCtx).size.height * 0.6,
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              for (final t in tracks)
+                ListTile(
+                  leading: identical(t, current)
+                      ? const Icon(Icons.check_rounded)
+                      : null,
+                  title: Text(_audioTrackLabel(t)),
+                  onTap: () => Navigator.of(sheetCtx).pop(t),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    await _controller.setAudioTrack(picked);
+    if (mounted) setState(() {});
+  }
+
+  int? _defaultAudioIndex() {
+    final streams = _serverLastInfo?.audioStreams ?? const <ServerMediaStream>[];
+    for (final s in streams) {
+      if (s.isDefault) return s.index;
+    }
+    return streams.isNotEmpty ? streams.first.index : null;
+  }
+
+  /// 当前音轨显示名（more_menu 副标题）。
+  String _currentAudioTrackSubtitle(AppLocalizations l10n) {
+    if (_serverSession?.playMethod == MediaServerPlayMethod.transcode) {
+      final streams =
+          _serverLastInfo?.audioStreams ?? const <ServerMediaStream>[];
+      if (streams.isEmpty) return '-';
+      final idx = _serverAudioStreamIndex ?? _defaultAudioIndex();
+      for (final s in streams) {
+        if (s.index == idx) return s.label();
+      }
+      return '-';
+    }
+    final t = _controller.currentAudioTrack;
+    if (t == null) return '-';
+    return _audioTrackLabel(t);
   }
 
   /// 播完事件：媒体服务器上报 Stopped 并标记已看（服务器端持久化，§2.5）。
@@ -2866,6 +3094,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       }
       if (!_loadSession.isValid(token)) return;
       final target = pb.current;
+      _serverLastInfo = info;
+      _serverAudioStreamIndex = null;
       _playUrl = info.playUrl;
       _playHeaders = info.headers;
       _controller.openReadyTimeout = _readyTimeout;
@@ -2882,6 +3112,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         playSessionId: info.playSessionId,
         initialPositionTicks: target.userData?.playbackPositionTicks ?? 0,
         runTimeTicks: info.runTimeTicks ?? target.runTimeTicks,
+        playMethod: info.playMethod,
       );
       unawaited(_restoreSavedPosition());
       unawaited(

@@ -13,6 +13,7 @@ import '../../../generated/app_localizations.dart';
 import '../../../features/player/presentation/video_player_screen.dart';
 import 'media_server_client.dart';
 import 'media_server_models.dart';
+import 'media_server_settings.dart';
 
 /// 「已看」自动标记阈值（服务器端同样按 0.9 判定，双保险）。
 const double kMediaServerWatchedRatio = 0.9;
@@ -29,6 +30,7 @@ class MediaServerPlaybackSession {
     required this.playSessionId,
     this.initialPositionTicks = 0,
     this.runTimeTicks,
+    this.playMethod = MediaServerPlayMethod.directPlay,
   });
 
   final MediaServerClientBase client;
@@ -38,6 +40,9 @@ class MediaServerPlaybackSession {
   /// 服务器记录的续播位置（Resume 行 / 详情页带入），0 = 从头播。
   final int initialPositionTicks;
   final int? runTimeTicks;
+
+  /// 本次协商的播放方式（上报 PlayMethod；转码时退出需清会话）。
+  final MediaServerPlayMethod playMethod;
 
   bool _started = false;
   bool _markedPlayed = false;
@@ -53,6 +58,7 @@ class MediaServerPlaybackSession {
         itemId: itemId,
         playSessionId: playSessionId,
         positionTicks: positionMs * 10000,
+        playMethod: playMethod.reportName,
       );
     } on Object {
       // 上报失败不打断播放。
@@ -77,6 +83,7 @@ class MediaServerPlaybackSession {
   }
 
   /// 停止上报 + 已看判定（[completed] = 播完事件，直接标记）。
+  /// 转码会话额外调 DELETE /Videos/ActiveEncodings 清理服务器转码进程。
   Future<void> stop({required int positionMs, bool completed = false}) async {
     try {
       await client.reportPlayingStopped(
@@ -86,6 +93,13 @@ class MediaServerPlaybackSession {
       );
     } on Object {
       // 上报失败不打断退出。
+    }
+    if (playMethod == MediaServerPlayMethod.transcode) {
+      try {
+        await client.stopActiveEncodings(playSessionId);
+      } on Object {
+        // 清理失败不影响退出（服务器有会话超时兜底）。
+      }
     }
     await _maybeMarkPlayed(positionMs, completed);
   }
@@ -137,10 +151,18 @@ class MediaServerPlayback {
   ServerMediaItem get current =>
       episodes[currentIndex.clamp(0, episodes.length - 1)];
 
-  /// 切到 [index] 并协商该集直连地址（协商失败原样上抛，由播放器回滚）。
-  Future<PlaybackInfoResult> resolveAt(int index) async {
+  /// 切到 [index] 并协商该集播放地址（带当前码率档位；协商失败原样上抛，
+  /// 由播放器回滚）。[audioStreamIndex] 供转码流切换音轨重新协商。
+  Future<PlaybackInfoResult> resolveAt(
+    int index, {
+    int? audioStreamIndex,
+  }) async {
     currentIndex = index.clamp(0, episodes.length - 1);
-    return client.createPlaybackInfo(current.id);
+    return client.createPlaybackInfo(
+      current.id,
+      maxStreamingBitrate: MediaServerPlaybackSettings.instance.tier.maxBitrate,
+      audioStreamIndex: audioStreamIndex,
+    );
   }
 
   /// 由当前列表构造播放器通用的 Episode 列表（url 占位：媒体服务器切集
@@ -191,6 +213,8 @@ Future<void> openMediaServerPlayer(
 
   final resolvedIndex =
       list.indexWhere((e) => e.id == item.id).clamp(0, list.length - 1);
+  final settings = MediaServerPlaybackSettings.instance;
+  await settings.load();
   final playback = MediaServerPlayback(
     client: client,
     episodes: list,
@@ -198,7 +222,7 @@ Future<void> openMediaServerPlayer(
     fromStart: fromStart,
   );
 
-  // 协商直连地址（慢速服务器可能数秒：显示连接中遮罩）。
+  // 协商播放地址（按码率档位；慢速服务器可能数秒：显示连接中遮罩）。
   if (!context.mounted) return;
   showDialog<void>(
     context: context,
@@ -215,7 +239,10 @@ Future<void> openMediaServerPlayer(
   );
   final PlaybackInfoResult info;
   try {
-    info = await client.createPlaybackInfo(list[resolvedIndex].id);
+    info = await client.createPlaybackInfo(
+      list[resolvedIndex].id,
+      maxStreamingBitrate: settings.tier.maxBitrate,
+    );
   } on Object catch (e) {
     if (context.mounted) Navigator.of(context).pop();
     if (!context.mounted) return;
@@ -226,13 +253,27 @@ Future<void> openMediaServerPlayer(
   }
   if (context.mounted) Navigator.of(context).pop();
   if (!context.mounted) return;
-  if (info.requiresTranscode || info.playUrl.isEmpty) {
+  if (info.playUrl.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.mediaServerTranscodeRequired)),
     );
     return;
   }
+  if (info.requiresTranscode &&
+      settings.tier == MediaServerBitrateTier.original) {
+    // 原画 = 强制直连：不支持直连的格式直接报错（不打开流，无转码会话）。
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.mediaServerOriginalNeedsDirect)),
+    );
+    return;
+  }
   playback.initialInfo = info;
+  if (info.requiresTranscode) {
+    // 转码降级提示（不打断播放）。
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.mediaServerTranscodingNotice)),
+    );
+  }
 
   final target = list[resolvedIndex];
   final title = (target.seriesName != null && target.seriesName!.isNotEmpty)

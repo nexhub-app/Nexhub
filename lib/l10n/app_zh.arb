@@ -5092,5 +5092,12 @@
   "mediaServerManageAction": "添加 / 管理媒体服务器",
   "mediaServerConnecting": "正在连接服务器…",
   "mediaServerBlockedByChallenge": "服务器防护（Cloudflare 人机验证）拦截了播放请求：请在浏览器打开服务器地址完成一次验证，或联系管理员放行 API 路径",
-  "mediaServerUnreachable": "无法连接媒体服务器（网络错误或被临时限流），请稍后重试"
+  "mediaServerUnreachable": "无法连接媒体服务器（网络错误或被临时限流），请稍后重试",
+  "mediaServerBitrateTier": "码率档位",
+  "mediaServerBitrateAuto": "自动（服务器决策）",
+  "mediaServerBitrateOriginal": "原画（强制直连）",
+  "mediaServerBitrate720p": "720p 限档",
+  "mediaServerTranscodingNotice": "原格式直连不支持，正在转码播放",
+  "mediaServerOriginalNeedsDirect": "原画档位需要直连，该格式不支持直连；请选择其他码率档位",
+  "mediaServerAudioTrack": "音轨"
 }

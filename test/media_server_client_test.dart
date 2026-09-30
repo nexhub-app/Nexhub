@@ -383,21 +383,74 @@ void main() {
       expect(r.playUrl, 'http://jf:8096/Videos/it1/original.mp4?api_key=tok');
     });
 
-    test('仅转码可用 → requiresTranscode，不抛异常', () async {
+    test('仅转码可用 → 走 TranscodingUrl（HLS）并标记 transcode', () async {
+      adapter.handler = (opts) async {
+        expect(opts.data['DeviceProfile'], isA<Map>());
+        return _json(<String, dynamic>{
+          'PlaySessionId': 'ps1',
+          'MediaSources': [
+            {
+              'Id': 'ms1',
+              'SupportsDirectPlay': false,
+              'SupportsDirectStream': false,
+              'SupportsTranscoding': true,
+              'TranscodingUrl':
+                  '/Videos/it1/master.m3u8?MediaSourceId=ms1&PlaySessionId=ps1',
+            },
+          ],
+        });
+      };
+      final r = await client.createPlaybackInfo('it1');
+      expect(r.requiresTranscode, isTrue);
+      expect(r.playMethod, MediaServerPlayMethod.transcode);
+      expect(
+        r.playUrl,
+        'http://jf:8096/Videos/it1/master.m3u8'
+        '?MediaSourceId=ms1&PlaySessionId=ps1&api_key=tok',
+      );
+    });
+
+    test('码率档位透传 MaxStreamingBitrate', () async {
+      adapter.handler = (opts) async {
+        expect(opts.data['MaxStreamingBitrate'], 8000000);
+        return _json(<String, dynamic>{
+          'PlaySessionId': 'ps1',
+          'MediaSources': [
+            {'Id': 'ms1', 'SupportsDirectPlay': true},
+          ],
+        });
+      };
+      await client.createPlaybackInfo('it1', maxStreamingBitrate: 8000000);
+    });
+
+    test('音轨解析（MediaStreams type=Audio）', () async {
       adapter.handler = (opts) async => _json(<String, dynamic>{
             'PlaySessionId': 'ps1',
             'MediaSources': [
               {
                 'Id': 'ms1',
-                'SupportsDirectPlay': false,
-                'SupportsDirectStream': false,
-                'SupportsTranscoding': true,
+                'SupportsDirectPlay': true,
+                'MediaStreams': [
+                  {'Type': 'Video', 'Codec': 'h264', 'Index': 0},
+                  {
+                    'Type': 'Audio',
+                    'Codec': 'aac',
+                    'Index': 1,
+                    'DisplayTitle': '日语 AAC 5.1',
+                    'Language': 'jpn',
+                    'IsDefault': true,
+                  },
+                  {'Type': 'Audio', 'Codec': 'flac', 'Index': 2},
+                ],
               },
             ],
           });
       final r = await client.createPlaybackInfo('it1');
-      expect(r.requiresTranscode, isTrue);
-      expect(r.playUrl, isEmpty);
+      expect(r.audioStreams, hasLength(2));
+      expect(r.audioStreams.first.index, 1);
+      expect(r.audioStreams.first.label(), '日语 AAC 5.1');
+      expect(r.audioStreams.last.label(), 'FLAC');
+      expect(r.audioStreams.first.isDefault, isTrue);
     });
 
     test('无媒体源 → 抛异常', () async {

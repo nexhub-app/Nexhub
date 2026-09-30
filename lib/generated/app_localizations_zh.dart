@@ -9087,4 +9087,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mediaServerUnreachable => '无法连接媒体服务器（网络错误或被临时限流），请稍后重试';
+
+  @override
+  String get mediaServerBitrateTier => '码率档位';
+
+  @override
+  String get mediaServerBitrateAuto => '自动（服务器决策）';
+
+  @override
+  String get mediaServerBitrateOriginal => '原画（强制直连）';
+
+  @override
+  String get mediaServerBitrate720p => '720p 限档';
+
+  @override
+  String get mediaServerTranscodingNotice => '原格式直连不支持，正在转码播放';
+
+  @override
+  String get mediaServerOriginalNeedsDirect => '原画档位需要直连，该格式不支持直连；请选择其他码率档位';
+
+  @override
+  String get mediaServerAudioTrack => '音轨';
 }

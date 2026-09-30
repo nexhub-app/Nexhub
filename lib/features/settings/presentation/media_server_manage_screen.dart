@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/services/media_server/media_server_auth.dart';
 import '../../../core/services/media_server/media_server_models.dart';
+import '../../../core/services/media_server/media_server_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_glass_bar.dart';
@@ -77,6 +78,19 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
                   children: <Widget>[
                     for (final s in auth.servers)
                       _serverTile(context, s, l10n),
+                    // ── 播放设置（A2 码率档位，全局默认）──
+                    ListenableBuilder(
+                      listenable: MediaServerPlaybackSettings.instance,
+                      builder: (context, _) => SettingsTile(
+                        icon: Icons.speed_rounded,
+                        title: l10n.mediaServerBitrateTier,
+                        subtitle: _bitrateLabel(
+                          l10n,
+                          MediaServerPlaybackSettings.instance.tier,
+                        ),
+                        onTap: () => _pickBitrate(l10n),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -287,6 +301,60 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.mediaServerOperationFailed('$e'))),
     );
+  }
+
+  /// 码率档位显示名（与播放器内一致）。
+  String _bitrateLabel(AppLocalizations l10n, MediaServerBitrateTier tier) {
+    switch (tier) {
+      case MediaServerBitrateTier.auto:
+        return l10n.mediaServerBitrateAuto;
+      case MediaServerBitrateTier.original:
+        return l10n.mediaServerBitrateOriginal;
+      case MediaServerBitrateTier.m20:
+        return '20 Mbps';
+      case MediaServerBitrateTier.m10:
+        return '10 Mbps';
+      case MediaServerBitrateTier.m8:
+        return '8 Mbps';
+      case MediaServerBitrateTier.m4:
+        return '4 Mbps';
+      case MediaServerBitrateTier.m2:
+        return '2 Mbps';
+      case MediaServerBitrateTier.m1:
+        return '1 Mbps';
+      case MediaServerBitrateTier.p720:
+        return l10n.mediaServerBitrate720p;
+    }
+  }
+
+  /// 码率档位选择（全局默认；播放中切换在播放器菜单内即时生效）。
+  Future<void> _pickBitrate(AppLocalizations l10n) async {
+    final settings = MediaServerPlaybackSettings.instance;
+    await settings.load();
+    if (!mounted) return;
+    final picked = await showDialog<MediaServerBitrateTier>(
+      context: context,
+      builder: (dialogCtx) => SimpleDialog(
+        title: Text(l10n.mediaServerBitrateTier),
+        children: <Widget>[
+          RadioGroup<MediaServerBitrateTier>(
+            groupValue: settings.tier,
+            onChanged: (v) => Navigator.of(dialogCtx).pop(v),
+            child: Column(
+              children: <Widget>[
+                for (final t in MediaServerBitrateTier.values)
+                  RadioListTile<MediaServerBitrateTier>(
+                    value: t,
+                    title: Text(_bitrateLabel(l10n, t)),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    await settings.setTier(picked);
   }
 }
 

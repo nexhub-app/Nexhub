@@ -360,15 +360,20 @@ abstract class MediaServerClientBase {
 
   // ---------- 播放协商 ----------
 
-  /// 播放协商：取 MediaSources[0] 判定直连可行性（决策树见 TODO 文档 M5）。
+  /// 播放协商（A1 三段决策树）：DirectPlay → DirectStream → Transcoding。
   ///
-  /// 仅转码可用时返回 `requiresTranscode: true`（playUrl 为空），
-  /// 无任何可用媒体源时抛 [MediaServerApiException]。
+  /// - [maxStreamingBitrate] 传码率档位（原画=极大值 / 档位=定值 / 自动=高值）；
+  /// - [audioStreamIndex] 供转码流切换音轨时重新协商；
+  /// - 转码返回 HLS（mpv 原生可播）；原画档位下拿到转码方式由调用方报错
+  ///   （不打开流即不产生服务器转码会话）；
+  /// - 播放 URL 统一附 api_key 自鉴权（mpv 跟随重定向不转发请求头）。
   /// 接收超时放宽到 20s：慢速服务器（公益机）协商可能明显久于普通请求。
   Future<PlaybackInfoResult> createPlaybackInfo(
     String itemId, {
     int? maxStreamingBitrate,
+    int? audioStreamIndex,
   }) async {
+    final bitrate = maxStreamingBitrate ?? kMaxStreamingBitrate;
     final resp = await _send(
       () => _dio.post<dynamic>(
             '/Items/$itemId/PlaybackInfo',
@@ -378,8 +383,9 @@ abstract class MediaServerClientBase {
             ),
             data: <String, dynamic>{
               'UserId': info.userId,
-              'MaxStreamingBitrate':
-                  maxStreamingBitrate ?? kMaxStreamingBitrate,
+              'MaxStreamingBitrate': bitrate,
+              if (audioStreamIndex != null) 'AudioStreamIndex': audioStreamIndex,
+              'DeviceProfile': _deviceProfile(bitrate),
             },
           ),
     );
@@ -400,31 +406,90 @@ abstract class MediaServerClientBase {
     final supportsDirectPlay = ms['SupportsDirectPlay'] == true;
     final supportsDirectStream = ms['SupportsDirectStream'] == true;
     final directStreamUrl = ms['DirectStreamUrl'] as String?;
+    final transcodingUrl = ms['TranscodingUrl'] as String?;
 
+    MediaServerPlayMethod? method;
     String? playUrl;
     if (supportsDirectPlay) {
+      method = MediaServerPlayMethod.directPlay;
       playUrl = '${info.baseUrl}/Videos/$itemId/stream'
           '?static=true&MediaSourceId=$mediaSourceId&PlaySessionId=$playSessionId';
     } else if (supportsDirectStream && directStreamUrl != null) {
+      method = MediaServerPlayMethod.directStream;
       playUrl = directStreamUrl.startsWith('http')
           ? directStreamUrl
           : '${info.baseUrl}$directStreamUrl';
+    } else if (transcodingUrl != null) {
+      method = MediaServerPlayMethod.transcode;
+      playUrl = transcodingUrl.startsWith('http')
+          ? transcodingUrl
+          : '${info.baseUrl}$transcodingUrl';
+    }
+    if (playUrl == null || method == null) {
+      throw const MediaServerApiException(null, 'no playable media source');
     }
     // 流地址自鉴权：把 api_key 拼进查询串（参考库同法）。mpv/ffmpeg 跟随
     // 302 重定向时不转发自定义请求头，仅靠 Authorization 头会让流请求
     // 401 卡死（元数据永远不到、表现为无限加载）；请求头仍保留双保险。
-    if (playUrl != null) {
-      playUrl = _appendApiKey(playUrl);
-    }
+    playUrl = _appendApiKey(playUrl);
     return PlaybackInfoResult(
       playSessionId: playSessionId,
-      playUrl: playUrl ?? '',
+      playUrl: playUrl,
       headers: authHeaders(),
       runTimeTicks: (ms['RunTimeTicks'] as num?)?.toInt(),
       container: ms['Container'] as String?,
-      requiresTranscode: playUrl == null,
+      playMethod: method,
+      audioStreams: _parseAudioStreams(ms['MediaStreams']),
     );
   }
+
+  /// 播放能力声明（DeviceProfile，首版白名单）：常见容器直连，
+  /// 转码目标收敛为 h264+aac 的 HLS；两家 schema 基本一致，字段以实测回填。
+  Map<String, dynamic> _deviceProfile(int maxBitrate) => <String, dynamic>{
+        'MaxStreamingBitrate': maxBitrate,
+        'DirectPlayProfiles': <dynamic>[
+          <String, dynamic>{
+            'Container': 'mp4,mkv,webm,mov,ts,m2ts,avi,flv',
+            'Type': 'Video',
+          },
+        ],
+        'TranscodingProfiles': <dynamic>[
+          <String, dynamic>{
+            'Container': 'ts',
+            'Type': 'Video',
+            'VideoCodec': 'h264',
+            'AudioCodec': 'aac,mp3',
+            'Protocol': 'hls',
+          },
+        ],
+      };
+
+  /// 从 MediaSources[0].MediaStreams 提取音轨（type == Audio）。
+  static List<ServerMediaStream> _parseAudioStreams(Object? streams) {
+    if (streams is! List) return const <ServerMediaStream>[];
+    final result = <ServerMediaStream>[];
+    for (final s in streams) {
+      if (s is! Map || s['Type'] != 'Audio') continue;
+      result.add(ServerMediaStream(
+        index: (s['Index'] as num?)?.toInt() ?? 0,
+        codec: s['Codec'] as String?,
+        displayTitle: s['DisplayTitle'] as String? ?? s['Title'] as String?,
+        language: s['Language'] as String?,
+        isDefault: s['IsDefault'] == true,
+      ));
+    }
+    return result;
+  }
+
+  /// 结束转码会话（A1：停止 / 退出时调用，避免服务器残留转码进程）。
+  Future<void> stopActiveEncodings(String playSessionId) => _send(
+        () => _dio.delete<dynamic>(
+              '/Videos/ActiveEncodings',
+              queryParameters: <String, dynamic>{
+                'PlaySessionId': playSessionId,
+              },
+            ),
+      );
 
   // ---------- 播放会话上报与已看标记 ----------
 

@@ -9303,4 +9303,27 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get mediaServerUnreachable =>
       'Cannot reach the media server (network error or temporary rate limit). Try again later';
+
+  @override
+  String get mediaServerBitrateTier => 'Bitrate tier';
+
+  @override
+  String get mediaServerBitrateAuto => 'Auto (server decides)';
+
+  @override
+  String get mediaServerBitrateOriginal => 'Original (direct play only)';
+
+  @override
+  String get mediaServerBitrate720p => '720p cap';
+
+  @override
+  String get mediaServerTranscodingNotice =>
+      'Direct play not supported for this format, transcoding instead';
+
+  @override
+  String get mediaServerOriginalNeedsDirect =>
+      'Original tier requires direct play, which this format does not support; pick another bitrate tier';
+
+  @override
+  String get mediaServerAudioTrack => 'Audio track';
 }

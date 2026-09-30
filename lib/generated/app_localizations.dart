@@ -17408,6 +17408,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cannot reach the media server (network error or temporary rate limit). Try again later'**
   String get mediaServerUnreachable;
+
+  /// No description provided for @mediaServerBitrateTier.
+  ///
+  /// In en, this message translates to:
+  /// **'Bitrate tier'**
+  String get mediaServerBitrateTier;
+
+  /// No description provided for @mediaServerBitrateAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (server decides)'**
+  String get mediaServerBitrateAuto;
+
+  /// No description provided for @mediaServerBitrateOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original (direct play only)'**
+  String get mediaServerBitrateOriginal;
+
+  /// No description provided for @mediaServerBitrate720p.
+  ///
+  /// In en, this message translates to:
+  /// **'720p cap'**
+  String get mediaServerBitrate720p;
+
+  /// No description provided for @mediaServerTranscodingNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct play not supported for this format, transcoding instead'**
+  String get mediaServerTranscodingNotice;
+
+  /// No description provided for @mediaServerOriginalNeedsDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'Original tier requires direct play, which this format does not support; pick another bitrate tier'**
+  String get mediaServerOriginalNeedsDirect;
+
+  /// No description provided for @mediaServerAudioTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio track'**
+  String get mediaServerAudioTrack;
 }
 
 class _AppLocalizationsDelegate

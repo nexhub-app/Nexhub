@@ -625,6 +625,22 @@ class PlayerController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ─────────────────────── 音轨 ───────────────────────
+
+  /// 可用音轨列表（实时快照，来自底层 [Player.state.tracks]）。
+  List<AudioTrack> get audioTracks => _backend.player.state.tracks.audio;
+
+  /// 当前选中的音轨。
+  AudioTrack? _currentAudioTrack;
+  AudioTrack? get currentAudioTrack => _currentAudioTrack;
+
+  /// 切换音轨（直连 / DirectStream 下由 mpv 内部切换，即时生效）。
+  Future<void> setAudioTrack(AudioTrack track) async {
+    await _backend.player.setAudioTrack(track);
+    _currentAudioTrack = track;
+    notifyListeners();
+  }
+
  /// 切换字幕显示开关。关闭时记住当前轨道，开启时恢复。
   Future<void> setSubtitleVisible(bool visible) async {
     if (visible == _subtitleVisible) return;
