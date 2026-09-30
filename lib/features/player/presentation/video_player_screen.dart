@@ -2728,10 +2728,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 的 `openReadyTimeout` 统一取值。
   Duration get _readyTimeout {
     if (!_isDirectMode) return const Duration(seconds: 30);
-    // 媒体服务器（用户自有 / 公益服务器）首包明显慢于抓取源 CDN：
-    // 元数据就绪等待放宽到 30s。6s 就 re-open 会把慢速下载推倒重来，
-    // 实测越重试越慢（公益机 19ms open 后元数据要十几秒才就绪）。
-    if (_isMediaServer) return const Duration(seconds: 30);
+    // 媒体服务器：播放地址已带 api_key 自鉴权（对齐参考库）后，正常应当
+    // 快速出画；15s 元数据等待兼顾公益机慢速首包与卡死的自愈重开。
+    if (_isMediaServer) return const Duration(seconds: 15);
     final url = _playUrl ?? '';
     final isNetwork = url.startsWith('http://') || url.startsWith('https://');
     return isNetwork ? const Duration(seconds: 6) : const Duration(seconds: 5);

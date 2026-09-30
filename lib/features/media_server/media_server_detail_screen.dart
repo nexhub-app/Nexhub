@@ -10,6 +10,7 @@ library;
 
 import 'dart:ui' show ImageFilter;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
@@ -395,9 +396,12 @@ class _ImmersiveHeader extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Text(
-                          detail.name,
-                          style: textTheme.titleLarge?.copyWith(
+                        // 台标优先（Moonfin 风格）：有 ClearLogo 显示台标，
+                        // 加载中 / 缺失回退文字标题（带投影）。
+                        _ClearLogoTitle(
+                          client: client,
+                          detail: detail,
+                          fallbackStyle: textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                             shadows: <Shadow>[
                               Shadow(
@@ -440,6 +444,36 @@ class _ImmersiveHeader extends StatelessWidget {
       );
     }
     return l10n.mediaServerRuntimeMinutes('$totalMinutes');
+  }
+}
+
+/// 台标优先的标题（Moonfin 风格）：服务器有 ClearLogo 时显示台标图；
+/// 加载中 / 缺失回退文字标题（带投影，浅深色主题均可读）。
+class _ClearLogoTitle extends StatelessWidget {
+  final MediaServerClientBase client;
+  final ServerMediaItem detail;
+  final TextStyle? fallbackStyle;
+
+  const _ClearLogoTitle({
+    required this.client,
+    required this.detail,
+    required this.fallbackStyle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 96),
+      child: CachedNetworkImage(
+        imageUrl: client.logoUrl(detail.id),
+        httpHeaders: client.authHeaders(),
+        fit: BoxFit.contain,
+        alignment: Alignment.centerLeft,
+        fadeInDuration: const Duration(milliseconds: 150),
+        placeholder: (_, __) => Text(detail.name, style: fallbackStyle),
+        errorWidget: (_, __, ___) => Text(detail.name, style: fallbackStyle),
+      ),
+    );
   }
 }
 

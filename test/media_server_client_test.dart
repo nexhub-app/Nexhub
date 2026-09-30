@@ -355,10 +355,11 @@ void main() {
       };
       final r = await client.createPlaybackInfo('it1');
       expect(r.requiresTranscode, isFalse);
+      // 播放地址自鉴权：追加 api_key（mpv 跟随 302 重定向不转发请求头）。
       expect(
         r.playUrl,
         'http://jf:8096/Videos/it1/stream'
-        '?static=true&MediaSourceId=ms1&PlaySessionId=ps1',
+        '?static=true&MediaSourceId=ms1&PlaySessionId=ps1&api_key=tok',
       );
       expect(r.headers['Authorization'], contains('Token="tok"'));
       expect(r.runTimeTicks, 72000000000);
@@ -379,7 +380,7 @@ void main() {
           });
       final r = await client.createPlaybackInfo('it1');
       expect(r.requiresTranscode, isFalse);
-      expect(r.playUrl, 'http://jf:8096/Videos/it1/original.mp4');
+      expect(r.playUrl, 'http://jf:8096/Videos/it1/original.mp4?api_key=tok');
     });
 
     test('仅转码可用 → requiresTranscode，不抛异常', () async {

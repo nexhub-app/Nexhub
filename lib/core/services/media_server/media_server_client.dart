@@ -354,6 +354,10 @@ abstract class MediaServerClientBase {
   String backdropUrl(String itemId, {int maxWidth = 1200}) =>
       '${info.baseUrl}/Items/$itemId/Images/Backdrop?maxWidth=$maxWidth&quality=80';
 
+  /// 台标（ClearLogo）地址（详情页标题优先显示；缺失由加载层回退文字）。
+  String logoUrl(String itemId, {int maxWidth = 600}) =>
+      '${info.baseUrl}/Items/$itemId/Images/Logo?maxWidth=$maxWidth&quality=90';
+
   // ---------- 播放协商 ----------
 
   /// 播放协商：取 MediaSources[0] 判定直连可行性（决策树见 TODO 文档 M5）。
@@ -405,6 +409,12 @@ abstract class MediaServerClientBase {
       playUrl = directStreamUrl.startsWith('http')
           ? directStreamUrl
           : '${info.baseUrl}$directStreamUrl';
+    }
+    // 流地址自鉴权：把 api_key 拼进查询串（参考库同法）。mpv/ffmpeg 跟随
+    // 302 重定向时不转发自定义请求头，仅靠 Authorization 头会让流请求
+    // 401 卡死（元数据永远不到、表现为无限加载）；请求头仍保留双保险。
+    if (playUrl != null) {
+      playUrl = _appendApiKey(playUrl);
     }
     return PlaybackInfoResult(
       playSessionId: playSessionId,
@@ -575,6 +585,16 @@ abstract class MediaServerClientBase {
       default:
         return MediaServerApiException(status, 'network: ${e.message}');
     }
+  }
+
+  /// 给服务器相对 / 绝对播放地址追加 api_key（已带则不重复）。
+  String _appendApiKey(String url) {
+    final t = token;
+    if (t == null || t.isEmpty) return url;
+    if (Uri.tryParse(url)?.queryParameters.containsKey('api_key') == true) {
+      return url;
+    }
+    return '$url${url.contains('?') ? '&' : '?'}api_key=${Uri.encodeComponent(t)}';
   }
 
   /// 列表响应归一：`{Items: []}` 或裸数组（Latest）。
