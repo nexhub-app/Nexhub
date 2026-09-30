@@ -254,6 +254,12 @@ class _LibraryPosterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final played = item.userData?.played ?? false;
+    final ticks = item.userData?.playbackPositionTicks ?? 0;
+    final runtime = item.runTimeTicks ?? 0;
+    final progress = (runtime > 0 && ticks > 0 && !played)
+        ? (ticks / runtime).clamp(0.0, 1.0)
+        : null;
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -262,9 +268,45 @@ class _LibraryPosterCard extends StatelessWidget {
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-              child: MediaServerPoster(
-                url: client.imageUrl(item.id, maxWidth: 300),
-                headers: client.authHeaders(),
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  MediaServerPoster(
+                    url: client.imageUrl(item.id, maxWidth: 300),
+                    headers: client.authHeaders(),
+                  ),
+                  if (played)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  if (progress != null)
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(2),
+                        ),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 4,
+                          backgroundColor: Colors.white.withValues(alpha: 0.25),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

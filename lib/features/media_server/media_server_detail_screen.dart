@@ -519,6 +519,29 @@ class _EpisodeCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // 集数徽章（Moonfin 集卡风格：缩略图左下角）。
+                  if (episode.indexNumber != null)
+                    Positioned(
+                      left: 4,
+                      bottom: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppTokens.spaceXs,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(AppTokens.radiusXs),
+                        ),
+                        child: Text(
+                          'E${episode.indexNumber}',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
                   if (played)
                     Positioned(
                       top: 4,
@@ -563,9 +586,13 @@ class _EpisodeCard extends StatelessWidget {
                       ),
                     if (progress != null) ...<Widget>[
                       const SizedBox(height: AppTokens.spaceXs),
-                      LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 3,
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppTokens.radiusXs),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 4,
+                          backgroundColor: scheme.surfaceContainerHighest,
+                        ),
                       ),
                     ],
                     if (episode.hasGraphicSubtitle) ...<Widget>[

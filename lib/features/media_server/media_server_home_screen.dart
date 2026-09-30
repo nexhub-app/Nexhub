@@ -315,12 +315,39 @@ class _PosterTile extends StatelessWidget {
                       url: client.imageUrl(item.id, maxWidth: 300),
                       headers: client.authHeaders(),
                     ),
+                    // 已看徽章（Moonfin media_badge 风格：右上角半透明对勾）。
+                    if (item.userData?.played == true)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check_rounded,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                     if (progress != null)
+                      // 服务器进度条：白色轨道 + 主色进度（叠图底部）。
                       Align(
                         alignment: Alignment.bottomCenter,
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 3,
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(2),
+                          ),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 4,
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.25,
+                            ),
+                          ),
                         ),
                       ),
                   ],
