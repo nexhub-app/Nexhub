@@ -491,6 +491,51 @@ abstract class MediaServerClientBase {
             ),
       );
 
+  // ---------- 互动（B 包：收藏 / NextUp） ----------
+
+  /// 我的收藏（Filters=IsFavorite，电影 + 剧集）。
+  Future<List<ServerMediaItem>> fetchFavorites({int limit = 20}) async {
+    final resp = await _send(
+      () => _dio.get<dynamic>(
+            itemsPath(info.userId),
+            queryParameters: <String, dynamic>{
+              ..._userQuery(),
+              'Filters': 'IsFavorite',
+              'IncludeItemTypes': 'Movie,Series',
+              'Recursive': true,
+              'Limit': limit,
+              'SortBy': 'SortName',
+              'Fields': 'Overview,ProductionYear',
+            },
+          ),
+    );
+    return _itemsOf(resp.data).whereType<Map>().map(_parseItem).toList();
+  }
+
+  /// NextUp 追更（仅剧集库服务器调用）。
+  Future<List<ServerMediaItem>> fetchNextUp({int limit = 20}) async {
+    final resp = await _send(
+      () => _dio.get<dynamic>(
+            '/Shows/NextUp',
+            queryParameters: <String, dynamic>{
+              ..._userQuery(),
+              'Limit': limit,
+              'Fields': 'Overview,ProductionYear',
+            },
+          ),
+    );
+    return _itemsOf(resp.data).whereType<Map>().map(_parseItem).toList();
+  }
+
+  /// 收藏 / 取消收藏（B1）。
+  Future<void> setFavorite(String itemId, {required bool favorite}) => _send(
+        () => favorite
+            ? _dio.post<dynamic>(
+                '/Users/${info.userId}/FavoriteItems/$itemId')
+            : _dio.delete<dynamic>(
+                '/Users/${info.userId}/FavoriteItems/$itemId'),
+      );
+
   // ---------- 播放会话上报与已看标记 ----------
 
   /// 开始上报：`POST /Sessions/Playing`。
@@ -716,6 +761,7 @@ abstract class MediaServerClientBase {
       played: j['Played'] == true,
       unplayedItemCount: (j['UnplayedItemCount'] as num?)?.toInt(),
       playbackPositionTicks: (j['PlaybackPositionTicks'] as num?)?.toInt(),
+      isFavorite: j['IsFavorite'] == true,
     );
   }
 

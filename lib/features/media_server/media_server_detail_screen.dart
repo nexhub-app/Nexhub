@@ -138,6 +138,139 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     await _reload();
   }
 
+  // ─────────────── B 包互动：收藏 / 已看 ───────────────
+
+  /// 收藏切换（B1）：乐观更新 + 失败回滚 + 提示。
+  Future<void> _toggleFavorite() async {
+    final detail = _detail;
+    if (detail == null) return;
+    final l10n = AppLocalizations.of(context);
+    final current = detail.userData?.isFavorite ?? false;
+    final target = !current;
+    setState(() {
+      _detail = detail.copyWith(
+        userData: (detail.userData ?? const ServerUserData(played: false))
+            .copyWith(isFavorite: target),
+      );
+    });
+    try {
+      await widget.client.setFavorite(detail.id, favorite: target);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            target
+                ? l10n.mediaServerFavoriteAdded
+                : l10n.mediaServerFavoriteRemoved,
+          ),
+        ),
+      );
+    } on Object {
+      // 失败回滚。
+      if (!mounted) return;
+      setState(() {
+        _detail = detail.copyWith(
+          userData: (detail.userData ?? const ServerUserData(played: false))
+              .copyWith(isFavorite: current),
+        );
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.mediaServerOperationFailed('favorite'))),
+      );
+    }
+  }
+
+  /// 已看切换（B3，电影）：乐观更新 + 失败回滚。
+  Future<void> _toggleWatched() async {
+    final detail = _detail;
+    if (detail == null) return;
+    final current = detail.userData?.played ?? false;
+    final target = !current;
+    setState(() {
+      _detail = detail.copyWith(
+        userData: (detail.userData ?? const ServerUserData(played: false))
+            .copyWith(
+          played: target,
+          playbackPositionTicks: target ? null : 0,
+        ),
+      );
+    });
+    try {
+      if (target) {
+        await widget.client.markPlayed(detail.id);
+      } else {
+        await widget.client.markUnplayed(detail.id);
+      }
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _detail = detail.copyWith(
+          userData: (detail.userData ?? const ServerUserData(played: false))
+              .copyWith(
+            played: current,
+            playbackPositionTicks: detail.userData?.playbackPositionTicks,
+          ),
+        );
+      });
+    }
+  }
+
+  /// 单集已看切换（B3，长按集卡片）：乐观更新 + 失败回滚。
+  Future<void> _toggleEpisodeWatched(ServerMediaItem ep) async {
+    final episodes = _episodes;
+    if (episodes == null) return;
+    final current = ep.userData?.played ?? false;
+    final target = !current;
+    final index = episodes.indexWhere((e) => e.id == ep.id);
+    if (index < 0) return;
+    setState(() {
+      _episodes = <ServerMediaItem>[
+        for (final e in episodes)
+          if (e.id == ep.id)
+            e.copyWith(
+              userData: (e.userData ?? const ServerUserData(played: false))
+                  .copyWith(
+                played: target,
+                playbackPositionTicks: target ? null : 0,
+              ),
+            )
+          else
+            e,
+      ];
+    });
+    try {
+      if (target) {
+        await widget.client.markPlayed(ep.id);
+      } else {
+        await widget.client.markUnplayed(ep.id);
+      }
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _episodes = episodes;
+      });
+    }
+  }
+
+  /// 整季标记已看（B3）：逐集标记（小间隔，友好对待公益服务器）。
+  Future<void> _markSeasonWatched() async {
+    final episodes = _episodes;
+    if (episodes == null) return;
+    final targets =
+        episodes.where((e) => !(e.userData?.played ?? false)).toList();
+    if (targets.isEmpty) return;
+    for (final e in targets) {
+      try {
+        await widget.client.markPlayed(e.id);
+      } on Object {
+        // 单集失败跳过，继续其余。
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+    }
+    if (!mounted) return;
+    await _loadEpisodes();
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
@@ -216,28 +349,63 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     );
   }
 
-  /// 播放按钮组（电影：继续 / 从头；剧集：播放首集或当前季首集）。
+  /// 播放按钮组（电影：继续 / 从头；剧集：播放首集或当前季首集）
+  /// + 收藏（B1）+ 已看切换（B3，电影）。
   List<Widget> _actions(
     BuildContext context,
     ServerMediaItem detail,
     AppLocalizations l10n,
   ) {
+    final scheme = Theme.of(context).colorScheme;
     final hasPosition = (detail.userData?.playbackPositionTicks ?? 0) > 0;
     final playTarget = _isSeries ? (_episodes?.firstOrNull ?? detail) : detail;
     final targetHasPosition =
         (playTarget.userData?.playbackPositionTicks ?? 0) > 0;
     final showResume = !_isSeries && hasPosition;
     final showResumeSeries = _isSeries && targetHasPosition;
+    final favorited = detail.userData?.isFavorite ?? false;
+    final watched = detail.userData?.played ?? false;
     return <Widget>[
       const SizedBox(height: AppTokens.spaceSm),
-      FilledButton.icon(
-        onPressed: () => _play(playTarget),
-        icon: const Icon(Icons.play_arrow_rounded),
-        label: Text(
-          (showResume || showResumeSeries)
-              ? l10n.mediaServerResumePlay
-              : l10n.mediaServerPlay,
-        ),
+      Row(
+        children: <Widget>[
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: () => _play(playTarget),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: Text(
+                (showResume || showResumeSeries)
+                    ? l10n.mediaServerResumePlay
+                    : l10n.mediaServerPlay,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppTokens.spaceSm),
+          // 收藏（B1）：心形，乐观更新。
+          IconButton.filledTonal(
+            onPressed: _toggleFavorite,
+            tooltip: l10n.mediaServerFavorite,
+            icon: Icon(
+              favorited
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_outline_rounded,
+              color: favorited ? scheme.error : null,
+            ),
+          ),
+          // 已看切换（B3，电影）。
+          if (!_isSeries)
+            IconButton.filledTonal(
+              onPressed: _toggleWatched,
+              tooltip: watched
+                  ? l10n.mediaServerMarkUnwatched
+                  : l10n.mediaServerMarkWatched,
+              icon: Icon(
+                watched
+                    ? Icons.check_circle_rounded
+                    : Icons.check_circle_outline_rounded,
+              ),
+            ),
+        ],
       ),
       if (showResume) ...<Widget>[
         const SizedBox(height: AppTokens.spaceSm),
@@ -285,6 +453,18 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
             ],
           ),
         ),
+      // 整季标记已看（B3）：仅当当前季存在未看集时显示。
+      if (!_episodesLoading &&
+          (_episodes ?? const <ServerMediaItem>[])
+              .any((e) => !(e.userData?.played ?? false)))
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: _markSeasonWatched,
+            icon: const Icon(Icons.done_all_rounded, size: 18),
+            label: Text(l10n.mediaServerMarkAllWatched),
+          ),
+        ),
       if (_episodesLoading)
         const Padding(
           padding: EdgeInsets.all(AppTokens.spaceLg),
@@ -301,6 +481,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
             client: widget.client,
             episode: ep,
             onTap: () => _play(ep),
+            onLongPress: () => _toggleEpisodeWatched(ep),
           ),
     ];
   }
@@ -396,7 +577,7 @@ class _ImmersiveHeader extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        // 台标优先（Moonfin 风格）：有 ClearLogo 显示台标，
+                        // 台标优先：有 ClearLogo 显示台标，
                         // 加载中 / 缺失回退文字标题（带投影）。
                         _ClearLogoTitle(
                           client: client,
@@ -447,7 +628,7 @@ class _ImmersiveHeader extends StatelessWidget {
   }
 }
 
-/// 台标优先的标题（Moonfin 风格）：服务器有 ClearLogo 时显示台标图；
+/// 台标优先的标题：服务器有 ClearLogo 时显示台标图；
 /// 加载中 / 缺失回退文字标题（带投影，浅深色主题均可读）。
 class _ClearLogoTitle extends StatelessWidget {
   final MediaServerClientBase client;
@@ -506,15 +687,18 @@ class _HeroChip extends StatelessWidget {
 }
 
 /// 集卡片：缩略图 / 时长 / 已看角标 / 未看完进度条 / PGS 标注。
+/// 长按切换已看（B3）。
 class _EpisodeCard extends StatelessWidget {
   final MediaServerClientBase client;
   final ServerMediaItem episode;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   const _EpisodeCard({
     required this.client,
     required this.episode,
     required this.onTap,
+    this.onLongPress,
   });
 
   @override
@@ -535,6 +719,7 @@ class _EpisodeCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.all(AppTokens.spaceSm),
           child: Row(
@@ -553,7 +738,7 @@ class _EpisodeCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // 集数徽章（Moonfin 集卡风格：缩略图左下角）。
+                  // 集数徽章：缩略图左下角。
                   if (episode.indexNumber != null)
                     Positioned(
                       left: 4,

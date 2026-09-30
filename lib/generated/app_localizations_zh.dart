@@ -7916,6 +7916,135 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageCacheCalculating => '计算中…';
 
   @override
+  String get cacheManagerTitle => '缓存管理';
+
+  @override
+  String get cacheManagerTotal => '缓存总占用';
+
+  @override
+  String cacheManagerTotalDesc(String size) {
+    return '当前共 $size，按类别可单独清理';
+  }
+
+  @override
+  String get cacheManagerHint => '清理缓存不会删除收藏、下载与书源；图片收藏图库中的图片保存在收藏目录，不受影响。';
+
+  @override
+  String get cacheCategoryGroup => '缓存分类';
+
+  @override
+  String get cacheCatImages => '图片缓存';
+
+  @override
+  String get cacheCatImagesDesc => '封面、漫画页与 RSS 内嵌图';
+
+  @override
+  String get cacheCatDanmaku => '弹幕缓存';
+
+  @override
+  String get cacheCatDanmakuDesc => '已缓存的视频弹幕（按过期时间自动淘汰）';
+
+  @override
+  String get cacheCatTranslations => '翻译缓存';
+
+  @override
+  String get cacheCatTranslationsDesc => '小说 / 漫画 / 字幕的 AI 翻译结果';
+
+  @override
+  String get cacheCatWebview => 'WebView 数据';
+
+  @override
+  String get cacheCatWebviewDesc => '内嵌浏览器缓存与本地存储';
+
+  @override
+  String get cacheCatTemp => '临时文件';
+
+  @override
+  String get cacheCatTempDesc => 'PDF 渲染、归档解压等派生文件';
+
+  @override
+  String get cacheCatUpdates => '更新包残留';
+
+  @override
+  String get cacheCatUpdatesDesc => '已下载的安装包与旧版本目录';
+
+  @override
+  String get cacheSizeUnknown => '无法统计';
+
+  @override
+  String get cacheClearCategory => '清理此类';
+
+  @override
+  String cacheClearCategoryConfirm(String name) {
+    return '清理「$name」？';
+  }
+
+  @override
+  String get cacheClearAll => '全部清理';
+
+  @override
+  String get cacheClearAllConfirm => '清理全部缓存类别？';
+
+  @override
+  String get cacheCategoryCleared => '已清理';
+
+  @override
+  String get cacheClearFailed => '清理失败，请稍后重试';
+
+  @override
+  String get cacheAutoCleanGroup => '缓存自动清理';
+
+  @override
+  String get cacheAutoCleanGroupDesc => '启动时后台按「年龄 + 容量」自动清理派生缓存';
+
+  @override
+  String get cacheAutoClean => '自动清理缓存';
+
+  @override
+  String get cacheAutoCleanDesc => '关闭后仅在「缓存管理」页手动清理';
+
+  @override
+  String get cacheMaxAge => '缓存保留时长';
+
+  @override
+  String cacheMaxAgeValue(int days) {
+    return '$days 天';
+  }
+
+  @override
+  String get cacheMaxTotal => '缓存总容量上限';
+
+  @override
+  String get cacheAutoCleanNow => '按策略清理';
+
+  @override
+  String cacheAutoCleanDone(String size) {
+    return '已释放 $size';
+  }
+
+  @override
+  String get cacheAutoCleanNothing => '没有需要清理的缓存';
+
+  @override
+  String get readerUpscale => '图片超分';
+
+  @override
+  String get readerUpscaleMode => '超分档位';
+
+  @override
+  String get readerUpscaleOff => '关闭';
+
+  @override
+  String get readerUpscaleResample => '高清重采样';
+
+  @override
+  String get readerUpscaleSharpen => '超分（锐化）';
+
+  @override
+  String get readerUpscaleDesc =>
+      '仅单页翻页模式生效：图片被放大显示时用 GPU 实时重采样并锐化线条（条漫与超长单图保持原始渲染）；低端机卡顿时可关闭';
+
+  @override
   String get confirmActionHint => '该操作不可撤销，确定继续？';
 
   @override
@@ -9108,4 +9237,28 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mediaServerAudioTrack => '音轨';
+
+  @override
+  String get mediaServerFavorites => '我的收藏';
+
+  @override
+  String get mediaServerNextUp => '接下来观看';
+
+  @override
+  String get mediaServerFavorite => '收藏';
+
+  @override
+  String get mediaServerFavoriteAdded => '已加入收藏';
+
+  @override
+  String get mediaServerFavoriteRemoved => '已取消收藏';
+
+  @override
+  String get mediaServerMarkWatched => '标记已看';
+
+  @override
+  String get mediaServerMarkUnwatched => '取消已看';
+
+  @override
+  String get mediaServerMarkAllWatched => '全部标已看';
 }

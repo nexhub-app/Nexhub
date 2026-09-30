@@ -4382,6 +4382,78 @@
   "imageCacheCleared": "Image cache cleared",
   "imageCacheClearConfirm": "Clear image cache?",
   "imageCacheCalculating": "Calculating…",
+  "cacheManagerTitle": "Cache manager",
+  "cacheManagerTotal": "Total cache usage",
+  "cacheManagerTotalDesc": "{size} in total; clear per category below",
+  "@cacheManagerTotalDesc": {
+    "description": "Cache total usage description ({size} is formatted usage)",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "cacheManagerHint": "Clearing the cache never removes favorites, downloads or sources; images saved in the image-favorites gallery live in the favorites folder and are unaffected.",
+  "cacheCategoryGroup": "Cache categories",
+  "cacheCatImages": "Image cache",
+  "cacheCatImagesDesc": "Covers, comic pages and RSS inline images",
+  "cacheCatDanmaku": "Danmaku cache",
+  "cacheCatDanmakuDesc": "Cached video danmaku (expired entries auto-evicted)",
+  "cacheCatTranslations": "Translation cache",
+  "cacheCatTranslationsDesc": "AI translations for novels / comics / subtitles",
+  "cacheCatWebview": "WebView data",
+  "cacheCatWebviewDesc": "Embedded browser cache and local storage",
+  "cacheCatTemp": "Temporary files",
+  "cacheCatTempDesc": "Derived files such as PDF renders and archive extraction",
+  "cacheCatUpdates": "Update package leftovers",
+  "cacheCatUpdatesDesc": "Downloaded installers and stale version folders",
+  "cacheSizeUnknown": "Not measurable",
+  "cacheClearCategory": "Clear this category",
+  "cacheClearCategoryConfirm": "Clear \"{name}\"?",
+  "@cacheClearCategoryConfirm": {
+    "description": "Single category clear confirmation title",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cacheClearAll": "Clear all",
+  "cacheClearAllConfirm": "Clear every cache category?",
+  "cacheCategoryCleared": "Cleared",
+  "cacheClearFailed": "Cleanup failed, please retry later",
+  "cacheAutoCleanGroup": "Automatic cache cleanup",
+  "cacheAutoCleanGroupDesc": "Runs in the background on launch using age + size limits",
+  "cacheAutoClean": "Auto-clean cache",
+  "cacheAutoCleanDesc": "When off, caches are only cleared manually here",
+  "cacheMaxAge": "Keep cache for",
+  "cacheMaxAgeValue": "{days} days",
+  "@cacheMaxAgeValue": {
+    "description": "Cache max age display value",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "cacheMaxTotal": "Total cache size limit",
+  "cacheAutoCleanNow": "Run cleanup policy",
+  "cacheAutoCleanDone": "Freed {size}",
+  "@cacheAutoCleanDone": {
+    "description": "Auto cleanup finished toast",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "cacheAutoCleanNothing": "Nothing to clean up",
+  "readerUpscale": "Image super-resolution",
+  "readerUpscaleMode": "Super-resolution mode",
+  "readerUpscaleOff": "Off",
+  "readerUpscaleResample": "High-quality resample",
+  "readerUpscaleSharpen": "Super-resolution (sharpen)",
+  "readerUpscaleDesc": "Paged (single-page) mode only: the GPU resamples and sharpens lines when an image is upscaled (webtoon strips and oversized single images keep plain rendering); turn off on low-end devices",
   "@webviewDataCleared": {
     "description": "WebView data cleared toast"
   },
@@ -5143,5 +5215,13 @@
   "mediaServerBitrate720p": "720p cap",
   "mediaServerTranscodingNotice": "Direct play not supported for this format, transcoding instead",
   "mediaServerOriginalNeedsDirect": "Original tier requires direct play, which this format does not support; pick another bitrate tier",
-  "mediaServerAudioTrack": "Audio track"
+  "mediaServerAudioTrack": "Audio track",
+  "mediaServerFavorites": "My favorites",
+  "mediaServerNextUp": "Next up",
+  "mediaServerFavorite": "Favorite",
+  "mediaServerFavoriteAdded": "Added to favorites",
+  "mediaServerFavoriteRemoved": "Removed from favorites",
+  "mediaServerMarkWatched": "Mark watched",
+  "mediaServerMarkUnwatched": "Mark unwatched",
+  "mediaServerMarkAllWatched": "Mark all watched"
 }

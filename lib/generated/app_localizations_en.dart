@@ -8103,6 +8103,142 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageCacheCalculating => 'Calculating…';
 
   @override
+  String get cacheManagerTitle => 'Cache manager';
+
+  @override
+  String get cacheManagerTotal => 'Total cache usage';
+
+  @override
+  String cacheManagerTotalDesc(String size) {
+    return '$size in total; clear per category below';
+  }
+
+  @override
+  String get cacheManagerHint =>
+      'Clearing the cache never removes favorites, downloads or sources; images saved in the image-favorites gallery live in the favorites folder and are unaffected.';
+
+  @override
+  String get cacheCategoryGroup => 'Cache categories';
+
+  @override
+  String get cacheCatImages => 'Image cache';
+
+  @override
+  String get cacheCatImagesDesc => 'Covers, comic pages and RSS inline images';
+
+  @override
+  String get cacheCatDanmaku => 'Danmaku cache';
+
+  @override
+  String get cacheCatDanmakuDesc =>
+      'Cached video danmaku (expired entries auto-evicted)';
+
+  @override
+  String get cacheCatTranslations => 'Translation cache';
+
+  @override
+  String get cacheCatTranslationsDesc =>
+      'AI translations for novels / comics / subtitles';
+
+  @override
+  String get cacheCatWebview => 'WebView data';
+
+  @override
+  String get cacheCatWebviewDesc => 'Embedded browser cache and local storage';
+
+  @override
+  String get cacheCatTemp => 'Temporary files';
+
+  @override
+  String get cacheCatTempDesc =>
+      'Derived files such as PDF renders and archive extraction';
+
+  @override
+  String get cacheCatUpdates => 'Update package leftovers';
+
+  @override
+  String get cacheCatUpdatesDesc =>
+      'Downloaded installers and stale version folders';
+
+  @override
+  String get cacheSizeUnknown => 'Not measurable';
+
+  @override
+  String get cacheClearCategory => 'Clear this category';
+
+  @override
+  String cacheClearCategoryConfirm(String name) {
+    return 'Clear \"$name\"?';
+  }
+
+  @override
+  String get cacheClearAll => 'Clear all';
+
+  @override
+  String get cacheClearAllConfirm => 'Clear every cache category?';
+
+  @override
+  String get cacheCategoryCleared => 'Cleared';
+
+  @override
+  String get cacheClearFailed => 'Cleanup failed, please retry later';
+
+  @override
+  String get cacheAutoCleanGroup => 'Automatic cache cleanup';
+
+  @override
+  String get cacheAutoCleanGroupDesc =>
+      'Runs in the background on launch using age + size limits';
+
+  @override
+  String get cacheAutoClean => 'Auto-clean cache';
+
+  @override
+  String get cacheAutoCleanDesc =>
+      'When off, caches are only cleared manually here';
+
+  @override
+  String get cacheMaxAge => 'Keep cache for';
+
+  @override
+  String cacheMaxAgeValue(int days) {
+    return '$days days';
+  }
+
+  @override
+  String get cacheMaxTotal => 'Total cache size limit';
+
+  @override
+  String get cacheAutoCleanNow => 'Run cleanup policy';
+
+  @override
+  String cacheAutoCleanDone(String size) {
+    return 'Freed $size';
+  }
+
+  @override
+  String get cacheAutoCleanNothing => 'Nothing to clean up';
+
+  @override
+  String get readerUpscale => 'Image super-resolution';
+
+  @override
+  String get readerUpscaleMode => 'Super-resolution mode';
+
+  @override
+  String get readerUpscaleOff => 'Off';
+
+  @override
+  String get readerUpscaleResample => 'High-quality resample';
+
+  @override
+  String get readerUpscaleSharpen => 'Super-resolution (sharpen)';
+
+  @override
+  String get readerUpscaleDesc =>
+      'Paged (single-page) mode only: the GPU resamples and sharpens lines when an image is upscaled (webtoon strips and oversized single images keep plain rendering); turn off on low-end devices';
+
+  @override
   String get confirmActionHint => 'This action cannot be undone. Continue?';
 
   @override
@@ -9326,4 +9462,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaServerAudioTrack => 'Audio track';
+
+  @override
+  String get mediaServerFavorites => 'My favorites';
+
+  @override
+  String get mediaServerNextUp => 'Next up';
+
+  @override
+  String get mediaServerFavorite => 'Favorite';
+
+  @override
+  String get mediaServerFavoriteAdded => 'Added to favorites';
+
+  @override
+  String get mediaServerFavoriteRemoved => 'Removed from favorites';
+
+  @override
+  String get mediaServerMarkWatched => 'Mark watched';
+
+  @override
+  String get mediaServerMarkUnwatched => 'Mark unwatched';
+
+  @override
+  String get mediaServerMarkAllWatched => 'Mark all watched';
 }

@@ -4338,6 +4338,78 @@
   "imageCacheCleared": "图片缓存已清理",
   "imageCacheClearConfirm": "清理图片缓存？",
   "imageCacheCalculating": "计算中…",
+  "cacheManagerTitle": "缓存管理",
+  "cacheManagerTotal": "缓存总占用",
+  "cacheManagerTotalDesc": "当前共 {size}，按类别可单独清理",
+  "@cacheManagerTotalDesc": {
+    "description": "缓存总占用说明（{size} 为格式化后的占用）",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "cacheManagerHint": "清理缓存不会删除收藏、下载与书源；图片收藏图库中的图片保存在收藏目录，不受影响。",
+  "cacheCategoryGroup": "缓存分类",
+  "cacheCatImages": "图片缓存",
+  "cacheCatImagesDesc": "封面、漫画页与 RSS 内嵌图",
+  "cacheCatDanmaku": "弹幕缓存",
+  "cacheCatDanmakuDesc": "已缓存的视频弹幕（按过期时间自动淘汰）",
+  "cacheCatTranslations": "翻译缓存",
+  "cacheCatTranslationsDesc": "小说 / 漫画 / 字幕的 AI 翻译结果",
+  "cacheCatWebview": "WebView 数据",
+  "cacheCatWebviewDesc": "内嵌浏览器缓存与本地存储",
+  "cacheCatTemp": "临时文件",
+  "cacheCatTempDesc": "PDF 渲染、归档解压等派生文件",
+  "cacheCatUpdates": "更新包残留",
+  "cacheCatUpdatesDesc": "已下载的安装包与旧版本目录",
+  "cacheSizeUnknown": "无法统计",
+  "cacheClearCategory": "清理此类",
+  "cacheClearCategoryConfirm": "清理「{name}」？",
+  "@cacheClearCategoryConfirm": {
+    "description": "单类缓存清理确认标题",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cacheClearAll": "全部清理",
+  "cacheClearAllConfirm": "清理全部缓存类别？",
+  "cacheCategoryCleared": "已清理",
+  "cacheClearFailed": "清理失败，请稍后重试",
+  "cacheAutoCleanGroup": "缓存自动清理",
+  "cacheAutoCleanGroupDesc": "启动时后台按「年龄 + 容量」自动清理派生缓存",
+  "cacheAutoClean": "自动清理缓存",
+  "cacheAutoCleanDesc": "关闭后仅在「缓存管理」页手动清理",
+  "cacheMaxAge": "缓存保留时长",
+  "cacheMaxAgeValue": "{days} 天",
+  "@cacheMaxAgeValue": {
+    "description": "缓存年龄上限显示值",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "cacheMaxTotal": "缓存总容量上限",
+  "cacheAutoCleanNow": "按策略清理",
+  "cacheAutoCleanDone": "已释放 {size}",
+  "@cacheAutoCleanDone": {
+    "description": "自动清理完成提示",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "cacheAutoCleanNothing": "没有需要清理的缓存",
+  "readerUpscale": "图片超分",
+  "readerUpscaleMode": "超分档位",
+  "readerUpscaleOff": "关闭",
+  "readerUpscaleResample": "高清重采样",
+  "readerUpscaleSharpen": "超分（锐化）",
+  "readerUpscaleDesc": "仅单页翻页模式生效：图片被放大显示时用 GPU 实时重采样并锐化线条（条漫与超长单图保持原始渲染）；低端机卡顿时可关闭",
   "@webviewDataCleared": {
     "description": "WebView 数据清除完成提示"
   },
@@ -5099,5 +5171,13 @@
   "mediaServerBitrate720p": "720p 限档",
   "mediaServerTranscodingNotice": "原格式直连不支持，正在转码播放",
   "mediaServerOriginalNeedsDirect": "原画档位需要直连，该格式不支持直连；请选择其他码率档位",
-  "mediaServerAudioTrack": "音轨"
+  "mediaServerAudioTrack": "音轨",
+  "mediaServerFavorites": "我的收藏",
+  "mediaServerNextUp": "接下来观看",
+  "mediaServerFavorite": "收藏",
+  "mediaServerFavoriteAdded": "已加入收藏",
+  "mediaServerFavoriteRemoved": "已取消收藏",
+  "mediaServerMarkWatched": "标记已看",
+  "mediaServerMarkUnwatched": "取消已看",
+  "mediaServerMarkAllWatched": "全部标已看"
 }

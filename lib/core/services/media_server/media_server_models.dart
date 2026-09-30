@@ -220,6 +220,32 @@ class ServerMediaItem {
   /// 字幕轨道编码列表（来自 MediaStreams，直连播放可行性判定用）。
   final List<String>? subtitleCodecs;
 
+  ServerMediaItem copyWith({
+    String? id,
+    String? name,
+    String? type,
+    int? productionYear,
+    String? overview,
+    int? runTimeTicks,
+    ServerUserData? userData,
+  }) =>
+      ServerMediaItem(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        type: type ?? this.type,
+        productionYear: productionYear ?? this.productionYear,
+        overview: overview ?? this.overview,
+        runTimeTicks: runTimeTicks ?? this.runTimeTicks,
+        seriesName: seriesName,
+        seriesId: seriesId,
+        seasonId: seasonId,
+        parentIndexNumber: parentIndexNumber,
+        indexNumber: indexNumber,
+        userData: userData ?? this.userData,
+        container: container,
+        subtitleCodecs: subtitleCodecs,
+      );
+
   /// 是否含图形字幕（PGS / VOBSub 等）——直连无法渲染，详情页需提示。
   ///
   /// 实测：部分条目同时含 PGSSUB 与 srt/ass 文本轨——有文本轨时直连可正常
@@ -267,11 +293,29 @@ class ServerUserData {
   /// 未看完时的进度（100ns 单位）。
   final int? playbackPositionTicks;
 
+  /// 是否已收藏（B1 收藏同步）。
+  final bool isFavorite;
+
   const ServerUserData({
     required this.played,
     this.unplayedItemCount,
     this.playbackPositionTicks,
+    this.isFavorite = false,
   });
+
+  ServerUserData copyWith({
+    bool? played,
+    int? unplayedItemCount,
+    int? playbackPositionTicks,
+    bool? isFavorite,
+  }) =>
+      ServerUserData(
+        played: played ?? this.played,
+        unplayedItemCount: unplayedItemCount ?? this.unplayedItemCount,
+        playbackPositionTicks:
+            playbackPositionTicks ?? this.playbackPositionTicks,
+        isFavorite: isFavorite ?? this.isFavorite,
+      );
 }
 
 /// 播放方式（A1 三段决策树：直连 → 直接流 → 转码）。

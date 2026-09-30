@@ -15224,6 +15224,246 @@ abstract class AppLocalizations {
   /// **'Calculating…'**
   String get imageCacheCalculating;
 
+  /// No description provided for @cacheManagerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache manager'**
+  String get cacheManagerTitle;
+
+  /// No description provided for @cacheManagerTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total cache usage'**
+  String get cacheManagerTotal;
+
+  /// Cache total usage description ({size} is formatted usage)
+  ///
+  /// In en, this message translates to:
+  /// **'{size} in total; clear per category below'**
+  String cacheManagerTotalDesc(String size);
+
+  /// No description provided for @cacheManagerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Clearing the cache never removes favorites, downloads or sources; images saved in the image-favorites gallery live in the favorites folder and are unaffected.'**
+  String get cacheManagerHint;
+
+  /// No description provided for @cacheCategoryGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache categories'**
+  String get cacheCategoryGroup;
+
+  /// No description provided for @cacheCatImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Image cache'**
+  String get cacheCatImages;
+
+  /// No description provided for @cacheCatImagesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Covers, comic pages and RSS inline images'**
+  String get cacheCatImagesDesc;
+
+  /// No description provided for @cacheCatDanmaku.
+  ///
+  /// In en, this message translates to:
+  /// **'Danmaku cache'**
+  String get cacheCatDanmaku;
+
+  /// No description provided for @cacheCatDanmakuDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Cached video danmaku (expired entries auto-evicted)'**
+  String get cacheCatDanmakuDesc;
+
+  /// No description provided for @cacheCatTranslations.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation cache'**
+  String get cacheCatTranslations;
+
+  /// No description provided for @cacheCatTranslationsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'AI translations for novels / comics / subtitles'**
+  String get cacheCatTranslationsDesc;
+
+  /// No description provided for @cacheCatWebview.
+  ///
+  /// In en, this message translates to:
+  /// **'WebView data'**
+  String get cacheCatWebview;
+
+  /// No description provided for @cacheCatWebviewDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Embedded browser cache and local storage'**
+  String get cacheCatWebviewDesc;
+
+  /// No description provided for @cacheCatTemp.
+  ///
+  /// In en, this message translates to:
+  /// **'Temporary files'**
+  String get cacheCatTemp;
+
+  /// No description provided for @cacheCatTempDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Derived files such as PDF renders and archive extraction'**
+  String get cacheCatTempDesc;
+
+  /// No description provided for @cacheCatUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Update package leftovers'**
+  String get cacheCatUpdates;
+
+  /// No description provided for @cacheCatUpdatesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded installers and stale version folders'**
+  String get cacheCatUpdatesDesc;
+
+  /// No description provided for @cacheSizeUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Not measurable'**
+  String get cacheSizeUnknown;
+
+  /// No description provided for @cacheClearCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear this category'**
+  String get cacheClearCategory;
+
+  /// Single category clear confirmation title
+  ///
+  /// In en, this message translates to:
+  /// **'Clear \"{name}\"?'**
+  String cacheClearCategoryConfirm(String name);
+
+  /// No description provided for @cacheClearAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get cacheClearAll;
+
+  /// No description provided for @cacheClearAllConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear every cache category?'**
+  String get cacheClearAllConfirm;
+
+  /// No description provided for @cacheCategoryCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared'**
+  String get cacheCategoryCleared;
+
+  /// No description provided for @cacheClearFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleanup failed, please retry later'**
+  String get cacheClearFailed;
+
+  /// No description provided for @cacheAutoCleanGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic cache cleanup'**
+  String get cacheAutoCleanGroup;
+
+  /// No description provided for @cacheAutoCleanGroupDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs in the background on launch using age + size limits'**
+  String get cacheAutoCleanGroupDesc;
+
+  /// No description provided for @cacheAutoClean.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-clean cache'**
+  String get cacheAutoClean;
+
+  /// No description provided for @cacheAutoCleanDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'When off, caches are only cleared manually here'**
+  String get cacheAutoCleanDesc;
+
+  /// No description provided for @cacheMaxAge.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep cache for'**
+  String get cacheMaxAge;
+
+  /// Cache max age display value
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days'**
+  String cacheMaxAgeValue(int days);
+
+  /// No description provided for @cacheMaxTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total cache size limit'**
+  String get cacheMaxTotal;
+
+  /// No description provided for @cacheAutoCleanNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Run cleanup policy'**
+  String get cacheAutoCleanNow;
+
+  /// Auto cleanup finished toast
+  ///
+  /// In en, this message translates to:
+  /// **'Freed {size}'**
+  String cacheAutoCleanDone(String size);
+
+  /// No description provided for @cacheAutoCleanNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to clean up'**
+  String get cacheAutoCleanNothing;
+
+  /// No description provided for @readerUpscale.
+  ///
+  /// In en, this message translates to:
+  /// **'Image super-resolution'**
+  String get readerUpscale;
+
+  /// No description provided for @readerUpscaleMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Super-resolution mode'**
+  String get readerUpscaleMode;
+
+  /// No description provided for @readerUpscaleOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get readerUpscaleOff;
+
+  /// No description provided for @readerUpscaleResample.
+  ///
+  /// In en, this message translates to:
+  /// **'High-quality resample'**
+  String get readerUpscaleResample;
+
+  /// No description provided for @readerUpscaleSharpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Super-resolution (sharpen)'**
+  String get readerUpscaleSharpen;
+
+  /// No description provided for @readerUpscaleDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Paged (single-page) mode only: the GPU resamples and sharpens lines when an image is upscaled (webtoon strips and oversized single images keep plain rendering); turn off on low-end devices'**
+  String get readerUpscaleDesc;
+
   /// Dangerous action confirmation hint
   ///
   /// In en, this message translates to:
@@ -17450,6 +17690,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Audio track'**
   String get mediaServerAudioTrack;
+
+  /// No description provided for @mediaServerFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'My favorites'**
+  String get mediaServerFavorites;
+
+  /// No description provided for @mediaServerNextUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Next up'**
+  String get mediaServerNextUp;
+
+  /// No description provided for @mediaServerFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite'**
+  String get mediaServerFavorite;
+
+  /// No description provided for @mediaServerFavoriteAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to favorites'**
+  String get mediaServerFavoriteAdded;
+
+  /// No description provided for @mediaServerFavoriteRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from favorites'**
+  String get mediaServerFavoriteRemoved;
+
+  /// No description provided for @mediaServerMarkWatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark watched'**
+  String get mediaServerMarkWatched;
+
+  /// No description provided for @mediaServerMarkUnwatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark unwatched'**
+  String get mediaServerMarkUnwatched;
+
+  /// No description provided for @mediaServerMarkAllWatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all watched'**
+  String get mediaServerMarkAllWatched;
 }
 
 class _AppLocalizationsDelegate

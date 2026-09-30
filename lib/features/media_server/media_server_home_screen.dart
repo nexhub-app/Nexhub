@@ -25,16 +25,24 @@ import 'media_server_detail_screen.dart';
 import 'media_server_library_screen.dart';
 import 'media_server_widgets.dart';
 
-/// 首页一次性加载的三块数据。
+/// 首页一次性加载的数据块。
 class _HomeData {
   final ServerItemPage resume;
   final List<ServerMediaItem> latest;
   final List<ServerLibrary> libraries;
 
+  /// 我的收藏（B1；仅非空渲染，失败静默为空）。
+  final List<ServerMediaItem> favorites;
+
+  /// NextUp 追更（B2；仅剧集库服务器请求，空不渲染）。
+  final List<ServerMediaItem> nextUp;
+
   const _HomeData({
     required this.resume,
     required this.latest,
     required this.libraries,
+    this.favorites = const <ServerMediaItem>[],
+    this.nextUp = const <ServerMediaItem>[],
   });
 }
 
@@ -105,10 +113,28 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
       client.fetchLatest(limit: 15),
       client.fetchLibraries(),
     ]);
+    final libraries = results[2] as List<ServerLibrary>;
+    // B 包：收藏 / NextUp（失败静默降级为空，不拖垮首页）。
+    var favorites = <ServerMediaItem>[];
+    var nextUp = <ServerMediaItem>[];
+    try {
+      favorites = await client.fetchFavorites(limit: 15);
+    } on Object {
+      favorites = const <ServerMediaItem>[];
+    }
+    if (libraries.any((l) => l.collectionType == 'tvshows')) {
+      try {
+        nextUp = await client.fetchNextUp(limit: 15);
+      } on Object {
+        nextUp = const <ServerMediaItem>[];
+      }
+    }
     return _HomeData(
       resume: results[0] as ServerItemPage,
       latest: results[1] as List<ServerMediaItem>,
-      libraries: results[2] as List<ServerLibrary>,
+      libraries: libraries,
+      favorites: favorites,
+      nextUp: nextUp,
     );
   }
 
@@ -230,6 +256,25 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
             ),
           ),
         ],
+        // ───── 接下来观看（B2 NextUp，空不渲染）─────
+        if (data.nextUp.isNotEmpty) ...<Widget>[
+          Entrance(
+            onceKey: 'ms_home_nextup',
+            offset: 12,
+            child: MediaServerSectionHeader(
+              title: l10n.mediaServerNextUp,
+            ),
+          ),
+          Entrance(
+            onceKey: 'ms_home_nextup_row',
+            offset: 16,
+            child: MediaServerPosterRow(
+              children: data.nextUp
+                  .map((item) => _LatestCard(client: client, item: item))
+                  .toList(),
+            ),
+          ),
+        ],
         // ───── 最新添加 ─────
         if (data.latest.isNotEmpty) ...<Widget>[
           Entrance(
@@ -244,6 +289,25 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
             offset: 16,
             child: MediaServerPosterRow(
               children: data.latest
+                  .map((item) => _LatestCard(client: client, item: item))
+                  .toList(),
+            ),
+          ),
+        ],
+        // ───── 我的收藏（B1，仅非空渲染）─────
+        if (data.favorites.isNotEmpty) ...<Widget>[
+          Entrance(
+            onceKey: 'ms_home_favorites',
+            offset: 12,
+            child: MediaServerSectionHeader(
+              title: l10n.mediaServerFavorites,
+            ),
+          ),
+          Entrance(
+            onceKey: 'ms_home_favorites_row',
+            offset: 16,
+            child: MediaServerPosterRow(
+              children: data.favorites
                   .map((item) => _LatestCard(client: client, item: item))
                   .toList(),
             ),
@@ -315,7 +379,7 @@ class _PosterTile extends StatelessWidget {
                       url: client.imageUrl(item.id, maxWidth: 300),
                       headers: client.authHeaders(),
                     ),
-                    // 已看徽章（Moonfin media_badge 风格：右上角半透明对勾）。
+                    // 已看徽章：右上角半透明对勾。
                     if (item.userData?.played == true)
                       Positioned(
                         top: 6,

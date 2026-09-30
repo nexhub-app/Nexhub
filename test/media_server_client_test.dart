@@ -499,6 +499,53 @@ void main() {
     });
   });
 
+  group('互动（B 包）', () {
+    test('fetchFavorites：Filters=IsFavorite + 路径', () async {
+      adapter.handler = (opts) async {
+        expect(opts.path, '/Items');
+        expect(opts.queryParameters['Filters'], 'IsFavorite');
+        expect(opts.queryParameters['userId'], 'u1');
+        return _json(<String, dynamic>{
+          'TotalRecordCount': 1,
+          'Items': [
+            {
+              'Id': 'f1',
+              'Name': 'Liked Movie',
+              'Type': 'Movie',
+              'UserData': {'IsFavorite': true, 'Played': false},
+            },
+          ],
+        });
+      };
+      final items = await client.fetchFavorites();
+      expect(items, hasLength(1));
+      expect(items.single.userData?.isFavorite, isTrue);
+    });
+
+    test('fetchNextUp：/Shows/NextUp', () async {
+      adapter.handler = (opts) async {
+        expect(opts.path, '/Shows/NextUp');
+        expect(opts.queryParameters['Limit'], 20);
+        return _json(<String, dynamic>{
+          'Items': [
+            {'Id': 'n1', 'Name': 'S1E5', 'Type': 'Episode'},
+          ],
+        });
+      };
+      final items = await client.fetchNextUp();
+      expect(items.single.id, 'n1');
+    });
+
+    test('setFavorite：POST / DELETE', () async {
+      adapter.handler = (opts) async => _json(<String, dynamic>{});
+      await client.setFavorite('it1', favorite: true);
+      await client.setFavorite('it1', favorite: false);
+      expect(adapter.requests[0].method, 'POST');
+      expect(adapter.requests[0].path, '/Users/u1/FavoriteItems/it1');
+      expect(adapter.requests[1].method, 'DELETE');
+    });
+  });
+
   group('错误映射', () {
     test('列表请求 401 → isUnauthorized', () async {
       adapter.handler = (opts) async => _json(<String, dynamic>{}, 401);
