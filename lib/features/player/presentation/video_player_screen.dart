@@ -2752,6 +2752,30 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       }
       final url = _playUrl;
       if (url == null || url.isEmpty) return;
+      // 媒体服务器：重开前先探针流地址——把「Cloudflare 质询拦截 /
+      // 服务器不可达」变成可行动的明确报错，而不是无限加载。
+      if (_isMediaServer) {
+        final probe = await widget.mediaServerPlayback!.client.probeStreamUrl(
+          url,
+        );
+        if (_disposed || !_loadSession.isValid(token)) return;
+        if (probe.isChallenge) {
+          _controller.pause();
+          if (mounted) {
+            _safeSnackBar(
+              AppLocalizations.of(context).mediaServerBlockedByChallenge,
+            );
+          }
+          return;
+        }
+        if (probe.networkError) {
+          _controller.pause();
+          if (mounted) {
+            _safeSnackBar(AppLocalizations.of(context).mediaServerUnreachable);
+          }
+          return;
+        }
+      }
       _controller.openReadyTimeout = _readyTimeout;
       AppLog.instance.w(
         '[] open 后 ${_readyTimeout.inSeconds}s 元数据未就绪，'

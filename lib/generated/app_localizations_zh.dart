@@ -9080,4 +9080,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mediaServerConnecting => '正在连接服务器…';
+
+  @override
+  String get mediaServerBlockedByChallenge =>
+      '服务器防护（Cloudflare 人机验证）拦截了播放请求：请在浏览器打开服务器地址完成一次验证，或联系管理员放行 API 路径';
+
+  @override
+  String get mediaServerUnreachable => '无法连接媒体服务器（网络错误或被临时限流），请稍后重试';
 }

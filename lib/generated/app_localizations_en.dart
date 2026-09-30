@@ -9295,4 +9295,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaServerConnecting => 'Connecting to server…';
+
+  @override
+  String get mediaServerBlockedByChallenge =>
+      'Blocked by the server\'s protection (Cloudflare challenge). Open the server address in a browser to verify once, or ask the admin to exempt API paths';
+
+  @override
+  String get mediaServerUnreachable =>
+      'Cannot reach the media server (network error or temporary rate limit). Try again later';
 }

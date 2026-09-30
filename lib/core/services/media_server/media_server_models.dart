@@ -314,3 +314,26 @@ class MediaServerApiException implements Exception {
   String toString() =>
       'MediaServerApiException(statusCode: $statusCode, message: $message)';
 }
+
+/// 播放流探针结果：用于把「无限加载」分辨为可行动的失败原因。
+class MediaServerStreamProbe {
+  final int statusCode;
+
+  /// 响应 Content-Type（null = 网络错误未建立连接）。
+  final String? contentType;
+
+  /// 探针自身网络错误（连接超时 / 拒绝等，未拿到 HTTP 状态）。
+  final bool networkError;
+
+  const MediaServerStreamProbe({
+    required this.statusCode,
+    this.contentType,
+    this.networkError = false,
+  });
+
+  /// Cloudflare / WAF 质询：403/503 + HTML 页面（播放器拿到的是网页不是视频）。
+  bool get isChallenge =>
+      !networkError &&
+      (statusCode == 403 || statusCode == 503) &&
+      (contentType ?? '').toLowerCase().contains('text/html');
+}

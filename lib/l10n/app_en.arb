@@ -5134,5 +5134,7 @@
   "mediaServerGoAdd": "Add a server",
   "mediaServerCredentialsWrong": "Incorrect username or password. Please check and try again.",
   "mediaServerManageAction": "Add or manage media servers",
-  "mediaServerConnecting": "Connecting to server…"
+  "mediaServerConnecting": "Connecting to server…",
+  "mediaServerBlockedByChallenge": "Blocked by the server's protection (Cloudflare challenge). Open the server address in a browser to verify once, or ask the admin to exempt API paths",
+  "mediaServerUnreachable": "Cannot reach the media server (network error or temporary rate limit). Try again later"
 }

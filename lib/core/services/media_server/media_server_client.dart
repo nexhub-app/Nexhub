@@ -587,6 +587,32 @@ abstract class MediaServerClientBase {
     }
   }
 
+  /// 探测播放流地址的可达性（元数据迟迟不来时区分「Cloudflare 质询拦截」
+  /// 与「慢」）：Range 拉头 1KB，任何状态码都接受（含 403/503）。
+  Future<MediaServerStreamProbe> probeStreamUrl(String url) async {
+    try {
+      final resp = await _dio.get<String>(
+        url,
+        options: Options(
+          responseType: ResponseType.plain,
+          receiveTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
+          validateStatus: (_) => true,
+          headers: <String, String>{'Range': 'bytes=0-1023'},
+        ),
+      );
+      return MediaServerStreamProbe(
+        statusCode: resp.statusCode ?? 0,
+        contentType: resp.headers.value(Headers.contentTypeHeader),
+      );
+    } on DioException {
+      return const MediaServerStreamProbe(
+        statusCode: -1,
+        networkError: true,
+      );
+    }
+  }
+
   /// 给服务器相对 / 绝对播放地址追加 api_key（已带则不重复）。
   String _appendApiKey(String url) {
     final t = token;

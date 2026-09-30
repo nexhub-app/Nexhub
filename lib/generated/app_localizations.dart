@@ -17396,6 +17396,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connecting to server…'**
   String get mediaServerConnecting;
+
+  /// No description provided for @mediaServerBlockedByChallenge.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked by the server\'s protection (Cloudflare challenge). Open the server address in a browser to verify once, or ask the admin to exempt API paths'**
+  String get mediaServerBlockedByChallenge;
+
+  /// No description provided for @mediaServerUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot reach the media server (network error or temporary rate limit). Try again later'**
+  String get mediaServerUnreachable;
 }
 
 class _AppLocalizationsDelegate
