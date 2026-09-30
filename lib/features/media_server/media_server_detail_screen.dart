@@ -325,7 +325,7 @@ class _ImmersiveHeader extends StatelessWidget {
     ];
     return Stack(
       children: <Widget>[
-        // 背景剧照：模糊 + 降饱和感（避免抢主体）。
+        // 底层：海报高斯模糊——Backdrop 缺失（实测部分条目无剧照）时的兜底。
         Positioned.fill(
           child: ImageFiltered(
             imageFilter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
@@ -334,6 +334,16 @@ class _ImmersiveHeader extends StatelessWidget {
               headers: client.authHeaders(),
               fit: BoxFit.cover,
             ),
+          ),
+        ),
+        // 顶层：横幅剧照（参考库做法：清晰 backdrop + 朝底色渐变遮罩），
+        // 缺失时静默透出底层模糊海报。
+        Positioned.fill(
+          child: MediaServerPoster(
+            url: client.backdropUrl(detail.id),
+            headers: client.authHeaders(),
+            fit: BoxFit.cover,
+            errorPlaceholder: false,
           ),
         ),
         // 渐变遮罩：顶部压暗保证返回键可见，底部收拢到页面底色。
@@ -353,7 +363,7 @@ class _ImmersiveHeader extends StatelessWidget {
             ),
           ),
         ),
-        // 浮层内容：海报 + 标题 / 年份 / 类型。
+        // 浮层内容：海报 + 标题（投影保可读）/ 元信息胶囊 chips。
         Container(
           padding: const EdgeInsets.fromLTRB(
             AppTokens.spaceMd,
@@ -387,16 +397,25 @@ class _ImmersiveHeader extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           detail.name,
-                          style: textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                          style: textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            shadows: <Shadow>[
+                              Shadow(
+                                color: scheme.surface.withValues(alpha: 0.8),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
                         ),
                         if (subtitleParts.isNotEmpty) ...<Widget>[
-                          const SizedBox(height: AppTokens.spaceXs),
-                          Text(
-                            subtitleParts.join(' · '),
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                          const SizedBox(height: AppTokens.spaceSm),
+                          Wrap(
+                            spacing: AppTokens.spaceXs,
+                            runSpacing: AppTokens.spaceXs,
+                            children: <Widget>[
+                              for (final part in subtitleParts)
+                                _HeroChip(label: part),
+                            ],
                           ),
                         ],
                       ],
@@ -421,6 +440,34 @@ class _ImmersiveHeader extends StatelessWidget {
       );
     }
     return l10n.mediaServerRuntimeMinutes('$totalMinutes');
+  }
+}
+
+/// 头图元信息胶囊（年份 / 类型 / 时长），圆角 full 对齐基准芯片规范。
+class _HeroChip extends StatelessWidget {
+  final String label;
+
+  const _HeroChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTokens.spaceSm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(AppTokens.radiusFull),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+      ),
+    );
   }
 }
 

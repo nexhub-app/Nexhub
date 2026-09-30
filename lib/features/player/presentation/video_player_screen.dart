@@ -2728,6 +2728,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 的 `openReadyTimeout` 统一取值。
   Duration get _readyTimeout {
     if (!_isDirectMode) return const Duration(seconds: 30);
+    // 媒体服务器（用户自有 / 公益服务器）首包明显慢于抓取源 CDN：
+    // 元数据就绪等待放宽到 30s。6s 就 re-open 会把慢速下载推倒重来，
+    // 实测越重试越慢（公益机 19ms open 后元数据要十几秒才就绪）。
+    if (_isMediaServer) return const Duration(seconds: 30);
     final url = _playUrl ?? '';
     final isNetwork = url.startsWith('http://') || url.startsWith('https://');
     return isNetwork ? const Duration(seconds: 6) : const Duration(seconds: 5);
@@ -2836,6 +2840,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       final target = pb.current;
       _playUrl = info.playUrl;
       _playHeaders = info.headers;
+      _controller.openReadyTimeout = _readyTimeout;
       await _controller.open(info.playUrl, headers: info.headers);
       _controller.play();
       // 分级超时等待元数据，超时自动 re-open 一次自愈。

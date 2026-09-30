@@ -350,6 +350,10 @@ abstract class MediaServerClientBase {
   String imageUrl(String itemId, {int maxWidth = 400}) =>
       '${info.baseUrl}/Items/$itemId/Images/Primary?maxWidth=$maxWidth&quality=90';
 
+  /// 横幅剧照地址（详情页沉浸式头图用；无剧照时由加载层回退海报）。
+  String backdropUrl(String itemId, {int maxWidth = 1200}) =>
+      '${info.baseUrl}/Items/$itemId/Images/Backdrop?maxWidth=$maxWidth&quality=80';
+
   // ---------- 播放协商 ----------
 
   /// 播放协商：取 MediaSources[0] 判定直连可行性（决策树见 TODO 文档 M5）。

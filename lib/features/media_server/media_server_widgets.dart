@@ -29,6 +29,10 @@ class MediaServerPoster extends StatelessWidget {
   final double? height;
   final BoxFit fit;
 
+  /// false = 加载失败时静默（透明），供「Backdrop 叠在海报模糊层上」
+  /// 的分层头图使用：Backdrop 缺失时露出底层而不显示错误块。
+  final bool errorPlaceholder;
+
   const MediaServerPoster({
     super.key,
     required this.url,
@@ -36,6 +40,7 @@ class MediaServerPoster extends StatelessWidget {
     this.width,
     this.height,
     this.fit = BoxFit.cover,
+    this.errorPlaceholder = true,
   });
 
   @override
@@ -49,14 +54,22 @@ class MediaServerPoster extends StatelessWidget {
       fit: fit,
       fadeInDuration: const Duration(milliseconds: 150),
       placeholder: (_, __) => Container(
-        color: scheme.surfaceContainerHigh,
+        color: errorPlaceholder
+            ? scheme.surfaceContainerHigh
+            : Colors.transparent,
         alignment: Alignment.center,
-        child: Icon(Icons.movie_rounded, color: scheme.outline),
+        child: errorPlaceholder
+            ? Icon(Icons.movie_rounded, color: scheme.outline)
+            : null,
       ),
       errorWidget: (_, __, ___) => Container(
-        color: scheme.surfaceContainerHigh,
+        color: errorPlaceholder
+            ? scheme.surfaceContainerHigh
+            : Colors.transparent,
         alignment: Alignment.center,
-        child: Icon(Icons.movie_rounded, color: scheme.outline),
+        child: errorPlaceholder
+            ? Icon(Icons.movie_rounded, color: scheme.outline)
+            : null,
       ),
     );
   }
@@ -227,7 +240,6 @@ class MediaServerSourceSection extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final auth = context.watch<MediaServerAuth>();
     return SettingsGroup(
-      header: l10n.mediaServerSettings,
       children: <Widget>[
         for (final s in auth.servers)
           SettingsTile(
