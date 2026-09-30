@@ -2728,35 +2728,40 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 的 `openReadyTimeout` 统一取值。
   Duration get _readyTimeout {
     if (!_isDirectMode) return const Duration(seconds: 30);
-    // 媒体服务器：播放地址已带 api_key 自鉴权（对齐参考库）后，正常应当
-    // 快速出画；15s 元数据等待兼顾公益机慢速首包与卡死的自愈重开。
-    if (_isMediaServer) return const Duration(seconds: 15);
+    // 媒体服务器：公益机首包慢，元数据就绪等待放宽到 30s；配合自愈重开
+    // 最多两轮（约 60s+），仍不出画才会停在错误提示。
+    if (_isMediaServer) return const Duration(seconds: 30);
     final url = _playUrl ?? '';
     final isNetwork = url.startsWith('http://') || url.startsWith('https://');
     return isNetwork ? const Duration(seconds: 6) : const Duration(seconds: 5);
   }
 
-  /// 初始 open 的单次自动重试。
+  /// open 后元数据未就绪的自愈重开。
   ///
-  /// open 后按分级超时等元数据；超时（duration 始终为 0，常见于媒体服务器
-  /// 冷启动首连失败）则自动 re-open 同地址一次自愈。切集 / 重连会推进
-  /// [_loadSession] 代次，使过期 token 的重试短路，避免误重试新地址；
-  /// 重连进行中（[_reconnecting]）也跳过，不与 stall 检测叠加。
+  /// 常规源重开一次；媒体服务器（公益机慢速首包）最多重开两轮——
+  /// 每轮按 [_readyTimeout] 等待，总计约 60s+ 后才放弃自愈。
+  /// 切集 / 重连会推进 [_loadSession] 代次，使过期 token 的重试短路，
+  /// 避免误重试新地址；重连进行中（[_reconnecting]）也跳过。
   Future<void> _retryOpenOnceIfStalled() async {
-    final token = _loadSession.current;
-    final ready = await _waitUntilReady(_readyTimeout);
-    if (ready || _disposed || _reconnecting || !_loadSession.isValid(token)) {
-      return;
-    }
-    final url = _playUrl;
-    if (url == null || url.isEmpty) return;
-    _controller.openReadyTimeout = _readyTimeout;
-    AppLog.instance
-        .w('[] open 后 ${_readyTimeout.inSeconds}s 元数据未就绪，自动重试一次：$url');
-    try {
-      await _reopenAndResume(url, _playHeaders, _lastGoodPosition);
-    } on Object {
-      // 重开失败交给 stall 检测 / 手动重试。
+    final maxAttempts = _isMediaServer ? 2 : 1;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      final token = _loadSession.current;
+      final ready = await _waitUntilReady(_readyTimeout);
+      if (ready || _disposed || _reconnecting || !_loadSession.isValid(token)) {
+        return;
+      }
+      final url = _playUrl;
+      if (url == null || url.isEmpty) return;
+      _controller.openReadyTimeout = _readyTimeout;
+      AppLog.instance.w(
+        '[] open 后 ${_readyTimeout.inSeconds}s 元数据未就绪，'
+        '自愈重开（$attempt/$maxAttempts）：$url',
+      );
+      try {
+        await _reopenAndResume(url, _playHeaders, _lastGoodPosition);
+      } on Object {
+        // 重开失败交给 stall 检测 / 手动重试。
+      }
     }
   }
 
