@@ -19,6 +19,13 @@ enum ServerType {
     return null;
   }
 
+  /// 探测兜底：实测部分服务器（Emby 4.9）的 /System/Info/Public 不返回
+  /// ProductName，按版本号推断（Jellyfin 恒为 10.x，Emby 为 3.x/4.x）。
+  static ServerType? fromVersion(String? version) {
+    if (version == null || version.isEmpty) return null;
+    return version.startsWith('10.') ? ServerType.jellyfin : ServerType.emby;
+  }
+
   String toJson() => name;
 
   static ServerType fromJson(String raw) => ServerType.values.firstWhere(
@@ -210,6 +217,28 @@ class ServerMediaItem {
   /// 媒体容器（PlaybackInfo 协商后补全，用于直连可行性判定）。
   final String? container;
 
+  /// 字幕轨道编码列表（来自 MediaStreams，直连播放可行性判定用）。
+  final List<String>? subtitleCodecs;
+
+  /// 是否含图形字幕（PGS / VOBSub 等）——直连无法渲染，详情页需提示。
+  ///
+  /// 实测：部分条目同时含 PGSSUB 与 srt/ass 文本轨——有文本轨时直连可正常
+  /// 渲染字幕，仅在「纯图形字幕」（无任何文本轨）时才提示需转码。
+  bool get hasGraphicSubtitle {
+    final codecs = subtitleCodecs;
+    if (codecs == null) return false;
+    const graphic = <String>{
+      'pgs', 'pgssub', 'hdmv_pgs_subtitle', 'dvd_subtitle', 'dvbsub',
+      'vobsub', 'sub',
+    };
+    const text = <String>{
+      'srt', 'subrip', 'ass', 'ssa', 'webvtt', 'vtt', 'txt', 'smi', 'sami',
+    };
+    final lower = codecs.map((c) => c.toLowerCase()).toSet();
+    if (!lower.any(graphic.contains)) return false;
+    return !lower.any(text.contains);
+  }
+
   const ServerMediaItem({
     required this.id,
     required this.name,
@@ -224,6 +253,7 @@ class ServerMediaItem {
     this.indexNumber,
     this.userData,
     this.container,
+    this.subtitleCodecs,
   });
 }
 

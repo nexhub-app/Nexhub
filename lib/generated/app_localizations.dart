@@ -17438,6 +17438,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter a username and password'**
   String get mediaServerCredentialsRequired;
+
+  /// No description provided for @mediaServerHomeResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue watching'**
+  String get mediaServerHomeResume;
+
+  /// No description provided for @mediaServerHomeLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest additions'**
+  String get mediaServerHomeLatest;
+
+  /// No description provided for @mediaServerHomeLibraries.
+  ///
+  /// In en, this message translates to:
+  /// **'Libraries'**
+  String get mediaServerHomeLibraries;
+
+  /// No description provided for @mediaServerUnsupportedLibraries.
+  ///
+  /// In en, this message translates to:
+  /// **'Music / photo and other library types are not supported yet and are hidden.'**
+  String get mediaServerUnsupportedLibraries;
+
+  /// No description provided for @mediaServerRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get mediaServerRetry;
+
+  /// mediaServerLoadFailed
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load: {error}'**
+  String mediaServerLoadFailed(Object error);
+
+  /// No description provided for @mediaServerSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search within server'**
+  String get mediaServerSearchHint;
+
+  /// No description provided for @mediaServerNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results'**
+  String get mediaServerNoResults;
+
+  /// No description provided for @mediaServerPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get mediaServerPlay;
+
+  /// No description provided for @mediaServerResumePlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get mediaServerResumePlay;
+
+  /// No description provided for @mediaServerPlayFromStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Play from start'**
+  String get mediaServerPlayFromStart;
+
+  /// No description provided for @mediaServerTypeSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get mediaServerTypeSeries;
+
+  /// No description provided for @mediaServerPgsSubtitleWarn.
+  ///
+  /// In en, this message translates to:
+  /// **'Graphical subtitles in this episode require transcoding (unsupported).'**
+  String get mediaServerPgsSubtitleWarn;
+
+  /// No description provided for @mediaServerTranscodeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'This format requires transcoding (unsupported).'**
+  String get mediaServerTranscodeRequired;
+
+  /// mediaServerRuntimeMinutes
+  ///
+  /// In en, this message translates to:
+  /// **'{m} min'**
+  String mediaServerRuntimeMinutes(Object m);
+
+  /// mediaServerRuntimeHoursMinutes
+  ///
+  /// In en, this message translates to:
+  /// **'{h} h {m} min'**
+  String mediaServerRuntimeHoursMinutes(Object h, Object m);
+
+  /// No description provided for @mediaServerGoAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a server'**
+  String get mediaServerGoAdd;
 }
 
 class _AppLocalizationsDelegate

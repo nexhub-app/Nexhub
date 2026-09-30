@@ -27,6 +27,10 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
   final VoidCallback? onAddSource;
   final VoidCallback? onEnableRecommended;
 
+  /// 列表顶部固定卡片（如媒体服务器入口）；非空时始终展示在源列表上方，
+  /// 源为空时也可见。仅需要的模块传入（当前为影视模块的媒体服务器入口）。
+  final Widget? headerCard;
+
   const OnlineSourceBrowserScreen({
     super.key,
     required this.sourceType,
@@ -34,6 +38,7 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
     required this.onSourceTap,
     this.onAddSource,
     this.onEnableRecommended,
+    this.headerCard,
   });
 
   @override
@@ -43,8 +48,9 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
     final repo = context.watch<SourceRepository>();
     final sources = repo.byType(sourceType);
 
+    final Widget body;
     if (sources.isEmpty) {
-      return AppEmptyState(
+      body = AppEmptyState(
         icon: emptyIcon,
         message: l10n.emptySources,
         actionLabel: onEnableRecommended != null
@@ -55,60 +61,77 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
             onEnableRecommended != null ? l10n.addSource : null,
         onSecondaryAction: onEnableRecommended != null ? onAddSource : null,
       );
+    } else {
+      body = ListView.builder(
+        // 行首图标可点：移动端避让玻璃底栏。
+        padding: const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
+        itemCount: sources.length,
+        itemBuilder: (context, i) {
+          final source = sources[i];
+          return AppCard(
+            onTap: () => _openSource(context, source),
+            padding: EdgeInsets.zero,
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppTokens.spaceLg,
+                vertical: AppTokens.spaceXs,
+              ),
+              leading: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _sourceColor(source.type, scheme).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+                ),
+                child: Icon(
+                  _sourceIcon(source.type),
+                  color: _sourceColor(source.type, scheme),
+                  size: 22,
+                ),
+              ),
+              title: Text(
+                source.name,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: AppTokens.spaceXs),
+                child: Row(
+                  children: <Widget>[
+                    _buildStatusChip(source, scheme, l10n),
+                    const SizedBox(width: AppTokens.spaceXs),
+                    _buildAgeChip(source, scheme, l10n),
+                  ],
+                ),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.open_in_new_rounded),
+                tooltip: l10n.openSourceWebsite,
+                onPressed: () =>
+                    openInAppBrowser(context, source.site.baseUrl),
+              ),
+            ),
+          );
+        },
+      );
     }
 
-    return ListView.builder(
-      // 行首图标可点：移动端避让玻璃底栏。
-      padding: const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
-      itemCount: sources.length,
-      itemBuilder: (context, i) {
-        final source = sources[i];
-        return AppCard(
-          onTap: () => _openSource(context, source),
-          padding: EdgeInsets.zero,
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppTokens.spaceLg,
-              vertical: AppTokens.spaceXs,
-            ),
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: _sourceColor(source.type, scheme).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-              ),
-              child: Icon(
-                _sourceIcon(source.type),
-                color: _sourceColor(source.type, scheme),
-                size: 22,
-              ),
-            ),
-            title: Text(
-              source.name,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: AppTokens.spaceXs),
-              child: Row(
-                children: <Widget>[
-                  _buildStatusChip(source, scheme, l10n),
-                  const SizedBox(width: AppTokens.spaceXs),
-                  _buildAgeChip(source, scheme, l10n),
-                ],
-              ),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.open_in_new_rounded),
-              tooltip: l10n.openSourceWebsite,
-              onPressed: () =>
-                  openInAppBrowser(context, source.site.baseUrl),
-            ),
-          ),
-        );
-      },
+    if (headerCard == null) return body;
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.spaceMd,
+            AppTokens.spaceMd,
+            AppTokens.spaceMd,
+            0,
+          ) +
+              context.glassBarInset,
+          child: headerCard!,
+        ),
+        Expanded(child: body),
+      ],
     );
   }
 

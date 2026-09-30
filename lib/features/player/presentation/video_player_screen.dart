@@ -46,6 +46,7 @@ import '../../../core/resolver/builtin_resolver.dart'
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/services/media_server/media_server_session.dart';
 import '../../../core/stats/reading_session_recorder.dart';
 import '../../../core/stats/stats_models.dart';
 import '../../../core/stats/stats_repository.dart';
@@ -153,6 +154,11 @@ class VideoPlayerScreen extends StatefulWidget {
   /// 封面 URL（用于收藏时透传，避免收藏书架缺封面）。
   final String? coverUrl;
 
+  /// 媒体服务器播放会话：非空时为媒体服务器直连播放——
+  /// 进度只上报服务器（不写本地历史 box，§2.5）、续播 seek 用服务器进度、
+  /// 弹幕入口隐藏、退出兜底上报 Stopped 并按 ≥90% 标记已看。
+  final MediaServerPlaybackSession? mediaServerSession;
+
   const VideoPlayerScreen({
     super.key,
     required this.title,
@@ -169,6 +175,7 @@ class VideoPlayerScreen extends StatefulWidget {
     this.detailUrl,
     this.coverUrl,
     this.restoreProgress = true,
+    this.mediaServerSession,
   });
 
   @override
@@ -199,6 +206,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 是否为本地文件 / 直链模式（跳过在线源解析，直接打开给定地址）。
   bool get _isDirectMode => widget.localUri != null || widget.directUrl != null;
+
+  /// 是否为媒体服务器播放（进度只走服务器、弹幕入口隐藏）。
+  bool get _isMediaServer => widget.mediaServerSession != null;
 
   /// 当前弹幕源（持久化到 SharedPreferences，键 `danmaku_source`）。
   DanmakuSourceType _danmakuSource = DanmakuSourceType.dandanplay;
@@ -507,6 +517,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 上次自动保存播放位置的时间（节流，每 5 秒存一次）。
   DateTime _lastPositionSaveAt = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// 媒体服务器进度上报节流状态（仅 [VideoPlayerScreen.mediaServerSession]
+  /// 非空时使用）：上次心跳时间 / 上次暂停态 / 上报位置，用于检测 seek 跳变。
+  DateTime _lastServerReportAt = DateTime.fromMillisecondsSinceEpoch(0);
+  bool _lastServerPaused = false;
+  int _lastServerReportedMs = 0;
+
   /// 上次 setState 刷新 UI 的时间：position 流约 4–10Hz，整页重建
   /// 开销大（含 Marquee / SeekBar / 手势层）；节流到 ~250ms 后 UI 仍平滑，
   /// 但重建频率显著下降。
@@ -810,7 +826,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     await _loadPlayerSettings();
 
     // 记录当前作品为「最近播放」，用于启动恢复「继续上次」。
-    unawaited(_persistCurrentEpisode(_episodeIndex));
+    // 媒体服务器条目不进本地记录体系（§2.5）。
+    if (!_isMediaServer) {
+      unawaited(_persistCurrentEpisode(_episodeIndex));
+    }
 
     // 创建 Player + VideoController 并打开媒体。
     // 关键：先等待上一次播放器的原生 VideoOutput 释放完成（见 PlayerController.pendingDisposal），
@@ -979,6 +998,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } else {
       _positionRestoreDone = true;
       _lastPositionSaveAt = DateTime.now();
+    }
+    // 媒体服务器：开始上报（Start；随后由位置流驱动心跳）。
+    if (_isMediaServer) {
+      final session = widget.mediaServerSession!;
+      unawaited(session.start(positionMs: session.initialPositionMs));
     }
 
     // 监听播放状态
@@ -1493,6 +1517,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _maybePreloadNextEpisode();
     // 节流保存播放位置（每 5 秒）
     _maybeSavePosition();
+    // 媒体服务器：进度心跳上报（约 10s 一次，暂停 / seek 跳变立即补报）。
+    _maybeReportServerProgress();
     // 达到「已看」阈值时自动标记当前集
     _maybeMarkWatched();
     // setState 节流：position 流 ~4-10Hz，全量重建开销大。
@@ -1508,6 +1534,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 节流保存播放位置：每 5 秒写一次到 MediaPlaybackPositionManager。
   void _maybeSavePosition() {
+    // 媒体服务器：进度只上报服务器，不写本地历史 box（§2.5）。
+    if (_isMediaServer) return;
     // 续播恢复完成前禁止写盘，避免刚 open 时的 position=0 覆盖旧存档。
     if (!_positionRestoreDone) return;
     final now = DateTime.now();
@@ -1527,6 +1555,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 阈值取自 [GeneralSettingsStore.watchedThresholdPercent]（默认 90）。
   /// 用本地 [_watchedMarkedEpisodes] 集合避免每帧读取 Manager / 重复标记。
   void _maybeMarkWatched() {
+    // 媒体服务器：已看标记由会话上报器按服务器规则处理（§2.5）。
+    if (_isMediaServer) return;
     final durationMs = _duration.inMilliseconds;
     if (durationMs <= 0) return;
     if (_watchedMarkedEpisodes.contains(_episodeIndex)) return;
@@ -1809,9 +1839,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 恢复上次播放位置：从 MediaPlaybackPositionManager 读取并 seek。
   ///
   /// 完成（含「无记录」「恢复失败」）后置位 [_positionRestoreDone]，此后才允许
-  /// 自动保存位置。
+  /// 自动保存位置。媒体服务器播放：进度只存服务器，seek 目标取会话携带的
+  /// 服务器进度（不读本地历史，§2.5）。
   Future<void> _restoreSavedPosition() async {
     try {
+      if (_isMediaServer) {
+        final savedMs = widget.mediaServerSession!.initialPositionMs;
+        if (widget.restoreProgress && savedMs > 5000) {
+          await _seekWhenReady(Duration(milliseconds: savedMs));
+        }
+        return;
+      }
       final mgr = context.read<MediaPlaybackPositionManager>();
       final savedMs = mgr.getPosition(widget.itemId, _episodeIndex);
       if (savedMs > 5000) {
@@ -1858,9 +1896,36 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
+  /// 媒体服务器进度上报：约 10s 心跳；暂停态变化或位置跳变（seek）立即补报。
+  void _maybeReportServerProgress() {
+    final session = widget.mediaServerSession;
+    if (session == null || !_positionRestoreDone) return;
+    final now = DateTime.now();
+    final posMs = _position.inMilliseconds;
+    final paused = !_isPlaying;
+    final jumped = (posMs - _lastServerReportedMs).abs() > 10000;
+    final due = now.difference(_lastServerReportAt) >=
+        const Duration(seconds: 10);
+    if (!due && paused == _lastServerPaused && !jumped) return;
+    _lastServerReportAt = now;
+    _lastServerPaused = paused;
+    _lastServerReportedMs = posMs;
+    unawaited(session.reportProgress(positionMs: posMs, paused: paused));
+  }
+
+  /// 播完事件：媒体服务器上报 Stopped 并标记已看（服务器端持久化，§2.5）。
   void _onCompleted(bool completed) {
     if (!mounted || _disposed) return;
     if (!completed) return;
+    if (_isMediaServer) {
+      unawaited(
+        widget.mediaServerSession!.stop(
+          positionMs: _position.inMilliseconds,
+          completed: true,
+        ),
+      );
+      return;
+    }
     // 播完清除该集播放位置，避免下次续播已看完的集
     try {
       final mgr = context.read<MediaPlaybackPositionManager>();
@@ -2878,7 +2943,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   /// 保存当前集播放位置到 MediaPlaybackPositionManager。
+  /// 退出时保存当前集播放位置到 MediaPlaybackPositionManager。
+  /// 媒体服务器播放不写本地历史（进度只走服务器，§2.5）。
   void _saveCurrentPosition() {
+    if (_isMediaServer) return;
     // 与 [_maybeSavePosition] 同理：恢复未完成时（如加载中就退出）不写盘，
     // 否则会把上次的续播点抹成 0。
     if (!_positionRestoreDone) return;
@@ -3307,10 +3375,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // 退出时保存最后播放位置
+    // 退出时保存最后播放位置（媒体服务器改走会话 Stopped 上报）。
     _saveCurrentPosition();
+    if (_isMediaServer) {
+      unawaited(
+        widget.mediaServerSession!.stop(
+          positionMs: _position.inMilliseconds,
+        ),
+      );
+    }
     // 退出时一次性结算本次会话的观看时长（commit 内部 best-effort）。
-    if (widget.sourceId.isNotEmpty) {
+    // 媒体服务器条目不进本地统计体系（§2.5）。
+    if (widget.sourceId.isNotEmpty && !_isMediaServer) {
       unawaited(ReadingSessionRecorder.instance.commit(
         workId: widget.itemId,
         sourceId: widget.sourceId,
@@ -4057,15 +4133,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                     onTap: _goNextEpisode,
                   ),
                 // 弹幕区域（开关 + 发送[开时] + 设置[开时]）
-                _DanmakuToggle(
-                  key: const Key('player_danmaku_area'),
-                  isOn: _danmakuOn,
-                  l10n: l10n,
-                  onToggle: _toggleDanmaku,
-                  onSend: _showDanmakuInput,
-                  onSettings: _openDanmakuSettings,
-                  onLongPressSettings: _openDanmakuSource,
-                ),
+                // 媒体服务器内容无弹幕源，入口隐藏（§2.5）。
+                if (!_isMediaServer)
+                  _DanmakuToggle(
+                    key: const Key('player_danmaku_area'),
+                    isOn: _danmakuOn,
+                    l10n: l10n,
+                    onToggle: _toggleDanmaku,
+                    onSend: _showDanmakuInput,
+                    onSettings: _openDanmakuSettings,
+                    onLongPressSettings: _openDanmakuSource,
+                  ),
                 const Spacer(),
                 // 倍速（弹出选择面板）
                 _ControlButton(

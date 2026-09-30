@@ -131,7 +131,8 @@ abstract class MediaServerClientBase {
       if (data is! Map) {
         throw const MediaServerApiException(null, 'malformed probe response');
       }
-      final type = ServerType.fromProductName(data['ProductName'] as String?);
+      final type = ServerType.fromProductName(data['ProductName'] as String?) ??
+          ServerType.fromVersion(data['Version'] as String?);
       if (type == null) {
         throw const MediaServerApiException(
           null,
@@ -289,7 +290,8 @@ abstract class MediaServerClientBase {
               'Limit': limit,
               'IncludeItemTypes': includeTypes.join(','),
               'Recursive': true,
-              'Fields': 'Overview',
+              // 实测：列表查询默认不返回 ProductionYear，需显式请求。
+              'Fields': 'Overview,ProductionYear',
               'SortBy': sortBy,
               'SortOrder': sortOrder,
               if (parentId != null && parentId.isNotEmpty) 'ParentId': parentId,
@@ -325,6 +327,8 @@ abstract class MediaServerClientBase {
   }
 
   /// 剧集某季的集列表。
+  ///
+  /// 额外请求 MediaStreams：集卡片需判断图形字幕（PGS）直连不可播。
   Future<List<ServerMediaItem>> fetchEpisodes(
     String seriesId, {
     String? seasonId,
@@ -334,6 +338,7 @@ abstract class MediaServerClientBase {
             '/Shows/$seriesId/Episodes',
             queryParameters: <String, dynamic>{
               ..._userQuery(),
+              'Fields': 'MediaStreams',
               if (seasonId != null && seasonId.isNotEmpty) 'SeasonId': seasonId,
             },
           ),
@@ -610,5 +615,19 @@ abstract class MediaServerClientBase {
         userData:
             j['UserData'] is Map ? _parseUserData(j['UserData'] as Map) : null,
         container: j['Container'] as String?,
+        subtitleCodecs: _parseSubtitleCodecs(j['MediaStreams']),
       );
+
+  /// 从 MediaStreams 提取字幕轨道编码（仅 Type == Subtitle）。
+  static List<String>? _parseSubtitleCodecs(Object? streams) {
+    if (streams is! List) return null;
+    final codecs = <String>[];
+    for (final s in streams) {
+      if (s is! Map) continue;
+      if (s['Type'] != 'Subtitle') continue;
+      final codec = s['Codec'] as String?;
+      if (codec != null && codec.isNotEmpty) codecs.add(codec);
+    }
+    return codecs.isEmpty ? null : codecs;
+  }
 }

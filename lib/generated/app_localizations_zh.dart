@@ -9099,4 +9099,61 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mediaServerCredentialsRequired => '请填写用户名和密码';
+
+  @override
+  String get mediaServerHomeResume => '继续观看';
+
+  @override
+  String get mediaServerHomeLatest => '最新添加';
+
+  @override
+  String get mediaServerHomeLibraries => '媒体库';
+
+  @override
+  String get mediaServerUnsupportedLibraries => '音乐 / 图片等其他类型的库暂不支持，已隐藏';
+
+  @override
+  String get mediaServerRetry => '重试';
+
+  @override
+  String mediaServerLoadFailed(Object error) {
+    return '加载失败：$error';
+  }
+
+  @override
+  String get mediaServerSearchHint => '在服务器内搜索';
+
+  @override
+  String get mediaServerNoResults => '没有匹配的结果';
+
+  @override
+  String get mediaServerPlay => '播放';
+
+  @override
+  String get mediaServerResumePlay => '继续播放';
+
+  @override
+  String get mediaServerPlayFromStart => '从头播放';
+
+  @override
+  String get mediaServerTypeSeries => '剧集';
+
+  @override
+  String get mediaServerPgsSubtitleWarn => '该集内封图形字幕需转码，暂不支持';
+
+  @override
+  String get mediaServerTranscodeRequired => '该格式需转码，暂不支持';
+
+  @override
+  String mediaServerRuntimeMinutes(Object m) {
+    return '$m 分钟';
+  }
+
+  @override
+  String mediaServerRuntimeHoursMinutes(Object h, Object m) {
+    return '$h 小时 $m 分';
+  }
+
+  @override
+  String get mediaServerGoAdd => '去添加服务器';
 }

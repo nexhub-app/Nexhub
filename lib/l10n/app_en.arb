@@ -5129,5 +5129,41 @@
     }
   },
   "mediaServerAddressRequired": "Enter a server address first",
-  "mediaServerCredentialsRequired": "Enter a username and password"
+  "mediaServerCredentialsRequired": "Enter a username and password",
+  "mediaServerHomeResume": "Continue watching",
+  "mediaServerHomeLatest": "Latest additions",
+  "mediaServerHomeLibraries": "Libraries",
+  "mediaServerUnsupportedLibraries": "Music / photo and other library types are not supported yet and are hidden.",
+  "mediaServerRetry": "Retry",
+  "mediaServerLoadFailed": "Failed to load: {error}",
+  "@mediaServerLoadFailed": {
+    "description": "mediaServerLoadFailed",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "mediaServerSearchHint": "Search within server",
+  "mediaServerNoResults": "No results",
+  "mediaServerPlay": "Play",
+  "mediaServerResumePlay": "Resume",
+  "mediaServerPlayFromStart": "Play from start",
+  "mediaServerTypeSeries": "Series",
+  "mediaServerPgsSubtitleWarn": "Graphical subtitles in this episode require transcoding (unsupported).",
+  "mediaServerTranscodeRequired": "This format requires transcoding (unsupported).",
+  "mediaServerRuntimeMinutes": "{m} min",
+  "@mediaServerRuntimeMinutes": {
+    "description": "mediaServerRuntimeMinutes",
+    "placeholders": {
+      "m": {}
+    }
+  },
+  "mediaServerRuntimeHoursMinutes": "{h} h {m} min",
+  "@mediaServerRuntimeHoursMinutes": {
+    "description": "mediaServerRuntimeHoursMinutes",
+    "placeholders": {
+      "h": {},
+      "m": {}
+    }
+  },
+  "mediaServerGoAdd": "Add a server"
 }

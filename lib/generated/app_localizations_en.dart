@@ -9313,4 +9313,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaServerCredentialsRequired => 'Enter a username and password';
+
+  @override
+  String get mediaServerHomeResume => 'Continue watching';
+
+  @override
+  String get mediaServerHomeLatest => 'Latest additions';
+
+  @override
+  String get mediaServerHomeLibraries => 'Libraries';
+
+  @override
+  String get mediaServerUnsupportedLibraries =>
+      'Music / photo and other library types are not supported yet and are hidden.';
+
+  @override
+  String get mediaServerRetry => 'Retry';
+
+  @override
+  String mediaServerLoadFailed(Object error) {
+    return 'Failed to load: $error';
+  }
+
+  @override
+  String get mediaServerSearchHint => 'Search within server';
+
+  @override
+  String get mediaServerNoResults => 'No results';
+
+  @override
+  String get mediaServerPlay => 'Play';
+
+  @override
+  String get mediaServerResumePlay => 'Resume';
+
+  @override
+  String get mediaServerPlayFromStart => 'Play from start';
+
+  @override
+  String get mediaServerTypeSeries => 'Series';
+
+  @override
+  String get mediaServerPgsSubtitleWarn =>
+      'Graphical subtitles in this episode require transcoding (unsupported).';
+
+  @override
+  String get mediaServerTranscodeRequired =>
+      'This format requires transcoding (unsupported).';
+
+  @override
+  String mediaServerRuntimeMinutes(Object m) {
+    return '$m min';
+  }
+
+  @override
+  String mediaServerRuntimeHoursMinutes(Object h, Object m) {
+    return '$h h $m min';
+  }
+
+  @override
+  String get mediaServerGoAdd => 'Add a server';
 }

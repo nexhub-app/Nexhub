@@ -54,6 +54,13 @@ void main() {
       expect(ServerType.fromProductName(null), isNull);
     });
 
+    test('fromVersion 兜底：实测 Emby 4.9 探测不带 ProductName', () {
+      expect(ServerType.fromVersion('10.9.2'), ServerType.jellyfin);
+      expect(ServerType.fromVersion('4.9.5.0'), ServerType.emby);
+      expect(ServerType.fromVersion('3.0.1'), ServerType.emby);
+      expect(ServerType.fromVersion(null), isNull);
+    });
+
     test('JSON 往返', () {
       expect(ServerType.fromJson(ServerType.jellyfin.toJson()),
           ServerType.jellyfin);
@@ -111,6 +118,33 @@ void main() {
       expect(updated.loggedIn, isTrue);
       expect(updated.id, base.id);
       expect(updated.baseUrl, base.baseUrl);
+    });
+  });
+
+  group('hasGraphicSubtitle（实测回填）', () {
+    ServerMediaItem itemWith(List<String>? codecs) => ServerMediaItem(
+          id: 'i',
+          name: 'n',
+          type: 'Movie',
+          subtitleCodecs: codecs,
+        );
+
+    test('纯图形字幕（PGS）→ true', () {
+      expect(itemWith(<String>['PGSSUB']).hasGraphicSubtitle, isTrue);
+      expect(itemWith(<String>['HDMV_PGS_SUBTITLE']).hasGraphicSubtitle, isTrue);
+    });
+
+    test('图形 + 文本混合（实测 PGSSUB+srt/ssa）→ false，直连可出文本字幕', () {
+      expect(
+        itemWith(<String>['PGSSUB', 'srt', 'ssa']).hasGraphicSubtitle,
+        isFalse,
+      );
+    });
+
+    test('纯文本字幕 → false', () {
+      expect(itemWith(<String>['srt', 'ass']).hasGraphicSubtitle, isFalse);
+      expect(itemWith(<String>[]).hasGraphicSubtitle, isFalse);
+      expect(itemWith(null).hasGraphicSubtitle, isFalse);
     });
   });
 }

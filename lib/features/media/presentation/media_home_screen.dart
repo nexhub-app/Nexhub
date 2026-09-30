@@ -15,6 +15,7 @@ import '../../../core/widgets/library_shell.dart';
 import '../../../core/widgets/module_source_search_screen.dart';
 import '../../../core/widgets/online_source_browser_screen.dart';
 import '../../home/presentation/import_media_screen.dart';
+import '../../media_server/media_server_widgets.dart';
 import '../../rss/presentation/rss_feed_list_screen.dart';
 import '../../sources/presentation/collect_api_import_screen.dart';
 import '../../sources/presentation/source_manager_screen.dart';
@@ -111,6 +112,8 @@ class MediaHomeScreen extends StatelessWidget {
       ),
       onlineBody: OnlineSourceBrowserScreen(
         sourceType: SourceType.animeSource,
+        // 方案 A：源列表顶部固定「媒体服务器」入口（仅影视模块）。
+        headerCard: const MediaServerEntryCard(),
         onAddSource: navigateToCollectApiImport,
         onEnableRecommended:
             () => context.read<SourceRepository>().enableRecommendedSources(),

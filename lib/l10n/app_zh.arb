@@ -5085,5 +5085,41 @@
     }
   },
   "mediaServerAddressRequired": "请先填写服务器地址",
-  "mediaServerCredentialsRequired": "请填写用户名和密码"
+  "mediaServerCredentialsRequired": "请填写用户名和密码",
+  "mediaServerHomeResume": "继续观看",
+  "mediaServerHomeLatest": "最新添加",
+  "mediaServerHomeLibraries": "媒体库",
+  "mediaServerUnsupportedLibraries": "音乐 / 图片等其他类型的库暂不支持，已隐藏",
+  "mediaServerRetry": "重试",
+  "mediaServerLoadFailed": "加载失败：{error}",
+  "@mediaServerLoadFailed": {
+    "description": "mediaServerLoadFailed",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "mediaServerSearchHint": "在服务器内搜索",
+  "mediaServerNoResults": "没有匹配的结果",
+  "mediaServerPlay": "播放",
+  "mediaServerResumePlay": "继续播放",
+  "mediaServerPlayFromStart": "从头播放",
+  "mediaServerTypeSeries": "剧集",
+  "mediaServerPgsSubtitleWarn": "该集内封图形字幕需转码，暂不支持",
+  "mediaServerTranscodeRequired": "该格式需转码，暂不支持",
+  "mediaServerRuntimeMinutes": "{m} 分钟",
+  "@mediaServerRuntimeMinutes": {
+    "description": "mediaServerRuntimeMinutes",
+    "placeholders": {
+      "m": {}
+    }
+  },
+  "mediaServerRuntimeHoursMinutes": "{h} 小时 {m} 分",
+  "@mediaServerRuntimeHoursMinutes": {
+    "description": "mediaServerRuntimeHoursMinutes",
+    "placeholders": {
+      "h": {},
+      "m": {}
+    }
+  },
+  "mediaServerGoAdd": "去添加服务器"
 }
