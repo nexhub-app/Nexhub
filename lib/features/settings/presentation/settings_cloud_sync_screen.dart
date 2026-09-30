@@ -9,8 +9,6 @@
 /// 6. 明确的中文错误提示（按语义码映射）
 library;
 
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform;
 import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -19,17 +17,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/novel/novel_progress_conflict.dart';
 import '../../../core/novel/novel_progress_manager.dart';
 import '../../../core/services/backup_archive.dart';
-import '../../../core/services/cloud_sync_backend.dart';
 import '../../../core/services/cloud_sync_service.dart';
 import '../../../core/services/novel_progress_sync_service.dart';
-import '../../../core/services/onedrive/onedrive_oauth_config.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'widgets/settings_widgets.dart';
 import '../../../core/widgets/backup_category_selector.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
-import '../../../core/widgets/app_glass_bar.dart';
 import './settings_import_export_screen.dart';
 import 'package:nexhub/core/navigation/app_page_route.dart';
 
@@ -50,7 +45,6 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
   bool _syncing = false;
   bool _pulling = false;
   bool _resolving = false;
-  bool _loggingIn = false;
   Set<BackupCategory> _selected = <BackupCategory>{
     BackupCategory.source,
     BackupCategory.bookmark,
@@ -84,16 +78,10 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     return AppStatusColors.fail(scheme, onInverseSurface: true);
   }
 
-  /// 语义错误码 → 中文提示（no_config 按当前后端区分文案）。
-  String _errorText(AppLocalizations l10n, String? code,
-      {CloudBackendKind backend = CloudBackendKind.webdav}) {
+  /// 语义错误码 → 中文提示。
+  String _errorText(AppLocalizations l10n, String? code) {
     if (code == null) return '';
-    if (code == 'no_config') {
-      return backend == CloudBackendKind.onedrive
-          ? l10n.cloudSyncErrorNoConfigOnedrive
-          : l10n.cloudSyncErrorNoConfig;
-    }
-    if (code == 'onedrive_auth') return l10n.onedriveAuthExpired;
+    if (code == 'no_config') return l10n.cloudSyncErrorNoConfig;
     if (code == 'no_remote_backup') return l10n.cloudSyncErrorNoRemote;
     if (code == 'encode_failed') return l10n.cloudSyncErrorEncode;
     if (code == 'network') return l10n.cloudSyncErrorNetwork;
@@ -166,114 +154,6 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     );
   }
 
-  /// OneDrive 授权码登录（内嵌 WebView；Linux 无 WebView 实现时不可用）。
-  Future<void> _loginOneDrive(AppLocalizations l10n) async {
-    final service = context.read<CloudSyncService>();
-    final messenger = ScaffoldMessenger.of(context);
-    setState(() => _loggingIn = true);
-    try {
-      await service.oneDrive.loginWithBrowser(context);
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.onedriveLoginSuccess)),
-      );
-    } on StateError {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.onedriveLoginCancelled)),
-      );
-    } on CloudAuthException catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('${l10n.onedriveAuthFailed}：${e.message}')),
-      );
-    } catch (_) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.onedriveAuthFailed)),
-      );
-    }
-    if (mounted) setState(() => _loggingIn = false);
-  }
-
-  /// OneDrive 设备码登录（无 WebView 平台兜底）。
-  Future<void> _loginOneDriveDeviceCode(AppLocalizations l10n) async {
-    final service = context.read<CloudSyncService>();
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final ok = await service.oneDrive.loginWithDeviceCode(context);
-      if (!ok) return; // 用户关闭 / 框内失败已展示
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.onedriveLoginSuccess)),
-      );
-    } on StateError {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.onedriveLoginCancelled)),
-      );
-    } on CloudAuthException catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('${l10n.onedriveAuthFailed}：${e.message}')),
-      );
-    } catch (_) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.onedriveAuthFailed)),
-      );
-    }
-  }
-
-  Future<void> _logoutOneDrive(AppLocalizations l10n) async {
-    final service = context.read<CloudSyncService>();
-    final messenger = ScaffoldMessenger.of(context);
-    await service.oneDrive.logout();
-    messenger.showSnackBar(SnackBar(content: Text(l10n.onedriveLoggedOut)));
-  }
-
-  Future<void> _testOneDriveConnection(AppLocalizations l10n) async {
-    final service = context.read<CloudSyncService>();
-    if (!service.oneDrive.isLoggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.cloudSyncErrorNoConfigOnedrive)),
-      );
-      return;
-    }
-    setState(() => _testing = true);
-    final (success, ms) = await service.testOneDriveConnection();
-    if (!mounted) return;
-    setState(() => _testing = false);
-    final messenger = ScaffoldMessenger.of(context);
-    if (success) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n.cloudSyncConnectionSuccess(ms),
-            style: TextStyle(
-              color: _latencyColor(Theme.of(context).colorScheme, ms),
-            ),
-          ),
-        ),
-      );
-    } else {
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.cloudSyncConnectionFailed)),
-      );
-    }
-  }
-
-  /// OneDrive 配置教程弹窗（Azure 应用注册 + dart-define 注入步骤）。
-  Future<void> _showOneDriveGuide(AppLocalizations l10n) async {
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AppAlertDialog(
-        title: Text(l10n.onedriveGuideTitle),
-        content: SingleChildScrollView(
-          child: Text(l10n.onedriveGuideBody),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.confirm),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _syncNow(AppLocalizations l10n) async {
     final service = context.read<CloudSyncService>();
     if (_selected.isEmpty) {
@@ -296,8 +176,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
         SnackBar(
           content: Text(
             service.lastError != null
-                ? _errorText(l10n, service.lastError,
-                    backend: service.config.backend)
+                ? _errorText(l10n, service.lastError)
                 : l10n.cloudSyncSyncFailed,
           ),
         ),
@@ -442,8 +321,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
         SnackBar(
           content: Text(
             service.lastError != null
-                ? _errorText(l10n, service.lastError,
-                    backend: service.config.backend)
+                ? _errorText(l10n, service.lastError)
                 : l10n.cloudSyncSyncFailed,
           ),
         ),
@@ -469,8 +347,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
         SnackBar(
           content: Text(
             service.lastError != null
-                ? _errorText(l10n, service.lastError,
-                    backend: service.config.backend)
+                ? _errorText(l10n, service.lastError)
                 : l10n.cloudSyncSyncFailed,
           ),
         ),
@@ -507,8 +384,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
         SnackBar(
           content: Text(
             service.lastError != null
-                ? _errorText(l10n, service.lastError,
-                    backend: service.config.backend)
+                ? _errorText(l10n, service.lastError)
                 : l10n.cloudSyncSyncFailed,
           ),
         ),
@@ -519,143 +395,6 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
   String _formatTime(int ts) =>
       GeneralSettingsStore.instance.settings.dateFormat
           .format(DateTime.fromMillisecondsSinceEpoch(ts), withTime: true);
-
-  /// OneDrive 后端配置区：未配置（缺 Client ID）时给教程引导；
-  /// 已配置时展示登录卡片（WebView 授权 + 设备码兜底）与连接测试。
-  List<Widget> _buildOneDriveSection(
-    AppLocalizations l10n,
-    CloudSyncService service,
-  ) {
-    final theme = Theme.of(context);
-    // Linux 无 InAppWebView 实现：仅提供设备码登录。
-    final supportsWebView = defaultTargetPlatform != TargetPlatform.linux;
-    final loggedIn = service.oneDrive.isLoggedIn;
-
-    if (!OneDriveOAuthConfig.configured) {
-      return <Widget>[
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(AppTokens.spaceMd),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Icon(Icons.info_rounded,
-                        size: 18, color: theme.colorScheme.primary),
-                    const SizedBox(width: AppTokens.spaceSm),
-                    Text(l10n.onedriveNotConfiguredTitle,
-                        style: theme.textTheme.titleSmall),
-                  ],
-                ),
-                const SizedBox(height: AppTokens.spaceSm),
-                Text(
-                  l10n.onedriveNotConfiguredBody,
-                  style: theme.textTheme.bodySmall,
-                ),
-                const SizedBox(height: AppTokens.spaceMd),
-                OutlinedButton.icon(
-                  onPressed: () => _showOneDriveGuide(l10n),
-                  icon: const Icon(Icons.help_outline_rounded, size: 18),
-                  label: Text(l10n.onedriveConfigGuide),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ];
-    }
-
-    return <Widget>[
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTokens.spaceMd),
-          child: loggedIn
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Icon(Icons.cloud_done_rounded,
-                            size: 18, color: theme.colorScheme.primary),
-                        const SizedBox(width: AppTokens.spaceSm),
-                        Expanded(
-                          child: Text(l10n.onedriveLoggedIn,
-                              style: theme.textTheme.titleSmall),
-                        ),
-                        TextButton(
-                          onPressed: () => _logoutOneDrive(l10n),
-                          child: Text(l10n.onedriveLogout),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTokens.spaceXs),
-                    Text(
-                      service.oneDrive.accountName ?? l10n.onedriveAccountLabel,
-                      style: theme.textTheme.bodyMedium,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: AppTokens.spaceMd),
-                    OutlinedButton.icon(
-                      onPressed:
-                          _testing ? null : () => _testOneDriveConnection(l10n),
-                      icon: _testing
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.wifi_find_rounded),
-                      label: Text(l10n.cloudSyncTestConnection),
-                    ),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    if (supportsWebView) ...<Widget>[
-                      FilledButton.icon(
-                        onPressed:
-                            _loggingIn ? null : () => _loginOneDrive(l10n),
-                        icon: _loggingIn
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.login_rounded),
-                        label: Text(l10n.onedriveLogin),
-                      ),
-                      const SizedBox(height: AppTokens.spaceSm),
-                    ],
-                    OutlinedButton.icon(
-                      onPressed: _loggingIn
-                          ? null
-                          : () => _loginOneDriveDeviceCode(l10n),
-                      icon: const Icon(Icons.phonelink_setup_rounded, size: 18),
-                      label: Text(l10n.onedriveDeviceCodeLogin),
-                    ),
-                    if (!supportsWebView) ...<Widget>[
-                      const SizedBox(height: AppTokens.spaceXs),
-                      Text(
-                        l10n.onedriveWebViewUnavailable,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.hintColor),
-                      ),
-                    ],
-                  ],
-                ),
-        ),
-      ),
-      const SizedBox(height: AppTokens.spaceSm),
-      OutlinedButton.icon(
-        onPressed: () => _showOneDriveGuide(l10n),
-        icon: const Icon(Icons.help_outline_rounded, size: 18),
-        label: Text(l10n.onedriveConfigGuide),
-      ),
-    ];
-  }
 
   /// 同步状态明细卡片：展示上次备份 / 恢复的时间、成功与否、数据条数、范围。
   Widget _buildStatusCard(CloudSyncConfig config, AppLocalizations l10n) {
@@ -765,84 +504,54 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l10n.cloudSync)),
       body: ListView(
-        padding: context.pageInset(AppTokens.spaceLg),
+        padding: const EdgeInsets.all(AppTokens.spaceLg),
         children: <Widget>[
-          // ── 备份后端选择 ──
-          SegmentedButton<CloudBackendKind>(
-            segments: <ButtonSegment<CloudBackendKind>>[
-              ButtonSegment<CloudBackendKind>(
-                value: CloudBackendKind.webdav,
-                icon: const Icon(Icons.dns_rounded, size: 18),
-                label: Text(l10n.cloudSyncBackendWebdav),
-              ),
-              ButtonSegment<CloudBackendKind>(
-                value: CloudBackendKind.onedrive,
-                icon: const Icon(Icons.cloud_rounded, size: 18),
-                label: Text(l10n.cloudSyncBackendOnedrive),
-              ),
-            ],
-            selected: <CloudBackendKind>{config.backend},
-            onSelectionChanged: (Set<CloudBackendKind> selection) {
-              final kind = selection.first;
-              if (kind != config.backend) {
-                AppHaptics.toggleOn();
-                service.switchBackend(kind);
-              }
-            },
+          TextField(
+            controller: _urlController,
+            decoration: InputDecoration(
+              labelText: l10n.cloudSyncWebdavUrl,
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.link_rounded),
+            ),
+            keyboardType: TextInputType.url,
           ),
-          const SizedBox(height: AppTokens.spaceLg),
-
-          // ── 后端专属配置 ──
-          if (config.backend == CloudBackendKind.webdav) ...<Widget>[
-            TextField(
-              controller: _urlController,
-              decoration: InputDecoration(
-                labelText: l10n.cloudSyncWebdavUrl,
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.link_rounded),
-              ),
-              keyboardType: TextInputType.url,
+          const SizedBox(height: AppTokens.spaceMd),
+          TextField(
+            controller: _usernameController,
+            decoration: InputDecoration(
+              labelText: l10n.cloudSyncWebdavUsername,
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.person_rounded),
             ),
-            const SizedBox(height: AppTokens.spaceMd),
-            TextField(
-              controller: _usernameController,
-              decoration: InputDecoration(
-                labelText: l10n.cloudSyncWebdavUsername,
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.person_rounded),
-              ),
+          ),
+          const SizedBox(height: AppTokens.spaceMd),
+          TextField(
+            controller: _passwordController,
+            decoration: InputDecoration(
+              labelText: l10n.cloudSyncWebdavPassword,
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.lock_rounded),
             ),
-            const SizedBox(height: AppTokens.spaceMd),
-            TextField(
-              controller: _passwordController,
-              decoration: InputDecoration(
-                labelText: l10n.cloudSyncWebdavPassword,
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.lock_rounded),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: AppTokens.spaceMd),
-            FilledButton.icon(
-              onPressed: _testing ? null : () => _testConnection(l10n),
-              icon: _testing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.wifi_find_rounded),
-              label: Text(l10n.cloudSyncTestConnection),
-            ),
-            const SizedBox(height: AppTokens.spaceSm),
-            OutlinedButton.icon(
-              onPressed: _saving ? null : () => _saveConfig(l10n),
-              icon: const Icon(Icons.save_rounded),
-              label: Text(l10n.cloudSyncSaveConfig),
-            ),
-          ] else
-            ..._buildOneDriveSection(l10n, service),
-
+            obscureText: true,
+          ),
+          const SizedBox(height: AppTokens.spaceMd),
+          FilledButton.icon(
+            onPressed: _testing ? null : () => _testConnection(l10n),
+            icon: _testing
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.wifi_find_rounded),
+            label: Text(l10n.cloudSyncTestConnection),
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
+          OutlinedButton.icon(
+            onPressed: _saving ? null : () => _saveConfig(l10n),
+            icon: const Icon(Icons.save_rounded),
+            label: Text(l10n.cloudSyncSaveConfig),
+          ),
           const SizedBox(height: AppTokens.spaceLg),
           SettingsTile(
             title: l10n.cloudSyncAutoSync,
@@ -886,26 +595,24 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
           ),
           const SizedBox(height: AppTokens.spaceLg),
 
-          // ──：小说导出自动上传（仅 WebDAV 后端支持） ──
-          if (config.backend == CloudBackendKind.webdav) ...<Widget>[
-            SettingsTile(
-              key: const ValueKey<String>('cloud.novelAutoUpload'),
-              title: l10n.cloudSyncAutoUploadNovelExports,
-              subtitle: l10n.cloudSyncAutoUploadNovelExportsDesc,
-              trailing: Switch(
-                value: config.autoUploadNovelExports,
-                onChanged: (v) async {
-                  v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
-                  await service.updateConfig(
-                    config.copyWith(autoUploadNovelExports: v),
-                    null,
-                  );
-                  if (context.mounted) setState(() {});
-                },
-              ),
+          // ──：小说导出自动上传 WebDAV ──
+          SettingsTile(
+            key: const ValueKey<String>('cloud.novelAutoUpload'),
+            title: l10n.cloudSyncAutoUploadNovelExports,
+            subtitle: l10n.cloudSyncAutoUploadNovelExportsDesc,
+            trailing: Switch(
+              value: config.autoUploadNovelExports,
+              onChanged: (v) async {
+                v == true ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                await service.updateConfig(
+                  config.copyWith(autoUploadNovelExports: v),
+                  null,
+                );
+                if (context.mounted) setState(() {});
+              },
             ),
-            const SizedBox(height: AppTokens.spaceSm),
-          ],
+          ),
+          const SizedBox(height: AppTokens.spaceSm),
 
           // ── 同步范围（分类勾选） ──
           Card(
@@ -933,14 +640,12 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
             label: Text(l10n.cloudSyncSyncNow),
           ),
           const SizedBox(height: AppTokens.spaceSm),
-          // 逐书进度冲突裁决同步（含确认框；仅 WebDAV 后端支持）。
-          if (config.backend == CloudBackendKind.webdav) ...<Widget>[
-            OutlinedButton.icon(
-              onPressed: _syncing ? null : () => _syncNovelProgress(l10n),
-              icon: const Icon(Icons.menu_book_rounded, size: 18),
-              label: Text(l10n.novelProgressSyncNow),
-            ),
-          ],
+          // 逐书进度冲突裁决同步（含确认框）。
+          OutlinedButton.icon(
+            onPressed: _syncing ? null : () => _syncNovelProgress(l10n),
+            icon: const Icon(Icons.menu_book_rounded, size: 18),
+            label: Text(l10n.novelProgressSyncNow),
+          ),
           const SizedBox(height: AppTokens.spaceMd),
           _buildStatusCard(config, l10n),
 
@@ -1021,8 +726,7 @@ class _SettingsCloudSyncScreenState extends State<SettingsCloudSyncScreen> {
                   const SizedBox(width: AppTokens.spaceSm),
                   Expanded(
                     child: Text(
-                      _errorText(l10n, service.lastError,
-                          backend: service.config.backend),
+                      _errorText(l10n, service.lastError),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color:
                                 Theme.of(context).colorScheme.onErrorContainer,

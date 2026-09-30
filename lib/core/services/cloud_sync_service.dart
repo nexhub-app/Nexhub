@@ -1,4 +1,4 @@
-/// 云同步服务 —— 多后端（WebDAV / OneDrive）备份与多端同步。
+/// 云同步服务 —— WebDAV 备份与多端同步。
 ///
 /// 数据范围（spec J.2）：
 /// 1. 书源/媒体源/订阅源：book_sources / rss_feeds / article_feeds / sources
@@ -18,10 +18,6 @@
 /// - 增量同步：记录每 box 内容 sha256，仅上传变化的 box / 偏好。
 /// - 冲突解决：拉取前预览本地与云端冲突项，按 box 选择保留云端或本地。
 /// - 状态明细：记录上次备份 / 恢复的时间、成功与否、数据条数、范围。
-///
-/// 多后端：文件操作统一走 [CloudSyncBackend] 接口（[WebDavBackend] /
-/// [OneDriveBackend]），同步逻辑后端无关。切换后端会清空增量哈希基线
-/// （新云端视为空，首次同步全量上传）。
 library;
 
 import 'dart:convert';
@@ -34,13 +30,10 @@ import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:xml/xml.dart';
 
 import '../storage/storage_boxes.dart';
 import 'backup_archive.dart';
-import 'cloud_sync_backend.dart';
-import 'onedrive/onedrive_auth_service.dart';
-import 'onedrive/onedrive_backend.dart';
-import 'webdav_backend.dart';
 
 /// 同步频率
 enum SyncFrequency { manual, daily, weekly }
@@ -49,16 +42,12 @@ enum SyncFrequency { manual, daily, weekly }
 class SyncStatusEntry {
   /// 时间戳（毫秒）；null 表示从未执行。
   final int? timestamp;
-
   /// 是否成功；null 表示从未执行。
   final bool? success;
-
   /// 涉及的数据条数（0 表示「无变化」或失败未统计）。
   final int itemCount;
-
   /// 涉及的 box 名列表（空表示全部 / 无）。
   final List<String> scope;
-
   /// 是否为「无变化，无需同步」。
   final bool noChanges;
 
@@ -78,8 +67,7 @@ class SyncStatusEntry {
         'noChanges': noChanges,
       };
 
-  factory SyncStatusEntry.fromJson(Map<String, dynamic> json) =>
-      SyncStatusEntry(
+  factory SyncStatusEntry.fromJson(Map<String, dynamic> json) => SyncStatusEntry(
         timestamp: json['timestamp'] as int?,
         success: json['success'] as bool?,
         itemCount: (json['itemCount'] as int?) ?? 0,
@@ -112,17 +100,14 @@ class SyncConflictReport {
 
   SyncConflictReport({required this.byBox});
 
-  int get total => byBox.values.fold(0, (sum, list) => sum + list.length);
+  int get total =>
+      byBox.values.fold(0, (sum, list) => sum + list.length);
 }
 
-/// 云同步配置（URL/用户名/密码除外，密码用 secure storage）
+/// WebDAV 配置（URL/用户名/密码除外，密码用 secure storage）
 class CloudSyncConfig {
   final String url;
   final String username;
-
-  /// 备份后端（默认 WebDAV）。
-  final CloudBackendKind backend;
-
   final bool autoSync;
   final SyncFrequency frequency;
   final int? lastSyncTimestamp; // null = never synced
@@ -143,7 +128,6 @@ class CloudSyncConfig {
   const CloudSyncConfig({
     this.url = '',
     this.username = '',
-    this.backend = CloudBackendKind.webdav,
     this.autoSync = false,
     this.frequency = SyncFrequency.manual,
     this.lastSyncTimestamp,
@@ -169,7 +153,6 @@ class CloudSyncConfig {
   CloudSyncConfig copyWith({
     String? url,
     String? username,
-    CloudBackendKind? backend,
     bool? autoSync,
     SyncFrequency? frequency,
     int? lastSyncTimestamp,
@@ -181,7 +164,6 @@ class CloudSyncConfig {
     return CloudSyncConfig(
       url: url ?? this.url,
       username: username ?? this.username,
-      backend: backend ?? this.backend,
       autoSync: autoSync ?? this.autoSync,
       frequency: frequency ?? this.frequency,
       lastSyncTimestamp: lastSyncTimestamp ?? this.lastSyncTimestamp,
@@ -196,10 +178,10 @@ class CloudSyncConfig {
   Map<String, dynamic> toJson() => <String, dynamic>{
         'url': url,
         'username': username,
-        'backend': backend.name,
         'autoSync': autoSync,
         'frequency': frequency.name,
-        if (lastSyncTimestamp != null) 'lastSyncTimestamp': lastSyncTimestamp,
+        if (lastSyncTimestamp != null)
+          'lastSyncTimestamp': lastSyncTimestamp,
         if (lastUpload != null) 'lastUpload': lastUpload!.toJson(),
         if (lastRestore != null) 'lastRestore': lastRestore!.toJson(),
         if (boxHashes != null) 'boxHashes': boxHashes,
@@ -227,13 +209,9 @@ class CloudSyncConfig {
       return raw.map((k, v) => MapEntry(k as String, v as String));
     }
 
-    final backendName = json['backend'] as String?;
     return CloudSyncConfig(
       url: (json['url'] as String?) ?? '',
       username: (json['username'] as String?) ?? '',
-      backend: backendName == 'onedrive'
-          ? CloudBackendKind.onedrive
-          : CloudBackendKind.webdav,
       autoSync: (json['autoSync'] as bool?) ?? false,
       frequency: parseFrequency(json['frequency'] as String?),
       lastSyncTimestamp: json['lastSyncTimestamp'] as int?,
@@ -255,7 +233,8 @@ class CloudSyncConfigStore {
     final raw = prefs.getString(_prefsKey);
     if (raw == null) return const CloudSyncConfig();
     try {
-      return CloudSyncConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      return CloudSyncConfig.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>);
     } catch (_) {
       return const CloudSyncConfig();
     }
@@ -282,6 +261,14 @@ class CloudSyncConfigStore {
   }
 }
 
+/// 远程 WebDAV 文件项
+class _RemoteFile {
+  final String name;
+  final bool isCollection;
+
+  const _RemoteFile({required this.name, required this.isCollection});
+}
+
 /// 导入结果：写入条数 + 被应用的 box 远程哈希（用于更新增量基线）。
 class _ImportResult {
   final int appliedItems;
@@ -290,20 +277,15 @@ class _ImportResult {
   const _ImportResult({this.appliedItems = 0, this.remoteHashes = const {}});
 }
 
-/// 云同步服务 —— 基于 [CloudSyncBackend] 的备份与多端同步。
+/// 云同步服务 —— 基于 WebDAV 的备份与多端同步。
 ///
-/// WebDAV / OneDrive 文件操作分别见 [WebDavBackend] 与 [OneDriveBackend]；
-/// OneDrive 登录凭证由 [oneDrive]（[OneDriveAuthService]）管理，凭证变化会
-/// 转发为本服务的通知。配置仅持久化非敏感字段，密码与 token 走安全存储。
+/// 使用 dio 手写 WebDAV 操作（MKCOL/PUT/GET/PROPFIND/DELETE），不引入额外的
+/// webdav 包。密码使用 [FlutterSecureStorage] 安全存储，配置仅持久化非敏感
+/// 字段（URL / 用户名 / 自动同步开关 / 频率 / 状态明细 / 增量哈希）。
 class CloudSyncService extends ChangeNotifier {
+  static const String _remoteDir = '/nexhub';
   static const int _maxBackups = 5;
   static const String _prefsHashKey = '__prefs__';
-
-  /// 备份文件名前缀 / 后缀（各后端共用同一命名规则）。
-  static const String _backupPrefix = 'nexhub-backup-';
-  static const String _backupSuffix = '.zip';
-
-  final OneDriveAuthService oneDrive = OneDriveAuthService();
 
   CloudSyncConfig _config = const CloudSyncConfig();
   String? _password;
@@ -314,19 +296,10 @@ class CloudSyncService extends ChangeNotifier {
   bool get isSyncing => _syncing;
   String? get lastError => _lastError;
 
-  CloudSyncService() {
-    oneDrive.addListener(_onAuthChanged);
-  }
-
-  void _onAuthChanged() {
-    notifyListeners();
-  }
-
   Future<void> init() async {
     final store = CloudSyncConfigStore();
     _config = await store.load();
     _password = await store.loadPassword();
-    await oneDrive.init();
   }
 
   Future<void> updateConfig(CloudSyncConfig config, String? password) async {
@@ -340,68 +313,81 @@ class CloudSyncService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 切换备份后端。切换时清空增量哈希基线：新云端按空处理，首次同步全量上传。
-  Future<void> switchBackend(CloudBackendKind kind) async {
-    if (_config.backend == kind) return;
-    _config = _config.copyWith(
-      backend: kind,
-      boxHashes: const <String, String>{},
-    );
-    _lastError = null;
-    await CloudSyncConfigStore().save(_config);
-    notifyListeners();
+  /// 构造 Basic Auth header value（含 "Basic " 前缀）。
+  String _basicAuth(String username, String password) {
+    final creds = base64Encode(utf8.encode('$username:$password'));
+    return 'Basic $creds';
   }
 
-  /// 当前后端是否就绪（WebDAV 已配置 / OneDrive 已登录）。
-  bool get isReady {
-    switch (_config.backend) {
-      case CloudBackendKind.webdav:
-        return _config.url.isNotEmpty && _password != null;
-      case CloudBackendKind.onedrive:
-        return oneDrive.isLoggedIn;
+  /// 规范化 WebDAV URL，确保以 / 结尾的根路径能正确拼接子路径。
+  String _buildUrl(String path) {
+    String base = _config.url;
+    while (base.endsWith('/')) {
+      base = base.substring(0, base.length - 1);
     }
+    if (path.isEmpty || path == '/') return base;
+    if (!path.startsWith('/')) path = '/$path';
+    return '$base$path';
   }
 
-  /// 按当前配置构造后端实例（轻量对象，每次同步新建）。
-  CloudSyncBackend _activeBackend() {
-    switch (_config.backend) {
-      case CloudBackendKind.webdav:
-        return WebDavBackend(
-          baseUrl: _config.url,
-          username: _config.username,
-          password: _password ?? '',
-        );
-      case CloudBackendKind.onedrive:
-        return OneDriveBackend(oneDrive);
-    }
+  Dio _buildDio({required String username, required String password}) {
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 60),
+      sendTimeout: const Duration(seconds: 60),
+      headers: <String, String>{
+        'Authorization': _basicAuth(username, password),
+      },
+    ));
+    return dio;
   }
 
-  /// 测试 OneDrive 连接（校验 token 与 AppFolder 权限）。返回 (success, latencyMs)。
-  Future<(bool, int)> testOneDriveConnection() =>
-      OneDriveBackend.testConnection(oneDrive);
-
-  /// 测试 WebDAV 连接（PROPFIND Depth:0）。返回 (success, latencyMs)。
+  /// 测试 WebDAV 连接。返回 (success, latencyMs)。
   Future<(bool, int)> testConnection({
     required String url,
     required String username,
     required String password,
-  }) =>
-      WebDavBackend.testConnection(
-          url: url, username: username, password: password);
-
-  /// 异常 → 语义错误码。
-  String _mapError(Object e) {
-    if (e is DioException) return 'network';
-    if (e is CloudAuthException) return 'onedrive_auth';
-    return 'unknown:$e';
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    try {
+      String base = url;
+      while (base.endsWith('/')) {
+        base = base.substring(0, base.length - 1);
+      }
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: <String, String>{
+          'Authorization': _basicAuth(username, password),
+        },
+      ));
+      // 用 PROPFIND Depth: 0 探测根目录，验证凭据与连通性。
+      final resp = await dio.request<String>(
+        base,
+        data: '',
+        options: Options(
+          method: 'PROPFIND',
+          headers: <String, String>{
+            'Depth': '0',
+            'Content-Type': 'application/xml; charset=utf-8',
+          },
+          responseType: ResponseType.plain,
+          validateStatus: (s) => s != null && s >= 200 && s < 400,
+        ),
+      );
+      stopwatch.stop();
+      // 207 Multistatus 是 PROPFIND 的标准成功响应
+      final ok = resp.statusCode != null && resp.statusCode! < 400;
+      return (ok, stopwatch.elapsedMilliseconds);
+    } catch (_) {
+      stopwatch.stop();
+      return (false, stopwatch.elapsedMilliseconds);
+    }
   }
 
-  /// 是否为备份文件（统一命名规则）。
-  static bool _isBackupFile(RemoteBackupFile f) =>
-      f.name.startsWith(_backupPrefix) && f.name.endsWith(_backupSuffix);
-
   /// 内容哈希（sha256 hex），用于增量同步基线比对。
-  String _sha256(String s) => crypto.sha256.convert(utf8.encode(s)).toString();
+  String _sha256(String s) =>
+      crypto.sha256.convert(utf8.encode(s)).toString();
 
   /// 深度相等：对两端 encode 后的结构做 JSON 字符串比对（可靠且无需额外依赖）。
   bool _valuesEqual(dynamic a, dynamic b) => jsonEncode(a) == jsonEncode(b);
@@ -439,14 +425,14 @@ class CloudSyncService extends ChangeNotifier {
     return hashes;
   }
 
-  /// 立即同步：导出本地 → 打包 ZIP → 上传到当前后端（WebDAV / OneDrive）。
+  /// 立即同步：导出本地 → 打包 ZIP → 上传到 WebDAV。
   ///
   /// [scope] 为 null 时导出全部；否则只导出选中分类对应的 box（含「设置与偏好」
   /// 时才包含 SharedPreferences）。
   /// 增量：仅上传相对上次同步发生变化的 box / 偏好；无变化则直接成功（标记无变化）。
   Future<bool> syncNow({Set<BackupCategory>? scope}) async {
     if (_syncing) return false;
-    if (!isReady) {
+    if (_config.url.isEmpty || _password == null) {
       _lastError = 'no_config';
       return false;
     }
@@ -499,14 +485,28 @@ class CloudSyncService extends ChangeNotifier {
         return false;
       }
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final filename = '$_backupPrefix$timestamp$_backupSuffix';
+      final filename = 'nexhub-backup-$timestamp.zip';
 
-      // 上传到当前后端（WebDAV：MKCOL+PUT；OneDrive：token+PUT/分片会话）
-      final backend = _activeBackend();
-      await backend.prepare();
-      await backend.uploadBackup(filename, zipBytes);
+      final dio = _buildDio(
+        username: _config.username,
+        password: _password!,
+      );
+      // 创建远程目录（已存在则忽略 405/409）
+      await _ensureRemoteDir(dio);
+      // 上传 ZIP
+      await dio.put(
+        _buildUrl('$_remoteDir/$filename'),
+        data: Stream.fromIterable(<List<int>>[zipBytes]),
+        options: Options(
+          headers: <String, String>{
+            'Content-Type': 'application/zip',
+            'Content-Length': '${zipBytes.length}',
+          },
+          validateStatus: (s) => s != null && s >= 200 && s < 300,
+        ),
+      );
       // 清理旧备份（保留最近 5 份）
-      await _cleanupOldBackups(backend);
+      await _cleanupOldBackups(dio);
 
       // 统计上传条数 + 更新哈希基线
       var itemCount = 0;
@@ -550,7 +550,7 @@ class CloudSyncService extends ChangeNotifier {
         ),
       );
       await CloudSyncConfigStore().save(_config);
-      _lastError = _mapError(e);
+      _lastError = e is DioException ? 'network' : 'unknown:$e';
       _syncing = false;
       notifyListeners();
       return false;
@@ -562,26 +562,38 @@ class CloudSyncService extends ChangeNotifier {
   /// 返回 null 表示未配置 / 无远程备份 / 出错（详见 [lastError]）。
   Future<SyncConflictReport?> previewConflicts(
       {Set<BackupCategory>? scope}) async {
-    if (!isReady) {
+    if (_config.url.isEmpty || _password == null) {
       _lastError = 'no_config';
       return null;
     }
     try {
-      final backend = _activeBackend();
-      final files = (await backend.listBackups()).where(_isBackupFile).toList();
+      final dio = _buildDio(
+        username: _config.username,
+        password: _password!,
+      );
+      final files = await _listRemoteBackups(dio);
       if (files.isEmpty) {
         _lastError = 'no_remote_backup';
         return null;
       }
       files.sort((a, b) => b.name.compareTo(a.name));
       final latest = files.first;
-      final bytes = await backend.downloadBackup(latest.name);
+      final resp = await dio.get<List<int>>(
+        _buildUrl('$_remoteDir/${latest.name}'),
+        options: Options(
+          responseType: ResponseType.bytes,
+          validateStatus: (s) => s != null && s >= 200 && s < 300,
+        ),
+      );
+      final bytes = Uint8List.fromList(resp.data ?? <int>[]);
       final archive = ZipDecoder().decodeBytes(bytes);
       final hiveFile = archive.findFile('hive_boxes.json');
       if (hiveFile == null) return SyncConflictReport(byBox: const {});
-      final remoteRaw = jsonDecode(utf8.decode(hiveFile.content as List<int>))
-          as Map<String, dynamic>;
-      final allowedBoxes = scope == null ? null : resolveBoxNames(scope);
+      final remoteRaw =
+          jsonDecode(utf8.decode(hiveFile.content as List<int>))
+              as Map<String, dynamic>;
+      final allowedBoxes =
+          scope == null ? null : resolveBoxNames(scope);
       final reverseCat = <String, BackupCategory>{};
       for (final e in kBackupCategoryBoxes.entries) {
         for (final b in e.value) {
@@ -605,23 +617,23 @@ class CloudSyncService extends ChangeNotifier {
           final remoteEnc = remoteData[rk];
           if (!_valuesEqual(localEnc, remoteEnc)) {
             byBox.putIfAbsent(name, () => <SyncConflict>[]).add(SyncConflict(
-                  boxName: name,
-                  category: reverseCat[name] ?? BackupCategory.other,
-                  key: rk,
-                  localPreview: _preview(localEnc),
-                  remotePreview: _preview(remoteEnc),
-                ));
+              boxName: name,
+              category: reverseCat[name] ?? BackupCategory.other,
+              key: rk,
+              localPreview: _preview(localEnc),
+              remotePreview: _preview(remoteEnc),
+            ));
           }
         }
       }
       return SyncConflictReport(byBox: byBox);
     } catch (e) {
-      _lastError = _mapError(e);
+      _lastError = e is DioException ? 'network' : 'unknown:$e';
       return null;
     }
   }
 
-  /// 从当前后端拉最新 ZIP 并恢复到本地。
+  /// 从 WebDAV 拉最新 ZIP 并恢复到本地。
   ///
   /// [merge] = true 合并（保留本地其它键）；false 覆盖（先清空目标 box 再写入）。
   /// [scope] 非空时只恢复这些分类对应的 box。
@@ -635,7 +647,7 @@ class CloudSyncService extends ChangeNotifier {
     Map<String, bool>? conflictChoices,
   }) async {
     if (_syncing) return false;
-    if (!isReady) {
+    if (_config.url.isEmpty || _password == null) {
       _lastError = 'no_config';
       return false;
     }
@@ -645,8 +657,11 @@ class CloudSyncService extends ChangeNotifier {
     final resolvedBoxes =
         scope == null ? kStorageBoxNames.toSet() : resolveBoxNames(scope);
     try {
-      final backend = _activeBackend();
-      final files = (await backend.listBackups()).where(_isBackupFile).toList();
+      final dio = _buildDio(
+        username: _config.username,
+        password: _password!,
+      );
+      final files = await _listRemoteBackups(dio);
       if (files.isEmpty) {
         _lastError = 'no_remote_backup';
         _syncing = false;
@@ -656,7 +671,14 @@ class CloudSyncService extends ChangeNotifier {
       // 取最新（按文件名降序，timestamp 大的在前）
       files.sort((a, b) => b.name.compareTo(a.name));
       final latest = files.first;
-      final bytes = await backend.downloadBackup(latest.name);
+      final resp = await dio.get<List<int>>(
+        _buildUrl('$_remoteDir/${latest.name}'),
+        options: Options(
+          responseType: ResponseType.bytes,
+          validateStatus: (s) => s != null && s >= 200 && s < 300,
+        ),
+      );
+      final bytes = Uint8List.fromList(resp.data ?? <int>[]);
       final archive = ZipDecoder().decodeBytes(bytes);
       final result = await _importFromArchive(
         archive,
@@ -694,19 +716,115 @@ class CloudSyncService extends ChangeNotifier {
         ),
       );
       await CloudSyncConfigStore().save(_config);
-      _lastError = _mapError(e);
+      _lastError = e is DioException ? 'network' : 'unknown:$e';
       _syncing = false;
       notifyListeners();
       return false;
     }
   }
 
-  /// 清理旧备份（保留最近 [_maxBackups] 份）。
-  Future<void> _cleanupOldBackups(CloudSyncBackend backend) async {
-    final files = (await backend.listBackups()).where(_isBackupFile).toList()
+  Future<void> _ensureRemoteDir(Dio dio) async {
+    try {
+      await dio.request<void>(
+        _buildUrl('$_remoteDir/'),
+        data: '',
+        options: Options(
+          method: 'MKCOL',
+          validateStatus: (s) =>
+              s != null && (s == 201 || s == 405 || s == 409 || s == 301),
+        ),
+      );
+    } catch (_) {
+      // 忽略：目录可能已存在或允许后续 PUT 自动创建
+    }
+  }
+
+  Future<List<_RemoteFile>> _listRemoteBackups(Dio dio) async {
+    const propfindBody = '<?xml version="1.0" encoding="utf-8"?>'
+        '<D:propfind xmlns:D="DAV:">'
+        '<D:prop><D:displayname/><D:resourcetype/></D:prop>'
+        '</D:propfind>';
+    try {
+      final resp = await dio.request<String>(
+        _buildUrl('$_remoteDir/'),
+        data: propfindBody,
+        options: Options(
+          method: 'PROPFIND',
+          headers: <String, String>{
+            'Depth': '1',
+            'Content-Type': 'application/xml; charset=utf-8',
+          },
+          responseType: ResponseType.plain,
+          validateStatus: (s) => s != null && s >= 200 && s < 400,
+        ),
+      );
+      return _parsePropfind(resp.data ?? '');
+    } catch (_) {
+      return <_RemoteFile>[];
+    }
+  }
+
+  List<_RemoteFile> _parsePropfind(String body) {
+    final files = <_RemoteFile>[];
+    if (body.isEmpty) return files;
+    try {
+      final doc = XmlDocument.parse(body);
+      for (final response in doc.findAllElements('response',
+          namespace: '*')) {
+        final hrefElement = response
+            .findElements('href', namespace: '*')
+            .firstOrNull;
+        if (hrefElement == null) continue;
+        final href = (hrefElement.value ?? '').trim();
+        if (href.isEmpty) continue;
+        // 解析出最后一段文件名
+        final decoded = Uri.decodeFull(href);
+        String name = decoded;
+        if (decoded.endsWith('/')) {
+          continue;
+        }
+        final lastSlash = decoded.lastIndexOf('/');
+        if (lastSlash >= 0 && lastSlash < decoded.length - 1) {
+          name = decoded.substring(lastSlash + 1);
+        }
+        final isCollection = response
+                .findElements('propstat', namespace: '*')
+                .firstOrNull
+                ?.findElements('prop', namespace: '*')
+                .firstOrNull
+                ?.findElements('resourcetype', namespace: '*')
+                .firstOrNull
+                ?.findElements('collection', namespace: '*')
+                .isNotEmpty ??
+            false;
+        files.add(_RemoteFile(name: name, isCollection: isCollection));
+      }
+    } catch (_) {
+      // XML 解析失败：返回空列表
+    }
+    return files;
+  }
+
+  Future<void> _cleanupOldBackups(Dio dio) async {
+    final files = await _listRemoteBackups(dio);
+    final backups = files
+        .where((f) =>
+            !f.isCollection &&
+            f.name.startsWith('nexhub-backup-') &&
+            f.name.endsWith('.zip'))
+        .toList()
       ..sort((a, b) => b.name.compareTo(a.name)); // 新到旧
-    for (var i = _maxBackups; i < files.length; i++) {
-      await backend.deleteBackup(files[i].name);
+    for (var i = _maxBackups; i < backups.length; i++) {
+      try {
+        await dio.delete(
+          _buildUrl('$_remoteDir/${backups[i].name}'),
+          options: Options(
+            validateStatus: (s) => s != null && s >= 200 && s < 300,
+          ),
+        );
+      } catch (_) {
+        // 忽略单个删除失败
+      }
     }
   }
 
@@ -829,7 +947,8 @@ class CloudSyncService extends ChangeNotifier {
     // 2. 合并 / 覆盖 SharedPreferences
     final prefsFile = archive.findFile('preferences.json');
     if (prefsFile != null) {
-      if (categories != null && !categories.contains(BackupCategory.settings)) {
+      if (categories != null &&
+          !categories.contains(BackupCategory.settings)) {
         return _ImportResult(
             appliedItems: appliedItems, remoteHashes: remoteHashes);
       }
