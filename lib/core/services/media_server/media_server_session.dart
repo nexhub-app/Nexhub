@@ -1,5 +1,5 @@
-/// 媒体服务器播放会话：Start / Progress（周期）/ Stopped 三段式上报 + 已看标记，
-/// 以及「协商 → 打开播放页」的开场函数。
+/// 媒体服务器播放：会话上报（Start / Progress / Stopped 三段式 + 已看标记）、
+/// 播放列表控制器（集内切换 / 自动连播）与「协商 → 打开播放页」开场函数。
 ///
 /// 位置一律以毫秒传入，内部换算 ticks（× 10000，两家 API 的 100ns 单位）。
 /// 上报失败静默忽略：网络抖动不应打断本地播放，服务器进度以下一次心跳为准。
@@ -17,10 +17,11 @@ import 'media_server_models.dart';
 /// 「已看」自动标记阈值（服务器端同样按 0.9 判定，双保险）。
 const double kMediaServerWatchedRatio = 0.9;
 
-/// 一次媒体服务器播放的上报会话（每次播放新建）。
+/// 单集播放的上报会话（每次切集新建）。
 ///
-/// 生命周期：播放页 open 成功后 [start] → 播放中 [reportProgress]（约 10s 周期，
-/// 暂停 / seek 后由播放页立即补报）→ 退出 / 播完 [stop]（≥90% 自动标记已看）。
+/// 生命周期：open 成功后 [start] → 播放中 [reportProgress]（约 10s 周期，
+/// 暂停 / seek 后由播放页立即补报）→ 退出 / 播完 / 切走 [stop]
+/// （≥90% 自动标记已看）。
 class MediaServerPlaybackSession {
   MediaServerPlaybackSession({
     required this.client,
@@ -106,27 +107,124 @@ class MediaServerPlaybackSession {
   }
 }
 
-/// 打开媒体服务器播放页：PlaybackInfo 协商 → 直连 URL → 播放器（directUrl 模式）。
+/// 媒体服务器播放列表控制器：一次播放持有整季（或单集）列表，
+/// 供播放器内上下集切换 / 选集面板 / 自动连播按需协商新集直连地址。
+class MediaServerPlayback {
+  MediaServerPlayback({
+    required this.client,
+    required this.episodes,
+    required this.initialIndex,
+    this.initialInfo,
+    this.fromStart = false,
+  }) : currentIndex = initialIndex;
+
+  final MediaServerClientBase client;
+
+  /// 播放列表（整季剧集或单集电影）。
+  final List<ServerMediaItem> episodes;
+  final int initialIndex;
+
+  /// true = 用户选择「从头播放」，忽略首集的服务器续播位置。
+  final bool fromStart;
+
+  /// 已为 [initialIndex] 协商好的直连信息（开场函数解析后带入，省一次请求）。
+  PlaybackInfoResult? initialInfo;
+
+  int currentIndex = 0;
+
+  int get length => episodes.length;
+
+  ServerMediaItem get current =>
+      episodes[currentIndex.clamp(0, episodes.length - 1)];
+
+  /// 切到 [index] 并协商该集直连地址（协商失败原样上抛，由播放器回滚）。
+  Future<PlaybackInfoResult> resolveAt(int index) async {
+    currentIndex = index.clamp(0, episodes.length - 1);
+    return client.createPlaybackInfo(current.id);
+  }
+
+  /// 由当前列表构造播放器通用的 Episode 列表（url 占位：媒体服务器切集
+  /// 走专用分支按需协商，不读该字段）。
+  List<Episode> toPlayerEpisodes() => <Episode>[
+        for (final e in episodes)
+          Episode(
+            id: e.id,
+            title: (e.parentIndexNumber != null && e.indexNumber != null)
+                ? '${e.parentIndexNumber}'
+                    'x${e.indexNumber.toString().padLeft(2, '0')} ${e.name}'
+                : e.name,
+            url: '',
+            number: e.indexNumber,
+          ),
+      ];
+}
+
+/// 打开媒体服务器播放页：组装播放列表 → PlaybackInfo 协商 → 播放器
+/// （directUrl 模式）。
 ///
-/// 需转码时 SnackBar 明确提示并返回（不静默黑屏）；协商失败同样提示。
+/// - 详情页已加载整季时直接复用（[playlist]）；集条目未带列表时拉取该季
+///   一次（仅集；电影单集自成一列）；
+/// - 协商期间显示「正在连接服务器…」（慢速服务器可能数秒）；
+/// - 需转码时 SnackBar 明确提示并返回（不静默黑屏）。
 /// 返回播放页已退出（供详情页刷新已看角标与进度）。
 Future<void> openMediaServerPlayer(
   BuildContext context, {
   required MediaServerClientBase client,
   required ServerMediaItem item,
+  List<ServerMediaItem>? playlist,
   bool fromStart = false,
 }) async {
   final l10n = AppLocalizations.of(context);
+
+  // 组装播放列表（尽量少请求：详情页传入则零请求）。
+  var list = playlist ?? const <ServerMediaItem>[];
+  final seriesId = item.seriesId;
+  if (list.isEmpty && item.type == 'Episode' && seriesId != null) {
+    try {
+      list = await client.fetchEpisodes(seriesId, seasonId: item.seasonId);
+    } on Object {
+      list = const <ServerMediaItem>[];
+    }
+    if (!list.any((e) => e.id == item.id)) list = <ServerMediaItem>[item];
+  }
+  if (list.isEmpty) list = <ServerMediaItem>[item];
+
+  final resolvedIndex =
+      list.indexWhere((e) => e.id == item.id).clamp(0, list.length - 1);
+  final playback = MediaServerPlayback(
+    client: client,
+    episodes: list,
+    initialIndex: resolvedIndex,
+    fromStart: fromStart,
+  );
+
+  // 协商直连地址（慢速服务器可能数秒：显示连接中遮罩）。
+  if (!context.mounted) return;
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => AlertDialog(
+      content: Row(
+        children: <Widget>[
+          const CircularProgressIndicator(),
+          const SizedBox(width: 20),
+          Expanded(child: Text(l10n.mediaServerConnecting)),
+        ],
+      ),
+    ),
+  );
   final PlaybackInfoResult info;
   try {
-    info = await client.createPlaybackInfo(item.id);
+    info = await client.createPlaybackInfo(list[resolvedIndex].id);
   } on Object catch (e) {
+    if (context.mounted) Navigator.of(context).pop();
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.mediaServerOperationFailed('$e'))),
     );
     return;
   }
+  if (context.mounted) Navigator.of(context).pop();
   if (!context.mounted) return;
   if (info.requiresTranscode || info.playUrl.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -134,27 +232,25 @@ Future<void> openMediaServerPlayer(
     );
     return;
   }
-  final title = (item.seriesName != null && item.seriesName!.isNotEmpty)
-      ? '${item.seriesName} ${item.name}'
-      : item.name;
+  playback.initialInfo = info;
+
+  final target = list[resolvedIndex];
+  final title = (target.seriesName != null && target.seriesName!.isNotEmpty)
+      ? '${target.seriesName} ${target.name}'
+      : target.name;
   await Navigator.of(context).push(
     AppPageRoute<void>(
       builder: (_) => VideoPlayerScreen(
         title: title,
-        episode: Episode(id: item.id, title: item.name, url: info.playUrl),
+        episode: Episode(id: target.id, title: target.name, url: info.playUrl),
+        episodes: playback.toPlayerEpisodes(),
+        initialEpisodeIndex: resolvedIndex,
         sourceId: 'media-server',
-        itemId: item.id,
+        itemId: target.id,
         directUrl: info.playUrl,
         directHeaders: info.headers,
         restoreProgress: true,
-        mediaServerSession: MediaServerPlaybackSession(
-          client: client,
-          itemId: item.id,
-          playSessionId: info.playSessionId,
-          initialPositionTicks:
-              fromStart ? 0 : (item.userData?.playbackPositionTicks ?? 0),
-          runTimeTicks: info.runTimeTicks ?? item.runTimeTicks,
-        ),
+        mediaServerPlayback: playback,
       ),
     ),
   );

@@ -46,6 +46,7 @@ import '../../../core/resolver/builtin_resolver.dart'
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/services/source_repository.dart';
+import '../../../core/services/media_server/media_server_models.dart';
 import '../../../core/services/media_server/media_server_session.dart';
 import '../../../core/stats/reading_session_recorder.dart';
 import '../../../core/stats/stats_models.dart';
@@ -154,10 +155,12 @@ class VideoPlayerScreen extends StatefulWidget {
   /// 封面 URL（用于收藏时透传，避免收藏书架缺封面）。
   final String? coverUrl;
 
-  /// 媒体服务器播放会话：非空时为媒体服务器直连播放——
+  /// 媒体服务器播放控制器：非空时为媒体服务器直连播放——
   /// 进度只上报服务器（不写本地历史 box，§2.5）、续播 seek 用服务器进度、
-  /// 弹幕入口隐藏、退出兜底上报 Stopped 并按 ≥90% 标记已看。
-  final MediaServerPlaybackSession? mediaServerSession;
+  /// 弹幕入口隐藏、退出兜底上报 Stopped 并按 ≥90% 标记已看；
+  /// 持有整季播放列表，驱动播放器内上下集切换 / 选集 / 自动连播
+  /// （切集时按需协商新集直连地址）。
+  final MediaServerPlayback? mediaServerPlayback;
 
   const VideoPlayerScreen({
     super.key,
@@ -175,7 +178,7 @@ class VideoPlayerScreen extends StatefulWidget {
     this.detailUrl,
     this.coverUrl,
     this.restoreProgress = true,
-    this.mediaServerSession,
+    this.mediaServerPlayback,
   });
 
   @override
@@ -208,7 +211,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   bool get _isDirectMode => widget.localUri != null || widget.directUrl != null;
 
   /// 是否为媒体服务器播放（进度只走服务器、弹幕入口隐藏）。
-  bool get _isMediaServer => widget.mediaServerSession != null;
+  bool get _isMediaServer => widget.mediaServerPlayback != null;
+
+  /// 当前集的上报会话（媒体服务器播放；切集时重建）。
+  MediaServerPlaybackSession? _serverSession;
 
   /// 当前弹幕源（持久化到 SharedPreferences，键 `danmaku_source`）。
   DanmakuSourceType _danmakuSource = DanmakuSourceType.dandanplay;
@@ -993,16 +999,31 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 位置写盘被挡住，不存在「被 0 覆盖」的竞态。
     // 关闭「记住播放/阅读位置」时不再恢复上次进度，直接从头播放；
     // 但仍置位 [_positionRestoreDone]，允许本集继续保存进度（仅不跳转）。
+    // 媒体服务器：先构建当前集会话（续播恢复要读它），再开始上报
+    // （Start；随后由位置流驱动心跳）。
+    if (_isMediaServer) {
+      final pb = widget.mediaServerPlayback!;
+      final info = pb.initialInfo;
+      if (info != null) {
+        _serverSession = MediaServerPlaybackSession(
+          client: pb.client,
+          itemId: pb.current.id,
+          playSessionId: info.playSessionId,
+          initialPositionTicks: pb.fromStart
+              ? 0
+              : (pb.current.userData?.playbackPositionTicks ?? 0),
+          runTimeTicks: info.runTimeTicks ?? pb.current.runTimeTicks,
+        );
+        unawaited(
+          _serverSession!.start(positionMs: _serverSession!.initialPositionMs),
+        );
+      }
+    }
     if (widget.restoreProgress) {
       unawaited(_restoreSavedPosition());
     } else {
       _positionRestoreDone = true;
       _lastPositionSaveAt = DateTime.now();
-    }
-    // 媒体服务器：开始上报（Start；随后由位置流驱动心跳）。
-    if (_isMediaServer) {
-      final session = widget.mediaServerSession!;
-      unawaited(session.start(positionMs: session.initialPositionMs));
     }
 
     // 监听播放状态
@@ -1844,9 +1865,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   Future<void> _restoreSavedPosition() async {
     try {
       if (_isMediaServer) {
-        final savedMs = widget.mediaServerSession!.initialPositionMs;
-        if (widget.restoreProgress && savedMs > 5000) {
-          await _seekWhenReady(Duration(milliseconds: savedMs));
+        final session = _serverSession;
+        if (session != null) {
+          final savedMs = session.initialPositionMs;
+          if (widget.restoreProgress && savedMs > 5000) {
+            await _seekWhenReady(Duration(milliseconds: savedMs));
+          }
         }
         return;
       }
@@ -1898,7 +1922,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 媒体服务器进度上报：约 10s 心跳；暂停态变化或位置跳变（seek）立即补报。
   void _maybeReportServerProgress() {
-    final session = widget.mediaServerSession;
+    final session = _serverSession;
     if (session == null || !_positionRestoreDone) return;
     final now = DateTime.now();
     final posMs = _position.inMilliseconds;
@@ -1918,12 +1942,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (!mounted || _disposed) return;
     if (!completed) return;
     if (_isMediaServer) {
-      unawaited(
-        widget.mediaServerSession!.stop(
-          positionMs: _position.inMilliseconds,
-          completed: true,
-        ),
-      );
+      final session = _serverSession;
+      if (session != null) {
+        unawaited(
+          session.stop(
+            positionMs: _position.inMilliseconds,
+            completed: true,
+          ),
+        );
+      }
       return;
     }
     // 播完清除该集播放位置，避免下次续播已看完的集
@@ -2784,6 +2811,52 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 跟随新 ep 的 lineName 同步（详情页 chips 选定后保持同一线路）。
     _selectedLine = ep.lineName;
 
+    // 媒体服务器切集：结算当前集会话 → 协商新集直连地址（慢速服务器可能
+    // 数秒，播放器已有缓冲态）→ 换源开播 → 重建会话并按服务器进度续播。
+    if (_isMediaServer) {
+      final pb = widget.mediaServerPlayback!;
+      final oldSession = _serverSession;
+      _serverSession = null;
+      if (oldSession != null) {
+        unawaited(oldSession.stop(positionMs: _position.inMilliseconds));
+      }
+      PlaybackInfoResult info;
+      try {
+        info = await pb.resolveAt(index);
+      } on Object catch (e) {
+        if (!_loadSession.isValid(token)) return;
+        // 协商失败：回滚索引，停留在当前集（画面未动）。
+        setState(() => _episodeIndex = oldIndex);
+        _positionRestoreDone = true;
+        final l10n = AppLocalizations.of(context);
+        _safeSnackBar(l10n.mediaServerOperationFailed('$e'));
+        return;
+      }
+      if (!_loadSession.isValid(token)) return;
+      final target = pb.current;
+      _playUrl = info.playUrl;
+      _playHeaders = info.headers;
+      await _controller.open(info.playUrl, headers: info.headers);
+      _controller.play();
+      // 分级超时等待元数据，超时自动 re-open 一次自愈。
+      unawaited(_retryOpenOnceIfStalled());
+      _danmakuController.clear();
+      _danmakuController.reset();
+      if (!_loadSession.isValid(token)) return;
+      _serverSession = MediaServerPlaybackSession(
+        client: pb.client,
+        itemId: target.id,
+        playSessionId: info.playSessionId,
+        initialPositionTicks: target.userData?.playbackPositionTicks ?? 0,
+        runTimeTicks: info.runTimeTicks ?? target.runTimeTicks,
+      );
+      unawaited(_restoreSavedPosition());
+      unawaited(
+        _serverSession!.start(positionMs: _serverSession!.initialPositionMs),
+      );
+      return;
+    }
+
     // 本地 / 直链多集模式：直接打开该集本地文件，跳过在线源解析与换源。
     // 合并为一部的本地视频（folderPaths 每文件=一集）依赖此分支实现上下集切换。
     if (_isDirectMode) {
@@ -3378,11 +3451,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 退出时保存最后播放位置（媒体服务器改走会话 Stopped 上报）。
     _saveCurrentPosition();
     if (_isMediaServer) {
-      unawaited(
-        widget.mediaServerSession!.stop(
-          positionMs: _position.inMilliseconds,
-        ),
-      );
+      final session = _serverSession;
+      if (session != null) {
+        unawaited(
+          session.stop(positionMs: _position.inMilliseconds),
+        );
+      }
     }
     // 退出时一次性结算本次会话的观看时长（commit 内部 best-effort）。
     // 媒体服务器条目不进本地统计体系（§2.5）。

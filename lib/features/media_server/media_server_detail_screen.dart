@@ -1,10 +1,14 @@
-/// 媒体服务器条目详情页：海报 / 年份 / 简介。
+/// 媒体服务器条目详情页：沉浸式大图头（背景剧照模糊 + 渐变遮罩，
+/// 海报 / 标题浮层）+ 播放操作 + 季切换 / 集列表。
 ///
 /// - 电影 → 播放按钮（有续播位置时给「继续播放」+「从头播放」）；
 /// - 剧集 → 季切换 + 集列表（缩略图、时长、已看角标、未看完进度条）→
-///   点击集直接播放；返回后刷新已看角标与进度（进度只存服务器）；
+///   点击集直接播放（携带整季列表，播放器内可上下集 / 自动连播）；
+///   返回后刷新已看角标与进度（进度只存服务器）；
 /// - 含图形字幕（PGS）的集标注「需转码，暂不支持」。
 library;
+
+import 'dart:ui' show ImageFilter;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
@@ -14,6 +18,8 @@ import '../../core/services/media_server/media_server_models.dart';
 import '../../core/services/media_server/media_server_session.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/app_haptics.dart';
+import '../../core/widgets/app_animations.dart';
+import '../../core/widgets/app_shimmer.dart';
 import 'media_server_widgets.dart';
 
 class MediaServerDetailScreen extends StatefulWidget {
@@ -115,12 +121,14 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
   }
 
   /// 播放后返回刷新：进度 / 已看角标以服务器为准。
+  /// 携带整季集列表 → 播放器内可直接上下集 / 自动连播（零额外请求）。
   Future<void> _play(ServerMediaItem item, {bool fromStart = false}) async {
     AppHaptics.selectionClick();
     await openMediaServerPlayer(
       context,
       client: widget.client,
       item: item,
+      playlist: _episodes,
       fromStart: fromStart,
     );
     if (_isSeries) {
@@ -133,15 +141,18 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(_detail?.name ?? l10n.mediaServerSettings)),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(_detail?.name ?? ''),
+      ),
       body: _buildBody(context, l10n),
     );
   }
 
   Widget _buildBody(BuildContext context, AppLocalizations l10n) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_loading) return const _DetailSkeleton();
     if (_error != null) {
       return Center(
         child: Padding(
@@ -167,104 +178,67 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     final detail = _detail;
     if (detail == null) return const SizedBox.shrink();
     return ListView(
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
+      padding: EdgeInsets.zero,
       children: <Widget>[
-        _header(context, detail),
-        if (detail.type != 'Series') ..._movieActions(context, detail, l10n),
-        if (detail.overview != null && detail.overview!.isNotEmpty) ...<Widget>[
-          const SizedBox(height: AppTokens.spaceMd),
-          Text(
-            detail.overview!,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  height: 1.5,
-                ),
-          ),
-        ],
-        if (_isSeries) ..._seriesSection(context, l10n),
-      ],
-    );
-  }
-
-  Widget _header(BuildContext context, ServerMediaItem detail) {
-    final AppLocalizations l10n = AppLocalizations.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final runtime = detail.runTimeTicks;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppTokens.radiusMd),
-          child: SizedBox(
-            width: 110,
-            height: 165,
-            child: MediaServerPoster(
-              url: widget.client.imageUrl(detail.id, maxWidth: 400),
-              headers: widget.client.authHeaders(),
+        _ImmersiveHeader(client: widget.client, detail: detail),
+        Entrance(
+          onceKey: 'ms_detail_content',
+          offset: 16,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.spaceMd,
+              AppTokens.spaceMd,
+              AppTokens.spaceMd,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                ..._actions(context, detail, l10n),
+                if (detail.overview != null &&
+                    detail.overview!.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: AppTokens.spaceMd),
+                  Text(
+                    detail.overview!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          height: 1.5,
+                        ),
+                  ),
+                ],
+                if (_isSeries) ..._seriesSection(context, l10n),
+                const SizedBox(height: AppTokens.spaceXl),
+              ],
             ),
           ),
         ),
-        const SizedBox(width: AppTokens.spaceMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                detail.name,
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: AppTokens.spaceXs),
-              Wrap(
-                spacing: AppTokens.spaceSm,
-                runSpacing: AppTokens.spaceXs,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: <Widget>[
-                  if (detail.productionYear != null)
-                    Text(
-                      '${detail.productionYear}',
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                    ),
-                  if (detail.type == 'Series')
-                    Text(
-                      l10n.mediaServerTypeSeries,
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                    )
-                  else if (runtime != null && runtime > 0)
-                    Text(
-                      _formatRuntime(runtime),
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
 
-  /// 电影：播放按钮组（有续播位置时二选一）。
-  List<Widget> _movieActions(
+  /// 播放按钮组（电影：继续 / 从头；剧集：播放首集或当前季首集）。
+  List<Widget> _actions(
     BuildContext context,
     ServerMediaItem detail,
     AppLocalizations l10n,
   ) {
     final hasPosition = (detail.userData?.playbackPositionTicks ?? 0) > 0;
+    final playTarget = _isSeries ? (_episodes?.firstOrNull ?? detail) : detail;
+    final targetHasPosition =
+        (playTarget.userData?.playbackPositionTicks ?? 0) > 0;
+    final showResume = !_isSeries && hasPosition;
+    final showResumeSeries = _isSeries && targetHasPosition;
     return <Widget>[
-      const SizedBox(height: AppTokens.spaceLg),
+      const SizedBox(height: AppTokens.spaceSm),
       FilledButton.icon(
-        onPressed: () => _play(detail),
+        onPressed: () => _play(playTarget),
         icon: const Icon(Icons.play_arrow_rounded),
-        label: Text(hasPosition
-            ? l10n.mediaServerResumePlay
-            : l10n.mediaServerPlay),
+        label: Text(
+          (showResume || showResumeSeries)
+              ? l10n.mediaServerResumePlay
+              : l10n.mediaServerPlay,
+        ),
       ),
-      if (hasPosition) ...<Widget>[
+      if (showResume) ...<Widget>[
         const SizedBox(height: AppTokens.spaceSm),
         OutlinedButton.icon(
           onPressed: () => _play(detail, fromStart: true),
@@ -329,9 +303,115 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
           ),
     ];
   }
+}
 
-  /// 100ns ticks → 「x 小时 y 分 / y 分钟」。
-  String _formatRuntime(int ticks) {
+/// 沉浸式大图头：背景剧照模糊 + 双向渐变遮罩，海报 / 标题浮层。
+class _ImmersiveHeader extends StatelessWidget {
+  final MediaServerClientBase client;
+  final ServerMediaItem detail;
+
+  const _ImmersiveHeader({required this.client, required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final runtime = detail.runTimeTicks;
+    final subtitleParts = <String>[
+      if (detail.productionYear != null) '${detail.productionYear}',
+      if (detail.type == 'Series')
+        AppLocalizations.of(context).mediaServerTypeSeries
+      else if (runtime != null && runtime > 0) _formatRuntime(context, runtime),
+    ];
+    return Stack(
+      children: <Widget>[
+        // 背景剧照：模糊 + 降饱和感（避免抢主体）。
+        Positioned.fill(
+          child: ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+            child: MediaServerPoster(
+              url: client.imageUrl(detail.id, maxWidth: 800),
+              headers: client.authHeaders(),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        // 渐变遮罩：顶部压暗保证返回键可见，底部收拢到页面底色。
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const <double>[0, 0.35, 1],
+                colors: <Color>[
+                  scheme.surface.withValues(alpha: 0.55),
+                  scheme.surface.withValues(alpha: 0.25),
+                  scheme.surface,
+                ],
+              ),
+            ),
+          ),
+        ),
+        // 浮层内容：海报 + 标题 / 年份 / 类型。
+        Container(
+          padding: const EdgeInsets.fromLTRB(
+            AppTokens.spaceMd,
+            AppTokens.spaceXl * 2,
+            AppTokens.spaceMd,
+            AppTokens.spaceMd,
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                  child: SizedBox(
+                    width: 110,
+                    height: 165,
+                    child: MediaServerPoster(
+                      url: client.imageUrl(detail.id, maxWidth: 400),
+                      headers: client.authHeaders(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppTokens.spaceMd),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          detail.name,
+                          style: textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        if (subtitleParts.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: AppTokens.spaceXs),
+                          Text(
+                            subtitleParts.join(' · '),
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _formatRuntime(BuildContext context, int ticks) {
     final l10n = AppLocalizations.of(context);
     final totalMinutes = ticks ~/ 10000 ~/ 1000 ~/ 60;
     if (totalMinutes >= 60) {
@@ -365,8 +445,9 @@ class _EpisodeCard extends StatelessWidget {
     final played = userData?.played ?? false;
     final ticks = userData?.playbackPositionTicks ?? 0;
     final runtime = episode.runTimeTicks ?? 0;
-    final progress =
-        (runtime > 0 && ticks > 0 && !played) ? (ticks / runtime).clamp(0.0, 1.0) : null;
+    final progress = (runtime > 0 && ticks > 0 && !played)
+        ? (ticks / runtime).clamp(0.0, 1.0)
+        : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppTokens.spaceSm),
@@ -467,6 +548,38 @@ class _EpisodeCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 详情加载骨架（MD3 微光占位）：大图头同构 + 文本行。
+class _DetailSkeleton extends StatelessWidget {
+  const _DetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: const <Widget>[
+        SizedBox(height: 220, width: double.infinity, child: AppShimmer()),
+        Padding(
+          padding: EdgeInsets.all(AppTokens.spaceMd),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              AppShimmer(width: 180, height: 22, phase: 0.2),
+              SizedBox(height: AppTokens.spaceSm),
+              AppShimmer(width: 120, height: 14, phase: 0.35),
+              SizedBox(height: AppTokens.spaceLg),
+              AppShimmer(height: 44, borderRadius: AppTokens.radiusSm, phase: 0.5),
+              SizedBox(height: AppTokens.spaceMd),
+              AppShimmer(height: 14, phase: 0.65),
+              SizedBox(height: AppTokens.spaceSm),
+              AppShimmer(height: 14, width: 260, phase: 0.8),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

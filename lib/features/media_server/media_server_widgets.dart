@@ -3,6 +3,8 @@
 library;
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/gestures.dart'
+    show PointerDeviceKind, PointerScrollEvent;
 import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +17,7 @@ import '../../core/utils/app_haptics.dart';
 import '../../core/widgets/app_card.dart';
 import '../settings/presentation/media_server_add_screen.dart';
 import '../settings/presentation/media_server_manage_screen.dart';
+import '../settings/presentation/widgets/settings_widgets.dart';
 import 'media_server_home_screen.dart';
 
 /// 海报图：统一附鉴权头（图片端点鉴权需求以实测为准，带上无害），
@@ -54,6 +57,63 @@ class MediaServerPoster extends StatelessWidget {
         color: scheme.surfaceContainerHigh,
         alignment: Alignment.center,
         child: Icon(Icons.movie_rounded, color: scheme.outline),
+      ),
+    );
+  }
+}
+
+/// 横排海报容器：桌面端鼠标滚轮 / 拖拽均可横向滚动（对齐源选择条的处理）。
+class MediaServerPosterRow extends StatefulWidget {
+  final List<Widget> children;
+
+  const MediaServerPosterRow({super.key, required this.children});
+
+  @override
+  State<MediaServerPosterRow> createState() => _MediaServerPosterRowState();
+}
+
+class _MediaServerPosterRowState extends State<MediaServerPosterRow> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: (signal) {
+        // 滚轮（dy）/ 触控板（dx）统一转为横向滚动。
+        if (signal is! PointerScrollEvent || !_controller.hasClients) return;
+        final delta = signal.scrollDelta.dx != 0
+            ? signal.scrollDelta.dx
+            : signal.scrollDelta.dy;
+        if (delta == 0) return;
+        final target = (_controller.offset + delta).clamp(
+          0.0,
+          _controller.position.maxScrollExtent,
+        );
+        _controller.jumpTo(target);
+      },
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: <PointerDeviceKind>{
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+            PointerDeviceKind.stylus,
+          },
+        ),
+        child: SizedBox(
+          height: 210,
+          child: ListView(
+            controller: _controller,
+            scrollDirection: Axis.horizontal,
+            children: widget.children,
+          ),
+        ),
       ),
     );
   }
@@ -157,64 +217,54 @@ class MediaServerBrowseTile extends StatelessWidget {
   }
 }
 
-/// 「添加 / 管理媒体服务器」行（源管理列表的配置入口）。
-class MediaServerManageTile extends StatelessWidget {
-  const MediaServerManageTile({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    return AppCard(
-      onTap: () {
-        AppHaptics.selectionClick();
-        Navigator.of(context).push(
-          AppPageRoute<void>(builder: (_) => const MediaServerManageScreen()),
-        );
-      },
-      padding: EdgeInsets.zero,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceLg,
-          vertical: AppTokens.spaceXs,
-        ),
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-          ),
-          child: Icon(Icons.tune_rounded, color: scheme.onSurfaceVariant, size: 22),
-        ),
-        title: Text(
-          l10n.mediaServerManageAction,
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(fontWeight: FontWeight.w500),
-        ),
-        trailing: Icon(Icons.chevron_right_rounded, color: scheme.outline),
-      ),
-    );
-  }
-}
-
-/// 源管理列表顶部的媒体服务器区块：每台服务器一行 + 管理 / 添加行。
+/// 源管理列表顶部的媒体服务器区块：设置页同款分组样式，
+/// 每台服务器一行 + 管理 / 添加行（同一 [Icons.dns_rounded] 图标）。
 class MediaServerSourceSection extends StatelessWidget {
   const MediaServerSourceSection({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final auth = context.watch<MediaServerAuth>();
-    return Column(
+    return SettingsGroup(
+      header: l10n.mediaServerSettings,
       children: <Widget>[
         for (final s in auth.servers)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-            child: MediaServerBrowseTile(server: s),
+          SettingsTile(
+            icon: Icons.dns_rounded,
+            title: s.name,
+            subtitle: s.loggedIn
+                ? '${s.baseUrl} · ${s.type.name}'
+                : '${s.baseUrl} · ${l10n.mediaServerNotLoggedIn}',
+            onTap: () {
+              AppHaptics.selectionClick();
+              if (s.loggedIn) {
+                Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    builder: (_) => MediaServerHomeScreen(initialServer: s),
+                  ),
+                );
+              } else {
+                Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    builder: (_) => MediaServerAddScreen(existing: s),
+                  ),
+                );
+              }
+            },
           ),
-        const MediaServerManageTile(),
+        SettingsTile(
+          icon: Icons.dns_rounded,
+          title: l10n.mediaServerManageAction,
+          onTap: () {
+            AppHaptics.selectionClick();
+            Navigator.of(context).push(
+              AppPageRoute<void>(
+                builder: (_) => const MediaServerManageScreen(),
+              ),
+            );
+          },
+        ),
       ],
     );
   }

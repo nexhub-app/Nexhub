@@ -9162,4 +9162,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mediaServerManageAction => '添加 / 管理媒体服务器';
+
+  @override
+  String get mediaServerConnecting => '正在连接服务器…';
 }

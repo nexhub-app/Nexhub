@@ -14,6 +14,7 @@ import '../../core/services/media_server/media_server_client.dart';
 import '../../core/services/media_server/media_server_models.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/app_haptics.dart';
+import '../../core/widgets/app_shimmer.dart';
 import 'media_server_detail_screen.dart';
 import 'media_server_widgets.dart';
 
@@ -176,9 +177,7 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
     AppLocalizations l10n,
     ColorScheme scheme,
   ) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_loading) return const _LibrarySkeleton();
     if (_error != null) {
       return _LibraryError(
         message: l10n.mediaServerLoadFailed('$_error'),
@@ -292,9 +291,34 @@ class _LibraryPosterCard extends StatelessWidget {
   }
 }
 
+/// 库加载骨架（MD3 微光占位）：海报墙同构。
+class _LibrarySkeleton extends StatelessWidget {
+  const _LibrarySkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.7,
+      child: GridView.builder(
+        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 130,
+          mainAxisSpacing: AppTokens.spaceSm,
+          crossAxisSpacing: AppTokens.spaceSm,
+          childAspectRatio: 0.55,
+        ),
+        itemCount: 9,
+        itemBuilder: (context, i) => AppShimmer(
+          borderRadius: AppTokens.radiusMd,
+          phase: (i % 5) * 0.18,
+        ),
+      ),
+    );
+  }
+}
+
 /// 库加载失败 + 重试。
-class _LibraryError extends StatelessWidget {
-  final String message;
+class _LibraryError extends StatelessWidget {  final String message;
   final VoidCallback onRetry;
 
   const _LibraryError({required this.message, required this.onRetry});

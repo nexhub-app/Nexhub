@@ -5167,5 +5167,6 @@
   },
   "mediaServerGoAdd": "Add a server",
   "mediaServerCredentialsWrong": "Incorrect username or password. Please check and try again.",
-  "mediaServerManageAction": "Add or manage media servers"
+  "mediaServerManageAction": "Add or manage media servers",
+  "mediaServerConnecting": "Connecting to server…"
 }

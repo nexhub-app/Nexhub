@@ -356,6 +356,7 @@ abstract class MediaServerClientBase {
   ///
   /// 仅转码可用时返回 `requiresTranscode: true`（playUrl 为空），
   /// 无任何可用媒体源时抛 [MediaServerApiException]。
+  /// 接收超时放宽到 20s：慢速服务器（公益机）协商可能明显久于普通请求。
   Future<PlaybackInfoResult> createPlaybackInfo(
     String itemId, {
     int? maxStreamingBitrate,
@@ -364,6 +365,9 @@ abstract class MediaServerClientBase {
       () => _dio.post<dynamic>(
             '/Items/$itemId/PlaybackInfo',
             queryParameters: _userQuery(),
+            options: Options(
+              receiveTimeout: const Duration(seconds: 20),
+            ),
             data: <String, dynamic>{
               'UserId': info.userId,
               'MaxStreamingBitrate':

@@ -9380,4 +9380,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaServerManageAction => 'Add or manage media servers';
+
+  @override
+  String get mediaServerConnecting => 'Connecting to server…';
 }

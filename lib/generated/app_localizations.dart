@@ -17552,6 +17552,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add or manage media servers'**
   String get mediaServerManageAction;
+
+  /// No description provided for @mediaServerConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting to server…'**
+  String get mediaServerConnecting;
 }
 
 class _AppLocalizationsDelegate

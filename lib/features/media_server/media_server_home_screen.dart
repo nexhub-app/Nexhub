@@ -17,7 +17,9 @@ import '../../core/services/media_server/media_server_models.dart';
 import '../../core/services/media_server/media_server_session.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/app_haptics.dart';
+import '../../core/widgets/app_animations.dart';
 import '../../core/widgets/app_card.dart';
+import '../../core/widgets/app_shimmer.dart';
 import '../settings/presentation/media_server_manage_screen.dart';
 import 'media_server_detail_screen.dart';
 import 'media_server_library_screen.dart';
@@ -162,12 +164,7 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
                   onRetry: _reload,
                 );
               }
-              if (!snap.hasData) {
-                return const Padding(
-                  padding: EdgeInsets.all(AppTokens.spaceXl),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
+              if (!snap.hasData) return const _HomeSkeleton();
               final client = _client;
               if (client == null) return const SizedBox.shrink();
               return _content(context, client, snap.data!, l10n);
@@ -212,41 +209,60 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
       children: <Widget>[
         // ───── 继续观看 ─────
         if (data.resume.items.isNotEmpty) ...<Widget>[
-          MediaServerSectionHeader(title: l10n.mediaServerHomeResume),
-          _posterRow(
-            data.resume.items
-                .map((item) => _ResumeCard(
-                      client: client,
-                      item: item,
-                      onPlayed: _reload,
-                    ))
-                .toList(),
+          Entrance(
+            onceKey: 'ms_home_resume',
+            offset: 12,
+            child: MediaServerSectionHeader(
+              title: l10n.mediaServerHomeResume,
+            ),
+          ),
+          Entrance(
+            onceKey: 'ms_home_resume_row',
+            offset: 16,
+            child: MediaServerPosterRow(
+              children: data.resume.items
+                  .map((item) => _ResumeCard(
+                        client: client,
+                        item: item,
+                        onPlayed: _reload,
+                      ))
+                  .toList(),
+            ),
           ),
         ],
         // ───── 最新添加 ─────
         if (data.latest.isNotEmpty) ...<Widget>[
-          MediaServerSectionHeader(title: l10n.mediaServerHomeLatest),
-          _posterRow(
-            data.latest
-                .map((item) => _LatestCard(client: client, item: item))
-                .toList(),
+          Entrance(
+            onceKey: 'ms_home_latest',
+            offset: 12,
+            child: MediaServerSectionHeader(
+              title: l10n.mediaServerHomeLatest,
+            ),
+          ),
+          Entrance(
+            onceKey: 'ms_home_latest_row',
+            offset: 16,
+            child: MediaServerPosterRow(
+              children: data.latest
+                  .map((item) => _LatestCard(client: client, item: item))
+                  .toList(),
+            ),
           ),
         ],
         // ───── 媒体库 ─────
-        MediaServerSectionHeader(title: l10n.mediaServerHomeLibraries),
-        _LibraryGrid(client: client, libraries: data.libraries),
+        Entrance(
+          onceKey: 'ms_home_libraries',
+          offset: 12,
+          child: MediaServerSectionHeader(
+            title: l10n.mediaServerHomeLibraries,
+          ),
+        ),
+        Entrance(
+          onceKey: 'ms_home_libraries_grid',
+          offset: 16,
+          child: _LibraryGrid(client: client, libraries: data.libraries),
+        ),
       ],
-    );
-  }
-
-  /// 横排海报容器（统一高度）。
-  Widget _posterRow(List<Widget> children) {
-    return SizedBox(
-      height: 210,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: children,
-      ),
     );
   }
 
@@ -530,6 +546,77 @@ class _EmptyServers extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 加载骨架（MD3 微光占位）：与真实布局同构——标题条 + 横排海报 + 库格。
+class _HomeSkeleton extends StatelessWidget {
+  const _HomeSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: 0.7,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const AppShimmer(width: 88, height: 18),
+          const SizedBox(height: AppTokens.spaceSm),
+          SizedBox(
+            height: 210,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: <Widget>[
+                for (var i = 0; i < 4; i++)
+                  const Padding(
+                    padding: EdgeInsets.only(right: AppTokens.spaceSm),
+                    child: AppShimmer(
+                      width: 118,
+                      height: 190,
+                      borderRadius: AppTokens.radiusMd,
+                      phase: 0.15,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTokens.spaceMd),
+          const AppShimmer(width: 88, height: 18, phase: 0.3),
+          const SizedBox(height: AppTokens.spaceSm),
+          Row(
+            children: <Widget>[
+              for (var i = 0; i < 3; i++)
+                const Padding(
+                  padding: EdgeInsets.only(right: AppTokens.spaceSm),
+                  child: AppShimmer(
+                    width: 118,
+                    height: 190,
+                    borderRadius: AppTokens.radiusMd,
+                    phase: 0.45,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppTokens.spaceMd),
+          const AppShimmer(width: 88, height: 18, phase: 0.6),
+          const SizedBox(height: AppTokens.spaceSm),
+          Row(
+            children: <Widget>[
+              for (var i = 0; i < 2; i++)
+                Padding(
+                  padding: const EdgeInsets.only(right: AppTokens.spaceSm),
+                  child: AppShimmer(
+                    width: MediaQuery.sizeOf(context).width / 2 - 24,
+                    height: 52,
+                    borderRadius: AppTokens.radiusMd,
+                    phase: 0.75,
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
