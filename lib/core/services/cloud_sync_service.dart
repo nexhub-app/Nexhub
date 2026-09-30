@@ -758,13 +758,14 @@ class CloudSyncService extends ChangeNotifier {
           validateStatus: (s) => s != null && s >= 200 && s < 400,
         ),
       );
-      return _parsePropfind(resp.data ?? '');
+      return parsePropfind(resp.data ?? '');
     } catch (_) {
       return <_RemoteFile>[];
     }
   }
 
-  List<_RemoteFile> _parsePropfind(String body) {
+  /// 解析 PROPFIND Depth:1 multistatus 响应（static 公开供回归测试覆盖）。
+  static List<_RemoteFile> parsePropfind(String body) {
     final files = <_RemoteFile>[];
     if (body.isEmpty) return files;
     try {
@@ -775,7 +776,9 @@ class CloudSyncService extends ChangeNotifier {
             .findElements('href', namespace: '*')
             .firstOrNull;
         if (hrefElement == null) continue;
-        final href = (hrefElement.value ?? '').trim();
+        // ⚠️ XmlElement.value 恒为 null（xml 6.x 只对文本/属性节点提供 value），
+        // 元素文本必须用 innerText —— 误用 .value 会导致远端备份列表恒为空。
+        final href = hrefElement.innerText.trim();
         if (href.isEmpty) continue;
         // 解析出最后一段文件名
         final decoded = Uri.decodeFull(href);

@@ -284,8 +284,12 @@ class NovelProgressSyncService {
       final doc = XmlDocument.parse(body);
       final names = <String>[];
       for (final response in doc.findAllElements('response', namespace: '*')) {
-        final href =
-            response.findElements('href', namespace: '*').firstOrNull?.value;
+        // ⚠️ XmlElement.value 恒为 null（xml 6.x 只对文本/属性节点提供 value），
+        // 元素文本必须用 innerText —— 误用 .value 会导致远端列表恒为空。
+        final href = response
+            .findElements('href', namespace: '*')
+            .firstOrNull
+            ?.innerText;
         if (href == null || href.isEmpty) continue;
         final decoded = Uri.decodeFull(href.trim());
         if (decoded.endsWith('/')) continue; // 目录自身
