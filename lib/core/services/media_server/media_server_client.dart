@@ -271,7 +271,8 @@ abstract class MediaServerClientBase {
 
   /// 通用列表 / 服务器内搜索。
   ///
-  /// 库内浏览传 [parentId]（媒体库 id）；全服务器搜索传 [searchTerm]。
+  /// 库内浏览传 [parentId]（媒体库 id）；全服务器搜索传 [searchTerm]；
+  /// [filters] 传服务器过滤（如 IsPlayed / -IsPlayed，C3 已看筛选）。
   Future<ServerItemPage> fetchItems({
     String? parentId,
     String? searchTerm,
@@ -280,6 +281,7 @@ abstract class MediaServerClientBase {
     int limit = 30,
     String sortBy = 'SortName',
     String sortOrder = 'Ascending',
+    List<String> filters = const <String>[],
   }) async {
     final resp = await _send(
       () => _dio.get<dynamic>(
@@ -294,6 +296,7 @@ abstract class MediaServerClientBase {
               'Fields': 'Overview,ProductionYear',
               'SortBy': sortBy,
               'SortOrder': sortOrder,
+              if (filters.isNotEmpty) 'Filters': filters.join(','),
               if (parentId != null && parentId.isNotEmpty) 'ParentId': parentId,
               if (searchTerm != null && searchTerm.isNotEmpty)
                 'SearchTerm': searchTerm,

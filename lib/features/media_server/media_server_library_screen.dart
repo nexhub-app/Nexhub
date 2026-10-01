@@ -14,6 +14,7 @@ import '../../core/services/media_server/media_server_client.dart';
 import '../../core/services/media_server/media_server_models.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/app_haptics.dart';
+import '../../core/widgets/app_empty_state.dart';
 import '../../core/widgets/app_shimmer.dart';
 import 'media_server_detail_screen.dart';
 import 'media_server_widgets.dart';
@@ -46,6 +47,11 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
   bool _loadingMore = false;
   Object? _error;
   String _searchTerm = '';
+
+  // C3 筛选 / 排序状态。
+  String _watchedFilter = ''; // '' 全部 / IsPlayed 已看 / -IsPlayed 未看
+  String _sortBy = 'SortName';
+  String _sortOrder = 'Ascending';
 
   /// 库类型 → 列表过滤：剧集库只列 Series（集在详情页出）。
   List<String> get _includeTypes =>
@@ -91,6 +97,11 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
         includeTypes: _includeTypes,
         startIndex: 0,
         limit: _pageSize,
+        sortBy: _sortBy,
+        sortOrder: _sortOrder,
+        filters: _watchedFilter.isEmpty ? const <String>[] : <String>[
+          _watchedFilter,
+        ],
       );
       if (!mounted) return;
       setState(() {
@@ -117,6 +128,11 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
         includeTypes: _includeTypes,
         startIndex: _items.length,
         limit: _pageSize,
+        sortBy: _sortBy,
+        sortOrder: _sortOrder,
+        filters: _watchedFilter.isEmpty ? const <String>[] : <String>[
+          _watchedFilter,
+        ],
       );
       if (!mounted) return;
       setState(() {
@@ -177,65 +193,173 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
     AppLocalizations l10n,
     ColorScheme scheme,
   ) {
-    if (_loading) return const _LibrarySkeleton();
-    if (_error != null) {
-      return _LibraryError(
+    // C3：筛选 / 排序行 + 内容区。
+    Widget content;
+    if (_loading) {
+      content = const _LibrarySkeleton();
+    } else if (_error != null) {
+      content = _LibraryError(
         message: l10n.mediaServerLoadFailed('$_error'),
         onRetry: _reload,
       );
-    }
-    if (_items.isEmpty) {
-      return Center(
-        child: Text(
-          l10n.mediaServerNoResults,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: scheme.onSurfaceVariant),
-        ),
+    } else if (_items.isEmpty) {
+      content = AppEmptyState(
+        icon: Icons.search_off_rounded,
+        message: l10n.mediaServerNoResults,
       );
-    }
-    return GridView.builder(
-      controller: _scroll,
-      padding: const EdgeInsets.all(AppTokens.spaceMd),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 130,
-        mainAxisSpacing: AppTokens.spaceSm,
-        crossAxisSpacing: AppTokens.spaceSm,
-        childAspectRatio: 0.55,
-      ),
-      itemCount: _items.length + (_hasMore || _loadingMore ? 1 : 0),
-      itemBuilder: (context, i) {
-        if (i >= _items.length) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(AppTokens.spaceMd),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          );
-        }
-        final item = _items[i];
-        return _LibraryPosterCard(
-          client: widget.client,
-          item: item,
-          onTap: () {
-            AppHaptics.selectionClick();
-            Navigator.of(context).push(
-              AppPageRoute<void>(
-                builder: (_) => MediaServerDetailScreen(
-                  client: widget.client,
-                  itemId: item.id,
+    } else {
+      content = GridView.builder(
+        controller: _scroll,
+        padding: const EdgeInsets.all(AppTokens.spaceMd),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 130,
+          mainAxisSpacing: AppTokens.spaceSm,
+          crossAxisSpacing: AppTokens.spaceSm,
+          childAspectRatio: 0.55,
+        ),
+        itemCount: _items.length + (_hasMore || _loadingMore ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (i >= _items.length) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(AppTokens.spaceMd),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
             );
-          },
-        );
+          }
+          final item = _items[i];
+          return _LibraryPosterCard(
+            client: widget.client,
+            item: item,
+            onTap: () {
+              AppHaptics.selectionClick();
+              Navigator.of(context).push(
+                AppPageRoute<void>(
+                  builder: (_) => MediaServerDetailScreen(
+                    client: widget.client,
+                    itemId: item.id,
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
+    return Column(
+      children: <Widget>[
+        _filterRow(context, l10n, scheme),
+        Expanded(child: content),
+      ],
+    );
+  }
+
+  /// 筛选行（C3）：已看状态 chips + 排序方向 / 排序键。
+  Widget _filterRow(
+    BuildContext context,
+    AppLocalizations l10n,
+    ColorScheme scheme,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppTokens.spaceMd,
+        AppTokens.spaceSm,
+        AppTokens.spaceSm,
+        AppTokens.spaceXs,
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: <Widget>[
+                  _filterChip(l10n.mediaServerFilterAll, '', scheme),
+                  const SizedBox(width: AppTokens.spaceXs),
+                  _filterChip(l10n.mediaServerFilterUnwatched, '-IsPlayed', scheme),
+                  const SizedBox(width: AppTokens.spaceXs),
+                  _filterChip(l10n.mediaServerFilterWatched, 'IsPlayed', scheme),
+                ],
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: l10n.mediaServerSort,
+            icon: Icon(
+              _sortOrder == 'Ascending'
+                  ? Icons.arrow_upward_rounded
+                  : Icons.arrow_downward_rounded,
+            ),
+            onPressed: () {
+              AppHaptics.selectionClick();
+              setState(() {
+                _sortOrder =
+                    _sortOrder == 'Ascending' ? 'Descending' : 'Ascending';
+              });
+              _reload();
+            },
+          ),
+          IconButton(
+            tooltip: l10n.mediaServerSort,
+            icon: const Icon(Icons.tune_rounded),
+            onPressed: () => _pickSort(l10n),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, String value, ColorScheme scheme) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: _watchedFilter == value,
+      onSelected: (_) {
+        AppHaptics.selectionClick();
+        if (_watchedFilter == value) return;
+        setState(() => _watchedFilter = value);
+        _reload();
       },
     );
+  }
+
+  /// 排序键选择（名称 / 年份 / 入库时间）。
+  Future<void> _pickSort(AppLocalizations l10n) async {
+    final options = <(String, String)>[
+      (l10n.mediaServerSortByName, 'SortName'),
+      (l10n.mediaServerSortByYear, 'ProductionYear'),
+      (l10n.mediaServerSortByAdded, 'DateCreated'),
+    ];
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetCtx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetCtx).size.height * 0.85,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (final (label, key) in options)
+                ListTile(
+                  leading: _sortBy == key
+                      ? const Icon(Icons.check_rounded)
+                      : null,
+                  title: Text(label),
+                  onTap: () => Navigator.of(sheetCtx).pop(key),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null || picked == _sortBy || !mounted) return;
+    setState(() => _sortBy = picked);
+    _reload();
   }
 }
 
@@ -274,6 +398,8 @@ class _LibraryPosterCard extends StatelessWidget {
                   MediaServerPoster(
                     url: client.imageUrl(item.id, maxWidth: 300),
                     headers: client.authHeaders(),
+                    // C4：库网格 → 详情页共享元素过渡（网格内 id 唯一）。
+                    heroTag: 'ms:${item.id}',
                   ),
                   if (played)
                     Positioned(

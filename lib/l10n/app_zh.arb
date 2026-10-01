@@ -5179,5 +5179,19 @@
   "mediaServerFavoriteRemoved": "已取消收藏",
   "mediaServerMarkWatched": "标记已看",
   "mediaServerMarkUnwatched": "取消已看",
-  "mediaServerMarkAllWatched": "全部标已看"
+  "mediaServerMarkAllWatched": "全部标已看",
+  "mediaServerRemaining": "剩 {m} 分钟",
+  "@mediaServerRemaining": {
+    "description": "mediaServerRemaining",
+    "placeholders": {
+      "m": {}
+    }
+  },
+  "mediaServerFilterAll": "全部",
+  "mediaServerFilterUnwatched": "未看",
+  "mediaServerFilterWatched": "已看",
+  "mediaServerSort": "排序",
+  "mediaServerSortByName": "名称",
+  "mediaServerSortByYear": "年份",
+  "mediaServerSortByAdded": "入库时间"
 }

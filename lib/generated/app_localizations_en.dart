@@ -9486,4 +9486,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaServerMarkAllWatched => 'Mark all watched';
+
+  @override
+  String mediaServerRemaining(Object m) {
+    return '$m min left';
+  }
+
+  @override
+  String get mediaServerFilterAll => 'All';
+
+  @override
+  String get mediaServerFilterUnwatched => 'Unwatched';
+
+  @override
+  String get mediaServerFilterWatched => 'Watched';
+
+  @override
+  String get mediaServerSort => 'Sort';
+
+  @override
+  String get mediaServerSortByName => 'Name';
+
+  @override
+  String get mediaServerSortByYear => 'Year';
+
+  @override
+  String get mediaServerSortByAdded => 'Date added';
 }

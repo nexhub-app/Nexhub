@@ -52,10 +52,22 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
 
   bool get _isSeries => _detail?.type == 'Series';
 
+  /// C1：折叠标题透明度（0 = 展开显示头图，1 = 收起显示标题）。
+  final ValueNotifier<double> _titleOpacity = ValueNotifier<double>(0);
+
+  /// 头图展开高度（SliverAppBar expandedHeight 与折叠进度分母）。
+  static const double _headerHeight = 340;
+
   @override
   void initState() {
     super.initState();
     _reload();
+  }
+
+  @override
+  void dispose() {
+    _titleOpacity.dispose();
+    super.dispose();
   }
 
   Future<void> _reload() async {
@@ -274,15 +286,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(_detail?.name ?? ''),
-      ),
-      body: _buildBody(context, l10n),
-    );
+    return Scaffold(body: _buildBody(context, l10n));
   }
 
   Widget _buildBody(BuildContext context, AppLocalizations l10n) {
@@ -311,41 +315,71 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     }
     final detail = _detail;
     if (detail == null) return const SizedBox.shrink();
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: <Widget>[
-        _ImmersiveHeader(client: widget.client, detail: detail),
-        Entrance(
-          onceKey: 'ms_detail_content',
-          offset: 16,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppTokens.spaceMd,
-              AppTokens.spaceMd,
-              AppTokens.spaceMd,
-              0,
+    // C1：SliverAppBar 视差折叠——展开为沉浸式头图，收起后标题渐显。
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (n.metrics.axis != Axis.vertical) return false;
+        final t = (n.metrics.pixels / _headerHeight).clamp(0.0, 1.0);
+        if ((t - _titleOpacity.value).abs() > 0.02) _titleOpacity.value = t;
+        return false;
+      },
+      child: CustomScrollView(
+        slivers: <Widget>[
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: _headerHeight,
+            title: ValueListenableBuilder<double>(
+              valueListenable: _titleOpacity,
+              builder: (_, v, __) => Opacity(
+                opacity: v,
+                child: Text(
+                  detail.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                ..._actions(context, detail, l10n),
-                if (detail.overview != null &&
-                    detail.overview!.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: AppTokens.spaceMd),
-                  Text(
-                    detail.overview!,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          height: 1.5,
-                        ),
-                  ),
-                ],
-                if (_isSeries) ..._seriesSection(context, l10n),
-                const SizedBox(height: AppTokens.spaceXl),
-              ],
+            flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.parallax,
+              background:
+                  _ImmersiveHeader(client: widget.client, detail: detail),
             ),
           ),
-        ),
-      ],
+          SliverList(
+            delegate: SliverChildListDelegate(<Widget>[
+              Entrance(
+                onceKey: 'ms_detail_content',
+                offset: 16,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTokens.spaceMd,
+                    AppTokens.spaceMd,
+                    AppTokens.spaceMd,
+                    0,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      ..._actions(context, detail, l10n),
+                      if (detail.overview != null &&
+                          detail.overview!.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: AppTokens.spaceMd),
+                        Text(
+                          detail.overview!,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(height: 1.5),
+                        ),
+                      ],
+                      if (_isSeries) ..._seriesSection(context, l10n),
+                      const SizedBox(height: AppTokens.spaceXl),
+                    ],
+                  ),
+                ),
+              ),
+            ]),
+          ),
+        ],
+      ),
     );
   }
 
@@ -566,6 +600,8 @@ class _ImmersiveHeader extends StatelessWidget {
                     child: MediaServerPoster(
                       url: client.imageUrl(detail.id, maxWidth: 400),
                       headers: client.authHeaders(),
+                      // C4：库网格 → 详情页共享元素过渡（与库页同 tag）。
+                      heroTag: 'ms:${detail.id}',
                     ),
                   ),
                 ),

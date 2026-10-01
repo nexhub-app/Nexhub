@@ -5223,5 +5223,19 @@
   "mediaServerFavoriteRemoved": "Removed from favorites",
   "mediaServerMarkWatched": "Mark watched",
   "mediaServerMarkUnwatched": "Mark unwatched",
-  "mediaServerMarkAllWatched": "Mark all watched"
+  "mediaServerMarkAllWatched": "Mark all watched",
+  "mediaServerRemaining": "{m} min left",
+  "@mediaServerRemaining": {
+    "description": "mediaServerRemaining",
+    "placeholders": {
+      "m": {}
+    }
+  },
+  "mediaServerFilterAll": "All",
+  "mediaServerFilterUnwatched": "Unwatched",
+  "mediaServerFilterWatched": "Watched",
+  "mediaServerSort": "Sort",
+  "mediaServerSortByName": "Name",
+  "mediaServerSortByYear": "Year",
+  "mediaServerSortByAdded": "Date added"
 }

@@ -9261,4 +9261,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mediaServerMarkAllWatched => '全部标已看';
+
+  @override
+  String mediaServerRemaining(Object m) {
+    return '剩 $m 分钟';
+  }
+
+  @override
+  String get mediaServerFilterAll => '全部';
+
+  @override
+  String get mediaServerFilterUnwatched => '未看';
+
+  @override
+  String get mediaServerFilterWatched => '已看';
+
+  @override
+  String get mediaServerSort => '排序';
+
+  @override
+  String get mediaServerSortByName => '名称';
+
+  @override
+  String get mediaServerSortByYear => '年份';
+
+  @override
+  String get mediaServerSortByAdded => '入库时间';
 }

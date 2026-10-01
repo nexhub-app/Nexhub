@@ -21,13 +21,15 @@ import '../settings/presentation/widgets/settings_widgets.dart';
 import 'media_server_home_screen.dart';
 
 /// 海报图：统一附鉴权头（图片端点鉴权需求以实测为准，带上无害），
-/// 加载占位与失败图标兜底。
+/// 加载占位与失败图标兜底。[heroTag] 非空时包裹 Hero（C4 共享元素过渡，
+/// 注意同一路由树内 tag 不得重复——仅在 id 唯一的网格页使用）。
 class MediaServerPoster extends StatelessWidget {
   final String url;
   final Map<String, String> headers;
   final double? width;
   final double? height;
   final BoxFit fit;
+  final Object? heroTag;
 
   /// false = 加载失败时静默（透明），供「Backdrop 叠在海报模糊层上」
   /// 的分层头图使用：Backdrop 缺失时露出底层而不显示错误块。
@@ -41,12 +43,13 @@ class MediaServerPoster extends StatelessWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.errorPlaceholder = true,
+    this.heroTag,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return CachedNetworkImage(
+    final Widget image = CachedNetworkImage(
       imageUrl: url,
       httpHeaders: headers,
       width: width,
@@ -70,6 +73,40 @@ class MediaServerPoster extends StatelessWidget {
         child: errorPlaceholder
             ? Icon(Icons.movie_rounded, color: scheme.outline)
             : null,
+      ),
+    );
+    if (heroTag == null) return image;
+    return Hero(tag: heroTag!, child: image);
+  }
+}
+
+/// 按压缩放反馈（C5 微交互）：按下缩至 0.98，松开回弹（应用现有 fast 曲线）。
+class MediaServerPressableScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+
+  const MediaServerPressableScale({super.key, required this.child, this.onTap});
+
+  @override
+  State<MediaServerPressableScale> createState() =>
+      _MediaServerPressableScaleState();
+}
+
+class _MediaServerPressableScaleState extends State<MediaServerPressableScale> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: widget.onTap == null ? null : (_) => setState(() => _pressed = true),
+      onTapUp: widget.onTap == null ? null : (_) => setState(() => _pressed = false),
+      onTapCancel: widget.onTap == null ? null : () => setState(() => _pressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _pressed ? 0.98 : 1.0,
+        duration: AppTokens.durFast,
+        curve: Curves.easeOut,
+        child: widget.child,
       ),
     );
   }

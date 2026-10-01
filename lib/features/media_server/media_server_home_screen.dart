@@ -177,6 +177,9 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppTokens.spaceMd),
         children: <Widget>[
+          // ── 服务器信息头（C2）：名称 + 类型徽标 + 状态点 + 管理入口 ──
+          _ServerHeader(server: active, onManage: _openManage),
+          const SizedBox(height: AppTokens.spaceSm),
           if (logged.length > 1) ...<Widget>[
             _serverSwitcher(logged),
             const SizedBox(height: AppTokens.spaceSm),
@@ -340,7 +343,78 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
   }
 }
 
-/// 横排海报卡公共骨架：海报 2:3（可带底部进度条）+ 标题。
+/// 服务器信息头（C2）：激活服务器名称 + 类型徽标 + 状态点 + 管理入口。
+/// 探活状态点是 F2 里程碑的占位（已登录显示主色点）。
+class _ServerHeader extends StatelessWidget {
+  final MediaServerInfo server;
+  final VoidCallback onManage;
+
+  const _ServerHeader({required this.server, required this.onManage});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppTokens.spaceLg,
+          vertical: AppTokens.spaceXs,
+        ),
+        leading: Stack(
+          children: <Widget>[
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: scheme.tertiary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+              ),
+              child: Icon(Icons.dns_rounded, color: scheme.tertiary, size: 22),
+            ),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: scheme.surface, width: 1.5),
+                ),
+              ),
+            ),
+          ],
+        ),
+        title: Text(
+          server.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Text(
+          server.type.name.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                letterSpacing: 0.5,
+              ),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.settings_rounded),
+          tooltip: l10n.mediaServerManageAction,
+          onPressed: onManage,
+        ),
+      ),
+    );
+  }
+}
+
+/// 横排海报卡公共骨架：海报 2:3（可带底部进度条）+ 标题 + 可选副标题。
 class _PosterTile extends StatelessWidget {
   final MediaServerClientBase client;
   final ServerMediaItem item;
@@ -349,11 +423,15 @@ class _PosterTile extends StatelessWidget {
   /// 0~1 的观看进度（继续观看卡用；null = 不显示）。
   final double? progress;
 
+  /// 标题下方的副标题（继续观看卡显示剩余时长）。
+  final String? subtitle;
+
   const _PosterTile({
     required this.client,
     required this.item,
     required this.onTap,
     this.progress,
+    this.subtitle,
   });
 
   @override
@@ -362,7 +440,7 @@ class _PosterTile extends StatelessWidget {
     final title = (item.seriesName != null && item.seriesName!.isNotEmpty)
         ? item.seriesName!
         : item.name;
-    return GestureDetector(
+    return MediaServerPressableScale(
       onTap: onTap,
       child: SizedBox(
         width: 118,
@@ -379,21 +457,26 @@ class _PosterTile extends StatelessWidget {
                       url: client.imageUrl(item.id, maxWidth: 300),
                       headers: client.authHeaders(),
                     ),
-                    // 已看徽章：右上角半透明对勾。
+                    // 已看徽章（媒体库客户端通行样式：右上角半透明对勾，
+                    // 出现带 200ms 缩放过渡）。
                     if (item.userData?.played == true)
                       Positioned(
                         top: 6,
                         right: 6,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.55),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.check_rounded,
-                            size: 14,
-                            color: Colors.white,
+                        child: AnimatedScale(
+                          scale: 1,
+                          duration: const Duration(milliseconds: 200),
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.55),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -428,6 +511,15 @@ class _PosterTile extends StatelessWidget {
                   .bodySmall
                   ?.copyWith(color: scheme.onSurface),
             ),
+            if (subtitle != null)
+              Text(
+                subtitle!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
           ],
         ),
       ),
@@ -453,10 +545,21 @@ class _ResumeCard extends StatelessWidget {
     final runtime = item.runTimeTicks ?? 0;
     final double? ratio =
         (runtime > 0 && ticks > 0) ? (ticks / runtime).clamp(0.0, 1.0) : null;
+    // 剩余时长（C2：Resume 卡片海报缩略 + 剩余分钟）。
+    String? subtitle;
+    if (runtime > 0 && ticks > 0) {
+      final remainingMin =
+          ((runtime - ticks) ~/ 10000 ~/ 1000 ~/ 60).clamp(0, 100000);
+      if (remainingMin > 0) {
+        subtitle = AppLocalizations.of(context)
+            .mediaServerRemaining('$remainingMin');
+      }
+    }
     return _PosterTile(
       client: client,
       item: item,
       progress: ratio,
+      subtitle: subtitle,
       onTap: () async {
         AppHaptics.selectionClick();
         await openMediaServerPlayer(context, client: client, item: item);

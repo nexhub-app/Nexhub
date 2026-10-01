@@ -17738,6 +17738,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mark all watched'**
   String get mediaServerMarkAllWatched;
+
+  /// mediaServerRemaining
+  ///
+  /// In en, this message translates to:
+  /// **'{m} min left'**
+  String mediaServerRemaining(Object m);
+
+  /// No description provided for @mediaServerFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get mediaServerFilterAll;
+
+  /// No description provided for @mediaServerFilterUnwatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Unwatched'**
+  String get mediaServerFilterUnwatched;
+
+  /// No description provided for @mediaServerFilterWatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Watched'**
+  String get mediaServerFilterWatched;
+
+  /// No description provided for @mediaServerSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get mediaServerSort;
+
+  /// No description provided for @mediaServerSortByName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get mediaServerSortByName;
+
+  /// No description provided for @mediaServerSortByYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get mediaServerSortByYear;
+
+  /// No description provided for @mediaServerSortByAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Date added'**
+  String get mediaServerSortByAdded;
 }
 
 class _AppLocalizationsDelegate
