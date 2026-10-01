@@ -17,6 +17,7 @@ import '../theme/app_tokens.dart';
 import '../utils/app_haptics.dart';
 import 'app_cover_image.dart';
 import 'content_card.dart';
+import 'desktop_horizontal_scroll.dart';
 
 /// 周更时间表 Section。
 ///
@@ -111,26 +112,29 @@ class _OnlineScheduleSectionState extends State<OnlineScheduleSection> {
             horizontal: AppTokens.spaceLg,
             vertical: AppTokens.spaceXs,
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: List<int>.generate(7, (i) => i + 1).map((wd) {
-                final isSel = wd == _selectedWeekday;
-                // 所有星期恒可点击：此前无内容的日子 onSelected 传 null 会把
-                // Chip 禁用，导致「除周一外都点不了」。空日点进去展示既有的
-                // emptyCategory 空态即可，交互不应被数据有无绑架。
-                return Padding(
-                  padding: const EdgeInsets.only(right: AppTokens.spaceXs),
-                  child: ChoiceChip(
-                    label: Text(_weekdayLabel(l10n, wd)),
-                    selected: isSel,
-                    onSelected: (_) {
-                      AppHaptics.selectionClick();
-                      setState(() => _selectedWeekday = wd);
-                    },
-                  ),
-                );
-              }).toList(),
+          child: DesktopHorizontalScroll(
+            builder: (context, controller) => SingleChildScrollView(
+              controller: controller,
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List<int>.generate(7, (i) => i + 1).map((wd) {
+                  final isSel = wd == _selectedWeekday;
+                  // 所有星期恒可点击：此前无内容的日子 onSelected 传 null 会把
+                  // Chip 禁用，导致「除周一外都点不了」。空日点进去展示既有的
+                  // emptyCategory 空态即可，交互不应被数据有无绑架。
+                  return Padding(
+                    padding: const EdgeInsets.only(right: AppTokens.spaceXs),
+                    child: ChoiceChip(
+                      label: Text(_weekdayLabel(l10n, wd)),
+                      selected: isSel,
+                      onSelected: (_) {
+                        AppHaptics.selectionClick();
+                        setState(() => _selectedWeekday = wd);
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ),

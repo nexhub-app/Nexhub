@@ -26,6 +26,7 @@ import 'app_error_state.dart';
 import 'app_loading_indicator.dart';
 import 'content_card.dart';
 import 'detail_action_utils.dart';
+import 'desktop_horizontal_scroll.dart';
 import 'online_filter_sheet.dart';
 import 'online_home_section.dart';
 import 'online_schedule_section.dart';
@@ -1231,18 +1232,23 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
               onPressed: widget.onSearch,
             ),
           Expanded(
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              indicatorSize: TabBarIndicatorSize.tab,
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-                color: scheme.primaryContainer,
+            // 桌面端：鼠标左键可拖动分类 Tab 横向滚动（TabBar 自身无
+            // controller 可接管，用 ScrollBehavior 放行拖动设备即可）。
+            child: ScrollConfiguration(
+              behavior: desktopHorizontalDragBehavior(context),
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusFull),
+                  color: scheme.primaryContainer,
+                ),
+                labelColor: scheme.onPrimaryContainer,
+                unselectedLabelColor: scheme.onSurfaceVariant,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+                tabs: _buildTabs(l10n),
               ),
-              labelColor: scheme.onPrimaryContainer,
-              unselectedLabelColor: scheme.onSurfaceVariant,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-              tabs: _buildTabs(l10n),
             ),
           ),
           AnimatedBuilder(
@@ -1329,24 +1335,28 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       decoration: BoxDecoration(
         color: scheme.surface,
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: widget.sources.asMap().entries.map((e) {
-            final int i = e.key;
-            final s = e.value;
-            final selected = s.id == _source?.id;
-            return Padding(
-              key: selected ? _chipKey(i, s.id) : null,
-              padding: const EdgeInsets.only(right: AppTokens.spaceSm),
-              child: _SourceChip(
-                label: s.name,
-                selected: selected,
-                onTap: () => _onSource(s),
-              ),
-            );
-          }).toList(),
+      child: DesktopHorizontalScroll(
+        builder: (context, controller) => SingleChildScrollView(
+          // 桌面端：鼠标左键拖动 + 竖向滚轮转横向滚动（见 helper 注释）。
+          controller: controller,
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: widget.sources.asMap().entries.map((e) {
+              final int i = e.key;
+              final s = e.value;
+              final selected = s.id == _source?.id;
+              return Padding(
+                key: selected ? _chipKey(i, s.id) : null,
+                padding: const EdgeInsets.only(right: AppTokens.spaceSm),
+                child: _SourceChip(
+                  label: s.name,
+                  selected: selected,
+                  onTap: () => _onSource(s),
+                ),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );

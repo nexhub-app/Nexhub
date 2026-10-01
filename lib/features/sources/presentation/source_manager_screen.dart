@@ -634,20 +634,24 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
           ],
         );
       }
-      return Column(
-        children: <Widget>[
-          if (section != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppTokens.spaceMd,
-                AppTokens.spaceXs,
-                AppTokens.spaceMd,
-                0,
+      return SingleChildScrollView(
+        // 媒体服务器区块与源列表并入同一条滚动流：列表 shrinkWrap 撑开、
+        // 滚动交给外层，区块不再固定在顶部，而是跟着列表一起滚走。
+        child: Column(
+          children: <Widget>[
+            if (section != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTokens.spaceMd,
+                  AppTokens.spaceXs,
+                  AppTokens.spaceMd,
+                  0,
+                ),
+                child: section,
               ),
-              child: section,
-            ),
-          Expanded(child: _buildSourceListView(l10n, sources)),
-        ],
+            _buildSourceListView(l10n, sources, scrollsWithParent: true),
+          ],
+        ),
       );
     }
 
@@ -711,17 +715,24 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
 
   /// 构建源列表 ListView（复用于单列表与分类 Tab）。
   /// 支持长按拖动排序；拖拽指示器在左侧，更多按钮在右侧（避免挤在一起）。
+  ///
+  /// [scrollsWithParent] 为 true 时（媒体服务器区块并入滚动流的场景）：
+  /// 列表 `shrinkWrap` 撑开全部行 + `NeverScrollableScrollPhysics` 把滚动
+  /// 让给外层 [SingleChildScrollView]，自身不再截留手势。
   Widget _buildSourceListView(
     AppLocalizations l10n,
-    List<PluginConfig> sources,
-  ) {
+    List<PluginConfig> sources, {
+    bool scrollsWithParent = false,
+  }) {
     // 监听登录态：源登录/登出后列表实时刷新「未登录」徽章（项 2）。
     final SourceAuthManager auth = context.watch<SourceAuthManager>();
     final SourceRepository repo = context.watch<SourceRepository>();
     return ReorderableListView(
       // 行首是拖拽手柄，移动端需避让玻璃底栏。
       padding: const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
-      header: const SizedBox.shrink(),
+      // 媒体服务器区块场景：列表全部行直接撑开，滚动交给外层容器。
+      shrinkWrap: scrollsWithParent,
+      physics: scrollsWithParent ? const NeverScrollableScrollPhysics() : null,
       // 禁用默认右侧拖动手柄，改用左侧自定义拖拽指示器（项 3）
       buildDefaultDragHandles: false,
       // 美化拖动动画：缓出曲线 + 上浮 + 主色描边 + 双层阴影（项 4）

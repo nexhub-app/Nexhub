@@ -12,6 +12,7 @@ import '../models/media_item.dart';
 import '../services/source_repository.dart';
 import '../theme/app_tokens.dart';
 import 'content_card.dart';
+import 'desktop_horizontal_scroll.dart';
 
 /// 首页横向 Section。
 ///
@@ -111,19 +112,22 @@ class OnlineHomeSection extends StatelessWidget {
   /// 加载中骨架：横向 4 个灰色占位块。
   Widget _buildLoadingRow(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: 200,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
-        itemCount: 4,
-        separatorBuilder: (_, __) =>
-            const SizedBox(width: AppTokens.spaceSm),
-        itemBuilder: (BuildContext ctx, int i) => Container(
-          width: 120,
-          decoration: BoxDecoration(
-            color: scheme.onSurface.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+    return DesktopHorizontalScroll(
+      builder: (context, controller) => SizedBox(
+        height: 200,
+        child: ListView.separated(
+          controller: controller,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceLg),
+          itemCount: 4,
+          separatorBuilder: (_, __) =>
+              const SizedBox(width: AppTokens.spaceSm),
+          itemBuilder: (BuildContext ctx, int i) => Container(
+            width: 120,
+            decoration: BoxDecoration(
+              color: scheme.onSurface.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+            ),
           ),
         ),
       ),
@@ -157,31 +161,34 @@ class OnlineHomeSection extends StatelessWidget {
 
   /// 横向卡片列表（正常态）。
   Widget _buildCardRow(BuildContext context) {
-    return SizedBox(
-      height: 200,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceLg,
+    return DesktopHorizontalScroll(
+      builder: (context, controller) => SizedBox(
+        height: 200,
+        child: ListView.separated(
+          controller: controller,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTokens.spaceLg,
+          ),
+          itemCount: items.length,
+          separatorBuilder: (_, __) =>
+              const SizedBox(width: AppTokens.spaceSm),
+          itemBuilder: (BuildContext ctx, int i) {
+            final item = items[i];
+            return SizedBox(
+              width: 120,
+              child: ContentCard(
+                title: item.title,
+                coverUrl: item.coverUrl,
+                source: ctx.read<SourceRepository>().getById(item.sourceId ?? ''),
+                subtitle: item.status,
+                meta: item.year,
+                heroTag: '$heroPrefix-${item.id}',
+                onTap: () => onItemTap(item, '$heroPrefix-${item.id}'),
+              ),
+            );
+          },
         ),
-        itemCount: items.length,
-        separatorBuilder: (_, __) =>
-            const SizedBox(width: AppTokens.spaceSm),
-        itemBuilder: (BuildContext ctx, int i) {
-          final item = items[i];
-          return SizedBox(
-            width: 120,
-            child: ContentCard(
-              title: item.title,
-              coverUrl: item.coverUrl,
-              source: ctx.read<SourceRepository>().getById(item.sourceId ?? ''),
-              subtitle: item.status,
-              meta: item.year,
-              heroTag: '$heroPrefix-${item.id}',
-              onTap: () => onItemTap(item, '$heroPrefix-${item.id}'),
-            ),
-          );
-        },
       ),
     );
   }
