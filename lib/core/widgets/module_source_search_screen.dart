@@ -776,7 +776,7 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
   }
 
   Widget _buildResults(BuildContext context, AppLocalizations l10n) {
-    // D3：影视模块搜索在结果顶部聚合媒体服务器段（查询非空时）。
+    // 影视模块搜索在结果顶部聚合媒体服务器段（查询非空时）。
     Widget mainBody;
     if (_loading) {
       mainBody = const Center(child: AppLoadingIndicator());

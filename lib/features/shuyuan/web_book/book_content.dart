@@ -203,7 +203,7 @@ class BookContent {
     }
 
     if (contentRule.replaceRegex != null && contentRule.replaceRegex!.isNotEmpty) {
-      // 参考 xiaoshuo 原版 BookContent.kt：先 trim 每行，再直接应用正则替换规则
+      // 逐行 trim 后直接应用正则替换规则
       content = content.split('\n').map((line) => line.trim()).join('\n');
       final replaceRegex = contentRule.replaceRegex!;
       final parts = replaceRegex.split('##');

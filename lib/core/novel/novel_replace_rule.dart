@@ -1,4 +1,4 @@
-/// 替换规则模型：正文净化规则（对标 legado ReplaceRule）。
+/// 替换规则模型：正文净化规则（与 legado ReplaceRule 行为一致）。
 ///
 /// 支持多条规则按 order 排序，scope 限定作用范围（标题/正文/全部），
 /// isRegex 切换正则/纯文本替换，timeout 防死循环，书籍级开关。

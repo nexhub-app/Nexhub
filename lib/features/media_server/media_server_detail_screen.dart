@@ -60,11 +60,11 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
 
   bool get _isBoxSet => _detail?.type == 'BoxSet';
 
-  /// G2：合集子项（BoxSet 内的电影 / 剧集）。
+  /// 合集子项（BoxSet 内的电影 / 剧集）。
   List<ServerMediaItem>? _boxSetChildren;
   Object? _boxSetError;
 
-  /// C1：折叠标题透明度（0 = 展开显示头图，1 = 收起显示标题）。
+  /// 折叠标题透明度（0 = 展开显示头图，1 = 收起显示标题）。
   final ValueNotifier<double> _titleOpacity = ValueNotifier<double>(0);
 
   /// 头图展开高度（SliverAppBar expandedHeight 与折叠进度分母）。
@@ -74,7 +74,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
   void initState() {
     super.initState();
     _reload();
-    // G1：进详情即预取 backdrop（头图秒出；磁盘缓存二次进入零等待）。
+    // 进详情即预取 backdrop（头图秒出；磁盘缓存二次进入零等待）。
     // provider 必须与显示端（MediaServerPoster → NexImageCacheManager）同一
     // 缓存管理器：precacheImage 的落盘位置由 provider 决定，用默认管理器预取
     // 会存进另一套缓存目录，显示端查统一缓存时预取等于白做。
@@ -109,7 +109,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
         _detail = detail;
         _loading = false;
       });
-      // D2：写入浏览历史（kind=mediaServer；封面带鉴权头落盘离线可见）。
+      // 写入浏览历史（kind=mediaServer；封面带鉴权头落盘离线可见）。
       unawaited(_recordHistory(detail));
       if (detail.type == 'Series') {
         await _loadSeasons();
@@ -181,7 +181,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     await _reload();
   }
 
-  /// G2：加载合集子项（BoxSet 内的电影 / 剧集）。
+  /// 加载合集子项（BoxSet 内的电影 / 剧集）。
   Future<void> _loadBoxSetChildren(String boxSetId) async {
     try {
       final children = await widget.client.fetchItems(
@@ -197,9 +197,9 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     }
   }
 
-  // ─────────────── B 包互动：收藏 / 已看 ───────────────
+  // ─────────────── 互动：收藏 / 已看 ───────────────
 
-  /// D2：写入浏览历史（kind = mediaServer，id/detailUrl 存路由凭据）。
+  /// 写入浏览历史（kind = mediaServer，id/detailUrl 存路由凭据）。
   Future<void> _recordHistory(ServerMediaItem detail) async {
     try {
       final history = context.read<HistoryManager>();
@@ -222,7 +222,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     }
   }
 
-  /// 收藏切换（B1）：乐观更新 + 失败回滚 + 提示。
+  /// 收藏切换：乐观更新 + 失败回滚 + 提示。
   Future<void> _toggleFavorite() async {
     final detail = _detail;
     if (detail == null) return;
@@ -262,7 +262,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     }
   }
 
-  /// 已看切换（B3，电影）：乐观更新 + 失败回滚。
+  /// 已看切换（电影）：乐观更新 + 失败回滚。
   Future<void> _toggleWatched() async {
     final detail = _detail;
     if (detail == null) return;
@@ -297,7 +297,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     }
   }
 
-  /// 单集已看切换（B3，长按集卡片）：乐观更新 + 失败回滚。
+  /// 单集已看切换（长按集卡片）：乐观更新 + 失败回滚。
   Future<void> _toggleEpisodeWatched(ServerMediaItem ep) async {
     final episodes = _episodes;
     if (episodes == null) return;
@@ -334,7 +334,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     }
   }
 
-  /// 整季标记已看（B3）：逐集标记（小间隔，友好对待公益服务器）。
+  /// 整季标记已看：逐集标记（小间隔，友好对待公益服务器）。
   Future<void> _markSeasonWatched() async {
     final episodes = _episodes;
     if (episodes == null) return;
@@ -385,7 +385,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
     }
     final detail = _detail;
     if (detail == null) return const SizedBox.shrink();
-    // C1：SliverAppBar 视差折叠——展开为沉浸式头图，收起后标题渐显。
+    // SliverAppBar 视差折叠——展开为沉浸式头图，收起后标题渐显。
     return NotificationListener<ScrollNotification>(
       onNotification: (n) {
         if (n.metrics.axis != Axis.vertical) return false;
@@ -460,7 +460,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
   }
 
   /// 播放按钮组（电影：继续 / 从头；剧集：播放首集或当前季首集）
-  /// + 收藏（B1）+ 已看切换（B3，电影）。
+  /// + 收藏 + 已看切换（电影）。
   List<Widget> _actions(
     BuildContext context,
     ServerMediaItem detail,
@@ -491,7 +491,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
             ),
           ),
           const SizedBox(width: AppTokens.spaceSm),
-          // 收藏（B1）：心形，乐观更新。
+          // 收藏：心形，乐观更新。
           IconButton.filledTonal(
             onPressed: _toggleFavorite,
             tooltip: l10n.mediaServerFavorite,
@@ -502,7 +502,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
               color: favorited ? scheme.error : null,
             ),
           ),
-          // 已看切换（B3，电影）。
+          // 已看切换（电影）。
           if (!_isSeries)
             IconButton.filledTonal(
               onPressed: _toggleWatched,
@@ -563,7 +563,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
             ],
           ),
         ),
-      // 整季标记已看（B3）：仅当当前季存在未看集时显示。
+      // 整季标记已看：仅当当前季存在未看集时显示。
       if (!_episodesLoading &&
           (_episodes ?? const <ServerMediaItem>[])
               .any((e) => !(e.userData?.played ?? false)))
@@ -631,7 +631,7 @@ class _ImmersiveHeader extends StatelessWidget {
             ),
           ),
         ),
-        // 顶层：横幅剧照（参考库做法：清晰 backdrop + 朝底色渐变遮罩），
+        // 顶层：横幅剧照（清晰 backdrop + 朝底色渐变遮罩），
         // 缺失时静默透出底层模糊海报。
         Positioned.fill(
           child: MediaServerPoster(
@@ -801,7 +801,7 @@ class _HeroChip extends StatelessWidget {
   }
 }
 
-/// 合集子项网格（G2）：BoxSet 内的电影 / 剧集，点击进对应详情。
+/// 合集子项网格：BoxSet 内的电影 / 剧集，点击进对应详情。
 ///
 /// [children] 为 null 表示子项仍在加载（显示进度圈），空列表表示合集为空。
 List<Widget> _boxSetSectionStatic(
@@ -881,7 +881,7 @@ List<Widget> _boxSetSectionStatic(
 }
 
 /// 集卡片：缩略图 / 时长 / 已看角标 / 未看完进度条 / PGS 标注。
-/// 长按切换已看（B3）。
+/// 长按切换已看。
 class _EpisodeCard extends StatelessWidget {
   final MediaServerClientBase client;
   final ServerMediaItem episode;

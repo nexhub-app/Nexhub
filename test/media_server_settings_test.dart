@@ -1,4 +1,4 @@
-/// 媒体服务器播放设置单测（A2 码率档位持久化）。
+/// 媒体服务器播放设置单测（码率档位持久化）。
 library;
 
 import 'package:flutter_test/flutter_test.dart';

@@ -1,7 +1,7 @@
 /// 统一嗅探页（主页浏览页「嗅探」入口，与浏览页风格统一）。
 ///
 /// 在 [BrowsePage]（本地文件 / 网络文件 / 网页爬取 / RSS）之外，提供第五个
-/// 入口。采用「网络拦截 + DOM 检测 + API 钩子」方法论（clean-room 借鉴猫抓等
+/// 入口。采用「网络拦截 + DOM 检测 + API 钩子」方法论（clean-room 自研实现，
 /// 开源嗅探，不引入其代码）：
 /// - 文档起始注入 JS 钩子（fetch/XHR/HTMLMediaElement/MediaSource/
 /// URL.createObjectURL），经 `callHandler('sniffer')` 回传 Dart；

@@ -150,7 +150,7 @@ extension _VideoInfoStats on _VideoPlayerScreenState {
                           _statsRow(l10n.playerStatsDroppedFrames, drops),
                           _statsRow(l10n.playerStatsBitrate, bitrate),
                           _statsRow(l10n.playerStatsBuffering, buffering),
-                          // G4：媒体服务器播放追加流类型 / 码率档位 / 服务器 / 音轨。
+                          // 媒体服务器播放追加流类型 / 码率档位 / 服务器 / 音轨。
                           if (_isMediaServer) ...<Widget>[
                             _statsRow(
                               l10n.mediaServerStatsPlayMethod,

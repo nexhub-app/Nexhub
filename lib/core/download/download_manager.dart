@@ -1090,7 +1090,7 @@ class DownloadManager extends ChangeNotifier {
   /// 按媒体类型返回下载分类目录名（中文，便于用户在文件管理器识别）。
   ///
   /// 与「每部作品一个目录」配合，形成 `下载根/类型/作品名/逐话文件` 的层级
-  /// （参考通用离线阅读器的目录组织方式，不依赖具体对标实现）。
+  /// （通用离线阅读器的目录组织方式）。
   static String _typeDirName(SourceType type) => switch (type) {
         SourceType.novelSource => '小说',
         SourceType.mangaSource => '漫画',

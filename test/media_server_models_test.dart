@@ -120,7 +120,7 @@ void main() {
       expect(updated.baseUrl, base.baseUrl);
     });
 
-    test('urls 往返与规范化（F1 多地址）', () {
+    test('urls 往返与规范化（多地址候选）', () {
       final info = MediaServerInfo.fromJson(<String, dynamic>{
         'id': 'x',
         'type': 'emby',

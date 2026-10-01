@@ -31,10 +31,10 @@ class _HomeData {
   final List<ServerMediaItem> latest;
   final List<ServerLibrary> libraries;
 
-  /// 我的收藏（B1；仅非空渲染，失败静默为空）。
+  /// 我的收藏（仅非空渲染，失败静默为空）。
   final List<ServerMediaItem> favorites;
 
-  /// NextUp 追更（B2；仅剧集库服务器请求，空不渲染）。
+  /// NextUp 追更（仅剧集库服务器请求，空不渲染）。
   final List<ServerMediaItem> nextUp;
 
   const _HomeData({
@@ -264,7 +264,7 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
             ),
           ),
         ],
-        // ───── 接下来观看（B2 NextUp，空不渲染）─────
+        // ───── 接下来观看（NextUp，空不渲染）─────
         if (data.nextUp.isNotEmpty) ...<Widget>[
           Entrance(
             onceKey: 'ms_home_nextup',
@@ -302,7 +302,7 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
             ),
           ),
         ],
-        // ───── 我的收藏（B1，仅非空渲染）─────
+        // ───── 我的收藏（仅非空渲染）─────
         if (data.favorites.isNotEmpty) ...<Widget>[
           Entrance(
             onceKey: 'ms_home_favorites',
@@ -455,7 +455,7 @@ class _PosterTile extends StatelessWidget {
     final title = (item.seriesName != null && item.seriesName!.isNotEmpty)
         ? item.seriesName!
         : item.name;
-    // G1：按卡片逻辑宽 × 像素密度请求海报分辨率，省流量不失真。
+    // 按卡片逻辑宽 × 像素密度请求海报分辨率，省流量不失真。
     final posterMaxWidth =
         (118 * MediaQuery.devicePixelRatioOf(context)).round().clamp(240, 600);
     return MediaServerPressableScale(
@@ -563,7 +563,7 @@ class _ResumeCard extends StatelessWidget {
     final runtime = item.runTimeTicks ?? 0;
     final double? ratio =
         (runtime > 0 && ticks > 0) ? (ticks / runtime).clamp(0.0, 1.0) : null;
-    // 剩余时长（C2：Resume 卡片海报缩略 + 剩余分钟）。
+    // 剩余时长（Resume 卡片海报缩略 + 剩余分钟）。
     String? subtitle;
     if (runtime > 0 && ticks > 0) {
       final remainingMin =

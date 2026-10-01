@@ -291,7 +291,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // 媒体服务器：探测 / 登录接缝接真实 API 客户端（详见 core/services/media_server）。
     final mediaServerAuth = MediaServerClientBase.createMediaServerAuth();
     await mediaServerAuth.init();
-    // F2：前台探活（60s 周期，生命周期 paused 自动暂停）。
+    // 前台探活（60s 周期，生命周期 paused 自动暂停）。
     mediaServerAuth.startHealthCheck();
     // 通用设置（启动界面 / 日期格式 / 年龄限制）需在首页构建前就绪。
     await GeneralSettingsStore.instance.load();

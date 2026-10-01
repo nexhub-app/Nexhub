@@ -49,7 +49,7 @@ typedef MediaServerAuthenticator = Future<MediaServerLoginResult> Function(
 });
 
 /// 媒体服务器认证管理器——多服务器档案的单一事实源（Provider 注入）。
-/// 兼 F2 前台探活（60s 周期，仅 app 前台运行，结果驱动状态点实时化）。
+/// 内置前台探活：60s 周期，仅 app 前台运行，结果驱动状态点实时化。
 class MediaServerAuth extends ChangeNotifier
     with WidgetsBindingObserver {
   MediaServerAuth({
@@ -80,7 +80,7 @@ class MediaServerAuth extends ChangeNotifier
   bool _loaded = false;
   String? _cachedDeviceId;
 
-  // ── F2 前台探活 ──
+  // ── 前台探活 ──
   Timer? _healthTimer;
   bool _healthRunning = false;
 
@@ -169,7 +169,7 @@ class MediaServerAuth extends ChangeNotifier
     notifyListeners();
   }
 
-  /// 添加服务器：支持多地址（换行 / 逗号分隔，F1 内外网双地址）——
+  /// 添加服务器：支持多地址（换行 / 逗号分隔，内外网双地址）——
   /// 逐个探测，**首个成功者设为活动地址**；候选全集存入档案。
   ///
   /// 登录随后通过 [login] 完成。地址重复时抛 [StateError]；
@@ -251,7 +251,7 @@ class MediaServerAuth extends ChangeNotifier
     return info;
   }
 
-  /// F1：更新服务器候选地址（管理页地址编辑）。探测首个可达地址设为
+  /// 更新服务器候选地址（管理页地址编辑）。探测首个可达地址设为
   /// 活动地址；全部不可达时保留原活动地址。
   Future<void> updateServerUrls(String serverId, List<String> urls) async {
     await init();

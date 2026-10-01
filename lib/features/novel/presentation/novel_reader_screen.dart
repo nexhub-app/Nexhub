@@ -589,8 +589,8 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
   /// 触发落盘所需的下滑距离（屏高比例）。
   static const double _bookmarkSwipeThresholdRatio = 0.18;
 
-  /// 判定：下滑手势（dy > 0）且纵向位移明显大于横向（absY > absX * 1.5，
-  /// 对标判定 ratio），由亮度手势（仅左 1/3 屏生效）之外的区域触发。
+  /// 判定：下滑手势（dy > 0）且纵向位移明显大于横向（absY > absX * 1.5
+  /// 的通用判定比例），由亮度手势（仅左 1/3 屏生效）之外的区域触发。
   /// 滚动模式不启用——滚动本身即纵向手势，会与列表滚动冲突。
   bool get _bookmarkSwipeEnabled => !_prefs.pageAnimation.isScroll;
 
@@ -979,7 +979,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     return t.isEmpty ? path : t;
   }
 
-  /// 本地模式读取文件并分页（参考 local_media_viewer._readTextFile）。
+  /// 本地模式读取文件并分页（与 local_media_viewer._readTextFile 相同的读取方式）。
   ///
   /// - TXT（[localTextPath]）：整文件作为扁平段落列表。
   /// - EPUB（[localEpubPath]）：经 [LocalNovelParser.parseEpub] 解析为章节，
@@ -4266,7 +4266,7 @@ class _NovelReaderScreenState extends State<NovelReaderScreen>
     final dx = d.delta.dx;
     final dy = d.delta.dy;
     if (!_bookmarkSwipeActive) {
-      // 待定态：累计方向，直到明确「纵向且向下」才激活（对标 判定：
+      // 待定态：累计方向，直到明确「纵向且向下」才激活（判定：
       // dy > 0 且 absY > absX * ratio，页面随指下移）。
       _bookmarkSwipeDx += dx;
       _bookmarkSwipeDy += dy;

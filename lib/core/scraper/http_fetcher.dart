@@ -1304,7 +1304,7 @@ class HttpFetcher {
   /// 读取系统 WebView Cookie 存储中某 url 的 Cookie 头（与内嵌 InAppWebView 登录
   /// 共享同一份 cookie）。经原生通道 `nexhub/system_cookie` 直连
   /// `android.webkit.CookieManager.getInstance().getCookie(url)`（iOS 未注册时降级为
-  /// null）。这是参考「登录后轮询系统 CookieManager 取会话」的通用做法，
+  /// null）。这是「登录后轮询系统 CookieManager 取会话」的通用做法，
   /// 比 flutter_inappwebview 的 CookieManager 更可靠（后者在某些版本/配置下与
   /// InAppWebView 不是同一存储，导致「登录了但取不到 cookie」）。
   ///

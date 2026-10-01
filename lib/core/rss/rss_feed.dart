@@ -33,7 +33,7 @@ class RssFeed {
   final List<String> groups;
   final int addedAt;
 
-  /// 打开文章时是否自动抓取原站全文（按源开关，对标 ReadYou 的
+  /// 打开文章时是否自动抓取原站全文（按源开关，与 ReadYou 的
   /// full content）。默认开（保持既有行为）；对摘要即正文/原站抓取易失败
   /// 的源可关闭。仅影响**自动**抓取，详情页手动「拉取网站解析」不受限。
   final bool autoFetchFullText;

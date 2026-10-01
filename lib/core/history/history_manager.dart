@@ -52,7 +52,7 @@ class HistoryEntry {
   /// 与进度仍保留，用户重新进入该作品（详情/阅读器记录浏览）时自动复原为 false。
   final bool hidden;
 
-  /// 条目来源体系（D2 体系并入）：`'mediaServer'` = 媒体服务器条目
+  /// 条目来源体系：`'mediaServer'` = 媒体服务器条目
   /// （[detailUrl] 存路由凭据 `ms:<serverId>:<itemId>`）；null = 旧条目。
   final String? kind;
 
@@ -273,7 +273,7 @@ class HistoryManager extends ChangeNotifier {
     unawaited(_cacheCoverFor(entry));
   }
 
-  /// 写入预构建的历史条目（D2：媒体服务器等外部体系用）。
+  /// 写入预构建的历史条目（媒体服务器等外部体系用）。
   ///
   /// 去重 / 上限淘汰 / 持久化与 [addHistory] 一致；封面缓存由调用方负责
   /// （媒体服务器海报需带鉴权头下载，[HistoryEntry.localCoverPath] 预置后
@@ -292,7 +292,7 @@ class HistoryManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 删除 contentId 以 [prefix] 开头的历史条目（D4 删除服务器联动）。
+  /// 删除 contentId 以 [prefix] 开头的历史条目（删除媒体服务器时的联动清理）。
   Future<void> removeByContentIdPrefix(String prefix) async {
     var changed = false;
     for (final type in _cache.keys.toList()) {

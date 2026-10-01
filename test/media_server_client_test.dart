@@ -1,8 +1,7 @@
 /// 媒体服务器客户端单测（离线）：dio 假适配器覆盖方言端点路径、鉴权头、
 /// 响应解析、直连协商决策树、401 → isUnauthorized 映射与会话上报。
 ///
-/// 夹具 JSON 按官方 API 文档形态手写，真机实测后如有出入回填修正
-/// （TODO 文档 §八 M2）。
+/// 夹具 JSON 按官方 API 文档形态手写，真机实测后如有出入回填修正。
 library;
 
 import 'dart:convert';
@@ -306,7 +305,7 @@ void main() {
       await client.fetchItems(searchTerm: 'foo');
     });
 
-    test('fetchItems：G2 流派 / 年份筛选参数（Genres=| 拼、Years=, 拼）', () async {
+    test('fetchItems：流派 / 年份筛选参数（Genres=| 拼、Years=, 拼）', () async {
       adapter.handler = (opts) async {
         expect(opts.queryParameters['Genres'], '动画|科幻');
         expect(opts.queryParameters['Years'], '2024,2023');
@@ -318,7 +317,7 @@ void main() {
       );
     });
 
-    test('fetchFilterOptions：G2 从库内条目去重流派 / 年份（年份倒序）', () async {
+    test('fetchFilterOptions：从库内条目去重流派 / 年份（年份倒序）', () async {
       adapter.handler = (opts) async {
         expect(opts.queryParameters['ParentId'], 'lib1');
         expect(opts.queryParameters['Fields'], contains('Genres'));
@@ -590,7 +589,7 @@ void main() {
     });
   });
 
-  group('多地址 fallback（F1）', () {
+  group('多地址 fallback', () {
     test('连接失败 → 切换备用地址重试并更新活动地址', () async {
       final info = MediaServerInfo(
         id: 'srv1',

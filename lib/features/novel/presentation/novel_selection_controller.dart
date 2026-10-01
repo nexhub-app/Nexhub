@@ -217,7 +217,7 @@ class NovelSelectionController extends ChangeNotifier {
 
  /// 返回包含某全局偏移的「词/句」在章内文本流中的起止偏移 [start, end)。
  ///
- /// 切分规则（对标决策「标点/空白切分 + 字符级」）：以 [globalOffset] 为中心，
+ /// 切分规则（「标点/空白切分 + 字符级」）：以 [globalOffset] 为中心，
  /// 向左/右延伸至遇到空白或标点（CJK 汉字 / 字母数字视为词内字符，标点与
  /// 空白为断点）。中文长按即选中「标点之间的整句」，英文选中单词；拖拽时
  /// 由 [setSelection] 重定义为锚点→落点，覆盖此默认选区。

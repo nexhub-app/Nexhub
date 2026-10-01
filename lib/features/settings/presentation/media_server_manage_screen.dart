@@ -81,7 +81,7 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
                   children: <Widget>[
                     for (final s in auth.servers)
                       _serverTile(context, auth, s, l10n),
-                    // ── 播放设置（A2 码率档位，全局默认）──
+                    // ── 播放设置（码率档位，全局默认）──
                     ListenableBuilder(
                       listenable: MediaServerPlaybackSettings.instance,
                       builder: (context, _) => SettingsTile(
@@ -173,7 +173,7 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
     );
   }
 
-  /// 状态徽标：优先 F2 探活结果（实时），未探测过回落一次性 statusOf。
+  /// 状态徽标：优先实时探活结果，未探测过回落一次性 statusOf。
   Widget _statusChip(
     ThemeData theme,
     MediaServerAuth auth,
@@ -247,7 +247,7 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
     }
   }
 
-  /// F1：地址管理（多行编辑，每行一个地址；首个可达者为活动地址）。
+  /// 地址管理（多行编辑，每行一个地址；首个可达者为活动地址）。
   Future<void> _editAddresses(MediaServerInfo s) async {
     final l10n = AppLocalizations.of(context);
     final controller = TextEditingController(text: s.urls.join('\n'));
@@ -361,7 +361,7 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
     );
     if (ok != true) return;
     if (!mounted) return;
-    // D4：先取管理器引用（避免 await 后跨 async gap 用 context），
+    // 先取管理器引用（避免 await 后跨 async gap 用 context），
     // 删除档案后清理该服务器命名空间下的本地进度 / 已看 / 历史。
     final watched = context.read<MediaWatchedManager>();
     final positions = context.read<MediaPlaybackPositionManager>();

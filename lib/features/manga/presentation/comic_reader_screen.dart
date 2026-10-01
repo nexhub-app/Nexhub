@@ -3402,7 +3402,7 @@ class _ComicReaderScreenState extends State<ComicReaderScreen>
     });
   }
 
-  /// 双击缩放：三态循环（用户需求，参考 photo_view 的 scaleState 循环思想）——
+  /// 双击缩放：三态循环（用户需求，与 photo_view 的 scaleState 循环一致）——
   /// 原样(1x) → 缩小(0.5x) → 放大([ReaderPreferences.doubleTapZoomScale]) →
   /// 恢复原样(1x) → …。preventShrink 打开时跳过缩小态（1x ↔ 放大两态）。
   /// 以 [focal]（视口坐标）或视口中心为锚点；[focal] 为 null 时使用中心。
@@ -6752,7 +6752,7 @@ class _MangaPageImageState extends State<MangaPageImage> {
     // 解码限幅（连续模式 enableResize）：条漫模式下把解码位图宽下采样到
     // min(2560, 屏幕物理像素 × 2)——长条漫原图常达数千 px 宽，全尺寸解码一张
     // 可占数十 MB 内存，连续滚动极易触发低机卡顿/OOM。×2 系数为捏合放大保留
-    // 一档细节；上限 2560 对齐参考实现的 BaseImageProvider 限幅。paged 单页
+    // 一档细节；上限 2560 与常见图片加载器 BaseImageProvider 的限幅一致。paged 单页
     // 模式不限幅（页面数少且需放大细节）。
     int? decodeCapWidthPx;
     if (widget.prefs.readingMode.isWebtoon &&

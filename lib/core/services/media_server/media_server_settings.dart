@@ -1,4 +1,4 @@
-/// 媒体服务器播放设置（A2 码率档位；全局默认，per-server 覆盖留二期）。
+/// 媒体服务器播放设置（码率档位；全局默认，per-server 覆盖留二期）。
 library;
 
 import 'dart:convert';
@@ -54,7 +54,7 @@ class MediaServerPlaybackSettings extends ChangeNotifier {
 
   MediaServerBitrateTier get tier => _tier;
 
-  /// G3：服务器内搜索历史（最近 10 条，可清空）。
+  /// 服务器内搜索历史（最近 10 条，可清空）。
   List<String> get searchHistory => List.unmodifiable(_searchHistory);
 
   /// 冷启动恢复（幂等； GeneralSettingsStore 同款防竞态约定）。
@@ -91,7 +91,7 @@ class MediaServerPlaybackSettings extends ChangeNotifier {
     await _persist();
   }
 
-  /// G3：记录搜索词（去重置顶，最多 10 条）。
+  /// 记录搜索词（去重置顶，最多 10 条）。
   Future<void> addSearchHistory(String query) async {
     final q = query.trim();
     if (q.isEmpty) return;
@@ -105,7 +105,7 @@ class MediaServerPlaybackSettings extends ChangeNotifier {
     await _persist();
   }
 
-  /// G3：清空搜索历史。
+  /// 清空搜索历史。
   Future<void> clearSearchHistory() async {
     if (_searchHistory.isEmpty) return;
     _searchHistory = <String>[];

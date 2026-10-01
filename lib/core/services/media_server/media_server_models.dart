@@ -60,11 +60,11 @@ class MediaServerInfo {
   /// 用户可见别名；默认取探测返回的 ServerName，缺省回退地址。
   final String name;
 
-  /// 当前活动地址（含 scheme、去尾斜杠；F1 多地址 fallback 下可被
+  /// 当前活动地址（含 scheme、去尾斜杠；多地址 fallback 下可被
   /// 自动切换改写，候选全集见 [urls]）。
   String baseUrl;
 
-  /// F1：全部候选地址（主地址在前；[baseUrl] 恒为其中之一）。
+  /// 全部候选地址（主地址在前；[baseUrl] 恒为其中之一）。
   /// 旧数据无此字段时由 [fromJson] 回落为 `[baseUrl]`。
   List<String> urls;
 
@@ -328,7 +328,7 @@ class ServerUserData {
   /// 未看完时的进度（100ns 单位）。
   final int? playbackPositionTicks;
 
-  /// 是否已收藏（B1 收藏同步）。
+  /// 是否已收藏（与服务器双向同步）。
   final bool isFavorite;
 
   const ServerUserData({
@@ -353,7 +353,7 @@ class ServerUserData {
       );
 }
 
-/// 播放方式（A1 三段决策树：直连 → 直接流 → 转码）。
+/// 播放方式（三段决策树：直连 → 直接流 → 转码）。
 enum MediaServerPlayMethod {
   directPlay,
   directStream,
@@ -367,7 +367,7 @@ enum MediaServerPlayMethod {
       };
 }
 
-/// 媒体流信息（MediaStreams 中音轨子集，A3 音轨选择用）。
+/// 媒体流信息（MediaStreams 中音轨子集，音轨选择用）。
 class ServerMediaStream {
   final int index;
   final String? codec;

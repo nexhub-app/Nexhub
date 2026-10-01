@@ -49,7 +49,7 @@ class AnalyzeByJsoup {
       return root.querySelectorAll(s);
     } catch (_) {
       // 属性值无引号且以数字开头（如 `[color*=008800]`）时，package:html 的
-      // CSS 解析器把值当数字 token 抛 FormatException（参考实现 jsoup 原生
+      // CSS 解析器把值当数字 token 抛 FormatException（jsoup 原生
       // 支持）。通用降级：给无引号属性值补引号后重试，仍失败才返回空。
       final repaired = _repairAttrQuotes(s);
       if (repaired != null && repaired != s) {
@@ -118,7 +118,7 @@ class AnalyzeByJsoup {
   /// 处理含 `:has(...)` 的选择器（支持逗号分组、`:contains` 嵌套与
   /// `+` / `>` / `~` / 空格组合器）。
   ///
-  /// 语义（对齐参考实现 jsoup）：`:has(inner)` 修饰其宿主元素，先按
+  /// 语义（与 jsoup 一致）：`:has(inner)` 修饰其宿主元素，先按
   /// 宿主选择器查出候选，过滤出「包含匹配 inner 的子元素」的宿主；若
   /// `:has(...)` 后还有组合器（如 `p:has(strong) + p`），再对每个宿主
   /// 应用组合器得到目标元素。
@@ -359,7 +359,7 @@ class AnalyzeByJsoup {
     }
 
     // 带索引的特殊选择器（如 "tag.div.0"、"class.name.-1"）
-    // 参考原版：'':' 分隔索引，'.' 表示选择，'!' 表示排除
+    // 语法：'':' 分隔索引，'.' 表示选择，'!' 表示排除
     for (final prefix in ['children', 'tag.', 'class.', 'id.', 'text.']) {
       if (trimmed.startsWith(prefix)) {
         List<Element> elements;

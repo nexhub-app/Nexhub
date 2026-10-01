@@ -89,7 +89,7 @@ class MediaHomeScreen extends StatelessWidget {
           ),
         ),
         onItemTap: (MediaItem item) async {
-          // D2 体系并入：媒体服务器历史条目（detailUrl = ms:<serverId>:<itemId>）
+          // 媒体服务器历史条目（detailUrl = ms:<serverId>:<itemId>）
           // 按凭据路由到对应详情页；服务器已删除时提示不可达。
           if (item.detailUrl?.startsWith('ms:') == true) {
             final parts = item.detailUrl!.split(':');

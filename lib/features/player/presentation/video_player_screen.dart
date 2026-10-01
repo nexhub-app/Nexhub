@@ -218,7 +218,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 当前集的上报会话（媒体服务器播放；切集时重建）。
   MediaServerPlaybackSession? _serverSession;
 
-  /// 当前集最近一次协商结果（A3 音轨选择的数据源）。
+  /// 当前集最近一次协商结果（音轨选择的数据源）。
   PlaybackInfoResult? _serverLastInfo;
 
   /// 转码流当前音轨序号（null = 服务器默认）。
@@ -443,7 +443,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
-  /// 播放状态订阅（.x §加载指示器）：订阅底层 playing 流同步 [_isPlaying]，
+  /// 播放状态订阅：订阅底层 playing 流同步 [_isPlaying]，
   /// 避免「视频已开始播放但中央大播放按钮仍显示」「缓冲转圈不消失」等 UI 滞后。
   StreamSubscription<bool>? _playingSub;
 
@@ -1577,7 +1577,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final mgr = _positionManager;
     if (mgr == null) return;
     if (_isMediaServer) {
-      // D1 双写：本地命名空间 ms:<serverId>:<workId>（服务器上报另行走会话）。
+      // 进度双写：本地命名空间 ms:<serverId>:<workId>（服务器上报另行走会话）。
       unawaited(mgr.savePosition(
         widget.mediaServerPlayback!.currentContentId,
         _episodeIndex,
@@ -1602,7 +1602,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (!progressReachesWatchedThreshold(ratio, threshold)) return;
     _watchedMarkedEpisodes.add(_episodeIndex);
     if (_isMediaServer) {
-      // D1 双写：本地已看（命名空间）+ 服务器已看由会话 ≥90% 上报。
+      // 进度双写：本地已看（命名空间）+ 服务器已看由会话 ≥90% 上报。
       try {
         context.read<MediaWatchedManager>().markWatched(
               widget.mediaServerPlayback!.currentContentId,
@@ -1896,7 +1896,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         final session = _serverSession;
         var savedMs = session?.initialPositionMs ?? 0;
         if (savedMs <= 0) {
-          // 服务器无进度（新集）→ 本地命名空间兜底（D1）。
+          // 服务器无进度（新集）→ 本地命名空间兜底。
           try {
             final mgr = context.read<MediaPlaybackPositionManager>();
             savedMs = mgr.getPosition(
@@ -1975,7 +1975,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     unawaited(session.reportProgress(positionMs: posMs, paused: paused));
   }
 
-  /// 媒体服务器会话内重协商（A2 码率切换 / A3 转码切音轨）：
+  /// 媒体服务器会话内重协商（码率切换 / 转码切音轨）：
   /// 结算当前会话 → 按新参数 PlaybackInfo → 换源续播（保持当前进度）。
   Future<void> _reopenMediaServerStream({
     int? maxBitrate,
@@ -2092,7 +2092,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     return parts.isEmpty ? t.id : parts.join(' · ');
   }
 
-  /// G4：播放方式显示名（统计面板用）。
+  /// 播放方式显示名（统计面板用）。
   String _serverPlayMethodLabel(AppLocalizations l10n) {
     switch (_serverSession?.playMethod) {
       case MediaServerPlayMethod.directPlay:
@@ -2220,7 +2220,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           ),
         );
       }
-      // D1 双写：本地进度清除 + 本地已看标记（命名空间）。
+      // 进度双写：本地进度清除 + 本地已看标记（命名空间）。
       try {
         final contentId = widget.mediaServerPlayback!.currentContentId;
         context
@@ -3336,7 +3336,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 保存当前集播放位置到 MediaPlaybackPositionManager。
   /// 退出时保存当前集播放位置到 MediaPlaybackPositionManager。
-  /// 媒体服务器：D1 双写——本地命名空间落盘 + 服务器上报由调用方处理。
+  /// 媒体服务器：进度双写——本地命名空间落盘 + 服务器上报由调用方处理。
   void _saveCurrentPosition() {
     if (_isMediaServer) {
       final mgr = _positionManager;

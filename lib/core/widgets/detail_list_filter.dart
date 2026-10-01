@@ -1,6 +1,6 @@
 /// 详情页章节/剧集列表的筛选 / 排序 / 显示组合组件。
 ///
-/// 移植自旧版 `detail_list_filter.dart`，适配当前项目的
+/// 沿用旧版 `detail_list_filter.dart` 的交互，适配当前项目的
 /// `flutter_gen` l10n 与 [AppCard] 组件。
 library;
 

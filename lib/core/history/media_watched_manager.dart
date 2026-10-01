@@ -93,7 +93,7 @@ class MediaWatchedManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 删除 contentId 以 [prefix] 开头的全部记录（D4 删除服务器联动；
+  /// 删除 contentId 以 [prefix] 开头的全部记录（删除媒体服务器时的联动清理；
   /// 媒体服务器条目 contentId = `ms:<serverId>:<itemId>`）。
   Future<void> removeContentIdPrefix(String prefix) async {
     final keys = _cache.keys

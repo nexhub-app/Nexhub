@@ -159,7 +159,7 @@ class _GroupChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: AppTokens.spaceSm),
-      // 选中态变化时播放一次脉冲（分组 chip 选中动效，文档 §动画规范）。
+      // 选中态变化时播放一次脉冲（分组 chip 选中动效）。
       child: AppValuePulse(
         trigger: selected,
         from: 0.9,

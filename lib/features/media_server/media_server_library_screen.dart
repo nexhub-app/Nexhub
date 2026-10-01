@@ -49,22 +49,22 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
   Object? _error;
   String _searchTerm = '';
 
-  // C3 筛选 / 排序状态。
+  // 筛选 / 排序状态。
   String _watchedFilter = ''; // '' 全部 / IsPlayed 已看 / -IsPlayed 未看
   String _sortBy = 'SortName';
   String _sortOrder = 'Ascending';
 
-  // G2 流派 / 年份筛选（空 = 不限）。选项来自库内实际条目（fetchFilterOptions）。
+  // 流派 / 年份筛选（空 = 不限）。选项来自库内实际条目（fetchFilterOptions）。
   String _genre = '';
   String _year = '';
   List<String> _genreOptions = <String>[];
   List<String> _yearOptions = <String>[];
 
-  /// G3：重载序号（防过期搜索结果覆盖新结果）。
+  /// 重载序号（防过期搜索结果覆盖新结果）。
   int _reloadSeq = 0;
 
   /// 库类型 → 列表过滤：剧集库只列 Series（集在详情页出）；
-  /// 合集库（G2）列 BoxSet 条目。
+  /// 合集库列 BoxSet 条目。
   List<String> get _includeTypes => switch (widget.library.collectionType) {
         'tvshows' => const <String>['Series'],
         'boxsets' => const <String>['BoxSet'],
@@ -81,7 +81,7 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
     unawaited(_loadFilterOptions());
   }
 
-  /// G2：加载流派 / 年份筛选项（best-effort，失败则不显示该维度）。
+  /// 加载流派 / 年份筛选项（best-effort，失败则不显示该维度）。
   Future<void> _loadFilterOptions() async {
     final opts = await widget.client.fetchFilterOptions(
       parentId: widget.library.id,
@@ -112,7 +112,7 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
   Future<void> _reload() async {
     final seq = ++_reloadSeq;
     if (_searchTerm.isNotEmpty) {
-      // G3：记录搜索历史（去重置顶，最多 10 条）。
+      // 记录搜索历史（去重置顶，最多 10 条）。
       unawaited(
         MediaServerPlaybackSettings.instance.addSearchHistory(_searchTerm),
       );
@@ -138,7 +138,7 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
         genres: _genre.isEmpty ? const <String>[] : <String>[_genre],
         years: _year.isEmpty ? const <String>[] : <String>[_year],
       );
-      // G3：过期结果守卫。
+      // 过期结果守卫。
       if (!mounted || seq != _reloadSeq) return;
       setState(() {
         _items = page.items;
@@ -229,7 +229,7 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
     AppLocalizations l10n,
     ColorScheme scheme,
   ) {
-    // C3：筛选 / 排序行 + 内容区。
+    // 筛选 / 排序行 + 内容区。
     Widget content;
     if (_loading) {
       content = const _LibrarySkeleton();
@@ -289,7 +289,7 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
     return Column(
       children: <Widget>[
         _filterRow(context, l10n, scheme),
-        // G3：搜索历史 chips（仅搜索词为空时显示）。
+        // 搜索历史 chips（仅搜索词为空时显示）。
         if (_searchTerm.isEmpty && !_loading)
           ListenableBuilder(
             listenable: MediaServerPlaybackSettings.instance,
@@ -345,7 +345,7 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
     );
   }
 
-  /// 筛选行（C3）：已看状态 chips + 排序方向 / 排序键；G2 追加流派 / 年份。
+  /// 筛选行：已看状态 chips + 排序方向 / 排序键 + 流派 / 年份。
   Widget _filterRow(
     BuildContext context,
     AppLocalizations l10n,
@@ -355,7 +355,7 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         _watchedAndSortRow(context, l10n, scheme),
-        // G2：流派 / 年份筛选（有可选项时才显示，避免空行占位）。
+        // 流派 / 年份筛选（有可选项时才显示，避免空行占位）。
         if (_genreOptions.isNotEmpty || _yearOptions.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -605,7 +605,7 @@ class _LibraryPosterCard extends StatelessWidget {
     final progress = (runtime > 0 && ticks > 0 && !played)
         ? (ticks / runtime).clamp(0.0, 1.0)
         : null;
-    // G1：按卡片逻辑宽 × 像素密度请求海报分辨率。
+    // 按卡片逻辑宽 × 像素密度请求海报分辨率。
     final posterMaxWidth =
         (130 * MediaQuery.devicePixelRatioOf(context)).round().clamp(240, 600);
     return GestureDetector(

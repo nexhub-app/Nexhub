@@ -1,4 +1,4 @@
-/// D3：影视模块搜索结果顶部的媒体服务器聚合段。
+/// 影视模块搜索结果顶部的媒体服务器聚合段。
 ///
 /// - 查询词变化 400ms 防抖后，并行查所有在线服务器（Movie+Series，Limit 20），
 /// 单台失败静默为空，不拖垮搜索主流程；
@@ -126,7 +126,7 @@ class _MediaServerSearchSectionState extends State<MediaServerSearchSection> {
                 )),
     ]);
     if (!mounted) return;
-    // G3：串台守卫——期间若已发起新查询，丢弃过期结果。
+    // 串台守卫——期间若已发起新查询，丢弃过期结果。
     if (q != _searchedQuery) return;
     setState(() {
       for (final e in entries) {

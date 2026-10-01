@@ -1,4 +1,4 @@
-/// 小说 TTS 分句器（对标 RuleBasedSpeechSegmenter 语义）。
+/// 小说 TTS 分句器（与 RuleBasedSpeechSegmenter 语义一致）。
 ///
 /// 纯函数：输入段落文本，输出带角色标注的句子段序列。
 /// 规则：

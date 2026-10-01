@@ -6,7 +6,7 @@
 /// - 非 2xx 统一映射为 [MediaServerApiException]（401 → isUnauthorized）；
 /// - 两家端点差异收敛在子类路径 hook（见 JellyfinClient / EmbyClient），
 ///   响应结构两家一致为主，解析集中在基类防御式处理；
-/// - 字段名按官方 API 文档落地，最终以真机实测返回修正（TODO 文档 §八 M2）。
+/// - 字段名按官方 API 文档落地，最终以真机实测返回修正。
 library;
 
 import 'dart:io';
@@ -274,8 +274,8 @@ abstract class MediaServerClientBase {
   /// 通用列表 / 服务器内搜索。
   ///
   /// 库内浏览传 [parentId]（媒体库 id）；全服务器搜索传 [searchTerm]；
-  /// [filters] 传服务器过滤（如 IsPlayed / -IsPlayed，C3 已看筛选）；
-  /// [genres] / [years] 传 G2 流派 / 年份筛选（如 ['动画'] / ['2020']）。
+  /// [filters] 传服务器过滤（如 IsPlayed / -IsPlayed，已看筛选）；
+  /// [genres] / [years] 传流派 / 年份筛选（如 ['动画'] / ['2020']）。
   Future<ServerItemPage> fetchItems({
     String? parentId,
     String? searchTerm,
@@ -313,7 +313,7 @@ abstract class MediaServerClientBase {
     return _pageOf(resp.data, startIndex);
   }
 
-  /// G2：库内可用的流派 / 年份筛选项。
+  /// 库内可用的流派 / 年份筛选项。
   ///
   /// 数据源为「该库实际条目里出现过的取值」——避免列出服务器支持但本库没有的
   /// 空选项（用户点进去看到空结果）。做法：拉一页较大 limit 的条目（只取
@@ -406,13 +406,13 @@ abstract class MediaServerClientBase {
   String imageUrl(String itemId, {int maxWidth = 400}) =>
       '${info.baseUrl}/Items/$itemId/Images/Primary?maxWidth=$maxWidth&quality=90';
 
-  /// D1/D2：本地体系 contentId（`ms:<serverId>:<workId>`，剧集用 seriesId，
+  /// 媒体服务器条目的本地体系 contentId（`ms:<serverId>:<workId>`，剧集用 seriesId，
   /// 电影用自身 id）——media_watched / media_playback_position / 历史条目 id
   /// 统一使用，`ms:` 前缀即来源判别符。
   String contentIdFor(ServerMediaItem item) =>
       'ms:${info.id}:${item.seriesId ?? item.id}';
 
-  /// D2：带鉴权头下载海报到历史封面缓存目录（历史页封面无鉴权头，
+  /// 带鉴权头下载海报到历史封面缓存目录（历史页封面无鉴权头，
   /// 必须落本地；实测图片端点匿名 500）。失败返回 null（回退远程地址）。
   Future<String?> downloadCoverToHistory(String itemId) async {
     try {
@@ -443,7 +443,7 @@ abstract class MediaServerClientBase {
 
   // ---------- 播放协商 ----------
 
-  /// 播放协商（A1 三段决策树）：DirectPlay → DirectStream → Transcoding。
+  /// 播放协商（三段决策树）：DirectPlay → DirectStream → Transcoding。
   ///
   /// - [maxStreamingBitrate] 传码率档位（原画=极大值 / 档位=定值 / 自动=高值）；
   /// - [audioStreamIndex] 供转码流切换音轨时重新协商；
@@ -511,7 +511,7 @@ abstract class MediaServerClientBase {
     if (playUrl == null || method == null) {
       throw const MediaServerApiException(null, 'no playable media source');
     }
-    // 流地址自鉴权：把 api_key 拼进查询串（参考库同法）。mpv/ffmpeg 跟随
+    // 流地址自鉴权：把 api_key 拼进查询串。mpv/ffmpeg 跟随
     // 302 重定向时不转发自定义请求头，仅靠 Authorization 头会让流请求
     // 401 卡死（元数据永远不到、表现为无限加载）；请求头仍保留双保险。
     playUrl = _appendApiKey(playUrl);
@@ -564,7 +564,7 @@ abstract class MediaServerClientBase {
     return result;
   }
 
-  /// 结束转码会话（A1：停止 / 退出时调用，避免服务器残留转码进程）。
+  /// 结束转码会话（停止 / 退出时调用，避免服务器残留转码进程）。
   Future<void> stopActiveEncodings(String playSessionId) => _send(
         () => _dio.delete<dynamic>(
               '/Videos/ActiveEncodings',
@@ -610,7 +610,7 @@ abstract class MediaServerClientBase {
     return _itemsOf(resp.data).whereType<Map>().map(_parseItem).toList();
   }
 
-  /// 收藏 / 取消收藏（B1）。
+  /// 收藏 / 取消收藏。
   Future<void> setFavorite(String itemId, {required bool favorite}) => _send(
         () => favorite
             ? _dio.post<dynamic>(
@@ -729,7 +729,7 @@ abstract class MediaServerClientBase {
       }
       lastFailure = e;
     }
-    // F1 多地址 fallback：连接类失败（超时 / 拒绝）→ 依次切到备用地址
+    // 多地址 fallback：连接类失败（超时 / 拒绝）→ 依次切到备用地址
     // 重试（每地址一次）；成功者升级为活动地址（内存态）。全部失败时
     // 抛最后一次的映射错误（无备用地址则保持原始语义，如超时）。
     var switched = false;

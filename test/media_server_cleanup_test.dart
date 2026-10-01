@@ -1,4 +1,4 @@
-/// D4 清理联动单测：removeContentIdPrefix（watched / position / history）。
+/// 媒体服务器删除清理联动单测：removeContentIdPrefix（watched / position / history）。
 library;
 
 import 'dart:io';
