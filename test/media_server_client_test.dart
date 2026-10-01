@@ -306,6 +306,50 @@ void main() {
       await client.fetchItems(searchTerm: 'foo');
     });
 
+    test('fetchItems：G2 流派 / 年份筛选参数（Genres=| 拼、Years=, 拼）', () async {
+      adapter.handler = (opts) async {
+        expect(opts.queryParameters['Genres'], '动画|科幻');
+        expect(opts.queryParameters['Years'], '2024,2023');
+        return _json(<String, dynamic>{'Items': []});
+      };
+      await client.fetchItems(
+        genres: const <String>['动画', '科幻'],
+        years: const <String>['2024', '2023'],
+      );
+    });
+
+    test('fetchFilterOptions：G2 从库内条目去重流派 / 年份（年份倒序）', () async {
+      adapter.handler = (opts) async {
+        expect(opts.queryParameters['ParentId'], 'lib1');
+        expect(opts.queryParameters['Fields'], contains('Genres'));
+        return _json(<String, dynamic>{
+          'Items': [
+            {'Id': 'a', 'Genres': ['动画', '科幻'], 'ProductionYear': 2024},
+            {'Id': 'b', 'Genres': ['动画'], 'ProductionYear': 2023},
+            {'Id': 'c', 'Genres': ['科幻']},
+          ],
+        });
+      };
+      final opts = await client.fetchFilterOptions(
+        parentId: 'lib1',
+        includeTypes: const <String>['Movie'],
+      );
+      expect(opts.genres, <String>['动画', '科幻']); // 排序去重
+      expect(opts.years, <String>['2024', '2023']); // 倒序：新片优先
+    });
+
+    test('fetchFilterOptions：请求失败返回空选项（筛选行不显示该维度）', () async {
+      adapter.handler = (opts) async => throw DioException(
+            requestOptions: RequestOptions(path: '/Items'),
+          );
+      final opts = await client.fetchFilterOptions(
+        parentId: 'lib1',
+        includeTypes: const <String>['Movie'],
+      );
+      expect(opts.genres, isEmpty);
+      expect(opts.years, isEmpty);
+    });
+
     test('详情 / 季 / 集 端点', () async {
       adapter.handler = (opts) async {
         if (opts.path == '/Users/u1/Items/it1') {

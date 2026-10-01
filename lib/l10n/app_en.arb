@@ -5220,11 +5220,20 @@
   "mediaServerFilterAll": "All",
   "mediaServerFilterUnwatched": "Unwatched",
   "mediaServerFilterWatched": "Watched",
+  "mediaServerFilterGenre": "Genre",
+  "mediaServerFilterYear": "Year",
   "mediaServerSort": "Sort",
   "mediaServerSortByName": "Name",
   "mediaServerSortByYear": "Year",
   "mediaServerSortByAdded": "Date added",
   "mediaServerAddresses": "Server addresses",
   "mediaServerAddressesHint": "One address per line; the first reachable one becomes active (LAN & WAN can coexist)",
-  "mediaServerAddressSaved": "Addresses updated"
+  "mediaServerAddressSaved": "Addresses updated",
+  "mediaServerTypeBoxSet": "Collection",
+  "mediaServerStatsPlayMethod": "Play method",
+  "mediaServerPlayMethodDirect": "Direct play",
+  "mediaServerPlayMethodDirectStream": "Direct stream",
+  "mediaServerPlayMethodTranscode": "Transcoding",
+  "mediaServerSearchHistory": "Search history",
+  "mediaServerSearchHistoryClear": "Clear search history"
 }

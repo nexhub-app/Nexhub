@@ -2092,6 +2092,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     return parts.isEmpty ? t.id : parts.join(' · ');
   }
 
+  /// G4：播放方式显示名（统计面板用）。
+  String _serverPlayMethodLabel(AppLocalizations l10n) {
+    switch (_serverSession?.playMethod) {
+      case MediaServerPlayMethod.directPlay:
+        return l10n.mediaServerPlayMethodDirect;
+      case MediaServerPlayMethod.directStream:
+        return l10n.mediaServerPlayMethodDirectStream;
+      case MediaServerPlayMethod.transcode:
+        return l10n.mediaServerPlayMethodTranscode;
+      case null:
+        return '—';
+    }
+  }
+
   /// 音轨选择（more_menu）：转码流走服务器音轨重协商；直连走 mpv 内部切换。
   Future<void> _pickServerAudioTrack(
     BuildContext ctx,

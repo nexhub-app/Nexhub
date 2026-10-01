@@ -455,6 +455,9 @@ class _PosterTile extends StatelessWidget {
     final title = (item.seriesName != null && item.seriesName!.isNotEmpty)
         ? item.seriesName!
         : item.name;
+    // G1：按卡片逻辑宽 × 像素密度请求海报分辨率，省流量不失真。
+    final posterMaxWidth =
+        (118 * MediaQuery.devicePixelRatioOf(context)).round().clamp(240, 600);
     return MediaServerPressableScale(
       onTap: onTap,
       child: SizedBox(
@@ -469,7 +472,7 @@ class _PosterTile extends StatelessWidget {
                   fit: StackFit.expand,
                   children: <Widget>[
                     MediaServerPoster(
-                      url: client.imageUrl(item.id, maxWidth: 300),
+                      url: client.imageUrl(item.id, maxWidth: posterMaxWidth),
                       headers: client.authHeaders(),
                     ),
                     // 已看徽章（媒体库客户端通行样式：右上角半透明对勾，
@@ -617,7 +620,7 @@ class _LibraryGrid extends StatelessWidget {
 
   const _LibraryGrid({required this.client, required this.libraries});
 
-  static const Set<String> _supported = <String>{'movies', 'tvshows'};
+  static const Set<String> _supported = <String>{'movies', 'tvshows', 'boxsets'};
 
   @override
   Widget build(BuildContext context) {
@@ -658,9 +661,11 @@ class _LibraryGrid extends StatelessWidget {
                 child: Row(
                   children: <Widget>[
                     Icon(
-                      lib.collectionType == 'tvshows'
-                          ? Icons.live_tv_rounded
-                          : Icons.movie_rounded,
+                      switch (lib.collectionType) {
+                        'tvshows' => Icons.live_tv_rounded,
+                        'boxsets' => Icons.video_collection_rounded,
+                        _ => Icons.movie_rounded,
+                      },
                       size: 20,
                       color: scheme.tertiary,
                     ),

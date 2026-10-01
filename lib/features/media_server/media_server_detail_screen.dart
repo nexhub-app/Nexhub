@@ -18,6 +18,8 @@ import 'package:provider/provider.dart';
 
 import '../../core/history/history_manager.dart';
 import '../../core/models/plugin_config.dart' show SourceType;
+import '../../core/navigation/app_page_route.dart';
+import '../../core/network/dio_image_file_service.dart';
 import '../../core/services/media_server/media_server_client.dart';
 import '../../core/services/media_server/media_server_models.dart';
 import '../../core/services/media_server/media_server_session.dart';
@@ -56,6 +58,12 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
 
   bool get _isSeries => _detail?.type == 'Series';
 
+  bool get _isBoxSet => _detail?.type == 'BoxSet';
+
+  /// G2：合集子项（BoxSet 内的电影 / 剧集）。
+  List<ServerMediaItem>? _boxSetChildren;
+  Object? _boxSetError;
+
   /// C1：折叠标题透明度（0 = 展开显示头图，1 = 收起显示标题）。
   final ValueNotifier<double> _titleOpacity = ValueNotifier<double>(0);
 
@@ -66,6 +74,21 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
   void initState() {
     super.initState();
     _reload();
+    // G1：进详情即预取 backdrop（头图秒出；磁盘缓存二次进入零等待）。
+    // provider 必须与显示端（MediaServerPoster → NexImageCacheManager）同一
+    // 缓存管理器：precacheImage 的落盘位置由 provider 决定，用默认管理器预取
+    // 会存进另一套缓存目录，显示端查统一缓存时预取等于白做。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      precacheImage(
+        CachedNetworkImageProvider(
+          widget.client.backdropUrl(widget.itemId),
+          headers: widget.client.authHeaders(),
+          cacheManager: NexImageCacheManager.instance,
+        ),
+        context,
+      );
+    });
   }
 
   @override
@@ -90,6 +113,8 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
       unawaited(_recordHistory(detail));
       if (detail.type == 'Series') {
         await _loadSeasons();
+      } else if (detail.type == 'BoxSet') {
+        await _loadBoxSetChildren(detail.id);
       }
     } on Object catch (e) {
       if (!mounted) return;
@@ -154,6 +179,22 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
       await _loadEpisodes();
     }
     await _reload();
+  }
+
+  /// G2：加载合集子项（BoxSet 内的电影 / 剧集）。
+  Future<void> _loadBoxSetChildren(String boxSetId) async {
+    try {
+      final children = await widget.client.fetchItems(
+        parentId: boxSetId,
+        includeTypes: const <String>['Movie', 'Series'],
+        limit: 200,
+      );
+      if (!mounted) return;
+      setState(() => _boxSetChildren = children.items);
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _boxSetError = e);
+    }
   }
 
   // ─────────────── B 包互动：收藏 / 已看 ───────────────
@@ -389,7 +430,7 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      ..._actions(context, detail, l10n),
+                      if (!_isBoxSet) ..._actions(context, detail, l10n),
                       if (detail.overview != null &&
                           detail.overview!.isNotEmpty) ...<Widget>[
                         const SizedBox(height: AppTokens.spaceMd),
@@ -399,6 +440,12 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
                               ?.copyWith(height: 1.5),
                         ),
                       ],
+                      if (_isBoxSet) ..._boxSetSectionStatic(
+                        context,
+                        widget.client,
+                        _boxSetChildren,
+                        _boxSetError,
+                      ),
                       if (_isSeries) ..._seriesSection(context, l10n),
                       const SizedBox(height: AppTokens.spaceXl),
                     ],
@@ -561,11 +608,14 @@ class _ImmersiveHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
     final runtime = detail.runTimeTicks;
     final subtitleParts = <String>[
       if (detail.productionYear != null) '${detail.productionYear}',
       if (detail.type == 'Series')
-        AppLocalizations.of(context).mediaServerTypeSeries
+        l10n.mediaServerTypeSeries
+      else if (detail.type == 'BoxSet')
+        l10n.mediaServerTypeBoxSet
       else if (runtime != null && runtime > 0) _formatRuntime(context, runtime),
     ];
     return Stack(
@@ -749,6 +799,85 @@ class _HeroChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 合集子项网格（G2）：BoxSet 内的电影 / 剧集，点击进对应详情。
+///
+/// [children] 为 null 表示子项仍在加载（显示进度圈），空列表表示合集为空。
+List<Widget> _boxSetSectionStatic(
+  BuildContext context,
+  MediaServerClientBase client,
+  List<ServerMediaItem>? children,
+  Object? error,
+) {
+  if (error != null) {
+    return <Widget>[
+      Text(
+        AppLocalizations.of(context).mediaServerLoadFailed('$error'),
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+    ];
+  }
+  if (children == null) {
+    return const <Widget>[
+      Padding(
+        padding: EdgeInsets.all(AppTokens.spaceLg),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    ];
+  }
+  return <Widget>[
+    GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(top: AppTokens.spaceSm),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 130,
+        mainAxisSpacing: AppTokens.spaceSm,
+        crossAxisSpacing: AppTokens.spaceSm,
+        childAspectRatio: 0.55,
+      ),
+      itemCount: children.length,
+      itemBuilder: (context, i) {
+        final item = children[i];
+        return GestureDetector(
+          onTap: () {
+            AppHaptics.selectionClick();
+            Navigator.of(context).push(
+              AppPageRoute<void>(
+                builder: (_) =>
+                    MediaServerDetailScreen(client: client, itemId: item.id),
+              ),
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusMd),
+                  child: MediaServerPoster(
+                    url: client.imageUrl(item.id, maxWidth: 300),
+                    headers: client.authHeaders(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppTokens.spaceXs),
+              Text(
+                item.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  ];
 }
 
 /// 集卡片：缩略图 / 时长 / 已看角标 / 未看完进度条 / PGS 标注。

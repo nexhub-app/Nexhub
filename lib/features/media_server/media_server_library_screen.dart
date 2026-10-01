@@ -12,6 +12,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import '../../core/navigation/app_page_route.dart';
 import '../../core/services/media_server/media_server_client.dart';
 import '../../core/services/media_server/media_server_models.dart';
+import '../../core/services/media_server/media_server_settings.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/app_haptics.dart';
 import '../../core/widgets/app_empty_state.dart';
@@ -53,11 +54,22 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
   String _sortBy = 'SortName';
   String _sortOrder = 'Ascending';
 
-  /// 库类型 → 列表过滤：剧集库只列 Series（集在详情页出）。
-  List<String> get _includeTypes =>
-      (widget.library.collectionType == 'tvshows')
-          ? const <String>['Series']
-          : const <String>['Movie'];
+  // G2 流派 / 年份筛选（空 = 不限）。选项来自库内实际条目（fetchFilterOptions）。
+  String _genre = '';
+  String _year = '';
+  List<String> _genreOptions = <String>[];
+  List<String> _yearOptions = <String>[];
+
+  /// G3：重载序号（防过期搜索结果覆盖新结果）。
+  int _reloadSeq = 0;
+
+  /// 库类型 → 列表过滤：剧集库只列 Series（集在详情页出）；
+  /// 合集库（G2）列 BoxSet 条目。
+  List<String> get _includeTypes => switch (widget.library.collectionType) {
+        'tvshows' => const <String>['Series'],
+        'boxsets' => const <String>['BoxSet'],
+        _ => const <String>['Movie'],
+      };
 
   bool get _hasMore => _items.length < _total;
 
@@ -66,6 +78,20 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
     super.initState();
     _scroll.addListener(_onScroll);
     _reload();
+    unawaited(_loadFilterOptions());
+  }
+
+  /// G2：加载流派 / 年份筛选项（best-effort，失败则不显示该维度）。
+  Future<void> _loadFilterOptions() async {
+    final opts = await widget.client.fetchFilterOptions(
+      parentId: widget.library.id,
+      includeTypes: _includeTypes,
+    );
+    if (!mounted) return;
+    setState(() {
+      _genreOptions = opts.genres;
+      _yearOptions = opts.years;
+    });
   }
 
   @override
@@ -84,6 +110,13 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
   }
 
   Future<void> _reload() async {
+    final seq = ++_reloadSeq;
+    if (_searchTerm.isNotEmpty) {
+      // G3：记录搜索历史（去重置顶，最多 10 条）。
+      unawaited(
+        MediaServerPlaybackSettings.instance.addSearchHistory(_searchTerm),
+      );
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -102,15 +135,18 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
         filters: _watchedFilter.isEmpty ? const <String>[] : <String>[
           _watchedFilter,
         ],
+        genres: _genre.isEmpty ? const <String>[] : <String>[_genre],
+        years: _year.isEmpty ? const <String>[] : <String>[_year],
       );
-      if (!mounted) return;
+      // G3：过期结果守卫。
+      if (!mounted || seq != _reloadSeq) return;
       setState(() {
         _items = page.items;
         _total = page.total;
         _loading = false;
       });
     } on Object catch (e) {
-      if (!mounted) return;
+      if (!mounted || seq != _reloadSeq) return;
       setState(() {
         _error = e;
         _loading = false;
@@ -253,13 +289,198 @@ class _MediaServerLibraryScreenState extends State<MediaServerLibraryScreen> {
     return Column(
       children: <Widget>[
         _filterRow(context, l10n, scheme),
+        // G3：搜索历史 chips（仅搜索词为空时显示）。
+        if (_searchTerm.isEmpty && !_loading)
+          ListenableBuilder(
+            listenable: MediaServerPlaybackSettings.instance,
+            builder: (context, _) {
+              final history =
+                  MediaServerPlaybackSettings.instance.searchHistory;
+              if (history.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTokens.spaceMd,
+                  0,
+                  AppTokens.spaceMd,
+                  AppTokens.spaceXs,
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: <Widget>[
+                            for (final q in history)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  right: AppTokens.spaceXs,
+                                ),
+                                child: ActionChip(
+                                  label: Text(q),
+                                  onPressed: () {
+                                    AppHaptics.selectionClick();
+                                    _search.text = q;
+                                    _onSearchChanged(q);
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: l10n.mediaServerSearchHistoryClear,
+                      icon: const Icon(Icons.delete_sweep_rounded),
+                      onPressed: () => MediaServerPlaybackSettings.instance
+                          .clearSearchHistory(),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         Expanded(child: content),
       ],
     );
   }
 
-  /// 筛选行（C3）：已看状态 chips + 排序方向 / 排序键。
+  /// 筛选行（C3）：已看状态 chips + 排序方向 / 排序键；G2 追加流派 / 年份。
   Widget _filterRow(
+    BuildContext context,
+    AppLocalizations l10n,
+    ColorScheme scheme,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _watchedAndSortRow(context, l10n, scheme),
+        // G2：流派 / 年份筛选（有可选项时才显示，避免空行占位）。
+        if (_genreOptions.isNotEmpty || _yearOptions.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppTokens.spaceMd,
+              0,
+              AppTokens.spaceMd,
+              AppTokens.spaceXs,
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: <Widget>[
+                  if (_genreOptions.isNotEmpty)
+                    _dimensionChip(
+                      label: _genre.isEmpty
+                          ? l10n.mediaServerFilterGenre
+                          : _genre,
+                      active: _genre.isNotEmpty,
+                      onTap: () => _pickDimension(
+                        title: l10n.mediaServerFilterGenre,
+                        options: _genreOptions,
+                        current: _genre,
+                        onPicked: (v) => setState(() => _genre = v),
+                      ),
+                    ),
+                  if (_genreOptions.isNotEmpty && _yearOptions.isNotEmpty)
+                    const SizedBox(width: AppTokens.spaceXs),
+                  if (_yearOptions.isNotEmpty)
+                    _dimensionChip(
+                      label: _year.isEmpty
+                          ? l10n.mediaServerFilterYear
+                          : _year,
+                      active: _year.isNotEmpty,
+                      onTap: () => _pickDimension(
+                        title: l10n.mediaServerFilterYear,
+                        options: _yearOptions,
+                        current: _year,
+                        onPicked: (v) => setState(() => _year = v),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 单个维度筛选 chip（点击弹选择表；已选时高亮并可清除）。
+  Widget _dimensionChip({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return ActionChip(
+      avatar: Icon(
+        active ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
+        size: 18,
+      ),
+      label: Text(label),
+      onPressed: () {
+        AppHaptics.selectionClick();
+        onTap();
+      },
+    );
+  }
+
+  /// 维度取值选择（含「不限」项清除筛选）。
+  Future<void> _pickDimension({
+    required String title,
+    required List<String> options,
+    required String current,
+    required ValueChanged<String> onPicked,
+  }) async {
+    final l10n = AppLocalizations.of(context);
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetCtx) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetCtx).size.height * 0.85,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(AppTokens.spaceMd),
+                child: Text(title, style: Theme.of(sheetCtx).textTheme.titleMedium),
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: <Widget>[
+                    ListTile(
+                      leading: current.isEmpty
+                          ? const Icon(Icons.check_rounded)
+                          : null,
+                      title: Text(l10n.mediaServerFilterAll),
+                      onTap: () => Navigator.of(sheetCtx).pop(''),
+                    ),
+                    for (final o in options)
+                      ListTile(
+                        leading: current == o
+                            ? const Icon(Icons.check_rounded)
+                            : null,
+                        title: Text(o),
+                        onTap: () => Navigator.of(sheetCtx).pop(o),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null) return;
+    if (picked == current) return;
+    onPicked(picked);
+    _reload();
+  }
+
+  /// 已看状态 chips + 排序操作行。
+  Widget _watchedAndSortRow(
     BuildContext context,
     AppLocalizations l10n,
     ColorScheme scheme,
@@ -384,6 +605,9 @@ class _LibraryPosterCard extends StatelessWidget {
     final progress = (runtime > 0 && ticks > 0 && !played)
         ? (ticks / runtime).clamp(0.0, 1.0)
         : null;
+    // G1：按卡片逻辑宽 × 像素密度请求海报分辨率。
+    final posterMaxWidth =
+        (130 * MediaQuery.devicePixelRatioOf(context)).round().clamp(240, 600);
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -396,7 +620,7 @@ class _LibraryPosterCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: <Widget>[
                   MediaServerPoster(
-                    url: client.imageUrl(item.id, maxWidth: 300),
+                    url: client.imageUrl(item.id, maxWidth: posterMaxWidth),
                     headers: client.authHeaders(),
                     // C4：库网格 → 详情页共享元素过渡（网格内 id 唯一）。
                     heroTag: 'ms:${item.id}',

@@ -1234,12 +1234,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appVersion => '版本';
 
   @override
-  String get clearCache => '清除缓存';
-
-  @override
-  String get cacheCleared => '缓存已清除';
-
-  @override
   String get privacySettings => '隐私设置';
 
   @override
@@ -7846,15 +7840,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cookiesCleared => 'Cookie 已清除';
 
   @override
-  String get clearWebviewData => '清除 WebView 数据';
-
-  @override
-  String get clearWebviewDataDesc => '清除内嵌浏览器缓存与本地存储';
-
-  @override
-  String get webviewDataCleared => 'WebView 数据已清除';
-
-  @override
   String get cloudSyncAutoUploadNovelExports => '小说导出自动上传';
 
   @override
@@ -9277,6 +9262,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mediaServerFilterWatched => '已看';
 
   @override
+  String get mediaServerFilterGenre => '流派';
+
+  @override
+  String get mediaServerFilterYear => '年份';
+
+  @override
   String get mediaServerSort => '排序';
 
   @override
@@ -9296,4 +9287,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mediaServerAddressSaved => '地址已更新';
+
+  @override
+  String get mediaServerTypeBoxSet => '合集';
+
+  @override
+  String get mediaServerStatsPlayMethod => '播放方式';
+
+  @override
+  String get mediaServerPlayMethodDirect => '直连';
+
+  @override
+  String get mediaServerPlayMethodDirectStream => '直接流';
+
+  @override
+  String get mediaServerPlayMethodTranscode => '转码';
+
+  @override
+  String get mediaServerSearchHistory => '搜索历史';
+
+  @override
+  String get mediaServerSearchHistoryClear => '清空搜索历史';
 }

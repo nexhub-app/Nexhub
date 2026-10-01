@@ -274,7 +274,8 @@ abstract class MediaServerClientBase {
   /// 通用列表 / 服务器内搜索。
   ///
   /// 库内浏览传 [parentId]（媒体库 id）；全服务器搜索传 [searchTerm]；
-  /// [filters] 传服务器过滤（如 IsPlayed / -IsPlayed，C3 已看筛选）。
+  /// [filters] 传服务器过滤（如 IsPlayed / -IsPlayed，C3 已看筛选）；
+  /// [genres] / [years] 传 G2 流派 / 年份筛选（如 ['动画'] / ['2020']）。
   Future<ServerItemPage> fetchItems({
     String? parentId,
     String? searchTerm,
@@ -284,6 +285,8 @@ abstract class MediaServerClientBase {
     String sortBy = 'SortName',
     String sortOrder = 'Ascending',
     List<String> filters = const <String>[],
+    List<String> genres = const <String>[],
+    List<String> years = const <String>[],
   }) async {
     final resp = await _send(
       () => _dio.get<dynamic>(
@@ -299,6 +302,8 @@ abstract class MediaServerClientBase {
               'SortBy': sortBy,
               'SortOrder': sortOrder,
               if (filters.isNotEmpty) 'Filters': filters.join(','),
+              if (genres.isNotEmpty) 'Genres': genres.join('|'),
+              if (years.isNotEmpty) 'Years': years.join(','),
               if (parentId != null && parentId.isNotEmpty) 'ParentId': parentId,
               if (searchTerm != null && searchTerm.isNotEmpty)
                 'SearchTerm': searchTerm,
@@ -308,9 +313,55 @@ abstract class MediaServerClientBase {
     return _pageOf(resp.data, startIndex);
   }
 
+  /// G2：库内可用的流派 / 年份筛选项。
+  ///
+  /// 数据源为「该库实际条目里出现过的取值」——避免列出服务器支持但本库没有的
+  /// 空选项（用户点进去看到空结果）。做法：拉一页较大 limit 的条目（只取
+  /// `Genres`/`ProductionYear` 两个字段），本地去重排序。失败返回空列表
+  /// （筛选行不显示该维度，不影响主流程）。
+  Future<({List<String> genres, List<String> years})> fetchFilterOptions({
+    required String parentId,
+    required List<String> includeTypes,
+  }) async {
+    try {
+      final resp = await _send(
+        () => _dio.get<dynamic>(
+              itemsPath(info.userId),
+              queryParameters: <String, dynamic>{
+                ..._userQuery(),
+                'ParentId': parentId,
+                'IncludeItemTypes': includeTypes.join(','),
+                'Recursive': true,
+                'Fields': 'Genres,ProductionYear',
+                'SortBy': 'SortName',
+                'SortOrder': 'Ascending',
+                'Limit': 500,
+              },
+            ),
+      );
+      final Set<String> genres = <String>{};
+      final Set<int> years = <int>{};
+      for (final raw in _itemsOf(resp.data).whereType<Map>()) {
+        final g = raw['Genres'];
+        if (g is List) {
+          for (final v in g) {
+            if (v is String && v.trim().isNotEmpty) genres.add(v.trim());
+          }
+        }
+        final y = raw['ProductionYear'];
+        if (y is num && y > 0) years.add(y.toInt());
+      }
+      final List<String> sortedGenres = genres.toList()..sort();
+      final List<String> sortedYears = years.map((e) => '$e').toList()
+        ..sort((a, b) => b.compareTo(a)); // 年份倒序：新片优先
+      return (genres: sortedGenres, years: sortedYears);
+    } on Object {
+      return (genres: const <String>[], years: const <String>[]);
+    }
+  }
+
   /// 条目详情（电影 / 剧集 / 集）。
-  Future<ServerMediaItem> fetchItem(String itemId) async {
-    final resp = await _send(
+  Future<ServerMediaItem> fetchItem(String itemId) async {    final resp = await _send(
       () => _dio.get<dynamic>('/Users/${info.userId}/Items/$itemId'),
     );
     final data = resp.data;

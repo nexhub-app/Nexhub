@@ -1260,12 +1260,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appVersion => 'Version';
 
   @override
-  String get clearCache => 'Clear Cache';
-
-  @override
-  String get cacheCleared => 'Cache cleared';
-
-  @override
   String get privacySettings => 'Privacy Settings';
 
   @override
@@ -8025,16 +8019,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cookiesCleared => 'Cookies cleared';
 
   @override
-  String get clearWebviewData => 'Clear WebView Data';
-
-  @override
-  String get clearWebviewDataDesc =>
-      'Clear embedded browser cache and local storage';
-
-  @override
-  String get webviewDataCleared => 'WebView data cleared';
-
-  @override
   String get cloudSyncAutoUploadNovelExports => 'Auto-upload novel exports';
 
   @override
@@ -9502,6 +9486,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mediaServerFilterWatched => 'Watched';
 
   @override
+  String get mediaServerFilterGenre => 'Genre';
+
+  @override
+  String get mediaServerFilterYear => 'Year';
+
+  @override
   String get mediaServerSort => 'Sort';
 
   @override
@@ -9522,4 +9512,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaServerAddressSaved => 'Addresses updated';
+
+  @override
+  String get mediaServerTypeBoxSet => 'Collection';
+
+  @override
+  String get mediaServerStatsPlayMethod => 'Play method';
+
+  @override
+  String get mediaServerPlayMethodDirect => 'Direct play';
+
+  @override
+  String get mediaServerPlayMethodDirectStream => 'Direct stream';
+
+  @override
+  String get mediaServerPlayMethodTranscode => 'Transcoding';
+
+  @override
+  String get mediaServerSearchHistory => 'Search history';
+
+  @override
+  String get mediaServerSearchHistoryClear => 'Clear search history';
 }

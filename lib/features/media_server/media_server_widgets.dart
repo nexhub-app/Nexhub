@@ -10,6 +10,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/navigation/app_page_route.dart';
+import '../../core/network/dio_image_file_service.dart';
 import '../../core/services/media_server/media_server_auth.dart';
 import '../../core/services/media_server/media_server_models.dart';
 import '../../core/theme/app_tokens.dart';
@@ -23,6 +24,12 @@ import 'media_server_home_screen.dart';
 /// 海报图：统一附鉴权头（图片端点鉴权需求以实测为准，带上无害），
 /// 加载占位与失败图标兜底。[heroTag] 非空时包裹 Hero（C4 共享元素过渡，
 /// 注意同一路由树内 tag 不得重复——仅在 id 唯一的网格页使用）。
+///
+/// G1：走应用的统一图片缓存管理器 [NexImageCacheManager]（与封面 / 漫画页
+/// 同一磁盘缓存与容量策略），而非 CachedNetworkImage 的默认管理器——后者的
+/// HttpClient 在启动早期创建后终身僵化（代理/DNS 档案加载前直连），且不吃
+/// 应用统一的缓存容量与清理策略。这样「二次进入首页秒开」的海报落盘缓存
+/// 与全应用图片缓存共用同一目录，也会被缓存管理页统一统计与清理。
 class MediaServerPoster extends StatelessWidget {
   final String url;
   final Map<String, String> headers;
@@ -52,6 +59,8 @@ class MediaServerPoster extends StatelessWidget {
     final Widget image = CachedNetworkImage(
       imageUrl: url,
       httpHeaders: headers,
+      // G1：统一走应用图片缓存（磁盘落盘 + 统一容量/清理策略）。
+      cacheManager: NexImageCacheManager.instance,
       width: width,
       height: height,
       fit: fit,

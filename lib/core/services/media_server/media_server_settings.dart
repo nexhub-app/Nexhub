@@ -50,7 +50,12 @@ class MediaServerPlaybackSettings extends ChangeNotifier {
   MediaServerBitrateTier _tier = MediaServerBitrateTier.auto;
   bool _loaded = false;
 
+  List<String> _searchHistory = <String>[];
+
   MediaServerBitrateTier get tier => _tier;
+
+  /// G3：服务器内搜索历史（最近 10 条，可清空）。
+  List<String> get searchHistory => List.unmodifiable(_searchHistory);
 
   /// 冷启动恢复（幂等； GeneralSettingsStore 同款防竞态约定）。
   Future<void> load() async {
@@ -64,9 +69,14 @@ class MediaServerPlaybackSettings extends ChangeNotifier {
           (t) => t.name == name,
           orElse: () => MediaServerBitrateTier.auto,
         );
+        final hist = j['searchHistory'];
+        if (hist is List) {
+          _searchHistory = hist.whereType<String>().toList();
+        }
       } on Object {
         // 损坏数据回落默认档。
         _tier = MediaServerBitrateTier.auto;
+        _searchHistory = <String>[];
       }
     }
     _loaded = true;
@@ -78,6 +88,38 @@ class MediaServerPlaybackSettings extends ChangeNotifier {
     if (tier == _tier) return;
     _tier = tier;
     notifyListeners();
-    await _backend.set(_key, jsonEncode(<String, dynamic>{'tier': tier.name}));
+    await _persist();
+  }
+
+  /// G3：记录搜索词（去重置顶，最多 10 条）。
+  Future<void> addSearchHistory(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return;
+    _searchHistory
+      ..remove(q)
+      ..insert(0, q);
+    if (_searchHistory.length > 10) {
+      _searchHistory.removeRange(10, _searchHistory.length);
+    }
+    notifyListeners();
+    await _persist();
+  }
+
+  /// G3：清空搜索历史。
+  Future<void> clearSearchHistory() async {
+    if (_searchHistory.isEmpty) return;
+    _searchHistory = <String>[];
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> _persist() async {
+    await _backend.set(
+      _key,
+      jsonEncode(<String, dynamic>{
+        'tier': _tier.name,
+        'searchHistory': _searchHistory,
+      }),
+    );
   }
 }

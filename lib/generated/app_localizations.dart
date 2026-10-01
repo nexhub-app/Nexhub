@@ -2486,18 +2486,6 @@ abstract class AppLocalizations {
   /// **'Version'**
   String get appVersion;
 
-  /// No description provided for @clearCache.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear Cache'**
-  String get clearCache;
-
-  /// No description provided for @cacheCleared.
-  ///
-  /// In en, this message translates to:
-  /// **'Cache cleared'**
-  String get cacheCleared;
-
   /// No description provided for @privacySettings.
   ///
   /// In en, this message translates to:
@@ -15086,24 +15074,6 @@ abstract class AppLocalizations {
   /// **'Cookies cleared'**
   String get cookiesCleared;
 
-  /// Advanced page clear WebView data entry
-  ///
-  /// In en, this message translates to:
-  /// **'Clear WebView Data'**
-  String get clearWebviewData;
-
-  /// Clear WebView data subtitle
-  ///
-  /// In en, this message translates to:
-  /// **'Clear embedded browser cache and local storage'**
-  String get clearWebviewDataDesc;
-
-  /// WebView data cleared toast
-  ///
-  /// In en, this message translates to:
-  /// **'WebView data cleared'**
-  String get webviewDataCleared;
-
   /// No description provided for @cloudSyncAutoUploadNovelExports.
   ///
   /// In en, this message translates to:
@@ -17763,6 +17733,18 @@ abstract class AppLocalizations {
   /// **'Watched'**
   String get mediaServerFilterWatched;
 
+  /// No description provided for @mediaServerFilterGenre.
+  ///
+  /// In en, this message translates to:
+  /// **'Genre'**
+  String get mediaServerFilterGenre;
+
+  /// No description provided for @mediaServerFilterYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get mediaServerFilterYear;
+
   /// No description provided for @mediaServerSort.
   ///
   /// In en, this message translates to:
@@ -17804,6 +17786,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Addresses updated'**
   String get mediaServerAddressSaved;
+
+  /// No description provided for @mediaServerTypeBoxSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Collection'**
+  String get mediaServerTypeBoxSet;
+
+  /// No description provided for @mediaServerStatsPlayMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Play method'**
+  String get mediaServerStatsPlayMethod;
+
+  /// No description provided for @mediaServerPlayMethodDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct play'**
+  String get mediaServerPlayMethodDirect;
+
+  /// No description provided for @mediaServerPlayMethodDirectStream.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct stream'**
+  String get mediaServerPlayMethodDirectStream;
+
+  /// No description provided for @mediaServerPlayMethodTranscode.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcoding'**
+  String get mediaServerPlayMethodTranscode;
+
+  /// No description provided for @mediaServerSearchHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Search history'**
+  String get mediaServerSearchHistory;
+
+  /// No description provided for @mediaServerSearchHistoryClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search history'**
+  String get mediaServerSearchHistoryClear;
 }
 
 class _AppLocalizationsDelegate

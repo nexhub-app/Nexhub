@@ -126,6 +126,8 @@ class _MediaServerSearchSectionState extends State<MediaServerSearchSection> {
                 )),
     ]);
     if (!mounted) return;
+    // G3：串台守卫——期间若已发起新查询，丢弃过期结果。
+    if (q != _searchedQuery) return;
     setState(() {
       for (final e in entries) {
         _results[e.key] = e.value;
