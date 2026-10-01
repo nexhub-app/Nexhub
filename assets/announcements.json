@@ -1,5 +1,16 @@
 [
   {
+    "id": "v3.0.0-beta.2-announce",
+    "date": "2026-10-01",
+    "title": "NexHub 3.0.0-beta.2 预发布测试版",
+    "titleEn": "NexHub 3.0.0-beta.2 (pre-release beta)",
+    "body": "NexHub 3.0.0-beta.2 预发布测试版来了，国庆快乐！🇨🇳 本次核心：接入你自建的媒体服务器（Emby / Jellyfin）——浏览、搜索、播放、收藏、进度全打通，多地址自动切换 + 前台探活，播放前自动在原画直连 / 直接播放 / 服务端转码间决策，收藏与进度双向同步；漫画新增图片超分（多档位，低分辨率图片自动显现入口）与缓存分类自动清理；修复 WebDAV PROPFIND 解析、Android 导航条透明与手势条避让。无破坏性数据变更，沿用同一签名密钥可直接覆盖安装。🇨🇳 山河远阔，假期愉快，追番读漫看片两不误！",
+    "bodyEn": "NexHub 3.0.0-beta.2 (pre-release beta) is here — happy National Day! 🇨🇳 Highlights: connect your self-hosted media server (Emby / Jellyfin) — browse, search, play, favorites and progress all wired up, with multi-address failover + foreground keep-alive, automatic direct-stream / transcode decisions before playback, and two-way favorite & progress sync; manga gains image super-resolution (multi-tier, surfaced automatically for low-res images) and category-based auto cache cleanup; fixes for WebDAV PROPFIND parsing, Android nav-bar transparency and gesture-bar insets. No breaking data changes — same signing key, just overwrite-install. 🇨🇳 Enjoy the holidays and your anime, manga and movies!",
+    "url": "",
+    "urlText": "",
+    "urlTextEn": ""
+  },
+  {
     "id": "v3.0.0-beta.1-announce",
     "date": "2026-09-29",
     "title": "NexHub 3.0.0-beta.1 预发布测试版",
