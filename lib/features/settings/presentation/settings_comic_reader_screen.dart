@@ -766,6 +766,8 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                           ));
                         },
                       ),
+                      // 档位自动隐显：开关打开平滑展开，关闭自动收起
+                      //（SettingsExpand：AnimatedSize 高度过渡 + 淡入上滑）。
                       SettingsExpand(
                         visible: _settings.comicUpscaleMode.enabled,
                         padding: EdgeInsets.zero,

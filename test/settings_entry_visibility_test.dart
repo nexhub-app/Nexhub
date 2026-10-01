@@ -54,11 +54,14 @@ void main() {
           reason: '漫画设置页必须能看到「图片超分」入口');
       expect(find.byKey(const ValueKey<String>('comic.upscaleToggle')),
           findsOneWidget);
+      // 档位自动隐显：关闭态自动隐藏。
       expect(find.byKey(const ValueKey<String>('comic.upscaleMode')),
-          findsNothing, reason: '关闭状态下不显示档位选项');
+          findsNothing, reason: '开关关闭时档位应自动隐藏');
+      expect(find.text('高清重采样'), findsNothing);
+      expect(find.text('超分（锐化）'), findsNothing);
     });
 
-    testWidgets('打开开关后显示两个档位选项', (WidgetTester tester) async {
+    testWidgets('打开开关后档位自动显示且可选', (WidgetTester tester) async {
       await tester.pumpWidget(_host(const SettingsComicReaderScreen()));
       await tester.pumpAndSettle();
       await tester.tap(find.text('画面与滤镜').first);
@@ -74,15 +77,22 @@ void main() {
       await tester.tap(find.byKey(const ValueKey<String>('comic.upscaleToggle')));
       await tester.pumpAndSettle();
 
-      // 开启后出现档位选择，且只列生效档（不含「关闭」）。
+      // 开启后档位自动显示，且只列生效档（不含「关闭」）。
       expect(find.text('高清重采样'), findsOneWidget);
       expect(find.text('超分（锐化）'), findsOneWidget);
       expect(find.text('关闭'), findsNothing, reason: 'off 由开关表达，不重复列出');
 
+      // 再次关闭 → 档位自动隐藏。
+      await tester.tap(find.byKey(const ValueKey<String>('comic.upscaleToggle')));
+      await tester.pumpAndSettle();
+      expect(find.text('高清重采样'), findsNothing,
+          reason: '关闭开关后档位应自动隐藏');
+      expect(find.text('超分（锐化）'), findsNothing);
+
       // 设置已持久化。
       final ReaderDefaultSettings saved =
           await ReaderDefaultSettingsStore().load();
-      expect(saved.comicUpscaleMode.enabled, isTrue);
+      expect(saved.comicUpscaleMode.enabled, isFalse);
     });
   });
 
@@ -194,10 +204,18 @@ void main() {
 
       expect(latest?.upscaleMode.enabled, isTrue,
           reason: '打开开关后回调应带出生效档位');
-      // 开启后档位选项出现（不含「关闭」）。
+      // 开启后档位自动显示（不含「关闭」）。
       expect(find.text('高清重采样'), findsOneWidget);
       expect(find.text('超分（锐化）'), findsOneWidget);
       expect(find.text('关闭'), findsNothing);
+
+      // 再次关闭 → 档位自动隐藏（自动隐显语义）。
+      await tester.tap(sw);
+      await tester.pumpAndSettle();
+      expect(latest?.upscaleMode.enabled, isFalse);
+      expect(find.text('高清重采样'), findsNothing,
+          reason: '关闭开关后档位应自动隐藏');
+      expect(find.text('超分（锐化）'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 

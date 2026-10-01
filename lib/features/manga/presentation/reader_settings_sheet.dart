@@ -8,6 +8,7 @@ import '../../settings/presentation/widgets/motion_effects_adjustments.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
+import '../../../core/widgets/app_animations.dart';
 import '../../settings/presentation/widgets/settings_widgets.dart';
 import 'reader_image_filter.dart';
 import 'reader_tap_zones.dart';
@@ -748,8 +749,10 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
-  /// 图片超分（GPU 实时 shader）：总开关 + 开启后选档位。
+  /// 图片超分（GPU 实时 shader）：总开关 + 档位选择。
   ///
+  /// 档位**自动隐显**：开关打开平滑展开、关闭自动收起（AnimatedSize 高度
+  /// 过渡 + 淡入上滑，与卡片折叠手感一致），不用置灰常驻也不生硬跳变。
   /// 冷启动即预加载 shader 资源，避免首次开启时首帧抖动；Web 平台不显示
   /// 该入口（FragmentProgram 不可用，避免给出一个必然无效的开关）。
   Widget _buildUpscale() {
@@ -775,31 +778,58 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
           )),
           subtitle: l10n.readerUpscaleDesc,
         ),
-        // 关闭时不显示档位（off 由开关表达，档位只列生效档，避免两套状态打架）。
-        if (on)
-          Padding(
-            padding: const EdgeInsets.only(
-              left: AppTokens.spaceXs,
-              bottom: AppTokens.spaceMd,
-            ),
-            child: Wrap(
-              spacing: AppTokens.spaceSm,
-              runSpacing: AppTokens.spaceSm,
-              children: <MangaUpscaleMode>[
-                MangaUpscaleMode.resample,
-                MangaUpscaleMode.sharpen,
-              ].map((MangaUpscaleMode m) {
-                return ChoiceChip(
-                  label: Text(_l(m.l10nKey())),
-                  selected: _draft.upscaleMode == m,
-                  onSelected: (_) {
-                    _lastUpscaleMode = m;
-                    _update(_draft.copyWith(upscaleMode: m));
-                  },
-                );
-              }).toList(),
-            ),
+        // 档位自动隐显：开关开启时平滑展开，关闭时自动收起。
+        AnimatedSize(
+          duration: AppTokens.durBase,
+          curve: AppCurves.smooth,
+          alignment: Alignment.topCenter,
+          child: AnimatedSwitcher(
+            duration: AppTokens.durBase,
+            switchInCurve: AppCurves.smooth,
+            switchOutCurve: Curves.easeOutCubic,
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, -0.04),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              );
+            },
+            child: on
+                ? Padding(
+                    key: const ValueKey<String>('upscale-modes-open'),
+                    padding: const EdgeInsets.only(
+                      left: AppTokens.spaceXs,
+                      bottom: AppTokens.spaceMd,
+                    ),
+                    child: Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: <MangaUpscaleMode>[
+                        MangaUpscaleMode.resample,
+                        MangaUpscaleMode.sharpen,
+                      ].map((MangaUpscaleMode m) {
+                        return ChoiceChip(
+                          label: Text(_l(m.l10nKey())),
+                          selected: _draft.upscaleMode == m,
+                          onSelected: (_) {
+                            _lastUpscaleMode = m;
+                            _update(_draft.copyWith(upscaleMode: m));
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  )
+                : const SizedBox(
+                    key: ValueKey<String>('upscale-modes-closed'),
+                    width: double.infinity,
+                  ),
           ),
+        ),
       ],
     );
   }
