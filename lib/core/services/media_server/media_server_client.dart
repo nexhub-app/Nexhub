@@ -14,6 +14,8 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../comic/models/reader_preferences.dart';
 import 'emby_client.dart';
@@ -352,6 +354,33 @@ abstract class MediaServerClientBase {
   /// 海报地址（图片端点两家一致；鉴权需求以实测为准，加载器可附 [authHeaders]）。
   String imageUrl(String itemId, {int maxWidth = 400}) =>
       '${info.baseUrl}/Items/$itemId/Images/Primary?maxWidth=$maxWidth&quality=90';
+
+  /// D1/D2：本地体系 contentId（`ms:<serverId>:<workId>`，剧集用 seriesId，
+  /// 电影用自身 id）——media_watched / media_playback_position / 历史条目 id
+  /// 统一使用，`ms:` 前缀即来源判别符。
+  String contentIdFor(ServerMediaItem item) =>
+      'ms:${info.id}:${item.seriesId ?? item.id}';
+
+  /// D2：带鉴权头下载海报到历史封面缓存目录（历史页封面无鉴权头，
+  /// 必须落本地；实测图片端点匿名 500）。失败返回 null（回退远程地址）。
+  Future<String?> downloadCoverToHistory(String itemId) async {
+    try {
+      final resp = await _dio.get<List<int>>(
+        imageUrl(itemId, maxWidth: 400),
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final bytes = resp.data;
+      if (bytes == null || bytes.isEmpty) return null;
+      final dir = await getApplicationDocumentsDirectory();
+      final coverDir = Directory(p.join(dir.path, 'history_covers'));
+      await coverDir.create(recursive: true);
+      final target = File(p.join(coverDir.path, 'ms_${info.id}_$itemId.jpg'));
+      await target.writeAsBytes(bytes);
+      return target.path;
+    } on Object {
+      return null;
+    }
+  }
 
   /// 横幅剧照地址（详情页沉浸式头图用；无剧照时由加载层回退海报）。
   String backdropUrl(String itemId, {int maxWidth = 1200}) =>

@@ -8,12 +8,16 @@
 /// - 含图形字幕（PGS）的集标注「需转码，暂不支持」。
 library;
 
+import 'dart:async' show unawaited;
 import 'dart:ui' show ImageFilter;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/history/history_manager.dart';
+import '../../core/models/plugin_config.dart' show SourceType;
 import '../../core/services/media_server/media_server_client.dart';
 import '../../core/services/media_server/media_server_models.dart';
 import '../../core/services/media_server/media_server_session.dart';
@@ -82,6 +86,8 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
         _detail = detail;
         _loading = false;
       });
+      // D2：写入浏览历史（kind=mediaServer；封面带鉴权头落盘离线可见）。
+      unawaited(_recordHistory(detail));
       if (detail.type == 'Series') {
         await _loadSeasons();
       }
@@ -151,6 +157,29 @@ class _MediaServerDetailScreenState extends State<MediaServerDetailScreen> {
   }
 
   // ─────────────── B 包互动：收藏 / 已看 ───────────────
+
+  /// D2：写入浏览历史（kind = mediaServer，id/detailUrl 存路由凭据）。
+  Future<void> _recordHistory(ServerMediaItem detail) async {
+    try {
+      final history = context.read<HistoryManager>();
+      final localCover =
+          await widget.client.downloadCoverToHistory(detail.id);
+      final entry = HistoryEntry(
+        id: widget.client.contentIdFor(detail),
+        title: detail.name,
+        coverUrl: widget.client.imageUrl(detail.id, maxWidth: 400),
+        sourceId: 'ms:${widget.client.info.id}',
+        sourceType: SourceType.animeSource,
+        detailUrl: widget.client.contentIdFor(detail),
+        viewedAt: DateTime.now().millisecondsSinceEpoch,
+        localCoverPath: localCover,
+        kind: 'mediaServer',
+      );
+      await history.addEntryRaw(entry);
+    } on Object {
+      // 历史不可用不影响详情页。
+    }
+  }
 
   /// 收藏切换（B1）：乐观更新 + 失败回滚 + 提示。
   Future<void> _toggleFavorite() async {

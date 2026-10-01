@@ -6,6 +6,7 @@ import '../../../core/models/bookshelf_filter.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/services/media_server/media_server_auth.dart';
+import '../../../core/services/media_server/media_server_client.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/widgets/bookshelf_content.dart';
 import '../../../core/local/local_content_actions.dart'
@@ -16,6 +17,7 @@ import '../../../core/widgets/library_shell.dart';
 import '../../../core/widgets/module_source_search_screen.dart';
 import '../../../core/widgets/online_source_browser_screen.dart';
 import '../../home/presentation/import_media_screen.dart';
+import '../../media_server/media_server_detail_screen.dart';
 import '../../media_server/media_server_widgets.dart';
 import '../../rss/presentation/rss_feed_list_screen.dart';
 import '../../sources/presentation/collect_api_import_screen.dart';
@@ -87,6 +89,41 @@ class MediaHomeScreen extends StatelessWidget {
           ),
         ),
         onItemTap: (MediaItem item) async {
+          // D2 体系并入：媒体服务器历史条目（detailUrl = ms:<serverId>:<itemId>）
+          // 按凭据路由到对应详情页；服务器已删除时提示不可达。
+          if (item.detailUrl?.startsWith('ms:') == true) {
+            final parts = item.detailUrl!.split(':');
+            if (parts.length >= 3) {
+              final serverId = parts[1];
+              final itemId = parts.sublist(2).join(':');
+              final auth = context.read<MediaServerAuth>();
+              final server = auth.servers
+                  .where((s) => s.id == serverId)
+                  .firstOrNull;
+              if (server == null || !server.loggedIn) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(l10n.mediaServerUnreachable)),
+                );
+                return;
+              }
+              final token = await auth.tokenOf(server.id);
+              final deviceId = await auth.deviceId();
+              if (!context.mounted) return;
+              Navigator.of(context).push(
+                AppPageRoute<void>(
+                  builder: (_) => MediaServerDetailScreen(
+                    client: MediaServerClientBase.createServerClient(
+                      server,
+                      deviceId: deviceId,
+                      token: token,
+                    ),
+                    itemId: itemId,
+                  ),
+                ),
+              );
+              return;
+            }
+          }
           // 修复（影视段）：本地导入/下载的视频优先走本地播放，不跳在线详情页。
           final extra = item.extra;
           final localPath = extra == null ? null : extra['localPath'] as String?;
