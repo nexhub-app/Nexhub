@@ -12,6 +12,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/history/history_manager.dart';
+import '../../../core/history/media_playback_position_manager.dart';
+import '../../../core/history/media_watched_manager.dart';
 import '../../../core/navigation/app_page_route.dart';
 import '../../../core/services/media_server/media_server_auth.dart';
 import '../../../core/services/media_server/media_server_models.dart';
@@ -289,8 +292,17 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
     );
     if (ok != true) return;
     if (!mounted) return;
+    // D4：先取管理器引用（避免 await 后跨 async gap 用 context），
+    // 删除档案后清理该服务器命名空间下的本地进度 / 已看 / 历史。
+    final watched = context.read<MediaWatchedManager>();
+    final positions = context.read<MediaPlaybackPositionManager>();
+    final history = context.read<HistoryManager>();
     try {
       await context.read<MediaServerAuth>().removeServer(s.id);
+      final prefix = 'ms:${s.id}:';
+      await positions.removeContentIdPrefix(prefix);
+      await watched.removeContentIdPrefix(prefix);
+      await history.removeByContentIdPrefix(prefix);
     } on Object catch (e) {
       _showError(e);
     }

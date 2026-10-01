@@ -146,4 +146,27 @@ class MediaPlaybackPositionManager extends ChangeNotifier {
     await box.delete('last_ep:$contentId');
     notifyListeners();
   }
+
+  /// 删除 contentId 以 [prefix] 开头的全部记录（D4 删除服务器联动；
+  /// 媒体服务器条目 contentId = `ms:<serverId>:<itemId>`）。
+  Future<void> removeContentIdPrefix(String prefix) async {
+    final posKeys = _positions.keys
+        .where((k) => k.startsWith(prefix))
+        .toList(growable: false);
+    final epKeys = _lastEpisodes.keys
+        .where((k) => k.startsWith(prefix))
+        .toList(growable: false);
+    if (posKeys.isEmpty && epKeys.isEmpty) return;
+    final box = await _openBox();
+    for (final k in posKeys) {
+      _positions.remove(k);
+      await box.delete('pos:$k');
+    }
+    for (final k in epKeys) {
+      _lastEpisodes.remove(k);
+      await box.delete('last_ep:$k');
+    }
+    _recentKeys.removeWhere((k, _) => k.startsWith(prefix));
+    notifyListeners();
+  }
 }

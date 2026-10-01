@@ -52,6 +52,10 @@ class HistoryEntry {
   /// 与进度仍保留，用户重新进入该作品（详情/阅读器记录浏览）时自动复原为 false。
   final bool hidden;
 
+  /// 条目来源体系（D2 体系并入）：`'mediaServer'` = 媒体服务器条目
+  /// （[detailUrl] 存路由凭据 `ms:<serverId>:<itemId>`）；null = 旧条目。
+  final String? kind;
+
   const HistoryEntry({
     required this.id,
     required this.title,
@@ -67,6 +71,7 @@ class HistoryEntry {
     this.actors,
     this.localCoverPath,
     this.hidden = false,
+    this.kind,
   });
 
   factory HistoryEntry.fromMediaItem(
@@ -117,6 +122,7 @@ class HistoryEntry {
         'actors': actors,
         'localCoverPath': localCoverPath,
         'hidden': hidden,
+        if (kind != null) 'kind': kind,
       };
 
   factory HistoryEntry.fromJson(Map<String, dynamic> json) => HistoryEntry(
@@ -136,6 +142,7 @@ class HistoryEntry {
         localCoverPath: json['localCoverPath'] as String?,
         // 旧数据无 hidden 字段时按 false（可见）解析，保证向后兼容。
         hidden: json['hidden'] as bool? ?? false,
+        kind: json['kind'] as String?,
       );
 
   HistoryEntry copyWith({String? localCoverPath, bool? hidden}) => HistoryEntry(
@@ -264,6 +271,40 @@ class HistoryManager extends ChangeNotifier {
     notifyListeners();
     // 离线封面缓存（best-effort，不阻塞 UI）。
     unawaited(_cacheCoverFor(entry));
+  }
+
+  /// 写入预构建的历史条目（D2：媒体服务器等外部体系用）。
+  ///
+  /// 去重 / 上限淘汰 / 持久化与 [addHistory] 一致；封面缓存由调用方负责
+  /// （媒体服务器海报需带鉴权头下载，[HistoryEntry.localCoverPath] 预置后
+  /// 不会触发通用封面下载）。
+  Future<void> addEntryRaw(
+    HistoryEntry entry, {
+    SourceType type = SourceType.animeSource,
+  }) async {
+    final list = _cache.putIfAbsent(type, () => <HistoryEntry>[]);
+    list.removeWhere((e) => e.id == entry.id);
+    list.add(entry);
+    while (list.length > maxPerModule) {
+      list.removeAt(0);
+    }
+    await _persist();
+    notifyListeners();
+  }
+
+  /// 删除 contentId 以 [prefix] 开头的历史条目（D4 删除服务器联动）。
+  Future<void> removeByContentIdPrefix(String prefix) async {
+    var changed = false;
+    for (final type in _cache.keys.toList()) {
+      final list = _cache[type]!;
+      final before = list.length;
+      list.removeWhere((e) => e.id.startsWith(prefix));
+      if (list.length != before) changed = true;
+    }
+    if (changed) {
+      await _persist();
+      notifyListeners();
+    }
   }
 
   /// 异步将远程封面下载到本地缓存目录 `history_covers/`，并回写

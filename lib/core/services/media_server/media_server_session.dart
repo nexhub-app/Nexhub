@@ -151,6 +151,13 @@ class MediaServerPlayback {
   ServerMediaItem get current =>
       episodes[currentIndex.clamp(0, episodes.length - 1)];
 
+  /// D1：本地体系 contentId（`ms:<serverId>:<workId>`，剧集用 seriesId，
+  /// 电影用自身 id）——media_watched / media_playback_position 双写用。
+  String contentIdFor(ServerMediaItem item) =>
+      'ms:${client.info.id}:${item.seriesId ?? item.id}';
+
+  String get currentContentId => contentIdFor(current);
+
   /// 切到 [index] 并协商该集播放地址（带当前码率档位；协商失败原样上抛，
   /// 由播放器回滚）。[audioStreamIndex] 供转码流切换音轨重新协商。
   Future<PlaybackInfoResult> resolveAt(

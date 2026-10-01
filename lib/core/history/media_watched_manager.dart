@@ -93,6 +93,21 @@ class MediaWatchedManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 删除 contentId 以 [prefix] 开头的全部记录（D4 删除服务器联动；
+  /// 媒体服务器条目 contentId = `ms:<serverId>:<itemId>`）。
+  Future<void> removeContentIdPrefix(String prefix) async {
+    final keys = _cache.keys
+        .where((k) => k.startsWith(prefix))
+        .toList(growable: false);
+    if (keys.isEmpty) return;
+    final box = await _openBox();
+    for (final k in keys) {
+      _cache.remove(k);
+      await box.delete(k);
+    }
+    notifyListeners();
+  }
+
   Future<void> _persist(String contentId) async {
     final box = await _openBox();
     final set = _cache[contentId];

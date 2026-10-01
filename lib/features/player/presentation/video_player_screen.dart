@@ -1566,8 +1566,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 节流保存播放位置：每 5 秒写一次到 MediaPlaybackPositionManager。
   void _maybeSavePosition() {
-    // 媒体服务器：进度只上报服务器，不写本地历史 box（§2.5）。
-    if (_isMediaServer) return;
     // 续播恢复完成前禁止写盘，避免刚 open 时的 position=0 覆盖旧存档。
     if (!_positionRestoreDone) return;
     final now = DateTime.now();
@@ -1578,6 +1576,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // 用 _init 阶段缓存的引用：不依赖 context，任何时刻（含 dispose 期）可写。
     final mgr = _positionManager;
     if (mgr == null) return;
+    if (_isMediaServer) {
+      // D1 双写：本地命名空间 ms:<serverId>:<workId>（服务器上报另行走会话）。
+      unawaited(mgr.savePosition(
+        widget.mediaServerPlayback!.currentContentId,
+        _episodeIndex,
+        _position.inMilliseconds,
+      ));
+      return;
+    }
     unawaited(mgr.savePosition(
         widget.itemId, _episodeIndex, _position.inMilliseconds));
   }
@@ -1587,8 +1594,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// 阈值取自 [GeneralSettingsStore.watchedThresholdPercent]（默认 90）。
   /// 用本地 [_watchedMarkedEpisodes] 集合避免每帧读取 Manager / 重复标记。
   void _maybeMarkWatched() {
-    // 媒体服务器：已看标记由会话上报器按服务器规则处理（§2.5）。
-    if (_isMediaServer) return;
     final durationMs = _duration.inMilliseconds;
     if (durationMs <= 0) return;
     if (_watchedMarkedEpisodes.contains(_episodeIndex)) return;
@@ -1596,6 +1601,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final threshold = GeneralSettingsStore.instance.watchedThresholdPercent;
     if (!progressReachesWatchedThreshold(ratio, threshold)) return;
     _watchedMarkedEpisodes.add(_episodeIndex);
+    if (_isMediaServer) {
+      // D1 双写：本地已看（命名空间）+ 服务器已看由会话 ≥90% 上报。
+      try {
+        context.read<MediaWatchedManager>().markWatched(
+              widget.mediaServerPlayback!.currentContentId,
+              _episodeIndex,
+            );
+      } on Object {
+        // Manager 不可用时静默忽略。
+      }
+      return;
+    }
     try {
       final watched = context.read<MediaWatchedManager>();
       unawaited(watched.markWatched(widget.itemId, _episodeIndex));
@@ -1877,11 +1894,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     try {
       if (_isMediaServer) {
         final session = _serverSession;
-        if (session != null) {
-          final savedMs = session.initialPositionMs;
-          if (widget.restoreProgress && savedMs > 5000) {
-            await _seekWhenReady(Duration(milliseconds: savedMs));
+        var savedMs = session?.initialPositionMs ?? 0;
+        if (savedMs <= 0) {
+          // 服务器无进度（新集）→ 本地命名空间兜底（D1）。
+          try {
+            final mgr = context.read<MediaPlaybackPositionManager>();
+            savedMs = mgr.getPosition(
+              widget.mediaServerPlayback!.currentContentId,
+              _episodeIndex,
+            );
+          } on Object {
+            // Manager 不可用时按无进度处理。
           }
+        }
+        if (widget.restoreProgress && savedMs > 5000) {
+          await _seekWhenReady(Duration(milliseconds: savedMs));
         }
         return;
       }
@@ -2178,6 +2205,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             completed: true,
           ),
         );
+      }
+      // D1 双写：本地进度清除 + 本地已看标记（命名空间）。
+      try {
+        final contentId = widget.mediaServerPlayback!.currentContentId;
+        context
+            .read<MediaPlaybackPositionManager>()
+            .clearPosition(contentId, _episodeIndex);
+        unawaited(
+          context
+              .read<MediaWatchedManager>()
+              .markWatched(contentId, _episodeIndex),
+        );
+      } on Object {
+        // Manager 不可用时静默忽略。
       }
       return;
     }
@@ -3281,9 +3322,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// 保存当前集播放位置到 MediaPlaybackPositionManager。
   /// 退出时保存当前集播放位置到 MediaPlaybackPositionManager。
-  /// 媒体服务器播放不写本地历史（进度只走服务器，§2.5）。
+  /// 媒体服务器：D1 双写——本地命名空间落盘 + 服务器上报由调用方处理。
   void _saveCurrentPosition() {
-    if (_isMediaServer) return;
+    if (_isMediaServer) {
+      final mgr = _positionManager;
+      if (mgr == null) return;
+      unawaited(mgr.savePosition(
+        widget.mediaServerPlayback!.currentContentId,
+        _episodeIndex,
+        _position.inMilliseconds,
+      ));
+      return;
+    }
     // 与 [_maybeSavePosition] 同理：恢复未完成时（如加载中就退出）不写盘，
     // 否则会把上次的续播点抹成 0。
     if (!_positionRestoreDone) return;
