@@ -18,29 +18,63 @@ class AdvancedSettings {
   /// 非空时全局 HTTP 请求固定使用该 UA（覆盖内置指纹档案）。
   final String defaultUserAgent;
 
+  /// 缓存自动清理总开关（默认开启：启动时后台按年龄/容量清理缓存）。
+  final bool autoCacheCleanEnabled;
+
+  /// 缓存年龄上限（天）：超过该天数未使用的缓存文件被自动清理。
+  /// 范围 1–365，默认 30。
+  final int cacheMaxAgeDays;
+
+  /// 缓存总容量上限（MB）：清理年龄策略后若仍超限，按最旧优先继续删除。
+  /// 范围 128–10240，默认 1024（1GB）。
+  final int cacheMaxTotalMb;
+
   const AdvancedSettings({
     this.detailedLogging = false,
     this.defaultUserAgent = '',
+    this.autoCacheCleanEnabled = true,
+    this.cacheMaxAgeDays = 30,
+    this.cacheMaxTotalMb = 1024,
   });
+
+  /// 缓存总容量上限（字节）。
+  int get cacheMaxTotalBytes => cacheMaxTotalMb * 1024 * 1024;
 
   AdvancedSettings copyWith({
     bool? detailedLogging,
     String? defaultUserAgent,
+    bool? autoCacheCleanEnabled,
+    int? cacheMaxAgeDays,
+    int? cacheMaxTotalMb,
   }) =>
       AdvancedSettings(
         detailedLogging: detailedLogging ?? this.detailedLogging,
         defaultUserAgent: defaultUserAgent ?? this.defaultUserAgent,
+        autoCacheCleanEnabled:
+            autoCacheCleanEnabled ?? this.autoCacheCleanEnabled,
+        cacheMaxAgeDays: cacheMaxAgeDays ?? this.cacheMaxAgeDays,
+        cacheMaxTotalMb: cacheMaxTotalMb ?? this.cacheMaxTotalMb,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'detailedLogging': detailedLogging,
         'defaultUserAgent': defaultUserAgent,
+        'autoCacheCleanEnabled': autoCacheCleanEnabled,
+        'cacheMaxAgeDays': cacheMaxAgeDays,
+        'cacheMaxTotalMb': cacheMaxTotalMb,
       };
 
   factory AdvancedSettings.fromJson(Map<String, dynamic> json) =>
       AdvancedSettings(
         detailedLogging: (json['detailedLogging'] as bool?) ?? false,
         defaultUserAgent: (json['defaultUserAgent'] as String?) ?? '',
+        autoCacheCleanEnabled:
+            (json['autoCacheCleanEnabled'] as bool?) ?? true,
+        cacheMaxAgeDays:
+            ((json['cacheMaxAgeDays'] as num?)?.toInt() ?? 30).clamp(1, 365),
+        cacheMaxTotalMb:
+            ((json['cacheMaxTotalMb'] as num?)?.toInt() ?? 1024)
+                .clamp(128, 10240),
       );
 }
 
@@ -70,6 +104,15 @@ class AdvancedSettingsStore extends ChangeNotifier {
 
   bool get detailedLogging => _settings.detailedLogging;
   String get defaultUserAgent => _settings.defaultUserAgent;
+
+  /// 缓存自动清理开关（默认开启）。
+  bool get autoCacheCleanEnabled => _settings.autoCacheCleanEnabled;
+
+  /// 缓存年龄上限（天）。
+  int get cacheMaxAgeDays => _settings.cacheMaxAgeDays;
+
+  /// 缓存总容量上限（MB）。
+  int get cacheMaxTotalMb => _settings.cacheMaxTotalMb;
 
   /// 是否应使用固定默认 UA（非空即启用）。
   bool get hasCustomUserAgent => _settings.defaultUserAgent.isNotEmpty;

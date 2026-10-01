@@ -179,6 +179,9 @@ flutter:
     - assets/sniffer/
     - assets/announcements.json
     - assets/shaders/anime4k/
+  # 漫画图片超分用的 Flutter FragmentProgram（shaders 段，构建期编译为 .frag）
+  shaders:
+    - assets/shaders/manga_upscale.frag
 
 # ===== 启动图标生成配置（源图：assets/icon/icon.png）=====
 flutter_launcher_icons:

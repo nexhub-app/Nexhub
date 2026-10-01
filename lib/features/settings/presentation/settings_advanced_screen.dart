@@ -10,24 +10,22 @@
 library;
 
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:nexhub/core/network/dio_image_file_service.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:nexhub/generated/app_localizations.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/settings/advanced_settings.dart';
+import '../../../core/storage/cache_inventory.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_glass_bar.dart';
 import 'crash_log_screen.dart';
 import 'log_viewer_screen.dart';
+import 'settings_cache_manager_screen.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/settings_search_target.dart';
 
@@ -125,22 +123,7 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
     }
   }
 
-  Future<void> _clearWebviewData(
-      BuildContext context, AppLocalizations l10n) async {
-    final ok = await _confirm(context, l10n, l10n.clearWebviewData);
-    if (!ok || !context.mounted) return;
-    try {
-      await WebStorageManager.instance().deleteAllData();
-    } catch (_) {}
-    PaintingBinding.instance.imageCache.clear();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.webviewDataCleared)),
-      );
-    }
-  }
-
-  // ── 图片磁盘缓存管理（资源/内存）─────────────────────────────
+  // ── 缓存管理（分类占用见 [SettingsCacheManagerScreen]）──────────────
   String _imageCacheSizeText = '';
 
   Future<void> _refreshImageCacheSize() async {
@@ -150,34 +133,10 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
     }
   }
 
-  /// 图片缓存目录：旧默认缓存（libCachedImageData，历史遗留仍在盘上）与
-  /// 新统一缓存（nexCachedImageData，DioImageFileService 下载）。
-  static const List<String> _kCacheDirNames = <String>[
-    'libCachedImageData',
-    'nexCachedImageData',
-  ];
-
-  /// 统计图片磁盘缓存占用（两个缓存目录求和）。
-  /// 目录不存在（从未缓存过 / 平台差异）时按 0 计。
+  /// 统计全部缓存类别总占用（与缓存管理页口径一致，避免两处数字打架）。
   Future<int> _computeImageCacheSize() async {
     try {
-      final tmp = await getTemporaryDirectory();
-      int total = 0;
-      for (final name in _kCacheDirNames) {
-        final dir = Directory('${tmp.path}/$name');
-        if (!dir.existsSync()) continue;
-        await for (final entity
-            in dir.list(recursive: true, followLinks: false)) {
-          if (entity is File) {
-            try {
-              total += await entity.length();
-            } on Object {
-              // 单文件统计失败忽略。
-            }
-          }
-        }
-      }
-      return total;
+      return (await CacheInventory.snapshot()).totalBytes;
     } on Object {
       return 0;
     }
@@ -190,26 +149,6 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
       return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
     }
     return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
-  }
-
-  Future<void> _clearImageCache(
-      BuildContext context, AppLocalizations l10n) async {
-    final ok = await _confirm(context, l10n, l10n.imageCacheClearConfirm);
-    if (!ok || !context.mounted) return;
-    try {
-      await DefaultCacheManager().emptyCache();
-    } catch (_) {}
-    try {
-      await NexImageCacheManager.instance.emptyCache();
-    } catch (_) {}
-    PaintingBinding.instance.imageCache.clear();
-    PaintingBinding.instance.imageCache.clearLiveImages();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.imageCacheCleared)),
-      );
-    }
-    unawaited(_refreshImageCacheSize());
   }
 
   void _pickUserAgent(BuildContext context, AppLocalizations l10n) {
@@ -348,6 +287,11 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
               ],
             ),
             // ── 数据清理 ──
+            //
+            // 缓存（含 WebView 数据）统一收口到缓存管理页的分类列表：此前这里
+            // 另有独立的「清除 WebView 数据」项，与分类页里的 WebView 类别
+            // 职责重复（两处都能清同一份数据，且提示文案不同），故合并为一处，
+            // 避免用户困惑「到底该点哪个」。
             SettingsCard(
               key: const ValueKey<String>('advanced.clean'),
               title: l10n.advancedCleanGroup,
@@ -361,20 +305,21 @@ class _SettingsAdvancedScreenState extends State<SettingsAdvancedScreen> {
                   onTap: () => _clearCookies(context, l10n),
                 ),
                 SettingsTile(
-                  key: const ValueKey<String>('advanced.clearWebview'),
-                  icon: Icons.cleaning_services_rounded,
-                  title: l10n.clearWebviewData,
-                  subtitle: l10n.clearWebviewDataDesc,
-                  onTap: () => _clearWebviewData(context, l10n),
-                ),
-                SettingsTile(
                   key: const ValueKey<String>('advanced.imageCache'),
-                  icon: Icons.image_rounded,
-                  title: l10n.advancedImageCache,
+                  icon: Icons.sd_storage_rounded,
+                  title: l10n.cacheManagerTitle,
                   subtitle: _imageCacheSizeText.isEmpty
                       ? l10n.advancedImageCacheDesc
                       : '${l10n.advancedImageCacheDesc} · $_imageCacheSizeText',
-                  onTap: () => _clearImageCache(context, l10n),
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SettingsCacheManagerScreen(),
+                      ),
+                    );
+                    // 返回后刷新总占用（分类页可能已清理）。
+                    unawaited(_refreshImageCacheSize());
+                  },
                 ),
               ],
             ),

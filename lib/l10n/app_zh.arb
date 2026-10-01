@@ -585,8 +585,6 @@
   "favoriteRemoved": "已取消收藏",
   "aboutApp": "关于应用",
   "appVersion": "版本",
-  "clearCache": "清除缓存",
-  "cacheCleared": "缓存已清除",
   "privacySettings": "隐私设置",
   "stealthSettings": "隐身设置",
   "browseLocalTitle": "本地文件",
@@ -4309,15 +4307,6 @@
   "@cookiesCleared": {
     "description": "Cookie 清除完成提示"
   },
-  "clearWebviewData": "清除 WebView 数据",
-  "@clearWebviewData": {
-    "description": "高级页清除 WebView 数据入口"
-  },
-  "clearWebviewDataDesc": "清除内嵌浏览器缓存与本地存储",
-  "@clearWebviewDataDesc": {
-    "description": "清除 WebView 数据副标题"
-  },
-  "webviewDataCleared": "WebView 数据已清除",
   "cloudSyncAutoUploadNovelExports": "小说导出自动上传",
   "cloudSyncAutoUploadNovelExportsDesc": "下载完成后自动把导出的 EPUB 上传到 WebDAV nexhub/exports 目录",
   "uploadToWebdav": "上传导出到 WebDAV",
@@ -4410,9 +4399,6 @@
   "readerUpscaleResample": "高清重采样",
   "readerUpscaleSharpen": "超分（锐化）",
   "readerUpscaleDesc": "仅单页翻页模式生效：图片被放大显示时用 GPU 实时重采样并锐化线条（条漫与超长单图保持原始渲染）；低端机卡顿时可关闭",
-  "@webviewDataCleared": {
-    "description": "WebView 数据清除完成提示"
-  },
   "confirmActionHint": "该操作不可撤销，确定继续？",
   "@confirmActionHint": {
     "description": "危险操作二次确认提示"

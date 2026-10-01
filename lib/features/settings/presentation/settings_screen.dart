@@ -34,6 +34,7 @@ import './settings_remember_position_screen.dart';
 import './settings_network_screen.dart';
 import './settings_privacy_screen.dart';
 import './settings_advanced_screen.dart';
+import './settings_cache_manager_screen.dart';
 import './settings_categories_screen.dart';
 import './settings_download_screen.dart';
 import './settings_import_export_screen.dart';
@@ -806,6 +807,27 @@ class SettingsScreen extends StatelessWidget {
         icon: Icons.filter_rounded,
         title: l10n.comicSectionVisualFilter,
         keywords: const <String>['滤镜', '亮度', '对比度', '饱和度', '灰度'],
+        builder: (_) => const SettingsComicReaderScreen(),
+        scrollKeyId: 'comic.visualFilter',
+      ),
+      // 图片超分（GPU 实时 shader）：关键词覆盖「超分 / 画质 / 锐化 / 重采样」等说法。
+      _SettingEntry(
+        icon: Icons.auto_awesome_rounded,
+        title: l10n.readerUpscale,
+        desc: l10n.readerUpscaleDesc,
+        keywords: const <String>[
+          '超分',
+          '图片超分',
+          '分辨率',
+          '画质',
+          '增强',
+          '锐化',
+          '重采样',
+          '放大',
+          '清晰',
+          'upscale',
+          'super resolution',
+        ],
         builder: (_) => const SettingsComicReaderScreen(),
         scrollKeyId: 'comic.visualFilter',
       ),
@@ -2004,13 +2026,32 @@ class SettingsScreen extends StatelessWidget {
         builder: (_) => const SettingsAdvancedScreen(),
         scrollKeyId: 'advanced.request',
       ),
+      // 缓存管理（分类占用 + 单独清理 + 自动清理）：替代原先只指向
+      // 「清除 WebView 数据」的条目，关键词同时覆盖 webview / 清理 / 分类 / 自动。
       _SettingEntry(
-        icon: Icons.cleaning_services_rounded,
-        title: l10n.clearWebviewData,
-        desc: l10n.clearWebviewDataDesc,
-        keywords: const <String>['webview数据', '清除webview', '网页数据'],
-        builder: (_) => const SettingsAdvancedScreen(),
-        scrollKeyId: 'advanced.clean',
+        icon: Icons.sd_storage_rounded,
+        title: l10n.cacheManagerTitle,
+        desc: l10n.cacheManagerTotalDesc(l10n.cacheSizeUnknown),
+        keywords: const <String>[
+          '缓存',
+          '缓存管理',
+          '缓存分类',
+          '清理缓存',
+          '清除缓存',
+          '清缓存',
+          '自动清理',
+          'webview数据',
+          '清除webview',
+          '网页数据',
+          '图片缓存',
+          '弹幕缓存',
+          '翻译缓存',
+          '临时文件',
+          '更新包',
+          'cache',
+          'cleanup',
+        ],
+        builder: (_) => const SettingsCacheManagerScreen(),
       ),
       _SettingEntry(
         icon: Icons.bug_report_rounded,
@@ -2048,13 +2089,8 @@ class SettingsScreen extends StatelessWidget {
         builder: (_) => const SettingsPrivacySecurityScreen(),
         scrollKeyId: 'privacy.ageRestriction',
       ),
-      _SettingEntry(
-        icon: Icons.cleaning_services_rounded,
-        title: l10n.clearCache,
-        keywords: const <String>['清除', '缓存', 'cookie', '清缓存', '清理'],
-        builder: (_) => const SettingsPrivacySecurityScreen(),
-        scrollKeyId: 'privacy.clearCache',
-      ),
+      // 注：原「清除缓存」快捷项（指向隐私与安全页的内联清理）已随该入口一并
+      // 移除，缓存清理统一由上面的「缓存管理」条目承担（分类 + 自动清理）。
 
       // ───────────────── 关于 ─────────────────
       _SettingEntry(
@@ -2583,10 +2619,10 @@ class SettingsScreen extends StatelessWidget {
         scrollKeyId: 'cloud.novelAutoUpload',
       ),
       _SettingEntry(
-        icon: Icons.tune_rounded,
-        title: l10n.advancedImageCache,
-        keywords: const <String>[],
-        builder: (_) => const SettingsAdvancedScreen(),
+        icon: Icons.sd_storage_rounded,
+        title: l10n.cacheManagerTitle,
+        keywords: const <String>['图片缓存', '磁盘占用', 'image cache'],
+        builder: (_) => const SettingsCacheManagerScreen(),
       ),
       _SettingEntry(
         icon: Icons.tune_rounded,

@@ -6,7 +6,6 @@ import '../../../core/widgets/app_animations.dart';
 
 import './widgets/settings_widgets.dart';
 import '../../../core/utils/app_haptics.dart';
-import '../../../core/scraper/http_fetcher.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/widgets/app_glass_bar.dart';
@@ -16,7 +15,10 @@ import './settings_privacy_screen.dart';
 import './settings_advanced_screen.dart';
 import './widgets/settings_search_target.dart';
 
-/// 隐私与安全汇总页：隐私设置 / 高级设置入口 + 内联清除缓存 + 年龄限制。
+/// 隐私与安全汇总页：隐私设置 / 高级设置入口 + 年龄限制。
+///
+/// 缓存清理不在此页重复实现——统一入口为「高级设置 → 数据清理 → 缓存管理」
+/// （分类占用 + 单独清理 + 自动清理），避免两个入口能力不一致。
 class SettingsPrivacySecurityScreen extends StatelessWidget {
   const SettingsPrivacySecurityScreen({super.key});
 
@@ -62,18 +64,10 @@ class SettingsPrivacySecurityScreen extends StatelessWidget {
                     key: ValueKey<String>('privacy.ageRestriction'),
                     child: _AgeRestrictionSection(),
                   ),
-                  SettingsTile(
-                    key: const ValueKey<String>('privacy.clearCache'),
-                    icon: Icons.cleaning_services_rounded,
-                    title: l10n.clearCache,
-                    onTap: () {
-                      HttpFetcher.instance.clearCookies();
-                      PaintingBinding.instance.imageCache.clear();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l10n.cacheCleared)),
-                      );
-                    },
-                  ),
+                  // 缓存清理统一收口到「高级设置 → 数据清理 → 缓存管理」：
+                  // 此处曾有一个只清 Cookie + 内存图片缓存的「清除缓存」快捷项，
+                  // 与分类缓存管理页职责重叠且能力更弱（清不掉磁盘图片/翻译/
+                  // 弹幕/临时文件），故移除，避免两个入口给出不同的清理结果。
                 ],
               ),
             ],

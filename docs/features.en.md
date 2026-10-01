@@ -49,6 +49,7 @@ Not just "readable" — it has dedicated fixes for real pain points:
 - Handles "**over-screen ranges**" (extra-long webtoons spanning screens), "**missing image** auto-skip placeholder", "**progress regression**" (reading progress wrongly reset) and other common issues;
 - Reading progress and bookmarks are persisted — closing and reopening returns to the same spot.
 - **v2.0.0-beta.2**: night-light warm overlay, sleep timer (by minutes / by chapters), triple-state double-tap / E-Ink refresh / ICC color (6 presets), auto-favorite cover, configurable preload count (1–16), keyboard shortcut completion and adjustable scroll-wheel speed, plus resource & memory optimization (archive temp-dir cleanup, memory-budget image cache, progress flush when backgrounded).
+- **Image super-resolution (real-time GPU)**: a **switch** in both the comic reader's settings panel and Settings → Comic reader → Visuals & filters; turning it on reveals two modes (High-quality resample / Super-resolution (sharpen)), while off is the switch itself rather than a third option. When an image is displayed larger than its source, the GPU resamples the **already-decoded bitmap** with Catmull-Rom bicubic filtering and adds RCAS-style contrast-adaptive sharpening (gentle on flat areas, self-limiting on strong edges, which suppresses halftone ringing and halos). It costs no extra traffic or disk space: super-resolution only takes over the "decoded bitmap → screen" step while loading still goes through the unified image cache and anti-hotlinking path. It applies to **paged (single-page) mode only** — a webtoon mounts dozens of pages at once, and holding every decoded bitmap would stall memory reclaim — and oversized single images beyond the GPU texture limit fall back to plain rendering. If the shader asset is unavailable the feature degrades silently instead of breaking image display.
 
 ## 2.5 Novel reader (six UX principles)
 
@@ -270,3 +271,24 @@ On top of the three translation pipelines (novel paragraphs / manga pages / vide
 - **Export enhancements**: manga translations export/import as JSON (cache hits after import, no re-billing); the novel appendix honors the translation-first / source-first / bilingual layout setting.
 
 > The glossary is stored per book + language; the global table applies everywhere, including subtitle translation where no book identity exists. Review reports are local heuristics only (no extra request cost); deeper pronoun-breakage review requires model re-reading and is not included yet.
+
+## 2.29 Cache categories & automatic cleanup
+
+Cache management stops being a vague one-tap button and becomes something you can see, separate, and let clean itself up. Entry point: Settings → Advanced settings → Data cleanup → Cache manager (searching "cache" also reaches it).
+
+> There is exactly **one** cache-cleanup entry point. The old "Clear cache" shortcut on the Privacy & security page (which only dropped cookies and the in-memory image cache) and the standalone "Clear WebView data" row in Advanced settings are gone: both duplicated the categories page with strictly less capability (they could not clear disk images, translations, danmaku or temp files), and having them only made it unclear which one to tap. WebView data is now a row on the categories page, so nothing was lost.
+
+- **Six categories, measured and cleared independently**:
+  - **Image cache** — covers, comic pages and RSS inline images (all through `NexImageCacheManager`);
+  - **Danmaku cache** — cached video danmaku (Hive `danmaku_cache`, entries carry a TTL);
+  - **Translation cache** — AI output for the novel / comic / subtitle pipelines (three Hive boxes);
+  - **WebView data** — embedded browser cache and local storage (size is platform-defined, shown as "not measurable", cleanup only);
+  - **Temporary files** — PDF page renders, CBZ/CBR extraction, EPUB covers and other derived files;
+  - **Update package leftovers** — downloaded installers and stale version folders.
+  Each row shows its current footprint and can be cleared alone, or all at once. Categories are mutually exclusive in accounting (the temporary-files figure excludes the image-cache and update-package directories), so totals never double-count or leave a mysterious remainder.
+- **Automatic cleanup (age + size, two rules)**: enabled by default and run in the background on cold start without blocking the first frame —
+  - **Age**: files untouched for more than N days are removed (30 days by default, adjustable 1–365; image-cache hits refresh the file timestamp, so this behaves as an LRU);
+  - **Size**: if the total after the age pass still exceeds the limit (1 GB by default, adjustable 128 MB–10 GB), the oldest files are removed until it fits;
+  - danmaku entries expire by their own TTL; the switch and both thresholds live on the cache manager page, and turning the switch off leaves cleanup fully manual.
+- **Explicit boundaries**: only derived caches are touched — favorites, downloads, sources and reading progress are never removed. Clearing the translation or danmaku caches only means the relevant content is fetched again on next access; no user-created data is lost.
+

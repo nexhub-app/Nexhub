@@ -11,6 +11,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../theme/reader_tokens.dart';
+import '../manga_upscale.dart';
 import 'motion_effect_settings.dart';
 
 /// 漫画 5 种阅读模式（文档 7.1 最终态，移除旧 double）。
@@ -594,6 +595,11 @@ class ReaderPreferences {
   /// 在手动滤镜之外叠加一层固定色彩矩阵（见 [ReaderImageFilter.profileMatrix]）。
   final ReaderColorProfile colorProfile;
 
+  /// 漫画图片超分档位（GPU 实时 FragmentShader）：off 关闭 / resample 双三次
+  /// 重采样 / sharpen 重采样 + 自适应锐化。仅在放大显示时生效；纹理超限
+  /// （超长条漫）或 shader 不可用时自动回退普通渲染（见 [MangaUpscaleShader]）。
+  final MangaUpscaleMode upscaleMode;
+
   /// E-Ink 刷新：墨水屏防残影，按翻页间隔自动做一次全屏闪烁清残影。
   final bool einkRefreshEnabled;
 
@@ -692,6 +698,7 @@ class ReaderPreferences {
     this.nightLightEnabled = false,
     this.nightLightOpacity = 0.4,
     this.colorProfile = ReaderColorProfile.none,
+    this.upscaleMode = MangaUpscaleMode.off,
     this.einkRefreshEnabled = false,
     this.einkRefreshInterval = 10,
     this.einkRefreshDuration = 200,
@@ -835,6 +842,7 @@ class ReaderPreferences {
           ((json['nightLightOpacity'] as num?)?.toDouble() ?? 0.4)
               .clamp(0.1, 0.85),
       colorProfile: _parseColorProfile(json['colorProfile']),
+      upscaleMode: parseMangaUpscaleMode(json['upscaleMode']),
       einkRefreshEnabled: json['einkRefreshEnabled'] as bool? ?? false,
       einkRefreshInterval:
           ((json['einkRefreshInterval'] as num?)?.toInt() ?? 10).clamp(1, 50),
@@ -922,6 +930,7 @@ class ReaderPreferences {
         'nightLightEnabled': nightLightEnabled,
         'nightLightOpacity': nightLightOpacity,
         'colorProfile': colorProfile.name,
+        'upscaleMode': upscaleMode.name,
         'einkRefreshEnabled': einkRefreshEnabled,
         'einkRefreshInterval': einkRefreshInterval,
         'einkRefreshDuration': einkRefreshDuration,
@@ -1000,6 +1009,7 @@ class ReaderPreferences {
     bool? nightLightEnabled,
     double? nightLightOpacity,
     ReaderColorProfile? colorProfile,
+    MangaUpscaleMode? upscaleMode,
     bool? einkRefreshEnabled,
     int? einkRefreshInterval,
     int? einkRefreshDuration,
@@ -1090,6 +1100,7 @@ class ReaderPreferences {
         nightLightEnabled: nightLightEnabled ?? this.nightLightEnabled,
         nightLightOpacity: nightLightOpacity ?? this.nightLightOpacity,
         colorProfile: colorProfile ?? this.colorProfile,
+        upscaleMode: upscaleMode ?? this.upscaleMode,
         einkRefreshEnabled: einkRefreshEnabled ?? this.einkRefreshEnabled,
         einkRefreshInterval: einkRefreshInterval ?? this.einkRefreshInterval,
         einkRefreshDuration: einkRefreshDuration ?? this.einkRefreshDuration,

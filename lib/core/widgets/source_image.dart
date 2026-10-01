@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_ui/material_ui.dart';
@@ -54,6 +55,15 @@ class SourceImage extends StatelessWidget {
   /// （体验项：占位高 / 纵向平移夹取均基于真实高度，经验值仅兜底）。
   final void Function(double width, double height)? onImageInfo;
 
+  /// 解码完成回调（一次）：回传**所有权归调用方**的 [ui.Image] 克隆。
+  ///
+  /// 供漫画超分路径复用「SourceImage 已经解码好的同一张位图」——超分 shader
+  /// 只能画已解码图像，若自己另起 provider 会绕过 [NexImageCacheManager] 磁盘
+  /// 缓存与防盗链/重试逻辑（并可能与页面请求指纹不一致）。调用方负责在用完
+  /// 或替换时 dispose 该克隆（`ImageInfo.dispose()` 只减引用计数，不会提前
+  /// 释放仍被 Flutter 图片缓存持有的位图）。
+  final void Function(ui.Image image)? onImageDecoded;
+
   const SourceImage({
     super.key,
     required this.url,
@@ -70,6 +80,7 @@ class SourceImage extends StatelessWidget {
     this.refererOverride,
     this.onLoadComplete,
     this.onImageInfo,
+    this.onImageDecoded,
   });
 
   bool get _isHttp =>
@@ -218,6 +229,7 @@ class SourceImage extends StatelessWidget {
             enableRetry: enableRetry,
             onLoadComplete: onLoadComplete,
             onImageInfo: onImageInfo,
+            onImageDecoded: onImageDecoded,
           );
         } else {
           core = _SafOrLocalImage(
@@ -229,6 +241,7 @@ class SourceImage extends StatelessWidget {
             placeholder: placeholder ?? _defaultPlaceholder(context),
             onLoadComplete: onLoadComplete,
             onImageInfo: onImageInfo,
+            onImageDecoded: onImageDecoded,
           );
         }
         return r == null
@@ -254,6 +267,7 @@ class _RetryableNetworkImage extends StatefulWidget {
   final int? decodeCapWidthPx;
   final VoidCallback? onLoadComplete;
   final void Function(double width, double height)? onImageInfo;
+  final void Function(ui.Image image)? onImageDecoded;
 
   const _RetryableNetworkImage({
     required this.url,
@@ -268,6 +282,7 @@ class _RetryableNetworkImage extends StatefulWidget {
     this.decodeCapWidthPx,
     this.onLoadComplete,
     this.onImageInfo,
+    this.onImageDecoded,
   });
 
   @override
@@ -414,6 +429,18 @@ class _RetryableNetworkImageState extends State<_RetryableNetworkImage> {
           (ImageInfo info, bool _) {
             widget.onImageInfo?.call(
                 info.image.width.toDouble(), info.image.height.toDouble());
+            // 超分路径：交出位图的克隆（调用方负责 dispose）。clone 只加引用
+            // 计数，不复制像素；不 clone 直接交出去会让 Flutter 图片缓存的
+            // 释放与本 widget 的释放互相打架（提前释放 → 用已释放位图绘制）。
+            final void Function(ui.Image image)? onDecoded =
+                widget.onImageDecoded;
+            if (onDecoded != null) {
+              try {
+                onDecoded(info.image.clone());
+              } on Object {
+                // 已释放 / 引擎不支持 clone：静默跳过（超分回退普通渲染）。
+              }
+            }
             stream.removeListener(listener!);
           },
           onError: (Object error, StackTrace? stackTrace) =>
@@ -487,6 +514,7 @@ class _LocalFileImage extends StatefulWidget {
   final int? decodeCapWidthPx;
   final VoidCallback? onLoadComplete;
   final void Function(double width, double height)? onImageInfo;
+  final void Function(ui.Image image)? onImageDecoded;
 
   const _LocalFileImage({
     required this.file,
@@ -497,6 +525,7 @@ class _LocalFileImage extends StatefulWidget {
     this.decodeCapWidthPx,
     this.onLoadComplete,
     this.onImageInfo,
+    this.onImageDecoded,
   });
 
   @override
@@ -515,7 +544,17 @@ class _LocalFileImageState extends State<_LocalFileImage> {
 
   @override
   Widget build(BuildContext context) {
-    // 回传自然尺寸（文件已在本机，解码开销极小）：供条漫占位/夹取基于真实高度估算。
+    // 解码限幅：非 null 时用 ResizeImage 按比例下采样解码位图
+    // （不放大小图），限制长条漫原图的全尺寸解码内存。
+    final ImageProvider provider = widget.decodeCapWidthPx == null
+        ? FileImage(widget.file)
+        : ResizeImage(
+            FileImage(widget.file),
+            width: widget.decodeCapWidthPx,
+            allowUpscaling: false,
+          );
+    // 自然尺寸：用未限幅的 FileImage 取（ResizeImage 会返回下采样后的尺寸，
+    // 不是原始像素），供条漫占位/夹取基于真实高度估算。
     final ImageStream stream = FileImage(widget.file).resolve(
       const ImageConfiguration(),
     );
@@ -530,15 +569,26 @@ class _LocalFileImageState extends State<_LocalFileImage> {
           stream.removeListener(listener!),
     );
     stream.addListener(listener!);
-    // 解码限幅：非 null 时用 ResizeImage 按比例下采样解码位图
-    // （不放大小图），限制长条漫原图的全尺寸解码内存。
-    final ImageProvider provider = widget.decodeCapWidthPx == null
-        ? FileImage(widget.file)
-        : ResizeImage(
-            FileImage(widget.file),
-            width: widget.decodeCapWidthPx,
-            allowUpscaling: false,
-          );
+    // 超分路径：交出**实际显示用**位图的克隆（限幅后尺寸与显示一致）。
+    final void Function(ui.Image image)? onDecoded = widget.onImageDecoded;
+    if (onDecoded != null) {
+      final ImageStream displayStream =
+          provider.resolve(const ImageConfiguration());
+      ImageStreamListener? displayListener;
+      displayListener = ImageStreamListener(
+        (ImageInfo info, bool _) {
+          try {
+            onDecoded(info.image.clone());
+          } on Object {
+            // 已释放 / 不支持 clone：静默跳过。
+          }
+          displayStream.removeListener(displayListener!);
+        },
+        onError: (Object error, StackTrace? stackTrace) =>
+            displayStream.removeListener(displayListener!),
+      );
+      displayStream.addListener(displayListener);
+    }
     return Image(
       image: provider,
       width: widget.width,
@@ -575,6 +625,7 @@ class _SafOrLocalImage extends StatefulWidget {
   final int? decodeCapWidthPx;
   final VoidCallback? onLoadComplete;
   final void Function(double width, double height)? onImageInfo;
+  final void Function(ui.Image image)? onImageDecoded;
 
   const _SafOrLocalImage({
     required this.uriOrPath,
@@ -585,6 +636,7 @@ class _SafOrLocalImage extends StatefulWidget {
     this.decodeCapWidthPx,
     this.onLoadComplete,
     this.onImageInfo,
+    this.onImageDecoded,
   });
 
   @override
@@ -628,6 +680,7 @@ class _SafOrLocalImageState extends State<_SafOrLocalImage> {
       decodeCapWidthPx: widget.decodeCapWidthPx,
       onLoadComplete: widget.onLoadComplete,
       onImageInfo: widget.onImageInfo,
+      onImageDecoded: widget.onImageDecoded,
     );
   }
 }

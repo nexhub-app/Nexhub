@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/comic/models/reader_preferences.dart';
+import '../../../core/comic/manga_upscale.dart';
 import '../../../core/settings/reader_default_settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
@@ -32,6 +33,16 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
   final ReaderDefaultSettingsStore _store = ReaderDefaultSettingsStore();
   late ReaderDefaultSettings _settings;
   bool _loaded = false;
+
+  /// 可选的超分档位（不含 off：关闭由上方开关表达，档位选项只列生效档）。
+  static const List<MangaUpscaleMode> _upscaleSelectableModes =
+      <MangaUpscaleMode>[
+    MangaUpscaleMode.resample,
+    MangaUpscaleMode.sharpen,
+  ];
+
+  /// 最近一次选中的生效档位：重新打开开关时恢复（默认「超分（锐化）」）。
+  MangaUpscaleMode _lastUpscaleMode = MangaUpscaleMode.sharpen;
 
   @override
   void initState() {
@@ -136,6 +147,15 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
       ReaderColorProfile.cool => l10n.readerColorProfileCool,
       ReaderColorProfile.manga => l10n.readerColorProfileManga,
       ReaderColorProfile.paper => l10n.readerColorProfilePaper,
+    };
+  }
+
+  /// 图片超分档位文案。
+  String _upscaleLabel(AppLocalizations l10n, MangaUpscaleMode m) {
+    return switch (m) {
+      MangaUpscaleMode.off => l10n.readerUpscaleOff,
+      MangaUpscaleMode.resample => l10n.readerUpscaleResample,
+      MangaUpscaleMode.sharpen => l10n.readerUpscaleSharpen,
     };
   }
 
@@ -728,6 +748,45 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                             },
                           );
                         }).toList(),
+                      ),
+                      // 图片超分（GPU 实时 shader）：总开关 + 开启后选档位。
+                      // 不单独占一个二级分类，直接嵌在「画面与滤镜」里；开关
+                      // 关闭即 off，避免「开关 + 档位」两套状态互相矛盾。
+                      SettingsSwitchTile(
+                        key: const ValueKey<String>('comic.upscaleToggle'),
+                        title: l10n.readerUpscale,
+                        subtitle: l10n.readerUpscaleDesc,
+                        value: _settings.comicUpscaleMode.enabled,
+                        onChanged: (bool v) {
+                          v ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                          _update(_settings.copyWith(
+                            comicUpscaleMode: v
+                                ? _lastUpscaleMode
+                                : MangaUpscaleMode.off,
+                          ));
+                        },
+                      ),
+                      SettingsExpand(
+                        visible: _settings.comicUpscaleMode.enabled,
+                        padding: EdgeInsets.zero,
+                        child: SettingsChoiceChips<MangaUpscaleMode>(
+                          key: const ValueKey<String>('comic.upscaleMode'),
+                          title: l10n.readerUpscaleMode,
+                          selected: _settings.comicUpscaleMode,
+                          onSelected: (MangaUpscaleMode m) {
+                            AppHaptics.selectionClick();
+                            _lastUpscaleMode = m;
+                            _update(_settings.copyWith(comicUpscaleMode: m));
+                          },
+                          options: <SettingsChoiceChipData<MangaUpscaleMode>>[
+                            for (final MangaUpscaleMode m
+                                in _upscaleSelectableModes)
+                              SettingsChoiceChipData<MangaUpscaleMode>(
+                                value: m,
+                                label: _upscaleLabel(l10n, m),
+                              ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

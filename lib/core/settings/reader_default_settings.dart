@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import '../comic/models/reader_preferences.dart';
 import '../comic/models/motion_effect_settings.dart';
+import '../comic/manga_upscale.dart';
 import '../novel/novel_page_animation.dart';
 import '../novel/novel_reader_preferences.dart';
 
@@ -231,6 +232,9 @@ class ReaderDefaultSettings {
   /// 漫画：图片色彩配置预设（ICC 校色近似）。
   final ReaderColorProfile comicColorProfile;
 
+  /// 漫画：图片超分档位（GPU 实时 shader：off / resample / sharpen）。
+  final MangaUpscaleMode comicUpscaleMode;
+
   /// 漫画：E-Ink 刷新：墨水屏防残影，按翻页间隔自动全屏闪烁。
   final bool comicEinkRefreshEnabled;
   final int comicEinkRefreshInterval;
@@ -423,6 +427,7 @@ class ReaderDefaultSettings {
     this.comicNightLightEnabled = false,
     this.comicNightLightOpacity = 0.4,
     this.comicColorProfile = ReaderColorProfile.none,
+    this.comicUpscaleMode = MangaUpscaleMode.off,
     this.comicEinkRefreshEnabled = false,
     this.comicEinkRefreshInterval = 10,
     this.comicEinkRefreshDuration = 200,
@@ -565,6 +570,7 @@ class ReaderDefaultSettings {
     bool? comicNightLightEnabled,
     double? comicNightLightOpacity,
     ReaderColorProfile? comicColorProfile,
+    MangaUpscaleMode? comicUpscaleMode,
     bool? comicEinkRefreshEnabled,
     int? comicEinkRefreshInterval,
     int? comicEinkRefreshDuration,
@@ -735,6 +741,7 @@ class ReaderDefaultSettings {
         comicNightLightOpacity:
             comicNightLightOpacity ?? this.comicNightLightOpacity,
         comicColorProfile: comicColorProfile ?? this.comicColorProfile,
+        comicUpscaleMode: comicUpscaleMode ?? this.comicUpscaleMode,
         comicEinkRefreshEnabled:
             comicEinkRefreshEnabled ?? this.comicEinkRefreshEnabled,
         comicEinkRefreshInterval:
@@ -925,6 +932,7 @@ class ReaderDefaultSettings {
         'comicNightLightEnabled': comicNightLightEnabled,
         'comicNightLightOpacity': comicNightLightOpacity,
         'comicColorProfile': comicColorProfile.name,
+        'comicUpscaleMode': comicUpscaleMode.name,
         'comicEinkRefreshEnabled': comicEinkRefreshEnabled,
         'comicEinkRefreshInterval': comicEinkRefreshInterval,
         'comicEinkRefreshDuration': comicEinkRefreshDuration,
@@ -1198,6 +1206,7 @@ class ReaderDefaultSettings {
           ((json['comicNightLightOpacity'] as num?)?.toDouble() ?? 0.4)
               .clamp(0.1, 0.85),
       comicColorProfile: _parseColorProfile(json['comicColorProfile']),
+      comicUpscaleMode: parseMangaUpscaleMode(json['comicUpscaleMode']),
       comicEinkRefreshEnabled:
           json['comicEinkRefreshEnabled'] as bool? ?? false,
       comicEinkRefreshInterval:
@@ -1438,6 +1447,7 @@ class ReaderDefaultSettings {
       nightLightEnabled: comicNightLightEnabled,
       nightLightOpacity: comicNightLightOpacity,
       colorProfile: comicColorProfile,
+      upscaleMode: comicUpscaleMode,
       einkRefreshEnabled: comicEinkRefreshEnabled,
       einkRefreshInterval: comicEinkRefreshInterval,
       einkRefreshDuration: comicEinkRefreshDuration,

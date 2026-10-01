@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:nexhub/core/local/archive_extractor.dart';
@@ -26,6 +27,8 @@ import '../../../core/comic/comic_bookmark_manager.dart';
 import '../../../core/comic/comic_progress_manager.dart';
 import '../../../core/comic/image_favorite_manager.dart';
 import '../../../core/comic/models/reader_preferences.dart';
+import '../../../core/comic/manga_upscale.dart';
+import '../../../core/widgets/manga_upscaled_image.dart';
 import '../../../core/comic/reader_image_cache_policy.dart';
 import '../../../core/theme/reader_tokens.dart';
 import '../../../core/navigation/app_page_route.dart';
@@ -6760,21 +6763,37 @@ class _MangaPageImageState extends State<MangaPageImage> {
           (screenW * dpr * 2).round().clamp(720, _kWebtoonDecodeCapSide);
     }
 
-    final Widget imgSource = SourceImage(
-      url: widget.url,
-      source: widget.source,
-      refererOverride: widget.refererResolver?.call(widget.url),
-      fit: fit,
-      width: width,
-      decodeCapWidthPx: decodeCapWidthPx,
-      placeholder: const Center(child: AppLoadingIndicator()),
-      onLoadComplete: () {
-        // 先上报阅读器级记录（同帧生效），再更新局部状态。
-        widget.onUrlLoaded?.call(widget.url);
-        if (mounted) setState(() => _imageLoaded = true);
-      },
-      onImageInfo: (w, h) => widget.onImageInfo?.call(widget.url, w, h),
-    );
+    // 超分（GPU 实时 shader）：仅在「单页翻页模式」接管渲染——阅读器为超分
+    // 路径持有该页 ImageInfo（引用计数 +1），条漫一屏挂载数十页，逐页长持有会
+    // 阻止 Flutter 图片缓存回收解码位图。条漫保持 SourceImage 原样渲染；源图尺寸
+    // 超 GPU 纹理上限（超长单图）时由超分 widget 自动回退普通渲染。
+    final MangaUpscaleMode upscaleMode = widget.prefs.upscaleMode;
+    final bool useUpscale = upscaleMode.enabled &&
+        MangaUpscaleShader.isSupported &&
+        widget.prefs.readingMode.isPaged;
+
+    final Widget imgSource = useUpscale
+        ? _buildUpscaledSource(
+            fit: fit,
+            width: width,
+            decodeCapWidthPx: decodeCapWidthPx,
+            mode: upscaleMode,
+          )
+        : SourceImage(
+            url: widget.url,
+            source: widget.source,
+            refererOverride: widget.refererResolver?.call(widget.url),
+            fit: fit,
+            width: width,
+            decodeCapWidthPx: decodeCapWidthPx,
+            placeholder: const Center(child: AppLoadingIndicator()),
+            onLoadComplete: () {
+              // 先上报阅读器级记录（同帧生效），再更新局部状态。
+              widget.onUrlLoaded?.call(widget.url);
+              if (mounted) setState(() => _imageLoaded = true);
+            },
+            onImageInfo: (w, h) => widget.onImageInfo?.call(widget.url, w, h),
+          );
 
     // 仅未加载时占位：加载完成后直接用真实图高，不再受 minHeight 约束。
     // 占位高度优先用缓存的「真实图片高度」（fitWidth 下 naturalHeight × 视口宽 /
@@ -6859,6 +6878,40 @@ class _MangaPageImageState extends State<MangaPageImage> {
       );
     }
     return zoomed;
+  }
+
+  /// 超分渲染源：**复用 [SourceImage] 自己的解码结果**，仅把「解码后 → 屏幕」
+  /// 这一段换成 GPU shader 绘制。
+  ///
+  /// 为什么不让超分路径自己建 provider：SourceImage 内部走
+  /// `CachedNetworkImage(cacheManager: NexImageCacheManager)`，磁盘缓存键、
+  /// 防盗链头（Referer/UA/Cookie）、`.avif→.webp` 降级、指数退避重试、SAF
+  /// `content://` 解析全部封装在其内部。外面另起 `NetworkImage`/`FileImage`
+  /// 会绕过这些逻辑（缓存键不同 → 重复下载；缺防盗链头 → 403；无重试 → 一次
+  /// 失败即空白），所以超分只能接管绘制、不能接管加载。
+  Widget _buildUpscaledSource({
+    required BoxFit fit,
+    required double? width,
+    required int? decodeCapWidthPx,
+    required MangaUpscaleMode mode,
+  }) {
+    return _UpscaleSourceGate(
+      url: widget.url,
+      source: widget.source,
+      refererOverride: widget.refererResolver?.call(widget.url),
+      fit: fit,
+      width: width,
+      decodeCapWidthPx: decodeCapWidthPx,
+      mode: mode,
+      placeholder: const Center(child: AppLoadingIndicator()),
+      onLoadComplete: () {
+        // 先上报阅读器级记录（同帧生效），再更新局部状态。
+        widget.onUrlLoaded?.call(widget.url);
+        if (mounted) setState(() => _imageLoaded = true);
+      },
+      onImageInfo: (double w, double h) =>
+          widget.onImageInfo?.call(widget.url, w, h),
+    );
   }
 
   /// 由 [ReaderPreferences.initialZoom] 推导非裁边状态下的图片 fit 与宽度约束。
@@ -6987,6 +7040,111 @@ class _ZoomFactorBadgeState extends State<_ZoomFactorBadge> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 超分渲染入口：用 [SourceImage] 承担全部加载（磁盘缓存 / 防盗链 / avif 降级 /
+/// 重试 / SAF），只截获它解码完成的那张位图，改由 [MangaUpscaledImage] 经 GPU
+/// shader 绘制；未解码完成或 shader 不可用时原样显示 [SourceImage]（因此
+/// 占位、错误与重试 UI 与不带超分时完全一致，超分开关不改变可用性）。
+class _UpscaleSourceGate extends StatefulWidget {
+  const _UpscaleSourceGate({
+    required this.url,
+    required this.source,
+    required this.refererOverride,
+    required this.mode,
+    required this.fit,
+    required this.width,
+    required this.decodeCapWidthPx,
+    required this.placeholder,
+    this.onLoadComplete,
+    this.onImageInfo,
+  });
+
+  final String url;
+  final PluginConfig? source;
+  final String? refererOverride;
+  final MangaUpscaleMode mode;
+  final BoxFit fit;
+  final double? width;
+  final int? decodeCapWidthPx;
+  final Widget placeholder;
+  final VoidCallback? onLoadComplete;
+  final void Function(double width, double height)? onImageInfo;
+
+  @override
+  State<_UpscaleSourceGate> createState() => _UpscaleSourceGateState();
+}
+
+class _UpscaleSourceGateState extends State<_UpscaleSourceGate> {
+  /// SourceImage 解码完成回传的位图（所有权归本 State，替换/销毁时释放）。
+  ui.Image? _decoded;
+  bool _ready = false;
+
+  void _onDecoded(ui.Image image) {
+    if (!mounted) {
+      image.dispose();
+      return;
+    }
+    // 去重：SourceImage 的 imageBuilder 每次重建都会回报一次（同一张图的克隆）。
+    // 若新克隆与当前持有的是同一底层位图，直接丢弃新克隆即可——否则每次重建都
+    // dispose+重建会让 shader 的 sampler 绑定抖动（白闪一帧）。
+    final ui.Image? current = _decoded;
+    if (current != null && image.isCloneOf(current)) {
+      image.dispose();
+      return;
+    }
+    setState(() {
+      current?.dispose();
+      _decoded = image;
+      _ready = true;
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _UpscaleSourceGate oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 换图（item 回收复用）时丢弃旧位图，等新图解码回调再驱动。
+    if (oldWidget.url != widget.url) {
+      _decoded?.dispose();
+      _decoded = null;
+      _ready = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _decoded?.dispose();
+    _decoded = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ui.Image? decoded = _decoded;
+    // 未解码完成：显示 SourceImage 本体（占位 / 错误 / 重试都在它内部）。
+    // 注意此时它仍在加载并解码，解码完成后经 onImageDecoded 通知本 State。
+    if (!_ready || decoded == null) {
+      return SourceImage(
+        url: widget.url,
+        source: widget.source,
+        refererOverride: widget.refererOverride,
+        fit: widget.fit,
+        width: widget.width,
+        decodeCapWidthPx: widget.decodeCapWidthPx,
+        placeholder: widget.placeholder,
+        onLoadComplete: widget.onLoadComplete,
+        onImageInfo: widget.onImageInfo,
+        onImageDecoded: _onDecoded,
+      );
+    }
+    // 已解码：交给超分渲染（同一张位图，无重复下载/解码）。
+    return MangaUpscaledImage(
+      image: decoded,
+      mode: widget.mode,
+      fit: widget.fit,
+      width: widget.width,
     );
   }
 }

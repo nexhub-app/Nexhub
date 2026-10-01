@@ -598,8 +598,6 @@
   "favoriteRemoved": "Removed from favorites",
   "aboutApp": "About App",
   "appVersion": "Version",
-  "clearCache": "Clear Cache",
-  "cacheCleared": "Cache cleared",
   "privacySettings": "Privacy Settings",
   "stealthSettings": "Stealth Settings",
   "browseLocalTitle": "Local Files",
@@ -4353,15 +4351,6 @@
   "@cookiesCleared": {
     "description": "Cookies cleared toast"
   },
-  "clearWebviewData": "Clear WebView Data",
-  "@clearWebviewData": {
-    "description": "Advanced page clear WebView data entry"
-  },
-  "clearWebviewDataDesc": "Clear embedded browser cache and local storage",
-  "@clearWebviewDataDesc": {
-    "description": "Clear WebView data subtitle"
-  },
-  "webviewDataCleared": "WebView data cleared",
   "cloudSyncAutoUploadNovelExports": "Auto-upload novel exports",
   "cloudSyncAutoUploadNovelExportsDesc": "Upload exported EPUB files to WebDAV nexhub/exports after download completes",
   "uploadToWebdav": "Upload exports to WebDAV",
@@ -4454,9 +4443,6 @@
   "readerUpscaleResample": "High-quality resample",
   "readerUpscaleSharpen": "Super-resolution (sharpen)",
   "readerUpscaleDesc": "Paged (single-page) mode only: the GPU resamples and sharpens lines when an image is upscaled (webtoon strips and oversized single images keep plain rendering); turn off on low-end devices",
-  "@webviewDataCleared": {
-    "description": "WebView data cleared toast"
-  },
   "confirmActionHint": "This action cannot be undone. Continue?",
   "@confirmActionHint": {
     "description": "Dangerous action confirmation hint"

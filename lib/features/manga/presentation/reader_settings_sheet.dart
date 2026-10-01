@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../../../core/comic/models/reader_preferences.dart';
+import '../../../core/comic/manga_upscale.dart';
 import '../../settings/presentation/widgets/motion_effects_adjustments.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -54,10 +55,15 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
   late ReaderPreferences _draft;
   final TextEditingController _searchController = TextEditingController();
 
+  /// 最近一次选中的超分档位（不含 off）：关闭开关再打开时恢复该档，
+  /// 而不是每次都退回默认档（用户的选择不该被开关抹掉）。
+  MangaUpscaleMode _lastUpscaleMode = MangaUpscaleMode.sharpen;
+
   @override
   void initState() {
     super.initState();
     _draft = widget.initial;
+    if (_draft.upscaleMode.enabled) _lastUpscaleMode = _draft.upscaleMode;
   }
 
   @override
@@ -217,6 +223,13 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
         return l10n.readerColorProfileManga;
       case 'readerColorProfilePaper':
         return l10n.readerColorProfilePaper;
+      // 图片超分（GPU 实时 shader）
+      case 'readerUpscaleOff':
+        return l10n.readerUpscaleOff;
+      case 'readerUpscaleResample':
+        return l10n.readerUpscaleResample;
+      case 'readerUpscaleSharpen':
+        return l10n.readerUpscaleSharpen;
       default:
         return key;
     }
@@ -735,6 +748,62 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
     );
   }
 
+  /// 图片超分（GPU 实时 shader）：总开关 + 开启后选档位。
+  ///
+  /// 冷启动即预加载 shader 资源，避免首次开启时首帧抖动；Web 平台不显示
+  /// 该入口（FragmentProgram 不可用，避免给出一个必然无效的开关）。
+  Widget _buildUpscale() {
+    final l10n = AppLocalizations.of(context);
+    if (!MangaUpscaleShader.isSupported) {
+      return Text(
+        l10n.readerUpscaleDesc,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+      );
+    }
+    MangaUpscaleShader.warmUp();
+    final bool on = _draft.upscaleMode.enabled;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _switchTile(
+          l10n.readerUpscale,
+          on,
+          (bool v) => _update(_draft.copyWith(
+            upscaleMode: v ? _lastUpscaleMode : MangaUpscaleMode.off,
+          )),
+          subtitle: l10n.readerUpscaleDesc,
+        ),
+        // 关闭时不显示档位（off 由开关表达，档位只列生效档，避免两套状态打架）。
+        if (on)
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppTokens.spaceXs,
+              bottom: AppTokens.spaceMd,
+            ),
+            child: Wrap(
+              spacing: AppTokens.spaceSm,
+              runSpacing: AppTokens.spaceSm,
+              children: <MangaUpscaleMode>[
+                MangaUpscaleMode.resample,
+                MangaUpscaleMode.sharpen,
+              ].map((MangaUpscaleMode m) {
+                return ChoiceChip(
+                  label: Text(_l(m.l10nKey())),
+                  selected: _draft.upscaleMode == m,
+                  onSelected: (_) {
+                    _lastUpscaleMode = m;
+                    _update(_draft.copyWith(upscaleMode: m));
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
   /// 色彩配置（ICC 校色近似）：分段选择色彩矩阵预设。
   Widget _buildColorProfile() {
     return Wrap(
@@ -1033,12 +1102,26 @@ class _FlatSettingsSheetState extends State<_FlatSettingsSheet> {
                       '夜览强度',
                       '暖色',
                       '盖层',
+                      // 图片超分（GPU 实时 shader）
+                      '超分',
+                      '图片超分',
+                      '分辨率',
+                      '画质',
+                      '增强',
+                      '锐化',
+                      '重采样',
+                      '放大',
+                      '清晰',
+                      'upscale',
                     ],
                     children: <Widget>[
                       _buildImageFilter(),
                       // 色彩配置（ICC 校色近似）：矩阵预设
                       _section(context, l10n.readerColorProfile,
                           _buildColorProfile()),
+                      // 图片超分（GPU 实时 shader）：开关自带标题，不再套 _section
+                      // （否则「图片超分」会作为小标题与开关标题重复渲染两遍）。
+                      _buildUpscale(),
                       // 阅读亮度：独立于滤镜，控制系统亮度/黑色遮罩。
                       Padding(
                         padding:
@@ -1364,6 +1447,9 @@ class _SliderRow extends StatelessWidget {
 ///
 /// 与小说阅读器 [_buildSettingsGroup] 行为一致：搜索词非空时，仅当组标题、说明或
 /// [searchTerms] 命中才显示本组，否则折叠为空白。
+///
+/// 搜索命中时**强制展开**：只过滤不展开会让「搜到了但看不见」（组标题在、内容
+/// 折叠），用户会以为功能不存在——超分入口就踩过这个坑。
 Widget _buildSettingsGroup(
   BuildContext context,
   String title, {
@@ -1375,7 +1461,8 @@ Widget _buildSettingsGroup(
   required List<Widget> children,
 }) {
   final q = searchQuery.trim().toLowerCase();
-  if (q.isNotEmpty) {
+  final bool searching = q.isNotEmpty;
+  if (searching) {
     final hay = <String>[
       title,
       if (description != null) description,
@@ -1383,6 +1470,9 @@ Widget _buildSettingsGroup(
     ].join(' ').toLowerCase();
     if (!hay.contains(q)) return const SizedBox.shrink();
   }
+  // 搜索命中即展开：ExpansionTile 的 initiallyExpanded 只在首帧生效，
+  // 因此用 Key 随搜索态变化来重建，确保命中项内容直接可见。
+  final bool expanded = searching || initiallyExpanded;
   final theme = Theme.of(context);
   return Padding(
     padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
@@ -1395,6 +1485,7 @@ Widget _buildSettingsGroup(
       child: Theme(
         data: theme.copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          key: ValueKey<String>('settings-group-$title-$expanded'),
           tilePadding: const EdgeInsets.symmetric(
             horizontal: AppTokens.spaceMd,
             vertical: AppTokens.spaceXs,
@@ -1409,7 +1500,7 @@ Widget _buildSettingsGroup(
             AppTokens.spaceMd,
           ),
           expandedCrossAxisAlignment: CrossAxisAlignment.start,
-          initiallyExpanded: initiallyExpanded,
+          initiallyExpanded: expanded,
           title: description == null || description.isEmpty
               ? Text(
                   title,
