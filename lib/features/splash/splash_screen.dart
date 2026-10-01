@@ -45,6 +45,7 @@ import '../../core/services/cloud_sync_service.dart';
 import '../../core/services/source_library_bookmarks.dart';
 import '../../core/services/source_library_subscription.dart';
 import '../../core/settings/general_settings.dart';
+import '../../core/storage/cache_auto_clean.dart';
 import '../../core/storage/storage_boxes.dart';
 import '../../core/widgets/app_loading_indicator.dart';
 import '../../core/services/source_repository.dart';
@@ -249,6 +250,10 @@ class _SplashScreenState extends State<SplashScreen> {
     // 启动时自动检查更新（静默，不阻塞初始化）。
     unawaited(_autoCheckUpdate());
 
+    // 缓存自动清理（年龄 + 容量双策略）：初始化完成后后台执行一次，
+    // 不阻塞首帧；开关与阈值见高级设置「缓存管理」。
+    unawaited(_runCacheAutoClean());
+
     // Favorites / history / RSS / article-feed managers initialization.
     final favoritesManager = FavoritesManager();
     await favoritesManager.init();
@@ -286,6 +291,8 @@ class _SplashScreenState extends State<SplashScreen> {
     // 媒体服务器：探测 / 登录接缝接真实 API 客户端（详见 core/services/media_server）。
     final mediaServerAuth = MediaServerClientBase.createMediaServerAuth();
     await mediaServerAuth.init();
+    // F2：前台探活（60s 周期，生命周期 paused 自动暂停）。
+    mediaServerAuth.startHealthCheck();
     // 通用设置（启动界面 / 日期格式 / 年龄限制）需在首页构建前就绪。
     await GeneralSettingsStore.instance.load();
     // 年龄限制开关注入源仓库：开启时成人分级源不参与任何内容入口。
@@ -343,6 +350,17 @@ class _SplashScreenState extends State<SplashScreen> {
     // 触发自动下载（内部按 autoDownload / wifiOnlyAutoDownload /
     // inAppDownload 设置决定是否真正下载）。
     await manager.maybeAutoDownload(release);
+  }
+
+  /// 启动缓存自动清理：按设置（年龄上限 + 容量上限）清理派生缓存，
+  /// 失败静默（缓存清理绝不能影响冷启动可用性）。
+  Future<void> _runCacheAutoClean() async {
+    try {
+      await CacheAutoCleaner.runStartupClean();
+      await cleanExpiredDanmakuCache();
+    } on Object catch (e) {
+      AppLog.instance.w('[缓存自动清理] 启动清理失败: $e');
+    }
   }
 
   /// 判断路径是否为「分区存储（Android 10+）下 dart:io 不可写」的公共存储

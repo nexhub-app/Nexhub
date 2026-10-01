@@ -154,12 +154,13 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
       appBar: AppBar(title: Text(l10n.mediaServerSettings)),
       body: logged.isEmpty
           ? _EmptyServers(onAdd: _openManage)
-          : _buildBody(context, logged, l10n),
+          : _buildBody(context, auth, logged, l10n),
     );
   }
 
   Widget _buildBody(
     BuildContext context,
+    MediaServerAuth auth,
     List<MediaServerInfo> logged,
     AppLocalizations l10n,
   ) {
@@ -178,7 +179,11 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
         padding: const EdgeInsets.all(AppTokens.spaceMd),
         children: <Widget>[
           // ── 服务器信息头（C2）：名称 + 类型徽标 + 状态点 + 管理入口 ──
-          _ServerHeader(server: active, onManage: _openManage),
+          _ServerHeader(
+            server: active,
+            healthOk: auth.health[active.id],
+            onManage: _openManage,
+          ),
           const SizedBox(height: AppTokens.spaceSm),
           if (logged.length > 1) ...<Widget>[
             _serverSwitcher(logged),
@@ -349,7 +354,14 @@ class _ServerHeader extends StatelessWidget {
   final MediaServerInfo server;
   final VoidCallback onManage;
 
-  const _ServerHeader({required this.server, required this.onManage});
+  /// F2 探活结果（null = 尚未探测）。
+  final bool? healthOk;
+
+  const _ServerHeader({
+    required this.server,
+    required this.onManage,
+    this.healthOk,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -380,7 +392,10 @@ class _ServerHeader extends StatelessWidget {
                 width: 10,
                 height: 10,
                 decoration: BoxDecoration(
-                  color: scheme.primary,
+                  // F2 探活：false 红 / true 绿 / 未探测主色占位。
+                  color: healthOk == false
+                      ? scheme.error
+                      : scheme.primary,
                   shape: BoxShape.circle,
                   border: Border.all(color: scheme.surface, width: 1.5),
                 ),

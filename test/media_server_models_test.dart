@@ -71,7 +71,7 @@ void main() {
 
   group('MediaServerInfo', () {
     test('JSON 往返保留全部字段', () {
-      const info = MediaServerInfo(
+      final info = MediaServerInfo(
         id: 'abc123',
         type: ServerType.jellyfin,
         name: '客厅 NAS',
@@ -106,7 +106,7 @@ void main() {
     });
 
     test('copyWith 局部更新', () {
-      const base = MediaServerInfo(
+      final base = MediaServerInfo(
         id: 'x',
         type: ServerType.jellyfin,
         name: 'n',
@@ -118,6 +118,40 @@ void main() {
       expect(updated.loggedIn, isTrue);
       expect(updated.id, base.id);
       expect(updated.baseUrl, base.baseUrl);
+    });
+
+    test('urls 往返与规范化（F1 多地址）', () {
+      final info = MediaServerInfo.fromJson(<String, dynamic>{
+        'id': 'x',
+        'type': 'emby',
+        'name': 'n',
+        'baseUrl': 'http://a:8096',
+        'urls': ['http://a:8096/', 'https://b.example.org'],
+      });
+      expect(info.urls, <String>['http://a:8096', 'https://b.example.org']);
+      expect(info.baseUrl, 'http://a:8096');
+    });
+
+    test('旧数据无 urls → 回落 [baseUrl]', () {
+      final info = MediaServerInfo.fromJson(<String, dynamic>{
+        'id': 'x',
+        'type': 'jellyfin',
+        'name': 'n',
+        'baseUrl': 'http://a:8096',
+      });
+      expect(info.urls, <String>['http://a:8096']);
+    });
+
+    test('baseUrl 不在 urls 中时插入首位', () {
+      final info = MediaServerInfo(
+        id: 'x',
+        type: ServerType.jellyfin,
+        name: 'n',
+        baseUrl: 'http://b:8096',
+        urls: <String>['http://a:8096'],
+      );
+      expect(info.urls.first, 'http://b:8096');
+      expect(info.urls, contains('http://a:8096'));
     });
   });
 

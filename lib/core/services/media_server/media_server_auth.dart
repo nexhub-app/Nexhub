@@ -9,10 +9,13 @@
 ///   接线传入，测试注入假实现即可覆盖完整持久化往返。
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart'
+    show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive/hive.dart';
 
@@ -46,7 +49,9 @@ typedef MediaServerAuthenticator = Future<MediaServerLoginResult> Function(
 });
 
 /// 媒体服务器认证管理器——多服务器档案的单一事实源（Provider 注入）。
-class MediaServerAuth extends ChangeNotifier {
+/// 兼 F2 前台探活（60s 周期，仅 app 前台运行，结果驱动状态点实时化）。
+class MediaServerAuth extends ChangeNotifier
+    with WidgetsBindingObserver {
   MediaServerAuth({
     FlutterSecureStorage? storage,
     Box<dynamic>? box,
@@ -74,6 +79,60 @@ class MediaServerAuth extends ChangeNotifier {
   final List<MediaServerInfo> _servers = <MediaServerInfo>[];
   bool _loaded = false;
   String? _cachedDeviceId;
+
+  // ── F2 前台探活 ──
+  Timer? _healthTimer;
+  bool _healthRunning = false;
+
+  /// 探活结果（serverId → 是否可达；未探测过的服务器不含该键）。
+  final Map<String, bool> _health = <String, bool>{};
+  Map<String, bool> get health => Map.unmodifiable(_health);
+
+  /// 启动前台探活（默认 60s；生命周期 paused 暂停、resumed 恢复）。
+  void startHealthCheck({Duration interval = const Duration(seconds: 60)}) {
+    if (_healthRunning) return;
+    _healthRunning = true;
+    WidgetsBinding.instance.addObserver(this);
+    _healthTimer = Timer.periodic(interval, (_) => unawaited(_probeAll()));
+    unawaited(_probeAll());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_healthRunning) return;
+    if (state == AppLifecycleState.paused) {
+      _healthTimer?.cancel();
+      _healthTimer = null;
+    } else if (state == AppLifecycleState.resumed) {
+      _healthTimer?.cancel();
+      _healthTimer = Timer.periodic(
+        const Duration(seconds: 60),
+        (_) => unawaited(_probeAll()),
+      );
+      unawaited(_probeAll());
+    }
+  }
+
+  /// 逐台轻量探活（探测端点，8s 超时）；仅更新状态不弹错误。
+  Future<void> _probeAll() async {
+    await init();
+    final probe = _probe;
+    if (probe == null) return;
+    for (final s in List<MediaServerInfo>.from(_servers)) {
+      if (!_healthRunning) return;
+      var ok = false;
+      try {
+        await probe(s.baseUrl).timeout(const Duration(seconds: 8));
+        ok = true;
+      } on Object {
+        ok = false;
+      }
+      if (_health[s.id] != ok) {
+        _health[s.id] = ok;
+        notifyListeners();
+      }
+    }
+  }
 
   /// 已添加的服务器档案（只读视图）。
   List<MediaServerInfo> get servers => List.unmodifiable(_servers);
@@ -110,10 +169,11 @@ class MediaServerAuth extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 添加服务器：规范化地址 → 探测类型与服务器名 → 预填别名并持久化。
+  /// 添加服务器：支持多地址（换行 / 逗号分隔，F1 内外网双地址）——
+  /// 逐个探测，**首个成功者设为活动地址**；候选全集存入档案。
   ///
   /// 登录随后通过 [login] 完成。地址重复时抛 [StateError]；
-  /// 探测不可达时上抛异常由调用方提示。
+  /// 无手选类型且全部探测失败时上抛最后一次异常。
   ///
   /// [typeOverride] 非空时跳过自动识别（探测降级为尽力而为，仅用于预填
   /// ServerName，失败不阻断添加），供「手动选择类型」路径使用。
@@ -121,29 +181,53 @@ class MediaServerAuth extends ChangeNotifier {
     String baseUrl, {
     ServerType? typeOverride,
   }) async {
-    final normalized = normalizeBaseUrl(baseUrl);
-    if (normalized.isEmpty) {
+    final candidates = baseUrl
+        .split(RegExp(r'[\n,]'))
+        .map(normalizeBaseUrl)
+        .where((u) => u.isNotEmpty)
+        .toList(growable: false);
+    if (candidates.isEmpty) {
       throw ArgumentError.value(baseUrl, 'baseUrl', 'empty');
     }
     await init();
-    if (_servers.any((s) => s.baseUrl == normalized)) {
-      throw StateError('server already added: $normalized');
+    if (_servers.any((s) =>
+        candidates.contains(s.baseUrl) ||
+        s.urls.any(candidates.contains))) {
+      throw StateError('server already added');
     }
     MediaServerProbeResult? result;
+    var active = candidates.first;
     final probe = _probe;
     if (typeOverride != null) {
       if (probe != null) {
-        try {
-          result = await probe(normalized);
-        } on Object {
-          result = null;
+        for (final c in candidates) {
+          try {
+            result = await probe(c);
+            active = c;
+            break;
+          } on Object {
+            result = null;
+          }
         }
       }
     } else {
       if (probe == null) {
         throw StateError('media server probe not wired yet');
       }
-      result = await probe(normalized);
+      Object? lastError;
+      for (final c in candidates) {
+        try {
+          result = await probe(c);
+          active = c;
+          break;
+        } on Object catch (e) {
+          lastError = e;
+        }
+      }
+      if (result == null) {
+        throw lastError ??
+            const MediaServerApiException(null, 'probe failed');
+      }
     }
     final type = typeOverride ?? result?.type;
     if (type == null) {
@@ -155,8 +239,9 @@ class MediaServerAuth extends ChangeNotifier {
       type: type,
       name: (serverName != null && serverName.isNotEmpty)
           ? serverName
-          : normalized,
-      baseUrl: normalized,
+          : active,
+      baseUrl: active,
+      urls: candidates,
       serverName: serverName,
       version: result?.version,
     );
@@ -164,6 +249,36 @@ class MediaServerAuth extends ChangeNotifier {
     _servers.add(info);
     notifyListeners();
     return info;
+  }
+
+  /// F1：更新服务器候选地址（管理页地址编辑）。探测首个可达地址设为
+  /// 活动地址；全部不可达时保留原活动地址。
+  Future<void> updateServerUrls(String serverId, List<String> urls) async {
+    await init();
+    final index = _servers.indexWhere((s) => s.id == serverId);
+    if (index < 0) {
+      throw StateError('unknown server: $serverId');
+    }
+    final info = _servers[index];
+    final previousActive = info.baseUrl;
+    info
+      ..urls = urls
+      ..baseUrl = previousActive;
+    info.normalizeUrls();
+    final probe = _probe;
+    if (probe != null) {
+      for (final c in info.urls) {
+        try {
+          await probe(c);
+          info.baseUrl = c;
+          break;
+        } on Object {
+          // 该地址不可达，尝试下一个。
+        }
+      }
+    }
+    await _persist(info);
+    notifyListeners();
   }
 
   /// 仅探测（添加向导「探测」按钮的预览用，不落库）。

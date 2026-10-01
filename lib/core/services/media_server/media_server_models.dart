@@ -60,8 +60,13 @@ class MediaServerInfo {
   /// 用户可见别名；默认取探测返回的 ServerName，缺省回退地址。
   final String name;
 
-  /// 规范化后的服务地址（含 scheme、去尾斜杠），见 [normalizeBaseUrl]。
-  final String baseUrl;
+  /// 当前活动地址（含 scheme、去尾斜杠；F1 多地址 fallback 下可被
+  /// 自动切换改写，候选全集见 [urls]）。
+  String baseUrl;
+
+  /// F1：全部候选地址（主地址在前；[baseUrl] 恒为其中之一）。
+  /// 旧数据无此字段时由 [fromJson] 回落为 `[baseUrl]`。
+  List<String> urls;
 
   /// 登录返回的 User.Id；未登录时为空串。
   final String userId;
@@ -73,22 +78,39 @@ class MediaServerInfo {
   /// 服务器版本（探测返回，展示用）。
   final String? version;
 
-  const MediaServerInfo({
+  MediaServerInfo({
     required this.id,
     required this.type,
     required this.name,
     required this.baseUrl,
+    List<String>? urls,
     this.userId = '',
     this.username = '',
     this.serverName,
     this.version,
-  });
+  })  : urls = (urls == null || urls.isEmpty) ? <String>[baseUrl] : urls {
+    normalizeUrls();
+  }
+
+  /// 规范化候选地址并保证 [baseUrl] 在列：去空白/补 scheme/去尾斜杠；
+  /// baseUrl 不在 urls 中时插入到首位。
+  void normalizeUrls() {
+    final normalized = <String>[
+      for (final u in urls) normalizeBaseUrl(u),
+    ].where((u) => u.isNotEmpty).toList(growable: false);
+    final base = normalizeBaseUrl(baseUrl);
+    urls = normalized.contains(base)
+        ? normalized
+        : <String>[base, ...normalized];
+    baseUrl = base;
+  }
 
   MediaServerInfo copyWith({
     String? id,
     ServerType? type,
     String? name,
     String? baseUrl,
+    List<String>? urls,
     String? userId,
     String? username,
     String? serverName,
@@ -99,6 +121,7 @@ class MediaServerInfo {
         type: type ?? this.type,
         name: name ?? this.name,
         baseUrl: baseUrl ?? this.baseUrl,
+        urls: urls ?? this.urls,
         userId: userId ?? this.userId,
         username: username ?? this.username,
         serverName: serverName ?? this.serverName,
@@ -110,23 +133,35 @@ class MediaServerInfo {
         'type': type.toJson(),
         'name': name,
         'baseUrl': baseUrl,
+        'urls': urls,
         'userId': userId,
         'username': username,
         if (serverName != null) 'serverName': serverName,
         if (version != null) 'version': version,
       };
 
-  factory MediaServerInfo.fromJson(Map<String, dynamic> json) =>
-      MediaServerInfo(
-        id: json['id'] as String? ?? '',
-        type: ServerType.fromJson(json['type'] as String? ?? 'jellyfin'),
-        name: json['name'] as String? ?? '',
-        baseUrl: json['baseUrl'] as String? ?? '',
-        userId: json['userId'] as String? ?? '',
-        username: json['username'] as String? ?? '',
-        serverName: json['serverName'] as String?,
-        version: json['version'] as String?,
-      );
+  factory MediaServerInfo.fromJson(Map<String, dynamic> json) {
+    final base = json['baseUrl'] as String? ?? '';
+    final rawUrls = json['urls'];
+    final info = MediaServerInfo(
+      id: json['id'] as String? ?? '',
+      type: ServerType.fromJson(json['type'] as String? ?? 'jellyfin'),
+      name: json['name'] as String? ?? '',
+      baseUrl: base,
+      urls: rawUrls is List
+          ? rawUrls.whereType<String>().toList()
+          : null,
+      userId: json['userId'] as String? ?? '',
+      username: json['username'] as String? ?? '',
+      serverName: json['serverName'] as String?,
+      version: json['version'] as String?,
+    );
+    // 旧数据 / baseUrl 缺失：urls 回落为 [baseUrl]（构造函数已兜底）。
+    if (info.baseUrl.isEmpty && info.urls.isNotEmpty) {
+      info.baseUrl = info.urls.first;
+    }
+    return info;
+  }
 
   /// 是否已完成登录（探测添加后、登录前 userId 为空）。
   bool get loggedIn => userId.isNotEmpty;

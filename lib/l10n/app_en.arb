@@ -5237,5 +5237,8 @@
   "mediaServerSort": "Sort",
   "mediaServerSortByName": "Name",
   "mediaServerSortByYear": "Year",
-  "mediaServerSortByAdded": "Date added"
+  "mediaServerSortByAdded": "Date added",
+  "mediaServerAddresses": "Server addresses",
+  "mediaServerAddressesHint": "One address per line; the first reachable one becomes active (LAN & WAN can coexist)",
+  "mediaServerAddressSaved": "Addresses updated"
 }

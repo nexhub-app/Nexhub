@@ -5193,5 +5193,8 @@
   "mediaServerSort": "排序",
   "mediaServerSortByName": "名称",
   "mediaServerSortByYear": "年份",
-  "mediaServerSortByAdded": "入库时间"
+  "mediaServerSortByAdded": "入库时间",
+  "mediaServerAddresses": "服务器地址",
+  "mediaServerAddressesHint": "每行一个地址；首个可达地址将作为活动地址（内外网可并存）",
+  "mediaServerAddressSaved": "地址已更新"
 }

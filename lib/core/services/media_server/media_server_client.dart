@@ -669,10 +669,55 @@ abstract class MediaServerClientBase {
       };
 
   Future<Response<T>> _send<T>(Future<Response<T>> Function() run) async {
+    Object? lastFailure;
     try {
       return await run();
     } on DioException catch (e) {
-      throw _mapDioError(e);
+      if (!_isConnectivityFailure(e)) {
+        throw _mapDioError(e);
+      }
+      lastFailure = e;
+    }
+    // F1 多地址 fallback：连接类失败（超时 / 拒绝）→ 依次切到备用地址
+    // 重试（每地址一次）；成功者升级为活动地址（内存态）。全部失败时
+    // 抛最后一次的映射错误（无备用地址则保持原始语义，如超时）。
+    var switched = false;
+    for (final candidate in info.urls) {
+      if (candidate == info.baseUrl) continue;
+      switched = true;
+      _dio.options.baseUrl = candidate;
+      try {
+        final resp = await run();
+        info.baseUrl = candidate;
+        return resp;
+      } on DioException catch (e) {
+        if (!_isConnectivityFailure(e)) {
+          throw _mapDioError(e);
+        }
+        lastFailure = e;
+      }
+    }
+    _dio.options.baseUrl = info.baseUrl;
+    if (switched) {
+      throw const MediaServerApiException(null, 'all addresses unreachable');
+    }
+    if (lastFailure is DioException) {
+      throw _mapDioError(lastFailure);
+    }
+    throw const MediaServerApiException(null, 'all addresses unreachable');
+  }
+
+  /// 是否连接类失败（超时 / 拒绝 / 断连）——触发多地址 fallback；
+  /// 4xx/5xx 等服务端响应不触发（地址可达，换地址无意义）。
+  bool _isConnectivityFailure(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.connectionError:
+        return true;
+      default:
+        return false;
     }
   }
 

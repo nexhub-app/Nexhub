@@ -200,6 +200,40 @@ void main() {
       expect(info.type, ServerType.emby);
       expect(info.serverName, 'NAS 媒体库');
     });
+
+    test('多地址：首地址探测失败 → 第二个成功者为活动地址', () async {
+      final probed = <String>[];
+      final auth = MediaServerAuth(
+        storage: tokenStorage,
+        box: box,
+        prefs: prefs,
+        probe: (String baseUrl) async {
+          probed.add(baseUrl);
+          if (baseUrl == 'http://a:8096') {
+            throw const MediaServerApiException(null, 'timeout');
+          }
+          return const MediaServerProbeResult(
+            type: ServerType.emby,
+            serverName: 'B',
+          );
+        },
+        authenticate: fakeLogin(),
+      );
+      final info = await auth.addServer('http://a:8096\nhttp://b:8096');
+      expect(probed, <String>['http://a:8096', 'http://b:8096']);
+      expect(info.baseUrl, 'http://b:8096');
+      expect(info.urls, <String>['http://a:8096', 'http://b:8096']);
+      expect(info.type, ServerType.emby);
+    });
+
+    test('候选地址与既有服务器 urls 重叠 → 拒绝', () async {
+      final auth = buildAuth();
+      await auth.addServer('http://nas:8096');
+      expect(
+        () => auth.addServer('http://other:1\nhttp://nas:8096'),
+        throwsStateError,
+      );
+    });
   });
 
   group('probeAddress', () {

@@ -97,9 +97,10 @@ class _MediaServerAddScreenState extends State<MediaServerAddScreen> {
               controller: _address,
               keyboardType: TextInputType.url,
               enabled: !_submitting,
+              maxLines: 2,
               decoration: InputDecoration(
                 labelText: l10n.mediaServerAddressLabel,
-                hintText: l10n.mediaServerAddressHint,
+                hintText: l10n.mediaServerAddressesHint,
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.dns_rounded),
               ),

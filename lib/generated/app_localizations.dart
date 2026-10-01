@@ -17786,6 +17786,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Date added'**
   String get mediaServerSortByAdded;
+
+  /// No description provided for @mediaServerAddresses.
+  ///
+  /// In en, this message translates to:
+  /// **'Server addresses'**
+  String get mediaServerAddresses;
+
+  /// No description provided for @mediaServerAddressesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'One address per line; the first reachable one becomes active (LAN & WAN can coexist)'**
+  String get mediaServerAddressesHint;
+
+  /// No description provided for @mediaServerAddressSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Addresses updated'**
+  String get mediaServerAddressSaved;
 }
 
 class _AppLocalizationsDelegate

@@ -9512,4 +9512,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaServerSortByAdded => 'Date added';
+
+  @override
+  String get mediaServerAddresses => 'Server addresses';
+
+  @override
+  String get mediaServerAddressesHint =>
+      'One address per line; the first reachable one becomes active (LAN & WAN can coexist)';
+
+  @override
+  String get mediaServerAddressSaved => 'Addresses updated';
 }

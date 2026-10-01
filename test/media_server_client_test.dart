@@ -51,7 +51,7 @@ void main() {
   late _FakeAdapter adapter;
   late MediaServerClientBase client;
 
-  const jellyInfo = MediaServerInfo(
+  final jellyInfo = MediaServerInfo(
     id: 'srv1',
     type: ServerType.jellyfin,
     name: 'JF',
@@ -543,6 +543,77 @@ void main() {
       expect(adapter.requests[0].method, 'POST');
       expect(adapter.requests[0].path, '/Users/u1/FavoriteItems/it1');
       expect(adapter.requests[1].method, 'DELETE');
+    });
+  });
+
+  group('多地址 fallback（F1）', () {
+    test('连接失败 → 切换备用地址重试并更新活动地址', () async {
+      final info = MediaServerInfo(
+        id: 'srv1',
+        type: ServerType.jellyfin,
+        name: 'JF',
+        baseUrl: 'http://jf:8096',
+        urls: <String>['http://jf:8096', 'http://backup:8920'],
+        userId: 'u1',
+      );
+      final failoverAdapter = _FakeAdapter((opts) async {
+        if (opts.uri.host == 'jf') {
+          throw DioException(
+            requestOptions: opts,
+            type: DioExceptionType.connectionError,
+          );
+        }
+        return _json(<String, dynamic>{
+          'Items': [
+            {'Id': 'lib1', 'Name': 'Movies', 'CollectionType': 'movies'},
+          ],
+        });
+      });
+      final dio2 = Dio(BaseOptions(baseUrl: info.baseUrl))
+        ..httpClientAdapter = failoverAdapter;
+      final client2 = MediaServerClientBase.createServerClient(
+        info,
+        deviceId: 'dev1',
+        dio: dio2,
+      );
+      final libs = await client2.fetchLibraries();
+      expect(libs.single.id, 'lib1');
+      // 活动地址切换为备用地址（内存态）。
+      expect(info.baseUrl, 'http://backup:8920');
+    });
+
+    test('全部候选不可达 → 抛「地址均不可达」', () async {
+      final info = MediaServerInfo(
+        id: 'srv1',
+        type: ServerType.jellyfin,
+        name: 'JF',
+        baseUrl: 'http://jf:8096',
+        urls: <String>['http://jf:8096', 'http://backup:8920'],
+        userId: 'u1',
+      );
+      final failoverAdapter = _FakeAdapter((opts) async {
+        throw DioException(
+          requestOptions: opts,
+          type: DioExceptionType.connectionError,
+        );
+      });
+      final dio2 = Dio(BaseOptions(baseUrl: info.baseUrl))
+        ..httpClientAdapter = failoverAdapter;
+      final client2 = MediaServerClientBase.createServerClient(
+        info,
+        deviceId: 'dev1',
+        dio: dio2,
+      );
+      await expectLater(
+        client2.fetchLibraries(),
+        throwsA(
+          isA<MediaServerApiException>().having(
+            (e) => e.message,
+            'message',
+            contains('unreachable'),
+          ),
+        ),
+      );
     });
   });
 

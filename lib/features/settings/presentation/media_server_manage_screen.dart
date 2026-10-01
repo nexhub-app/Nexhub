@@ -80,7 +80,7 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
                 SettingsGroup(
                   children: <Widget>[
                     for (final s in auth.servers)
-                      _serverTile(context, s, l10n),
+                      _serverTile(context, auth, s, l10n),
                     // ── 播放设置（A2 码率档位，全局默认）──
                     ListenableBuilder(
                       listenable: MediaServerPlaybackSettings.instance,
@@ -103,6 +103,7 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
 
   Widget _serverTile(
     BuildContext context,
+    MediaServerAuth auth,
     MediaServerInfo s,
     AppLocalizations l10n,
   ) {
@@ -110,14 +111,17 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
     final account = s.loggedIn
         ? l10n.mediaServerLoggedInAs(s.username)
         : l10n.mediaServerNotLoggedIn;
+    final address = s.urls.length > 1
+        ? '${s.baseUrl} (+${s.urls.length - 1})'
+        : s.baseUrl;
     return SettingsTile(
       icon: Icons.dns_rounded,
       title: s.name,
-      subtitle: '${s.baseUrl} · $account',
+      subtitle: '$address · $account',
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          _statusChip(theme, s, l10n),
+          _statusChip(theme, auth, s, l10n),
           const SizedBox(width: AppTokens.spaceXs),
           PopupMenuButton<String>(
             onSelected: (v) => _onMenu(v, s),
@@ -127,6 +131,14 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
                 child: ListTile(
                   leading: const Icon(Icons.edit_rounded),
                   title: Text(l10n.mediaServerRename),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'addresses',
+                child: ListTile(
+                  leading: const Icon(Icons.lan_rounded),
+                  title: Text(l10n.mediaServerAddresses),
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -161,18 +173,31 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
     );
   }
 
+  /// 状态徽标：优先 F2 探活结果（实时），未探测过回落一次性 statusOf。
   Widget _statusChip(
     ThemeData theme,
+    MediaServerAuth auth,
     MediaServerInfo s,
     AppLocalizations l10n,
   ) {
     String text;
     Color bg;
     Color fg;
+    final healthOk = auth.health[s.id];
     if (!s.loggedIn) {
       text = l10n.mediaServerNotLoggedIn;
       bg = theme.colorScheme.surfaceContainerHighest;
       fg = theme.colorScheme.onSurfaceVariant;
+    } else if (healthOk != null) {
+      text = healthOk
+          ? l10n.mediaServerStatusOnline
+          : l10n.mediaServerStatusOffline;
+      bg = healthOk
+          ? theme.colorScheme.primaryContainer
+          : theme.colorScheme.errorContainer;
+      fg = healthOk
+          ? theme.colorScheme.onPrimaryContainer
+          : theme.colorScheme.onErrorContainer;
     } else {
       switch (_status[s.id]) {
         case MediaServerStatus.ok:
@@ -213,10 +238,54 @@ class _MediaServerManageScreenState extends State<MediaServerManageScreen> {
     switch (action) {
       case 'rename':
         await _rename(s);
+      case 'addresses':
+        await _editAddresses(s);
       case 'relogin':
         await _openRelogin(s);
       case 'delete':
         await _delete(s);
+    }
+  }
+
+  /// F1：地址管理（多行编辑，每行一个地址；首个可达者为活动地址）。
+  Future<void> _editAddresses(MediaServerInfo s) async {
+    final l10n = AppLocalizations.of(context);
+    final controller = TextEditingController(text: s.urls.join('\n'));
+    final raw = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.mediaServerAddresses),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: l10n.mediaServerAddressesHint,
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    if (raw == null || !mounted) return;
+    try {
+      await context
+          .read<MediaServerAuth>()
+          .updateServerUrls(s.id, raw.split('\n'));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.mediaServerAddressSaved)),
+      );
+    } on Object catch (e) {
+      _showError(e);
     }
   }
 

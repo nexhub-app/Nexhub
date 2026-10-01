@@ -9287,4 +9287,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mediaServerSortByAdded => '入库时间';
+
+  @override
+  String get mediaServerAddresses => '服务器地址';
+
+  @override
+  String get mediaServerAddressesHint => '每行一个地址；首个可达地址将作为活动地址（内外网可并存）';
+
+  @override
+  String get mediaServerAddressSaved => '地址已更新';
 }
