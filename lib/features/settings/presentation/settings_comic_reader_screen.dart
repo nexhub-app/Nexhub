@@ -768,12 +768,14 @@ class _SettingsComicReaderScreenState extends State<SettingsComicReaderScreen> {
                       ),
                       // 档位自动隐显：开关打开平滑展开，关闭自动收起
                       //（SettingsExpand：AnimatedSize 高度过渡 + 淡入上滑）。
+                      // boxed:false = 裸 chips，不套小卡（否则卡中卡两层框）。
                       SettingsExpand(
                         visible: _settings.comicUpscaleMode.enabled,
                         padding: EdgeInsets.zero,
                         child: SettingsChoiceChips<MangaUpscaleMode>(
                           key: const ValueKey<String>('comic.upscaleMode'),
                           title: l10n.readerUpscaleMode,
+                          boxed: false,
                           selected: _settings.comicUpscaleMode,
                           onSelected: (MangaUpscaleMode m) {
                             AppHaptics.selectionClick();

@@ -457,6 +457,11 @@ class SettingsChoiceChips<T> extends StatelessWidget {
   final List<SettingsChoiceChipData<T>> options;
   final EdgeInsetsGeometry? margin;
 
+  /// 是否自带卡框（默认 true，与历史行为一致）。传 false 时只渲染裸 chips
+  ///（无 SettingsCard 包裹、无标题/说明），用于嵌入已有卡片的场景——
+  /// 否则「卡中卡」会出现两层框。
+  final bool boxed;
+
   const SettingsChoiceChips({
     super.key,
     required this.title,
@@ -465,37 +470,57 @@ class SettingsChoiceChips<T> extends StatelessWidget {
     required this.onSelected,
     required this.options,
     this.margin,
+    this.boxed = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final Widget chips = Wrap(
+      spacing: AppTokens.spaceSm,
+      runSpacing: AppTokens.spaceXs,
+      children: <Widget>[
+        for (final opt in options)
+          // 选中状态变化时该 Chip 弹一下（选中与取消都有反馈）。
+          AppValuePulse(
+            trigger: opt.value == selected,
+            from: 0.9,
+            child: ChoiceChip(
+              label: Text(opt.label),
+              selected: opt.value == selected,
+              onSelected: (_) {
+                // MD3「Selected」：chip 选中 → tick。
+                AppHaptics.tick();
+                onSelected(opt.value);
+              },
+            ),
+          ),
+      ],
+    );
+    // 非卡框模式：裸 chips（标题/说明由外层容器负责），无卡中卡。
+    if (!boxed) {
+      if (title.isEmpty) return chips;
+      return Padding(
+        padding: const EdgeInsets.only(top: AppTokens.spaceXxs),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              title,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: AppTokens.spaceXs),
+            chips,
+          ],
+        ),
+      );
+    }
     return SettingsCard(
       title: title,
       description: description,
       margin: margin,
-      children: <Widget>[
-        Wrap(
-          spacing: AppTokens.spaceSm,
-          runSpacing: AppTokens.spaceXs,
-          children: <Widget>[
-            for (final opt in options)
-              // 选中状态变化时该 Chip 弹一下（选中与取消都有反馈）。
-              AppValuePulse(
-                trigger: opt.value == selected,
-                from: 0.9,
-                child: ChoiceChip(
-                  label: Text(opt.label),
-                  selected: opt.value == selected,
-                  onSelected: (_) {
-                    // MD3「Selected」：chip 选中 → tick。
-                    AppHaptics.tick();
-                    onSelected(opt.value);
-                  },
-                ),
-              ),
-          ],
-        ),
-      ],
+      children: <Widget>[chips],
     );
   }
 }
