@@ -27,6 +27,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_loading_indicator.dart';
+import '../../features/media_server/media_server_search_section.dart';
 import '../../../core/comic/comic_progress_manager.dart';
 import '../../../core/history/media_watched_manager.dart';
 import '../../../core/novel/novel_chinese_converter.dart';
@@ -775,22 +776,25 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
   }
 
   Widget _buildResults(BuildContext context, AppLocalizations l10n) {
+    // D3：影视模块搜索在结果顶部聚合媒体服务器段（查询非空时）。
+    Widget mainBody;
     if (_loading) {
-      return const Center(child: AppLoadingIndicator());
+      mainBody = const Center(child: AppLoadingIndicator());
     }
 
     if (_needSource) {
-      return AppEmptyState(icon: Icons.source_rounded, message: l10n.searchSelectSource);
+      mainBody =
+          AppEmptyState(icon: Icons.source_rounded, message: l10n.searchSelectSource);
     }
 
     if (_results.isEmpty) {
-      return AppEmptyState(icon: Icons.search_rounded, message: l10n.emptySearch);
+      mainBody = AppEmptyState(icon: Icons.search_rounded, message: l10n.emptySearch);
     }
 
     // 滚动触底自动加载下一页（仅当有源声明 {page} 且上一页非空时生效），
     // 修复「搜索不全（还有下一页）」。底部细进度条提示追加加载中。
     final body = _grid ? _buildGrid(context) : _buildList(context);
-    return NotificationListener<ScrollNotification>(
+    mainBody = NotificationListener<ScrollNotification>(
       onNotification: (n) {
         if (_hasMore &&
             !_loadingMore &&
@@ -807,6 +811,15 @@ class _ModuleSourceSearchScreenState extends State<ModuleSourceSearchScreen> {
             const LinearProgressIndicator(minHeight: 2),
         ],
       ),
+    );
+    if (widget.sourceType != SourceType.animeSource) return mainBody;
+    final query = _convText(_controller.text).trim();
+    if (query.isEmpty) return mainBody;
+    return Column(
+      children: <Widget>[
+        MediaServerSearchSection(query: query),
+        Expanded(child: mainBody),
+      ],
     );
   }
 
