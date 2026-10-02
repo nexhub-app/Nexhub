@@ -518,6 +518,19 @@
   "@snifferSizeUnknown": {
     "description": "Placeholder when media size is unknown"
   },
+  "snifferResultCount": "{count} 条结果",
+  "@snifferResultCount": {
+    "description": "Result count badge on the collapsed sniffer results panel handle",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "snifferPanelHandle": "嗅探结果面板，上下拖动调整高度，点按折叠或展开",
+  "@snifferPanelHandle": {
+    "description": "Semantic label of the draggable sniffer results panel handle"
+  },
   "snifferResolveTitle": "嗅探解析",
   "@snifferResolveTitle": {
     "description": "Title of the in-parse sniffer fallback screen"

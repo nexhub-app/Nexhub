@@ -1133,6 +1133,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get snifferSizeUnknown => '大小未知';
 
   @override
+  String snifferResultCount(int count) {
+    return '$count 条结果';
+  }
+
+  @override
+  String get snifferPanelHandle => '嗅探结果面板，上下拖动调整高度，点按折叠或展开';
+
+  @override
   String get snifferResolveTitle => '嗅探解析';
 
   @override

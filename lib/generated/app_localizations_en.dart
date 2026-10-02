@@ -1156,6 +1156,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get snifferSizeUnknown => 'Size unknown';
 
   @override
+  String snifferResultCount(int count) {
+    return '$count results';
+  }
+
+  @override
+  String get snifferPanelHandle =>
+      'Sniffer results panel; drag up or down to resize, tap to collapse or expand';
+
+  @override
   String get snifferResolveTitle => 'Sniff Resolve';
 
   @override

@@ -531,6 +531,19 @@
   "@snifferSizeUnknown": {
     "description": "Placeholder when media size is unknown"
   },
+  "snifferResultCount": "{count} results",
+  "@snifferResultCount": {
+    "description": "Result count badge on the collapsed sniffer results panel handle",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "snifferPanelHandle": "Sniffer results panel; drag up or down to resize, tap to collapse or expand",
+  "@snifferPanelHandle": {
+    "description": "Semantic label of the draggable sniffer results panel handle"
+  },
   "snifferResolveTitle": "Sniff Resolve",
   "@snifferResolveTitle": {
     "description": "Title of the in-parse sniffer fallback screen"

@@ -2288,6 +2288,18 @@ abstract class AppLocalizations {
   /// **'Size unknown'**
   String get snifferSizeUnknown;
 
+  /// Result count badge on the collapsed sniffer results panel handle
+  ///
+  /// In en, this message translates to:
+  /// **'{count} results'**
+  String snifferResultCount(int count);
+
+  /// Semantic label of the draggable sniffer results panel handle
+  ///
+  /// In en, this message translates to:
+  /// **'Sniffer results panel; drag up or down to resize, tap to collapse or expand'**
+  String get snifferPanelHandle;
+
   /// Title of the in-parse sniffer fallback screen
   ///
   /// In en, this message translates to:
