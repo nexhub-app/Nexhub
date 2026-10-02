@@ -17,6 +17,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/theme/palette_style.dart';
 import '../../../core/locale/locale_controller.dart';
+import '../../../core/settings/detail_appearance_settings.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/widgets/app_animations.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
@@ -580,6 +581,78 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                     onTap: () => _openColorPicker(context, controller, l10n),
                   ),
                 ],
+              ),
+
+              // ── 详情页外观（封面取色 / 封面模糊背景） ──
+              // 设置存独立仓（DetailAppearanceStore），详情页监听同一仓即时生效。
+              ListenableBuilder(
+                listenable: DetailAppearanceStore.instance,
+                builder: (BuildContext context, _) {
+                  final DetailAppearanceStore store =
+                      DetailAppearanceStore.instance;
+                  final DetailAppearanceSettings s = store.settings;
+                  const Divider hairline = Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: AppTokens.spaceLg,
+                    endIndent: AppTokens.spaceLg,
+                  );
+                  return SettingsGroup(
+                    key: const ValueKey<String>(
+                        'appearance.detailAppearance'),
+                    header: l10n.settingsCatDetailAppearance,
+                    children: <Widget>[
+                      SettingsTile(
+                        icon: Icons.colorize_rounded,
+                        title: l10n.detailAppearanceDynamicAccent,
+                        subtitle: l10n.detailAppearanceDynamicAccentDesc,
+                        trailing: Switch(
+                          value: s.dynamicAccentEnabled,
+                          onChanged: (bool v) {
+                            v ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                            store.setDynamicAccentEnabled(v);
+                          },
+                        ),
+                      ),
+                      SettingsTile(
+                        icon: Icons.blur_on_rounded,
+                        title: l10n.detailAppearanceBlurredBg,
+                        subtitle: l10n.detailAppearanceBlurredBgDesc,
+                        trailing: Switch(
+                          value: s.blurredBackgroundEnabled,
+                          onChanged: (bool v) {
+                            v ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                            store.setBlurredBackgroundEnabled(v);
+                          },
+                        ),
+                      ),
+                      // 开启后才展开的模糊强度滑杆（与毛玻璃设置同款交互）。
+                      if (s.blurredBackgroundEnabled) ...<Widget>[
+                        hairline,
+                        SettingsTile(
+                          icon: Icons.blur_linear_rounded,
+                          title: l10n.detailAppearanceBlurStrength,
+                          subtitle:
+                              '${s.backgroundBlurSigma.clamp(kDetailBlurSigmaMin, kDetailBlurSigmaMax).round()}',
+                          trailing: SizedBox(
+                            width: 160,
+                            child: Slider(
+                              min: kDetailBlurSigmaMin,
+                              max: kDetailBlurSigmaMax,
+                              divisions: ((kDetailBlurSigmaMax -
+                                          kDetailBlurSigmaMin) ~/
+                                      5)
+                                  .round(),
+                              value: s.backgroundBlurSigma
+                                  .clamp(kDetailBlurSigmaMin, kDetailBlurSigmaMax),
+                              onChanged: store.setBackgroundBlurSigma,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
               ),
 
               // ── 字体 ──

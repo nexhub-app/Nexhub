@@ -11450,6 +11450,48 @@ abstract class AppLocalizations {
   /// **'Sources, RSS subscriptions, scraping, AI & network'**
   String get settingsCatContentDesc;
 
+  /// No description provided for @settingsCatDetailAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Detail Page Look'**
+  String get settingsCatDetailAppearance;
+
+  /// No description provided for @settingsCatDetailAppearanceDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover-based accent & blurred backdrop'**
+  String get settingsCatDetailAppearanceDesc;
+
+  /// No description provided for @detailAppearanceDynamicAccent.
+  ///
+  /// In en, this message translates to:
+  /// **'Dynamic accent from cover'**
+  String get detailAppearanceDynamicAccent;
+
+  /// No description provided for @detailAppearanceDynamicAccentDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tint the detail page accent with a color pulled from the cover or fetched image'**
+  String get detailAppearanceDynamicAccentDesc;
+
+  /// No description provided for @detailAppearanceBlurredBg.
+  ///
+  /// In en, this message translates to:
+  /// **'Blurred cover background'**
+  String get detailAppearanceBlurredBg;
+
+  /// No description provided for @detailAppearanceBlurredBgDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the white page background with a blurred cover or fetched image; stays white when off'**
+  String get detailAppearanceBlurredBgDesc;
+
+  /// No description provided for @detailAppearanceBlurStrength.
+  ///
+  /// In en, this message translates to:
+  /// **'Blur strength'**
+  String get detailAppearanceBlurStrength;
+
   /// No description provided for @aiSettingsTitle.
   ///
   /// In en, this message translates to:

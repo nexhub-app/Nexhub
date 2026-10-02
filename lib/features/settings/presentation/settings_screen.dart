@@ -283,6 +283,42 @@ class SettingsScreen extends StatelessWidget {
         scrollKeyId: 'appearance.hero',
       ),
 
+      // ───────────────── 详情页外观（外观与语言内分组） ─────────────────
+      _SettingEntry(
+        icon: Icons.wallpaper_rounded,
+        title: l10n.settingsCatDetailAppearance,
+        desc: l10n.settingsCatDetailAppearanceDesc,
+        keywords: const <String>[
+          '详情页',
+          '外观',
+          '封面',
+          '取色',
+          '强调色',
+          '模糊',
+          '背景',
+          '高斯模糊',
+          '动态颜色'
+        ],
+        builder: (_) => const SettingsAppearanceScreen(),
+        scrollKeyId: 'appearance.detailAppearance',
+      ),
+      _SettingEntry(
+        icon: Icons.colorize_rounded,
+        title: l10n.detailAppearanceDynamicAccent,
+        desc: l10n.detailAppearanceDynamicAccentDesc,
+        keywords: const <String>['取色', '强调色', '封面颜色', '动态颜色', 'accent'],
+        builder: (_) => const SettingsAppearanceScreen(),
+        scrollKeyId: 'appearance.detailAppearance',
+      ),
+      _SettingEntry(
+        icon: Icons.blur_on_rounded,
+        title: l10n.detailAppearanceBlurredBg,
+        desc: l10n.detailAppearanceBlurredBgDesc,
+        keywords: const <String>['模糊', '背景', '封面背景', '高斯模糊', 'blur'],
+        builder: (_) => const SettingsAppearanceScreen(),
+        scrollKeyId: 'appearance.detailAppearance',
+      ),
+
       // ───────────────── 播放与阅读 ─────────────────
       _SettingEntry(
         icon: Icons.play_circle_rounded,

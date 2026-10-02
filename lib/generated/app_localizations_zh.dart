@@ -5924,6 +5924,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsCatContentDesc => '源管理、RSS 订阅、网页爬取、AI 与网络设置';
 
   @override
+  String get settingsCatDetailAppearance => '详情页外观';
+
+  @override
+  String get settingsCatDetailAppearanceDesc => '封面取色与模糊背景';
+
+  @override
+  String get detailAppearanceDynamicAccent => '封面动态强调色';
+
+  @override
+  String get detailAppearanceDynamicAccentDesc => '根据封面或获取的图片自动提取详情页强调色';
+
+  @override
+  String get detailAppearanceBlurredBg => '封面模糊背景';
+
+  @override
+  String get detailAppearanceBlurredBgDesc =>
+      '页面白色背景替换为封面或获取的图片并高斯模糊，关闭时保持白色背景';
+
+  @override
+  String get detailAppearanceBlurStrength => '模糊强度';
+
+  @override
   String get aiSettingsTitle => 'AI 配置';
 
   @override

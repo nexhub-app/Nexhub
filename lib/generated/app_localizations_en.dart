@@ -6041,6 +6041,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'Sources, RSS subscriptions, scraping, AI & network';
 
   @override
+  String get settingsCatDetailAppearance => 'Detail Page Look';
+
+  @override
+  String get settingsCatDetailAppearanceDesc =>
+      'Cover-based accent & blurred backdrop';
+
+  @override
+  String get detailAppearanceDynamicAccent => 'Dynamic accent from cover';
+
+  @override
+  String get detailAppearanceDynamicAccentDesc =>
+      'Tint the detail page accent with a color pulled from the cover or fetched image';
+
+  @override
+  String get detailAppearanceBlurredBg => 'Blurred cover background';
+
+  @override
+  String get detailAppearanceBlurredBgDesc =>
+      'Replace the white page background with a blurred cover or fetched image; stays white when off';
+
+  @override
+  String get detailAppearanceBlurStrength => 'Blur strength';
+
+  @override
   String get aiSettingsTitle => 'AI Settings';
 
   @override

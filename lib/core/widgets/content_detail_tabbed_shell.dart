@@ -25,11 +25,13 @@
 library;
 
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:nexhub/generated/app_localizations.dart';
 
 import '../models/plugin_config.dart';
+import '../settings/detail_appearance_settings.dart';
 import '../theme/app_tokens.dart';
 import 'app_animations.dart';
 import 'app_card.dart';
@@ -273,7 +275,9 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
         s.contains('hiatus')) {
       return scheme.error;
     }
-    return scheme.tertiary;
+    // 其余（如源直接给的「102集」这类非状态文本）统一强调色，
+    // 与详情页胶囊的用色语言保持一致。
+    return scheme.primary;
   }
 
   Widget _buildStatusBadge(
@@ -310,6 +314,9 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
 
   /// Hero 背景：全屏封面 + 双段渐变遮罩（顶部压暗保证 AppBar 图标可读，
   /// 底部渐隐到 surface 保证标题 / 浮层按钮可读）。
+  ///
+  /// 注意：「封面模糊背景」开启时本层保持原样（清晰封面，不模糊）——
+  /// 模糊的是 [_DetailPageBackdrop] 那层整页背景，两者互不混用。
   Widget _buildHeroImage(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Widget fallback = Container(
@@ -543,6 +550,14 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
   Widget _buildDetailsTab(BuildContext context, AppLocalizations l10n) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    // 胶囊统一强调色：详情页内的元信息 / 题材标签 chips 从「白底描边」
+    // 改为强调色浅底 + 强调色文字 + 强调色描边（动态取色开启时随封面
+    // 变化）。copyWith 保留全局 chipTheme 的形状与内边距。
+    final ChipThemeData accentChips = ChipTheme.of(context).copyWith(
+      backgroundColor: scheme.primary.withValues(alpha: 0.10),
+      side: BorderSide(color: scheme.primary.withValues(alpha: 0.30)),
+      labelStyle: textTheme.labelLarge?.copyWith(color: scheme.primary),
+    );
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -588,10 +603,13 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
                     AppTokens.spaceLg,
                     0,
                   ),
-                  child: Wrap(
-                    spacing: AppTokens.spaceSm,
-                    runSpacing: AppTokens.spaceSm,
-                    children: widget.infoChips,
+                  child: ChipTheme(
+                    data: accentChips,
+                    child: Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: widget.infoChips,
+                    ),
                   ),
                 ),
               ),
@@ -608,10 +626,13 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
                     AppTokens.spaceLg,
                     0,
                   ),
-                  child: Wrap(
-                    spacing: AppTokens.spaceSm,
-                    runSpacing: AppTokens.spaceSm,
-                    children: widget.tags!,
+                  child: ChipTheme(
+                    data: accentChips,
+                    child: Wrap(
+                      spacing: AppTokens.spaceSm,
+                      runSpacing: AppTokens.spaceSm,
+                      children: widget.tags!,
+                    ),
                   ),
                 ),
               ),
@@ -799,6 +820,16 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
     final AppLocalizations l10n = AppLocalizations.of(context);
     final TabController controller = _tabController!;
 
+    // 「详情页外观 → 封面模糊背景」：白色页面背景替换为模糊封面铺底
+    // （关闭时保持原白色背景）。Hero 仍自绘清晰封面（两者不混）；
+    // 开关 / 强度变化由详情页外层的 ListenableBuilder 触发整页重建，
+    // 这里直接读当前设置即可。
+    final DetailAppearanceSettings appearance =
+        DetailAppearanceStore.instance.settings;
+    final bool backdropOn = appearance.blurredBackgroundEnabled &&
+        widget.coverUrl != null &&
+        widget.coverUrl!.isNotEmpty;
+
     final double topPadding = MediaQuery.of(context).padding.top;
     // flexibleSpace 的高度范围（不含 TabBar）：
     // 收起时 = topPadding + toolbarHeight，展开时 = expandedHeight - tabBarHeight。
@@ -819,9 +850,15 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
               // 展开态 → 自定义 Positioned 标题（Hero 内下部）
               // 收起态 → 自定义 Positioned 标题（toolbar 内居中）
               actions: widget.appBarActions,
-              backgroundColor: scheme.surface,
+              // 模糊背景开启时，顶栏 / 标签栏改为半透明纱面——收起后与整页
+              // 模糊背景衔接（隐约透出背景图），不再是白色实心条；展开态
+              // 本层被 Hero 封面盖住，透明度不影响观感。关闭时保持原实色。
+              backgroundColor: backdropOn
+                  ? scheme.surface.withValues(alpha: 0.78)
+                  : scheme.surface,
               surfaceTintColor: Colors.transparent,
-              forceElevated: innerBoxIsScrolled,
+              // 半透明栏位上投影显脏（与玻璃栏位同理），纱面态不叠加阴影。
+              forceElevated: innerBoxIsScrolled && !backdropOn,
               flexibleSpace: LayoutBuilder(
                 builder: (BuildContext ctx, BoxConstraints c) {
                   // 展开度 t：1 = 完全展开，0 = 完全收起。
@@ -960,10 +997,87 @@ class _ContentDetailTabbedShellState extends State<ContentDetailTabbedShell>
         bar,
       ],
     );
+    final Widget content;
     if (widget.onRefresh != null) {
-      return AppRefreshIndicator(onRefresh: widget.onRefresh!, child: body);
+      content = AppRefreshIndicator(onRefresh: widget.onRefresh!, child: body);
+    } else {
+      content = body;
     }
-    return body;
+    if (!backdropOn) return content;
+    // 背景层固定不随内容滚动（blur 只算一次），内容 / 底栏浮在其上。
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        _DetailPageBackdrop(
+          url: widget.coverUrl!,
+          source: widget.source,
+          sigma: appearance.backgroundBlurSigma,
+        ),
+        content,
+      ],
+    );
+  }
+}
+
+/// 「详情页外观 → 封面模糊背景」整页背景层。
+///
+/// 把页面原来的白色背景（Scaffold surface）替换为封面（或 detail 回填后的
+/// 封面）的高斯模糊铺底：模糊图整页可见，上面叠一层随深度轻微加重的
+/// 底色纱罩，保证正文 / 列表文本可读；Hero 仍是独立的清晰封面层，与本层
+/// 互不混用。关闭该设置时不挂载本层，页面保持原白色背景。
+class _DetailPageBackdrop extends StatelessWidget {
+  final String url;
+  final PluginConfig? source;
+  final double sigma;
+
+  const _DetailPageBackdrop({
+    required this.url,
+    required this.source,
+    required this.sigma,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool isHttp =
+        url.startsWith('http://') || url.startsWith('https://');
+    final Widget image = isHttp
+        ? SourceImage(
+            url: url,
+            source: source,
+            fit: BoxFit.cover,
+            radius: 0,
+          )
+        : Image.file(File(url), fit: BoxFit.cover);
+    // ClipRect 限定滤镜作用域；ImageFilter.blur 边缘为 clamp 采样，
+    // 重度模糊也不会露出透明毛边。
+    return ClipRect(
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+            child: image,
+          ),
+          // 纱罩：顶部（Hero 区身后，本就被清晰封面盖住）最透，往下轻微
+          // 加重到底色——模糊图全程可感，正文仍可读。
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const <double>[0.0, 0.30, 1.0],
+                colors: <Color>[
+                  scheme.surface.withValues(alpha: 0.25),
+                  scheme.surface.withValues(alpha: 0.55),
+                  scheme.surface.withValues(alpha: 0.82),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

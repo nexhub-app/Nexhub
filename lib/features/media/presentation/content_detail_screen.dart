@@ -48,12 +48,15 @@ import '../../../core/novel/novel_toc_cache.dart';
 import '../../../core/novel/novel_toc_store.dart';
 import '../../../core/progress/unified_progress_repository.dart';
 import '../../../core/resolver/webview_resolver.dart';
+import '../../../core/settings/detail_appearance_settings.dart';
 import '../../../core/settings/general_settings.dart';
 import '../../../core/services/bangumi/bangumi_sync_service.dart';
 import '../../../core/scraper/media_api_service.dart';
 import '../../../core/scraper/verification_detector.dart';
 import '../../../core/services/source_repository.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/image_accent_extractor.dart';
+import '../../../core/theme/theme_controller.dart';
 import '../../../core/widgets/app_cover_image.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/bangumi_full_tab.dart';
@@ -144,6 +147,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   /// 供底栏「同步」按钮按需出现。
   ValueNotifier<int?>? _bangumiSubjectId;
 
+  /// 封面取色控制器（设置 → 详情页外观 → 封面动态强调色）。
+  late final DetailAccentController _accentController;
+
   bool get _isAnime => _sourceType == SourceType.animeSource;
   bool get _isManga => _sourceType == SourceType.mangaSource;
   bool get _isNovel => _sourceType == SourceType.novelSource;
@@ -159,6 +165,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     super.initState();
     _fetchedDetail = widget.item;
     _resolveTypes();
+    _accentController = DetailAccentController();
+    _syncAccent();
     _bangumiSubjectId = ValueNotifier<int?>(null);
     _resolveBangumiForSync();
     _progressRepo = UnifiedProgressRepository.of(context, _sourceType);
@@ -174,7 +182,21 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     _chapterThrottleTimer?.cancel();
     _chapterThrottleTimer = null;
     _bangumiSubjectId?.dispose();
+    _accentController.dispose();
     super.dispose();
+  }
+
+  /// 当前条目封面变化（初始进入 / detail 回填换封面）后刷新封面取色。
+  ///
+  /// 「封面或获取的图片」：列表页封面先取色，detail 路由回填了更完整的
+  /// 封面后再取一次（结果按 URL 记忆，同一封面不会重复解码）。
+  void _syncAccent() {
+    final PluginConfig? sourceConfig =
+        context.read<SourceRepository>().getById(widget.item.sourceId ?? '');
+    _accentController.update(
+      coverUrl: _fetchedDetail.coverUrl ?? widget.item.coverUrl,
+      source: sourceConfig,
+    );
   }
 
   /// 在上抛 Bangumi subjectId 给底栏「同步」按钮（独立于 Bangumi 标签页，
@@ -344,7 +366,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         renderedHtml: _renderedHtml,
       )
           .then((MediaItem detail) {
-        if (mounted) setState(() => _fetchedDetail = _mergeDetail(detail));
+        if (mounted) {
+          setState(() => _fetchedDetail = _mergeDetail(detail));
+          _syncAccent();
+        }
         // 详情解析出源站更新时间时回填收藏条目，供书架「最新章」排序。
         if (detail.updatedAt != null && mounted) {
           context
@@ -1128,7 +1153,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       );
     }
 
-    return Scaffold(
+    final Widget page = Scaffold(
       body: FutureBuilder<List<Episode>>(
         future: _episodesFuture,
         builder: (BuildContext context, AsyncSnapshot<List<Episode>> snap) {
@@ -1173,6 +1198,54 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           );
         },
       ),
+    );
+
+    return _withDetailAppearance(context, page);
+  }
+
+  /// 详情页外观（设置 → 详情页外观）：
+  ///
+  /// 1. **封面动态强调色**——开启且封面取色成功时，用封面色作种子在页内
+  ///    重建 ColorScheme（按钮 / 标签页选中 / 徽标等强调色随封面变化）；
+  ///    调色板风格与深浅色模式沿用当前主题，「玄色」手工主题不做覆盖。
+  /// 2. **封面模糊背景**——由 [ContentDetailTabbedShell] 的 Hero 层直接
+  ///    读取设置渲染，这里只负责把两层设置的变更广播接到整页重建。
+  Widget _withDetailAppearance(BuildContext context, Widget child) {
+    return ListenableBuilder(
+      listenable: Listenable.merge(<Listenable>[
+        DetailAppearanceStore.instance,
+        _accentController,
+      ]),
+      builder: (BuildContext context, _) {
+        final DetailAppearanceSettings appearance =
+            DetailAppearanceStore.instance.settings;
+        final Color? accent = appearance.dynamicAccentEnabled
+            ? _accentController.accent
+            : null;
+        if (accent == null) return child;
+        final ThemeController themeController = context.read<ThemeController>();
+        // 玄色是精调的手工主题（近黑底 + 赤强调），保持原样不被封面色覆盖。
+        if (themeController.isXuanSe) return child;
+        final ThemeData base = Theme.of(context);
+        final ColorScheme seeded = ColorScheme.fromSeed(
+          seedColor: accent,
+          brightness: base.colorScheme.brightness,
+          dynamicSchemeVariant: themeController.paletteStyle.variant,
+        );
+        return Theme(
+          data: base.copyWith(
+            colorScheme: seeded,
+            scaffoldBackgroundColor: seeded.surface,
+            appBarTheme: base.appBarTheme.copyWith(
+              backgroundColor: seeded.surface,
+              foregroundColor: seeded.onSurface,
+              titleTextStyle: base.appBarTheme.titleTextStyle
+                  ?.copyWith(color: seeded.onSurface),
+            ),
+          ),
+          child: child,
+        );
+      },
     );
   }
 
