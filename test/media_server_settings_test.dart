@@ -37,4 +37,32 @@ void main() {
     await settings.load();
     expect(settings.tier, MediaServerBitrateTier.auto);
   });
+
+  test('G3：搜索历史去重置顶、上限 10 条、可清空', () async {
+    final backend = InMemoryBackend();
+    final settings = MediaServerPlaybackSettings(backend: backend);
+    await settings.load();
+    for (var i = 0; i < 12; i++) {
+      await settings.addSearchHistory('query$i');
+    }
+    expect(settings.searchHistory.length, 10);
+    expect(settings.searchHistory.first, 'query11');
+    await settings.addSearchHistory('query5');
+    expect(settings.searchHistory.first, 'query5');
+    expect(settings.searchHistory.toList()[1], 'query11');
+    await settings.clearSearchHistory();
+    expect(settings.searchHistory, isEmpty);
+  });
+
+  test('G3：搜索历史持久化往返', () async {
+    final backend = InMemoryBackend();
+    final settings = MediaServerPlaybackSettings(backend: backend);
+    await settings.load();
+    await settings.addSearchHistory('咒术回战');
+    await settings.setTier(MediaServerBitrateTier.m4);
+    final settings2 = MediaServerPlaybackSettings(backend: backend);
+    await settings2.load();
+    expect(settings2.searchHistory, <String>['咒术回战']);
+    expect(settings2.tier, MediaServerBitrateTier.m4);
+  });
 }

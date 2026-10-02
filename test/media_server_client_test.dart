@@ -466,6 +466,21 @@ void main() {
       await client.createPlaybackInfo('it1', maxStreamingBitrate: 8000000);
     });
 
+    test('G2/G3：Genres / Years / Filters 参数透传', () async {
+      adapter.handler = (opts) async {
+        expect(opts.queryParameters['Genres'], '动画|喜剧');
+        expect(opts.queryParameters['Years'], '2020,2021');
+        expect(opts.queryParameters['Filters'], 'IsPlayed');
+        return _json(<String, dynamic>{'Items': []});
+      };
+      await client.fetchItems(
+        parentId: 'lib1',
+        filters: const <String>['IsPlayed'],
+        genres: const <String>['动画', '喜剧'],
+        years: const <String>['2020', '2021'],
+      );
+    });
+
     test('音轨解析（MediaStreams type=Audio）', () async {
       adapter.handler = (opts) async => _json(<String, dynamic>{
             'PlaySessionId': 'ps1',

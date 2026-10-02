@@ -154,13 +154,12 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
       appBar: AppBar(title: Text(l10n.mediaServerSettings)),
       body: logged.isEmpty
           ? _EmptyServers(onAdd: _openManage)
-          : _buildBody(context, auth, logged, l10n),
+          : _buildBody(context, logged, l10n),
     );
   }
 
   Widget _buildBody(
     BuildContext context,
-    MediaServerAuth auth,
     List<MediaServerInfo> logged,
     AppLocalizations l10n,
   ) {
@@ -178,13 +177,6 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(AppTokens.spaceMd),
         children: <Widget>[
-          // ── 服务器信息头（C2）：名称 + 类型徽标 + 状态点 + 管理入口 ──
-          _ServerHeader(
-            server: active,
-            healthOk: auth.health[active.id],
-            onManage: _openManage,
-          ),
-          const SizedBox(height: AppTokens.spaceSm),
           if (logged.length > 1) ...<Widget>[
             _serverSwitcher(logged),
             const SizedBox(height: AppTokens.spaceSm),
@@ -345,87 +337,6 @@ class _MediaServerHomeScreenState extends State<MediaServerHomeScreen> {
       ),
     );
     _selectInitial();
-  }
-}
-
-/// 服务器信息头（C2）：激活服务器名称 + 类型徽标 + 状态点 + 管理入口。
-/// 探活状态点是 F2 里程碑的占位（已登录显示主色点）。
-class _ServerHeader extends StatelessWidget {
-  final MediaServerInfo server;
-  final VoidCallback onManage;
-
-  /// F2 探活结果（null = 尚未探测）。
-  final bool? healthOk;
-
-  const _ServerHeader({
-    required this.server,
-    required this.onManage,
-    this.healthOk,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceLg,
-          vertical: AppTokens.spaceXs,
-        ),
-        leading: Stack(
-          children: <Widget>[
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: scheme.tertiary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-              ),
-              child: Icon(Icons.dns_rounded, color: scheme.tertiary, size: 22),
-            ),
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  // F2 探活：false 红 / true 绿 / 未探测主色占位。
-                  color: healthOk == false
-                      ? scheme.error
-                      : scheme.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: scheme.surface, width: 1.5),
-                ),
-              ),
-            ),
-          ],
-        ),
-        title: Text(
-          server.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text(
-          server.type.name.toUpperCase(),
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                letterSpacing: 0.5,
-              ),
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.settings_rounded),
-          tooltip: l10n.mediaServerManageAction,
-          onPressed: onManage,
-        ),
-      ),
-    );
   }
 }
 
