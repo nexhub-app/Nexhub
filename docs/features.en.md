@@ -292,3 +292,15 @@ Cache management stops being a vague one-tap button and becomes something you ca
   - danmaku entries expire by their own TTL; the switch and both thresholds live on the cache manager page, and turning the switch off leaves cleanup fully manual.
 - **Explicit boundaries**: only derived caches are touched — favorites, downloads, sources and reading progress are never removed. Clearing the translation or danmaku caches only means the relevant content is fetched again on next access; no user-created data is lost.
 
+## 2.30 Media servers (new in v3.0.0-beta.1)
+
+Connect your self-hosted **Emby / Jellyfin** server to the video module: browse your own library like a local source, with two-way sync of watch progress, watched state and favorites against the server web app. Entry point: Settings → Configuration & network → Media servers; tapping a server in the media module's Online list or in Source management also opens it directly.
+
+- **Connect & manage**: enter the server address — the type (Emby / Jellyfin) is detected automatically, then sign in; one server can hold several addresses (e.g. LAN + WAN) and falls over automatically when the active one is unreachable; while the app is in the foreground a periodic health check keeps the status dots on the manage list and server home up to date. Credentials live only in the system secure storage; multiple servers coexist independently.
+- **Server home**: aggregates Continue watching (with remaining time and progress bars), Next up (catching up), My favorites and Latest additions; paginated library poster walls with watched-state / genre / year filters and sorting, collection (BoxSet) browsing and in-server search (with recent search history).
+- **Detail & playback**: immersive collapsible backdrop header on the detail page; season-based episode lists with watched badges, progress bars and episode badges. Playback negotiates in three stages (direct play → direct stream → transcode); unsupported codecs transcode automatically with a clear notice. Bitrate tiers (auto / original / 20M–1M / 720p cap) and audio tracks switch from the player menu, both resuming from the current position; prev/next episode and auto-play next are built in for full-season bingeing.
+- **Two-way sync**: progress is reported on exit and watched is auto-marked on completion; one-tap favorite / watched toggles on the detail page, season-wide batch marking and long-press per-episode toggling — all consistent with the server web app.
+- **Integrated with the local system**: server items live in their own namespace (`ms:` prefix) inside the unified history / continue watching / global search — server progress wins with local progress as fallback; deleting a server cleans up all of its history and progress leftovers.
+- **Performance**: posters go through the unified disk cache with resolution matched to screen density, so revisits render instantly; the playback stats panel shows the stream type (direct / direct-stream / transcode) and negotiated bitrate.
+
+
