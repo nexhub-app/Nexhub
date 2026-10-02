@@ -13,6 +13,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 
 import '../history/chapter_fetch_time_manager.dart';
 import '../models/episode.dart';
+import '../settings/detail_appearance_settings.dart';
 import '../settings/general_settings.dart';
 import '../theme/app_tokens.dart';
 import '../theme/app_theme.dart';
@@ -305,6 +306,28 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       );
     }
 
+    // 窄屏（< compactBreakpoint）判定用 LayoutBuilder 取实际可用宽度——
+    // 与详情页其余部分（content_detail_tabbed_shell 等）保持同一惯例，
+    // 桌面 NavigationRail 布局下屏宽判定不准。
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool isCompact =
+            constraints.maxWidth < AppTokens.compactBreakpoint;
+        return _buildChapterList(context, l10n, scheme, isCompact);
+      },
+    );
+  }
+
+  /// 章节列表主体（按线路分组 / 非分组两种布局）。
+  ///
+  /// [isCompact] 为 true 时列表条目行尾操作按钮收起，改用左右滑动快捷动作
+  /// + 长按菜单，保证窄屏下的行内简洁性。
+  Widget _buildChapterList(
+    BuildContext context,
+    AppLocalizations l10n,
+    ColorScheme scheme,
+    bool isCompact,
+  ) {
     // 按线路分组
     if (widget.groupByLine) {
       final lines = <String, List<int>>{};
@@ -376,14 +399,16 @@ class _ChapterListSectionState extends State<ChapterListSection> {
         if (_isGridMode && widget.enableGridMode) {
           children.add(_buildChapterGrid(context, l10n, scheme, head));
         } else {
-          children.addAll(_buildChapterTiles(context, l10n, scheme, head));
+          children.addAll(_buildChapterTiles(context, l10n, scheme, head,
+              isCompact: isCompact));
         }
         if (groupCollapse) {
           children.add(_buildExpandButton(context, l10n, hidden));
           if (_isGridMode && widget.enableGridMode) {
             children.add(_buildChapterGrid(context, l10n, scheme, tail));
           } else {
-            children.addAll(_buildChapterTiles(context, l10n, scheme, tail));
+            children.addAll(_buildChapterTiles(context, l10n, scheme, tail,
+                isCompact: isCompact));
           }
         }
       }
@@ -433,10 +458,12 @@ class _ChapterListSectionState extends State<ChapterListSection> {
           if (collapseActive)
             _buildChapterGrid(context, l10n, scheme, tailIndices),
         ] else ...<Widget>[
-          ..._buildChapterTiles(context, l10n, scheme, headIndices),
+          ..._buildChapterTiles(context, l10n, scheme, headIndices,
+              isCompact: isCompact),
           if (collapseActive) _buildExpandButton(context, l10n, hiddenCount),
           if (collapseActive)
-            ..._buildChapterTiles(context, l10n, scheme, tailIndices),
+            ..._buildChapterTiles(context, l10n, scheme, tailIndices,
+                isCompact: isCompact),
         ],
         // 后台仍在续抓目录 → 末尾追加加载指示，提示剩余章节补齐中。
         if (widget.loadingMore)
@@ -557,6 +584,9 @@ class _ChapterListSectionState extends State<ChapterListSection> {
   }
 
   /// 快捷选集区间 chips（章节数 > 2 × rangeSize 时显示）。
+  ///
+  /// 无独立「全部」chip：选中某区间后再次点击同一 chip 即取消选择，
+  /// 回到显示全部章节。
   Widget _buildRangeChips(
     BuildContext context,
     AppLocalizations l10n,
@@ -571,24 +601,15 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     return _buildScrollableChipRow(
       controller: _chipScrollCtrl,
       children: <Widget>[
-        FilterChip(
-          key: _chipKey(0),
-          label: Text(l10n.all),
-          selected: _rangeStart == null,
-          onSelected: (_) {
-            setState(() => _rangeStart = null);
-            _scrollChipToCenter(0);
-          },
-        ),
-        const SizedBox(width: AppTokens.spaceSm),
         for (int i = 0; i < ranges.length; i++) ...<Widget>[
           FilterChip(
             key: _chipKey(i + 1),
             label: Text(
                 '${ranges[i] + 1}-${ranges[i] + _rangeSize > totalCount ? totalCount : ranges[i] + _rangeSize}'),
             selected: _rangeStart == ranges[i],
-            onSelected: (_) {
-              setState(() => _rangeStart = ranges[i]);
+            onSelected: (bool selected) {
+              // 再点一次已选中的 chip = 取消选择，回到全部。
+              setState(() => _rangeStart = selected ? ranges[i] : null);
               _scrollChipToCenter(i + 1);
             },
           ),
@@ -617,6 +638,9 @@ class _ChapterListSectionState extends State<ChapterListSection> {
   }
 
   /// 多线路选择 chips（仅当 [groupByLine] 且线路数 > 1 时显示在选集上方）。
+  ///
+  /// 无独立「全部」chip：选中某线路后再次点击同一 chip 即取消选择，
+  /// 回到显示全部线路。
   Widget _buildLineChips(
     BuildContext context,
     AppLocalizations l10n,
@@ -625,22 +649,14 @@ class _ChapterListSectionState extends State<ChapterListSection> {
   ) {
     return _buildScrollableChipRow(
       children: <Widget>[
-        ChoiceChip(
-          label: Text(l10n.all),
-          selected: _selectedLine == null,
-          onSelected: (_) {
-            AppHaptics.selectionClick();
-            setState(() => _selectedLine = null);
-          },
-        ),
-        const SizedBox(width: AppTokens.spaceSm),
         for (final line in lineNames) ...<Widget>[
           ChoiceChip(
             label: Text(line),
             selected: _selectedLine == line,
-            onSelected: (_) {
+            onSelected: (bool selected) {
               AppHaptics.selectionClick();
-              setState(() => _selectedLine = line);
+              // 再点一次已选中的 chip = 取消选择，回到全部线路。
+              setState(() => _selectedLine = selected ? line : null);
             },
           ),
           const SizedBox(width: AppTokens.spaceSm),
@@ -827,8 +843,9 @@ class _ChapterListSectionState extends State<ChapterListSection> {
     BuildContext context,
     AppLocalizations l10n,
     ColorScheme scheme,
-    List<int> indices,
-  ) {
+    List<int> indices, {
+    required bool isCompact,
+  }) {
     final display = _filterQuery.display;
     final String idKey = widget.contentId ?? 'chap';
     final List<Widget> tiles = <Widget>[];
@@ -859,6 +876,10 @@ class _ChapterListSectionState extends State<ChapterListSection> {
       final String? subtitle =
           subtitleParts.isEmpty ? null : subtitleParts.join(' · ');
 
+      final bool hasSwipeActions = widget.onDownloadChapter != null ||
+          widget.onToggleBookmark != null ||
+          widget.onToggleRead != null;
+
       final Widget tile = ListTile(
         leading: widget.isChapterRead != null
             ? Icon(
@@ -879,59 +900,78 @@ class _ChapterListSectionState extends State<ChapterListSection> {
                     ))
             : null,
         onTap: () => widget.onTapChapter(ep, i),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (hasProgress)
-              Padding(
-                padding: const EdgeInsets.only(right: AppTokens.spaceXs),
-                child: Icon(
-                  Icons.fiber_manual_record_rounded,
-                  size: 10,
-                  color: scheme.primary,
-                ),
+        // 长按菜单（下载/书签/已读）：网格与列表条目共用；宽屏列表也提供，
+        // 窄屏列表同网格一样依赖长按补全操作入口。
+        onLongPress: hasSwipeActions
+            ? () => _showGridChapterMenu(context, ep, i, isRead)
+            : null,
+        // 窄屏（isCompact）删去行尾操作按钮保证简洁，操作改由左右滑动
+        // 快捷动作提供（见 [_SwipeActionRow]）；宽屏保持原按钮布局。
+        trailing: isCompact
+            ? (hasProgress
+                ? const Padding(
+                    padding: EdgeInsets.only(right: AppTokens.spaceXs),
+                    child: Icon(
+                      Icons.fiber_manual_record_rounded,
+                      size: 10,
+                    ),
+                  )
+                : null)
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (hasProgress)
+                    Padding(
+                      padding: const EdgeInsets.only(right: AppTokens.spaceXs),
+                      child: Icon(
+                        Icons.fiber_manual_record_rounded,
+                        size: 10,
+                        color: scheme.primary,
+                      ),
+                    ),
+                  if (widget.onDownloadChapter != null)
+                    Builder(builder: (BuildContext _) {
+                      final bool downloaded =
+                          widget.isChapterDownloaded?.call(i) ?? false;
+                      return IconButton(
+                        icon: Icon(
+                          downloaded
+                              ? Icons.download_done_rounded
+                              : Icons.download_rounded,
+                          size: 20,
+                          color: downloaded ? scheme.primary : null,
+                        ),
+                        tooltip: downloaded
+                            ? l10n.alreadyDownloaded
+                            : l10n.downloadSingleChapter,
+                        onPressed: () => widget.onDownloadChapter!(ep, i),
+                      );
+                    }),
+                  if (widget.onToggleBookmark != null)
+                    IconButton(
+                      icon: Icon(
+                        widget.isChapterBookmarked != null &&
+                                widget.isChapterBookmarked!(i)
+                            ? Icons.bookmark_rounded
+                            : Icons.bookmark_border_rounded,
+                        size: 20,
+                      ),
+                      tooltip: l10n.chapterBookmark,
+                      onPressed: () => widget.onToggleBookmark!(ep, i),
+                    ),
+                  if (widget.onToggleRead != null)
+                    IconButton(
+                      icon: Icon(
+                        isRead
+                            ? Icons.visibility_rounded
+                            : Icons.visibility_rounded,
+                        size: 20,
+                      ),
+                      tooltip: l10n.chapterRead,
+                      onPressed: () => widget.onToggleRead!(ep, i),
+                    ),
+                ],
               ),
-            if (widget.onDownloadChapter != null)
-              Builder(builder: (BuildContext _) {
-                final bool downloaded =
-                    widget.isChapterDownloaded?.call(i) ?? false;
-                return IconButton(
-                  icon: Icon(
-                    downloaded
-                        ? Icons.download_done_rounded
-                        : Icons.download_rounded,
-                    size: 20,
-                    color: downloaded ? scheme.primary : null,
-                  ),
-                  tooltip: downloaded
-                      ? l10n.alreadyDownloaded
-                      : l10n.downloadSingleChapter,
-                  onPressed: () => widget.onDownloadChapter!(ep, i),
-                );
-              }),
-            if (widget.onToggleBookmark != null)
-              IconButton(
-                icon: Icon(
-                  widget.isChapterBookmarked != null &&
-                          widget.isChapterBookmarked!(i)
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  size: 20,
-                ),
-                tooltip: l10n.chapterBookmark,
-                onPressed: () => widget.onToggleBookmark!(ep, i),
-              ),
-            if (widget.onToggleRead != null)
-              IconButton(
-                icon: Icon(
-                  isRead ? Icons.visibility_rounded : Icons.visibility_rounded,
-                  size: 20,
-                ),
-                tooltip: l10n.chapterRead,
-                onPressed: () => widget.onToggleRead!(ep, i),
-              ),
-          ],
-        ),
       );
 
       // 已读条目降低不透明度
@@ -940,7 +980,20 @@ class _ChapterListSectionState extends State<ChapterListSection> {
         Entrance(
           onceKey: '$idKey-$i',
           delay: Duration(milliseconds: (pos * 18).clamp(0, 240)),
-          child: row,
+          // 窄屏且有可用回调时包一层左右滑动快捷动作。
+          child: isCompact && hasSwipeActions
+              ? _SwipeActionRow(
+                  ep: ep,
+                  index: i,
+                  isRead: isRead,
+                  isBookmarked: widget.isChapterBookmarked?.call(i) ?? false,
+                  isDownloaded: widget.isChapterDownloaded?.call(i) ?? false,
+                  onDownload: widget.onDownloadChapter,
+                  onToggleBookmark: widget.onToggleBookmark,
+                  onToggleRead: widget.onToggleRead,
+                  child: row,
+                )
+              : row,
         ),
       );
     }
@@ -987,4 +1040,233 @@ class _GridChapterCellState extends State<_GridChapterCell> {
       ),
     );
   }
+}
+
+/// 窄屏左右滑动快捷动作容器（仅 [ChapterListSection] 内部使用）。
+///
+/// 交互设计：
+/// - 右滑（向右拖）露出左侧动作 = 切换已读；
+/// - 左滑（向左拖）露出右侧动作 = 下载单章 / 切换书签（按回调可用性生成）；
+/// - 露出动作后点击图标触发，条目自动弹回原位（不整体滑出移除）；
+/// - 完整拖过阈值（80px，超过一个动作槽位）松手直接触发对应动作，
+///   与露出点击等效：右滑满滑 = 切换已读；左滑满滑 = 下载单章
+///   （无下载回调时为切换书签）。
+///
+/// 用 [GestureDetector] 水平拖拽 + 自绘动作层，而非 [Dismissible]：
+/// Dismissible 的语义是「滑动后移除条目」，与这里「滑出按钮点按执行」
+/// 的操作面板语义不符；confirmDismiss 拦截弹回后露出的按钮也不可点击。
+class _SwipeActionRow extends StatefulWidget {
+  final Episode ep;
+  final int index;
+  final bool isRead;
+  final bool isBookmarked;
+  final bool isDownloaded;
+  final Future<void> Function(Episode ep, int originalIndex)? onDownload;
+  final Future<void> Function(Episode ep, int originalIndex)? onToggleBookmark;
+  final Future<void> Function(Episode ep, int originalIndex)? onToggleRead;
+  final Widget child;
+
+  const _SwipeActionRow({
+    required this.ep,
+    required this.index,
+    required this.isRead,
+    required this.isBookmarked,
+    required this.isDownloaded,
+    required this.child,
+    this.onDownload,
+    this.onToggleBookmark,
+    this.onToggleRead,
+  });
+
+  @override
+  State<_SwipeActionRow> createState() => _SwipeActionRowState();
+}
+
+class _SwipeActionRowState extends State<_SwipeActionRow> {
+  /// 当前水平位移。>0 右滑（露出左侧动作），<0 左滑（露出右侧动作）。
+  double _dragExtent = 0;
+
+  /// 单个动作槽位宽度（逻辑像素）。
+  static const double _actionExtent = 72.0;
+
+  /// 满滑触发阈值：拖到槽位的 80% 松手 = 直接触发对应动作
+  /// （必须小于槽位上限，否则满滑永远够不到阈值）。
+  static double get _triggerThreshold => _actionExtent * 0.8;
+
+  /// 按回调可用性构建完整动作池，并按偏好 [pref] 选取。
+  ///
+  /// 关键：动作池不按方向截断——左滑/右滑都从同一个池里选，方向只决定
+  /// 触发哪个设置项（leftSwipeAction / rightSwipeAction）。若按方向预先
+  /// 过滤（如左滑只给下载+书签），用户把左滑设为已读时匹配失败会静默
+  /// 回落到 first（下载），表现为"设置不生效、恒为下载"。
+  ///
+  /// 设置的动作没有对应回调（如影视无书签回调）时回落到任一可用动作，
+  /// 全无则 null。
+  _SwipeAction? _resolveAction(DetailSwipeAction pref) {
+    final List<_SwipeAction> available = <_SwipeAction>[
+      if (widget.onToggleRead != null)
+        _SwipeAction(
+          kind: DetailSwipeAction.read,
+          icon: widget.isRead
+              ? Icons.visibility_off_rounded
+              : Icons.visibility_rounded,
+          background: widget.isRead ? Colors.blueGrey : Colors.green.shade700,
+          onTap: () => widget.onToggleRead!(widget.ep, widget.index),
+        ),
+      if (widget.onDownload != null)
+        _SwipeAction(
+          kind: DetailSwipeAction.download,
+          icon: widget.isDownloaded
+              ? Icons.download_done_rounded
+              : Icons.download_rounded,
+          background: Colors.blueGrey,
+          onTap: () => widget.onDownload!(widget.ep, widget.index),
+        ),
+      if (widget.onToggleBookmark != null)
+        _SwipeAction(
+          kind: DetailSwipeAction.bookmark,
+          icon: widget.isBookmarked
+              ? Icons.bookmark_rounded
+              : Icons.bookmark_border_rounded,
+          background: Colors.amber.shade700,
+          onTap: () => widget.onToggleBookmark!(widget.ep, widget.index),
+        ),
+    ];
+    for (final _SwipeAction a in available) {
+      if (a.kind == pref) return a;
+    }
+    return available.isEmpty ? null : available.first;
+  }
+
+  /// 左滑（extent < 0，揭示在条目右侧）触发的动作：读左滑设置项。
+  _SwipeAction? get _leftAction => _resolveAction(
+      DetailAppearanceStore.instance.settings.leftSwipeAction);
+
+  /// 右滑（extent > 0，揭示在条目左侧）触发的动作：读右滑设置项。
+  _SwipeAction? get _rightAction => _resolveAction(
+      DetailAppearanceStore.instance.settings.rightSwipeAction);
+
+  void _onDragUpdate(DragUpdateDetails d) {
+    // 单次 clamp，区间按两侧动作可用性动态收缩：
+    // 两侧都有 → [-72, 72]；只有右滑动作 → [0, 72]；只有左滑动作 → [-72, 0]。
+    // 注意不能写成两段 clamp 链（交集恒为 0，条目将无法拖动）。
+    final bool leftEnabled = _leftAction != null;
+    final bool rightEnabled = _rightAction != null;
+    setState(() {
+      _dragExtent = (_dragExtent + d.delta.dx).clamp(
+        leftEnabled ? -_actionExtent : 0.0,
+        rightEnabled ? _actionExtent : 0.0,
+      );
+    });
+  }
+
+  void _onDragEnd(DragEndDetails d) {
+    final double v = _dragExtent;
+    setState(() => _dragExtent = 0);
+    // 满滑与露出点击触发同一动作（方向 → 设置动作一一对应），不存在重复。
+    if (v >= _triggerThreshold) {
+      final _SwipeAction? a = _rightAction;
+      if (a != null) a.onTap();
+    } else if (-v >= _triggerThreshold) {
+      final _SwipeAction? a = _leftAction;
+      if (a != null) a.onTap();
+    }
+    // 未过阈值：仅回弹，无动作。
+  }
+
+  /// 触发动作后执行：先触感反馈，再调用回调。
+  void _runAction(VoidCallback action) {
+    AppHaptics.click();
+    setState(() => _dragExtent = 0);
+    action();
+  }
+
+  /// 构建单个动作按钮（露出层里的图标块）。
+  Widget _buildActionButton(_SwipeAction action, double slotWidth) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _runAction(action.onTap),
+      child: Container(
+        width: slotWidth,
+        height: double.infinity,
+        color: action.background,
+        alignment: Alignment.center,
+        child: Icon(action.icon, color: Colors.white, size: 22),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final _SwipeAction? left = _leftAction;
+    final _SwipeAction? right = _rightAction;
+    final double extent = _dragExtent;
+
+    // 两侧都无可用动作：直接返回原条目（外层 hasSwipeActions 已过滤回调级
+    // 可用性，这里兜底设置动作与回调不匹配的情况）。
+    if (left == null && right == null) return widget.child;
+
+    return GestureDetector(
+      onHorizontalDragUpdate: _onDragUpdate,
+      onHorizontalDragEnd: _onDragEnd,
+      child: Stack(
+        children: <Widget>[
+          // ── 动作层（揭示在条目下方）──────────────────────────
+          Positioned.fill(
+            child: ClipRect(
+              child: Row(
+                children: <Widget>[
+                  // 右滑动作（揭示在条目左侧，宽度随位移生长）。
+                  if (right != null)
+                    SizedBox(
+                      width: extent.clamp(0.0, _actionExtent),
+                      child: extent > 0
+                          ? _buildActionButton(
+                              right, extent.clamp(0.0, _actionExtent))
+                          : null,
+                    ),
+                  const Spacer(),
+                  // 左滑动作（揭示在条目右侧，从右缘向左生长）。
+                  if (left != null)
+                    SizedBox(
+                      width: (-extent).clamp(0.0, _actionExtent),
+                      child: extent < 0
+                          ? _buildActionButton(
+                              left, (-extent).clamp(0.0, _actionExtent))
+                          : null,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          // ── 条目层（随拖拽平移，松手回弹）──────────────────────
+          AnimatedContainer(
+            duration: _dragExtent == 0
+                ? const Duration(milliseconds: 180)
+                : Duration.zero,
+            curve: Curves.easeOutCubic,
+            transform: Matrix4.translationValues(_dragExtent, 0, 0),
+            child: widget.child,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 单个滑动动作的描述。
+class _SwipeAction {
+  /// 动作种类：与设置枚举对齐，用于按用户偏好挑选当前方向的动作。
+  final DetailSwipeAction kind;
+
+  final IconData icon;
+  final Color background;
+  final VoidCallback onTap;
+
+  const _SwipeAction({
+    required this.kind,
+    required this.icon,
+    required this.background,
+    required this.onTap,
+  });
 }

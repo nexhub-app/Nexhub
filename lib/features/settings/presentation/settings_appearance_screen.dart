@@ -199,6 +199,14 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
         LocaleOption.english => l10n.languageEnglish,
       };
 
+  /// 窄屏章节列表滑动动作的展示名（设置行 subtitle 用）。
+  String _swipeActionLabel(AppLocalizations l10n, DetailSwipeAction a) =>
+      switch (a) {
+        DetailSwipeAction.download => l10n.swipeActionDownload,
+        DetailSwipeAction.bookmark => l10n.swipeActionBookmark,
+        DetailSwipeAction.read => l10n.swipeActionRead,
+      };
+
   /// 界面字体当前选择的展示名（设置行 subtitle 用）。
   String _fontLabel(
       AppLocalizations l10n, ThemeController controller, bool isZh) {
@@ -650,6 +658,50 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                           ),
                         ),
                       ],
+                      // 窄屏章节列表滑动动作：左滑 / 右滑各自配置
+                      // （语言选择同款底部单选弹窗）。
+                      hairline,
+                      SettingsTile(
+                        key: const ValueKey<String>('appearance.detailLeftSwipe'),
+                        icon: Icons.swipe_left_rounded,
+                        title: l10n.detailAppearanceLeftSwipe,
+                        subtitle:
+                            '${l10n.detailAppearanceLeftSwipeDesc} · ${_swipeActionLabel(l10n, s.leftSwipeAction)}',
+                        onTap: () => _showRadioSheet<DetailSwipeAction>(
+                          context: context,
+                          title: l10n.detailAppearanceLeftSwipe,
+                          options: <(DetailSwipeAction, String)>[
+                            (DetailSwipeAction.download,
+                                l10n.swipeActionDownload),
+                            (DetailSwipeAction.bookmark,
+                                l10n.swipeActionBookmark),
+                            (DetailSwipeAction.read, l10n.swipeActionRead),
+                          ],
+                          selected: s.leftSwipeAction,
+                          onSelected: store.setLeftSwipeAction,
+                        ),
+                      ),
+                      SettingsTile(
+                        key: const ValueKey<String>(
+                            'appearance.detailRightSwipe'),
+                        icon: Icons.swipe_right_rounded,
+                        title: l10n.detailAppearanceRightSwipe,
+                        subtitle:
+                            '${l10n.detailAppearanceRightSwipeDesc} · ${_swipeActionLabel(l10n, s.rightSwipeAction)}',
+                        onTap: () => _showRadioSheet<DetailSwipeAction>(
+                          context: context,
+                          title: l10n.detailAppearanceRightSwipe,
+                          options: <(DetailSwipeAction, String)>[
+                            (DetailSwipeAction.download,
+                                l10n.swipeActionDownload),
+                            (DetailSwipeAction.bookmark,
+                                l10n.swipeActionBookmark),
+                            (DetailSwipeAction.read, l10n.swipeActionRead),
+                          ],
+                          selected: s.rightSwipeAction,
+                          onSelected: store.setRightSwipeAction,
+                        ),
+                      ),
                     ],
                   );
                 },

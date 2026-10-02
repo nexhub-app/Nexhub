@@ -6065,6 +6065,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get detailAppearanceBlurStrength => 'Blur strength';
 
   @override
+  String get detailAppearanceLeftSwipe => 'Swipe-left action';
+
+  @override
+  String get detailAppearanceLeftSwipeDesc =>
+      'Runs when swiping a chapter row left in the detail page chapter list';
+
+  @override
+  String get detailAppearanceRightSwipe => 'Swipe-right action';
+
+  @override
+  String get detailAppearanceRightSwipeDesc =>
+      'Runs when swiping a chapter row right in the detail page chapter list';
+
+  @override
+  String get swipeActionDownload => 'Download';
+
+  @override
+  String get swipeActionBookmark => 'Bookmark';
+
+  @override
+  String get swipeActionRead => 'Read';
+
+  @override
   String get aiSettingsTitle => 'AI Settings';
 
   @override

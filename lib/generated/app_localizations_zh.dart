@@ -5946,6 +5946,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get detailAppearanceBlurStrength => '模糊强度';
 
   @override
+  String get detailAppearanceLeftSwipe => '左滑动作';
+
+  @override
+  String get detailAppearanceLeftSwipeDesc => '详情页章节列表中向左滑动章节条目时执行';
+
+  @override
+  String get detailAppearanceRightSwipe => '右滑动作';
+
+  @override
+  String get detailAppearanceRightSwipeDesc => '详情页章节列表中向右滑动章节条目时执行';
+
+  @override
+  String get swipeActionDownload => '下载';
+
+  @override
+  String get swipeActionBookmark => '书签';
+
+  @override
+  String get swipeActionRead => '已读';
+
+  @override
   String get aiSettingsTitle => 'AI 配置';
 
   @override

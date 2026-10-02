@@ -1426,10 +1426,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           : l10n.episodeListWithCount(total),
       chaptersList: ChapterListSection(
         chapters: episodes,
-        // 影视：按线路分组 + 支持网格模式 + 显示播放位置。
+        // 影视：按线路分组 + 显示播放位置；网格模式全部内容类型可用
+        // （影视 / 漫画 / 小说），长按菜单共用。
         groupByLine: _isAnime,
         isMultiSource: _isAnime,
-        enableGridMode: _isAnime,
+        enableGridMode: true,
         getPosition: _isAnime
             ? (int i) => _progressRepo.positionMs(item.id, i)
             : null,

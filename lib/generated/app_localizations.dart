@@ -11492,6 +11492,48 @@ abstract class AppLocalizations {
   /// **'Blur strength'**
   String get detailAppearanceBlurStrength;
 
+  /// No description provided for @detailAppearanceLeftSwipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe-left action'**
+  String get detailAppearanceLeftSwipe;
+
+  /// No description provided for @detailAppearanceLeftSwipeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs when swiping a chapter row left in the detail page chapter list'**
+  String get detailAppearanceLeftSwipeDesc;
+
+  /// No description provided for @detailAppearanceRightSwipe.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe-right action'**
+  String get detailAppearanceRightSwipe;
+
+  /// No description provided for @detailAppearanceRightSwipeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Runs when swiping a chapter row right in the detail page chapter list'**
+  String get detailAppearanceRightSwipeDesc;
+
+  /// No description provided for @swipeActionDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get swipeActionDownload;
+
+  /// No description provided for @swipeActionBookmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark'**
+  String get swipeActionBookmark;
+
+  /// No description provided for @swipeActionRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get swipeActionRead;
+
   /// No description provided for @aiSettingsTitle.
   ///
   /// In en, this message translates to:

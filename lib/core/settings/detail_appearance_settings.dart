@@ -19,6 +19,18 @@ import '../comic/models/reader_preferences.dart';
 const double kDetailBlurSigmaMin = 10.0;
 const double kDetailBlurSigmaMax = 40.0;
 
+/// 窄屏列表条目滑动条目触发的快捷动作（左滑 / 右滑方向各自配置）。
+enum DetailSwipeAction {
+  /// 下载单章 / 集。
+  download,
+
+  /// 切换章节书签（漫画 / 小说）。
+  bookmark,
+
+  /// 切换已读状态。
+  read,
+}
+
 /// 详情页外观设置。
 class DetailAppearanceSettings {
   /// 是否根据封面动态取色（默认关闭，保持全局主题的强调色）。
@@ -30,28 +42,42 @@ class DetailAppearanceSettings {
   /// 模糊背景强度（sigma，10–40，默认 30）。
   final double backgroundBlurSigma;
 
+  /// 左滑（手指向左滑）触发的动作（默认下载）。
+  final DetailSwipeAction leftSwipeAction;
+
+  /// 右滑（手指向右滑）触发的动作（默认已读）。
+  final DetailSwipeAction rightSwipeAction;
+
   const DetailAppearanceSettings({
     this.dynamicAccentEnabled = false,
     this.blurredBackgroundEnabled = false,
     this.backgroundBlurSigma = 30.0,
+    this.leftSwipeAction = DetailSwipeAction.download,
+    this.rightSwipeAction = DetailSwipeAction.read,
   });
 
   DetailAppearanceSettings copyWith({
     bool? dynamicAccentEnabled,
     bool? blurredBackgroundEnabled,
     double? backgroundBlurSigma,
+    DetailSwipeAction? leftSwipeAction,
+    DetailSwipeAction? rightSwipeAction,
   }) =>
       DetailAppearanceSettings(
         dynamicAccentEnabled: dynamicAccentEnabled ?? this.dynamicAccentEnabled,
         blurredBackgroundEnabled:
             blurredBackgroundEnabled ?? this.blurredBackgroundEnabled,
         backgroundBlurSigma: backgroundBlurSigma ?? this.backgroundBlurSigma,
+        leftSwipeAction: leftSwipeAction ?? this.leftSwipeAction,
+        rightSwipeAction: rightSwipeAction ?? this.rightSwipeAction,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'dynamicAccentEnabled': dynamicAccentEnabled,
         'blurredBackgroundEnabled': blurredBackgroundEnabled,
         'backgroundBlurSigma': backgroundBlurSigma,
+        'leftSwipeAction': leftSwipeAction.name,
+        'rightSwipeAction': rightSwipeAction.name,
       };
 
   factory DetailAppearanceSettings.fromJson(Map<String, dynamic> json) {
@@ -66,7 +92,24 @@ class DetailAppearanceSettings {
       backgroundBlurSigma:
           ((json['backgroundBlurSigma'] as num?)?.toDouble() ?? 30.0)
               .clamp(kDetailBlurSigmaMin, kDetailBlurSigmaMax),
+      leftSwipeAction: _parseSwipeAction(json['leftSwipeAction'],
+          fallback: DetailSwipeAction.download),
+      rightSwipeAction: _parseSwipeAction(json['rightSwipeAction'],
+          fallback: DetailSwipeAction.read),
     );
+  }
+
+  /// 解析滑动动作枚举：未知值 / 缺省回落到 [fallback]。
+  static DetailSwipeAction _parseSwipeAction(
+    Object? raw, {
+    required DetailSwipeAction fallback,
+  }) {
+    if (raw is String) {
+      for (final DetailSwipeAction v in DetailSwipeAction.values) {
+        if (v.name == raw) return v;
+      }
+    }
+    return fallback;
   }
 }
 
@@ -112,6 +155,18 @@ class DetailAppearanceStore extends ChangeNotifier {
         value.clamp(kDetailBlurSigmaMin, kDetailBlurSigmaMax);
     if (clamped == _settings.backgroundBlurSigma) return;
     await save(_settings.copyWith(backgroundBlurSigma: clamped));
+  }
+
+  /// 设置左滑动作（持久化、广播）。
+  Future<void> setLeftSwipeAction(DetailSwipeAction value) async {
+    if (value == _settings.leftSwipeAction) return;
+    await save(_settings.copyWith(leftSwipeAction: value));
+  }
+
+  /// 设置右滑动作（持久化、广播）。
+  Future<void> setRightSwipeAction(DetailSwipeAction value) async {
+    if (value == _settings.rightSwipeAction) return;
+    await save(_settings.copyWith(rightSwipeAction: value));
   }
 
   Future<DetailAppearanceSettings> load() async {
