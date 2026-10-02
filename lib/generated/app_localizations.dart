@@ -734,6 +734,18 @@ abstract class AppLocalizations {
   /// **'Online Browse'**
   String get onlineBrowse;
 
+  /// No description provided for @switchSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch source'**
+  String get switchSource;
+
+  /// No description provided for @searchSourceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search sources'**
+  String get searchSourceHint;
+
   /// No description provided for @refreshList.
   ///
   /// In en, this message translates to:

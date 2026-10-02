@@ -127,6 +127,8 @@
   "contentExpired": "Content expired, please search again",
   "sourceNotFound": "Source unavailable, please switch source or search again",
   "onlineBrowse": "Online Browse",
+  "switchSource": "Switch source",
+  "searchSourceHint": "Search sources",
   "refreshList": "Refresh list",
   "goToVerification": "Verify now",
   "openSourceWebsite": "Open source site",

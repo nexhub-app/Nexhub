@@ -339,6 +339,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineBrowse => 'Online Browse';
 
   @override
+  String get switchSource => 'Switch source';
+
+  @override
+  String get searchSourceHint => 'Search sources';
+
+  @override
   String get refreshList => 'Refresh list';
 
   @override

@@ -118,6 +118,8 @@
   "contentExpired": "内容已过期，请重新搜索",
   "sourceNotFound": "内容源不可用，请更换源或重新搜索",
   "onlineBrowse": "在线浏览",
+  "switchSource": "切换源",
+  "searchSourceHint": "搜索源名称",
   "refreshList": "刷新列表",
   "goToVerification": "去验证",
   "openSourceWebsite": "打开源站",

@@ -19,11 +19,13 @@ import '../novel/novel_progress_manager.dart';
 import '../comic/comic_progress_manager.dart';
 import '../theme/app_tokens.dart';
 import 'app_alert_dialog.dart';
+import 'app_animations.dart';
 import 'app_card.dart';
 import 'app_cover_image.dart';
 import 'app_empty_state.dart';
 import 'app_error_state.dart';
 import 'app_loading_indicator.dart';
+import 'app_search_field.dart';
 import 'content_card.dart';
 import 'detail_action_utils.dart';
 import 'desktop_horizontal_scroll.dart';
@@ -140,14 +142,6 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   /// 布局设置存储——监听变化以即时刷新网格/列表。
   final LayoutSettingsStore _layoutStore = LayoutSettingsStore.instance;
 
-  /// 每个源 chip 的唯一 key（按「源id#序号」生成，避免重复 key）：
-  /// 切换源时用选中项的 key 把它自动滚入可视区域（横向源栏项多时选中项可能在屏外）。
-  /// 用「序号」做后缀，可保证同一源列表里即使出现同名/重复源（如某源同时存在于
-  /// 内置与已导入列表），各 chip 的 key 仍唯一，不会触发「Duplicate keys found」崩溃。
-  final Map<String, GlobalKey> _chipKeys = <String, GlobalKey>{};
-  GlobalKey _chipKey(int index, String id) => _chipKeys.putIfAbsent(
-      '$id#$index', () => GlobalKey(debugLabel: 'src-$id-$index'));
-
   // 各分类 Tab 的独立状态（用 category id 作为 key）。
   final Map<String, _CategoryTabState> _tabStates =
       <String, _CategoryTabState>{};
@@ -239,10 +233,8 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     }
     _loadCategories();
     _loadHome();
-    // 进入浏览页时把预选源滚动到可视区域（源很多时选中项可能在屏外，item 9），
-    // 并在首帧后弹出该源公告（item 7）。
+    // 首帧后弹出该源公告。
     if (_source != null) {
-      _scrollSelectedSourceIntoView();
       _maybeShowAnnouncement(_source!);
     }
   }
@@ -943,27 +935,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     });
     _loadCategories();
     _loadHome();
-    _scrollSelectedSourceIntoView();
     _maybeShowAnnouncement(s);
-  }
-
-  /// 切换源后把选中的源 chip 平滑滚入可视区域（横向源栏项多时选中项可能在屏外）。
-  void _scrollSelectedSourceIntoView() {
-    final source = _source;
-    if (source == null) return;
-    final idx = widget.sources.indexWhere((s) => s.id == source.id);
-    if (idx < 0) return;
-    final key = _chipKey(idx, source.id);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = key.currentContext;
-      if (ctx == null) return;
-      Scrollable.ensureVisible(
-        ctx,
-        alignment: 0.5,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      );
-    });
   }
 
   /// 进入/切换到某源时，若该源声明了公告、本页未弹过、且用户未选择「以后再不显示」，
@@ -1166,7 +1138,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: Text(_source?.name ?? l10n.onlineBrowse),
+        title: _buildSourceTitle(l10n),
         actions: _source == null
             ? null
             : <Widget>[
@@ -1193,8 +1165,7 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
           ? AppEmptyState(icon: widget.emptyIcon, message: l10n.emptySources)
           : Column(
               children: <Widget>[
-                _buildSourceBar(l10n),
-                // 分类 TabBar 置于源选择栏下方（结构重排：源在上、分类在下）
+                // 分类 TabBar（源切换已收进 AppBar 标题弹窗）
                 _buildCategoryTabBar(l10n),
                 Expanded(
                   child: TabBarView(
@@ -1207,8 +1178,55 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
     );
   }
 
-  /// 分类 TabBar（源选择栏下方的第二行）。与 TabBarView 共用同一 [_tabController]，
-  /// 并在顶部加细分隔线以区分层级（源栏 / 分类栏）。
+  /// AppBar 标题：显示当前源名 + 下拉箭头，点击弹出源切换底部弹窗。
+  ///
+  /// 源切换从横滑 chip 栏（旧版占据一整行高度）收进标题弹窗后，
+  /// 这里是唯一的换源入口；[Tooltip] 提供语义与桌面端悬停提示。
+  Widget _buildSourceTitle(AppLocalizations l10n) {
+    return Tooltip(
+      message: l10n.switchSource,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+        onTap: _showSourcePicker,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Flexible(
+              child: Text(
+                _source?.name ?? l10n.onlineBrowse,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: AppTokens.spaceXs),
+            const Icon(Icons.expand_more_rounded, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 打开源切换底部弹窗；选中非当前源时执行实际切换（[_onSource] 对同源自带去重）。
+  Future<void> _showSourcePicker() async {
+    if (widget.sources.isEmpty) return;
+    final PluginConfig? picked = await showModalBottomSheet<PluginConfig>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppTokens.radiusLg),
+        ),
+      ),
+      builder: (_) => _SourcePickerSheet(
+        sources: widget.sources,
+        currentId: _source?.id,
+      ),
+    );
+    if (picked != null && mounted) _onSource(picked);
+  }
+
+  /// 分类 TabBar（AppBar 下方的第一行，左侧为搜索入口）。与 TabBarView 共用同一
+  /// [_tabController]，并在顶部加细分隔线以区分层级。
   ///
   /// 筛选按钮内嵌 TabBar 行右端：仅当当前 Tab 落在「分类区间」
   /// （首页 / 周期表 / 排行 之外）且该分类存在筛选分组时显示；已应用筛选条件时
@@ -1323,43 +1341,6 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
       views.add(_buildRankTab(l10n));
     }
     return views;
-  }
-
-  Widget _buildSourceBar(AppLocalizations l10n) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTokens.spaceLg,
-        vertical: AppTokens.spaceSm,
-      ),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-      ),
-      child: DesktopHorizontalScroll(
-        builder: (context, controller) => SingleChildScrollView(
-          // 桌面端：鼠标左键拖动 + 竖向滚轮转横向滚动（见 helper 注释）。
-          controller: controller,
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: widget.sources.asMap().entries.map((e) {
-              final int i = e.key;
-              final s = e.value;
-              final selected = s.id == _source?.id;
-              return Padding(
-                key: selected ? _chipKey(i, s.id) : null,
-                padding: const EdgeInsets.only(right: AppTokens.spaceSm),
-                child: _SourceChip(
-                  label: s.name,
-                  selected: selected,
-                  onTap: () => _onSource(s),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ),
-    );
   }
 
   /// Tab 1: 首页（最新更新 + 热门推荐 + 分类入口）。
@@ -2489,50 +2470,143 @@ class _OnlineContentListScreenState extends State<OnlineContentListScreen>
   }
 }
 
-/// 源选择栏的胶囊/卡片式芯片。
+/// 源切换底部弹窗：可搜索的源选择列表（AppBar 标题点击打开）。
 ///
-/// 选中态填充 [ColorScheme.primaryContainer] + [ColorScheme.onPrimaryContainer] 文字
-/// + 圆角胶囊 + primary 描边；未选中态低强调描边、背景为 surface。全部取 ColorScheme，
-/// 深浅色自适应，禁止硬编码颜色。
-class _SourceChip extends StatelessWidget {
-  const _SourceChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
+/// 弹窗只负责「选择并回传」：点选某源即 pop 所选 [PluginConfig]，
+/// 由 [_OnlineContentListScreenState._showSourcePicker] 执行实际切换，
+/// 保持与 [_onSource] 的状态清理逻辑单一入口。
+/// 布局对齐项目既有面板（[_Handle] 把手 + [AppSheetBody] 入场 +
+/// viewInsets 垫高防键盘遮挡）；列表 maxHeight 封顶，源多时内部滚动。
+class _SourcePickerSheet extends StatefulWidget {
+  const _SourcePickerSheet({
+    required this.sources,
+    required this.currentId,
   });
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final List<PluginConfig> sources;
+  final String? currentId;
+
+  @override
+  State<_SourcePickerSheet> createState() => _SourcePickerSheetState();
+}
+
+class _SourcePickerSheetState extends State<_SourcePickerSheet> {
+  String _query = '';
+
+  /// 源站 host（如 `www.example.com`），与同名源区分；解析失败则不显示。
+  String? _hostOf(PluginConfig s) {
+    final uri = Uri.tryParse(s.site.baseUrl);
+    final host = uri?.host;
+    return (host == null || host.isEmpty) ? null : host;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTokens.spaceMd,
-          vertical: AppTokens.spaceSm,
-        ),
-        decoration: BoxDecoration(
-          color: selected ? scheme.primaryContainer : scheme.surface,
-          borderRadius: BorderRadius.circular(AppTokens.radiusFull),
-          border: selected
-              ? null
-              : Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.8),
-                ),
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: selected
-                    ? scheme.onPrimaryContainer
-                    : scheme.onSurfaceVariant,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final q = _query.trim().toLowerCase();
+    final List<PluginConfig> filtered = q.isEmpty
+        ? widget.sources
+        : widget.sources
+            .where((s) =>
+                s.name.toLowerCase().contains(q) ||
+                s.id.toLowerCase().contains(q))
+            .toList(growable: false);
+    return AppSheetBody(
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppTokens.spaceLg,
+            AppTokens.spaceSm,
+            AppTokens.spaceLg,
+            AppTokens.spaceLg + bottomInset,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const _Handle(),
+              const SizedBox(height: AppTokens.spaceXs),
+              Text(l10n.switchSource, style: textTheme.titleMedium),
+              const SizedBox(height: AppTokens.spaceMd),
+              AppSearchField(
+                hint: l10n.searchSourceHint,
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                onChanged: (v) => setState(() => _query = v),
               ),
+              const SizedBox(height: AppTokens.spaceSm),
+              Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 420),
+                  child: filtered.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: AppTokens.spaceXl),
+                          child: Text(
+                            l10n.noResults,
+                            style: textTheme.bodyMedium
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: filtered.length,
+                          itemBuilder: (context, i) {
+                            final s = filtered[i];
+                            final selected = s.id == widget.currentId;
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                backgroundColor: scheme.primaryContainer,
+                                child: Text(
+                                  s.name.isNotEmpty
+                                      ? s.name[0].toUpperCase()
+                                      : '?',
+                                  style: textTheme.titleMedium?.copyWith(
+                                      color: scheme.onPrimaryContainer),
+                                ),
+                              ),
+                              title: Text(s.name),
+                              subtitle: _hostOf(s) == null
+                                  ? null
+                                  : Text(_hostOf(s)!),
+                              trailing: selected
+                                  ? Icon(Icons.check_rounded,
+                                      color: scheme.primary)
+                                  : null,
+                              onTap: () => Navigator.of(context).pop(s),
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 底部弹窗顶部的拖拽把手（与书架筛选面板一致的视觉）。
+class _Handle extends StatelessWidget {
+  const _Handle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 36,
+        height: 4,
+        decoration: BoxDecoration(
+          color: Theme.of(context)
+              .colorScheme
+              .onSurfaceVariant
+              .withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(2),
         ),
       ),
     );

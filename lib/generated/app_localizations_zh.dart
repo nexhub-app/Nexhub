@@ -335,6 +335,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineBrowse => '在线浏览';
 
   @override
+  String get switchSource => '切换源';
+
+  @override
+  String get searchSourceHint => '搜索源名称';
+
+  @override
   String get refreshList => '刷新列表';
 
   @override
