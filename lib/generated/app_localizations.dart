@@ -1118,6 +1118,60 @@ abstract class AppLocalizations {
   /// **'Colors'**
   String get appearanceColorsSection;
 
+  /// No description provided for @appearanceFontSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Font'**
+  String get appearanceFontSection;
+
+  /// No description provided for @appearanceFont.
+  ///
+  /// In en, this message translates to:
+  /// **'App font'**
+  String get appearanceFont;
+
+  /// No description provided for @appFontFollowSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow system'**
+  String get appFontFollowSystem;
+
+  /// No description provided for @appFontFollowSystemDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the system default font'**
+  String get appFontFollowSystemDesc;
+
+  /// No description provided for @appFontPreviewSample.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview: Aa Bb, 123'**
+  String get appFontPreviewSample;
+
+  /// No description provided for @appFontCustomDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom font'**
+  String get appFontCustomDesc;
+
+  /// No description provided for @appFontCustomImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import font file (.ttf / .otf)'**
+  String get appFontCustomImport;
+
+  /// No description provided for @appFontClearCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove custom font'**
+  String get appFontClearCustom;
+
+  /// No description provided for @appFontLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load that font. Try another .ttf / .otf file'**
+  String get appFontLoadFailed;
+
   /// No description provided for @appearanceStartupSection.
   ///
   /// In en, this message translates to:

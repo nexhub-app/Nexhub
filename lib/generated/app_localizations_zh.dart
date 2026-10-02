@@ -531,6 +531,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceColorsSection => '配色';
 
   @override
+  String get appearanceFontSection => '字体';
+
+  @override
+  String get appearanceFont => '界面字体';
+
+  @override
+  String get appFontFollowSystem => '跟随系统';
+
+  @override
+  String get appFontFollowSystemDesc => '使用系统默认字体';
+
+  @override
+  String get appFontPreviewSample => '预览：永东国爱，123 Aa';
+
+  @override
+  String get appFontCustomDesc => '自定义字体';
+
+  @override
+  String get appFontCustomImport => '导入字体文件（.ttf / .otf）';
+
+  @override
+  String get appFontClearCustom => '清除自定义字体';
+
+  @override
+  String get appFontLoadFailed => '字体加载失败，请换一个 .ttf / .otf 文件试试';
+
+  @override
   String get appearanceStartupSection => '启动与显示';
 
   @override

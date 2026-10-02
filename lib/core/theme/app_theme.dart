@@ -88,11 +88,13 @@ class AppTheme {
   /// - 否则用 [seed]（缺省青春蓝）经 `ColorScheme.fromSeed` 生成，
   /// [variant] 为调色板风格变体（[PaletteStyle.variant]），
   /// [contrastLevel] 对应 Android 14+ 的无障碍对比度档位（预留，默认 0）。
+  /// [fontFamily] 为外观设置选定的界面字体字族名（null = 跟随系统）。
   static ThemeData light({
     ColorScheme? scheme,
     Color? seed,
     DynamicSchemeVariant variant = DynamicSchemeVariant.tonalSpot,
     double contrastLevel = 0.0,
+    String? fontFamily,
   }) {
     final ColorScheme colorScheme = scheme ??
         ColorScheme.fromSeed(
@@ -101,7 +103,7 @@ class AppTheme {
           dynamicSchemeVariant: variant,
           contrastLevel: contrastLevel,
         );
-    return _build(colorScheme);
+    return _build(colorScheme, fontFamily: fontFamily);
   }
 
   /// 深色主题。参数含义同 [light]。
@@ -110,6 +112,7 @@ class AppTheme {
     Color? seed,
     DynamicSchemeVariant variant = DynamicSchemeVariant.tonalSpot,
     double contrastLevel = 0.0,
+    String? fontFamily,
   }) {
     final ColorScheme colorScheme = scheme ??
         ColorScheme.fromSeed(
@@ -118,13 +121,13 @@ class AppTheme {
           dynamicSchemeVariant: variant,
           contrastLevel: contrastLevel,
         );
-    return _build(colorScheme);
+    return _build(colorScheme, fontFamily: fontFamily);
   }
 
   /// 玄色专属主题：近黑背景 + 一抹"赤"强调色（黑中扬赤）。
   /// 选中玄色时由 [ThemeController] 调用，覆盖默认的 `fromSeed` 灰阶结果，
   /// 使玄色在浅色 / 深色模式下都呈现清晰可辨的墨黑主题。
-  static ThemeData xuanSe() {
+  static ThemeData xuanSe({String? fontFamily}) {
     final ColorScheme base = ColorScheme.fromSeed(
       seedColor: AppTokens.seedXuanSeAccent,
       brightness: Brightness.dark,
@@ -143,7 +146,7 @@ class AppTheme {
       surfaceTint: Colors.transparent,
       shadow: const Color(0xFF000000),
     );
-    return _build(scheme);
+    return _build(scheme, fontFamily: fontFamily);
   }
 
   /// 统一文本主题：比 Material 3 默认字号整体偏小（约 -10%），
@@ -259,12 +262,16 @@ class AppTheme {
     );
   }
 
-  static ThemeData _build(ColorScheme colorScheme) {
+  static ThemeData _build(ColorScheme colorScheme, {String? fontFamily}) {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
       brightness: colorScheme.brightness,
       scaffoldBackgroundColor: colorScheme.surface,
+      // 界面字体（外观设置「字体」组）：ThemeData.fontFamily 作为默认字族
+      // 与显式 textTheme 合并——显式样式未设字族的字段（本项目全部如此）
+      // 都会落到该字族；null = 平台默认字体（跟随系统）。
+      fontFamily: fontFamily,
       textTheme: _textTheme(colorScheme),
       appBarTheme: AppBarTheme(
         backgroundColor: colorScheme.surface,

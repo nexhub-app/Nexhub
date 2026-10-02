@@ -10,7 +10,9 @@ library;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
+import '../../../core/theme/app_fonts.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/theme/palette_style.dart';
@@ -196,12 +198,170 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
         LocaleOption.english => l10n.languageEnglish,
       };
 
+  /// 界面字体当前选择的展示名（设置行 subtitle 用）。
+  String _fontLabel(
+      AppLocalizations l10n, ThemeController controller, bool isZh) {
+    if (controller.appFontId == kAppFontCustomId) {
+      return controller.appFontCustomName ?? l10n.appFontCustomDesc;
+    }
+    return builtInAppFontById(controller.appFontId)?.displayName(isZh) ??
+        l10n.appFontFollowSystem;
+  }
+
+  /// 「界面字体」选择弹层：内置开源字体逐行用**该字体本身**渲染预览；
+  /// 底部为自定义字体（导入 / 当前使用 / 清除）。结构仿 [_showRadioSheet]，
+  /// 仅行内容按字体预览定制，无法直接复用泛型单选。
+  Future<void> _showFontSheet(
+    BuildContext context,
+    ThemeController controller,
+    AppLocalizations l10n,
+    bool isZh,
+  ) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final String currentId = controller.appFontId;
+    return showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppTokens.spaceLg,
+                AppTokens.spaceMd,
+                AppTokens.spaceLg,
+                AppTokens.spaceSm,
+              ),
+              child: Text(
+                l10n.appearanceFont,
+                style: textTheme.titleMedium,
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    ListTile(
+                      title: Text(l10n.appFontFollowSystem),
+                      subtitle: Text(l10n.appFontFollowSystemDesc),
+                      trailing: currentId == kAppFontSystemId
+                          ? Icon(Icons.check_rounded,
+                              color: scheme.primary, size: 22)
+                          : null,
+                      onTap: () {
+                        AppHaptics.tick();
+                        Navigator.pop(ctx);
+                        controller.setAppFont(kAppFontSystemId);
+                      },
+                    ),
+                    for (final AppFontOption font in kBuiltInAppFonts)
+                      ListTile(
+                        title: Text(
+                          font.displayName(isZh),
+                          style: TextStyle(fontFamily: font.family),
+                        ),
+                        subtitle: Text(
+                          l10n.appFontPreviewSample,
+                          style: TextStyle(fontFamily: font.family),
+                        ),
+                        trailing: currentId == font.id
+                            ? Icon(Icons.check_rounded,
+                                color: scheme.primary, size: 22)
+                            : null,
+                        onTap: () {
+                          AppHaptics.tick();
+                          Navigator.pop(ctx);
+                          controller.setAppFont(font.id);
+                        },
+                      ),
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      indent: AppTokens.spaceLg,
+                      endIndent: AppTokens.spaceLg,
+                    ),
+                    if (currentId == kAppFontCustomId &&
+                        controller.appFontCustomName != null)
+                      ListTile(
+                        title: Text(
+                          controller.appFontCustomName!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(l10n.appFontCustomDesc),
+                        trailing: Icon(Icons.check_rounded,
+                            color: scheme.primary, size: 22),
+                      ),
+                    ListTile(
+                      title: Text(l10n.appFontCustomImport),
+                      onTap: () {
+                        AppHaptics.tick();
+                        Navigator.pop(ctx);
+                        _importCustomFont(context, controller, l10n);
+                      },
+                    ),
+                    if (currentId == kAppFontCustomId)
+                      ListTile(
+                        title: Text(l10n.appFontClearCustom),
+                        onTap: () {
+                          AppHaptics.tick();
+                          Navigator.pop(ctx);
+                          controller.clearAppFontCustom();
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTokens.spaceSm),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 选择 .ttf / .otf 文件并交给 [ThemeController.setAppFontCustom] 复制
+  /// 进私有目录注册；失败（文件损坏 / 格式不受支持）弹 SnackBar 提示。
+  Future<void> _importCustomFont(
+    BuildContext context,
+    ThemeController controller,
+    AppLocalizations l10n,
+  ) async {
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const <String>['ttf', 'otf'],
+      );
+    } on Object {
+      return; // 选择器被打断 / 平台不可用，视为取消。
+    }
+    if (result == null) return; // 用户取消。
+    final String? path = result.files.single.path;
+    if (path == null) return; // Web 等无路径平台不支持持久化导入。
+    final bool ok = await controller.setAppFontCustom(
+      sourcePath: path,
+      displayName: result.files.single.name,
+    );
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.appFontLoadFailed)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ThemeController controller = context.watch<ThemeController>();
     final LocaleController localeController = context.watch<LocaleController>();
     final scheme = Theme.of(context).colorScheme;
+    // 字体显示名按界面语言取中 / 英文名（字体名为专有名词，不入 arb）。
+    final bool isZh =
+        Localizations.localeOf(context).languageCode.toLowerCase() == 'zh';
 
     return AppShrinkTitleScaffold(
       title: Text(l10n.settingsCatAppearance),
@@ -418,6 +578,21 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                     trailing: CircleAvatar(
                         backgroundColor: controller.seed, radius: 14),
                     onTap: () => _openColorPicker(context, controller, l10n),
+                  ),
+                ],
+              ),
+
+              // ── 字体 ──
+              SettingsGroup(
+                key: const ValueKey<String>('appearance.font'),
+                header: l10n.appearanceFontSection,
+                children: <Widget>[
+                  SettingsTile(
+                    icon: Icons.font_download_rounded,
+                    title: l10n.appearanceFont,
+                    subtitle: _fontLabel(l10n, controller, isZh),
+                    onTap: () => _showFontSheet(
+                        context, controller, l10n, isZh),
                   ),
                 ],
               ),

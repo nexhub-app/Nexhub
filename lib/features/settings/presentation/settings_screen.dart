@@ -235,6 +235,13 @@ class SettingsScreen extends StatelessWidget {
         scrollKeyId: 'appearance.customColor',
       ),
       _SettingEntry(
+        icon: Icons.font_download_rounded,
+        title: l10n.appearanceFont,
+        keywords: const <String>['字体', '界面字体', 'font', '得意黑', '霞鹜文楷', '思源黑体', '自定义字体'],
+        builder: (_) => const SettingsAppearanceScreen(),
+        scrollKeyId: 'appearance.font',
+      ),
+      _SettingEntry(
         icon: Icons.image_rounded,
         title: l10n.heroSettingsTitle,
         desc: l10n.heroEmptyHint,

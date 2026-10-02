@@ -543,6 +543,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceColorsSection => 'Colors';
 
   @override
+  String get appearanceFontSection => 'Font';
+
+  @override
+  String get appearanceFont => 'App font';
+
+  @override
+  String get appFontFollowSystem => 'Follow system';
+
+  @override
+  String get appFontFollowSystemDesc => 'Use the system default font';
+
+  @override
+  String get appFontPreviewSample => 'Preview: Aa Bb, 123';
+
+  @override
+  String get appFontCustomDesc => 'Custom font';
+
+  @override
+  String get appFontCustomImport => 'Import font file (.ttf / .otf)';
+
+  @override
+  String get appFontClearCustom => 'Remove custom font';
+
+  @override
+  String get appFontLoadFailed =>
+      'Couldn\'t load that font. Try another .ttf / .otf file';
+
+  @override
   String get appearanceStartupSection => 'Launch & Display';
 
   @override

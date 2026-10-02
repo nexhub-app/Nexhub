@@ -22,6 +22,44 @@ void main() {
   runZonedGuarded<void>(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
+    // 内置开源字体许可（SIL OFL 1.1 要求随字体分发许可全文）。字体文件见
+    // pubspec.yaml fonts 段，许可全文位于 assets/licenses/fonts/，注册进
+    // 「关于 → 许可」页展示。读取失败时跳过对应条目，不影响其余许可。
+    LicenseRegistry.addLicense(() async* {
+      Future<String> readLicense(String asset) async {
+        try {
+          return await rootBundle.loadString(asset);
+        } on Object {
+          return '';
+        }
+      }
+
+      final String smiley =
+          await readLicense('assets/licenses/fonts/SmileySans-LICENSE.txt');
+      if (smiley.isNotEmpty) {
+        yield LicenseEntryWithLineBreaks(
+          <String>['Smiley Sans (得意黑)'],
+          smiley,
+        );
+      }
+      final String lxgw =
+          await readLicense('assets/licenses/fonts/LXGWWenKai-OFL.txt');
+      if (lxgw.isNotEmpty) {
+        yield LicenseEntryWithLineBreaks(
+          <String>['LXGW WenKai Lite (霞鹜文楷)'],
+          lxgw,
+        );
+      }
+      final String sourceHan =
+          await readLicense('assets/licenses/fonts/SourceHanSans-OFL.txt');
+      if (sourceHan.isNotEmpty) {
+        yield LicenseEntryWithLineBreaks(
+          <String>['Source Han Sans CN (思源黑体)'],
+          sourceHan,
+        );
+      }
+    });
+
     // 全局统一 edge-to-edge（手势条区域透明）：与阅读器 / 播放器退出全屏后的
     // 还原状态保持一致，修复「退出全屏后底栏被系统手势条遮挡」。Android 15+
     // 强制 edge-to-edge，此处提前统一，避免进出全屏时系统 UI 模式跳变。

@@ -179,6 +179,22 @@ flutter:
     - assets/sniffer/
     - assets/announcements.json
     - assets/shaders/anime4k/
+    # 内置开源字体的许可全文（SIL OFL 1.1 要求随字体分发），main.dart 注册
+    # 进「关于 → 许可」页。字体文件本身走下方 fonts 段，不要加进 assets
+    # （否则同一字体二进制会被打包两份）。
+    - assets/licenses/fonts/
+  # 全局界面字体（外观设置「字体」组），三款均为 SIL OFL 1.1 开源协议。
+  # 各字体仅内置 Regular 一个字重，粗体由渲染引擎合成（伪粗体）。
+  fonts:
+    - family: Smiley Sans
+      fonts:
+        - asset: assets/fonts/SmileySans-Oblique.ttf
+    - family: LXGW WenKai Lite
+      fonts:
+        - asset: assets/fonts/LXGWWenKaiLite-Regular.ttf
+    - family: Source Han Sans CN
+      fonts:
+        - asset: assets/fonts/SourceHanSansCN-Regular.otf
   # 漫画图片超分用的 Flutter FragmentProgram（shaders 段，构建期编译为 .frag）
   shaders:
     - assets/shaders/manga_upscale.frag
