@@ -482,6 +482,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Translucent blurred nav rail/bar with content scrolling behind; turn off on low-end devices';
 
   @override
+  String get sourceDragSplitTitle => 'Reorder split effect';
+
+  @override
+  String get sourceDragSplitDesc =>
+      'Split the source card with live corner updates while reordering; off keeps the card intact (simpler effect)';
+
+  @override
   String get glassBlurStrength => 'Blur strength';
 
   @override

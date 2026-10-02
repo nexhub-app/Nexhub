@@ -11,8 +11,8 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/plugin_config.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_glass_bar.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/detail_action_utils.dart';
@@ -22,6 +22,7 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
   /// 当前模块过滤类型
   final SourceType sourceType;
   final IconData emptyIcon;
+
   /// 点击某个源时的回调
   final void Function(PluginConfig source) onSourceTap;
   final VoidCallback? onAddSource;
@@ -64,9 +65,10 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
         onSecondaryAction: onEnableRecommended != null ? onAddSource : null,
       );
     } else {
-      body = ListView.builder(
+      final Widget list = ListView.builder(
         // 行首图标可点：移动端避让玻璃底栏。
-        padding: const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
+        padding:
+            const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
         itemCount: tiles.length + sources.length,
         itemBuilder: (context, i) {
           // 媒体服务器入口行前置（每台服务器一个；未配置时不占位）。
@@ -76,63 +78,100 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
               child: tiles[i],
             );
           }
-          final source = sources[i - tiles.length];
-          return AppCard(
-            onTap: () => _openSource(context, source),
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppTokens.spaceLg,
-                vertical: AppTokens.spaceXs,
+          final int idx = i - tiles.length;
+          final source = sources[idx];
+          // 每行一段与面板同色的底色（常驻面板提供整体圆角，行段在此
+          // 之上无缝相融），行间发丝分隔线。
+          final bool first = idx == 0;
+          final bool last = idx == sources.length - 1;
+          return Material(
+            color: AppTheme.cardContainer(scheme),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(
+                top: first
+                    ? const Radius.circular(AppTokens.radiusLg)
+                    : Radius.zero,
+                bottom: last
+                    ? const Radius.circular(AppTokens.radiusLg)
+                    : Radius.zero,
               ),
-              leading: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: _sourceColor(source.type, scheme).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppTokens.radiusSm),
-                ),
-                child: Icon(
-                  _sourceIcon(source.type),
-                  color: _sourceColor(source.type, scheme),
-                  size: 22,
-                ),
-              ),
-              title: Text(
-                source.name,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: <Widget>[
+                if (!first)
+                  const Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: AppTokens.spaceLg,
+                    endIndent: AppTokens.spaceLg,
+                  ),
+                ListTile(
+                  onTap: () => _openSource(context, source),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppTokens.spaceLg,
+                    vertical: AppTokens.spaceXs,
+                  ),
+                  leading: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: _sourceColor(source.type, scheme)
+                          .withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(AppTokens.radiusSm),
                     ),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: AppTokens.spaceXs),
-                child: Row(
-                  children: <Widget>[
-                    _buildStatusChip(source, scheme, l10n),
-                    const SizedBox(width: AppTokens.spaceXs),
-                    _buildAgeChip(source, scheme, l10n),
-                  ],
+                    child: Icon(
+                      _sourceIcon(source.type),
+                      color: _sourceColor(source.type, scheme),
+                      size: 22,
+                    ),
+                  ),
+                  title: Text(
+                    source.name,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                  ),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: AppTokens.spaceXs),
+                    child: Row(
+                      children: <Widget>[
+                        _buildStatusChip(source, scheme, l10n),
+                        const SizedBox(width: AppTokens.spaceXs),
+                        _buildAgeChip(source, scheme, l10n),
+                      ],
+                    ),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    tooltip: l10n.openSourceWebsite,
+                    onPressed: () =>
+                        openInAppBrowser(context, source.site.baseUrl),
+                  ),
                 ),
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.open_in_new_rounded),
-                tooltip: l10n.openSourceWebsite,
-                onPressed: () =>
-                    openInAppBrowser(context, source.site.baseUrl),
-              ),
+              ],
             ),
           );
         },
+      );
+      // 视口圆角裁剪：滚动中屏幕边缘始终圆滑；卡底只由源行分段自绘——
+      // 有源的地方铺色、没有的地方不铺（短列表贴合内容高度）。
+      // 媒体服务器入口卡独立于源卡之外，不并入连体卡。
+      body = ClipRRect(
+        borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+        child: list,
       );
     }
 
     return body;
   }
 
-  Widget _buildStatusChip(PluginConfig source, ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildStatusChip(
+      PluginConfig source, ColorScheme scheme, AppLocalizations l10n) {
     if (!source.isEnabled) {
       return Chip(
-        label: Text(l10n.deprecated, style: TextStyle(fontSize: 11, color: scheme.error)),
+        label: Text(l10n.deprecated,
+            style: TextStyle(fontSize: 11, color: scheme.error)),
         visualDensity: VisualDensity.compact,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         padding: EdgeInsets.zero,
@@ -140,7 +179,8 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
     }
     if (source.isDeprecated) {
       return Chip(
-        label: Text(l10n.deprecated, style: TextStyle(fontSize: 11, color: scheme.error)),
+        label: Text(l10n.deprecated,
+            style: TextStyle(fontSize: 11, color: scheme.error)),
         visualDensity: VisualDensity.compact,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         padding: EdgeInsets.zero,
@@ -162,23 +202,24 @@ class OnlineSourceBrowserScreen extends StatelessWidget {
   }
 
   /// 年龄分级徽章（item 10）：general=中性灰 / teen=琥珀 / mature=红，与设置页一致。
-  Widget _buildAgeChip(PluginConfig source, ColorScheme scheme, AppLocalizations l10n) {
+  Widget _buildAgeChip(
+      PluginConfig source, ColorScheme scheme, AppLocalizations l10n) {
     final (Color bg, Color fg, String label) = switch (source.ageRating) {
       SourceAgeRating.general => (
-        scheme.surfaceContainerHighest,
-        scheme.onSurfaceVariant,
-        l10n.ageRatingGeneral,
-      ),
+          scheme.surfaceContainerHighest,
+          scheme.onSurfaceVariant,
+          l10n.ageRatingGeneral,
+        ),
       SourceAgeRating.teen => (
-        scheme.tertiaryContainer,
-        scheme.onTertiaryContainer,
-        l10n.ageRatingTeen,
-      ),
+          scheme.tertiaryContainer,
+          scheme.onTertiaryContainer,
+          l10n.ageRatingTeen,
+        ),
       SourceAgeRating.mature => (
-        scheme.errorContainer,
-        scheme.onErrorContainer,
-        l10n.ageRatingMature,
-      ),
+          scheme.errorContainer,
+          scheme.onErrorContainer,
+          l10n.ageRatingMature,
+        ),
     };
     return Chip(
       label: Text(label, style: const TextStyle(fontSize: 11)),

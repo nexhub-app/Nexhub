@@ -112,6 +112,13 @@ class GeneralSettings {
   /// 深色主题在应用时自动减去一档偏移（见 [AppTokens.glassTintDark]）。
   final double glassBarOpacity;
 
+  /// 源管理拖拽排序的「断卡」动效（默认关闭，低配为默认）。
+  ///
+  /// 关闭（默认/低配）：整表一张静态强调色卡（首次对话版式），拖动中
+  /// 卡片完全不动，仅浮起强调色浮卡；
+  /// 开启（完整）：拖动时连体卡在被拖行处断开、断口两侧圆角实时跟手。
+  final bool sourceDragSplitEffect;
+
   /// Hero 轮播背景图 URL 列表（默认二次元图，可自定本地/网络）。
   final List<String> heroImageUrls;
 
@@ -128,6 +135,7 @@ class GeneralSettings {
     this.glassEffectEnabled = true,
     this.glassBlurSigma = 18.0,
     this.glassBarOpacity = 0.78,
+    this.sourceDragSplitEffect = false,
     this.heroImageUrls = kDefaultHeroImageUrls,
     this.onboardingCompleted = false,
   });
@@ -142,6 +150,7 @@ class GeneralSettings {
     bool? glassEffectEnabled,
     double? glassBlurSigma,
     double? glassBarOpacity,
+    bool? sourceDragSplitEffect,
     List<String>? heroImageUrls,
     bool? onboardingCompleted,
   }) =>
@@ -158,6 +167,8 @@ class GeneralSettings {
         glassEffectEnabled: glassEffectEnabled ?? this.glassEffectEnabled,
         glassBlurSigma: glassBlurSigma ?? this.glassBlurSigma,
         glassBarOpacity: glassBarOpacity ?? this.glassBarOpacity,
+        sourceDragSplitEffect:
+            sourceDragSplitEffect ?? this.sourceDragSplitEffect,
         heroImageUrls: heroImageUrls ?? this.heroImageUrls,
         onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       );
@@ -172,6 +183,7 @@ class GeneralSettings {
         'glassEffectEnabled': glassEffectEnabled,
         'glassBlurSigma': glassBlurSigma,
         'glassBarOpacity': glassBarOpacity,
+        'sourceDragSplitEffect': sourceDragSplitEffect,
         'heroImageUrls': heroImageUrls,
         'onboardingCompleted': onboardingCompleted,
       };
@@ -199,18 +211,17 @@ class GeneralSettings {
       ),
       rememberPosition: (json['rememberPosition'] as bool?) ?? true,
       // 缺省 / 脏数据一律回落到「开启年龄限制」这一安全侧。
-      ageRestrictionEnabled:
-          (json['ageRestrictionEnabled'] as bool?) ?? true,
+      ageRestrictionEnabled: (json['ageRestrictionEnabled'] as bool?) ?? true,
       hideNotificationContent:
           (json['hideNotificationContent'] as bool?) ?? false,
       // 缺省（老用户升级）回落 true：默认启用毛玻璃，低端机可手动关闭。
       glassEffectEnabled: (json['glassEffectEnabled'] as bool?) ?? true,
-      glassBlurSigma:
-          ((json['glassBlurSigma'] as num?)?.toDouble() ?? 18.0)
-              .clamp(0.0, 40.0),
-      glassBarOpacity:
-          ((json['glassBarOpacity'] as num?)?.toDouble() ?? 0.78)
-              .clamp(0.40, 0.95),
+      glassBlurSigma: ((json['glassBlurSigma'] as num?)?.toDouble() ?? 18.0)
+          .clamp(0.0, 40.0),
+      glassBarOpacity: ((json['glassBarOpacity'] as num?)?.toDouble() ?? 0.78)
+          .clamp(0.40, 0.95),
+      // 缺省（老用户升级）回落 false：低配版为默认。
+      sourceDragSplitEffect: (json['sourceDragSplitEffect'] as bool?) ?? false,
       heroImageUrls: (json['heroImageUrls'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
@@ -234,9 +245,11 @@ int _clampThreshold(int value) =>
 /// [progressRatio] 为 0.0–1.0 的进度比例（如 positionMs/durationMs 或
 /// (currentPage+1)/totalPages）；[thresholdPercent] 为 50–100 的百分比阈值。
 /// 达到或超过阈值返回 true，用于触发 `MediaWatchedManager.markWatched`。
-bool progressReachesWatchedThreshold(double progressRatio, int thresholdPercent) {
+bool progressReachesWatchedThreshold(
+    double progressRatio, int thresholdPercent) {
   if (thresholdPercent <= 0) return progressRatio >= 0;
-  final clamped = thresholdPercent.clamp(kWatchedThresholdMin, kWatchedThresholdMax);
+  final clamped =
+      thresholdPercent.clamp(kWatchedThresholdMin, kWatchedThresholdMax);
   return progressRatio >= clamped / 100;
 }
 
@@ -288,6 +301,15 @@ class GeneralSettingsStore extends ChangeNotifier {
     final double clamped = value.clamp(0.40, 0.95);
     if (clamped == _settings.glassBarOpacity) return;
     await save(_settings.copyWith(glassBarOpacity: clamped));
+  }
+
+  /// 是否启用源管理拖拽排序的「断卡」动效。
+  bool get sourceDragSplitEffect => _settings.sourceDragSplitEffect;
+
+  /// 设置源管理拖拽排序的「断卡」动效（持久化、广播）。
+  Future<void> setSourceDragSplitEffect(bool value) async {
+    if (value == _settings.sourceDragSplitEffect) return;
+    await save(_settings.copyWith(sourceDragSplitEffect: value));
   }
 
   /// 设置「已看」阈值百分比（自动裁剪到 50–100 并持久化、广播）。

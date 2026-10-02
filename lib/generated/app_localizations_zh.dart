@@ -471,6 +471,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get glassEffectDesc => '侧栏/底栏半透明模糊，内容从栏后滚过；低端设备可关闭';
 
   @override
+  String get sourceDragSplitTitle => '拖动排序断开动效';
+
+  @override
+  String get sourceDragSplitDesc => '拖动源排序时卡片断开、圆角实时跟随；关闭后为简化效果，卡片保持完整';
+
+  @override
   String get glassBlurStrength => '模糊强度';
 
   @override

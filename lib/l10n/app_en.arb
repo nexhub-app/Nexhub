@@ -185,6 +185,8 @@
   "useMonet": "Use dynamic color (Monet)",
   "glassEffectTitle": "Frosted glass bars",
   "glassEffectDesc": "Translucent blurred nav rail/bar with content scrolling behind; turn off on low-end devices",
+  "sourceDragSplitTitle": "Reorder split effect",
+  "sourceDragSplitDesc": "Split the source card with live corner updates while reordering; off keeps the card intact (simpler effect)",
   "glassBlurStrength": "Blur strength",
   "glassBarOpacity": "Bar opacity",
   "customColor": "Custom Color",

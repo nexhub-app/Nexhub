@@ -332,7 +332,8 @@ class AppTheme {
         // 图标尺寸由全局 iconTheme(size: 22) 统一，ListTile 不再单设。
       ),
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant,
+        // 全局发丝线统一浅色档（与源列表一致）：40% outlineVariant。
+        color: colorScheme.outlineVariant.withValues(alpha: 0.4),
         thickness: 1,
         space: AppTokens.spaceLg,
       ),

@@ -6,7 +6,6 @@ library;
 
 import 'dart:io';
 import 'dart:convert';
-import 'dart:ui' show lerpDouble;
 
 import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
@@ -16,6 +15,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/auth/source_auth_manager.dart';
 import '../../../core/models/plugin_config.dart';
+import '../../../core/settings/general_settings.dart';
 import '../../../core/services/config_loader.dart';
 import '../../../core/services/source_library_subscription.dart';
 import '../../../core/services/source_repository.dart';
@@ -24,6 +24,7 @@ import '../../../core/local/local_content_manager.dart' show isAndroidSafUri;
 import '../../../core/local/saf_bridge.dart'
     show listFolderSourceFilesSaf, pickFolderPath, readSourceText, safBaseName;
 import '../../../core/utils/app_log.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_glass_bar.dart';
@@ -72,6 +73,23 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   _SourceTab _tab = _SourceTab.list;
   final TextEditingController _urlController = TextEditingController();
 
+  // ── 长按拖动排序的实时断口跟踪 ──
+  // Flutter 拖动时被拖项在列表内是透明占位（SizedBox），其余行平移让位；
+  // 断口位置（_insertIndex）是框架内部状态，这里用同一套落点规则镜像
+  // 计算，让断口两侧的行圆角随拖动实时更新。落下/取消全部清空。
+  final Map<String, GlobalKey> _dragItemKeys = <String, GlobalKey>{};
+  List<PluginConfig>? _dragSources; // 拖拽中的源列表（起始顺序）
+  // 拖拽断口状态（被拖项起始下标 + 当前断口下标）。用 ValueNotifier 控制
+  // 重建范围：拖起与断口变化只重建列表子树，不做整页 setState。
+  final ValueNotifier<({int start, int gap})?> _dragGap =
+      ValueNotifier<({int start, int gap})?>(null);
+  double _pointerY = 0; // 最近一次指针 Y（Listener 记录）
+  double _dragRefPointerY = 0; // 拖起时刻指针 Y（位移基准）
+  double _dragOriginTopY = 0; // 被拖项起始 top（全局坐标）
+  double _dragExtent = 0; // 被拖项高度（即断口宽度）
+  Widget? _proxyTile; // 拖起时缓存的浮卡行内容（避免随指针逐帧重建）
+  bool _autoScrollQueued = false; // 自动滚动帧回调是否已排队
+
   // 是否显示隐藏源
   bool _showHidden = false;
 
@@ -96,6 +114,7 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
 
   @override
   void dispose() {
+    _dragGap.dispose();
     _urlController.dispose();
     _libraryUrlController.dispose();
     _libraryNameController.dispose();
@@ -714,7 +733,11 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   }
 
   /// 构建源列表 ListView（复用于单列表与分类 Tab）。
-  /// 支持长按拖动排序；拖拽指示器在左侧，更多按钮在右侧（避免挤在一起）。
+  /// 「设置分组同款强调色连体卡」由各行**分段底色**拼成（首末行补圆角、
+  /// 行间发丝分隔线），外层只做视口圆角裁剪——有源的地方铺色、没有的
+  /// 地方不铺，滚动中屏幕边缘也始终圆滑。拖拽时连体卡在被拖行处**断开
+  /// 成两个圆角卡**，断口随拖动实时跟手（见 [_updateLiveGap]），回落
+  /// 融为一体。无拖拽手柄，行内**长按**启动拖动排序。
   ///
   /// [scrollsWithParent] 为 true 时（媒体服务器区块并入滚动流的场景）：
   /// 列表 `shrinkWrap` 撑开全部行 + `NeverScrollableScrollPhysics` 把滚动
@@ -726,153 +749,437 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
   }) {
     // 监听登录态：源登录/登出后列表实时刷新「未登录」徽章（项 2）。
     final SourceAuthManager auth = context.watch<SourceAuthManager>();
-    final SourceRepository repo = context.watch<SourceRepository>();
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    // 低配开关（默认低配）：关闭「断卡」动效时整表为一张静态强调色卡
+    // （首次对话版式），无分段、无断开，仅浮起强调色浮卡。
+    final bool lowSpec =
+        !GeneralSettingsStore.instance.settings.sourceDragSplitEffect;
+    // 断口状态用 ValueNotifier 控制重建范围：拖起与断口变化只重建列表
+    // 子树（[_buildReorderableList]），不做整页 setState，长按拖动更顺滑。
+    final Widget list = ValueListenableBuilder<({int start, int gap})?>(
+      valueListenable: _dragGap,
+      builder: (context, drag, _) => _buildReorderableList(
+        l10n,
+        auth,
+        scheme,
+        sources,
+        scrollsWithParent,
+        lowSpec,
+        drag,
+      ),
+    );
+    // 视口处理：高配=透明圆角裁剪（滚动中边缘圆滑，卡底由行段自绘）；
+    // 低配=整表一张静态强调色圆角卡（首次对话版式），左右 12px 与前置
+    // 区块对齐。Listener 记录指针位置驱动断口重算与边缘自动滚动
+    // （[_maybeAutoScroll]）；滚动通知覆盖框架内置自动滚动场景的断口同步。
+    // 开关即时生效：监听通用设置，切换后无需重进页面。
+    return ListenableBuilder(
+      listenable: GeneralSettingsStore.instance,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (PointerDownEvent e) => _pointerY = e.position.dy,
+        onPointerMove: (PointerMoveEvent e) {
+          _pointerY = e.position.dy;
+          _updateLiveGap();
+          _maybeAutoScroll();
+        },
+        // 框架取消拖拽（系统手势等）不走 onReorderEnd，这里兜底复位。
+        onPointerCancel: (PointerCancelEvent e) => _endDrag(),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification n) {
+            // 框架内置自动滚动引起的滚动也要同步断口圆角。
+            _updateLiveGap();
+            return false;
+          },
+          child: lowSpec
+              ? Padding(
+                  // 顶部留 8px 与媒体服务器等前置区块分开：卡内的顶部留白
+                  // 属于卡底色，不构成两张卡之间的间隔。
+                  padding: const EdgeInsets.fromLTRB(
+                    AppTokens.spaceMd,
+                    AppTokens.spaceSm,
+                    AppTokens.spaceMd,
+                    0,
+                  ),
+                  child: Material(
+                    color: AppTheme.cardContainer(scheme),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: list,
+                  ),
+                )
+              : ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                  child: list,
+                ),
+        ),
+      ),
+      builder: (context, child) => child!,
+    );
+  }
+
+  /// ReorderableListView 本体。断口状态 [drag] 变化时仅此子树重建，
+  /// 断口两侧行的圆角随拖动实时更新（平移映射见内注释）。
+  /// [lowSpec] 为 true（默认，设置关闭「断卡」动效）：整表一张静态强调色
+  /// 卡（首次对话版式），无分段、无断开，拖动中卡片完全不动。
+  Widget _buildReorderableList(
+    AppLocalizations l10n,
+    SourceAuthManager auth,
+    ColorScheme scheme,
+    List<PluginConfig> sources,
+    bool scrollsWithParent,
+    bool lowSpec,
+    ({int start, int gap})? drag,
+  ) {
+    // 断口两侧行的下标（拖拽中由 [_updateLiveGap] 实时更新）。
+    // SDK 平移规则：g<d 时 [g,d) 各行下移一格、g>d 时 (d,g) 各行上移一格，
+    // 故视觉断口槽位 gapSlot = g<=d ? g : g-1；两侧行按平移映射还原。
+    // 未拖拽时 d、g 置 -1（不与任何行下标匹配）。低配模式一律 -1（不动）。
+    final int dd = drag?.start ?? -1;
+    final int gg = drag?.gap ?? -1;
+    final bool dragging = drag != null;
+    final int gapSlot = dragging ? (gg <= dd ? gg : gg - 1) : 0;
+    final int aboveGapItem =
+        (!dragging || lowSpec) ? -1 : (gg > dd + 1 ? gapSlot : gapSlot - 1);
+    final int belowGapItem = (!dragging || lowSpec)
+        ? -1
+        : (gg < dd && gapSlot + 1 <= dd ? gapSlot : gapSlot + 1);
     return ReorderableListView(
-      // 行首是拖拽手柄，移动端需避让玻璃底栏。
-      padding: const EdgeInsets.all(AppTokens.spaceMd) + context.glassBarInset,
+      // 低配（默认）：整卡为一张静态强调色卡（首次对话版式），行内容平铺，
+      // 卡自身左右 12px 与媒体服务器等前置区块对齐；高配：分段底色在缩进区
+      // 内拼成整卡。
+      padding: lowSpec
+          ? const EdgeInsets.fromLTRB(
+                0,
+                AppTokens.spaceSm,
+                0,
+                AppTokens.spaceMd,
+              ) +
+              context.glassBarInset
+          : const EdgeInsets.fromLTRB(
+                AppTokens.spaceMd,
+                AppTokens.spaceSm,
+                AppTokens.spaceMd,
+                AppTokens.spaceMd,
+              ) +
+              context.glassBarInset,
       // 媒体服务器区块场景：列表全部行直接撑开，滚动交给外层容器。
       shrinkWrap: scrollsWithParent,
       physics: scrollsWithParent ? const NeverScrollableScrollPhysics() : null,
-      // 禁用默认右侧拖动手柄，改用左侧自定义拖拽指示器（项 3）
+      // 禁用默认拖动手柄：拖动改由行内长按接管，行首不再被把手占位。
       buildDefaultDragHandles: false,
-      // 美化拖动动画：缓出曲线 + 上浮 + 主色描边 + 双层阴影（项 4）
+      // 拖起浮卡：强调色底 + 圆角 + 单层投影（无缩放/位移/描边）。
+      // 不能用传入 child：它在拖拽态重建前就被捕获，自带方角行底，会盖住
+      // 浮卡样式；这里用同一份配置现建一个无底色行内容。
       proxyDecorator: (Widget child, int index, Animation<double> animation) {
+        final Color dragBg = Color.alphaBlend(
+          scheme.primaryContainer.withValues(alpha: 0.5),
+          AppTheme.cardContainer(scheme),
+        );
         return AnimatedBuilder(
           animation: animation,
           builder: (context, _) {
-            // easeOut 曲线让缩放/阴影随拖拽进度先快后缓，更有弹性感。
             final double t = Curves.easeOut.transform(animation.value);
-            final double scale = lerpDouble(1.0, 1.04, t)!;
-            final ColorScheme scheme = Theme.of(context).colorScheme;
-            return Transform.translate(
-              // 轻微上浮：拖起时像被"拎"起来，松手回落。
-              offset: Offset(0, -3 * t),
-              child: Transform.scale(
-                scale: scale,
-                child: Opacity(
-                  opacity: lerpDouble(1.0, 0.97, t)!,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppTokens.radiusLg),
-                      border: Border.all(
-                        color: scheme.primary.withValues(alpha: 0.3 * t),
-                      ),
-                      boxShadow: <BoxShadow>[
-                        // 主阴影：随拖拽加深、扩散、下移。
-                        BoxShadow(
-                          color: scheme.shadow.withValues(alpha: 0.26 * t),
-                          blurRadius: 16 * t + 4,
-                          offset: Offset(0, 7 * t + 2),
-                        ),
-                        // 次级辉光：主色光晕，增强"浮起"感。
-                        BoxShadow(
-                          color: scheme.primary.withValues(alpha: 0.12 * t),
-                          blurRadius: 28 * t,
-                          offset: Offset(0, 3 * t),
-                        ),
-                      ],
-                    ),
-                    child: child,
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                color: dragBg,
+                borderRadius: BorderRadius.circular(AppTokens.radiusLg),
+                boxShadow: <BoxShadow>[
+                  // 阴影随拖拽进度渐入，先快后缓。
+                  BoxShadow(
+                    color: scheme.shadow.withValues(alpha: 0.26 * t),
+                    blurRadius: 16 * t + 4,
+                    offset: Offset(0, 7 * t + 2),
                   ),
-                ),
+                ],
               ),
+              // 拖起时缓存的行内容：代理随指针每帧重建，行内容只建一次。
+              // 松手后的回落动画每帧仍会走到这里（_dragGap 已空），故不判空。
+              child: _proxyTile ?? child,
             );
           },
         );
       },
+      // 拖起：记录被拖项几何与指针基准，断口从起始位开始跟随；落下：
+      // 清空，行圆角复位、融回连体卡。全程不整页 setState。
+      onReorderStart: (int index) {
+        final Rect? r = _dragItemRect(sources[index].id);
+        _proxyTile = _sourceTile(l10n, auth, sources[index]);
+        _dragSources = sources;
+        _dragOriginTopY = r?.top ?? 0;
+        _dragExtent = r?.height ?? 0;
+        _dragRefPointerY = _pointerY;
+        _dragGap.value = (start: index, gap: index);
+      },
+      onReorderEnd: (int index) => _endDrag(),
       onReorderItem: (int oldIndex, int newIndex) {
         final ids = sources.map((s) => s.id).toList();
         final moved = ids.removeAt(oldIndex);
         ids.insert(newIndex, moved);
-        repo.setSourceOrder(ids);
+        context.read<SourceRepository>().setSourceOrder(ids);
       },
       children: <Widget>[
-        for (final s in sources)
-          Padding(
-            key: Key(s.id),
-            padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                // 左侧拖拽手柄：ReorderableDragStartListener 包裹图标（项 1+3+4）
-                ReorderableDragStartListener(
-                  index: sources.indexOf(s),
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: AppTokens.spaceXs),
-                    child: Icon(Icons.drag_indicator_rounded,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant
-                            .withValues(alpha: 0.45),
-                        size: 20),
-                  ),
-                ),
-                Expanded(
-                  child: AppCard(
-                    padding: EdgeInsets.zero,
-                    child: UnifiedSourceTile(
-                      name: s.name,
-                      url: s.site.baseUrl,
-                      enabled: s.isEnabled,
-                      deprecated: s.isDeprecated,
-                      ageRating: s.ageRating,
-                      isHidden: s.isHidden,
-                      // 项 2：仅对声明了登录入口、且当前未登录的源显示「未登录」。
-                      showNotLoggedIn: s.comments?.supportsLogin == true &&
-                          !auth.isLoggedIn(s),
-                      deprecatedLabel: l10n.deprecated,
-                      mirrorSettingsTooltip: l10n.mirrorSettings,
-                      hideTooltip: l10n.sourceHide,
-                      unhideTooltip: l10n.sourceShowHidden,
-                      editTooltip: l10n.sourceEdit,
-                      deleteTooltip: l10n.sourceDelete,
-                      migrateTooltip: l10n.sourceMigrate,
-                      networkOverrideTooltip: l10n.sourceNetworkOverride,
-                      loginTooltip: l10n.sourceLogin,
-                      // 源管理页：操作收进「更多」菜单，更清爽
-                      useMoreMenu: true,
-                      moreMenuTooltip: l10n.moreActions,
-                      isIncognito: ConfigLoader.instance.isIncognito(s),
-                      incognitoTooltip: l10n.incognitoMode,
-                      onIncognitoToggle: (bool value) async {
-                        await ConfigLoader.instance.setIncognito(s.id, value);
-                        if (mounted) setState(() {});
-                      },
-                      onToggle: (bool value) => context
-                          .read<SourceRepository>()
-                          .setEnabled(s.id, value),
-                      onMirrorSettings: () => Navigator.of(context).push(
-                        AppPageRoute<void>(
-                          builder: (_) => SourceMirrorScreen(source: s),
+        for (final (i, s) in sources.indexed)
+          KeyedSubtree(
+            // GlobalKey 供拖拽中实时量取行矩形（镜像落点规则用）。
+            key: _dragKey(s.id),
+            child: lowSpec
+                ? // 低配（默认）：行内容平铺在整卡上，无分段底色、无圆角。
+                Column(
+                    children: <Widget>[
+                      if (i > 0)
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          indent: AppTokens.spaceLg,
+                          endIndent: AppTokens.spaceLg,
                         ),
+                      ReorderableDelayedDragStartListener(
+                        index: i,
+                        child: _sourceTile(l10n, auth, s),
                       ),
-                      onNetworkOverride: () => Navigator.of(context).push(
-                        AppPageRoute<void>(
-                          builder: (_) =>
-                              SourceNetworkOverrideScreen(source: s),
+                    ],
+                  )
+                : Container(
+                    key: Key(s.id),
+                    decoration: BoxDecoration(
+                      // 分段底色拼出连体卡；列表内被拖项由框架隐藏为透明占位。
+                      color: AppTheme.cardContainer(scheme),
+                      borderRadius: BorderRadius.vertical(
+                        top: (i == 0 || i == belowGapItem)
+                            ? const Radius.circular(AppTokens.radiusLg)
+                            : Radius.zero,
+                        bottom: (i == sources.length - 1 || i == aboveGapItem)
+                            ? const Radius.circular(AppTokens.radiusLg)
+                            : Radius.zero,
+                      ),
+                    ),
+                    child: Column(
+                      children: <Widget>[
+                        // 发丝分隔线随行携带（与设置分组一致），首行无线。
+                        if (i > 0)
+                          const Divider(
+                            height: 1,
+                            thickness: 1,
+                            indent: AppTokens.spaceLg,
+                            endIndent: AppTokens.spaceLg,
+                          ),
+                        // 长按整行启动拖动；开关/「更多」菜单等控件自身手势
+                        // 优先，点击行为不受影响。
+                        ReorderableDelayedDragStartListener(
+                          index: i,
+                          child: _sourceTile(l10n, auth, s),
                         ),
-                      ),
-                      onLogin: () => Navigator.of(context).push(
-                        AppPageRoute<void>(
-                          builder: (_) => SourceLoginScreen(source: s),
-                        ),
-                      ),
-                      onHide: () => context
-                          .read<SourceRepository>()
-                          .setHidden(s.id, !s.isHidden),
-                      onEdit: () => _showEditDialog(s),
-                      onDelete: () => _showDeleteConfirm(s),
-                      onMigrate: s.migrationMessage != null
-                          ? () => _showMigrateDialog(s)
-                          : null,
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
           ),
       ],
     );
+  }
+
+  /// 源行内容（列表行与拖拽浮卡共用）：无自带卡底，底色由外层提供。
+  Widget _sourceTile(
+    AppLocalizations l10n,
+    SourceAuthManager auth,
+    PluginConfig s,
+  ) {
+    return UnifiedSourceTile(
+      name: s.name,
+      url: s.site.baseUrl,
+      enabled: s.isEnabled,
+      deprecated: s.isDeprecated,
+      ageRating: s.ageRating,
+      isHidden: s.isHidden,
+      // 项 2：仅对声明了登录入口、且当前未登录的源显示「未登录」。
+      showNotLoggedIn: s.comments?.supportsLogin == true && !auth.isLoggedIn(s),
+      deprecatedLabel: l10n.deprecated,
+      mirrorSettingsTooltip: l10n.mirrorSettings,
+      hideTooltip: l10n.sourceHide,
+      unhideTooltip: l10n.sourceShowHidden,
+      editTooltip: l10n.sourceEdit,
+      deleteTooltip: l10n.sourceDelete,
+      migrateTooltip: l10n.sourceMigrate,
+      networkOverrideTooltip: l10n.sourceNetworkOverride,
+      loginTooltip: l10n.sourceLogin,
+      // 源管理页：操作收进「更多」菜单，更清爽
+      useMoreMenu: true,
+      moreMenuTooltip: l10n.moreActions,
+      isIncognito: ConfigLoader.instance.isIncognito(s),
+      incognitoTooltip: l10n.incognitoMode,
+      onIncognitoToggle: (bool value) async {
+        await ConfigLoader.instance.setIncognito(s.id, value);
+        if (mounted) setState(() {});
+      },
+      onToggle: (bool value) =>
+          context.read<SourceRepository>().setEnabled(s.id, value),
+      onMirrorSettings: () => Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => SourceMirrorScreen(source: s),
+        ),
+      ),
+      onNetworkOverride: () => Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => SourceNetworkOverrideScreen(source: s),
+        ),
+      ),
+      onLogin: () => Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => SourceLoginScreen(source: s),
+        ),
+      ),
+      onHide: () =>
+          context.read<SourceRepository>().setHidden(s.id, !s.isHidden),
+      onEdit: () => _showEditDialog(s),
+      onDelete: () => _showDeleteConfirm(s),
+      onMigrate:
+          s.migrationMessage != null ? () => _showMigrateDialog(s) : null,
+    );
+  }
+
+  GlobalKey _dragKey(String id) => _dragItemKeys.putIfAbsent(id, GlobalKey.new);
+
+  Rect? _dragItemRect(String id) {
+    final BuildContext? ctx = _dragItemKeys[id]?.currentContext;
+    if (ctx == null) return null;
+    final RenderObject? ro = ctx.findRenderObject();
+    if (ro is! RenderBox || !ro.attached) return null;
+    return ro.localToGlobal(Offset.zero) & ro.size;
+  }
+
+  void _endDrag() {
+    if (_dragGap.value == null) return;
+    _dragSources = null;
+    // _proxyTile 不清空：松手后浮卡还有约 250ms 回落动画，期间代理每帧
+    // 仍会重建（此时 _dragGap 已空），清空会触发「Null check operator」
+    // 崩溃；缓存会在下一次拖起时整体覆盖。
+    _dragGap.value = null;
+  }
+
+  /// 镜像 SliverReorderableList._dragUpdateItems 的落点规则
+  /// （vertical / 非 reverse）：以「浮卡起止边 vs 各行实时矩形」求出
+  /// 断口下标，驱动断口两侧行圆角随拖动更新。由拖拽期间的逐帧核对
+  /// （[_queueGapCheck]）触发，指针移动与列表自动滚动都覆盖。
+  void _updateLiveGap() {
+    // 低配模式：不做实时断口（卡片不动，仅拖起/松手时变化）。
+    if (!GeneralSettingsStore.instance.settings.sourceDragSplitEffect) {
+      return;
+    }
+    final List<PluginConfig>? sources = _dragSources;
+    final ({int start, int gap})? drag = _dragGap.value;
+    if (sources == null || drag == null) return;
+    final double proxyStart = _dragOriginTopY + (_pointerY - _dragRefPointerY);
+    final double proxyEnd = proxyStart + _dragExtent;
+    int newIndex = drag.gap;
+    for (int i = 0; i < sources.length; i++) {
+      if (i == drag.start) {
+        // 被拖项的 GlobalKey 已随浮卡重挂载到 Overlay，量不到原始槽位，
+        // 直接用拖起时捕获的几何：浮卡末边回到原槽位后半段时断口回起点。
+        final double itemMiddle = _dragOriginTopY + _dragExtent / 2;
+        final double itemEnd = _dragOriginTopY + _dragExtent;
+        if (itemMiddle <= proxyEnd && proxyEnd <= itemEnd) newIndex = i;
+        continue;
+      }
+      final Rect? r = _dragItemRect(sources[i].id);
+      if (r == null) continue;
+      final double itemStart = r.top;
+      final double itemEnd = r.bottom;
+      final double itemMiddle = r.top + r.height / 2;
+      if (itemStart <= proxyStart && proxyStart <= itemMiddle) {
+        // 浮卡起边进入该行前半段：断口换到该行之前。
+        newIndex = i;
+        break;
+      }
+      if (itemMiddle <= proxyEnd && proxyEnd <= itemEnd) {
+        // 浮卡末边进入该行后半段：断口换到该行之后。
+        newIndex = i + 1;
+        break;
+      }
+      if (itemEnd < proxyStart && newIndex < i + 1) {
+        newIndex = i + 1;
+      } else if (proxyEnd < itemStart && newIndex > i) {
+        newIndex = i;
+      }
+    }
+    if (newIndex != drag.gap) {
+      _dragGap.value = (start: drag.start, gap: newIndex);
+    }
+  }
+
+  /// 拖拽自动滚动。正常流程由框架内置的 EdgeDraggingAutoScroller 负责，
+  /// 这里只在它失效时接管：内层列表为 NeverScrollable（shrinkWrap 并入
+  /// 外层滚动流）时，内置滚动被 physics 门禁停用，改为滚动外层容器。
+  /// 指针贴近视口上下边缘时逐帧步进滚动，离开边缘或拖拽结束自动停止。
+  void _maybeAutoScroll() {
+    if (_autoScrollQueued) return;
+    _autoScrollQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoScrollQueued = false;
+      if (!mounted || _dragGap.value == null) return;
+      // 先用上一帧滚动后的新矩形重算断口，再滚下一步（jumpTo 当帧不重排）。
+      _updateLiveGap();
+      if (_scrollTowardEdge()) {
+        _maybeAutoScroll();
+      }
+    });
+  }
+
+  /// 向指针所在的边缘滚动一步；返回指针是否仍在边缘触发区内。
+  bool _scrollTowardEdge() {
+    final List<PluginConfig>? sources = _dragSources;
+    final int? d = _dragGap.value?.start;
+    if (sources == null || d == null || d >= sources.length) return false;
+    // 锚点取一个仍在列表内的行：被拖项的 GlobalKey 已随浮卡挂到 Overlay，
+    // 那条链上没有滚动容器。
+    BuildContext? anchorCtx;
+    for (final PluginConfig s in sources) {
+      if (s.id == sources[d].id) continue;
+      final BuildContext? c = _dragItemKeys[s.id]?.currentContext;
+      if (c != null && c.mounted) {
+        anchorCtx = c;
+        break;
+      }
+    }
+    if (anchorCtx == null) return false;
+    ScrollableState? s = Scrollable.maybeOf(anchorCtx);
+    // 框架内置自动滚动可用时交给框架（避免双重滚动）。
+    if (s != null &&
+        (s.resolvedPhysics?.shouldAcceptUserOffset(s.position) ?? true)) {
+      return false;
+    }
+    // 内层不可滚（NeverScrollable）：向外找第一个有可滚行程的容器。
+    while (
+        s != null && s.position.maxScrollExtent <= s.position.minScrollExtent) {
+      s = Scrollable.maybeOf(s.context);
+    }
+    if (s == null) return false;
+    final RenderBox box = s.context.findRenderObject()! as RenderBox;
+    final Rect viewport = box.localToGlobal(Offset.zero) & box.size;
+    const double edgeZone = 80;
+    const double maxStep = 14;
+    final double y = _pointerY;
+    final double pixels = s.position.pixels;
+    double? target;
+    if (y < viewport.top + edgeZone && pixels > s.position.minScrollExtent) {
+      final double t =
+          ((viewport.top + edgeZone - y) / edgeZone).clamp(0.0, 1.0);
+      target = pixels - maxStep * t;
+    } else if (y > viewport.bottom - edgeZone &&
+        pixels < s.position.maxScrollExtent) {
+      final double t =
+          ((y - (viewport.bottom - edgeZone)) / edgeZone).clamp(0.0, 1.0);
+      target = pixels + maxStep * t;
+    }
+    if (target == null) return false;
+    target = target.clamp(
+      s.position.minScrollExtent,
+      s.position.maxScrollExtent,
+    );
+    if ((target - pixels).abs() < 0.5) return false;
+    s.position.jumpTo(target);
+    return true;
   }
 
   // ═══════════════════════════════════════════════════════════════════════

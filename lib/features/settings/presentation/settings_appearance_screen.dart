@@ -317,6 +317,26 @@ class _SettingsAppearanceScreenState extends State<SettingsAppearanceScreen> {
                       );
                     },
                   ),
+                  // 源管理拖拽排序的「断卡」动效（低配设备可关闭为简化效果）。
+                  ListenableBuilder(
+                    listenable: GeneralSettingsStore.instance,
+                    builder: (context, _) {
+                      final GeneralSettingsStore store =
+                          GeneralSettingsStore.instance;
+                      return SettingsTile(
+                        icon: Icons.animation_rounded,
+                        title: l10n.sourceDragSplitTitle,
+                        subtitle: l10n.sourceDragSplitDesc,
+                        trailing: Switch(
+                          value: store.settings.sourceDragSplitEffect,
+                          onChanged: (bool v) {
+                            v ? AppHaptics.toggleOn() : AppHaptics.toggleOff();
+                            store.setSourceDragSplitEffect(v);
+                          },
+                        ),
+                      );
+                    },
+                  ),
                   SettingsTile(
                     icon: Icons.palette_rounded,
                     title: l10n.paletteStyleTitle,

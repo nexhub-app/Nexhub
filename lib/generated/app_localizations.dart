@@ -998,6 +998,18 @@ abstract class AppLocalizations {
   /// **'Translucent blurred nav rail/bar with content scrolling behind; turn off on low-end devices'**
   String get glassEffectDesc;
 
+  /// No description provided for @sourceDragSplitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder split effect'**
+  String get sourceDragSplitTitle;
+
+  /// No description provided for @sourceDragSplitDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Split the source card with live corner updates while reordering; off keeps the card intact (simpler effect)'**
+  String get sourceDragSplitDesc;
+
   /// No description provided for @glassBlurStrength.
   ///
   /// In en, this message translates to:
