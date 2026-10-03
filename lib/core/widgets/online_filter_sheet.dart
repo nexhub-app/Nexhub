@@ -565,11 +565,41 @@ class _DynamicFilterSheetState extends State<_DynamicFilterSheet> {
   late List<DynamicFilterSelection> _selected;
   String? _activeRoute;
 
+  /// 已展开的分组 id 集合。
+  ///
+  /// 懒加载核心：折叠分组的选项 Wrap 完全不参与构建，大分组源（数百个
+  /// chip）打开面板时只构建分组标题，展开哪个才构建哪个。
+  ///
+  /// 默认展开策略：全部选项总数不超过 [_autoExpandOptionLimit] 的小配置
+  /// 保持旧版「一打开全展开」的浏览体验；超过则全部折叠，仅已有选中值的
+  /// 分组自动展开（用户能看到当前生效的筛选）。
+  final Set<String> _expandedGroups = <String>{};
+
+  /// 小配置阈值：全部分组选项总数 ≤ 此值时默认全展开（无卡顿，少一次点击）。
+  static const int _autoExpandOptionLimit = 60;
+
   @override
   void initState() {
     super.initState();
     _selected = List<DynamicFilterSelection>.from(widget.initial.selections);
     _activeRoute = widget.initial.route;
+    final totalOptions = widget.groups
+        .fold<int>(0, (sum, g) => sum + g.options.length);
+    final expandAll = totalOptions <= _autoExpandOptionLimit;
+    for (final g in widget.groups) {
+      if (g.options.isEmpty) continue;
+      if (expandAll || _selected.any((s) => s.groupId == g.id)) {
+        _expandedGroups.add(g.id);
+      }
+    }
+  }
+
+  void _toggleExpanded(String groupId) {
+    AppHaptics.selectionClick();
+    setState(() {
+      // Set.remove 返回是否确实移除：false 表示原本不存在，转为添加。
+      if (!_expandedGroups.remove(groupId)) _expandedGroups.add(groupId);
+    });
   }
 
   /// 分组的有效路由（分组自声明优先，缺省回退 `category`）。
@@ -636,6 +666,103 @@ class _DynamicFilterSheetState extends State<_DynamicFilterSheet> {
     };
   }
 
+  /// 折叠分组标题上展示的已选摘要（如「已选: 日本, 2024」）；无选中返回 null。
+  String? _selectedSummary(AppLocalizations l10n, FilterGroupConfig g) {
+    final labels = _selected
+        .where((s) => s.groupId == g.id)
+        .map((s) {
+          for (final opt in g.options) {
+            if (opt.value == s.value) return opt.label;
+          }
+          return s.value;
+        })
+        .toList();
+    if (labels.isEmpty) return null;
+    return '${l10n.filterSelectedPrefix}: ${labels.join(', ')}';
+  }
+
+  /// 单个筛选分组：可折叠标题行 + 懒加载的选项 Wrap。
+  ///
+  /// 折叠时 Wrap 不在组件树中（零构建成本）；展开时才首次构建。
+  /// AnimatedSize 提供展开/收起的高度过渡，选项构建发生在点击当下。
+  Widget _buildGroup(
+    AppLocalizations l10n,
+    FilterGroupConfig g, {
+    required bool expanded,
+  }) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        InkWell(
+          borderRadius: BorderRadius.circular(AppTokens.radiusSm),
+          onTap: () => _toggleExpanded(g.id),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppTokens.spaceXs),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    _groupTitle(l10n, g),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                if (!expanded) ...<Widget>[
+                  const SizedBox(width: AppTokens.spaceSm),
+                  Flexible(
+                    child: Text(
+                      _selectedSummary(l10n, g) ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
+                AnimatedRotation(
+                  turns: expanded ? 0.5 : 0,
+                  duration: AppTokens.durFast,
+                  child: Icon(
+                    Icons.expand_more_rounded,
+                    size: 20,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: AppTokens.durFast,
+          alignment: Alignment.topCenter,
+          child: expanded
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: AppTokens.spaceMd),
+                  child: Wrap(
+                    spacing: AppTokens.spaceXs,
+                    runSpacing: AppTokens.spaceXs,
+                    children: g.options.map((opt) {
+                      return ChoiceChip(
+                        label: Text(opt.label),
+                        selected: _isSelected(g, opt.value),
+                        onSelected: (_) {
+                          AppHaptics.selectionClick();
+                          _toggle(g, opt.value);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                )
+              // 折叠态：零高度占位，保持 AnimatedSize 的尺寸动画基准。
+              : const SizedBox(width: double.infinity, height: 0),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -667,26 +794,14 @@ class _DynamicFilterSheetState extends State<_DynamicFilterSheet> {
               ),
               const Divider(),
 
-              // 动态分组
+              // 动态分组（可折叠；折叠时不构建选项 Wrap，减少首次构建卡顿）
               for (final g in widget.groups)
-                if (g.options.isNotEmpty) ...<Widget>[
-                  _sectionLabel(_groupTitle(l10n, g), theme),
-                  Wrap(
-                    spacing: AppTokens.spaceXs,
-                    runSpacing: AppTokens.spaceXs,
-                    children: g.options.map((opt) {
-                      return ChoiceChip(
-                        label: Text(opt.label),
-                        selected: _isSelected(g, opt.value),
-                        onSelected: (_) {
-                          AppHaptics.selectionClick();
-                          _toggle(g, opt.value);
-                        },
-                      );
-                    }).toList(),
+                if (g.options.isNotEmpty)
+                  _buildGroup(
+                    l10n,
+                    g,
+                    expanded: _expandedGroups.contains(g.id),
                   ),
-                  const SizedBox(height: AppTokens.spaceMd),
-                ],
 
               // 底部按钮
               Row(
@@ -706,18 +821,6 @@ class _DynamicFilterSheetState extends State<_DynamicFilterSheet> {
           ),
         ),
       ),
-      ),
-    );
-  }
-
-  Widget _sectionLabel(String text, ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTokens.spaceXs),
-      child: Text(
-        text,
-        style: theme.textTheme.titleSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
       ),
     );
   }

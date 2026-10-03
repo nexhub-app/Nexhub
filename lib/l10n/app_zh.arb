@@ -54,6 +54,10 @@
   "progressNotStarted": "未看",
   "filterReset": "重置",
   "filterApply": "应用",
+  "filterSelectedPrefix": "已选",
+  "@filterSelectedPrefix": {
+    "description": "折叠的筛选分组标题上展示当前已选选项标签时的前缀"
+  },
   "play": "播放",
   "readChapter": "阅读",
   "episodesWithLine": "剧集 · {line}",
@@ -1417,8 +1421,33 @@
   "sourceEditBuiltinNotAllowed": "内置源不可编辑",
   "sourceEditSaved": "源已更新",
   "sourceEditFailed": "源更新失败",
-  "sourceEditJsonHint": "在此编辑该源的全部字段（JSON）。保存后将覆盖原配置，请确认格式正确。",
+  "sourceEditJsonHint": "按模块折叠编辑该源的全部字段（JSON），点模块标题展开/收起，折叠模块的内容展开时才加载。清空某模块内容并保存即删除该字段；id 已锁定，不可修改。",
   "sourceEditInvalidJson": "JSON 格式或字段校验未通过，请检查后重试。",
+  "sourceEditSectionItems": "{count} 项",
+  "@sourceEditSectionItems": {
+    "description": "源编辑页折叠模块标题上的摘要：该 JSON 对象或数组包含的条目数",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sourceEditAddField": "添加字段",
+  "@sourceEditAddField": {
+    "description": "源编辑页按钮：新增一个顶层 JSON 字段并作为独立折叠模块编辑"
+  },
+  "sourceEditFieldName": "字段名",
+  "@sourceEditFieldName": {
+    "description": "源编辑页添加字段对话框的输入框标签"
+  },
+  "sourceEditFieldExists": "该字段已存在",
+  "@sourceEditFieldExists": {
+    "description": "源编辑页新增字段时重名的错误提示"
+  },
+  "sourceEditIdLocked": "id 已锁定，保存时保持不变",
+  "@sourceEditIdLocked": {
+    "description": "源编辑页 id 模块锁形图标的悬浮提示"
+  },
   "sourceDeleteBuiltinNotAllowed": "内置源不可删除",
   "sourceDeleted": "源已删除",
   "sourceDeleteFailed": "源删除失败",

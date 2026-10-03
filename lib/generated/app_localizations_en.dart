@@ -174,6 +174,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filterApply => 'Apply';
 
   @override
+  String get filterSelectedPrefix => 'Selected';
+
+  @override
   String get play => 'Play';
 
   @override
@@ -2771,11 +2774,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sourceEditJsonHint =>
-      'Edit all fields of this source here (JSON). Saving overwrites the original config; ensure the format is valid.';
+      'Edit all fields of this source as JSON in collapsible modules. Tap a module title to expand or collapse; a module\'s content is only loaded when expanded. Clearing a module and saving deletes that field. The id is locked and cannot be changed.';
 
   @override
   String get sourceEditInvalidJson =>
       'JSON format or field validation failed. Please fix and retry.';
+
+  @override
+  String sourceEditSectionItems(int count) {
+    return '$count entries';
+  }
+
+  @override
+  String get sourceEditAddField => 'Add field';
+
+  @override
+  String get sourceEditFieldName => 'Field name';
+
+  @override
+  String get sourceEditFieldExists => 'This field already exists';
+
+  @override
+  String get sourceEditIdLocked => 'id is locked and stays unchanged on save';
 
   @override
   String get sourceDeleteBuiltinNotAllowed =>

@@ -422,6 +422,12 @@ abstract class AppLocalizations {
   /// **'Apply'**
   String get filterApply;
 
+  /// Prefix shown on a collapsed filter group header listing its currently selected option labels
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get filterSelectedPrefix;
+
   /// No description provided for @play.
   ///
   /// In en, this message translates to:
@@ -5369,7 +5375,7 @@ abstract class AppLocalizations {
   /// No description provided for @sourceEditJsonHint.
   ///
   /// In en, this message translates to:
-  /// **'Edit all fields of this source here (JSON). Saving overwrites the original config; ensure the format is valid.'**
+  /// **'Edit all fields of this source as JSON in collapsible modules. Tap a module title to expand or collapse; a module\'s content is only loaded when expanded. Clearing a module and saving deletes that field. The id is locked and cannot be changed.'**
   String get sourceEditJsonHint;
 
   /// No description provided for @sourceEditInvalidJson.
@@ -5377,6 +5383,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'JSON format or field validation failed. Please fix and retry.'**
   String get sourceEditInvalidJson;
+
+  /// Summary on a collapsed source-edit module header: how many entries the JSON object or array holds
+  ///
+  /// In en, this message translates to:
+  /// **'{count} entries'**
+  String sourceEditSectionItems(int count);
+
+  /// Button on the source-edit screen: add a new top-level JSON field as its own collapsible module
+  ///
+  /// In en, this message translates to:
+  /// **'Add field'**
+  String get sourceEditAddField;
+
+  /// Input label in the add-field dialog on the source-edit screen
+  ///
+  /// In en, this message translates to:
+  /// **'Field name'**
+  String get sourceEditFieldName;
+
+  /// Error when adding a top-level field whose name already exists on the source-edit screen
+  ///
+  /// In en, this message translates to:
+  /// **'This field already exists'**
+  String get sourceEditFieldExists;
+
+  /// Tooltip on the lock icon of the id module in the source-edit screen
+  ///
+  /// In en, this message translates to:
+  /// **'id is locked and stays unchanged on save'**
+  String get sourceEditIdLocked;
 
   /// No description provided for @sourceDeleteBuiltinNotAllowed.
   ///

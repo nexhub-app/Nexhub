@@ -57,6 +57,10 @@
   "progressNotStarted": "Not started",
   "filterReset": "Reset",
   "filterApply": "Apply",
+  "filterSelectedPrefix": "Selected",
+  "@filterSelectedPrefix": {
+    "description": "Prefix shown on a collapsed filter group header listing its currently selected option labels"
+  },
   "play": "Play",
   "readChapter": "Read",
   "episodesWithLine": "Episodes · {line}",
@@ -1438,8 +1442,33 @@
   "sourceEditBuiltinNotAllowed": "Built-in sources cannot be edited",
   "sourceEditSaved": "Source updated",
   "sourceEditFailed": "Failed to update source",
-  "sourceEditJsonHint": "Edit all fields of this source here (JSON). Saving overwrites the original config; ensure the format is valid.",
+  "sourceEditJsonHint": "Edit all fields of this source as JSON in collapsible modules. Tap a module title to expand or collapse; a module's content is only loaded when expanded. Clearing a module and saving deletes that field. The id is locked and cannot be changed.",
   "sourceEditInvalidJson": "JSON format or field validation failed. Please fix and retry.",
+  "sourceEditSectionItems": "{count} entries",
+  "@sourceEditSectionItems": {
+    "description": "Summary on a collapsed source-edit module header: how many entries the JSON object or array holds",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sourceEditAddField": "Add field",
+  "@sourceEditAddField": {
+    "description": "Button on the source-edit screen: add a new top-level JSON field as its own collapsible module"
+  },
+  "sourceEditFieldName": "Field name",
+  "@sourceEditFieldName": {
+    "description": "Input label in the add-field dialog on the source-edit screen"
+  },
+  "sourceEditFieldExists": "This field already exists",
+  "@sourceEditFieldExists": {
+    "description": "Error when adding a top-level field whose name already exists on the source-edit screen"
+  },
+  "sourceEditIdLocked": "id is locked and stays unchanged on save",
+  "@sourceEditIdLocked": {
+    "description": "Tooltip on the lock icon of the id module in the source-edit screen"
+  },
   "sourceDeleteBuiltinNotAllowed": "Built-in sources cannot be deleted",
   "sourceDeleted": "Source deleted",
   "sourceDeleteFailed": "Failed to delete source",

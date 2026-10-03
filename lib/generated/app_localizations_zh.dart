@@ -171,6 +171,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get filterApply => '应用';
 
   @override
+  String get filterSelectedPrefix => '已选';
+
+  @override
   String get play => '播放';
 
   @override
@@ -2726,10 +2729,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceEditFailed => '源更新失败';
 
   @override
-  String get sourceEditJsonHint => '在此编辑该源的全部字段（JSON）。保存后将覆盖原配置，请确认格式正确。';
+  String get sourceEditJsonHint =>
+      '按模块折叠编辑该源的全部字段（JSON），点模块标题展开/收起，折叠模块的内容展开时才加载。清空某模块内容并保存即删除该字段；id 已锁定，不可修改。';
 
   @override
   String get sourceEditInvalidJson => 'JSON 格式或字段校验未通过，请检查后重试。';
+
+  @override
+  String sourceEditSectionItems(int count) {
+    return '$count 项';
+  }
+
+  @override
+  String get sourceEditAddField => '添加字段';
+
+  @override
+  String get sourceEditFieldName => '字段名';
+
+  @override
+  String get sourceEditFieldExists => '该字段已存在';
+
+  @override
+  String get sourceEditIdLocked => 'id 已锁定，保存时保持不变';
 
   @override
   String get sourceDeleteBuiltinNotAllowed => '内置源不可删除';
