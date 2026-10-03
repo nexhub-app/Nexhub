@@ -95,13 +95,13 @@ Each source's "site metadata" and "network access method" are written in the sou
 | `network.dns` | object? | DNS override, e.g. `{ "mode": "doh", "dohUrl": "https://cloudflare-dns.com/dns-query" }` or `{ "mode": "custom", "servers": ["8.8.8.8"] }`; also supports `resolveSuffix` / `resolveSuffixDomains` (see below) |
 | `network.hosts` | array? | Hosts override, each `{ "ip": "1.2.3.4", "host": "example.com", "enabled": true }` |
 | `network.sni` | object? | SNI override, e.g. `{ "enabled": true, "defaultSni": "-" }`; value `-` suppresses SNI entirely, a domain uses that domain as SNI, and `domainSni` maps host patterns (`.example.com` for suffix match) to SNI values |
-| `network.ech` | object? | ECH override (not wired up at runtime yet, see limitation below) |
+| `network.ech` | object? | ECH override, e.g. `{ "enabled": true, "echConfigList": "<base64>" }`; native-engine driven, effective for direct HTTPS (see note below) |
 
 Rules: a key that is **absent = inherit global**; a key that is set = **override the whole aspect**. Priority: **user UI override for the source > source JSON `network` block > global settings > defaults**. Invalid values only warn and never disable the source.
 
 > **How `sni` works**: genuinely effective for direct HTTPS connections (the TLS handshake is completed in-app, so SNI can be overridden with the configured value or suppressed with `-`; suppressing SNI together with hosts pinning a reachable IP bypasses SNI-based blocking — the Cloudflare edge accepts no-SNI handshakes and routes by the Host header). Not applied through a proxy.
 >
-> ⚠️ Honest limitations: `ech` is not wired up at runtime due to Dart TLS-stack limits — for restricted sites prefer `sni` (no-SNI / custom value) combined with `hosts`, or a local ECH-capable proxy core (manual proxy). The rest (proxy / dns / hosts) genuinely work.
+> 💡 ECH is now wired: a built-in native engine (OpenSSL) drives it and it takes effect for direct HTTPS — no external proxy needed. Scopes: app-level (covers any https domain; sites without ECH support fall back per-domain, so normal sites aren't broken), per-source (only the source's site.baseUrl host; toggle via source JSON network.ech or the UI override), and Bangumi-specific. The native lib ships only with the Android APK; off Android it auto-degrades to direct. The rest (proxy / dns / hosts / sni) all genuinely work.
 
 > **`dns.resolveSuffix` (resolve suffix, added in v2.0.0)**: the resolver queries *target host + suffix* and connects to the returned address, while the Host header stays the original hostname.
 > Use case: when the site's own domain suffers DNS poisoning, query an unaffected alias (e.g. an alias domain served by the site's CDN) to obtain real addresses — **no IP needs to be hard-coded in the config file**, since each device resolves it with its own DNS. That makes it suitable for publicly shared sources.
