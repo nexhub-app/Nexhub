@@ -101,7 +101,7 @@ NexHub 的解析能力完全由源 JSON 驱动。一个源是一个 JSON 文件�
 
 > **`sni` 生效说明**：对「https 直连」真实生效（TLS 握手在应用内完成，SNI 可被覆盖为配置值或置 `-` 免 SNI；免 SNI 配合 hosts 钉定可达 IP 可绕过按 SNI 的连接阻断，Cloudflare 边缘接受无 SNI 握手并按 Host 头路由）。走代理时不生效。
 >
-> 💡 ECH 现已接通：应用内置原生 ECH 引擎（OpenSSL），对直连 HTTPS 真实生效，不再依赖外部代理。作用域分应用级（接管任意 https 域，不支持 ECH 的站点由原生侧逐域自适应回落，不会搞断正常站点）、源级（只接管该源 `site.baseUrl` 的 host，可在源 JSON `network.ech` 或 UI 覆盖单独开关）、Bangumi 专用；原生库仅随 Android APK 打包，非 Android 时整套自动降级为直连。其余（proxy / dns / hosts / sni）依旧全部真实生效。
+> 💡 ECH 现已接通：应用内置原生 ECH 引擎（OpenSSL），对直连 HTTPS 真实生效，不再依赖外部代理。作用域分应用级（接管任意 https 域，不支持 ECH 的站点由原生侧逐域自适应回落，不会搞断正常站点）、源级（只接管该源 `site.baseUrl` 的 host，可在源 JSON `network.ech` 或 UI 覆盖单独开关）、Bangumi 专用；原生库随 Android APK（arm64-v8a / armeabi-v7a / x86_64 三架构）与 Windows 桌面端打包；macOS / Linux 暂未打包原生库，整套自动降级为直连。其余（proxy / dns / hosts / sni）依旧全部真实生效。
 
 > **`dns.resolveSuffix`（解析后缀）**：把「目标主机 + 后缀」交给 DNS 查询，用查到的地址建连，请求头里的 Host 仍是原主机名。
 > 用途：站点主域被 DNS 污染时，查一个不受干扰的别名（如 CDN 提供的别名域）拿到真实地址，**配置文件里不需要写死任何 IP**——地址由每台设备用自己的 DNS 现算，因此适合公开发布的源。
