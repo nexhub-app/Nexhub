@@ -94,7 +94,12 @@ class HtmlUtils {
   /// Parses `a@href` / `img@data-src` style composite selectors:
   /// the CSS part matches an element, then `@attr` is read; without `@` the
   /// text is returned. XPath selectors are routed to [query]/[queryAttr].
+  ///
+  /// XPath expressions (containing `[@...]` predicates or top-level string
+  /// functions) must be checked FIRST: their own `@` occurrences (e.g.
+  /// `//div[@id='x']/@id`) would otherwise be mis-split as css@attr.
   static String? queryAttrExpr(String html, String expr) {
+    if (isXPath(expr)) return query(html, expr);
     final atIndex = expr.indexOf('@');
     if (atIndex < 0) return query(html, expr);
     final css = expr.substring(0, atIndex).trim();

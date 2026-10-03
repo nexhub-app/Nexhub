@@ -67,8 +67,11 @@ class _SourceLoginSheet extends StatelessWidget {
   /// 网页登录：push WebView 登录页，返回 true 后重新评估登录态。
   Future<void> _webLogin(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
-    final supported =
-        PlatformService.instance.isAndroid || PlatformService.instance.isIOS;
+    // Windows 走 WebView2 --proxy-server 环境跟随（见 WebviewSourceNetwork），
+    // 与移动端同一内嵌登录流。
+    final supported = PlatformService.instance.isAndroid ||
+        PlatformService.instance.isIOS ||
+        PlatformService.instance.isWindows;
     if (!supported) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.webviewLoginUnsupported)),
@@ -120,9 +123,12 @@ class _SourceLoginSheet extends StatelessWidget {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ThemeData theme = Theme.of(context);
     final bool loggedIn = context.watch<SourceAuthManager>().isLoggedIn(source);
-    // WebView 仅在移动端可用；桌面/Web 直接隐藏「网页登录」入口。
+    // 「网页登录」入口可见性：移动端 + Windows（Windows 经 WebView2
+    // --proxy-server 环境跟随打开内嵌登录页，见 WebviewSourceNetwork）。
+    // 桌面其余端/Web 直接隐藏「网页登录」入口。
     final bool webLoginSupported = PlatformService.instance.isAndroid ||
-        PlatformService.instance.isIOS;
+        PlatformService.instance.isIOS ||
+        PlatformService.instance.isWindows;
     // 是否提供网页登录入口：源声明了 login.url（登录页地址）即视为支持网页
     // 登录。「网页登录」与「粘贴 Cookie」在 login.url 存在时显示，与是否走
     // API Key（sendTokenAs:"key"）无关——两者可并存。完全由源配置驱动，

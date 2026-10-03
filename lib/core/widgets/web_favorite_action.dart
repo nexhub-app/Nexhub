@@ -126,12 +126,30 @@ Future<void> addWebFavorite(
     String route,
   ) async {
     final l10n = AppLocalizations.of(context);
-    // 未登录（无令牌）→ 提示先去源账号设置粘贴 Token，不发起请求。
+    // 鉴权前置检查：
+    // - sendTokenAs == 'key' → 令牌模式，必须已配置 apiKey；
+    // - 其余（含 cookie 会话模式）→ 只要源声明了 comments.login（checkCookie
+    //   或 url）即放行，token 传空串，由脚本经 meta 协议自判登录态
+    //   （如 hanime1.me 首页 #user-modal-trigger 提取 userid，未登录返回
+    //   空列表 → 走统一失败提示）。webview 登录回灌的 cookie 在 jar 中，
+    //   meta 预取自动回带。
     final login = source.comments?.login;
-    final token = login != null && login.sendTokenAs == 'key'
-        ? SourceKeyStore.get(source.id, login.apiKeyParam ?? 'apiKey')
-        : null;
-    if (token == null || token.isEmpty) {
+    final isKeyMode = login != null && login.sendTokenAs == 'key';
+    var token = '';
+    if (isKeyMode) {
+      token = SourceKeyStore.get(source.id, login.apiKeyParam ?? 'apiKey') ?? '';
+      if (token.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.favoriteWebRequiresLogin)),
+          );
+        }
+        return;
+      }
+    } else if (login == null ||
+        ((login.checkCookie == null || login.checkCookie!.isEmpty) &&
+            (login.url == null || login.url!.isEmpty))) {
+      // 源未声明任何登录能力 → 无法鉴权，提示登录。
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.favoriteWebRequiresLogin)),

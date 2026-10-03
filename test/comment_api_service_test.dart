@@ -299,6 +299,178 @@ void main() {
     });
   });
 
+  group('CommentApiService JSON 内嵌 HTML（embeddedHtml / 自动探测）', () {
+    // hanime1.me loadComment 形态：{"comments":"<div id=comment-start>…</div>"}
+    const hanimeFragment = '''
+<div id="comment-create-form-wrapper"><input name="_token" value="tok123"><input name="comment-user-id" value="u9"></div>
+<div id="comment-start" class="comment-start">
+  <a href="https://ex.com/user/1"><img class="img-circle" src="https://cdn/av1.jpg"></a>
+  <div class="report-btn-wrapper"><div class="comment-index-text"><a>甲&nbsp;&nbsp;<span>1天前</span></a></div><div class="comment-index-text">第一楼内容</div><span class="report-btn" data-reportable-id="901"></span></div>
+  <div id="comment-like-form-wrapper"><span style="display:none">0</span><span style="color:red">12</span><div id="reply-section-wrapper-901"></div><div class="load-replies-btn">查看 3 則回覆</div></div>
+  <br>
+  <a href="https://ex.com/user/2"><img class="img-circle" src="https://cdn/av2.jpg"></a>
+  <div class="report-btn-wrapper"><div class="comment-index-text"><a>乙&nbsp;&nbsp;<span>2小时前</span></a></div><div class="comment-index-text">第二楼内容</div><span class="report-btn" data-reportable-id="902"></span></div>
+  <div id="comment-like-form-wrapper"><span style="display:none">0</span><span style="color:red">5</span><div id="reply-section-wrapper-902"></div></div>
+  <br>
+</div>''';
+    String jsonWrapped(String fragment) =>
+        jsonEncode(<String, dynamic>{'comments': fragment});
+
+    Map<String, dynamic> embeddedSelectors() => <String, dynamic>{
+          'items': r'$.comments',
+          'embeddedHtml': true,
+          'container': '#comment-start',
+          'chunkSize': 4,
+          'commentId': "substring-after(//div[starts-with(@id,'reply-section-wrapper')]/@id, 'wrapper-')",
+          'author': "substring-before(//div[@class='comment-index-text'][1]//a/text(), '\u00a0')",
+          'avatar': '//a/img/@src',
+          'content': "//div[@class='comment-index-text'][2]",
+          'time': "//div[@class='comment-index-text'][1]//span",
+          'likeCount': "//div[@id='comment-like-form-wrapper']/span[2]",
+          'replyCount': "//div[@class='load-replies-btn']",
+        };
+
+    test('embeddedHtml:true → JSON 内嵌 HTML 走 HTML 管线 + chunkSize 分楼', () async {
+      final client = FakeCommentClient()..enqueue(jsonWrapped(hanimeFragment));
+      final service = CommentApiService(client: client);
+      final source = buildSource(comments: <String, dynamic>{
+        'routes': {
+          'list': {'url': '/loadComment?type=video&id={id}'},
+          'replies': {'url': '/loadReplies?id={commentId}'},
+        },
+        'selectors': embeddedSelectors(),
+      });
+
+      final page = await service.fetchComments(source, '408458');
+
+      expect(client.requests.single.url,
+          'https://example.com/loadComment?type=video&id=408458');
+      expect(page.comments, hasLength(2));
+      final c1 = page.comments[0];
+      expect(c1.id, '901');
+      expect(c1.author, '甲');
+      expect(c1.avatarUrl, 'https://cdn/av1.jpg');
+      expect(c1.content, '第一楼内容');
+      expect(c1.timeText, '1天前');
+      expect(c1.likeCount, 12);
+      expect(c1.replyCount, 3); // 「查看 3 則回覆」数字容错提取
+      // 第二楼无 load-replies-btn → replyCount 为 null
+      expect(page.comments[1].id, '902');
+      expect(page.comments[1].replyCount, isNull);
+      expect(page.hasMore, isTrue);
+    });
+
+    test('embeddedHtml 未声明但 items 求值为 < 开头字符串时自动转 HTML 管线', () async {
+      final selectors = embeddedSelectors()..remove('embeddedHtml');
+      final client = FakeCommentClient()..enqueue(jsonWrapped(hanimeFragment));
+      final service = CommentApiService(client: client);
+      final source = buildSource(comments: <String, dynamic>{
+        'routes': {
+          'list': {'url': '/loadComment?id={id}'},
+        },
+        'selectors': selectors,
+      });
+      final page = await service.fetchComments(source, 'v1');
+      expect(page.comments, hasLength(2));
+      expect(page.comments.first.author, '甲');
+    });
+
+    test('chunkSize 未声明时逐元素一楼（原行为不回归）', () async {
+      const html = '<div class="c"><a class="author">x</a></div>'
+          '<div class="c"><a class="author">y</a></div>';
+      final client = FakeCommentClient()..enqueue(html);
+      final service = CommentApiService(client: client);
+      final source = buildSource(comments: <String, dynamic>{
+        'routes': {
+          'list': {'url': '/comments/{id}'},
+        },
+        'selectors': {
+          'items': '.c',
+          'author': '.author',
+        },
+      });
+      final page = await service.fetchComments(source, 'v1');
+      expect(page.comments, hasLength(2));
+      expect(page.comments[0].author, 'x');
+      expect(page.comments[1].author, 'y');
+    });
+
+    test('routeSelectors.replies 覆盖块级选择器：回复 step2 分楼（hanime1.me）', () async {
+      // hanime1.me loadReplies 形态：{"replies":"<div id=reply-start…</div>"}
+      // reply-start 直子元素 step2：每楼 2 个子元素——偶=基本信息块（内含
+      // a>img 头像 / 用户名 / 内容 / report-btn），奇=点赞表单块
+      // （span[style] 第2个 = 赞数）；回复楼无独立 id。
+      const repliesFragment = '''
+<div id="reply-start-901">
+  <div class="reply-basic"><a href="https://ex.com/user/7"><img src="https://cdn/r1.jpg"></a><div class="comment-index-text"><a>子&nbsp;&nbsp;<span>3分鐘前</span></a></div><div class="comment-index-text">回覆一</div><span class="report-btn" data-reportable-type="comment" data-reportable-id="901"></span></div>
+  <div class="reply-post"><span style="display:none">0</span><span style="color:red">7</span><input name="comment-like-user-id" value="u7"></div>
+  <div class="reply-basic"><a href="https://ex.com/user/8"><img src="https://cdn/r2.jpg"></a><div class="comment-index-text"><a>丑&nbsp;&nbsp;<span>5分鐘前</span></a></div><div class="comment-index-text">回覆二</div><span class="report-btn" data-reportable-type="comment" data-reportable-id="902"></span></div>
+  <div class="reply-post"><span style="display:none">0</span><span style="color:red">2</span><input name="comment-like-user-id" value="u8"></div>
+</div>''';
+      final client = FakeCommentClient()
+        ..enqueue(jsonEncode(<String, dynamic>{'replies': repliesFragment}));
+      final service = CommentApiService(client: client);
+      // 块级 selectors 是 list 的形态（$.comments / #comment-start / chunk4）；
+      // replies 路由靠 routeSelectors 覆盖为 $.replies / reply-start / step2。
+      final source = buildSource(comments: <String, dynamic>{
+        'routes': {
+          'list': {'url': '/loadComment?type=video&id={id}'},
+          'replies': {'url': '/loadReplies?id={commentId}'},
+        },
+        'selectors': <String, dynamic>{
+          ...embeddedSelectors(),
+          'routeSelectors': {
+            'replies': {
+              'items': r'$.replies',
+              'container': "div[id^='reply-start']",
+              'chunkSize': 2,
+              'commentId': null,
+              'author': "substring-before(//div[@class='comment-index-text'][1]//a/text(), '\u00a0')",
+              'avatar': '//a/img/@src',
+              'content': "//div[@class='comment-index-text'][2]",
+              'time': "//div[@class='comment-index-text'][1]//span",
+              'likeCount': "//div[@class='reply-post']/span[2]",
+            },
+          },
+        },
+      });
+
+      final page = await service.fetchReplies(source, '901');
+
+      expect(client.requests.single.url,
+          'https://example.com/loadReplies?id=901');
+      expect(page.comments, hasLength(2)); // 6 子元素 step2 → 3 组取齐 2 楼
+      final r1 = page.comments[0];
+      expect(r1.author, '子');
+      expect(r1.content, '回覆一');
+      expect(r1.avatarUrl, 'https://cdn/r1.jpg');
+      expect(r1.timeText, '3分鐘前');
+      expect(r1.likeCount, 7);
+      expect(r1.id, ''); // 回复楼无独立 id
+      expect(page.comments[1].author, '丑');
+      expect(page.comments[1].likeCount, 2);
+    });
+
+    test('routeSelectors 值非 Map 时整体跳过（脏配置不部分吞）', () async {
+      const html = '<div class="c"><a class="author">x</a></div>';
+      final client = FakeCommentClient()..enqueue(html);
+      final service = CommentApiService(client: client);
+      final source = buildSource(comments: <String, dynamic>{
+        'routes': {
+          'list': {'url': '/comments/{id}'},
+        },
+        'selectors': {
+          'items': '.c',
+          'author': '.author',
+          'routeSelectors': {'list': 'not-a-map'},
+        },
+      });
+      final page = await service.fetchComments(source, 'v1');
+      expect(page.comments, hasLength(1));
+      expect(page.comments[0].author, 'x');
+    });
+  });
+
   group('CommentApiService 写操作', () {
     test('postComment：表单体填充占位符，successValue 判定成功', () async {
       final client = FakeCommentClient()..enqueue('{"code": 0}');

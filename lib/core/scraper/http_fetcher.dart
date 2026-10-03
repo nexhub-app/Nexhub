@@ -457,6 +457,11 @@ class HttpFetcher {
   // 「服务端挂起」（连接/接收超时）时的重试上限：只补 1 次。
   // 挂起基本等于限流信号，密集重试会延长限流窗口，因此比 RST 更保守。
   static const int _maxThrottledRetries = 1;
+  // 「无挑战体的硬 403」最大重试次数：共尝试 [_max403Retries + 1] 次。
+  // Cloudflare 等限流/IP 软封禁多为短窗口，短暂退避后重试常常直接放行，
+  // 避免单次抖动直接弹验证提示打断浏览。带挑战体（JS 挑战页/滑块）或 401
+  // 仍立即上抛走 WebView 验证流程，不在此重试。
+  static const int _max403Retries = 2;
   // 手动跟随重定向的最大跳数（防重定向循环打爆）。
   static const int kMaxRedirects = 5;
   // 同 host 最小间隔：原 500ms，上调到 800ms 进一步降低「短时间内连续请求
@@ -673,10 +678,42 @@ class HttpFetcher {
         final int budget = throttled ? _maxThrottledRetries : _maxHttpRetries;
         if (attempt >= budget) rethrow;
         await Future.delayed(_retryBackoff(attempt, throttled: throttled));
+      } on VerificationRequiredException catch (e) {
+        // 「无 body 的纯硬 403」= 限流/IP 软封禁的短窗口抖动，无任何可交互
+        // 验证要素：短暂退避后重试，让瞬时风控抖动在 HTTP 层自愈，而不是直接
+        // 把验证提示甩给用户。非空 body（Cloudflare 挑战页/滑块/WAF 拦截词）
+        // 与 401（会话失效）不是重试能解决的，立即上抛走原有验证流程。
+        final bool hard403 =
+            e.statusCode == 403 && (e.body?.trim().isEmpty ?? true);
+        if (!hard403) rethrow;
+        // 403 预算对齐外层循环上限：重试耗尽时把最后一次的
+        // VerificationRequiredException（含冷却已写入）原样上抛，保住验证语义，
+        // 不掉进底部兜底 Exception 丢失类型。
+        if (attempt >= _max403Retries || attempt >= _maxHttpRetries) rethrow;
+        // 每次失败 _recordAndThrowVerify 都会写入验证冷却（影响后续新请求的
+        // 闸门），重试成功恢复后不应让同站请求再被 20s 冷却误伤——循环内在
+        // 403 路径上清掉；重试耗尽时最后一次异常的冷却保留生效。
+        _clearVerifyCooldown(url);
+        await Future.delayed(_retry403Backoff(attempt));
       }
     }
     // 不可达：循环耗尽却未成功（理论上不会发生，仅兜底）。
     throw lastErr ?? Exception('HTTP 重试耗尽: $url');
+  }
+
+  /// 403 重试退避时长：限流窗口需要比连接抖动更长的等待，
+  /// 递增退避 + 抖动打散节拍（避免同一失败的并发请求同时重试形成新突发）。
+  Duration _retry403Backoff(int attempt) {
+    const int base = 1500;
+    final int jitter = _random.nextInt(800);
+    return Duration(milliseconds: base * (attempt + 1) + jitter);
+  }
+
+  /// 清除某 host 的验证冷却（403 重试循环内使用：退避节拍由重试逻辑控制，
+  /// 不叠加验证冷却）。
+  void _clearVerifyCooldown(String url) {
+    final host = Uri.tryParse(url)?.host;
+    if (host != null && host.isNotEmpty) _verifyCooldown.remove(host);
   }
 
   /// 重试退避时长：带随机抖动打散节拍，避免多请求同时重试形成新的突发。

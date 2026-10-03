@@ -757,9 +757,19 @@ class BuiltinResolver implements SourceResolver {
     final listSel = sel['list'] as String? ?? 'div.item';
     final elements = HtmlUtils.elements(html, listSel);
     debugPrint('[BuiltinResolver] listSel=$listSel elements=${elements.length}');
-    return [
+    // 通用垃圾卡过滤：id 与 title 同时为空的条目不进列表（广告占位卡、
+    // 无法取到关键信息的卡片等）。对齐参考库解析器「字段取不到即跳过」
+    // 的语义（如 `?.let(::add)`），不针对任何特定站点/广告域名特判。
+    final items = <MediaItem>[
       for (final el in elements) _itemFromElement(el, sel, source),
     ];
+    final filtered =
+        items.where((it) => it.id.isNotEmpty || it.title.isNotEmpty).toList();
+    final dropped = items.length - filtered.length;
+    if (dropped > 0) {
+      debugPrint('[BuiltinResolver] dropped $dropped empty cards (id+title both blank)');
+    }
+    return filtered;
   }
 
   /// 周更列表解析（「周期表」Tab 专用）。
@@ -840,6 +850,73 @@ class BuiltinResolver implements SourceResolver {
     return _itemFromElement(root.documentElement!, sel, source);
   }
 
+  /// 按顶层逗号拆分复合选择器（保护引号、括号与方括号内的逗号，
+  /// 如 `substring-after(x, ',')`、`[data-x="1,2"]` 不被误切）。
+  List<String> _splitTopLevel(String p) {
+    final out = <String>[];
+    final buf = StringBuffer();
+    var depth = 0;
+    var inSingle = false;
+    var inDouble = false;
+    for (var i = 0; i < p.length; i++) {
+      final c = p[i];
+      if (inSingle) {
+        buf.write(c);
+        if (c == "'") inSingle = false;
+      } else if (inDouble) {
+        buf.write(c);
+        if (c == '"') inDouble = false;
+      } else if (c == "'" || c == '"') {
+        if (c == "'") {
+          inSingle = true;
+        } else {
+          inDouble = true;
+        }
+        buf.write(c);
+      } else if (c == '(' || c == '[') {
+        depth++;
+        buf.write(c);
+      } else if (c == ')' || c == ']') {
+        if (depth > 0) depth--;
+        buf.write(c);
+      } else if (c == ',' && depth == 0) {
+        final part = buf.toString().trim();
+        if (part.isNotEmpty) out.add(part);
+        buf.clear();
+      } else {
+        buf.write(c);
+      }
+    }
+    final tail = buf.toString().trim();
+    if (tail.isNotEmpty) out.add(tail);
+    return out;
+  }
+
+  /// 解析单个选择器分支：
+  /// - `@attr`（无 CSS 前缀）→ 列表元素自身属性（list 选中 `<a>` 卡时取
+  ///   自身 href；`@text`/`@text()` → 自身文本）；
+  /// - XPath（`//a/@href`、`./@data-href` 等）→ HtmlUtils 引擎；
+  /// - `css@attr` → 首个匹配元素的属性；
+  /// - 纯 css → 首个匹配元素的文本。
+  String _pickBranch(Element el, String Function() elHtml, String branch) {
+    if (branch.startsWith('@')) {
+      final a = branch.substring(1);
+      if (a == 'text' || a == 'text()') return el.text.trim();
+      return el.attributes[a] ?? '';
+    }
+    if (HtmlUtils.isXPath(branch)) {
+      return HtmlUtils.query(elHtml(), branch) ?? '';
+    }
+    final at = branch.indexOf('@');
+    if (at >= 0) {
+      final css = branch.substring(0, at).trim();
+      final a = branch.substring(at + 1).trim();
+      if (css.isEmpty) return el.attributes[a] ?? '';
+      return el.querySelector(css)?.attributes[a] ?? '';
+    }
+    return el.querySelector(branch)?.text.trim() ?? '';
+  }
+
   MediaItem _itemFromElement(Element el, Map<String, dynamic> sel, PluginConfig source) {
     // Lazily serialised only when an XPath field selector is encountered
     // (some sources use relative XPath like `./a/@title` which cannot be
@@ -851,15 +928,15 @@ class BuiltinResolver implements SourceResolver {
       final p = sel[key];
       if (p == null) return '';
       if (p is! String) return '';
-      if (HtmlUtils.isXPath(p)) {
-        return HtmlUtils.query(elHtml(), p) ?? '';
+      // 按顶层逗号拆成多分支逐支解析（css@attr / css / @attr / XPath 可混合），
+      // 取第一个非空结果。此前整串交给一次 querySelector，导致
+      // `video#player@poster, meta[property="og:image"]@content` 这类混合
+      // @attr 组合整体失效（详情页封面/描述等字段缺失的根因）。
+      for (final branch in _splitTopLevel(p)) {
+        final v = _pickBranch(el, elHtml, branch);
+        if (v.isNotEmpty) return v;
       }
-      if (p.contains('@')) {
-        final css = p.substring(0, p.indexOf('@')).trim();
-        final a = p.substring(p.indexOf('@') + 1).trim();
-        return el.querySelector(css)?.attributes[a] ?? '';
-      }
-      return el.querySelector(p)?.text.trim() ?? '';
+      return '';
     }
 
     // 多值字段取全部匹配节点并以「, 」连接（导演/主演/类型等常有多个）。
@@ -868,22 +945,38 @@ class BuiltinResolver implements SourceResolver {
     String pickJoined(String key) {
       final p = sel[key];
       if (p == null || p is! String || p.isEmpty) return '';
-      List<String> vals;
-      if (HtmlUtils.isXPath(p)) {
-        vals = HtmlUtils.queryAll(elHtml(), p);
-      } else if (p.contains('@')) {
-        final css = p.substring(0, p.indexOf('@')).trim();
-        final a = p.substring(p.indexOf('@') + 1).trim();
-        vals = el
-            .querySelectorAll(css)
-            .map((e) => e.attributes[a] ?? '')
-            .toList();
-      } else {
-        vals = el.querySelectorAll(p).map((e) => e.text.trim()).toList();
+      // 与 pick() 同构：按顶层逗号拆多分支，逐支取齐所有值后合并去重。
+      List<String> vals = <String>[];
+      for (final branch in _splitTopLevel(p)) {
+        List<String> part;
+        if (branch.startsWith('@')) {
+          final a = branch.substring(1);
+          final v = (a == 'text' || a == 'text()') ? el.text : (el.attributes[a] ?? '');
+          part = v.trim().isEmpty ? const <String>[] : <String>[v.trim()];
+        } else if (HtmlUtils.isXPath(branch)) {
+          part = HtmlUtils.queryAll(elHtml(), branch);
+        } else {
+          final at = branch.indexOf('@');
+          if (at >= 0) {
+            final css = branch.substring(0, at).trim();
+            final a = branch.substring(at + 1).trim();
+            part = css.isEmpty
+                ? (el.attributes.containsKey(a)
+                    ? <String>[el.attributes[a] ?? '']
+                    : const <String>[])
+                : el.querySelectorAll(css).map((e) => e.attributes[a] ?? '').toList();
+          } else {
+            part = el.querySelectorAll(branch).map((e) => e.text.trim()).toList();
+          }
+        }
+        vals.addAll(part);
       }
+      // 多分支去重（保持顺序）：如 `.title, .video-title` 命中同一节点的
+      // 两支时只保留一份。
+      final seen = <String>{};
       return vals
           .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
+          .where((s) => s.isNotEmpty && seen.add(s))
           .toList()
           .join(', ');
     }
@@ -1039,15 +1132,11 @@ class BuiltinResolver implements SourceResolver {
     String pick(String key) {
       final p = sel[key];
       if (p is! String) return '';
-      if (HtmlUtils.isXPath(p)) {
-        return HtmlUtils.query(elHtml(), p) ?? '';
+      for (final branch in _splitTopLevel(p)) {
+        final v = _pickBranch(el, elHtml, branch);
+        if (v.isNotEmpty) return v;
       }
-      if (p.contains('@')) {
-        final css = p.substring(0, p.indexOf('@')).trim();
-        final a = p.substring(p.indexOf('@') + 1).trim();
-        return el.querySelector(css)?.attributes[a] ?? '';
-      }
-      return el.querySelector(p)?.text.trim() ?? '';
+      return '';
     }
 
     final a = el.querySelector('a');

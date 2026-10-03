@@ -3,12 +3,19 @@
 /// - 路由经 [PluginConfig.resolveRouteUrl] 的 `comments.` 命名空间解析，
 /// 占位符替换 / 镜像切换 / 相对路径补全与主路由完全一致。
 /// - 选择器与顶层 selectors 同引擎：JSON 走 [JsonPath]，HTML 走 [HtmlUtils]
-/// （CSS / `a@href` / XPath）。
+/// （CSS / `a@href` / XPath）。块级 selectors 由 list / replies 等路由共用；
+/// `selectors.routeSelectors.<路由名>` 可按路由覆盖（浅合并，路由级优先），
+/// 适配列表与回复结构不同的站点（如 hanime1.me 列表在 `$.comments` /
+/// `#comment-start` 每 4 子元素一楼，回复在 `$.replies` /
+/// `div[id^=reply-start]` 每 2 子元素一楼）。
 /// - 服务无状态；HTTP 层经 [CommentHttpClient] 注入，测试可用 fake 替换
 /// （[HttpFetcher] 为私有构造单例，无法直接 mock）。
 library;
 
 import 'dart:convert';
+
+import 'package:html/dom.dart' as dom;
+import 'package:html/parser.dart' as html_parser;
 
 import '../models/plugin_config.dart';
 import '../network/model/effective_network_profile.dart';
@@ -197,6 +204,22 @@ class CommentApiService {
     return route;
   }
 
+  /// 块级 selectors 与路由级覆盖合并：`selectors.routeSelectors`（Map）按
+  /// 路由名浅合并（路由级优先），适配 list 与 replies 结构不同的站点。
+  /// routeSelectors 值只接受 Map；脏配置整体跳过（不部分吞）。
+  Map<String, dynamic> _selectorsFor(CommentsConfig cfg, String name) {
+    final base = cfg.selectors;
+    if (base == null) return const <String, dynamic>{};
+    final raw = base['routeSelectors'];
+    if (raw is! Map) return base;
+    final override = raw[name];
+    if (override is! Map) return base;
+    return <String, dynamic>{
+      ...base,
+      ...override.map((k, v) => MapEntry(k.toString(), v)),
+    };
+  }
+
   Future<CommentPage> _fetchPage(
     PluginConfig source,
     String name,
@@ -205,10 +228,36 @@ class CommentApiService {
     final cfg = _requireConfig(source);
     final route = _requireRoute(cfg, name);
     final text = await _request(source, name, route, vars);
-    if (_responseTypeFor(source, name, route, cfg) == 'html') {
-      return _parseHtmlPage(cfg, text);
+    final cfgSel = _selectorsFor(cfg, name);
+    final embeddedHtml = cfgSel['embeddedHtml'] == true;
+    // embedded 模式的响应仍是 JSON 信封（如 hanime1.me loadComment 返回
+    // {"comments":"<div id=comment-start>…</div>"}），先按 JSONPath 取出
+    // 内嵌 HTML 片段，再走 HTML 管线（selectors.container 定位楼层容器）。
+    if (embeddedHtml) {
+      final json = _decodeJson(text);
+      final sel0 = cfgSel;
+      var fragment = '';
+      if (sel0['items'] is String) {
+        final v = JsonPath.eval(sel0['items'] as String, json);
+        if (v is String) fragment = v;
+      }
+      return _parseHtmlPage(cfgSel, fragment, embedded: true);
     }
-    return _parseJsonPage(cfg, _decodeJson(text));
+    if (_responseTypeFor(source, name, route, cfgSel) == 'html') {
+      return _parseHtmlPage(cfgSel, text);
+    }
+    final json = _decodeJson(text);
+    // 通用能力：JSON 包裹的内嵌 HTML（如 hanime1.me loadComment 返回
+    // {"comments":"<div id=comment-start>…</div>"}）。selectors.items 求值
+    // 结果为非空 HTML 字符串（`<` 开头）时自动转入 HTML 管线解析。
+    final sel = cfgSel;
+    if (sel['items'] is String) {
+      final v = JsonPath.eval(sel['items'] as String, json);
+      if (v is String && v.trim().startsWith('<')) {
+        return _parseHtmlPage(sel, v, embedded: true);
+      }
+    }
+    return _parseJsonPage(sel, json);
   }
 
   Future<bool> _mutate(
@@ -219,7 +268,7 @@ class CommentApiService {
     final cfg = _requireConfig(source);
     final route = _requireRoute(cfg, name);
     final text = await _request(source, name, route, vars);
-    return _isSuccess(cfg, text);
+    return _isSuccess(_selectorsFor(cfg, name), text);
   }
 
   Future<String> _request(
@@ -307,10 +356,10 @@ class CommentApiService {
     PluginConfig source,
     String name,
     RouteConfig route,
-    CommentsConfig cfg,
+    Map<String, dynamic> sel,
   ) {
     if (route.responseType != null) return route.responseType!;
-    final items = cfg.selectors?['items'];
+    final items = sel['items'];
     if (items is String && items.isNotEmpty) {
       return items.startsWith(r'$') ? 'json' : 'html';
     }
@@ -322,18 +371,18 @@ class CommentApiService {
   /// - 声明 success（JSONPath/CSS）→ 命中值非空即成功；
   /// - 另声明 selectors.successValue → 命中值需与其字符串相等
   /// （适配 `$.code` == "0" 才算成功一类站点）。
-  bool _isSuccess(CommentsConfig cfg, String text) {
-    final sel = cfg.selectors?['success'];
-    if (sel is! String || sel.isEmpty) return true;
+  bool _isSuccess(Map<String, dynamic> sel, String text) {
+    final successSel = sel['success'];
+    if (successSel is! String || successSel.isEmpty) return true;
     dynamic value;
-    if (sel.startsWith(r'$')) {
+    if (successSel.startsWith(r'$')) {
       final json = _tryDecodeJson(text);
       if (json == null) return false;
-      value = JsonPath.eval(sel, json);
+      value = JsonPath.eval(successSel, json);
     } else {
-      value = HtmlUtils.query(text, sel);
+      value = HtmlUtils.query(text, successSel);
     }
-    final expected = cfg.selectors?['successValue'];
+    final expected = sel['successValue'];
     if (expected != null) {
       return value != null && value.toString() == expected.toString();
     }
@@ -360,8 +409,7 @@ class CommentApiService {
     }
   }
 
-  CommentPage _parseJsonPage(CommentsConfig cfg, dynamic json) {
-    final sel = cfg.selectors ?? const <String, dynamic>{};
+  CommentPage _parseJsonPage(Map<String, dynamic> sel, dynamic json) {
     final itemsPath = sel['items'];
     final raw = itemsPath is String ? JsonPath.eval(itemsPath, json) : null;
     final List<dynamic> list;
@@ -460,13 +508,54 @@ class CommentApiService {
 
   // ---- HTML 解析 ----
 
-  CommentPage _parseHtmlPage(CommentsConfig cfg, String html) {
-    final sel = cfg.selectors ?? const <String, dynamic>{};
-    final itemsSel = sel['items'];
-    if (itemsSel is! String || itemsSel.isEmpty) return CommentPage.empty;
-    final items = HtmlUtils.elements(html, itemsSel);
+  CommentPage _parseHtmlPage(
+    Map<String, dynamic> sel,
+    String html, {
+    bool embedded = false,
+  }) {
+    // embedded 模式（JSON 内嵌 HTML 片段）：items 是 JSONPath（已在 _fetchPage
+    // 用它取出片段），片段内的「楼层序列」取自 selectors.container 容器的直接
+    // 子元素（如 hanime1.me #comment-start.children）；未声明 container 时回退
+    // 到片段根级子元素。非 embedded 模式 items 仍是 CSS/XPath 元素选择器。
+    final containerSel = embedded ? sel['container'] as String? : null;
+    List<dom.Element> items;
+    if (embedded) {
+      final doc = html_parser.parse(html);
+      final container = (containerSel != null && containerSel.isNotEmpty)
+          ? HtmlUtils.elements(html, containerSel).firstOrNull
+          : doc.body;
+      final children = container?.children;
+      items = (children == null || children.isEmpty)
+          ? (container == null ? <dom.Element>[] : [container])
+          : List<dom.Element>.from(children);
+    } else {
+      final itemsSel = sel['items'];
+      if (itemsSel is! String || itemsSel.isEmpty) return CommentPage.empty;
+      items = HtmlUtils.elements(html, itemsSel);
+    }
+    // 通用能力：扁平结构按 chunkSize 个元素一组拼为一楼（如 hanime1.me
+    // comment-start 内每 4 个连续子元素 = 一条评论：头像/正文/点赞表单/<br>）。
+    // 未声明 chunkSize 或 <=1 时保持逐元素一楼的原行为。
+    final chunkRaw = sel['chunkSize'];
+    final chunkSize =
+        chunkRaw is num && chunkRaw.toInt() > 1 ? chunkRaw.toInt() : 1;
+    final List<String> itemHtmls;
+    if (chunkSize > 1) {
+      itemHtmls = <String>[];
+      for (var i = 0; i < items.length; i += chunkSize) {
+        itemHtmls.add(
+          items
+              .skip(i)
+              .take(chunkSize)
+              .map((el) => el.outerHtml)
+              .join('\n'),
+        );
+      }
+    } else {
+      itemHtmls = <String>[for (final el in items) el.outerHtml];
+    }
     final comments = <SourceComment>[
-      for (final el in items) _htmlComment(sel, el.outerHtml),
+      for (final itemHtml in itemHtmls) _htmlComment(sel, itemHtml),
     ];
     final hasMoreSel = sel['hasMore'];
     final hasMore = hasMoreSel is String && hasMoreSel.isNotEmpty
@@ -502,9 +591,21 @@ class CommentApiService {
       avatarUrl: f('avatar'),
       content: f('content') ?? '',
       timeText: f('time'),
-      likeCount: int.tryParse(f('likeCount') ?? ''),
-      replyCount: int.tryParse(f('replyCount') ?? ''),
+      likeCount: _intFromText(f('likeCount')),
+      replyCount: _intFromText(f('replyCount')),
       replies: replies,
     );
+  }
+
+  /// 数值字段容错解析：选择器返回的文本常非纯数字（如「回應 (3)」「12 人
+  /// 覺得讚」），先 `int.tryParse`，失败则提取串中首个数字序列。通用能力，
+  /// 任何源的数值文本均受益。
+  static int? _intFromText(String? text) {
+    if (text == null) return null;
+    final t = text.trim();
+    final direct = int.tryParse(t);
+    if (direct != null) return direct;
+    final m = RegExp(r'\d+').firstMatch(t);
+    return m == null ? null : int.parse(m.group(0)!);
   }
 }

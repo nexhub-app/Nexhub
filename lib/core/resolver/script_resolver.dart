@@ -221,6 +221,10 @@ class ScriptResolver implements SourceResolver {
       // 忽略；即便站点反爬导致预取抛 VerificationRequiredException，也不应直接
       // 上抛成 SourceResolveException 让列表报错——兜底为空串，交由脚本自抓取。
       dynamic raw;
+      // 预取撞验证墙（CF 403）时记下异常：若脚本产出为空则原样重抛，
+      // 让验证 UI 流接管（消费预取数据的脚本在空 raw 下必然空产出，
+      // 不重抛用户就永远看不到验证入口——真机 /watch 403 案实证）。
+      Object? prefetchVerificationError;
       try {
         // 通用：路由级预取也附加源声明式鉴权头（comments.login）。
         // 受保护路由（如源站收藏列表）必须在首次抓取就带令牌，否则 401；
@@ -232,6 +236,11 @@ class ScriptResolver implements SourceResolver {
         final rawLen = raw is String ? raw.length : (raw is List ? raw.length : -1);
         ParseDiagnostics.log(source.id, '预取成功: 拿到 ${rawLen} 字符/项');
         debugPrint('[ScriptResolver] 预取成功: rawLength=${raw is String ? raw.length : (raw is List ? raw.length : "non-string/list")}');
+      } on VerificationRequiredException catch (e) {
+        prefetchVerificationError = e;
+        ParseDiagnostics.log(source.id, '预取遇到验证墙: $e（脚本产出为空时上抛引导验证）');
+        debugPrint('[ScriptResolver] 预取验证墙: $e');
+        raw = '';
       } on Object catch (e) {
         ParseDiagnostics.log(source.id, '预取失败(非致命): $e');
         debugPrint('[ScriptResolver] 预取失败(非致命): $e');
@@ -245,6 +254,12 @@ class ScriptResolver implements SourceResolver {
       debugPrint('[ScriptResolver] 脚本执行完成: resultType=${result.runtimeType}, result=${result is List ? "List[${result.length}]" : result}');
       if (count == 0) {
         ParseDiagnostics.log(source.id, '⚠️ 脚本返回空列表！可能是：1) 桥接未通(ctx.http.get 拿不到数据) 2) 页面结构变化 3) 站点反爬');
+      }
+      // 预取撞验证墙 + 脚本产出为空 → CF/反爬拦截实锤，原样重抛走验证 UI。
+      if (count == 0 && prefetchVerificationError != null) {
+        ParseDiagnostics.log(source.id, '❌ 预取验证墙 + 空产出 → 上抛验证异常');
+        debugPrint('[ScriptResolver] 上抛预取验证墙异常');
+        throw prefetchVerificationError;
       }
       // detail 路由兜底：脚本若未返回 detailUrl，或返回了无效占位符 `{}`，
       // 优先用 id 推导（id 是 URL/相对路径时），其次用实际请求 URL 填充，
@@ -276,6 +291,11 @@ class ScriptResolver implements SourceResolver {
     } on WebViewHtmlRequest {
       // 脚本经 meta 协议声明 __webview 且无头渲染失败：原样上抛，供 UI 层
       // 走「抓取本页渲染内容」可见流程（不得包装成 SourceResolveException）。
+      rethrow;
+    } on VerificationRequiredException {
+      // 预取撞验证墙且脚本空产出时重抛（见上方 prefetchVerificationError）：
+      // 原样上抛供 UI 层走验证流程，包装成 SourceResolveException 会让
+      // 用户永远看不到 CF/登录验证入口。
       rethrow;
     } catch (e) {
       ParseDiagnostics.log(source.id, '❌ 未知异常: $e');

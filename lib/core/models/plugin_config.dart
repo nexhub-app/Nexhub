@@ -1464,6 +1464,38 @@ class PluginConfig {
       url = url.startsWith('/') ? '$base$url' : '$base/$url';
     }
     vars.forEach((k, v) {
+      // 数组参数展开：模板形如 `tags[]={tags}`（参数名后带 `[]` 再跟同名占位符）。
+      // 部分站点高级搜索是数组语义（每个选中值一个独立参数 `tags[]=a&tags[]=b`）；
+      // 多选筛选的多个值在 vars 中以逗号连接传入，若按普通占位符整体编码会被
+      // 当成单个不存在的值 → 搜索恒零结果。这里拆开后逐值编码展开。必须先于
+      // 下方普通编码规则处理——逗号会被 encodeComponent 成 %2C 导致无法拆分。
+      // 空值时连同前导 & 整段移除，避免残留 `tags[]=` 空参数被服务器误解。
+      // 数组 token 必须与模板字面严格同形：`tags[]={tags}`（含 = 号）。
+      final arrayToken = '$k[]={$k}';
+      if (url.contains(arrayToken)) {
+        if (v.isEmpty) {
+          // 空多选：优先移除「前导 & + 整段」（tags 非 query 首参的常见形态），
+          // 剩余（tags 为 query 首参形态）再移除占位段本身，随后清理由此产生的
+          // 悬空连接符（?& → ?、&& → &、尾部 &），避免残留空参数被服务器误解。
+          url = url.replaceAll('&$k[]{$k}', '');
+          if (url.contains(arrayToken)) {
+            url = url.replaceAll(arrayToken, '');
+          }
+          url = url
+              .replaceAll('?&', '?')
+              .replaceAll('&&', '&')
+              .replaceAll(RegExp(r'&$'), '');
+        } else {
+          // 非空：逐值 encodeComponent（tag 值含中日文/空格/特殊符号），以
+          // `&k[]=v` 形式接到首个值上，展开为重复参数数组。
+          final expanded = v
+              .split(',')
+              .map((p) => Uri.encodeComponent(p))
+              .join('&$k[]=');
+          url = url.replaceAll(arrayToken, '$k[]=$expanded');
+        }
+        return;
+      }
       // 用户搜索词等自由文本必须 URL 编码：否则中文关键词（如「海贼王」）原样
       // 塞进查询串会导致 GET 请求非法 / 被服务器误解 → 搜索返回错乱或空
       // （中文站「作品搜索内容不正确」「主演搜索不全」的根因）。
@@ -1548,6 +1580,17 @@ class PluginConfig {
     // and silent empty-list failures.
     // 注意：正则用 `[^}]*` 以兼容空占位符 `{}`，避免残留花括号污染 URL。
     url = url.replaceAll(RegExp(r'\{[^}]*\}'), '');
+    // 数组参数兜底：vars 完全缺失该键时（用户没碰筛选组），上方数组分支根本
+    // 不执行，cleanup 只清掉 {tags} 占位却留下 `tags[]=` 空参数。仅匹配「等号
+    // 后无值」（后随 & 或串尾）的空数组参数——必须锚定，否则会把已展开的
+    // tags[]=v1&tags[]=v2 的参数名前缀也吃掉，值被粘到前一个参数上（实测翻车）。
+    url = url.replaceAll(
+        RegExp(r'&[A-Za-z0-9_%\-\[\]]+\[]=(?=&|$)'), ''); // 中间参数（带前导 &）
+    url = url.replaceAll(
+        RegExp(r'\?[A-Za-z0-9_%\-\[\]]+\[]=(?=&)'), '?'); // query 首参、后面还有参数
+    url = url.replaceAll(
+        RegExp(r'\?[A-Za-z0-9_%\-\[\]]+\[]=$'), ''); // query 首参且为唯一参数（$ 锚定，不动带值的）
+    url = url.replaceAll('?&', '?'); // 上一步替换产生的悬空连接符
     debugPrint('[PluginConfig] resolveRouteUrl: apiName=$apiName finalUrl=$url');
     return url;
   }

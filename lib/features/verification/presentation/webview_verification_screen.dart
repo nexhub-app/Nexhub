@@ -28,6 +28,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/resolver/webview_resolver.dart';
 import '../../../core/scraper/http_fetcher.dart';
+import '../../../core/network/runtime/webview_source_network.dart';
 import '../../../core/scraper/verification_detector.dart';
 import '../../../core/sniffer/sniffer_bridge.dart' show SnifferBridge;
 import '../../../core/sniffer/sniffer_engine.dart' show SnifferEngine;
@@ -590,6 +591,9 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
             child: Stack(
               children: <Widget>[
                 InAppWebView(
+                  // Windows 代理环境跟随（验证页由 apply 窗口打开）。
+                  webViewEnvironment:
+                      WebviewSourceNetwork.instance.activeEnvironment,
                   initialUrlRequest: URLRequest(
                     url: WebUri(widget.verificationUrl),
                     headers: widget.snifferHeaders,
@@ -724,6 +728,9 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
               child: Stack(
                 children: <Widget>[
                   InAppWebView(
+                    // Windows 代理环境跟随（验证页由 apply 窗口打开）。
+                    webViewEnvironment:
+                        WebviewSourceNetwork.instance.activeEnvironment,
                     initialUrlRequest: URLRequest(
                       url: WebUri(widget.verificationUrl),
                       headers: widget.extractionRequest?.headers,
@@ -986,6 +993,9 @@ class _WebViewVerificationScreenState extends State<WebViewVerificationScreen> {
               child: Stack(
                 children: <Widget>[
                   InAppWebView(
+                    // Windows 代理环境跟随（验证页由 apply 窗口打开）。
+                    webViewEnvironment:
+                        WebviewSourceNetwork.instance.activeEnvironment,
                     initialUrlRequest: URLRequest(
                       url: WebUri(widget.verificationUrl),
                       headers: widget.htmlRequest?.headers,

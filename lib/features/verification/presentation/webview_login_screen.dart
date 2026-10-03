@@ -4,9 +4,9 @@
 /// - 手动回灌：点击底部浮动按钮「获取 Cookie」，从 WebView 共享 Cookie 存储
 /// 读取该源相关域的 Cookie 并同步到 [HttpFetcher]（内存 jar + CookieStore 落盘），
 /// 随后关闭页面、由调用方经 SourceAuthManager.refreshLoginState 重新评估登录态。
+/// Cookie 回灌只由用户手动触发，页面加载过程中不做任何自动捕获。
 /// - 点击时短重试：Android 的 WebView 把登录响应里的 `set-cookie` 异步提交到
-/// 系统 `CookieManager`，单次读取常常早于刷新（旧版靠 2s 轮询能取到、单次
-/// 点击取不到的根因）。现改为用户主动点击，但点击后在 ~1.2s 内做最多 4 次
+/// 系统 `CookieManager`，单次读取常常早于刷新。点击后在 ~2.5s 内做最多 6 次
 /// 短重试容忍刷新延迟；仍是手动触发、非后台轮询，登录态未变不会持续重载。
 ///
 /// 桌面端（InAppWebView 不可用）回退为提示使用「粘贴 Cookie」方式。
@@ -23,6 +23,7 @@ import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/models/plugin_config.dart';
 import '../../../core/platform/platform_service.dart';
 import '../../../core/scraper/http_fetcher.dart';
+import '../../../core/network/runtime/webview_source_network.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// 源登录「内嵌网页」页面。返回 `true` 表示 Cookie 已同步、应重新评估登录态。
@@ -78,9 +79,21 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
 
   String get _loginUrl => _login?.url ?? '';
 
-  /// 是否支持内嵌网页（移动端）；桌面/Web 回退「粘贴 Cookie」提示。
+  /// 是否支持内嵌网页（移动端 + Windows；Windows 经引擎 B 的 WebView2
+  /// --proxy-server 环境跟随打开，见 [WebviewSourceNetwork]）。桌面其余端/Web
+  /// 回退「粘贴 Cookie」提示。
   bool get _supported =>
-      PlatformService.instance.isAndroid || PlatformService.instance.isIOS;
+      PlatformService.instance.isAndroid ||
+      PlatformService.instance.isIOS ||
+      PlatformService.instance.isWindows;
+
+  /// Cookie 存储读取器：Windows 登录 WebView 挂在 --proxy-server 的 WebView2
+  /// 环境上，其 cookie 存储与默认环境隔离——读取必须绑定同一环境，否则读到空
+  /// 存储（「WebView 里已登录但取不到 Cookie」的根因）。移动端 activeEnvironment
+  /// 为 null，与全局共享存储行为完全一致。
+  CookieManager _cookieManager() => CookieManager.instance(
+        webViewEnvironment: WebviewSourceNetwork.instance.activeEnvironment,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -105,11 +118,16 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
       widget.source.site.baseUrl,
     );
     return InAppWebView(
+      // Windows 代理环境跟随：验证/登录页由 apply 窗口打开（verification_handler
+      // 已 await applyForSource），窗口内构造的 WebView 挂到 --proxy-server 环境。
+      webViewEnvironment: WebviewSourceNetwork.instance.activeEnvironment,
       initialUrlRequest: URLRequest(url: WebUri(_loginUrl)),
       initialSettings: InAppWebViewSettings(userAgent: ua),
       onWebViewCreated: (controller) => _controller = controller,
-      onLoadStop: (_, url) async {
+      onLoadStop: (_, url) {
         if (url != null) _currentPageUrl = url.toString();
+        // 不做任何自动捕获：Cookie 回灌只由用户点「获取 Cookie」手动触发
+        // （用户明确要求——自动抓取会在未登录时把公开页 cookie 也灌进来）。
       },
     );
   }
@@ -259,7 +277,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
     if (ctl != null) {
       for (final uri in targets) {
         try {
-          final cookies = await CookieManager.instance().getCookies(
+          final cookies = await _cookieManager().getCookies(
             url: WebUri('${uri.scheme}://${uri.host}'),
             webViewController: ctl,
           );
@@ -298,7 +316,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
     // ③ flutter_inappwebview CookieManager 逐域兜底。
     for (final uri in targets) {
       try {
-        final cookies = await CookieManager.instance().getCookies(
+        final cookies = await _cookieManager().getCookies(
           url: WebUri('${uri.scheme}://${uri.host}'),
         );
         final header = cookies
@@ -314,7 +332,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
 
     // ④ 全量兜底：按 host 分组后整组回灌（覆盖登录页停在子域 / Path 非 / 等情况）。
     try {
-      final List<Cookie> all = await CookieManager.instance().getAllCookies();
+      final List<Cookie> all = await _cookieManager().getAllCookies();
       final Map<String, List<Cookie>> byHost = <String, List<Cookie>>{};
       for (final Cookie c in all) {
         final String? host = hostForCookie(c);
@@ -375,7 +393,7 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
     for (final Uri uri in targets) {
       // ① 插件 getCookies(url) —— Android 已实现，返回该 url 的 cookie 列表
       try {
-        final List<Cookie> cookies = await CookieManager.instance().getCookies(
+        final List<Cookie> cookies = await _cookieManager().getCookies(
           url: WebUri('${uri.scheme}://${uri.host}'),
         );
         if (cookies.isEmpty) {

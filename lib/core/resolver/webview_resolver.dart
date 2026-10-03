@@ -290,10 +290,10 @@ class WebViewResolver implements SourceResolver {
       // 静默抓取也命中挑战页 / 失败（返回 null）时才抛 WebViewHtmlRequest，
       // 回退可见验证页让用户手动过验证。
       // 「静默渲染抓取」路径：给无头 WebView 也套上源网络跟随（hosts/DoH/代理），
-      // 否则 webview-html 路由在 DNS 污染环境下会把 hanime1.me 解析到错误服务器、
-      // 只抓回广告页。注意 ProxyController 注入仅 Android 生效（Windows 桌面无
-      // MethodChannel handler、静默回落）；Windows 需在本机开启系统代理（WebView2
-      // 默认继承系统代理）才能绕开污染。apply/release 均为 best-effort，失败不阻断。
+      // 否则 webview-html 路由在 DNS 污染环境下会把目标域名解析到错误服务器、
+      // 只抓回广告页。Android 走 ProxyController + 本地 PAC；Windows 走
+      // --proxy-server 启动参数的 WebView2 环境（hosts/DoH 全量经本地正向代理，
+      // 见 WebviewSourceNetwork）。apply/release 均为 best-effort，失败不阻断。
       await WebviewSourceNetwork.instance.applyForSource(source);
       final renderedHtml = await (() async {
         try {

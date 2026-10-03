@@ -132,6 +132,26 @@ class FakeJsEngine implements JsEngine {
   void dispose() {}
 }
 
+/// 预取层验证墙桥：httpGet/httpGetJson 必抛 VerificationRequiredException
+/// （模拟 CF 403）。json/html 两条预取通道都要拦——responseTypeFor 缺省即 json。
+class _VerifyWallBridge extends _StubBridge {
+  const _VerifyWallBridge();
+  @override
+  Future<String> httpGet(String url, {Map<String, String>? headers}) async =>
+      throw VerificationRequiredException(url: url, statusCode: 403);
+  @override
+  Future<dynamic> httpGetJson(String url, {Map<String, String>? headers}) async =>
+      throw VerificationRequiredException(url: url, statusCode: 403);
+}
+
+/// 走验证墙桥的假引擎：预取撞墙；run 返回预设数据
+/// （预设空 = 脚本消费空 raw 空产出；预设非空 = 脚本自救成功）。
+class _VerifyWallEngine extends FakeJsEngine {
+  _VerifyWallEngine(super._data);
+  @override
+  JsHostBridge get bridge => const _VerifyWallBridge();
+}
+
 PluginConfig get _source => PluginConfig.fromJson(<String, dynamic>{
       'id': 'fake', 'name': 'fake', 'type': 'animeSource',
       'site': {'baseUrl': 'https://x.com'},
@@ -243,6 +263,43 @@ void main() {
       );
       // Engine factory must NOT be called (script must NOT execute).
       expect(factoryCalled, isFalse);
+    });
+
+    test('预取撞验证墙 + 脚本空产出 → 重抛 VerificationRequiredException（真机 /watch 403 案）', () async {
+      // 复刻 hanime 家族源形态：脚本消费预取 raw（不自抓），CF 403 → 空 raw
+      // → 空产出。修复前此场景静默吞成空列表（用户看不到验证入口）。
+      final resolver = ScriptResolver(
+        engineFactory: (_) => _VerifyWallEngine(<dynamic>[]),
+      );
+      await expectLater(
+        resolver.resolve(_source, 'latest'),
+        throwsA(isA<VerificationRequiredException>()),
+      );
+    });
+
+    test('预取撞验证墙但脚本自救产出 → 不误伤，正常返回列表', () async {
+      // 自抓型脚本（ctx.http.get 自取数据）在预取失败时仍能产出：
+      // 重抛逻辑只允许在「空产出」时触发，不得殃及自救成功的脚本。
+      final resolver = ScriptResolver(
+        engineFactory: (_) => _VerifyWallEngine(<dynamic>[
+          {'id': '1', 'title': 'self-rescued'},
+        ]),
+      );
+      final items = await resolver.resolve(_source, 'latest')
+          as List<MediaItem>;
+      expect(items.length, 1);
+      expect(items.first.title, 'self-rescued');
+    });
+
+    test('无验证墙 + 脚本空产出 → 保持空列表（空结果本身不报错）', () async {
+      // 回归锁：重抛只绑定「验证墙 + 空产出」组合。普通空结果
+      // （结构变化/无数据）必须维持原静默语义，不得升级成异常。
+      final resolver = ScriptResolver(
+        engineFactory: (_) => FakeJsEngine(<dynamic>[]),
+      );
+      final items = await resolver.resolve(_source, 'latest')
+          as List<MediaItem>;
+      expect(items, isEmpty);
     });
 
     test('resolveFromHtml passes rendered HTML as raw to script entry', () async {

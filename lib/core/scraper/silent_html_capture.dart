@@ -27,6 +27,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'http_fetcher.dart';
 import 'verification_detector.dart';
+import '../network/runtime/webview_source_network.dart';
 
 /// 静默渲染 HTML 抓取。
 class SilentHtmlCapture {
@@ -158,8 +159,19 @@ class SilentHtmlCapture {
     HeadlessInAppWebView? webview;
     final created = Completer<InAppWebViewController>();
     final pageLoaded = Completer<void>();
+    // Windows 代理环境跟随：apply 窗口内创建了 --proxy-server 环境时，
+    // headless WebView 挂到该环境（否则走平台默认环境，行为不变）。
+    final webviewEnv = WebviewSourceNetwork.instance.activeEnvironment;
     try {
+      // Windows 代理环境的 WebView2 cookie 存储独立于平台默认环境：首次走
+      // 代理前把 jar 里的历史会话（cf_clearance / 登录态）预注入，WebView
+      // 首跳即带会话——否则验证过一次的站点每次静默抓取都要重新过盾。
+      // Android/iOS 的 CookieManager 全局共享，无需也不做预注入。
+      if (webviewEnv != null) {
+        await _preInjectCookies(url);
+      }
       webview = HeadlessInAppWebView(
+        webViewEnvironment: webviewEnv,
         initialUrlRequest: URLRequest(
           url: WebUri(url),
           headers: effectiveHeaders.isEmpty ? null : effectiveHeaders,
@@ -355,15 +367,55 @@ class SilentHtmlCapture {
     }
   }
 
+  /// jar → 代理环境 cookie 存储的预注入（仅 Windows 代理环境调用）。
+  ///
+  /// 与 [Android 全局 CookieManager] 不同，代理环境的 WebView2 有独立存储；
+  /// setCookie 经环境绑定 CookieManager 写入，失败静默忽略（best-effort）。
+  /// 导航前完成注入：先 setCookie 再 loadUrl，首跳请求即携带会话。
+  static Future<void> _preInjectCookies(String url) async {
+    try {
+      final uri = Uri.tryParse(url);
+      if (uri == null || uri.host.isEmpty) return;
+      final header = HttpFetcher.instance.getCookieHeader(uri.host);
+      if (header == null || header.isEmpty) return;
+      final env = WebviewSourceNetwork.instance.activeEnvironment;
+      final manager = CookieManager.instance(webViewEnvironment: env);
+      final webUri = WebUri('${uri.scheme}://${uri.host}');
+      for (final pair in header.split(';')) {
+        final idx = pair.indexOf('=');
+        if (idx <= 0) continue;
+        final name = pair.substring(0, idx).trim();
+        final value = pair.substring(idx + 1).trim();
+        if (name.isEmpty || value.isEmpty) continue;
+        try {
+          await manager.setCookie(
+            url: webUri,
+            name: name,
+            value: value,
+            domain: uri.host,
+          );
+        } on Object {
+          // 单条失败忽略，不影响其余 cookie。
+        }
+      }
+    } on Object catch (e) {
+      debugPrint('[SilentHtmlCapture] cookie 预注入失败(忽略): $e');
+    }
+  }
+
   /// 同步 WebView 会话 Cookie 到 HttpFetcher（对齐可见验证页
   /// `_syncWebviewCookies`，best-effort：失败不影响抓取结果）。
+  ///
+  /// Windows 代理环境下的 WebView2 有独立 cookie 存储（userDataFolder 隔离），
+  /// 必须用环境绑定的 CookieManager 读取——用默认实例读到的是平台默认环境的
+  /// 空存储，cf_clearance 永远同步不进 jar → 静默抓取反复失败回退可见验证。
   static Future<void> _syncCookies(String url) async {
     try {
       final uri = Uri.tryParse(url);
       if (uri == null) return;
-      final cookies = await CookieManager.instance().getCookies(
-        url: WebUri('${uri.scheme}://${uri.host}'),
-      );
+      final env = WebviewSourceNetwork.instance.activeEnvironment;
+      final cookies = await CookieManager.instance(webViewEnvironment: env)
+          .getCookies(url: WebUri('${uri.scheme}://${uri.host}'));
       final cookieHeader = cookies
           .where((c) => c.value.isNotEmpty)
           .map((c) => '${c.name}=${c.value}')

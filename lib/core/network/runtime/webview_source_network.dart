@@ -7,7 +7,12 @@
 /// [DnsResolver] 解析（hosts 优先、回退 DoH、再回退系统），从而绕开 DNS 污染。
 ///
 /// 接线：Android 侧经 `ProxyController.setProxyOverride` + PAC 把源域名导到本地
-/// 代理（API 28+）。本文件只做配置驱动的逻辑，不写死任何站点。
+/// 代理（API 28+）。Windows 侧 WebView2 不支持运行期 ProxyController，改为
+/// 创建带 `--proxy-server` 启动参数的 WebView2 环境（[WebViewEnvironment]）：
+/// hosts/DoH 模式全量指向本地正向代理（非源域名由代理按系统 DNS 回退），
+/// 手动代理模式直指用户代理。不同启动参数必须配不同 `userDataFolder`
+/// （WebView2 共享浏览器进程按 options 匹配，不匹配 → ERROR_INVALID_STATE）。
+/// 本文件只做配置驱动的逻辑，不写死任何站点。
 library;
 
 import 'dart:async';
@@ -16,6 +21,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../models/plugin_config.dart';
 import '../model/effective_network_profile.dart';
@@ -37,6 +44,18 @@ class WebviewSourceNetwork {
   HttpServer? _server;
   int _port = 0;
   int _refCount = 0;
+
+  // Windows：带启动参数的 WebView2 环境缓存（key=完整启动参数串）与当前生效环境。
+  final Map<String, WebViewEnvironment> _windowsEnvs =
+      <String, WebViewEnvironment>{};
+  WebViewEnvironment? _activeEnv;
+
+  /// 当前 WebView 窗口（apply/release 之间）应使用的 WebView2 环境。
+  ///
+  /// 仅 Windows 且本次 apply 成功创建/复用代理环境时非空；窗口外恒为 null
+  /// （WebView 构造点不传 env → 平台默认环境，行为与改动前一致）。
+  WebViewEnvironment? get activeEnvironment =>
+      _refCount > 0 ? _activeEnv : null;
 
   // 当前生效的源 DNS 配置（供本地代理解析使用）。
   DnsConfig? _dns;
@@ -63,7 +82,21 @@ class WebviewSourceNetwork {
           ? 'SOCKS ${profile.proxy.host}:${profile.proxy.port}'
           : 'PROXY ${profile.proxy.host}:${profile.proxy.port}';
       final ok = await _setProxy(proxyUrl: proxyUrl);
-      if (ok) _refCount++;
+      if (ok) {
+        _refCount++;
+      } else {
+        // Windows 等 ProxyController 不可用平台：WebView2 用 --proxy-server
+        // 启动参数直指用户代理（socks5 → socks5:// 前缀）。（该分支 hosts 必空：
+        // hasCustomDns 含 hosts 非空判定，故无需 resolver-rules。）
+        final env = await _ensureWindowsEnv(windowsBrowserArgs(
+          proxyArg: windowsProxyServerArg(
+            profile.proxy.host,
+            profile.proxy.port,
+            socks5: profile.proxy.protocol == ProxyProtocol.socks5,
+          ),
+        ));
+        if (env != null) _refCount++;
+      }
       return;
     }
 
@@ -86,7 +119,20 @@ class WebviewSourceNetwork {
     final ok = await _setProxy(
       pacUrl: 'pac+http://127.0.0.1:$_port/proxy.pac',
     );
-    if (ok) _refCount++;
+    if (ok) {
+      _refCount++;
+    } else {
+      // Windows 等 ProxyController 不可用平台：双通路——①WebView2 全量指向
+      // 本地正向代理（不用 PAC-URL——WebView2 对 PAC 的拉取行为不稳；本地代理
+      // 按 hosts→DoH→系统回退解析，语义与 Android PAC 一致）。代理常驻保证
+      // 端口稳定。②--host-resolver-rules 直接把源域 MAP 到 hosts IP：即便
+      // 代理线程挂掉，DIRECT 流量也能按 hosts 正确解析（Chromium 通用参数）。
+      final env = await _ensureWindowsEnv(windowsBrowserArgs(
+        proxyArg: '127.0.0.1:$_port',
+        hostMaps: hostResolverRules(profile.hosts),
+      ));
+      if (env != null) _refCount++;
+    }
     } on Object catch (e) {
       // 网络跟随是 best-effort：任何失败都不应阻断验证 WebView 打开。
       debugPrint('WebviewSourceNetwork.applyForSource failed: $e');
@@ -94,19 +140,118 @@ class WebviewSourceNetwork {
   }
 
   /// 关闭源 WebView 后调用：引用归零时清除 ProxyController 覆盖并停代理。
+  ///
+  /// Windows 下本地代理与 WebView2 环境**常驻**（仅摘除 activeEnvironment）：
+  /// 环境销毁/重建会连带浏览器进程重启，且停代理会换端口使已缓存环境失效。
   Future<void> releaseForSource() async {
     if (_refCount <= 0) return;
     _refCount--;
     if (_refCount > 0) return;
+    _activeEnv = null;
     try {
       await _clearProxy();
-      await _stop();
+      if (!Platform.isWindows) await _stop();
     } on Object catch (e) {
       debugPrint('WebviewSourceNetwork.releaseForSource failed: $e');
     }
     _dns = null;
     _hosts = null;
     _pacContent = null;
+  }
+
+  // ---- Windows WebView2 环境（--proxy-server 启动参数）----
+
+  /// 取（或创建）绑定 [browserArgs]（完整 Chromium 启动参数串）的 WebView2 环境。
+  ///
+  /// 命中缓存直接复用；否则在应用支持目录下按参数哈希建独立 userDataFolder
+  /// （WebView2 共享浏览器进程按启动选项匹配，不同参数共用目录 →
+  /// ERROR_INVALID_STATE）。失败 debugPrint 回传 null（best-effort，同
+  /// Android 侧 MissingPluginException 语义），不阻断 WebView 打开。
+  Future<WebViewEnvironment?> _ensureWindowsEnv(String browserArgs) async {
+    if (!Platform.isWindows) return null;
+    final cached = _windowsEnvs[browserArgs];
+    if (cached != null) {
+      _activeEnv = cached;
+      return cached;
+    }
+    try {
+      final supportDir = await getApplicationSupportDirectory();
+      final folder =
+          '${supportDir.path}${Platform.pathSeparator}webview2-${stableHash(browserArgs)}';
+      final env = await WebViewEnvironment.create(
+        settings: WebViewEnvironmentSettings(
+          additionalBrowserArguments: browserArgs,
+          userDataFolder: folder,
+        ),
+      );
+      _windowsEnvs[browserArgs] = env;
+      _activeEnv = env;
+      debugPrint(
+          'WebviewSourceNetwork: WebView2 env ready args=$browserArgs userDataFolder=$folder');
+      return env;
+    } on Object catch (e) {
+      debugPrint('WebviewSourceNetwork: WebView2 env create failed: $e');
+      return null;
+    }
+  }
+
+  /// 组装 Windows WebView2 启动参数串（纯函数）。
+  ///
+  /// `[proxyArg]`：`--proxy-server` 值（可空——hosts 直连模式不需要代理）。
+  /// `[hostMaps]`：`--host-resolver-rules` 的 `MAP host ip` 映射（可空）。两条
+  /// 通路并存：代理是全量转发兜底，resolver-rules 让 Chromium DNS 直接按 hosts
+  /// 解析——即便代理挂掉，DIRECT 流量也能命中正确服务器。
+  /// 同输入恒同输出（MAP 项由调用方保证去重排序），保证缓存 key 稳定复用。
+  static String windowsBrowserArgs({
+    String? proxyArg,
+    List<String> hostMaps = const <String>[],
+  }) {
+    final parts = <String>[];
+    if (proxyArg != null && proxyArg.isNotEmpty) {
+      parts.add('--proxy-server=$proxyArg');
+    }
+    if (hostMaps.isNotEmpty) {
+      // --host-resolver-rules 语法：多条规则逗号连接；EXCLUDE 兜底防泄漏。
+      parts.add('--host-resolver-rules=${hostMaps.join(',')},EXCLUDElocalhost');
+    }
+    return parts.join(' ');
+  }
+
+  /// 由 hosts 配置生成 `MAP host ip` 规则列表（纯函数，确定性排序）。
+  ///
+  /// 仅取 enabled 且 host/ip 均非空的条目；host 统一小写去重，同一 host 多 IP
+  /// 时取第一个（Chromium resolver-rules 每域只接受一条 MAP）。
+  static List<String> hostResolverRules(List<HostsEntry> hosts) {
+    final byHost = <String, String>{};
+    for (final h in hosts) {
+      if (!h.enabled || h.host.isEmpty || h.ip.isEmpty) continue;
+      byHost.putIfAbsent(h.host.toLowerCase(), () => h.ip.trim());
+    }
+    final keys = byHost.keys.toList()..sort();
+    return [for (final k in keys) 'MAP $k ${byHost[k]}'];
+  }
+
+  /// Windows WebView2 `--proxy-server` 参数值（纯函数）。
+  ///
+  /// WebView2 原生接受 `host:port` 与 `socks5://host:port` 形态；socks5 不带
+  /// scheme 会被当作 HTTP 代理静默失败，故必须显式前缀。
+  static String windowsProxyServerArg(
+    String host,
+    int port, {
+    bool socks5 = false,
+  }) =>
+      socks5 ? 'socks5://$host:$port' : '$host:$port';
+
+  /// FNV-1a 32 位哈希（十六进制）：为启动参数派生跨重启稳定的目录名。
+  static String stableHash(String input) {
+    var h = 0x811c9dc5;
+    for (final unit in input.codeUnits) {
+      h ^= unit & 0xff;
+      h = (h * 0x01000193) & 0xFFFFFFFF;
+      h ^= unit >> 8;
+      h = (h * 0x01000193) & 0xFFFFFFFF;
+    }
+    return h.toRadixString(16).padLeft(8, '0');
   }
 
   // ---- 本地正向代理 ----

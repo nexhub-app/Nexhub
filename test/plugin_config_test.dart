@@ -144,6 +144,75 @@ void main() {
       });
       expect(source.responseTypeFor('latest'), 'json');
     });
+
+    test('resolveRouteUrl expands tags[]={tags} into repeated array params',
+        () {
+      final source = build(<String, dynamic>{
+        'id': 'pms_arr',
+        'name': '示例',
+        'type': 'animeSource',
+        'site': {'baseUrl': 'https://example.com'},
+        'parser': {'type': 'builtin'},
+        'routes': {
+          'search': {'url': '/search?query={keyword}&tags[]={tags}&page={page}'},
+        },
+      });
+      // 多选值以逗号连接 → 展开为 tags[]=v1&tags[]=v2，逐值 encodeComponent
+      // （中日文/空格/[] 均编码），站点按数组语义取到两个独立 tag。
+      expect(
+        source.resolveRouteUrl(
+          'search',
+          activeBaseUrl: 'https://example.com',
+          vars: <String, String>{
+            'keyword': '',
+            'tags': '中文字幕,斷面圖',
+            'page': '1',
+          },
+        ),
+        'https://example.com/search?query=&tags[]=%E4%B8%AD%E6%96%87%E5%AD%97%E5%B9%95&tags[]=%E6%96%B7%E9%9D%A2%E5%9C%96&page=1',
+      );
+      // 单值：与多值同构，仍走数组形态。
+      expect(
+        source.resolveRouteUrl(
+          'search',
+          activeBaseUrl: 'https://example.com',
+          vars: <String, String>{
+            'keyword': '',
+            'tags': 'ASMR',
+            'page': '1',
+          },
+        ),
+        'https://example.com/search?query=&tags[]=ASMR&page=1',
+      );
+      // 空多选：整段参数移除，不残留 tags[]= 空参数/悬空 &。
+      expect(
+        source.resolveRouteUrl(
+          'search',
+          activeBaseUrl: 'https://example.com',
+          vars: <String, String>{'keyword': 'abc', 'page': '2'},
+        ),
+        'https://example.com/search?query=abc&page=2',
+      );
+      // 空多选且 tags 恰为 query 首参：移除后 ?& → ? 清理悬空连接符。
+      final firstParam = build(<String, dynamic>{
+        'id': 'pms_arr2',
+        'name': '示例',
+        'type': 'animeSource',
+        'site': {'baseUrl': 'https://example.com'},
+        'parser': {'type': 'builtin'},
+        'routes': {
+          'search': {'url': '/search?tags[]={tags}&q={keyword}'},
+        },
+      });
+      expect(
+        firstParam.resolveRouteUrl(
+          'search',
+          activeBaseUrl: 'https://example.com',
+          vars: <String, String>{'keyword': 'x'},
+        ),
+        'https://example.com/search?q=x',
+      );
+    });
   });
 
   group('CommentsConfig', () {

@@ -69,8 +69,11 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
   /// 网页登录：push WebView 登录页，返回后重新评估登录态。
   Future<void> _webLogin() async {
     final l10n = AppLocalizations.of(context);
-    final supported =
-        PlatformService.instance.isAndroid || PlatformService.instance.isIOS;
+    // Windows 走 WebView2 --proxy-server 环境跟随（见 WebviewSourceNetwork），
+    // 与移动端同一内嵌登录流。
+    final supported = PlatformService.instance.isAndroid ||
+        PlatformService.instance.isIOS ||
+        PlatformService.instance.isWindows;
     if (!supported) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.webviewLoginUnsupported)),
@@ -122,10 +125,13 @@ class _SourceLoginScreenState extends State<SourceLoginScreen> {
     final ColorScheme scheme = theme.colorScheme;
     final bool loggedIn =
         context.watch<SourceAuthManager>().isLoggedIn(widget.source);
-    // WebView 仅在移动端可用；桌面/Web 直接隐藏「网页登录」入口，
-    // 避免用户点了再弹"不支持"，体验上更明确。
+    // 「网页登录」入口可见性：移动端 + Windows（Windows 经 WebView2
+    // --proxy-server 环境跟随打开内嵌登录页，见 WebviewSourceNetwork）。
+    // 桌面其余端/Web 直接隐藏入口，避免用户点了再弹"不支持"。
     final bool webLoginSupported =
-        PlatformService.instance.isAndroid || PlatformService.instance.isIOS;
+        PlatformService.instance.isAndroid ||
+            PlatformService.instance.isIOS ||
+            PlatformService.instance.isWindows;
     // 是否提供网页登录入口：源声明了 login.url（登录页地址）即视为支持网页登录。
     // 与底部面板 [showSourceLoginSheet] 同一套判定，完全由源配置驱动，不写死站点。
     final bool hasWebLogin = widget.source.comments?.login?.url != null;
