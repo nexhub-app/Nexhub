@@ -2798,6 +2798,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sourceEditIdLocked => 'id is locked and stays unchanged on save';
 
   @override
+  String get sourceEditTabBasic => 'Basic';
+
+  @override
+  String get sourceEditTabParse => 'Site & Parsing';
+
+  @override
+  String get sourceEditTabRoutes => 'Routes';
+
+  @override
+  String get sourceEditTabBrowse => 'Category & Filters';
+
+  @override
+  String get sourceEditTabAdvanced => 'Network & Other';
+
+  @override
   String get sourceDeleteBuiltinNotAllowed =>
       'Built-in sources cannot be deleted';
 

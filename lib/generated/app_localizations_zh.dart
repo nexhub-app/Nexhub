@@ -2753,6 +2753,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sourceEditIdLocked => 'id 已锁定，保存时保持不变';
 
   @override
+  String get sourceEditTabBasic => '基础字段';
+
+  @override
+  String get sourceEditTabParse => '站点解析';
+
+  @override
+  String get sourceEditTabRoutes => '路由';
+
+  @override
+  String get sourceEditTabBrowse => '分类筛选';
+
+  @override
+  String get sourceEditTabAdvanced => '网络与其他';
+
+  @override
   String get sourceDeleteBuiltinNotAllowed => '内置源不可删除';
 
   @override

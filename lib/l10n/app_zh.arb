@@ -1448,6 +1448,26 @@
   "@sourceEditIdLocked": {
     "description": "源编辑页 id 模块锁形图标的悬浮提示"
   },
+  "sourceEditTabBasic": "基础字段",
+  "@sourceEditTabBasic": {
+    "description": "源编辑页页签：id、名称、类型等身份字段与开关"
+  },
+  "sourceEditTabParse": "站点解析",
+  "@sourceEditTabParse": {
+    "description": "源编辑页页签：site、parser、selectors 与防盗链/WebView 等配置"
+  },
+  "sourceEditTabRoutes": "路由",
+  "@sourceEditTabRoutes": {
+    "description": "源编辑页页签：routes 模块"
+  },
+  "sourceEditTabBrowse": "分类筛选",
+  "@sourceEditTabBrowse": {
+    "description": "源编辑页页签：category、homeSections、filters 与网页收藏"
+  },
+  "sourceEditTabAdvanced": "网络与其他",
+  "@sourceEditTabAdvanced": {
+    "description": "源编辑页页签：network、comments、announcement 及自定义字段"
+  },
   "sourceDeleteBuiltinNotAllowed": "内置源不可删除",
   "sourceDeleted": "源已删除",
   "sourceDeleteFailed": "源删除失败",

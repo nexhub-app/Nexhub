@@ -1469,6 +1469,26 @@
   "@sourceEditIdLocked": {
     "description": "Tooltip on the lock icon of the id module in the source-edit screen"
   },
+  "sourceEditTabBasic": "Basic",
+  "@sourceEditTabBasic": {
+    "description": "Source-edit screen tab: identity fields such as id, name, type and toggles"
+  },
+  "sourceEditTabParse": "Site & Parsing",
+  "@sourceEditTabParse": {
+    "description": "Source-edit screen tab: site, parser, selectors and hotlink/webview configs"
+  },
+  "sourceEditTabRoutes": "Routes",
+  "@sourceEditTabRoutes": {
+    "description": "Source-edit screen tab: the routes module"
+  },
+  "sourceEditTabBrowse": "Category & Filters",
+  "@sourceEditTabBrowse": {
+    "description": "Source-edit screen tab: category, home sections, filters and web favorite"
+  },
+  "sourceEditTabAdvanced": "Network & Other",
+  "@sourceEditTabAdvanced": {
+    "description": "Source-edit screen tab: network, comments, announcement and custom fields"
+  },
   "sourceDeleteBuiltinNotAllowed": "Built-in sources cannot be deleted",
   "sourceDeleted": "Source deleted",
   "sourceDeleteFailed": "Failed to delete source",

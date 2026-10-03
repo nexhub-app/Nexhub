@@ -126,6 +126,16 @@ void main() {
     // tag 有选中 → 自动展开；category 无选中 → 折叠。
     expect(find.text('标签项1'), findsOneWidget);
     expect(find.text('分类项0'), findsNothing);
+
+    // 折叠箭头必须贴行右缘（摘要出现时不得把箭头顶离右缘）。
+    final headerRow =
+        find.ancestor(of: find.text('标签'), matching: find.byType(Row)).first;
+    final rowRect = tester.getRect(headerRow);
+    final iconRect = tester.getRect(find.descendant(
+      of: headerRow,
+      matching: find.byIcon(Icons.expand_more_rounded),
+    ));
+    expect(rowRect.right - iconRect.right, closeTo(0, 1.0));
   });
 
   testWidgets('动态筛选：展开→选值→应用，回调透传选中值',
@@ -177,9 +187,23 @@ void main() {
     await tester.tap(find.text('OPEN_EDIT'));
     await tester.pumpAndSettle();
 
-    // 默认全部折叠：没有任何编辑框。
+    // 默认全部折叠：基础字段页签无编辑框；site 在「站点解析」页签。
     expect(find.byType(TextField), findsNothing);
+    expect(find.text('基础字段'), findsOneWidget);
+    expect(find.text('站点解析'), findsOneWidget);
+    await tester.tap(find.text('站点解析'));
+    await tester.pumpAndSettle();
     expect(find.text('site'), findsOneWidget);
+
+    // 折叠箭头必须贴卡片右缘（留出卡片内边距）。
+    final cardRect = tester.getRect(
+      find.byKey(const ValueKey<String>('section-card-site')),
+    );
+    final iconRect = tester.getRect(find.descendant(
+      of: find.byKey(const ValueKey<String>('section-card-site')),
+      matching: find.byIcon(Icons.expand_more_rounded),
+    ));
+    expect(cardRect.right - iconRect.right, closeTo(12.0, 1.0));
 
     // 展开才构建编辑框（懒加载），内容为该模块美化 JSON。
     await tester.tap(find.text('site'));
@@ -230,6 +254,8 @@ void main() {
     await tester.tap(find.text('OPEN_EDIT'));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('站点解析'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('site'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'not-json');

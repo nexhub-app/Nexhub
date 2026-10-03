@@ -2,10 +2,11 @@
 ///
 /// 按顶层 JSON 字段（site / parser / routes / selectors / category /
 /// homeSections / filters / antiHotlinking / webviewConfig / comments /
-/// network / announcement …）拆成独立可折叠模块卡：默认全部折叠（懒加载，
-/// 展开时才构建该模块的编辑框），点标题展开/收起，展开过的模块再次折叠
-/// 不丢编辑。保存时把各模块 JSON 合并回完整配置，整体覆盖原源。
-/// id 锁定，避免误改 id 产生重复源；清空模块内容并保存 = 删除该字段。
+/// network / announcement …）拆成独立可折叠模块卡，并按职能分为
+/// 基础字段 / 站点解析 / 路由 / 分类筛选 / 网络与其他五个页签（空页签隐藏）。
+/// 模块默认全部折叠（懒加载，展开时才构建该模块的编辑框），点标题展开/
+/// 收起，展开过的模块再次折叠不丢编辑。保存时把各模块 JSON 合并回完整
+/// 配置，整体覆盖原源。id 锁定；清空模块内容并保存 = 删除该字段。
 library;
 
 import 'dart:convert';
@@ -22,7 +23,7 @@ import '../../../core/utils/app_haptics.dart';
 import '../../../core/widgets/app_alert_dialog.dart';
 import '../../../core/widgets/app_glass_bar.dart';
 
-/// 源编辑页：接收 [PluginConfig source]，按模块折叠编辑全部字段。
+/// 源编辑页：接收 [PluginConfig source]，按页签 + 模块折叠编辑全部字段。
 class SourceEditScreen extends StatefulWidget {
   final PluginConfig source;
 
@@ -32,7 +33,8 @@ class SourceEditScreen extends StatefulWidget {
   State<SourceEditScreen> createState() => _SourceEditScreenState();
 }
 
-class _SourceEditScreenState extends State<SourceEditScreen> {
+class _SourceEditScreenState extends State<SourceEditScreen>
+    with TickerProviderStateMixin {
   /// 顶层字段有序键（保持源 JSON 原有顺序，新增字段追加尾部）。
   late final List<String> _keys;
 
@@ -48,21 +50,85 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
   final Set<String> _invalid = <String>{};
   String? _error;
 
+  /// 基础字段页签包含的顶层键（身份/类型/开关类）。
+  static const Set<String> _basicKeys = <String>{
+    'id', 'name', 'author', 'type', 'responseType', 'useWebview',
+    'version', 'deprecated', 'enabled', 'enabledExplore', 'isHidden',
+    'stealthMode', 'ageRating', 'engine', 'migrationMessage',
+  };
+
+  /// 站点解析页签包含的顶层键（抓取与反爬配置类）。
+  static const Set<String> _parseKeys = <String>{
+    'site', 'parser', 'selectors', 'antiHotlinking', 'imageTransform',
+    'webviewConfig', 'cdn',
+  };
+
+  /// 分类筛选页签包含的顶层键。
+  static const Set<String> _browseKeys = <String>{
+    'category', 'homeSections', 'filters', 'webFavorite',
+  };
+
+  /// 当前展示的页签 id 列表（仅含非空页签，空页签隐藏）。
+  List<String> _visibleTabs = <String>[];
+  TabController? _tabController;
+
   @override
   void initState() {
     super.initState();
     final doc = widget.source.toJson();
     _doc = Map<String, dynamic>.from(doc);
     _keys = List<String>.from(doc.keys);
+    _rebuildTabs();
   }
 
   @override
   void dispose() {
+    _tabController?.dispose();
     for (final c in _controllers.values) {
       c.dispose();
     }
     super.dispose();
   }
+
+  /// 顶层键 → 页签 id。未知键（含用户新增字段）归入 advanced。
+  String _groupOf(String key) {
+    if (_basicKeys.contains(key)) return 'basic';
+    if (_parseKeys.contains(key)) return 'parse';
+    if (key == 'routes') return 'routes';
+    if (_browseKeys.contains(key)) return 'browse';
+    return 'advanced';
+  }
+
+  /// 计算非空页签；TabController 仅在页签数量变化时重建（保留当前页签）。
+  void _rebuildTabs({String? activateKey}) {
+    final tabs = <String>[
+      if (_keys.any(_basicKeys.contains)) 'basic',
+      if (_keys.any(_parseKeys.contains)) 'parse',
+      if (_keys.contains('routes')) 'routes',
+      if (_keys.any(_browseKeys.contains)) 'browse',
+      if (_keys.any((k) => _groupOf(k) == 'advanced')) 'advanced',
+    ];
+    final previousIndex = _tabController?.index ?? 0;
+    if (_tabController == null || _tabController!.length != tabs.length) {
+      _tabController?.dispose();
+      _tabController = TabController(length: tabs.length, vsync: this);
+    }
+    _visibleTabs = tabs;
+    if (activateKey != null) {
+      final target = tabs.indexOf(_groupOf(activateKey));
+      if (target >= 0) _tabController!.index = target;
+    } else if (previousIndex < tabs.length) {
+      _tabController!.index = previousIndex;
+    }
+  }
+
+  String _tabLabel(AppLocalizations l10n, String tab) => switch (tab) {
+        'basic' => l10n.sourceEditTabBasic,
+        'parse' => l10n.sourceEditTabParse,
+        'routes' => l10n.sourceEditTabRoutes,
+        'browse' => l10n.sourceEditTabBrowse,
+        _ => l10n.sourceEditTabAdvanced,
+      };
 
   /// 模块编辑控制器（懒创建；美化输出：2 空格缩进，便于阅读与编辑）。
   TextEditingController _controllerFor(String key) {
@@ -106,7 +172,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
     return '$value';
   }
 
-  /// 新增顶层字段：独立模块追加到列表尾部并自动展开。
+  /// 新增顶层字段：独立模块追加到列表尾部并自动展开所在页签。
   Future<void> _addField() async {
     final l10n = AppLocalizations.of(context);
     final nameController = TextEditingController();
@@ -142,6 +208,8 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
       _keys.add(key);
       _expanded.add(key);
       _controllerFor(key);
+      // 新键可能让某个页签从无到有，页签数量变化时控制器会重建并跳转过去。
+      _rebuildTabs(activateKey: key);
     });
   }
 
@@ -210,6 +278,8 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final ThemeData theme = Theme.of(context);
+    final tabs = _visibleTabs;
+    final tabController = _tabController;
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.sourceEdit),
@@ -238,14 +308,26 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: AppTokens.spaceSm),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _keys.length,
-                itemBuilder: (context, index) =>
-                    _buildSectionCard(l10n, theme, _keys[index]),
+            const SizedBox(height: AppTokens.spaceXs),
+            if (tabController != null && tabs.isNotEmpty) ...<Widget>[
+              TabBar(
+                controller: tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                tabs: <Widget>[
+                  for (final tab in tabs) Tab(text: _tabLabel(l10n, tab)),
+                ],
               ),
-            ),
+              Expanded(
+                child: TabBarView(
+                  controller: tabController,
+                  children: <Widget>[
+                    for (final tab in tabs)
+                      _buildTabKeysList(l10n, theme, tab),
+                  ],
+                ),
+              ),
+            ],
             // 错误文本（校验清单/异常详情）可能很长：限高 + 内部滚动，
             // 保证任何内容都不撑爆页面布局。
             if (_error != null) ...<Widget>[
@@ -276,6 +358,19 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
     );
   }
 
+  /// 某页签下的模块卡列表（TabBarView 按页懒构建）。
+  Widget _buildTabKeysList(AppLocalizations l10n, ThemeData theme, String tab) {
+    final keys = <String>[
+      for (final key in _keys)
+        if (_groupOf(key) == tab) key,
+    ];
+    return ListView.builder(
+      itemCount: keys.length,
+      itemBuilder: (context, index) =>
+          _buildSectionCard(l10n, theme, keys[index]),
+    );
+  }
+
   /// 单个字段模块卡：标题行（字段名 + 摘要 + 锁/箭头）+ 懒加载编辑框。
   Widget _buildSectionCard(
     AppLocalizations l10n,
@@ -285,6 +380,7 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
     final expanded = _expanded.contains(key);
     final isId = key == 'id';
     return Padding(
+      key: ValueKey<String>('section-card-$key'),
       padding: const EdgeInsets.only(bottom: AppTokens.spaceSm),
       child: Material(
         color: AppTheme.cardContainer(theme.colorScheme),
@@ -304,7 +400,10 @@ class _SourceEditScreenState extends State<SourceEditScreen> {
                 ),
                 child: Row(
                   children: <Widget>[
-                    Flexible(
+                    // 标题与摘要都用 Expanded（紧满分配）：若用 Flexible，
+                    // 短文本占不满分配宽度，剩余空隙会堆到行尾把箭头顶离右缘。
+                    Expanded(
+                      flex: 2,
                       child: Text(
                         key,
                         maxLines: 1,

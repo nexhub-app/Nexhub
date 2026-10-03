@@ -702,8 +702,11 @@ class _DynamicFilterSheetState extends State<_DynamicFilterSheet> {
             child: Row(
               children: <Widget>[
                 Expanded(
+                  flex: 3,
                   child: Text(
                     _groupTitle(l10n, g),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -711,11 +714,15 @@ class _DynamicFilterSheetState extends State<_DynamicFilterSheet> {
                 ),
                 if (!expanded) ...<Widget>[
                   const SizedBox(width: AppTokens.spaceSm),
-                  Flexible(
+                  // 已选摘要与标题都用 Expanded（紧满分配）：若用 Flexible，
+                  // 短文本占不满分配宽度，剩余空隙会堆到行尾把箭头顶离右缘。
+                  Expanded(
+                    flex: 4,
                     child: Text(
                       _selectedSummary(l10n, g) ?? '',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.primary,
                       ),

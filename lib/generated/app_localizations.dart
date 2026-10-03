@@ -5414,6 +5414,36 @@ abstract class AppLocalizations {
   /// **'id is locked and stays unchanged on save'**
   String get sourceEditIdLocked;
 
+  /// Source-edit screen tab: identity fields such as id, name, type and toggles
+  ///
+  /// In en, this message translates to:
+  /// **'Basic'**
+  String get sourceEditTabBasic;
+
+  /// Source-edit screen tab: site, parser, selectors and hotlink/webview configs
+  ///
+  /// In en, this message translates to:
+  /// **'Site & Parsing'**
+  String get sourceEditTabParse;
+
+  /// Source-edit screen tab: the routes module
+  ///
+  /// In en, this message translates to:
+  /// **'Routes'**
+  String get sourceEditTabRoutes;
+
+  /// Source-edit screen tab: category, home sections, filters and web favorite
+  ///
+  /// In en, this message translates to:
+  /// **'Category & Filters'**
+  String get sourceEditTabBrowse;
+
+  /// Source-edit screen tab: network, comments, announcement and custom fields
+  ///
+  /// In en, this message translates to:
+  /// **'Network & Other'**
+  String get sourceEditTabAdvanced;
+
   /// No description provided for @sourceDeleteBuiltinNotAllowed.
   ///
   /// In en, this message translates to:
