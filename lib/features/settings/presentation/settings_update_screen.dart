@@ -17,6 +17,7 @@ import 'package:nexhub/generated/app_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/update/release_notes_view.dart';
 import '../../../core/update/update_manager.dart';
 import '../../../core/update/update_settings.dart';
 import '../../../core/utils/app_haptics.dart';
@@ -808,21 +809,29 @@ class _UpdateDialogState extends State<_UpdateDialog> {
 
     return AlertDialog(
       title: Text(l10n.updateAvailable(widget.release.tagName)),
-      content: SizedBox(
-        width: 360,
+      content: ConstrainedBox(
+        // 桌面端加宽以容纳长行；窄屏由对话框 inset 约束，避免溢出。
+        constraints: const BoxConstraints(maxWidth: 440),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                widget.release.body.isEmpty
-                    ? l10n.updateAvailableHint
-                    : widget.release.body,
-                style: textTheme.bodyMedium,
-                maxLines: 6,
-                overflow: TextOverflow.ellipsis,
-              ),
+              // 完整更新说明：限高滚动区（短内容贴合收缩），渲染 Markdown
+              // 而非纯文本截断——发布正文远超旧实现的 6 行上限。
+              if (widget.release.body.isEmpty)
+                Text(l10n.updateAvailableHint, style: textTheme.bodyMedium)
+              else
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.45,
+                  ),
+                  child: Scrollbar(
+                    child: SingleChildScrollView(
+                      child: ReleaseNotesView(markdown: widget.release.body),
+                    ),
+                  ),
+                ),
               const SizedBox(height: AppTokens.spaceMd),
               Row(
                 children: <Widget>[
