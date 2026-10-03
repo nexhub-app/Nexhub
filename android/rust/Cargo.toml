@@ -16,8 +16,12 @@ rcgen = "0.13"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 rustls-pemfile = "2"
 base64 = "0.22"
-jni = "0.21"
 libc = "0.2"
+
+# JNI 桥只在 Android 目标编译；桌面端走 lib.rs 的 C API（dart:ffi），
+# 不依赖 jni crate —— 否则 Windows/Linux/macOS 无法交叉/宿主编译。
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
 
 [build-dependencies]
 cc = "1"

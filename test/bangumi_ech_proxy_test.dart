@@ -47,53 +47,93 @@ void main() {
     });
   });
 
-  group('isBangumiScopedHost 完整作用域（自有域 + 镜像域）', () {
-    test('直连模式下等同自有域清单，不含第三方域', () {
-      const cfg = BangumiProxyConfig();
-      expect(isBangumiScopedHost('api.bgm.tv', cfg), isTrue);
-      expect(isBangumiScopedHost('lain.bgm.tv', cfg), isTrue);
-      expect(isBangumiScopedHost('chii.in', cfg), isTrue);
-      expect(isBangumiScopedHost('example.com', cfg), isFalse);
-      expect(isBangumiScopedHost('cloudflare-dns.com', cfg), isFalse);
+  group('BangumiProxyConfig 连接模式三选一（对齐参考 ProxyMode）', () {
+    test('echEnabled 由 mode 派生：仅 ech 模式为真', () {
+      expect(const BangumiProxyConfig().echEnabled, isFalse);
+      expect(
+          const BangumiProxyConfig(mode: BangumiProxyMode.mirror).echEnabled,
+          isFalse);
+      expect(const BangumiProxyConfig(mode: BangumiProxyMode.ech).echEnabled,
+          isTrue);
     });
 
-    test('镜像模式下用户为本板块配置的基址域纳入作用域（含子域）', () {
+    test('旧版迁移：独立开关 echEnabled=true 一律迁为 ech 模式', () {
+      for (final legacyMode in const ['direct', 'mirror']) {
+        final cfg = BangumiProxyConfig.fromJson(
+          <String, dynamic>{'mode': legacyMode, 'echEnabled': true},
+        );
+        expect(cfg.mode, BangumiProxyMode.ech, reason: legacyMode);
+        expect(cfg.echEnabled, isTrue, reason: legacyMode);
+      }
+    });
+
+    test('新版 json 不含 echEnabled 字段时按 mode 解析', () {
+      expect(
+          BangumiProxyConfig.fromJson(
+                  <String, dynamic>{'mode': 'mirror'}).mode,
+          BangumiProxyMode.mirror);
+      expect(
+          BangumiProxyConfig.fromJson(<String, dynamic>{'mode': 'ech'}).mode,
+          BangumiProxyMode.ech);
+    });
+
+    test('未知模式名回退直连', () {
+      expect(BangumiProxyConfig.fromJson(<String, dynamic>{'mode': 'xxx'}).mode,
+          BangumiProxyMode.direct);
+    });
+
+    test('toJson 保留 echEnabled 字段（旧版本回滚安装仍可恢复状态）', () {
+      expect(const BangumiProxyConfig(mode: BangumiProxyMode.ech).toJson(),
+          containsPair('echEnabled', true));
+      expect(const BangumiProxyConfig(mode: BangumiProxyMode.direct).toJson(),
+          containsPair('echEnabled', false));
+    });
+  });
+
+  group('computeEchScope bangumi 专用：ECH 模式接管自有域，镜像域不再并入', () {
+    test('直连模式不注入 bangumi 域（应用级关闭时不接管任何域）', () {
+      const cfg = BangumiProxyConfig();
+      final spec = BangumiEchProxy.instance.computeEchScope(cfg);
+      for (final host in const ['bgm.tv', 'api.bgm.tv', 'example.com']) {
+        expect(spec.handles(host), isFalse, reason: host);
+      }
+    });
+
+    test('ECH 模式注入自有域（bgm.tv / chii.in 及其子域）', () {
+      const cfg = BangumiProxyConfig(mode: BangumiProxyMode.ech);
+      final spec = BangumiEchProxy.instance.computeEchScope(cfg);
+      for (final host in const [
+        'bgm.tv',
+        'api.bgm.tv',
+        'lain.bgm.tv',
+        'next.bgm.tv',
+        'chii.in',
+        'bgm.chii.in',
+      ]) {
+        expect(spec.handles(host), isTrue, reason: host);
+      }
+      // 应用级未开：第三方域仍不接管。
+      expect(spec.handles('example.com'), isFalse);
+      expect(spec.handles('cloudflare-dns.com'), isFalse);
+    });
+
+    test('镜像模式的自建域不属于 bangumi ECH 作用域（三选一互斥；如需覆盖走应用级）', () {
       const cfg = BangumiProxyConfig(
         mode: BangumiProxyMode.mirror,
         mainSite: 'https://mirror.example.com',
         api: 'https://api-mirror.example.net',
         image: 'https://img.example.org',
       );
+      final spec = BangumiEchProxy.instance.computeEchScope(cfg);
       for (final host in const [
         'mirror.example.com',
-        'www.mirror.example.com',
         'api-mirror.example.net',
         'img.example.org',
-        'pic.img.example.org',
       ]) {
-        expect(isBangumiScopedHost(host, cfg), isTrue, reason: host);
+        expect(spec.handles(host), isFalse, reason: host);
       }
-      // 未配置的兄弟域与其他域必须放行。
-      for (final host in const [
-        '',
-        'example.com',
-        'example.net',
-        'mirror.example.org',
-        'cloudflare-dns.com',
-        'github.com',
-      ]) {
-        expect(isBangumiScopedHost(host, cfg), isFalse, reason: host);
-      }
-      // 自有域在镜像模式下仍应命中。
-      expect(isBangumiScopedHost('api.bgm.tv', cfg), isTrue);
-    });
-
-    test('镜像模式但基址留空时回落官方域，不产生额外作用域', () {
-      const cfg = BangumiProxyConfig(mode: BangumiProxyMode.mirror);
-      expect(isBangumiScopedHost('api.bgm.tv', cfg), isTrue);
-      expect(isBangumiScopedHost('next.bgm.tv', cfg), isTrue);
-      expect(isBangumiScopedHost('cloudflare-dns.com', cfg), isFalse);
-      expect(isBangumiScopedHost('example.com', cfg), isFalse);
+      // ECH 与镜像互斥：镜像模式下自有域也不由本套接管。
+      expect(spec.handles('api.bgm.tv'), isFalse);
     });
   });
 

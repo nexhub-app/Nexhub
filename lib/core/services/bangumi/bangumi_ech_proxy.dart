@@ -7,13 +7,15 @@
 ///
 /// 与参考项目的差异（仅因平台能力边界，不影响 API 形态）：
 /// - 参考项目依赖原生 Rust 代理（EchProxyModule + Java OkHttp ProxySelector）；
-///   Flutter 侧无该原生库，故通过 [MethodChannel]('nexhub/ech_proxy') 桥接，
-///   原生未实现时安全降级（enable 返回 0、isRunning 恒 false）。
+///   Flutter 侧通过 [MethodChannel]('nexhub/ech_proxy') 桥接（Android，JNI），
+///   或经 dart:ffi 直连同一引擎的 C API（Windows/Linux/macOS，见本文件
+///   `_FfiEchBackend`）；原生未实现时安全降级（enable 返回 0、isRunning 恒 false）。
 /// - 请求路由由本层注册进 [NetworkClientBuilder.proxyOverrideResolver] 全局
 ///   代理覆盖策略，经 `main.dart` 的 [HttpOverrides.global] 生效。**作用范围是
 ///   本应用三套 ECH 的并集**，优先级「越具体越优先」：
-///   ① **bangumi 专用**（`BangumiProxyConfig.echEnabled`），范围由
-///   [isBangumiScopedHost] 单点定义：Bangumi 自有域 + 镜像模式下为本板块配置的基址域；
+///   ① **bangumi 专用**：连接模式选「ECH」（`BangumiProxyMode.ech`，与直连/
+///   镜像三选一，对齐参考项目 `ProxyMode`），范围为 Bangumi 自有域，
+///   由 [isEchTargetHost] 单点定义；
 ///   ② **源级**（`SourceNetworkConfig.ech`）：打开 ECH 的源，接管其 `site.baseUrl` 的 host，
 ///   显式关闭则该源被排除（即使应用级 ECH 打开）；
 ///   ③ **应用级**（`NetworkConfig.ech`）：接管任意 https 域——不支持的域由原生侧
@@ -35,11 +37,14 @@
 library;
 
 import 'dart:async';
+import 'dart:ffi' as ffi;
 import 'dart:io';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
+import 'package:path_provider/path_provider.dart';
 
 import '../../network/network_config_service.dart';
 import '../../network/runtime/network_client_builder.dart';
@@ -237,31 +242,6 @@ bool isEchTargetHost(String host) {
   return echTargetDomains.any((d) => host == d || host.endsWith('.$d'));
 }
 
-/// ECH 的**完整作用域**判定：Bangumi 自有域 **或** 用户为本板块配置的镜像域。
-///
-/// 镜像 / 反代模式（[BangumiProxyMode.mirror]）下，Bangumi 流量实际发往
-/// [BangumiProxyConfig.apiBaseUrl] / [nextBaseUrl] / [oauthBaseUrl] /
-/// [imageBaseUrl]——它们同样是「Bangumi 有关的内容」，若不在作用域内，开了
-/// ECH 的用户会发现功能静默失效（而这正是最需要 ECH 的网络环境）。
-///
-/// 但作用域**到此为止**：只认这三个基址的 host（及其子域），其余任何域一律
-/// 放行回档案自身的代理决策，绝不吞掉用户代理，也不影响其他板块。
-bool isBangumiScopedHost(String host, [BangumiProxyConfig? config]) {
-  if (isEchTargetHost(host)) return true;
-  final cfg = config ?? BangumiProxyConfig.instance;
-  for (final base in <String>[
-    cfg.apiBaseUrl,
-    cfg.nextBaseUrl,
-    cfg.oauthBaseUrl,
-    cfg.imageBaseUrl,
-  ]) {
-    final h = Uri.tryParse(base)?.host ?? '';
-    if (h.isEmpty) continue;
-    if (host == h || host.endsWith('.$h')) return true;
-  }
-  return false;
-}
-
 /// ECH 代理管理（对应参考 `ech/index.ts` 模块级单例）。
 ///
 /// 内部维护内存态 [getEchProxyPort] / [isEchProxyRunning]，并提供与参考一致的
@@ -286,8 +266,6 @@ class BangumiEchProxy {
 
   static final BangumiEchProxy instance = BangumiEchProxy._();
 
-  static const MethodChannel _channel = MethodChannel('nexhub/ech_proxy');
-
   /// 当前代理端口，0 表示未启用（对应参考 `_port`）。
   int _port = 0;
 
@@ -296,9 +274,6 @@ class BangumiEchProxy {
 
   /// 生命周期监听是否已注册（对应参考 `_lifecycleSetup`）。
   bool _lifecycleSetup = false;
-
-  /// 原生通道是否可用（探测一次后缓存；原生未实现时整体降级）。
-  bool? _nativeAvailable;
 
   /// 当前生效的三套 ECH 作用域快照。
   ///
@@ -325,29 +300,46 @@ class BangumiEchProxy {
     _sourceConfigs = List<PluginConfig>.unmodifiable(configs);
   }
 
-  static bool get _isAndroid => !kIsWeb && Platform.isAndroid;
+  /// ECH 原生引擎后端（Android = MethodChannel→JNI；桌面 = dart:ffi→C API）。
+  late final EchProxyBackend _backend = createEchBackend();
+
+  /// 本平台是否具备接入 ECH 引擎的通道（引擎本体是否存在由后端探测）。
+  ///
+  /// Android 走 MethodChannel→JNI；Windows/Linux/macOS 走 dart:ffi 加载
+  /// echproxy 动态库（缺失时后端安全降级）。iOS/Web 目前不提供引擎。
+  static bool get platformSupported {
+    if (kIsWeb) return false;
+    try {
+      return Platform.isAndroid ||
+          Platform.isWindows ||
+          Platform.isLinux ||
+          Platform.isMacOS;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// 启动 ECH 代理（对应参考 `enableEchProxy`）。
   ///
-  /// 仅 Android 且 [echProxyEnabled] 时生效；其余平台或关闭时返回 0（不启用）。
+  /// 仅受支持平台且 [echProxyEnabled] 时生效；其余平台或关闭时返回 0（不启用）。
   /// 原生返回端口 <= 0 时回滚并置 0；原生不可用时捕获异常安全降级。
   ///
   /// 与参考的差异：启动时会**一并下发三套 ECH 合并后的作用域**（域白名单 / 是否接管
   /// 任意域 / 用户自备 ECHConfigList），因为 native 侧要据此决定启动时预热哪些域。
   Future<int> enableEchProxy([EchProxyConfig config = const EchProxyConfig()]) async {
-    if (!_isAndroid || !echProxyEnabled) return 0;
+    if (!platformSupported || !echProxyEnabled) return 0;
 
     _scope = computeEchScope();
     final effective = config.withScope(_scope, verboseLog: kDebugMode);
 
     try {
-      final port = await _nativeEnable(effective);
+      final port = await _backend.start(effective);
       if (port > 0) {
         _port = port;
         _running = true;
       } else {
         // 原生返回 0，回滚。
-        await _nativeDisable();
+        await _backend.stop();
         _port = 0;
         _running = false;
       }
@@ -355,7 +347,7 @@ class BangumiEchProxy {
     } catch (e) {
       // 失败时回滚原生服务，防止残留。
       try {
-        await _nativeDisable();
+        await _backend.stop();
       } catch (_) {
         // 忽略回滚失败。
       }
@@ -370,10 +362,10 @@ class BangumiEchProxy {
   /// 这是「三套 ECH 真正生效」的统一入口：任何一套的开关变化后调用它即可，
   /// 不需要分别关心「引擎该不该起、怎么起」。
   /// - 三套全关 → 停掉引擎（没有作用域就没有必要常驻本地代理）
-  /// - 有作用域但引擎没跑 → 启动（作用域随之在 `startProxy` 前下发）
+  /// - 有作用域但引擎没跑 → 启动（作用域随之在 `start` 前下发）
   /// - 引擎已在跑 → 只热更新作用域（native 侧支持运行期替换，不重启服务）
   Future<void> applyEchScope() async {
-    if (!_isAndroid || !echProxyEnabled) return;
+    if (!platformSupported || !echProxyEnabled) return;
     final spec = computeEchScope();
     _scope = spec;
 
@@ -390,7 +382,7 @@ class BangumiEchProxy {
     // 已在运行：把新作用域热更新给 native。失败不影响已建立的连接，
     // 下次 [applyEchScope] 会重试。
     try {
-      await _nativeSetScope(spec);
+      await _backend.setScope(spec, verboseLog: kDebugMode);
     } catch (e) {
       debugPrint('BangumiEchProxy.applyEchScope: setScope failed: $e');
     }
@@ -398,31 +390,26 @@ class BangumiEchProxy {
 
   /// 计算三套 ECH 的**并集作用域**（优先级：bangumi 专用 > 源级 > 应用级）。
   ///
-  /// - **bangumi 专用**（[BangumiProxyConfig.echEnabled]）：Bangumi 自有域 +
-  ///   镜像模式下用户为本板块配置的基址域，由 [isBangumiScopedHost] 单点定义；
+  /// - **bangumi 专用**：连接模式为 [BangumiProxyMode.ech]（与直连/镜像三选一，
+  ///   对齐参考 `ProxyMode`）时接管 Bangumi 自有域；镜像域不在此列——ECH 模式
+  ///   走官方域名，二者互斥（用户仍可用应用级 ECH 覆盖任意域，含镜像域）；
   /// - **源级**（[SourceNetworkConfig.ech]）：打开 ECH 的源，接管其
   ///   [PluginConfig.site] 的 host；显式关闭则进排除表（即使应用级 ECH 打开也不接管）；
   /// - **应用级**（[NetworkConfig.ech]）：接管任意 https 域。
   ///
   /// `echConfigList` 取「源级 > 应用级」第一个非空值（用户显式给了配置就以用户为准）。
-  EchScopeSpec computeEchScope() {
+  ///
+  /// [bangumiCfg] 仅供测试注入（生产恒读 [BangumiProxyConfig.instance]，
+  /// 测试环境无法安全 save() 全局单例）。
+  EchScopeSpec computeEchScope([BangumiProxyConfig? bangumiCfg]) {
     final targets = <String>{};
     final excluded = <String>{};
     String ecl = '';
 
-    // ① bangumi 专用
-    final bgmCfg = BangumiProxyConfig.instance;
-    if (bgmCfg.echEnabled) {
+    // ① bangumi 专用：ECH 模式 → Bangumi 自有域
+    if ((bangumiCfg ?? BangumiProxyConfig.instance).mode ==
+        BangumiProxyMode.ech) {
       targets.addAll(echTargetDomains);
-      for (final base in <String>[
-        bgmCfg.apiBaseUrl,
-        bgmCfg.nextBaseUrl,
-        bgmCfg.oauthBaseUrl,
-        bgmCfg.imageBaseUrl,
-      ]) {
-        final h = Uri.tryParse(base)?.host ?? '';
-        if (h.isNotEmpty) targets.add(h);
-      }
     }
 
     // ② 源级（只看「源自己声明的那一层」：继承应用级的源不算显式点名，
@@ -455,9 +442,9 @@ class BangumiEchProxy {
 
   /// 停止 ECH 代理（对应参考 `disableEchProxy`）。
   Future<void> disableEchProxy() async {
-    if (!_isAndroid) return;
+    if (!platformSupported) return;
     try {
-      await _nativeDisable();
+      await _backend.stop();
     } catch (_) {
       // 忽略原生侧异常，仍清除内存态。
     } finally {
@@ -504,7 +491,7 @@ class BangumiEchProxy {
   /// 统一交给 [applyEchScope] 做三套并集判定（该启动就启动、该热更新就热更新、
   /// 三套全关就把引擎停掉）。参数保留是为了与参考签名一致。
   Future<void> restoreEchProxy(bool enabled) async {
-    if (!_isAndroid) return;
+    if (!platformSupported) return;
     assert(() {
       if (enabled != BangumiProxyConfig.instance.echEnabled) {
         debugPrint(
@@ -517,82 +504,38 @@ class BangumiEchProxy {
     await applyEchScope();
   }
 
-  /// 从原生侧同步真实状态（异步，调试用；对应参考 `syncEchProxyStatus`）。
+  /// 从原生侧同步真实状态（异步，调试/UI 展示用；对应参考 `syncEchProxyStatus`）。
   Future<EchProxyStatus> syncEchProxyStatus() async {
-    final status = await _nativeGetStatus();
+    final status = await _backend.status();
     _port = status.port;
     _running = status.running;
     return status;
   }
 
   /// 获取原生端收集的 ECH 日志（对应参考 `getEchProxyLogs`）。
+  ///
+  /// 桌面端（FFI 后端）无环形日志缓冲，恒返回空列表；Rust 侧日志走 stderr。
   Future<List<EchProxyLog>> getEchProxyLogs() async {
-    if (!_isAndroid || !echProxyEnabled) return const <EchProxyLog>[];
+    if (!platformSupported || !echProxyEnabled) return const <EchProxyLog>[];
     try {
-      final result = await _channel.invokeListMethod<Map<Object?, Object?>>('getLogs');
-      if (result == null) return const <EchProxyLog>[];
-      return result.map(EchProxyLog.fromNative).toList();
+      return await _backend.logs();
     } on MissingPluginException {
-      _nativeAvailable = false;
       return const <EchProxyLog>[];
     }
   }
 
   /// 注册 App 生命周期监听（对应参考 `setupEchLifecycle`）。
   ///
-  /// 后台→前台时若 [BangumiProxyConfig.echEnabled] 且代理已死则重建；仅注册一次。
+  /// 后台→前台时若引擎已死则按当前作用域重建；仅注册一次。
   /// 使用 Flutter 的 [WidgetsBindingObserver] 等价于参考的 `AppState` 监听。
   void setupEchLifecycle() {
-    if (_lifecycleSetup || !_isAndroid || !echProxyEnabled) return;
+    if (_lifecycleSetup || !platformSupported || !echProxyEnabled) return;
     _lifecycleSetup = true;
     _EchLifecycleObserver.instance.attach(this);
   }
 
-  // ── MethodChannel 桥接（对应参考 `native.ts`）──
-
-  Future<int> _nativeEnable(EchProxyConfig config) async {
-    if (!await _ensureNative()) return 0;
-    final port = await _channel.invokeMethod<int>('enable', config.toNative());
-    return port ?? 0;
-  }
-
-  Future<void> _nativeDisable() async {
-    if (!await _ensureNative()) return;
-    await _channel.invokeMethod<void>('disable');
-  }
-
-  /// 把作用域热更新给 native（引擎运行中调用；启动路径用 `enable` 的入参代替）。
-  Future<void> _nativeSetScope(EchScopeSpec spec) async {
-    if (!await _ensureNative()) return;
-    await _channel.invokeMethod<void>(
-      'setScope',
-      spec.toNativeScope(verboseLog: kDebugMode),
-    );
-  }
-
-  Future<EchProxyStatus> _nativeGetStatus() async {
-    if (!await _ensureNative()) return const EchProxyStatus.idle();
-    final map =
-        await _channel.invokeMapMethod<Object?, Object?>('getStatus');
-    if (map == null) return const EchProxyStatus.idle();
-    return EchProxyStatus.fromNative(map);
-  }
-
-  /// 探测并缓存原生通道可用性；缺失时安全降级（对应参考 LINKING_ERROR 兜底）。
-  Future<bool> _ensureNative() async {
-    if (_nativeAvailable != null) return _nativeAvailable!;
-    try {
-      // 用一个轻量状态查询探测插件是否注册，避免 enable 带副作用。
-      await _channel.invokeMapMethod<Object?, Object?>('getStatus');
-      _nativeAvailable = true;
-    } on MissingPluginException {
-      _nativeAvailable = false;
-    } catch (_) {
-      // 其他异常（如原生未就绪）先视为可用，交给具体调用处理。
-      _nativeAvailable = true;
-    }
-    return _nativeAvailable!;
-  }
+  // 原生桥接（MethodChannel→JNI / dart:ffi→C API）抽象到本文件末尾的
+  // [EchProxyBackend] 实现；[BangumiEchProxy] 只面向后端接口编程。
 }
 
 /// 导出别名（对应参考 `export { enableEchProxy as enable, ... }`）。
@@ -637,3 +580,282 @@ class _EchLifecycleObserver with WidgetsBindingObserver {
     );
   }
 }
+
+// ============================ 原生引擎后端抽象 ==============================
+
+/// ECH 原生引擎的接入后端。
+///
+/// 同一个 Rust 引擎（`libechproxy`）有两套加载路径：
+/// - **Android**：`MethodChannel('nexhub/ech_proxy')` → `EchProxyBridge` → JNI，
+///   由 [MethodChannelEchBackend] 承载（含原生侧环形日志）；
+/// - **桌面（Windows/Linux/macOS）**：dart:ffi 直接绑定 Rust C API（`ech_*`），
+///   由 [FfiEchBackend] 承载——不存在 Java/Kotlin 层，日志走 stderr。
+///
+/// 两套语义一一对应（start/stop/setScope/status/logs）；原生缺失时各自安全降级
+/// （start 返回 0 / status 恒未运行），上层据此退化。
+abstract class EchProxyBackend {
+  /// 启动引擎。返回实际监听端口；<=0 表示失败（含原生不可用）。
+  Future<int> start(EchProxyConfig config);
+
+  /// 停止引擎（幂等）。
+  Future<void> stop();
+
+  /// 下发 / 热更新运行期作用域（可在 start 前或运行中调用）。
+  Future<void> setScope(EchScopeSpec spec, {required bool verboseLog});
+
+  /// 查询真实运行状态（native 存活检测）。
+  Future<EchProxyStatus> status();
+
+  /// 原生侧日志快照（无日志能力的后端返回空列表）。
+  Future<List<EchProxyLog>> logs();
+}
+
+/// 按当前平台挑选后端（[BangumiEchProxy] 初始化时调用一次）。
+EchProxyBackend createEchBackend() {
+  if (!BangumiEchProxy.platformSupported) return _UnavailableEchBackend();
+  if (!kIsWeb && Platform.isAndroid) return MethodChannelEchBackend();
+  return FfiEchBackend();
+}
+
+/// Android 后端：MethodChannel → `EchProxyBridge`（Kotlin）→ JNI → Rust。
+class MethodChannelEchBackend implements EchProxyBackend {
+  static const MethodChannel _channel = MethodChannel('nexhub/ech_proxy');
+
+  /// 原生通道是否可用（探测一次后缓存；原生未实现时整体降级）。
+  bool? _available;
+
+  Future<bool> _ensureAvailable() async {
+    if (_available != null) return _available!;
+    try {
+      // 用一个轻量状态查询探测插件是否注册，避免 start 带副作用。
+      await _channel.invokeMapMethod<Object?, Object?>('getStatus');
+      _available = true;
+    } on MissingPluginException {
+      _available = false;
+    } catch (_) {
+      // 其他异常（如原生未就绪）先视为可用，交给具体调用处理。
+      _available = true;
+    }
+    return _available!;
+  }
+
+  @override
+  Future<int> start(EchProxyConfig config) async {
+    if (!await _ensureAvailable()) return 0;
+    final port = await _channel.invokeMethod<int>('enable', config.toNative());
+    return port ?? 0;
+  }
+
+  @override
+  Future<void> stop() async {
+    if (!await _ensureAvailable()) return;
+    await _channel.invokeMethod<void>('disable');
+  }
+
+  @override
+  Future<void> setScope(EchScopeSpec spec, {required bool verboseLog}) async {
+    if (!await _ensureAvailable()) return;
+    await _channel.invokeMethod<void>(
+      'setScope',
+      spec.toNativeScope(verboseLog: verboseLog),
+    );
+  }
+
+  @override
+  Future<EchProxyStatus> status() async {
+    if (!await _ensureAvailable()) return const EchProxyStatus.idle();
+    final map = await _channel.invokeMapMethod<Object?, Object?>('getStatus');
+    if (map == null) return const EchProxyStatus.idle();
+    return EchProxyStatus.fromNative(map);
+  }
+
+  @override
+  Future<List<EchProxyLog>> logs() async {
+    if (!await _ensureAvailable()) return const <EchProxyLog>[];
+    final result = await _channel.invokeListMethod<Map<Object?, Object?>>('getLogs');
+    if (result == null) return const <EchProxyLog>[];
+    return result.map(EchProxyLog.fromNative).toList();
+  }
+}
+
+/// 桌面后端：dart:ffi → Rust C API（`ech_start_proxy` / `ech_stop_proxy` /
+/// `ech_is_alive` / `ech_set_scope`，见 `android/rust/src/lib.rs` 的 C API 段）。
+///
+/// 动态库缺失（未打包 / 未构建）时整体降级为「不可用」，与 Android 侧
+/// `MissingPluginException` 的降级语义一致。
+class FfiEchBackend implements EchProxyBackend {
+  ffi.DynamicLibrary? _lib;
+
+  /// 绑定结果缓存（-1 = 未探测，0 = 不可用，1 = 可用）。
+  int _bound = -1;
+
+  bool _ensureBound() {
+    if (_bound != -1) return _bound == 1;
+    _bound = 0;
+    for (final name in _candidateLibraryNames()) {
+      try {
+        _lib = ffi.DynamicLibrary.open(name);
+        _bound = 1;
+        break;
+      } catch (_) {
+        // 换下一个候选名；全部失败即降级。
+      }
+    }
+    return _bound == 1;
+  }
+
+  /// 各平台的动态库文件名（及加载路径约定，见 android/rust/README.md）。
+  static List<String> _candidateLibraryNames() {
+    if (kIsWeb) return const <String>[];
+    if (Platform.isWindows) return const <String>['echproxy.dll'];
+    if (Platform.isMacOS) return const <String>['libechproxy.dylib'];
+    if (Platform.isLinux) return const <String>['libechproxy.so'];
+    return const <String>[];
+  }
+
+  // ── C API 绑定（签名与 lib.rs 的 ech_* 一一对应）──
+  ffi.Pointer<ffi.NativeFunction<_StartC>>? _startPtr;
+  ffi.Pointer<ffi.NativeFunction<_StartC>> get _start =>
+      _startPtr ??= _lib!.lookup<ffi.NativeFunction<_StartC>>('ech_start_proxy');
+
+  ffi.Pointer<ffi.NativeFunction<_StopC>>? _stopPtr;
+  ffi.Pointer<ffi.NativeFunction<_StopC>> get _stop =>
+      _stopPtr ??= _lib!.lookup<ffi.NativeFunction<_StopC>>('ech_stop_proxy');
+
+  ffi.Pointer<ffi.NativeFunction<_AliveC>>? _alivePtr;
+  ffi.Pointer<ffi.NativeFunction<_AliveC>> get _alive =>
+      _alivePtr ??= _lib!.lookup<ffi.NativeFunction<_AliveC>>('ech_is_alive');
+
+  ffi.Pointer<ffi.NativeFunction<_SetScopeC>>? _setScopePtr;
+  ffi.Pointer<ffi.NativeFunction<_SetScopeC>> get _setScope =>
+      _setScopePtr ??= _lib!.lookup<ffi.NativeFunction<_SetScopeC>>('ech_set_scope');
+
+  @override
+  Future<int> start(EchProxyConfig config) async {
+    if (!_ensureBound()) return 0;
+
+    // CA / ECH 缓存目录：桌面端没有 filesDir/cacheDir，用应用支持目录 + 临时目录
+    // （RCGen CA 需持久存放，ECH 探测缓存可丢）。
+    String caDir = '';
+    String cacheDir = '';
+    try {
+      final support = await getApplicationSupportDirectory();
+      caDir = '${support.path}${Platform.pathSeparator}ech-proxy-ca';
+      Directory(caDir).createSync(recursive: true);
+      final tmp = await getTemporaryDirectory();
+      cacheDir = '${tmp.path}${Platform.pathSeparator}ech-proxy';
+      Directory(cacheDir).createSync(recursive: true);
+    } catch (e) {
+      debugPrint('FfiEchBackend.start: 准备目录失败: $e');
+      return 0;
+    }
+
+    final dns = (config.dns ?? _defaultDns).toNativeUtf8();
+    final ca = caDir.toNativeUtf8();
+    final cache = cacheDir.toNativeUtf8();
+    // 作用域必须在 start 之前下发（对齐 Android 桥的顺序）：native 侧据此决定
+    // 启动时预热哪些域。Android 走 enable 载荷自带作用域，FFI 侧没有那层封装，
+    // 必须显式先 ech_set_scope。
+    final targets = (config.targets ?? '').toNativeUtf8();
+    final ecl = (config.echConfigList ?? '').toNativeUtf8();
+    try {
+      _setScope.asFunction<_SetScopeDart>()(
+        targets,
+        ecl,
+        (config.allowAnyHost ?? false) ? 1 : 0,
+        (config.verboseLog ?? false) ? 1 : 0,
+      );
+      final port = _start
+          .asFunction<_StartDart>()(
+        config.port ?? 0,
+        dns,
+        ca,
+        cache,
+      );
+      // native 侧没有「查询端口」的 C API（is_alive 只回布尔），
+      // 端口由 Dart 侧记忆，status() 复用。
+      if (port > 0) _lastStartedPort = port;
+      return port;
+    } catch (e) {
+      debugPrint('FfiEchBackend.start: $e');
+      return 0;
+    } finally {
+      malloc.free(dns);
+      malloc.free(ca);
+      malloc.free(cache);
+      malloc.free(targets);
+      malloc.free(ecl);
+    }
+  }
+
+  /// 最近一次成功 start 的端口（native 侧无查询端口的 C API，Dart 侧记忆）。
+  int _lastStartedPort = 0;
+
+  @override
+  Future<void> stop() async {
+    if (!_ensureBound()) return;
+    _stop.asFunction<_StopDart>()();
+    _lastStartedPort = 0;
+  }
+
+  @override
+  Future<void> setScope(EchScopeSpec spec, {required bool verboseLog}) async {
+    if (!_ensureBound()) return;
+    final targets = spec.targets.join(',').toNativeUtf8();
+    final ecl = spec.echConfigList.toNativeUtf8();
+    try {
+      _setScope.asFunction<_SetScopeDart>()(
+        targets,
+        ecl,
+        spec.allowAnyHost ? 1 : 0,
+        verboseLog ? 1 : 0,
+      );
+    } catch (e) {
+      debugPrint('FfiEchBackend.setScope: $e');
+    } finally {
+      malloc.free(targets);
+      malloc.free(ecl);
+    }
+  }
+
+  @override
+  Future<EchProxyStatus> status() async {
+    if (!_ensureBound()) return const EchProxyStatus.idle();
+    final alive = _alive.asFunction<_AliveDart>()() != 0;
+    return EchProxyStatus(running: alive, port: alive ? _lastStartedPort : 0);
+  }
+
+  @override
+  Future<List<EchProxyLog>> logs() async => const <EchProxyLog>[];
+}
+
+/// 兜底后端：平台不支持（iOS/Web 等），一切调用安全空转。
+class _UnavailableEchBackend implements EchProxyBackend {
+  @override
+  Future<int> start(EchProxyConfig config) async => 0;
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> setScope(EchScopeSpec spec, {required bool verboseLog}) async {}
+
+  @override
+  Future<EchProxyStatus> status() async => const EchProxyStatus.idle();
+
+  @override
+  Future<List<EchProxyLog>> logs() async => const <EchProxyLog>[];
+}
+
+/// C API 函数签名（dart:ffi 侧声明，与 `android/rust/src/lib.rs` 对应）。
+typedef _StartC = ffi.Int32 Function(
+    ffi.Int32 port, ffi.Pointer<Utf8> dns, ffi.Pointer<Utf8> caDir, ffi.Pointer<Utf8> cacheDir);
+typedef _StartDart = int Function(
+    int port, ffi.Pointer<Utf8> dns, ffi.Pointer<Utf8> caDir, ffi.Pointer<Utf8> cacheDir);
+typedef _StopC = ffi.Void Function();
+typedef _StopDart = void Function();
+typedef _AliveC = ffi.Int32 Function();
+typedef _AliveDart = int Function();
+typedef _SetScopeC = ffi.Void Function(ffi.Pointer<Utf8> targets,
+    ffi.Pointer<Utf8> echConfigList, ffi.Int32 allowAny, ffi.Int32 verboseLog);
+typedef _SetScopeDart = void Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, int, int);

@@ -5,8 +5,9 @@ set -e
 # ECH Proxy - Android 交叉编译脚本
 #
 # 用法:
-#   ./build-android.sh          # 编译并输出 libechproxy.so 到 jniLibs
-#   ./build-android.sh --setup  # 仅准备工具链 (Rust target / cargo-ndk / NDK / perl 模块)
+#   ./build-android.sh            # 全量编译三个 ABI 并输出到 jniLibs/<abi>/
+#   ./build-android.sh arm64-v8a  # 只编译单个 ABI (armeabi-v7a / x86_64 同理)
+#   ./build-android.sh --setup    # 仅准备工具链 (Rust target / cargo-ndk / NDK / perl 模块)
 #
 # 环境要求:
 #   - Linux / macOS: 开箱可用
@@ -17,9 +18,20 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-JNILIBS_DIR="$PROJECT_ROOT/android/app/src/main/jniLibs/arm64-v8a"
+JNILIBS_ROOT="$PROJECT_ROOT/android/app/src/main/jniLibs"
 NDK_VERSION="27.0.12077973"
 OPENSSL_VERSION="4.0.1"
+
+# 要构建的 ABI 清单（与 Flutter 官方支持面一致；x86 32 位模拟器不再提供）
+#   jniLibs 目录        Rust target              OpenSSL Configure target
+#   arm64-v8a           aarch64-linux-android    android-arm64
+#   armeabi-v7a         armv7-linux-androideabi  android-arm
+#   x86_64              x86_64-linux-android     android-x86_64
+ABIS=(
+    "arm64-v8a aarch64-linux-android android-arm64"
+    "armeabi-v7a armv7-linux-androideabi android-arm"
+    "x86_64 x86_64-linux-android android-x86_64"
+)
 
 # 颜色输出
 RED='\033[0;31m'
@@ -134,11 +146,15 @@ setup_rust() {
 
     log "Rust: $(rustc --version)"
 
-    # 安装 Android 目标
-    if ! rustup target list --installed | grep -q "aarch64-linux-android"; then
-        log "安装 aarch64-linux-android 目标..."
-        rustup target add aarch64-linux-android
-    fi
+    # 安装 Android 目标 (多 ABI)
+    for spec in "${ABIS[@]}"; do
+        local ABI RUST_TARGET _
+        read -r ABI RUST_TARGET _ <<<"$spec"
+        if ! rustup target list --installed | grep -q "$RUST_TARGET"; then
+            log "安装 $RUST_TARGET 目标..."
+            rustup target add "$RUST_TARGET"
+        fi
+    done
 
     # 安装 cargo-ndk
     if ! command -v cargo-ndk &>/dev/null; then
@@ -315,21 +331,36 @@ patch_configure_which() {
 }
 
 # ============================================================
-# 3. 交叉编译 OpenSSL (带 ECH 支持)
+# 3. 交叉编译 OpenSSL (带 ECH 支持) —— 按 ABI 独立构建
+#
+# 用法: build_openssl <jniLibs-abi> <openssl-configure-target>
+#   例: build_openssl arm64-v8a android-arm64
 #
 # 源码默认自动下载; 也可手动放到:
 #   android/rust/openssl/build/openssl-4.0.1/
+#
+# 产物目录按 ABI 分离 (openssl/install-<abi>): Configure target 与指令集
+# 随 ABI 变化, 共用一个目录会让第二个 ABI 复用第一个的配置产物。
 # ============================================================
 build_openssl() {
+    local ABI="$1"
+    local SSL_TARGET="$2"
     local OPENSSL_DIR="$SCRIPT_DIR/openssl"
     local OPENSSL_BUILD="$OPENSSL_DIR/build"
-    local OPENSSL_INSTALL="$OPENSSL_DIR/install"
+    local OPENSSL_INSTALL="$OPENSSL_DIR/install-$ABI"
     local OPENSSL_SRC="$OPENSSL_BUILD/openssl-$OPENSSL_VERSION"
     local ANDROID_HOME_POSIX
     ANDROID_HOME_POSIX="$(to_posix_path "${ANDROID_HOME:-$HOME/Library/Android/sdk}")"
     local NDK_DIR="$ANDROID_HOME_POSIX/ndk/$NDK_VERSION"
     local TOOLCHAIN
     local API_LEVEL=21
+
+    # 兼容迁移: 旧版单 ABI 产物目录 install/ 即 arm64-v8a, 有校验标记就整体改名复用
+    if [ "$ABI" = "arm64-v8a" ] && [ ! -d "$OPENSSL_INSTALL" ] \
+        && [ -f "$OPENSSL_DIR/install/lib/libssl.a" ] && [ -f "$OPENSSL_DIR/install/.threads-ok" ]; then
+        log "迁移旧版 arm64-v8a OpenSSL 产物: install/ → install-arm64-v8a/"
+        mv "$OPENSSL_DIR/install" "$OPENSSL_INSTALL"
+    fi
 
     # host 目录名随 NDK 版本/主机架构变化 (darwin-x86_64 / darwin-arm64 / windows-x86_64 ...),
     # 按实际存在值取
@@ -340,7 +371,7 @@ build_openssl() {
 
     # 只有带 threads 校验标记的产物才可复用
     if [ -f "$OPENSSL_INSTALL/lib/libssl.a" ] && [ -f "$OPENSSL_INSTALL/.threads-ok" ]; then
-        log "OpenSSL 已编译 (threads 已启用), 跳过"
+        log "OpenSSL [$ABI] 已编译 (threads 已启用), 跳过"
         export OPENSSL_DIR="$OPENSSL_INSTALL"
         export OPENSSL_INCLUDE_DIR="$OPENSSL_INSTALL/include"
         export OPENSSL_LIB_DIR="$OPENSSL_INSTALL/lib"
@@ -349,7 +380,7 @@ build_openssl() {
     fi
 
     if [ -f "$OPENSSL_INSTALL/lib/libssl.a" ]; then
-        warn "检测到旧的 OpenSSL 产物 (可能是 no-threads 构建), 删除后重新编译"
+        warn "检测到 [$ABI] 旧的 OpenSSL 产物 (可能是 no-threads 构建), 删除后重新编译"
         rm -rf "$OPENSSL_INSTALL"
     fi
 
@@ -417,7 +448,7 @@ build_openssl() {
     # threads 也会被覆盖), 结果是 libcrypto 以单线程 (no-threads) 编译、所有内部锁
     # 变成空操作, 多线程代理并发使用 OpenSSL 时必崩 (SSL_CTX_new_ex → SIGSEGV)。
     # 静态库能力由 no-shared 保证 (配合 OPENSSL_STATIC=1 静态链接进 libechproxy.so)。
-    ./Configure android-arm64 -D__ANDROID_API__=$API_LEVEL \
+    ./Configure "$SSL_TARGET" -D__ANDROID_API__=$API_LEVEL \
         --prefix="$OPENSSL_INSTALL" \
         --openssldir="$OPENSSL_INSTALL" \
         no-shared \
@@ -435,27 +466,31 @@ build_openssl() {
     if [ "$VERIFY_RC" -eq 2 ]; then
         err "NDK 工具链缺少 llvm-ar/llvm-nm, 无法校验 OpenSSL 产物: $TOOLCHAIN/bin"
     elif [ "$VERIFY_RC" -ne 0 ]; then
-        err "OpenSSL 编译产物缺少多线程支持 (no-threads), 会导致代理并发崩溃, 请检查 Configure 参数"
+        err "OpenSSL [$ABI] 编译产物缺少多线程支持 (no-threads), 会导致代理并发崩溃, 请检查 Configure 参数"
     fi
 
     touch "$OPENSSL_INSTALL/.threads-ok"
-    log "OpenSSL 多线程支持校验通过"
+    log "OpenSSL [$ABI] 多线程支持校验通过"
 
     export OPENSSL_DIR="$OPENSSL_INSTALL"
     export OPENSSL_INCLUDE_DIR="$OPENSSL_INSTALL/include"
     export OPENSSL_LIB_DIR="$OPENSSL_INSTALL/lib"
     export OPENSSL_STATIC=1
 
-    log "OpenSSL 编译完成"
+    log "OpenSSL [$ABI] 编译完成"
 }
 
 # ============================================================
-# 4. 交叉编译 Rust 库
+# 4. 交叉编译 Rust 库 —— 按 ABI 构建
+#
+# 用法: build_rust_lib <jniLibs-abi> <rust-target>
 # ============================================================
 build_rust_lib() {
+    local ABI="$1"
+    local RUST_TARGET="$2"
     cd "$SCRIPT_DIR"
 
-    log "编译 ech-proxy (aarch64-linux-android)..."
+    log "编译 ech-proxy ($RUST_TARGET)..."
 
     # cargo-ndk 是原生 Windows 程序, 需要 Windows 风格路径;
     # 而 OpenSSL Configure 需要 POSIX 风格 (见文件头 1) —— 分别喂, 互不干扰。
@@ -469,10 +504,11 @@ build_rust_lib() {
     ANDROID_HOME="$SDK_WIN" \
     ANDROID_NDK_HOME="$NDK_WIN" \
     ANDROID_NDK_ROOT="$NDK_WIN" \
-    cargo ndk -t arm64-v8a --platform 21 build --release 2>&1
+    cargo ndk -t "$ABI" --platform 21 build --release 2>&1
 
     # 复制产物到 jniLibs
-    local SO_FILE="$SCRIPT_DIR/target/aarch64-linux-android/release/libechproxy.so"
+    local SO_FILE="$SCRIPT_DIR/target/$RUST_TARGET/release/libechproxy.so"
+    local JNILIBS_DIR="$JNILIBS_ROOT/$ABI"
 
     if [ -f "$SO_FILE" ]; then
         mkdir -p "$JNILIBS_DIR"
@@ -503,7 +539,7 @@ build_rust_lib() {
 # Main
 # ============================================================
 main() {
-    log "=== ECH Proxy 编译 ==="
+    log "=== ECH Proxy 编译 (Android 多 ABI) ==="
 
     if [ "${1:-}" = "--setup" ]; then
         setup_rust
@@ -515,16 +551,29 @@ main() {
 
     setup_rust
     setup_ndk
-    build_openssl
-    build_rust_lib
+
+    # 只建单个 ABI: ./build-android.sh arm64-v8a；否则三个 ABI 全量构建
+    local ONLY_ABI="${1:-}"
+    local SPEC
+    for SPEC in "${ABIS[@]}"; do
+        local ABI RUST_TARGET SSL_TARGET
+        read -r ABI RUST_TARGET SSL_TARGET <<<"$SPEC"
+        if [ -n "$ONLY_ABI" ] && [ "$ONLY_ABI" != "$ABI" ]; then
+            continue
+        fi
+        log "── ABI: $ABI ──"
+        build_openssl "$ABI" "$SSL_TARGET"
+        build_rust_lib "$ABI" "$RUST_TARGET"
+    done
 
     log "=== 编译完成 ==="
     log ""
-    log "产物: $JNILIBS_DIR/libechproxy.so"
+    log "产物: $JNILIBS_ROOT/<abi>/libechproxy.so"
     log ""
     log "下一步:"
     log "  1. 重新编译 Android App (gradle 会把 jniLibs 打进 APK)"
     log "  2. Dart 侧 BangumiEchProxy.enableEchProxy() 会自动经 nexhub/ech_proxy 通道调用"
+    log "  3. 桌面端 (Windows/Linux/macOS) 另见 build-windows.sh / build-desktop.sh"
 }
 
 main "$@"

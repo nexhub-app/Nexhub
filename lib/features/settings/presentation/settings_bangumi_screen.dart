@@ -38,14 +38,12 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
   final TextEditingController _apiController = TextEditingController();
   final TextEditingController _imageController = TextEditingController();
   BangumiProxyMode _proxyMode = BangumiProxyMode.direct;
-  bool _echEnabled = false;
 
   @override
   void initState() {
     super.initState();
     final cfg = BangumiProxyConfig.instance;
     _proxyMode = cfg.mode;
-    _echEnabled = cfg.echEnabled;
     _mainSiteController.text = cfg.mainSite;
     _apiController.text = cfg.api;
     _imageController.text = cfg.image;
@@ -62,42 +60,58 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
 
   /// 保存代理 / 镜像设置到本地存储并同步全局实例。
   ///
-  /// 注意：不触碰 ECH 运行时状态——ECH 开关由 [_toggleEchProxy] 自行即时生效，
-  /// 避免重复 enable 造成原生侧重复启动。
+  /// 仅镜像模式的域名输入框走这里；连接模式本身由 [_switchProxyMode] 即时生效。
   Future<void> _saveProxy(AppLocalizations l10n) async {
-    final cfg = BangumiProxyConfig(
-      mode: _proxyMode,
-      mainSite: _mainSiteController.text.trim(),
-      api: _apiController.text.trim(),
-      image: _imageController.text.trim(),
-      echEnabled: _echEnabled,
-    );
-    await cfg.save();
+    await _persistConfig(_proxyMode);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.bangumiProxySaved)),
     );
   }
 
-  /// 切换 ECH 本地代理：立即生效 + 持久化（对应参考 `toggleEchProxy`）。
-  ///
-  /// 参考项目在开关回调里直接 enable/disable 本地代理并写回 setting，此处
-  /// 保持一致，避免「开关已开但副标题仍显示未运行」的割裂状态。
-  ///
-  /// 但**不再直接调 enable/disable**：本应用的 ECH 作用域是三套的并集（本板块、
-  /// 源级、应用级），关掉本板块这一套时若应用级还开着，引擎必须继续跑。所以统一
-  /// 走 [BangumiEchProxy.applyEchScope] 重算并集（全关时它会停掉引擎）。
-  Future<void> _toggleEchProxy(bool enabled) async {
-    setState(() => _echEnabled = enabled);
-    await BangumiProxyConfig(
-      mode: _proxyMode,
+  Future<void> _persistConfig(BangumiProxyMode mode) {
+    return BangumiProxyConfig(
+      mode: mode,
       mainSite: _mainSiteController.text.trim(),
       api: _apiController.text.trim(),
       image: _imageController.text.trim(),
-      echEnabled: enabled,
     ).save();
-    await BangumiEchProxy.instance.applyEchScope();
-    // 刷新副标题：显示真实运行状态与端口。
+  }
+
+  /// 切换连接模式：直连 / 镜像 / ECH 三选一（对齐参考项目 `setProxyMode`）。
+  ///
+  /// 与镜像域名不同，模式本身**即时生效并持久化**：
+  /// - 切到 ECH：先持久化模式，再走 [BangumiEchProxy.applyEchScope] 按三套并集
+  ///   重算（启动引擎或热更新作用域）。引擎没能跑起来（平台未打包原生引擎 /
+  ///   启动失败）则回退到原模式并提示——避免「显示 ECH 实际直连」的割裂状态；
+  /// - 离开 ECH：同样重算并集——应用级 / 源级 ECH 还开着时引擎继续跑，
+  ///   三套全关则由 applyEchScope 停掉引擎。
+  Future<void> _switchProxyMode(BangumiProxyMode mode) async {
+    if (mode == _proxyMode) return;
+    final l10n = AppLocalizations.of(context);
+    final previous = _proxyMode;
+    setState(() => _proxyMode = mode);
+    await _persistConfig(mode);
+
+    if (mode == BangumiProxyMode.ech || previous == BangumiProxyMode.ech) {
+      await BangumiEchProxy.instance.applyEchScope();
+    }
+
+    if (mode == BangumiProxyMode.ech &&
+        !BangumiEchProxy.instance.isEchProxyRunning() &&
+        mounted) {
+      // 启动失败 → 回退原模式（重算作用域，清掉刚才并进去的 bangumi 域）。
+      setState(() => _proxyMode = previous);
+      await _persistConfig(previous);
+      await BangumiEchProxy.instance.applyEchScope();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.bangumiEchUnavailable)),
+      );
+      return;
+    }
+
+    // 刷新 ECH 状态行（运行中（端口 x）/ 未运行）。
     if (mounted) setState(() {});
   }
 
@@ -244,6 +258,7 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
           const SizedBox(height: AppTokens.spaceMd),
           Text(l10n.bangumiProxyTitle, style: theme.textTheme.titleMedium),
           const SizedBox(height: AppTokens.spaceMd),
+          // ── 连接模式：直连 / 镜像 / ECH 三选一（对齐参考项目 ProxyMode）──
           SegmentedButton<BangumiProxyMode>(
             segments: <ButtonSegment<BangumiProxyMode>>[
               ButtonSegment<BangumiProxyMode>(
@@ -256,9 +271,14 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
                 label: Text(l10n.bangumiProxyMirror),
                 icon: const Icon(Icons.dns_rounded),
               ),
+              ButtonSegment<BangumiProxyMode>(
+                value: BangumiProxyMode.ech,
+                label: Text(l10n.bangumiProxyEch),
+                icon: const Icon(Icons.enhanced_encryption_rounded),
+              ),
             ],
             selected: <BangumiProxyMode>{_proxyMode},
-            onSelectionChanged: (s) => setState(() => _proxyMode = s.first),
+            onSelectionChanged: (s) => _switchProxyMode(s.first),
           ),
           if (_proxyMode == BangumiProxyMode.mirror) ...<Widget>[
             const SizedBox(height: AppTokens.spaceMd),
@@ -293,34 +313,36 @@ class _SettingsBangumiScreenState extends State<SettingsBangumiScreen> {
                 prefixIcon: const Icon(Icons.image_rounded),
               ),
             ),
-          ],
-          const SizedBox(height: AppTokens.spaceMd),
-          FilledButton.icon(
-            onPressed: () => _saveProxy(l10n),
-            icon: const Icon(Icons.save_rounded),
-            label: Text(l10n.save),
-          ),
-          // ───── ECH 本地代理开关 ─────
-          const SizedBox(height: AppTokens.spaceXl),
-          const Divider(),
-          const SizedBox(height: AppTokens.spaceMd),
-          Text(l10n.bangumiEchProxyTitle,
-              style: theme.textTheme.titleMedium),
-          const SizedBox(height: AppTokens.spaceSm),
-          Text(l10n.bangumiEchProxyHint, style: theme.textTheme.bodySmall),
-          const SizedBox(height: AppTokens.spaceMd),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(l10n.bangumiEchProxyEnable),
-            subtitle: Text(
-              BangumiEchProxy.instance.isEchProxyRunning()
-                  ? l10n.bangumiEchProxyRunning(
-                      BangumiEchProxy.instance.getEchProxyPort())
-                  : l10n.bangumiEchProxyIdle,
+            const SizedBox(height: AppTokens.spaceMd),
+            FilledButton.icon(
+              onPressed: () => _saveProxy(l10n),
+              icon: const Icon(Icons.save_rounded),
+              label: Text(l10n.save),
             ),
-            value: _echEnabled,
-            onChanged: _toggleEchProxy,
-          ),
+          ],
+          if (_proxyMode == BangumiProxyMode.ech) ...<Widget>[
+            const SizedBox(height: AppTokens.spaceMd),
+            Text(l10n.bangumiEchProxyHint, style: theme.textTheme.bodySmall),
+            const SizedBox(height: AppTokens.spaceSm),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                BangumiEchProxy.instance.isEchProxyRunning()
+                    ? Icons.check_circle_rounded
+                    : Icons.error_outline_rounded,
+                color: BangumiEchProxy.instance.isEchProxyRunning()
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.error,
+              ),
+              title: Text(l10n.bangumiEchStatus),
+              subtitle: Text(
+                BangumiEchProxy.instance.isEchProxyRunning()
+                    ? l10n.bangumiEchProxyRunning(
+                        BangumiEchProxy.instance.getEchProxyPort())
+                    : l10n.bangumiEchProxyIdle,
+              ),
+            ),
+          ],
           // ───── 浏览 Bangumi 收藏（登录后可用）─────
           if (auth.isLoggedIn) ...<Widget>[
             const SizedBox(height: AppTokens.spaceXl),

@@ -1,10 +1,45 @@
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream, ToSocketAddrs, UdpSocket};
-use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
+
+// ======================= 跨平台: 裸句柄获取/关闭 =======================
+// relay 循环里 backend 被 ManuallyDrop 包裹（异常路径跳过 OpenSSL drop 防 SIGSEGV），
+// 异常结束时要手动关闭底层 TCP。裸句柄与关闭 API 两平台不同：
+// unix = i32 fd + close(2)；windows = SOCKET(usize) + closesocket(ws2_32)。
+// 统一转成 i64 传递（fd/sign 扩展、socket/零扩展均无损），关闭函数按平台各给一份。
+#[cfg(unix)]
+use std::os::unix::io::AsRawFd as RawHandle;
+#[cfg(windows)]
+use std::os::windows::io::AsRawSocket as RawHandle;
+
+#[inline]
+fn tcp_raw_handle(stream: &TcpStream) -> i64 {
+    #[cfg(unix)]
+    let h = stream.as_raw_fd() as i64;
+    #[cfg(windows)]
+    let h = stream.as_raw_socket() as i64;
+    h
+}
+
+#[cfg(unix)]
+#[inline]
+unsafe fn close_raw_handle(handle: i64) {
+    unsafe { libc::close(handle as i32) };
+}
+
+#[cfg(windows)]
+#[inline]
+unsafe fn close_raw_handle(handle: i64) {
+    // std 已为 TcpStream 链接 ws2_32，无需额外的构建脚本声明。
+    #[link(name = "ws2_32")]
+    extern "system" {
+        fn closesocket(s: usize) -> i32;
+    }
+    unsafe { closesocket(handle as usize) };
+}
 
 use foreign_types_shared::ForeignType;
 #[cfg(has_ech)]
@@ -190,6 +225,38 @@ fn set_scope(targets: Vec<String>, allow_any: bool, ecl: Option<Vec<u8>>, verbos
 fn scope_snapshot() -> (Vec<String>, bool) {
     let s = scope().lock();
     (s.targets.clone(), s.allow_any)
+}
+
+/// 解析上层下发的原始作用域参数并调用 [set_scope]（JNI 与 C API 共用）。
+///
+/// - `raw_targets`: 英文逗号分隔的域名，允许 `*.` 前缀（会被剥掉），统一小写；
+/// - `raw_ecl`: 标准 base64 的 ECHConfigList；空串 = 走 GREASE 探测，非法 base64 忽略本次；
+/// - `allow_any` / `verbose`: 语义同 [set_scope]。
+fn set_scope_from_raw(raw_targets: &str, raw_ecl: &str, allow_any: bool, verbose: bool) {
+    let targets: Vec<String> = raw_targets
+        .split(',')
+        .map(|s| s.trim().trim_start_matches("*.").to_ascii_lowercase())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let ecl = {
+        use base64::Engine as _;
+        let t = raw_ecl.trim();
+        if t.is_empty() {
+            None
+        } else {
+            match base64::engine::general_purpose::STANDARD.decode(t) {
+                Ok(v) if !v.is_empty() => Some(v),
+                Ok(_) => None,
+                Err(e) => {
+                    log_e!("set_scope: ECHConfigList 不是合法 base64, 本次忽略: {e}");
+                    None
+                }
+            }
+        }
+    };
+
+    set_scope(targets, allow_any, ecl, verbose);
 }
 
 /// 某个 host 是否在本次接管范围内
@@ -1251,7 +1318,7 @@ fn handle_mitm(client: &mut TcpStream, host: &str, cache: &Arc<EchCache>, ca: &M
     log_d!("handle_mitm: starting data relay for {}", host);
     client.set_nonblocking(true).ok();
     backend.get_ref().set_nonblocking(true).ok();
-    let tcp_fd = backend.get_ref().as_raw_fd();
+    let tcp_raw = tcp_raw_handle(backend.get_ref());
     let mut backend = std::mem::ManuallyDrop::new(backend);
     let mut bs = rustls::Stream::new(&mut browser_tls, &mut *client);
     let relay_start = Instant::now();
@@ -1330,7 +1397,7 @@ fn handle_mitm(client: &mut TcpStream, host: &str, cache: &Arc<EchCache>, ca: &M
     // 后端连接出错时, 跳过 OpenSSL drop (SSL_free/SSL_shutdown 会访问已损坏的状态导致 SIGSEGV)
     // 直接关闭底层 TCP socket 释放 fd
     if backend_error {
-        unsafe { libc::close(tcp_fd); }
+        unsafe { close_raw_handle(tcp_raw); }
         // ManuallyDrop 不会调用 SSL_free, 避免 crash
     } else {
         // 正常结束: 必须真正释放 backend (SSL_free + 关闭 fd)
@@ -1439,7 +1506,7 @@ fn handle_client(mut client: TcpStream, cache: Arc<EchCache>, ca: Arc<MitmCa>) {
         let _ = backend.flush();
         client.set_nonblocking(true).ok();
         backend.get_ref().set_nonblocking(true).ok();
-        let tcp_fd = backend.get_ref().as_raw_fd();
+        let tcp_raw = tcp_raw_handle(backend.get_ref());
         let mut backend = std::mem::ManuallyDrop::new(backend);
         let mut backend_error = false;
         loop {
@@ -1466,7 +1533,7 @@ fn handle_client(mut client: TcpStream, cache: Arc<EchCache>, ca: Arc<MitmCa>) {
         }
         if backend_error {
             // 异常路径: 跳过 SSL_free, 仅关闭底层 fd
-            unsafe { libc::close(tcp_fd); }
+            unsafe { close_raw_handle(tcp_raw); }
         } else {
             // 正常路径: 真正释放, 避免 fd 与 SSL 缓冲泄漏
             unsafe { std::mem::ManuallyDrop::drop(&mut backend); }
@@ -1695,7 +1762,11 @@ fn is_proxy_alive() -> bool {
 }
 
 // ============================= JNI ==========================================
+//
+// 仅 Android 目标编译：jni crate 及其符号只在 target_os = "android" 下存在。
+// 桌面端 (Windows/Linux/macOS) 走文件末尾的 C API (`ech_*`)，经 dart:ffi 调用。
 
+#[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 pub mod android {
     use super::*;
@@ -1788,31 +1859,118 @@ pub mod android {
                 .get_string(&ech_config_list_b64)
                 .map(|s| s.into())
                 .unwrap_or_default();
-
-            let targets: Vec<String> = raw_targets
-                .split(',')
-                .map(|s| s.trim().trim_start_matches("*.").to_ascii_lowercase())
-                .filter(|s| !s.is_empty())
-                .collect();
-
-            let ecl = {
-                use base64::Engine as _;
-                let t = raw_ecl.trim();
-                if t.is_empty() {
-                    None
-                } else {
-                    match base64::engine::general_purpose::STANDARD.decode(t) {
-                        Ok(v) if !v.is_empty() => Some(v),
-                        Ok(_) => None,
-                        Err(e) => {
-                            log_e!("setScope: ECHConfigList 不是合法 base64, 本次忽略: {e}");
-                            None
-                        }
-                    }
-                }
-            };
-
-            set_scope(targets, allow_any != 0, ecl, verbose_log != 0);
+            set_scope_from_raw(&raw_targets, &raw_ecl, allow_any != 0, verbose_log != 0);
         }));
+    }
+}
+
+// ============================= C API (桌面端 FFI) ============================
+//
+// 供 Flutter 桌面 (Windows/Linux/macOS) 经 dart:ffi 调用的纯 C ABI 导出，
+// 语义与 android 模块的 JNI 入口一一对应 (startProxy/stopProxy/isAlive/setScope)。
+// 两端都会编译本模块，互不影响；Android 侧 Dart 仍走 MethodChannel→JNI。
+
+/// 启动本地 ECH 代理，返回实际监听端口（`port <= 0` 由 native 分配随机端口；失败返回 0）。
+///
+/// # Safety
+/// `dns` / `ca_dir` / `cache_dir` 必须是合法的 NUL 结尾 UTF-8 C 字符串（可为 NULL，按空串处理）。
+#[no_mangle]
+pub unsafe extern "C" fn ech_start_proxy(
+    port: i32,
+    dns: *const std::os::raw::c_char,
+    ca_dir: *const std::os::raw::c_char,
+    cache_dir: *const std::os::raw::c_char,
+) -> i32 {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+        let dns = cstr_or_empty(dns);
+        let ca_dir = cstr_or_empty(ca_dir);
+        let cache_dir = cstr_or_empty(cache_dir);
+        start_server(port.max(0) as u16, &dns, &ca_dir, &cache_dir) as i32
+    }));
+    match result {
+        Ok(p) => p,
+        Err(e) => {
+            log_e!("ech_start_proxy panicked: {e:?}");
+            0
+        }
+    }
+}
+
+/// 停止本地 ECH 代理（幂等）。
+///
+/// # Safety
+/// 无入参约束；可在任何线程调用。
+#[no_mangle]
+pub unsafe extern "C" fn ech_stop_proxy() {
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(stop_server));
+}
+
+/// listener 线程是否真实存活（1 = 存活，0 = 不在运行或已死）。
+#[no_mangle]
+pub extern "C" fn ech_is_alive() -> i32 {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(is_proxy_alive));
+    match result {
+        Ok(alive) => i32::from(alive),
+        Err(_) => 0,
+    }
+}
+
+/// 下发运行期 ECH 作用域（可在 [ech_start_proxy] 之前或运行中调用，语义同 JNI `setScope`）。
+///
+/// # Safety
+/// `targets_csv` / `ech_config_list_b64` 必须是合法的 NUL 结尾 UTF-8 C 字符串（可为 NULL）。
+#[no_mangle]
+pub unsafe extern "C" fn ech_set_scope(
+    targets_csv: *const std::os::raw::c_char,
+    ech_config_list_b64: *const std::os::raw::c_char,
+    allow_any: i32,
+    verbose_log: i32,
+) {
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+        let raw_targets = cstr_or_empty(targets_csv);
+        let raw_ecl = cstr_or_empty(ech_config_list_b64);
+        set_scope_from_raw(&raw_targets, &raw_ecl, allow_any != 0, verbose_log != 0);
+    }));
+}
+
+/// 读取自签 MITM CA 的 PEM（未生成前为空串）。返回值可用 [ech_free_cstring] 释放，
+/// 也可只读不释放（静态空串分支不可释放）。
+///
+/// # Safety
+/// 返回的指针在进程生命周期内有效（静态空串）或到 [ech_free_cstring] 为止（动态拷贝）；
+/// 调用方不得写入。
+#[no_mangle]
+pub extern "C" fn ech_get_ca_pem() -> *const std::os::raw::c_char {
+    match CA_PEM.get() {
+        Some(pem) => match std::ffi::CString::new(pem.as_str()) {
+            // CA pem 内部不会含 NUL；一旦含（理论不可能）返回静态空串，绝不悬垂。
+            Ok(c) => c.into_raw(),
+            Err(_) => EMPTY_CSTR.as_ptr() as *const std::os::raw::c_char,
+        },
+        None => EMPTY_CSTR.as_ptr() as *const std::os::raw::c_char,
+    }
+}
+
+/// 释放 [ech_get_ca_pem] 返回的字符串（配对使用；静态空串指针自动跳过）。
+///
+/// # Safety
+/// `p` 必须来自 [ech_get_ca_pem] 且只释放一次。
+#[no_mangle]
+pub unsafe extern "C" fn ech_free_cstring(p: *mut std::os::raw::c_char) {
+    if !p.is_null() && !std::ptr::eq(p, EMPTY_CSTR.as_ptr() as *const std::os::raw::c_char) {
+        unsafe { drop(std::ffi::CString::from_raw(p)) };
+    }
+}
+
+/// 合法空 C 字符串（NUL 结尾），进程级静态，替代 const 构造 CString 的不可行方案。
+static EMPTY_CSTR: &[u8] = b"\0";
+
+/// # Safety
+/// `p` 必须为合法 NUL 结尾字符串指针（可为 NULL）。
+unsafe fn cstr_or_empty(p: *const std::os::raw::c_char) -> String {
+    if p.is_null() {
+        String::new()
+    } else {
+        unsafe { std::ffi::CStr::from_ptr(p).to_string_lossy().into_owned() }
     }
 }

@@ -60,6 +60,8 @@ dependencies:
   pdfx: 2.9.2
   # 下载基路径（平台文档目录）
   path_provider: ^2.1.3
+  # ECH 本地代理桌面后端：dart:ffi 绑定 Rust C API（echproxy.dll）的字符串桥接
+  ffi: ^2.1.0
   # 在系统浏览器中打开 URL（验证流程 / 外部链接）
   url_launcher: ^6.3.0
   # 应用包信息（关于页读取版本号 / 构建号）

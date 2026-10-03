@@ -56,6 +56,18 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+# Bundle the native ECH proxy engine (built by android/rust/build-windows.sh) so
+# that dart:ffi's DynamicLibrary.open("echproxy.dll") resolves it next to the exe.
+set(ECHPROXY_DLL "${CMAKE_CURRENT_SOURCE_DIR}/../android/rust/target/x86_64-pc-windows-msvc/release/echproxy.dll")
+if(EXISTS "${ECHPROXY_DLL}")
+  add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${ECHPROXY_DLL}" "$<TARGET_FILE_DIR:${BINARY_NAME}>"
+    COMMENT "Bundling echproxy.dll (native ECH proxy engine)")
+  install(FILES "${ECHPROXY_DLL}" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime OPTIONAL)
+endif()
+
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.

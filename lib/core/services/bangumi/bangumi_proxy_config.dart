@@ -10,6 +10,9 @@
 ///
 /// 「直连」模式（[BangumiProxyMode.direct]）下全部走官方默认域名。
 ///
+/// 「ECH」模式（[BangumiProxyMode.ech]）同样全部走官方默认域名（不改写 URL），
+/// 但请求经本地 ECH 代理透明接管（见 [BangumiProxyMode.ech] 说明）。
+///
 /// 该配置为全局单例（[instance]），由 [load] 在启动期从本地存储载入，
 /// 随后 [BangumiClient] 在每次请求时实时读取，无需重建客户端即可生效。
 library;
@@ -18,13 +21,27 @@ import 'dart:convert';
 
 import 'package:nexhub/core/comic/models/reader_preferences.dart';
 
-/// 代理模式：直连 / 镜像反代。
+/// 代理模式：直连 / 镜像反代 / ECH 本地代理（三选一，与参考项目 `ProxyMode` 对齐）。
+///
+/// 对应参考 Bangumi-master `useProxyMode.ts` 的
+/// `type ProxyMode = 'ech' | 'worker' | 'disabled'`：
+///
+/// - [direct]（直连）：所有请求直连官方域名；
+/// - [mirror]（镜像/反代）：走用户自建镜像，按需改写域名；
+/// - [ech]（ECH）：**直连官方域名 + 本地 ECH 代理透明接管**——不改写任何 URL，
+///   由本地代理在网络层隐藏 SNI（Encrypted Client Hello）。此模式若可用，
+///   就没必要再使用「镜像 / 反代」（参考项目原文），故三者互斥。
 enum BangumiProxyMode {
   /// 直连官方域名。
   direct,
 
   /// 走用户自建镜像 / 反向代理。
   mirror,
+
+  /// 直连官方域名 + 本地 ECH 代理透明接管。
+  ///
+  /// 原生代理不可用（平台不支持 / 未打包 libechproxy）时安全降级为 [direct]。
+  ech,
 }
 
 /// Bangumi 代理 / 镜像配置。
@@ -43,36 +60,39 @@ class BangumiProxyConfig {
   /// 图片域名：替换 `lain.bgm.tv`。
   final String image;
 
-  /// ECH 本地代理开关（对应参考 `setting.echProxyEnabled`，默认关）。
-  ///
-  /// 开启后，若该应用打包了原生 ECH 代理（`nexhub/ech_proxy`），则 **Bangumi
-  /// 作用域内**的域名请求走本地代理透明接管——作用域 = Bangumi 自有域
-  /// （bgm.tv / chii.in 及其子域）**加上**本配置在镜像模式下生效的三个基址
-  /// host（[apiBaseUrl] / [nextBaseUrl] / [oauthBaseUrl] / [imageBaseUrl]）。
-  /// 其他任何流量（含公共 DoH、第三方域）一律不受影响；非 Android 或原生
-  /// 未实现时安全降级（代理无法启用），不影响其他功能。
-  final bool echEnabled;
-
   const BangumiProxyConfig({
     this.mode = BangumiProxyMode.direct,
     this.mainSite = '',
     this.api = '',
     this.image = '',
-    this.echEnabled = false,
   });
+
+  /// 是否启用 ECH 本地代理（对应参考 `setting.echProxyEnabled`）。
+  ///
+  /// 三选一后**由 [mode] 派生**：ECH 就是连接模式本身，不再是独立开关。
+  /// 开启后，Bangumi 自有域（bgm.tv / chii.in 及其子域）的请求走本地 ECH
+  /// 代理透明接管；非 Android/桌面或原生未实现时安全降级（代理无法启用），
+  /// 请求退回直连官方域名，不影响其他功能。
+  bool get echEnabled => mode == BangumiProxyMode.ech;
 
   factory BangumiProxyConfig.fromJson(Map<String, dynamic> json) {
     final modeName = json['mode'] as String? ?? 'direct';
-    final mode = BangumiProxyMode.values.firstWhere(
+    var mode = BangumiProxyMode.values.firstWhere(
       (e) => e.name == modeName,
       orElse: () => BangumiProxyMode.direct,
     );
+    // 旧版迁移：v1 配置里 ECH 是独立开关（echEnabled 可与 direct/mirror 并存）。
+    // 三选一后 ECH 升格为模式本身：旧「开着 ECH」一律迁到 ech 模式
+    // （与参考项目一致——ECH 可用就无需镜像；镜像域名如仍需接管可走应用级 ECH）。
+    final legacyEch = (json['echEnabled'] as bool?) ?? false;
+    if (legacyEch && mode != BangumiProxyMode.ech) {
+      mode = BangumiProxyMode.ech;
+    }
     return BangumiProxyConfig(
       mode: mode,
       mainSite: (json['mainSite'] as String?) ?? '',
       api: (json['api'] as String?) ?? '',
       image: (json['image'] as String?) ?? '',
-      echEnabled: (json['echEnabled'] as bool?) ?? false,
     );
   }
 
@@ -81,6 +101,7 @@ class BangumiProxyConfig {
         'mainSite': mainSite,
         'api': api,
         'image': image,
+        // 继续写出旧字段，旧版本回滚安装时仍能恢复「ECH 开着」的状态。
         'echEnabled': echEnabled,
       };
 

@@ -7274,13 +7274,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bangumiCollectionStat => 'Collection Stats';
 
   @override
-  String get bangumiProxyTitle => 'Proxy / Mirror';
+  String get bangumiProxyTitle => 'Connection Mode';
 
   @override
   String get bangumiProxyDirect => 'Direct';
 
   @override
-  String get bangumiProxyMirror => 'Mirror / Reverse Proxy';
+  String get bangumiProxyMirror => 'Mirror';
+
+  @override
+  String get bangumiProxyEch => 'ECH';
 
   @override
   String get bangumiProxyMainSite => 'Main site domain';
@@ -7299,14 +7302,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bangumiProxySaved => 'Proxy settings saved';
 
   @override
-  String get bangumiEchProxyTitle => 'ECH Proxy';
-
-  @override
   String get bangumiEchProxyHint =>
-      'When enabled, only requests to Bangumi-related domains (including the domains you configured in mirror mode) are transparently routed through a local ECH (Encrypted Client Hello) proxy, hiding the SNI. All other traffic is unaffected. Requires a build that bundles the native ECH proxy; it falls back safely when unavailable.';
+      'Connects to the official domains, but requests to Bangumi-related domains are transparently routed through a local ECH (Encrypted Client Hello) proxy that hides the SNI. No configuration needed. If this mode works, there is no need to consider \"Mirror / Reverse Proxy\". Requires a build that bundles the native ECH engine; without it this mode cannot be enabled.';
 
   @override
-  String get bangumiEchProxyEnable => 'Enable ECH proxy';
+  String get bangumiEchStatus => 'ECH proxy status';
+
+  @override
+  String get bangumiEchUnavailable =>
+      'Failed to start the local ECH proxy. The native engine may not be bundled for this platform.';
 
   @override
   String bangumiEchProxyRunning(int port) {

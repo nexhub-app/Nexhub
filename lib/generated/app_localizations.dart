@@ -13721,7 +13721,7 @@ abstract class AppLocalizations {
   /// No description provided for @bangumiProxyTitle.
   ///
   /// In en, this message translates to:
-  /// **'Proxy / Mirror'**
+  /// **'Connection Mode'**
   String get bangumiProxyTitle;
 
   /// No description provided for @bangumiProxyDirect.
@@ -13733,8 +13733,14 @@ abstract class AppLocalizations {
   /// No description provided for @bangumiProxyMirror.
   ///
   /// In en, this message translates to:
-  /// **'Mirror / Reverse Proxy'**
+  /// **'Mirror'**
   String get bangumiProxyMirror;
+
+  /// No description provided for @bangumiProxyEch.
+  ///
+  /// In en, this message translates to:
+  /// **'ECH'**
+  String get bangumiProxyEch;
 
   /// No description provided for @bangumiProxyMainSite.
   ///
@@ -13766,23 +13772,23 @@ abstract class AppLocalizations {
   /// **'Proxy settings saved'**
   String get bangumiProxySaved;
 
-  /// No description provided for @bangumiEchProxyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'ECH Proxy'**
-  String get bangumiEchProxyTitle;
-
   /// No description provided for @bangumiEchProxyHint.
   ///
   /// In en, this message translates to:
-  /// **'When enabled, only requests to Bangumi-related domains (including the domains you configured in mirror mode) are transparently routed through a local ECH (Encrypted Client Hello) proxy, hiding the SNI. All other traffic is unaffected. Requires a build that bundles the native ECH proxy; it falls back safely when unavailable.'**
+  /// **'Connects to the official domains, but requests to Bangumi-related domains are transparently routed through a local ECH (Encrypted Client Hello) proxy that hides the SNI. No configuration needed. If this mode works, there is no need to consider \"Mirror / Reverse Proxy\". Requires a build that bundles the native ECH engine; without it this mode cannot be enabled.'**
   String get bangumiEchProxyHint;
 
-  /// No description provided for @bangumiEchProxyEnable.
+  /// No description provided for @bangumiEchStatus.
   ///
   /// In en, this message translates to:
-  /// **'Enable ECH proxy'**
-  String get bangumiEchProxyEnable;
+  /// **'ECH proxy status'**
+  String get bangumiEchStatus;
+
+  /// No description provided for @bangumiEchUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start the local ECH proxy. The native engine may not be bundled for this platform.'**
+  String get bangumiEchUnavailable;
 
   /// No description provided for @bangumiEchProxyRunning.
   ///

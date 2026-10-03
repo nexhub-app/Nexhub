@@ -7116,13 +7116,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bangumiCollectionStat => '收藏统计';
 
   @override
-  String get bangumiProxyTitle => '代理 / 镜像';
+  String get bangumiProxyTitle => '连接模式';
 
   @override
   String get bangumiProxyDirect => '直连';
 
   @override
-  String get bangumiProxyMirror => '镜像 / 反代';
+  String get bangumiProxyMirror => '镜像';
+
+  @override
+  String get bangumiProxyEch => 'ECH';
 
   @override
   String get bangumiProxyMainSite => '主站域名';
@@ -7140,14 +7143,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bangumiProxySaved => '代理设置已保存';
 
   @override
-  String get bangumiEchProxyTitle => 'ECH 代理';
-
-  @override
   String get bangumiEchProxyHint =>
-      '开启后，仅 Bangumi 相关域名（含你在镜像模式下配置的域名）的请求由本地 ECH（加密客户端问候）代理透明接管并隐藏 SNI，其他流量不受影响。需打包了原生 ECH 代理的版本；不可用时自动降级。';
+      '仍连接官方域名，但 Bangumi 相关域名的请求由本地 ECH（加密客户端问候）代理透明接管并隐藏 SNI，无需任何配置。此模式若可用就没必要再考虑「镜像 / 反代」。需打包了原生 ECH 引擎的版本；没有引擎时无法开启此模式。';
 
   @override
-  String get bangumiEchProxyEnable => '启用 ECH 代理';
+  String get bangumiEchStatus => 'ECH 代理状态';
+
+  @override
+  String get bangumiEchUnavailable => 'ECH 本地代理启动失败，当前平台可能未打包原生引擎。';
 
   @override
   String bangumiEchProxyRunning(int port) {
