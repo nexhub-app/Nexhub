@@ -150,4 +150,30 @@ void main() {
 
     expect(find.text('孤儿漫画D'), findsOneWidget);
   });
+
+  testWidgets('隐藏源的历史条目从书架隐藏，取消隐藏后恢复',
+      (WidgetTester tester) async {
+    final repo = _repo();
+    final history = HistoryManager();
+    await history.init();
+    await _seedHistory(history);
+
+    await tester.pumpWidget(_wrap(repo, history));
+    await tester.pumpAndSettle();
+    expect(find.text('普通漫画A'), findsOneWidget);
+
+    // 隐藏普通源 → 其历史条目即时从书架历史消失。
+    await repo.setHidden('manga_normal', true);
+    await tester.pumpAndSettle();
+    expect(find.text('普通漫画A'), findsNothing);
+    expect(find.text('本地漫画C'), findsOneWidget);
+
+    // 取消隐藏 → 条目自动恢复。
+    await repo.setHidden('manga_normal', false);
+    await tester.pumpAndSettle();
+    expect(find.text('普通漫画A'), findsOneWidget);
+
+    // 展示层过滤：持久化数据未被动过。
+    expect(history.findById('item_normal', sourceType: manga), isNotNull);
+  });
 }

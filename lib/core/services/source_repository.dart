@@ -49,7 +49,11 @@ class SourceRepository extends ChangeNotifier {
 
   /// 可选初始源列表（测试注入用）。
   SourceRepository([List<PluginConfig> initial = const <PluginConfig>[]])
-      : _imported = List<PluginConfig>.from(initial);
+      : _imported = List<PluginConfig>.from(initial) {
+    // 无痕判定反查钩子：ConfigLoader 按 sourceId 回退读取源配置自带的
+    // stealthMode（HistoryManager 等无 PluginConfig 的场景与之口径一致）。
+    ConfigLoader.instance.configResolver = getById;
+  }
 
   /// 测试注入内置源（避免测试依赖资源包与书源解析器）。
   @visibleForTesting

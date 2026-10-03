@@ -14342,6 +14342,24 @@ abstract class AppLocalizations {
   /// **'Don\'t record history or search for this source'**
   String get incognitoModeHint;
 
+  /// No description provided for @incognitoModeOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Incognito on'**
+  String get incognitoModeOn;
+
+  /// No description provided for @incognitoOnToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Incognito on: history and search won\'t be recorded for this source'**
+  String get incognitoOnToast;
+
+  /// No description provided for @incognitoOffToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Incognito off: history recording resumed for this source'**
+  String get incognitoOffToast;
+
   /// No description provided for @globalIncognito.
   ///
   /// In en, this message translates to:

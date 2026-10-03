@@ -7614,6 +7614,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Don\'t record history or search for this source';
 
   @override
+  String get incognitoModeOn => 'Incognito on';
+
+  @override
+  String get incognitoOnToast =>
+      'Incognito on: history and search won\'t be recorded for this source';
+
+  @override
+  String get incognitoOffToast =>
+      'Incognito off: history recording resumed for this source';
+
+  @override
   String get globalIncognito => 'Global incognito';
 
   @override

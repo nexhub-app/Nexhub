@@ -24,6 +24,7 @@ class UnifiedSourceTile extends StatelessWidget {
   final String networkOverrideTooltip; // 来自 l10n（「网络覆盖」）
   final String loginTooltip; // 来自 l10n（「源登录」）
   final String incognitoTooltip; // 来自 l10n（「无痕模式」）
+  final String incognitoOnLabel; // 来自 l10n（「已无痕」，菜单项开启态文字）
   final bool isIncognito; // 该源是否已开启无痕
   final SourceAgeRating? ageRating; // 年龄分级（null/未声明不显示）
   final bool showNotLoggedIn; // 源需登录但尚未登录（显示「未登录」徽章）
@@ -56,6 +57,7 @@ class UnifiedSourceTile extends StatelessWidget {
     this.networkOverrideTooltip = '',
     this.loginTooltip = '',
     this.incognitoTooltip = '',
+    this.incognitoOnLabel = '',
     this.isIncognito = false,
     this.ageRating,
     this.showNotLoggedIn = false,
@@ -222,8 +224,8 @@ class UnifiedSourceTile extends StatelessWidget {
         if (onIncognitoToggle != null)
           _menuItem(
               'incognito',
-              isIncognito ? Icons.privacy_tip_rounded : Icons.privacy_tip_rounded,
-              incognitoTooltip),
+              Icons.privacy_tip_rounded,
+              isIncognito ? incognitoOnLabel : incognitoTooltip),
         if (onEdit != null) _menuItem('edit', Icons.edit_rounded, editTooltip),
         if (onDelete != null)
           _menuItem('delete', Icons.delete_rounded, deleteTooltip),

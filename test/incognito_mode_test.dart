@@ -125,6 +125,45 @@ void main() {
       expect(ConfigLoader.instance.isIncognitoBySourceId(null), isFalse);
       expect(ConfigLoader.instance.isIncognitoBySourceId(''), isFalse);
     });
+
+    test('isIncognitoBySourceId：无覆盖时经 configResolver 回退 stealthMode',
+        () {
+      addTearDown(() => ConfigLoader.instance.configResolver = null);
+      const sourceId = 'inc_byid_resolver_src';
+      ConfigLoader.instance.configResolver = (id) => id == sourceId
+          ? PluginConfig(
+              id: sourceId,
+              name: 'Resolver',
+              type: SourceType.animeSource,
+              site: SiteConfig(domain: 'x.com', baseUrl: 'https://x.com'),
+              parser: ParserConfig(type: 'builtin'),
+              stealthMode: true,
+            )
+          : null;
+      // 无运行时覆盖：回退读取源配置自带的 stealthMode=true（与 isIncognito 同口径）。
+      expect(ConfigLoader.instance.isIncognitoBySourceId(sourceId), isTrue);
+      // 查不到的源：回退 false。
+      expect(
+        ConfigLoader.instance.isIncognitoBySourceId('inc_byid_missing_src'),
+        isFalse,
+      );
+    });
+
+    test('isIncognitoBySourceId：运行时覆盖优先于 configResolver 回退', () async {
+      addTearDown(() => ConfigLoader.instance.configResolver = null);
+      const sourceId = 'inc_byid_override_wins';
+      ConfigLoader.instance.configResolver = (id) => PluginConfig(
+            id: id,
+            name: 'Resolver',
+            type: SourceType.animeSource,
+            site: SiteConfig(domain: 'x.com', baseUrl: 'https://x.com'),
+            parser: ParserConfig(type: 'builtin'),
+            stealthMode: true,
+          );
+      // 配置 stealthMode=true，但运行时覆盖显式关闭 → 以覆盖为准。
+      await ConfigLoader.instance.setIncognito(sourceId, false);
+      expect(ConfigLoader.instance.isIncognitoBySourceId(sourceId), isFalse);
+    });
   });
 
   group('PluginConfig.stealthMode default', () {

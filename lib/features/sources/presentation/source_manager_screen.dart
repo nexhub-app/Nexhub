@@ -1009,9 +1009,21 @@ class _SourceManagerScreenState extends State<SourceManagerScreen> {
       moreMenuTooltip: l10n.moreActions,
       isIncognito: ConfigLoader.instance.isIncognito(s),
       incognitoTooltip: l10n.incognitoMode,
+      incognitoOnLabel: l10n.incognitoModeOn,
       onIncognitoToggle: (bool value) async {
         await ConfigLoader.instance.setIncognito(s.id, value);
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {});
+          // 明确回显切换结果：无痕开启/关闭后源行外观不变，仅靠菜单项
+          // 状态难以确认是否生效。
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(value
+                  ? l10n.incognitoOnToast
+                  : l10n.incognitoOffToast),
+            ),
+          );
+        }
       },
       onToggle: (bool value) =>
           context.read<SourceRepository>().setEnabled(s.id, value),

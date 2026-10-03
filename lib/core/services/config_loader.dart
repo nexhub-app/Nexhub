@@ -44,6 +44,13 @@ class ConfigLoader {
   /// 按源无痕内存缓存：sourceId → 是否无痕（运行时覆盖）。
   final Map<String, bool> _incognitoCache = {};
 
+  /// 按 sourceId 反查源配置的钩子（应用启动时由 [SourceRepository] 注入）。
+  ///
+  /// 供 [isIncognitoBySourceId] 在无运行时覆盖时回退读取源配置自带的
+  /// `stealthMode`，保证与 [isIncognito]（按 PluginConfig 判定）口径一致；
+  /// 未注入或查不到源时回退 false。
+  PluginConfig? Function(String sourceId)? configResolver;
+
   /// 全局请求隐身延迟开关（HttpFetcher 用）。默认 true，可被 [setStealthMode] 关闭。
   bool _globalStealthDelay = true;
 
@@ -124,12 +131,16 @@ class ConfigLoader {
 
   /// 仅按 [sourceId] 判断无痕（无 PluginConfig 时用，如 HistoryManager）。
   ///
-  /// 全局总开关开启时恒返回 true。否则有运行时覆盖则用之，否则返回 false。
+  /// 全局总开关开启时恒返回 true。否则有运行时覆盖则用之；无覆盖时经
+  /// [configResolver] 回退到该源配置自带的 `stealthMode`（与 [isIncognito]
+  /// 口径一致，避免源管理页显示无痕开启而历史仍写入）；查不到则返回 false。
   /// sourceId 为空时返回 false。
   bool isIncognitoBySourceId(String? sourceId) {
     if (_globalIncognito) return true;
     if (sourceId == null || sourceId.isEmpty) return false;
-    return _incognitoCache[sourceId] ?? false;
+    final override = _incognitoCache[sourceId];
+    if (override != null) return override;
+    return configResolver?.call(sourceId)?.stealthMode ?? false;
   }
 
   /// 设置某源的无痕覆盖并持久化到 Hive box `source_stealth`。

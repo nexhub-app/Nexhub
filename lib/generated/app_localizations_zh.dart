@@ -7451,6 +7451,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get incognitoModeHint => '开启后不记录该源的浏览历史与搜索记录';
 
   @override
+  String get incognitoModeOn => '已无痕';
+
+  @override
+  String get incognitoOnToast => '已开启无痕：该源不再记录浏览与搜索历史';
+
+  @override
+  String get incognitoOffToast => '已关闭无痕：该源恢复记录浏览历史';
+
+  @override
   String get globalIncognito => '全局无痕浏览';
 
   @override
